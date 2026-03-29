@@ -1,0 +1,40 @@
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// See the LICENCE file in the repository root for full licence text.
+
+using System.Collections.Generic;
+using System.Linq;
+using osu.Framework.Allocation;
+using osu.Framework.Graphics;
+using osu.Framework.Localisation;
+using osu.Game.Configuration;
+using osu.Game.Graphics.UserInterfaceV2;
+using osu.Game.Localisation;
+
+namespace osu.Game.Overlays.Settings.Sections.Audio
+{
+    public partial class OffsetSettings : SettingsSubsection
+    {
+        protected override LocalisableString Header => AudioSettingsStrings.OffsetHeader;
+
+        public override IEnumerable<LocalisableString> FilterTerms => base.FilterTerms.Concat(new LocalisableString[] { "universal", "uo", "timing", "delay", "latency", "wizard" });
+
+        [BackgroundDependencyLoader]
+        private void load(OsuConfigManager config)
+        {
+            Children = new Drawable[]
+            {
+                new AudioOffsetAdjustControl
+                {
+                    Current = config.GetBindable<double>(OsuSetting.AudioOffset),
+                    Margin = new MarginPadding { Bottom = 5 },
+                },
+                new SettingsItemV2(new FormCheckBox
+                {
+                    Caption = AudioSettingsStrings.AdjustBeatmapOffsetAutomatically,
+                    HintText = AudioSettingsStrings.AdjustBeatmapOffsetAutomaticallyTooltip,
+                    Current = config.GetBindable<bool>(OsuSetting.AutomaticallyAdjustBeatmapOffset),
+                })
+            };
+        }
+    }
+}
