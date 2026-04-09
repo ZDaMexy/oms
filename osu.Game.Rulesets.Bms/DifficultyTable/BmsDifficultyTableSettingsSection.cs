@@ -86,22 +86,22 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                             {
                                 new OsuSpriteText
                                 {
-                                    Text = "Difficulty tables",
+                                    Text = "难度表",
                                     Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
                                 },
                                 new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 14))
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
-                                    Text = "Import a local mirror directory, index.html, or header.json file. Bundled presets are claimed automatically when the imported table name matches.",
+                                    Text = "导入本地镜像目录、index.html、header.json，或直接粘贴在线难度表链接。当导入的表名与内置预置一致时，会自动认领对应预置来源。",
                                 },
                             }
                         }
                     },
                     new SettingsItemV2(pathTextBox = new FormTextBox
                     {
-                        Caption = "Local table path",
-                        PlaceholderText = "Directory, index.html, or header.json",
+                        Caption = "表来源路径或链接",
+                        PlaceholderText = "目录、index.html、header.json 或 https://...",
                         Current = importPath,
                     }),
                     new FillFlowContainer
@@ -113,9 +113,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         Spacing = new Vector2(10, 0),
                         Children = new Drawable[]
                         {
-                            browseButton = createActionButton("Browse folder", openDirectoryPicker, 150),
-                            importButton = createActionButton("Import path", startImport, 130),
-                            refreshAllButton = createActionButton("Refresh all", startRefreshAll, 130),
+                            browseButton = createActionButton("浏览文件夹", openDirectoryPicker, 150),
+                            importButton = createActionButton("导入路径", startImport, 130),
+                            refreshAllButton = createActionButton("全部刷新", startRefreshAll, 130),
                         }
                     },
                     new Container
@@ -230,13 +230,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         return;
 
                     visibleSources = Array.Empty<BmsDifficultyTableSourceInfo>();
-                    summaryText.Text = "Difficulty tables are unavailable.";
+                    summaryText.Text = "难度表功能当前不可用。";
                     sourcesContainer.Clear();
                     sourcesContainer.Add(new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 13))
                     {
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
-                        Text = $"Failed to load difficulty tables: {getErrorMessage(ex)}",
+                        Text = $"加载难度表失败：{getErrorMessage(ex)}",
                     });
                     updateActionStates();
                 });
@@ -277,13 +277,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         return;
 
                     visibleSources = Array.Empty<BmsDifficultyTableSourceInfo>();
-                    summaryText.Text = "Difficulty tables are unavailable.";
+                    summaryText.Text = "难度表功能当前不可用。";
                     sourcesContainer.Clear();
                     sourcesContainer.Add(new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 13))
                     {
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
-                        Text = $"Failed to read difficulty tables: {getErrorMessage(ex)}",
+                        Text = $"读取难度表失败：{getErrorMessage(ex)}",
                     });
                     updateActionStates();
                 });
@@ -293,8 +293,8 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private void applyVisibleSources(IReadOnlyList<BmsDifficultyTableSourceInfo> sources, int enabledSources, int enabledEntries)
         {
             summaryText.Text = sources.Count == 0
-                ? "No local difficulty tables imported yet."
-                : $"{enabledSources} enabled source{(enabledSources == 1 ? string.Empty : "s")}, {enabledEntries} loaded entr{(enabledEntries == 1 ? "y" : "ies")}.";
+                ? "尚未导入本地难度表。"
+                : $"已启用 {enabledSources} 个来源，已加载 {enabledEntries} 个条目。";
 
             sourcesContainer.Clear();
 
@@ -304,7 +304,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
-                    Text = "Imported sources will appear here once a local table mirror has been added.",
+                    Text = "添加本地难度表镜像或在线难度表链接后，这里会显示已导入的来源。",
                 });
 
                 return;
@@ -320,13 +320,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void showLoadingState()
         {
-            summaryText.Text = "Loading difficulty tables...";
+            summaryText.Text = "正在加载难度表...";
             sourcesContainer.Clear();
             sourcesContainer.Add(new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 13))
             {
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
-                Text = "Preparing the local difficulty table cache in the background...",
+                Text = "正在后台准备本地难度表缓存...",
             });
         }
 
@@ -374,7 +374,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 importPath.Value = string.Equals(path, source.LocalPath, StringComparison.OrdinalIgnoreCase) ? string.Empty : importPath.Value;
                 notificationOverlay?.Post(new ProgressCompletionNotification
                 {
-                    Text = $"Imported difficulty table '{source.DisplayName}'."
+                    Text = $"已导入难度表“{source.DisplayName}”。"
                 });
                 return;
             }
@@ -384,7 +384,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 Logger.Error(task.Exception, "Failed to import BMS difficulty table source.");
                 notificationOverlay?.Post(new SimpleErrorNotification
                 {
-                    Text = $"Failed to import difficulty table: {getErrorMessage(task.Exception)}"
+                    Text = $"导入难度表失败：{getErrorMessage(task.Exception)}"
                 });
             }
         }
@@ -406,7 +406,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             {
                 notificationOverlay?.Post(new ProgressCompletionNotification
                 {
-                    Text = "Refreshed local difficulty tables."
+                    Text = "已刷新本地难度表。"
                 });
                 return;
             }
@@ -416,7 +416,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 Logger.Error(task.Exception, "Failed to refresh all BMS difficulty table sources.");
                 notificationOverlay?.Post(new SimpleErrorNotification
                 {
-                    Text = $"Failed to refresh difficulty tables: {getErrorMessage(task.Exception)}"
+                    Text = $"刷新难度表失败：{getErrorMessage(task.Exception)}"
                 });
             }
         }
@@ -446,7 +446,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             {
                 notificationOverlay?.Post(new ProgressCompletionNotification
                 {
-                    Text = $"Refreshed difficulty table '{task.GetResultSafely().DisplayName}'."
+                    Text = $"已刷新难度表“{task.GetResultSafely().DisplayName}”。"
                 });
                 return;
             }
@@ -456,7 +456,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 Logger.Error(task.Exception, $"Failed to refresh BMS difficulty table source {source.ID}.");
                 notificationOverlay?.Post(new SimpleErrorNotification
                 {
-                    Text = $"Failed to refresh '{source.DisplayName}': {getErrorMessage(task.Exception)}"
+                    Text = $"刷新“{source.DisplayName}”失败：{getErrorMessage(task.Exception)}"
                 });
             }
         }
@@ -472,7 +472,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 return;
             }
 
-            dialogOverlay.Push(new ConfirmDialog($"Remove difficulty table source '{source.DisplayName}'?", () => remove(source)));
+            dialogOverlay.Push(new ConfirmDialog($"要移除难度表来源“{source.DisplayName}”吗？", () => remove(source)));
         }
 
         private void remove(BmsDifficultyTableSourceInfo source)
@@ -480,7 +480,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             tableManager.RemoveSource(source.ID);
             notificationOverlay?.Post(new ProgressCompletionNotification
             {
-                Text = $"Removed difficulty table source '{source.DisplayName}'."
+                Text = $"已移除难度表来源“{source.DisplayName}”。"
             });
         }
 
@@ -517,10 +517,10 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;
 
-                string sourceType = source.IsPreset ? "Preset" : "Custom";
-                string enabledState = source.Enabled ? "Enabled" : "Disabled";
-                string entryCount = source.Entries.Count == 1 ? "1 entry" : $"{source.Entries.Count} entries";
-                string refreshState = source.LastRefreshed?.ToLocalTime().ToString("g") ?? "Not refreshed yet";
+                string sourceType = source.IsPreset ? "预置" : "自定义";
+                string enabledState = source.Enabled ? "已启用" : "已禁用";
+                string entryCount = source.Entries.Count == 1 ? "1 个条目" : $"{source.Entries.Count} 个条目";
+                string refreshState = source.LastRefreshed?.ToLocalTime().ToString("g") ?? "尚未刷新";
 
                 InternalChild = new Container
                 {
@@ -551,13 +551,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                                 },
                                 new OsuSpriteText
                                 {
-                                    Text = $"{sourceType} source · {enabledState} · {entryCount} · Imported {source.ImportedAt.LocalDateTime:g}",
+                                    Text = $"{sourceType}来源 · {enabledState} · {entryCount} · 导入于 {source.ImportedAt.LocalDateTime:g}",
                                     Font = OsuFont.GetFont(size: 13),
                                     Colour = colourProvider.Content2,
                                 },
                                 new OsuSpriteText
                                 {
-                                    Text = $"Last refreshed: {refreshState}",
+                                    Text = $"上次刷新：{refreshState}",
                                     Font = OsuFont.GetFont(size: 13),
                                     Colour = colourProvider.Content2,
                                 },
@@ -565,7 +565,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
-                                    Text = source.LocalPath ?? "Bundled preset placeholder",
+                                    Text = source.LocalPath ?? "内置预置占位来源",
                                 },
                                 new FillFlowContainer
                                 {
@@ -589,7 +589,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             private Drawable[] buildButtons()
             {
-                toggleButton = createButton(source.Enabled ? "Disable" : "Enable", ToggleEnabled);
+                toggleButton = createButton(source.Enabled ? "禁用" : "启用", ToggleEnabled);
 
                 var buttons = new List<Drawable>
                 {
@@ -597,7 +597,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 };
 
                 if (Refresh != null)
-                    buttons.Add(refreshButton = createButton("Refresh", Refresh));
+                    buttons.Add(refreshButton = createButton("刷新", Refresh));
 
                 if (Remove != null)
                 {
@@ -607,7 +607,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         AutoSizeAxes = Axes.None,
                         Width = 110,
                         Height = 40,
-                        Text = "Remove",
+                        Text = "移除",
                         Action = Remove,
                     });
                 }

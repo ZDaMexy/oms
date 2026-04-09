@@ -7,6 +7,13 @@
 
 ## 2026-04-09
 
+### 1.17：Windows 默认 HID backend 切到 DirectInput
+
+- `oms.Input` 已新增 `Devices/OmsWindowsDirectInput`，并引入 `Vortice.DirectInput`；Windows 下的 `OmsHidDeviceHandler.CreateDefaultDeviceProvider()` 与 `OmsHidDeviceDiscovery` 现默认走 DirectInput 枚举/轮询路径，避免再次触发 `HidSharp.DeviceList.Local` 的 `RegisterClass failed` 进程级崩溃
+- `OmsHidDeviceCaptureSession` 与 `OmsHidDeviceHandler` 现会在目标设备缺席时主动重刷设备列表，不再依赖 provider 侧热插拔事件；DirectInput 标识符也会尽量保留 `hid:vid_xxxx&pid_xxxx` 形态，仅在无法提取 VID/PID 时退回 `dinput:instance_{guid}`
+- `HidSharp` 仍保留为 Windows 上的诊断后端，仅在显式设置 `OMS_ENABLE_HIDSHARP=1` 时才会被触发；非 Windows 路径继续沿用原有 `HidSharp` provider
+- `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~OmsHidDeviceHandlerTest"` **14/14** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore` **458/458** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
 ### 1.17：Windows HidSharp 后端默认改为诊断开关，启动与设置不再因 HID 初始化闪退
 
 - `OmsHidSharpRuntime` 现已集中接管 Windows HID backend gate；由于 `HidSharp.DeviceList.Local` 可能以 `RegisterClass failed` 在内部线程直接终止进程，Windows 构建默认不再触发 HidSharp，仅在显式设置 `OMS_ENABLE_HIDSHARP=1` 时才继续初始化该后端

@@ -15,8 +15,8 @@ namespace osu.Game.Skinning
         public static SkinInfo CreateInfo() => new SkinInfo
         {
             ID = Skinning.SkinInfo.OMS_SKIN,
-            Name = "OMS \"SimpleTou\" (preview)",
-            Creator = "OMS contributors",
+            Name = "OMS 默认皮肤",
+            Creator = "OMS 开发组",
             Protected = true,
             InstantiationInfo = typeof(OmsSkin).GetInvariantInstantiationInfo()
         };

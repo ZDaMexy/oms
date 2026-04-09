@@ -58,7 +58,7 @@ namespace osu.Game.Skinning
 
         public readonly Bindable<Skin> CurrentSkin = new Bindable<Skin>();
 
-        public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new Bindable<Live<SkinInfo>>(ArgonSkin.CreateInfo().ToLiveUnmanaged());
+        public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new Bindable<Live<SkinInfo>>(OmsSkin.CreateInfo().ToLiveUnmanaged());
 
         private readonly SkinImporter skinImporter;
 
@@ -75,7 +75,7 @@ namespace osu.Game.Skinning
         private static readonly Live<SkinInfo> random_skin_info = new SkinInfo
         {
             ID = SkinInfo.RANDOM_SKIN,
-            Name = "<Random Skin>",
+            Name = "<随机皮肤>",
         }.ToLiveUnmanaged();
 
         public override bool PauseImports
@@ -118,8 +118,17 @@ namespace osu.Game.Skinning
             {
                 foreach (var skin in defaultSkins)
                 {
-                    if (r.Find<SkinInfo>(skin.SkinInfo.ID) == null)
+                    var existing = r.Find<SkinInfo>(skin.SkinInfo.ID);
+
+                    if (existing == null)
                         r.Add(skin.SkinInfo.Value);
+                    else
+                    {
+                        existing.Name = skin.SkinInfo.Value.Name;
+                        existing.Creator = skin.SkinInfo.Value.Creator;
+                        existing.InstantiationInfo = skin.SkinInfo.Value.InstantiationInfo;
+                        existing.Protected = true;
+                    }
                 }
             });
 
@@ -128,7 +137,7 @@ namespace osu.Game.Skinning
                 CurrentSkin.Value = skin.NewValue.PerformRead(GetSkin);
             };
 
-            CurrentSkin.Value = argonSkin;
+            CurrentSkin.Value = DefaultOmsSkin;
             CurrentSkin.ValueChanged += skin =>
             {
                 if (!skin.NewValue.SkinInfo.Equals(CurrentSkinInfo.Value))
@@ -145,7 +154,7 @@ namespace osu.Game.Skinning
 
         /// <summary>
         /// Returns the dropdown ordering for use mainly by the skin selection UI.
-        /// Inserts the defaults first, then 'random skin', then custom ones.
+        /// Inserts the OMS built-in skin first, then user skins.
         /// Returns a list of <see cref="Live{SkinInfo}"/> items.
         /// </summary>
         public IList<Live<SkinInfo>> GetAllUsableSkins()
@@ -155,13 +164,6 @@ namespace osu.Game.Skinning
             Realm.Run(realm =>
             {
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.ARGON_SKIN).ToLive(Realm));
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.ARGON_PRO_SKIN).ToLive(Realm));
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.TRIANGLES_SKIN).ToLive(Realm));
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.CLASSIC_SKIN).ToLive(Realm));
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.RETRO_SKIN).ToLive(Realm));
-
-                skins.Add(random_skin_info);
 
                 var userSkins = realm.All<SkinInfo>()
                                      .Where(s => !s.DeletePending && !s.Protected)
@@ -192,12 +194,12 @@ namespace osu.Game.Skinning
 
                 // choose from only user skins, removing the current selection to ensure a new one is chosen.
                 var randomChoices = r.All<SkinInfo>()
-                                     .Where(s => !s.DeletePending && s.ID != currentSkinId)
+                                     .Where(s => !s.DeletePending && !s.Protected && s.ID != currentSkinId)
                                      .ToArray();
 
                 if (randomChoices.Length == 0)
                 {
-                    CurrentSkinInfo.Value = ArgonSkin.CreateInfo().ToLiveUnmanaged();
+                    CurrentSkinInfo.Value = DefaultOmsSkin.SkinInfo;
                     return;
                 }
 
@@ -342,15 +344,9 @@ namespace osu.Game.Skinning
             {
                 yield return CurrentSkin.Value;
 
-                // Skin manager provides default fallbacks.
-                // This handles cases where a user skin doesn't have the required resources for complete display of
-                // certain elements.
-
-                if (CurrentSkin.Value is LegacySkin && CurrentSkin.Value != DefaultClassicSkin)
-                    yield return DefaultClassicSkin;
-
-                if (CurrentSkin.Value != trianglesSkin)
-                    yield return trianglesSkin;
+                // OMS is the only built-in fallback surfaced by the product.
+                if (CurrentSkin.Value != DefaultOmsSkin)
+                    yield return DefaultOmsSkin;
             }
         }
 
@@ -429,7 +425,7 @@ namespace osu.Game.Skinning
                 Guid currentUserSkin = CurrentSkinInfo.Value.ID;
 
                 if (items.Any(s => s.ID == currentUserSkin))
-                    scheduler.Add(() => CurrentSkinInfo.Value = ArgonSkin.CreateInfo().ToLiveUnmanaged());
+                    scheduler.Add(() => CurrentSkinInfo.Value = DefaultOmsSkin.SkinInfo);
 
                 Delete(items.ToList(), silent);
             });
@@ -449,21 +445,14 @@ namespace osu.Game.Skinning
             Live<SkinInfo> skinInfo = null;
 
             if (Guid.TryParse(guidString, out var guid))
-                skinInfo = Query(s => s.ID == guid);
-
-            if (skinInfo == null)
             {
                 if (guid == SkinInfo.OMS_SKIN)
                     skinInfo = DefaultOmsSkin.SkinInfo;
-
-                if (guid == SkinInfo.CLASSIC_SKIN)
-                    skinInfo = DefaultClassicSkin.SkinInfo;
-
-                if (guid == SkinInfo.RETRO_SKIN)
-                    skinInfo = retroSkin.SkinInfo;
+                else
+                    skinInfo = Query(s => s.ID == guid && !s.Protected);
             }
 
-            CurrentSkinInfo.Value = skinInfo ?? trianglesSkin.SkinInfo;
+            CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
         }
     }
 }

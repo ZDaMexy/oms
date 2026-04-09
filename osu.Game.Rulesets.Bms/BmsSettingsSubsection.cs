@@ -57,108 +57,108 @@ namespace osu.Game.Rulesets.Bms
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Playfield Scale",
+                    Caption = @"游玩区域缩放",
                     Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldScale),
                     KeyboardStep = 0.05f,
                     LabelFormat = value => $@"{value:0.00}x",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Playfield Horizontal Offset",
+                    Caption = @"游玩区域水平偏移",
                     Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldHorizontalOffset),
                     KeyboardStep = 0.02f,
                     LabelFormat = value => $@"{value:+0%;-0%;0%}",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Playfield Width",
+                    Caption = @"游玩区域宽度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldWidth),
                     KeyboardStep = 0.02f,
-                    LabelFormat = value => value <= 0 ? @"Auto" : $@"{value:0%}",
+                    LabelFormat = value => value <= 0 ? @"自动" : $@"{value:0%}",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Playfield Height",
+                    Caption = @"游玩区域高度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldHeight),
                     KeyboardStep = 0.02f,
-                    LabelFormat = value => value <= 0 ? @"Auto" : $@"{value:0%}",
+                    LabelFormat = value => value <= 0 ? @"自动" : $@"{value:0%}",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Lane Width",
+                    Caption = @"轨道宽度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.LaneWidth),
                     KeyboardStep = 0.05f,
                     LabelFormat = value => $@"{value:0.00}x",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Scratch Lane Width Ratio",
+                    Caption = @"盘轨宽度比例",
                     Current = config.GetBindable<double>(BmsRulesetSetting.ScratchLaneWidthRatio),
                     KeyboardStep = 0.05f,
                     LabelFormat = value => $@"{value:0.00}x",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Lane Spacing",
+                    Caption = @"轨道间距",
                     Current = config.GetBindable<double>(BmsRulesetSetting.LaneSpacing),
                     KeyboardStep = 0.02f,
                     LabelFormat = value => $@"{value:0%}",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Scratch Lane Spacing",
+                    Caption = @"盘轨间距",
                     Current = config.GetBindable<double>(BmsRulesetSetting.ScratchLaneSpacing),
                     KeyboardStep = 0.02f,
                     LabelFormat = value => $@"{value:0%}",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Hit Target Height",
+                    Caption = @"判定区高度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetHeight),
                     KeyboardStep = 0.5f,
                     LabelFormat = value => $@"{value:0.0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Hit Target Bar Height",
+                    Caption = @"判定条高度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetBarHeight),
                     KeyboardStep = 0.5f,
                     LabelFormat = value => $@"{value:0.0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Hit Target Line Height",
+                    Caption = @"判定线高度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetLineHeight),
                     KeyboardStep = 0.5f,
                     LabelFormat = value => $@"{value:0.0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Hit Target Glow Radius",
+                    Caption = @"判定线发光半径",
                     Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetGlowRadius),
                     KeyboardStep = 0.5f,
                     LabelFormat = value => $@"{value:0.0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Hit Target Vertical Offset",
+                    Caption = @"判定线垂直偏移",
                     Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetVerticalOffset),
                     KeyboardStep = 4f,
                     LabelFormat = value => $@"{value:0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
-                    Caption = @"Bar Line Height",
+                    Caption = @"小节线高度",
                     Current = config.GetBindable<double>(BmsRulesetSetting.BarLineHeight),
                     KeyboardStep = 0.5f,
                     LabelFormat = value => $@"{value:0.0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<int>
                 {
-                    Caption = @"Keysound Channels",
+                    Caption = @"键音通道数",
                     Current = keysoundConcurrentChannels,
                     KeyboardStep = 1,
-                    LabelFormat = value => $@"{value} channels",
+                    LabelFormat = value => $@"{value} 通道",
                 }),
                 new BmsSupplementalBindingSettingsSection(ruleset),
                 new BmsDifficultyTableSettingsSection(),

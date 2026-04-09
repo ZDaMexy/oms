@@ -112,10 +112,65 @@ namespace oms.Input.Devices
 
         public static string FromHidDevice(HidDevice device)
             => ForVendorProduct(device.VendorID, device.ProductID, device.GetSerialNumber());
+
+        internal static string FromDirectInputDevice(int vendorId, int productId, string? interfacePath, Guid instanceGuid)
+        {
+            if (vendorId > 0 || productId > 0)
+                return ForVendorProduct(vendorId, productId, TryExtractSerialFromInterfacePath(interfacePath));
+
+            if (tryParseVendorProductFromInterfacePath(interfacePath, out int parsedVendorId, out int parsedProductId))
+                return ForVendorProduct(parsedVendorId, parsedProductId, TryExtractSerialFromInterfacePath(interfacePath));
+
+            if (instanceGuid != Guid.Empty)
+                return Normalize($"dinput:instance_{instanceGuid:N}");
+
+            return string.Empty;
+        }
+
+        internal static string? TryExtractSerialFromInterfacePath(string? interfacePath)
+        {
+            if (string.IsNullOrWhiteSpace(interfacePath))
+                return null;
+
+            string[] parts = interfacePath.Split('#', StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length < 3)
+                return null;
+
+            string candidate = parts[2].Trim();
+            int guidIndex = candidate.IndexOf('{');
+
+            if (guidIndex >= 0)
+                candidate = candidate[..guidIndex];
+
+            if (candidate.Length == 0 || candidate.Contains('&', StringComparison.Ordinal) || candidate.Contains('\\', StringComparison.Ordinal))
+                return null;
+
+            return candidate;
+        }
+
+        private static bool tryParseVendorProductFromInterfacePath(string? interfacePath, out int vendorId, out int productId)
+        {
+            vendorId = 0;
+            productId = 0;
+
+            if (string.IsNullOrWhiteSpace(interfacePath))
+                return false;
+
+            string normalizedPath = interfacePath.ToLowerInvariant();
+            int vendorIndex = normalizedPath.IndexOf("vid_", StringComparison.Ordinal);
+            int productIndex = normalizedPath.IndexOf("pid_", StringComparison.Ordinal);
+
+            if (vendorIndex < 0 || productIndex < 0 || vendorIndex + 8 > normalizedPath.Length || productIndex + 8 > normalizedPath.Length)
+                return false;
+
+            return int.TryParse(normalizedPath.AsSpan(vendorIndex + 4, 4), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out vendorId)
+                && int.TryParse(normalizedPath.AsSpan(productIndex + 4, 4), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out productId);
+        }
     }
 
     /// <summary>
-    /// Enumerates HidSharp devices, drains queued input reports, and forwards
+    /// Enumerates compatible HID devices, drains queued input reports, and forwards
     /// HID button and axis transitions into OMS action callbacks.
     /// </summary>
     public sealed class OmsHidDeviceHandler : IDisposable
@@ -135,9 +190,28 @@ namespace oms.Input.Devices
         public bool HasBoundDevices => boundDeviceIdentifiers.Count > 0;
 
         public static IOmsHidButtonDeviceProvider CreateDefaultDeviceProvider()
-            => CreateDefaultDeviceProvider(() => new HidSharpHidButtonDeviceProvider());
+            => CreateDefaultDeviceProvider(OperatingSystem.IsWindows(), () => new OmsWindowsDirectInputButtonDeviceProvider(), () => new HidSharpHidButtonDeviceProvider());
 
         internal static IOmsHidButtonDeviceProvider CreateDefaultDeviceProvider(Func<IOmsHidButtonDeviceProvider> providerFactory)
+            => CreateHidSharpDeviceProvider(providerFactory);
+
+        internal static IOmsHidButtonDeviceProvider CreateDefaultDeviceProvider(bool isWindows, Func<IOmsHidButtonDeviceProvider> windowsProviderFactory, Func<IOmsHidButtonDeviceProvider> hidSharpProviderFactory)
+            => isWindows ? CreateWindowsDeviceProvider(windowsProviderFactory) : CreateHidSharpDeviceProvider(hidSharpProviderFactory);
+
+        internal static IOmsHidButtonDeviceProvider CreateWindowsDeviceProvider(Func<IOmsHidButtonDeviceProvider> providerFactory)
+        {
+            try
+            {
+                return providerFactory();
+            }
+            catch (Exception e) when (OmsWindowsDirectInputRuntime.IsRecoverableFailure(e))
+            {
+                OmsWindowsDirectInputRuntime.LogRecoverableFailure(e);
+                return new UnavailableHidButtonDeviceProvider();
+            }
+        }
+
+        internal static IOmsHidButtonDeviceProvider CreateHidSharpDeviceProvider(Func<IOmsHidButtonDeviceProvider> providerFactory)
         {
             if (!OmsHidSharpRuntime.IsEnabled)
                 return new UnavailableHidButtonDeviceProvider();
@@ -180,7 +254,7 @@ namespace oms.Input.Devices
 
             try
             {
-                if (devicesDirty)
+                if (devicesDirty || shouldRefreshDevices())
                     refreshDevices();
 
                 foreach (var entry in devicesByIdentifier.ToArray())
@@ -196,6 +270,9 @@ namespace oms.Input.Devices
                 hidAxisInputHandler.FinishPolling();
             }
         }
+
+        private bool shouldRefreshDevices()
+            => devicesByIdentifier.Count < boundDeviceIdentifiers.Count;
 
         public void Dispose()
         {

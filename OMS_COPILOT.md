@@ -106,7 +106,7 @@ oms/
 │       ├── OmsKeyboardInputHandler.cs   # Keyboard combinations -> OmsAction
 │       ├── OmsHidButtonInputHandler.cs  # HID digital buttons -> OmsAction
 │       ├── OmsHidAxisInputHandler.cs    # HID axis delta -> OmsAction
-│       ├── OmsHidDeviceHandler.cs       # HidSharp device polling + auto-release
+│       ├── OmsHidDeviceHandler.cs       # HID provider polling + auto-release
 │       ├── OmsXInputButtonInputHandler.cs # Joystick/gamepad buttons -> OmsAction
 │       └── OmsMouseAxisInputHandler.cs  # Mouse movement delta -> scratch axis
 ├── oms.Server/                       # NEW — Private server API client
@@ -749,7 +749,7 @@ Inherit osu!mania's scroll speed system (user-configured multiplier). No separat
 
 All input hardware — keyboard, IIDX controller, arcade controller, gamepad — must map to the same abstract `OmsAction` enum. The game layer never reads hardware signals directly.
 
-Current implementation note: `osu.Game.Rulesets.Bms` is now partially wired to `oms.Input`. The current playable prototype still relies on a ruleset-local `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus`) as temporary scaffolding, but `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, the Windows Raw Input keyboard path, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, and the HidSharp-backed HID code path are all present. Because `HidSharp.DeviceList.Local` can terminate Windows builds with `RegisterClass failed`, OMS currently treats HidSharp as an opt-in diagnostic backend on Windows: default builds keep keyboard / Raw Input / XInput / MouseAxis active, show a warning in Settings, and only touch HidSharp when `OMS_ENABLE_HIDSHARP=1` is explicitly set. HID-trigger persistence/UI completion, stable Windows HID loading, and richer cross-device semantics are still future work. Treat the current bridge as temporary scaffolding, not the final input contract.
+Current implementation note: `osu.Game.Rulesets.Bms` is now partially wired to `oms.Input`. The current playable prototype still relies on a ruleset-local `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus`) as temporary scaffolding, but `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, the Windows Raw Input keyboard path, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, HID-trigger persistence/editor live capture, and the provider-backed HID code path are all present. Windows now uses a DirectInput-backed HID provider by default, while `HidSharp` remains available as a diagnostic backend behind `OMS_ENABLE_HIDSHARP=1` to avoid the historical `HidSharp.DeviceList.Local` `RegisterClass failed` crash path. Remaining input work is mainly richer cross-device semantics and real-hardware validation. Treat the current bridge as temporary scaffolding, not the final input contract.
 
 ```csharp
 public enum OmsAction
@@ -778,7 +778,7 @@ public enum OmsAction
 Consumes resolved lazer `KeyCombination` state and maps complete keyboard combinations to `OmsAction`. On Windows, raw keyboard events are additionally fed through `WindowsRawKeyboardSource -> IOmsKeyboardEventSource -> IOmsKeyboardEventSink -> BmsInputManager` so the gameplay path is not limited to framework-level key events.
 
 **`OmsHidDeviceHandler`:**  
-Current implementation uses a HidSharp-backed polling path for HID buttons and axes. On Windows, this backend is disabled by default because `DeviceList.Local` can crash the process with `RegisterClass failed`; the settings UI therefore warns that HID is currently disabled, and developers must explicitly opt in via `OMS_ENABLE_HIDSHARP=1` before OMS will touch HidSharp. Stable shipped Windows HID loading remains open work.
+Current implementation uses a provider-backed polling path for HID buttons and axes. Windows defaults to a DirectInput backend for enumeration/polling/capture, while `HidSharp` remains the non-Windows path and an opt-in Windows diagnostic backend behind `OMS_ENABLE_HIDSHARP=1`; this avoids the historical `DeviceList.Local` `RegisterClass failed` crash path while preserving a fallback for investigation. Remaining work is device coverage validation and richer cross-device semantics rather than the core Windows backend swap itself.
 
 **`OmsXInputButtonInputHandler`:**  
 For Xbox-compatible controllers / framework joystick buttons. Maps button indices to `OmsAction`, supports shared-action reference counting, and now participates in both default binding export and joystick-only persisted keybinding round-trips.
@@ -1463,8 +1463,8 @@ Follow osu!lazer's existing conventions throughout:
 | `ppy.osu-framework` | Core game loop, rendering, input base |
 | `ManagedBass` | Audio engine (keysound playback) |
 | `SharpCompress` | BMS archive extraction (zip/rar/7z) |
-| `HidSharp` | HID device enumeration and reading |
-| `SharpDX.DirectInput` | Alternative HID/gamepad input |
+| `HidSharp` | Non-Windows / diagnostic HID enumeration and reading |
+| `Vortice.DirectInput` | Windows default HID/gamepad enumeration and polling |
 | `Microsoft.EntityFrameworkCore.Sqlite` | Local score storage + table cache |
 | `Ude.NetStandard` | Charset detection (Shift-JIS / UTF-8) |
 

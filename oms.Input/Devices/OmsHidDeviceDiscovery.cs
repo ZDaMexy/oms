@@ -26,6 +26,9 @@ namespace oms.Input.Devices
     {
         public static IReadOnlyList<OmsHidDeviceInfo> GetConnectedDevices()
         {
+            if (OperatingSystem.IsWindows())
+                return OmsWindowsDirectInputDiscovery.GetConnectedDevices();
+
             if (!OmsHidSharpRuntime.TryGetDeviceList(out var deviceList))
                 return Array.Empty<OmsHidDeviceInfo>();
 

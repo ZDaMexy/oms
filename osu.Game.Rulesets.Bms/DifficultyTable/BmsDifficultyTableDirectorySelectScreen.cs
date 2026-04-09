@@ -28,7 +28,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         public override bool HideOverlaysOnEnter => true;
 
-        public override LocalisableString HeaderText => "Select a local BMS difficulty table directory";
+        public override LocalisableString HeaderText => "选择本地 BMS 难度表目录";
 
         public BmsDifficultyTableDirectorySelectScreen(Action<string> onSelection)
         {

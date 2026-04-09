@@ -15,5 +15,6 @@
     <PackageReference Include="HidSharp" Version="2.1.0">
       <Aliases>OmsHidSharp</Aliases>
     </PackageReference>
+    <PackageReference Include="Vortice.DirectInput" Version="3.8.3" />
   </ItemGroup>
 </Project>

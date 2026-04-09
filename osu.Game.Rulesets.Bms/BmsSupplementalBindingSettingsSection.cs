@@ -55,13 +55,20 @@ namespace osu.Game.Rulesets.Bms
 
         public IEnumerable<LocalisableString> FilterTerms => new LocalisableString[]
         {
+            "OMS 扩展绑定",
             "OMS supplemental bindings",
+            "扩展绑定",
             "supplemental",
+            "绑定",
             "trigger",
+            "触发器",
             "hid",
             "controller",
+            "控制器",
             "mouse",
+            "鼠标",
             "mouse axis",
+            "鼠标轴",
             "xinput",
         };
 
@@ -131,26 +138,26 @@ namespace osu.Game.Rulesets.Bms
                             {
                                 new OsuSpriteText
                                 {
-                                    Text = "OMS supplemental bindings",
+                                    Text = "OMS 扩展绑定",
                                     Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
                                 },
                                 new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 14))
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
-                                    Text = "Keyboard and XInput bindings stay in the standard input panel. Use this editor for HID buttons, HID axes, and mouse-axis triggers that cannot be stored in regular key bindings. Changes stay local until you press Apply supplemental bindings.",
+                                    Text = "键盘和 XInput 绑定仍在标准输入面板中维护。这个编辑器用于配置常规按键绑定无法保存的 HID 按钮、HID 轴以及鼠标轴触发器。改动会先保留在当前编辑状态，按下“应用扩展绑定”后才会写入当前变体。",
                                 },
                             }
                         }
                     },
                     new SettingsItemV2(new VariantDropdown(ruleset)
                     {
-                        Caption = "Variant",
+                        Caption = "变体",
                         Current = { BindTarget = selectedVariant },
                     })
                     {
                         ShowRevertToDefaultButton = false,
-                        Keywords = new[] { "variant", "5k", "7k", "9k", "14k", "bindings", "hid", "mouse" },
+                        Keywords = new[] { "变体", "variant", "5k", "7k", "9k", "14k", "绑定", "bindings", "hid", "mouse", "鼠标" },
                     },
                     new Container
                     {
@@ -165,10 +172,10 @@ namespace osu.Game.Rulesets.Bms
                             Spacing = new Vector2(10, 0),
                             Children = new Drawable[]
                             {
-                                createActionButton("Refresh HID devices", refreshDetectedDevices, 150),
-                                createActionButton("Reload current variant", reloadCurrentVariant, 150),
-                                createActionButton("Apply supplemental bindings", applyCurrentVariant, 190),
-                                createDangerousActionButton("Clear current variant", clearCurrentVariant, 150),
+                                createActionButton("刷新 HID 设备", refreshDetectedDevices, 150),
+                                createActionButton("重新载入当前变体", reloadCurrentVariant, 150),
+                                createActionButton("应用扩展绑定", applyCurrentVariant, 190),
+                                createDangerousActionButton("清空当前变体", clearCurrentVariant, 150),
                             }
                         }
                     },
@@ -189,29 +196,29 @@ namespace osu.Game.Rulesets.Bms
                         Current = { BindTarget = statusNote },
                     },
                     createBindingSection(
-                        "HID buttons",
-                        "Bind digital buttons from dedicated HID devices.",
-                        "Add HID button",
+                        "HID 按钮",
+                        "绑定专用 HID 设备的数字按钮。",
+                        "添加 HID 按钮",
                         addHidButtonRow,
                         out hidButtonRows,
                         out hidButtonEmptyState,
-                        "No HID button bindings configured."),
+                        "尚未配置 HID 按钮绑定。"),
                     createBindingSection(
-                        "HID axes",
-                        "Bind one direction of an HID axis. Axis direction and inversion are evaluated exactly as the gameplay input bridge uses them.",
-                        "Add HID axis",
+                        "HID 轴",
+                        "绑定 HID 轴的单一方向。方向与反转判定会与 gameplay 输入桥接保持一致。",
+                        "添加 HID 轴",
                         addHidAxisRow,
                         out hidAxisRows,
                         out hidAxisEmptyState,
-                        "No HID axis bindings configured."),
+                        "尚未配置 HID 轴绑定。"),
                     createBindingSection(
-                        "Mouse axes",
-                        "Bind mouse movement directions when you want movement itself to trigger an action.",
-                        "Add mouse axis",
+                        "鼠标轴",
+                        "当你希望用鼠标移动本身来触发动作时，可在这里绑定鼠标移动方向。",
+                        "添加鼠标轴",
                         addMouseAxisRow,
                         out mouseAxisRows,
                         out mouseAxisEmptyState,
-                        "No mouse-axis bindings configured."),
+                        "尚未配置鼠标轴绑定。"),
                 }
             };
         }
@@ -335,8 +342,8 @@ namespace osu.Game.Rulesets.Bms
         {
             int refreshSequence = Interlocked.Increment(ref hidDiscoverySequence);
 
-            updateDetectedDevicesSummary("Detected HID devices: scanning...");
-            statusNote.Value = new SettingsNote.Data("Scanning connected HID devices...", SettingsNote.Type.Informational);
+            updateDetectedDevicesSummary("检测到的 HID 设备：扫描中...");
+            statusNote.Value = new SettingsNote.Data("正在扫描已连接的 HID 设备...", SettingsNote.Type.Informational);
 
             try
             {
@@ -352,7 +359,7 @@ namespace osu.Game.Rulesets.Bms
 
                     if (connectedDevices.Count == 0)
                     {
-                        statusNote.Value = new SettingsNote.Data("No compatible HID devices are currently connected. You can still enter a device identifier manually.", SettingsNote.Type.Informational);
+                        statusNote.Value = new SettingsNote.Data("当前没有连接可用的 HID 设备。你仍然可以手动输入设备标识符。", SettingsNote.Type.Informational);
                         return;
                     }
 
@@ -369,8 +376,8 @@ namespace osu.Game.Rulesets.Bms
                         return;
 
                     connectedDevices = Array.Empty<OmsHidDeviceInfo>();
-                    updateDetectedDevicesSummary("Detected HID devices: unavailable. You can still enter a device identifier manually.");
-                    statusNote.Value = new SettingsNote.Data("Failed to enumerate HID devices. Manual identifier entry is still available.", SettingsNote.Type.Warning);
+                    updateDetectedDevicesSummary("检测到的 HID 设备：不可用。你仍然可以手动输入设备标识符。");
+                    statusNote.Value = new SettingsNote.Data("枚举 HID 设备失败，仍可手动输入设备标识符。", SettingsNote.Type.Warning);
                 });
             }
         }
@@ -387,9 +394,9 @@ namespace osu.Game.Rulesets.Bms
         private string buildDetectedDeviceSummary()
         {
             if (connectedDevices.Count == 0)
-                return "Detected HID devices: none. Use Refresh HID devices after connecting a controller, or type a device identifier manually.";
+                return "检测到的 HID 设备：无。连接控制器后请点击“刷新 HID 设备”，或手动输入设备标识符。";
 
-            return "Detected HID devices:\n" + string.Join("\n", connectedDevices.Select(device => $@"- {device.DisplayName}"));
+            return "检测到的 HID 设备：\n" + string.Join("\n", connectedDevices.Select(device => $@"- {device.DisplayName}"));
         }
 
         private void reloadCurrentVariant()
@@ -425,7 +432,7 @@ namespace osu.Game.Rulesets.Bms
         {
             OmsBmsBindingSettingsStorage.SaveSupplementalBindings(realm, selectedVariant.Value, Array.Empty<OmsBinding>());
             reloadCurrentVariant();
-            postInfo("Cleared supplemental bindings for the current BMS variant.");
+            postInfo("已清空当前 BMS 变体的扩展绑定。");
         }
 
         private void applyCurrentVariant()
@@ -453,7 +460,7 @@ namespace osu.Game.Rulesets.Bms
 
             OmsBmsBindingSettingsStorage.SaveSupplementalBindings(realm, selectedVariant.Value, bindings);
             reloadCurrentVariant();
-            postInfo("Saved supplemental bindings for the current BMS variant.");
+            postInfo("已保存当前 BMS 变体的扩展绑定。");
         }
 
         private void collectBindings(IEnumerable<SupplementalBindingRow> rows, Dictionary<OmsAction, List<OmsBindingTrigger>> triggersByAction, List<string> errors)
@@ -592,7 +599,7 @@ namespace osu.Game.Rulesets.Bms
             if (isActiveCaptureRow(row))
             {
                 stopActiveCapture();
-                statusNote.Value = new SettingsNote.Data("Cancelled live capture.", SettingsNote.Type.Informational);
+                statusNote.Value = new SettingsNote.Data("已取消实时捕获。", SettingsNote.Type.Informational);
                 return;
             }
 
@@ -614,14 +621,14 @@ namespace osu.Game.Rulesets.Bms
 
             if (!row.TryPrepareHidCapture(connectedDevices, out string deviceIdentifier, out string? validationError))
             {
-                postWarning(validationError ?? "Unable to start HID capture for this row.");
+                postWarning(validationError ?? "无法为这一行启动 HID 捕获。");
                 return;
             }
 
             stopActiveCapture();
             activeHidCapture = new ActiveHidCapture(row, new OmsHidDeviceCaptureSession(deviceIdentifier));
             row.SetCaptureState(true);
-            statusNote.Value = new SettingsNote.Data($@"Waiting for HID input from {deviceIdentifier}. Press or move the control you want to bind.", SettingsNote.Type.Informational);
+            statusNote.Value = new SettingsNote.Data($@"正在等待来自 {deviceIdentifier} 的 HID 输入。请按下或拨动你要绑定的控件。", SettingsNote.Type.Informational);
         }
 
         private void beginMouseCapture(SupplementalBindingRow row)
@@ -630,14 +637,14 @@ namespace osu.Game.Rulesets.Bms
 
             if (inputManager == null)
             {
-                postWarning("Mouse-axis capture is unavailable before the settings panel is attached to an input manager.");
+                postWarning("在设置面板挂接到输入管理器之前，鼠标轴捕获不可用。");
                 return;
             }
 
             stopActiveCapture();
             activeMouseCapture = new ActiveMouseCapture(row, inputManager.CurrentState.Mouse.Position);
             row.SetCaptureState(true);
-            statusNote.Value = new SettingsNote.Data("Waiting for mouse movement. Move the mouse in the direction you want to bind.", SettingsNote.Type.Informational);
+            statusNote.Value = new SettingsNote.Data("正在等待鼠标移动。请朝你要绑定的方向移动鼠标。", SettingsNote.Type.Informational);
         }
 
         private void pollActiveCapture()
@@ -657,7 +664,7 @@ namespace osu.Game.Rulesets.Bms
                     continue;
 
                 stopActiveCapture();
-                postInfo(successMessage ?? "Captured HID input.");
+                postInfo(successMessage ?? "已捕获 HID 输入。");
                 return;
             }
         }
@@ -678,7 +685,7 @@ namespace osu.Game.Rulesets.Bms
                 return;
 
             stopActiveCapture();
-            postInfo(successMessage ?? "Captured mouse-axis input.");
+            postInfo(successMessage ?? "已捕获鼠标轴输入。");
         }
 
         private void stopActiveCapture()
@@ -734,8 +741,8 @@ namespace osu.Game.Rulesets.Bms
             if (string.IsNullOrWhiteSpace(resolvedIdentifier))
             {
                 validationError = connectedDevices.Count == 0
-                    ? "Connect a HID device or enter a device identifier before starting capture."
-                    : "Enter a device identifier before starting capture, or leave it blank with exactly one connected HID device.";
+                    ? "开始捕获前，请先连接 HID 设备或输入设备标识符。"
+                    : "开始捕获前请输入设备标识符，或在仅连接一台 HID 设备时留空自动套用。";
                 return false;
             }
 
@@ -837,7 +844,7 @@ namespace osu.Game.Rulesets.Bms
                         AutoSizeAxes = Axes.None,
                         Width = 140,
                         Height = 36,
-                        Text = "Start capture",
+                        Text = "开始捕获",
                         Action = () => CaptureRequested?.Invoke(this),
                     });
                 }
@@ -848,7 +855,7 @@ namespace osu.Game.Rulesets.Bms
                     AutoSizeAxes = Axes.None,
                     Width = 120,
                     Height = 36,
-                    Text = "Remove",
+                    Text = "移除",
                     Action = () => RemoveRequested?.Invoke(),
                 });
 
@@ -879,7 +886,7 @@ namespace osu.Game.Rulesets.Bms
             protected SettingsItemV2 CreateActionSetting()
                 => CreateSetting(new BmsActionDropdown(availableActions)
                 {
-                    Caption = "Action",
+                    Caption = "动作",
                     Current = { BindTarget = SelectedAction },
                 });
 
@@ -888,7 +895,7 @@ namespace osu.Game.Rulesets.Bms
                 if (!OmsBmsActionMap.TryMapToOmsAction(variant, SelectedAction.Value, out action))
                 {
                     trigger = default;
-                    validationError = $@"{RowTitle}: action {SelectedAction.Value} is not available for the current variant.";
+                    validationError = $@"{RowTitle}：当前选中的动作不适用于当前变体。";
                     return false;
                 }
 
@@ -917,7 +924,7 @@ namespace osu.Game.Rulesets.Bms
             public void SetCaptureState(bool active)
             {
                 if (captureButton != null)
-                    captureButton.Text = active ? "Cancel capture" : "Start capture";
+                    captureButton.Text = active ? "取消捕获" : "开始捕获";
             }
 
             protected abstract bool TryCreateTrigger(out OmsBindingTrigger trigger, out string? validationError);
@@ -930,7 +937,7 @@ namespace osu.Game.Rulesets.Bms
 
             public override SupplementalBindingCaptureKind CaptureKind => SupplementalBindingCaptureKind.Hid;
 
-            protected override string RowTitle => "HID button binding";
+            protected override string RowTitle => "HID 按钮绑定";
 
             public HidButtonBindingRow(IReadOnlyList<BmsAction> availableActions, BmsAction initialAction)
                 : base(availableActions, initialAction)
@@ -949,15 +956,15 @@ namespace osu.Game.Rulesets.Bms
                 yield return CreateActionSetting();
                 yield return CreateSetting(new FormTextBox
                 {
-                    Caption = "Device identifier",
-                    HintText = "Use a detected HID identifier such as hid:vid_1209&pid_2301.",
+                    Caption = "设备标识符",
+                    HintText = "使用已检测到的 HID 标识符，例如 hid:vid_1209&pid_2301。",
                     PlaceholderText = "hid:vid_####&pid_####",
                     Current = { BindTarget = deviceIdentifier },
                 });
                 yield return CreateSetting(new FormNumberBox
                 {
-                    Caption = "Button index",
-                    HintText = "Zero-based HID button index.",
+                    Caption = "按钮索引",
+                    HintText = "从 0 开始的 HID 按钮索引。",
                     PlaceholderText = "0",
                     Current = { BindTarget = buttonIndex },
                 });
@@ -970,14 +977,14 @@ namespace osu.Game.Rulesets.Bms
                 if (string.IsNullOrWhiteSpace(identifier))
                 {
                     trigger = default;
-                    validationError = "HID button binding requires a device identifier.";
+                    validationError = "HID 按钮绑定必须填写设备标识符。";
                     return false;
                 }
 
                 if (!int.TryParse(buttonIndex.Value, out int parsedButtonIndex) || parsedButtonIndex < 0)
                 {
                     trigger = default;
-                    validationError = "HID button binding requires a non-negative button index.";
+                    validationError = "HID 按钮绑定必须填写不小于 0 的按钮索引。";
                     return false;
                 }
 
@@ -999,7 +1006,7 @@ namespace osu.Game.Rulesets.Bms
 
                 deviceIdentifier.Value = change.ButtonChange.DeviceIdentifier;
                 buttonIndex.Value = change.ButtonChange.ButtonIndex.ToString();
-                successMessage = $@"Captured HID button {change.ButtonChange.ButtonIndex} from {change.ButtonChange.DeviceIdentifier}.";
+                successMessage = $@"已捕获来自 {change.ButtonChange.DeviceIdentifier} 的 HID 按钮 {change.ButtonChange.ButtonIndex}。";
                 return true;
             }
         }
@@ -1013,7 +1020,7 @@ namespace osu.Game.Rulesets.Bms
 
             public override SupplementalBindingCaptureKind CaptureKind => SupplementalBindingCaptureKind.Hid;
 
-            protected override string RowTitle => "HID axis binding";
+            protected override string RowTitle => "HID 轴绑定";
 
             public HidAxisBindingRow(IReadOnlyList<BmsAction> availableActions, BmsAction initialAction)
                 : base(availableActions, initialAction)
@@ -1034,27 +1041,27 @@ namespace osu.Game.Rulesets.Bms
                 yield return CreateActionSetting();
                 yield return CreateSetting(new FormTextBox
                 {
-                    Caption = "Device identifier",
-                    HintText = "Use a detected HID identifier such as hid:vid_1209&pid_2301.",
+                    Caption = "设备标识符",
+                    HintText = "使用已检测到的 HID 标识符，例如 hid:vid_1209&pid_2301。",
                     PlaceholderText = "hid:vid_####&pid_####",
                     Current = { BindTarget = deviceIdentifier },
                 });
                 yield return CreateSetting(new FormNumberBox
                 {
-                    Caption = "Axis index",
-                    HintText = "Zero-based axis index as reported by the HID parser.",
+                    Caption = "轴索引",
+                    HintText = "HID 解析器报告的从 0 开始轴索引。",
                     PlaceholderText = "0",
                     Current = { BindTarget = axisIndex },
                 });
                 yield return CreateSetting(new AxisDirectionDropdown
                 {
-                    Caption = "Axis direction",
+                    Caption = "轴方向",
                     Current = { BindTarget = axisDirection },
                 });
                 yield return CreateSetting(new FormCheckBox
                 {
-                    Caption = "Invert axis",
-                    HintText = "Invert the reported delta before matching the selected direction.",
+                    Caption = "反转轴向",
+                    HintText = "在匹配所选方向前先反转上报的 delta。",
                     Current = { BindTarget = axisInverted },
                 });
             }
@@ -1066,14 +1073,14 @@ namespace osu.Game.Rulesets.Bms
                 if (string.IsNullOrWhiteSpace(identifier))
                 {
                     trigger = default;
-                    validationError = "HID axis binding requires a device identifier.";
+                    validationError = "HID 轴绑定必须填写设备标识符。";
                     return false;
                 }
 
                 if (!int.TryParse(axisIndex.Value, out int parsedAxisIndex) || parsedAxisIndex < 0)
                 {
                     trigger = default;
-                    validationError = "HID axis binding requires a non-negative axis index.";
+                    validationError = "HID 轴绑定必须填写不小于 0 的轴索引。";
                     return false;
                 }
 
@@ -1098,7 +1105,7 @@ namespace osu.Game.Rulesets.Bms
                 axisDirection.Value = change.AxisChange.Delta >= 0 ? OmsAxisDirection.Positive : OmsAxisDirection.Negative;
                 axisInverted.Value = false;
 
-                successMessage = $@"Captured HID axis {change.AxisChange.AxisIndex} ({axisDirection.Value}) from {change.AxisChange.DeviceIdentifier}.";
+                successMessage = $@"已捕获来自 {change.AxisChange.DeviceIdentifier} 的 HID 轴 {change.AxisChange.AxisIndex}（{getAxisDirectionText(axisDirection.Value)}）。";
                 return true;
             }
         }
@@ -1111,7 +1118,7 @@ namespace osu.Game.Rulesets.Bms
 
             public override SupplementalBindingCaptureKind CaptureKind => SupplementalBindingCaptureKind.MouseAxis;
 
-            protected override string RowTitle => "Mouse-axis binding";
+            protected override string RowTitle => "鼠标轴绑定";
 
             public MouseAxisBindingRow(IReadOnlyList<BmsAction> availableActions, BmsAction initialAction)
                 : base(availableActions, initialAction)
@@ -1131,18 +1138,18 @@ namespace osu.Game.Rulesets.Bms
                 yield return CreateActionSetting();
                 yield return CreateSetting(new MouseAxisDropdown
                 {
-                    Caption = "Mouse axis",
+                    Caption = "鼠标轴",
                     Current = { BindTarget = mouseAxis },
                 });
                 yield return CreateSetting(new AxisDirectionDropdown
                 {
-                    Caption = "Axis direction",
+                    Caption = "轴方向",
                     Current = { BindTarget = axisDirection },
                 });
                 yield return CreateSetting(new FormCheckBox
                 {
-                    Caption = "Invert axis",
-                    HintText = "Invert the reported mouse delta before matching the selected direction.",
+                    Caption = "反转轴向",
+                    HintText = "在匹配所选方向前先反转鼠标 delta。",
                     Current = { BindTarget = axisInverted },
                 });
             }
@@ -1159,7 +1166,7 @@ namespace osu.Game.Rulesets.Bms
                 mouseAxis.Value = capturedAxis;
                 axisDirection.Value = capturedDirection;
                 axisInverted.Value = false;
-                successMessage = $@"Captured mouse axis {capturedAxis} ({capturedDirection}).";
+                successMessage = $@"已捕获鼠标轴 {getMouseAxisText(capturedAxis)}（{getAxisDirectionText(capturedDirection)}）。";
                 return true;
             }
         }
@@ -1197,7 +1204,7 @@ namespace osu.Game.Rulesets.Bms
             }
 
             protected override LocalisableString GenerateItemText(OmsAxisDirection item)
-                => item == OmsAxisDirection.Positive ? "Positive" : "Negative";
+                => getAxisDirectionText(item);
         }
 
         private sealed partial class MouseAxisDropdown : FormDropdown<OmsMouseAxis>
@@ -1208,7 +1215,13 @@ namespace osu.Game.Rulesets.Bms
             }
 
             protected override LocalisableString GenerateItemText(OmsMouseAxis item)
-                => item == OmsMouseAxis.X ? "X" : "Y";
+                => getMouseAxisText(item);
         }
+
+        private static string getAxisDirectionText(OmsAxisDirection item)
+            => item == OmsAxisDirection.Positive ? "正向" : "负向";
+
+        private static string getMouseAxisText(OmsMouseAxis item)
+            => item == OmsMouseAxis.X ? "X 轴" : "Y 轴";
     }
 }

@@ -57,10 +57,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         public void TestOmsBuiltInSkinIsRegisteredAndProvidesResources()
         {
             Skin skin = null!;
+            int selectableProtectedSkinCount = 0;
 
             AddStep("load OMS skin", () =>
             {
                 var skins = skinManager.GetAllUsableSkins();
+                selectableProtectedSkinCount = skins.Count(s => s.PerformRead(info => info.Protected));
 
                 Assert.That(skins.First().ID, Is.EqualTo(OmsSkin.CreateInfo().ID));
 
@@ -70,6 +72,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddAssert("is OMS skin", () => skin is OmsSkin);
             AddAssert("is protected", () => skin.SkinInfo.PerformRead(s => s.Protected));
+            AddAssert("OMS is only selectable built-in skin", () => selectableProtectedSkinCount == 1);
             AddAssert("has mania stage texture", () => skin.GetTexture("mania-stage-left") != null);
             AddAssert("has mania key texture", () => skin.GetTexture("mania-key1") != null);
         }

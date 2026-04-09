@@ -33,7 +33,7 @@ namespace oms.Input.Devices
             if (isDisposed)
                 return Array.Empty<OmsHidDeviceChange>();
 
-            if (devicesDirty)
+            if (devicesDirty || devicesByIdentifier.Count == 0)
                 refreshDevices();
 
             var capturedChanges = new List<OmsHidDeviceChange>();

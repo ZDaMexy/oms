@@ -18,6 +18,7 @@ using osuTK;
 using osuTK.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Extensions;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Difficulty;
@@ -59,7 +60,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
                 AutoSizeAxes = Axes.Y,
             };
 
-            panel.SetState(new BmsNoteDistributionPanelState(null, "Loading note distribution..."));
+            panel.SetState(new BmsNoteDistributionPanelState(null, Array.Empty<string>(), "Loading note distribution..."));
         }
 
         protected override void LoadComplete()
@@ -78,19 +79,21 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
             if (workingBeatmap?.BeatmapInfo?.Ruleset?.ShortName != BmsRuleset.SHORT_NAME)
             {
-                panel.SetState(new BmsNoteDistributionPanelState(null, "No BMS chart selected."));
+                panel.SetState(new BmsNoteDistributionPanelState(null, Array.Empty<string>(), "No BMS chart selected."));
                 return;
             }
+
+            var difficultyTableSummaryLines = BuildDifficultyTableSummaryLines(workingBeatmap.BeatmapInfo.Metadata.GetDifficultyTableEntries());
 
             Guid cacheKey = workingBeatmap.BeatmapInfo.ID;
 
             if (cachedData.TryGetValue(cacheKey, out var cached))
             {
-                applyData(cached);
+                applyData(cached, difficultyTableSummaryLines);
                 return;
             }
 
-            panel.SetState(new BmsNoteDistributionPanelState(null, "Loading note distribution..."));
+            panel.SetState(new BmsNoteDistributionPanelState(null, difficultyTableSummaryLines, "Loading note distribution..."));
 
             var cancellationSource = updateCancellationSource = new CancellationTokenSource();
             var token = cancellationSource.Token;
@@ -103,7 +106,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
                     if (task.IsFaulted || task.IsCanceled)
                     {
-                        panel.SetState(new BmsNoteDistributionPanelState(null, "Note distribution unavailable."));
+                        panel.SetState(new BmsNoteDistributionPanelState(null, difficultyTableSummaryLines, "Note distribution unavailable."));
                         return;
                     }
 
@@ -111,12 +114,12 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
                     if (result == null)
                     {
-                        panel.SetState(new BmsNoteDistributionPanelState(null, "Note distribution unavailable."));
+                        panel.SetState(new BmsNoteDistributionPanelState(null, difficultyTableSummaryLines, "Note distribution unavailable."));
                         return;
                     }
 
                     cachedData[cacheKey] = result;
-                    applyData(result);
+                    applyData(result, difficultyTableSummaryLines);
                 }), token, TaskContinuationOptions.None, TaskScheduler.Default);
         }
 
@@ -140,8 +143,27 @@ namespace osu.Game.Rulesets.Bms.SongSelect
                 attributes.PeakDensityMs);
         }
 
-        private void applyData(BmsNoteDistributionData data)
-            => panel.SetState(new BmsNoteDistributionPanelState(data, string.Empty));
+        private void applyData(BmsNoteDistributionData data, IReadOnlyList<string> difficultyTableSummaryLines)
+            => panel.SetState(new BmsNoteDistributionPanelState(data, difficultyTableSummaryLines, string.Empty));
+
+        internal static IReadOnlyList<string> BuildDifficultyTableSummaryLines(IReadOnlyList<BmsDifficultyTableEntry> entries)
+        {
+            if (entries.Count == 0)
+                return new[] { "Table: Unrated" };
+
+            return entries.GroupBy(entry => (entry.TableSortOrder, entry.TableName))
+                         .OrderBy(group => group.Key.TableSortOrder)
+                         .ThenBy(group => group.Key.TableName, StringComparer.Ordinal)
+                         .Select(group =>
+                         {
+                             string levels = string.Join(", ", group.OrderBy(entry => entry.Level)
+                                                              .ThenBy(entry => entry.LevelLabel, StringComparer.Ordinal)
+                                                              .Select(entry => entry.LevelLabel)
+                                                              .Distinct(StringComparer.Ordinal));
+                             return $"Table: {group.Key.TableName} ({levels})";
+                         })
+                         .ToArray();
+        }
 
         protected override void Dispose(bool isDisposing)
         {
@@ -212,13 +234,18 @@ namespace osu.Game.Rulesets.Bms.SongSelect
     {
         public BmsNoteDistributionData? Distribution { get; }
 
+        public IReadOnlyList<string> DifficultyTableSummaryLines { get; }
+
         public string StatusText { get; }
 
         public bool HasDistribution => Distribution != null;
 
-        public BmsNoteDistributionPanelState(BmsNoteDistributionData? distribution, string statusText)
+        public bool HasDifficultyTableSummary => DifficultyTableSummaryLines.Count > 0;
+
+        public BmsNoteDistributionPanelState(BmsNoteDistributionData? distribution, IReadOnlyList<string> difficultyTableSummaryLines, string statusText)
         {
             Distribution = distribution;
+            DifficultyTableSummaryLines = difficultyTableSummaryLines;
             StatusText = statusText;
         }
     }
@@ -230,6 +257,8 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
     public partial class DefaultBmsNoteDistributionPanelDisplay : DefaultResultsPanelDisplay<BmsNoteDistributionPanelState>, IBmsNoteDistributionPanelDisplay
     {
+        private FillFlowContainer difficultyTableContainer = null!;
+        private OsuSpriteText distributionStatusText = null!;
         private BmsNoteDistributionGraph.SkinnableNoteDistributionDisplay graph = null!;
         private FillFlowContainer summaryContainer = null!;
         private OsuSpriteText totalNotesText = null!;
@@ -252,6 +281,14 @@ namespace osu.Game.Rulesets.Bms.SongSelect
         {
             content.AddRange(new Drawable[]
             {
+                difficultyTableContainer = new FillFlowContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, 4),
+                },
+                distributionStatusText = createSummaryText(),
                 graph = new BmsNoteDistributionGraph.SkinnableNoteDistributionDisplay
                 {
                     RelativeSizeAxes = Axes.X,
@@ -279,12 +316,27 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
         protected override void UpdateContent(BmsNoteDistributionPanelState? state)
         {
+            difficultyTableContainer.Clear();
+
+            foreach (string line in state?.DifficultyTableSummaryLines ?? Array.Empty<string>())
+                difficultyTableContainer.Add(createSummaryText(line));
+
             var distribution = state?.Distribution;
 
             graph.SetData(distribution);
 
             if (distribution == null)
+            {
+                graph.Hide();
+                summaryContainer.Hide();
+                distributionStatusText.Text = state?.StatusText ?? "Loading note distribution...";
+                distributionStatusText.Show();
                 return;
+            }
+
+            graph.Show();
+            summaryContainer.Show();
+            distributionStatusText.Hide();
 
             totalNotesText.Text = $"Total notes: {distribution.TotalNoteCount}";
             scratchText.Text = $"Scratch: {distribution.ScratchNoteCount} ({formatPercentage(distribution.ScratchNoteCount, distribution.TotalNoteCount)})";
@@ -293,7 +345,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
         }
 
         protected override bool HasContent(BmsNoteDistributionPanelState? state)
-            => state?.Distribution != null;
+            => state?.Distribution != null || state?.HasDifficultyTableSummary == true;
 
         protected override LocalisableString GetStatusText(BmsNoteDistributionPanelState? state)
             => state?.StatusText ?? "Loading note distribution...";
@@ -318,8 +370,9 @@ namespace osu.Game.Rulesets.Bms.SongSelect
             return DefaultBmsNoteDistributionDisplay.DistributionNormalAccent;
         }
 
-        private static OsuSpriteText createSummaryText() => new OsuSpriteText
+        private static OsuSpriteText createSummaryText(string? text = null) => new OsuSpriteText
         {
+            Text = text ?? string.Empty,
             Colour = BmsDefaultResultsPalette.PanelStatus,
             Font = OsuFont.GetFont(size: 13, weight: FontWeight.SemiBold),
         };

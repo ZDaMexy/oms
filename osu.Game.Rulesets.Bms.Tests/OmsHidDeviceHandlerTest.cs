@@ -218,6 +218,28 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestHandlerRefreshesMissingBoundDeviceWithoutProviderEvent()
+        {
+            var events = new List<string>();
+            var provider = new FakeHidButtonDeviceProvider();
+
+            using var handler = new OmsHidDeviceHandler(new[]
+            {
+                new OmsBinding(OmsAction.Key1P_1, OmsBindingTrigger.HidButton("iidx-pad", 0))
+            }, action => events.Add($"+{action}"), action => events.Add($"-{action}"), provider);
+
+            Assert.That(handler.ConnectedDeviceCount, Is.EqualTo(0));
+
+            var device = new FakeHidButtonDevice("iidx-pad");
+            device.EnqueueBatch(OmsHidDeviceChange.Button(new OmsHidButtonChange("iidx-pad", 0, true)));
+            provider.SetDevicesSilently(device);
+
+            handler.PollOnce();
+
+            Assert.That(events, Is.EqualTo(new[] { "+Key1P_1" }));
+        }
+
+        [Test]
         public void TestDefaultProviderFallsBackWhenHidSharpInitialisationFails()
         {
             using var provider = OmsHidDeviceHandler.CreateDefaultDeviceProvider(() => throw new InvalidOperationException("HidSharp RegisterClass failed."));
@@ -238,6 +260,38 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [Test]
+        public void TestDefaultProviderPrefersWindowsBackend()
+        {
+            using var provider = OmsHidDeviceHandler.CreateDefaultDeviceProvider(
+                isWindows: true,
+                windowsProviderFactory: () => new FakeHidButtonDeviceProvider(),
+                hidSharpProviderFactory: () => throw new AssertionException("Windows builds should not select the HidSharp backend by default."));
+
+            Assert.That(provider, Is.TypeOf<FakeHidButtonDeviceProvider>());
+        }
+
+        [Test]
+        public void TestDirectInputIdentifierParsing()
+        {
+            Guid instanceGuid = Guid.Parse("9f2a5e01-4fd1-4e7b-b531-c0db3273f8b1");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    OmsHidDeviceIdentifier.FromDirectInputDevice(0x1ccf, 0x8048, @"\\?\hid#vid_1ccf&pid_8048#DJDAO123#{4d1e55b2-f16f-11cf-88cb-001111000030}", instanceGuid),
+                    Is.EqualTo("hid:vid_1ccf&pid_8048&serial_djdao123"));
+
+                Assert.That(
+                    OmsHidDeviceIdentifier.FromDirectInputDevice(0x1ccf, 0x8048, @"\\?\hid#vid_1ccf&pid_8048#7&35ab3d4f&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}", instanceGuid),
+                    Is.EqualTo("hid:vid_1ccf&pid_8048"));
+
+                Assert.That(
+                    OmsHidDeviceIdentifier.FromDirectInputDevice(0, 0, null, instanceGuid),
+                    Is.EqualTo($"dinput:instance_{instanceGuid:N}".ToLowerInvariant()));
+            });
+        }
+
         private sealed class FakeHidButtonDeviceProvider : IOmsHidButtonDeviceProvider
         {
             private readonly List<IOmsHidButtonDevice> devices = new List<IOmsHidButtonDevice>();
@@ -255,6 +309,12 @@ namespace osu.Game.Rulesets.Bms.Tests
                 this.devices.Clear();
                 this.devices.AddRange(devices);
                 DevicesChanged?.Invoke(this, EventArgs.Empty);
+            }
+
+            public void SetDevicesSilently(params IOmsHidButtonDevice[] devices)
+            {
+                this.devices.Clear();
+                this.devices.AddRange(devices);
             }
 
             public void Dispose()

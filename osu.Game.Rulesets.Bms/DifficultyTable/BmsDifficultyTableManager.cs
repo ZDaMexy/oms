@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +27,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private static readonly object shared_manager_lock = new object();
         private static readonly Dictionary<string, BmsDifficultyTableManager> shared_managers = new Dictionary<string, BmsDifficultyTableManager>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HttpClient http_client = createHttpClient();
 
         private static readonly Regex bmstable_meta_regex = new Regex("<meta\\s+name=[\"']bmstable[\"']\\s+content=[\"'](?<path>[^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex signed_integer_regex = new Regex("^-?\\d+$", RegexOptions.Compiled);
@@ -34,6 +37,17 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private readonly Storage databaseStorage;
 
         public event Action? TableDataChanged;
+
+        private static HttpClient createHttpClient()
+        {
+            var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(20),
+            };
+
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("OMS DifficultyTableManager/1.0");
+            return client;
+        }
 
         public static BmsDifficultyTableManager GetShared(Storage storage)
         {
@@ -223,8 +237,8 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string fullPath = Path.GetFullPath(path);
-            ParsedTableSource parsedSource = loadTableSource(fullPath, cancellationToken);
+            string sourceLocation = normalizeSourceLocation(path);
+            ParsedTableSource parsedSource = loadTableSource(sourceLocation, cancellationToken);
 
             using var connection = getConnection();
             connection.Open();
@@ -233,7 +247,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             SourceRow? existingSource = sourceId.HasValue
                 ? findSource(connection, transaction, sourceId.Value)
-                                : findSourceByLocalPath(connection, transaction, fullPath)
+                                : findSourceByLocalPath(connection, transaction, sourceLocation)
                                     ?? findImportPreset(connection, transaction, parsedSource);
 
             if (sourceId.HasValue && existingSource == null)
@@ -276,7 +290,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             var entries = buildEntries(displayName, symbol, sortOrder, parsedSource.Entries);
 
-            upsertSource(connection, transaction, new SourceRow(resolvedId, sourceName, displayName, symbol, fullPath, isPreset, enabled, sortOrder, importedAt, refreshedAt));
+            upsertSource(connection, transaction, new SourceRow(resolvedId, sourceName, displayName, symbol, sourceLocation, isPreset, enabled, sortOrder, importedAt, refreshedAt));
             replaceEntries(connection, transaction, resolvedId, entries);
 
             transaction.Commit();
@@ -696,6 +710,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (tryCreateHttpUri(path, out Uri? uri))
+                return loadTableSourceFromUri(uri, getSourceNameFromUri(uri), cancellationToken);
+
             if (Directory.Exists(path))
                 return loadTableSourceFromDirectory(path, cancellationToken);
 
@@ -703,6 +720,16 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 return loadTableSourceFromFile(path, getSourceNameFromPath(path), cancellationToken);
 
             throw new FileNotFoundException($"Could not find BMS difficulty table source at '{path}'.", path);
+        }
+
+        private static string normalizeSourceLocation(string path)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+            string trimmed = path.Trim();
+            return tryCreateHttpUri(trimmed, out Uri? uri)
+                ? uri.AbsoluteUri
+                : Path.GetFullPath(trimmed);
         }
 
         private static ParsedTableSource loadTableSourceFromDirectory(string directory, CancellationToken cancellationToken)
@@ -715,7 +742,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             {
                 try
                 {
-                    return loadTableSourceFromHtml(htmlFile, fallbackName, cancellationToken);
+                    return loadTableSourceFromFile(htmlFile, fallbackName, cancellationToken);
                 }
                 catch (InvalidOperationException)
                 {
@@ -741,38 +768,46 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             throw new InvalidOperationException($"No supported BMS difficulty table files were found in '{directory}'.");
         }
 
+        private static ParsedTableSource loadTableSourceFromUri(Uri uri, string fallbackName, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string sourceText = readSourceText(uri.AbsoluteUri, cancellationToken);
+
+            return looksLikeJson(uri.AbsolutePath, sourceText)
+                ? loadTableSourceFromJsonContent(sourceText, uri.AbsoluteUri, fallbackName, cancellationToken)
+                : loadTableSourceFromHtmlContent(sourceText, uri.AbsoluteUri, fallbackName, cancellationToken);
+        }
+
         private static ParsedTableSource loadTableSourceFromFile(string filePath, string fallbackName, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string extension = Path.GetExtension(filePath);
+            string sourceText = readSourceText(filePath, cancellationToken);
 
-            if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
-                return loadTableSourceFromJson(filePath, fallbackName, cancellationToken);
-
-            return loadTableSourceFromHtml(filePath, fallbackName, cancellationToken);
+            return looksLikeJson(filePath, sourceText)
+                ? loadTableSourceFromJsonContent(sourceText, filePath, fallbackName, cancellationToken)
+                : loadTableSourceFromHtmlContent(sourceText, filePath, fallbackName, cancellationToken);
         }
 
-        private static ParsedTableSource loadTableSourceFromHtml(string filePath, string fallbackName, CancellationToken cancellationToken)
+        private static ParsedTableSource loadTableSourceFromHtmlContent(string html, string sourceLocation, string fallbackName, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string html = File.ReadAllText(filePath);
             Match match = bmstable_meta_regex.Match(html);
 
             if (!match.Success)
-                throw new InvalidOperationException($"No bmstable meta tag was found in '{filePath}'.");
+                throw new InvalidOperationException($"No bmstable meta tag was found in '{sourceLocation}'.");
 
-            string baseDirectory = Path.GetDirectoryName(filePath) ?? throw new InvalidOperationException($"Could not resolve base directory for '{filePath}'.");
-            string referencedPath = resolveLocalPath(baseDirectory, match.Groups["path"].Value);
-            return loadTableSourceFromFile(referencedPath, fallbackName, cancellationToken);
+            string referencedPath = resolveSourceLocation(sourceLocation, match.Groups["path"].Value);
+            return loadTableSource(referencedPath, cancellationToken);
         }
 
-        private static ParsedTableSource loadTableSourceFromJson(string filePath, string fallbackName, CancellationToken cancellationToken)
+        private static ParsedTableSource loadTableSourceFromJsonContent(string json, string sourceLocation, string fallbackName, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            JToken token = JToken.Parse(File.ReadAllText(filePath));
+            JToken token = JToken.Parse(json);
 
             switch (token.Type)
             {
@@ -791,10 +826,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                             displayName = fallbackName;
 
                         string symbol = obj.Value<string>("symbol")?.Trim() ?? string.Empty;
-                        string dataUrl = obj.Value<string>("data_url")?.Trim() ?? throw new InvalidOperationException($"Difficulty table header '{filePath}' is missing data_url.");
-                        string baseDirectory = Path.GetDirectoryName(filePath) ?? throw new InvalidOperationException($"Could not resolve base directory for '{filePath}'.");
-                        string bodyPath = resolveLocalPath(baseDirectory, dataUrl);
-                        JToken bodyToken = JToken.Parse(File.ReadAllText(bodyPath));
+                        string dataUrl = obj.Value<string>("data_url")?.Trim() ?? throw new InvalidOperationException($"Difficulty table header '{sourceLocation}' is missing data_url.");
+                        string bodyPath = resolveSourceLocation(sourceLocation, dataUrl);
+                        JToken bodyToken = JToken.Parse(readSourceText(bodyPath, cancellationToken));
 
                         if (bodyToken is not JArray bodyArray)
                             throw new InvalidOperationException($"Difficulty table body '{bodyPath}' must be a JSON array.");
@@ -802,11 +836,11 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         return createParsedTableSource(fallbackName, displayName, symbol, bodyArray);
                     }
 
-                    throw new InvalidOperationException($"Unsupported BMS difficulty table JSON format in '{filePath}'.");
+                    throw new InvalidOperationException($"Unsupported BMS difficulty table JSON format in '{sourceLocation}'.");
                 }
 
                 default:
-                    throw new InvalidOperationException($"Unsupported BMS difficulty table JSON token in '{filePath}'.");
+                    throw new InvalidOperationException($"Unsupported BMS difficulty table JSON token in '{sourceLocation}'.");
             }
         }
 
@@ -835,16 +869,74 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             return new ParsedTableSource(sourceName, displayName, symbol, entries);
         }
 
-        private static string resolveLocalPath(string baseDirectory, string referencedPath)
+        private static string readSourceText(string sourceLocation, CancellationToken cancellationToken)
         {
-            if (referencedPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-                || referencedPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"Online difficulty table URLs are not supported during the offline Phase 1 implementation: '{referencedPath}'.");
+            cancellationToken.ThrowIfCancellationRequested();
 
-            if (Uri.TryCreate(referencedPath, UriKind.Absolute, out var uri) && uri.IsFile)
-                return uri.LocalPath;
+            if (tryCreateHttpUri(sourceLocation, out Uri? uri))
+                return downloadText(uri, cancellationToken);
+
+            return File.ReadAllText(sourceLocation);
+        }
+
+        private static string downloadText(Uri uri, CancellationToken cancellationToken)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            using var response = http_client.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            return response.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
+        }
+
+        private static bool looksLikeJson(string sourceLocation, string sourceText)
+        {
+            if (Path.GetExtension(sourceLocation).Equals(".json", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            string trimmed = sourceText.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            return trimmed.StartsWith('{') || trimmed.StartsWith('[');
+        }
+
+        private static string resolveSourceLocation(string sourceLocation, string referencedPath)
+        {
+            if (Uri.TryCreate(referencedPath, UriKind.Absolute, out Uri? absoluteUri))
+            {
+                if (absoluteUri.IsFile)
+                    return Path.GetFullPath(absoluteUri.LocalPath);
+
+                if (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps)
+                    return absoluteUri.AbsoluteUri;
+
+                throw new InvalidOperationException($"Unsupported difficulty table URL scheme in '{referencedPath}'.");
+            }
+
+            if (tryCreateHttpUri(sourceLocation, out Uri? sourceUri))
+                return new Uri(sourceUri, referencedPath).AbsoluteUri;
+
+            string baseDirectory = Directory.Exists(sourceLocation)
+                ? sourceLocation
+                : Path.GetDirectoryName(sourceLocation) ?? throw new InvalidOperationException($"Could not resolve base directory for '{sourceLocation}'.");
 
             return Path.GetFullPath(Path.Combine(baseDirectory, referencedPath));
+        }
+
+        private static bool tryCreateHttpUri(string value, [NotNullWhen(true)] out Uri? uri)
+        {
+            if (Uri.TryCreate(value, UriKind.Absolute, out uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                return true;
+
+            uri = null;
+            return false;
+        }
+
+        private static string getSourceNameFromUri(Uri uri)
+        {
+            string fileName = Path.GetFileName(uri.LocalPath.TrimEnd('/'));
+
+            if (string.IsNullOrWhiteSpace(fileName))
+                fileName = uri.Host;
+
+            return Path.GetFileNameWithoutExtension(fileName);
         }
 
         private static string getSourceNameFromPath(string path)
