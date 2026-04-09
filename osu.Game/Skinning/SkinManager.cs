@@ -39,6 +39,11 @@ namespace osu.Game.Skinning
     public class SkinManager : ModelManager<SkinInfo>, ISkinSource, IStorageResourceProvider, IModelImporter<SkinInfo>
     {
         /// <summary>
+        /// The OMS built-in candidate skin host.
+        /// </summary>
+        public Skin DefaultOmsSkin { get; }
+
+        /// <summary>
         /// The default "classic" skin.
         /// </summary>
         public Skin DefaultClassicSkin { get; }
@@ -100,6 +105,7 @@ namespace osu.Game.Skinning
 
             var defaultSkins = new[]
             {
+                DefaultOmsSkin = new OmsSkin(this),
                 retroSkin = new RetroSkin(this),
                 DefaultClassicSkin = new DefaultLegacySkin(this),
                 trianglesSkin = new TrianglesSkin(this),
@@ -148,6 +154,7 @@ namespace osu.Game.Skinning
 
             Realm.Run(realm =>
             {
+                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.ARGON_SKIN).ToLive(Realm));
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.ARGON_PRO_SKIN).ToLive(Realm));
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.TRIANGLES_SKIN).ToLive(Realm));
@@ -443,6 +450,9 @@ namespace osu.Game.Skinning
 
             if (skinInfo == null)
             {
+                if (guid == SkinInfo.OMS_SKIN)
+                    skinInfo = DefaultOmsSkin.SkinInfo;
+
                 if (guid == SkinInfo.CLASSIC_SKIN)
                     skinInfo = DefaultClassicSkin.SkinInfo;
 

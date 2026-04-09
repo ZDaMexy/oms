@@ -2,16 +2,16 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
-using System.Threading.Tasks;
 using Microsoft.Win32;
 using osu.Desktop.Performance;
 using osu.Desktop.Security;
+using osu.Desktop.Updater;
 using osu.Framework.Platform;
 using osu.Game;
-using osu.Desktop.Updater;
 using osu.Framework;
 using osu.Framework.Logging;
 using osu.Game.Updater;
@@ -22,6 +22,9 @@ using osu.Game.IO;
 using osu.Game.IPC;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Performance;
+using osu.Game.Beatmaps;
+using osu.Game.Database;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Utils;
 
 namespace osu.Desktop
@@ -30,6 +33,7 @@ namespace osu.Desktop
     {
         private OsuSchemeLinkIPCChannel? osuSchemeLinkIPCChannel;
         private ArchiveImportIPCChannel? archiveImportIPCChannel;
+        private BmsBeatmapImporter? bmsBeatmapImporter;
 
         [Cached(typeof(IHighPerformanceSessionManager))]
         private readonly HighPerformanceSessionManager highPerformanceSessionManager = new HighPerformanceSessionManager();
@@ -105,6 +109,9 @@ namespace osu.Desktop
 
         public static bool IsPackageManaged => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OSU_EXTERNAL_UPDATE_PROVIDER"));
 
+        // OMS 当前首发阶段只支持便携整包发布与手工覆盖更新，暂不开放游戏内在线更新。
+        public static bool IsInAppUpdateEnabled => false;
+
         protected override UpdateManager CreateUpdateManager()
         {
             // If this is the first time we've run the game, ie it is being installed,
@@ -115,26 +122,41 @@ namespace osu.Desktop
             if (IsFirstRun)
                 LocalConfig.SetValue(OsuSetting.ReleaseStream, ReleaseStream.Lazer);
 
+            if (!IsInAppUpdateEnabled)
+                return new UpdateManager();
+
             if (IsPackageManaged)
                 return new NoActionUpdateManager();
 
-            return new VelopackUpdateManager();
+            return new osu.Desktop.Updater.VelopackUpdateManager();
         }
 
         public override bool RestartAppWhenExited()
         {
-            Task.Run(() => Velopack.UpdateExe.Start(waitPid: (uint)Environment.ProcessId)).FireAndForget();
-            return true;
+            if (!IsInAppUpdateEnabled)
+                return false;
+
+            return base.RestartAppWhenExited();
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
 
-            LoadComponentAsync(new DiscordRichPresence(), Add);
+            bmsBeatmapImporter = new BmsBeatmapImporter(Storage, ClientRealm)
+            {
+                PostNotification = notification => BeatmapManager.PostNotification?.Invoke(notification)
+            };
+            RegisterImportHandler(bmsBeatmapImporter);
+
+            if (OnlineFeaturesEnabled)
+                LoadComponentAsync(new DiscordRichPresence(), Add);
 
             if (RuntimeInfo.OS == RuntimeInfo.Platform.Windows)
+            {
                 LoadComponentAsync(new GameplayWinKeyBlocker(), Add);
+                Add(new WindowsRawKeyboardSource());
+            }
 
             LoadComponentAsync(new ElevatedPrivilegesChecker(), Add);
 
@@ -159,8 +181,16 @@ namespace osu.Desktop
 
         protected override BatteryInfo CreateBatteryInfo() => FrameworkEnvironment.UseSDL3 ? new SDL3BatteryInfo() : new SDL2BatteryInfo();
 
+        protected override IEnumerable<ICustomBeatmapLoader> CreateCustomBeatmapLoaders() => new ICustomBeatmapLoader[]
+        {
+            new BmsBeatmapLoader()
+        };
+
         protected override void Dispose(bool isDisposing)
         {
+            if (bmsBeatmapImporter != null)
+                UnregisterImportHandler(bmsBeatmapImporter);
+
             base.Dispose(isDisposing);
             osuSchemeLinkIPCChannel?.Dispose();
             archiveImportIPCChannel?.Dispose();

@@ -66,6 +66,8 @@ namespace osu.Game.Beatmaps
 
         public BeatmapSetInfo? BeatmapSet { get; set; }
 
+        public string? LocalFilePath { get; set; }
+
         [Ignored]
         public RealmNamedFileUsage? File => BeatmapSet?.Files.FirstOrDefault(f => f.File.Hash == Hash);
 
@@ -225,7 +227,7 @@ namespace osu.Game.Beatmaps
         #region Compatibility properties
 
         [Ignored]
-        public string? Path => File?.Filename;
+        public string? Path => File?.Filename ?? LocalFilePath;
 
         [Ignored]
         public APIBeatmap? OnlineInfo { get; set; }

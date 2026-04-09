@@ -3,6 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Library</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>
   <PropertyGroup Label="Nuget">
     <Title>osu!</Title>
@@ -16,6 +17,11 @@
       <Pack>True</Pack>
       <PackagePath>icon.png</PackagePath>
     </None>
+  </ItemGroup>
+  <ItemGroup Label="OMS Skin Resources">
+    <EmbeddedResource Include="..\SKIN\SimpleTou-Lazer\**\*.*">
+      <LogicalName>osu.Game.Skins.Oms.$([System.String]::Copy('%(RecursiveDir)').Replace('\\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup Label="Package References">
     <PackageReference Include="AutoMapper" Version="13.0.1" />
@@ -49,5 +55,9 @@
     <PackageReference Include="System.IO.FileSystem.Primitives" Version="4.3.0" />
     <PackageReference Include="System.Runtime.InteropServices" Version="4.3.0" />
     <PackageReference Include="System.Runtime.Handles" Version="4.3.0" />
+  </ItemGroup>
+  <ItemGroup Label="NuGet Audit">
+    <!-- AutoMapper 15.1.1+ fixes GHSA-rvv3-g6hj-g44x, but current usage is depth-limited and 15.x introduces license/API migration work. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-rvv3-g6hj-g44x" />
   </ItemGroup>
 </Project>

@@ -37,6 +37,9 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private OsuConfigManager config { get; set; } = null!;
 
+        [Resolved]
+        private OsuGameBase? game { get; set; }
+
         protected override bool StartHidden => true;
 
         public FilterCriteria Filter
@@ -189,7 +192,7 @@ namespace osu.Game.Screens.Select
                 }
             }
 
-            if (!string.IsNullOrEmpty(filter?.SearchText))
+            if ((game?.OnlineFeaturesEnabled ?? true) && !string.IsNullOrEmpty(filter?.SearchText))
             {
                 addBulletPoint();
                 textFlow.AddText("Try ");

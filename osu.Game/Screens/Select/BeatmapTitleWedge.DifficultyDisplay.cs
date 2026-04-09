@@ -12,6 +12,7 @@ using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Logging;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables;
 using osu.Game.Configuration;
@@ -24,6 +25,7 @@ using osu.Game.Online.Chat;
 using osu.Game.Overlays;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.UI;
 using osuTK.Graphics;
 
 namespace osu.Game.Screens.Select
@@ -267,21 +269,51 @@ namespace osu.Game.Screens.Select
 
                 Task.Run(() =>
                 {
-                    // This can take time as it is a synchronous task.
-                    // TODO: We're calling `GetPlayableBeatmap` multiple times every map load at song select.
-                    var playableBeatmap = beatmap.Value.GetPlayableBeatmap(ruleset.Value);
-                    var statistics = playableBeatmap.GetStatistics()
-                                                    .Select(s => new StatisticDifficulty.Data(s.Name, s.BarDisplayLength ?? 0, s.BarDisplayLength ?? 0, 1, s.Content))
-                                                    .ToList();
-
-                    Schedule(() =>
+                    try
                     {
-                        if (cancellationToken.IsCancellationRequested)
-                            return;
+                        // This can take time as it is a synchronous task.
+                        // TODO: We're calling `GetPlayableBeatmap` multiple times every map load at song select.
+                        var playableBeatmap = beatmap.Value.GetPlayableBeatmap(ruleset.Value);
+                        var statistics = playableBeatmap.GetStatistics()
+                                                        .Select(s => new StatisticDifficulty.Data(s.Name, s.BarDisplayLength ?? 0, s.BarDisplayLength ?? 0, 1, s.Content))
+                                                        .ToList();
 
-                        countStatisticsDisplay.FadeIn(200, Easing.OutQuint);
-                        countStatisticsDisplay.Statistics = statistics;
-                    });
+                        Schedule(() =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
+
+                            countStatisticsDisplay.FadeIn(200, Easing.OutQuint);
+                            countStatisticsDisplay.Statistics = statistics;
+                        });
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch (BeatmapInvalidForRulesetException)
+                    {
+                        Schedule(() =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
+
+                            countStatisticsDisplay.Statistics = Array.Empty<StatisticDifficulty.Data>();
+                            countStatisticsDisplay.FadeOut(200, Easing.OutQuint);
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "Failed to update beatmap count statistics.");
+
+                        Schedule(() =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
+
+                            countStatisticsDisplay.Statistics = Array.Empty<StatisticDifficulty.Data>();
+                            countStatisticsDisplay.FadeOut(200, Easing.OutQuint);
+                        });
+                    }
                 }, cancellationToken);
             }
 

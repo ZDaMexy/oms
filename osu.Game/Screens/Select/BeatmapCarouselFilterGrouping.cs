@@ -10,6 +10,7 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Graphics.Carousel;
+using osu.Game.Rulesets;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Utils;
@@ -59,82 +60,89 @@ namespace osu.Game.Screens.Select
                 var newItems = new List<CarouselItem>();
 
                 BeatmapSetsGroupedTogether = ShouldGroupBeatmapsTogether(criteria);
-
-                var groups = getGroups((List<CarouselItem>)items, criteria);
                 int displayedBeatmapsCount = 0;
 
-                foreach (var (group, itemsInGroup) in groups)
+                if (criteria.Group == GroupMode.DifficultyTable)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    displayedBeatmapsCount = addHierarchicalGroups((List<CarouselItem>)items, criteria, newItems, newItemMap, newSetMap, newGroupMap, cancellationToken);
+                }
+                else
+                {
+                    var groups = getGroups((List<CarouselItem>)items, criteria);
 
-                    CarouselItem? groupItem = null;
-                    HashSet<CarouselItem>? currentGroupItems = null;
-                    HashSet<CarouselItem>? currentSetItems = null;
-                    BeatmapInfo? lastBeatmap = null;
-
-                    if (group != null)
-                    {
-                        newGroupMap[group] = currentGroupItems = new HashSet<CarouselItem>();
-
-                        addItem(groupItem = new CarouselItem(group)
-                        {
-                            DrawHeight = PanelGroup.HEIGHT,
-                            DepthLayer = -2,
-                        });
-                    }
-
-                    foreach (var item in itemsInGroup)
+                    foreach (var (group, itemsInGroup) in groups)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        var beatmap = (BeatmapInfo)item.Model;
+                        CarouselItem? groupItem = null;
+                        HashSet<CarouselItem>? currentGroupItems = null;
+                        HashSet<CarouselItem>? currentSetItems = null;
+                        BeatmapInfo? lastBeatmap = null;
 
-                        bool newBeatmapSet = lastBeatmap?.BeatmapSet!.ID != beatmap.BeatmapSet!.ID;
-                        var groupedBeatmapSet = new GroupedBeatmapSet(group, beatmap.BeatmapSet!);
-
-                        if (newBeatmapSet)
+                        if (group != null)
                         {
-                            if (!newSetMap.TryGetValue(groupedBeatmapSet, out currentSetItems))
-                                newSetMap[groupedBeatmapSet] = currentSetItems = new HashSet<CarouselItem>();
+                            newGroupMap[group] = currentGroupItems = new HashSet<CarouselItem>();
+
+                            addItem(groupItem = new CarouselItem(group)
+                            {
+                                DrawHeight = PanelGroup.HEIGHT,
+                                DepthLayer = -2,
+                            });
                         }
 
-                        if (BeatmapSetsGroupedTogether)
+                        foreach (var item in itemsInGroup)
                         {
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            var beatmap = (BeatmapInfo)item.Model;
+
+                            bool newBeatmapSet = lastBeatmap?.BeatmapSet!.ID != beatmap.BeatmapSet!.ID;
+                            var groupedBeatmapSet = new GroupedBeatmapSet(group, beatmap.BeatmapSet!);
+
                             if (newBeatmapSet)
+                            {
+                                if (!newSetMap.TryGetValue(groupedBeatmapSet, out currentSetItems))
+                                    newSetMap[groupedBeatmapSet] = currentSetItems = new HashSet<CarouselItem>();
+                            }
+
+                            if (BeatmapSetsGroupedTogether)
+                            {
+                                if (newBeatmapSet)
+                                {
+                                    if (groupItem != null)
+                                        groupItem.NestedItemCount++;
+
+                                    addItem(new CarouselItem(groupedBeatmapSet)
+                                    {
+                                        DrawHeight = PanelBeatmapSet.HEIGHT,
+                                        DepthLayer = -1
+                                    });
+                                }
+                            }
+                            else
                             {
                                 if (groupItem != null)
                                     groupItem.NestedItemCount++;
-
-                                addItem(new CarouselItem(groupedBeatmapSet)
-                                {
-                                    DrawHeight = PanelBeatmapSet.HEIGHT,
-                                    DepthLayer = -1
-                                });
                             }
+
+                            addItem(new CarouselItem(new GroupedBeatmap(group, beatmap))
+                            {
+                                DrawHeight = BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT,
+                            });
+                            lastBeatmap = beatmap;
+                            displayedBeatmapsCount++;
                         }
-                        else
+
+                        void addItem(CarouselItem i)
                         {
-                            if (groupItem != null)
-                                groupItem.NestedItemCount++;
+                            newItems.Add(i);
+
+                            newItemMap[i.Model] = (i, newItems.Count - 1);
+                            currentGroupItems?.Add(i);
+                            currentSetItems?.Add(i);
+
+                            i.IsVisible = i.Model is GroupDefinition || (group == null && (i.Model is GroupedBeatmapSet || !BeatmapSetsGroupedTogether));
                         }
-
-                        addItem(new CarouselItem(new GroupedBeatmap(group, beatmap))
-                        {
-                            DrawHeight = BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT,
-                        });
-                        lastBeatmap = beatmap;
-                        displayedBeatmapsCount++;
-                    }
-
-                    void addItem(CarouselItem i)
-                    {
-                        newItems.Add(i);
-
-                        newItemMap[i.Model] = (i, newItems.Count - 1);
-                        currentGroupItems?.Add(i);
-                        currentSetItems?.Add(i);
-
-                        i.IsVisible = i.Model is GroupDefinition || (group == null && (i.Model is GroupedBeatmapSet || !BeatmapSetsGroupedTogether));
                     }
                 }
 
@@ -150,6 +158,9 @@ namespace osu.Game.Screens.Select
 
         public static bool ShouldGroupBeatmapsTogether(FilterCriteria criteria)
         {
+            if (criteria.Group == GroupMode.DifficultyTable)
+                return true;
+
             // In certain cases, we intentionally split out difficulties
             // where it's more relevant or convenient to view them as individual items.
             if (criteria.Sort == SortMode.Difficulty || criteria.Group == GroupMode.Difficulty)
@@ -480,6 +491,169 @@ namespace osu.Game.Screens.Select
             return [];
         }
 
+        private int addHierarchicalGroups(
+            List<CarouselItem> items,
+            FilterCriteria criteria,
+            List<CarouselItem> newItems,
+            Dictionary<object, (CarouselItem item, int index)> newItemMap,
+            Dictionary<GroupedBeatmapSet, HashSet<CarouselItem>> newSetMap,
+            Dictionary<GroupDefinition, HashSet<CarouselItem>> newGroupMap,
+            CancellationToken cancellationToken)
+        {
+            if (criteria.Ruleset == null)
+                return 0;
+
+            Ruleset ruleset = criteria.Ruleset.CreateInstance();
+            var rootGroups = new Dictionary<GroupDefinition, GroupTreeNode>();
+
+            foreach (var item in items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var beatmap = (BeatmapInfo)item.Model;
+                var leafGroups = ruleset.GetSongSelectGroupDefinitions(criteria.Group, beatmap).ToArray();
+
+                foreach (var leafGroup in leafGroups)
+                {
+                    GroupTreeNode currentNode = getOrCreateNode(rootGroups, leafGroup.GetPathFromRoot());
+                    currentNode.Items.Add(item);
+                }
+            }
+
+            if (rootGroups.Count == 0)
+                return 0;
+
+            int displayedBeatmapsCount = 0;
+
+            foreach (var rootGroup in rootGroups.Values.OrderBy(node => node.Group.Order).ThenBy(node => node.Group.Title.ToString()))
+                addGroupNode(rootGroup, Array.Empty<CarouselItem>());
+
+            return displayedBeatmapsCount;
+
+            GroupTreeNode getOrCreateNode(Dictionary<GroupDefinition, GroupTreeNode> siblings, IEnumerable<GroupDefinition> path)
+            {
+                GroupTreeNode? currentNode = null;
+                var currentSiblings = siblings;
+
+                foreach (var group in path)
+                {
+                    if (!currentSiblings.TryGetValue(group, out currentNode))
+                        currentSiblings[group] = currentNode = new GroupTreeNode(group);
+
+                    currentSiblings = currentNode.Children;
+                }
+
+                return currentNode ?? throw new InvalidOperationException("Grouping path must contain at least one node.");
+            }
+
+            void addGroupNode(GroupTreeNode node, IReadOnlyList<CarouselItem> ancestorGroupItems)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var groupItem = new CarouselItem(node.Group)
+                {
+                    DrawHeight = PanelGroup.HEIGHT,
+                    DepthLayer = -2,
+                    IsVisible = node.Group.Parent == null,
+                };
+
+                newItems.Add(groupItem);
+                newItemMap[groupItem.Model] = (groupItem, newItems.Count - 1);
+                newGroupMap[node.Group] = new HashSet<CarouselItem>();
+
+                if (node.Group.Parent != null && newGroupMap.TryGetValue(node.Group.Parent, out var parentItems))
+                    parentItems.Add(groupItem);
+
+                CarouselItem[] nextAncestorGroupItems = ancestorGroupItems.Append(groupItem).ToArray();
+
+                if (node.Children.Count > 0)
+                {
+                    foreach (var childNode in node.Children.Values.OrderBy(child => child.Group.Order).ThenBy(child => child.Group.Title.ToString()))
+                        addGroupNode(childNode, nextAncestorGroupItems);
+
+                    return;
+                }
+
+                addLeafBeatmaps(node.Group, node.Items, nextAncestorGroupItems);
+            }
+
+            void addLeafBeatmaps(GroupDefinition group, List<CarouselItem> groupedBeatmaps, IReadOnlyList<CarouselItem> ancestorGroupItems)
+            {
+                HashSet<CarouselItem> currentGroupItems = newGroupMap[group];
+                HashSet<CarouselItem>? currentSetItems = null;
+                BeatmapInfo? lastBeatmap = null;
+
+                foreach (var item in groupedBeatmaps)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var beatmap = (BeatmapInfo)item.Model;
+                    bool newBeatmapSet = lastBeatmap?.BeatmapSet!.ID != beatmap.BeatmapSet!.ID;
+                    var groupedBeatmapSet = new GroupedBeatmapSet(group, beatmap.BeatmapSet!);
+
+                    if (newBeatmapSet)
+                    {
+                        if (!newSetMap.TryGetValue(groupedBeatmapSet, out currentSetItems))
+                            newSetMap[groupedBeatmapSet] = currentSetItems = new HashSet<CarouselItem>();
+                    }
+
+                    if (BeatmapSetsGroupedTogether)
+                    {
+                        if (newBeatmapSet)
+                        {
+                            incrementGroupCounts(ancestorGroupItems);
+                            addLeafItem(new CarouselItem(groupedBeatmapSet)
+                            {
+                                DrawHeight = PanelBeatmapSet.HEIGHT,
+                                DepthLayer = -1,
+                            }, currentGroupItems, currentSetItems);
+                        }
+                    }
+                    else
+                    {
+                        incrementGroupCounts(ancestorGroupItems);
+                    }
+
+                    addLeafItem(new CarouselItem(new GroupedBeatmap(group, beatmap))
+                    {
+                        DrawHeight = BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT,
+                    }, currentGroupItems, currentSetItems);
+
+                    lastBeatmap = beatmap;
+                    displayedBeatmapsCount++;
+                }
+            }
+
+            void addLeafItem(CarouselItem item, HashSet<CarouselItem> currentGroupItems, HashSet<CarouselItem>? currentSetItems)
+            {
+                newItems.Add(item);
+                newItemMap[item.Model] = (item, newItems.Count - 1);
+                currentGroupItems.Add(item);
+                currentSetItems?.Add(item);
+                item.IsVisible = false;
+            }
+
+            static void incrementGroupCounts(IEnumerable<CarouselItem> ancestorGroupItems)
+            {
+                foreach (var ancestorGroupItem in ancestorGroupItems)
+                    ancestorGroupItem.NestedItemCount++;
+            }
+        }
+
         private record GroupMapping(GroupDefinition? Group, List<CarouselItem> ItemsInGroup);
+
+        private sealed class GroupTreeNode
+        {
+            public GroupDefinition Group { get; }
+
+            public Dictionary<GroupDefinition, GroupTreeNode> Children { get; } = new Dictionary<GroupDefinition, GroupTreeNode>();
+
+            public List<CarouselItem> Items { get; } = new List<CarouselItem>();
+
+            public GroupTreeNode(GroupDefinition group)
+            {
+                Group = group;
+            }
+        }
     }
 }

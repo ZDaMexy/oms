@@ -38,6 +38,7 @@ namespace osu.Game.Database
             c.CreateMap<RealmFile, RealmFile>();
             c.CreateMap<RealmNamedFileUsage, RealmNamedFileUsage>();
             c.CreateMap<BeatmapInfo, BeatmapInfo>()
+             .MaxDepth(3)
              .ForMember(s => s.Ruleset, cc => cc.Ignore())
              .ForMember(s => s.Metadata, cc => cc.Ignore())
              .ForMember(s => s.UserSettings, cc => cc.Ignore())
@@ -51,6 +52,7 @@ namespace osu.Game.Database
              });
             c.CreateMap<BeatmapSetInfo, BeatmapSetInfo>()
              .ConstructUsing(_ => new BeatmapSetInfo(null))
+             .MaxDepth(3)
              .ForMember(s => s.Beatmaps, cc => cc.Ignore())
              .AfterMap((s, d) =>
              {

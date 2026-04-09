@@ -44,6 +44,8 @@ namespace osu.Game.Beatmaps
 
         public IList<RealmNamedFileUsage> Files { get; } = null!;
 
+        public string? FilesystemStoragePath { get; set; }
+
         [Ignored]
         public BeatmapOnlineStatus Status
         {

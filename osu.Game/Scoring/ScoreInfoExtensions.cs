@@ -8,6 +8,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Models;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Online.Leaderboards;
+using osu.Game.Rulesets;
 using osu.Game.Rulesets.Scoring;
 using Realms;
 
@@ -59,6 +60,17 @@ namespace osu.Game.Scoring
                 default:
                     throw new ArgumentOutOfRangeException(nameof(leaderboardSortMode), leaderboardSortMode, null);
             }
+        }
+
+        /// <summary>
+        /// Filters scores down to the requested ruleset-specific display bucket.
+        /// </summary>
+        public static IEnumerable<ScoreInfo> FilterToScoreDisplayBucket(this IEnumerable<ScoreInfo> scores, Ruleset ruleset, string? scoreDisplayBucket)
+        {
+            if (scoreDisplayBucket == null)
+                return scores;
+
+            return scores.Where(score => ruleset.GetScoreDisplayBucket(score) == scoreDisplayBucket);
         }
 
         /// <summary>

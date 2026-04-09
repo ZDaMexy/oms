@@ -7,13 +7,14 @@ namespace osu.Game.Online
     {
         public DevelopmentEndpointConfiguration()
         {
-            WebsiteUrl = APIUrl = @"https://dev.ppy.sh";
-            APIClientSecret = @"3LP2mhUrV89xxzD1YKNndXHEhWWCRLPNKioZ9ymT";
-            APIClientID = "5";
-            SpectatorUrl = $@"{APIUrl}/signalr/spectator";
-            MultiplayerUrl = $@"{APIUrl}/signalr/multiplayer";
-            MetadataUrl = $@"{APIUrl}/signalr/metadata";
-            BeatmapSubmissionServiceUrl = $@"{APIUrl}/beatmap-submission";
+            // Current OMS local-first builds intentionally ship without default remote endpoints.
+            WebsiteUrl = APIUrl = string.Empty;
+            APIClientSecret = string.Empty;
+            APIClientID = string.Empty;
+            SpectatorUrl = string.Empty;
+            MultiplayerUrl = string.Empty;
+            MetadataUrl = string.Empty;
+            BeatmapSubmissionServiceUrl = null;
         }
     }
 }

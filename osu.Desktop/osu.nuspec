@@ -3,16 +3,15 @@
     <metadata>
         <id>osulazer</id>
         <version>0.0.0</version>
-        <title>osu!</title>
-        <authors>ppy Pty Ltd</authors>
-        <owners>Dean Herbert</owners>
-        <projectUrl>https://osu.ppy.sh/</projectUrl>
+        <title>OMS</title>
+        <authors>OMS contributors</authors>
+        <owners>OMS contributors</owners>
         <iconUrl>https://github.com/ppy/osu/blob/master/assets/lazer-nuget.png?raw=true</iconUrl>
         <icon>icon.png</icon>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
-        <description>A free-to-win rhythm game. Rhythm is just a *click* away!</description>
+        <description>OMS - a BMS player based on osu!lazer</description>
         <releaseNotes>testing</releaseNotes>
-        <copyright>Copyright (c) 2025 ppy Pty Ltd</copyright>
+        <copyright>Copyright (c) 2025 OMS contributors</copyright>
         <language>en-AU</language>
     </metadata>
     <files>

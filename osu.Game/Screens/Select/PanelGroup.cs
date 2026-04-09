@@ -149,6 +149,7 @@ namespace osu.Game.Screens.Select
 
             GroupDefinition group = (GroupDefinition)Item.Model;
 
+            titleText.X = 10f + group.Depth * 20f;
             titleText.Text = group.Title;
             countText.Text = Item.NestedItemCount.ToString("N0");
         }

@@ -41,6 +41,9 @@ namespace osu.Game.Screens.Select
 
             public IBindable<bool> FilterBySelectedMods => selectedModsToggle.Active;
 
+            [Resolved]
+            private OsuGameBase? game { get; set; }
+
             [BackgroundDependencyLoader]
             private void load(OsuConfigManager config)
             {
@@ -112,7 +115,20 @@ namespace osu.Game.Screens.Select
             {
                 base.LoadComplete();
 
-                scopeDropdown.Current.Value = tryMapDetailTabToLeaderboardScope(configDetailTab.Value) ?? scopeDropdown.Current.Value;
+                bool onlineFeaturesEnabled = game?.OnlineFeaturesEnabled ?? true;
+
+                if (!onlineFeaturesEnabled)
+                {
+                    scopeDropdown.Items = new[] { BeatmapLeaderboardScope.Local };
+                    scopeDropdown.Current.Value = BeatmapLeaderboardScope.Local;
+                    scopeDropdown.Current.Disabled = true;
+                }
+                else
+                {
+                    scopeDropdown.Current.Disabled = false;
+                    scopeDropdown.Current.Value = tryMapDetailTabToLeaderboardScope(configDetailTab.Value) ?? scopeDropdown.Current.Value;
+                }
+
                 scopeDropdown.Current.BindValueChanged(_ => updateConfigDetailTab());
 
                 tabControl.Current.Value = configDetailTab.Value == BeatmapDetailTab.Details ? Selection.Details : Selection.Ranking;

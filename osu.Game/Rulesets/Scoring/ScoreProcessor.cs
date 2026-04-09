@@ -232,9 +232,9 @@ namespace osu.Game.Rulesets.Scoring
 
             ScoreResultCounts[result.Type] = ScoreResultCounts.GetValueOrDefault(result.Type) + 1;
 
-            if (result.Type.IncreasesCombo())
+            if (ResultIncreasesCombo(result.Type))
                 Combo.Value++;
-            else if (result.Type.BreaksCombo())
+            else if (ResultBreaksCombo(result.Type))
                 Combo.Value = 0;
 
             HighestCombo.Value = Math.Max(HighestCombo.Value, Combo.Value);
@@ -328,6 +328,10 @@ namespace osu.Game.Rulesets.Scoring
         /// </summary>
         /// <param name="result">The judgement result.</param>
         protected virtual double GetComboScoreChange(JudgementResult result) => GetBaseScoreForResult(result.Judgement.MaxResult) * Math.Pow(result.ComboAfterJudgement, COMBO_EXPONENT);
+
+        protected virtual bool ResultIncreasesCombo(HitResult result) => result.IncreasesCombo();
+
+        protected virtual bool ResultBreaksCombo(HitResult result) => result.BreaksCombo();
 
         public virtual int GetBaseScoreForResult(HitResult result)
         {

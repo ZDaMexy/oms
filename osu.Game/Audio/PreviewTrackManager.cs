@@ -15,6 +15,7 @@ namespace osu.Game.Audio
     public partial class PreviewTrackManager : Component
     {
         private readonly IAdjustableAudioComponent mainTrackAdjustments;
+        private readonly bool onlinePreviewEnabled;
 
         private readonly BindableDouble muteBindable = new BindableDouble();
 
@@ -22,15 +23,17 @@ namespace osu.Game.Audio
 
         protected TrackManagerPreviewTrack? CurrentTrack;
 
-        public PreviewTrackManager(IAdjustableAudioComponent mainTrackAdjustments)
+        public PreviewTrackManager(IAdjustableAudioComponent mainTrackAdjustments, bool onlinePreviewEnabled = true)
         {
             this.mainTrackAdjustments = mainTrackAdjustments;
+            this.onlinePreviewEnabled = onlinePreviewEnabled;
         }
 
         [BackgroundDependencyLoader]
         private void load(AudioManager audioManager)
         {
-            trackStore = audioManager.GetTrackStore(new TrustedDomainOnlineStore());
+            if (onlinePreviewEnabled)
+                trackStore = audioManager.GetTrackStore(new TrustedDomainOnlineStore());
         }
 
         /// <summary>
@@ -40,18 +43,23 @@ namespace osu.Game.Audio
         /// <returns>The playable <see cref="PreviewTrack"/>.</returns>
         public PreviewTrack Get(IBeatmapSetInfo beatmapSetInfo)
         {
-            var track = CreatePreviewTrack(beatmapSetInfo, trackStore);
+            PreviewTrack track = onlinePreviewEnabled && beatmapSetInfo.OnlineID > 0
+                ? CreatePreviewTrack(beatmapSetInfo, trackStore)
+                : new DisabledPreviewTrack();
 
             track.Started += () => Schedule(() =>
             {
                 CurrentTrack?.Stop();
-                CurrentTrack = track;
+
+                if (track is TrackManagerPreviewTrack playableTrack)
+                    CurrentTrack = playableTrack;
+
                 mainTrackAdjustments.AddAdjustment(AdjustableProperty.Volume, muteBindable);
             });
 
             track.Stopped += () => Schedule(() =>
             {
-                if (CurrentTrack != track)
+                if (!ReferenceEquals(CurrentTrack, track))
                     return;
 
                 CurrentTrack = null;
@@ -84,6 +92,11 @@ namespace osu.Game.Audio
         /// </summary>
         protected virtual TrackManagerPreviewTrack CreatePreviewTrack(IBeatmapSetInfo beatmapSetInfo, ITrackStore trackStore) =>
             new TrackManagerPreviewTrack(beatmapSetInfo, trackStore);
+
+        private partial class DisabledPreviewTrack : PreviewTrack
+        {
+            protected override Track? GetTrack() => null;
+        }
 
         public partial class TrackManagerPreviewTrack : PreviewTrack
         {

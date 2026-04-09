@@ -39,12 +39,16 @@ namespace osu.Game.Overlays.FirstRunSetup
         [Resolved]
         private RealmAccess realmAccess { get; set; } = null!;
 
+        [Resolved(CanBeNull = true)]
+        private OsuGameBase? game { get; set; }
+
         private IDisposable? beatmapSubscription;
 
         [BackgroundDependencyLoader]
         private void load()
         {
             Vector2 buttonSize = new Vector2(400, 50);
+            bool onlineFeaturesEnabled = game?.OnlineFeaturesEnabled ?? true;
 
             Content.Children = new Drawable[]
             {
@@ -103,6 +107,14 @@ namespace osu.Game.Overlays.FirstRunSetup
                     Text = FirstRunSetupBeatmapScreenStrings.BundledButton,
                     Action = downloadBundled
                 },
+                new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
+                {
+                    Colour = colours.Yellow,
+                    Alpha = onlineFeaturesEnabled ? 0 : 1,
+                    Text = FirstRunSetupBeatmapScreenStrings.OnlineDownloadsDisabled,
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y
+                },
                 downloadInBackgroundText = new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                 {
                     Colour = OverlayColourProvider.Light2,
@@ -115,7 +127,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                 new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                 {
                     Colour = OverlayColourProvider.Content1,
-                    Text = FirstRunSetupBeatmapScreenStrings.ObtainMoreBeatmaps,
+                    Text = onlineFeaturesEnabled ? FirstRunSetupBeatmapScreenStrings.ObtainMoreBeatmaps : FirstRunSetupBeatmapScreenStrings.ObtainBeatmapsOffline,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },
@@ -125,6 +137,14 @@ namespace osu.Game.Overlays.FirstRunSetup
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (!(game?.OnlineFeaturesEnabled ?? true))
+            {
+                downloadTutorialButton.Enabled.Value = false;
+                downloadBundledButton.Enabled.Value = false;
+                downloadTutorialButton.Alpha = 0.5f;
+                downloadBundledButton.Alpha = 0.5f;
+            }
 
             beatmapSubscription = realmAccess.RegisterForNotifications(r => r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected), beatmapsChanged);
         }
@@ -155,6 +175,9 @@ namespace osu.Game.Overlays.FirstRunSetup
 
         private void downloadTutorial()
         {
+            if (!(game?.OnlineFeaturesEnabled ?? true))
+                return;
+
             if (tutorialDownloader != null)
                 return;
 
@@ -178,6 +201,9 @@ namespace osu.Game.Overlays.FirstRunSetup
 
         private void downloadBundled()
         {
+            if (!(game?.OnlineFeaturesEnabled ?? true))
+                return;
+
             if (bundledDownloader != null)
                 return;
 

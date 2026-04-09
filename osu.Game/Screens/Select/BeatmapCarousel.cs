@@ -357,11 +357,10 @@ namespace osu.Game.Screens.Select
                 switch (item.Model)
                 {
                     case GroupDefinition group:
-                        // Special case – collapsing an open group.
-                        if (ExpandedGroup == group)
+                        // Clicking any currently-expanded group in the active path collapses back to its parent.
+                        if (isGroupExpanded(group))
                         {
-                            setExpansionStateOfGroup(ExpandedGroup, false);
-                            ExpandedGroup = null;
+                            setExpandedGroup(group.Parent);
                             return;
                         }
 
@@ -587,61 +586,48 @@ namespace osu.Game.Screens.Select
         private void setExpandedGroup(GroupDefinition? group)
         {
             if (ExpandedGroup != null)
-                setExpansionStateOfGroup(ExpandedGroup, false);
+            {
+                foreach (var expandedGroup in ExpandedGroup.GetPathFromRoot().Reverse())
+                    setExpansionStateOfGroup(expandedGroup, false);
+            }
 
             ExpandedGroup = group;
 
             if (ExpandedGroup != null)
-                setExpansionStateOfGroup(ExpandedGroup, true);
+            {
+                foreach (var expandedGroup in ExpandedGroup.GetPathFromRoot())
+                    setExpansionStateOfGroup(expandedGroup, true);
+            }
         }
 
         private void setExpansionStateOfGroup(GroupDefinition group, bool expanded)
         {
             if (grouping.GroupItems.TryGetValue(group, out var items))
             {
-                if (expanded)
+                foreach (var i in items)
                 {
-                    foreach (var i in items)
+                    switch (i.Model)
                     {
-                        switch (i.Model)
-                        {
-                            case GroupDefinition:
-                                i.IsExpanded = true;
-                                break;
+                        case GroupDefinition childGroup:
+                            i.IsVisible = expanded;
+                            i.IsExpanded = expanded && isGroupExpanded(childGroup);
+                            break;
 
-                            case GroupedBeatmapSet groupedSet:
-                                // Case where there are set headers, header should be visible
-                                // and items should use the set's expanded state.
-                                i.IsVisible = true;
-                                setExpansionStateOfSetItems(groupedSet, i.IsExpanded);
-                                break;
+                        case GroupedBeatmapSet groupedSet:
+                            i.IsVisible = expanded;
+                            setExpansionStateOfSetItems(groupedSet, expanded && i.IsExpanded);
+                            break;
 
-                            default:
-                                // Case where there are no set headers, all items should be visible.
-                                if (!grouping.BeatmapSetsGroupedTogether)
-                                    i.IsVisible = true;
-                                break;
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (var i in items)
-                    {
-                        switch (i.Model)
-                        {
-                            case GroupDefinition:
-                                i.IsExpanded = false;
-                                break;
-
-                            default:
-                                i.IsVisible = false;
-                                break;
-                        }
+                        default:
+                            i.IsVisible = expanded;
+                            break;
                     }
                 }
             }
         }
+
+        private bool isGroupExpanded(GroupDefinition group)
+            => ExpandedGroup?.IsSelfOrDescendantOf(group) == true;
 
         private void setExpandedSet(GroupedBeatmapSet set)
         {
@@ -833,13 +819,15 @@ namespace osu.Game.Screens.Select
         protected virtual Dictionary<Guid, ScoreRank> GetBeatmapInfoGuidToTopRankMapping(FilterCriteria criteria) => realm.Run(r =>
         {
             var topRankMapping = new Dictionary<Guid, ScoreRank>();
+            var rulesetInstance = criteria.Ruleset?.CreateInstance();
+            var scoreDisplayBucket = rulesetInstance?.GetScoreDisplayBucket(criteria.Mods);
 
             var allLocalScores = r.GetAllLocalScoresForUser(criteria.LocalUserId)
                                   .Filter($@"{nameof(ScoreInfo.Ruleset)}.{nameof(RulesetInfo.ShortName)} == $0", criteria.Ruleset?.ShortName)
                                   .OrderByDescending(s => s.TotalScore)
                                   .ThenBy(s => s.Date);
 
-            foreach (var score in allLocalScores)
+            foreach (var score in (rulesetInstance == null ? allLocalScores.AsEnumerable() : allLocalScores.AsEnumerable().FilterToScoreDisplayBucket(rulesetInstance, scoreDisplayBucket)))
             {
                 Debug.Assert(score.BeatmapInfo != null);
 
@@ -1183,18 +1171,53 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public LocalisableString Title { get; }
 
+        /// <summary>
+        /// Optional parent group for hierarchical song select groupings.
+        /// </summary>
+        public GroupDefinition? Parent { get; }
+
+        /// <summary>
+        /// The nesting depth of this group within the song select hierarchy.
+        /// </summary>
+        public int Depth => Parent?.Depth + 1 ?? 0;
+
         private readonly string uncasedTitle;
 
-        public GroupDefinition(int order, LocalisableString title)
+        public GroupDefinition(int order, LocalisableString title, GroupDefinition? parent = null)
         {
             Order = order;
             Title = title;
+            Parent = parent;
             uncasedTitle = title.ToLower().GetLocalised(LocalisationParameters.DEFAULT);
         }
 
-        public virtual bool Equals(GroupDefinition? other) => uncasedTitle == other?.uncasedTitle;
+        public IEnumerable<GroupDefinition> GetPathFromRoot()
+        {
+            var path = new Stack<GroupDefinition>();
 
-        public override int GetHashCode() => HashCode.Combine(uncasedTitle);
+            for (GroupDefinition? current = this; current != null; current = current.Parent)
+                path.Push(current);
+
+            return path;
+        }
+
+        public bool IsSelfOrDescendantOf(GroupDefinition? other)
+        {
+            if (other == null)
+                return false;
+
+            for (GroupDefinition? current = this; current != null; current = current.Parent)
+            {
+                if (current.Equals(other))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public virtual bool Equals(GroupDefinition? other) => uncasedTitle == other?.uncasedTitle && EqualityComparer<GroupDefinition?>.Default.Equals(Parent, other.Parent);
+
+        public override int GetHashCode() => HashCode.Combine(uncasedTitle, Parent);
     }
 
     /// <summary>

@@ -63,13 +63,21 @@ namespace osu.Game.Users
                 }
                 else
                 {
-                    InternalChild = new Sprite
+                    InternalChildren = new Drawable[]
                     {
-                        RelativeSizeAxes = Axes.Both,
-                        Texture = textures.Get(user.CoverUrl),
-                        FillMode = FillMode.Fill,
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = ColourInfo.GradientVertical(Color4.Black.Opacity(0.15f), Color4.Black.Opacity(0.8f))
+                        },
+                        new Sprite
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Texture = textures.Get(user.CoverUrl) ?? textures.Get(@"Backgrounds/bg2"),
+                            FillMode = FillMode.Fill,
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre
+                        }
                     };
                 }
             }

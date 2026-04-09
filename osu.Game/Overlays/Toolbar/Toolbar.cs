@@ -65,6 +65,8 @@ namespace osu.Game.Overlays.Toolbar
         [BackgroundDependencyLoader(true)]
         private void load(OsuGame osuGame)
         {
+            bool onlineFeaturesEnabled = osuGame?.OnlineFeaturesEnabled ?? true;
+
             ToolbarBackground background;
             HoverInterceptor interceptor;
 
@@ -160,24 +162,31 @@ namespace osu.Game.Overlays.Toolbar
                                         Direction = FillDirection.Horizontal,
                                         RelativeSizeAxes = Axes.Y,
                                         AutoSizeAxes = Axes.X,
-                                        Children = new Drawable[]
-                                        {
-                                            new ToolbarNewsButton(),
-                                            new ToolbarChangelogButton(),
-                                            new ToolbarWikiButton(),
-                                            new ToolbarRankingsButton(),
-                                            new ToolbarBeatmapListingButton(),
-                                            new ToolbarChatButton(),
-                                            new ToolbarSocialButton(),
-                                            new ToolbarMusicButton(),
-                                            //new ToolbarButton
-                                            //{
-                                            //    Icon = FontAwesome.Solid.search
-                                            //},
-                                            userButton = new ToolbarUserButton(),
-                                            new ToolbarClock(),
-                                            new ToolbarNotificationButton(),
-                                        }
+                                        Children = onlineFeaturesEnabled
+                                            ? new Drawable[]
+                                            {
+                                                new ToolbarNewsButton(),
+                                                new ToolbarChangelogButton(),
+                                                new ToolbarWikiButton(),
+                                                new ToolbarRankingsButton(),
+                                                new ToolbarBeatmapListingButton(),
+                                                new ToolbarChatButton(),
+                                                new ToolbarSocialButton(),
+                                                new ToolbarMusicButton(),
+                                                //new ToolbarButton
+                                                //{
+                                                //    Icon = FontAwesome.Solid.search
+                                                //},
+                                                userButton = new ToolbarUserButton(),
+                                                new ToolbarClock(),
+                                                new ToolbarNotificationButton(),
+                                            }
+                                            : new Drawable[]
+                                            {
+                                                new ToolbarMusicButton(),
+                                                new ToolbarClock(),
+                                                new ToolbarNotificationButton(),
+                                            }
                                     },
                                 }
                             },
@@ -292,7 +301,7 @@ namespace osu.Game.Overlays.Toolbar
 
         protected override void PopOut()
         {
-            userButton.StateContainer?.Hide();
+            userButton?.StateContainer?.Hide();
 
             this.MoveToY(-DrawSize.Y, transition_time, Easing.OutQuint);
             this.FadeOut(transition_time, Easing.InQuint);

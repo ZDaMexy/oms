@@ -94,9 +94,9 @@ namespace osu.Game
     {
 #if DEBUG
         // Different port allows running release and debug builds alongside each other.
-        public const string IPC_PIPE_NAME = "osu-lazer-debug";
+    public const string IPC_PIPE_NAME = "oms-debug";
 #else
-        public const string IPC_PIPE_NAME = "osu-lazer";
+    public const string IPC_PIPE_NAME = "oms";
 #endif
 
         /// <summary>
@@ -567,68 +567,131 @@ namespace osu.Game
         /// Open a specific channel in chat.
         /// </summary>
         /// <param name="channel">The channel to display.</param>
-        public void ShowChannel(string channel) => waitForReady(() => channelManager, _ =>
+        public void ShowChannel(string channel)
         {
-            try
+            if (!OnlineFeaturesEnabled || channelManager == null)
+                return;
+
+            waitForReady(() => channelManager, _ =>
             {
-                channelManager.OpenChannel(channel);
-            }
-            catch (ChannelNotFoundException)
-            {
-                Logger.Log($"The requested channel \"{channel}\" does not exist");
-            }
-        });
+                try
+                {
+                    channelManager.OpenChannel(channel);
+                }
+                catch (ChannelNotFoundException)
+                {
+                    Logger.Log($"The requested channel \"{channel}\" does not exist");
+                }
+            });
+        }
 
         /// <summary>
         /// Show a beatmap set as an overlay.
         /// </summary>
         /// <param name="setId">The set to display.</param>
-        public void ShowBeatmapSet(int setId) => waitForReady(() => beatmapSetOverlay, _ => beatmapSetOverlay.FetchAndShowBeatmapSet(setId));
+        public void ShowBeatmapSet(int setId)
+        {
+            if (!OnlineFeaturesEnabled || beatmapSetOverlay == null)
+                return;
+
+            waitForReady(() => beatmapSetOverlay, _ => beatmapSetOverlay.FetchAndShowBeatmapSet(setId));
+        }
 
         /// <summary>
         /// Show a user's profile as an overlay.
         /// </summary>
         /// <param name="user">The user to display.</param>
-        public void ShowUser(IUser user) => waitForReady(() => userProfile, _ => userProfile.ShowUser(user));
+        public void ShowUser(IUser user)
+        {
+            if (!OnlineFeaturesEnabled || userProfile == null)
+                return;
+
+            waitForReady(() => userProfile, _ => userProfile.ShowUser(user));
+        }
 
         /// <summary>
         /// Show a beatmap's set as an overlay, displaying the given beatmap.
         /// </summary>
         /// <param name="beatmapId">The beatmap to show.</param>
-        public void ShowBeatmap(int beatmapId) => waitForReady(() => beatmapSetOverlay, _ => beatmapSetOverlay.FetchAndShowBeatmap(beatmapId));
+        public void ShowBeatmap(int beatmapId)
+        {
+            if (!OnlineFeaturesEnabled || beatmapSetOverlay == null)
+                return;
+
+            waitForReady(() => beatmapSetOverlay, _ => beatmapSetOverlay.FetchAndShowBeatmap(beatmapId));
+        }
 
         /// <summary>
         /// Shows the beatmap listing overlay, with the given <paramref name="query"/> in the search box.
         /// </summary>
         /// <param name="query">The query to search for.</param>
-        public void SearchBeatmapSet(string query) => waitForReady(() => beatmapListing, _ => beatmapListing.ShowWithSearch(query));
+        public void SearchBeatmapSet(string query)
+        {
+            if (!OnlineFeaturesEnabled || beatmapListing == null)
+                return;
 
-        public void FilterBeatmapSetGenre(SearchGenre genre) => waitForReady(() => beatmapListing, _ => beatmapListing.ShowWithGenreFilter(genre));
+            waitForReady(() => beatmapListing, _ => beatmapListing.ShowWithSearch(query));
+        }
 
-        public void FilterBeatmapSetLanguage(SearchLanguage language) => waitForReady(() => beatmapListing, _ => beatmapListing.ShowWithLanguageFilter(language));
+        public void FilterBeatmapSetGenre(SearchGenre genre)
+        {
+            if (!OnlineFeaturesEnabled || beatmapListing == null)
+                return;
+
+            waitForReady(() => beatmapListing, _ => beatmapListing.ShowWithGenreFilter(genre));
+        }
+
+        public void FilterBeatmapSetLanguage(SearchLanguage language)
+        {
+            if (!OnlineFeaturesEnabled || beatmapListing == null)
+                return;
+
+            waitForReady(() => beatmapListing, _ => beatmapListing.ShowWithLanguageFilter(language));
+        }
 
         /// <summary>
         /// Show a wiki's page as an overlay
         /// </summary>
         /// <param name="path">The wiki page to show</param>
-        public void ShowWiki(string path) => waitForReady(() => wikiOverlay, _ => wikiOverlay.ShowPage(path));
+        public void ShowWiki(string path)
+        {
+            if (!OnlineFeaturesEnabled || wikiOverlay == null)
+                return;
+
+            waitForReady(() => wikiOverlay, _ => wikiOverlay.ShowPage(path));
+        }
 
         /// <summary>
         /// Show changelog listing overlay
         /// </summary>
-        public void ShowChangelogListing() => waitForReady(() => changelogOverlay, _ => changelogOverlay.ShowListing());
+        public void ShowChangelogListing()
+        {
+            if (!OnlineFeaturesEnabled || changelogOverlay == null)
+                return;
+
+            waitForReady(() => changelogOverlay, _ => changelogOverlay.ShowListing());
+        }
 
         /// <summary>
         /// Show changelog's build as an overlay
         /// </summary>
         /// <param name="version">The build version, including stream suffix.</param>
-        public void ShowChangelogBuild(string version) => waitForReady(() => changelogOverlay, _ => changelogOverlay.ShowBuild(version));
+        public void ShowChangelogBuild(string version)
+        {
+            if (!OnlineFeaturesEnabled || changelogOverlay == null)
+                return;
+
+            waitForReady(() => changelogOverlay, _ => changelogOverlay.ShowBuild(version));
+        }
 
         /// <summary>
         /// Joins a multiplayer or playlists room with the given <paramref name="id"/>.
         /// </summary>
         public void JoinRoom(long id)
         {
+            if (!OnlineFeaturesEnabled)
+                return;
+
             var request = new GetRoomRequest(id);
             request.Success += room =>
             {
@@ -885,15 +948,17 @@ namespace osu.Game
                     Beatmap.Value = BeatmapManager.GetWorkingBeatmap(databasedBeatmap);
 
                 var currentLeaderboard = LeaderboardManager.CurrentCriteria;
+                var scoreDisplayBucket = databasedScore.ScoreInfo.Ruleset.CreateInstance().GetScoreDisplayBucket(databasedScore.ScoreInfo);
 
                 bool leaderboardBeatmapMatches = currentLeaderboard != null && databasedBeatmap.Equals(currentLeaderboard.Beatmap);
                 bool leaderboardRulesetMatches = currentLeaderboard != null && databasedScore.ScoreInfo.Ruleset.Equals(currentLeaderboard.Ruleset);
+                bool leaderboardScoreBucketMatches = currentLeaderboard != null && currentLeaderboard.ScoreDisplayBucket == scoreDisplayBucket;
 
-                if (!leaderboardBeatmapMatches || !leaderboardRulesetMatches)
+                if (!leaderboardBeatmapMatches || !leaderboardRulesetMatches || !leaderboardScoreBucketMatches)
                 {
                     var newLeaderboard = currentLeaderboard != null
-                        ? currentLeaderboard with { Beatmap = databasedBeatmap, Ruleset = databasedScore.ScoreInfo.Ruleset }
-                        : new LeaderboardCriteria(databasedBeatmap, databasedScore.ScoreInfo.Ruleset, BeatmapLeaderboardScope.Global, null);
+                        ? currentLeaderboard with { Beatmap = databasedBeatmap, Ruleset = databasedScore.ScoreInfo.Ruleset, ScoreDisplayBucket = scoreDisplayBucket }
+                        : new LeaderboardCriteria(databasedBeatmap, databasedScore.ScoreInfo.Ruleset, BeatmapLeaderboardScope.Global, null, ScoreDisplayBucket: scoreDisplayBucket);
                     LeaderboardManager.FetchWithCriteria(newLeaderboard);
                 }
 
@@ -1232,25 +1297,42 @@ namespace osu.Game
             // overlay elements
             loadComponentSingleFile(FirstRunOverlay = new FirstRunSetupOverlay(), footerBasedOverlayContent.Add, true);
             loadComponentSingleFile(new ManageCollectionsDialog(), overlayContent.Add, true);
-            loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(dashboard = new DashboardOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(news = new NewsOverlay(), overlayContent.Add, true);
-            var rankingsOverlay = loadComponentSingleFile(new RankingsOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(channelManager = new ChannelManager(API), Add, true);
-            loadComponentSingleFile(chatOverlay = new ChatOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(new MessageNotifier(), Add, true);
+
+            RankingsOverlay rankingsOverlay = null;
+
+            if (OnlineFeaturesEnabled)
+            {
+                loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), overlayContent.Add, true);
+                loadComponentSingleFile(dashboard = new DashboardOverlay(), overlayContent.Add, true);
+                loadComponentSingleFile(news = new NewsOverlay(), overlayContent.Add, true);
+                rankingsOverlay = loadComponentSingleFile(new RankingsOverlay(), overlayContent.Add, true);
+                loadComponentSingleFile(channelManager = new ChannelManager(API), Add, true);
+                loadComponentSingleFile(chatOverlay = new ChatOverlay(), overlayContent.Add, true);
+                loadComponentSingleFile(new MessageNotifier(), Add, true);
+            }
+
             loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
-            loadComponentSingleFile(changelogOverlay = new ChangelogOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(userProfile = new UserProfileOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(wikiOverlay = new WikiOverlay(), overlayContent.Add, true);
+
+            if (OnlineFeaturesEnabled)
+                loadComponentSingleFile(changelogOverlay = new ChangelogOverlay(), overlayContent.Add, true);
+
+            if (OnlineFeaturesEnabled)
+            {
+                loadComponentSingleFile(userProfile = new UserProfileOverlay(), overlayContent.Add, true);
+                loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(), overlayContent.Add, true);
+                loadComponentSingleFile(wikiOverlay = new WikiOverlay(), overlayContent.Add, true);
+            }
+
             loadComponentSingleFile(skinEditor = new SkinEditorOverlay(ScreenContainer), overlayContent.Add, true);
 
-            loadComponentSingleFile(new LoginOverlay
+            if (OnlineFeaturesEnabled)
             {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-            }, rightFloatingOverlayContent.Add, true);
+                loadComponentSingleFile(new LoginOverlay
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                }, rightFloatingOverlayContent.Add, true);
+            }
 
             loadComponentSingleFile(new NowPlayingOverlay
             {
@@ -1258,7 +1340,9 @@ namespace osu.Game
                 Origin = Anchor.TopRight,
             }, rightFloatingOverlayContent.Add, true);
 
-            loadComponentSingleFile(new AccountCreationOverlay(), topMostOverlayContent.Add, true);
+            if (OnlineFeaturesEnabled)
+                loadComponentSingleFile(new AccountCreationOverlay(), topMostOverlayContent.Add, true);
+
             loadComponentSingleFile<IDialogOverlay>(new DialogOverlay(), topMostOverlayContent.Add, true);
             loadComponentSingleFile(new MedalOverlay(), topMostOverlayContent.Add);
 
@@ -1268,8 +1352,12 @@ namespace osu.Game
 
             Add(externalLinkOpener = new ExternalLinkOpener());
             Add(new MusicKeyBindingHandler());
-            Add(new OnlineStatusNotifier(() => ScreenStack.CurrentScreen));
-            Add(new FriendPresenceNotifier());
+
+            if (OnlineFeaturesEnabled)
+            {
+                Add(new OnlineStatusNotifier(() => ScreenStack.CurrentScreen));
+                Add(new FriendPresenceNotifier());
+            }
 
             // side overlays which cancel each other.
             var singleDisplaySideOverlays = new OverlayContainer[] { Settings, Notifications, FirstRunOverlay };
@@ -1285,7 +1373,7 @@ namespace osu.Game
             }
 
             // eventually informational overlays should be displayed in a stack, but for now let's only allow one to stay open at a time.
-            var informationalOverlays = new OverlayContainer[] { beatmapSetOverlay, userProfile };
+            var informationalOverlays = new OverlayContainer[] { beatmapSetOverlay, userProfile }.Where(o => o != null).ToArray();
 
             foreach (var overlay in informationalOverlays)
             {
@@ -1297,7 +1385,7 @@ namespace osu.Game
             }
 
             // ensure only one of these overlays are open at once.
-            var singleDisplayOverlays = new OverlayContainer[] { chatOverlay, news, dashboard, beatmapListing, changelogOverlay, rankingsOverlay, wikiOverlay };
+            var singleDisplayOverlays = new OverlayContainer[] { chatOverlay, news, dashboard, beatmapListing, changelogOverlay, rankingsOverlay, wikiOverlay }.Where(o => o != null).ToArray();
 
             foreach (var overlay in singleDisplayOverlays)
             {
@@ -1571,6 +1659,9 @@ namespace osu.Game
                     return true;
 
                 case GlobalAction.ToggleProfile:
+                    if (!OnlineFeaturesEnabled || userProfile == null)
+                        return false;
+
                     if (userProfile.State.Value == Visibility.Visible)
                         userProfile.Hide();
                     else

@@ -36,6 +36,9 @@ namespace osu.Game.Beatmaps.Drawables
 
         private BundledBeatmapModelDownloader beatmapDownloader;
 
+        [Resolved(CanBeNull = true)]
+        private OsuGameBase game { get; set; }
+
         /// <summary>
         /// Construct a new beatmap downloader.
         /// </summary>
@@ -75,6 +78,9 @@ namespace osu.Game.Beatmaps.Drawables
         [BackgroundDependencyLoader]
         private void load()
         {
+            if (!(game?.OnlineFeaturesEnabled ?? true))
+                return;
+
             foreach (string filename in downloadableFilenames)
             {
                 var match = Regex.Match(filename, @"([0-9]*) (.*) - (.*)\.osz");

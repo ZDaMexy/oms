@@ -254,7 +254,7 @@ namespace osu.Game.Screens.Select
                     items.Add(new OsuMenuItemSpacer());
                 }
 
-                if (beatmapSet.OnlineID > 0)
+                if ((game?.OnlineFeaturesEnabled ?? true) && beatmapSet.OnlineID > 0)
                 {
                     items.Add(new OsuMenuItem(CommonStrings.Details, MenuItemType.Standard, () => beatmapOverlay?.FetchAndShowBeatmapSet(beatmapSet.OnlineID)));
 

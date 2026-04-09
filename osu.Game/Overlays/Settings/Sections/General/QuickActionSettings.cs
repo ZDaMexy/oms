@@ -54,7 +54,11 @@ namespace osu.Game.Overlays.Settings.Sections.General
                     Text = GeneralSettingsStrings.ReportIssue,
                     TooltipText = GeneralSettingsStrings.ReportIssueTooltip,
                     BackgroundColour = colours.YellowDarker,
-                    Action = () => game?.OpenUrlExternally(@"https://osu.ppy.sh/community/forums/topics/create?forum_id=5", LinkWarnMode.NeverWarn)
+                    Action = () =>
+                    {
+                        if (game?.OnlineFeaturesEnabled == true)
+                            game.OpenUrlExternally(@"https://osu.ppy.sh/community/forums/topics/create?forum_id=5", LinkWarnMode.NeverWarn);
+                    }
                 },
             });
 

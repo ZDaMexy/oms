@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Bindables;
 using osu.Framework.Extensions;
 using osu.Framework.Extensions.EnumExtensions;
 using osu.Framework.Graphics;
@@ -31,6 +32,8 @@ using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
 using osu.Game.Screens.Edit.Setup;
 using osu.Game.Screens.Ranking.Statistics;
+using osu.Game.Screens.Select;
+using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning;
 using osu.Game.Users;
 using osuTK;
@@ -285,6 +288,11 @@ namespace osu.Game.Rulesets
         public virtual RulesetSettingsSubsection? CreateSettings() => null;
 
         /// <summary>
+        /// Can be overridden to add ruleset-specific sections to the key binding settings panel.
+        /// </summary>
+        public virtual IEnumerable<Drawable> CreateKeyBindingSections() => Array.Empty<Drawable>();
+
+        /// <summary>
         /// Creates the <see cref="IRulesetConfigManager"/> for this <see cref="Ruleset"/>.
         /// </summary>
         /// <param name="settings">The <see cref="SettingsStore"/> to store the settings.</param>
@@ -327,12 +335,43 @@ namespace osu.Game.Rulesets
         public virtual IConvertibleReplayFrame? CreateConvertibleReplayFrame() => null;
 
         /// <summary>
+        /// Allows rulesets to attach persisted, ruleset-specific data to a <see cref="ScoreInfo"/>
+        /// before it is imported and shown on the results screen.
+        /// </summary>
+        /// <param name="score">The score to mutate.</param>
+        /// <param name="playableBeatmap">The <see cref="IBeatmap"/>, converted for this <see cref="Ruleset"/> with all relevant <see cref="Mod"/>s applied.</param>
+        public virtual void PrepareScoreInfoForResults(ScoreInfo score, IBeatmap playableBeatmap)
+        {
+        }
+
+        /// <summary>
         /// Creates the statistics for a <see cref="ScoreInfo"/> to be displayed in the results screen.
         /// </summary>
         /// <param name="score">The <see cref="ScoreInfo"/> to create the statistics for. The score is guaranteed to have <see cref="ScoreInfo.HitEvents"/> populated.</param>
         /// <param name="playableBeatmap">The <see cref="IBeatmap"/>, converted for this <see cref="Ruleset"/> with all relevant <see cref="Mod"/>s applied.</param>
         /// <returns>The <see cref="StatisticItem"/>s to display.</returns>
         public virtual StatisticItem[] CreateStatisticsForScore(ScoreInfo score, IBeatmap playableBeatmap) => Array.Empty<StatisticItem>();
+
+        /// <summary>
+        /// Returns a ruleset-specific key used to keep local score displays separated into independent buckets.
+        /// </summary>
+        /// <remarks>
+        /// This is intended for cases where a ruleset needs local bests, replays, or leaderboards to remain separated
+        /// even when beatmap, ruleset, and exact mod filters would otherwise match.
+        /// A return value of <see langword="null"/> means no extra bucketing is required.
+        /// </remarks>
+        /// <param name="score">The score being inspected.</param>
+        public virtual string? GetScoreDisplayBucket(ScoreInfo score) => null;
+
+        /// <summary>
+        /// Returns the active ruleset-specific score display bucket for a mod selection.
+        /// </summary>
+        /// <remarks>
+        /// This is used by local score displays to determine which bucket should be visible before a score exists.
+        /// A return value of <see langword="null"/> means no extra bucketing is required.
+        /// </remarks>
+        /// <param name="mods">The active mods.</param>
+        public virtual string? GetScoreDisplayBucket(IReadOnlyList<Mod>? mods) => null;
 
         /// <summary>
         /// Get all <see cref="HitResult"/>s for this ruleset which are important enough to displayed to the end user.
@@ -420,9 +459,28 @@ namespace osu.Game.Rulesets
         }
 
         /// <summary>
+        /// Creates an optional ruleset-specific component to be displayed in the song select beatmap details area.
+        /// </summary>
+        /// <param name="beatmap">The currently selected working beatmap bindable.</param>
+        public virtual Drawable? CreateBeatmapDetailsComponent(IBindable<WorkingBeatmap> beatmap) => null;
+
+        /// <summary>
         /// Creates ruleset-specific beatmap filter criteria to be used on the song select screen.
         /// </summary>
         public virtual IRulesetFilterCriteria? CreateRulesetFilterCriteria() => null;
+
+        /// <summary>
+        /// Returns the song select grouping modes that should be exposed for this ruleset.
+        /// </summary>
+        public virtual IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes()
+            => Enum.GetValues<GroupMode>().Where(mode => mode != GroupMode.DifficultyTable).ToArray();
+
+        /// <summary>
+        /// Returns optional ruleset-specific group definitions for the supplied beatmap.
+        /// Only queried when the active song select group mode is ruleset-specific.
+        /// </summary>
+        public virtual IEnumerable<GroupDefinition> GetSongSelectGroupDefinitions(GroupMode mode, IBeatmapInfo beatmapInfo)
+            => Array.Empty<GroupDefinition>();
 
         /// <summary>
         /// Can be overridden to add ruleset-specific sections to the editor beatmap setup screen.

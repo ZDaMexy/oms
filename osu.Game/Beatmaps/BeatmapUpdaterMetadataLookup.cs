@@ -19,8 +19,8 @@ namespace osu.Game.Beatmaps
         private readonly IOnlineBeatmapMetadataSource apiMetadataSource;
         private readonly IOnlineBeatmapMetadataSource localCachedMetadataSource;
 
-        public BeatmapUpdaterMetadataLookup(IAPIProvider api, Storage storage)
-            : this(new APIBeatmapMetadataSource(api), new LocalCachedBeatmapMetadataSource(storage))
+        public BeatmapUpdaterMetadataLookup(IAPIProvider api, Storage storage, bool allowOnlineMetadataCache = true)
+            : this(new APIBeatmapMetadataSource(api), new LocalCachedBeatmapMetadataSource(storage, allowOnlineMetadataCache))
         {
         }
 

@@ -30,6 +30,7 @@ using osu.Game.Rulesets.Mania.Scoring;
 using osu.Game.Rulesets.Mania.Skinning.Argon;
 using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.Mania.Skinning.Legacy;
+using osu.Game.Rulesets.Mania.Skinning.Oms;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Replays.Types;
@@ -72,6 +73,9 @@ namespace osu.Game.Rulesets.Mania
         {
             switch (skin)
             {
+                case OmsSkin:
+                    return new OmsSkinTransformer(new ManiaOmsSkinTransformer(skin, beatmap));
+
                 case TrianglesSkin:
                     return new ManiaTrianglesSkinTransformer(skin, beatmap);
 

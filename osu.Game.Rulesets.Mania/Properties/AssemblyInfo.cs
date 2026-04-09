@@ -9,5 +9,3 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("osu.Game.Rulesets.Mania.Tests")]
 [assembly: InternalsVisibleTo("osu.Game.Rulesets.Mania.Tests.Dynamic")]
-[assembly: InternalsVisibleTo("osu.Game.Rulesets.Mania.Tests.iOS")]
-[assembly: InternalsVisibleTo("osu.Game.Rulesets.Mania.Tests.Android")]

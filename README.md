@@ -1,147 +1,93 @@
-<p align="center">
-  <img width="500" alt="osu! logo" src="assets/lazer.png">
-</p>
+# OMS
 
-# osu!
+OMS 是一个面向 BMS 与 osu!mania 的 Windows-only 音游客户端。对熟悉 LR2 和 beatoraja 的玩家来说，它的价值很直接：离线优先、可便携发布、支持本地导入，把 BMS 和 mania 收进同一个更现代的客户端里。
 
-[![Build status](https://github.com/ppy/osu/actions/workflows/ci.yml/badge.svg?branch=master&event=push)](https://github.com/ppy/osu/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/release/ppy/osu.svg)](https://github.com/ppy/osu/releases/latest)
-[![CodeFactor](https://www.codefactor.io/repository/github/ppy/osu/badge)](https://www.codefactor.io/repository/github/ppy/osu)
-[![dev chat](https://discordapp.com/api/guilds/188630481301012481/widget.png?style=shield)](https://discord.gg/ppy)
-[![Crowdin](https://d322cqt584bo4o.cloudfront.net/osu-web/localized.svg)](https://crowdin.com/project/osu-web)
+## 项目定位
 
-A free-to-win rhythm game. Rhythm is just a *click* away!
+- 平台：Windows 10 22H2 及以上
+- 运行时：.NET 8、DesktopGL、osu-framework
+- 当前保留模式：osu!mania、BMS
+- 已移除模式：Osu、Taiko、Catch
+- 发布策略：Phase 1-2 以 Portable.zip 全量包 + 手工覆盖更新为基线，游戏内在线更新默认禁用
+- 联网策略：账号、在线排行榜、谱面下载、新闻/聊天、多人/观战与远程难度表源在 Phase 3 前默认隐藏或禁用
 
-This is the future – and final – iteration of the [osu!](https://osu.ppy.sh) game client which marks the beginning of an open era! Currently known by and released under the release codename "*lazer*". As in sharper than cutting-edge.
+OMS 的代码实现主要通过 GitHub Copilot 的 AI agent 工作流完成，底层使用 GPT 模型。开发者负责产品方向、架构判断、测试验收与需求输入。
 
-## Status
+## 当前状态
 
-This project is under constant development, but we do our best to keep things in a stable state. Players are encouraged to install from a release alongside their stable *osu!* client. This project will continue to evolve until we eventually reach the point where most users prefer it over the previous "osu!stable" release.
+- 可游玩模式：osu!mania、BMS
+- BMS 主链：解码、转换、导入、游玩、结算可用
+- 支持键位：7K+1
+- 判定系统：OD、BEATORAJA、LR2
+- Gauge：ASSIST EASY、EASY、NORMAL、HARD、EX-HARD、HAZARD，以及 GAS
+- 计分与结果：EX-SCORE、CLEAR LAMP、DJ LEVEL
+- 长条模式相关计分已区分 CN / HCN
+- 难度表：离线难度表缓存、MD5 匹配、表分组、Song Select 音符分布图
+- 输入：键盘组合键、HID、XInput、MouseAxis、Raw Input
+- 离线模式：默认在线 endpoint 为空，在线入口与 Discord Rich Presence 受 `OnlineFeaturesEnabled` 守卫
+- 最近验证：mania 定向回归 `50/50` 通过，BMS 过滤回归 `69/69` 通过，完整 `osu.Game.Rulesets.Bms.Tests` 为 `446/446` 通过，`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
 
-A few resources are available as starting points to getting involved and understanding the project:
+## 仓库入口
 
-- Detailed release changelogs are available on the [official osu! site](https://osu.ppy.sh/home/changelog/lazer).
-- You can learn more about our approach to [project management](https://github.com/ppy/osu/wiki/Project-management).
-- Track our current efforts [towards improving the game](https://github.com/orgs/ppy/projects/7/views/6).
+优先阅读：
 
-## Running osu!
+- `OMS_COPILOT.md`：产品约束、技术纪律与 release gate
+- `DEVELOPMENT_PLAN.md`：执行顺序、阶段依赖与验收标准
+- `DEVELOPMENT_STATUS.md`：已验证的仓库现状与遗留问题
+- `CHANGELOG.md`：按日期倒序的变更摘要
+- `SKINNING.md`：皮肤契约、fallback 与未冻结边界
+- `UPSTREAM.md`：上游锁定点与同步策略
+- `RELEASE.md`：便携发行构建与发布门槛
 
-If you are just looking to give the game a whirl, you can grab the latest release for your platform:
+主要工程：
 
-### Latest release:
+- `osu.Game`：核心游戏层
+- `osu.Game.Rulesets.Mania`：保留的 mania 规则集
+- `osu.Game.Rulesets.Bms`：BMS 解码、转换、判定、计分、导入与布局
+- `oms.Input`：统一输入抽象层
+- `osu.Desktop`：桌面入口
 
-| [Windows 10+ (x64)](https://github.com/ppy/osu/releases/latest/download/install.exe) | macOS 12+ ([Intel](https://github.com/ppy/osu/releases/latest/download/osu.app.Intel.zip), [Apple Silicon](https://github.com/ppy/osu/releases/latest/download/osu.app.Apple.Silicon.zip)) | [Linux (x64)](https://github.com/ppy/osu/releases/latest/download/osu.AppImage) | [iOS 13.4+](https://osu.ppy.sh/home/testflight) | [Android 5+](https://github.com/ppy/osu/releases/latest/download/sh.ppy.osulazer.apk) |
-|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------- | ------------- | ------------- |
+## 开发环境
 
-You can also generally download a version for your current device from the [osu! site](https://osu.ppy.sh/home/download).
+- Windows 10/11
+- .NET 8 SDK
+- Visual Studio、JetBrains Rider 或 Visual Studio Code
 
-If your platform is unsupported or not listed above, there is still a chance you can run the release or manually build it by following the instructions below.
+仓库通过 `global.json` 锁定 .NET 8 基线，并允许在更高主版本 SDK 上滚动构建。
 
-**For iOS/iPadOS users**: The iOS testflight link fills up very fast (Apple has a hard limit of 10,000 users). We reset it occasionally. Please do not ask about this. Check back regularly for link resets or follow [peppy](https://twitter.com/ppy) on twitter for announcements. Our goal is to get the game on mobile app stores very soon so we don't have to live with this limitation.
+## 构建、运行与验证
 
-## Developing a custom ruleset
+优先打开 `osu.Desktop.slnf`。
 
-osu! is designed to allow user-created gameplay variations, called "rulesets". Building one of these allows a developer to harness the power of the osu! beatmap library, game engine, and general UX for a new style of gameplay. To get started working on a ruleset, we have some templates available [here](https://github.com/ppy/osu/tree/master/Templates).
-
-You can see some examples of custom rulesets by visiting the [custom ruleset directory](https://github.com/ppy/osu/discussions/13096).
-
-## Developing osu!
-
-### Prerequisites
-
-Please make sure you have the following prerequisites:
-
-- A desktop platform with the [.NET 8.0 SDK](https://dotnet.microsoft.com/download) installed.
-
-When working with the codebase, we recommend using an IDE with intelligent code completion and syntax highlighting, such as the latest version of [Visual Studio](https://visualstudio.microsoft.com/vs/), [JetBrains Rider](https://www.jetbrains.com/rider/), or [Visual Studio Code](https://code.visualstudio.com/) with the [EditorConfig](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig) and [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) plugin installed.
-
-### Downloading the source code
-
-Clone the repository:
-
-```shell
-git clone https://github.com/ppy/osu
-cd osu
-```
-
-To update the source code to the latest commit, run the following command inside the `osu` directory:
+构建：
 
 ```shell
-git pull
+dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m
 ```
 
-### Building
-
-#### From an IDE
-
-You should load the solution via one of the platform-specific `.slnf` files, rather than the main `.sln`. This will reduce dependencies and hide platforms that you don't care about. Valid `.slnf` files are:
-
-- `osu.Desktop.slnf` (most common)
-- `osu.Android.slnf`
-- `osu.iOS.slnf`
-
-Run configurations for the recommended IDEs (listed above) are included. You should use the provided Build/Run functionality of your IDE to get things going. When testing or building new components, it's highly encouraged you use the `osu! (Tests)` project/configuration. More information on this is provided [below](#contributing).
-
-To build for mobile platforms, you will likely need to run `sudo dotnet workload restore` if you haven't done so previously. This will install Android/iOS tooling required to complete the build.
-
-#### From CLI
-
-You can also build and run *osu!* from the command-line with a single command:
+运行：
 
 ```shell
 dotnet run --project osu.Desktop
 ```
 
-When running locally to do any kind of performance testing, make sure to add `-c Release` to the build command, as the overhead of running with the default `Debug` configuration can be large (especially when testing with local framework modifications as below).
+执行完整 BMS 测试：
 
-If the build fails, try to restore NuGet packages with `dotnet restore`.
-
-### Testing with resource/framework modifications
-
-Sometimes it may be necessary to cross-test changes in [osu-resources](https://github.com/ppy/osu-resources) or [osu-framework](https://github.com/ppy/osu-framework). This can be quickly achieved using included commands:
-
-Windows:
-
-```ps
-UseLocalFramework.ps1
-UseLocalResources.ps1
+```shell
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore
 ```
 
-macOS / Linux:
+## 设计原则
 
-```ps
-UseLocalFramework.sh
-UseLocalResources.sh
-```
+- 不重新引入 Osu、Taiko、Catch
+- 不盲目同步上游，按 `UPSTREAM.md` 选择性 cherry-pick
+- BMS 功能优先级高于通用平台扩展
+- 输入、判定、Gauge、难度表与 Song Select 行为都以 BMS 生态兼容性为优先
+- 最终正式发行物不再以 osu!lazer 原生默认皮肤作为产品表面；OMS 将维护一套适用于 mania 与 BMS 的自有内置皮肤
+- 在 Phase 3 前保持离线优先，不把“在线功能预留”当作“当前可用能力”对外描述
 
-Note that these commands assume you have the relevant project(s) checked out in adjacent directories:
+## 许可证
 
-```
-|- osu            // this repository
-|- osu-framework
-|- osu-resources
-```
+本仓库继承上游代码所使用的 MIT 许可证，详见 `LICENCE`。
 
-### Code analysis
-
-Before committing your code, please run a code formatter. This can be achieved by running `dotnet format` in the command line, or using the `Format code` command in your IDE.
-
-We have adopted some cross-platform, compiler integrated analyzers. They can provide warnings when you are editing, building inside IDE or from command line, as-if they are provided by the compiler itself.
-
-JetBrains ReSharper InspectCode is also used for wider rule sets. You can run it from PowerShell with `.\InspectCode.ps1`. Alternatively, you can install ReSharper or use Rider to get inline support in your IDE of choice.
-
-## Contributing
-
-When it comes to contributing to the project, the two main things you can do to help out are reporting issues and submitting pull requests. Please refer to the [contributing guidelines](CONTRIBUTING.md) to understand how to help in the most effective way possible.
-
-If you wish to help with localisation efforts, head over to [crowdin](https://crowdin.com/project/osu-web).
-
-We love to reward quality contributions. If you have made a large contribution, or are a regular contributor, you are welcome to [submit an expense via opencollective](https://opencollective.com/ppy/expenses/new). If you have any questions, feel free to [reach out to peppy](mailto:pe@ppy.sh) before doing so.
-
-## Licence
-
-*osu!*'s code and framework are licensed under the [MIT licence](https://opensource.org/licenses/MIT). Please see [the licence file](LICENCE) for more information. [tl;dr](https://tldrlegal.com/license/mit-license) you can do whatever you want as long as you include the original copyright and license notice in any copy of the software/source.
-
-Please note that this *does not cover* the usage of the "osu!" or "ppy" branding in any software, resources, advertising or promotion, as this is protected by trademark law.
-
-Please also note that game resources are covered by a separate licence. Please see the [ppy/osu-resources](https://github.com/ppy/osu-resources) repository for clarifications.
+需要注意的是，OMS 是基于 osu!lazer 的定向分支，项目目标、支持范围和仓库内容已经与上游仓库明显分化；请不要将本仓库视为 `ppy/osu` 的直接镜像或替代发布源。

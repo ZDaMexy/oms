@@ -37,6 +37,9 @@ namespace osu.Game.Screens.Menu
 
         private ScheduledDelegate? nextDisplay;
 
+        [Resolved(CanBeNull = true)]
+        private OsuGameBase? game { get; set; }
+
         [BackgroundDependencyLoader]
         private void load()
         {
@@ -59,6 +62,8 @@ namespace osu.Game.Screens.Menu
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            FetchOnlineContent &= game?.OnlineFeaturesEnabled ?? true;
 
             Current.BindValueChanged(loadNewImages, true);
             checkForUpdates();

@@ -337,11 +337,14 @@ namespace osu.Game.Screens.Play
 
         private void refetchLeaderboard(bool force)
         {
+            var scoreDisplayBucket = Ruleset.Value.CreateInstance().GetScoreDisplayBucket(Mods.Value);
+
             leaderboardManager?.FetchWithCriteria(new LeaderboardCriteria(
                 Beatmap.Value.BeatmapInfo,
                 Ruleset.Value,
                 leaderboardManager?.CurrentCriteria?.Scope ?? BeatmapLeaderboardScope.Global,
-                leaderboardManager?.CurrentCriteria?.ExactMods), force);
+                leaderboardManager?.CurrentCriteria?.ExactMods,
+                ScoreDisplayBucket: scoreDisplayBucket), force);
         }
 
         #region Screen handling

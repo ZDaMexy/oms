@@ -12,7 +12,7 @@ namespace osu.Game.Online.Rooms
         /// </summary>
         public static string? GetOnlineURL(this Room room, IAPIProvider api)
         {
-            if (!room.RoomID.HasValue)
+            if (!room.RoomID.HasValue || string.IsNullOrEmpty(api.Endpoints.WebsiteUrl))
                 return null;
 
             return $@"{api.Endpoints.WebsiteUrl}/multiplayer/rooms/{room.RoomID.Value}";

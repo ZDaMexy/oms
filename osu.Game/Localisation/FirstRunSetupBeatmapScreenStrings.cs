@@ -45,9 +45,19 @@ namespace osu.Game.Localisation
         public static LocalisableString DownloadingInBackground => new TranslatableString(getKey(@"downloading_in_background"), @"Beatmaps will be downloaded in the background. You can continue with setup while this happens!");
 
         /// <summary>
+        /// "Online beatmap downloads are disabled in this local-first build."
+        /// </summary>
+        public static LocalisableString OnlineDownloadsDisabled => new TranslatableString(getKey(@"online_downloads_disabled"), @"Online beatmap downloads are disabled in this local-first build.");
+
+        /// <summary>
         /// "You can also obtain more beatmaps from the main menu &quot;browse&quot; button at any time."
         /// </summary>
         public static LocalisableString ObtainMoreBeatmaps => new TranslatableString(getKey(@"obtain_more_beatmaps"), @"You can also obtain more beatmaps from the main menu ""browse"" button at any time.");
+
+        /// <summary>
+        /// "Add beatmaps later by importing local files or folders."
+        /// </summary>
+        public static LocalisableString ObtainBeatmapsOffline => new TranslatableString(getKey(@"obtain_beatmaps_offline"), @"Add beatmaps later by importing local files or folders.");
 
         /// <summary>
         /// "You currently have {0} beatmap(s) loaded!"

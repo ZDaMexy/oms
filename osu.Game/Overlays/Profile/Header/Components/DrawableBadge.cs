@@ -3,6 +3,7 @@
 
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Localisation;
@@ -10,6 +11,7 @@ using osu.Game.Graphics.Containers;
 using osu.Game.Online;
 using osu.Game.Users;
 using osuTK;
+using osuTK.Graphics;
 
 namespace osu.Game.Overlays.Profile.Header.Components
 {
@@ -29,13 +31,21 @@ namespace osu.Game.Overlays.Profile.Header.Components
         [BackgroundDependencyLoader]
         private void load(LargeTextureStore textures, ILinkHandler? linkHandler)
         {
-            Child = new Sprite
+            Children = new Drawable[]
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                FillMode = FillMode.Fit,
-                RelativeSizeAxes = Axes.Both,
-                Texture = textures.Get(badge.ImageUrl),
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Colour4.FromHex("2a2f3a"),
+                },
+                new Sprite
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    FillMode = FillMode.Fit,
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = textures.Get(badge.ImageUrl),
+                }
             };
 
             if (!string.IsNullOrEmpty(badge.Url))

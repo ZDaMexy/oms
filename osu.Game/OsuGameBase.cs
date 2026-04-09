@@ -77,8 +77,10 @@ namespace osu.Game
     {
 #if DEBUG
         public const string GAME_NAME = "osu! (development)";
+        public const string STORAGE_NAME = "oms-development";
 #else
         public const string GAME_NAME = "osu!";
+        public const string STORAGE_NAME = "oms";
 #endif
 
         public const string OSU_PROTOCOL = "osu://";
@@ -104,8 +106,17 @@ namespace osu.Game
 
         public virtual bool UseDevelopmentServer => DebugUtils.IsDebugBuild;
 
+        public virtual bool OnlineFeaturesEnabled => false;
+
         public virtual EndpointConfiguration CreateEndpoints() =>
-            UseDevelopmentServer ? new DevelopmentEndpointConfiguration() : new ProductionEndpointConfiguration();
+            OnlineFeaturesEnabled
+                ? (UseDevelopmentServer ? new DevelopmentEndpointConfiguration() : new ProductionEndpointConfiguration())
+                : new EndpointConfiguration();
+
+        protected virtual IAPIProvider CreateAPI(EndpointConfiguration endpoints) =>
+            OnlineFeaturesEnabled
+                ? new APIAccess(this, LocalConfig, endpoints, VersionHash)
+                : new LocalOfflineAPIAccess(this, LocalConfig, endpoints);
 
         protected override OnlineStore CreateOnlineStore() => new TrustedDomainOnlineStore();
 
@@ -171,6 +182,8 @@ namespace osu.Game
         protected IAPIProvider API { get; set; }
 
         protected Storage Storage { get; set; }
+
+        protected RealmAccess ClientRealm => realm;
 
         /// <summary>
         /// The language in which the game is currently displayed in.
@@ -286,7 +299,10 @@ namespace osu.Game
             dependencies.CacheAs(Storage);
 
             var largeStore = new LargeTextureStore(Host.Renderer, Host.CreateTextureLoaderStore(new NamespacedResourceStore<byte[]>(Resources, @"Textures")));
-            largeStore.AddTextureSource(Host.CreateTextureLoaderStore(CreateOnlineStore()));
+
+            if (OnlineFeaturesEnabled)
+                largeStore.AddTextureSource(Host.CreateTextureLoaderStore(CreateOnlineStore()));
+
             dependencies.Cache(largeStore);
 
             dependencies.CacheAs(LocalConfig);
@@ -313,7 +329,7 @@ namespace osu.Game
 
             CurrentLanguage.BindValueChanged(val => frameworkLocale.Value = val.NewValue.ToCultureCode());
 
-            dependencies.CacheAs(API ??= new APIAccess(this, LocalConfig, endpoints, VersionHash));
+            dependencies.CacheAs(API ??= CreateAPI(endpoints));
 
             var defaultBeatmap = new DummyWorkingBeatmap(Audio, Textures);
 
@@ -322,7 +338,8 @@ namespace osu.Game
             // ordering is important here to ensure foreign keys rules are not broken in ModelStore.Cleanup()
             dependencies.Cache(ScoreManager = new ScoreManager(RulesetStore, () => BeatmapManager, Storage, realm, API, LocalConfig));
 
-            dependencies.Cache(BeatmapManager = new BeatmapManager(Storage, realm, API, Audio, Resources, Host, defaultBeatmap, difficultyCache, performOnlineLookups: true));
+            dependencies.Cache(BeatmapManager = new BeatmapManager(Storage, realm, API, Audio, Resources, Host, defaultBeatmap, difficultyCache, performOnlineLookups: OnlineFeaturesEnabled,
+                customBeatmapLoaders: CreateCustomBeatmapLoaders()));
             dependencies.CacheAs<IWorkingBeatmapCache>(BeatmapManager);
 
             dependencies.Cache(BeatmapDownloader = new BeatmapModelDownloader(BeatmapManager, API));
@@ -375,8 +392,8 @@ namespace osu.Game
             base.Content.Add(LeaderboardManager);
 
             // add api components to hierarchy.
-            if (API is APIAccess apiAccess)
-                base.Content.Add(apiAccess);
+            if (API is Component apiComponent)
+                base.Content.Add(apiComponent);
 
             base.Content.Add(SpectatorClient);
             base.Content.Add(MultiplayerClient);
@@ -385,7 +402,7 @@ namespace osu.Game
             base.Content.Add(rulesetConfigCache);
 
             PreviewTrackManager previewTrackManager;
-            dependencies.Cache(previewTrackManager = new PreviewTrackManager(BeatmapManager.BeatmapTrackStore));
+            dependencies.Cache(previewTrackManager = new PreviewTrackManager(BeatmapManager.BeatmapTrackStore, OnlineFeaturesEnabled));
             base.Content.Add(previewTrackManager);
 
             base.Content.Add(MusicController = new MusicController());
@@ -500,6 +517,8 @@ namespace osu.Game
             Fonts.AddStore(new OsuIcon.OsuIconStore(Textures));
         }
 
+        protected virtual IEnumerable<ICustomBeatmapLoader> CreateCustomBeatmapLoaders() => Enumerable.Empty<ICustomBeatmapLoader>();
+
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent) =>
             dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
 
@@ -583,7 +602,7 @@ namespace osu.Game
             }
         }
 
-        protected virtual IBeatmapUpdater CreateBeatmapUpdater() => new BeatmapUpdater(BeatmapManager, difficultyCache, API, Storage);
+        protected virtual IBeatmapUpdater CreateBeatmapUpdater() => new BeatmapUpdater(BeatmapManager, difficultyCache, API, Storage, OnlineFeaturesEnabled);
 
         protected override UserInputManager CreateUserInputManager() => new OsuUserInputManager();
 

@@ -25,12 +25,13 @@ namespace osu.Game.Beatmaps
 
         private readonly ThreadedTaskScheduler updateScheduler = new ThreadedTaskScheduler(update_queue_request_concurrency, nameof(BeatmapUpdaterMetadataLookup));
 
-        public BeatmapUpdater(IWorkingBeatmapCache workingBeatmapCache, BeatmapDifficultyCache difficultyCache, IAPIProvider api, Storage storage)
+        public BeatmapUpdater(IWorkingBeatmapCache workingBeatmapCache, BeatmapDifficultyCache difficultyCache, IAPIProvider api, Storage storage,
+                              bool allowOnlineMetadataCache = true)
         {
             this.workingBeatmapCache = workingBeatmapCache;
             this.difficultyCache = difficultyCache;
 
-            metadataLookup = new BeatmapUpdaterMetadataLookup(api, storage);
+            metadataLookup = new BeatmapUpdaterMetadataLookup(api, storage, allowOnlineMetadataCache);
         }
 
         public void Queue(Live<BeatmapSetInfo> beatmapSet, MetadataLookupScope lookupScope = MetadataLookupScope.LocalCacheFirst)

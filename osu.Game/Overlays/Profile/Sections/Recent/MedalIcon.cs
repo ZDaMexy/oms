@@ -4,8 +4,10 @@
 using osu.Framework.Allocation;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osuTK.Graphics;
 
 namespace osu.Game.Overlays.Profile.Sections.Recent
 {
@@ -21,11 +23,19 @@ namespace osu.Game.Overlays.Profile.Sections.Recent
         {
             this.slug = slug;
 
-            Child = sprite = new Sprite
+            Children = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Colour4.FromHex("1f2533"),
+                },
+                sprite = new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                }
             };
         }
 

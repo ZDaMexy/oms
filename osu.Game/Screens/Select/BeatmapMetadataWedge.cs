@@ -19,6 +19,7 @@ using osu.Game.Localisation;
 using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.Chat;
+using osu.Game.Rulesets;
 using osu.Game.Resources.Localisation.Web;
 using osuTK;
 
@@ -43,6 +44,10 @@ namespace osu.Game.Screens.Select
         private Drawable failRetryWedge = null!;
         private FailRetryDisplay failRetryDisplay = null!;
 
+        private Drawable rulesetDetailsWedge = null!;
+        private Container rulesetDetailsContainer = null!;
+        private Drawable? currentRulesetDetails;
+
         public bool RatingsVisible => ratingsWedge.Alpha > 0;
         public bool FailRetryVisible => failRetryWedge.Alpha > 0;
 
@@ -50,6 +55,9 @@ namespace osu.Game.Screens.Select
 
         [Resolved]
         private IBindable<WorkingBeatmap> beatmap { get; set; } = null!;
+
+        [Resolved]
+        private IBindable<RulesetInfo> ruleset { get; set; } = null!;
 
         [Resolved]
         private IBindable<SongSelect.BeatmapSetLookupResult> onlineLookupResult { get; set; } = null!;
@@ -240,6 +248,30 @@ namespace osu.Game.Screens.Select
                             },
                         },
                     }),
+                    new ShearAligningWrapper(rulesetDetailsWedge = new Container
+                    {
+                        Alpha = 0f,
+                        CornerRadius = 10,
+                        Masking = true,
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Children = new Drawable[]
+                        {
+                            new WedgeBackground(),
+                            new Container
+                            {
+                                RelativeSizeAxes = Axes.X,
+                                AutoSizeAxes = Axes.Y,
+                                Shear = -OsuGame.SHEAR,
+                                Padding = new MarginPadding { Left = SongSelect.WEDGE_CONTENT_MARGIN, Right = 40f, Vertical = 16 },
+                                Child = rulesetDetailsContainer = new Container
+                                {
+                                    RelativeSizeAxes = Axes.X,
+                                    AutoSizeAxes = Axes.Y,
+                                },
+                            },
+                        },
+                    }),
                 }
             };
 
@@ -252,6 +284,7 @@ namespace osu.Game.Screens.Select
             base.LoadComplete();
             beatmap.BindValueChanged(_ => Scheduler.AddOnce(updateDisplay));
             onlineLookupResult.BindValueChanged(_ => Scheduler.AddOnce(updateDisplay));
+            ruleset.BindValueChanged(_ => Scheduler.AddOnce(updateRulesetDetails), true);
 
             apiState = api.State.GetBoundCopy();
             apiState.BindValueChanged(_ => Scheduler.AddOnce(updateDisplay), true);
@@ -265,6 +298,7 @@ namespace osu.Game.Screens.Select
                 .MoveToX(0, transition_duration, Easing.OutQuint);
 
             updateSubWedgeVisibility();
+            updateRulesetDetailsVisibility();
         }
 
         protected override void PopOut()
@@ -273,6 +307,7 @@ namespace osu.Game.Screens.Select
                 .MoveToX(-100, transition_duration, Easing.OutQuint);
 
             updateSubWedgeVisibility();
+            updateRulesetDetailsVisibility();
         }
 
         private void updateSubWedgeVisibility()
@@ -363,7 +398,36 @@ namespace osu.Game.Screens.Select
             submitted.Date = beatmapSetInfo.DateSubmitted;
             ranked.Date = beatmapSetInfo.DateRanked;
 
+            updateRulesetDetails();
             updateOnlineDisplay();
+        }
+
+        private void updateRulesetDetails()
+        {
+            rulesetDetailsContainer.Clear(true);
+            currentRulesetDetails = null;
+
+            if (ruleset.Value != null)
+                currentRulesetDetails = ruleset.Value.CreateInstance().CreateBeatmapDetailsComponent(beatmap);
+
+            if (currentRulesetDetails != null)
+                rulesetDetailsContainer.Add(currentRulesetDetails);
+
+            updateRulesetDetailsVisibility();
+        }
+
+        private void updateRulesetDetailsVisibility()
+        {
+            if (State.Value == Visibility.Visible && currentRulesetDetails != null)
+            {
+                rulesetDetailsWedge.FadeIn(transition_duration, Easing.OutQuint)
+                                 .MoveToX(0, transition_duration, Easing.OutQuint);
+            }
+            else
+            {
+                rulesetDetailsWedge.FadeOut(transition_duration, Easing.OutQuint)
+                                 .MoveToX(-50, transition_duration, Easing.OutQuint);
+            }
         }
 
         private void updateOnlineDisplay()

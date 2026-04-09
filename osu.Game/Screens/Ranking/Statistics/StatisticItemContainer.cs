@@ -26,6 +26,19 @@ namespace osu.Game.Screens.Ranking.Statistics
 
             Padding = new MarginPadding(5);
 
+            if (LocalisableString.IsNullOrEmpty(item.Name))
+            {
+                // Unnamed statistic items are expected to provide their own panel shell.
+                InternalChild = new Container
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Child = item.CreateContent()
+                };
+
+                return;
+            }
+
             InternalChild = new Container
             {
                 RelativeSizeAxes = Axes.X,

@@ -148,21 +148,31 @@ namespace osu.Game.Screens.Menu
         [BackgroundDependencyLoader]
         private void load(AudioManager audio, IdleTracker? idleTracker, GameHost host)
         {
+            bool onlineFeaturesEnabled = game?.OnlineFeaturesEnabled ?? true;
+
             buttonsPlay.Add(new MainMenuButton(ButtonSystemStrings.Solo, @"button-default-select", OsuIcon.Player, new Color4(102, 68, 204, 255), (_, _) => OnSolo?.Invoke(), Key.P)
             {
                 Padding = new MarginPadding { Left = WEDGE_WIDTH },
             });
-            buttonsPlay.Add(new MainMenuButton(ButtonSystemStrings.Multi, @"button-default-select", OsuIcon.Online, new Color4(94, 63, 186, 255), (_, _) => State = ButtonSystemState.Multi, Key.M));
-            buttonsPlay.Add(new MainMenuButton(ButtonSystemStrings.Playlists, @"button-default-select", OsuIcon.Tournament, new Color4(94, 63, 186, 255), onPlaylists, Key.L));
-            buttonsPlay.Add(new DailyChallengeButton(@"button-daily-select", new Color4(94, 63, 186, 255), onDailyChallenge, Key.D));
+
+            if (onlineFeaturesEnabled)
+            {
+                buttonsPlay.Add(new MainMenuButton(ButtonSystemStrings.Multi, @"button-default-select", OsuIcon.Online, new Color4(94, 63, 186, 255), (_, _) => State = ButtonSystemState.Multi, Key.M));
+                buttonsPlay.Add(new MainMenuButton(ButtonSystemStrings.Playlists, @"button-default-select", OsuIcon.Tournament, new Color4(94, 63, 186, 255), onPlaylists, Key.L));
+                buttonsPlay.Add(new DailyChallengeButton(@"button-daily-select", new Color4(94, 63, 186, 255), onDailyChallenge, Key.D));
+            }
+
             buttonsPlay.ForEach(b => b.VisibleState = ButtonSystemState.Play);
 
-            buttonsMulti.Add(new MainMenuButton(ButtonSystemStrings.Lounge, @"button-default-select", FontAwesome.Solid.Couch, new Color4(94, 63, 186, 255), onMultiplayer, Key.L, Key.M)
+            if (onlineFeaturesEnabled)
             {
-                Padding = new MarginPadding { Left = WEDGE_WIDTH }
-            });
-            buttonsMulti.Add(new MainMenuButton(ButtonSystemStrings.QuickPlay, @"button-daily-select", FontAwesome.Solid.Bolt, new Color4(94, 63, 186, 255), onMatchmaking, Key.Q));
-            buttonsMulti.ForEach(b => b.VisibleState = ButtonSystemState.Multi);
+                buttonsMulti.Add(new MainMenuButton(ButtonSystemStrings.Lounge, @"button-default-select", FontAwesome.Solid.Couch, new Color4(94, 63, 186, 255), onMultiplayer, Key.L, Key.M)
+                {
+                    Padding = new MarginPadding { Left = WEDGE_WIDTH }
+                });
+                buttonsMulti.Add(new MainMenuButton(ButtonSystemStrings.QuickPlay, @"button-daily-select", FontAwesome.Solid.Bolt, new Color4(94, 63, 186, 255), onMatchmaking, Key.Q));
+                buttonsMulti.ForEach(b => b.VisibleState = ButtonSystemState.Multi);
+            }
 
             buttonsEdit.Add(new MainMenuButton(EditorStrings.BeatmapEditor.ToLower(), @"button-default-select", OsuIcon.Beatmap, new Color4(238, 170, 0, 255), (_, _) => OnEditBeatmap?.Invoke(), Key.B,
                 Key.E)
@@ -178,8 +188,12 @@ namespace osu.Game.Screens.Menu
                 Padding = new MarginPadding { Left = WEDGE_WIDTH },
             });
             buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Edit, @"button-play-select", OsuIcon.EditCircle, new Color4(238, 170, 0, 255), (_, _) => State = ButtonSystemState.Edit, Key.E));
-            buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Browse, @"button-default-select", OsuIcon.Beatmap, new Color4(165, 204, 0, 255), (_, _) => OnBeatmapListing?.Invoke(), Key.B,
-                Key.D));
+
+            if (onlineFeaturesEnabled)
+            {
+                buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Browse, @"button-default-select", OsuIcon.Beatmap, new Color4(165, 204, 0, 255), (_, _) => OnBeatmapListing?.Invoke(), Key.B,
+                    Key.D));
+            }
 
             if (host.CanExit)
                 buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Exit, string.Empty, OsuIcon.CrossCircle, new Color4(238, 51, 153, 255), (_, e) => OnExit?.Invoke(e), Key.Q));

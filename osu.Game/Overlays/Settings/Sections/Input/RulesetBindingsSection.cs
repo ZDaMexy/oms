@@ -24,10 +24,13 @@ namespace osu.Game.Overlays.Settings.Sections.Input
         [BackgroundDependencyLoader]
         private void load()
         {
-            var r = ruleset.CreateInstance();
+            var rulesetInstance = ruleset.CreateInstance();
 
-            foreach (int variant in r.AvailableVariants)
+            foreach (int variant in rulesetInstance.AvailableVariants)
                 Add(new VariantBindingsSubsection(ruleset, variant));
+
+            foreach (var section in rulesetInstance.CreateKeyBindingSections())
+                Add(section);
         }
     }
 }

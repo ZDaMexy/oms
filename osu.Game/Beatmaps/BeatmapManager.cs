@@ -59,7 +59,8 @@ namespace osu.Game.Beatmaps
         }
 
         public BeatmapManager(Storage storage, RealmAccess realm, IAPIProvider? api, AudioManager audioManager, IResourceStore<byte[]> gameResources, GameHost? host = null,
-                              WorkingBeatmap? defaultBeatmap = null, BeatmapDifficultyCache? difficultyCache = null, bool performOnlineLookups = false)
+                              WorkingBeatmap? defaultBeatmap = null, BeatmapDifficultyCache? difficultyCache = null, bool performOnlineLookups = false,
+                              IEnumerable<ICustomBeatmapLoader>? customBeatmapLoaders = null)
             : base(storage, realm)
         {
             if (performOnlineLookups)
@@ -79,7 +80,7 @@ namespace osu.Game.Beatmaps
             beatmapImporter.ProcessBeatmap = (beatmapSet, scope) => ProcessBeatmap?.Invoke(beatmapSet, scope);
             beatmapImporter.PostNotification = obj => PostNotification?.Invoke(obj);
 
-            workingBeatmapCache = CreateWorkingBeatmapCache(audioManager, gameResources, userResources, defaultBeatmap, host);
+            workingBeatmapCache = CreateWorkingBeatmapCache(audioManager, gameResources, storage, userResources, defaultBeatmap, host, customBeatmapLoaders);
 
             beatmapExporter = new BeatmapExporter(storage)
             {
@@ -92,10 +93,10 @@ namespace osu.Game.Beatmaps
             };
         }
 
-        protected virtual WorkingBeatmapCache CreateWorkingBeatmapCache(AudioManager audioManager, IResourceStore<byte[]> resources, IResourceStore<byte[]> storage, WorkingBeatmap? defaultBeatmap,
-                                                                        GameHost? host)
+        protected virtual WorkingBeatmapCache CreateWorkingBeatmapCache(AudioManager audioManager, IResourceStore<byte[]> resources, Storage storage, IResourceStore<byte[]> fileStore, WorkingBeatmap? defaultBeatmap,
+                                                                        GameHost? host, IEnumerable<ICustomBeatmapLoader>? customBeatmapLoaders)
         {
-            return new WorkingBeatmapCache(BeatmapTrackStore, audioManager, resources, storage, defaultBeatmap, host, Realm);
+            return new WorkingBeatmapCache(BeatmapTrackStore, audioManager, resources, storage, fileStore, defaultBeatmap, host, Realm, customBeatmapLoaders);
         }
 
         protected virtual BeatmapImporter CreateBeatmapImporter(Storage storage, RealmAccess realm) => new BeatmapImporter(storage, realm);
@@ -632,7 +633,7 @@ namespace osu.Game.Beatmaps
 
                 // Detached beatmapsets don't come with files as an optimisation (see `RealmObjectExtensions.beatmap_set_mapper`).
                 // If we seem to be missing files, now is a good time to re-fetch.
-                bool missingFiles = beatmapInfo.BeatmapSet?.Files.Count == 0;
+                bool missingFiles = string.IsNullOrEmpty(beatmapInfo.BeatmapSet?.FilesystemStoragePath) && beatmapInfo.BeatmapSet?.Files.Count == 0;
 
                 if (beatmapInfo.IsManaged)
                 {

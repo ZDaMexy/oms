@@ -61,6 +61,9 @@ namespace osu.Game.Beatmaps
         public string AudioFile { get; set; } = string.Empty;
         public string BackgroundFile { get; set; } = string.Empty;
 
+        [MapTo("RulesetData")]
+        public string RulesetDataJson { get; set; } = string.Empty;
+
         public BeatmapMetadata(RealmUser? user = null)
         {
             Author = user ?? new RealmUser();
@@ -75,6 +78,19 @@ namespace osu.Game.Beatmaps
 
         public override string ToString() => this.GetDisplayTitle();
 
+        public T? GetRulesetData<T>() where T : class
+        {
+            if (string.IsNullOrEmpty(RulesetDataJson))
+                return default;
+
+            return JsonConvert.DeserializeObject<T>(RulesetDataJson);
+        }
+
+        public void SetRulesetData<T>(T? data) where T : class
+            => RulesetDataJson = data == null
+                ? string.Empty
+                : JsonConvert.SerializeObject(data);
+
         public BeatmapMetadata DeepClone() => new BeatmapMetadata(Author.DeepClone())
         {
             Title = Title,
@@ -85,7 +101,8 @@ namespace osu.Game.Beatmaps
             Tags = Tags,
             PreviewTime = PreviewTime,
             AudioFile = AudioFile,
-            BackgroundFile = BackgroundFile
+            BackgroundFile = BackgroundFile,
+            RulesetDataJson = RulesetDataJson,
         };
     }
 }

@@ -25,12 +25,13 @@ namespace osu.Game.Beatmaps
     public class LocalCachedBeatmapMetadataSource : IOnlineBeatmapMetadataSource
     {
         private readonly Storage storage;
+        private readonly bool allowRemoteFetch;
 
         private FileWebRequest? cacheDownloadRequest;
 
         private const string cache_database_name = @"online.db";
 
-        public LocalCachedBeatmapMetadataSource(Storage storage)
+        public LocalCachedBeatmapMetadataSource(Storage storage, bool allowRemoteFetch = true)
         {
             try
             {
@@ -44,8 +45,9 @@ namespace osu.Game.Beatmaps
             }
 
             this.storage = storage;
+            this.allowRemoteFetch = allowRemoteFetch;
 
-            if (shouldFetchCache())
+            if (allowRemoteFetch && shouldFetchCache())
                 FetchCache();
         }
 
@@ -130,8 +132,12 @@ namespace osu.Game.Beatmaps
                         if (cacheDownloadRequest != null)
                             return false;
 
-                        tryPurgeCache();
-                        FetchCache();
+                        if (allowRemoteFetch)
+                        {
+                            tryPurgeCache();
+                            FetchCache();
+                        }
+
                         return false;
                 }
 
@@ -167,6 +173,12 @@ namespace osu.Game.Beatmaps
 
         public Task FetchCache()
         {
+            if (!allowRemoteFetch)
+            {
+                log(@"Remote metadata cache fetch skipped because online features are disabled.");
+                return Task.CompletedTask;
+            }
+
             bool isRefetch = storage.Exists(cache_database_name);
 
             string cacheFilePath = storage.GetFullPath(cache_database_name);

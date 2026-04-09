@@ -51,12 +51,15 @@ namespace osu.Game.Screens.Ranking
         {
             Debug.Assert(Score != null);
 
+            var scoreDisplayBucket = Score.Ruleset.CreateInstance().GetScoreDisplayBucket(Score);
+
             // sort mode intentionally omitted to default to score - results screen only supports sorting by score, so don't pass any other to avoid confusion
             var criteria = new LeaderboardCriteria(
                 Score.BeatmapInfo!,
                 Score.Ruleset,
                 leaderboardManager.CurrentCriteria?.Scope ?? BeatmapLeaderboardScope.Global,
-                leaderboardManager.CurrentCriteria?.ExactMods
+                leaderboardManager.CurrentCriteria?.ExactMods,
+                ScoreDisplayBucket: scoreDisplayBucket
             );
 
             Debug.Assert(requestTaskSource == null || requestTaskSource.Task.IsCompleted);

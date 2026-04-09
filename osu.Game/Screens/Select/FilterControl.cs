@@ -46,6 +46,7 @@ namespace osu.Game.Screens.Select
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupMode> groupDropdown = null!;
         private CollectionDropdown collectionDropdown = null!;
+        private SortMode? sortModeBeforeLockedGrouping;
 
         /// <summary>
         /// An optional method which can force certain criteria adjustments.
@@ -185,7 +186,7 @@ namespace osu.Game.Screens.Select
                                     groupDropdown = new ShearedDropdown<GroupMode>(SongSelectStrings.Group)
                                     {
                                         RelativeSizeAxes = Axes.X,
-                                        Items = Enum.GetValues<GroupMode>(),
+                                        Items = Array.Empty<GroupMode>(),
                                     },
                                     Empty(),
                                     collectionDropdown = new CollectionDropdown
@@ -217,7 +218,17 @@ namespace osu.Game.Screens.Select
             config.BindWith(OsuSetting.SongSelectSortingMode, sortDropdown.Current);
             config.BindWith(OsuSetting.SongSelectGroupMode, groupDropdown.Current);
 
-            ruleset.BindValueChanged(_ => updateCriteria());
+            updateAvailableGroupingModes();
+            updateSortDropdownState();
+
+            ruleset.BindValueChanged(_ =>
+            {
+                bool groupSelectionChanged = updateAvailableGroupingModes();
+                updateSortDropdownState();
+
+                if (!groupSelectionChanged)
+                    updateCriteria();
+            });
             mods.BindValueChanged(m =>
             {
                 // The following is a note carried from old song select and may not be a valid reason anymore:
@@ -239,7 +250,11 @@ namespace osu.Game.Screens.Select
             difficultyRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
             showConvertedBeatmapsButton.Active.BindValueChanged(_ => updateCriteria());
             sortDropdown.Current.BindValueChanged(_ => updateCriteria());
-            groupDropdown.Current.BindValueChanged(_ => updateCriteria());
+            groupDropdown.Current.BindValueChanged(_ =>
+            {
+                updateSortDropdownState();
+                updateCriteria();
+            });
             collectionDropdown.Current.BindValueChanged(v =>
             {
                 // The hope would be that this never arrives here, but due to bindings receiving changes before
@@ -279,7 +294,7 @@ namespace osu.Game.Screens.Select
             var criteria = new FilterCriteria
             {
                 SelectedBeatmapSet = ScopedBeatmapSet.Value,
-                Sort = sortDropdown.Current.Value,
+                Sort = groupDropdown.Current.Value == GroupMode.DifficultyTable ? SortMode.Difficulty : sortDropdown.Current.Value,
                 Group = groupDropdown.Current.Value,
                 AllowConvertedBeatmaps = showConvertedBeatmapsButton.Active.Value,
                 Ruleset = ruleset.Value,
@@ -325,6 +340,41 @@ namespace osu.Game.Screens.Select
         public void Search(string query)
         {
             searchTextBox.Current.Value = query;
+        }
+
+        private bool updateAvailableGroupingModes()
+        {
+            var availableModes = ruleset.Value.CreateInstance().GetAvailableSongSelectGroupModes().ToArray();
+            groupDropdown.Items = availableModes;
+
+            if (availableModes.Contains(groupDropdown.Current.Value))
+                return false;
+
+            groupDropdown.Current.Value = GroupMode.None;
+            return true;
+        }
+
+        private void updateSortDropdownState()
+        {
+            bool lockToDifficulty = groupDropdown.Current.Value == GroupMode.DifficultyTable;
+
+            if (lockToDifficulty)
+            {
+                if (!sortModeBeforeLockedGrouping.HasValue && sortDropdown.Current.Value != SortMode.Difficulty)
+                    sortModeBeforeLockedGrouping = sortDropdown.Current.Value;
+
+                sortDropdown.Current.Value = SortMode.Difficulty;
+                sortDropdown.Current.Disabled = true;
+                return;
+            }
+
+            sortDropdown.Current.Disabled = false;
+
+            if (sortModeBeforeLockedGrouping.HasValue)
+            {
+                sortDropdown.Current.Value = sortModeBeforeLockedGrouping.Value;
+                sortModeBeforeLockedGrouping = null;
+            }
         }
 
         protected override void PopIn()

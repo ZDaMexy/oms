@@ -72,7 +72,9 @@ namespace osu.Game.Rulesets.Scoring
                 throw new ArgumentException(@$"A {nameof(HitResult.LegacyComboIncrease)} hit result cannot be applied.");
 #pragma warning restore CS0618
 
-            JudgedHits++;
+            if (CountsResultTowardsJudgedHits(result))
+                JudgedHits++;
+
             lastAppliedResult = result;
 
             ApplyResultInternal(result);
@@ -86,7 +88,8 @@ namespace osu.Game.Rulesets.Scoring
         /// <param name="result">The judgement scoring result.</param>
         public void RevertResult(JudgementResult result)
         {
-            JudgedHits--;
+            if (CountsResultTowardsJudgedHits(result))
+                JudgedHits--;
 
             RevertResultInternal(result);
 
@@ -118,7 +121,14 @@ namespace osu.Game.Rulesets.Scoring
                 MaxHits = JudgedHits;
 
             JudgedHits = 0;
+            lastAppliedResult = null;
+            hasCompleted.Value = false;
         }
+
+        /// <summary>
+        /// Whether a judged result contributes towards gameplay completion counting.
+        /// </summary>
+        protected virtual bool CountsResultTowardsJudgedHits(JudgementResult result) => true;
 
         /// <summary>
         /// Reset all statistics based on header information contained within a replay frame.
@@ -132,10 +142,23 @@ namespace osu.Game.Rulesets.Scoring
             if (frame.Header == null)
                 return;
 
-            JudgedHits = 0;
+            JudgedHits = GetJudgedHitCountFromReplayFrame(frame);
+        }
+
+        /// <summary>
+        /// Computes the judged hit count restored from a replay frame header.
+        /// </summary>
+        protected virtual int GetJudgedHitCountFromReplayFrame(ReplayFrame frame)
+        {
+            if (frame.Header == null)
+                return 0;
+
+            int judgedHits = 0;
 
             foreach ((_, int count) in frame.Header.Statistics)
-                JudgedHits += count;
+                judgedHits += count;
+
+            return judgedHits;
         }
 
         /// <summary>
@@ -203,11 +226,21 @@ namespace osu.Game.Rulesets.Scoring
         {
             base.Update();
 
+            if (JudgedHits != MaxHits)
+            {
+                hasCompleted.Value = false;
+                return;
+            }
+
+            // Completion should be monotonic until a judgement is actually reverted.
+            // This avoids results progression being cancelled by small clock regressions when gameplay stops.
+            if (hasCompleted.Value)
+                return;
+
             hasCompleted.Value =
-                JudgedHits == MaxHits
-                && (JudgedHits == 0
-                    // Last applied result is guaranteed to be non-null when JudgedHits > 0.
-                    || lastAppliedResult.AsNonNull().TimeAbsolute < Clock.CurrentTime);
+                JudgedHits == 0
+                // Last applied result is guaranteed to be non-null when JudgedHits > 0.
+                || lastAppliedResult.AsNonNull().TimeAbsolute <= Clock.CurrentTime;
         }
     }
 }

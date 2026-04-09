@@ -46,6 +46,9 @@ namespace osu.Game.Skinning
                 // should only ever be used in tests.
                 return new ResourceStore<byte[]>();
 
+            if (!string.IsNullOrEmpty(beatmapInfo.BeatmapSet.FilesystemStoragePath))
+                return resources.Files;
+
             return new RealmBackedResourceStore<BeatmapSetInfo>(beatmapInfo.BeatmapSet.ToLive(resources.RealmAccess), resources.Files, resources.RealmAccess);
         }
 

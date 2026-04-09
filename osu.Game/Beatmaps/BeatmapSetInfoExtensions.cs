@@ -37,7 +37,7 @@ namespace osu.Game.Beatmaps
         /// </summary>
         public static string? GetOnlineURL(this IBeatmapSetInfo beatmapSetInfo, IAPIProvider api, IRulesetInfo? ruleset = null)
         {
-            if (beatmapSetInfo.OnlineID <= 0)
+            if (beatmapSetInfo.OnlineID <= 0 || string.IsNullOrEmpty(api.Endpoints.WebsiteUrl))
                 return null;
 
             if (ruleset != null)

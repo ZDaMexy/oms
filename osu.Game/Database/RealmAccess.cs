@@ -101,8 +101,10 @@ namespace osu.Game.Database
         /// 49   2025-06-10    Reset the LegacyOnlineID to -1 for all scores that have it set to 0 (which is semantically the same) for consistency of handling with OnlineID.
         /// 50   2025-07-11    Add UserTags to BeatmapMetadata.
         /// 51   2025-07-22    Add ScoreInfo.Pauses.
+        /// 52   2026-03-31    Add ScoreInfo.RulesetData for ruleset-specific persisted result payloads.
+        /// 53   2026-04-02    Add BeatmapMetadata.RulesetData for ruleset-specific persisted beatmap payloads.
         /// </summary>
-        private const int schema_version = 51;
+        private const int schema_version = 53;
 
         /// <summary>
         /// Lock object which is held during <see cref="BlockAllOperations"/> sections, blocking realm retrieval during blocking periods.
@@ -390,7 +392,12 @@ namespace osu.Game.Database
                     foreach (var score in pendingDeleteScores)
                         realm.Remove(score);
 
-                    var pendingDeleteSets = realm.All<BeatmapSetInfo>().Where(s => s.DeletePending);
+                    var pendingDeleteSets = realm.All<BeatmapSetInfo>().Where(s => s.DeletePending).ToList();
+                    var pendingDeleteDirectories = pendingDeleteSets.Select(s => s.FilesystemStoragePath)
+                                                                   .Where(path => !string.IsNullOrEmpty(path))
+                                                                   .Select(path => path!)
+                                                                   .Distinct()
+                                                                   .ToList();
 
                     foreach (var beatmapSet in pendingDeleteSets)
                     {
@@ -414,6 +421,18 @@ namespace osu.Game.Database
                         realm.Remove(s);
 
                     transaction.Commit();
+
+                    foreach (string directory in pendingDeleteDirectories)
+                    {
+                        if (osu.Game.Utils.FilesystemSanityCheckHelpers.IncursPathTraversalRisk(directory))
+                        {
+                            Logger.Log($"Skipping deletion of filesystem-backed beatmap directory '{directory}' due to path traversal risk.", LoggingTarget.Database);
+                            continue;
+                        }
+
+                        if (storage.ExistsDirectory(directory))
+                            storage.DeleteDirectory(directory);
+                    }
                 }
 
                 // clean up files after dropping any pending deletions.

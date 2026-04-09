@@ -4,6 +4,7 @@
 #nullable disable
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -46,26 +47,30 @@ namespace osu.Game.Beatmaps
         private readonly IResourceStore<byte[]> resources;
         private readonly LargeTextureStore largeTextureStore;
         private readonly LargeTextureStore beatmapPanelTextureStore;
+        private readonly Storage storage;
         private readonly ITrackStore trackStore;
         private readonly IResourceStore<byte[]> files;
         private readonly RealmAccess realm;
+        private readonly IReadOnlyList<ICustomBeatmapLoader> customBeatmapLoaders;
 
         [CanBeNull]
         private readonly GameHost host;
 
-        public WorkingBeatmapCache(ITrackStore trackStore, AudioManager audioManager, IResourceStore<byte[]> resources, IResourceStore<byte[]> files, WorkingBeatmap defaultBeatmap = null,
-                                   GameHost host = null, RealmAccess realm = null)
+        public WorkingBeatmapCache(ITrackStore trackStore, AudioManager audioManager, IResourceStore<byte[]> resources, Storage storage, IResourceStore<byte[]> files, WorkingBeatmap defaultBeatmap = null,
+                                   GameHost host = null, RealmAccess realm = null, IEnumerable<ICustomBeatmapLoader> customBeatmapLoaders = null)
         {
             DefaultBeatmap = defaultBeatmap;
 
             this.audioManager = audioManager;
             this.resources = resources;
             this.host = host;
+            this.storage = storage;
             this.files = files;
             largeTextureStore = new LargeTextureStore(host?.Renderer ?? new DummyRenderer(), host?.CreateTextureLoaderStore(files));
             beatmapPanelTextureStore = new LargeTextureStore(host?.Renderer ?? new DummyRenderer(), new BeatmapPanelBackgroundTextureLoaderStore(host?.CreateTextureLoaderStore(files)));
             this.trackStore = trackStore;
             this.realm = realm;
+            this.customBeatmapLoaders = customBeatmapLoaders?.ToArray() ?? Array.Empty<ICustomBeatmapLoader>();
         }
 
         public void Invalidate(BeatmapSetInfo info)
@@ -109,7 +114,7 @@ namespace osu.Game.Beatmaps
                 // An outdated BeatmapInfo may contain a reference to a previous version of the beatmap's files on disk.
                 Debug.Assert(confirmFileHashIsUpToDate(beatmapInfo), "working beatmap returned with outdated path");
 
-                workingCache.Add(working = new BeatmapManagerWorkingBeatmap(beatmapInfo, this));
+                workingCache.Add(working = new BeatmapManagerWorkingBeatmap(beatmapInfo, createResourceProvider(beatmapInfo), customBeatmapLoaders));
 
                 // best effort; may be higher than expected.
                 GlobalStatistics.Get<int>("Beatmaps", $"Cached {nameof(WorkingBeatmap)}s").Value = workingCache.Count();
@@ -138,15 +143,27 @@ namespace osu.Game.Beatmaps
 
         #endregion
 
+        private IBeatmapResourceProvider createResourceProvider(BeatmapInfo beatmapInfo)
+        {
+            string filesystemStoragePath = beatmapInfo.BeatmapSet?.FilesystemStoragePath;
+
+            if (string.IsNullOrEmpty(filesystemStoragePath))
+                return this;
+
+            return new FilesystemBackedBeatmapResourceProvider(this, storage.GetStorageForDirectory(filesystemStoragePath));
+        }
+
         private class BeatmapManagerWorkingBeatmap : WorkingBeatmap
         {
             [NotNull]
             private readonly IBeatmapResourceProvider resources;
+            private readonly IReadOnlyList<ICustomBeatmapLoader> customBeatmapLoaders;
 
-            public BeatmapManagerWorkingBeatmap(BeatmapInfo beatmapInfo, [NotNull] IBeatmapResourceProvider resources)
+            public BeatmapManagerWorkingBeatmap(BeatmapInfo beatmapInfo, [NotNull] IBeatmapResourceProvider resources, IReadOnlyList<ICustomBeatmapLoader> customBeatmapLoaders)
                 : base(beatmapInfo, resources.AudioManager)
             {
                 this.resources = resources;
+                this.customBeatmapLoaders = customBeatmapLoaders;
             }
 
             protected override IBeatmap GetBeatmap()
@@ -156,9 +173,9 @@ namespace osu.Game.Beatmaps
 
                 try
                 {
-                    string fileStorePath = BeatmapSetInfo.GetPathForFile(BeatmapInfo.Path);
+                    string fileStorePath = resolveStoragePath(BeatmapInfo.Path);
 
-                    var stream = GetStream(fileStorePath);
+                    var stream = fileStorePath != null ? GetStream(fileStorePath) : null;
 
                     if (stream == null)
                     {
@@ -175,22 +192,48 @@ namespace osu.Game.Beatmaps
                         return null;
                     }
 
-                    using (var reader = new LineBufferedReader(stream))
+                    IBeatmap beatmap;
+
+                    if (tryLoadCustomBeatmap(stream, out var customBeatmap))
                     {
-                        var beatmap = Decoder.GetDecoder<Beatmap>(reader).Decode(reader);
-
-                        beatmap.BeatmapInfo.MD5Hash = streamMD5;
-                        beatmap.BeatmapInfo.Hash = streamSHA2;
-                        beatmap.BeatmapInfo.UpdateStatisticsFromBeatmap(beatmap);
-
-                        return beatmap;
+                        beatmap = customBeatmap;
                     }
+                    else
+                    {
+                        using var reader = new LineBufferedReader(stream);
+                        beatmap = Decoder.GetDecoder<Beatmap>(reader).Decode(reader);
+                    }
+
+                    beatmap.BeatmapInfo.MD5Hash = streamMD5;
+                    beatmap.BeatmapInfo.Hash = streamSHA2;
+                    beatmap.BeatmapInfo.UpdateStatisticsFromBeatmap(beatmap);
+
+                    return beatmap;
                 }
                 catch (Exception e)
                 {
                     Logger.Error(e, "Beatmap failed to load");
                     return null;
                 }
+            }
+
+            private bool tryLoadCustomBeatmap(Stream stream, out IBeatmap beatmap)
+            {
+                beatmap = null;
+
+                if (BeatmapInfo.Path == null)
+                    return false;
+
+                var loader = customBeatmapLoaders.FirstOrDefault(l => l.CanLoad(BeatmapInfo, BeatmapInfo.Path));
+
+                if (loader == null)
+                    return false;
+
+                if (stream.CanSeek)
+                    stream.Seek(0, SeekOrigin.Begin);
+
+                beatmap = loader.Load(stream, BeatmapInfo.Path, BeatmapInfo);
+                return true;
             }
 
             public override Texture GetPanelBackground() => getBackgroundFromStore(resources.BeatmapPanelTextureStore);
@@ -204,8 +247,8 @@ namespace osu.Game.Beatmaps
 
                 try
                 {
-                    string fileStorePath = BeatmapSetInfo.GetPathForFile(Metadata.BackgroundFile);
-                    var texture = store.Get(fileStorePath);
+                    string fileStorePath = resolveStoragePath(Metadata.BackgroundFile);
+                    var texture = fileStorePath != null ? store.Get(fileStorePath) : null;
 
                     if (texture == null)
                     {
@@ -232,8 +275,8 @@ namespace osu.Game.Beatmaps
 
                 try
                 {
-                    string fileStorePath = BeatmapSetInfo.GetPathForFile(Metadata.AudioFile);
-                    var track = resources.Tracks.Get(fileStorePath);
+                    string fileStorePath = resolveStoragePath(Metadata.AudioFile);
+                    var track = fileStorePath != null ? resources.Tracks.Get(fileStorePath) : null;
 
                     if (track == null)
                     {
@@ -260,9 +303,9 @@ namespace osu.Game.Beatmaps
 
                 try
                 {
-                    string fileStorePath = BeatmapSetInfo.GetPathForFile(Metadata.AudioFile);
+                    string fileStorePath = resolveStoragePath(Metadata.AudioFile);
 
-                    var trackData = GetStream(fileStorePath);
+                    var trackData = fileStorePath != null ? GetStream(fileStorePath) : null;
 
                     if (trackData == null)
                     {
@@ -288,8 +331,8 @@ namespace osu.Game.Beatmaps
 
                 try
                 {
-                    string fileStorePath = BeatmapSetInfo.GetPathForFile(BeatmapInfo.Path);
-                    var beatmapFileStream = GetStream(fileStorePath);
+                    string fileStorePath = resolveStoragePath(BeatmapInfo.Path);
+                    var beatmapFileStream = fileStorePath != null ? GetStream(fileStorePath) : null;
 
                     if (beatmapFileStream == null)
                     {
@@ -305,14 +348,12 @@ namespace osu.Game.Beatmaps
 
                         string mainStoryboardFilename = getMainStoryboardFilename(BeatmapSetInfo.Metadata);
 
-                        if (BeatmapSetInfo?.Files.FirstOrDefault(f => f.Filename.Equals(mainStoryboardFilename, StringComparison.OrdinalIgnoreCase))?.Filename is string
-                            storyboardFilename)
+                        if (resolveStoragePath(mainStoryboardFilename) is string storyboardFilename)
                         {
-                            string storyboardFileStorePath = BeatmapSetInfo?.GetPathForFile(storyboardFilename);
-                            storyboardFileStream = GetStream(storyboardFileStorePath);
+                            storyboardFileStream = GetStream(storyboardFilename);
 
                             if (storyboardFileStream == null)
-                                Logger.Log($"Storyboard failed to load (file {storyboardFilename} not found on disk at expected location {storyboardFileStorePath})", level: LogLevel.Error);
+                                Logger.Log($"Storyboard failed to load (file {mainStoryboardFilename} not found on disk at expected location {storyboardFilename})", level: LogLevel.Error);
                         }
 
                         if (storyboardFileStream != null)
@@ -351,6 +392,17 @@ namespace osu.Game.Beatmaps
 
             public override Stream GetStream(string storagePath) => resources.Files.GetStream(storagePath);
 
+            private string resolveStoragePath(string filename)
+            {
+                if (string.IsNullOrEmpty(filename))
+                    return null;
+
+                if (!string.IsNullOrEmpty(BeatmapSetInfo.FilesystemStoragePath))
+                    return filename.ToStandardisedPath();
+
+                return BeatmapSetInfo.GetPathForFile(filename);
+            }
+
             private string getMainStoryboardFilename(IBeatmapMetadataInfo metadata)
             {
                 // Matches stable implementation, because it's probably simpler than trying to do anything else.
@@ -360,6 +412,35 @@ namespace osu.Game.Beatmaps
                                       + @".osb";
                 return baseFilename.GetValidFilename();
             }
+        }
+
+        private class FilesystemBackedBeatmapResourceProvider : IBeatmapResourceProvider
+        {
+            private readonly IBeatmapResourceProvider fallback;
+            private readonly IResourceStore<byte[]> files;
+            private readonly TextureStore largeTextureStore;
+            private readonly TextureStore beatmapPanelTextureStore;
+            private readonly ITrackStore tracks;
+
+            public FilesystemBackedBeatmapResourceProvider(IBeatmapResourceProvider fallback, Storage storage)
+            {
+                this.fallback = fallback;
+
+                files = new StorageBackedResourceStore(storage);
+                largeTextureStore = new LargeTextureStore(fallback.Renderer, fallback.CreateTextureLoaderStore(files));
+                beatmapPanelTextureStore = new LargeTextureStore(fallback.Renderer, new BeatmapPanelBackgroundTextureLoaderStore(fallback.CreateTextureLoaderStore(files)));
+                tracks = fallback.AudioManager.GetTrackStore(files);
+            }
+
+            TextureStore IBeatmapResourceProvider.LargeTextureStore => largeTextureStore;
+            TextureStore IBeatmapResourceProvider.BeatmapPanelTextureStore => beatmapPanelTextureStore;
+            ITrackStore IBeatmapResourceProvider.Tracks => tracks;
+            IRenderer IStorageResourceProvider.Renderer => fallback.Renderer;
+            AudioManager IStorageResourceProvider.AudioManager => fallback.AudioManager;
+            RealmAccess IStorageResourceProvider.RealmAccess => fallback.RealmAccess;
+            IResourceStore<byte[]> IStorageResourceProvider.Files => files;
+            IResourceStore<byte[]> IStorageResourceProvider.Resources => fallback.Resources;
+            IResourceStore<TextureUpload> IStorageResourceProvider.CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => fallback.CreateTextureLoaderStore(underlyingStore);
         }
     }
 }

@@ -19,6 +19,17 @@
 | **Primary Game Modes** | `OsuMania` (retained), `BMS` (new) |
 | **Removed Modes** | `Osu` (standard), `Taiko`, `Catch` — fully deleted |
 
+### Current Release and Connectivity Policy
+
+Until Phase 3 begins, OMS follows these product constraints:
+
+- Windows releases are portable full packages only. Prefer `Portable.zip`; do not treat `Setup.exe`, MSI, or delta packages as the primary user path for current OMS releases.
+- In-game online update is disabled for early OMS releases. Do not ship automatic check, download, or apply-update flows to end users yet.
+- Hide or remove release-stream switching and manual "Check for updates" UI while update delivery is intentionally disabled.
+- Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content.
+- All other networked features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and remote table sources, remain disabled or hidden until Phase 3.
+- Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
+
 ---
 
 ## 2. Repository Structure
@@ -28,12 +39,15 @@ oms/
 ├── osu.Game/                        # Core game framework (upstream, minimal modification)
 ├── osu.Game.Rulesets.Mania/         # Retained mania ruleset (upstream, minimal modification)
 ├── osu.Game.Rulesets.Bms/           # NEW — BMS ruleset (primary development target)
+│   ├── Audio/
+│   │   ├── BmsKeysoundSampleInfo.cs   # Beatmap-relative keysound sample lookup wrapper
+│   │   └── BmsKeysoundStore.cs        # Shared keysound channel pool for BGM/note/LN playback
 │   ├── Beatmaps/
 │   │   ├── BmsBeatmapDecoder.cs         # BMS file parser (.bms/.bme/.bml/.pms)
 │   │   ├── BmsBeatmapConverter.cs       # Converts parsed BMS → IBeatmap
 │   │   ├── BmsBeatmapInfo.cs            # BMS-specific beatmap metadata (Keymode, MeasureLengthControlPoints, etc.)
 │   │   ├── BmsArchiveReader.cs          # Handles .zip/.rar/.7z BMS package import
-│   │   └── BmsKeysoundStore.cs          # Keysound sample index and channel manager
+│   │   └── BmsBeatmapLoader.cs          # Runtime reloader for imported BMS charts
 │   ├── Judgements/
 │   │   ├── BmsJudgementSystem.cs        # Pluggable judgment engine
 │   │   ├── BmsTimingWindows.cs          # Timing window definitions per system
@@ -63,6 +77,7 @@ oms/
 │   ├── Mods/
 │   │   ├── BmsModJudgeBeatoraja.cs      # Switches to beatoraja timing windows
 │   │   ├── BmsModJudgeLr2.cs            # Switches to LR2 timing windows
+│   │   ├── BmsModLongNoteMode.cs        # Switches runtime long-note mode (CN/HCN; default LN uses no Mod)
 │   │   ├── BmsModGaugeAssistEasy.cs     # Assist Easy gauge
 │   │   ├── BmsModGaugeEasy.cs           # Easy gauge
 │   │   ├── BmsModGaugeHard.cs           # Hard gauge
@@ -86,12 +101,14 @@ oms/
 │   └── BmsRuleset.cs                    # Ruleset entry point
 ├── oms.Input/                        # NEW — Unified Input Abstraction Layer
 │   ├── OmsInputRouter.cs                # Routes all signal types to game actions
-│   ├── OmsBindingStore.cs               # Persists all bindings
+│   ├── OmsBindingStore.cs               # Default per-profile bindings + trigger helpers
 │   └── Devices/
-│       ├── RawKeyboardHandler.cs        # Windows Raw Input keyboard
-│       ├── HidDeviceHandler.cs          # HID/DirectInput (controllers, IIDX hardware)
-│       ├── XInputHandler.cs             # XInput (Xbox-compatible controllers)
-│       └── MouseAxisHandler.cs          # Mouse movement delta → scratch axis
+│       ├── OmsKeyboardInputHandler.cs   # Keyboard combinations -> OmsAction
+│       ├── OmsHidButtonInputHandler.cs  # HID digital buttons -> OmsAction
+│       ├── OmsHidAxisInputHandler.cs    # HID axis delta -> OmsAction
+│       ├── OmsHidDeviceHandler.cs       # HidSharp device polling + auto-release
+│       ├── OmsXInputButtonInputHandler.cs # Joystick/gamepad buttons -> OmsAction
+│       └── OmsMouseAxisInputHandler.cs  # Mouse movement delta -> scratch axis
 ├── oms.Server/                       # NEW — Private server API client
 │   ├── OmsApiClient.cs
 │   ├── Endpoints/
@@ -234,21 +251,29 @@ Import pipeline:
 
 Do **not** convert to `.osz`. OMS reads BMS files directly from disk at runtime.
 
+Do **not** route imported BMS charts or their dependent assets through the generic `files/` hash-backed store. The extracted folder inside OMS songs is the source of truth; the database only persists metadata and path/location references needed for lookup and reload.
+
 **Parse failure handling:** If `BmsBeatmapDecoder` throws or produces a critically incomplete result (no playable notes after channel parse, unrecognisable encoding after detection attempt), `BmsArchiveReader` must:
 1. Log the error with the file path and exception message.
 2. Skip the failed file — do not add it to the BeatmapSet.
 3. If all `.bms`/`.bme`/`.bml`/`.pms` files in the archive fail, abort the import entirely and surface an error notification to the user: "Import failed: no valid BMS files found in archive."
 4. If at least one file succeeds, complete the import and surface a warning notification that lists the skipped filenames.
 
-### 4.3 Keysound System (`BmsKeysoundStore`)
+### 4.3 Keysound System
 
 BMS is fully keysounded — every note triggers a specific audio sample.
+
+Current minimum implementation:
+- Decode `#WAV##` entries into beatmap-relative lookup metadata during `BmsBeatmapConverter`
+- Carry that lookup metadata on `BmsBgmEvent`, `BmsHitObject`, and `BmsHoldNote` runtime objects so gameplay drawables do not need a back-reference to decoder output
+- Create nested `BmsHoldNoteTailEvent` objects when a long note defines a distinct tail keysound
+- Route BGM / note / LN keysounds through a shared `BmsKeysoundStore` instead of letting each drawable own an independent keysound player
 
 Requirements:
 - Index up to 1295 (`ZZ` in base-36) keysound slots per chart
 - **Supported audio formats:** `.wav` (primary — required), `.ogg` and `.mp3` (secondary — support if ManagedBass can load without additional plugins). Format resolution: attempt the exact filename referenced by `#WAV##` first; if not found, retry with extension substituted in order (`.wav` → `.ogg` → `.mp3`). Log a warning on any substitution. Do not silently succeed without logging.
 - Load samples lazily (on first play), cache in memory during session
-- Support concurrent playback of many samples simultaneously — channel ceiling is read from `BmsRulesetConfigManager.KeysoundConcurrentChannels` (default: 256). Benchmark ManagedBass limits during development and adjust the default accordingly. Expose the setting in the BMS mode settings screen so users with lower-spec hardware can reduce it.
+- Current code routes playback through a shared `BmsKeysoundStore` pool whose ceiling is exposed via `BmsRulesetConfigManager` / `BmsSettingsSubsection` as `KeysoundConcurrentChannels`; default is 16 and runtime/UI writes are clamped to `1..256`. `DrawableBmsHitObject` currently auto-applies max result only for `BmsBgmEvent` and any `BmsHitObject` flagged with `AutoPlay = true`; ordinary single notes now accept player-triggered input via the temporary ruleset-local `BmsAction` bridge and resolve against default hit windows, while `DrawableBmsHoldNote` now accepts a valid head press, applies a basic tail release-lenience window, merges head/tail timing into a single final result, and only triggers the tail keysound when that final result is still a hit. POOR grading and full LN head/body/tail semantics remain future work.
 - BGM channel (`01`) samples play regardless of player input
 - Missing keysound files: log warning, play silence, do not crash
 - On note hit: trigger the note's assigned keysound immediately
@@ -265,6 +290,20 @@ Support both LN encoding styles:
 
 **`#LNTYPE 2`:** MGQ format — less common, implement after LNTYPE 1 is stable.
 
+**Chart encoding and runtime long-note judgment mode are separate axes.** Parsing `#LNOBJ` / `#LNTYPE` only determines head/tail timing. Gameplay then applies a runtime `BmsLongNoteMode`, mirroring beatoraja's distinction between chart `lntype` and play `lnmode`.
+
+| Runtime mode | Selection | Judged points | Body gauge behavior | EX-SCORE / MaxExScore pool |
+|---|---|---|---|---|
+| `LN` | Default, no Mod active | Head only | None | LN head only |
+| `CN` | Optional Mod | Head + tail | None | LN head + tail |
+| `HCN` | Optional Mod | Head + tail | Continuous hold gain/loss | LN head + tail |
+
+- `LN` is the default OMS behavior. A chart with long notes does not require any Mod to remain playable.
+- `CN` and `HCN` are mutually exclusive runtime options. The UI may expose them as two Mods or as one configurable Mod, but persistence, replay serialization, score storage, and server payloads must normalize them to a single `BmsLongNoteMode` enum value.
+- Tail judgments in `CN` / `HCN` use the active judgement system's long-note-end window family, not the head window.
+- `HCN` body gain/loss is conceptually continuous, but implementation must be time-based and deterministic rather than tied to render FPS. Accumulate elapsed time into a fixed tick quantum inside gameplay/gauge code.
+- Local best scores, replays, leaderboard entries, and private-server submissions must include `BmsLongNoteMode` so `LN` / `CN` / `HCN` runs never share the same best-score bucket.
+
 ### 4.5 Beatmap Conversion (`BmsBeatmapConverter`)
 
 `BmsBeatmapConverter` consumes the raw decoded BMS data from `BmsBeatmapDecoder` and produces a fully populated `IBeatmap` that the osu-framework game loop can execute. It is the single boundary between the BMS-specific parse world and the osu! runtime world.
@@ -273,12 +312,14 @@ Support both LN encoding styles:
 
 | BMS concept | osu! HitObject type | Notes |
 |---|---|---|
-| Single note (channels `1x`/`2x`) | `BmsHitObject` (extends `HitObject`) | Carries `LaneIndex`, `KeysoundId`, `IsScratch`, `AutoPlay` fields |
-| LN head (LNOBJ or LNTYPE `5x`/`6x` start) | `BmsHoldNote` (extends `HitObject`) | `StartTime` = head timing; `Duration` = tail time − head time; carries `HeadKeysoundId` and `TailKeysoundId` |
-| LN tail | embedded in `BmsHoldNote.Duration` | Not a separate HitObject in the game object list; tail time = `StartTime + Duration` |
-| BGM note (channel `01`) | `BmsBgmEvent` (non-hittable) | Queued to `BmsKeysoundStore`; excluded from judgment and scoring |
+| Single note (channels `1x`/`2x`) | `BmsHitObject` (extends `HitObject`) | Carries `LaneIndex`, `KeysoundId`, `KeysoundSample`, `IsScratch`, `AutoPlay` fields |
+| LN head (LNOBJ or LNTYPE `5x`/`6x` start) | `BmsHoldNote` (extends `HitObject`) | `StartTime` = head timing; `Duration` = tail time − head time; carries `HeadKeysoundId` / `TailKeysoundId` and matching `HeadKeysoundSample` / `TailKeysoundSample` |
+| LN tail | nested `BmsHoldNoteTailEvent` when a distinct tail keysound exists | Not a top-level HitObject in the beatmap list; runtime tail time remains `StartTime + Duration` and is materialised as a nested conditional event that only fires when the current minimal hold path reaches the tail or resolves a successful lenient tail release |
+| BGM note (channel `01`) | `BmsBgmEvent` (non-hittable) | Carries beatmap-relative keysound sample metadata and plays through the shared `BmsKeysoundStore`; excluded from judgment and scoring |
 
-`BmsHitObject` and `BmsHoldNote` must carry all keysound and lane metadata needed at runtime. They must not require a back-reference to the raw decoder output after conversion.
+`BmsHitObject` and `BmsHoldNote` must carry all keysound and lane metadata needed at runtime, including beatmap-relative sample lookup metadata. They must not require a back-reference to the raw decoder output after conversion.
+
+`BmsBeatmapConverter` should continue to materialise one `BmsHoldNote` timing object per parsed long note. Whether that object's tail becomes a scored judgement point is decided later by `BmsLongNoteMode`: `LN` counts head only, `CN` / `HCN` count head + tail, and `HCN` additionally feeds body gauge ticks without changing beatmap conversion.
 
 **ControlPointInfo population:**
 
@@ -389,7 +430,23 @@ Implementation:
 - Empty Poor **breaks Combo** (resets the current combo counter to 0)
 - Empty Poor is only active in BMS mode, not osu!mania mode
 
-### 5.3 Combo Rules
+### 5.3 Long Note Judge Modes
+
+`BmsJudgementSystem` must expose both head windows and long-note-end windows. Runtime long-note mode determines which judged points actually participate in play:
+
+| Mode | Head judgment | Tail judgment | Body ticks | EX-SCORE / MaxExScore | Combo / lamp eligibility |
+|---|---|---|---|---|---|
+| `LN` | Yes | No | No | Head only | Head only |
+| `CN` | Yes | Yes | No | Head + tail | Head + tail |
+| `HCN` | Yes | Yes | Yes, gauge-only | Head + tail | Head + tail |
+
+Rules:
+- `LN` is the default Phase 1 path and the fallback interpretation for any score record with no explicit long-note-mode tag.
+- `CN` / `HCN` reuse the same chart long-note timing data; do not fork beatmap conversion per mode.
+- `HCN` body ticks never add EX-SCORE or combo directly. They only modify gauge while the body is active.
+- A broken `HCN` body may damage gauge without creating an extra result-screen judged note; only head/tail create judgement counts.
+
+### 5.4 Combo Rules
 
 | Judgment | Combo effect |
 |---|---|
@@ -402,7 +459,7 @@ Implementation:
 
 Note: GOOD **does not break combo**, but having any GOOD in a run **disqualifies FULL COMBO** (§6.3). FULL COMBO requires PGREAT + GREAT only; PERFECT requires PGREAT only.
 
-### 5.4 Keysound Trigger by Judgment
+### 5.5 Keysound Trigger by Judgment
 
 | Judgment | Keysound plays? |
 |---|---|
@@ -426,9 +483,14 @@ EX-SCORE = (PGREAT count × 2) + (GREAT count × 1)
 MAX EX-SCORE = hittable_note_count × 2
 ```
 
-`hittable_note_count` = all playable notes including LN heads. **When A-SCR Mod is active, scratch lane notes are excluded from `hittable_note_count`** — those notes are auto-triggered and outside the scoring pool.
+`hittable_note_count` = all scored judgement points under the active runtime long-note mode:
+- Single notes always count once
+- `LN` mode counts each long note head once
+- `CN` / `HCN` modes count long note head + tail
+- `HCN` body ticks never increase `hittable_note_count`
+- **When A-SCR Mod is active, scratch lane notes are excluded from `hittable_note_count`** — those notes are auto-triggered and outside the scoring pool
 
-`BmsScoreProcessor` must track: PGREAT, GREAT, GOOD, BAD, POOR, EMPTY POOR, MAX COMBO.
+`BmsScoreProcessor` must track: PGREAT, GREAT, GOOD, BAD, POOR, EMPTY POOR, MAX COMBO, and the `BmsLongNoteMode` used to derive `MaxExScore`.
 
 ### 6.2 Gauge System (`BmsGaugeProcessor`)
 
@@ -442,7 +504,16 @@ All recovery and damage rates are derived from the chart's `#TOTAL` header value
 base_rate (% per note) = #TOTAL ÷ (total_hittable_notes × 100)
 ```
 
-`total_hittable_notes` = all playable notes including LN heads; excludes LN tails and BGM channel (`01`) notes. If `#TOTAL` is absent from the chart header, default to `200`. **When A-SCR Mod is active, scratch lane notes are also excluded from `total_hittable_notes`** — consistent with their exclusion from `hittable_note_count` in §6.1. This ensures gauge recovery and damage rates scale correctly to the reduced note pool.
+`total_hittable_notes` = all scored per-note judgement points that participate in gauge scaling under the active runtime long-note mode:
+- Single notes always count once
+- `LN` mode counts each long note head once
+- `CN` / `HCN` modes count long note head + tail
+- `HCN` body ticks are processed as time-based gauge events and do **not** change `total_hittable_notes`
+- BGM channel (`01`) notes are excluded
+- If `#TOTAL` is absent from the chart header, default to `200`
+- **When A-SCR Mod is active, scratch lane notes are also excluded from `total_hittable_notes`** — consistent with their exclusion from `hittable_note_count` in §6.1
+
+This keeps EX-SCORE, gauge scaling, and DJ LEVEL denominator aligned per long-note mode while still allowing `HCN` to add body-only gauge movement.
 
 Each gauge applies multipliers to `base_rate` for recovery and damage. The `~%` values in the table below are **reference approximations** for a standard chart (`#TOTAL 200`, ~1000 hittable notes → `base_rate ≈ 0.2%`). Actual in-game values vary with chart parameters.
 
@@ -478,20 +549,21 @@ Each gauge applies multipliers to `base_rate` for recovery and damage. The `~%` 
 
 ASSIST EASY, EASY, and NORMAL gauges cannot drop below 2% mid-song (survival floor).
 
-**Ranking:** All gauge types participate in the leaderboard. Scores are tagged with their gauge type and the leaderboard UI supports filtering by specific gauge Mod combinations.
+**Ranking:** All gauge types and all runtime long-note modes participate in the leaderboard. Scores are tagged with their gauge type and long-note mode, and the leaderboard UI supports filtering by gauge / A-SCR / judge / LN-mode combinations.
 
 **Leaderboard filter architecture:** The chart leaderboard (`GET /scores/chart/{hash}`) accepts a composite filter on the server side. The client passes filter parameters as query string fields:
 
 ```
-GET /scores/chart/{hash}?gauge=HARD&ascr=false&judge=OD
+GET /scores/chart/{hash}?gauge=HARD&ascr=false&judge=OD&lnmode=CN
 ```
 
 All filter fields are optional and independently combinable (AND logic):
 - `gauge` — one of `ASSIST_EASY`, `EASY`, `NORMAL`, `HARD`, `EX_HARD`, `HAZARD`, `GAS`, or omit to show all
 - `ascr` — `true` / `false` / omit to show all (filters by `ModAutoScratch`)
 - `judge` — `OD` / `BEATORAJA` / `LR2` / omit to show all
+- `lnmode` — `LN` / `CN` / `HCN` / omit to show all
 
-The leaderboard UI exposes these as independent dropdowns/toggles. Filter state persists per-chart across sessions in `BmsRulesetConfigManager` (add `LeaderboardGaugeFilter`, `LeaderboardAscrFilter`, `LeaderboardJudgeFilter` to the settings inventory above).
+The leaderboard UI exposes these as independent dropdowns/toggles. Filter state persists per-chart across sessions in `BmsRulesetConfigManager` (add `LeaderboardGaugeFilter`, `LeaderboardAscrFilter`, `LeaderboardJudgeFilter`, `LeaderboardLnModeFilter` to the settings inventory above).
 
 ### 6.3 Clear Lamp (`BmsClearLampProcessor`)
 
@@ -508,6 +580,7 @@ NO PLAY → FAILED → ASSIST EASY CLEAR → EASY CLEAR → NORMAL CLEAR
 - HAZARD CLEAR = survived HAZARD gauge to end (no BAD/POOR, but GOOD is permitted — GOOD does not trigger HAZARD fail). Note: HAZARD CLEAR requires no BAD or POOR but allows GOOD, so it is strictly below FULL COMBO.
 - FULL COMBO = no GOOD/BAD/POOR throughout the chart
 - PERFECT = EX-SCORE == MAX EX-SCORE
+- FULL COMBO / PERFECT use the active runtime long-note mode's scored points. `LN` only checks heads; `CN` / `HCN` require both head and tail to remain eligible. `HCN` body ticks can still fail gauge without adding separate combo points.
 
 Only upgrade lamp, never downgrade.
 
@@ -604,11 +677,14 @@ All BMS mode persistent settings live here. The list below is the authoritative 
 ```csharp
 // In BmsRulesetConfigManager
 AutoScratchNoteVisibility  : AscScratchVisibility  = Visible
-KeysoundConcurrentChannels : int                   = 256      // ManagedBass channel ceiling; benchmarked limit
+KeysoundConcurrentChannels : int                  = 16       // shared keysound pool size, clamped to 1..256
 LeaderboardGaugeFilter     : string?               = null     // null = show all; e.g. "HARD", "GAS" (§6.2)
 LeaderboardAscrFilter      : bool?                 = null     // null = show all; true = A-SCR only; false = manual only
 LeaderboardJudgeFilter     : string?               = null     // null = show all; e.g. "OD", "BEATORAJA", "LR2"
+LeaderboardLnModeFilter    : string?               = null     // null = show all; e.g. "LN", "CN", "HCN" (§6.2)
 ```
+
+`BmsKeysoundStore` already uses `KeysoundConcurrentChannels` as its persistent shared-pool ceiling. As the keysound pipeline continues from the current single-note judgment path plus AutoPlay/LN fallback toward full LN/POOR semantics, keep that ceiling sourced from `BmsRulesetConfigManager` rather than introducing a second config path.
 
 When adding a new persistent BMS setting, define its type and default here before wiring it into the feature that uses it. Do not scatter persistent state across unrelated classes.
 
@@ -629,6 +705,8 @@ Calculated from EX-SCORE percentage at result screen:
 | ≥ 3/9 (~33.3%) | D |
 | ≥ 2/9 (~22.2%) | E |
 | < 2/9 | F |
+
+This intentionally follows the 27-step beatoraja / IIDX rank ladder: `AAA = 24/27`, `AA = 21/27`, `A = 18/27`, and so on.
 
 ---
 
@@ -671,6 +749,8 @@ Inherit osu!mania's scroll speed system (user-configured multiplier). No separat
 
 All input hardware — keyboard, IIDX controller, arcade controller, gamepad — must map to the same abstract `OmsAction` enum. The game layer never reads hardware signals directly.
 
+Current implementation note: `osu.Game.Rulesets.Bms` is now partially wired to `oms.Input`. The current playable prototype still relies on a ruleset-local `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus`) as temporary scaffolding, but `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, HID button injection, HID axis delta parsing, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, and HidSharp button/axis polling are already connected. Raw Input, HID-trigger persistence/UI, and richer cross-device semantics are still future work. Treat the current bridge as temporary scaffolding, not the final input contract.
+
 ```csharp
 public enum OmsAction
 {
@@ -694,20 +774,20 @@ public enum OmsAction
 
 ### 8.2 Signal Handlers
 
-**`RawKeyboardHandler`:**  
-Uses Windows Raw Input API (`RegisterRawInputDevices`). Captures key press/release with minimal latency. Each key mapped to an `OmsAction` via `OmsBindingStore`.
+**`OmsKeyboardInputHandler`:**  
+Consumes resolved lazer `KeyCombination` state and maps complete keyboard combinations to `OmsAction`. Raw Input capture is still future work.
 
-**`HidDeviceHandler`:**  
+**`OmsHidDeviceHandler`:**  
 Enumerates HID devices via `HidSharp` or `SharpDX.DirectInput`. Reads button states and axis values. Maps HID button indices and axis ranges to `OmsAction`.  
 This is the primary path for IIDX-style controllers (including custom DIY controllers).
 
-**`XInputHandler`:**  
-For Xbox-compatible controllers. Maps buttons and triggers to `OmsAction`.
+**`OmsXInputButtonInputHandler`:**  
+For Xbox-compatible controllers / framework joystick buttons. Maps button indices to `OmsAction`, supports shared-action reference counting, and now participates in both default binding export and joystick-only persisted keybinding round-trips.
 
-**`MouseAxisHandler`:**  
+**`OmsMouseAxisInputHandler`:**  
 Reads raw mouse delta (X or Y axis) and converts to scratch input. Define a threshold and direction: positive delta = CW, negative delta = CCW. Expose sensitivity setting.
 
-**Axis inversion:** All analog axis handlers (`HidDeviceHandler` for rotary encoders, `MouseAxisHandler`) must expose an `AxisInverted` boolean flag per binding in `OmsBindingStore`. DIY controller encoder wiring varies in polarity; inverting the axis direction in software avoids hardware rewiring. When `AxisInverted = true`, the CW/CCW mapping is swapped before delivering the signal to `OmsInputRouter`. The flag is stored per-binding entry in `OmsBindingStore` — each bound action carries its own independent inversion state. This applies equally to HID rotary encoders and mouse axis bindings; it is not a global mouse preference.
+**Axis inversion:** All analog axis handlers (`OmsHidAxisInputHandler` for rotary encoders, `OmsMouseAxisInputHandler`) must expose an `AxisInverted` boolean flag per binding in `OmsBindingStore`. DIY controller encoder wiring varies in polarity; inverting the axis direction in software avoids hardware rewiring. When `AxisInverted = true`, the CW/CCW mapping is swapped before delivering the signal to `OmsInputRouter`. The flag is stored per-binding entry in `OmsBindingStore` — each bound action carries its own independent inversion state. This applies equally to HID rotary encoders and mouse axis bindings; it is not a global mouse preference.
 
 ### 8.3 Scratch / Analog Axis Handling
 
@@ -1012,20 +1092,209 @@ Do not implement video decoding in Phase 1. The slot must exist to avoid archite
 
 ## 13. Skin System
 
-OMS uses osu!lazer's `ISkinSource` / `Skinnable` component system without modification.
+OMS continues to use osu!lazer's `ISkin` / `ISkinSource` / `SkinnableDrawable` architecture, but OMS's **product surface** must no longer rely on upstream built-in skins as the final end-user default.
 
-BMS mode skin elements that need new `SkinComponentLookup` keys:
-- `BmsPlayfield` background
-- `BmsLane` (per lane index, per active side 1P/2P)
-- `BmsScratchLane`
-- `BmsLaneCover` (top and bottom variants)
-- `BmsJudgementText` (PGREAT / GREAT / GOOD / BAD / POOR)
-- `BmsComboCounter`
-- `BmsGaugeBar`
-- `BmsClearLamp`
-- `BmsNoteDistribution` (chart preview panel)
+### 13.1 Product Direction
 
-All BMS skin lookups must fall back gracefully to a built-in default skin if no BMS-specific skin is active.
+- OMS will ship a single **OMS built-in skin package / selection entry** as the authoritative default visual layer for the product.
+- That default package contains a **global layer plus separate mania and BMS ruleset layers**.
+- Mania and BMS do not need to share the same gameplay asset semantics; they are integrated into one package, but remain independent ruleset skin implementations.
+- `Argon`, `Triangles`, `DefaultLegacy`, `Retro`, and other osu!lazer-native built-in default skins must be removed from OMS's final shipped default selection surface once OMS replacement coverage is complete.
+- During transition, code may temporarily retain upstream classes or resources, but no new OMS feature may depend on them as the intended release fallback.
+- Hard-coded placeholder `Box`-based visuals are acceptable only as temporary development scaffolding. They are not an acceptable release-state fallback once the corresponding Phase 1.1 task is complete.
+- Current built-in skin work has started around `SKIN/SimpleTou-Lazer` as the mania-side candidate baseline plus BMS-side contract expansion. The current BMS IIDX-coloured direct-drawn layer remains only a skin-load-failure feedback/fallback surface; it is not the intended OMS built-in skin direction or proof of release-ready default-skin coverage.
+
+### 13.1.1 Current Phase 1.1 Execution Order
+
+- The current built-in candidate baseline is `SKIN/SimpleTou-Lazer`. At this stage it is only the mania-side/reference-side base for OMS built-in skin work, not proof that OMS already has a release-ready integrated default skin.
+- Phase 1.1 must not attempt full mania/BMS visual reproduction in parallel.
+- The forced order is: package boundary/docs -> shared OMS skin shell -> BMS playfield abstraction gate -> BMS default visual layer -> mania OMS-owned migration -> partial override semantics -> upstream native default removal -> release gate.
+- The reason is structural: BMS already has many drawable lookups, but `BmsLaneLayout`, `BmsPlayfield`, and `BmsHitTarget` still need a configuration-driven playfield layer before faithful reproduction of the chosen mania-side visual language is practical.
+
+### 13.2 Fallback Hierarchy
+
+OMS skin fallback must obey this order:
+
+1. User-selected custom skin, if it provides the requested component.
+2. Ruleset-specific OMS transformer for the active ruleset.
+3. OMS built-in default component for that lookup.
+4. Skin-load-failure feedback drawable / development placeholder, only while the related Phase 1.1 item remains unfinished and only to preserve basic readability when normal skin loading fails.
+
+Additional rules:
+
+- Missing components fall back **per component**, not by abandoning the entire OMS skin chain.
+- BMS imported song folders are not treated as ad-hoc skin packages.
+- Beatmap skin compatibility may remain as a compatibility layer for mania, but it is not allowed to become the only fallback path for OMS gameplay.
+- BMS-specific lookups must never fall back to osu!lazer-native built-in skin assets once the OMS built-in skin exists.
+
+### 13.3 Shared OMS Skin Architecture
+
+OMS should converge on an integrated package architecture with the following layers:
+
+- **OMS global layer**: package host, shared infrastructure, layout metadata, global HUD shells, common typography/icon resources, and fallback discipline.
+- **OMS mania layer**: stage, column, key area, note, hold, hit target, bar line, hitburst, judgement/combo/HUD adapted to mania variants.
+- **OMS BMS layer**: scratch-aware lanes, lane covers, note/hold parts, gauge/clear lamp, note distribution, BMS judgement naming, and static background presentation.
+
+Shared means package structure, fallback infrastructure, and optional global UI language. It does **not** mean mania and BMS gameplay assets must be interchangeable or visually identical.
+
+Recommended implementation structure:
+
+- A shared `OmsSkinTransformer` or equivalent base used by both rulesets.
+- A protected preview `OmsSkin`-style selection entry may land earlier as the built-in host / provider / resource-root slice. That counts as skeleton progress, not as completion of the shared shell or release-ready default-skin coverage.
+- `ManiaRuleset.CreateSkinTransformer()` should continue migrating away from switching on osu!lazer-native built-in skin types as the final OMS product behavior. An explicit `OmsSkin` -> `ManiaOmsSkinTransformer` route can land earlier as a transitional slice, but that still does not mean mania defaults are fully OMS-owned.
+- `BmsRuleset.CreateSkinTransformer()` should keep returning a ruleset-specific transformer, but that transformer must evolve from a thin override layer into the full BMS-side OMS fallback provider.
+
+### 13.4 Shared Visual Contract
+
+The OMS built-in skin package must provide a coherent product shell while still allowing mania and BMS gameplay layers to remain independent:
+
+- Shared typography scale for global UI, shared HUD shells, Song Select details, and results containers.
+- Shared colour-token system for package-level surfaces, separators, neutral text, focus/highlight states, and non-ruleset-specific UI.
+- Shared animation-duration buckets for instant feedback, HUD transitions, and overlay entrances.
+- Shared serialization rules for `ISerialisableDrawable`: fixed anchors, stable sizes, no skin-dependent layout drift that breaks replay/UI restoration.
+- Shared contrast policy: gameplay-critical information must remain readable on both bright and dark user skins.
+
+Ruleset-specific gameplay semantics remain independent:
+
+- Mania and BMS may use completely different note, lane, judgement, and HUD art/animation systems while still living inside the same skin package.
+- Shared package ownership must not force BMS to mimic mania naming or vice versa.
+
+OMS-specific judgement naming remains authoritative:
+
+- `HitResult.Meh` displays as `BAD`
+- `HitResult.Miss` displays as `POOR`
+- `HitResult.ComboBreak` displays as `EMPTY POOR`
+
+This naming is product semantics, not a skin choice.
+
+### 13.5 Mania Skin Contract
+
+OMS mania must stop treating upstream built-in skins as the release-state visual contract.
+
+The OMS mania layer must cover at least:
+
+- Stage background / foreground
+- Column background
+- Key area
+- Hit target
+- Bar line
+- Note head
+- Hold note head / body / tail
+- Hit explosion
+- Combo counter
+- Judgement display
+- Main gameplay HUD placement
+
+Requirements:
+
+- Variant changes must not require separate product themes; 4K/7K/etc. all derive from the same OMS visual family.
+- The mania layer lives inside the same default skin package as BMS, but its assets/config bridge remain mania-specific.
+- Timing-based recolour or configuration-based note recolour remains a ruleset behavior, but the default asset/fallback source must be OMS-owned.
+- Mania defaults must remain readable even when no external skin is installed.
+
+### 13.6 BMS Skin Contract
+
+BMS has stricter layout and semantics requirements than mania and therefore needs richer lookup data.
+
+The BMS skin contract must cover at least:
+
+- Playfield background frame
+- Static background presentation (`#STAGEFILE` / `#BACKBMP` / `#BANNER` display slot)
+- Lane background per lane index
+- Scratch lane background and separators
+- Hit target / scratch hit target
+- Bar line
+- Single note head
+- Long-note head / body / tail
+- Lane cover (top / bottom) and focus state
+- Judgement display
+- Combo counter
+- Gauge bar
+- Gauge history panel
+- Clear lamp display
+- Results summary panel
+- Note distribution panel
+- Song Select metadata accents for BMS-only information when needed
+
+Simple enum-only lookup is insufficient for all BMS use cases. Where component rendering depends on lane metadata, use dedicated lookup types carrying:
+
+- `LaneIndex`
+- `LaneCount`
+- `IsScratch`
+- `Side` (`1P` / `2P`)
+- `Keymode`
+- Optional `CoverPosition` / `Focused` / `LongNotePart`
+
+Drawable replacement alone is also insufficient for a release-ready BMS default path. The BMS contract must grow a configuration-driven playfield layer for layout-critical parameters. The current repo already covers:
+
+- lane width / scratch-width ratio and lane spacing
+- playfield width / playfield height sizing
+- hit target / receptor vertical placement, size, and internal bar/line/glow geometry
+- bar line thickness / height and emphasis rules
+- receptor pressed / focused states
+- playfield adjustment / scaling container metadata
+
+The first-pass config bridge now also covers playfield size.
+The next freeze work is moving candidate visuals into the OMS-owned BMS default layer rather than adding another geometry contract.
+The first landed BMS default-layer slices are now gameplay HUD, results summary / clear lamp, results gauge history, Song Select note distribution, playfield metadata / accent surfaces, playfield shell surfaces, and note / hold visuals: `HudLayout` / `GaugeBar` / `ComboCounter` default fallback no longer needs upstream `DefaultComboCounter`, `DefaultBmsResultsSummaryPanelDisplay` / `DefaultBmsResultsSummaryDisplay` / `DefaultBmsClearLampDisplay` now use a dedicated BMS results palette and metric cards, `DefaultBmsGaugeHistoryPanelDisplay` / `DefaultBmsGaugeHistoryDisplay` now use the same results-style shell plus `BmsDefaultHudPalette` gauge colours, `DefaultBmsNoteDistributionPanelDisplay` / `DefaultBmsNoteDistributionDisplay` now use the same shell plus BMS-owned chart-distribution colours, `DefaultBmsBackgroundLayerDisplay` / `DefaultBmsLaneCoverDisplay` / `DefaultBmsHitTargetDisplay` plus default `BarLine` fallback now use `BmsDefaultPlayfieldPalette`, `DefaultBmsPlayfieldBackdropDisplay` / `DefaultBmsPlayfieldBaseplateDisplay` / `DefaultBmsLaneBackgroundDisplay` / `DefaultBmsLaneDividerDisplay` now use the same palette for the playfield shell, and `DefaultBmsNoteDisplay` / `DefaultBmsLongNoteHeadDisplay` / `DefaultBmsLongNoteBodyDisplay` / `DefaultBmsLongNoteTailDisplay` now keep note / hold fallback on the same OMS-owned palette. `BmsTemporarySkinPalette` is no longer part of the live BMS fallback path, `OmsSkin` now exists as a protected preview built-in host / provider / resource-root entry, the `OmsSkin` -> `ManiaOmsSkinTransformer` route is explicit, the first OMS-owned mania shell-component slice (`OmsStageBackground` / `OmsStageForeground` / `OmsColumnBackground` / `OmsKeyArea` / `OmsHitTarget`) has landed, the first stage-local mania layout-preset slice now drives `HitPosition` / `StagePadding` / `ColumnWidth` / `ColumnSpacing`, the first shell-behaviour slice now drives `LeftLineWidth` / `RightLineWidth` / `ShowJudgementLine` / `LightPosition` / `LightFramePerSecond`, the first shared shell-asset slice now drives `LeftStageImage` / `RightStageImage` / `BottomStageImage` / `HitTargetImage` / `LightImage` / `KeysUnderNotes`, the first shell-colour slice now drives `ColumnLineColour` / `JudgementLineColour` / `ColumnBackgroundColour` / `ColumnLightColour`, the first stage-local key-asset slice now drives `KeyImage` / `KeyImageDown`, the first mania second-batch note/hold asset slice now drives `NoteImage` / `HoldNoteHeadImage` / `HoldNoteTailImage` / `HoldNoteBodyImage`, the first explicit note-piece slice now routes `ManiaSkinComponents.Note` to `OmsNotePiece`, the first explicit hold-note-head component slice now routes `ManiaSkinComponents.HoldNoteHead` to `OmsHoldNoteHeadPiece`, the first explicit hold-note-tail component slice now routes `ManiaSkinComponents.HoldNoteTail` to `OmsHoldNoteTailPiece`, the first explicit hold-note-body component slice now routes `ManiaSkinComponents.HoldNoteBody` to `OmsHoldNoteBodyPiece`, the first shared judgement asset slice now drives `Hit300g` / `Hit300` / `Hit200` / `Hit100` / `Hit50` / `Hit0`, the first shared judgement-position slice now drives `ScorePosition` / `ComboPosition` across single-stage, same-keycount dual-stage, and mixed-stage no-column lookups via first-stage preset reuse, the first shared bar-line-config slice now drives `BarLineHeight` / `BarLineColour` under the same rule, the first explicit judgement-piece slice now routes `SkinComponentLookup<HitResult>` to `OmsManiaJudgementPiece`, the first explicit bar-line component slice now routes `ManiaSkinComponents.BarLine` to `OmsBarLine`, the first explicit combo-counter component slice now routes the MainHUDComponents combo to `OmsManiaComboCounter`, the first stage-local hitburst-config slice now drives `ExplosionImage` / `ExplosionScale`, and the first explicit hit-explosion component slice now routes `ManiaSkinComponents.HitExplosion` to `OmsHitExplosion`, including repeated use across dual-stage layouts like 5K+5K, 9K+9K, mixed-stage lookup splits like 5K+8K and 5K+9K, and mixed-stage shared-position / bar-line cases like 7K+6K, 8K+9K, and 9K+8K. `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` are now all real OMS-owned implementations rather than legacy subclasses, and the next Phase 1.1 focus is the remaining mania semantic cleanup across note / hold / combo / HUD / bar-line plus any deferred score-driven results preview/skinnable-target decision.
+
+The shared judgement-position slice now closes `ScorePosition` / `ComboPosition` for single-stage, same-keycount dual-stage, and mixed-stage no-column lookups by reusing the first stage's preset. `OmsManiaComboCounter` now provides the explicit MainHUDComponents combo route and no longer inherits `LegacyManiaComboCounter`, but it still consumes the same shared preset plus legacy combo-counter semantics, so the remaining work is the full OMS-owned combo / HUD semantic cleanup.
+
+`OmsNotePiece`, `OmsHoldNoteHeadPiece`, `OmsHoldNoteTailPiece`, and `OmsHoldNoteBodyPiece` now provide the explicit normal-note / hold-note-head / hold-note-tail / hold-note-body routes for `ManiaSkinComponents.Note` / `ManiaSkinComponents.HoldNoteHead` / `ManiaSkinComponents.HoldNoteTail` / `ManiaSkinComponents.HoldNoteBody`, and all four are now real OMS-owned implementations rather than legacy subclasses. The visible hold-body route is hosted by `DrawableHoldNote` via its internal `bodyPiece`, but it still consumes the same stage-local note / hold asset preset plus legacy note sizing / scrolling, tail inversion, `NoteBodyStyle`, `HoldNoteLightImage`, `HoldNoteLightScale`, and hold-body light / fade / wrap-stretch semantics, so the remaining work is note / hold semantic cleanup rather than route closure.
+
+The shared bar-line-config slice now closes `BarLineHeight` / `BarLineColour` for single-stage, same-keycount dual-stage, and mixed-stage no-column lookups by reusing the first stage's preset. `OmsBarLine` now provides the explicit component route for `ManiaSkinComponents.BarLine` and no longer inherits `LegacyBarLine`, but it still consumes the same shared preset plus legacy bar-line semantics, so the remaining work is the full OMS-owned bar-line semantic cleanup.
+
+BMS-specific visual rules:
+
+- Scratch lane must remain visually distinct from normal keys even inside a shared OMS theme.
+- The BMS layer lives inside the same default skin package as mania, but must keep its own lookup names, layout metadata, and gameplay semantics.
+- `5K` / `7K` / `9K_Bms` / `9K_Pms` / `14K` must reuse one theme family but allow layout-sensitive per-lane rendering.
+- `1P/2P` side flips must not require a second asset family; side-sensitive elements respond to runtime bindables/lookup metadata.
+- Lane cover top/bottom and lane-cover focus state are first-class skinnable elements, not debug overlays.
+- Results summary and clear lamp must remain separable skinnable components, so a skin can override the whole summary panel or only the lamp badge.
+- `BmsBackgroundLayer` should present static art through the skin system in Phase 1.1; video BGA remains a later phase and must not block the static background contract.
+
+### 13.7 Native Default Skin Removal Policy
+
+The following must be removed from OMS's final default product surface during Phase 1.1:
+
+- Upstream built-in skin selector entries used as OMS defaults
+- Runtime fallback paths that silently land on osu!lazer-native built-in skins instead of OMS defaults
+- Packaging assumptions that public OMS builds ship upstream default skin resources as the intended out-of-box experience
+
+Permitted during transition:
+
+- Minimal fake skins in tests
+- Temporary internal compatibility shims while mania and BMS migrate
+- Non-user-facing development references needed to keep the repo compiling during migration
+
+Not permitted after Phase 1.1 completion:
+
+- Public OMS builds whose no-custom-skin experience is still Argon/Triangles/Legacy/Retro-derived
+- BMS gameplay visuals that disappear or become blank when upstream default skin resources are removed
+
+### 13.8 Implementation Rules
+
+- All shipping mania/BMS gameplay elements must be backed by skin lookup + OMS fallback, not only by direct code-drawn primitives.
+- New OMS gameplay UI should prefer `SkinnableDrawable` / `GlobalSkinnableContainerLookup` / dedicated lookup types over ruleset-local hard-coded layout.
+- Do not attempt final BMS visual parity by baking geometry into temporary hard-coded defaults; land the BMS playfield abstraction gate first.
+- Component defaults must be stable under serialization, replay, and skin reload.
+- Layout-critical components such as lane covers, gauge bars, clear lamps, and note distribution panels must have predictable default sizes in the OMS built-in skin.
+- Do not make BMS gameplay visuals depend on upstream mania component names or upstream built-in texture contracts.
+
+### 13.9 Test Requirements
+
+The skin system must ship with both non-visual and visual validation:
+
+- Non-visual transformer tests for fallback order and component lookup routing.
+- Ruleset tests proving mania and BMS no longer require upstream native default skins for no-custom-skin operation.
+- Visual tests for lane layout, note readability, lane cover focus, judgement placement, gauge bar visibility, clear lamp rendering, and Song Select note distribution.
+- Packaging checks confirming public builds do not expose upstream built-in skins as OMS defaults.
+
+### 13.10 Phase Placement
+
+- Core OMS skin-system replacement is a **Phase 1.1** priority, not a deferred Phase 2 polish item.
+- Phase 2 may extend the skin ecosystem further, but Phase 1.1 must already deliver a complete OMS-owned default path for mania and BMS.
 
 ---
 
@@ -1033,13 +1302,15 @@ All BMS skin lookups must fall back gracefully to a built-in default skin if no 
 
 ### 14.1 API Client
 
-`OmsApiClient` wraps all server communication. Base URL is configurable in settings (default: official OMS server, overridable for private instances).
+`OmsApiClient` wraps all Phase 3 server communication. Before Phase 3, OMS should not ship a default official server base URL or expose account / leaderboard / beatmap-download flows to end users.
+
+Base URL becomes configurable once private server integration is intentionally enabled; until then the client should treat it as unset / disabled.
 
 Authentication: Bearer token stored in OS credential store. Refresh token flow.
 
 ### 14.2 Endpoints (Interface Contract)
 
-These are the API endpoints OMS expects. Backend implementation is external.
+These are the Phase 3 API endpoints OMS expects. Backend implementation is external, and current local-only releases must not call them by default.
 
 ```
 POST   /auth/login              → { token, refresh_token, user }
@@ -1078,6 +1349,7 @@ public class OmsScore
     public string   ClearLamp      { get; set; }  // e.g. "HARD_CLEAR", "FULL_COMBO"
     public string   GaugeMode      { get; set; }  // "NORMAL","HARD","EX_HARD","HAZARD","ASSIST_EASY","EASY","GAS"
     public string   JudgeMode      { get; set; }  // "OD", "BEATORAJA", "LR2"
+    public string   LongNoteMode   { get; set; }  // "LN", "CN", "HCN"
     public bool     ModAutoScratch { get; set; }
     public bool     ModMirror      { get; set; }
     public string   ClientVersion  { get; set; }
@@ -1118,6 +1390,24 @@ If the server is unreachable, OMS runs fully offline:
 - [ ] Static BG (`#STAGEFILE`)
 - [ ] Lane cover Mods (top + bottom)
 
+### Phase 1.1 — OMS Skin System (Current Product Focus)
+
+- [x] Freeze the integrated default skin package structure: Global + Mania + BMS independent ruleset layers
+- [x] Inventory every target component and map it to current code entry points
+- [ ] Freeze resource naming, layout metadata, and config-bridge rules for mania and BMS separately
+- [x] Create OMS built-in skin package host / provider / shared transformer shell (preview `OmsSkin` host / provider / resource-root slice, explicit `ManiaOmsSkinTransformer`, global shared shell/shared transformer shell, and current mania mixed-stage non-column shared-preset fallback have all landed)
+- [x] Convert BMS Playfield / Lane / HitTarget / Static BG / BarLine to formal skinnable lookups
+- [x] Convert BMS Note / Hold / LaneCover / Judgement / Combo to formal skinnable lookups
+- [x] Land BMS HUD / results / Song Select panel lookups (`HudLayout`, `GaugeBar`, `GaugeHistoryPanel`, `ResultsSummaryPanel`, `NoteDistributionPanel`, etc.)
+- [x] Land the BMS playfield abstraction gate: geometry, receptor state, layout metadata / config layer
+- [x] Port the chosen built-in visual language to the BMS default layer without relying on feedback direct-draw fallback
+- [x] Current BMS default-layer progress note: gameplay HUD (`HudLayout` / `GaugeBar` / `ComboCounter`), results summary / clear lamp (`ResultsSummaryPanel` / `ResultsSummary` / `ClearLamp`), results gauge history (`GaugeHistoryPanel` / `GaugeHistory`), Song Select note distribution (`NoteDistributionPanel` / `NoteDistribution`), playfield metadata / accent surfaces (`StaticBackgroundLayer`, `LaneCover`, `HitTarget`, `BarLine`), playfield shell surfaces (`Backdrop`, `Baseplate`, lane `Background`, `Divider`), and note / hold visuals (`Note`, `LongNoteHead`, `LongNoteBody`, `LongNoteTail`) now use BMS-owned default components/tokens; `BmsTemporarySkinPalette` has exited the live BMS fallback path
+- [ ] Migrate mania Stage / Column / Key shell to OMS-owned defaults (first shell-component slice, first stage-local layout-preset slice, first stage-local shell-behaviour slice, first shared shell-asset slice, first shell-colour slice, and first stage-local key-asset slice have landed via `OmsStageBackground` / `OmsStageForeground` / `OmsColumnBackground` / `OmsKeyArea` / `OmsHitTarget` plus `OmsManiaLayoutPreset`, `OmsManiaShellPreset`, `OmsManiaShellAssetPreset`, `OmsManiaColumnColourPreset`, and `OmsManiaKeyAssetPreset`; current mania non-column shared lookup fallback now also closes mixed-stage via first-stage preset reuse, but Global shared-shell closure is still pending)
+- [ ] Migrate mania Note / Hold / HitBurst / Judgement / HUD to OMS-owned defaults (first stage-local note/hold asset slice has landed via `OmsManiaNoteAssetPreset` for `NoteImage` / `HoldNoteHeadImage` / `HoldNoteTailImage` / `HoldNoteBodyImage`, the explicit note / hold-head / hold-tail / hold-body routes have landed via `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece`, the shared judgement asset slice has landed via `OmsManiaJudgementAssetPreset` for `Hit300g` / `Hit300` / `Hit200` / `Hit100` / `Hit50` / `Hit0`, the shared judgement-position slice has landed via `OmsManiaJudgementPositionPreset` for `ScorePosition` / `ComboPosition` with mixed-stage first-stage fallback, the shared bar-line-config slice has landed via `OmsManiaBarLinePreset` for `BarLineHeight` / `BarLineColour` with the same mixed-stage first-stage fallback, the explicit judgement-piece / combo-counter / bar-line / hit-explosion routes have landed via `OmsManiaJudgementPiece` / `OmsManiaComboCounter` / `OmsBarLine` / `OmsHitExplosion`, and these eight components are now real OMS-owned implementations rather than legacy subclasses; the remaining work is semantic cleanup for note / hold / combo / HUD / bar-line plus the final default-path freeze)
+- [ ] Define and validate user-skin partial-override semantics across mania and BMS inside one skin package
+- [ ] Remove upstream built-in default skins from shipped default selection UX and package only OMS defaults
+- [ ] Add fallback / visual / packaging regression coverage and reach the release gate
+
 ### Phase 2 — BMS Feature Complete
 
 - [ ] beatoraja + LR2 judgment Mods
@@ -1125,20 +1415,21 @@ If the server is unreachable, OMS runs fully offline:
 - [ ] HARD / EX-HARD / HAZARD gauge Mods
 - [ ] GAS (Gauge Auto Shift) Mod with configurable start/floor gauge
 - [ ] A-SCR (Auto Scratch) Mod
+- [ ] LN / CN / HCN runtime long-note modes with separate score / replay / leaderboard buckets
 - [ ] 5K / 9K / 14K DP layouts + density star calibration per keymode
 - [ ] 1P/2P flip Mod
 - [ ] Empty Poor judgment
 - [ ] Analog axis input (HID rotary, mouse delta)
 - [ ] LNTYPE 2 (MGQ format) long note support
 - [ ] BGA video playback
-- [ ] Full skin lookup coverage
+- [ ] User skin ecosystem / compatibility tooling beyond the OMS built-in default path
 
 ### Phase 3 — Private Server
 
 - [ ] Account auth + session management
-- [ ] Score submission (with Mod combination tagging; all Mods participate in ranking)
+- [ ] Score submission (with Mod combination + long-note-mode tagging; all Mods / LN modes participate in ranking)
 - [ ] Score integrity / anti-tamper design (client-side replay hash, server-side validation — detailed design TBD)
-- [ ] Online leaderboard with Mod filter
+- [ ] Online leaderboard with Mod / LN-mode filter
 - [ ] Beatmap search + download
 - [ ] Server-hosted difficulty table mirrors
 

@@ -55,6 +55,9 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private IDialogOverlay? dialogOverlay { get; set; }
 
+        [Resolved]
+        private OsuGameBase? game { get; set; }
+
         public PanelUpdateBeatmapButton()
         {
             AutoSizeAxes = Axes.X;
@@ -62,10 +65,20 @@ namespace osu.Game.Screens.Select
         }
 
         private Bindable<bool> preferNoVideo = null!;
+        private bool onlineFeaturesEnabled = true;
 
         [BackgroundDependencyLoader]
         private void load(OsuConfigManager config)
         {
+            onlineFeaturesEnabled = game?.OnlineFeaturesEnabled ?? true;
+
+            if (!onlineFeaturesEnabled)
+            {
+                Alpha = 0;
+                Enabled.Value = false;
+                return;
+            }
+
             const float icon_size = 12;
 
             preferNoVideo = config.GetBindable<bool>(OsuSetting.PreferNoVideo);
@@ -129,6 +142,13 @@ namespace osu.Game.Screens.Select
 
         private void beatmapChanged()
         {
+            if (!onlineFeaturesEnabled)
+            {
+                Alpha = 0;
+                Enabled.Value = false;
+                return;
+            }
+
             Alpha = beatmapSet?.AllBeatmapsUpToDate == false ? 1 : 0;
             icon.Spin(4000, RotationDirection.Clockwise);
         }
@@ -151,6 +171,9 @@ namespace osu.Game.Screens.Select
 
         private void performUpdate()
         {
+            if (!onlineFeaturesEnabled)
+                return;
+
             Debug.Assert(beatmapSet != null);
 
             if (!api.IsLoggedIn)
@@ -178,6 +201,9 @@ namespace osu.Game.Screens.Select
 
         private void attachExistingDownload()
         {
+            if (!onlineFeaturesEnabled)
+                return;
+
             Debug.Assert(beatmapSet != null);
             var download = beatmapDownloader.GetExistingDownload(beatmapSet);
 

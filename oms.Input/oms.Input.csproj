@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="Project">
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>oms.Input</RootNamespace>
+    <Description>Unified input abstraction layer for OMS — keyboard, HID, XInput, mouse axis.</Description>
+  </PropertyGroup>
+
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\osu.Game\osu.Game.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Package References">
+    <PackageReference Include="HidSharp" Version="2.1.0">
+      <Aliases>OmsHidSharp</Aliases>
+    </PackageReference>
+  </ItemGroup>
+</Project>

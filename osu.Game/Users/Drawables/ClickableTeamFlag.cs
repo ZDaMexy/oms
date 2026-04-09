@@ -45,7 +45,7 @@ namespace osu.Game.Users.Drawables
 
         private void openProfile()
         {
-            if (team != null)
+            if (team != null && !string.IsNullOrEmpty(api.Endpoints.WebsiteUrl) && (game?.OnlineFeaturesEnabled ?? true))
                 game?.OpenUrlExternally($@"{api.Endpoints.WebsiteUrl}/teams/{team.Id}");
         }
     }

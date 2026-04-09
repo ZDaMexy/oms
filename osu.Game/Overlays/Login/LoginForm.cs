@@ -43,6 +43,8 @@ namespace osu.Game.Overlays.Login
             Direction = FillDirection.Vertical;
             Spacing = new Vector2(0, SettingsSection.ITEM_SPACING);
 
+            bool hasWebsiteRoot = !string.IsNullOrEmpty(api.Endpoints.WebsiteUrl);
+
             ErrorTextFlowContainer errorText;
             LinkFlowContainer forgottenPasswordLink;
 
@@ -129,7 +131,8 @@ namespace osu.Game.Overlays.Login
                 }
             };
 
-            forgottenPasswordLink.AddLink(LayoutStrings.PopupLoginLoginForgot, $"{api.Endpoints.WebsiteUrl}/home/password-reset");
+            if (hasWebsiteRoot)
+                forgottenPasswordLink.AddLink(LayoutStrings.PopupLoginLoginForgot, $"{api.Endpoints.WebsiteUrl}/home/password-reset");
 
             password.OnCommit += (_, _) => performLogin();
 

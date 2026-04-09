@@ -76,6 +76,9 @@ namespace osu.Game.Screens.Menu
         [Resolved]
         private IAPIProvider api { get; set; }
 
+        [Resolved(canBeNull: true)]
+        private OsuGame game { get; set; }
+
         [Resolved]
         private Storage storage { get; set; }
 
@@ -121,6 +124,8 @@ namespace osu.Game.Screens.Menu
         [BackgroundDependencyLoader(true)]
         private void load(BeatmapListingOverlay beatmapListing, SettingsOverlay settings, OsuConfigManager config, SessionStatics statics, AudioManager audio)
         {
+            bool onlineFeaturesEnabled = game?.OnlineFeaturesEnabled ?? true;
+
             holdDelay = config.GetBindable<double>(OsuSetting.UIHoldActivationDelay);
             loginDisplayed = statics.GetBindable<bool>(Static.LoginOverlayDisplayed);
             showMobileDisclaimer = config.GetBindable<bool>(OsuSetting.ShowMobileDisclaimer);
@@ -193,26 +198,37 @@ namespace osu.Game.Screens.Menu
                     Anchor = Anchor.BottomCentre,
                     Origin = Anchor.BottomCentre,
                     Spacing = new Vector2(5),
-                    Children = new Drawable[]
-                    {
-                        menuTipDisplay = new MenuTipDisplay
+                    Children = onlineFeaturesEnabled
+                        ? new Drawable[]
                         {
-                            Anchor = Anchor.TopCentre,
-                            Origin = Anchor.TopCentre,
-                        },
-                        onlineMenuBanner = new OnlineMenuBanner
-                        {
-                            Anchor = Anchor.TopCentre,
-                            Origin = Anchor.TopCentre,
+                            menuTipDisplay = new MenuTipDisplay
+                            {
+                                Anchor = Anchor.TopCentre,
+                                Origin = Anchor.TopCentre,
+                            },
+                            onlineMenuBanner = new OnlineMenuBanner
+                            {
+                                Anchor = Anchor.TopCentre,
+                                Origin = Anchor.TopCentre,
+                            }
                         }
+                        : new Drawable[]
+                        {
+                            menuTipDisplay = new MenuTipDisplay
+                            {
+                                Anchor = Anchor.TopCentre,
+                                Origin = Anchor.TopCentre,
+                            }
+                        }
+                },
+                onlineFeaturesEnabled
+                    ? supporterDisplay = new SupporterDisplay
+                    {
+                        Margin = new MarginPadding(5),
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.TopLeft,
                     }
-                },
-                supporterDisplay = new SupporterDisplay
-                {
-                    Margin = new MarginPadding(5),
-                    Anchor = Anchor.TopLeft,
-                    Origin = Anchor.TopLeft,
-                },
+                    : Empty(),
                 holdToExitGameOverlay?.CreateProxy() ?? Empty()
             });
 
@@ -225,12 +241,12 @@ namespace osu.Game.Screens.Menu
                     case ButtonSystemState.Initial:
                     case ButtonSystemState.Exit:
                         ApplyToBackground(b => b.FadeColour(OsuColour.Gray(baseDim), 500, Easing.OutSine));
-                        onlineMenuBanner.State.Value = Visibility.Hidden;
+                        onlineMenuBanner?.Hide();
                         break;
 
                     default:
                         ApplyToBackground(b => b.FadeColour(OsuColour.Gray(baseDim * 0.8f), 500, Easing.OutSine));
-                        onlineMenuBanner.State.Value = Visibility.Visible;
+                        onlineMenuBanner?.Show();
                         break;
                 }
             };
@@ -329,6 +345,9 @@ namespace osu.Game.Screens.Menu
         {
             if (loginDisplayed.Value) return;
 
+            if (!(game?.OnlineFeaturesEnabled ?? true))
+                return;
+
             if (!api.IsLoggedIn || api.State.Value == APIState.RequiresSecondFactorAuth)
             {
                 Scheduler.AddDelayed(() => login?.Show(), 500);
@@ -371,7 +390,7 @@ namespace osu.Game.Screens.Menu
                 .ScaleTo(0.9f, 1000, Easing.OutQuint)
                 .FadeOut(500, Easing.OutQuint);
 
-            supporterDisplay
+            supporterDisplay?
                 .FadeOut(500, Easing.OutQuint);
 
             samplePlaybackDisabled.Value = true;
@@ -443,7 +462,7 @@ namespace osu.Game.Screens.Menu
             bottomElementsFlow
                 .FadeOut(500, Easing.OutQuint);
 
-            supporterDisplay
+            supporterDisplay?
                 .FadeOut(500, Easing.OutQuint);
 
             return base.OnExiting(e);

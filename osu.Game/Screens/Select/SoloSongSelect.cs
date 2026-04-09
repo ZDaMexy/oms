@@ -67,7 +67,7 @@ namespace osu.Game.Screens.Select
 
             yield return new OsuMenuItemSpacer();
 
-            if (beatmap.OnlineID > 0)
+            if ((game?.OnlineFeaturesEnabled ?? true) && beatmap.OnlineID > 0)
             {
                 yield return new OsuMenuItem(CommonStrings.Details, MenuItemType.Standard, () => beatmapOverlay?.FetchAndShowBeatmap(beatmap.OnlineID));
 

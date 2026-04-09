@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -12,6 +13,7 @@ using osu.Game.Database;
 using osu.Game.Online.API;
 using osu.Game.Online.Leaderboards;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osuTK;
 using Realms;
@@ -43,6 +45,9 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
 
+        [Resolved]
+        private IBindable<IReadOnlyList<Mod>> mods { get; set; } = null!;
+
         private IDisposable? scoreSubscription;
 
         private readonly UpdateableRank updateable;
@@ -67,6 +72,7 @@ namespace osu.Game.Screens.Select
             base.LoadComplete();
 
             ruleset.BindValueChanged(_ => updateSubscription(), true);
+            mods.BindValueChanged(_ => updateSubscription());
         }
 
         private void updateSubscription()
@@ -90,7 +96,11 @@ namespace osu.Game.Screens.Select
             if (changes?.HasCollectionChanges() == false)
                 return;
 
-            ScoreInfo? topScore = sender.MaxBy(info => (info.TotalScore, -info.Date.UtcDateTime.Ticks));
+            var rulesetInstance = ruleset.Value.CreateInstance();
+            var scoreDisplayBucket = rulesetInstance.GetScoreDisplayBucket(mods.Value);
+            ScoreInfo? topScore = sender.AsEnumerable()
+                                        .FilterToScoreDisplayBucket(rulesetInstance, scoreDisplayBucket)
+                                        .MaxBy(info => (info.TotalScore, -info.Date.UtcDateTime.Ticks));
             updateable.Rank = topScore?.Rank;
             updateable.Alpha = topScore != null ? 1 : 0;
         }

@@ -70,6 +70,9 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
 
+        [Resolved]
+        private OsuGameBase? game { get; set; }
+
         private Container<Placeholder> placeholderContainer = null!;
         private Placeholder? placeholder;
 
@@ -217,7 +220,15 @@ namespace osu.Game.Screens.Select
 
         private void refetchScoresFromMods()
         {
-            if (FilterBySelectedMods.Value)
+            string? scoreDisplayBucket = null;
+
+            if (!beatmap.IsDefault)
+            {
+                var currentRuleset = ruleset.Value ?? beatmap.Value.BeatmapInfo.Ruleset;
+                scoreDisplayBucket = currentRuleset.CreateInstance().GetScoreDisplayBucket(mods.Value);
+            }
+
+            if (FilterBySelectedMods.Value || leaderboardManager.CurrentCriteria?.ScoreDisplayBucket != scoreDisplayBucket)
                 RefetchScores();
         }
 
@@ -237,7 +248,7 @@ namespace osu.Game.Screens.Select
 
             SetState(LeaderboardState.Retrieving);
 
-            var fetchScope = Scope.Value;
+            var fetchScope = game?.OnlineFeaturesEnabled ?? true ? Scope.Value : BeatmapLeaderboardScope.Local;
 
             refetchOperation?.Cancel();
             refetchOperation = Scheduler.AddDelayed(() =>
@@ -245,11 +256,12 @@ namespace osu.Game.Screens.Select
                 var fetchBeatmapInfo = beatmap.Value.BeatmapInfo;
                 var fetchRuleset = ruleset.Value ?? fetchBeatmapInfo.Ruleset;
                 var fetchSorting = fetchScope == BeatmapLeaderboardScope.Local ? Sorting.Value : LeaderboardSortMode.Score;
+                var scoreDisplayBucket = fetchRuleset.CreateInstance().GetScoreDisplayBucket(mods.Value);
 
                 // For now, we forcefully refresh to keep things simple.
                 // In the future, removing this requirement may be deemed useful, but will need ample testing of edge case scenarios
                 // (like returning from gameplay after setting a new score, returning to song select after main menu).
-                leaderboardManager.FetchWithCriteria(new LeaderboardCriteria(fetchBeatmapInfo, fetchRuleset, fetchScope, FilterBySelectedMods.Value ? mods.Value.ToArray() : null, fetchSorting),
+                leaderboardManager.FetchWithCriteria(new LeaderboardCriteria(fetchBeatmapInfo, fetchRuleset, fetchScope, FilterBySelectedMods.Value ? mods.Value.ToArray() : null, fetchSorting, scoreDisplayBucket),
                     forceRefresh: true);
 
                 if (!initialFetchComplete)

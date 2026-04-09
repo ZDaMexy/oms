@@ -151,8 +151,8 @@ namespace osu.Game.Updater
                 Text = NotificationsStrings.GameVersionAfterUpdate(version);
             }
 
-            [BackgroundDependencyLoader]
-            private void load(OsuColour colours, ChangelogOverlay changelog, INotificationOverlay notificationOverlay)
+            [BackgroundDependencyLoader(true)]
+            private void load(OsuColour colours, ChangelogOverlay? changelog, INotificationOverlay notificationOverlay)
             {
                 Icon = FontAwesome.Solid.CheckSquare;
                 IconContent.Colour = colours.BlueDark;
@@ -160,7 +160,8 @@ namespace osu.Game.Updater
                 Activated = delegate
                 {
                     notificationOverlay.Hide();
-                    changelog.ShowBuild(version);
+
+                    changelog?.ShowBuild(version);
                     return true;
                 };
             }

@@ -155,6 +155,9 @@ namespace osu.Game.Scoring
         [MapTo("MaximumStatistics")]
         public string MaximumStatisticsJson { get; set; } = string.Empty;
 
+        [MapTo("RulesetData")]
+        public string RulesetDataJson { get; set; } = string.Empty;
+
         public IList<int> Pauses { get; } = null!;
 
         public ScoreInfo(BeatmapInfo? beatmap = null, RulesetInfo? ruleset = null, RealmUser? realmUser = null)
@@ -296,6 +299,19 @@ namespace osu.Game.Scoring
             }
             set => maximumStatistics = value;
         }
+
+        public T? GetRulesetData<T>() where T : class
+        {
+            if (string.IsNullOrEmpty(RulesetDataJson))
+                return default;
+
+            return JsonConvert.DeserializeObject<T>(RulesetDataJson);
+        }
+
+        public void SetRulesetData<T>(T? data) where T : class
+            => RulesetDataJson = data == null
+                ? string.Empty
+                : JsonConvert.SerializeObject(data);
 
         private Mod[]? mods;
 

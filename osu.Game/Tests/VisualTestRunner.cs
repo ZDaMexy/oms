@@ -12,7 +12,7 @@ namespace osu.Game.Tests
         [STAThread]
         public static int Main(string[] args)
         {
-            using (DesktopGameHost host = Host.GetSuitableDesktopHost(@"osu-development"))
+            using (DesktopGameHost host = Host.GetSuitableDesktopHost(OsuGameBase.STORAGE_NAME))
             {
                 host.Run(new OsuTestBrowser());
                 return 0;

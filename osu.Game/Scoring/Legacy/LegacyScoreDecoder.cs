@@ -145,6 +145,9 @@ namespace osu.Game.Scoring.Legacy
                             PopulateTotalScoreWithoutMods(score.ScoreInfo);
 
                         score.ScoreInfo.Pauses.AddRange(readScore.Pauses);
+
+                        if (!string.IsNullOrEmpty(readScore.RulesetDataJson))
+                            score.ScoreInfo.RulesetDataJson = readScore.RulesetDataJson;
                     });
                 }
             }

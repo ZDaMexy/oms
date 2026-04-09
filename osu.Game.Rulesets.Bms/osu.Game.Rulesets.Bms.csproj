@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup Label="Project">
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>osu.Game.Rulesets.Bms</RootNamespace>
+    <Description>BMS mode for OMS — a modern BMS player built on osu!lazer.</Description>
+  </PropertyGroup>
+
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\osu.Game\osu.Game.csproj" />
+    <ProjectReference Include="..\oms.Input\oms.Input.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Package References">
+    <PackageReference Include="SharpCompress" Version="0.39.0" />
+    <PackageReference Include="Ude.NetStandard" Version="1.2.0" />
+  </ItemGroup>
+
+</Project>

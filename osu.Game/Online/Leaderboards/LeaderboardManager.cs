@@ -192,6 +192,9 @@ namespace osu.Game.Online.Leaderboards
                 }
             }
 
+            if (CurrentCriteria.Ruleset != null)
+                newScores = newScores.FilterToScoreDisplayBucket(CurrentCriteria.Ruleset.CreateInstance(), CurrentCriteria.ScoreDisplayBucket);
+
             newScores = newScores.Detach().OrderByCriteria(CurrentCriteria.Sorting);
 
             var newScoresArray = newScores.ToArray();
@@ -211,7 +214,8 @@ namespace osu.Game.Online.Leaderboards
         RulesetInfo? Ruleset,
         BeatmapLeaderboardScope Scope,
         Mod[]? ExactMods,
-        LeaderboardSortMode Sorting = LeaderboardSortMode.Score
+        LeaderboardSortMode Sorting = LeaderboardSortMode.Score,
+        string? ScoreDisplayBucket = null
     );
 
     public record LeaderboardScores

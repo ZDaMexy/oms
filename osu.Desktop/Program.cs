@@ -12,7 +12,6 @@ using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Game;
 using osu.Game.IPC;
-using osu.Game.Tournament;
 using SDL;
 using Velopack;
 
@@ -20,12 +19,6 @@ namespace osu.Desktop
 {
     public static class Program
     {
-#if DEBUG
-        private const string base_game_name = @"osu-development";
-#else
-        private const string base_game_name = @"osu";
-#endif
-
         private static LegacyTcpIpcProvider? legacyIpc;
 
         private static bool isFirstRun;
@@ -71,8 +64,7 @@ namespace osu.Desktop
             // Back up the cwd before DesktopGameHost changes it
             string cwd = Environment.CurrentDirectory;
 
-            string gameName = base_game_name;
-            bool tournamentClient = false;
+            string gameName = OsuGameBase.STORAGE_NAME;
 
             foreach (string arg in args)
             {
@@ -83,10 +75,6 @@ namespace osu.Desktop
 
                 switch (key)
                 {
-                    case "--tournament":
-                        tournamentClient = true;
-                        break;
-
                     case "--debug-client-id":
                         if (!DebugUtils.IsDebugBuild)
                             throw new InvalidOperationException("Cannot use this argument in a non-debug build.");
@@ -94,14 +82,14 @@ namespace osu.Desktop
                         if (!int.TryParse(val, out int clientID))
                             throw new ArgumentException("Provided client ID must be an integer.");
 
-                        gameName = $"{base_game_name}-{clientID}";
+                        gameName = $"{OsuGameBase.STORAGE_NAME}-{clientID}";
                         break;
                 }
             }
 
             var hostOptions = new HostOptions
             {
-                IPCPipeName = !tournamentClient ? OsuGame.IPC_PIPE_NAME : null,
+                IPCPipeName = OsuGame.IPC_PIPE_NAME,
                 FriendlyGameName = OsuGameBase.GAME_NAME,
             };
 
@@ -134,15 +122,10 @@ namespace osu.Desktop
                     }
                 }
 
-                if (tournamentClient)
-                    host.Run(new TournamentGame());
-                else
+                host.Run(new OsuGameDesktop(args)
                 {
-                    host.Run(new OsuGameDesktop(args)
-                    {
-                        IsFirstRun = isFirstRun
-                    });
-                }
+                    IsFirstRun = isFirstRun
+                });
             }
         }
 
@@ -176,7 +159,13 @@ namespace osu.Desktop
 
         private static void setupVelopack(string[] args)
         {
-            // Arguments being present indicate the user is either starting the game in a special (aka tournament) mode,
+            if (!OsuGameDesktop.IsInAppUpdateEnabled)
+            {
+                Logger.Log("In-app updates are disabled. Skipping Velopack setup.");
+                return;
+            }
+
+            // Arguments being present indicate the user is starting with non-default runtime behaviour,
             // or is running with pending imports via file association or otherwise.
             //
             // In both these scenarios, we'd hope the game does not attempt to update.

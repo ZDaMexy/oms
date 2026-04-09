@@ -1,0 +1,1255 @@
+// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+
+using System;
+using System.Linq;
+using NUnit.Framework;
+using osu.Framework.Allocation;
+using osu.Framework.Bindables;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Animations;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Testing;
+using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Judgements;
+using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Objects;
+using osu.Game.Rulesets.Mania.Objects.Drawables;
+using osu.Game.Rulesets.Mania.Skinning;
+using osu.Game.Rulesets.Mania.Skinning.Legacy;
+using osu.Game.Rulesets.Mania.Skinning.Oms;
+using osu.Game.Rulesets.Mania.UI;
+using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Objects.Drawables;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Rulesets.UI.Scrolling.Algorithms;
+using osu.Game.Screens.Play.HUD;
+using osu.Game.Screens.Play.HUD.ClicksPerSecond;
+using osu.Game.Screens.Play.HUD.HitErrorMeters;
+using osu.Game.Skinning;
+using osu.Game.Skinning.Components;
+using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Tests.Visual;
+using osuTK.Graphics;
+
+namespace osu.Game.Rulesets.Mania.Tests.Skinning
+{
+    [TestFixture]
+    [HeadlessTest]
+    public partial class TestSceneOmsBuiltInSkin : OsuTestScene
+    {
+        [Cached(Type = typeof(IScrollingInfo))]
+        private readonly TestScrollingInfo scrollingInfo = new TestScrollingInfo();
+
+        [Cached]
+        private readonly ScoreProcessor scoreProcessor = new ScoreProcessor(new ManiaRuleset());
+
+        [Resolved]
+        private SkinManager skinManager { get; set; } = null!;
+
+        public TestSceneOmsBuiltInSkin()
+        {
+            scrollingInfo.Direction.Value = ScrollingDirection.Down;
+        }
+
+        [Test]
+        public void TestOmsBuiltInSkinIsRegisteredAndProvidesResources()
+        {
+            Skin skin = null!;
+
+            AddStep("load OMS skin", () =>
+            {
+                var skins = skinManager.GetAllUsableSkins();
+
+                Assert.That(skins.First().ID, Is.EqualTo(OmsSkin.CreateInfo().ID));
+
+                var skinInfo = skins.Single(s => s.ID == OmsSkin.CreateInfo().ID);
+                skin = skinInfo.PerformRead(skinManager.GetSkin);
+            });
+
+            AddAssert("is OMS skin", () => skin is OmsSkin);
+            AddAssert("is protected", () => skin.SkinInfo.PerformRead(s => s.Protected));
+            AddAssert("has mania stage texture", () => skin.GetTexture("mania-stage-left") != null);
+            AddAssert("has mania key texture", () => skin.GetTexture("mania-key1") != null);
+        }
+
+        [Test]
+        public void TestCanSelectOmsBuiltInSkin()
+        {
+            AddStep("select OMS skin", () =>
+                skinManager.CurrentSkinInfo.Value = skinManager.GetAllUsableSkins().Single(s => s.ID == OmsSkin.CreateInfo().ID));
+
+            AddAssert("current skin is OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+        }
+
+        [Test]
+        public void TestOmsSkinUsesSharedTransformerShell()
+        {
+            ISkin transformedSkin = null!;
+            ISkin wrappedSkin = null!;
+            DefaultSkinComponentsContainer globalHudShell = null!;
+            DefaultSkinComponentsContainer songSelectShell = null!;
+            DefaultSkinComponentsContainer playfieldShell = null!;
+            DefaultSkinComponentsContainer hudComponents = null!;
+
+            AddStep("create OMS transformer shell", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                transformedSkin = ruleset.CreateSkinTransformer(skinManager.DefaultOmsSkin, beatmap)!;
+                wrappedSkin = ((ISkinTransformer)transformedSkin).Skin;
+                globalHudShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents))!;
+                songSelectShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.SongSelect))!;
+                playfieldShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.Playfield, ruleset.RulesetInfo))!;
+                hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
+            });
+
+            AddAssert("uses OMS transformer shell", () => transformedSkin is OmsSkinTransformer);
+            AddAssert("wraps explicit mania transformer", () => wrappedSkin is ManiaOmsSkinTransformer);
+            AddAssert("provides global HUD shell", () => globalHudShell is DefaultSkinComponentsContainer);
+            AddAssert("provides song select shell", () => songSelectShell is DefaultSkinComponentsContainer);
+            AddAssert("provides playfield shell", () => playfieldShell is DefaultSkinComponentsContainer);
+            AddAssert("uses OMS combo counter", () => hudComponents.ChildrenOfType<OmsManiaComboCounter>().Any());
+            AddAssert("uses OMS stage background", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.StageBackground)) is OmsStageBackground);
+            AddAssert("uses OMS stage foreground", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.StageForeground)) is OmsStageForeground);
+            AddAssert("uses OMS column background", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.ColumnBackground)) is OmsColumnBackground);
+            AddAssert("uses OMS key area", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.KeyArea)) is OmsKeyArea);
+            AddAssert("uses OMS note piece", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.Note)) is OmsNotePiece);
+            AddAssert("uses OMS hold note head piece", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.HoldNoteHead)) is OmsHoldNoteHeadPiece);
+            AddAssert("uses OMS hold note tail piece", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.HoldNoteTail)) is OmsHoldNoteTailPiece);
+            AddAssert("uses OMS hold note body piece", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.HoldNoteBody)) is OmsHoldNoteBodyPiece);
+            AddAssert("uses OMS hit target", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.HitTarget)) is OmsHitTarget);
+            AddAssert("uses OMS judgement piece", () => transformedSkin.GetDrawableComponent(new SkinComponentLookup<HitResult>(HitResult.Great)) is OmsManiaJudgementPiece);
+            AddAssert("uses OMS hit explosion", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.HitExplosion)) is OmsHitExplosion);
+            AddAssert("uses OMS bar line", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.BarLine)) is OmsBarLine);
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesEmbeddedGlobalLayoutMetadata()
+        {
+            Skin skin = null!;
+            SkinLayoutInfo globalHudLayout = null!;
+            SkinLayoutInfo songSelectLayout = null!;
+            SkinLayoutInfo playfieldLayout = null!;
+            SerialisedDrawableInfo[] maniaPlayfieldComponents = null!;
+
+            AddStep("load OMS embedded layout metadata", () =>
+            {
+                skin = skinManager.DefaultOmsSkin;
+                globalHudLayout = skin.LayoutInfos[GlobalSkinnableContainers.MainHUDComponents];
+                songSelectLayout = skin.LayoutInfos[GlobalSkinnableContainers.SongSelect];
+                playfieldLayout = skin.LayoutInfos[GlobalSkinnableContainers.Playfield];
+
+                Assert.That(playfieldLayout.TryGetDrawableInfo(new ManiaRuleset().RulesetInfo, out var components), Is.True);
+                maniaPlayfieldComponents = components!;
+            });
+
+            AddAssert("exposes three global layout targets", () => skin.LayoutInfos.Count == 3);
+            AddAssert("global HUD layout contains song progress", () => globalHudLayout.AllDrawables.Select(i => i.Type).Contains(typeof(DefaultSongProgress)));
+            AddAssert("global HUD layout contains Argon score counter", () => globalHudLayout.AllDrawables.Select(i => i.Type).Contains(typeof(ArgonScoreCounter)));
+            AddAssert("global HUD layout contains judgement counter", () => globalHudLayout.AllDrawables.Select(i => i.Type).Contains(typeof(ArgonJudgementCounterDisplay)));
+            AddAssert("song select layout stays intentionally empty", () => !songSelectLayout.AllDrawables.Any());
+            AddAssert("mania playfield layout contains bar hit error meter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(BarHitErrorMeter)));
+            AddAssert("mania playfield layout contains accuracy counter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(ArgonAccuracyCounter)));
+            AddAssert("mania playfield layout contains combo counter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(ArgonComboCounter)));
+            AddAssert("mania playfield layout contains pp counter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(ArgonPerformancePointsCounter)));
+            AddAssert("mania playfield layout contains cps counter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(ClicksPerSecondCounter)));
+        }
+
+        [Test]
+        public void TestOmsStageShellLoads()
+        {
+            Drawable host = null!;
+
+            AddStep("load OMS shell components", () =>
+            {
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = new ManiaRuleset().RulesetInfo },
+                };
+
+                var transformedSkin = new ManiaRuleset().CreateSkinTransformer(skinManager.DefaultOmsSkin, beatmap)!;
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            new OmsStageBackground
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                            },
+                            new OmsStageForeground
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                            },
+                            new ColumnTestContainer(0, ManiaAction.Key1)
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Width = 0.5f,
+                                Child = new Container
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                    Children = new Drawable[]
+                                    {
+                                        new OmsColumnBackground
+                                        {
+                                            RelativeSizeAxes = Axes.Both,
+                                        },
+                                        new OmsKeyArea
+                                        {
+                                            RelativeSizeAxes = Axes.Both,
+                                        },
+                                        new OmsHitTarget
+                                        {
+                                            RelativeSizeAxes = Axes.Both,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("stage background loaded", () => this.ChildrenOfType<OmsStageBackground>().Any(drawable => drawable.IsLoaded));
+            AddAssert("stage foreground loaded", () => this.ChildrenOfType<OmsStageForeground>().Any(drawable => drawable.IsLoaded));
+            AddAssert("column backgrounds loaded", () => this.ChildrenOfType<OmsColumnBackground>().Any(drawable => drawable.IsLoaded));
+            AddAssert("key areas loaded", () => this.ChildrenOfType<OmsKeyArea>().Any(drawable => drawable.IsLoaded));
+            AddAssert("hit targets loaded", () => this.ChildrenOfType<OmsHitTarget>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear stage host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHitExplosionLoads()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("load OMS hit explosion host", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+            });
+
+            AddStep("add poolable hit explosion", () => columnHost.Add(new PoolableHitExplosion
+            {
+                RelativeSizeAxes = Axes.Both,
+            }));
+
+            AddUntilStep("OMS hit explosion loaded", () => this.ChildrenOfType<OmsHitExplosion>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear hit explosion host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsNotePieceLoads()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("load OMS note host", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+
+                columnHost.Add(new TestDrawableNote(new Note
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                })
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS note piece loaded", () => this.ChildrenOfType<OmsNotePiece>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear note host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteHeadPieceLoads()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("load OMS hold note head host", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+
+                columnHost.Add(new TestDrawableHoldNoteHead(new HeadNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                })
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold note head piece loaded", () => this.ChildrenOfType<OmsHoldNoteHeadPiece>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear hold note head host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteTailPieceLoads()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("load OMS hold note tail host", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+
+                columnHost.Add(new TestDrawableHoldNoteTail(new TailNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                })
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold note tail piece loaded", () => this.ChildrenOfType<OmsHoldNoteTailPiece>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear hold note tail host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteBodyPieceLoads()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("load OMS hold note body host", () =>
+            {
+                var holdNote = new HoldNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                    Duration = 500,
+                };
+
+                holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+
+                columnHost.Add(new TestDrawableHoldNote(holdNote)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold note body piece loaded", () => this.ChildrenOfType<OmsHoldNoteBodyPiece>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear hold note body host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteBodyFollowsScrollingDirection()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+            Drawable? bodyAnimation = null;
+
+            AddStep("load OMS hold note body direction host", () =>
+            {
+                var holdNote = new HoldNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                    Duration = 500,
+                };
+
+                holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+
+                columnHost.Add(new TestDrawableHoldNote(holdNote)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold note body piece loaded for direction test", () =>
+            {
+                var bodyPiece = this.ChildrenOfType<OmsHoldNoteBodyPiece>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (bodyPiece == null)
+                    return false;
+
+                bodyAnimation = bodyPiece.ChildrenOfType<TextureAnimation>().FirstOrDefault() as Drawable
+                                ?? bodyPiece.ChildrenOfType<Sprite>().FirstOrDefault();
+
+                return bodyAnimation != null;
+            });
+
+            AddAssert("hold body defaults to downward anchor", () => bodyAnimation!.Anchor, () => Is.EqualTo(Anchor.TopCentre));
+            AddStep("set scrolling upward", () => scrollingInfo.Direction.Value = ScrollingDirection.Up);
+            AddUntilStep("hold body flips for upward scroll", () => bodyAnimation?.Anchor == Anchor.BottomCentre);
+            AddStep("set scrolling downward", () => scrollingInfo.Direction.Value = ScrollingDirection.Down);
+            AddUntilStep("hold body flips for downward scroll", () => bodyAnimation?.Anchor == Anchor.TopCentre);
+            AddStep("clear hold body direction host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsJudgementPieceLoads()
+        {
+            Drawable host = null!;
+
+            AddStep("load OMS judgement host", () =>
+            {
+                var judgement = new DrawableManiaJudgement
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                };
+
+                judgement.Apply(new JudgementResult(new HitObject { StartTime = Time.Current }, new Judgement())
+                {
+                    Type = HitResult.Great,
+                }, null);
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = judgement,
+                });
+            });
+
+            AddUntilStep("OMS judgement piece loaded", () => this.ChildrenOfType<OmsManiaJudgementPiece>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear judgement host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsBarLineLoads()
+        {
+            Drawable host = null!;
+
+            AddStep("load OMS bar line host", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(9))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.X,
+                        Width = 1f,
+                    },
+                });
+            });
+
+            AddUntilStep("OMS bar line loaded", () => this.ChildrenOfType<OmsBarLine>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear bar line host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsComboCounterLoads()
+        {
+            Drawable host = null!;
+            DefaultSkinComponentsContainer hudComponents = null!;
+
+            AddStep("load OMS combo counter host", () =>
+            {
+                var transformedSkin = createTransformedSkin(5);
+                hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable is not OmsManiaComboCounter).ToArray())
+                    hudComponents.Remove(drawable, false);
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = hudComponents,
+                });
+            });
+
+            AddUntilStep("OMS combo counter loaded", () => this.ChildrenOfType<OmsManiaComboCounter>().Any(drawable => drawable.IsLoaded));
+            AddStep("clear combo counter host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsJudgementPieceUsesSharedScorePositionForDualStages()
+        {
+            Drawable host = null!;
+            OmsManiaJudgementPiece judgementPiece = null!;
+
+            AddStep("load dual-stage OMS judgement host", () =>
+            {
+                var judgement = new DrawableManiaJudgement
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                };
+
+                judgement.Apply(new JudgementResult(new HitObject { StartTime = Time.Current }, new Judgement())
+                {
+                    Type = HitResult.Great,
+                }, null);
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5, 5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = judgement,
+                });
+            });
+
+            AddUntilStep("dual-stage OMS judgement piece loaded", () =>
+            {
+                var loadedPiece = this.ChildrenOfType<OmsManiaJudgementPiece>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (loadedPiece == null)
+                    return false;
+
+                judgementPiece = loadedPiece;
+                return true;
+            });
+
+            AddAssert("dual-stage judgement keeps OMS anchor", () => judgementPiece.Anchor == Anchor.BottomCentre);
+            AddAssert("dual-stage judgement reuses OMS score position", () => Math.Abs(judgementPiece.Y + 107.2f) < 0.01f);
+            AddStep("clear dual-stage judgement host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsJudgementPieceUsesFirstStageScorePositionForMixedStages()
+        {
+            Drawable host = null!;
+            OmsManiaJudgementPiece judgementPiece = null!;
+
+            AddStep("load mixed-stage OMS judgement host", () =>
+            {
+                var judgement = new DrawableManiaJudgement
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                };
+
+                judgement.Apply(new JudgementResult(new HitObject { StartTime = Time.Current }, new Judgement())
+                {
+                    Type = HitResult.Great,
+                }, null);
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(7, 6))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = judgement,
+                });
+            });
+
+            AddUntilStep("mixed-stage OMS judgement piece loaded", () =>
+            {
+                var loadedPiece = this.ChildrenOfType<OmsManiaJudgementPiece>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (loadedPiece == null)
+                    return false;
+
+                judgementPiece = loadedPiece;
+                return true;
+            });
+
+            AddAssert("mixed-stage judgement uses first-stage OMS anchor", () => judgementPiece.Anchor == Anchor.TopCentre);
+            AddAssert("mixed-stage judgement uses first-stage OMS score position", () => Math.Abs(judgementPiece.Y - 160f) < 0.01f);
+            AddStep("clear mixed-stage judgement host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesSharedJudgementHudPositionConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K score position uses OMS shared preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ScorePosition) - 520f) < 0.01f);
+            AddAssert("5K combo position uses OMS shared preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ComboPosition) - 136f) < 0.01f);
+
+            AddStep("create OMS 7K+6K transformer", () => transformedSkin = createTransformedSkin(7, 6));
+
+            AddAssert("7K+6K hit position uses first-stage OMS preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HitPosition) - 8f) < 0.01f);
+            AddAssert("7K+6K score position uses first-stage OMS preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ScorePosition) - 160f) < 0.01f);
+            AddAssert("7K+6K combo position uses first-stage OMS preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ComboPosition) - 144f) < 0.01f);
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesSharedBarLineConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 7K transformer", () => transformedSkin = createTransformedSkin(7));
+
+            AddAssert("7K bar line colour uses OMS shared preset", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.BarLineColour), new Color4(255, 255, 255, 150)));
+
+            AddStep("create OMS 9K transformer", () => transformedSkin = createTransformedSkin(9));
+
+            AddAssert("9K bar line height uses OMS shared preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.BarLineHeight) - 1.2f) < 0.01f);
+
+            AddStep("create OMS 8K+9K transformer", () => transformedSkin = createTransformedSkin(8, 9));
+
+            AddAssert("8K+9K bar line colour uses first-stage OMS preset", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.BarLineColour), new Color4(255, 255, 255, 150)));
+
+            AddStep("create OMS 9K+8K transformer", () => transformedSkin = createTransformedSkin(9, 8));
+
+            AddAssert("9K+8K bar line height uses first-stage OMS preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.BarLineHeight) - 1.2f) < 0.01f);
+        }
+
+        [Test]
+        public void TestOmsHudComboCounterUsesSharedComboPositionForDualStages()
+        {
+            Drawable host = null!;
+            OmsManiaComboCounter comboCounter = null!;
+
+            AddStep("load dual-stage OMS HUD combo", () =>
+            {
+                var transformedSkin = createTransformedSkin(5, 5);
+                var hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+
+                comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
+
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable != comboCounter).ToArray())
+                    hudComponents.Remove(drawable, false);
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = hudComponents,
+                });
+            });
+
+            AddUntilStep("dual-stage combo counter positioned", () => comboCounter.IsLoaded && Math.Abs(comboCounter.Y - 136f) < 0.01f);
+            AddAssert("dual-stage combo counter keeps top anchor", () => comboCounter.Anchor == Anchor.TopCentre);
+            AddStep("clear dual-stage HUD combo host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHudComboCounterUsesFirstStageComboPositionForMixedStages()
+        {
+            Drawable host = null!;
+            OmsManiaComboCounter comboCounter = null!;
+
+            AddStep("load mixed-stage OMS HUD combo", () =>
+            {
+                var transformedSkin = createTransformedSkin(7, 6);
+                var hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+
+                comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
+
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable != comboCounter).ToArray())
+                    hudComponents.Remove(drawable, false);
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = hudComponents,
+                });
+            });
+
+            AddUntilStep("mixed-stage combo counter positioned", () => comboCounter.IsLoaded && Math.Abs(comboCounter.Y - 144f) < 0.01f);
+            AddAssert("mixed-stage combo counter keeps top anchor", () => comboCounter.Anchor == Anchor.TopCentre);
+            AddStep("clear mixed-stage HUD combo host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsBarLineUsesSharedHeightForDualStages()
+        {
+            Drawable host = null!;
+            OmsBarLine barLine = null!;
+
+            AddStep("load dual-stage OMS bar line", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(9, 9))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.X,
+                        Width = 1f,
+                    },
+                });
+            });
+
+            AddUntilStep("dual-stage bar line loaded", () =>
+            {
+                var loadedBarLine = this.ChildrenOfType<OmsBarLine>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (loadedBarLine == null)
+                    return false;
+
+                barLine = loadedBarLine;
+                return true;
+            });
+
+            AddAssert("dual-stage bar line keeps OMS shared height", () => Math.Abs(barLine.Height - 1.44f) < 0.01f);
+            AddStep("clear dual-stage bar line host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsBarLineUsesFirstStageHeightForMixedStages()
+        {
+            Drawable host = null!;
+            OmsBarLine barLine = null!;
+
+            AddStep("load mixed-stage OMS bar line", () =>
+            {
+                Add(host = new SkinProvidingContainer(createTransformedSkin(9, 8))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.X,
+                        Width = 1f,
+                    },
+                });
+            });
+
+            AddUntilStep("mixed-stage bar line loaded", () =>
+            {
+                var loadedBarLine = this.ChildrenOfType<OmsBarLine>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (loadedBarLine == null)
+                    return false;
+
+                barLine = loadedBarLine;
+                return true;
+            });
+
+            AddAssert("mixed-stage bar line keeps first-stage OMS height", () => Math.Abs(barLine.Height - 1.44f) < 0.01f);
+            AddStep("clear mixed-stage bar line host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesLayoutConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K hit position preset applied", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HitPosition) - 140.8f) < 0.01f);
+            AddAssert("5K top padding preset applied", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.StagePaddingTop)) < 0.01f);
+            AddAssert("5K bottom padding preset applied", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.StagePaddingBottom)) < 0.01f);
+            AddAssert("5K widths preset applied", () =>
+            {
+                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f };
+
+                return expectedWidths.Select((expectedWidth, index) =>
+                           Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnWidth, index) - expectedWidth) < 0.01f)
+                       .All(matches => matches);
+            });
+            AddAssert("5K spacing preset applied", () =>
+                Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LeftColumnSpacing, 2)) < 0.01f
+                && Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.RightColumnSpacing, 2)) < 0.01f);
+        }
+
+        [Test]
+        public void TestOmsSkinRepeatsStagePresetForDualStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS dual 5K transformer", () => transformedSkin = createTransformedSkin(5, 5));
+
+            AddAssert("dual 5K widths repeat per stage", () =>
+            {
+                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f, 46f, 40f, 46f, 40f, 46f };
+
+                return expectedWidths.Select((expectedWidth, index) =>
+                           Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnWidth, index) - expectedWidth) < 0.01f)
+                       .All(matches => matches);
+            });
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesShellConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K judgement line preset applied", () => !getBoolConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ShowJudgementLine, 0));
+            AddAssert("5K light position preset applied", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LightPosition, 0) - 107.2f) < 0.01f);
+            AddAssert("5K light fps preset applied", () => getIntConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LightFramePerSecond, 0) == 24);
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesSharedShellAssetConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("stage left image uses OMS asset preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LeftStageImage) == "mania-stage-left");
+            AddAssert("stage right image uses OMS asset preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.RightStageImage) == "mania-stage-right");
+            AddAssert("stage bottom image uses OMS asset preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.BottomStageImage) == "mania-stage-bottom");
+            AddAssert("hit target image uses OMS asset preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HitTargetImage) == "mania-stage-hint");
+            AddAssert("light image uses OMS asset preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LightImage) == "mania-stage-light");
+            AddAssert("keys stay above notes by OMS preset", () => !getBoolConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeysUnderNotes, 0));
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesJudgementAssetConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("300g image uses OMS judgement preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit300g) == "mania-hit300g");
+            AddAssert("300 image uses OMS judgement preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit300) == "mania-hit300");
+            AddAssert("200 image uses OMS judgement preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit200) == "mania-hit200");
+            AddAssert("100 image uses OMS judgement preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit100) == "mania-hit100");
+            AddAssert("50 image uses OMS judgement preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit50) == "mania-hit50");
+            AddAssert("0 image uses OMS judgement preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit0) == "mania-hit0");
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesKeyImageConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
+
+            AddAssert("4K key image uses OMS key preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImage, 0) == "4k\\1");
+            AddAssert("4K pressed key image uses OMS key preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImageDown, 3) == "4k\\1");
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K first key uses OMS default key asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImage, 0) == "mania-key1");
+            AddAssert("5K second key uses OMS alternate key asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImage, 1) == "mania-key2");
+            AddAssert("5K pressed key uses OMS default down asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImageDown, 1) == "mania-key2D");
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesNoteAssetConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
+
+            AddAssert("4K note image uses candidate asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.NoteImage, 0) == "mania-note1");
+            AddAssert("4K hold head uses candidate asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteHeadImage, 3) == "mania-note1");
+            AddAssert("4K hold tail uses candidate asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteTailImage, 0) == "Notes4K\\LNBody");
+            AddAssert("4K hold body uses candidate asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage, 2) == "A");
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K note image uses OMS default note asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.NoteImage, 1) == "mania-note2");
+            AddAssert("5K hold head uses OMS default head asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteHeadImage, 1) == "mania-note2H");
+            AddAssert("5K hold tail uses OMS default tail asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteTailImage, 2) == "mania-note1T");
+            AddAssert("5K hold body uses OMS default body asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage, 3) == "mania-note2L");
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesHitExplosionConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
+
+            AddAssert("4K hit explosion uses candidate animation", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionImage, 0) == "lightingN");
+            AddAssert("4K hit explosion scale uses candidate width fallback", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 0) - 69f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K hit explosion uses OMS preset animation", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionImage, 1) == "lightingN");
+            AddAssert("5K hit explosion scale uses OMS preset width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 1) - 40f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+        }
+
+        [Test]
+        public void TestOmsSkinProvidesShellColourConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("5K column line colour stays white", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnLineColour), Color4.White));
+            AddAssert("5K judgement line colour stays white", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.JudgementLineColour), Color4.White));
+            AddAssert("5K background colour stays black", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour, 0), new Color4(0, 0, 0, 255)));
+            AddAssert("5K light colour stays white", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnLightColour, 0), Color4.White));
+        }
+
+        [Test]
+        public void TestOmsShellColourConfigUsesStageLocalPresetForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 8K+9K transformer", () => transformedSkin = createTransformedSkin(8, 9));
+
+            AddAssert("8K first stage keeps black background", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour, 0), new Color4(0, 0, 0, 255)));
+            AddAssert("9K second stage uses alternating background preset", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour, 9), new Color4(15, 15, 15, 255)));
+            AddAssert("9K center lane uses dedicated accent background", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour, 12), new Color4(15, 15, 5, 255)));
+            AddAssert("mixed-stage judgement line colour stays shared", () => coloursMatch(getColorConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.JudgementLineColour), Color4.White));
+        }
+
+        [Test]
+        public void TestOmsKeyImageConfigUsesStageLocalPresetForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K+8K transformer", () => transformedSkin = createTransformedSkin(5, 8));
+
+            AddAssert("5K first stage keeps OMS default key asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImage, 0) == "mania-key1");
+            AddAssert("8K second stage uses candidate key asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImage, 5) == "7k\\0");
+            AddAssert("8K second stage pressed key uses candidate down asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeyImageDown, 12) == "7k\\7p");
+        }
+
+        [Test]
+        public void TestOmsNoteAssetConfigUsesStageLocalPresetForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K+9K transformer", () => transformedSkin = createTransformedSkin(5, 9));
+
+            AddAssert("5K first stage keeps OMS default note asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.NoteImage, 0) == "mania-note1");
+            AddAssert("9K second stage uses special note asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.NoteImage, 5) == "mania-noteS");
+            AddAssert("9K second stage uses special head asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteHeadImage, 13) == "mania-noteSH");
+            AddAssert("9K second stage uses special body asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage, 13) == "mania-noteSL");
+        }
+
+        [Test]
+        public void TestOmsHitExplosionConfigUsesStageLocalPresetForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K+8K transformer", () => transformedSkin = createTransformedSkin(5, 8));
+
+            AddAssert("5K first stage keeps OMS explosion scale", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 0) - 46f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+            AddAssert("8K second stage uses its own explosion scale", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 5) - 43f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+            AddAssert("mixed-stage explosion image stays OMS-owned", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionImage, 5) == "lightingN");
+        }
+
+        [Test]
+        public void TestOmsSharedShellAssetConfigStaysAvailableForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 7K+6K transformer", () => transformedSkin = createTransformedSkin(7, 6));
+
+            AddAssert("mixed-stage hit target image stays OMS-owned", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HitTargetImage) == "mania-stage-hint");
+            AddAssert("mixed-stage keys-under-notes stays OMS-owned", () => !getBoolConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.KeysUnderNotes, 7));
+        }
+
+        [Test]
+        public void TestOmsJudgementAssetConfigStaysSharedForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K+9K transformer", () => transformedSkin = createTransformedSkin(5, 9));
+
+            AddAssert("mixed-stage 300g image stays OMS-owned", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit300g) == "mania-hit300g");
+            AddAssert("mixed-stage miss image stays OMS-owned", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.Hit0) == "mania-hit0");
+        }
+
+        [Test]
+        public void TestOmsShellConfigUsesStageLocalPresetForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 7K+6K transformer", () => transformedSkin = createTransformedSkin(7, 6));
+
+            AddAssert("7K light position uses first stage preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LightPosition, 0) - 768f) < 0.01f);
+            AddAssert("6K light position uses second stage preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LightPosition, 7) - 104f) < 0.01f);
+        }
+
+        [Test]
+        public void TestOmsShellConfigProvidesEdgeLineWidths()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 8K transformer", () => transformedSkin = createTransformedSkin(8));
+
+            AddAssert("8K first column keeps left edge line", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LeftLineWidth, 0) - 1f) < 0.01f);
+            AddAssert("8K middle column keeps no divider line", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.RightLineWidth, 3)) < 0.01f);
+            AddAssert("8K last column keeps right edge line", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.RightLineWidth, 7) - 1f) < 0.01f);
+        }
+
+        [Test]
+        public void TestOmsStageUsesLayoutConfig()
+        {
+            Drawable host = null!;
+            Stage stage = null!;
+
+            AddStep("load OMS 5K stage", () =>
+            {
+                ManiaAction action = ManiaAction.Key1;
+
+                stage = new Stage(0, new StageDefinition(5), ref action)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.Y,
+                    Height = 0.8f,
+                };
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new ScrollingTestContainer(ScrollingDirection.Down)
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.Y,
+                        AutoSizeAxes = Axes.X,
+                        TimeRange = 2000,
+                        Child = new ManiaInputManager(new ManiaRuleset().RulesetInfo, 5)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Child = stage,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("stage loaded", () => stage.IsLoaded && stage.Columns.All(column => column.IsLoaded));
+            AddAssert("stage columns use OMS widths", () =>
+            {
+                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f };
+
+                return stage.Columns.Select(column => column.DrawWidth)
+                            .Zip(expectedWidths, (actualWidth, expectedWidth) => Math.Abs(actualWidth - expectedWidth) < 0.01f)
+                            .All(matches => matches);
+            });
+            AddAssert("stage hit position uses OMS preset", () => Math.Abs(stage.Columns[0].HitObjectArea.Padding.Bottom - 140.8f) < 0.01f);
+            AddStep("clear stage host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsSecondStageUsesRepeatedStagePreset()
+        {
+            Drawable host = null!;
+            Stage secondStage = null!;
+
+            AddStep("load OMS dual 5K stages", () =>
+            {
+                ManiaAction action = ManiaAction.Key1;
+
+                var firstStage = new Stage(0, new StageDefinition(5), ref action)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.Y,
+                    Height = 0.8f,
+                };
+
+                secondStage = new Stage(5, new StageDefinition(5), ref action)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.Y,
+                    Height = 0.8f,
+                };
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5, 5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new ScrollingTestContainer(ScrollingDirection.Down)
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.Y,
+                        AutoSizeAxes = Axes.X,
+                        TimeRange = 2000,
+                        Child = new ManiaInputManager(new ManiaRuleset().RulesetInfo, 10)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Child = new FillFlowContainer
+                            {
+                                Direction = FillDirection.Horizontal,
+                                RelativeSizeAxes = Axes.Y,
+                                AutoSizeAxes = Axes.X,
+                                Children = new Drawable[]
+                                {
+                                    firstStage,
+                                    secondStage,
+                                },
+                            },
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("second stage loaded", () => secondStage.IsLoaded && secondStage.Columns.All(column => column.IsLoaded));
+            AddAssert("second stage uses repeated OMS widths", () =>
+            {
+                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f };
+
+                return secondStage.Columns.Select(column => column.DrawWidth)
+                                  .Zip(expectedWidths, (actualWidth, expectedWidth) => Math.Abs(actualWidth - expectedWidth) < 0.01f)
+                                  .All(matches => matches);
+            });
+            AddStep("clear dual stage host", () => host.Expire());
+        }
+
+        private ISkin createTransformedSkin(params int[] stageColumns)
+        {
+            var beatmap = new ManiaBeatmap(new StageDefinition(stageColumns[0]))
+            {
+                BeatmapInfo = { Ruleset = new ManiaRuleset().RulesetInfo },
+            };
+
+            for (int i = 1; i < stageColumns.Length; i++)
+                beatmap.Stages.Add(new StageDefinition(stageColumns[i]));
+
+            return new ManiaRuleset().CreateSkinTransformer(skinManager.DefaultOmsSkin, beatmap)!;
+        }
+
+        private static float getFloatConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
+            => skin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? float.NaN;
+
+        private static bool getBoolConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
+            => skin.GetConfig<ManiaSkinConfigurationLookup, bool>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? false;
+
+        private static int getIntConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
+            => skin.GetConfig<ManiaSkinConfigurationLookup, int>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? int.MinValue;
+
+        private static string getStringConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
+            => skin.GetConfig<ManiaSkinConfigurationLookup, string>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? string.Empty;
+
+        private static Color4 getColorConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
+            => skin.GetConfig<ManiaSkinConfigurationLookup, Color4>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? default;
+
+        private static bool coloursMatch(Color4 actual, Color4 expected)
+            => Math.Abs(actual.R - expected.R) < 0.0001f
+               && Math.Abs(actual.G - expected.G) < 0.0001f
+               && Math.Abs(actual.B - expected.B) < 0.0001f
+               && Math.Abs(actual.A - expected.A) < 0.0001f;
+
+        private partial class TestDrawableNote : DrawableNote
+        {
+            public TestDrawableNote(Note hitObject)
+                : base(hitObject)
+            {
+            }
+
+            protected override void CheckForResult(bool userTriggered, double timeOffset)
+            {
+            }
+        }
+
+        private partial class TestDrawableHoldNoteHead : DrawableHoldNoteHead
+        {
+            public TestDrawableHoldNoteHead(HeadNote hitObject)
+                : base(hitObject)
+            {
+            }
+
+            protected override void CheckForResult(bool userTriggered, double timeOffset)
+            {
+            }
+        }
+
+        private partial class TestDrawableHoldNoteTail : DrawableHoldNoteTail
+        {
+            public TestDrawableHoldNoteTail(TailNote hitObject)
+                : base(hitObject)
+            {
+            }
+
+            protected override void CheckForResult(bool userTriggered, double timeOffset)
+            {
+            }
+        }
+
+        private partial class TestDrawableHoldNote : DrawableHoldNote
+        {
+            public TestDrawableHoldNote(HoldNote hitObject)
+                : base(hitObject)
+            {
+            }
+
+            protected override void CheckForResult(bool userTriggered, double timeOffset)
+            {
+            }
+
+            protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
+            {
+                switch (hitObject)
+                {
+                    case HeadNote head:
+                        return new TestDrawableHoldNoteHead(head);
+
+                    case TailNote tail:
+                        return new TestDrawableHoldNoteTail(tail);
+
+                    case HoldNoteBody body:
+                        return new TestDrawableHoldNoteBody(body);
+                }
+
+                return base.CreateNestedHitObject(hitObject);
+            }
+        }
+
+        private partial class TestDrawableHoldNoteBody : DrawableHoldNoteBody
+        {
+            public TestDrawableHoldNoteBody(HoldNoteBody hitObject)
+                : base(hitObject)
+            {
+            }
+
+            protected override void CheckForResult(bool userTriggered, double timeOffset)
+            {
+            }
+        }
+
+        private class TestScrollingInfo : IScrollingInfo
+        {
+            public readonly Bindable<ScrollingDirection> Direction = new Bindable<ScrollingDirection>();
+
+            IBindable<ScrollingDirection> IScrollingInfo.Direction => Direction;
+            IBindable<double> IScrollingInfo.TimeRange { get; } = new Bindable<double>(5000);
+            IBindable<IScrollAlgorithm> IScrollingInfo.Algorithm { get; } = new Bindable<IScrollAlgorithm>(new ConstantScrollAlgorithm());
+        }
+    }
+}

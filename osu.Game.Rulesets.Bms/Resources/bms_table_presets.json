@@ -1,0 +1,37 @@
+[
+  {
+    "source_name": "satellite",
+    "display_name": "Satellite",
+    "symbol": "★"
+  },
+  {
+    "source_name": "stella",
+    "display_name": "Stella",
+    "symbol": "★"
+  },
+  {
+    "source_name": "normal1",
+    "display_name": "Normal1",
+    "symbol": "☆"
+  },
+  {
+    "source_name": "insane1",
+    "display_name": "Insane1",
+    "symbol": "★"
+  },
+  {
+    "source_name": "normal2",
+    "display_name": "Normal2",
+    "symbol": "☆"
+  },
+  {
+    "source_name": "insane2",
+    "display_name": "Insane2",
+    "symbol": "★"
+  },
+  {
+    "source_name": "ln",
+    "display_name": "LN",
+    "symbol": "ln★"
+  }
+]

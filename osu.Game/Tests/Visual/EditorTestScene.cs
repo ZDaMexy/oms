@@ -4,6 +4,7 @@
 #nullable disable
 
 using System.Linq;
+using System.Collections.Generic;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -147,9 +148,9 @@ namespace osu.Game.Tests.Visual
             {
             }
 
-            protected override WorkingBeatmapCache CreateWorkingBeatmapCache(AudioManager audioManager, IResourceStore<byte[]> resources, IResourceStore<byte[]> storage, WorkingBeatmap defaultBeatmap, GameHost host)
+            protected override WorkingBeatmapCache CreateWorkingBeatmapCache(AudioManager audioManager, IResourceStore<byte[]> resources, Storage storage, IResourceStore<byte[]> fileStore, WorkingBeatmap defaultBeatmap, GameHost host, IEnumerable<ICustomBeatmapLoader> customBeatmapLoaders)
             {
-                return new TestWorkingBeatmapCache(this, audioManager, resources, storage, defaultBeatmap, host);
+                return new TestWorkingBeatmapCache(this, audioManager, resources, storage, fileStore, defaultBeatmap, host, customBeatmapLoaders);
             }
 
             public override WorkingBeatmap CreateNewDifficulty(BeatmapSetInfo targetBeatmapSet, WorkingBeatmap referenceWorkingBeatmap, RulesetInfo rulesetInfo)
@@ -168,8 +169,9 @@ namespace osu.Game.Tests.Visual
             {
                 private readonly TestBeatmapManager testBeatmapManager;
 
-                public TestWorkingBeatmapCache(TestBeatmapManager testBeatmapManager, AudioManager audioManager, IResourceStore<byte[]> resourceStore, IResourceStore<byte[]> storage, WorkingBeatmap defaultBeatmap, GameHost gameHost)
-                    : base(testBeatmapManager.BeatmapTrackStore, audioManager, resourceStore, storage, defaultBeatmap, gameHost)
+                public TestWorkingBeatmapCache(TestBeatmapManager testBeatmapManager, AudioManager audioManager, IResourceStore<byte[]> resourceStore, Storage storage, IResourceStore<byte[]> fileStore, WorkingBeatmap defaultBeatmap, GameHost gameHost,
+                                               IEnumerable<ICustomBeatmapLoader> customBeatmapLoaders)
+                    : base(testBeatmapManager.BeatmapTrackStore, audioManager, resourceStore, storage, fileStore, defaultBeatmap, gameHost, customBeatmapLoaders: customBeatmapLoaders)
                 {
                     this.testBeatmapManager = testBeatmapManager;
                 }

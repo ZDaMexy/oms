@@ -311,8 +311,27 @@ namespace osu.Game.Screens.Select
                 keyCountText.Alpha = 1;
                 keyCountText.Text = $"[{keyCount}K] ";
             }
+            else if (ruleset.Value.ShortName == "bms" && beatmap.Ruleset.ShortName == "bms" && tryGetStoredBmsKeyCount(beatmap, out int bmsKeyCount))
+            {
+                keyCountText.Alpha = 1;
+                keyCountText.Text = $"[{bmsKeyCount}K] ";
+            }
             else
                 keyCountText.Alpha = 0;
+        }
+
+        private static bool tryGetStoredBmsKeyCount(BeatmapInfo beatmapInfo, out int keyCount)
+        {
+            int storedKeyCount = (int)Math.Round(beatmapInfo.Difficulty.CircleSize);
+
+            if (storedKeyCount is 5 or 7 or 9 or 14)
+            {
+                keyCount = storedKeyCount;
+                return true;
+            }
+
+            keyCount = 0;
+            return false;
         }
 
         public override MenuItem[] ContextMenuItems

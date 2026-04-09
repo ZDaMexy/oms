@@ -3,12 +3,14 @@
 
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Localisation;
 using osu.Game.Graphics.Containers;
 using osu.Game.Online.API;
 using osu.Game.Users;
+using osuTK.Graphics;
 
 namespace osu.Game.Overlays.Profile.Header.Components
 {
@@ -27,13 +29,22 @@ namespace osu.Game.Overlays.Profile.Header.Components
         [BackgroundDependencyLoader]
         private void load(LargeTextureStore textures, OsuGame? game, IAPIProvider api)
         {
-            Child = new Sprite
+            Children = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
-                Texture = textures.Get(banner.Image),
+                new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Colour4.FromHex("1f2533"),
+                },
+                new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = textures.Get(banner.Image),
+                }
             };
 
-            Action = () => game?.OpenUrlExternally($@"{api.Endpoints.WebsiteUrl}/community/tournaments/{banner.TournamentId}");
+            if (game != null && game.OnlineFeaturesEnabled && !string.IsNullOrEmpty(api.Endpoints.WebsiteUrl))
+                Action = () => game.OpenUrlExternally($@"{api.Endpoints.WebsiteUrl}/community/tournaments/{banner.TournamentId}");
         }
 
         protected override void LoadComplete()
@@ -48,6 +59,6 @@ namespace osu.Game.Overlays.Profile.Header.Components
             Height = DrawWidth * banner_aspect_ratio;
         }
 
-        public override LocalisableString TooltipText => "view in browser";
+        public override LocalisableString TooltipText => Action == null ? string.Empty : "view in browser";
     }
 }

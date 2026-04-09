@@ -916,6 +916,7 @@ namespace osu.Game.Screens.Play
             // - Must be run synchronously as the score may potentially be mutated in the background.
             // - Must be cloned for the same reason.
             Score scoreCopy = Score.DeepClone();
+            var playableBeatmap = GameplayState.Beatmap;
 
             return prepareScoreForDisplayTask = Task.Run(async () =>
             {
@@ -926,6 +927,15 @@ namespace osu.Game.Screens.Play
                 catch (Exception ex)
                 {
                     Logger.Error(ex, @"Score preparation failed!");
+                }
+
+                try
+                {
+                    scoreCopy.ScoreInfo.Ruleset.CreateInstance().PrepareScoreInfoForResults(scoreCopy.ScoreInfo, playableBeatmap);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, @"Ruleset score preparation failed!");
                 }
 
                 try
