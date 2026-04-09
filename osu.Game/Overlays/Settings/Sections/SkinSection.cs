@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -45,6 +46,7 @@ namespace osu.Game.Overlays.Settings.Sections
         public override IEnumerable<LocalisableString> FilterTerms => base.FilterTerms.Concat(new LocalisableString[] { "skins" });
 
         private readonly List<Live<SkinInfo>> dropdownItems = new List<Live<SkinInfo>>();
+        private int dropdownRefreshSequence;
 
         [Resolved]
         private SkinManager skins { get; set; }
@@ -65,6 +67,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     AllowNonContiguousMatching = true,
                     Caption = SkinSettingsStrings.CurrentSkin,
                     Current = skins.CurrentSkinInfo,
+                    Items = new[] { skins.CurrentSkinInfo.Value },
                 }),
                 new FillFlowContainer
                 {
@@ -86,6 +89,8 @@ namespace osu.Game.Overlays.Settings.Sections
                     Action = () => skinEditor?.ToggleVisibility(),
                 },
             };
+
+            skinDropdown.Current.Disabled = true;
         }
 
         protected override void LoadComplete()
@@ -95,6 +100,8 @@ namespace osu.Game.Overlays.Settings.Sections
             realmSubscription = realm.RegisterForNotifications(_ => realm.Realm.All<SkinInfo>()
                                                                          .Where(s => !s.DeletePending)
                                                                          .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase), skinsChanged);
+
+            refreshDropdownItems();
 
             skinDropdown.Current.BindValueChanged(skin =>
             {
@@ -115,15 +122,53 @@ namespace osu.Game.Overlays.Settings.Sections
             // Because we are using `Live<>` in this class, we don't need to worry about this scenario too much.
             if (!sender.Any())
                 return;
-            // For simplicity repopulate the full list.
-            dropdownItems.Clear();
-            dropdownItems.AddRange(skins.GetAllUsableSkins());
 
-            Schedule(() => skinDropdown.Items = dropdownItems);
+            refreshDropdownItems();
+        }
+
+        private void refreshDropdownItems()
+            => _ = refreshDropdownItemsAsync();
+
+        private async System.Threading.Tasks.Task refreshDropdownItemsAsync()
+        {
+            int refreshSequence = Interlocked.Increment(ref dropdownRefreshSequence);
+
+            try
+            {
+                var items = await skins.GetAllUsableSkinsAsync().ConfigureAwait(false);
+
+                Schedule(() =>
+                {
+                    if (IsDisposed || refreshSequence != dropdownRefreshSequence)
+                        return;
+
+                    dropdownItems.Clear();
+                    dropdownItems.AddRange(items);
+
+                    skinDropdown.Items = dropdownItems.ToList();
+                    skinDropdown.Current.Disabled = false;
+                });
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "Failed to populate the settings skin dropdown.");
+
+                Schedule(() =>
+                {
+                    if (IsDisposed || refreshSequence != dropdownRefreshSequence)
+                        return;
+
+                    skinDropdown.Items = new[] { skins.CurrentSkinInfo.Value };
+                    skinDropdown.Current.Disabled = false;
+                });
+            }
         }
 
         protected override void Dispose(bool isDisposing)
         {
+            if (isDisposing)
+                Interlocked.Increment(ref dropdownRefreshSequence);
+
             base.Dispose(isDisposing);
 
             realmSubscription?.Dispose();

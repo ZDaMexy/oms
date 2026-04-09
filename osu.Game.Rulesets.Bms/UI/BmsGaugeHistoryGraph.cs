@@ -83,6 +83,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
     public partial class DefaultBmsGaugeHistoryDisplay : CompositeDrawable, IBmsGaugeHistoryDisplay
     {
+        private const float timeline_spacing = 8;
+        private const float timeline_plot_height = 52;
+
         private FillFlowContainer timelineContainer = null!;
         private BmsGaugeHistory? history;
 
@@ -100,7 +103,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 12),
+                Spacing = new Vector2(0, timeline_spacing),
             };
 
             updateTimelines();
@@ -168,13 +171,13 @@ namespace osu.Game.Rulesets.Bms.UI
                             RelativeSizeAxes = Axes.X,
                             AutoSizeAxes = Axes.Y,
                             Direction = FillDirection.Vertical,
-                            Spacing = new Vector2(0, 8),
+                            Spacing = new Vector2(0, 6),
                             Padding = new MarginPadding
                             {
-                                Top = 14,
-                                Right = 14,
-                                Bottom = 14,
-                                Left = 18,
+                                Top = 10,
+                                Right = 12,
+                                Bottom = 10,
+                                Left = 16,
                             },
                             Children = new Drawable[]
                             {
@@ -190,7 +193,7 @@ namespace osu.Game.Rulesets.Bms.UI
                                             Origin = Anchor.TopLeft,
                                             Text = timeline.GaugeType.GetDisplayName(),
                                             Colour = accentColour,
-                                            Font = OsuFont.GetFont(size: StatisticItem.FONT_SIZE + 1, weight: FontWeight.Bold),
+                                            Font = OsuFont.GetFont(size: StatisticItem.FONT_SIZE - 1, weight: FontWeight.Bold),
                                         },
                                         new OsuSpriteText
                                         {
@@ -198,7 +201,7 @@ namespace osu.Game.Rulesets.Bms.UI
                                             Origin = Anchor.TopRight,
                                             Text = $"{timeline.Samples.LastOrDefault().Value:P0}",
                                             Colour = BmsDefaultResultsPalette.PanelTitle,
-                                            Font = OsuFont.GetFont(size: StatisticItem.FONT_SIZE, weight: FontWeight.SemiBold),
+                                            Font = OsuFont.GetFont(size: StatisticItem.FONT_SIZE - 1, weight: FontWeight.SemiBold),
                                         }
                                     }
                                 },
@@ -228,7 +231,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 float floorMarkerPosition = 1f - (float)BmsGaugeProcessor.GetFloorGauge(timeline.GaugeType);
 
                 RelativeSizeAxes = Axes.X;
-                Height = 68;
+                Height = timeline_plot_height;
                 Masking = true;
                 CornerRadius = 8;
                 BorderThickness = 1;
@@ -290,10 +293,10 @@ namespace osu.Game.Rulesets.Bms.UI
                             RelativeSizeAxes = Axes.Both,
                             Padding = new MarginPadding
                             {
-                                Top = 8,
-                                Right = 10,
-                                Bottom = 10,
-                                Left = 10,
+                                Top = 6,
+                                Right = 8,
+                                Bottom = 8,
+                                Left = 8,
                             },
                             Children = new Drawable[]
                             {

@@ -135,7 +135,23 @@ namespace oms.Input.Devices
         public bool HasBoundDevices => boundDeviceIdentifiers.Count > 0;
 
         public static IOmsHidButtonDeviceProvider CreateDefaultDeviceProvider()
-            => new HidSharpHidButtonDeviceProvider();
+            => CreateDefaultDeviceProvider(() => new HidSharpHidButtonDeviceProvider());
+
+        internal static IOmsHidButtonDeviceProvider CreateDefaultDeviceProvider(Func<IOmsHidButtonDeviceProvider> providerFactory)
+        {
+            if (!OmsHidSharpRuntime.IsEnabled)
+                return new UnavailableHidButtonDeviceProvider();
+
+            try
+            {
+                return providerFactory();
+            }
+            catch (Exception e) when (OmsHidSharpRuntime.IsRecoverableFailure(e))
+            {
+                OmsHidSharpRuntime.LogRecoverableFailure(e);
+                return new UnavailableHidButtonDeviceProvider();
+            }
+        }
 
         public OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction, IOmsHidButtonDeviceProvider? deviceProvider = null)
         {
@@ -315,14 +331,35 @@ namespace oms.Input.Devices
 
         private void onDevicesChanged(object? sender, EventArgs e) => devicesDirty = true;
 
+        private sealed class UnavailableHidButtonDeviceProvider : IOmsHidButtonDeviceProvider
+        {
+            public event EventHandler? DevicesChanged
+            {
+                add
+                {
+                }
+                remove
+                {
+                }
+            }
+
+            public IEnumerable<IOmsHidButtonDevice> GetDevices(IEnumerable<string> deviceIdentifiers)
+                => Array.Empty<IOmsHidButtonDevice>();
+
+            public void Dispose()
+            {
+            }
+        }
+
         private sealed class HidSharpHidButtonDeviceProvider : IOmsHidButtonDeviceProvider
         {
-            private readonly DeviceList deviceList = DeviceList.Local;
+            private readonly DeviceList deviceList;
 
             public event EventHandler? DevicesChanged;
 
             public HidSharpHidButtonDeviceProvider()
             {
+                deviceList = DeviceList.Local;
                 deviceList.Changed += onDeviceListChanged;
             }
 
@@ -333,7 +370,19 @@ namespace oms.Input.Devices
                 if (targetIdentifiers.Count == 0)
                     yield break;
 
-                foreach (var device in deviceList.GetHidDevices())
+                HidDevice[] hidDevices;
+
+                try
+                {
+                    hidDevices = deviceList.GetHidDevices().ToArray();
+                }
+                catch (Exception e) when (OmsHidSharpRuntime.IsRecoverableFailure(e))
+                {
+                    OmsHidSharpRuntime.LogRecoverableFailure(e);
+                    yield break;
+                }
+
+                foreach (var device in hidDevices)
                 {
                     string identifier = OmsHidDeviceIdentifier.FromHidDevice(device);
 

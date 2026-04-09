@@ -25,13 +25,27 @@ namespace oms.Input.Devices
     public static class OmsHidDeviceDiscovery
     {
         public static IReadOnlyList<OmsHidDeviceInfo> GetConnectedDevices()
-            => DeviceList.Local.GetHidDevices()
-                          .Select(toDeviceInfo)
-                          .Where(info => !string.IsNullOrWhiteSpace(info.Identifier))
-                          .GroupBy(info => info.Identifier, StringComparer.Ordinal)
-                          .Select(group => group.First())
-                          .OrderBy(info => info.DisplayName, StringComparer.OrdinalIgnoreCase)
-                          .ToArray();
+        {
+            if (!OmsHidSharpRuntime.TryGetDeviceList(out var deviceList))
+                return Array.Empty<OmsHidDeviceInfo>();
+
+            try
+            {
+                var hidDevices = deviceList.GetHidDevices().ToArray();
+
+                return hidDevices.Select(toDeviceInfo)
+                                 .Where(info => !string.IsNullOrWhiteSpace(info.Identifier))
+                                 .GroupBy(info => info.Identifier, StringComparer.Ordinal)
+                                 .Select(group => group.First())
+                                 .OrderBy(info => info.DisplayName, StringComparer.OrdinalIgnoreCase)
+                                 .ToArray();
+            }
+            catch (Exception e) when (OmsHidSharpRuntime.IsRecoverableFailure(e))
+            {
+                OmsHidSharpRuntime.LogRecoverableFailure(e);
+                return Array.Empty<OmsHidDeviceInfo>();
+            }
+        }
 
         private static OmsHidDeviceInfo toDeviceInfo(HidDevice device)
         {

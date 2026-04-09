@@ -176,6 +176,9 @@ namespace osu.Game.Skinning
             return skins;
         }
 
+        public Task<IList<Live<SkinInfo>>> GetAllUsableSkinsAsync(CancellationToken cancellationToken = default)
+            => Task.Run(() => GetAllUsableSkins(), cancellationToken);
+
         public void SelectRandomSkin()
         {
             Realm.Run(r =>

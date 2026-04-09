@@ -19,13 +19,13 @@
 - 当前阶段：**Phase 1.1 皮肤系统专项执行中**（执行顺序已收敛为“先 BMS playfield abstraction，再 BMS 默认层，再 mania OMS-owned 迁移”）
 - 当前主入口：`osu.Desktop.slnf`（含 7 个项目）
 - 当前仓库定位：Windows-only，保留 `osu!mania`，新增 BMS，已移除 Osu/Taiko/Catch
-- 当前 BMS 规则集规模：**124 个源文件，12279 行实现代码**；`oms.Input` **12 个源文件，1607 行实现代码**；36 个测试文件，6634 行测试代码
+- 当前 BMS 规则集规模：**124 个源文件，12213 行实现代码**；`oms.Input` **14 个源文件，1753 行实现代码**；36 个测试文件，6785 行测试代码
 - 当前已落地主链：BMS 解码、转换、自定义导入、OMS `songs/` 目录直读、运行时 loader、共享 keysound 池、7K+1 最小 gameplay、三套 judge mode（OD / BEATORAJA / LR2）、六种 gauge type + GAS、EX-SCORE / CLEAR LAMP / DJ LEVEL、CN / HCN mode-aware 计分、本地 best/replay/排行榜 judge + long-note mode 分桶、离线难度表缓存 / MD5 匹配 / 表分组、Song Select 音符分布图，以及 **gameplay → results 自动跳转闭环**
 - 当前皮肤基线：BMS 默认层已完成七批 OMS-owned 默认层切片；运行时 `OmsSkin` preview host / provider / resource root、共享 `OmsSkinTransformer` 外壳、显式 `ManiaOmsSkinTransformer` 入口、首批 mania shell 组件、首批 stage-local layout preset、首批 stage-local shell behaviour preset、首批 shared shell asset preset、首批 shell colour preset、首批 stage-local key-asset preset，以及 mania 第二批的首个 stage-local note/hold asset preset、首个 explicit note component slice、首个 shared judgement asset preset、首个 shared judgement-position slice、首个 shared bar-line config slice、首个 explicit judgement piece slice、首个 explicit bar-line component slice、首个 explicit combo counter component slice、首个 stage-local hitburst config preset与首个 explicit hitburst component slice 也已落地；已验证 5K `Stage` 宿主实际加载、5K+5K dual-stage repeated layout、mixed-stage shell behaviour / shell colour / key-image / note-hold / hitburst config 分流、shared judgement asset 持续共享，且 shared judgement score / combo-position、shared bar-line height / colour 与现有其它 non-column shared lookup 现已在 same-keycount dual-stage 与 mixed-stage 路径下稳定收口：mixed-stage 会固定复用第一 stage 的 OMS preset，不再落回 total-columns legacy 默认值；`GlobalSkinnableContainerLookup` 的 global HUD / `SongSelect` / `Playfield` 缺省 shell 现也可经 OMS preview 路径返回空 `DefaultSkinComponentsContainer`，并由 Mania / BMS ruleset transformer 继续承接各自 gameplay 语义；嵌入 `MainHUDComponents.json` / `SongSelect.json` / `Playfield.json` 的 global layout metadata 现也已由 `TestSceneOmsBuiltInSkin` regression 锁定，results-style shared panel shell 现也已通过 `DefaultResultsPanelContainer` + `DefaultResultsPanelDisplay<TState>` 收口为 core stateful contract。产品默认值仍未切离 Argon，这些路径也仍主要消费 legacy-derived candidate assets 与配置语义；当前自动推进已继续转向 mania 第二批的 actual OMS-owned 迁移，其中 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` 已分别升级为实际 OMS-owned 组件，并已由 `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` 锁定；score-driven results 是否需要独立 preview/skinnable target 仍待后续决定，mania 侧剩余重点收窄为 note / hold 与 combo/HUD / bar-line 的余下 legacy 语义清理。
 - 当前 BMS abstraction gate 落点：已新增共享 `BmsPlayfieldLayoutProfile`，把 `BmsLaneLayout`、`BmsPlayfield`、`BmsHitTarget` 与 `DrawableBmsBarLine` 的默认几何参数收口到同一 profile；`DrawableBmsRuleset` 也已切入专用 `BmsPlayfieldAdjustmentContainer`，并接通 `Playfield Scale` / `Playfield Horizontal Offset` 两个 ruleset 配置项；`BmsHitTarget` 已有 `pressed / focused` 正式状态契约，`BmsLane` 也会从输入管理器同步 receptor pressed state；lane width / lane spacing / scratch width ratio / scratch spacing / playfield width / playfield height / hit target height / hit target bar height / hit target line height / hit target glow radius / hit target vertical offset / bar line height 现都已正式接入 ruleset config、`BmsPlayfieldLayoutProfile`、`BmsLaneLayout` 与 loaded `BmsPlayfield` 的 runtime 重布局链路，新的 `BmsHitObjectArea` 也会把 scrolling container 与 receptor 一起下沉到真实 hit line，并把有效 scroll length ratio 回传给 `DrawableBmsRuleset` 以保持 scroll-speed 语义；BMS abstraction gate 的 layout/config contract 已基本闭合，当前下一主焦点转向 OMS 默认皮肤包宿主 / shared shell 与 mania OMS-owned 迁移
 - 当前自动推进优先主线：**Phase 1.1 皮肤系统专项** 当前已明确按“共享骨架 / 文档门槛 → BMS playfield abstraction gate → BMS 默认层 → mania OMS-owned 迁移 → partial override / native default removal / release gate”推进；其中 BMS playfield abstraction gate、BMS 默认层、OMS shared shell / shared transformer shell，以及 global layout metadata 都已完成首轮收口，results-style shared panel shell 也已进一步收口为 `DefaultResultsPanelDisplay<TState>` core contract；当前自动推进已继续转向 mania OMS-owned 迁移，并优先处理已有 transformer 路径上的 actual component migration；score-driven results 是否需要独立 preview/skinnable target 暂留后续再评估；1.17 analog scratch、1.6 真实谱面长条验校与 1.5 导入 UI 人工验收暂退居次优先级
 - 需要人工操作的真实 UI / 发行物验收已独立收束到本文后文“待人工操作验收（统一后置）”板块；默认放在 Phase 1 阶段末尾统一执行，仅在其成为当前阻塞项时再提前请求用户介入
-- 当前已知主断点：无阻断性问题；results auto-jump 已修复并经实机验证
+- 当前已知主断点：无阻断性崩溃；Windows 下 HID 设备加载根因已收敛到 HidSharp `RegisterClass failed` 初始化链，当前通过“Windows 默认禁用 HidSharp、设置页提示说明、仅 `OMS_ENABLE_HIDSHARP=1` 显式开启”规避；results auto-jump 已修复并经实机验证
 
 ## 开发指标
 
@@ -36,9 +36,9 @@
 | Phase 1.1 皮肤系统专项 | 进行中，BMS 默认层已完成、宿主骨架与 OMS shared shell 已接通，mania 第一批 shell 切片及第二批 note/hold asset + explicit note component + explicit hold-note-head component + explicit hold-note-tail component + explicit hold-note-body component + judgement asset + shared judgement-position + bar-line config + judgement piece + bar-line component + combo counter component + hitburst config + hitburst component 首切片已起 | 当前已完成规范与主线切换文档化，落地 BMS 第一批、第二批、第三批与默认层收口，并新增 `OmsSkin` host / provider / resource root 首个运行时骨架、共享 `OmsSkinTransformer` 外壳、mania shell 首批 OMS 组件、首批 stage-local layout preset、首批 stage-local shell behaviour preset、首批 shared shell asset preset、首批 shell colour preset、首批 stage-local key-asset preset，以及 mania 第二批的首个 stage-local note/hold asset preset、首个 explicit note component slice、首个 explicit hold-note-head component slice、首个 explicit hold-note-tail component slice、首个 explicit hold-note-body component slice、首个 shared judgement asset preset、首个 shared judgement-position slice、首个 shared bar-line config slice、首个 explicit judgement piece slice、首个 explicit bar-line component slice、首个 explicit combo counter component slice、首个 stage-local hitburst config preset与首个 explicit hitburst component slice，并已补齐现有 mania non-column shared config 的 mixed-stage shared-transformer fallback 以及 global HUD / `SongSelect` / `Playfield` shell；不计入既有 `12/17` 核心 BMS 进度 |
 | 桌面端构建验证 | 通过 | `2026-04-08` 最近一次 `dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 退出码为 0 |
 | BMS 单测验证 | 通过 | `2026-04-08` 最近一次全量 `dotnet test osu.Game.Rulesets.Bms.Tests.csproj` **446/446** 通过；同日直接受影响过滤回归 **69/69** 通过 |
-| 关键回归测试 | 通过 | `2026-04-09` 最近一次 Mania 定向回归（`OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`）**50/50** 通过；最近一次 results-panel contract 受影响 BMS 过滤回归 **69/69** 通过 |
-| 启动手工 smoke test | 自动通过 / 手工待补 | `2026-04-02` 已用 `SmokeTestDesktop.ps1` 对桌面端完成 8 秒非交互启动验证；真实导入 / Song Select UI 验收仍需用户操作 |
-| BMS 可玩状态 | 可启动，可游玩，可结算 | gameplay → results 闭环已实机验证；键盘 / Raw Input / HID / XInput / MouseAxis 多源输入已接通；剩余 analog scratch 语义与设备体验收口 |
+| 关键回归测试 | 通过 | `2026-04-09` 最近一次 BMS HID handler 定向回归（`OmsHidDeviceHandlerTest`）**11/11** 通过；同日 Mania 定向回归（`OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`）**50/50** 通过；最近一次 results-panel contract 受影响 BMS 过滤回归 **69/69** 通过 |
+| 启动手工 smoke test | 自动通过 / 手工部分已补 | `2026-04-02` 已用 `SmokeTestDesktop.ps1` 对桌面端完成 8 秒非交互启动验证；`2026-04-09` 已确认 Release 启动不再因 HidSharp `RegisterClass failed` 闪退，点击设置会显示 Windows 默认禁用 HID 的说明提示；真实导入 / Song Select UI 验收仍需用户操作 |
+| BMS 可玩状态 | 可启动，可游玩，可结算 | gameplay → results 闭环已实机验证；键盘 / Raw Input / XInput / MouseAxis 主链可用，HID 代码路径已接通但 Windows 下因 HidSharp 初始化崩溃风险默认禁用并在设置页提示说明；剩余 analog scratch 语义、cross-device 终态输入链与稳定 HID backend 收口 |
 | 编译器诊断残留 | 0 个告警 | `AutoMapper` GHSA `rvv3-g6hj-g44x` 已在 `osu.Game.csproj` 通过定点 `NuGetAuditSuppress` 压制；`RealmObjectExtensions` 的循环图路径仍由 `MaxDepth(3)` 限深，升级到 15.1.1+ 或移除继续跟踪；`BmsScoreProcessor` 诊断日志已包裹 `#if DEBUG`，Release 构建不再输出 |
 
 ## 最近一次验证
@@ -47,6 +47,8 @@
 
 ### 2026-04-09
 
+- 新增 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsHidDeviceHandlerTest"` **11/11** 通过；`dotnet build .\osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过，并完成一次 Release 启动 smoke 验证，未再出现 HidSharp `RegisterClass failed` 即时闪退
+- 主要变更：Windows 下 `OmsHidSharpRuntime` 已改成默认不触发 HidSharp，只有显式设置 `OMS_ENABLE_HIDSHARP=1` 时才会继续初始化 HID backend；设置页当前看到的 HID-disabled 提示属于预期防崩溃降级，说明问题已收敛到待修复的 Windows HID 设备加载后端，而不是设置/皮肤 overlay 本身卡死
 - 新增 `dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **50/50** 通过；最近一次 `dotnet build .\osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 退出码仍为 0
 - 最近一次 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~ResultsPanelDisplayContractTest|FullyQualifiedName~StatisticItemContainerTest|FullyQualifiedName~BmsRulesetStatisticsTest|FullyQualifiedName~BmsSkinTransformerTest"` **69/69** 通过；最近一次完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore` **446/446** 通过
 - `AutoMapper` GHSA `rvv3-g6hj-g44x` 已通过 `NuGetAuditSuppress` 定点压制；当前 `dotnet build` 不再输出既有 `NU1903` 告警，但升级到 15.1.1+ 或移除仍继续跟踪
@@ -74,7 +76,7 @@
 - 7K+1 最小 gameplay、三套 judge mode、六种 gauge type + GAS、EX-SCORE / CLEAR LAMP / DJ LEVEL
 - LN / CN / HCN mode-aware 计分、本地 best/replay/排行榜 judge + long-note mode 分桶
 - 离线难度表缓存 / MD5 匹配 / 表分组、Song Select 音符分布图
-- oms.Input 多源输入（键盘组合键 / HID / XInput / MouseAxis / Raw Input）、supplemental trigger 编辑 UI、通用 keybinding 面板整合
+- oms.Input 多源输入（键盘组合键 / XInput / MouseAxis / Raw Input 主链可用，HID 代码路径与 supplemental trigger 编辑 UI 已落地但 Windows 默认禁用 HidSharp）、supplemental trigger 编辑 UI、通用 keybinding 面板整合
 - gameplay → results 自动跳转闭环
 - BMS 最小皮肤链路：ruleset transformer、judgement naming，以及 `Playfield / Lane / HitTarget / BarLine / Static BG / Note / Hold / LaneCover / Judgement / Combo / GaugeBar / GaugeHistory / NoteDistribution / ClearLamp / ResultsSummary` 的 lookup 接线
 
@@ -98,7 +100,7 @@
 | 1.14 MD5 匹配管线 | 已完成 | 导入时按谱面 MD5 自动匹配表缓存，表刷新后重建索引并回写 metadata | 无 |
 | 1.15 Song Select 表分组 | 已完成 | 表名 → 等级 → BeatmapSet → 难度层级分组，Unrated 末尾，激活时锁定密度星级升序 | 无 |
 | 1.16 音符分布图 | 已完成 | BmsNoteDistributionGraph 通过 ruleset details 扩展点挂入 Song Select 右侧 | 无 |
-| 1.17 基础输入绑定与 Lane Cover | 进行中 | oms.Input 键盘组合键 / HID button+axis / MouseAxis / XInput button / HidSharp 轮询 / Windows Raw Input 全链路已接通；supplemental trigger 持久化与编辑 UI（含 live capture）、通用 keybinding 面板整合已落地；OmsInputRouter shared-action 引用计数、axis pulse 语义、mixed-source scratch 回归已补测 | 更丰富的 analog scratch 专用语义与 cross-device 终态输入链 |
+| 1.17 基础输入绑定与 Lane Cover | 进行中 | oms.Input 键盘组合键 / MouseAxis / XInput button / Windows Raw Input 主链已接通；HID button+axis 代码路径、supplemental trigger 持久化与编辑 UI（含 live capture）、通用 keybinding 面板整合已落地，但 Windows 下 HidSharp `RegisterClass failed` 可导致进程级崩溃，因此当前默认禁用 HidSharp、仅允许 `OMS_ENABLE_HIDSHARP=1` 显式开启诊断后端；OmsInputRouter shared-action 引用计数、axis pulse 语义、mixed-source scratch 回归已补测 | 更丰富的 analog scratch 专用语义、cross-device 终态输入链与稳定 HID backend |
 
 ## Phase 1.1 皮肤系统专项（当前主线）
 
@@ -148,7 +150,7 @@
 | --- | --- | --- |
 | A: Phase 1.1 皮肤系统专项 | OMS 默认皮肤包、当前候选包语义、BMS 默认层迁移、后续 mania OMS-owned 迁移、移除 upstream 原生默认皮肤 | 进行中（BMS abstraction gate 与默认层已收口，`OmsSkin` host / explicit mania transformer 入口、首批 mania shell 组件、首批 stage-local layout preset、首批 stage-local shell behaviour preset、首批 shared shell asset preset、首批 shell colour preset、首批 stage-local key-asset preset，以及 mania 第二批的首个 stage-local note/hold asset preset、首个 explicit note component slice、首个 shared judgement asset preset、首个 shared judgement-position slice、首个 shared bar-line config slice、首个 explicit judgement piece slice、首个 explicit bar-line component slice、首个 explicit combo counter component slice、首个 stage-local hitburst config preset与首个 explicit hitburst component slice 已起，且现有 non-column shared config 的 mixed-stage fallback、Global shared shell / shared transformer shell、global layout metadata 与 results-style shared panel shell 也已补齐首轮实现；当前已继续转向 mania 第二批里最便宜的 actual OMS-owned component migration，`OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` 已升级为实际实现，后续重点转向 note/hold / combo/HUD / bar-line 的余下 legacy 语义清理，score-driven results preview/skinnable target 暂留后续评估） |
 | B: gameplay 与长条语义 | LN/CN/HCN release-window 边界回归与真实谱面验校 | 次优先级，待人工验校 |
-| C: 正式输入与多 keymode | analog scratch 专用语义与 cross-device 终态 | 次优先级，进行中 |
+| C: 正式输入与多 keymode | analog scratch 专用语义、cross-device 终态与稳定 HID backend | 次优先级，进行中 |
 | D: 首发离线发行基线 | RELEASE.md 已文档化；后续需叠加 OMS 内置皮肤发行门槛 | 已文档化，待实机验证 |
 | E: 人工验收后置 | 1.5 UI / smoke test / 便携发行物统一后置 | Phase 1 / Phase 1.1 接近收口后统一执行 |
 
@@ -165,6 +167,7 @@
 
 ### 中优先级
 
+- **Windows HidSharp 初始化兼容问题**：`DeviceList.Local` 在部分 Windows 环境下会以 `RegisterClass failed` 直接终止进程；当前已通过 Windows 默认禁用 HidSharp 规避闪退，设置页提示属预期行为，但稳定 HID backend 仍待后续专项处理
 - **IIDX 实机验证**：oms.Input 全链路已接通，仍缺真实硬件全链路验证
 - **AutoMapper GHSA-rvv3-g6hj-g44x**：构建告警已通过 `NuGetAuditSuppress` 定点压制；运行时循环图路径仍以 `MaxDepth(3)` 限深，升级到 15.1.1+ 或移除仍待跟踪（15.x 额外引入 license 与配置 API 迁移）
 - **上游 cherry-pick 风险**：~37 个文件被修改（见 UPSTREAM.md），高频改动区 BeatmapCarousel/OsuGameBase 等冲突风险高

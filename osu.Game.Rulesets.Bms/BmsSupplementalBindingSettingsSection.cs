@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using oms.Input;
 using oms.Input.Devices;
 using osu.Framework.Allocation;
@@ -32,10 +34,13 @@ namespace osu.Game.Rulesets.Bms
         private const float mouse_capture_threshold = 8;
 
         private readonly BmsRuleset ruleset;
+        private readonly Func<IReadOnlyList<OmsHidDeviceInfo>> hidDeviceProvider;
         private readonly Bindable<int> selectedVariant = new BindableInt();
         private readonly Bindable<SettingsNote.Data?> statusNote = new Bindable<SettingsNote.Data?>();
         private ActiveHidCapture? activeHidCapture;
         private ActiveMouseCapture? activeMouseCapture;
+        private int hidDiscoverySequence;
+        private string detectedDevicesSummary = string.Empty;
 
         private IReadOnlyList<OmsHidDeviceInfo> connectedDevices = Array.Empty<OmsHidDeviceInfo>();
         private InputManager? inputManager;
@@ -84,10 +89,18 @@ namespace osu.Game.Rulesets.Bms
         private INotificationOverlay? notificationOverlay { get; set; }
 
         public BmsSupplementalBindingSettingsSection(BmsRuleset ruleset)
+            : this(ruleset, OmsHidDeviceDiscovery.GetConnectedDevices)
+        {
+        }
+
+        internal BmsSupplementalBindingSettingsSection(BmsRuleset ruleset, Func<IReadOnlyList<OmsHidDeviceInfo>> hidDeviceProvider)
         {
             this.ruleset = ruleset;
+            this.hidDeviceProvider = hidDeviceProvider;
             selectedVariant.Value = ruleset.AvailableVariants.First();
         }
+
+        internal string DetectedDevicesSummary => detectedDevicesSummary;
 
         [BackgroundDependencyLoader]
         private void load()
@@ -221,7 +234,10 @@ namespace osu.Game.Rulesets.Bms
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
+            {
+                Interlocked.Increment(ref hidDiscoverySequence);
                 stopActiveCapture();
+            }
 
             base.Dispose(isDisposing);
         }
@@ -313,29 +329,60 @@ namespace osu.Game.Rulesets.Bms
             };
 
         private void refreshDetectedDevices()
+            => _ = refreshDetectedDevicesAsync();
+
+        private async Task refreshDetectedDevicesAsync()
         {
+            int refreshSequence = Interlocked.Increment(ref hidDiscoverySequence);
+
+            updateDetectedDevicesSummary("Detected HID devices: scanning...");
+            statusNote.Value = new SettingsNote.Data("Scanning connected HID devices...", SettingsNote.Type.Informational);
+
             try
             {
-                connectedDevices = OmsHidDeviceDiscovery.GetConnectedDevices();
-                detectedDevicesText.Text = buildDetectedDeviceSummary();
+                var devices = await enumerateDetectedDevicesAsync().ConfigureAwait(false);
 
-                if (connectedDevices.Count == 0)
+                Schedule(() =>
                 {
-                    statusNote.Value = new SettingsNote.Data("No compatible HID devices are currently connected. You can still enter a device identifier manually.", SettingsNote.Type.Informational);
-                    return;
-                }
+                    if (IsDisposed || refreshSequence != hidDiscoverySequence)
+                        return;
 
-                statusNote.Value = null;
+                    connectedDevices = devices;
+                    updateDetectedDevicesSummary(buildDetectedDeviceSummary());
+
+                    if (connectedDevices.Count == 0)
+                    {
+                        statusNote.Value = new SettingsNote.Data("No compatible HID devices are currently connected. You can still enter a device identifier manually.", SettingsNote.Type.Informational);
+                        return;
+                    }
+
+                    statusNote.Value = null;
+                });
             }
             catch (Exception e)
             {
                 Logger.Error(e, "Failed to enumerate connected HID devices for the BMS supplemental bindings editor.");
 
-                connectedDevices = Array.Empty<OmsHidDeviceInfo>();
-                detectedDevicesText.Text = "Detected HID devices: unavailable. You can still enter a device identifier manually.";
-                statusNote.Value = new SettingsNote.Data("Failed to enumerate HID devices. Manual identifier entry is still available.", SettingsNote.Type.Warning);
+                Schedule(() =>
+                {
+                    if (IsDisposed || refreshSequence != hidDiscoverySequence)
+                        return;
+
+                    connectedDevices = Array.Empty<OmsHidDeviceInfo>();
+                    updateDetectedDevicesSummary("Detected HID devices: unavailable. You can still enter a device identifier manually.");
+                    statusNote.Value = new SettingsNote.Data("Failed to enumerate HID devices. Manual identifier entry is still available.", SettingsNote.Type.Warning);
+                });
             }
         }
+
+        private void updateDetectedDevicesSummary(string summary)
+        {
+            detectedDevicesSummary = summary;
+            detectedDevicesText.Text = summary;
+        }
+
+        internal Task<IReadOnlyList<OmsHidDeviceInfo>> enumerateDetectedDevicesAsync()
+            => Task.Run(hidDeviceProvider);
 
         private string buildDetectedDeviceSummary()
         {

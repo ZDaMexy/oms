@@ -139,6 +139,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
     public partial class DefaultBmsResultsSummaryDisplay : CompositeDrawable, IBmsResultsSummaryDisplay
     {
+        private const float summary_section_spacing = 8;
+        private const float statistic_row_spacing = 6;
+        private const float statistic_tile_height = 54;
+
         private FillFlowContainer content = null!;
         private BmsResultsSummaryData? summary;
 
@@ -156,7 +160,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
                 Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 12),
+                Spacing = new Vector2(0, summary_section_spacing),
             };
 
             updateContent();
@@ -220,7 +224,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 10),
+                    Spacing = new Vector2(0, statistic_row_spacing),
                     Children = createRows().ToArray(),
                 };
             }
@@ -233,11 +237,15 @@ namespace osu.Game.Rulesets.Bms.UI
                     {
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
+                        RowDimensions = new[]
+                        {
+                            new Dimension(GridSizeMode.Absolute, statistic_tile_height),
+                        },
                         ColumnDimensions = new[]
                         {
-                            new Dimension(),
+                            new Dimension(GridSizeMode.Relative, 1),
                             new Dimension(GridSizeMode.Absolute, 10),
-                            new Dimension(),
+                            new Dimension(GridSizeMode.Relative, 1),
                         },
                         Content = new[]
                         {
@@ -257,13 +265,11 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             public StatisticTile(StatisticMetric metric)
             {
-                RelativeSizeAxes = Axes.X;
-                AutoSizeAxes = Axes.Y;
+                RelativeSizeAxes = Axes.Both;
 
                 InternalChild = new Container
                 {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
+                    RelativeSizeAxes = Axes.Both,
                     Masking = true,
                     CornerRadius = 9,
                     BorderThickness = 1,
@@ -279,27 +285,29 @@ namespace osu.Game.Rulesets.Bms.UI
                         {
                             RelativeSizeAxes = Axes.X,
                             AutoSizeAxes = Axes.Y,
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
                             Direction = FillDirection.Vertical,
                             Spacing = new Vector2(0, 4),
                             Padding = new MarginPadding
                             {
-                                Top = 12,
-                                Right = 14,
-                                Bottom = 12,
-                                Left = 14,
+                                Top = 9,
+                                Right = 12,
+                                Bottom = 9,
+                                Left = 12,
                             },
                             Children = new Drawable[]
                             {
                                 new OsuSpriteText
                                 {
                                     Text = metric.Label,
-                                    Font = OsuFont.GetFont(size: 11, weight: FontWeight.Bold),
+                                    Font = OsuFont.GetFont(size: 10, weight: FontWeight.Bold),
                                     Colour = BmsDefaultResultsPalette.StatisticLabel,
                                 },
                                 new OsuSpriteText
                                 {
                                     Text = metric.Value,
-                                    Font = OsuFont.GetFont(size: 17, weight: FontWeight.SemiBold),
+                                    Font = OsuFont.GetFont(size: 15, weight: FontWeight.SemiBold),
                                     Colour = BmsDefaultResultsPalette.StatisticValue,
                                 }
                             }
@@ -354,28 +362,28 @@ namespace osu.Game.Rulesets.Bms.UI
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
                         Direction = FillDirection.Vertical,
-                        Spacing = new Vector2(0, 4),
+                        Spacing = new Vector2(0, 2),
                         Padding = new MarginPadding
                         {
-                            Top = 12,
-                            Right = 16,
-                            Bottom = 12,
-                            Left = 20,
+                            Top = 10,
+                            Right = 14,
+                            Bottom = 10,
+                            Left = 18,
                         },
                         Children = new Drawable[]
                         {
                             label = new OsuSpriteText
                             {
                                 Text = "CLEAR LAMP",
-                                Font = OsuFont.GetFont(size: 12, weight: FontWeight.Bold),
+                                Font = OsuFont.GetFont(size: 11, weight: FontWeight.Bold),
                             },
                             lampValue = new OsuSpriteText
                             {
-                                Font = OsuFont.GetFont(size: 22, weight: FontWeight.Bold),
+                                Font = OsuFont.GetFont(size: 18, weight: FontWeight.Bold),
                             },
                             gaugeValue = new OsuSpriteText
                             {
-                                Font = OsuFont.GetFont(size: 13, weight: FontWeight.SemiBold),
+                                Font = OsuFont.GetFont(size: 12, weight: FontWeight.SemiBold),
                             },
                         }
                     }

@@ -7,6 +7,13 @@
 
 ## 2026-04-09
 
+### 1.17：Windows HidSharp 后端默认改为诊断开关，启动与设置不再因 HID 初始化闪退
+
+- `OmsHidSharpRuntime` 现已集中接管 Windows HID backend gate；由于 `HidSharp.DeviceList.Local` 可能以 `RegisterClass failed` 在内部线程直接终止进程，Windows 构建默认不再触发 HidSharp，仅在显式设置 `OMS_ENABLE_HIDSHARP=1` 时才继续初始化该后端
+- `OmsHidDeviceHandler` / `OmsHidDeviceDiscovery` 与设置页 supplemental editor 现都走同一层 gate；点击设置时看到的 HID-disabled 提示属于预期防崩溃降级，说明问题已收敛到待修复的 Windows HID 设备加载后端，而不是设置面板或皮肤系统本身挂死
+- 当前防崩溃策略下，键盘 / Raw Input / XInput / MouseAxis 主链保持可用，Release 启动已不再因 HidSharp 即时闪退；Windows HID backend 稳定化仍留在 1.17 输入专项后续工作中
+- `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsHidDeviceHandlerTest"` **11/11** 通过；`dotnet build .\osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过，并完成一次 Release 启动 smoke 验证未见即时崩溃
+
 ### Phase 1.1：OmsSkin mania hold-body 升格为实际 OMS-owned 实现
 
 - `OmsHoldNoteBodyPiece` 现已改为真实 `OmsManiaColumnElement` 路径下的实际实现，不再继承 `LegacyBodyPiece`；当前继续复用 `HoldNoteBodyImage` preset、legacy `NoteBodyStyle` / `HoldNoteLightImage` / `HoldNoteLightScale`，以及 hold-body light / fade / wrap-stretch 语义

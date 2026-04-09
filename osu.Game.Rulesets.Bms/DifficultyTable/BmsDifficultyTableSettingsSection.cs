@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -40,6 +41,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private SettingsButtonV2 refreshAllButton = null!;
         private OsuSpriteText summaryText = null!;
         private FillFlowContainer sourcesContainer = null!;
+        private IReadOnlyList<BmsDifficultyTableSourceInfo> visibleSources = Array.Empty<BmsDifficultyTableSourceInfo>();
+        private int managerLoadSequence;
+        private int sourcesRefreshSequence;
 
         [Resolved]
         private Storage storage { get; set; } = null!;
@@ -142,9 +146,6 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         {
             base.LoadComplete();
 
-            tableManager = BmsDifficultyTableManager.GetShared(storage);
-            tableManager.TableDataChanged += handleTableDataChanged;
-
             importPath.BindValueChanged(_ => updateActionStates(), true);
             operationInProgress.BindValueChanged(_ =>
             {
@@ -152,13 +153,20 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 refreshSources();
             }, true);
 
-            refreshSources();
+            showLoadingState();
+            _ = initialiseTableManagerAsync();
         }
 
         protected override void Dispose(bool isDisposing)
         {
-            if (isDisposing && tableManager != null)
-                tableManager.TableDataChanged -= handleTableDataChanged;
+            if (isDisposing)
+            {
+                Interlocked.Increment(ref managerLoadSequence);
+                Interlocked.Increment(ref sourcesRefreshSequence);
+
+                if (tableManager != null)
+                    tableManager.TableDataChanged -= handleTableDataChanged;
+            }
 
             base.Dispose(isDisposing);
         }
@@ -176,21 +184,114 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void updateActionStates()
         {
+            bool ready = tableManager != null;
             bool busy = operationInProgress.Value;
             bool hasImportPath = !string.IsNullOrWhiteSpace(importPath.Value);
-            bool hasRefreshableSources = tableManager != null && getVisibleSources().Any(source => !string.IsNullOrWhiteSpace(source.LocalPath));
+            bool hasRefreshableSources = visibleSources.Any(source => !string.IsNullOrWhiteSpace(source.LocalPath));
 
-            browseButton.Enabled.Value = performer != null && !busy;
-            importButton.Enabled.Value = hasImportPath && !busy;
-            refreshAllButton.Enabled.Value = hasRefreshableSources && !busy;
+            browseButton.Enabled.Value = performer != null && ready && !busy;
+            importButton.Enabled.Value = ready && hasImportPath && !busy;
+            refreshAllButton.Enabled.Value = ready && hasRefreshableSources && !busy;
         }
 
         private void refreshSources()
         {
-            IReadOnlyList<BmsDifficultyTableSourceInfo> sources = getVisibleSources();
-            int enabledEntries = sources.Where(source => source.Enabled).Sum(source => source.Entries.Count);
-            int enabledSources = sources.Count(source => source.Enabled);
+            _ = refreshSourcesAsync();
+        }
 
+        private async Task initialiseTableManagerAsync()
+        {
+            int loadSequence = Interlocked.Increment(ref managerLoadSequence);
+
+            try
+            {
+                var manager = await BmsDifficultyTableManager.GetSharedAsync(storage).ConfigureAwait(false);
+
+                Schedule(() =>
+                {
+                    if (IsDisposed || loadSequence != managerLoadSequence)
+                        return;
+
+                    tableManager = manager;
+                    tableManager.TableDataChanged -= handleTableDataChanged;
+                    tableManager.TableDataChanged += handleTableDataChanged;
+
+                    refreshSources();
+                    updateActionStates();
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to initialise the BMS difficulty table manager.");
+
+                Schedule(() =>
+                {
+                    if (IsDisposed || loadSequence != managerLoadSequence)
+                        return;
+
+                    visibleSources = Array.Empty<BmsDifficultyTableSourceInfo>();
+                    summaryText.Text = "Difficulty tables are unavailable.";
+                    sourcesContainer.Clear();
+                    sourcesContainer.Add(new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 13))
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Text = $"Failed to load difficulty tables: {getErrorMessage(ex)}",
+                    });
+                    updateActionStates();
+                });
+            }
+        }
+
+        private async Task refreshSourcesAsync()
+        {
+            if (tableManager == null)
+                return;
+
+            int refreshSequence = Interlocked.Increment(ref sourcesRefreshSequence);
+
+            try
+            {
+                var sources = await tableManager.GetSourcesAsync().ConfigureAwait(false);
+                var filteredSources = filterVisibleSources(sources);
+                int enabledEntries = filteredSources.Where(source => source.Enabled).Sum(source => source.Entries.Count);
+                int enabledSources = filteredSources.Count(source => source.Enabled);
+
+                Schedule(() =>
+                {
+                    if (IsDisposed || refreshSequence != sourcesRefreshSequence)
+                        return;
+
+                    visibleSources = filteredSources;
+                    applyVisibleSources(filteredSources, enabledSources, enabledEntries);
+                    updateActionStates();
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to load visible BMS difficulty table sources.");
+
+                Schedule(() =>
+                {
+                    if (IsDisposed || refreshSequence != sourcesRefreshSequence)
+                        return;
+
+                    visibleSources = Array.Empty<BmsDifficultyTableSourceInfo>();
+                    summaryText.Text = "Difficulty tables are unavailable.";
+                    sourcesContainer.Clear();
+                    sourcesContainer.Add(new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 13))
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Text = $"Failed to read difficulty tables: {getErrorMessage(ex)}",
+                    });
+                    updateActionStates();
+                });
+            }
+        }
+
+        private void applyVisibleSources(IReadOnlyList<BmsDifficultyTableSourceInfo> sources, int enabledSources, int enabledEntries)
+        {
             summaryText.Text = sources.Count == 0
                 ? "No local difficulty tables imported yet."
                 : $"{enabledSources} enabled source{(enabledSources == 1 ? string.Empty : "s")}, {enabledEntries} loaded entr{(enabledEntries == 1 ? "y" : "ies")}.";
@@ -217,14 +318,25 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             }));
         }
 
-        private IReadOnlyList<BmsDifficultyTableSourceInfo> getVisibleSources()
-            => tableManager.GetSources()
-                           .Where(source => !source.IsPreset || !string.IsNullOrWhiteSpace(source.LocalPath) || source.Entries.Count > 0)
-                           .OrderBy(source => source.SortOrder)
-                           .ThenBy(source => source.DisplayName, StringComparer.OrdinalIgnoreCase)
-                           .ToList();
+        private void showLoadingState()
+        {
+            summaryText.Text = "Loading difficulty tables...";
+            sourcesContainer.Clear();
+            sourcesContainer.Add(new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 13))
+            {
+                RelativeSizeAxes = Axes.X,
+                AutoSizeAxes = Axes.Y,
+                Text = "Preparing the local difficulty table cache in the background...",
+            });
+        }
 
-        private void handleTableDataChanged() => Schedule(refreshSources);
+        private static IReadOnlyList<BmsDifficultyTableSourceInfo> filterVisibleSources(IReadOnlyList<BmsDifficultyTableSourceInfo> sources)
+            => sources.Where(source => !source.IsPreset || !string.IsNullOrWhiteSpace(source.LocalPath) || source.Entries.Count > 0)
+                      .OrderBy(source => source.SortOrder)
+                      .ThenBy(source => source.DisplayName, StringComparer.OrdinalIgnoreCase)
+                      .ToList();
+
+        private void handleTableDataChanged() => refreshSources();
 
         private void openDirectoryPicker()
         {
@@ -240,7 +352,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void startImport()
         {
-            if (operationInProgress.Value)
+            if (tableManager == null || operationInProgress.Value)
                 return;
 
             string path = importPath.Value.Trim();
@@ -279,7 +391,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void startRefreshAll()
         {
-            if (operationInProgress.Value)
+            if (tableManager == null || operationInProgress.Value)
                 return;
 
             operationInProgress.Value = true;

@@ -217,6 +217,27 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(reconnectedChanges[0].AxisChange.Delta, Is.EqualTo(5));
         }
 
+        [Test]
+        public void TestDefaultProviderFallsBackWhenHidSharpInitialisationFails()
+        {
+            using var provider = OmsHidDeviceHandler.CreateDefaultDeviceProvider(() => throw new InvalidOperationException("HidSharp RegisterClass failed."));
+
+            Assert.That(provider.GetDevices(new[] { "iidx-pad" }), Is.Empty);
+        }
+
+        [Test]
+        public void TestHidSharpDisabledByDefaultOnWindows()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(OmsHidSharpRuntime.ShouldEnableHidSharp(null, isWindows: true), Is.False);
+                Assert.That(OmsHidSharpRuntime.ShouldEnableHidSharp("1", isWindows: true), Is.True);
+                Assert.That(OmsHidSharpRuntime.ShouldEnableHidSharp("true", isWindows: true), Is.True);
+                Assert.That(OmsHidSharpRuntime.ShouldEnableHidSharp("0", isWindows: true), Is.False);
+                Assert.That(OmsHidSharpRuntime.ShouldEnableHidSharp("false", isWindows: true), Is.False);
+            });
+        }
+
         private sealed class FakeHidButtonDeviceProvider : IOmsHidButtonDeviceProvider
         {
             private readonly List<IOmsHidButtonDevice> devices = new List<IOmsHidButtonDevice>();

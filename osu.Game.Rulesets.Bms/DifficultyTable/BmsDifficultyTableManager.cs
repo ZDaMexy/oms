@@ -50,6 +50,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             }
         }
 
+        public static Task<BmsDifficultyTableManager> GetSharedAsync(Storage storage, CancellationToken cancellationToken = default)
+            => Task.Run(() => GetShared(storage), cancellationToken);
+
         public BmsDifficultyTableManager(Storage storage)
         {
             try
@@ -108,6 +111,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             return results;
         }
+
+        public Task<IReadOnlyList<BmsDifficultyTableSourceInfo>> GetSourcesAsync(CancellationToken cancellationToken = default)
+            => Task.Run(() => GetSources(), cancellationToken);
 
         public IReadOnlyList<BmsDifficultyTableEntry> GetAllEntries(bool onlyEnabled = true)
         {

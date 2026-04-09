@@ -122,6 +122,34 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestSharedManagerAsyncReturnsSameInstanceForSameStorage()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-shared-async-{Guid.NewGuid():N}");
+
+            var first = await BmsDifficultyTableManager.GetSharedAsync(storage).ConfigureAwait(false);
+            var second = await BmsDifficultyTableManager.GetSharedAsync(storage).ConfigureAwait(false);
+
+            Assert.That(second, Is.SameAs(first));
+        }
+
+        [Test]
+        public async Task TestGetSourcesAsyncMatchesSynchronousSnapshot()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-get-sources-async-{Guid.NewGuid():N}");
+
+            var manager = new BmsDifficultyTableManager(storage);
+            var syncSources = manager.GetSources();
+            var asyncSources = await manager.GetSourcesAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(asyncSources.Select(source => source.ID), Is.EqualTo(syncSources.Select(source => source.ID)));
+                Assert.That(asyncSources.Select(source => source.SourceName), Is.EqualTo(syncSources.Select(source => source.SourceName)));
+                Assert.That(asyncSources.Select(source => source.DisplayName), Is.EqualTo(syncSources.Select(source => source.DisplayName)));
+            });
+        }
+
+        [Test]
         public async Task TestRefreshTableUpdatesEntriesAndEnabledLookupRespectsToggle()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-refresh-{Guid.NewGuid():N}");
