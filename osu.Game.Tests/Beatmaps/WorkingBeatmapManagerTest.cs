@@ -1,14 +1,19 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
 using osu.Framework.Extensions;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.Formats;
 using osu.Game.Collections;
 using osu.Game.Database;
 using osu.Game.Rulesets;
@@ -134,5 +139,67 @@ namespace osu.Game.Tests.Beatmaps
             Assert.That(preserveCollection.BeatmapMD5Hashes, Does.Contain(finalHash));
             Assert.That(noNewCollection.BeatmapMD5Hashes, Does.Not.Contain(finalHash));
         });
+
+        [Test]
+        public void TestFilesystemBackedBeatmapWithoutStandaloneStoryboardDoesNotLogError()
+        {
+            BeatmapSetInfo filesystemBackedSet = null!;
+            WorkingBeatmap working = null!;
+            LogEntry? storyboardError = null;
+
+            void handleLog(LogEntry entry)
+            {
+                if (entry.Message.StartsWith("Storyboard failed to load (file ", StringComparison.Ordinal))
+                    storyboardError = entry;
+            }
+
+            AddStep("create filesystem-backed beatmap", () =>
+            {
+                filesystemBackedSet = createFilesystemBackedBeatmapSetWithoutStoryboard();
+                working = beatmaps.GetWorkingBeatmap(filesystemBackedSet.Beatmaps.Single());
+            });
+            AddStep("subscribe logger", () => Logger.NewEntry += handleLog);
+            AddStep("load storyboard", () => _ = working.Storyboard);
+            AddAssert("storyboard loaded", () => working.Storyboard != null);
+            AddAssert("no missing storyboard error logged", () => storyboardError == null);
+            AddStep("unsubscribe logger", () => Logger.NewEntry -= handleLog);
+        }
+
+        private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard()
+        {
+            string relativePath = $"external-storyboard-test/{Guid.NewGuid()}";
+            string fullPath = LocalStorage.GetFullPath(relativePath, true);
+
+            ZipFile.ExtractToDirectory(TestResources.GetQuickTestBeatmapForImport(), fullPath);
+
+            foreach (string storyboardFile in Directory.GetFiles(fullPath, "*.osb", SearchOption.TopDirectoryOnly))
+                File.Delete(storyboardFile);
+
+            string beatmapPath = Directory.GetFiles(fullPath, "*.osu", SearchOption.TopDirectoryOnly).First();
+
+            BeatmapInfo beatmapInfo;
+
+            using (var beatmapStream = new LineBufferedReader(File.OpenRead(beatmapPath)))
+                beatmapInfo = Decoder.GetDecoder<Beatmap>(beatmapStream).Decode(beatmapStream).BeatmapInfo;
+
+            using (var hashStream = File.OpenRead(beatmapPath))
+            {
+                beatmapInfo.MD5Hash = hashStream.ComputeMD5Hash();
+                hashStream.Seek(0, SeekOrigin.Begin);
+                beatmapInfo.Hash = hashStream.ComputeSHA2Hash();
+            }
+
+            var beatmapSet = new BeatmapSetInfo
+            {
+                DateAdded = DateTimeOffset.UtcNow,
+                FilesystemStoragePath = relativePath.ToStandardisedPath(),
+            };
+
+            beatmapInfo.LocalFilePath = Path.GetFileName(beatmapPath);
+            beatmapInfo.BeatmapSet = beatmapSet;
+            beatmapSet.Beatmaps.Add(beatmapInfo);
+
+            return beatmapSet;
+        }
     }
 }

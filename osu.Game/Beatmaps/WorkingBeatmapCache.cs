@@ -352,7 +352,7 @@ namespace osu.Game.Beatmaps
                         {
                             storyboardFileStream = GetStream(storyboardFilename);
 
-                            if (storyboardFileStream == null)
+                            if (storyboardFileStream == null && string.IsNullOrEmpty(BeatmapSetInfo.FilesystemStoragePath))
                                 Logger.Log($"Storyboard failed to load (file {mainStoryboardFilename} not found on disk at expected location {storyboardFilename})", level: LogLevel.Error);
                         }
 
