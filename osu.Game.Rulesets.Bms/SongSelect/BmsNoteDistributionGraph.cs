@@ -18,6 +18,7 @@ using osuTK;
 using osuTK.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Extensions;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
@@ -83,17 +84,17 @@ namespace osu.Game.Rulesets.Bms.SongSelect
                 return;
             }
 
-            var difficultyTableSummaryLines = BuildDifficultyTableSummaryLines(workingBeatmap.BeatmapInfo.Metadata.GetDifficultyTableEntries());
+            var summaryLines = BuildSummaryLines(workingBeatmap.BeatmapInfo.Metadata);
 
             Guid cacheKey = workingBeatmap.BeatmapInfo.ID;
 
             if (cachedData.TryGetValue(cacheKey, out var cached))
             {
-                applyData(cached, difficultyTableSummaryLines);
+                applyData(cached, workingBeatmap.BeatmapInfo);
                 return;
             }
 
-            panel.SetState(new BmsNoteDistributionPanelState(null, difficultyTableSummaryLines, "Loading note distribution..."));
+            panel.SetState(new BmsNoteDistributionPanelState(null, summaryLines, "Loading note distribution..."));
 
             var cancellationSource = updateCancellationSource = new CancellationTokenSource();
             var token = cancellationSource.Token;
@@ -106,7 +107,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
                     if (task.IsFaulted || task.IsCanceled)
                     {
-                        panel.SetState(new BmsNoteDistributionPanelState(null, difficultyTableSummaryLines, "Note distribution unavailable."));
+                        panel.SetState(new BmsNoteDistributionPanelState(null, summaryLines, "Note distribution unavailable."));
                         return;
                     }
 
@@ -114,12 +115,12 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
                     if (result == null)
                     {
-                        panel.SetState(new BmsNoteDistributionPanelState(null, difficultyTableSummaryLines, "Note distribution unavailable."));
+                        panel.SetState(new BmsNoteDistributionPanelState(null, summaryLines, "Note distribution unavailable."));
                         return;
                     }
 
                     cachedData[cacheKey] = result;
-                    applyData(result, difficultyTableSummaryLines);
+                    applyData(result, workingBeatmap.BeatmapInfo);
                 }), token, TaskContinuationOptions.None, TaskScheduler.Default);
         }
 
@@ -133,6 +134,9 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
             var playableBeatmap = workingBeatmap.GetPlayableBeatmap(ruleset.RulesetInfo, Array.Empty<Mod>(), cancellationToken);
             var analysis = densityAnalyzer.Analyze(playableBeatmap, 1000, 1000);
+            var chartMetadata = playableBeatmap is BmsBeatmap bmsBeatmap
+                ? BmsChartMetadata.FromBeatmapInfo(bmsBeatmap.BmsInfo)
+                : null;
 
             return new BmsNoteDistributionData(
                 analysis.Windows.Select(window => new BmsNoteDistributionBucket(window.StartTime, window.WeightedNoteCount, window.NormalCount, window.ScratchCount, window.LnCount)).ToArray(),
@@ -140,11 +144,61 @@ namespace osu.Game.Rulesets.Bms.SongSelect
                 attributes.ScratchNoteCount,
                 attributes.LnNoteCount,
                 attributes.PeakDensityNps,
-                attributes.PeakDensityMs);
+                attributes.PeakDensityMs,
+                chartMetadata);
         }
 
-        private void applyData(BmsNoteDistributionData data, IReadOnlyList<string> difficultyTableSummaryLines)
-            => panel.SetState(new BmsNoteDistributionPanelState(data, difficultyTableSummaryLines, string.Empty));
+        private void applyData(BmsNoteDistributionData data, IBeatmapInfo beatmapInfo)
+            => panel.SetState(new BmsNoteDistributionPanelState(data, BuildSummaryLines(beatmapInfo.Metadata, data.ChartMetadata), string.Empty));
+
+        internal static IReadOnlyList<string> BuildSummaryLines(IBeatmapMetadataInfo metadata, BmsChartMetadata? fallbackChartMetadata = null)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+
+            return BuildSummaryLines(metadata.GetChartMetadata() ?? fallbackChartMetadata, metadata.Author.Username, metadata.GetDifficultyTableEntries());
+        }
+
+        internal static IReadOnlyList<string> BuildSummaryLines(BmsChartMetadata? chartMetadata, string? creator, IReadOnlyList<BmsDifficultyTableEntry> entries)
+        {
+            var lines = new List<string>();
+
+            lines.AddRange(BuildChartSummaryLines(chartMetadata, creator));
+            lines.AddRange(BuildDifficultyTableSummaryLines(entries));
+
+            return lines;
+        }
+
+        internal static IReadOnlyList<string> BuildChartSummaryLines(BmsChartMetadata? chartMetadata, string? creator = null)
+        {
+            if (chartMetadata == null)
+            {
+                if (string.IsNullOrWhiteSpace(creator))
+                    return Array.Empty<string>();
+
+                return new[] { $"Chart by: {creator}" };
+            }
+
+            var lines = new List<string>();
+
+            string? chartCreator = !string.IsNullOrWhiteSpace(creator)
+                ? creator
+                : chartMetadata.TryGetChartCreator();
+
+            if (!string.IsNullOrWhiteSpace(chartCreator))
+                lines.Add($"Chart by: {chartCreator}");
+            else if (!string.IsNullOrWhiteSpace(chartMetadata.SubArtist))
+                lines.Add($"Credit: {chartMetadata.SubArtist}");
+
+            string internalLevel = chartMetadata.GetInternalLevelDisplay();
+
+            if (!string.IsNullOrWhiteSpace(internalLevel))
+                lines.Add($"Internal level: {internalLevel}");
+
+            if (!string.IsNullOrWhiteSpace(chartMetadata.Subtitle))
+                lines.Add($"Subtitle: {chartMetadata.Subtitle}");
+
+            return lines;
+        }
 
         internal static IReadOnlyList<string> BuildDifficultyTableSummaryLines(IReadOnlyList<BmsDifficultyTableEntry> entries)
         {
@@ -234,18 +288,18 @@ namespace osu.Game.Rulesets.Bms.SongSelect
     {
         public BmsNoteDistributionData? Distribution { get; }
 
-        public IReadOnlyList<string> DifficultyTableSummaryLines { get; }
+        public IReadOnlyList<string> SummaryLines { get; }
 
         public string StatusText { get; }
 
         public bool HasDistribution => Distribution != null;
 
-        public bool HasDifficultyTableSummary => DifficultyTableSummaryLines.Count > 0;
+        public bool HasSummary => SummaryLines.Count > 0;
 
-        public BmsNoteDistributionPanelState(BmsNoteDistributionData? distribution, IReadOnlyList<string> difficultyTableSummaryLines, string statusText)
+        public BmsNoteDistributionPanelState(BmsNoteDistributionData? distribution, IReadOnlyList<string> summaryLines, string statusText)
         {
             Distribution = distribution;
-            DifficultyTableSummaryLines = difficultyTableSummaryLines;
+            SummaryLines = summaryLines;
             StatusText = statusText;
         }
     }
@@ -318,7 +372,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
         {
             difficultyTableContainer.Clear();
 
-            foreach (string line in state?.DifficultyTableSummaryLines ?? Array.Empty<string>())
+            foreach (string line in state?.SummaryLines ?? Array.Empty<string>())
                 difficultyTableContainer.Add(createSummaryText(line));
 
             var distribution = state?.Distribution;
@@ -345,7 +399,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
         }
 
         protected override bool HasContent(BmsNoteDistributionPanelState? state)
-            => state?.Distribution != null || state?.HasDifficultyTableSummary == true;
+            => state?.Distribution != null || state?.HasSummary == true;
 
         protected override LocalisableString GetStatusText(BmsNoteDistributionPanelState? state)
             => state?.StatusText ?? "Loading note distribution...";
@@ -610,7 +664,9 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
         public double PeakDensityMs { get; }
 
-        public BmsNoteDistributionData(IReadOnlyList<BmsNoteDistributionBucket> buckets, int totalNoteCount, int scratchNoteCount, int lnNoteCount, double peakDensityNps, double peakDensityMs)
+        public BmsChartMetadata? ChartMetadata { get; }
+
+        public BmsNoteDistributionData(IReadOnlyList<BmsNoteDistributionBucket> buckets, int totalNoteCount, int scratchNoteCount, int lnNoteCount, double peakDensityNps, double peakDensityMs, BmsChartMetadata? chartMetadata = null)
         {
             Buckets = buckets;
             TotalNoteCount = totalNoteCount;
@@ -618,6 +674,7 @@ namespace osu.Game.Rulesets.Bms.SongSelect
             LnNoteCount = lnNoteCount;
             PeakDensityNps = peakDensityNps;
             PeakDensityMs = peakDensityMs;
+            ChartMetadata = chartMetadata;
         }
     }
 

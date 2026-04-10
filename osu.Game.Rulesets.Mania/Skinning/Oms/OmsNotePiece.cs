@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
         private Drawable noteAnimation = null!;
 
-        private float? widthForNoteHeightScale;
+        private float? noteHeightReferenceWidth;
 
         public OmsNotePiece()
         {
@@ -32,11 +32,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         [BackgroundDependencyLoader]
         private void load(ISkinSource skin, IScrollingInfo scrollingInfo)
         {
-            widthForNoteHeightScale = skin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale))?.Value;
+            noteHeightReferenceWidth = GetColumnSkinConfig<float>(skin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale)?.Value;
 
             InternalChild = directionContainer = new Container
             {
-                Origin = Anchor.BottomCentre,
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
                 Child = noteAnimation = GetAnimation(skin) ?? Empty()
@@ -59,24 +58,32 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
             if (texture != null)
             {
-                float noteHeight = widthForNoteHeightScale ?? DrawWidth;
+                float noteHeight = noteHeightReferenceWidth ?? DrawWidth;
                 noteAnimation.Scale = Vector2.Divide(new Vector2(DrawWidth, noteHeight), texture.DisplayWidth);
             }
         }
 
         protected virtual void OnDirectionChanged(ValueChangedEvent<ScrollingDirection> direction)
+            => applyDisplayState(GetDisplayDirection(direction.NewValue));
+
+        private void applyDisplayState(ScrollingDirection displayDirection)
         {
-            if (direction.NewValue == ScrollingDirection.Up)
-            {
-                directionContainer.Anchor = Anchor.TopCentre;
-                directionContainer.Scale = new Vector2(1, -1);
-            }
-            else
-            {
-                directionContainer.Anchor = Anchor.BottomCentre;
-                directionContainer.Scale = Vector2.One;
-            }
+            directionContainer.Anchor = GetDisplayAnchor(displayDirection);
+            directionContainer.Origin = GetDisplayOrigin(displayDirection);
+            directionContainer.Scale = GetDisplayScale(displayDirection);
         }
+
+        protected virtual ScrollingDirection GetDisplayDirection(ScrollingDirection direction) => direction;
+
+        protected virtual Anchor GetDisplayAnchor(ScrollingDirection direction) => direction == ScrollingDirection.Up
+            ? Anchor.TopCentre
+            : Anchor.BottomCentre;
+
+        protected virtual Anchor GetDisplayOrigin(ScrollingDirection direction) => Anchor.BottomCentre;
+
+        protected virtual Vector2 GetDisplayScale(ScrollingDirection direction) => direction == ScrollingDirection.Up
+            ? new Vector2(1, -1)
+            : Vector2.One;
 
         protected virtual Drawable? GetAnimation(ISkinSource skin) => GetAnimationFromLookup(skin, LegacyManiaSkinConfigurationLookups.NoteImage);
 

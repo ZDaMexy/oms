@@ -18,7 +18,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             const string text = @"
 #TITLE Example Song
 #SUBTITLE Extra Stage
+#SUBARTIST obj: Test Charter
 #ARTIST Test Artist
+#COMMENT notes: dense ending
 #GENRE Hardcore
 #BPM 150
 #PLAYLEVEL 12
@@ -43,7 +45,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(result.BeatmapInfo.Title, Is.EqualTo("Example Song"));
                 Assert.That(result.BeatmapInfo.Subtitle, Is.EqualTo("Extra Stage"));
+                Assert.That(result.BeatmapInfo.SubArtist, Is.EqualTo("obj: Test Charter"));
                 Assert.That(result.BeatmapInfo.Artist, Is.EqualTo("Test Artist"));
+                Assert.That(result.BeatmapInfo.Comment, Is.EqualTo("notes: dense ending"));
                 Assert.That(result.BeatmapInfo.Genre, Is.EqualTo("Hardcore"));
                 Assert.That(result.BeatmapInfo.InitialBpm, Is.EqualTo(150).Within(0.001));
                 Assert.That(result.BeatmapInfo.PlayLevel, Is.EqualTo("12"));

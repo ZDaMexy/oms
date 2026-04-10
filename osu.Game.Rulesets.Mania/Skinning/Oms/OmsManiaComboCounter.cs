@@ -6,7 +6,9 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Game.Rulesets.Mania.Skinning.Legacy;
+using osu.Framework.Graphics.Sprites;
+using osu.Game.Graphics;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
@@ -29,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                 if (displayedCount.Equals(value))
                     return;
 
-                displayedCountText.FadeTo(value == 0 ? 0 : 1);
+                displayedCountText.Alpha = value == 0 ? 0 : 1;
                 displayedCountText.Text = value.ToString(CultureInfo.InvariantCulture);
                 counterContainer.Size = displayedCountText.Size;
 
@@ -41,15 +43,16 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
         private int previousValue;
 
-        private const double fade_out_duration = 100;
-        private const double rolling_duration = 20;
+        private const float increment_scale = 1.15f;
+        private const double increment_pulse_duration = 180;
+
+        private static readonly FontUsage counter_font = OsuFont.Numeric.With(size: 34, fixedWidth: true);
 
         private Container counterContainer = null!;
-        private LegacySpriteText popOutCountText = null!;
-        private LegacySpriteText displayedCountText = null!;
+        private OsuSpriteText displayedCountText = null!;
 
         [BackgroundDependencyLoader]
-        private void load(ISkinSource skin, ScoreProcessor scoreProcessor)
+        private void load(ScoreProcessor scoreProcessor)
         {
             AutoSizeAxes = Axes.Both;
 
@@ -60,29 +63,25 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     AlwaysPresent = true,
                     Children = new[]
                     {
-                        popOutCountText = new LegacySpriteText(LegacyFont.Combo)
-                        {
-                            Alpha = 0,
-                            Blending = BlendingParameters.Additive,
-                            BypassAutoSizeAxes = Axes.Both,
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Colour = skin.GetManiaSkinConfig<Color4>(LegacyManiaSkinConfigurationLookups.ComboBreakColour)?.Value ?? Color4.Red,
-                        },
-                        displayedCountText = new LegacySpriteText(LegacyFont.Combo)
-                        {
-                            Alpha = 0,
-                            AlwaysPresent = true,
-                            BypassAutoSizeAxes = Axes.Both,
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                        },
+                        displayedCountText = createCounterText(),
                     }
                 }
             };
 
             Current.BindTo(scoreProcessor.Combo);
         }
+
+        private static OsuSpriteText createCounterText() => new OsuSpriteText
+        {
+            Font = counter_font,
+            Shadow = false,
+            Alpha = 0,
+            AlwaysPresent = true,
+            BypassAutoSizeAxes = Axes.Both,
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Colour = Color4.White,
+        };
 
         [Resolved]
         private IScrollingInfo scrollingInfo { get; set; } = null!;
@@ -93,9 +92,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         {
             base.LoadComplete();
 
-            displayedCountText.Text = popOutCountText.Text = Current.Value.ToString(CultureInfo.InvariantCulture);
+            displayedCountText.Text = Current.Value.ToString(CultureInfo.InvariantCulture);
 
-            Current.BindValueChanged(combo => updateCount(combo.NewValue == 0), true);
+            Current.BindValueChanged(combo => updateCount(combo.NewValue), true);
 
             counterContainer.Size = displayedCountText.Size;
 
@@ -116,70 +115,24 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
             Y = Math.Abs(Y) * (direction.Value == ScrollingDirection.Up ? -1 : 1);
         }
 
-        private void updateCount(bool rolling)
+        private void updateCount(int newValue)
         {
-            int prev = previousValue;
-            previousValue = Current.Value;
+            int previousCount = previousValue;
+            previousValue = newValue;
 
             if (!IsLoaded)
                 return;
 
-            if (!rolling)
+            displayedCountText.ClearTransforms();
+            displayedCountText.Scale = Vector2.One;
+
+            DisplayedCount = newValue;
+
+            if (newValue > 0 && previousCount + 1 == newValue)
             {
-                FinishTransforms(false, nameof(DisplayedCount));
-
-                if (prev + 1 == Current.Value)
-                    onCountIncrement();
-                else
-                    onCountChange();
+                displayedCountText.ScaleTo(new Vector2(1f, increment_scale))
+                                  .ScaleTo(Vector2.One, increment_pulse_duration, Easing.OutQuint);
             }
-            else
-                onCountRolling();
-        }
-
-        private void onCountIncrement()
-        {
-            popOutCountText.Hide();
-
-            DisplayedCount = Current.Value;
-            displayedCountText.ScaleTo(new Vector2(1f, 1.4f))
-                              .ScaleTo(new Vector2(1f), 300, Easing.Out)
-                              .FadeIn(120);
-        }
-
-        private void onCountChange()
-        {
-            popOutCountText.Hide();
-
-            if (Current.Value == 0)
-                displayedCountText.FadeOut();
-
-            DisplayedCount = Current.Value;
-
-            displayedCountText.ScaleTo(1f);
-        }
-
-        private void onCountRolling()
-        {
-            if (DisplayedCount > 0)
-            {
-                popOutCountText.Text = DisplayedCount.ToString(CultureInfo.InvariantCulture);
-                popOutCountText.FadeTo(0.8f).FadeOut(200)
-                               .ScaleTo(1f).ScaleTo(4f, 200);
-
-                displayedCountText.FadeTo(0.5f, 300);
-            }
-
-            if (DisplayedCount == 0 && Current.Value == 0)
-                displayedCountText.FadeOut(fade_out_duration);
-
-            this.TransformTo(nameof(DisplayedCount), Current.Value, getProportionalDuration(DisplayedCount, Current.Value));
-        }
-
-        private double getProportionalDuration(int currentValue, int newValue)
-        {
-            double difference = currentValue > newValue ? currentValue - newValue : newValue - currentValue;
-            return difference * rolling_duration;
         }
     }
 }

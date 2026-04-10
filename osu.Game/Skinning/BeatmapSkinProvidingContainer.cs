@@ -66,15 +66,15 @@ namespace osu.Game.Skinning
         }
 
         private readonly ISkin skin;
-        private readonly ISkin? classicFallback;
+        private readonly ISkin? compatibilityFallback;
 
         private Bindable<Skin> currentSkin = null!;
 
-        public BeatmapSkinProvidingContainer(ISkin skin, ISkin? classicFallback = null)
+        public BeatmapSkinProvidingContainer(ISkin skin, ISkin? compatibilityFallback = null)
             : base(skin)
         {
             this.skin = skin;
-            this.classicFallback = classicFallback;
+            this.compatibilityFallback = compatibilityFallback;
         }
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
@@ -109,10 +109,10 @@ namespace osu.Game.Skinning
                 // In turn this can create an unexpected visual experience.
                 //
                 // So here, check what skin the user has selected. If it's already a legacy skin then we don't need to do anything special.
-                // If it isn't, we insert the classic default. Note that this is only done if the beatmap seems to be providing skin elements,
+                // If it isn't, we insert the OMS compatibility fallback. Note that this is only done if the beatmap seems to be providing skin elements,
                 // as we only want to override the user's (non-legacy) skin choice when required for beatmap skin visuals.
-                if (!userSkinIsLegacy && beatmapProvidingResources && classicFallback != null)
-                    SetSources(new[] { skin, classicFallback });
+                if (!userSkinIsLegacy && beatmapProvidingResources && compatibilityFallback != null)
+                    SetSources(new[] { skin, compatibilityFallback });
                 else
                     SetSources(new[] { skin });
             }, true);

@@ -65,6 +65,13 @@ namespace osu.Game.Rulesets.Bms.Tests
                 MD5Hash = matching_md5,
             };
 
+            beatmap.Metadata.SetChartMetadata(new BmsChartMetadata
+            {
+                Subtitle = "Extra Stage",
+                PlayLevel = "12",
+                HeaderDifficulty = 4,
+            });
+
             bool changed = index.ApplyTo(beatmap);
 
             Assert.Multiple(() =>
@@ -72,6 +79,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(changed, Is.True);
                 Assert.That(beatmap.Metadata.RulesetDataJson, Is.Not.Empty);
                 Assert.That(beatmap.Metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★7" }));
+                Assert.That(beatmap.Metadata.GetChartMetadata(), Is.Not.Null);
+                Assert.That(beatmap.Metadata.GetChartMetadata()!.Subtitle, Is.EqualTo("Extra Stage"));
+                Assert.That(beatmap.Metadata.GetChartMetadata()!.GetInternalLevelDisplay(), Is.EqualTo("Another 12"));
             });
         }
 

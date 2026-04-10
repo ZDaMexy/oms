@@ -345,7 +345,7 @@ namespace osu.Game.Skinning
                 yield return CurrentSkin.Value;
 
                 // OMS is the only built-in fallback surfaced by the product.
-                if (CurrentSkin.Value != DefaultOmsSkin)
+                if (CurrentSkin.Value.SkinInfo.ID != DefaultOmsSkin.SkinInfo.ID)
                     yield return DefaultOmsSkin;
             }
         }

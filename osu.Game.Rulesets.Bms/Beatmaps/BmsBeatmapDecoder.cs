@@ -254,8 +254,16 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     beatmapInfo.Subtitle = value;
                     return;
 
+                case "SUBARTIST":
+                    beatmapInfo.SubArtist = value;
+                    return;
+
                 case "ARTIST":
                     beatmapInfo.Artist = value;
+                    return;
+
+                case "COMMENT":
+                    beatmapInfo.Comment = value;
                     return;
 
                 case "GENRE":

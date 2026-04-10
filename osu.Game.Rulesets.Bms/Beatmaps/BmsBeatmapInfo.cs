@@ -17,7 +17,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public string Subtitle { get; set; } = string.Empty;
 
+        public string SubArtist { get; set; } = string.Empty;
+
         public string Artist { get; set; } = string.Empty;
+
+        public string Comment { get; set; } = string.Empty;
 
         public string Genre { get; set; } = string.Empty;
 
@@ -86,7 +90,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             {
                 Title = Title,
                 Subtitle = Subtitle,
+                SubArtist = SubArtist,
                 Artist = Artist,
+                Comment = Comment,
                 Genre = Genre,
                 InitialBpm = InitialBpm,
                 PlayLevel = PlayLevel,

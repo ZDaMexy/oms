@@ -6,6 +6,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 
@@ -22,7 +23,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             const string text = @"
 #TITLE Example Song
 #SUBTITLE Extra Stage
+#SUBARTIST obj: Test Charter
 #ARTIST Test Artist
+#COMMENT notes: dense ending
 #GENRE Hardcore
 #BPM 120
 #PLAYLEVEL 12
@@ -48,9 +51,17 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(converter.CanConvert(), Is.True);
                 Assert.That(convertedBeatmap.BmsInfo.Title, Is.EqualTo("Example Song"));
                 Assert.That(convertedBeatmap.BmsInfo.Subtitle, Is.EqualTo("Extra Stage"));
+                Assert.That(convertedBeatmap.BmsInfo.SubArtist, Is.EqualTo("obj: Test Charter"));
+                Assert.That(convertedBeatmap.BmsInfo.Comment, Is.EqualTo("notes: dense ending"));
                 Assert.That(convertedBeatmap.Metadata.Title, Is.EqualTo("Example Song"));
                 Assert.That(convertedBeatmap.Metadata.Artist, Is.EqualTo("Test Artist"));
+                Assert.That(convertedBeatmap.Metadata.Author.Username, Is.EqualTo("Test Charter"));
                 Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("background.png"));
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata(), Is.Not.Null);
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.Subtitle, Is.EqualTo("Extra Stage"));
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.SubArtist, Is.EqualTo("obj: Test Charter"));
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.PlayLevel, Is.EqualTo("12"));
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.HeaderDifficulty, Is.EqualTo(4));
                 Assert.That(convertedBeatmap.BeatmapInfo.DifficultyName, Is.EqualTo("Another 12"));
                 Assert.That(convertedBeatmap.BeatmapInfo.Ruleset.ShortName, Is.EqualTo("bms"));
                 Assert.That(convertedBeatmap.Difficulty.SliderMultiplier, Is.EqualTo(1).Within(0.001));

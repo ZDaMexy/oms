@@ -52,7 +52,7 @@ namespace osu.Game.Skinning
         [BackgroundDependencyLoader]
         private void load(SkinManager skinManager)
         {
-            InternalChild = new BeatmapSkinProvidingContainer(GetRulesetTransformedSkin(beatmapSkin), GetRulesetTransformedSkin(skinManager.DefaultClassicSkin))
+            InternalChild = new BeatmapSkinProvidingContainer(GetRulesetTransformedSkin(beatmapSkin), GetRulesetTransformedSkin(skinManager.DefaultOmsSkin))
             {
                 Child = Content,
             };
@@ -89,18 +89,38 @@ namespace osu.Game.Skinning
                 }
             }
 
-            // TODO: check
-            int lastDefaultSkinIndex = sources.IndexOf(sources.OfType<TrianglesSkin>().LastOrDefault());
+            int lastBuiltInSkinIndex = getLastBuiltInSkinIndex(sources);
 
-            // Ruleset resources should be given the ability to override game-wide defaults
-            // This is achieved by placing them before the last instance of DefaultSkin.
-            // Note that DefaultSkin may not be present in some test scenes.
-            if (lastDefaultSkinIndex >= 0)
-                sources.Insert(lastDefaultSkinIndex, rulesetResourcesSkin);
+            // Ruleset resources should override the product-facing built-in fallback chain,
+            // but should still sit behind any user-selected skin layers.
+            if (lastBuiltInSkinIndex >= 0)
+                sources.Insert(lastBuiltInSkinIndex, rulesetResourcesSkin);
             else
                 sources.Add(rulesetResourcesSkin);
 
             SetSources(sources);
+        }
+
+        private static int getLastBuiltInSkinIndex(IReadOnlyList<ISkin> sources)
+        {
+            for (int i = sources.Count - 1; i >= 0; i--)
+            {
+                if (isProtectedBuiltInSkinSource(sources[i]))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private static bool isProtectedBuiltInSkinSource(ISkin source)
+            => unwrapSkin(source) is Skin skin && skin.SkinInfo.PerformRead(s => s.Protected);
+
+        private static ISkin unwrapSkin(ISkin skin)
+        {
+            while (skin is ISkinTransformer transformer)
+                skin = transformer.Skin;
+
+            return skin;
         }
 
         protected ISkin GetRulesetTransformedSkin(ISkin skin)

@@ -11,6 +11,29 @@ namespace osu.Game.Rulesets.Bms.Tests
     public class BmsNoteDistributionGraphTest
     {
         [Test]
+        public void TestBuildSummaryLinesIncludesChartCreditAndInternalLevel()
+        {
+            var lines = BmsNoteDistributionGraph.BuildSummaryLines(
+                new BmsChartMetadata
+                {
+                    Subtitle = "Extra Stage",
+                    SubArtist = "obj: Test Charter",
+                    PlayLevel = "12",
+                    HeaderDifficulty = 4,
+                },
+                null,
+                Array.Empty<BmsDifficultyTableEntry>());
+
+            Assert.That(lines, Is.EqualTo(new[]
+            {
+                "Chart by: Test Charter",
+                "Internal level: Another 12",
+                "Subtitle: Extra Stage",
+                "Table: Unrated",
+            }));
+        }
+
+        [Test]
         public void TestBuildDifficultyTableSummaryLinesReturnsUnratedWhenNoEntries()
         {
             Assert.That(BmsNoteDistributionGraph.BuildDifficultyTableSummaryLines(Array.Empty<BmsDifficultyTableEntry>()),

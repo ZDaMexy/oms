@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(attributes.StarRating, Is.EqualTo(5.23211).Within(0.0001));
+                Assert.That(attributes.StarRating, Is.EqualTo(1.74541).Within(0.0001));
                 Assert.That(attributes.MaxCombo, Is.EqualTo(4));
                 Assert.That(attributes.TotalNoteCount, Is.EqualTo(4));
                 Assert.That(attributes.ScratchNoteCount, Is.EqualTo(1));

@@ -22,10 +22,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private readonly Column column;
 
         [Cached]
-        private readonly StageDefinition stageDefinition = new StageDefinition(5);
+        private readonly StageDefinition stageDefinition;
 
-        public ColumnTestContainer(int column, ManiaAction action, bool showColumn = false)
+        public ColumnTestContainer(int column, ManiaAction action, bool showColumn = false, int stageColumns = 5)
         {
+            stageDefinition = new StageDefinition(stageColumns);
+
             InternalChildren = new[]
             {
                 this.column = new Column(column, false)
@@ -33,7 +35,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Action = { Value = action },
                     Alpha = showColumn ? 1 : 0
                 },
-                content = new ManiaInputManager(new ManiaRuleset().RulesetInfo, 4)
+                content = new ManiaInputManager(new ManiaRuleset().RulesetInfo, stageColumns)
                 {
                     RelativeSizeAxes = Axes.Both
                 },

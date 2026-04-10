@@ -63,6 +63,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
         /// </summary>
         private readonly Lazy<bool> hasKeyTexture;
 
+        private readonly Lazy<bool> hasNoteTexture;
+        private readonly Lazy<bool> hasHoldHeadTexture;
+        private readonly Lazy<bool> hasHoldTailTexture;
+        private readonly Lazy<bool> hasHoldBodyTexture;
+        private readonly Lazy<bool> hasHitExplosionTexture;
+
         private readonly ManiaBeatmap beatmap;
         private readonly bool isBeatmapConverted;
 
@@ -78,6 +84,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                 string keyImage = this.GetManiaSkinConfig<string>(LegacyManiaSkinConfigurationLookups.KeyImage, 0)?.Value ?? "mania-key1";
                 return this.GetAnimation(keyImage, true, true) != null;
             });
+
+            hasNoteTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.NoteImage, "mania-note1", "mania-note2", "mania-noteS"));
+            hasHoldHeadTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.HoldNoteHeadImage, "mania-note1H", "mania-note2H", "mania-noteSH"));
+            hasHoldTailTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.HoldNoteTailImage, "mania-note1T", "mania-note2T", "mania-noteST"));
+            hasHoldBodyTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage, "mania-note1L", "mania-note2L", "mania-noteSL"));
+            hasHitExplosionTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.ExplosionImage, "lightingN"));
         }
 
         public override Drawable GetDrawableComponent(ISkinComponentLookup lookup)
@@ -156,19 +168,19 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                             return new LegacyKeyArea();
 
                         case ManiaSkinComponents.Note:
-                            return new LegacyNotePiece();
+                            return hasNoteTexture.Value ? new LegacyNotePiece() : null;
 
                         case ManiaSkinComponents.HoldNoteHead:
-                            return new LegacyHoldNoteHeadPiece();
+                            return hasHoldHeadTexture.Value || hasNoteTexture.Value ? new LegacyHoldNoteHeadPiece() : null;
 
                         case ManiaSkinComponents.HoldNoteTail:
-                            return new LegacyHoldNoteTailPiece();
+                            return hasHoldTailTexture.Value || hasHoldHeadTexture.Value || hasNoteTexture.Value ? new LegacyHoldNoteTailPiece() : null;
 
                         case ManiaSkinComponents.HoldNoteBody:
-                            return new LegacyBodyPiece();
+                            return hasHoldBodyTexture.Value ? new LegacyBodyPiece() : null;
 
                         case ManiaSkinComponents.HitExplosion:
-                            return new LegacyHitExplosion();
+                            return hasHitExplosionTexture.Value ? new LegacyHitExplosion() : null;
 
                         case ManiaSkinComponents.StageBackground:
                             return new LegacyStageBackground();
@@ -216,6 +228,19 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
             }
 
             return base.GetConfig<TLookup, TValue>(lookup);
+        }
+
+        private bool hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups lookup, params string[] fallbackNames)
+        {
+            for (int columnIndex = 0; columnIndex < beatmap.TotalColumns; columnIndex++)
+            {
+                string configuredImage = Skin.GetConfig<LegacyManiaSkinConfigurationLookup, string>(new LegacyManiaSkinConfigurationLookup(beatmap.TotalColumns, lookup, columnIndex))?.Value;
+
+                if (!string.IsNullOrWhiteSpace(configuredImage) && Skin.GetAnimation(configuredImage, true, true) != null)
+                    return true;
+            }
+
+            return fallbackNames.Any(name => Skin.GetAnimation(name, true, true) != null);
         }
     }
 }

@@ -15,12 +15,12 @@ namespace osu.Game.Rulesets.Bms.Difficulty
 {
     public class BmsDifficultyCalculator : DifficultyCalculator
     {
-        private const double stars_at_reference_density = 10;
+        private const double stars_at_reference_density = 5;
         private const double max_star_rating = 20;
 
         private readonly BmsNoteDensityAnalyzer densityAnalyzer = new BmsNoteDensityAnalyzer();
 
-        public override int Version => 20260402;
+        public override int Version => 20260409;
 
         public BmsDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -54,7 +54,7 @@ namespace osu.Game.Rulesets.Bms.Difficulty
                 return 0;
 
             double referenceDensity = getReferenceDensity(resolveKeymode(beatmap));
-            double starRating = stars_at_reference_density * Math.Sqrt(percentileDensityNps / referenceDensity);
+            double starRating = stars_at_reference_density * Math.Log2(1 + percentileDensityNps / referenceDensity);
 
             return Math.Clamp(starRating, 0, max_star_rating);
         }

@@ -48,7 +48,7 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 
 当前仓库状态说明：
 
-- 上述第 2 条尚未满足。BMS 默认层已完成七批 OMS-owned slice，但 mania 侧当前已完成第一批 Stage / Column / Key shell 的组件、layout、behaviour、shared asset、首批 shell colour 与首批 stage-local key asset 收口，以及第二批首个 stage-local note/hold asset slice、首个 explicit normal-note / hold-note-head / hold-note-tail / hold-note-body component slice、首个 shared judgement asset slice、首个 shared judgement-position slice、首个 shared bar-line config slice、首个 explicit judgement / bar-line / combo counter / hitburst component slice；当前这批 non-column shared preset 在 mixed-stage 路径下也已固定复用第一 stage preset，不再落回 total-columns legacy 默认值，`OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` 也已升格为实际 OMS-owned 组件，但 note / hold / combo/HUD / bar-line 仍继续复用部分 legacy 语义，因此 mania 默认路径迁移仍未完成。
+- 上述第 2 条尚未满足。BMS 默认层已完成七批 OMS-owned slice，但 mania 侧当前已完成第一批 Stage / Column / Key shell 的组件、layout、behaviour、shared asset、首批 shell colour 与首批 stage-local key asset 收口，以及第二批首个 stage-local note/hold asset slice、首个 explicit normal-note / hold-note-head / hold-note-tail / hold-note-body component slice、首个 shared judgement asset slice、首个 shared judgement-position slice、首个 shared bar-line config slice、首个 explicit judgement / bar-line / combo counter / hitburst component slice；当前这批 non-column shared preset 在 mixed-stage 路径下也已固定复用第一 stage preset，不再落回 total-columns legacy 默认值，`WidthForNoteHeightScale` 也已收口到 `OmsManiaLayoutPreset` 并由 `OmsNotePiece` 按列读取，因此 mixed-stage note-height 不再复用错误 stage 的默认值；`OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` 也已升格为实际 OMS-owned 组件，但 note scrolling、tail inversion、combo/HUD / bar-line 等路径仍继续复用部分 legacy 语义，因此 mania 默认路径迁移仍未完成。
 
 ## 用户数据存储
 
@@ -57,9 +57,14 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 | `%APPDATA%/oms/` | 默认用户数据目录（Release 构建） |
 | `%APPDATA%/oms-development/` | Debug 构建隔离目录 |
 | `songs/` | BMS 谱面目录（位于用户数据目录下） |
+| `client.realm` | 主 Realm 数据库（位于用户数据目录下） |
+| `files/` | 通用哈希文件仓库（成绩附件 / replay 等） |
+| `bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |
+| `storage.ini` | 可选的单一自定义数据根重定向配置 |
 
-- 用户数据目录与程序文件夹**分离**，覆盖更新不会影响已导入的谱面、成绩、设置和难度表缓存
-- 用户可通过游戏内设置迁移数据目录（写入 `storage.ini`）
+- 官方当前默认仍采用“程序目录 + 独立用户数据目录”布局，覆盖更新不会影响已导入的谱面、成绩、设置和难度表缓存
+- `OsuStorage` 已支持通过游戏内迁移流程写入 `storage.ini`，把全部运行时数据迁移到单一自定义数据根
+- 当前尚未把“程序 + 数据开箱即同包”作为正式发行基线；若后续需要这类模式，优先采用程序目录内独立 `data/` 子目录，而不是把可变数据直接与二进制混放
 
 ## 版本更新流程
 
@@ -67,7 +72,7 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 2. 解压覆盖到当前程序文件夹（覆盖所有文件）
 3. 启动 `osu!.exe`
 
-**无需重新导入** BMS 目录——用户数据保存在 `%APPDATA%/oms/`，不受程序文件覆盖影响。
+**无需重新导入** BMS 目录——默认用户数据保存在 `%APPDATA%/oms/`；若已迁移，则继续保存在 `storage.ini` 指向的数据根中，不受程序文件覆盖影响。
 
 ## 冒烟测试
 

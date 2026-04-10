@@ -31,6 +31,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             const string text = @"
 #TITLE Example Song
+#SUBARTIST obj: OMS Charter
 #ARTIST Test Artist
 #BPM 150
 #PLAYLEVEL 12
@@ -53,7 +54,11 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(beatmap.BeatmapInfo.Ruleset.ShortName, Is.EqualTo(BmsRuleset.SHORT_NAME));
                 Assert.That(beatmap.BeatmapInfo.Metadata.Title, Is.EqualTo("Example Song"));
                 Assert.That(beatmap.BeatmapInfo.Metadata.Artist, Is.EqualTo("Test Artist"));
+                Assert.That(beatmap.BeatmapInfo.Metadata.Author.Username, Is.EqualTo("OMS Charter"));
                 Assert.That(beatmap.BeatmapInfo.Metadata.BackgroundFile, Is.EqualTo("stage.png"));
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartMetadata(), Is.Not.Null);
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartMetadata()!.PlayLevel, Is.EqualTo("12"));
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartMetadata()!.HeaderDifficulty, Is.EqualTo(4));
                 Assert.That(beatmap.BeatmapInfo.Difficulty.CircleSize, Is.EqualTo(5));
                 Assert.That(beatmap.BeatmapInfo.DifficultyName, Is.EqualTo("Another 12"));
                 Assert.That(beatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(1));

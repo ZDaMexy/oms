@@ -8,10 +8,15 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Animations;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Judgements;
+using osu.Game.Database;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
@@ -30,7 +35,9 @@ using osu.Game.Screens.Play.HUD.HitErrorMeters;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Components;
 using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Tests.Beatmaps;
 using osu.Game.Tests.Visual;
+using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Tests.Skinning
@@ -47,6 +54,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
         [Resolved]
         private SkinManager skinManager { get; set; } = null!;
+
+        [Resolved]
+        private IRenderer renderer { get; set; } = null!;
 
         public TestSceneOmsBuiltInSkin()
         {
@@ -84,6 +94,284 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 skinManager.CurrentSkinInfo.Value = skinManager.GetAllUsableSkins().Single(s => s.ID == OmsSkin.CreateInfo().ID));
 
             AddAssert("current skin is OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+        }
+
+        [TestCaseSource(nameof(upstreamProtectedSkinIds))]
+        public void TestUpstreamProtectedSkinIdsFallbackToOms(string skinName, Guid skinId)
+        {
+            AddStep($"set skin from {skinName} id", () => skinManager.SetSkinFromConfiguration(skinId.ToString()));
+
+            AddAssert("current skin info is OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+            AddAssert("current skin instance is OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+        }
+
+        [Test]
+        public void TestLegacyBeatmapCompatibilityFallbackUsesOmsSkin()
+        {
+            BeatmapSkinProvidingContainer provider = null!;
+
+            AddStep("set current skin to triangles", () => skinManager.CurrentSkinInfo.Value = TrianglesSkin.CreateInfo().ToLiveUnmanaged());
+
+            AddStep("setup ruleset provider", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Child = new RulesetSkinProvidingContainer(ruleset, beatmap, new LegacyResourceBeatmapSkin(renderer))
+                {
+                    Child = new Container(),
+                };
+
+                provider = this.ChildrenOfType<BeatmapSkinProvidingContainer>().Single();
+            });
+
+            AddUntilStep("compatibility fallback available", () => provider.AllSources.Skip(1).FirstOrDefault() != null);
+            AddAssert("compatibility fallback wraps OMS skin", () => unwrapSkin(provider.AllSources.ElementAt(1)) is OmsSkin);
+        }
+
+        [Test]
+        public void TestRulesetResourcesPrecedeOmsBuiltInFallback()
+        {
+            Drawable host = null!;
+            RulesetSkinProvidingContainer provider = null!;
+            string sourceOrder = string.Empty;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load ruleset provider with OMS fallback", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = provider = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                {
+                    Child = new Container(),
+                });
+            });
+
+            AddUntilStep("ruleset provider sources loaded", () => provider.AllSources.Count() >= 2);
+            AddStep("capture source order", () => sourceOrder = string.Join(" -> ", provider.AllSources.Select(describeSkinSource)));
+            AddAssert("ruleset resources precede OMS fallback", () => sourceOrder, () => Is.EqualTo("ResourceStoreBackedSkin -> OmsSkin"));
+
+            AddStep("clear ruleset provider", () => host.Expire());
+        }
+
+        [Test]
+        public void TestRulesetResourcesPrecedeOmsFallbackForLegacyUserSkin()
+        {
+            Drawable host = null!;
+            RulesetSkinProvidingContainer provider = null!;
+            string sourceOrder = string.Empty;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load ruleset provider with legacy user skin", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(new EmptyLegacyUserSkin())
+                {
+                    Child = provider = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = new Container(),
+                    },
+                });
+            });
+
+            AddUntilStep("wrapped ruleset provider sources loaded", () => provider.AllSources.Count() >= 3);
+            AddStep("capture wrapped source order", () => sourceOrder = string.Join(" -> ", provider.AllSources.Select(describeSkinSource)));
+            AddAssert("ruleset resources sit between legacy user and OMS fallback", () => sourceOrder, () => Is.EqualTo("EmptyLegacyUserSkin -> ResourceStoreBackedSkin -> OmsSkin"));
+
+            AddStep("clear wrapped ruleset provider", () => host.Expire());
+        }
+
+        [Test]
+        public void TestLegacyUserSkinWithoutNoteAssetsFallsBackToOmsNotePiece()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load key-only legacy user skin note host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(new KeyOnlyLegacyUserSkin(renderer))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("column host loaded", () => columnHost.IsLoaded);
+            AddStep("add note under key-only legacy user skin", () => columnHost.Add(new TestDrawableNote(new Note
+            {
+                Column = 0,
+                StartTime = Time.Current,
+            })
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            }));
+
+            AddUntilStep("OMS note piece loaded through legacy partial override", () => this.ChildrenOfType<OmsNotePiece>().Any(drawable => drawable.IsLoaded));
+            AddAssert("legacy note piece not used when note assets are missing", () => !this.ChildrenOfType<LegacyNotePiece>().Any());
+            AddStep("clear key-only legacy note host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestLegacyUserSkinWithoutHoldBodyAssetsFallsBackToOmsHoldBodyPiece()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load key-only legacy user skin hold host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(new KeyOnlyLegacyUserSkin(renderer))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("hold column host loaded", () => columnHost.IsLoaded);
+            AddStep("add hold note under key-only legacy user skin", () =>
+            {
+                var holdNote = new HoldNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                    Duration = 500,
+                };
+
+                holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+
+                columnHost.Add(new TestDrawableHoldNote(holdNote)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold body piece loaded through legacy partial override", () => this.ChildrenOfType<OmsHoldNoteBodyPiece>().Any(drawable => drawable.IsLoaded));
+            AddAssert("legacy hold body piece not used when body assets are missing", () => !this.ChildrenOfType<LegacyBodyPiece>().Any());
+            AddStep("clear key-only legacy hold host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestLegacyUserSkinWithoutJudgementAssetsFallsBackToOmsJudgementPiece()
+        {
+            Drawable host = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load key-only legacy user skin judgement host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                var judgement = new DrawableManiaJudgement
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                };
+
+                judgement.Apply(new JudgementResult(new HitObject { StartTime = Time.Current }, new Judgement())
+                {
+                    Type = HitResult.Great,
+                }, null);
+
+                Add(host = new SkinProvidingContainer(new KeyOnlyLegacyUserSkin(renderer))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = judgement,
+                    },
+                });
+            });
+
+            AddUntilStep("OMS judgement piece loaded through legacy partial override", () => this.ChildrenOfType<OmsManiaJudgementPiece>().Any(drawable => drawable.IsLoaded));
+            AddAssert("legacy judgement piece not used when judgement assets are missing", () => !this.ChildrenOfType<LegacyManiaJudgementPiece>().Any());
+            AddStep("clear key-only legacy judgement host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestLegacyUserSkinWithoutHitExplosionAssetsFallsBackToOmsHitExplosion()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load key-only legacy user skin hit explosion host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(new KeyOnlyLegacyUserSkin(renderer))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("hit explosion column host loaded", () => columnHost.IsLoaded);
+            AddStep("add hit explosion under key-only legacy user skin", () => columnHost.Add(new PoolableHitExplosion
+            {
+                RelativeSizeAxes = Axes.Both,
+            }));
+
+            AddUntilStep("OMS hit explosion loaded through legacy partial override", () => this.ChildrenOfType<OmsHitExplosion>().Any(drawable => drawable.IsLoaded));
+            AddAssert("legacy hit explosion not used when explosion assets are missing", () => !this.ChildrenOfType<LegacyHitExplosion>().Any());
+            AddStep("clear key-only legacy hit explosion host", () => host.Expire());
         }
 
         [Test]
@@ -291,6 +579,146 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         }
 
         [Test]
+        public void TestOmsNotePieceUsesStageLocalNoteHeightForMixedStages()
+        {
+            Drawable host = null!;
+            ColumnTestContainer firstColumnHost = null!;
+            ColumnTestContainer secondColumnHost = null!;
+            OmsNotePiece firstNotePiece = null!;
+            OmsNotePiece secondNotePiece = null!;
+            float expectedHeightRatio = 0;
+
+            AddStep("load mixed-stage OMS note host", () =>
+            {
+                var transformedSkin = createTransformedSkin(7, 6);
+
+                expectedHeightRatio = getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0)
+                                      / getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 7);
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new FillFlowContainer
+                    {
+                        Direction = FillDirection.Horizontal,
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        AutoSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            firstColumnHost = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 7)
+                            {
+                                Width = 80,
+                                Height = 200,
+                            },
+                            secondColumnHost = new ColumnTestContainer(7, ManiaAction.Key1, stageColumns: 6)
+                            {
+                                Width = 80,
+                                Height = 200,
+                            },
+                        },
+                    }
+                });
+            });
+
+            AddUntilStep("mixed note hosts loaded", () => firstColumnHost.IsLoaded && secondColumnHost.IsLoaded);
+
+            AddStep("add first-stage note", () => firstColumnHost.Add(new TestDrawableNote(new Note
+            {
+                Column = 0,
+                StartTime = Time.Current,
+            })
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            }));
+
+            AddStep("add second-stage note", () => secondColumnHost.Add(new TestDrawableNote(new Note
+            {
+                Column = 7,
+                StartTime = Time.Current,
+            })
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            }));
+
+            AddUntilStep("mixed-stage note pieces loaded", () =>
+            {
+                var loadedFirstPiece = firstColumnHost.ChildrenOfType<OmsNotePiece>().FirstOrDefault(drawable => drawable.IsLoaded && drawable.DrawHeight > 0);
+                var loadedSecondPiece = secondColumnHost.ChildrenOfType<OmsNotePiece>().FirstOrDefault(drawable => drawable.IsLoaded && drawable.DrawHeight > 0);
+
+                if (loadedFirstPiece == null || loadedSecondPiece == null)
+                    return false;
+
+                firstNotePiece = loadedFirstPiece;
+                secondNotePiece = loadedSecondPiece;
+                return true;
+            });
+
+            AddAssert("first-stage note piece keeps taller 7K profile", () => firstNotePiece.DrawHeight > secondNotePiece.DrawHeight);
+            AddAssert("mixed-stage note pieces follow stage-local note height config", () => Math.Abs(firstNotePiece.DrawHeight / secondNotePiece.DrawHeight - expectedHeightRatio) < 0.01f);
+            AddStep("clear mixed-stage note host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsNotePieceUsesOwnedScrollingDisplayState()
+        {
+            Drawable host = null!;
+            Container? directionContainer = null;
+
+            AddStep("load OMS note direction host", () =>
+            {
+                var columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                };
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost,
+                });
+
+                columnHost.Add(new TestDrawableNote(new Note
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                })
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS note loaded for direction test", () =>
+            {
+                var notePiece = this.ChildrenOfType<OmsNotePiece>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (notePiece == null)
+                    return false;
+
+                directionContainer = notePiece.ChildrenOfType<Container>().FirstOrDefault(drawable => drawable.Parent == notePiece);
+                return directionContainer != null;
+            });
+
+            AddAssert("note defaults to downward anchor", () => directionContainer!.Anchor, () => Is.EqualTo(Anchor.BottomCentre));
+            AddAssert("note defaults to explicit bottom origin", () => directionContainer!.Origin, () => Is.EqualTo(Anchor.BottomCentre));
+            AddAssert("note defaults to downward scale", () => directionContainer!.Scale == Vector2.One);
+
+            AddStep("set scrolling upward", () => scrollingInfo.Direction.Value = ScrollingDirection.Up);
+            AddUntilStep("note flips for upward scroll", () => directionContainer?.Anchor == Anchor.TopCentre);
+            AddAssert("note keeps explicit bottom origin when flipped", () => directionContainer!.Origin, () => Is.EqualTo(Anchor.BottomCentre));
+            AddUntilStep("note uses upward display scale", () => directionContainer?.Scale == new Vector2(1, -1));
+
+            AddStep("set scrolling downward", () => scrollingInfo.Direction.Value = ScrollingDirection.Down);
+            AddUntilStep("note resets for downward scroll", () => directionContainer?.Anchor == Anchor.BottomCentre);
+            AddUntilStep("note restores downward scale", () => directionContainer?.Scale == Vector2.One);
+
+            AddStep("clear note direction host", () => host.Expire());
+        }
+
+        [Test]
         public void TestOmsHoldNoteHeadPieceLoads()
         {
             Drawable host = null!;
@@ -352,6 +780,58 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddUntilStep("OMS hold note tail piece loaded", () => this.ChildrenOfType<OmsHoldNoteTailPiece>().Any(drawable => drawable.IsLoaded));
             AddStep("clear hold note tail host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteTailUsesInvertedScrollingDirection()
+        {
+            Drawable host = null!;
+            Container? directionContainer = null;
+
+            AddStep("load OMS hold note tail direction host", () =>
+            {
+                var columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                };
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost,
+                });
+
+                columnHost.Add(new TestDrawableHoldNoteTail(new TailNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                })
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold note tail loaded for direction test", () =>
+            {
+                var tailPiece = this.ChildrenOfType<OmsHoldNoteTailPiece>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (tailPiece == null)
+                    return false;
+
+                directionContainer = tailPiece.ChildrenOfType<Container>().FirstOrDefault(drawable => drawable.Parent == tailPiece);
+                return directionContainer != null;
+            });
+
+            AddAssert("hold tail defaults to downward inverted anchor", () => directionContainer!.Anchor, () => Is.EqualTo(Anchor.TopCentre));
+            AddAssert("hold tail defaults to downward inverted scale", () => directionContainer!.Scale == new Vector2(1, -1));
+            AddStep("set scrolling upward", () => scrollingInfo.Direction.Value = ScrollingDirection.Up);
+            AddUntilStep("hold tail flips for upward scroll", () => directionContainer?.Anchor == Anchor.BottomCentre);
+            AddUntilStep("hold tail resets scale for upward scroll", () => directionContainer?.Scale == Vector2.One);
+            AddStep("set scrolling downward", () => scrollingInfo.Direction.Value = ScrollingDirection.Down);
+            AddUntilStep("hold tail flips for downward scroll", () => directionContainer?.Anchor == Anchor.TopCentre);
+            AddUntilStep("hold tail restores inverted scale", () => directionContainer?.Scale == new Vector2(1, -1));
+            AddStep("clear hold tail direction host", () => host.Expire());
         }
 
         [Test]
@@ -439,11 +919,121 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
 
             AddAssert("hold body defaults to downward anchor", () => bodyAnimation!.Anchor, () => Is.EqualTo(Anchor.TopCentre));
+            AddAssert("hold body defaults to OMS stretch scale", () => bodyAnimation!.Scale == Vector2.One);
             AddStep("set scrolling upward", () => scrollingInfo.Direction.Value = ScrollingDirection.Up);
             AddUntilStep("hold body flips for upward scroll", () => bodyAnimation?.Anchor == Anchor.BottomCentre);
+            AddUntilStep("hold body flips scale for upward scroll", () => bodyAnimation?.Scale == new Vector2(1, -1));
             AddStep("set scrolling downward", () => scrollingInfo.Direction.Value = ScrollingDirection.Down);
             AddUntilStep("hold body flips for downward scroll", () => bodyAnimation?.Anchor == Anchor.TopCentre);
+            AddUntilStep("hold body resets scale for downward scroll", () => bodyAnimation?.Scale == Vector2.One);
             AddStep("clear hold body direction host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteBodyDoesNotAddLegacyHitLighting()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+            TestDrawableHoldNote drawableHoldNote = null!;
+            int initialInsetContainerCount = 0;
+
+            AddStep("load OMS hold note light host", () =>
+            {
+                var holdNote = new HoldNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                    Duration = 500,
+                };
+
+                holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                });
+
+                columnHost.Add(drawableHoldNote = new TestDrawableHoldNote(holdNote)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            });
+
+            AddUntilStep("OMS hold note body piece loaded for light test", () => this.ChildrenOfType<OmsHoldNoteBodyPiece>().Any(drawable => drawable.IsLoaded));
+            AddStep("capture baseline inset container count", () => initialInsetContainerCount = columnHost.ChildrenOfType<HitTargetInsetContainer>().Count());
+            AddStep("force hold note holding state", () => drawableHoldNote.ForceHoldingState(true));
+            AddUntilStep("forced holding state applied", () => drawableHoldNote.IsHolding.Value);
+            AddAssert("hold body adds no legacy hit-light container", () => columnHost.ChildrenOfType<HitTargetInsetContainer>().Count() == initialInsetContainerCount);
+            AddStep("clear hold note light host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHoldNoteBodyDoesNotApplyLegacyMissFade()
+        {
+            Drawable host = null!;
+            TestDrawableHoldNote drawableHoldNote = null!;
+            Drawable? bodyAnimation = null;
+            Color4 initialBodyColour = default;
+            Color4 initialHeadColour = default;
+            Color4 initialTailColour = default;
+
+            AddStep("load OMS hold note miss-fade host", () =>
+            {
+                var holdNote = new HoldNote
+                {
+                    Column = 0,
+                    StartTime = Time.Current,
+                    Duration = 500,
+                };
+
+                holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(5))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = drawableHoldNote = new TestDrawableHoldNote(holdNote)
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("OMS hold note body piece loaded for miss-fade test", () =>
+            {
+                var bodyPiece = this.ChildrenOfType<OmsHoldNoteBodyPiece>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (bodyPiece == null)
+                    return false;
+
+                bodyAnimation = bodyPiece.ChildrenOfType<TextureAnimation>().FirstOrDefault() as Drawable
+                                ?? bodyPiece.ChildrenOfType<Sprite>().FirstOrDefault();
+
+                return bodyAnimation != null && drawableHoldNote.Head.IsLoaded && drawableHoldNote.Tail.IsLoaded;
+            });
+
+            AddStep("capture initial hold colours", () =>
+            {
+                initialBodyColour = bodyAnimation!.Colour;
+                initialHeadColour = drawableHoldNote.Head.Colour;
+                initialTailColour = drawableHoldNote.Tail.Colour;
+            });
+
+            AddStep("force hold body miss", () => drawableHoldNote.TestBody.ForceMissForTesting());
+            AddUntilStep("forced hold body miss applied", () => drawableHoldNote.TestBody.HasHoldBreak);
+            AddAssert("hold body keeps body colour after miss", () => coloursMatch(bodyAnimation!.Colour, initialBodyColour));
+            AddAssert("hold body keeps head colour after miss", () => coloursMatch(drawableHoldNote.Head.Colour, initialHeadColour));
+            AddAssert("hold body keeps tail colour after miss", () => coloursMatch(drawableHoldNote.Tail.Colour, initialTailColour));
+            AddStep("clear hold note miss-fade host", () => host.Expire());
         }
 
         [Test]
@@ -521,6 +1111,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
 
             AddUntilStep("OMS combo counter loaded", () => this.ChildrenOfType<OmsManiaComboCounter>().Any(drawable => drawable.IsLoaded));
+            AddAssert("combo counter no longer uses legacy sprite text", () => this.ChildrenOfType<OmsManiaComboCounter>().All(drawable => !drawable.ChildrenOfType<LegacySpriteText>().Any()));
             AddStep("clear combo counter host", () => host.Expire());
         }
 
@@ -704,6 +1295,47 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         }
 
         [Test]
+        public void TestOmsHudComboCounterClearsImmediatelyOnBreak()
+        {
+            Drawable host = null!;
+            OmsManiaComboCounter comboCounter = null!;
+
+            AddStep("reset combo", () => scoreProcessor.Combo.Value = 0);
+
+            AddStep("load OMS HUD combo", () =>
+            {
+                var transformedSkin = createTransformedSkin(5);
+                var hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+
+                comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
+
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable != comboCounter).ToArray())
+                    hudComponents.Remove(drawable, false);
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = hudComponents,
+                });
+            });
+
+            AddUntilStep("OMS HUD combo loaded", () => comboCounter.IsLoaded);
+            AddAssert("combo counter uses a single OMS text node", () => comboCounter.ChildrenOfType<OsuSpriteText>().Count() == 1);
+
+            AddStep("set combo to 12", () => scoreProcessor.Combo.Value = 12);
+            AddAssert("combo display syncs immediately", () => comboCounter.DisplayedCount == 12);
+
+            AddStep("break combo", () => scoreProcessor.Combo.Value = 0);
+            AddAssert("combo break clears display immediately", () => comboCounter.DisplayedCount == 0);
+
+            AddStep("clear OMS HUD combo host", () =>
+            {
+                scoreProcessor.Combo.Value = 0;
+                host.Expire();
+            });
+        }
+
+        [Test]
         public void TestOmsBarLineUsesSharedHeightForDualStages()
         {
             Drawable host = null!;
@@ -714,7 +1346,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(9, 9))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current, Major = true })
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -750,7 +1382,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(9, 8))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current, Major = true })
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -776,6 +1408,51 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         }
 
         [Test]
+        public void TestOmsBarLineRespondsToMajorState()
+        {
+            Drawable host = null!;
+            BarLine barLineObject = null!;
+            OmsBarLine barLine = null!;
+
+            AddStep("load OMS major bar line host", () =>
+            {
+                barLineObject = new BarLine { StartTime = Time.Current, Major = true };
+
+                Add(host = new SkinProvidingContainer(createTransformedSkin(9))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new DrawableBarLine(barLineObject)
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        RelativeSizeAxes = Axes.X,
+                        Width = 1f,
+                    },
+                });
+            });
+
+            AddUntilStep("OMS major bar line loaded", () =>
+            {
+                var loadedBarLine = this.ChildrenOfType<OmsBarLine>().FirstOrDefault(drawable => drawable.IsLoaded);
+
+                if (loadedBarLine == null)
+                    return false;
+
+                barLine = loadedBarLine;
+                return true;
+            });
+
+            AddAssert("major bar line keeps full OMS height", () => Math.Abs(barLine.Height - 1.44f) < 0.01f);
+            AddAssert("major bar line keeps full opacity", () => Math.Abs(barLine.ChildrenOfType<Box>().Single().Alpha - 1f) < 0.01f);
+
+            AddStep("switch bar line to minor", () => barLineObject.Major = false);
+            AddAssert("minor bar line reduces OMS height", () => Math.Abs(barLine.Height - 1.08f) < 0.01f);
+            AddAssert("minor bar line dims OMS opacity", () => Math.Abs(barLine.ChildrenOfType<Box>().Single().Alpha - 0.65f) < 0.01f);
+
+            AddStep("clear OMS major bar line host", () => host.Expire());
+        }
+
+        [Test]
         public void TestOmsSkinProvidesLayoutConfig()
         {
             ISkin transformedSkin = null!;
@@ -797,6 +1474,21 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.LeftColumnSpacing, 2)) < 0.01f
                 && Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.RightColumnSpacing, 2)) < 0.01f);
         }
+
+            [Test]
+            public void TestOmsSkinProvidesNoteHeightConfig()
+            {
+                ISkin transformedSkin = null!;
+
+                AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
+                AddAssert("4K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0) - 60f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
+
+                AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+                AddAssert("5K note height falls back to stage min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 2) - 40f) < 0.01f);
+
+                AddStep("create OMS 7K transformer", () => transformedSkin = createTransformedSkin(7));
+                AddAssert("7K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 3) - 35f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
+            }
 
         [Test]
         public void TestOmsSkinRepeatsStagePresetForDualStages()
@@ -895,6 +1587,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         }
 
         [Test]
+        public void TestOmsSkinProvidesHoldBodySemanticConfig()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+
+            AddAssert("hold body light image uses OMS preset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteLightImage, 1) == "lightingL");
+            AddAssert("hold body light scale uses OMS preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteLightScale, 1) - 1f) < 0.0001f);
+            AddAssert("hold body style uses OMS stretch semantics", () => getNoteBodyStyleConfig(transformedSkin) == LegacyNoteBodyStyle.Stretch);
+        }
+
+        [Test]
         public void TestOmsSkinProvidesHitExplosionConfig()
         {
             ISkin transformedSkin = null!;
@@ -959,6 +1663,17 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("9K second stage uses special note asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.NoteImage, 5) == "mania-noteS");
             AddAssert("9K second stage uses special head asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteHeadImage, 13) == "mania-noteSH");
             AddAssert("9K second stage uses special body asset", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage, 13) == "mania-noteSL");
+        }
+
+        [Test]
+        public void TestOmsNoteHeightConfigUsesStageLocalPresetForMixedStages()
+        {
+            ISkin transformedSkin = null!;
+
+            AddStep("create OMS 7K+6K transformer", () => transformedSkin = createTransformedSkin(7, 6));
+
+            AddAssert("7K first stage keeps explicit note height override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0) - 35f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
+            AddAssert("6K second stage falls back to its own min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 7) - 40f) < 0.01f);
         }
 
         [Test]
@@ -1148,6 +1863,72 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             return new ManiaRuleset().CreateSkinTransformer(skinManager.DefaultOmsSkin, beatmap)!;
         }
 
+        private static readonly object[] upstreamProtectedSkinIds =
+        {
+            new object[] { "Triangles", TrianglesSkin.CreateInfo().ID },
+            new object[] { "Argon", ArgonSkin.CreateInfo().ID },
+            new object[] { "Classic", DefaultLegacySkin.CreateInfo().ID },
+            new object[] { "Retro", RetroSkin.CreateInfo().ID },
+        };
+
+        private static ISkin unwrapSkin(ISkin skin)
+        {
+            while (skin is ISkinTransformer transformer)
+                skin = transformer.Skin;
+
+            return skin;
+        }
+
+        private static string describeSkinSource(ISkin skin)
+            => skin is ResourceStoreBackedSkin
+                ? nameof(ResourceStoreBackedSkin)
+                : unwrapSkin(skin).GetType().Name;
+
+        private sealed class LegacyResourceBeatmapSkin : LegacyBeatmapSkin
+        {
+            private readonly IRenderer renderer;
+
+            public LegacyResourceBeatmapSkin(IRenderer renderer)
+                : base(createBeatmapInfo(), null)
+            {
+                this.renderer = renderer;
+            }
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+                => componentName == "score-0" ? renderer.WhitePixel : base.GetTexture(componentName, wrapModeS, wrapModeT);
+
+            private static BeatmapInfo createBeatmapInfo()
+            {
+                var beatmapInfo = new TestBeatmap(new ManiaRuleset().RulesetInfo).BeatmapInfo;
+                beatmapInfo.LocalFilePath = "test.osu";
+                return beatmapInfo;
+            }
+        }
+
+        private sealed class EmptyLegacyUserSkin : LegacySkin
+        {
+            public EmptyLegacyUserSkin()
+                : base(new SkinInfo(), null, null, string.Empty)
+            {
+            }
+        }
+
+        private sealed class KeyOnlyLegacyUserSkin : LegacySkin
+        {
+            private readonly IRenderer renderer;
+
+            public KeyOnlyLegacyUserSkin(IRenderer renderer)
+                : base(new SkinInfo(), null, null, string.Empty)
+            {
+                this.renderer = renderer;
+            }
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+                => componentName is "mania-key1" or "mania-key1D"
+                    ? renderer.WhitePixel
+                    : base.GetTexture(componentName, wrapModeS, wrapModeT);
+        }
+
         private static float getFloatConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
             => skin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? float.NaN;
 
@@ -1159,6 +1940,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
         private static string getStringConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
             => skin.GetConfig<ManiaSkinConfigurationLookup, string>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? string.Empty;
+
+        private static LegacyNoteBodyStyle getNoteBodyStyleConfig(ISkin skin, int? columnIndex = null)
+            => skin.GetConfig<ManiaSkinConfigurationLookup, LegacyNoteBodyStyle>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.NoteBodyStyle, columnIndex))?.Value ?? default;
 
         private static Color4 getColorConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)
             => skin.GetConfig<ManiaSkinConfigurationLookup, Color4>(new ManiaSkinConfigurationLookup(lookup, columnIndex))?.Value ?? default;
@@ -1207,13 +1991,27 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
         private partial class TestDrawableHoldNote : DrawableHoldNote
         {
+            private bool? forcedHoldingState;
+
+            public TestDrawableHoldNoteBody TestBody => (TestDrawableHoldNoteBody)Body;
+
             public TestDrawableHoldNote(HoldNote hitObject)
                 : base(hitObject)
             {
             }
 
+            public void ForceHoldingState(bool isHolding) => forcedHoldingState = isHolding;
+
             protected override void CheckForResult(bool userTriggered, double timeOffset)
             {
+            }
+
+            protected override void Update()
+            {
+                base.Update();
+
+                if (forcedHoldingState.HasValue)
+                    ((Bindable<bool>)IsHolding).Value = forcedHoldingState.Value;
             }
 
             protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
@@ -1240,6 +2038,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 : base(hitObject)
             {
             }
+
+            public void ForceMissForTesting() => ApplyMinResult();
 
             protected override void CheckForResult(bool userTriggered, double timeOffset)
             {

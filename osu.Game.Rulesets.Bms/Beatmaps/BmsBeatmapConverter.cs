@@ -7,6 +7,7 @@ using System.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
@@ -85,6 +86,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             metadata.ArtistUnicode = metadata.Artist;
             metadata.Tags = bmsInfo.Genre;
             metadata.BackgroundFile = bmsInfo.BackgroundFile ?? bmsInfo.StageFile ?? bmsInfo.BannerFile ?? string.Empty;
+
+            var chartMetadata = BmsChartMetadata.FromBeatmapInfo(bmsInfo);
+            string? chartCreator = chartMetadata.TryGetChartCreator();
+
+            if (!string.IsNullOrWhiteSpace(chartCreator))
+                metadata.Author.Username = chartCreator;
+
+            metadata.SetChartMetadata(chartMetadata);
         }
 
         private static string getDifficultyName(BmsBeatmapInfo bmsInfo)

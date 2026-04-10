@@ -151,6 +151,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
             {
                 var sharedAssetPreset = OmsManiaShellAssetPreset.Shared;
                 var sharedJudgementPreset = OmsManiaJudgementAssetPreset.Shared;
+                var sharedHoldNoteBodyPreset = OmsManiaHoldNoteBodyPreset.Shared;
 
                 switch (maniaLookup.Lookup)
                 {
@@ -195,6 +196,15 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
                     case LegacyManiaSkinConfigurationLookups.KeysUnderNotes:
                         return SkinUtils.As<TValue>(new Bindable<bool>(sharedAssetPreset.KeysUnderNotes));
+
+                    case LegacyManiaSkinConfigurationLookups.HoldNoteLightImage:
+                        return SkinUtils.As<TValue>(new Bindable<string>(sharedHoldNoteBodyPreset.LightImage));
+
+                    case LegacyManiaSkinConfigurationLookups.HoldNoteLightScale:
+                        return SkinUtils.As<TValue>(new Bindable<float>(sharedHoldNoteBodyPreset.LightScale));
+
+                    case LegacyManiaSkinConfigurationLookups.NoteBodyStyle:
+                        return SkinUtils.As<TValue>(new Bindable<LegacyNoteBodyStyle>(sharedHoldNoteBodyPreset.BodyStyle));
                 }
 
                 if (maniaLookup.ColumnIndex is int columnIndex && tryGetStageColumnInfo(columnIndex, out int stageColumns, out int localColumnIndex))
@@ -207,6 +217,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                         {
                             case LegacyManiaSkinConfigurationLookups.ColumnWidth:
                                 return SkinUtils.As<TValue>(new Bindable<float>(columnPreset.GetColumnWidth(localColumnIndex)));
+
+                            case LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale:
+                                return SkinUtils.As<TValue>(new Bindable<float>(columnPreset.NoteHeightReferenceWidth));
 
                             case LegacyManiaSkinConfigurationLookups.LeftColumnSpacing:
                                 return SkinUtils.As<TValue>(new Bindable<float>(columnPreset.GetLeftColumnSpacing(localColumnIndex)));
@@ -313,6 +326,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     {
                         case LegacyManiaSkinConfigurationLookups.HitPosition:
                             return SkinUtils.As<TValue>(new Bindable<float>(sharedPreset.HitPosition));
+
+                        case LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale:
+                            return SkinUtils.As<TValue>(new Bindable<float>(sharedPreset.NoteHeightReferenceWidth));
 
                         case LegacyManiaSkinConfigurationLookups.StagePaddingTop:
                             return SkinUtils.As<TValue>(new Bindable<float>(sharedPreset.StagePaddingTop));

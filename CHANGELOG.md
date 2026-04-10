@@ -5,14 +5,100 @@
 
 ---
 
+## 2026-04-10
+
+### Phase 1.1：legacy 用户皮肤 judgement / hit explosion partial override 增量
+
+- `ManiaLegacySkinTransformer` 现已为 `ManiaSkinComponents.HitExplosion` 补上基于实际 legacy explosion 资源存在性的 component-level 门控：当 legacy 用户皮肤缺失 `ExplosionImage` / `lightingN` 时，runtime 不再强行实例化 `LegacyHitExplosion`，而是返回 `null` 让 OMS fallback 继续接管
+- judgement 缺失资源时回退 OMS 的语义此前已实际存在于 `SkinComponentLookup<HitResult>` 路径，但尚未被 regression 锁住；本轮已补上 key-only legacy 用户皮肤在缺失 judgement 资源时回退 `OmsManiaJudgementPiece` 的验证，并确认 legacy judgement piece 不会误接管
+- `TestSceneOmsBuiltInSkin` 已新增 `TestLegacyUserSkinWithoutJudgementAssetsFallsBackToOmsJudgementPiece()` 与 `TestLegacyUserSkinWithoutHitExplosionAssetsFallsBackToOmsHitExplosion()` 回归；新增定向回归 **2/2** 通过，`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **71/71** 通过，`Build osu! (Debug)` 通过
+
 ## 2026-04-09
+
+### Phase 1.1：legacy 用户皮肤 partial override 首个 note/hold 切口
+
+- `ManiaLegacySkinTransformer` 现已不再因为 legacy 用户皮肤“只要有 key 贴图”就无条件返回 legacy note / hold 组件；`Note` / `HoldNoteHead` / `HoldNoteTail` / `HoldNoteBody` 的 legacy 路由现已改为按实际 legacy 资源是否存在决定，缺失资源时会返回 `null` 让 OMS fallback 继续接管
+- 当 legacy 用户皮肤只提供 `mania-key*` 但未提供 note / hold 资源时，runtime 不再被 `LegacyNotePiece` / `LegacyBodyPiece` 强占：缺失 note 资产时现会回退 `OmsNotePiece`，缺失 hold-body 资产时现会回退 `OmsHoldNoteBodyPiece`，为后续 judgement / hitburst / HUD / bar-line 的 component-level partial override 铺好第一条真实桥接路径
+- `TestSceneOmsBuiltInSkin` 已新增 `TestLegacyUserSkinWithoutNoteAssetsFallsBackToOmsNotePiece()` 与 `TestLegacyUserSkinWithoutHoldBodyAssetsFallsBackToOmsHoldBodyPiece()` 回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **69/69** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：ruleset resources 与 OMS fallback 顺序收口
+
+- `RulesetSkinProvidingContainer` 现已不再按 `TrianglesSkin` 硬编码定位 ruleset resources 的插入点，而是改为在最后一个受保护 built-in skin source 之前插入 `ResourceStoreBackedSkin`；当 gameplay lookup 链中同时存在用户皮肤与 OMS built-in fallback 时，ruleset resources 现会稳定落在两者之间
+- `SkinManager.AllSources` 现已按 `SkinInfo.ID` 而不是对象引用判断“当前是否已经是 `OmsSkin`”；当前选择的 OMS 皮肤实例不再把 `DefaultOmsSkin` 作为重复 fallback 再挂一次，运行时 source chain 不再出现 `Oms -> ... -> Oms` 的重复 built-in 路径
+- `TestSceneOmsBuiltInSkin` 已新增 `TestRulesetResourcesPrecedeOmsBuiltInFallback()` 与 `TestRulesetResourcesPrecedeOmsFallbackForLegacyUserSkin()` 回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **67/67** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：OMS native-default removal 首个 runtime fallback 切口
+
+- `RulesetSkinProvidingContainer` 现已把 beatmap legacy compatibility fallback 从 `DefaultClassicSkin` 切到 `DefaultOmsSkin`；当当前选择的是非 legacy 皮肤、且 beatmap skin 需要 legacy 资源兼容时，运行时内部回退链不再悄悄落回 upstream 默认皮肤
+- `SkinManager.SetSkinFromConfiguration()` 的受保护 upstream built-in id 回退语义已补上回归：`Argon` / `Triangles` / `DefaultLegacy` / `Retro` 现都会统一回到 `OmsSkin`，不再通过配置入口重新暴露 upstream 默认皮肤作为产品默认选择
+- `TestSceneOmsBuiltInSkin` 已新增 legacy beatmap compatibility fallback 与 protected upstream built-in id 的回归；后续同日又补上 ruleset resources / OMS fallback 顺序与 OMS built-in 去重回归；当前最新组合过滤为 **67/67** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：OmsSkin mania note scrolling 显示状态收口
+
+- `OmsNotePiece` 现已把 direction anchor / origin / scale 收口成显式 OMS display-state contract，不再继续依赖 legacy 风格的隐含 container origin 初始值；`OmsHoldNoteTailPiece` 仍通过 `GetDisplayDirection()` 承接 tail 的反向显示语义
+- `TestSceneOmsBuiltInSkin` 已新增 normal note scrolling display-state 回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **60/60** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：OmsSkin mania bar-line major/minor 运行时语义收口
+
+- `OmsBarLine` 现已补上 OMS 自有的 major/minor runtime 语义，不再继续沿用 legacy bar line 对 `DrawableBarLine.Major` 无感知的单态表现；major 线保持 full-height / full-opacity，minor 线则会下调高度与亮度
+- `TestSceneOmsBuiltInSkin` 已新增 bar line major→minor 切换回归，并把 dual-stage / mixed-stage shared-height 断言显式锁到 major 线；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **59/59** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：OmsSkin mania combo counter HUD 运行时语义收口
+
+- `OmsManiaComboCounter` 现已移除 legacy 风格的 rolling、combo break pop-out 与滚动归零动画链；运行时改为单文本即时同步，shared `ComboPosition` 继续仅作为 OMS 的 non-column HUD position contract 保留
+- `TestSceneOmsBuiltInSkin` 已新增 combo counter 只保留单一 `OsuSpriteText` 节点、且 combo break 会立即清空显示的回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **58/58** 通过，`Build osu! (Debug)` 通过
+
+### 1.12：BMS 密度星级首轮重标定
+
+- `BmsDifficultyCalculator` 现已把密度星级从原先过于激进的平方根映射，改为更保守的对数映射；同一 keymode 的排序稳定性保持不变，但低密度到中密度谱面的星级会明显下修，避免当前实际显示整体系统性偏高
+- `BmsDifficultyCalculator.Version` 已同步递增到 `20260409`，让现有缓存星级按后台重算流程失效并刷新；每个 keymode 的 reference density 常数暂时保持不变，后续仍可继续基于真实谱面样本做第二轮校准
+- `BmsDifficultyCalculatorTest` 已按新映射更新基准断言；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsDifficultyCalculatorTest" -v minimal` **3/3** 通过，完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal` **463/463** 通过，`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### 1.3 / 1.4 / 1.16：BMS 谱面元数据补全与 Song Select 摘要扩展
+
+- `BmsBeatmapDecoder` 现已新增 `#SUBARTIST` / `#COMMENT` 解析；`BmsBeatmapConverter` 会把 `Subtitle` / `SubArtist` / `Comment` / `PlayLevel` / `HeaderDifficulty` 写入 `BmsBeatmapMetadataData.ChartMetadata`，并在可判定时把谱师同步到 `metadata.Author.Username`
+- `BmsNoteDistributionGraph` 右侧摘要现会在统计文字之外合并显示 chart creator、内部标级、副标题与难度表标签，Song Select 不再只能看到纯 note distribution 统计
+- 当前最新完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal` **463/463** 通过
+
+### Phase 1.1：OmsSkin mania combo counter 文本路径切离 legacy 字体
+
+- `OmsManiaComboCounter` 现已不再使用 `LegacySpriteText` / `LegacyFont.Combo`，改为 OMS 自有数码文本实现；这一步把 combo 组件从 legacy 字体图集路径上切开，但仍保留现有 rolling / fade HUD 行为
+- `TestSceneOmsBuiltInSkin` 已补上 combo counter 不再生成 `LegacySpriteText` 子树的回归断言；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **50/50** 通过
+
+### Phase 1.1：OmsSkin mania hold-body 语义收口到 OMS preset
+
+- 已新增 `OmsManiaHoldNoteBodyPreset`，并让 `ManiaOmsSkinTransformer` 为 `HoldNoteLightImage` / `HoldNoteLightScale` / `NoteBodyStyle` 返回 OMS 自有 hold-body preset；OMS preview 路径下的 hold-body 默认值不再继续依赖 legacy `skin.ini` 推导
+- `OmsHoldNoteBodyPiece` 现已删除 legacy `NoteBodyStyle` 分支，固定使用 clamp/stretch 型 body 贴图语义；运行时缩放会随 scroll direction 在 `Vector2.One` 与 `new Vector2(1, -1)` 间切换，不再进入旧的 wrap-stretch 放大量级路径
+- `TestSceneOmsBuiltInSkin` 已补上 hold-body semantic config 与运行时缩放回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **51/51** 通过
+
+### Phase 1.1：OmsSkin mania note-height 语义收口到 OMS layout preset
+
+- `OmsManiaLayoutPreset` 现已把 `WidthForNoteHeightScale` 纳入 stage-local preset；4K/7K 保留候选皮 `skin.ini` 的显式 note-height override，其余 stage 显式回落到各自最小列宽，而不是继续隐式依赖 legacy decoder fallback
+- `OmsNotePiece` 现已改为按列读取该 lookup，mixed-stage 场景下第二 stage 的 note-height 不再复用第一 stage 或 total-columns legacy 默认值
+- `TestSceneOmsBuiltInSkin` 已新增 single-stage / mixed-stage note-height config 回归与 mixed-stage 运行时 note-height 比例回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **54/54** 通过，`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### Phase 1.1：OmsSkin mania hold-tail 方向语义收口到 OMS display hook
+
+- `OmsNotePiece` 现已抽出正式的 `GetDisplayDirection()` 钩子，`OmsHoldNoteTailPiece` 通过该钩子承接 tail 的反向显示语义，不再继续伪造反向 `ValueChangedEvent<ScrollingDirection>`；这一步把 hold-tail 的方向处理从 legacy 风格事件翻转，收口为 OMS 自身的显示语义钩子
+- `TestSceneOmsBuiltInSkin` 已新增 hold-tail inverted scrolling-direction 场景回归，锁定默认下滚与上下切换时的 anchor / scale 行为；定向 mania 回归现为 `55/55` 通过
+- `dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **55/55** 通过，`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### Phase 1.1：OmsSkin mania hold-body 运行时表现切离 legacy light / fade
+
+- `OmsHoldNoteBodyPiece` 现已移除 legacy 风格的 hold-hit light 与 miss dark-gray fade 运行时链路：不再向 column 顶层插入额外 `HitTargetInsetContainer`，也不再因 body miss 把 head / tail / body 一起染暗；body 运行时仅保留 OMS stretch 贴图与 scrolling-direction 对应的 anchor / scale 行为
+- `ManiaOmsSkinTransformer` 仍为 `NoteBodyStyle` / `HoldNoteLightImage` / `HoldNoteLightScale` 返回 OMS preset，以维持既有 config lookup 桥；但 `OmsHoldNoteBodyPiece` 自身不再消费 legacy 风格的 light / fade 表现
+- `TestSceneOmsBuiltInSkin` 已新增 forced holding 不再插入 light container、forced body miss 不再触发 miss fade 的场景回归；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **57/57** 通过，`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### 文档同步：运行时存储与后续拓扑结论收口
+
+- `README.md`、`RELEASE.md`、`DEVELOPMENT_PLAN.md`、`DEVELOPMENT_STATUS.md` 与 `OMS_COPILOT.md` 现已统一写明当前默认 AppData 数据根、`storage.ini` 单自定义数据根能力，以及“若后续进入存储改造，优先多目录外部谱库，不先做 mania sibling dir / 默认单包模式”的规划结论
 
 ### 1.17：Windows 默认 HID backend 切到 DirectInput
 
 - `oms.Input` 已新增 `Devices/OmsWindowsDirectInput`，并引入 `Vortice.DirectInput`；Windows 下的 `OmsHidDeviceHandler.CreateDefaultDeviceProvider()` 与 `OmsHidDeviceDiscovery` 现默认走 DirectInput 枚举/轮询路径，避免再次触发 `HidSharp.DeviceList.Local` 的 `RegisterClass failed` 进程级崩溃
 - `OmsHidDeviceCaptureSession` 与 `OmsHidDeviceHandler` 现会在目标设备缺席时主动重刷设备列表，不再依赖 provider 侧热插拔事件；DirectInput 标识符也会尽量保留 `hid:vid_xxxx&pid_xxxx` 形态，仅在无法提取 VID/PID 时退回 `dinput:instance_{guid}`
 - `HidSharp` 仍保留为 Windows 上的诊断后端，仅在显式设置 `OMS_ENABLE_HIDSHARP=1` 时才会被触发；非 Windows 路径继续沿用原有 `HidSharp` provider
-- `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~OmsHidDeviceHandlerTest"` **14/14** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore` **458/458** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+- `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~OmsHidDeviceHandlerTest"` **14/14** 通过；较早同日完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore` **458/458** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过（当前同日最新完整回归见上方 **463/463** 条目）
 
 ### 1.17：Windows HidSharp 后端默认改为诊断开关，启动与设置不再因 HID 初始化闪退
 
