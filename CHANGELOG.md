@@ -7,6 +7,31 @@
 
 ## 2026-04-10
 
+### Phase 1.1：native default registration cleanup
+
+- `SkinManager` 构造期现已只维护 `DefaultOmsSkin` 这一条受保护 built-in realm 记录；`Argon` / `ArgonPro` / `Triangles` / `DefaultLegacy` / `Retro` 的历史内建皮肤条目会在启动时被清理，避免上游默认皮肤继续以产品内建项的形式出现在数据库中
+- 由于 settings dropdown、random/previous/next skin 逻辑此前已经统一走 OMS + 非受保护用户皮肤列表，本轮等于补齐了 1.1.11 剩余的数据库/产品暴露面；旧的上游 protected skin GUID 仍继续经 `SetSkinFromConfiguration()` 安全回退到 OMS
+- `TestSceneOmsBuiltInSkin` 已新增 `TestUpstreamBuiltInSkinsAreNotRegisteredInDatabase()` 回归，直接锁定 `Triangles` / `Argon` / `ArgonPro` / `Classic` / `Retro` 不再注册进 realm；本轮验证为 `dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **81/81** 通过、`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics" -v minimal` **75/75** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：mixed-layer 用户皮肤三态 runtime 回归收口
+
+- `TestSceneBmsUserSkinFallbackSemantics` 现已补上真实 mania-only legacy 用户皮肤场景：当用户皮肤只提供 `mania-key*` 这类 legacy mania 资源时，BMS runtime 仍会稳定落到 OMS 默认皮肤包的 BMS 层，`ComboCounter` 与 ruleset HUD 现已分别锁定为 `BmsComboCounter` 与 `DefaultBmsHudLayoutDisplay`
+- `TestSceneOmsBuiltInSkin` 现已补上真实 BMS-only 用户皮肤场景：当用户皮肤只提供 BMS lookup（当前以 `BmsSkinComponents.ComboCounter` 作为实际 BMS layer 证明）时，mania gameplay note 路径仍会稳定回落到 OMS mania 层，运行时会继续加载 `OmsNotePiece`
+- 同一皮肤选择项同时含 `legacy mania` 资源与 `BMS` lookup 的场景现也已补成双侧 runtime 证明：在 BMS 侧会优先消费该皮肤自身的 `HudLayout` / `ComboCounter`，在 mania 侧则会继续走 `LegacyNotePiece`，且 BMS layer 不会泄漏到 mania note 路径；1.1.10 现在已能明确回答 mania-only、BMS-only、以及 Mania+BMS 同包三类导入/回退语义
+- 最新 mixed-layer 定向基线：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics" -v minimal` **75/75** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **75/75** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal` **476/476** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：BMS 用户皮肤 fallback 语义收口
+
+- `BmsSkinTransformer` 现已不再让普通用户皮肤在缺失 BMS 组件时直接于当前 transformer 内补齐 built-in 默认件：`HudLayout` / `GaugeBar` / `ComboCounter` / `Judgement` / `NoteDistribution` / `GaugeHistory` / `ResultsSummary` / `StaticBackgroundLayer` / playfield/lane/note/lane-cover 等 BMS lookup 在 non-OMS skin 缺失时现会返回 `null`，把缺省路径继续交给后续 source 链与 OMS fallback
+- BMS ruleset HUD 路径也已同步收口：`MainHUDComponents` 仅会在当前 skin 实际暴露 BMS HUD layer 时才在本 source 内组装 HUD；不含 BMS 层的用户皮肤不再拦截后续 source 的 BMS HUD / combo fallback
+- `BmsSkinTransformerTest` 已把“默认 fallback”断言切到 OMS source，并新增普通用户皮肤缺失 BMS layer 时返回 `null` 的回归；`TestSceneBmsUserSkinFallbackSemantics` 也已新增 runtime source-chain 验证，锁定缺失 BMS layer 的用户皮肤会把 combo 与 ruleset HUD lookup 继续让给后续 source。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics" -v minimal` **73/73** 通过，完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal` **474/474** 通过，`Build osu! (Debug)` 通过
+
+### Phase 1.1：legacy 用户皮肤 combo/HUD / bar-line partial override 增量
+
+- `ManiaLegacySkinTransformer` 现已不再因为 key-only legacy 用户皮肤具备 `mania-key*` 就无条件接管 ruleset HUD 与 bar-line：`MainHUDComponents` 现要求实际存在 legacy combo font 才会返回 `LegacyManiaComboCounter` 容器，而 `ManiaSkinComponents.BarLine` 现也改为只在检测到显式 legacy bar-line 样式覆盖时才返回 `LegacyBarLine`
+- `LegacySkin` 的 mania config lookup 会为 `BarLineHeight` 始终提供默认值，因此 bar-line 门控不能简单按 bindable 是否存在判断；本轮已把条件收口为“显式 `ColourBarline` 覆盖或 `BarLineHeight` 偏离默认值 1”，避免 key-only legacy 用户皮肤因默认值误占用 OMS fallback
+- `TestSceneOmsBuiltInSkin` 已新增 `TestLegacyUserSkinWithoutComboFontFallsBackToOmsComboCounter()` 与 `TestLegacyUserSkinWithoutBarLineConfigFallsBackToOmsBarLine()` 回归；新增定向回归 **2/2** 通过，`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin" -v minimal` **73/73** 通过，`Build osu! (Debug)` 通过
+
 ### Phase 1.1：legacy 用户皮肤 judgement / hit explosion partial override 增量
 
 - `ManiaLegacySkinTransformer` 现已为 `ManiaSkinComponents.HitExplosion` 补上基于实际 legacy explosion 资源存在性的 component-level 门控：当 legacy 用户皮肤缺失 `ExplosionImage` / `lightingN` 时，runtime 不再强行实例化 `LegacyHitExplosion`，而是返回 `null` 让 OMS fallback 继续接管

@@ -19,9 +19,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
 {
     public class BmsSkinTransformer : SkinTransformer
     {
+        private readonly bool providesBuiltInFallbacks;
+
         public BmsSkinTransformer(ISkin skin)
             : base(skin)
         {
+            providesBuiltInFallbacks = skin is OmsSkin;
         }
 
         public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -34,58 +37,61 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     return new SkinnableBmsJudgement(resultComponent.Component);
 
                 case BmsJudgementSkinLookup judgementLookup:
-                    return skinnedComponent is IAnimatableJudgement ? skinnedComponent : new BmsJudgementPiece(judgementLookup.Result);
+                    return skinnedComponent is IAnimatableJudgement ? skinnedComponent : providesBuiltInFallbacks ? new BmsJudgementPiece(judgementLookup.Result) : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.HudLayout }:
-                    return skinnedComponent is IBmsHudLayoutDisplay ? skinnedComponent : new DefaultBmsHudLayoutDisplay();
+                    return skinnedComponent is IBmsHudLayoutDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsHudLayoutDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeBar }:
-                    return skinnedComponent ?? new BmsGaugeBar();
+                    return skinnedComponent ?? createBuiltInFallback(() => new BmsGaugeBar());
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.ComboCounter }:
-                    return skinnedComponent is ComboCounter ? skinnedComponent : new BmsComboCounter();
+                    return skinnedComponent is ComboCounter ? skinnedComponent : providesBuiltInFallbacks ? new BmsComboCounter() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.ClearLamp }:
-                    return skinnedComponent is IBmsClearLampDisplay ? skinnedComponent : new DefaultBmsClearLampDisplay();
+                    return skinnedComponent is IBmsClearLampDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsClearLampDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeHistoryPanel }:
-                    return skinnedComponent is IBmsGaugeHistoryPanelDisplay ? skinnedComponent : new DefaultBmsGaugeHistoryPanelDisplay();
+                    return skinnedComponent is IBmsGaugeHistoryPanelDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsGaugeHistoryPanelDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeHistory }:
-                    return skinnedComponent is IBmsGaugeHistoryDisplay ? skinnedComponent : new DefaultBmsGaugeHistoryDisplay();
+                    return skinnedComponent is IBmsGaugeHistoryDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsGaugeHistoryDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.ResultsSummaryPanel }:
-                    return skinnedComponent is IBmsResultsSummaryPanelDisplay ? skinnedComponent : new DefaultBmsResultsSummaryPanelDisplay();
+                    return skinnedComponent is IBmsResultsSummaryPanelDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsResultsSummaryPanelDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.ResultsSummary }:
-                    return skinnedComponent is IBmsResultsSummaryDisplay ? skinnedComponent : new DefaultBmsResultsSummaryDisplay();
+                    return skinnedComponent is IBmsResultsSummaryDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsResultsSummaryDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.NoteDistributionPanel }:
                     return skinnedComponent is IBmsNoteDistributionPanelDisplay
                         ? skinnedComponent
-                        : new DefaultBmsNoteDistributionPanelDisplay();
+                        : providesBuiltInFallbacks ? new DefaultBmsNoteDistributionPanelDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.NoteDistribution }:
                     return skinnedComponent is IBmsNoteDistributionDisplay
                         ? skinnedComponent
-                        : new DefaultBmsNoteDistributionDisplay();
+                        : providesBuiltInFallbacks ? new DefaultBmsNoteDistributionDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.StaticBackgroundLayer }:
-                    return skinnedComponent is IBmsBackgroundLayerDisplay ? skinnedComponent : new DefaultBmsBackgroundLayerDisplay();
+                    return skinnedComponent is IBmsBackgroundLayerDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsBackgroundLayerDisplay() : null;
 
                 case BmsPlayfieldSkinLookup playfieldLookup:
-                    return skinnedComponent ?? createDefaultPlayfieldComponent(playfieldLookup);
+                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultPlayfieldComponent(playfieldLookup));
 
                 case BmsLaneSkinLookup laneLookup:
-                    return skinnedComponent ?? createDefaultLaneComponent(laneLookup);
+                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultLaneComponent(laneLookup));
 
                 case BmsNoteSkinLookup noteLookup:
-                    return skinnedComponent ?? createDefaultNoteComponent(noteLookup);
+                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultNoteComponent(noteLookup));
 
                 case BmsLaneCoverSkinLookup laneCoverLookup:
-                    return skinnedComponent is IBmsLaneCoverDisplay ? skinnedComponent : new DefaultBmsLaneCoverDisplay(laneCoverLookup.Position);
+                    return skinnedComponent is IBmsLaneCoverDisplay ? skinnedComponent : createBuiltInFallback(() => new DefaultBmsLaneCoverDisplay(laneCoverLookup.Position));
 
                 case GlobalSkinnableContainerLookup containerLookup when containerLookup.Lookup == GlobalSkinnableContainers.MainHUDComponents && containerLookup.Ruleset?.ShortName == BmsRuleset.SHORT_NAME:
+                    if (!hasBmsHudLayer(skinnedComponent))
+                        return null;
+
                     Drawable gaugeBar = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)) ?? new BmsGaugeBar();
                     ComboCounter comboCounter = (ComboCounter)(GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) ?? new BmsComboCounter());
                     Drawable hudLayout = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)) ?? new DefaultBmsHudLayoutDisplay();
@@ -98,6 +104,16 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             return skinnedComponent;
         }
+
+        private bool hasBmsHudLayer(Drawable? wrappedHud)
+            => wrappedHud != null
+               || providesBuiltInFallbacks
+               || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)) is IBmsHudLayoutDisplay
+               || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)) != null
+               || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) is ComboCounter;
+
+        private Drawable? createBuiltInFallback(System.Func<Drawable> createDrawable)
+            => providesBuiltInFallbacks ? createDrawable() : null;
 
         private static Drawable createDefaultPlayfieldComponent(BmsPlayfieldSkinLookup lookup)
             => lookup.Element switch

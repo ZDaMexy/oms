@@ -18,6 +18,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
 using osuTK;
+using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
@@ -62,12 +63,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
         /// Used to determine if the mania ruleset is skinned.
         /// </summary>
         private readonly Lazy<bool> hasKeyTexture;
+        private readonly Lazy<bool> hasComboFont;
 
         private readonly Lazy<bool> hasNoteTexture;
         private readonly Lazy<bool> hasHoldHeadTexture;
         private readonly Lazy<bool> hasHoldTailTexture;
         private readonly Lazy<bool> hasHoldBodyTexture;
         private readonly Lazy<bool> hasHitExplosionTexture;
+        private readonly Lazy<bool> hasBarLineConfig;
 
         private readonly ManiaBeatmap beatmap;
         private readonly bool isBeatmapConverted;
@@ -84,12 +87,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                 string keyImage = this.GetManiaSkinConfig<string>(LegacyManiaSkinConfigurationLookups.KeyImage, 0)?.Value ?? "mania-key1";
                 return this.GetAnimation(keyImage, true, true) != null;
             });
+            hasComboFont = new Lazy<bool>(() => Skin.HasFont(LegacyFont.Combo));
 
             hasNoteTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.NoteImage, "mania-note1", "mania-note2", "mania-noteS"));
             hasHoldHeadTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.HoldNoteHeadImage, "mania-note1H", "mania-note2H", "mania-noteSH"));
             hasHoldTailTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.HoldNoteTailImage, "mania-note1T", "mania-note2T", "mania-noteST"));
             hasHoldBodyTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage, "mania-note1L", "mania-note2L", "mania-noteSL"));
             hasHitExplosionTexture = new Lazy<bool>(() => hasLegacyColumnAsset(LegacyManiaSkinConfigurationLookups.ExplosionImage, "lightingN"));
+            hasBarLineConfig = new Lazy<bool>(() => hasExplicitLegacyBarLineStyle());
         }
 
         public override Drawable GetDrawableComponent(ISkinComponentLookup lookup)
@@ -101,8 +106,8 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                     if (containerLookup.Ruleset == null)
                         return base.GetDrawableComponent(lookup);
 
-                    // we don't have enough assets to display these components (this is especially the case on a "beatmap" skin).
-                    if (!IsProvidingLegacyResources)
+                    // Main HUD combo rendering requires legacy combo font resources.
+                    if (!hasComboFont.Value)
                         return null;
 
                     switch (containerLookup.Lookup)
@@ -189,7 +194,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                             return new LegacyStageForeground();
 
                         case ManiaSkinComponents.BarLine:
-                            return new LegacyBarLine();
+                            return hasBarLineConfig.Value ? new LegacyBarLine() : null;
 
                         default:
                             throw new UnsupportedSkinComponentException(lookup);
@@ -241,6 +246,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
             }
 
             return fallbackNames.Any(name => Skin.GetAnimation(name, true, true) != null);
+        }
+
+        private bool hasExplicitLegacyBarLineStyle()
+        {
+            if (Skin.GetConfig<LegacyManiaSkinConfigurationLookup, Color4>(new LegacyManiaSkinConfigurationLookup(beatmap.TotalColumns, LegacyManiaSkinConfigurationLookups.BarLineColour, null)) != null)
+                return true;
+
+            return Skin.GetConfig<LegacyManiaSkinConfigurationLookup, float>(new LegacyManiaSkinConfigurationLookup(beatmap.TotalColumns, LegacyManiaSkinConfigurationLookups.BarLineHeight, null))?.Value != 1;
         }
     }
 }

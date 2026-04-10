@@ -66,17 +66,20 @@ namespace osu.Game.Skinning
 
         private readonly IResourceStore<byte[]> userFiles;
 
-        private Skin argonSkin { get; }
-
-        private Skin trianglesSkin { get; }
-
-        private Skin retroSkin { get; }
-
         private static readonly Live<SkinInfo> random_skin_info = new SkinInfo
         {
             ID = SkinInfo.RANDOM_SKIN,
             Name = "<随机皮肤>",
         }.ToLiveUnmanaged();
+
+        private static readonly Guid[] retired_upstream_skin_ids =
+        {
+            SkinInfo.TRIANGLES_SKIN,
+            SkinInfo.ARGON_SKIN,
+            SkinInfo.ARGON_PRO_SKIN,
+            SkinInfo.CLASSIC_SKIN,
+            SkinInfo.RETRO_SKIN,
+        };
 
         public override bool PauseImports
         {
@@ -103,32 +106,31 @@ namespace osu.Game.Skinning
                 PostNotification = obj => PostNotification?.Invoke(obj),
             };
 
-            var defaultSkins = new[]
-            {
-                DefaultOmsSkin = new OmsSkin(this),
-                retroSkin = new RetroSkin(this),
-                DefaultClassicSkin = new DefaultLegacySkin(this),
-                trianglesSkin = new TrianglesSkin(this),
-                argonSkin = new ArgonSkin(this),
-                new ArgonProSkin(this),
-            };
+            DefaultOmsSkin = new OmsSkin(this);
+            DefaultClassicSkin = new DefaultLegacySkin(this);
 
-            // Ensure the default entries are present.
+            // Keep OMS as the only protected built-in product skin. Upstream built-ins remain
+            // available as compatibility types, but are no longer registered as selectable entries.
             realm.Write(r =>
             {
-                foreach (var skin in defaultSkins)
-                {
-                    var existing = r.Find<SkinInfo>(skin.SkinInfo.ID);
+                var existingOmsSkin = r.Find<SkinInfo>(DefaultOmsSkin.SkinInfo.ID);
 
-                    if (existing == null)
-                        r.Add(skin.SkinInfo.Value);
-                    else
-                    {
-                        existing.Name = skin.SkinInfo.Value.Name;
-                        existing.Creator = skin.SkinInfo.Value.Creator;
-                        existing.InstantiationInfo = skin.SkinInfo.Value.InstantiationInfo;
-                        existing.Protected = true;
-                    }
+                if (existingOmsSkin == null)
+                    r.Add(DefaultOmsSkin.SkinInfo.Value);
+                else
+                {
+                    existingOmsSkin.Name = DefaultOmsSkin.SkinInfo.Value.Name;
+                    existingOmsSkin.Creator = DefaultOmsSkin.SkinInfo.Value.Creator;
+                    existingOmsSkin.InstantiationInfo = DefaultOmsSkin.SkinInfo.Value.InstantiationInfo;
+                    existingOmsSkin.Protected = true;
+                }
+
+                foreach (var retiredSkinId in retired_upstream_skin_ids)
+                {
+                    var retiredSkin = r.Find<SkinInfo>(retiredSkinId);
+
+                    if (retiredSkin != null)
+                        r.Remove(retiredSkin);
                 }
             });
 

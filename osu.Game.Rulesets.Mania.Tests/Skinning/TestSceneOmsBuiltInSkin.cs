@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Animations;
@@ -14,9 +15,12 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
+using osu.Game.Audio;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Database;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
@@ -103,6 +107,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddAssert("current skin info is OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
             AddAssert("current skin instance is OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+        }
+
+        [TestCaseSource(nameof(upstreamProtectedSkinIds))]
+        public void TestUpstreamBuiltInSkinsAreNotRegisteredInDatabase(string skinName, Guid skinId)
+        {
+            AddAssert($"{skinName} built-in is absent from realm", () => skinManager.Query(s => s.ID == skinId) == null);
         }
 
         [Test]
@@ -193,6 +203,104 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("ruleset resources sit between legacy user and OMS fallback", () => sourceOrder, () => Is.EqualTo("EmptyLegacyUserSkin -> ResourceStoreBackedSkin -> OmsSkin"));
 
             AddStep("clear wrapped ruleset provider", () => host.Expire());
+        }
+
+        [Test]
+        public void TestBmsOnlyUserSkinFallsBackToOmsNotePiece()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+            BmsOnlyUserSkin userSkin = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("create BMS-only user skin", () => userSkin = new BmsOnlyUserSkin());
+            AddAssert("user skin exposes BMS combo counter", () => userSkin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) is TestBmsComboCounter);
+
+            AddStep("load BMS-only user skin note host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(userSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("column host loaded", () => columnHost.IsLoaded);
+            AddStep("add note under BMS-only user skin", () => columnHost.Add(new TestDrawableNote(new Note
+            {
+                Column = 0,
+                StartTime = Time.Current,
+            })
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            }));
+
+            AddUntilStep("OMS note piece loaded through BMS-only fallback", () => this.ChildrenOfType<OmsNotePiece>().Any(drawable => drawable.IsLoaded));
+            AddAssert("BMS combo counter not used in mania note path", () => !this.ChildrenOfType<TestBmsComboCounter>().Any());
+            AddStep("clear BMS-only note host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestMixedLayerUserSkinUsesLegacyNotePathWithoutLeakingBmsLayer()
+        {
+            Drawable host = null!;
+            ColumnTestContainer columnHost = null!;
+            MixedLayerLegacyUserSkin userSkin = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("create mixed-layer legacy+BMS skin", () => userSkin = new MixedLayerLegacyUserSkin(renderer));
+            AddAssert("user skin exposes legacy mania note assets", () => userSkin.GetTexture("mania-key1") != null && userSkin.GetTexture("mania-note1") != null);
+            AddAssert("user skin exposes BMS combo counter", () => userSkin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) is TestBmsComboCounter);
+
+            AddStep("load mixed-layer user skin note host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(userSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("column host loaded", () => columnHost.IsLoaded);
+            AddStep("add note under mixed-layer user skin", () => columnHost.Add(new TestDrawableNote(new Note
+            {
+                Column = 0,
+                StartTime = Time.Current,
+            })
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            }));
+
+            AddUntilStep("legacy note piece loaded through mixed-layer skin", () => this.ChildrenOfType<LegacyNotePiece>().Any(drawable => drawable.IsLoaded));
+            AddAssert("OMS note piece not used when legacy note assets exist", () => !this.ChildrenOfType<OmsNotePiece>().Any());
+            AddAssert("BMS combo counter not used in mania note path", () => !this.ChildrenOfType<TestBmsComboCounter>().Any());
+            AddStep("clear mixed-layer note host", () => host.Expire());
         }
 
         [Test]
@@ -372,6 +480,85 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("OMS hit explosion loaded through legacy partial override", () => this.ChildrenOfType<OmsHitExplosion>().Any(drawable => drawable.IsLoaded));
             AddAssert("legacy hit explosion not used when explosion assets are missing", () => !this.ChildrenOfType<LegacyHitExplosion>().Any());
             AddStep("clear key-only legacy hit explosion host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestLegacyUserSkinWithoutComboFontFallsBackToOmsComboCounter()
+        {
+            Drawable host = null!;
+            RulesetSkinProvidingContainer provider = null!;
+            DefaultSkinComponentsContainer hudComponents = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load key-only legacy user skin combo host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(new KeyOnlyLegacyUserSkin(renderer))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = provider = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = new Container(),
+                    },
+                });
+            });
+
+            AddUntilStep("combo ruleset provider loaded", () => provider.IsLoaded);
+            AddStep("resolve HUD components through runtime provider", () =>
+            {
+                hudComponents = (DefaultSkinComponentsContainer)provider.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable is not OmsManiaComboCounter && drawable is not LegacyManiaComboCounter).ToArray())
+                    hudComponents.Remove(drawable, false);
+
+                provider.Child = hudComponents;
+            });
+
+            AddUntilStep("OMS combo counter loaded through legacy partial override", () => this.ChildrenOfType<OmsManiaComboCounter>().Any(drawable => drawable.IsLoaded));
+            AddAssert("legacy combo counter not used when combo font is missing", () => !this.ChildrenOfType<LegacyManiaComboCounter>().Any());
+            AddStep("clear key-only legacy combo host", () => host.Expire());
+        }
+
+        [Test]
+        public void TestLegacyUserSkinWithoutBarLineConfigFallsBackToOmsBarLine()
+        {
+            Drawable host = null!;
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+
+            AddStep("load key-only legacy user skin bar line host", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(5))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                Add(host = new SkinProvidingContainer(new KeyOnlyLegacyUserSkin(renderer))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+                    {
+                        Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.X,
+                            Width = 1f,
+                        },
+                    },
+                });
+            });
+
+            AddUntilStep("OMS bar line loaded through legacy partial override", () => this.ChildrenOfType<OmsBarLine>().Any(drawable => drawable.IsLoaded));
+            AddAssert("legacy bar line not used when bar line config is missing", () => !this.ChildrenOfType<LegacyBarLine>().Any());
+            AddStep("clear key-only legacy bar line host", () => host.Expire());
         }
 
         [Test]
@@ -1867,6 +2054,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         {
             new object[] { "Triangles", TrianglesSkin.CreateInfo().ID },
             new object[] { "Argon", ArgonSkin.CreateInfo().ID },
+            new object[] { "ArgonPro", ArgonProSkin.CreateInfo().ID },
             new object[] { "Classic", DefaultLegacySkin.CreateInfo().ID },
             new object[] { "Retro", RetroSkin.CreateInfo().ID },
         };
@@ -1927,6 +2115,58 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 => componentName is "mania-key1" or "mania-key1D"
                     ? renderer.WhitePixel
                     : base.GetTexture(componentName, wrapModeS, wrapModeT);
+        }
+
+        private sealed class MixedLayerLegacyUserSkin : LegacySkin
+        {
+            private readonly IRenderer renderer;
+            private readonly TestBmsComboCounter comboCounter = new TestBmsComboCounter();
+
+            public MixedLayerLegacyUserSkin(IRenderer renderer)
+                : base(new SkinInfo(name: nameof(MixedLayerLegacyUserSkin)), null, null, string.Empty)
+            {
+                this.renderer = renderer;
+            }
+
+            public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
+                => lookup switch
+                {
+                    BmsSkinComponentLookup { Component: BmsSkinComponents.ComboCounter } => comboCounter,
+                    _ => base.GetDrawableComponent(lookup),
+                };
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+                => componentName is "mania-key1" or "mania-key1D" or "mania-note1"
+                    ? renderer.WhitePixel
+                    : base.GetTexture(componentName, wrapModeS, wrapModeT);
+        }
+
+        private sealed class BmsOnlyUserSkin : Skin
+        {
+            private readonly TestBmsComboCounter comboCounter = new TestBmsComboCounter();
+
+            public BmsOnlyUserSkin()
+                : base(new SkinInfo(name: nameof(BmsOnlyUserSkin)), null)
+            {
+            }
+
+            public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
+                => lookup switch
+                {
+                    BmsSkinComponentLookup { Component: BmsSkinComponents.ComboCounter } => comboCounter,
+                    _ => null,
+                };
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => null;
+
+            public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
+                => null;
+
+            public override ISample? GetSample(ISampleInfo sampleInfo) => null;
+        }
+
+        private sealed partial class TestBmsComboCounter : BmsComboCounter
+        {
         }
 
         private static float getFloatConfig(ISkin skin, LegacyManiaSkinConfigurationLookups lookup, int? columnIndex = null)

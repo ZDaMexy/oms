@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestRulesetHudIncludesGaugeBarAndComboCounter()
         {
             var ruleset = new BmsRuleset();
-            var transformer = ruleset.CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = ruleset.CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo));
             var skinnableChildren = ((Container)drawable!).Children.OfType<Drawable>().ToArray();
             var gaugeBars = skinnableChildren.OfType<BmsGaugeBar>().ToArray();
@@ -69,7 +69,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsHudLayoutDisplay>());
-                Assert.That(skinnableChildren, Has.Length.EqualTo(2));
+                Assert.That(skinnableChildren.Length, Is.GreaterThanOrEqualTo(2));
                 Assert.That(gaugeBars, Has.Length.EqualTo(1));
                 Assert.That(comboCounters, Has.Length.EqualTo(1));
                 Assert.That(comboCounters.Single(), Is.TypeOf<BmsComboCounter>());
@@ -108,9 +108,26 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestHudLayoutFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)), Is.AssignableTo<IBmsHudLayoutDisplay>());
+        }
+
+        [Test]
+        public void TestUserSkinWithoutBmsHudLayerReturnsNullToAllowLaterFallback()
+        {
+            var ruleset = new BmsRuleset();
+            var transformer = ruleset.CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo)), Is.Null);
+        }
+
+        [Test]
+        public void TestUserSkinWithoutHudLayoutReturnsNullToAllowLaterFallback()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)), Is.Null);
         }
 
         [Test]
@@ -155,9 +172,19 @@ namespace osu.Game.Rulesets.Bms.Tests
         [TestCase(HitResult.ComboBreak)]
         public void TestBmsJudgementFallsBackToDefaultDisplay(HitResult result)
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsJudgementSkinLookup(result)), Is.TypeOf<BmsJudgementPiece>());
+        }
+
+        [TestCase(HitResult.Meh)]
+        [TestCase(HitResult.Miss)]
+        [TestCase(HitResult.ComboBreak)]
+        public void TestUserSkinWithoutBmsJudgementReturnsNullToAllowLaterFallback(HitResult result)
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsJudgementSkinLookup(result)), Is.Null);
         }
 
         [TestCase(HitResult.Meh)]
@@ -183,7 +210,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestNoteDistributionFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.NoteDistribution)), Is.TypeOf<DefaultBmsNoteDistributionDisplay>());
         }
@@ -191,7 +218,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestNoteDistributionPanelFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.NoteDistributionPanel)), Is.TypeOf<DefaultBmsNoteDistributionPanelDisplay>());
         }
@@ -199,7 +226,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestPlayfieldBackdropFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Backdrop, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsPlayfieldBackdropDisplay>());
         }
@@ -207,7 +234,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestPlayfieldBaseplateFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Baseplate, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsPlayfieldBaseplateDisplay>());
         }
@@ -233,7 +260,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestLaneBackgroundFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             var drawable = transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.Background, 0, 8, false, BmsKeymode.Key7K));
 
@@ -248,7 +275,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestScratchLaneBackgroundFallsBackToScratchDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.Background, 0, 8, true, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
@@ -261,7 +288,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestLaneDividerFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.Divider, 0, 8, false, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
@@ -274,7 +301,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestScratchLaneDividerFallsBackToScratchDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.Divider, 0, 8, true, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
@@ -287,7 +314,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestNoteFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false));
 
             Assert.Multiple(() =>
@@ -300,7 +327,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestScratchNoteFallsBackToScratchDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, true));
 
             Assert.Multiple(() =>
@@ -313,7 +340,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestLongNoteHeadFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 0, false));
 
             Assert.Multiple(() =>
@@ -326,7 +353,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestScratchLongNoteHeadFallsBackToScratchDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 0, true));
 
             Assert.Multiple(() =>
@@ -339,7 +366,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestLongNoteBodyFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, false));
 
             Assert.Multiple(() =>
@@ -354,7 +381,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestScratchLongNoteBodyFallsBackToScratchDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, true));
 
             Assert.Multiple(() =>
@@ -369,7 +396,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestLongNoteTailFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, false));
 
             Assert.Multiple(() =>
@@ -382,7 +409,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestScratchLongNoteTailFallsBackToScratchDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
             var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, true));
 
             Assert.Multiple(() =>
@@ -429,9 +456,17 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestHitTargetFallsBackToDefaultDisplay()
+        public void TestUserSkinWithoutNoteOverrideReturnsNullToAllowLaterFallback()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false)), Is.Null);
+        }
+
+        [Test]
+        public void TestHitTargetFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.HitTarget, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsHitTargetDisplay>());
         }
@@ -439,7 +474,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestBarLineFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.BarLine, 0, 8, false, BmsKeymode.Key7K, true)), Is.TypeOf<Box>());
         }
@@ -447,9 +482,17 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestGaugeBarFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)), Is.TypeOf<BmsGaugeBar>());
+        }
+
+        [Test]
+        public void TestUserSkinWithoutGaugeBarReturnsNullToAllowLaterFallback()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)), Is.Null);
         }
 
         [Test]
@@ -464,9 +507,17 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestComboCounterFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)), Is.TypeOf<BmsComboCounter>());
+        }
+
+        [Test]
+        public void TestUserSkinWithoutComboCounterReturnsNullToAllowLaterFallback()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)), Is.Null);
         }
 
         [Test]
@@ -481,7 +532,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestClearLampFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ClearLamp)), Is.TypeOf<DefaultBmsClearLampDisplay>());
         }
@@ -498,7 +549,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestGaugeHistoryFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeHistory)), Is.TypeOf<DefaultBmsGaugeHistoryDisplay>());
         }
@@ -506,7 +557,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestGaugeHistoryPanelFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeHistoryPanel)), Is.TypeOf<DefaultBmsGaugeHistoryPanelDisplay>());
         }
@@ -514,7 +565,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestResultsSummaryFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ResultsSummary)), Is.TypeOf<DefaultBmsResultsSummaryDisplay>());
         }
@@ -522,7 +573,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestResultsSummaryPanelFallsBackToBmsDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ResultsSummaryPanel)), Is.TypeOf<DefaultBmsResultsSummaryPanelDisplay>());
         }
@@ -557,7 +608,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestStaticBackgroundFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.StaticBackgroundLayer)), Is.TypeOf<DefaultBmsBackgroundLayerDisplay>());
         }
@@ -565,7 +616,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestLaneCoverFallsBackToDefaultDisplay()
         {
-            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsLaneCoverSkinLookup(BmsLaneCoverPosition.Top)), Is.TypeOf<DefaultBmsLaneCoverDisplay>());
         }
@@ -614,6 +665,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.NoteDistribution)), Is.SameAs(skin.NoteDistributionComponent));
         }
+
+        private static OmsSkin createOmsSkin() => new OmsSkin(new TestStorageResourceProvider());
 
         private sealed class TestStorageResourceProvider : IStorageResourceProvider
         {
