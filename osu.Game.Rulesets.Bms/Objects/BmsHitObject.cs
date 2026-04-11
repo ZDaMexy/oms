@@ -2,6 +2,7 @@
 
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Bms.Audio;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
@@ -17,6 +18,7 @@ namespace osu.Game.Rulesets.Bms.Objects
         private HitObjectProperty<int> laneIndex;
         private HitObjectProperty<int?> keysoundId;
         private HitObjectProperty<BmsKeysoundSampleInfo?> keysoundSample;
+        private HitObjectProperty<BmsKeymode?> keymode;
         private HitObjectProperty<bool> isScratch;
         private HitObjectProperty<bool> autoPlay;
 
@@ -42,6 +44,12 @@ namespace osu.Game.Rulesets.Bms.Objects
         {
             get => keysoundSample.Value;
             set => keysoundSample.Value = value;
+        }
+
+        public virtual BmsKeymode Keymode
+        {
+            get => keymode.Value ?? BmsKeymode.Key7K;
+            set => keymode.Value = value;
         }
 
         public virtual bool IsScratch

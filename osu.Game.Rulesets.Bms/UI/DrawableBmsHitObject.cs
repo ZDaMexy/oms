@@ -182,10 +182,10 @@ namespace osu.Game.Rulesets.Bms.UI
         private static BmsNoteSkinLookup? createLookup(HitObject hitObject)
             => hitObject switch
             {
-                BmsHoldNote holdNote => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, holdNote.LaneIndex, holdNote.IsScratch),
-                BmsHoldNoteHead head => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, head.LaneIndex, head.IsScratch),
-                BmsHoldNoteTailEvent tail => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, tail.LaneIndex, tail.IsScratch),
-                BmsHitObject note => new BmsNoteSkinLookup(BmsNoteSkinElements.Note, note.LaneIndex, note.IsScratch),
+                BmsHoldNote holdNote => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, holdNote.LaneIndex, holdNote.IsScratch, holdNote.Keymode),
+                BmsHoldNoteHead head => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, head.LaneIndex, head.IsScratch, head.Keymode),
+                BmsHoldNoteTailEvent tail => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, tail.LaneIndex, tail.IsScratch, tail.Keymode),
+                BmsHitObject note => new BmsNoteSkinLookup(BmsNoteSkinElements.Note, note.LaneIndex, note.IsScratch, note.Keymode),
                 _ => null,
             };
 

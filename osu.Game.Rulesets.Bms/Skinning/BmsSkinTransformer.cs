@@ -146,10 +146,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private static Drawable createDefaultNoteComponent(BmsNoteSkinLookup lookup)
             => lookup.Element switch
             {
-                BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(lookup.IsScratch),
-                BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(lookup.IsScratch),
-                BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(lookup.IsScratch),
-                BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(lookup.IsScratch),
+                BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 _ => new Box
                 {
                     RelativeSizeAxes = Axes.Both,

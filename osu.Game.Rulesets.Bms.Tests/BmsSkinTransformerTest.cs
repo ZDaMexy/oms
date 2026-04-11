@@ -25,6 +25,7 @@ using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
+using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -315,12 +316,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestNoteFallsBackToDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 1, false, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
                 Assert.That(((DefaultBmsNoteDisplay)drawable!).IsScratch, Is.False);
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.WhiteKeyNote);
             });
         }
 
@@ -328,12 +330,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestScratchNoteFallsBackToScratchDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, true));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, true, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
                 Assert.That(((DefaultBmsNoteDisplay)drawable!).IsScratch, Is.True);
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchNote);
             });
         }
 
@@ -341,12 +344,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestLongNoteHeadFallsBackToDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 0, false));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 2, false, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsLongNoteHeadDisplay>());
                 Assert.That(((DefaultBmsLongNoteHeadDisplay)drawable!).IsScratch, Is.False);
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.CyanKeyNote);
             });
         }
 
@@ -354,12 +358,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestScratchLongNoteHeadFallsBackToScratchDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 0, true));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 0, true, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsLongNoteHeadDisplay>());
                 Assert.That(((DefaultBmsLongNoteHeadDisplay)drawable!).IsScratch, Is.True);
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchNote);
             });
         }
 
@@ -367,7 +372,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestLongNoteBodyFallsBackToDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, false));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 4, false, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
@@ -375,6 +380,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(((DefaultBmsLongNoteBodyDisplay)drawable!).IsScratch, Is.False);
                 Assert.That(drawable!.Width, Is.EqualTo(0.42f).Within(0.0001f));
                 Assert.That(drawable.Alpha, Is.EqualTo(0.8f).Within(0.0001f));
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.YellowKeyLongNoteBody);
             });
         }
 
@@ -382,7 +388,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestScratchLongNoteBodyFallsBackToScratchDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, true));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, true, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
@@ -390,6 +396,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(((DefaultBmsLongNoteBodyDisplay)drawable!).IsScratch, Is.True);
                 Assert.That(drawable!.Width, Is.EqualTo(0.42f).Within(0.0001f));
                 Assert.That(drawable.Alpha, Is.EqualTo(0.8f).Within(0.0001f));
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchLongNoteBody);
             });
         }
 
@@ -397,12 +404,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestLongNoteTailFallsBackToDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, false));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 6, false, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsLongNoteTailDisplay>());
                 Assert.That(((DefaultBmsLongNoteTailDisplay)drawable!).IsScratch, Is.False);
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.CyanKeyNote);
             });
         }
 
@@ -410,13 +418,44 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestScratchLongNoteTailFallsBackToScratchDefaultDisplay()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, true));
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, true, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsLongNoteTailDisplay>());
                 Assert.That(((DefaultBmsLongNoteTailDisplay)drawable!).IsScratch, Is.True);
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchNote);
             });
+        }
+
+        [TestCase(1, 243, 243, 243)]
+        [TestCase(2, 53, 234, 255)]
+        [TestCase(4, 255, 222, 53)]
+        [TestCase(6, 53, 234, 255)]
+        [TestCase(7, 243, 243, 243)]
+        public void TestSevenKeyFallbackUsesRequestedPerKeyColours(int laneIndex, byte red, byte green, byte blue)
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, laneIndex, false, BmsKeymode.Key7K));
+
+            Assert.That(drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
+            assertSingleColour((Drawable)drawable!, new Color4(red, green, blue, 255));
+        }
+
+        [TestCase(BmsKeymode.Key5K, 1, false, 53, 234, 255)]
+        [TestCase(BmsKeymode.Key5K, 2, false, 243, 243, 243)]
+        [TestCase(BmsKeymode.Key9K_Bms, 0, false, 53, 234, 255)]
+        [TestCase(BmsKeymode.Key9K_Bms, 1, false, 243, 243, 243)]
+        [TestCase(BmsKeymode.Key14K, 9, false, 243, 243, 243)]
+        [TestCase(BmsKeymode.Key14K, 10, false, 53, 234, 255)]
+        [TestCase(BmsKeymode.Key14K, 8, true, 252, 0, 20)]
+        public void TestNonSevenKeyFallbackUsesAlternatingOddEvenColours(BmsKeymode keymode, int laneIndex, bool isScratch, byte red, byte green, byte blue)
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+            var drawable = transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, laneIndex, isScratch, keymode));
+
+            Assert.That(drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
+            assertSingleColour((Drawable)drawable!, new Color4(red, green, blue, 255));
         }
 
         [Test]
@@ -667,6 +706,14 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         private static OmsSkin createOmsSkin() => new OmsSkin(new TestStorageResourceProvider());
+
+        private static void assertSingleColour(Drawable drawable, Color4 expected)
+        {
+            Assert.That(drawable.Colour.TopLeft.SRGB, Is.EqualTo(expected));
+            Assert.That(drawable.Colour.TopRight.SRGB, Is.EqualTo(expected));
+            Assert.That(drawable.Colour.BottomLeft.SRGB, Is.EqualTo(expected));
+            Assert.That(drawable.Colour.BottomRight.SRGB, Is.EqualTo(expected));
+        }
 
         private sealed class TestStorageResourceProvider : IStorageResourceProvider
         {

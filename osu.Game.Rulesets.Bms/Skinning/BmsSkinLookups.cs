@@ -83,14 +83,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public bool IsScratch { get; }
 
-        public BmsNoteSkinLookup(BmsNoteSkinElements element, int laneIndex, bool isScratch)
+        public BmsKeymode Keymode { get; }
+
+        public BmsNoteSkinLookup(BmsNoteSkinElements element, int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
         {
             Element = element;
             LaneIndex = laneIndex;
             IsScratch = isScratch;
+            Keymode = keymode;
         }
 
-        public override string ToString() => $"[{nameof(BmsNoteSkinLookup)} element:{Element} lane:{LaneIndex} scratch:{IsScratch}]";
+        public override string ToString() => $"[{nameof(BmsNoteSkinLookup)} element:{Element} lane:{LaneIndex} scratch:{IsScratch} keymode:{Keymode}]";
     }
 
     public sealed class BmsLaneCoverSkinLookup : ISkinComponentLookup

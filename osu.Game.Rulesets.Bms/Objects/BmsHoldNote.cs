@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using osu.Game.Rulesets.Bms.Audio;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
@@ -73,6 +74,21 @@ namespace osu.Game.Rulesets.Bms.Objects
 
                 if (Tail != null)
                     Tail.IsScratch = value;
+            }
+        }
+
+        public override BmsKeymode Keymode
+        {
+            get => base.Keymode;
+            set
+            {
+                base.Keymode = value;
+
+                if (Head != null)
+                    Head.Keymode = value;
+
+                if (Tail != null)
+                    Tail.Keymode = value;
             }
         }
 
@@ -159,6 +175,7 @@ namespace osu.Game.Rulesets.Bms.Objects
                 LaneIndex = LaneIndex,
                 KeysoundId = HeadKeysoundId,
                 KeysoundSample = HeadKeysoundSample,
+                Keymode = Keymode,
                 IsScratch = IsScratch,
                 AutoPlay = AutoPlay,
             });
@@ -171,6 +188,7 @@ namespace osu.Game.Rulesets.Bms.Objects
                 LaneIndex = LaneIndex,
                 KeysoundId = TailKeysoundId,
                 KeysoundSample = TailKeysoundSample,
+                Keymode = Keymode,
                 IsScratch = IsScratch,
                 AutoPlay = AutoPlay,
             });

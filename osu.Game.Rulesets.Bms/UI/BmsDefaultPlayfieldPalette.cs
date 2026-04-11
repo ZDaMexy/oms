@@ -1,5 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -13,11 +15,14 @@ namespace osu.Game.Rulesets.Bms.UI
         public static readonly Color4 ScratchLaneBackground = new Color4(40, 29, 20, 255);
         public static readonly Color4 LaneDivider = new Color4(88, 102, 128, 255);
         public static readonly Color4 ScratchLaneDivider = new Color4(220, 170, 100, 255);
-        public static readonly Color4 Note = new Color4(244, 246, 250, 255);
-        public static readonly Color4 LongNote = new Color4(144, 229, 255, 255);
-        public static readonly Color4 LongNoteBody = new Color4(52, 154, 210, 255);
-        public static readonly Color4 ScratchNote = new Color4(255, 184, 92, 255);
-        public static readonly Color4 ScratchLongNoteBody = new Color4(196, 128, 52, 255);
+        public static readonly Color4 WhiteKeyNote = new Color4(243, 243, 243, 255);
+        public static readonly Color4 CyanKeyNote = new Color4(53, 234, 255, 255);
+        public static readonly Color4 YellowKeyNote = new Color4(255, 222, 53, 255);
+        public static readonly Color4 ScratchNote = new Color4(252, 0, 20, 255);
+        public static readonly Color4 WhiteKeyLongNoteBody = darken(WhiteKeyNote, 0.72f);
+        public static readonly Color4 CyanKeyLongNoteBody = darken(CyanKeyNote, 0.72f);
+        public static readonly Color4 YellowKeyLongNoteBody = darken(YellowKeyNote, 0.72f);
+        public static readonly Color4 ScratchLongNoteBody = darken(ScratchNote, 0.72f);
 
         public static readonly Color4 MetadataWash = new Color4(14, 20, 31, 176);
         public static readonly Color4 MetadataPanelBackground = new Color4(10, 14, 22, 224);
@@ -47,18 +52,73 @@ namespace osu.Game.Rulesets.Bms.UI
         public static Color4 GetLaneDivider(bool isScratch)
             => isScratch ? ScratchLaneDivider : LaneDivider;
 
-        public static Color4 GetNote(bool isScratch)
-            => isScratch ? ScratchNote : Note;
+        public static Color4 GetNote(int laneIndex, bool isScratch, BmsKeymode keymode)
+            => getNoteColourGroup(laneIndex, isScratch, keymode) switch
+            {
+                NoteColourGroup.Cyan => CyanKeyNote,
+                NoteColourGroup.Yellow => YellowKeyNote,
+                NoteColourGroup.Scratch => ScratchNote,
+                _ => WhiteKeyNote,
+            };
 
-        public static Color4 GetLongNoteHead(bool isScratch)
-            => isScratch ? ScratchNote : LongNote;
+        public static Color4 GetLongNoteHead(int laneIndex, bool isScratch, BmsKeymode keymode)
+            => GetNote(laneIndex, isScratch, keymode);
 
-        public static Color4 GetLongNoteBody(bool isScratch)
-            => isScratch ? ScratchLongNoteBody : LongNoteBody;
+        public static Color4 GetLongNoteBody(int laneIndex, bool isScratch, BmsKeymode keymode)
+            => getNoteColourGroup(laneIndex, isScratch, keymode) switch
+            {
+                NoteColourGroup.Cyan => CyanKeyLongNoteBody,
+                NoteColourGroup.Yellow => YellowKeyLongNoteBody,
+                NoteColourGroup.Scratch => ScratchLongNoteBody,
+                _ => WhiteKeyLongNoteBody,
+            };
 
-        public static Color4 GetLongNoteTail(bool isScratch)
-            => isScratch ? ScratchNote : LongNote;
+        public static Color4 GetLongNoteTail(int laneIndex, bool isScratch, BmsKeymode keymode)
+            => GetNote(laneIndex, isScratch, keymode);
 
         public static Color4 GetBarLine(bool isMajor) => isMajor ? MajorBarLine : MinorBarLine;
+
+        private static NoteColourGroup getNoteColourGroup(int laneIndex, bool isScratch, BmsKeymode keymode)
+        {
+            if (isScratch)
+                return NoteColourGroup.Scratch;
+
+            int keyNumber = getKeyNumber(laneIndex, keymode);
+
+            if (keymode == BmsKeymode.Key7K)
+            {
+                return keyNumber switch
+                {
+                    2 or 6 => NoteColourGroup.Cyan,
+                    4 => NoteColourGroup.Yellow,
+                    _ => NoteColourGroup.White,
+                };
+            }
+
+            return keyNumber % 2 == 0 ? NoteColourGroup.White : NoteColourGroup.Cyan;
+        }
+
+        private static int getKeyNumber(int laneIndex, BmsKeymode keymode)
+        {
+            return keymode switch
+            {
+                BmsKeymode.Key5K => Math.Clamp(laneIndex, 1, 5),
+                BmsKeymode.Key7K => Math.Clamp(laneIndex, 1, 7),
+                BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms => Math.Clamp(laneIndex + 1, 1, 9),
+                BmsKeymode.Key14K => laneIndex < 8 ? Math.Clamp(laneIndex, 1, 7) : Math.Clamp(laneIndex - 1, 8, 14),
+                _ => Math.Max(1, laneIndex),
+            };
+        }
+
+        private static Color4 darken(Color4 colour, float factor)
+            => new Color4(colour.R * factor, colour.G * factor, colour.B * factor, colour.A);
+
+        private enum NoteColourGroup
+        {
+            White,
+            Cyan,
+            Yellow,
+            Scratch,
+        }
     }
 }

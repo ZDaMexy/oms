@@ -152,6 +152,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     LaneIndex = mapLaneIndex(decodedChart.BeatmapInfo.Keymode, objectEvent.Channel),
                     KeysoundId = objectEvent.ObjectId,
                     KeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, objectEvent.ObjectId),
+                    Keymode = decodedChart.BeatmapInfo.Keymode,
                     IsScratch = isScratchLane(decodedChart.BeatmapInfo.Keymode, objectEvent.Channel),
                     AutoPlay = false,
                 });
@@ -173,6 +174,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     HeadKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.HeadObjectId),
                     TailKeysoundId = longNoteEvent.TailObjectId,
                     TailKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.TailObjectId),
+                    Keymode = decodedChart.BeatmapInfo.Keymode,
                     IsScratch = isScratchLane(decodedChart.BeatmapInfo.Keymode, longNoteEvent.LaneChannel),
                     AutoPlay = false,
                 });
