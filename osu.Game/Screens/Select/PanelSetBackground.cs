@@ -67,7 +67,19 @@ namespace osu.Game.Screens.Select
         }
 
         private static string? getBackgroundFileHash(WorkingBeatmap? working)
-            => working?.BeatmapSetInfo.GetFile(working.Metadata.BackgroundFile)?.File.Hash;
+        {
+            if (working == null)
+                return null;
+
+            string? hash = working.BeatmapSetInfo.GetFile(working.Metadata.BackgroundFile)?.File.Hash;
+
+            // For filesystem-backed beatmaps (e.g. BMS), Files collection is empty so hash is null.
+            // Fall back to storage path + background filename as a unique identifier.
+            if (hash == null && working.BeatmapSetInfo.FilesystemStoragePath != null)
+                return working.BeatmapSetInfo.FilesystemStoragePath + "/" + working.Metadata.BackgroundFile;
+
+            return hash;
+        }
 
         public PanelSetBackground()
         {

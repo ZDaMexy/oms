@@ -5,7 +5,28 @@
 
 ---
 
+## 2026-04-13
+
+### 修复外部谱库设置 UI 不可见（DI 注册时序 + CanBeNull）
+
+- **根因**：`ExternalLibraryConfig` 与 `ExternalLibraryScanner` 在 `OsuGameDesktop.LoadComplete()` 中才创建和 `CacheAs`，但 Settings overlay 的 async 加载（`loadComponentSingleFile` via `Schedule`）可能在此之前解析依赖。同时 `[Resolved]` 未标注 `CanBeNull = true`，框架在类型未注册时直接抛异常，导致 `ExternalLibrarySettings` subsection 整体加载失败
+- **修复**：
+  1. 新增 `OsuGameDesktop` 的 `[BackgroundDependencyLoader] load()`，在 BDL 阶段（base BDL 之后、任何 scheduled load 之前）创建 `ExternalLibraryConfig`/`ExternalLibraryScanner` 并 `CacheAs` 注册到 `desktopDependencies`
+  2. `LoadComplete` 中仅保留 importer 委托接线（`BmsDirectoryImporter` / `ManiaDirectoryImporter`），因为 `BmsBeatmapImporter` / `ManiaBeatmapImporter` 在 `LoadComplete` 创建
+  3. `ExternalLibrarySettings` 所有 `[Resolved]` 统一加 `CanBeNull = true`，确保非桌面上下文安全降级
+- 构建验证：0 warning / 0 error
+- 定向验证：BMS **519/519** 通过，mania OMS **92/92** 通过，osu.Game.Tests release-gate **6/6** 通过
+
 ## 2026-04-12
+
+### 外部谱库设置 UI + 存储目录重命名
+
+- 新增 `ExternalLibrarySelectScreen`（基于 `DirectorySelectScreen` 的全屏目录选择器），新增 `ExternalLibrarySettings`（Settings → Maintenance 子区域）：可在设置中添加 BMS / mania 外部谱库根目录、查看已注册根列表（路径有效性 + 类型/状态/最近扫描信息）、移除根目录、一键扫描全部根目录（带进度通知）
+- `OsuGameDesktop` 新增 `CreateChildDependencies` 覆盖，将 `ExternalLibraryConfig` 与 `ExternalLibraryScanner` 注册到 DI 容器，设置 UI 通过 `[Resolved]` nullable 解析（非桌面端安全降级）
+- `MaintenanceSection` 子区域列表增加 `ExternalLibrarySettings` 入口
+- 存储目录重命名：`songs/` → `chartbms/`、`mania/` → `chartmania/`，`SONGS_STORAGE_PATH` / `MANIA_STORAGE_PATH` 常量与全部代码注释/文档同步更新
+- 构建验证：0 warning / 0 error
+- 定向验证：BMS **519/519** 通过，mania OMS **92/92** 通过，osu.Game.Tests release-gate **6/6** 通过
 
 ### 修复 FilterControl.updateSortDropdownState 在二次进入 Song Select 时因 Bindable Disabled 状态残留而崩溃
 
@@ -28,7 +49,7 @@
 
 - 新增 `ExternalLibraryRoot`（数据模型）+ `ExternalLibraryConfig`（JSON `library-roots.json` 配置管理器），支持注册/移除/启用外部谱库根目录，BMS / mania 双类型均可配置
 - 新增 `ExternalLibraryScanner`（委托注入式扫描器），遍历已注册根目录的直接子目录，按文件扩展名（BMS: `.bms/.bme/.bml/.pms`；mania: `.osu`）自动分类并分派到对应导入器，返回 `ScanResult{Imported, Skipped, Errors}`
-- 新增 `ManiaFolderImporter`（`mania/<safeName-hash>/` 文件系统直读导入器），解析 .osu 文件 → 提取元数据/难度/哈希 → 复制目录 → 设置 `FilesystemStoragePath` → 写入 Realm；与 BMS `songs/` 同级的独立目录树
+- 新增 `ManiaFolderImporter`（`chartmania/<safeName-hash>/` 文件系统直读导入器），解析 .osu 文件 → 提取元数据/难度/哈希 → 复制目录 → 设置 `FilesystemStoragePath` → 写入 Realm；与 BMS `chartbms/` 同级的独立目录树
 - 新增 `ManiaBeatmapImporter`（`ICanAcceptFiles` 封装），仅处理目录（.osz 继续走标准 `BeatmapImporter`），支持拖放导入与进度通知
 - `OsuGameDesktop` 集成：注册 `ManiaBeatmapImporter` 作为导入处理器，创建 `ExternalLibraryConfig` 与 `ExternalLibraryScanner` 并接通 BMS / mania 导入委托，`Dispose` 清理已补齐
 - 构建验证：0 warning / 0 error

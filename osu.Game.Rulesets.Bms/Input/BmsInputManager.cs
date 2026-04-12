@@ -312,14 +312,11 @@ namespace osu.Game.Rulesets.Bms.Input
         public static BmsAction GetLaneAction(int laneIndex, bool isScratch)
         {
             if (isScratch)
-                return laneIndex < 8 ? BmsAction.Scratch1 : BmsAction.Scratch2;
+                return laneIndex == 0 ? BmsAction.Scratch1 : BmsAction.Scratch2;
 
             int keyIndex = laneIndex;
 
             if (laneIndex > 0)
-                keyIndex--;
-
-            if (laneIndex > 8)
                 keyIndex--;
 
             return GetKeyAction(keyIndex);

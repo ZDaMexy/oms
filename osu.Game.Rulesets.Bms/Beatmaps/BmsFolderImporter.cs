@@ -21,7 +21,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 {
     public class BmsFolderImporter
     {
-        public const string SONGS_STORAGE_PATH = "songs";
+        public const string SONGS_STORAGE_PATH = "chartbms";
 
         private readonly Storage storage;
         private readonly Storage songsStorage;
@@ -137,6 +137,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         {
             var beatmaps = new List<BeatmapInfo>();
             var skippedBeatmapFiles = new List<string>();
+            var allKeysoundFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var beatmapFiles = reader.Filenames.Where(isTopLevelBeatmapFile)
                                       .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                                       .ToArray();
@@ -168,6 +169,24 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     memoryStream.Position = 0;
                     var loadedBeatmap = BmsImportedBeatmapFactory.Create(memoryStream, beatmapFile);
                     var loadedInfo = loadedBeatmap.BeatmapInfo;
+
+                    foreach (string keysoundFile in loadedBeatmap.DecodedChart.BeatmapInfo.KeysoundTable.Values)
+                    {
+                        if (Audio.BmsKeysoundSampleInfo.TryNormaliseFilename(keysoundFile, out string? normalised))
+                        {
+                            allKeysoundFiles.Add(normalised);
+
+                            // BMS allows omitting file extensions; the audio store tries common extensions at lookup time.
+                            // Register all possible variants so we don't mistake a keysound for a full music file.
+                            if (string.IsNullOrEmpty(Path.GetExtension(normalised)))
+                            {
+                                allKeysoundFiles.Add(normalised + ".wav");
+                                allKeysoundFiles.Add(normalised + ".ogg");
+                                allKeysoundFiles.Add(normalised + ".mp3");
+                                allKeysoundFiles.Add(normalised + ".flac");
+                            }
+                        }
+                    }
 
                     memoryStream.Position = 0;
                     string hash = memoryStream.ComputeSHA2Hash();
@@ -210,6 +229,16 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             if (!beatmaps.Any())
                 return new PreparedBeatmapSet(null, skippedBeatmapFiles);
+
+            string? detectedAudioFile = detectFullMusicFile(reader, allKeysoundFiles);
+
+            if (detectedAudioFile != null)
+            {
+                foreach (var beatmap in beatmaps)
+                    beatmap.Metadata.AudioFile = detectedAudioFile;
+
+                Logger.Log($"Detected full music file '{detectedAudioFile}' for BMS set ({reader.Name}).", LoggingTarget.Database);
+            }
 
             hashableBeatmaps.Position = 0;
             beatmapSet.Hash = hashableBeatmaps.Length > 0 ? hashableBeatmaps.ComputeSHA2Hash() : reader.Name.ComputeSHA2Hash();
@@ -277,6 +306,49 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static bool isTopLevelBeatmapFile(string filename)
             => !filename.ToStandardisedPath().Contains('/') && BmsImportExtensions.IsBeatmapFile(filename);
+
+        /// <summary>
+        /// Scans the BMS directory for an audio file that is NOT referenced by any keysound table entry
+        /// and is large enough to be a full music track (≥ 1 MB). Returns the largest such file, or null.
+        /// </summary>
+        private static string? detectFullMusicFile(DirectoryArchiveReader reader, HashSet<string> keysoundFiles)
+        {
+            string[] audioExtensions = { ".mp3", ".ogg", ".flac", ".wav" };
+            const long minimum_music_file_size = 1_000_000; // 1 MB
+
+            string? bestCandidate = null;
+            long bestSize = 0;
+
+            foreach (string filename in reader.Filenames)
+            {
+                string ext = Path.GetExtension(filename);
+
+                if (string.IsNullOrEmpty(ext) || !audioExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                string standardised = filename.ToStandardisedPath();
+
+                if (keysoundFiles.Contains(standardised))
+                    continue;
+
+                try
+                {
+                    long fileSize = new FileInfo(reader.GetFullPath(filename)).Length;
+
+                    if (fileSize >= minimum_music_file_size && fileSize > bestSize)
+                    {
+                        bestSize = fileSize;
+                        bestCandidate = standardised;
+                    }
+                }
+                catch
+                {
+                    // Ignore files we can't stat.
+                }
+            }
+
+            return bestCandidate;
+        }
 
         public sealed class FolderImportResult
         {

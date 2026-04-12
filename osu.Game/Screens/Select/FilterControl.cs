@@ -294,7 +294,7 @@ namespace osu.Game.Screens.Select
             var criteria = new FilterCriteria
             {
                 SelectedBeatmapSet = ScopedBeatmapSet.Value,
-                Sort = groupDropdown.Current.Value == GroupMode.DifficultyTable ? SortMode.Difficulty : sortDropdown.Current.Value,
+                Sort = sortDropdown.Current.Value,
                 Group = groupDropdown.Current.Value,
                 AllowConvertedBeatmaps = showConvertedBeatmapsButton.Active.Value,
                 Ruleset = ruleset.Value,
@@ -356,21 +356,8 @@ namespace osu.Game.Screens.Select
 
         private void updateSortDropdownState()
         {
-            bool lockToDifficulty = groupDropdown.Current.Value == GroupMode.DifficultyTable;
-
-            if (lockToDifficulty)
-            {
-                if (!sortModeBeforeLockedGrouping.HasValue && sortDropdown.Current.Value != SortMode.Difficulty)
-                    sortModeBeforeLockedGrouping = sortDropdown.Current.Value;
-
-                // Must enable before setting value — the disabled state may persist across
-                // SongSelect instances via config binding propagation.
-                sortDropdown.Current.Disabled = false;
-                sortDropdown.Current.Value = SortMode.Difficulty;
-                sortDropdown.Current.Disabled = true;
-                return;
-            }
-
+            // DifficultyTable grouping uses hierarchical groups (table → level) for structure,
+            // but still allows user to choose how beatmaps within each level are sorted.
             sortDropdown.Current.Disabled = false;
 
             if (sortModeBeforeLockedGrouping.HasValue)

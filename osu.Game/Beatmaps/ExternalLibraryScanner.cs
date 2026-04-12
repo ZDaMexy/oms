@@ -25,13 +25,13 @@ namespace osu.Game.Beatmaps
 
         /// <summary>
         /// Delegate that imports a single BMS folder (a directory containing .bms/.bme/.bml/.pms files)
-        /// into <c>songs/</c>. Accepts the directory path and a cancellation token.
+        /// into <c>chartbms/</c>. Accepts the directory path and a cancellation token.
         /// </summary>
         public Func<string, CancellationToken, Task>? BmsDirectoryImporter { get; set; }
 
         /// <summary>
         /// Delegate that imports a single mania folder (a directory containing .osu files)
-        /// into <c>mania/</c>. Accepts the directory path and a cancellation token.
+        /// into <c>chartmania/</c>. Accepts the directory path and a cancellation token.
         /// </summary>
         public Func<string, CancellationToken, Task>? ManiaDirectoryImporter { get; set; }
 

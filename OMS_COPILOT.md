@@ -253,11 +253,11 @@ Import pipeline:
 3. Scan extracted folder for any `.bms`/`.bme`/`.bml`/`.pms` file — each file is one **difficulty**
 4. Group all difficulties sharing the same folder into one **BeatmapSet**, regardless of keymode differences. Files with different keymodes (e.g. a 5K chart and a 7K chart in the same folder) are not split into separate sets — keymode is stored as per-difficulty metadata and used for lane layout selection at play time. In the difficulty selector, the keymode is shown as a label on each difficulty entry (e.g. "7K", "5K").
 5. Register keysound and BMP asset paths relative to the extracted folder root
-6. Move extracted folder to OMS songs directory, clean up temp
+6. Move extracted folder to OMS chartbms directory, clean up temp
 
 Do **not** convert to `.osz`. OMS reads BMS files directly from disk at runtime.
 
-Do **not** route imported BMS charts or their dependent assets through the generic `files/` hash-backed store. The extracted folder inside OMS songs is the source of truth; the database only persists metadata and path/location references needed for lookup and reload.
+Do **not** route imported BMS charts or their dependent assets through the generic `files/` hash-backed store. The extracted folder inside OMS chartbms is the source of truth; the database only persists metadata and path/location references needed for lookup and reload.
 
 **Parse failure handling:** If `BmsBeatmapDecoder` throws or produces a critically incomplete result (no playable notes after channel parse, unrecognisable encoding after detection attempt), `BmsArchiveReader` must:
 1. Log the error with the file path and exception message.

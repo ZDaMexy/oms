@@ -29,7 +29,7 @@
 - 当前 bar-line 清理增量：`OmsBarLine` 现已补上 OMS 自有的 major/minor runtime 语义，不再继续沿用 legacy bar line 对 `DrawableBarLine.Major` 无感知的行为；shared `BarLineHeight` / `BarLineColour` 仍由 `OmsManiaBarLinePreset` 承接
 - 当前 note scrolling 清理增量：`OmsNotePiece` 现已把 direction anchor / origin / scale 收口成显式 OMS display-state contract，不再继续依赖 legacy 风格的隐含 container origin 初始值；`OmsHoldNoteTailPiece` 继续通过 `GetDisplayDirection()` 继承该合同，当前这一轮 note / hold / combo / bar-line 语义清理已基本收口，后续自动推进可转回 Phase 1.1 其余 gate 与 1.17 analog scratch / cross-device trigger 语义
 - 当前 BMS metadata 基线：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已接入解析与持久化，`BmsBeatmapMetadataData.ChartMetadata` 会承载副标题、次艺术家、评论、内部标级与 header difficulty，Song Select 右侧摘要现可显示谱师、内部标级、副标题与表标签
-- 当前存储拓扑：官方默认仍维持 AppData 分离数据根，`storage.ini` 已能迁移到单一自定义数据根；`mania/` 目录（`ManiaFolderImporter`）已落地为与 BMS `songs/` 同级的独立文件系统直读；外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）已落地；剩余 UI 整合与删除/失效语义待后续推进
+- 当前存储拓扑：官方默认仍维持 AppData 分离数据根，`storage.ini` 已能迁移到单一自定义数据根；`chartmania/` 目录（`ManiaFolderImporter`）已落地为与 BMS `chartbms/` 同级的独立文件系统直读；外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）已落地；剩余 UI 整合与删除/失效语义待后续推进
 - normal-note / hold-note-head / hold-note-tail / hold-note-body 路径本轮又继续落下首个 explicit note component slice、首个 explicit hold-note-head component slice、首个 explicit hold-note-tail component slice与首个 explicit hold-note-body component slice：`ManiaSkinComponents.Note` / `ManiaSkinComponents.HoldNoteHead` / `ManiaSkinComponents.HoldNoteTail` / `ManiaSkinComponents.HoldNoteBody` 现已分别显式接到 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece`，`DrawableNote` / `DrawableHoldNoteHead` / `DrawableHoldNoteTail` 与 `DrawableHoldNote` 内部 `bodyPiece` 也已会在 OMS preview 路径下实际加载对应 OMS 组件；其中 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` 已进一步升级为不再继承 `LegacyNotePiece` / `LegacyHoldNoteHeadPiece` / `LegacyHoldNoteTailPiece` / `LegacyBodyPiece` 的实际 OMS-owned component implementation，而 `OmsHoldNoteBodyPiece` 现也已把 `NoteBodyStyle` / `HoldNoteLightImage` / `HoldNoteLightScale` 收口到 `OmsManiaHoldNoteBodyPreset` 并固定使用 OMS stretch 语义，且已移除 legacy 风格的 hit-light 与 miss fade 运行时链路，`WidthForNoteHeightScale` 也已由 `OmsManiaLayoutPreset` 显式承接并按列下发到 `OmsNotePiece`，`OmsHoldNoteTailPiece` 则已改为通过 `OmsNotePiece` 的正式 display-direction hook 承接 tail 的反向显示语义，而 `OmsNotePiece` 本体的 direction anchor / origin / scale 现也已收口成显式 OMS display-state contract；当前 note / hold 默认路径已不再继续保留 legacy body-style、legacy tail inversion、legacy hold-light / miss-fade、implicit note-scrolling state 或 total-columns note-height fallback 分支。
 - bar-line non-column shared 路径本轮又新增 `BarLineHeight` / `BarLineColour` slice，并继续落下首个 explicit bar-line component slice：`OmsManiaBarLinePreset` 现已在 single-stage、same-keycount dual-stage 与 mixed-stage non-column 路径下同时接管这两项 shared bar-line config，其中 mixed-stage 固定复用第一 stage preset，`OmsBarLine` 也已把 `ManiaSkinComponents.BarLine` 显式接回 OMS preview 路径；`DrawableBarLine` 现会实际加载 OMS bar line 组件并复用对应 OMS bar-line config，且 major/minor runtime 语义也已由 OMS 组件自身承接，不再继续沿用 legacy bar-line 的单态表现。
 - 1.6 最新状态：`BmsGaugeProcessor` 的 `TotalHittableObjects` / `BaseRate` 现已尊重 beatmap 当前的 long-note 结构，`CN` / `HCN` 的 scored tail 会计入 gauge 分母，`HCN` body tick 仍保持 gauge-only；long-note release-window 也已改成“score window 对齐普通命中、仅 miss grace 轻微放宽”的 judge-mode-aware 模型（`OD` 默认 `1.25`，`BEATORAJA` / `LR2` 为 `1.2`）；剩余重点转为长条边界回归与真实谱面验校
@@ -87,16 +87,16 @@
 
 ### BMS 文件落盘基线
 
-1. BMS 包导入后，解压目录直接进入 OMS songs 目录作为最终存储
-2. 运行时从 OMS songs 目录直接读取 `.bms/.bme/.bml/.pms` 与关联音频/BMP 资源
+1. BMS 包导入后，解压目录直接进入 OMS chartbms 目录作为最终存储
+2. 运行时从 OMS chartbms 目录直接读取 `.bms/.bme/.bml/.pms` 与关联音频/BMP 资源
 3. BMS 谱面正文与关联资源不进入 lazer 现有 `files/` 哈希文件仓库；数据库只保存索引、元数据和定位信息
 4. 覆盖更新不得改写、重打包或重新哈希用户自己的 BMS 目录内容
 
 ### 存储拓扑演进基线
 
 1. Phase 1 / Phase 1.1 期间，官方支持路径继续保持“默认 AppData 数据根 + 可迁移单自定义数据根”；不要把程序+数据同包写成当前既有正式能力
-2. 若后续要提供 beatoraja 风格的单包便携数据模式，优先实现“程序目录内 `data/` 子目录”的显式 bootstrap preset，而不是把 `client.realm` / `files/` / `songs/` 直接混放到二进制目录
-3. mania 当前继续沿用通用 `BeatmapImporter + files/` 存储模型；在明确决定为 generic beatmap 引入 filesystem-backed 路线前，不单独为 mania 增加与 BMS `songs/` 同级的独立目录树
+2. 若后续要提供 beatoraja 风格的单包便携数据模式，优先实现“程序目录内 `data/` 子目录”的显式 bootstrap preset，而不是把 `client.realm` / `files/` / `chartbms/` 直接混放到二进制目录
+3. mania 当前已采用 `chartmania/` 目录的文件系统直读存储，与 BMS `chartbms/` 同级
 4. 真正进入存储改造时，优先级应是“可手动注册多个谱面根目录的外部 library 子系统”，而不是先做 mania sibling dir 或默认单包模式；其最小闭环应包括配置 schema、首次扫描/重扫、path identity、删除/失效语义、UI 与错误反馈
 
 ### 皮肤系统替换基线
@@ -205,7 +205,7 @@
 
 ### 1.5 归档导入 (`BmsArchiveReader`)
 
-**目标：** 支持 .zip/.rar/.7z 归档拖放导入，在 OMS songs 目录下直接保留 BMS 文件结构。
+**目标：** 支持 .zip/.rar/.7z 归档拖放导入，在 OMS chartbms 目录下直接保留 BMS 文件结构。
 
 **实现要点：**
 
@@ -215,12 +215,12 @@
 4. 同文件夹文件组为一个 BeatmapSet（不按键模式拆分）
 5. 计算每个文件 MD5 哈希，写入 BeatmapInfo.Hash
 6. 解析失败处理（部分成功警告/全部失败错误通知）
-7. 移动到 OMS songs 目录，清理临时文件，并把该目录作为 BMS 的最终来源路径
+7. 移动到 OMS chartbms 目录，清理临时文件，并把该目录作为 BMS 的最终来源路径
 8. 向 osu! BeatmapManager 注册可重载的元数据与定位信息，而不是把 BMS 正文和资源复制到现有 `files/` 哈希文件仓库
-9. 运行时 loader 从 OMS songs 目录直接读取 `.bms/.bme/.bml/.pms` 及其关联资源
+9. 运行时 loader 从 OMS chartbms 目录直接读取 `.bms/.bme/.bml/.pms` 及其关联资源
 
 **前置依赖：** 1.3, 1.4
-**验收：** 手动测试——拖放一个 7K BMS zip 包，Song Select 中出现对应谱面集，每个难度显示键模式标签，且解压后的原始文件夹保留在 OMS songs 目录并可被运行时直接重载。
+**验收：** 手动测试——拖放一个 7K BMS zip 包，Song Select 中出现对应谱面集，每个难度显示键模式标签，且解压后的原始文件夹保留在 OMS chartbms 目录并可被运行时直接重载。
 
 ---
 

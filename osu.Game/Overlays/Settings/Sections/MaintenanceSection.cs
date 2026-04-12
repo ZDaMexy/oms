@@ -25,6 +25,7 @@ namespace osu.Game.Overlays.Settings.Sections
             {
                 new GeneralSettings(),
                 new BeatmapSettings(),
+                new ExternalLibrarySettings(),
                 new SkinSettings(),
                 new CollectionsSettings(),
                 new ScoreSettings(),

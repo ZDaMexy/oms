@@ -38,6 +38,7 @@ namespace osu.Desktop
         private ManiaBeatmapImporter? maniaBeatmapImporter;
         private ExternalLibraryScanner? externalLibraryScanner;
         private ExternalLibraryConfig? externalLibraryConfig;
+        private DependencyContainer desktopDependencies = null!;
 
         [Cached(typeof(IHighPerformanceSessionManager))]
         private readonly HighPerformanceSessionManager highPerformanceSessionManager = new HighPerformanceSessionManager();
@@ -48,6 +49,9 @@ namespace osu.Desktop
             : base(args)
         {
         }
+
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent) =>
+            desktopDependencies = new DependencyContainer(base.CreateChildDependencies(parent));
 
         public override StableStorage? GetStorageForStableInstall()
         {
@@ -143,6 +147,19 @@ namespace osu.Desktop
             return base.RestartAppWhenExited();
         }
 
+        [BackgroundDependencyLoader]
+        private void load()
+        {
+            // Cache external library services during BDL so they are available before
+            // the Settings overlay async-loads (loadComponentSingleFile uses Schedule,
+            // but dependency resolution must find these already registered).
+            externalLibraryConfig = new ExternalLibraryConfig(Storage);
+            externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig);
+
+            desktopDependencies.CacheAs(externalLibraryConfig);
+            desktopDependencies.CacheAs(externalLibraryScanner);
+        }
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
@@ -159,12 +176,9 @@ namespace osu.Desktop
             };
             RegisterImportHandler(maniaBeatmapImporter);
 
-            externalLibraryConfig = new ExternalLibraryConfig(Storage);
-            externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig)
-            {
-                BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.Import(path),
-                ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.Import(path),
-            };
+            // Wire importer delegates now that importers are created.
+            externalLibraryScanner!.BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.Import(path);
+            externalLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.Import(path);
 
             if (OnlineFeaturesEnabled)
                 LoadComponentAsync(new DiscordRichPresence(), Add);

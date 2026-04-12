@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="external_library_header" xml:space="preserve"><value>外部谱库</value></data>
+  <data name="select_external_library_folder" xml:space="preserve"><value>选择外部谱库文件夹</value></data>
+  <data name="add_bms_library_folder" xml:space="preserve"><value>添加 BMS 谱库文件夹</value></data>
+  <data name="add_mania_library_folder" xml:space="preserve"><value>添加 Mania 谱库文件夹</value></data>
+  <data name="scan_all_libraries" xml:space="preserve"><value>扫描所有谱库</value></data>
+  <data name="added_library" xml:space="preserve"><value>已添加 {0} 谱库：{1}</value></data>
+  <data name="folder_already_registered" xml:space="preserve"><value>此文件夹已被注册。</value></data>
+  <data name="directory_not_found" xml:space="preserve"><value>目录未找到：{0}</value></data>
+  <data name="scanning_external_libraries" xml:space="preserve"><value>正在扫描外部谱库…</value></data>
+  <data name="scanning_progress" xml:space="preserve"><value>正在扫描：{0}（{1}/{2}）</value></data>
+  <data name="scan_complete" xml:space="preserve"><value>扫描完成：已导入 {0}，已跳过 {1}，错误 {2}</value></data>
+  <data name="remove" xml:space="preserve"><value>移除</value></data>
+  <data name="disabled_label" xml:space="preserve"><value>（已禁用）</value></data>
+  <data name="path_not_found" xml:space="preserve"><value>— 路径未找到</value></data>
+  <data name="last_scan" xml:space="preserve"><value>— 上次扫描：{0}</value></data>
+  <data name="never_scanned" xml:space="preserve"><value>— 从未扫描</value></data>
+</root>

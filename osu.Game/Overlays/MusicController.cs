@@ -72,6 +72,14 @@ namespace osu.Game.Overlays
 
         private AudioFilter audioDuckFilter = null!;
 
+        /// <summary>
+        /// Maximum number of consecutive <see cref="EnsurePlayingSomething"/> skip attempts before giving up.
+        /// Prevents infinite cycling when no beatmap set has a playable audio track.
+        /// </summary>
+        private const int MAX_ENSURE_PLAYING_SKIP_COUNT = 50;
+
+        private int ensurePlayingSkipCount;
+
         private readonly Bindable<RandomSelectAlgorithm> randomSelectAlgorithm = new Bindable<RandomSelectAlgorithm>();
 
         private readonly LinkedList<Live<BeatmapSetInfo>> randomHistory = new LinkedList<Live<BeatmapSetInfo>>();
@@ -148,11 +156,17 @@ namespace osu.Game.Overlays
                 if (beatmap.Disabled || !AllowTrackControl.Value)
                     return;
 
+                // Guard against infinite cycling when no beatmap set has a playable audio track
+                // (e.g. an all-BMS library with keysound-only charts).
+                if (++ensurePlayingSkipCount > MAX_ENSURE_PLAYING_SKIP_COUNT)
+                    return;
+
                 Logger.Log($"{nameof(MusicController)} skipping next track to {nameof(EnsurePlayingSomething)}");
                 NextTrack(allowProtectedTracks: true);
             }
             else if (!IsPlaying)
             {
+                ensurePlayingSkipCount = 0;
                 Logger.Log($"{nameof(MusicController)} starting playback to {nameof(EnsurePlayingSomething)}");
                 Play();
             }
@@ -458,7 +472,8 @@ namespace osu.Game.Overlays
                  .AsEnumerable()
                  .Select(s => new RealmLive<BeatmapSetInfo>(s, realm))
                  .Where(i => (allowProtectedTracks || !i.Value.Protected)
-                             && (SeasonalUIConfig.ENABLED || i.Value.Hash != IntroChristmas.CHRISTMAS_BEATMAP_SET_HASH));
+                             && (SeasonalUIConfig.ENABLED || i.Value.Hash != IntroChristmas.CHRISTMAS_BEATMAP_SET_HASH)
+                             && i.Value.Beatmaps.Any(b => !string.IsNullOrEmpty(b.Metadata.AudioFile)));
 
         private void changeBeatmap(WorkingBeatmap newWorking)
         {

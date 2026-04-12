@@ -108,7 +108,7 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 BmsKeymode.Key5K => new HashSet<int> { 0 },
                 BmsKeymode.Key7K => new HashSet<int> { 0 },
-                BmsKeymode.Key14K when laneCount > 8 => new HashSet<int> { 0, 8 },
+                BmsKeymode.Key14K when laneCount > 8 => new HashSet<int> { 0, laneCount - 1 },
                 BmsKeymode.Key14K => new HashSet<int> { 0 },
                 _ => new HashSet<int>(),
             };

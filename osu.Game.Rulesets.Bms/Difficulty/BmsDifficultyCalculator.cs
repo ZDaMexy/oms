@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Objects;
@@ -20,7 +22,7 @@ namespace osu.Game.Rulesets.Bms.Difficulty
 
         private readonly BmsNoteDensityAnalyzer densityAnalyzer = new BmsNoteDensityAnalyzer();
 
-        public override int Version => 20260409;
+        public override int Version => 20260413;
 
         public BmsDifficultyCalculator(IRulesetInfo ruleset, IWorkingBeatmap beatmap)
             : base(ruleset, beatmap)
@@ -30,11 +32,13 @@ namespace osu.Game.Rulesets.Bms.Difficulty
         protected override DifficultyAttributes CreateDifficultyAttributes(IBeatmap beatmap, Mod[] mods, Skill[] skills, double clockRate)
         {
             var densityAnalysis = densityAnalyzer.Analyze(beatmap);
+            double starRating = resolveAuthorStarRating(beatmap)
+                                ?? calculateStarRating(beatmap, densityAnalysis.Percentile95DensityNps);
 
             return new BmsDifficultyAttributes
             {
                 Mods = mods,
-                StarRating = calculateStarRating(beatmap, densityAnalysis.Percentile95DensityNps),
+                StarRating = starRating,
                 MaxCombo = densityAnalysis.TotalNoteCount,
                 TotalNoteCount = densityAnalysis.TotalNoteCount,
                 ScratchNoteCount = densityAnalysis.ScratchNoteCount,
@@ -47,6 +51,34 @@ namespace osu.Game.Rulesets.Bms.Difficulty
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate) => Enumerable.Empty<DifficultyHitObject>();
 
         protected override Skill[] CreateSkills(IBeatmap beatmap, Mod[] mods, double clockRate) => Array.Empty<Skill>();
+
+        /// <summary>
+        /// Attempts to derive a star rating from the BMS chart author's <c>#PLAYLEVEL</c> header.
+        /// Extracts the first numeric value from the string (e.g. "★12" → 12, "15" → 15, "sl3" → 3).
+        /// Returns <c>null</c> if no valid number is found, or the value is non-positive.
+        /// </summary>
+        private static double? resolveAuthorStarRating(IBeatmap beatmap)
+        {
+            if (beatmap is not BmsBeatmap bmsBeatmap)
+                return null;
+
+            string playLevel = bmsBeatmap.BmsInfo.PlayLevel;
+
+            if (string.IsNullOrWhiteSpace(playLevel))
+                return null;
+
+            // Extract the first numeric value (integer or decimal) from the PlayLevel string.
+            // Covers: "12", "★12", "☆3", "sl12", "Lv.7", "15.5", "Normal 8", etc.
+            var match = Regex.Match(playLevel, @"(\d+(?:\.\d+)?)");
+
+            if (!match.Success)
+                return null;
+
+            if (!double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double level) || level <= 0)
+                return null;
+
+            return level;
+        }
 
         private static double calculateStarRating(IBeatmap beatmap, double percentileDensityNps)
         {

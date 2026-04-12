@@ -45,7 +45,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(groups[2].Parent, Is.EqualTo(groups[0]));
                 Assert.That(groups[4].Parent, Is.EqualTo(groups[3]));
                 Assert.That(groups[5].Parent, Is.Null);
-                Assert.That(results.Select(item => item.Model).OfType<GroupedBeatmapSet>().Count(), Is.EqualTo(4));
+                Assert.That(results.Select(item => item.Model).OfType<GroupedBeatmapSet>().Count(), Is.EqualTo(0));
             });
 
             var groupedBeatmaps = results.Select(item => item.Model).OfType<GroupedBeatmap>().ToArray();
@@ -74,7 +74,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(groupedCopies.Length, Is.EqualTo(2));
                 Assert.That(groupedCopies.Select(copy => $"{copy.Group!.Parent!.Title}/{copy.Group.Title}"), Is.EquivalentTo(new[] { "Satellite/★1", "Stella/☆3" }));
-                Assert.That(results.Select(item => item.Model).OfType<GroupedBeatmapSet>().Count(), Is.EqualTo(2));
+                Assert.That(results.Select(item => item.Model).OfType<GroupedBeatmapSet>().Count(), Is.EqualTo(0));
             });
         }
 

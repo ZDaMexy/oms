@@ -183,6 +183,24 @@ namespace osu.Game.Beatmaps
             string? fileHashX = x.BeatmapSet.GetFile(getFilename(x.Metadata))?.File.Hash;
             string? fileHashY = y.BeatmapSet.GetFile(getFilename(y.Metadata))?.File.Hash;
 
+            // For filesystem-backed beatmaps (e.g. BMS chartbms/), Files collection is empty
+            // so both hashes will be null. Fall back to comparing by storage path + filename.
+            if (fileHashX == null && fileHashY == null)
+            {
+                string? pathX = x.BeatmapSet.FilesystemStoragePath;
+                string? pathY = y.BeatmapSet.FilesystemStoragePath;
+
+                // If neither has filesystem storage, both are truly unknown — treat as equal (original behaviour).
+                if (pathX == null && pathY == null)
+                    return true;
+
+                string filenameX = getFilename(x.Metadata);
+                string filenameY = getFilename(y.Metadata);
+
+                return string.Equals(pathX, pathY, StringComparison.OrdinalIgnoreCase)
+                       && string.Equals(filenameX, filenameY, StringComparison.OrdinalIgnoreCase);
+            }
+
             return fileHashX == fileHashY;
         }
 

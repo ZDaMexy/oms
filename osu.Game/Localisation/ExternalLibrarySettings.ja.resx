@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="external_library_header" xml:space="preserve"><value>外部ライブラリ</value></data>
+  <data name="select_external_library_folder" xml:space="preserve"><value>外部譜面ライブラリフォルダを選択</value></data>
+  <data name="add_bms_library_folder" xml:space="preserve"><value>BMSライブラリフォルダを追加</value></data>
+  <data name="add_mania_library_folder" xml:space="preserve"><value>Maniaライブラリフォルダを追加</value></data>
+  <data name="scan_all_libraries" xml:space="preserve"><value>すべてのライブラリをスキャン</value></data>
+  <data name="added_library" xml:space="preserve"><value>{0}ライブラリを追加しました：{1}</value></data>
+  <data name="folder_already_registered" xml:space="preserve"><value>このフォルダはすでに登録されています。</value></data>
+  <data name="directory_not_found" xml:space="preserve"><value>ディレクトリが見つかりません：{0}</value></data>
+  <data name="scanning_external_libraries" xml:space="preserve"><value>外部ライブラリをスキャン中...</value></data>
+  <data name="scanning_progress" xml:space="preserve"><value>スキャン中：{0}（{1}/{2}）</value></data>
+  <data name="scan_complete" xml:space="preserve"><value>スキャン完了：インポート {0}、スキップ {1}、エラー {2}</value></data>
+  <data name="remove" xml:space="preserve"><value>削除</value></data>
+  <data name="disabled_label" xml:space="preserve"><value>（無効）</value></data>
+  <data name="path_not_found" xml:space="preserve"><value>— パスが見つかりません</value></data>
+  <data name="last_scan" xml:space="preserve"><value>— 最終スキャン：{0}</value></data>
+  <data name="never_scanned" xml:space="preserve"><value>— 未スキャン</value></data>
+</root>

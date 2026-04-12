@@ -24,12 +24,12 @@ using Realms;
 namespace osu.Game.Rulesets.Mania.Beatmaps
 {
     /// <summary>
-    /// Imports mania beatmap directories into filesystem-backed storage under <c>mania/</c>,
-    /// analogous to <c>BmsFolderImporter</c> which uses <c>songs/</c>.
+    /// Imports mania beatmap directories into filesystem-backed storage under <c>chartmania/</c>,
+    /// analogous to <c>BmsFolderImporter</c> which uses <c>chartbms/</c>.
     /// </summary>
     public class ManiaFolderImporter
     {
-        public const string MANIA_STORAGE_PATH = "mania";
+        public const string MANIA_STORAGE_PATH = "chartmania";
 
         private readonly Storage storage;
         private readonly Storage maniaStorage;
@@ -300,7 +300,7 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
             string safeName = sourceName.GetValidFilename();
 
             if (string.IsNullOrWhiteSpace(safeName))
-                safeName = "mania";
+                safeName = "chartmania";
 
             string baseDirectoryName = $"{safeName}-{hash[..8]}";
             string directoryName = baseDirectoryName;

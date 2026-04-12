@@ -105,7 +105,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 BmsKeymode.Key5K => Math.Clamp(laneIndex, 1, 5),
                 BmsKeymode.Key7K => Math.Clamp(laneIndex, 1, 7),
                 BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms => Math.Clamp(laneIndex + 1, 1, 9),
-                BmsKeymode.Key14K => laneIndex < 8 ? Math.Clamp(laneIndex, 1, 7) : Math.Clamp(laneIndex - 1, 8, 14),
+                BmsKeymode.Key14K => Math.Clamp(laneIndex, 1, 14),
                 _ => Math.Max(1, laneIndex),
             };
         }

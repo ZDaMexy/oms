@@ -16,7 +16,7 @@ using osu.Game.Overlays.Notifications;
 namespace osu.Game.Rulesets.Mania.Beatmaps
 {
     /// <summary>
-    /// Accepts mania beatmap directories for filesystem-backed import into <c>mania/</c>.
+    /// Accepts mania beatmap directories for filesystem-backed import into <c>chartmania/</c>.
     /// Wraps <see cref="ManiaFolderImporter"/> and implements <see cref="ICanAcceptFiles"/>
     /// so it can be registered as a drag-and-drop import handler.
     /// </summary>

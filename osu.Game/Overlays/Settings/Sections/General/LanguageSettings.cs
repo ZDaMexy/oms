@@ -13,7 +13,9 @@ namespace osu.Game.Overlays.Settings.Sections.General
 {
     public partial class LanguageSettings : SettingsSubsection
     {
-        protected override LocalisableString Header => GeneralSettingsStrings.LanguageHeader;
+        // Intentionally non-translatable so users can always locate the language setting
+        // regardless of the currently active language.
+        protected override LocalisableString Header => @"Language";
 
         [BackgroundDependencyLoader]
         private void load(OsuGameBase game, OsuConfigManager config, FrameworkConfigManager frameworkConfig)

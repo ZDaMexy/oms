@@ -56,7 +56,8 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 | --- | --- |
 | `%APPDATA%/oms/` | 默认用户数据目录（Release 构建） |
 | `%APPDATA%/oms-development/` | Debug 构建隔离目录 |
-| `songs/` | BMS 谱面目录（位于用户数据目录下） |
+| `chartbms/` | BMS 谱面目录（位于用户数据目录下） |
+| `chartmania/` | Mania 谱面目录（位于用户数据目录下） |
 | `client.realm` | 主 Realm 数据库（位于用户数据目录下） |
 | `files/` | 通用哈希文件仓库（成绩附件 / replay 等） |
 | `bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |

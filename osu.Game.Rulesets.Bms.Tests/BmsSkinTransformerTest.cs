@@ -446,9 +446,9 @@ namespace osu.Game.Rulesets.Bms.Tests
         [TestCase(BmsKeymode.Key5K, 2, false, 243, 243, 243)]
         [TestCase(BmsKeymode.Key9K_Bms, 0, false, 53, 234, 255)]
         [TestCase(BmsKeymode.Key9K_Bms, 1, false, 243, 243, 243)]
-        [TestCase(BmsKeymode.Key14K, 9, false, 243, 243, 243)]
-        [TestCase(BmsKeymode.Key14K, 10, false, 53, 234, 255)]
-        [TestCase(BmsKeymode.Key14K, 8, true, 252, 0, 20)]
+        [TestCase(BmsKeymode.Key14K, 9, false, 53, 234, 255)]
+        [TestCase(BmsKeymode.Key14K, 10, false, 243, 243, 243)]
+        [TestCase(BmsKeymode.Key14K, 15, true, 252, 0, 20)]
         public void TestNonSevenKeyFallbackUsesAlternatingOddEvenColours(BmsKeymode keymode, int laneIndex, bool isScratch, byte red, byte green, byte blue)
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());

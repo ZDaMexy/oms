@@ -158,8 +158,11 @@ namespace osu.Game.Screens.Select
 
         public static bool ShouldGroupBeatmapsTogether(FilterCriteria criteria)
         {
+            // DifficultyTable already provides its own hierarchical grouping (table → level),
+            // so individual beatmaps within a level are displayed as standalone panels
+            // rather than being further nested under song-set headers.
             if (criteria.Group == GroupMode.DifficultyTable)
-                return true;
+                return false;
 
             // In certain cases, we intentionally split out difficulties
             // where it's more relevant or convenient to view them as individual items.

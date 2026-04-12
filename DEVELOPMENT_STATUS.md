@@ -22,7 +22,7 @@
 - **BMS 规模**：124 源文件；`oms.Input` 15 源文件（含 Windows DirectInput backend）；39 个测试文件
 - **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 三套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜分桶 → 难度表缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
-- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `songs/` 目录、mania 使用 `mania/` 目录的文件系统直读存储；外部多目录谱库扫描基线已落地（`ExternalLibraryConfig` JSON + `ExternalLibraryScanner` 委托注入）
+- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；外部多目录谱库扫描基线已落地（`ExternalLibraryConfig` JSON + `ExternalLibraryScanner` 委托注入）；Settings → Maintenance 已有外部谱库管理 UI（添加/移除/扫描）
 - **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端
 - **联网**：全部在线入口与 Discord RPC 已按 `OnlineFeaturesEnabled` 守卫；默认 endpoint 已清空
 
@@ -61,19 +61,24 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
+### 2026-04-13
+
+- **范围**：修复外部谱库设置 UI 不可见（DI 注册时序 + `CanBeNull`）
+- **修复**：`ExternalLibraryConfig`/`ExternalLibraryScanner` 的创建与 `CacheAs` 从 `LoadComplete` 前移到 `[BackgroundDependencyLoader]`（BDL 阶段在所有 scheduled async load 之前执行）；`ExternalLibrarySettings` 的 `[Resolved]` 统一加 `CanBeNull = true`
+- **构建**：0 warning / 0 error
+- **定向回归**：BMS **519/519**，mania OMS **92/92**，osu.Game.Tests release-gate **6/6**
+
 ### 2026-04-12
 
-- **范围**：存储拓扑演进基线 + 外部多目录谱库扫描 + mania 独立目录存储
+- **范围**：外部谱库设置 UI + 存储目录重命名（`songs/` → `chartbms/`、`mania/` → `chartmania/`）
 - **新增实现**：
-  - `osu.Game/Beatmaps/ExternalLibraryRoot.cs` — 外部谱库根数据模型（Path / Type / Enabled / LastScanTime + `ExternalLibraryRootType` 枚举）
-  - `osu.Game/Beatmaps/ExternalLibraryConfig.cs` — JSON 配置管理（`library-roots.json`），CRUD + MarkScanned + 路径规范化/去重
-  - `osu.Game/Beatmaps/ExternalLibraryScanner.cs` — 委托注入式根目录扫描器，按 BMS / mania 类型分派，返回 `ScanResult{Imported, Skipped, Errors}`
-  - `osu.Game.Rulesets.Mania/Beatmaps/ManiaFolderImporter.cs` — mania 文件系统直读导入器（`mania/<safeName-hash>/`），解析 .osu → 复制目录 → 设置 FilesystemStoragePath → 写入 Realm
-  - `osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapImporter.cs` — ICanAcceptFiles 封装（仅目录，.osz 继续走标准 BeatmapImporter）
-  - `osu.Desktop/OsuGameDesktop.cs` — 注册 ManiaBeatmapImporter + 创建 ExternalLibraryConfig/Scanner + 委托接线 + Dispose 清理
+  - `osu.Game/Overlays/Settings/Sections/Maintenance/ExternalLibrarySelectScreen.cs` — 基于 `DirectorySelectScreen` 的全屏目录选择器，选中后回调 `Selected` 并退出
+  - `osu.Game/Overlays/Settings/Sections/Maintenance/ExternalLibrarySettings.cs` — Maintenance 设置子区域：显示已注册根列表（路径有效性图标 + 类型/状态/最近扫描信息）、添加 BMS/mania 根按钮、扫描全部按钮（进度通知）、移除按钮
+  - `osu.Game/Overlays/Settings/Sections/MaintenanceSection.cs` — 子区域列表增加 `ExternalLibrarySettings`
+  - `osu.Desktop/OsuGameDesktop.cs` — 新增 `CreateChildDependencies` 覆盖捕获 `DependencyContainer`，在 `LoadComplete` 中 `CacheAs` 注册 `ExternalLibraryConfig` 与 `ExternalLibraryScanner` 到 DI
+- **目录重命名**：`SONGS_STORAGE_PATH` → `"chartbms"`，`MANIA_STORAGE_PATH` → `"chartmania"`，所有代码注释与文档同步更新
 - **构建**：0 warning / 0 error
-- **定向回归**：BMS **519/519**，mania OMS **92/92**
-- **仍有效基线**：Mania release-gate 3/3 + 4/4 + 4/4，`osu.Game.Tests` 6/6，Results target 1/1 + 1/1，BMS fallback 75/75，Scratch bridge 43/43，Debug 构建通过
+- **定向回归**：BMS **519/519**，mania OMS **92/92**，osu.Game.Tests release-gate **6/6**
 
 ### 修复 Song Select 初始筛选条件丢失（2026-04-12）
 
@@ -91,9 +96,9 @@
 | 默认 endpoint | 已清空 | `LocalOfflineAPIAccess` 默认装配；hub connector 返回 null |
 | 游戏内联网入口 | 已隐藏 | Toolbar / 主菜单 / Song Select / overlay / 编辑器外链 / First-run Setup 均按 `OnlineFeaturesEnabled` 收口 |
 | 上游静态资源 fallback | 已离线化 | LargeTextureStore / PreviewTrackManager / metadata cache 在线源已关闭；profile 资源已补本地占位 |
-| BMS 原样目录存储 | 已完成 | `songs/` 直读，`FilesystemStoragePath` / `LocalFilePath` 已记录 |
-| Mania 目录存储 | 已完成 | `mania/` 直读，与 BMS `songs/` 同级的独立目录树；`ManiaFolderImporter` + `ManiaBeatmapImporter` 已落地 |
-| 多谱库根扫描 | 已完成 | `ExternalLibraryConfig`（JSON）+ `ExternalLibraryScanner`（委托注入）已落地；BMS / mania 双类型根均可注册、扫描、导入 |
+| BMS 原样目录存储 | 已完成 | `chartbms/` 直读，`FilesystemStoragePath` / `LocalFilePath` 已记录 |
+| Mania 目录存储 | 已完成 | `chartmania/` 直读，与 BMS `chartbms/` 同级的独立目录树；`ManiaFolderImporter` + `ManiaBeatmapImporter` 已落地 |
+| 多谱库根扫描 | 已完成 | `ExternalLibraryConfig`（JSON）+ `ExternalLibraryScanner`（委托注入）已落地；Settings → Maintenance `ExternalLibrarySettings` 设置 UI 可添加/移除/扫描；BMS / mania 双类型根均可注册 |
 
 ## 已落地能力
 
@@ -172,7 +177,7 @@
 | C: 正式输入与多 keymode | analog scratch cross-device contract | 进行中 |
 | D: 首发离线发行基线 | RELEASE.md 已文档化 | 待实机验证 |
 | E: 人工验收后置 | 统一后置到 Phase 1 / 1.1 收口后 | 待做 |
-| F: 存储拓扑预研 | mania/ 目录存储 + 外部多目录谱库扫描基线 | 已落地 |
+| F: 存储拓扑预研 | chartmania/ 目录存储 + 外部多目录谱库扫描基线 | 已落地 |
 
 ## 遗留问题
 
@@ -188,7 +193,7 @@
 ### 中优先级
 
 - **Windows HID 实机验收**：DirectInput backend 已接通，需真实 IIDX/BMS 控制器覆盖
-- **存储拓扑**：维持 AppData 默认 + 单自定义根；mania/ 目录已落地；外部多目录谱库扫描基线已完成；剩余 UI 整合与删除/失效语义
+- **存储拓扑**：维持 AppData 默认 + 单自定义根；chartmania/ 目录已落地；外部多目录谱库扫描基线已完成；剩余 UI 整合与删除/失效语义
 - **AutoMapper GHSA**：`NuGetAuditSuppress` + `NU1903 NoWarn` 已定点抑制，运行时 `MaxDepth(3)` 缓解攻击面；升级到 15.x 需 ~150 行 API 迁移 + Realm 操作全回归，暂维持现状
 - **上游 cherry-pick 风险**：42 个 osu.Game 文件（40 修改 + 2 新增），其中 6 个属于高频改动区（详见 UPSTREAM.md）
 - **密度星级标定**：已压到保守区间，需真实样本继续校准
