@@ -9,11 +9,15 @@
 # Release 构建
 dotnet publish osu.Desktop -c Release -r win-x64 --self-contained -o publish/
 
+# 写入便携标记，使程序启动时自动使用 data/ 子目录存储所有用户数据
+New-Item -Path publish/portable.ini -ItemType File -Force | Out-Null
+
 # 打包（排除调试符号）
 Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 ```
 
 > 如需保留 PDB 以便崩溃诊断，可在打包时不排除 `*.pdb`。
+> `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
 
 ## 发行物内容
 
@@ -22,6 +26,7 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 | 内容 | 说明 |
 | --- | --- |
 | `osu!.exe` | 主入口（DesktopGL） |
+| `portable.ini` | 便携模式标记（空文件） |
 | `*.dll` / `*.json` | 运行时依赖 |
 | `bass*.dll` / `SDL*.dll` | 原生库 |
 | `runtimes/` | .NET 自包含运行时 |
@@ -52,6 +57,26 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 
 ## 用户数据存储
 
+### 便携模式（推荐用于首发 release）
+
+当 `portable.ini` 标记文件存在于 `osu!.exe` 同级目录时，所有用户数据存储在同级的 `data/` 子目录：
+
+| 路径 | 说明 |
+| --- | --- |
+| `data/` | 便携模式数据根（自动创建） |
+| `data/chartbms/` | BMS 谱面目录 |
+| `data/chartmania/` | Mania 谱面目录 |
+| `data/client.realm` | 主 Realm 数据库 |
+| `data/files/` | 通用哈希文件仓库（成绩附件 / replay 等） |
+| `data/bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |
+| `data/storage.ini` | 可选的自定义数据根重定向配置（便携模式下一般不需要） |
+
+便携模式下，整个安装目录（包含程序文件和 `data/`）可直接拷贝到 U 盘或其他位置使用。
+
+### 非便携模式（传统布局）
+
+当 `portable.ini` 不存在时，用户数据存储在系统用户目录：
+
 | 路径 | 说明 |
 | --- | --- |
 | `%APPDATA%/oms/` | 默认用户数据目录（Release 构建） |
@@ -63,17 +88,25 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 | `bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |
 | `storage.ini` | 可选的单一自定义数据根重定向配置 |
 
-- 官方当前默认仍采用“程序目录 + 独立用户数据目录”布局，覆盖更新不会影响已导入的谱面、成绩、设置和难度表缓存
-- `OsuStorage` 已支持通过游戏内迁移流程写入 `storage.ini`，把全部运行时数据迁移到单一自定义数据根
-- 当前尚未把“程序 + 数据开箱即同包”作为正式发行基线；若后续需要这类模式，优先采用程序目录内独立 `data/` 子目录，而不是把可变数据直接与二进制混放
+- `OsuStorage` 支持通过游戏内迁移流程写入 `storage.ini`，把全部运行时数据迁移到单一自定义数据根
 
 ## 版本更新流程
+
+### 便携模式
+
+1. 下载新版本 `OMS-Portable.zip`
+2. 解压覆盖到当前程序文件夹（覆盖所有文件，保留 `data/` 目录不动）
+3. 启动 `osu!.exe`
+
+**无需重新导入** BMS/Mania 目录——用户数据保存在 `data/` 子目录中，不受程序文件覆盖影响。
+
+### 非便携模式
 
 1. 下载新版本 `OMS-Portable.zip`
 2. 解压覆盖到当前程序文件夹（覆盖所有文件）
 3. 启动 `osu!.exe`
 
-**无需重新导入** BMS 目录——默认用户数据保存在 `%APPDATA%/oms/`；若已迁移，则继续保存在 `storage.ini` 指向的数据根中，不受程序文件覆盖影响。
+**无需重新导入**——用户数据保存在 `%APPDATA%/oms/`；若已迁移，则继续保存在 `storage.ini` 指向的数据根中。
 
 ## 冒烟测试
 

@@ -91,7 +91,7 @@
 
 | 项目 | 状态 | 说明 |
 | --- | --- | --- |
-| 便携版发布基线 | 已文档化 | RELEASE.md 已描述构建与发行流程；待实机验证 |
+| 便携版发布基线 | 已落地 | `portable.ini` 标记 → `<exe>/data/` 自动生成；已实机 Release publish 验证 |
 | 游戏内在线更新 | 已禁用 | Velopack 跳过，`CreateUpdateManager()` 切回基础实现 |
 | 默认 endpoint | 已清空 | `LocalOfflineAPIAccess` 默认装配；hub connector 返回 null |
 | 游戏内联网入口 | 已隐藏 | Toolbar / 主菜单 / Song Select / overlay / 编辑器外链 / First-run Setup 均按 `OnlineFeaturesEnabled` 收口 |
@@ -166,7 +166,7 @@
 | --- | --- |
 | 1.5 桌面端拖放导入 / Song Select UI 验收 | 待做 |
 | 桌面端真实 UI smoke test | 待做 |
-| 便携发行物实际运行与覆盖更新验证 | 待做 |
+| 便携发行物实际运行与覆盖更新验证 | 已完成 | Release publish 后 `portable.ini` 触发 `data/` 自动生成，结构正确 |
 
 ## 当前主线
 
@@ -175,9 +175,9 @@
 | A: Phase 1.1 皮肤专项 | 维持 release gate 稳定 → 1.17 输入语义 | 进行中 |
 | B: gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
 | C: 正式输入与多 keymode | analog scratch cross-device contract | 进行中 |
-| D: 首发离线发行基线 | RELEASE.md 已文档化 | 待实机验证 |
+| D: 首发离线发行基线 | portable.ini + data/ 便携模式已落地 | 已验证 |
 | E: 人工验收后置 | 统一后置到 Phase 1 / 1.1 收口后 | 待做 |
-| F: 存储拓扑预研 | chartmania/ 目录存储 + 外部多目录谱库扫描基线 | 已落地 |
+| F: 存储拓扑预研 | chartmania/ 目录存储 + 外部多目录谱库扫描 + portable.ini 便携模式 | 已落地 |
 
 ## 遗留问题
 
@@ -188,12 +188,12 @@
 - **upstream 默认皮肤移除**：runtime fallback 已大部分收口到 OMS；剩余公开发行物剥离与 partial override 全路径收口
 - **osu.Game.Tests 稳定性**：6/6 已恢复；后续扩大范围应沿 csproj exclusion 清单逐步清退
 - **1.6 真实谱面长条验校**：Phase 1 最贴近玩法质量的剩余项
-- **便携发行物实机验证**：需带上 OMS 内置皮肤发行门槛一起验收
+- **便携发行物实机验证**：portable.ini → data/ 已验证；剩余：内置皮肤发行门槛
 
 ### 中优先级
 
 - **Windows HID 实机验收**：DirectInput backend 已接通，需真实 IIDX/BMS 控制器覆盖
-- **存储拓扑**：维持 AppData 默认 + 单自定义根；chartmania/ 目录已落地；外部多目录谱库扫描基线已完成；剩余 UI 整合与删除/失效语义
+- **存储拓扑**：portable.ini 便携模式已落地（data/ 子目录自包含）；chartmania/ 目录已落地；外部多目录谱库扫描已完成；剩余 UI 整合与删除/失效语义
 - **AutoMapper GHSA**：`NuGetAuditSuppress` + `NU1903 NoWarn` 已定点抑制，运行时 `MaxDepth(3)` 缓解攻击面；升级到 15.x 需 ~150 行 API 迁移 + Realm 操作全回归，暂维持现状
 - **上游 cherry-pick 风险**：42 个 osu.Game 文件（40 修改 + 2 新增），其中 6 个属于高频改动区（详见 UPSTREAM.md）
 - **密度星级标定**：已压到保守区间，需真实样本继续校准

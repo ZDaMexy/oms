@@ -120,6 +120,12 @@ namespace osu.Desktop
         // OMS 当前首发阶段只支持便携整包发布与手工覆盖更新，暂不开放游戏内在线更新。
         public static bool IsInAppUpdateEnabled => false;
 
+        /// <summary>
+        /// Whether the game is running in portable data mode (a <c>portable.ini</c> file
+        /// was found next to the executable at startup).
+        /// </summary>
+        public static bool IsPortableMode => resolvePortableDataPath() != null;
+
         protected override UpdateManager CreateUpdateManager()
         {
             // If this is the first time we've run the game, ie it is being installed,
@@ -211,6 +217,41 @@ namespace osu.Desktop
         }
 
         protected override BatteryInfo CreateBatteryInfo() => FrameworkEnvironment.UseSDL3 ? new SDL3BatteryInfo() : new SDL2BatteryInfo();
+
+        /// <summary>
+        /// When a <c>portable.ini</c> marker file exists next to the executable, the game
+        /// stores all user data inside a <c>data/</c> subdirectory in the same location.
+        /// This gives a beatoraja-style single-package portable layout where the entire
+        /// installation (binaries + user data) can live on a removable drive.
+        /// </summary>
+        protected override Storage CreateStorage(GameHost host, Storage defaultStorage)
+        {
+            string? portableDataPath = resolvePortableDataPath();
+
+            if (portableDataPath != null)
+            {
+                Logger.Log($"Portable mode active. Data root: {portableDataPath}");
+                Directory.CreateDirectory(portableDataPath);
+                return new OsuStorage(host, new NativeStorage(portableDataPath));
+            }
+
+            return base.CreateStorage(host, defaultStorage);
+        }
+
+        /// <summary>
+        /// Returns the resolved portable data directory path if <c>portable.ini</c> exists
+        /// next to the running executable, otherwise <c>null</c>.
+        /// </summary>
+        private static string? resolvePortableDataPath()
+        {
+            string baseDir = AppContext.BaseDirectory;
+            string portableMarker = Path.Combine(baseDir, "portable.ini");
+
+            if (!File.Exists(portableMarker))
+                return null;
+
+            return Path.Combine(baseDir, "data");
+        }
 
         protected override IEnumerable<ICustomBeatmapLoader> CreateCustomBeatmapLoaders() => new ICustomBeatmapLoader[]
         {
