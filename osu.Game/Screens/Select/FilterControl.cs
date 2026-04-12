@@ -363,6 +363,9 @@ namespace osu.Game.Screens.Select
                 if (!sortModeBeforeLockedGrouping.HasValue && sortDropdown.Current.Value != SortMode.Difficulty)
                     sortModeBeforeLockedGrouping = sortDropdown.Current.Value;
 
+                // Must enable before setting value — the disabled state may persist across
+                // SongSelect instances via config binding propagation.
+                sortDropdown.Current.Disabled = false;
                 sortDropdown.Current.Value = SortMode.Difficulty;
                 sortDropdown.Current.Disabled = true;
                 return;

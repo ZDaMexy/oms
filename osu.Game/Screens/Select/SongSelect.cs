@@ -387,6 +387,7 @@ namespace osu.Game.Screens.Select
             inputManager = GetContainingInputManager()!;
 
             FilterControl.CriteriaChanged += criteriaChanged;
+            criteriaChanged(FilterControl.CreateCriteria());
 
             modSelectOverlay.State.BindValueChanged(v =>
             {

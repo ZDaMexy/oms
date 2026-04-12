@@ -19,10 +19,10 @@
 - **当前阶段**：Phase 1.1 皮肤系统专项执行中（BMS 默认层已收口，当前主线在 mania OMS-owned 迁移与 1.17 输入语义之间衔接）
 - **仓库定位**：Windows-only，保留 osu!mania + BMS，已移除 Osu/Taiko/Catch
 - **主入口**：`osu.Desktop.slnf`（含 7 个项目）
-- **BMS 规模**：124 源文件；`oms.Input` 15 源文件（含 Windows DirectInput backend）；36 个测试文件
+- **BMS 规模**：124 源文件；`oms.Input` 15 源文件（含 Windows DirectInput backend）；39 个测试文件
 - **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 三套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜分桶 → 难度表缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
-- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；尚无多目录外部谱库
+- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `songs/` 目录、mania 使用 `mania/` 目录的文件系统直读存储；外部多目录谱库扫描基线已落地（`ExternalLibraryConfig` JSON + `ExternalLibraryScanner` 委托注入）
 - **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端
 - **联网**：全部在线入口与 Discord RPC 已按 `OnlineFeaturesEnabled` 守卫；默认 endpoint 已清空
 
@@ -50,8 +50,8 @@
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania 两批组件 / preset / shell 已起；native-default 首个切口已落地 |
 | 桌面端构建 | 通过 | `dotnet build osu.Desktop` 退出码 0 |
-| BMS 全量测试 | **476/476** | 最近一次 `osu.Game.Rulesets.Bms.Tests` 全量 |
-| Mania 皮肤回归 | **81/81** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` |
+| BMS 全量测试 | **519/519** | 最近一次 `osu.Game.Rulesets.Bms.Tests` 全量 |
+| Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` |
 | BMS 皮肤 fallback | **75/75** | `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics` |
 | Scratch bridge | **43/43** | `TestSceneOmsScratchGameplayBridge` |
 | osu.Game.Tests gate | **6/6** | startup migration / default-skin-edit / settings migration |
@@ -63,10 +63,24 @@
 
 ### 2026-04-12
 
-- **范围**：1.17 analog scratch reverse-config late-hit sweep
-- **定向回归**：`TestSceneOmsScratchGameplayBridge` **43/43** 通过（本轮新增 4 条 reverse-config late-hit 回归）
-- **新锁定语义**：`axisInverted=true` 的 mouse/HID scratch 在两侧都遵循与正向输入相同的 late-hit miss 排序
-- **仍有效基线**：Mania release-gate 3/3 + 4/4 + 4/4，`osu.Game.Tests` 6/6，Results target 1/1 + 1/1，BMS fallback 75/75，BMS 全量 476/476，Debug 构建通过
+- **范围**：存储拓扑演进基线 + 外部多目录谱库扫描 + mania 独立目录存储
+- **新增实现**：
+  - `osu.Game/Beatmaps/ExternalLibraryRoot.cs` — 外部谱库根数据模型（Path / Type / Enabled / LastScanTime + `ExternalLibraryRootType` 枚举）
+  - `osu.Game/Beatmaps/ExternalLibraryConfig.cs` — JSON 配置管理（`library-roots.json`），CRUD + MarkScanned + 路径规范化/去重
+  - `osu.Game/Beatmaps/ExternalLibraryScanner.cs` — 委托注入式根目录扫描器，按 BMS / mania 类型分派，返回 `ScanResult{Imported, Skipped, Errors}`
+  - `osu.Game.Rulesets.Mania/Beatmaps/ManiaFolderImporter.cs` — mania 文件系统直读导入器（`mania/<safeName-hash>/`），解析 .osu → 复制目录 → 设置 FilesystemStoragePath → 写入 Realm
+  - `osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapImporter.cs` — ICanAcceptFiles 封装（仅目录，.osz 继续走标准 BeatmapImporter）
+  - `osu.Desktop/OsuGameDesktop.cs` — 注册 ManiaBeatmapImporter + 创建 ExternalLibraryConfig/Scanner + 委托接线 + Dispose 清理
+- **构建**：0 warning / 0 error
+- **定向回归**：BMS **519/519**，mania OMS **92/92**
+- **仍有效基线**：Mania release-gate 3/3 + 4/4 + 4/4，`osu.Game.Tests` 6/6，Results target 1/1 + 1/1，BMS fallback 75/75，Scratch bridge 43/43，Debug 构建通过
+
+### 修复 Song Select 初始筛选条件丢失（2026-04-12）
+
+- **根因**：`FilterControl.LoadComplete()` 先于 `SongSelect.LoadComplete()` 执行，初始 `CriteriaChanged` 事件无订阅者接收，`BeatmapCarousel.Criteria` 保持 `null`
+- **修复**：`SongSelect.LoadComplete()` 订阅 `CriteriaChanged` 后立即调用 `criteriaChanged(FilterControl.CreateCriteria())`
+- **构建**：0 warning / 0 error
+- **定向回归**：BMS **519/519**，mania OMS **92/92**，`osu.Game.Tests` release-gate **6/6**
 
 ## 联网约束
 
@@ -78,7 +92,8 @@
 | 游戏内联网入口 | 已隐藏 | Toolbar / 主菜单 / Song Select / overlay / 编辑器外链 / First-run Setup 均按 `OnlineFeaturesEnabled` 收口 |
 | 上游静态资源 fallback | 已离线化 | LargeTextureStore / PreviewTrackManager / metadata cache 在线源已关闭；profile 资源已补本地占位 |
 | BMS 原样目录存储 | 已完成 | `songs/` 直读，`FilesystemStoragePath` / `LocalFilePath` 已记录 |
-| 多谱库根扫描 | 未开始 | 已完成评估，优先多目录外部谱库方向 |
+| Mania 目录存储 | 已完成 | `mania/` 直读，与 BMS `songs/` 同级的独立目录树；`ManiaFolderImporter` + `ManiaBeatmapImporter` 已落地 |
+| 多谱库根扫描 | 已完成 | `ExternalLibraryConfig`（JSON）+ `ExternalLibraryScanner`（委托注入）已落地；BMS / mania 双类型根均可注册、扫描、导入 |
 
 ## 已落地能力
 
@@ -157,7 +172,7 @@
 | C: 正式输入与多 keymode | analog scratch cross-device contract | 进行中 |
 | D: 首发离线发行基线 | RELEASE.md 已文档化 | 待实机验证 |
 | E: 人工验收后置 | 统一后置到 Phase 1 / 1.1 收口后 | 待做 |
-| F: 存储拓扑预研 | 维持默认 AppData；若改造优先多目录外部谱库 | 已评估 |
+| F: 存储拓扑预研 | mania/ 目录存储 + 外部多目录谱库扫描基线 | 已落地 |
 
 ## 遗留问题
 
@@ -173,14 +188,14 @@
 ### 中优先级
 
 - **Windows HID 实机验收**：DirectInput backend 已接通，需真实 IIDX/BMS 控制器覆盖
-- **存储拓扑**：维持  AppData 默认 + 单自定义根；若改造优先多目录外部谱库
-- **AutoMapper GHSA**：已定点抑制；升级到 15.1.1+ 或移除继续跟踪
-- **上游 cherry-pick 风险**：~37 个文件被修改，高频改动区冲突风险高
+- **存储拓扑**：维持 AppData 默认 + 单自定义根；mania/ 目录已落地；外部多目录谱库扫描基线已完成；剩余 UI 整合与删除/失效语义
+- **AutoMapper GHSA**：`NuGetAuditSuppress` + `NU1903 NoWarn` 已定点抑制，运行时 `MaxDepth(3)` 缓解攻击面；升级到 15.x 需 ~150 行 API 迁移 + Realm 操作全回归，暂维持现状
+- **上游 cherry-pick 风险**：42 个 osu.Game 文件（40 修改 + 2 新增），其中 6 个属于高频改动区（详见 UPSTREAM.md）
 - **密度星级标定**：已压到保守区间，需真实样本继续校准
 
 ### 低优先级
 
-- 少量既有 nullability warnings（非 OMS 引入）
+（当前无低优先级遗留项；构建已确认 0 warning / 0 error）
 
 ## 更新约定
 

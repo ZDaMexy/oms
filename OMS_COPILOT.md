@@ -29,7 +29,7 @@ Until Phase 3 begins, OMS follows these product constraints:
 - Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content.
 - Current official builds still keep mutable user data under a separate data root (default `%APPDATA%/oms/` for release, `%APPDATA%/oms-development/` for debug). `storage.ini` may redirect everything to one custom root, but do not describe OMS as already shipping an out-of-box program+data single-package layout.
 - If a beatoraja-style portable data mode is introduced later, prefer a dedicated `data/` subdirectory beside the executable rather than mixing mutable user data directly with binaries.
-- Registered multi-root external beatmap libraries are future work. The currently supported model remains explicit import into OMS-managed storage.
+- Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings UI integration and deletion/invalidation semantics remain future work.
 - All other networked features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and remote table sources, remain disabled or hidden until Phase 3.
 - Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
 

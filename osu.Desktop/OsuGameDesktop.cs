@@ -25,6 +25,7 @@ using osu.Game.Performance;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Utils;
 
 namespace osu.Desktop
@@ -34,6 +35,9 @@ namespace osu.Desktop
         private OsuSchemeLinkIPCChannel? osuSchemeLinkIPCChannel;
         private ArchiveImportIPCChannel? archiveImportIPCChannel;
         private BmsBeatmapImporter? bmsBeatmapImporter;
+        private ManiaBeatmapImporter? maniaBeatmapImporter;
+        private ExternalLibraryScanner? externalLibraryScanner;
+        private ExternalLibraryConfig? externalLibraryConfig;
 
         [Cached(typeof(IHighPerformanceSessionManager))]
         private readonly HighPerformanceSessionManager highPerformanceSessionManager = new HighPerformanceSessionManager();
@@ -149,6 +153,19 @@ namespace osu.Desktop
             };
             RegisterImportHandler(bmsBeatmapImporter);
 
+            maniaBeatmapImporter = new ManiaBeatmapImporter(Storage, ClientRealm)
+            {
+                PostNotification = notification => BeatmapManager.PostNotification?.Invoke(notification)
+            };
+            RegisterImportHandler(maniaBeatmapImporter);
+
+            externalLibraryConfig = new ExternalLibraryConfig(Storage);
+            externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig)
+            {
+                BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.Import(path),
+                ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.Import(path),
+            };
+
             if (OnlineFeaturesEnabled)
                 LoadComponentAsync(new DiscordRichPresence(), Add);
 
@@ -186,8 +203,21 @@ namespace osu.Desktop
             new BmsBeatmapLoader()
         };
 
+        /// <summary>
+        /// Expose the external library scanner for use by settings UI or console commands.
+        /// </summary>
+        public ExternalLibraryScanner? ExternalLibraryScanner => externalLibraryScanner;
+
+        /// <summary>
+        /// Expose the external library config for use by settings UI.
+        /// </summary>
+        public ExternalLibraryConfig? ExternalLibraryConfig => externalLibraryConfig;
+
         protected override void Dispose(bool isDisposing)
         {
+            if (maniaBeatmapImporter != null)
+                UnregisterImportHandler(maniaBeatmapImporter);
+
             if (bmsBeatmapImporter != null)
                 UnregisterImportHandler(bmsBeatmapImporter);
 

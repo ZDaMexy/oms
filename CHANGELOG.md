@@ -7,6 +7,33 @@
 
 ## 2026-04-12
 
+### 修复 FilterControl.updateSortDropdownState 在二次进入 Song Select 时因 Bindable Disabled 状态残留而崩溃
+
+- **根因**：`updateSortDropdownState()` 在 DifficultyTable 分组下将 `sortDropdown.Current.Disabled = true`。此 Disabled 状态通过 `config.BindWith` 传播到全局 config bindable。第二次进入 Song Select 时，新 sortDropdown 通过 `BindWith` 继承了 `Disabled = true`，随后 `updateSortDropdownState()` 试图设置 `Value = SortMode.Difficulty` 但 bindable 已禁用 → 抛出 `InvalidOperationException`
+- **影响**：`FilterControl.LoadComplete()` 在 line 222 中断，后续所有 `BindValueChanged` 回调和末尾的 `updateCriteria()` 均未执行。虽然前一个修复保证了初始 Criteria 到达 carousel，但 FilterControl 的事件链完全断裂，导致分组/排序联动失效
+- **修复**：在 `updateSortDropdownState()` 设值前先 `sortDropdown.Current.Disabled = false`，设值完成后再禁用
+- 构建验证：0 warning / 0 error
+- 定向验证：BMS **519/519** 通过，mania OMS **92/92** 通过，osu.Game.Tests release-gate **6/6** 通过
+
+### 修复 Song Select 初始筛选条件丢失导致的空谱面列表
+
+- **根因**：`FilterControl.LoadComplete()` 在 `SongSelect.LoadComplete()` 之前执行。FilterControl 末尾调用 `updateCriteria()` 触发 `CriteriaChanged` 事件时，SongSelect 尚未订阅该事件，导致初始筛选条件丢失。BeatmapCarousel 的 `Criteria` 保持 `null`，`FilterAsync()` 每帧短路返回空集，谱面始终不显示
+- **触发场景**：在 Song Select 将分组设为 Difficulty Table → 返回主菜单 → 重新进入 Song Select。因 DifficultyTable 模式下所有子条目默认 `IsVisible = false`（需展开分组），缺少初始 Criteria 意味着连分组表头都不会创建
+- **修复**：在 `SongSelect.LoadComplete()` 订阅 `CriteriaChanged` 后，立即调用 `criteriaChanged(FilterControl.CreateCriteria())`，确保 BeatmapCarousel 总能收到首次筛选条件
+- **影响范围**：修复适用于所有分组模式；DifficultyTable 最易触发是因为该模式不会被 API 登录等延迟事件意外「救回」
+- 构建验证：0 warning / 0 error
+- 定向验证：BMS **519/519** 通过，mania OMS **92/92** 通过，osu.Game.Tests release-gate **6/6** 通过
+
+### 存储拓扑演进基线 + 外部多目录谱库扫描 + mania 独立目录存储
+
+- 新增 `ExternalLibraryRoot`（数据模型）+ `ExternalLibraryConfig`（JSON `library-roots.json` 配置管理器），支持注册/移除/启用外部谱库根目录，BMS / mania 双类型均可配置
+- 新增 `ExternalLibraryScanner`（委托注入式扫描器），遍历已注册根目录的直接子目录，按文件扩展名（BMS: `.bms/.bme/.bml/.pms`；mania: `.osu`）自动分类并分派到对应导入器，返回 `ScanResult{Imported, Skipped, Errors}`
+- 新增 `ManiaFolderImporter`（`mania/<safeName-hash>/` 文件系统直读导入器），解析 .osu 文件 → 提取元数据/难度/哈希 → 复制目录 → 设置 `FilesystemStoragePath` → 写入 Realm；与 BMS `songs/` 同级的独立目录树
+- 新增 `ManiaBeatmapImporter`（`ICanAcceptFiles` 封装），仅处理目录（.osz 继续走标准 `BeatmapImporter`），支持拖放导入与进度通知
+- `OsuGameDesktop` 集成：注册 `ManiaBeatmapImporter` 作为导入处理器，创建 `ExternalLibraryConfig` 与 `ExternalLibraryScanner` 并接通 BMS / mania 导入委托，`Dispose` 清理已补齐
+- 构建验证：0 warning / 0 error
+- 定向验证：BMS **519/519** 通过，mania OMS **92/92** 通过
+
 ### Phase 1.17：reverse-config late-hit sweep 收口
 
 - `TestSceneOmsScratchGameplayBridge` 本轮继续沿 reverse-config 产品矩阵补齐 late-hit miss 排序，新增四条 loaded-scene 回归：`TestInvertedMouseAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestInvertedHidAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestInvertedSecondScratchMouseAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestInvertedSecondScratchHidAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`
