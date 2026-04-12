@@ -66,6 +66,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         {
             scrollingInfo.Direction.Value = ScrollingDirection.Down;
         }
+        [SetUp]
+        public void SetUp() => Schedule(removeAllUserSkins);
 
         [Test]
         public void TestOmsBuiltInSkinIsRegisteredAndProvidesResources()
@@ -98,6 +100,214 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 skinManager.CurrentSkinInfo.Value = skinManager.GetAllUsableSkins().Single(s => s.ID == OmsSkin.CreateInfo().ID));
 
             AddAssert("current skin is OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+        }
+        [Test]
+        public void TestUsableSkinListContainsOmsThenUserSkins()
+        {
+            SkinInfo alphaSkin = null!;
+            SkinInfo zuluSkin = null!;
+            Live<SkinInfo>[] skins = null!;
+
+            AddStep("add user skins", () =>
+            {
+                Realm.Write(r =>
+                {
+                    alphaSkin = r.Add(createUserSkinInfo("Alpha Skin"));
+                    zuluSkin = r.Add(createUserSkinInfo("Zulu Skin"));
+                });
+            });
+
+            AddStep("query usable skins", () => skins = skinManager.GetAllUsableSkins().ToArray());
+
+            AddAssert("OMS stays first in usable list", () => skins.First().ID == OmsSkin.CreateInfo().ID);
+            AddAssert("user skins follow in name order", () => skins.Skip(1).Select(s => s.ID).SequenceEqual(new[] { alphaSkin.ID, zuluSkin.ID }));
+            AddAssert("upstream protected triangles skin is not exposed", () => skins.All(s => s.ID != TrianglesSkin.CreateInfo().ID));
+            AddAssert("only OMS remains protected in usable list", () => skins.Count(s => s.PerformRead(info => info.Protected)) == 1);
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestRandomSkinFallsBackToOmsWithoutUserSkins()
+        {
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("select random skin", () => skinManager.SelectRandomSkin());
+
+            AddAssert("random selection falls back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+            AddAssert("runtime skin remains OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+        }
+
+        [Test]
+        public void TestRandomSkinSelectsOnlyAvailableUserSkin()
+        {
+            SkinInfo userSkin = null!;
+
+            AddStep("add only user skin", () => Realm.Write(r => userSkin = r.Add(createUserSkinInfo("Only User Skin"))));
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("select random skin", () => skinManager.SelectRandomSkin());
+
+            AddAssert("random selection chooses user skin", () => skinManager.CurrentSkinInfo.Value.ID == userSkin.ID);
+            AddAssert("runtime skin follows chosen user skin", () => skinManager.CurrentSkin.Value.SkinInfo.ID == userSkin.ID);
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestSetSkinFromConfigurationSelectsUserSkin()
+        {
+            SkinInfo userSkin = null!;
+
+            AddStep("add only user skin", () => Realm.Write(r => userSkin = r.Add(createUserSkinInfo("Config User Skin"))));
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("set skin from user config", () => skinManager.SetSkinFromConfiguration(userSkin.ID.ToString()));
+
+            AddAssert("current skin info follows user config", () => skinManager.CurrentSkinInfo.Value.ID == userSkin.ID);
+            AddAssert("runtime skin follows user config", () => skinManager.CurrentSkin.Value.SkinInfo.ID == userSkin.ID);
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestUnknownSkinConfigurationFallsBackToOms()
+        {
+            SkinInfo userSkin = null!;
+
+            AddStep("add only user skin", () => Realm.Write(r => userSkin = r.Add(createUserSkinInfo("Fallback User Skin"))));
+            AddStep("set current skin from user config", () => skinManager.SetSkinFromConfiguration(userSkin.ID.ToString()));
+            AddAssert("user skin selected first", () => skinManager.CurrentSkinInfo.Value.ID == userSkin.ID);
+
+            AddStep("set skin from invalid config string", () => skinManager.SetSkinFromConfiguration("not-a-guid"));
+            AddAssert("invalid config falls back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+
+            AddStep("set skin from missing guid", () => skinManager.SetSkinFromConfiguration(Guid.NewGuid().ToString()));
+            AddAssert("missing config falls back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+            AddAssert("runtime skin remains OMS after fallback", () => skinManager.CurrentSkin.Value is OmsSkin);
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestSelectNextSkinCyclesAcrossOmsAndUserSkins()
+        {
+            SkinInfo alphaSkin = null!;
+            SkinInfo zuluSkin = null!;
+
+            AddStep("add user skins", () =>
+            {
+                Realm.Write(r =>
+                {
+                    alphaSkin = r.Add(createUserSkinInfo("Alpha Skin"));
+                    zuluSkin = r.Add(createUserSkinInfo("Zulu Skin"));
+                });
+            });
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("select next skin", () => skinManager.SelectNextSkin());
+            AddAssert("next selects first user skin", () => skinManager.CurrentSkinInfo.Value.ID == alphaSkin.ID);
+
+            AddStep("select next skin again", () => skinManager.SelectNextSkin());
+            AddAssert("next selects second user skin", () => skinManager.CurrentSkinInfo.Value.ID == zuluSkin.ID);
+
+            AddStep("select next skin third time", () => skinManager.SelectNextSkin());
+            AddAssert("next wraps back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestSelectPreviousSkinCyclesAcrossOmsAndUserSkins()
+        {
+            SkinInfo alphaSkin = null!;
+            SkinInfo zuluSkin = null!;
+
+            AddStep("add user skins", () =>
+            {
+                Realm.Write(r =>
+                {
+                    alphaSkin = r.Add(createUserSkinInfo("Alpha Skin"));
+                    zuluSkin = r.Add(createUserSkinInfo("Zulu Skin"));
+                });
+            });
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("select previous skin", () => skinManager.SelectPreviousSkin());
+            AddAssert("previous wraps to last user skin", () => skinManager.CurrentSkinInfo.Value.ID == zuluSkin.ID);
+
+            AddStep("select previous skin again", () => skinManager.SelectPreviousSkin());
+            AddAssert("previous selects first user skin", () => skinManager.CurrentSkinInfo.Value.ID == alphaSkin.ID);
+
+            AddStep("select previous skin third time", () => skinManager.SelectPreviousSkin());
+            AddAssert("previous wraps back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestAllSourcesContainsOnlyOmsWhenOmsIsCurrent()
+        {
+            Guid[] sourceIds = Array.Empty<Guid>();
+
+            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddStep("capture sources", () => sourceIds = skinManager.AllSources.OfType<Skin>().Select(s => s.SkinInfo.ID).ToArray());
+
+            AddAssert("only OMS source is exposed", () => sourceIds.SequenceEqual(new[] { OmsSkin.CreateInfo().ID }));
+        }
+
+        [Test]
+        public void TestAllSourcesAddsOmsFallbackBehindUserSkin()
+        {
+            SkinInfo userSkin = null!;
+            Guid[] sourceIds = Array.Empty<Guid>();
+
+            AddStep("add user skin", () => Realm.Write(r => userSkin = r.Add(createUserSkinInfo("Source User Skin"))));
+            AddStep("set current skin from user config", () => skinManager.SetSkinFromConfiguration(userSkin.ID.ToString()));
+            AddStep("capture sources", () => sourceIds = skinManager.AllSources.OfType<Skin>().Select(s => s.SkinInfo.ID).ToArray());
+
+            AddAssert("user skin stays first source", () => sourceIds.FirstOrDefault() == userSkin.ID);
+            AddAssert("OMS stays fallback source", () => sourceIds.SequenceEqual(new[] { userSkin.ID, OmsSkin.CreateInfo().ID }));
+
+            AddStep("clear user skins", removeAllUserSkins);
+        }
+
+        [Test]
+        public void TestDeletingCurrentUserSkinFallsBackToOms()
+        {
+            SkinInfo userSkin = null!;
+
+            AddStep("add user skin", () => Realm.Write(r => userSkin = r.Add(createUserSkinInfo("Delete Current User Skin"))));
+            AddStep("set current skin from user config", () => skinManager.SetSkinFromConfiguration(userSkin.ID.ToString()));
+            AddAssert("user skin selected first", () => skinManager.CurrentSkinInfo.Value.ID == userSkin.ID);
+
+            AddStep("delete current user skin", () => skinManager.Delete(s => s.ID == userSkin.ID, silent: true));
+            AddUntilStep("current skin falls back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
+            AddAssert("runtime skin falls back to OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
+            AddAssert("deleted skin leaves usable list", () => skinManager.GetAllUsableSkins().All(s => s.ID != userSkin.ID));
+        }
+
+        [Test]
+        public void TestDeletingNonCurrentUserSkinKeepsCurrentUserSkin()
+        {
+            SkinInfo currentUserSkin = null!;
+            SkinInfo otherUserSkin = null!;
+
+            AddStep("add user skins", () =>
+            {
+                Realm.Write(r =>
+                {
+                    currentUserSkin = r.Add(createUserSkinInfo("Current User Skin"));
+                    otherUserSkin = r.Add(createUserSkinInfo("Other User Skin"));
+                });
+            });
+
+            AddStep("set current skin from user config", () => skinManager.SetSkinFromConfiguration(currentUserSkin.ID.ToString()));
+            AddAssert("current user skin selected first", () => skinManager.CurrentSkinInfo.Value.ID == currentUserSkin.ID);
+
+            AddStep("delete non-current user skin", () => skinManager.Delete(s => s.ID == otherUserSkin.ID, silent: true));
+            AddAssert("current user skin remains selected", () => skinManager.CurrentSkinInfo.Value.ID == currentUserSkin.ID);
+            AddAssert("runtime skin remains current user skin", () => skinManager.CurrentSkin.Value.SkinInfo.ID == currentUserSkin.ID);
+            AddAssert("deleted user skin leaves usable list", () => skinManager.GetAllUsableSkins().All(s => s.ID != otherUserSkin.ID));
+
+            AddStep("clear user skins", removeAllUserSkins);
         }
 
         [TestCaseSource(nameof(upstreamProtectedSkinIds))]
@@ -568,6 +778,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             ISkin wrappedSkin = null!;
             DefaultSkinComponentsContainer globalHudShell = null!;
             DefaultSkinComponentsContainer songSelectShell = null!;
+            DefaultSkinComponentsContainer resultsShell = null!;
             DefaultSkinComponentsContainer playfieldShell = null!;
             DefaultSkinComponentsContainer hudComponents = null!;
 
@@ -583,6 +794,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 wrappedSkin = ((ISkinTransformer)transformedSkin).Skin;
                 globalHudShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents))!;
                 songSelectShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.SongSelect))!;
+                resultsShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.Results))!;
                 playfieldShell = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.Playfield, ruleset.RulesetInfo))!;
                 hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
             });
@@ -591,6 +803,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("wraps explicit mania transformer", () => wrappedSkin is ManiaOmsSkinTransformer);
             AddAssert("provides global HUD shell", () => globalHudShell is DefaultSkinComponentsContainer);
             AddAssert("provides song select shell", () => songSelectShell is DefaultSkinComponentsContainer);
+            AddAssert("provides results shell", () => resultsShell is DefaultSkinComponentsContainer);
             AddAssert("provides playfield shell", () => playfieldShell is DefaultSkinComponentsContainer);
             AddAssert("uses OMS combo counter", () => hudComponents.ChildrenOfType<OmsManiaComboCounter>().Any());
             AddAssert("uses OMS stage background", () => transformedSkin.GetDrawableComponent(new ManiaSkinComponentLookup(ManiaSkinComponents.StageBackground)) is OmsStageBackground);
@@ -613,6 +826,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             Skin skin = null!;
             SkinLayoutInfo globalHudLayout = null!;
             SkinLayoutInfo songSelectLayout = null!;
+            SkinLayoutInfo resultsLayout = null!;
             SkinLayoutInfo playfieldLayout = null!;
             SerialisedDrawableInfo[] maniaPlayfieldComponents = null!;
 
@@ -621,17 +835,19 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 skin = skinManager.DefaultOmsSkin;
                 globalHudLayout = skin.LayoutInfos[GlobalSkinnableContainers.MainHUDComponents];
                 songSelectLayout = skin.LayoutInfos[GlobalSkinnableContainers.SongSelect];
+                resultsLayout = skin.LayoutInfos[GlobalSkinnableContainers.Results];
                 playfieldLayout = skin.LayoutInfos[GlobalSkinnableContainers.Playfield];
 
                 Assert.That(playfieldLayout.TryGetDrawableInfo(new ManiaRuleset().RulesetInfo, out var components), Is.True);
                 maniaPlayfieldComponents = components!;
             });
 
-            AddAssert("exposes three global layout targets", () => skin.LayoutInfos.Count == 3);
+            AddAssert("exposes four global layout targets", () => skin.LayoutInfos.Count == 4);
             AddAssert("global HUD layout contains song progress", () => globalHudLayout.AllDrawables.Select(i => i.Type).Contains(typeof(DefaultSongProgress)));
             AddAssert("global HUD layout contains Argon score counter", () => globalHudLayout.AllDrawables.Select(i => i.Type).Contains(typeof(ArgonScoreCounter)));
             AddAssert("global HUD layout contains judgement counter", () => globalHudLayout.AllDrawables.Select(i => i.Type).Contains(typeof(ArgonJudgementCounterDisplay)));
             AddAssert("song select layout stays intentionally empty", () => !songSelectLayout.AllDrawables.Any());
+            AddAssert("results layout stays intentionally empty", () => !resultsLayout.AllDrawables.Any());
             AddAssert("mania playfield layout contains bar hit error meter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(BarHitErrorMeter)));
             AddAssert("mania playfield layout contains accuracy counter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(ArgonAccuracyCounter)));
             AddAssert("mania playfield layout contains combo counter", () => maniaPlayfieldComponents.Select(i => i.Type).Contains(typeof(ArgonComboCounter)));
@@ -2058,6 +2274,21 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             new object[] { "Classic", DefaultLegacySkin.CreateInfo().ID },
             new object[] { "Retro", RetroSkin.CreateInfo().ID },
         };
+
+        private void removeAllUserSkins()
+        {
+            Realm.Write(r =>
+            {
+                foreach (var skin in r.All<SkinInfo>().Where(s => !s.Protected).ToArray())
+                    r.Remove(skin);
+            });
+        }
+
+        private static SkinInfo createUserSkinInfo(string name)
+            => new SkinInfo(name: name, creator: nameof(TestSceneOmsBuiltInSkin), instantiationInfo: typeof(TrianglesSkin).AssemblyQualifiedName!)
+            {
+                Protected = false,
+            };
 
         private static ISkin unwrapSkin(ISkin skin)
         {

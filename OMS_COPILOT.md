@@ -1240,24 +1240,9 @@ Simple enum-only lookup is insufficient for all BMS use cases. Where component r
 - `Keymode`
 - Optional `CoverPosition` / `Focused` / `LongNotePart`
 
-Drawable replacement alone is also insufficient for a release-ready BMS default path. The BMS contract must grow a configuration-driven playfield layer for layout-critical parameters. The current repo already covers:
+Drawable replacement alone is also insufficient for a release-ready BMS default path. The BMS contract must grow a configuration-driven playfield layer for layout-critical parameters, including lane width / scratch-width ratio and spacing, playfield sizing, hit target / receptor geometry, bar line emphasis rules, and pressed / focused states.
 
-- lane width / scratch-width ratio and lane spacing
-- playfield width / playfield height sizing
-- hit target / receptor vertical placement, size, and internal bar/line/glow geometry
-- bar line thickness / height and emphasis rules
-- receptor pressed / focused states
-- playfield adjustment / scaling container metadata
-
-The first-pass config bridge now also covers playfield size.
-The next freeze work is moving candidate visuals into the OMS-owned BMS default layer rather than adding another geometry contract.
-The first landed BMS default-layer slices are now gameplay HUD, results summary / clear lamp, results gauge history, Song Select note distribution, playfield metadata / accent surfaces, playfield shell surfaces, and note / hold visuals: `HudLayout` / `GaugeBar` / `ComboCounter` default fallback no longer needs upstream `DefaultComboCounter`, `DefaultBmsResultsSummaryPanelDisplay` / `DefaultBmsResultsSummaryDisplay` / `DefaultBmsClearLampDisplay` now use a dedicated BMS results palette and metric cards, `DefaultBmsGaugeHistoryPanelDisplay` / `DefaultBmsGaugeHistoryDisplay` now use the same results-style shell plus `BmsDefaultHudPalette` gauge colours, `DefaultBmsNoteDistributionPanelDisplay` / `DefaultBmsNoteDistributionDisplay` now use the same shell plus BMS-owned chart-distribution colours, `DefaultBmsBackgroundLayerDisplay` / `DefaultBmsLaneCoverDisplay` / `DefaultBmsHitTargetDisplay` plus default `BarLine` fallback now use `BmsDefaultPlayfieldPalette`, `DefaultBmsPlayfieldBackdropDisplay` / `DefaultBmsPlayfieldBaseplateDisplay` / `DefaultBmsLaneBackgroundDisplay` / `DefaultBmsLaneDividerDisplay` now use the same palette for the playfield shell, and `DefaultBmsNoteDisplay` / `DefaultBmsLongNoteHeadDisplay` / `DefaultBmsLongNoteBodyDisplay` / `DefaultBmsLongNoteTailDisplay` now keep note / hold fallback on the same OMS-owned palette. `BmsTemporarySkinPalette` is no longer part of the live BMS fallback path, `OmsSkin` now exists as a protected preview built-in host / provider / resource-root entry, the `OmsSkin` -> `ManiaOmsSkinTransformer` route is explicit, the first OMS-owned mania shell-component slice (`OmsStageBackground` / `OmsStageForeground` / `OmsColumnBackground` / `OmsKeyArea` / `OmsHitTarget`) has landed, the first stage-local mania layout-preset slice now drives `HitPosition` / `StagePadding` / `ColumnWidth` / `ColumnSpacing` / `WidthForNoteHeightScale`, the first shell-behaviour slice now drives `LeftLineWidth` / `RightLineWidth` / `ShowJudgementLine` / `LightPosition` / `LightFramePerSecond`, the first shared shell-asset slice now drives `LeftStageImage` / `RightStageImage` / `BottomStageImage` / `HitTargetImage` / `LightImage` / `KeysUnderNotes`, the first shell-colour slice now drives `ColumnLineColour` / `JudgementLineColour` / `ColumnBackgroundColour` / `ColumnLightColour`, the first stage-local key-asset slice now drives `KeyImage` / `KeyImageDown`, the first mania second-batch note/hold asset slice now drives `NoteImage` / `HoldNoteHeadImage` / `HoldNoteTailImage` / `HoldNoteBodyImage`, the first explicit note-piece slice now routes `ManiaSkinComponents.Note` to `OmsNotePiece`, the first explicit hold-note-head component slice now routes `ManiaSkinComponents.HoldNoteHead` to `OmsHoldNoteHeadPiece`, the first explicit hold-note-tail component slice now routes `ManiaSkinComponents.HoldNoteTail` to `OmsHoldNoteTailPiece`, the first explicit hold-note-body component slice now routes `ManiaSkinComponents.HoldNoteBody` to `OmsHoldNoteBodyPiece`, the first shared judgement asset slice now drives `Hit300g` / `Hit300` / `Hit200` / `Hit100` / `Hit50` / `Hit0`, the first shared judgement-position slice now drives `ScorePosition` / `ComboPosition` across single-stage, same-keycount dual-stage, and mixed-stage no-column lookups via first-stage preset reuse, the first shared bar-line-config slice now drives `BarLineHeight` / `BarLineColour` under the same rule, the first explicit judgement-piece slice now routes `SkinComponentLookup<HitResult>` to `OmsManiaJudgementPiece`, the first explicit bar-line component slice now routes `ManiaSkinComponents.BarLine` to `OmsBarLine`, the first explicit combo-counter component slice now routes the MainHUDComponents combo to `OmsManiaComboCounter`, the first stage-local hitburst-config slice now drives `ExplosionImage` / `ExplosionScale`, and the first explicit hit-explosion component slice now routes `ManiaSkinComponents.HitExplosion` to `OmsHitExplosion`, including repeated use across dual-stage layouts like 5K+5K, 9K+9K, mixed-stage lookup splits like 5K+8K and 5K+9K, and mixed-stage shared-position / bar-line cases like 7K+6K, 8K+9K, and 9K+8K. `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` are now all real OMS-owned implementations rather than legacy subclasses, and the next Phase 1.1 focus is the remaining mania semantic cleanup across note / hold / combo / HUD / bar-line plus any deferred score-driven results preview/skinnable-target decision.
-
-The shared judgement-position slice now closes `ScorePosition` / `ComboPosition` for single-stage, same-keycount dual-stage, and mixed-stage no-column lookups by reusing the first stage's preset. `OmsManiaComboCounter` now provides the explicit MainHUDComponents combo route, no longer inherits `LegacyManiaComboCounter`, and no longer depends on `LegacySpriteText` / `LegacyFont.Combo` for its text path; the remaining work is the shared combo-position-driven rolling / fade / HUD semantic cleanup rather than legacy font-sheet dependence.
-
-`OmsNotePiece`, `OmsHoldNoteHeadPiece`, `OmsHoldNoteTailPiece`, and `OmsHoldNoteBodyPiece` now provide the explicit normal-note / hold-note-head / hold-note-tail / hold-note-body routes for `ManiaSkinComponents.Note` / `ManiaSkinComponents.HoldNoteHead` / `ManiaSkinComponents.HoldNoteTail` / `ManiaSkinComponents.HoldNoteBody`, and all four are now real OMS-owned implementations rather than legacy subclasses. The visible hold-body route is hosted by `DrawableHoldNote` via its internal `bodyPiece`; `NoteBodyStyle`, `HoldNoteLightImage`, and `HoldNoteLightScale` are now closed over by `OmsManiaHoldNoteBodyPreset`, `WidthForNoteHeightScale` is now closed over by `OmsManiaLayoutPreset`, and `OmsNotePiece` reads that note-height lookup per column so mixed-stage note heights no longer reuse the wrong shared / total-columns fallback. The remaining note / hold work is legacy note scrolling, tail inversion, plus any follow-up cleanup around hold-body hit-light / fade behaviour rather than config-route closure.
-
-The shared bar-line-config slice now closes `BarLineHeight` / `BarLineColour` for single-stage, same-keycount dual-stage, and mixed-stage no-column lookups by reusing the first stage's preset. `OmsBarLine` now provides the explicit component route for `ManiaSkinComponents.BarLine` and no longer inherits `LegacyBarLine`, but it still consumes the same shared preset plus legacy bar-line semantics, so the remaining work is the full OMS-owned bar-line semantic cleanup.
+> BMS 默认层与 mania 侧组件的当前迁移进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；SKINNING.md 面向皮肤制作者的详细 lookup / preset 表见 [SKINNING.md](SKINNING.md)。
 
 BMS-specific visual rules:
 
@@ -1385,75 +1370,28 @@ If the server is unreachable, OMS runs fully offline:
 
 ## 15. Development Phases
 
-### Phase 1 — Core BMS (Current Focus)
+> 详细分步规划、验收标准与当前进度矩阵见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) 与 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)。
+> 本节仅列出各阶段范围定义。
 
-- [ ] Delete standard/taiko/catch rulesets
-- [ ] BMS file parser (header + all play channels)
-- [ ] BMS archive import (zip/rar/7z)
-- [ ] Keysound store + concurrent playback
-- [ ] 7K+1 playfield (1P layout)
-- [ ] OD judgment system (default)
-- [ ] NORMAL gauge
-- [ ] EX-SCORE processor
-- [ ] Clear lamp + DJ Level on result screen
-- [ ] Density star calculator (7K baseline)
-- [ ] Difficulty table preset list + subscription UI (enable/disable per table)
-- [ ] MD5 matching pipeline (import-time + refresh-time batch query)
-- [ ] BmsTableGroupMode in song select
-- [ ] Note distribution graph in chart detail panel
-- [ ] Basic input binding (keyboard + HID)
-- [ ] Static BG (`#STAGEFILE`)
-- [ ] Lane cover Mods (top + bottom)
+### Phase 1 — Core BMS
 
-### Phase 1.1 — OMS Skin System (Current Product Focus)
+上游裁剪、BMS 解析 / 导入 / 键音 / 7K+1 playfield / 判定 / gauge / EX-SCORE / 结算 / 密度星级 / 难度表 / MD5 匹配 / Song Select 表分组 / 音符分布图 / 静态 BG / Lane Cover / 输入绑定。
 
-- [x] Freeze the integrated default skin package structure: Global + Mania + BMS independent ruleset layers
-- [x] Inventory every target component and map it to current code entry points
-- [ ] Freeze resource naming, layout metadata, and config-bridge rules for mania and BMS separately
-- [x] Create OMS built-in skin package host / provider / shared transformer shell (preview `OmsSkin` host / provider / resource-root slice, explicit `ManiaOmsSkinTransformer`, global shared shell/shared transformer shell, and current mania mixed-stage non-column shared-preset fallback have all landed)
-- [x] Convert BMS Playfield / Lane / HitTarget / Static BG / BarLine to formal skinnable lookups
-- [x] Convert BMS Note / Hold / LaneCover / Judgement / Combo to formal skinnable lookups
-- [x] Land BMS HUD / results / Song Select panel lookups (`HudLayout`, `GaugeBar`, `GaugeHistoryPanel`, `ResultsSummaryPanel`, `NoteDistributionPanel`, etc.)
-- [x] Land the BMS playfield abstraction gate: geometry, receptor state, layout metadata / config layer
-- [x] Port the chosen built-in visual language to the BMS default layer without relying on feedback direct-draw fallback
-- [x] Current BMS default-layer progress note: gameplay HUD (`HudLayout` / `GaugeBar` / `ComboCounter`), results summary / clear lamp (`ResultsSummaryPanel` / `ResultsSummary` / `ClearLamp`), results gauge history (`GaugeHistoryPanel` / `GaugeHistory`), Song Select note distribution (`NoteDistributionPanel` / `NoteDistribution`), playfield metadata / accent surfaces (`StaticBackgroundLayer`, `LaneCover`, `HitTarget`, `BarLine`), playfield shell surfaces (`Backdrop`, `Baseplate`, lane `Background`, `Divider`), and note / hold visuals (`Note`, `LongNoteHead`, `LongNoteBody`, `LongNoteTail`) now use BMS-owned default components/tokens; `BmsTemporarySkinPalette` has exited the live BMS fallback path
-- [ ] Migrate mania Stage / Column / Key shell to OMS-owned defaults (first shell-component slice, first stage-local layout-preset slice, first stage-local shell-behaviour slice, first shared shell-asset slice, first shell-colour slice, and first stage-local key-asset slice have landed via `OmsStageBackground` / `OmsStageForeground` / `OmsColumnBackground` / `OmsKeyArea` / `OmsHitTarget` plus `OmsManiaLayoutPreset`, `OmsManiaShellPreset`, `OmsManiaShellAssetPreset`, `OmsManiaColumnColourPreset`, and `OmsManiaKeyAssetPreset`; current mania non-column shared lookup fallback now also closes mixed-stage via first-stage preset reuse, but Global shared-shell closure is still pending)
-- [ ] Migrate mania Note / Hold / HitBurst / Judgement / HUD to OMS-owned defaults (first stage-local note/hold asset slice has landed via `OmsManiaNoteAssetPreset` for `NoteImage` / `HoldNoteHeadImage` / `HoldNoteTailImage` / `HoldNoteBodyImage`, the explicit note / hold-head / hold-tail / hold-body routes have landed via `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece`, `WidthForNoteHeightScale` is now closed over by `OmsManiaLayoutPreset` and consumed per-column by `OmsNotePiece`, the shared judgement asset slice has landed via `OmsManiaJudgementAssetPreset` for `Hit300g` / `Hit300` / `Hit200` / `Hit100` / `Hit50` / `Hit0`, the shared judgement-position slice has landed via `OmsManiaJudgementPositionPreset` for `ScorePosition` / `ComboPosition` with mixed-stage first-stage fallback, the shared bar-line-config slice has landed via `OmsManiaBarLinePreset` for `BarLineHeight` / `BarLineColour` with the same mixed-stage first-stage fallback, the explicit judgement-piece / combo-counter / bar-line / hit-explosion routes have landed via `OmsManiaJudgementPiece` / `OmsManiaComboCounter` / `OmsBarLine` / `OmsHitExplosion`, and these eight components are now real OMS-owned implementations rather than legacy subclasses; the remaining work is semantic cleanup for note / hold / combo / HUD / bar-line plus the final default-path freeze)
-- [ ] Define and validate user-skin partial-override semantics across mania and BMS inside one skin package
-- [ ] Remove upstream built-in default skins from shipped default selection UX and package only OMS defaults
-- [ ] Add fallback / visual / packaging regression coverage and reach the release gate
+### Phase 1.1 — OMS Skin System
+
+集成默认皮肤包（Global + Mania + BMS 三层独立 ruleset 皮肤）、组件 lookup / fallback / OMS 默认层迁移、partial override 语义、上游原生默认皮肤退出、release gate。
 
 ### Phase 2 — BMS Feature Complete
 
-- [ ] beatoraja + LR2 judgment Mods
-- [ ] ASSIST EASY / EASY gauge Mods
-- [ ] HARD / EX-HARD / HAZARD gauge Mods
-- [ ] GAS (Gauge Auto Shift) Mod with configurable start/floor gauge
-- [ ] A-SCR (Auto Scratch) Mod
-- [ ] LN / CN / HCN runtime long-note modes with separate score / replay / leaderboard buckets
-- [ ] 5K / 9K / 14K DP layouts + density star calibration per keymode
-- [ ] 1P/2P flip Mod
-- [ ] Empty Poor judgment
-- [ ] Analog axis input (HID rotary, mouse delta)
-- [ ] LNTYPE 2 (MGQ format) long note support
-- [ ] BGA video playback
-- [ ] User skin ecosystem / compatibility tooling beyond the OMS built-in default path
+beatoraja + LR2 判定 Mod、全 gauge Mod (ASSIST EASY ~ HAZARD) + GAS、A-SCR、LN/CN/HCN 运行时模式、5K/9K/14K DP 布局、1P/2P flip、Empty Poor、analog axis 输入、LNTYPE 2、BGA 视频、用户皮肤生态。
 
 ### Phase 3 — Private Server
 
-- [ ] Account auth + session management
-- [ ] Score submission (with Mod combination + long-note-mode tagging; all Mods / LN modes participate in ranking)
-- [ ] Score integrity / anti-tamper design (client-side replay hash, server-side validation — detailed design TBD)
-- [ ] Online leaderboard with Mod / LN-mode filter
-- [ ] Beatmap search + download
-- [ ] Server-hosted difficulty table mirrors
+账号认证、成绩提交与排行榜、谱面搜索/下载、远程难度表镜像。
 
 ### Future Scope
 
-- `#RANDOM` chart branching
-- LR2IR leaderboard compatibility read
-- SHA256 + `parent_hash` (sabun linkage) in difficulty table matching
-- macOS / Linux (not planned, not blocked)
+`#RANDOM` 分支、LR2IR 排行兼容、SHA256 + sabun linkage、macOS / Linux（不计划，不阻断）。
 
 ---
 

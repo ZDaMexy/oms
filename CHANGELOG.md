@@ -5,6 +5,76 @@
 
 ---
 
+## 2026-04-12
+
+### Phase 1.17：reverse-config late-hit sweep 收口
+
+- `TestSceneOmsScratchGameplayBridge` 本轮继续沿 reverse-config 产品矩阵补齐 late-hit miss 排序，新增四条 loaded-scene 回归：`TestInvertedMouseAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestInvertedHidAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestInvertedSecondScratchMouseAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestInvertedSecondScratchHidAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`
+- 这批场景显式锁定 `axisInverted=true` 的 mouse/HID scratch 在 Scratch1 与 lane 8 / `Scratch2` 两侧都遵循与正向输入相同的 late-hit 语义：晚到输入会强制 earlier note miss，而 later note 仍可正常命中，不会因为 reverse-config 改变 miss 排序
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **43/43** 通过
+
+### Phase 1.17：scratch bridge symmetry sweep 收口
+
+- `TestSceneOmsScratchGameplayBridge` 本轮沿同一 loaded-scene 产品矩阵继续做对称补齐，新增六条回归：`TestKeyboardHeldScratchSuppressesInvertedHidPulseGameplayEdgeUntilFinalRelease()`、`TestKeyboardHeldScratchSuppressesInvertedMousePulseGameplayEdgeUntilFinalRelease()`、`TestSecondScratchMouseAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestSecondScratchHidAxisGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestSecondScratchXInputGameplayBridgeLateHitForcesEarlierScratchMiss()`、`TestSecondScratchXInputScratchHoldResolvesTail()`
+- 这批场景把 Scratch1 的 inverted suppression、以及 14K `Scratch2` 的 late-hit miss 排序与 direct XInput held-path 全部纳入同一产品级回归，显式锁定 reverse-config pulse 不会在 keyboard-held 时产生额外 gameplay edge，lane 8 / `Scratch2` 的晚到输入会强制 earlier note miss 且 later note 仍可正常命中，同时 second scratch 也已具备不依赖 keyboard takeover 的 direct XInput hold 尾判与最终释放证明
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **39/39** 通过
+
+### Phase 1.17：14K Scratch2 normal hold-survival 收口
+
+- `TestSceneOmsScratchGameplayBridge` 已继续补齐第二 scratch 的 held-path 产品语义，本轮新增两条 loaded-scene 回归：`TestKeyboardHeldSecondScratchHoldSurvivesMousePulseAndResolvesTail()`、`TestKeyboardHeldSecondScratchHoldSurvivesHidPulseAndResolvesTail()`
+- 这批场景显式锁定 lane 8 / `Scratch2` 的 keyboard-held hold 在普通 mouse/HID pulse 经过 `FinishFrame()` / `FinishPolling()` 边界后不会断 hold，tail 仍经 held path 判定，且动作直到最终 keyboard release 才真正松开
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **33/33** 通过
+
+### Phase 1.17：14K Scratch2 inverted suppression 收口
+
+- `TestSceneOmsScratchGameplayBridge` 已继续补齐第二 scratch 的 reverse-config first-press / final-release 产品语义，本轮新增两条 loaded-scene 回归：`TestKeyboardHeldSecondScratchSuppressesInvertedHidPulseGameplayEdgeUntilFinalRelease()`、`TestKeyboardHeldSecondScratchSuppressesInvertedMousePulseGameplayEdgeUntilFinalRelease()`
+- 这批场景显式锁定 lane 8 / `Scratch2` 在 keyboard-held 且 `axisInverted=true` 的 HID、mouse 追加 pulse 下不会产生额外 gameplay hit edge，且动作会一直保持到 keyboard 与 inverted pulse 全部真正释放后才结束
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **31/31** 通过
+
+### Phase 1.17：14K Scratch2 mixed-source suppression 收口
+
+- `TestSceneOmsScratchGameplayBridge` 已继续补齐第二 scratch 的 first-press / final-release 产品语义，本轮新增三条 loaded-scene 回归：`TestKeyboardHeldSecondScratchSuppressesHidPulseGameplayEdgeUntilFinalRelease()`、`TestKeyboardHeldSecondScratchSuppressesMousePulseGameplayEdgeUntilFinalRelease()`、`TestKeyboardHeldSecondScratchSuppressesXInputGameplayEdgeUntilFinalRelease()`
+- 这批场景显式锁定 lane 8 / `Scratch2` 在 keyboard-held 前提下不会因 HID、mouse 或 custom XInput 的追加输入产生额外 gameplay hit edge，并且动作会一直保持到最终 source release 才真正松开
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **29/29** 通过
+
+### Phase 1.17：14K Scratch2 reverse-config gameplay bridge 收口
+
+- `TestSceneOmsScratchGameplayBridge` 已继续把 reverse-config 扩到 14K 第二 scratch，本轮新增四条 loaded-scene 回归：`TestInvertedSecondScratchMouseAxisGameplayBridgeResolvesScratchStreamNotes()`、`TestInvertedSecondScratchHidAxisGameplayBridgeResolvesScratchStreamNotes()`、`TestKeyboardHeldSecondScratchHoldSurvivesInvertedMousePulseAndResolvesTail()`、`TestKeyboardHeldSecondScratchHoldSurvivesInvertedHidPulseAndResolvesTail()`
+- 这批场景显式锁定 lane 8 / `Scratch2` 在 `axisInverted=true` 的 mouse/HID 绑定下仍能产出真实 scratch edge，并且 keyboard-held second scratch hold 在 inverted mouse/HID pulse 经过 `FinishFrame()` / `FinishPolling()` 边界时不会断 hold，直到最终 keyboard release 才真正松开动作
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **26/26** 通过
+
+### Phase 1.17：14K Scratch2 gameplay bridge 首轮补测
+
+- `TestSceneOmsScratchGameplayBridge` 现已支持把 mouse-axis / HID-axis / custom XInput scratch 绑定到可选 `OmsAction`，不再只覆盖 `Key1P_Scratch`；同一套 loaded headless scene 现在可以直接验证 `Key2P_Scratch -> BmsAction.Scratch2` 的真实 `DrawableBmsRuleset -> BmsPlayfield -> scratch note/hold` 玩法桥
+- 本轮新增四条 14K 第二 scratch 回归：`TestSecondScratchMouseAxisGameplayBridgeResolvesScratchStreamNotes()`、`TestSecondScratchHidAxisGameplayBridgeResolvesScratchStreamNotes()`、`TestSecondScratchXInputGameplayBridgeResolvesScratchStreamNotes()`、`TestKeyboardHeldSecondScratchHoldTransfersToXInputAndResolvesTail()`。它们显式锁定 lane 8 / `Scratch2` 的 mouse、HID、custom XInput 命中链，以及 keyboard-held hold 在 second scratch 的 XInput 接管与最终释放语义
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **22/22** 通过
+
+### Phase 1.17：analog scratch reverse-config gameplay bridge 收口首刀
+
+- `TestSceneOmsScratchGameplayBridge` 现已支持为 mouse-axis / HID-axis scratch 注入自定义 trigger，不再只用硬编码的正向 turntable 绑定；这样 loaded headless scene 可以直接覆盖 reverse-config 下的真实 `DrawableBmsRuleset -> BmsPlayfield -> scratch note/hold` 运行链
+- 本轮新增四条 1.17 产品语义回归：`TestInvertedMouseAxisGameplayBridgeResolvesScratchStreamNotes()`、`TestInvertedHidAxisGameplayBridgeResolvesScratchStreamNotes()`、`TestKeyboardHeldScratchHoldSurvivesInvertedMousePulseAndResolvesTail()`、`TestKeyboardHeldScratchHoldSurvivesInvertedHidPulseAndResolvesTail()`。它们显式锁定 `axisInverted=true` 的 mouse/HID 绑定仍能产出 scratch edge，且 keyboard-held hold 在 inverted pulse 经过 `FinishFrame()` / `FinishPolling()` 边界时不会断 hold，直到最终 keyboard release 才真正松开动作
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge" -v minimal` **18/18** 通过
+
+## 2026-04-11
+
+### Phase 1.1：SkinManager product-surface release gate 收口
+
+- `TestSceneOmsBuiltInSkin` 现已补齐 `GetAllUsableSkins()`、`SelectRandomSkin()`、`SetSkinFromConfiguration()`、`SelectNextSkin()` / `SelectPreviousSkin()`、`SkinManager.AllSources` 与 `Delete()` 这批产品面回归，明确锁定“OMS 永远是唯一受保护默认项，用户皮肤只作为可选层叠 source”的最终行为
+- 本轮把 release gate 从“transformer / fallback 是否存在”推进到“运行时可选皮肤列表、随机切换、配置回退、前后切换、source-chain、删除当前皮肤回退”这一层真实产品语义，避免 1.1.11 只剩代码层契约却缺 UI/状态机层证明
+- 定向验证分三批通过：`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "(Name=TestUsableSkinListContainsOmsThenUserSkins|Name=TestRandomSkinFallsBackToOmsWithoutUserSkins|Name=TestRandomSkinSelectsOnlyAvailableUserSkin)"` **3/3**，`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "(Name=TestSetSkinFromConfigurationSelectsUserSkin|Name=TestUnknownSkinConfigurationFallsBackToOms|Name=TestSelectNextSkinCyclesAcrossOmsAndUserSkins|Name=TestSelectPreviousSkinCyclesAcrossOmsAndUserSkins)"` **4/4**，`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "(Name=TestAllSourcesContainsOnlyOmsWhenOmsIsCurrent|Name=TestAllSourcesAddsOmsFallbackBehindUserSkin|Name=TestDeletingCurrentUserSkinFallsBackToOms|Name=TestDeletingNonCurrentUserSkinKeepsCurrentUserSkin)"` **4/4**
+
+### Phase 1.1：startup skin migration 与 `osu.Game.Tests` release gate 恢复
+
+- `OsuGame` 现已在 `SetSkinFromConfiguration()` 前先订阅 `CurrentSkinInfo` 到 config 的回写，遗留 upstream built-in GUID 在启动 fallback 到 OMS 时会同步把配置值纠正为 OMS；`TestSceneStartupSkinMigration` 已新增对应启动迁移回归，并改为使用公开 `CreateInfo().ID`，避免对 internal GUID 常量形成额外耦合
+- `osu.Game.Tests.csproj` 现已显式排除仍强依赖已删除 Osu/Taiko/Catch 规则集的历史测试面，同时把 `TestResources` / `WaveformTestBeatmap` 默认 ruleset 改成 mania，`TestSceneHitEventTimingDistributionGraph` 也移除了对 osu! 物件的硬依赖，`TestSceneMissingBeatmapNotification` 则内联轻量 `ArchiveReader` 测试桩；`OsuGameBase` 还补上 API 组件已有父容器时不再二次挂载的保护，恢复 `OsuGameTestScene` 这条 visual regression 链
+- 定向验证：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "TestSceneStartupSkinMigration|TestSceneEditDefaultSkin|TestSettingsMigration"` **6/6** 通过
+
+### Phase 1.1：global `Results` target 与 Skin Editor Results preview 最小闭环
+
+- `GlobalSkinnableContainers` 新增 `Results`，`OmsSkinTransformer` 现会为 global `Results` target 返回 shared shell，`ResultsScreen` 也已补上对应 `SkinnableContainer`；`SKIN/SimpleTou-Lazer/Results.json` 同步补齐 embedded global layout metadata，使 `MainHUDComponents` / `SongSelect` / `Results` / `Playfield` 四类 global target 都有一致的 layout 装载入口
+- Skin Editor 现已新增 Results scene 按钮，并通过读取本地已有 `ScoreInfo` 推出 `SoloResultsScreen`；这里刻意复用真实 score 而不是空壳模型，因为 `StatisticsPanel` 这条链要求完整 `ScoreInfo` 才能稳定工作。若本地无可预览成绩，界面会显示明确 toast，而不是静默失败
+- 定向验证：`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "TestOmsSkinProvidesEmbeddedGlobalLayoutMetadata"` **1/1** 通过，`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "TestOmsSkinUsesSharedTransformerShell"` **1/1** 通过
+
 ## 2026-04-10
 
 ### Phase 1.1：native default registration cleanup

@@ -139,6 +139,10 @@ namespace osu.Game.Screens.Ranking
                                         {
                                             RelativeSizeAxes = Axes.Both
                                         },
+                                        new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.Results))
+                                        {
+                                            RelativeSizeAxes = Axes.Both,
+                                        },
                                     }
                                 }
                             },

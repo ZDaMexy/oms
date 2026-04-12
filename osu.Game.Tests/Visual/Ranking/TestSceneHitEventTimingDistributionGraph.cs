@@ -10,7 +10,6 @@ using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Shapes;
 using osu.Game.Rulesets.Objects;
-using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Ranking.Statistics;
 using osuTK;
@@ -23,7 +22,7 @@ namespace osu.Game.Tests.Visual.Ranking
         private readonly BindableFloat width = new BindableFloat(600);
         private readonly BindableFloat height = new BindableFloat(130);
 
-        private static readonly HitObject placeholder_object = new HitCircle();
+        private static readonly HitObject placeholder_object = new HitObject();
 
         public TestSceneHitEventTimingDistributionGraph()
         {

@@ -48,7 +48,7 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 
 当前仓库状态说明：
 
-- 上述第 2 条尚未满足。BMS 默认层已完成七批 OMS-owned slice，但 mania 侧当前已完成第一批 Stage / Column / Key shell 的组件、layout、behaviour、shared asset、首批 shell colour 与首批 stage-local key asset 收口，以及第二批首个 stage-local note/hold asset slice、首个 explicit normal-note / hold-note-head / hold-note-tail / hold-note-body component slice、首个 shared judgement asset slice、首个 shared judgement-position slice、首个 shared bar-line config slice、首个 explicit judgement / bar-line / combo counter / hitburst component slice；当前这批 non-column shared preset 在 mixed-stage 路径下也已固定复用第一 stage preset，不再落回 total-columns legacy 默认值，`WidthForNoteHeightScale` 也已收口到 `OmsManiaLayoutPreset` 并由 `OmsNotePiece` 按列读取，因此 mixed-stage note-height 不再复用错误 stage 的默认值；`OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` 也已升格为实际 OMS-owned 组件，但 note scrolling、tail inversion、combo/HUD / bar-line 等路径仍继续复用部分 legacy 语义，因此 mania 默认路径迁移仍未完成。
+- 上述第 2 条尚未满足。BMS 默认层已完成七批 OMS-owned slice 收口；mania 侧已完成第一批 shell 组件 / preset 与第二批 8 类 OMS-owned 组件升格（不再继承 legacy 类型），但 note scrolling、combo / bar-line 等路径仍复用部分 legacy 语义，因此 mania 默认路径迁移仍未完成。详见 `DEVELOPMENT_STATUS.md`。
 
 ## 用户数据存储
 

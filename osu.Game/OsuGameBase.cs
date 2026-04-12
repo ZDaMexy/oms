@@ -392,7 +392,7 @@ namespace osu.Game
             base.Content.Add(LeaderboardManager);
 
             // add api components to hierarchy.
-            if (API is Component apiComponent)
+            if (API is Component apiComponent && apiComponent.Parent == null)
                 base.Content.Add(apiComponent);
 
             base.Content.Add(SpectatorClient);

@@ -16,6 +16,9 @@ namespace osu.Game.Skinning
         [Description("Song select")]
         SongSelect,
 
+        [Description("Results")]
+        Results,
+
         [Description("Playfield")]
         Playfield
     }

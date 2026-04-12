@@ -18,8 +18,8 @@ using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 
@@ -94,7 +94,7 @@ namespace osu.Game.Tests.Resources
         {
             int j = 0;
 
-            rulesets ??= new[] { new OsuRuleset().RulesetInfo };
+            rulesets ??= new[] { new ManiaRuleset().RulesetInfo };
 
             RulesetInfo getRuleset() => rulesets?[j++ % rulesets.Length];
 
@@ -170,7 +170,7 @@ namespace osu.Game.Tests.Resources
         /// <param name="ruleset">The ruleset for which the score was set against.</param>
         /// <returns></returns>
         public static ScoreInfo CreateTestScoreInfo(RulesetInfo ruleset = null) =>
-            CreateTestScoreInfo(CreateTestBeatmapSetInfo(1, new[] { ruleset ?? new OsuRuleset().RulesetInfo }).Beatmaps.First());
+            CreateTestScoreInfo(CreateTestBeatmapSetInfo(1, new[] { ruleset ?? new ManiaRuleset().RulesetInfo }).Beatmaps.First());
 
         /// <summary>
         /// Create a test score model.

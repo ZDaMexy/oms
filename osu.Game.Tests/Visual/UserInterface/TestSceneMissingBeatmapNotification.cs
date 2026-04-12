@@ -2,13 +2,15 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Linq;
+using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Database;
+using osu.Game.IO.Archives;
 using osu.Game.Overlays;
-using osu.Game.Tests.Scores.IO;
 
 namespace osu.Game.Tests.Visual.UserInterface
 {
@@ -27,8 +29,24 @@ namespace osu.Game.Tests.Visual.UserInterface
                 AutoSizeAxes = Axes.Y,
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
-                Child = new MissingBeatmapNotification(CreateAPIBeatmapSet(Ruleset.Value).Beatmaps.First(), "deadbeef", new ImportScoreTest.TestArchiveReader())
+                Child = new MissingBeatmapNotification(CreateAPIBeatmapSet(Ruleset.Value).Beatmaps.First(), "deadbeef", new TestArchiveReader())
             };
+        }
+
+        private class TestArchiveReader : ArchiveReader
+        {
+            public TestArchiveReader()
+                : base("test_archive")
+            {
+            }
+
+            public override Stream GetStream(string name) => new MemoryStream();
+
+            public override IEnumerable<string> Filenames => new[] { "test_file.osr" };
+
+            public override void Dispose()
+            {
+            }
         }
     }
 }

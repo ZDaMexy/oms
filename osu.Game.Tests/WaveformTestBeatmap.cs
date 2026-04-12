@@ -12,7 +12,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Game.Beatmaps;
 using osu.Game.IO.Archives;
 using osu.Game.Rulesets;
-using osu.Game.Rulesets.Osu;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Skinning;
 using osu.Game.Tests.Beatmaps;
 using osu.Game.Tests.Resources;
@@ -28,7 +28,7 @@ namespace osu.Game.Tests
         private readonly ITrackStore trackStore;
 
         public WaveformTestBeatmap(AudioManager audioManager, RulesetInfo rulesetInfo = null)
-            : this(audioManager, new TestBeatmap(rulesetInfo ?? new OsuRuleset().RulesetInfo))
+            : this(audioManager, new TestBeatmap(rulesetInfo ?? new ManiaRuleset().RulesetInfo))
         {
         }
 

@@ -410,89 +410,40 @@ ColumnLineWidth: 0,0,0,0,0,0,0,0
 | --- | --- | --- |
 | `[General]` | 名称、作者、版本 | legacy 入口基础信息 |
 | `[Mania]` + `Keys:` | 定义一个 keycount section | 4K/5K/6K/7K/8K/9K 分开写 |
-| `KeyImage*` / `KeyImage*D` | key 正常态 / 按下态图 | 当前 `OmsSkin` preview 已由 `OmsManiaKeyAssetPreset` 返回 stage-local 资源名，但仍适合做 legacy 资源试验 |
-| `NoteImage*` / `NoteImage*H` / `NoteImage*L` / `NoteImage*T` | note / LN 各部分图 | 当前 `OmsSkin` preview 已由 `OmsManiaNoteAssetPreset` 返回 stage-local 资源名，但仍适合做 legacy 资源试验 |
-| `Colour*` / `ColourLight*` | legacy 颜色语义 | 当前仍属过渡语义；`OmsSkin` preview 已开始把其中一部分 shell colour 收口到 OMS preset，不要锁成公开 contract |
-| `ColumnStart` | legacy mania 位置语义 | 当前只适合做 legacy 试验 |
-| `ComboPosition` | legacy HUD 位置语义 | 当前 `OmsSkin` preview 已有 shared preset，mixed-stage non-column 路径固定复用第一 stage preset，但仍不应视为稳定公开 contract |
-| `ScorePosition` | legacy judgement 位置语义 | 当前 `OmsSkin` preview 已有 shared preset，mixed-stage non-column 路径固定复用第一 stage preset，但仍不应视为稳定公开 contract |
-| `ColourBarline` | legacy bar line 颜色语义 | 当前 `OmsSkin` preview 已有 shared preset，mixed-stage non-column 路径固定复用第一 stage preset，但仍不应视为稳定公开 contract |
-| `BarlineHeight` | legacy bar line 厚度语义 | 当前 `OmsSkin` preview 已有 shared preset，mixed-stage non-column 路径固定复用第一 stage preset，但仍不应视为稳定公开 contract |
-| `HitPosition` / `ColumnWidth` / `LightPosition` / `LightFramePerSecond` / `JudgementLine` / `ColumnLineWidth` | 你会在 legacy mania 里看到这些字段 | **但对 `OmsSkin` preview 不应再当成稳定的最终调参接口** |
+| `KeyImage*` / `KeyImage*D` | key 正常态 / 按下态图 | 已迁到 `OmsManiaKeyAssetPreset`，仍适合做 legacy 资源试验 |
+| `NoteImage*` / `NoteImage*H` / `NoteImage*L` / `NoteImage*T` | note / LN 各部分图 | 已迁到 `OmsManiaNoteAssetPreset`，仍适合做 legacy 资源试验 |
+| `Colour*` / `ColourLight*` | legacy 颜色语义 | 部分已收口到 OMS preset，不要锁成公开 contract |
+| `ColumnStart` | legacy mania 位置语义 | 仅适合 legacy 试验 |
+| `ComboPosition` | legacy HUD 位置语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
+| `ScorePosition` | legacy judgement 位置语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
+| `ColourBarline` | legacy bar line 颜色语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
+| `BarlineHeight` | legacy bar line 厚度语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
+| `HitPosition` / `ColumnWidth` / `LightPosition` / `LightFramePerSecond` / `JudgementLine` / `ColumnLineWidth` | legacy mania 参数 | **不应再当成 `OmsSkin` preview 的稳定调参接口** |
 
 ### 当前 `OmsSkin` preview 下，哪些 mania 值已经不是 `skin.ini` 开关
 
-这部分非常重要。
+这部分非常重要。当前 [osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs](osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs) 已经把下列值从 raw legacy lookup 收口到 OMS preset，`skin.ini` 不再是它们的最终生效来源：
 
-当前 [osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs](osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs) 已经把一批运行时值从 raw legacy lookup 收口到 OMS preset：
+| OMS Preset | 接管的 legacy lookup |
+| --- | --- |
+| `OmsManiaLayoutPreset` | `HitPosition`、`ColumnWidth`、`ColumnSpacing`、`StagePadding`、`WidthForNoteHeightScale` |
+| `OmsManiaShellPreset` | `LeftLineWidth`、`RightLineWidth`、`ShowJudgementLine`、`LightPosition`、`LightFramePerSecond` |
+| `OmsManiaShellAssetPreset` | `LeftStageImage`、`RightStageImage`、`BottomStageImage`、`HitTargetImage`、`LightImage`、`KeysUnderNotes` |
+| `OmsManiaColumnColourPreset` | `ColumnLineColour`、`JudgementLineColour`、`ColumnBackgroundColour`、`ColumnLightColour` |
+| `OmsManiaKeyAssetPreset` | `KeyImage`、`KeyImageDown` |
+| `OmsManiaNoteAssetPreset` | `NoteImage`、`HoldNoteHeadImage`、`HoldNoteTailImage`、`HoldNoteBodyImage` |
+| `OmsManiaJudgementAssetPreset` | `Hit300g`…`Hit0` |
+| `OmsManiaJudgementPositionPreset` | `ScorePosition`、`ComboPosition` |
+| `OmsManiaBarLinePreset` | `BarLineHeight`、`BarLineColour` |
+| `OmsManiaHitExplosionPreset` | `ExplosionImage`、`ExplosionScale` |
+| `OmsManiaHoldNoteBodyPreset` | `NoteBodyStyle`、`HoldNoteLightImage`、`HoldNoteLightScale` |
 
-1. `OmsManiaLayoutPreset` 负责：
-   - `HitPosition`
-   - `ColumnWidth`
-   - `LeftColumnSpacing`
-   - `RightColumnSpacing`
-   - `StagePaddingTop`
-   - `StagePaddingBottom`
-2. `OmsManiaShellPreset` 负责：
-   - `LeftLineWidth`
-   - `RightLineWidth`
-   - `ShowJudgementLine`
-   - `LightPosition`
-   - `LightFramePerSecond`
-3. `OmsManiaShellAssetPreset` 负责：
-   - `LeftStageImage`
-   - `RightStageImage`
-   - `BottomStageImage`
-   - `HitTargetImage`
-   - `LightImage`
-   - `KeysUnderNotes`
-4. `OmsManiaColumnColourPreset` 负责：
-   - `ColumnLineColour`
-   - `JudgementLineColour`
-   - `ColumnBackgroundColour`
-   - `ColumnLightColour`
-5. `OmsManiaKeyAssetPreset` 负责：
-   - `KeyImage`
-   - `KeyImageDown`
-6. `OmsManiaNoteAssetPreset` 负责：
-   - `NoteImage`
-   - `HoldNoteHeadImage`
-   - `HoldNoteTailImage`
-   - `HoldNoteBodyImage`
-7. `OmsManiaJudgementAssetPreset` 负责：
-   - `Hit300g`
-   - `Hit300`
-   - `Hit200`
-   - `Hit100`
-   - `Hit50`
-   - `Hit0`
-8. `OmsManiaJudgementPositionPreset` 负责：
-   - `ScorePosition`
-   - `ComboPosition`
-9. `OmsManiaBarLinePreset` 负责：
-   - `BarLineHeight`
-   - `BarLineColour`
-10. `OmsManiaHitExplosionPreset` 负责：
-   - `ExplosionImage`
-   - `ExplosionScale`
+运行时规则：
 
-这意味着：
-
-- 你如果在当前 `OmsSkin` preview 路径里调这些值，不应该再把 `skin.ini` 当成唯一或最终生效来源。
-- 这些值现在是 OMS 为 stage-local 行为、共享 shell asset、shared judgement asset、shared judgement position、首批 shell colour 与首个 hitburst config 收口后返回的 preset 值。
-- 特别是 mixed-stage 场景下，带列上下文的 lookup 会按所在 stage keycount 取 preset；没有列上下文的 shared lookup（例如 `HitPosition` / `ScorePosition` / `ComboPosition` / `BarLineHeight` / `BarLineColour`）当前固定复用第一 stage keycount 的 preset，而不是照抄一个总列数 section。
-
-目前仍要注意边界：
-
-- `KeyImage*` / `KeyImage*D` 现在已经迁到 `OmsManiaKeyAssetPreset`；当前 `OmsSkin` preview 会按 stage keycount 返回资源名，其中 4K/6K/7K/9K 继续复用候选 `4k\1`，8K 继续使用 `7k\0..7` / `7k\0p..7p`，5K 则显式回到 OMS 侧 `mania-key1` / `mania-key2` 与 `mania-key1D` / `mania-key2D`。
-- `NoteImage*` / `NoteImage*H` / `NoteImage*L` / `NoteImage*T` 现在已经迁到 `OmsManiaNoteAssetPreset`；当前 `OmsSkin` preview 会按 stage keycount 返回 note/head/tail/body 资源名，其中 5K 会显式回到 OMS 侧 `mania-note1/2` 与对应的 `H/T/L` 变体，9K 会继续使用 `mania-noteS/1/2` 与 `SH/ST/SL` 变体，而 4K/6K/7K/8K 仍保持候选包现有的 legacy 资源命名（包括 `A`、`Notes4K\LNBody`、`Notes4K\LNTail` 这一类名字）。
-- `ManiaSkinComponents.Note` / `ManiaSkinComponents.HoldNoteHead` / `ManiaSkinComponents.HoldNoteTail` / `ManiaSkinComponents.HoldNoteBody` 现在也已分别显式接到 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece`；当前 `DrawableNote` / `DrawableHoldNoteHead` / `DrawableHoldNoteTail` 与 `DrawableHoldNote` 内部的 `bodyPiece` 都会实际加载 OMS note / hold 组件，且这四个组件都已升格为不再继承 `LegacyNotePiece` / `LegacyHoldNoteHeadPiece` / `LegacyHoldNoteTailPiece` / `LegacyBodyPiece` 的实际 OMS-owned implementation。其中 `OmsHoldNoteBodyPiece` 现已把 `NoteBodyStyle` / `HoldNoteLightImage` / `HoldNoteLightScale` 收口到 `OmsManiaHoldNoteBodyPreset`，并固定使用 OMS stretch 语义；`WidthForNoteHeightScale` 现也已收口到 `OmsManiaLayoutPreset`，`OmsNotePiece` 会按列读取 stage-local note-height，因此 mixed-stage note-height 不再落回第一 stage / total-columns fallback。当前 note / hold 路径剩余 gap 主要收窄为 note scrolling、tail inversion，以及 hold-body hit-light / fade 表现的后续语义整理。
-- `ScorePosition` / `ComboPosition` 现在也已有 `OmsManiaJudgementPositionPreset`，而 MainHUDComponents 路径下的 combo 现在也已显式接到 `OmsManiaComboCounter`；当前 `OmsSkin` preview 会在 single-stage、same-keycount dual-stage 与 mixed-stage 的 non-column 路径下返回 OMS-owned 的 shared judgement / HUD position，其中 mixed-stage 固定复用第一 stage preset，`DrawableManiaJudgement` 与 `OmsManiaComboCounter` 都不会再因 total-columns lookup 落回 10K 一类 legacy 默认值；另外 combo 文本路径现也已不再使用 `LegacySpriteText` / `LegacyFont.Combo`。当前剩余项收窄为 shared combo-position 之上的 rolling/fade/HUD 语义，而不是 legacy 字体图集依赖。
-- `BarLineHeight` / `BarLineColour` 现在也已有 `OmsManiaBarLinePreset`；当前 `OmsSkin` preview 会在 single-stage、same-keycount dual-stage 与 mixed-stage 的 non-column 路径下返回 OMS-owned 的 shared bar-line config，其中 mixed-stage 固定复用第一 stage preset，而 `ManiaSkinComponents.BarLine` 也已显式接到 `OmsBarLine`，所以 `DrawableBarLine` 不会再因 total-columns lookup 落回 18K 一类 legacy 默认值；但该组件仍继续消费 shared bar-line config 与 legacy bar-line 语义，因此完整 OMS-owned bar line 组件路径仍未迁完。
-- `Hit300g` / `Hit300` / `Hit200` / `Hit100` / `Hit50` / `Hit0` 现在已经迁到 `OmsManiaJudgementAssetPreset`，而 `SkinComponentLookup<HitResult>` 也已显式迁到 `OmsManiaJudgementPiece` 路径；当前 `OmsSkin` preview 会稳定返回 `mania-hit300g` / `mania-hit300` / `mania-hit200` / `mania-hit100` / `mania-hit50` / `mania-hit0` 这一组共享资源名，`DrawableManiaJudgement` 也会实际加载 OMS judgement piece，但这仍然只是 judgement 资源名 + 组件入口收口；mixed-stage 的 non-column positioning 已按第一 stage preset 收口，不过 legacy animation 语义与更完整的 OMS-owned judgement / HUD 路径还没有迁完。
-- `ExplosionImage` / `ExplosionScale` 现在已经迁到 `OmsManiaHitExplosionPreset`；当前 `OmsSkin` preview 会稳定返回 `lightingN` 与按各 stage 列宽预设换算出的 hitburst scale，因此 mixed-stage 场景下不会再把 5K 与 8K 的 explosion scale 混成同一套 absolute-column fallback；但这仍然只是 hitburst 配置收口，`LegacyHitExplosion` 本身与更完整的 OMS-owned hitburst 默认路径还没有迁完。
-- `HitExplosion` 组件现在也已经显式迁到 `OmsHitExplosion` 路径；当前 `PoolableHitExplosion` 会实际加载 OMS hit explosion 组件，但它仍继续消费上面的 `ExplosionImage` / `ExplosionScale` preset，所以这一步也还不是完整的 OMS-owned hitburst 默认视觉路径。
-- `Colour*` 虽然已有首批 shell colour 被 `OmsManiaColumnColourPreset` 接管，但这不等于 mania authoring contract 已冻结；它仍然只是当前 `OmsSkin` preview 路径里的 OMS-owned 过渡收口。
+- 带列上下文的 lookup 按所在 stage keycount 取 preset。
+- 没有列上下文的 shared lookup（`HitPosition`、`ScorePosition`、`ComboPosition`、`BarLineHeight`、`BarLineColour`）在 mixed-stage 场景下固定复用第一 stage preset。
+- `Note` / `HoldNoteHead` / `HoldNoteTail` / `HoldNoteBody` / `HitExplosion` / `Judgement` / `ComboCounter` / `BarLine` 已显式路由到 OMS-owned 组件实现，不再继承对应 legacy 类型。
+- 部分路径仍在消费 legacy 语义（note scrolling、combo/HUD 剩余语义、bar-line legacy 语义），因此 **mania authoring contract 尚未冻结**。
 
 另一个容易踩坑的点：legacy 解码本身会做归一化，不是你写多少就等于运行时多少。例如：
 

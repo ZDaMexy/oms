@@ -28,6 +28,7 @@ namespace osu.Game.Skinning
             {
                 GlobalSkinnableContainers.MainHUDComponents when containerLookup.Ruleset == null => createShellContainer(),
                 GlobalSkinnableContainers.SongSelect when containerLookup.Ruleset == null => createShellContainer(),
+                GlobalSkinnableContainers.Results when containerLookup.Ruleset == null => createShellContainer(),
                 GlobalSkinnableContainers.Playfield => createShellContainer(),
                 _ => null,
             };

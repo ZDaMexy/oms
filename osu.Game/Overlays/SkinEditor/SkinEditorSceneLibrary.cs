@@ -88,6 +88,13 @@ namespace osu.Game.Overlays.SkinEditor
                                     Origin = Anchor.CentreLeft,
                                     Action = () => skinEditorOverlay?.PresentGameplay(),
                                 },
+                                new SceneButton
+                                {
+                                    Text = SkinEditorStrings.Results,
+                                    Anchor = Anchor.CentreLeft,
+                                    Origin = Anchor.CentreLeft,
+                                    Action = () => skinEditorOverlay?.PresentResults(),
+                                },
                             }
                         },
                     }

@@ -14,16 +14,22 @@ using osu.Framework.Input;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Layout;
+using osu.Framework.Localisation;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Database;
 using osu.Game.Graphics.Containers;
+using osu.Game.Localisation;
+using osu.Game.Online.API;
+using osu.Game.Overlays.OSD;
 using osu.Game.Input.Bindings;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens;
+using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Components;
 using osu.Game.Screens.Menu;
@@ -72,6 +78,15 @@ namespace osu.Game.Overlays.SkinEditor
 
         [Resolved]
         private IBindable<WorkingBeatmap> beatmap { get; set; } = null!;
+
+        [Resolved]
+        private RealmAccess realmAccess { get; set; } = null!;
+
+        [Resolved]
+        private IAPIProvider api { get; set; } = null!;
+
+        [Resolved]
+        private OnScreenDisplay? onScreenDisplay { get; set; }
 
         private OsuScreen? lastTargetScreen;
         private InvokeOnDisposal? nestedInputManagerDisable;
@@ -165,6 +180,33 @@ namespace osu.Game.Overlays.SkinEditor
 
         public void PresentGameplay() => presentGameplay(false);
 
+        public void PresentResults()
+        {
+            performer?.PerformFromScreen(screen =>
+            {
+                if (State.Value != Visibility.Visible)
+                    return;
+
+                if (screen is ResultsScreen)
+                    return;
+
+                var previewScore = getResultsPreviewScore();
+
+                if (previewScore == null)
+                {
+                    onScreenDisplay?.Display(new ResultsPreviewUnavailableToast(SkinEditorStrings.ResultsPreviewUnavailable));
+                    return;
+                }
+
+                screen.Push(new SoloResultsScreen(previewScore)
+                {
+                    AllowRetry = false,
+                    AllowWatchingReplay = false,
+                    IsLocalPlay = isLocalScore(previewScore),
+                });
+            }, new[] { typeof(SongSelect), typeof(ResultsScreen) });
+        }
+
         private void presentGameplay(bool attemptedBeatmapSwitch)
         {
             performer?.PerformFromScreen(screen =>
@@ -211,6 +253,45 @@ namespace osu.Game.Overlays.SkinEditor
                     screen.Push(new EndlessPlayer(replayGeneratingMod.CreateScoreFromReplayData));
             }, new[] { typeof(Player), typeof(SoloSongSelect) });
         }
+
+        private ScoreInfo? getResultsPreviewScore()
+        {
+            var currentRuleset = ruleset.Value;
+            var scoreDisplayBucket = currentRuleset.CreateInstance().GetScoreDisplayBucket(mods.Value);
+            var currentBeatmapInfo = beatmap.Value is DummyWorkingBeatmap ? null : beatmap.Value.BeatmapInfo;
+
+            return queryPreviewScore(currentBeatmapInfo, scoreDisplayBucket, localUserOnly: true)
+                   ?? queryPreviewScore(currentBeatmapInfo, null, localUserOnly: true)
+                   ?? queryPreviewScore(currentBeatmapInfo, scoreDisplayBucket, localUserOnly: false)
+                   ?? queryPreviewScore(currentBeatmapInfo, null, localUserOnly: false)
+                   ?? queryPreviewScore(null, scoreDisplayBucket, localUserOnly: true)
+                   ?? queryPreviewScore(null, null, localUserOnly: true)
+                   ?? queryPreviewScore(null, scoreDisplayBucket, localUserOnly: false)
+                   ?? queryPreviewScore(null, null, localUserOnly: false);
+
+            ScoreInfo? queryPreviewScore(BeatmapInfo? targetBeatmap, string? targetScoreDisplayBucket, bool localUserOnly)
+            {
+                return realmAccess.Run(realm =>
+                {
+                    IEnumerable<ScoreInfo> scores = localUserOnly
+                        ? realm.GetAllLocalScoresForUser(api.LocalUser.Value.Id).AsEnumerable()
+                        : realm.All<ScoreInfo>().AsEnumerable().Where(score => !score.DeletePending && score.BeatmapInfo != null);
+
+                    scores = scores.Where(score => score.Ruleset?.ShortName == currentRuleset.ShortName);
+
+                    if (targetBeatmap != null)
+                        scores = scores.Where(score => score.BeatmapInfo?.ID == targetBeatmap.ID);
+
+                    if (targetScoreDisplayBucket != null)
+                        scores = scores.FilterToScoreDisplayBucket(currentRuleset.CreateInstance(), targetScoreDisplayBucket);
+
+                    return scores.OrderByTotalScore().FirstOrDefault()?.Detach();
+                });
+            }
+        }
+
+        private bool isLocalScore(ScoreInfo score)
+            => score.User.OnlineID == api.LocalUser.Value.Id || score.User.OnlineID <= 1;
 
         protected override void Update()
         {
@@ -358,6 +439,14 @@ namespace osu.Game.Overlays.SkinEditor
 
             leasedVisibilityMode?.Return();
             leasedVisibilityMode = null;
+        }
+
+        private partial class ResultsPreviewUnavailableToast : Toast
+        {
+            public ResultsPreviewUnavailableToast(LocalisableString value)
+                : base(SkinEditorStrings.Results, value)
+            {
+            }
         }
 
         public new void ToggleVisibility()

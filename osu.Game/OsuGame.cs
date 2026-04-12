@@ -434,11 +434,11 @@ namespace osu.Game
 
             configSkin = LocalConfig.GetBindable<string>(OsuSetting.Skin);
 
+            // Keep the config value aligned with any runtime fallback that happens during startup.
+            SkinManager.CurrentSkinInfo.ValueChanged += skin => configSkin.Value = skin.NewValue.ID.ToString();
+
             // Transfer skin from config to realm instance once on startup.
             SkinManager.SetSkinFromConfiguration(configSkin.Value);
-
-            // Transfer any runtime changes back to configuration file.
-            SkinManager.CurrentSkinInfo.ValueChanged += skin => configSkin.Value = skin.NewValue.ID.ToString();
 
             UserPlayingState.BindValueChanged(p =>
             {
