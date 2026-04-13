@@ -129,7 +129,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private static Drawable createDefaultLaneComponent(BmsLaneSkinLookup lookup)
             => lookup.Element switch
             {
-                BmsLaneSkinElements.Background => new DefaultBmsLaneBackgroundDisplay(lookup.LaneIndex, lookup.IsScratch),
+                BmsLaneSkinElements.Background => new DefaultBmsLaneBackgroundDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsLaneSkinElements.Divider => new DefaultBmsLaneDividerDisplay(lookup.IsScratch),
                 BmsLaneSkinElements.HitTarget => new DefaultBmsHitTargetDisplay(lookup.IsScratch, BmsPlayfieldLayoutProfile.CreateDefault(lookup.Keymode, lookup.LaneCount)),
                 BmsLaneSkinElements.BarLine => new Box

@@ -2,6 +2,7 @@
 
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Shapes;
+using osu.Game.Rulesets.Bms.Difficulty;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -29,12 +30,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public bool IsScratch { get; }
 
-        public DefaultBmsLaneBackgroundDisplay(int laneIndex, bool isScratch)
+        public DefaultBmsLaneBackgroundDisplay(int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
         {
             LaneIndex = laneIndex;
             IsScratch = isScratch;
             RelativeSizeAxes = Axes.Both;
-            Colour = BmsDefaultPlayfieldPalette.GetLaneBackground(laneIndex, isScratch);
+            Colour = BmsDefaultPlayfieldPalette.GetLaneBackground(laneIndex, isScratch, keymode);
         }
     }
 

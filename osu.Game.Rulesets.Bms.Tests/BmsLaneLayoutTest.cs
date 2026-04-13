@@ -52,7 +52,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(layout.Lanes.Count(lane => lane.IsScratch), Is.EqualTo(2));
                 Assert.That(layout.Lanes[1].RelativeSpacingBefore, Is.EqualTo(layout.Profile.ScratchLaneRelativeSpacing).Within(0.0001f));
                 Assert.That(layout.Lanes[15].RelativeSpacingBefore, Is.EqualTo(layout.Profile.ScratchLaneRelativeSpacing).Within(0.0001f));
-                Assert.That(layout.Lanes[8].RelativeSpacingBefore, Is.EqualTo(layout.Profile.NormalLaneRelativeSpacing).Within(0.0001f));
+                Assert.That(layout.Lanes[8].RelativeSpacingBefore, Is.EqualTo(layout.Profile.NormalLaneRelativeSpacing + layout.Profile.NormalLaneRelativeWidth * 2).Within(0.0001f));
             });
         }
 

@@ -76,6 +76,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 float relativeWidth = profile.GetRelativeLaneWidth(isScratch);
                 var action = isScratch ? BmsActionExtensions.GetScratchAction(scratchOrdinal++) : BmsActionExtensions.GetKeyAction(keyOrdinal++);
 
+                // Insert a 2-lane-width DP centre gap between 1P keys and 2P keys.
+                if (keymode == BmsKeymode.Key14K && laneCount > 8 && i == 8)
+                    spacingBefore += profile.NormalLaneRelativeWidth * 2;
+
                 currentStart += spacingBefore;
 
                 lanes[i] = new Lane(i, currentStart, relativeWidth, spacingBefore, isScratch, action);

@@ -46,8 +46,15 @@ namespace osu.Game.Rulesets.Bms.UI
         public static readonly Color4 MinorBarLine = new Color4(138, 152, 182, 102);
         public static readonly Color4 MajorBarLine = new Color4(214, 224, 243, 182);
 
-        public static Color4 GetLaneBackground(int laneIndex, bool isScratch)
-            => isScratch ? ScratchLaneBackground : laneIndex % 2 == 0 ? LaneBackgroundEven : LaneBackgroundOdd;
+        public static Color4 GetLaneBackground(int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
+        {
+            if (isScratch)
+                return ScratchLaneBackground;
+
+            // For 14K DP, reset parity at the 2P boundary so both sides start with the lighter background.
+            int bgIndex = keymode == BmsKeymode.Key14K && laneIndex > 7 ? laneIndex - 7 : laneIndex;
+            return bgIndex % 2 == 0 ? LaneBackgroundEven : LaneBackgroundOdd;
+        }
 
         public static Color4 GetLaneDivider(bool isScratch)
             => isScratch ? ScratchLaneDivider : LaneDivider;
@@ -93,6 +100,14 @@ namespace osu.Game.Rulesets.Bms.UI
                     4 => NoteColourGroup.Yellow,
                     _ => NoteColourGroup.White,
                 };
+            }
+
+            // For 14K DP, each side independently follows the IIDX pattern:
+            // odd position (1,3,5,7) → White, even position (2,4,6) → Cyan.
+            if (keymode == BmsKeymode.Key14K)
+            {
+                int posInSide = keyNumber <= 7 ? keyNumber : keyNumber - 7;
+                return posInSide % 2 == 0 ? NoteColourGroup.Cyan : NoteColourGroup.White;
             }
 
             return keyNumber % 2 == 0 ? NoteColourGroup.White : NoteColourGroup.Cyan;
