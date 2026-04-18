@@ -34,6 +34,16 @@ namespace osu.Game.Localisation
         public static LocalisableString ScanAllLibraries => new TranslatableString(getKey(@"scan_all_libraries"), @"Scan All Libraries");
 
         /// <summary>
+        /// "Scan External Libraries"
+        /// </summary>
+        public static LocalisableString ScanExternalLibraries => new TranslatableString(getKey(@"scan_external_libraries"), @"Scan External Libraries");
+
+        /// <summary>
+        /// "Scan Internal Libraries"
+        /// </summary>
+        public static LocalisableString ScanInternalLibraries => new TranslatableString(getKey(@"scan_internal_libraries"), @"Scan Internal Libraries");
+
+        /// <summary>
         /// "Added {0} library: {1}"
         /// </summary>
         public static LocalisableString AddedLibrary(string type, string path) => new TranslatableString(getKey(@"added_library"), @"Added {0} library: {1}", type, path);
@@ -54,14 +64,33 @@ namespace osu.Game.Localisation
         public static LocalisableString ScanningExternalLibraries => new TranslatableString(getKey(@"scanning_external_libraries"), @"Scanning external libraries...");
 
         /// <summary>
+        /// "Scanning internal libraries..."
+        /// </summary>
+        public static LocalisableString ScanningInternalLibraries => new TranslatableString(getKey(@"scanning_internal_libraries"), @"Scanning internal libraries...");
+
+        /// <summary>
         /// "Scanning: {0} ({1}/{2})"
         /// </summary>
         public static LocalisableString ScanningProgress(string name, int index, int total) => new TranslatableString(getKey(@"scanning_progress"), @"Scanning: {0} ({1}/{2})", name, index, total);
 
         /// <summary>
-        /// "Scan complete: {0} imported, {1} skipped, {2} errors"
+        /// "Scanning {0} ({1}/{2}) · {3} folders · {4} indexed, {5} skipped, {6} errors"
         /// </summary>
-        public static LocalisableString ScanComplete(int imported, int skipped, int errors) => new TranslatableString(getKey(@"scan_complete"), @"Scan complete: {0} imported, {1} skipped, {2} errors", imported, skipped, errors);
+        public static LocalisableString ScanningRootProgress(string name, int index, int total, int directories, int imported, int skipped, int errors)
+            => new TranslatableString(getKey(@"scanning_root_progress"), @"Scanning {0} ({1}/{2}) · {3} folders · {4} indexed, {5} skipped, {6} errors", name, index, total, directories, imported, skipped, errors);
+
+        /// <summary>
+        /// "Scanning {0} ({1}/{2}) · {3} ({4}/{5}) · {6} indexed, {7} skipped, {8} errors"
+        /// </summary>
+        public static LocalisableString ScanningDirectoryProgress(string rootName, int rootIndex, int totalRoots, string directoryName, int directoryIndex, int totalDirectories,
+                                                                  int imported, int skipped, int errors)
+            => new TranslatableString(getKey(@"scanning_directory_progress"), @"Scanning {0} ({1}/{2}) · {3} ({4}/{5}) · {6} indexed, {7} skipped, {8} errors",
+                rootName, rootIndex, totalRoots, directoryName, directoryIndex, totalDirectories, imported, skipped, errors);
+
+        /// <summary>
+        /// "Scan complete: {0} indexed, {1} skipped, {2} errors"
+        /// </summary>
+        public static LocalisableString ScanComplete(int imported, int skipped, int errors) => new TranslatableString(getKey(@"scan_complete"), @"Scan complete: {0} indexed, {1} skipped, {2} errors", imported, skipped, errors);
 
         /// <summary>
         /// "Remove"

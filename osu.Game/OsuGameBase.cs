@@ -277,8 +277,15 @@ namespace osu.Game
         {
             try
             {
-                using (var str = File.OpenRead(typeof(OsuGameBase).Assembly.Location))
-                    VersionHash = str.ComputeMD5Hash();
+                string versionHashSource = Environment.ProcessPath ?? string.Empty;
+
+                if (!string.IsNullOrEmpty(versionHashSource) && File.Exists(versionHashSource))
+                {
+                    using (var str = File.OpenRead(versionHashSource))
+                        VersionHash = str.ComputeMD5Hash();
+                }
+                else
+                    throw new FileNotFoundException("Process path could not be resolved for version hash computation.", versionHashSource);
             }
             catch
             {

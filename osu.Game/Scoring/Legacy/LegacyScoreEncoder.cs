@@ -72,16 +72,15 @@ namespace osu.Game.Scoring.Legacy
 
             if (beatmap == null && !score.Replay.Frames.All(f => f is LegacyReplayFrame))
                 throw new ArgumentException(@"Beatmap must be provided if frames are not already legacy frames.", nameof(beatmap));
-
-            if (!score.ScoreInfo.Ruleset.IsLegacyRuleset())
-                throw new ArgumentException(@"Only scores in the osu, taiko, catch, or mania rulesets can be encoded to the legacy score format.", nameof(score));
         }
 
         public void Encode(Stream stream, bool leaveOpen = false)
         {
             using (SerializationWriter sw = new SerializationWriter(stream, leaveOpen))
             {
-                sw.Write((byte)(score.ScoreInfo.Ruleset.OnlineID));
+                int encodedRulesetId = score.ScoreInfo.Ruleset.OnlineID < 0 ? byte.MaxValue : score.ScoreInfo.Ruleset.OnlineID;
+
+                sw.Write((byte)encodedRulesetId);
                 sw.Write(LATEST_VERSION);
                 sw.Write(score.ScoreInfo.BeatmapInfo!.MD5Hash);
                 sw.Write(score.ScoreInfo.User.Username);

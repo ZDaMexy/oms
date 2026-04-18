@@ -6,13 +6,27 @@
 ## 构建 Portable.zip
 
 ```powershell
-# Release 构建
-dotnet publish osu.Desktop -c Release -r win-x64 --self-contained -o publish/
+# Release 构建（single-file，自包含）
+dotnet publish osu.Desktop -c Release -r win-x64 --self-contained `
+	-p:PublishSingleFile=true `
+	-p:IncludeNativeLibrariesForSelfExtract=true `
+	-p:GenerateDocumentationFile=false `
+	-p:DebugSymbols=false `
+	-p:DebugType=None `
+	-o publish/
+
+# 保留 Windows 文件关联图标（single-file 下需旁路文件）
+Copy-Item osu.Desktop/lazer.ico publish/lazer.ico -Force
+Copy-Item osu.Desktop/beatmap.ico publish/beatmap.ico -Force
 
 # 写入便携标记，使程序启动时自动使用 data/ 子目录存储所有用户数据
 New-Item -Path publish/portable.ini -ItemType File -Force | Out-Null
 
-# 打包（排除调试符号）
+# 清理非运行时杂项
+Get-ChildItem publish -Filter *.lib -Recurse | Remove-Item -Force
+Get-ChildItem publish -Filter *.xml -Recurse | Remove-Item -Force
+
+# 打包
 Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 ```
 
@@ -25,13 +39,11 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 
 | 内容 | 说明 |
 | --- | --- |
-| `osu!.exe` | 主入口（DesktopGL） |
+| `osu!.exe` | 主入口（DesktopGL，自包含 single-file） |
 | `portable.ini` | 便携模式标记（空文件） |
-| `*.dll` / `*.json` | 运行时依赖 |
-| `bass*.dll` / `SDL*.dll` | 原生库 |
-| `runtimes/` | .NET 自包含运行时 |
+| `lazer.ico` / `beatmap.ico` | Windows 文件关联图标 |
 
-不应包含：`*.pdb`（可选保留）、`publish/` 目录名本身。
+不应包含：松散的 `*.dll` / `*.deps.json` / `*.runtimeconfig.json` / `*.xml` / `*.lib`、`publish/` 目录名本身。
 
 ## 内置皮肤发行约束
 

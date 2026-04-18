@@ -178,7 +178,7 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         internal static bool HasMissedHoldStartWindow(BmsHoldNote holdNote, double currentTime)
-            => holdNote.Head?.HitWindows != null && currentTime - holdNote.StartTime > holdNote.Head.HitWindows.WindowFor(HitResult.Miss);
+            => holdNote.Head?.HitWindows != null && currentTime - holdNote.StartTime > holdNote.Head.HitWindows.WindowFor(HitResult.Miss) + BmsJudgementSystem.BoundaryEpsilon;
 
         internal static bool HasReachedHoldTail(BmsHoldNote holdNote, double currentTime)
             => currentTime >= holdNote.EndTime;
@@ -198,7 +198,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 ? bmsTimingWindows.WindowFor(HitResult.Miss, isLongNoteRelease: true)
                 : holdNote.Tail.HitWindows.WindowFor(HitResult.Miss);
 
-            return currentTime - holdNote.EndTime > missWindow;
+            return currentTime - holdNote.EndTime > missWindow + BmsJudgementSystem.BoundaryEpsilon;
         }
 
         internal static HitResult ResultForTailRelease(BmsHoldNote holdNote, double currentTime)

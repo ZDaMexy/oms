@@ -2,7 +2,9 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Framework.Allocation;
+using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
+using osu.Game.Localisation;
 using osu.Game.Overlays.Dialog;
 
 namespace osu.Game.Screens.Select
@@ -14,7 +16,20 @@ namespace osu.Game.Screens.Select
         public BeatmapDeleteDialog(BeatmapSetInfo beatmapSet)
         {
             this.beatmapSet = beatmapSet;
-            BodyText = beatmapSet.Metadata.GetDisplayTitleRomanisable(false);
+
+            LocalisableString source = beatmapSet.IsExternalFilesystemStorage
+                ? DeleteConfirmationContentStrings.ExternalBeatmapSource
+                : DeleteConfirmationContentStrings.InternalBeatmapSource;
+
+            LocalisableString deleteAction = beatmapSet.IsExternalFilesystemStorage
+                ? DeleteConfirmationContentStrings.ExternalBeatmapDeleteAction
+                : DeleteConfirmationContentStrings.InternalBeatmapDeleteAction;
+
+            LocalisableString storagePath = !string.IsNullOrWhiteSpace(beatmapSet.FilesystemStoragePath)
+                ? beatmapSet.FilesystemStoragePath!
+                : DeleteConfirmationContentStrings.InternalBeatmapManagedStoragePath;
+
+            BodyText = LocalisableString.Interpolate($"{beatmapSet.Metadata.GetDisplayTitleRomanisable(false)}\n\n{DeleteConfirmationContentStrings.BeatmapSource(source)}\n{DeleteConfirmationContentStrings.BeatmapDeleteAction(deleteAction)}\n{DeleteConfirmationContentStrings.BeatmapStoragePath(storagePath)}");
         }
 
         [BackgroundDependencyLoader]

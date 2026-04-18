@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="autoplay_description" xml:space="preserve"><value>观看一次完美的自动 BMS 演奏。</value></data>
+  <data name="auto_scratch_description" xml:space="preserve"><value>自动处理 scratch 音符，并将其移出分数与 gauge 计算。</value></data>
+  <data name="scratch_visibility" xml:space="preserve"><value>scratch 可见性</value></data>
+  <data name="scratch_visibility_description" xml:space="preserve"><value>控制被 Auto Scratch 处理的音符是否仍显示在 playfield 上。</value></data>
+  <data name="tint_scratch_notes" xml:space="preserve"><value>给 scratch 音符着色</value></data>
+  <data name="tint_scratch_notes_description" xml:space="preserve"><value>为被 Auto Scratch 处理的音符添加着色，让辅助状态在游玩中更明显。</value></data>
+  <data name="scratch_tint_colour" xml:space="preserve"><value>scratch 着色颜色</value></data>
+  <data name="scratch_tint_colour_description" xml:space="preserve"><value>启用着色时应用到被 Auto Scratch 处理音符上的颜色。</value></data>
+  <data name="auto_scratch_visibility_visible" xml:space="preserve"><value>显示</value></data>
+  <data name="auto_scratch_visibility_hidden" xml:space="preserve"><value>隐藏</value></data>
+  <data name="charge_note_description" xml:space="preserve"><value>使用 Charge Note 长押计时。</value></data>
+  <data name="hell_charge_note_description" xml:space="preserve"><value>使用 Hell Charge Note 长押计时。</value></data>
+  <data name="gauge_assist_easy_description" xml:space="preserve"><value>使用 ASSIST EASY BMS gauge。</value></data>
+  <data name="gauge_easy_description" xml:space="preserve"><value>使用 EASY BMS gauge。</value></data>
+  <data name="gauge_hard_description" xml:space="preserve"><value>使用 HARD BMS survival gauge。</value></data>
+  <data name="gauge_ex_hard_description" xml:space="preserve"><value>使用 EX-HARD BMS survival gauge。</value></data>
+  <data name="gauge_hazard_description" xml:space="preserve"><value>使用 HAZARD BMS survival gauge。</value></data>
+  <data name="gauge_rules_beatoraja_description" xml:space="preserve"><value>使用 beatoraja 的 life gauge 计算方式。</value></data>
+  <data name="gauge_rules_iidx_description" xml:space="preserve"><value>使用 beatmania IIDX 的 life gauge 计算方式。</value></data>
+  <data name="gauge_rules_lr2_description" xml:space="preserve"><value>使用 LR2 风格的 life gauge 计算方式。</value></data>
+  <data name="gauge_auto_shift_description" xml:space="preserve"><value>失败前会自动降级到更低一级的 gauge。</value></data>
+  <data name="starting_gauge" xml:space="preserve"><value>起始 gauge</value></data>
+  <data name="starting_gauge_description" xml:space="preserve"><value>谱面开始时使用的最高 gauge 档位。</value></data>
+  <data name="floor_gauge" xml:space="preserve"><value>最低 gauge</value></data>
+  <data name="floor_gauge_description" xml:space="preserve"><value>GAS 允许降级到的最低 gauge 档位。</value></data>
+  <data name="gauge_type_assist_easy" xml:space="preserve"><value>ASSIST EASY</value></data>
+  <data name="gauge_type_easy" xml:space="preserve"><value>EASY</value></data>
+  <data name="gauge_type_normal" xml:space="preserve"><value>NORMAL</value></data>
+  <data name="gauge_type_hard" xml:space="preserve"><value>HARD</value></data>
+  <data name="gauge_type_ex_hard" xml:space="preserve"><value>EX-HARD</value></data>
+  <data name="gauge_type_hazard" xml:space="preserve"><value>HAZARD</value></data>
+  <data name="judge_beatoraja_description" xml:space="preserve"><value>使用 beatoraja 判定窗。</value></data>
+  <data name="judge_iidx_description" xml:space="preserve"><value>使用 OMS 固定的 beatmania IIDX 判定预设。</value></data>
+  <data name="judge_lr2_description" xml:space="preserve"><value>使用 LR2 判定窗。</value></data>
+  <data name="judge_rank_description" xml:space="preserve"><value>覆盖谱面默认的 #RANK 判定等级，仅对支持按难度调整判定窗的 judge system 生效。</value></data>
+  <data name="judge_difficulty" xml:space="preserve"><value>判定难度</value></data>
+  <data name="judge_difficulty_description" xml:space="preserve"><value>在当前 judge system 支持按难度调整判定窗时，覆盖谱面默认的 #RANK 判定等级。</value></data>
+  <data name="judge_rank_very_hard" xml:space="preserve"><value>VERY HARD</value></data>
+  <data name="judge_rank_hard" xml:space="preserve"><value>HARD</value></data>
+  <data name="judge_rank_normal" xml:space="preserve"><value>NORMAL</value></data>
+  <data name="judge_rank_easy" xml:space="preserve"><value>EASY</value></data>
+  <data name="judge_rank_very_easy" xml:space="preserve"><value>VERY EASY</value></data>
+  <data name="top_lane_cover_description" xml:space="preserve"><value>遮挡 playfield 上部区域。</value></data>
+  <data name="bottom_lane_cover_description" xml:space="preserve"><value>遮挡 playfield 下部区域。</value></data>
+  <data name="cover_value" xml:space="preserve"><value>遮挡值</value></data>
+  <data name="cover_value_description" xml:space="preserve"><value>0-1000 对应 playfield 覆盖率 0%-100%。</value></data>
+  <data name="mirror_description" xml:space="preserve"><value>对按键轨道应用 Mirror，scratch 保持原位。</value></data>
+  <data name="random_description" xml:space="preserve"><value>按 beatmania 风格对按键轨道应用 RANDOM、R-RANDOM、S-RANDOM，或使用自定义固定 pattern。</value></data>
+  <data name="random_type" xml:space="preserve"><value>Random 类型</value></data>
+  <data name="random_type_description" xml:space="preserve"><value>选择要应用的 beatmania 风格随机规则。</value></data>
+  <data name="custom_pattern" xml:space="preserve"><value>自定义 pattern</value></data>
+  <data name="custom_pattern_description" xml:space="preserve"><value>可选的固定 pattern 覆盖。示例：S7654321、7654321，或 14K 用的 7654321|7654321。</value></data>
+  <data name="random_mode_random" xml:space="preserve"><value>RANDOM</value></data>
+  <data name="random_mode_r_random" xml:space="preserve"><value>R-RANDOM</value></data>
+  <data name="random_mode_s_random" xml:space="preserve"><value>S-RANDOM</value></data>
+</root>

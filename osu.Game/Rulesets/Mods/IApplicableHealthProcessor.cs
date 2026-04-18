@@ -8,7 +8,7 @@ namespace osu.Game.Rulesets.Mods
     /// <summary>
     /// Interface for a <see cref="Mod"/> that provides its own health processor.
     /// </summary>
-    public interface IApplicableHealthProcessor
+    public interface IApplicableHealthProcessor : IApplicableMod
     {
         /// <summary>
         /// Creates the <see cref="HealthProcessor"/>. May be null to use the ruleset default.

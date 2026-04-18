@@ -19,6 +19,7 @@ namespace osu.Game.Rulesets
 
         protected readonly Dictionary<Assembly, Type> LoadedAssemblies = new Dictionary<Assembly, Type>();
         protected readonly HashSet<Assembly> UserRulesetAssemblies = new HashSet<Assembly>();
+        protected readonly Dictionary<Assembly, string> UserRulesetAssemblyPaths = new Dictionary<Assembly, string>();
         protected readonly Storage? RulesetStorage;
 
         /// <summary>
@@ -136,13 +137,17 @@ namespace osu.Game.Rulesets
         {
             string filename = Path.GetFileNameWithoutExtension(file);
 
-            if (LoadedAssemblies.Values.Any(t => Path.GetFileNameWithoutExtension(t.Assembly.Location) == filename))
+            if (LoadedAssemblies.Keys.Any(a => string.Equals(a.GetName().Name, filename, StringComparison.OrdinalIgnoreCase)))
                 return null;
 
             try
             {
                 var assembly = Assembly.LoadFrom(file);
                 addRuleset(assembly);
+
+                if (UserRulesetAssemblies.Contains(assembly))
+                    UserRulesetAssemblyPaths[assembly] = file;
+
                 return assembly;
             }
             catch (Exception e)

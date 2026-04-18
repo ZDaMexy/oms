@@ -6,7 +6,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public abstract class BmsModJudgeMode : Mod
+    public abstract class BmsModJudgeMode : Mod, IApplicableMod
     {
         public override ModType Type => ModType.Conversion;
 

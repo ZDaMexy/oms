@@ -90,6 +90,9 @@ namespace osu.Game.Online.API.Requests.Responses
         [JsonProperty("pauses")]
         public int[] Pauses { get; set; } = [];
 
+        [JsonProperty("ruleset_data")]
+        public string RulesetDataJson { get; set; } = string.Empty;
+
         #region osu-web API additions (not stored to database).
 
         [JsonProperty("id")]
@@ -152,6 +155,7 @@ namespace osu.Game.Online.API.Requests.Responses
         public bool ShouldSerializeUserID() => UserID > 0;
         public bool ShouldSerializeBeatmapID() => BeatmapID > 0;
         public bool ShouldSerializeBuildID() => BuildID != null;
+        public bool ShouldSerializeRulesetDataJson() => !string.IsNullOrEmpty(RulesetDataJson);
 
         #endregion
 
@@ -232,6 +236,7 @@ namespace osu.Game.Online.API.Requests.Responses
                 Mods = mods,
                 PP = PP,
                 Ranked = Ranked,
+                RulesetDataJson = RulesetDataJson,
             };
 
             if (beatmap is BeatmapInfo realmBeatmap)
@@ -264,6 +269,7 @@ namespace osu.Game.Online.API.Requests.Responses
             Statistics = score.Statistics.Where(kvp => kvp.Value != 0).ToDictionary(),
             MaximumStatistics = score.MaximumStatistics.Where(kvp => kvp.Value != 0).ToDictionary(),
             Pauses = score.Pauses.ToArray(),
+            RulesetDataJson = score.RulesetDataJson,
         };
     }
 }

@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Oms
@@ -14,7 +15,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         private OmsManiaHitExplosionPreset(string explosionImage, IReadOnlyList<float> explosionWidths)
         {
             ExplosionImage = explosionImage;
-            ExplosionWidths = explosionWidths;
+            ExplosionWidths = explosionWidths.Select(scaleLegacyDimension).ToArray();
         }
 
         private static readonly IReadOnlyDictionary<int, OmsManiaHitExplosionPreset> presets = new Dictionary<int, OmsManiaHitExplosionPreset>
@@ -32,5 +33,8 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
         public float GetExplosionScale(int columnIndex)
             => ExplosionWidths[columnIndex] / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE;
+
+        private static float scaleLegacyDimension(float value)
+            => value * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
     }
 }

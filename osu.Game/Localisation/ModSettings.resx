@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="seed" xml:space="preserve"><value>Seed</value></data>
+  <data name="seed_description" xml:space="preserve"><value>Use a custom seed instead of a random one</value></data>
+</root>

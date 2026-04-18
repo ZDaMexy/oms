@@ -47,8 +47,12 @@ namespace osu.Game.Screens.Select
 
         private Box backgroundBorder = null!;
         private Box backgroundDifficultyTint = null!;
+        private Box lampAccentStrip = null!;
 
         private TrianglesV2 triangles = null!;
+
+        [Resolved]
+        private OverlayColourProvider colourProvider { get; set; } = null!;
 
         [Resolved]
         private IRulesetStore rulesets { get; set; } = null!;
@@ -73,7 +77,7 @@ namespace osu.Game.Screens.Select
         }
 
         [BackgroundDependencyLoader]
-        private void load(OverlayColourProvider colourProvider)
+        private void load(OverlayColourProvider overlayColourProvider)
         {
             Height = HEIGHT;
 
@@ -81,7 +85,7 @@ namespace osu.Game.Screens.Select
             {
                 Size = new Vector2(9f),
                 Margin = new MarginPadding { Left = 2.5f, Right = 1.5f },
-                Colour = colourProvider.Background5,
+                Colour = overlayColourProvider.Background5,
             };
 
             Background = backgroundBorder = new Box
@@ -94,11 +98,17 @@ namespace osu.Game.Screens.Select
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = ColourInfo.GradientHorizontal(colourProvider.Background3, colourProvider.Background4),
+                    Colour = ColourInfo.GradientHorizontal(overlayColourProvider.Background3, overlayColourProvider.Background4),
                 },
                 backgroundDifficultyTint = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
+                },
+                lampAccentStrip = new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 14f,
+                    Alpha = 0,
                 },
                 triangles = new TrianglesV2
                 {
@@ -206,7 +216,9 @@ namespace osu.Game.Screens.Select
 
             localRank.Beatmap = beatmap;
             difficultyText.Text = beatmap.DifficultyName;
-            authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(beatmap.Metadata.Author.Username);
+
+            string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap);
+            authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator);
 
             computeStarRating();
             updateKeyCount();
@@ -269,16 +281,30 @@ namespace osu.Game.Screens.Select
                 AccentColour = diffColour;
                 starCounter.Colour = diffColour;
 
-                backgroundBorder.Colour = diffColour;
                 backgroundDifficultyTint.Colour = ColourInfo.GradientHorizontal(diffColour.Opacity(0.25f), diffColour.Opacity(0f));
 
                 triangles.Colour = ColourInfo.GradientVertical(diffColour.Opacity(0.25f), diffColour.Opacity(0f));
             }
 
-            if (difficultyIcon.Colour != starRatingDisplay.DisplayedDifficultyTextColour)
-            {
+            if (Item == null)
+                return;
+
+            bool isBmsBeatmap = beatmap.Ruleset.ShortName == "bms";
+            var panelAccent = isBmsBeatmap ? localRank.PanelAccent : null;
+
+            lampAccentStrip.Alpha = 0;
+
+            // For BMS, the leading block and icon act as the clear lamp indicator.
+            backgroundBorder.Colour = isBmsBeatmap
+                ? panelAccent?.AccentColour ?? ColourInfo.GradientVertical(colourProvider.Background4, colourProvider.Background4)
+                : diffColour;
+
+            if (panelAccent.HasValue)
+                difficultyIcon.Colour = panelAccent.Value.ForegroundColour;
+            else if (isBmsBeatmap)
+                difficultyIcon.Colour = colourProvider.Content2;
+            else if (difficultyIcon.Colour != starRatingDisplay.DisplayedDifficultyTextColour)
                 difficultyIcon.Colour = starRatingDisplay.DisplayedDifficultyTextColour;
-            }
         }
 
         private void updateKeyCount()

@@ -34,6 +34,8 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Box clearMarker;
         private readonly Box highlight;
         private IBindable<BmsGaugeType>? currentGaugeType;
+        private IBindable<BmsGaugeRulesFamily>? currentGaugeRulesFamily;
+        private double currentDisplayMaxGauge = 1;
 
         private Color4 barColour = BmsDefaultHudPalette.SurfaceText;
         private Color4 accentColour = BmsDefaultHudPalette.SurfaceText;
@@ -153,6 +155,9 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 currentGaugeType = gaugeProcessor.GaugeTypeBindable.GetBoundCopy();
                 currentGaugeType.BindValueChanged(_ => updateGaugeStyling(), true);
+
+                currentGaugeRulesFamily = gaugeProcessor.GaugeRulesFamilyBindable.GetBoundCopy();
+                currentGaugeRulesFamily.BindValueChanged(_ => updateGaugeStyling(), true);
                 return;
             }
 
@@ -163,7 +168,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
-            fill.Width = (float)Current.Value;
+            fill.Width = (float)(currentDisplayMaxGauge <= 0 ? 0 : Current.Value / currentDisplayMaxGauge);
             gaugeValue.Text = $"{Current.Value:P0}";
         }
 
@@ -184,9 +189,12 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             var gaugeProcessor = HealthProcessor as BmsGaugeProcessor;
             var gaugeType = gaugeProcessor?.GaugeType ?? BmsGaugeType.Normal;
+            var gaugeRulesFamily = gaugeProcessor?.GaugeRulesFamily ?? BmsGaugeRulesFamily.Legacy;
             (barColour, accentColour) = getGaugeColours(gaugeType);
 
-            gaugeLabel.Text = gaugeProcessor?.IsGaugeAutoShiftActive == true ? $"GAS / {gaugeType.GetDisplayName()}" : gaugeType.GetDisplayName();
+            currentDisplayMaxGauge = gaugeProcessor?.CurrentMaximumGauge ?? 1;
+
+            gaugeLabel.Text = getGaugeLabel(gaugeProcessor, gaugeType, gaugeRulesFamily);
             gaugeLabel.Colour = accentColour;
             gaugeValue.Colour = BmsDefaultHudPalette.SurfaceText;
 
@@ -197,7 +205,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             highlight.Colour = accentColour;
 
-            float floorGauge = (float)BmsGaugeProcessor.GetFloorGauge(gaugeType);
+            float floorGauge = (float)((gaugeProcessor?.CurrentFloorGauge ?? BmsGaugeProcessor.GetFloorGauge(gaugeType)) / currentDisplayMaxGauge);
             bool survivalGauge = BmsGaugeProcessor.UsesSurvivalClear(gaugeType);
 
             floorBand.Width = floorGauge;
@@ -208,9 +216,19 @@ namespace osu.Game.Rulesets.Bms.UI
             floorMarker.Colour = accentColour.Opacity(0.7f);
             floorMarker.Alpha = survivalGauge || floorGauge <= 0 ? 0 : 1;
 
-            clearMarker.X = (float)BmsGaugeProcessor.CLEAR_THRESHOLD;
+            clearMarker.X = (float)((gaugeProcessor?.CurrentClearThreshold ?? BmsGaugeProcessor.CLEAR_THRESHOLD) / currentDisplayMaxGauge);
             clearMarker.Colour = BmsDefaultHudPalette.ThresholdMarker;
             clearMarker.Alpha = survivalGauge ? 0 : 1;
+        }
+
+        private static string getGaugeLabel(BmsGaugeProcessor? gaugeProcessor, BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily)
+        {
+            string label = gaugeProcessor?.IsGaugeAutoShiftActive == true ? $"GAS / {gaugeType.GetDisplayName()}" : gaugeType.GetDisplayName();
+
+            if (gaugeRulesFamily != BmsGaugeRulesFamily.Legacy)
+                label += $" / {gaugeRulesFamily.GetDisplayName()}";
+
+            return label;
         }
 
         private static (Color4 BarColour, Color4 AccentColour) getGaugeColours(BmsGaugeType gaugeType)
@@ -229,6 +247,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Dispose(isDisposing);
             currentGaugeType?.UnbindAll();
+            currentGaugeRulesFamily?.UnbindAll();
         }
     }
 }

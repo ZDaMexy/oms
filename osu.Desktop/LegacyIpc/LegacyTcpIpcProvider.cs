@@ -73,6 +73,15 @@ namespace osu.Desktop.LegacyIpc
                     try
                     {
                         WorkingBeatmap beatmap = new FlatWorkingBeatmap(req.BeatmapFile);
+
+                        if (BmsStarRatingResolver.IsBmsBeatmap(beatmap.BeatmapInfo))
+                        {
+                            return new LegacyIpcDifficultyCalculationResponse
+                            {
+                                StarRating = BmsStarRatingResolver.ResolveOrDefault(beatmap.BeatmapInfo)
+                            };
+                        }
+
                         var ruleset = beatmap.BeatmapInfo.Ruleset.CreateInstance();
                         Mod[] mods = ruleset.ConvertFromLegacyMods((LegacyMods)req.Mods).ToArray();
 

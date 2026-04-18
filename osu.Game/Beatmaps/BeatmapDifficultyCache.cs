@@ -164,6 +164,12 @@ namespace osu.Game.Beatmaps
             // In the case that the user hasn't given us a ruleset, use the beatmap's default ruleset.
             rulesetInfo ??= beatmapInfo.Ruleset;
 
+            if (rulesetInfo.ShortName == beatmapInfo.Ruleset.ShortName
+                && BmsStarRatingResolver.IsBmsBeatmap(beatmapInfo))
+            {
+                return Task.FromResult<StarDifficulty?>(new StarDifficulty(BmsStarRatingResolver.ResolveOrDefault(beatmapInfo), (beatmapInfo as IBeatmapOnlineInfo)?.MaxCombo ?? 0));
+            }
+
             var localBeatmapInfo = beatmapInfo as BeatmapInfo;
             var localRulesetInfo = rulesetInfo as RulesetInfo;
 
@@ -192,6 +198,9 @@ namespace osu.Game.Beatmaps
 
         public Task<List<TimedDifficultyAttributes>> GetTimedDifficultyAttributesAsync(IWorkingBeatmap beatmap, Ruleset ruleset, Mod[] mods, CancellationToken cancellationToken = default)
         {
+            if (ruleset.ShortName == BmsStarRatingResolver.RulesetShortName)
+                return Task.FromResult(new List<TimedDifficultyAttributes>());
+
             return Task.Factory.StartNew(() => ruleset.CreateDifficultyCalculator(beatmap).CalculateTimed(mods, cancellationToken),
                 cancellationToken,
                 TaskCreationOptions.HideScheduler | TaskCreationOptions.RunContinuationsAsynchronously,

@@ -70,8 +70,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             var beatmap = createBeatmap(1000);
             var score = createScore(beatmap, Enumerable.Repeat(HitResult.Perfect, 1000).ToArray());
 
-            score.Statistics[HitResult.ComboBreak] = 1;
-            score.HitEvents.Add(new HitEvent(0, 1.0, HitResult.ComboBreak, new BmsEmptyPoorHitObject
+            score.Statistics[HitResult.Ok] = 1;
+            score.HitEvents.Add(new HitEvent(0, 1.0, HitResult.Ok, new BmsEmptyPoorHitObject
             {
                 StartTime = 1000,
             }, beatmap.HitObjects[^1], null));

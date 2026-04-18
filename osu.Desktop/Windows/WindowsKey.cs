@@ -52,7 +52,7 @@ namespace osu.Desktop.Windows
             if (keyHook != IntPtr.Zero || isBlocked)
                 return;
 
-            keyHook = setWindowsHookEx(wh_keyboard_ll, (keyboardHookDelegate = lowLevelKeyboardProc), Marshal.GetHINSTANCE(System.Reflection.Assembly.GetExecutingAssembly().GetModules()[0]), 0);
+            keyHook = setWindowsHookEx(wh_keyboard_ll, (keyboardHookDelegate = lowLevelKeyboardProc), getModuleHandle(null), 0);
 
             isBlocked = true;
         }
@@ -72,6 +72,9 @@ namespace osu.Desktop.Windows
 
         [DllImport(@"user32.dll", EntryPoint = @"SetWindowsHookExA")]
         private static extern IntPtr setWindowsHookEx(int idHook, LowLevelKeyboardProcDelegate lpfn, IntPtr hMod, int dwThreadId);
+
+        [DllImport(@"kernel32.dll", EntryPoint = @"GetModuleHandleW", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr getModuleHandle(string? moduleName);
 
         [DllImport(@"user32.dll", EntryPoint = @"UnhookWindowsHookEx")]
         private static extern IntPtr unhookWindowsHookEx(IntPtr hHook);

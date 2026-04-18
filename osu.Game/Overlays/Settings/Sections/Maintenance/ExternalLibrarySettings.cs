@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -14,6 +15,7 @@ using osu.Framework.Logging;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics;
+using osu.Game.Graphics.Containers;
 using osu.Game.Localisation;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Overlays.Notifications;
@@ -33,13 +35,17 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
         private ExternalLibraryScanner? libraryScanner { get; set; }
 
         [Resolved(CanBeNull = true)]
+        private ManagedLibraryScanner? managedLibraryScanner { get; set; }
+
+        [Resolved(CanBeNull = true)]
         private IPerformFromScreenRunner? performer { get; set; }
 
         [Resolved(CanBeNull = true)]
         private INotificationOverlay? notificationOverlay { get; set; }
 
         private FillFlowContainer rootsList = null!;
-        private SettingsButtonV2 scanAllButton = null!;
+        private SettingsButtonV2 scanExternalButton = null!;
+        private SettingsButtonV2? scanInternalButton;
 
         [BackgroundDependencyLoader]
         private void load()
@@ -47,15 +53,23 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
             if (libraryConfig == null)
                 return;
 
-            AddRange(new Drawable[]
+            rootsList = new FillFlowContainer
             {
-                rootsList = new FillFlowContainer
-                {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 4),
-                },
+                RelativeSizeAxes = Axes.X,
+                AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, 4),
+            };
+
+            scanExternalButton = new SettingsButtonV2
+            {
+                Text = ExternalLibrarySettingsStrings.ScanExternalLibraries,
+                Action = scanExternalLibraries,
+            };
+
+            var children = new List<Drawable>
+            {
+                rootsList,
                 new SettingsButtonV2
                 {
                     Text = ExternalLibrarySettingsStrings.AddBmsLibraryFolder,
@@ -66,12 +80,19 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                     Text = ExternalLibrarySettingsStrings.AddManiaLibraryFolder,
                     Action = () => addRoot(ExternalLibraryRootType.Mania),
                 },
-                scanAllButton = new SettingsButtonV2
+                scanExternalButton,
+            };
+
+            if (managedLibraryScanner != null)
+            {
+                children.Add(scanInternalButton = new SettingsButtonV2
                 {
-                    Text = ExternalLibrarySettingsStrings.ScanAllLibraries,
-                    Action = scanAll,
-                },
-            });
+                    Text = ExternalLibrarySettingsStrings.ScanInternalLibraries,
+                    Action = scanInternalLibraries,
+                });
+            }
+
+            AddRange(children.ToArray());
 
             refreshRootsList();
         }
@@ -127,15 +148,37 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
             Schedule(refreshRootsList);
         }
 
-        private void scanAll()
+        private void scanExternalLibraries()
         {
             if (libraryScanner == null) return;
 
-            scanAllButton.Enabled.Value = false;
+            scanLibraries(
+                (progress, cancellationToken) => libraryScanner.ScanAllRoots(progress, cancellationToken),
+                ExternalLibrarySettingsStrings.ScanningExternalLibraries,
+                "External library scan failed.",
+                refreshRoots: true);
+        }
+
+        private void scanInternalLibraries()
+        {
+            if (managedLibraryScanner == null) return;
+
+            scanLibraries(
+                (progress, cancellationToken) => managedLibraryScanner.ScanAllRoots(progress, cancellationToken),
+                ExternalLibrarySettingsStrings.ScanningInternalLibraries,
+                "Managed library scan failed.");
+        }
+
+        private void scanLibraries(Func<IProgress<ExternalLibraryScanner.ScanProgress>, CancellationToken, Task<ExternalLibraryScanner.ScanResult>> scanOperation,
+                                   LocalisableString initialText, string failureLogMessage, bool refreshRoots = false)
+        {
+            setScanButtonsEnabled(false);
 
             var notification = new ProgressNotification
             {
-                Text = ExternalLibrarySettingsStrings.ScanningExternalLibraries,
+                Text = initialText,
+                Progress = 0,
+                State = ProgressNotificationState.Active,
             };
 
             notificationOverlay?.Post(notification);
@@ -144,36 +187,88 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
             {
                 try
                 {
-                    var result = await libraryScanner.ScanAllRoots(
-                        new Progress<ExternalLibraryScanner.ScanProgress>(p =>
-                        {
-                            Schedule(() =>
-                            {
-                                notification.Text = ExternalLibrarySettingsStrings.ScanningProgress(Path.GetFileName(p.CurrentRoot), p.RootIndex + 1, p.TotalRoots);
-                                notification.Progress = p.TotalRoots > 0 ? (float)(p.RootIndex + 1) / p.TotalRoots : 0;
-                            });
-                        }),
-                        CancellationToken.None
+                    var result = await scanOperation(
+                        new Progress<ExternalLibraryScanner.ScanProgress>(progress => updateProgressNotification(notification, progress, initialText)),
+                        notification.CancellationToken
                     ).ConfigureAwait(false);
+
+                    notification.CompletionText = ExternalLibrarySettingsStrings.ScanComplete(result.Imported, result.Skipped, result.Errors);
+                    notification.State = ProgressNotificationState.Completed;
 
                     Schedule(() =>
                     {
-                        notification.CompletionText = ExternalLibrarySettingsStrings.ScanComplete(result.Imported, result.Skipped, result.Errors);
-                        notification.State = ProgressNotificationState.Completed;
-                        scanAllButton.Enabled.Value = true;
-                        refreshRootsList();
+                        if (IsDisposed)
+                            return;
+
+                        setScanButtonsEnabled(true);
+
+                        if (refreshRoots)
+                            refreshRootsList();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    notification.State = ProgressNotificationState.Cancelled;
+
+                    Schedule(() =>
+                    {
+                        if (!IsDisposed)
+                            setScanButtonsEnabled(true);
                     });
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, "External library scan failed.");
+                    Logger.Error(ex, failureLogMessage);
+
+                    notification.State = ProgressNotificationState.Cancelled;
+
                     Schedule(() =>
                     {
-                        notification.State = ProgressNotificationState.Cancelled;
-                        scanAllButton.Enabled.Value = true;
+                        if (!IsDisposed)
+                            setScanButtonsEnabled(true);
                     });
                 }
             });
+        }
+
+        private void setScanButtonsEnabled(bool enabled)
+        {
+            scanExternalButton.Enabled.Value = enabled;
+
+            if (scanInternalButton != null)
+                scanInternalButton.Enabled.Value = enabled;
+        }
+
+        private static void updateProgressNotification(ProgressNotification notification, ExternalLibraryScanner.ScanProgress progress, LocalisableString initialText)
+        {
+            if (string.IsNullOrWhiteSpace(progress.CurrentRoot))
+            {
+                notification.Text = initialText;
+                notification.Progress = 0;
+                return;
+            }
+
+            string rootName = getDisplayName(progress.CurrentRoot);
+
+            notification.Text = string.IsNullOrWhiteSpace(progress.CurrentDirectory)
+                ? ExternalLibrarySettingsStrings.ScanningRootProgress(rootName, progress.RootIndex + 1, progress.TotalRoots, progress.TotalDirectories,
+                    progress.ImportedSoFar, progress.SkippedSoFar, progress.ErrorsSoFar)
+                : ExternalLibrarySettingsStrings.ScanningDirectoryProgress(rootName, progress.RootIndex + 1, progress.TotalRoots,
+                    getDisplayName(progress.CurrentDirectory), progress.CurrentDirectoryIndex, progress.TotalDirectories,
+                    progress.ImportedSoFar, progress.SkippedSoFar, progress.ErrorsSoFar);
+
+            notification.Progress = progress.OverallProgress;
+        }
+
+        private static string getDisplayName(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return path;
+
+            string trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string name = Path.GetFileName(trimmed);
+
+            return string.IsNullOrEmpty(name) ? path : name;
         }
 
         private void refreshRootsList()
@@ -191,7 +286,7 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
             }
         }
 
-        private partial class ExternalLibraryRootRow : FillFlowContainer
+        private partial class ExternalLibraryRootRow : CompositeDrawable
         {
             public Action<ExternalLibraryRoot>? OnRemove;
             private readonly ExternalLibraryRoot root;
@@ -202,9 +297,6 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
 
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;
-                Direction = FillDirection.Horizontal;
-                Spacing = new Vector2(8, 0);
-                Padding = new MarginPadding { Horizontal = SettingsPanel.CONTENT_MARGINS };
             }
 
             [BackgroundDependencyLoader]
@@ -212,49 +304,75 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
             {
                 bool pathExists = Directory.Exists(root.Path);
 
-                AddRange(new Drawable[]
+                InternalChild = new GridContainer
                 {
-                    new SpriteIcon
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Padding = new MarginPadding
                     {
-                        Icon = root.Type == ExternalLibraryRootType.BMS ? FontAwesome.Solid.Music : FontAwesome.Solid.FileAudio,
-                        Size = new Vector2(14),
-                        Colour = pathExists ? colours.Green : colours.Red,
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
+                        Horizontal = SettingsPanel.CONTENT_MARGINS,
+                        Vertical = 4,
                     },
-                    new FillFlowContainer
+                    ColumnDimensions = new[]
                     {
-                        AutoSizeAxes = Axes.Both,
-                        Direction = FillDirection.Vertical,
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
-                        Children = new Drawable[]
+                        new Dimension(GridSizeMode.AutoSize),
+                        new Dimension(),
+                        new Dimension(GridSizeMode.AutoSize),
+                    },
+                    RowDimensions = new[]
+                    {
+                        new Dimension(GridSizeMode.AutoSize),
+                    },
+                    Content = new[]
+                    {
+                        new Drawable[]
                         {
-                            new OsuSpriteText
+                            new SpriteIcon
                             {
-                                Text = root.Path,
-                                Font = OsuFont.Default.With(size: 14),
-                                Colour = pathExists ? Colour4.White : colours.Red,
+                                Icon = root.Type == ExternalLibraryRootType.BMS ? FontAwesome.Solid.Music : FontAwesome.Solid.FileAudio,
+                                Size = new Vector2(14),
+                                Colour = pathExists ? colours.Green : colours.Red,
+                                Anchor = Anchor.CentreLeft,
+                                Origin = Anchor.CentreLeft,
+                                Margin = new MarginPadding { Right = 10, Top = 2 },
                             },
-                            new OsuSpriteText
+                            new FillFlowContainer
                             {
-                                Text = buildRowStatusText(root, pathExists),
-                                Font = OsuFont.Default.With(size: 11),
-                                Colour = colours.Yellow,
+                                RelativeSizeAxes = Axes.X,
+                                AutoSizeAxes = Axes.Y,
+                                Direction = FillDirection.Vertical,
+                                Spacing = new Vector2(0, 2),
+                                Children = new Drawable[]
+                                {
+                                    new OsuTextFlowContainer(text => text.Font = OsuFont.Default.With(size: 14))
+                                    {
+                                        RelativeSizeAxes = Axes.X,
+                                        AutoSizeAxes = Axes.Y,
+                                        Text = root.Path,
+                                        Colour = pathExists ? Colour4.White : colours.Red,
+                                    },
+                                    new OsuTextFlowContainer(text => text.Font = OsuFont.Default.With(size: 11))
+                                    {
+                                        RelativeSizeAxes = Axes.X,
+                                        AutoSizeAxes = Axes.Y,
+                                        Text = buildRowStatusText(root, pathExists),
+                                        Colour = colours.Yellow,
+                                    },
+                                }
+                            },
+                            new DangerousSettingsButtonV2
+                            {
+                                Text = ExternalLibrarySettingsStrings.Remove,
+                                Width = 90,
+                                Height = 40,
+                                RelativeSizeAxes = Axes.None,
+                                AutoSizeAxes = Axes.None,
+                                Padding = new MarginPadding { Left = 12 },
+                                Action = () => OnRemove?.Invoke(root),
                             },
                         }
-                    },
-                    new DangerousSettingsButtonV2
-                    {
-                        Text = ExternalLibrarySettingsStrings.Remove,
-                        Width = 80,
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
-                        RelativeSizeAxes = Axes.None,
-                        Padding = new MarginPadding(),
-                        Action = () => OnRemove?.Invoke(root),
-                    },
-                });
+                    }
+                };
             }
 
             private static LocalisableString buildRowStatusText(ExternalLibraryRoot root, bool pathExists)

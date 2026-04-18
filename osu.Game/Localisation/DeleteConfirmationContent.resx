@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="internal_beatmaps" xml:space="preserve"><value>Are you sure you want to delete all internal beatmaps? This deletes OMS-managed beatmap files from disk.</value></data>
+  <data name="external_beatmaps" xml:space="preserve"><value>Are you sure you want to delete all external beatmaps? This removes OMS references only and will not delete files from external libraries.</value></data>
+  <data name="beatmap_videos" xml:space="preserve"><value>Are you sure you want to delete all beatmaps videos? This cannot be undone!</value></data>
+  <data name="offsets" xml:space="preserve"><value>Are you sure you want to reset all local beatmap offsets? This cannot be undone!</value></data>
+  <data name="skins" xml:space="preserve"><value>Are you sure you want to delete all skins? This cannot be undone!</value></data>
+  <data name="collections" xml:space="preserve"><value>Are you sure you want to delete all collections? This cannot be undone!</value></data>
+  <data name="scores" xml:space="preserve"><value>Are you sure you want to delete all scores? This cannot be undone!</value></data>
+  <data name="mod_presets" xml:space="preserve"><value>Are you sure you want to delete all mod presets?</value></data>
+  <data name="beatmap_source" xml:space="preserve"><value>Source: {0}</value></data>
+  <data name="beatmap_delete_action" xml:space="preserve"><value>Delete action: {0}</value></data>
+  <data name="beatmap_storage_path" xml:space="preserve"><value>Storage path: {0}</value></data>
+  <data name="internal_beatmap_source" xml:space="preserve"><value>Internal import (OMS-managed storage)</value></data>
+  <data name="external_beatmap_source" xml:space="preserve"><value>External library reference</value></data>
+  <data name="internal_beatmap_delete_action" xml:space="preserve"><value>Delete OMS-managed beatmap files from disk.</value></data>
+  <data name="external_beatmap_delete_action" xml:space="preserve"><value>Remove the OMS reference only. Files in the external library will not be deleted.</value></data>
+  <data name="internal_beatmap_managed_storage_path" xml:space="preserve"><value>OMS internal file store</value></data>
+</root>

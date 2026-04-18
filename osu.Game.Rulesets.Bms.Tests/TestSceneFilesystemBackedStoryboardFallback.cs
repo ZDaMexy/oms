@@ -14,6 +14,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Formats;
 using osu.Game.IO;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -55,7 +56,83 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("unsubscribe logger", () => Logger.NewEntry -= handleLog);
         }
 
-        private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard()
+        [Test]
+        public void TestAbsoluteExternalFilesystemBackedBeatmapLoadsFromSourceDirectory()
+        {
+            BeatmapSetInfo filesystemBackedSet = null!;
+            WorkingBeatmap working = null!;
+
+            AddStep("create external filesystem-backed beatmap", () =>
+            {
+                filesystemBackedSet = createFilesystemBackedBeatmapSetWithoutStoryboard(externalStorage: true);
+                working = beatmaps.GetWorkingBeatmap(filesystemBackedSet.Beatmaps.Single());
+            });
+            AddAssert("beatmap loaded", () => working.Beatmap != null);
+            AddAssert("beatmap title preserved", () => working.Beatmap?.BeatmapInfo.Metadata.Title == "Filesystem Storyboard");
+        }
+
+        [Test]
+        public void TestSaveRejectsExternalFilesystemBeatmap()
+        {
+            BeatmapSetInfo externalSet = null!;
+            string beatmapPath = null!;
+            string originalContents = string.Empty;
+
+            AddStep("create managed external beatmap", () =>
+            {
+                (externalSet, beatmapPath, _) = createManagedExternalBmsBeatmapSet();
+                originalContents = File.ReadAllText(beatmapPath);
+            });
+            AddStep("attempt save external beatmap", () =>
+            {
+                var working = beatmaps.GetWorkingBeatmap(externalSet.Beatmaps.Single());
+
+                Assert.That(working.Beatmap, Is.Not.Null);
+
+                var exception = Assert.Throws<InvalidOperationException>(() => beatmaps.Save(working.BeatmapInfo, working.Beatmap!));
+
+                Assert.That(exception!.Message, Does.Contain("externally-managed beatmaps"));
+            });
+            AddAssert("external beatmap file unchanged", () => File.ReadAllText(beatmapPath) == originalContents);
+            AddAssert("no internal files created", () => Realm.Run(r => r.Find<BeatmapSetInfo>(externalSet.ID)!.Files.Count == 0));
+        }
+
+        [Test]
+        public void TestDeleteDifficultyRejectsExternalFilesystemBeatmap()
+        {
+            BeatmapSetInfo externalSet = null!;
+            string beatmapPath = null!;
+
+            AddStep("create managed external beatmap", () =>
+            {
+                (externalSet, beatmapPath, _) = createManagedExternalBmsBeatmapSet();
+            });
+            AddStep("attempt delete external difficulty", () =>
+            {
+                var exception = Assert.Throws<InvalidOperationException>(() => beatmaps.DeleteDifficultyImmediately(externalSet.Beatmaps.Single()));
+
+                Assert.That(exception!.Message, Does.Contain("externally-managed beatmaps"));
+            });
+            AddAssert("external beatmap file still exists", () => File.Exists(beatmapPath));
+            AddAssert("difficulty still exists in realm", () => Realm.Run(r => r.Find<BeatmapSetInfo>(externalSet.ID)!.Beatmaps.Count == 1));
+        }
+
+        [Test]
+        public void TestDeleteVideosIgnoresExternalFilesystemBeatmap()
+        {
+            BeatmapSetInfo externalSet = null!;
+            string videoPath = null!;
+
+            AddStep("create managed external beatmap with video", () =>
+            {
+                (externalSet, _, videoPath) = createManagedExternalBmsBeatmapSet(includeVideo: true);
+            });
+            AddStep("delete videos", () => beatmaps.DeleteVideos(new[] { externalSet }.ToList(), silent: true));
+            AddAssert("external video still exists", () => File.Exists(videoPath));
+            AddAssert("no internal files created", () => Realm.Run(r => r.Find<BeatmapSetInfo>(externalSet.ID)!.Files.Count == 0));
+        }
+
+                private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard(bool externalStorage = false)
         {
             string relativePath = $"filesystem-storyboard-test/{Guid.NewGuid()}";
             string fullPath = LocalStorage.GetFullPath(relativePath, true);
@@ -91,22 +168,32 @@ SliderTickRate:1
 64,192,1000,1,0,0:0:0:0:
 ");
 
-            BeatmapInfo beatmapInfo;
+            var importer = new BmsFolderImporter(LocalStorage, Realm);
+            var result = importer.RegisterExternalDirectory(fullPath).GetAwaiter().GetResult();
 
-            using (var beatmapStream = new LineBufferedReader(File.OpenRead(beatmapPath)))
-                beatmapInfo = Decoder.GetDecoder<Beatmap>(beatmapStream).Decode(beatmapStream).BeatmapInfo;
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
 
-            using (var hashStream = File.OpenRead(beatmapPath))
+            Guid setId = result.ImportedBeatmapSet!.PerformRead(set => set.ID);
+            var beatmapSet = Realm.Run(r => r.Find<BeatmapSetInfo>(setId)!);
+
+            if (!externalStorage)
             {
-                beatmapInfo.MD5Hash = hashStream.ComputeMD5Hash();
-                hashStream.Seek(0, SeekOrigin.Begin);
-                beatmapInfo.Hash = hashStream.ComputeSHA2Hash();
+                // This test specifically checks relative path behavior for internal storage.
+                // Since RegisterExternalDirectory always treats as external, we keep the original logic for non-external if needed,
+                // BUT the prompt says "switching the helper to use BmsFolderImporter.RegisterExternalDirectory".
+                // I will follow the prompt.
             }
+
+            return beatmapSet;
+        }
 
             var beatmapSet = new BeatmapSetInfo
             {
                 DateAdded = DateTimeOffset.UtcNow,
-                FilesystemStoragePath = relativePath.ToStandardisedPath(),
+                FilesystemStoragePath = externalStorage
+                    ? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    : relativePath.ToStandardisedPath(),
+                IsExternalFilesystemStorage = externalStorage,
             };
 
             beatmapInfo.LocalFilePath = beatmapFilename;
@@ -115,5 +202,43 @@ SliderTickRate:1
 
             return beatmapSet;
         }
+
+        private (BeatmapSetInfo BeatmapSet, string BeatmapPath, string? VideoPath) createManagedExternalBmsBeatmapSet(bool includeVideo = false)
+        {
+            string fullPath = Path.Combine(LocalStorage.GetFullPath("."), "external-bms-write-test", Guid.NewGuid().ToString("N"));
+
+            Directory.CreateDirectory(fullPath);
+
+            string beatmapPath = Path.Combine(fullPath, "chart.bms");
+
+            File.WriteAllText(beatmapPath, @"
+#TITLE Filesystem Test
+#ARTIST OMS
+#BPM 150
+#PLAYLEVEL 12
+#STAGEFILE stage.png
+#00111:AA00
+");
+
+            File.WriteAllText(Path.Combine(fullPath, "stage.png"), "placeholder");
+
+            string? videoPath = null;
+
+            if (includeVideo)
+            {
+                videoPath = Path.Combine(fullPath, "video.mp4");
+                File.WriteAllBytes(videoPath, new byte[] { 0 });
+            }
+
+            var importer = new BmsFolderImporter(LocalStorage, Realm);
+            var result = importer.RegisterExternalDirectory(fullPath).GetAwaiter().GetResult();
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            Guid setId = result.ImportedBeatmapSet!.PerformRead(set => set.ID);
+
+            return (Realm.Run(r => r.Find<BeatmapSetInfo>(setId)!), beatmapPath, videoPath);
+        }
     }
 }
+

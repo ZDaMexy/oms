@@ -109,8 +109,8 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
                         Padding = SettingsPanel.CONTENT_PADDING,
-                        Direction = FillDirection.Horizontal,
-                        Spacing = new Vector2(10, 0),
+                        Direction = FillDirection.Full,
+                        Spacing = new Vector2(10),
                         Children = new Drawable[]
                         {
                             browseButton = createActionButton("浏览文件夹", openDirectoryPicker, 150),
@@ -571,8 +571,8 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
-                                    Direction = FillDirection.Horizontal,
-                                    Spacing = new Vector2(10, 0),
+                                    Direction = FillDirection.Full,
+                                    Spacing = new Vector2(10),
                                     Children = buildButtons(),
                                 },
                             }

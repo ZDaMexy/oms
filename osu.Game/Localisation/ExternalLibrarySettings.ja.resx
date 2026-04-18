@@ -12,7 +12,9 @@
   <data name="directory_not_found" xml:space="preserve"><value>ディレクトリが見つかりません：{0}</value></data>
   <data name="scanning_external_libraries" xml:space="preserve"><value>外部ライブラリをスキャン中...</value></data>
   <data name="scanning_progress" xml:space="preserve"><value>スキャン中：{0}（{1}/{2}）</value></data>
-  <data name="scan_complete" xml:space="preserve"><value>スキャン完了：インポート {0}、スキップ {1}、エラー {2}</value></data>
+  <data name="scanning_root_progress" xml:space="preserve"><value>{0} をスキャン中 ({1}/{2}) · {3} フォルダ · インデックス済み {4}、スキップ {5}、エラー {6}</value></data>
+  <data name="scanning_directory_progress" xml:space="preserve"><value>{0} をスキャン中 ({1}/{2}) · {3} ({4}/{5}) · インデックス済み {6}、スキップ {7}、エラー {8}</value></data>
+  <data name="scan_complete" xml:space="preserve"><value>スキャン完了：インデックス済み {0}、スキップ {1}、エラー {2}</value></data>
   <data name="remove" xml:space="preserve"><value>削除</value></data>
   <data name="disabled_label" xml:space="preserve"><value>（無効）</value></data>
   <data name="path_not_found" xml:space="preserve"><value>— パスが見つかりません</value></data>

@@ -6,9 +6,9 @@ using System.Linq;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Objects;
 
-namespace osu.Game.Rulesets.Bms.Difficulty
+namespace osu.Game.Rulesets.Bms.SongSelect
 {
-    public class BmsNoteDensityAnalyzer
+    public class BmsNoteDistributionAnalyzer
     {
         public const double DefaultWindowLengthMs = 1000;
         public const double DefaultWindowStepMs = 500;
@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Bms.Difficulty
         private const double scratch_bonus = 0.5;
         private const double ln_bonus_per_ms = 0.001;
 
-        public BmsDensityAnalysis Analyze(IBeatmap beatmap, double windowLengthMs = DefaultWindowLengthMs, double windowStepMs = DefaultWindowStepMs)
+        public BmsNoteDistributionAnalysis Analyze(IBeatmap beatmap, double windowLengthMs = DefaultWindowLengthMs, double windowStepMs = DefaultWindowStepMs)
         {
             ArgumentNullException.ThrowIfNull(beatmap);
 
@@ -34,15 +34,13 @@ namespace osu.Game.Rulesets.Bms.Difficulty
                                        .ToArray();
 
             if (playableObjects.Length == 0)
-            {
-                return new BmsDensityAnalysis(Array.Empty<BmsDensityWindow>(), 0, 0, 0, 0, 0, 0);
-            }
+                return new BmsNoteDistributionAnalysis(Array.Empty<BmsNoteDistributionWindow>(), 0, 0, 0, 0, 0, 0);
 
             var weightedObjects = createWeightedObjects(playableObjects);
             var windows = createWindows(weightedObjects, windowLengthMs, windowStepMs);
             var peakWindow = windows.MaxBy(window => window.NotesPerSecond);
 
-            return new BmsDensityAnalysis(
+            return new BmsNoteDistributionAnalysis(
                 windows,
                 playableObjects.Length,
                 playableObjects.Count(hitObject => hitObject.IsScratch),
@@ -52,7 +50,7 @@ namespace osu.Game.Rulesets.Bms.Difficulty
                 GetPercentileDensity(windows, 0.95));
         }
 
-        public double GetPercentileDensity(IReadOnlyList<BmsDensityWindow> windows, double percentile)
+        public double GetPercentileDensity(IReadOnlyList<BmsNoteDistributionWindow> windows, double percentile)
         {
             if (windows.Count == 0)
                 return 0;
@@ -74,12 +72,12 @@ namespace osu.Game.Rulesets.Bms.Difficulty
             return sortedDensities[lowerIndex] + (sortedDensities[upperIndex] - sortedDensities[lowerIndex]) * interpolation;
         }
 
-        private static BmsDensityWindow[] createWindows(IReadOnlyList<WeightedHitObject> weightedObjects, double windowLengthMs, double windowStepMs)
+        private static BmsNoteDistributionWindow[] createWindows(IReadOnlyList<WeightedHitObject> weightedObjects, double windowLengthMs, double windowStepMs)
         {
             double firstStartTime = weightedObjects[0].StartTime;
             double lastStartTime = weightedObjects[^1].StartTime;
 
-            List<BmsDensityWindow> windows = new List<BmsDensityWindow>();
+            List<BmsNoteDistributionWindow> windows = new List<BmsNoteDistributionWindow>();
 
             int windowStartIndex = 0;
             int windowEndIndex = 0;
@@ -118,7 +116,7 @@ namespace osu.Game.Rulesets.Bms.Difficulty
                         normalCount--;
                 }
 
-                windows.Add(new BmsDensityWindow(windowStart, windowEnd, weightedNoteCount, weightedNoteCount * 1000 / windowLengthMs, normalCount, scratchCount, lnCount));
+                windows.Add(new BmsNoteDistributionWindow(windowStart, windowEnd, weightedNoteCount, weightedNoteCount * 1000 / windowLengthMs, normalCount, scratchCount, lnCount));
             }
 
             return windows.ToArray();
@@ -163,9 +161,9 @@ namespace osu.Game.Rulesets.Bms.Difficulty
         private readonly record struct WeightedHitObject(double StartTime, double Weight, bool IsScratch, bool IsLongNote);
     }
 
-    public class BmsDensityAnalysis
+    public class BmsNoteDistributionAnalysis
     {
-        public IReadOnlyList<BmsDensityWindow> Windows { get; }
+        public IReadOnlyList<BmsNoteDistributionWindow> Windows { get; }
 
         public int TotalNoteCount { get; }
 
@@ -179,7 +177,7 @@ namespace osu.Game.Rulesets.Bms.Difficulty
 
         public double Percentile95DensityNps { get; }
 
-        public BmsDensityAnalysis(IReadOnlyList<BmsDensityWindow> windows, int totalNoteCount, int scratchNoteCount, int lnNoteCount, double peakDensityNps, double peakDensityMs, double percentile95DensityNps)
+        public BmsNoteDistributionAnalysis(IReadOnlyList<BmsNoteDistributionWindow> windows, int totalNoteCount, int scratchNoteCount, int lnNoteCount, double peakDensityNps, double peakDensityMs, double percentile95DensityNps)
         {
             Windows = windows;
             TotalNoteCount = totalNoteCount;
@@ -191,5 +189,5 @@ namespace osu.Game.Rulesets.Bms.Difficulty
         }
     }
 
-    public readonly record struct BmsDensityWindow(double StartTime, double EndTime, double WeightedNoteCount, double NotesPerSecond, int NormalCount, int ScratchCount, int LnCount);
+    public readonly record struct BmsNoteDistributionWindow(double StartTime, double EndTime, double WeightedNoteCount, double NotesPerSecond, int NormalCount, int ScratchCount, int LnCount);
 }

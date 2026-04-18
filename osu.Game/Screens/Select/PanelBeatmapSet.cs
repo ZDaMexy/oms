@@ -202,7 +202,14 @@ namespace osu.Game.Screens.Select
             scheduledBackgroundRetrieval = Scheduler.AddDelayed(s => setBackground.Beatmap = beatmaps.GetWorkingBeatmap(s.Beatmaps.MinBy(b => b.OnlineID)), beatmapSet, 50);
 
             titleText.Text = new RomanisableString(beatmapSet.Metadata.TitleUnicode, beatmapSet.Metadata.Title);
-            artistText.Text = new RomanisableString(beatmapSet.Metadata.ArtistUnicode, beatmapSet.Metadata.Artist);
+
+            var representativeBeatmap = beatmapSet.Beatmaps.FirstOrDefault();
+
+            if (representativeBeatmap != null)
+                artistText.Text = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(representativeBeatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(representativeBeatmap));
+            else
+                artistText.Text = new RomanisableString(beatmapSet.Metadata.ArtistUnicode, beatmapSet.Metadata.Artist);
+
             updateButton.BeatmapSet = beatmapSet;
             statusPill.Status = beatmapSet.Status;
             spreadDisplay.BeatmapSet.Value = beatmapSet;

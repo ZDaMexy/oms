@@ -7,17 +7,22 @@ using osu.Framework.Bindables;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Game.Beatmaps;
+using osu.Game.Input.Handlers;
+using osu.Game.Replays;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
+using osu.Game.Rulesets.Bms.Replays;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
+using osu.Game.Rulesets.Replays;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -55,8 +60,7 @@ namespace osu.Game.Rulesets.Bms.UI
         public DrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
         {
-            LongNoteMode.ApplyToBeatmap(beatmap);
-            JudgeMode.ApplyToBeatmap(beatmap);
+            BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, mods);
 
             TimeRange.MinValue = MIN_TIME_RANGE;
             TimeRange.MaxValue = MAX_TIME_RANGE;
@@ -89,6 +93,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override DrawableHitObject<HitObject> CreateDrawableRepresentation(HitObject h)
             => h is BmsHoldNote holdNote ? new DrawableBmsHoldNote(holdNote) : new DrawableBmsHitObject(h);
+
+        protected override ReplayInputHandler CreateReplayInputHandler(Replay replay) => new BmsFramedReplayInputHandler(replay);
+
+        protected override ReplayRecorder CreateReplayRecorder(Score score) => new BmsReplayRecorder(score);
 
         protected override void LoadComplete()
         {

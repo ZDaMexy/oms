@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="seed" xml:space="preserve"><value>随机种子</value></data>
+  <data name="seed_description" xml:space="preserve"><value>使用自定义 seed，而不是临时随机生成。</value></data>
+</root>

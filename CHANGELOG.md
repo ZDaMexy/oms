@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-04-17
+
+### 在线提交边界：保留 ruleset_data，避免未来 leaderboard 混算 BMS 语义
+
+- `SoloScoreInfo` 现已显式序列化 `ruleset_data`，并在 `ToScoreInfo()` 回填到 `ScoreInfo.RulesetDataJson`；这样将来启用私服/在线排行榜时，BMS 的 `long_note_mode`、judge/gauge 等 ruleset-specific payload 不会在通用 score submission 通道里丢失
+- 现有 `SubmitScoreRequest` / `SubmitSoloScoreRequest` 无需改调用面，`SoloScoreInfo.ForSubmission(score)` 已会自动携带本地 score 的 `RulesetDataJson`
+- 新增在线序列化回归：`TestSoloScoreInfoJsonSerialization` 现锁定 `ruleset_data` 的输出与 round-trip 恢复，避免未来重构把 BMS 的 LN/CN/HCN、judge、gauge 约束从在线载荷中意外删掉
+- 验证：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~TestSoloScoreInfoJsonSerialization|FullyQualifiedName~TestAPIModJsonSerialization"` **5/5** 通过
+
+### 文档与仓库记忆：按当前代码基线重整
+
+- `README.md`、`DEVELOPMENT_STATUS.md`、`DEVELOPMENT_PLAN.md` 与 `IIDX_REFERENCE_AUDIT.md` 已同步到当前代码状态：四套 judge mode、Mirror / Random、A-SCR / BMS Autoplay、BMS replay 录制/回放/归档、`chartbms/` / `chartmania/` 存储命名，以及外部谱库维护 UI
+- 当前规模快照已刷新为：`osu.Game.Rulesets.Bms` 147 个源文件、`oms.Input` 15 个源文件、`osu.Game.Rulesets.Bms.Tests` 46 个测试文件
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal` **608/608** 通过
+
+### BMS：新增 Mirror / Random 训练向 lane rearrangement mod
+
+- `osu.Game.Rulesets.Bms` 现已新增 `BmsModMirror` 与 `BmsModRandom`，并统一暴露在 `Conversion`
+- `BmsModRandom` 当前支持 `RANDOM`、`R-RANDOM`、`S-RANDOM` 三种模式，内置 `Seed` 与手动 `Custom pattern` 配置；14K 下单组 pattern 可自动复制到双侧
+- runtime beatmap mod 统一入口 `BmsBeatmapModApplicator` 现已先应用 `Mirror` / `Random`，再继续 long-note mode、judge mode 与 `Auto Scratch`
+- 验证：`Build osu! (Debug)` 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v q --results-directory TestResults --logger "trx;LogFileName=bms-mirror-random.trx"` 结果为 **583/583** 通过
+
+### BMS：新增 Auto Scratch 与 BMS Autoplay assist mod
+
+- `osu.Game.Rulesets.Bms` 现已新增 `BmsModAutoScratch` 与 `BmsModAutoplay`，并统一暴露在 `DifficultyReduction`
+- A-SCR 当前会把 scratch runtime 语义切换为 `AutoPlay = true` + 不参与判定 / 计分 / gauge / MaxExScore；mod 内支持可见性、染色开关与染色颜色配置
+- BMS autoplay 当前已补齐专用 replay frame / replay input handler / replay recorder / auto generator，并已接入 ruleset / drawable ruleset / score processor
+- 验证：初次落地时 `Build osu! (Debug)` 通过；后续在 `Mirror` / `Random` 一并接入后，当前项目级 BMS 测试已更新为 **583/583** 通过
+
+### 文档同步：将 BMS 结果页反馈面编入 Phase 1.x / P1-C
+
+- `DEVELOPMENT_PLAN.md` 现已明确把 BMS 结果页反馈面收口归入 `P1-C`，并把边界钉死在“沿用现有 lazer results 骨架的低风险增强”上，不把 beatoraja 风格整页重构写成当前主线
+- `DEVELOPMENT_STATUS.md` 现已同步记录当前已落地的结果页反馈基线：expanded 主评价与 contracted badge 已按 `DJ LEVEL` 显示，主分数区已显式标为 `EX-SCORE`
+- `README.md` 已补齐对外可见的当前状态说明，避免外部摘要继续停留在“有 EX-SCORE / DJ LEVEL 数据，但不说明结果页主表达语义”的旧表述
+- 验证：本次仅为文档编排与进度同步，不涉及新的代码或测试命令
+
 ## 2026-04-13
 
 ### 修复外部谱库设置 UI 不可见（DI 注册时序 + CanBeNull）

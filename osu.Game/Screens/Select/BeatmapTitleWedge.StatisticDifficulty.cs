@@ -41,6 +41,8 @@ namespace osu.Game.Screens.Select
 
             public float LabelWidth => labelText.DrawWidth;
 
+            public float PreferredWidth => Math.Max(labelText.DrawWidth, valueText.DrawWidth + (valueIcon.Alpha > 0 ? valueIcon.DrawWidth + valueIcon.Margin.Left : 0));
+
             private readonly Circle bar;
             private readonly Circle adjustedBar;
             private readonly OsuSpriteText labelText;
@@ -197,7 +199,7 @@ namespace osu.Game.Screens.Select
             public record Data(LocalisableString Label, float Value, float AdjustedValue, float Maximum, string? Content = null, RulesetBeatmapAttribute? BeatmapAttribute = null)
             {
                 public Data(RulesetBeatmapAttribute attribute)
-                    : this(attribute.Label, attribute.OriginalValue, attribute.AdjustedValue, attribute.MaxValue, BeatmapAttribute: attribute)
+                    : this(attribute.Label, attribute.OriginalValue, attribute.AdjustedValue, attribute.MaxValue, attribute.DisplayValue, attribute)
                 {
                 }
             }

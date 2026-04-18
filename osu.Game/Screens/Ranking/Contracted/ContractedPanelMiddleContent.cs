@@ -3,6 +3,7 @@
 
 using System.Linq;
 using osu.Framework.Allocation;
+using osu.Framework.Extensions;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Extensions.LocalisationExtensions;
 using osu.Framework.Graphics;
@@ -51,6 +52,8 @@ namespace osu.Game.Screens.Ranking.Contracted
         [BackgroundDependencyLoader]
         private void load()
         {
+            var ruleset = score.Ruleset.CreateInstance();
+
             InternalChild = new GridContainer
             {
                 RelativeSizeAxes = Axes.Both,
@@ -192,11 +195,11 @@ namespace osu.Game.Screens.Ranking.Contracted
                                     {
                                         RelativeSizeAxes = Axes.Both,
                                         Padding = new MarginPadding { Top = 2 },
-                                        Child = new DrawableRank(score.Rank)
+                                        Child = ruleset.CreateResultsRankBadge(score).With(display =>
                                         {
-                                            Anchor = Anchor.Centre,
-                                            Origin = Anchor.Centre,
-                                        }
+                                            display.Anchor = Anchor.Centre;
+                                            display.Origin = Anchor.Centre;
+                                        })
                                     }
                                 },
                             },

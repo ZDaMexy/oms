@@ -6,6 +6,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Scoring;
 
 namespace osu.Game.Rulesets.Bms.DifficultyTable
 {
@@ -20,20 +21,6 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
     public class BmsChartMetadata : IEquatable<BmsChartMetadata>
     {
-        private static readonly string[] creator_prefixes =
-        {
-            "obj",
-            "chart",
-            "charts",
-            "pattern",
-            "patterns",
-            "note",
-            "notes",
-            "fumen",
-            "譜面",
-            "谱面",
-        };
-
         [JsonProperty("subtitle")]
         public string Subtitle { get; set; } = string.Empty;
 
@@ -43,19 +30,27 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         [JsonProperty("comment")]
         public string Comment { get; set; } = string.Empty;
 
+        [JsonProperty("genre")]
+        public string Genre { get; set; } = string.Empty;
+
         [JsonProperty("play_level")]
         public string PlayLevel { get; set; } = string.Empty;
 
         [JsonProperty("header_difficulty")]
         public int? HeaderDifficulty { get; set; }
 
+        [JsonProperty("judge_rank")]
+        public int? JudgeRank { get; set; }
+
         [JsonIgnore]
         public bool IsEmpty
             => string.IsNullOrWhiteSpace(Subtitle)
                && string.IsNullOrWhiteSpace(SubArtist)
                && string.IsNullOrWhiteSpace(Comment)
+               && string.IsNullOrWhiteSpace(Genre)
                && string.IsNullOrWhiteSpace(PlayLevel)
-               && HeaderDifficulty == null;
+               && HeaderDifficulty == null
+               && JudgeRank == null;
 
         public static BmsChartMetadata FromBeatmapInfo(BmsBeatmapInfo beatmapInfo)
         {
@@ -66,8 +61,10 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 Subtitle = beatmapInfo.Subtitle,
                 SubArtist = beatmapInfo.SubArtist,
                 Comment = beatmapInfo.Comment,
+                Genre = beatmapInfo.Genre,
                 PlayLevel = beatmapInfo.PlayLevel,
                 HeaderDifficulty = beatmapInfo.HeaderDifficulty,
+                JudgeRank = beatmapInfo.Rank,
             };
         }
 
@@ -92,15 +89,34 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             return PlayLevel;
         }
 
-        public string? TryGetChartCreator()
+        public string GetJudgeRankDisplay()
         {
-            string? creator = tryExtractCreator(SubArtist);
+            if (JudgeRank == null)
+                return string.Empty;
+
+            return OsuOdJudgementSystem.GetRankDisplayName(JudgeRank.Value);
+        }
+
+        public string? TryGetChartCreator(string? artist = null)
+        {
+            string? creator = TryExtractCreator(SubArtist);
 
             if (!string.IsNullOrWhiteSpace(creator))
                 return creator;
 
-            return tryExtractCreator(Comment);
+            creator = TryExtractCreator(Comment);
+
+            if (!string.IsNullOrWhiteSpace(creator))
+                return creator;
+
+            return TryExtractCreator(artist);
         }
+
+        internal static string GetDisplayArtist(string? artist)
+            => BeatmapLocalMetadataDisplayResolver.StripBmsCreatorFromArtist(artist);
+
+        internal static string? TryExtractCreator(string? value)
+            => BeatmapLocalMetadataDisplayResolver.TryExtractBmsCreator(value)?.creator;
 
         public bool Equals(BmsChartMetadata? other)
         {
@@ -113,44 +129,15 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             return string.Equals(Subtitle, other.Subtitle, StringComparison.Ordinal)
                    && string.Equals(SubArtist, other.SubArtist, StringComparison.Ordinal)
                    && string.Equals(Comment, other.Comment, StringComparison.Ordinal)
+                   && string.Equals(Genre, other.Genre, StringComparison.Ordinal)
                    && string.Equals(PlayLevel, other.PlayLevel, StringComparison.Ordinal)
-                   && HeaderDifficulty == other.HeaderDifficulty;
+                   && HeaderDifficulty == other.HeaderDifficulty
+                   && JudgeRank == other.JudgeRank;
         }
 
         public override bool Equals(object? obj) => Equals(obj as BmsChartMetadata);
 
-        public override int GetHashCode() => HashCode.Combine(Subtitle, SubArtist, Comment, PlayLevel, HeaderDifficulty);
-
-        private static string? tryExtractCreator(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return null;
-
-            string trimmed = value.Trim();
-
-            foreach (string prefix in creator_prefixes)
-            {
-                if (!trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || trimmed.Length <= prefix.Length)
-                    continue;
-
-                string suffix = trimmed[prefix.Length..].TrimStart();
-
-                if (suffix.Length == 0)
-                    continue;
-
-                char separator = suffix[0];
-
-                if (separator is not (':' or '：' or '-' or '/' or '='))
-                    continue;
-
-                string creator = suffix[1..].Trim();
-
-                if (!string.IsNullOrWhiteSpace(creator))
-                    return creator;
-            }
-
-            return null;
-        }
+        public override int GetHashCode() => HashCode.Combine(Subtitle, SubArtist, Comment, Genre, PlayLevel, HeaderDifficulty, JudgeRank);
     }
 
     public static class BmsBeatmapMetadataExtensions

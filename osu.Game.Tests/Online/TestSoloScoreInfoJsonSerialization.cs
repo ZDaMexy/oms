@@ -5,8 +5,10 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using osu.Game.IO.Serialization;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Tests.Resources;
+using System;
 
 namespace osu.Game.Tests.Online
 {
@@ -36,6 +38,33 @@ namespace osu.Game.Tests.Online
 
             Assert.That(serialised, Contains.Substring("large_tick_hit"));
             Assert.That(serialised, Contains.Substring("\"rank\":\"S\""));
+        }
+
+        [Test]
+        public void TestScoreSerialisationIncludesRulesetDataWhenPresent()
+        {
+            var sourceScore = TestResources.CreateTestScoreInfo();
+            sourceScore.RulesetDataJson = "{\"long_note_mode\":\"HCN\",\"judge_mode\":\"LR2\"}";
+
+            var score = SoloScoreInfo.ForSubmission(sourceScore);
+
+            string serialised = JsonConvert.SerializeObject(score);
+
+            Assert.That(serialised, Contains.Substring("\"ruleset_data\":"));
+            Assert.That(serialised, Contains.Substring("long_note_mode"));
+            Assert.That(serialised, Contains.Substring("judge_mode"));
+        }
+
+        [Test]
+        public void TestRulesetDataRoundTripsViaSoloScoreInfo()
+        {
+            var sourceScore = TestResources.CreateTestScoreInfo();
+            sourceScore.RulesetDataJson = "{\"long_note_mode\":\"CN\",\"gauge_type\":\"HARD\"}";
+
+            var score = SoloScoreInfo.ForSubmission(sourceScore);
+            var roundTripped = score.ToScoreInfo(Array.Empty<Mod>());
+
+            Assert.That(roundTripped.RulesetDataJson, Is.EqualTo(sourceScore.RulesetDataJson));
         }
 
         /// <summary>

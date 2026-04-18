@@ -52,6 +52,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(beatmap, Is.TypeOf<BmsDecodedBeatmap>());
                 Assert.That(beatmap.BeatmapInfo.Ruleset.ShortName, Is.EqualTo(BmsRuleset.SHORT_NAME));
+                Assert.That(beatmap.BeatmapInfo.StarRating, Is.EqualTo(12));
                 Assert.That(beatmap.BeatmapInfo.Metadata.Title, Is.EqualTo("Example Song"));
                 Assert.That(beatmap.BeatmapInfo.Metadata.Artist, Is.EqualTo("Test Artist"));
                 Assert.That(beatmap.BeatmapInfo.Metadata.Author.Username, Is.EqualTo("OMS Charter"));
@@ -64,6 +65,23 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(beatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(1));
                 Assert.That(beatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
             });
+        }
+
+        [Test]
+        public void TestLoaderDefaultsStarRatingToZeroWhenPlayLevelMissing()
+        {
+            const string text = @"
+#TITLE Example Song
+#ARTIST Test Artist
+#BPM 150
+#00111:AA00
+";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+
+            var beatmap = loader.Load(stream, "chart.bms", new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()));
+
+            Assert.That(beatmap.BeatmapInfo.StarRating, Is.Zero);
         }
 
         [TestCase("#00112:AA00\n#00116:BB00\n", "chart.bms", 5)]
@@ -254,6 +272,114 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(reloadedBeatmap.BeatmapInfo.Metadata.Title, Is.EqualTo("Filesystem Test"));
                 Assert.That(reloadedBeatmap.BeatmapInfo.Metadata.BackgroundFile, Is.EqualTo("stage.png"));
                 Assert.That(reloadedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task TestExternalDirectoryRegistrationUsesSourceDirectoryReadOnly()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-external-readonly-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string importRoot = createImportSource(storage, "external-readonly");
+            var importer = new BmsFolderImporter(storage, realm);
+
+            var result = await importer.RegisterExternalDirectory(importRoot).ConfigureAwait(false);
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            result.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(set.Files.Count, Is.EqualTo(0));
+                    Assert.That(set.IsExternalFilesystemStorage, Is.True);
+                    Assert.That(set.FilesystemStoragePath, Is.EqualTo(Path.GetFullPath(importRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
+                    Assert.That(set.Beatmaps.Single().Path, Is.EqualTo("chart.bms"));
+                });
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(importRoot), Is.True);
+                Assert.That(File.Exists(Path.Combine(importRoot, "chart.bms")), Is.True);
+                Assert.That(File.Exists(Path.Combine(importRoot, "stage.png")), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task TestManagedDirectoryRegistrationPreservesRelativeManagedPath()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-managed-readonly-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string managedRoot = Path.Combine(storage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), "packs", "managed-set");
+            Directory.CreateDirectory(managedRoot);
+            File.WriteAllText(Path.Combine(managedRoot, "chart.bms"), buildChartText());
+            File.WriteAllBytes(Path.Combine(managedRoot, "stage.png"), new byte[] { 1, 2, 3, 4 });
+
+            var importer = new BmsFolderImporter(storage, realm);
+            var result = await importer.RegisterManagedDirectory(managedRoot).ConfigureAwait(false);
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            result.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(set.Files.Count, Is.EqualTo(0));
+                    Assert.That(set.IsExternalFilesystemStorage, Is.False);
+                    Assert.That(set.FilesystemStoragePath, Is.EqualTo("chartbms/packs/managed-set"));
+                    Assert.That(set.Beatmaps.Single().Path, Is.EqualTo("chart.bms"));
+                });
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(managedRoot), Is.True);
+                Assert.That(File.Exists(Path.Combine(managedRoot, "chart.bms")), Is.True);
+                Assert.That(File.Exists(Path.Combine(managedRoot, "stage.png")), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task TestDeletingExternalRegistrationDoesNotDeleteSourceDirectory()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-external-delete-{Guid.NewGuid():N}");
+
+            string importRoot = createImportSource(storage, "external-delete");
+            Guid setId;
+
+            using (var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME))
+            {
+                using var rulesets = new RealmRulesetStore(realm, storage);
+
+                var importer = new BmsFolderImporter(storage, realm);
+                var result = await importer.RegisterExternalDirectory(importRoot).ConfigureAwait(false);
+
+                Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+                setId = result.ImportedBeatmapSet!.PerformRead(set => set.ID);
+
+                realm.Run(r =>
+                {
+                    using var transaction = r.BeginWrite();
+                    r.Find<BeatmapSetInfo>(setId)!.DeletePending = true;
+                    transaction.Commit();
+                });
+            }
+
+            using (var reopenedRealm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME))
+            {
+                Assert.That(reopenedRealm.Run(r => r.All<BeatmapSetInfo>().Count()), Is.EqualTo(0));
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(importRoot), Is.True);
+                Assert.That(File.Exists(Path.Combine(importRoot, "chart.bms")), Is.True);
+                Assert.That(File.Exists(Path.Combine(importRoot, "stage.png")), Is.True);
             });
         }
 

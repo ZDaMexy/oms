@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Localisation;
+using osu.Game.Localisation;
 using osu.Game.Rulesets.Bms.Scoring;
 
 namespace osu.Game.Rulesets.Bms.Mods
@@ -11,7 +12,7 @@ namespace osu.Game.Rulesets.Bms.Mods
 
         public override string Acronym => "HCN";
 
-        public override LocalisableString Description => @"Uses hell charge note long note timing.";
+        public override LocalisableString Description => BmsModStrings.HellChargeNoteDescription;
 
         public override BmsLongNoteMode LongNoteMode => BmsLongNoteMode.HCN;
     }

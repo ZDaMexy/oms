@@ -66,7 +66,7 @@ namespace osu.Game.Rulesets.Bms.UI
             HitResult.Good,
             HitResult.Meh,
             HitResult.Miss,
-            HitResult.ComboBreak,
+            HitResult.Ok,
         };
 
         private JudgementContainer<DrawableBmsJudgement> judgements = null!;

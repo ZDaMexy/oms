@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("osu.Game.Tests")]
 [assembly: InternalsVisibleTo("osu.Game.Tests.Dynamic")]
+[assembly: InternalsVisibleTo("osu.Game.Rulesets.Bms")]
 [assembly: InternalsVisibleTo("osu.Game.Rulesets.Bms.Tests")]
 [assembly: InternalsVisibleTo("osu.Game.Tournament.Tests")]
 

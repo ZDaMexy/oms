@@ -46,12 +46,21 @@ namespace osu.Game.Scoring.Legacy
 
             using (SerializationReader sr = new SerializationReader(stream))
             {
-                currentRuleset = GetRuleset(sr.ReadByte());
+                int encodedRulesetId = sr.ReadByte();
+                int version = sr.ReadInt32();
+                string beatmapHash = sr.ReadString();
+
+                workingBeatmap = GetBeatmap(beatmapHash);
+
+                if (workingBeatmap is DummyWorkingBeatmap)
+                    throw new BeatmapNotFoundException(beatmapHash);
+
+                currentRuleset = GetRuleset(encodedRulesetId) ?? workingBeatmap.BeatmapInfo.Ruleset?.CreateInstance()
+                    ?? throw new RulesetLoadException($"Could not resolve ruleset {encodedRulesetId} while decoding replay for beatmap {beatmapHash}.");
+
                 var scoreInfo = new ScoreInfo { Ruleset = currentRuleset.RulesetInfo };
 
                 score.ScoreInfo = scoreInfo;
-
-                int version = sr.ReadInt32();
 
                 scoreInfo.IsLegacyScore = version < LegacyScoreEncoder.FIRST_LAZER_VERSION;
 
@@ -61,13 +70,6 @@ namespace osu.Game.Scoring.Legacy
                 //
                 // See StandardisedScoreMigrationTools.ShouldMigrateToNewStandardised().
                 scoreInfo.TotalScoreVersion = version < 30000002 ? 30000001 : LegacyScoreEncoder.LATEST_VERSION;
-
-                string beatmapHash = sr.ReadString();
-
-                workingBeatmap = GetBeatmap(beatmapHash);
-
-                if (workingBeatmap is DummyWorkingBeatmap)
-                    throw new BeatmapNotFoundException(beatmapHash);
 
                 scoreInfo.User = new APIUser { Username = sr.ReadString() };
 

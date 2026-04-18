@@ -41,21 +41,24 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("set summary", () => display.SetSummary(new BmsResultsSummaryData(
                 BmsGaugeType.Hazard,
                 "TEST GAUGE",
+                BmsGaugeRulesFamily.Beatoraja,
                 BmsJudgeMode.Beatoraja,
                 BmsLongNoteMode.HCN,
                 2450,
                 3600,
                 3,
+                4,
                 0.1234,
                 BmsDjLevel.AAA,
                 new BmsClearLampData(BmsClearLamp.HardClear, "HARD CLEAR", 0.82))));
 
             AddUntilStep("summary labels loaded", () => tryGetText("FINAL GAUGE") != null);
             AddAssert("display height compact", () => display.DrawHeight < 370);
-            AddAssert("judge mode appears in right column", () => getText("JUDGE MODE").ScreenSpaceDrawQuad.TopLeft.X - getText("GAUGE TYPE").ScreenSpaceDrawQuad.TopLeft.X > 100);
-            AddAssert("ex-score appears in right column", () => getText("EX-SCORE").ScreenSpaceDrawQuad.TopLeft.X - getText("LONG NOTE MODE").ScreenSpaceDrawQuad.TopLeft.X > 100);
-            AddAssert("second row separated from first", () => getText("LONG NOTE MODE").ScreenSpaceDrawQuad.TopLeft.Y - getText("JUDGE MODE").ScreenSpaceDrawQuad.TopLeft.Y > 28);
-            AddAssert("last row separated from previous", () => getText("FINAL GAUGE").ScreenSpaceDrawQuad.TopLeft.Y - getText("DJ LEVEL").ScreenSpaceDrawQuad.TopLeft.Y > 28);
+            AddAssert("gauge rules appears in right column", () => getText("GAUGE RULES").ScreenSpaceDrawQuad.TopLeft.X - getText("GAUGE TYPE").ScreenSpaceDrawQuad.TopLeft.X > 100);
+            AddAssert("long note mode appears in right column", () => getText("LONG NOTE MODE").ScreenSpaceDrawQuad.TopLeft.X - getText("JUDGE MODE").ScreenSpaceDrawQuad.TopLeft.X > 100);
+            AddAssert("max ex-score appears in right column", () => getText("MAX EX-SCORE").ScreenSpaceDrawQuad.TopLeft.X - getText("EX-SCORE").ScreenSpaceDrawQuad.TopLeft.X > 100);
+            AddAssert("second row separated from first", () => getText("JUDGE MODE").ScreenSpaceDrawQuad.TopLeft.Y - getText("GAUGE TYPE").ScreenSpaceDrawQuad.TopLeft.Y > 28);
+            AddAssert("last row separated from previous", () => getText("FINAL GAUGE").ScreenSpaceDrawQuad.TopLeft.Y - getText("EX %").ScreenSpaceDrawQuad.TopLeft.Y > 28);
             AddAssert("final row stays inside display bounds", () => getText("FINAL GAUGE").ScreenSpaceDrawQuad.BottomLeft.Y <= display.ScreenSpaceDrawQuad.BottomLeft.Y + 1);
         }
 

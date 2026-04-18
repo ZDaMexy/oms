@@ -49,6 +49,11 @@ namespace osu.Game.Rulesets.Difficulty
         public LocalisableString? Description { get; init; }
 
         /// <summary>
+        /// Optional text to display for this attribute instead of the numeric adjusted value.
+        /// </summary>
+        public string? DisplayValue { get; init; }
+
+        /// <summary>
         /// Contains any and all additional metrics about how this attribute affects gameplay to show to the users.
         /// </summary>
         public AdditionalMetric[] AdditionalMetrics { get; init; } = [];

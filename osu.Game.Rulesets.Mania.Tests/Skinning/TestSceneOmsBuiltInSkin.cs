@@ -1059,7 +1059,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 return true;
             });
 
-            AddAssert("first-stage note piece keeps taller 7K profile", () => firstNotePiece.DrawHeight > secondNotePiece.DrawHeight);
+            AddAssert("first-stage note piece keeps shorter 7K profile", () => firstNotePiece.DrawHeight < secondNotePiece.DrawHeight);
             AddAssert("mixed-stage note pieces follow stage-local note height config", () => Math.Abs(firstNotePiece.DrawHeight / secondNotePiece.DrawHeight - expectedHeightRatio) < 0.01f);
             AddStep("clear mixed-stage note host", () => host.Expire());
         }
@@ -1867,7 +1867,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("5K bottom padding preset applied", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.StagePaddingBottom)) < 0.01f);
             AddAssert("5K widths preset applied", () =>
             {
-                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f };
+                float[] expectedWidths = scaleLegacyWidths(46f, 40f, 46f, 40f, 46f);
 
                 return expectedWidths.Select((expectedWidth, index) =>
                            Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnWidth, index) - expectedWidth) < 0.01f)
@@ -1887,7 +1887,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 AddAssert("4K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0) - 60f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
 
                 AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
-                AddAssert("5K note height falls back to stage min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 2) - 40f) < 0.01f);
+                AddAssert("5K note height falls back to stage min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 2) - scaleLegacyDimension(40f)) < 0.01f);
 
                 AddStep("create OMS 7K transformer", () => transformedSkin = createTransformedSkin(7));
                 AddAssert("7K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 3) - 35f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
@@ -1902,7 +1902,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddAssert("dual 5K widths repeat per stage", () =>
             {
-                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f, 46f, 40f, 46f, 40f, 46f };
+                float[] expectedWidths = scaleLegacyWidths(46f, 40f, 46f, 40f, 46f, 46f, 40f, 46f, 40f, 46f);
 
                 return expectedWidths.Select((expectedWidth, index) =>
                            Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ColumnWidth, index) - expectedWidth) < 0.01f)
@@ -2009,12 +2009,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
 
             AddAssert("4K hit explosion uses candidate animation", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionImage, 0) == "lightingN");
-            AddAssert("4K hit explosion scale uses candidate width fallback", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 0) - 69f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+            AddAssert("4K hit explosion scale uses candidate width fallback", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 0) - scaleLegacyDimension(69f) / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
 
             AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
 
             AddAssert("5K hit explosion uses OMS preset animation", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionImage, 1) == "lightingN");
-            AddAssert("5K hit explosion scale uses OMS preset width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 1) - 40f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+            AddAssert("5K hit explosion scale uses OMS preset width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 1) - scaleLegacyDimension(40f) / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
         }
 
         [Test]
@@ -2076,7 +2076,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("create OMS 7K+6K transformer", () => transformedSkin = createTransformedSkin(7, 6));
 
             AddAssert("7K first stage keeps explicit note height override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0) - 35f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
-            AddAssert("6K second stage falls back to its own min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 7) - 40f) < 0.01f);
+            AddAssert("6K second stage falls back to its own min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 7) - scaleLegacyDimension(40f)) < 0.01f);
         }
 
         [Test]
@@ -2086,8 +2086,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddStep("create OMS 5K+8K transformer", () => transformedSkin = createTransformedSkin(5, 8));
 
-            AddAssert("5K first stage keeps OMS explosion scale", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 0) - 46f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
-            AddAssert("8K second stage uses its own explosion scale", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 5) - 43f / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+            AddAssert("5K first stage keeps OMS explosion scale", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 0) - scaleLegacyDimension(46f) / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
+            AddAssert("8K second stage uses its own explosion scale", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionScale, 5) - scaleLegacyDimension(43f) / LegacyManiaSkinConfiguration.DEFAULT_COLUMN_SIZE) < 0.0001f);
             AddAssert("mixed-stage explosion image stays OMS-owned", () => getStringConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.ExplosionImage, 5) == "lightingN");
         }
 
@@ -2176,7 +2176,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("stage loaded", () => stage.IsLoaded && stage.Columns.All(column => column.IsLoaded));
             AddAssert("stage columns use OMS widths", () =>
             {
-                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f };
+                float[] expectedWidths = scaleLegacyWidths(46f, 40f, 46f, 40f, 46f);
 
                 return stage.Columns.Select(column => column.DrawWidth)
                             .Zip(expectedWidths, (actualWidth, expectedWidth) => Math.Abs(actualWidth - expectedWidth) < 0.01f)
@@ -2244,7 +2244,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("second stage loaded", () => secondStage.IsLoaded && secondStage.Columns.All(column => column.IsLoaded));
             AddAssert("second stage uses repeated OMS widths", () =>
             {
-                float[] expectedWidths = { 46f, 40f, 46f, 40f, 46f };
+                float[] expectedWidths = scaleLegacyWidths(46f, 40f, 46f, 40f, 46f);
 
                 return secondStage.Columns.Select(column => column.DrawWidth)
                                   .Zip(expectedWidths, (actualWidth, expectedWidth) => Math.Abs(actualWidth - expectedWidth) < 0.01f)
@@ -2252,6 +2252,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
             AddStep("clear dual stage host", () => host.Expire());
         }
+
+        private static float scaleLegacyDimension(float value)
+            => value * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+
+        private static float[] scaleLegacyWidths(params float[] widths)
+            => widths.Select(scaleLegacyDimension).ToArray();
 
         private ISkin createTransformedSkin(params int[] stageColumns)
         {

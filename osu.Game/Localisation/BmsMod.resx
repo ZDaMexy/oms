@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="autoplay_description" xml:space="preserve"><value>Watch a perfect automated BMS playthrough.</value></data>
+  <data name="auto_scratch_description" xml:space="preserve"><value>Automatically handles scratch notes and removes them from scoring and gauge.</value></data>
+  <data name="scratch_visibility" xml:space="preserve"><value>Scratch visibility</value></data>
+  <data name="scratch_visibility_description" xml:space="preserve"><value>Controls whether auto-scratched notes remain visible on the playfield.</value></data>
+  <data name="tint_scratch_notes" xml:space="preserve"><value>Tint scratch notes</value></data>
+  <data name="tint_scratch_notes_description" xml:space="preserve"><value>Tint auto-scratched notes to make the assist state obvious during play.</value></data>
+  <data name="scratch_tint_colour" xml:space="preserve"><value>Scratch tint colour</value></data>
+  <data name="scratch_tint_colour_description" xml:space="preserve"><value>The tint applied to auto-scratched notes when tinting is enabled.</value></data>
+  <data name="auto_scratch_visibility_visible" xml:space="preserve"><value>Visible</value></data>
+  <data name="auto_scratch_visibility_hidden" xml:space="preserve"><value>Hidden</value></data>
+  <data name="charge_note_description" xml:space="preserve"><value>Uses charge-note long note timing.</value></data>
+  <data name="hell_charge_note_description" xml:space="preserve"><value>Uses hell charge note long note timing.</value></data>
+  <data name="gauge_assist_easy_description" xml:space="preserve"><value>Uses the assist-easy BMS gauge.</value></data>
+  <data name="gauge_easy_description" xml:space="preserve"><value>Uses the easy BMS gauge.</value></data>
+  <data name="gauge_hard_description" xml:space="preserve"><value>Uses the hard BMS survival gauge.</value></data>
+  <data name="gauge_ex_hard_description" xml:space="preserve"><value>Uses the EX-HARD BMS survival gauge.</value></data>
+  <data name="gauge_hazard_description" xml:space="preserve"><value>Uses the hazard BMS survival gauge.</value></data>
+  <data name="gauge_rules_beatoraja_description" xml:space="preserve"><value>Uses beatoraja life-gauge calculations.</value></data>
+  <data name="gauge_rules_iidx_description" xml:space="preserve"><value>Uses beatmania IIDX life-gauge calculations.</value></data>
+  <data name="gauge_rules_lr2_description" xml:space="preserve"><value>Uses LR2-style life-gauge calculations.</value></data>
+  <data name="gauge_auto_shift_description" xml:space="preserve"><value>Downgrades to a lower gauge instead of failing immediately.</value></data>
+  <data name="starting_gauge" xml:space="preserve"><value>Starting gauge</value></data>
+  <data name="starting_gauge_description" xml:space="preserve"><value>The highest gauge tier to begin the chart on.</value></data>
+  <data name="floor_gauge" xml:space="preserve"><value>Floor gauge</value></data>
+  <data name="floor_gauge_description" xml:space="preserve"><value>The lowest gauge tier GAS may downgrade to.</value></data>
+  <data name="gauge_type_assist_easy" xml:space="preserve"><value>ASSIST EASY</value></data>
+  <data name="gauge_type_easy" xml:space="preserve"><value>EASY</value></data>
+  <data name="gauge_type_normal" xml:space="preserve"><value>NORMAL</value></data>
+  <data name="gauge_type_hard" xml:space="preserve"><value>HARD</value></data>
+  <data name="gauge_type_ex_hard" xml:space="preserve"><value>EX-HARD</value></data>
+  <data name="gauge_type_hazard" xml:space="preserve"><value>HAZARD</value></data>
+  <data name="judge_beatoraja_description" xml:space="preserve"><value>Uses beatoraja timing windows.</value></data>
+  <data name="judge_iidx_description" xml:space="preserve"><value>Uses the OMS fixed beatmania IIDX timing preset.</value></data>
+  <data name="judge_lr2_description" xml:space="preserve"><value>Uses LR2 timing windows.</value></data>
+  <data name="judge_rank_description" xml:space="preserve"><value>Overrides the chart's default #RANK timing tier for judge systems that support difficulty-based windows.</value></data>
+  <data name="judge_difficulty" xml:space="preserve"><value>Judge difficulty</value></data>
+  <data name="judge_difficulty_description" xml:space="preserve"><value>Overrides the chart's default #RANK timing tier for the active judge system when that judge family supports difficulty-based windows.</value></data>
+  <data name="judge_rank_very_hard" xml:space="preserve"><value>VERY HARD</value></data>
+  <data name="judge_rank_hard" xml:space="preserve"><value>HARD</value></data>
+  <data name="judge_rank_normal" xml:space="preserve"><value>NORMAL</value></data>
+  <data name="judge_rank_easy" xml:space="preserve"><value>EASY</value></data>
+  <data name="judge_rank_very_easy" xml:space="preserve"><value>VERY EASY</value></data>
+  <data name="top_lane_cover_description" xml:space="preserve"><value>Covers the top portion of the playfield.</value></data>
+  <data name="bottom_lane_cover_description" xml:space="preserve"><value>Covers the bottom portion of the playfield.</value></data>
+  <data name="cover_value" xml:space="preserve"><value>Cover value</value></data>
+  <data name="cover_value_description" xml:space="preserve"><value>0-1000 maps to 0%-100% of playfield coverage.</value></data>
+  <data name="mirror_description" xml:space="preserve"><value>Mirror button lanes while keeping scratch in place.</value></data>
+  <data name="random_description" xml:space="preserve"><value>Randomise button lanes with RANDOM, R-RANDOM, S-RANDOM, or a custom fixed pattern.</value></data>
+  <data name="random_type" xml:space="preserve"><value>Random type</value></data>
+  <data name="random_type_description" xml:space="preserve"><value>Choose which beatmania-style randomisation rule to apply.</value></data>
+  <data name="custom_pattern" xml:space="preserve"><value>Custom pattern</value></data>
+  <data name="custom_pattern_description" xml:space="preserve"><value>Optional fixed pattern override. Examples: S7654321, 7654321, or 7654321|7654321 for 14K.</value></data>
+  <data name="random_mode_random" xml:space="preserve"><value>RANDOM</value></data>
+  <data name="random_mode_r_random" xml:space="preserve"><value>R-RANDOM</value></data>
+  <data name="random_mode_s_random" xml:space="preserve"><value>S-RANDOM</value></data>
+</root>

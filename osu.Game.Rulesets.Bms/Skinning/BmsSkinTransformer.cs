@@ -34,10 +34,22 @@ namespace osu.Game.Rulesets.Bms.Skinning
             switch (lookup)
             {
                 case SkinComponentLookup<HitResult> resultComponent when BmsHitResultDisplayNames.TryGetCustomDisplayName(resultComponent.Component, out _):
-                    return new SkinnableBmsJudgement(resultComponent.Component);
+                    return GetDrawableComponent(new BmsJudgementSkinLookup(resultComponent.Component))
+                           ?? new BmsJudgementPiece(resultComponent.Component);
 
                 case BmsJudgementSkinLookup judgementLookup:
-                    return skinnedComponent is IAnimatableJudgement ? skinnedComponent : providesBuiltInFallbacks ? new BmsJudgementPiece(judgementLookup.Result) : null;
+                    if (skinnedComponent is IAnimatableJudgement)
+                        return skinnedComponent;
+
+                    if (!BmsHitResultDisplayNames.TryGetCustomDisplayName(judgementLookup.Result, out _))
+                    {
+                        Drawable? wrappedJudgement = Skin.GetDrawableComponent(new SkinComponentLookup<HitResult>(judgementLookup.Result));
+
+                        if (wrappedJudgement != null)
+                            return wrappedJudgement;
+                    }
+
+                    return providesBuiltInFallbacks ? new BmsJudgementPiece(judgementLookup.Result) : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.HudLayout }:
                     return skinnedComponent is IBmsHudLayoutDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsHudLayoutDisplay() : null;

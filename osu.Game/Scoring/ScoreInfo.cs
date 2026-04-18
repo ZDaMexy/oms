@@ -377,9 +377,11 @@ namespace osu.Game.Scoring
 
         public IEnumerable<HitResultDisplayStatistic> GetStatisticsForDisplay()
         {
-            foreach (var r in Ruleset.CreateInstance().GetHitResultsForDisplay())
+            var ruleset = Ruleset.CreateInstance();
+
+            foreach (var r in ruleset.GetHitResultsForDisplay())
             {
-                int value = Statistics.GetValueOrDefault(r.result);
+                int value = ruleset.GetDisplayCountForHitResult(this, r.result);
 
                 switch (r.result)
                 {

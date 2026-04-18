@@ -17,6 +17,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         OD,
         Beatoraja,
         LR2,
+        IIDX,
     }
 
     public static class BmsJudgeModeExtensions
@@ -27,6 +28,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 BmsJudgeMode.OD => "OD",
                 BmsJudgeMode.Beatoraja => "BEATORAJA",
                 BmsJudgeMode.LR2 => "LR2",
+                BmsJudgeMode.IIDX => "IIDX",
                 _ => judgeMode.ToString().ToUpperInvariant(),
             };
 
@@ -35,8 +37,12 @@ namespace osu.Game.Rulesets.Bms.Scoring
             {
                 BmsJudgeMode.Beatoraja => new BeatorajaJudgementSystem(),
                 BmsJudgeMode.LR2 => new Lr2JudgementSystem(),
+                BmsJudgeMode.IIDX => new IidxJudgementSystem(),
                 _ => new OsuOdJudgementSystem(),
             };
+
+        public static bool SupportsJudgeDifficulty(this BmsJudgeMode judgeMode)
+            => judgeMode is not BmsJudgeMode.IIDX;
 
         public static BmsJudgeMode GetJudgeMode(IEnumerable<Mod>? mods)
             => mods?.OfType<BmsModJudgeMode>().LastOrDefault()?.JudgeMode ?? BmsJudgeMode.OD;
@@ -57,6 +63,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             if (hitObject is BmsHitObject bmsHitObject && bmsHitObject.HitWindows is BmsTimingWindows timingWindows)
             {
                 timingWindows.JudgementSystem = judgeMode.CreateJudgementSystem();
+                timingWindows.IsScratch = bmsHitObject.IsScratch;
                 timingWindows.SetDifficulty(overallDifficulty);
             }
 

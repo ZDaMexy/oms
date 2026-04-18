@@ -76,48 +76,32 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             beatmap.BeatmapInfo.Difficulty.CircleSize = keyCount;
             beatmap.BeatmapInfo.Difficulty.OverallDifficulty = overallDifficulty;
             beatmap.BeatmapInfo.Difficulty.SliderMultiplier = 1;
-            beatmap.BeatmapInfo.DifficultyName = getDifficultyName(bmsInfo);
+
+            var chartMetadata = BmsChartMetadata.FromBeatmapInfo(bmsInfo);
+
+            string internalLevel = chartMetadata.GetInternalLevelDisplay();
+            beatmap.BeatmapInfo.DifficultyName = string.IsNullOrWhiteSpace(internalLevel) ? "BMS" : internalLevel;
+            beatmap.BeatmapInfo.StarRating = BmsStarRatingResolver.TryParsePlayLevel(chartMetadata.PlayLevel, out double starRating)
+                ? starRating
+                : 0;
 
             var metadata = beatmap.BeatmapInfo.Metadata;
+            string rawArtist = string.IsNullOrWhiteSpace(bmsInfo.Artist) ? "Unknown" : bmsInfo.Artist;
+            string displayArtist = BmsChartMetadata.GetDisplayArtist(rawArtist);
 
             metadata.Title = string.IsNullOrWhiteSpace(bmsInfo.Title) ? "Unknown" : bmsInfo.Title;
             metadata.TitleUnicode = metadata.Title;
-            metadata.Artist = string.IsNullOrWhiteSpace(bmsInfo.Artist) ? "Unknown" : bmsInfo.Artist;
+            metadata.Artist = string.IsNullOrWhiteSpace(displayArtist) ? rawArtist : displayArtist;
             metadata.ArtistUnicode = metadata.Artist;
-            metadata.Tags = bmsInfo.Genre;
+            metadata.Tags = string.Empty;
             metadata.BackgroundFile = bmsInfo.BackgroundFile ?? bmsInfo.StageFile ?? bmsInfo.BannerFile ?? string.Empty;
 
-            var chartMetadata = BmsChartMetadata.FromBeatmapInfo(bmsInfo);
-            string? chartCreator = chartMetadata.TryGetChartCreator();
+            string? chartCreator = chartMetadata.TryGetChartCreator(rawArtist);
 
             if (!string.IsNullOrWhiteSpace(chartCreator))
                 metadata.Author.Username = chartCreator;
 
             metadata.SetChartMetadata(chartMetadata);
-        }
-
-        private static string getDifficultyName(BmsBeatmapInfo bmsInfo)
-        {
-            string difficultyLabel = bmsInfo.HeaderDifficulty switch
-            {
-                1 => "Beginner",
-                2 => "Normal",
-                3 => "Hyper",
-                4 => "Another",
-                5 => "Insane",
-                _ => string.Empty,
-            };
-
-            if (!string.IsNullOrWhiteSpace(difficultyLabel) && !string.IsNullOrWhiteSpace(bmsInfo.PlayLevel))
-                return $"{difficultyLabel} {bmsInfo.PlayLevel}";
-
-            if (!string.IsNullOrWhiteSpace(difficultyLabel))
-                return difficultyLabel;
-
-            if (!string.IsNullOrWhiteSpace(bmsInfo.PlayLevel))
-                return bmsInfo.PlayLevel;
-
-            return "BMS";
         }
 
         private static void buildControlPointsAndHitObjects(BmsBeatmap beatmap, BmsDecodedChart decodedChart, CancellationToken cancellationToken)

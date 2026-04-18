@@ -6,6 +6,8 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Judgements;
@@ -235,6 +237,36 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestAutoScratchRemovesScratchHoldFromGaugeScalingAndBodyTicks()
+        {
+            var beatmap = createScratchHoldBeatmap(total: 200, baselineNoteCount: 1);
+            BmsLongNoteMode.HCN.ApplyToBeatmap(beatmap);
+            new BmsModAutoScratch().ApplyToBeatmap(beatmap);
+
+            var processor = new BmsGaugeProcessor(0);
+
+            processor.ApplyBeatmap(beatmap);
+
+            var holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.TotalHittableObjects, Is.EqualTo(1));
+                Assert.That(processor.BaseRate, Is.EqualTo(2).Within(0.000001));
+                Assert.That(holdNote.AutoPlay, Is.True);
+                Assert.That(holdNote.Head?.AutoPlay, Is.True);
+                Assert.That(holdNote.Tail?.AutoPlay, Is.True);
+                Assert.That(holdNote.Tail?.Judgement, Is.TypeOf<BmsHoldNoteTailJudgement>());
+                Assert.That(((BmsHoldNoteTailJudgement)holdNote.Tail!.Judgement).CountsForScore, Is.False);
+                Assert.That(holdNote.BodyTicks.All(tick => !tick.CountsForGauge), Is.True);
+            });
+
+            processor.ApplyResult(createResult(holdNote.BodyTicks.First(), HitResult.IgnoreMiss));
+
+            Assert.That(processor.Health.Value, Is.EqualTo(BmsGaugeProcessor.STARTING_GAUGE).Within(0.000001));
+        }
+
+        [Test]
         public void TestEmptyPoorUsesBadGaugeDamage()
         {
             var beatmap = createBeatmap(total: 200, noteCount: 1000);
@@ -245,7 +277,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             };
 
             processor.ApplyBeatmap(beatmap);
-            processor.ApplyResult(createResult(emptyPoor, HitResult.ComboBreak));
+            processor.ApplyResult(createResult(emptyPoor, HitResult.Ok));
 
             Assert.Multiple(() =>
             {
@@ -270,7 +302,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             };
 
             processor.ApplyBeatmap(beatmap);
-            processor.ApplyResult(createResult(emptyPoor, HitResult.ComboBreak));
+            processor.ApplyResult(createResult(emptyPoor, HitResult.Ok));
 
             Assert.Multiple(() =>
             {
@@ -279,13 +311,88 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        private static BmsBeatmap createBeatmap(double total, int noteCount, bool includeBgm = false, bool includeAutoPlayNote = false)
+        [Test]
+        public void TestIidxNormalUsesAValueRecovery()
+        {
+            var beatmap = createBeatmap(total: 200, noteCount: 1000);
+            var processor = new BmsGaugeProcessor(0, BmsGaugeType.Normal, BmsGaugeRulesFamily.IIDX);
+
+            processor.ApplyBeatmap(beatmap);
+            processor.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Perfect));
+
+            Assert.That(processor.Health.Value, Is.EqualTo(0.2246090909090909).Within(0.000000001));
+        }
+
+        [Test]
+        public void TestBeatorajaNormalUsesTotalOverNoteRecovery()
+        {
+            var beatmap = createBeatmap(total: 200, noteCount: 1000);
+            var processor = new BmsGaugeProcessor(0, BmsGaugeType.Normal, BmsGaugeRulesFamily.Beatoraja);
+
+            processor.ApplyBeatmap(beatmap);
+            processor.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Perfect));
+
+            Assert.That(processor.Health.Value, Is.EqualTo(0.202).Within(0.000000001));
+        }
+
+        [Test]
+        public void TestLr2EasyUsesOnePointTwoTotalRecovery()
+        {
+            var beatmap = createBeatmap(total: 200, noteCount: 1000);
+            var processor = new BmsGaugeProcessor(0, BmsGaugeType.Easy, BmsGaugeRulesFamily.LR2);
+
+            processor.ApplyBeatmap(beatmap);
+            processor.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Perfect));
+
+            Assert.That(processor.Health.Value, Is.EqualTo(0.2024).Within(0.000000001));
+        }
+
+        [Test]
+        public void TestIidxHardHalvesDamageAtThirtyPercentOrLower()
+        {
+            var beatmap = createBeatmap(total: 200, noteCount: 1000);
+            var aboveThreshold = new BmsGaugeProcessor(0, BmsGaugeType.Hard, BmsGaugeRulesFamily.IIDX);
+            var atThreshold = new BmsGaugeProcessor(0, BmsGaugeType.Hard, BmsGaugeRulesFamily.IIDX);
+
+            aboveThreshold.ApplyBeatmap(beatmap);
+            aboveThreshold.Health.Value = 0.31;
+            aboveThreshold.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Meh));
+
+            atThreshold.ApplyBeatmap(beatmap);
+            atThreshold.Health.Value = 0.30;
+            atThreshold.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Meh));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(aboveThreshold.Health.Value, Is.EqualTo(0.26).Within(0.000000001));
+                Assert.That(atThreshold.Health.Value, Is.EqualTo(0.275).Within(0.000000001));
+            });
+        }
+
+        [Test]
+        public void TestBeatorajaPmsUsesPmsGaugeBounds()
+        {
+            var beatmap = createBeatmap(total: 200, noteCount: 1000, keymode: BmsKeymode.Key9K_Pms);
+            var processor = new BmsGaugeProcessor(0, BmsGaugeType.Normal, BmsGaugeRulesFamily.Beatoraja);
+
+            processor.ApplyBeatmap(beatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.Health.Value, Is.EqualTo(0.30).Within(0.000000001));
+                Assert.That(processor.CurrentMaximumGauge, Is.EqualTo(1.20).Within(0.000000001));
+                Assert.That(processor.CurrentClearThreshold, Is.EqualTo(0.85).Within(0.000000001));
+            });
+        }
+
+        private static BmsBeatmap createBeatmap(double total, int noteCount, bool includeBgm = false, bool includeAutoPlayNote = false, BmsKeymode keymode = BmsKeymode.Key7K)
         {
             var beatmap = new BmsBeatmap
             {
                 BmsInfo = new BmsBeatmapInfo
                 {
                     Total = total,
+                    Keymode = keymode,
                 }
             };
 
@@ -328,6 +435,27 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = baselineNoteCount + 1000,
                 EndTime = baselineNoteCount + 1500,
                 LaneIndex = 1,
+            };
+
+            holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
+            {
+                OverallDifficulty = OsuOdJudgementSystem.MapRankToOverallDifficulty(2),
+            });
+
+            beatmap.HitObjects.Add(holdNote);
+            return beatmap;
+        }
+
+        private static BmsBeatmap createScratchHoldBeatmap(double total, int baselineNoteCount)
+        {
+            var beatmap = createBeatmap(total, baselineNoteCount);
+
+            var holdNote = new BmsHoldNote
+            {
+                StartTime = baselineNoteCount + 1000,
+                EndTime = baselineNoteCount + 1500,
+                LaneIndex = 0,
+                IsScratch = true,
             };
 
             holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty

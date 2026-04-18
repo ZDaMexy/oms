@@ -54,6 +54,8 @@ namespace osu.Game.Screens.Select
 
         public bool HasRank => updateable.Rank != null;
 
+        public SongSelectPanelAccent? PanelAccent { get; private set; }
+
         public PanelLocalRankDisplay(BeatmapInfo? beatmap = null)
         {
             AutoSizeAxes = Axes.Both;
@@ -78,6 +80,7 @@ namespace osu.Game.Screens.Select
         private void updateSubscription()
         {
             scoreSubscription?.Dispose();
+            clearDisplay();
 
             if (beatmap == null)
                 return;
@@ -101,8 +104,17 @@ namespace osu.Game.Screens.Select
             ScoreInfo? topScore = sender.AsEnumerable()
                                         .FilterToScoreDisplayBucket(rulesetInstance, scoreDisplayBucket)
                                         .MaxBy(info => (info.TotalScore, -info.Date.UtcDateTime.Ticks));
+
+            PanelAccent = topScore != null ? rulesetInstance.GetSongSelectPanelAccent(topScore) : null;
             updateable.Rank = topScore?.Rank;
             updateable.Alpha = topScore != null ? 1 : 0;
+        }
+
+        private void clearDisplay()
+        {
+            PanelAccent = null;
+            updateable.Rank = null;
+            updateable.Alpha = 0;
         }
 
         protected override void Dispose(bool isDisposing)

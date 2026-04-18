@@ -119,6 +119,9 @@ namespace osu.Game.Database
         {
             foreach (var ruleset in rulesetStore.AvailableRulesets)
             {
+                if (ruleset.ShortName == BmsStarRatingResolver.RulesetShortName)
+                    continue;
+
                 // beatmap being passed in is arbitrary here. just needs to be non-null.
                 int currentVersion = ruleset.CreateInstance().CreateDifficultyCalculator(gameBeatmap.Value).Version;
 
@@ -134,6 +137,9 @@ namespace osu.Game.Database
                         {
                             if (b.Ruleset.ShortName == ruleset.ShortName)
                             {
+                                if (BmsStarRatingResolver.TryResolveFromMetadata(b.Metadata, out _))
+                                    continue;
+
                                 b.StarRating = -1;
                                 countReset++;
                             }
@@ -200,25 +206,43 @@ namespace osu.Game.Database
 
                 try
                 {
-                    var working = beatmapManager.GetWorkingBeatmap(beatmap);
-                    var ruleset = getRuleset(working.BeatmapInfo.Ruleset);
+                    double starRating;
 
-                    Debug.Assert(ruleset != null);
+                    if (BmsStarRatingResolver.IsBmsBeatmap(beatmap))
+                    {
+                        starRating = BmsStarRatingResolver.ResolveOrDefault(beatmap);
+                    }
+                    else
+                    {
+                        var working = beatmapManager.GetWorkingBeatmap(beatmap);
+                        var ruleset = getRuleset(working.BeatmapInfo.Ruleset);
 
-                    var calculator = ruleset.CreateDifficultyCalculator(working);
+                        Debug.Assert(ruleset != null);
 
-                    double starRating = calculator.Calculate().StarRating;
+                        var calculator = ruleset.CreateDifficultyCalculator(working);
+                        starRating = calculator.Calculate().StarRating;
+                        ((IWorkingBeatmapCache)beatmapManager).Invalidate(beatmap);
+                    }
+
                     realmAccess.Write(r =>
                     {
                         if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
                             liveBeatmapInfo.StarRating = starRating;
                     });
-                    ((IWorkingBeatmapCache)beatmapManager).Invalidate(beatmap);
                     ++processedCount;
                 }
                 catch (Exception e)
                 {
                     Logger.Log($"Background processing failed on {beatmap}: {e}");
+
+                    // Mark as processed (StarRating = 0) so we don't retry every startup.
+                    // StarRating < 0 means "never attempted"; 0 means "attempted but failed".
+                    realmAccess.Write(r =>
+                    {
+                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
+                            liveBeatmapInfo.StarRating = 0;
+                    });
+
                     ++failedCount;
                 }
             }

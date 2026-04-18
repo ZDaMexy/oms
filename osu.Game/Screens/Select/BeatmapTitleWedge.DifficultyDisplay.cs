@@ -249,8 +249,13 @@ namespace osu.Game.Screens.Select
                 {
                     ratingAndNameContainer.FadeIn(300, Easing.OutQuint);
                     difficultyText.Text = beatmap.Value.BeatmapInfo.DifficultyName;
-                    mapperLink.Action = () => linkHandler?.HandleLink(new LinkDetails(LinkAction.OpenUserProfile, beatmap.Value.Metadata.Author));
-                    mapperText.Text = beatmap.Value.Metadata.Author.Username;
+
+                    string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap.Value.BeatmapInfo);
+
+                    mapperLink.Action = BeatmapLocalMetadataDisplayResolver.HasLinkedCreatorProfile(beatmap.Value.BeatmapInfo)
+                        ? () => linkHandler?.HandleLink(new LinkDetails(LinkAction.OpenUserProfile, beatmap.Value.Metadata.Author))
+                        : null;
+                    mapperText.Text = string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator;
                 }
 
                 starRatingDisplay.Current = (Bindable<StarDifficulty>)difficultyCache.GetBindableDifficulty(beatmap.Value.BeatmapInfo, cancellationSource.Token, SongSelect.DIFFICULTY_CALCULATION_DEBOUNCE);

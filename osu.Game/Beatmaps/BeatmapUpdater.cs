@@ -57,10 +57,18 @@ namespace osu.Game.Beatmaps
 
                     difficultyCache.Invalidate(beatmap, working.BeatmapInfo);
 
-                    var ruleset = working.BeatmapInfo.Ruleset.CreateInstance();
-                    var calculator = ruleset.CreateDifficultyCalculator(working);
+                    if (BmsStarRatingResolver.IsBmsBeatmap(beatmap))
+                    {
+                        beatmap.StarRating = BmsStarRatingResolver.ResolveOrDefault(beatmap);
+                    }
+                    else
+                    {
+                        var ruleset = working.BeatmapInfo.Ruleset.CreateInstance();
+                        var calculator = ruleset.CreateDifficultyCalculator(working);
 
-                    beatmap.StarRating = calculator.Calculate().StarRating;
+                        beatmap.StarRating = calculator.Calculate().StarRating;
+                    }
+
                     beatmap.UpdateStatisticsFromBeatmap(working.Beatmap);
                 }
 

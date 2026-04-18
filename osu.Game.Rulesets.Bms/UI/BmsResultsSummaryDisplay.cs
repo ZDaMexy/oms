@@ -27,6 +27,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public string GaugeDisplayName { get; }
 
+        public BmsGaugeRulesFamily GaugeRulesFamily { get; }
+
         public BmsJudgeMode JudgeMode { get; }
 
         public BmsLongNoteMode LongNoteMode { get; }
@@ -37,6 +39,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public int EmptyPoorCount { get; }
 
+        public int ComboBreakCount { get; }
+
         public double Accuracy { get; }
 
         public BmsDjLevel DjLevel { get; }
@@ -45,15 +49,17 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public string FinalGaugeDisplay => ClearLamp == null ? "N/A" : $"{ClearLamp.FinalGauge:P2}";
 
-        public BmsResultsSummaryData(BmsGaugeType gaugeType, string gaugeDisplayName, BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode, long exScore, long maxExScore, int emptyPoorCount, double accuracy, BmsDjLevel djLevel, BmsClearLampData? clearLamp)
+        public BmsResultsSummaryData(BmsGaugeType gaugeType, string gaugeDisplayName, BmsGaugeRulesFamily gaugeRulesFamily, BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode, long exScore, long maxExScore, int emptyPoorCount, int comboBreakCount, double accuracy, BmsDjLevel djLevel, BmsClearLampData? clearLamp)
         {
             GaugeType = gaugeType;
             GaugeDisplayName = gaugeDisplayName;
+            GaugeRulesFamily = gaugeRulesFamily;
             JudgeMode = judgeMode;
             LongNoteMode = longNoteMode;
             ExScore = exScore;
             MaxExScore = maxExScore;
             EmptyPoorCount = emptyPoorCount;
+            ComboBreakCount = comboBreakCount;
             Accuracy = accuracy;
             DjLevel = djLevel;
             ClearLamp = clearLamp;
@@ -139,9 +145,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
     public partial class DefaultBmsResultsSummaryDisplay : CompositeDrawable, IBmsResultsSummaryDisplay
     {
-        private const float summary_section_spacing = 8;
-        private const float statistic_row_spacing = 6;
-        private const float statistic_tile_height = 54;
+        private const float summary_section_spacing = 6;
+        private const float statistic_row_spacing = 4;
+        private const float statistic_tile_height = 46;
 
         private FillFlowContainer content = null!;
         private BmsResultsSummaryData? summary;
@@ -191,11 +197,13 @@ namespace osu.Game.Rulesets.Bms.UI
             content.Add(new ResultsStatisticsGrid(new[]
             {
                 new StatisticMetric("GAUGE TYPE", summary.GaugeDisplayName),
+                new StatisticMetric("GAUGE RULES", summary.GaugeRulesFamily.GetDisplayName()),
                 new StatisticMetric("JUDGE MODE", summary.JudgeMode.GetDisplayName()),
                 new StatisticMetric("LONG NOTE MODE", summary.LongNoteMode.GetDisplayName()),
                 new StatisticMetric("EX-SCORE", $"{summary.ExScore}"),
                 new StatisticMetric("MAX EX-SCORE", $"{summary.MaxExScore}"),
-                new StatisticMetric(BmsHitResultDisplayNames.GetDisplayName(HitResult.ComboBreak).ToString(), $"{summary.EmptyPoorCount}"),
+                new StatisticMetric(BmsHitResultDisplayNames.GetDisplayName(HitResult.Ok).ToString(), $"{summary.EmptyPoorCount}"),
+                new StatisticMetric(BmsHitResultDisplayNames.GetDisplayName(HitResult.ComboBreak).ToString(), $"{summary.ComboBreakCount}"),
                 new StatisticMetric("EX %", $"{summary.Accuracy:P2}"),
                 new StatisticMetric("DJ LEVEL", summary.DjLevel.ToString()),
                 new StatisticMetric("FINAL GAUGE", summary.FinalGaugeDisplay),
@@ -288,12 +296,12 @@ namespace osu.Game.Rulesets.Bms.UI
                             Anchor = Anchor.CentreLeft,
                             Origin = Anchor.CentreLeft,
                             Direction = FillDirection.Vertical,
-                            Spacing = new Vector2(0, 4),
+                            Spacing = new Vector2(0, 3),
                             Padding = new MarginPadding
                             {
-                                Top = 9,
+                                Top = 7,
                                 Right = 12,
-                                Bottom = 9,
+                                Bottom = 7,
                                 Left = 12,
                             },
                             Children = new Drawable[]
@@ -365,9 +373,9 @@ namespace osu.Game.Rulesets.Bms.UI
                         Spacing = new Vector2(0, 2),
                         Padding = new MarginPadding
                         {
-                            Top = 10,
+                            Top = 8,
                             Right = 14,
-                            Bottom = 10,
+                            Bottom = 8,
                             Left = 18,
                         },
                         Children = new Drawable[]

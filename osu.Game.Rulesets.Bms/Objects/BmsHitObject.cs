@@ -21,6 +21,7 @@ namespace osu.Game.Rulesets.Bms.Objects
         private HitObjectProperty<BmsKeymode?> keymode;
         private HitObjectProperty<bool> isScratch;
         private HitObjectProperty<bool> autoPlay;
+        private HitObjectProperty<bool> countsForScore = new HitObjectProperty<bool>(true);
 
         public virtual int LaneIndex
         {
@@ -64,6 +65,12 @@ namespace osu.Game.Rulesets.Bms.Objects
             set => autoPlay.Value = value;
         }
 
+        public virtual bool CountsForScore
+        {
+            get => countsForScore.Value;
+            set => countsForScore.Value = value;
+        }
+
         float IHasXPosition.X
         {
             get => Column;
@@ -72,6 +79,6 @@ namespace osu.Game.Rulesets.Bms.Objects
 
         protected override HitWindows CreateHitWindows() => new BmsTimingWindows();
 
-        public override Judgement CreateJudgement() => new Judgement();
+        public override Judgement CreateJudgement() => new BmsHitObjectJudgement { CountsForScore = CountsForScore };
     }
 }

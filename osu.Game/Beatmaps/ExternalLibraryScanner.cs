@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using osu.Game.Beatmaps.Formats;
 using osu.Framework.Logging;
 using osu.Game.Database;
 
@@ -21,7 +22,27 @@ namespace osu.Game.Beatmaps
     /// </remarks>
     public class ExternalLibraryScanner
     {
+        public readonly struct ScanRootDefinition
+        {
+            public string Path { get; }
+
+            public ExternalLibraryRootType Type { get; }
+
+            public ScanRootDefinition(string path, ExternalLibraryRootType type)
+            {
+                Path = path;
+                Type = type;
+            }
+        }
+
         private readonly ExternalLibraryConfig config;
+
+        private enum DirectoryScanClassification
+        {
+            NotRelevant,
+            Candidate,
+            Rejected,
+        }
 
         /// <summary>
         /// Delegate that imports a single BMS folder (a directory containing .bms/.bme/.bml/.pms files)
@@ -51,13 +72,15 @@ namespace osu.Game.Beatmaps
             int totalSkipped = 0;
             int totalErrors = 0;
 
+            if (roots.Count == 0)
+                progress?.Report(new ScanProgress(string.Empty, 0, 0, null, 0, 0, 0, 0, 0));
+
             for (int i = 0; i < roots.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                progress?.Report(new ScanProgress(roots[i].Path, i, roots.Count, totalImported));
-
-                var result = await ScanRoot(roots[i], cancellationToken).ConfigureAwait(false);
+                var result = await ScanRoot(new ScanRootDefinition(roots[i].Path, roots[i].Type), i, roots.Count, totalImported, totalSkipped, totalErrors,
+                    progress, cancellationToken, BmsDirectoryImporter, ManiaDirectoryImporter).ConfigureAwait(false);
                 totalImported += result.Imported;
                 totalSkipped += result.Skipped;
                 totalErrors += result.Errors;
@@ -72,121 +95,156 @@ namespace osu.Game.Beatmaps
         /// Scan a single root and import discovered beatmap directories.
         /// </summary>
         public async Task<ScanResult> ScanRoot(ExternalLibraryRoot root, CancellationToken cancellationToken = default)
+            => await ScanRoot(new ScanRootDefinition(root.Path, root.Type), 0, 1, 0, 0, 0, null, cancellationToken, BmsDirectoryImporter, ManiaDirectoryImporter).ConfigureAwait(false);
+
+        public async Task<ScanResult> ScanRoots(IEnumerable<ScanRootDefinition> roots, IProgress<ScanProgress>? progress = null, CancellationToken cancellationToken = default,
+                                                Func<string, CancellationToken, Task>? bmsDirectoryImporter = null, Func<string, CancellationToken, Task>? maniaDirectoryImporter = null)
+        {
+            var rootList = roots.ToList();
+            int totalImported = 0;
+            int totalSkipped = 0;
+            int totalErrors = 0;
+
+            if (rootList.Count == 0)
+                progress?.Report(new ScanProgress(string.Empty, 0, 0, null, 0, 0, 0, 0, 0));
+
+            for (int i = 0; i < rootList.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var result = await ScanRoot(rootList[i], i, rootList.Count, totalImported, totalSkipped, totalErrors,
+                    progress, cancellationToken, bmsDirectoryImporter ?? BmsDirectoryImporter, maniaDirectoryImporter ?? ManiaDirectoryImporter).ConfigureAwait(false);
+
+                totalImported += result.Imported;
+                totalSkipped += result.Skipped;
+                totalErrors += result.Errors;
+            }
+
+            return new ScanResult(totalImported, totalSkipped, totalErrors);
+        }
+
+        private async Task<ScanResult> ScanRoot(ScanRootDefinition root, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
+                                                IProgress<ScanProgress>? progress, CancellationToken cancellationToken,
+                                                Func<string, CancellationToken, Task>? bmsDirectoryImporter, Func<string, CancellationToken, Task>? maniaDirectoryImporter)
         {
             if (!Directory.Exists(root.Path))
             {
                 Logger.Log($"External library root not found, skipping: {root.Path}", LoggingTarget.Database, LogLevel.Important);
+                progress?.Report(new ScanProgress(root.Path, rootIndex, totalRoots, null, 0, 0, importedSoFar, skippedSoFar, errorsSoFar + 1));
                 return new ScanResult(0, 0, 1);
             }
 
             return root.Type switch
             {
-                ExternalLibraryRootType.BMS => await scanBmsRoot(root.Path, cancellationToken).ConfigureAwait(false),
-                ExternalLibraryRootType.Mania => await scanManiaRoot(root.Path, cancellationToken).ConfigureAwait(false),
+                ExternalLibraryRootType.BMS => await scanBmsRoot(root.Path, rootIndex, totalRoots, importedSoFar, skippedSoFar, errorsSoFar,
+                    progress, cancellationToken, bmsDirectoryImporter).ConfigureAwait(false),
+                ExternalLibraryRootType.Mania => await scanManiaRoot(root.Path, rootIndex, totalRoots, importedSoFar, skippedSoFar, errorsSoFar,
+                    progress, cancellationToken, maniaDirectoryImporter).ConfigureAwait(false),
                 _ => new ScanResult(0, 0, 0),
             };
         }
 
-        private async Task<ScanResult> scanBmsRoot(string rootPath, CancellationToken cancellationToken)
+        private async Task<ScanResult> scanBmsRoot(string rootPath, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
+                                                   IProgress<ScanProgress>? progress, CancellationToken cancellationToken,
+                                                   Func<string, CancellationToken, Task>? importer)
         {
-            if (BmsDirectoryImporter == null)
+            if (importer == null)
             {
                 Logger.Log("BMS directory importer not registered; skipping BMS root scan.", LoggingTarget.Database, LogLevel.Important);
                 return new ScanResult(0, 0, 0);
             }
 
-            int imported = 0;
-            int skipped = 0;
-            int errors = 0;
-
-            // BMS convention: each immediate subdirectory under the root is a potential BMS set.
-            // A valid BMS set contains at least one .bms/.bme/.bml/.pms file at its top level.
-            string[] subdirectories;
-
-            try
-            {
-                subdirectories = Directory.GetDirectories(rootPath);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, $"Failed to enumerate BMS root: {rootPath}");
-                return new ScanResult(0, 0, 1);
-            }
-
-            foreach (string dir in subdirectories)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    bool hasBmsFiles = Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly)
-                                                .Any(f => isBmsFile(f));
-
-                    if (!hasBmsFiles)
-                    {
-                        skipped++;
-                        continue;
-                    }
-
-                    await BmsDirectoryImporter(dir, cancellationToken).ConfigureAwait(false);
-                    imported++;
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex, $"Failed to import BMS directory: {dir}");
-                    errors++;
-                }
-            }
-
-            return new ScanResult(imported, skipped, errors);
+            return await scanRootDirectories(
+                rootPath,
+                dir => Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly).Any(isBmsFile)
+                    ? DirectoryScanClassification.Candidate
+                    : DirectoryScanClassification.NotRelevant,
+                importer,
+                rootIndex,
+                totalRoots,
+                importedSoFar,
+                skippedSoFar,
+                errorsSoFar,
+                progress,
+                cancellationToken,
+                "BMS").ConfigureAwait(false);
         }
 
-        private async Task<ScanResult> scanManiaRoot(string rootPath, CancellationToken cancellationToken)
+        private async Task<ScanResult> scanManiaRoot(string rootPath, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
+                                                     IProgress<ScanProgress>? progress, CancellationToken cancellationToken,
+                                                     Func<string, CancellationToken, Task>? importer)
         {
-            if (ManiaDirectoryImporter == null)
+            if (importer == null)
             {
                 Logger.Log("Mania directory importer not registered; skipping mania root scan.", LoggingTarget.Database, LogLevel.Important);
                 return new ScanResult(0, 0, 0);
             }
 
+            return await scanRootDirectories(
+                rootPath,
+                classifyManiaDirectory,
+                importer,
+                rootIndex,
+                totalRoots,
+                importedSoFar,
+                skippedSoFar,
+                errorsSoFar,
+                progress,
+                cancellationToken,
+                "mania").ConfigureAwait(false);
+        }
+
+        private async Task<ScanResult> scanRootDirectories(string rootPath, Func<string, DirectoryScanClassification> classifyDirectory, Func<string, CancellationToken, Task> importer,
+                                                           int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
+                                                           IProgress<ScanProgress>? progress, CancellationToken cancellationToken, string rulesetName)
+        {
             int imported = 0;
             int skipped = 0;
             int errors = 0;
-
-            // Mania convention: each immediate subdirectory under the root is a potential beatmap set.
-            // A valid mania set contains at least one .osu file at its top level.
-            string[] subdirectories;
+            string[] directories;
 
             try
             {
-                subdirectories = Directory.GetDirectories(rootPath);
+                (directories, errors) = enumerateDirectories(rootPath, rulesetName);
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, $"Failed to enumerate mania root: {rootPath}");
+                Logger.Error(ex, $"Failed to enumerate {rulesetName} root: {rootPath}");
+                progress?.Report(new ScanProgress(rootPath, rootIndex, totalRoots, null, 0, 0, importedSoFar, skippedSoFar, errorsSoFar + 1));
                 return new ScanResult(0, 0, 1);
             }
 
-            foreach (string dir in subdirectories)
+            progress?.Report(new ScanProgress(rootPath, rootIndex, totalRoots, null, 0, directories.Length,
+                importedSoFar, skippedSoFar, errorsSoFar + errors));
+
+            int processedDirectories = 0;
+
+            foreach (string dir in directories)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                progress?.Report(new ScanProgress(rootPath, rootIndex, totalRoots, dir, processedDirectories, directories.Length,
+                                                  importedSoFar + imported, skippedSoFar + skipped, errorsSoFar + errors));
+
+                bool completed = false;
+
                 try
                 {
-                    bool hasOsuFiles = Directory.EnumerateFiles(dir, "*.osu", SearchOption.TopDirectoryOnly).Any();
-
-                    if (!hasOsuFiles)
+                    switch (classifyDirectory(dir))
                     {
-                        skipped++;
-                        continue;
+                        case DirectoryScanClassification.NotRelevant:
+                            completed = true;
+                            continue;
+
+                        case DirectoryScanClassification.Rejected:
+                            skipped++;
+                            completed = true;
+                            continue;
                     }
 
-                    await ManiaDirectoryImporter(dir, cancellationToken).ConfigureAwait(false);
+                    await importer(dir, cancellationToken).ConfigureAwait(false);
                     imported++;
+                    completed = true;
                 }
                 catch (OperationCanceledException)
                 {
@@ -194,8 +252,18 @@ namespace osu.Game.Beatmaps
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, $"Failed to import mania directory: {dir}");
+                    Logger.Error(ex, $"Failed to import {rulesetName} directory: {dir}");
                     errors++;
+                    completed = true;
+                }
+                finally
+                {
+                    if (completed)
+                    {
+                        processedDirectories++;
+                        progress?.Report(new ScanProgress(rootPath, rootIndex, totalRoots, dir, processedDirectories, directories.Length,
+                                                          importedSoFar + imported, skippedSoFar + skipped, errorsSoFar + errors));
+                    }
                 }
             }
 
@@ -210,19 +278,99 @@ namespace osu.Game.Beatmaps
             return bms_extensions.Any(e => ext.Equals(e, StringComparison.OrdinalIgnoreCase));
         }
 
+        private static bool isManiaOsuFile(string path)
+        {
+            try
+            {
+                using var stream = File.OpenRead(path);
+                return OsuFileModeDetector.IsMania(stream);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static DirectoryScanClassification classifyManiaDirectory(string dir)
+        {
+            bool sawOsuFile = false;
+
+            foreach (string file in Directory.EnumerateFiles(dir, "*.osu", SearchOption.TopDirectoryOnly))
+            {
+                sawOsuFile = true;
+
+                if (isManiaOsuFile(file))
+                    return DirectoryScanClassification.Candidate;
+            }
+
+            return sawOsuFile ? DirectoryScanClassification.Rejected : DirectoryScanClassification.NotRelevant;
+        }
+
+        private static (string[] Directories, int Errors) enumerateDirectories(string rootPath, string rulesetName)
+        {
+            var directories = new List<string> { rootPath };
+            var queue = new Queue<string>();
+            int errors = 0;
+
+            queue.Enqueue(rootPath);
+
+            while (queue.Count > 0)
+            {
+                string current = queue.Dequeue();
+                string[] children;
+
+                try
+                {
+                    children = Directory.GetDirectories(current);
+                    Array.Sort(children, StringComparer.OrdinalIgnoreCase);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, $"Failed to enumerate {rulesetName} directory: {current}");
+                    errors++;
+                    continue;
+                }
+
+                foreach (string child in children)
+                {
+                    directories.Add(child);
+                    queue.Enqueue(child);
+                }
+            }
+
+            return (directories.ToArray(), errors);
+        }
+
         public readonly struct ScanProgress
         {
             public string CurrentRoot { get; }
             public int RootIndex { get; }
             public int TotalRoots { get; }
+            public string? CurrentDirectory { get; }
+            public int ProcessedDirectories { get; }
+            public int TotalDirectories { get; }
             public int ImportedSoFar { get; }
+            public int SkippedSoFar { get; }
+            public int ErrorsSoFar { get; }
 
-            public ScanProgress(string currentRoot, int rootIndex, int totalRoots, int importedSoFar)
+            public int CurrentDirectoryIndex => string.IsNullOrEmpty(CurrentDirectory) ? ProcessedDirectories : Math.Min(ProcessedDirectories + 1, TotalDirectories);
+
+            public float RootProgress => TotalDirectories <= 0 ? 1 : (float)ProcessedDirectories / TotalDirectories;
+
+            public float OverallProgress => TotalRoots <= 0 ? 1 : (RootIndex + RootProgress) / TotalRoots;
+
+            public ScanProgress(string currentRoot, int rootIndex, int totalRoots, string? currentDirectory, int processedDirectories, int totalDirectories,
+                                int importedSoFar, int skippedSoFar, int errorsSoFar)
             {
                 CurrentRoot = currentRoot;
                 RootIndex = rootIndex;
                 TotalRoots = totalRoots;
+                CurrentDirectory = currentDirectory;
+                ProcessedDirectories = processedDirectories;
+                TotalDirectories = totalDirectories;
                 ImportedSoFar = importedSoFar;
+                SkippedSoFar = skippedSoFar;
+                ErrorsSoFar = errorsSoFar;
             }
         }
 

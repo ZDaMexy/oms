@@ -168,8 +168,8 @@ namespace osu.Game.Rulesets.Bms
                         {
                             RelativeSizeAxes = Axes.X,
                             AutoSizeAxes = Axes.Y,
-                            Direction = FillDirection.Horizontal,
-                            Spacing = new Vector2(10, 0),
+                            Direction = FillDirection.Full,
+                            Spacing = new Vector2(10),
                             Children = new Drawable[]
                             {
                                 createActionButton("刷新 HID 设备", refreshDetectedDevices, 150),

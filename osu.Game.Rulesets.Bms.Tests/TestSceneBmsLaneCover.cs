@@ -54,21 +54,21 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestNonZeroCoverageShowsVisuals()
         {
-            AddStep("set top cover 50%", () => topCover.CoverPercent.Value = 50);
+            AddStep("set top cover 500 (50%)", () => topCover.CoverPercent.Value = 500);
             AddAssert("cover container height is 0.5", () => topCover.CoverContainerHeight, () => Is.EqualTo(0.5f));
         }
 
         [Test]
         public void TestCoverageClampedToMaximum()
         {
-            AddStep("set top cover 200%", () => topCover.CoverPercent.Value = 200);
+            AddStep("set top cover 2000 (200%)", () => topCover.CoverPercent.Value = 2000);
             AddAssert("cover container height is 1", () => topCover.CoverContainerHeight, () => Is.EqualTo(1f));
         }
 
         [Test]
         public void TestCoverageClampedToMinimum()
         {
-            AddStep("set bottom cover -50%", () => bottomCover.CoverPercent.Value = -50);
+            AddStep("set bottom cover -500 (-50%)", () => bottomCover.CoverPercent.Value = -500);
             AddAssert("cover container height is 0", () => bottomCover.CoverContainerHeight, () => Is.EqualTo(0f));
         }
 
@@ -87,9 +87,9 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestFocusVisibleWithNonZeroCoverage()
         {
-            AddStep("set top cover 30% and focus", () =>
+            AddStep("set top cover 300 (30%) and focus", () =>
             {
-                topCover.CoverPercent.Value = 30;
+                topCover.CoverPercent.Value = 300;
                 topCover.IsFocused.Value = true;
             });
 
@@ -101,7 +101,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             AddStep("set coverage and focus", () =>
             {
-                bottomCover.CoverPercent.Value = 50;
+                bottomCover.CoverPercent.Value = 500;
                 bottomCover.IsFocused.Value = true;
             });
 

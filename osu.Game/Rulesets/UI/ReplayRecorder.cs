@@ -75,6 +75,11 @@ namespace osu.Game.Rulesets.UI
 
         public override void RecordFrame(bool important)
         {
+            inputManager ??= GetContainingInputManager();
+
+            if (inputManager == null)
+                return;
+
             var last = target.Replay.Frames.LastOrDefault();
 
             if (!important && last != null && Time.Current - last.Time < (1000d / RecordFrameRate) * Clock.Rate)

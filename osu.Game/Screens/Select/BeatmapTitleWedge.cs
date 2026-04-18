@@ -231,7 +231,7 @@ namespace osu.Game.Screens.Select
             titleLink.Action = () => songSelect?.Search(titleText.GetPreferred(localisation.CurrentParameters.Value.PreferOriginalScript));
             DisplayedTitle = titleText.ToString();
 
-            var artistText = new RomanisableString(metadata.ArtistUnicode, metadata.Artist);
+            var artistText = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo));
             artistLabel.CreateContent = () => new OsuSpriteText
             {
                 Text = artistText,

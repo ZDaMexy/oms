@@ -319,6 +319,14 @@ namespace osu.Game.Screens.Select
             set => CurrentSelection = value;
         }
 
+        public void ResetToRootLevel()
+        {
+            CurrentGroupedBeatmap = null;
+            setExpandedSet(null);
+            setExpandedGroup(null);
+            Scroll.ScrollTo(0, animated: false);
+        }
+
         /// <summary>
         /// The currently selected <see cref="BeatmapInfo"/>.
         /// </summary>
@@ -629,7 +637,7 @@ namespace osu.Game.Screens.Select
         private bool isGroupExpanded(GroupDefinition group)
             => ExpandedGroup?.IsSelfOrDescendantOf(group) == true;
 
-        private void setExpandedSet(GroupedBeatmapSet set)
+        private void setExpandedSet(GroupedBeatmapSet? set)
         {
             GroupedBeatmapSet? lastExpandedSet = ExpandedBeatmapSet;
 

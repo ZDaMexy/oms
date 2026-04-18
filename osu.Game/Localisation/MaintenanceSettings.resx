@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="maintenance_section_header" xml:space="preserve"><value>Maintenance</value></data>
+  <data name="select_directory" xml:space="preserve"><value>Select directory</value></data>
+  <data name="migration_in_progress" xml:space="preserve"><value>Migration in progress</value></data>
+  <data name="migration_description" xml:space="preserve"><value>This could take a few minutes depending on the speed of your disk(s).</value></data>
+  <data name="prohibited_interact_during_migration" xml:space="preserve"><value>Please avoid interacting with the game!</value></data>
+  <data name="select_new_location" xml:space="preserve"><value>Please select a new location</value></data>
+  <data name="target_directory_already_installed_osu" xml:space="preserve"><value>The target directory already seems to have an osu! install. Use that data instead?</value></data>
+  <data name="restart_and_re_open_required_for_completion" xml:space="preserve"><value>To complete this operation, osu! will close. Please open it again to use the new data location.</value></data>
+  <data name="delete_all_internal_beatmaps" xml:space="preserve"><value>Delete ALL internal beatmaps (delete files)</value></data>
+  <data name="delete_all_internal_beatmaps_with_count" xml:space="preserve"><value>Delete ALL internal beatmaps (delete files) [{0}]</value></data>
+  <data name="delete_all_external_beatmaps" xml:space="preserve"><value>Delete ALL external beatmaps (remove references only)</value></data>
+  <data name="delete_all_external_beatmaps_with_count" xml:space="preserve"><value>Delete ALL external beatmaps (remove references only) [{0}]</value></data>
+  <data name="delete_all_beatmap_videos" xml:space="preserve"><value>Delete ALL beatmap videos</value></data>
+  <data name="reset_all_offsets" xml:space="preserve"><value>Reset ALL beatmap offsets</value></data>
+  <data name="delete_all_scores" xml:space="preserve"><value>Delete ALL scores</value></data>
+  <data name="delete_all_skins" xml:space="preserve"><value>Delete ALL skins</value></data>
+  <data name="delete_all_collections" xml:space="preserve"><value>Delete ALL collections</value></data>
+  <data name="restore_all_hidden_difficulties" xml:space="preserve"><value>Restore all hidden difficulties</value></data>
+  <data name="restore_all_recently_deleted_beatmaps" xml:space="preserve"><value>Restore all recently deleted beatmaps</value></data>
+  <data name="delete_all_mod_presets" xml:space="preserve"><value>Delete ALL mod presets</value></data>
+  <data name="restore_all_recently_deleted_mod_presets" xml:space="preserve"><value>Restore all recently deleted mod presets</value></data>
+  <data name="deleted_all_collections" xml:space="preserve"><value>Deleted all collections!</value></data>
+  <data name="no_collections_found_to_delete" xml:space="preserve"><value>No collections found to delete!</value></data>
+  <data name="deleted_all_mod_presets" xml:space="preserve"><value>Deleted all mod presets!</value></data>
+  <data name="no_mod_presets_found_to_delete" xml:space="preserve"><value>No mod presets found to delete!</value></data>
+  <data name="restored_all_deleted_mod_presets" xml:space="preserve"><value>Restored all deleted mod presets!</value></data>
+  <data name="no_mod_presets_found_to_restore" xml:space="preserve"><value>No mod presets found to restore!</value></data>
+  <data name="stable_directory_select_header" xml:space="preserve"><value>Please select your osu!stable install location</value></data>
+</root>

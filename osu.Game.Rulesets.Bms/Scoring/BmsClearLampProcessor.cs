@@ -35,7 +35,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
             if (exScore == 0 && maxExScore == 0 && score.HitEvents.Count == 0)
             {
                 clearLamp = BmsClearLamp.NoPlay;
-                finalGauge = BmsGaugeProcessor.GetStartingGauge(BmsGaugeProcessor.GetStartingGaugeType(score));
+                finalGauge = BmsGaugeProcessor.GetStartingGauge(
+                    BmsGaugeProcessor.GetStartingGaugeType(score),
+                    BmsGaugeProcessor.GetGaugeRulesFamily(score),
+                    BmsGaugeProcessor.ResolveKeymode(playableBeatmap));
                 return true;
             }
 
@@ -54,11 +57,12 @@ namespace osu.Game.Rulesets.Bms.Scoring
         {
             var scoreData = score.GetRulesetData<BmsScoreInfoData>() ?? new BmsScoreInfoData();
 
-            scoreData.Version = 4;
+            scoreData.Version = BmsScoreInfoData.EMPTY_POOR_SEPARATION_VERSION;
             scoreData.UsesGaugeAutoShift = BmsGaugeProcessor.UsesGaugeAutoShift(score);
             scoreData.StartingGaugeType = BmsGaugeProcessor.GetStartingGaugeType(score);
             scoreData.FloorGaugeType = BmsGaugeProcessor.GetFloorGaugeType(score);
             scoreData.GaugeType = BmsGaugeProcessor.GetGaugeType(score);
+            scoreData.GaugeRulesFamily = BmsGaugeProcessor.GetGaugeRulesFamily(score);
             scoreData.LongNoteMode = BmsScoreProcessor.GetLongNoteMode(score);
             scoreData.JudgeMode = BmsJudgeModeExtensions.GetJudgeMode(score);
 
@@ -69,6 +73,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 var gaugeProcessor = calculateGaugeState(score, playableBeatmap);
 
                 scoreData.GaugeType = gaugeProcessor.GaugeType;
+                scoreData.GaugeRulesFamily = gaugeProcessor.GaugeRulesFamily;
                 scoreData.ClearLamp = calculateFromGaugeState(score, exScore, maxExScore, gaugeProcessor, out double finalGauge);
                 scoreData.FinalGauge = finalGauge;
             }
@@ -185,7 +190,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             };
 
         private static bool isFullCombo(ScoreInfo score)
-            => BmsScoreProcessor.GetEmptyPoorCount(score.Statistics) == 0
+            => BmsScoreProcessor.GetEmptyPoorCount(score) == 0
                && getCount(score, HitResult.Good) == 0
                && getCount(score, HitResult.Meh) == 0
                && getCount(score, HitResult.Miss) == 0;
@@ -200,13 +205,13 @@ namespace osu.Game.Rulesets.Bms.Scoring
             var gaugeType = gaugeProcessor.GaugeType;
             finalGauge = gaugeProcessor.Health.Value;
 
-            if (maxExScore > 0 && exScore == maxExScore && BmsScoreProcessor.GetEmptyPoorCount(score.Statistics) == 0)
+            if (maxExScore > 0 && exScore == maxExScore && BmsScoreProcessor.GetEmptyPoorCount(score) == 0)
                 return BmsClearLamp.Perfect;
 
             if (isFullCombo(score))
                 return BmsClearLamp.FullCombo;
 
-            return BmsGaugeProcessor.MeetsClearCondition(gaugeType, finalGauge, gaugeProcessor.HasFailed)
+            return BmsGaugeProcessor.MeetsClearCondition(gaugeType, gaugeProcessor.GaugeRulesFamily, gaugeProcessor.Keymode, finalGauge, gaugeProcessor.HasFailed)
                 ? gaugeType.ToClearLamp()
                 : BmsClearLamp.Failed;
         }

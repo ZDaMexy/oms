@@ -24,20 +24,22 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         private OmsManiaLayoutPreset(float hitPosition, float stagePaddingTop, float stagePaddingBottom, IReadOnlyList<float> columnWidths, IReadOnlyList<float>? columnSpacing = null,
                                      float? noteHeightReferenceWidth = null)
         {
+            var scaledColumnWidths = scaleLegacyDimensions(columnWidths);
+
             HitPosition = hitPosition;
             StagePaddingTop = stagePaddingTop;
             StagePaddingBottom = stagePaddingBottom;
-            ColumnWidths = columnWidths;
-            ColumnSpacing = columnSpacing ?? Array.Empty<float>();
-            NoteHeightReferenceWidth = noteHeightReferenceWidth ?? columnWidths.Min();
+            ColumnWidths = scaledColumnWidths;
+            ColumnSpacing = columnSpacing != null ? scaleLegacyDimensions(columnSpacing) : Array.Empty<float>();
+            NoteHeightReferenceWidth = scaleLegacyDimension(noteHeightReferenceWidth ?? columnWidths.Min());
         }
 
         private static readonly IReadOnlyDictionary<int, OmsManiaLayoutPreset> presets = new Dictionary<int, OmsManiaLayoutPreset>
         {
-            [4] = new OmsManiaLayoutPreset(toHitPosition(470), 0, 0, new[] { 69f, 69f, 69f, 69f }, noteHeightReferenceWidth: 60 * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR),
+            [4] = new OmsManiaLayoutPreset(toHitPosition(470), 0, 0, new[] { 69f, 69f, 69f, 69f }, noteHeightReferenceWidth: 60f),
             [5] = new OmsManiaLayoutPreset(toHitPosition(392), 0, 0, new[] { 46f, 40f, 46f, 40f, 46f }),
             [6] = new OmsManiaLayoutPreset(toHitPosition(415), 0, 0, new[] { 40f, 40f, 40f, 40f, 40f, 40f }),
-            [7] = new OmsManiaLayoutPreset(toHitPosition(475), 0, 0, new[] { 47f, 47f, 47f, 47f, 47f, 47f, 47f }, noteHeightReferenceWidth: 35 * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR),
+            [7] = new OmsManiaLayoutPreset(toHitPosition(475), 0, 0, new[] { 47f, 47f, 47f, 47f, 47f, 47f, 47f }, noteHeightReferenceWidth: 35f),
             [8] = new OmsManiaLayoutPreset(toHitPosition(415), 0, 0, new[] { 43f, 36f, 36f, 36f, 36f, 36f, 36f, 36f }),
             [9] = new OmsManiaLayoutPreset(toHitPosition(415), 0, 0, new[] { 34f, 34f, 34f, 34f, 34f, 34f, 34f, 34f, 34f }),
         };
@@ -63,6 +65,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
             return ColumnSpacing[columnIndex] / 2;
         }
+
+        private static float scaleLegacyDimension(float value)
+            => value * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+
+        private static float[] scaleLegacyDimensions(IReadOnlyList<float> values)
+            => values.Select(scaleLegacyDimension).ToArray();
 
         private static float toHitPosition(float value)
             => (480 - Math.Clamp(value, 240, 480)) * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;

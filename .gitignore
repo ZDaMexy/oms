@@ -135,6 +135,8 @@ DocProject/Help/html
 
 # Click-Once directory
 publish/
+publish-singlefile-test/
+build_output.txt
 
 # OMS release output
 release-repo/

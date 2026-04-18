@@ -41,6 +41,7 @@ namespace osu.Game.Screens.Ranking.Expanded
         private readonly List<StatisticDisplay> statisticDisplays = new List<StatisticDisplay>();
 
         private RollingCounter<long> scoreCounter = null!;
+        private OsuSpriteText? scoreLabelText;
 
         [Resolved]
         private ScoreManager scoreManager { get; set; } = null!;
@@ -65,6 +66,8 @@ namespace osu.Game.Screens.Ranking.Expanded
         private void load(RealmAccess realmAccess, BeatmapDifficultyCache beatmapDifficultyCache)
         {
             var beatmap = score.BeatmapInfo!;
+            var ruleset = score.Ruleset.CreateInstance();
+            var scoreLabel = ruleset.GetResultsScoreLabel(score);
             var metadata = beatmap.BeatmapSet?.Metadata ?? beatmap.Metadata;
             string creator = metadata.Author.Username;
 
@@ -90,6 +93,113 @@ namespace osu.Game.Screens.Ranking.Expanded
             statisticDisplays.AddRange(topStatistics);
             statisticDisplays.AddRange(bottomStatistics);
 
+            var headerChildren = new List<Drawable>
+            {
+                new ClickableMetadata(beatmap.OnlineID, metadata),
+                new Container
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Margin = new MarginPadding { Top = 40 },
+                    RelativeSizeAxes = Axes.X,
+                    Height = 230,
+                    Child = ruleset.CreateResultsAccuracyDisplay(score, withFlair).With(display =>
+                    {
+                        display.Anchor = Anchor.Centre;
+                        display.Origin = Anchor.Centre;
+                        display.RelativeSizeAxes = Axes.Both;
+                        display.FillMode = FillMode.Fit;
+                    })
+                },
+            };
+
+            if (scoreLabel.HasValue)
+            {
+                headerChildren.Add(scoreLabelText = new OsuSpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Text = scoreLabel.Value,
+                    Font = OsuFont.Torus.With(size: 11, weight: FontWeight.Medium),
+                    Spacing = new Vector2(1.1f, 0),
+                    Alpha = 0,
+                });
+            }
+
+            headerChildren.Add(scoreCounter = new TotalScoreCounter(!withFlair)
+            {
+                Margin = new MarginPadding { Top = 0, Bottom = 5 },
+                Current = { Value = 0 },
+                Alpha = 0,
+                AlwaysPresent = true,
+            });
+
+            headerChildren.AddRange(new Drawable[]
+            {
+                new FillFlowContainer
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    AutoSizeAxes = Axes.Both,
+                    Spacing = new Vector2(5, 0),
+                    Children = new Drawable[]
+                    {
+                        new StarRatingDisplay(starDifficulty)
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft
+                        },
+                        new DifficultyIcon(beatmap, score.Ruleset)
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            Size = new Vector2(20),
+                            TooltipType = DifficultyIconTooltipType.Extended,
+                        },
+                        new ModDisplay
+                        {
+                            Anchor = Anchor.CentreLeft,
+                            Origin = Anchor.CentreLeft,
+                            ExpansionMode = ExpansionMode.AlwaysExpanded,
+                            Scale = new Vector2(0.5f),
+                            Current = { Value = score.Mods }
+                        }
+                    }
+                },
+                new FillFlowContainer
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Direction = FillDirection.Vertical,
+                    AutoSizeAxes = Axes.Both,
+                    Children = new Drawable[]
+                    {
+                        new TruncatingSpriteText
+                        {
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre,
+                            Text = beatmap.DifficultyName,
+                            Font = OsuFont.Torus.With(size: 16, weight: FontWeight.SemiBold),
+                            MaxWidth = ScorePanel.EXPANDED_WIDTH - padding * 2,
+                        },
+                        new OsuTextFlowContainer(s => s.Font = OsuFont.Torus.With(size: 12))
+                        {
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre,
+                            AutoSizeAxes = Axes.Both,
+                            Direction = FillDirection.Horizontal,
+                        }.With(t =>
+                        {
+                            if (!string.IsNullOrEmpty(creator))
+                            {
+                                t.AddText("mapped by ");
+                                t.AddText(creator, s => s.Font = s.Font.With(weight: FontWeight.SemiBold));
+                            }
+                        })
+                    }
+                },
+            });
+
             AddInternal(new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.Both,
@@ -104,94 +214,7 @@ namespace osu.Game.Screens.Ranking.Expanded
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
                         Direction = FillDirection.Vertical,
-                        Children = new Drawable[]
-                        {
-                            new ClickableMetadata(beatmap.OnlineID, metadata),
-                            new Container
-                            {
-                                Anchor = Anchor.TopCentre,
-                                Origin = Anchor.TopCentre,
-                                Margin = new MarginPadding { Top = 40 },
-                                RelativeSizeAxes = Axes.X,
-                                Height = 230,
-                                Child = new AccuracyCircle(score, withFlair)
-                                {
-                                    Anchor = Anchor.Centre,
-                                    Origin = Anchor.Centre,
-                                    RelativeSizeAxes = Axes.Both,
-                                    FillMode = FillMode.Fit,
-                                }
-                            },
-                            scoreCounter = new TotalScoreCounter(!withFlair)
-                            {
-                                Margin = new MarginPadding { Top = 0, Bottom = 5 },
-                                Current = { Value = 0 },
-                                Alpha = 0,
-                                AlwaysPresent = true
-                            },
-                            new FillFlowContainer
-                            {
-                                Anchor = Anchor.TopCentre,
-                                Origin = Anchor.TopCentre,
-                                AutoSizeAxes = Axes.Both,
-                                Spacing = new Vector2(5, 0),
-                                Children = new Drawable[]
-                                {
-                                    new StarRatingDisplay(starDifficulty)
-                                    {
-                                        Anchor = Anchor.CentreLeft,
-                                        Origin = Anchor.CentreLeft
-                                    },
-                                    new DifficultyIcon(beatmap, score.Ruleset)
-                                    {
-                                        Anchor = Anchor.CentreLeft,
-                                        Origin = Anchor.CentreLeft,
-                                        Size = new Vector2(20),
-                                        TooltipType = DifficultyIconTooltipType.Extended,
-                                    },
-                                    new ModDisplay
-                                    {
-                                        Anchor = Anchor.CentreLeft,
-                                        Origin = Anchor.CentreLeft,
-                                        ExpansionMode = ExpansionMode.AlwaysExpanded,
-                                        Scale = new Vector2(0.5f),
-                                        Current = { Value = score.Mods }
-                                    }
-                                }
-                            },
-                            new FillFlowContainer
-                            {
-                                Anchor = Anchor.TopCentre,
-                                Origin = Anchor.TopCentre,
-                                Direction = FillDirection.Vertical,
-                                AutoSizeAxes = Axes.Both,
-                                Children = new Drawable[]
-                                {
-                                    new TruncatingSpriteText
-                                    {
-                                        Anchor = Anchor.TopCentre,
-                                        Origin = Anchor.TopCentre,
-                                        Text = beatmap.DifficultyName,
-                                        Font = OsuFont.Torus.With(size: 16, weight: FontWeight.SemiBold),
-                                        MaxWidth = ScorePanel.EXPANDED_WIDTH - padding * 2,
-                                    },
-                                    new OsuTextFlowContainer(s => s.Font = OsuFont.Torus.With(size: 12))
-                                    {
-                                        Anchor = Anchor.TopCentre,
-                                        Origin = Anchor.TopCentre,
-                                        AutoSizeAxes = Axes.Both,
-                                        Direction = FillDirection.Horizontal,
-                                    }.With(t =>
-                                    {
-                                        if (!string.IsNullOrEmpty(creator))
-                                        {
-                                            t.AddText("mapped by ");
-                                            t.AddText(creator, s => s.Font = s.Font.With(weight: FontWeight.SemiBold));
-                                        }
-                                    })
-                                }
-                            },
-                        }
+                        Children = headerChildren.ToArray()
                     },
                     new FillFlowContainer
                     {
@@ -249,6 +272,7 @@ namespace osu.Game.Screens.Ranking.Expanded
             {
                 using (BeginDelayedSequence(AccuracyCircle.ACCURACY_TRANSFORM_DELAY))
                 {
+                    scoreLabelText?.FadeIn();
                     scoreCounter.FadeIn();
                     scoreCounter.Current = scoreManager.GetBindableTotalScore(score);
 

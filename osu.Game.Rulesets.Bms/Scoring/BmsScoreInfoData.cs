@@ -8,8 +8,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
     [JsonObject(MemberSerialization.OptIn)]
     public class BmsScoreInfoData
     {
+        public const int EMPTY_POOR_SEPARATION_VERSION = 6;
+
         [JsonProperty("version")]
-        public int Version { get; set; } = 4;
+        public int Version { get; set; } = EMPTY_POOR_SEPARATION_VERSION;
 
         [JsonProperty("gauge_auto_shift")]
         public bool UsesGaugeAutoShift { get; set; }
@@ -25,6 +27,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
         [JsonProperty("gauge_type")]
         [JsonConverter(typeof(StringEnumConverter))]
         public BmsGaugeType GaugeType { get; set; } = BmsGaugeType.Normal;
+
+        [JsonProperty("gauge_rules_family")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public BmsGaugeRulesFamily GaugeRulesFamily { get; set; } = BmsGaugeRulesFamily.Legacy;
 
         [JsonProperty("long_note_mode")]
         [JsonConverter(typeof(StringEnumConverter))]

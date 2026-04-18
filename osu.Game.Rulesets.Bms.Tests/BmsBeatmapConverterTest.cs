@@ -30,6 +30,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #BPM 120
 #PLAYLEVEL 12
 #DIFFICULTY 4
+#RANK 1
 #BACKBMP background.png
 #WAVAA bgm.wav
 #WAVBB notes/key.wav
@@ -56,12 +57,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(convertedBeatmap.Metadata.Title, Is.EqualTo("Example Song"));
                 Assert.That(convertedBeatmap.Metadata.Artist, Is.EqualTo("Test Artist"));
                 Assert.That(convertedBeatmap.Metadata.Author.Username, Is.EqualTo("Test Charter"));
+                Assert.That(convertedBeatmap.Metadata.Tags, Is.Empty);
                 Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("background.png"));
                 Assert.That(convertedBeatmap.Metadata.GetChartMetadata(), Is.Not.Null);
                 Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.Subtitle, Is.EqualTo("Extra Stage"));
                 Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.SubArtist, Is.EqualTo("obj: Test Charter"));
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.Genre, Is.EqualTo("Hardcore"));
                 Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.PlayLevel, Is.EqualTo("12"));
                 Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.HeaderDifficulty, Is.EqualTo(4));
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.JudgeRank, Is.EqualTo(1));
                 Assert.That(convertedBeatmap.BeatmapInfo.DifficultyName, Is.EqualTo("Another 12"));
                 Assert.That(convertedBeatmap.BeatmapInfo.Ruleset.ShortName, Is.EqualTo("bms"));
                 Assert.That(convertedBeatmap.Difficulty.SliderMultiplier, Is.EqualTo(1).Within(0.001));
@@ -83,6 +87,31 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Single().Tail, Is.TypeOf<BmsHoldNoteTailEvent>());
                 Assert.That(convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Single().Tail?.StartTime, Is.EqualTo(convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Single().EndTime).Within(0.001));
                 Assert.That(convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Single().Tail?.KeysoundSample?.Filename, Is.EqualTo("hold/tail.wav"));
+            });
+        }
+
+        [Test]
+        public void TestExtractsChartCreatorFromArtistSuffix()
+        {
+            const string text = @"
+#TITLE started
+#ARTIST Ym1024 feat. lamie* /obj:BAECON
+#GENRE J-Airy Pop
+#BPM 140
+#00111:AA00
+#WAVAA hit.wav
+";
+
+            var decodedChart = decoder.DecodeText(text, "creator-in-artist.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(convertedBeatmap.Metadata.Artist, Is.EqualTo("Ym1024 feat. lamie*"));
+                Assert.That(convertedBeatmap.Metadata.Author.Username, Is.EqualTo("BAECON"));
+                Assert.That(convertedBeatmap.Metadata.Tags, Is.Empty);
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata(), Is.Not.Null);
+                Assert.That(convertedBeatmap.Metadata.GetChartMetadata()!.Genre, Is.EqualTo("J-Airy Pop"));
             });
         }
 

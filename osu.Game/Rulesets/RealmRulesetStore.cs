@@ -182,7 +182,9 @@ namespace osu.Game.Rulesets
 
                     if (UserRulesetAssemblies.Contains(declaringAssembly))
                     {
-                        string sourceLocation = declaringAssembly.Location;
+                        if (!UserRulesetAssemblyPaths.TryGetValue(declaringAssembly, out string? sourceLocation) || string.IsNullOrEmpty(sourceLocation))
+                            continue;
+
                         string destinationLocation = Path.ChangeExtension(sourceLocation, @".dll.broken");
 
                         if (File.Exists(sourceLocation))

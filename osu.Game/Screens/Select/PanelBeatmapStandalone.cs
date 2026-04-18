@@ -7,6 +7,7 @@ using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.UserInterface;
@@ -69,6 +70,7 @@ namespace osu.Game.Screens.Select
         private FillFlowContainer mainFill = null!;
 
         private Box backgroundBorder = null!;
+        private Box lampAccentStrip = null!;
 
         private BeatmapInfo beatmap => ((GroupedBeatmap)Item!.Model).Beatmap;
 
@@ -97,6 +99,12 @@ namespace osu.Game.Screens.Select
             Content.Children = new Drawable[]
             {
                 beatmapBackground = new PanelSetBackground(),
+                lampAccentStrip = new Box
+                {
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 18f,
+                    Alpha = 0,
+                },
                 new FillFlowContainer
                 {
                     AutoSizeAxes = Axes.Both,
@@ -226,7 +234,7 @@ namespace osu.Game.Screens.Select
             scheduledBackgroundRetrieval = Scheduler.AddDelayed(b => beatmapBackground.Beatmap = beatmaps.GetWorkingBeatmap(b), beatmap, 50);
 
             titleText.Text = new RomanisableString(beatmapSet.Metadata.TitleUnicode, beatmapSet.Metadata.Title);
-            artistText.Text = new RomanisableString(beatmapSet.Metadata.ArtistUnicode, beatmapSet.Metadata.Artist);
+            artistText.Text = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmap));
             updateButton.BeatmapSet = beatmapSet;
             statusPill.Status = beatmap.Status;
 
@@ -235,7 +243,9 @@ namespace osu.Game.Screens.Select
 
             localRank.Beatmap = beatmap;
             difficultyText.Text = beatmap.DifficultyName;
-            authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(beatmap.Metadata.Author.Username);
+
+            string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap);
+            authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator);
 
             computeStarRating();
             spreadDisplay.Beatmap.Value = beatmap;
@@ -292,8 +302,25 @@ namespace osu.Game.Screens.Select
             AccentColour = diffColour;
             spreadDisplay.Current.Colour = diffColour;
 
-            backgroundBorder.Colour = diffColour;
-            difficultyIcon.Colour = starRatingDisplay.DisplayedDifficultyTextColour;
+            if (Item == null)
+                return;
+
+            bool isBmsBeatmap = beatmap.Ruleset.ShortName == "bms";
+            var panelAccent = isBmsBeatmap ? localRank.PanelAccent : null;
+
+            lampAccentStrip.Alpha = 0;
+
+            // For BMS, the leading block and icon act as the clear lamp indicator.
+            backgroundBorder.Colour = isBmsBeatmap
+                ? panelAccent?.AccentColour ?? ColourInfo.GradientVertical(colourProvider.Background4, colourProvider.Background4)
+                : diffColour;
+
+            if (panelAccent.HasValue)
+                difficultyIcon.Colour = panelAccent.Value.ForegroundColour;
+            else if (isBmsBeatmap)
+                difficultyIcon.Colour = colourProvider.Content2;
+            else
+                difficultyIcon.Colour = starRatingDisplay.DisplayedDifficultyTextColour;
         }
 
         private void updateKeyCount()

@@ -11,25 +11,56 @@
 | 阶段 | 目标 | 步骤数 | 当前现状 |
 | --- | --- | --- | --- |
 | **Phase 1** | 核心 BMS — 能导入并游玩 7K+1 BMS 谱面 | 17 步 | 历史主线；12 步已完成，5 步进行中 |
-| **Phase 1.1** | OMS 皮肤系统专项 — 单一默认皮肤包内集成 Global + Mania + BMS 独立 ruleset 皮肤，并移除上游原生默认皮肤 | 12 步 | 新主线；现改为按具体组件开发推进 |
+| **Phase 1.1** | OMS 皮肤系统专项 — 单一默认皮肤包内集成 Global + Mania + BMS 独立 ruleset 皮肤，并移除上游原生默认皮肤 | 12 步 | Phase 1 大主线下的专项子线；现改为按具体组件开发推进 |
 | **Phase 2** | BMS 功能完善 — 全键模式、全 Mod、全 Gauge | 13 步 | 个别支撑能力已提前落地，但不视为正式进入 Phase 2 |
 | **Phase 3** | 私服集成 — 在线账号、排行榜、谱面下载 | 6 步 | 维持冻结，等待离线主流程稳定 |
 
-## 当前执行快照（2026-04-09）
+## 当前执行快照（2026-04-17）
 
-- 当前主执行焦点从“单纯的 Phase 1 收口”切换为 **Phase 1.1 皮肤系统专项**：在保持 Phase 1 核心 BMS 进度不回退的前提下，后续主精力优先投入 OMS 自有默认皮肤包、mania/BMS 各自独立的 ruleset 皮肤实现，以及上游原生默认皮肤替换
+- 当前执行不再按多个并列大阶段管理，而是统一收口为 **Phase 1.x 大主线**：Phase 1 核心 BMS、Phase 1.1 皮肤专项，以及被外部审计插队抬升的输入 / 判定 / 反馈 / 校准事项，都视为 Phase 1 大主线下的子主线
+- 当前第一优先子主线仍是 **Phase 1.1 皮肤系统专项**：在保持 Phase 1 核心 BMS 进度不回退的前提下，后续主精力优先投入 OMS 自有默认皮肤包、mania/BMS 各自独立的 ruleset 皮肤实现，以及上游原生默认皮肤替换
 - 当前已完成：1.1、1.2、1.3、1.4、1.9、1.10、1.11、1.12、1.13、1.14、1.15、1.16（共 12 步）
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
-- 当前自动推进优先级顺序：**首发离线便携发布基线（beatoraja 风格 portable data 已落地，正式 release 打包流程已接通）** → Phase 1.1 皮肤系统专项（当前继续转向 mania OMS-owned 迁移）→ 1.17 的 analog scratch / cross-device trigger 语义 → 1.5 / 1.6 人工验收项后置
+- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 人工验收与发行后置**
+- 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
+- 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
+- 在正式进入更大范围的 Phase 2 训练 / class / speed 体系前，先收口一轮 Phase 1.x 的反馈与训练闭环；这批事项属于当前方向校准后确认的插队优先项，而不是可无限后移的体验润色
+- 本轮已明确归线：**BMS 结果页反馈面收口** 归属 `P1-C`。当前只在现有 lazer results 骨架内继续推进 `DJ LEVEL` / `EX-SCORE` 语义统一、results summary 与 feedback panel 收口，以及低风险布局贴近；不单独开启高风险的 beatoraja 风格整页重构
 - 需要人工操作的 1.5 真实导入/UI 验收与发行物实机验证统一记录在 `DEVELOPMENT_STATUS.md` 的独立板块，默认放在 Phase 1 阶段末尾或出现阻塞时再执行
-- 当前代码规模：BMS 规则集 **124 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；最近一次完整 `osu.Game.Rulesets.Bms.Tests` 为 **463/463** 通过，另有 `OmsHidDeviceHandlerTest` 定向回归 **14/14** 通过
+- 当前代码规模：BMS 规则集 **147 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **46 个测试文件**，最近一次完整项目级回归为 **608/608** 通过，另有 `OmsHidDeviceHandlerTest` 定向回归 **14/14** 通过
+
+## Phase 1.x 大主线下的子主线编排
+
+在 Phase 1.x 收口完成前，所有实际开发任务都必须先归类到下面某一条子主线，再决定是否执行。**Phase 2 / Phase 3 功能默认冻结**；只有当某项改动是当前子主线的阻塞修复或必要设计锚点时，才允许触碰其代码边界。
+
+| 子主线 | 归属步骤 | 当前目标 | 允许推进 | 明确不做 | 稳定门槛 |
+| --- | --- | --- | --- | --- | --- |
+| **P1-A 产品面与 release gate** | Phase 1.1、离线发行基线 | 维持 OMS 默认皮肤、fallback、公开发行物表面稳定 | OMS built-in skin、partial override、上游默认皮肤退出、portable 发布表面、release gate 回归 | 新 gameplay mod、训练模式、判定语义扩张 | Debug 构建、mania/BMS skin gate、osu.Game.Tests release gate 稳定 |
+| **P1-B 输入语义与硬件验收** | 1.17 | 收口 analog scratch / cross-device trigger / HID 真实语义 | keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 语义、mixed-source runtime、真实硬件覆盖 | 非阻塞的新输入后端扩张 | scratch bridge 回归稳定，真实 HID 手工验收可执行 |
+| **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口 | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
+| **P1-D 控制器校准与诊断** | 1.17 后续产品面 | 提供 deadzone / sensitivity / scratch 模式说明 / diagnostics UI | diagnostics、live capture 扩展、校准 UI、控制器说明文案 | 与当前设备无关的新模式或新硬件抽象 | 常见 IIDX/BMS 控制器可在 UI 内完成基础诊断 |
+| **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
+| **P1-F 人工验收与发行后置** | 1.5、桌面 smoke、Release 验收 | 统一承接拖放导入、桌面 UI smoke、发行物实机验证 | 手工导入验收、桌面 smoke、覆盖更新 / 便携发布验收 | 借人工验收名义插入新功能 | 仅在 P1-A ~ P1-E 无阻塞回归后执行 |
+
+### 子主线执行规则
+
+1. **所有任务先归线，再实现。** 每次开始工作时，先判断该任务属于哪条 `P1-*` 子主线；若横跨多条，只能指定一条主归属，其他影响视为从属改动。
+2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-B` 允许并行推进，因为其依赖真实设备覆盖；`P1-C` / `P1-D` 在不打断 `P1-A` / `P1-B` 稳定性的前提下插队收口。
+3. **Phase 2 不得反向吞并 Phase 1.x。** 除已先行落地的 `A-SCR` / `BmsModAutoplay` / `Mirror` / `Random` 外，`1P/2P flip`、`dan`、`FHS`、BSS / MSS、全键模式扩张仍属于后续能力，不得以“顺手实现”名义进入当前主交付。
+4. **每条子主线必须有冻结点。** 一旦某条子主线达到“稳定门槛”，后续只接受回归修复或明确阻塞项，不再继续吸收无关优化。
+5. **人工验收始终后置。** `P1-F` 只负责确认前面子主线的产品结果，不负责为未收口功能兜底。
+
+### 当前已落地基线与事实
+
 - 当前皮肤基线：BMS 已完成 **Playfield / Lane / HitTarget / BarLine / Static Background Layer**、**Note / Hold / LaneCover / Judgement / Combo**、以及 **HudLayout / GaugeBar / GaugeHistoryPanel / GaugeHistory / ResultsSummaryPanel / ResultsSummary / NoteDistributionPanel / NoteDistribution / ClearLamp** 的正式 lookup / fallback 接线；当前 `SKIN/SimpleTou-Lazer` 已完成 legacy mania 侧候选基线清理与兼容化，可作为 OMS 内置皮肤候选的 mania 侧基础；BMS playfield abstraction gate 当前已接通 lane / scratch / playfield size / hit target / bar-line 的主要配置桥，layout/config gate 已基本闭合；本轮 gameplay HUD、results summary / clear lamp、results gauge history、Song Select note distribution、playfield metadata / accent surfaces（`StaticBackgroundLayer` / `LaneCover` / `HitTarget` / `BarLine`）、playfield shell surfaces（`Backdrop` / `Baseplate` / lane `Background` / `Divider`），以及 note / hold visuals（`Note` / `LongNoteHead` / `LongNoteBody` / `LongNoteTail`）已落下七批 OMS-owned 默认层切片：`ComboCounter` 默认 fallback 现已切到 `BmsComboCounter`，`HudLayout` / `GaugeBar` 使用独立 BMS HUD token，results 页的 `DefaultBmsResultsSummaryPanelDisplay` / `DefaultBmsResultsSummaryDisplay` / `DefaultBmsClearLampDisplay` 已切到独立 `BmsDefaultResultsPalette` 与 BMS-owned 统计卡片，`DefaultBmsGaugeHistoryPanelDisplay` / `DefaultBmsGaugeHistoryDisplay` 已改用 results-style panel shell 与 `BmsDefaultHudPalette` gauge colours，Song Select 侧的 `DefaultBmsNoteDistributionPanelDisplay` / `DefaultBmsNoteDistributionDisplay` 也已切到 results-style panel shell 与 BMS-owned 图表配色，`BmsDefaultPlayfieldPalette` 当前则已同时承接静态背景 metadata shell、lane cover fill / focus、hit target bar / line / glow、major / minor bar line、playfield shell，以及 note / hold 默认色；新增的 `DefaultBmsNoteDisplay` / `DefaultBmsLongNoteHeadDisplay` / `DefaultBmsLongNoteBodyDisplay` / `DefaultBmsLongNoteTailDisplay` 已让 BMS ruleset 的 no-custom-skin 默认 gameplay 表面不再依赖 `BmsTemporarySkinPalette`；而 mania 侧除既有首批 OMS shell 组件、首批 stage-local layout preset 与首批 stage-local shell behaviour preset 外，又已把 `LeftStageImage` / `RightStageImage` / `BottomStageImage` / `HitTargetImage` / `LightImage` / `KeysUnderNotes` 的 shared shell asset lookup 接到 `OmsManiaShellAssetPreset`，把 `ColumnLineColour` / `JudgementLineColour` / `ColumnBackgroundColour` / `ColumnLightColour` 的首批 shell colour lookup 接到 `OmsManiaColumnColourPreset`，把 `KeyImage` / `KeyImageDown` 的 stage-local key asset lookup 接到 `OmsManiaKeyAssetPreset`，把 `NoteImage` / `HoldNoteHeadImage` / `HoldNoteTailImage` / `HoldNoteBodyImage` 的 stage-local note/hold asset lookup 接到 `OmsManiaNoteAssetPreset`，并把 `ManiaSkinComponents.Note` / `ManiaSkinComponents.HoldNoteHead` / `ManiaSkinComponents.HoldNoteTail` / `ManiaSkinComponents.HoldNoteBody` 分别显式接到 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece`，把 `Hit300g` / `Hit300` / `Hit200` / `Hit100` / `Hit50` / `Hit0` 的 shared judgement asset lookup 接到 `OmsManiaJudgementAssetPreset`，把 `ScorePosition` / `ComboPosition` / `BarLineHeight` / `BarLineColour` 这批 non-column shared lookup 也收口为在 mixed-stage 路径固定复用第一 stage preset，并把 `SkinComponentLookup<HitResult>` 的 judgement drawable 显式接到 `OmsManiaJudgementPiece`，把 MainHUDComponents 里的 combo 显式接到 `OmsManiaComboCounter`，再把 `ExplosionImage` / `ExplosionScale` 的首个 stage-local hitburst config lookup 接到 `OmsManiaHitExplosionPreset`，同时把 `ManiaSkinComponents.HitExplosion` 显式接到 `OmsHitExplosion`；其中 `WidthForNoteHeightScale` 现也已显式纳入 `OmsManiaLayoutPreset`，`OmsNotePiece` 会按列读取 stage-local note-height lookup，mixed-stage note-height 不再误落回 shared / total-columns fallback；同时 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` / `OmsManiaJudgementPiece` / `OmsHitExplosion` / `OmsManiaComboCounter` / `OmsBarLine` 已分别升级为实际 OMS-owned component implementation，其中前四类已不再继承对应 legacy piece 类型，judgement / hitburst / combo counter / bar-line 也已不再继承 `LegacyManiaJudgementPiece` / `LegacyHitExplosion` / `LegacyManiaComboCounter` / `LegacyBarLine`，因此现阶段重点转为继续清理 note/hold / combo/HUD / bar-line 的余下 legacy 语义，并把 score-driven results preview/skinnable target 留待后续评估
 - 当前 combo/HUD 清理增量：`OmsManiaComboCounter` 已不再依赖 `LegacySpriteText` / `LegacyFont.Combo`，当前 OMS built-in 路径的 combo 文本已切到 OMS 自有数码文本实现；同时 legacy 风格的 rolling、combo break pop-out 与滚动归零动画链也已移除，shared `ComboPosition` 仅继续作为 OMS 的 non-column HUD position contract 保留
 - 当前 bar-line 清理增量：`OmsBarLine` 现已补上 OMS 自有的 major/minor runtime 语义，不再继续沿用 legacy bar line 对 `DrawableBarLine.Major` 无感知的行为；shared `BarLineHeight` / `BarLineColour` 仍由 `OmsManiaBarLinePreset` 承接
 - 当前 note scrolling 清理增量：`OmsNotePiece` 现已把 direction anchor / origin / scale 收口成显式 OMS display-state contract，不再继续依赖 legacy 风格的隐含 container origin 初始值；`OmsHoldNoteTailPiece` 继续通过 `GetDisplayDirection()` 继承该合同，当前这一轮 note / hold / combo / bar-line 语义清理已基本收口，后续自动推进可转回 Phase 1.1 其余 gate 与 1.17 analog scratch / cross-device trigger 语义
 - 当前 BMS metadata 基线：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已接入解析与持久化，`BmsBeatmapMetadataData.ChartMetadata` 会承载副标题、次艺术家、评论、内部标级与 header difficulty，Song Select 右侧摘要现可显示谱师、内部标级、副标题与表标签
-- 当前存储拓扑：beatoraja 风格便携数据模式已落地——`portable.ini` 标记触发 `data/` 子目录作为全量数据根；非便携时仍走 AppData + `storage.ini` 可迁移路径；`chartmania/` 目录（`ManiaFolderImporter`）已落地为与 BMS `chartbms/` 同级的独立文件系统直读；外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）已落地；剩余 UI 整合与删除/失效语义待后续推进
+- 当前 results 反馈基线：BMS 结果页 expanded 主环与 contracted badge 已切到 `DJ LEVEL` 语义，大号分数区已显式标为 `EX-SCORE`；results summary / gauge history 面板已具备继续承接 `P1-C` 结果反馈收口的复用基础
+- 当前 replay 基线：`BmsReplayFrame` / `BmsFramedReplayInputHandler` / `BmsReplayRecorder` / `BmsAutoGenerator` 已接通；本地 replay 归档现通过 core `LegacyScoreEncoder` / `LegacyScoreDecoder` 的 custom-ruleset fallback 落到 `.osr`，并按 lane action 持久化
+- 当前存储拓扑：beatoraja 风格便携数据模式已落地——`portable.ini` 标记触发 `data/` 子目录作为全量数据根；非便携时仍走 AppData + `storage.ini` 可迁移路径；`chartmania/` 目录（`ManiaFolderImporter`）已落地为与 BMS `chartbms/` 同级的独立文件系统直读；外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）与 Maintenance UI 已落地；剩余删除/失效语义、path identity dedup 与重扫策略待后续推进
 - normal-note / hold-note-head / hold-note-tail / hold-note-body 路径本轮又继续落下首个 explicit note component slice、首个 explicit hold-note-head component slice、首个 explicit hold-note-tail component slice与首个 explicit hold-note-body component slice：`ManiaSkinComponents.Note` / `ManiaSkinComponents.HoldNoteHead` / `ManiaSkinComponents.HoldNoteTail` / `ManiaSkinComponents.HoldNoteBody` 现已分别显式接到 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece`，`DrawableNote` / `DrawableHoldNoteHead` / `DrawableHoldNoteTail` 与 `DrawableHoldNote` 内部 `bodyPiece` 也已会在 OMS preview 路径下实际加载对应 OMS 组件；其中 `OmsNotePiece` / `OmsHoldNoteHeadPiece` / `OmsHoldNoteTailPiece` / `OmsHoldNoteBodyPiece` 已进一步升级为不再继承 `LegacyNotePiece` / `LegacyHoldNoteHeadPiece` / `LegacyHoldNoteTailPiece` / `LegacyBodyPiece` 的实际 OMS-owned component implementation，而 `OmsHoldNoteBodyPiece` 现也已把 `NoteBodyStyle` / `HoldNoteLightImage` / `HoldNoteLightScale` 收口到 `OmsManiaHoldNoteBodyPreset` 并固定使用 OMS stretch 语义，且已移除 legacy 风格的 hit-light 与 miss fade 运行时链路，`WidthForNoteHeightScale` 也已由 `OmsManiaLayoutPreset` 显式承接并按列下发到 `OmsNotePiece`，`OmsHoldNoteTailPiece` 则已改为通过 `OmsNotePiece` 的正式 display-direction hook 承接 tail 的反向显示语义，而 `OmsNotePiece` 本体的 direction anchor / origin / scale 现也已收口成显式 OMS display-state contract；当前 note / hold 默认路径已不再继续保留 legacy body-style、legacy tail inversion、legacy hold-light / miss-fade、implicit note-scrolling state 或 total-columns note-height fallback 分支。
 - bar-line non-column shared 路径本轮又新增 `BarLineHeight` / `BarLineColour` slice，并继续落下首个 explicit bar-line component slice：`OmsManiaBarLinePreset` 现已在 single-stage、same-keycount dual-stage 与 mixed-stage non-column 路径下同时接管这两项 shared bar-line config，其中 mixed-stage 固定复用第一 stage preset，`OmsBarLine` 也已把 `ManiaSkinComponents.BarLine` 显式接回 OMS preview 路径；`DrawableBarLine` 现会实际加载 OMS bar line 组件并复用对应 OMS bar-line config，且 major/minor runtime 语义也已由 OMS 组件自身承接，不再继续沿用 legacy bar-line 的单态表现。
 - 1.6 最新状态：`BmsGaugeProcessor` 的 `TotalHittableObjects` / `BaseRate` 现已尊重 beatmap 当前的 long-note 结构，`CN` / `HCN` 的 scored tail 会计入 gauge 分母，`HCN` body tick 仍保持 gauge-only；long-note release-window 也已改成“score window 对齐普通命中、仅 miss grace 轻微放宽”的 judge-mode-aware 模型（`OD` 默认 `1.25`，`BEATORAJA` / `LR2` 为 `1.2`）；剩余重点转为长条边界回归与真实谱面验校
@@ -97,7 +128,7 @@
 1. beatoraja 风格的单包便携数据模式已落地：程序目录内放置 `portable.ini` 标记文件后，所有用户数据自动写入同级 `data/` 子目录（`OsuGameDesktop.CreateStorage()` 检测标记并将 `NativeStorage(data/)` 传给 `OsuStorage`）；正式 Portable.zip 发行物默认含 `portable.ini`
 2. 非便携模式仍保持"默认 AppData 数据根 + 可迁移单自定义数据根（`storage.ini`）"
 3. mania 当前已采用 `chartmania/` 目录的文件系统直读存储，与 BMS `chartbms/` 同级
-4. 外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）已接通代码层；剩余 UI 整合与删除/失效语义待后续推进
+4. 外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）与 Maintenance UI 已接通；剩余删除/失效语义、path identity dedup 与重扫策略待后续推进
 
 ### 皮肤系统替换基线
 
@@ -332,6 +363,8 @@
 
 **前置依赖：** 1.10
 **验收：** 打完一首谱面 → 结算画面正确显示所有数据。单元测试覆盖 DJ Level 边界值和 Clear Lamp 升级逻辑。
+
+> **说明：** `1.11` 的“计分数据是否正确、结果页是否具备基础表达”仍视为已完成。后续围绕 BMS 结果页主评价、results summary、contracted badge 与低风险布局贴近的增量工作，统一归入 `P1-C`，不重新打开 `1.11` 的完成状态。
 
 ---
 
@@ -716,12 +749,18 @@
 
 ### 2.1 beatoraja + LR2 判定 Mod
 
-> **✅ 已在 Phase 1 提前落地。** `BeatorajaJudgementSystem`、`Lr2JudgementSystem`、`BmsModJudgeBeatoraja`、`BmsModJudgeLr2` 均已实现，窗口值校验已经补测，三套判定系统已通过 `BmsScoreProcessorTest` / `BmsDrawableRulesetTest` 回归。
+> **基础版已在 Phase 1 提前落地，但完整 parity 尚未收口。** 当前已有 `BeatorajaJudgementSystem`、`Lr2JudgementSystem`、`BmsModJudgeBeatoraja`、`BmsModJudgeLr2`、judge-mode 成绩分桶与基础窗口回归；但 `BEATORAJA` 仍近似为对称 EASY-base 缩放，`LR2` 仍近似为单一 NORMAL 固定窗，尚未覆盖 judgerank tier、early/late 非对称 BAD / excessive poor、scratch 特例与更宽 long-note release 语义。
 
-**实现：** `BeatorajaJudgementSystem` + `Lr2JudgementSystem`；`BmsModJudgeBeatoraja` + `BmsModJudgeLr2` Mod 类。beatoraja 按 #RANK 缩放窗口，LR2 固定窗口。
+**实现：**
+
+- `BeatorajaJudgementSystem` parity：VERY EASY / EASY / NORMAL / HARD / VERY HARD 五档 judge-rank、整数截断缩放、early/late 非对称 BAD / excessive poor、scratch ±10ms 扩窗、long-note release / long-scratch release 专用窗口
+- `Lr2JudgementSystem` parity：EASY / NORMAL / HARD / VERY HARD 四档 judge-rank，以及 pre-note-only excessive poor 语义
+- `BmsJudgeMode` 继续作为显式 rule-family switch；results / replay / leaderboard / local best 继续按 judge mode 分桶，不允许退化为“严格度”标签
+
+**当前仓库说明：** 当前工作区已经有 judge mode 切换、结果展示、分桶与基础窗口测试，但还不能把 `BEATORAJA` / `LR2` 描述成已完成完整 parity。
 
 **前置依赖：** Phase 1 完成
-**验收：** 单元测试覆盖全部判定系统的窗口值。切换 Mod 后 gameplay 使用对应窗口。
+**验收：** 单元测试覆盖各 judge rank 的 note windows、early/late 非对称边界、scratch note 扩窗、long-note release 窗口、judge-mode 分桶与结果展示；切换 Mod 后 gameplay 使用对应 rule family。
 
 ---
 
@@ -754,7 +793,9 @@
 
 ### 2.4 A-SCR (Auto Scratch)
 
-**实现：** `BmsModAutoScratch`——scratch 音符标记为 AutoPlay，排除出计分/gauge/combo/MaxExScore 池，键音照常播放。`AscScratchVisibility` 设置。14K DP 双侧 scratch 同时处理。
+**当前实现：** `BmsModAutoScratch` 已在当前工作区落地。scratch 音符会在 runtime 被标记为 `AutoPlay = true` 且退出判定 / 计分 / gauge / combo / MaxExScore 语义；14K DP 双侧 scratch 同样适用。
+
+**当前仓库说明：** 当前实现采用 mod 内 setting bindable，而不是 `BmsRulesetConfigManager` 全局持久化项；现有配置包括 `ScratchVisibility`（Visible / Hidden）、`TintScratchNotes` 与 `ScratchTintColour`。leaderboard filter 与全局持久化设置仍属后续项。
 
 **前置依赖：** Phase 1 完成
 **验收：** A-SCR 激活后 scratch 自动触发键音，不计入 EX-SCORE。MaxExScore 正确减少。可见性设置切换有效。
@@ -763,12 +804,19 @@
 
 ### 2.5 Empty Poor 判定
 
-> **✅ 已在 Phase 1 提前落地。** `BmsLane` 现会在 lane action 未被任何 drawable 消费时注入 synthetic `BmsEmptyPoorHitObject`，以 `ComboBreak` 承载 Empty Poor；已通过测试验证 gauge 伤害、combo 断裂、结果页计数。
+> **基础结果链已在 Phase 1 提前落地，但完整 judge-family 语义尚未收口。** 当前 `BmsLane` 已会注入 synthetic `BmsEmptyPoorHitObject`，并通过测试验证 gauge 伤害、combo 断裂、结果页计数；但触发条件仍是 generic future-note 检查，不是按 `BmsJudgeMode` 参数化的 excessive poor / Empty Poor 语义。
 
-**实现：** `BmsPoorJudgement`——每车道维护活跃音符窗口状态，按键时无可打击音符 → 触发 Empty Poor → gauge 伤害 = BAD 1.0×、断 combo、不影响 EX-SCORE。
+**实现：**
+
+- 每车道维护 judge-family-aware 的活跃音符窗口状态，而不是单一 future-note gate
+- `LR2`：只在 pre-note 侧触发 excessive poor
+- `BEATORAJA`：使用独立的 early/late excessive poor 窗口，并为 scratch / long-note release 保留特例扩展点
+- 结果链继续沿用 `BmsEmptyPoorHitObject` / `ComboBreak` / gauge damage 路径，但触发窗口与 note erasure 语义必须由 active judge family 驱动
+
+**当前仓库说明：** 当前工作区尚未把 `Empty Poor` / excessive poor 触发条件参数化到 `BmsJudgeMode`。
 
 **前置依赖：** Phase 1 完成
-**验收：** 空打确实触发 gauge 伤害和 combo 断裂；结算画面 Empty Poor 计数正确。
+**验收：** lane-level / gameplay-level 测试覆盖 pre-note-only 与 early/late 非对称触发边界；空打仍正确结算 gauge / combo / results，但不同 judge family 的触发窗口不再共用同一套 generic 条件。
 
 ---
 
@@ -787,7 +835,9 @@
 
 ### 2.7 1P/2P 翻转 Mod
 
-**实现：** `BmsModMirror1P2P`——水平镜像车道数组，scratch 左右互换，绑定跟随翻转，皮肤元素响应 CurrentSide bindable。
+**计划实现：** `BmsModMirror1P2P`——水平镜像车道数组，scratch 左右互换，绑定跟随翻转，皮肤元素响应 CurrentSide bindable。
+
+**当前仓库说明：** 通用按钮重排型 `BmsModMirror` / `BmsModRandom` 已在当前工作区落地；本小节特指未来的 `BmsModMirror1P2P`，也就是包含 scratch 左右互换、绑定翻转与 side-aware skin 响应的完整 `1P/2P flip`。
 
 **前置依赖：** 2.6
 **验收：** 7K 1P 侧翻转为 2P → scratch 从左移到右。14K DP 下无效果或双侧对调。
@@ -848,7 +898,9 @@
 
 ### 2.12 BmsRulesetConfigManager 设置画面
 
-**实现：** BMS 模式设置画面集成所有持久化设置——AutoScratchNoteVisibility、KeysoundConcurrentChannels、LeaderboardGaugeFilter、LeaderboardAscrFilter、LeaderboardJudgeFilter、LeaderboardLnModeFilter。
+**计划实现：** BMS 模式设置画面在现有布局 / keysound / supplemental bindings 基础上，继续集成 AutoScratchNoteVisibility、LeaderboardGaugeFilter、LeaderboardAscrFilter、LeaderboardJudgeFilter、LeaderboardLnModeFilter 等后续持久化设置。
+
+**当前仓库说明：** 当前 `BmsRulesetConfigManager` 已落地的是 scroll / playfield / hit-target / keysound 等设置；A-SCR gameplay 本体已进入代码库，但其全局持久化项与 leaderboard filter 相关设置仍未进入代码库。
 
 **前置依赖：** 2.4
 **验收：** 设置画面各项可修改 → 重启后保持。
@@ -877,11 +929,11 @@
 
 **达成条件：**
 
-- [x] 三套判定系统全部可用（已在 Phase 1 提前落地）
+- [ ] 三套判定系统达到目标 parity（基础 judge-mode 切换已在 Phase 1 提前落地）
 - [x] 六种 Gauge + GAS 全部可用（已在 Phase 1 提前落地）
-- [ ] A-SCR 可用
+- [x] A-SCR 可用
 - [x] LN / CN / HCN 长条模式与分桶成绩可用（已在 Phase 1 提前落地）
-- [x] Empty Poor 功能正常（已在 Phase 1 提前落地）
+- [ ] Empty Poor 达到 judge-family 语义（基础结果链已在 Phase 1 提前落地）
 - [ ] 5K / 9K / 14K DP 布局完整
 - [ ] 1P/2P 翻转功能正常
 - [ ] HID 旋转编码器和鼠标 scratch 输入可用

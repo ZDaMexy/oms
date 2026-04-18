@@ -42,6 +42,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Label="OMS Release Packaging" Condition="'$(OmsReleasePackaging)'=='true'">
+    <NoWarn>$(NoWarn);OLOC002;OLOC003</NoWarn>
+  </PropertyGroup>
   <PropertyGroup Label="Nuget">
     <IsPackable>false</IsPackable>
     <Authors>OMS contributors</Authors>

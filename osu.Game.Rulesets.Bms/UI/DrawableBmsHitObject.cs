@@ -20,6 +20,7 @@ using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning;
+using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -39,7 +40,12 @@ namespace osu.Game.Rulesets.Bms.UI
         [Resolved(CanBeNull = true)]
         private BmsKeysoundStore? keysoundStore { get; set; }
 
+        private readonly Drawable? mainVisual;
         private Container? nestedHitObjectContainer;
+        private bool autoScratchVisualsApplied;
+        private bool autoScratchVisible = true;
+        private bool autoScratchTintEnabled;
+        private Color4 autoScratchTintColour = Color4.White;
 
         public override IEnumerable<HitSampleInfo> GetSamples()
         {
@@ -71,7 +77,7 @@ namespace osu.Game.Rulesets.Bms.UI
             Width = 1;
             Height = hitObject is BmsHoldNote ? 28 : 18;
 
-            AddInternal(createMainVisual(hitObject));
+            AddInternal(mainVisual = createMainVisual(hitObject));
 
             AddInternal(nestedHitObjectContainer = new Container
             {
@@ -100,6 +106,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             Samples.Samples = samples;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            if (autoScratchVisualsApplied)
+                applyAutoScratchVisualState();
         }
 
         public override void PlaySamples()
@@ -247,6 +261,43 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (!Judged)
                 ApplyMinResult();
+        }
+
+        internal void ApplyAutoScratchVisuals(bool visible, bool tintEnabled, Color4 tintColour)
+        {
+            if (mainVisual == null)
+                return;
+
+            if (HitObject is not BmsHitObject { IsScratch: true, AutoPlay: true, CountsForScore: false })
+                return;
+
+            autoScratchVisualsApplied = true;
+            autoScratchVisible = visible;
+            autoScratchTintEnabled = tintEnabled;
+            autoScratchTintColour = tintColour;
+
+            applyAutoScratchVisualState();
+        }
+
+        private void applyAutoScratchVisualState()
+        {
+            if (mainVisual == null)
+                return;
+
+            float alpha = autoScratchVisible ? 1 : 0;
+            Color4 colour = autoScratchTintEnabled ? autoScratchTintColour : Color4.White;
+
+            if (mainVisual is SkinnableDrawable skinnableDrawable && skinnableDrawable.IsLoaded)
+            {
+                skinnableDrawable.Alpha = 1;
+                skinnableDrawable.Colour = Color4.White;
+                skinnableDrawable.Drawable.Alpha = alpha;
+                skinnableDrawable.Drawable.Colour = colour;
+                return;
+            }
+
+            mainVisual.Alpha = alpha;
+            mainVisual.Colour = colour;
         }
 
         private IEnumerable<BmsKeysoundSampleInfo> getKeysoundSamples()

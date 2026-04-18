@@ -163,7 +163,7 @@ namespace osu.Game.Screens.Select
                 if (statisticsFlow.Count == 0)
                     return;
 
-                float statisticWidth = Math.Max(65, statisticsFlow.Max(s => s.LabelWidth));
+                float statisticWidth = Math.Max(65, statisticsFlow.Max(s => s.PreferredWidth) + 4);
 
                 foreach (var statistic in statisticsFlow)
                 {
@@ -182,6 +182,8 @@ namespace osu.Game.Screens.Select
                 {
                     for (int i = 0; i < statistics.Count; i++)
                         statisticsFlow[i].Value = statistics[i];
+
+                    updateStatisticsSizing();
                 }
                 else
                 {

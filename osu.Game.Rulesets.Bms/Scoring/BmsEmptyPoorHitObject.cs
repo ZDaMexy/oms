@@ -13,8 +13,8 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
     internal sealed class BmsPoorJudgement : Judgement
     {
-        public override HitResult MaxResult => HitResult.IgnoreHit;
+        public override HitResult MaxResult => HitResult.Ok;
 
-        public override HitResult MinResult => HitResult.ComboBreak;
+        public override HitResult MinResult => HitResult.Miss;
     }
 }

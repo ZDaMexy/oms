@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Logging;
@@ -48,6 +49,12 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
 
         public Task Import(params string[] paths)
             => Import(paths.Select(path => new ImportTask(path)).ToArray());
+
+        public Task RegisterExternalDirectory(string path, CancellationToken cancellationToken = default)
+            => folderImporter.RegisterExternalDirectory(path, cancellationToken);
+
+        public Task RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
+            => folderImporter.RegisterManagedDirectory(path, cancellationToken);
 
         public async Task Import(ImportTask[] tasks, ImportParameters parameters = default)
         {

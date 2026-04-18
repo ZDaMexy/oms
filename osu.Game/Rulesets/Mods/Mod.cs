@@ -14,6 +14,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Configuration;
 using osu.Game.Extensions;
+using osu.Game.Localisation;
 using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mods
@@ -73,7 +74,7 @@ namespace osu.Game.Rulesets.Mods
             switch (bindable)
             {
                 case Bindable<bool> b:
-                    return b.Value ? "On" : "Off";
+                    return b.Value ? CommonStrings.Enabled : CommonStrings.Disabled;
 
                 default:
                     return bindable.ToString() ?? string.Empty;

@@ -26,22 +26,28 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private readonly Storage storage;
         private readonly Storage songsStorage;
         private readonly RealmAccess realmAccess;
-        private readonly BmsTableMd5Index tableMd5Index;
+        private readonly Lazy<BmsTableMd5Index> tableMd5Index;
 
-        public BmsDifficultyTableManager DifficultyTableManager => tableMd5Index.TableManager;
+        public BmsDifficultyTableManager DifficultyTableManager => TableMd5Index.TableManager;
 
-        public BmsTableMd5Index TableMd5Index => tableMd5Index;
+        public BmsTableMd5Index TableMd5Index => tableMd5Index.Value;
 
         public BmsFolderImporter(Storage storage, RealmAccess realm, BmsTableMd5Index? tableMd5Index = null)
         {
             this.storage = storage;
             songsStorage = storage.GetStorageForDirectory(SONGS_STORAGE_PATH);
             realmAccess = realm;
-            this.tableMd5Index = tableMd5Index ?? new BmsTableMd5Index(BmsDifficultyTableManager.GetShared(storage), realm);
+            this.tableMd5Index = new Lazy<BmsTableMd5Index>(() => tableMd5Index ?? new BmsTableMd5Index(BmsDifficultyTableManager.GetShared(storage), realm));
         }
 
         public Task<FolderImportResult> Import(ImportTask task, ImportParameters parameters = default, CancellationToken cancellationToken = default)
             => Task.Run(() => import(task, cancellationToken), cancellationToken);
+
+        public Task<FolderImportResult> RegisterExternalDirectory(string path, CancellationToken cancellationToken = default)
+            => Task.Run(() => registerExternalDirectory(path, cancellationToken), cancellationToken);
+
+        public Task<FolderImportResult> RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
+            => Task.Run(() => registerManagedDirectory(path, cancellationToken), cancellationToken);
 
         private FolderImportResult import(ImportTask task, CancellationToken cancellationToken)
         {
@@ -57,7 +63,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (preparedBeatmapSet.BeatmapSet == null)
                 return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
 
-            var existing = tryReuseExisting(preparedBeatmapSet.BeatmapSet.Hash);
+            var existing = tryReuseImportedCopy(preparedBeatmapSet.BeatmapSet.Hash);
 
             if (existing != null)
                 return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
@@ -79,14 +85,84 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
         }
 
-        private Live<BeatmapSetInfo>? tryReuseExisting(string hash)
+        private FolderImportResult registerExternalDirectory(string path, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var reader = new ImportTask(path).GetReader();
+
+            if (reader is not DirectoryArchiveReader directoryReader)
+                throw new InvalidOperationException("BMS external registration requires a directory source.");
+
+            var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
+
+            if (preparedBeatmapSet.BeatmapSet == null)
+                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
+
+            string sourcePath = normaliseExternalPath(directoryReader.GetFullPath(string.Empty));
+            var existing = tryReuseExternal(preparedBeatmapSet.BeatmapSet.Hash, sourcePath);
+
+            if (existing != null)
+                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
+
+            preparedBeatmapSet.BeatmapSet.FilesystemStoragePath = sourcePath;
+            preparedBeatmapSet.BeatmapSet.IsExternalFilesystemStorage = true;
+
+            return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles);
+        }
+
+        private FolderImportResult registerManagedDirectory(string path, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var reader = new ImportTask(path).GetReader();
+
+            if (reader is not DirectoryArchiveReader directoryReader)
+                throw new InvalidOperationException("BMS managed registration requires a directory source.");
+
+            var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
+
+            if (preparedBeatmapSet.BeatmapSet == null)
+                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
+
+            string relativePath = getManagedRelativePath(directoryReader.GetFullPath(string.Empty));
+            var existing = tryReuseManaged(preparedBeatmapSet.BeatmapSet.Hash, relativePath);
+
+            if (existing != null)
+                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
+
+            preparedBeatmapSet.BeatmapSet.FilesystemStoragePath = relativePath;
+            preparedBeatmapSet.BeatmapSet.IsExternalFilesystemStorage = false;
+
+            return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles);
+        }
+
+        private Live<BeatmapSetInfo>? tryReuseImportedCopy(string hash)
+            => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage);
+
+        private Live<BeatmapSetInfo>? tryReuseExternal(string hash, string externalPath)
+            => tryReuseExisting(hash, existing => existing.IsExternalFilesystemStorage
+                                                 && string.Equals(normaliseExternalPath(existing.FilesystemStoragePath), externalPath, StringComparison.OrdinalIgnoreCase));
+
+        private Live<BeatmapSetInfo>? tryReuseManaged(string hash, string managedPath)
+            => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage
+                                                 && string.Equals(existing.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase));
+
+        private Live<BeatmapSetInfo>? tryReuseExisting(string hash, Func<BeatmapSetInfo, bool> canReuse)
         {
             BeatmapSetInfo? existing = realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
                                                                   .OrderBy(set => set.DeletePending)
                                                                   .FirstOrDefault(set => set.Hash == hash)
                                                                   ?.Detach());
 
-            if (existing == null || string.IsNullOrEmpty(existing.FilesystemStoragePath) || !storage.ExistsDirectory(existing.FilesystemStoragePath))
+            if (existing == null || string.IsNullOrEmpty(existing.FilesystemStoragePath))
+                return null;
+
+            bool pathExists = existing.IsExternalFilesystemStorage
+                ? Directory.Exists(existing.FilesystemStoragePath)
+                : storage.ExistsDirectory(existing.FilesystemStoragePath);
+
+            if (!pathExists || !canReuse(existing))
                 return null;
 
             return realmAccess.Run(realm =>
@@ -102,6 +178,24 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 return managedExisting.ToLive(realmAccess);
             });
+        }
+
+        private static string normaliseExternalPath(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        private string getManagedRelativePath(string path)
+        {
+            string fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string managedRoot = songsStorage.GetFullPath(string.Empty);
+
+            if (!FilesystemSanityCheckHelpers.IsSubDirectory(managedRoot, fullPath))
+                throw new InvalidOperationException($"BMS managed registration requires a directory under '{managedRoot}'.");
+
+            string relativePath = Path.GetRelativePath(storage.GetFullPath(string.Empty), fullPath).ToStandardisedPath();
+
+            if (FilesystemSanityCheckHelpers.IncursPathTraversalRisk(relativePath))
+                throw new InvalidOperationException($"Managed storage path '{relativePath}' is not allowed.");
+
+            return relativePath;
         }
 
         private Live<BeatmapSetInfo> importIntoRealm(BeatmapSetInfo beatmapSet, CancellationToken cancellationToken)
@@ -208,6 +302,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     {
                         Hash = hash,
                         LocalFilePath = beatmapFile.ToStandardisedPath(),
+                        StarRating = loadedInfo.StarRating,
                         DifficultyName = loadedInfo.DifficultyName,
                         BeatDivisor = loadedInfo.BeatDivisor,
                         MD5Hash = md5Hash,
@@ -217,12 +312,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         TotalObjectCount = loadedInfo.TotalObjectCount,
                     };
 
-                    tableMd5Index.ApplyTo(beatmapInfo);
+                    TableMd5Index.ApplyTo(beatmapInfo);
                     beatmaps.Add(beatmapInfo);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, $"Skipping invalid BMS file {beatmapFile}.", LoggingTarget.Database);
+                    Logger.Log($"Skipping invalid BMS file {beatmapFile}: {ex.Message}", LoggingTarget.Database, LogLevel.Verbose);
                     skippedBeatmapFiles.Add(beatmapFile);
                 }
             }
@@ -236,8 +331,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             {
                 foreach (var beatmap in beatmaps)
                     beatmap.Metadata.AudioFile = detectedAudioFile;
-
-                Logger.Log($"Detected full music file '{detectedAudioFile}' for BMS set ({reader.Name}).", LoggingTarget.Database);
             }
 
             hashableBeatmaps.Position = 0;

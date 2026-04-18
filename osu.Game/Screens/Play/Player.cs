@@ -27,8 +27,10 @@ using osu.Game.Graphics.Containers;
 using osu.Game.IO.Archives;
 using osu.Game.Online.API;
 using osu.Game.Overlays;
+using osu.Game.Replays.Legacy;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Replays.Types;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
@@ -963,6 +965,9 @@ namespace osu.Game.Screens.Play
             if (GameplayState.HasQuit)
                 return false;
 
+            if (GameplayState.HasFailed || GameplayState.HasPassed)
+                return false;
+
             if (!CheckModsAllowFailure())
                 return false;
 
@@ -1251,12 +1256,19 @@ namespace osu.Game.Screens.Play
 
             ByteArrayArchiveReader replayReader = null;
 
-            if (score.ScoreInfo.Ruleset.IsLegacyRuleset())
+            if (score.Replay != null && score.Replay.Frames.All(frame => frame is LegacyReplayFrame or IConvertibleReplayFrame))
             {
-                using (var stream = new MemoryStream())
+                try
                 {
-                    new LegacyScoreEncoder(score, GameplayState.Beatmap).Encode(stream);
-                    replayReader = new ByteArrayArchiveReader(stream.ToArray(), "replay.osr");
+                    using (var stream = new MemoryStream())
+                    {
+                        new LegacyScoreEncoder(score, GameplayState.Beatmap).Encode(stream);
+                        replayReader = new ByteArrayArchiveReader(stream.ToArray(), "replay.osr");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Failed to encode replay during score import.");
                 }
             }
 

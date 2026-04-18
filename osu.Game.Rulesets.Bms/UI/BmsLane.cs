@@ -1,13 +1,17 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
+using osu.Game.Audio;
+using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Judgements;
@@ -41,6 +45,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [Resolved(canBeNull: true)]
         private BmsInputManager? inputManager { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private BmsKeysoundStore? keysoundStore { get; set; }
+
+        private BmsKeysoundSampleInfo? currentLaneKeysound;
 
         public BmsLane(BmsLaneLayout.Lane lane, int laneCount, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile)
         {
@@ -131,6 +140,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void onNewResult(DrawableHitObject judgedObject, JudgementResult result)
         {
+            updateLaneKeysound(judgedObject);
+
             if (!result.IsHit || judgedObject is not DrawableBmsHitObject bmsHitObject || !bmsHitObject.AcceptsPlayerInput)
                 return;
 
@@ -141,6 +152,8 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (e.Action != Action.Value)
                 return false;
+
+            playCurrentLaneKeysound();
 
             if (!shouldTriggerEmptyPoor())
                 return false;
@@ -168,20 +181,70 @@ namespace osu.Game.Rulesets.Bms.UI
             var drawable = new DrawableBmsEmptyPoorHitObject(new BmsEmptyPoorHitObject
             {
                 StartTime = Time.Current,
-            });
+            })
+            {
+                Clock = Clock,
+            };
 
             Add(drawable);
             drawable.ApplyEmptyPoor();
         }
 
+        private void updateLaneKeysound(DrawableHitObject judgedObject)
+        {
+            BmsKeysoundSampleInfo? sample = judgedObject.HitObject switch
+            {
+                BmsHoldNote holdNote => holdNote.HeadKeysoundSample,
+                BmsHitObject hitObject => hitObject.KeysoundSample,
+                _ => null,
+            };
+
+            if (sample != null)
+                currentLaneKeysound = sample;
+        }
+
+        private void playCurrentLaneKeysound()
+        {
+            if (keysoundStore == null || currentLaneKeysound == null)
+                return;
+
+            keysoundStore.Play(new ISampleInfo[] { currentLaneKeysound }, 0);
+        }
+
         private bool shouldTriggerEmptyPoor()
         {
             double currentTime = Time.Current;
+            DrawableBmsHitObject[] candidates = getEmptyPoorCandidates().ToArray();
 
-            return HitObjectContainer.AliveObjects
-                                     .OfType<DrawableBmsHitObject>()
-                                     .Any(hitObject => hitObject.AcceptsPlayerInput && !hitObject.Judged && hitObject.HitObject.StartTime > currentTime);
+            if (candidates.Length == 0)
+                return false;
+
+            if (candidates.Select(hitObject => hitObject.HitObject.HitWindows).OfType<BmsTimingWindows>().Any(timingWindows => timingWindows.SupportsExcessivePoor))
+                return candidates.Any(hitObject => canTriggerExcessivePoor(hitObject, currentTime));
+
+            return candidates.Any(hitObject => !hitObject.Judged && hitObject.HitObject.StartTime > currentTime);
         }
+
+        private IEnumerable<DrawableBmsHitObject> getEmptyPoorCandidates()
+        {
+            var seen = new HashSet<DrawableBmsHitObject>();
+
+            foreach (var hitObject in HitObjectContainer.AliveObjects.OfType<DrawableBmsHitObject>())
+            {
+                if (hitObject.AcceptsPlayerInput && seen.Add(hitObject))
+                    yield return hitObject;
+            }
+
+            foreach (var hitObject in HitObjectContainer.Objects.OfType<DrawableBmsHitObject>())
+            {
+                if (hitObject.AcceptsPlayerInput && seen.Add(hitObject))
+                    yield return hitObject;
+            }
+        }
+
+        private static bool canTriggerExcessivePoor(DrawableBmsHitObject hitObject, double currentTime)
+            => hitObject.HitObject.HitWindows is BmsTimingWindows timingWindows
+               && timingWindows.CanTriggerExcessivePoor(currentTime - hitObject.HitObject.StartTime);
 
         private sealed partial class DrawableBmsEmptyPoorHitObject : DrawableHitObject<BmsEmptyPoorHitObject>
         {
@@ -196,7 +259,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 HandleUserInput = false;
             }
 
-            public void ApplyEmptyPoor() => ApplyResult(HitResult.ComboBreak);
+            public void ApplyEmptyPoor() => ApplyResult(HitResult.Ok);
 
             protected override void CheckForResult(bool userTriggered, double timeOffset)
             {

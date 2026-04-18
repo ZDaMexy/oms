@@ -18,8 +18,8 @@ namespace osu.Game.Rulesets.Bms.Scoring
         private readonly List<BmsGaugeType> activatedGaugeTypes = new List<BmsGaugeType>();
         private readonly Dictionary<JudgementResult, GaugeStateSnapshot> snapshots = new Dictionary<JudgementResult, GaugeStateSnapshot>();
 
-        public BmsGasGaugeProcessor(double drainStartTime, BmsGaugeType startingGaugeType, BmsGaugeType floorGaugeType)
-            : base(drainStartTime, startingGaugeType)
+        public BmsGasGaugeProcessor(double drainStartTime, BmsGaugeType startingGaugeType, BmsGaugeType floorGaugeType, BmsGaugeRulesFamily gaugeRulesFamily = BmsGaugeRulesFamily.Legacy)
+            : base(drainStartTime, startingGaugeType, gaugeRulesFamily)
         {
             StartingGaugeType = startingGaugeType;
             FloorGaugeType = floorGaugeType > startingGaugeType ? startingGaugeType : floorGaugeType;
@@ -31,12 +31,15 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             base.ApplyResultInternal(result);
 
-            if (HasFailed && CheckDefaultFailCondition(result) && TryGetDowngradeTarget(out BmsGaugeType nextGaugeType))
+            if (shouldDowngradeAfterResult(result, out BmsGaugeType nextGaugeType))
             {
                 base.RevertResultInternal(result);
                 activateGauge(nextGaugeType);
             }
         }
+
+        protected override bool CheckDefaultFailCondition(JudgementResult result)
+            => base.CheckDefaultFailCondition(result) && !TryGetDowngradeTarget(out _);
 
         protected override void RevertResultInternal(JudgementResult result)
         {
@@ -63,7 +66,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             base.Reset(storeResults);
 
             updateCurrentGaugeBounds();
-            Health.Value = GetStartingGauge(GaugeType);
+            Health.Value = StartingGaugeValue;
         }
 
         private void activateGauge(BmsGaugeType gaugeType)
@@ -71,7 +74,14 @@ namespace osu.Game.Rulesets.Bms.Scoring
             GaugeType = gaugeType;
             activatedGaugeTypes.Add(gaugeType);
             updateCurrentGaugeBounds();
-            Health.Value = GetStartingGauge(gaugeType);
+            Health.Value = StartingGaugeValue;
+        }
+
+        private bool shouldDowngradeAfterResult(JudgementResult result, out BmsGaugeType nextGaugeType)
+        {
+            nextGaugeType = GaugeType;
+
+            return base.CheckDefaultFailCondition(result) && TryGetDowngradeTarget(out nextGaugeType);
         }
 
         private bool TryGetDowngradeTarget(out BmsGaugeType nextGaugeType)
@@ -86,7 +96,11 @@ namespace osu.Game.Rulesets.Bms.Scoring
         }
 
         private void updateCurrentGaugeBounds()
-            => Health.MinValue = GetFloorGauge(GaugeType);
+        {
+            Health.MinValue = FloorGaugeValue;
+            Health.MaxValue = MaximumGaugeValue;
+            Health.Value = System.Math.Clamp(Health.Value, Health.MinValue, Health.MaxValue);
+        }
 
         private readonly struct GaugeStateSnapshot
         {

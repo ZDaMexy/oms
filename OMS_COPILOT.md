@@ -28,8 +28,8 @@ Until Phase 3 begins, OMS follows these product constraints:
 - Hide or remove release-stream switching and manual "Check for updates" UI while update delivery is intentionally disabled.
 - Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content.
 - Current official builds still keep mutable user data under a separate data root (default `%APPDATA%/oms/` for release, `%APPDATA%/oms-development/` for debug). `storage.ini` may redirect everything to one custom root, but do not describe OMS as already shipping an out-of-box program+data single-package layout.
-- If a beatoraja-style portable data mode is introduced later, prefer a dedicated `data/` subdirectory beside the executable rather than mixing mutable user data directly with binaries.
-- Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings UI integration and deletion/invalidation semantics remain future work.
+- Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
+- Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings -> Maintenance add/remove/scan UI is already landed; deletion/invalidation semantics remain future work.
 - All other networked features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and remote table sources, remain disabled or hidden until Phase 3.
 - Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
 
@@ -89,15 +89,17 @@ oms/
 │   │   ├── BmsModGaugeAutoShift.cs      # GAS — Gauge Auto Shift
 │   │   ├── BmsModLaneCoverTop.cs        # Top cover (Sudden)
 │   │   ├── BmsModLaneCoverBottom.cs     # Bottom cover (Hidden)
-│   │   ├── BmsModMirror1P2P.cs          # 1P/2P side flip
 │   │   ├── BmsModAutoScratch.cs         # A-SCR — Auto Scratch
-│   │   └── BmsModRandom.cs              # Note randomization (Future Scope)
+│   │   ├── BmsModAutoplay.cs            # BMS-specific autoplay
+│   │   ├── BmsModMirror.cs              # Button-lane mirror (scratch stays fixed)
+│   │   ├── BmsModRandom.cs              # RANDOM / R-RANDOM / S-RANDOM + custom pattern
+│   │   └── Planned Phase 2 mod not yet in tree: 1P/2P flip
 │   ├── Input/
 │   │   └── BmsInputManager.cs           # BMS-specific input routing
 │   ├── Background/
 │   │   └── BmsBackgroundLayer.cs        # Static BG + future BGA hook
 │   ├── Configuration/
-│   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (e.g. AutoScratchNoteVisibility)
+│   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (layout, keysound, later feature flags)
 │   ├── Resources/
 │   │   └── bms_table_presets.json       # Bundled preset difficulty table URLs (not hardcoded)
 │   ├── BmsMod.cs                        # Abstract base class for all BMS mods (extends Mod)
@@ -112,18 +114,11 @@ oms/
 │       ├── OmsHidDeviceHandler.cs       # HID provider polling + auto-release
 │       ├── OmsXInputButtonInputHandler.cs # Joystick/gamepad buttons -> OmsAction
 │       └── OmsMouseAxisInputHandler.cs  # Mouse movement delta -> scratch axis
-├── oms.Server/                       # NEW — Private server API client
-│   ├── OmsApiClient.cs
-│   ├── Endpoints/
-│   │   ├── AuthEndpoint.cs
-│   │   ├── LeaderboardEndpoint.cs
-│   │   └── BeatmapDownloadEndpoint.cs
-│   └── Models/
-│       ├── OmsScore.cs
-│       └── OmsUser.cs
-└── oms.Desktop/                      # Windows entry point
+└── osu.Desktop/                      # Windows entry point
     └── Program.cs
 ```
+
+Phase 2 / Phase 3 design targets such as 1P/2P flip, Random, and a dedicated private-server client project are documented later in this file. They are not all present in the current workspace tree.
 
 ---
 
@@ -401,36 +396,49 @@ Uses osu!mania OD timing windows. OD value sourced from `#RANK` field mapping:
 
 **`BeatorajaJudgementSystem`** (Mod: `BmsModJudgeBeatoraja`):
 
-| Grade | Window (ms) — EASY base |
-|---|---|
-| PGREAT | ±20 |
-| GREAT | ±40 |
-| GOOD | ±100 |
-| BAD | ±200 |
-| POOR | beyond BAD |
+Target parity is not a symmetric EASY-base scalar. The rule family must preserve judge-rank tiers, early/late asymmetry, and note-class special cases.
 
-NORMAL = ×0.75, HARD = ×0.5, VERY HARD = ×0.25 of EASY windows.  
-Active judgerank tier determined by `#RANK` field even within beatoraja system.
+| Tier | PGREAT | GREAT | GOOD | BAD (early / late) |
+|---|---|---|---|---|
+| VERY EASY (125%) | ±25 | ±75 | ±187 | 275 / 350 |
+| EASY (100%) | ±20 | ±60 | ±150 | 220 / 280 |
+| NORMAL (75%) | ±15 | ±45 | ±112 | 165 / 210 |
+| HARD (50%) | ±10 | ±30 | ±75 | 110 / 140 |
+| VERY HARD (25%) | ±5 | ±15 | ±37 | 55 / 70 |
+
+Additional constraints:
+- Excessive poor uses its own early / late family rather than simply reusing BAD edges.
+- Judge-rank scaling uses integer truncation semantics, not arbitrary rounding.
+- Scratch notes extend both timing edges by an additional 10ms.
+- Long-note release windows are significantly wider than normal note windows; long scratch release extends again on top of that.
+- Active judgerank tier is still determined by `#RANK`.
 
 **`Lr2JudgementSystem`** (Mod: `BmsModJudgeLr2`):
 
-| Grade | Window (ms) |
-|---|---|
-| PGREAT | ±18 |
-| GREAT | ±40 |
-| GOOD | ±90 |
-| BAD | ±200 |
-| POOR | beyond BAD |
+LR2 parity is also judge-rank-aware rather than a single fixed NORMAL window.
 
-LR2 does not vary windows by rank tier — fixed values always.
+| Tier | PGREAT | GREAT | GOOD | BAD |
+|---|---|---|---|---|
+| EASY | ±21 | ±60 | ±120 | ±200 |
+| NORMAL | ±18 | ±40 | ±100 | ±200 |
+| HARD | ±15 | ±30 | ±60 | ±200 |
+| VERY HARD | ±8 | ±24 | ±40 | ±200 |
+
+Additional constraints:
+- Excessive poor is only valid before the note, not after it.
+- A fixed NORMAL-like window is an acceptable bootstrap, but not the final LR2 parity contract.
+
+Judge mode is an explicit rule-family switch, not a generic "strictness" slider. UI, score tags, leaderboard filters, and any future table/course messaging must continue to surface `OD`, `BEATORAJA`, and `LR2` as separate semantics rather than implying direct equivalence.
 
 ### 5.2 Poor Judgment (Empty Poor)
 
-**Empty Poor** = pressing a key when no hittable note is within the BAD window. Penalizes gauge.
+**Empty Poor / excessive poor** is judge-family-specific, not a universal BAD-window fallback. Penalizes gauge.
 
 Implementation:
-- Maintain a per-lane "active note window" state
-- On key press: if no note is within BAD timing range → fire `BmsPoorJudgement`
+- Maintain a per-lane active note-window state keyed by the active `BmsJudgeMode`
+- `LR2` mode must treat excessive poor as pre-note-only semantics
+- `BEATORAJA` mode must use its own early / late excessive-poor family rather than reusing generic BAD edges
+- Scratch notes and long-note release may require specialized windows when the active judge family defines them
 - `BmsPoorJudgement` triggers gauge damage equivalent to a BAD hit
 - Empty Poor does **not** affect EX-SCORE
 - Empty Poor **breaks Combo** (resets the current combo counter to 0)
@@ -555,21 +563,15 @@ Each gauge applies multipliers to `base_rate` for recovery and damage. The `~%` 
 
 ASSIST EASY, EASY, and NORMAL gauges cannot drop below 2% mid-song (survival floor).
 
-**Ranking:** All gauge types and all runtime long-note modes participate in the leaderboard. Scores are tagged with their gauge type and long-note mode, and the leaderboard UI supports filtering by gauge / A-SCR / judge / LN-mode combinations.
+**Ranking:** Current local score bucketing must continue distinguishing gauge, judge, and long-note semantics where those rules are already implemented. Full online leaderboard filtering remains a Phase 3 contract, and any dedicated `A-SCR` filter is additionally blocked on leaderboard/config support landing.
 
-**Leaderboard filter architecture:** The chart leaderboard (`GET /scores/chart/{hash}`) accepts a composite filter on the server side. The client passes filter parameters as query string fields:
+**Phase 3 target leaderboard filters:** Once private server integration is intentionally enabled, chart leaderboards should accept independent `gauge`, `judge`, and `lnmode` filters, for example:
 
 ```
-GET /scores/chart/{hash}?gauge=HARD&ascr=false&judge=OD&lnmode=CN
+GET /scores/chart/{hash}?gauge=HARD&judge=OD&lnmode=CN
 ```
 
-All filter fields are optional and independently combinable (AND logic):
-- `gauge` — one of `ASSIST_EASY`, `EASY`, `NORMAL`, `HARD`, `EX_HARD`, `HAZARD`, `GAS`, or omit to show all
-- `ascr` — `true` / `false` / omit to show all (filters by `ModAutoScratch`)
-- `judge` — `OD` / `BEATORAJA` / `LR2` / omit to show all
-- `lnmode` — `LN` / `CN` / `HCN` / omit to show all
-
-The leaderboard UI exposes these as independent dropdowns/toggles. Filter state persists per-chart across sessions in `BmsRulesetConfigManager` (add `LeaderboardGaugeFilter`, `LeaderboardAscrFilter`, `LeaderboardJudgeFilter`, `LeaderboardLnModeFilter` to the settings inventory above).
+If `A-SCR` leaderboard segregation is added later, an additional `ascr` filter may be added at the same time. Do not document these filters as current `BmsRulesetConfigManager` settings until the corresponding code is present in the workspace.
 
 ### 6.3 Clear Lamp (`BmsClearLampProcessor`)
 
@@ -590,7 +592,7 @@ NO PLAY → FAILED → ASSIST EASY CLEAR → EASY CLEAR → NORMAL CLEAR
 
 Only upgrade lamp, never downgrade.
 
-**A-SCR and lamp eligibility:** Scratch lane notes are excluded from scoring entirely when A-SCR is active. MaxExScore is calculated from non-scratch notes only, and FULL COMBO / PERFECT evaluation is based solely on non-scratch note results. A-SCR does not disqualify any lamp — it only affects the leaderboard tag.
+**Current note:** Now that `A-SCR` exists, scratch-lane score-pool exclusion and lamp-eligibility rules must stay specified together with the mod. Do not silently diverge score / gauge / lamp semantics across later leaderboard or persistence work.
 
 ### 6.4 Gauge Auto Shift — GAS (`BmsModGaugeAutoShift`)
 
@@ -638,64 +640,25 @@ Scores set with GAS active are tagged with `gauge_mode = GAS` on the private ser
 
 ### 6.5 Auto Scratch — A-SCR (`BmsModAutoScratch`)
 
-A-SCR is an assist Mod that removes all scratch lane notes from player input and handles them automatically. All scratch notes are auto-judged as PGREAT at the correct timing with their keysounds triggered normally.
+Current repository status: `BmsModAutoScratch` now exists in the current workspace as a `DifficultyReduction` mod. The current implementation exposes mod-local `ScratchVisibility`, `TintScratchNotes`, and `ScratchTintColour` settings, while leaderboard filters and global ruleset-config persistence remain future work.
 
-**Behavior:**
+**Current behavior / contract:**
 
-- On chart load with A-SCR active, all scratch lane notes (channel `11` for 1P, `21` for 2P) are flagged as `AutoPlay = true` and **excluded from scoring**
-- During gameplay, flagged notes are triggered automatically at their exact timing — no player input required or accepted on the scratch lane
-- Auto-triggered scratch notes **do not contribute to EX-SCORE, MaxExScore, Gauge, or Combo** — they are treated as BGM-equivalent events for audio purposes only
-- Keysounds for auto-triggered scratch notes play normally at their correct timing
-- The scratch lane input binding remains active but has no effect — pressing the scratch during an auto note does not double-trigger or produce an Empty Poor
-- In 14K DP mode, A-SCR applies to both channel `11` (1P scratch) and channel `21` (2P scratch) simultaneously
+- Scratch notes may be auto-triggered for audio-only handling and excluded from manual scoring / gauge / combo.
+- The feature must remain an opt-in assist path and must not become the default BMS teaching baseline.
+- Any score tagging, lamp handling, or leaderboard filtering for `A-SCR` must land together with the gameplay implementation rather than being documented ahead of code.
 
-**Interaction with other Mods:**
-
-- Compatible with all gauge Mods including GAS
-- Compatible with 1P/2P flip — A-SCR applies to whichever lane is the scratch lane after flip
-- Compatible with all judgment Mods
-- Incompatible with full AUTOPLAY mode — A-SCR is scratch-only assist
-
-**Scratch note visibility (game mode setting, not a Mod):**  
-When A-SCR is active, whether scratch notes are rendered on the playfield is controlled by a persistent setting in the BMS game mode configuration, not by the Mod itself.
+**Planned `BmsRulesetConfigManager` additions when A-SCR / leaderboard filters land:**
 
 ```csharp
-// In BmsRulesetConfigManager
-public enum AscScratchVisibility
-{
-    Visible,   // Scratch notes render normally (default)
-    Hidden,    // Scratch notes are invisible; keysounds still play at correct timing
-}
-
-public Bindable<AscScratchVisibility> AutoScratchNoteVisibility { get; }
-    = new(AscScratchVisibility.Visible);
-```
-
-- This setting is accessible from the BMS mode settings screen, independent of which Mods are currently selected
-- When set to `Hidden`, scratch lane notes are not drawn but the auto-judge and keysound playback are unaffected
-- When A-SCR is not active, this setting has no effect — scratch notes always render normally
-- The setting persists across sessions via `BmsRulesetConfigManager`
-
-**`BmsRulesetConfigManager` — full persistent settings inventory:**
-
-All BMS mode persistent settings live here. The list below is the authoritative registry; add new entries here when introducing new persistent state.
-
-```csharp
-// In BmsRulesetConfigManager
 AutoScratchNoteVisibility  : AscScratchVisibility  = Visible
-KeysoundConcurrentChannels : int                  = 16       // shared keysound pool size, clamped to 1..256
-LeaderboardGaugeFilter     : string?               = null     // null = show all; e.g. "HARD", "GAS" (§6.2)
-LeaderboardAscrFilter      : bool?                 = null     // null = show all; true = A-SCR only; false = manual only
-LeaderboardJudgeFilter     : string?               = null     // null = show all; e.g. "OD", "BEATORAJA", "LR2"
-LeaderboardLnModeFilter    : string?               = null     // null = show all; e.g. "LN", "CN", "HCN" (§6.2)
+LeaderboardGaugeFilter     : string?               = null
+LeaderboardAscrFilter      : bool?                 = null
+LeaderboardJudgeFilter     : string?               = null
+LeaderboardLnModeFilter    : string?               = null
 ```
 
-`BmsKeysoundStore` already uses `KeysoundConcurrentChannels` as its persistent shared-pool ceiling. As the keysound pipeline continues from the current single-note judgment path plus AutoPlay/LN fallback toward full LN/POOR semantics, keep that ceiling sourced from `BmsRulesetConfigManager` rather than introducing a second config path.
-
-When adding a new persistent BMS setting, define its type and default here before wiring it into the feature that uses it. Do not scatter persistent state across unrelated classes.
-
-**Ranking:**  
-A-SCR scores participate in the leaderboard and are tagged with `mod_ascr = true`. The leaderboard UI supports filtering to show or hide A-SCR scores separately from full manual runs, allowing players to compare both with and without scratch assist.
+`BmsKeysoundStore` already uses `KeysoundConcurrentChannels` as its persistent shared-pool ceiling. Keep that ceiling sourced from `BmsRulesetConfigManager`; add new persistent state only when the consuming feature lands.
 
 ### 6.6 DJ LEVEL (`BmsDjLevelCalculator`)
 
@@ -714,6 +677,12 @@ Calculated from EX-SCORE percentage at result screen:
 
 This intentionally follows the 27-step beatoraja / IIDX rank ladder: `AAA = 24/27`, `AA = 21/27`, `A = 18/27`, and so on.
 
+### 6.7 Timing Feedback and Offset
+
+- Gameplay-facing BMS feedback should prioritize judgement name, `FAST/SLOW`, and EX-SCORE-relevant deltas during play. Do not frame BMS performance primarily around osu!-style accuracy messaging.
+- For key-sounded BMS play, the primary user-facing timing correction path is a visual draw offset / note presentation adjustment. Do not make audio playback offset the default or sole timing-fix control for BMS mode.
+- Timing feedback and adjustment should be low-friction from gameplay and result flow so future retry / pacemaker / target-practice features can reuse the same loop.
+
 ---
 
 ## 7. Layout System
@@ -727,7 +696,8 @@ BMS mode does not use osu!mania's `ManiaStage` directly. Define a `BmsLaneLayout
 - Lane colors (alternating key colors per BMS convention)
 - Scratch lane position (leftmost for 1P, rightmost for 2P)
 
-**1P/2P flip (`BmsModMirror1P2P`):**
+**Phase 2 target — 1P/2P flip (`BmsModMirror1P2P`):**
+- Current repository status: the workspace now has `BmsModMirror` and `BmsModRandom` for button-lane rearrangement, but it still does not have a dedicated full-side `1P/2P flip` mod.
 - Mirrors the entire lane array horizontally
 - Updates all key bindings to their mirrored counterparts
 - Scratch moves from left to right (or vice versa)
@@ -746,6 +716,8 @@ Both Mods can be active simultaneously (Sudden+Hidden). Cover percent is adjusta
 ### 7.3 Scroll Speed
 
 Inherit osu!mania's scroll speed system (user-configured multiplier). No separate HiSpeed value. BPM changes in the chart affect note spacing natively via timing points.
+
+If OMS later introduces Floating Hi-Speed semantics, ship it as a complete contract across scroll speed, lane cover, LIFT, BPM compensation, and displayed terminology. Do not expose standalone `Green Number` / `White Number` UI without the rest of that model.
 
 ---
 
@@ -812,6 +784,10 @@ The binding screen must support:
 - Separate binding profiles per keymode (5K / 7K / 9K / 14K DP)
 - In 14K DP mode, a single **DP profile** contains both 1P-side and 2P-side bindings simultaneously — the binding UI presents both sides in a unified layout. There are no separate "14K 1P" and "14K 2P" profiles.
 - For single-side modes (5K / 7K / 9K), per-profile 1P/2P binding sets distinguish which physical side is active
+
+### 8.5 Calibration and Diagnostics
+
+Bindings alone are not sufficient for BMS controller support. The BMS input/settings surface must eventually expose user-visible calibration and diagnostics for deadzone, sensitivity, scratch signal expectations (digital vs analog), side mapping, and live input preview / sanity checks. Keep this hardware-tuning layer separate from per-chart gameplay logic, but do not leave it hidden behind backend-only code paths.
 
 ---
 
@@ -1298,7 +1274,9 @@ The skin system must ship with both non-visual and visual validation:
 
 ---
 
-## 14. Private Server Integration (`oms.Server`)
+## 14. Phase 3 Private Server Integration (planned; no current `oms.Server` project)
+
+Current repository status: the workspace does not contain an `oms.Server` project. This section documents the Phase 3 target contract only.
 
 ### 14.1 API Client
 
@@ -1405,7 +1383,7 @@ Follow osu!lazer's existing conventions throughout:
 - Async I/O for all file and network operations (`async`/`await`, never `.Result`)
 - `IResourceStore<byte[]>` for asset loading
 - All timing values in **milliseconds (double)** unless explicitly noted as beats
-- Write XML doc comments on all public API surface in `oms.Server` and `oms.Input`
+- Write XML doc comments on all public API surface in future private-server integration code and `oms.Input`
 - Unit test coverage required for: `BmsBeatmapDecoder`, `BmsTimingWindows`, `BmsScoreProcessor`, `BmsGaugeProcessor`, `BmsDifficultyCalculator`, `BmsNoteDensityAnalyzer`, `BmsTableMd5Index`, `BmsDifficultyTableManager`
 
 ---

@@ -16,6 +16,6 @@ namespace osu.Game.Rulesets.Bms.Objects
                 ? bmsTimingWindows.WindowFor(HitResult.Miss, isLongNoteRelease: true)
                 : base.MaximumJudgementOffset * BmsHoldNote.DEFAULT_RELEASE_MISS_LENIENCE;
 
-        public override Judgement CreateJudgement() => new BmsHoldNoteTailJudgement();
+        public override Judgement CreateJudgement() => new BmsHoldNoteTailJudgement { CountsForScore = CountsForScore };
     }
 }

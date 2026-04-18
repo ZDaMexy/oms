@@ -103,8 +103,9 @@ namespace osu.Game.Database
         /// 51   2025-07-22    Add ScoreInfo.Pauses.
         /// 52   2026-03-31    Add ScoreInfo.RulesetData for ruleset-specific persisted result payloads.
         /// 53   2026-04-02    Add BeatmapMetadata.RulesetData for ruleset-specific persisted beatmap payloads.
+        /// 54   2026-04-18    Add BeatmapSetInfo.IsExternalFilesystemStorage to distinguish read-only external directories from OMS-managed filesystem copies.
         /// </summary>
-        private const int schema_version = 53;
+        private const int schema_version = 54;
 
         /// <summary>
         /// Lock object which is held during <see cref="BlockAllOperations"/> sections, blocking realm retrieval during blocking periods.
@@ -393,7 +394,8 @@ namespace osu.Game.Database
                         realm.Remove(score);
 
                     var pendingDeleteSets = realm.All<BeatmapSetInfo>().Where(s => s.DeletePending).ToList();
-                    var pendingDeleteDirectories = pendingDeleteSets.Select(s => s.FilesystemStoragePath)
+                    var pendingDeleteDirectories = pendingDeleteSets.Where(s => !s.IsExternalFilesystemStorage)
+                                                                   .Select(s => s.FilesystemStoragePath)
                                                                    .Where(path => !string.IsNullOrEmpty(path))
                                                                    .Select(path => path!)
                                                                    .Distinct()

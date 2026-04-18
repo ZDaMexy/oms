@@ -15,9 +15,11 @@ namespace osu.Game.Rulesets.Bms.Scoring
         {
             displayName = result switch
             {
+                HitResult.Perfect => "PGREAT",
                 HitResult.Meh => "BAD",
                 HitResult.Miss => "POOR",
-                HitResult.ComboBreak => "EMPTY POOR",
+                HitResult.Ok => "EPOOR",
+                HitResult.ComboBreak => "COMBO BREAK",
                 _ => null,
             };
 

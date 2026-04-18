@@ -39,7 +39,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         public override void ApplyBeatmap(IBeatmap beatmap)
         {
-            GetLongNoteMode(Mods.Value).ApplyToBeatmap(beatmap);
+            BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, Mods.Value);
             base.ApplyBeatmap(beatmap);
             TotalScoreWithoutMods.Value = currentExScore;
             TotalScore.Value = currentExScore;
@@ -95,6 +95,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
         {
             currentExScore += GetExScoreForResult(result.Type);
 
+            if (result.ComboAtJudgement > 0 && ResultBreaksCombo(result.Type))
+                ScoreResultCounts[HitResult.ComboBreak] = ScoreResultCounts.GetValueOrDefault(HitResult.ComboBreak) + 1;
+
 #if DEBUG
             switch (result.HitObject)
             {
@@ -115,7 +118,12 @@ namespace osu.Game.Rulesets.Bms.Scoring
         protected override double GetComboScoreChange(JudgementResult result) => 0;
 
         protected override void RemoveScoreChange(JudgementResult result)
-            => currentExScore -= GetExScoreForResult(result.Type);
+        {
+            currentExScore -= GetExScoreForResult(result.Type);
+
+            if (result.ComboAtJudgement > 0 && ResultBreaksCombo(result.Type))
+                ScoreResultCounts[HitResult.ComboBreak] = ScoreResultCounts.GetValueOrDefault(HitResult.ComboBreak) - 1;
+        }
 
         protected override bool ResultIncreasesCombo(HitResult result)
             => result switch
@@ -129,7 +137,6 @@ namespace osu.Game.Rulesets.Bms.Scoring
         protected override bool ResultBreaksCombo(HitResult result)
             => result switch
             {
-                HitResult.ComboBreak => true,
                 HitResult.Meh => true,
                 HitResult.Miss => true,
                 _ => false,
@@ -163,7 +170,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             foreach ((var result, int count) in frame.Header.Statistics)
             {
-                if (result == HitResult.ComboBreak)
+                if (result is HitResult.Ok or HitResult.ComboBreak)
                     continue;
 
                 judgedHits += count;
@@ -210,6 +217,19 @@ namespace osu.Game.Rulesets.Bms.Scoring
         public static BmsLongNoteMode GetLongNoteMode(ScoreInfo score)
             => score.GetRulesetData<BmsScoreInfoData>()?.LongNoteMode ?? GetLongNoteMode(score.Mods);
 
+        public static bool UsesSeparatedEmptyPoorStatistics(ScoreInfo score)
+        {
+            var scoreData = score.GetRulesetData<BmsScoreInfoData>();
+
+            if (scoreData != null)
+                return scoreData.Version >= BmsScoreInfoData.EMPTY_POOR_SEPARATION_VERSION;
+
+            if (score.HitEvents.Any(hitEvent => hitEvent.Result == HitResult.ComboBreak && hitEvent.HitObject is BmsEmptyPoorHitObject))
+                return false;
+
+            return true;
+        }
+
         public static long CalculateExScore(IReadOnlyDictionary<HitResult, int> statistics)
             => statistics.GetValueOrDefault(HitResult.Perfect) * 2L
                + statistics.GetValueOrDefault(HitResult.Great);
@@ -219,6 +239,19 @@ namespace osu.Game.Rulesets.Bms.Scoring
                + maximumStatistics.GetValueOrDefault(HitResult.Great);
 
         public static int GetEmptyPoorCount(IReadOnlyDictionary<HitResult, int> statistics)
+            => statistics.GetValueOrDefault(HitResult.Ok);
+
+        public static int GetEmptyPoorCount(ScoreInfo score)
+            => UsesSeparatedEmptyPoorStatistics(score)
+                ? GetEmptyPoorCount(score.Statistics)
+                : score.Statistics.GetValueOrDefault(HitResult.ComboBreak);
+
+        public static int GetComboBreakCount(IReadOnlyDictionary<HitResult, int> statistics)
             => statistics.GetValueOrDefault(HitResult.ComboBreak);
+
+        public static int GetComboBreakCount(ScoreInfo score)
+            => UsesSeparatedEmptyPoorStatistics(score)
+                ? GetComboBreakCount(score.Statistics)
+                : 0;
     }
 }

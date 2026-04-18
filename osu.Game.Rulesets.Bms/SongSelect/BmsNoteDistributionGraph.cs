@@ -17,12 +17,10 @@ using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using osu.Game.Beatmaps;
-using osu.Game.Extensions;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
-using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
@@ -35,14 +33,11 @@ namespace osu.Game.Rulesets.Bms.SongSelect
     {
         private readonly IBindable<WorkingBeatmap> beatmap;
         private readonly BmsRuleset ruleset = new BmsRuleset();
-        private readonly BmsNoteDensityAnalyzer densityAnalyzer = new BmsNoteDensityAnalyzer();
+        private readonly BmsNoteDistributionAnalyzer distributionAnalyzer = new BmsNoteDistributionAnalyzer();
         private readonly Dictionary<Guid, BmsNoteDistributionData> cachedData = new Dictionary<Guid, BmsNoteDistributionData>();
 
         private CancellationTokenSource? updateCancellationSource;
         private SkinnableNoteDistributionPanelDisplay panel = null!;
-
-        [Resolved]
-        private BeatmapDifficultyCache difficultyCache { get; set; } = null!;
 
         public BmsNoteDistributionGraph(IBindable<WorkingBeatmap> beatmap)
         {
@@ -126,25 +121,19 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
         private BmsNoteDistributionData? computeData(WorkingBeatmap workingBeatmap, CancellationToken cancellationToken)
         {
-            var difficulty = difficultyCache.GetDifficultyAsync(workingBeatmap.BeatmapInfo, ruleset.RulesetInfo, Array.Empty<Mod>(), cancellationToken).GetAwaiter().GetResult();
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (difficulty?.DifficultyAttributes is not BmsDifficultyAttributes attributes)
-                return null;
-
             var playableBeatmap = workingBeatmap.GetPlayableBeatmap(ruleset.RulesetInfo, Array.Empty<Mod>(), cancellationToken);
-            var analysis = densityAnalyzer.Analyze(playableBeatmap, 1000, 1000);
+            var analysis = distributionAnalyzer.Analyze(playableBeatmap, 1000, 1000);
             var chartMetadata = playableBeatmap is BmsBeatmap bmsBeatmap
                 ? BmsChartMetadata.FromBeatmapInfo(bmsBeatmap.BmsInfo)
                 : null;
 
             return new BmsNoteDistributionData(
                 analysis.Windows.Select(window => new BmsNoteDistributionBucket(window.StartTime, window.WeightedNoteCount, window.NormalCount, window.ScratchCount, window.LnCount)).ToArray(),
-                attributes.TotalNoteCount,
-                attributes.ScratchNoteCount,
-                attributes.LnNoteCount,
-                attributes.PeakDensityNps,
-                attributes.PeakDensityMs,
+                analysis.TotalNoteCount,
+                analysis.ScratchNoteCount,
+                analysis.LnNoteCount,
+                analysis.PeakDensityNps,
+                analysis.PeakDensityMs,
                 chartMetadata);
         }
 

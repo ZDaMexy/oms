@@ -29,7 +29,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
         }
 
-        protected override JudgementResult CreateResult(Judgement judgement)
+        protected internal override JudgementResult CreateResult(Judgement judgement)
             => new JudgementResult(HitObject, judgement);
 
         internal void ApplyTailResult(HitResult result)

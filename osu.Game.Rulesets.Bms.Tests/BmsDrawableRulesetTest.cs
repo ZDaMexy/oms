@@ -86,7 +86,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var displayAttributes = new BmsRuleset().GetBeatmapAttributesForDisplay(beatmap.BeatmapInfo, Array.Empty<Mod>()).ToArray();
 
             Assert.That(displayAttributes.Any(a => a.Acronym == "KC" && a.OriginalValue == expectedKeyCount && a.AdjustedValue == expectedKeyCount), Is.True);
-            Assert.That(displayAttributes.Any(a => a.Acronym == "OD"), Is.True);
+            Assert.That(displayAttributes.Any(a => a.Acronym == "RANK"), Is.True);
         }
 
         [TestCase(BmsLongNoteMode.CN)]
@@ -101,6 +101,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(BmsJudgeMode.Beatoraja)]
         [TestCase(BmsJudgeMode.LR2)]
+        [TestCase(BmsJudgeMode.IIDX)]
         public void TestDrawableRulesetUsesSelectedJudgeModeMods(BmsJudgeMode expectedMode)
         {
             var beatmap = createPlayableBeatmap();
@@ -109,10 +110,11 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(drawableRuleset.JudgeMode, Is.EqualTo(expectedMode));
         }
 
-        [TestCase(BmsJudgeMode.OD, 17.5, 43.5, 76.5, 130.5, 167.5, 209.375)]
-        [TestCase(BmsJudgeMode.Beatoraja, 15, 30, 75, 150, 150, 180)]
-        [TestCase(BmsJudgeMode.LR2, 18, 40, 90, 200, 200, 240)]
-        public void TestDrawableRulesetAppliesSelectedJudgeWindows(BmsJudgeMode judgeMode, double expectedPerfect, double expectedGreat, double expectedGood, double expectedBad, double expectedPoor, double expectedReleaseMiss)
+        [TestCase(BmsJudgeMode.OD, 17.5, 43.5, 76.5, 130.5, 167.5, 17.5, 43.5, 76.5, 130.5, 209.375)]
+        [TestCase(BmsJudgeMode.Beatoraja, 15, 45, 112, 210, 210, 90, 120, 150, 210, 210)]
+        [TestCase(BmsJudgeMode.LR2, 18, 40, 100, 200, 200, 18, 40, 100, 200, 240)]
+        [TestCase(BmsJudgeMode.IIDX, 16.67, 33.33, 116.67, 250, 250, 16.67, 33.33, 116.67, 250, 250)]
+        public void TestDrawableRulesetAppliesSelectedJudgeWindows(BmsJudgeMode judgeMode, double expectedPerfect, double expectedGreat, double expectedGood, double expectedBad, double expectedPoor, double expectedReleasePerfect, double expectedReleaseGreat, double expectedReleaseGood, double expectedReleaseBad, double expectedReleaseMiss)
         {
             var beatmap = createPlayableBeatmap(rank: 2);
             IReadOnlyList<Mod> mods = judgeMode == BmsJudgeMode.OD ? Array.Empty<Mod>() : new[] { createJudgeModeMod(judgeMode) };
@@ -132,17 +134,147 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(note.HitWindows.WindowFor(HitResult.Miss), Is.EqualTo(expectedPoor).Within(0.001));
                 Assert.That(hold.Head!.HitWindows.WindowFor(HitResult.Great), Is.EqualTo(expectedGreat).Within(0.001));
                 Assert.That(hold.Tail!.HitWindows.WindowFor(HitResult.Miss), Is.EqualTo(expectedPoor).Within(0.001));
-                Assert.That(tailTimingWindows.WindowFor(HitResult.Perfect, isLongNoteRelease: true), Is.EqualTo(expectedPerfect).Within(0.001));
-                Assert.That(tailTimingWindows.WindowFor(HitResult.Great, isLongNoteRelease: true), Is.EqualTo(expectedGreat).Within(0.001));
-                Assert.That(tailTimingWindows.WindowFor(HitResult.Good, isLongNoteRelease: true), Is.EqualTo(expectedGood).Within(0.001));
-                Assert.That(tailTimingWindows.WindowFor(HitResult.Meh, isLongNoteRelease: true), Is.EqualTo(expectedBad).Within(0.001));
+                Assert.That(tailTimingWindows.WindowFor(HitResult.Perfect, isLongNoteRelease: true), Is.EqualTo(expectedReleasePerfect).Within(0.001));
+                Assert.That(tailTimingWindows.WindowFor(HitResult.Great, isLongNoteRelease: true), Is.EqualTo(expectedReleaseGreat).Within(0.001));
+                Assert.That(tailTimingWindows.WindowFor(HitResult.Good, isLongNoteRelease: true), Is.EqualTo(expectedReleaseGood).Within(0.001));
+                Assert.That(tailTimingWindows.WindowFor(HitResult.Meh, isLongNoteRelease: true), Is.EqualTo(expectedReleaseBad).Within(0.001));
                 Assert.That(tailTimingWindows.WindowFor(HitResult.Miss, isLongNoteRelease: true), Is.EqualTo(expectedReleaseMiss).Within(0.001));
             });
+        }
+
+        [Test]
+        public void TestBeatorajaScratchUsesDedicatedJudgeWindows()
+        {
+            var beatmap = createPlayableBeatmap(rank: 2);
+
+            _ = new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { new BmsModJudgeBeatoraja() });
+
+            var note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+            var scratch = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject.IsScratch && hitObject is not BmsHoldNote);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(scratch.HitWindows.WindowFor(HitResult.Perfect), Is.EqualTo(22).Within(0.001));
+                Assert.That(scratch.HitWindows.WindowFor(HitResult.Great), Is.EqualTo(52).Within(0.001));
+                Assert.That(scratch.HitWindows.WindowFor(HitResult.Good), Is.EqualTo(120).Within(0.001));
+                Assert.That(scratch.HitWindows.WindowFor(HitResult.Meh), Is.EqualTo(217).Within(0.001));
+                Assert.That(scratch.HitWindows.WindowFor(HitResult.Meh), Is.GreaterThan(note.HitWindows.WindowFor(HitResult.Meh)));
+            });
+        }
+
+        [TestCase(BmsJudgeMode.Beatoraja, BmsJudgeRank.VeryHard, 5, 15, 37, 70)]
+        [TestCase(BmsJudgeMode.LR2, BmsJudgeRank.Easy, 21, 60, 120, 200)]
+        public void TestDrawableRulesetAppliesJudgeRankOverrideMod(BmsJudgeMode judgeMode, BmsJudgeRank judgeRank, double expectedPerfect, double expectedGreat, double expectedGood, double expectedBad)
+        {
+            var beatmap = createPlayableBeatmap(rank: 1);
+            var judgeRankMod = new BmsModJudgeRank();
+            judgeRankMod.JudgeRank.Value = judgeRank;
+            judgeRankMod.ApplyToDifficulty(beatmap.Difficulty);
+            beatmap.BeatmapInfo.Difficulty.OverallDifficulty = beatmap.Difficulty.OverallDifficulty;
+
+            IReadOnlyList<Mod> mods =
+            [
+                createJudgeModeMod(judgeMode),
+                judgeRankMod,
+            ];
+
+            _ = new BmsRuleset().CreateDrawableRulesetWith(beatmap, mods);
+
+            var note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(note.HitWindows.WindowFor(HitResult.Perfect), Is.EqualTo(expectedPerfect).Within(0.001));
+                Assert.That(note.HitWindows.WindowFor(HitResult.Great), Is.EqualTo(expectedGreat).Within(0.001));
+                Assert.That(note.HitWindows.WindowFor(HitResult.Good), Is.EqualTo(expectedGood).Within(0.001));
+                Assert.That(note.HitWindows.WindowFor(HitResult.Meh), Is.EqualTo(expectedBad).Within(0.001));
+            });
+        }
+
+        [Test]
+        public void TestBeatorajaTimingWindowsExposeExcessivePoorRange()
+        {
+            var beatmap = createPlayableBeatmap(rank: 2);
+
+            _ = new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { new BmsModJudgeBeatoraja() });
+
+            var note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+            var timingWindows = (BmsTimingWindows)note.HitWindows;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(timingWindows.CanTriggerExcessivePoor(-500), Is.True);
+                Assert.That(timingWindows.CanTriggerExcessivePoor(-500.001), Is.False);
+                Assert.That(timingWindows.CanTriggerExcessivePoor(150), Is.True);
+                Assert.That(timingWindows.CanTriggerExcessivePoor(150.001), Is.False);
+            });
+        }
+
+        [Test]
+        public void TestLr2TimingWindowsUsePreNoteOnlyExcessivePoorRange()
+        {
+            var beatmap = createPlayableBeatmap(rank: 2);
+
+            _ = new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { new BmsModJudgeLr2() });
+
+            var note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+            var timingWindows = (BmsTimingWindows)note.HitWindows;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(timingWindows.CanTriggerExcessivePoor(-1000), Is.True);
+                Assert.That(timingWindows.CanTriggerExcessivePoor(-1000.001), Is.False);
+                Assert.That(timingWindows.CanTriggerExcessivePoor(0), Is.True);
+                Assert.That(timingWindows.CanTriggerExcessivePoor(0.001), Is.False);
+            });
+        }
+
+        [Test]
+        public void TestBeatorajaLaneTriggersLateEmptyPoorAfterJudgedNote()
+        {
+            var beatmap = createPlayableBeatmap(rank: 2);
+
+            _ = new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { new BmsModJudgeBeatoraja() });
+
+            var note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+            var (lane, drawable, manualClock, testClock) = createLaneWithDrawable(beatmap, note);
+
+            manualClock.CurrentTime = note.StartTime;
+            testClock.ProcessFrame();
+
+            Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
+
+            manualClock.CurrentTime = note.StartTime + 100;
+            testClock.ProcessFrame();
+
+            Assert.That(lane.OnPressed(createPressEvent()), Is.True);
+        }
+
+        [Test]
+        public void TestLr2LaneDoesNotTriggerLateEmptyPoorAfterJudgedNote()
+        {
+            var beatmap = createPlayableBeatmap(rank: 2);
+
+            _ = new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { new BmsModJudgeLr2() });
+
+            var note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+            var (lane, drawable, manualClock, testClock) = createLaneWithDrawable(beatmap, note);
+
+            manualClock.CurrentTime = note.StartTime;
+            testClock.ProcessFrame();
+
+            Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
+
+            manualClock.CurrentTime = note.StartTime + 100;
+            testClock.ProcessFrame();
+
+            Assert.That(lane.OnPressed(createPressEvent()), Is.False);
         }
 
         [TestCase(BmsJudgeMode.OD)]
         [TestCase(BmsJudgeMode.Beatoraja)]
         [TestCase(BmsJudgeMode.LR2)]
+        [TestCase(BmsJudgeMode.IIDX)]
         public void TestTailReleaseUsesExactJudgeWindowBoundaries(BmsJudgeMode judgeMode)
         {
             var beatmap = createPlayableBeatmap(rank: 2);
@@ -168,7 +300,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(DrawableBmsHoldNote.ResultForTailRelease(hold, hold.EndTime + goodWindow + 0.001), Is.EqualTo(HitResult.Meh));
                 Assert.That(DrawableBmsHoldNote.ResultForTailRelease(hold, hold.EndTime + mehWindow), Is.EqualTo(HitResult.Meh));
                 Assert.That(DrawableBmsHoldNote.ResultForTailRelease(hold, hold.EndTime + mehWindow + 0.001), Is.EqualTo(HitResult.None));
-                Assert.That(DrawableBmsHoldNote.ResultForTailRelease(hold, hold.EndTime + missWindow), Is.EqualTo(HitResult.None));
+                Assert.That(DrawableBmsHoldNote.ResultForTailRelease(hold, hold.EndTime + missWindow), Is.EqualTo(missWindow > mehWindow ? HitResult.None : HitResult.Meh));
                 Assert.That(DrawableBmsHoldNote.HasMissedTailReleaseWindow(hold, hold.EndTime + missWindow), Is.False);
                 Assert.That(DrawableBmsHoldNote.HasMissedTailReleaseWindow(hold, hold.EndTime + missWindow + 0.001), Is.True);
             });
@@ -1079,6 +1211,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 BmsJudgeMode.Beatoraja => new BmsModJudgeBeatoraja(),
                 BmsJudgeMode.LR2 => new BmsModJudgeLr2(),
+                BmsJudgeMode.IIDX => new BmsModJudgeIidx(),
                 _ => throw new AssertionException($"Unsupported judge mode test input: {judgeMode}"),
             };
 
@@ -1087,6 +1220,32 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static KeyBindingReleaseEvent<BmsAction> createReleaseEvent(BmsAction action = BmsAction.Key1)
             => new KeyBindingReleaseEvent<BmsAction>(new osu.Framework.Input.States.InputState(), action);
+
+        private static (BmsLane Lane, DrawableBmsHitObject Drawable, ManualClock ManualClock, FramedClock TestClock) createLaneWithDrawable(BmsBeatmap beatmap, BmsHitObject hitObject)
+        {
+            var layout = BmsLaneLayout.CreateFor(beatmap);
+            var laneDefinition = layout.Lanes.Single(lane => lane.LaneIndex == hitObject.LaneIndex && lane.IsScratch == hitObject.IsScratch);
+            var manualClock = new ManualClock
+            {
+                CurrentTime = hitObject.StartTime,
+                IsRunning = true,
+            };
+            var testClock = new FramedClock(manualClock);
+            var lane = new BmsLane(laneDefinition, layout.Lanes.Count, layout.Keymode, layout.Profile)
+            {
+                Clock = testClock,
+            };
+            var drawable = new DrawableBmsHitObject(hitObject)
+            {
+                Clock = testClock,
+            };
+
+            drawable.Apply(hitObject);
+            lane.Add(drawable);
+            testClock.ProcessFrame();
+
+            return (lane, drawable, manualClock, testClock);
+        }
 
         private sealed partial class TestableDrawableBmsRuleset : DrawableBmsRuleset
         {

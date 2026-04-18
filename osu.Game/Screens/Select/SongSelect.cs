@@ -50,6 +50,7 @@ using osu.Game.Screens.Footer;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Ranking;
+using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning;
 using osu.Game.Utils;
 using osuTK;
@@ -602,6 +603,9 @@ namespace osu.Game.Screens.Select
 
             if (validSelection)
             {
+                if (shouldSuppressDifficultyTableAutoSelection())
+                    return true;
+
                 carousel.CurrentBeatmap = currentBeatmap.BeatmapInfo;
                 return true;
             }
@@ -638,6 +642,9 @@ namespace osu.Game.Screens.Select
             return validSelection;
         }
 
+        private bool shouldSuppressDifficultyTableAutoSelection()
+            => currentGroupMode == GroupMode.DifficultyTable && carousel.CurrentGroupedBeatmap == null;
+
         private bool checkBeatmapValidForSelection(BeatmapInfo beatmap)
         {
             if (!beatmap.AllowGameplayWithRuleset(Ruleset.Value, showConvertedBeatmaps.Value))
@@ -664,7 +671,7 @@ namespace osu.Game.Screens.Select
             base.OnEntering(e);
 
             this.FadeIn();
-            onArrivingAtScreen();
+            onArrivingAtScreen(isResuming: false);
         }
 
         public override void OnResuming(ScreenTransitionEvent e)
@@ -672,7 +679,7 @@ namespace osu.Game.Screens.Select
             base.OnResuming(e);
 
             this.FadeIn(fade_duration, Easing.OutQuint);
-            onArrivingAtScreen();
+            onArrivingAtScreen(isResuming: true);
 
             ensureGlobalBeatmapValid();
 
@@ -705,12 +712,18 @@ namespace osu.Game.Screens.Select
             return base.OnExiting(e);
         }
 
-        private void onArrivingAtScreen()
+        private void onArrivingAtScreen(bool isResuming)
         {
             modSelectOverlay.Beatmap.BindTo(Beatmap);
             // required due to https://github.com/ppy/osu-framework/issues/3218
             modSelectOverlay.SelectedMods.Disabled = false;
             modSelectOverlay.SelectedMods.BindTo(Mods);
+
+            // When entering song select fresh (not returning from gameplay), collapse DifficultyTable
+            // to root level. When resuming (e.g. after gameplay), preserve the selection so the
+            // user returns to the beatmap they just played.
+            if (currentGroupMode == GroupMode.DifficultyTable && !isResuming)
+                carousel.ResetToRootLevel();
 
             carousel.VisuallyFocusSelected = false;
 
@@ -868,8 +881,16 @@ namespace osu.Game.Screens.Select
 
         private ScheduledDelegate? filterDebounce;
 
+        private GroupMode currentGroupMode;
+
         private void criteriaChanged(FilterCriteria criteria)
         {
+            bool enteringDifficultyTable = currentGroupMode != GroupMode.DifficultyTable && criteria.Group == GroupMode.DifficultyTable;
+            currentGroupMode = criteria.Group;
+
+            if (enteringDifficultyTable)
+                carousel.ResetToRootLevel();
+
             filterDebounce?.Cancel();
 
             // The first filter needs to be applied immediately as this triggers the initial carousel load.

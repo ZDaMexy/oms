@@ -155,12 +155,6 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
                 switch (maniaLookup.Lookup)
                 {
-                    case LegacyManiaSkinConfigurationLookups.ColumnLineColour:
-                        return SkinUtils.As<TValue>(new Bindable<osuTK.Graphics.Color4>(OmsManiaColumnColourPreset.ForStageColumns(4)?.ColumnLineColour ?? osuTK.Graphics.Color4.White));
-
-                    case LegacyManiaSkinConfigurationLookups.JudgementLineColour:
-                        return SkinUtils.As<TValue>(new Bindable<osuTK.Graphics.Color4>(OmsManiaColumnColourPreset.ForStageColumns(4)?.JudgementLineColour ?? osuTK.Graphics.Color4.White));
-
                     case LegacyManiaSkinConfigurationLookups.LeftStageImage:
                         return SkinUtils.As<TValue>(new Bindable<string>(sharedAssetPreset.LeftStageImage));
 
@@ -380,6 +374,20 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
                         case LegacyManiaSkinConfigurationLookups.BarLineColour:
                             return SkinUtils.As<TValue>(new Bindable<osuTK.Graphics.Color4>(sharedBarLinePreset.BarLineColour));
+                    }
+                }
+
+                var sharedColourPreset = getSharedPreset(OmsManiaColumnColourPreset.ForStageColumns);
+
+                if (sharedColourPreset != null)
+                {
+                    switch (maniaLookup.Lookup)
+                    {
+                        case LegacyManiaSkinConfigurationLookups.ColumnLineColour:
+                            return SkinUtils.As<TValue>(new Bindable<osuTK.Graphics.Color4>(sharedColourPreset.ColumnLineColour));
+
+                        case LegacyManiaSkinConfigurationLookups.JudgementLineColour:
+                            return SkinUtils.As<TValue>(new Bindable<osuTK.Graphics.Color4>(sharedColourPreset.JudgementLineColour));
                     }
                 }
             }

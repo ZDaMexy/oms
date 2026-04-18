@@ -46,6 +46,12 @@ namespace osu.Game.Beatmaps
 
         public string? FilesystemStoragePath { get; set; }
 
+        /// <summary>
+        /// Whether <see cref="FilesystemStoragePath"/> points to a user-managed external directory.
+        /// External directories must only ever be read from and must never be renamed, deleted, or otherwise mutated by OMS.
+        /// </summary>
+        public bool IsExternalFilesystemStorage { get; set; }
+
         [Ignored]
         public BeatmapOnlineStatus Status
         {

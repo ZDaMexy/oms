@@ -359,14 +359,17 @@ namespace osu.Game.Beatmaps
         /// <param name="beatmapInfo">The <see cref="BeatmapInfo"/> to save the content against. The file referenced by <see cref="BeatmapInfo.Path"/> will be replaced.</param>
         /// <param name="beatmapContent">The <see cref="IBeatmap"/> content to write.</param>
         /// <param name="beatmapSkin">The beatmap <see cref="ISkin"/> content to write, null if to be omitted.</param>
-        public virtual void Save(BeatmapInfo beatmapInfo, IBeatmap beatmapContent, ISkin? beatmapSkin = null) =>
+        public virtual void Save(BeatmapInfo beatmapInfo, IBeatmap beatmapContent, ISkin? beatmapSkin = null)
+        {
+            throwIfExternalFilesystemStorage(beatmapInfo.BeatmapSet, "save externally-managed beatmaps");
             save(beatmapInfo, beatmapContent, beatmapSkin, transferCollections: true);
+        }
 
         public void DeleteAllVideos()
         {
             Realm.Write(r =>
             {
-                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected);
+                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage);
                 DeleteVideos(items.ToList());
             });
         }
@@ -420,6 +423,8 @@ namespace osu.Game.Beatmaps
 
                 var setInfo = beatmapInfo.BeatmapSet;
 
+                throwIfExternalFilesystemStorage(setInfo, "delete difficulties from externally-managed beatmaps");
+
                 DeleteFile(setInfo, beatmapInfo.File);
                 setInfo.Beatmaps.Remove(beatmapInfo);
                 r.Remove(beatmapInfo.Metadata);
@@ -437,6 +442,8 @@ namespace osu.Game.Beatmaps
         public void DeleteVideos(List<BeatmapSetInfo> items, bool silent = false)
         {
             const string no_videos_message = "No videos found to delete!";
+
+            items = items.Where(item => !item.IsExternalFilesystemStorage).ToList();
 
             if (items.Count == 0)
             {
@@ -480,6 +487,12 @@ namespace osu.Game.Beatmaps
             }
 
             notification.State = ProgressNotificationState.Completed;
+        }
+
+        private static void throwIfExternalFilesystemStorage(BeatmapSetInfo? setInfo, string operation)
+        {
+            if (setInfo?.IsExternalFilesystemStorage == true)
+                throw new InvalidOperationException($"Cannot {operation}. Import the beatmap into OMS-managed storage first.");
         }
 
         public void UndeleteAll()

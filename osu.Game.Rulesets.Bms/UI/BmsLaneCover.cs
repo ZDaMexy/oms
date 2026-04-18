@@ -60,7 +60,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void updateCoverage()
         {
-            float coverage = Math.Clamp(CoverPercent.Value / 100f, 0, 1);
+            float coverage = Math.Clamp(CoverPercent.Value / 1000f, 0, 1);
 
             cover.Height = coverage;
 

@@ -45,6 +45,12 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
         public Task<FolderImportResult> Import(ImportTask task, ImportParameters parameters = default, CancellationToken cancellationToken = default)
             => Task.Run(() => import(task, cancellationToken), cancellationToken);
 
+        public Task<FolderImportResult> RegisterExternalDirectory(string path, CancellationToken cancellationToken = default)
+            => Task.Run(() => registerExternalDirectory(path, cancellationToken), cancellationToken);
+
+        public Task<FolderImportResult> RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
+            => Task.Run(() => registerManagedDirectory(path, cancellationToken), cancellationToken);
+
         private FolderImportResult import(ImportTask task, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -59,7 +65,7 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
             if (prepared.BeatmapSet == null)
                 return new FolderImportResult(null, prepared.SkippedBeatmapFiles);
 
-            var existing = tryReuseExisting(prepared.BeatmapSet.Hash);
+            var existing = tryReuseImportedCopy(prepared.BeatmapSet.Hash);
 
             if (existing != null)
                 return new FolderImportResult(existing, prepared.SkippedBeatmapFiles);
@@ -81,14 +87,84 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
             }
         }
 
-        private Live<BeatmapSetInfo>? tryReuseExisting(string hash)
+        private FolderImportResult registerExternalDirectory(string path, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var reader = new ImportTask(path).GetReader();
+
+            if (reader is not DirectoryArchiveReader directoryReader)
+                throw new InvalidOperationException("Mania external registration requires a directory source.");
+
+            var prepared = createBeatmapSet(directoryReader, cancellationToken);
+
+            if (prepared.BeatmapSet == null)
+                return new FolderImportResult(null, prepared.SkippedBeatmapFiles);
+
+            string sourcePath = normaliseExternalPath(directoryReader.GetFullPath(string.Empty));
+            var existing = tryReuseExternal(prepared.BeatmapSet.Hash, sourcePath);
+
+            if (existing != null)
+                return new FolderImportResult(existing, prepared.SkippedBeatmapFiles);
+
+            prepared.BeatmapSet.FilesystemStoragePath = sourcePath;
+            prepared.BeatmapSet.IsExternalFilesystemStorage = true;
+
+            return new FolderImportResult(importIntoRealm(prepared.BeatmapSet, cancellationToken), prepared.SkippedBeatmapFiles);
+        }
+
+        private FolderImportResult registerManagedDirectory(string path, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var reader = new ImportTask(path).GetReader();
+
+            if (reader is not DirectoryArchiveReader directoryReader)
+                throw new InvalidOperationException("Mania managed registration requires a directory source.");
+
+            var prepared = createBeatmapSet(directoryReader, cancellationToken);
+
+            if (prepared.BeatmapSet == null)
+                return new FolderImportResult(null, prepared.SkippedBeatmapFiles);
+
+            string relativePath = getManagedRelativePath(directoryReader.GetFullPath(string.Empty));
+            var existing = tryReuseManaged(prepared.BeatmapSet.Hash, relativePath);
+
+            if (existing != null)
+                return new FolderImportResult(existing, prepared.SkippedBeatmapFiles);
+
+            prepared.BeatmapSet.FilesystemStoragePath = relativePath;
+            prepared.BeatmapSet.IsExternalFilesystemStorage = false;
+
+            return new FolderImportResult(importIntoRealm(prepared.BeatmapSet, cancellationToken), prepared.SkippedBeatmapFiles);
+        }
+
+        private Live<BeatmapSetInfo>? tryReuseImportedCopy(string hash)
+            => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage);
+
+        private Live<BeatmapSetInfo>? tryReuseExternal(string hash, string externalPath)
+            => tryReuseExisting(hash, existing => existing.IsExternalFilesystemStorage
+                                                 && string.Equals(normaliseExternalPath(existing.FilesystemStoragePath), externalPath, StringComparison.OrdinalIgnoreCase));
+
+        private Live<BeatmapSetInfo>? tryReuseManaged(string hash, string managedPath)
+            => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage
+                                                 && string.Equals(existing.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase));
+
+        private Live<BeatmapSetInfo>? tryReuseExisting(string hash, Func<BeatmapSetInfo, bool> canReuse)
         {
             BeatmapSetInfo? existing = realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
                                                                   .OrderBy(set => set.DeletePending)
                                                                   .FirstOrDefault(set => set.Hash == hash)
                                                                   ?.Detach());
 
-            if (existing == null || string.IsNullOrEmpty(existing.FilesystemStoragePath) || !storage.ExistsDirectory(existing.FilesystemStoragePath))
+            if (existing == null || string.IsNullOrEmpty(existing.FilesystemStoragePath))
+                return null;
+
+            bool pathExists = existing.IsExternalFilesystemStorage
+                ? Directory.Exists(existing.FilesystemStoragePath)
+                : storage.ExistsDirectory(existing.FilesystemStoragePath);
+
+            if (!pathExists || !canReuse(existing))
                 return null;
 
             return realmAccess.Run(realm =>
@@ -106,12 +182,35 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
             });
         }
 
+        private static string normaliseExternalPath(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        private string getManagedRelativePath(string path)
+        {
+            string fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string managedRoot = maniaStorage.GetFullPath(string.Empty);
+
+            if (!FilesystemSanityCheckHelpers.IsSubDirectory(managedRoot, fullPath))
+                throw new InvalidOperationException($"Mania managed registration requires a directory under '{managedRoot}'.");
+
+            string relativePath = Path.GetRelativePath(storage.GetFullPath(string.Empty), fullPath).ToStandardisedPath();
+
+            if (FilesystemSanityCheckHelpers.IncursPathTraversalRisk(relativePath))
+                throw new InvalidOperationException($"Managed storage path '{relativePath}' is not allowed.");
+
+            return relativePath;
+        }
+
         private Live<BeatmapSetInfo> importIntoRealm(BeatmapSetInfo beatmapSet, CancellationToken cancellationToken)
             => realmAccess.Run(realm =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 using var transaction = realm.BeginWrite();
+
+                var ruleset = realm.All<RulesetInfo>().FirstOrDefault(r => r.ShortName == ManiaRuleset.SHORT_NAME);
+
+                if (ruleset?.Available != true)
+                    throw new InvalidOperationException($"Unable to import mania beatmaps because ruleset '{ManiaRuleset.SHORT_NAME}' is not available locally.");
 
                 var existing = realm.All<BeatmapSetInfo>().OrderBy(set => set.DeletePending).FirstOrDefault(set => set.Hash == beatmapSet.Hash);
 
@@ -121,16 +220,6 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
                 foreach (var beatmap in beatmapSet.Beatmaps)
                 {
                     beatmap.BeatmapSet = beatmapSet;
-
-                    // Resolve the managed RulesetInfo from Realm by OnlineID.
-                    var ruleset = realm.All<RulesetInfo>().FirstOrDefault(r => r.OnlineID == beatmap.Ruleset.OnlineID);
-
-                    if (ruleset?.Available != true)
-                    {
-                        Logger.Log($"Skipping mania beatmap {beatmap.LocalFilePath}: ruleset {beatmap.Ruleset.OnlineID} not available.", LoggingTarget.Database);
-                        continue;
-                    }
-
                     beatmap.Ruleset = ruleset;
                 }
 
@@ -175,6 +264,14 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
 
                 try
                 {
+                    memoryStream.Position = 0;
+
+                    if (!OsuFileModeDetector.IsMania(memoryStream))
+                    {
+                        skippedFiles.Add(osuFile);
+                        continue;
+                    }
+
                     memoryStream.Position = 0;
 
                     IBeatmap decoded;

@@ -28,6 +28,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         {
             return new BeatmapInfo(ruleset.RulesetInfo.Clone(), new BeatmapDifficulty(convertedInfo.Difficulty), convertedInfo.Metadata.DeepClone())
             {
+                StarRating = convertedInfo.StarRating,
                 DifficultyName = convertedInfo.DifficultyName,
                 BeatDivisor = convertedInfo.BeatDivisor,
                 Length = convertedInfo.Length,

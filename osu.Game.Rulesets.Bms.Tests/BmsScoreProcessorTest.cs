@@ -75,7 +75,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestEmptyPoorBreaksComboWithoutAffectingExScoreOrAccuracy()
+        public void TestEmptyPoorDoesNotBreakComboWithoutAffectingExScoreOrAccuracy()
         {
             var beatmap = createBeatmap(1);
             var processor = new BmsScoreProcessor();
@@ -86,18 +86,36 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             processor.ApplyBeatmap(beatmap);
             processor.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Perfect));
-            processor.ApplyResult(createResult(emptyPoor, HitResult.ComboBreak));
+            processor.ApplyResult(createResult(emptyPoor, HitResult.Ok));
 
             Assert.Multiple(() =>
             {
                 Assert.That(processor.CurrentExScore, Is.EqualTo(2));
                 Assert.That(processor.TotalScoreWithoutMods.Value, Is.EqualTo(2));
-                Assert.That(processor.Combo.Value, Is.EqualTo(0));
+                Assert.That(processor.Combo.Value, Is.EqualTo(1));
                 Assert.That(processor.HighestCombo.Value, Is.EqualTo(1));
                 Assert.That(processor.Accuracy.Value, Is.EqualTo(1).Within(0.000001));
                 Assert.That(processor.JudgedHits, Is.EqualTo(1));
                 Assert.That(BmsScoreProcessor.GetEmptyPoorCount(processor.Statistics), Is.EqualTo(1));
+                Assert.That(BmsScoreProcessor.GetComboBreakCount(processor.Statistics), Is.EqualTo(0));
             });
+        }
+
+        [Test]
+        public void TestComboBreakStatisticTracksActualComboDrops()
+        {
+            var beatmap = createBeatmap(5);
+            var processor = new BmsScoreProcessor();
+
+            processor.ApplyBeatmap(beatmap);
+            processor.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Perfect));
+            processor.ApplyResult(createResult(beatmap.HitObjects[1], HitResult.Great));
+            processor.ApplyResult(createResult(beatmap.HitObjects[2], HitResult.Meh));
+            processor.ApplyResult(createResult(beatmap.HitObjects[3], HitResult.Miss));
+            processor.ApplyResult(createResult(beatmap.HitObjects[4], HitResult.Perfect));
+            processor.ApplyResult(createResult(beatmap.HitObjects[4], HitResult.Miss));
+
+            Assert.That(BmsScoreProcessor.GetComboBreakCount(processor.Statistics), Is.EqualTo(2));
         }
 
         [Test]
@@ -110,7 +128,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Header = new FrameHeader(0, 1, 0, 1, new Dictionary<HitResult, int>
                 {
                     [HitResult.Perfect] = 1,
-                    [HitResult.ComboBreak] = 3,
+                    [HitResult.Ok] = 3,
+                    [HitResult.ComboBreak] = 2,
                 }, new ScoreProcessorStatistics
                 {
                     MaximumBaseScore = 2,
@@ -447,6 +466,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(BmsJudgeMode.Beatoraja)]
         [TestCase(BmsJudgeMode.LR2)]
+        [TestCase(BmsJudgeMode.IIDX)]
         public void TestJudgeModeUsesScoreModsWhenPersistedScoreDataAbsent(BmsJudgeMode expectedMode)
         {
             var score = new ScoreInfo
@@ -490,6 +510,15 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestRulesetScoreDisplayBucketIncludesJudgeRankOverrideWhenPresent()
+        {
+            var judgeRankMod = new BmsModJudgeRank();
+            judgeRankMod.JudgeRank.Value = BmsJudgeRank.VeryHard;
+
+            Assert.That(new BmsRuleset().GetScoreDisplayBucket(new Mod[] { judgeRankMod }), Is.EqualTo("judge-mode:OD|long-note-mode:LN|judge-rank:VERY_HARD"));
+        }
+
+        [Test]
         public void TestRulesetScoreDisplayBucketUsesPersistedScoreData()
         {
             var score = new ScoreInfo
@@ -506,9 +535,35 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(new BmsRuleset().GetScoreDisplayBucket(score), Is.EqualTo("judge-mode:LR2|long-note-mode:HCN"));
         }
 
+        [Test]
+        public void TestRulesetScoreDisplayBucketUsesJudgeRankOverrideAlongsideJudgeModeAndLongNoteMode()
+        {
+            var judgeRankMod = new BmsModJudgeRank();
+            judgeRankMod.JudgeRank.Value = BmsJudgeRank.Easy;
+
+            Assert.That(new BmsRuleset().GetScoreDisplayBucket(new Mod[]
+            {
+                new BmsModJudgeBeatoraja(),
+                judgeRankMod,
+                new BmsModHellChargeNote(),
+            }), Is.EqualTo("judge-mode:BEATORAJA|long-note-mode:HCN|judge-rank:EASY"));
+        }
+
+        [Test]
+        public void TestRulesetScoreDisplayBucketIgnoresJudgeDifficultyWhenIidxJudgeSelected()
+        {
+            Assert.That(new BmsRuleset().GetScoreDisplayBucket(new Mod[]
+            {
+                new BmsModJudgeIidx(),
+                createJudgeRankMod(BmsJudgeRank.VeryHard),
+                new BmsModHellChargeNote(),
+            }), Is.EqualTo("judge-mode:IIDX|long-note-mode:HCN"));
+        }
+
         [TestCase(BmsJudgeMode.OD, BmsLongNoteMode.LN, "judge-mode:OD|long-note-mode:LN")]
         [TestCase(BmsJudgeMode.Beatoraja, BmsLongNoteMode.CN, "judge-mode:BEATORAJA|long-note-mode:CN")]
         [TestCase(BmsJudgeMode.LR2, BmsLongNoteMode.HCN, "judge-mode:LR2|long-note-mode:HCN")]
+        [TestCase(BmsJudgeMode.IIDX, BmsLongNoteMode.HCN, "judge-mode:IIDX|long-note-mode:HCN")]
         public void TestRulesetScoreDisplayBucketUsesSelectedJudgeAndLongNoteModes(BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode, string expectedBucket)
         {
             var mods = new List<Mod>();
@@ -541,9 +596,35 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [Test]
+        public void TestScoreDisplayBucketFilteringIncludesJudgeRankOverride()
+        {
+            var ruleset = new BmsRuleset();
+            var filteredScores = new[]
+            {
+                createScoreForModes(BmsJudgeMode.Beatoraja, BmsLongNoteMode.HCN, BmsJudgeRank.VeryHard),
+                createScoreForModes(BmsJudgeMode.Beatoraja, BmsLongNoteMode.HCN, BmsJudgeRank.Hard),
+                createScoreForModes(BmsJudgeMode.LR2, BmsLongNoteMode.HCN, BmsJudgeRank.VeryHard),
+            }.FilterToScoreDisplayBucket(ruleset, ruleset.GetScoreDisplayBucket(new Mod[]
+            {
+                new BmsModJudgeBeatoraja(),
+                createJudgeRankMod(BmsJudgeRank.VeryHard),
+                new BmsModHellChargeNote(),
+            })).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(filteredScores, Has.Length.EqualTo(1));
+                Assert.That(BmsJudgeModeExtensions.GetJudgeMode(filteredScores[0]), Is.EqualTo(BmsJudgeMode.Beatoraja));
+                Assert.That(BmsJudgeRankExtensions.GetJudgeRankOverride(filteredScores[0]), Is.EqualTo(BmsJudgeRank.VeryHard));
+            });
+        }
+
+        [TestCase(HitResult.Perfect, "PGREAT")]
         [TestCase(HitResult.Meh, "BAD")]
         [TestCase(HitResult.Miss, "POOR")]
-        [TestCase(HitResult.ComboBreak, "EMPTY POOR")]
+        [TestCase(HitResult.Ok, "EPOOR")]
+        [TestCase(HitResult.ComboBreak, "COMBO BREAK")]
         public void TestRulesetDisplaysBmsHitResultNames(HitResult result, string expectedDisplayName)
             => Assert.That(new BmsRuleset().GetDisplayNameForHitResult(result).ToString(), Is.EqualTo(expectedDisplayName));
 
@@ -568,6 +649,41 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(beatmap.HitObjects.OfType<BmsHoldNote>().Single().Tail?.Judgement, Is.TypeOf<BmsHoldNoteTailJudgement>());
                 Assert.That(((BmsHoldNoteTailJudgement)beatmap.HitObjects.OfType<BmsHoldNote>().Single().Tail!.Judgement).CountsForScore, Is.EqualTo(longNoteMode.RequiresTailJudgement()));
                 Assert.That(beatmap.HitObjects.OfType<BmsHoldNote>().Single().BodyTicks.All(tick => tick.CountsForGauge == longNoteMode.RequiresBodyGaugeTicks()), Is.True);
+            });
+        }
+
+        [Test]
+        public void TestApplyBeatmapUsesAutoScratchAfterLongNoteMods()
+        {
+            var beatmap = createScratchHoldBeatmap();
+            var processor = new BmsScoreProcessor();
+
+            processor.Mods.Value = new Mod[]
+            {
+                new BmsModHellChargeNote(),
+                new BmsModAutoScratch(),
+            };
+
+            processor.ApplyBeatmap(beatmap);
+
+            var holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.MaximumExScore, Is.EqualTo(2));
+                Assert.That(processor.MaximumCombo, Is.EqualTo(1));
+                Assert.That(processor.MaximumStatistics[HitResult.Perfect], Is.EqualTo(1));
+                Assert.That(holdNote.AutoPlay, Is.True);
+                Assert.That(holdNote.Head?.AutoPlay, Is.True);
+                Assert.That(holdNote.Tail?.AutoPlay, Is.True);
+                Assert.That(holdNote.CountsForScore, Is.False);
+                Assert.That(holdNote.Head?.CountsForScore, Is.False);
+                Assert.That(holdNote.Tail?.CountsForScore, Is.False);
+                Assert.That(holdNote.Head?.Judgement, Is.TypeOf<BmsHitObjectJudgement>());
+                Assert.That(((BmsHitObjectJudgement)holdNote.Head!.Judgement).CountsForScore, Is.False);
+                Assert.That(holdNote.Tail?.Judgement, Is.TypeOf<BmsHoldNoteTailJudgement>());
+                Assert.That(((BmsHoldNoteTailJudgement)holdNote.Tail!.Judgement).CountsForScore, Is.False);
+                Assert.That(holdNote.BodyTicks.All(tick => !tick.CountsForGauge), Is.True);
             });
         }
 
@@ -613,13 +729,34 @@ namespace osu.Game.Rulesets.Bms.Tests
             return beatmap;
         }
 
+        private static BmsBeatmap createScratchHoldBeatmap()
+        {
+            var beatmap = createBeatmap(1);
+
+            var holdNote = new BmsHoldNote
+            {
+                StartTime = 1000,
+                EndTime = 1500,
+                LaneIndex = 0,
+                IsScratch = true,
+            };
+
+            holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
+            {
+                OverallDifficulty = OsuOdJudgementSystem.MapRankToOverallDifficulty(2),
+            });
+
+            beatmap.HitObjects.Add(holdNote);
+            return beatmap;
+        }
+
         private static JudgementResult createResult(osu.Game.Rulesets.Objects.HitObject hitObject, HitResult hitResult)
             => new JudgementResult(hitObject, hitObject.CreateJudgement())
             {
                 Type = hitResult,
             };
 
-        private static ScoreInfo createScoreForModes(BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode)
+        private static ScoreInfo createScoreForModes(BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode, BmsJudgeRank? judgeRankOverride = null)
         {
             var score = new ScoreInfo();
 
@@ -627,6 +764,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             if (judgeMode != BmsJudgeMode.OD)
                 mods.Add(createJudgeModeMod(judgeMode));
+
+            if (judgeRankOverride.HasValue)
+                mods.Add(createJudgeRankMod(judgeRankOverride.Value));
 
             if (longNoteMode != BmsLongNoteMode.LN)
                 mods.Add(createLongNoteModeMod(longNoteMode));
@@ -643,6 +783,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             return score;
         }
 
+        private static Mod createJudgeRankMod(BmsJudgeRank judgeRank)
+        {
+            var mod = new BmsModJudgeRank();
+            mod.JudgeRank.Value = judgeRank;
+            return mod;
+        }
+
         private static Mod createLongNoteModeMod(BmsLongNoteMode longNoteMode)
             => longNoteMode switch
             {
@@ -656,6 +803,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 BmsJudgeMode.Beatoraja => new BmsModJudgeBeatoraja(),
                 BmsJudgeMode.LR2 => new BmsModJudgeLr2(),
+                BmsJudgeMode.IIDX => new BmsModJudgeIidx(),
                 _ => throw new AssertionException($"Unsupported judge mode test input: {judgeMode}"),
             };
 

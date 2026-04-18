@@ -20,6 +20,7 @@ using osu.Game.Beatmaps.Legacy;
 using osu.Game.Configuration;
 using osu.Game.Extensions;
 using osu.Game.Localisation;
+using osu.Game.Online.Leaderboards;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
@@ -31,6 +32,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
 using osu.Game.Screens.Edit.Setup;
+using osu.Game.Screens.Ranking.Expanded.Accuracy;
 using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
@@ -345,6 +347,25 @@ namespace osu.Game.Rulesets
         }
 
         /// <summary>
+        /// Creates the main accuracy / rank display shown in the expanded results panel.
+        /// </summary>
+        /// <param name="score">The score being displayed.</param>
+        /// <param name="withFlair">Whether to show the first-load results flair animation.</param>
+        public virtual Drawable CreateResultsAccuracyDisplay(ScoreInfo score, bool withFlair = false) => new AccuracyCircle(score, withFlair);
+
+        /// <summary>
+        /// Creates the rank badge shown in the contracted results panel.
+        /// </summary>
+        /// <param name="score">The score being displayed.</param>
+        public virtual Drawable CreateResultsRankBadge(ScoreInfo score) => new DrawableRank(score.Rank);
+
+        /// <summary>
+        /// Returns optional label text to display above the main score counter in the expanded results panel.
+        /// </summary>
+        /// <param name="score">The score being displayed.</param>
+        public virtual LocalisableString? GetResultsScoreLabel(ScoreInfo score) => null;
+
+        /// <summary>
         /// Creates the statistics for a <see cref="ScoreInfo"/> to be displayed in the results screen.
         /// </summary>
         /// <param name="score">The <see cref="ScoreInfo"/> to create the statistics for. The score is guaranteed to have <see cref="ScoreInfo.HitEvents"/> populated.</param>
@@ -384,7 +405,7 @@ namespace osu.Game.Rulesets
         /// <returns>
         /// All relevant <see cref="HitResult"/>s along with a display-friendly name.
         /// </returns>
-        public IEnumerable<(HitResult result, LocalisableString displayName)> GetHitResultsForDisplay()
+        public virtual IEnumerable<(HitResult result, LocalisableString displayName)> GetHitResultsForDisplay()
         {
             var validResults = GetValidHitResults();
 
@@ -424,6 +445,15 @@ namespace osu.Game.Rulesets
         public virtual LocalisableString GetDisplayNameForHitResult(HitResult result) => result.GetLocalisableDescription();
 
         /// <summary>
+        /// Gets the score count that should be displayed for the specified result type.
+        /// </summary>
+        /// <param name="score">The score being displayed.</param>
+        /// <param name="result">The result type to get the display count for.</param>
+        /// <returns>The count to display.</returns>
+        public virtual int GetDisplayCountForHitResult(ScoreInfo score, HitResult result)
+            => score.Statistics.GetValueOrDefault(result);
+
+        /// <summary>
         /// Applies changes to difficulty attributes for presenting to a user a rough estimate of how mods affect difficulty.
         /// Importantly, this should NOT BE USED FOR ANY CALCULATIONS.
         ///
@@ -457,6 +487,12 @@ namespace osu.Game.Rulesets
             yield return new RulesetBeatmapAttribute(SongSelectStrings.Accuracy, @"OD", originalDifficulty.OverallDifficulty, adjustedDifficulty.OverallDifficulty, 10);
             yield return new RulesetBeatmapAttribute(SongSelectStrings.HPDrain, @"HP", originalDifficulty.DrainRate, adjustedDifficulty.DrainRate, 10);
         }
+
+        /// <summary>
+        /// Returns optional ruleset-specific accent data for a song select beatmap panel representing the provided score.
+        /// Returning <c>null</c> keeps the default panel visuals.
+        /// </summary>
+        public virtual SongSelectPanelAccent? GetSongSelectPanelAccent(ScoreInfo score) => null;
 
         /// <summary>
         /// Creates an optional ruleset-specific component to be displayed in the song select beatmap details area.

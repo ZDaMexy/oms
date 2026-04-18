@@ -7,7 +7,7 @@ namespace osu.Game.Localisation
 {
     public static class MaintenanceSettingsStrings
     {
-        private const string prefix = @"osu.Game.Resources.Localisation.MaintenanceSettings";
+        private const string prefix = @"osu.Game.Localisation.MaintenanceSettings";
 
         /// <summary>
         /// "Maintenance"
@@ -50,9 +50,24 @@ namespace osu.Game.Localisation
         public static LocalisableString RestartAndReOpenRequiredForCompletion => new TranslatableString(getKey(@"restart_and_re_open_required_for_completion"), @"To complete this operation, osu! will close. Please open it again to use the new data location.");
 
         /// <summary>
-        /// "Delete ALL beatmaps"
+        /// "Delete ALL internal beatmaps (delete files)"
         /// </summary>
-        public static LocalisableString DeleteAllBeatmaps => new TranslatableString(getKey(@"delete_all_beatmaps"), @"Delete ALL beatmaps");
+        public static LocalisableString DeleteAllInternalBeatmaps => new TranslatableString(getKey(@"delete_all_internal_beatmaps"), @"Delete ALL internal beatmaps (delete files)");
+
+        /// <summary>
+        /// "Delete ALL internal beatmaps (delete files) [{0}]"
+        /// </summary>
+        public static LocalisableString DeleteAllInternalBeatmapsWithCount(int count) => new TranslatableString(getKey(@"delete_all_internal_beatmaps_with_count"), @"Delete ALL internal beatmaps (delete files) [{0}]", count);
+
+        /// <summary>
+        /// "Delete ALL external beatmaps (remove references only)"
+        /// </summary>
+        public static LocalisableString DeleteAllExternalBeatmaps => new TranslatableString(getKey(@"delete_all_external_beatmaps"), @"Delete ALL external beatmaps (remove references only)");
+
+        /// <summary>
+        /// "Delete ALL external beatmaps (remove references only) [{0}]"
+        /// </summary>
+        public static LocalisableString DeleteAllExternalBeatmapsWithCount(int count) => new TranslatableString(getKey(@"delete_all_external_beatmaps_with_count"), @"Delete ALL external beatmaps (remove references only) [{0}]", count);
 
         /// <summary>
         /// "Delete ALL beatmap videos"

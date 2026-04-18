@@ -150,7 +150,11 @@ namespace osu.Game.Beatmaps
             if (string.IsNullOrEmpty(filesystemStoragePath))
                 return this;
 
-            return new FilesystemBackedBeatmapResourceProvider(this, storage.GetStorageForDirectory(filesystemStoragePath));
+            Storage filesystemStorage = beatmapInfo.BeatmapSet?.IsExternalFilesystemStorage == true
+                ? new NativeStorage(filesystemStoragePath)
+                : storage.GetStorageForDirectory(filesystemStoragePath);
+
+            return new FilesystemBackedBeatmapResourceProvider(this, filesystemStorage);
         }
 
         private class BeatmapManagerWorkingBeatmap : WorkingBeatmap

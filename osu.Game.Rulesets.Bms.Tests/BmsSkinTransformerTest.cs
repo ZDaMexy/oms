@@ -160,16 +160,18 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(HitResult.Meh)]
         [TestCase(HitResult.Miss)]
+        [TestCase(HitResult.Ok)]
         [TestCase(HitResult.ComboBreak)]
-        public void TestRulesetRoutesCustomBmsJudgementThroughSkinnableWrapper(HitResult result)
+        public void TestRulesetResolvesCustomBmsJudgementDirectly(HitResult result)
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new SkinComponentLookup<HitResult>(result)), Is.TypeOf<SkinnableBmsJudgement>());
+            Assert.That(transformer!.GetDrawableComponent(new SkinComponentLookup<HitResult>(result)), Is.TypeOf<BmsJudgementPiece>());
         }
 
         [TestCase(HitResult.Meh)]
         [TestCase(HitResult.Miss)]
+        [TestCase(HitResult.Ok)]
         [TestCase(HitResult.ComboBreak)]
         public void TestBmsJudgementFallsBackToDefaultDisplay(HitResult result)
         {
@@ -180,6 +182,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(HitResult.Meh)]
         [TestCase(HitResult.Miss)]
+        [TestCase(HitResult.Ok)]
         [TestCase(HitResult.ComboBreak)]
         public void TestUserSkinWithoutBmsJudgementReturnsNullToAllowLaterFallback(HitResult result)
         {
@@ -190,6 +193,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(HitResult.Meh)]
         [TestCase(HitResult.Miss)]
+        [TestCase(HitResult.Ok)]
         [TestCase(HitResult.ComboBreak)]
         public void TestCustomBmsJudgementFallsBackToWrappedSkin(HitResult result)
         {
@@ -197,6 +201,27 @@ namespace osu.Game.Rulesets.Bms.Tests
             var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsJudgementSkinLookup(result)), Is.SameAs(skin.JudgementComponent));
+        }
+
+        [TestCase(HitResult.Meh)]
+        [TestCase(HitResult.Miss)]
+        [TestCase(HitResult.Ok)]
+        [TestCase(HitResult.ComboBreak)]
+        public void TestRulesetBoundaryRedirectUsesCustomSkinJudgement(HitResult result)
+        {
+            var skin = new TestSkin(judgementComponent: new TestJudgementDisplay());
+            var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new SkinComponentLookup<HitResult>(result)), Is.SameAs(skin.JudgementComponent));
+        }
+
+        [Test]
+        public void TestNonCustomBmsJudgementFallsBackToWrappedSkin()
+        {
+            var skin = new TestSkin();
+            var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsJudgementSkinLookup(HitResult.Great)), Is.SameAs(skin.GreatJudgementComponent));
         }
 
         [Test]

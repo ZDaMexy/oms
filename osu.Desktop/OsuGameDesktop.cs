@@ -37,6 +37,7 @@ namespace osu.Desktop
         private BmsBeatmapImporter? bmsBeatmapImporter;
         private ManiaBeatmapImporter? maniaBeatmapImporter;
         private ExternalLibraryScanner? externalLibraryScanner;
+        private ManagedLibraryScanner? managedLibraryScanner;
         private ExternalLibraryConfig? externalLibraryConfig;
         private DependencyContainer desktopDependencies = null!;
 
@@ -161,9 +162,15 @@ namespace osu.Desktop
             // but dependency resolution must find these already registered).
             externalLibraryConfig = new ExternalLibraryConfig(Storage);
             externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig);
+            managedLibraryScanner = new ManagedLibraryScanner(externalLibraryScanner, new[]
+            {
+                new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), ExternalLibraryRootType.BMS),
+                new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(ManiaFolderImporter.MANIA_STORAGE_PATH), ExternalLibraryRootType.Mania),
+            });
 
             desktopDependencies.CacheAs(externalLibraryConfig);
             desktopDependencies.CacheAs(externalLibraryScanner);
+            desktopDependencies.CacheAs(managedLibraryScanner);
         }
 
         protected override void LoadComplete()
@@ -182,9 +189,11 @@ namespace osu.Desktop
             };
             RegisterImportHandler(maniaBeatmapImporter);
 
-            // Wire importer delegates now that importers are created.
-            externalLibraryScanner!.BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.Import(path);
-            externalLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.Import(path);
+            // Wire scanner delegates to direct-read registration, preserving source directories as read-only.
+            externalLibraryScanner!.BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.RegisterExternalDirectory(path, ct);
+            externalLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterExternalDirectory(path, ct);
+            managedLibraryScanner!.BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.RegisterManagedDirectory(path, ct);
+            managedLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterManagedDirectory(path, ct);
 
             if (OnlineFeaturesEnabled)
                 LoadComponentAsync(new DiscordRichPresence(), Add);

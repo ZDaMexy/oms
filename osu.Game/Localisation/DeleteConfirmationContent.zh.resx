@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="internal_beatmaps" xml:space="preserve"><value>确定要删除所有内部谱面吗？这会删除 OMS 管理的本地谱面文件。</value></data>
+  <data name="external_beatmaps" xml:space="preserve"><value>确定要删除所有外部谱面吗？这只会移除 OMS 中的引用，不会删除外部谱库中的文件。</value></data>
+  <data name="beatmap_videos" xml:space="preserve"><value>确定要删除所有谱面视频吗？此操作无法撤销！</value></data>
+  <data name="offsets" xml:space="preserve"><value>确定要重置所有本地谱面偏移吗？此操作无法撤销！</value></data>
+  <data name="skins" xml:space="preserve"><value>确定要删除所有皮肤吗？此操作无法撤销！</value></data>
+  <data name="collections" xml:space="preserve"><value>确定要删除所有收藏夹吗？此操作无法撤销！</value></data>
+  <data name="scores" xml:space="preserve"><value>确定要删除所有成绩吗？此操作无法撤销！</value></data>
+  <data name="mod_presets" xml:space="preserve"><value>确定要删除所有 Mod 预设吗？</value></data>
+  <data name="beatmap_source" xml:space="preserve"><value>来源：{0}</value></data>
+  <data name="beatmap_delete_action" xml:space="preserve"><value>删除行为：{0}</value></data>
+  <data name="beatmap_storage_path" xml:space="preserve"><value>存储路径：{0}</value></data>
+  <data name="internal_beatmap_source" xml:space="preserve"><value>内部导入（OMS 管理存储）</value></data>
+  <data name="external_beatmap_source" xml:space="preserve"><value>外部谱库引用</value></data>
+  <data name="internal_beatmap_delete_action" xml:space="preserve"><value>删除 OMS 管理的本地谱面文件。</value></data>
+  <data name="external_beatmap_delete_action" xml:space="preserve"><value>仅移除 OMS 中的引用，外部谱库中的文件不会被删除。</value></data>
+  <data name="internal_beatmap_managed_storage_path" xml:space="preserve"><value>OMS 内部文件存储</value></data>
+</root>

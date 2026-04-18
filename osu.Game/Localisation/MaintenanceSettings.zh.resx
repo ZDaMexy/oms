@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="maintenance_section_header" xml:space="preserve"><value>维护</value></data>
+  <data name="select_directory" xml:space="preserve"><value>选择目录</value></data>
+  <data name="migration_in_progress" xml:space="preserve"><value>迁移进行中</value></data>
+  <data name="migration_description" xml:space="preserve"><value>这可能需要几分钟，具体取决于你的磁盘速度。</value></data>
+  <data name="prohibited_interact_during_migration" xml:space="preserve"><value>请避免与游戏交互！</value></data>
+  <data name="select_new_location" xml:space="preserve"><value>请选择新位置</value></data>
+  <data name="target_directory_already_installed_osu" xml:space="preserve"><value>目标目录似乎已经有一个 osu! 安装。要直接使用其中的数据吗？</value></data>
+  <data name="restart_and_re_open_required_for_completion" xml:space="preserve"><value>要完成此操作，osu! 将会关闭。请重新打开以使用新的数据位置。</value></data>
+  <data name="delete_all_internal_beatmaps" xml:space="preserve"><value>删除所有内部谱面（删除文件）</value></data>
+  <data name="delete_all_internal_beatmaps_with_count" xml:space="preserve"><value>删除所有内部谱面（删除文件） [{0}]</value></data>
+  <data name="delete_all_external_beatmaps" xml:space="preserve"><value>删除所有外部谱面（仅删除引用）</value></data>
+  <data name="delete_all_external_beatmaps_with_count" xml:space="preserve"><value>删除所有外部谱面（仅删除引用） [{0}]</value></data>
+  <data name="delete_all_beatmap_videos" xml:space="preserve"><value>删除所有谱面视频</value></data>
+  <data name="reset_all_offsets" xml:space="preserve"><value>重置所有谱面偏移</value></data>
+  <data name="delete_all_scores" xml:space="preserve"><value>删除所有成绩</value></data>
+  <data name="delete_all_skins" xml:space="preserve"><value>删除所有皮肤</value></data>
+  <data name="delete_all_collections" xml:space="preserve"><value>删除所有收藏夹</value></data>
+  <data name="restore_all_hidden_difficulties" xml:space="preserve"><value>恢复所有隐藏难度</value></data>
+  <data name="restore_all_recently_deleted_beatmaps" xml:space="preserve"><value>恢复所有最近删除的谱面</value></data>
+  <data name="delete_all_mod_presets" xml:space="preserve"><value>删除所有 Mod 预设</value></data>
+  <data name="restore_all_recently_deleted_mod_presets" xml:space="preserve"><value>恢复所有最近删除的 Mod 预设</value></data>
+  <data name="deleted_all_collections" xml:space="preserve"><value>已删除所有收藏夹！</value></data>
+  <data name="no_collections_found_to_delete" xml:space="preserve"><value>没有可删除的收藏夹！</value></data>
+  <data name="deleted_all_mod_presets" xml:space="preserve"><value>已删除所有 Mod 预设！</value></data>
+  <data name="no_mod_presets_found_to_delete" xml:space="preserve"><value>没有可删除的 Mod 预设！</value></data>
+  <data name="restored_all_deleted_mod_presets" xml:space="preserve"><value>已恢复所有已删除的 Mod 预设！</value></data>
+  <data name="no_mod_presets_found_to_restore" xml:space="preserve"><value>没有可恢复的 Mod 预设！</value></data>
+  <data name="stable_directory_select_header" xml:space="preserve"><value>请选择你的 osu!stable 安装目录</value></data>
+</root>

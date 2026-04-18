@@ -107,6 +107,21 @@ namespace osu.Game.Rulesets.Bms.Objects
             }
         }
 
+        public override bool CountsForScore
+        {
+            get => base.CountsForScore;
+            set
+            {
+                base.CountsForScore = value;
+
+                if (Head != null)
+                    Head.CountsForScore = value;
+
+                if (Tail != null)
+                    Tail.CountsForScore = value;
+            }
+        }
+
         public double EndTime
         {
             get => StartTime + Duration;
@@ -178,6 +193,7 @@ namespace osu.Game.Rulesets.Bms.Objects
                 Keymode = Keymode,
                 IsScratch = IsScratch,
                 AutoPlay = AutoPlay,
+                CountsForScore = CountsForScore,
             });
 
             Tail = null;
@@ -191,6 +207,7 @@ namespace osu.Game.Rulesets.Bms.Objects
                 Keymode = Keymode,
                 IsScratch = IsScratch,
                 AutoPlay = AutoPlay,
+                CountsForScore = CountsForScore,
             });
 
             for (double tickTime = StartTime + BmsHoldNoteBodyTick.TICK_QUANTUM; tickTime < EndTime; tickTime += BmsHoldNoteBodyTick.TICK_QUANTUM)

@@ -5,6 +5,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics.Sprites;
 using osu.Game.Graphics;
 using osu.Game.Configuration;
+using osu.Game.Localisation;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.UI;
@@ -17,7 +18,7 @@ namespace osu.Game.Rulesets.Bms.Mods
     {
         public override IconUsage? Icon => OsuIcon.ModCover;
 
-        public override ModType Type => ModType.DifficultyIncrease;
+        public override ModType Type => ModType.Conversion;
 
         public override double ScoreMultiplier => 1;
 
@@ -25,13 +26,13 @@ namespace osu.Game.Rulesets.Bms.Mods
 
         protected abstract BmsLaneCoverPosition Position { get; }
 
-        [SettingSource("Cover percent", "The proportion of the playfield height covered by this lane cover.")]
-        public BindableFloat CoverPercent { get; } = new BindableFloat(50)
+        [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.CoverValue), nameof(BmsModStrings.CoverValueDescription))]
+        public BindableFloat CoverPercent { get; } = new BindableFloat(500)
         {
             MinValue = 0,
-            MaxValue = 100,
+            MaxValue = 1000,
             Precision = 1,
-            Default = 50,
+            Default = 500,
         };
 
         public bool AdjustCoverPercent(float delta)

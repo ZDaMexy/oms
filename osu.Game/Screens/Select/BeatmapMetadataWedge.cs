@@ -382,16 +382,21 @@ namespace osu.Game.Screens.Select
         {
             var metadata = beatmap.Value.Metadata;
             var beatmapSetInfo = beatmap.Value.BeatmapSetInfo;
+            string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap.Value.BeatmapInfo);
+            string[] displayMapperTags = BeatmapLocalMetadataDisplayResolver.GetDisplayMapperTags(beatmap.Value.BeatmapInfo);
 
-            creator.Data = (metadata.Author.Username, () => linkHandler?.HandleLink(new LinkDetails(LinkAction.OpenUserProfile, metadata.Author)));
+            if (BeatmapLocalMetadataDisplayResolver.HasLinkedCreatorProfile(beatmap.Value.BeatmapInfo))
+                creator.Data = (displayCreator, () => linkHandler?.HandleLink(new LinkDetails(LinkAction.OpenUserProfile, metadata.Author)));
+            else
+                creator.Data = (string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator, null);
 
             if (!string.IsNullOrEmpty(metadata.Source))
                 source.Data = (metadata.Source, () => songSelect?.Search(metadata.Source));
             else
                 source.Data = ("-", null);
 
-            if (!string.IsNullOrEmpty(metadata.Tags))
-                mapperTags.Tags = (metadata.Tags.Split(' '), t => songSelect?.Search(t));
+            if (displayMapperTags.Length > 0)
+                mapperTags.Tags = (displayMapperTags, t => songSelect?.Search(t));
             else
                 mapperTags.Tags = (Array.Empty<string>(), _ => { });
 
@@ -434,7 +439,7 @@ namespace osu.Game.Screens.Select
         {
             if (onlineLookupResult.Value?.Status != SongSelect.BeatmapSetLookupStatus.Completed)
             {
-                genre.Data = null;
+                updateLocalGenreFallback(showLoadingWhenMissing: true);
                 language.Data = null;
                 userTags.Tags = null;
                 return;
@@ -442,7 +447,7 @@ namespace osu.Game.Screens.Select
 
             if (onlineLookupResult.Value.Result == null)
             {
-                genre.Data = ("-", null);
+                updateLocalGenreFallback(showLoadingWhenMissing: false);
                 language.Data = ("-", null);
             }
             else
@@ -466,6 +471,16 @@ namespace osu.Game.Screens.Select
 
             updateUserTags();
             updateSubWedgeVisibility();
+        }
+
+        private void updateLocalGenreFallback(bool showLoadingWhenMissing)
+        {
+            string? localGenre = BeatmapLocalMetadataDisplayResolver.GetDisplayGenre(beatmap.Value.BeatmapInfo);
+
+            if (!string.IsNullOrWhiteSpace(localGenre))
+                genre.Data = (localGenre, () => songSelect?.Search(localGenre));
+            else
+                genre.Data = showLoadingWhenMissing ? null : ("-", null);
         }
 
         private CancellationTokenSource? userTagsCancellationSource;
