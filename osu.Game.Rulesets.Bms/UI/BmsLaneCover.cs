@@ -22,6 +22,14 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         public readonly BindableFloat CoverPercent = new BindableFloat();
 
+        public readonly BindableFloat CoverOpacity = new BindableFloat(1000)
+        {
+            MinValue = 0,
+            MaxValue = 1000,
+            Precision = 1,
+            Default = 1000,
+        };
+
         public readonly BindableBool IsFocused = new BindableBool();
 
         public BmsLaneCoverPosition CoverPosition { get; }
@@ -33,6 +41,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected float FocusEdgeAlpha => (display.CurrentDisplay as DefaultBmsLaneCoverDisplay)?.FocusEdgeAlpha ?? 0;
 
+        protected float CoverDisplayAlpha => display.Alpha;
+
         public BmsLaneCover(BmsLaneCoverPosition position)
         {
             RelativeSizeAxes = Axes.Both;
@@ -43,8 +53,8 @@ namespace osu.Game.Rulesets.Bms.UI
             InternalChild = cover = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Anchor = position == BmsLaneCoverPosition.Top ? Anchor.TopCentre : Anchor.BottomCentre,
-                Origin = position == BmsLaneCoverPosition.Top ? Anchor.TopCentre : Anchor.BottomCentre,
+                Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.TopCentre : Anchor.BottomCentre,
+                Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.TopCentre : Anchor.BottomCentre,
                 Width = 1,
                 Height = 0,
                 Child = display = new SkinnableLaneCoverDisplay(this, position)
@@ -55,6 +65,7 @@ namespace osu.Game.Rulesets.Bms.UI
             };
 
             CoverPercent.BindValueChanged(_ => updateCoverage(), true);
+            CoverOpacity.BindValueChanged(_ => updateOpacity(), true);
             IsFocused.BindValueChanged(_ => updateFocusState(), true);
         }
 
@@ -66,6 +77,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             updateFocusState();
         }
+
+        private void updateOpacity()
+            => display.Alpha = Math.Clamp(CoverOpacity.Value / 1000f, 0, 1);
 
         private void updateFocusState()
         {
@@ -118,7 +132,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Alpha = 0.92f,
+                    Alpha = 1,
                     Colour = BmsDefaultPlayfieldPalette.LaneCoverFill,
                 },
                 new Box
@@ -126,9 +140,9 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.Both,
                     Height = 0.18f,
                     Alpha = 0.88f,
-                    Anchor = position == BmsLaneCoverPosition.Top ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Origin = position == BmsLaneCoverPosition.Top ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Colour = position == BmsLaneCoverPosition.Top
+                    Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
+                    Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
+                    Colour = position == BmsLaneCoverPosition.Sudden
                         ? ColourInfo.GradientVertical(Color4.Transparent, BmsDefaultPlayfieldPalette.LaneCoverShade)
                         : ColourInfo.GradientVertical(BmsDefaultPlayfieldPalette.LaneCoverShade, Color4.Transparent),
                 },
@@ -137,9 +151,9 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.Both,
                     Height = 0.3f,
                     Alpha = 0,
-                    Anchor = position == BmsLaneCoverPosition.Top ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Origin = position == BmsLaneCoverPosition.Top ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Colour = position == BmsLaneCoverPosition.Top
+                    Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
+                    Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
+                    Colour = position == BmsLaneCoverPosition.Sudden
                         ? ColourInfo.GradientVertical(Color4.Transparent, BmsDefaultPlayfieldPalette.FocusWash)
                         : ColourInfo.GradientVertical(BmsDefaultPlayfieldPalette.FocusWash, Color4.Transparent),
                 },
@@ -148,8 +162,8 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.X,
                     Height = 4,
                     Alpha = 0,
-                    Anchor = position == BmsLaneCoverPosition.Top ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Origin = position == BmsLaneCoverPosition.Top ? Anchor.BottomLeft : Anchor.TopLeft,
+                    Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
+                    Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
                     Colour = BmsDefaultPlayfieldPalette.FocusAccent,
                 }
             };
@@ -175,7 +189,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
     public enum BmsLaneCoverPosition
     {
-        Top,
-        Bottom,
+        Sudden,
+        Hidden,
     }
 }

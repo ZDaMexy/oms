@@ -5,6 +5,149 @@
 
 ---
 
+## 2026-04-20
+
+### P1-A / P1-C：tri-mode Hi-Speed surface 与 pre-start hold 调速窗口落地
+
+- `osu.Game.Rulesets.Bms` 已新增 `BmsHiSpeedMode` 与 `BmsHiSpeedRuntimeCalculator`；设置页现可在 `Normal / Floating / Classic Hi-Speed` 三种模式间切换，并只显示当前模式数值，不再把 `GN / ms` 写进 settings。
+- `DrawableBmsRuleset` 现已按模式发布 mode-aware `BmsScrollSpeedMetrics`、HUD detail line 与 OSD toast，其中 `Classic` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 首轮按 initial BPM 锚定 visual speed，但仍不宣称完整 mid-song re-float parity。
+- BMS song select 进入游玩后现有 5 秒 delayed start；按住 `UI_LaneCoverFocus` 会阻塞开谱并显示 pre-start overlay，期间可按键位奇数列加速、偶数列减速，且滚轮 / 中键仍可继续调节 `Sudden / Hidden / Lift` 与目标切换。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsDrawableRulesetTest"` **97/97** 通过；`Build osu! (Release)` 通过。
+
+### P1-A / P1-C：strict Classic Hi-Speed + frozen geometry surface 落地
+
+- `osu.Game.Rulesets.Bms` 已把 Classic Hi-Speed 的 base time 从上游 mania 的 `11485 / HS` 改为官方 sample 对齐的 `(100000 / 13) / HS`，并由 `BmsScrollSpeedMetricsTest` 锁定 `HS 10 + WN 350 => GN 300`
+- `BmsPlayfield` 不再在运行时消费 playfield / receptor / bar-line 的 layout override，`BmsSettingsSubsection` 也已移除 geometry sliders；内部 `BmsPlayfieldLayoutProfile` abstraction 仍保留给 ruleset / skin 侧使用
+- 当前公开 `Classic Hi-Speed` 范围仍保持 `1.0 - 20.0`，但这次已不只是范围收口，而是把 strict Classic surface 一并锁定
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~TestSceneBmsPlayfieldLayoutConfig|FullyQualifiedName~BmsLaneLayoutTest|FullyQualifiedName~BmsDrawableRulesetTest"` **91/91** 通过；`Build osu! (Release)` 通过
+
+### P1-A / P1-C：live `PERFECT / FC / FC LOST` 资格线入同一 feedback card
+
+- `osu.Game.Rulesets.Bms` 已为 `BmsJudgementCounts` 新增 live eligibility helper，并进一步补入最轻 break bucket 派生语义，`DefaultBmsSpeedFeedbackDisplay` 现可直接从既有 counts 派生带紧凑原因标签的 live `PERFECT / FC / FC LOST` 状态线
+- 本次没有继续扩大 `BmsGameplayFeedbackState`；它确认了这类 display-only 的 judge feedback 可以复用现有 aggregate snapshot，而不必新增 runtime state 发布面
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsExScoreProgressInfoTest|FullyQualifiedName~BmsExScorePacemakerInfoTest|FullyQualifiedName~BmsJudgementCountsTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **69/69** 通过；`Build osu! (Debug)` 通过
+
+### P1-A / P1-C：live EX progress 并入 aggregate gameplay feedback snapshot
+
+- `osu.Game.Rulesets.Bms` 已新增 `BmsExScoreProgressInfo`，把当前 `EX-SCORE / MAX EX-SCORE` 快照为轻量值对象，并并入 `BmsGameplayFeedbackState`
+- `DefaultBmsSpeedFeedbackDisplay` 现会在同一张 feedback card 中显示 live `DJ LEVEL + EX 原始分子/分母 + %`，与既有最近判定、timing sparkline、compact judgement summary 和 fixed AAA EX pacemaker 共用同一条反馈容器
+- `BmsGameplayFeedbackState` 现已继续把 live EX progress 一并收口到 aggregate snapshot，而 recent history 仍保持独立列表态
+- 验证：后续沿同一 feedback family 的聚焦回归已升至 `dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsExScoreProgressInfoTest|FullyQualifiedName~BmsExScorePacemakerInfoTest|FullyQualifiedName~BmsJudgementCountsTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **69/69** 通过；`Build osu! (Debug)` 通过
+
+### P1-A / P1-C：compact live judgement summary 并入 aggregate gameplay feedback snapshot
+
+- `osu.Game.Rulesets.Bms` 已新增 `BmsJudgementCounts`，把 live score statistics 快照为轻量值对象，并并入 `BmsGameplayFeedbackState`
+- `DefaultBmsSpeedFeedbackDisplay` 现会在同一张 feedback card 中显示两行 compact live judgement summary：`PGR / GR / GD` 与 `BD / PR / EP`
+- `BmsGameplayFeedbackState` 现已继续把 judgement counts 一并收口到 aggregate snapshot，而 recent history 仍保持独立列表态
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsJudgementCountsTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **59/59** 通过；`Build osu! (Debug)` 通过
+
+### P1-A / P1-C：aggregate gameplay feedback state contract 第二刀
+
+- `BmsGameplayFeedbackState` 现已额外包含 `TimingFeedbackVisualRange`，让 compact timing sparkline 的 scalar 输入也并入同一条 aggregate snapshot
+- `DefaultBmsSpeedFeedbackDisplay` 现已收口为消费 `GameplayFeedbackState` 加 `RecentJudgementFeedbacks` 列表，不再额外直接绑定 `TimingFeedbackVisualRange` scalar
+- 新增 `BmsGameplayFeedbackStateTest`，并扩展 `BmsRulesetModTest`、`TestSceneBmsSpeedFeedbackDisplay`、`BmsSkinTransformerTest`，锁定 snapshot 值语义、ruleset 镜像与 sparkline/expiry 行为
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsSkinTransformerTest"` **153/153** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-A / P1-C：aggregate gameplay feedback state contract 首刀
+
+- `osu.Game.Rulesets.Bms` 已新增 `BmsGameplayFeedbackState`，把 speed metrics、target-state、最近判定与 fixed AAA pacemaker 这批 scalar gameplay feedback 收口为单个 snapshot
+- `DrawableBmsRuleset` 现额外暴露 `GameplayFeedbackState`；`DefaultBmsSpeedFeedbackDisplay` 已改为优先消费该 aggregate state，而不是继续分别绑定多组 ruleset scalar bindable
+- recent timing history 与 visual range 仍保持独立状态流，避免把列表态与瞬时标量语义硬塞进同一个 snapshot
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsGameplayFeedbackLayoutTest|FullyQualifiedName~TestSceneBmsJudgementDisplayPosition"` **154/154** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：fixed AAA EX pacemaker 入同一 feedback card
+
+- `DrawableBmsRuleset` 已新增 `ExScorePacemakerInfo`，把 fixed AAA 目标的 EX pacemaker 状态暴露给 HUD
+- `DefaultBmsSpeedFeedbackDisplay` 现会在同一张 feedback card 中显示 `PAC AAA +/-n` 文案，且差值按当前已判对象的目标节奏推进，而不是从开局起显示整局最终目标缺口
+- 新增 `BmsExScorePacemakerInfoTest`，并扩展 `TestSceneBmsSpeedFeedbackDisplay` 锁定 pacemaker 计算与文案 / 配色回归
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsExScorePacemakerInfoTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsRulesetModTest"` **52/52** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：compact visual timing-offset 入同一 feedback card
+
+- `DrawableBmsRuleset` 已新增 `RecentJudgementFeedbacks` 与 `TimingFeedbackVisualRange`，把 recent timing history 与当前局 visual range 暴露给 HUD
+- `DefaultBmsSpeedFeedbackDisplay` 现会在同一张 feedback card 中显示 compact visual timing-offset sparkline，并只吸收有 timing 语义的 recent basic judgement
+- `BmsRulesetModTest` 与 `TestSceneBmsSpeedFeedbackDisplay` 已补 runtime / visual 回归，锁定 recent history 过滤与 sparkline 渲染
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **158/158** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：最近判定 feedback 改为瞬时 judge display
+
+- `DefaultBmsSpeedFeedbackDisplay` 里的最近判定 feedback 不再永久停留，而是按短时 judge display 语义自动消隐
+- 相同判定与相同 `FAST/SLOW` 偏移再次出现时，显示窗口会被刷新，而不是沿用旧的过期时钟
+- `TestSceneBmsSpeedFeedbackDisplay` 已补“过期消隐”和“同值刷新续时”回归，并改用 `display.Time.Current` 对齐组件自己的时钟
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **157/157** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：最近判定与 `FAST/SLOW` 入同一 feedback container
+
+- `DrawableBmsRuleset` 已新增 `LatestJudgementFeedback`，并用 `BmsJudgementTimingFeedback` 把 `JudgementResult` 快照成 HUD 可消费的轻量状态
+- `DefaultBmsSpeedFeedbackDisplay` 现会在同一 feedback container 中显示最近判定与 `FAST/SLOW` timing 文案，例如 `PGREAT | FAST 3.2ms`
+- `EPOOR` 这类无真实 timing 语义的结果只显示判定名，不再硬附 `FAST/SLOW` 后缀
+- `BmsRulesetModTest` 与 `TestSceneBmsSpeedFeedbackDisplay` 已补 runtime / visual 回归
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **155/155** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：speed feedback HUD 显式区分 `HOLD` 临时覆写态
+
+- `DrawableBmsRuleset` 已新增 `IsAdjustmentTargetTemporarilyOverridden`，把当前显示 target 是否为临时覆写暴露给 HUD
+- `DefaultBmsSpeedFeedbackDisplay` 在按住 `UI_LaneCoverFocus` 导致的临时覆写场景下，现会显示 `HID HOLD` 这类显式文案，而不是继续沿用普通 cycle 文案
+- `BmsRulesetModTest` 与 `TestSceneBmsSpeedFeedbackDisplay` 已补运行时与视觉回归
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **152/152** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：恢复 `UI_LaneCoverFocus` 的 Hidden 临时覆写
+
+- `DrawableBmsRuleset` 已恢复 `UI_LaneCoverFocus` 的按住型语义：按住时滚轮会临时转向 `Hidden`，松开后回到持久 target
+- target cycle 入口已明确收口到鼠标中键点击，不再复用 lane cover focus 信号
+- `BmsRulesetModTest` 已补“临时覆写不会改写持久 target，释放后回退”回归
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **151/151** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：speed feedback 多 target cycle 序号入 HUD
+
+- `DrawableBmsRuleset` 已新增 `ActiveAdjustmentTargetIndex`，把当前 target 在 `Sudden / Hidden / Lift` 可切换序列中的位置暴露给 HUD
+- `DefaultBmsSpeedFeedbackDisplay` 在多 target 状态下现会显示显式序号，例如 `SUD 1/3`、`HID 2/3`，不再只显示 target 简写
+- `BmsRulesetModTest` 与 `TestSceneBmsSpeedFeedbackDisplay` 已补 index 回归，锁定无 target、单 target、三 target cycle 的运行时与显示语义
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **150/150** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：speed feedback target-state 首轮收口
+
+- `DrawableBmsRuleset` 已新增 `EnabledAdjustmentTargetCount`，把 runtime 中可用的 `Sudden / Hidden / Lift` 调节目标数量暴露给 HUD
+- `DefaultBmsSpeedFeedbackDisplay` 现在会按 target 可用性区分 `NONE`、`{TARGET} ONLY` 与多 target 可切换三种状态，不再只显示当前 active target
+- `BmsRulesetModTest` 与 `TestSceneBmsSpeedFeedbackDisplay` 已补 target-state 回归，锁定无 target / 单 target / 多 target 的产品语义
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **149/149** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### P1-C：BMS 常驻 speed feedback HUD 首轮实现
+
+- `osu.Game.Rulesets.Bms` 已新增公共 `BmsGameplayAdjustmentTarget`，并把 `DrawableBmsRuleset` 的 runtime 速度反馈状态提升为可绑定的 `SpeedMetrics` / `ActiveAdjustmentTarget`
+- `BmsScrollSpeedMetrics` 已补 `IEquatable<>`；`BmsSkinComponents` 新增 `SpeedFeedback`；`DefaultBmsSpeedFeedbackDisplay` 已以 `IBmsSpeedFeedbackDisplay` 形式挂入 BMS HUD，显示 `GN + 可见毫秒 + HS + 当前目标`
+- HUD 集成采用向后兼容策略：新增 `IBmsHudLayoutDisplayWithGameplayFeedback` 供新 layout 显式接入 speed feedback，旧 layout 则由 transformer 自动包 overlay 容器，不直接破坏既有皮肤接口
+- 新增 `TestSceneBmsSpeedFeedbackDisplay`，并扩展 `BmsSkinTransformerTest` / `BmsScrollSpeedMetricsTest` / `TestSceneBmsUserSkinFallbackSemantics`，锁定 speed feedback 文案、警告态、fallback 与 legacy HUD 兼容语义
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **113/113** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过
+
+### 文档重构：根目录 Markdown 收口到 doc_md，并补齐主线 / 主子线 / 参考线索引
+
+- 根目录除 README 外的现有 Markdown 文档现已统一迁入 `doc_md/`，并按 `mainline / subline / other / mini` 四层分类；仓库根 README 继续保留为项目入口，`Templates/README.md` 继续保留为模板说明
+- 新增 `doc_md/README.md` 与各层级 README 索引，后续文档导航统一从文档总索引进入，不再依赖根目录平铺查找
+- 本轮同步修正了 README 与各 Markdown 文档的相对链接，避免移动后出现断链
+
+### P1-A / P1-C：皮肤设计边界与绿色数字 / Mod 联动专题建档
+
+- 旧的自由命名专题已拆分并正式挂到 `doc_md/subline/P1-A/` 与 `doc_md/subline/P1-C/`；`P1-A` 主承接皮肤边界、HUD 宿主与 release gate，`P1-C` 主承接绿色数字、速度反馈、判定语义与训练反馈闭环
+- 主线文档已挂接这两条正式子线：`DEVELOPMENT_PLAN.md` 现把这条工作归线为 `P1-A / P1-C` 交叉主子线，`DEVELOPMENT_STATUS.md` 记录当前已完成设计审计且常驻 GN HUD / FAST-SLOW / judge display 仍未开始代码实现，`OMS_COPILOT.md` 补上了“不得直接破坏现有 HUD 布局接口、不得把当前 GN 直接包装成完整 FHS”的硬约束
+- 本轮仅进行文档重构与规划建档，未新增代码构建或测试执行
+
+## 2026-04-19
+
+### BMS：lane cover 语义纠正为 Sudden/Hidden，新增独立 Lift，并将运行时速度反馈切到 GN 主表达
+
+- `BmsScrollSpeedMetrics` 现已扩展为 ruleset-owned runtime 指标入口：除基础时长与可见时长外，还暴露 `SuddenUnits` / `HiddenUnits` / `LiftUnits` / `WhiteNumber` / `GreenNumber`；`DrawableBmsRuleset` 的调速 OSD 已改为 `GN xxx (yyyms)` 主表达，`BmsSettingsSubsection` 的设置文案改为 `Classic Hi-Speed`
+- 进一步补齐游玩内调节链：滚轮现在会直接调当前启用的 `Sudden / Hidden / Lift` 目标，默认按 `Sudden -> Hidden -> Lift` 的顺序选择；鼠标中键会只在 2 个及以上已启用项时拦截并循环切换目标，原有 `UI_LaneCoverFocus` 仍保留为 `Hidden` 的临时覆写
+- 为避免 gameplay 内继续弹出“基础 ms”这种过时反馈，`BmsRulesetConfigManager` 已停止把 scroll speed 作为 tracked setting 暴露给通用 OSD；本轮配套更新了 mod 测试、lane cover scene、skin fallback 测试、playfield layout 测试，以及 `DEVELOPMENT_PLAN.md` / `OMS_COPILOT.md` 的实现说明
+- 验证：`dotnet build osu.Game.Rulesets.Bms\osu.Game.Rulesets.Bms.csproj -c Release /v:m` 通过；`dotnet build osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj -c Release /v:m` 通过；定向 `BmsRulesetModTest`、`BmsScrollSpeedMetricsTest`、`TestSceneBmsPlayfieldLayoutConfig` 合计 **53/53** 通过
+
+### 文档、仓库记忆与上游差异文档联动校准
+
+- `README.md`、`DEVELOPMENT_PLAN.md`、`DEVELOPMENT_STATUS.md`、`RELEASE.md`、`SKINNING.md`、`UPSTREAM.md` 与仓库摘要记忆已按 2026-04-19 代码状态同步：README 的皮肤现状不再停留在早期“mania 内置简约白蓝黄”描述；皮肤手册里的 mania authoring 风险也改为反映当前 shell / preset 接线与 8 类 OMS-owned 组件已落地、但 release-facing contract 仍未冻结的真实状态
+- 规模口径现与“历史测试快照”拆开表达：按 2026-04-19 本地文件计数（排除 `bin/obj`），`osu.Game.Rulesets.Bms` 约 **146** 个源文件、`oms.Input` **15** 个、`osu.Game.Rulesets.Bms.Tests` **49** 个测试源文件；最近一次完整项目级自动化回归仍沿用 2026-04-17 的 **608/608** 已验证快照
+- `UPSTREAM.md` 已从过时的少量文件清单改为当前可操作的本地 diff 基线：保留上游 tag commit `bb289363a2b8e6bf62be355f8570def018f0d7be` 作为语义锁定点，同时明确当前仓库本地应以 bootstrap commit `0b97bbdd4348de47e1d597a65f0a7734ad184000` 与 `HEAD` 比较；2026-04-19 本地审计下 `osu.Game/` 共 **147** 个变更路径（**113 M / 30 A / 4 D**），高风险目录集中在 `Screens`、`Beatmaps`、`Localisation`、`Overlays`、`Rulesets` 与 `Skinning`
+- 本轮仅做文档与记忆同步，未新增自动化测试执行；最近一次已验证 gates 仍为 BMS **608/608**、mania OMS **92/92**、BMS fallback **92/92**、scratch bridge **43/43**、`osu.Game.Tests` release-gate **6/6**
+
 ## 2026-04-17
 
 ### 在线提交边界：保留 ruleset_data，避免未来 leaderboard 混算 BMS 语义

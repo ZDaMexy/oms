@@ -16,6 +16,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Cursor;
+using osu.Game.Input.Bindings;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play;
@@ -443,7 +444,15 @@ namespace osu.Game.Tests.Visual.Gameplay
 
         private void restart() => AddStep("restart", () => Player.Restart());
         private void pauseViaBackAction() => AddStep("press escape", () => InputManager.Key(Key.Escape));
-        private void pauseViaPauseGameplayAction() => AddStep("press middle mouse", () => InputManager.Click(MouseButton.Middle));
+        private void pauseViaPauseGameplayAction()
+        {
+            AddStep("trigger PauseGameplay action", () =>
+            {
+                var globalActionContainer = this.ChildrenOfType<GlobalActionContainer>().Single();
+                globalActionContainer.TriggerPressed(GlobalAction.PauseGameplay);
+                globalActionContainer.TriggerReleased(GlobalAction.PauseGameplay);
+            });
+        }
 
         private void exitViaQuickExitAction() => AddStep("press ctrl-tilde", () =>
         {

@@ -138,10 +138,20 @@ namespace osu.Game.Screens.Select
                 }
                 else
                 {
-                    player = new SoloPlayer();
+                    player = tryCreateRulesetSpecificSoloPlayer() ?? new SoloPlayer();
                 }
 
                 return player;
+            }
+
+            Player? tryCreateRulesetSpecificSoloPlayer()
+            {
+                if (Ruleset.Value.ShortName != "bms")
+                    return null;
+
+                Type? bmsPlayerType = Type.GetType("osu.Game.Rulesets.Bms.BmsSoloPlayer, osu.Game.Rulesets.Bms");
+
+                return bmsPlayerType == null ? null : Activator.CreateInstance(bmsPlayerType) as Player;
             }
         }
 

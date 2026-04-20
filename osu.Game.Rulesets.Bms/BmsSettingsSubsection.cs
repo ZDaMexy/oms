@@ -31,6 +31,10 @@ namespace osu.Game.Rulesets.Bms
         private void load()
         {
             var config = (BmsRulesetConfigManager)Config;
+            var hiSpeedMode = config.GetBindable<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode);
+            var normalHiSpeed = config.GetBindable<double>(BmsRulesetSetting.ScrollSpeed);
+            var floatingHiSpeed = config.GetBindable<double>(BmsRulesetSetting.FloatingHiSpeed);
+            var classicHiSpeed = config.GetBindable<double>(BmsRulesetSetting.ClassicHiSpeed);
             var keysoundConcurrentChannels = new BindableInt
             {
                 Default = BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS,
@@ -41,6 +45,34 @@ namespace osu.Game.Rulesets.Bms
 
             config.BindWith(BmsRulesetSetting.KeysoundConcurrentChannels, keysoundConcurrentChannels);
 
+            var hiSpeedSlider = new FormSliderBar<double>
+            {
+                Caption = hiSpeedMode.Value.ToString(),
+                HintText = @"只调整当前模式的数值。Green Number 与可见时间需要在游玩界面结合 Sudden / Hidden / Lift 后才有意义。",
+                Current = normalHiSpeed,
+                KeyboardStep = (float)hiSpeedMode.Value.GetAdjustmentStep(),
+                LabelFormat = value => hiSpeedMode.Value.FormatValue(value),
+            };
+
+            hiSpeedMode.BindValueChanged(mode =>
+            {
+                hiSpeedSlider.Caption = mode.NewValue switch
+                {
+                    BmsHiSpeedMode.Normal => @"Normal Hi-Speed",
+                    BmsHiSpeedMode.Floating => @"Floating Hi-Speed",
+                    BmsHiSpeedMode.Classic => @"Classic Hi-Speed",
+                    _ => @"Hi-Speed",
+                };
+                hiSpeedSlider.Current = mode.NewValue switch
+                {
+                    BmsHiSpeedMode.Normal => normalHiSpeed,
+                    BmsHiSpeedMode.Floating => floatingHiSpeed,
+                    BmsHiSpeedMode.Classic => classicHiSpeed,
+                    _ => normalHiSpeed,
+                };
+                hiSpeedSlider.KeyboardStep = (float)mode.NewValue.GetAdjustmentStep();
+            }, true);
+
             Children = new Drawable[]
             {
                 new SettingsItemV2(new FormEnumDropdown<ScrollingDirection>
@@ -48,13 +80,13 @@ namespace osu.Game.Rulesets.Bms
                     Caption = RulesetSettingsStrings.ScrollingDirection,
                     Current = config.GetBindable<ScrollingDirection>(BmsRulesetSetting.ScrollDirection),
                 }),
-                new SettingsItemV2(new FormSliderBar<double>
+                new SettingsItemV2(new FormEnumDropdown<BmsHiSpeedMode>
                 {
-                    Caption = RulesetSettingsStrings.ScrollSpeed,
-                    Current = config.GetBindable<double>(BmsRulesetSetting.ScrollSpeed),
-                    KeyboardStep = 1,
-                    LabelFormat = value => RulesetSettingsStrings.ScrollSpeedTooltip((int)DrawableBmsRuleset.ComputeScrollTime(value), value),
+                    Caption = @"Hi-Speed 模式",
+                    HintText = @"在 Normal、Floating 与 Classic 三种调速模式之间切换。",
+                    Current = hiSpeedMode,
                 }),
+                new SettingsItemV2(hiSpeedSlider),
                 new SettingsItemV2(new FormSliderBar<double>
                 {
                     Caption = @"游玩区域缩放",
@@ -68,90 +100,6 @@ namespace osu.Game.Rulesets.Bms
                     Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldHorizontalOffset),
                     KeyboardStep = 0.02f,
                     LabelFormat = value => $@"{value:+0%;-0%;0%}",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"游玩区域宽度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldWidth),
-                    KeyboardStep = 0.02f,
-                    LabelFormat = value => value <= 0 ? @"自动" : $@"{value:0%}",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"游玩区域高度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldHeight),
-                    KeyboardStep = 0.02f,
-                    LabelFormat = value => value <= 0 ? @"自动" : $@"{value:0%}",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"轨道宽度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.LaneWidth),
-                    KeyboardStep = 0.05f,
-                    LabelFormat = value => $@"{value:0.00}x",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"盘轨宽度比例",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.ScratchLaneWidthRatio),
-                    KeyboardStep = 0.05f,
-                    LabelFormat = value => $@"{value:0.00}x",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"轨道间距",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.LaneSpacing),
-                    KeyboardStep = 0.02f,
-                    LabelFormat = value => $@"{value:0%}",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"盘轨间距",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.ScratchLaneSpacing),
-                    KeyboardStep = 0.02f,
-                    LabelFormat = value => $@"{value:0%}",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"判定区高度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetHeight),
-                    KeyboardStep = 0.5f,
-                    LabelFormat = value => $@"{value:0.0}px",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"判定条高度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetBarHeight),
-                    KeyboardStep = 0.5f,
-                    LabelFormat = value => $@"{value:0.0}px",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"判定线高度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetLineHeight),
-                    KeyboardStep = 0.5f,
-                    LabelFormat = value => $@"{value:0.0}px",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"判定线发光半径",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetGlowRadius),
-                    KeyboardStep = 0.5f,
-                    LabelFormat = value => $@"{value:0.0}px",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"判定线垂直偏移",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.HitTargetVerticalOffset),
-                    KeyboardStep = 4f,
-                    LabelFormat = value => $@"{value:0}px",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"小节线高度",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.BarLineHeight),
-                    KeyboardStep = 0.5f,
-                    LabelFormat = value => $@"{value:0.0}px",
                 }),
                 new SettingsItemV2(new FormSliderBar<int>
                 {

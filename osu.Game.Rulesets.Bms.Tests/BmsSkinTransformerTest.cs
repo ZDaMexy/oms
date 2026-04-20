@@ -66,13 +66,15 @@ namespace osu.Game.Rulesets.Bms.Tests
             var skinnableChildren = ((Container)drawable!).Children.OfType<Drawable>().ToArray();
             var gaugeBars = skinnableChildren.OfType<BmsGaugeBar>().ToArray();
             var comboCounters = skinnableChildren.OfType<ComboCounter>().ToArray();
+            var speedFeedbackDisplays = skinnableChildren.Where(child => child is IBmsSpeedFeedbackDisplay).ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsHudLayoutDisplay>());
-                Assert.That(skinnableChildren.Length, Is.GreaterThanOrEqualTo(2));
+                Assert.That(skinnableChildren.Length, Is.GreaterThanOrEqualTo(3));
                 Assert.That(gaugeBars, Has.Length.EqualTo(1));
                 Assert.That(comboCounters, Has.Length.EqualTo(1));
+                Assert.That(speedFeedbackDisplays, Has.Length.EqualTo(1));
                 Assert.That(comboCounters.Single(), Is.TypeOf<BmsComboCounter>());
             });
         }
@@ -149,12 +151,55 @@ namespace osu.Game.Rulesets.Bms.Tests
             var drawable = (Container)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
             var gaugeBars = drawable.Children.OfType<BmsGaugeBar>().ToArray();
             var comboCounters = drawable.Children.OfType<ComboCounter>().ToArray();
+            var speedFeedbackDisplays = drawable.Children.OfType<Drawable>().Where(child => child is IBmsSpeedFeedbackDisplay).ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(drawable, Is.SameAs(skin.HudLayoutComponent));
                 Assert.That(gaugeBars, Has.Length.EqualTo(1));
                 Assert.That(comboCounters, Has.Length.EqualTo(1));
+                Assert.That(speedFeedbackDisplays, Has.Length.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void TestSpeedFeedbackFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.SpeedFeedback)), Is.AssignableTo<IBmsSpeedFeedbackDisplay>());
+        }
+
+        [Test]
+        public void TestUserSkinWithoutSpeedFeedbackReturnsNullToAllowLaterFallback()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.SpeedFeedback)), Is.Null);
+        }
+
+        [Test]
+        public void TestCustomSpeedFeedbackFallsBackToWrappedSkin()
+        {
+            var skin = new TestSkin(speedFeedbackComponent: new TestSpeedFeedbackDisplay());
+            var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.SpeedFeedback)), Is.SameAs(skin.SpeedFeedbackComponent));
+        }
+
+        [Test]
+        public void TestLegacyHudLayoutStillGetsGameplayFeedbackOverlay()
+        {
+            var ruleset = new BmsRuleset();
+            var skin = new TestSkin(hudLayoutComponent: new LegacyTestHudLayoutDisplay(), speedFeedbackComponent: new TestSpeedFeedbackDisplay());
+            var transformer = ruleset.CreateSkinTransformer(skin, new BmsBeatmap());
+            var drawable = (Container)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawable, Is.Not.SameAs(skin.HudLayoutComponent));
+                Assert.That(drawable.Children, Has.Some.SameAs(skin.HudLayoutComponent));
+                Assert.That(drawable.Children.OfType<Drawable>().Any(child => child is IBmsSpeedFeedbackDisplay), Is.True);
             });
         }
 
@@ -687,7 +732,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsLaneCoverSkinLookup(BmsLaneCoverPosition.Top)), Is.TypeOf<DefaultBmsLaneCoverDisplay>());
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneCoverSkinLookup(BmsLaneCoverPosition.Sudden)), Is.TypeOf<DefaultBmsLaneCoverDisplay>());
         }
 
         [Test]
@@ -696,7 +741,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var skin = new TestSkin(laneCoverComponent: new TestLaneCoverDisplay());
             var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsLaneCoverSkinLookup(BmsLaneCoverPosition.Top)), Is.SameAs(skin.LaneCoverComponent));
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneCoverSkinLookup(BmsLaneCoverPosition.Sudden)), Is.SameAs(skin.LaneCoverComponent));
         }
 
         [Test]
@@ -768,6 +813,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             public readonly Drawable GreatJudgementComponent = new Container();
             public readonly Drawable? NoteDistributionComponent;
             public readonly Drawable? HudLayoutComponent;
+            public readonly Drawable? SpeedFeedbackComponent;
             public readonly Drawable? NoteDistributionPanelComponent;
             public readonly Drawable? RulesetHudComponent;
             public readonly Drawable? GaugeBarComponent;
@@ -786,12 +832,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             public readonly Drawable? LaneCoverComponent;
             public readonly Drawable? StaticBackgroundComponent;
 
-            public TestSkin(Drawable? rulesetHudComponent = null, Drawable? hudLayoutComponent = null, Drawable? gaugeBarComponent = null, Drawable? comboCounterComponent = null, Drawable? clearLampComponent = null, Drawable? gaugeHistoryPanelComponent = null, Drawable? gaugeHistoryComponent = null, Drawable? resultsSummaryPanelComponent = null, Drawable? resultsSummaryComponent = null, Drawable? noteDistributionComponent = null, Drawable? noteDistributionPanelComponent = null, Drawable? playfieldBackdropComponent = null, Drawable? playfieldBaseplateComponent = null, Drawable? laneBackgroundComponent = null, Drawable? laneDividerComponent = null, Drawable? judgementComponent = null, Drawable? noteComponent = null, Drawable? laneCoverComponent = null, Drawable? staticBackgroundComponent = null)
+            public TestSkin(Drawable? rulesetHudComponent = null, Drawable? hudLayoutComponent = null, Drawable? gaugeBarComponent = null, Drawable? comboCounterComponent = null, Drawable? speedFeedbackComponent = null, Drawable? clearLampComponent = null, Drawable? gaugeHistoryPanelComponent = null, Drawable? gaugeHistoryComponent = null, Drawable? resultsSummaryPanelComponent = null, Drawable? resultsSummaryComponent = null, Drawable? noteDistributionComponent = null, Drawable? noteDistributionPanelComponent = null, Drawable? playfieldBackdropComponent = null, Drawable? playfieldBaseplateComponent = null, Drawable? laneBackgroundComponent = null, Drawable? laneDividerComponent = null, Drawable? judgementComponent = null, Drawable? noteComponent = null, Drawable? laneCoverComponent = null, Drawable? staticBackgroundComponent = null)
             {
                 RulesetHudComponent = rulesetHudComponent;
                 HudLayoutComponent = hudLayoutComponent;
                 GaugeBarComponent = gaugeBarComponent;
                 ComboCounterComponent = comboCounterComponent;
+                SpeedFeedbackComponent = speedFeedbackComponent;
                 ClearLampComponent = clearLampComponent;
                 GaugeHistoryPanelComponent = gaugeHistoryPanelComponent;
                 GaugeHistoryComponent = gaugeHistoryComponent;
@@ -825,6 +872,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     BmsSkinComponentLookup { Component: BmsSkinComponents.HudLayout } => HudLayoutComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeBar } => GaugeBarComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.ComboCounter } => ComboCounterComponent,
+                    BmsSkinComponentLookup { Component: BmsSkinComponents.SpeedFeedback } => SpeedFeedbackComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.ClearLamp } => ClearLampComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeHistoryPanel } => GaugeHistoryPanelComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeHistory } => GaugeHistoryComponent,
@@ -853,7 +901,27 @@ namespace osu.Game.Rulesets.Bms.Tests
             }
         }
 
-        private sealed partial class TestHudLayoutDisplay : Container, IBmsHudLayoutDisplay
+        private sealed partial class TestHudLayoutDisplay : Container, IBmsHudLayoutDisplayWithGameplayFeedback
+        {
+            public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
+                => SetComponents(wrappedHud, gaugeBar, comboCounter, null!);
+
+            public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter, Drawable gameplayFeedback)
+            {
+                Clear();
+
+                if (wrappedHud != null)
+                    Add(wrappedHud);
+
+                Add(gaugeBar);
+                Add(comboCounter);
+
+                if (gameplayFeedback != null)
+                    Add(gameplayFeedback);
+            }
+        }
+
+        private sealed partial class LegacyTestHudLayoutDisplay : Container, IBmsHudLayoutDisplay
         {
             public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
             {
@@ -865,6 +933,11 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Add(gaugeBar);
                 Add(comboCounter);
             }
+        }
+
+        private sealed partial class TestSpeedFeedbackDisplay : CompositeDrawable, IBmsSpeedFeedbackDisplay
+        {
+            public bool UsesFixedAnchor { get; set; }
         }
 
         private sealed partial class TestNoteDistributionPanelDisplay : CompositeDrawable, IBmsNoteDistributionPanelDisplay

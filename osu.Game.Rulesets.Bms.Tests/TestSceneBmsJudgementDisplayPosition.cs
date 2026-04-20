@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("judgements loaded", () => perfectJudgement?.IsLoaded == true && poorJudgement?.IsLoaded == true && emptyPoorJudgement?.IsLoaded == true);
             playAnimations();
             AddWaitStep("advance animation", 5);
-            assertAligned("up scroll");
+            assertAligned("up scroll", ScrollingDirection.Up);
         }
 
         [Test]
@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddWaitStep("apply direction", 1);
             playAnimations();
             AddWaitStep("advance animation", 5);
-            assertAligned("down scroll");
+            assertAligned("down scroll", ScrollingDirection.Down);
         }
 
         private void playAnimations()
@@ -70,8 +70,13 @@ namespace osu.Game.Rulesets.Bms.Tests
                 emptyPoorJudgement.PlayInnerAnimation();
             });
 
-        private void assertAligned(string label)
+        private void assertAligned(string label, ScrollingDirection direction)
         {
+            Anchor expectedAnchor = BmsGameplayFeedbackLayout.GetJudgementAnchor(direction);
+            float expectedOffset = BmsGameplayFeedbackLayout.GetJudgementOffset(direction);
+
+            AddAssert($"perfect matches the shared judgement anchor ({label})", () => perfectJudgement.BodyAnchor == expectedAnchor && perfectJudgement.BodyOrigin == expectedAnchor);
+            AddAssert($"perfect uses the shared judgement offset ({label})", () => Math.Abs(perfectJudgement.BodyY - expectedOffset) <= 0.1f);
             AddAssert($"poor stays on the shared judgement baseline ({label})", () => Math.Abs(perfectJudgement.BodyY - poorJudgement.BodyY) <= 0.1f);
             AddAssert($"empty poor stays on the shared judgement baseline ({label})", () => Math.Abs(perfectJudgement.BodyY - emptyPoorJudgement.BodyY) <= 0.1f);
             AddAssert($"poor uses the same body layer contract ({label})", () => poorJudgement.BodyAnchor == perfectJudgement.BodyAnchor && poorJudgement.BodyOrigin == perfectJudgement.BodyOrigin);

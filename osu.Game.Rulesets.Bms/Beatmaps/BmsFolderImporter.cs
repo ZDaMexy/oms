@@ -232,6 +232,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var beatmaps = new List<BeatmapInfo>();
             var skippedBeatmapFiles = new List<string>();
             var allKeysoundFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string? firstPreviewFile = null;
             var beatmapFiles = reader.Filenames.Where(isTopLevelBeatmapFile)
                                       .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                                       .ToArray();
@@ -270,16 +271,25 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         {
                             allKeysoundFiles.Add(normalised);
 
-                            // BMS allows omitting file extensions; the audio store tries common extensions at lookup time.
-                            // Register all possible variants so we don't mistake a keysound for a full music file.
-                            if (string.IsNullOrEmpty(Path.GetExtension(normalised)))
-                            {
-                                allKeysoundFiles.Add(normalised + ".wav");
-                                allKeysoundFiles.Add(normalised + ".ogg");
-                                allKeysoundFiles.Add(normalised + ".mp3");
-                                allKeysoundFiles.Add(normalised + ".flac");
-                            }
+                            // BMS charts commonly reference keysound filenames with an extension that differs from the
+                            // actual file on disk (e.g. #WAV01 bgm.wav but the file is bgm.ogg). The audio store
+                            // resolves these at lookup time by trying alternate extensions, but the keysound exclusion
+                            // set must also cover all variants to prevent a cross-extension keysound from being
+                            // mistakenly detected as a full music file.
+                            string baseName = Path.ChangeExtension(normalised, null)?.ToStandardisedPath() ?? normalised;
+                            allKeysoundFiles.Add(baseName);
+                            allKeysoundFiles.Add(baseName + ".wav");
+                            allKeysoundFiles.Add(baseName + ".ogg");
+                            allKeysoundFiles.Add(baseName + ".mp3");
+                            allKeysoundFiles.Add(baseName + ".flac");
                         }
+                    }
+
+                    if (firstPreviewFile == null
+                        && !string.IsNullOrWhiteSpace(loadedBeatmap.DecodedChart.BeatmapInfo.PreviewFile)
+                        && Audio.BmsKeysoundSampleInfo.TryNormaliseFilename(loadedBeatmap.DecodedChart.BeatmapInfo.PreviewFile, out string? normalisedPreview))
+                    {
+                        firstPreviewFile = normalisedPreview;
                     }
 
                     memoryStream.Position = 0;
@@ -325,7 +335,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (!beatmaps.Any())
                 return new PreparedBeatmapSet(null, skippedBeatmapFiles);
 
-            string? detectedAudioFile = detectFullMusicFile(reader, allKeysoundFiles);
+            string? detectedAudioFile = detectFullMusicFile(reader, allKeysoundFiles)
+                                        ?? resolvePreviewFile(reader, firstPreviewFile);
 
             if (detectedAudioFile != null)
             {
@@ -441,6 +452,35 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
 
             return bestCandidate;
+        }
+
+        /// <summary>
+        /// Resolves a #PREVIEW filename from a BMS header against the actual files in the archive.
+        /// Returns the standardised path if an audio file matching the preview filename (with or without extension
+        /// substitution) exists in the archive, or null otherwise.
+        /// </summary>
+        private static string? resolvePreviewFile(DirectoryArchiveReader reader, string? previewFilename)
+        {
+            if (string.IsNullOrWhiteSpace(previewFilename))
+                return null;
+
+            string[] audioExtensions = { ".mp3", ".ogg", ".flac", ".wav" };
+            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { previewFilename };
+
+            string baseName = Path.ChangeExtension(previewFilename, null)?.ToStandardisedPath() ?? previewFilename;
+
+            foreach (string ext in audioExtensions)
+                candidates.Add(baseName + ext);
+
+            foreach (string filename in reader.Filenames)
+            {
+                string standardised = filename.ToStandardisedPath();
+
+                if (candidates.Contains(standardised))
+                    return standardised;
+            }
+
+            return null;
         }
 
         public sealed class FolderImportResult

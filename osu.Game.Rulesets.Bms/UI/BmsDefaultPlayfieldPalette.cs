@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.Bms.UI
         public static readonly Color4 MetadataAsset = BmsDefaultResultsPalette.PanelTitle;
         public static readonly Color4 MetadataMissing = new Color4(142, 154, 178, 255);
 
-        public static readonly Color4 LaneCoverFill = new Color4(8, 12, 20, 248);
+        public static readonly Color4 LaneCoverFill = new Color4(8, 12, 20, 255);
         public static readonly Color4 LaneCoverShade = new Color4(19, 26, 39, 255);
         public static readonly Color4 FocusAccent = BmsDefaultHudPalette.ComboActiveAccent;
         public static readonly Color4 FocusWash = new Color4(255, 194, 108, 180);

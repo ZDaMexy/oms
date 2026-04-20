@@ -15,8 +15,8 @@ namespace osu.Game.Rulesets.Bms.Tests
     [TestFixture]
     public partial class TestSceneBmsLaneCover : OsuTestScene
     {
-        private TestBmsLaneCover topCover = null!;
-        private TestBmsLaneCover bottomCover = null!;
+        private TestBmsLaneCover suddenCover = null!;
+        private TestBmsLaneCover hiddenCover = null!;
 
         [SetUp]
         public void Setup() => Schedule(() =>
@@ -31,8 +31,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                         RelativeSizeAxes = Axes.Both,
                         Colour = Colour4.DarkGray,
                     },
-                    topCover = new TestBmsLaneCover(BmsLaneCoverPosition.Top),
-                    bottomCover = new TestBmsLaneCover(BmsLaneCoverPosition.Bottom),
+                    suddenCover = new TestBmsLaneCover(BmsLaneCoverPosition.Sudden),
+                    hiddenCover = new TestBmsLaneCover(BmsLaneCoverPosition.Hidden),
                 }
             };
         });
@@ -40,60 +40,60 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestCoverPositionIsPreserved()
         {
-            AddAssert("top cover position is Top", () => topCover.CoverPosition == BmsLaneCoverPosition.Top);
-            AddAssert("bottom cover position is Bottom", () => bottomCover.CoverPosition == BmsLaneCoverPosition.Bottom);
+            AddAssert("sudden cover position is Sudden", () => suddenCover.CoverPosition == BmsLaneCoverPosition.Sudden);
+            AddAssert("hidden cover position is Hidden", () => hiddenCover.CoverPosition == BmsLaneCoverPosition.Hidden);
         }
 
         [Test]
         public void TestZeroCoverageHidesVisuals()
         {
-            AddStep("set top cover 0%", () => topCover.CoverPercent.Value = 0);
-            AddAssert("cover container height is 0", () => topCover.CoverContainerHeight == 0);
+            AddStep("set sudden cover 0%", () => suddenCover.CoverPercent.Value = 0);
+            AddAssert("cover container height is 0", () => suddenCover.CoverContainerHeight == 0);
         }
 
         [Test]
         public void TestNonZeroCoverageShowsVisuals()
         {
-            AddStep("set top cover 500 (50%)", () => topCover.CoverPercent.Value = 500);
-            AddAssert("cover container height is 0.5", () => topCover.CoverContainerHeight, () => Is.EqualTo(0.5f));
+            AddStep("set sudden cover 500 (50%)", () => suddenCover.CoverPercent.Value = 500);
+            AddAssert("cover container height is 0.5", () => suddenCover.CoverContainerHeight, () => Is.EqualTo(0.5f));
         }
 
         [Test]
         public void TestCoverageClampedToMaximum()
         {
-            AddStep("set top cover 2000 (200%)", () => topCover.CoverPercent.Value = 2000);
-            AddAssert("cover container height is 1", () => topCover.CoverContainerHeight, () => Is.EqualTo(1f));
+            AddStep("set sudden cover 2000 (200%)", () => suddenCover.CoverPercent.Value = 2000);
+            AddAssert("cover container height is 1", () => suddenCover.CoverContainerHeight, () => Is.EqualTo(1f));
         }
 
         [Test]
         public void TestCoverageClampedToMinimum()
         {
-            AddStep("set bottom cover -500 (-50%)", () => bottomCover.CoverPercent.Value = -500);
-            AddAssert("cover container height is 0", () => bottomCover.CoverContainerHeight, () => Is.EqualTo(0f));
+            AddStep("set hidden cover -500 (-50%)", () => hiddenCover.CoverPercent.Value = -500);
+            AddAssert("cover container height is 0", () => hiddenCover.CoverContainerHeight, () => Is.EqualTo(0f));
         }
 
         [Test]
         public void TestFocusNotVisibleWithZeroCoverage()
         {
-            AddStep("set top cover 0% and focus", () =>
+            AddStep("set sudden cover 0% and focus", () =>
             {
-                topCover.CoverPercent.Value = 0;
-                topCover.IsFocused.Value = true;
+                suddenCover.CoverPercent.Value = 0;
+                suddenCover.IsFocused.Value = true;
             });
 
-            AddAssert("focus edge is hidden", () => topCover.FocusEdgeAlpha, () => Is.EqualTo(0f));
+            AddAssert("focus edge is hidden", () => suddenCover.FocusEdgeAlpha, () => Is.EqualTo(0f));
         }
 
         [Test]
         public void TestFocusVisibleWithNonZeroCoverage()
         {
-            AddStep("set top cover 300 (30%) and focus", () =>
+            AddStep("set sudden cover 300 (30%) and focus", () =>
             {
-                topCover.CoverPercent.Value = 300;
-                topCover.IsFocused.Value = true;
+                suddenCover.CoverPercent.Value = 300;
+                suddenCover.IsFocused.Value = true;
             });
 
-            AddAssert("focus edge is visible", () => topCover.FocusEdgeAlpha, () => Is.GreaterThan(0));
+            AddAssert("focus edge is visible", () => suddenCover.FocusEdgeAlpha, () => Is.GreaterThan(0));
         }
 
         [Test]
@@ -101,13 +101,27 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             AddStep("set coverage and focus", () =>
             {
-                bottomCover.CoverPercent.Value = 500;
-                bottomCover.IsFocused.Value = true;
+                hiddenCover.CoverPercent.Value = 500;
+                hiddenCover.IsFocused.Value = true;
             });
 
-            AddStep("unfocus", () => bottomCover.IsFocused.Value = false);
+            AddStep("unfocus", () => hiddenCover.IsFocused.Value = false);
 
-            AddAssert("focus edge is hidden", () => bottomCover.FocusEdgeAlpha, () => Is.EqualTo(0f));
+            AddAssert("focus edge is hidden", () => hiddenCover.FocusEdgeAlpha, () => Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void TestCoverOpacityScalesDisplayAlpha()
+        {
+            AddStep("set sudden cover opacity 250", () => suddenCover.CoverOpacity.Value = 250);
+            AddAssert("display alpha is 0.25", () => suddenCover.CoverDisplayAlpha, () => Is.EqualTo(0.25f).Within(0.001f));
+        }
+
+        [Test]
+        public void TestCoverOpacityClampedToMaximum()
+        {
+            AddStep("set hidden cover opacity 2000", () => hiddenCover.CoverOpacity.Value = 2000);
+            AddAssert("display alpha is 1", () => hiddenCover.CoverDisplayAlpha, () => Is.EqualTo(1f));
         }
 
         private partial class TestBmsLaneCover : BmsLaneCover
@@ -120,6 +134,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             public new float CoverContainerHeight => base.CoverContainerHeight;
 
             public new float FocusEdgeAlpha => base.FocusEdgeAlpha;
+
+            public new float CoverDisplayAlpha => base.CoverDisplayAlpha;
         }
     }
 }

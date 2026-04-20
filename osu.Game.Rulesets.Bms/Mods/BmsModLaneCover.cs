@@ -27,12 +27,21 @@ namespace osu.Game.Rulesets.Bms.Mods
         protected abstract BmsLaneCoverPosition Position { get; }
 
         [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.CoverValue), nameof(BmsModStrings.CoverValueDescription))]
-        public BindableFloat CoverPercent { get; } = new BindableFloat(500)
+        public BindableFloat CoverPercent { get; } = new BindableFloat(250)
         {
             MinValue = 0,
             MaxValue = 1000,
             Precision = 1,
-            Default = 500,
+            Default = 250,
+        };
+
+        [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.CoverOpacity), nameof(BmsModStrings.CoverOpacityDescription))]
+        public BindableFloat CoverOpacity { get; } = new BindableFloat(1000)
+        {
+            MinValue = 0,
+            MaxValue = 1000,
+            Precision = 1,
+            Default = 1000,
         };
 
         public bool AdjustCoverPercent(float delta)
@@ -53,6 +62,7 @@ namespace osu.Game.Rulesets.Bms.Mods
         {
             var laneCover = new BmsLaneCover(Position);
             laneCover.CoverPercent.BindTo(CoverPercent);
+            laneCover.CoverOpacity.BindTo(CoverOpacity);
 
             if (drawableRuleset.Playfield is BmsPlayfield bmsPlayfield)
                 bmsPlayfield.CoverContainer.Add(laneCover);

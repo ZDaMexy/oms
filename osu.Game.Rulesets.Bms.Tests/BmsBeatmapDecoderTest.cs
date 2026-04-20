@@ -71,6 +71,37 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestParsesPreviewHeader()
+        {
+            const string text = @"
+#TITLE Preview Test
+#BPM 120
+#PREVIEW preview.ogg
+#00111:AA00
+#WAVAA hit.wav
+";
+
+            var result = decoder.DecodeText(text, "preview.bms");
+
+            Assert.That(result.BeatmapInfo.PreviewFile, Is.EqualTo("preview.ogg"));
+        }
+
+        [Test]
+        public void TestPreviewHeaderDefaultsToNull()
+        {
+            const string text = @"
+#TITLE No Preview
+#BPM 120
+#00111:AA00
+#WAVAA hit.wav
+";
+
+            var result = decoder.DecodeText(text, "no-preview.bms");
+
+            Assert.That(result.BeatmapInfo.PreviewFile, Is.Null);
+        }
+
+        [Test]
         public void TestParsesMeasureLengthAndChannelSlices()
         {
             const string text = @"
@@ -97,9 +128,46 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestDecodesShiftJisText()
         {
             const string title = "\u30c6\u30b9\u30c8";
-            byte[] data = Encoding.GetEncoding("shift_jis").GetBytes($"#TITLE {title}\n#00111:AA00\n");
+            byte[] data = Encoding.GetEncoding("shift_jis").GetBytes($"#TITLE {title}\n#BPM 120\n#WAVAA kick.wav\n#00111:AA00\n");
 
             var result = decoder.Decode(data, "shiftjis.bms");
+
+            Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
+        }
+
+        [Test]
+        public void TestDecodesUtf8TextBeforeHeuristicDetection()
+        {
+            const string title = "\u6d4b\u8bd5\u66f2"; // 测试曲
+            byte[] data = Encoding.UTF8.GetBytes($"#TITLE {title}\n#BPM 120\n#WAVAA kick.wav\n#00111:AA00\n");
+
+            var result = decoder.Decode(data, "utf8.bms");
+
+            Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
+        }
+
+        [Test]
+        public void TestDecodesUtf8WithBom()
+        {
+            const string title = "\u6d4b\u8bd5\u66f2"; // 测试曲
+            byte[] bom = { 0xEF, 0xBB, 0xBF };
+            byte[] body = Encoding.UTF8.GetBytes($"#TITLE {title}\n#BPM 120\n#00111:AA00\n");
+            byte[] data = new byte[bom.Length + body.Length];
+            bom.CopyTo(data, 0);
+            body.CopyTo(data, bom.Length);
+
+            var result = decoder.Decode(data, "bom.bms");
+
+            Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
+        }
+
+        [Test]
+        public void TestDecodesEucKrText()
+        {
+            const string title = "\ud14c\uc2a4\ud2b8"; // 테스트
+            byte[] data = Encoding.GetEncoding("euc-kr").GetBytes($"#TITLE {title}\n#ARTIST {title}\n#BPM 120\n#WAVAA kick.wav\n#00111:AA00\n");
+
+            var result = decoder.Decode(data, "euckr.bms");
 
             Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
         }

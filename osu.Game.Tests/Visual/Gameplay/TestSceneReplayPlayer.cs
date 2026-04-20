@@ -6,6 +6,7 @@ using NUnit.Framework;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
+using osu.Game.Input.Bindings;
 using osu.Game.Replays;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Osu;
@@ -116,7 +117,12 @@ namespace osu.Game.Tests.Visual.Gameplay
 
             AddUntilStep("wait for first hit", () => Player.ScoreProcessor.TotalScore.Value > 0);
 
-            AddStep("Pause playback with middle mouse", () => InputManager.Click(MouseButton.Middle));
+            AddStep("Pause playback with TogglePauseReplay action", () =>
+            {
+                var globalActionContainer = this.ChildrenOfType<GlobalActionContainer>().Single();
+                globalActionContainer.TriggerPressed(GlobalAction.TogglePauseReplay);
+                globalActionContainer.TriggerReleased(GlobalAction.TogglePauseReplay);
+            });
 
             AddAssert("player not exited", () => Player.IsCurrentScreen());
 

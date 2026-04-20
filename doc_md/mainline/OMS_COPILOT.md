@@ -75,7 +75,7 @@ oms/
 │   ├── Layout/
 │   │   ├── BmsPlayfield.cs              # Playfield rendering
 │   │   ├── BmsLaneLayout.cs             # Lane config for 5K/7K/9K/14K, 1P/2P
-│   │   ├── BmsLaneCover.cs              # Top/bottom lane cover (Mod-controlled)
+│   │   ├── BmsLaneCover.cs              # Sudden/Hidden lane cover + focus visuals (Mod-controlled)
 │   │   └── BmsScratchLane.cs            # Scratch lane rendering and input handling
 │   ├── Mods/
 │   │   ├── BmsModJudgeBeatoraja.cs      # Switches to beatoraja timing windows
@@ -87,8 +87,9 @@ oms/
 │   │   ├── BmsModGaugeExHard.cs         # EX-Hard gauge
 │   │   ├── BmsModGaugeHazard.cs         # Hazard gauge
 │   │   ├── BmsModGaugeAutoShift.cs      # GAS — Gauge Auto Shift
-│   │   ├── BmsModLaneCoverTop.cs        # Top cover (Sudden)
-│   │   ├── BmsModLaneCoverBottom.cs     # Bottom cover (Hidden)
+│   │   ├── BmsModSudden.cs              # Sudden cover
+│   │   ├── BmsModHidden.cs              # Hidden cover
+│   │   ├── BmsModLift.cs                # Lift (judgement-line raise)
 │   │   ├── BmsModAutoScratch.cs         # A-SCR — Auto Scratch
 │   │   ├── BmsModAutoplay.cs            # BMS-specific autoplay
 │   │   ├── BmsModMirror.cs              # Button-lane mirror (scratch stays fixed)
@@ -705,19 +706,30 @@ BMS mode does not use osu!mania's `ManiaStage` directly. Define a `BmsLaneLayout
 
 ### 7.2 Lane Cover (`BmsLaneCover`)
 
-Top cover (Sudden) and bottom cover (Hidden) are rendered as opaque overlay panels on the playfield.
+Sudden and Hidden are rendered as opaque overlay panels on the playfield, while Lift independently raises the judgement line by shortening the lane from the bottom.
 
 Controlled by Mods:
-- `BmsModLaneCoverTop` — enables top cover, exposes a `CoverPercent` setting (0–100%)
-- `BmsModLaneCoverBottom` — enables bottom cover, exposes a `CoverPercent` setting (0–100%)
+- `BmsModSudden` — enables upper masking, exposes a `CoverPercent` setting (0–100%)
+- `BmsModHidden` — enables lower masking, exposes a `CoverPercent` setting (0–100%)
+- `BmsModLift` — raises the judgement line with an independent `LiftUnits` setting (0–1000)
 
-Both Mods can be active simultaneously (Sudden+Hidden). Cover percent is adjustable in-game via scroll wheel or assigned key without pausing (matching LR2 behavior). When both covers are active, the scroll wheel adjusts the Top cover (Sudden) by default. Holding the `UI_LaneCoverFocus` action (add to `OmsAction` enum; configurable in bindings) redirects scroll-wheel input to the Bottom cover (Hidden) for the duration it is held. No persistent focus state — releasing the modifier immediately returns scroll control to the Top cover.
+Sudden and Hidden can be active simultaneously. In gameplay, the scroll wheel now adjusts the current range target without pausing: default target order prefers Sudden, mouse middle-click cycles across enabled `Sudden / Hidden / Lift`, and holding `UI_LaneCoverFocus` still temporarily redirects wheel input to Hidden. Lift remains a separate geometry control and must not be conflated with Hidden.
 
 ### 7.3 Scroll Speed
 
-Inherit osu!mania's scroll speed system (user-configured multiplier). No separate HiSpeed value. BPM changes in the chart affect note spacing natively via timing points.
+OMS now exposes a BMS-local tri-mode Hi-Speed surface rather than inheriting osu!mania scroll speed verbatim.
 
-If OMS later introduces Floating Hi-Speed semantics, ship it as a complete contract across scroll speed, lane cover, LIFT, BPM compensation, and displayed terminology. Do not expose standalone `Green Number` / `White Number` UI without the rest of that model.
+- `Normal Hi-Speed`: user-facing range `1.0 - 20.0`; primary general-purpose surface.
+- `Floating Hi-Speed`: user-facing range `0.5 - 10.0`; current OMS implementation anchors visual speed to the chart's initial BPM and is intended to cooperate with `Sudden / Hidden / Lift`, but it does **not** yet claim full mid-song re-float parity or soflan GN-range output.
+- `Classic Hi-Speed`: user-facing range `0.5 - 10.0`; base time mapping must remain `(100000 / 13) / HS` so the official sample `HS 10 + WN 350 => GN 300` continues to hold.
+
+Settings must show only the selected Hi-Speed mode and that mode's numeric value. Do not surface `Green Number` or raw visible milliseconds in settings. Those remain gameplay-runtime feedback only.
+
+OMS may surface `Green Number` / `White Number` during gameplay as part of its current BMS runtime speed-feedback model, but that model is presently scoped to `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` and must not be described as proof that full IIDX-style Floating Hi-Speed parity already exists.
+
+Current BMS gameplay also includes a pre-start hold-adjust surface: entering gameplay inserts a 5-second delayed-start window, and holding `UI_LaneCoverFocus` blocks the actual start while showing the selected Hi-Speed mode and current value. During this hold window, odd-numbered lanes increase the current Hi-Speed, even-numbered lanes decrease it, and scroll-wheel / middle-click lane-cover controls remain available. Treat this as runtime operator interaction, not as a settings-page preview or a replacement for the skinnable HUD contract.
+
+If OMS later extends Floating Hi-Speed semantics, ship it as a complete contract across scroll speed, lane cover, LIFT, BPM compensation, start-sequence behavior, and displayed terminology. Do not market or document the current OMS-local GN/WN feedback as complete FHS.
 
 ---
 
@@ -1216,9 +1228,11 @@ Simple enum-only lookup is insufficient for all BMS use cases. Where component r
 - `Keymode`
 - Optional `CoverPosition` / `Focused` / `LongNotePart`
 
-Drawable replacement alone is also insufficient for a release-ready BMS default path. The BMS contract must grow a configuration-driven playfield layer for layout-critical parameters, including lane width / scratch-width ratio and spacing, playfield sizing, hit target / receptor geometry, bar line emphasis rules, and pressed / focused states.
+Drawable replacement alone is also insufficient for a release-ready BMS default path. The BMS contract must grow an OMS-owned playfield abstraction layer for layout-critical parameters, including lane width / scratch-width ratio and spacing, playfield sizing, hit target / receptor geometry, bar line emphasis rules, and pressed / focused states. The current runtime strict surface may freeze user-facing geometry overrides, but that freeze must sit on top of this abstraction rather than bypass it.
 
-> BMS 默认层与 mania 侧组件的当前迁移进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；SKINNING.md 面向皮肤制作者的详细 lookup / preset 表见 [SKINNING.md](SKINNING.md)。
+> BMS 默认层与 mania 侧组件的当前迁移进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；面向皮肤制作者的详细 lookup / preset 表见 [../other/SKINNING.md](../other/SKINNING.md)。
+>
+> 皮肤设计边界与绿色数字 / Mod 联动专题的执行规划、当前状态与技术约束，见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)。
 
 BMS-specific visual rules:
 
@@ -1226,7 +1240,10 @@ BMS-specific visual rules:
 - The BMS layer lives inside the same default skin package as mania, but must keep its own lookup names, layout metadata, and gameplay semantics.
 - `5K` / `7K` / `9K_Bms` / `9K_Pms` / `14K` must reuse one theme family but allow layout-sensitive per-lane rendering.
 - `1P/2P` side flips must not require a second asset family; side-sensitive elements respond to runtime bindables/lookup metadata.
-- Lane cover top/bottom and lane-cover focus state are first-class skinnable elements, not debug overlays.
+- Lane cover `Sudden / Hidden` states and lane-cover focus state are first-class skinnable elements, not debug overlays.
+- Persistent gameplay feedback, including speed metrics and later `FAST/SLOW` / judge display / pacemaker data, must remain BMS-owned skinnable components instead of ad-hoc overlays hidden inside unrelated HUD elements.
+- If BMS HUD composition needs more children than the current wrapped HUD + gauge bar + combo counter contract, extend it via a versioned optional interface or wrapper contract; do not break `IBmsHudLayoutDisplay` in place.
+- Do not inject gameplay feedback widgets by crawling arbitrary wrapped HUD children or by overloading `GaugeBar` / `ComboCounter` with unrelated semantics.
 - Results summary and clear lamp must remain separable skinnable components, so a skin can override the whole summary panel or only the lamp badge.
 - `BmsBackgroundLayer` should present static art through the skin system in Phase 1.1; video BGA remains a later phase and must not block the static background contract.
 
@@ -1253,7 +1270,7 @@ Not permitted after Phase 1.1 completion:
 
 - All shipping mania/BMS gameplay elements must be backed by skin lookup + OMS fallback, not only by direct code-drawn primitives.
 - New OMS gameplay UI should prefer `SkinnableDrawable` / `GlobalSkinnableContainerLookup` / dedicated lookup types over ruleset-local hard-coded layout.
-- Do not attempt final BMS visual parity by baking geometry into temporary hard-coded defaults; land the BMS playfield abstraction gate first.
+- Do not attempt final BMS visual parity by baking geometry into temporary hard-coded defaults before the BMS playfield abstraction gate exists; once that gate exists, the current strict runtime surface may intentionally freeze user-facing geometry overrides.
 - Component defaults must be stable under serialization, replay, and skin reload.
 - Layout-critical components such as lane covers, gauge bars, clear lamps, and note distribution panels must have predictable default sizes in the OMS built-in skin.
 - Do not make BMS gameplay visuals depend on upstream mania component names or upstream built-in texture contracts.
@@ -1385,6 +1402,7 @@ Follow osu!lazer's existing conventions throughout:
 - All timing values in **milliseconds (double)** unless explicitly noted as beats
 - Write XML doc comments on all public API surface in future private-server integration code and `oms.Input`
 - Unit test coverage required for: `BmsBeatmapDecoder`, `BmsTimingWindows`, `BmsScoreProcessor`, `BmsGaugeProcessor`, `BmsDifficultyCalculator`, `BmsNoteDensityAnalyzer`, `BmsTableMd5Index`, `BmsDifficultyTableManager`
+- Any development, research, bug fix, validation pass, or release-gate adjustment that changes plan, status, constraints, or verified conclusions must update the corresponding `doc_md/mainline`, `doc_md/subline`, `doc_md/other`, or `doc_md/mini` documents in the same change. Do not leave code and documentation drifting.
 
 ---
 

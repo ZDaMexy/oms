@@ -15,7 +15,12 @@ namespace osu.Game.Rulesets.Bms.UI
         void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter);
     }
 
-    public partial class DefaultBmsHudLayoutDisplay : DefaultSkinComponentsContainer, IBmsHudLayoutDisplay
+    public interface IBmsHudLayoutDisplayWithGameplayFeedback : IBmsHudLayoutDisplay
+    {
+        void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter, Drawable gameplayFeedback);
+    }
+
+    public partial class DefaultBmsHudLayoutDisplay : DefaultSkinComponentsContainer, IBmsHudLayoutDisplayWithGameplayFeedback
     {
         private const float gauge_width = 460;
 
@@ -25,6 +30,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private Drawable? wrappedHud;
         private Drawable gaugeBar = null!;
         private ComboCounter comboCounter = null!;
+        private Drawable? gameplayFeedback;
 
         public DefaultBmsHudLayoutDisplay()
             : base(_ => { })
@@ -32,10 +38,14 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
+            => SetComponents(wrappedHud, gaugeBar, comboCounter, null!);
+
+        public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter, Drawable gameplayFeedback)
         {
             this.wrappedHud = wrappedHud;
             this.gaugeBar = gaugeBar;
             this.comboCounter = comboCounter;
+            this.gameplayFeedback = gameplayFeedback;
 
             Clear();
 
@@ -44,6 +54,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             Add(gaugeBar);
             Add(comboCounter);
+
+            if (gameplayFeedback != null)
+                Add(gameplayFeedback);
 
             ScheduleAfterChildren(applyDefaults);
         }
@@ -59,11 +72,32 @@ namespace osu.Game.Rulesets.Bms.UI
             comboCounter.Origin = Anchor.TopCentre;
             comboCounter.Position = combo_position;
 
+            if (gameplayFeedback != null)
+                ApplyGameplayFeedbackDefaults(gameplayFeedback);
+
             foreach (var combo in this.ChildrenOfType<ComboCounter>().Where(combo => combo != comboCounter))
                 combo.Hide();
 
             foreach (var drawable in this.ChildrenOfType<ISerialisableDrawable>())
                 drawable.UsesFixedAnchor = true;
+        }
+
+        internal static void ApplyGameplayFeedbackDefaults(Drawable gameplayFeedback)
+            => BmsGameplayFeedbackLayout.ApplyGameplayFeedbackDefaults(gameplayFeedback);
+
+        internal static Drawable WrapWithGameplayFeedback(Drawable hudLayout, Drawable gameplayFeedback)
+        {
+            ApplyGameplayFeedbackDefaults(gameplayFeedback);
+
+            return new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Children = new[]
+                {
+                    hudLayout,
+                    gameplayFeedback,
+                }
+            };
         }
     }
 }

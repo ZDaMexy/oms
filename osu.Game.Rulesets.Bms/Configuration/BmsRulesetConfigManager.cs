@@ -2,7 +2,6 @@
 
 using osu.Framework.Configuration.Tracking;
 using osu.Game.Configuration;
-using osu.Game.Localisation;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Configuration;
@@ -12,6 +11,18 @@ namespace osu.Game.Rulesets.Bms.Configuration
 {
     public class BmsRulesetConfigManager : RulesetConfigManager<BmsRulesetSetting>
     {
+        public const double NORMAL_HI_SPEED_MIN = 1.0;
+        public const double NORMAL_HI_SPEED_MAX = 20.0;
+        public const double NORMAL_HI_SPEED_PRECISION = 0.1;
+
+        public const double FLOATING_HI_SPEED_MIN = 0.5;
+        public const double FLOATING_HI_SPEED_MAX = 10.0;
+        public const double FLOATING_HI_SPEED_PRECISION = 0.01;
+
+        public const double CLASSIC_HI_SPEED_MIN = 0.5;
+        public const double CLASSIC_HI_SPEED_MAX = 10.0;
+        public const double CLASSIC_HI_SPEED_PRECISION = 0.25;
+
         public BmsRulesetConfigManager(SettingsStore? settings, RulesetInfo ruleset, int? variant = null)
             : base(settings, ruleset, variant)
         {
@@ -21,7 +32,10 @@ namespace osu.Game.Rulesets.Bms.Configuration
         {
             base.InitialiseDefaults();
 
-            SetDefault(BmsRulesetSetting.ScrollSpeed, 8.0, 1.0, 40.0, 0.1);
+            SetDefault(BmsRulesetSetting.HiSpeedMode, BmsHiSpeedMode.Normal);
+            SetDefault(BmsRulesetSetting.ScrollSpeed, 8.0, NORMAL_HI_SPEED_MIN, NORMAL_HI_SPEED_MAX, NORMAL_HI_SPEED_PRECISION);
+            SetDefault(BmsRulesetSetting.FloatingHiSpeed, 2.50, FLOATING_HI_SPEED_MIN, FLOATING_HI_SPEED_MAX, FLOATING_HI_SPEED_PRECISION);
+            SetDefault(BmsRulesetSetting.ClassicHiSpeed, 2.50, CLASSIC_HI_SPEED_MIN, CLASSIC_HI_SPEED_MAX, CLASSIC_HI_SPEED_PRECISION);
             SetDefault(BmsRulesetSetting.ScrollDirection, ScrollingDirection.Down);
             SetDefault(BmsRulesetSetting.PlayfieldScale, 1.0, 0.5, 1.5, 0.01);
             SetDefault(BmsRulesetSetting.PlayfieldHorizontalOffset, 0.0, -0.4, 0.4, 0.01);
@@ -40,21 +54,15 @@ namespace osu.Game.Rulesets.Bms.Configuration
             SetDefault(BmsRulesetSetting.KeysoundConcurrentChannels, BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS);
         }
 
-        public override TrackedSettings CreateTrackedSettings() => new TrackedSettings
-        {
-            new TrackedSetting<double>(BmsRulesetSetting.ScrollSpeed,
-                speed => new SettingDescription(
-                    rawValue: speed,
-                    name: RulesetSettingsStrings.ScrollSpeed,
-                    value: RulesetSettingsStrings.ScrollSpeedTooltip((int)DrawableBmsRuleset.ComputeScrollTime(speed), speed)
-                )
-            )
-        };
+        public override TrackedSettings CreateTrackedSettings() => new TrackedSettings();
     }
 
     public enum BmsRulesetSetting
     {
+        HiSpeedMode,
         ScrollSpeed,
+        FloatingHiSpeed,
+        ClassicHiSpeed,
         ScrollDirection,
         PlayfieldScale,
         PlayfieldHorizontalOffset,

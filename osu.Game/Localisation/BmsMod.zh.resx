@@ -44,10 +44,17 @@
   <data name="judge_rank_normal" xml:space="preserve"><value>NORMAL</value></data>
   <data name="judge_rank_easy" xml:space="preserve"><value>EASY</value></data>
   <data name="judge_rank_very_easy" xml:space="preserve"><value>VERY EASY</value></data>
+  <data name="sudden_description" xml:space="preserve"><value>以 SUDDEN+ 风格遮挡 playfield 上部区域。</value></data>
+  <data name="hidden_description" xml:space="preserve"><value>以 HIDDEN+ 风格在音符到达判定线前遮挡 playfield 下部区域。</value></data>
   <data name="top_lane_cover_description" xml:space="preserve"><value>遮挡 playfield 上部区域。</value></data>
   <data name="bottom_lane_cover_description" xml:space="preserve"><value>遮挡 playfield 下部区域。</value></data>
   <data name="cover_value" xml:space="preserve"><value>遮挡值</value></data>
   <data name="cover_value_description" xml:space="preserve"><value>0-1000 对应 playfield 覆盖率 0%-100%。</value></data>
+  <data name="cover_opacity" xml:space="preserve"><value>遮挡不透明度</value></data>
+  <data name="cover_opacity_description" xml:space="preserve"><value>0-1000 对应 SUDDEN/HIDDEN 遮挡层不透明度 0%-100%。</value></data>
+  <data name="lift_description" xml:space="preserve"><value>以 LIFT 风格通过从底部缩短轨道来抬高判定线。</value></data>
+  <data name="lift_value" xml:space="preserve"><value>LIFT 值</value></data>
+  <data name="lift_value_description" xml:space="preserve"><value>0-1000 对应当前轨道高度的 0%-100%。</value></data>
   <data name="mirror_description" xml:space="preserve"><value>对按键轨道应用 Mirror，scratch 保持原位。</value></data>
   <data name="random_description" xml:space="preserve"><value>按 beatmania 风格对按键轨道应用 RANDOM、R-RANDOM、S-RANDOM，或使用自定义固定 pattern。</value></data>
   <data name="random_type" xml:space="preserve"><value>Random 类型</value></data>

@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsHitTarget HitTarget { get; }
 
-    public IBindable<double> ScrollLengthRatio => hitObjectArea.ScrollLengthRatio;
+        public IBindable<double> ScrollLengthRatio => hitObjectArea.ScrollLengthRatio;
 
         protected BmsPlayfieldLayoutProfile LayoutProfile { get; private set; }
 
@@ -42,6 +42,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly int laneCount;
         private readonly BmsKeymode keymode;
         private readonly BmsHitObjectArea hitObjectArea;
+        private readonly BindableFloat? liftUnits;
 
         [Resolved(canBeNull: true)]
         private BmsInputManager? inputManager { get; set; }
@@ -51,13 +52,14 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private BmsKeysoundSampleInfo? currentLaneKeysound;
 
-        public BmsLane(BmsLaneLayout.Lane lane, int laneCount, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile)
+        public BmsLane(BmsLaneLayout.Lane lane, int laneCount, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile, BindableFloat? liftUnits = null)
         {
             LayoutLane = lane;
             LaneIndex = lane.LaneIndex;
             IsScratch = lane.IsScratch;
             this.laneCount = laneCount;
             this.keymode = keymode;
+            this.liftUnits = liftUnits;
             LayoutProfile = layoutProfile;
             Name = $"Lane {LaneIndex}";
             Action.Value = lane.Action;
@@ -90,7 +92,7 @@ namespace osu.Game.Rulesets.Bms.UI
         protected virtual BmsHitTarget createHitTarget() => new BmsHitTarget(createLookup(BmsLaneSkinElements.HitTarget), LayoutProfile);
 
         protected virtual BmsHitObjectArea createHitObjectArea()
-            => new BmsHitObjectArea(createHitTarget(), LayoutProfile, HitObjectContainer)
+            => new BmsHitObjectArea(createHitTarget(), LayoutProfile, HitObjectContainer, liftUnits)
             {
                 RelativeSizeAxes = Axes.Both,
             };

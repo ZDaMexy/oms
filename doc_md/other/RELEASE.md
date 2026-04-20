@@ -65,7 +65,7 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 
 当前仓库状态说明：
 
-- 上述第 2 条尚未满足。BMS 默认层已完成七批 OMS-owned slice 收口；mania 侧已完成第一批 shell 组件 / preset 与第二批 8 类 OMS-owned 组件升格（不再继承 legacy 类型），但 note scrolling、combo / bar-line 等路径仍复用部分 legacy 语义，因此 mania 默认路径迁移仍未完成。详见 `DEVELOPMENT_STATUS.md`。
+- 上述第 2 条尚未完全满足。BMS 默认层与 BMS fallback 已完成七批 OMS-owned slice 收口；mania 侧已完成 shell / preset 接线与 8 类 OMS-owned 组件升格，`OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` 已锁定主要 runtime 语义，但公开发行物产品面、少量 legacy config/asset lookup 兼容与最终 release gate 仍在收尾。详见 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 用户数据存储
 

@@ -6,7 +6,7 @@ using osu.Game.Rulesets.Bms.Difficulty;
 namespace osu.Game.Rulesets.Bms.UI
 {
     /// <summary>
-    /// Centralises default BMS playfield geometry so layout-critical values can evolve without editing multiple drawables.
+    /// Centralises the current strict BMS playfield geometry so layout-critical values can evolve without editing multiple drawables.
     /// </summary>
     public sealed class BmsPlayfieldLayoutProfile
     {

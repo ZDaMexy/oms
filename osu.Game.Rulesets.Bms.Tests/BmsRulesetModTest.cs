@@ -6,9 +6,14 @@ using osu.Framework.Input.Bindings;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Replays;
+using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -22,15 +27,18 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestExposesLaneCoverMods()
         {
             var mods = new BmsRuleset().GetModsFor(ModType.Conversion).ToArray();
-            var topMods = mods.OfType<BmsModLaneCoverTop>().ToArray();
-            var bottomMods = mods.OfType<BmsModLaneCoverBottom>().ToArray();
+            var suddenMods = mods.OfType<BmsModSudden>().ToArray();
+            var hiddenMods = mods.OfType<BmsModHidden>().ToArray();
+            var liftMods = mods.OfType<BmsModLift>().ToArray();
 
             Assert.Multiple(() =>
             {
-                Assert.That(topMods, Has.Length.EqualTo(1));
-                Assert.That(bottomMods, Has.Length.EqualTo(1));
-                Assert.That(topMods.Single().Type, Is.EqualTo(ModType.Conversion));
-                Assert.That(bottomMods.Single().Type, Is.EqualTo(ModType.Conversion));
+                Assert.That(suddenMods, Has.Length.EqualTo(1));
+                Assert.That(hiddenMods, Has.Length.EqualTo(1));
+                Assert.That(liftMods, Has.Length.EqualTo(1));
+                Assert.That(suddenMods.Single().Type, Is.EqualTo(ModType.Conversion));
+                Assert.That(hiddenMods.Single().Type, Is.EqualTo(ModType.Conversion));
+                Assert.That(liftMods.Single().Type, Is.EqualTo(ModType.Conversion));
             });
         }
 
@@ -257,26 +265,25 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestLaneCoverModsCreateTopAndBottomCovers()
         {
             var beatmap = createPlayableBeatmap();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap);
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod });
 
-            var topMod = new BmsModLaneCoverTop();
-            var bottomMod = new BmsModLaneCoverBottom();
+            suddenMod.CoverPercent.Value = 350;
+            hiddenMod.CoverPercent.Value = 200;
 
-            topMod.CoverPercent.Value = 350;
-            bottomMod.CoverPercent.Value = 200;
-
-            topMod.ApplyToDrawableRuleset(drawableRuleset);
-            bottomMod.ApplyToDrawableRuleset(drawableRuleset);
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
 
             var laneCovers = drawableRuleset.Playfield.CoverContainer.Children.OfType<BmsLaneCover>().ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(laneCovers, Has.Length.EqualTo(2));
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Top).CoverPercent.Value, Is.EqualTo(350));
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Bottom).CoverPercent.Value, Is.EqualTo(200));
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Top).IsFocused.Value, Is.True);
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Bottom).IsFocused.Value, Is.False);
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Sudden).CoverPercent.Value, Is.EqualTo(350));
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Hidden).CoverPercent.Value, Is.EqualTo(200));
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Sudden).IsFocused.Value, Is.True);
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Hidden).IsFocused.Value, Is.False);
                 Assert.That(drawableRuleset.PlayfieldAdjustmentContainer.Children.OfType<BmsLaneCover>(), Is.Empty);
             });
         }
@@ -285,12 +292,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestScrollAdjustmentTargetsTopCoverByDefault()
         {
             var beatmap = createPlayableBeatmap();
-            var topMod = new BmsModLaneCoverTop();
-            var bottomMod = new BmsModLaneCoverBottom();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { topMod, bottomMod });
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod });
 
-            topMod.ApplyToDrawableRuleset(drawableRuleset);
-            bottomMod.ApplyToDrawableRuleset(drawableRuleset);
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
 
             Assert.That(drawableRuleset.AdjustLaneCover(1), Is.True);
 
@@ -298,9 +305,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(topMod.CoverPercent.Value, Is.EqualTo(501));
-                Assert.That(bottomMod.CoverPercent.Value, Is.EqualTo(500));
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Top).CoverPercent.Value, Is.EqualTo(501));
+                Assert.That(suddenMod.CoverPercent.Value, Is.EqualTo(251));
+                Assert.That(hiddenMod.CoverPercent.Value, Is.EqualTo(250));
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Sudden).CoverPercent.Value, Is.EqualTo(251));
             });
         }
 
@@ -308,12 +315,18 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestExposesLaneCoverFocusDefaultBinding()
         {
             var bindings = new BmsRuleset().GetDefaultKeyBindings().ToArray();
+            var laneCoverBindings = bindings.Where(binding => binding.Action is BmsAction.LaneCoverFocus).ToArray();
 
-            Assert.That(bindings.Select(binding => binding.Action), Does.Contain(BmsAction.LaneCoverFocus));
+            Assert.Multiple(() =>
+            {
+                Assert.That(bindings.Select(binding => binding.Action), Does.Contain(BmsAction.LaneCoverFocus));
+                Assert.That(laneCoverBindings, Has.Length.EqualTo(1));
+                Assert.That(laneCoverBindings[0].KeyCombination.Keys.ToArray(), Is.EqualTo(new[] { InputKey.W }));
+            });
         }
 
-        [TestCase(6, 13, 6, "5K")]
-        [TestCase(8, 17, 8, "7K")]
+        [TestCase(6, 7, 6, "5K")]
+        [TestCase(8, 9, 8, "7K")]
         [TestCase(9, 9, 9, "9K")]
         [TestCase(16, 18, 16, "14K")]
         public void TestGameplayBindingsFollowVariant(int variant, int expectedBindingCount, int expectedDistinctActions, string expectedName)
@@ -337,8 +350,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(bindings, Has.Length.EqualTo(3));
-                Assert.That(bindings.SelectMany(binding => binding.KeyCombination.Keys).OrderBy(key => key).ToArray(), Is.EqualTo(new[] { InputKey.A, InputKey.Q, InputKey.Joystick5 }));
+                Assert.That(bindings, Has.Length.EqualTo(2));
+                Assert.That(bindings.SelectMany(binding => binding.KeyCombination.Keys).OrderBy(key => key).ToArray(), Is.EqualTo(new[] { InputKey.LShift, InputKey.RShift }));
             });
         }
 
@@ -346,19 +359,19 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestFocusAdjustmentTargetsBottomCover()
         {
             var beatmap = createPlayableBeatmap();
-            var topMod = new BmsModLaneCoverTop();
-            var bottomMod = new BmsModLaneCoverBottom();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { topMod, bottomMod });
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod });
 
-            topMod.ApplyToDrawableRuleset(drawableRuleset);
-            bottomMod.ApplyToDrawableRuleset(drawableRuleset);
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
 
             Assert.That(drawableRuleset.AdjustLaneCover(1, preferBottom: true), Is.True);
 
             Assert.Multiple(() =>
             {
-                Assert.That(topMod.CoverPercent.Value, Is.EqualTo(500));
-                Assert.That(bottomMod.CoverPercent.Value, Is.EqualTo(501));
+                Assert.That(suddenMod.CoverPercent.Value, Is.EqualTo(250));
+                Assert.That(hiddenMod.CoverPercent.Value, Is.EqualTo(251));
             });
         }
 
@@ -366,12 +379,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestFocusRefreshMarksBottomCoverAsFocused()
         {
             var beatmap = createPlayableBeatmap();
-            var topMod = new BmsModLaneCoverTop();
-            var bottomMod = new BmsModLaneCoverBottom();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { topMod, bottomMod });
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod });
 
-            topMod.ApplyToDrawableRuleset(drawableRuleset);
-            bottomMod.ApplyToDrawableRuleset(drawableRuleset);
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
 
             drawableRuleset.UpdateLaneCoverFocus(preferBottom: true);
 
@@ -379,19 +392,333 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Top).IsFocused.Value, Is.False);
-                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Bottom).IsFocused.Value, Is.True);
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Sudden).IsFocused.Value, Is.False);
+                Assert.That(laneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Hidden).IsFocused.Value, Is.True);
             });
+        }
+
+        [Test]
+        public void TestTemporaryBottomFocusDoesNotOverwritePersistentTarget()
+        {
+            var beatmap = createPlayableBeatmap();
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod, liftMod });
+
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+
+            drawableRuleset.UpdateLaneCoverFocus(preferBottom: true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Hidden));
+                Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(1));
+                Assert.That(drawableRuleset.IsAdjustmentTargetTemporarilyOverridden.Value, Is.True);
+                Assert.That(drawableRuleset.Playfield.LaneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Hidden).IsFocused.Value, Is.True);
+            });
+
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Hidden, 3, 1, true);
+
+            drawableRuleset.RefreshLaneCoverFocus();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Lift));
+                Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(2));
+                Assert.That(drawableRuleset.IsAdjustmentTargetTemporarilyOverridden.Value, Is.False);
+                Assert.That(drawableRuleset.Playfield.LaneCovers.All(cover => !cover.IsFocused.Value), Is.True);
+            });
+
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 3, 2, false);
+        }
+
+        [Test]
+        public void TestScrollSpeedMetricsReflectAppliedLaneCovers()
+        {
+            var beatmap = createPlayableBeatmap();
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod, liftMod });
+
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+
+            suddenMod.CoverPercent.Value = 350;
+            hiddenMod.CoverPercent.Value = 200;
+            liftMod.LiftUnits.Value = 150;
+
+            var metrics = drawableRuleset.GetScrollSpeedMetrics();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(metrics.SuddenUnits, Is.EqualTo(350));
+                Assert.That(metrics.HiddenUnits, Is.EqualTo(200));
+                Assert.That(metrics.LiftUnits, Is.EqualTo(150));
+                Assert.That(metrics.WhiteNumber, Is.EqualTo(350));
+                Assert.That(metrics.VisibleLaneUnits, Is.EqualTo(450));
+            });
+        }
+
+        [Test]
+        public void TestGameplayFeedbackStateMirrorsInitialPacemaker()
+        {
+            var beatmap = createPlayableBeatmap();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
+
+            Assert.That(drawableRuleset.ExScorePacemakerInfo.Value, Is.EqualTo(drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo));
+
+            if (!drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo.HasValue)
+                return;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo!.Value.CurrentExScore, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo!.Value.JudgedHits, Is.EqualTo(0));
+            });
+        }
+
+        [Test]
+        public void TestGameplayFeedbackStateStartsWithZeroJudgementCounts()
+        {
+            var beatmap = createPlayableBeatmap();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.PerfectCount, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.GreatCount, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.GoodCount, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.BadCount, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.PoorCount, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.EmptyPoorCount, Is.EqualTo(0));
+            });
+        }
+
+        [Test]
+        public void TestGameplayFeedbackStateMirrorsInitialExScoreProgress()
+        {
+            var beatmap = createPlayableBeatmap();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
+
+            BmsExScoreProgressInfo? expectedProgressInfo = drawableRuleset.ExScorePacemakerInfo.Value.HasValue
+                ? BmsExScoreProgressInfo.Create(
+                    drawableRuleset.ExScorePacemakerInfo.Value.Value.CurrentExScore,
+                    drawableRuleset.ExScorePacemakerInfo.Value.Value.MaximumExScore)
+                : null;
+
+            Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo, Is.EqualTo(expectedProgressInfo));
+
+            if (!drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo.HasValue)
+                return;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo!.Value.CurrentExScore, Is.EqualTo(0));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo!.Value.MaximumExScore, Is.EqualTo(2));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo!.Value.DjLevel, Is.EqualTo(BmsDjLevel.F));
+            });
+        }
+
+        [Test]
+        public void TestLiftModAppliesToPlayfield()
+        {
+            var beatmap = createPlayableBeatmap();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { liftMod });
+
+            liftMod.LiftUnits.Value = 240;
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+
+            Assert.That(drawableRuleset.Playfield.LiftUnits.Value, Is.EqualTo(240));
+        }
+
+        [Test]
+        public void TestGameplayAdjustmentFallsBackToLiftWhenOnlyLiftEnabled()
+        {
+            var beatmap = createPlayableBeatmap();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { liftMod });
+
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+
+            Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
+            Assert.That(liftMod.LiftUnits.Value, Is.EqualTo(251));
+        }
+
+        [Test]
+        public void TestAdjustmentTargetStateIsNullWhenNoTargetsEnabled()
+        {
+            var beatmap = createPlayableBeatmap();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
+
+            drawableRuleset.RefreshLaneCoverFocus();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.EnabledAdjustmentTargetCount.Value, Is.EqualTo(0));
+                Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(-1));
+                Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.Null);
+            });
+
+            assertGameplayFeedbackStateTargetState(drawableRuleset, null, 0, -1, false);
+        }
+
+        [Test]
+        public void TestSingleEnabledAdjustmentTargetIsExposedAsActiveTarget()
+        {
+            var beatmap = createPlayableBeatmap();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { liftMod });
+
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+            drawableRuleset.RefreshLaneCoverFocus();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.EnabledAdjustmentTargetCount.Value, Is.EqualTo(1));
+                Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(0));
+                Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Lift));
+                Assert.That(drawableRuleset.Playfield.LaneCovers.All(cover => !cover.IsFocused.Value), Is.True);
+            });
+
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 1, 0, false);
+        }
+
+        [Test]
+        public void TestGameplayAdjustmentCyclesAcrossEnabledTargets()
+        {
+            var beatmap = createPlayableBeatmap();
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod, liftMod });
+
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+
+            drawableRuleset.RefreshLaneCoverFocus();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.EnabledAdjustmentTargetCount.Value, Is.EqualTo(3));
+                Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(0));
+                Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Sudden));
+            });
+
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Sudden, 3, 0, false);
+
+            Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
+            Assert.That(suddenMod.CoverPercent.Value, Is.EqualTo(251));
+
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+            Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(1));
+            Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Hidden));
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Hidden, 3, 1, false);
+            Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
+            Assert.That(hiddenMod.CoverPercent.Value, Is.EqualTo(251));
+
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+            Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(2));
+            Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Lift));
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 3, 2, false);
+            Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
+            Assert.That(liftMod.LiftUnits.Value, Is.EqualTo(251));
+
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+            Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(0));
+            Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Sudden));
+            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Sudden, 3, 0, false);
+            Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
+            Assert.That(suddenMod.CoverPercent.Value, Is.EqualTo(252));
+        }
+
+        [Test]
+        public void TestLatestJudgementFeedbackTracksTimingAndIgnoresNonBasicResults()
+        {
+            var beatmap = createPlayableBeatmap();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
+            var playableHitObject = beatmap.HitObjects.OfType<BmsHitObject>().First();
+            var expectedEmptyPoorFeedback = new BmsJudgementTimingFeedback(HitResult.Ok, 0, false);
+
+            drawableRuleset.HandleGameplayJudgementResult(createResult(playableHitObject, HitResult.Perfect, -3.2));
+
+            Assert.That(drawableRuleset.LatestJudgementFeedback.Value.HasValue, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.Result, Is.EqualTo(HitResult.Perfect));
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.TimeOffset, Is.EqualTo(-3.2).Within(0.001));
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.ShowsTimingDirection, Is.True);
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.LatestJudgementFeedback, Is.EqualTo(drawableRuleset.LatestJudgementFeedback.Value));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.TimingFeedbackVisualRange, Is.EqualTo(drawableRuleset.TimingFeedbackVisualRange.Value));
+            });
+
+            drawableRuleset.HandleGameplayJudgementResult(createResult(new BmsEmptyPoorHitObject(), HitResult.Ok));
+
+            Assert.That(drawableRuleset.LatestJudgementFeedback.Value.HasValue, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.Result, Is.EqualTo(expectedEmptyPoorFeedback.Result));
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.TimeOffset, Is.EqualTo(expectedEmptyPoorFeedback.TimeOffset).Within(0.001));
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.ShowsTimingDirection, Is.EqualTo(expectedEmptyPoorFeedback.ShowsTimingDirection));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.LatestJudgementFeedback, Is.EqualTo(drawableRuleset.LatestJudgementFeedback.Value));
+            });
+
+            drawableRuleset.HandleGameplayJudgementResult(createResult(playableHitObject, HitResult.ComboBreak, 12));
+
+            Assert.That(drawableRuleset.LatestJudgementFeedback.Value.HasValue, Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.Result, Is.EqualTo(expectedEmptyPoorFeedback.Result));
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.TimeOffset, Is.EqualTo(expectedEmptyPoorFeedback.TimeOffset).Within(0.001));
+                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.ShowsTimingDirection, Is.EqualTo(expectedEmptyPoorFeedback.ShowsTimingDirection));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.LatestJudgementFeedback, Is.EqualTo(drawableRuleset.LatestJudgementFeedback.Value));
+            });
+
+            Assert.That(drawableRuleset.RecentJudgementFeedbacks, Has.Count.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.RecentJudgementFeedbacks[0].Result, Is.EqualTo(HitResult.Perfect));
+                Assert.That(drawableRuleset.RecentJudgementFeedbacks[0].TimeOffset, Is.EqualTo(-3.2).Within(0.001));
+                Assert.That(drawableRuleset.RecentJudgementFeedbacks[0].ShowsTimingDirection, Is.True);
+            });
+        }
+
+        [Test]
+        public void TestLaneCoverFocusClearsWhenLiftBecomesCurrentTarget()
+        {
+            var beatmap = createPlayableBeatmap();
+            var suddenMod = new BmsModSudden();
+            var hiddenMod = new BmsModHidden();
+            var liftMod = new BmsModLift();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { suddenMod, hiddenMod, liftMod });
+
+            suddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
+            liftMod.ApplyToDrawableRuleset(drawableRuleset);
+
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+            Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
+
+            Assert.That(drawableRuleset.Playfield.LaneCovers.All(cover => !cover.IsFocused.Value), Is.True);
         }
 
         [Test]
         public void TestScrollAdjustmentFallsBackToBottomCover()
         {
             var beatmap = createPlayableBeatmap();
-            var bottomMod = new BmsModLaneCoverBottom();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { bottomMod });
+            var hiddenMod = new BmsModHidden();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, new Mod[] { hiddenMod });
 
-            bottomMod.ApplyToDrawableRuleset(drawableRuleset);
+            hiddenMod.ApplyToDrawableRuleset(drawableRuleset);
 
             Assert.That(drawableRuleset.AdjustLaneCover(-1), Is.True);
 
@@ -399,8 +726,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(bottomMod.CoverPercent.Value, Is.EqualTo(499));
-                Assert.That(laneCovers.Single().CoverPercent.Value, Is.EqualTo(499));
+                Assert.That(hiddenMod.CoverPercent.Value, Is.EqualTo(249));
+                Assert.That(laneCovers.Single().CoverPercent.Value, Is.EqualTo(249));
             });
         }
 
@@ -414,6 +741,31 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             var decodedChart = decoder.DecodeText(text, "lane-cover-stub.bme");
             return (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+        }
+
+        private static JudgementResult createResult(HitObject hitObject, HitResult hitResult, double? timeOffset = null)
+        {
+            var result = new JudgementResult(hitObject, hitObject.CreateJudgement())
+            {
+                Type = hitResult,
+            };
+
+            if (timeOffset.HasValue)
+                result.TimeOffset = timeOffset.Value;
+
+            return result;
+        }
+
+        private static void assertGameplayFeedbackStateTargetState(DrawableBmsRuleset drawableRuleset, BmsGameplayAdjustmentTarget? expectedTarget, int expectedCount,
+                                                                   int expectedIndex, bool expectedTemporaryOverride)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ActiveAdjustmentTarget, Is.EqualTo(expectedTarget));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.EnabledAdjustmentTargetCount, Is.EqualTo(expectedCount));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ActiveAdjustmentTargetIndex, Is.EqualTo(expectedIndex));
+                Assert.That(drawableRuleset.GameplayFeedbackState.Value.IsAdjustmentTargetTemporarilyOverridden, Is.EqualTo(expectedTemporaryOverride));
+            });
         }
     }
 }

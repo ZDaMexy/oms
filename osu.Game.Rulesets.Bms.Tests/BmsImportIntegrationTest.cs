@@ -511,18 +511,20 @@ namespace osu.Game.Rulesets.Bms.Tests
             string sourceRoot = Path.Combine(storage.GetFullPath("."), directoryName, Guid.NewGuid().ToString("N"));
 
             Directory.CreateDirectory(sourceRoot);
-            File.WriteAllText(Path.Combine(sourceRoot, "chart.bms"), @"
+            File.WriteAllText(Path.Combine(sourceRoot, "chart.bms"), buildChartText());
+            File.WriteAllText(Path.Combine(sourceRoot, "stage.png"), "placeholder");
+
+            return sourceRoot;
+        }
+
+        private static string buildChartText() => @"
 #TITLE Filesystem Test
 #ARTIST OMS
 #BPM 150
 #PLAYLEVEL 12
 #STAGEFILE stage.png
 #00111:AA00
-");
-            File.WriteAllText(Path.Combine(sourceRoot, "stage.png"), "placeholder");
-
-            return sourceRoot;
-        }
+";
 
         private static MemoryStream createArchiveStream(params (string path, string content)[] entries)
         {

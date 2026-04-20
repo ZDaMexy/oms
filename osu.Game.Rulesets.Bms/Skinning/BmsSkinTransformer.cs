@@ -60,6 +60,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.ComboCounter }:
                     return skinnedComponent is ComboCounter ? skinnedComponent : providesBuiltInFallbacks ? new BmsComboCounter() : null;
 
+                case BmsSkinComponentLookup { Component: BmsSkinComponents.SpeedFeedback }:
+                    return skinnedComponent is IBmsSpeedFeedbackDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsSpeedFeedbackDisplay() : null;
+
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.ClearLamp }:
                     return skinnedComponent is IBmsClearLampDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsClearLampDisplay() : null;
 
@@ -106,12 +109,19 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                     Drawable gaugeBar = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)) ?? new BmsGaugeBar();
                     ComboCounter comboCounter = (ComboCounter)(GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) ?? new BmsComboCounter());
+                    Drawable speedFeedback = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.SpeedFeedback)) ?? new DefaultBmsSpeedFeedbackDisplay();
                     Drawable hudLayout = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)) ?? new DefaultBmsHudLayoutDisplay();
+
+                    if (hudLayout is IBmsHudLayoutDisplayWithGameplayFeedback hudLayoutDisplayWithFeedback)
+                    {
+                        hudLayoutDisplayWithFeedback.SetComponents(skinnedComponent, gaugeBar, comboCounter, speedFeedback);
+                        return hudLayout;
+                    }
 
                     if (hudLayout is IBmsHudLayoutDisplay hudLayoutDisplay)
                         hudLayoutDisplay.SetComponents(skinnedComponent, gaugeBar, comboCounter);
 
-                    return hudLayout;
+                    return DefaultBmsHudLayoutDisplay.WrapWithGameplayFeedback(hudLayout, speedFeedback);
             }
 
             return skinnedComponent;
@@ -122,7 +132,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                || providesBuiltInFallbacks
                || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)) is IBmsHudLayoutDisplay
                || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)) != null
-               || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) is ComboCounter;
+               || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) is ComboCounter
+               || Skin.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.SpeedFeedback)) is IBmsSpeedFeedbackDisplay;
 
         private Drawable? createBuiltInFallback(System.Func<Drawable> createDrawable)
             => providesBuiltInFallbacks ? createDrawable() : null;

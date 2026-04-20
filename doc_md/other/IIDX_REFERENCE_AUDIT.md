@@ -1,8 +1,8 @@
 # IIDX 外部参考审计
 
-> 最后更新：2026-04-17
+> 最后更新：2026-04-20
 > 本文档沉淀对 iidx.org 及相关差异资料的整理结果，用于审核和校正 OMS 的产品方向。
-> 本文档不是进度日志，不替代 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)、[DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) 或 [OMS_COPILOT.md](OMS_COPILOT.md)。
+> 本文档不是进度日志，不替代 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)、[../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md) 或 [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)。
 
 ## 文档定位
 
@@ -59,7 +59,8 @@
 
 ### 不应机械照搬的方向
 
-- 不要在未建立完整 FHS 语义前，仅为了“像 IIDX”引入 green number / white number 数字 UI。
+- 不要把 settings 页写成 green number / visible-ms 调机面板；这些表达应继续留在 gameplay runtime。当前 OMS 可以在 HUD / toast / pre-start overlay 中显示 mode-aware `GN / WN`，但仍不得把它包装成完整 `FHS`。
+- 如果在 `P1-A / P1-C` 提前把当前 OMS runtime speed feedback 做成常驻 HUD 或 pre-start hold operator surface，必须明确标注它基于 OMS 的 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 反馈模型，而不是把它包装成完整 IIDX `FHS`。
 - 不要把 auto scratch、legacy note 一类 assist 当作默认教学路径。
 - 不要把 IIDX / LR2 / beatoraja 规则差异藏在文案后面；必须明确告诉用户当前使用的是哪一套语义。
 - 不要先追高阶 playstyle 教学，再补控制器校准；真实输入一致性是前提。
@@ -70,6 +71,8 @@
 
 - BMS top / bottom lane cover 与游玩中调整
 - Scroll speed 基础设置
+- tri-mode 基线：`Normal Hi-Speed` 已作为 settings 默认 surface 落地；`Floating Hi-Speed` 已有 initial-BPM anchored runtime surface 与 pre-start hold 调速窗口，但仍未完成 mid-song re-float parity；`Classic Hi-Speed` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，且 runtime geometry override surface 维持冻结
+- 如果继续跟 IIDX 的 hold-start 调速菜单靠拢，应继续归入现有 `P1-A / P1-C` 交叉专题，而不是新开主线；真正会新开路线的是 full Floating parity、soflan GN range 与更严格的 start sequencing 审计
 - LN / CN / HCN 长条模式区分
 - EX-SCORE / DJ LEVEL / CLEAR LAMP / gauge history / note distribution
 - 训练向随机选项命名与第一轮实现：MIRROR / RANDOM / R-RANDOM / S-RANDOM
@@ -82,6 +85,7 @@
 - Controller calibration / deadzone / sensitivity 可见入口
 - Gameplay 侧 EX pacemaker / target 反馈
 - 面向初学者的默认设置向导和低摩擦训练入口
+- 以上缺口在 2026-04-19 当前工作区里仍分别对应 `P1-C` 与 `P1-D` 主线，未因 Mirror / Random / A-SCR / BMS Autoplay 等训练向能力落地而降级
 
 ### 明确仍属后续项的内容
 
@@ -147,5 +151,5 @@
 ## 维护约定
 
 - 当外部资料只影响“方向判断”时，更新本文件。
-- 当外部结论已经转化为硬约束时，同步写入 [OMS_COPILOT.md](OMS_COPILOT.md)。
-- 当外部结论已经改变阶段优先级时，同步写入 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) 与 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)。
+- 当外部结论已经转化为硬约束时，同步写入 [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)。
+- 当外部结论已经改变阶段优先级时，同步写入 [../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md) 与 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)。

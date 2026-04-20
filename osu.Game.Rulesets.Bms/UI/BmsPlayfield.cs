@@ -11,7 +11,6 @@ using osu.Framework.Graphics.Shapes;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Judgements;
@@ -31,6 +30,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private const float layout_epsilon = 0.0001f;
 
         private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
+        private readonly BindableFloat liftUnits = new BindableFloat();
         private readonly IBindable<double>? laneScrollLengthRatio;
 
         [Cached]
@@ -45,6 +45,8 @@ namespace osu.Game.Rulesets.Bms.UI
         public BmsKeysoundStore KeysoundStore => keysoundStore;
 
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
+
+        public BindableFloat LiftUnits => liftUnits;
 
         public Container CoverContainer { get; } = new Container
         {
@@ -95,11 +97,8 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load(BmsRulesetConfigManager? config = null)
+        private void load()
         {
-            if (config != null)
-                applyConfiguredLayoutProfile(config);
-
             AddInternal(new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -216,66 +215,13 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsLane createLane(BmsLaneLayout.Lane lane)
         {
             BmsLane drawableLane = lane.IsScratch
-                ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile)
-                : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile);
+                ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, liftUnits)
+                : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, liftUnits);
 
             applyLaneBounds(drawableLane, lane, LaneLayout.TotalRelativeWidth);
 
             return drawableLane;
         }
-
-        private void applyConfiguredLayoutProfile(BmsRulesetConfigManager config)
-        {
-            var playfieldWidth = config.GetBindable<double>(BmsRulesetSetting.PlayfieldWidth);
-            var playfieldHeight = config.GetBindable<double>(BmsRulesetSetting.PlayfieldHeight);
-            float configuredLaneWidth = (float)config.GetBindable<double>(BmsRulesetSetting.LaneWidth).Value;
-            float configuredLaneSpacing = (float)config.GetBindable<double>(BmsRulesetSetting.LaneSpacing).Value;
-            float configuredScratchWidthRatio = (float)config.GetBindable<double>(BmsRulesetSetting.ScratchLaneWidthRatio).Value;
-            float configuredScratchSpacing = (float)config.GetBindable<double>(BmsRulesetSetting.ScratchLaneSpacing).Value;
-            float configuredPlayfieldWidth = getConfiguredSizeOverride(playfieldWidth, LayoutProfile.PlayfieldWidth);
-            float configuredPlayfieldHeight = getConfiguredSizeOverride(playfieldHeight, LayoutProfile.PlayfieldHeight);
-            float configuredHitTargetHeight = (float)config.GetBindable<double>(BmsRulesetSetting.HitTargetHeight).Value;
-            float configuredHitTargetBarHeight = (float)config.GetBindable<double>(BmsRulesetSetting.HitTargetBarHeight).Value;
-            float configuredHitTargetLineHeight = (float)config.GetBindable<double>(BmsRulesetSetting.HitTargetLineHeight).Value;
-            float configuredHitTargetGlowRadius = (float)config.GetBindable<double>(BmsRulesetSetting.HitTargetGlowRadius).Value;
-            float configuredHitTargetVerticalOffset = (float)config.GetBindable<double>(BmsRulesetSetting.HitTargetVerticalOffset).Value;
-            float configuredBarLineHeight = (float)config.GetBindable<double>(BmsRulesetSetting.BarLineHeight).Value;
-
-            if (Math.Abs(LayoutProfile.PlayfieldWidth - configuredPlayfieldWidth) <= layout_epsilon
-                && Math.Abs(LayoutProfile.PlayfieldHeight - configuredPlayfieldHeight) <= layout_epsilon
-                && Math.Abs(LayoutProfile.NormalLaneRelativeWidth - configuredLaneWidth) <= layout_epsilon
-                && Math.Abs(LayoutProfile.NormalLaneRelativeSpacing - configuredLaneSpacing) <= layout_epsilon
-                && Math.Abs(LayoutProfile.ScratchLaneRelativeWidth - configuredScratchWidthRatio) <= layout_epsilon
-                && Math.Abs(LayoutProfile.ScratchLaneRelativeSpacing - configuredScratchSpacing) <= layout_epsilon
-                && Math.Abs(LayoutProfile.HitTargetHeight - configuredHitTargetHeight) <= layout_epsilon
-                && Math.Abs(LayoutProfile.HitTargetBarHeight - configuredHitTargetBarHeight) <= layout_epsilon
-                && Math.Abs(LayoutProfile.HitTargetLineHeight - configuredHitTargetLineHeight) <= layout_epsilon
-                && Math.Abs(LayoutProfile.HitTargetGlowRadius - configuredHitTargetGlowRadius) <= layout_epsilon
-                && Math.Abs(LayoutProfile.HitTargetVerticalOffset - configuredHitTargetVerticalOffset) <= layout_epsilon
-                && Math.Abs(LayoutProfile.BarLineHeight - configuredBarLineHeight) <= layout_epsilon)
-                return;
-
-            var configuredProfile = BmsPlayfieldLayoutProfile.CreateDefault(
-                LaneLayout.Keymode,
-                LaneLayout.Lanes.Count,
-                normalLaneRelativeWidth: configuredLaneWidth,
-                scratchLaneRelativeWidth: configuredScratchWidthRatio,
-                normalLaneRelativeSpacing: configuredLaneSpacing,
-                scratchLaneRelativeSpacing: configuredScratchSpacing,
-                playfieldWidth: configuredPlayfieldWidth,
-                playfieldHeight: configuredPlayfieldHeight,
-                hitTargetHeight: configuredHitTargetHeight,
-                hitTargetBarHeight: configuredHitTargetBarHeight,
-                hitTargetLineHeight: configuredHitTargetLineHeight,
-                hitTargetGlowRadius: configuredHitTargetGlowRadius,
-                hitTargetVerticalOffset: configuredHitTargetVerticalOffset,
-                barLineHeight: configuredBarLineHeight);
-
-            applyLaneLayout(BmsLaneLayout.CreateFor(beatmap, configuredProfile));
-        }
-
-        private static float getConfiguredSizeOverride(IBindable<double> bindable, float fallback)
-            => bindable.IsDefault || bindable.Value <= 0 ? fallback : (float)bindable.Value;
 
         private void applyLaneLayout(BmsLaneLayout laneLayout)
         {

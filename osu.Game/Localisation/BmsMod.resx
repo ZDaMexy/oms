@@ -44,10 +44,17 @@
   <data name="judge_rank_normal" xml:space="preserve"><value>NORMAL</value></data>
   <data name="judge_rank_easy" xml:space="preserve"><value>EASY</value></data>
   <data name="judge_rank_very_easy" xml:space="preserve"><value>VERY EASY</value></data>
+  <data name="sudden_description" xml:space="preserve"><value>Masks the upper portion of the playfield (SUDDEN+ style).</value></data>
+  <data name="hidden_description" xml:space="preserve"><value>Masks the lower portion of the playfield before notes reach the judgement line (HIDDEN+ style).</value></data>
   <data name="top_lane_cover_description" xml:space="preserve"><value>Covers the top portion of the playfield.</value></data>
   <data name="bottom_lane_cover_description" xml:space="preserve"><value>Covers the bottom portion of the playfield.</value></data>
   <data name="cover_value" xml:space="preserve"><value>Cover value</value></data>
   <data name="cover_value_description" xml:space="preserve"><value>0-1000 maps to 0%-100% of playfield coverage.</value></data>
+  <data name="cover_opacity" xml:space="preserve"><value>Cover opacity</value></data>
+  <data name="cover_opacity_description" xml:space="preserve"><value>0-1000 maps to 0%-100% lane cover opacity.</value></data>
+  <data name="lift_description" xml:space="preserve"><value>Raises the judgement line by shortening the lane from the bottom (LIFT-style).</value></data>
+  <data name="lift_value" xml:space="preserve"><value>Lift value</value></data>
+  <data name="lift_value_description" xml:space="preserve"><value>0-1000 maps to 0%-100% of the current lane height.</value></data>
   <data name="mirror_description" xml:space="preserve"><value>Mirror button lanes while keeping scratch in place.</value></data>
   <data name="random_description" xml:space="preserve"><value>Randomise button lanes with RANDOM, R-RANDOM, S-RANDOM, or a custom fixed pattern.</value></data>
   <data name="random_type" xml:space="preserve"><value>Random type</value></data>

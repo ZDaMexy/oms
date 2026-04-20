@@ -9,7 +9,9 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Game.Database;
+using osu.Game.Localisation;
 using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.Bms.Input
@@ -21,9 +23,12 @@ namespace osu.Game.Rulesets.Bms.Input
 
         public BindableBool LaneCoverFocusPressed => laneCoverFocusPressed;
 
+        public BindableBool PreStartHoldPressed => preStartHoldPressed;
+
         public OmsInputRouter Router { get; } = new OmsInputRouter();
 
         private readonly BindableBool laneCoverFocusPressed = new BindableBool();
+        private readonly BindableBool preStartHoldPressed = new BindableBool();
         private readonly int variant;
         private OmsKeyboardInputHandler keyboardInputHandler = null!;
         private OmsHidButtonInputHandler hidButtonInputHandler = null!;
@@ -71,7 +76,10 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             bool changed = Router.TriggerPressed(action);
 
-            if (changed && OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
+            // When a replay handler is active (autoplay / watching replay), UseParentInput is false.
+            // Block player-originated gameplay actions from reaching hit objects while still allowing
+            // Router state updates so that UI actions (e.g. lane cover focus) continue to work.
+            if (changed && UseParentInput && OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
                 KeyBindingContainer.TriggerPressed(bmsAction);
 
             return changed;
@@ -81,7 +89,7 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             bool changed = Router.TriggerReleased(action);
 
-            if (changed && OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
+            if (changed && UseParentInput && OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
                 KeyBindingContainer.TriggerReleased(bmsAction);
 
             return changed;
@@ -194,12 +202,18 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             if (action == OmsAction.UI_LaneCoverFocus)
                 laneCoverFocusPressed.Value = true;
+
+            if (action == OmsAction.UI_PreStartHold)
+                preStartHoldPressed.Value = true;
         }
 
         private void onOmsActionReleased(OmsAction action)
         {
             if (action == OmsAction.UI_LaneCoverFocus)
                 laneCoverFocusPressed.Value = false;
+
+            if (action == OmsAction.UI_PreStartHold)
+                preStartHoldPressed.Value = false;
         }
 
         private partial class BmsActionRouterMirror : Component, IKeyBindingHandler<BmsAction>
@@ -218,7 +232,7 @@ namespace osu.Game.Rulesets.Bms.Input
                 if (OmsBmsActionMap.TryMapToOmsAction(variant, e.Action, out var action))
                     router.TriggerPressed(action);
 
-                return false;
+                return e.Action == BmsAction.LaneCoverFocus;
             }
 
             public void OnReleased(KeyBindingReleaseEvent<BmsAction> e)
@@ -279,8 +293,11 @@ namespace osu.Game.Rulesets.Bms.Input
         [System.ComponentModel.Description("Key 14")]
         Key14,
 
-        [System.ComponentModel.Description("Lane cover focus")]
+        [LocalisableDescription(typeof(BmsInputStrings), nameof(BmsInputStrings.CycleScrollAdjustmentTarget))]
         LaneCoverFocus,
+
+        [LocalisableDescription(typeof(BmsInputStrings), nameof(BmsInputStrings.PreStartHold))]
+        PreStartHold,
     }
 
     public static class BmsActionExtensions
@@ -320,6 +337,40 @@ namespace osu.Game.Rulesets.Bms.Input
                 keyIndex--;
 
             return GetKeyAction(keyIndex);
+        }
+
+        public static int GetHiSpeedAdjustmentDirection(this BmsAction action, int variant)
+        {
+            variant = OmsBmsActionMap.NormalizeVariant(variant);
+
+            return variant switch
+            {
+                6 => action switch
+                {
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 => 1,
+                    BmsAction.Key2 or BmsAction.Key4 => -1,
+                    _ => 0,
+                },
+                8 => action switch
+                {
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 => 1,
+                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 => -1,
+                    _ => 0,
+                },
+                9 => action switch
+                {
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 or BmsAction.Key9 => 1,
+                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 or BmsAction.Key8 => -1,
+                    _ => 0,
+                },
+                16 => action switch
+                {
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 or BmsAction.Key8 or BmsAction.Key10 or BmsAction.Key12 or BmsAction.Key14 => 1,
+                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 or BmsAction.Key9 or BmsAction.Key11 or BmsAction.Key13 => -1,
+                    _ => 0,
+                },
+                _ => 0,
+            };
         }
     }
 }

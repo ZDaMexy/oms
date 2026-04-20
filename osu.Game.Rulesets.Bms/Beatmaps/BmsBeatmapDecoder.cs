@@ -190,20 +190,31 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static string decodeText(byte[] data)
         {
-            var detectedEncoding = detectEncoding(data);
-
-            if (detectedEncoding != null)
-                return detectedEncoding.GetString(data);
-
+            // UTF-8 is self-synchronising: if strict decoding succeeds, the data IS valid UTF-8.
+            // Try it first to avoid heuristic charset detection misidentifying modern UTF-8 BMS files
+            // (e.g. Ude may report "windows-1252" for a UTF-8 file with few multi-byte characters).
             try
             {
-                return strict_utf8.GetString(data);
+                return stripBom(strict_utf8.GetString(data));
             }
             catch (DecoderFallbackException)
             {
-                return Encoding.GetEncoding(@"shift_jis").GetString(data);
+                // Not valid UTF-8 — fall through to heuristic detection.
             }
+
+            var detectedEncoding = detectEncoding(data);
+
+            if (detectedEncoding != null)
+                return stripBom(detectedEncoding.GetString(data));
+
+            // Final fallback: Shift_JIS is the most common legacy encoding for BMS files.
+            return stripBom(Encoding.GetEncoding(@"shift_jis").GetString(data));
         }
+
+        private static string stripBom(string text)
+            => text.Length > 0 && text[0] == '\uFEFF' ? text.Substring(1) : text;
+
+        private const float minimum_charset_confidence = 0.5f;
 
         private static Encoding? detectEncoding(byte[] data)
         {
@@ -212,6 +223,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             detector.DataEnd();
 
             if (string.IsNullOrWhiteSpace(detector.Charset))
+                return null;
+
+            // Reject low-confidence detections to reduce the risk of mojibake for short BMS files
+            // where Ude cannot gather enough statistical data (e.g. a file with only a few CJK characters
+            // in the title while the rest is ASCII channel data).
+            if (detector.Confidence < minimum_charset_confidence)
                 return null;
 
             try
@@ -312,6 +329,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 case "BACKBMP":
                     beatmapInfo.BackgroundFile = value;
+                    return;
+
+                case "PREVIEW":
+                    beatmapInfo.PreviewFile = value;
                     return;
 
                 case "LNOBJ":

@@ -219,14 +219,14 @@ namespace osu.Game.Localisation
         public static LocalisableString JudgeRankVeryEasy => new TranslatableString(getKey(@"judge_rank_very_easy"), @"VERY EASY");
 
         /// <summary>
-        /// "Covers the top portion of the playfield."
+        /// "Masks the upper portion of the playfield (SUDDEN+ style)."
         /// </summary>
-        public static LocalisableString TopLaneCoverDescription => new TranslatableString(getKey(@"top_lane_cover_description"), @"Covers the top portion of the playfield.");
+        public static LocalisableString SuddenDescription => new TranslatableString(getKey(@"sudden_description"), @"Masks the upper portion of the playfield (SUDDEN+ style).");
 
         /// <summary>
-        /// "Covers the bottom portion of the playfield."
+        /// "Masks the lower portion of the playfield before notes reach the judgement line (HIDDEN+ style)."
         /// </summary>
-        public static LocalisableString BottomLaneCoverDescription => new TranslatableString(getKey(@"bottom_lane_cover_description"), @"Covers the bottom portion of the playfield.");
+        public static LocalisableString HiddenDescription => new TranslatableString(getKey(@"hidden_description"), @"Masks the lower portion of the playfield before notes reach the judgement line (HIDDEN+ style).");
 
         /// <summary>
         /// "Cover value"
@@ -237,6 +237,31 @@ namespace osu.Game.Localisation
         /// "0-1000 maps to 0%-100% of playfield coverage."
         /// </summary>
         public static LocalisableString CoverValueDescription => new TranslatableString(getKey(@"cover_value_description"), @"0-1000 maps to 0%-100% of playfield coverage.");
+
+        /// <summary>
+        /// "Cover opacity"
+        /// </summary>
+        public static LocalisableString CoverOpacity => new TranslatableString(getKey(@"cover_opacity"), @"Cover opacity");
+
+        /// <summary>
+        /// "0-1000 maps to 0%-100% lane cover opacity."
+        /// </summary>
+        public static LocalisableString CoverOpacityDescription => new TranslatableString(getKey(@"cover_opacity_description"), @"0-1000 maps to 0%-100% lane cover opacity.");
+
+        /// <summary>
+        /// "Raises the judgement line by shortening the lane from the bottom (LIFT-style)."
+        /// </summary>
+        public static LocalisableString LiftDescription => new TranslatableString(getKey(@"lift_description"), @"Raises the judgement line by shortening the lane from the bottom (LIFT-style).");
+
+        /// <summary>
+        /// "Lift value"
+        /// </summary>
+        public static LocalisableString LiftValue => new TranslatableString(getKey(@"lift_value"), @"Lift value");
+
+        /// <summary>
+        /// "0-1000 maps to 0%-100% of the current lane height."
+        /// </summary>
+        public static LocalisableString LiftValueDescription => new TranslatableString(getKey(@"lift_value_description"), @"0-1000 maps to 0%-100% of the current lane height.");
 
         /// <summary>
         /// "Mirror button lanes while keeping scratch in place."

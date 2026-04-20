@@ -42,6 +42,12 @@ namespace osu.Game.Rulesets.Bms.Input
                 return true;
             }
 
+            if (bmsAction == BmsAction.PreStartHold)
+            {
+                omsAction = OmsAction.UI_PreStartHold;
+                return true;
+            }
+
             switch (variant)
             {
                 case 6:
@@ -93,6 +99,10 @@ namespace osu.Game.Rulesets.Bms.Input
                     bmsAction = BmsAction.LaneCoverFocus;
                     return true;
 
+                case OmsAction.UI_PreStartHold:
+                    bmsAction = BmsAction.PreStartHold;
+                    return true;
+
                 default:
                     bmsAction = default;
                     return false;
@@ -137,6 +147,10 @@ namespace osu.Game.Rulesets.Bms.Input
 
                 case OmsAction.UI_LaneCoverFocus:
                     bmsAction = BmsAction.LaneCoverFocus;
+                    return true;
+
+                case OmsAction.UI_PreStartHold:
+                    bmsAction = BmsAction.PreStartHold;
                     return true;
 
                 default:
@@ -187,6 +201,10 @@ namespace osu.Game.Rulesets.Bms.Input
 
                 case OmsAction.UI_LaneCoverFocus:
                     bmsAction = BmsAction.LaneCoverFocus;
+                    return true;
+
+                case OmsAction.UI_PreStartHold:
+                    bmsAction = BmsAction.PreStartHold;
                     return true;
 
                 default:
@@ -265,6 +283,10 @@ namespace osu.Game.Rulesets.Bms.Input
 
                 case OmsAction.UI_LaneCoverFocus:
                     bmsAction = BmsAction.LaneCoverFocus;
+                    return true;
+
+                case OmsAction.UI_PreStartHold:
+                    bmsAction = BmsAction.PreStartHold;
                     return true;
 
                 default:

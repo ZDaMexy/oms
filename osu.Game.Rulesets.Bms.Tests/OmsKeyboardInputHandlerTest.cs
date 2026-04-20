@@ -23,11 +23,11 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(handler.GetActionsForKey(InputKey.Q), Is.EquivalentTo(new[] { OmsAction.Key1P_Scratch }));
-                Assert.That(handler.TriggerPressed(InputKey.Q), Is.True);
-                Assert.That(handler.TriggerPressed(InputKey.A), Is.False);
-                Assert.That(handler.TriggerReleased(InputKey.Q), Is.False);
-                Assert.That(handler.TriggerReleased(InputKey.A), Is.True);
+                Assert.That(handler.GetActionsForKey(InputKey.LShift), Is.EquivalentTo(new[] { OmsAction.Key1P_Scratch }));
+                Assert.That(handler.TriggerPressed(InputKey.LShift), Is.True);
+                Assert.That(handler.TriggerPressed(InputKey.RShift), Is.False);
+                Assert.That(handler.TriggerReleased(InputKey.LShift), Is.False);
+                Assert.That(handler.TriggerReleased(InputKey.RShift), Is.True);
                 Assert.That(events, Is.EqualTo(new[] { "+Key1P_Scratch", "-Key1P_Scratch" }));
             });
         }
@@ -40,9 +40,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.Tab), Is.True);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.Q), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.True);
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.Tab), Is.True);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.Q), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
             });
         }
@@ -55,13 +55,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.LShift), Is.True);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.A), Is.False);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.RShift), Is.False);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.Q), Is.False);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.LShift), Is.False);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.A), Is.True);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.RShift), Is.True);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
             });
         }
@@ -75,9 +75,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
-                Assert.That(sink.HandleRawKeyPressed(InputKey.Tab), Is.True);
+                Assert.That(sink.HandleRawKeyPressed(InputKey.Q), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.True);
-                Assert.That(sink.HandleRawKeyReleased(InputKey.Tab), Is.True);
+                Assert.That(sink.HandleRawKeyReleased(InputKey.Q), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
             });
         }
@@ -91,7 +91,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
-                Assert.That(sink.HandleRawKeyPressed(InputKey.Q), Is.True);
+                Assert.That(sink.HandleRawKeyPressed(InputKey.LShift), Is.True);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
                 sink.ResetRawKeyboardState();
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);

@@ -124,6 +124,17 @@ namespace osu.Game.Screens.Play
             StopGameplayClock();
         }
 
+        /// <summary>
+        /// Marks the container as unpaused without starting the underlying gameplay clock.
+        /// This allows components such as <see cref="FrameStabilityContainer"/> to process
+        /// their children (rendering the playfield) while the actual clock position remains
+        /// unchanged.
+        /// </summary>
+        public void SoftUnpause()
+        {
+            isPaused.Value = false;
+        }
+
         protected virtual void StartGameplayClock()
         {
             Logger.Log($"{nameof(GameplayClockContainer)} started via call to {nameof(StartGameplayClock)}");

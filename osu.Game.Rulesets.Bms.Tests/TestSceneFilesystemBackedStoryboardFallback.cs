@@ -132,7 +132,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("no internal files created", () => Realm.Run(r => r.Find<BeatmapSetInfo>(externalSet.ID)!.Files.Count == 0));
         }
 
-                private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard(bool externalStorage = false)
+            private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard(bool externalStorage = false)
         {
             string relativePath = $"filesystem-storyboard-test/{Guid.NewGuid()}";
             string fullPath = LocalStorage.GetFullPath(relativePath, true);
@@ -183,22 +183,6 @@ SliderTickRate:1
                 // BUT the prompt says "switching the helper to use BmsFolderImporter.RegisterExternalDirectory".
                 // I will follow the prompt.
             }
-
-            return beatmapSet;
-        }
-
-            var beatmapSet = new BeatmapSetInfo
-            {
-                DateAdded = DateTimeOffset.UtcNow,
-                FilesystemStoragePath = externalStorage
-                    ? fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    : relativePath.ToStandardisedPath(),
-                IsExternalFilesystemStorage = externalStorage,
-            };
-
-            beatmapInfo.LocalFilePath = beatmapFilename;
-            beatmapInfo.BeatmapSet = beatmapSet;
-            beatmapSet.Beatmaps.Add(beatmapInfo);
 
             return beatmapSet;
         }

@@ -61,20 +61,69 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(bindings, Has.Length.EqualTo(3));
-                Assert.That(bindings.SelectMany(binding => binding.KeyCombination.Keys).OrderBy(key => key).ToArray(), Is.EqualTo(new[] { InputKey.A, InputKey.Q, InputKey.Joystick5 }));
+                Assert.That(bindings, Has.Length.EqualTo(2));
+                Assert.That(bindings.SelectMany(binding => binding.KeyCombination.Keys).OrderBy(key => key).ToArray(), Is.EqualTo(new[] { InputKey.LShift, InputKey.RShift }));
             });
         }
 
-        [TestCase(6, OmsAction.Key1P_Scratch, (int)JoystickButton.GamePadLeftShoulder)]
-        [TestCase(6, OmsAction.Key1P_5, (int)JoystickButton.GamePadRightShoulder)]
-        [TestCase(8, OmsAction.Key1P_1, (int)JoystickButton.GamePadX)]
-        [TestCase(8, OmsAction.Key1P_7, (int)JoystickButton.GamePadRightTrigger)]
-        public void TestBindingStoreExposesDefaultXInputButtonsForSinglePlayVariants(int variant, OmsAction action, int expectedButton)
+        [TestCase(6)]
+        [TestCase(8)]
+        [TestCase(9)]
+        public void TestBindingStoreExposesRequestedSinglePlayKeyboardLayout(int variant)
         {
-            var binding = new OmsBindingStore().GetDefaultBindings(variant).Single(candidate => candidate.Action == action);
+            var bindings = new OmsBindingStore().GetDefaultBindings(variant);
 
-            Assert.That(binding.XInputButtonTriggers.Select(trigger => trigger.ButtonIndex), Is.EquivalentTo(new[] { expectedButton }));
+            var actual = bindings.SelectMany(binding => binding.KeyboardCombinations.Select(combination => (binding.Action, combination.Keys.Single())))
+                                 .ToArray();
+
+            var expected = variant switch
+            {
+                6 => new[]
+                {
+                    (OmsAction.Key1P_Scratch, InputKey.LShift),
+                    (OmsAction.Key1P_Scratch, InputKey.RShift),
+                    (OmsAction.Key1P_1, InputKey.X),
+                    (OmsAction.Key1P_2, InputKey.C),
+                    (OmsAction.Key1P_3, InputKey.Space),
+                    (OmsAction.Key1P_4, InputKey.L),
+                    (OmsAction.Key1P_5, InputKey.Semicolon),
+                    (OmsAction.UI_LaneCoverFocus, InputKey.Q),
+                },
+                8 => new[]
+                {
+                    (OmsAction.Key1P_Scratch, InputKey.LShift),
+                    (OmsAction.Key1P_Scratch, InputKey.RShift),
+                    (OmsAction.Key1P_1, InputKey.Z),
+                    (OmsAction.Key1P_2, InputKey.X),
+                    (OmsAction.Key1P_3, InputKey.C),
+                    (OmsAction.Key1P_4, InputKey.Space),
+                    (OmsAction.Key1P_5, InputKey.L),
+                    (OmsAction.Key1P_6, InputKey.Semicolon),
+                    (OmsAction.Key1P_7, InputKey.Quote),
+                    (OmsAction.UI_LaneCoverFocus, InputKey.Q),
+                },
+                9 => new[]
+                {
+                    (OmsAction.Key9K_1, InputKey.A),
+                    (OmsAction.Key9K_2, InputKey.S),
+                    (OmsAction.Key9K_3, InputKey.D),
+                    (OmsAction.Key9K_4, InputKey.F),
+                    (OmsAction.Key9K_5, InputKey.Space),
+                    (OmsAction.Key9K_6, InputKey.K),
+                    (OmsAction.Key9K_7, InputKey.L),
+                    (OmsAction.Key9K_8, InputKey.Semicolon),
+                    (OmsAction.Key9K_9, InputKey.Quote),
+                    (OmsAction.UI_LaneCoverFocus, InputKey.Q),
+                },
+                _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, null),
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(actual, Is.EquivalentTo(expected));
+                Assert.That(bindings.Where(binding => binding.Action != OmsAction.UI_LaneCoverFocus)
+                                    .All(binding => !binding.XInputButtonTriggers.Any()), Is.True);
+            });
         }
 
         [Test]
@@ -120,6 +169,21 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(bindings, Is.Empty);
                 Assert.That(bindings.Any(binding => binding.Action == OmsAction.Key1P_1), Is.False);
+            });
+        }
+
+        [TestCase(6, InputKey.Q)]
+        [TestCase(8, InputKey.Q)]
+        [TestCase(9, InputKey.Q)]
+        [TestCase(16, InputKey.Y)]
+        public void TestRulesetDefaultBindingsExposeSingleLaneCoverFocusBinding(int variant, InputKey expectedKey)
+        {
+            var bindings = new BmsRuleset().GetDefaultKeyBindings(variant).Where(binding => binding.Action is BmsAction.LaneCoverFocus).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bindings, Has.Length.EqualTo(1));
+                Assert.That(bindings[0].KeyCombination.Keys.ToArray(), Is.EqualTo(new[] { expectedKey }));
             });
         }
 

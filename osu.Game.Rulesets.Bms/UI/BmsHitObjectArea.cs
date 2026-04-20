@@ -13,6 +13,7 @@ namespace osu.Game.Rulesets.Bms.UI
     public partial class BmsHitObjectArea : Container
     {
         private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
+        private readonly BindableFloat liftUnits = new BindableFloat();
 
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
@@ -22,10 +23,15 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Container content;
 
         private BmsPlayfieldLayoutProfile layoutProfile;
+        private float appliedOffset = float.NaN;
+        private bool? appliedReverse;
 
-        public BmsHitObjectArea(BmsHitTarget hitTarget, BmsPlayfieldLayoutProfile layoutProfile, Drawable hitObjectContainer)
+        public BmsHitObjectArea(BmsHitTarget hitTarget, BmsPlayfieldLayoutProfile layoutProfile, Drawable hitObjectContainer, BindableFloat? liftUnits = null)
         {
             this.layoutProfile = layoutProfile;
+
+            if (liftUnits != null)
+                this.liftUnits.BindTo(liftUnits);
 
             RelativeSizeAxes = Axes.Both;
 
@@ -46,11 +52,14 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             direction.BindTo(scrollingInfo.Direction);
             direction.BindValueChanged(_ => updateLayoutState(), true);
+            liftUnits.BindValueChanged(_ => updateLayoutState(), true);
         }
 
         protected override void UpdateAfterChildren()
         {
             base.UpdateAfterChildren();
+
+            updateLayoutState();
 
             double newRatio = DrawHeight > 0 ? content.DrawHeight / DrawHeight : 1;
 
@@ -69,11 +78,20 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             bool reverse = direction.Value == ScrollingDirection.Up;
 
+            float availableHeight = Math.Max(0, DrawHeight);
+            float liftOffset = availableHeight > 0 ? availableHeight * Math.Clamp(liftUnits.Value, 0, 1000) / 1000f : 0;
+            float effectiveOffset = Math.Clamp(layoutProfile.HitTargetVerticalOffset + liftOffset, 0, availableHeight);
+
+            if (Math.Abs(appliedOffset - effectiveOffset) <= 0.01f && appliedReverse == reverse)
+                return;
+
             Padding = reverse
-                ? new MarginPadding { Top = layoutProfile.HitTargetVerticalOffset }
-                : new MarginPadding { Bottom = layoutProfile.HitTargetVerticalOffset };
+                ? new MarginPadding { Top = effectiveOffset }
+                : new MarginPadding { Bottom = effectiveOffset };
 
             HitTarget.Anchor = HitTarget.Origin = reverse ? Anchor.TopLeft : Anchor.BottomLeft;
+            appliedOffset = effectiveOffset;
+            appliedReverse = reverse;
         }
     }
 }

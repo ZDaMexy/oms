@@ -45,6 +45,7 @@ namespace oms.Input
         UI_ModMenu,
         UI_LaneCoverAdjust,
         UI_LaneCoverFocus,
+        UI_PreStartHold,
     }
 
     public static class OmsActionExtensions

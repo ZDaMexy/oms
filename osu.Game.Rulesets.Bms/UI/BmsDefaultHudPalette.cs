@@ -19,6 +19,8 @@ namespace osu.Game.Rulesets.Bms.UI
         public static readonly Color4 ComboInactiveAccent = new Color4(76, 92, 122, 255);
         public static readonly Color4 ComboActiveAccent = new Color4(255, 196, 112, 255);
         public static readonly Color4 ComboMilestoneAccent = new Color4(132, 224, 255, 255);
+        public static readonly Color4 SpeedFeedbackAccent = new Color4(124, 226, 140, 255);
+        public static readonly Color4 SpeedFeedbackWarning = new Color4(255, 126, 118, 255);
 
         public static readonly Color4 GaugeAssistEasyBar = new Color4(94, 212, 186, 255);
         public static readonly Color4 GaugeAssistEasyAccent = new Color4(176, 246, 226, 255);

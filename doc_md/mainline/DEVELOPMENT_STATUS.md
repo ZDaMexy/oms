@@ -1,8 +1,8 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-04-17
+> 最后更新：2026-04-20
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
-> 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [IIDX_REFERENCE_AUDIT.md](IIDX_REFERENCE_AUDIT.md)。
+> 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
 ## 状态定义
 
@@ -19,16 +19,19 @@
 - **当前阶段**：Phase 1.1 皮肤系统专项执行中（BMS 默认层已收口，mania OMS-owned 组件与 release-gate 回归已继续收口；当前主线仍以公开发行物产品面收尾与 1.17 输入硬件/语义验收为先，但外部 IIDX 审计导出的反馈闭环与判定 parity 缺口已抬升为下一优先补强项，其中 BMS 结果页反馈面已明确归到 `P1-C`）
 - **仓库定位**：Windows-only，保留 osu!mania + BMS，已移除 Osu/Taiko/Catch
 - **主入口**：`osu.Desktop.slnf`（含 7 个项目）
-- **BMS 规模**：147 源文件；`oms.Input` 15 源文件（含 Windows DirectInput backend）；46 个测试文件
+- **BMS 规模**：约 146 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；49 个测试源文件（以上为 2026-04-19 本地文件计数，排除 `bin/obj`）
 - **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜按 judge mode + long-note mode 分桶 → BMS replay recording / playback / 本地归档 → 难度表缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
 - **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；外部多目录谱库扫描基线已落地（`ExternalLibraryConfig` JSON + `ExternalLibraryScanner` 委托注入）；Settings → Maintenance 已有外部谱库管理 UI（添加/移除/扫描）
 - **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端
 - **训练 Mod**：`BmsModMirror` 与 `BmsModRandom` 已落地；`RANDOM` / `R-RANDOM` / `S-RANDOM` + seed / custom pattern 已接通，14K 单组 pattern 可自动复制到双侧
 - **辅助 Mod**：`BmsModAutoScratch` 与 `BmsModAutoplay` 已落地，均归 `DifficultyReduction`；A-SCR 会让 scratch 退出判定 / 计分 / gauge 池，并提供 mod 内可见性 / 染色配置；autoplay 已接通 BMS replay frame / replay input handler / replay recorder / auto generator
+- **BMS 速度语义**：lane cover 现已按 IIDX/LR2 语义显式拆成 `Sudden`（上遮挡）与 `Hidden`（下遮挡）；`Lift` 已作为独立 mod 接入 playfield 几何并影响 `ScrollLengthRatio`；设置页现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式数值 slider，并明确不在 settings 中显示 `GN / ms`。runtime 速度反馈继续保留在 gameplay 内，以 mode-aware `GN + WN + 当前模式和值 + 当前目标` 表达；游玩内滚轮会按当前目标调节 `Sudden / Hidden / Lift`，鼠标中键会在已启用项之间循环切换。进入 BMS 游玩后现有 5 秒 pre-start 调速窗口；按住 `UI_LaneCoverFocus` 会阻塞开谱并弹出当前模式与当前数值，期间可按键位奇数列增速、偶数列减速，且滚轮 / 中键仍可继续调整 lane cover 与目标切换。当前 tri-mode surface 已落地，其中 `Classic` 仍锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前只实现 initial-BPM anchored surface，不应包装成完整 mid-song re-float parity。
+- **P1-A / P1-C 交叉专题**：现阶段这条交叉线已从“strict Classic 收口”推进到“tri-mode Hi-Speed control surface + pre-start hold operator surface”。`P1-A` 继续负责 settings / HUD 宿主 / fallback / skin boundary 与 operator overlay 的产品边界，`P1-C` 继续负责 mode-aware speed metrics、`Sudden / Hidden / Lift` 联动、pre-start hold 调速语义与同一 feedback family 下的训练表达。aggregate scalar state contract 仍停在第四刀，但当前 `GN` / `WN` 已明确属于 OMS 的 tri-mode runtime surface，而非完整 `FHS`；后续 backlog 主要转为 full Floating parity（mid-song re-float、soflan range、更加严格的 IIDX start sequencing）与 dedicated integration coverage。
+- **文档治理基线**：文档目录现已固定为 `doc_md/mainline`、`doc_md/subline`、`doc_md/other`、`doc_md/mini`；任何后续开发必须同步更新对应目录文档，子线与 mini 的变化若影响全局，必须反向同步主线四件套
 - **结果页反馈基线**：BMS results 的 expanded 主评价与 contracted badge 已按 `DJ LEVEL` 显示，主分数区已显式标为 `EX-SCORE`；results summary / gauge history 仍作为后续反馈面收口的复用基础
 - **回放基线**：BMS replay frame / replay input handler / replay recorder / auto generator 已接通；本地 replay 归档复用 core legacy replay encode/decode 的 custom-ruleset fallback，当前按 lane action 持久化
-- **反馈/训练闭环缺口**：BMS 专用 FAST/SLOW / judge display、低摩擦 visual timing-offset 交互、controller calibration / deadzone / sensitivity 可见入口，以及 gameplay 侧 EX pacemaker 仍未落地；按 [IIDX_REFERENCE_AUDIT.md](IIDX_REFERENCE_AUDIT.md) 已提升为下一阶段优先补强项
+- **反馈/训练闭环缺口**：BMS 最近判定 + `FAST/SLOW` + compact judgement summary + live `DJ LEVEL + EX 原始分子/分母 + %` + 带紧凑原因标签的 live `PERFECT / FC / FC LOST` 已入同一 feedback container，并具备瞬时 judge display 生命周期、compact visual timing-offset 与 fixed AAA EX pacemaker；但 controller calibration / deadzone / sensitivity 可见入口、更完整 judge display（超出当前 compact counts）与更丰富 pacemaker 来源仍未落地；按 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md) 已提升为下一阶段优先补强项
 - **判定系统语义差距**：`OD` 主路径已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，其中 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；但 early/late 非对称 BAD / excessive poor、scratch 特例、更完整 long-note release parity 与按 judge family 参数化的 `Empty Poor` 仍未收口
 - **联网**：全部在线入口与 Discord RPC 已按 `OnlineFeaturesEnabled` 守卫；默认 endpoint 已清空
 
@@ -67,11 +70,12 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-04-17
+### 2026-04-20
 
-- **范围**：为消除文档漂移重跑当前 BMS 全量回归基线
-- **本轮重跑**：BMS **608/608**
-- **沿用最近已验证快照**：mania OMS **92/92**，BMS fallback **92/92**，scratch bridge **43/43**，`osu.Game.Tests` release-gate **6/6**
+- **范围**：完成 `P1-A / P1-C` 交叉 tri-mode Hi-Speed surface 与 pre-start hold 调速窗口首轮接线：`BmsHiSpeedMode` / `BmsHiSpeedRuntimeCalculator`、mode dropdown + per-mode slider、mode-aware HUD / toast / metrics、`BmsSoloPlayer` 5 秒 delayed start、`BmsPreStartHiSpeedOverlay`、以及 paused pre-start 下继续可用的 `Sudden / Hidden / Lift` 调整链已全部接通
+- **本轮重跑**：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsDrawableRulesetTest"` **97/97** 通过；`Build osu! (Release)` 通过
+- **本轮 warning**：本次 `Build osu! (Release)` 仍仅见仓库既有 warning：`BmsFolderImporter.cs` 的 `CS8604`
+- **沿用最近已验证快照**：BMS **608/608**（2026-04-17），mania OMS **92/92**，BMS fallback 与 speed feedback / judgement feedback 增量用例已覆盖，scratch bridge **43/43**，`osu.Game.Tests` release-gate **6/6**
 
 ## 联网约束
 
@@ -165,7 +169,7 @@
 | --- | --- | --- |
 | P1-A 产品面与 release gate | Phase 1.1 皮肤专项 → 公开发行物皮肤收尾 | 进行中 |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
-| P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker | 已编排，下一优先级 |
+| P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker / 权威 GN 与调速反馈 | 已编排，专题文档已建立 |
 | P1-D 控制器校准与诊断 | deadzone / sensitivity / scratch 模式说明 / live diagnostics | 下一优先级 |
 | P1-E gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
 | P1-F 首发离线发行基线 | portable.ini + data/ 便携模式已落地 | 已验证 |
@@ -179,7 +183,8 @@
 - **训练向 lane rearrangement 已落地**：`BmsModMirror` 与 `BmsModRandom`（`RANDOM` / `R-RANDOM` / `S-RANDOM` + 自定义 pattern）现已接入 BMS ruleset；当前 Phase 2 冻结重点已转向 `1P/2P flip` / `dan` / `FHS` / BSS / MSS 等更大范围能力
 - **Phase 1.1 剩余**：mania 侧仍有 legacy config/asset lookup 兼容路径与公开发行物产品面收尾；维持 release gate 稳定后继续转向 1.17 输入与真实硬件验收
 - **判定系统 parity 缺口**：当前 `BEATORAJA` / `LR2` / `IIDX` judge mode 已接通，但 `BEATORAJA` / `LR2` 仍缺 early/late 非对称窗口、scratch / long-note release 特例，以及按 judge family 参数化的 Empty Poor / excessive poor 触发语义；`IIDX` 也仍待进一步对齐细部体验
-- **反馈闭环缺口**：仍缺 BMS 专用 FAST/SLOW / judge display、低摩擦 visual timing-offset 交互与 gameplay 侧 EX pacemaker；results 页主评价 / 缩略徽章 / 主分数文案虽已切到 BMS 语义，但结果反馈面本身仍只完成第一轮收口，尚未形成完整的 key-sounded BMS 训练闭环
+- **反馈闭环缺口**：results 页主评价 / 缩略徽章 / 主分数文案虽已切到 BMS 语义，但结果反馈面本身仍只完成第一轮收口；gameplay 侧当前已具备最近判定、瞬时 judge display、compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`，后续仍缺更完整 judge display 与更丰富 pacemaker 来源，尚未形成完整的 key-sounded BMS 训练闭环
+- **权威绿色数字后续缺口**：常驻 GN HUD 与 C2 的 target-state / cycle / `HOLD` 语义已落地，C3 的最近判定 + `FAST/SLOW` 已具备瞬时 judge display 生命周期，并补上 compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`；后续剩余更完整 judge display 与 pacemaker 扩展仍待继续收口
 - **控制器校准 / 诊断**：deadzone / sensitivity / scratch 模式说明 / live diagnostics 尚未落地；当前仅有 supplemental bindings 与 live capture，不足以覆盖 IIDX/BMS 控制器的一致性调校
 - **内置皮肤候选包**：`SimpleTou-Lazer` 仅为 mania 候选基线，不可提前对外描述为已完成
 - **upstream 默认皮肤移除**：runtime fallback 已大部分收口到 OMS；剩余公开发行物剥离与 partial override 全路径收口

@@ -45,6 +45,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public int? LongNoteType { get; set; }
 
+        /// <summary>
+        /// Preview audio file specified by the #PREVIEW header.
+        /// </summary>
+        public string? PreviewFile { get; set; }
+
         public BmsKeymode Keymode { get; set; } = BmsKeymode.Key7K;
 
         public IReadOnlyList<BmsMeasureLengthControlPoint> MeasureLengthControlPoints => measureLengthControlPoints;
@@ -104,6 +109,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 BackgroundFile = BackgroundFile,
                 LongNoteObjectId = LongNoteObjectId,
                 LongNoteType = LongNoteType,
+                PreviewFile = PreviewFile,
                 Keymode = Keymode,
             };
 

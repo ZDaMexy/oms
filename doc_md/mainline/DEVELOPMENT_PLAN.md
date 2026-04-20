@@ -15,20 +15,21 @@
 | **Phase 2** | BMS 功能完善 — 全键模式、全 Mod、全 Gauge | 13 步 | 个别支撑能力已提前落地，但不视为正式进入 Phase 2 |
 | **Phase 3** | 私服集成 — 在线账号、排行榜、谱面下载 | 6 步 | 维持冻结，等待离线主流程稳定 |
 
-## 当前执行快照（2026-04-17）
+## 当前执行快照（2026-04-19）
 
 - 当前执行不再按多个并列大阶段管理，而是统一收口为 **Phase 1.x 大主线**：Phase 1 核心 BMS、Phase 1.1 皮肤专项，以及被外部审计插队抬升的输入 / 判定 / 反馈 / 校准事项，都视为 Phase 1 大主线下的子主线
 - 当前第一优先子主线仍是 **Phase 1.1 皮肤系统专项**：在保持 Phase 1 核心 BMS 进度不回退的前提下，后续主精力优先投入 OMS 自有默认皮肤包、mania/BMS 各自独立的 ruleset 皮肤实现，以及上游原生默认皮肤替换
 - 当前已完成：1.1、1.2、1.3、1.4、1.9、1.10、1.11、1.12、1.13、1.14、1.15、1.16（共 12 步）
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
-- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 人工验收与发行后置**
+- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 在正式进入更大范围的 Phase 2 训练 / class / speed 体系前，先收口一轮 Phase 1.x 的反馈与训练闭环；这批事项属于当前方向校准后确认的插队优先项，而不是可无限后移的体验润色
 - 本轮已明确归线：**BMS 结果页反馈面收口** 归属 `P1-C`。当前只在现有 lazer results 骨架内继续推进 `DJ LEVEL` / `EX-SCORE` 语义统一、results summary 与 feedback panel 收口，以及低风险布局贴近；不单独开启高风险的 beatoraja 风格整页重构
+- 新增 `P1-A / P1-C` 交叉主子线：**皮肤设计边界与绿色数字 / Mod 联动专题**。该专题先冻结 BMS HUD / skin boundary 与 runtime feedback contract，再推进常驻 GN 显示、`Sudden / Hidden / Lift` 联动反馈，以及后续 `FAST/SLOW` / judge display / visual timing-offset / pacemaker 的统一承载；详细拆解见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)
 - 需要人工操作的 1.5 真实导入/UI 验收与发行物实机验证统一记录在 `DEVELOPMENT_STATUS.md` 的独立板块，默认放在 Phase 1 阶段末尾或出现阻塞时再执行
-- 当前代码规模：BMS 规则集 **147 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **46 个测试文件**，最近一次完整项目级回归为 **608/608** 通过，另有 `OmsHidDeviceHandlerTest` 定向回归 **14/14** 通过
+- 当前代码规模（2026-04-19 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **146 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **49 个测试源文件**。最近一次完整项目级回归仍为 **608/608** 通过（2026-04-17），另有 `OmsHidDeviceHandlerTest` 定向回归 **14/14** 通过
 
 ## Phase 1.x 大主线下的子主线编排
 
@@ -36,12 +37,14 @@
 
 | 子主线 | 归属步骤 | 当前目标 | 允许推进 | 明确不做 | 稳定门槛 |
 | --- | --- | --- | --- | --- | --- |
-| **P1-A 产品面与 release gate** | Phase 1.1、离线发行基线 | 维持 OMS 默认皮肤、fallback、公开发行物表面稳定 | OMS built-in skin、partial override、上游默认皮肤退出、portable 发布表面、release gate 回归 | 新 gameplay mod、训练模式、判定语义扩张 | Debug 构建、mania/BMS skin gate、osu.Game.Tests release gate 稳定 |
+| **P1-A 产品面与 release gate** | Phase 1.1、离线发行基线 | 维持 OMS 默认皮肤、fallback、公开发行物表面稳定，并冻结 BMS HUD / 皮肤反馈边界 | OMS built-in skin、partial override、上游默认皮肤退出、portable 发布表面、release gate 回归、BMS HUD feedback contract / skin boundary freeze | 新 gameplay mod、训练模式、判定语义扩张 | Debug 构建、mania/BMS skin gate、osu.Game.Tests release gate 稳定 |
 | **P1-B 输入语义与硬件验收** | 1.17 | 收口 analog scratch / cross-device trigger / HID 真实语义 | keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 语义、mixed-source runtime、真实硬件覆盖 | 非阻塞的新输入后端扩张 | scratch bridge 回归稳定，真实 HID 手工验收可执行 |
-| **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口 | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
+| **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈、权威绿色数字 / 调速反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口、权威绿色数字 HUD、`Sudden / Hidden / Lift` adjustment feedback | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
 | **P1-D 控制器校准与诊断** | 1.17 后续产品面 | 提供 deadzone / sensitivity / scratch 模式说明 / diagnostics UI | diagnostics、live capture 扩展、校准 UI、控制器说明文案 | 与当前设备无关的新模式或新硬件抽象 | 常见 IIDX/BMS 控制器可在 UI 内完成基础诊断 |
 | **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
-| **P1-F 人工验收与发行后置** | 1.5、桌面 smoke、Release 验收 | 统一承接拖放导入、桌面 UI smoke、发行物实机验证 | 手工导入验收、桌面 smoke、覆盖更新 / 便携发布验收 | 借人工验收名义插入新功能 | 仅在 P1-A ~ P1-E 无阻塞回归后执行 |
+| **P1-F 首发离线发行基线** | 离线发行基线、portable 验收 | 维持 `portable.ini -> data/`、在线更新关闭、覆盖更新可执行与公开 release gate 稳定 | 便携发布、覆盖更新、离线发布口径、公开发行门槛 | 借发行名义恢复在线安装/在线更新 | portable publish 实机通过，公开发行约束可对外复述 |
+| **P1-G 人工验收后置** | 1.5、桌面 smoke、Release 验收 | 统一承接拖放导入、桌面 UI smoke 与人工 checklist 收口 | 手工导入验收、桌面 smoke、人工 checklist 回写 | 借人工验收名义插入新功能 | 仅在 P1-A ~ P1-F 无阻塞回归后执行 |
+| **P1-H 存储拓扑支撑线** | 文件系统直读、谱库管理 | 维持 `chartbms/` / `chartmania/` / `storage.ini` / 外部多目录谱库扫描基线稳定 | 数据根、外部谱库、Maintenance 谱库管理、重扫策略收口 | 破坏本地优先或把用户内容重新塞回 hash 仓库 | 本地优先数据根与多谱库导入路径稳定 |
 
 ### 子主线执行规则
 
@@ -49,7 +52,65 @@
 2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-B` 允许并行推进，因为其依赖真实设备覆盖；`P1-C` / `P1-D` 在不打断 `P1-A` / `P1-B` 稳定性的前提下插队收口。
 3. **Phase 2 不得反向吞并 Phase 1.x。** 除已先行落地的 `A-SCR` / `BmsModAutoplay` / `Mirror` / `Random` 外，`1P/2P flip`、`dan`、`FHS`、BSS / MSS、全键模式扩张仍属于后续能力，不得以“顺手实现”名义进入当前主交付。
 4. **每条子主线必须有冻结点。** 一旦某条子主线达到“稳定门槛”，后续只接受回归修复或明确阻塞项，不再继续吸收无关优化。
-5. **人工验收始终后置。** `P1-F` 只负责确认前面子主线的产品结果，不负责为未收口功能兜底。
+5. **人工验收始终后置。** `P1-G` 只负责确认前面子主线的产品结果，不负责为未收口功能兜底。
+
+### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
+
+- 该专题不是把完整 `FHS` 或 Phase 2 速度体系提前带入当前主线，而是把现有 BMS `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 收口成**权威、可皮肤化、可扩展**的反馈合同
+- 当前 tri-mode settings、mode-aware runtime feedback、以及 pre-start hold 调速窗口仍归这条既有 `P1-A / P1-C` 交叉线，不新开主线；`P1-A` 负责 settings / HUD 宿主 / skin boundary 与 operator overlay 的产品边界，`P1-C` 负责 mode-aware metrics、hold-start 调速语义与后续 feedback family
+- full Floating parity（mid-song re-float、soflan GN range、更加严格的 IIDX start sequencing）仍属后续补强，不得借“已落地三模式”之名提前宣称完成 `FHS`
+- 专题计划、状态与技术约束分别维护在 [../subline/P1-A/DEVELOPMENT_PLAN.md](../subline/P1-A/DEVELOPMENT_PLAN.md)、[../subline/P1-A/DEVELOPMENT_STATUS.md](../subline/P1-A/DEVELOPMENT_STATUS.md)、[../subline/P1-A/TECHNICAL_CONSTRAINTS.md](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与 [../subline/P1-C/DEVELOPMENT_PLAN.md](../subline/P1-C/DEVELOPMENT_PLAN.md)、[../subline/P1-C/DEVELOPMENT_STATUS.md](../subline/P1-C/DEVELOPMENT_STATUS.md)、[../subline/P1-C/TECHNICAL_CONSTRAINTS.md](../subline/P1-C/TECHNICAL_CONSTRAINTS.md)
+
+### tri-mode Hi-Speed 专题总图：点、线、面与先行约束
+
+这部分不是新开一条主线，而是给现有 `P1-A / P1-C` 交叉专题补一张统一总图，避免 tri-mode settings、pre-start hold 调速窗口、lane-cover 联动、HUD feedback 与 full Floating parity backlog 分散在多份文档里各自叙述。
+
+#### 点：当前必须被单独盯住的开发点
+
+1. **模式模型点**：`Normal / Floating / Classic` 的 runtime 语义必须持续拆开维护，尤其要明确 `Floating` 当前只是 initial-BPM anchored surface，而不是完整 `FHS`。
+2. **设置面点**：settings 只负责 mode + value，不负责 `GN / 可见毫秒`；任何把 runtime 反馈搬回 settings 的改动都应视为越界。
+3. **运行时反馈点**：HUD / toast / pre-start overlay 必须共享同一组 mode-aware speed metrics，避免出现 settings、HUD、toast 各说各话。
+4. **操作窗口点**：pre-start hold 不是 debug 测试夹层，而是正式 operator surface；其输入、显示、阻塞/释放时序与 fallback 都要当成产品合同维护。
+5. **联动点**：`Sudden / Hidden / Lift`、奇偶列调速、滚轮 / 中键 target cycle、以及当前模式数值必须视为同一条联动链，而不是多个独立 feature。
+6. **验证点**：当前代码侧已通过 focused tests + Release build，但 delayed-start 实时开谱时序、hold 阻塞释放后的事件语义、以及更严格的 integration coverage 仍是专门待收口点。
+
+#### 线：当前应如何归线
+
+1. **主产品线归 `P1-A`**：settings surface、HUD 宿主、skinnable fallback、pre-start overlay 的宿主与项目边界都归 `P1-A`。
+2. **主语义线归 `P1-C`**：mode-aware metrics、`GN / WN`、`Sudden / Hidden / Lift` 联动、奇偶列调速规则、feedback family 与 full Floating parity 差口都归 `P1-C`。
+3. **输入支撑线只在必要时归 `P1-B`**：如果后续 pre-start hold 需要扩到真实控制器专用语义、跨设备阻塞键或更复杂的 scratch/轴输入协同，再把那部分拆去 `P1-B`；当前键位映射本身不需要新开输入主线。
+4. **人工验收后置归 `P1-G`**：真实选歌进歌、hold 阻塞、滚轮/中键覆盖调节、松开后开谱这些体验验收，仍按既有规则后置到人工验收，不提前打乱主交付排序。
+
+#### 面：当前必须同时覆盖的影响面
+
+| 面 | 当前范围 | 典型检查问题 |
+| --- | --- | --- |
+| **设置面** | dropdown、per-mode slider、数值精度/步进 | 有没有把 `GN / ms` 又搬回 settings？ |
+| **runtime 语义面** | `BmsHiSpeedRuntimeCalculator`、`BmsScrollSpeedMetrics`、Classic sample、Floating anchor | tri-mode 之间有没有语义串线？ |
+| **操作面** | `BmsSoloPlayer` delayed start、`BmsPreStartHiSpeedOverlay`、hold gate | hold 时是否真阻塞开谱，松开后是否正确恢复？ |
+| **联动面** | `Sudden / Hidden / Lift`、wheel、middle-click、odd/even lane keys | paused pre-start 和正常 gameplay 是否共享同一条调整链？ |
+| **皮肤与宿主面** | HUD layout、fallback、overlay 宿主、project boundary | 有没有为了快而破坏 `IBmsHudLayoutDisplay` 或新增跨项目依赖？ |
+| **验证面** | focused tests、Release build、后续 integration / manual checklist | 当前哪些只验证了静态/定向，哪些还缺真实流程验证？ |
+| **文档面** | mainline、P1-A、P1-C、IIDX 审计 | 当前口径有没有误把 tri-mode 写成 full `FHS`？ |
+
+#### 先行技术与联动约束
+
+1. tri-mode 现阶段只能表述为当前 OMS runtime surface；`Floating` 严禁越级宣传成完整 `FHS`。
+2. `Classic` 的 `(100000 / 13) / HS` 与 `HS 10 + WN 350 => GN 300` 仍是不可退的 sample 锁点。
+3. settings 不得显示 `GN / 可见毫秒`；这些只允许出现在 gameplay runtime feedback 与 pre-start operator surface。
+4. `UI_LaneCoverFocus` 复用为 hold gate 的前提是：不破坏 `Sudden / Hidden / Lift` 的既有调整链，也不退化成仅供调试的临时入口。
+5. `SoloSongSelect -> BmsSoloPlayer` 的接线必须继续避开 `osu.Game -> osu.Game.Rulesets.Bms` 的编译期依赖；当前反射构造是已知项目边界约束。
+6. 任何下一步如果触碰 start sequencing、event timing、pre-start 输入优先级或 full Floating parity，都必须先回到这张总图重新归类，再决定是 `P1-A` 侧产品合同补强，还是 `P1-C` 侧语义专题扩面。
+
+#### 下一层专门规划什么时候才值得再开文档
+
+只有在以下任一条件成立时，才值得为这条专题再新开一套独立专项文档，而不是继续复用当前 `P1-A / P1-C`：
+
+1. `Floating` 从 initial-BPM anchored surface 升级为完整 mid-song re-float / soflan GN range / stricter start sequencing 套餐。
+2. pre-start hold 从单一键盘键位语义扩展成多设备统一 operator model，需要独立输入/UX 规范。
+3. tri-mode / lane-cover / HUD / results feedback 的交叉面已经超出 `P1-A / P1-C` 两条子线能清晰承载的复杂度。
+
+在上述条件未触发前，最合理的做法不是再开一套并行规划体系，而是持续把这张总图当作 `P1-A / P1-C` 的聚合蓝图，并把具体实现、状态和约束继续留在现有子线文档中。
 
 ### 当前已落地基线与事实
 
@@ -86,7 +147,7 @@
 
 **同步规则：**
 
-1. 只要 Phase 1.1 的执行顺序、门槛、候选包语义或 release gate 发生变化，必须在同一次工作里同步更新 `OMS_COPILOT.md`、`DEVELOPMENT_PLAN.md`、`DEVELOPMENT_STATUS.md`、`README.md`、`SKINNING.md`、`RELEASE.md`
+1. 只要 Phase 1.1 的执行顺序、门槛、候选包语义或 release gate 发生变化，必须在同一次工作里同步更新 `OMS_COPILOT.md`、`DEVELOPMENT_PLAN.md`、`DEVELOPMENT_STATUS.md`、`../README.md`、`../other/SKINNING.md`、`../other/RELEASE.md`
 2. `README.md` 与 `DEVELOPMENT_STATUS.md` 不得把某个组件写成“OMS 内置皮肤已完成”，除非它在 no-custom-skin 路径下已经走 OMS-owned 默认实现，并至少有一次构建、测试或明确手动验证
 3. `SKIN/SimpleTou-Lazer` 当前只能被描述为“OMS 内置皮肤候选基线”或“mania 侧基础/视觉参考”，不得被提前写成“已经完成的 OMS 默认皮肤”
 4. 如果实现与规划发生分叉，先修正文档或代码其中一边，再继续开发；不要允许 README、计划、状态三者长期并行讲不同故事
@@ -477,9 +538,9 @@
 *Lane Cover：*
 
 1. BmsLaneCover — 不透明遮挡层 Drawable
-2. BmsModLaneCoverTop — 顶部遮挡，CoverPercent (0–100%)
-3. BmsModLaneCoverBottom — 底部遮挡，CoverPercent (0–100%)
-4. 游戏内滚轮调节（默认调 Top；按住 UI_LaneCoverFocus 调 Bottom）
+2. BmsModSudden — 上侧遮挡，CoverPercent (0–100%)
+3. BmsModHidden — 下侧遮挡，CoverPercent (0–100%)
+4. 游戏内滚轮调节（默认调 Sudden；鼠标中键在已启用的 Sudden/Hidden/Lift 之间循环；按住 UI_LaneCoverFocus 临时调 Hidden）
 
 **前置依赖：** 1.8
 **验收：** 键盘绑定后能正常打 7K BMS 谱面。Windows 默认构建不得再因 HID 设备加载而闪退；在 Windows 默认 DirectInput HID backend 上，HID 控制器接入后按钮动作正确。Lane Cover 显示并可滚轮调节。

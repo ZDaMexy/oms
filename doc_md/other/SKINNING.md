@@ -27,7 +27,7 @@
 | 做 BMS 完整视觉原型 | 写 BMS 代码型 provider，逐块替换 | 推荐 | 当前最稳的是代码入口，不是目录规范 |
 | 做 BMS 纯图片皮肤并对外分发 | 先做视觉与组件拆分，暂不锁目录 | 暂不推荐直接定版 | 资源目录、图片命名、`skin.ini` 桥接都还没冻结 |
 | 试验当前 mania 候选包 | 用 legacy/`skin.ini` 方式做试验 | 可做试验 | 仍有一部分路径走 legacy 资源/命名 |
-| 做正式 OMS mania 皮肤 | 先不要当主目标 | 不推荐 | mania OMS-owned 默认路径只完成了第一批 Stage/Column/Key 壳层迁移 |
+| 做正式 OMS mania 皮肤 | 先不要当主目标 | 不推荐 | mania 已完成 shell / preset 接线与 8 类 OMS-owned 组件升格，但公开 authoring contract、legacy config/asset lookup 兼容与 release-facing 默认体验仍未冻结 |
 
 ## 先理解当前真实工作流
 
@@ -469,7 +469,7 @@ ColumnLineWidth: 0,0,0,0,0,0,0,0
 | Static BG | `StaticBackgroundLayer` | 适合 | 记得处理无图缺失态 |
 | BMS 自定义 judgement | `BmsJudgementSkinLookup` | 可做 | 需要实现 `IAnimatableJudgement` |
 | BMS 纯素材包目录规范 | 无冻结格式 | 不适合定版 | 等资源命名冻结后再锁 |
-| mania OMS 正式制作 | 仍在迁移中 | 不适合作为主目标 | 当前只完成第一批壳层与 preset 收口 |
+| mania OMS 正式制作 | 仍在迁移中 | 不适合作为主目标 | 当前已完成 shell / preset 收口与 8 类 OMS-owned 组件实现，但 release-facing contract 与 legacy 兼容边界仍未冻结 |
 
 ## 当前还没有冻结的部分
 
@@ -497,7 +497,9 @@ ColumnLineWidth: 0,0,0,0,0,0,0,0
 
 需要确认当前真实状态时，优先看：
 
-- [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)：当前哪些路径已经落地，哪些仍在迁移
-- [CHANGELOG.md](CHANGELOG.md)：每次已验证通过的皮肤相关变更
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)：下一批还会怎么推进
-- [OMS_COPILOT.md](OMS_COPILOT.md)：权威产品边界、fallback 纪律与 release gate
+- [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)：当前哪些路径已经落地，哪些仍在迁移
+- [../mainline/CHANGELOG.md](../mainline/CHANGELOG.md)：每次已验证通过的皮肤相关变更
+- [../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md)：下一批还会怎么推进
+- [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)：权威产品边界、fallback 纪律与 release gate
+- [../subline/P1-A/README.md](../subline/P1-A/README.md)：P1-A 皮肤边界、HUD 宿主与 release gate 子线
+- [../subline/P1-C/README.md](../subline/P1-C/README.md)：P1-C 绿色数字、速度反馈与训练反馈闭环子线
