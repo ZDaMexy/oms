@@ -29,11 +29,20 @@ namespace osu.Game.Screens.Select.Filter
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.Difficulty))]
         Difficulty,
 
+        [LocalisableDescription(typeof(OmsSongSelectStrings), nameof(OmsSongSelectStrings.LampStatus))]
+        ClearLamp,
+
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.LastPlayed))]
         LastPlayed,
 
+        [LocalisableDescription(typeof(OmsSongSelectStrings), nameof(OmsSongSelectStrings.AchievementRate))]
+        Accuracy,
+
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.Length))]
         Length,
+
+        [LocalisableDescription(typeof(BeatmapLeaderboardWedgeStrings), nameof(BeatmapLeaderboardWedgeStrings.Misses))]
+        Misses,
 
         // // todo: pending support (https://github.com/ppy/osu/issues/4917)
         // [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.RankAchieved))]

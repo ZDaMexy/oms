@@ -3,17 +3,26 @@
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="external_library_header" xml:space="preserve"><value>External Library</value></data>
+  <data name="internal_library_header" xml:space="preserve"><value>Internal Library</value></data>
   <data name="select_external_library_folder" xml:space="preserve"><value>Select an external beatmap library folder</value></data>
   <data name="add_bms_library_folder" xml:space="preserve"><value>Add BMS Library Folder</value></data>
   <data name="add_mania_library_folder" xml:space="preserve"><value>Add Mania Library Folder</value></data>
   <data name="scan_all_libraries" xml:space="preserve"><value>Scan All Libraries</value></data>
   <data name="scan_external_libraries" xml:space="preserve"><value>Scan External Libraries</value></data>
+  <data name="scan_external_libraries_rebuild" xml:space="preserve"><value>Scan External Libraries (Rebuild)</value></data>
+  <data name="scan_external_libraries_incremental" xml:space="preserve"><value>Scan External Libraries (Incremental)</value></data>
   <data name="scan_internal_libraries" xml:space="preserve"><value>Scan Internal Libraries</value></data>
+  <data name="scan_internal_libraries_rebuild" xml:space="preserve"><value>Scan Internal Libraries (Rebuild)</value></data>
+  <data name="scan_internal_libraries_incremental" xml:space="preserve"><value>Scan Internal Libraries (Incremental)</value></data>
   <data name="added_library" xml:space="preserve"><value>Added {0} library: {1}</value></data>
   <data name="folder_already_registered" xml:space="preserve"><value>This folder is already registered.</value></data>
   <data name="directory_not_found" xml:space="preserve"><value>Directory not found: {0}</value></data>
   <data name="scanning_external_libraries" xml:space="preserve"><value>Scanning external libraries...</value></data>
+  <data name="scanning_external_libraries_rebuild" xml:space="preserve"><value>Scanning external libraries (rebuild)...</value></data>
+  <data name="scanning_external_libraries_incremental" xml:space="preserve"><value>Scanning external libraries (incremental)...</value></data>
   <data name="scanning_internal_libraries" xml:space="preserve"><value>Scanning internal libraries...</value></data>
+  <data name="scanning_internal_libraries_rebuild" xml:space="preserve"><value>Scanning internal libraries (rebuild)...</value></data>
+  <data name="scanning_internal_libraries_incremental" xml:space="preserve"><value>Scanning internal libraries (incremental)...</value></data>
   <data name="scanning_progress" xml:space="preserve"><value>Scanning: {0} ({1}/{2})</value></data>
   <data name="scanning_root_progress" xml:space="preserve"><value>Scanning {0} ({1}/{2}) · {3} folders · {4} indexed, {5} skipped, {6} errors</value></data>
   <data name="scanning_directory_progress" xml:space="preserve"><value>Scanning {0} ({1}/{2}) · {3} ({4}/{5}) · {6} indexed, {7} skipped, {8} errors</value></data>

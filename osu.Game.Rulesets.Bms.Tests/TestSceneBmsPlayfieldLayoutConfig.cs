@@ -12,7 +12,6 @@ using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -21,6 +20,8 @@ namespace osu.Game.Rulesets.Bms.Tests
     [TestFixture]
     public partial class TestSceneBmsPlayfieldLayoutConfig : OsuTestScene
     {
+        private const float expected_side_anchored_screen_inset_ratio = 0.05f;
+
         private readonly BmsBeatmapDecoder decoder = new BmsBeatmapDecoder();
 
         private TestableDrawableBmsRuleset drawableRuleset = null!;
@@ -70,13 +71,59 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("scroll ratio reflects lift", () => drawableRuleset.Playfield.ScrollLengthRatio.Value, () => Is.EqualTo(0.75).Within(0.03));
         }
 
-        private void setupScene(ScrollingDirection? scrollDirection = null, double? playfieldWidth = null, double? playfieldHeight = null, double? laneSpacing = null, double? laneWidth = null, double? scratchLaneSpacing = null, double? scratchLaneWidthRatio = null, double? hitTargetHeight = null, double? hitTargetBarHeight = null, double? hitTargetLineHeight = null, double? hitTargetGlowRadius = null, double? hitTargetVerticalOffset = null, double? barLineHeight = null, IReadOnlyList<Mod>? mods = null)
+        [Test]
+        public void TestP1StyleAnchorsSinglePlayfieldLeft()
+        {
+            setupScene(playfieldStyle: BmsPlayfieldStyle.P1);
+
+            AddAssert("scratch lane is visual leftmost", () => drawableRuleset.Playfield.Lanes[0].ScreenSpaceDrawQuad.TopLeft.X, () => Is.EqualTo(drawableRuleset.Playfield.Lanes.Min(lane => lane.ScreenSpaceDrawQuad.TopLeft.X)).Within(1f));
+            AddAssert("single playfield leaves left screen inset", () => drawableRuleset.Playfield.Lanes.Min(lane => lane.ScreenSpaceDrawQuad.TopLeft.X) - drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopLeft.X, () => Is.EqualTo(drawableRuleset.Playfield.ScreenSpaceDrawQuad.Width * expected_side_anchored_screen_inset_ratio).Within(2f));
+        }
+
+        [Test]
+        public void TestP2StyleAnchorsSinglePlayfieldRight()
+        {
+            setupScene(playfieldStyle: BmsPlayfieldStyle.P2);
+
+            AddAssert("scratch lane is visual rightmost", () => drawableRuleset.Playfield.Lanes[0].ScreenSpaceDrawQuad.TopRight.X, () => Is.EqualTo(drawableRuleset.Playfield.Lanes.Max(lane => lane.ScreenSpaceDrawQuad.TopRight.X)).Within(1f));
+            AddAssert("single playfield leaves right screen inset", () => drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopRight.X - drawableRuleset.Playfield.Lanes.Max(lane => lane.ScreenSpaceDrawQuad.TopRight.X), () => Is.EqualTo(drawableRuleset.Playfield.ScreenSpaceDrawQuad.Width * expected_side_anchored_screen_inset_ratio).Within(2f));
+        }
+
+        [Test]
+        public void TestCenterStyleBalancesSinglePlayfieldMargins()
+        {
+            setupScene(playfieldStyle: BmsPlayfieldStyle.Center);
+
+            AddAssert("scratch lane is visual leftmost", () => drawableRuleset.Playfield.Lanes[0].ScreenSpaceDrawQuad.TopLeft.X, () => Is.EqualTo(drawableRuleset.Playfield.Lanes.Min(lane => lane.ScreenSpaceDrawQuad.TopLeft.X)).Within(1f));
+            AddAssert("single playfield stays centered", () =>
+            {
+                float leftMargin = drawableRuleset.Playfield.Lanes.Min(lane => lane.ScreenSpaceDrawQuad.TopLeft.X) - drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopLeft.X;
+                float rightMargin = drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopRight.X - drawableRuleset.Playfield.Lanes.Max(lane => lane.ScreenSpaceDrawQuad.TopRight.X);
+                return Math.Abs(leftMargin - rightMargin);
+            }, () => Is.LessThanOrEqualTo(2f));
+        }
+
+        [Test]
+        public void TestCenterRightScratchStyleBalancesSinglePlayfieldMargins()
+        {
+            setupScene(playfieldStyle: BmsPlayfieldStyle.CenterRightScratch);
+
+            AddAssert("scratch lane is visual rightmost", () => drawableRuleset.Playfield.Lanes[0].ScreenSpaceDrawQuad.TopRight.X, () => Is.EqualTo(drawableRuleset.Playfield.Lanes.Max(lane => lane.ScreenSpaceDrawQuad.TopRight.X)).Within(1f));
+            AddAssert("single playfield stays centered", () =>
+            {
+                float leftMargin = drawableRuleset.Playfield.Lanes.Min(lane => lane.ScreenSpaceDrawQuad.TopLeft.X) - drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopLeft.X;
+                float rightMargin = drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopRight.X - drawableRuleset.Playfield.Lanes.Max(lane => lane.ScreenSpaceDrawQuad.TopRight.X);
+                return Math.Abs(leftMargin - rightMargin);
+            }, () => Is.LessThanOrEqualTo(2f));
+        }
+
+        private void setupScene(BmsPlayfieldStyle? playfieldStyle = null, double? playfieldWidth = null, double? playfieldHeight = null, double? laneSpacing = null, double? laneWidth = null, double? scratchLaneSpacing = null, double? scratchLaneWidthRatio = null, double? hitTargetHeight = null, double? hitTargetBarHeight = null, double? hitTargetLineHeight = null, double? hitTargetGlowRadius = null, double? hitTargetVerticalOffset = null, double? barLineHeight = null, IReadOnlyList<Mod>? mods = null)
         {
             AddStep($"configure layout bridge", () =>
             {
                 var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
 
-                config.SetValue(BmsRulesetSetting.ScrollDirection, scrollDirection ?? ScrollingDirection.Down);
+                config.SetValue(BmsRulesetSetting.PlayfieldStyle, playfieldStyle ?? BmsPlayfieldStyle.Center);
                 config.SetValue(BmsRulesetSetting.PlayfieldWidth, playfieldWidth ?? 0.0);
                 config.SetValue(BmsRulesetSetting.PlayfieldHeight, playfieldHeight ?? 0.0);
                 config.SetValue(BmsRulesetSetting.LaneSpacing, laneSpacing ?? 0.0);

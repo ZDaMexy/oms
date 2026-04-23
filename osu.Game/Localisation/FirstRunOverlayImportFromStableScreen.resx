@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="description" xml:space="preserve"><value>If you have osu!stable (non-lazer) installed, or already have a local BMS library in another directory, you can choose an external directory for direct traversal indexing. Indexing will not copy beatmap files or use additional storage space.</value></data>
+</root>

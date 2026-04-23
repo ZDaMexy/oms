@@ -32,7 +32,7 @@ namespace osu.Game.Screens.Select.Filter
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.Difficulty))]
         Difficulty,
 
-        [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.DifficultyTable))]
+        [LocalisableDescription(typeof(OmsSongSelectStrings), nameof(OmsSongSelectStrings.DifficultyTable))]
         DifficultyTable,
 
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.Favourites))]

@@ -300,6 +300,9 @@ namespace osu.Game.Screens.Select
                 case SortMode.BPM:
                 case SortMode.Length:
                 case SortMode.Difficulty:
+                case SortMode.ClearLamp:
+                case SortMode.Accuracy:
+                case SortMode.Misses:
                     return true;
 
                 default:

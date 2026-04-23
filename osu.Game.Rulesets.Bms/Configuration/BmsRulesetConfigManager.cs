@@ -5,7 +5,6 @@ using osu.Game.Configuration;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Configuration;
-using osu.Game.Rulesets.UI.Scrolling;
 
 namespace osu.Game.Rulesets.Bms.Configuration
 {
@@ -36,9 +35,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
             SetDefault(BmsRulesetSetting.ScrollSpeed, 8.0, NORMAL_HI_SPEED_MIN, NORMAL_HI_SPEED_MAX, NORMAL_HI_SPEED_PRECISION);
             SetDefault(BmsRulesetSetting.FloatingHiSpeed, 2.50, FLOATING_HI_SPEED_MIN, FLOATING_HI_SPEED_MAX, FLOATING_HI_SPEED_PRECISION);
             SetDefault(BmsRulesetSetting.ClassicHiSpeed, 2.50, CLASSIC_HI_SPEED_MIN, CLASSIC_HI_SPEED_MAX, CLASSIC_HI_SPEED_PRECISION);
-            SetDefault(BmsRulesetSetting.ScrollDirection, ScrollingDirection.Down);
-            SetDefault(BmsRulesetSetting.PlayfieldScale, 1.0, 0.5, 1.5, 0.01);
-            SetDefault(BmsRulesetSetting.PlayfieldHorizontalOffset, 0.0, -0.4, 0.4, 0.01);
+            SetDefault(BmsRulesetSetting.PlayfieldStyle, BmsPlayfieldStyle.Center);
             SetDefault(BmsRulesetSetting.PlayfieldWidth, 0.0, 0.0, 1.0, 0.01);
             SetDefault(BmsRulesetSetting.PlayfieldHeight, 0.0, 0.0, 1.0, 0.01);
             SetDefault(BmsRulesetSetting.LaneWidth, 1.0, 0.5, 2.0, 0.01);
@@ -52,6 +49,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
             SetDefault(BmsRulesetSetting.HitTargetVerticalOffset, 0.0, 0.0, 160.0, 1.0);
             SetDefault(BmsRulesetSetting.BarLineHeight, 2.0, 1.0, 6.0, 0.5);
             SetDefault(BmsRulesetSetting.KeysoundConcurrentChannels, BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS);
+            SetDefault(BmsRulesetSetting.PersistedModState, string.Empty);
         }
 
         public override TrackedSettings CreateTrackedSettings() => new TrackedSettings();
@@ -63,9 +61,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
         ScrollSpeed,
         FloatingHiSpeed,
         ClassicHiSpeed,
-        ScrollDirection,
-        PlayfieldScale,
-        PlayfieldHorizontalOffset,
+        PlayfieldStyle,
         PlayfieldWidth,
         PlayfieldHeight,
         LaneWidth,
@@ -79,5 +75,6 @@ namespace osu.Game.Rulesets.Bms.Configuration
         HitTargetVerticalOffset,
         BarLineHeight,
         KeysoundConcurrentChannels,
+        PersistedModState,
     }
 }

@@ -447,7 +447,9 @@ namespace osu.Game.Overlays.Mods
                 }
                 else
                 {
-                    modState.Mod.ResetSettingsToDefaults();
+                    if (modState.Mod is not IPreserveSettingsWhenDisabled)
+                        modState.Mod.ResetSettingsToDefaults();
+
                     modState.Active.Value = false;
                 }
             }

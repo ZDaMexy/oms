@@ -17,7 +17,7 @@ using osu.Game.Rulesets.Objects.Drawables;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public class BmsModAutoScratch : Mod, IApplicableToBeatmap, IApplicableToDrawableHitObject
+    public class BmsModAutoScratch : Mod, IApplicableToBeatmap, IApplicableToDrawableHitObject, IPreserveSettingsWhenDisabled
     {
         public override string Name => "Auto Scratch";
 
@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Bms.Mods
 
         public override bool RequiresConfiguration => true;
 
-        public override Type[] IncompatibleMods => new[] { typeof(BmsModAutoScratch), typeof(ModAutoplay) };
+        public override Type[] IncompatibleMods => new[] { typeof(BmsModAutoScratch), typeof(BmsModAutoNote), typeof(ModAutoplay) };
 
         [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.ScratchVisibility), nameof(BmsModStrings.ScratchVisibilityDescription))]
         public Bindable<AutoScratchVisibility> ScratchVisibility { get; } = new Bindable<AutoScratchVisibility>(AutoScratchVisibility.Visible);

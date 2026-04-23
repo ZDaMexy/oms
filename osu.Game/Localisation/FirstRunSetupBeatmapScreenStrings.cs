@@ -8,62 +8,60 @@ namespace osu.Game.Localisation
     public static class FirstRunSetupBeatmapScreenStrings
     {
         private const string prefix = @"osu.Game.Resources.Localisation.FirstRunSetupBeatmapScreen";
+        private const string oms_prefix = @"osu.Game.Localisation.FirstRunSetupBeatmapScreen";
 
         /// <summary>
         /// "Obtaining Beatmaps"
         /// </summary>
-        public static LocalisableString Header => new TranslatableString(getKey(@"header"), @"Obtaining Beatmaps");
+        public static LocalisableString Header => new TranslatableString(getKey(@"header"), @"获取谱面");
 
         /// <summary>
         /// "&quot;Beatmaps&quot; are what we call sets of playable levels. osu! doesn&#39;t come with any beatmaps pre-loaded. This step will help you get started on your beatmap collection."
         /// </summary>
-        public static LocalisableString Description => new TranslatableString(getKey(@"description"), @"""Beatmaps"" are what we call sets of playable levels. osu! doesn't come with any beatmaps pre-loaded. This step will help you get started on your beatmap collection.");
+        public static LocalisableString Description => new TranslatableString(getKey(@"description"), @"您可以从以下地址直接获取 mania 或 bms 谱面。");
 
         /// <summary>
         /// "If you are a new player, we recommend playing through the tutorial to get accustomed to the gameplay."
         /// </summary>
-        public static LocalisableString TutorialDescription => new TranslatableString(getKey(@"tutorial_description"), @"If you are a new player, we recommend playing through the tutorial to get accustomed to the gameplay.");
+        public static LocalisableString ManiaHeader => new TranslatableString(getKey(@"mania_header"), @"mania");
 
         /// <summary>
         /// "Get the osu! tutorial"
         /// </summary>
-        public static LocalisableString TutorialButton => new TranslatableString(getKey(@"tutorial_button"), @"Get the osu! tutorial");
+        public static LocalisableString ManiaOfficialButton => new TranslatableString(getKey(@"mania_official_button"), @"打开 osu! 官方谱面站");
 
         /// <summary>
-        /// "To get you started, we have some recommended beatmaps."
+        /// "Open Sayobot beatmap mirror"
         /// </summary>
-        public static LocalisableString BundledDescription => new TranslatableString(getKey(@"bundled_description"), @"To get you started, we have some recommended beatmaps.");
+        public static LocalisableString ManiaSayobotButton => new TranslatableString(getOmsKey(@"mania_sayobot_button"), @"Open Sayobot beatmap mirror");
 
         /// <summary>
         /// "Get recommended beatmaps"
         /// </summary>
-        public static LocalisableString BundledButton => new TranslatableString(getKey(@"bundled_button"), @"Get recommended beatmaps");
+        public static LocalisableString BmsHeader => new TranslatableString(getKey(@"bms_header"), @"bms");
 
         /// <summary>
-        /// "Beatmaps will be downloaded in the background. You can continue with setup while this happens!"
+        /// "Open hakura bms"
         /// </summary>
-        public static LocalisableString DownloadingInBackground => new TranslatableString(getKey(@"downloading_in_background"), @"Beatmaps will be downloaded in the background. You can continue with setup while this happens!");
+        public static LocalisableString BmsDownloadButton => new TranslatableString(getOmsKey(@"bms_download_button"), @"Open hakura bms");
 
         /// <summary>
         /// "Online beatmap downloads are disabled in this local-first build."
         /// </summary>
-        public static LocalisableString OnlineDownloadsDisabled => new TranslatableString(getKey(@"online_downloads_disabled"), @"Online beatmap downloads are disabled in this local-first build.");
+        public static LocalisableString ImportInstructions => new TranslatableString(getKey(@"import_instructions"), @"下载到的谱面，请将 mania 或 bms 谱面文件解压至 oms 游戏目录的 /chartmania 或 /chartbms 下，后续请在 设置-维护-内部谱库-扫描内部谱库 选项进行扫描添加。");
+
+        /// <summary>
+        /// "The above pages link to external websites and are unrelated to the OMS project. If you manage one of the above sites and do not wish it to appear here, please contact the developers promptly. We sincerely apologise."
+        /// </summary>
+        public static LocalisableString ExternalLinkDisclaimer => new TranslatableString(getOmsKey(@"external_link_disclaimer"), @"The above pages link to external websites and are unrelated to the OMS project. If you manage one of the above sites and do not wish it to appear here, please contact the developers promptly. We sincerely apologise.");
 
         /// <summary>
         /// "You can also obtain more beatmaps from the main menu &quot;browse&quot; button at any time."
         /// </summary>
-        public static LocalisableString ObtainMoreBeatmaps => new TranslatableString(getKey(@"obtain_more_beatmaps"), @"You can also obtain more beatmaps from the main menu ""browse"" button at any time.");
-
-        /// <summary>
-        /// "Add beatmaps later by importing local files or folders."
-        /// </summary>
-        public static LocalisableString ObtainBeatmapsOffline => new TranslatableString(getKey(@"obtain_beatmaps_offline"), @"Add beatmaps later by importing local files or folders.");
-
-        /// <summary>
-        /// "You currently have {0} beatmap(s) loaded!"
-        /// </summary>
-        public static LocalisableString CurrentlyLoadedBeatmaps(int beatmaps) => new TranslatableString(getKey(@"currently_loaded_beatmaps"), @"You currently have {0} beatmap(s) loaded!", beatmaps);
+        public static LocalisableString CurrentlyLoadedBeatmaps(int beatmaps) => new TranslatableString(getKey(@"currently_loaded_beatmaps"), @"目前游戏内已有 {0} 张谱面！", beatmaps);
 
         private static string getKey(string key) => $@"{prefix}:{key}";
+
+        private static string getOmsKey(string key) => $@"{oms_prefix}:{key}";
     }
 }

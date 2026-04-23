@@ -267,6 +267,43 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestAutoNoteRemovesNonScratchHoldFromGaugeScalingAndBodyTicks()
+        {
+            var beatmap = createHoldBeatmap(total: 200, baselineNoteCount: 0);
+            beatmap.HitObjects.Add(new BmsHitObject
+            {
+                StartTime = 0,
+                LaneIndex = 0,
+                IsScratch = true,
+            });
+
+            BmsLongNoteMode.HCN.ApplyToBeatmap(beatmap);
+            new BmsModAutoNote().ApplyToBeatmap(beatmap);
+
+            var processor = new BmsGaugeProcessor(0);
+
+            processor.ApplyBeatmap(beatmap);
+
+            var holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.TotalHittableObjects, Is.EqualTo(1));
+                Assert.That(processor.BaseRate, Is.EqualTo(2).Within(0.000001));
+                Assert.That(holdNote.AutoPlay, Is.True);
+                Assert.That(holdNote.Head?.AutoPlay, Is.True);
+                Assert.That(holdNote.Tail?.AutoPlay, Is.True);
+                Assert.That(holdNote.Tail?.Judgement, Is.TypeOf<BmsHoldNoteTailJudgement>());
+                Assert.That(((BmsHoldNoteTailJudgement)holdNote.Tail!.Judgement).CountsForScore, Is.False);
+                Assert.That(holdNote.BodyTicks.All(tick => !tick.CountsForGauge), Is.True);
+            });
+
+            processor.ApplyResult(createResult(holdNote.BodyTicks.First(), HitResult.IgnoreMiss));
+
+            Assert.That(processor.Health.Value, Is.EqualTo(BmsGaugeProcessor.STARTING_GAUGE).Within(0.000001));
+        }
+
+        [Test]
         public void TestEmptyPoorUsesBadGaugeDamage()
         {
             var beatmap = createBeatmap(total: 200, noteCount: 1000);

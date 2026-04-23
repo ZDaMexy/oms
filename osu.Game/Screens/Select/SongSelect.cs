@@ -603,7 +603,7 @@ namespace osu.Game.Screens.Select
 
             if (validSelection)
             {
-                if (shouldSuppressDifficultyTableAutoSelection())
+                if (shouldSuppressGroupedAutoSelection())
                     return true;
 
                 carousel.CurrentBeatmap = currentBeatmap.BeatmapInfo;
@@ -642,8 +642,20 @@ namespace osu.Game.Screens.Select
             return validSelection;
         }
 
-        private bool shouldSuppressDifficultyTableAutoSelection()
-            => currentGroupMode == GroupMode.DifficultyTable && carousel.CurrentGroupedBeatmap == null;
+        private bool shouldSuppressGroupedAutoSelection()
+            => pendingRootGroupFocus && carousel.CurrentGroupedBeatmap == null;
+
+        private bool tryFocusRootGroupForCurrentBeatmap()
+        {
+            if (!pendingRootGroupFocus)
+                return false;
+
+            if (!carousel.FocusRootGroupForBeatmap(Beatmap.Value.BeatmapInfo))
+                return false;
+
+            pendingRootGroupFocus = false;
+            return true;
+        }
 
         private bool checkBeatmapValidForSelection(BeatmapInfo beatmap)
         {
@@ -719,11 +731,13 @@ namespace osu.Game.Screens.Select
             modSelectOverlay.SelectedMods.Disabled = false;
             modSelectOverlay.SelectedMods.BindTo(Mods);
 
-            // When entering song select fresh (not returning from gameplay), collapse DifficultyTable
-            // to root level. When resuming (e.g. after gameplay), preserve the selection so the
-            // user returns to the beatmap they just played.
-            if (currentGroupMode == GroupMode.DifficultyTable && !isResuming)
+            // Some rulesets prefer to open grouped song select at the outermost group level on a fresh entry.
+            // When resuming (e.g. after gameplay), preserve the previous beatmap selection.
+            if (!isResuming && Ruleset.Value.CreateInstance().ShouldResetSongSelectGroupToRoot(currentGroupMode))
+            {
+                pendingRootGroupFocus = true;
                 carousel.ResetToRootLevel();
+            }
 
             carousel.VisuallyFocusSelected = false;
 
@@ -754,6 +768,7 @@ namespace osu.Game.Screens.Select
                 return;
 
             ensureGlobalBeatmapValid();
+            tryFocusRootGroupForCurrentBeatmap();
 
             ensurePlayingSelected();
             updateBackgroundDim();
@@ -883,13 +898,18 @@ namespace osu.Game.Screens.Select
 
         private GroupMode currentGroupMode;
 
+        private bool pendingRootGroupFocus;
+
         private void criteriaChanged(FilterCriteria criteria)
         {
-            bool enteringDifficultyTable = currentGroupMode != GroupMode.DifficultyTable && criteria.Group == GroupMode.DifficultyTable;
+            bool resetToRootLevel = currentGroupMode != criteria.Group && Ruleset.Value.CreateInstance().ShouldResetSongSelectGroupToRoot(criteria.Group);
             currentGroupMode = criteria.Group;
 
-            if (enteringDifficultyTable)
+            if (resetToRootLevel)
+            {
+                pendingRootGroupFocus = true;
                 carousel.ResetToRootLevel();
+            }
 
             filterDebounce?.Cancel();
 
@@ -923,6 +943,8 @@ namespace osu.Game.Screens.Select
             // `ensureGlobalBeatmapValid` is run post-selection which will resolve any pending incompatibilities (see `Beatmap` bindable callback).
             if (debounceQueuedSelection == null)
                 ensureGlobalBeatmapValid();
+
+            tryFocusRootGroupForCurrentBeatmap();
 
             updateWedgeVisibility();
         }

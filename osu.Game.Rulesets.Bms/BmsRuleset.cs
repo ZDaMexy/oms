@@ -70,6 +70,9 @@ namespace osu.Game.Rulesets.Bms
 
         public override IRulesetConfigManager CreateConfig(SettingsStore? settings) => new BmsRulesetConfigManager(settings, RulesetInfo);
 
+        public override IRulesetModStatePersistence? CreateModStatePersistence(IRulesetConfigManager? configManager)
+            => configManager is BmsRulesetConfigManager bmsConfig ? new BmsModStatePersistence(this, bmsConfig) : null;
+
         public override IConvertibleReplayFrame CreateConvertibleReplayFrame() => new BmsReplayFrame();
 
         public override RulesetSettingsSubsection CreateSettings() => new BmsSettingsSubsection(this);
@@ -101,6 +104,7 @@ namespace osu.Game.Rulesets.Bms
                         new BmsModGaugeEasy(),
                         new BmsModGaugeAutoShift(),
                         new BmsModAutoScratch(),
+                        new BmsModAutoNote(),
                         new BmsModAutoplay(),
                     };
 
@@ -195,8 +199,51 @@ namespace osu.Game.Rulesets.Bms
 
         public override Drawable? CreateBeatmapDetailsComponent(IBindable<WorkingBeatmap> beatmap) => new BmsNoteDistributionGraph(beatmap);
 
-        public override IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes()
-            => base.GetAvailableSongSelectGroupModes().Append(GroupMode.DifficultyTable).ToArray();
+        public override IReadOnlyList<SortMode> GetAvailableSongSelectSortModes() =>
+        [
+            SortMode.Title,
+            SortMode.Artist,
+            SortMode.BPM,
+            SortMode.Length,
+            SortMode.Difficulty,
+            SortMode.ClearLamp,
+            SortMode.Accuracy,
+            SortMode.Misses,
+        ];
+
+        public override IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes() =>
+        [
+            GroupMode.DifficultyTable,
+            GroupMode.Artist,
+            GroupMode.Author,
+            GroupMode.BPM,
+            GroupMode.Difficulty,
+            GroupMode.LastPlayed,
+            GroupMode.Length,
+            GroupMode.RankAchieved,
+            GroupMode.Title,
+        ];
+
+        public override bool ShouldResetSongSelectGroupToRoot(GroupMode mode)
+            => GetAvailableSongSelectGroupModes().Contains(mode);
+
+        public override int CompareSongSelectScores(SortMode sort, ScoreInfo? a, ScoreInfo? b)
+        {
+            if (sort != SortMode.ClearLamp)
+                return base.CompareSongSelectScores(sort, a, b);
+
+            return getLampOrder(b).CompareTo(getLampOrder(a));
+
+            static int getLampOrder(ScoreInfo? score)
+            {
+                var scoreData = score?.GetRulesetData<BmsScoreInfoData>();
+
+                if (scoreData?.HasResultStatistics != true || scoreData.ClearLamp == null)
+                    return (int)BmsClearLamp.NoPlay;
+
+                return (int)scoreData.ClearLamp.Value;
+            }
+        }
 
         public override IEnumerable<GroupDefinition> GetSongSelectGroupDefinitions(GroupMode mode, IBeatmapInfo beatmapInfo)
         {

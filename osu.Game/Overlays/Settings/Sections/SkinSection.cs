@@ -89,13 +89,13 @@ namespace osu.Game.Overlays.Settings.Sections
                     Action = () => skinEditor?.ToggleVisibility(),
                 },
             };
-
-            skinDropdown.Current.Disabled = true;
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            skinDropdown.Current.Disabled = true;
 
             realmSubscription = realm.RegisterForNotifications(_ => realm.Realm.All<SkinInfo>()
                                                                          .Where(s => !s.DeletePending)

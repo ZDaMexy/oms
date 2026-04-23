@@ -7,7 +7,8 @@ namespace osu.Game.Localisation
 {
     public static class FirstRunSetupOverlayStrings
     {
-        private const string prefix = @"osu.Game.Resources.Localisation.FirstRunSetupOverlay";
+        private const string upstream_prefix = @"osu.Game.Resources.Localisation.FirstRunSetupOverlay";
+        private const string oms_prefix = @"osu.Game.Localisation.FirstRunSetupOverlay";
 
         /// <summary>
         /// "Get started"
@@ -38,11 +39,21 @@ namespace osu.Game.Localisation
         /// <summary>
         /// "Welcome to the first-run setup guide!
         ///
-        /// osu! is a very configurable game, and diving straight into the settings can sometimes be overwhelming. This guide will help you get the important choices out of the way to ensure a great first experience!"
+        /// oms is a fork client based on osu!lazer. It adds direct support for the custom BMS ruleset and removes all modes except mania.
+        /// This first-run setup guide helps you quickly configure a few important settings.
+        /// Join our QQ group: 650530995
+        /// Or find us on GitHub: ZDaMexy/oms
+        /// Contact us to discuss, get a better gameplay experience, and share feedback and suggestions!
+        /// welcome to oms!"
         /// </summary>
-        public static LocalisableString WelcomeDescription => new TranslatableString(getKey(@"welcome_description"), @"Welcome to the first-run setup guide!
+        public static LocalisableString WelcomeDescription => new TranslatableString(getOmsKey(@"welcome_description"), @"Welcome to the first-run setup guide!
 
-osu! is a very configurable game, and diving straight into the settings can sometimes be overwhelming. This guide will help you get the important choices out of the way to ensure a great first experience!");
+    oms is a fork client based on osu!lazer. It adds direct support for the custom BMS ruleset and removes all modes except mania.
+    This first-run setup guide helps you quickly configure a few important settings.
+    Join our QQ group: 650530995
+    Or find us on GitHub: ZDaMexy/oms
+    Contact us to discuss, get a better gameplay experience, and share feedback and suggestions!
+    welcome to oms!");
 
         /// <summary>
         /// "The size of the osu! user interface can be adjusted to your liking."
@@ -53,6 +64,16 @@ osu! is a very configurable game, and diving straight into the settings can some
         /// "Behaviour"
         /// </summary>
         public static LocalisableString Behaviour => new TranslatableString(getKey(@"behaviour"), @"Behaviour");
+
+        /// <summary>
+        /// "难度表设置"
+        /// </summary>
+        public static LocalisableString DifficultyTableSetupTitle => new TranslatableString(getKey(@"difficulty_table_setup_title"), @"难度表设置");
+
+        /// <summary>
+        /// "按键绑定"
+        /// </summary>
+        public static LocalisableString KeyBindingSetupTitle => new TranslatableString(getKey(@"key_binding_setup_title"), @"按键绑定");
 
         /// <summary>
         /// "Some new defaults for game behaviours have been implemented, with the aim of improving the game experience and making it more accessible to everyone.
@@ -74,6 +95,8 @@ We recommend you give the new defaults a try, but if you'd like to have things f
         /// </summary>
         public static LocalisableString ClassicDefaults => new TranslatableString(getKey(@"classic_defaults"), @"Classic defaults");
 
-        private static string getKey(string key) => $@"{prefix}:{key}";
+        private static string getKey(string key) => $@"{upstream_prefix}:{key}";
+
+        private static string getOmsKey(string key) => $@"{oms_prefix}:{key}";
     }
 }

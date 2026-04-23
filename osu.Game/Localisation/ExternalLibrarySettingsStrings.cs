@@ -14,6 +14,11 @@ namespace osu.Game.Localisation
         public static LocalisableString ExternalLibraryHeader => new TranslatableString(getKey(@"external_library_header"), @"External Library");
 
         /// <summary>
+        /// "Internal Library"
+        /// </summary>
+        public static LocalisableString InternalLibraryHeader => new TranslatableString(getKey(@"internal_library_header"), @"Internal Library");
+
+        /// <summary>
         /// "Select an external beatmap library folder"
         /// </summary>
         public static LocalisableString SelectExternalLibraryFolder => new TranslatableString(getKey(@"select_external_library_folder"), @"Select an external beatmap library folder");
@@ -39,9 +44,29 @@ namespace osu.Game.Localisation
         public static LocalisableString ScanExternalLibraries => new TranslatableString(getKey(@"scan_external_libraries"), @"Scan External Libraries");
 
         /// <summary>
+        /// "Scan External Libraries (Rebuild)"
+        /// </summary>
+        public static LocalisableString ScanExternalLibrariesRebuild => new TranslatableString(getKey(@"scan_external_libraries_rebuild"), @"Scan External Libraries (Rebuild)");
+
+        /// <summary>
+        /// "Scan External Libraries (Incremental)"
+        /// </summary>
+        public static LocalisableString ScanExternalLibrariesIncremental => new TranslatableString(getKey(@"scan_external_libraries_incremental"), @"Scan External Libraries (Incremental)");
+
+        /// <summary>
         /// "Scan Internal Libraries"
         /// </summary>
         public static LocalisableString ScanInternalLibraries => new TranslatableString(getKey(@"scan_internal_libraries"), @"Scan Internal Libraries");
+
+        /// <summary>
+        /// "Scan Internal Libraries (Rebuild)"
+        /// </summary>
+        public static LocalisableString ScanInternalLibrariesRebuild => new TranslatableString(getKey(@"scan_internal_libraries_rebuild"), @"Scan Internal Libraries (Rebuild)");
+
+        /// <summary>
+        /// "Scan Internal Libraries (Incremental)"
+        /// </summary>
+        public static LocalisableString ScanInternalLibrariesIncremental => new TranslatableString(getKey(@"scan_internal_libraries_incremental"), @"Scan Internal Libraries (Incremental)");
 
         /// <summary>
         /// "Added {0} library: {1}"
@@ -64,9 +89,29 @@ namespace osu.Game.Localisation
         public static LocalisableString ScanningExternalLibraries => new TranslatableString(getKey(@"scanning_external_libraries"), @"Scanning external libraries...");
 
         /// <summary>
+        /// "Scanning external libraries (rebuild)..."
+        /// </summary>
+        public static LocalisableString ScanningExternalLibrariesRebuild => new TranslatableString(getKey(@"scanning_external_libraries_rebuild"), @"Scanning external libraries (rebuild)...");
+
+        /// <summary>
+        /// "Scanning external libraries (incremental)..."
+        /// </summary>
+        public static LocalisableString ScanningExternalLibrariesIncremental => new TranslatableString(getKey(@"scanning_external_libraries_incremental"), @"Scanning external libraries (incremental)...");
+
+        /// <summary>
         /// "Scanning internal libraries..."
         /// </summary>
         public static LocalisableString ScanningInternalLibraries => new TranslatableString(getKey(@"scanning_internal_libraries"), @"Scanning internal libraries...");
+
+        /// <summary>
+        /// "Scanning internal libraries (rebuild)..."
+        /// </summary>
+        public static LocalisableString ScanningInternalLibrariesRebuild => new TranslatableString(getKey(@"scanning_internal_libraries_rebuild"), @"Scanning internal libraries (rebuild)...");
+
+        /// <summary>
+        /// "Scanning internal libraries (incremental)..."
+        /// </summary>
+        public static LocalisableString ScanningInternalLibrariesIncremental => new TranslatableString(getKey(@"scanning_internal_libraries_incremental"), @"Scanning internal libraries (incremental)...");
 
         /// <summary>
         /// "Scanning: {0} ({1}/{2})"

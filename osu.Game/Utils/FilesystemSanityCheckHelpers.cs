@@ -22,10 +22,12 @@ namespace osu.Game.Utils
             // `Path.GetFullPath()` invocations are required to fully resolve the paths to unambiguous downwards-traversal-only paths.
             var parentInfo = new DirectoryInfo(Path.GetFullPath(parent));
             var childInfo = new DirectoryInfo(Path.GetFullPath(child));
+            string normalisedParent = Path.TrimEndingDirectorySeparator(parentInfo.FullName);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
             while (childInfo != null)
             {
-                if (parentInfo.FullName == childInfo.FullName)
+                if (string.Equals(normalisedParent, Path.TrimEndingDirectorySeparator(childInfo.FullName), comparison))
                     return true;
 
                 childInfo = childInfo.Parent;

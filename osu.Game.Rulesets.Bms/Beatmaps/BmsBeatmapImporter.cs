@@ -45,6 +45,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         public Task RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
             => folderImporter.RegisterManagedDirectory(path, cancellationToken);
 
+        public bool ShouldImportExternalDirectory(string path)
+            => folderImporter.ShouldImportExternalDirectory(path);
+
+        public bool ShouldImportManagedDirectory(string path)
+            => folderImporter.ShouldImportManagedDirectory(path);
+
         public async Task Import(ImportTask[] tasks, ImportParameters parameters = default)
         {
             foreach (var task in tasks)

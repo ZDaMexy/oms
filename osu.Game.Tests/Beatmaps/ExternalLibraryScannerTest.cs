@@ -157,6 +157,77 @@ namespace osu.Game.Tests.Beatmaps
             });
         }
 
+        [Test]
+        public async Task TestIncrementalScanSkipsDirectoriesReportedAsAlreadyIndexed()
+        {
+            using var storage = new TemporaryNativeStorage(nameof(TestIncrementalScanSkipsDirectoriesReportedAsAlreadyIndexed));
+
+            string root = createBmsRoot(storage, "incremental-root", "existing-set", "new-set");
+
+            var config = new ExternalLibraryConfig(storage);
+            config.AddRoot(root, ExternalLibraryRootType.BMS);
+
+            var importedDirectories = new List<string>();
+            var scanner = new ExternalLibraryScanner(config)
+            {
+                BmsDirectoryImporter = (directory, _) =>
+                {
+                    importedDirectories.Add(directory);
+                    return Task.CompletedTask;
+                },
+                BmsDirectoryShouldImport = directory => Path.GetFileName(directory) != "existing-set",
+            };
+
+            var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Incremental, cancellationToken: CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Imported, Is.EqualTo(1));
+                Assert.That(result.Skipped, Is.EqualTo(1));
+                Assert.That(result.Errors, Is.Zero);
+                Assert.That(importedDirectories, Is.EquivalentTo(new[]
+                {
+                    Path.Combine(root, "new-set"),
+                }));
+            });
+        }
+
+        [Test]
+        public async Task TestRebuildScanReimportsDirectoriesEvenWhenIncrementalFilterWouldSkipThem()
+        {
+            using var storage = new TemporaryNativeStorage(nameof(TestRebuildScanReimportsDirectoriesEvenWhenIncrementalFilterWouldSkipThem));
+
+            string root = createBmsRoot(storage, "rebuild-root", "existing-set", "new-set");
+
+            var config = new ExternalLibraryConfig(storage);
+            config.AddRoot(root, ExternalLibraryRootType.BMS);
+
+            var importedDirectories = new List<string>();
+            var scanner = new ExternalLibraryScanner(config)
+            {
+                BmsDirectoryImporter = (directory, _) =>
+                {
+                    importedDirectories.Add(directory);
+                    return Task.CompletedTask;
+                },
+                BmsDirectoryShouldImport = directory => Path.GetFileName(directory) != "existing-set",
+            };
+
+            var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Rebuild, cancellationToken: CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Imported, Is.EqualTo(2));
+                Assert.That(result.Skipped, Is.Zero);
+                Assert.That(result.Errors, Is.Zero);
+                Assert.That(importedDirectories, Is.EquivalentTo(new[]
+                {
+                    Path.Combine(root, "existing-set"),
+                    Path.Combine(root, "new-set"),
+                }));
+            });
+        }
+
         private static string createBmsRoot(TemporaryNativeStorage storage, string rootName, params string[] setNames)
         {
             string root = storage.GetFullPath(rootName);

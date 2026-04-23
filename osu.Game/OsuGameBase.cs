@@ -59,6 +59,7 @@ using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Overlays.Settings.Sections.Input;
 using osu.Game.Resources;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Skinning;
@@ -218,12 +219,15 @@ namespace osu.Game
 
         private BeatmapDifficultyCache difficultyCache;
         private IBeatmapUpdater beatmapUpdater;
+        private bool pendingRulesetConfigReplay;
 
         private UserLookupCache userCache;
         private BeatmapLookupCache beatmapCache;
         protected LeaderboardManager LeaderboardManager { get; private set; }
 
         private RulesetConfigCache rulesetConfigCache;
+        private IRulesetModStatePersistence rulesetModStatePersistence;
+        private readonly HashSet<string> failedRulesetFallbacks = new HashSet<string>(StringComparer.Ordinal);
 
         private SessionAverageHitErrorTracker hitErrorTracker;
 
@@ -672,23 +676,69 @@ namespace osu.Game
             if (IsLoaded && !ThreadSafety.IsUpdateThread)
                 throw new InvalidOperationException("Global ruleset bindable must be changed from update thread.");
 
+            applyRulesetChange(r.OldValue, r.NewValue);
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            replayCurrentRulesetState();
+        }
+
+        private void replayCurrentRulesetState()
+        {
+            if (Ruleset.Value != null)
+                applyRulesetChange(Ruleset.Value, Ruleset.Value);
+        }
+
+        private void queueRulesetConfigReplay()
+        {
+            if (pendingRulesetConfigReplay)
+                return;
+
+            pendingRulesetConfigReplay = true;
+            Scheduler.Add(checkPendingRulesetConfigReplay);
+        }
+
+        private void checkPendingRulesetConfigReplay()
+        {
+            if (!pendingRulesetConfigReplay)
+                return;
+
+            if (!rulesetConfigCache.IsLoaded)
+            {
+                Scheduler.Add(checkPendingRulesetConfigReplay);
+                return;
+            }
+
+            pendingRulesetConfigReplay = false;
+            replayCurrentRulesetState();
+        }
+
+        private void applyRulesetChange(RulesetInfo oldRuleset, RulesetInfo newRuleset)
+        {
+            if (newRuleset == null)
+                return;
+
             Ruleset instance = null;
 
-            if (r.NewValue?.Available == true)
+            if (newRuleset.Available)
             {
                 try
                 {
-                    instance = r.NewValue.CreateInstance();
+                    instance = newRuleset.CreateInstance();
                 }
                 catch (Exception e)
                 {
-                    Rulesets.RulesetStore.LogRulesetFailure(r.NewValue, e);
+                    Rulesets.RulesetStore.LogRulesetFailure(newRuleset, e);
                 }
             }
 
             if (instance == null)
             {
                 // reject the change if the ruleset is not available.
+                markRulesetAsFailed(newRuleset);
                 revertRulesetChange();
                 return;
             }
@@ -708,29 +758,84 @@ namespace osu.Game
             }
             catch (Exception e)
             {
-                Rulesets.RulesetStore.LogRulesetFailure(r.NewValue, e);
+                Rulesets.RulesetStore.LogRulesetFailure(newRuleset, e);
+                markRulesetAsFailed(newRuleset);
+                revertRulesetChange();
+                return;
+            }
+
+            IRulesetModStatePersistence newModStatePersistence;
+
+            try
+            {
+                IRulesetConfigManager rulesetConfigManager = null;
+
+                if (rulesetConfigCache.IsLoaded)
+                    rulesetConfigManager = rulesetConfigCache.GetConfigFor(instance);
+                else
+                    queueRulesetConfigReplay();
+
+                newModStatePersistence = instance.CreateModStatePersistence(rulesetConfigManager);
+                newModStatePersistence?.ApplyStoredState(dict);
+            }
+            catch (Exception e)
+            {
+                Rulesets.RulesetStore.LogRulesetFailure(newRuleset, e);
+                markRulesetAsFailed(newRuleset);
                 revertRulesetChange();
                 return;
             }
 
             AvailableMods.Value = dict;
 
+            rulesetModStatePersistence?.Dispose();
+            rulesetModStatePersistence = newModStatePersistence;
+
             if (SelectedMods.Disabled)
                 return;
 
-            var convertedMods = SelectedMods.Value.Select(mod =>
-            {
-                var newMod = instance.CreateModFromAcronym(mod.Acronym);
-                newMod?.CopyCommonSettingsFrom(mod);
-                return newMod;
-            }).Where(newMod => newMod != null).ToList();
+            var convertedMods = rulesetModStatePersistence?.GetStoredSelection(dict)?.ToList()
+                                ?? SelectedMods.Value.Select(mod =>
+                                {
+                                    var newMod = instance.CreateModFromAcronym(mod.Acronym);
+                                    newMod?.CopyCommonSettingsFrom(mod);
+                                    return newMod;
+                                }).Where(newMod => newMod != null).ToList();
 
             if (!ModUtils.CheckValidForGameplay(convertedMods, out var invalid))
                 invalid.ForEach(newMod => convertedMods.Remove(newMod));
 
             SelectedMods.Value = convertedMods;
+            rulesetModStatePersistence?.BindSelectedMods(SelectedMods);
 
-            void revertRulesetChange() => Ruleset.Value = r.OldValue?.Available == true ? r.OldValue : RulesetStore.AvailableRulesets.First();
+            failedRulesetFallbacks.Clear();
+
+            void markRulesetAsFailed(RulesetInfo failedRuleset)
+            {
+                if (!string.IsNullOrEmpty(failedRuleset?.InstantiationInfo))
+                    failedRulesetFallbacks.Add(failedRuleset.InstantiationInfo);
+            }
+
+            void revertRulesetChange()
+            {
+                RulesetInfo fallbackRuleset = null;
+
+                if (oldRuleset?.Available == true && !isRejectedFallback(oldRuleset))
+                    fallbackRuleset = oldRuleset;
+
+                fallbackRuleset ??= RulesetStore.AvailableRulesets.FirstOrDefault(candidate => candidate.Available && !isRejectedFallback(candidate));
+
+                if (fallbackRuleset == null)
+                {
+                    Logger.Log($"Failed to revert from ruleset '{newRuleset.ShortName}': no loadable fallback rulesets are available.", level: LogLevel.Error);
+                    return;
+                }
+
+                Ruleset.Value = fallbackRuleset;
+            }
+
+            bool isRejectedFallback(RulesetInfo candidate)
+                => failedRulesetFallbacks.Contains(candidate.InstantiationInfo);
         }
 
         private int allowableExceptions;
@@ -757,6 +862,7 @@ namespace osu.Game
 
         protected override void Dispose(bool isDisposing)
         {
+            rulesetModStatePersistence?.Dispose();
             base.Dispose(isDisposing);
 
             RulesetStore?.Dispose();

@@ -220,6 +220,11 @@ namespace osu.Game.Localisation
         public static LocalisableString DifficultyTable => new TranslatableString(getKey(@"difficulty_table"), @"Difficulty Table");
 
         /// <summary>
+        /// "Clear Lamp"
+        /// </summary>
+        public static LocalisableString ClearLamp => new TranslatableString(getKey(@"clear_lamp"), @"Clear Lamp");
+
+        /// <summary>
         /// "Length"
         /// </summary>
         public static LocalisableString Length => new TranslatableString(getKey(@"length"), @"Length");

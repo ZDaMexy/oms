@@ -51,6 +51,12 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
         public Task<FolderImportResult> RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
             => Task.Run(() => registerManagedDirectory(path, cancellationToken), cancellationToken);
 
+        public bool ShouldImportExternalDirectory(string path)
+            => !hasActiveExternalDirectory(normaliseExternalPath(path));
+
+        public bool ShouldImportManagedDirectory(string path)
+            => !hasActiveManagedDirectory(getManagedRelativePath(path));
+
         private FolderImportResult import(ImportTask task, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -142,9 +148,24 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
         private Live<BeatmapSetInfo>? tryReuseImportedCopy(string hash)
             => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage);
 
+        private bool hasActiveExternalDirectory(string externalPath)
+            => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
+                                          .Where(set => !set.DeletePending && set.IsExternalFilesystemStorage)
+                                          .ToList()
+                                          .Any(set => set.FilesystemStoragePath is string storagePath
+                                                   && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase)));
+
+        private bool hasActiveManagedDirectory(string managedPath)
+            => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
+                                          .Where(set => !set.DeletePending && !set.IsExternalFilesystemStorage)
+                                          .ToList()
+                                          .Any(set => !string.IsNullOrEmpty(set.FilesystemStoragePath)
+                                                   && string.Equals(set.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase)));
+
         private Live<BeatmapSetInfo>? tryReuseExternal(string hash, string externalPath)
             => tryReuseExisting(hash, existing => existing.IsExternalFilesystemStorage
-                                                 && string.Equals(normaliseExternalPath(existing.FilesystemStoragePath), externalPath, StringComparison.OrdinalIgnoreCase));
+                                                 && existing.FilesystemStoragePath is string storagePath
+                                                 && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase));
 
         private Live<BeatmapSetInfo>? tryReuseManaged(string hash, string managedPath)
             => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage

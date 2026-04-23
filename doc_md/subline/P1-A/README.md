@@ -18,6 +18,7 @@
 ## 当前结论
 
 - BMS 皮肤 transformer 边界已经足够封闭，可以安全继续往 BMS-owned HUD / feedback / operator overlay 合同推进。
+- 首次启动向导、`Run setup wizard` 与 Song Select 无谱面引导这类共享 onboarding / settings-entry surface 默认归 `P1-A`；若页面只是复用外部 / 内部谱库或按键绑定面板，则 `P1-H` / `P1-B` 仅作从属，不为暴露面另开子线。
 - 当前 tri-mode settings、mode-aware HUD feedback 与 pre-start hold 调速窗口仍落在这条既有 `P1-A / P1-C` 交叉线上，不需要新开主线；真正后置的是 full Floating parity。
 - 当前 `IBmsHudLayoutDisplay` 只接受 wrapped HUD / gauge / combo，后续必须继续通过向后兼容的方式扩展，不能直接把现有接口打断。
 - 所有涉及皮肤边界、HUD 宿主、pre-start operator surface 与 release gate 的改动，都必须同步更新本目录四件套，并在影响全局时反向同步 `../../mainline/`。

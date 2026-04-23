@@ -13,7 +13,7 @@ using osu.Game.Rulesets.Scoring;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public class BmsModGaugeAutoShift : Mod, IApplicableHealthProcessor
+    public class BmsModGaugeAutoShift : Mod, IApplicableHealthProcessor, IPreserveSettingsWhenDisabled
     {
         public override string Name => "Gauge Auto Shift";
 

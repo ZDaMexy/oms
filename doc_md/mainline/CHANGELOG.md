@@ -5,13 +5,102 @@
 
 ---
 
+## 2026-04-23
+
+### P1-A：首次启动向导重构为 OMS 六步流程
+
+- `FirstRunSetupOverlay` 现已固定为六步：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定；不再保留旧的 stable import 条件分支与旧 behaviour page 文案 / 结构。
+- `ScreenBeatmaps` / `ScreenImportFromStable` / `ScreenBehaviour` / `ScreenKeyBindings` 已分别收口为 OMS onboarding surface：获取谱面页改为 mania / BMS 站点导流和内部谱库补扫提示；导入页直接嵌入 `ExternalLibrarySettings`；难度表页按分组导入 zris 镜像预设，并通过反射调用 `BmsDifficultyTableManager` 保持 `osu.Game` 与 `osu.Game.Rulesets.Bms` 的项目边界；最后一步复用全局、mania 与 BMS 的 keybinding subsection。
+- 手动重新打开首次启动向导并进入旧“游戏表现”页导致的 blank panel / unhandled error 已修复；`SkinSection` 里的 skin dropdown disabled-state 现改到 `LoadComplete()` 执行。
+- 欢迎页、获取谱面页与导入页的可见文案现已切到 OMS-owned localisation namespace + `.resx`，解决简中界面继续显示上游翻译的问题；本次归线维持既有 `P1-A`，导入页复用外部谱库设置仅作为 `P1-H` 从属暴露，不新开子线。
+- 验证：`dotnet test osu.Game.Tests --filter "FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable" --configuration Release` **11/11** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### BMS：进入选歌与切换分组时停留在根分组
+
+- `SongSelect` 现已把“进入 BMS 选歌 fresh entry / 切换任意 BMS 分组”统一收口为 ruleset-driven root reset：共享层新增 `Ruleset.ShouldResetSongSelectGroupToRoot()` 扩展点，仅由 BMS 打开；mania 与其他 ruleset 继续沿用原有行为。
+- `BeatmapCarousel` 现会在 root-level 状态下保留当前歌曲的全局 beatmap 选择，同时把该歌曲对应的最外层 `GroupDefinition` 设为 keyboard-selected 项。这样进入 BMS 或切组后，界面表现为“停在最外层分组，但已选中当前歌曲所属外层组”，不会错误回到 leaf 谱面展开态。
+- 新增 / 更新 BMS 回归覆盖：`BmsRulesetStatisticsTest` 锁定 BMS 分组的 root-reset contract，`TestSceneBmsSongSelectDifficultyTable` 锁定 fresh entry 与切换到 `难度表` / `标题` 分组时均保持 root-level，并正确高亮目标外层分组。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest|FullyQualifiedName~TestSceneBmsSongSelectDifficultyTable"` **26/26** 通过。
+
+### BMS：选歌分组收窄并默认切到难度表
+
+- BMS 专属 Song Select 分组下拉现已改为 ruleset-specific 显式列表：移除 `未分组`，并移除 `本地收藏`、`导入时间`、`上架时间`、`官网收藏`、`我做的谱面`、`谱面状态`、`来源` 这些不需要的上游分组；mania 继续沿用默认共享列表，不受影响。
+- `Difficulty Table` 分组标签现改用 OMS-owned 本地化资源，在中文界面显示为 `难度表`。
+- 由于 BMS 分组列表首项现为 `DifficultyTable`，而 song select group fallback 也已改为“当前 ruleset 的第一个可用项”，BMS 进入选曲时默认分组现会安全落到 `难度表`，不再回退到 `未分组`。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest"` **21/21** 通过。
+
+### BMS：选歌排序标签语义纠正
+
+- BMS 专属 Song Select 排序下拉中，原先回落为 `Clear Lamp` 与误复用通用 `Accuracy` 语义的两个本地成绩排序项，现已明确改为 `点灯状态` 与 `达成率`；这次修正只影响 BMS 的显示语义，不改变既有排序逻辑，也不影响 mania。
+- 显示层现改用 OMS-owned `OmsSongSelect` 本地化资源承载这两个标签，避免继续复用上游 `SongSelectStrings.Accuracy` 导致中文界面出现 `准度要求`，也避免缺失翻译时回退到英文 `Clear Lamp`。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest"` **20/20** 通过。
+
+### P1-H：谱库扫描拓扑扩展为外部/内部 + 重建/增量四模式
+
+- Settings -> Maintenance 现已把谱库扫描拆成四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`；其中内部两项已从原 `外部谱库` subsection 迁移到新的 `内部谱库` subsection，完成语义隔离。
+- `ExternalLibraryScanner` 与 `ManagedLibraryScanner` 现新增 `ScanMode`（`Rebuild` / `Incremental`）与按目录判断“是否仍需导入”的回调；`OsuGameDesktop` 会把该判定下推到 BMS / mania importer。`增量` 模式只会处理当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录并允许重新注册/刷新索引。
+- 新增 `InternalLibrarySettings`，`ExternalLibrarySettings` 现只保留外部根管理与外部两种扫描按钮；桌面端 Settings -> Maintenance 拓扑已从“一个 subsection 混放外部/内部扫描”改为“外部谱库 / 内部谱库”双 subsection。
+- 验证：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest"` **6/6** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### P1-H：内部谱库扫描 managed-root 判定修复
+
+- Settings -> Maintenance 的谱库扫描口径现已明确分为两条链：`扫描外部谱库` 只针对已注册的外部根目录；`扫描内部谱库` 只负责重建当前数据根下 `chartbms/` 与 `chartmania/` 的 managed roots 索引，适用于用户手动复制、解压或移动谱面目录后的补扫。
+- 修复 `FilesystemSanityCheckHelpers.IsSubDirectory()` 在比较“带尾部分隔符的 managed root”与“不带尾部分隔符的子目录父路径”时出现的 false negative；当前会先用 `Path.TrimEndingDirectorySeparator()` 规范化两侧，再做同目录/父目录链判断。
+- 该修复使 `BmsFolderImporter.RegisterManagedDirectory()` 与 `ManiaFolderImporter.RegisterManagedDirectory()` 不再对合法的 `chartbms/...` / `chartmania/...` 目录误报“不在 managed root 下”；并新增 `FilesystemSanityCheckHelpersTest`，锁定“child-under-parent”和“same-directory”两条 trailing-separator 回归。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~FilesystemSanityCheckHelpersTest"` **2/2** 通过。
+
+## 2026-04-22
+
+### BMS：冷启动 mod 恢复与 startup ruleset 时序修复
+
+- `OsuGameBase` 现不再把 `RulesetConfigCache` 尚未 `LoadComplete()` 的 startup path 当作 ruleset failure；当 cache 仍未 ready 时，BMS mod persistence 会先跳过 config-backed restore，并在 cache ready 后排队重放当前 ruleset，补做 `PersistedModState` 恢复。
+- 该修复同时消除了启动期误报的 `BMS` / `osu!mania` ruleset issue 通知，以及冷启动首轮进入游戏时 BMS mod 选中状态和 remembered settings 丢失的问题。
+- 新增 `BmsStartupModPersistenceIntegrationTest`：先 seed `PersistedModState`，再以第二个同名 host 冷启动 `OsuGameBase`，断言 `BmsModSudden` 的选中状态、cover 参数与 `RememberGameplayChanges` 都被恢复。
+- 验证：`dotnet build .\osu.Desktop\osu.Desktop.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet run --project .\osu.Desktop\osu.Desktop.csproj -c Release` 进入 MainMenu，最新 runtime log 不再出现 `An issue with ruleset` / `Failed to revert from ruleset` / `Cannot retrieve IRulesetConfigManager`；`BmsStartupModPersistenceIntegrationTest` + `BmsModStatePersistenceTest` 合计 **4/4** 通过；手测确认完全关闭重启后不再弹三条通知，BMS mod 冷启动 / 运行中关开 / 切 mania 往返都能正确恢复。
+
+## 2026-04-21
+
+### BMS：mod 选项与配置持久化
+
+- `osu.Game` 现已新增 ruleset 级 `IRulesetModStatePersistence` 扩展点，BMS 通过 `BmsModStatePersistence` 把当前选中的 mod 顺序与 remembered settings 写入 `BmsRulesetSetting.PersistedModState` JSON；完全关闭重开，或从 BMS 切到 mania 再切回 BMS 时都可恢复，且不影响 mania。
+- 可配置 BMS mod 现通过 `IPreserveSettingsWhenDisabled` 保留停用前最后配置，解决 `ModSelectOverlay` 在 deselect 时无条件 reset 默认值的问题；`Auto Scratch` / `Auto Note` / `Random` / `Gauge Auto Shift` / `Judge Rank` / `Sudden` / `Hidden` / `Lift` 等 mod 现在手动关掉再开仍会带回上次配置。
+- `Sudden`、`Hidden`、`Lift` 现新增 `Remember gameplay changes` / `记忆游戏内变动` 开关，默认开启；开启时局内滚轮调整会回写当前 BMS selected mods 与持久化快照，关闭时则保持 current-play-only 语义。
+- 验证：`BmsRulesetConfigurationTest`、`BmsModStatePersistenceTest`、`BmsRulesetModTest` 合计 **56/56** 通过；独立输出目录 `Release` 构建通过。
+
+### BMS：新增 `Auto Note` assist mod
+
+- `osu.Game.Rulesets.Bms` 现已新增 `BmsModAutoNote`，与现有 `BmsModAutoScratch` 对称：会自动处理非 scratch note，并把对应对象从判定 / 计分 / gauge 语义中剔除。
+- `BmsModAutoNote` 现提供独立的 `Note visibility`、`Tint notes` 与 `Note tint colour` 配置面；当前与 `Auto Scratch` 互斥，且二者都继续与 `BmsModAutoplay` 互斥。
+- 定向 `BmsRulesetModTest`、`BmsGaugeProcessorTest`、`BmsScoreProcessorTest`、`BmsDrawableRulesetTest` 合计 **208/208** 通过；`Build osu! (Release)` 通过。
+
+### P1-A：BMS `Playfield Style` 替换 `Playfield Horizontal Offset`
+
+- `BmsSettingsSubsection` 已移除数值型 `游玩区域水平偏移`，`BmsRulesetConfigManager` 改为声明四态 `Playfield Style`：`1P（居左）`、`2P（居右）`、`居中（左皿）`、`居中（右皿）`。
+- 当前基础实现只作用于 single-play 5K / 7K：`1P（居左）` 与 `2P（居右）` 现在都属于“侧停靠但保留固定屏侧间距”的样式，scratch 视觉分别留在最左 / 最右；两种 `居中` 都保持 playfield 居中，仅改变 scratch 视觉在左还是右。9K 固定居中，14K 保持固定双侧布局；这不是完整 `1P/2P flip`，不会翻转 bindings 或 side-aware skin/HUD/BGA 合同。
+- `BmsRulesetConfigurationTest`、`BmsPlayfieldAdjustmentContainerTest`、`BmsLaneLayoutTest`、`TestSceneBmsPlayfieldLayoutConfig`、`BmsDrawableRulesetTest`、`BmsScrollSpeedMetricsTest` 合计 **92/92** 通过；`Build osu! (Release)` 通过。
+
+### P1-A / P1-C：BMS `Playfield Scale` 残余 surface 移除
+
+- `BmsSettingsSubsection` 已移除 `游玩区域缩放`，`BmsRulesetConfigManager` 也不再声明 `PlayfieldScale`；旧值不会再参与当前 BMS runtime contract。
+- `BmsPlayfieldAdjustmentContainer` 现固定为 identity transform，不再承接用户侧缩放或数值型横向偏移；这样非权威几何缩放不会再混入当前 visual-speed surface。
+- `BmsPlayfieldAdjustmentContainerTest` 与 `BmsRulesetConfigurationTest` 已改为锁定“unit scale + style-based single-play layout”合同；定向 `BmsRulesetConfigurationTest`、`BmsPlayfieldAdjustmentContainerTest`、`BmsLaneLayoutTest`、`TestSceneBmsPlayfieldLayoutConfig`、`BmsDrawableRulesetTest`、`BmsScrollSpeedMetricsTest` 合计 **90/90** 通过；`Build osu! (Release)` 通过。
+
 ## 2026-04-20
+
+### P1-A / P1-C：pre-start 稳定性修复与 `UI_LaneCoverFocus` / `UI_PreStartHold` 语义拆分
+
+- 修复 `BmsSoloPlayer` pre-start delayed start 引起的 clock failure：在 `BmsSoloPlayer.StartGameplay()` 开头调用 `GameplayClockContainer.Reset(startClock:false)` 强制停止从选曲页残留的 decoupled clock，并新增 `GameplayClockContainer.SoftUnpause()` 使 `isPaused=false` 但不启动底层时钟，让 `FrameStabilityContainer` 在 pre-start 期间仍能处理子组件（修复 playfield 不渲染的问题）。
+- 拆分 `UI_PreStartHold`（按住阻塞开谱并弹出 pre-start overlay）与 `UI_LaneCoverFocus`（单击循环 `Sudden / Hidden / Lift` 持久目标）为独立键位。新增 `BmsAction.PreStartHold` 枚举值、`OmsBmsActionMap` 全变体映射、`BmsInputStrings.PreStartHold` 本地化字符串，让 `UI_PreStartHold` 在设置面板可见。
+- `UI_LaneCoverFocus` 语义从 hold-to-temporarily-switch-to-Hidden 改为 click-to-cycle：按下时触发 `CycleGameplayAdjustmentTarget()` 在 `Sudden → Hidden → Lift` 之间循环，松开后不再恢复。修复了启用多个 mod 时无法切换到 Lift 的问题。
+- `DrawableBmsRuleset.canAdjustGameplaySettings` 新增 `FrameStableClock?.IsRunning ?? true` 检查，防止 pre-start 期间（IsPaused=false 但 IsRunning=false）无 hold 键时意外调节。
+- 默认键位：5K/7K/9K `UI_PreStartHold` = Q、`UI_LaneCoverFocus` = W；14K `UI_PreStartHold` = T、`UI_LaneCoverFocus` = Y。
+- 验证：`TestSceneBmsSoloPlayerPreStart` **6/6** 通过；`BmsRulesetModTest` **40/40** 通过；`Build osu! (Release)` 通过。
 
 ### P1-A / P1-C：tri-mode Hi-Speed surface 与 pre-start hold 调速窗口落地
 
 - `osu.Game.Rulesets.Bms` 已新增 `BmsHiSpeedMode` 与 `BmsHiSpeedRuntimeCalculator`；设置页现可在 `Normal / Floating / Classic Hi-Speed` 三种模式间切换，并只显示当前模式数值，不再把 `GN / ms` 写进 settings。
 - `DrawableBmsRuleset` 现已按模式发布 mode-aware `BmsScrollSpeedMetrics`、HUD detail line 与 OSD toast，其中 `Classic` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 首轮按 initial BPM 锚定 visual speed，但仍不宣称完整 mid-song re-float parity。
-- BMS song select 进入游玩后现有 5 秒 delayed start；按住 `UI_LaneCoverFocus` 会阻塞开谱并显示 pre-start overlay，期间可按键位奇数列加速、偶数列减速，且滚轮 / 中键仍可继续调节 `Sudden / Hidden / Lift` 与目标切换。
+- BMS song select 进入游玩后现有 5 秒 delayed start；按住 `UI_PreStartHold` 会阻塞开谱并显示 pre-start overlay，期间可按键位奇数列加速、偶数列减速，且 `UI_LaneCoverFocus` / 滚轮 / 中键仍可继续调节 `Sudden / Hidden / Lift` 与目标切换。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsDrawableRulesetTest"` **97/97** 通过；`Build osu! (Release)` 通过。
 
 ### P1-A / P1-C：strict Classic Hi-Speed + frozen geometry surface 落地

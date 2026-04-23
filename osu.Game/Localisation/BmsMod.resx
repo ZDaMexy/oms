@@ -4,6 +4,13 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="autoplay_description" xml:space="preserve"><value>Watch a perfect automated BMS playthrough.</value></data>
   <data name="auto_scratch_description" xml:space="preserve"><value>Automatically handles scratch notes and removes them from scoring and gauge.</value></data>
+  <data name="auto_note_description" xml:space="preserve"><value>Automatically handles non-scratch notes and removes them from scoring and gauge.</value></data>
+  <data name="note_visibility" xml:space="preserve"><value>Note visibility</value></data>
+  <data name="note_visibility_description" xml:space="preserve"><value>Controls whether auto-noted notes remain visible on the playfield.</value></data>
+  <data name="tint_notes" xml:space="preserve"><value>Tint notes</value></data>
+  <data name="tint_notes_description" xml:space="preserve"><value>Tint auto-noted notes to make the assist state obvious during play.</value></data>
+  <data name="note_tint_colour" xml:space="preserve"><value>Note tint colour</value></data>
+  <data name="note_tint_colour_description" xml:space="preserve"><value>The tint applied to auto-noted notes when tinting is enabled.</value></data>
   <data name="scratch_visibility" xml:space="preserve"><value>Scratch visibility</value></data>
   <data name="scratch_visibility_description" xml:space="preserve"><value>Controls whether auto-scratched notes remain visible on the playfield.</value></data>
   <data name="tint_scratch_notes" xml:space="preserve"><value>Tint scratch notes</value></data>
@@ -52,6 +59,8 @@
   <data name="cover_value_description" xml:space="preserve"><value>0-1000 maps to 0%-100% of playfield coverage.</value></data>
   <data name="cover_opacity" xml:space="preserve"><value>Cover opacity</value></data>
   <data name="cover_opacity_description" xml:space="preserve"><value>0-1000 maps to 0%-100% lane cover opacity.</value></data>
+  <data name="remember_gameplay_changes" xml:space="preserve"><value>Remember gameplay changes</value></data>
+  <data name="remember_gameplay_changes_description" xml:space="preserve"><value>When enabled, gameplay adjustments update this mod's saved configuration instead of applying only for the current play.</value></data>
   <data name="lift_description" xml:space="preserve"><value>Raises the judgement line by shortening the lane from the bottom (LIFT-style).</value></data>
   <data name="lift_value" xml:space="preserve"><value>Lift value</value></data>
   <data name="lift_value_description" xml:space="preserve"><value>0-1000 maps to 0%-100% of the current lane height.</value></data>

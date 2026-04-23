@@ -19,6 +19,41 @@ namespace osu.Game.Localisation
         public static LocalisableString AutoScratchDescription => new TranslatableString(getKey(@"auto_scratch_description"), @"Automatically handles scratch notes and removes them from scoring and gauge.");
 
         /// <summary>
+        /// "Automatically handles non-scratch notes and removes them from scoring and gauge."
+        /// </summary>
+        public static LocalisableString AutoNoteDescription => new TranslatableString(getKey(@"auto_note_description"), @"Automatically handles non-scratch notes and removes them from scoring and gauge.");
+
+        /// <summary>
+        /// "Note visibility"
+        /// </summary>
+        public static LocalisableString NoteVisibility => new TranslatableString(getKey(@"note_visibility"), @"Note visibility");
+
+        /// <summary>
+        /// "Controls whether auto-noted notes remain visible on the playfield."
+        /// </summary>
+        public static LocalisableString NoteVisibilityDescription => new TranslatableString(getKey(@"note_visibility_description"), @"Controls whether auto-noted notes remain visible on the playfield.");
+
+        /// <summary>
+        /// "Tint notes"
+        /// </summary>
+        public static LocalisableString TintNotes => new TranslatableString(getKey(@"tint_notes"), @"Tint notes");
+
+        /// <summary>
+        /// "Tint auto-noted notes to make the assist state obvious during play."
+        /// </summary>
+        public static LocalisableString TintNotesDescription => new TranslatableString(getKey(@"tint_notes_description"), @"Tint auto-noted notes to make the assist state obvious during play.");
+
+        /// <summary>
+        /// "Note tint colour"
+        /// </summary>
+        public static LocalisableString NoteTintColour => new TranslatableString(getKey(@"note_tint_colour"), @"Note tint colour");
+
+        /// <summary>
+        /// "The tint applied to auto-noted notes when tinting is enabled."
+        /// </summary>
+        public static LocalisableString NoteTintColourDescription => new TranslatableString(getKey(@"note_tint_colour_description"), @"The tint applied to auto-noted notes when tinting is enabled.");
+
+        /// <summary>
         /// "Scratch visibility"
         /// </summary>
         public static LocalisableString ScratchVisibility => new TranslatableString(getKey(@"scratch_visibility"), @"Scratch visibility");
@@ -247,6 +282,16 @@ namespace osu.Game.Localisation
         /// "0-1000 maps to 0%-100% lane cover opacity."
         /// </summary>
         public static LocalisableString CoverOpacityDescription => new TranslatableString(getKey(@"cover_opacity_description"), @"0-1000 maps to 0%-100% lane cover opacity.");
+
+        /// <summary>
+        /// "Remember gameplay changes"
+        /// </summary>
+        public static LocalisableString RememberGameplayChanges => new TranslatableString(getKey(@"remember_gameplay_changes"), @"Remember gameplay changes");
+
+        /// <summary>
+        /// "When enabled, gameplay adjustments update this mod's saved configuration instead of applying only for the current play."
+        /// </summary>
+        public static LocalisableString RememberGameplayChangesDescription => new TranslatableString(getKey(@"remember_gameplay_changes_description"), @"When enabled, gameplay adjustments update this mod's saved configuration instead of applying only for the current play.");
 
         /// <summary>
         /// "Raises the judgement line by shortening the lane from the bottom (LIFT-style)."

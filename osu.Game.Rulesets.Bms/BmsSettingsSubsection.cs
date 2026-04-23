@@ -11,7 +11,6 @@ using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.UI;
-using osu.Game.Rulesets.UI.Scrolling;
 
 namespace osu.Game.Rulesets.Bms
 {
@@ -75,11 +74,6 @@ namespace osu.Game.Rulesets.Bms
 
             Children = new Drawable[]
             {
-                new SettingsItemV2(new FormEnumDropdown<ScrollingDirection>
-                {
-                    Caption = RulesetSettingsStrings.ScrollingDirection,
-                    Current = config.GetBindable<ScrollingDirection>(BmsRulesetSetting.ScrollDirection),
-                }),
                 new SettingsItemV2(new FormEnumDropdown<BmsHiSpeedMode>
                 {
                     Caption = @"Hi-Speed 模式",
@@ -87,19 +81,11 @@ namespace osu.Game.Rulesets.Bms
                     Current = hiSpeedMode,
                 }),
                 new SettingsItemV2(hiSpeedSlider),
-                new SettingsItemV2(new FormSliderBar<double>
+                new SettingsItemV2(new FormEnumDropdown<BmsPlayfieldStyle>
                 {
-                    Caption = @"游玩区域缩放",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldScale),
-                    KeyboardStep = 0.05f,
-                    LabelFormat = value => $@"{value:0.00}x",
-                }),
-                new SettingsItemV2(new FormSliderBar<double>
-                {
-                    Caption = @"游玩区域水平偏移",
-                    Current = config.GetBindable<double>(BmsRulesetSetting.PlayfieldHorizontalOffset),
-                    KeyboardStep = 0.02f,
-                    LabelFormat = value => $@"{value:+0%;-0%;0%}",
+                    Caption = @"游玩区域样式",
+                    HintText = @"仅作用于5K/7K",
+                    Current = config.GetBindable<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle),
                 }),
                 new SettingsItemV2(new FormSliderBar<int>
                 {

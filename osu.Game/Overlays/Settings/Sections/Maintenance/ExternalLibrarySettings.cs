@@ -35,17 +35,14 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
         private ExternalLibraryScanner? libraryScanner { get; set; }
 
         [Resolved(CanBeNull = true)]
-        private ManagedLibraryScanner? managedLibraryScanner { get; set; }
-
-        [Resolved(CanBeNull = true)]
         private IPerformFromScreenRunner? performer { get; set; }
 
         [Resolved(CanBeNull = true)]
         private INotificationOverlay? notificationOverlay { get; set; }
 
         private FillFlowContainer rootsList = null!;
-        private SettingsButtonV2 scanExternalButton = null!;
-        private SettingsButtonV2? scanInternalButton;
+        private SettingsButtonV2 scanExternalRebuildButton = null!;
+        private SettingsButtonV2 scanExternalIncrementalButton = null!;
 
         [BackgroundDependencyLoader]
         private void load()
@@ -61,10 +58,16 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                 Spacing = new Vector2(0, 4),
             };
 
-            scanExternalButton = new SettingsButtonV2
+            scanExternalRebuildButton = new SettingsButtonV2
             {
-                Text = ExternalLibrarySettingsStrings.ScanExternalLibraries,
-                Action = scanExternalLibraries,
+                Text = ExternalLibrarySettingsStrings.ScanExternalLibrariesRebuild,
+                Action = () => scanExternalLibraries(ExternalLibraryScanner.ScanMode.Rebuild),
+            };
+
+            scanExternalIncrementalButton = new SettingsButtonV2
+            {
+                Text = ExternalLibrarySettingsStrings.ScanExternalLibrariesIncremental,
+                Action = () => scanExternalLibraries(ExternalLibraryScanner.ScanMode.Incremental),
             };
 
             var children = new List<Drawable>
@@ -80,17 +83,9 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                     Text = ExternalLibrarySettingsStrings.AddManiaLibraryFolder,
                     Action = () => addRoot(ExternalLibraryRootType.Mania),
                 },
-                scanExternalButton,
+                scanExternalRebuildButton,
+                scanExternalIncrementalButton,
             };
-
-            if (managedLibraryScanner != null)
-            {
-                children.Add(scanInternalButton = new SettingsButtonV2
-                {
-                    Text = ExternalLibrarySettingsStrings.ScanInternalLibraries,
-                    Action = scanInternalLibraries,
-                });
-            }
 
             AddRange(children.ToArray());
 
@@ -148,25 +143,17 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
             Schedule(refreshRootsList);
         }
 
-        private void scanExternalLibraries()
+        private void scanExternalLibraries(ExternalLibraryScanner.ScanMode mode)
         {
             if (libraryScanner == null) return;
 
             scanLibraries(
-                (progress, cancellationToken) => libraryScanner.ScanAllRoots(progress, cancellationToken),
-                ExternalLibrarySettingsStrings.ScanningExternalLibraries,
+                (progress, cancellationToken) => libraryScanner.ScanAllRoots(mode, progress, cancellationToken),
+                mode == ExternalLibraryScanner.ScanMode.Rebuild
+                    ? ExternalLibrarySettingsStrings.ScanningExternalLibrariesRebuild
+                    : ExternalLibrarySettingsStrings.ScanningExternalLibrariesIncremental,
                 "External library scan failed.",
                 refreshRoots: true);
-        }
-
-        private void scanInternalLibraries()
-        {
-            if (managedLibraryScanner == null) return;
-
-            scanLibraries(
-                (progress, cancellationToken) => managedLibraryScanner.ScanAllRoots(progress, cancellationToken),
-                ExternalLibrarySettingsStrings.ScanningInternalLibraries,
-                "Managed library scan failed.");
         }
 
         private void scanLibraries(Func<IProgress<ExternalLibraryScanner.ScanProgress>, CancellationToken, Task<ExternalLibraryScanner.ScanResult>> scanOperation,
@@ -233,10 +220,8 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
 
         private void setScanButtonsEnabled(bool enabled)
         {
-            scanExternalButton.Enabled.Value = enabled;
-
-            if (scanInternalButton != null)
-                scanInternalButton.Enabled.Value = enabled;
+            scanExternalRebuildButton.Enabled.Value = enabled;
+            scanExternalIncrementalButton.Enabled.Value = enabled;
         }
 
         private static void updateProgressNotification(ProgressNotification notification, ExternalLibraryScanner.ScanProgress progress, LocalisableString initialText)

@@ -13,7 +13,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public class BmsModRandom : ModRandom, IApplicableToBeatmap
+    public class BmsModRandom : ModRandom, IApplicableToBeatmap, IPreserveSettingsWhenDisabled
     {
         public override LocalisableString Description => BmsModStrings.RandomDescription;
 

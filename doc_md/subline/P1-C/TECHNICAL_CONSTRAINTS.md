@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-04-20
+> 最后更新：2026-04-22
 > 本文件记录 `P1-C` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -24,8 +24,12 @@
 5. **GN 典型值参考**：IIDX 玩家常用 GN 区间为 250（极快）– 330（偏慢），等价 VisibleLaneTime ≈ 417ms – 550ms。此数据仅供参考，不作为 OMS 硬编码限制。
 6. **Hi-Speed 可调范围**：当前公开范围应保持 `Normal 1.0 - 20.0`、`Floating 0.5 - 10.0`、`Classic 0.5 - 10.0`；除非明确另开严格 HS / FHS 语义专题，不得悄悄修改这些用户可见范围。
 7. **Classic base time 映射**：当前 `Classic` 的 `ComputeScrollTime(HS)` 必须保持为 `(100000 / 13) / HS`；`HS 10 + WN 350 => GN 300` 的官方 sample 必须持续成立。
-8. **pre-start hold 调速窗口**：进入 BMS gameplay 后必须先有 5 秒 delayed-start 窗口；按住 `UI_LaneCoverFocus` 时应阻塞开谱、显示当前模式与数值，并允许按键位奇数列加速、偶数列减速，同时继续使用滚轮 / 中键调节 `Sudden / Hidden / Lift` 与 target cycle。
-9. **strict geometry 冻结**：当前运行时 geometry profile 已冻结；除 `Sudden / Hidden / Lift` 外，用户可见 layout override 不得再进入 `VisibleLaneTime` / `GreenNumber` 语义链。
+8. **pre-start hold 调速窗口**：进入 BMS gameplay 后必须先有 5 秒 delayed-start 窗口；按住 `UI_PreStartHold` 时应阻塞开谱、显示当前模式与数值，并允许按键位奇数列加速、偶数列减速，同时 `UI_LaneCoverFocus`（click-to-cycle）/ 滚轮 / 中键可继续调节 `Sudden / Hidden / Lift` 与 target cycle。`UI_PreStartHold` 与 `UI_LaneCoverFocus` 已拆为独立动作：PreStartHold = 按住阻塞开谱，LaneCoverFocus = 单击循环目标。
+9. **strict geometry 冻结**：当前运行时 geometry profile 已冻结；`Playfield Scale` 必须固定为 `1.0` 并保持不可配置，因为缩放会破坏皮肤编排，并把非权威几何缩放混入 `VisibleLaneTime` / `GreenNumber` 体感。
+10. **GN 语义边界**：除 `Sudden / Hidden / Lift` 与当前 single-play `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`，只改变 5K / 7K 的 playfield 停靠与 scratch 视觉侧别）外，用户可见 layout override 不得再进入 `VisibleLaneTime` / `GreenNumber` 语义链。
+11. **BMS mod 记忆合同**：mod 选中状态与 remembered settings 只允许作为 BMS ruleset-local snapshot 持久化；切 ruleset / 重启可恢复，但不得把 mania / 全局 `SelectedMods` 变成隐式共享存储。
+12. **gameplay adjustment 回写合同**：`Sudden / Hidden / Lift` 的局内滚轮调整只有在 mod-local `RememberGameplayChanges = true` 时才允许写回当前 BMS selected mod 与持久化快照；关闭时必须保持 current-play-only 语义。
+13. **startup replay 时序合同**：`OsuGameBase` 在 startup 首次处理 BMS ruleset 时，若 `RulesetConfigCache` 尚未 ready，不得直接 `GetConfigFor()`；正确合同是允许无 config 的首轮 apply，并在 cache ready 后 replay 当前 ruleset 完成 `PersistedModState` restore。否则会同时造成冷启动 mod 记忆丢失与误报 ruleset failure。
 
 ## 反馈家族约束
 

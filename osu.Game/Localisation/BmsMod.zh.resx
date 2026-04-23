@@ -4,6 +4,13 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="autoplay_description" xml:space="preserve"><value>观看一次完美的自动 BMS 演奏。</value></data>
   <data name="auto_scratch_description" xml:space="preserve"><value>自动处理 scratch 音符，并将其移出分数与 gauge 计算。</value></data>
+  <data name="auto_note_description" xml:space="preserve"><value>自动处理 note 音符，并将其移出分数与 gauge 计算。</value></data>
+  <data name="note_visibility" xml:space="preserve"><value>note 可见性</value></data>
+  <data name="note_visibility_description" xml:space="preserve"><value>控制被 Auto Note 处理的音符是否仍显示在 playfield 上。</value></data>
+  <data name="tint_notes" xml:space="preserve"><value>给 note 音符着色</value></data>
+  <data name="tint_notes_description" xml:space="preserve"><value>为被 Auto Note 处理的音符添加着色，让辅助状态在游玩中更明显。</value></data>
+  <data name="note_tint_colour" xml:space="preserve"><value>note 着色颜色</value></data>
+  <data name="note_tint_colour_description" xml:space="preserve"><value>启用着色时应用到被 Auto Note 处理音符上的颜色。</value></data>
   <data name="scratch_visibility" xml:space="preserve"><value>scratch 可见性</value></data>
   <data name="scratch_visibility_description" xml:space="preserve"><value>控制被 Auto Scratch 处理的音符是否仍显示在 playfield 上。</value></data>
   <data name="tint_scratch_notes" xml:space="preserve"><value>给 scratch 音符着色</value></data>
@@ -52,6 +59,8 @@
   <data name="cover_value_description" xml:space="preserve"><value>0-1000 对应 playfield 覆盖率 0%-100%。</value></data>
   <data name="cover_opacity" xml:space="preserve"><value>遮挡不透明度</value></data>
   <data name="cover_opacity_description" xml:space="preserve"><value>0-1000 对应 SUDDEN/HIDDEN 遮挡层不透明度 0%-100%。</value></data>
+  <data name="remember_gameplay_changes" xml:space="preserve"><value>记忆游戏内变动</value></data>
+  <data name="remember_gameplay_changes_description" xml:space="preserve"><value>启用后，游戏内对该 mod 的调整会直接更新此 mod 的已保存配置，而不是只在当前一局生效。</value></data>
   <data name="lift_description" xml:space="preserve"><value>以 LIFT 风格通过从底部缩短轨道来抬高判定线。</value></data>
   <data name="lift_value" xml:space="preserve"><value>LIFT 值</value></data>
   <data name="lift_value_description" xml:space="preserve"><value>0-1000 对应当前轨道高度的 0%-100%。</value></data>

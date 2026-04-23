@@ -184,6 +184,17 @@ namespace osu.Game.Screens.Select
         {
             if (playerLoader == null) return;
 
+            if (modsAtGameplayStart != null)
+            {
+                foreach (var originalMod in modsAtGameplayStart.Where(mod => mod is IPreserveSettingsWhenDisabled))
+                {
+                    var currentMod = Mods.Value.SingleOrDefault(mod => mod.GetType() == originalMod.GetType());
+
+                    if (currentMod != null)
+                        originalMod.CopyCommonSettingsFrom(currentMod);
+                }
+            }
+
             Mods.Value = modsAtGameplayStart;
             playerLoader = null;
         }

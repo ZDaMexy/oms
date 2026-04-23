@@ -24,9 +24,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsPlayfieldLayoutProfile Profile { get; }
 
+        public BmsPlayfieldStyle Style { get; }
+
         public float TotalRelativeWidth { get; }
 
-        private BmsLaneLayout(Lane[] lanes, BmsKeymode keymode, BmsPlayfieldLayoutProfile profile)
+        private BmsLaneLayout(Lane[] lanes, BmsKeymode keymode, BmsPlayfieldLayoutProfile profile, BmsPlayfieldStyle style)
         {
             if (lanes.Length == 0)
                 throw new ArgumentException("Lane layout must contain at least one lane.", nameof(lanes));
@@ -34,10 +36,11 @@ namespace osu.Game.Rulesets.Bms.UI
             this.lanes = lanes;
             Keymode = keymode;
             Profile = profile;
+            Style = style;
             TotalRelativeWidth = lanes.Max(lane => lane.RelativeStart + lane.RelativeWidth);
         }
 
-        public static BmsLaneLayout CreateFor(IBeatmap beatmap, BmsPlayfieldLayoutProfile? profile = null)
+        public static BmsLaneLayout CreateFor(IBeatmap beatmap, BmsPlayfieldLayoutProfile? profile = null, BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
         {
             ArgumentNullException.ThrowIfNull(beatmap);
 
@@ -45,12 +48,13 @@ namespace osu.Game.Rulesets.Bms.UI
             var detectedScratchLanes = beatmap.HitObjects.OfType<BmsHitObject>().Where(hitObject => hitObject.IsScratch).Select(hitObject => hitObject.LaneIndex).ToHashSet();
             var keymode = beatmap is BmsBeatmap bmsBeatmap ? bmsBeatmap.BmsInfo.Keymode : BmsKeymode.Key7K;
 
-            return CreateForKeymode(keymode, detectedLaneCount, detectedScratchLanes, profile);
+            return CreateForKeymode(keymode, detectedLaneCount, detectedScratchLanes, profile, style);
         }
 
-        public static BmsLaneLayout CreateForKeymode(BmsKeymode keymode, int minimumLaneCount = 0, ISet<int>? scratchLaneIndices = null, BmsPlayfieldLayoutProfile? profile = null)
+        public static BmsLaneLayout CreateForKeymode(BmsKeymode keymode, int minimumLaneCount = 0, ISet<int>? scratchLaneIndices = null, BmsPlayfieldLayoutProfile? profile = null, BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
         {
             int laneCount = Math.Max(getExpectedLaneCount(keymode), minimumLaneCount);
+            var appliedStyle = style.GetAppliedStyle(keymode);
             profile ??= BmsPlayfieldLayoutProfile.CreateDefault(keymode, laneCount);
 
             if (profile.Keymode != keymode || profile.LaneCount != laneCount)
@@ -64,29 +68,43 @@ namespace osu.Game.Rulesets.Bms.UI
                     allScratchLaneIndices.Add(laneIndex);
             }
 
-            var lanes = new Lane[laneCount];
-            float currentStart = 0;
+            var laneWidths = new float[laneCount];
+            var laneActions = new BmsAction[laneCount];
+            var laneIsScratch = new bool[laneCount];
+
             int scratchOrdinal = 0;
             int keyOrdinal = 0;
 
             for (int i = 0; i < laneCount; i++)
             {
                 bool isScratch = allScratchLaneIndices.Contains(i);
-                float spacingBefore = i == 0 ? 0 : profile.GetRelativeLaneSpacing(lanes[i - 1].IsScratch, isScratch);
-                float relativeWidth = profile.GetRelativeLaneWidth(isScratch);
-                var action = isScratch ? BmsActionExtensions.GetScratchAction(scratchOrdinal++) : BmsActionExtensions.GetKeyAction(keyOrdinal++);
+
+                laneIsScratch[i] = isScratch;
+                laneWidths[i] = profile.GetRelativeLaneWidth(isScratch);
+                laneActions[i] = isScratch ? BmsActionExtensions.GetScratchAction(scratchOrdinal++) : BmsActionExtensions.GetKeyAction(keyOrdinal++);
+            }
+
+            int[] visualLaneOrder = getVisualLaneOrder(keymode, laneCount, appliedStyle);
+            var lanes = new Lane[laneCount];
+            float currentStart = 0;
+
+            for (int visualIndex = 0; visualIndex < visualLaneOrder.Length; visualIndex++)
+            {
+                int laneIndex = visualLaneOrder[visualIndex];
+                bool isScratch = laneIsScratch[laneIndex];
+                float spacingBefore = visualIndex == 0 ? 0 : profile.GetRelativeLaneSpacing(laneIsScratch[visualLaneOrder[visualIndex - 1]], isScratch);
 
                 // Insert a 2-lane-width DP centre gap between 1P keys and 2P keys.
-                if (keymode == BmsKeymode.Key14K && laneCount > 8 && i == 8)
+                if (keymode == BmsKeymode.Key14K && laneCount > 8 && laneIndex == 8)
                     spacingBefore += profile.NormalLaneRelativeWidth * 2;
 
                 currentStart += spacingBefore;
 
-                lanes[i] = new Lane(i, currentStart, relativeWidth, spacingBefore, isScratch, action);
-                currentStart += relativeWidth;
+                lanes[laneIndex] = new Lane(laneIndex, currentStart, laneWidths[laneIndex], spacingBefore, isScratch, laneActions[laneIndex]);
+                currentStart += laneWidths[laneIndex];
             }
 
-            return new BmsLaneLayout(lanes, keymode, profile);
+            return new BmsLaneLayout(lanes, keymode, profile, appliedStyle);
         }
 
         public Lane GetLane(int laneIndex)
@@ -116,6 +134,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 BmsKeymode.Key14K => new HashSet<int> { 0 },
                 _ => new HashSet<int>(),
             };
+        }
+
+        private static int[] getVisualLaneOrder(BmsKeymode keymode, int laneCount, BmsPlayfieldStyle style)
+        {
+            if (style.UsesScratchVisualRight() && (keymode == BmsKeymode.Key5K || keymode == BmsKeymode.Key7K))
+                return Enumerable.Range(1, laneCount - 1).Append(0).ToArray();
+
+            return Enumerable.Range(0, laneCount).ToArray();
         }
 
         public readonly struct Lane

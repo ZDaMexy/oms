@@ -157,7 +157,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
 
             seekTo(() => scratchNotes[0].StartTime);
             pulseScratch("pulse first second scratch mouse note", 4);
@@ -174,7 +174,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch late-hit mouse notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch late-hit mouse notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddAssert("second scratch mouse note stays inside earlier poor window", () => scratchNotes[1].StartTime - scratchNotes[0].StartTime < scratchNotes[0].HitWindows.WindowFor(HitResult.Miss));
             seekTo(() => scratchNotes[1].StartTime);
             pulseScratch("late second scratch mouse pulse", 4);
@@ -188,7 +188,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
 
             seekTo(() => scratchNotes[0].StartTime);
             pulseHidScratch("pulse first second scratch HID note", 4);
@@ -205,7 +205,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch late-hit HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch late-hit HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddAssert("second scratch HID note stays inside earlier poor window", () => scratchNotes[1].StartTime - scratchNotes[0].StartTime < scratchNotes[0].HitWindows.WindowFor(HitResult.Miss));
             seekTo(() => scratchNotes[1].StartTime);
             pulseHidScratch("late second scratch HID pulse", 4);
@@ -219,7 +219,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap(), mouseTrigger: createInvertedMouseScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch mouse notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("inverted second scratch mouse notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
 
             seekTo(() => scratchNotes[0].StartTime);
             pulseScratch("pulse first inverted second scratch mouse note", -4);
@@ -236,7 +236,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), mouseTrigger: createInvertedMouseScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch late-hit mouse notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("inverted second scratch late-hit mouse notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddAssert("inverted second scratch mouse note stays inside earlier poor window", () => scratchNotes[1].StartTime - scratchNotes[0].StartTime < scratchNotes[0].HitWindows.WindowFor(HitResult.Miss));
             seekTo(() => scratchNotes[1].StartTime);
             pulseScratch("late inverted second scratch mouse pulse", -4);
@@ -250,7 +250,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap(), hidTrigger: createInvertedHidScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("inverted second scratch HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
 
             seekTo(() => scratchNotes[0].StartTime);
             pulseHidScratch("pulse first inverted second scratch HID note", -4);
@@ -267,7 +267,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), hidTrigger: createInvertedHidScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch late-hit HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("inverted second scratch late-hit HID notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddAssert("inverted second scratch HID note stays inside earlier poor window", () => scratchNotes[1].StartTime - scratchNotes[0].StartTime < scratchNotes[0].HitWindows.WindowFor(HitResult.Miss));
             seekTo(() => scratchNotes[1].StartTime);
             pulseHidScratch("late inverted second scratch HID pulse", -4);
@@ -281,7 +281,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
 
-            AddAssert("second scratch XInput notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch XInput notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
 
             seekTo(() => scratchNotes[0].StartTime);
             pressXInputScratch("press first second scratch XInput note");
@@ -303,7 +303,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
 
-            AddAssert("second scratch late-hit XInput notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch late-hit XInput notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddAssert("second scratch XInput note stays inside earlier poor window", () => scratchNotes[1].StartTime - scratchNotes[0].StartTime < scratchNotes[0].HitWindows.WindowFor(HitResult.Miss));
             seekTo(() => scratchNotes[1].StartTime);
             pressXInputScratch("press late second scratch XInput note");
@@ -411,7 +411,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -430,7 +430,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch mouse suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch mouse suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -449,7 +449,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
 
-            AddAssert("second scratch XInput suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("second scratch XInput suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -471,7 +471,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), hidTrigger: createInvertedHidScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch HID suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("inverted second scratch HID suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -490,7 +490,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), mouseTrigger: createInvertedMouseScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch mouse suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 15));
+            AddAssert("inverted second scratch mouse suppression notes land on lane 8", () => scratchNotes.All(note => note.LaneIndex == 8));
             AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -562,7 +562,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
 
-            AddAssert("second scratch XInput hold lands on lane 8", () => scratchHold.LaneIndex == 15);
+            AddAssert("second scratch XInput hold lands on lane 8", () => scratchHold.LaneIndex == 8);
 
             seekTo(() => scratchHold.StartTime);
             pressXInputScratch("press second scratch XInput at hold head");
@@ -710,7 +710,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
 
-            AddAssert("second scratch hold lands on lane 8", () => scratchHold.LaneIndex == 15);
+            AddAssert("second scratch hold lands on lane 8", () => scratchHold.LaneIndex == 8);
 
             seekTo(() => scratchHold.StartTime);
             AddStep("press second scratch keyboard at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
@@ -739,7 +739,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch mouse hold lands on lane 8", () => scratchHold.LaneIndex == 15);
+            AddAssert("second scratch mouse hold lands on lane 8", () => scratchHold.LaneIndex == 8);
 
             seekTo(() => scratchHold.StartTime);
             AddStep("press second scratch keyboard at mouse hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
@@ -766,7 +766,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("second scratch HID hold lands on lane 8", () => scratchHold.LaneIndex == 15);
+            AddAssert("second scratch HID hold lands on lane 8", () => scratchHold.LaneIndex == 8);
 
             seekTo(() => scratchHold.StartTime);
             AddStep("press second scratch keyboard at HID hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
@@ -793,7 +793,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScratchHoldScene(createSecondScratchHoldBeatmap(), mouseTrigger: createInvertedMouseScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch mouse hold lands on lane 8", () => scratchHold.LaneIndex == 15);
+            AddAssert("inverted second scratch mouse hold lands on lane 8", () => scratchHold.LaneIndex == 8);
 
             seekTo(() => scratchHold.StartTime);
             AddStep("press second scratch keyboard at inverted mouse hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
@@ -820,7 +820,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScratchHoldScene(createSecondScratchHoldBeatmap(), hidTrigger: createInvertedHidScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
-            AddAssert("inverted second scratch HID hold lands on lane 8", () => scratchHold.LaneIndex == 15);
+            AddAssert("inverted second scratch HID hold lands on lane 8", () => scratchHold.LaneIndex == 8);
 
             seekTo(() => scratchHold.StartTime);
             AddStep("press second scratch keyboard at inverted HID hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));

@@ -7,13 +7,14 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.Drawables;
 using osu.Game.Database;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Localisation;
-using osu.Game.Online;
+using osu.Game.Overlays.Settings;
 using osuTK;
 using osuTK.Graphics;
 using Realms;
@@ -23,15 +24,7 @@ namespace osu.Game.Overlays.FirstRunSetup
     [LocalisableDescription(typeof(FirstRunSetupBeatmapScreenStrings), nameof(FirstRunSetupBeatmapScreenStrings.Header))]
     public partial class ScreenBeatmaps : WizardScreen
     {
-        private ProgressRoundedButton downloadBundledButton = null!;
-        private ProgressRoundedButton downloadTutorialButton = null!;
-
-        private OsuTextFlowContainer downloadInBackgroundText = null!;
-
         private OsuTextFlowContainer currentlyLoadedBeatmaps = null!;
-
-        private BundledBeatmapDownloader? tutorialDownloader;
-        private BundledBeatmapDownloader? bundledDownloader;
 
         [Resolved]
         private OsuColour colours { get; set; } = null!;
@@ -39,16 +32,19 @@ namespace osu.Game.Overlays.FirstRunSetup
         [Resolved]
         private RealmAccess realmAccess { get; set; } = null!;
 
-        [Resolved(CanBeNull = true)]
-        private OsuGameBase? game { get; set; }
+        [Resolved]
+        private GameHost host { get; set; } = null!;
 
         private IDisposable? beatmapSubscription;
 
         [BackgroundDependencyLoader]
         private void load()
         {
-            Vector2 buttonSize = new Vector2(400, 50);
-            bool onlineFeaturesEnabled = game?.OnlineFeaturesEnabled ?? true;
+            const string maniaOfficialUrl = "https://osu.ppy.sh/beatmapsets";
+            const string maniaSayobotUrl = "https://osu.sayobot.cn/home";
+            const string bmsDownloadUrl = "https://cloud.hakula.xyz/home?path=cloudreve%3A%2F%2F7aTX%40share";
+
+            Vector2 buttonSize = new Vector2(320, 50);
 
             Content.Children = new Drawable[]
             {
@@ -75,59 +71,32 @@ namespace osu.Game.Overlays.FirstRunSetup
                         },
                     }
                 },
+                createSectionHeader(FirstRunSetupBeatmapScreenStrings.ManiaHeader),
+                new FillFlowContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Direction = FillDirection.Full,
+                    Spacing = new Vector2(12),
+                    Children = new Drawable[]
+                    {
+                        createLinkButton(FirstRunSetupBeatmapScreenStrings.ManiaOfficialButton, maniaOfficialUrl, buttonSize, colours.Pink3),
+                        createLinkButton(FirstRunSetupBeatmapScreenStrings.ManiaSayobotButton, maniaSayobotUrl, buttonSize, colours.Purple2),
+                    }
+                },
+                createSectionHeader(FirstRunSetupBeatmapScreenStrings.BmsHeader),
+                createLinkButton(FirstRunSetupBeatmapScreenStrings.BmsDownloadButton, bmsDownloadUrl, buttonSize, colours.Blue3),
                 new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                 {
                     Colour = OverlayColourProvider.Content1,
-                    Text = FirstRunSetupBeatmapScreenStrings.TutorialDescription,
+                    Text = FirstRunSetupBeatmapScreenStrings.ImportInstructions,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },
-                downloadTutorialButton = new ProgressRoundedButton
+                new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: 12))
                 {
-                    Size = buttonSize,
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    BackgroundColour = colours.Pink3,
-                    Text = FirstRunSetupBeatmapScreenStrings.TutorialButton,
-                    Action = downloadTutorial
-                },
-                new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
-                {
-                    Colour = OverlayColourProvider.Content1,
-                    Text = FirstRunSetupBeatmapScreenStrings.BundledDescription,
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y
-                },
-                downloadBundledButton = new ProgressRoundedButton
-                {
-                    Size = buttonSize,
-                    Anchor = Anchor.TopCentre,
-                    Origin = Anchor.TopCentre,
-                    BackgroundColour = colours.Blue3,
-                    Text = FirstRunSetupBeatmapScreenStrings.BundledButton,
-                    Action = downloadBundled
-                },
-                new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
-                {
-                    Colour = colours.Yellow,
-                    Alpha = onlineFeaturesEnabled ? 0 : 1,
-                    Text = FirstRunSetupBeatmapScreenStrings.OnlineDownloadsDisabled,
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y
-                },
-                downloadInBackgroundText = new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
-                {
-                    Colour = OverlayColourProvider.Light2,
-                    Alpha = 0,
-                    TextAnchor = Anchor.TopCentre,
-                    Text = FirstRunSetupBeatmapScreenStrings.DownloadingInBackground,
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y
-                },
-                new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
-                {
-                    Colour = OverlayColourProvider.Content1,
-                    Text = onlineFeaturesEnabled ? FirstRunSetupBeatmapScreenStrings.ObtainMoreBeatmaps : FirstRunSetupBeatmapScreenStrings.ObtainBeatmapsOffline,
+                    Colour = OverlayColourProvider.Content2,
+                    Text = FirstRunSetupBeatmapScreenStrings.ExternalLinkDisclaimer,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },
@@ -137,14 +106,6 @@ namespace osu.Game.Overlays.FirstRunSetup
         protected override void LoadComplete()
         {
             base.LoadComplete();
-
-            if (!(game?.OnlineFeaturesEnabled ?? true))
-            {
-                downloadTutorialButton.Enabled.Value = false;
-                downloadBundledButton.Enabled.Value = false;
-                downloadTutorialButton.Alpha = 0.5f;
-                downloadBundledButton.Alpha = 0.5f;
-            }
 
             beatmapSubscription = realmAccess.RegisterForNotifications(r => r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected), beatmapsChanged);
         }
@@ -173,60 +134,24 @@ namespace osu.Game.Overlays.FirstRunSetup
             }
         });
 
-        private void downloadTutorial()
-        {
-            if (!(game?.OnlineFeaturesEnabled ?? true))
-                return;
-
-            if (tutorialDownloader != null)
-                return;
-
-            tutorialDownloader = new BundledBeatmapDownloader(true);
-
-            AddInternal(tutorialDownloader);
-
-            var downloadTracker = tutorialDownloader.DownloadTrackers.First();
-
-            downloadTracker.State.BindValueChanged(state =>
+        private Drawable createSectionHeader(LocalisableString title)
+            => new OsuSpriteText
             {
-                if (state.NewValue == DownloadState.LocallyAvailable)
-                    downloadTutorialButton.Complete();
-            }, true);
+                Text = title,
+                Font = OsuFont.GetFont(size: 18, weight: FontWeight.Bold),
+                Colour = OverlayColourProvider.Content2,
+            };
 
-            downloadTracker.Progress.BindValueChanged(progress =>
+        private SettingsButtonV2 createLinkButton(LocalisableString text, string url, Vector2 size, Colour4 colour)
+            => new SettingsButtonV2
             {
-                downloadTutorialButton.SetProgress(progress.NewValue, false);
-            }, true);
-        }
-
-        private void downloadBundled()
-        {
-            if (!(game?.OnlineFeaturesEnabled ?? true))
-                return;
-
-            if (bundledDownloader != null)
-                return;
-
-            downloadInBackgroundText
-                .FlashColour(Color4.White, 500)
-                .FadeIn(200);
-
-            bundledDownloader = new BundledBeatmapDownloader(false);
-
-            AddInternal(bundledDownloader);
-
-            foreach (var tracker in bundledDownloader.DownloadTrackers)
-                tracker.State.BindValueChanged(_ => updateProgress(), true);
-
-            void updateProgress()
-            {
-                double progress = (double)bundledDownloader.DownloadTrackers.Count(t => t.State.Value == DownloadState.LocallyAvailable) / bundledDownloader.DownloadTrackers.Count();
-
-                if (progress == 1)
-                    downloadBundledButton.Complete();
-                else
-                    downloadBundledButton.SetProgress(progress, true);
-            }
-        }
+                RelativeSizeAxes = Axes.None,
+                AutoSizeAxes = Axes.None,
+                Width = size.X,
+                Height = size.Y,
+                Text = text,
+                BackgroundColour = colour,
+                Action = () => host.OpenUrlExternally(url),
+            };
     }
 }

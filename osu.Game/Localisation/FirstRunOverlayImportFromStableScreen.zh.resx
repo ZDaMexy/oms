@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="description" xml:space="preserve"><value>如果您安装有osu!stable（非lazer），或已经有本地其他目录的bms谱库，可以直接选择外部目录进行外部遍历索引，索引不会复制谱面文件占用额外的储存空间。</value></data>
+</root>

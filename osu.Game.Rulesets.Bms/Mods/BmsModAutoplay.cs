@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Bms.Mods
 
         public override LocalisableString Description => BmsModStrings.AutoplayDescription;
 
-        public override Type[] IncompatibleMods => base.IncompatibleMods.Concat(new[] { typeof(BmsModAutoScratch) }).ToArray();
+        public override Type[] IncompatibleMods => base.IncompatibleMods.Concat(new[] { typeof(BmsModAutoScratch), typeof(BmsModAutoNote) }).ToArray();
 
         public override ModReplayData CreateReplayData(IBeatmap beatmap, IReadOnlyList<Mod> mods)
         {

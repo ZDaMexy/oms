@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="welcome_description" xml:space="preserve"><value>Welcome to the first-run setup guide!
+
+oms is a fork client based on osu!lazer. It adds direct support for the custom BMS ruleset and removes all modes except mania.
+This first-run setup guide helps you quickly configure a few important settings.
+Join our QQ group: 650530995
+Or find us on GitHub: ZDaMexy/oms
+Contact us to discuss, get a better gameplay experience, and share feedback and suggestions!
+welcome to oms!</value></data>
+</root>

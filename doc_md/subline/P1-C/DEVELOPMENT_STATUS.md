@@ -1,12 +1,12 @@
 # P1-C 开发进度：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-04-20
+> 最后更新：2026-04-22
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-C` 的真实进展。
 
 ## 当前阶段
 
 - **阶段定位**：C1（权威绿色数字常驻反馈）首轮实现已完成；C2（`Sudden / Hidden / Lift` 联动收口）已从 strict Classic 扩到 tri-mode；C3（判定语义与训练反馈收口）已推进到第七刀，当前已完成“最近判定 + FAST/SLOW”入同一 feedback container、瞬时 judge display 生命周期、compact visual timing-offset sparkline、fixed AAA EX pacemaker 差值、compact live judgement summary、live `DJ LEVEL + EX 原始分子/分母 + %`，以及基于现有 counts 派生、且已带紧凑原因标签的 live `PERFECT / FC / FC LOST` 状态线；与此同时，tri-mode Hi-Speed surface 与 pre-start hold operator window 也已首轮接通。
-- **代码状态**：常驻 speed feedback HUD 已落地，并开始承担 gameplay feedback；`BmsScrollSpeedMetrics` / `BmsSpeedMetricsToast` / `Normal / Floating / Classic Hi-Speed` 调速链均已接到统一 feedback 表达，HUD 现在可区分 `NONE` / `ONLY` / 多 target 可切换状态、cycle 序号与 `HOLD` 临时覆写态，同时会显示最近一次判定与 `FAST/SLOW` timing 文案；最近判定反馈已改为瞬时 judge display 语义，会在短时间后自动消隐，重复同类判定也会刷新显示窗口；同一张 feedback card 现已接入 compact visual timing-offset sparkline、fixed AAA 目标的 EX pacemaker 文案、两行 compact live judgement summary、live `DJ LEVEL + EX 原始分子/分母 + %`，以及一条基于现有 judgement counts 派生、可进一步显示 `GR` 或最轻 break bucket 的 live `PERFECT / FC / FC LOST` 状态线。当前 tri-mode surface 中，`Normal` 为默认 settings surface，`Floating` 为 initial-BPM anchored runtime surface，`Classic` 继续锁定 `(100000 / 13) / HS` 与官方 sample；进入 gameplay 后则新增 5 秒 delayed-start 窗口，按住 `UI_LaneCoverFocus` 会阻塞开谱并显示 pre-start overlay，期间可按键位奇数列增速、偶数列减速，且滚轮 / 中键仍可继续调节 `Sudden / Hidden / Lift` 与 target cycle。对应 `TestSceneBmsSoloPlayerPreStart` 现已额外锁住“提前松开仍等待 delayed-start”与“hold 期间 persistent target cycle 不破坏临时 bottom override”两条 start-sequence 分支。display 默认继续通过 `BmsGameplayFeedbackState` 消费 speed metrics / target-state / latest judgement / judgement counts / live EX progress / pacemaker / timing visual range 这批 scalar state，recent history 仍独立流转。
+- **代码状态**：常驻 speed feedback HUD 已落地，并开始承担 gameplay feedback；`BmsScrollSpeedMetrics` / `BmsSpeedMetricsToast` / `Normal / Floating / Classic Hi-Speed` 调速链均已接到统一 feedback 表达，HUD 现在可区分 `NONE` / `ONLY` / 多 target 可切换状态、cycle 序号，单击 `UI_LaneCoverFocus`（或鼠标中键）会在已启用项之间循环切换持久目标（`Sudden → Hidden → Lift → ...`），同时会显示最近一次判定与 `FAST/SLOW` timing 文案；最近判定反馈已改为瞬时 judge display 语义，会在短时间后自动消隐，重复同类判定也会刷新显示窗口；同一张 feedback card 现已接入 compact visual timing-offset sparkline、fixed AAA 目标的 EX pacemaker 文案、两行 compact live judgement summary、live `DJ LEVEL + EX 原始分子/分母 + %`，以及一条基于现有 judgement counts 派生、可进一步显示 `GR` 或最轻 break bucket 的 live `PERFECT / FC / FC LOST` 状态线。当前 tri-mode surface 中，`Normal` 为默认 settings surface，`Floating` 为 initial-BPM anchored runtime surface，`Classic` 继续锁定 `(100000 / 13) / HS` 与官方 sample；进入 gameplay 后则新增 5 秒 delayed-start 窗口，按住 `UI_PreStartHold` 会阻塞开谱并显示 pre-start overlay，期间可按键位奇数列增速、偶数列减速，且 `UI_LaneCoverFocus` / 滚轮 / 中键仍可继续调节 `Sudden / Hidden / Lift` 与 target cycle。`UI_PreStartHold` 与 `UI_LaneCoverFocus` 已拆为独立动作（PreStartHold = 按住阻塞开谱，LaneCoverFocus = 单击循环目标），pre-start 期间 playfield 通过 `SoftUnpause()` 正常渲染。对应 `TestSceneBmsSoloPlayerPreStart` 现已额外锁住“提前松开仍等待 delayed-start”与“click-to-cycle 在 Sudden → Hidden → Lift 之间完整循环”两条分支。display 默认继续通过 `BmsGameplayFeedbackState` 消费 speed metrics / target-state / latest judgement / judgement counts / live EX progress / pacemaker / timing visual range 这批 scalar state，recent history 仍独立流转。与此同时，BMS mod 选中状态与 non-default settings 现已通过 `PersistedModState` 作为 ruleset-local snapshot 持久化；`Sudden` / `Hidden` / `Lift` 的 gameplay wheel 调整则由 `RememberGameplayChanges` 控制是否跨 gameplay clone 回写到当前 selected mod 并延续到回场后状态。考虑 `RulesetConfigCache` 的 startup 顺序后，宿主现会在 cache ready 后 replay 当前 ruleset，因此完全冷启动第一次进入 BMS 也会恢复 selected mods / remembered settings，且不再误报 ruleset failure。
 - **文档状态**：`P1-C` 的计划、状态、变动日志、技术约束已与 C3 第七刀和 aggregate scalar state contract 第四刀同步。
 - **外部参考状态**：已完成 [iidx.org](https://iidx.org/) 五篇参考文章（green number / hi-speed / floating / in-game controls / IIDX-LR2-beatoraja differences）的审计，GN 公式 / WN 语义 / LIFT 独立性 / soflan 行为均已与当前代码对照确认，结论已写入 `TECHNICAL_CONSTRAINTS.md`。
 
@@ -18,13 +18,17 @@
 - Lift 通过几何链（`ScrollLengthRatio`）间接影响 GN（正确行为）。
 - 当前常驻 `DefaultBmsSpeedFeedbackDisplay` 已接入 HUD，显示 `GN + 可见毫秒 + 模式缩写和值 + 当前目标`。
 - 当前 tri-mode Hi-Speed surface 已完成首轮接线：`Normal`、`Floating`、`Classic` 都可在 settings 与 runtime 间切换，其中 `Classic` 仍锁定 `HS 10 + WN 350 => GN 300`，`Floating` 目前只做到 initial-BPM anchored surface；这仍不等价于完整 FHS。
+- BMS mod 选中状态与 remembered settings 现通过 `BmsRulesetConfigManager.PersistedModState` 作为 ruleset-local snapshot 持久化；重启与 ruleset 切换恢复只作用于 BMS，不外溢到 mania。
+- 冷启动首轮若发生在 `RulesetConfigCache` ready 前，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再做 restore；这条时序合同同时修复了 startup ruleset false-failure 与 BMS mod 冷启动漏恢复。
+- `Playfield Scale` 已从 settings / runtime config 移除并固定为 `1.0`；数值型 `Playfield Horizontal Offset` 也已退出，改为四态 `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`）这一不改变 `VisibleLaneTime` / `GreenNumber` 语义的 single-play presentation surface，其中 `1P / 2P` 为“侧停靠但保留固定屏侧间距”。只有 `Sudden / Hidden / Lift` 可以合法影响当前可见时间语义；9K 固定居中，14K 固定双侧布局。
 - `DrawableBmsRuleset` 现已暴露 `HiSpeedMode` 与 `SelectedHiSpeed`，pre-start overlay 与 HUD 可共享同一组 runtime 选择状态。
 - `BmsInputManager` 现已具备 variant-aware odd/even lane key 调速映射，供 pre-start hold 窗口复用。
 - `BmsScrollSpeedMetrics` 已具备 `IEquatable<>` 值语义，可安全挂到 Bindable。
 - `DrawableBmsRuleset` 已暴露 `SpeedMetrics` 与 `ActiveAdjustmentTarget` 响应式状态。
+- `DrawableBmsRuleset` 现会在 `RememberGameplayChanges = true` 时把 `Sudden` / `Hidden` / `Lift` 的局内调整同步回当前全局 selected mod；`SoloSongSelect.revertMods()` 回场前再把这些设置合并回开局快照，避免 gameplay clone 边界吞掉 lane cover / lift 改动。
 - `DrawableBmsRuleset` 已暴露 `EnabledAdjustmentTargetCount`，HUD 可显式区分无可调目标、单目标锁定与多目标循环。
 - `DrawableBmsRuleset` 已暴露 `ActiveAdjustmentTargetIndex`，HUD 可在多 target 场景显示当前 target 的循环位置（如 `2/3`）。
-- `DrawableBmsRuleset` 已暴露 `IsAdjustmentTargetTemporarilyOverridden`，HUD 可显式区分按住 `UI_LaneCoverFocus` 产生的临时覆写态（如 `HID HOLD`）。
+- `DrawableBmsRuleset` 已暴露 `IsAdjustmentTargetTemporarilyOverridden`，HUD 可显式区分临时覆写态（如从 `AdjustLaneCover(preferBottom)` 产生的临时底层覆写）。
 - `DrawableBmsRuleset` 已暴露 `LatestJudgementFeedback`，HUD 可在同一 feedback container 中显示最近一次判定与 `FAST/SLOW` timing 文案。
 - `DrawableBmsRuleset` 已暴露 `RecentJudgementFeedbacks` 与 `TimingFeedbackVisualRange`，HUD 可在同一 feedback container 中显示 compact visual timing-offset sparkline。
 - `DrawableBmsRuleset` 已暴露 `ExScorePacemakerInfo`，HUD 可在同一 feedback container 中显示 fixed AAA 目标的 EX pacemaker 差值。
@@ -58,7 +62,7 @@
 | C1.6 Toast 语义退位 | 已完成 | toast 保留为操作确认层，不再是唯一权威反馈 |
 | C1.7 测试 | 已完成 | 单元 + 视觉 + 皮肤 fallback 已验证 |
 | tri-mode Hi-Speed surface + pre-start hold | 已完成 | settings/runtime/player hook 首轮已接通 |
-| `Sudden / Hidden / Lift` HUD 联动（C2） | 已完成 | 已补 target 数量状态、`NONE` / `ONLY` 语义、cycle 序号、Hidden 临时覆写与 `HOLD` 文案 |
+| `Sudden / Hidden / Lift` HUD 联动（C2） | 已完成 | 已补 target 数量状态、`NONE` / `ONLY` 语义、click-to-cycle 循环与临时覆写文案 |
 | `FAST/SLOW` / judge display / pacemaker 家族化（C3） | 进行中 | 已补最近判定 + `FAST/SLOW`、瞬时 judge display 生命周期、compact visual timing-offset、fixed AAA EX pacemaker、compact judgement summary、live `DJ LEVEL + EX 原始分子/分母 + %` 与带紧凑原因标签的 live `PERFECT / FC / FC LOST` 状态线；剩余更丰富 judge display 与后续 pacemaker 扩展 |
 | BRJ / LR2 parity 收口 | 未开始 | 当前仍缺 early/late 非对称与 excessive poor 等关键细节 |
 
@@ -73,12 +77,16 @@
 ## 下一检查点
 
 1. 继续推进 C3，把更完整 judge display 与后续 pacemaker 扩展继续收到同一 feedback family。
-2. 继续为 tri-mode / pre-start hold 补 dedicated integration coverage；当前已锁住提前松开 delayed-start 与 persistent target cycle 两条关键分支，下一步重点是更完整的 visual / input-event path 与 delayed-start 时序合同。
+2. 继续为 tri-mode / pre-start hold 补 dedicated integration coverage；当前已锁住提前松开 delayed-start、persistent target cycle 与 BMS mod 冷启动恢复三条关键分支，下一步重点是更完整的 visual / input-event path 与 delayed-start 时序合同。
 3. 推进 C4，把 `GameplayFeedbackDisplay` 的作者文档与 aggregate state contract 继续补齐。
 
 ## 验证记录
 
-- 2026-04-20：扩展 `TestSceneBmsSoloPlayerPreStart`，新增“提前松开 hold 仍等待 delayed-start”“hold 期间 persistent target cycle 不破坏临时 bottom override”两条 start-sequence 回归，并补上 odd/even lane hi-speed 双向断言；定向 `TestSceneBmsSoloPlayerPreStart` **5/5** 通过。
+- 2026-04-22：补齐 BMS mod 冷启动恢复路径；`OsuGameBase` 现会在 `RulesetConfigCache` ready 后 replay 当前 ruleset，避免 startup 首轮丢失 selected mods / remembered settings，并消除 `BMS` / `osu!mania` startup issue 通知。`dotnet build .\osu.Desktop\osu.Desktop.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet run --project .\osu.Desktop\osu.Desktop.csproj -c Release` 进入 MainMenu 且最新 runtime log 干净；`BmsStartupModPersistenceIntegrationTest`、`BmsModStatePersistenceTest` 合计 **4/4** 通过；手测确认冷启动 / 运行中关开 / 切 mania 往返的 BMS mod 记忆均正确。
+
+- 2026-04-21：完成 BMS mod 记忆与 gameplay adjustment 回写合同。`BmsModStatePersistence` 现会持久化 selected mod 顺序与 non-default settings，`DrawableBmsRuleset` 在 `RememberGameplayChanges` 开启时把 `Sudden` / `Hidden` / `Lift` 的局内滚轮调整同步回当前 selected mod，`SoloSongSelect.revertMods()` 回场前再合并回开局快照。定向 `BmsRulesetConfigurationTest`、`BmsModStatePersistenceTest`、`BmsRulesetModTest` 合计 **56/56** 通过；独立输出目录 `Release` 构建通过。
+- 2026-04-20：完成 pre-start 稳定性修复与 `UI_LaneCoverFocus` / `UI_PreStartHold` 语义拆分。修复 clock failure（`Reset(startClock:false)` + `SoftUnpause()`）、playfield 不渲染、LaneCoverFocus 无法切换到 Lift。拆分 `UI_PreStartHold`（hold gate）与 `UI_LaneCoverFocus`（click-to-cycle），新增 `BmsAction.PreStartHold` + 映射 + 本地化。`TestSceneBmsSoloPlayerPreStart` **6/6** 通过；`BmsRulesetModTest` **40/40** 通过；`Build osu! (Release)` 通过。
+- 2026-04-20：扩展 `TestSceneBmsSoloPlayerPreStart`，新增"提前松开 hold 仍等待 delayed-start""click-to-cycle 在 Sudden → Hidden → Lift 之间完整循环"两条 start-sequence 回归，并补上 odd/even lane hi-speed 双向断言；定向 `TestSceneBmsSoloPlayerPreStart` **5/5** 通过。
 - 2026-04-20：完成 tri-mode Hi-Speed surface 与 pre-start hold 调速窗口首轮接线；`BmsHiSpeedMode`、`BmsHiSpeedRuntimeCalculator`、mode dropdown + current-mode slider、`BmsSoloPlayer` delayed start、`BmsPreStartHiSpeedOverlay`、variant-aware odd/even lane key 调速映射与 paused pre-start `Sudden / Hidden / Lift` 调整链均已落地。定向 `BmsScrollSpeedMetricsTest`、`BmsRulesetConfigurationTest`、`BmsGameplayFeedbackStateTest`、`TestSceneBmsSpeedFeedbackDisplay`、`BmsDrawableRulesetTest` 合计 97/97 通过；`Build osu! (Release)` 通过。
 - 2026-04-20：完成 C1 首轮代码实现；定向 `BmsSkinTransformerTest`、`BmsScrollSpeedMetricsTest`、`TestSceneBmsUserSkinFallbackSemantics`、`TestSceneBmsSpeedFeedbackDisplay` 合计 113/113 通过；`Build osu! (Debug)` 通过。
 - 2026-04-20：推进 C2 首轮语义收口；定向 `BmsRulesetModTest`、`BmsSkinTransformerTest`、`BmsScrollSpeedMetricsTest`、`TestSceneBmsUserSkinFallbackSemantics`、`TestSceneBmsSpeedFeedbackDisplay` 合计 149/149 通过；`Build osu! (Debug)` 通过。

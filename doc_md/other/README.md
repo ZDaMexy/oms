@@ -8,6 +8,7 @@
 - [RELEASE.md](RELEASE.md)：发行方式、打包约束与公开 release gate。
 - [IIDX_REFERENCE_AUDIT.md](IIDX_REFERENCE_AUDIT.md)：外部 IIDX / LR2 / beatoraja 方向校准与训练反馈基线。
 - [UPSTREAM.md](UPSTREAM.md)：上游锁定点、本地 diff 基线与 cherry-pick 风险面。
+- [oms_server_bridge_export.md](oms_server_bridge_export.md)：供 `oms_client_bridge_md` 人工复制的客户端联网 / ruleset / 回放事实快照。
 
 ## 联动要求
 

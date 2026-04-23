@@ -215,6 +215,8 @@ namespace osu.Game.Rulesets
 
         public ModTouchDevice? GetTouchDeviceMod() => CreateMod<ModTouchDevice>();
 
+        public virtual IRulesetModStatePersistence? CreateModStatePersistence(IRulesetConfigManager? configManager) => null;
+
         /// <summary>
         /// Create a transformer which adds lookups specific to a ruleset to skin sources.
         /// </summary>
@@ -506,10 +508,45 @@ namespace osu.Game.Rulesets
         public virtual IRulesetFilterCriteria? CreateRulesetFilterCriteria() => null;
 
         /// <summary>
+        /// Returns the song select sorting modes that should be exposed for this ruleset.
+        /// </summary>
+        public virtual IReadOnlyList<SortMode> GetAvailableSongSelectSortModes()
+            => Enum.GetValues<SortMode>()
+                   .Where(mode => mode is not SortMode.ClearLamp and not SortMode.Accuracy and not SortMode.Misses)
+                   .ToArray();
+
+        /// <summary>
+        /// Compares two local scores for song select score-based sorts.
+        /// </summary>
+        public virtual int CompareSongSelectScores(SortMode sort, ScoreInfo? a, ScoreInfo? b)
+        {
+            switch (sort)
+            {
+                case SortMode.Accuracy:
+                    return (b?.Accuracy ?? double.MinValue).CompareTo(a?.Accuracy ?? double.MinValue);
+
+                case SortMode.Misses:
+                    return getMissCount(a).CompareTo(getMissCount(b));
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(sort), sort, null);
+            }
+
+            static int getMissCount(ScoreInfo? score)
+                => score?.Statistics.GetValueOrDefault(HitResult.Miss, 0) ?? int.MaxValue;
+        }
+
+        /// <summary>
         /// Returns the song select grouping modes that should be exposed for this ruleset.
         /// </summary>
         public virtual IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes()
             => Enum.GetValues<GroupMode>().Where(mode => mode != GroupMode.DifficultyTable).ToArray();
+
+        /// <summary>
+        /// Whether switching to the specified song select grouping should reset the carousel to the root level.
+        /// This is evaluated when entering song select fresh and when the active group mode changes.
+        /// </summary>
+        public virtual bool ShouldResetSongSelectGroupToRoot(GroupMode mode) => false;
 
         /// <summary>
         /// Returns optional ruleset-specific group definitions for the supplied beatmap.

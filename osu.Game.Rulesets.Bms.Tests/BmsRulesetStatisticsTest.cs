@@ -2,9 +2,12 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Graphics.Colour;
 using osu.Game.Beatmaps;
+using osu.Game.Graphics.Carousel;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Mods;
@@ -14,6 +17,8 @@ using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using osu.Game.Screens.Select;
+using osu.Game.Screens.Select.Filter;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -353,6 +358,126 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(new BmsRuleset().GetResultsScoreLabel(score)?.ToString(), Is.EqualTo("EX-SCORE"));
         }
 
+        [Test]
+        public void TestAvailableSongSelectSortModesMatchBmsOrder()
+        {
+            Assert.That(new BmsRuleset().GetAvailableSongSelectSortModes(), Is.EqualTo(new[]
+            {
+                SortMode.Title,
+                SortMode.Artist,
+                SortMode.BPM,
+                SortMode.Length,
+                SortMode.Difficulty,
+                SortMode.ClearLamp,
+                SortMode.Accuracy,
+                SortMode.Misses,
+            }));
+        }
+
+        [Test]
+        public void TestAvailableSongSelectGroupModesMatchBmsOrder()
+        {
+            Assert.That(new BmsRuleset().GetAvailableSongSelectGroupModes(), Is.EqualTo(new[]
+            {
+                GroupMode.DifficultyTable,
+                GroupMode.Artist,
+                GroupMode.Author,
+                GroupMode.BPM,
+                GroupMode.Difficulty,
+                GroupMode.LastPlayed,
+                GroupMode.Length,
+                GroupMode.RankAchieved,
+                GroupMode.Title,
+            }));
+        }
+
+        [Test]
+        public void TestSongSelectGroupingResetsToRootForBmsModes()
+        {
+            var ruleset = new BmsRuleset();
+
+            Assert.That(ruleset.GetAvailableSongSelectGroupModes().All(ruleset.ShouldResetSongSelectGroupToRoot), Is.True);
+            Assert.That(ruleset.ShouldResetSongSelectGroupToRoot(GroupMode.None), Is.False);
+        }
+
+        [Test]
+        public void TestClearLampSongSelectScoreSortPrefersBetterLamp()
+        {
+            var ruleset = new BmsRuleset();
+            var better = new ScoreInfo();
+            var worse = new ScoreInfo();
+
+            better.SetRulesetData(new BmsScoreInfoData
+            {
+                ClearLamp = BmsClearLamp.FullCombo,
+                FinalGauge = 1,
+            });
+
+            worse.SetRulesetData(new BmsScoreInfoData
+            {
+                ClearLamp = BmsClearLamp.Failed,
+                FinalGauge = 0,
+            });
+
+            Assert.That(ruleset.CompareSongSelectScores(SortMode.ClearLamp, better, worse), Is.LessThan(0));
+        }
+
+        [Test]
+        public async Task TestCarouselSortingByClearLampUsesTopLocalScores()
+        {
+            var failedBeatmap = createSongSelectBeatmap("Failed", 4.5);
+            var fullComboBeatmap = createSongSelectBeatmap("Full Combo", 5.1);
+            var ruleset = new BmsRuleset();
+
+            var failedScore = new ScoreInfo
+            {
+                BeatmapInfo = failedBeatmap,
+                BeatmapHash = failedBeatmap.Hash,
+                Ruleset = ruleset.RulesetInfo,
+            };
+
+            failedScore.SetRulesetData(new BmsScoreInfoData
+            {
+                ClearLamp = BmsClearLamp.Failed,
+                FinalGauge = 0,
+            });
+
+            var fullComboScore = new ScoreInfo
+            {
+                BeatmapInfo = fullComboBeatmap,
+                BeatmapHash = fullComboBeatmap.Hash,
+                Ruleset = ruleset.RulesetInfo,
+            };
+
+            fullComboScore.SetRulesetData(new BmsScoreInfoData
+            {
+                ClearLamp = BmsClearLamp.FullCombo,
+                FinalGauge = 1,
+            });
+
+            var criteria = new FilterCriteria
+            {
+                Sort = SortMode.ClearLamp,
+                Ruleset = ruleset.RulesetInfo,
+            };
+
+            var sorter = new BeatmapCarouselFilterSorting(
+                () => criteria,
+                _ => new Dictionary<System.Guid, ScoreInfo>
+                {
+                    [failedBeatmap.ID] = failedScore,
+                    [fullComboBeatmap.ID] = fullComboScore,
+                });
+
+            var sorted = await sorter.Run(new[]
+            {
+                new CarouselItem(failedBeatmap),
+                new CarouselItem(fullComboBeatmap),
+            }, CancellationToken.None);
+
+            Assert.That(sorted.Select(item => ((BeatmapInfo)item.Model).Metadata.Title), Is.EqualTo(new[] { "Full Combo", "Failed" }));
+        }
+
         [TestCase(9, 0, 0, BmsDjLevel.AAA, 18)]
         [TestCase(7, 2, 0, BmsDjLevel.AAA, 16)]
         [TestCase(5, 4, 0, BmsDjLevel.AA, 14)]
@@ -392,6 +517,29 @@ namespace osu.Game.Rulesets.Bms.Tests
                     LaneIndex = 1,
                 });
             }
+
+            return beatmap;
+        }
+
+        private static BeatmapInfo createSongSelectBeatmap(string title, double starRating)
+        {
+            var beatmap = new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone(), new BeatmapDifficulty(), new BeatmapMetadata
+            {
+                Title = title,
+                Artist = title,
+            })
+            {
+                DifficultyName = title,
+                StarRating = starRating,
+                Length = 120000,
+                BPM = 150,
+                Hash = System.Guid.NewGuid().ToString("N"),
+                MD5Hash = $"{title}-{System.Guid.NewGuid():N}".ToLowerInvariant(),
+            };
+
+            var beatmapSet = new BeatmapSetInfo();
+            beatmapSet.Beatmaps.Add(beatmap);
+            beatmap.BeatmapSet = beatmapSet;
 
             return beatmap;
         }

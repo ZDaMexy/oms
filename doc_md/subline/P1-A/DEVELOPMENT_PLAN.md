@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-04-20
+> 最后更新：2026-04-23
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -20,6 +20,9 @@
 - 内部 `BmsPlayfieldLayoutProfile` abstraction gate 仍保留，但当前 runtime geometry override surface 已冻结，不再通过设置页暴露会扰动 strict profile 的 layout sliders。
 - 当前 `IBmsHudLayoutDisplay` 只接受 wrapped HUD、gauge bar、combo counter 三类组件；若直接扩签名，会打断现有 HUD provider 合同。
 - judgement 基线与默认 gameplay feedback 摆位现已通过 `BmsGameplayFeedbackLayout` 收口为 shared position contract；后续若继续联动 judge display / feedback，应扩展这条合同，而不是重新散落新的位置常量。
+- BMS mod ruleset-local memory surface 现已补齐 cold-start path：若 startup 首次 ruleset change 早于 `RulesetConfigCache.LoadComplete()`，宿主必须延后 replay 当前 ruleset 到 cache ready 后再做 restore；这条路径现已有 dedicated integration coverage。
+- 首次启动向导、`Run setup wizard` 与无谱面引导这类共享 onboarding / settings-entry surface 归 `P1-A`；若页面只是复用外部 / 内部谱库或按键绑定面板，则 `P1-H` / `P1-B` 只记从属影响，不为此另开子线。
+- 共享层 first-run wizard 若需触发 BMS-only runtime 能力，必须继续避开 `osu.Game -> osu.Game.Rulesets.Bms` 编译期依赖；当前难度表导入页使用反射加载 `BmsDifficultyTableManager`，这条边界应继续保持。
 
 ## 专题目标
 
@@ -36,6 +39,19 @@
 - 盘点 BMS skin boundary、HUD 宿主接口、`GN / WN / Lift` 计算链与 `Sudden / Hidden` 联动。
 - 建立专题级计划 / 状态 / 技术约束文档。
 - 把专题明确归线到 `P1-A / P1-C`，并同步挂接到主线文档。
+
+### A0.5：首次启动向导与设置导流
+
+**状态：已完成首轮落地**
+
+- 首次启动设置已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。
+- `获取谱面` / `导入` / `难度表设置` / `按键绑定` 四页当前都属于共享产品表面：可复用现有 `ExternalLibrarySettings`、keybinding subsection 与 BMS difficulty-table runtime，但不应因此改写各自底层子线归属。
+- 欢迎页、获取谱面页与导入页的可见文案若需覆盖上游翻译，必须使用 OMS-owned localisation namespace + `.resx`，不能只改 `*Strings.cs` fallback。
+
+验收：
+
+- 手动重新打开向导后各页可稳定加载，不因复用 settings 组件而在 load 阶段崩溃。
+- focused first-run tests + Release build 通过。
 
 ### A1：反馈组件合同冻结
 

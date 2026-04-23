@@ -103,7 +103,7 @@ namespace osu.Game.Screens.Select
             Filters = new ICarouselFilter[]
             {
                 new BeatmapCarouselFilterMatching(() => Criteria!),
-                new BeatmapCarouselFilterSorting(() => Criteria!),
+                new BeatmapCarouselFilterSorting(() => Criteria!, GetBeatmapInfoGuidToTopLocalScoreMapping),
                 grouping = new BeatmapCarouselFilterGrouping
                 {
                     GetCriteria = () => Criteria!,
@@ -325,6 +325,26 @@ namespace osu.Game.Screens.Select
             setExpandedSet(null);
             setExpandedGroup(null);
             Scroll.ScrollTo(0, animated: false);
+        }
+
+        public bool FocusRootGroupForBeatmap(BeatmapInfo? beatmap)
+        {
+            if (beatmap == null)
+                return false;
+
+            GroupDefinition? rootGroup = GetCarouselItems()?
+                                         .Select(item => item.Model)
+                                         .OfType<GroupedBeatmap>()
+                                         .Where(groupedBeatmap => groupedBeatmap.Beatmap.Equals(beatmap))
+                                         .Select(groupedBeatmap => groupedBeatmap.Group?.GetPathFromRoot().FirstOrDefault())
+                                         .FirstOrDefault(group => group != null);
+
+            if (rootGroup == null)
+                return false;
+
+            ChangeKeyboardSelection(rootGroup);
+            ScrollToSelection(immediate: true);
+            return true;
         }
 
         /// <summary>
@@ -846,6 +866,30 @@ namespace osu.Game.Screens.Select
             }
 
             return topRankMapping;
+        });
+
+        protected virtual Dictionary<Guid, ScoreInfo> GetBeatmapInfoGuidToTopLocalScoreMapping(FilterCriteria criteria) => realm.Run(r =>
+        {
+            var topScoreMapping = new Dictionary<Guid, ScoreInfo>();
+            var rulesetInstance = criteria.Ruleset?.CreateInstance();
+            var scoreDisplayBucket = rulesetInstance?.GetScoreDisplayBucket(criteria.Mods);
+
+            var allLocalScores = r.GetAllLocalScoresForUser(criteria.LocalUserId)
+                                  .Filter($@"{nameof(ScoreInfo.Ruleset)}.{nameof(RulesetInfo.ShortName)} == $0", criteria.Ruleset?.ShortName)
+                                  .OrderByDescending(s => s.TotalScore)
+                                  .ThenBy(s => s.Date);
+
+            foreach (var score in (rulesetInstance == null ? allLocalScores.AsEnumerable() : allLocalScores.AsEnumerable().FilterToScoreDisplayBucket(rulesetInstance, scoreDisplayBucket)))
+            {
+                Debug.Assert(score.BeatmapInfo != null);
+
+                if (topScoreMapping.ContainsKey(score.BeatmapInfo.ID))
+                    continue;
+
+                topScoreMapping[score.BeatmapInfo.ID] = score.Detach();
+            }
+
+            return topScoreMapping;
         });
 
         /// <remarks>

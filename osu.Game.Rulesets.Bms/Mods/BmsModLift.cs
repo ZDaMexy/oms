@@ -14,7 +14,7 @@ using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public class BmsModLift : Mod, IApplicableToDrawableRuleset<HitObject>
+    public class BmsModLift : Mod, IApplicableToDrawableRuleset<HitObject>, IPreserveSettingsWhenDisabled, IBmsGameplayAdjustmentMod
     {
         public override IconUsage? Icon => OsuIcon.ModCover;
 
@@ -37,6 +37,12 @@ namespace osu.Game.Rulesets.Bms.Mods
             MaxValue = 1000,
             Precision = 1,
             Default = 250,
+        };
+
+        [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.RememberGameplayChanges), nameof(BmsModStrings.RememberGameplayChangesDescription))]
+        public BindableBool RememberGameplayChanges { get; } = new BindableBool(true)
+        {
+            Default = true,
         };
 
         public bool AdjustLiftUnits(float delta)

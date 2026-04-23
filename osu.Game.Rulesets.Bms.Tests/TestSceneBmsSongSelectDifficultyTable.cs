@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             LoadSongSelect();
 
-            assertDifficultyTableRootLevelVisible();
+            assertRootLevelVisible("Satellite");
         }
 
         [Test]
@@ -53,13 +53,29 @@ namespace osu.Game.Rulesets.Bms.Tests
             importDifficultyTableBeatmaps();
             SelectBmsRuleset();
             PreselectBeatmap("Satellite Song");
+            SetTitleGrouping();
 
             LoadSongSelect();
-            AddUntilStep("wait for preselected beatmap selection", () => Carousel.CurrentGroupedBeatmap != null);
+            SelectCurrentBeatmapInCarousel();
 
             SetDifficultyTableGrouping();
 
-            assertDifficultyTableRootLevelVisible();
+            assertRootLevelVisible("Satellite");
+        }
+
+        [Test]
+        public void TestSwitchingGroupingKeepsTitleGroupsAtRootLevel()
+        {
+            importTitleGroupingBeatmaps();
+            SelectBmsRuleset();
+            PreselectBeatmap("Zeta Song");
+
+            LoadSongSelect();
+            SelectCurrentBeatmapInCarousel();
+
+            SetTitleGrouping();
+
+            assertRootLevelVisible("Z");
         }
 
         private void importDifficultyTableBeatmaps()
@@ -80,13 +96,31 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("wait for beatmaps imported", () => Beatmaps.GetAllUsableBeatmapSets().Count, () => Is.EqualTo(2));
         }
 
-        private void assertDifficultyTableRootLevelVisible()
+        private void importTitleGroupingBeatmaps()
+        {
+            AddStep("import title grouping beatmaps", () =>
+            {
+                Beatmaps.Import(createBeatmapSet(
+                    "Alpha Song",
+                    1.4,
+                    new BmsDifficultyTableEntry("Alpha", "A", 1, "A1", "alpha-1", 0)));
+
+                Beatmaps.Import(createBeatmapSet(
+                    "Zeta Song",
+                    2.1,
+                    new BmsDifficultyTableEntry("Zeta", "Z", 1, "Z1", "zeta-1", 1)));
+            });
+
+            AddUntilStep("wait for title grouping beatmaps imported", () => Beatmaps.GetAllUsableBeatmapSets().Count, () => Is.EqualTo(2));
+        }
+
+        private void assertRootLevelVisible(string expectedSelectedGroupTitle)
         {
             WaitForFiltering();
             AddUntilStep("wait for visible carousel items", () => GetVisibleCarouselModels().Length, () => Is.GreaterThan(0));
             AddAssert("no beatmap is auto-selected", () => Carousel.CurrentGroupedBeatmap, () => Is.Null);
             AddAssert("only root groups are visible", () => GetVisibleCarouselModels().All(model => model is GroupDefinition group && group.Depth == 0));
-            AddAssert("visible groups are root table names", () => GetVisibleCarouselModels().OfType<GroupDefinition>().Select(group => group.Title.ToString()).ToArray(), () => Is.EquivalentTo(new[] { "Satellite", "Stella" }));
+            AddUntilStep("wait for keyboard-selected root group", GetKeyboardSelectedVisibleGroupTitle, () => Is.EqualTo(expectedSelectedGroupTitle));
         }
 
         private static BeatmapSetInfo createBeatmapSet(string title, double starRating, BmsDifficultyTableEntry tableEntry)
@@ -248,6 +282,21 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        protected void SetTitleGrouping()
+        {
+            AddStep("enable title grouping", () =>
+            {
+                Config.SetValue(OsuSetting.SongSelectSortingMode, SortMode.Title);
+                Config.SetValue(OsuSetting.SongSelectGroupMode, GroupMode.Title);
+            });
+        }
+
+        protected void SelectCurrentBeatmapInCarousel()
+        {
+            AddStep("select current beatmap in carousel", () => Carousel.CurrentBeatmap = Beatmap.Value.BeatmapInfo);
+            AddUntilStep("wait for preselected beatmap selection", () => Carousel.CurrentGroupedBeatmap != null);
+        }
+
         protected object[] GetVisibleCarouselModels()
         {
             return SongSelectScreen.ChildrenOfType<ICarouselPanel>()
@@ -255,6 +304,16 @@ namespace osu.Game.Rulesets.Bms.Tests
                              .OrderBy(panel => panel.DrawYPosition)
                              .Select(panel => panel.Item!.Model)
                              .ToArray();
+        }
+
+        protected string? GetKeyboardSelectedVisibleGroupTitle()
+        {
+            return SongSelectScreen.ChildrenOfType<ICarouselPanel>()
+                             .Where(panel => panel.Item?.IsVisible == true && panel.KeyboardSelected.Value)
+                             .Select(panel => panel.Item!.Model)
+                             .OfType<GroupDefinition>()
+                             .Select(group => group.Title.ToString())
+                             .SingleOrDefault();
         }
 
         protected override void Dispose(bool isDisposing)

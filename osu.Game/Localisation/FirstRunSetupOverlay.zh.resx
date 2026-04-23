@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="welcome_description" xml:space="preserve"><value>欢迎来到首次启动指南页
+oms是基于osu!lazer的fork client，增加了自定义bms规则集的直接支持，删除了除mania规则集外的其他模式。
+这个首次启动设置指南页能帮助你快速配置一些重要设置。
+欢迎加入QQ群：650530995
+或在Github上：ZDaMexy/oms
+联系我们一起交流获得更佳游戏体验，以及问题反馈和建议提供！
+welcome to oms!</value></data>
+</root>

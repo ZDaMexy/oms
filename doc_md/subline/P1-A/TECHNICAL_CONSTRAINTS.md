@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-04-20
+> 最后更新：2026-04-23
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -14,8 +14,15 @@
 2. settings 页必须只暴露 Hi-Speed 模式与当前模式数值；不得在 settings 中显示 `GN / 可见毫秒`，也不得制造“已完整支持 BPM 补偿 / FHS 全语义”的错误预期。
 3. `Lift` 继续是 geometry control；`Hidden` 继续是下遮挡。两者在命名、状态、HUD 表达和 pre-start overlay 中都不得重新混写。
 4. 当前公开 Hi-Speed 范围必须保持：`Normal 1.0 - 20.0`、`Floating 0.5 - 10.0`、`Classic 0.5 - 10.0`；其中 `Classic` 的 base time 映射应保持 `TimeRange = (100000 / 13) / HS`，官方 sample `HS 10 + WN 350 => GN 300` 必须持续成立。
-5. 当前运行时 geometry profile 已冻结；除 `Sudden / Hidden / Lift` 外，旧的 playfield / receptor / bar-line layout config 不得继续作为用户可见 contract 影响速度或几何语义。
-6. `UI_LaneCoverFocus` 允许复用为 pre-start hold gate，但该窗口必须表现为正式 runtime operator surface，不得退化成 debug overlay 或无 fallback 的临时实现。
+5. 当前运行时 geometry profile 已冻结；`Playfield Scale` 必须固定为 `1.0` 并保持不可配置，因为缩放会破坏皮肤编排并扭曲权威 visual-speed surface。
+6. 除 `Sudden / Hidden / Lift` 与当前 single-play `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`，仅作用于 5K / 7K 的 playfield 停靠与 scratch 视觉侧别，不改 binding flip）外，旧的 playfield / receptor / bar-line layout config 不得继续作为用户可见 contract 影响速度或几何语义。
+7. `UI_PreStartHold` 必须承担 pre-start hold gate；`UI_LaneCoverFocus` 必须保持为 click-to-cycle 持久 target 的独立动作。该窗口必须表现为正式 runtime operator surface，不得退化成 debug overlay 或无 fallback 的临时实现。
+8. BMS mod 选项与配置记忆必须保持 ruleset-local；当前 `PersistedModState` 只允许作用于 BMS，不得让 mania / 全局 `SelectedMods` 获得隐式共享持久化。
+9. 冷启动时不得在 `RulesetConfigCache` 未 ready 前直接调用 `GetConfigFor()` 去构建 BMS mod persistence；正确合同是先允许无 config 的首轮 ruleset apply，再在 cache ready 后 replay 当前 ruleset 完成 restore。否则会同时打破 startup release gate（误报 ruleset issue）与 BMS mod 冷启动记忆。
+10. 对实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod，停用只意味着 inactive，不等同于 reset；除显式重置入口或配置迁移外，不得在 mod 菜单关闭时清空其最后配置。
+11. `首次启动向导`、`Run setup wizard` 与无谱面引导这类共享 onboarding / settings-entry surface 默认归 `P1-A`；若页面只是复用外部 / 内部谱库与按键绑定面板，其存储 / 输入语义仍分别归 `P1-H` / `P1-B`，不得为暴露面调整另开主线。
+12. 共享层首次启动向导若需触发 BMS-only runtime 能力，必须保持 `osu.Game` 不直接引用 `osu.Game.Rulesets.Bms`；可用反射 / 抽象边界，但模块缺失时页面需优雅退化，而不是在构造或 load 阶段抛异常。
+13. 首次启动向导中用户可见的 OMS 文案，若需覆盖上游翻译，必须使用 OMS-owned localisation namespace + 对应 `.resx`；只改 `*Strings.cs` fallback 不足以覆盖简中等非英文资源。
 
 ## 皮肤边界约束
 

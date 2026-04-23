@@ -192,8 +192,12 @@ namespace osu.Desktop
             // Wire scanner delegates to direct-read registration, preserving source directories as read-only.
             externalLibraryScanner!.BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.RegisterExternalDirectory(path, ct);
             externalLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterExternalDirectory(path, ct);
+            externalLibraryScanner.BmsDirectoryShouldImport = bmsBeatmapImporter.ShouldImportExternalDirectory;
+            externalLibraryScanner.ManiaDirectoryShouldImport = maniaBeatmapImporter.ShouldImportExternalDirectory;
             managedLibraryScanner!.BmsDirectoryImporter = (path, ct) => bmsBeatmapImporter.RegisterManagedDirectory(path, ct);
             managedLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterManagedDirectory(path, ct);
+            managedLibraryScanner.BmsDirectoryShouldImport = bmsBeatmapImporter.ShouldImportManagedDirectory;
+            managedLibraryScanner.ManiaDirectoryShouldImport = maniaBeatmapImporter.ShouldImportManagedDirectory;
 
             if (OnlineFeaturesEnabled)
                 LoadComponentAsync(new DiscordRichPresence(), Add);

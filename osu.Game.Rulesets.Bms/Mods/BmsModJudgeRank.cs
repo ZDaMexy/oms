@@ -13,7 +13,7 @@ using osu.Game.Rulesets.Mods;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public class BmsModJudgeRank : Mod, IApplicableToDifficulty
+    public class BmsModJudgeRank : Mod, IApplicableToDifficulty, IPreserveSettingsWhenDisabled
     {
         public override string Name => "Judge Difficulty";
 

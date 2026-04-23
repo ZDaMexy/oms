@@ -57,7 +57,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected new BmsRulesetConfigManager Config => (BmsRulesetConfigManager)base.Config;
 
-        private readonly Bindable<ScrollingDirection> configDirection = new Bindable<ScrollingDirection>();
         private readonly Bindable<BmsHiSpeedMode> configHiSpeedMode = new Bindable<BmsHiSpeedMode>();
         private readonly BindableDouble configNormalHiSpeed = new BindableDouble();
         private readonly BindableDouble configFloatingHiSpeed = new BindableDouble();
@@ -120,12 +119,16 @@ namespace osu.Game.Rulesets.Bms.UI
         private GameplayClockContainer? gameplayClockContainer { get; set; }
 
         [Resolved(CanBeNull = true)]
+        private IBindable<IReadOnlyList<Mod>>? selectedMods { get; set; }
+
+        [Resolved(CanBeNull = true)]
         private ScoreProcessor? scoreProcessor { get; set; }
 
         public DrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
         {
             BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, mods);
+            Direction.Value = ScrollingDirection.Down;
 
             TimeRange.MinValue = MIN_TIME_RANGE;
             TimeRange.MaxValue = MAX_TIME_RANGE;
@@ -142,9 +145,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 if (e.NewValue)
                     CycleGameplayAdjustmentTarget();
             });
-
-            Config.BindWith(BmsRulesetSetting.ScrollDirection, configDirection);
-            configDirection.BindValueChanged(direction => Direction.Value = direction.NewValue, true);
 
             playfieldScrollLengthRatio = Playfield.ScrollLengthRatio.GetBoundCopy();
             playfieldScrollLengthRatio.BindValueChanged(_ => updateTimeRange(), true);
@@ -452,6 +452,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private bool adjustGameplayAdjustment(float scrollDelta, BmsGameplayAdjustmentTarget? target, bool refreshLaneCoverFocus = true)
         {
+            Mod? adjustedMod = getModForAdjustmentTarget(target);
+
             bool adjusted = target switch
             {
                 BmsGameplayAdjustmentTarget.Sudden => getSuddenMod()?.AdjustCoverPercent(scrollDelta) == true,
@@ -462,6 +464,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (!adjusted)
                 return false;
+
+            rememberGameplayAdjustment(adjustedMod);
 
             if (refreshLaneCoverFocus)
                 RefreshLaneCoverFocus();
@@ -521,7 +525,20 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private BmsModLift? getLiftMod() => Mods.OfType<BmsModLift>().SingleOrDefault();
 
-        private Mod? getModForAdjustmentTarget(BmsGameplayAdjustmentTarget target)
+        private void rememberGameplayAdjustment(Mod? adjustedMod)
+        {
+            if (adjustedMod is not IBmsGameplayAdjustmentMod gameplayAdjustmentMod || !gameplayAdjustmentMod.RememberGameplayChanges.Value)
+                return;
+
+            var selectedMod = selectedMods?.Value.SingleOrDefault(mod => mod.GetType() == adjustedMod.GetType());
+
+            if (selectedMod == null || ReferenceEquals(selectedMod, adjustedMod))
+                return;
+
+            selectedMod.CopyFrom(adjustedMod);
+        }
+
+        private Mod? getModForAdjustmentTarget(BmsGameplayAdjustmentTarget? target)
             => target switch
             {
                 BmsGameplayAdjustmentTarget.Sudden => getSuddenMod(),

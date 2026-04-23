@@ -7,17 +7,18 @@ namespace osu.Game.Localisation
 {
     public static class FirstRunOverlayImportFromStableScreenStrings
     {
-        private const string prefix = @"osu.Game.Resources.Localisation.ScreenImportFromStable";
+        private const string upstream_prefix = @"osu.Game.Resources.Localisation.ScreenImportFromStable";
+        private const string oms_prefix = @"osu.Game.Localisation.FirstRunOverlayImportFromStableScreen";
 
         /// <summary>
         /// "Import"
         /// </summary>
-        public static LocalisableString Header => new TranslatableString(getKey(@"header"), @"Import");
+        public static LocalisableString Header => new TranslatableString(getKey(@"header"), @"导入");
 
         /// <summary>
-        /// "If you have an installation of a previous osu! version, you can choose to migrate your existing content. Note that this will not affect your existing installation&#39;s files in any way."
+        /// "If you have osu!stable (non-lazer) installed, or already have a local BMS library in another directory, you can choose an external directory for direct traversal indexing. Indexing will not copy beatmap files or use additional storage space."
         /// </summary>
-        public static LocalisableString Description => new TranslatableString(getKey(@"description"), @"If you have an installation of a previous osu! version, you can choose to migrate your existing content. Note that this will not affect your existing installation's files in any way.");
+        public static LocalisableString Description => new TranslatableString(getOmsKey(@"description"), @"If you have osu!stable (non-lazer) installed, or already have a local BMS library in another directory, you can choose an external directory for direct traversal indexing. Indexing will not copy beatmap files or use additional storage space.");
 
         /// <summary>
         /// "previous osu! install"
@@ -74,6 +75,8 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString SecondCopyWillBeMadeOtherPlatforms => new TranslatableString(getKey(@"second_copy_will_be_made_other_platforms"), @"A second copy of all files will be made during import. To avoid this, please make sure the lazer data folder is on the same drive as your previous osu! install (and the file system supports hard links).");
 
-        private static string getKey(string key) => $@"{prefix}:{key}";
+        private static string getKey(string key) => $@"{upstream_prefix}:{key}";
+
+        private static string getOmsKey(string key) => $@"{oms_prefix}:{key}";
     }
 }

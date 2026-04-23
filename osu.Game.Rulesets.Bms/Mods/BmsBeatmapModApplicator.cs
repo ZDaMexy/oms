@@ -17,6 +17,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             BmsScoreProcessor.GetLongNoteMode(mods).ApplyToBeatmap(beatmap);
             BmsJudgeModeExtensions.GetJudgeMode(mods).ApplyToBeatmap(beatmap);
             mods?.OfType<BmsModAutoScratch>().LastOrDefault()?.ApplyToBeatmap(beatmap);
+            mods?.OfType<BmsModAutoNote>().LastOrDefault()?.ApplyToBeatmap(beatmap);
         }
     }
 }

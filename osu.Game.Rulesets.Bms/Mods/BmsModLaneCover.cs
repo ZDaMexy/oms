@@ -14,7 +14,7 @@ using osu.Game.Rulesets.Bms.UI;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
-    public abstract class BmsModLaneCover : Mod, IApplicableToDrawableRuleset<HitObject>
+    public abstract class BmsModLaneCover : Mod, IApplicableToDrawableRuleset<HitObject>, IPreserveSettingsWhenDisabled, IBmsGameplayAdjustmentMod
     {
         public override IconUsage? Icon => OsuIcon.ModCover;
 
@@ -42,6 +42,12 @@ namespace osu.Game.Rulesets.Bms.Mods
             MaxValue = 1000,
             Precision = 1,
             Default = 1000,
+        };
+
+        [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.RememberGameplayChanges), nameof(BmsModStrings.RememberGameplayChangesDescription))]
+        public BindableBool RememberGameplayChanges { get; } = new BindableBool(true)
+        {
+            Default = true,
         };
 
         public bool AdjustCoverPercent(float delta)

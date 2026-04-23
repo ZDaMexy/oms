@@ -98,18 +98,36 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestExposesAutoScratchAndAutoplayMods()
+        public void TestExposesAutoScratchAutoNoteAndAutoplayMods()
         {
             var reductionMods = new BmsRuleset().GetModsFor(ModType.DifficultyReduction).ToArray();
             var autoScratchMods = reductionMods.OfType<BmsModAutoScratch>().ToArray();
+            var autoNoteMods = reductionMods.OfType<BmsModAutoNote>().ToArray();
             var autoplayMods = reductionMods.OfType<BmsModAutoplay>().ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(autoScratchMods, Has.Length.EqualTo(1));
+                Assert.That(autoNoteMods, Has.Length.EqualTo(1));
                 Assert.That(autoplayMods, Has.Length.EqualTo(1));
                 Assert.That(autoScratchMods.Single().Type, Is.EqualTo(ModType.DifficultyReduction));
+                Assert.That(autoNoteMods.Single().Type, Is.EqualTo(ModType.DifficultyReduction));
                 Assert.That(autoplayMods.Single().Type, Is.EqualTo(ModType.DifficultyReduction));
+            });
+        }
+
+        [Test]
+        public void TestAutoAssistModsAreMutuallyIncompatibleAndRemainIncompatibleWithAutoplay()
+        {
+            var autoScratch = new BmsModAutoScratch();
+            var autoNote = new BmsModAutoNote();
+            var autoplay = new BmsModAutoplay();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ModUtils.CheckCompatibleSet(new Mod[] { autoScratch, autoNote }), Is.False);
+                Assert.That(ModUtils.CheckCompatibleSet(new Mod[] { autoScratch, autoplay }), Is.False);
+                Assert.That(ModUtils.CheckCompatibleSet(new Mod[] { autoNote, autoplay }), Is.False);
             });
         }
 

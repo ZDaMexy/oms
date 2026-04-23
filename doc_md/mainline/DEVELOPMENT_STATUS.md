@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-04-20
+> 最后更新：2026-04-23
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -22,12 +22,17 @@
 - **BMS 规模**：约 146 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；49 个测试源文件（以上为 2026-04-19 本地文件计数，排除 `bin/obj`）
 - **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜按 judge mode + long-note mode 分桶 → BMS replay recording / playback / 本地归档 → 难度表缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
-- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；外部多目录谱库扫描基线已落地（`ExternalLibraryConfig` JSON + `ExternalLibraryScanner` 委托注入）；Settings → Maintenance 已有外部谱库管理 UI（添加/移除/扫描）
+- **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；mania 不受影响。
+- **BMS 选歌排序**：Song Select 当前已使用 ruleset-specific 8 项排序：`标题`、`曲师`、`BPM`、`时长`、`星数`、`点灯状态`、`达成率`、`miss 数`；其中本地成绩派生项的显示标签已明确改用 BMS 专用文案，不再回落到通用 `Clear Lamp` / `准度要求`，mania 不受影响。
+- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。
+- **首次启动向导**：首次启动设置当前已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 BMS 难度表管理器导入 zris 镜像预设；最终页复用全局、mania 与 BMS 的按键绑定 subsection。
+- **首次启动稳定性与本地化**：手动重新打开首次启动向导并切到旧“游戏表现”页导致的 blank panel / unhandled error 已修复；欢迎页、获取谱面页与导入页的可见文案现已切到 OMS-owned localisation namespace + `.resx`，确保简中界面不再继续显示上游翻译。该表面主归属 `P1-A`，导入页复用外部谱库设置只形成 `P1-H` 从属暴露，不新开子线。
 - **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端
 - **训练 Mod**：`BmsModMirror` 与 `BmsModRandom` 已落地；`RANDOM` / `R-RANDOM` / `S-RANDOM` + seed / custom pattern 已接通，14K 单组 pattern 可自动复制到双侧
-- **辅助 Mod**：`BmsModAutoScratch` 与 `BmsModAutoplay` 已落地，均归 `DifficultyReduction`；A-SCR 会让 scratch 退出判定 / 计分 / gauge 池，并提供 mod 内可见性 / 染色配置；autoplay 已接通 BMS replay frame / replay input handler / replay recorder / auto generator
-- **BMS 速度语义**：lane cover 现已按 IIDX/LR2 语义显式拆成 `Sudden`（上遮挡）与 `Hidden`（下遮挡）；`Lift` 已作为独立 mod 接入 playfield 几何并影响 `ScrollLengthRatio`；设置页现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式数值 slider，并明确不在 settings 中显示 `GN / ms`。runtime 速度反馈继续保留在 gameplay 内，以 mode-aware `GN + WN + 当前模式和值 + 当前目标` 表达；游玩内滚轮会按当前目标调节 `Sudden / Hidden / Lift`，鼠标中键会在已启用项之间循环切换。进入 BMS 游玩后现有 5 秒 pre-start 调速窗口；按住 `UI_LaneCoverFocus` 会阻塞开谱并弹出当前模式与当前数值，期间可按键位奇数列增速、偶数列减速，且滚轮 / 中键仍可继续调整 lane cover 与目标切换。当前 tri-mode surface 已落地，其中 `Classic` 仍锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前只实现 initial-BPM anchored surface，不应包装成完整 mid-song re-float parity。
-- **P1-A / P1-C 交叉专题**：现阶段这条交叉线已从“strict Classic 收口”推进到“tri-mode Hi-Speed control surface + pre-start hold operator surface”。`P1-A` 继续负责 settings / HUD 宿主 / fallback / skin boundary 与 operator overlay 的产品边界，`P1-C` 继续负责 mode-aware speed metrics、`Sudden / Hidden / Lift` 联动、pre-start hold 调速语义与同一 feedback family 下的训练表达。aggregate scalar state contract 仍停在第四刀，但当前 `GN` / `WN` 已明确属于 OMS 的 tri-mode runtime surface，而非完整 `FHS`；后续 backlog 主要转为 full Floating parity（mid-song re-float、soflan range、更加严格的 IIDX start sequencing）与 dedicated integration coverage。
+- **辅助 Mod**：`BmsModAutoScratch`、`BmsModAutoNote` 与 `BmsModAutoplay` 已落地，均归 `DifficultyReduction`；`A-SCR` 会让 scratch 退出判定 / 计分 / gauge 池，并提供 mod 内可见性 / 染色配置；`A-NOT` 会对非 scratch note 做同样的 assist 处理，并提供独立的 note 可见性 / 染色 / 染色盘；`A-SCR` 与 `A-NOT` 当前互斥，且二者都继续与 `autoplay` 互斥。`autoplay` 已接通 BMS replay frame / replay input handler / replay recorder / auto generator
+- **BMS mod 记忆**：BMS 现通过 `BmsRulesetSetting.PersistedModState` 以 ruleset-local JSON snapshot 持久化 mod 选中状态与非默认配置；完全重启或从 mania 切走再切回 BMS 时都可恢复，且不影响 mania。实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 现在关闭再开启也不会丢配置；`Sudden / Hidden / Lift` 还额外提供 `记忆游戏内变动` 开关，默认开启时会把局内调整回写到当前 BMS mod 配置并在回场 / 下次启动后延续。启动早期若 `RulesetConfigCache` 尚未完成加载，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再执行恢复，避免冷启动首轮漏恢复或把 ruleset 误标记失败；该路径已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
+- **BMS 速度语义**：lane cover 现已按 IIDX/LR2 语义显式拆成 `Sudden`（上遮挡）与 `Hidden`（下遮挡）；`Lift` 已作为独立 mod 接入 playfield 几何并影响 `ScrollLengthRatio`；设置页现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式数值 slider，并明确不在 settings 中显示 `GN / ms`，也不再暴露 `Playfield Scale` 或数值型 `Playfield Horizontal Offset`。当前 playfield scale 已固定为 `1.0`，避免缩放破坏皮肤编排并扭曲权威 visual-speed surface；single-play 侧当前改为四态 `Playfield Style`：`1P（居左）`、`2P（居右）`、`居中（左皿）`、`居中（右皿）`。它只作用于 5K / 7K 的 playfield 停靠与 scratch 视觉侧别，其中 `1P / 2P` 为“侧停靠但保留固定屏侧间距”；不改变尺寸与可见时间语义，也不等价于完整 `1P/2P flip`。9K 固定居中，14K 固定双侧布局。runtime 速度反馈继续保留在 gameplay 内，以 mode-aware `GN + WN + 当前模式和值 + 当前目标` 表达；游玩内滚轮会按当前持久目标调节 `Sudden / Hidden / Lift`，单击 `UI_LaneCoverFocus`（或鼠标中键）会在已启用项之间循环切换持久目标。进入 BMS 游玩后现有 5 秒 pre-start 调速窗口；按住 `UI_PreStartHold` 会阻塞开谱并弹出当前模式与当前数值，期间可按键位奇数列增速、偶数列减速，且 `UI_LaneCoverFocus` / 滚轮 / 中键仍可继续调整 lane cover 与目标切换。`UI_PreStartHold` 与 `UI_LaneCoverFocus` 已拆为独立动作（默认 5K/7K/9K：PreStartHold = Q、LaneCoverFocus = W；14K：PreStartHold = T、LaneCoverFocus = Y）。当前 tri-mode surface 已落地，其中 `Classic` 仍锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前只实现 initial-BPM anchored surface，不应包装成完整 mid-song re-float parity。
+- **P1-A / P1-C 交叉专题**：现阶段这条交叉线已从“strict Classic 收口”推进到“tri-mode Hi-Speed control surface + pre-start hold operator surface”。`P1-A` 继续负责 settings / HUD 宿主 / fallback / skin boundary 与 operator overlay 的产品边界，`P1-C` 继续负责 mode-aware speed metrics、`Sudden / Hidden / Lift` 联动、pre-start hold 调速语义与同一 feedback family 下的训练表达。aggregate scalar state contract 仍停在第四刀，但当前 `GN` / `WN` 已明确属于 OMS 的 tri-mode runtime surface，而非完整 `FHS`；冷启动 BMS mod 恢复这条 integration path 已补 dedicated coverage，后续 backlog 主要转为 full Floating parity（mid-song re-float、soflan range、更加严格的 IIDX start sequencing）与更广的 integration coverage。
 - **文档治理基线**：文档目录现已固定为 `doc_md/mainline`、`doc_md/subline`、`doc_md/other`、`doc_md/mini`；任何后续开发必须同步更新对应目录文档，子线与 mini 的变化若影响全局，必须反向同步主线四件套
 - **结果页反馈基线**：BMS results 的 expanded 主评价与 contracted badge 已按 `DJ LEVEL` 显示，主分数区已显式标为 `EX-SCORE`；results summary / gauge history 仍作为后续反馈面收口的复用基础
 - **回放基线**：BMS replay frame / replay input handler / replay recorder / auto generator 已接通；本地 replay 归档复用 core legacy replay encode/decode 的 custom-ruleset fallback，当前按 lane action 持久化
@@ -70,12 +75,21 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-04-20
+### 2026-04-23
 
-- **范围**：完成 `P1-A / P1-C` 交叉 tri-mode Hi-Speed surface 与 pre-start hold 调速窗口首轮接线：`BmsHiSpeedMode` / `BmsHiSpeedRuntimeCalculator`、mode dropdown + per-mode slider、mode-aware HUD / toast / metrics、`BmsSoloPlayer` 5 秒 delayed start、`BmsPreStartHiSpeedOverlay`、以及 paused pre-start 下继续可用的 `Sudden / Hidden / Lift` 调整链已全部接通
-- **本轮重跑**：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsDrawableRulesetTest"` **97/97** 通过；`Build osu! (Release)` 通过
-- **本轮 warning**：本次 `Build osu! (Release)` 仍仅见仓库既有 warning：`BmsFolderImporter.cs` 的 `CS8604`
-- **沿用最近已验证快照**：BMS **608/608**（2026-04-17），mania OMS **92/92**，BMS fallback 与 speed feedback / judgement feedback 增量用例已覆盖，scratch bridge **43/43**，`osu.Game.Tests` release-gate **6/6**
+- **范围**：把 Settings → Maintenance 的谱库扫描拓扑扩展为四模式：`外部/内部 × 重建/增量`，并把内部两种扫描迁移到新的 `内部谱库` subsection。`ExternalLibraryScanner` / `ManagedLibraryScanner` 现已支持 `Rebuild` 与 `Incremental` 两种扫描模式；增量模式只处理当前尚无 active `FilesystemStoragePath` 记录的目录，重建模式继续遍历并重新注册全部候选目录。
+- **本轮重跑**：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest"` **6/6** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- **补充修正**：BMS Song Select 分组下拉现已移除 `未分组` 以及 `本地收藏 / 导入时间 / 上架时间 / 官网收藏 / 我做的谱面 / 谱面状态 / 来源` 这些上游分组；`Difficulty Table` 标签已汉化为 `难度表`，并成为 BMS 默认分组。mania 默认分组列表不变。
+- **补充验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest"` **21/21** 通过。
+- **补充修正**：BMS Song Select 专属 8 项排序中的两项本地成绩排序标签现已明确显示为 `点灯状态` 与 `达成率`，不再回落到 `Clear Lamp` / `准度要求`；mania 默认排序文案不变。
+- **补充验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest"` **20/20** 通过。
+- **补充修正**：BMS 进入 Song Select fresh entry 与切换任意 BMS 分组时，现都会回到分组最外层，并把当前歌曲/谱面映射到对应的最外层分组作为 keyboard-selected 项；实际 beatmap 全局选择不会被改写，因此 leaderboard / details 仍继续跟随当前歌曲，mania 共享流程不变。
+- **补充验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest|FullyQualifiedName~TestSceneBmsSongSelectDifficultyTable"` **26/26** 通过。
+- **产品口径**：外部谱库 subsection 负责外部根注册与 `扫描外部谱库（重建）/（增量）`；内部谱库 subsection 负责 `chartbms/` / `chartmania/` 的 `扫描内部谱库（重建）/（增量）`。位于外部路径的目录不会被内部扫描接手。
+- **补充修正**：首次启动向导现已收口为 OMS 六步流程：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定；欢迎页、获取谱面页、导入页都已切到 OMS-owned 文案资源，导入页直接复用 `ExternalLibrarySettings`，难度表页导入 zris 镜像预设，最后一步复用全局 / mania / BMS keybinding panel。
+- **补充修正**：手动重新打开向导并进入旧“游戏表现”页导致的 blank panel / unhandled error 已修复；`SkinSection` 里 `skinDropdown.Current.Disabled = true` 的时序现已移到 `LoadComplete()`。
+- **补充验证**：`dotnet test osu.Game.Tests --filter "FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable" --configuration Release` **11/11** 通过。
+- **沿用最近已验证快照**：BMS **608/608**（2026-04-17），mania OMS **92/92**，scratch bridge **43/43**，`osu.Game.Tests` release-gate **6/6**。
 
 ## 联网约束
 
@@ -174,7 +188,7 @@
 | P1-E gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
 | P1-F 首发离线发行基线 | portable.ini + data/ 便携模式已落地 | 已验证 |
 | P1-G 人工验收后置 | 统一后置到 Phase 1 / 1.1 收口后 | 待做 |
-| P1-H 存储拓扑支撑线 | chartmania/ 目录存储 + 外部多目录谱库扫描 + portable.ini 便携模式 | 已落地 |
+| P1-H 存储拓扑支撑线 | chartmania/ 目录存储 + 外部/内部谱库重建与增量扫描 + portable.ini 便携模式 | 已落地 |
 
 ## 遗留问题
 

@@ -2,7 +2,45 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-04-22
+
+### C2 修复：冷启动 mod 记忆时序与 startup replay 补全
+
+- `OsuGameBase` 现不再把 startup 早期 `RulesetConfigCache` 未 ready 的 path 当作 ruleset failure；BMS mod memory 会先允许无 config 的首轮 apply，并在 cache ready 后 replay 当前 ruleset，补做 `PersistedModState` restore。
+- 该修复同时消除了 `BMS` / `osu!mania` startup issue 通知，以及完全冷启动第一次进入 BMS 时 selected mod 与 remembered settings 丢失的问题；`RememberGameplayChanges` 与 ruleset-local snapshot 的合同保持不变。
+- 新增 `BmsStartupModPersistenceIntegrationTest`，用两段式 host 冷启动回归锁定 BMS cold-start restore：先 seed `PersistedModState`，再用第二个同名 host 启动 `OsuGameBase`，断言 `BmsModSudden` 选中状态与配置恢复。
+- 验证：`dotnet build .\osu.Desktop\osu.Desktop.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet run --project .\osu.Desktop\osu.Desktop.csproj -c Release` 进入 MainMenu 且最新 runtime log 干净；`BmsStartupModPersistenceIntegrationTest` + `BmsModStatePersistenceTest` 合计 **4/4** 通过；手测确认冷启动 / 运行中关开 / 切 mania 往返的 BMS mod 记忆均正确。
+
+## 2026-04-21
+
+### C2 跟进：BMS mod 记忆与 gameplay adjustment 回写合同
+
+- BMS 现通过 `BmsModStatePersistence` 持久化 selected mod 顺序和 non-default settings；完全重启或切到 mania 再切回 BMS 时会恢复 remembered state，且该合同保持 BMS-only，不影响其他 ruleset。
+- `DrawableBmsRuleset` 在 `Sudden / Hidden / Lift` gameplay clone 调整后，会在 `RememberGameplayChanges` 开启时把值同步回当前全局 selected mod；`SoloSongSelect.revertMods()` 回场前再把这些设置合并回开局快照，避免 lane cover / lift 改动被 gameplay rollback 覆盖。
+- `BmsModSudden`、`BmsModHidden`、`BmsModLift` 现都暴露 `Remember gameplay changes` 开关，默认开启；关闭时局内调整保持 current-play-only。
+- 验证：定向 `BmsRulesetConfigurationTest`、`BmsModStatePersistenceTest`、`BmsRulesetModTest` 合计 **56/56** 通过；独立输出目录 `Release` 构建通过。
+
+### C1 strict 补清理：数值型 horizontal offset 退出，single-play style 入位
+
+- `BmsSettingsSubsection` 已移除数值型 `游玩区域水平偏移`，改为四态 `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`）这一 single-play presentation surface。
+- 当前基础实现只改变 5K / 7K 的 playfield 停靠与 scratch 视觉侧别：`1P / 2P` 都是“侧停靠但保留固定屏侧间距”，两种 `居中` 都保持 playfield 居中，只区分 scratch 视觉在左还是右；这不改变 `VisibleLaneTime / GreenNumber` 语义，也不等价于完整 `1P/2P flip`。9K 固定居中，14K 固定双侧布局。
+- 验证：定向 `BmsRulesetConfigurationTest`、`BmsPlayfieldAdjustmentContainerTest`、`BmsLaneLayoutTest`、`TestSceneBmsPlayfieldLayoutConfig`、`BmsDrawableRulesetTest`、`BmsScrollSpeedMetricsTest` 合计 **92/92** 通过；`Build osu! (Release)` 通过。
+
+### C1 strict 补清理：移除 `Playfield Scale` 残余 surface
+
+- `BmsSettingsSubsection` 已移除 `游玩区域缩放`，`BmsRulesetConfigManager` 也不再声明 `PlayfieldScale`；旧的整体缩放值不会再进入当前 `VisibleLaneTime / GreenNumber` 相关 runtime contract。
+- `BmsPlayfieldAdjustmentContainer` 现固定为 identity transform；这样 `Sudden / Hidden / Lift` 之外不会再有新的用户可见“变相变速”入口。
+- 验证：后续同日回归已扩大到 `BmsLaneLayoutTest`，合计 **90/90** 通过；`Build osu! (Release)` 通过。
+
 ## 2026-04-20
+
+### C2 修复：pre-start 稳定性修复与 `UI_LaneCoverFocus` / `UI_PreStartHold` 语义拆分
+
+- 修复 `BmsSoloPlayer` pre-start delayed start 引起的 clock failure：`GameplayClockContainer.Reset(startClock:false)` 停止残留 decoupled clock + 新增 `SoftUnpause()` 使 `FrameStabilityContainer` 在 pre-start 期间正常渲染 playfield。
+- 拆分 `UI_PreStartHold`（按住阻塞开谱）与 `UI_LaneCoverFocus`（单击循环持久目标）为独立键位。新增 `BmsAction.PreStartHold` + `OmsBmsActionMap` 全变体映射 + `BmsInputStrings.PreStartHold` 本地化，让 `UI_PreStartHold` 在设置面板可见。
+- `UI_LaneCoverFocus` 语义从 hold-to-temporarily-switch-to-Hidden 改为 click-to-cycle：按下时触发 `CycleGameplayAdjustmentTarget()` 在 `Sudden → Hidden → Lift` 之间循环，松开后不恢复。修复启用多 mod 时无法切换到 Lift 的问题。
+- 默认键位：5K/7K/9K PreStartHold = Q、LaneCoverFocus = W；14K PreStartHold = T、LaneCoverFocus = Y。
+- 验证：`TestSceneBmsSoloPlayerPreStart` **6/6**；`BmsRulesetModTest` **40/40**；`Build osu! (Release)` 通过。
 
 ### C2 补回归：pre-start hold start-sequence integration coverage 扩面
 
@@ -96,10 +134,10 @@
 - `BmsRulesetModTest` 与 `TestSceneBmsSpeedFeedbackDisplay` 已补运行时与视觉回归，锁定临时覆写开关与 `HOLD` 文案替换语义。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **152/152** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 
-### C2 第三刀：恢复 `UI_LaneCoverFocus` 的 Hidden 临时覆写
+### C2 第三刀：恢复 `UI_LaneCoverFocus` 的 Hidden 临时覆写（已被后续 2026-04-20 拆分取代）
 
-- `DrawableBmsRuleset` 已恢复 `UI_LaneCoverFocus` 的按住型语义：按住时滚轮临时转向 `Hidden`（若可用），松开后回到持久 target。
-- target cycle 入口已明确收口到鼠标中键点击，不再借用 `LaneCoverFocusPressed` 信号本身。
+- ~~`DrawableBmsRuleset` 已恢复 `UI_LaneCoverFocus` 的按住型语义：按住时滚轮临时转向 `Hidden`（若可用），松开后回到持久 target。~~ → 2026-04-20 已改为 click-to-cycle 语义。
+- ~~target cycle 入口已明确收口到鼠标中键点击，不再借用 `LaneCoverFocusPressed` 信号本身。~~ → 2026-04-20 `UI_LaneCoverFocus` 自身即为 cycle 入口（单击触发）。
 - `BmsRulesetModTest` 新增回归，锁定“临时覆写不会改写持久 target，松开后会回退到持久 target”的运行时语义。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsRulesetModTest|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **151/151** 通过；`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 

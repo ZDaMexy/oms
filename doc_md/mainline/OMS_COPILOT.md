@@ -91,6 +91,7 @@ oms/
 │   │   ├── BmsModHidden.cs              # Hidden cover
 │   │   ├── BmsModLift.cs                # Lift (judgement-line raise)
 │   │   ├── BmsModAutoScratch.cs         # A-SCR — Auto Scratch
+│   │   ├── BmsModAutoNote.cs            # A-NOT — Auto Note
 │   │   ├── BmsModAutoplay.cs            # BMS-specific autoplay
 │   │   ├── BmsModMirror.cs              # Button-lane mirror (scratch stays fixed)
 │   │   ├── BmsModRandom.cs              # RANDOM / R-RANDOM / S-RANDOM + custom pattern
@@ -100,7 +101,8 @@ oms/
 │   ├── Background/
 │   │   └── BmsBackgroundLayer.cs        # Static BG + future BGA hook
 │   ├── Configuration/
-│   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (layout, keysound, later feature flags)
+│   │   ├── BmsModStatePersistence.cs    # Ruleset-local selected-mod/settings persistence for BMS startup and ruleset switches
+│   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (layout, keysound, mod-state snapshot, later feature flags)
 │   ├── Resources/
 │   │   └── bms_table_presets.json       # Bundled preset difficulty table URLs (not hardcoded)
 │   ├── BmsMod.cs                        # Abstract base class for all BMS mods (extends Mod)
@@ -639,15 +641,23 @@ public class BmsModGaugeAutoShift : BmsMod
 **Score submission with GAS:**  
 Scores set with GAS active are tagged with `gauge_mode = GAS` on the private server. The lamp submitted is the best lamp achieved during the run.
 
-### 6.5 Auto Scratch — A-SCR (`BmsModAutoScratch`)
+### 6.5 Auto Assist Mods — A-SCR / A-NOT
 
-Current repository status: `BmsModAutoScratch` now exists in the current workspace as a `DifficultyReduction` mod. The current implementation exposes mod-local `ScratchVisibility`, `TintScratchNotes`, and `ScratchTintColour` settings, while leaderboard filters and global ruleset-config persistence remain future work.
+Current repository status: `BmsModAutoScratch` and `BmsModAutoNote` now exist in the current workspace as `DifficultyReduction` mods. The current implementation exposes mod-local `ScratchVisibility` / `TintScratchNotes` / `ScratchTintColour` and `NoteVisibility` / `TintNotes` / `NoteTintColour` settings. Configurable BMS mods now also use a BMS-only ruleset-config snapshot for selection/config persistence; leaderboard filters remain future work.
 
 **Current behavior / contract:**
 
 - Scratch notes may be auto-triggered for audio-only handling and excluded from manual scoring / gauge / combo.
+- Non-scratch notes may be auto-triggered for the same assist purpose and excluded from manual scoring / gauge / combo.
+- `A-SCR` and `A-NOT` are mutually incompatible, and both remain incompatible with full `autoplay`.
 - The feature must remain an opt-in assist path and must not become the default BMS teaching baseline.
 - Any score tagging, lamp handling, or leaderboard filtering for `A-SCR` must land together with the gameplay implementation rather than being documented ahead of code.
+
+**Current BMS mod-state persistence contract:**
+
+- Configurable BMS mods now use a BMS-only ruleset-config snapshot (`BmsRulesetConfigManager.PersistedModState`) that remembers both selected-mod order and non-default per-mod settings across restart and BMS ↔ mania ruleset switches.
+- Disabling a configurable BMS mod is not treated as a request to reset it; if the mod opts into preserved settings, re-enabling it must restore the last remembered configuration.
+- This contract is currently BMS-only and must not be generalized to mania or to a global cross-ruleset `SelectedMods` persistence layer without a separate design and product contract.
 
 **Planned `BmsRulesetConfigManager` additions when A-SCR / leaderboard filters land:**
 
@@ -697,6 +707,8 @@ BMS mode does not use osu!mania's `ManiaStage` directly. Define a `BmsLaneLayout
 - Lane colors (alternating key colors per BMS convention)
 - Scratch lane position (leftmost for 1P, rightmost for 2P)
 
+Current Phase 1 surface: settings now expose a basic single-play `Playfield Style` with four options for 5K / 7K only: `1P (left anchored with intentional screen-side inset)`, `2P (right anchored with intentional screen-side inset)`, `Center (left scratch)`, and `Center (right scratch)`. This adjusts playfield anchoring and scratch visual side without flipping bindings or introducing a full side-aware skin contract. 9K remains centered and 14K remains fixed DP.
+
 **Phase 2 target — 1P/2P flip (`BmsModMirror1P2P`):**
 - Current repository status: the workspace now has `BmsModMirror` and `BmsModRandom` for button-lane rearrangement, but it still does not have a dedicated full-side `1P/2P flip` mod.
 - Mirrors the entire lane array horizontally
@@ -713,7 +725,9 @@ Controlled by Mods:
 - `BmsModHidden` — enables lower masking, exposes a `CoverPercent` setting (0–100%)
 - `BmsModLift` — raises the judgement line with an independent `LiftUnits` setting (0–1000)
 
-Sudden and Hidden can be active simultaneously. In gameplay, the scroll wheel now adjusts the current range target without pausing: default target order prefers Sudden, mouse middle-click cycles across enabled `Sudden / Hidden / Lift`, and holding `UI_LaneCoverFocus` still temporarily redirects wheel input to Hidden. Lift remains a separate geometry control and must not be conflated with Hidden.
+Sudden and Hidden can be active simultaneously. In gameplay, the scroll wheel adjusts the current persistent range target without pausing: default target order prefers Sudden, and clicking `UI_LaneCoverFocus` (or mouse middle-click) cycles across enabled `Sudden / Hidden / Lift` targets. Lift remains a separate geometry control and must not be conflated with Hidden.
+
+Current Phase 1 contract: configurable BMS mods keep their remembered settings across deselect / re-enable and across BMS session restoration. `BmsModSudden`, `BmsModHidden`, and `BmsModLift` also expose a `Remember gameplay changes` toggle (default `true`). When enabled, gameplay wheel adjustments must write back to the selected BMS mod instance and its persisted ruleset snapshot; when disabled, those adjustments remain current-play-only.
 
 ### 7.3 Scroll Speed
 
@@ -727,7 +741,7 @@ Settings must show only the selected Hi-Speed mode and that mode's numeric value
 
 OMS may surface `Green Number` / `White Number` during gameplay as part of its current BMS runtime speed-feedback model, but that model is presently scoped to `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` and must not be described as proof that full IIDX-style Floating Hi-Speed parity already exists.
 
-Current BMS gameplay also includes a pre-start hold-adjust surface: entering gameplay inserts a 5-second delayed-start window, and holding `UI_LaneCoverFocus` blocks the actual start while showing the selected Hi-Speed mode and current value. During this hold window, odd-numbered lanes increase the current Hi-Speed, even-numbered lanes decrease it, and scroll-wheel / middle-click lane-cover controls remain available. Treat this as runtime operator interaction, not as a settings-page preview or a replacement for the skinnable HUD contract.
+Current BMS gameplay also includes a pre-start hold-adjust surface: entering gameplay inserts a 5-second delayed-start window, and holding `UI_PreStartHold` blocks the actual start while showing the selected Hi-Speed mode and current value. During this hold window, odd-numbered lanes increase the current Hi-Speed, even-numbered lanes decrease it, and `UI_LaneCoverFocus` / scroll-wheel / middle-click lane-cover controls remain available. `UI_PreStartHold` and `UI_LaneCoverFocus` are separate actions with independent key bindings (default 5K/7K/9K: PreStartHold = Q, LaneCoverFocus = W; 14K: PreStartHold = T, LaneCoverFocus = Y). Treat this as runtime operator interaction, not as a settings-page preview or a replacement for the skinnable HUD contract.
 
 If OMS later extends Floating Hi-Speed semantics, ship it as a complete contract across scroll speed, lane cover, LIFT, BPM compensation, start-sequence behavior, and displayed terminology. Do not market or document the current OMS-local GN/WN feedback as complete FHS.
 
@@ -739,7 +753,7 @@ If OMS later extends Floating Hi-Speed semantics, ship it as a complete contract
 
 All input hardware — keyboard, IIDX controller, arcade controller, gamepad — must map to the same abstract `OmsAction` enum. The game layer never reads hardware signals directly.
 
-Current implementation note: `osu.Game.Rulesets.Bms` is now partially wired to `oms.Input`. The current playable prototype still relies on a ruleset-local `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus`) as temporary scaffolding, but `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, the Windows Raw Input keyboard path, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, HID-trigger persistence/editor live capture, and the provider-backed HID code path are all present. Windows now uses a DirectInput-backed HID provider by default, while `HidSharp` remains available as a diagnostic backend behind `OMS_ENABLE_HIDSHARP=1` to avoid the historical `HidSharp.DeviceList.Local` `RegisterClass failed` crash path. Remaining input work is mainly richer cross-device semantics and real-hardware validation. Treat the current bridge as temporary scaffolding, not the final input contract.
+Current implementation note: `osu.Game.Rulesets.Bms` is now partially wired to `oms.Input`. The current playable prototype still relies on a ruleset-local `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus` + `PreStartHold`) as temporary scaffolding, but `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, the Windows Raw Input keyboard path, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, HID-trigger persistence/editor live capture, and the provider-backed HID code path are all present. Windows now uses a DirectInput-backed HID provider by default, while `HidSharp` remains available as a diagnostic backend behind `OMS_ENABLE_HIDSHARP=1` to avoid the historical `HidSharp.DeviceList.Local` `RegisterClass failed` crash path. Remaining input work is mainly richer cross-device semantics and real-hardware validation. Treat the current bridge as temporary scaffolding, not the final input contract.
 
 ```csharp
 public enum OmsAction
@@ -755,7 +769,8 @@ public enum OmsAction
     Key9K_6, Key9K_7, Key9K_8, Key9K_9,
     // UI / System
     UI_Confirm, UI_Back, UI_ModMenu, UI_LaneCoverAdjust,
-    UI_LaneCoverFocus,  // Hold to redirect scroll-wheel from Top cover to Bottom cover (§7.2)
+    UI_LaneCoverFocus,  // Click to cycle scroll-wheel target across enabled Sudden/Hidden/Lift (§7.2)
+    UI_PreStartHold,     // Hold to block gameplay start and open pre-start adjust overlay (§7.3)
     // ... extend as needed
 }
 ```

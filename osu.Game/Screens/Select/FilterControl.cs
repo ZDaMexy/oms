@@ -180,7 +180,7 @@ namespace osu.Game.Screens.Select
                                     sortDropdown = new ShearedDropdown<SortMode>(SongSelectStrings.Sort)
                                     {
                                         RelativeSizeAxes = Axes.X,
-                                        Items = Enum.GetValues<SortMode>(),
+                                        Items = Array.Empty<SortMode>(),
                                     },
                                     Empty(),
                                     groupDropdown = new ShearedDropdown<GroupMode>(SongSelectStrings.Group)
@@ -218,15 +218,17 @@ namespace osu.Game.Screens.Select
             config.BindWith(OsuSetting.SongSelectSortingMode, sortDropdown.Current);
             config.BindWith(OsuSetting.SongSelectGroupMode, groupDropdown.Current);
 
+            updateAvailableSortingModes();
             updateAvailableGroupingModes();
             updateSortDropdownState();
 
             ruleset.BindValueChanged(_ =>
             {
+                bool sortSelectionChanged = updateAvailableSortingModes();
                 bool groupSelectionChanged = updateAvailableGroupingModes();
                 updateSortDropdownState();
 
-                if (!groupSelectionChanged)
+                if (!sortSelectionChanged && !groupSelectionChanged)
                     updateCriteria();
             });
             mods.BindValueChanged(m =>
@@ -350,7 +352,19 @@ namespace osu.Game.Screens.Select
             if (availableModes.Contains(groupDropdown.Current.Value))
                 return false;
 
-            groupDropdown.Current.Value = GroupMode.None;
+            groupDropdown.Current.Value = availableModes.First();
+            return true;
+        }
+
+        private bool updateAvailableSortingModes()
+        {
+            var availableModes = ruleset.Value.CreateInstance().GetAvailableSongSelectSortModes().ToArray();
+            sortDropdown.Items = availableModes;
+
+            if (availableModes.Contains(sortDropdown.Current.Value))
+                return false;
+
+            sortDropdown.Current.Value = availableModes.First();
             return true;
         }
 

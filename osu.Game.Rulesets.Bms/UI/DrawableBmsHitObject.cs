@@ -42,10 +42,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private readonly Drawable? mainVisual;
         private Container? nestedHitObjectContainer;
-        private bool autoScratchVisualsApplied;
-        private bool autoScratchVisible = true;
-        private bool autoScratchTintEnabled;
-        private Color4 autoScratchTintColour = Color4.White;
+        private bool autoAssistVisualsApplied;
+        private bool autoAssistVisible = true;
+        private bool autoAssistTintEnabled;
+        private Color4 autoAssistTintColour = Color4.White;
 
         public override IEnumerable<HitSampleInfo> GetSamples()
         {
@@ -112,8 +112,8 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
-            if (autoScratchVisualsApplied)
-                applyAutoScratchVisualState();
+            if (autoAssistVisualsApplied)
+                applyAutoAssistVisualState();
         }
 
         public override void PlaySamples()
@@ -264,28 +264,34 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         internal void ApplyAutoScratchVisuals(bool visible, bool tintEnabled, Color4 tintColour)
+            => applyAutoAssistVisuals(appliesToScratch: true, visible, tintEnabled, tintColour);
+
+        internal void ApplyAutoNoteVisuals(bool visible, bool tintEnabled, Color4 tintColour)
+            => applyAutoAssistVisuals(appliesToScratch: false, visible, tintEnabled, tintColour);
+
+        private void applyAutoAssistVisuals(bool appliesToScratch, bool visible, bool tintEnabled, Color4 tintColour)
         {
             if (mainVisual == null)
                 return;
 
-            if (HitObject is not BmsHitObject { IsScratch: true, AutoPlay: true, CountsForScore: false })
+            if (HitObject is not BmsHitObject { AutoPlay: true, CountsForScore: false } bmsHitObject || bmsHitObject.IsScratch != appliesToScratch)
                 return;
 
-            autoScratchVisualsApplied = true;
-            autoScratchVisible = visible;
-            autoScratchTintEnabled = tintEnabled;
-            autoScratchTintColour = tintColour;
+            autoAssistVisualsApplied = true;
+            autoAssistVisible = visible;
+            autoAssistTintEnabled = tintEnabled;
+            autoAssistTintColour = tintColour;
 
-            applyAutoScratchVisualState();
+            applyAutoAssistVisualState();
         }
 
-        private void applyAutoScratchVisualState()
+        private void applyAutoAssistVisualState()
         {
             if (mainVisual == null)
                 return;
 
-            float alpha = autoScratchVisible ? 1 : 0;
-            Color4 colour = autoScratchTintEnabled ? autoScratchTintColour : Color4.White;
+            float alpha = autoAssistVisible ? 1 : 0;
+            Color4 colour = autoAssistTintEnabled ? autoAssistTintColour : Color4.White;
 
             if (mainVisual is SkinnableDrawable skinnableDrawable && skinnableDrawable.IsLoaded)
             {

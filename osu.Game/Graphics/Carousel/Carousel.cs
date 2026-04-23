@@ -822,6 +822,8 @@ namespace osu.Game.Graphics.Carousel
             selectionValid.Invalidate();
         }
 
+        protected void ChangeKeyboardSelection(object? model) => setKeyboardSelection(model);
+
         /// <summary>
         /// Call after a selection of items change to re-attach <see cref="CarouselItem"/>s to current <see cref="Selection"/>s.
         /// </summary>

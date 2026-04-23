@@ -687,6 +687,48 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [Test]
+        public void TestApplyBeatmapUsesAutoNoteAfterLongNoteMods()
+        {
+            var beatmap = createHoldBeatmap();
+            beatmap.HitObjects.Add(new BmsHitObject
+            {
+                StartTime = 0,
+                LaneIndex = 0,
+                IsScratch = true,
+            });
+
+            var processor = new BmsScoreProcessor();
+
+            processor.Mods.Value = new Mod[]
+            {
+                new BmsModHellChargeNote(),
+                new BmsModAutoNote(),
+            };
+
+            processor.ApplyBeatmap(beatmap);
+
+            var holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.MaximumExScore, Is.EqualTo(2));
+                Assert.That(processor.MaximumCombo, Is.EqualTo(1));
+                Assert.That(processor.MaximumStatistics[HitResult.Perfect], Is.EqualTo(1));
+                Assert.That(holdNote.AutoPlay, Is.True);
+                Assert.That(holdNote.Head?.AutoPlay, Is.True);
+                Assert.That(holdNote.Tail?.AutoPlay, Is.True);
+                Assert.That(holdNote.CountsForScore, Is.False);
+                Assert.That(holdNote.Head?.CountsForScore, Is.False);
+                Assert.That(holdNote.Tail?.CountsForScore, Is.False);
+                Assert.That(holdNote.Head?.Judgement, Is.TypeOf<BmsHitObjectJudgement>());
+                Assert.That(((BmsHitObjectJudgement)holdNote.Head!.Judgement).CountsForScore, Is.False);
+                Assert.That(holdNote.Tail?.Judgement, Is.TypeOf<BmsHoldNoteTailJudgement>());
+                Assert.That(((BmsHoldNoteTailJudgement)holdNote.Tail!.Judgement).CountsForScore, Is.False);
+                Assert.That(holdNote.BodyTicks.All(tick => !tick.CountsForGauge), Is.True);
+            });
+        }
+
         private static BmsBeatmap createBeatmap(int noteCount)
         {
             var beatmap = new BmsBeatmap

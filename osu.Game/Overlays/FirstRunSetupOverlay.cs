@@ -33,15 +33,15 @@ namespace osu.Game.Overlays
         {
         }
 
-        [BackgroundDependencyLoader(permitNulls: true)]
-        private void load(LegacyImportManager? legacyImportManager)
+        [BackgroundDependencyLoader]
+        private void load()
         {
             AddStep<ScreenWelcome>();
             AddStep<ScreenUIScale>();
             AddStep<ScreenBeatmaps>();
-            if (legacyImportManager?.SupportsImportFromStable == true)
-                AddStep<ScreenImportFromStable>();
+            AddStep<ScreenImportFromStable>();
             AddStep<ScreenBehaviour>();
+            AddStep<ScreenKeyBindings>();
 
             Header.Title = FirstRunSetupOverlayStrings.FirstRunSetupTitle;
             Header.Description = FirstRunSetupOverlayStrings.FirstRunSetupDescription;

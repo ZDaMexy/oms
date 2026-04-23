@@ -7,10 +7,10 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Judgements;
@@ -27,10 +27,11 @@ namespace osu.Game.Rulesets.Bms.UI
     [Cached]
     public partial class BmsPlayfield : ScrollingPlayfield
     {
-        private const float layout_epsilon = 0.0001f;
+        private const float side_anchored_horizontal_inset = 0.05f;
 
         private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
         private readonly BindableFloat liftUnits = new BindableFloat();
+        private readonly Bindable<BmsPlayfieldStyle> playfieldStyle = new Bindable<BmsPlayfieldStyle>();
         private readonly IBindable<double>? laneScrollLengthRatio;
 
         [Cached]
@@ -73,6 +74,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private JudgementContainer<DrawableBmsJudgement> judgements = null!;
         private JudgementPooler<DrawableBmsJudgement> judgementPooler = null!;
+        private Container playfieldContainer = null!;
 
         public BmsPlayfield(IBeatmap beatmap, BmsPlayfieldLayoutProfile? layoutProfile = null)
         {
@@ -97,7 +99,7 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(BmsRulesetConfigManager config)
         {
             AddInternal(new Container
             {
@@ -110,10 +112,11 @@ namespace osu.Game.Rulesets.Bms.UI
                         RelativeSizeAxes = Axes.Both,
                         CentreComponent = false,
                     },
-                    new Container
+                    playfieldContainer = new Container
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
+                        RelativePositionAxes = Axes.X,
                         RelativeSizeAxes = Axes.Both,
                         Width = LayoutProfile.PlayfieldWidth,
                         Height = LayoutProfile.PlayfieldHeight,
@@ -147,6 +150,9 @@ namespace osu.Game.Rulesets.Bms.UI
                     }
                 }
             });
+
+            config.BindWith(BmsRulesetSetting.PlayfieldStyle, playfieldStyle);
+            playfieldStyle.BindValueChanged(_ => applyPlayfieldStyle(), true);
         }
 
         protected override void LoadComplete()
@@ -234,6 +240,34 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 lanes[i].ApplyLayoutProfile(laneLayout.Lanes[i], laneLayout.Profile);
                 applyLaneBounds(lanes[i], laneLayout.Lanes[i], laneLayout.TotalRelativeWidth);
+            }
+        }
+
+        private void applyPlayfieldStyle()
+        {
+            var updatedLayout = BmsLaneLayout.CreateFor(beatmap, LayoutProfile, playfieldStyle.Value);
+
+            applyLaneLayout(updatedLayout);
+
+            switch (updatedLayout.Style)
+            {
+                case BmsPlayfieldStyle.P1:
+                    playfieldContainer.Anchor = Anchor.CentreLeft;
+                    playfieldContainer.Origin = Anchor.CentreLeft;
+                    playfieldContainer.X = side_anchored_horizontal_inset;
+                    break;
+
+                case BmsPlayfieldStyle.P2:
+                    playfieldContainer.Anchor = Anchor.CentreRight;
+                    playfieldContainer.Origin = Anchor.CentreRight;
+                    playfieldContainer.X = -side_anchored_horizontal_inset;
+                    break;
+
+                default:
+                    playfieldContainer.Anchor = Anchor.Centre;
+                    playfieldContainer.Origin = Anchor.Centre;
+                    playfieldContainer.X = 0;
+                    break;
             }
         }
 

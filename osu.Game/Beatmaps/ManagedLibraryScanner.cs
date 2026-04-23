@@ -15,7 +15,11 @@ namespace osu.Game.Beatmaps
 
         public Func<string, CancellationToken, Task>? BmsDirectoryImporter { get; set; }
 
+        public Func<string, bool>? BmsDirectoryShouldImport { get; set; }
+
         public Func<string, CancellationToken, Task>? ManiaDirectoryImporter { get; set; }
+
+        public Func<string, bool>? ManiaDirectoryShouldImport { get; set; }
 
         public ManagedLibraryScanner(ExternalLibraryScanner scanner, IEnumerable<ExternalLibraryScanner.ScanRootDefinition> roots)
         {
@@ -24,6 +28,10 @@ namespace osu.Game.Beatmaps
         }
 
         public Task<ExternalLibraryScanner.ScanResult> ScanAllRoots(IProgress<ExternalLibraryScanner.ScanProgress>? progress = null, CancellationToken cancellationToken = default)
-            => scanner.ScanRoots(roots, progress, cancellationToken, BmsDirectoryImporter, ManiaDirectoryImporter);
+            => ScanAllRoots(ExternalLibraryScanner.ScanMode.Rebuild, progress, cancellationToken);
+
+        public Task<ExternalLibraryScanner.ScanResult> ScanAllRoots(ExternalLibraryScanner.ScanMode mode, IProgress<ExternalLibraryScanner.ScanProgress>? progress = null,
+                                                                    CancellationToken cancellationToken = default)
+            => scanner.ScanRoots(roots, mode, progress, cancellationToken, BmsDirectoryImporter, ManiaDirectoryImporter, BmsDirectoryShouldImport, ManiaDirectoryShouldImport);
     }
 }

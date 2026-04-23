@@ -1,6 +1,6 @@
 # P1-C 开发计划：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-04-20
+> 最后更新：2026-04-22
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-C` 的执行顺序；皮肤边界与 HUD 宿主合同见 [../P1-A/DEVELOPMENT_PLAN.md](../P1-A/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -15,7 +15,10 @@
 
 - 当前 `BmsScrollSpeedMetrics` 已能按 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 计算 `VisibleLaneTime`、`WhiteNumber`、`GreenNumber`；其中 `Classic` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前为 initial-BPM anchored runtime surface。
 - 当前 runtime 已同时具备 `BmsSpeedMetricsToast` 与常驻 `GameplayFeedbackDisplay`；toast 只承担操作确认，常驻 feedback card 承担权威表达。
-- 当前 runtime 已具备 5 秒 delayed-start + pre-start hold 调速窗口；`UI_LaneCoverFocus` 作为阻塞键，奇偶列按键用于调节当前 Hi-Speed，滚轮 / 中键则继续用于 lane-cover 调整与 target cycle。
+- 当前 runtime 已具备 5 秒 delayed-start + pre-start hold 调速窗口；`UI_PreStartHold` 作为阻塞键，`UI_LaneCoverFocus`（click-to-cycle）/ 滚轮 / 中键用于 lane-cover 调整与 target cycle，奇偶列按键用于调节当前 Hi-Speed。两个动作已拆分为独立键位。
+- 当前 BMS mod 选中状态与 non-default settings 已通过 `BmsRulesetConfigManager.PersistedModState` 以 ruleset-local snapshot 持久化；这只作用于 BMS，切到 mania 再切回或重启后恢复。
+- 冷启动首轮恢复现已明确要求等待 `RulesetConfigCache` ready：若 startup 首次 ruleset change 发生在 cache `LoadComplete()` 之前，宿主必须延后 replay 当前 ruleset 到 cache ready 后再做 restore；该 path 现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
+- 当前 `Sudden / Hidden / Lift` 已具备 mod-local `RememberGameplayChanges` 开关；开启时局内滚轮改动会跨 gameplay clone 回写到当前 selected mod，并在回场 / 重启后延续，关闭时保持 current-play-only。
 - 当前 results 页已完成 `DJ LEVEL` / `EX-SCORE` 第一轮收口，但还没有形成完整训练反馈闭环。
 - 当前 `BEATORAJA` / `LR2` judge mode 已接通基础路径，但 early/late 非对称窗口、excessive poor 与更完整 long-note release parity 仍未收口。
 
@@ -185,7 +188,7 @@
 2. `Lift` 继续保持 geometry control，不与 `Hidden` 混写。
 3. 对“仅启用 1 个 target”“无 target 可切换”“当前 target 因 mod 未启用而失效”给出明确显示策略。
 
-> 当前已完成四刀：HUD 已能区分 `NONE`、`{TARGET} ONLY`、多 target cycle 状态，以及按住 `UI_LaneCoverFocus` 时的 `HOLD` 临时覆写文案；lane cover focus、cycle 入口与 HUD 状态已完成代码侧收口，后续主线转入 C3。
+> 当前已完成四刀 + 后续修复：HUD 已能区分 `NONE`、`{TARGET} ONLY`、多 target click-to-cycle 状态与临时覆写文案；`UI_LaneCoverFocus`（click-to-cycle）与 `UI_PreStartHold`（hold gate）已拆分为独立动作；与此同时，BMS-only mod state persistence 与 `RememberGameplayChanges` 局内写回开关也已落地，代码侧收口完成，后续主线转入 C3。
 
 ### C3：判定语义与训练反馈收口
 
