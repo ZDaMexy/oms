@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var bindings = new[]
             {
                 new OmsBinding(OmsAction.Key1P_Scratch,
-                    OmsBindingTrigger.Keyboard(InputKey.Q),
+                    OmsBindingTrigger.Keyboard(InputKey.LShift),
                     OmsBindingTrigger.MouseAxis(OmsMouseAxis.X, OmsAxisDirection.Positive))
             };
 
@@ -54,14 +54,14 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
 
-                Assert.That(keyboardHandler.TriggerPressed(InputKey.Q), Is.True);
+                Assert.That(keyboardHandler.TriggerPressed(InputKey.LShift), Is.True);
                 Assert.That(router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
 
                 mouseAxisHandler.BeginFrame();
                 Assert.That(mouseAxisHandler.ApplyAxisDelta(OmsMouseAxis.X, 4), Is.True);
                 Assert.That(router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
 
-                Assert.That(keyboardHandler.TriggerReleased(InputKey.Q), Is.True);
+                Assert.That(keyboardHandler.TriggerReleased(InputKey.LShift), Is.True);
                 Assert.That(router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
 
                 Assert.That(mouseAxisHandler.FinishFrame(), Is.True);
@@ -78,13 +78,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
 
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.LShift), Is.True);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
 
                 Assert.That(inputManager.TriggerXInputButtonPressed((int)JoystickButton.GamePadLeftShoulder), Is.True);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
 
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.LShift), Is.True);
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.True);
 
                 Assert.That(inputManager.TriggerXInputButtonReleased((int)JoystickButton.GamePadLeftShoulder), Is.True);
@@ -101,13 +101,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Not.Contain(BmsAction.Scratch1));
 
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.LShift), Is.True);
                 Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Contain(BmsAction.Scratch1));
 
                 Assert.That(inputManager.TriggerXInputButtonPressed((int)JoystickButton.GamePadLeftShoulder), Is.True);
                 Assert.That(inputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1), Is.EqualTo(1));
 
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.LShift), Is.True);
                 Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Contain(BmsAction.Scratch1));
 
                 Assert.That(inputManager.TriggerXInputButtonReleased((int)JoystickButton.GamePadLeftShoulder), Is.True);
@@ -152,7 +152,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.LShift), Is.True);
                 Assert.That(inputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1), Is.EqualTo(1));
 
                 mouseAxisHandler.BeginFrame();
@@ -162,7 +162,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(mouseAxisHandler.FinishFrame(), Is.True);
                 Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Contain(BmsAction.Scratch1));
 
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.LShift), Is.True);
                 Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Not.Contain(BmsAction.Scratch1));
             });
         }

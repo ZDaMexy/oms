@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-04-23
+> 最后更新：2026-04-24
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -64,9 +64,10 @@
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
 | 桌面端构建 | 通过 | `dotnet build osu.Desktop` 退出码 0 |
-| BMS 全量测试 | **608/608** | 最近一次 `osu.Game.Rulesets.Bms.Tests` 全量 |
+| BMS 全量测试 | **706/706** | 最近一次 `osu.Game.Rulesets.Bms.Tests` 全量 |
+| Mania 全量测试 | **761/761** | 最近一次 `osu.Game.Rulesets.Mania.Tests` 全量 |
 | Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` |
-| BMS 皮肤 fallback | **92/92** | `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics` |
+| BMS 皮肤 fallback | **105/105** | `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics` |
 | Scratch bridge | **43/43** | `TestSceneOmsScratchGameplayBridge` |
 | osu.Game.Tests gate | **6/6** | startup migration / default-skin-edit / settings migration |
 | 编译器诊断残留 | 0 | AutoMapper GHSA 已定点抑制 |
@@ -75,21 +76,13 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-04-23
+### 2026-04-24
 
-- **范围**：把 Settings → Maintenance 的谱库扫描拓扑扩展为四模式：`外部/内部 × 重建/增量`，并把内部两种扫描迁移到新的 `内部谱库` subsection。`ExternalLibraryScanner` / `ManagedLibraryScanner` 现已支持 `Rebuild` 与 `Incremental` 两种扫描模式；增量模式只处理当前尚无 active `FilesystemStoragePath` 记录的目录，重建模式继续遍历并重新注册全部候选目录。
-- **本轮重跑**：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest"` **6/6** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- **补充修正**：BMS Song Select 分组下拉现已移除 `未分组` 以及 `本地收藏 / 导入时间 / 上架时间 / 官网收藏 / 我做的谱面 / 谱面状态 / 来源` 这些上游分组；`Difficulty Table` 标签已汉化为 `难度表`，并成为 BMS 默认分组。mania 默认分组列表不变。
-- **补充验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest"` **21/21** 通过。
-- **补充修正**：BMS Song Select 专属 8 项排序中的两项本地成绩排序标签现已明确显示为 `点灯状态` 与 `达成率`，不再回落到 `Clear Lamp` / `准度要求`；mania 默认排序文案不变。
-- **补充验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest"` **20/20** 通过。
-- **补充修正**：BMS 进入 Song Select fresh entry 与切换任意 BMS 分组时，现都会回到分组最外层，并把当前歌曲/谱面映射到对应的最外层分组作为 keyboard-selected 项；实际 beatmap 全局选择不会被改写，因此 leaderboard / details 仍继续跟随当前歌曲，mania 共享流程不变。
-- **补充验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsRulesetStatisticsTest|FullyQualifiedName~TestSceneBmsSongSelectDifficultyTable"` **26/26** 通过。
-- **产品口径**：外部谱库 subsection 负责外部根注册与 `扫描外部谱库（重建）/（增量）`；内部谱库 subsection 负责 `chartbms/` / `chartmania/` 的 `扫描内部谱库（重建）/（增量）`。位于外部路径的目录不会被内部扫描接手。
-- **补充修正**：首次启动向导现已收口为 OMS 六步流程：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定；欢迎页、获取谱面页、导入页都已切到 OMS-owned 文案资源，导入页直接复用 `ExternalLibrarySettings`，难度表页导入 zris 镜像预设，最后一步复用全局 / mania / BMS keybinding panel。
-- **补充修正**：手动重新打开向导并进入旧“游戏表现”页导致的 blank panel / unhandled error 已修复；`SkinSection` 里 `skinDropdown.Current.Disabled = true` 的时序现已移到 `LoadComplete()`。
-- **补充验证**：`dotnet test osu.Game.Tests --filter "FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable" --configuration Release` **11/11** 通过。
-- **沿用最近已验证快照**：BMS **608/608**（2026-04-17），mania OMS **92/92**，scratch bridge **43/43**，`osu.Game.Tests` release-gate **6/6**。
+- **范围**：按主状态页做最终全面查验，重跑当前权威验证切片：BMS 全量、mania OMS skin gate、BMS user-skin fallback、scratch bridge、`osu.Game.Tests` 文档 gate 与 `osu.Desktop` Release 构建，并补跑 `osu.Game.Rulesets.Mania.Tests` 全量，确认主线文档声明与当前代码基线一致。
+- **本轮修正**：`TestSettingsMigration` 原先仍断言不存在的 `DisplayStarsMaximum` 自动迁移；当前已改为锁定现行契约：旧配置值不会被隐式改写，且保存后的新值可跨重启保留。
+- **补充修正**：mania 最后一轮残留已收口：`TestSceneObjectPlacement` 已切到当前 editor toolbox 锚点；`TestSceneManiaModHidden` / `TestSceneManiaModFadeIn` 已按当前 gameplay scaling 合同重写 coverage 断言；`TestSceneManiaTouchInput` 已改为按真实列边界取点，不再依赖过期的固定 gap 坐标。
+- **本轮验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj` **706/706** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj` **761/761** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **92/92** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics"` **105/105** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge"` **43/43** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest|FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable|FullyQualifiedName~TestSceneStartupSkinMigration|FullyQualifiedName~TestSceneEditDefaultSkin|FullyQualifiedName~TestSettingsMigration" --configuration Release` **23/23** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- **状态同步**：主状态页现已补充 mania 全量 **761/761** 最新快照；`osu.Game.Tests` release-gate 口径继续维持 `startup migration / default-skin-edit / settings migration` **6/6**。
 
 ## 联网约束
 
@@ -152,7 +145,7 @@
 | 1.1.9 BMS 第三批 | 已完成 | HUD / gauge / results / Song Select panels 的 lookup 与 OMS 默认层 |
 | 1.1.10 Partial override | 进行中 | mixed-layer 三类语义已有 runtime 证明；legacy 用户皮肤 component-level fallback 已接通 |
 | 1.1.11 Native-default removal | 进行中 | built-in realm 注册面已瘦身；settings / runtime fallback / source-chain 已收口；公开发行物剥离待收尾 |
-| 1.1.12 测试矩阵与 release gate | 进行中 | Mania 92/92, BMS fallback 92/92, osu.Game.Tests 6/6, scratch 43/43 |
+| 1.1.12 测试矩阵与 release gate | 进行中 | Mania 92/92, BMS fallback 105/105, osu.Game.Tests 6/6, scratch 43/43 |
 
 执行优先顺序：维持 release gate 稳定 → 1.17 analog scratch cross-device edge/hold contract → 真实硬件验收。
 

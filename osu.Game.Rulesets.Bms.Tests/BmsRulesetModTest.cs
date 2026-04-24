@@ -2,6 +2,8 @@
 
 using System.Linq;
 using NUnit.Framework;
+using oms.Input;
+using osu.Framework.Input;
 using osu.Framework.Input.Bindings;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
@@ -343,8 +345,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase(6, 7, 6, "5K")]
-        [TestCase(8, 9, 8, "7K")]
+        [TestCase(6, 8, 6, "5K")]
+        [TestCase(8, 10, 8, "7K")]
         [TestCase(9, 9, 9, "9K")]
         [TestCase(16, 18, 16, "14K")]
         public void TestGameplayBindingsFollowVariant(int variant, int expectedBindingCount, int expectedDistinctActions, string expectedName)
@@ -366,10 +368,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var bindings = new BmsRuleset().GetDefaultKeyBindings(8).Where(binding => binding.Action is BmsAction.Scratch1).ToArray();
 
+            Assert.That(OmsBindingStore.TryGetJoystickButtonInputKey((int)JoystickButton.GamePadLeftShoulder, out var xInputScratchKey), Is.True);
+
             Assert.Multiple(() =>
             {
-                Assert.That(bindings, Has.Length.EqualTo(2));
-                Assert.That(bindings.SelectMany(binding => binding.KeyCombination.Keys).OrderBy(key => key).ToArray(), Is.EqualTo(new[] { InputKey.LShift, InputKey.RShift }));
+                Assert.That(bindings, Has.Length.EqualTo(3));
+                Assert.That(bindings.SelectMany(binding => binding.KeyCombination.Keys).OrderBy(key => key).ToArray(), Is.EqualTo(new[] { InputKey.LShift, InputKey.RShift, xInputScratchKey }.OrderBy(key => key).ToArray()));
             });
         }
 

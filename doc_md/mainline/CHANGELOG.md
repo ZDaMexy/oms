@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-04-24
+
+### 文档主线：第二轮全面复验与验证基线同步
+
+- 按 `DEVELOPMENT_STATUS.md` 当前主线声明重跑权威切片：BMS 全量 **706/706**、mania OMS skin gate **92/92**、BMS user-skin fallback **105/105**、scratch bridge **43/43**、`osu.Game.Tests` 文档 gate **23/23**，并再次确认 `osu.Desktop` Release 构建通过。
+- `TestSettingsMigration` 现已移除对不存在的 `DisplayStarsMaximum -> 10.1` 自动迁移假设，改为锁定当前实际合同：旧配置值保持不变，且用户重新保存后的值会跨重启继续保留。
+- `DEVELOPMENT_STATUS.md` 与 `DEVELOPMENT_PLAN.md` 已同步到当前已验证基线，不再继续沿用过期的 BMS **608/608** / BMS fallback **92/92** 快照。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj` **706/706** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **92/92** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics"` **105/105** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge"` **43/43** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest|FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable|FullyQualifiedName~TestSceneStartupSkinMigration|FullyQualifiedName~TestSceneEditDefaultSkin|FullyQualifiedName~TestSettingsMigration" --configuration Release` **23/23** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### 最终全面查验收尾
+
+- mania 最后一轮残留已全部收口：`TestSceneObjectPlacement` 改为锚定当前 `EditorRadioButton` / `HitObjectCompositionToolButton` 工具按钮；`TestSceneManiaModHidden` / `TestSceneManiaModFadeIn` 现按当前 gameplay scaling 合同断言 coverage；`TestSceneManiaTouchInput` 现按真实列边界而非过期固定 gap 坐标取点。
+- 本轮确认 `osu.Game.Rulesets.Mania.Tests` 全量 **761/761** 通过，说明最终收尾后 mania 已恢复到当前仓库合同下的完整测试绿线，而不是仅停留在 OMS skin gate **92/92**。
+- 验证：`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "FullyQualifiedName~TestSceneManiaTouchInput|FullyQualifiedName~TestSceneObjectPlacement"` **12/12** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "FullyQualifiedName~TestSceneManiaModHidden.TestMaxCoverageFullWidth|FullyQualifiedName~TestSceneManiaModHidden.TestMaxCoverageHalfWidth|FullyQualifiedName~TestSceneManiaModHidden.TestMinCoverageHalfWidth|FullyQualifiedName~TestSceneManiaModFadeIn.TestMaxCoverageFullWidth|FullyQualifiedName~TestSceneManiaModFadeIn.TestMaxCoverageHalfWidth"` **5/5** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj` **761/761** 通过。
+
 ## 2026-04-23
 
 ### P1-A：首次启动向导重构为 OMS 六步流程

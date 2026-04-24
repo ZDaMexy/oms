@@ -79,11 +79,7 @@ namespace osu.Game.Rulesets.Mania.Tests
         [Test]
         public void TestBetweenTwoColumns()
         {
-            AddStep("touch after column 0", () =>
-            {
-                var column = getColumn(0);
-                InputManager.BeginTouch(new Touch(TouchSource.Touch1, column.ToScreenSpace(new Vector2(column.LayoutSize.X + 0.5f, column.LayoutSize.Y / 2))));
-            });
+            AddStep("touch left side of boundary", () => InputManager.BeginTouch(new Touch(TouchSource.Touch1, getBoundaryTouchPosition(0, preferLeftColumn: true))));
             AddAssert("column 0 pressed",
                 () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
                 () => Does.Contain(getColumn(0).Action.Value));
@@ -91,11 +87,7 @@ namespace osu.Game.Rulesets.Mania.Tests
             AddAssert("column 0 released",
                 () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
                 () => Does.Not.Contain(getColumn(0).Action.Value));
-            AddStep("touch before column 1", () =>
-            {
-                var column = getColumn(1);
-                InputManager.BeginTouch(new Touch(TouchSource.Touch1, column.ToScreenSpace(new Vector2(-0.5f, column.LayoutSize.Y / 2))));
-            });
+            AddStep("touch right side of boundary", () => InputManager.BeginTouch(new Touch(TouchSource.Touch1, getBoundaryTouchPosition(0, preferLeftColumn: false))));
             AddAssert("column 1 pressed",
                 () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),
                 () => Does.Contain(getColumn(1).Action.Value));
@@ -211,5 +203,22 @@ namespace osu.Game.Rulesets.Mania.Tests
         private ManiaTouchInputArea.ColumnInputReceptor getReceptor(int index) => this.ChildrenOfType<ManiaTouchInputArea.ColumnInputReceptor>().ElementAt(index);
 
         private Column getColumn(int index) => this.ChildrenOfType<Column>().ElementAt(index);
+
+        private Vector2 getBoundaryTouchPosition(int leftColumnIndex, bool preferLeftColumn)
+        {
+            var leftColumn = getColumn(leftColumnIndex).ScreenSpaceDrawQuad;
+            var rightColumn = getColumn(leftColumnIndex + 1).ScreenSpaceDrawQuad;
+
+            float gapWidth = rightColumn.TopLeft.X - leftColumn.TopRight.X;
+            float x = gapWidth > 1
+                ? preferLeftColumn
+                    ? leftColumn.TopRight.X + gapWidth * 0.25f
+                    : rightColumn.TopLeft.X - gapWidth * 0.25f
+                : preferLeftColumn
+                    ? leftColumn.TopRight.X - 0.5f
+                    : rightColumn.TopLeft.X + 0.5f;
+
+            return new Vector2(x, leftColumn.Centre.Y);
+        }
     }
 }

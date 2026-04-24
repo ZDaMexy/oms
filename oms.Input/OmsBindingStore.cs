@@ -19,7 +19,8 @@ namespace oms.Input
         {
             new OmsBinding(OmsAction.Key1P_Scratch,
                 OmsBindingTrigger.Keyboard(InputKey.LShift),
-                OmsBindingTrigger.Keyboard(InputKey.RShift)),
+                OmsBindingTrigger.Keyboard(InputKey.RShift),
+                OmsBindingTrigger.XInputButton((int)JoystickButton.GamePadLeftShoulder)),
             new OmsBinding(OmsAction.Key1P_1, InputKey.X),
             new OmsBinding(OmsAction.Key1P_2, InputKey.C),
             new OmsBinding(OmsAction.Key1P_3, InputKey.Space),
@@ -33,7 +34,8 @@ namespace oms.Input
         {
             new OmsBinding(OmsAction.Key1P_Scratch,
                 OmsBindingTrigger.Keyboard(InputKey.LShift),
-                OmsBindingTrigger.Keyboard(InputKey.RShift)),
+                OmsBindingTrigger.Keyboard(InputKey.RShift),
+                OmsBindingTrigger.XInputButton((int)JoystickButton.GamePadLeftShoulder)),
             new OmsBinding(OmsAction.Key1P_1, InputKey.Z),
             new OmsBinding(OmsAction.Key1P_2, InputKey.X),
             new OmsBinding(OmsAction.Key1P_3, InputKey.C),

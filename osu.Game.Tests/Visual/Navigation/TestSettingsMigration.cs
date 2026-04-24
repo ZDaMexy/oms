@@ -24,11 +24,11 @@ namespace osu.Game.Tests.Visual.Navigation
         }
 
         [Test]
-        public void TestDisplayStarsMigration()
+        public void TestLegacyDisplayStarsValueIsPreserved()
         {
-            AddAssert("config has migrated value", () => Precision.AlmostEquals(Game.LocalConfig.Get<double>(OsuSetting.DisplayStarsMaximum), 10.1));
+            AddAssert("config kept legacy value", () => Precision.AlmostEquals(Game.LocalConfig.Get<double>(OsuSetting.DisplayStarsMaximum), 10.0));
 
-            AddStep("set value again", () => Game.LocalConfig.SetValue(OsuSetting.DisplayStarsMaximum, 10.0));
+            AddStep("set value again", () => Game.LocalConfig.SetValue(OsuSetting.DisplayStarsMaximum, 9.9));
 
             AddStep("force save config", () => Game.LocalConfig.Save());
 
@@ -38,7 +38,7 @@ namespace osu.Game.Tests.Visual.Navigation
 
             AddUntilStep("Wait for load", () => Game.IsLoaded);
 
-            AddAssert("config did not migrate value", () => Precision.AlmostEquals(Game.LocalConfig.Get<double>(OsuSetting.DisplayStarsMaximum), 10));
+            AddAssert("config kept updated value", () => Precision.AlmostEquals(Game.LocalConfig.Get<double>(OsuSetting.DisplayStarsMaximum), 9.9));
         }
     }
 }

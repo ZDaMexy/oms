@@ -40,9 +40,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
-                Assert.That(inputManager.TriggerKeyPressed(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyPressed(InputKey.W), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.True);
-                Assert.That(inputManager.TriggerKeyReleased(InputKey.Q), Is.True);
+                Assert.That(inputManager.TriggerKeyReleased(InputKey.W), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
             });
         }
@@ -75,9 +75,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
-                Assert.That(sink.HandleRawKeyPressed(InputKey.Q), Is.True);
+                Assert.That(sink.HandleRawKeyPressed(InputKey.W), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.True);
-                Assert.That(sink.HandleRawKeyReleased(InputKey.Q), Is.True);
+                Assert.That(sink.HandleRawKeyReleased(InputKey.W), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
             });
         }

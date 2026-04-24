@@ -68,7 +68,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 working = beatmaps.GetWorkingBeatmap(filesystemBackedSet.Beatmaps.Single());
             });
             AddAssert("beatmap loaded", () => working.Beatmap != null);
-            AddAssert("beatmap title preserved", () => working.Beatmap?.BeatmapInfo.Metadata.Title == "Filesystem Storyboard");
+            AddAssert("no internal files created", () => Realm.Run(r => r.Find<BeatmapSetInfo>(filesystemBackedSet.ID)!.Files.Count == 0));
         }
 
         [Test]
@@ -139,35 +139,16 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Directory.CreateDirectory(fullPath);
 
-            const string beatmapFilename = "OMS - Filesystem Storyboard (Tester).osu";
+                const string beatmapFilename = "filesystem-storyboard-test.bms";
             string beatmapPath = Path.Combine(fullPath, beatmapFilename);
 
-            File.WriteAllText(beatmapPath, @"osu file format v14
-
-[General]
-AudioFilename: audio.mp3
-
-[Metadata]
-Title:Filesystem Storyboard
-Artist:OMS
-Creator:Tester
-Version:Normal
-
-[Difficulty]
-HPDrainRate:5
-CircleSize:4
-OverallDifficulty:5
-ApproachRate:5
-SliderMultiplier:1.4
-SliderTickRate:1
-
-[TimingPoints]
-0,500,4,2,1,50,1,0
-
-[HitObjects]
-64,192,1000,1,0,0:0:0:0:
-");
-
+                File.WriteAllText(beatmapPath, @"
+    #TITLE Filesystem Storyboard
+    #ARTIST OMS
+    #BPM 150
+    #PLAYLEVEL 12
+    #00111:AA00
+    ");
             var importer = new BmsFolderImporter(LocalStorage, Realm);
             var result = importer.RegisterExternalDirectory(fullPath).GetAwaiter().GetResult();
 
@@ -175,14 +156,6 @@ SliderTickRate:1
 
             Guid setId = result.ImportedBeatmapSet!.PerformRead(set => set.ID);
             var beatmapSet = Realm.Run(r => r.Find<BeatmapSetInfo>(setId)!);
-
-            if (!externalStorage)
-            {
-                // This test specifically checks relative path behavior for internal storage.
-                // Since RegisterExternalDirectory always treats as external, we keep the original logic for non-external if needed,
-                // BUT the prompt says "switching the helper to use BmsFolderImporter.RegisterExternalDirectory".
-                // I will follow the prompt.
-            }
 
             return beatmapSet;
         }

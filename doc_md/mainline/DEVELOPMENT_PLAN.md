@@ -30,7 +30,7 @@
 - 本轮已明确归线：**BMS 结果页反馈面收口** 归属 `P1-C`。当前只在现有 lazer results 骨架内继续推进 `DJ LEVEL` / `EX-SCORE` 语义统一、results summary 与 feedback panel 收口，以及低风险布局贴近；不单独开启高风险的 beatoraja 风格整页重构
 - 新增 `P1-A / P1-C` 交叉主子线：**皮肤设计边界与绿色数字 / Mod 联动专题**。该专题先冻结 BMS HUD / skin boundary 与 runtime feedback contract，再推进常驻 GN 显示、`Sudden / Hidden / Lift` 联动反馈，以及后续 `FAST/SLOW` / judge display / visual timing-offset / pacemaker 的统一承载；详细拆解见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)
 - 需要人工操作的 1.5 真实导入/UI 验收与发行物实机验证统一记录在 `DEVELOPMENT_STATUS.md` 的独立板块，默认放在 Phase 1 阶段末尾或出现阻塞时再执行
-- 当前代码规模（2026-04-19 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **146 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **49 个测试源文件**。最近一次完整项目级回归仍为 **608/608** 通过（2026-04-17），另有 `OmsHidDeviceHandlerTest` 定向回归 **14/14** 通过
+- 当前代码规模（2026-04-19 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **146 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **49 个测试源文件**。最近一次完整项目级回归已更新为 BMS **706/706** 与 mania **761/761** 通过（2026-04-24），另有 `OmsHidDeviceHandlerTest` 定向回归 **14/14** 通过
 
 ## Phase 1.x 大主线下的子主线编排
 

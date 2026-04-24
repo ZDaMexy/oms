@@ -418,12 +418,13 @@ namespace osu.Game.Beatmaps
                 if (!beatmapInfo.IsManaged)
                     beatmapInfo = r.Find<BeatmapInfo>(beatmapInfo.ID)!;
 
-                Debug.Assert(beatmapInfo.BeatmapSet != null);
-                Debug.Assert(beatmapInfo.File != null);
-
                 var setInfo = beatmapInfo.BeatmapSet;
 
+                Debug.Assert(setInfo != null);
+
                 throwIfExternalFilesystemStorage(setInfo, "delete difficulties from externally-managed beatmaps");
+
+                Debug.Assert(beatmapInfo.File != null);
 
                 DeleteFile(setInfo, beatmapInfo.File);
                 setInfo.Beatmaps.Remove(beatmapInfo);

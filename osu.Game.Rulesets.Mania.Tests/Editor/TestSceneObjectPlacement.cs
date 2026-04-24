@@ -7,7 +7,9 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Mania.UI;
+using osu.Game.Screens.Edit.Components.RadioButtons;
 using osu.Game.Tests.Visual;
 using osuTK.Input;
 
@@ -27,7 +29,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Editor
             AddStep("Select note", () => InputManager.Key(Key.Number2));
             AddStep("Hover negative span", () =>
             {
-                InputManager.MoveMouseTo(this.ChildrenOfType<Container>().First(x => x.Name == "Icons").Children[0]);
+                InputManager.MoveMouseTo(this.ChildrenOfType<EditorRadioButton>().First(button => button.Button is HitObjectCompositionToolButton compositionTool && compositionTool.Tool.Name == "Note").ScreenSpaceDrawQuad.Centre);
             });
             AddStep("Click", () => InputManager.Click(MouseButton.Left));
             AddAssert("No notes placed", () => EditorBeatmap.HitObjects.All(x => x.StartTime >= 0));

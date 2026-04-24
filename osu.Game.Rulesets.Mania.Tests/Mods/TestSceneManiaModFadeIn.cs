@@ -19,11 +19,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Mods
 {
     public partial class TestSceneManiaModFadeIn : ModTestScene
     {
+        private float? fullWidthCoverageReferenceHeight;
+
         protected override Ruleset CreatePlayerRuleset() => new ManiaRuleset();
 
         [Test]
         public void TestMinCoverageFullWidth()
         {
+            AddStep("reset coverage reference", () => fullWidthCoverageReferenceHeight = null);
+
             CreateModTest(new ModTestData
             {
                 Mod = new ManiaModFadeIn(),
@@ -34,18 +38,23 @@ namespace osu.Game.Rulesets.Mania.Tests.Mods
         [Test]
         public void TestMinCoverageHalfWidth()
         {
+            AddStep("reset coverage reference", () => fullWidthCoverageReferenceHeight = null);
+
             CreateModTest(new ModTestData
             {
                 Mod = new ManiaModFadeIn(),
                 PassCondition = () => checkCoverage(ManiaModHidden.MIN_COVERAGE)
             });
 
+            AddStep("capture full width coverage reference", captureFullWidthCoverageReference);
             AddStep("set playfield width to 0.5", () => Player.Width = 0.5f);
         }
 
         [Test]
         public void TestMaxCoverageFullWidth()
         {
+            AddStep("reset coverage reference", () => fullWidthCoverageReferenceHeight = null);
+
             CreateModTest(new ModTestData
             {
                 Mod = new ManiaModFadeIn(),
@@ -58,19 +67,24 @@ namespace osu.Game.Rulesets.Mania.Tests.Mods
         [Test]
         public void TestMaxCoverageHalfWidth()
         {
+            AddStep("reset coverage reference", () => fullWidthCoverageReferenceHeight = null);
+
             CreateModTest(new ModTestData
             {
                 Mod = new ManiaModFadeIn(),
                 PassCondition = () => checkCoverage(ManiaModHidden.MAX_COVERAGE)
             });
 
-            AddStep("set combo to 480", () => Player.ScoreProcessor.Combo.Value = 480);
+            AddStep("capture full width coverage reference", captureFullWidthCoverageReference);
             AddStep("set playfield width to 0.5", () => Player.Width = 0.5f);
+            AddStep("set combo to 480", () => Player.ScoreProcessor.Combo.Value = 480);
         }
 
         [Test]
         public void TestNoCoverageDuringBreak()
         {
+            AddStep("reset coverage reference", () => fullWidthCoverageReferenceHeight = null);
+
             CreateModTest(new ModTestData
             {
                 Mod = new ManiaModFadeIn(),
@@ -83,6 +97,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Mods
             });
         }
 
+        private void captureFullWidthCoverageReference()
+            => fullWidthCoverageReferenceHeight = this.ChildrenOfType<PlayfieldCoveringWrapper>().FirstOrDefault()?.LayoutSize.Y;
+
         private bool checkCoverage(float expected)
         {
             Drawable? cover = this.ChildrenOfType<PlayfieldCoveringWrapper>().FirstOrDefault();
@@ -91,10 +108,13 @@ namespace osu.Game.Rulesets.Mania.Tests.Mods
             if (filledArea == null)
                 return false;
 
-            float scale = cover!.DrawHeight / (768 - Stage.HIT_TARGET_POSITION);
+            float currentCoverageHeight = cover!.LayoutSize.Y;
+            float referenceCoverageHeight = fullWidthCoverageReferenceHeight ?? currentCoverageHeight;
+            float expectedDisplayedHeight = expected * currentCoverageHeight / referenceCoverageHeight;
 
-            // A bit of lenience because the test may end up hitting hitobjects before any assertions.
-            return Precision.AlmostEquals(filledArea.DrawHeight / scale, expected, 0.1);
+            // Use the local layout height rather than DrawHeight so parent gameplay scaling does
+            // not change the expected stable-space coverage contract.
+            return Precision.AlmostEquals(filledArea.LayoutSize.Y, expectedDisplayedHeight, 1f);
         }
     }
 }
