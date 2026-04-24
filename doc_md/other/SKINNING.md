@@ -36,12 +36,12 @@ OMS 当前实际存在两条皮肤制作路线：
 1. **BMS 代码型 provider 路线**
    - 这是当前最推荐、最稳的路线。
    - 你直接实现 `ISkin.GetDrawableComponent()`，按 BMS lookup 返回自己的 `Drawable`。
-   - 入口和契约见 [osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs](osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs)、[osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs](osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs)、[osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs](osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
+   - 入口和契约见 [osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs)、[osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs)、[osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
 
 2. **legacy/`skin.ini` mania 试验路线**
    - 这是当前还可以用于试验的路线，但不是 OMS 最终 authoring contract。
-   - 入口是 `LegacySkin` 体系；OMS 内置预览皮肤 [osu.Game/Skinning/OmsSkin.cs](osu.Game/Skinning/OmsSkin.cs) 也是挂在这条链上。
-   - 候选包样例见 [SKIN/SimpleTou-Lazer/skin.ini](SKIN/SimpleTou-Lazer/skin.ini)。
+   - 入口是 `LegacySkin` 体系；OMS 内置预览皮肤 [osu.Game/Skinning/OmsSkin.cs](../../osu.Game/Skinning/OmsSkin.cs) 也是挂在这条链上。
+   - 候选包样例见 [SKIN/SimpleTou-Lazer/skin.ini](../../SKIN/SimpleTou-Lazer/skin.ini)。
 
 如果你是第一次开始做 OMS 皮肤，**默认选 BMS 代码型 provider**。只有在你明确知道自己是在试验 legacy mania 资源语义时，才去碰 `skin.ini`。
 
@@ -97,7 +97,7 @@ OMS 当前实际存在两条皮肤制作路线：
 
 ### Step 3：先写最小 provider 骨架
 
-当前 BMS 最小 skin provider 的形状，其实和测试里的 `TestSkin` 一样。参考 [osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs](osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)。
+当前 BMS 最小 skin provider 的形状，其实和测试里的 `TestSkin` 一样。参考 [osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)。
 
 最小骨架如下：
 
@@ -144,7 +144,7 @@ public sealed class MyBmsSkin : ISkin
 
 ### Step 4：哪些组件必须实现接口，不实现就会被替换掉
 
-`BmsSkinTransformer` 不只是“有就拿，没有就回退”。对某些组件它会要求你返回的对象实现特定接口；如果没实现，它会直接退回默认实现。参考 [osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs](osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
+`BmsSkinTransformer` 不只是“有就拿，没有就回退”。对某些组件它会要求你返回的对象实现特定接口；如果没实现，它会直接退回默认实现。参考 [osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
 
 | 组件 | 你必须实现的接口 | 运行时会调用什么 |
 | --- | --- | --- |
@@ -255,7 +255,7 @@ private sealed partial class MyJudgement : CompositeDrawable, IAnimatableJudgeme
 
 ### Step 8：怎么验证你写的皮肤
 
-当前最直接的验证入口是 [osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs](osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)。
+当前最直接的验证入口是 [osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)。
 
 推荐验证顺序：
 
@@ -283,7 +283,7 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 这一节只适用于：
 
 1. 你明确是在做 **legacy mania 资源试验**
-2. 你在研究当前候选包 [SKIN/SimpleTou-Lazer/skin.ini](SKIN/SimpleTou-Lazer/skin.ini)
+2. 你在研究当前候选包 [SKIN/SimpleTou-Lazer/skin.ini](../../SKIN/SimpleTou-Lazer/skin.ini)
 3. 你接受它 **不是** 当前 OMS 正式 authoring contract
 
 ### 这条路线现在能做什么
@@ -322,7 +322,7 @@ MyLegacySkin/
 
 ### `skin.ini` 最小写法
 
-当前候选包的真实样例见 [SKIN/SimpleTou-Lazer/skin.ini](SKIN/SimpleTou-Lazer/skin.ini)。
+当前候选包的真实样例见 [SKIN/SimpleTou-Lazer/skin.ini](../../SKIN/SimpleTou-Lazer/skin.ini)。
 
 最小 7K 样例可以长这样：
 
@@ -422,7 +422,7 @@ ColumnLineWidth: 0,0,0,0,0,0,0,0
 
 ### 当前 `OmsSkin` preview 下，哪些 mania 值已经不是 `skin.ini` 开关
 
-这部分非常重要。当前 [osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs](osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs) 已经把下列值从 raw legacy lookup 收口到 OMS preset，`skin.ini` 不再是它们的最终生效来源：
+这部分非常重要。当前 [osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs](../../osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs) 已经把下列值从 raw legacy lookup 收口到 OMS preset，`skin.ini` 不再是它们的最终生效来源：
 
 | OMS Preset | 接管的 legacy lookup |
 | --- | --- |

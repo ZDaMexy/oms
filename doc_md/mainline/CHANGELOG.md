@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-04-25
+
+### 文档 / 代码对齐审计与恢复边界收口
+
+- 对当前工作区、`artifacts/` 恢复快照与主线文档做了一轮对齐审计，明确后续文档基线必须以当前代码与可复核验证结果为准，而不是继续沿用 recovery 过程中残留的失真索引或过期状态页。
+- `doc_md/subline/README.md` 已恢复为当前真实 `P1-A` ~ `P1-H` 子线入口索引，不再错误指向不存在的 `p1x-skin-boundary-green-number/README.md` 或把 `subline` 当成 `other` 文档入口。
+- `doc_md/other/README.md` 已移除失效的 `oms_server_bridge_export.md` 入口；`doc_md/other/SKINNING.md` 内多处源码与 `SKIN/` 候选包链接已改为正确相对路径，避免继续跳到不存在位置。
+- `README.md`、`DEVELOPMENT_PLAN.md` 与 `DEVELOPMENT_STATUS.md` 已同步到当前代码现实：BMS 规则集约 **167** 个源文件、BMS 测试项目 **58** 个源文件；`A-NOT` 已补回根 README 的当前状态；编译诊断口径已从过期的“0 warning / 0 error”修正为当前 `Rebuild` 下的“13 warning / 0 error”。
+- 本轮还额外确认了一个容易误导后续 agent 的细节：普通增量 `dotnet build` 可能打印 `0 warning / 0 error`，但这不能当作当前真实诊断基线；主状态页现统一以 `dotnet build osu.Desktop.slnf -t:Rebuild ...` 的结果作为权威口径。
+- 验证：`dotnet build osu.Desktop.slnf -t:Rebuild -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsStartupModPersistenceIntegrationTest|FullyQualifiedName~BmsModStatePersistenceTest|FullyQualifiedName~TestSceneBmsSoloPlayerPreStart|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics"` **111/111** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --configuration Release --filter "FullyQualifiedName~ExternalLibraryScannerTest|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable|FullyQualifiedName~TestSettingsMigration"` **18/18** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **92/92** 通过。
+
 ## 2026-04-24
 
 ### 文档主线：第二轮全面复验与验证基线同步

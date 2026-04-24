@@ -1,9 +1,24 @@
-# 主子线文档索引
+# 主线子方向文档索引
 
-这里收口当前正在推进的专题文档。它们服从主线治理文档，但会维护更细的专题规划、约束和面向领域的说明。
+这里收口从主线可直接追踪的开发方向。每条 `P1-*` 子线都必须固定维护：
 
-## 文档清单
+1. `DEVELOPMENT_PLAN.md`
+2. `DEVELOPMENT_STATUS.md`
+3. `CHANGELOG.md`
+4. `TECHNICAL_CONSTRAINTS.md`
 
-- [SKINNING.md](SKINNING.md)：皮肤制作手册、当前 fallback 粒度与未冻结边界。
-- [RELEASE.md](RELEASE.md)：发行方式、打包约束与公开 release gate。
-- [p1x-skin-boundary-green-number/README.md](p1x-skin-boundary-green-number/README.md)：P1-A / P1-C 交叉专题，负责皮肤设计边界与绿色数字 / Mod 联动。
+## 当前子线入口
+
+- [P1-A/README.md](P1-A/README.md)：产品面与 release gate，含皮肤边界冻结。
+- [P1-B/DEVELOPMENT_PLAN.md](P1-B/DEVELOPMENT_PLAN.md)：输入语义与硬件验收。
+- [P1-C/README.md](P1-C/README.md)：判定语义与反馈闭环。
+- [P1-D/DEVELOPMENT_PLAN.md](P1-D/DEVELOPMENT_PLAN.md)：控制器校准与诊断。
+- [P1-E/DEVELOPMENT_PLAN.md](P1-E/DEVELOPMENT_PLAN.md)：gameplay 与长条真实谱面验校。
+- [P1-F/DEVELOPMENT_PLAN.md](P1-F/DEVELOPMENT_PLAN.md)：发行后置与首发离线发布验收。
+- [P1-G/DEVELOPMENT_PLAN.md](P1-G/DEVELOPMENT_PLAN.md)：人工验收后置。
+- [P1-H/DEVELOPMENT_PLAN.md](P1-H/DEVELOPMENT_PLAN.md)：存储拓扑支撑线。
+
+## 联动要求
+
+1. 任何开发必须先归线，再更新对应子线目录下的四件套。
+2. 子线变化若改变全局优先级、主线状态或硬约束，必须同步回写 `../mainline/`。

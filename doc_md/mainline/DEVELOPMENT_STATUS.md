@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-04-24
+> 最后更新：2026-04-25
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -19,7 +19,7 @@
 - **当前阶段**：Phase 1.1 皮肤系统专项执行中（BMS 默认层已收口，mania OMS-owned 组件与 release-gate 回归已继续收口；当前主线仍以公开发行物产品面收尾与 1.17 输入硬件/语义验收为先，但外部 IIDX 审计导出的反馈闭环与判定 parity 缺口已抬升为下一优先补强项，其中 BMS 结果页反馈面已明确归到 `P1-C`）
 - **仓库定位**：Windows-only，保留 osu!mania + BMS，已移除 Osu/Taiko/Catch
 - **主入口**：`osu.Desktop.slnf`（含 7 个项目）
-- **BMS 规模**：约 146 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；49 个测试源文件（以上为 2026-04-19 本地文件计数，排除 `bin/obj`）
+- **BMS 规模**：约 167 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；58 个测试源文件（以上为 2026-04-25 本地文件计数，排除 `bin/obj`）
 - **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜按 judge mode + long-note mode 分桶 → BMS replay recording / playback / 本地归档 → 难度表缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
 - **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；mania 不受影响。
@@ -63,26 +63,26 @@
 | Phase 1 完成率 | 70.6% (12/17) | 仅按标记"已完成"项计算 |
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
-| 桌面端构建 | 通过 | `dotnet build osu.Desktop` 退出码 0 |
-| BMS 全量测试 | **706/706** | 最近一次 `osu.Game.Rulesets.Bms.Tests` 全量 |
-| Mania 全量测试 | **761/761** | 最近一次 `osu.Game.Rulesets.Mania.Tests` 全量 |
-| Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` |
-| BMS 皮肤 fallback | **105/105** | `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics` |
-| Scratch bridge | **43/43** | `TestSceneOmsScratchGameplayBridge` |
-| osu.Game.Tests gate | **6/6** | startup migration / default-skin-edit / settings migration |
-| 编译器诊断残留 | 0 | AutoMapper GHSA 已定点抑制 |
+| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -t:Rebuild -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 退出码 0（2026-04-25） |
+| BMS 全量测试 | **706/706** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-04-24） |
+| Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
+| BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
+| Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`（2026-04-25） |
+| Scratch bridge | **43/43** | `TestSceneOmsScratchGameplayBridge` 最近一次快照（2026-04-24） |
+| osu.Game.Tests gate | **18/18** | `ExternalLibraryScannerTest` / `TestSceneFirstRunSetupOverlay` / `TestSceneFirstRunScreenImportFromStable` / `TestSettingsMigration`（2026-04-25） |
+| 编译器诊断残留 | 13 | `osu.Game` 11 个 warning（`CS1574`、`OLOC002/OLOC003`、`AD0001`）+ `osu.Game.Rulesets.Bms.Tests` 2 个 warning（`CS8600`、`CA2007`） |
 
 ## 最近一次验证
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-04-24
+### 2026-04-25
 
-- **范围**：按主状态页做最终全面查验，重跑当前权威验证切片：BMS 全量、mania OMS skin gate、BMS user-skin fallback、scratch bridge、`osu.Game.Tests` 文档 gate 与 `osu.Desktop` Release 构建，并补跑 `osu.Game.Rulesets.Mania.Tests` 全量，确认主线文档声明与当前代码基线一致。
-- **本轮修正**：`TestSettingsMigration` 原先仍断言不存在的 `DisplayStarsMaximum` 自动迁移；当前已改为锁定现行契约：旧配置值不会被隐式改写，且保存后的新值可跨重启保留。
-- **补充修正**：mania 最后一轮残留已收口：`TestSceneObjectPlacement` 已切到当前 editor toolbox 锚点；`TestSceneManiaModHidden` / `TestSceneManiaModFadeIn` 已按当前 gameplay scaling 合同重写 coverage 断言；`TestSceneManiaTouchInput` 已改为按真实列边界取点，不再依赖过期的固定 gap 坐标。
-- **本轮验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj` **706/706** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj` **761/761** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **92/92** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics"` **105/105** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~TestSceneOmsScratchGameplayBridge"` **43/43** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest|FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable|FullyQualifiedName~TestSceneStartupSkinMigration|FullyQualifiedName~TestSceneEditDefaultSkin|FullyQualifiedName~TestSettingsMigration" --configuration Release` **23/23** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- **状态同步**：主状态页现已补充 mania 全量 **761/761** 最新快照；`osu.Game.Tests` release-gate 口径继续维持 `startup migration / default-skin-edit / settings migration` **6/6**。
+- **范围**：对 recovery artifacts、主线文档与当前代码进行对齐审计，优先清除会误导后续 vibe coding 的失真索引、坏链和过期状态声明。
+- **本轮修正**：修复 `doc_md/subline/README.md` 子线索引；移除 `doc_md/other/README.md` 中已失效的 `oms_server_bridge_export.md` 入口；修复 `doc_md/other/SKINNING.md` 内多处相对路径；同步 `README.md`、`DEVELOPMENT_PLAN.md` 与本状态页的当前文件计数、辅助 Mod 状态与验证口径。
+- **本轮验证**：`dotnet build osu.Desktop.slnf -t:Rebuild -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsStartupModPersistenceIntegrationTest|FullyQualifiedName~BmsModStatePersistenceTest|FullyQualifiedName~TestSceneBmsSoloPlayerPreStart|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics"` **111/111** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --configuration Release --filter "FullyQualifiedName~ExternalLibraryScannerTest|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable|FullyQualifiedName~TestSettingsMigration"` **18/18** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **92/92** 通过。
+- **诊断结果**：当前 Release `Rebuild` 为 0 error / 13 warning。warning 构成为：`osu.Game/Screens/Play/GameplayClockContainer.cs` 的 `CS1574` 1 个；`osu.Game/Localisation/FirstRunSetupBeatmapScreenStrings.cs` 的 `OLOC002/OLOC003` 共 8 个；`LocalisationAnalyser` 的 `AD0001` 共 2 个；`osu.Game.Rulesets.Bms.Tests/TestSceneFilesystemBackedStoryboardFallback.cs` 的 `CS8600` 1 个；`osu.Game.Rulesets.Bms.Tests/BmsRulesetStatisticsTest.cs` 的 `CA2007` 1 个。增量 `build` 可能显示为 0 warning，但当前文档口径以 `Rebuild` 为准。
+- **说明**：2026-04-24 的 BMS **706/706** 与 mania **761/761** 全量快照仍有效保留在 [CHANGELOG.md](CHANGELOG.md)，本页仅保留最新一次对齐复核结果。
 
 ## 联网约束
 
@@ -145,7 +145,7 @@
 | 1.1.9 BMS 第三批 | 已完成 | HUD / gauge / results / Song Select panels 的 lookup 与 OMS 默认层 |
 | 1.1.10 Partial override | 进行中 | mixed-layer 三类语义已有 runtime 证明；legacy 用户皮肤 component-level fallback 已接通 |
 | 1.1.11 Native-default removal | 进行中 | built-in realm 注册面已瘦身；settings / runtime fallback / source-chain 已收口；公开发行物剥离待收尾 |
-| 1.1.12 测试矩阵与 release gate | 进行中 | Mania 92/92, BMS fallback 105/105, osu.Game.Tests 6/6, scratch 43/43 |
+| 1.1.12 测试矩阵与 release gate | 进行中 | Mania skin 92/92、BMS 聚焦 111/111、osu.Game.Tests 18/18 已复核；BMS/mania 全量与 scratch bridge 继续沿用 2026-04-24 快照 |
 
 执行优先顺序：维持 release gate 稳定 → 1.17 analog scratch cross-device edge/hold contract → 真实硬件验收。
 
@@ -209,7 +209,7 @@
 
 ### 低优先级
 
-（当前无低优先级遗留项；构建已确认 0 warning / 0 error）
+（当前无低优先级功能遗留；构建已确认 0 error，但 `Rebuild` 仍有 13 个 warning）
 
 ## 更新约定
 
