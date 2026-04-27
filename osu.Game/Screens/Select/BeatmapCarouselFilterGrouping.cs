@@ -58,13 +58,14 @@ namespace osu.Game.Screens.Select
 
                 var criteria = GetCriteria();
                 var newItems = new List<CarouselItem>();
+                Ruleset? ruleset = criteria.Ruleset?.CreateInstance();
 
                 BeatmapSetsGroupedTogether = ShouldGroupBeatmapsTogether(criteria);
                 int displayedBeatmapsCount = 0;
 
-                if (criteria.Group == GroupMode.DifficultyTable)
+                if (ruleset?.IsSongSelectGroupingHierarchical(criteria.Group) == true)
                 {
-                    displayedBeatmapsCount = addHierarchicalGroups((List<CarouselItem>)items, criteria, newItems, newItemMap, newSetMap, newGroupMap, cancellationToken);
+                    displayedBeatmapsCount = addHierarchicalGroups((List<CarouselItem>)items, criteria, ruleset, newItems, newItemMap, newSetMap, newGroupMap, cancellationToken);
                 }
                 else
                 {
@@ -158,10 +159,10 @@ namespace osu.Game.Screens.Select
 
         public static bool ShouldGroupBeatmapsTogether(FilterCriteria criteria)
         {
-            // DifficultyTable already provides its own hierarchical grouping (table → level),
-            // so individual beatmaps within a level are displayed as standalone panels
+            // Ruleset-specific hierarchical groupings already provide their own structure,
+            // so individual beatmaps within a leaf group are displayed as standalone panels
             // rather than being further nested under song-set headers.
-            if (criteria.Group == GroupMode.DifficultyTable)
+            if (criteria.Ruleset?.CreateInstance().IsSongSelectGroupingHierarchical(criteria.Group) == true)
                 return false;
 
             // In certain cases, we intentionally split out difficulties
@@ -497,16 +498,13 @@ namespace osu.Game.Screens.Select
         private int addHierarchicalGroups(
             List<CarouselItem> items,
             FilterCriteria criteria,
+            Ruleset ruleset,
             List<CarouselItem> newItems,
             Dictionary<object, (CarouselItem item, int index)> newItemMap,
             Dictionary<GroupedBeatmapSet, HashSet<CarouselItem>> newSetMap,
             Dictionary<GroupDefinition, HashSet<CarouselItem>> newGroupMap,
             CancellationToken cancellationToken)
         {
-            if (criteria.Ruleset == null)
-                return 0;
-
-            Ruleset ruleset = criteria.Ruleset.CreateInstance();
             var rootGroups = new Dictionary<GroupDefinition, GroupTreeNode>();
 
             foreach (var item in items)

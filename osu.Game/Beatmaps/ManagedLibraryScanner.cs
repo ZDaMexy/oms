@@ -13,9 +13,9 @@ namespace osu.Game.Beatmaps
         private readonly ExternalLibraryScanner scanner;
         private readonly ExternalLibraryScanner.ScanRootDefinition[] roots;
 
-        public Func<string, CancellationToken, Task>? BmsDirectoryImporter { get; set; }
+        public Func<string, string, CancellationToken, Task>? BmsDirectoryImporter { get; set; }
 
-        public Func<string, bool>? BmsDirectoryShouldImport { get; set; }
+        public Func<string, string, bool>? BmsDirectoryShouldImport { get; set; }
 
         public Func<string, CancellationToken, Task>? ManiaDirectoryImporter { get; set; }
 

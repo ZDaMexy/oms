@@ -214,6 +214,8 @@ namespace osu.Game.Rulesets.Bms
         public override IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes() =>
         [
             GroupMode.DifficultyTable,
+            GroupMode.ExternalLibrary,
+            GroupMode.InternalLibrary,
             GroupMode.Artist,
             GroupMode.Author,
             GroupMode.BPM,
@@ -223,6 +225,9 @@ namespace osu.Game.Rulesets.Bms
             GroupMode.RankAchieved,
             GroupMode.Title,
         ];
+
+        public override bool IsSongSelectGroupingHierarchical(GroupMode mode)
+            => mode is GroupMode.DifficultyTable or GroupMode.ExternalLibrary or GroupMode.InternalLibrary;
 
         public override bool ShouldResetSongSelectGroupToRoot(GroupMode mode)
             => GetAvailableSongSelectGroupModes().Contains(mode);
@@ -247,10 +252,12 @@ namespace osu.Game.Rulesets.Bms
 
         public override IEnumerable<GroupDefinition> GetSongSelectGroupDefinitions(GroupMode mode, IBeatmapInfo beatmapInfo)
         {
-            if (mode != GroupMode.DifficultyTable)
-                return base.GetSongSelectGroupDefinitions(mode, beatmapInfo);
-
-            return BmsTableGroupMode.GetGroupDefinitions(beatmapInfo);
+            return mode switch
+            {
+                GroupMode.DifficultyTable => BmsTableGroupMode.GetGroupDefinitions(beatmapInfo),
+                GroupMode.ExternalLibrary or GroupMode.InternalLibrary => BmsLibraryGroupMode.GetGroupDefinitions(mode, beatmapInfo),
+                _ => base.GetSongSelectGroupDefinitions(mode, beatmapInfo),
+            };
         }
 
         public override void PrepareScoreInfoForResults(ScoreInfo score, IBeatmap playableBeatmap)

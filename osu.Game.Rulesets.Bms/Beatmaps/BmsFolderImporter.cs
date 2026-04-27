@@ -44,13 +44,19 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             => Task.Run(() => import(task, cancellationToken), cancellationToken);
 
         public Task<FolderImportResult> RegisterExternalDirectory(string path, CancellationToken cancellationToken = default)
-            => Task.Run(() => registerExternalDirectory(path, cancellationToken), cancellationToken);
+            => RegisterExternalDirectory(path, path, cancellationToken);
+
+        public Task<FolderImportResult> RegisterExternalDirectory(string path, string rootPath, CancellationToken cancellationToken = default)
+            => Task.Run(() => registerExternalDirectory(path, rootPath, cancellationToken), cancellationToken);
 
         public Task<FolderImportResult> RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
             => Task.Run(() => registerManagedDirectory(path, cancellationToken), cancellationToken);
 
         public bool ShouldImportExternalDirectory(string path)
-            => !hasActiveExternalDirectory(normaliseExternalPath(path));
+            => ShouldImportExternalDirectory(path, path);
+
+        public bool ShouldImportExternalDirectory(string path, string rootPath)
+            => !hasActiveExternalDirectory(normaliseExternalPath(path), normaliseExternalPath(rootPath));
 
         public bool ShouldImportManagedDirectory(string path)
             => !hasActiveManagedDirectory(getManagedRelativePath(path));
@@ -91,7 +97,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
         }
 
-        private FolderImportResult registerExternalDirectory(string path, CancellationToken cancellationToken)
+        private FolderImportResult registerExternalDirectory(string path, string rootPath, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -106,13 +112,23 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
 
             string sourcePath = normaliseExternalPath(directoryReader.GetFullPath(string.Empty));
+            string rootSnapshotPath = normaliseExternalPath(rootPath);
+
+            if (!string.Equals(sourcePath, rootSnapshotPath, StringComparison.OrdinalIgnoreCase)
+                && !FilesystemSanityCheckHelpers.IsSubDirectory(rootSnapshotPath, sourcePath))
+                throw new InvalidOperationException($"BMS external registration requires '{sourcePath}' to be under root '{rootSnapshotPath}'.");
+
             var existing = tryReuseExternal(preparedBeatmapSet.BeatmapSet.Hash, sourcePath);
 
             if (existing != null)
+            {
+                existing.PerformWrite(set => set.ExternalLibraryRootPath = rootSnapshotPath);
                 return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
+            }
 
             preparedBeatmapSet.BeatmapSet.FilesystemStoragePath = sourcePath;
             preparedBeatmapSet.BeatmapSet.IsExternalFilesystemStorage = true;
+            preparedBeatmapSet.BeatmapSet.ExternalLibraryRootPath = rootSnapshotPath;
 
             return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles);
         }
@@ -146,12 +162,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private Live<BeatmapSetInfo>? tryReuseImportedCopy(string hash)
             => tryReuseExisting(hash, existing => !existing.IsExternalFilesystemStorage);
 
-        private bool hasActiveExternalDirectory(string externalPath)
+        private bool hasActiveExternalDirectory(string externalPath, string externalRootPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
                                           .Where(set => !set.DeletePending && set.IsExternalFilesystemStorage)
                                           .ToList()
                                           .Any(set => set.FilesystemStoragePath is string storagePath
-                                                   && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase)));
+                                                   && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase)
+                                                   && string.Equals(getEffectiveExternalLibraryRootPath(set), externalRootPath, StringComparison.OrdinalIgnoreCase)));
 
         private bool hasActiveManagedDirectory(string managedPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
@@ -202,6 +219,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         }
 
         private static string normaliseExternalPath(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        private static string getEffectiveExternalLibraryRootPath(BeatmapSetInfo beatmapSet)
+            => normaliseExternalPath(beatmapSet.ExternalLibraryRootPath ?? beatmapSet.FilesystemStoragePath ?? string.Empty);
 
         private string getManagedRelativePath(string path)
         {

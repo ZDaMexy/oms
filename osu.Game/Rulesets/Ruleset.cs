@@ -540,7 +540,14 @@ namespace osu.Game.Rulesets
         /// Returns the song select grouping modes that should be exposed for this ruleset.
         /// </summary>
         public virtual IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes()
-            => Enum.GetValues<GroupMode>().Where(mode => mode != GroupMode.DifficultyTable).ToArray();
+            => Enum.GetValues<GroupMode>().Where(mode => mode is not GroupMode.DifficultyTable and not GroupMode.ExternalLibrary and not GroupMode.InternalLibrary).ToArray();
+
+        /// <summary>
+        /// Whether the specified song select grouping is ruleset-specific hierarchical grouping.
+        /// Hierarchical groupings are rendered via <see cref="GroupDefinition"/> trees rather than
+        /// the shared flat grouping switch in <see cref="BeatmapCarouselFilterGrouping"/>.
+        /// </summary>
+        public virtual bool IsSongSelectGroupingHierarchical(GroupMode mode) => false;
 
         /// <summary>
         /// Whether switching to the specified song select grouping should reset the carousel to the root level.

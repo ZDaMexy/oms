@@ -42,11 +42,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         public Task RegisterExternalDirectory(string path, CancellationToken cancellationToken = default)
             => folderImporter.RegisterExternalDirectory(path, cancellationToken);
 
+        public Task RegisterExternalDirectory(string path, string rootPath, CancellationToken cancellationToken = default)
+            => folderImporter.RegisterExternalDirectory(path, rootPath, cancellationToken);
+
         public Task RegisterManagedDirectory(string path, CancellationToken cancellationToken = default)
             => folderImporter.RegisterManagedDirectory(path, cancellationToken);
 
         public bool ShouldImportExternalDirectory(string path)
             => folderImporter.ShouldImportExternalDirectory(path);
+
+        public bool ShouldImportExternalDirectory(string path, string rootPath)
+            => folderImporter.ShouldImportExternalDirectory(path, rootPath);
 
         public bool ShouldImportManagedDirectory(string path)
             => folderImporter.ShouldImportManagedDirectory(path);

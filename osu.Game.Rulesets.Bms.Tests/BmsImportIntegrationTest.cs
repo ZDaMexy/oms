@@ -296,6 +296,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Assert.That(set.Files.Count, Is.EqualTo(0));
                     Assert.That(set.IsExternalFilesystemStorage, Is.True);
                     Assert.That(set.FilesystemStoragePath, Is.EqualTo(Path.GetFullPath(importRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
+                    Assert.That(set.ExternalLibraryRootPath, Is.EqualTo(Path.GetFullPath(importRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
                     Assert.That(set.Beatmaps.Single().Path, Is.EqualTo("chart.bms"));
                 });
             });
@@ -305,6 +306,35 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(Directory.Exists(importRoot), Is.True);
                 Assert.That(File.Exists(Path.Combine(importRoot, "chart.bms")), Is.True);
                 Assert.That(File.Exists(Path.Combine(importRoot, "stage.png")), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task TestExternalDirectoryRegistrationStoresExplicitRootSnapshot()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-external-root-snapshot-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string rootPath = storage.GetFullPath("external-root");
+            string importRoot = Path.Combine(rootPath, "packs", "set-a");
+            Directory.CreateDirectory(importRoot);
+            File.WriteAllText(Path.Combine(importRoot, "chart.bms"), buildChartText());
+            File.WriteAllBytes(Path.Combine(importRoot, "stage.png"), new byte[] { 1, 2, 3, 4 });
+
+            var importer = new BmsFolderImporter(storage, realm);
+            var result = await importer.RegisterExternalDirectory(importRoot, rootPath).ConfigureAwait(false);
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            result.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(set.IsExternalFilesystemStorage, Is.True);
+                    Assert.That(set.FilesystemStoragePath, Is.EqualTo(Path.GetFullPath(importRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
+                    Assert.That(set.ExternalLibraryRootPath, Is.EqualTo(Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
+                });
             });
         }
 

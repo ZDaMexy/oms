@@ -7,6 +7,14 @@
 
 ## 2026-04-28
 
+### BMS：外部谱库 / 内部谱库选歌分组落地
+
+- BMS Song Select 分组下拉现已新增 `外部谱库` 与 `内部谱库` 两个 BMS-only 模式，并继续保持 ruleset-driven 可见性；共享 `GroupMode` 已在不破坏既有持久化兼容性的前提下扩展，非 BMS ruleset 不会暴露这两个模式。
+- `BeatmapCarouselFilterGrouping` 已从只特判 `DifficultyTable` 的层级路径，泛化为 ruleset-specific hierarchical grouping；BMS 现在可通过 `GetSongSelectGroupDefinitions()` 同时驱动难度表、外部谱库与内部谱库三种层级分组，而不再继续堆新的共享层特判。
+- `BeatmapSetInfo` 现新增 `ExternalLibraryRootPath` 持久化字段；BMS external scan / register 链已把 registered root path 沿 `ExternalLibraryScanner -> BmsBeatmapImporter -> BmsFolderImporter` 显式传下去并写入 beatmap set，使外部谱库分组不再依赖运行时读取当前 `ExternalLibraryConfig` 做临时最长前缀猜测。增量扫描侧也会把“同一路径但 root snapshot 缺失/不一致”的 external set 视为仍需更新。
+- `BmsLibraryGroupMode` 已接通 `内部谱库` 与 `外部谱库` 的分组 authority：internal 按 `chartbms/` 下的父目录层级分组；external 以持久化 root snapshot 为第一层，再按相对父目录层级展开；无法回映到有效 root snapshot 的 legacy / missing-root set 会落入显式 `未归档外部谱库` fallback。
+- 验证：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --configuration Release --filter "FullyQualifiedName~ExternalLibraryScannerTest"` **7/7** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsImportIntegrationTest"` **21/21** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsLibraryGroupModeTest|FullyQualifiedName~BmsTableGroupModeTest|FullyQualifiedName~BmsRulesetStatisticsTest"` **29/29** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSongSelectDifficultyTable"` **4/4** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSongSelectLibraryGrouping"` **3/3** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ### BMS：难度表来源管理与导入反馈收口
 
 - `BmsDifficultyTableManager` 现把“移除已导入 preset source”的语义收口为“清空来源、条目与刷新时间，并恢复隐藏的 preset placeholder”，而不是硬删 seeded preset 行；Settings → 游戏模式 → BMS → 难度表 的可见来源当前都会显示 `移除`，包括已被自动认领的 preset。

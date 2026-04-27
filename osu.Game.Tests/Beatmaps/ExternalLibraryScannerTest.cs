@@ -29,7 +29,7 @@ namespace osu.Game.Tests.Beatmaps
 
             var scanner = new ExternalLibraryScanner(config)
             {
-                BmsDirectoryImporter = (_, _) => Task.CompletedTask,
+                BmsDirectoryImporter = (_, _, _) => Task.CompletedTask,
             };
 
             var progressEvents = new List<ExternalLibraryScanner.ScanProgress>();
@@ -135,7 +135,7 @@ namespace osu.Game.Tests.Beatmaps
             var importedDirectories = new List<string>();
             var scanner = new ExternalLibraryScanner(config)
             {
-                BmsDirectoryImporter = (directory, _) =>
+                BmsDirectoryImporter = (directory, _, _) =>
                 {
                     importedDirectories.Add(directory);
                     return Task.CompletedTask;
@@ -170,12 +170,12 @@ namespace osu.Game.Tests.Beatmaps
             var importedDirectories = new List<string>();
             var scanner = new ExternalLibraryScanner(config)
             {
-                BmsDirectoryImporter = (directory, _) =>
+                BmsDirectoryImporter = (directory, _, _) =>
                 {
                     importedDirectories.Add(directory);
                     return Task.CompletedTask;
                 },
-                BmsDirectoryShouldImport = directory => Path.GetFileName(directory) != "existing-set",
+                BmsDirectoryShouldImport = (directory, _) => Path.GetFileName(directory) != "existing-set",
             };
 
             var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Incremental, cancellationToken: CancellationToken.None);
@@ -205,12 +205,12 @@ namespace osu.Game.Tests.Beatmaps
             var importedDirectories = new List<string>();
             var scanner = new ExternalLibraryScanner(config)
             {
-                BmsDirectoryImporter = (directory, _) =>
+                BmsDirectoryImporter = (directory, _, _) =>
                 {
                     importedDirectories.Add(directory);
                     return Task.CompletedTask;
                 },
-                BmsDirectoryShouldImport = directory => Path.GetFileName(directory) != "existing-set",
+                BmsDirectoryShouldImport = (directory, _) => Path.GetFileName(directory) != "existing-set",
             };
 
             var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Rebuild, cancellationToken: CancellationToken.None);
@@ -224,6 +224,41 @@ namespace osu.Game.Tests.Beatmaps
                 {
                     Path.Combine(root, "existing-set"),
                     Path.Combine(root, "new-set"),
+                }));
+            });
+        }
+
+        [Test]
+        public async Task TestBmsScanPassesRegisteredRootToImporter()
+        {
+            using var storage = new TemporaryNativeStorage(nameof(TestBmsScanPassesRegisteredRootToImporter));
+
+            string root = createBmsRoot(storage, "root-with-nested", "set-a", "set-b");
+
+            var config = new ExternalLibraryConfig(storage);
+            config.AddRoot(root, ExternalLibraryRootType.BMS);
+
+            var importedPairs = new List<(string Directory, string Root)>();
+
+            var scanner = new ExternalLibraryScanner(config)
+            {
+                BmsDirectoryImporter = (directory, rootPath, _) =>
+                {
+                    importedPairs.Add((directory, rootPath));
+                    return Task.CompletedTask;
+                },
+            };
+
+            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Imported, Is.EqualTo(2));
+                Assert.That(importedPairs.Select(pair => pair.Root).Distinct(), Is.EqualTo(new[] { root }));
+                Assert.That(importedPairs.Select(pair => pair.Directory), Is.EquivalentTo(new[]
+                {
+                    Path.Combine(root, "set-a"),
+                    Path.Combine(root, "set-b"),
                 }));
             });
         }

@@ -380,6 +380,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(new BmsRuleset().GetAvailableSongSelectGroupModes(), Is.EqualTo(new[]
             {
                 GroupMode.DifficultyTable,
+                GroupMode.ExternalLibrary,
+                GroupMode.InternalLibrary,
                 GroupMode.Artist,
                 GroupMode.Author,
                 GroupMode.BPM,
@@ -398,6 +400,20 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.That(ruleset.GetAvailableSongSelectGroupModes().All(ruleset.ShouldResetSongSelectGroupToRoot), Is.True);
             Assert.That(ruleset.ShouldResetSongSelectGroupToRoot(GroupMode.None), Is.False);
+        }
+
+        [Test]
+        public void TestHierarchicalSongSelectGroupingModesMatchBmsModes()
+        {
+            var ruleset = new BmsRuleset();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ruleset.IsSongSelectGroupingHierarchical(GroupMode.DifficultyTable), Is.True);
+                Assert.That(ruleset.IsSongSelectGroupingHierarchical(GroupMode.ExternalLibrary), Is.True);
+                Assert.That(ruleset.IsSongSelectGroupingHierarchical(GroupMode.InternalLibrary), Is.True);
+                Assert.That(ruleset.IsSongSelectGroupingHierarchical(GroupMode.Artist), Is.False);
+            });
         }
 
         [Test]

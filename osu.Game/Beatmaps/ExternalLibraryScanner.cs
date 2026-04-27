@@ -52,9 +52,9 @@ namespace osu.Game.Beatmaps
 
         /// <summary>
         /// Delegate that imports a single BMS folder (a directory containing .bms/.bme/.bml/.pms files)
-        /// into <c>chartbms/</c>. Accepts the directory path and a cancellation token.
+        /// into <c>chartbms/</c>. Accepts the directory path, the registered root path, and a cancellation token.
         /// </summary>
-        public Func<string, CancellationToken, Task>? BmsDirectoryImporter { get; set; }
+        public Func<string, string, CancellationToken, Task>? BmsDirectoryImporter { get; set; }
 
         /// <summary>
         /// Delegate that imports a single mania folder (a directory containing .osu files)
@@ -64,9 +64,10 @@ namespace osu.Game.Beatmaps
 
         /// <summary>
         /// Optional predicate used by incremental scans to determine whether a discovered BMS directory
-        /// still needs importing. Returning <see langword="false"/> treats the directory as skipped.
+        /// still needs importing for the current registered root. Returning <see langword="false"/>
+        /// treats the directory as skipped.
         /// </summary>
-        public Func<string, bool>? BmsDirectoryShouldImport { get; set; }
+        public Func<string, string, bool>? BmsDirectoryShouldImport { get; set; }
 
         /// <summary>
         /// Optional predicate used by incremental scans to determine whether a discovered mania directory
@@ -126,12 +127,12 @@ namespace osu.Game.Beatmaps
                 BmsDirectoryImporter, ManiaDirectoryImporter, BmsDirectoryShouldImport, ManiaDirectoryShouldImport).ConfigureAwait(false);
 
         public async Task<ScanResult> ScanRoots(IEnumerable<ScanRootDefinition> roots, IProgress<ScanProgress>? progress = null, CancellationToken cancellationToken = default,
-                                                Func<string, CancellationToken, Task>? bmsDirectoryImporter = null, Func<string, CancellationToken, Task>? maniaDirectoryImporter = null)
+                                                Func<string, string, CancellationToken, Task>? bmsDirectoryImporter = null, Func<string, CancellationToken, Task>? maniaDirectoryImporter = null)
             => await ScanRoots(roots, ScanMode.Rebuild, progress, cancellationToken, bmsDirectoryImporter, maniaDirectoryImporter).ConfigureAwait(false);
 
         public async Task<ScanResult> ScanRoots(IEnumerable<ScanRootDefinition> roots, ScanMode mode, IProgress<ScanProgress>? progress = null, CancellationToken cancellationToken = default,
-                                                Func<string, CancellationToken, Task>? bmsDirectoryImporter = null, Func<string, CancellationToken, Task>? maniaDirectoryImporter = null,
-                                                Func<string, bool>? bmsDirectoryShouldImport = null, Func<string, bool>? maniaDirectoryShouldImport = null)
+                                                Func<string, string, CancellationToken, Task>? bmsDirectoryImporter = null, Func<string, CancellationToken, Task>? maniaDirectoryImporter = null,
+                                                Func<string, string, bool>? bmsDirectoryShouldImport = null, Func<string, bool>? maniaDirectoryShouldImport = null)
         {
             var rootList = roots.ToList();
             int totalImported = 0;
@@ -159,8 +160,8 @@ namespace osu.Game.Beatmaps
 
         private async Task<ScanResult> ScanRoot(ScanRootDefinition root, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
                                                 IProgress<ScanProgress>? progress, CancellationToken cancellationToken, ScanMode mode,
-                                                Func<string, CancellationToken, Task>? bmsDirectoryImporter, Func<string, CancellationToken, Task>? maniaDirectoryImporter,
-                                                Func<string, bool>? bmsDirectoryShouldImport, Func<string, bool>? maniaDirectoryShouldImport)
+                                                Func<string, string, CancellationToken, Task>? bmsDirectoryImporter, Func<string, CancellationToken, Task>? maniaDirectoryImporter,
+                                                Func<string, string, bool>? bmsDirectoryShouldImport, Func<string, bool>? maniaDirectoryShouldImport)
         {
             if (!Directory.Exists(root.Path))
             {
@@ -181,7 +182,7 @@ namespace osu.Game.Beatmaps
 
         private async Task<ScanResult> scanBmsRoot(string rootPath, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
                                                    IProgress<ScanProgress>? progress, CancellationToken cancellationToken,
-                                                   Func<string, CancellationToken, Task>? importer, Func<string, bool>? shouldImport, ScanMode mode)
+                                                   Func<string, string, CancellationToken, Task>? importer, Func<string, string, bool>? shouldImport, ScanMode mode)
         {
             if (importer == null)
             {
@@ -194,7 +195,7 @@ namespace osu.Game.Beatmaps
                 dir => Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly).Any(isBmsFile)
                     ? DirectoryScanClassification.Candidate
                     : DirectoryScanClassification.NotRelevant,
-                importer,
+                (dir, ct) => importer(dir, rootPath, ct),
                 rootIndex,
                 totalRoots,
                 importedSoFar,
@@ -203,7 +204,7 @@ namespace osu.Game.Beatmaps
                 progress,
                 cancellationToken,
                 mode,
-                shouldImport,
+                dir => shouldImport?.Invoke(dir, rootPath) ?? true,
                 "BMS").ConfigureAwait(false);
         }
 

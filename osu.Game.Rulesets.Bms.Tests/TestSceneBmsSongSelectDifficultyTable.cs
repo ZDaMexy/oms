@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
@@ -157,6 +158,132 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
     }
 
+    [HeadlessTest]
+    [TestFixture]
+    public partial class TestSceneBmsSongSelectLibraryGrouping : BmsSongSelectTestScene
+    {
+        private static int nextSetId;
+
+        [Test]
+        public void TestInitialLoadWithPreselectedBeatmapStaysAtInternalLibraryRootLevel()
+        {
+            importInternalLibraryBeatmaps();
+            SelectBmsRuleset();
+            PreselectBeatmap("Nested Internal Song");
+            SetInternalLibraryGrouping();
+
+            LoadSongSelect();
+
+            assertRootLevelVisible("packs");
+        }
+
+        [Test]
+        public void TestSwitchingToExternalLibraryClearsExpandedBeatmapSelection()
+        {
+            importExternalLibraryBeatmaps();
+            SelectBmsRuleset();
+            PreselectBeatmap("External Alpha Song");
+            SetTitleGrouping();
+
+            LoadSongSelect();
+            SelectCurrentBeatmapInCarousel();
+
+            SetExternalLibraryGrouping();
+
+            assertRootLevelVisible("ExternalAlpha");
+        }
+
+        private void importInternalLibraryBeatmaps()
+        {
+            AddStep("import internal library beatmaps", () =>
+            {
+                Beatmaps.Import(createBeatmapSet(
+                    "Nested Internal Song",
+                    1.4,
+                    "chartbms/packs/internal-a",
+                    false,
+                    null));
+
+                Beatmaps.Import(createBeatmapSet(
+                    "Root Internal Song",
+                    2.1,
+                    "chartbms/root-internal",
+                    false,
+                    null));
+            });
+
+            AddUntilStep("wait for internal beatmaps imported", () => Beatmaps.GetAllUsableBeatmapSets().Count, () => Is.EqualTo(2));
+        }
+
+        private void importExternalLibraryBeatmaps()
+        {
+            AddStep("import external library beatmaps", () =>
+            {
+                string alphaRoot = Path.Combine(Path.GetTempPath(), "ExternalAlpha");
+                string betaRoot = Path.Combine(Path.GetTempPath(), "ExternalBeta");
+
+                Beatmaps.Import(createBeatmapSet(
+                    "External Alpha Song",
+                    1.4,
+                    Path.Combine(alphaRoot, "packs", "set-a"),
+                    true,
+                    alphaRoot));
+
+                Beatmaps.Import(createBeatmapSet(
+                    "External Beta Song",
+                    2.1,
+                    Path.Combine(betaRoot, "set-b"),
+                    true,
+                    betaRoot));
+            });
+
+            AddUntilStep("wait for external beatmaps imported", () => Beatmaps.GetAllUsableBeatmapSets().Count, () => Is.EqualTo(2));
+        }
+
+        private void assertRootLevelVisible(string expectedSelectedGroupTitle)
+        {
+            WaitForFiltering();
+            AddUntilStep("wait for visible carousel items", () => GetVisibleCarouselModels().Length, () => Is.GreaterThan(0));
+            AddAssert("no beatmap is auto-selected", () => Carousel.CurrentGroupedBeatmap, () => Is.Null);
+            AddAssert("only root groups are visible", () => GetVisibleCarouselModels().All(model => model is GroupDefinition group && group.Depth == 0));
+            AddUntilStep("wait for keyboard-selected root group", GetKeyboardSelectedVisibleGroupTitle, () => Is.EqualTo(expectedSelectedGroupTitle));
+        }
+
+        private static BeatmapSetInfo createBeatmapSet(string title, double starRating, string filesystemStoragePath, bool isExternal, string? externalRootPath)
+        {
+            int setId = Interlocked.Increment(ref nextSetId);
+
+            var beatmap = new BeatmapInfo(new BmsRuleset().RulesetInfo, new BeatmapDifficulty(), new BeatmapMetadata
+            {
+                Title = title,
+                Artist = title,
+            })
+            {
+                OnlineID = setId * 1000,
+                DifficultyName = title,
+                StarRating = starRating,
+                Length = 120000,
+                BPM = 150,
+                Hash = Guid.NewGuid().ToString("N"),
+                MD5Hash = $"{title}-{Guid.NewGuid():N}".ToLowerInvariant(),
+            };
+
+            var beatmapSet = new BeatmapSetInfo
+            {
+                OnlineID = setId,
+                Hash = Guid.NewGuid().ToString("N"),
+                FilesystemStoragePath = filesystemStoragePath,
+                IsExternalFilesystemStorage = isExternal,
+                ExternalLibraryRootPath = externalRootPath,
+            };
+
+            beatmapSet.Beatmaps.Add(beatmap);
+            beatmap.BeatmapSet = beatmapSet;
+
+            return beatmapSet;
+        }
+    }
+
     public abstract partial class BmsSongSelectTestScene : ScreenTestScene
     {
         protected BeatmapManager Beatmaps { get; private set; } = null!;
@@ -288,6 +415,24 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Config.SetValue(OsuSetting.SongSelectSortingMode, SortMode.Title);
                 Config.SetValue(OsuSetting.SongSelectGroupMode, GroupMode.Title);
+            });
+        }
+
+        protected void SetInternalLibraryGrouping()
+        {
+            AddStep("enable internal library grouping", () =>
+            {
+                Config.SetValue(OsuSetting.SongSelectSortingMode, SortMode.Title);
+                Config.SetValue(OsuSetting.SongSelectGroupMode, GroupMode.InternalLibrary);
+            });
+        }
+
+        protected void SetExternalLibraryGrouping()
+        {
+            AddStep("enable external library grouping", () =>
+            {
+                Config.SetValue(OsuSetting.SongSelectSortingMode, SortMode.Title);
+                Config.SetValue(OsuSetting.SongSelectGroupMode, GroupMode.ExternalLibrary);
             });
         }
 

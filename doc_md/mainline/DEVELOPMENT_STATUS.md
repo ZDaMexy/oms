@@ -22,9 +22,9 @@
 - **BMS 规模**：约 167 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；58 个测试源文件（以上为 2026-04-25 本地文件计数，排除 `bin/obj`）
 - **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜按 judge mode + long-note mode 分桶 → BMS replay recording / playback / 本地归档 → 难度表来源管理 / 缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
-- **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；mania 不受影响。
+- **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`外部谱库`、`内部谱库`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；`外部谱库` / `内部谱库` 当前也已走同一条 ruleset-specific hierarchical grouping 管线，不再依赖 `DifficultyTable` 专用特判。
 - **BMS 选歌排序**：Song Select 当前已使用 ruleset-specific 8 项排序：`标题`、`曲师`、`BPM`、`时长`、`星数`、`点灯状态`、`达成率`、`miss 数`；其中本地成绩派生项的显示标签已明确改用 BMS 专用文案，不再回落到通用 `Clear Lamp` / `准度要求`，mania 不受影响。
-- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。
+- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。`BeatmapSetInfo` 现还会持久化 `ExternalLibraryRootPath`，把 external root snapshot 固定到 beatmap set 上，供 `外部谱库` 分组与后续 fallback 使用。
 - **BMS 难度表来源管理**：Settings → 游戏模式 → BMS → 难度表 当前统一支持本地目录、`index.html`、`header.json`、表体 json 与 `http/https` URL；seeded preset 会按 `source_name` / `display_name` 自动认领现有预置来源；移除已导入 preset 时会清空来源并恢复隐藏占位，而不是删除内置 preset；导入或刷新失败时，设置页与首次启动页都会显示中文分类原因。
 - **首次启动向导**：首次启动设置当前已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 BMS 难度表管理器按分组导入 zris 预设 URL，并在多项失败时显示中文摘要；最终页复用全局、mania 与 BMS 的按键绑定 subsection。
 - **首次启动稳定性与本地化**：手动重新打开首次启动向导并切到旧“游戏表现”页导致的 blank panel / unhandled error 已修复；欢迎页、获取谱面页与导入页的可见文案现已切到 OMS-owned localisation namespace + `.resx`，确保简中界面不再继续显示上游翻译。该表面主归属 `P1-A`，导入页复用外部谱库设置只形成 `P1-H` 从属暴露，不新开子线。
@@ -77,13 +77,13 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-04-25
+### 2026-04-28
 
-- **范围**：对 recovery artifacts、主线文档与当前代码进行对齐审计，优先清除会误导后续 vibe coding 的失真索引、坏链和过期状态声明。
-- **本轮修正**：修复 `doc_md/subline/README.md` 子线索引；移除 `doc_md/other/README.md` 中已失效的 `oms_server_bridge_export.md` 入口；修复 `doc_md/other/SKINNING.md` 内多处相对路径；同步 `README.md`、`DEVELOPMENT_PLAN.md` 与本状态页的当前文件计数、辅助 Mod 状态与验证口径。
-- **本轮验证**：`dotnet build osu.Desktop.slnf -t:Rebuild -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsStartupModPersistenceIntegrationTest|FullyQualifiedName~BmsModStatePersistenceTest|FullyQualifiedName~TestSceneBmsSoloPlayerPreStart|FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsUserSkinFallbackSemantics"` **111/111** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --configuration Release --filter "FullyQualifiedName~ExternalLibraryScannerTest|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable|FullyQualifiedName~TestSettingsMigration"` **18/18** 通过；`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsOwnedSkinComponentContractTest|FullyQualifiedName~TestSceneOmsBuiltInSkin"` **92/92** 通过。
-- **诊断结果**：当前 Release `Rebuild` 为 0 error / 13 warning。warning 构成为：`osu.Game/Screens/Play/GameplayClockContainer.cs` 的 `CS1574` 1 个；`osu.Game/Localisation/FirstRunSetupBeatmapScreenStrings.cs` 的 `OLOC002/OLOC003` 共 8 个；`LocalisationAnalyser` 的 `AD0001` 共 2 个；`osu.Game.Rulesets.Bms.Tests/TestSceneFilesystemBackedStoryboardFallback.cs` 的 `CS8600` 1 个；`osu.Game.Rulesets.Bms.Tests/BmsRulesetStatisticsTest.cs` 的 `CA2007` 1 个。增量 `build` 可能显示为 0 warning，但当前文档口径以 `Rebuild` 为准。
-- **说明**：2026-04-24 的 BMS **706/706** 与 mania **761/761** 全量快照仍有效保留在 [CHANGELOG.md](CHANGELOG.md)，本页仅保留最新一次对齐复核结果。
+- **范围**：落地 BMS `外部谱库` / `内部谱库` Song Select 分组与 external root snapshot 持久化，并对 shared grouping 管线做一次 ruleset-specific hierarchical 泛化。
+- **本轮修正**：`BeatmapSetInfo` 新增 `ExternalLibraryRootPath`；`ExternalLibraryScanner -> BmsBeatmapImporter -> BmsFolderImporter` 现会显式传递 registered root path 并持久化到 external set；BMS ruleset 新增 `外部谱库` / `内部谱库` 分组选项，`BeatmapCarouselFilterGrouping` 不再只为 `DifficultyTable` 特判层级分组；新增 `BmsLibraryGroupMode`、相关本地化与 focused scene/unit coverage。
+- **本轮验证**：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --configuration Release --filter "FullyQualifiedName~ExternalLibraryScannerTest"` **7/7** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsImportIntegrationTest"` **21/21** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsLibraryGroupModeTest|FullyQualifiedName~BmsTableGroupModeTest|FullyQualifiedName~BmsRulesetStatisticsTest"` **29/29** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSongSelectDifficultyTable"` **4/4** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSongSelectLibraryGrouping"` **3/3** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- **诊断结果**：当前本轮 focused tests 与 Release build 均通过；完整 `Rebuild` warning 口径仍以上一轮记录为准，未在本轮重新刷新。
+- **说明**：2026-04-25 的文档 / 代码对齐审计与 2026-04-24 的 BMS / mania 全量快照仍有效保留在 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 联网约束
 
@@ -105,6 +105,7 @@
 - LN / CN / HCN mode-aware 计分与分桶
 - BMS 结果页反馈首轮收口：expanded 主环 / contracted badge 使用 DJ LEVEL，主分数区显式使用 EX-SCORE 文案
 - 本地/在线难度表来源管理 / 缓存 / MD5 匹配 / 表分组 / Song Select 音符分布图
+- BMS Song Select `外部谱库` / `内部谱库` 分组与 external root snapshot 持久化
 - oms.Input 多源输入（键盘 / XInput / MouseAxis / Raw Input / DirectInput HID）
 - gameplay → results 自动跳转
 - BMS 皮肤链路：ruleset transformer + 全组件 lookup 接线
@@ -182,7 +183,7 @@
 | P1-E gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
 | P1-F 首发离线发行基线 | portable.ini + data/ 便携模式已落地 | 已验证 |
 | P1-G 人工验收后置 | 统一后置到 Phase 1 / 1.1 收口后 | 待做 |
-| P1-H 存储拓扑支撑线 | chartmania/ 目录存储 + 外部/内部谱库重建与增量扫描 + portable.ini 便携模式 | 已落地 |
+| P1-H 存储拓扑支撑线 | chartmania/ 目录存储 + 外部/内部谱库重建与增量扫描 + portable.ini 便携模式；BMS 谱库分组与 external root snapshot 已接通 | 已落地 |
 
 ## 遗留问题
 

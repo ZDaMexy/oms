@@ -15,7 +15,7 @@
 | **Phase 2** | BMS 功能完善 — 全键模式、全 Mod、全 Gauge | 13 步 | 个别支撑能力已提前落地，但不视为正式进入 Phase 2 |
 | **Phase 3** | 私服集成 — 在线账号、排行榜、谱面下载 | 6 步 | 维持冻结，等待离线主流程稳定 |
 
-## 当前执行快照（2026-04-25）
+## 当前执行快照（2026-04-28）
 
 - 当前执行不再按多个并列大阶段管理，而是统一收口为 **Phase 1.x 大主线**：Phase 1 核心 BMS、Phase 1.1 皮肤专项，以及被外部审计插队抬升的输入 / 判定 / 反馈 / 校准事项，都视为 Phase 1 大主线下的子主线
 - 当前第一优先子主线仍是 **Phase 1.1 皮肤系统专项**：在保持 Phase 1 核心 BMS 进度不回退的前提下，后续主精力优先投入 OMS 自有默认皮肤包、mania/BMS 各自独立的 ruleset 皮肤实现，以及上游原生默认皮肤替换
@@ -23,6 +23,7 @@
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
 - 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
+- `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成首轮落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；后续只保留手工 UI 验收和必要回归修复，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -45,7 +46,7 @@
 | **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
 | **P1-F 首发离线发行基线** | 离线发行基线、portable 验收 | 维持 `portable.ini -> data/`、在线更新关闭、覆盖更新可执行与公开 release gate 稳定 | 便携发布、覆盖更新、离线发布口径、公开发行门槛 | 借发行名义恢复在线安装/在线更新 | portable publish 实机通过，公开发行约束可对外复述 |
 | **P1-G 人工验收后置** | 1.5、桌面 smoke、Release 验收 | 统一承接拖放导入、桌面 UI smoke 与人工 checklist 收口 | 手工导入验收、桌面 smoke、人工 checklist 回写 | 借人工验收名义插入新功能 | 仅在 P1-A ~ P1-F 无阻塞回归后执行 |
-| **P1-H 存储拓扑支撑线** | 文件系统直读、谱库管理 | 维持 `chartbms/` / `chartmania/` / `storage.ini` / 外部与内部谱库的重建+增量扫描基线稳定 | 数据根、外部谱库、内部谱库、Maintenance 谱库管理、重扫策略收口 | 破坏本地优先或把用户内容重新塞回 hash 仓库 | 本地优先数据根与多谱库导入路径稳定 |
+| **P1-H 存储拓扑支撑线** | 文件系统直读、谱库管理 | 维持 `chartbms/` / `chartmania/` / `storage.ini` / 外部与内部谱库的重建+增量扫描基线稳定，并把谱库身份安全桥接到 BMS Song Select | 数据根、外部谱库、内部谱库、Maintenance 谱库管理、BMS Song Select 谱库分组、重扫策略收口 | 破坏本地优先、只靠临时路径猜测 external root 归属，或把用户内容重新塞回 hash 仓库 | 本地优先数据根、多谱库导入路径与谱库分组归属稳定 |
 
 ### 子主线执行规则
 
@@ -55,6 +56,44 @@
 4. **Phase 2 不得反向吞并 Phase 1.x。** 除已先行落地的 `A-SCR` / `A-NOT` / `BmsModAutoplay` / `Mirror` / `Random` 外，`1P/2P flip`、`dan`、`FHS`、BSS / MSS、全键模式扩张仍属于后续能力，不得以“顺手实现”名义进入当前主交付。
 5. **每条子主线必须有冻结点。** 一旦某条子主线达到“稳定门槛”，后续只接受回归修复或明确阻塞项，不再继续吸收无关优化。
 6. **人工验收始终后置。** `P1-G` 只负责确认前面子主线的产品结果，不负责为未收口功能兜底。
+
+### P1-H 当前新增专项：BMS 谱库分组扩展（外部谱库 / 内部谱库）
+
+该专项已完成首轮实现与 focused regression。它不重开 `1.15` 的完成判定，而是作为 `P1-H` 对 Song Select 的新增支撑切片继续维护；剩余事项以手工 UI 验收和后续回归修复为主。
+
+**目标：**
+
+1. 在 BMS Song Select 分组下拉中新增两个 **BMS-only** 分组选项：`外部谱库`、`内部谱库`
+2. `内部谱库` 以 `chartbms/` 下的托管目录层级为 authority，提供稳定的层级分组
+3. `外部谱库` 以“导入/扫描时确定并持久化的 external root 归属”为 authority，而不是每次打开 Song Select 时临时用当前配置猜测
+4. 共享 carousel grouping 引擎从“只特判 `DifficultyTable`”升级为“支持 ruleset-specific hierarchical grouping modes”，避免继续堆 ad hoc if
+
+**主归线与从属影响：**
+
+1. 主归属固定为 `P1-H`，因为 authority 在 `FilesystemStoragePath` / `IsExternalFilesystemStorage` / external root 归属语义
+2. `FilterControl` / `BeatmapCarouselFilterGrouping` / `GroupMode` 的共享层改动只视为 `P1-H` 的从属桥接，不因此把专项改归 `P1-A`
+3. 不借本专项顺手开放 mania 的同类分组，也不把它包装成共享 Song Select 新能力
+
+**实现分段：**
+
+1. **共享分组管线硬化**：在共享 `GroupMode` 枚举尾部追加 `ExternalLibrary` / `InternalLibrary`，避免污染已持久化的 `SongSelectGroupMode`；新增对应 localisation label，但可见性继续由 `BmsRuleset.GetAvailableSongSelectGroupModes()` 控制；将 `BeatmapCarouselFilterGrouping` 从当前只对 `DifficultyTable` 走 hierarchical special-case，泛化为“ruleset 返回 `GroupDefinition` 时统一走层级分组”。
+1. **内部谱库分组落地**：仅对 `!IsExternalFilesystemStorage && FilesystemStoragePath` 位于 `chartbms/` 下的 BMS set 生效；hierarchy authority 为 `chartbms/` 之下的**父目录层级**；最终谱面集目录继续由 native `BeatmapSet` 节点承接，不重复把 set 目录名再做一层 group；没有父目录层级的 set 直接挂在根层，不制造伪“未分类”目录。
+1. **外部 root 归属持久化**：扫描 / 导入时必须确定“该 set 归属于哪个 external root”，并把这个归属以持久化字段或等价稳定快照写入 beatmap-set 侧数据；若当前 external roots 存在嵌套或重叠，归属决策必须固定为单一规则，并由导入链写死结果；不允许把“当前配置的最长前缀命中”当成长期 authority；对历史已存在但尚无归属字段的 external set，只允许在 migration/backfill 阶段做一次最长前缀推导；若无法唯一判定，则落入 fallback 分组而不是 silently 漂移。
+1. **外部谱库分组落地**：仅对 `IsExternalFilesystemStorage` 的 BMS set 生效；第一层必须是 external root，本层负责表达“这是哪个外部谱库”；其下再按相对父目录层级展开，最后进入 native `BeatmapSet` / difficulty；对 root 已被用户移除、路径已迁移或 legacy 数据无法唯一回填的 set，必须进入显式 fallback 分组，不能直接消失或随机挂到别的 root 下。
+1. **测试与验收收口**：至少覆盖 BMS-only dropdown exposure / fallback 顺序、internal path 层级展开与 root-level set、非 BMS / mania 无污染、external root 归属持久化与 nested root 决策、legacy backfill / missing-root fallback，以及切换任一 BMS 分组时仍回到最外层并保持 keyboard selection 锁定当前谱面所属的最外层 group。
+
+**明确不做：**
+
+1. 不把当前 external root 分组方案建立在“每次进 Song Select 现读 `ExternalLibraryConfig` 再猜一次”的脆弱路径上
+2. 不把 `外部谱库` / `内部谱库` 扩成跨 ruleset 的共享 GroupMode 产品承诺
+3. 不借此专题引入实时文件监控、删除语义大改或新的谱库存储拓扑
+
+**完成条件：**
+
+1. BMS 下拉可稳定显示 `难度表` / `外部谱库` / `内部谱库` 等 ruleset-specific 分组选项，mania 与共享 ruleset 行为不变
+2. internal grouping 在移动数据根、重启、重扫后仍保持相同层级归属
+3. external grouping 在 root 重新排序、重启、局部重扫后不漂移；root 缺失时有明确 fallback
+4. 当前已具备 focused automated coverage；手工 Song Select 展开验收继续按 `P1-G` 后置执行，并作为后续回归确认项保留
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
@@ -497,6 +536,7 @@
 4. 多表谱面在每个表的分组下独立出现
 5. 分组激活时禁用排序下拉，内部固定按密度星级升序
 6. 注册到 BMS 规则集的 Song Select 配置
+7. 后续若新增 BMS ruleset-specific 层级分组（例如 `外部谱库` / `内部谱库`），必须复用同一条 hierarchical grouping 管线，不再继续把 `DifficultyTable` 写成共享层特判
 
 **前置依赖：** 1.14, 1.12
 **验收：** BMS 模式 Song Select 中选择表分组 → 看到 Satellite/Stella 等分组 → 展开看到 ★1/★2 等级 → 内部谱面按星级排列。

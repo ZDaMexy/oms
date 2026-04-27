@@ -52,6 +52,13 @@ namespace osu.Game.Beatmaps
         /// </summary>
         public bool IsExternalFilesystemStorage { get; set; }
 
+        /// <summary>
+        /// Normalised external library root path captured when this set was imported or registered.
+        /// This stays separate from <see cref="FilesystemStoragePath"/> so nested external-library groupings
+        /// can remain stable even when the set directory is not the root itself.
+        /// </summary>
+        public string? ExternalLibraryRootPath { get; set; }
+
         [Ignored]
         public BeatmapOnlineStatus Status
         {

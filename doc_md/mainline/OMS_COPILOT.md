@@ -1046,6 +1046,44 @@ Difficulty — individual .bms file
 
 **Sort interaction:** when `BmsTableGroupMode` is active, the sort dropdown is disabled — within-group sort is fixed to density star ascending. Search and collections continue to work normally.
 
+### 10.6 Library Grouping (`InternalLibrary` / `ExternalLibrary`)
+
+OMS now provides two additional **BMS-only** song-select grouping modes: `InternalLibrary` and `ExternalLibrary`.
+
+This is not a shared osu! song-select feature. The dropdown remains ruleset-driven via `Ruleset.GetAvailableSongSelectGroupModes()`, and non-BMS rulesets must not expose these modes.
+
+**Shared grouping-engine contract:** once BMS has more than one hierarchical grouping mode, shared code must stop hardcoding `GroupMode.DifficultyTable` as the only hierarchical path. `BeatmapCarouselFilterGrouping` should instead use a generic ruleset-specific hierarchical grouping path whenever the active ruleset returns `GroupDefinition` data for the selected mode. Do not add a second or third one-off special case.
+
+**Enum / config safety:** append new `GroupMode` values at the end of the enum (or otherwise preserve persisted numeric compatibility). OMS must not churn the stored `SongSelectGroupMode` value for existing users just because BMS adds new modes.
+
+**`InternalLibrary` grouping authority:**
+
+- Applies only to BMS sets where `BeatmapSetInfo.IsExternalFilesystemStorage == false`
+- Applies only when `BeatmapSetInfo.FilesystemStoragePath` is under the managed BMS root `chartbms/`
+- Group hierarchy comes from the parent-directory segments under `chartbms/`
+- The final beatmap-set directory remains the native `BeatmapSet` carousel node; do not duplicate that folder as an extra artificial grouping layer
+- A set stored directly under `chartbms/` appears at the root of this grouping mode rather than under a fake "uncategorised folder" node
+
+**`ExternalLibrary` grouping authority:**
+
+- Applies only to BMS sets where `BeatmapSetInfo.IsExternalFilesystemStorage == true`
+- The first grouping level must represent the external library root that the set belongs to
+- Lower grouping levels come from the parent-directory segments relative to that external root
+- The final beatmap-set directory remains the native `BeatmapSet` carousel node
+
+**Critical persistence rule:** the selected external root for each imported/scanned external set must be persisted as stable beatmap-set data. OMS now stores this as a normalised `BeatmapSetInfo.ExternalLibraryRootPath` snapshot; `ExternalLibraryConfig` alone is not sufficient authority because users can reorder, remove, rename, or overlap roots after import.
+
+Runtime longest-prefix matching against the current config may be used only for one-time legacy backfill or explicit fallback. It must not remain the sole long-term authority for external grouping membership.
+
+**Fallback rule:** if an existing external set cannot be matched back to a currently registered root, it must remain visible under an explicit fallback group rather than silently disappearing or drifting to a different root.
+
+**Regression requirements:**
+
+- BMS-only dropdown exposure and persisted-group-mode compatibility
+- Internal managed-path grouping, including root-level managed sets
+- External root persistence, nested/overlapping-root resolution, and missing-root fallback
+- Existing BMS grouped-entry behaviour still resets to the outermost layer on group-mode switch
+
 ---
 
 ## 11. Chart Preview (Note Distribution)

@@ -3,6 +3,9 @@
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="difficulty_table" xml:space="preserve"><value>难度表</value></data>
+  <data name="external_library" xml:space="preserve"><value>外部谱库</value></data>
+  <data name="internal_library" xml:space="preserve"><value>内部谱库</value></data>
+  <data name="unmapped_external_library" xml:space="preserve"><value>未归档外部谱库</value></data>
   <data name="lamp_status" xml:space="preserve"><value>点灯状态</value></data>
   <data name="achievement_rate" xml:space="preserve"><value>达成率</value></data>
 </root>
