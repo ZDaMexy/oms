@@ -116,6 +116,35 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestRemovingImportedPresetRestoresHiddenPresetPlaceholder()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-preset-remove-{Guid.NewGuid():N}");
+
+            string tableRoot = createTableMirror(storage, "satellite-preset-remove", "Satellite",
+                new TableEntry("abababababababababababababababab", "7"));
+
+            var manager = new BmsDifficultyTableManager(storage);
+            var preset = manager.GetSources().Single(source => source.IsPreset && source.SourceName == "satellite");
+            var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
+
+            Assert.That(imported.ID, Is.EqualTo(preset.ID));
+
+            manager.RemoveSource(imported.ID);
+
+            var restored = manager.GetSources().Single(source => source.ID == imported.ID);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(manager.GetSources().Count(source => source.IsPreset), Is.EqualTo(7));
+                Assert.That(restored.IsPreset, Is.True);
+                Assert.That(restored.LocalPath, Is.Null);
+                Assert.That(restored.Enabled, Is.False);
+                Assert.That(restored.Entries, Is.Empty);
+                Assert.That(manager.GetEntriesForMd5("abababababababababababababababab"), Is.Empty);
+            });
+        }
+
+        [Test]
         public async Task TestImportRemoteHeaderUrlPersistsCachedEntriesAcrossRestart()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-remote-header-{Guid.NewGuid():N}");
@@ -195,6 +224,34 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(refreshed.DisplayName, Is.EqualTo("Online Satellite"));
                 Assert.That(refreshed.Entries.Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★2", "★9" }));
                 Assert.That(manager.GetEntriesForMd5("44444444444444444444444444444444").Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★9" }));
+            });
+        }
+
+        [Test]
+        public async Task TestImportRemoteHeaderRetriesTransientBodyFailure()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-remote-retry-{Guid.NewGuid():N}");
+            using var server = new TestHttpServer();
+
+            string headerPath = "/retry/header.json";
+            string bodyPath = "/retry/body.json";
+
+            server.SetResponse(headerPath,
+                $"{{\n  \"data_url\": \"{server.GetUrl(bodyPath)}\",\n  \"name\": \"Retry Table\",\n  \"symbol\": \"★\"\n}}",
+                "application/json; charset=utf-8");
+            server.SetResponseSequence(bodyPath,
+                new TestHttpServer.TestHttpResponse(HttpStatusCode.ServiceUnavailable, "text/plain; charset=utf-8", "try again"),
+                new TestHttpServer.TestHttpResponse(HttpStatusCode.OK, "application/json; charset=utf-8", createTableBodyJson(
+                    new TableEntry("12121212121212121212121212121212", "6"))));
+
+            var manager = new BmsDifficultyTableManager(storage);
+            var imported = await manager.ImportFromPath(server.GetUrl(headerPath)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(imported.DisplayName, Is.EqualTo("Retry Table"));
+                Assert.That(imported.Entries.Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★6" }));
+                Assert.That(imported.LocalPath, Is.EqualTo(server.GetUrl(headerPath)));
             });
         }
 
@@ -300,6 +357,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             private readonly TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
             private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
             private readonly Dictionary<string, TestHttpResponse> responses = new Dictionary<string, TestHttpResponse>(StringComparer.Ordinal);
+            private readonly Dictionary<string, Queue<TestHttpResponse>> queuedResponses = new Dictionary<string, Queue<TestHttpResponse>>(StringComparer.Ordinal);
             private readonly Task serverTask;
 
             public string BaseUrl { get; }
@@ -316,6 +374,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             public void SetResponse(string path, string body, string contentType)
                 => responses[path] = new TestHttpResponse(HttpStatusCode.OK, contentType, body);
+
+            public void SetResponseSequence(string path, params TestHttpResponse[] responseSequence)
+                => queuedResponses[path] = new Queue<TestHttpResponse>(responseSequence);
 
             private async Task serveAsync()
             {
@@ -353,8 +414,20 @@ namespace osu.Game.Rulesets.Bms.Tests
                     {
                     }
 
-                    TestHttpResponse response = responses.GetValueOrDefault(requestPath)
-                                                ?? new TestHttpResponse(HttpStatusCode.NotFound, "text/plain; charset=utf-8", "Not found");
+                    TestHttpResponse response;
+
+                    if (queuedResponses.TryGetValue(requestPath, out Queue<TestHttpResponse>? responseQueue) && responseQueue.Count > 0)
+                    {
+                        response = responseQueue.Dequeue();
+
+                        if (responseQueue.Count == 0)
+                            queuedResponses.Remove(requestPath);
+                    }
+                    else
+                    {
+                        response = responses.GetValueOrDefault(requestPath)
+                                   ?? new TestHttpResponse(HttpStatusCode.NotFound, "text/plain; charset=utf-8", "Not found");
+                    }
 
                     byte[] bodyBytes = Encoding.UTF8.GetBytes(response.Body);
                     string headers = $"HTTP/1.1 {(int)response.StatusCode} {response.StatusCode}\r\nContent-Type: {response.ContentType}\r\nContent-Length: {bodyBytes.Length}\r\nConnection: close\r\n\r\n";
@@ -378,7 +451,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 }
             }
 
-            private sealed record TestHttpResponse(HttpStatusCode StatusCode, string ContentType, string Body);
+            public sealed record TestHttpResponse(HttpStatusCode StatusCode, string ContentType, string Body);
         }
 
         private readonly record struct TableEntry(string Md5, string Level);

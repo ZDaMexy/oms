@@ -25,6 +25,7 @@ using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.Settings;
 using osu.Game.Screens;
+using osu.Game.Utils;
 using osuTK;
 
 namespace osu.Game.Rulesets.Bms.DifficultyTable
@@ -314,7 +315,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             {
                 ToggleEnabled = () => toggleSourceEnabled(source),
                 Refresh = string.IsNullOrWhiteSpace(source.LocalPath) ? null : () => startRefresh(source),
-                Remove = source.IsPreset ? null : () => confirmRemove(source),
+                Remove = () => confirmRemove(source),
             }));
         }
 
@@ -485,7 +486,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         }
 
         private static string getErrorMessage(Exception exception)
-            => exception.GetBaseException().Message;
+            => DifficultyTableImportErrorFormatter.Format(exception);
 
         private partial class DifficultyTableSourceCard : CompositeDrawable
         {

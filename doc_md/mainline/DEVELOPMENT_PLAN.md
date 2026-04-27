@@ -169,7 +169,7 @@
 2. 从第一版发布到逐步实现联网功能前，版本升级统一采用“解压后文件覆盖”流程，不依赖安装器自更新、后台下载或增量补丁
 3. 程序目录与用户数据目录布局必须对覆盖更新友好；覆盖新版本时不应要求重新导入谱面，也不应依赖在线迁移逻辑
 4. 游戏内在线更新暂时禁用，相关入口也一并隐藏；至少包括自动检查更新、手动检查更新、`ReleaseStream` 切换和其他面向终端用户的更新选项
-5. 所有联网功能（在线更新、账号、排行榜、谱面下载、远程难度表源）统一延后到 Phase 3 再重新评估是否启用
+5. 除 BMS 难度表的公共 URL 导入/刷新外，其他联网功能（在线更新、账号、排行榜、谱面下载等）统一延后到 Phase 3 再重新评估是否启用
 
 ### 联网功能冻结基线
 
@@ -177,7 +177,7 @@
 
 1. 不向终端构建写入默认可用的 production API、OAuth、SignalR、BSS 或其他远端服务器地址；在 Phase 3 真正启动前，这些地址应为空、未配置，或显式指向本地 stub / disabled path
 2. 游戏内所有依赖联网的用户入口默认隐藏或禁用；至少包括账号登录、在线排行榜 scope、成绩上传、谱面搜索/下载、新闻、聊天、多人、观战、Daily Challenge 与其他社交/在线面板
-3. 远程难度表源、自定义 URL 刷新与服务端镜像一律后移到 Phase 3；Phase 1-2 若需要表数据，只允许本地缓存、本地导入或随发行物携带的离线镜像
+3. OMS 私服桥接的难度表服务与平台侧镜像分发一律后移到 Phase 3；但 public BMSTable URL、自定义 URL 刷新与首次启动预设导入已在 Phase 1 允许，且不依赖 OMS backend
 4. 头像、勋章、预览音频、远程 metadata cache 等上游静态资源 fallback，不应作为当前本地化版本的默认行为；要么提供本地 fallback，要么显式显示“离线不可用”
 
 ### BMS 文件落盘基线
@@ -450,22 +450,22 @@
 
 ---
 
-### 1.13 难度表本地预置与缓存 (`BmsDifficultyTableManager`)
+### 1.13 难度表来源管理与缓存 (`BmsDifficultyTableManager`)
 
-**目标：** 在 Phase 1-2 先实现离线难度表管理，不直接联网拉取社区表。
+**目标：** 在 Phase 1-2 实现不依赖 OMS 私服的难度表来源管理，统一本地镜像与公开 BMSTable URL。
 
 **实现要点：**
 
-1. `bms_table_presets.json` 资源文件——记录内置离线镜像或导入模板，而不是当前阶段直接请求远端 URL
-2. SQLite 来源表——source_name, local_path, display_name, is_preset, enabled, imported_at, last_refreshed
-3. 支持从本地 `header.json` / `body.json` / 离线镜像目录导入
-4. RefreshAllTables / RefreshTable 仅重读本地文件与缓存
-5. TableDataChanged 事件
-6. 管理 UI（启用/禁用切换、手动重读、导入本地镜像、移除来源）
-7. 自定义 URL、在线刷新与服务端镜像回退统一延后到 Phase 3
+1. `bms_table_presets.json` 资源文件——只种子 `source_name` / `display_name` / 默认 `symbol` 的预置占位，不直接保存 first-run 下载 URL
+2. SQLite 来源表——`source_name`, `local_path`, `display_name`, `is_preset`, `enabled`, `imported_at`, `last_refreshed`；`local_path` 统一表示本地绝对路径或远端 `http/https` URL
+3. 支持从本地目录、`index.html`、`header.json`、表体 json 导入，也支持在线 `table.html -> bmstable meta -> header.json -> data_url` 与 `header.json` 直链
+4. `RefreshAllTables` / `RefreshTable` 统一重读本地或远端来源；远端下载对瞬时超时与 `408/429/5xx` 做 request-level retry
+5. `TableDataChanged` 事件；settings 与 first-run 共用 `BmsDifficultyTableManager.GetShared(storage)`
+6. 管理 UI（启用/禁用、手动重读、导入路径或 URL、移除来源）；已导入 preset 的“移除”语义是恢复隐藏占位，而不是删除内置 preset
+7. 首次启动页按分组导入 zris 预设 URL，并把导入失败摘要收口为中文分类提示；OMS 私服镜像与平台侧难度表服务仍延后到 Phase 3
 
 **前置依赖：** 1.1
-**验收：** 导入本地 Satellite 镜像 / 导出文件 → 本地缓存写入 → 重启后无需网络即可读取缓存。
+**验收：** 导入本地镜像或远端 `header.json` / `table.html` URL → 缓存写入并可跨重启恢复；移除已导入 preset → 预置占位恢复而不丢失 seeded preset 身份。
 
 ---
 
@@ -557,7 +557,7 @@
 - [ ] 可导入 .zip/.rar/.7z BMS 归档（核心导入链已接通，仍缺真实 UI 手工验收）
 - [ ] 7K+1 谱面可完整游玩（音符、键音、判定、gauge、计分）
 - [x] 结算画面显示 EX-SCORE、Clear Lamp、DJ Level（数据管线已接通，results auto-jump 已修复并经实机验证）
-- [x] 本地难度表缓存/MD5 匹配/表分组可用
+- [x] 难度表来源管理/MD5 匹配/表分组可用
 - [x] 音符分布图在 Song Select 显示
 - [ ] 键盘 + 稳定 HID 基础输入可用
 - [x] Lane Cover 可用
@@ -1008,7 +1008,7 @@
 
 ## Phase 3 — 私服集成
 
-> Phase 3 启动前，OMS 维持“便携全量包发布 + 手工文件覆盖更新 + 禁用游戏内在线更新”的策略，不提前恢复联网分发能力，也不向终端构建写入默认 production 服务器地址；账号、在线排行榜、谱面下载、聊天/新闻、多人/观战与远程难度表源入口统一保持隐藏或禁用。
+> Phase 3 启动前，OMS 维持“便携全量包发布 + 手工文件覆盖更新 + 禁用游戏内在线更新”的策略，不提前恢复联网分发能力，也不向终端构建写入默认 production 服务器地址；账号、在线排行榜、谱面下载、聊天/新闻与多人/观战入口统一保持隐藏或禁用。BMS 难度表仍可继续通过公共 URL 或本地镜像导入/刷新，不依赖 OMS 私服。
 
 ### 3.1 API 客户端基础 (`OmsApiClient`)
 

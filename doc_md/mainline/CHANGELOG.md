@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-04-28
+
+### BMS：难度表来源管理与导入反馈收口
+
+- `BmsDifficultyTableManager` 现把“移除已导入 preset source”的语义收口为“清空来源、条目与刷新时间，并恢复隐藏的 preset placeholder”，而不是硬删 seeded preset 行；Settings → 游戏模式 → BMS → 难度表 的可见来源当前都会显示 `移除`，包括已被自动认领的 preset。
+- 远端难度表下载现改为 request-level timeout + retry：首轮 20 秒，遇到瞬时 `TaskCanceledException` 或 transient HTTP 失败（如 `408/429/5xx`）时再走一轮 60 秒重试，减少 zris 这类公开表源的偶发超时直接打断导入。
+- 新增 `DifficultyTableImportErrorFormatter`，把难度表导入/刷新失败统一翻译成中文分类提示；设置页与首次启动向导的难度表页都改为复用这套文案，首次启动页在一次导入多张表失败时也会直接显示前几条具体原因摘要。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest" --logger:"console;verbosity=normal"` **12/12** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-04-25
 
 ### 文档 / 代码对齐审计与恢复边界收口

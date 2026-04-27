@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-04-25
+> 最后更新：2026-04-28
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -20,12 +20,13 @@
 - **仓库定位**：Windows-only，保留 osu!mania + BMS，已移除 Osu/Taiko/Catch
 - **主入口**：`osu.Desktop.slnf`（含 7 个项目）
 - **BMS 规模**：约 167 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；58 个测试源文件（以上为 2026-04-25 本地文件计数，排除 `bin/obj`）
-- **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜按 judge mode + long-note mode 分桶 → BMS replay recording / playback / 本地归档 → 难度表缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
+- **已落地主链**：BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL → CN/HCN mode-aware 计分 → 本地 best/replay/排行榜按 judge mode + long-note mode 分桶 → BMS replay recording / playback / 本地归档 → 难度表来源管理 / 缓存 / MD5 匹配 / 表分组 → Song Select 分布图 → 谱面元数据摘要 → gameplay → results 自动跳转
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
 - **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；mania 不受影响。
 - **BMS 选歌排序**：Song Select 当前已使用 ruleset-specific 8 项排序：`标题`、`曲师`、`BPM`、`时长`、`星数`、`点灯状态`、`达成率`、`miss 数`；其中本地成绩派生项的显示标签已明确改用 BMS 专用文案，不再回落到通用 `Clear Lamp` / `准度要求`，mania 不受影响。
 - **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。
-- **首次启动向导**：首次启动设置当前已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 BMS 难度表管理器导入 zris 镜像预设；最终页复用全局、mania 与 BMS 的按键绑定 subsection。
+- **BMS 难度表来源管理**：Settings → 游戏模式 → BMS → 难度表 当前统一支持本地目录、`index.html`、`header.json`、表体 json 与 `http/https` URL；seeded preset 会按 `source_name` / `display_name` 自动认领现有预置来源；移除已导入 preset 时会清空来源并恢复隐藏占位，而不是删除内置 preset；导入或刷新失败时，设置页与首次启动页都会显示中文分类原因。
+- **首次启动向导**：首次启动设置当前已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 BMS 难度表管理器按分组导入 zris 预设 URL，并在多项失败时显示中文摘要；最终页复用全局、mania 与 BMS 的按键绑定 subsection。
 - **首次启动稳定性与本地化**：手动重新打开首次启动向导并切到旧“游戏表现”页导致的 blank panel / unhandled error 已修复；欢迎页、获取谱面页与导入页的可见文案现已切到 OMS-owned localisation namespace + `.resx`，确保简中界面不再继续显示上游翻译。该表面主归属 `P1-A`，导入页复用外部谱库设置只形成 `P1-H` 从属暴露，不新开子线。
 - **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端
 - **训练 Mod**：`BmsModMirror` 与 `BmsModRandom` 已落地；`RANDOM` / `R-RANDOM` / `S-RANDOM` + seed / custom pattern 已接通，14K 单组 pattern 可自动复制到双侧
@@ -38,7 +39,7 @@
 - **回放基线**：BMS replay frame / replay input handler / replay recorder / auto generator 已接通；本地 replay 归档复用 core legacy replay encode/decode 的 custom-ruleset fallback，当前按 lane action 持久化
 - **反馈/训练闭环缺口**：BMS 最近判定 + `FAST/SLOW` + compact judgement summary + live `DJ LEVEL + EX 原始分子/分母 + %` + 带紧凑原因标签的 live `PERFECT / FC / FC LOST` 已入同一 feedback container，并具备瞬时 judge display 生命周期、compact visual timing-offset 与 fixed AAA EX pacemaker；但 controller calibration / deadzone / sensitivity 可见入口、更完整 judge display（超出当前 compact counts）与更丰富 pacemaker 来源仍未落地；按 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md) 已提升为下一阶段优先补强项
 - **判定系统语义差距**：`OD` 主路径已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，其中 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；但 early/late 非对称 BAD / excessive poor、scratch 特例、更完整 long-note release parity 与按 judge family 参数化的 `Empty Poor` 仍未收口
-- **联网**：全部在线入口与 Discord RPC 已按 `OnlineFeaturesEnabled` 守卫；默认 endpoint 已清空
+- **联网**：账号、在线排行榜、谱面下载、新闻/聊天、多人与观战入口及 Discord RPC 已按 `OnlineFeaturesEnabled` 守卫；默认 endpoint 已清空。BMS 难度表的公共 URL 导入/刷新为当前例外，不依赖 OMS backend。
 
 ### 皮肤系统现状
 
@@ -100,10 +101,10 @@
 ## 已落地能力
 
 - 上游裁剪与项目基础，主入口以桌面端为准
-- BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 三套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL
+- BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL
 - LN / CN / HCN mode-aware 计分与分桶
 - BMS 结果页反馈首轮收口：expanded 主环 / contracted badge 使用 DJ LEVEL，主分数区显式使用 EX-SCORE 文案
-- 离线难度表缓存 / MD5 匹配 / 表分组 / Song Select 音符分布图
+- 本地/在线难度表来源管理 / 缓存 / MD5 匹配 / 表分组 / Song Select 音符分布图
 - oms.Input 多源输入（键盘 / XInput / MouseAxis / Raw Input / DirectInput HID）
 - gameplay → results 自动跳转
 - BMS 皮肤链路：ruleset transformer + 全组件 lookup 接线
@@ -124,7 +125,7 @@
 | 1.10 Normal Gauge | 已完成 | — |
 | 1.11 EX-SCORE 与结算 | 已完成 | — |
 | 1.12 密度星级 | 已完成 | — |
-| 1.13 本地难度表 | 已完成 | — |
+| 1.13 难度表来源管理 | 已完成 | — |
 | 1.14 MD5 匹配 | 已完成 | — |
 | 1.15 Song Select 表分组 | 已完成 | — |
 | 1.16 音符分布图 | 已完成 | — |

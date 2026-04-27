@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-04-28
+
+### onboarding surface 跟进：难度表预设导入失败提示中文化
+
+- `ScreenBehaviour` 现继续通过反射调用 `BmsDifficultyTableManager`，但导入 zris 预设失败时不再直接把英文异常透传给用户；首次启动页与 BMS settings 现统一复用 `DifficultyTableImportErrorFormatter`，把超时、HTTP 失败与格式错误收口为中文分类提示。
+- 首次启动页在一次导入多张预设失败时，状态文字与通知现在都会展示失败摘要和前几条具体原因，而不是只停留在“成功/失败个数”。
+- 该改动维持 `P1-A` 的共享 onboarding surface 归属，不改变 `osu.Game -> osu.Game.Rulesets.Bms` 的反射边界，也不把难度表后端实现重新归线到共享层。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest" --logger:"console;verbosity=normal"` **12/12** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-04-23
 
 ### onboarding surface 跟进：首次启动向导收口为 OMS 六步流程

@@ -20,6 +20,7 @@ using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.Settings;
+using osu.Game.Utils;
 using osuTK;
 using osuTK.Graphics;
 
@@ -157,7 +158,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                 if (IsDisposed)
                     return;
 
-                statusText.Text = $"难度表管理器加载失败：{ex.GetBaseException().Message}";
+                statusText.Text = $"难度表管理器加载失败：{DifficultyTableImportErrorFormatter.Format(ex)}";
                 updateActionState();
             }
         }
@@ -201,7 +202,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                 catch (Exception ex)
                 {
                     Logger.Error(ex, $"Failed to import difficulty table preset '{preset.Name}'.");
-                    failures.Add($"{preset.Name}：{ex.GetBaseException().Message}");
+                    failures.Add($"{preset.Name}：{DifficultyTableImportErrorFormatter.Format(ex)}");
                 }
             }
 
@@ -209,24 +210,42 @@ namespace osu.Game.Overlays.FirstRunSetup
                 return;
 
             importInProgress.Value = false;
-            statusText.Text = failures.Count == 0
+            string completionSummary = failures.Count == 0
                 ? $"已完成导入，共 {successCount} 个难度表。"
-                : $"导入完成：成功 {successCount} 个，失败 {failures.Count} 个。";
+                : buildFailureSummary(successCount, failures);
+
+            statusText.Text = completionSummary;
 
             if (failures.Count == 0)
             {
                 notificationOverlay?.Post(new ProgressCompletionNotification
                 {
-                    Text = statusText.Text,
+                    Text = completionSummary,
                 });
             }
             else
             {
                 notificationOverlay?.Post(new SimpleErrorNotification
                 {
-                    Text = failures.Count == 1 ? failures[0] : statusText.Text,
+                    Text = completionSummary,
                 });
             }
+        }
+
+        private static string buildFailureSummary(int successCount, IReadOnlyList<string> failures)
+        {
+            if (failures.Count == 0)
+                return $"已完成导入，共 {successCount} 个难度表。";
+
+            if (failures.Count == 1)
+                return failures[0];
+
+            string summary = $"导入完成：成功 {successCount} 个，失败 {failures.Count} 个。";
+            string details = string.Join("；", failures.Take(2));
+
+            return failures.Count > 2
+                ? $"{summary} {details}；另有 {failures.Count - 2} 个失败。"
+                : $"{summary} {details}";
         }
 
         private sealed record DifficultyTablePreset(string Name, string Url);

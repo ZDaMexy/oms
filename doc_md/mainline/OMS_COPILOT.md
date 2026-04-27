@@ -919,27 +919,34 @@ Chart identity uses the **MD5 hash of the raw `.bms`/`.bme`/`.bml`/`.pms` file**
 
 ### 10.2 Preset Tables
 
-OMS ships with a built-in list of well-known community tables. These appear in the subscription settings UI pre-populated and can be enabled with a single toggle — no manual URL entry required.
+OMS ships with a built-in list of well-known community table slots. These are seeded from the bundled `bms_table_presets.json` resource and materialised in SQLite as disabled placeholder rows with `is_preset = true` and `local_path = null`.
 
-**Default preset list:**
+**Default seeded presets:**
 
-| Table | Symbol | URL (reference) |
+| Source name | Display name | Default symbol |
 |---|---|---|
-| Satellite | ★ | `https://www.ribbit.xyz/bms/tables/satellite.html` |
-| Stella | ★ | `https://www.ribbit.xyz/bms/tables/stella.html` |
-| Normal1 (通常1) | ☆ | community URL |
-| Insane1 (発狂1) | ★ | community URL |
-| Normal2 (通常2) | ☆ | community URL |
-| Insane2 (発狂2) | ★ | community URL |
-| LN table | ln★ | community URL |
+| `satellite` | `Satellite` | `★` |
+| `stella` | `Stella` | `★` |
+| `normal1` | `Normal1` | `☆` |
+| `insane1` | `Insane1` | `★` |
+| `normal2` | `Normal2` | `☆` |
+| `insane2` | `Insane2` | `★` |
+| `ln` | `LN` | `ln★` |
 
-Preset URLs are stored in a bundled `bms_table_presets.json` resource file, not hardcoded. This allows URL updates without a client release.
+The resource stores seeded preset identity (`source_name`, `display_name`, `symbol`), not first-run download URLs.
 
-Players may also add any arbitrary URL as a custom table. Custom tables are stored alongside presets in the same SQLite subscription list, differentiated by an `is_preset` flag.
+The first-run wizard maintains a separate curated list of zris preset URLs. When an imported table matches an unclaimed seeded preset by `source_name` or `display_name`, `BmsDifficultyTableManager` should auto-claim that preset row instead of creating a parallel custom source.
+
+Players may also add arbitrary local paths or public URLs as custom sources. Custom sources are stored alongside presets in the same SQLite subscription list, differentiated by `is_preset = false`.
+
+Removing an imported preset from settings should clear its imported data and restore the hidden preset placeholder, not permanently delete the seeded preset row.
 
 ### 10.3 Table Subscription (`BmsDifficultyTableManager`)
 
-Supported fetch formats:
+Supported source locations:
+
+- local directory, HTML wrapper, header JSON, or body JSON
+- `http` / `https` URL pointing to a BMSTable HTML wrapper, header JSON, or body JSON
 
 **BMSTable format (standard — used by Satellite, Stella, and most modern tables):**
 
@@ -962,14 +969,16 @@ Most community tables use a two-step fetch:
    ```
    Body format is a flat array of chart entries. `level` is a string (may contain non-numeric labels like "▲10").
 
-`BmsDifficultyTableManager` must implement this two-step resolution chain. If the subscription URL points directly to a JSON file (no HTML wrapper), attempt to parse it as either a header JSON or a body array.
-
-**Text/HTML format (legacy, LR2IR-style):** parse on best-effort basis. These typically embed chart lists in `<tr>` rows with MD5 and level fields.
+`BmsDifficultyTableManager` must implement this resolution chain for both local files and remote URLs. If the source points directly to a JSON file (no HTML wrapper), attempt to parse it as either a header JSON or a body array. HTML without a `bmstable` meta tag is not a supported source.
 
 `BmsDifficultyTableManager` responsibilities:
-- Persist subscription list (URL, display name, is_preset, enabled, last fetched timestamp) in SQLite
-- Fetch and cache table data on first enable and on manual/scheduled refresh
+- Persist subscription list (`source_name`, `display_name`, `symbol`, `local_path`, `is_preset`, `enabled`, timestamps) in SQLite; `local_path` is the unified source location and may be a full local path or an absolute URL
+- Fetch and cache table data on import and on manual refresh
+- Retry remote downloads on transient failures using request-scoped timeout/retry policy (currently 20s, then 60s for timeout / `408` / `429` / `5xx`-style failures)
+- Auto-claim matching seeded presets instead of duplicating them as custom rows
+- Restore seeded preset placeholders when removing an imported preset source
 - Expose `RefreshAllTables()` and `RefreshTable(id)` async methods
+- Share one manager instance between settings and first-run via `GetShared(storage)`
 - Emit `TableDataChanged` event so `BmsTableMd5Index` rebuilds automatically
 - Disabled tables are excluded from index rebuild and song select grouping
 
@@ -1017,7 +1026,7 @@ public record BmsDifficultyTableEntry(
 ```
 Group level 1 — Table name
   e.g. "Satellite", "Stella", "発狂BMS", "Unrated"
-  ordered by subscription list order (user-reorderable in settings)
+  ordered by source sort order (seeded preset order first, then user import order)
 
 Group level 2 — Level within table
   e.g. "★1", "★2", "▲18"

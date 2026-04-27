@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
@@ -28,6 +29,11 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private static readonly object shared_manager_lock = new object();
         private static readonly Dictionary<string, BmsDifficultyTableManager> shared_managers = new Dictionary<string, BmsDifficultyTableManager>(StringComparer.OrdinalIgnoreCase);
         private static readonly HttpClient http_client = createHttpClient();
+        private static readonly TimeSpan[] download_attempt_timeouts =
+        {
+            TimeSpan.FromSeconds(20),
+            TimeSpan.FromSeconds(60),
+        };
 
         private static readonly Regex bmstable_meta_regex = new Regex("<meta\\s+name=[\"']bmstable[\"']\\s+content=[\"'](?<path>[^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex signed_integer_regex = new Regex("^-?\\d+$", RegexOptions.Compiled);
@@ -42,7 +48,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         {
             var client = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(20),
+                Timeout = Timeout.InfiniteTimeSpan,
             };
 
             client.DefaultRequestHeaders.UserAgent.ParseAdd("OMS DifficultyTableManager/1.0");
@@ -209,23 +215,12 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             using var transaction = connection.BeginTransaction();
 
-            using (var deleteEntries = connection.CreateCommand())
-            {
-                deleteEntries.Transaction = transaction;
-                deleteEntries.CommandText = "DELETE FROM `entries` WHERE `source_id` = @sourceId";
-                deleteEntries.Parameters.Add(new SqliteParameter("@sourceId", sourceId.ToString("D")));
-                deleteEntries.ExecuteNonQuery();
-            }
+            SourceRow? source = findSource(connection, transaction, sourceId);
 
-            bool removed;
+            if (source == null)
+                return;
 
-            using (var deleteSource = connection.CreateCommand())
-            {
-                deleteSource.Transaction = transaction;
-                deleteSource.CommandText = "DELETE FROM `sources` WHERE `id` = @id";
-                deleteSource.Parameters.Add(new SqliteParameter("@id", sourceId.ToString("D")));
-                removed = deleteSource.ExecuteNonQuery() > 0;
-            }
+            bool removed = removeSource(connection, transaction, source.Value);
 
             transaction.Commit();
 
@@ -615,6 +610,42 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             }
         }
 
+        private static bool removeSource(SqliteConnection connection, SqliteTransaction transaction, SourceRow source)
+        {
+            bool hadEntries;
+
+            using (var deleteEntries = connection.CreateCommand())
+            {
+                deleteEntries.Transaction = transaction;
+                deleteEntries.CommandText = "DELETE FROM `entries` WHERE `source_id` = @sourceId";
+                deleteEntries.Parameters.Add(new SqliteParameter("@sourceId", source.ID.ToString("D")));
+                hadEntries = deleteEntries.ExecuteNonQuery() > 0;
+            }
+
+            if (source.IsPreset)
+            {
+                bool needsReset = !string.IsNullOrWhiteSpace(source.LocalPath) || source.Enabled || source.LastRefreshedUnixMs != null;
+
+                if (needsReset)
+                {
+                    upsertSource(connection, transaction, source with
+                    {
+                        LocalPath = null,
+                        Enabled = false,
+                        LastRefreshedUnixMs = null,
+                    });
+                }
+
+                return hadEntries || needsReset;
+            }
+
+            using var deleteSource = connection.CreateCommand();
+            deleteSource.Transaction = transaction;
+            deleteSource.CommandText = "DELETE FROM `sources` WHERE `id` = @id";
+            deleteSource.Parameters.Add(new SqliteParameter("@id", source.ID.ToString("D")));
+            return deleteSource.ExecuteNonQuery() > 0 || hadEntries;
+        }
+
         private static IReadOnlyList<BmsDifficultyTableEntry> readEntries(SqliteDataReader reader)
         {
             List<BmsDifficultyTableEntry> entries = new List<BmsDifficultyTableEntry>();
@@ -881,11 +912,51 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private static string downloadText(Uri uri, CancellationToken cancellationToken)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            using var response = http_client.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
-            return response.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
+            Exception? lastException = null;
+
+            for (int attempt = 0; attempt < download_attempt_timeouts.Length; attempt++)
+            {
+                try
+                {
+                    return downloadText(uri, download_attempt_timeouts[attempt], cancellationToken);
+                }
+                catch (Exception ex) when (attempt < download_attempt_timeouts.Length - 1 && isRetriableDownloadFailure(ex, cancellationToken))
+                {
+                    lastException = ex;
+                    Logger.Log($"Retrying BMS difficulty table download from '{uri}' after transient failure: {ex.GetBaseException().Message}", LoggingTarget.Network, LogLevel.Important);
+                }
+            }
+
+            throw lastException ?? new InvalidOperationException($"Failed to download difficulty table source '{uri}'.");
         }
+
+        private static string downloadText(Uri uri, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(timeout);
+            using var response = http_client.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeoutSource.Token).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            return response.Content.ReadAsStringAsync(timeoutSource.Token).GetAwaiter().GetResult();
+        }
+
+        private static bool isRetriableDownloadFailure(Exception exception, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                return false;
+
+            return exception switch
+            {
+                TaskCanceledException => true,
+                HttpRequestException httpException => !httpException.StatusCode.HasValue || isTransientStatusCode(httpException.StatusCode.Value),
+                _ => false,
+            };
+        }
+
+        private static bool isTransientStatusCode(HttpStatusCode statusCode)
+            => statusCode == HttpStatusCode.RequestTimeout
+               || statusCode == HttpStatusCode.TooManyRequests
+               || (int)statusCode >= 500;
 
         private static bool looksLikeJson(string sourceLocation, string sourceText)
         {
