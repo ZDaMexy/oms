@@ -11,6 +11,7 @@ using osu.Framework.Screens;
 using osu.Framework.Threading;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
@@ -121,8 +122,11 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestReleasingHoldBeforeDelayStillWaitsForDelayedStart()
         {
+            double initialHiSpeed = 0;
+
             AddAssert("pre-start overlay exists", () => player.PreStartOverlay != null);
             AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
+            AddStep("capture initial hi-speed", () => initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value);
 
             AddStep("press pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay visible while holding", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
@@ -130,6 +134,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("release pre-start hold before delay elapses", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay hidden after early release", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
             AddAssert("underlying clock still not running", () => !player.GameplayClockContainer.IsRunning);
+            AddStep("try raising hi-speed after early release", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
+            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddAssert("hi-speed stays unchanged after early release", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - initialHiSpeed) <= 0.0001);
 
             AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
             AddUntilStep("gameplay starts only after delay expires", () => player.GameplayClockContainer.IsRunning);
@@ -185,6 +192,64 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
         }
 
+        [Test]
+        public void TestHoldKeepsHiSpeedAdjustmentsEnabledAfterDelayExpires()
+        {
+            double initialHiSpeed = 0;
+            double hiSpeedStep = 0;
+
+            AddStep("capture initial hi-speed", () =>
+            {
+                initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
+                hiSpeedStep = player.DrawableBmsRuleset.HiSpeedMode.Value.GetAdjustmentStep();
+            });
+
+            AddStep("press pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay visible while holding", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+
+            AddStep("expire the pre-start delay while still holding", () => player.ExpirePreStartDelay());
+            AddAssert("gameplay still blocked while holding", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("raise hi-speed after delay has elapsed", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
+            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddAssert("hi-speed still adjusts after delay elapsed", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
+
+            AddStep("release pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay hidden after releasing hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+            AddUntilStep("gameplay starts after releasing hold", () => player.GameplayClockContainer.IsRunning);
+        }
+
+        [Test]
+        public void TestPreStartOverlayReflectsHiSpeedModeAndValueInRealPlayerFlow()
+        {
+            double initialHiSpeed = 0;
+            double hiSpeedStep = 0;
+            BmsHiSpeedMode hiSpeedMode = default;
+
+            AddStep("capture hi-speed surface", () =>
+            {
+                hiSpeedMode = player.DrawableBmsRuleset!.HiSpeedMode.Value;
+                initialHiSpeed = player.DrawableBmsRuleset.SelectedHiSpeed.Value;
+                hiSpeedStep = hiSpeedMode.GetAdjustmentStep();
+            });
+
+            AddStep("press pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay visible while holding", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+            AddAssert("overlay mode text matches current mode", () => hasOverlayText(getOverlayModeText(hiSpeedMode)));
+            AddAssert("overlay value text matches current hi-speed", () => hasOverlayText(hiSpeedMode.FormatValue(initialHiSpeed)));
+
+            AddStep("raise hi-speed with odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
+            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddAssert("overlay value text updates after increase", () => hasOverlayText(hiSpeedMode.FormatValue(initialHiSpeed + hiSpeedStep)));
+
+            AddStep("lower hi-speed with even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
+            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
+            AddAssert("overlay value text returns after decrease", () => hasOverlayText(hiSpeedMode.FormatValue(initialHiSpeed)));
+
+            AddStep("release pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay hidden after releasing hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+        }
+
         private BmsDecodedBeatmap createSourceBeatmap(string text, string path)
         {
             var beatmap = new BmsDecodedBeatmap(decoder.DecodeText(text, path))
@@ -218,6 +283,21 @@ namespace osu.Game.Rulesets.Bms.Tests
                    && !player.DrawableBmsRuleset.IsAdjustmentTargetTemporarilyOverridden.Value
                    && player.DrawableBmsRuleset.Playfield.LaneCovers.All(cover => !cover.IsFocused.Value);
         }
+
+        private bool hasOverlayText(string text)
+            => tryGetOverlayText(text) != null;
+
+        private OsuSpriteText? tryGetOverlayText(string text)
+            => player.PreStartOverlay?.ChildrenOfType<OsuSpriteText>().SingleOrDefault(drawable => drawable.Text.ToString() == text);
+
+        private static string getOverlayModeText(BmsHiSpeedMode mode)
+            => mode switch
+            {
+                BmsHiSpeedMode.Normal => @"Normal Hi-Speed",
+                BmsHiSpeedMode.Floating => @"Floating Hi-Speed",
+                BmsHiSpeedMode.Classic => @"Classic Hi-Speed",
+                _ => @"Hi-Speed",
+            };
 
         private partial class TestBmsSoloPlayer : BmsSoloPlayer
         {

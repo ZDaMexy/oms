@@ -23,7 +23,7 @@
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
 - 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
-- `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成首轮落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；后续只保留手工 UI 验收和必要回归修复，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
+- `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成功能面落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；当前主线不再保留未完成的产品面任务，只保留 `P1-G` 下的手工 UI 验收与后续测试回归，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -59,7 +59,7 @@
 
 ### P1-H 当前新增专项：BMS 谱库分组扩展（外部谱库 / 内部谱库）
 
-该专项已完成首轮实现与 focused regression。它不重开 `1.15` 的完成判定，而是作为 `P1-H` 对 Song Select 的新增支撑切片继续维护；剩余事项以手工 UI 验收和后续回归修复为主。
+该专项已完成功能面实现与主线文档收口。它不重开 `1.15` 的完成判定，而是作为 `P1-H` 对 Song Select 的新增支撑切片留档；当前剩余仅为 `P1-G` 下的手工 UI 验收与后续测试回归，不再视为持续开发中的产品面。
 
 **目标：**
 
@@ -93,7 +93,7 @@
 1. BMS 下拉可稳定显示 `难度表` / `外部谱库` / `内部谱库` 等 ruleset-specific 分组选项，mania 与共享 ruleset 行为不变
 2. internal grouping 在移动数据根、重启、重扫后仍保持相同层级归属
 3. external grouping 在 root 重新排序、重启、局部重扫后不漂移；root 缺失时有明确 fallback
-4. 当前已具备 focused automated coverage；手工 Song Select 展开验收继续按 `P1-G` 后置执行，并作为后续回归确认项保留
+4. 当前 1-3 已满足，且已具备 focused automated coverage；剩余仅为手工 Song Select 展开验收，继续按 `P1-G` 后置执行，并作为后续回归确认项保留
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
@@ -113,7 +113,7 @@
 3. **运行时反馈点**：HUD / toast / pre-start overlay 必须共享同一组 mode-aware speed metrics，避免出现 settings、HUD、toast 各说各话。
 4. **操作窗口点**：pre-start hold 不是 debug 测试夹层，而是正式 operator surface；其输入、显示、阻塞/释放时序与 fallback 都要当成产品合同维护。
 5. **联动点**：`Sudden / Hidden / Lift`、奇偶列调速、滚轮 / 中键 target cycle、以及当前模式数值必须视为同一条联动链，而不是多个独立 feature。
-6. **验证点**：当前代码侧已通过 focused tests + Release build，并新增 BMS mod 冷启动恢复的 dedicated integration coverage；但 delayed-start 实时开谱时序、hold 阻塞释放后的事件语义、以及超出当前冷启动 path 的更严格 integration coverage 仍是专门待收口点。
+6. **验证点**：当前代码侧已通过 focused tests + Release build；除 BMS mod 冷启动恢复的 dedicated integration coverage 外，owner-level `BmsPreStartHiSpeedOverlay` 合同与 real-player `BmsSoloPlayer` pre-start start-sequence / overlay binding 也已补到位。当前剩余主要是 full Floating parity、跨设备真实输入路径与后置人工验收，而不是 delayed-start / hold gate 的基础语义空白。
 
 #### 线：当前应如何归线
 

@@ -22,6 +22,13 @@
 - 新增 `DifficultyTableImportErrorFormatter`，把难度表导入/刷新失败统一翻译成中文分类提示；设置页与首次启动向导的难度表页都改为复用这套文案，首次启动页在一次导入多张表失败时也会直接显示前几条具体原因摘要。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest" --logger:"console;verbosity=normal"` **12/12** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 
+### P1-A / P1-C：tri-mode pre-start overlay 合同与真实宿主绑定回归补强
+
+- `TestSceneBmsPreStartHiSpeedOverlay` 现单独锁住 `BmsPreStartHiSpeedOverlay` 的 owner contract：mode text / value text 必须继续反映当前 tri-mode hi-speed surface，并沿 `BmsHiSpeedMode.FormatValue()` 输出；odd/even lane hi-speed adjustment 只在 overlay 可见时受理。
+- `TestSceneBmsSoloPlayerPreStart` 现扩到 **8/8**：除既有 delayed-start / hold gate / target cycle / external clock suppression 外，还锁住“delay 到期但 hold 仍按住时继续可调速”以及“overlay mode/value 在真实 player flow 中反映当前 tri-mode surface”两条真实宿主链。
+- 当前文档口径同步收口为 `UI_PreStartHold` 承担 hold gate、`UI_LaneCoverFocus` 保持 click-to-cycle；提前松开后的 authority 以 `SelectedHiSpeed` 是否变化为准，而不是把 routed key press 的返回值当作唯一判断。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --configuration Release --filter "FullyQualifiedName~TestSceneBmsPreStartHiSpeedOverlay"` **3/3** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **8/8** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-04-25
 
 ### 文档 / 代码对齐审计与恢复边界收口

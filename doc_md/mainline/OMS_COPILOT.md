@@ -50,7 +50,9 @@ oms/
 │   │   ├── BmsBeatmapConverter.cs       # Converts parsed BMS → IBeatmap
 │   │   ├── BmsBeatmapInfo.cs            # BMS-specific beatmap metadata (Keymode, MeasureLengthControlPoints, etc.)
 │   │   ├── BmsArchiveReader.cs          # Handles .zip/.rar/.7z BMS package import
-│   │   └── BmsBeatmapLoader.cs          # Runtime reloader for imported BMS charts
+│   │   ├── BmsBeatmapLoader.cs          # Runtime reloader for imported BMS charts
+│   │   ├── BmsBeatmapImporter.cs        # Ruleset importer entry for managed/external BMS registration
+│   │   └── BmsFolderImporter.cs         # Folder registration authority for FilesystemStoragePath + ExternalLibraryRootPath
 │   ├── Judgements/
 │   │   ├── BmsJudgementSystem.cs        # Pluggable judgment engine
 │   │   ├── BmsTimingWindows.cs          # Timing window definitions per system
@@ -71,6 +73,7 @@ oms/
 │   │   └── BmsTableMd5Index.cs          # Local MD5 → table level lookup index
 │   ├── SongSelect/
 │   │   ├── BmsTableGroupMode.cs         # Custom SongSelect grouping: table → level → set
+│   │   ├── BmsLibraryGroupMode.cs       # BMS library grouping: external root / internal managed hierarchy
 │   │   └── BmsNoteDistributionGraph.cs  # Note distribution preview panel
 │   ├── Layout/
 │   │   ├── BmsPlayfield.cs              # Playfield rendering
@@ -97,9 +100,12 @@ oms/
 │   │   ├── BmsModRandom.cs              # RANDOM / R-RANDOM / S-RANDOM + custom pattern
 │   │   └── Planned Phase 2 mod not yet in tree: 1P/2P flip
 │   ├── Input/
-│   │   └── BmsInputManager.cs           # BMS-specific input routing
+│   │   └── BmsInputManager.cs           # BMS-specific input routing + pre-start hold / hi-speed lane mapping
 │   ├── Background/
 │   │   └── BmsBackgroundLayer.cs        # Static BG + future BGA hook
+│   ├── UI/
+│   │   ├── BmsGameplayAdjustmentTarget.cs # Shared Sudden/Hidden/Lift gameplay adjustment target enum
+│   │   └── BmsPreStartHiSpeedOverlay.cs   # Pre-start hold overlay for tri-mode mode/value feedback
 │   ├── Configuration/
 │   │   ├── BmsModStatePersistence.cs    # Ruleset-local selected-mod/settings persistence for BMS startup and ruleset switches
 │   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (layout, keysound, mod-state snapshot, later feature flags)

@@ -11,6 +11,13 @@
 - 该改动维持 `P1-A` 的共享 onboarding surface 归属，不改变 `osu.Game -> osu.Game.Rulesets.Bms` 的反射边界，也不把难度表后端实现重新归线到共享层。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest" --logger:"console;verbosity=normal"` **12/12** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 
+### gameplay speed setting 跟进：pre-start overlay owner contract 与真实宿主绑定回归补强
+
+- `TestSceneBmsPreStartHiSpeedOverlay` 现单独锁住 `BmsPreStartHiSpeedOverlay` 的 owner contract：mode text / value text 必须继续反映当前 tri-mode hi-speed surface，并沿 `BmsHiSpeedMode.FormatValue()` 输出；odd/even lane hi-speed adjustment 只在 overlay 可见时受理。
+- `TestSceneBmsSoloPlayerPreStart` 现扩到 **8/8**：除既有 delayed-start / hold gate / target cycle / external clock suppression 外，还锁住“delay 到期但 hold 仍按住时继续可调速”以及“overlay mode/value 在真实 player flow 中反映当前 tri-mode surface”两条真实宿主链。
+- 当前口径同步收口为 `UI_PreStartHold` 承担 hold gate、`UI_LaneCoverFocus` 保持 click-to-cycle；提前松开后的 authority 以 `SelectedHiSpeed` 是否变化为准，而不是把 routed key press 返回值当作唯一判断。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --configuration Release --filter "FullyQualifiedName~TestSceneBmsPreStartHiSpeedOverlay"` **3/3** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **8/8** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-04-23
 
 ### onboarding surface 跟进：首次启动向导收口为 OMS 六步流程
@@ -54,7 +61,7 @@
 
 ### gameplay speed setting 跟进：pre-start hold integration coverage 扩面
 
-- `TestSceneBmsSoloPlayerPreStart` 现额外锁定两类 `BmsSoloPlayer` 预开谱时序语义：提前松开 `UI_LaneCoverFocus` 时 gameplay 仍必须继续等待 delayed-start 到时，以及 hold 期间 persistent target cycle 不得破坏临时 `Hidden` 覆写与松开后的 target 恢复。
+- `TestSceneBmsSoloPlayerPreStart` 现额外锁定两类 `BmsSoloPlayer` 预开谱时序语义：提前松开 `UI_PreStartHold` 时 gameplay 仍必须继续等待 delayed-start 到时，以及 hold 期间 persistent target cycle 不得破坏临时 `Hidden` 覆写与松开后的 target 恢复。
 - 同一 scene 也补上奇偶列调速双向回归，确认 paused pre-start overlay 下 odd-key 增速与 even-key 减速都能走通正式输入桥。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **5/5** 通过。
 
@@ -62,7 +69,7 @@
 
 - `BmsHiSpeedMode`、`BmsHiSpeedRuntimeCalculator`、mode dropdown + current-mode slider 已接通；settings 现可在 `Normal / Floating / Classic Hi-Speed` 三种模式间切换，并只显示当前模式数值。
 - `DrawableBmsRuleset` 现按模式发布 runtime metrics / HUD detail / toast；`Classic` 继续锁定 `HS 10 + WN 350 => GN 300`，`Floating` 首轮为 initial-BPM anchored surface，但仍不宣称完整 `FHS`。
-- `BmsSoloPlayer` 与 `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed start、`UI_LaneCoverFocus` hold gate、奇偶键调速与 paused pre-start lane-cover 调整链接入正式 gameplay 流程；`SoloSongSelect` 则改为反射创建 `BmsSoloPlayer`，避免跨项目编译期依赖。
+- `BmsSoloPlayer` 与 `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed start、`UI_PreStartHold` hold gate、奇偶键调速，以及 paused pre-start 下 `UI_LaneCoverFocus` / 滚轮 / 中键的 lane-cover 调整链接入正式 gameplay 流程；`SoloSongSelect` 则改为反射创建 `BmsSoloPlayer`，避免跨项目编译期依赖。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsDrawableRulesetTest"` **97/97** 通过；`Build osu! (Release)` 通过。
 
 ### gameplay speed setting 跟进：strict Classic Hi-Speed + frozen geometry surface 落地

@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-04-28
+
+### C2 补回归：pre-start overlay owner contract 与 real-player binding 扩面
+
+- `TestSceneBmsPreStartHiSpeedOverlay` 现单独锁住 `BmsPreStartHiSpeedOverlay` 的 owner contract：mode text / value text 必须继续反映当前 tri-mode hi-speed surface，并沿 `BmsHiSpeedMode.FormatValue()` 输出；odd/even lane hi-speed adjustment 只在 overlay 可见时受理。
+- `TestSceneBmsSoloPlayerPreStart` 现扩到 **8/8**：除既有 delayed-start / hold gate / target cycle / external clock suppression 外，还锁住“delay 到期但 hold 仍按住时继续可调速”以及“overlay mode/value 在真实 player flow 中反映当前 tri-mode surface”两条真实宿主链。
+- 当前口径同步收口为 `UI_PreStartHold` 承担 hold gate、`UI_LaneCoverFocus` 保持 click-to-cycle；提前松开后的 authority 以 `SelectedHiSpeed` 是否变化为准，而不是把 routed key press 返回值当作唯一判断。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --configuration Release --filter "FullyQualifiedName~TestSceneBmsPreStartHiSpeedOverlay"` **3/3** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **8/8** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-04-22
 
 ### C2 修复：冷启动 mod 记忆时序与 startup replay 补全
@@ -44,7 +53,7 @@
 
 ### C2 补回归：pre-start hold start-sequence integration coverage 扩面
 
-- `TestSceneBmsSoloPlayerPreStart` 现额外锁定 `BmsSoloPlayer` 的两个 paused pre-start 分支：提前松开 `UI_LaneCoverFocus` 时必须继续等待 delayed-start 到时，以及 hold 期间 persistent target cycle 不得破坏临时 `Hidden` 覆写与松开后的 target 恢复。
+- `TestSceneBmsSoloPlayerPreStart` 现额外锁定 `BmsSoloPlayer` 的两个 paused pre-start 分支：提前松开 `UI_PreStartHold` 时必须继续等待 delayed-start 到时，以及 hold 期间 persistent target cycle 不得破坏临时 `Hidden` 覆写与松开后的 target 恢复。
 - 同一 scene 也补上奇偶列 hi-speed 双向调节回归，确保 odd/even lane mapping 在正式 pre-start overlay 输入桥上两边都有效。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **5/5** 通过。
 
@@ -52,7 +61,7 @@
 
 - `BmsHiSpeedMode`、`BmsHiSpeedRuntimeCalculator`、mode dropdown + current-mode slider 已接通；`BmsScrollSpeedMetrics` / HUD / toast 现会按 `Normal / Floating / Classic` 三模式发布 mode-aware 反馈。
 - `Floating` 首轮已具备 initial-BPM anchored runtime surface，并可在 pre-start hold 窗口中与 `Sudden / Hidden / Lift` 联动调节；但仍不宣称完整 mid-song re-float parity 或 soflan GN range。
-- `BmsSoloPlayer` 与 `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed-start、`UI_LaneCoverFocus` hold gate、奇偶列按键调速与 paused pre-start lane-cover 调整链接入正式 gameplay 流程。
+- `BmsSoloPlayer` 与 `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed-start、`UI_PreStartHold` hold gate、奇偶列按键调速，以及 paused pre-start 下 `UI_LaneCoverFocus` / 滚轮 / 中键的 lane-cover 调整链接入正式 gameplay 流程。
 - 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsScrollSpeedMetricsTest|FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsGameplayFeedbackStateTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay|FullyQualifiedName~BmsDrawableRulesetTest"` **97/97** 通过；`Build osu! (Release)` 通过。
 
 ### C1 strict 收口：Classic Hi-Speed 数值映射与 geometry profile 一并锁定

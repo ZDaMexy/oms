@@ -62,6 +62,24 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestExternalLibraryGroupingUsesRootGroupForRootLevelSet()
+        {
+            string rootPath = Path.Combine(Path.GetTempPath(), "RootLevelExternal");
+            string setPath = Path.Combine(rootPath, "set-a");
+            var beatmap = createExternalBeatmap("External Root Level", setPath, rootPath);
+
+            var results = await runGrouping(GroupMode.ExternalLibrary, beatmap).ConfigureAwait(false);
+            var group = results.Select(item => item.Model).OfType<GroupDefinition>().Single();
+            var groupedBeatmap = results.Select(item => item.Model).OfType<GroupedBeatmap>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(group.Title.ToString(), Is.EqualTo("RootLevelExternal"));
+                Assert.That(groupedBeatmap.Group, Is.SameAs(group));
+            });
+        }
+
+        [Test]
         public async Task TestExternalLibraryGroupingKeepsDuplicateRootDisplayNamesDistinct()
         {
             var first = createExternalBeatmap("First", @"C:\Songs\set-a", @"C:\Songs");
@@ -82,6 +100,17 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestExternalLibraryGroupingFallsBackWhenRootSnapshotMissing()
         {
             var beatmap = createExternalBeatmap("Legacy External", @"C:\LegacyRoot\set-a", null);
+
+            var results = await runGrouping(GroupMode.ExternalLibrary, beatmap).ConfigureAwait(false);
+            var group = results.Select(item => item.Model).OfType<GroupDefinition>().Single();
+
+            Assert.That(group.Title.ToString(), Is.EqualTo("Unmapped External Library"));
+        }
+
+        [Test]
+        public async Task TestExternalLibraryGroupingFallsBackWhenRootSnapshotDoesNotContainSet()
+        {
+            var beatmap = createExternalBeatmap("Moved External", @"C:\LibraryA\set-a", @"C:\LibraryB");
 
             var results = await runGrouping(GroupMode.ExternalLibrary, beatmap).ConfigureAwait(false);
             var group = results.Select(item => item.Model).OfType<GroupDefinition>().Single();

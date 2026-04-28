@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-04-23
+> 最后更新：2026-04-28
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -87,19 +87,20 @@
 
 ### B2：tri-mode settings 与 pre-start hold operator surface
 
-**状态：首轮实现已完成**
+**状态：已完成功能面落地，后续维持验证与边界维护**
 
 目标：在不破坏 HUD / skin boundary 与项目依赖边界的前提下，把三模式设置、runtime feedback 与 pre-start 调速窗口收口成同一条产品合同。
 
 当前已完成：
 
 1. `BmsSettingsSubsection` 现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式 slider，settings 不再显示 `GN / ms`。
-2. `BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed start、`UI_LaneCoverFocus` hold gate、奇偶键调速与 paused pre-start `Sudden / Hidden / Lift` 调整链接入正式 gameplay 流程。
+2. `BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed start、`UI_PreStartHold` hold gate、奇偶键调速，以及 paused pre-start 下 `UI_LaneCoverFocus` / 滚轮 / 中键的 `Sudden / Hidden / Lift` 调整链接入正式 gameplay 流程。
 3. `SoloSongSelect` 通过反射创建 `BmsSoloPlayer`，避免 `osu.Game` 对 `osu.Game.Rulesets.Bms` 新增编译期依赖。
+4. owner-level `TestSceneBmsPreStartHiSpeedOverlay` 与 real-player `TestSceneBmsSoloPlayerPreStart` 已形成双层 focused coverage，当前分别锁住 overlay 文案 / 输入合同与 delayed-start / hold gate / mode-value binding 的真实宿主链。
 
 后续检查点：
 
-1. 补更多 dedicated integration / visual coverage，锁定 pre-start hold overlay 与 start sequencing。
+1. 当前 dedicated coverage 已锁住 overlay owner contract、hold 跨过 delay 到期仍可调速、以及 real-player mode/value binding；后续只在新增 host / fallback surface 时补更广 visual / integration 覆盖。
 2. 持续守住 tri-mode settings、HUD 与 overlay 的 BMS-owned fallback 合同。
 3. 保留 toast 作为补充反馈层，但不再让任何新功能直接依赖 toast 作为唯一宿主。
 4. 把数值 state 的具体字段集留给 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 继续细化。
@@ -111,7 +112,7 @@
 
 ### B2：`Sudden / Hidden / Lift` 联动收口
 
-**状态：未开始**
+**状态：进行中**
 
 目标：让 lane cover focus、当前 target、geometry-effect 与 HUD feedback 表达统一，避免视觉上各说各话。
 
@@ -121,6 +122,8 @@
 2. `Lift` 继续保持 geometry control，不与 `Hidden` 混写；HUD 文案与状态表达必须延续这条边界。
 3. 对“仅启用 1 个 target”“无 target 可切换”“当前 target 因 mod 未启用而失效”给出明确显示策略。
 
+> 当前 click-to-cycle、temporary override 与多 target 循环位置已接通；剩余重点是 richer HUD 状态表达、边界态 fallback 与 authoring 口径继续收口。
+
 验收：
 
 - `Sudden / Hidden / Lift` 三项在启用 / 禁用 / 切换时的 HUD 行为可预测。
@@ -128,7 +131,7 @@
 
 ### C1：扩展到统一 gameplay feedback 家族
 
-**状态：未开始**
+**状态：进行中**
 
 目标：在 speed feedback 合同稳定后，把 `FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 纳入同一反馈家族，而不是再开新的临时 overlay。
 
@@ -140,6 +143,8 @@
 
 > shared position contract 已落地；后续这一步的重点不再是“先抽常量”，而是决定如何在不破坏现有 skin/judgement 生命周期的前提下继续扩 judge display 的语义与排布。
 
+> 当前 feedback container、shared position contract 与 aggregate snapshot 已落地；本节剩余重点是 richer judge display / history 分层与 results 侧延展，不再是从零搭宿主。
+
 验收：
 
 - gameplay feedback 家族拥有稳定宿主，不再依赖临时 toast 链。
@@ -147,7 +152,7 @@
 
 ### D1：作者文档与 release gate 收口
 
-**状态：未开始**
+**状态：进行中**
 
 目标：把这条专题从“实现中合同”变成“可维护的 authoring / release gate 文档”。
 
@@ -156,6 +161,8 @@
 1. 在 [../../other/SKINNING.md](../../other/SKINNING.md) 中补齐 `GameplayFeedbackDisplay` 的 authoring 入口、fallback 粒度与状态合同。
 2. 在 [../../mainline/OMS_COPILOT.md](../../mainline/OMS_COPILOT.md) 中把接口和命名边界收口成硬约束。
 3. 在 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md) 中记录实现状态，在 [../../mainline/CHANGELOG.md](../../mainline/CHANGELOG.md) 中记录验证结果。
+
+> 当前 mainline 四件套与 `OMS_COPILOT.md` 已跟随 2026-04-28 的 tri-mode / pre-start / library grouping 状态同步；剩余主要是 `SKINNING.md` 的作者入口与 release gate 口径继续补齐。
 
 ## 当前优先顺序
 
