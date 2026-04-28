@@ -38,7 +38,7 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                     dialogOverlay?.Push(new MassDeleteConfirmationDialog(() =>
                     {
                         deleteInternalBeatmapsButton.Enabled.Value = false;
-                        Task.Run(() => beatmaps.Delete(s => !s.IsExternalFilesystemStorage)).ContinueWith(_ => Schedule(() =>
+                        Task.Run(() => beatmaps.DeleteAllInternal()).ContinueWith(_ => Schedule(() =>
                         {
                             deleteInternalBeatmapsButton.Enabled.Value = true;
                             refreshDeleteBeatmapButtonText();

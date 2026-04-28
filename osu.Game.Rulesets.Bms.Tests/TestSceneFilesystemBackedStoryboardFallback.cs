@@ -132,17 +132,46 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("no internal files created", () => Realm.Run(r => r.Find<BeatmapSetInfo>(externalSet.ID)!.Files.Count == 0));
         }
 
-            private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard(bool externalStorage = false)
+        [Test]
+        public void TestDeleteAllInternalRemovesManagedDirectoryOnly()
+        {
+            BeatmapSetInfo internalSet = null!;
+            Guid internalSetId = Guid.Empty;
+            string internalDirectory = null!;
+            string internalBeatmapPath = null!;
+            BeatmapSetInfo externalSet = null!;
+            Guid externalSetId = Guid.Empty;
+            string externalBeatmapPath = null!;
+
+            AddStep("create managed internal beatmap", () =>
+            {
+                (internalSet, internalDirectory, internalBeatmapPath) = createManagedInternalBmsBeatmapSet();
+                internalSetId = internalSet.ID;
+            });
+            AddStep("create external beatmap", () =>
+            {
+                (externalSet, externalBeatmapPath, _) = createManagedExternalBmsBeatmapSet();
+                externalSetId = externalSet.ID;
+            });
+            AddStep("delete all internal beatmaps", () => beatmaps.DeleteAllInternal(silent: true));
+            AddAssert("internal beatmap file removed", () => !File.Exists(internalBeatmapPath));
+            AddAssert("internal directory removed", () => !Directory.Exists(internalDirectory));
+            AddAssert("internal set removed from realm", () => Realm.Run(r => r.Find<BeatmapSetInfo>(internalSetId)) == null);
+            AddAssert("external beatmap file still exists", () => File.Exists(externalBeatmapPath));
+            AddAssert("external set still in realm", () => Realm.Run(r => r.Find<BeatmapSetInfo>(externalSetId)) != null);
+        }
+
+        private BeatmapSetInfo createFilesystemBackedBeatmapSetWithoutStoryboard(bool externalStorage = false)
         {
             string relativePath = $"filesystem-storyboard-test/{Guid.NewGuid()}";
             string fullPath = LocalStorage.GetFullPath(relativePath, true);
 
             Directory.CreateDirectory(fullPath);
 
-                const string beatmapFilename = "filesystem-storyboard-test.bms";
+            const string beatmapFilename = "filesystem-storyboard-test.bms";
             string beatmapPath = Path.Combine(fullPath, beatmapFilename);
 
-                File.WriteAllText(beatmapPath, @"
+            File.WriteAllText(beatmapPath, @"
     #TITLE Filesystem Storyboard
     #ARTIST OMS
     #BPM 150
@@ -158,6 +187,35 @@ namespace osu.Game.Rulesets.Bms.Tests
             var beatmapSet = Realm.Run(r => r.Find<BeatmapSetInfo>(setId)!);
 
             return beatmapSet;
+        }
+
+        private (BeatmapSetInfo BeatmapSet, string DirectoryPath, string BeatmapPath) createManagedInternalBmsBeatmapSet()
+        {
+            string fullPath = Path.Combine(LocalStorage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), "internal-bms-delete-test", Guid.NewGuid().ToString("N"));
+
+            Directory.CreateDirectory(fullPath);
+
+            string beatmapPath = Path.Combine(fullPath, "chart.bms");
+
+            File.WriteAllText(beatmapPath, @"
+#TITLE Internal Delete Test
+#ARTIST OMS
+#BPM 150
+#PLAYLEVEL 12
+#STAGEFILE stage.png
+#00111:AA00
+");
+
+            File.WriteAllText(Path.Combine(fullPath, "stage.png"), "placeholder");
+
+            var importer = new BmsFolderImporter(LocalStorage, Realm);
+            var result = importer.RegisterManagedDirectory(fullPath).GetAwaiter().GetResult();
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            Guid setId = result.ImportedBeatmapSet!.PerformRead(set => set.ID);
+
+            return (Realm.Run(r => r.Find<BeatmapSetInfo>(setId)!), fullPath, beatmapPath);
         }
 
         private (BeatmapSetInfo BeatmapSet, string BeatmapPath, string? VideoPath) createManagedExternalBmsBeatmapSet(bool includeVideo = false)

@@ -14,6 +14,7 @@ using osu.Framework.Audio;
 using osu.Framework.Audio.Track;
 using osu.Framework.Extensions;
 using osu.Framework.IO.Stores;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Beatmaps.Formats;
@@ -46,6 +47,8 @@ namespace osu.Game.Beatmaps
 
         private readonly LegacyBeatmapExporter legacyBeatmapExporter;
 
+        private readonly Storage storage;
+
         public ProcessBeatmapDelegate? ProcessBeatmap { private get; set; }
 
         public override bool PauseImports
@@ -63,6 +66,8 @@ namespace osu.Game.Beatmaps
                               IEnumerable<ICustomBeatmapLoader>? customBeatmapLoaders = null)
             : base(storage, realm)
         {
+            this.storage = storage;
+
             if (performOnlineLookups)
             {
                 if (api == null)
@@ -374,6 +379,15 @@ namespace osu.Game.Beatmaps
             });
         }
 
+        public void DeleteAllInternal(bool silent = false)
+        {
+            Realm.Run(r =>
+            {
+                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage);
+                deleteInternal(items.ToList(), silent);
+            });
+        }
+
         public void ResetAllOffsets()
         {
             const string reset_complete_message = "All offsets have been reset!";
@@ -512,6 +526,89 @@ namespace osu.Game.Beatmaps
         public Task ExportLegacy(BeatmapSetInfo beatmapSet) => legacyBeatmapExporter.ExportAsync(beatmapSet.ToLive(Realm));
 
         public Task ExportLegacy(BeatmapInfo beatmap) => legacyBeatmapExporter.ExportAsync(beatmap.ToLive(Realm));
+
+        private void deleteInternal(List<BeatmapSetInfo> items, bool silent)
+        {
+            if (items.Count == 0)
+            {
+                if (!silent)
+                    PostNotification?.Invoke(new ProgressCompletionNotification { Text = $"No {HumanisedModelName}s found to delete!" });
+                return;
+            }
+
+            var notification = new ProgressNotification
+            {
+                Progress = 0,
+                Text = $"Preparing to delete all {HumanisedModelName}s...",
+                CompletionText = $"Deleted all {HumanisedModelName}s!",
+                State = ProgressNotificationState.Active,
+            };
+
+            if (!silent)
+                PostNotification?.Invoke(notification);
+
+            var deletedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int i = 0;
+
+            foreach (var item in items)
+            {
+                if (notification.State == ProgressNotificationState.Cancelled)
+                    return;
+
+                notification.Text = $"Deleting {HumanisedModelName}s ({++i} of {items.Count})";
+
+                deleteInternalImmediately(item, deletedDirectories);
+
+                notification.Progress = (float)i / items.Count;
+            }
+
+            new RealmFileStore(Realm, storage).Cleanup();
+            notification.State = ProgressNotificationState.Completed;
+        }
+
+        private void deleteInternalImmediately(BeatmapSetInfo item, ISet<string> deletedDirectories)
+        {
+            string? directory = null;
+
+            bool deleted = Realm.Write(r =>
+            {
+                BeatmapSetInfo? processableItem = item;
+
+                if (!processableItem.IsManaged)
+                    processableItem = r.Find<BeatmapSetInfo>(item.ID);
+
+                if (processableItem == null || processableItem.DeletePending || processableItem.Protected || processableItem.IsExternalFilesystemStorage)
+                    return false;
+
+                directory = processableItem.FilesystemStoragePath;
+
+                foreach (var beatmap in processableItem.Beatmaps.ToList())
+                {
+                    r.Remove(beatmap.Metadata);
+                    r.Remove(beatmap);
+                }
+
+                r.Remove(processableItem);
+                return true;
+            });
+
+            if (!deleted)
+                return;
+
+            workingBeatmapCache.Invalidate(item);
+
+            if (string.IsNullOrEmpty(directory) || !deletedDirectories.Add(directory))
+                return;
+
+            if (FilesystemSanityCheckHelpers.IncursPathTraversalRisk(directory))
+            {
+                Logger.Log($"Skipping deletion of filesystem-backed beatmap directory '{directory}' due to path traversal risk.", LoggingTarget.Database);
+                return;
+            }
+
+            if (storage.ExistsDirectory(directory))
+                storage.DeleteDirectory(directory);
+        }
 
         private void updateHashAndMarkDirty(BeatmapSetInfo setInfo)
         {
