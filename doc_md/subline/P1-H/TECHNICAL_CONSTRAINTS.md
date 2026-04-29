@@ -10,3 +10,9 @@
 8. 任何触碰 managed-root 判定或补扫入口的改动，都必须保留 focused regression coverage，至少覆盖“child-under-parent”和“same-directory”两条路径，并为模式语义保留“增量跳过已索引目录 / 重建不受增量过滤影响”的 scanner 回归。
 9. `ExternalLibrarySettings` / `InternalLibrarySettings` 可被 `Settings -> Maintenance` 之外的共享产品表面（如首次启动向导）复用，但不得派生出第二套扫描按钮语义、路径解释或状态统计口径。
 10. 不得让存储拓扑回退为需要重新导入或依赖在线迁移的模型。
+11. 难度表来源变更后的 **既有 BMS 谱面 metadata 同步** 必须收口为 manager-owned contract；不得继续隐含依赖 importer 链上的 lazy `BmsTableMd5Index` 已先被构造，也不得要求用户通过重启或重导谱面来“补同步”。
+12. `Settings -> 游戏模式 -> BMS -> 难度表` 与首次启动向导难度表页虽属 `P1-A` 共享产品表面，但它们触发的导入、刷新、启用、禁用、移除都必须与底层 manager 使用同一条 refresh / sync 语义，不得派生第二套结果合同。
+13. `RefreshAllTables()` 不得继续吞掉单源失败后再向上层暴露纯成功语义；调用方必须能拿到结构化成功/失败结果，至少足以区分全成功、部分成功与全失败。
+14. HTML wrapper -> `header.json` -> body 的 source identity 与 fallback naming 必须稳定；缺省 `name` 时不得 silently 退化成 `header` 这类瞬时文件名，也不得因此打乱 preset 认领或来源去重语义。
+15. `Song Select` 分组与详情面板继续只消费 persisted beatmap metadata；不得在消费端临时增补 live lookup 来掩盖底层同步缺口。
+16. correctness 未收口前，不得把异步化、分批执行或 busy/progress UI 当作替代方案；响应性优化只能后置到 metadata 同步与 refresh 结果合同都稳定之后。

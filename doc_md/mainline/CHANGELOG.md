@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-04-29
+
+### BMS：难度表 manager 同步、RefreshAll 合同与 wrapper identity 收口
+
+- `BmsDifficultyTableManager` 现已正式拥有 persisted beatmap metadata 回写职责；`导入 / 刷新 / 启用 / 禁用 / 移除` 来源后，会先把既有 BMS 谱面的难度表 metadata 回写到 realm，再发出 `TableDataChanged`。`BmsTableMd5Index` 现只保留内存索引职责，不再承担 persisted metadata 同步 authority。
+- `RefreshAllTables()` 现返回结构化结果，Settings → 游戏模式 → BMS → 难度表 已改为按真实结果区分“全成功 / 部分成功 / 全失败”，不再在 partial failure 下 blanket success。
+- `RefreshAllTables()` 现还会逐源报告进度；Settings → 游戏模式 → BMS → 难度表 的“全部刷新”在长任务期间会持续更新进度摘要，并通过 `ProgressNotification` 展示处理中数量与完成状态，避免大库刷新期间只有最终结果而缺少过程反馈。
+- `index.html -> header.json -> body` 的 wrapper/source identity 已补稳定 fallback：`index` / `header` 这类 generic 文件名会优先回落到父目录名，并在递归解析链上保留初始 fallback；同时 preset 认领也已收紧为“仅当 display name 本身就是 fallback 时，才允许按 `source_name` 命中 preset”，避免显式 `name` 被过度认领。
+- 响应性后置的首个切片也已落地：persisted metadata 回写不再在单个长事务里对所有 BMS 谱面做全量重写，而是先计算受影响 MD5 集合，再按 beatmap id 分批写入，减少大库下的长写锁与无关谱面的 JSON 处理成本。
+- `BmsFolderImporter` 现还会在复用已有 beatmap set（例如 internal/external rebuild 命中相同 set hash）时，重新按当前 table index 套用 difficulty table metadata，避免旧 set 因沿用历史 persisted metadata 而继续在 Song Select 中落入 `Unrated`。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest.TestManagerMutationsUpdatePersistedBeatmapMetadataWithoutIndexOwner|FullyQualifiedName~BmsTableMd5IndexTest|FullyQualifiedName~BmsImportIntegrationTest.TestDifficultyTableRefreshUpdatesPersistedImportedBeatmaps" -v n` **4/4** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest.TestRefreshAllReturnsPartialFailuresAndStillAppliesSuccessfulSources|FullyQualifiedName~BmsDifficultyTableManagerTest.TestManagerMutationsUpdatePersistedBeatmapMetadataWithoutIndexOwner|FullyQualifiedName~BmsDifficultyTableManagerTest.TestRefreshTableUpdatesEntriesAndEnabledLookupRespectsToggle" -v n` **3/3** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest.TestImportRemoteHtmlWrapperWithoutNameKeepsStablePresetIdentity|FullyQualifiedName~BmsDifficultyTableManagerTest.TestImportRemoteHtmlWrapperRefreshesRelativeSources|FullyQualifiedName~BmsDifficultyTableManagerTest.TestImportMatchingBundledPresetUsesSeededSource" -v n` **3/3** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsDifficultyTableManagerTest.TestRefreshAllReportsProgressPerProcessedSource|FullyQualifiedName~BmsDifficultyTableManagerTest.TestRefreshAllReturnsPartialFailuresAndStillAppliesSuccessfulSources|FullyQualifiedName~BmsDifficultyTableManagerTest.TestManagerMutationsUpdatePersistedBeatmapMetadataWithoutIndexOwner" -v n` **3/3** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~BmsImportIntegrationTest.TestManagedDirectoryReuseReappliesDifficultyTableMetadata|FullyQualifiedName~BmsImportIntegrationTest.TestManagedDirectoryRegistrationPreservesRelativeManagedPath|FullyQualifiedName~BmsImportIntegrationTest.TestFolderImporterAppliesDifficultyTableMatchesDuringImport|FullyQualifiedName~BmsImportIntegrationTest.TestDifficultyTableRefreshUpdatesPersistedImportedBeatmaps" -v n` **4/4** 通过。
+
+### 文档：BMS 难度表修补专题归线为 P1-H
+
+- 针对难度表方向新增一轮 correctness-first 修补规划：不新开独立主/子线，不重开 `1.13` / `1.15` 的完成判定，而是把专题正式挂到 `P1-H` 下，作为“来源变更 -> 已有谱面 metadata -> Song Select / 详情消费面”一致性合同的修补切片。
+- 主线与 `P1-H` 文档现已同步明确当前推进顺序：`既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`；`P1-A` 只记录 settings / first-run 等共享产品表面的从属影响。
+- 本轮仅完成文档与约束建档，无代码变更、无新增测试执行。
+
 ## 2026-04-28
 
 ### BMS：外部谱库 / 内部谱库选歌分组落地

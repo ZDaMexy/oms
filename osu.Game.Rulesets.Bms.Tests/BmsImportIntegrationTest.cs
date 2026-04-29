@@ -375,6 +375,54 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestManagedDirectoryReuseReappliesDifficultyTableMetadata()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-managed-reuse-table-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string managedRoot = Path.Combine(storage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), "packs", "managed-reuse-set");
+            Directory.CreateDirectory(managedRoot);
+            File.WriteAllText(Path.Combine(managedRoot, "chart.bms"), buildChartText());
+            File.WriteAllBytes(Path.Combine(managedRoot, "stage.png"), new byte[] { 1, 2, 3, 4 });
+
+            string chartMd5 = computeFileMd5(Path.Combine(managedRoot, "chart.bms"));
+            var importer = new BmsFolderImporter(storage, realm);
+            string tableRoot = createTableMirror(storage, "satellite-managed-reuse", "Satellite", new TableEntry(chartMd5, "4"));
+
+            await importer.DifficultyTableManager.ImportFromPath(tableRoot).ConfigureAwait(false);
+
+            var firstResult = await importer.RegisterManagedDirectory(managedRoot).ConfigureAwait(false);
+
+            Assert.That(firstResult.ImportedBeatmapSet, Is.Not.Null);
+
+            Guid reusedSetId = firstResult.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.That(set.Beatmaps.Single().Metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★4" }));
+                return set.ID;
+            });
+
+            realm.Write(r =>
+            {
+                var beatmap = r.Find<BeatmapSetInfo>(reusedSetId)!.Beatmaps.Single();
+                beatmap.Metadata.SetDifficultyTableEntries(Array.Empty<BmsDifficultyTableEntry>());
+            });
+
+            var secondResult = await importer.RegisterManagedDirectory(managedRoot).ConfigureAwait(false);
+
+            Assert.That(secondResult.ImportedBeatmapSet, Is.Not.Null);
+
+            secondResult.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(set.ID, Is.EqualTo(reusedSetId));
+                    Assert.That(set.Beatmaps.Single().Metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★4" }));
+                });
+            });
+        }
+
+        [Test]
         public async Task TestDeletingExternalRegistrationDoesNotDeleteSourceDirectory()
         {
             using var storage = new TemporaryNativeStorage($"bms-external-delete-{Guid.NewGuid():N}");

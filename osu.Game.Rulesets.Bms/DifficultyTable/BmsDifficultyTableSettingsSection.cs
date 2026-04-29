@@ -42,7 +42,10 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private SettingsButtonV2 refreshAllButton = null!;
         private OsuSpriteText summaryText = null!;
         private FillFlowContainer sourcesContainer = null!;
+        private ProgressNotification? refreshAllNotification;
         private IReadOnlyList<BmsDifficultyTableSourceInfo> visibleSources = Array.Empty<BmsDifficultyTableSourceInfo>();
+        private BmsDifficultyTableManager.BmsDifficultyTableRefreshAllProgress? lastRefreshAllProgress;
+        private bool refreshAllInProgress;
         private int managerLoadSequence;
         private int sourcesRefreshSequence;
 
@@ -293,9 +296,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void applyVisibleSources(IReadOnlyList<BmsDifficultyTableSourceInfo> sources, int enabledSources, int enabledEntries)
         {
-            summaryText.Text = sources.Count == 0
-                ? "尚未导入本地难度表。"
-                : $"已启用 {enabledSources} 个来源，已加载 {enabledEntries} 个条目。";
+            summaryText.Text = buildSummaryText(sources.Count, enabledSources, enabledEntries);
 
             sourcesContainer.Clear();
 
@@ -396,30 +397,160 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 return;
 
             operationInProgress.Value = true;
-            tableManager.RefreshAllTables().ContinueWith(task => Schedule(() => completeRefreshAll(task)));
+            refreshAllInProgress = true;
+            lastRefreshAllProgress = null;
+            summaryText.Text = buildRefreshAllInitialSummary();
+
+            refreshAllNotification = createRefreshAllNotification();
+
+            tableManager.RefreshAllTables(
+                new Progress<BmsDifficultyTableManager.BmsDifficultyTableRefreshAllProgress>(progress => Schedule(() => updateRefreshAllProgress(progress))),
+                refreshAllNotification?.CancellationToken ?? CancellationToken.None)
+                        .ContinueWith(task => Schedule(() => completeRefreshAll(task)));
         }
 
-        private void completeRefreshAll(Task task)
+        private void completeRefreshAll(Task<BmsDifficultyTableManager.BmsDifficultyTableRefreshAllResult> task)
         {
+            var notification = refreshAllNotification;
+            refreshAllNotification = null;
+            refreshAllInProgress = false;
+            lastRefreshAllProgress = null;
             operationInProgress.Value = false;
 
             if (task.IsCompletedSuccessfully)
             {
-                notificationOverlay?.Post(new ProgressCompletionNotification
+                var result = task.GetResultSafely();
+                string summary = buildRefreshAllSummary(result);
+
+                if (notification != null)
                 {
-                    Text = "已刷新本地难度表。"
-                });
+                    if (result.HasFailures)
+                    {
+                        notification.Text = summary;
+                        notification.Progress = 1;
+                        notification.State = ProgressNotificationState.Cancelled;
+                    }
+                    else
+                    {
+                        notification.CompletionText = summary;
+                        notification.Progress = 1;
+                        notification.State = ProgressNotificationState.Completed;
+                    }
+                }
+                else
+                {
+                    notificationOverlay?.Post(result.HasFailures
+                        ? new SimpleErrorNotification
+                        {
+                            Text = summary
+                        }
+                        : new ProgressCompletionNotification
+                        {
+                            Text = summary
+                        });
+                }
+
+                return;
+            }
+
+            if (task.IsCanceled)
+            {
+                if (notification != null)
+                    notification.State = ProgressNotificationState.Cancelled;
+
                 return;
             }
 
             if (task.IsFaulted)
             {
                 Logger.Error(task.Exception, "Failed to refresh all BMS difficulty table sources.");
-                notificationOverlay?.Post(new SimpleErrorNotification
+
+                if (notification != null)
                 {
-                    Text = $"刷新难度表失败：{getErrorMessage(task.Exception)}"
-                });
+                    notification.Text = $"刷新难度表失败：{getErrorMessage(task.Exception)}";
+                    notification.State = ProgressNotificationState.Cancelled;
+                }
+                else
+                {
+                    notificationOverlay?.Post(new SimpleErrorNotification
+                    {
+                        Text = $"刷新难度表失败：{getErrorMessage(task.Exception)}"
+                    });
+                }
             }
+        }
+
+        private void updateRefreshAllProgress(BmsDifficultyTableManager.BmsDifficultyTableRefreshAllProgress progress)
+        {
+            if (IsDisposed || !refreshAllInProgress)
+                return;
+
+            lastRefreshAllProgress = progress;
+
+            string summary = buildRefreshAllProgressSummary(progress);
+            summaryText.Text = summary;
+
+            if (refreshAllNotification != null)
+            {
+                refreshAllNotification.Text = summary;
+                refreshAllNotification.Progress = progress.AttemptedCount == 0 ? 1 : (float)progress.ProcessedCount / progress.AttemptedCount;
+            }
+        }
+
+        private static string buildRefreshAllSummary(BmsDifficultyTableManager.BmsDifficultyTableRefreshAllResult result)
+        {
+            if (result.AttemptedCount == 0)
+                return "没有可刷新的难度表来源。";
+
+            if (!result.HasFailures)
+                return result.SucceededCount == 1 ? "已刷新 1 个难度表来源。" : $"已刷新 {result.SucceededCount} 个难度表来源。";
+
+            string details = string.Join("；", result.Failures.Take(2).Select(failure => $"{failure.DisplayName}：{getErrorMessage(failure.Error)}"));
+
+            if (result.SucceededCount == 0)
+                return result.FailedCount == 1
+                    ? details
+                    : $"刷新失败：共 {result.FailedCount} 个来源失败。{details}";
+
+            return result.FailedCount > 2
+                ? $"刷新完成：成功 {result.SucceededCount} 个，失败 {result.FailedCount} 个。{details}；另有 {result.FailedCount - 2} 个失败。"
+                : $"刷新完成：成功 {result.SucceededCount} 个，失败 {result.FailedCount} 个。{details}";
+        }
+
+        private string buildSummaryText(int sourceCount, int enabledSources, int enabledEntries)
+        {
+            if (refreshAllInProgress)
+                return lastRefreshAllProgress.HasValue ? buildRefreshAllProgressSummary(lastRefreshAllProgress.Value) : buildRefreshAllInitialSummary();
+
+            return sourceCount == 0
+                ? "尚未导入本地难度表。"
+                : $"已启用 {enabledSources} 个来源，已加载 {enabledEntries} 个条目。";
+        }
+
+        private static string buildRefreshAllInitialSummary() => "正在刷新难度表来源...";
+
+        private static string buildRefreshAllProgressSummary(BmsDifficultyTableManager.BmsDifficultyTableRefreshAllProgress progress)
+        {
+            if (progress.AttemptedCount == 0)
+                return "没有可刷新的难度表来源。";
+
+            return $"正在刷新难度表：已处理 {progress.ProcessedCount}/{progress.AttemptedCount}，成功 {progress.SucceededCount}，失败 {progress.FailedCount}。";
+        }
+
+        private ProgressNotification? createRefreshAllNotification()
+        {
+            if (notificationOverlay == null)
+                return null;
+
+            var notification = new ProgressNotification
+            {
+                Text = buildRefreshAllInitialSummary(),
+                Progress = 0,
+                State = ProgressNotificationState.Active,
+            };
+
+            notificationOverlay.Post(notification);
+            return notification;
         }
 
         private void toggleSourceEnabled(BmsDifficultyTableSourceInfo source)

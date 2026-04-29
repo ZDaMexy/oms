@@ -17,6 +17,9 @@ using Newtonsoft.Json.Linq;
 using osu.Framework.IO.Stores;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
+using osu.Game;
+using osu.Game.Beatmaps;
+using osu.Game.Database;
 using SQLitePCL;
 
 namespace osu.Game.Rulesets.Bms.DifficultyTable
@@ -39,8 +42,16 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private static readonly Regex signed_integer_regex = new Regex("^-?\\d+$", RegexOptions.Compiled);
         private static readonly Regex numeric_level_regex = new Regex("-?\\d+", RegexOptions.Compiled);
         private static readonly Regex md5_regex = new Regex("^[0-9a-f]{32}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private const int persisted_update_batch_size = 256;
+        private static readonly HashSet<string> generic_source_file_names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "index",
+            "header",
+        };
 
+        private readonly Storage rootStorage;
         private readonly Storage databaseStorage;
+        private IReadOnlyDictionary<string, IReadOnlyList<BmsDifficultyTableEntry>> currentMd5Lookup = new Dictionary<string, IReadOnlyList<BmsDifficultyTableEntry>>(StringComparer.Ordinal);
 
         public event Action? TableDataChanged;
 
@@ -84,11 +95,21 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             {
             }
 
+            rootStorage = storage;
             databaseStorage = storage.GetStorageForDirectory("bms-difficulty-tables");
 
             ensureSchema();
             ensurePresetSources();
+            currentMd5Lookup = CreateMd5Lookup();
         }
+
+        internal IReadOnlyDictionary<string, IReadOnlyList<BmsDifficultyTableEntry>> CreateMd5Lookup(bool onlyEnabled = true)
+            => GetAllEntries(onlyEnabled)
+               .GroupBy(entry => entry.Md5, StringComparer.Ordinal)
+               .ToDictionary(
+                   group => group.Key,
+                   group => (IReadOnlyList<BmsDifficultyTableEntry>)group.ToArray(),
+                   StringComparer.Ordinal);
 
         public IReadOnlyList<BmsDifficultyTableSourceInfo> GetSources()
         {
@@ -181,10 +202,10 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             => Task.Run(() => importFromPath(path, sourceId, enabled, cancellationToken), cancellationToken);
 
         public Task<BmsDifficultyTableSourceInfo> RefreshTable(Guid sourceId, CancellationToken cancellationToken = default)
-            => Task.Run(() => refreshTable(sourceId, cancellationToken), cancellationToken);
+            => Task.Run(() => refreshTable(sourceId, cancellationToken, notifyTableDataChanged: true), cancellationToken);
 
-        public Task RefreshAllTables(CancellationToken cancellationToken = default)
-            => Task.Run(() => refreshAllTables(cancellationToken), cancellationToken);
+        public Task<BmsDifficultyTableRefreshAllResult> RefreshAllTables(IProgress<BmsDifficultyTableRefreshAllProgress>? progress = null, CancellationToken cancellationToken = default)
+            => Task.Run(() => refreshAllTables(progress, cancellationToken), cancellationToken);
 
         public void SetSourceEnabled(Guid sourceId, bool enabled)
         {
@@ -205,7 +226,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             changed = command.ExecuteNonQuery() > 0;
 
             if (changed)
-                TableDataChanged?.Invoke();
+                handleTableDataMutated();
         }
 
         public void RemoveSource(Guid sourceId)
@@ -225,7 +246,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             transaction.Commit();
 
             if (removed)
-                TableDataChanged?.Invoke();
+                handleTableDataMutated();
         }
 
         private BmsDifficultyTableSourceInfo importFromPath(string path, Guid? sourceId, bool enabled, CancellationToken cancellationToken)
@@ -290,11 +311,11 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             transaction.Commit();
 
-            TableDataChanged?.Invoke();
+            handleTableDataMutated();
             return GetSources().Single(source => source.ID == resolvedId);
         }
 
-        private BmsDifficultyTableSourceInfo refreshTable(Guid sourceId, CancellationToken cancellationToken)
+        private BmsDifficultyTableSourceInfo refreshTable(Guid sourceId, CancellationToken cancellationToken, bool notifyTableDataChanged)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -330,47 +351,106 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             transaction.Commit();
 
-            TableDataChanged?.Invoke();
+            if (notifyTableDataChanged)
+                handleTableDataMutated();
+
             return GetSources().Single(source => source.ID == sourceId);
         }
 
-        private void refreshAllTables(CancellationToken cancellationToken)
+        private BmsDifficultyTableRefreshAllResult refreshAllTables(IProgress<BmsDifficultyTableRefreshAllProgress>? progress, CancellationToken cancellationToken)
         {
-            List<Guid> refreshableSources;
+            List<RefreshableSource> refreshableSources;
 
             using (var connection = getConnection())
             {
                 connection.Open();
 
                 using var command = connection.CreateCommand();
-                command.CommandText = "SELECT `id` FROM `sources` WHERE `local_path` IS NOT NULL AND `local_path` != '' ORDER BY `sort_order`, `display_name`";
+                command.CommandText = "SELECT `id`, `display_name` FROM `sources` WHERE `local_path` IS NOT NULL AND `local_path` != '' ORDER BY `sort_order`, `display_name`";
 
                 using var reader = command.ExecuteReader();
-                refreshableSources = new List<Guid>();
+                refreshableSources = new List<RefreshableSource>();
 
                 while (reader.Read())
-                    refreshableSources.Add(Guid.Parse(reader.GetString(0)));
+                    refreshableSources.Add(new RefreshableSource(Guid.Parse(reader.GetString(0)), reader.GetString(1)));
             }
 
-            bool anyRefreshed = false;
+            int successCount = 0;
+            List<BmsDifficultyTableRefreshFailure> failures = new List<BmsDifficultyTableRefreshFailure>();
+            progress?.Report(new BmsDifficultyTableRefreshAllProgress(refreshableSources.Count, 0, successCount, failures.Count));
 
-            foreach (Guid sourceId in refreshableSources)
+            for (int i = 0; i < refreshableSources.Count; i++)
             {
+                var source = refreshableSources[i];
+
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    refreshTable(sourceId, cancellationToken);
-                    anyRefreshed = true;
+                    refreshTable(source.ID, cancellationToken, notifyTableDataChanged: false);
+                    successCount++;
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, $"Failed to refresh BMS difficulty table source {sourceId}.");
+                    Logger.Error(ex, $"Failed to refresh BMS difficulty table source {source.ID}.");
+                    failures.Add(new BmsDifficultyTableRefreshFailure(source.ID, source.DisplayName, ex));
                 }
+
+                progress?.Report(new BmsDifficultyTableRefreshAllProgress(refreshableSources.Count, i + 1, successCount, failures.Count));
             }
 
-            if (!anyRefreshed)
+            if (successCount > 0)
+                handleTableDataMutated();
+
+            return new BmsDifficultyTableRefreshAllResult(refreshableSources.Count, successCount, failures);
+        }
+
+        private void handleTableDataMutated()
+        {
+            var previousLookup = currentMd5Lookup;
+            var updatedLookup = CreateMd5Lookup();
+
+            updatePersistedBeatmaps(previousLookup, updatedLookup);
+            currentMd5Lookup = updatedLookup;
+            TableDataChanged?.Invoke();
+        }
+
+        private void updatePersistedBeatmaps(IReadOnlyDictionary<string, IReadOnlyList<BmsDifficultyTableEntry>> previousLookup, IReadOnlyDictionary<string, IReadOnlyList<BmsDifficultyTableEntry>> updatedLookup)
+        {
+            var affectedMd5s = previousLookup.Keys.Concat(updatedLookup.Keys)
+                                         .Distinct(StringComparer.Ordinal)
+                                         .ToArray();
+
+            if (affectedMd5s.Length == 0)
                 return;
+
+            using var realmAccess = new RealmAccess(rootStorage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            var affectedBeatmapIds = realmAccess.Run(realm => realm.All<BeatmapInfo>()
+                                                           .AsEnumerable()
+                                                           .Where(beatmap => beatmap.Ruleset.ShortName == BmsRuleset.SHORT_NAME && affectedMd5s.Contains(beatmap.MD5Hash, StringComparer.Ordinal))
+                                                           .Select(beatmap => beatmap.ID)
+                                                           .ToArray());
+
+            if (affectedBeatmapIds.Length == 0)
+                return;
+
+            foreach (var batch in affectedBeatmapIds.Chunk(persisted_update_batch_size))
+            {
+                realmAccess.Write(realm =>
+                {
+                    foreach (Guid beatmapId in batch)
+                    {
+                        var beatmap = realm.Find<BeatmapInfo>(beatmapId);
+
+                        if (beatmap == null || beatmap.Ruleset.ShortName != BmsRuleset.SHORT_NAME)
+                            continue;
+
+                        beatmap.Metadata.SetDifficultyTableEntries(updatedLookup.TryGetValue(beatmap.MD5Hash, out var entries)
+                            ? entries
+                            : Array.Empty<BmsDifficultyTableEntry>());
+                    }
+                });
+            }
         }
 
         private void ensureSchema()
@@ -500,21 +580,38 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private static SourceRow? findImportPreset(SqliteConnection connection, SqliteTransaction transaction, ParsedTableSource parsedSource)
         {
+                        bool allowSourceNameMatch = string.Equals(parsedSource.SourceName, parsedSource.DisplayName, StringComparison.OrdinalIgnoreCase);
+
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText =
-                """
-                SELECT `id`, `source_name`, `display_name`, `symbol`, `local_path`, `is_preset`, `enabled`, `sort_order`, `imported_at`, `last_refreshed`
-                FROM `sources`
-                WHERE `is_preset` = 1
-                  AND (`local_path` IS NULL OR `local_path` = '')
-                  AND (`source_name` = @sourceName COLLATE NOCASE OR `display_name` = @displayName COLLATE NOCASE)
-                ORDER BY CASE WHEN `source_name` = @sourceName COLLATE NOCASE THEN 0 ELSE 1 END,
-                         `sort_order`,
-                         `display_name`
-                LIMIT 1
-                """;
-            command.Parameters.Add(new SqliteParameter("@sourceName", parsedSource.SourceName));
+                        command.CommandText = allowSourceNameMatch
+                                ?
+                                """
+                                SELECT `id`, `source_name`, `display_name`, `symbol`, `local_path`, `is_preset`, `enabled`, `sort_order`, `imported_at`, `last_refreshed`
+                                FROM `sources`
+                                WHERE `is_preset` = 1
+                                    AND (`local_path` IS NULL OR `local_path` = '')
+                                    AND (`source_name` = @sourceName COLLATE NOCASE OR `display_name` = @displayName COLLATE NOCASE)
+                                ORDER BY CASE WHEN `source_name` = @sourceName COLLATE NOCASE THEN 0 ELSE 1 END,
+                                                 `sort_order`,
+                                                 `display_name`
+                                LIMIT 1
+                                """
+                                :
+                                """
+                                SELECT `id`, `source_name`, `display_name`, `symbol`, `local_path`, `is_preset`, `enabled`, `sort_order`, `imported_at`, `last_refreshed`
+                                FROM `sources`
+                                WHERE `is_preset` = 1
+                                    AND (`local_path` IS NULL OR `local_path` = '')
+                                    AND `display_name` = @displayName COLLATE NOCASE
+                                ORDER BY `sort_order`,
+                                                 `display_name`
+                                LIMIT 1
+                                """;
+
+                        if (allowSourceNameMatch)
+                                command.Parameters.Add(new SqliteParameter("@sourceName", parsedSource.SourceName));
+
             command.Parameters.Add(new SqliteParameter("@displayName", parsedSource.DisplayName));
 
             using var reader = command.ExecuteReader();
@@ -738,17 +835,20 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         }
 
         private static ParsedTableSource loadTableSource(string path, CancellationToken cancellationToken)
+            => loadTableSource(path, getStableSourceName(path), cancellationToken);
+
+        private static ParsedTableSource loadTableSource(string path, string fallbackName, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (tryCreateHttpUri(path, out Uri? uri))
-                return loadTableSourceFromUri(uri, getSourceNameFromUri(uri), cancellationToken);
+                return loadTableSourceFromUri(uri, fallbackName, cancellationToken);
 
             if (Directory.Exists(path))
-                return loadTableSourceFromDirectory(path, cancellationToken);
+                return loadTableSourceFromDirectory(path, fallbackName, cancellationToken);
 
             if (File.Exists(path))
-                return loadTableSourceFromFile(path, getSourceNameFromPath(path), cancellationToken);
+                return loadTableSourceFromFile(path, fallbackName, cancellationToken);
 
             throw new FileNotFoundException($"Could not find BMS difficulty table source at '{path}'.", path);
         }
@@ -763,11 +863,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 : Path.GetFullPath(trimmed);
         }
 
-        private static ParsedTableSource loadTableSourceFromDirectory(string directory, CancellationToken cancellationToken)
+        private static ParsedTableSource loadTableSourceFromDirectory(string directory, string fallbackName, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            string fallbackName = getSourceNameFromPath(directory);
 
             foreach (string htmlFile in Directory.EnumerateFiles(directory, "*.htm*").OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
@@ -831,7 +929,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                 throw new InvalidOperationException($"No bmstable meta tag was found in '{sourceLocation}'.");
 
             string referencedPath = resolveSourceLocation(sourceLocation, match.Groups["path"].Value);
-            return loadTableSource(referencedPath, cancellationToken);
+            return loadTableSource(referencedPath, fallbackName, cancellationToken);
         }
 
         private static ParsedTableSource loadTableSourceFromJsonContent(string json, string sourceLocation, string fallbackName, CancellationToken cancellationToken)
@@ -1000,14 +1098,26 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             return false;
         }
 
+        private static string getStableSourceName(string sourceLocation)
+            => tryCreateHttpUri(sourceLocation, out Uri? uri)
+                ? getSourceNameFromUri(uri)
+                : getSourceNameFromPath(sourceLocation);
+
         private static string getSourceNameFromUri(Uri uri)
         {
-            string fileName = Path.GetFileName(uri.LocalPath.TrimEnd('/'));
+            string localPath = uri.LocalPath.TrimEnd('/');
+            string fileName = Path.GetFileName(localPath);
 
             if (string.IsNullOrWhiteSpace(fileName))
                 fileName = uri.Host;
 
-            return Path.GetFileNameWithoutExtension(fileName);
+            string sourceName = Path.GetFileNameWithoutExtension(fileName);
+
+            if (!generic_source_file_names.Contains(sourceName))
+                return sourceName;
+
+            string? parentName = Path.GetFileName(Path.GetDirectoryName(localPath)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            return string.IsNullOrWhiteSpace(parentName) ? sourceName : parentName;
         }
 
         private static string getSourceNameFromPath(string path)
@@ -1017,7 +1127,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             if (string.IsNullOrWhiteSpace(fileName))
                 fileName = new DirectoryInfo(path).Name;
 
-            return Path.GetFileNameWithoutExtension(fileName);
+            string sourceName = Path.GetFileNameWithoutExtension(fileName);
+
+            if (!generic_source_file_names.Contains(sourceName))
+                return sourceName;
+
+            string? parentName = Path.GetFileName(Path.GetDirectoryName(path)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            return string.IsNullOrWhiteSpace(parentName) ? sourceName : parentName;
         }
 
         private static List<PresetDefinition> loadPresets()
@@ -1039,6 +1155,24 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         private sealed record ParsedTableSource(string SourceName, string DisplayName, string Symbol, IReadOnlyList<ParsedTableEntry> Entries);
 
         private readonly record struct EntryRow(Guid SourceId, BmsDifficultyTableEntry Entry);
+
+        private readonly record struct RefreshableSource(Guid ID, string DisplayName);
+
+        public readonly record struct BmsDifficultyTableRefreshFailure(Guid SourceId, string DisplayName, Exception Error);
+
+        public readonly record struct BmsDifficultyTableRefreshAllProgress(int AttemptedCount, int ProcessedCount, int SucceededCount, int FailedCount)
+        {
+            public bool HasFailures => FailedCount > 0;
+
+            public int RemainingCount => Math.Max(0, AttemptedCount - ProcessedCount);
+        }
+
+        public sealed record BmsDifficultyTableRefreshAllResult(int AttemptedCount, int SucceededCount, IReadOnlyList<BmsDifficultyTableRefreshFailure> Failures)
+        {
+            public int FailedCount => Failures.Count;
+
+            public bool HasFailures => FailedCount > 0;
+        }
 
         private readonly record struct SourceRow(
             Guid ID,

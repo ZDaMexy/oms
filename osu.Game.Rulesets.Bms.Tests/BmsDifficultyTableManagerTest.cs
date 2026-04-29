@@ -12,6 +12,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
+using osu.Game;
+using osu.Game.Beatmaps;
+using osu.Game.Database;
+using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -228,6 +232,41 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestImportRemoteHtmlWrapperWithoutNameKeepsStablePresetIdentity()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-remote-html-fallback-{Guid.NewGuid():N}");
+            using var server = new TestHttpServer();
+
+            string indexPath = "/satellite/index.html";
+            string headerPath = "/satellite/header.json";
+            string bodyPath = "/satellite/body.json";
+
+            server.SetResponse(indexPath,
+                "<html><head><meta name=\"bmstable\" content=\"header.json\"></head><body></body></html>",
+                "text/html; charset=utf-8");
+            server.SetResponse(headerPath,
+                "{\n  \"symbol\": \"★\",\n  \"data_url\": \"body.json\"\n}",
+                "application/json; charset=utf-8");
+            server.SetResponse(bodyPath, createTableBodyJson(
+                new TableEntry("56565656565656565656565656565656", "6")),
+                "application/json; charset=utf-8");
+
+            var manager = new BmsDifficultyTableManager(storage);
+            var preset = manager.GetSources().Single(source => source.IsPreset && source.SourceName == "satellite");
+
+            var imported = await manager.ImportFromPath(server.GetUrl(indexPath)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(imported.ID, Is.EqualTo(preset.ID));
+                Assert.That(imported.IsPreset, Is.True);
+                Assert.That(imported.DisplayName, Is.EqualTo("Satellite"));
+                Assert.That(imported.LocalPath, Is.EqualTo(server.GetUrl(indexPath)));
+                Assert.That(imported.Entries.Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★6" }));
+            });
+        }
+
+        [Test]
         public async Task TestImportRemoteHeaderRetriesTransientBodyFailure()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-remote-retry-{Guid.NewGuid():N}");
@@ -335,6 +374,108 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [Test]
+        public async Task TestManagerMutationsUpdatePersistedBeatmapMetadataWithoutIndexOwner()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-persisted-sync-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            const string matchingMd5 = "99999999999999999999999999999999";
+            Guid beatmapId = createPersistedBmsBeatmap(realm, matchingMd5);
+
+            var manager = new BmsDifficultyTableManager(storage);
+            string tableRoot = createTableMirror(storage, "manager-sync", "Satellite",
+                new TableEntry(matchingMd5, "7"));
+
+            Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.Empty);
+
+            var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.EqualTo(new[] { "★7" }));
+                Assert.That(readPersistedChartSubtitle(realm, beatmapId), Is.EqualTo("Persistent Subtitle"));
+            });
+
+            manager.SetSourceEnabled(imported.ID, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.Empty);
+                Assert.That(readPersistedChartSubtitle(realm, beatmapId), Is.EqualTo("Persistent Subtitle"));
+            });
+        }
+
+        [Test]
+        public async Task TestRefreshAllReturnsPartialFailuresAndStillAppliesSuccessfulSources()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-refresh-all-{Guid.NewGuid():N}");
+
+            string successfulRoot = createTableMirror(storage, "refresh-all-ok", "Satellite",
+                new TableEntry("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2"));
+            string failingRoot = createTableMirror(storage, "refresh-all-fail", "Stella",
+                new TableEntry("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "5"));
+
+            var manager = new BmsDifficultyTableManager(storage);
+            var successfulSource = await manager.ImportFromPath(successfulRoot).ConfigureAwait(false);
+            var failingSource = await manager.ImportFromPath(failingRoot).ConfigureAwait(false);
+
+            int eventCount = 0;
+            manager.TableDataChanged += () => eventCount++;
+
+            overwriteTableEntries(successfulRoot,
+                new TableEntry("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2"),
+                new TableEntry("cccccccccccccccccccccccccccccccc", "9"));
+            File.Delete(Path.Combine(failingRoot, "score.json"));
+
+            var result = await manager.RefreshAllTables().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.AttemptedCount, Is.EqualTo(2));
+                Assert.That(result.SucceededCount, Is.EqualTo(1));
+                Assert.That(result.FailedCount, Is.EqualTo(1));
+                Assert.That(result.HasFailures, Is.True);
+                Assert.That(result.Failures.Select(failure => failure.SourceId), Is.EqualTo(new[] { failingSource.ID }));
+                Assert.That(result.Failures.Select(failure => failure.DisplayName), Is.EqualTo(new[] { failingSource.DisplayName }));
+                Assert.That(manager.GetEntriesForMd5("cccccccccccccccccccccccccccccccc").Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★9" }));
+                Assert.That(eventCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task TestRefreshAllReportsProgressPerProcessedSource()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-refresh-all-progress-{Guid.NewGuid():N}");
+
+            string successfulRoot = createTableMirror(storage, "refresh-all-progress-ok", "Satellite",
+                new TableEntry("dededededededededededededededede", "2"));
+            string failingRoot = createTableMirror(storage, "refresh-all-progress-fail", "Stella",
+                new TableEntry("efefefefefefefefefefefefefefefef", "5"));
+
+            var manager = new BmsDifficultyTableManager(storage);
+            await manager.ImportFromPath(successfulRoot).ConfigureAwait(false);
+            await manager.ImportFromPath(failingRoot).ConfigureAwait(false);
+
+            overwriteTableEntries(successfulRoot,
+                new TableEntry("dededededededededededededededede", "2"),
+                new TableEntry("abababababababababababababababab", "9"));
+            File.Delete(Path.Combine(failingRoot, "score.json"));
+
+            List<string> progressSnapshots = new List<string>();
+
+            await manager.RefreshAllTables(new Progress<BmsDifficultyTableManager.BmsDifficultyTableRefreshAllProgress>(progress =>
+                progressSnapshots.Add($"{progress.ProcessedCount}/{progress.AttemptedCount}:{progress.SucceededCount}:{progress.FailedCount}"))).ConfigureAwait(false);
+
+            Assert.That(progressSnapshots, Is.EqualTo(new[]
+            {
+                "0/2:0:0",
+                "1/2:1:0",
+                "2/2:1:1",
+            }));
+        }
+
         private static string createTableMirror(Storage storage, string directoryName, string displayName, params TableEntry[] entries)
         {
             string tableRoot = Path.Combine(storage.GetFullPath("."), directoryName, Guid.NewGuid().ToString("N"));
@@ -351,6 +492,64 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static string createTableBodyJson(params TableEntry[] entries)
             => "[" + string.Join(",", entries.Select(entry => $"{{\"md5\":\"{entry.Md5}\",\"level\":\"{entry.Level}\"}}")) + "]";
+
+        private static void overwriteTableEntries(string tableRoot, params TableEntry[] entries)
+            => File.WriteAllText(Path.Combine(tableRoot, "score.json"), createTableBodyJson(entries));
+
+        private static Guid createPersistedBmsBeatmap(RealmAccess realmAccess, string md5)
+        {
+            Guid beatmapId = Guid.NewGuid();
+
+            realmAccess.Write(realm =>
+            {
+                var ruleset = realm.All<RulesetInfo>().Single(r => r.ShortName == BmsRuleset.SHORT_NAME);
+                var metadata = new BeatmapMetadata
+                {
+                    Title = "Persistent Table Target",
+                    Artist = "OMS",
+                };
+
+                metadata.SetChartMetadata(new BmsChartMetadata
+                {
+                    Subtitle = "Persistent Subtitle",
+                    PlayLevel = "12",
+                    HeaderDifficulty = 4,
+                });
+
+                var beatmap = new BeatmapInfo(ruleset, new BeatmapDifficulty(), metadata)
+                {
+                    ID = beatmapId,
+                    MD5Hash = md5,
+                    Hash = Guid.NewGuid().ToString("N"),
+                };
+
+                var set = new BeatmapSetInfo
+                {
+                    Hash = Guid.NewGuid().ToString("N"),
+                    DateAdded = DateTimeOffset.UtcNow,
+                };
+
+                set.Beatmaps.Add(beatmap);
+                beatmap.BeatmapSet = set;
+
+                realm.Add(set);
+            });
+
+            return beatmapId;
+        }
+
+        private static string[] readPersistedDifficultyLabels(RealmAccess realmAccess, Guid beatmapId)
+            => realmAccess.Run(realm => realm.Find<BeatmapInfo>(beatmapId)!
+                                            .Metadata
+                                            .GetDifficultyTableEntries()
+                                            .Select(entry => entry.LevelLabel)
+                                            .ToArray());
+
+        private static string? readPersistedChartSubtitle(RealmAccess realmAccess, Guid beatmapId)
+            => realmAccess.Run(realm => realm.Find<BeatmapInfo>(beatmapId)!
+                                            .Metadata
+                                            .GetChartMetadata()?
+                                            .Subtitle);
 
         private sealed class TestHttpServer : IDisposable
         {

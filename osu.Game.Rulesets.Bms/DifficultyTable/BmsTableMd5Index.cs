@@ -4,14 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Beatmaps;
-using osu.Game.Database;
 
 namespace osu.Game.Rulesets.Bms.DifficultyTable
 {
     public class BmsTableMd5Index : IDisposable
     {
         private readonly BmsDifficultyTableManager tableManager;
-        private readonly RealmAccess? realmAccess;
 
         private IReadOnlyDictionary<string, IReadOnlyList<BmsDifficultyTableEntry>> md5ToEntries =
             new Dictionary<string, IReadOnlyList<BmsDifficultyTableEntry>>(StringComparer.Ordinal);
@@ -20,12 +18,11 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         public BmsDifficultyTableManager TableManager => tableManager;
 
-        public BmsTableMd5Index(BmsDifficultyTableManager tableManager, RealmAccess? realmAccess = null)
+        public BmsTableMd5Index(BmsDifficultyTableManager tableManager)
         {
             this.tableManager = tableManager;
-            this.realmAccess = realmAccess;
 
-            rebuild(updatePersistedBeatmaps: false);
+            rebuild();
             tableManager.TableDataChanged += handleTableDataChanged;
         }
 
@@ -70,40 +67,17 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             return updatedCount;
         }
 
-        public void Rebuild(bool updatePersistedBeatmaps = true) => rebuild(updatePersistedBeatmaps);
+        public void Rebuild() => rebuild();
 
         public void Dispose() => tableManager.TableDataChanged -= handleTableDataChanged;
 
-        private void handleTableDataChanged() => rebuild(updatePersistedBeatmaps: true);
+        private void handleTableDataChanged() => rebuild();
 
-        private void rebuild(bool updatePersistedBeatmaps)
+        private void rebuild()
         {
-            md5ToEntries = tableManager.GetAllEntries()
-                                     .GroupBy(entry => entry.Md5, StringComparer.Ordinal)
-                                     .ToDictionary(
-                                         group => group.Key,
-                                         group => (IReadOnlyList<BmsDifficultyTableEntry>)group.ToArray(),
-                                         StringComparer.Ordinal);
-
-            if (updatePersistedBeatmaps && realmAccess != null)
-                updatePersistedBeatmapsInRealm();
+            md5ToEntries = tableManager.CreateMd5Lookup();
 
             IndexChanged?.Invoke();
-        }
-
-        private void updatePersistedBeatmapsInRealm()
-        {
-            if (realmAccess == null)
-                return;
-
-            realmAccess.Write(realm =>
-            {
-                var beatmaps = realm.All<BeatmapInfo>()
-                                   .AsEnumerable()
-                                   .Where(beatmap => beatmap.Ruleset.ShortName == BmsRuleset.SHORT_NAME);
-
-                ApplyTo(beatmaps);
-            });
         }
     }
 }

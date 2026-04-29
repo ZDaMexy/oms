@@ -24,6 +24,7 @@
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
 - 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
 - `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成功能面落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；当前主线不再保留未完成的产品面任务，只保留 `P1-G` 下的手工 UI 验收与后续测试回归，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
+- 新增 `P1-H` 内部修补专题：**BMS 难度表一致性与刷新合同收口**。该专题不重开 `1.13` / `1.15`，也不新建独立主/子线；主归属固定为 `P1-H`，`P1-A` 只记录 settings / first-run 等共享产品表面的从属影响。当前排序按 correctness 优先：`既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -46,7 +47,7 @@
 | **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
 | **P1-F 首发离线发行基线** | 离线发行基线、portable 验收 | 维持 `portable.ini -> data/`、在线更新关闭、覆盖更新可执行与公开 release gate 稳定 | 便携发布、覆盖更新、离线发布口径、公开发行门槛 | 借发行名义恢复在线安装/在线更新 | portable publish 实机通过，公开发行约束可对外复述 |
 | **P1-G 人工验收后置** | 1.5、桌面 smoke、Release 验收 | 统一承接拖放导入、桌面 UI smoke 与人工 checklist 收口 | 手工导入验收、桌面 smoke、人工 checklist 回写 | 借人工验收名义插入新功能 | 仅在 P1-A ~ P1-F 无阻塞回归后执行 |
-| **P1-H 存储拓扑支撑线** | 文件系统直读、谱库管理 | 维持 `chartbms/` / `chartmania/` / `storage.ini` / 外部与内部谱库的重建+增量扫描基线稳定，并把谱库身份安全桥接到 BMS Song Select | 数据根、外部谱库、内部谱库、Maintenance 谱库管理、BMS Song Select 谱库分组、重扫策略收口 | 破坏本地优先、只靠临时路径猜测 external root 归属，或把用户内容重新塞回 hash 仓库 | 本地优先数据根、多谱库导入路径与谱库分组归属稳定 |
+| **P1-H 存储拓扑支撑线** | 文件系统直读、谱库管理 | 维持 `chartbms/` / `chartmania/` / `storage.ini` / 外部与内部谱库的重建+增量扫描基线稳定，并把谱库身份安全桥接到 BMS Song Select，同时收口难度表来源变更到既有谱面 metadata / grouping read-model 的一致性合同 | 数据根、外部谱库、内部谱库、Maintenance 谱库管理、BMS Song Select 谱库分组、难度表 metadata 同步 / 刷新合同、重扫策略收口 | 破坏本地优先、只靠临时路径猜测 external root 归属，或把用户内容重新塞回 hash 仓库 | 本地优先数据根、多谱库导入路径与谱库分组归属稳定 |
 
 ### 子主线执行规则
 
@@ -94,6 +95,44 @@
 2. internal grouping 在移动数据根、重启、重扫后仍保持相同层级归属
 3. external grouping 在 root 重新排序、重启、局部重扫后不漂移；root 缺失时有明确 fallback
 4. 当前 1-3 已满足，且已具备 focused automated coverage；剩余仅为手工 Song Select 展开验收，继续按 `P1-G` 后置执行，并作为后续回归确认项保留
+
+### P1-H 当前新增修补专题：BMS 难度表一致性与刷新合同收口
+
+该专题不重开 `1.13 难度表来源管理`、`1.14 MD5 匹配` 或 `1.15 Song Select 表分组` 的完成判定，而是作为 `P1-H` 下的 correctness-first repair slice 继续推进。目标不是扩功能面，而是把“来源变更 -> 已有谱面 metadata -> Song Select / 详情消费面”收口成稳定合同。
+
+**目标：**
+
+1. 把难度表来源导入、刷新、启用、禁用、移除后的 **既有 BMS 谱面 metadata 同步** 收口为 manager-owned contract，而不是依赖 importer 链上的 lazy side effect。
+2. 让 `全部刷新` 的结果语义真实可见：部分失败不能再统一伪装成成功。
+3. 稳定 wrapper / header / body 的 source identity 与 fallback naming，不让来源名在缺省字段时漂成临时文件名。
+4. 在 correctness 收口后，再评估大库下的异步/响应性优化；不把 responsiveness 当成回避数据不一致的替代方案。
+
+**主归线与从属影响：**
+
+1. 主归属固定为 `P1-H`，因为 authority 在 difficulty-table source cache、MD5 index、persisted beatmap metadata 与 Song Select read-model 的一致性。
+2. `Settings -> 游戏模式 -> BMS -> 难度表` 与首次启动向导难度表页继续只作为 `P1-A` 的共享产品表面；它们不拥有第二套 refresh / sync 语义。
+3. `Song Select`、`BmsTableGroupMode` 与 `BmsNoteDistributionGraph` 只是消费端；本专题不重开 `1.15` / `1.16` 的产品面开发。
+
+**执行分段：**
+
+1. **数据一致性优先**：把“已存在 BMS 谱面的 difficulty table metadata 回写”提升为 manager 的显式职责；导入、单源刷新、全量刷新、启用、禁用、移除都必须触发同一条同步路径，不得再隐含依赖 importer-born `BmsTableMd5Index` 已先被构造。
+2. **刷新结果合同收口**：`RefreshAllTables()` 必须向调用方返回结构化结果（总数、成功数、失败数、失败来源摘要或等价信息），Settings / First-run 不得在存在失败时继续显示纯成功提示。
+3. **来源身份稳定化**：HTML wrapper -> `header.json` -> body 的解析链必须保留稳定 fallback/source identity；缺省 `name` 时不能 silently 退化为 `header` 这类瞬时文件名，也不能破坏 preset 认领稳定性。
+4. **响应性后置**：只有当 1-3 已具备 focused regression coverage 后，才允许继续把全量 metadata 回写改造成后台异步 / 分批执行，并补合适的 busy/progress 表达。
+
+**明确不做：**
+
+1. 不为本专题新开 `mini` 或独立子线四件套；计划/状态/约束继续挂在 `P1-H`，主线只保留聚合总图。
+2. 不借此重做远端难度表服务、OMS backend 镜像或定时后台自动刷新；这些仍留在 Phase 3 以后。
+3. 不把难度表修补包装成跨 ruleset 的通用来源管理框架，也不顺手扩到 mania。
+4. 不在 correctness 尚未收口前，先做拖拽排序、批量管理 UI 或更复杂的来源运营表面。
+
+**完成条件：**
+
+1. 仅通过 settings 或首次启动向导执行难度表来源变更时，既有 BMS 谱面的 persisted metadata、Song Select 分组与详情都能在当前会话内立即反映结果，不依赖重启或重导谱面。
+2. `全部刷新` 在任意部分失败场景下都能准确反馈结果，且不会继续显示误导性的全成功提示。
+3. wrapper / header 缺省命名链路在本地与远端两侧都保持稳定来源名与 preset 认领语义。
+4. 至少具备 manager-only source mutation、first-run / settings surface、Song Select 消费面的 focused regression coverage。
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
