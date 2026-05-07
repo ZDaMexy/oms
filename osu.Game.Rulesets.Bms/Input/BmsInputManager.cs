@@ -29,6 +29,7 @@ namespace osu.Game.Rulesets.Bms.Input
 
         private readonly BindableBool laneCoverFocusPressed = new BindableBool();
         private readonly BindableBool preStartHoldPressed = new BindableBool();
+        private readonly HashSet<BmsAction> forwardedPressedActions = new HashSet<BmsAction>();
         private readonly int variant;
         private OmsKeyboardInputHandler keyboardInputHandler = null!;
         private OmsHidButtonInputHandler hidButtonInputHandler = null!;
@@ -76,11 +77,14 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             bool changed = Router.TriggerPressed(action);
 
-            // When a replay handler is active (autoplay / watching replay), UseParentInput is false.
-            // Block player-originated gameplay actions from reaching hit objects while still allowing
-            // Router state updates so that UI actions (e.g. lane cover focus) continue to work.
-            if (changed && UseParentInput && OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
-                KeyBindingContainer.TriggerPressed(bmsAction);
+            if (!changed || !UseParentInput || !OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
+                return changed;
+
+            if (!shouldForwardToGameplay(bmsAction))
+                return changed;
+
+            KeyBindingContainer.TriggerPressed(bmsAction);
+            forwardedPressedActions.Add(bmsAction);
 
             return changed;
         }
@@ -89,8 +93,13 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             bool changed = Router.TriggerReleased(action);
 
-            if (changed && UseParentInput && OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
-                KeyBindingContainer.TriggerReleased(bmsAction);
+            if (!changed || !UseParentInput || !OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
+                return changed;
+
+            if (!forwardedPressedActions.Remove(bmsAction))
+                return changed;
+
+            KeyBindingContainer.TriggerReleased(bmsAction);
 
             return changed;
         }
@@ -215,6 +224,9 @@ namespace osu.Game.Rulesets.Bms.Input
             if (action == OmsAction.UI_PreStartHold)
                 preStartHoldPressed.Value = false;
         }
+
+        private bool shouldForwardToGameplay(BmsAction action)
+            => action.IsLaneAction() && !preStartHoldPressed.Value;
 
         private partial class BmsActionRouterMirror : Component, IKeyBindingHandler<BmsAction>
         {

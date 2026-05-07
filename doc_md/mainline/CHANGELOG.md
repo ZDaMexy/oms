@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-05-08
+
+### BMS：Song Select 左上 BPM 显示不再回退 60
+
+- `BmsImportedBeatmapFactory` 现会把首次 ruleset conversion 得到的 `ControlPointInfo`、`HitObjects` 与 `Breaks` 复用回 `BmsDecodedBeatmap` raw wrapper，修正 `BeatmapTitleWedge` 这类直接读取 `WorkingBeatmap.Beatmap` 的 raw consumer 在 BMS imported chart 上缺少 timing data、从而恒显示默认 `60 BPM` 的问题。
+- 这次修补不改变 BMS Song Select 既有的 BPM 分组与排序 authority；分组 / 排序仍继续消费 persisted `BeatmapInfo.BPM`，本轮只把 raw working beatmap display chain 与之重新对齐。
+- 新增 `BmsImportIntegrationTest.TestLoaderPopulatesTimingDataForSongSelectDisplays()`，锁定 BMS loader 返回的 raw beatmap 已带有正确 timing point、most-common beat length 与 hitobject 数据。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsImportIntegrationTest"` **23/23** 通过。
+
+### P1-A / P1-C：`阻止谱面开始/ingame start` 改为全程调速修饰键
+
+- `BmsInputStrings.PreStartHold` 的设置面可见名称现已改为 `阻止谱面开始/ingame start`；该动作继续保留独立默认键位（5K/7K/9K = `Q`，14K = `T`），`UI_LaneCoverFocus` 仍保持 click-to-cycle 的独立目标循环键。
+- `BmsSoloPlayer` 现把 `UI_PreStartHold` 收口为“前 5 秒阻止开始 + 全程调速修饰键”这一单一运行时合同：前 5 秒按住时继续阻塞真正开谱，正式 gameplay 开始后按住同一键仍可继续用奇数列增速、偶数列减速。
+- `BmsInputManager` 现会在 hold 修饰键按住期间停止把新的 lane action 转发进 gameplay `KeyBindingContainer`，因此同一组 lane 键在 hold 期间只承担 Hi-Speed 调节，不再同时进入正常判定链；已在 hold 前转发过的按下态仍会沿原链正确释放。
+- 居中的 `BMS speed` toast 现会在 hold 修饰键按住期间持续刷新显示；右侧 `READY HOLD` overlay 仍只保留给前 5 秒阻止开谱窗口，不会错误常驻到正式 gameplay。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputRouterTest"` **9/9** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **10/10** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputBridgeTest"` **23/23** 通过。
+
 ## 2026-04-29
 
 ### BMS：难度表 manager 同步、RefreshAll 合同与 wrapper identity 收口

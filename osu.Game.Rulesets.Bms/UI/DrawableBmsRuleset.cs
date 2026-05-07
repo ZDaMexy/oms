@@ -84,6 +84,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BindableBool allowAdjustmentWhilePaused = new BindableBool();
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
         private ulong judgementFeedbackOccurrenceId;
+        private ulong speedMetricsToastDisplayCount;
         private IBindable<long>? totalScore;
 
         public IBindable<BmsScrollSpeedMetrics> SpeedMetrics => speedMetrics;
@@ -109,6 +110,8 @@ namespace osu.Game.Rulesets.Bms.UI
         public IBindable<BmsExScorePacemakerInfo?> ExScorePacemakerInfo => exScorePacemakerInfo;
 
         public IBindable<BmsGameplayFeedbackState> GameplayFeedbackState => gameplayFeedbackState;
+
+        internal ulong SpeedMetricsToastDisplayCount => speedMetricsToastDisplayCount;
 
         public BmsInputManager? GameplayInputManager => KeyBindingInputManager as BmsInputManager;
 
@@ -350,6 +353,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 getLaneCoverUnits(BmsLaneCoverPosition.Hidden),
                 Playfield.LiftUnits.Value);
 
+        public void DisplaySpeedMetricsToast(BmsGameplayAdjustmentTarget? target = null)
+            => showSpeedMetricsToast(target);
+
         private void refreshHiSpeedConfiguration()
         {
             selectedHiSpeed.Value = getSelectedHiSpeedBindable().Value;
@@ -556,7 +562,10 @@ namespace osu.Game.Rulesets.Bms.UI
             };
 
         private void showSpeedMetricsToast(BmsGameplayAdjustmentTarget? target = null)
-            => bmsOnScreenDisplay?.Display(new BmsSpeedMetricsToast(GetScrollSpeedMetrics(), target ?? getPersistentGameplayAdjustmentTarget()));
+        {
+            speedMetricsToastDisplayCount++;
+            bmsOnScreenDisplay?.Display(new BmsSpeedMetricsToast(GetScrollSpeedMetrics(), target ?? getPersistentGameplayAdjustmentTarget()));
+        }
 
         private bool canAdjustGameplaySettings => (!IsPaused.Value && (FrameStableClock?.IsRunning ?? true)) || allowAdjustmentWhilePaused.Value;
 

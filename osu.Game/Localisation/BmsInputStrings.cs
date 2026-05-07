@@ -14,9 +14,9 @@ namespace osu.Game.Localisation
         public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"Cycle scroll adjustment target");
 
         /// <summary>
-        /// "Pre-start hold"
+        /// "阻止谱面开始/ingame start"
         /// </summary>
-        public static LocalisableString PreStartHold => new TranslatableString(getKey(@"pre_start_hold"), @"Pre-start hold");
+        public static LocalisableString PreStartHold => new TranslatableString(getKey(@"pre_start_hold"), @"阻止谱面开始/ingame start");
 
         private static string getKey(string key) => $@"{prefix}:{key}";
     }

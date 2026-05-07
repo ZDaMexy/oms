@@ -1,5 +1,14 @@
 # P1-H 变动日志
 
+## 2026-05-08
+
+### BMS imported raw wrapper 复用 timing 数据，修复 Song Select 左上 BPM 恒 60
+
+- `BmsImportedBeatmapFactory` 现会把首次 ruleset conversion 得到的 `ControlPointInfo`、`HitObjects` 与 `Breaks` 复用回 `BmsDecodedBeatmap` raw wrapper，修正 Song Select 左上 `BPM` 统计这类 raw working beatmap consumer 对 BMS imported chart 恒回退默认 `60 BPM` 的问题。
+- 这次修补不改变 BMS Song Select 的 BPM 分组 / 排序 authority；分组与排序仍继续消费 persisted `BeatmapInfo.BPM`，本轮只把 raw display chain 与之重新对齐。
+- 新增 `BmsImportIntegrationTest.TestLoaderPopulatesTimingDataForSongSelectDisplays()`，锁定 BMS loader 返回的 raw beatmap 已具备正确 timing point、most-common beat length 与 hitobject 数据。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsImportIntegrationTest"` **23/23** 通过。
+
 ## 2026-04-29
 
 ### 难度表前三批 correctness 修补落地

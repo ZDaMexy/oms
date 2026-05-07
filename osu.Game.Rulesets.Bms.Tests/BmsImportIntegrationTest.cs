@@ -84,6 +84,30 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(beatmap.BeatmapInfo.StarRating, Is.Zero);
         }
 
+        [Test]
+        public void TestLoaderPopulatesTimingDataForSongSelectDisplays()
+        {
+            const string text = @"
+#TITLE Example Song
+#ARTIST Test Artist
+#BPM 150
+#00111:AA00
+";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+
+            var beatmap = loader.Load(stream, "chart.bms", new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(beatmap.ControlPointInfo.TimingPoints, Has.Count.EqualTo(1));
+                Assert.That(beatmap.ControlPointInfo.BPMMinimum, Is.EqualTo(150).Within(0.001));
+                Assert.That(beatmap.ControlPointInfo.BPMMaximum, Is.EqualTo(150).Within(0.001));
+                Assert.That(beatmap.GetMostCommonBeatLength(), Is.EqualTo(400).Within(0.001));
+                Assert.That(beatmap.HitObjects, Has.Count.EqualTo(1));
+            });
+        }
+
         [TestCase("#00112:AA00\n#00116:BB00\n", "chart.bms", 5)]
         [TestCase("#00111:AA00\n", "chart.bms", 5)]
         [TestCase("#00119:AA00\n", "chart.bme", 7)]

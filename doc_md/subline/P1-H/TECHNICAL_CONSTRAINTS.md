@@ -16,3 +16,6 @@
 14. HTML wrapper -> `header.json` -> body 的 source identity 与 fallback naming 必须稳定；缺省 `name` 时不得 silently 退化成 `header` 这类瞬时文件名，也不得因此打乱 preset 认领或来源去重语义。
 15. `Song Select` 分组与详情面板继续只消费 persisted beatmap metadata；不得在消费端临时增补 live lookup 来掩盖底层同步缺口。
 16. correctness 未收口前，不得把异步化、分批执行或 busy/progress UI 当作替代方案；响应性优化只能后置到 metadata 同步与 refresh 结果合同都稳定之后。
+17. `BmsFolderImporter` 的 reuse path（包括 internal / external rebuild 与 re-register 命中已有 beatmap set）也必须重新按当前 `BmsTableMd5Index` 套用 difficulty table metadata；不得沿用历史 persisted metadata 直接返回。
+18. 当前难度表 chart identity 仍严格绑定原始 `.bms` / `.bme` / `.bml` / `.pms` 文件字节的 MD5；在没有明确迁移方案前，不得因为现场 `Unrated` 反馈就临时放宽匹配口径、改用模糊 fallback 或在 consumer 侧补 live lookup。
+19. `BmsBeatmapLoader` / `BmsImportedBeatmapFactory` 返回给 `WorkingBeatmap.Beatmap` 的 BMS raw wrapper，必须继续复用首次 ruleset conversion 得到的 `ControlPointInfo` / `HitObjects` / `Breaks`；`SongSelect`、`BeatmapTitleWedge` 等 raw working beatmap consumer 必须能直接读取正确 BPM / 时长 / 时序统计，不得回退到默认 `60 BPM`，也不得要求显示层为此再做一次额外 conversion。

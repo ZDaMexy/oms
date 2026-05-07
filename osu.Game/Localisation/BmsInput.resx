@@ -3,4 +3,5 @@
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="cycle_scroll_adjustment_target" xml:space="preserve"><value>Cycle scroll adjustment target</value></data>
+  <data name="pre_start_hold" xml:space="preserve"><value>阻止谱面开始/ingame start</value></data>
 </root>

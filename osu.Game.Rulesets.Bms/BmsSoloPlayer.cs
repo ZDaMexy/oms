@@ -13,6 +13,8 @@ namespace osu.Game.Rulesets.Bms
 {
     public partial class BmsSoloPlayer : SoloPlayer
     {
+        private const double hold_speed_toast_refresh_interval = 200;
+
         protected virtual double PreStartDelay => 5000;
 
         protected virtual ScheduledDelegate SchedulePreStartDelay(Action onElapsed) => Scheduler.AddDelayed(onElapsed, PreStartDelay);
@@ -24,6 +26,7 @@ namespace osu.Game.Rulesets.Bms
         private BmsInputManager? gameplayInputManager;
         private BmsPreStartHiSpeedOverlay? hiSpeedOverlay;
         private ScheduledDelegate? startDelayDelegate;
+        private ScheduledDelegate? holdSpeedToastRefreshDelegate;
         private bool startDelayElapsed;
         private bool gameplayStartPending;
         private bool suppressClockPausedHandler;
@@ -91,6 +94,8 @@ namespace osu.Game.Rulesets.Bms
         {
             startDelayDelegate?.Cancel();
             startDelayDelegate = null;
+            holdSpeedToastRefreshDelegate?.Cancel();
+            holdSpeedToastRefreshDelegate = null;
             gameplayStartPending = false;
 
             if (gameplayInputManager != null)
@@ -110,6 +115,9 @@ namespace osu.Game.Rulesets.Bms
             if (!OmsBmsActionMap.TryMapToBmsAction(drawableBmsRuleset.Variant, action, out var bmsAction))
                 return;
 
+            if (tryHandleHoldAdjustmentAction(bmsAction))
+                return;
+
             hiSpeedOverlay.TryHandleActionPress(bmsAction);
         }
 
@@ -127,8 +135,50 @@ namespace osu.Game.Rulesets.Bms
             else
                 hiSpeedOverlay?.Hide();
 
+            updateHoldSpeedToastState();
+
             if (!adjustmentActive)
                 attemptStartGameplay();
+        }
+
+        private bool tryHandleHoldAdjustmentAction(BmsAction action)
+        {
+            if (drawableBmsRuleset == null || !hiSpeedHoldPressed.Value)
+                return false;
+
+            int direction = action.GetHiSpeedAdjustmentDirection(drawableBmsRuleset.Variant);
+
+            if (direction == 0)
+                return false;
+
+            return drawableBmsRuleset.AdjustSelectedHiSpeed(direction);
+        }
+
+        private void updateHoldSpeedToastState()
+        {
+            holdSpeedToastRefreshDelegate?.Cancel();
+            holdSpeedToastRefreshDelegate = null;
+
+            if (drawableBmsRuleset == null || !hiSpeedHoldPressed.Value)
+                return;
+
+            drawableBmsRuleset.DisplaySpeedMetricsToast();
+            scheduleHoldSpeedToastRefresh();
+        }
+
+        private void scheduleHoldSpeedToastRefresh()
+        {
+            holdSpeedToastRefreshDelegate = Scheduler.AddDelayed(() =>
+            {
+                if (drawableBmsRuleset == null || !hiSpeedHoldPressed.Value)
+                {
+                    holdSpeedToastRefreshDelegate = null;
+                    return;
+                }
+
+                drawableBmsRuleset.DisplaySpeedMetricsToast();
+                scheduleHoldSpeedToastRefresh();
+            }, hold_speed_toast_refresh_interval);
         }
 
         private void handleGameplayClockPausedState()

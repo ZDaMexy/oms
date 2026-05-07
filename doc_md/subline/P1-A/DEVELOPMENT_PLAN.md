@@ -94,13 +94,13 @@
 当前已完成：
 
 1. `BmsSettingsSubsection` 现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式 slider，settings 不再显示 `GN / ms`。
-2. `BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把 5 秒 delayed start、`UI_PreStartHold` hold gate、奇偶键调速，以及 paused pre-start 下 `UI_LaneCoverFocus` / 滚轮 / 中键的 `Sudden / Hidden / Lift` 调整链接入正式 gameplay 流程。
+2. `BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把“前 5 秒 delayed start 阻塞 + 全程调速修饰键”这一 `UI_PreStartHold` 合同接入正式 gameplay 流程：前 5 秒仍承担 hold gate，正式 gameplay 开始后继续受理奇偶键调速；paused pre-start 下的 `UI_LaneCoverFocus` / 滚轮 / 中键 `Sudden / Hidden / Lift` 调整链也保持同一条运行时入口。
 3. `SoloSongSelect` 通过反射创建 `BmsSoloPlayer`，避免 `osu.Game` 对 `osu.Game.Rulesets.Bms` 新增编译期依赖。
 4. owner-level `TestSceneBmsPreStartHiSpeedOverlay` 与 real-player `TestSceneBmsSoloPlayerPreStart` 已形成双层 focused coverage，当前分别锁住 overlay 文案 / 输入合同与 delayed-start / hold gate / mode-value binding 的真实宿主链。
 
 后续检查点：
 
-1. 当前 dedicated coverage 已锁住 overlay owner contract、hold 跨过 delay 到期仍可调速、以及 real-player mode/value binding；后续只在新增 host / fallback surface 时补更广 visual / integration 覆盖。
+1. 当前 dedicated coverage 已锁住 overlay owner contract、hold 跨过 delay 到期仍可调速、正式 gameplay 中 hold 仍可调速、以及 real-player mode/value binding；后续只在新增 host / fallback surface 时补更广 visual / integration 覆盖。
 2. 持续守住 tri-mode settings、HUD 与 overlay 的 BMS-owned fallback 合同。
 3. 保留 toast 作为补充反馈层，但不再让任何新功能直接依赖 toast 作为唯一宿主。
 4. 把数值 state 的具体字段集留给 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 继续细化。

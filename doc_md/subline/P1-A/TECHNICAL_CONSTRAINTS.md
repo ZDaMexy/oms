@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-04-23
+> 最后更新：2026-05-08
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -16,7 +16,7 @@
 4. 当前公开 Hi-Speed 范围必须保持：`Normal 1.0 - 20.0`、`Floating 0.5 - 10.0`、`Classic 0.5 - 10.0`；其中 `Classic` 的 base time 映射应保持 `TimeRange = (100000 / 13) / HS`，官方 sample `HS 10 + WN 350 => GN 300` 必须持续成立。
 5. 当前运行时 geometry profile 已冻结；`Playfield Scale` 必须固定为 `1.0` 并保持不可配置，因为缩放会破坏皮肤编排并扭曲权威 visual-speed surface。
 6. 除 `Sudden / Hidden / Lift` 与当前 single-play `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`，仅作用于 5K / 7K 的 playfield 停靠与 scratch 视觉侧别，不改 binding flip）外，旧的 playfield / receptor / bar-line layout config 不得继续作为用户可见 contract 影响速度或几何语义。
-7. `UI_PreStartHold` 必须承担 pre-start hold gate；`UI_LaneCoverFocus` 必须保持为 click-to-cycle 持久 target 的独立动作。该窗口必须表现为正式 runtime operator surface，不得退化成 debug overlay 或无 fallback 的临时实现。
+7. `UI_PreStartHold` 必须承担“前 5 秒阻止开始 + 全程调速修饰键”这一统一运行时合同；`UI_LaneCoverFocus` 必须保持为 click-to-cycle 持久 target 的独立动作。右侧 `READY HOLD` overlay 只保留给前 5 秒阻止开谱窗口，居中的 `BMS speed` toast 则应在 hold 修饰键按住期间持续可见；该 operator surface 不得退化成 debug overlay 或无 fallback 的临时实现。
 8. BMS mod 选项与配置记忆必须保持 ruleset-local；当前 `PersistedModState` 只允许作用于 BMS，不得让 mania / 全局 `SelectedMods` 获得隐式共享持久化。
 9. 冷启动时不得在 `RulesetConfigCache` 未 ready 前直接调用 `GetConfigFor()` 去构建 BMS mod persistence；正确合同是先允许无 config 的首轮 ruleset apply，再在 cache ready 后 replay 当前 ruleset 完成 restore。否则会同时打破 startup release gate（误报 ruleset issue）与 BMS mod 冷启动记忆。
 10. 对实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod，停用只意味着 inactive，不等同于 reset；除显式重置入口或配置迁移外，不得在 mod 菜单关闭时清空其最后配置。

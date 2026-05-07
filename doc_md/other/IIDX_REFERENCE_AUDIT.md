@@ -60,7 +60,7 @@
 ### 不应机械照搬的方向
 
 - 不要把 settings 页写成 green number / visible-ms 调机面板；这些表达应继续留在 gameplay runtime。当前 OMS 可以在 HUD / toast / pre-start overlay 中显示 mode-aware `GN / WN`，但仍不得把它包装成完整 `FHS`。
-- 如果在 `P1-A / P1-C` 提前把当前 OMS runtime speed feedback 做成常驻 HUD 或 pre-start hold operator surface，必须明确标注它基于 OMS 的 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 反馈模型，而不是把它包装成完整 IIDX `FHS`。
+- 如果在 `P1-A / P1-C` 提前把当前 OMS runtime speed feedback 做成常驻 HUD 或 `阻止谱面开始/ingame start` operator surface，必须明确标注它基于 OMS 的 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 反馈模型，而不是把它包装成完整 IIDX `FHS`。
 - 不要把 auto scratch、legacy note 一类 assist 当作默认教学路径。
 - 不要把 IIDX / LR2 / beatoraja 规则差异藏在文案后面；必须明确告诉用户当前使用的是哪一套语义。
 - 不要先追高阶 playstyle 教学，再补控制器校准；真实输入一致性是前提。
@@ -71,7 +71,7 @@
 
 - BMS top / bottom lane cover 与游玩中调整
 - Scroll speed 基础设置
-- tri-mode 基线：`Normal Hi-Speed` 已作为 settings 默认 surface 落地；`Floating Hi-Speed` 已有 initial-BPM anchored runtime surface 与 pre-start hold 调速窗口，但仍未完成 mid-song re-float parity；`Classic Hi-Speed` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，且 runtime geometry override surface 维持冻结
+- tri-mode 基线：`Normal Hi-Speed` 已作为 settings 默认 surface 落地；`Floating Hi-Speed` 已有 initial-BPM anchored runtime surface 与 `阻止谱面开始/ingame start` 这条前 5 秒阻塞/全程调速链，但仍未完成 mid-song re-float parity；`Classic Hi-Speed` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，且 runtime geometry override surface 维持冻结
 - 如果继续跟 IIDX 的 hold-start 调速菜单靠拢，应继续归入现有 `P1-A / P1-C` 交叉专题，而不是新开主线；真正会新开路线的是 full Floating parity、soflan GN range 与更严格的 start sequencing 审计
 - LN / CN / HCN 长条模式区分
 - EX-SCORE / DJ LEVEL / CLEAR LAMP / gauge history / note distribution

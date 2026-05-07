@@ -2,6 +2,16 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-08
+
+### C2 扩面：`阻止谱面开始/ingame start` 成为全程调速修饰键
+
+- `UI_PreStartHold` 的设置面可见名称现已改为 `阻止谱面开始/ingame start`；该动作继续保留与 `UI_LaneCoverFocus` 独立的默认键位与 click-to-cycle 目标循环语义。
+- `BmsSoloPlayer` 现把 `UI_PreStartHold` 收口为“前 5 秒阻止开始 + 全程调速修饰键”这一统一合同：前 5 秒按住时继续阻塞真正开谱，正式 gameplay 开始后按住同一键仍会继续受理 odd/even lane 的 Hi-Speed 调节。
+- `BmsInputManager` 现会在 hold 修饰键按住期间停止把新的 lane action 转发进 gameplay `KeyBindingContainer`，因此同一组 lane 键在 hold 期间只承担 Hi-Speed 调节而不再进入正常判定；已在 hold 前转发过的按下态仍会沿原链正确释放。
+- 居中的 `BMS speed` toast 现会在 hold 修饰键按住期间持续刷新显示；右侧 `READY HOLD` overlay 仍只保留给前 5 秒阻止开谱窗口。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputRouterTest"` **9/9** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **10/10** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputBridgeTest"` **23/23** 通过。
+
 ## 2026-04-28
 
 ### C2 补回归：pre-start overlay owner contract 与 real-player binding 扩面

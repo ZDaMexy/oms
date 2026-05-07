@@ -201,5 +201,46 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(events, Is.EqualTo(new[] { "+Key1P_Scratch", "-Key1P_Scratch", "+Key1P_Scratch", "-Key1P_Scratch" }));
             });
         }
+
+        [Test]
+        public void TestInputManagerSuppressesNewLaneGameplayActionsWhileHoldModifierPressed()
+        {
+            var inputManager = new BmsInputManager(new BmsRuleset().RulesetInfo, 8);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inputManager.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True);
+                Assert.That(inputManager.PreStartHoldPressed.Value, Is.True);
+
+                Assert.That(inputManager.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True);
+                Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_1), Is.True);
+                Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Not.Contain(BmsAction.Key1));
+
+                Assert.That(inputManager.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True);
+                Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Not.Contain(BmsAction.Key1));
+
+                Assert.That(inputManager.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True);
+                Assert.That(inputManager.PreStartHoldPressed.Value, Is.False);
+            });
+        }
+
+        [Test]
+        public void TestInputManagerReleasesGameplayActionPressedBeforeHoldModifier()
+        {
+            var inputManager = new BmsInputManager(new BmsRuleset().RulesetInfo, 8);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inputManager.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True);
+                Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Contain(BmsAction.Key1));
+
+                Assert.That(inputManager.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True);
+                Assert.That(inputManager.PreStartHoldPressed.Value, Is.True);
+                Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Contain(BmsAction.Key1));
+
+                Assert.That(inputManager.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True);
+                Assert.That(inputManager.KeyBindingContainer.PressedActions, Does.Not.Contain(BmsAction.Key1));
+            });
+        }
     }
 }

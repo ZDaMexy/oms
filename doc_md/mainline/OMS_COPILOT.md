@@ -747,7 +747,7 @@ Settings must show only the selected Hi-Speed mode and that mode's numeric value
 
 OMS may surface `Green Number` / `White Number` during gameplay as part of its current BMS runtime speed-feedback model, but that model is presently scoped to `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` and must not be described as proof that full IIDX-style Floating Hi-Speed parity already exists.
 
-Current BMS gameplay also includes a pre-start hold-adjust surface: entering gameplay inserts a 5-second delayed-start window, and holding `UI_PreStartHold` blocks the actual start while showing the selected Hi-Speed mode and current value. During this hold window, odd-numbered lanes increase the current Hi-Speed, even-numbered lanes decrease it, and `UI_LaneCoverFocus` / scroll-wheel / middle-click lane-cover controls remain available. `UI_PreStartHold` and `UI_LaneCoverFocus` are separate actions with independent key bindings (default 5K/7K/9K: PreStartHold = Q, LaneCoverFocus = W; 14K: PreStartHold = T, LaneCoverFocus = Y). Treat this as runtime operator interaction, not as a settings-page preview or a replacement for the skinnable HUD contract.
+Current BMS gameplay also includes a `阻止谱面开始/ingame start` operator surface backed by `UI_PreStartHold`: entering gameplay inserts a 5-second delayed-start window, and holding that action during the window blocks the actual start while showing the selected Hi-Speed mode and current value. The same held action remains a full-session adjustment modifier after gameplay has started: odd-numbered lanes increase the current Hi-Speed, even-numbered lanes decrease it, `UI_LaneCoverFocus` / scroll-wheel / middle-click lane-cover controls remain available, and the centered `BMS speed` toast should stay visible while the modifier is held. While the modifier is held, new lane actions must not be forwarded into gameplay hit handling; they belong to the adjustment chain only. `UI_PreStartHold` and `UI_LaneCoverFocus` are separate actions with independent key bindings (default 5K/7K/9K: PreStartHold = Q, LaneCoverFocus = W; 14K: PreStartHold = T, LaneCoverFocus = Y). Treat this as runtime operator interaction, not as a settings-page preview or a replacement for the skinnable HUD contract.
 
 If OMS later extends Floating Hi-Speed semantics, ship it as a complete contract across scroll speed, lane cover, LIFT, BPM compensation, start-sequence behavior, and displayed terminology. Do not market or document the current OMS-local GN/WN feedback as complete FHS.
 
@@ -909,7 +909,7 @@ public record DensityBucket(double StartMs, double WeightedNoteCount, int Normal
 2. No table match                →  density star only
 ```
 
-`BeatmapInfo.StarRating` is always populated with the density star. Table match data is stored as a serialized list of `BmsDifficultyTableEntry` records on the beatmap metadata (not a single string field — a chart may appear in multiple tables). The display layer reads from `BmsTableMd5Index` at runtime to get the full entry list for the selected chart.
+`BeatmapInfo.StarRating` is always populated with the density star. Table match data is stored as a serialized list of `BmsDifficultyTableEntry` records on the beatmap metadata (not a single string field — a chart may appear in multiple tables). Song Select / details / note distribution consumers read the persisted metadata; `BmsTableMd5Index` is now only an importer-time and in-memory lookup helper, not the display-layer authority.
 
 Chart-level metadata (`Subtitle`, `SubArtist`, `Comment`, `PlayLevel`, `HeaderDifficulty`) is stored on `BmsBeatmapMetadataData.ChartMetadata`. When a clear creator credit can be inferred from chart metadata, mirroring it to `BeatmapMetadata.Author.Username` is allowed so generic UI can show a creator without BMS-specific plumbing.
 
@@ -985,23 +985,23 @@ Most community tables use a two-step fetch:
 - Restore seeded preset placeholders when removing an imported preset source
 - Expose `RefreshAllTables()` and `RefreshTable(id)` async methods
 - Share one manager instance between settings and first-run via `GetShared(storage)`
-- Emit `TableDataChanged` event so `BmsTableMd5Index` rebuilds automatically
+- Rebuild persisted beatmap metadata after source mutations, then emit `TableDataChanged` so `BmsTableMd5Index` can rebuild its in-memory cache
 - Disabled tables are excluded from index rebuild and song select grouping
 
-### 10.4 MD5 Matching Pipeline (`BmsTableMd5Index`)
+### 10.4 MD5 Matching And Persistence Pipeline
 
 **On beatmap import:**
 1. After `BmsArchiveReader` extracts the archive, compute MD5 of each `.bms` file
-2. Store hash in `BeatmapInfo.Hash` (reuse osu!'s existing hash field)
-3. Query `BmsTableMd5Index` immediately — if a match exists, write `BmsTableLevel` to the beatmap metadata and persist
+2. Store the lowercase MD5 in `BeatmapInfo.MD5Hash` (`BeatmapInfo.Hash` continues to hold the SHA-2 content hash used for duplicate detection)
+3. Query `BmsTableMd5Index` immediately — if a match exists, write `BmsDifficultyTableEntry` records to beatmap metadata and persist
 
 **On table refresh:**
 1. Fetch new table JSON, parse into `List<BmsDifficultyTableEntry>`
-2. Collect all MD5 values from the fetched entries
-3. Batch query local SQLite: `SELECT * FROM beatmaps WHERE hash IN (...)`
-4. For each matched beatmap, update its `BmsTableLevel` entries in DB
-5. Rebuild in-memory index from full DB state
-6. Emit `TableDataChanged` to trigger song select group refresh
+2. Build the current enabled MD5 lookup from cached source rows
+3. Diff the new lookup against the previous lookup to find affected MD5 values
+4. Batch-update persisted beatmap metadata for affected local BMS beatmaps
+5. Rebuild the in-memory `BmsTableMd5Index`
+6. Emit `TableDataChanged` so consumers refresh from persisted metadata
 
 **In-memory index structure:**
 ```csharp
@@ -1010,7 +1010,7 @@ Most community tables use a two-step fetch:
 Dictionary<string, List<BmsDifficultyTableEntry>> md5ToEntries;
 ```
 
-Index is rebuilt at startup (from cached DB data — no network required) and after any table refresh.
+Index is rebuilt at startup (from cached DB data — no network required) and after any table mutation. `BmsTableMd5Index` no longer owns persisted metadata writes.
 
 **`BmsDifficultyTableEntry` fields:**
 ```csharp

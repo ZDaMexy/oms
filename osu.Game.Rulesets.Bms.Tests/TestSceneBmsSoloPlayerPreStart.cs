@@ -157,6 +157,35 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestGameplayStartResetsTrackEvenIfSourceTrackWasAdvanced()
+        {
+            double simulatedPreviewProgress = 0;
+
+            AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("simulate source track already being at preview progress", () =>
+            {
+                simulatedPreviewProgress = Math.Min(800, Beatmap.Value.Track.Length * 0.8);
+                Beatmap.Value.Track.Seek(simulatedPreviewProgress);
+            });
+
+            AddAssert("source track advanced away from start time", () => Math.Abs(Beatmap.Value.Track.CurrentTime - player.GameplayClockContainer.StartTime) > 100);
+
+            AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
+            AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
+            AddAssert("gameplay clock is closer to start time than simulated preview progress", () =>
+            {
+                double currentTime = player.GameplayClockContainer.CurrentTime;
+                double distanceFromStart = Math.Abs(currentTime - player.GameplayClockContainer.StartTime);
+                double distanceFromPreview = Math.Abs(currentTime - simulatedPreviewProgress);
+                return distanceFromStart < distanceFromPreview;
+            });
+            AddAssert("gameplay clock did not continue from simulated preview progress",
+                () => player.GameplayClockContainer.CurrentTime,
+                () => Is.LessThan(simulatedPreviewProgress - 100));
+        }
+
+        [Test]
         public void TestHoldPreservesTemporaryBottomOverrideWhilePersistentTargetCycles()
         {
             selectedMods = new Mod[] { new BmsModSudden(), new BmsModHidden(), new BmsModLift() };
@@ -217,6 +246,35 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("release pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay hidden after releasing hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
             AddUntilStep("gameplay starts after releasing hold", () => player.GameplayClockContainer.IsRunning);
+        }
+
+        [Test]
+        public void TestHoldEnablesInGameAdjustmentsAndKeepsSpeedToastVisible()
+        {
+            double initialHiSpeed = 0;
+            double hiSpeedStep = 0;
+            ulong initialToastDisplayCount = 0;
+
+            AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
+            AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
+
+            AddStep("capture initial hi-speed", () =>
+            {
+                initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
+                hiSpeedStep = player.DrawableBmsRuleset.HiSpeedMode.Value.GetAdjustmentStep();
+                initialToastDisplayCount = player.DrawableBmsRuleset.SpeedMetricsToastDisplayCount;
+            });
+
+            AddStep("press ingame start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
+            AddAssert("pre-start overlay stays hidden during gameplay hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+            AddUntilStep("speed toast refresh requests continue while holding", () => player.DrawableBmsRuleset!.SpeedMetricsToastDisplayCount >= initialToastDisplayCount + 2);
+
+            AddStep("raise hi-speed with odd lane key during gameplay", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
+            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddAssert("hi-speed increases during gameplay hold", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
+            AddAssert("speed toast keeps being requested while holding", () => player.DrawableBmsRuleset!.SpeedMetricsToastDisplayCount > initialToastDisplayCount + 2);
+
+            AddStep("release ingame start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
         }
 
         [Test]

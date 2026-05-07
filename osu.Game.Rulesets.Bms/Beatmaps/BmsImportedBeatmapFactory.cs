@@ -20,6 +20,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (convertedBeatmap.HitObjects.Count == 0)
                 throw new InvalidDataException($"BMS file {filename} did not produce any playable notes.");
 
+            // Reuse the converted timing and hitobject data for raw working-beatmap consumers like
+            // Song Select, which read WorkingBeatmap.Beatmap rather than a ruleset-playable conversion.
+            decodedBeatmap.ControlPointInfo = convertedBeatmap.ControlPointInfo;
+            decodedBeatmap.HitObjects = convertedBeatmap.HitObjects;
+            decodedBeatmap.Breaks = convertedBeatmap.Breaks;
             decodedBeatmap.BeatmapInfo = createBeatmapInfo(convertedBeatmap.BeatmapInfo);
             return decodedBeatmap;
         }

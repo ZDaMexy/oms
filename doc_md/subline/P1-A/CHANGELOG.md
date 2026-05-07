@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-08
+
+### gameplay speed setting 跟进：`阻止谱面开始/ingame start` 宿主语义收口
+
+- `BmsInputStrings.PreStartHold` 的设置面可见名称现已改为 `阻止谱面开始/ingame start`；默认键位与 `UI_LaneCoverFocus` 的独立 click-to-cycle 语义保持不变。
+- `BmsSoloPlayer` 现把 `UI_PreStartHold` 收口为“前 5 秒阻止开始 + 全程调速修饰键”这一宿主合同：右侧 `READY HOLD` overlay 继续只保留给前 5 秒阻止开谱窗口，正式 gameplay 开始后按住同一键仍会继续调速，并持续刷新居中的 `BMS speed` toast。
+- `BmsInputManager` 现会在 hold 修饰键按住期间停止把新的 lane action 转发进 gameplay `KeyBindingContainer`，因此同一组 lane 键在 hold 期间只承担 Hi-Speed 调节，不再同时进入正常判定链。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputRouterTest"` **9/9** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **10/10** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputBridgeTest"` **23/23** 通过。
+
 ## 2026-04-28
 
 ### onboarding surface 跟进：难度表预设导入失败提示中文化

@@ -119,6 +119,7 @@
 2. **刷新结果合同收口**：`RefreshAllTables()` 必须向调用方返回结构化结果（总数、成功数、失败数、失败来源摘要或等价信息），Settings / First-run 不得在存在失败时继续显示纯成功提示。
 3. **来源身份稳定化**：HTML wrapper -> `header.json` -> body 的解析链必须保留稳定 fallback/source identity；缺省 `name` 时不能 silently 退化为 `header` 这类瞬时文件名，也不能破坏 preset 认领稳定性。
 4. **响应性后置**：只有当 1-3 已具备 focused regression coverage 后，才允许继续把全量 metadata 回写改造成后台异步 / 分批执行，并补合适的 busy/progress 表达。
+5. **reuse 自愈与现场边界**：internal / external rebuild 或 re-register 命中已有 beatmap set 时，也必须重新按当前 table index 套用 metadata；若仍出现 `Unrated`，应优先按原始 `.bms` 字节 MD5 差异做现场诊断，而不是在 consumer 侧追加 live lookup 或放宽匹配口径。
 
 **明确不做：**
 
@@ -133,24 +134,25 @@
 2. `全部刷新` 在任意部分失败场景下都能准确反馈结果，且不会继续显示误导性的全成功提示。
 3. wrapper / header 缺省命名链路在本地与远端两侧都保持稳定来源名与 preset 认领语义。
 4. 至少具备 manager-only source mutation、first-run / settings surface、Song Select 消费面的 focused regression coverage。
+5. rebuild / reuse 命中旧 beatmap set 时不会沿用历史空 metadata；后续若仍有 `Unrated` 反馈，应只剩现场 MD5 差异诊断，而不是同类主链一致性缺口。
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
 - 该专题不是把完整 `FHS` 或 Phase 2 速度体系提前带入当前主线，而是把现有 BMS `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 收口成**权威、可皮肤化、可扩展**的反馈合同
-- 当前 tri-mode settings、mode-aware runtime feedback、以及 pre-start hold 调速窗口仍归这条既有 `P1-A / P1-C` 交叉线，不新开主线；`P1-A` 负责 settings / HUD 宿主 / skin boundary 与 operator overlay 的产品边界，`P1-C` 负责 mode-aware metrics、hold-start 调速语义与后续 feedback family
+- 当前 tri-mode settings、mode-aware runtime feedback、以及 `阻止谱面开始/ingame start` 这条前 5 秒阻塞/全程调速 operator surface 仍归这条既有 `P1-A / P1-C` 交叉线，不新开主线；`P1-A` 负责 settings / HUD 宿主 / skin boundary 与 operator overlay / toast 的产品边界，`P1-C` 负责 mode-aware metrics、hold modifier 调速语义与后续 feedback family
 - full Floating parity（mid-song re-float、soflan GN range、更加严格的 IIDX start sequencing）仍属后续补强，不得借“已落地三模式”之名提前宣称完成 `FHS`
 - 专题计划、状态与技术约束分别维护在 [../subline/P1-A/DEVELOPMENT_PLAN.md](../subline/P1-A/DEVELOPMENT_PLAN.md)、[../subline/P1-A/DEVELOPMENT_STATUS.md](../subline/P1-A/DEVELOPMENT_STATUS.md)、[../subline/P1-A/TECHNICAL_CONSTRAINTS.md](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与 [../subline/P1-C/DEVELOPMENT_PLAN.md](../subline/P1-C/DEVELOPMENT_PLAN.md)、[../subline/P1-C/DEVELOPMENT_STATUS.md](../subline/P1-C/DEVELOPMENT_STATUS.md)、[../subline/P1-C/TECHNICAL_CONSTRAINTS.md](../subline/P1-C/TECHNICAL_CONSTRAINTS.md)
 
 ### tri-mode Hi-Speed 专题总图：点、线、面与先行约束
 
-这部分不是新开一条主线，而是给现有 `P1-A / P1-C` 交叉专题补一张统一总图，避免 tri-mode settings、pre-start hold 调速窗口、lane-cover 联动、HUD feedback 与 full Floating parity backlog 分散在多份文档里各自叙述。
+这部分不是新开一条主线，而是给现有 `P1-A / P1-C` 交叉专题补一张统一总图，避免 tri-mode settings、`阻止谱面开始/ingame start` 这条前 5 秒阻塞/全程调速链、lane-cover 联动、HUD feedback 与 full Floating parity backlog 分散在多份文档里各自叙述。
 
 #### 点：当前必须被单独盯住的开发点
 
 1. **模式模型点**：`Normal / Floating / Classic` 的 runtime 语义必须持续拆开维护，尤其要明确 `Floating` 当前只是 initial-BPM anchored surface，而不是完整 `FHS`。
 2. **设置面点**：settings 只负责 mode + value，不负责 `GN / 可见毫秒`；任何把 runtime 反馈搬回 settings 的改动都应视为越界。
 3. **运行时反馈点**：HUD / toast / pre-start overlay 必须共享同一组 mode-aware speed metrics，避免出现 settings、HUD、toast 各说各话。
-4. **操作窗口点**：pre-start hold 不是 debug 测试夹层，而是正式 operator surface；其输入、显示、阻塞/释放时序与 fallback 都要当成产品合同维护。
+4. **操作窗口点**：`UI_PreStartHold` 不是 debug 测试夹层，而是正式 operator surface；其合同现在同时包含“前 5 秒阻止开始”和“全程调速修饰键”两层语义，输入、显示、阻塞/释放时序、toast/overlay 分工与 fallback 都要当成产品合同维护。
 5. **联动点**：`Sudden / Hidden / Lift`、奇偶列调速、滚轮 / 中键 target cycle、以及当前模式数值必须视为同一条联动链，而不是多个独立 feature。
 6. **验证点**：当前代码侧已通过 focused tests + Release build；除 BMS mod 冷启动恢复的 dedicated integration coverage 外，owner-level `BmsPreStartHiSpeedOverlay` 合同与 real-player `BmsSoloPlayer` pre-start start-sequence / overlay binding 也已补到位。当前剩余主要是 full Floating parity、跨设备真实输入路径与后置人工验收，而不是 delayed-start / hold gate 的基础语义空白。
 
@@ -178,7 +180,7 @@
 1. tri-mode 现阶段只能表述为当前 OMS runtime surface；`Floating` 严禁越级宣传成完整 `FHS`。
 2. `Classic` 的 `(100000 / 13) / HS` 与 `HS 10 + WN 350 => GN 300` 仍是不可退的 sample 锁点。
 3. settings 不得显示 `GN / 可见毫秒`；这些只允许出现在 gameplay runtime feedback 与 pre-start operator surface。
-4. `UI_PreStartHold` 和 `UI_LaneCoverFocus` 已拆为独立动作：`PreStartHold` 负责 hold gate，`LaneCoverFocus` 负责 click-to-cycle，两者不得重新合并。
+4. `UI_PreStartHold` 和 `UI_LaneCoverFocus` 已拆为独立动作：`PreStartHold` 负责前 5 秒 hold gate 与全程调速修饰键，`LaneCoverFocus` 负责 click-to-cycle，两者不得重新合并。
 5. `SoloSongSelect -> BmsSoloPlayer` 的接线必须继续避开 `osu.Game -> osu.Game.Rulesets.Bms` 的编译期依赖；当前反射构造是已知项目边界约束。
 6. 任何下一步如果触碰 start sequencing、event timing、pre-start 输入优先级或 full Floating parity，都必须先回到这张总图重新归类，再决定是 `P1-A` 侧产品合同补强，还是 `P1-C` 侧语义专题扩面。
 7. BMS mod 选项与配置记忆当前只允许作为 BMS ruleset-local contract 落地：`PersistedModState` 只作用于 BMS；`RememberGameplayChanges` 只控制 `Sudden / Hidden / Lift` 是否把局内调整回写到保存配置，绝不能借机扩大成跨 ruleset 的全局 mod 状态共享。

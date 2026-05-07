@@ -19,8 +19,9 @@
 7. 把难度表来源变更到既有谱面 metadata / Song Select read-model 的一致性收口为 manager-owned contract，不再依赖 importer 链上的 lazy side effect。
 8. `RefreshAll` 必须向 settings / first-run 返回真实结果合同；部分失败不能再伪装成全成功。
 9. correctness 收口完成前，不得把“异步化 / 大库响应性优化”当成替代方案；响应性优化只能后置到一致性问题解决之后。
-10. 继续补齐删除 / 失效语义、path identity dedup 与重扫策略。
-11. 把影响导入、发布或本地数据根的结论同步到主线与发行文档。
+10. 维持 raw working beatmap consumer 的 timing/statistics authority 稳定；BMS loader 返回给 `WorkingBeatmap.Beatmap` 的 wrapper 必须直接携带已转换的 `ControlPointInfo` / `HitObjects` / `Breaks`，避免 Song Select 等显示面回退到默认 `60 BPM` 或再做一次额外 ruleset conversion。
+11. 继续补齐删除 / 失效语义、path identity dedup 与重扫策略。
+12. 把影响导入、发布或本地数据根的结论同步到主线与发行文档。
 
 ## 当前新增专题：BMS 难度表一致性与刷新合同收口
 
@@ -49,6 +50,8 @@
    稳定 HTML wrapper -> `header.json` -> body 的 fallback/source name 传递；缺省 `name` 时不得退化成临时文件名。
 4. **批次四：响应性与交互打磨**
    correctness 绿线后，再评估把全量 metadata 回写改为后台任务、分批更新或等价 busy/progress 表达。
+5. **批次五：reuse 自愈与现场诊断边界**
+   internal / external rebuild 或 re-register 命中已有 beatmap set 时，也必须重新按当前 table index 套用 metadata；若现场仍见 `Unrated`，优先诊断原始 `.bms` 字节 MD5 差异，而不是继续怀疑 Song Select consumer 或临时放宽匹配规则。
 
 ### 明确不做
 
@@ -63,3 +66,4 @@
 2. `RefreshAll` 在存在失败时会准确反馈结果，不再显示纯成功提示。
 3. 本地与远端 wrapper/header 缺省命名链路都保持稳定 source identity。
 4. manager-only source mutation、settings / first-run surface 与 Song Select 消费面都具备 focused regression coverage。
+5. rebuild / reuse 命中旧 beatmap set 时不会沿用历史空 metadata；若后续仍有 `Unrated` 反馈，应只剩现场 MD5 差异诊断而不是主链一致性缺口。
