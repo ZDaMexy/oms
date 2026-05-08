@@ -17,10 +17,15 @@ using osu.Framework.Logging;
 using osu.Game.Updater;
 using osu.Desktop.Windows;
 using osu.Framework.Allocation;
+using osu.Framework.Input.Handlers;
+using osu.Framework.Input.Handlers.Mouse;
+using osu.Framework.Input.Handlers.Tablet;
+using osu.Framework.Input.Handlers.Touch;
 using osu.Game.Configuration;
 using osu.Game.IO;
 using osu.Game.IPC;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Overlays.Settings;
 using osu.Game.Performance;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
@@ -227,6 +232,14 @@ namespace osu.Desktop
             }
 
             host.Window.Title = Name;
+        }
+
+        public override SettingsSubsection CreateSettingsSubsectionFor(InputHandler handler)
+        {
+            if (handler is ITabletHandler || handler is TouchHandler || handler is MouseHandler)
+                return null!;
+
+            return base.CreateSettingsSubsectionFor(handler);
         }
 
         protected override BatteryInfo CreateBatteryInfo() => FrameworkEnvironment.UseSDL3 ? new SDL3BatteryInfo() : new SDL2BatteryInfo();

@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-05-09
+
+### P1-A / P1-B：桌面端输入设置安全隐藏上游 mouse/touch/tablet 分区
+
+- `OsuGameDesktop` 现已 override `CreateSettingsSubsectionFor(InputHandler)`，在桌面宿主的 Settings -> 输入 中对 `ITabletHandler`、`TouchHandler` 与 `MouseHandler` 返回 `null`，因此上游通用的数位板 / 触屏点击 / 鼠标 subsection 不再继续暴露给最终桌面产品面。
+- 这次变更属于 **安全隐藏** 而不是 runtime 删除：`MouseDisableButtons`、`MouseDisableWheel`、`ConfineMouseMode`、`TouchDisableGameplayTaps` 等既有配置与运行时消费链全部保留，tablet/touch/mouse input handler 也未被移除。
+- 该裁剪故意保持在 `osu.Desktop` 的 `OsuGameDesktop` 层，而不是下移到 `OsuGameBase`；这样 desktop product surface 会收口，但 `OsuGame` test scene / 非 desktop host 的输入设置装配行为不会被一并改写。
+- 验证：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-05-08
 
 ### BMS：Song Select 左上 BPM 显示不再回退 60

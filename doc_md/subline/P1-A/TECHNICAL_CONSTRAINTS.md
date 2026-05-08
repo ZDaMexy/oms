@@ -23,6 +23,7 @@
 11. `首次启动向导`、`Run setup wizard` 与无谱面引导这类共享 onboarding / settings-entry surface 默认归 `P1-A`；若页面只是复用外部 / 内部谱库与按键绑定面板，其存储 / 输入语义仍分别归 `P1-H` / `P1-B`，不得为暴露面调整另开主线。
 12. 共享层首次启动向导若需触发 BMS-only runtime 能力，必须保持 `osu.Game` 不直接引用 `osu.Game.Rulesets.Bms`；可用反射 / 抽象边界，但模块缺失时页面需优雅退化，而不是在构造或 load 阶段抛异常。
 13. 首次启动向导中用户可见的 OMS 文案，若需覆盖上游翻译，必须使用 OMS-owned localisation namespace + 对应 `.resx`；只改 `*Strings.cs` fallback 不足以覆盖简中等非英文资源。
+14. 若共享 desktop settings-entry surface 需要裁剪 upstream 的数位板 / 触屏点击 / 鼠标 subsection，应只在 `OsuGameDesktop` 这类 desktop 宿主层安全隐藏，不能把这类 product-surface trim 下移成 `OsuGameBase` 的全宿主行为；否则会连带改写 test scene / 非 desktop host 的设置装配合同。
 
 ## 皮肤边界约束
 

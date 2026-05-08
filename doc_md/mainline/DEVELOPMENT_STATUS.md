@@ -30,7 +30,7 @@
 - **BMS 难度表当前状态**：`manager-owned metadata sync`、`RefreshAll` 真实结果合同与 `wrapper/source identity fallback` 三批修补已落地；在此基础上，响应性后置已继续推进两刀：persisted metadata 回写已从“单次全量重写所有 BMS 谱面”收窄成“按受影响 MD5 集合分批写入”，`RefreshAll` 也已补上逐源进度合同和 settings 页持续反馈；同时，internal / external rebuild 命中旧 beatmap set 时也会重新套用当前难度表 metadata。当前这轮工程修补已可收尾；若后续现场仍见 `Unrated`，优先进入原始 `.bms` 字节 MD5 差异诊断，而不是继续怀疑 Song Select 分组消费面。
 - **首次启动向导**：首次启动设置当前已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 BMS 难度表管理器按分组导入 zris 预设 URL，并在多项失败时显示中文摘要；最终页复用全局、mania 与 BMS 的按键绑定 subsection。
 - **首次启动稳定性与本地化**：手动重新打开首次启动向导并切到旧“游戏表现”页导致的 blank panel / unhandled error 已修复；欢迎页、获取谱面页与导入页的可见文案现已切到 OMS-owned localisation namespace + `.resx`，确保简中界面不再继续显示上游翻译。该表面主归属 `P1-A`，导入页复用外部谱库设置只形成 `P1-H` 从属暴露，不新开子线。
-- **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端
+- **输入**：键盘 / Raw Input / XInput / MouseAxis 主链可用；Windows 默认 HID 已切到 DirectInput；`HidSharp` 仅为 `OMS_ENABLE_HIDSHARP=1` 诊断后端。桌面端 Settings -> 输入 当前已主动隐藏上游通用的数位板 / 触屏点击 / 鼠标 subsection，保留 OMS 相关键位 / supplemental binding 表面，但不移除对应 runtime config 与 handler 链。
 - **训练 Mod**：`BmsModMirror` 与 `BmsModRandom` 已落地；`RANDOM` / `R-RANDOM` / `S-RANDOM` + seed / custom pattern 已接通，14K 单组 pattern 可自动复制到双侧
 - **辅助 Mod**：`BmsModAutoScratch`、`BmsModAutoNote` 与 `BmsModAutoplay` 已落地，均归 `DifficultyReduction`；`A-SCR` 会让 scratch 退出判定 / 计分 / gauge 池，并提供 mod 内可见性 / 染色配置；`A-NOT` 会对非 scratch note 做同样的 assist 处理，并提供独立的 note 可见性 / 染色 / 染色盘；`A-SCR` 与 `A-NOT` 当前互斥，且二者都继续与 `autoplay` 互斥。`autoplay` 已接通 BMS replay frame / replay input handler / replay recorder / auto generator
 - **BMS mod 记忆**：BMS 现通过 `BmsRulesetSetting.PersistedModState` 以 ruleset-local JSON snapshot 持久化 mod 选中状态与非默认配置；完全重启或从 mania 切走再切回 BMS 时都可恢复，且不影响 mania。实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 现在关闭再开启也不会丢配置；`Sudden / Hidden / Lift` 还额外提供 `记忆游戏内变动` 开关，默认开启时会把局内调整回写到当前 BMS mod 配置并在回场 / 下次启动后延续。启动早期若 `RulesetConfigCache` 尚未完成加载，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再执行恢复，避免冷启动首轮漏恢复或把 ruleset 误标记失败；该路径已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -57,6 +57,7 @@
 ### 1.17 输入切片现状
 
 - `TestSceneOmsScratchGameplayBridge` 已覆盖：Scratch1 reverse-config / inverted suppression / reverse-config late-hit、14K Scratch2 全路径、second scratch mixed-source / inverted suppression、normal / inverted mouse/HID hold-survival、XInput takeover
+- desktop product surface 当前已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream `MouseSettings` / `TouchSettings` / `TabletSettings`；这属于 public settings surface 收口，不等于删除 mouse/touch/tablet runtime 语义
 - 剩余：更广的 analog scratch cross-device 产品语义、终态输入链、controller calibration / deadzone / sensitivity / diagnostics UI，以及真实 HID 硬件验收
 
 ## 开发指标
@@ -79,13 +80,13 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-05-08
+### 2026-05-09
 
-- **范围**：收口 BMS `UI_PreStartHold` 的当前运行时合同，把它从“仅 pre-start 有效的 hold gate”扩成“前 5 秒阻止开始 + 全程调速修饰键”，并同步设置名称与居中 `BMS speed` 浮窗语义。
-- **本轮修正**：设置面动作名称现已改成 `阻止谱面开始/ingame start`；`BmsSoloPlayer` 继续保留 5 秒 delayed-start gate，但正式 gameplay 开始后按住同一键也会继续受理 odd/even lane 的 Hi-Speed 调整，同时持续刷新居中 `BMS speed` toast。`BmsInputManager` 现会在 hold 修饰键按住期间停止把新的 lane action 转发进 gameplay `KeyBindingContainer`，避免同一按键既调速又进判定。
-- **本轮验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputRouterTest"` **9/9** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **10/10** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputBridgeTest"` **23/23** 通过。
-- **诊断结果**：输入桥、real-player pre-start/ingame host path 与默认绑定桥接都已通过聚焦回归；本轮未重跑更宽范围的桌面 build 或人工 UI smoke。
-- **说明**：同日较早的 BMS Song Select BPM raw-wrapper 修补仍保留在 [CHANGELOG.md](CHANGELOG.md)；2026-04-28 的 pre-start focused snapshot 与更早的宽基线也继续留在历史记录中。
+- **范围**：收口桌面端通用输入设置的公开产品面，安全隐藏 upstream 的数位板 / 触屏点击 / 鼠标 subsection，同时保持现有 runtime input chain 不变。
+- **本轮修正**：`OsuGameDesktop` 现已 override `CreateSettingsSubsectionFor(InputHandler)`；当 handler 属于 `ITabletHandler`、`TouchHandler` 或 `MouseHandler` 时，desktop 宿主会直接返回 `null`，因此 Settings -> 输入 不再继续展示这三类 upstream 通用 subsection。该裁剪刻意保留在 desktop 层，不下移到 `OsuGameBase`，避免连带改写 test scene / 非 desktop host 的装配行为。
+- **本轮验证**：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- **诊断结果**：Release build 通过；这次改动只裁剪 desktop settings surface，没有重跑更宽范围的测试，因为 mouse/touch/tablet runtime config 与 handler 消费链未变。
+- **说明**：2026-05-08 的 `阻止谱面开始/ingame start` focused snapshot 继续保留在 [CHANGELOG.md](CHANGELOG.md)；更早的输入桥与 pre-start 历史快照也继续留在变动日志中。
 
 ## 联网约束
 

@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-09
+
+### shared settings-entry surface 跟进：桌面端输入设置安全隐藏 upstream mouse/touch/tablet 分区
+
+- `OsuGameDesktop` 现已 override `CreateSettingsSubsectionFor(InputHandler)`，在 desktop Settings -> 输入 中对 `ITabletHandler`、`TouchHandler` 与 `MouseHandler` 返回 `null`，因此上游通用的数位板 / 触屏点击 / 鼠标 subsection 不再继续暴露给最终桌面产品面。
+- 该改动明确是共享 settings-entry surface 的 **安全隐藏**，不改变 `MouseDisableButtons` / `MouseDisableWheel` / `ConfineMouseMode` / `TouchDisableGameplayTaps` 等既有 runtime config 消费链，也不移除 tablet/touch/mouse handler。
+- 裁剪保持在 `OsuGameDesktop` 层，不下移到 `OsuGameBase`，从而继续保留 test scene / 非 desktop host 的设置装配合同。
+- 验证：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-05-08
 
 ### gameplay speed setting 跟进：`阻止谱面开始/ingame start` 宿主语义收口
