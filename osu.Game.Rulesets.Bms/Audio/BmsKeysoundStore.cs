@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Bms.Audio
     {
         public const int MIN_CONCURRENT_CHANNELS = 1;
 
-        public const int DEFAULT_CONCURRENT_CHANNELS = 16;
+        public const int DEFAULT_CONCURRENT_CHANNELS = 32;
 
         public const int MAX_CONCURRENT_CHANNELS = 256;
 

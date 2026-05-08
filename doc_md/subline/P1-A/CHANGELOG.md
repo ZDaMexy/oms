@@ -4,6 +4,27 @@
 
 ## 2026-05-09
 
+### shared settings-entry surface 跟进：osu!mania 滚动速度提示收口为参考值
+
+- `ManiaSettingsSubsection` 现已为 `滚动速度` slider 补上 hover 提示，明确括号毫秒只代表标准车道几何下的参考下落时间。
+- 不同 mania 皮肤可通过车道尺寸、判定线位置与缩放改变可见下落长度，因此同一数值不保证跨皮肤体感一致；更换皮肤后应按当前皮肤重新校准，且 mania / BMS 的下落时间不可互相参考。
+- 这次改动不修改 `DrawableManiaRuleset.ComputeScrollTime()` 或 mania runtime authority，只收口 settings-entry surface 的解释边界。
+- 验证：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### gameplay settings-entry surface 跟进：Hi-Speed 模式说明与基础下落时间收口
+
+- `BmsSettingsSubsection` 现已把 `Hi-Speed 模式` 的 hover 文案改为三种模式的功能区别简述：`Normal` 为基础定速、`Floating` 为按谱面初始 BPM 做补偿、`Classic` 为传统 Hi-Speed 语义。
+- 当前模式的 Hi-Speed slider 现会在数值后显示括号内的基础下落时间（ms）；该数值明确按“不启用 `Sudden / Hidden / Lift`”计算，不再与 runtime `GreenNumber` / 可见时间混写。
+- 当前提示文案也已收口为“括号内为不启用 sudden/hidden/lift 的下落时间（ms），绿字（GreenNumber）需要在游戏内结合 sudden/hidden/lift 调节查看”。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsRulesetConfigurationTest"` **12/12** 通过。
+
+### gameplay settings-entry surface 跟进：BMS 键音通道默认值与悬浮提示收口
+
+- `BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS` 现已从 `16` 提高到 `32`；`Settings -> 游戏模式 -> BMS -> 键音通道数` 继续作为 shared keysound pool ceiling 的 `1..256` 调节入口。
+- `BmsSettingsSubsection` 现为该滑条补上多行 hover 提示，直接概括低值更容易截断 BGM / 键音 / 长按尾音，高值更适合极高密谱面或较强机器；由于默认值已经是 `32`，缺音时的上调建议现已明确收口为 `48/64`。
+- 这次改动属于共享 settings-entry surface 的默认值与文案收口，不改写 `BmsKeysoundStore` 的 runtime authority；BGM / note / LN / lane replay 仍共用同一池，运行时改值仍会切断当前正在播放的键音。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsDrawableRulesetTest"` **70/70** 通过。
+
 ### shared settings-entry surface 跟进：桌面端输入设置安全隐藏 upstream mouse/touch/tablet 分区
 
 - `OsuGameDesktop` 现已 override `CreateSettingsSubsectionFor(InputHandler)`，在 desktop Settings -> 输入 中对 `ITabletHandler`、`TouchHandler` 与 `MouseHandler` 返回 `null`，因此上游通用的数位板 / 触屏点击 / 鼠标 subsection 不再继续暴露给最终桌面产品面。

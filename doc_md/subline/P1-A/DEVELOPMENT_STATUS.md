@@ -16,7 +16,9 @@
 - BMS 皮肤边界已足够封闭，可继续向 BMS-owned feedback component 扩展。
 - 当前 `GN` / `WN` 来自 `BmsScrollSpeedMetrics`，其输入现已覆盖 `Normal / Floating / Classic Hi-Speed`、`ScrollLengthRatio`、`Sudden`、`Hidden`、`Lift`。
 - 当前 tri-mode Hi-Speed surface 已完成首轮产品接线：`Normal` 走默认 settings surface，`Floating` 提供 initial-BPM anchored runtime surface，`Classic` 继续锁定 `HS 10 + WN 350 => GN 300`；这仍不等价于完整 FHS。
-- settings 页现只显示 mode + value，不再把 `GN / ms` 写入用户可见 contract。
+- settings 页现显示 mode + value，并在数值后括号显示不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；`GreenNumber` 仍不进入 settings，而继续留在 gameplay feedback 链。
+- `osu!mania` settings 页的 `滚动速度` hover 提示当前也已明确为参考值说明：括号毫秒只代表标准车道几何下的参考下落时间，不作为跨皮肤或跨 ruleset 的严格体感合同；更换 mania 皮肤后应重新校准，且 mania / BMS 的下落时间不可交叉参考。
+- `键音通道数` 当前也已作为 BMS settings surface 的独立滑条公开 shared `BmsKeysoundStore` ceiling，范围 `1..256`，默认 `32`；hover 提示会直接说明低值截音风险、高值负载取舍，以及缺音时优先上调到 `48/64` 的调参路径。
 - BMS mod 选中状态与非默认配置现按 ruleset-local JSON snapshot 记忆，仅作用于 BMS；切到 mania 再切回或完全重启后仍恢复。
 - 启动早期若 `RulesetConfigCache` 尚未 ready，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再做 BMS restore；这条 host-boundary 合同同时修复了冷启动首轮漏恢复与误报 ruleset failure。
 - 实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 在 Song Select 中停用 / 启用不会丢配置；停用不再被视为“恢复默认值”。
@@ -58,6 +60,7 @@
 
 1. 在现有 `GameplayFeedbackState` 已并入 compact judgement counts 与 live EX progress 的基础上，继续评估后续 richer judge display state 是否进入同一 contract，还是保持与 recent history 分层；当前 live `PERFECT / FC` 资格线与 EX 原始分子/分母文案都已证明一部分 display-only 语义可直接从既有 snapshot 派生。
 2. 继续为 tri-mode settings 与 `阻止谱面开始/ingame start` operator surface 补 visual / input-path integration coverage；当前已锁住 overlay owner contract、提前松开 delayed-start、hold 跨过 delay 仍可调速、正式 gameplay 中 hold 仍可调速、persistent target cycle、real-player mode/value binding 与 lane-action gameplay 转发抑制，剩余重点转向更完整 host boundary、fallback 与真实输入事件路径。
+- 2026-05-09：BMS settings 的 `键音通道数` 当前已把 shared keysound pool ceiling 收口为默认 `32` + 多行 hover 提示；提示文本明确低值截音、高值负载以及缺音时优先升到 `48/64` 的调参路径。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsDrawableRulesetTest"` **70/70** 通过。
 - 2026-05-09：desktop shared Settings -> 输入 现已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream `MouseSettings` / `TouchSettings` / `TabletSettings`，避免继续暴露非 OMS 通用设置表面；该裁剪明确保持在 desktop 宿主层，不下移到 `OsuGameBase`。`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 - 2026-05-08：把 `UI_PreStartHold` 从“仅 pre-start 有效的 hold gate”扩成“前 5 秒阻止开始 + 全程调速修饰键”这一统一宿主合同；设置面可见名称现改为 `阻止谱面开始/ingame start`，居中 `BMS speed` toast 会在 hold 期间持续刷新，而 hold 期间新的 lane action 不再进入 gameplay `KeyBindingContainer`。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputRouterTest"` **9/9** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **10/10** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputBridgeTest"` **23/23** 通过。
 3. 维持 `OmsSkin` 默认路径、legacy HUD wrapper 与 fallback 语义稳定，并把 remaining full Floating parity 缺口明确留在后续路线，不在 `P1-A` 里误写成已完成。

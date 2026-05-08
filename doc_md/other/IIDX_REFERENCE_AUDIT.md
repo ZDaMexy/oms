@@ -59,7 +59,7 @@
 
 ### 不应机械照搬的方向
 
-- 不要把 settings 页写成 green number / visible-ms 调机面板；这些表达应继续留在 gameplay runtime。当前 OMS 可以在 HUD / toast / pre-start overlay 中显示 mode-aware `GN / WN`，但仍不得把它包装成完整 `FHS`。
+- 不要把 settings 页写成 green number 调机面板，也不要把 runtime-adjusted visible-ms 直接搬回 settings。当前 OMS 可以在 settings 中显示“不启用 `Sudden / Hidden / Lift` 的基础下落时间（ms）”，但 `GN / WN` 与真实 runtime 可见时间仍应继续留在 HUD / toast / pre-start overlay 这条 gameplay runtime 链中，且不得把它包装成完整 `FHS`。
 - 如果在 `P1-A / P1-C` 提前把当前 OMS runtime speed feedback 做成常驻 HUD 或 `阻止谱面开始/ingame start` operator surface，必须明确标注它基于 OMS 的 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 反馈模型，而不是把它包装成完整 IIDX `FHS`。
 - 不要把 auto scratch、legacy note 一类 assist 当作默认教学路径。
 - 不要把 IIDX / LR2 / beatoraja 规则差异藏在文案后面；必须明确告诉用户当前使用的是哪一套语义。

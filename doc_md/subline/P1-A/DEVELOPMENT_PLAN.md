@@ -94,7 +94,7 @@
 
 当前已完成：
 
-1. `BmsSettingsSubsection` 现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式 slider，settings 不再显示 `GN / ms`。
+1. `BmsSettingsSubsection` 现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式 slider；slider 当前会显示“模式数值 + 括号内基础下落时间（ms，不启用 `Sudden / Hidden / Lift`）”，但仍不把 `GreenNumber` 写回 settings。`键音通道数` 现也补上 hover 提示，并以 `32` 作为 shared keysound pool 的默认折中值。与此同时，`osu!mania` 的 `滚动速度` slider 也已补上 hover，明确括号毫秒只代表标准车道几何下的参考下落时间，不应在不同皮肤间或与 BMS 下落时间直接互相参考。
 2. `BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把“前 5 秒 delayed start 阻塞 + 全程调速修饰键”这一 `UI_PreStartHold` 合同接入正式 gameplay 流程：前 5 秒仍承担 hold gate，正式 gameplay 开始后继续受理奇偶键调速；paused pre-start 下的 `UI_LaneCoverFocus` / 滚轮 / 中键 `Sudden / Hidden / Lift` 调整链也保持同一条运行时入口。
 3. `SoloSongSelect` 通过反射创建 `BmsSoloPlayer`，避免 `osu.Game` 对 `osu.Game.Rulesets.Bms` 新增编译期依赖。
 4. owner-level `TestSceneBmsPreStartHiSpeedOverlay` 与 real-player `TestSceneBmsSoloPlayerPreStart` 已形成双层 focused coverage，当前分别锁住 overlay 文案 / 输入合同与 delayed-start / hold gate / mode-value binding 的真实宿主链。

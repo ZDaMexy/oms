@@ -283,7 +283,7 @@ Requirements:
 - Index up to 1295 (`ZZ` in base-36) keysound slots per chart
 - **Supported audio formats:** `.wav` (primary — required), `.ogg` and `.mp3` (secondary — support if ManagedBass can load without additional plugins). Format resolution: attempt the exact filename referenced by `#WAV##` first; if not found, retry with extension substituted in order (`.wav` → `.ogg` → `.mp3`). Log a warning on any substitution. Do not silently succeed without logging.
 - Load samples lazily (on first play), cache in memory during session
-- Current code routes playback through a shared `BmsKeysoundStore` pool whose ceiling is exposed via `BmsRulesetConfigManager` / `BmsSettingsSubsection` as `KeysoundConcurrentChannels`; default is 16 and runtime/UI writes are clamped to `1..256`. `DrawableBmsHitObject` currently auto-applies max result only for `BmsBgmEvent` and any `BmsHitObject` flagged with `AutoPlay = true`; ordinary single notes now accept player-triggered input via the temporary ruleset-local `BmsAction` bridge and resolve against default hit windows, while `DrawableBmsHoldNote` now accepts a valid head press, applies a basic tail release-lenience window, merges head/tail timing into a single final result, and only triggers the tail keysound when that final result is still a hit. POOR grading and full LN head/body/tail semantics remain future work.
+- Current code routes playback through a shared `BmsKeysoundStore` pool whose ceiling is exposed via `BmsRulesetConfigManager` / `BmsSettingsSubsection` as `KeysoundConcurrentChannels`; default is 32 and runtime/UI writes are clamped to `1..256`. The settings tooltip should continue to frame low values as truncation-prone and higher values as higher-cost, rather than implying that larger is always better. `DrawableBmsHitObject` currently auto-applies max result only for `BmsBgmEvent` and any `BmsHitObject` flagged with `AutoPlay = true`; ordinary single notes now accept player-triggered input via the temporary ruleset-local `BmsAction` bridge and resolve against default hit windows, while `DrawableBmsHoldNote` now accepts a valid head press, applies a basic tail release-lenience window, merges head/tail timing into a single final result, and only triggers the tail keysound when that final result is still a hit. POOR grading and full LN head/body/tail semantics remain future work.
 - BGM channel (`01`) samples play regardless of player input
 - Missing keysound files: log warning, play silence, do not crash
 - On note hit: trigger the note's assigned keysound immediately
@@ -372,7 +372,9 @@ After conversion, the `IBeatmap` must satisfy:
 - Channel `08` = BPM table lookup via `#BPM##` header
 - Channel `09` = STOP (value references `#STOP##` table; each unit = 1/192 of a **4/4 measure** at the current BPM; conversion: `stop_ms = stop_value / 192.0 × 4.0 × (60000.0 / current_bpm)`)
 
-All timing changes must be integrated into the `ControlPointInfo` of the converted `IBeatmap`. The scroll speed system (inherited from mania) will use these timing points for note rendering.
+All timing changes must be integrated into the `ControlPointInfo` of the converted `IBeatmap`. The underlying scroll-time model must use these timing points for note rendering; BMS now layers its own Hi-Speed surface on top rather than inheriting osu!mania scroll speed verbatim.
+
+For osu!mania, settings-page milliseconds are only a reference under standard lane geometry. User skins may change lane size, hit position, and scaling, so mania fall-time readouts are not a cross-skin or cross-ruleset contract and must not be compared directly with BMS Hi-Speed milliseconds.
 
 ---
 
@@ -743,7 +745,7 @@ OMS now exposes a BMS-local tri-mode Hi-Speed surface rather than inheriting osu
 - `Floating Hi-Speed`: user-facing range `0.5 - 10.0`; current OMS implementation anchors visual speed to the chart's initial BPM and is intended to cooperate with `Sudden / Hidden / Lift`, but it does **not** yet claim full mid-song re-float parity or soflan GN-range output.
 - `Classic Hi-Speed`: user-facing range `0.5 - 10.0`; base time mapping must remain `(100000 / 13) / HS` so the official sample `HS 10 + WN 350 => GN 300` continues to hold.
 
-Settings must show only the selected Hi-Speed mode and that mode's numeric value. Do not surface `Green Number` or raw visible milliseconds in settings. Those remain gameplay-runtime feedback only.
+Settings may show the selected Hi-Speed mode, that mode's numeric value, and the base fall time in milliseconds when `Sudden / Hidden / Lift` are not applied. Do not surface `Green Number` itself or runtime-adjusted visible milliseconds in settings; those remain gameplay-runtime feedback only.
 
 OMS may surface `Green Number` / `White Number` during gameplay as part of its current BMS runtime speed-feedback model, but that model is presently scoped to `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` and must not be described as proof that full IIDX-style Floating Hi-Speed parity already exists.
 

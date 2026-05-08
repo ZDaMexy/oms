@@ -39,6 +39,10 @@ namespace osu.Game.Rulesets.Mania
                 new SettingsItemV2(new FormSliderBar<double>
                 {
                     Caption = RulesetSettingsStrings.ScrollSpeed,
+                    HintText = "括号内毫秒是标准车道几何下的参考下落时间。\n"
+                               + "不同皮肤可能改变车道尺寸、判定线位置与缩放，进而改变可见下落长度。\n"
+                               + "因此同一数值在不同皮肤间不一定有相同体感；更换皮肤后请按当前皮肤重新校准。\n"
+                               + "因此mania mode和bms mode之间的下落时间不可互相参考。",
                     Current = config.GetBindable<double>(ManiaRulesetSetting.ScrollSpeed),
                     KeyboardStep = 1,
                     LabelFormat = v => RulesetSettingsStrings.ScrollSpeedTooltip((int)DrawableManiaRuleset.ComputeScrollTime(v), v),

@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-09
+
+### C1 / C2 接口口径补丁：settings 改为显示基础下落时间而非运行时 GN/ms
+
+- `BmsSettingsSubsection` 现已把 `Hi-Speed 模式` 的 hover 文案收口为三种模式的功能区别简述，并让当前模式 slider 在数值后显示基础下落时间（ms）。
+- 该括号内数值明确按“不启用 `Sudden / Hidden / Lift`”计算；`GreenNumber` 仍只属于 HUD / toast / pre-start overlay 这条 runtime feedback 链。
+- 这次改动不改变 `BmsScrollSpeedMetrics`、`GreenNumber` 公式或 runtime feedback authority，只修正 settings surface 的表达边界。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsRulesetConfigurationTest"` **12/12** 通过。
+
 ## 2026-05-08
 
 ### C2 扩面：`阻止谱面开始/ingame start` 成为全程调速修饰键

@@ -1,6 +1,6 @@
 # P1-C 开发进度：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-05-08
+> 最后更新：2026-05-09
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-C` 的真实进展。
 
 ## 当前阶段
@@ -18,6 +18,7 @@
 - Lift 通过几何链（`ScrollLengthRatio`）间接影响 GN（正确行为）。
 - 当前常驻 `DefaultBmsSpeedFeedbackDisplay` 已接入 HUD，显示 `GN + 可见毫秒 + 模式缩写和值 + 当前目标`。
 - 当前 tri-mode Hi-Speed surface 已完成首轮接线：`Normal`、`Floating`、`Classic` 都可在 settings 与 runtime 间切换，其中 `Classic` 仍锁定 `HS 10 + WN 350 => GN 300`，`Floating` 目前只做到 initial-BPM anchored surface；这仍不等价于完整 FHS。
+- settings 当前还会在当前模式数值后显示“不启用 `Sudden / Hidden / Lift` 的基础下落时间（ms）”；`GreenNumber` 本身仍只在 HUD / toast / pre-start overlay 这条 runtime feedback 链中查看。
 - BMS mod 选中状态与 remembered settings 现通过 `BmsRulesetConfigManager.PersistedModState` 作为 ruleset-local snapshot 持久化；重启与 ruleset 切换恢复只作用于 BMS，不外溢到 mania。
 - 冷启动首轮若发生在 `RulesetConfigCache` ready 前，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再做 restore；这条时序合同同时修复了 startup ruleset false-failure 与 BMS mod 冷启动漏恢复。
 - `Playfield Scale` 已从 settings / runtime config 移除并固定为 `1.0`；数值型 `Playfield Horizontal Offset` 也已退出，改为四态 `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`）这一不改变 `VisibleLaneTime` / `GreenNumber` 语义的 single-play presentation surface，其中 `1P / 2P` 为“侧停靠但保留固定屏侧间距”。只有 `Sudden / Hidden / Lift` 可以合法影响当前可见时间语义；9K 固定居中，14K 固定双侧布局。

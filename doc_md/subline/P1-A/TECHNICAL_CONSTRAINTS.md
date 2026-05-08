@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-08
+> 最后更新：2026-05-09
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -11,7 +11,7 @@
 ## 术语与产品约束
 
 1. 当前 `GN / WN` 可以表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 的反馈，但不得对外宣称为完整 IIDX `FHS`。
-2. settings 页必须只暴露 Hi-Speed 模式与当前模式数值；不得在 settings 中显示 `GN / 可见毫秒`，也不得制造“已完整支持 BPM 补偿 / FHS 全语义”的错误预期。
+2. settings 页当前允许暴露 Hi-Speed 模式、当前模式数值，以及不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；不得在 settings 中显示 `GreenNumber` 本身或 runtime-adjusted 可见毫秒，也不得制造“已完整支持 BPM 补偿 / FHS 全语义”的错误预期。
 3. `Lift` 继续是 geometry control；`Hidden` 继续是下遮挡。两者在命名、状态、HUD 表达和 pre-start overlay 中都不得重新混写。
 4. 当前公开 Hi-Speed 范围必须保持：`Normal 1.0 - 20.0`、`Floating 0.5 - 10.0`、`Classic 0.5 - 10.0`；其中 `Classic` 的 base time 映射应保持 `TimeRange = (100000 / 13) / HS`，官方 sample `HS 10 + WN 350 => GN 300` 必须持续成立。
 5. 当前运行时 geometry profile 已冻结；`Playfield Scale` 必须固定为 `1.0` 并保持不可配置，因为缩放会破坏皮肤编排并扭曲权威 visual-speed surface。
@@ -24,6 +24,7 @@
 12. 共享层首次启动向导若需触发 BMS-only runtime 能力，必须保持 `osu.Game` 不直接引用 `osu.Game.Rulesets.Bms`；可用反射 / 抽象边界，但模块缺失时页面需优雅退化，而不是在构造或 load 阶段抛异常。
 13. 首次启动向导中用户可见的 OMS 文案，若需覆盖上游翻译，必须使用 OMS-owned localisation namespace + 对应 `.resx`；只改 `*Strings.cs` fallback 不足以覆盖简中等非英文资源。
 14. 若共享 desktop settings-entry surface 需要裁剪 upstream 的数位板 / 触屏点击 / 鼠标 subsection，应只在 `OsuGameDesktop` 这类 desktop 宿主层安全隐藏，不能把这类 product-surface trim 下移成 `OsuGameBase` 的全宿主行为；否则会连带改写 test scene / 非 desktop host 的设置装配合同。
+15. `osu!mania` settings 页的 `滚动速度` 若显示毫秒，只能表述为标准车道几何下的参考下落时间；不得包装成跨皮肤或跨 ruleset 的严格体感合同，也不得鼓励拿它直接与 BMS 下落时间对照。
 
 ## 皮肤边界约束
 

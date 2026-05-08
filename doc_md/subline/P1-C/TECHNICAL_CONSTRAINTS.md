@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-05-08
+> 最后更新：2026-05-09
 > 本文件记录 `P1-C` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -11,7 +11,7 @@
 ## 术语与产品约束
 
 1. 当前 `GN / WN` 可以表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 的反馈，但不得对外宣称为完整 IIDX `FHS`。
-2. 若引入常驻 GN HUD、toast 或 pre-start overlay，文案必须与当前 tri-mode surface 一致；settings 中不得显示 `GN / 可见毫秒`，也不得制造“已完整支持 BPM 补偿 / FHS 全语义”的错误预期。
+2. 若引入常驻 GN HUD、toast 或 pre-start overlay，文案必须与当前 tri-mode surface 一致；settings 当前只允许显示“不启用 `Sudden / Hidden / Lift` 的基础下落时间（ms）”，不得显示 `GreenNumber` 本身或 runtime-adjusted 可见毫秒，也不得制造“已完整支持 BPM 补偿 / FHS 全语义”的错误预期。
 3. `Lift` 继续是 geometry control；`Hidden` 继续是下遮挡。两者在命名、状态、HUD 表达与 pre-start hold 交互中都不得重新混写。
 4. 当前 `Floating` 只允许按“initial-BPM anchored surface”对外表述，不得误写成完整 mid-song re-float parity。
 

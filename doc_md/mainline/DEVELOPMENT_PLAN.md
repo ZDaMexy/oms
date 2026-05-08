@@ -150,7 +150,7 @@
 #### 点：当前必须被单独盯住的开发点
 
 1. **模式模型点**：`Normal / Floating / Classic` 的 runtime 语义必须持续拆开维护，尤其要明确 `Floating` 当前只是 initial-BPM anchored surface，而不是完整 `FHS`。
-2. **设置面点**：settings 只负责 mode + value，不负责 `GN / 可见毫秒`；任何把 runtime 反馈搬回 settings 的改动都应视为越界。
+2. **设置面点**：settings 只负责 mode + value + 不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；不得把 `GreenNumber` 或 runtime-adjusted 可见毫秒搬回 settings。
 3. **运行时反馈点**：HUD / toast / pre-start overlay 必须共享同一组 mode-aware speed metrics，避免出现 settings、HUD、toast 各说各话。
 4. **操作窗口点**：`UI_PreStartHold` 不是 debug 测试夹层，而是正式 operator surface；其合同现在同时包含“前 5 秒阻止开始”和“全程调速修饰键”两层语义，输入、显示、阻塞/释放时序、toast/overlay 分工与 fallback 都要当成产品合同维护。
 5. **联动点**：`Sudden / Hidden / Lift`、奇偶列调速、滚轮 / 中键 target cycle、以及当前模式数值必须视为同一条联动链，而不是多个独立 feature。
@@ -167,7 +167,7 @@
 
 | 面 | 当前范围 | 典型检查问题 |
 | --- | --- | --- |
-| **设置面** | dropdown、per-mode slider、数值精度/步进 | 有没有把 `GN / ms` 又搬回 settings？ |
+| **设置面** | dropdown、per-mode slider、数值精度/步进、基础下落时间(ms) | 有没有把 `GreenNumber` 或 runtime-adjusted ms 误搬回 settings，并把基础下落时间与运行时反馈混写？ |
 | **runtime 语义面** | `BmsHiSpeedRuntimeCalculator`、`BmsScrollSpeedMetrics`、Classic sample、Floating anchor | tri-mode 之间有没有语义串线？ |
 | **操作面** | `BmsSoloPlayer` delayed start、`BmsPreStartHiSpeedOverlay`、hold gate | hold 时是否真阻塞开谱，松开后是否正确恢复？ |
 | **联动面** | `Sudden / Hidden / Lift`、wheel、middle-click、odd/even lane keys | paused pre-start 和正常 gameplay 是否共享同一条调整链？ |
@@ -179,7 +179,7 @@
 
 1. tri-mode 现阶段只能表述为当前 OMS runtime surface；`Floating` 严禁越级宣传成完整 `FHS`。
 2. `Classic` 的 `(100000 / 13) / HS` 与 `HS 10 + WN 350 => GN 300` 仍是不可退的 sample 锁点。
-3. settings 不得显示 `GN / 可见毫秒`；这些只允许出现在 gameplay runtime feedback 与 pre-start operator surface。
+3. settings 可以显示“不启用 `Sudden / Hidden / Lift` 的基础下落时间（ms）”，但不得显示 `GreenNumber` 或 runtime-adjusted 可见毫秒；这些仍只允许出现在 gameplay runtime feedback 与 pre-start operator surface。
 4. `UI_PreStartHold` 和 `UI_LaneCoverFocus` 已拆为独立动作：`PreStartHold` 负责前 5 秒 hold gate 与全程调速修饰键，`LaneCoverFocus` 负责 click-to-cycle，两者不得重新合并。
 5. `SoloSongSelect -> BmsSoloPlayer` 的接线必须继续避开 `osu.Game -> osu.Game.Rulesets.Bms` 的编译期依赖；当前反射构造是已知项目边界约束。
 6. 任何下一步如果触碰 start sequencing、event timing、pre-start 输入优先级或 full Floating parity，都必须先回到这张总图重新归类，再决定是 `P1-A` 侧产品合同补强，还是 `P1-C` 侧语义专题扩面。
@@ -408,7 +408,7 @@
 1. #WAV## 索引构建（base-36 → 音频文件路径）
 2. 格式降级查找（精确文件名 → .wav → .ogg → .mp3，替代时记录警告）
 3. ManagedBass 懒加载 + 会话内缓存
-4. 并发通道上限由 `BmsRulesetConfigManager.KeysoundConcurrentChannels` 控制
+4. 并发通道上限由 `BmsRulesetConfigManager.KeysoundConcurrentChannels` 控制（当前默认 `32`，允许范围 `1..256`）
 5. 缺失键音：记录警告，播放静音
 6. BGM 通道（Channel 01）事件队列：按时间自动触发
 7. 可打击音符键音：由 gameplay 层在判定时调用触发
@@ -447,7 +447,7 @@
 4. 小节线渲染——读取 MeasureLengthControlPoints 计算位置
 5. BmsBackgroundLayer — 预留渲染槽 + 静态 #STAGEFILE 显示
 6. 音符 Drawable 绑定——BmsHitObject/BmsHoldNote → 车道内可视元素
-7. 滚动速度——继承 mania 的 scroll speed 系统
+7. 滚动速度——接通基于 timing points 的 scroll-time 链路（后续已演化为 BMS ruleset-local Hi-Speed surface）
 
 **前置依赖：** 1.7, 1.6
 **验收：** 选择已导入的 7K BMS 谱面 → 进入 gameplay → 音符从上/下滚动，scratch 车道在最左（1P），BGM 键音自动播放。
@@ -1045,7 +1045,7 @@
 
 **计划实现：** BMS 模式设置画面在现有布局 / keysound / supplemental bindings 基础上，继续集成 AutoScratchNoteVisibility、LeaderboardGaugeFilter、LeaderboardAscrFilter、LeaderboardJudgeFilter、LeaderboardLnModeFilter 等后续持久化设置。
 
-**当前仓库说明：** 当前 `BmsRulesetConfigManager` 已落地的是 scroll / playfield / hit-target / keysound 等设置；A-SCR gameplay 本体已进入代码库，但其全局持久化项与 leaderboard filter 相关设置仍未进入代码库。
+**当前仓库说明：** 当前 `BmsRulesetConfigManager` 已落地的是 scroll / playfield / hit-target / keysound 等设置；其中 `KeysoundConcurrentChannels` 当前默认 `32`，并已在 settings 中补充缺音 / 负载权衡提示。A-SCR gameplay 本体已进入代码库，但其全局持久化项与 leaderboard filter 相关设置仍未进入代码库。
 
 **前置依赖：** 2.4
 **验收：** 设置画面各项可修改 → 重启后保持。

@@ -4,6 +4,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Localisation;
+using System;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
@@ -47,10 +48,10 @@ namespace osu.Game.Rulesets.Bms
             var hiSpeedSlider = new FormSliderBar<double>
             {
                 Caption = hiSpeedMode.Value.ToString(),
-                HintText = @"只调整当前模式的数值。Green Number 与可见时间需要在游玩界面结合 Sudden / Hidden / Lift 后才有意义。",
+                HintText = @"括号内为不启用sudden/hidden/lift的下落时间（ms），绿字（GreenNumber）需要在游戏内结合sudden/hidden/lift调节查看。",
                 Current = normalHiSpeed,
                 KeyboardStep = (float)hiSpeedMode.Value.GetAdjustmentStep(),
-                LabelFormat = value => hiSpeedMode.Value.FormatValue(value),
+                LabelFormat = value => formatHiSpeedSettingValue(hiSpeedMode.Value, value),
             };
 
             hiSpeedMode.BindValueChanged(mode =>
@@ -77,7 +78,9 @@ namespace osu.Game.Rulesets.Bms
                 new SettingsItemV2(new FormEnumDropdown<BmsHiSpeedMode>
                 {
                     Caption = @"Hi-Speed 模式",
-                    HintText = @"在 Normal、Floating 与 Classic 三种调速模式之间切换。",
+                    HintText = "Normal：基础定速模式，直接按数值调速。\n"
+                               + "Floating：按谱面初始 BPM 做补偿，更适合配合 sudden/hidden/lift 调整可见时间。\n"
+                               + "Classic：按传统 Hi-Speed 语义计算。",
                     Current = hiSpeedMode,
                 }),
                 new SettingsItemV2(hiSpeedSlider),
@@ -90,6 +93,13 @@ namespace osu.Game.Rulesets.Bms
                 new SettingsItemV2(new FormSliderBar<int>
                 {
                     Caption = @"键音通道数",
+                    HintText = "控制共享键音播放池大小。\n\n"
+                               + "1-8 通道最省资源，但高密谱面更容易出现 BGM、键音或长按尾音被抢占截断。\n"
+                               + "16 通道仍偏保守。\n\n"
+                               + "默认 32 通道通常最均衡，能明显减少截音。\n"
+                               + "64-256 通道更适合极高密谱面或较强机器。\n\n"
+                               + "若听到缺音、尾音消失或 BGM 被盖掉，先提高到 48 或 64。\n"
+                               + "若感觉额外负载增加，再逐步下调。",
                     Current = keysoundConcurrentChannels,
                     KeyboardStep = 1,
                     LabelFormat = value => $@"{value} 通道",
@@ -97,6 +107,13 @@ namespace osu.Game.Rulesets.Bms
                 new BmsSupplementalBindingSettingsSection(ruleset),
                 new BmsDifficultyTableSettingsSection(),
             };
+
+            static string formatHiSpeedSettingValue(BmsHiSpeedMode mode, double value)
+            {
+                double fallTime = DrawableBmsRuleset.ComputeScrollTime(value);
+                int fallTimeMs = (int)Math.Round(fallTime, MidpointRounding.AwayFromZero);
+                return $@"{mode.FormatValue(value)} ({fallTimeMs}ms)";
+            }
         }
     }
 }
