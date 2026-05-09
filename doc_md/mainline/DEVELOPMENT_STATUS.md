@@ -84,11 +84,11 @@
 
 ### 2026-05-09
 
-- **范围**：复核离线发行线当前“手工覆盖更新”链路是否存在阻断性问题，并为后续把内部版本串切向 `oms_YYYYMMDD` 预先补齐最小兼容护栏。
-- **本轮修正**：`ChangelogOverlay.ShowBuild(string)` 现不再硬假定版本串一定包含上游 `版本-流` 后缀；若传入纯 OMS 版号，会安全回退到 changelog 列表。`OsuConfigManager.Migrate()` 现同时兼容旧的上游日期版号与 `oms_YYYYMMDD` 版号，避免未来切换内部版本命名后静默跳过既有迁移逻辑。发行说明、README 与 `P1-F` 文档也已同步到当前 `build-release.ps1 -> release-repo/oms_YYYYMMDD(.zip)` 口径。
-- **本轮验证**：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- **诊断结果**：当前覆盖更新路径本身没有发现阻断项。正式发行物虽然以 single-file 主程序为中心，但仍包含 `portable.ini` 与图标旁路文件；游戏内在线更新继续禁用，覆盖后不会进入 Velopack 自更新链。实际操作风险主要是运行中覆盖文件，以及误删 `portable.ini` / `storage.ini` 造成数据根切换。
-- **说明**：同日稍早的 BMS 键音通道、桌面输入设置与玩法侧 surface 收口快照继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
+- **范围**：在正式发行包中补入一份中英双语 `how to update.txt`，把当前手工覆盖更新的正确步骤与注意事项直接随包发布。
+- **本轮修正**：`build-release.ps1` 现会在发行根目录生成 `how to update.txt`，内容同时提供中文与英文的手动覆盖更新步骤，并明确保留 `portable.ini`、便携模式下的 `data/`，以及自定义数据根场景下的 `storage.ini`。发行说明与 `P1-F` 文档也已同步到“发行根目录额外包含该说明文件”的口径。
+- **本轮验证**：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`；`publish/` 与生成的 zip 根目录均已确认包含 `how to update.txt`。
+- **诊断结果**：当前离线覆盖更新链继续成立，且现在发行包内已自带操作说明。实际操作风险仍主要集中在运行中覆盖文件，以及误删 `portable.ini` / `storage.ini` 造成数据根切换。
+- **说明**：同日稍早的覆盖更新审计、版本兼容护栏与玩法侧 surface 收口快照继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
 
 ## 联网约束
 

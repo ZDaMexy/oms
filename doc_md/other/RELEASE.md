@@ -16,6 +16,7 @@
 ```
 
 `build-release.ps1` 内部仍执行 single-file self-contained `dotnet publish`，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini`，清理非运行时杂项后再打包到 `release-repo/oms_YYYYMMDD(.zip)`。
+同时会在发行根目录额外生成一份中英双语的 `how to update.txt`，说明手动覆盖更新的正确步骤与注意事项。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
 
@@ -29,6 +30,7 @@
 | `osu!.exe` | 主入口（DesktopGL，自包含 single-file） |
 | `portable.ini` | 便携模式标记（空文件） |
 | `lazer.ico` / `beatmap.ico` | Windows 文件关联图标 |
+| `how to update.txt` | 中英双语手动覆盖更新说明 |
 
 不应包含：松散的 `*.dll` / `*.deps.json` / `*.runtimeconfig.json` / `*.xml` / `*.lib`、`publish/` 目录名本身。
 

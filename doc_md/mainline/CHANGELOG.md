@@ -7,6 +7,12 @@
 
 ## 2026-05-09
 
+### P1-F：发行包新增中英双语手动更新说明
+
+- `build-release.ps1` 现会在发行根目录生成 `how to update.txt`，并随 `oms_YYYYMMDD(.zip)` 一起打包；该文件同时提供中文与英文的手动覆盖更新步骤，以及 `portable.ini` / `data/` / `storage.ini` 保留要求。
+- 发行说明与 `P1-F` 状态文档已同步到“当前发行根目录额外包含一份中英双语手动更新说明”的口径。
+- 验证：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`，且 `publish/` 与 zip 根目录均已确认包含 `how to update.txt`。
+
 ### P1-F / Shared：离线覆盖更新审计与 OMS 版号兼容硬化
 
 - 重新审计了当前离线发行链：`build-release.ps1` 继续产出 `release-repo/oms_YYYYMMDD(.zip)`，根目录布局为 `osu!.exe` + `portable.ini` + `lazer.ico` + `beatmap.ico`；覆盖更新时真正需要保留的是便携模式下的 `data/` 与任何自定义数据根使用的 `storage.ini`，而不是假定“严格只有一个 exe”。
