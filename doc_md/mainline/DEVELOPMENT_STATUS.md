@@ -84,18 +84,18 @@
 
 ### 2026-05-09
 
-- **范围**：收口 BMS 键音通道 settings surface 的默认值与悬浮提示，使默认配置、调参建议与当前 shared-pool 行为保持一致。
-- **本轮修正**：`BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS` 现已从 `16` 调整为 `32`；`BmsSettingsSubsection` 的 `键音通道数` 滑条现补上多行 hover 提示，概括低值截音风险、`32` 的折中定位，以及“缺音时优先升到 `48/64`、额外负载增加时再逐步下调”的调参路径。
-- **本轮验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsDrawableRulesetTest"` **70/70** 通过。
-- **诊断结果**：聚焦配置与 drawable-ruleset 回归全部通过；shared `BmsKeysoundStore` 的 authority 未改，BGM / note / LN / lane replay 继续共用同一池，运行时改值仍会因重建 channel container 而切断当前键音。
-- **说明**：同日稍早的 desktop 输入设置安全隐藏快照继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
+- **范围**：复核离线发行线当前“手工覆盖更新”链路是否存在阻断性问题，并为后续把内部版本串切向 `oms_YYYYMMDD` 预先补齐最小兼容护栏。
+- **本轮修正**：`ChangelogOverlay.ShowBuild(string)` 现不再硬假定版本串一定包含上游 `版本-流` 后缀；若传入纯 OMS 版号，会安全回退到 changelog 列表。`OsuConfigManager.Migrate()` 现同时兼容旧的上游日期版号与 `oms_YYYYMMDD` 版号，避免未来切换内部版本命名后静默跳过既有迁移逻辑。发行说明、README 与 `P1-F` 文档也已同步到当前 `build-release.ps1 -> release-repo/oms_YYYYMMDD(.zip)` 口径。
+- **本轮验证**：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- **诊断结果**：当前覆盖更新路径本身没有发现阻断项。正式发行物虽然以 single-file 主程序为中心，但仍包含 `portable.ini` 与图标旁路文件；游戏内在线更新继续禁用，覆盖后不会进入 Velopack 自更新链。实际操作风险主要是运行中覆盖文件，以及误删 `portable.ini` / `storage.ini` 造成数据根切换。
+- **说明**：同日稍早的 BMS 键音通道、桌面输入设置与玩法侧 surface 收口快照继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
 
 ## 联网约束
 
 | 项目 | 状态 | 说明 |
 | --- | --- | --- |
 | 便携版发布基线 | 已落地 | `portable.ini` 标记 → `<exe>/data/` 自动生成；已实机 Release publish 验证 |
-| 游戏内在线更新 | 已禁用 | Velopack 跳过，`CreateUpdateManager()` 切回基础实现 |
+| 游戏内在线更新 | 已禁用 | Velopack 跳过，`CreateUpdateManager()` 切回基础实现；手工覆盖后不会进入游戏内自更新链 |
 | 默认 endpoint | 已清空 | `LocalOfflineAPIAccess` 默认装配；hub connector 返回 null |
 | 游戏内联网入口 | 已隐藏 | Toolbar / 主菜单 / Song Select / overlay / 编辑器外链 / First-run Setup 均按 `OnlineFeaturesEnabled` 收口 |
 | 上游静态资源 fallback | 已离线化 | LargeTextureStore / PreviewTrackManager / metadata cache 在线源已关闭；profile 资源已补本地占位 |
@@ -173,7 +173,7 @@
 | 桌面端真实 UI smoke test | 待做 |
 | 便携发行物实际运行与覆盖更新验证 | 已完成 |
 
-说明：Release publish 后 `portable.ini` 已验证会触发 `data/` 自动生成，目录结构正确。
+说明：Release publish 后 `portable.ini` 已验证会触发 `data/` 自动生成，目录结构正确；当前覆盖更新路径也已复核通过，但需要在程序完全退出后替换文件，并保留 `portable.ini`、便携模式下的 `data/` 以及任何自定义数据根使用的 `storage.ini`。
 
 ## 当前主线
 

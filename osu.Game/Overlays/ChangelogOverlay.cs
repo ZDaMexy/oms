@@ -80,19 +80,37 @@ namespace osu.Game.Overlays
         {
             ArgumentNullException.ThrowIfNull(version);
 
+            if (!tryParseBuildVersion(version, out string versionPart, out string updateStream))
+            {
+                ShowListing();
+                return;
+            }
+
             Show();
 
             performAfterFetch(() =>
             {
-                string versionPart = version.Split('-')[0];
-                string updateStream = version.Split('-')[1];
-
                 var build = builds.Find(b => b.Version == versionPart && b.UpdateStream.Name == updateStream)
                             ?? Streams.Find(s => s.Name == updateStream)?.LatestBuild;
 
                 if (build != null)
                     ShowBuild(build);
             });
+        }
+
+        private static bool tryParseBuildVersion(string version, out string versionPart, out string updateStream)
+        {
+            versionPart = string.Empty;
+            updateStream = string.Empty;
+
+            int separatorIndex = version.IndexOf('-');
+
+            if (separatorIndex <= 0 || separatorIndex == version.Length - 1)
+                return false;
+
+            versionPart = version.Substring(0, separatorIndex);
+            updateStream = version.Substring(separatorIndex + 1);
+            return true;
         }
 
         public override bool OnPressed(KeyBindingPressEvent<GlobalAction> e)

@@ -1,44 +1,31 @@
 # OMS 发行说明
 
-> 当前阶段（Phase 1–2）以 **Portable.zip 全量包 + 手工文件覆盖** 为唯一正式发行方式。
+> 当前阶段（Phase 1–2）以 **`oms_YYYYMMDD(.zip)` 便携全量包 + 手工文件覆盖** 为唯一正式发行方式。
 > 游戏内在线更新默认禁用，不依赖 `Setup.exe`、MSI 或增量包。
 
-## 构建 Portable.zip
+当前正式打包入口为仓库根目录的 `build-release.ps1`，输出位于 `release-repo/`，压缩包命名为 `oms_YYYYMMDD.zip`；同日多次构建会自动追加 `_2`、`_3` 等序号。
+
+## 构建发行包
 
 ```powershell
-# Release 构建（single-file，自包含）
-dotnet publish osu.Desktop -c Release -r win-x64 --self-contained `
-	-p:PublishSingleFile=true `
-	-p:IncludeNativeLibrariesForSelfExtract=true `
-	-p:GenerateDocumentationFile=false `
-	-p:DebugSymbols=false `
-	-p:DebugType=None `
-	-o publish/
+# 推荐：生成正式发行物
+.\build-release.ps1
 
-# 保留 Windows 文件关联图标（single-file 下需旁路文件）
-Copy-Item osu.Desktop/lazer.ico publish/lazer.ico -Force
-Copy-Item osu.Desktop/beatmap.ico publish/beatmap.ico -Force
-
-# 写入便携标记，使程序启动时自动使用 data/ 子目录存储所有用户数据
-New-Item -Path publish/portable.ini -ItemType File -Force | Out-Null
-
-# 清理非运行时杂项
-Get-ChildItem publish -Filter *.lib -Recurse | Remove-Item -Force
-Get-ChildItem publish -Filter *.xml -Recurse | Remove-Item -Force
-
-# 打包
-Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
+# 如需保留 PDB 供诊断使用
+.\build-release.ps1 -KeepPdb
 ```
 
-> 如需保留 PDB 以便崩溃诊断，可在打包时不排除 `*.pdb`。
+`build-release.ps1` 内部仍执行 single-file self-contained `dotnet publish`，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini`，清理非运行时杂项后再打包到 `release-repo/oms_YYYYMMDD(.zip)`。
+
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
 
 ## 发行物内容
 
-打包后的 Portable.zip 应包含：
+打包后的发行包应包含：
 
 | 内容 | 说明 |
 | --- | --- |
+| `oms_YYYYMMDD(.zip)` | 外层发行压缩包命名；同日多次构建自动追加 `_2`、`_3` |
 | `osu!.exe` | 主入口（DesktopGL，自包含 single-file） |
 | `portable.ini` | 便携模式标记（空文件） |
 | `lazer.ico` / `beatmap.ico` | Windows 文件关联图标 |
@@ -114,19 +101,29 @@ Compress-Archive -Path publish/* -DestinationPath OMS-Portable.zip
 
 ### 便携模式
 
-1. 下载新版本 `OMS-Portable.zip`
-2. 解压覆盖到当前程序文件夹（覆盖所有文件，保留 `data/` 目录不动）
-3. 启动 `osu!.exe`
+1. 完全退出 OMS
+2. 下载新版本 `oms_YYYYMMDD(.zip)`
+3. 解压覆盖到当前程序文件夹（覆盖 `osu!.exe`、`portable.ini` 与图标等发行物文件，保留 `data/` 目录不动）
+4. 启动 `osu!.exe`
 
 **无需重新导入** BMS/Mania 目录——用户数据保存在 `data/` 子目录中，不受程序文件覆盖影响。
 
 ### 非便携模式
 
-1. 下载新版本 `OMS-Portable.zip`
-2. 解压覆盖到当前程序文件夹（覆盖所有文件）
-3. 启动 `osu!.exe`
+1. 完全退出 OMS
+2. 下载新版本 `oms_YYYYMMDD(.zip)`
+3. 解压覆盖到当前程序文件夹（覆盖所有发行物文件；若根目录使用 `storage.ini` 指向自定义数据根，则一并保留该文件）
+4. 启动 `osu!.exe`
 
 **无需重新导入**——用户数据保存在 `%APPDATA%/oms/`；若已迁移，则继续保存在 `storage.ini` 指向的数据根中。
+
+### 覆盖更新注意事项
+
+1. 当前发行物不是“严格只有一个 exe” 的布局；除了 `osu!.exe`，同级还需要保留 `portable.ini`、`lazer.ico` 与 `beatmap.ico`。
+2. 必须在程序完全退出后再覆盖文件；运行中替换可执行文件会遇到 Windows 文件锁。
+3. 便携模式下如果误删 `portable.ini`，下次启动将不再继续使用同级 `data/` 作为数据根。
+4. 若你正在使用 `storage.ini` 指向自定义数据根，覆盖更新时不要删除该文件；否则下次启动会改变数据根位置。
+5. 覆盖新包后不会触发 Velopack 或安装器自更新链；当前仅保留手工覆盖这一离线更新路径。
 
 ## 冒烟测试
 

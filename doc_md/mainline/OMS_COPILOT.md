@@ -23,10 +23,10 @@
 
 Until Phase 3 begins, OMS follows these product constraints:
 
-- Windows releases are portable full packages only. Prefer `Portable.zip`; do not treat `Setup.exe`, MSI, or delta packages as the primary user path for current OMS releases.
+- Windows releases are portable full packages only. Prefer `build-release.ps1` 产出的 `oms_YYYYMMDD(.zip)`；do not treat `Setup.exe`, MSI, or delta packages as the primary user path for current OMS releases.
 - In-game online update is disabled for early OMS releases. Do not ship automatic check, download, or apply-update flows to end users yet.
 - Hide or remove release-stream switching and manual "Check for updates" UI while update delivery is intentionally disabled.
-- Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content.
+- Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content, and current release guidance must explicitly preserve `portable.ini`, portable-mode `data/`, and any `storage.ini` custom-root pointer.
 - Current official builds still keep mutable user data under a separate data root (default `%APPDATA%/oms/` for release, `%APPDATA%/oms-development/` for debug). `storage.ini` may redirect everything to one custom root, but do not describe OMS as already shipping an out-of-box program+data single-package layout.
 - Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
 - Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings -> Maintenance add/remove/scan UI is already landed; deletion/invalidation semantics remain future work.

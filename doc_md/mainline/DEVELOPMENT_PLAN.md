@@ -245,9 +245,9 @@
 
 **最小改造清单：**
 
-1. 首发正式发行物只提供 Portable.zip 这类全量便携包，不把 `Setup.exe` / `MSI` / delta 包作为当前阶段的正式用户路径
-2. 从第一版发布到逐步实现联网功能前，版本升级统一采用“解压后文件覆盖”流程，不依赖安装器自更新、后台下载或增量补丁
-3. 程序目录与用户数据目录布局必须对覆盖更新友好；覆盖新版本时不应要求重新导入谱面，也不应依赖在线迁移逻辑
+1. 首发正式发行物只提供 `build-release.ps1` 产出的 `oms_YYYYMMDD(.zip)` 这类全量便携包，不把 `Setup.exe` / `MSI` / delta 包作为当前阶段的正式用户路径
+2. 从第一版发布到逐步实现联网功能前，版本升级统一采用“退出程序后解压覆盖”流程，不依赖安装器自更新、后台下载或增量补丁
+3. 程序目录与用户数据目录布局必须对覆盖更新友好；覆盖新版本时不应要求重新导入谱面，也不应依赖在线迁移逻辑，且不得因误删 `portable.ini` / `storage.ini` 改变既有数据根
 4. 游戏内在线更新暂时禁用，相关入口也一并隐藏；至少包括自动检查更新、手动检查更新、`ReleaseStream` 切换和其他面向终端用户的更新选项
 5. 除 BMS 难度表的公共 URL 导入/刷新外，其他联网功能（在线更新、账号、排行榜、谱面下载等）统一延后到 Phase 3 再重新评估是否启用
 
@@ -269,7 +269,7 @@
 
 ### 存储拓扑演进基线
 
-1. beatoraja 风格的单包便携数据模式已落地：程序目录内放置 `portable.ini` 标记文件后，所有用户数据自动写入同级 `data/` 子目录（`OsuGameDesktop.CreateStorage()` 检测标记并将 `NativeStorage(data/)` 传给 `OsuStorage`）；正式 Portable.zip 发行物默认含 `portable.ini`
+1. beatoraja 风格的单包便携数据模式已落地：程序目录内放置 `portable.ini` 标记文件后，所有用户数据自动写入同级 `data/` 子目录（`OsuGameDesktop.CreateStorage()` 检测标记并将 `NativeStorage(data/)` 传给 `OsuStorage`）；正式 `oms_YYYYMMDD(.zip)` 发行物默认含 `portable.ini`
 2. 非便携模式仍保持"默认 AppData 数据根 + 可迁移单自定义数据根（`storage.ini`）"
 3. mania 当前已采用 `chartmania/` 目录的文件系统直读存储，与 BMS `chartbms/` 同级
 4. 外部多目录谱库扫描基线（`ExternalLibraryConfig` + `ExternalLibraryScanner`）与 Maintenance UI 已接通；剩余删除/失效语义、path identity dedup 与重扫策略待后续推进

@@ -256,17 +256,10 @@ namespace osu.Game.Configuration
             // arrives as 2020.123.0-lazer
             string rawVersion = Get<string>(OsuSetting.Version);
 
-            if (rawVersion.Length < 6)
-                return;
-
-            string[] pieces = rawVersion.Split('.');
-
             // on a fresh install or when coming from a non-release build, execution will end here.
             // we don't want to run migrations in such cases.
-            if (!int.TryParse(pieces[0], out int year)) return;
-            if (!int.TryParse(pieces[1], out int monthDay)) return;
-
-            int combined = year * 10000 + monthDay;
+            if (!tryParseComparableVersion(rawVersion, out int combined))
+                return;
 
             if (combined < 20250214)
             {
@@ -274,6 +267,33 @@ namespace osu.Game.Configuration
                 if (RuntimeInfo.IsMobile)
                     GetBindable<float>(OsuSetting.UIScale).SetDefault();
             }
+        }
+
+        private static bool tryParseComparableVersion(string rawVersion, out int combined)
+        {
+            combined = 0;
+
+            if (rawVersion.Length < 6)
+                return false;
+
+            if (rawVersion.StartsWith("oms_", StringComparison.OrdinalIgnoreCase)
+                && rawVersion.Length >= 12
+                && int.TryParse(rawVersion.AsSpan(4, 8), out combined))
+                return true;
+
+            string[] pieces = rawVersion.Split('.');
+
+            if (pieces.Length < 2)
+                return false;
+
+            if (!int.TryParse(pieces[0], out int year))
+                return false;
+
+            if (!int.TryParse(pieces[1], out int monthDay))
+                return false;
+
+            combined = year * 10000 + monthDay;
+            return true;
         }
 
         public override TrackedSettings CreateTrackedSettings()

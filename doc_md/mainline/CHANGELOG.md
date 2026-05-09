@@ -7,6 +7,13 @@
 
 ## 2026-05-09
 
+### P1-F / Shared：离线覆盖更新审计与 OMS 版号兼容硬化
+
+- 重新审计了当前离线发行链：`build-release.ps1` 继续产出 `release-repo/oms_YYYYMMDD(.zip)`，根目录布局为 `osu!.exe` + `portable.ini` + `lazer.ico` + `beatmap.ico`；覆盖更新时真正需要保留的是便携模式下的 `data/` 与任何自定义数据根使用的 `storage.ini`，而不是假定“严格只有一个 exe”。
+- 代码侧补上了两处未来切换内部 OMS 版号前必须具备的兼容护栏：`ChangelogOverlay.ShowBuild(string)` 不再硬拆 `版本-流`，遇到纯 OMS 版号会安全回退列表；`OsuConfigManager.Migrate()` 现可同时解析旧上游日期版号与 `oms_YYYYMMDD`，避免迁移逻辑静默失效。
+- 同轮已把 [../other/RELEASE.md](../other/RELEASE.md)、根 [../../README.md](../../README.md) 与 `P1-F` 文档同步到当前发行物命名、覆盖更新步骤和注意事项口径。
+- 验证：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ### P1-A：osu!mania 滚动速度设置提示收口为参考值
 
 - `ManiaSettingsSubsection` 现已为 `滚动速度` slider 补上 hover 提示，明确括号毫秒只代表标准车道几何下的参考下落时间。
