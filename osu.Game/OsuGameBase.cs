@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -148,6 +149,26 @@ namespace osu.Game
                 Version version = AssemblyVersion;
                 return $@"{version.Major}.{version.Minor}.{version.Build}-lazer";
             }
+        }
+
+        public virtual string OmsDisplayName => "oms";
+
+        public virtual string OmsBuildDate => getOmsBuildDate();
+
+        public virtual string OmsVersionName => $@"{OmsDisplayName}_{OmsBuildDate}";
+
+        private string getOmsBuildDate()
+        {
+            string buildPath = Environment.ProcessPath ?? string.Empty;
+
+            if (string.IsNullOrEmpty(buildPath) || !File.Exists(buildPath))
+                buildPath = Assembly.GetEntryAssembly()?.Location ?? string.Empty;
+
+            DateTime buildDate = !string.IsNullOrEmpty(buildPath) && File.Exists(buildPath)
+                ? File.GetLastWriteTime(buildPath)
+                : DateTime.Now;
+
+            return buildDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         }
 
         /// <summary>

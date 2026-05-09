@@ -47,10 +47,10 @@ namespace osu.Game.Overlays.Settings
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
-                    Text = game.Name,
+                    Text = game.OmsDisplayName,
                     Font = OsuFont.GetFont(size: 18, weight: FontWeight.Bold),
                 },
-                new BuildDisplay(game.Version)
+                new BuildDisplay(game.OmsVersionName, game.OmsBuildDate)
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
@@ -82,6 +82,7 @@ namespace osu.Game.Overlays.Settings
         private partial class BuildDisplay : OsuAnimatedButton, IHasContextMenu
         {
             private readonly string version;
+            private readonly string displayText;
 
             [Resolved]
             private OsuColour colours { get; set; } = null!;
@@ -89,9 +90,10 @@ namespace osu.Game.Overlays.Settings
             [Resolved]
             private OsuGame? game { get; set; }
 
-            public BuildDisplay(string version)
+            public BuildDisplay(string version, string displayText)
             {
                 this.version = version;
+                this.displayText = displayText;
 
                 Content.RelativeSizeAxes = Axes.Y;
                 Content.AutoSizeAxes = AutoSizeAxes = Axes.X;
@@ -101,13 +103,14 @@ namespace osu.Game.Overlays.Settings
             [BackgroundDependencyLoader]
             private void load(ChangelogOverlay? changelog)
             {
-                Action = () => changelog?.ShowBuild(version);
+                if (version.Contains('-'))
+                    Action = () => changelog?.ShowBuild(version);
 
                 Add(new OsuSpriteText
                 {
                     Font = OsuFont.GetFont(size: 16),
 
-                    Text = version,
+                    Text = displayText,
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     Padding = new MarginPadding(5),
