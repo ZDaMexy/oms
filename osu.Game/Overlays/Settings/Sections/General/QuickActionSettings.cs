@@ -22,6 +22,9 @@ namespace osu.Game.Overlays.Settings.Sections.General
 {
     public partial class QuickActionSettings : SettingsSubsection
     {
+        private const string oms_repository_url = @"https://github.com/ZDaMexy/oms";
+        private const string report_issue_url = @"https://github.com/ZDaMexy/oms/issues";
+
         [Resolved(CanBeNull = true)]
         private FirstRunSetupOverlay? firstRunSetupOverlay { get; set; }
 
@@ -39,26 +42,22 @@ namespace osu.Game.Overlays.Settings.Sections.General
                 {
                     Text = GeneralSettingsStrings.RunSetupWizard,
                     Keywords = new[] { @"first run", @"initial", @"getting started", @"import", @"tutorial", @"recommended beatmaps" },
-                    TooltipText = FirstRunSetupOverlayStrings.FirstRunSetupDescription,
+                    TooltipText = GeneralSettingsStrings.RunSetupWizardTooltip,
                     Action = () => firstRunSetupOverlay?.Show(),
                 },
                 new SettingsButtonV2
                 {
-                    Text = GeneralSettingsStrings.LearnMoreAboutLazer,
-                    TooltipText = GeneralSettingsStrings.LearnMoreAboutLazerTooltip,
+                    Text = GeneralSettingsStrings.LearnMoreAboutOms,
+                    TooltipText = GeneralSettingsStrings.LearnMoreAboutOmsTooltip,
                     BackgroundColour = colours.YellowDark,
-                    Action = () => game?.ShowWiki(@"Help_centre/Upgrading_to_lazer")
+                    Action = () => game?.OpenUrlExternally(oms_repository_url, LinkWarnMode.NeverWarn)
                 },
                 new SettingsButtonV2
                 {
                     Text = GeneralSettingsStrings.ReportIssue,
                     TooltipText = GeneralSettingsStrings.ReportIssueTooltip,
                     BackgroundColour = colours.YellowDarker,
-                    Action = () =>
-                    {
-                        if (game?.OnlineFeaturesEnabled == true)
-                            game.OpenUrlExternally(@"https://osu.ppy.sh/community/forums/topics/create?forum_id=5", LinkWarnMode.NeverWarn);
-                    }
+                    Action = () => game?.OpenUrlExternally(report_issue_url, LinkWarnMode.NeverWarn)
                 },
             });
 

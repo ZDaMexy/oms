@@ -7,7 +7,8 @@ namespace osu.Game.Localisation
 {
     public static class GeneralSettingsStrings
     {
-        private const string prefix = @"osu.Game.Resources.Localisation.GeneralSettings";
+        private const string upstream_prefix = @"osu.Game.Resources.Localisation.GeneralSettings";
+        private const string oms_prefix = @"osu.Game.Localisation.GeneralSettings";
 
         /// <summary>
         /// "Language"
@@ -80,14 +81,19 @@ namespace osu.Game.Localisation
         public static LocalisableString RunSetupWizard => new TranslatableString(getKey(@"run_setup_wizard"), @"Run setup wizard");
 
         /// <summary>
-        /// "Learn more about lazer"
+        /// "Quickly adjust important OMS settings."
         /// </summary>
-        public static LocalisableString LearnMoreAboutLazer => new TranslatableString(getKey(@"learn_more_about_lazer"), @"Learn more about lazer");
+        public static LocalisableString RunSetupWizardTooltip => new TranslatableString(getOmsKey(@"run_setup_wizard_tooltip"), @"Quickly adjust important OMS settings.");
 
         /// <summary>
-        /// "Check out the feature comparison and FAQ"
+        /// "Learn more about OMS"
         /// </summary>
-        public static LocalisableString LearnMoreAboutLazerTooltip => new TranslatableString(getKey(@"check_out_the_feature_comparison"), @"Check out the feature comparison and FAQ");
+        public static LocalisableString LearnMoreAboutOms => new TranslatableString(getOmsKey(@"learn_more_about_oms"), @"Learn more about OMS");
+
+        /// <summary>
+        /// "Visit the OMS GitHub repository and project overview."
+        /// </summary>
+        public static LocalisableString LearnMoreAboutOmsTooltip => new TranslatableString(getOmsKey(@"learn_more_about_oms_tooltip"), @"Visit the OMS GitHub repository and project overview.");
 
         /// <summary>
         /// "Report an issue"
@@ -119,6 +125,8 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString RunningLatestRelease(string version) => new TranslatableString(getKey(@"running_latest_release"), @"You are running the latest release ({0})", version);
 
-        private static string getKey(string key) => $@"{prefix}:{key}";
+        private static string getKey(string key) => $@"{upstream_prefix}:{key}";
+
+        private static string getOmsKey(string key) => $@"{oms_prefix}:{key}";
     }
 }

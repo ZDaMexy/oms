@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="run_setup_wizard_tooltip" xml:space="preserve"><value>Quickly adjust important OMS settings.</value></data>
+  <data name="learn_more_about_oms" xml:space="preserve"><value>Learn more about OMS</value></data>
+  <data name="learn_more_about_oms_tooltip" xml:space="preserve"><value>Visit the OMS GitHub repository and project overview.</value></data>
+</root>
