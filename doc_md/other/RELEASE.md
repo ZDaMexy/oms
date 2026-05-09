@@ -16,6 +16,7 @@
 ```
 
 `build-release.ps1` 内部仍执行 single-file self-contained `dotnet publish`，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini`，清理非运行时杂项后再打包到 `release-repo/oms_YYYYMMDD(.zip)`。
+当前 single-file 发行参数必须同时保留 `IncludeNativeLibrariesForSelfExtract=true` 与 `IncludeAllContentForSelfExtract=true`；若回退成只抽原生库，fresh extract 的便携发行物可能会出现“首次运行先创建 `data/`，随后无窗退出”的冷启动失败。
 同时会在发行根目录额外生成一份中英双语的 `how to update.txt`，说明手动覆盖更新的正确步骤与注意事项。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
@@ -91,6 +92,14 @@
 
 - `OsuStorage` 支持通过游戏内迁移流程写入 `storage.ini`，把全部运行时数据迁移到单一自定义数据根
 
+### 游戏内更改数据目录位置
+
+- `Settings -> 常规 -> 安装位置 -> 更改数据目录位置` 只会切换或迁移运行时数据根，不会移动 `osu!.exe` 或其他程序文件。
+- 如果选择的是空目录，当前数据内容会直接迁入该目录。
+- 如果选择的目录里已有无关文件，OMS 会改用其下的 `oms/` 子目录作为目标数据根，避免把现有文件和游戏数据混在同一层。
+- 如果选择的目录本身已经是可用的 OMS 数据目录，OMS 不会重复复制文件，而是写入 `storage.ini` 并在重启后切换过去。
+- 便携 build 也遵循同一规则；一旦切到新的数据根，原先同级的 `data/` 目录就不再是当前运行时数据位置。
+
 ### 谱库扫描操作口径
 
 - 无论是便携模式还是非便携模式，当前数据根下的 `chartbms/` 与 `chartmania/` 都属于 OMS 托管谱库目录。
@@ -134,6 +143,8 @@
 ```powershell
 .\SmokeTestDesktop.ps1        # 8 秒非交互启动验证
 ```
+
+2026-05-09 已复核：修正 single-file 自解压参数后，新解压的便携发行包冷启动恢复正常；Release smoke test 也已通过。
 
 ## 在线功能状态
 

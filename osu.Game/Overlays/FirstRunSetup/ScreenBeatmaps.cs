@@ -21,7 +21,7 @@ using Realms;
 
 namespace osu.Game.Overlays.FirstRunSetup
 {
-    [LocalisableDescription(typeof(FirstRunSetupBeatmapScreenStrings), nameof(FirstRunSetupBeatmapScreenStrings.Header))]
+    [LocalisableDescription(typeof(FirstRunSetupBeatmapOmsStrings), nameof(FirstRunSetupBeatmapOmsStrings.Header))]
     public partial class ScreenBeatmaps : WizardScreen
     {
         private OsuTextFlowContainer currentlyLoadedBeatmaps = null!;
@@ -51,7 +51,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                 new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                 {
                     Colour = OverlayColourProvider.Content1,
-                    Text = FirstRunSetupBeatmapScreenStrings.Description,
+                    Text = FirstRunSetupBeatmapOmsStrings.Description,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },
@@ -71,7 +71,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                         },
                     }
                 },
-                createSectionHeader(FirstRunSetupBeatmapScreenStrings.ManiaHeader),
+                createSectionHeader(FirstRunSetupBeatmapOmsStrings.ManiaHeader),
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
@@ -80,23 +80,23 @@ namespace osu.Game.Overlays.FirstRunSetup
                     Spacing = new Vector2(12),
                     Children = new Drawable[]
                     {
-                        createLinkButton(FirstRunSetupBeatmapScreenStrings.ManiaOfficialButton, maniaOfficialUrl, buttonSize, colours.Pink3),
-                        createLinkButton(FirstRunSetupBeatmapScreenStrings.ManiaSayobotButton, maniaSayobotUrl, buttonSize, colours.Purple2),
+                        createLinkButton(FirstRunSetupBeatmapOmsStrings.ManiaOfficialButton, maniaOfficialUrl, buttonSize, colours.Pink3),
+                        createLinkButton(FirstRunSetupBeatmapOmsStrings.ManiaSayobotButton, maniaSayobotUrl, buttonSize, colours.Purple2),
                     }
                 },
-                createSectionHeader(FirstRunSetupBeatmapScreenStrings.BmsHeader),
-                createLinkButton(FirstRunSetupBeatmapScreenStrings.BmsDownloadButton, bmsDownloadUrl, buttonSize, colours.Blue3),
+                createSectionHeader(FirstRunSetupBeatmapOmsStrings.BmsHeader),
+                createLinkButton(FirstRunSetupBeatmapOmsStrings.BmsDownloadButton, bmsDownloadUrl, buttonSize, colours.Blue3),
                 new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                 {
                     Colour = OverlayColourProvider.Content1,
-                    Text = FirstRunSetupBeatmapScreenStrings.ImportInstructions,
+                    Text = FirstRunSetupBeatmapOmsStrings.ImportInstructions,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },
                 new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: 12))
                 {
                     Colour = OverlayColourProvider.Content2,
-                    Text = FirstRunSetupBeatmapScreenStrings.ExternalLinkDisclaimer,
+                    Text = FirstRunSetupBeatmapOmsStrings.ExternalLinkDisclaimer,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },
@@ -118,7 +118,7 @@ namespace osu.Game.Overlays.FirstRunSetup
 
         private void beatmapsChanged(IRealmCollection<BeatmapSetInfo> sender, ChangeSet? changes) => Schedule(() =>
         {
-            currentlyLoadedBeatmaps.Text = FirstRunSetupBeatmapScreenStrings.CurrentlyLoadedBeatmaps(sender.Count);
+            currentlyLoadedBeatmaps.Text = FirstRunSetupBeatmapOmsStrings.CurrentlyLoadedBeatmaps(sender.Count);
 
             if (sender.Count == 0)
             {

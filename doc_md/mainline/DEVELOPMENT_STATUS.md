@@ -25,7 +25,7 @@
 - **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`外部谱库`、`内部谱库`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；`外部谱库` / `内部谱库` 当前也已走同一条 ruleset-specific hierarchical grouping 管线，不再依赖 `DifficultyTable` 专用特判。该功能面已按主线收口，剩余仅为 `P1-G` 下的 Song Select UI 人工展开验收与后续测试回归。
 - **BMS 选歌排序**：Song Select 当前已使用 ruleset-specific 8 项排序：`标题`、`曲师`、`BPM`、`时长`、`星数`、`点灯状态`、`达成率`、`miss 数`；其中本地成绩派生项的显示标签已明确改用 BMS 专用文案，不再回落到通用 `Clear Lamp` / `准度要求`，mania 不受影响。
 - **BMS 选歌 BPM 显示**：Song Select 左上 BPM 统计现已按 imported chart 的真实 timing data 显示；`BmsImportedBeatmapFactory` 会把首次转换得到的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 raw wrapper，使 `BeatmapTitleWedge` 这类 raw working beatmap consumer 不再回退到默认 `60 BPM`。BPM 分组与排序仍继续使用 persisted `BeatmapInfo.BPM`，两条链当前已不再失配。
-- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。`BeatmapSetInfo` 现还会持久化 `ExternalLibraryRootPath`，把 external root snapshot 固定到 beatmap set 上，供 `外部谱库` 分组与后续 fallback 使用。
+- **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。`BeatmapSetInfo` 现还会持久化 `ExternalLibraryRootPath`，把 external root snapshot 固定到 beatmap set 上，供 `外部谱库` 分组与后续 fallback 使用。Settings → 常规 → 安装位置 现已把入口明确为 `更改数据目录位置`：选择空目录时会把当前数据内容直接迁入所选目录；若所选目录已有无关文件，则会改用其下 `oms/` 子目录；若所选目录本身已是可用数据目录，则只写入 `storage.ini` 并在重启后切换。整个流程只改变运行时数据根，不移动程序文件。
 - **BMS 难度表来源管理**：Settings → 游戏模式 → BMS → 难度表 当前统一支持本地目录、`index.html`、`header.json`、表体 json 与 `http/https` URL；seeded preset 会按 `source_name` / `display_name` 自动认领现有预置来源；移除已导入 preset 时会清空来源并恢复隐藏占位，而不是删除内置 preset；导入或刷新失败时，设置页与首次启动页都会显示中文分类原因。
 - **BMS 难度表当前状态**：`manager-owned metadata sync`、`RefreshAll` 真实结果合同与 `wrapper/source identity fallback` 三批修补已落地；在此基础上，响应性后置已继续推进两刀：persisted metadata 回写已从“单次全量重写所有 BMS 谱面”收窄成“按受影响 MD5 集合分批写入”，`RefreshAll` 也已补上逐源进度合同和 settings 页持续反馈；同时，internal / external rebuild 命中旧 beatmap set 时也会重新套用当前难度表 metadata。当前这轮工程修补已可收尾；若后续现场仍见 `Unrated`，优先进入原始 `.bms` 字节 MD5 差异诊断，而不是继续怀疑 Song Select 分组消费面。
 - **首次启动向导**：首次启动设置当前已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 BMS 难度表管理器按分组导入 zris 预设 URL，并在多项失败时显示中文摘要；最终页复用全局、mania 与 BMS 的按键绑定 subsection。
@@ -69,14 +69,14 @@
 | Phase 1 完成率 | 70.6% (12/17) | 仅按标记"已完成"项计算 |
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
-| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -t:Rebuild -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 退出码 0（2026-04-25） |
+| 桌面端构建 | 通过 | `dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 退出码 0（2026-05-09） |
 | BMS 全量测试 | **706/706** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-04-24） |
 | Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
 | BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
 | Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`（2026-04-25） |
 | Scratch bridge | **43/43** | `TestSceneOmsScratchGameplayBridge` 最近一次快照（2026-04-24） |
 | osu.Game.Tests gate | **18/18** | `ExternalLibraryScannerTest` / `TestSceneFirstRunSetupOverlay` / `TestSceneFirstRunScreenImportFromStable` / `TestSettingsMigration`（2026-04-25） |
-| 编译器诊断残留 | 13 | `osu.Game` 11 个 warning（`CS1574`、`OLOC002/OLOC003`、`AD0001`）+ `osu.Game.Rulesets.Bms.Tests` 2 个 warning（`CS8600`、`CA2007`） |
+| 编译器诊断残留 | 0 | 当前 Release 构建已清零；`CS1574`、本地化 OLOC、`AD0001` 兼容性问题均已处理，SharpCompress GHSA 通过 `NuGetAuditSuppress` 做定点抑制（2026-05-09） |
 
 ## 最近一次验证
 
@@ -84,11 +84,11 @@
 
 ### 2026-05-09
 
-- **范围**：收口当前工作区里与 `.venv` 相关的终端自动化碰撞，避免 VS Code 直接点 Run 执行 `build-release.ps1` 时，PowerShell 新终端又被 Python 扩展自动激活打断前台 `dotnet publish`。
-- **本轮修正**：工作区级 [../../.vscode/settings.json](../../.vscode/settings.json) 现已显式设置 `python.terminal.activateEnvironment = false`。当前仓库没有 Python 源文件、`pyproject.toml`、`requirements.txt` 或 Python 任务，这个 `.venv` 不属于 OMS 正式构建 / 测试 / 发行链，因此关闭自动激活不会影响主工作流。
-- **本轮验证**：已复核工作区 [../../.vscode/settings.json](../../.vscode/settings.json) 生效且无错误；仓库级 `.vscode/settings.json` 与 `.vscode/tasks.json` 未发现 Python 任务或项目级 Python 工具链依赖，当前 `.venv` 自动激活行为确认为终端宿主侧附加行为，而非项目正式要求。
-- **诊断结果**：此前 `build-release.ps1` 首次运行时出现的“正在尝试取消生成...”并非真实编译失败，而是同一新终端被 `.venv` 激活命令插入后打断前台构建。当前工作区已在源头关闭这一自动化碰撞。
-- **说明**：同日稍早的发行包更新说明、覆盖更新审计与版本兼容护栏快照继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
+- **范围**：收口 single-file 发行包冷启动、Release 构建告警清零，以及数据目录迁移入口的产品文案与交互语义。
+- **本轮修正**：`build-release.ps1` 现已为 single-file publish 显式加入 `IncludeAllContentForSelfExtract=true`；OMS-owned localisation 已从混合 helper 的 `*Strings.cs` 中拆分并修正 XMLDoc / `.resx` 对齐，消除 `CS1574`、OLOC 与 `AD0001`；Settings → 常规 → 安装位置 已改为以 `更改数据目录位置` 描述真实行为，并补充空目录、非空目录与现有数据目录三类结果说明。
+- **本轮验证**：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过，当前为 `0 warning / 0 error`；`.\SmokeTestDesktop.ps1 -Configuration Release -WaitSeconds 8` 通过；迁移相关 UI 文案改动后，`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- **诊断结果**：此前“首次运行先创建 data/ 后无窗退出”的问题来自 single-file 发行物未强制完整自解压，并非用户操作错误；设置页该入口实际只切换/迁移运行时数据根，不移动程序文件。
+- **说明**：`.venv` 终端自动激活、覆盖更新说明与版本兼容护栏等同日补充信息继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
 
 ## 联网约束
 
@@ -170,7 +170,7 @@
 | 事项 | 状态 |
 | --- | --- |
 | 1.5 桌面端拖放导入 / Song Select UI 验收（含外部谱库 / 内部谱库分组展开与 fallback） | 待做 |
-| 桌面端真实 UI smoke test | 待做 |
+| 桌面端真实 UI smoke test | 已完成 |
 | 便携发行物实际运行与覆盖更新验证 | 已完成 |
 
 说明：Release publish 后 `portable.ini` 已验证会触发 `data/` 自动生成，目录结构正确；当前覆盖更新路径也已复核通过，但需要在程序完全退出后替换文件，并保留 `portable.ini`、便携模式下的 `data/` 以及任何自定义数据根使用的 `storage.ini`。
@@ -205,7 +205,7 @@
 - **upstream 默认皮肤移除**：runtime fallback 已大部分收口到 OMS；剩余公开发行物剥离与 partial override 全路径收口
 - **osu.Game.Tests 稳定性**：6/6 已恢复；后续扩大范围应沿 csproj exclusion 清单逐步清退
 - **1.6 真实谱面长条验校**：Phase 1 最贴近玩法质量的剩余项
-- **便携发行物实机验证**：portable.ini → data/ 已验证；剩余：内置皮肤发行门槛
+- **便携发行物实机验证**：portable.ini → data/ 与 single-file 冷启动已验证；剩余：内置皮肤发行门槛
 
 ### 中优先级
 
@@ -217,7 +217,7 @@
 
 ### 低优先级
 
-（当前无低优先级功能遗留；构建已确认 0 error，但 `Rebuild` 仍有 13 个 warning）
+（当前无低优先级功能遗留；Release 构建已确认 `0 warning / 0 error`）
 
 ## 更新约定
 

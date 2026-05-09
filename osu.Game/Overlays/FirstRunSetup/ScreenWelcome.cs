@@ -45,7 +45,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                         {
                             new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                             {
-                                Text = FirstRunSetupOverlayStrings.WelcomeDescription,
+                                Text = FirstRunSetupOverlayOmsStrings.WelcomeDescription,
                                 RelativeSizeAxes = Axes.X,
                                 AutoSizeAxes = Axes.Y
                             },

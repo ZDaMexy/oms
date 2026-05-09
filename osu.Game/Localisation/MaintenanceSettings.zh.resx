@@ -4,12 +4,18 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="maintenance_section_header" xml:space="preserve"><value>维护</value></data>
   <data name="select_directory" xml:space="preserve"><value>选择目录</value></data>
+  <data name="use_selected_location" xml:space="preserve"><value>使用这个文件夹</value></data>
   <data name="migration_in_progress" xml:space="preserve"><value>迁移进行中</value></data>
   <data name="migration_description" xml:space="preserve"><value>这可能需要几分钟，具体取决于你的磁盘速度。</value></data>
   <data name="prohibited_interact_during_migration" xml:space="preserve"><value>请避免与游戏交互！</value></data>
-  <data name="select_new_location" xml:space="preserve"><value>请选择新位置</value></data>
-  <data name="target_directory_already_installed_osu" xml:space="preserve"><value>目标目录似乎已经有一个 osu! 安装。要直接使用其中的数据吗？</value></data>
-  <data name="restart_and_re_open_required_for_completion" xml:space="preserve"><value>要完成此操作，osu! 将会关闭。请重新打开以使用新的数据位置。</value></data>
+  <data name="select_new_location" xml:space="preserve"><value>选择新的数据目录</value></data>
+  <data name="data_directory_location_help" xml:space="preserve"><value>请选择一个文件夹作为新的数据保存位置。
+程序文件位置不会变化。
+空文件夹：当前 data 目录中的内容会直接迁移到这里。
+有其他文件、暂时不能直接作为数据目录：会在这里新建 oms 子文件夹，最终数据会迁移到这个子文件夹中。
+已经可以直接作为数据目录：不会复制文件，重启后会直接使用这个目录。</value></data>
+  <data name="target_directory_already_installed_osu" xml:space="preserve"><value>这个文件夹已经可以直接作为数据目录。要直接使用它吗？不会复制文件。</value></data>
+  <data name="restart_and_re_open_required_for_completion" xml:space="preserve"><value>为了完成数据目录切换，程序现在会关闭。重新打开后将使用这个文件夹。</value></data>
   <data name="delete_all_internal_beatmaps" xml:space="preserve"><value>删除所有内部谱面（删除文件）</value></data>
   <data name="delete_all_internal_beatmaps_with_count" xml:space="preserve"><value>删除所有内部谱面（删除文件） [{0}]</value></data>
   <data name="delete_all_external_beatmaps" xml:space="preserve"><value>删除所有外部谱面（仅删除引用）</value></data>

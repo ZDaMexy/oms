@@ -12,7 +12,7 @@ using osu.Game.Overlays.Settings.Sections.Maintenance;
 
 namespace osu.Game.Overlays.FirstRunSetup
 {
-    [LocalisableDescription(typeof(FirstRunOverlayImportFromStableScreenStrings), nameof(FirstRunOverlayImportFromStableScreenStrings.Header))]
+    [LocalisableDescription(typeof(FirstRunOverlayImportFromStableOmsStrings), nameof(FirstRunOverlayImportFromStableOmsStrings.Header))]
     public partial class ScreenImportFromStable : WizardScreen
     {
         [BackgroundDependencyLoader]
@@ -23,7 +23,7 @@ namespace osu.Game.Overlays.FirstRunSetup
                 new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: CONTENT_FONT_SIZE))
                 {
                     Colour = OverlayColourProvider.Content1,
-                    Text = FirstRunOverlayImportFromStableScreenStrings.Description,
+                    Text = FirstRunOverlayImportFromStableOmsStrings.Description,
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y
                 },

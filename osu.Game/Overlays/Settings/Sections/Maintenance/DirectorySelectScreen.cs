@@ -3,6 +3,7 @@
 
 #nullable disable
 
+using System.Collections.Generic;
 using osu.Framework.Graphics;
 using System.IO;
 using osu.Framework.Allocation;
@@ -29,6 +30,21 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
         /// Text to display in the header to inform the user of what they are selecting.
         /// </summary>
         public abstract LocalisableString HeaderText { get; }
+
+        /// <summary>
+        /// Optional explanatory text shown below the header.
+        /// </summary>
+        protected virtual bool ShowDescription => false;
+
+        /// <summary>
+        /// Explanatory text shown below the header when <see cref="ShowDescription"/> is true.
+        /// </summary>
+        protected virtual LocalisableString DescriptionText => default;
+
+        /// <summary>
+        /// The text displayed on the confirm button.
+        /// </summary>
+        protected virtual LocalisableString SelectionButtonText => MaintenanceSettingsStrings.SelectDirectory;
 
         /// <summary>
         /// Called upon selection of a directory by the user.
@@ -82,17 +98,7 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                         {
                             new Drawable[]
                             {
-                                new OsuTextFlowContainer(cp =>
-                                {
-                                    cp.Font = OsuFont.Default.With(size: 24);
-                                })
-                                {
-                                    Text = HeaderText,
-                                    TextAnchor = Anchor.TopCentre,
-                                    Margin = new MarginPadding(10),
-                                    RelativeSizeAxes = Axes.X,
-                                    AutoSizeAxes = Axes.Y,
-                                }
+                                createHeaderContent()
                             },
                             new Drawable[]
                             {
@@ -109,13 +115,54 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                                     Origin = Anchor.Centre,
                                     Width = 300,
                                     Margin = new MarginPadding(10),
-                                    Text = MaintenanceSettingsStrings.SelectDirectory,
+                                    Text = SelectionButtonText,
                                     Action = () => OnSelection(directorySelector.CurrentPath.Value)
                                 },
                             }
                         }
                     }
                 }
+            };
+        }
+
+        private Drawable createHeaderContent()
+        {
+            var children = new List<Drawable>
+            {
+                new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: 24))
+                {
+                    Text = HeaderText,
+                    TextAnchor = Anchor.TopCentre,
+                    Margin = new MarginPadding(10),
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                }
+            };
+
+            if (ShowDescription)
+            {
+                children.Add(new OsuTextFlowContainer(cp => cp.Font = OsuFont.Default.With(size: 16))
+                {
+                    Text = DescriptionText,
+                    TextAnchor = Anchor.TopLeft,
+                    Colour = colourProvider.Content2,
+                    Margin = new MarginPadding
+                    {
+                        Left = 20,
+                        Right = 20,
+                        Bottom = 10,
+                    },
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                });
+            }
+
+            return new FillFlowContainer
+            {
+                RelativeSizeAxes = Axes.X,
+                AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Children = children.ToArray(),
             };
         }
 

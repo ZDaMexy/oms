@@ -126,7 +126,7 @@ namespace osu.Game.Screens.Play
 
         /// <summary>
         /// Marks the container as unpaused without starting the underlying gameplay clock.
-        /// This allows components such as <see cref="FrameStabilityContainer"/> to process
+        /// This allows components such as <see cref="osu.Game.Rulesets.UI.FrameStabilityContainer"/> to process
         /// their children (rendering the playfield) while the actual clock position remains
         /// unchanged.
         /// </summary>

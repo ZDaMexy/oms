@@ -1,6 +1,6 @@
 # P1-H 开发进度：存储拓扑支撑线
 
-> 最后更新：2026-05-08
+> 最后更新：2026-05-09
 
 ## 当前阶段
 
@@ -9,6 +9,7 @@
 - `OsuGameDesktop` 已把 BMS / mania 两类根目录注册进 managed library scanner；当前内部托管谱库补扫路径已修复尾部分隔符误判，合法的 managed 子目录不会再因为 `IsSubDirectory()` 比较口径不一致而被拒绝。
 - `Settings -> Maintenance` 现已从原先“外部谱库 subsection 混放外部/内部扫描”改为 `外部谱库` / `内部谱库` 双 subsection；内部两种扫描语义已完成层级隔离。
 - `ExternalLibrarySettings` 现也被首次启动向导导入页直接复用，作为 OMS onboarding 的外部谱库导流入口；该入口不新增任何独立扫描逻辑，仍共享 `P1-H` 的外部谱库 contract。
+- Settings → 常规 → 安装位置 当前已把入口明确为 `更改数据目录位置`；它只切换/迁移运行时数据根，不移动程序文件。空目录会直接迁入当前数据内容，非空非数据目录会改用其下 `oms/` 子目录，已是可用数据目录则只写 `storage.ini` 并在重启后切换。
 - 当前另有一条已正式归线的 `P1-H` 修补专题：**BMS 难度表一致性与刷新合同**。其中前三批 correctness 修补已经落地：manager-owned metadata sync、`RefreshAll` 真实结果合同、以及 wrapper/source identity fallback 均已接通并经聚焦回归验证；与此同时，响应性后置与 reuse 自愈也已继续推进：persisted metadata 回写已改为按受影响 MD5 集合分批写入，`RefreshAll` 已补齐逐源进度合同与 settings 页持续反馈，旧 beatmap set 在 rebuild / reuse 命中时也会重新套用当前难度表 metadata。当前这轮工程修补已可收尾；若后续仍有 `Unrated` 反馈，优先进入现场 MD5 差异诊断，不再视为 consumer-side 分组缺口。
 - 当前还补了一条小型但正式归线的 raw-wrapper 显示合同修补：`BmsImportedBeatmapFactory` 现会把首次转换得到的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 raw wrapper，使 Song Select 左上 BPM 这类直接读取 `WorkingBeatmap.Beatmap` 的 raw consumer 不再回退到默认 `60 BPM`；BPM 分组 / 排序仍继续使用 persisted `BeatmapInfo.BPM`，本轮不改变其 authority。
 - 当前剩余重点已扩展为：删除 / 失效语义、path identity dedup / 重扫策略，以及难度表的后置后台任务化 / 取消策略与现场 MD5 诊断工具化。
@@ -27,6 +28,7 @@
 
 ## 验证记录
 
+- 2026-05-09：复核 Settings → 常规 → 安装位置 的数据目录迁移链路，并把入口文案收口为 `更改数据目录位置`；当前已明确三类结果说明：空目录直接迁入、非空非数据目录改用其下 `oms/` 子目录、已是可用数据目录则仅在重启后切换。`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 - 2026-05-08：修复 BMS imported raw wrapper 缺少 timing data 导致的 Song Select 左上 BPM 恒 `60` 问题；`BmsImportedBeatmapFactory` 现会把首次 conversion 的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 `BmsDecodedBeatmap`。新增 `BmsImportIntegrationTest.TestLoaderPopulatesTimingDataForSongSelectDisplays()`；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsImportIntegrationTest"` **23/23** 通过。
 - 2026-04-29：完成 BMS 难度表链路审查与 `P1-H` 归线建档；当前确认的下一轮高价值修补顺序为 `既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。本轮仅更新文档与约束，未新增代码或测试执行。
 - 2026-04-29：完成难度表前三批 correctness 修补：`BmsDifficultyTableManager` 已收回 persisted beatmap metadata 回写 authority，`RefreshAllTables()` 已改为返回结构化结果并驱动 settings 页区分全成功 / 部分成功 / 全失败，缺省 `name` 的 remote html wrapper 也已恢复稳定 fallback identity 与 preset 认领。聚焦回归 **10/10** 通过。

@@ -3,6 +3,7 @@
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="open_oms_folder" xml:space="preserve"><value>Open OMS folder</value></data>
+  <data name="change_data_directory_location" xml:space="preserve"><value>Change data directory...</value></data>
   <data name="run_setup_wizard_tooltip" xml:space="preserve"><value>Quickly adjust important OMS settings.</value></data>
   <data name="learn_more_about_oms" xml:space="preserve"><value>Learn more about OMS</value></data>
   <data name="learn_more_about_oms_tooltip" xml:space="preserve"><value>Visit the OMS GitHub repository and project overview.</value></data>

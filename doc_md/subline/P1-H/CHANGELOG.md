@@ -1,5 +1,13 @@
 # P1-H 变动日志
 
+## 2026-05-09
+
+### 数据目录迁移入口改为按真实语义描述
+
+- Settings → 常规 → 安装位置 现已把入口明确为 `更改数据目录位置`，不再误导成移动程序文件；迁移选择页也已直接说明三类结果：空目录直接迁入、非空非数据目录改用其下 `oms/` 子目录、已是可用数据目录则仅在重启后切换。
+- 这次收口明确了 `P1-H` 当前的 runtime authority：该入口只改变运行时数据根，最终通过 `storage.ini` / 数据迁移链切换，不会移动 `osu!.exe` 所在目录。
+- 验证：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-05-08
 
 ### BMS imported raw wrapper 复用 timing 数据，修复 Song Select 左上 BPM 恒 60

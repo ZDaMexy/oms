@@ -4,6 +4,14 @@
 
 ## 2026-05-09
 
+### shared installation surface 跟进：数据目录迁移入口与结果说明收口
+
+- Settings → 常规 → 安装位置 现已把入口明确为 `更改数据目录位置`，不再把实际只切换/迁移运行时数据根的功能误写成移动程序文件。
+- 迁移选择页当前会直接说明三类结果：空目录直接迁入、非空非数据目录改用其下 `oms/` 子目录、已是可用数据目录则仅在重启后切换；这条产品面合同也已同步到 Release / 主线 / `P1-H` 文档口径。
+- 验证：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+## 2026-05-09
+
 ### shared settings-entry surface 跟进：osu!mania 滚动速度提示收口为参考值
 
 - `ManiaSettingsSubsection` 现已为 `滚动速度` slider 补上 hover 提示，明确括号毫秒只代表标准车道几何下的参考下落时间。

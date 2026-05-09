@@ -42,13 +42,13 @@ namespace osu.Game.Overlays.Settings.Sections.General
                 {
                     Text = GeneralSettingsStrings.RunSetupWizard,
                     Keywords = new[] { @"first run", @"initial", @"getting started", @"import", @"tutorial", @"recommended beatmaps" },
-                    TooltipText = GeneralSettingsStrings.RunSetupWizardTooltip,
+                    TooltipText = GeneralSettingsOmsStrings.RunSetupWizardTooltip,
                     Action = () => firstRunSetupOverlay?.Show(),
                 },
                 new SettingsButtonV2
                 {
-                    Text = GeneralSettingsStrings.LearnMoreAboutOms,
-                    TooltipText = GeneralSettingsStrings.LearnMoreAboutOmsTooltip,
+                    Text = GeneralSettingsOmsStrings.LearnMoreAboutOms,
+                    TooltipText = GeneralSettingsOmsStrings.LearnMoreAboutOmsTooltip,
                     BackgroundColour = colours.YellowDark,
                     Action = () => game?.OpenUrlExternally(oms_repository_url, LinkWarnMode.NeverWarn)
                 },

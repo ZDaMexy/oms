@@ -18,6 +18,7 @@
 - 当前 tri-mode Hi-Speed surface 已完成首轮产品接线：`Normal` 走默认 settings surface，`Floating` 提供 initial-BPM anchored runtime surface，`Classic` 继续锁定 `HS 10 + WN 350 => GN 300`；这仍不等价于完整 FHS。
 - settings 页现显示 mode + value，并在数值后括号显示不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；`GreenNumber` 仍不进入 settings，而继续留在 gameplay feedback 链。
 - `osu!mania` settings 页的 `滚动速度` hover 提示当前也已明确为参考值说明：括号毫秒只代表标准车道几何下的参考下落时间，不作为跨皮肤或跨 ruleset 的严格体感合同；更换 mania 皮肤后应重新校准，且 mania / BMS 的下落时间不可交叉参考。
+- Settings → 常规 → 安装位置 当前已把入口明确为 `更改数据目录位置`；选择空目录时会直接迁入当前数据内容，非空非数据目录会改用其下 `oms/` 子目录，若所选目录本身已是可用数据目录则只在重启后切换。该产品面只切换/迁移运行时数据根，不移动程序文件。
 - `键音通道数` 当前也已作为 BMS settings surface 的独立滑条公开 shared `BmsKeysoundStore` ceiling，范围 `1..256`，默认 `32`；hover 提示会直接说明低值截音风险、高值负载取舍，以及缺音时优先上调到 `48/64` 的调参路径。
 - BMS mod 选中状态与非默认配置现按 ruleset-local JSON snapshot 记忆，仅作用于 BMS；切到 mania 再切回或完全重启后仍恢复。
 - 启动早期若 `RulesetConfigCache` 尚未 ready，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再做 BMS restore；这条 host-boundary 合同同时修复了冷启动首轮漏恢复与误报 ruleset failure。
@@ -67,6 +68,7 @@
 
 ## 验证记录
 
+- 2026-05-09：shared installation surface 当前已把入口改为 `更改数据目录位置`，并在迁移选择页明确空目录、非空目录与现有数据目录三类结果说明。`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 - 2026-04-28：新增 `TestSceneBmsPreStartHiSpeedOverlay` owner contract coverage，直接锁住 pre-start overlay 的 tri-mode 文案格式与“仅在 overlay 可见时响应 odd/even lane 调速”的组件合同；`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~TestSceneBmsPreStartHiSpeedOverlay" --configuration Release` **3/3** 通过。
 - 2026-04-28：扩展 `TestSceneBmsSoloPlayerPreStart`，新增“delay 到期但 hold 仍按住时继续可调速”与“overlay mode/value 在真实 player flow 中反映当前 hi-speed surface”回归；同时明确提前松开后应以 `SelectedHiSpeed` 不变作为 authority，而不是把 routed key press 返回值当唯一判断。`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart" --configuration Release` **8/8** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 - 2026-04-23：首次启动向导收口为六步 OMS flow，并修复手动重开向导时旧 behaviour page 的 blank panel / unhandled error。`FirstRunSetupOverlay` 新增 `ScreenKeyBindings`，`ScreenImportFromStable` 直接复用 `ExternalLibrarySettings`，`ScreenBehaviour` 以反射接入 `BmsDifficultyTableManager`，欢迎 / 获取谱面 / 导入页切到 OMS-owned localisation namespace + `.resx`。`dotnet test osu.Game.Tests --filter "FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable" --configuration Release` **11/11** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。

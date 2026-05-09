@@ -59,5 +59,7 @@
   <ItemGroup Label="NuGet Audit">
     <!-- AutoMapper 15.1.1+ fixes GHSA-rvv3-g6hj-g44x, but current usage is depth-limited and 15.x introduces license/API migration work. -->
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-rvv3-g6hj-g44x" />
+    <!-- GHSA-6c8g-7p36-r338 affects SharpCompress IArchive.WriteToDirectory()/WriteToDirectoryAsync(). OMS runtime paths use stream-based archive readers instead, and no patched SharpCompress release exists yet. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-6c8g-7p36-r338" />
   </ItemGroup>
 </Project>

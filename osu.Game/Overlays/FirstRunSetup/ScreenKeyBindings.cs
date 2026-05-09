@@ -19,7 +19,7 @@ using osu.Game.Rulesets;
 
 namespace osu.Game.Overlays.FirstRunSetup
 {
-    [LocalisableDescription(typeof(FirstRunSetupOverlayStrings), nameof(FirstRunSetupOverlayStrings.KeyBindingSetupTitle))]
+    [LocalisableDescription(typeof(FirstRunSetupOverlayOmsStrings), nameof(FirstRunSetupOverlayOmsStrings.KeyBindingSetupTitle))]
     public partial class ScreenKeyBindings : WizardScreen
     {
         private readonly Bindable<string> currentScope = new Bindable<string>();

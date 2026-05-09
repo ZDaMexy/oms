@@ -2,6 +2,14 @@
 
 ## 2026-05-09
 
+### single-file 发行物补齐完整自解压并复核冷启动
+
+- `build-release.ps1` 现已在 `PublishSingleFile=true` 之外显式保留 `IncludeAllContentForSelfExtract=true`，避免 fresh extract 的便携发行物首次运行只创建 `data/` 后就无窗退出。
+- 这次修正不改变当前离线便携发布策略：正式发行物仍是 `oms_YYYYMMDD(.zip)`、`portable.ini -> data/` 与手工覆盖更新，只是把 single-file 冷启动合同补回到可发布状态。
+- 验证：重新执行 ` .\build-release.ps1 ` 后，新解压的便携 zip 冷启动通过；`.\SmokeTestDesktop.ps1 -Configuration Release -WaitSeconds 8` 通过。
+
+## 2026-05-09
+
 ### 工作区关闭 Python 终端自动激活以稳定发行脚本运行
 
 - 工作区级 `.vscode/settings.json` 现已加入 `python.terminal.activateEnvironment = false`，避免 VS Code 直接点 Run 执行 `build-release.ps1` 时，新 PowerShell 终端又被 `.venv` 自动激活命令打断。

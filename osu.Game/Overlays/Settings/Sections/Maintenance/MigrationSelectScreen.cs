@@ -38,6 +38,12 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
 
         public override LocalisableString HeaderText => MaintenanceSettingsStrings.SelectNewLocation;
 
+        protected override bool ShowDescription => true;
+
+        protected override LocalisableString DescriptionText => MaintenanceSettingsStrings.DataDirectoryLocationHelp;
+
+        protected override LocalisableString SelectionButtonText => MaintenanceSettingsStrings.UseSelectedLocation;
+
         protected override void OnSelection(DirectoryInfo directory)
         {
             var target = directory;

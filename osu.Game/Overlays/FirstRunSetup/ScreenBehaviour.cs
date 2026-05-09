@@ -26,7 +26,7 @@ using osuTK.Graphics;
 
 namespace osu.Game.Overlays.FirstRunSetup
 {
-    [LocalisableDescription(typeof(FirstRunSetupOverlayStrings), nameof(FirstRunSetupOverlayStrings.DifficultyTableSetupTitle))]
+    [LocalisableDescription(typeof(FirstRunSetupOverlayOmsStrings), nameof(FirstRunSetupOverlayOmsStrings.DifficultyTableSetupTitle))]
     public partial class ScreenBehaviour : WizardScreen
     {
         private const string bmsDifficultyTableManagerTypeName = "osu.Game.Rulesets.Bms.DifficultyTable.BmsDifficultyTableManager";

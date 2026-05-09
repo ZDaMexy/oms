@@ -22,14 +22,14 @@ namespace osu.Game.Overlays.Settings.Sections.General
         {
             Add(new SettingsButtonV2
             {
-                Text = GeneralSettingsStrings.OpenOmsFolder,
+                Text = GeneralSettingsOmsStrings.OpenOmsFolder,
                 Keywords = new[] { @"logs", @"files", @"access", "directory" },
                 Action = () => storage.PresentExternally(),
             });
 
             Add(new DangerousSettingsButtonV2
             {
-                Text = GeneralSettingsStrings.ChangeFolderLocation,
+                Text = GeneralSettingsOmsStrings.ChangeDataDirectoryLocation,
                 Action = () => game?.PerformFromScreen(menu => menu.Push(new MigrationSelectScreen()))
             });
         }

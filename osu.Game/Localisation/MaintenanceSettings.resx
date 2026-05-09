@@ -4,12 +4,18 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="maintenance_section_header" xml:space="preserve"><value>Maintenance</value></data>
   <data name="select_directory" xml:space="preserve"><value>Select directory</value></data>
+  <data name="use_selected_location" xml:space="preserve"><value>Use this folder</value></data>
   <data name="migration_in_progress" xml:space="preserve"><value>Migration in progress</value></data>
   <data name="migration_description" xml:space="preserve"><value>This could take a few minutes depending on the speed of your disk(s).</value></data>
   <data name="prohibited_interact_during_migration" xml:space="preserve"><value>Please avoid interacting with the game!</value></data>
-  <data name="select_new_location" xml:space="preserve"><value>Please select a new location</value></data>
-  <data name="target_directory_already_installed_osu" xml:space="preserve"><value>The target directory already seems to have an osu! install. Use that data instead?</value></data>
-  <data name="restart_and_re_open_required_for_completion" xml:space="preserve"><value>To complete this operation, osu! will close. Please open it again to use the new data location.</value></data>
+  <data name="select_new_location" xml:space="preserve"><value>Choose a new data folder</value></data>
+  <data name="data_directory_location_help" xml:space="preserve"><value>Choose a folder for the new data location.
+Program files will stay where they are.
+Empty folder: the contents of the current data folder will be moved here directly.
+Folder with other files that cannot be used as a data folder yet: an oms subfolder will be created here, and the data will be moved into that subfolder.
+Folder that can already be used as a data folder: no files will be copied; the game will switch to this folder after restart.</value></data>
+  <data name="target_directory_already_installed_osu" xml:space="preserve"><value>This folder can already be used as a data folder. Switch to it directly? No files will be copied.</value></data>
+  <data name="restart_and_re_open_required_for_completion" xml:space="preserve"><value>The game will now close to finish switching the data folder. Reopen it afterwards to use this folder.</value></data>
   <data name="delete_all_internal_beatmaps" xml:space="preserve"><value>Delete ALL internal beatmaps (delete files)</value></data>
   <data name="delete_all_internal_beatmaps_with_count" xml:space="preserve"><value>Delete ALL internal beatmaps (delete files) [{0}]</value></data>
   <data name="delete_all_external_beatmaps" xml:space="preserve"><value>Delete ALL external beatmaps (remove references only)</value></data>

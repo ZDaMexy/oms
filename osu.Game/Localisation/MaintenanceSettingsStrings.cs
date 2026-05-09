@@ -20,6 +20,11 @@ namespace osu.Game.Localisation
         public static LocalisableString SelectDirectory => new TranslatableString(getKey(@"select_directory"), @"Select directory");
 
         /// <summary>
+        /// "Use this folder"
+        /// </summary>
+        public static LocalisableString UseSelectedLocation => new TranslatableString(getKey(@"use_selected_location"), @"Use this folder");
+
+        /// <summary>
         /// "Migration in progress"
         /// </summary>
         public static LocalisableString MigrationInProgress => new TranslatableString(getKey(@"migration_in_progress"), @"Migration in progress");
@@ -35,19 +40,28 @@ namespace osu.Game.Localisation
         public static LocalisableString ProhibitedInteractDuringMigration => new TranslatableString(getKey(@"prohibited_interact_during_migration"), @"Please avoid interacting with the game!");
 
         /// <summary>
-        /// "Please select a new location"
+        /// "Choose a new data folder"
         /// </summary>
-        public static LocalisableString SelectNewLocation => new TranslatableString(getKey(@"select_new_location"), @"Please select a new location");
+        public static LocalisableString SelectNewLocation => new TranslatableString(getKey(@"select_new_location"), @"Choose a new data folder");
 
         /// <summary>
-        /// "The target directory already seems to have an osu! install. Use that data instead?"
+        /// "Choose a folder for the new data location.
+        /// Program files will stay where they are.
+        /// Empty folder: the contents of the current data folder will be moved here directly.
+        /// Folder with other files that cannot be used as a data folder yet: an oms subfolder will be created here, and the data will be moved into that subfolder.
+        /// Folder that can already be used as a data folder: no files will be copied; the game will switch to this folder after restart."
         /// </summary>
-        public static LocalisableString TargetDirectoryAlreadyInstalledOsu => new TranslatableString(getKey(@"target_directory_already_installed_osu"), @"The target directory already seems to have an osu! install. Use that data instead?");
+        public static LocalisableString DataDirectoryLocationHelp => new TranslatableString(getKey(@"data_directory_location_help"), "Choose a folder for the new data location.\r\nProgram files will stay where they are.\r\nEmpty folder: the contents of the current data folder will be moved here directly.\r\nFolder with other files that cannot be used as a data folder yet: an oms subfolder will be created here, and the data will be moved into that subfolder.\r\nFolder that can already be used as a data folder: no files will be copied; the game will switch to this folder after restart.");
 
         /// <summary>
-        /// "To complete this operation, osu! will close. Please open it again to use the new data location."
+        /// "This folder can already be used as a data folder. Switch to it directly? No files will be copied."
         /// </summary>
-        public static LocalisableString RestartAndReOpenRequiredForCompletion => new TranslatableString(getKey(@"restart_and_re_open_required_for_completion"), @"To complete this operation, osu! will close. Please open it again to use the new data location.");
+        public static LocalisableString TargetDirectoryAlreadyInstalledOsu => new TranslatableString(getKey(@"target_directory_already_installed_osu"), @"This folder can already be used as a data folder. Switch to it directly? No files will be copied.");
+
+        /// <summary>
+        /// "The game will now close to finish switching the data folder. Reopen it afterwards to use this folder."
+        /// </summary>
+        public static LocalisableString RestartAndReOpenRequiredForCompletion => new TranslatableString(getKey(@"restart_and_re_open_required_for_completion"), @"The game will now close to finish switching the data folder. Reopen it afterwards to use this folder.");
 
         /// <summary>
         /// "Delete ALL internal beatmaps (delete files)"

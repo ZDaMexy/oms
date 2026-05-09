@@ -7,6 +7,24 @@
 
 ## 2026-05-09
 
+### P1-F / Shared：single-file 发行包补齐完整自解压并复核冷启动
+
+- `build-release.ps1` 现已在 `PublishSingleFile=true` 之外显式保留 `IncludeAllContentForSelfExtract=true`，避免 fresh extract 的便携发行物首次运行只创建初始 `data/` 后就无窗退出。
+- 本轮复核确认：问题根因在 single-file 发行物的自解压行为，而不在用户启动流程；修正后，新解压的便携 zip 可正常冷启动，程序窗口与运行期存活状态都已恢复。
+- 验证：重新执行 `.\build-release.ps1` 生成发行包后，fresh extract 冷启动通过；`.\SmokeTestDesktop.ps1 -Configuration Release -WaitSeconds 8` 通过。
+
+### Shared / Tooling：Release 构建告警已清零
+
+- 本轮把 VS Code “以非调试模式运行”路径下暴露的 15 条告警收口为 0：`GameplayClockContainer` 的 `CS1574`、多处 localisation OLOC、以及 `ppy.LocalisationAnalyser` 抛出的 `AD0001` 均已处理。
+- 根因上，OMS-owned localisation 文案已从混合 helper 的 `*Strings.cs` 中拆到独立类，统一回到分析器可识别的 `getKey()` 模式；同时 XMLDoc 摘要与 `.resx` fallback 也已重新严格对齐。
+- 验证：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过，当前为 `0 warning / 0 error`。
+
+### P1-A / P1-H：数据目录迁移入口文案与结果说明收口
+
+- Settings → 常规 → 安装位置 现已把入口明确为 `更改数据目录位置`，不再误导成移动程序文件；迁移选择页也已直接说明三类结果：空目录直接迁入、非空非数据目录改用其下 `oms/` 子目录、已是可用数据目录则仅在重启后切换。
+- 这次收口明确了该入口的真实 authority：它只切换/迁移运行时数据根，不移动程序文件；便携 build 选择新目录后，原同级 `data/` 也不再继续作为当前数据根。
+- 验证：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ### Workspace：关闭 Python 终端自动激活以避免打断发行脚本
 
 - 工作区级 [../../.vscode/settings.json](../../.vscode/settings.json) 现已加入 `python.terminal.activateEnvironment = false`，避免 VS Code 直接点 Run 执行 `build-release.ps1` 时，新 PowerShell 终端在前台 `dotnet publish` 过程中又被 `.venv` 自动激活命令打断。
