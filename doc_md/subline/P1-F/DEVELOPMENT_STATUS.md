@@ -21,7 +21,7 @@
 
 ## 验证记录
 
-- 沿用既有验证结论：Release publish 后 `portable.ini` 会触发 `data/` 自动生成，当前正式压缩包命名为 `oms_YYYYMMDD(.zip)`，并额外包含一份中英双语 `how to update.txt` 用于提示正确的手动覆盖更新步骤。
+- 沿用既有验证结论：Release publish 后 `portable.ini` 会触发 `data/` 自动生成，当前正式压缩包命名为 `oms_YYYYMMDD(.zip)`，并额外包含一份中英双语 `how to update.txt` 用于提示更精炼的手动覆盖更新步骤。
 - 本轮新增验证：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`，且 `publish/` 与 zip 根目录均已确认包含 `how to update.txt`。
 - 本轮补充审计：覆盖更新继续按“退出程序 -> 解压覆盖 -> 再启动”执行，不会触发 Velopack 或安装器自更新；便携模式需保留 `portable.ini` 与 `data/`，自定义数据根场景需保留 `storage.ini`。
 - 为未来可能的内部 OMS 版号切换补上了最小兼容护栏：`ChangelogOverlay.ShowBuild(string)` 与 `OsuConfigManager.Migrate()` 现已兼容不带上游 `-stream` 后缀的 `oms_YYYYMMDD` 版号。

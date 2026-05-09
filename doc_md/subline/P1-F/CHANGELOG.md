@@ -5,7 +5,7 @@
 ### 发行包新增中英双语 `how to update.txt`
 
 - `build-release.ps1` 现会在发行根目录生成 `how to update.txt`，并随 `oms_YYYYMMDD(.zip)` 一起打包。
-- 该文件同时提供中文与英文的手动覆盖更新步骤，以及当前离线更新链最关键的注意事项：先退出程序、保留 `portable.ini`、保留便携模式下的 `data/`，以及在自定义数据根场景保留 `storage.ini`。
+- 该文件同时提供中文与英文的手动覆盖更新步骤，并以更精炼的终端用户口径强调：先退出程序、覆盖整个压缩包内容，以及在便携模式下保留 `portable.ini` 与 `data/`。
 - `../../other/RELEASE.md` 与本子线状态文档已同步到“发行根目录额外包含一份中英双语手动更新说明”的口径。
 - 验证：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`，且 `publish/` 与 zip 根目录均已确认包含 `how to update.txt`。
 

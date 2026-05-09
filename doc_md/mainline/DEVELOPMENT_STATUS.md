@@ -85,7 +85,7 @@
 ### 2026-05-09
 
 - **范围**：在正式发行包中补入一份中英双语 `how to update.txt`，把当前手工覆盖更新的正确步骤与注意事项直接随包发布。
-- **本轮修正**：`build-release.ps1` 现会在发行根目录生成 `how to update.txt`，内容同时提供中文与英文的手动覆盖更新步骤，并明确保留 `portable.ini`、便携模式下的 `data/`，以及自定义数据根场景下的 `storage.ini`。发行说明与 `P1-F` 文档也已同步到“发行根目录额外包含该说明文件”的口径。
+- **本轮修正**：`build-release.ps1` 现会在发行根目录生成 `how to update.txt`，内容同时提供中文与英文的手动覆盖更新步骤，并用更精炼的终端用户口径强调“覆盖整个压缩包内容”以及“便携模式保留 `portable.ini` + `data/`”。发行说明与 `P1-F` 文档也已同步到“发行根目录额外包含该说明文件”的口径。
 - **本轮验证**：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`；`publish/` 与生成的 zip 根目录均已确认包含 `how to update.txt`。
 - **诊断结果**：当前离线覆盖更新链继续成立，且现在发行包内已自带操作说明。实际操作风险仍主要集中在运行中覆盖文件，以及误删 `portable.ini` / `storage.ini` 造成数据根切换。
 - **说明**：同日稍早的覆盖更新审计、版本兼容护栏与玩法侧 surface 收口快照继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。

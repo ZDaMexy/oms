@@ -9,7 +9,7 @@
 
 ### P1-F：发行包新增中英双语手动更新说明
 
-- `build-release.ps1` 现会在发行根目录生成 `how to update.txt`，并随 `oms_YYYYMMDD(.zip)` 一起打包；该文件同时提供中文与英文的手动覆盖更新步骤，以及 `portable.ini` / `data/` / `storage.ini` 保留要求。
+- `build-release.ps1` 现会在发行根目录生成 `how to update.txt`，并随 `oms_YYYYMMDD(.zip)` 一起打包；该文件同时提供中文与英文的手动覆盖更新步骤，并以更精炼的终端用户口径强调“覆盖整个压缩包内容”以及“便携模式保留 `portable.ini` / `data/`”。
 - 发行说明与 `P1-F` 状态文档已同步到“当前发行根目录额外包含一份中英双语手动更新说明”的口径。
 - 验证：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`，且 `publish/` 与 zip 根目录均已确认包含 `how to update.txt`。
 
