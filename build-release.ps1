@@ -38,6 +38,7 @@ $publishArgs = @(
     '-o', $publishDir,
     '-p:OmsReleasePackaging=true',
     '-p:PublishSingleFile=true',
+    '-p:IncludeAllContentForSelfExtract=true',
     '-p:IncludeNativeLibrariesForSelfExtract=true',
     '-p:GenerateDocumentationFile=false'
 )

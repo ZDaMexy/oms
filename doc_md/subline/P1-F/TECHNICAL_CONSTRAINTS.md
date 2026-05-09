@@ -6,3 +6,4 @@
 4. 当前正式发行压缩包命名以 `build-release.ps1 -> release-repo/oms_YYYYMMDD(.zip)` 为准；不要继续把现状写成泛化的 `OMS-Portable.zip`。
 5. 覆盖更新说明必须显式保留 `portable.ini`、便携模式下的 `data/`，以及任何自定义数据根使用的 `storage.ini`；也不要把当前布局误描述成“严格只有一个 exe”。
 6. 若后续改变内部 `game.Version` 口径，发行线变更不得破坏 changelog 跳转或配置迁移对非上游 `版本-流` 字符串的兼容性。
+7. 当前工作区的 `build-release.ps1` 运行稳定性不应依赖 Python 终端自动激活；`.venv` 不属于 OMS 正式发行链，工作区需保持 `python.terminal.activateEnvironment = false`，避免新 PowerShell 终端在前台 `dotnet publish` 期间被自动激活命令打断。

@@ -7,6 +7,12 @@
 
 ## 2026-05-09
 
+### Workspace：关闭 Python 终端自动激活以避免打断发行脚本
+
+- 工作区级 [../../.vscode/settings.json](../../.vscode/settings.json) 现已加入 `python.terminal.activateEnvironment = false`，避免 VS Code 直接点 Run 执行 `build-release.ps1` 时，新 PowerShell 终端在前台 `dotnet publish` 过程中又被 `.venv` 自动激活命令打断。
+- 这次修正不改变 OMS 正式工具链：当前仓库没有 Python 源文件、`pyproject.toml`、`requirements.txt` 或 Python 任务；根目录 `.venv/` 仅是本地工作区环境，不属于 OMS 正式构建 / 测试 / 发行链。
+- 验证：工作区 [../../.vscode/settings.json](../../.vscode/settings.json) 已更新且无错误；仓库级 `.vscode/settings.json` / `.vscode/tasks.json` 未发现项目级 Python 依赖配置。
+
 ### P1-F：发行包新增中英双语手动更新说明
 
 - `build-release.ps1` 现会在发行根目录生成 `how to update.txt`，并随 `oms_YYYYMMDD(.zip)` 一起打包；该文件同时提供中文与英文的手动覆盖更新步骤，并以更精炼的终端用户口径强调“覆盖整个压缩包内容”以及“便携模式保留 `portable.ini` / `data/`”。
