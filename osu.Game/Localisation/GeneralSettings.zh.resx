@@ -2,6 +2,7 @@
 <root>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
+  <data name="open_oms_folder" xml:space="preserve"><value>打开oms文件夹</value></data>
   <data name="run_setup_wizard_tooltip" xml:space="preserve"><value>快速调整oms的重要设置</value></data>
   <data name="learn_more_about_oms" xml:space="preserve"><value>进一步了解 oms</value></data>
   <data name="learn_more_about_oms_tooltip" xml:space="preserve"><value>查看 OMS GitHub 仓库与项目说明。</value></data>

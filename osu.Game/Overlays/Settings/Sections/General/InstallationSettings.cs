@@ -22,7 +22,7 @@ namespace osu.Game.Overlays.Settings.Sections.General
         {
             Add(new SettingsButtonV2
             {
-                Text = GeneralSettingsStrings.OpenOsuFolder,
+                Text = GeneralSettingsStrings.OpenOmsFolder,
                 Keywords = new[] { @"logs", @"files", @"access", "directory" },
                 Action = () => storage.PresentExternally(),
             });
