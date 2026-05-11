@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using osu.Game.Beatmaps;
 using osu.Game.Localisation;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Objects;
 
@@ -30,19 +31,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public override IEnumerable<BeatmapStatistic> GetStatistics()
         {
-            var playableObjects = HitObjects.OfType<BmsHitObject>().ToArray();
-
-            int totalObjectCount = playableObjects.Length;
-            int scratchObjectCount = playableObjects.Count(hitObject => hitObject.IsScratch);
-            int longNoteCount = playableObjects.Count(hitObject => hitObject is BmsHoldNote && !hitObject.IsScratch);
-            int normalNoteCount = playableObjects.Count(hitObject => !hitObject.IsScratch && hitObject is not BmsHoldNote);
-            int sum = Math.Max(1, totalObjectCount);
+            var filterStats = BmsChartFilterStats.FromBeatmap(this);
+            int sum = Math.Max(1, filterStats.TotalPlayableObjectCount);
 
             return new[]
             {
-                createStatistic(BeatmapStatisticStrings.Notes, BeatmapStatisticsIconType.Circles, normalNoteCount, sum),
-                createStatistic(BeatmapStatisticStrings.HoldNotes, BeatmapStatisticsIconType.Sliders, longNoteCount, sum),
-                createStatistic(BeatmapStatisticStrings.Spinners, BeatmapStatisticsIconType.Spinners, scratchObjectCount, sum),
+                createStatistic(BeatmapStatisticStrings.Notes, BeatmapStatisticsIconType.Circles, filterStats.RegularNoteCount, sum),
+                createStatistic(BeatmapStatisticStrings.HoldNotes, BeatmapStatisticsIconType.Sliders, filterStats.LongNoteCount, sum),
+                createStatistic(BeatmapStatisticStrings.Spinners, BeatmapStatisticsIconType.Spinners, filterStats.ScratchNoteCount, sum),
             };
         }
 

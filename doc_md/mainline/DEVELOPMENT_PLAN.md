@@ -22,9 +22,10 @@
 - 当前已完成：1.1、1.2、1.3、1.4、1.9、1.10、1.11、1.12、1.13、1.14、1.15、1.16（共 12 步）
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
-- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
+- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-I BMS 选歌筛选与搜索定制** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
 - `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成功能面落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；当前主线不再保留未完成的产品面任务，只保留 `P1-G` 下的手工 UI 验收与后续测试回归，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
 - 新增 `P1-H` 内部修补专题：**BMS 难度表一致性与刷新合同收口**。该专题不重开 `1.13` / `1.15`，也不新建独立主/子线；主归属固定为 `P1-H`，`P1-A` 只记录 settings / first-run 等共享产品表面的从属影响。当前排序按 correctness 优先：`既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。
+- 新增 `P1-I` 独立子线：**BMS 选歌筛选与搜索定制**。该专题不并入 `P1-A` 或 `P1-H`；`P1-A` 只记录 BMS-only product surface 分支与 ruleset switch 回退，`P1-H` 只记录 RC/LN/SCR persisted read-model / backfill authority。首轮执行顺序固定为：`read-model 建模` → `ruleset criteria / custom search` → `BMS-only FilterControl UI` → `focused regression`。
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -41,6 +42,7 @@
 | 子主线 | 归属步骤 | 当前目标 | 允许推进 | 明确不做 | 稳定门槛 |
 | --- | --- | --- | --- | --- | --- |
 | **P1-A 产品面与 release gate** | Phase 1.1、离线发行基线 | 维持 OMS 默认皮肤、fallback、首次启动向导 / 设置入口等公开产品表面稳定，并冻结 BMS HUD / 皮肤反馈边界 | OMS built-in skin、partial override、上游默认皮肤退出、portable 发布表面、首次启动向导 / 设置导流表面、release gate 回归、BMS HUD feedback contract / skin boundary freeze | 新 gameplay mod、训练模式、判定语义扩张 | Debug 构建、mania/BMS skin gate、osu.Game.Tests release gate 稳定 |
+| **P1-I BMS 选歌筛选与搜索定制** | Song Select 产品面 / 搜索语义 | 为 BMS ruleset 提供独立的 `谱面构成` / `键数` visual filter、custom search 与 matching authority | BMS-only FilterControl row branch、RC/LN/SCR persisted read-model、`key/rc/ln/scr` 搜索语法、legacy beatmap backfill | 全共享 filter host 重构、per-candidate live playable load、mania 新 UI 扩面 | BMS / mania 切 ruleset 不回归，构成统计 authority 稳定 |
 | **P1-B 输入语义与硬件验收** | 1.17 | 收口 analog scratch / cross-device trigger / HID 真实语义 | keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 语义、mixed-source runtime、真实硬件覆盖 | 非阻塞的新输入后端扩张 | scratch bridge 回归稳定，真实 HID 手工验收可执行 |
 | **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈、权威绿色数字 / 调速反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口、权威绿色数字 HUD、`Sudden / Hidden / Lift` adjustment feedback | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
 | **P1-D 控制器校准与诊断** | 1.17 后续产品面 | 提供 deadzone / sensitivity / scratch 模式说明 / diagnostics UI | diagnostics、live capture 扩展、校准 UI、控制器说明文案 | 与当前设备无关的新模式或新硬件抽象 | 常见 IIDX/BMS 控制器可在 UI 内完成基础诊断 |
@@ -52,7 +54,7 @@
 ### 子主线执行规则
 
 1. **所有任务先归线，再实现。** 每次开始工作时，先判断该任务属于哪条 `P1-*` 子主线；若横跨多条，只能指定一条主归属，其他影响视为从属改动。
-2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-B` 允许并行推进，因为其依赖真实设备覆盖；`P1-C` / `P1-D` 在不打断 `P1-A` / `P1-B` 稳定性的前提下插队收口。
+2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-I` 允许并行推进，因为它只触及 BMS Song Select 产品面与 search/read-model contract；`P1-B` 继续因真实设备覆盖允许并行；`P1-C` / `P1-D` 在不打断 `P1-A` / `P1-I` / `P1-B` 稳定性的前提下插队收口。
 3. **`首次启动向导` / `Run setup wizard` 这类共享 onboarding surface 默认归 `P1-A`。** 若页面只是复用现有 `ExternalLibrarySettings`、`InternalLibrarySettings` 或 keybinding subsection，则 `P1-H` / `P1-B` 只记从属影响，不因此新开子线。
 4. **Phase 2 不得反向吞并 Phase 1.x。** 除已先行落地的 `A-SCR` / `A-NOT` / `BmsModAutoplay` / `Mirror` / `Random` 外，`1P/2P flip`、`dan`、`FHS`、BSS / MSS、全键模式扩张仍属于后续能力，不得以“顺手实现”名义进入当前主交付。
 5. **每条子主线必须有冻结点。** 一旦某条子主线达到“稳定门槛”，后续只接受回归修复或明确阻塞项，不再继续吸收无关优化。
@@ -135,6 +137,46 @@
 3. wrapper / header 缺省命名链路在本地与远端两侧都保持稳定来源名与 preset 认领语义。
 4. 至少具备 manager-only source mutation、first-run / settings surface、Song Select 消费面的 focused regression coverage。
 5. rebuild / reuse 命中旧 beatmap set 时不会沿用历史空 metadata；后续若仍有 `Unrated` 反馈，应只剩现场 MD5 差异诊断，而不是同类主链一致性缺口。
+
+### P1-I 当前新增子线：BMS 选歌筛选与搜索定制
+
+该专题不并入 `P1-A` 或 `P1-H`。`P1-A` 只记录 BMS-only product surface 分支与切 ruleset 的共享 UI 回退；`P1-H` 只记录 RC/LN/SCR persisted read-model、backfill 与 importer/reuse authority。主语义归属固定为 `P1-I`，因为它实际收口的是 **BMS Song Select 筛选产品面 + custom search + matching contract**。
+
+**目标：**
+
+1. 把 BMS-mode 右上 star slider 替换为 `谱面构成` visual filter。
+2. 为 BMS-mode 新增 `5K / 7K / 9K / 14K` 键数 multi-select 行。
+3. 让 `key` / `rc` / `ln` / `scr` custom search 与 visual filters 共用同一套 criteria 语义。
+4. 保持 mania 与其他 ruleset 的现有筛选 UI、搜索语法与排序/分组行为不回归。
+
+**主归线与从属影响：**
+
+1. 主归属固定为 `P1-I`，因为 authority 在 BMS Song Select 的筛选产品面、搜索语法与匹配语义。
+2. `P1-A` 只承接 shared `FilterControl` 的 BMS-only row branch、ruleset switch 回退与公开产品面口径；不拥有第二套 search semantics。
+3. `P1-H` 只承接 RC/LN/SCR persisted filter stats、legacy backfill 与 importer/reuse 写入 authority；不重新拥有 UI 与 parser contract。
+
+**执行批次：**
+
+1. **read-model 建模**：在 BMS metadata ruleset-data 下新增可同步读取的 RC/LN/SCR filter stats，并为旧谱面准备 backfill。
+2. **ruleset criteria / custom search**：通过 `CreateRulesetFilterCriteria()` 新增 BMS custom keywords，而不是改 shared parser 特判。
+3. **BMS-only FilterControl UI**：在现有 shared `FilterControl` 内做 ruleset-aware row composition，替换 BMS star slider，并新增 key-count row。
+4. **focused regression**：覆盖 metadata authority、query semantics、ruleset switch UI 回归与至少一轮 Release build。
+
+**明确不做：**
+
+1. 不为此专题引入新的 per-ruleset `FilterControl` host。
+2. 不在 carousel 过滤阶段对候选谱面逐张加载 playable beatmap 来算 RC/LN/SCR。
+3. 不顺手把 mania 也改成新 UI，或把该专题扩成 shared Song Select 新产品承诺。
+4. 不在本专题里顺带重做 note distribution 面板、密度图或 gameplay/results feedback。
+
+**完成条件：**
+
+1. BMS / mania 切 ruleset 后，筛选区 UI 与实际 criteria 都正确切换，不留下幽灵 star filter。
+2. visual filter 与 custom search 对同一谱面集产生一致筛选结果。
+3. legacy BMS beatmaps 能通过 backfill / rebuild 获得稳定 RC/LN/SCR stats，不需要用户重导整个谱库。
+4. metadata/importer、ruleset criteria、Song Select UI/integration 与 Release build 全部过线。
+
+专题详细计划、状态与约束见 [../subline/P1-I/DEVELOPMENT_PLAN.md](../subline/P1-I/DEVELOPMENT_PLAN.md)、[../subline/P1-I/DEVELOPMENT_STATUS.md](../subline/P1-I/DEVELOPMENT_STATUS.md)、[../subline/P1-I/TECHNICAL_CONSTRAINTS.md](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 

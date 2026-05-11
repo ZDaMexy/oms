@@ -64,6 +64,11 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(beatmap.BeatmapInfo.DifficultyName, Is.EqualTo("Another 12"));
                 Assert.That(beatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(1));
                 Assert.That(beatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartFilterStats(), Is.Not.Null);
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartFilterStats()!.TotalPlayableObjectCount, Is.EqualTo(1));
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartFilterStats()!.RegularNoteCount, Is.EqualTo(1));
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartFilterStats()!.LongNoteCount, Is.EqualTo(0));
+                Assert.That(beatmap.BeatmapInfo.Metadata.GetChartFilterStats()!.ScratchNoteCount, Is.EqualTo(0));
             });
         }
 
@@ -422,7 +427,13 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Guid reusedSetId = firstResult.ImportedBeatmapSet!.PerformRead(set =>
             {
-                Assert.That(set.Beatmaps.Single().Metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★4" }));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(set.Beatmaps.Single().Metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★4" }));
+                    Assert.That(set.Beatmaps.Single().Metadata.GetChartFilterStats(), Is.Not.Null);
+                    Assert.That(set.Beatmaps.Single().Metadata.GetChartFilterStats()!.RegularNoteCount, Is.EqualTo(1));
+                });
+
                 return set.ID;
             });
 
@@ -430,6 +441,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 var beatmap = r.Find<BeatmapSetInfo>(reusedSetId)!.Beatmaps.Single();
                 beatmap.Metadata.SetDifficultyTableEntries(Array.Empty<BmsDifficultyTableEntry>());
+                beatmap.Metadata.SetChartFilterStats(null);
             });
 
             var secondResult = await importer.RegisterManagedDirectory(managedRoot).ConfigureAwait(false);
@@ -442,6 +454,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                 {
                     Assert.That(set.ID, Is.EqualTo(reusedSetId));
                     Assert.That(set.Beatmaps.Single().Metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★4" }));
+                    Assert.That(set.Beatmaps.Single().Metadata.GetChartFilterStats(), Is.Not.Null);
+                    Assert.That(set.Beatmaps.Single().Metadata.GetChartFilterStats()!.TotalPlayableObjectCount, Is.EqualTo(1));
+                    Assert.That(set.Beatmaps.Single().Metadata.GetChartFilterStats()!.RegularNoteCount, Is.EqualTo(1));
                 });
             });
         }

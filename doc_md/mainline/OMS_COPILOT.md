@@ -915,6 +915,8 @@ public record DensityBucket(double StartMs, double WeightedNoteCount, int Normal
 
 Chart-level metadata (`Subtitle`, `SubArtist`, `Comment`, `PlayLevel`, `HeaderDifficulty`) is stored on `BmsBeatmapMetadataData.ChartMetadata`. When a clear creator credit can be inferred from chart metadata, mirroring it to `BeatmapMetadata.Author.Username` is allowed so generic UI can show a creator without BMS-specific plumbing.
 
+If future BMS-only Song Select filter data is added, store it as typed data on `BmsBeatmapMetadataData` with helper methods rather than parsing `BeatmapMetadata.RulesetDataJson` ad hoc from the filter chain. Ruleset-specific song select keywords must continue to flow through `IRulesetFilterCriteria`; do not add BMS-only switch cases to the shared `FilterQueryParser`.
+
 ---
 
 ## 10. Difficulty Table System
@@ -1141,6 +1143,7 @@ When available, the same panel may also show compact chart metadata lines for:
 - Rendered as a `Drawable` using osu-framework's immediate-mode drawing primitives (no external chart library)
 - Bucket computation runs on a background task; results are pushed to the drawable via `Schedule()`. The song select UI thread is never blocked — the frame budget applies only to the final `Schedule()` callback and drawable update, not to the computation itself.
 - Add `BmsNoteDistribution` to the skin lookup table so the graph panel can be skinned
+- The note distribution graph is preview authority only. Its scratch / LN summary counts may overlap and must not be reused directly as the source for any future mutually-exclusive Song Select filter taxonomy such as `RC / LN / SCR`.
 
 ---
 

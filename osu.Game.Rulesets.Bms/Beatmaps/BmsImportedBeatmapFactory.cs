@@ -2,6 +2,7 @@
 
 using System.IO;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 
 namespace osu.Game.Rulesets.Bms.Beatmaps
 {
@@ -25,13 +26,18 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             decodedBeatmap.ControlPointInfo = convertedBeatmap.ControlPointInfo;
             decodedBeatmap.HitObjects = convertedBeatmap.HitObjects;
             decodedBeatmap.Breaks = convertedBeatmap.Breaks;
-            decodedBeatmap.BeatmapInfo = createBeatmapInfo(convertedBeatmap.BeatmapInfo);
+            decodedBeatmap.BeatmapInfo = createBeatmapInfo(convertedBeatmap);
             return decodedBeatmap;
         }
 
-        private static BeatmapInfo createBeatmapInfo(BeatmapInfo convertedInfo)
+        private static BeatmapInfo createBeatmapInfo(BmsBeatmap convertedBeatmap)
         {
-            return new BeatmapInfo(ruleset.RulesetInfo.Clone(), new BeatmapDifficulty(convertedInfo.Difficulty), convertedInfo.Metadata.DeepClone())
+            var convertedInfo = convertedBeatmap.BeatmapInfo;
+            var metadata = convertedInfo.Metadata.DeepClone();
+
+            metadata.SetChartFilterStats(BmsChartFilterStats.FromBeatmap(convertedBeatmap));
+
+            return new BeatmapInfo(ruleset.RulesetInfo.Clone(), new BeatmapDifficulty(convertedInfo.Difficulty), metadata)
             {
                 StarRating = convertedInfo.StarRating,
                 DifficultyName = convertedInfo.DifficultyName,

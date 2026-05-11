@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-05-11
+
+### 文档：新建 P1-I 子线并收口 BMS 选歌筛选/搜索规划
+
+- 新建 `doc_md/subline/P1-I/` 四件套，正式把 **BMS 选歌筛选与搜索定制** 作为独立 Phase 1.x 子线维护，不再硬并入 `P1-A` 或 `P1-H`。
+- 当前文档已把首轮执行顺序冻结为：`read-model 建模` → `ruleset criteria / custom search` → `BMS-only FilterControl UI` → `focused regression`，并明确 `键数` 已有 authority、`RC/LN/SCR` 仍缺 persisted filter stats，因此不能跳过 metadata/read-model 直接做 UI。
+- 第二轮复查已把具体代码锚点、测试落点、`谱面构成` 交互降级路线与建议验证命令补进 `P1-I` 文档，并把两条全局技术纪律同步写入 `OMS_COPILOT.md`：BMS filter data 走 typed metadata helper，BMS custom search 继续走 `IRulesetFilterCriteria`。
+- 主线总规划、主线状态页与子线索引已同步加入 `P1-I`；当前只完成文档治理，无代码变更、无新增测试执行。
+
 ## 2026-05-09
 
 ### P1-F / Shared：single-file 发行包补齐完整自解压并复核冷启动

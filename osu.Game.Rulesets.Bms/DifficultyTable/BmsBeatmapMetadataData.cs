@@ -6,6 +6,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 
 namespace osu.Game.Rulesets.Bms.DifficultyTable
@@ -17,6 +18,75 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         [JsonProperty("chart_metadata")]
         public BmsChartMetadata? ChartMetadata { get; set; }
+
+        [JsonProperty("chart_filter_stats")]
+        public BmsChartFilterStats? ChartFilterStats { get; set; }
+
+        [JsonIgnore]
+        public bool IsEmpty => DifficultyTableEntries.Count == 0 && ChartMetadata == null && ChartFilterStats == null;
+    }
+
+    public class BmsChartFilterStats : IEquatable<BmsChartFilterStats>
+    {
+        [JsonProperty("total_playable_object_count")]
+        public int TotalPlayableObjectCount { get; set; }
+
+        [JsonProperty("regular_note_count")]
+        public int RegularNoteCount { get; set; }
+
+        [JsonProperty("long_note_count")]
+        public int LongNoteCount { get; set; }
+
+        [JsonProperty("scratch_note_count")]
+        public int ScratchNoteCount { get; set; }
+
+        [JsonIgnore]
+        public bool IsEmpty => TotalPlayableObjectCount == 0;
+
+        [JsonIgnore]
+        public float RegularNotePercentage => getPercentage(RegularNoteCount);
+
+        [JsonIgnore]
+        public float LongNotePercentage => getPercentage(LongNoteCount);
+
+        [JsonIgnore]
+        public float ScratchNotePercentage => getPercentage(ScratchNoteCount);
+
+        public static BmsChartFilterStats FromBeatmap(IBeatmap beatmap)
+        {
+            ArgumentNullException.ThrowIfNull(beatmap);
+
+            var playableObjects = beatmap.HitObjects.OfType<BmsHitObject>().ToArray();
+
+            return new BmsChartFilterStats
+            {
+                TotalPlayableObjectCount = playableObjects.Length,
+                RegularNoteCount = playableObjects.Count(hitObject => !hitObject.IsScratch && hitObject is not BmsHoldNote),
+                LongNoteCount = playableObjects.Count(hitObject => hitObject is BmsHoldNote && !hitObject.IsScratch),
+                ScratchNoteCount = playableObjects.Count(hitObject => hitObject.IsScratch),
+            };
+        }
+
+        public bool Equals(BmsChartFilterStats? other)
+        {
+            if (ReferenceEquals(null, other))
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            return TotalPlayableObjectCount == other.TotalPlayableObjectCount
+                   && RegularNoteCount == other.RegularNoteCount
+                   && LongNoteCount == other.LongNoteCount
+                   && ScratchNoteCount == other.ScratchNoteCount;
+        }
+
+        public override bool Equals(object? obj) => Equals(obj as BmsChartFilterStats);
+
+        public override int GetHashCode() => HashCode.Combine(TotalPlayableObjectCount, RegularNoteCount, LongNoteCount, ScratchNoteCount);
+
+        private float getPercentage(int count)
+            => TotalPlayableObjectCount == 0 ? 0 : count / (float)TotalPlayableObjectCount * 100;
     }
 
     public class BmsChartMetadata : IEquatable<BmsChartMetadata>
@@ -175,6 +245,22 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             return metadata.GetRulesetData<BmsBeatmapMetadataData>()?.ChartMetadata;
         }
 
+        public static BmsChartFilterStats? GetChartFilterStats(this IBeatmapMetadataInfo metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+
+            return metadata is BeatmapMetadata beatmapMetadata
+                ? beatmapMetadata.GetChartFilterStats()
+                : null;
+        }
+
+        public static BmsChartFilterStats? GetChartFilterStats(this BeatmapMetadata metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+
+            return metadata.GetRulesetData<BmsBeatmapMetadataData>()?.ChartFilterStats;
+        }
+
         public static bool SetDifficultyTableEntries(this BeatmapMetadata metadata, IReadOnlyList<BmsDifficultyTableEntry> entries)
         {
             ArgumentNullException.ThrowIfNull(metadata);
@@ -194,9 +280,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             data.DifficultyTableEntries = orderedEntries.ToList();
 
-            metadata.SetRulesetData(data.DifficultyTableEntries.Count == 0 && data.ChartMetadata == null
-                ? null
-                : data);
+            metadata.SetRulesetData(data.IsEmpty ? null : data);
 
             return true;
         }
@@ -214,9 +298,25 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             data.ChartMetadata = chartMetadata;
 
-            metadata.SetRulesetData(data.DifficultyTableEntries.Count == 0 && data.ChartMetadata == null
-                ? null
-                : data);
+            metadata.SetRulesetData(data.IsEmpty ? null : data);
+
+            return true;
+        }
+
+        public static bool SetChartFilterStats(this BeatmapMetadata metadata, BmsChartFilterStats? chartFilterStats)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+
+            chartFilterStats = chartFilterStats?.IsEmpty == true ? null : chartFilterStats;
+
+            if (EqualityComparer<BmsChartFilterStats?>.Default.Equals(metadata.GetChartFilterStats(), chartFilterStats))
+                return false;
+
+            var data = metadata.GetRulesetData<BmsBeatmapMetadataData>() ?? new BmsBeatmapMetadataData();
+
+            data.ChartFilterStats = chartFilterStats;
+
+            metadata.SetRulesetData(data.IsEmpty ? null : data);
 
             return true;
         }
