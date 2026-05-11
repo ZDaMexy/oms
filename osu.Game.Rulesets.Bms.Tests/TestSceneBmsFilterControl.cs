@@ -76,6 +76,25 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("RC60 still matches", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 6, 2, 2), criteria));
         }
 
+        [Test]
+        public void TestCompositionUpperBoundsClampToOneHundred()
+        {
+            SelectBmsRuleset();
+            LoadSongSelect();
+
+            FilterControl.BmsCompositionFilterControl compositionControl = null!;
+            AddStep("get composition control", () => compositionControl = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
+            AddStep("set RC maximum", () => compositionControl.RegularSegment.UpperBound.Value = 60);
+            AddStep("set LN past remaining space", () => compositionControl.LongNoteSegment.UpperBound.Value = 60);
+            AddAssert("LN clamped to remainder", () => compositionControl.LongNoteSegment.UpperBound.Value, () => Is.EqualTo(25).Within(0.01));
+
+            FilterCriteria criteria = null!;
+            AddStep("create criteria", () => criteria = filter.CreateCriteria());
+
+            AddAssert("LN25 beatmap matches", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 5, 2, 3), criteria));
+            AddAssert("LN30 beatmap filtered", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 5, 3, 2), criteria));
+        }
+
         private static BeatmapInfo createBeatmap(int keyCount, int regular, int longNote, int scratch)
         {
             var metadata = new BeatmapMetadata();

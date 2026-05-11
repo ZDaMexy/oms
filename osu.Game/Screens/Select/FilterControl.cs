@@ -639,6 +639,9 @@ namespace osu.Game.Screens.Select
         {
             private const float track_height = 30f;
             private const double default_upper_bound = 15;
+            private const float segment_button_height = 20f;
+            private const float segment_button_width = 48f;
+            private const float segment_value_width = 42f;
 
             public BmsCompositionSegment RegularSegment { get; } = new BmsCompositionSegment("RC", "rc", default_upper_bound, new Color4(255, 119, 86, 255));
             public BmsCompositionSegment LongNoteSegment { get; } = new BmsCompositionSegment("LN", "ln", default_upper_bound, new Color4(94, 190, 255, 255));
@@ -656,6 +659,7 @@ namespace osu.Game.Screens.Select
             private readonly CompositionValueTextBox valueEditor;
 
             private BmsCompositionSegment? editingSegment;
+            private bool coercingSegmentValues;
             private bool layoutInvalid = true;
             private float lastDrawWidth = -1;
 
@@ -720,7 +724,7 @@ namespace osu.Game.Screens.Select
                     segmentLayer.Add(drawable);
                     segmentDrawables.Add(segment, drawable);
 
-                    var handle = new BmsCompositionHandle
+                    var handle = new BmsCompositionHandle(segment)
                     {
                         Anchor = Anchor.TopLeft,
                         Origin = Anchor.TopCentre,
@@ -732,7 +736,11 @@ namespace osu.Game.Screens.Select
                     segmentHandles.Add(segment, handle);
 
                     segment.Enabled.BindValueChanged(_ => requestLayout());
-                    segment.UpperBound.BindValueChanged(_ => requestLayout());
+                    segment.UpperBound.BindValueChanged(_ =>
+                    {
+                        coerceUpperBound(segment);
+                        requestLayout();
+                    });
                 }
             }
 
@@ -798,6 +806,21 @@ namespace osu.Game.Screens.Select
                     segment.UpperBound.Value = clamped;
             }
 
+            private void coerceUpperBound(BmsCompositionSegment segment)
+            {
+                if (coercingSegmentValues)
+                    return;
+
+                double clamped = Math.Clamp(Math.Round(segment.UpperBound.Value), 0, getMaximumAvailable(segment));
+
+                if (Math.Abs(segment.UpperBound.Value - clamped) <= 0.01d)
+                    return;
+
+                coercingSegmentValues = true;
+                segment.UpperBound.Value = clamped;
+                coercingSegmentValues = false;
+            }
+
             private double getPreviousTotal(BmsCompositionSegment segment)
             {
                 double total = 0;
@@ -839,6 +862,7 @@ namespace osu.Game.Screens.Select
 
                     var handle = segmentHandles[segment];
                     handle.Position = new Vector2((float)(previousTotal / 100d * DrawWidth), DrawHeight / 2f);
+                    handle.UpdateState(segment, editingSegment == segment);
                 }
 
                 if (editingSegment != null)
@@ -899,6 +923,8 @@ namespace osu.Game.Screens.Select
                 private readonly Container content;
                 private readonly Container toggleContainer;
                 private readonly Box toggleFill;
+                private readonly Container valueContainer;
+                private readonly Box valueFill;
                 private readonly OsuSpriteText labelText;
                 private readonly OsuSpriteText valueText;
 
@@ -946,8 +972,8 @@ namespace osu.Game.Screens.Select
                                         {
                                             Anchor = Anchor.CentreLeft,
                                             Origin = Anchor.CentreLeft,
-                                            Position = new Vector2(5f, 0f),
-                                            Size = new Vector2(18f, 18f),
+                                            Position = new Vector2(6f, 0f),
+                                            Size = new Vector2(segment_button_width, segment_button_height),
                                             Action = () => segment.Enabled.Value = !segment.Enabled.Value,
                                             Child = toggleContainer = new Container
                                             {
@@ -955,26 +981,45 @@ namespace osu.Game.Screens.Select
                                                 Masking = true,
                                                 CornerRadius = 4,
                                                 BorderThickness = 1.5f,
-                                                Child = toggleFill = new Box
+                                                Children = new Drawable[]
                                                 {
-                                                    RelativeSizeAxes = Axes.Both,
-                                                    Alpha = 0,
+                                                    toggleFill = new Box
+                                                    {
+                                                        RelativeSizeAxes = Axes.Both,
+                                                        Alpha = 0,
+                                                    },
+                                                    labelText = new OsuSpriteText
+                                                    {
+                                                        Anchor = Anchor.Centre,
+                                                        Origin = Anchor.Centre,
+                                                        Font = OsuFont.TorusAlternate.With(size: 14, weight: FontWeight.Bold),
+                                                        Text = segment.Label,
+                                                    },
                                                 },
                                             },
                                         },
-                                        labelText = new OsuSpriteText
+                                        valueContainer = new Container
                                         {
-                                            Anchor = Anchor.CentreLeft,
-                                            Origin = Anchor.CentreLeft,
-                                            Position = new Vector2(29f, 0f),
-                                            Font = OsuFont.TorusAlternate.With(size: 14, weight: FontWeight.Bold),
-                                            Text = segment.Label,
-                                        },
-                                        valueText = new OsuSpriteText
-                                        {
-                                            Anchor = Anchor.Centre,
-                                            Origin = Anchor.Centre,
-                                            Font = OsuFont.TorusAlternate.With(size: 14, weight: FontWeight.Bold),
+                                            Anchor = Anchor.CentreRight,
+                                            Origin = Anchor.CentreRight,
+                                            Position = new Vector2(-6f, 0f),
+                                            Size = new Vector2(segment_value_width, segment_button_height),
+                                            Masking = true,
+                                            CornerRadius = 4,
+                                            BorderThickness = 1.5f,
+                                            Children = new Drawable[]
+                                            {
+                                                valueFill = new Box
+                                                {
+                                                    RelativeSizeAxes = Axes.Both,
+                                                },
+                                                valueText = new OsuSpriteText
+                                                {
+                                                    Anchor = Anchor.Centre,
+                                                    Origin = Anchor.Centre,
+                                                    Font = OsuFont.TorusAlternate.With(size: 13, weight: FontWeight.Bold),
+                                                },
+                                            },
                                         },
                                     }
                                 },
@@ -995,9 +1040,9 @@ namespace osu.Game.Screens.Select
                 public void UpdateDisplay(float width)
                 {
                     Alpha = width > 0 ? 1 : 0.25f;
-                    labelText.Alpha = width >= 44 ? 1 : 0;
-                    valueText.Alpha = width >= 84 ? 1 : 0;
-                    toggleContainer.Alpha = width >= 24 ? 1 : 0;
+                    toggleContainer.Alpha = width >= 28 ? 1 : 0;
+                    valueContainer.Alpha = width >= 82 ? 1 : 0;
+                    separator.Alpha = width >= 12 ? 0.18f : 0;
                 }
 
                 private void updateState()
@@ -1006,12 +1051,15 @@ namespace osu.Game.Screens.Select
                     Color4 baseColour = enabled ? segment.AccentColour : segment.AccentColour.Darken(0.5f);
 
                     fill.Colour = baseColour;
-                    fill.Alpha = enabled ? 0.78f : 0.22f;
+                    fill.Alpha = enabled ? 0.72f : 0.16f;
                     separator.Colour = Color4.White;
-                    toggleContainer.BorderColour = Color4.White.Opacity(enabled ? 0.9f : 0.25f);
-                    toggleFill.Colour = Color4.White;
-                    toggleFill.Alpha = enabled ? 0.8f : 0.06f;
-                    labelText.Colour = Color4.White.Opacity(enabled ? 1f : 0.55f);
+                    toggleContainer.BorderColour = Color4.White.Opacity(enabled ? 0.95f : 0.25f);
+                    toggleFill.Colour = enabled ? segment.AccentColour.Lighten(0.2f) : Color4.Black.Opacity(0.3f);
+                    toggleFill.Alpha = enabled ? 0.92f : 0.32f;
+                    labelText.Colour = Color4.White.Opacity(enabled ? 1f : 0.5f);
+                    valueContainer.BorderColour = segment.AccentColour.Opacity(enabled ? 0.9f : 0.22f);
+                    valueFill.Colour = Color4.Black;
+                    valueFill.Alpha = enabled ? 0.18f : 0.1f;
                     valueText.Colour = Color4.White.Opacity(enabled ? 1f : 0.45f);
                     valueText.Text = $"{segment.UpperBound.Value:0}%";
                 }
@@ -1024,17 +1072,32 @@ namespace osu.Game.Screens.Select
                 public Action<float>? Dragged { get; init; }
 
                 private readonly ShearedNub nub;
+                private readonly BmsCompositionSegment segment;
 
-                public BmsCompositionHandle()
+                public BmsCompositionHandle(BmsCompositionSegment segment)
                 {
+                    this.segment = segment;
                     Size = new Vector2(ShearedNub.EXPANDED_SIZE, track_height);
 
                     InternalChild = nub = new ShearedNub
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
+                        Scale = new Vector2(0.72f),
                         Current = { Value = true },
                     };
+                }
+
+                public void UpdateState(BmsCompositionSegment _, bool editing)
+                {
+                    Color4 accentColour = segment.Enabled.Value ? segment.AccentColour : segment.AccentColour.Darken(0.6f);
+
+                    nub.AccentColour = accentColour;
+                    nub.GlowColour = accentColour;
+                    nub.GlowingAccentColour = accentColour.Lighten(0.3f);
+                    nub.Current.Value = segment.Enabled.Value;
+                    nub.ShadowColour = Color4.Black.Opacity(editing ? 0.45f : 0.25f);
+                    nub.Alpha = segment.Enabled.Value ? 1 : 0.65f;
                 }
 
                 protected override bool OnHover(HoverEvent e)
