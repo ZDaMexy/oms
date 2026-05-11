@@ -24,13 +24,14 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             AddStep("set hidden star filter", () => Config.SetValue(OsuSetting.DisplayStarsMinimum, 10.0));
 
-            AddAssert("BMS composition sliders visible", () => filter.ChildrenOfType<FilterControl.BmsCompositionRangeSlider>().Count(slider => slider.IsPresent), () => Is.EqualTo(3));
+            AddAssert("BMS composition control visible", () => filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Count(control => control.IsPresent), () => Is.EqualTo(1));
             AddAssert("BMS key buttons visible", () => filter.ChildrenOfType<FilterControl.BmsKeyCountToggleButton>().Count(button => button.IsPresent), () => Is.EqualTo(4));
 
             FilterCriteria criteria = null!;
             AddStep("create criteria", () => criteria = filter.CreateCriteria());
             AddAssert("uses BMS criteria", () => criteria.RulesetCriteria, () => Is.TypeOf<BmsFilterCriteria>());
             AddAssert("hidden star filter ignored", () => criteria.UserStarDifficulty.HasFilter, () => Is.False);
+            AddAssert("default composition does not filter", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 6, 2, 2), criteria));
         }
 
         [Test]
@@ -39,20 +40,40 @@ namespace osu.Game.Rulesets.Bms.Tests
             SelectBmsRuleset();
             LoadSongSelect();
 
+            FilterControl.BmsCompositionFilterControl compositionControl = null!;
+            AddStep("get composition control", () => compositionControl = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
+
             AddStep("limit to 5K", () =>
             {
                 foreach (var button in filter.ChildrenOfType<FilterControl.BmsKeyCountToggleButton>())
                     button.Active.Value = button.KeyCount == 5;
             });
 
-            AddStep("set RC minimum", () => filter.ChildrenOfType<FilterControl.BmsCompositionRangeSlider>().Single(slider => slider.CompositionKey == "rc").LowerBound.Value = 50);
+            AddStep("set RC maximum", () => compositionControl.RegularSegment.UpperBound.Value = 50);
 
             FilterCriteria criteria = null!;
             AddStep("create criteria", () => criteria = filter.CreateCriteria());
 
-            AddAssert("5K RC60 matches", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 6, 2, 2), criteria));
-            AddAssert("9K RC60 filtered", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(9, 6, 2, 2), criteria));
-            AddAssert("5K RC20 filtered", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 2, 3, 5), criteria));
+            AddAssert("5K RC20 matches", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 2, 3, 5), criteria));
+            AddAssert("9K RC20 filtered", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(9, 2, 3, 5), criteria));
+            AddAssert("5K RC60 filtered", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 6, 2, 2), criteria));
+        }
+
+        [Test]
+        public void TestDisabledCompositionSegmentDoesNotEmitConstraint()
+        {
+            SelectBmsRuleset();
+            LoadSongSelect();
+
+            FilterControl.BmsCompositionFilterControl compositionControl = null!;
+            AddStep("get composition control", () => compositionControl = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
+            AddStep("set RC maximum", () => compositionControl.RegularSegment.UpperBound.Value = 40);
+            AddStep("disable RC constraint", () => compositionControl.RegularSegment.Enabled.Value = false);
+
+            FilterCriteria criteria = null!;
+            AddStep("create criteria", () => criteria = filter.CreateCriteria());
+
+            AddAssert("RC60 still matches", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 6, 2, 2), criteria));
         }
 
         private static BeatmapInfo createBeatmap(int keyCount, int regular, int longNote, int scratch)

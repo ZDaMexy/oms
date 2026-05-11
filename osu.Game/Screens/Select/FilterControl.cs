@@ -7,8 +7,12 @@ using System.Collections.Immutable;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Cursor;
+using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
@@ -16,17 +20,21 @@ using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Configuration;
 using osu.Game.Database;
+using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Overlays;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Select.Filter;
 using osuTK;
+using osuTK.Graphics;
 using osuTK.Input;
 
 namespace osu.Game.Screens.Select
@@ -51,9 +59,7 @@ namespace osu.Game.Screens.Select
         private ShearedToggleButton standardShowConvertedBeatmapsButton = null!;
         private ShearedToggleButton bmsShowConvertedBeatmapsButton = null!;
         private DifficultyRangeSlider difficultyRangeSlider = null!;
-        private BmsCompositionRangeSlider regularCompositionRangeSlider = null!;
-        private BmsCompositionRangeSlider longNoteCompositionRangeSlider = null!;
-        private BmsCompositionRangeSlider scratchCompositionRangeSlider = null!;
+        private BmsCompositionFilterControl bmsCompositionFilter = null!;
         private readonly List<BmsKeyCountToggleButton> bmsKeyCountButtons = new List<BmsKeyCountToggleButton>();
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupMode> groupDropdown = null!;
@@ -253,12 +259,12 @@ namespace osu.Game.Screens.Select
             difficultyRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
             showConvertedBeatmaps.BindValueChanged(_ => updateCriteria());
-            regularCompositionRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
-            regularCompositionRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
-            longNoteCompositionRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
-            longNoteCompositionRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
-            scratchCompositionRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
-            scratchCompositionRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
+
+            foreach (var segment in bmsCompositionFilter.Segments)
+            {
+                segment.Enabled.BindValueChanged(_ => updateCriteria());
+                segment.UpperBound.BindValueChanged(_ => updateCriteria());
+            }
 
             foreach (var button in bmsKeyCountButtons)
                 button.Active.BindValueChanged(_ => updateCriteria());
@@ -416,21 +422,16 @@ namespace osu.Game.Screens.Select
                         {
                             new Dimension(),
                             new Dimension(GridSizeMode.Absolute, 5),
-                            new Dimension(),
-                            new Dimension(GridSizeMode.Absolute, 5),
-                            new Dimension(),
-                            new Dimension(GridSizeMode.Absolute, 5),
                             new Dimension(GridSizeMode.AutoSize),
                         },
                         Content = new[]
                         {
                             new[]
                             {
-                                regularCompositionRangeSlider = new BmsCompositionRangeSlider("RC", "rc"),
-                                Empty(),
-                                longNoteCompositionRangeSlider = new BmsCompositionRangeSlider("LN", "ln"),
-                                Empty(),
-                                scratchCompositionRangeSlider = new BmsCompositionRangeSlider("SCR", "scr"),
+                                bmsCompositionFilter = new BmsCompositionFilterControl
+                                {
+                                    RelativeSizeAxes = Axes.X,
+                                },
                                 Empty(),
                                 bmsShowConvertedBeatmapsButton = createShowConvertedBeatmapsButton(),
                             },
@@ -513,14 +514,6 @@ namespace osu.Game.Screens.Select
 
         private IEnumerable<int> getSelectedBmsKeyCounts() => bmsKeyCountButtons.Where(button => button.Active.Value).Select(button => button.KeyCount);
 
-        private static FilterCriteria.OptionalRange<float> createOptionalRange(BmsCompositionRangeSlider slider) => new FilterCriteria.OptionalRange<float>
-        {
-            Min = slider.LowerBound.IsDefault ? null : (float)slider.LowerBound.Value,
-            Max = slider.UpperBound.IsDefault ? null : (float)slider.UpperBound.Value,
-            IsLowerInclusive = true,
-            IsUpperInclusive = true,
-        };
-
         private string createBmsVisualFilterQuery()
         {
             var queryParts = new List<string>();
@@ -529,22 +522,19 @@ namespace osu.Game.Screens.Select
             if (selectedKeyCounts.Length != bmsKeyCountButtons.Count)
                 queryParts.Add($"keys={(selectedKeyCounts.Length == 0 ? "0" : string.Join(',', selectedKeyCounts))}");
 
-            appendRangeQuery(queryParts, "rc", regularCompositionRangeSlider);
-            appendRangeQuery(queryParts, "ln", longNoteCompositionRangeSlider);
-            appendRangeQuery(queryParts, "scr", scratchCompositionRangeSlider);
+            appendUpperBoundQuery(queryParts, bmsCompositionFilter.RegularSegment);
+            appendUpperBoundQuery(queryParts, bmsCompositionFilter.LongNoteSegment);
+            appendUpperBoundQuery(queryParts, bmsCompositionFilter.ScratchSegment);
 
             return string.Join(' ', queryParts);
         }
 
-        private static void appendRangeQuery(List<string> queryParts, string key, BmsCompositionRangeSlider slider)
+        private static void appendUpperBoundQuery(List<string> queryParts, BmsCompositionFilterControl.BmsCompositionSegment segment)
         {
-            var range = createOptionalRange(slider);
+            if (!segment.Enabled.Value || segment.UpperBound.IsDefault)
+                return;
 
-            if (range.Min != null)
-                queryParts.Add($"{key}>={range.Min.Value:0.#}");
-
-            if (range.Max != null)
-                queryParts.Add($"{key}<={range.Max.Value:0.#}");
+            queryParts.Add($"{segment.CompositionKey}<={segment.UpperBound.Value:0.#}");
         }
 
         private static string appendQuery(string textQuery, string visualQuery)
@@ -645,37 +635,472 @@ namespace osu.Game.Screens.Select
             }
         }
 
-        public partial class BmsCompositionRangeSlider : ShearedRangeSlider
+        public partial class BmsCompositionFilterControl : CompositeDrawable
         {
-            public string CompositionKey { get; }
+            private const float track_height = 30f;
+            private const double default_upper_bound = 15;
 
-            public BmsCompositionRangeSlider(string label, string compositionKey)
-                : base(label)
+            public BmsCompositionSegment RegularSegment { get; } = new BmsCompositionSegment("RC", "rc", default_upper_bound, new Color4(255, 119, 86, 255));
+            public BmsCompositionSegment LongNoteSegment { get; } = new BmsCompositionSegment("LN", "ln", default_upper_bound, new Color4(94, 190, 255, 255));
+            public BmsCompositionSegment ScratchSegment { get; } = new BmsCompositionSegment("SCR", "scr", default_upper_bound, new Color4(255, 212, 92, 255));
+
+            public IEnumerable<BmsCompositionSegment> Segments => segments;
+
+            private readonly BmsCompositionSegment[] segments;
+            private readonly Dictionary<BmsCompositionSegment, BmsCompositionSegmentDrawable> segmentDrawables = new Dictionary<BmsCompositionSegment, BmsCompositionSegmentDrawable>();
+            private readonly Dictionary<BmsCompositionSegment, BmsCompositionHandle> segmentHandles = new Dictionary<BmsCompositionSegment, BmsCompositionHandle>();
+
+            private readonly Box trackBackground;
+            private readonly Container segmentLayer;
+            private readonly Container handleLayer;
+            private readonly CompositionValueTextBox valueEditor;
+
+            private BmsCompositionSegment? editingSegment;
+            private bool layoutInvalid = true;
+            private float lastDrawWidth = -1;
+
+            public BmsCompositionFilterControl()
             {
-                CompositionKey = compositionKey;
                 RelativeSizeAxes = Axes.X;
-                MinRange = 0f;
-                NubWidth = ShearedNub.HEIGHT * 1.05f;
-                DefaultStringLowerBound = "0";
-                DefaultStringUpperBound = "100";
+                Height = track_height;
 
-                LowerBound = new BindableDouble(0)
+                segments = new[]
                 {
-                    Default = 0,
-                    Value = 0,
-                    MinValue = 0,
-                    MaxValue = 100,
-                    Precision = 1,
+                    RegularSegment,
+                    LongNoteSegment,
+                    ScratchSegment,
                 };
 
-                UpperBound = new BindableDouble(100)
+                InternalChildren = new Drawable[]
                 {
-                    Default = 100,
-                    Value = 100,
-                    MinValue = 0,
-                    MaxValue = 100,
-                    Precision = 1,
+                    new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Shear = OsuGame.SHEAR,
+                        Masking = true,
+                        CornerRadius = 5,
+                        BorderThickness = 2,
+                        BorderColour = Color4.White.Opacity(0.08f),
+                        Children = new Drawable[]
+                        {
+                            trackBackground = new Box
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                            },
+                            segmentLayer = new Container
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                            },
+                        }
+                    },
+                    handleLayer = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                    valueEditor = new CompositionValueTextBox
+                    {
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.Centre,
+                        Width = 64,
+                        Height = 28,
+                        Alpha = 0,
+                        AlwaysPresent = true,
+                        CommitAction = commitEditor,
+                        FocusLostAction = hideEditor,
+                    },
                 };
+
+                foreach (var segment in segments)
+                {
+                    var drawable = new BmsCompositionSegmentDrawable(segment)
+                    {
+                        EditRequested = beginEditing,
+                    };
+
+                    segmentLayer.Add(drawable);
+                    segmentDrawables.Add(segment, drawable);
+
+                    var handle = new BmsCompositionHandle
+                    {
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.TopCentre,
+                        Clicked = () => beginEditing(segment),
+                        Dragged = progress => dragSegment(segment, progress),
+                    };
+
+                    handleLayer.Add(handle);
+                    segmentHandles.Add(segment, handle);
+
+                    segment.Enabled.BindValueChanged(_ => requestLayout());
+                    segment.UpperBound.BindValueChanged(_ => requestLayout());
+                }
+            }
+
+            [BackgroundDependencyLoader(true)]
+            private void load(OverlayColourProvider? colourProvider)
+            {
+                trackBackground.Colour = colourProvider?.Background5 ?? Color4.Black.Opacity(0.5f);
+            }
+
+            protected override void UpdateAfterChildren()
+            {
+                base.UpdateAfterChildren();
+
+                if (layoutInvalid || Math.Abs(lastDrawWidth - DrawWidth) > 0.01f)
+                    updateLayout();
+            }
+
+            private void beginEditing(BmsCompositionSegment segment)
+            {
+                editingSegment = segment;
+                valueEditor.Current.Value = Math.Round(segment.UpperBound.Value).ToString("0");
+                positionEditor(segment);
+                valueEditor.Alpha = 1;
+                valueEditor.SelectAll();
+                GetContainingFocusManager()?.ChangeFocus(valueEditor);
+            }
+
+            private void commitEditor()
+            {
+                if (editingSegment == null)
+                    return;
+
+                if (double.TryParse(valueEditor.Current.Value, out double parsedValue))
+                    setUpperBound(editingSegment, parsedValue);
+
+                hideEditor();
+            }
+
+            private void hideEditor()
+            {
+                if (valueEditor.Alpha == 0)
+                    return;
+
+                editingSegment = null;
+                valueEditor.Alpha = 0;
+            }
+
+            private void dragSegment(BmsCompositionSegment segment, float progress)
+            {
+                hideEditor();
+
+                double previousTotal = getPreviousTotal(segment);
+                double desiredEnd = Math.Clamp(progress * 100d, previousTotal, previousTotal + getMaximumAvailable(segment));
+
+                setUpperBound(segment, desiredEnd - previousTotal);
+            }
+
+            private void setUpperBound(BmsCompositionSegment segment, double value)
+            {
+                double clamped = Math.Clamp(Math.Round(value), 0, getMaximumAvailable(segment));
+
+                if (Math.Abs(segment.UpperBound.Value - clamped) > 0.01d)
+                    segment.UpperBound.Value = clamped;
+            }
+
+            private double getPreviousTotal(BmsCompositionSegment segment)
+            {
+                double total = 0;
+
+                foreach (var candidate in segments)
+                {
+                    if (candidate == segment)
+                        break;
+
+                    total += candidate.UpperBound.Value;
+                }
+
+                return total;
+            }
+
+            private double getMaximumAvailable(BmsCompositionSegment segment) => 100 - segments.Where(candidate => candidate != segment).Sum(candidate => candidate.UpperBound.Value);
+
+            private void requestLayout() => layoutInvalid = true;
+
+            private void updateLayout()
+            {
+                lastDrawWidth = DrawWidth;
+                layoutInvalid = false;
+
+                double previousTotal = 0;
+
+                foreach (var segment in segments)
+                {
+                    float segmentX = (float)(previousTotal / 100d * DrawWidth);
+                    float segmentWidth = (float)(segment.UpperBound.Value / 100d * DrawWidth);
+
+                    var drawable = segmentDrawables[segment];
+                    drawable.X = segmentX;
+                    drawable.Width = segmentWidth;
+                    drawable.Height = DrawHeight;
+                    drawable.UpdateDisplay(segmentWidth);
+
+                    previousTotal += segment.UpperBound.Value;
+
+                    var handle = segmentHandles[segment];
+                    handle.Position = new Vector2((float)(previousTotal / 100d * DrawWidth), DrawHeight / 2f);
+                }
+
+                if (editingSegment != null)
+                    positionEditor(editingSegment);
+            }
+
+            private void positionEditor(BmsCompositionSegment segment)
+            {
+                double previousTotal = getPreviousTotal(segment);
+                double centrePercentage = previousTotal + segment.UpperBound.Value / 2;
+                float centreX = (float)(centrePercentage / 100d * DrawWidth);
+                float halfEditorWidth = valueEditor.Width / 2f;
+
+                if (DrawWidth > 0)
+                    centreX = Math.Clamp(centreX, halfEditorWidth, DrawWidth - halfEditorWidth);
+
+                valueEditor.Position = new Vector2(centreX, DrawHeight / 2f);
+            }
+
+            public sealed class BmsCompositionSegment
+            {
+                public string Label { get; }
+
+                public string CompositionKey { get; }
+
+                public Color4 AccentColour { get; }
+
+                public BindableBool Enabled { get; } = new BindableBool
+                {
+                    Value = true,
+                    Default = true,
+                };
+
+                public BindableDouble UpperBound { get; }
+
+                public BmsCompositionSegment(string label, string compositionKey, double defaultUpperBound, Color4 accentColour)
+                {
+                    Label = label;
+                    CompositionKey = compositionKey;
+                    AccentColour = accentColour;
+
+                    UpperBound = new BindableDouble(defaultUpperBound)
+                    {
+                        Default = defaultUpperBound,
+                        Value = defaultUpperBound,
+                        MinValue = 0,
+                        MaxValue = 100,
+                        Precision = 1,
+                    };
+                }
+            }
+
+            private partial class BmsCompositionSegmentDrawable : CompositeDrawable, IHasTooltip
+            {
+                private readonly BmsCompositionSegment segment;
+                private readonly Box fill;
+                private readonly Box separator;
+                private readonly Container content;
+                private readonly Container toggleContainer;
+                private readonly Box toggleFill;
+                private readonly OsuSpriteText labelText;
+                private readonly OsuSpriteText valueText;
+
+                public Action<BmsCompositionSegment>? EditRequested { get; init; }
+
+                public LocalisableString TooltipText => segment.Enabled.Value
+                    ? $"{segment.Label} <= {segment.UpperBound.Value:0.#}%"
+                    : $"{segment.Label} disabled (saved {segment.UpperBound.Value:0.#}%)";
+
+                public BmsCompositionSegmentDrawable(BmsCompositionSegment segment)
+                {
+                    this.segment = segment;
+
+                    RelativeSizeAxes = Axes.Y;
+                    Masking = true;
+                    AlwaysPresent = true;
+
+                    InternalChildren = new Drawable[]
+                    {
+                        new OsuClickableContainer
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Action = () => EditRequested?.Invoke(segment),
+                            Children = new Drawable[]
+                            {
+                                fill = new Box
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                },
+                                separator = new Box
+                                {
+                                    RelativeSizeAxes = Axes.Y,
+                                    Width = 1,
+                                    Anchor = Anchor.CentreRight,
+                                    Origin = Anchor.CentreRight,
+                                    Alpha = 0.18f,
+                                },
+                                content = new Container
+                                {
+                                    RelativeSizeAxes = Axes.Both,
+                                    Shear = -OsuGame.SHEAR,
+                                    Children = new Drawable[]
+                                    {
+                                        new OsuClickableContainer
+                                        {
+                                            Anchor = Anchor.CentreLeft,
+                                            Origin = Anchor.CentreLeft,
+                                            Position = new Vector2(5f, 0f),
+                                            Size = new Vector2(18f, 18f),
+                                            Action = () => segment.Enabled.Value = !segment.Enabled.Value,
+                                            Child = toggleContainer = new Container
+                                            {
+                                                RelativeSizeAxes = Axes.Both,
+                                                Masking = true,
+                                                CornerRadius = 4,
+                                                BorderThickness = 1.5f,
+                                                Child = toggleFill = new Box
+                                                {
+                                                    RelativeSizeAxes = Axes.Both,
+                                                    Alpha = 0,
+                                                },
+                                            },
+                                        },
+                                        labelText = new OsuSpriteText
+                                        {
+                                            Anchor = Anchor.CentreLeft,
+                                            Origin = Anchor.CentreLeft,
+                                            Position = new Vector2(29f, 0f),
+                                            Font = OsuFont.TorusAlternate.With(size: 14, weight: FontWeight.Bold),
+                                            Text = segment.Label,
+                                        },
+                                        valueText = new OsuSpriteText
+                                        {
+                                            Anchor = Anchor.Centre,
+                                            Origin = Anchor.Centre,
+                                            Font = OsuFont.TorusAlternate.With(size: 14, weight: FontWeight.Bold),
+                                        },
+                                    }
+                                },
+                            }
+                        },
+                    };
+
+                    segment.Enabled.BindValueChanged(_ => updateState());
+                    segment.UpperBound.BindValueChanged(_ => updateState());
+                }
+
+                protected override void LoadComplete()
+                {
+                    base.LoadComplete();
+                    updateState();
+                }
+
+                public void UpdateDisplay(float width)
+                {
+                    Alpha = width > 0 ? 1 : 0.25f;
+                    labelText.Alpha = width >= 44 ? 1 : 0;
+                    valueText.Alpha = width >= 84 ? 1 : 0;
+                    toggleContainer.Alpha = width >= 24 ? 1 : 0;
+                }
+
+                private void updateState()
+                {
+                    bool enabled = segment.Enabled.Value;
+                    Color4 baseColour = enabled ? segment.AccentColour : segment.AccentColour.Darken(0.5f);
+
+                    fill.Colour = baseColour;
+                    fill.Alpha = enabled ? 0.78f : 0.22f;
+                    separator.Colour = Color4.White;
+                    toggleContainer.BorderColour = Color4.White.Opacity(enabled ? 0.9f : 0.25f);
+                    toggleFill.Colour = Color4.White;
+                    toggleFill.Alpha = enabled ? 0.8f : 0.06f;
+                    labelText.Colour = Color4.White.Opacity(enabled ? 1f : 0.55f);
+                    valueText.Colour = Color4.White.Opacity(enabled ? 1f : 0.45f);
+                    valueText.Text = $"{segment.UpperBound.Value:0}%";
+                }
+            }
+
+            private partial class BmsCompositionHandle : CompositeDrawable
+            {
+                public Action? Clicked { get; init; }
+
+                public Action<float>? Dragged { get; init; }
+
+                private readonly ShearedNub nub;
+
+                public BmsCompositionHandle()
+                {
+                    Size = new Vector2(ShearedNub.EXPANDED_SIZE, track_height);
+
+                    InternalChild = nub = new ShearedNub
+                    {
+                        Anchor = Anchor.Centre,
+                        Origin = Anchor.Centre,
+                        Current = { Value = true },
+                    };
+                }
+
+                protected override bool OnHover(HoverEvent e)
+                {
+                    nub.Glowing = true;
+                    return true;
+                }
+
+                protected override void OnHoverLost(HoverLostEvent e)
+                {
+                    nub.Glowing = false;
+                    base.OnHoverLost(e);
+                }
+
+                protected override bool OnClick(ClickEvent e)
+                {
+                    Clicked?.Invoke();
+                    return true;
+                }
+
+                protected override bool OnDragStart(DragStartEvent e)
+                {
+                    nub.Glowing = true;
+                    return true;
+                }
+
+                protected override void OnDrag(DragEvent e)
+                {
+                    if (Dragged == null || Parent == null || Parent.DrawWidth <= 0)
+                        return;
+
+                    float progress = Math.Clamp(Parent.ToLocalSpace(e.ScreenSpaceMousePosition).X / Parent.DrawWidth, 0, 1);
+                    Dragged(progress);
+                }
+
+                protected override void OnDragEnd(DragEndEvent e)
+                {
+                    nub.Glowing = IsHovered;
+                    base.OnDragEnd(e);
+                }
+            }
+
+            private partial class CompositionValueTextBox : OsuNumberBox
+            {
+                public Action? CommitAction { get; init; }
+
+                public Action? FocusLostAction { get; init; }
+
+                public CompositionValueTextBox()
+                {
+                    LengthLimit = 3;
+                    ReleaseFocusOnCommit = true;
+                    SelectAllOnFocus = true;
+                }
+
+                protected override void OnTextCommitted(bool textChanged)
+                {
+                    base.OnTextCommitted(textChanged);
+                    CommitAction?.Invoke();
+                }
+
+                protected override void OnFocusLost(FocusLostEvent e)
+                {
+                    base.OnFocusLost(e);
+                    FocusLostAction?.Invoke();
+                }
             }
         }
 
