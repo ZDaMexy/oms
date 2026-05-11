@@ -14,8 +14,14 @@
 2. 共享 `DisplayStarsMinimum` / `DisplayStarsMaximum` 继续只服务非 BMS 的 star slider 语义；BMS 分支启用时，不得让隐藏 slider 的旧 state 继续影响 `criteria.UserStarDifficulty`。
 3. 本专题替换的是 BMS 的 visual filter surface，不是删除 shared `star:` 文本语法；除非另开产品决策，不得顺手改掉 shared parser 的星数关键字。
 4. `RC` / `LN` / `SCR` 必须是互斥分区且和为 `100%`；不得沿用 note distribution summary 那种可重叠计数。首轮固定采用：`SCR` 优先于 `LN`，`LN` 只统计非 scratch long note，`RC` 为剩余 playable objects。
-5. `键数` 的 authority 必须继续来自 BMS keymode / `Difficulty.CircleSize` 的同步字段；首轮只公开 `5K`、`7K`、`9K`、`14K` 四档，不扩到其他模式或别名。
-6. visual filter 与 custom search 首轮只要求共享同一套 criteria 语义；除非明确追加设计，不得为了“搜索词与 UI 双向同步”扩大到重写整个 search text ownership。
+5. `谱面构成` 的最终 UI 必须是一条单行、单轨的共享控件；从左到右固定为 `RC / LN / SCR` 三个可编辑段，尾段为空白容差。当前三条独立 `range slider` 原型不得作为最终产品面交付。
+6. `RC` / `LN` / `SCR` 三个值都可调，且各自表示该分类的最大占比；visual UI 不承担精确配比或 min/max 双端范围语义。
+7. `RC / LN / SCR` 的 visual 上限值不强制和为 `100%`；剩余尾段空白用于表达容差，而不是第四类真实谱面成分。
+8. `RC / LN / SCR` 三个上限值之和不得超过 `100%`；若拖拽或数值输入会造成溢出，当前编辑值必须被夹紧或阻止，不能让尾段容差为负。
+9. `RC` / `LN` / `SCR` 必须各自拥有独立 enabled state；禁用某段时，该段不再从 visual UI 生成对应的筛选 authority。
+10. `谱面构成` 的可见交互继续冻结为按钮式表面：默认显示 `RC / LN / SCR` 标签、hover 可见当前占比、区域足够宽时在段内居中显示当前占比、点击段位可进入数值输入。
+11. `键数` 的 authority 必须继续来自 BMS keymode / `Difficulty.CircleSize` 的同步字段；首轮只公开 `5K`、`7K`、`9K`、`14K` 四档，不扩到其他模式或别名。
+12. visual filter 与 custom search 首轮只要求共享同一套 criteria 语义；除非明确追加设计，不得为了“搜索词与 UI 双向同步”扩大到重写整个 search text ownership。
 
 ## read-model 约束
 
@@ -33,6 +39,8 @@
 3. `key` / `keys` 应尽量与 mania 的比较操作符语义一致；同名关键字在不同 ruleset 下允许各自解释，但不得改变 mania 现有行为。
 4. `rc` / `ln` / `scr` 必须按百分比范围语义实现；若 UI 首轮只暴露局部交互，文本语法仍必须完整保留范围匹配能力。
 5. 首轮 `FilterMayChangeFromMods()` 必须保持保守：在当前 BMS filters 不依赖 mods 的前提下返回 `false`，避免无意义的 mod-driven refilter 噪音。
+6. `谱面构成` visual control 首轮只负责生成 enabled segment 的上限约束，即 `rc<=...` / `ln<=...` / `scr<=...` 这类 query fragment；最小值或更复杂组合仍由文本语法承担。
+7. 不得为了贴合当前 visual control 的交互冻结点而削弱文本语法的范围能力；视觉控件可以只覆盖冻结过的编辑语义，再编译成等价 query 片段。
 
 ## 实现边界约束
 
@@ -41,6 +49,7 @@
 3. `谱面构成` 行必须继续维持单行 product footprint；不得通过新增大块展开面板破坏右上筛选区当前的 search / sort / group / collection 结构。
 4. 任何改变 BMS Song Select 筛选语义的改动，都必须同步更新本目录四件套、`../../mainline/DEVELOPMENT_PLAN.md`、`../../mainline/DEVELOPMENT_STATUS.md` 与 `../../mainline/CHANGELOG.md`。
 5. 首轮 UI 若需要新控件，优先接受 BMS-local 私有控件，而不是抢先抽象 shared generic segmented filter component；只有当第二个 ruleset 确认复用时，才值得上提共享层。
+6. 若 shared 抽象提炼来不及，允许直接写 BMS-local 私有 segmented control；但不得再以三个彼此独立的 `ShearedRangeSlider` 拼排原型充当最终交付。
 
 ## 测试与发布约束
 

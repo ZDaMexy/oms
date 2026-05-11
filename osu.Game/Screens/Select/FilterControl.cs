@@ -37,12 +37,24 @@ namespace osu.Game.Screens.Select
         public const float HEIGHT_FROM_SCREEN_TOP = 141 - corner_radius;
 
         private const float corner_radius = 10;
+        private const string bms_ruleset_short_name = "bms";
 
         public IBindable<BeatmapSetInfo?> ScopedBeatmapSet { get; } = new Bindable<BeatmapSetInfo?>();
 
         private SongSelectSearchTextBox searchTextBox = null!;
-        private ShearedToggleButton showConvertedBeatmapsButton = null!;
+        private readonly BindableBool showConvertedBeatmaps = new BindableBool();
+        private FillFlowContainer<Drawable> rulesetSpecificFiltersHost = null!;
+        private Container standardFiltersContainer = null!;
+        private Container bmsFiltersContainer = null!;
+        private Drawable standardFilters = null!;
+        private Drawable bmsFilters = null!;
+        private ShearedToggleButton standardShowConvertedBeatmapsButton = null!;
+        private ShearedToggleButton bmsShowConvertedBeatmapsButton = null!;
         private DifficultyRangeSlider difficultyRangeSlider = null!;
+        private BmsCompositionRangeSlider regularCompositionRangeSlider = null!;
+        private BmsCompositionRangeSlider longNoteCompositionRangeSlider = null!;
+        private BmsCompositionRangeSlider scratchCompositionRangeSlider = null!;
+        private readonly List<BmsKeyCountToggleButton> bmsKeyCountButtons = new List<BmsKeyCountToggleButton>();
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupMode> groupDropdown = null!;
         private CollectionDropdown collectionDropdown = null!;
@@ -92,6 +104,9 @@ namespace osu.Game.Screens.Select
             Shear = OsuGame.SHEAR;
             Margin = new MarginPadding { Top = -corner_radius, Right = -40 };
 
+            standardFilters = createStandardFilters();
+            bmsFilters = createBmsFilters();
+
             InternalChildren = new Drawable[]
             {
                 new Container
@@ -126,37 +141,16 @@ namespace osu.Game.Screens.Select
                                 ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
                             },
                         },
-                        new GridContainer
+                        rulesetSpecificFiltersHost = new FillFlowContainer<Drawable>
                         {
                             RelativeSizeAxes = Axes.X,
                             AutoSizeAxes = Axes.Y,
-                            Shear = -OsuGame.SHEAR,
-                            RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
-                            ColumnDimensions = new[]
+                            Direction = FillDirection.Vertical,
+                            Children = new Drawable[]
                             {
-                                new Dimension(),
-                                new Dimension(GridSizeMode.Absolute), // can probably be removed?
-                                new Dimension(GridSizeMode.AutoSize),
+                                standardFiltersContainer = createRulesetSpecificFiltersContainer(standardFilters),
+                                bmsFiltersContainer = createRulesetSpecificFiltersContainer(bmsFilters),
                             },
-                            Content = new[]
-                            {
-                                new[]
-                                {
-                                    difficultyRangeSlider = new DifficultyRangeSlider
-                                    {
-                                        RelativeSizeAxes = Axes.X,
-                                        MinRange = 0.1f,
-                                    },
-                                    Empty(),
-                                    showConvertedBeatmapsButton = new ShearedToggleButton
-                                    {
-                                        Anchor = Anchor.Centre,
-                                        Origin = Anchor.Centre,
-                                        Text = UserInterfaceStrings.ShowConverts,
-                                        Height = 30f,
-                                    },
-                                },
-                            }
                         },
                         new GridContainer
                         {
@@ -204,6 +198,8 @@ namespace osu.Game.Screens.Select
                 }
             };
 
+            updateRulesetSpecificFilters();
+
             localUser = api.LocalUser.GetBoundCopy();
             localUserFavouriteBeatmapSets.BindTo(api.LocalUserState.FavouriteBeatmapSets);
         }
@@ -214,9 +210,14 @@ namespace osu.Game.Screens.Select
 
             difficultyRangeSlider.LowerBound = config.GetBindable<double>(OsuSetting.DisplayStarsMinimum);
             difficultyRangeSlider.UpperBound = config.GetBindable<double>(OsuSetting.DisplayStarsMaximum);
-            config.BindWith(OsuSetting.ShowConvertedBeatmaps, showConvertedBeatmapsButton.Active);
+            config.BindWith(OsuSetting.ShowConvertedBeatmaps, showConvertedBeatmaps);
             config.BindWith(OsuSetting.SongSelectSortingMode, sortDropdown.Current);
             config.BindWith(OsuSetting.SongSelectGroupMode, groupDropdown.Current);
+
+            standardShowConvertedBeatmapsButton.Active.BindTo(showConvertedBeatmaps);
+            bmsShowConvertedBeatmapsButton.Active.BindTo(showConvertedBeatmaps);
+
+            updateRulesetSpecificFilters();
 
             updateAvailableSortingModes();
             updateAvailableGroupingModes();
@@ -224,6 +225,7 @@ namespace osu.Game.Screens.Select
 
             ruleset.BindValueChanged(_ =>
             {
+                updateRulesetSpecificFilters();
                 bool sortSelectionChanged = updateAvailableSortingModes();
                 bool groupSelectionChanged = updateAvailableGroupingModes();
                 updateSortDropdownState();
@@ -250,7 +252,17 @@ namespace osu.Game.Screens.Select
             searchTextBox.Current.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
-            showConvertedBeatmapsButton.Active.BindValueChanged(_ => updateCriteria());
+            showConvertedBeatmaps.BindValueChanged(_ => updateCriteria());
+            regularCompositionRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
+            regularCompositionRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
+            longNoteCompositionRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
+            longNoteCompositionRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
+            scratchCompositionRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
+            scratchCompositionRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
+
+            foreach (var button in bmsKeyCountButtons)
+                button.Active.BindValueChanged(_ => updateCriteria());
+
             sortDropdown.Current.BindValueChanged(_ => updateCriteria());
             groupDropdown.Current.BindValueChanged(_ =>
             {
@@ -298,7 +310,7 @@ namespace osu.Game.Screens.Select
                 SelectedBeatmapSet = ScopedBeatmapSet.Value,
                 Sort = sortDropdown.Current.Value,
                 Group = groupDropdown.Current.Value,
-                AllowConvertedBeatmaps = showConvertedBeatmapsButton.Active.Value,
+                AllowConvertedBeatmaps = showConvertedBeatmaps.Value,
                 Ruleset = ruleset.Value,
                 Mods = mods.Value,
                 CollectionBeatmapMD5Hashes = collectionDropdown.Current.Value?.Collection?.PerformRead(c => c.BeatmapMD5Hashes).ToImmutableHashSet(),
@@ -306,15 +318,25 @@ namespace osu.Game.Screens.Select
                 LocalUserUsername = isValidUser ? localUser.Value.Username : null,
             };
 
-            if (!difficultyRangeSlider.LowerBound.IsDefault)
-                criteria.UserStarDifficulty.Min = difficultyRangeSlider.LowerBound.Value;
+            bool isBmsRuleset = usingBmsSpecificFilters();
+            string effectiveQuery = query;
 
-            if (!difficultyRangeSlider.UpperBound.IsDefault)
-                criteria.UserStarDifficulty.Max = difficultyRangeSlider.UpperBound.Value;
+            if (!isBmsRuleset)
+            {
+                if (!difficultyRangeSlider.LowerBound.IsDefault)
+                    criteria.UserStarDifficulty.Min = difficultyRangeSlider.LowerBound.Value;
+
+                if (!difficultyRangeSlider.UpperBound.IsDefault)
+                    criteria.UserStarDifficulty.Max = difficultyRangeSlider.UpperBound.Value;
+            }
+            else
+            {
+                effectiveQuery = appendQuery(query, createBmsVisualFilterQuery());
+            }
 
             criteria.RulesetCriteria = ruleset.Value.CreateInstance().CreateRulesetFilterCriteria();
 
-            FilterQueryParser.ApplyQueries(criteria, query);
+            FilterQueryParser.ApplyQueries(criteria, effectiveQuery);
 
             ApplyRequiredCriteria?.Invoke(criteria);
 
@@ -342,6 +364,198 @@ namespace osu.Game.Screens.Select
         public void Search(string query)
         {
             searchTextBox.Current.Value = query;
+        }
+
+        private Drawable createStandardFilters()
+        {
+            return new GridContainer
+            {
+                RelativeSizeAxes = Axes.X,
+                AutoSizeAxes = Axes.Y,
+                Shear = -OsuGame.SHEAR,
+                RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
+                ColumnDimensions = new[]
+                {
+                    new Dimension(),
+                    new Dimension(GridSizeMode.Absolute),
+                    new Dimension(GridSizeMode.AutoSize),
+                },
+                Content = new[]
+                {
+                    new[]
+                    {
+                        difficultyRangeSlider = new DifficultyRangeSlider
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            MinRange = 0.1f,
+                        },
+                        Empty(),
+                        standardShowConvertedBeatmapsButton = createShowConvertedBeatmapsButton(),
+                    },
+                }
+            };
+        }
+
+        private Drawable createBmsFilters()
+        {
+            return new FillFlowContainer<Drawable>
+            {
+                RelativeSizeAxes = Axes.X,
+                AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0f, 5f),
+                Children = new Drawable[]
+                {
+                    new GridContainer
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Shear = -OsuGame.SHEAR,
+                        RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
+                        ColumnDimensions = new[]
+                        {
+                            new Dimension(),
+                            new Dimension(GridSizeMode.Absolute, 5),
+                            new Dimension(),
+                            new Dimension(GridSizeMode.Absolute, 5),
+                            new Dimension(),
+                            new Dimension(GridSizeMode.Absolute, 5),
+                            new Dimension(GridSizeMode.AutoSize),
+                        },
+                        Content = new[]
+                        {
+                            new[]
+                            {
+                                regularCompositionRangeSlider = new BmsCompositionRangeSlider("RC", "rc"),
+                                Empty(),
+                                longNoteCompositionRangeSlider = new BmsCompositionRangeSlider("LN", "ln"),
+                                Empty(),
+                                scratchCompositionRangeSlider = new BmsCompositionRangeSlider("SCR", "scr"),
+                                Empty(),
+                                bmsShowConvertedBeatmapsButton = createShowConvertedBeatmapsButton(),
+                            },
+                        }
+                    },
+                    new FillFlowContainer<Drawable>
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Direction = FillDirection.Horizontal,
+                        Shear = -OsuGame.SHEAR,
+                        Spacing = new Vector2(5f, 0f),
+                        Children = new Drawable[]
+                        {
+                            createBmsKeyCountButton(5),
+                            createBmsKeyCountButton(7),
+                            createBmsKeyCountButton(9),
+                            createBmsKeyCountButton(14),
+                        }
+                    },
+                }
+            };
+        }
+
+        private ShearedToggleButton createShowConvertedBeatmapsButton() => new ShearedToggleButton
+        {
+            Anchor = Anchor.Centre,
+            Origin = Anchor.Centre,
+            Text = UserInterfaceStrings.ShowConverts,
+            Height = 30f,
+        };
+
+        private static Container createRulesetSpecificFiltersContainer(Drawable child) => new Container
+        {
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Masking = true,
+            Child = child,
+        };
+
+        private BmsKeyCountToggleButton createBmsKeyCountButton(int keyCount)
+        {
+            var button = new BmsKeyCountToggleButton(keyCount)
+            {
+                Active =
+                {
+                    Value = true,
+                    Default = true,
+                }
+            };
+
+            bmsKeyCountButtons.Add(button);
+            return button;
+        }
+
+        private void updateRulesetSpecificFilters()
+        {
+            bool useBmsFilters = usingBmsSpecificFilters();
+
+            setRulesetSpecificFilterVisibility(standardFiltersContainer, !useBmsFilters);
+            setRulesetSpecificFilterVisibility(bmsFiltersContainer, useBmsFilters);
+        }
+
+        private static void setRulesetSpecificFilterVisibility(Container container, bool visible)
+        {
+            container.Alpha = visible ? 1 : 0;
+
+            if (visible)
+            {
+                container.AutoSizeAxes = Axes.Y;
+            }
+            else
+            {
+                container.AutoSizeAxes = Axes.None;
+                container.Height = 0;
+            }
+        }
+
+        private bool usingBmsSpecificFilters() => ruleset.Value.ShortName == bms_ruleset_short_name;
+
+        private IEnumerable<int> getSelectedBmsKeyCounts() => bmsKeyCountButtons.Where(button => button.Active.Value).Select(button => button.KeyCount);
+
+        private static FilterCriteria.OptionalRange<float> createOptionalRange(BmsCompositionRangeSlider slider) => new FilterCriteria.OptionalRange<float>
+        {
+            Min = slider.LowerBound.IsDefault ? null : (float)slider.LowerBound.Value,
+            Max = slider.UpperBound.IsDefault ? null : (float)slider.UpperBound.Value,
+            IsLowerInclusive = true,
+            IsUpperInclusive = true,
+        };
+
+        private string createBmsVisualFilterQuery()
+        {
+            var queryParts = new List<string>();
+            var selectedKeyCounts = getSelectedBmsKeyCounts().ToArray();
+
+            if (selectedKeyCounts.Length != bmsKeyCountButtons.Count)
+                queryParts.Add($"keys={(selectedKeyCounts.Length == 0 ? "0" : string.Join(',', selectedKeyCounts))}");
+
+            appendRangeQuery(queryParts, "rc", regularCompositionRangeSlider);
+            appendRangeQuery(queryParts, "ln", longNoteCompositionRangeSlider);
+            appendRangeQuery(queryParts, "scr", scratchCompositionRangeSlider);
+
+            return string.Join(' ', queryParts);
+        }
+
+        private static void appendRangeQuery(List<string> queryParts, string key, BmsCompositionRangeSlider slider)
+        {
+            var range = createOptionalRange(slider);
+
+            if (range.Min != null)
+                queryParts.Add($"{key}>={range.Min.Value:0.#}");
+
+            if (range.Max != null)
+                queryParts.Add($"{key}<={range.Max.Value:0.#}");
+        }
+
+        private static string appendQuery(string textQuery, string visualQuery)
+        {
+            if (string.IsNullOrWhiteSpace(visualQuery))
+                return textQuery;
+
+            if (string.IsNullOrWhiteSpace(textQuery))
+                return visualQuery;
+
+            return $"{textQuery} {visualQuery}";
         }
 
         private bool updateAvailableGroupingModes()
@@ -428,6 +642,53 @@ namespace osu.Game.Screens.Select
 
                     return base.OnPressed(e);
                 }
+            }
+        }
+
+        public partial class BmsCompositionRangeSlider : ShearedRangeSlider
+        {
+            public string CompositionKey { get; }
+
+            public BmsCompositionRangeSlider(string label, string compositionKey)
+                : base(label)
+            {
+                CompositionKey = compositionKey;
+                RelativeSizeAxes = Axes.X;
+                MinRange = 0f;
+                NubWidth = ShearedNub.HEIGHT * 1.05f;
+                DefaultStringLowerBound = "0";
+                DefaultStringUpperBound = "100";
+
+                LowerBound = new BindableDouble(0)
+                {
+                    Default = 0,
+                    Value = 0,
+                    MinValue = 0,
+                    MaxValue = 100,
+                    Precision = 1,
+                };
+
+                UpperBound = new BindableDouble(100)
+                {
+                    Default = 100,
+                    Value = 100,
+                    MinValue = 0,
+                    MaxValue = 100,
+                    Precision = 1,
+                };
+            }
+        }
+
+        public partial class BmsKeyCountToggleButton : ShearedToggleButton
+        {
+            public int KeyCount { get; }
+
+            public BmsKeyCountToggleButton(int keyCount)
+                : base(width: 58)
+            {
+                KeyCount = keyCount;
+                Height = 30f;
+                Text = $"{keyCount}K";
             }
         }
     }

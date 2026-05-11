@@ -11,6 +11,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
+using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
@@ -198,6 +199,8 @@ namespace osu.Game.Rulesets.Bms
         }
 
         public override Drawable? CreateBeatmapDetailsComponent(IBindable<WorkingBeatmap> beatmap) => new BmsNoteDistributionGraph(beatmap);
+
+        public override IRulesetFilterCriteria CreateRulesetFilterCriteria() => new BmsFilterCriteria();
 
         public override IReadOnlyList<SortMode> GetAvailableSongSelectSortModes() =>
         [

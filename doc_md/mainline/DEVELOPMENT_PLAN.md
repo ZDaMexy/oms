@@ -25,7 +25,7 @@
 - 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-I BMS 选歌筛选与搜索定制** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
 - `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成功能面落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；当前主线不再保留未完成的产品面任务，只保留 `P1-G` 下的手工 UI 验收与后续测试回归，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
 - 新增 `P1-H` 内部修补专题：**BMS 难度表一致性与刷新合同收口**。该专题不重开 `1.13` / `1.15`，也不新建独立主/子线；主归属固定为 `P1-H`，`P1-A` 只记录 settings / first-run 等共享产品表面的从属影响。当前排序按 correctness 优先：`既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。
-- 新增 `P1-I` 独立子线：**BMS 选歌筛选与搜索定制**。该专题不并入 `P1-A` 或 `P1-H`；`P1-A` 只记录 BMS-only product surface 分支与 ruleset switch 回退，`P1-H` 只记录 RC/LN/SCR persisted read-model / backfill authority。首轮执行顺序固定为：`read-model 建模` → `ruleset criteria / custom search` → `BMS-only FilterControl UI` → `focused regression`。
+- 新增 `P1-I` 独立子线：**BMS 选歌筛选与搜索定制**。该专题不并入 `P1-A` 或 `P1-H`；`P1-A` 只记录 BMS-only product surface 分支与 ruleset switch 回退，`P1-H` 只记录 RC/LN/SCR persisted read-model / backfill authority。首轮执行顺序固定为：`read-model 建模` → `ruleset criteria / custom search` → `BMS-only FilterControl UI` → `focused regression`；其中 `I3` 当前已进一步冻结为“单轨 `RC/LN/SCR` 三个上限段 + 尾段空白容差”，不得把三条独立 range slider 当作最终交付。
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -145,6 +145,7 @@
 **目标：**
 
 1. 把 BMS-mode 右上 star slider 替换为 `谱面构成` visual filter。
+  当前产品合同已冻结为单轨、从左到右 `RC / LN / SCR` 三个可编辑上限段、独立启用/禁用、尾段为空白容差；三个值各自表示最大占比，不强制和为 `100%`。
 2. 为 BMS-mode 新增 `5K / 7K / 9K / 14K` 键数 multi-select 行。
 3. 让 `key` / `rc` / `ln` / `scr` custom search 与 visual filters 共用同一套 criteria 语义。
 4. 保持 mania 与其他 ruleset 的现有筛选 UI、搜索语法与排序/分组行为不回归。

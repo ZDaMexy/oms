@@ -225,6 +225,27 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestBmsRulesetDoesNotCarryStarFilterToNonBmsRulesets()
+        {
+            LoadSongSelect();
+
+            AddStep("set star filter", () => Config.SetValue(OsuSetting.DisplayStarsMinimum, 10.0));
+            AddStep("switch to BMS", () => Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.ShortName == "bms"));
+            AddUntilStep("wait for BMS filter", () => !Carousel.IsFiltering);
+
+            FilterCriteria bmsCriteria = null!;
+            AddStep("create BMS criteria", () => bmsCriteria = filter.CreateCriteria());
+            AddAssert("BMS ignores hidden star filter", () => bmsCriteria.UserStarDifficulty.HasFilter, () => Is.False);
+
+            AddStep("switch to non-BMS", () => Ruleset.Value = Rulesets.AvailableRulesets.First(r => r.ShortName != "bms"));
+            AddUntilStep("wait for non-BMS filter", () => !Carousel.IsFiltering);
+
+            FilterCriteria nonBmsCriteria = null!;
+            AddStep("create non-BMS criteria", () => nonBmsCriteria = filter.CreateCriteria());
+            AddAssert("non-BMS restores star filter", () => nonBmsCriteria.UserStarDifficulty.HasFilter, () => Is.True);
+        }
+
+        [Test]
         public void TestPlaceholderVisibleAfterDeleteAll()
         {
             LoadSongSelect();

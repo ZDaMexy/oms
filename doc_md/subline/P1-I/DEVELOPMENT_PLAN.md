@@ -16,9 +16,9 @@
 
 - Song Select 右上筛选 UI 当前完全由共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../osu.Game/Screens/Select/FilterControl.cs) 承担；控件为 `sealed`，并由 [../../osu.Game/Screens/Select/SongSelect.cs](../../osu.Game/Screens/Select/SongSelect.cs) 直接构造。
 - 共享搜索解析入口是 [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../osu.Game/Screens/Select/FilterQueryParser.cs)；ruleset-specific 关键字只能通过 `IRulesetFilterCriteria` 扩展。
-- mania 已通过 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 实现 `key` / `ln` 自定义查询；BMS 当前没有 `CreateRulesetFilterCriteria()` override。
+- mania 已通过 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 实现 `key` / `ln` 自定义查询；BMS 当前也已接通 `CreateRulesetFilterCriteria()` 与 `BmsFilterCriteria`，当前缺口已不在 parser hook，而在 `谱面构成` visual control 的最终产品语义。
 - BMS 键数当前已可稳定从 [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 的 `TryGetKeyCount()` / `Difficulty.CircleSize` 读取。
-- RC/LN/SCR 相关统计当前只在 [../../osu.Game.Rulesets.Bms/SongSelect/BmsNoteDistributionGraph.cs](../../osu.Game.Rulesets.Bms/SongSelect/BmsNoteDistributionGraph.cs) 中按需加载 playable beatmap 后计算；没有现成的全局持久化筛选键。
+- RC/LN/SCR 相关统计当前已具备 persisted metadata authority；但 `FilterControl` 里的 BMS `谱面构成` 现状仍是三条彼此独立的 range slider 原型，不符合最终要交付的“单轨上限段 + 尾段空白容差”产品合同。
 - 共享 `DisplayStarsMinimum` / `DisplayStarsMaximum` 当前仍驱动 star slider；若只隐藏星数 slider 而不改 criteria 生成链，BMS 仍会被旧的星数过滤误伤。
 
 ## 首轮代码锚点
@@ -40,7 +40,8 @@
 ## 专题目标
 
 1. 让 BMS ruleset 在 Song Select 中拥有一套独立于 mania 的筛选产品面：`谱面构成` + `键数`。
-2. 让 BMS visual filters 与自定义搜索语法共用同一套 criteria 语义，而不是 UI 一套、搜索框一套。
+2. `谱面构成` 的最终产品面冻结为：单轨，从左到右 `RC / LN / SCR` 三个可编辑上限段，尾段为空白容差；三段独立启用/禁用，三个值各自表示最大占比，不强制和为 `100%`。
+3. 让 BMS visual filters 与自定义搜索语法共用同一套 criteria 语义，而不是 UI 一套、搜索框一套。
 3. 让 RC/LN/SCR 过滤建立在同步可读的 persisted read-model 上，而不是在 carousel 过滤阶段临时加载 playable beatmap。
 4. 保持 mania 与其他 ruleset 的现有筛选 UI、搜索语法与排序/分组行为不回归。
 
@@ -60,7 +61,7 @@
 
 ### I1：谱面构成 read-model 建模
 
-状态：未开始
+状态：已完成
 
 目标：为 Song Select 筛选链提供同步、可持久化的 BMS 构成统计 authority。
 
@@ -93,7 +94,7 @@
 
 ### I2：BMS ruleset criteria 与搜索语法
 
-状态：未开始
+状态：已完成
 
 目标：让 BMS custom search 沿现有 ruleset hook 正式接入，而不是把 BMS 逻辑塞进 shared parser 特判。
 
@@ -110,6 +111,7 @@
 4. `rc` / `ln` / `scr` 按百分比范围处理，延续 shared `FilterQueryParser.TryUpdateCriteriaRange()` 语义；`key` / `keys` 尽量与 mania 现有 `key` 语法保持操作符一致性。
 5. 共享 `star:` 文本语法首轮保持存在；本专题替换的是 **BMS visual surface**，不是删除 shared parser 的星数关键字。
 6. 首轮 `FilterMayChangeFromMods()` 默认保持 `false`；当前 `key/rc/ln/scr` 都只依赖 beatmap metadata，不依赖现有 BMS mods。只有当未来真的出现会改变筛选结果的 key-count 类 mod，再回头放宽这条约束。
+7. 文本语法的范围表达能力不得为了贴合当前 visual control 而缩水；即使 `谱面构成` UI 首轮只冻结单轨共边界交互，`rc/ln/scr` 文本语法仍继续保留完整比较/范围组合能力。
 
 验收：
 
@@ -118,7 +120,7 @@
 
 ### I3：BMS-only FilterControl 产品面
 
-状态：未开始
+状态：进行中
 
 目标：在不替换整套 Song Select host 的前提下，把 BMS ruleset 的右上筛选区切成独立产品面。
 
@@ -127,24 +129,35 @@
 1. 在共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../osu.Game/Screens/Select/FilterControl.cs) 中引入 ruleset-aware row composition：
    - mania / shared ruleset 继续使用现有 star slider
    - BMS ruleset 改为显示 `谱面构成` + `键数`
-2. `谱面构成` 行必须是一条 BMS-only 的 single-row visual filter；无论最终采用 drag、点击还是其他局部交互，显示层都必须把 `RC / LN / SCR` 标签与百分比直接呈现出来。
+2. `谱面构成` 行必须是一条 BMS-only 的 single-row shared-track control，而不是三条彼此独立的 range slider：
+   - 从左到右固定为 `RC / LN / SCR` 三个可编辑段，尾段为空白容差
+   - `RC / LN / SCR` 三个值都可调，且各自表示该分类的最大占比
+   - 三个值不强制和为 `100%`；剩余尾段空白用于表达容差
+   - 三个值之和不得超过 `100%`；若编辑会溢出，当前编辑值应被夹紧或阻止
 3. `键数` 行采用显式 multi-select boxes：`5K`、`7K`、`9K`、`14K`。
-4. BMS 分支启用时，不得继续把隐藏的 star slider state 写入 `criteria.UserStarDifficulty`；否则会产生“界面看不到星数过滤，但结果仍被星数筛掉”的幽灵状态。
-5. 切回 mania 或其他 ruleset 时，必须恢复原有 shared slider / dropdown surface，而不是要求重建 screen 才能回退。
-6. 首轮控件复用优先级固定为：
+4. `RC` / `LN` / `SCR` 必须具备独立 enabled state；禁用某段时，该段不再从 visual UI 生成对应的 criteria/query fragment。
+5. `谱面构成` 显示层继续冻结为按钮式可交互表面：
+   - 默认显示 `RC` / `LN` / `SCR` 标签
+   - hover 可见当前占比
+   - 区域宽度足够时在段内居中显示当前占比
+   - 点击段位可进入数值输入，输入的是该段的最大占比
+6. BMS 分支启用时，不得继续把隐藏的 star slider state 写入 `criteria.UserStarDifficulty`；否则会产生“界面看不到星数过滤，但结果仍被星数筛掉”的幽灵状态。
+7. 切回 mania 或其他 ruleset 时，必须恢复原有 shared slider / dropdown surface，而不是要求重建 screen 才能回退。
+8. 首轮控件复用优先级固定为：
    - `键数` 行优先复用现有 `ShearedToggleButton` 视觉风格
-   - `谱面构成` 行优先复用现有 sheared slider/range slider 交互语义与配色习惯
-   - 若提炼 shared generic segmented-range control 会阻塞开发，则允许先做 BMS-local 私有控件，不先抽共享层
-7. 首轮 `谱面构成` 交互冻结为“单行 surface + 三段都可见 + 每段至少拥有 enabled state 与 min/max 百分比 authority”；若一轮内做不出稳定的三段联动拖拽，允许退化为三段紧凑 range editor 并排同置于一行，但不得退化成隐藏细节或额外弹窗。
+   - `谱面构成` 行优先复用现有 sheared slider 视觉习惯，但不得因此退化成三个独立 slider
+   - 若提炼 shared generic segmented control 会阻塞开发，则允许先做 BMS-local 私有控件，不先抽共享层
+9. 当前三条独立 `range slider` 只视为原型，不得继续当作 `I3` 的最终交付结果。
 
 验收：
 
 - BMS / mania 来回切换时，筛选区 UI 与实际 criteria 都一致切换。
+- `谱面构成` 行在 BMS 下表现为单轨上限控件：`RC / LN / SCR` 三段可编辑、各自独立启停、尾段为空白容差，且 visual UI 生成的 query 只表达各段的上限语义。
 - BMS custom rows 不挤压既有 search box、sort/group、collection 的布局 authority。
 
 ### I4：回归与验证收口
 
-状态：未开始
+状态：进行中
 
 目标：用 focused automated coverage 锁住 BMS-only UI branch、metadata authority 与 search semantics。
 

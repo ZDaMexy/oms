@@ -7,6 +7,18 @@
 
 ## 2026-05-11
 
+### P1-I：文档校正 `谱面构成` 最终产品合同
+
+- `P1-I` 的 `谱面构成` 需求已进一步冻结为：单轨、从左到右 `RC / LN / SCR` 三个可编辑上限段、三段独立启用/禁用、尾段为空白容差。
+- `RC / LN / SCR` 三个值现在明确表示各自的最大占比，不强制和为 `100%`；shared `FilterControl` 里的“三条独立 range slider”只保留为一次原型尝试，不再被视为 `I3` 已完成交付。
+- visual UI 首轮只负责生成 enabled segment 的上限约束；文本 `rc/ln/scr` 语法继续保留完整范围表达能力。本轮仅做文档校正，无代码变更、无新增测试执行。
+
+### P1-I：BMS 选歌筛选与搜索定制进入首轮代码落地
+
+- `BmsBeatmapMetadataData` 现已具备 persisted `ChartFilterStats`，并由 importer / reuse 链写入与自愈；`BmsFilterCriteria` 与 `BmsRuleset.CreateRulesetFilterCriteria()` 也已接入 `key/keys`、`rc`、`ln`、`scr` custom search。
+- shared `FilterControl` 已切出 BMS-only `谱面构成` / `键数` rows，并显式避免隐藏 star slider 继续污染 BMS `UserStarDifficulty`。
+- focused validation 已新增并通过 BMS 侧 importer / statistics / criteria / Song Select FilterControl 切片：`dotnet test osu.Game.Rulesets.Bms.Tests -p:GenerateFullPaths=true --filter "FullyQualifiedName~BmsImportIntegrationTest|FullyQualifiedName~BmsBeatmapStatisticsTest|FullyQualifiedName~BmsFilterCriteriaTest|FullyQualifiedName~TestSceneBmsFilterControl"` **30/30**；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ### 文档：新建 P1-I 子线并收口 BMS 选歌筛选/搜索规划
 
 - 新建 `doc_md/subline/P1-I/` 四件套，正式把 **BMS 选歌筛选与搜索定制** 作为独立 Phase 1.x 子线维护，不再硬并入 `P1-A` 或 `P1-H`。
