@@ -18,6 +18,7 @@ using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Configuration;
+using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Localisation;
 using osu.Game.Online.Leaderboards;
@@ -506,6 +507,13 @@ namespace osu.Game.Rulesets
         /// Creates ruleset-specific beatmap filter criteria to be used on the song select screen.
         /// </summary>
         public virtual IRulesetFilterCriteria? CreateRulesetFilterCriteria() => null;
+
+        /// <summary>
+        /// Called once when the song select screen is ready, before the first filter operation runs.
+        /// Rulesets that require early initialisation (e.g. backfill of per-beatmap statistics)
+        /// should override this method.
+        /// </summary>
+        public virtual void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Action? onCacheUpdated = null) { }
 
         /// <summary>
         /// Returns the song select sorting modes that should be exposed for this ruleset.

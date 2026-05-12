@@ -3,6 +3,7 @@
 using System.Linq;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
@@ -61,6 +62,40 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestMissingFilterStatsUseBackfilledStatsWhenAvailable()
+        {
+            var beatmaps = new[]
+            {
+                createBeatmap(5, null, "alpha"),
+                createBeatmap(7, null, "beta"),
+                createBeatmap(9, null, "gamma"),
+            };
+
+            using var _ = BmsChartFilterStatsBackfill.UseTestResolver(beatmapInfo => beatmapInfo.Metadata.Title switch
+            {
+                "alpha" => createStats(totalPlayable: 10, regular: 6, longNote: 2, scratch: 2),
+                "beta" => createStats(totalPlayable: 10, regular: 2, longNote: 5, scratch: 3),
+                "gamma" => createStats(totalPlayable: 10, regular: 4, longNote: 1, scratch: 5),
+                _ => null,
+            });
+
+            var criteria = new FilterCriteria { RulesetCriteria = new BmsRuleset().CreateRulesetFilterCriteria() };
+
+            FilterQueryParser.ApplyQueries(criteria, "regular>=50 scratch<30");
+
+            int[] matchingBeatmaps = beatmaps.Select((beatmap, index) => (beatmap, index))
+                                           .Where(tuple => BeatmapCarouselFilterMatching.CheckCriteriaMatch(tuple.beatmap, criteria))
+                                           .Select(tuple => tuple.index)
+                                           .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(matchingBeatmaps, Is.EqualTo(new[] { 0 }));
+                Assert.That(beatmaps.All(beatmap => beatmap.Metadata.GetChartFilterStats() != null), Is.True);
+            });
+        }
+
+        [Test]
         public void TestKeyOperatorsMatchSupportedBmsVariants()
         {
             var beatmaps = new[]
@@ -83,9 +118,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(matchingBeatmaps, Is.EqualTo(new[] { 0, 2 }));
         }
 
-        private static BeatmapInfo createBeatmap(int keyCount, BmsChartFilterStats? filterStats)
+        private static BeatmapInfo createBeatmap(int keyCount, BmsChartFilterStats? filterStats, string? title = null)
         {
-            var metadata = new BeatmapMetadata();
+            var metadata = new BeatmapMetadata { Title = title ?? string.Empty };
 
             metadata.SetChartFilterStats(filterStats);
 

@@ -17,6 +17,7 @@ using osu.Framework.Localisation;
 using osuTK;
 using osuTK.Graphics;
 using osu.Game.Beatmaps;
+using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Graphics;
@@ -48,8 +49,10 @@ namespace osu.Game.Rulesets.Bms.SongSelect
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(BeatmapManager beatmapManager, RealmAccess realmAccess)
         {
+            BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess);
+
             InternalChild = panel = new SkinnableNoteDistributionPanelDisplay
             {
                 RelativeSizeAxes = Axes.X,

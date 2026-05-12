@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Bindables;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Select;
@@ -36,12 +37,20 @@ namespace osu.Game.Rulesets.Bms
         {
             bool keyCountMatch = !hasKeyCountFilter() || BmsRuleset.TryGetKeyCount(beatmapInfo, out int keyCount) && includedKeyCounts.Contains(keyCount);
 
-            var filterStats = beatmapInfo.Metadata.GetChartFilterStats();
+            // Prefer the in-memory cache pre-populated from Realm at startup.
+            // Detached BeatmapInfo snapshots used in the carousel may have stale RulesetDataJson,
+            // so GetChartFilterStats() on the snapshot is unreliable.  Never call GetOrBackfill()
+            // here — loading a working beatmap per filter call causes extreme latency.
+            BmsChartFilterStats? filterStats = null;
+            if (hasCompositionFilter())
+                filterStats = beatmapInfo.Metadata.GetChartFilterStats() ?? BmsChartFilterStatsBackfill.GetCachedStats(beatmapInfo.ID);
 
-            // Legacy beatmaps may not have backfilled composition stats yet. Keep them visible until metadata catches up.
-            bool regularMatch = !regularNotePercentage.HasFilter || filterStats == null || regularNotePercentage.IsInRange(filterStats.RegularNotePercentage);
-            bool longNoteMatch = !longNotePercentage.HasFilter || filterStats == null || longNotePercentage.IsInRange(filterStats.LongNotePercentage);
-            bool scratchMatch = !scratchNotePercentage.HasFilter || filterStats == null || scratchNotePercentage.IsInRange(filterStats.ScratchNotePercentage);
+            // If a composition filter is active and stats are not available, exclude the beatmap rather than
+            // allowing it through — false positives are worse than temporarily missing a result during backfill.
+            // The onCacheUpdated callback in Initialise() re-triggers the filter once stats are ready.
+            bool regularMatch = !regularNotePercentage.HasFilter || (filterStats != null && regularNotePercentage.IsInRange(filterStats.RegularNotePercentage));
+            bool longNoteMatch = !longNotePercentage.HasFilter || (filterStats != null && longNotePercentage.IsInRange(filterStats.LongNotePercentage));
+            bool scratchMatch = !scratchNotePercentage.HasFilter || (filterStats != null && scratchNotePercentage.IsInRange(filterStats.ScratchNotePercentage));
 
             return keyCountMatch && regularMatch && longNoteMatch && scratchMatch;
         }
@@ -125,5 +134,7 @@ namespace osu.Game.Rulesets.Bms
         }
 
         private bool hasKeyCountFilter() => includedKeyCounts.Count != supported_key_counts.Length;
+
+        private bool hasCompositionFilter() => regularNotePercentage.HasFilter || longNotePercentage.HasFilter || scratchNotePercentage.HasFilter;
     }
 }

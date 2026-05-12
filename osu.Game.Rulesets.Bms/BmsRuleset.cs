@@ -9,6 +9,7 @@ using osu.Framework.Input.Bindings;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Database;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Filter;
@@ -201,6 +202,9 @@ namespace osu.Game.Rulesets.Bms
         public override Drawable? CreateBeatmapDetailsComponent(IBindable<WorkingBeatmap> beatmap) => new BmsNoteDistributionGraph(beatmap);
 
         public override IRulesetFilterCriteria CreateRulesetFilterCriteria() => new BmsFilterCriteria();
+
+        public override void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Action? onCacheUpdated = null)
+            => BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess, onCacheUpdated);
 
         public override IReadOnlyList<SortMode> GetAvailableSongSelectSortModes() =>
         [
