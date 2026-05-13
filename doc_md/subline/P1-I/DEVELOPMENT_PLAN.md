@@ -1,6 +1,6 @@
 # P1-I 开发计划：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-11
+> 最后更新：2026-05-13
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。`P1-A` 负责共享产品面边界，`P1-H` 负责 read-model / backfill authority；本文件只拆解 `P1-I` 的执行顺序。
 
 ## 子线定位
@@ -16,9 +16,9 @@
 
 - Song Select 右上筛选 UI 当前完全由共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../osu.Game/Screens/Select/FilterControl.cs) 承担；控件为 `sealed`，并由 [../../osu.Game/Screens/Select/SongSelect.cs](../../osu.Game/Screens/Select/SongSelect.cs) 直接构造。
 - 共享搜索解析入口是 [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../osu.Game/Screens/Select/FilterQueryParser.cs)；ruleset-specific 关键字只能通过 `IRulesetFilterCriteria` 扩展。
-- mania 已通过 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 实现 `key` / `ln` 自定义查询；BMS 当前也已接通 `CreateRulesetFilterCriteria()` 与 `BmsFilterCriteria`，当前缺口已不在 parser hook，而在 `谱面构成` visual control 的最终产品语义。
+- mania 已通过 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 实现 `key` / `ln` 自定义查询；BMS 当前也已接通 `CreateRulesetFilterCriteria()` 与 `BmsFilterCriteria`。当前缺口已不在 parser hook 或 `谱面构成` 产品面实现，而收窄到 `I4` focused regression：单轨拖拽 headless coverage 与 shared visual gate 仍待补强。
 - BMS 键数当前已可稳定从 [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 的 `TryGetKeyCount()` / `Difficulty.CircleSize` 读取。
-- RC/LN/SCR 相关统计当前已具备 persisted metadata authority；但 `FilterControl` 里的 BMS `谱面构成` 现状仍是三条彼此独立的 range slider 原型，不符合最终要交付的“单轨上限段 + 尾段空白容差”产品合同。
+- RC/LN/SCR 相关统计当前已具备 persisted metadata authority；`FilterControl` 里的 BMS `谱面构成` 也已由 `BmsCompositionFilterControl` 单轨控件收口，符合“单轨上限段 + 尾段空白容差 + 独立启停”产品合同。
 - 共享 `DisplayStarsMinimum` / `DisplayStarsMaximum` 当前仍驱动 star slider；若只隐藏星数 slider 而不改 criteria 生成链，BMS 仍会被旧的星数过滤误伤。
 
 ## 首轮代码锚点
@@ -120,7 +120,7 @@
 
 ### I3：BMS-only FilterControl 产品面
 
-状态：进行中
+状态：已完成
 
 目标：在不替换整套 Song Select host 的前提下，把 BMS ruleset 的右上筛选区切成独立产品面。
 

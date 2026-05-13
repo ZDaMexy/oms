@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-05-09
+> 最后更新：2026-05-13
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -24,7 +24,7 @@
 - **BMS 元数据**：`#SUBTITLE` / `#SUBARTIST` / `#COMMENT` / `#PLAYLEVEL` / `#DIFFICULTY` 已解析，Song Select 可显示谱师、内部标级与表标签
 - **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`外部谱库`、`内部谱库`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；`外部谱库` / `内部谱库` 当前也已走同一条 ruleset-specific hierarchical grouping 管线，不再依赖 `DifficultyTable` 专用特判。该功能面已按主线收口，剩余仅为 `P1-G` 下的 Song Select UI 人工展开验收与后续测试回归。
 - **BMS 选歌排序**：Song Select 当前已使用 ruleset-specific 8 项排序：`标题`、`曲师`、`BPM`、`时长`、`星数`、`点灯状态`、`达成率`、`miss 数`；其中本地成绩派生项的显示标签已明确改用 BMS 专用文案，不再回落到通用 `Clear Lamp` / `准度要求`，mania 不受影响。
-- **P1-I 子线状态**：`BMS 选歌筛选与搜索定制` 的 `I1` / `I2` 已落地：persisted `ChartFilterStats` metadata、`BmsFilterCriteria` / `CreateRulesetFilterCriteria()` 与 `键数` row branch 都已接通。当前 `I3` 仍在进行中，因为 shared `FilterControl` 里的 BMS `谱面构成` 还是“三条独立 range slider”原型；按最新冻结合同，它必须改成“单轨 `RC/LN/SCR` 三个上限段 + 尾段空白容差”的最终产品面。
+- **P1-I 子线状态**：`I1` / `I2` / `I3` 均已完成落地。`BmsCompositionFilterControl` 已以 BMS-local 私有单轨控件形式落地：`RC / LN / SCR` 三段可独立启停、各自表示最大占比、尾段为空白容差；`BmsCompositionHandle` 拖拽句柄可在段间边界拖拽并显示当前数值；`BmsCompositionRowButton` / `BmsKeyCountToggleButton` 非激活态用 `ColourProvider.Background3/Background1`（hover 效果可见）；`SearchHintTooltip` 已接入并修复 DI 崩溃（构造函数注入，对齐 `ModTooltip` 模式）；颜色冻结 RC=蓝(94,190,255) / LN=黄(255,212,92) / SCR=橙(255,119,86)。`I4` focused regression 仍在进行中（单轨拖拽 headless regression 与 shared visual gate 待补强）。
 - **BMS 选歌 BPM 显示**：Song Select 左上 BPM 统计现已按 imported chart 的真实 timing data 显示；`BmsImportedBeatmapFactory` 会把首次转换得到的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 raw wrapper，使 `BeatmapTitleWedge` 这类 raw working beatmap consumer 不再回退到默认 `60 BPM`。BPM 分组与排序仍继续使用 persisted `BeatmapInfo.BPM`，两条链当前已不再失配。
 - **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。`BeatmapSetInfo` 现还会持久化 `ExternalLibraryRootPath`，把 external root snapshot 固定到 beatmap set 上，供 `外部谱库` 分组与后续 fallback 使用。Settings → 常规 → 安装位置 现已把入口明确为 `更改数据目录位置`：选择空目录时会把当前数据内容直接迁入所选目录；若所选目录已有无关文件，则会改用其下 `oms/` 子目录；若所选目录本身已是可用数据目录，则只写入 `storage.ini` 并在重启后切换。整个流程只改变运行时数据根，不移动程序文件。
 - **BMS 难度表来源管理**：Settings → 游戏模式 → BMS → 难度表 当前统一支持本地目录、`index.html`、`header.json`、表体 json 与 `http/https` URL；seeded preset 会按 `source_name` / `display_name` 自动认领现有预置来源；移除已导入 preset 时会清空来源并恢复隐藏占位，而不是删除内置 preset；导入或刷新失败时，设置页与首次启动页都会显示中文分类原因。
@@ -83,13 +83,13 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-05-09
+### 2026-05-13
 
-- **范围**：收口 single-file 发行包冷启动、Release 构建告警清零，以及数据目录迁移入口的产品文案与交互语义。
-- **本轮修正**：`build-release.ps1` 现已为 single-file publish 显式加入 `IncludeAllContentForSelfExtract=true`；OMS-owned localisation 已从混合 helper 的 `*Strings.cs` 中拆分并修正 XMLDoc / `.resx` 对齐，消除 `CS1574`、OLOC 与 `AD0001`；Settings → 常规 → 安装位置 已改为以 `更改数据目录位置` 描述真实行为，并补充空目录、非空目录与现有数据目录三类结果说明。
-- **本轮验证**：`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过，当前为 `0 warning / 0 error`；`.\SmokeTestDesktop.ps1 -Configuration Release -WaitSeconds 8` 通过；迁移相关 UI 文案改动后，`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- **诊断结果**：此前“首次运行先创建 data/ 后无窗退出”的问题来自 single-file 发行物未强制完整自解压，并非用户操作错误；设置页该入口实际只切换/迁移运行时数据根，不移动程序文件。
-- **说明**：`.venv` 终端自动激活、覆盖更新说明与版本兼容护栏等同日补充信息继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
+- **范围**：收口 `P1-I` 单轨筛选 UI 的 hover 可见性、配色冻结与 `SearchHintTooltip` DI 崩溃，并复核该专题当前已从产品面实现阶段转入回归收口阶段。
+- **本轮修正**：`BmsCompositionRowButton` / `BmsKeyCountToggleButton` 非激活态改为 `ColourProvider.Background3/Background1`，使 `ShearedButton` 的 hover `Lighten(0.2f)` 机制产生清晰可见的色变；RC/LN/SCR 配色冻结为蓝 `(94,190,255)` / 黄 `(255,212,92)` / 橙 `(255,119,86)`；`SearchHintTooltip` 改为由 `SongSelectSearchTextBox` 通过构造函数注入 `OverlayColourProvider`，并把布局收口为 `FillFlowContainer + Container(Width=160f)`。
+- **本轮验证**：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过，`0 error`。
+- **诊断结果**：当前 `P1-I` 已不再停留于“三条独立 range slider 原型”；`BmsCompositionFilterControl` 单轨控件与 `键数` row 已完成交付，剩余缺口集中在 `I4` 的单轨拖拽 headless regression 与 shared visual gate。
+- **说明**：single-file 发布、数据目录迁移与 Release 构建告警清零的发行基线验证继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
 
 ## 联网约束
 
@@ -183,7 +183,7 @@
 | 子主线 | 焦点 | 状态 |
 | --- | --- | --- |
 | P1-A 产品面与 release gate | Phase 1.1 皮肤专项 → 公开发行物皮肤收尾 | 进行中 |
-| P1-I BMS 选歌筛选与搜索定制 | BMS-only `谱面构成` / `键数` visual filter、custom search、persisted matching authority | 进行中 |
+| P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
 | P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker / 权威 GN 与调速反馈 | 已编排，专题文档已建立 |
 | P1-D 控制器校准与诊断 | deadzone / sensitivity / scratch 模式说明 / live diagnostics | 下一优先级 |

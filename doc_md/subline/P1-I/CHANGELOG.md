@@ -1,6 +1,39 @@
 # P1-I 变动日志
 
-## 2026-05-11
+## 2026-05-13
+
+### P1-I：UI 视觉收口——hover 效果、颜色重排、Tooltip DI 崩溃修复
+
+- `BmsCompositionRowButton` 与 `BmsKeyCountToggleButton` 非激活态改为使用 `ColourProvider.Background3` / `Background1`，替换原来的 `Color4.Black.Opacity(0.35f/0.20f)`。`ShearedButton.updateState()` 内置的 `Lighten(0.2f)` hover 机制需要底色非黑才能产生可见色变，改动后鼠标悬浮效果与排序/分组/收藏夹下拉控件的行为一致。
+- `BmsCompositionFilterControl` 颜色重排：RC 改为蓝 `(94,190,255)`、LN 改为黄 `(255,212,92)`、SCR 改为橙 `(255,119,86)`。`SearchHintTooltip` BMS 段落的强调色也同步更新为蓝色，与 RC 保持一致。
+- `SearchHintTooltip` DI 崩溃修复：根因是 `[Resolved] OverlayColourProvider` 写在 tooltip class 内，但 tooltip 由全局 `OsuTooltipContainer` 在 global scene graph 层渲染，该层不包含 SongSelect 的 `OverlayColourProvider` DI 注册，导致依赖解析失败抛出 unhandled error。修复方案遵循 `ModTooltip` 的构造函数注入模式：在 `SongSelectSearchTextBox`（确在 SongSelect DI 作用域内）通过 `[Resolved]` 取得 `OverlayColourProvider`，然后在 `GetCustomTooltip()` 时通过构造函数参数传入 `SearchHintTooltip`，tooltip class 本身不再使用 `[Resolved]`。同时把 `createSection()` 与 `createBmsSection()` 内的 `GridContainer + AutoSizeAxes.Both + absolute column dimension` 布局替换为 `FillFlowContainer + Container(Width=160f)` 的稳定两列对齐方案。
+- 配合以上视觉与依赖注入收口，`I3` 当前可视为已完成交付；剩余工作已收窄到 `I4` focused regression（单轨拖拽 headless regression + shared visual gate）。
+- 验证：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过，0 error。
+
+## 2026-05-12
+
+### P1-I：I3 交互收口——CompositionValueTextBox 拖拽修复与边界拖拽语义
+
+- `CompositionValueTextBox`（数值编辑框）在可见状态下现在会从 `OnDragStart()` 返回 `false`，让用户点击段位区域打开数字输入后，近旁的句柄拖拽仍可正常冒泡到 `BmsCompositionHandle`；隐藏状态下完全不消费 positional input，避免截断拖拽起始事件。
+- 句柄拖拽语义：当 RC/LN/SCR 三段当前总和恰好等于 100%（即尾段容差为零）时，向右拖拽共享边界会优先"消耗"右邻段的空间而不是拒绝拖拽；数值输入与外部 bindable 直接赋值的路径仍保持 clamp（不链式压缩后续段）。
+- `BmsChartFilterStatsBackfill` 旧谱面 backfill 路径收口：先尝试 raw `WorkingBeatmap.Beatmap` 中的 `BmsHitObjects` 直接计算，若无可用对象则回落到 `GetPlayableBeatmap()`；避免 legacy library 因 raw 流中无 BMS note 而误被判定为空谱面后被错误过滤。
+
+## 2026-05-12 / 2026-05-11
+
+### P1-I：I3 主体落地——BmsCompositionFilterControl 单轨控件
+
+- `BmsCompositionFilterControl` 以 BMS-local 私有单轨控件形式落地，替换原来的三条彼此独立的 range slider 原型：
+  - 单轨从左到右固定为 `RC / LN / SCR` 三个可编辑上限段，尾段为空白容差。
+  - 三段各自拥有独立 `Enabled` bindable；禁用某段时，该段不再从 visual UI 生成对应的 `rc<=` / `ln<=` / `scr<=` query fragment。
+  - `BmsCompositionHandle` 句柄承载段间拖拽：`BmsCompositionHandle.GetTrackScreenSpacePosition()` 提供轨道内坐标映射，`handle_half_width = ShearedNub.EXPANDED_SIZE / 2f` 做端点内缩防止与邻近 UI 重叠；句柄上同步显示当前边界百分比数值文本。
+  - `BmsCompositionRowButton` 基于 `ShearedToggleButton`：激活时使用段配色（Darken/Lighten 0.1f），非激活时使用 `ColourProvider.Background3/Background1`，确保 hover Lighten(0.2f) 可见。
+  - `BmsKeyCountToggleButton` 提供 5K / 7K / 9K / 14K 独立启停，默认全部激活。
+  - `RulesetFilterLabel` 以 `Background3` 填充背景，视觉重量与排序/分组/收藏夹下拉控件标签保持一致。
+  - `SearchHintTooltip` 绑定到搜索框（通过 `IHasCustomTooltip<bool>`）：搜索框为空时显示，展示所有通用与 BMS 专属搜索语法。
+- BMS 分支的 criteria 编译链 `createBmsVisualFilterQuery()` 已明确只在对应行 `Enabled == true` 时生成对应 query fragment，不再把 segment `UpperBound.IsDefault` 作为生效判断。
+- BMS 分支的 `OnSongSelectSetup` / `BmsRuleset.OnSongSelectSetup` callback 已接通：`BmsChartFilterStatsBackfill` 在后台以 `Task.Run` 执行，每约 100 次计算通过 `onCacheUpdated` 触发 `Scheduler.AddOnce(() => updateCriteria())`。
+
+
 
 ### 需求澄清与文档校正：谱面构成的三个值是最大占比
 

@@ -5,7 +5,17 @@
 
 ---
 
-## 2026-05-11
+## 2026-05-13
+
+### P1-I：BMS 选歌筛选 UI 视觉收口
+
+- `BmsCompositionRowButton` / `BmsKeyCountToggleButton` hover 效果修复：非激活态改为 `ColourProvider.Background3/Background1`，`ShearedButton` 内置 `Lighten(0.2f)` 机制现在产生清晰可见的色变（原使用 `Color4.Black.Opacity()` 导致 hover 几乎不可辨）。
+- RC/LN/SCR 颜色重排：RC=蓝(94,190,255)、LN=黄(255,212,92)、SCR=橙(255,119,86)；`SearchHintTooltip` BMS 段落强调色同步更新为蓝色匹配 RC。
+- `SearchHintTooltip` DI 崩溃修复：`[Resolved] OverlayColourProvider` 移到 `SongSelectSearchTextBox`（确在 SongSelect DI 作用域内），通过构造函数传入 tooltip（对齐 `ModTooltip` 模式）；同时把不稳定的 `GridContainer + AutoSizeAxes.Both` 布局替换为 `FillFlowContainer + Container(Width=160f)`。
+- `I3` 实质完成：`BmsCompositionFilterControl` 单轨控件已全面落地，符合"单轨上限段+尾段空白容差+独立启停"产品合同；`I4` 回归收口进行中（单轨拖拽 headless regression 待补）。
+- 验证：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` **0 error**。
+
+
 
 ### P1-I：文档校正 `谱面构成` 最终产品合同
 
