@@ -4,12 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 
@@ -153,6 +156,84 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(history.Timelines[2].Samples.First().Value, Is.EqualTo(BmsGaugeProcessor.STARTING_GAUGE).Within(0.000001));
                 Assert.That(history.Timelines[2].Samples.Last().Value, Is.GreaterThanOrEqualTo(BmsGaugeProcessor.CLEAR_THRESHOLD));
                 Assert.That(history.EndTime, Is.GreaterThan(history.StartTime));
+            });
+        }
+
+        [Test]
+        public void TestPrepareScoreInfoDoesNotPersistPerfectLampWhenHcnBodyTicksFailGauge()
+        {
+            var beatmap = createHoldBeatmap(total: 200, baselineNoteCount: 0, holdDuration: BmsHoldNoteBodyTick.TICK_QUANTUM * 11);
+            var holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+
+            var hitResults = new List<(HitObject hitObject, HitResult result)>
+            {
+                (holdNote.Head!, HitResult.Perfect),
+            };
+
+            hitResults.AddRange(holdNote.BodyTicks.Select(bodyTick => ((HitObject)bodyTick, HitResult.IgnoreMiss)));
+            hitResults.Add((holdNote.Tail!, HitResult.Perfect));
+
+            var score = new ScoreInfo
+            {
+                Mods = new Mod[]
+                {
+                    new BmsModGaugeHazard(),
+                    new BmsModHellChargeNote(),
+                },
+                Statistics = new Dictionary<HitResult, int>
+                {
+                    [HitResult.Perfect] = 2,
+                },
+                MaximumStatistics = new Dictionary<HitResult, int>
+                {
+                    [HitResult.Perfect] = 2,
+                },
+                HitEvents = createHitEvents(hitResults),
+            };
+
+            new BmsRuleset().PrepareScoreInfoForResults(score, beatmap);
+
+            var scoreData = score.GetRulesetData<BmsScoreInfoData>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(scoreData, Is.Not.Null);
+                Assert.That(scoreData!.ClearLamp, Is.EqualTo(BmsClearLamp.Failed));
+                Assert.That(scoreData.FinalGauge, Is.EqualTo(0).Within(0.000001));
+            });
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestGaugeHistoryIgnoresBodyTickMissesForAutoPlayHoldMods(bool scratchHold)
+        {
+            var beatmap = createHoldBeatmap(total: 200, baselineNoteCount: 0, holdDuration: BmsHoldNoteBodyTick.TICK_QUANTUM * 2, laneIndex: scratchHold ? 0 : 1, isScratch: scratchHold);
+            var holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+            Mod autoMod = scratchHold ? new BmsModAutoScratch() : new BmsModAutoNote();
+
+            var score = new ScoreInfo
+            {
+                Mods = new Mod[]
+                {
+                    new BmsModHellChargeNote(),
+                    autoMod,
+                },
+                Statistics = new Dictionary<HitResult, int>(),
+                MaximumStatistics = new Dictionary<HitResult, int>(),
+                HitEvents = createHitEvents(new (HitObject hitObject, HitResult result)[]
+                {
+                    (holdNote.Head!, HitResult.IgnoreHit),
+                    (holdNote.BodyTicks.First(), HitResult.IgnoreMiss),
+                    (holdNote.Tail!, HitResult.IgnoreHit),
+                }),
+            };
+
+            var history = BmsClearLampProcessor.CreateGaugeHistory(score, beatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(history.Timelines, Has.Length.EqualTo(1));
+                Assert.That(history.Timelines[0].Samples.Last().Value, Is.EqualTo(BmsGaugeProcessor.STARTING_GAUGE).Within(0.000001));
             });
         }
 
@@ -362,6 +443,23 @@ namespace osu.Game.Rulesets.Bms.Tests
             return beatmap;
         }
 
+        private static BmsBeatmap createHoldBeatmap(double total, int baselineNoteCount, double holdDuration, int laneIndex = 1, bool isScratch = false)
+        {
+            var beatmap = createBeatmap(baselineNoteCount, total);
+
+            var holdNote = new BmsHoldNote
+            {
+                StartTime = baselineNoteCount + 1000,
+                EndTime = baselineNoteCount + 1000 + holdDuration,
+                LaneIndex = laneIndex,
+                IsScratch = isScratch,
+            };
+
+            holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+            beatmap.HitObjects.Add(holdNote);
+            return beatmap;
+        }
+
         private static ScoreInfo createScore(BmsBeatmap beatmap, params HitResult[] results)
         {
             var statistics = new Dictionary<HitResult, int>();
@@ -385,6 +483,20 @@ namespace osu.Game.Rulesets.Bms.Tests
                 },
                 HitEvents = hitEvents,
             };
+        }
+
+        private static List<HitEvent> createHitEvents(IEnumerable<(HitObject hitObject, HitResult result)> hitResults)
+        {
+            var hitEvents = new List<HitEvent>();
+            HitObject? lastHitObject = null;
+
+            foreach ((var hitObject, var result) in hitResults)
+            {
+                hitEvents.Add(new HitEvent(0, 1.0, result, hitObject, lastHitObject, null));
+                lastHitObject = hitObject;
+            }
+
+            return hitEvents;
         }
 
         private static Mod createLongNoteModeMod(BmsLongNoteMode longNoteMode)
