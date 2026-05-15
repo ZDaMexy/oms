@@ -3,6 +3,7 @@
 using System;
 using oms.Input;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Screens;
 using osu.Framework.Threading;
 using osu.Game.Rulesets.Bms.Input;
@@ -47,7 +48,7 @@ namespace osu.Game.Rulesets.Bms
             gameplayInputManager = inputManager;
 
             hiSpeedHoldPressed.BindTarget = inputManager.PreStartHoldPressed;
-            hiSpeedHoldPressed.BindValueChanged(_ => updatePreStartAdjustmentState(), true);
+            hiSpeedHoldPressed.BindValueChanged(state => updatePreStartAdjustmentState(state.NewValue && !state.OldValue), true);
             inputManager.Router.ActionPressed += handleGameplayActionPressed;
 
             drawableBmsRuleset.Overlays.Add(hiSpeedOverlay = new BmsPreStartHiSpeedOverlay(
@@ -79,13 +80,7 @@ namespace osu.Game.Rulesets.Bms
             suppressClockPausedHandler = false;
 
             gameplayStartPending = true;
-            startDelayElapsed = false;
-            startDelayDelegate?.Cancel();
-            startDelayDelegate = SchedulePreStartDelay(() =>
-            {
-                startDelayElapsed = true;
-                attemptStartGameplay();
-            });
+            restartPreStartDelay();
 
             updatePreStartAdjustmentState();
         }
@@ -121,12 +116,15 @@ namespace osu.Game.Rulesets.Bms
             hiSpeedOverlay.TryHandleActionPress(bmsAction);
         }
 
-        private void updatePreStartAdjustmentState()
+        private void updatePreStartAdjustmentState(bool resetDelay = false)
         {
             if (drawableBmsRuleset == null)
                 return;
 
             bool adjustmentActive = gameplayStartPending && hiSpeedHoldPressed.Value;
+
+            if (resetDelay && adjustmentActive)
+                restartPreStartDelay();
 
             drawableBmsRuleset.SetAllowAdjustmentWhilePaused(adjustmentActive);
 
@@ -181,6 +179,20 @@ namespace osu.Game.Rulesets.Bms
             }, hold_speed_toast_refresh_interval);
         }
 
+        private void restartPreStartDelay()
+        {
+            if (!gameplayStartPending)
+                return;
+
+            startDelayElapsed = false;
+            startDelayDelegate?.Cancel();
+            startDelayDelegate = SchedulePreStartDelay(() =>
+            {
+                startDelayElapsed = true;
+                attemptStartGameplay();
+            });
+        }
+
         private void handleGameplayClockPausedState()
         {
             if (suppressClockPausedHandler)
@@ -193,12 +205,26 @@ namespace osu.Game.Rulesets.Bms
             // Always suppress it during pre-start so the clock doesn't run from an un-seeked position.
             GameplayClockContainer.Stop();
 
+            if (!startDelayElapsed || hiSpeedHoldPressed.Value)
+            {
+                SchedulerAfterChildren.Add(() =>
+                {
+                    if (!gameplayStartPending)
+                        return;
+
+                    suppressClockPausedHandler = true;
+                    GameplayClockContainer.SoftUnpause();
+                    suppressClockPausedHandler = false;
+                });
+                return;
+            }
+
             attemptStartGameplay();
         }
 
         private void attemptStartGameplay()
         {
-            if (!gameplayStartPending || !startDelayElapsed || hiSpeedHoldPressed.Value)
+            if (!gameplayStartPending || !startDelayElapsed || hiSpeedHoldPressed.Value || PauseOverlay.State.Value == Visibility.Visible)
                 return;
 
             completePendingGameplayStart();

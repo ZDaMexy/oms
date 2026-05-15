@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-09
+> 最后更新：2026-05-16
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -31,7 +31,8 @@
 1. 新的 gameplay feedback 必须是 BMS-owned skinnable component，不得复用 mania lookup，也不得回落到上游默认皮肤语义。
 2. 若新增纹理、采样或 config key，必须使用 BMS 专属命名空间，不得借用 legacy mania 资源键名。
 3. 不得通过遍历 wrapped HUD 子节点、偷改 `GaugeBar`、偷改 `ComboCounter` 的方式植入 speed feedback。
-4. 任何更改皮肤边界、HUD 宿主、fallback 语义或 release gate 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
+4. pre-start 视觉流速预览若实现，必须作为 BMS-owned playfield / lane visual surface 接入，并复用 BMS note lookup / fallback；不得塞进 `GameplayFeedbackDisplay`、toast 或 mania lookup。产品口径的“1 号轨道”应解析为第一非 scratch 普通轨，且实际开谱后必须立即消失。
+5. 任何更改皮肤边界、HUD 宿主、fallback 语义或 release gate 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
 
 ## HUD 宿主约束
 

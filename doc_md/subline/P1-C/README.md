@@ -19,5 +19,6 @@
 
 - 当前 `GN / WN` 已在 runtime metrics、常驻 HUD、toast 与 pre-start overlay 中存在，并共享同一组 mode-aware 运行时语义。
 - tri-mode Hi-Speed settings、`阻止谱面开始/ingame start` 的前 5 秒阻塞/全程调速语义，以及 `Sudden / Hidden / Lift` 联动仍属于这条既有 `P1-A / P1-C` 交叉线，不需要新开主线；真正后置的是 full Floating parity。
+- pre-start 1 号普通轨纯视觉流速预览已完成 feasibility review：实现路径应为第一非 scratch 轨上的纯视觉 preview layer，复用当前 note skin lookup 与 scroll authority；不得经 `BmsHitObject` / `DrawableBmsHitObject` / `BmsLane` 判定或键音链。
 - `P1-C` 不能绕过 `P1-A` 直接扩写旧版 HUD 接口，也不能把 speed feedback 临时塞进 `GaugeBar`、`ComboCounter` 或 wrapped HUD 子节点。
 - 所有涉及判定语义、反馈闭环、pre-start operator surface 与绿色数字表达的改动，都必须同步更新本目录四件套，并在影响全局时反向同步 `../../mainline/`。

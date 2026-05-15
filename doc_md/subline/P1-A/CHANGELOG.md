@@ -2,6 +2,14 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-16
+
+### 文档规划：pre-start 1 号普通轨纯视觉流速预览的宿主边界归到 `P1-A`
+
+- 已明确该 feature 的 `P1-A` 职责只包括 playfield / lane 宿主、skin fallback 与产品表面，不拥有判定 / 计分 / 键音语义本身。
+- 文档现已把 preview 宿主冻结为 BMS-owned playfield / lane visual surface：继续复用 BMS note lookup / fallback，不准塞进 HUD / toast，也不准误用 mania lookup。
+- 本轮仅更新文档与 memory，无生产代码变更、无新增测试执行。
+
 ## 2026-05-09
 
 ### shared installation surface 跟进：数据目录迁移入口与结果说明收口

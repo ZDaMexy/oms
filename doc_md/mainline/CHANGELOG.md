@@ -7,6 +7,13 @@
 
 ## 2026-05-16
 
+### 文档：pre-start 1 号普通轨纯视觉流速预览完成可行性评估与归线规划
+
+- 已确认该需求可在当前 BMS 架构内安全实现，但实现路径必须是 pre-start-only 的纯视觉 preview layer，而不是伪造真实 `BmsHitObject` / `DrawableBmsHitObject`。
+- 文档现已统一收口为同一条 `P1-A / P1-C` 交叉线：`P1-A` 负责 playfield / lane 宿主与 fallback，`P1-C` 负责可见性 gate、第一非 scratch 轨选择，以及“不参与判定 / 成绩 / 键音 / replay”的运行时硬约束。
+- 同步记录了一个关键实现细节：5K / 7K / 14K 当前 raw `laneIndex = 0` 是 scratch，因此“1 号轨道”应按第一非 scratch 普通轨解析；9K 才可直接落第一轨。
+- 本轮仅完成文档与 memory 规划，无生产代码改动、无新增测试执行。
+
 ### BMS：结果侧 clear lamp / gauge history 与 gameplay mod 链重新对齐
 
 - `BmsClearLampProcessor` 现会先检查 clear condition 再授予 `PERFECT` / `FULL COMBO`；`HCN` body-tick `IgnoreMiss` 即使不改变 EX-SCORE 或 `Good/Meh/Miss` 计数，也不会再把 failed run 持久化成更高 lamp。

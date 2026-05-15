@@ -1,6 +1,6 @@
 # P1-C 开发计划：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-04-28
+> 最后更新：2026-05-16
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-C` 的执行顺序；皮肤边界与 HUD 宿主合同见 [../P1-A/DEVELOPMENT_PLAN.md](../P1-A/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -17,6 +17,7 @@
 - 当前 runtime 已同时具备 `BmsSpeedMetricsToast` 与常驻 `GameplayFeedbackDisplay`；toast 只承担操作确认，常驻 feedback card 承担权威表达。
 - 当前 runtime 已具备“前 5 秒 delayed-start 阻塞 + 全程调速修饰键”这一统一 operator contract；`UI_PreStartHold` 在前 5 秒作为阻塞键，正式 gameplay 开始后仍继续承担 hold-based Hi-Speed 调节修饰语义；`UI_LaneCoverFocus`（click-to-cycle）/ 滚轮 / 中键用于 lane-cover 调整与 target cycle，奇偶列按键用于调节当前 Hi-Speed。两个动作已拆分为独立键位。
 - owner-level `TestSceneBmsPreStartHiSpeedOverlay`、real-player `TestSceneBmsSoloPlayerPreStart` 与输入桥 `OmsInputRouterTest` 当前分别锁住 overlay 合同、**10/10** 的 start-sequence / mode-value / ingame hold 路径，以及 **9/9** 的 lane-action gameplay 转发抑制；当前 operator 语义不再停留在“仅有首轮接线”的状态。
+- 当前 `DrawableBmsRuleset`、`BmsPlayfield`、`BmsHitObjectArea` 与 `BmsScrollSpeedMetrics` 已提供足够的 scroll/time authority，可承接 pre-start 1 号普通轨纯视觉流速预览；相对地，`DrawableBmsHitObject`、`BmsLane.OnPressed()`、lane keysound 与 judgement / replay / autoplay authority 都必须避开。
 - 当前 BMS mod 选中状态与 non-default settings 已通过 `BmsRulesetConfigManager.PersistedModState` 以 ruleset-local snapshot 持久化；这只作用于 BMS，切到 mania 再切回或重启后恢复。
 - 冷启动首轮恢复现已明确要求等待 `RulesetConfigCache` ready：若 startup 首次 ruleset change 发生在 cache `LoadComplete()` 之前，宿主必须延后 replay 当前 ruleset 到 cache ready 后再做 restore；该 path 现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
 - 当前 `Sudden / Hidden / Lift` 已具备 mod-local `RememberGameplayChanges` 开关；开启时局内滚轮改动会跨 gameplay clone 回写到当前 selected mod，并在回场 / 重启后延续，关闭时保持 current-play-only。
@@ -191,6 +192,29 @@
 
 > 当前已完成四刀 + 后续修复：HUD 已能区分 `NONE`、`{TARGET} ONLY`、多 target click-to-cycle 状态与临时覆写文案；`UI_LaneCoverFocus`（click-to-cycle）与 `UI_PreStartHold`（hold gate）已拆分为独立动作；与此同时，BMS-only mod state persistence 与 `RememberGameplayChanges` 局内写回开关也已落地，代码侧收口完成，后续主线转入 C3。
 
+### C2.5：pre-start 1 号普通轨纯视觉流速预览
+
+**状态：已完成 feasibility review，尚未开始实现**
+
+目标：在 actual gameplay 尚未开始且 `UI_PreStartHold` 正在按住时，让“1 号普通轨”出现按当前流速下落的纯视觉预览 note，帮助用户在 pre-start 窗口中校准 Hi-Speed，而不把 preview 误接进判定 / 计分 / 键音链。
+
+建议交付：
+
+1. 可见性 gate 以“actual gameplay 仍 pending + 当前 `UI_PreStartHold` 为 held”为 authority；按住期间若再次进入 hold 并刷新 5 秒窗口，preview 也应重置；一旦真正进入 gameplay，哪怕同一动作仍继续承担 ingame 调速修饰键，preview 也必须立即消失。
+2. “1 号轨道”按产品语义定义为**第一条非 scratch 普通轨**：5K / 7K / 14K 不得直接取 raw `laneIndex = 0`，因为该索引当前是 scratch；9K 才可直接落在第一条 lane。
+3. 预览 drawable 必须是 lane/playfield 上的纯视觉层，建议宿主放在 `BmsPlayfield` / `BmsLane` / `BmsHitObjectArea` 附近的专用 preview container；视觉本体可复用 `BmsNoteSkinLookup(BmsNoteSkinElements.Note, ...)` 或等价 fallback，以保持与当前皮肤 note 外观一致。
+4. 运动 authority 必须继续来自 `DrawableBmsRuleset` / `BmsScrollSpeedMetrics` / `Playfield.ScrollLengthRatio` 这条现有 runtime scroll 链，而不是手写第二套独立速度配置；单颗循环 ghost note 即可满足需求，不需要伪造完整 note stream。
+5. 预览必须跟随同一 pre-start/playfield clock；pause overlay 在 pre-start 中可见时，preview 也必须暂停或冻结，不能在暂停界面下继续下落。
+6. 硬约束：不得创建真实 `BmsHitObject`、不得使用 `DrawableBmsHitObject`、不得加入 gameplay `HitObjectContainer`、不得走 `BmsLane.OnPressed()` / lane keysound / `ScoreProcessor` / judgement / replay / autoplay authority。该功能只负责视觉反馈。
+7. focused validation 至少包括：pre-start hold 显示 / 松开隐藏 / 重新按下后重置、实际开谱后不再显示、odd/even 调速时预览速度同步变化、pause overlay 下不继续下落、全程不产生命中判定 / 分数 / 键音 / replay side effect。
+
+可能文件切片：
+
+1. `BmsSoloPlayer.cs`：暴露或驱动 preview-active gate，确保只在 pre-start pending + hold active 时可见。
+2. 新 `UI/BmsPreStartSpeedPreview*.cs`：承接纯视觉 preview drawable / 容器。
+3. `BmsPlayfield.cs` / `BmsLane.cs`：提供第一非 scratch 轨的宿主层与必要的 preview 挂点。
+4. `TestSceneBmsSoloPlayerPreStart*` 或新的 owner-level scene：覆盖 gating、速度更新与“无判定副作用”回归。
+
 ### C3：判定语义与训练反馈收口
 
 **状态：进行中**
@@ -218,5 +242,6 @@
 
 ## 当前优先顺序
 
-1. `C3` 判定语义与训练反馈收口
-2. `C4` 作者文档与 release gate 收口
+1. `C2.5` pre-start 1 号普通轨纯视觉流速预览
+2. `C3` 判定语义与训练反馈收口
+3. `C4` 作者文档与 release gate 收口

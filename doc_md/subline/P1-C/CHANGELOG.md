@@ -4,6 +4,12 @@
 
 ## 2026-05-16
 
+### 文档规划：pre-start 1 号普通轨纯视觉流速预览归到 `P1-C`
+
+- 已完成该需求的静态可行性评估：当前 BMS 架构可以安全承接，但实现路径必须是第一非 scratch 轨上的纯视觉 preview layer，而不是伪造真实 `BmsHitObject` / `DrawableBmsHitObject`。
+- `P1-C` 现明确拥有三条新硬约束：只在 actual gameplay 未开始且 `UI_PreStartHold` 按住时显示、5K / 7K / 14K 不得误取 scratch `laneIndex = 0`、以及绝不接入 judgement / score / keysound / replay authority。
+- 本轮仅更新文档与 memory，无生产代码变更、无新增测试执行。
+
 ### C3 / results feedback 纠偏：clear lamp 与 gauge history 回到 gameplay authority
 
 - `BmsClearLampProcessor` 现会先检查 clear condition 再授予 `PERFECT` / `FULL COMBO`；`HCN` body-tick `IgnoreMiss` 即使不改 EX-SCORE 或聚合 judgement counts，也不会再让 failed run 被结果页误标成更高 lamp。

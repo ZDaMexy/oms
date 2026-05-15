@@ -31,6 +31,13 @@
 12. **gameplay adjustment 回写合同**：`Sudden / Hidden / Lift` 的局内滚轮调整只有在 mod-local `RememberGameplayChanges = true` 时才允许写回当前 BMS selected mod 与持久化快照；关闭时必须保持 current-play-only 语义。
 13. **startup replay 时序合同**：`OsuGameBase` 在 startup 首次处理 BMS ruleset 时，若 `RulesetConfigCache` 尚未 ready，不得直接 `GetConfigFor()`；正确合同是允许无 config 的首轮 apply，并在 cache ready 后 replay 当前 ruleset 完成 `PersistedModState` restore。否则会同时造成冷启动 mod 记忆丢失与误报 ruleset failure。
 
+## pre-start 视觉预览约束
+
+1. pre-start 流速预览若实现，只能在 actual gameplay 尚未开始且 `UI_PreStartHold` 当前按住时显示；真正进入 gameplay 后，即便同一 held action 仍继续承担 ingame 调速修饰键，preview 也必须立即消失。
+2. “1 号轨道”必须按**第一非 scratch 普通轨**解析，而不是 hard-code raw `laneIndex = 0`；5K / 7K / 14K 的 index 0 当前是 scratch，9K 才可直接落第一条 lane。
+3. preview 必须作为纯视觉 layer 实现，复用 `BmsNoteSkinLookup`、`BmsPlayfield`、`BmsHitObjectArea` 与 `BmsScrollSpeedMetrics` 这条现有 visual/scroll authority；不得创建真实 `BmsHitObject`、不得使用 `DrawableBmsHitObject`、不得加入 gameplay `HitObjectContainer`，也不得触发 lane keysound、judgement、score、replay 或 autoplay side effect。
+4. preview 必须跟随同一 pre-start/playfield clock 与 pause state；pause overlay 在 pre-start 中可见时，preview 也必须暂停或冻结，不能在暂停界面下继续下落。
+
 ## 反馈家族约束
 
 1. speed feedback、`FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 应尽量沿同一 feedback family 承载，不再各自新开 ad-hoc overlay。

@@ -1,12 +1,14 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Input.Bindings;
 using osu.Framework.Screens;
 using osu.Framework.Threading;
 using osu.Framework.Testing;
@@ -22,6 +24,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Tests.Visual;
+using osuTK.Input;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -143,6 +146,40 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestPressingHoldAgainResetsPreStartDelay()
+        {
+            AddAssert("one initial pre-start delay scheduled", () => player.ScheduledPreStartDelayCount == 1);
+            AddAssert("no initial pre-start delays are cancelled", () => player.CancelledScheduledPreStartDelayCount == 0);
+
+            AddStep("press pre-start hold once", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay visible after first hold", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+            AddAssert("first hold reschedules delay", () => player.ScheduledPreStartDelayCount == 2 && player.CancelledScheduledPreStartDelayCount == 1);
+
+            AddStep("release first hold before delay elapses", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay hidden after first release", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+            AddAssert("gameplay still waits after first release", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("press pre-start hold again", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay visible after second hold", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+            AddAssert("second hold reschedules delay again", () => player.ScheduledPreStartDelayCount == 3 && player.CancelledScheduledPreStartDelayCount == 2);
+
+            AddStep("expire the oldest scheduled delay", () => player.ExpireNextScheduledPreStartDelay());
+            AddAssert("oldest cancelled delay does not start gameplay", () => !player.GameplayClockContainer.IsRunning);
+            AddAssert("latest delay still pending after oldest expiry", () => player.HasPendingActivePreStartDelay);
+
+            AddStep("expire the second scheduled delay", () => player.ExpireNextScheduledPreStartDelay());
+            AddAssert("second cancelled delay does not start gameplay", () => !player.GameplayClockContainer.IsRunning);
+            AddAssert("latest delay still pending after second expiry", () => player.HasPendingActivePreStartDelay);
+
+            AddStep("expire the latest scheduled delay while hold remains active", () => player.ExpirePreStartDelay());
+            AddAssert("latest delay elapsed but gameplay stays held", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("release second hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
+            AddUntilStep("overlay hidden after second release", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+            AddUntilStep("gameplay starts only after latest reset delay elapses and hold releases", () => player.GameplayClockContainer.IsRunning);
+        }
+
+        [Test]
         public void TestUnexpectedClockStartIsSuppressedUntilDelayExpires()
         {
             AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
@@ -154,6 +191,147 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
             AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
+        }
+
+        [Test]
+        public void TestPauseDuringPreStartPreventsGameplayStartingUnderPauseOverlay()
+        {
+            AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
+            AddAssert("pause overlay hidden initially", () => player.PauseOverlayState == Visibility.Hidden);
+
+            AddStep("pause during pre-start", () => Assert.That(player.Pause(), Is.True));
+            AddUntilStep("pause overlay visible", () => player.PauseOverlayState == Visibility.Visible);
+
+            AddStep("expire the pre-start delay while paused", () => player.ExpirePreStartDelay());
+            AddAssert("gameplay does not start under pause overlay", () => !player.GameplayClockContainer.IsRunning);
+            AddAssert("pause overlay remains visible", () => player.PauseOverlayState == Visibility.Visible);
+
+            AddStep("resume from pause", () => player.Resume());
+            AddUntilStep("gameplay starts after resume", () => player.GameplayClockContainer.IsRunning);
+            AddUntilStep("pause overlay hidden after resume", () => player.PauseOverlayState == Visibility.Hidden);
+        }
+
+        [Test]
+        public void TestKeyboardPreStartHoldBindingStillBlocksDelayedGameplayStart()
+        {
+            AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
+            AddAssert("pre-start overlay hidden initially", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+
+            AddStep("press keyboard pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Q), Is.True));
+            AddAssert("input manager sees keyboard pre-start hold", () => player.GameplayInputManager!.PreStartHoldPressed.Value);
+            AddUntilStep("overlay visible while keyboard hold active", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+
+            AddStep("expire the pre-start delay while keyboard hold is active", () => player.ExpirePreStartDelay());
+            AddAssert("gameplay stays held by keyboard pre-start hold", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("release keyboard pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.Q), Is.True));
+            AddAssert("input manager clears keyboard pre-start hold", () => !player.GameplayInputManager!.PreStartHoldPressed.Value);
+            AddUntilStep("overlay hidden after keyboard hold release", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+            AddUntilStep("gameplay starts after keyboard hold release", () => player.GameplayClockContainer.IsRunning);
+        }
+
+        [Test]
+        public void TestKeyboardPreStartHoldStillEnablesHiSpeedAdjustment()
+        {
+            double initialHiSpeed = 0;
+            double hiSpeedStep = 0;
+
+            AddAssert("pre-start overlay exists", () => player.PreStartOverlay != null);
+            AddStep("capture initial hi-speed", () =>
+            {
+                initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
+                hiSpeedStep = player.DrawableBmsRuleset.HiSpeedMode.Value.GetAdjustmentStep();
+            });
+
+            AddStep("press keyboard pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Q), Is.True));
+            AddUntilStep("overlay visible while keyboard hold active", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+
+            AddStep("raise hi-speed with keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Z), Is.True));
+            AddStep("release keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.Z), Is.True));
+            AddAssert("keyboard hold enables hi-speed increase", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
+
+            AddStep("lower hi-speed with second keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.X), Is.True));
+            AddStep("release second keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.X), Is.True));
+            AddAssert("keyboard hold enables hi-speed decrease", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - initialHiSpeed) <= 0.0001);
+        }
+
+        [Test]
+        public void TestManualKeyboardPreStartHoldWorksThroughScreenInput()
+        {
+            AddAssert("pre-start overlay hidden initially", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+
+            AddStep("press Q via manual input", () => InputManager.PressKey(Key.Q));
+            AddUntilStep("manual input reaches pre-start hold", () => player.GameplayInputManager!.PreStartHoldPressed.Value);
+            AddUntilStep("overlay visible from manual pre-start hold", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+
+            AddStep("release Q via manual input", () => InputManager.ReleaseKey(Key.Q));
+            AddUntilStep("manual input clears pre-start hold", () => !player.GameplayInputManager!.PreStartHoldPressed.Value);
+            AddUntilStep("overlay hidden after manual release", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+        }
+
+        [Test]
+        public void TestManualKeyboardPreStartHoldStillWorksWhilePausedDuringPreStart()
+        {
+            double initialHiSpeed = 0;
+            double hiSpeedStep = 0;
+
+            AddStep("capture initial hi-speed", () =>
+            {
+                initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
+                hiSpeedStep = player.DrawableBmsRuleset.HiSpeedMode.Value.GetAdjustmentStep();
+            });
+
+            AddStep("pause via escape", () => InputManager.Key(Key.Escape));
+            AddUntilStep("pause overlay visible", () => player.PauseOverlayState == Visibility.Visible);
+
+            AddStep("press Q via manual input while paused", () => InputManager.PressKey(Key.Q));
+            AddUntilStep("manual input reaches pre-start hold while paused", () => player.GameplayInputManager!.PreStartHoldPressed.Value);
+
+            AddStep("press Z via manual input while paused", () => InputManager.Key(Key.Z));
+            AddAssert("manual paused pre-start hold still adjusts hi-speed", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
+
+            AddStep("release Q via manual input while paused", () => InputManager.ReleaseKey(Key.Q));
+            AddUntilStep("manual paused pre-start hold clears on release", () => !player.GameplayInputManager!.PreStartHoldPressed.Value);
+        }
+
+        [Test]
+        public void TestResumeDuringPreStartRestoresInteractivePreStartState()
+        {
+            AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("pause during pre-start", () => Assert.That(player.Pause(), Is.True));
+            AddUntilStep("pause overlay visible", () => player.PauseOverlayState == Visibility.Visible);
+
+            AddStep("resume before delay expires", () => player.Resume());
+            AddUntilStep("pause overlay hidden", () => player.PauseOverlayState == Visibility.Hidden);
+            AddUntilStep("pre-start state restored", () => !player.GameplayClockContainer.IsPaused.Value && !player.GameplayClockContainer.IsRunning);
+
+            AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
+            AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
+        }
+
+        [Test]
+        public void TestKeyboardPreStartHoldStillWorksAfterPauseResumeDuringPreStart()
+        {
+            AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("pause during pre-start", () => Assert.That(player.Pause(), Is.True));
+            AddUntilStep("pause overlay visible", () => player.PauseOverlayState == Visibility.Visible);
+
+            AddStep("resume before delay expires", () => player.Resume());
+            AddUntilStep("pre-start state restored after resume", () => !player.GameplayClockContainer.IsPaused.Value && !player.GameplayClockContainer.IsRunning);
+
+            AddStep("press keyboard pre-start hold after resume", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Q), Is.True));
+            AddAssert("input manager sees keyboard pre-start hold after resume", () => player.GameplayInputManager!.PreStartHoldPressed.Value);
+            AddUntilStep("overlay visible after resume hold", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
+
+            AddStep("expire the pre-start delay while holding after resume", () => player.ExpirePreStartDelay());
+            AddAssert("gameplay stays held after resume while keyboard hold remains active", () => !player.GameplayClockContainer.IsRunning);
+
+            AddStep("release keyboard pre-start hold after resume", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.Q), Is.True));
+            AddAssert("input manager clears keyboard pre-start hold after resume", () => !player.GameplayInputManager!.PreStartHoldPressed.Value);
+            AddUntilStep("overlay hidden after releasing post-resume hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+            AddUntilStep("gameplay starts after releasing post-resume hold", () => player.GameplayClockContainer.IsRunning);
         }
 
         [Test]
@@ -359,7 +537,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private partial class TestBmsSoloPlayer : BmsSoloPlayer
         {
-            private Action? expirePreStartDelay;
+            private readonly List<(ScheduledDelegate Delegate, Action Callback)> scheduledPreStartDelays = new List<(ScheduledDelegate Delegate, Action Callback)>();
 
             public DrawableBmsRuleset? DrawableBmsRuleset => base.DrawableRuleset as DrawableBmsRuleset;
 
@@ -369,18 +547,45 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             public BmsPreStartHiSpeedOverlay? PreStartOverlay => base.PreStartHiSpeedOverlay;
 
+            public Visibility PauseOverlayState => base.PauseOverlay.State.Value;
+
+            public int ScheduledPreStartDelayCount => scheduledPreStartDelays.Count;
+
+            public int CancelledScheduledPreStartDelayCount => scheduledPreStartDelays.Count(entry => entry.Delegate.Cancelled);
+
+            public bool HasPendingActivePreStartDelay => scheduledPreStartDelays.Any(entry => !entry.Delegate.Cancelled);
+
             public void ForceGameplayClockStart() => GameplayClockContainer.Start();
 
             public void ExpirePreStartDelay()
             {
-                expirePreStartDelay?.Invoke();
-                expirePreStartDelay = null;
+                int activeIndex = scheduledPreStartDelays.FindLastIndex(entry => !entry.Delegate.Cancelled);
+
+                if (activeIndex < 0)
+                    return;
+
+                var scheduledDelay = scheduledPreStartDelays[activeIndex];
+                scheduledPreStartDelays.RemoveAt(activeIndex);
+                scheduledDelay.Callback();
+            }
+
+            public void ExpireNextScheduledPreStartDelay()
+            {
+                if (scheduledPreStartDelays.Count == 0)
+                    return;
+
+                var scheduledDelay = scheduledPreStartDelays[0];
+                scheduledPreStartDelays.RemoveAt(0);
+
+                if (!scheduledDelay.Delegate.Cancelled)
+                    scheduledDelay.Callback();
             }
 
             protected override ScheduledDelegate SchedulePreStartDelay(Action onElapsed)
             {
-                expirePreStartDelay = onElapsed;
-                return Scheduler.AddDelayed(() => { }, double.MaxValue);
+                var scheduledDelay = Scheduler.AddDelayed(() => { }, double.MaxValue);
+                scheduledPreStartDelays.Add((scheduledDelay, onElapsed));
+                return scheduledDelay;
             }
 
             protected override Task ImportScore(Score score) => Task.CompletedTask;

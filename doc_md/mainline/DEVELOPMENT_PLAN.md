@@ -44,7 +44,7 @@
 | **P1-A 产品面与 release gate** | Phase 1.1、离线发行基线 | 维持 OMS 默认皮肤、fallback、首次启动向导 / 设置入口等公开产品表面稳定，并冻结 BMS HUD / 皮肤反馈边界 | OMS built-in skin、partial override、上游默认皮肤退出、portable 发布表面、首次启动向导 / 设置导流表面、release gate 回归、BMS HUD feedback contract / skin boundary freeze | 新 gameplay mod、训练模式、判定语义扩张 | Debug 构建、mania/BMS skin gate、osu.Game.Tests release gate 稳定 |
 | **P1-I BMS 选歌筛选与搜索定制** | Song Select 产品面 / 搜索语义 | 为 BMS ruleset 提供独立的 `谱面构成` / `键数` visual filter、custom search 与 matching authority | BMS-only FilterControl row branch、RC/LN/SCR persisted read-model、`key/rc/ln/scr` 搜索语法、legacy beatmap backfill | 全共享 filter host 重构、per-candidate live playable load、mania 新 UI 扩面 | BMS / mania 切 ruleset 不回归，构成统计 authority 稳定 |
 | **P1-B 输入语义与硬件验收** | 1.17 | 收口 analog scratch / cross-device trigger / HID 真实语义 | keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 语义、mixed-source runtime、真实硬件覆盖 | 非阻塞的新输入后端扩张 | scratch bridge 回归稳定，真实 HID 手工验收可执行 |
-| **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈、权威绿色数字 / 调速反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口、权威绿色数字 HUD、`Sudden / Hidden / Lift` adjustment feedback | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
+| **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈、权威绿色数字 / 调速反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口、权威绿色数字 HUD、`Sudden / Hidden / Lift` adjustment feedback、pre-start 1 号普通轨纯视觉流速预览 | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
 | **P1-D 控制器校准与诊断** | 1.17 后续产品面 | 提供 deadzone / sensitivity / scratch 模式说明 / diagnostics UI | diagnostics、live capture 扩展、校准 UI、控制器说明文案 | 与当前设备无关的新模式或新硬件抽象 | 常见 IIDX/BMS 控制器可在 UI 内完成基础诊断 |
 | **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
 | **P1-F 首发离线发行基线** | 离线发行基线、portable 验收 | 维持 `portable.ini -> data/`、在线更新关闭、覆盖更新可执行与公开 release gate 稳定 | 便携发布、覆盖更新、离线发布口径、公开发行门槛 | 借发行名义恢复在线安装/在线更新 | portable publish 实机通过，公开发行约束可对外复述 |
@@ -183,6 +183,7 @@
 
 - 该专题不是把完整 `FHS` 或 Phase 2 速度体系提前带入当前主线，而是把现有 BMS `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 收口成**权威、可皮肤化、可扩展**的反馈合同
 - 当前 tri-mode settings、mode-aware runtime feedback、以及 `阻止谱面开始/ingame start` 这条前 5 秒阻塞/全程调速 operator surface 仍归这条既有 `P1-A / P1-C` 交叉线，不新开主线；`P1-A` 负责 settings / HUD 宿主 / skin boundary 与 operator overlay / toast 的产品边界，`P1-C` 负责 mode-aware metrics、hold modifier 调速语义与后续 feedback family
+- 同一交叉线下新增的 pre-start 1 号普通轨纯视觉流速预览规划也不另开主线：`P1-A` 负责 playfield / lane 宿主与 fallback，`P1-C` 负责可见性 gate、lane 选择与“绝不接判定链”的运行时语义
 - full Floating parity（mid-song re-float、soflan GN range、更加严格的 IIDX start sequencing）仍属后续补强，不得借“已落地三模式”之名提前宣称完成 `FHS`
 - 专题计划、状态与技术约束分别维护在 [../subline/P1-A/DEVELOPMENT_PLAN.md](../subline/P1-A/DEVELOPMENT_PLAN.md)、[../subline/P1-A/DEVELOPMENT_STATUS.md](../subline/P1-A/DEVELOPMENT_STATUS.md)、[../subline/P1-A/TECHNICAL_CONSTRAINTS.md](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与 [../subline/P1-C/DEVELOPMENT_PLAN.md](../subline/P1-C/DEVELOPMENT_PLAN.md)、[../subline/P1-C/DEVELOPMENT_STATUS.md](../subline/P1-C/DEVELOPMENT_STATUS.md)、[../subline/P1-C/TECHNICAL_CONSTRAINTS.md](../subline/P1-C/TECHNICAL_CONSTRAINTS.md)
 
@@ -197,7 +198,8 @@
 3. **运行时反馈点**：HUD / toast / pre-start overlay 必须共享同一组 mode-aware speed metrics，避免出现 settings、HUD、toast 各说各话。
 4. **操作窗口点**：`UI_PreStartHold` 不是 debug 测试夹层，而是正式 operator surface；其合同现在同时包含“前 5 秒阻止开始”和“全程调速修饰键”两层语义，输入、显示、阻塞/释放时序、toast/overlay 分工与 fallback 都要当成产品合同维护。
 5. **联动点**：`Sudden / Hidden / Lift`、奇偶列调速、滚轮 / 中键 target cycle、以及当前模式数值必须视为同一条联动链，而不是多个独立 feature。
-6. **验证点**：当前代码侧已通过 focused tests + Release build；除 BMS mod 冷启动恢复的 dedicated integration coverage 外，owner-level `BmsPreStartHiSpeedOverlay` 合同与 real-player `BmsSoloPlayer` pre-start start-sequence / overlay binding 也已补到位。当前剩余主要是 full Floating parity、跨设备真实输入路径与后置人工验收，而不是 delayed-start / hold gate 的基础语义空白。
+6. **预览点**：若追加 pre-start 视觉流速预览，必须锁定在“actual gameplay 尚未开始且 `UI_PreStartHold` 正在按住”的窗口，只在 1 号普通轨显示纯视觉下落 marker；不得借 preview 复用真实 note / judgement / keysound 链。
+7. **验证点**：当前代码侧已通过 focused tests + Release build；除 BMS mod 冷启动恢复的 dedicated integration coverage 外，owner-level `BmsPreStartHiSpeedOverlay` 合同与 real-player `BmsSoloPlayer` pre-start start-sequence / overlay binding 也已补到位。当前剩余主要是 full Floating parity、pre-start 视觉预览、跨设备真实输入路径与后置人工验收，而不是 delayed-start / hold gate 的基础语义空白。
 
 #### 线：当前应如何归线
 
@@ -214,6 +216,7 @@
 | **runtime 语义面** | `BmsHiSpeedRuntimeCalculator`、`BmsScrollSpeedMetrics`、Classic sample、Floating anchor | tri-mode 之间有没有语义串线？ |
 | **操作面** | `BmsSoloPlayer` delayed start、`BmsPreStartHiSpeedOverlay`、hold gate | hold 时是否真阻塞开谱，松开后是否正确恢复？ |
 | **联动面** | `Sudden / Hidden / Lift`、wheel、middle-click、odd/even lane keys | paused pre-start 和正常 gameplay 是否共享同一条调整链？ |
+| **预览面** | 第一非 scratch 轨、playfield / lane 纯视觉 preview layer、pause/start gate | 是不是误挂到真实 `DrawableBmsHitObject` / lane 判定链，或在正式 gameplay hold 调速时仍继续显示？ |
 | **皮肤与宿主面** | HUD layout、fallback、overlay 宿主、project boundary | 有没有为了快而破坏 `IBmsHudLayoutDisplay` 或新增跨项目依赖？ |
 | **验证面** | focused tests、Release build、后续 integration / manual checklist | 当前哪些只验证了静态/定向，哪些还缺真实流程验证？ |
 | **文档面** | mainline、P1-A、P1-C、IIDX 审计 | 当前口径有没有误把 tri-mode 写成 full `FHS`？ |
@@ -227,6 +230,7 @@
 5. `SoloSongSelect -> BmsSoloPlayer` 的接线必须继续避开 `osu.Game -> osu.Game.Rulesets.Bms` 的编译期依赖；当前反射构造是已知项目边界约束。
 6. 任何下一步如果触碰 start sequencing、event timing、pre-start 输入优先级或 full Floating parity，都必须先回到这张总图重新归类，再决定是 `P1-A` 侧产品合同补强，还是 `P1-C` 侧语义专题扩面。
 7. BMS mod 选项与配置记忆当前只允许作为 BMS ruleset-local contract 落地：`PersistedModState` 只作用于 BMS；`RememberGameplayChanges` 只控制 `Sudden / Hidden / Lift` 是否把局内调整回写到保存配置，绝不能借机扩大成跨 ruleset 的全局 mod 状态共享。
+8. pre-start 视觉流速预览若实现，必须按“第一非 scratch 普通轨”而不是 raw `laneIndex = 0` 选择目标 lane（5K / 7K / 14K 的 index 0 当前是 scratch；9K 才可直接落第一轨），并复用 `BmsNoteSkinLookup` + `BmsHitObjectArea` / `BmsScrollSpeedMetrics` 的纯视觉 authority；不得以 `BmsHitObject` / `DrawableBmsHitObject` / `BmsLane.OnPressed()` 链做“伪 note”。
 
 #### 下一层专门规划什么时候才值得再开文档
 

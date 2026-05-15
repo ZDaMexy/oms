@@ -1,6 +1,6 @@
 # P1-A 开发进度：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-09
+> 最后更新：2026-05-16
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-A` 的真实进展；`P1-C` 的反馈闭环进展见 [../P1-C/DEVELOPMENT_STATUS.md](../P1-C/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -29,6 +29,7 @@
 - 共享层难度表设置页当前通过反射调用 `BmsDifficultyTableManager`，继续保持 `osu.Game` 与 `osu.Game.Rulesets.Bms` 的项目边界。
 - `Playfield Scale` 已从 settings / runtime config 移除并固定为 `1.0`；原来的 `Playfield Horizontal Offset` 也已退出，改为四态 `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`）这一 single-play playfield surface：当前只作用于 5K / 7K 的 playfield 停靠与 scratch 视觉侧别，其中 `1P / 2P` 为“侧停靠但保留固定屏侧间距”；不改变尺寸 / 可见时间语义，也不承担完整 `1P/2P flip` 的绑定与 side-aware skin 合同。
 - `UI_PreStartHold` 现已承担“前 5 秒阻止开始 + 全程调速修饰键”这一统一 operator contract；`UI_LaneCoverFocus` 保持为 click-to-cycle 持久 target，且 HUD / skin boundary 与 legacy fallback 合同保持未破坏。
+- 若后续加入 pre-start 视觉流速预览，宿主应落在第一非 scratch 普通轨的 playfield / lane visual surface，并继续复用 BMS note lookup / fallback，而不是 HUD / toast。
 - `Sudden` / `Hidden` / `Lift` 现都暴露 `记忆游戏内变动` 开关；默认开启时局内滚轮调整会延续到回场后的 BMS mod 配置，关闭时保持 current-play-only。
 - 当前 `IBmsHudLayoutDisplay` 原签名仍被保留；额外 gameplay feedback 通过 `IBmsHudLayoutDisplayWithGameplayFeedback` 与 legacy overlay wrapper 向后兼容接入。
 - `BmsSkinTransformer` 已在 `MainHUDComponents` 路径统一组装 gauge / combo / speed feedback；不实现新接口的旧 HUD layout 仍能正常工作。
@@ -48,6 +49,7 @@
 | `GameplayFeedbackDisplay` 合同设计 | 进行中 | HUD 宿主兼容扩展、default fallback、shared position contract 与 aggregate scalar state contract 四刀已落地；基于既有 snapshot 的派生 status line 也已验证可继续收口 richer judge display 而无需新字段；剩余 richer judge display 语义继续收口 |
 | 常驻 GN HUD | 进行中 | 默认 feedback container 已由 `P1-C` 接通；本子线继续维护宿主与边界合同 |
 | `Sudden / Hidden / Lift` HUD 联动 | 进行中 | 宿主与默认摆位已稳定，具体状态语义由 `P1-C` 继续推进 |
+| pre-start 视觉流速预览宿主边界 | 已完成可行性评估 | playfield / lane host、第一非 scratch 轨与 BMS note fallback 路径已明确，尚未实现 |
 | `FAST/SLOW` / judge display / pacemaker 统一承载 | 进行中 | 统一 feedback container 已存在，shared judgement/feedback position contract 已落地 |
 
 ## 当前风险
@@ -55,16 +57,18 @@
 - **接口破坏风险**：如果直接改 `IBmsHudLayoutDisplay.SetComponents(...)` 签名，会立刻打断现有自定义 HUD provider。
 - **术语冒进风险**：如果把当前常驻 GN 直接写成完整 `FHS`，会与 IIDX 参考约束冲突，也会误导用户对当前模型的预期。
 - **边界污染风险**：如果为了赶功能把 speed feedback 偷塞进 `GaugeBar`、`ComboCounter` 或 wrapped HUD 子节点，后续 `FAST/SLOW` / pacemaker 将继续复制同类问题。
+- **preview 宿主污染风险**：如果 pre-start 视觉流速预览被塞进 HUD / toast 或误复用 mania lookup，就会把 playfield 视觉 preview 变成错误的宿主边界问题。
 - **布局扩散风险**：如果不先冻结 judgement / feedback 的位置合同，后续容易继续用新的硬编码偏移叠层。
 
 ## 下一检查点
 
 1. 在现有 `GameplayFeedbackState` 已并入 compact judgement counts 与 live EX progress 的基础上，继续评估后续 richer judge display state 是否进入同一 contract，还是保持与 recent history 分层；当前 live `PERFECT / FC` 资格线与 EX 原始分子/分母文案都已证明一部分 display-only 语义可直接从既有 snapshot 派生。
 2. 继续为 tri-mode settings 与 `阻止谱面开始/ingame start` operator surface 补 visual / input-path integration coverage；当前已锁住 overlay owner contract、提前松开 delayed-start、hold 跨过 delay 仍可调速、正式 gameplay 中 hold 仍可调速、persistent target cycle、real-player mode/value binding 与 lane-action gameplay 转发抑制，剩余重点转向更完整 host boundary、fallback 与真实输入事件路径。
+3. 若启动 pre-start 视觉流速预览切片，先补 playfield / lane host、第一非 scratch 轨解析与 note fallback 路径，再把可见性 gate 与“无判定副作用”语义交给 `P1-C` focused validation。
 - 2026-05-09：BMS settings 的 `键音通道数` 当前已把 shared keysound pool ceiling 收口为默认 `32` + 多行 hover 提示；提示文本明确低值截音、高值负载以及缺音时优先升到 `48/64` 的调参路径。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsRulesetConfigurationTest|FullyQualifiedName~BmsDrawableRulesetTest"` **70/70** 通过。
 - 2026-05-09：desktop shared Settings -> 输入 现已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream `MouseSettings` / `TouchSettings` / `TabletSettings`，避免继续暴露非 OMS 通用设置表面；该裁剪明确保持在 desktop 宿主层，不下移到 `OsuGameBase`。`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 - 2026-05-08：把 `UI_PreStartHold` 从“仅 pre-start 有效的 hold gate”扩成“前 5 秒阻止开始 + 全程调速修饰键”这一统一宿主合同；设置面可见名称现改为 `阻止谱面开始/ingame start`，居中 `BMS speed` toast 会在 hold 期间持续刷新，而 hold 期间新的 lane action 不再进入 gameplay `KeyBindingContainer`。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputRouterTest"` **9/9** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **10/10** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~OmsInputBridgeTest"` **23/23** 通过。
-3. 维持 `OmsSkin` 默认路径、legacy HUD wrapper 与 fallback 语义稳定，并把 remaining full Floating parity 缺口明确留在后续路线，不在 `P1-A` 里误写成已完成。
+4. 维持 `OmsSkin` 默认路径、legacy HUD wrapper 与 fallback 语义稳定，并把 remaining full Floating parity 缺口明确留在后续路线，不在 `P1-A` 里误写成已完成。
 
 ## 验证记录
 

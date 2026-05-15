@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-09
+> 最后更新：2026-05-16
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -17,6 +17,7 @@
 - `BmsSkinTransformer` 的 BMS / mania 边界已收口，BMS lookup 与 fallback 语义已可作为稳定宿主合同继续扩展。
 - `BmsScrollSpeedMetrics` 现已按 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 计算 `VisibleLaneTime`、`WhiteNumber`、`GreenNumber`；其中 `Classic` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前为 initial-BPM anchored surface。
 - 当前 runtime 已同时具备 `BmsSpeedMetricsToast` 与常驻 speed-feedback HUD；toast 退位为操作确认层，常驻 feedback card 承担权威表达。
+- 若后续追加 pre-start 1 号普通轨纯视觉流速预览，宿主必须继续停留在 playfield / lane visual surface，并复用 BMS note lookup / fallback；它不是 HUD / toast 的扩展槽位。
 - 内部 `BmsPlayfieldLayoutProfile` abstraction gate 仍保留，但当前 runtime geometry override surface 已冻结，不再通过设置页暴露会扰动 strict profile 的 layout sliders。
 - 当前 `IBmsHudLayoutDisplay` 只接受 wrapped HUD、gauge bar、combo counter 三类组件；若直接扩签名，会打断现有 HUD provider 合同。
 - judgement 基线与默认 gameplay feedback 摆位现已通过 `BmsGameplayFeedbackLayout` 收口为 shared position contract；后续若继续联动 judge display / feedback，应扩展这条合同，而不是重新散落新的位置常量。
@@ -98,6 +99,7 @@
 2. `BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把“前 5 秒 delayed start 阻塞 + 全程调速修饰键”这一 `UI_PreStartHold` 合同接入正式 gameplay 流程：前 5 秒仍承担 hold gate，正式 gameplay 开始后继续受理奇偶键调速；paused pre-start 下的 `UI_LaneCoverFocus` / 滚轮 / 中键 `Sudden / Hidden / Lift` 调整链也保持同一条运行时入口。
 3. `SoloSongSelect` 通过反射创建 `BmsSoloPlayer`，避免 `osu.Game` 对 `osu.Game.Rulesets.Bms` 新增编译期依赖。
 4. owner-level `TestSceneBmsPreStartHiSpeedOverlay` 与 real-player `TestSceneBmsSoloPlayerPreStart` 已形成双层 focused coverage，当前分别锁住 overlay 文案 / 输入合同与 delayed-start / hold gate / mode-value binding 的真实宿主链。
+5. 若按 `P1-C` 启动 pre-start 1 号普通轨纯视觉流速预览，宿主必须继续放在 playfield / lane surface，而不是 HUD / toast；用户皮肤缺失时仍应回退到 BMS note lookup / OMS 默认 note 外观。
 
 后续检查点：
 
@@ -105,6 +107,7 @@
 2. 持续守住 tri-mode settings、HUD 与 overlay 的 BMS-owned fallback 合同。
 3. 保留 toast 作为补充反馈层，但不再让任何新功能直接依赖 toast 作为唯一宿主。
 4. 把数值 state 的具体字段集留给 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 继续细化。
+5. 若推进 pre-start 视觉预览，先补 playfield / lane host + fallback route，再由 `P1-C` 接 runtime 语义与 focused validation。
 
 验收：
 
@@ -169,6 +172,7 @@
 
 1. `A1` 反馈组件合同冻结
 2. 与 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 对齐常驻绿色数字与速度反馈字段集
-3. `B2` `Sudden / Hidden / Lift` 联动收口
-4. `C1` 扩展到统一 gameplay feedback 家族
-5. `D1` 作者文档与 release gate 收口
+3. 与 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 对齐 pre-start 1 号普通轨纯视觉流速预览的 host / fallback route
+4. `B2` `Sudden / Hidden / Lift` 联动收口
+5. `C1` 扩展到统一 gameplay feedback 家族
+6. `D1` 作者文档与 release gate 收口
