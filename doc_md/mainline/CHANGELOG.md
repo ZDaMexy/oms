@@ -7,6 +7,24 @@
 
 ## 2026-05-16
 
+### 文档：新建 P1-J 子线承接 BMS gameplay runtime 性能与音频时序治理
+
+- 已正式建立 `doc_md/subline/P1-J/` 四件套，把 shared `BmsKeysoundStore` 播放时序、`BmsLane` / `BmsOrderedHitPolicy` 热路径、sample allocation tightening 与 live channel resize 安全合同统一归线到 `P1-J`。
+- 本轮明确判定：该专题不并入 `P1-C` 或 `P1-E`；`P1-C` 继续负责判定/反馈语义与回归守门，`P1-E` 继续负责真实谱面验校，而 `P1-J` 单独拥有 dense-chart audio/runtime hot path 的优化 authority。
+- 当前仅完成规划与主线同步，无生产代码改动、无新增测试执行。
+
+### BMS：pre-start delay 在 hold 期间耗尽后改为松手重给满一段 delay
+
+- `BmsSoloPlayer` 现会在 `UI_PreStartHold` 仍按住时允许既有 delayed-start 正常耗尽，但若用户是在 delay 已过后才松手，则 runtime 会重新调度一整段 fresh delay，而不是立即开始 gameplay。
+- 该修复保留了原有 press-side reset 语义：快速重新按下 hold 仍会重置 pre-start 窗口；变化只收口在 release-after-elapsed 分支。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart|FullyQualifiedName~TestSceneBmsSoloPlayerPreStartScheduledDelay"` **24/24** 通过。
+
+### BMS：pre-start 1 号普通轨纯视觉流速预览首轮落地
+
+- `BmsSoloPlayer` 现会把 pre-start pending / hold / pause state 下发给 `DrawableBmsRuleset`，仅在 actual gameplay 未开始且 hold 生效时显示 preview。
+- `BmsHitObjectArea` / `BmsLane` 新增了独立 preview 容器；`DrawableBmsRuleset` 现会把 skinnable fake note 固定挂到第一非 scratch 普通轨，并继续复用 `BmsNoteSkinLookup` 与 `BmsScrollSpeedMetrics`。
+- 该 preview 不进入 judgement / score / keysound / replay 链；`TestSceneBmsSoloPlayerPreStart` 已扩到 **24/24**，覆盖 lane 选择、动画 / pause freeze 与“正式 gameplay 不再出现 preview”。
+
 ### 文档：pre-start 1 号普通轨纯视觉流速预览完成可行性评估与归线规划
 
 - 已确认该需求可在当前 BMS 架构内安全实现，但实现路径必须是 pre-start-only 的纯视觉 preview layer，而不是伪造真实 `BmsHitObject` / `DrawableBmsHitObject`。

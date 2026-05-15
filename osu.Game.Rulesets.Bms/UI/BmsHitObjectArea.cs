@@ -19,6 +19,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsHitTarget HitTarget { get; }
 
+        public Container PreviewContainer { get; }
+
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
         private readonly Container content;
 
@@ -41,7 +43,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
-                    Child = hitObjectContainer,
+                    Children = new Drawable[]
+                    {
+                        hitObjectContainer,
+                        PreviewContainer = new Container
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                    },
                 },
                 HitTarget = hitTarget,
             });

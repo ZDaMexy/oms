@@ -198,15 +198,17 @@
 
 目标：在 actual gameplay 尚未开始且 `UI_PreStartHold` 正在按住时，让“1 号普通轨”出现按当前流速下落的纯视觉预览 note，帮助用户在 pre-start 窗口中校准 Hi-Speed，而不把 preview 误接进判定 / 计分 / 键音链。
 
+当前状态：第一版已落地；以下条目转为持续维护的硬约束与后续 visual polish 基线。
+
 建议交付：
 
-1. 可见性 gate 以“actual gameplay 仍 pending + 当前 `UI_PreStartHold` 为 held”为 authority；按住期间若再次进入 hold 并刷新 5 秒窗口，preview 也应重置；一旦真正进入 gameplay，哪怕同一动作仍继续承担 ingame 调速修饰键，preview 也必须立即消失。
+1. 可见性 gate 以“actual gameplay 仍 pending + 当前 `UI_PreStartHold` 为 held”为 authority；按住期间若再次进入 hold 并刷新 5 秒窗口，preview 也应重置；若 delayed-start 已在 hold 期间耗尽，则 release 分支必须先重给一整段 fresh delay，preview 在 release 后隐藏，并只在下一次 held 窗口里再次出现；一旦真正进入 gameplay，哪怕同一动作仍继续承担 ingame 调速修饰键，preview 也必须立即消失。
 2. “1 号轨道”按产品语义定义为**第一条非 scratch 普通轨**：5K / 7K / 14K 不得直接取 raw `laneIndex = 0`，因为该索引当前是 scratch；9K 才可直接落在第一条 lane。
 3. 预览 drawable 必须是 lane/playfield 上的纯视觉层，建议宿主放在 `BmsPlayfield` / `BmsLane` / `BmsHitObjectArea` 附近的专用 preview container；视觉本体可复用 `BmsNoteSkinLookup(BmsNoteSkinElements.Note, ...)` 或等价 fallback，以保持与当前皮肤 note 外观一致。
 4. 运动 authority 必须继续来自 `DrawableBmsRuleset` / `BmsScrollSpeedMetrics` / `Playfield.ScrollLengthRatio` 这条现有 runtime scroll 链，而不是手写第二套独立速度配置；单颗循环 ghost note 即可满足需求，不需要伪造完整 note stream。
 5. 预览必须跟随同一 pre-start/playfield clock；pause overlay 在 pre-start 中可见时，preview 也必须暂停或冻结，不能在暂停界面下继续下落。
 6. 硬约束：不得创建真实 `BmsHitObject`、不得使用 `DrawableBmsHitObject`、不得加入 gameplay `HitObjectContainer`、不得走 `BmsLane.OnPressed()` / lane keysound / `ScoreProcessor` / judgement / replay / autoplay authority。该功能只负责视觉反馈。
-7. focused validation 至少包括：pre-start hold 显示 / 松开隐藏 / 重新按下后重置、实际开谱后不再显示、odd/even 调速时预览速度同步变化、pause overlay 下不继续下落、全程不产生命中判定 / 分数 / 键音 / replay side effect。
+7. focused validation 至少包括：pre-start hold 显示 / 松开隐藏 / 重新按下后重置、delay elapsed 后 release 会重给 full delay、实际开谱后不再显示、odd/even 调速时预览速度同步变化、pause overlay 下不继续下落、全程不产生命中判定 / 分数 / 键音 / replay side effect。
 
 可能文件切片：
 

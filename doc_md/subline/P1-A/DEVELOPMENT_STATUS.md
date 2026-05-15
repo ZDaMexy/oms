@@ -49,7 +49,7 @@
 | `GameplayFeedbackDisplay` 合同设计 | 进行中 | HUD 宿主兼容扩展、default fallback、shared position contract 与 aggregate scalar state contract 四刀已落地；基于既有 snapshot 的派生 status line 也已验证可继续收口 richer judge display 而无需新字段；剩余 richer judge display 语义继续收口 |
 | 常驻 GN HUD | 进行中 | 默认 feedback container 已由 `P1-C` 接通；本子线继续维护宿主与边界合同 |
 | `Sudden / Hidden / Lift` HUD 联动 | 进行中 | 宿主与默认摆位已稳定，具体状态语义由 `P1-C` 继续推进 |
-| pre-start 视觉流速预览宿主边界 | 已完成可行性评估 | playfield / lane host、第一非 scratch 轨与 BMS note fallback 路径已明确，尚未实现 |
+| pre-start 视觉流速预览宿主边界 | 已完成首轮实现 | playfield / lane host、第一非 scratch 轨宿主与 BMS note fallback 已接通；运行时 gate 与 pause 行为由 `P1-C` focused tests 锁定 |
 | `FAST/SLOW` / judge display / pacemaker 统一承载 | 进行中 | 统一 feedback container 已存在，shared judgement/feedback position contract 已落地 |
 
 ## 当前风险

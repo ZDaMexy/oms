@@ -3,6 +3,7 @@
 using System;
 using oms.Input;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Screens;
 using osu.Framework.Threading;
@@ -22,6 +23,7 @@ namespace osu.Game.Rulesets.Bms
 
         private readonly BindableBool gameplayClockPaused = new BindableBool(true);
         private readonly BindableBool hiSpeedHoldPressed = new BindableBool();
+        private readonly Bindable<Visibility> pauseOverlayVisibility = new Bindable<Visibility>();
 
         private DrawableBmsRuleset? drawableBmsRuleset;
         private BmsInputManager? gameplayInputManager;
@@ -40,6 +42,8 @@ namespace osu.Game.Rulesets.Bms
 
             gameplayClockPaused.BindTarget = GameplayClockContainer.IsPaused;
             gameplayClockPaused.BindValueChanged(_ => handleGameplayClockPausedState(), true);
+            pauseOverlayVisibility.BindTarget = PauseOverlay.State;
+            pauseOverlayVisibility.BindValueChanged(_ => updatePreStartSpeedPreviewState(), true);
 
             if (DrawableRuleset is not DrawableBmsRuleset bmsRuleset || bmsRuleset.GameplayInputManager is not BmsInputManager inputManager)
                 return;
@@ -48,7 +52,9 @@ namespace osu.Game.Rulesets.Bms
             gameplayInputManager = inputManager;
 
             hiSpeedHoldPressed.BindTarget = inputManager.PreStartHoldPressed;
-            hiSpeedHoldPressed.BindValueChanged(state => updatePreStartAdjustmentState(state.NewValue && !state.OldValue), true);
+            hiSpeedHoldPressed.BindValueChanged(state => updatePreStartAdjustmentState(
+                resetDelayOnPress: state.NewValue && !state.OldValue,
+                resetDelayOnReleaseAfterElapsed: state.OldValue && !state.NewValue), true);
             inputManager.Router.ActionPressed += handleGameplayActionPressed;
 
             drawableBmsRuleset.Overlays.Add(hiSpeedOverlay = new BmsPreStartHiSpeedOverlay(
@@ -98,7 +104,9 @@ namespace osu.Game.Rulesets.Bms
 
             gameplayClockPaused.UnbindAll();
             hiSpeedHoldPressed.UnbindAll();
+            pauseOverlayVisibility.UnbindAll();
             drawableBmsRuleset?.SetAllowAdjustmentWhilePaused(false);
+            drawableBmsRuleset?.SetPreStartSpeedPreviewState(false);
             return base.OnExiting(e);
         }
 
@@ -116,14 +124,14 @@ namespace osu.Game.Rulesets.Bms
             hiSpeedOverlay.TryHandleActionPress(bmsAction);
         }
 
-        private void updatePreStartAdjustmentState(bool resetDelay = false)
+        private void updatePreStartAdjustmentState(bool resetDelayOnPress = false, bool resetDelayOnReleaseAfterElapsed = false)
         {
             if (drawableBmsRuleset == null)
                 return;
 
             bool adjustmentActive = gameplayStartPending && hiSpeedHoldPressed.Value;
 
-            if (resetDelay && adjustmentActive)
+            if (resetDelayOnPress && adjustmentActive)
                 restartPreStartDelay();
 
             drawableBmsRuleset.SetAllowAdjustmentWhilePaused(adjustmentActive);
@@ -133,10 +141,20 @@ namespace osu.Game.Rulesets.Bms
             else
                 hiSpeedOverlay?.Hide();
 
+            updatePreStartSpeedPreviewState();
+
             updateHoldSpeedToastState();
 
             if (!adjustmentActive)
+            {
+                if (resetDelayOnReleaseAfterElapsed && gameplayStartPending && startDelayElapsed)
+                {
+                    restartPreStartDelay();
+                    return;
+                }
+
                 attemptStartGameplay();
+            }
         }
 
         private bool tryHandleHoldAdjustmentAction(BmsAction action)
@@ -193,6 +211,13 @@ namespace osu.Game.Rulesets.Bms
             });
         }
 
+        private void updatePreStartSpeedPreviewState()
+        {
+            drawableBmsRuleset?.SetPreStartSpeedPreviewState(
+                gameplayStartPending && hiSpeedHoldPressed.Value,
+                gameplayStartPending && hiSpeedHoldPressed.Value && pauseOverlayVisibility.Value == Visibility.Visible);
+        }
+
         private void handleGameplayClockPausedState()
         {
             if (suppressClockPausedHandler)
@@ -244,6 +269,7 @@ namespace osu.Game.Rulesets.Bms
             startDelayDelegate?.Cancel();
             startDelayDelegate = null;
             drawableBmsRuleset?.SetAllowAdjustmentWhilePaused(false);
+            updatePreStartSpeedPreviewState();
             hiSpeedOverlay?.Hide();
         }
     }

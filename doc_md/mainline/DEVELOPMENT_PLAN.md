@@ -22,10 +22,11 @@
 - 当前已完成：1.1、1.2、1.3、1.4、1.9、1.10、1.11、1.12、1.13、1.14、1.15、1.16（共 12 步）
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
-- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-I BMS 选歌筛选与搜索定制** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
+- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-I BMS 选歌筛选与搜索定制** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-J BMS gameplay runtime 性能与音频时序治理** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
 - `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成功能面落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；当前主线不再保留未完成的产品面任务，只保留 `P1-G` 下的手工 UI 验收与后续测试回归，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
 - 新增 `P1-H` 内部修补专题：**BMS 难度表一致性与刷新合同收口**。该专题不重开 `1.13` / `1.15`，也不新建独立主/子线；主归属固定为 `P1-H`，`P1-A` 只记录 settings / first-run 等共享产品表面的从属影响。当前排序按 correctness 优先：`既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。
 - 新增 `P1-I` 独立子线：**BMS 选歌筛选与搜索定制**。该专题不并入 `P1-A` 或 `P1-H`；`P1-A` 只记录 BMS-only product surface 分支与 ruleset switch 回退，`P1-H` 只记录 RC/LN/SCR persisted read-model / backfill authority。首轮执行顺序固定为：`read-model 建模` → `ruleset criteria / custom search` → `BMS-only FilterControl UI` → `focused regression`；其中 `I3` 当前已进一步冻结为“单轨 `RC/LN/SCR` 三个上限段 + 尾段空白容差”，不得把三条独立 range slider 当作最终交付。
+- 新增 `P1-J` 独立子线：**BMS gameplay runtime 性能与音频时序治理**。该专题不并入 `P1-C` 或 `P1-E`；`P1-C` 继续负责判定/反馈语义与回归守门，`P1-E` 继续负责真实谱面验校与手工 checklist，`P1-J` 则单独拥有 `BmsKeysoundStore`、`BmsLane`、`BmsOrderedHitPolicy` 以及 dense-chart audio hot path 的优化 authority。首轮执行顺序固定为：`keysound timing hardening` → `lane/order hot path scan 收口` → `sample allocation tightening` → `live channel reconfigure safety` → `focused validation`；不得把它扩成泛化性能愿望单。
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -45,6 +46,7 @@
 | **P1-I BMS 选歌筛选与搜索定制** | Song Select 产品面 / 搜索语义 | 为 BMS ruleset 提供独立的 `谱面构成` / `键数` visual filter、custom search 与 matching authority | BMS-only FilterControl row branch、RC/LN/SCR persisted read-model、`key/rc/ln/scr` 搜索语法、legacy beatmap backfill | 全共享 filter host 重构、per-candidate live playable load、mania 新 UI 扩面 | BMS / mania 切 ruleset 不回归，构成统计 authority 稳定 |
 | **P1-B 输入语义与硬件验收** | 1.17 | 收口 analog scratch / cross-device trigger / HID 真实语义 | keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 语义、mixed-source runtime、真实硬件覆盖 | 非阻塞的新输入后端扩张 | scratch bridge 回归稳定，真实 HID 手工验收可执行 |
 | **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈、权威绿色数字 / 调速反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口、权威绿色数字 HUD、`Sudden / Hidden / Lift` adjustment feedback、pre-start 1 号普通轨纯视觉流速预览 | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
+| **P1-J BMS gameplay runtime 性能与音频时序治理** | verified hot-path repair slice | 收口 keysound 播放时序、dense-chart 按键热路径、shared audio pool live reconfigure 风险 | `BmsKeysoundStore` same-frame playback、`BmsLane` / `BmsOrderedHitPolicy` 热路径裁剪、sample allocation tightening、safe channel resize、dense-chart focused validation | 全局音频后端替换、Phase 2 功能偷渡、泛仓库“顺手调优” | dense-chart keysound timing 稳定、empty-poor 语义不回归、live channel resize 不再无提示硬切音 |
 | **P1-D 控制器校准与诊断** | 1.17 后续产品面 | 提供 deadzone / sensitivity / scratch 模式说明 / diagnostics UI | diagnostics、live capture 扩展、校准 UI、控制器说明文案 | 与当前设备无关的新模式或新硬件抽象 | 常见 IIDX/BMS 控制器可在 UI 内完成基础诊断 |
 | **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
 | **P1-F 首发离线发行基线** | 离线发行基线、portable 验收 | 维持 `portable.ini -> data/`、在线更新关闭、覆盖更新可执行与公开 release gate 稳定 | 便携发布、覆盖更新、离线发布口径、公开发行门槛 | 借发行名义恢复在线安装/在线更新 | portable publish 实机通过，公开发行约束可对外复述 |
@@ -54,7 +56,7 @@
 ### 子主线执行规则
 
 1. **所有任务先归线，再实现。** 每次开始工作时，先判断该任务属于哪条 `P1-*` 子主线；若横跨多条，只能指定一条主归属，其他影响视为从属改动。
-2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-I` 允许并行推进，因为它只触及 BMS Song Select 产品面与 search/read-model contract；`P1-B` 继续因真实设备覆盖允许并行；`P1-C` / `P1-D` 在不打断 `P1-A` / `P1-I` / `P1-B` 稳定性的前提下插队收口。
+2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-I` 允许并行推进，因为它只触及 BMS Song Select 产品面与 search/read-model contract；`P1-B` 继续因真实设备覆盖允许并行；`P1-C` / `P1-J` / `P1-D` 在不打断 `P1-A` / `P1-I` / `P1-B` 稳定性的前提下插队收口，其中 `P1-J` 只接受已在 shared gameplay/audio hot path 上确认的缺陷或明确 validation gap，不吸收泛化性能愿望单。
 3. **`首次启动向导` / `Run setup wizard` 这类共享 onboarding surface 默认归 `P1-A`。** 若页面只是复用现有 `ExternalLibrarySettings`、`InternalLibrarySettings` 或 keybinding subsection，则 `P1-H` / `P1-B` 只记从属影响，不因此新开子线。
 4. **Phase 2 不得反向吞并 Phase 1.x。** 除已先行落地的 `A-SCR` / `A-NOT` / `BmsModAutoplay` / `Mirror` / `Random` 外，`1P/2P flip`、`dan`、`FHS`、BSS / MSS、全键模式扩张仍属于后续能力，不得以“顺手实现”名义进入当前主交付。
 5. **每条子主线必须有冻结点。** 一旦某条子主线达到“稳定门槛”，后续只接受回归修复或明确阻塞项，不再继续吸收无关优化。
@@ -179,6 +181,49 @@
 
 专题详细计划、状态与约束见 [../subline/P1-I/DEVELOPMENT_PLAN.md](../subline/P1-I/DEVELOPMENT_PLAN.md)、[../subline/P1-I/DEVELOPMENT_STATUS.md](../subline/P1-I/DEVELOPMENT_STATUS.md)、[../subline/P1-I/TECHNICAL_CONSTRAINTS.md](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
 
+### P1-J 当前新增子线：BMS gameplay runtime 性能与音频时序治理
+
+该专题不并入 `P1-C` 或 `P1-E`。`P1-C` 负责判定、反馈与训练闭环语义；`P1-E` 负责真实谱面 gameplay 验校；而本专题的 authority 明确落在 `BmsKeysoundStore`、`DrawableBmsHitObject`、`BmsLane`、`BmsOrderedHitPolicy` 与 shared keysound pool 的 dense-chart hot path 上。若继续硬挂到既有子线，会把“反馈语义冻结点”与“runtime hot-path 优化冻结点”混成一条线，后续难以判断什么属于回归修复、什么属于无边界调优。
+
+**目标：**
+
+1. 去掉 BMS keysound playback 的默认帧级延后，确保 note / BGM / LN keysound 继续走 shared pool，但不再被无条件量化到后续调度帧。
+2. 收口 `BmsLane` 与 `BmsOrderedHitPolicy` 的每按键全表扫描 / 临时分配热路径，让 empty-poor 与 late-empty-poor 语义维持不变。
+3. 收口 `DrawableBmsHitObject -> BmsKeysoundStore`、lane replay 与单样本播放路径上的重复数组分配，降低 dense-chart GC 压力。
+4. 把 `KeysoundConcurrentChannels` 的 live reconfigure 语义补成安全合同，避免 gameplay 中无提示硬切正在播放的音频。
+5. 在 focused automation 与后置人工 dense-chart 验收之间建立统一 checklist，而不是只靠体验描述判断“有没有卡”。
+
+**主归线与从属影响：**
+
+1. 主归属固定为 `P1-J`，因为 authority 在 shared audio pool、lane hit-order hot path 与 gameplay-runtime timing；这些都不是 `P1-C` 的反馈显示层，也不是 `P1-E` 的消费型验校层。
+2. `P1-C` 只承接判定 / 反馈语义不回归这条从属约束，例如 empty-poor、LN tail keysound、judge-family-specific lane 行为。
+3. `P1-E` 只承接真实谱面 checklist 与人工 dense-chart 验收，不拥有第二套 runtime audio contract。
+4. `P1-G` 继续负责最终手工确认 dense fully-keysounded chart、BGM layering、rapid empty-strike 与 live channel change 体验；它不替代前置 focused validation。
+
+**执行批次：**
+
+1. **keysound timing hardening**：先收口 `BmsKeysoundStore.Play()` 的默认调度延迟，保证 shared pool 仍是唯一 authority，但 gameplay 命中不再被无条件压到下一个 scheduler tick。
+2. **lane/order hot path scan 收口**：把 `BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 从“每次按键全枚举容器对象”收口到更窄的候选 authority，保持现有 late-empty-poor regression 语义不变。
+3. **sample allocation tightening**：削减 `DrawableBmsHitObject`、`BmsLane` 与 `BmsKeysoundStore` 之间的重复 `ToArray()` / 单元素数组分配，只保留必要的多样本拷贝边界。
+4. **live channel reconfigure safety**：为 `KeysoundConcurrentChannels` 确定稳定策略，优先接受“增长即时、缩减延后到安全边界”或等价的 non-destructive resize，而不是 rebuild-all 后切断正在播放的键音。
+5. **focused validation**：补 owner-level store tests、dense-lane regression、config->playfield-store binding 与 Release build；真实谱面 dense acceptance 再后置到 `P1-G`。
+
+**明确不做：**
+
+1. 不借本专题引入全局音频后端替换、ManagedBass 抽象重写或跨 ruleset 的统一 latency framework。
+2. 不把“优化音频时序”偷换成默认新增用户可调 audio offset 设定；BMS 当前主 timing-correction 路径仍是 visual presentation / note draw offset，而不是先改播放偏移。
+3. 不为每个 `DrawableBmsHitObject` 重新长出独立 sample player，也不把 shared pool 打散成 per-lane/per-note authority。
+4. 不在尚未收口 dense-chart hot path 前，顺手扩张 Phase 2 功能、全键模式或新的 gameplay mod。
+
+**完成条件：**
+
+1. gameplay note/BGM/LN keysound 路径不再依赖无条件下一帧调度；dense fully-keysounded chart 的体感延迟与 jitter 必须下降到可接受范围。
+2. `BmsLane` / `BmsOrderedHitPolicy` 的按键热路径不再每次 materialize 全量候选集合；既有 empty-poor / late-empty-poor focused regression 仍全部通过。
+3. `KeysoundConcurrentChannels` 的 runtime 变更不再无提示硬切正在播放的样本；若策略是 deferred apply，则 settings 文案与运行时行为必须一致。
+4. 至少补齐一轮 focused automated coverage 与 Release build；后续 dense-chart / BGM layering 实机 checklist 继续挂在 `P1-G`。
+
+专题详细计划、状态与约束见 [../subline/P1-J/DEVELOPMENT_PLAN.md](../subline/P1-J/DEVELOPMENT_PLAN.md)、[../subline/P1-J/DEVELOPMENT_STATUS.md](../subline/P1-J/DEVELOPMENT_STATUS.md)、[../subline/P1-J/TECHNICAL_CONSTRAINTS.md](../subline/P1-J/TECHNICAL_CONSTRAINTS.md)。
+
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
 - 该专题不是把完整 `FHS` 或 Phase 2 速度体系提前带入当前主线，而是把现有 BMS `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 收口成**权威、可皮肤化、可扩展**的反馈合同
@@ -196,17 +241,17 @@
 1. **模式模型点**：`Normal / Floating / Classic` 的 runtime 语义必须持续拆开维护，尤其要明确 `Floating` 当前只是 initial-BPM anchored surface，而不是完整 `FHS`。
 2. **设置面点**：settings 只负责 mode + value + 不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；不得把 `GreenNumber` 或 runtime-adjusted 可见毫秒搬回 settings。
 3. **运行时反馈点**：HUD / toast / pre-start overlay 必须共享同一组 mode-aware speed metrics，避免出现 settings、HUD、toast 各说各话。
-4. **操作窗口点**：`UI_PreStartHold` 不是 debug 测试夹层，而是正式 operator surface；其合同现在同时包含“前 5 秒阻止开始”和“全程调速修饰键”两层语义，输入、显示、阻塞/释放时序、toast/overlay 分工与 fallback 都要当成产品合同维护。
+4. **操作窗口点**：`UI_PreStartHold` 不是 debug 测试夹层，而是正式 operator surface；其合同现在同时包含“前 5 秒阻止开始”和“全程调速修饰键”两层语义，输入、显示、阻塞/释放时序、toast/overlay 分工与 fallback 都要当成产品合同维护；若 delayed-start 已在 hold 期间耗尽，则 release 分支必须重给一整段 fresh delay，而不是直接开谱。
 5. **联动点**：`Sudden / Hidden / Lift`、奇偶列调速、滚轮 / 中键 target cycle、以及当前模式数值必须视为同一条联动链，而不是多个独立 feature。
-6. **预览点**：若追加 pre-start 视觉流速预览，必须锁定在“actual gameplay 尚未开始且 `UI_PreStartHold` 正在按住”的窗口，只在 1 号普通轨显示纯视觉下落 marker；不得借 preview 复用真实 note / judgement / keysound 链。
-7. **验证点**：当前代码侧已通过 focused tests + Release build；除 BMS mod 冷启动恢复的 dedicated integration coverage 外，owner-level `BmsPreStartHiSpeedOverlay` 合同与 real-player `BmsSoloPlayer` pre-start start-sequence / overlay binding 也已补到位。当前剩余主要是 full Floating parity、pre-start 视觉预览、跨设备真实输入路径与后置人工验收，而不是 delayed-start / hold gate 的基础语义空白。
+6. **预览点**：当前已落地的 pre-start 视觉流速预览必须持续锁定在“actual gameplay 尚未开始且 `UI_PreStartHold` 正在按住”的窗口，只在 1 号普通轨显示纯视觉下落 marker；不得借 preview 复用真实 note / judgement / keysound 链。
+7. **验证点**：当前代码侧已通过 focused tests + Release build；除 BMS mod 冷启动恢复的 dedicated integration coverage 外，owner-level `BmsPreStartHiSpeedOverlay` 合同、real-player `BmsSoloPlayer` pre-start start-sequence / overlay binding、preview gate，以及 release-after-elapsed fresh-delay 分支也已补到位。当前剩余主要是 full Floating parity、跨设备真实输入路径、pre-start 视觉预览可能的 polish 与后置人工验收，而不是 delayed-start / hold gate 的基础语义空白。
 
 #### 线：当前应如何归线
 
 1. **主产品线归 `P1-A`**：settings surface、HUD 宿主、skinnable fallback、pre-start overlay 的宿主与项目边界都归 `P1-A`。
 2. **主语义线归 `P1-C`**：mode-aware metrics、`GN / WN`、`Sudden / Hidden / Lift` 联动、奇偶列调速规则、feedback family 与 full Floating parity 差口都归 `P1-C`。
 3. **输入支撑线只在必要时归 `P1-B`**：如果后续 pre-start hold 需要扩到真实控制器专用语义、跨设备阻塞键或更复杂的 scratch/轴输入协同，再把那部分拆去 `P1-B`；当前键位映射本身不需要新开输入主线。
-4. **人工验收后置归 `P1-G`**：真实选歌进歌、hold 阻塞、滚轮/中键覆盖调节、松开后开谱这些体验验收，仍按既有规则后置到人工验收，不提前打乱主交付排序。
+4. **人工验收后置归 `P1-G`**：真实选歌进歌、hold 阻塞、滚轮/中键覆盖调节、以及“松开后立即开谱 / 松开后重给 full delay”这些 release 分支体验验收，仍按既有规则后置到人工验收，不提前打乱主交付排序。
 
 #### 面：当前必须同时覆盖的影响面
 
@@ -214,7 +259,7 @@
 | --- | --- | --- |
 | **设置面** | dropdown、per-mode slider、数值精度/步进、基础下落时间(ms) | 有没有把 `GreenNumber` 或 runtime-adjusted ms 误搬回 settings，并把基础下落时间与运行时反馈混写？ |
 | **runtime 语义面** | `BmsHiSpeedRuntimeCalculator`、`BmsScrollSpeedMetrics`、Classic sample、Floating anchor | tri-mode 之间有没有语义串线？ |
-| **操作面** | `BmsSoloPlayer` delayed start、`BmsPreStartHiSpeedOverlay`、hold gate | hold 时是否真阻塞开谱，松开后是否正确恢复？ |
+| **操作面** | `BmsSoloPlayer` delayed start、`BmsPreStartHiSpeedOverlay`、hold gate | hold 时是否真阻塞开谱，松开后是否按当前分支正确恢复或重给 full delay？ |
 | **联动面** | `Sudden / Hidden / Lift`、wheel、middle-click、odd/even lane keys | paused pre-start 和正常 gameplay 是否共享同一条调整链？ |
 | **预览面** | 第一非 scratch 轨、playfield / lane 纯视觉 preview layer、pause/start gate | 是不是误挂到真实 `DrawableBmsHitObject` / lane 判定链，或在正式 gameplay hold 调速时仍继续显示？ |
 | **皮肤与宿主面** | HUD layout、fallback、overlay 宿主、project boundary | 有没有为了快而破坏 `IBmsHudLayoutDisplay` 或新增跨项目依赖？ |

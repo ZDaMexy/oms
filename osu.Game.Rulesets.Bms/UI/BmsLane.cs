@@ -5,6 +5,7 @@ using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Audio;
@@ -33,6 +34,8 @@ namespace osu.Game.Rulesets.Bms.UI
         public BmsLaneLayout.Lane LayoutLane { get; private set; }
 
         public BmsHitTarget HitTarget { get; }
+
+        public Container PreviewContainer => hitObjectArea.PreviewContainer;
 
         public IBindable<double> ScrollLengthRatio => hitObjectArea.ScrollLengthRatio;
 

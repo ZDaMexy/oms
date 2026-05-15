@@ -4,6 +4,18 @@
 
 ## 2026-05-16
 
+### C2：pre-start delay 在 hold 期间耗尽后改为松手重给满一段 delay
+
+- `BmsSoloPlayer` 现会在 `UI_PreStartHold` 仍按住时允许当前 delayed-start 正常耗尽，但 release-after-elapsed 分支不再立即开始 gameplay，而是先重新调度一整段 fresh delay。
+- 该修复保留了原有 press-side reset 语义，避免 quick re-press 的 5 秒重置路径退化。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart|FullyQualifiedName~TestSceneBmsSoloPlayerPreStartScheduledDelay"` **24/24** 通过。
+
+### C2.5：pre-start 1 号普通轨纯视觉流速预览首轮实现
+
+- `BmsSoloPlayer` 现会把 pre-start pending / hold / pause state gate 到 `DrawableBmsRuleset`，只在 actual gameplay 未开始且 hold 生效时显示 preview。
+- `DrawableBmsRuleset` / `BmsHitObjectArea` / `BmsLane` 现已接通第一非 scratch 普通轨的独立 preview 容器，复用 `BmsNoteSkinLookup` 与 `BmsScrollSpeedMetrics` 渲染纯视觉 fake note。
+- `TestSceneBmsSoloPlayerPreStart` 已扩到 **24/24**，覆盖 lane 选择、动画 / pause freeze 与“正式 gameplay 不再出现 preview”；preview 不进入 judgement / score / keysound / replay 链。
+
 ### 文档规划：pre-start 1 号普通轨纯视觉流速预览归到 `P1-C`
 
 - 已完成该需求的静态可行性评估：当前 BMS 架构可以安全承接，但实现路径必须是第一非 scratch 轨上的纯视觉 preview layer，而不是伪造真实 `BmsHitObject` / `DrawableBmsHitObject`。

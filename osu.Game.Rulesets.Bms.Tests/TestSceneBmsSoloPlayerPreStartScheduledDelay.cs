@@ -63,6 +63,8 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestKeyboardHoldBlocksRealScheduledDelayStart()
         {
+            int refreshedDelayVersion = 0;
+
             AddAssert("underlying clock not running before delay elapses", () => !player.GameplayClockContainer.IsRunning);
 
             AddStep("press Q via manual input", () => InputManager.PressKey(Key.Q));
@@ -71,7 +73,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("gameplay stays held after real delay elapses", () => !player.GameplayClockContainer.IsRunning);
 
             AddStep("release Q via manual input", () => InputManager.ReleaseKey(Key.Q));
-            AddUntilStep("gameplay starts after releasing Q", () => player.GameplayClockContainer.IsRunning);
+            AddUntilStep("release schedules a fresh real delay", () => player.ScheduledDelayVersion >= 3);
+            AddStep("capture refreshed real delay version", () => refreshedDelayVersion = player.ScheduledDelayVersion);
+            AddAssert("gameplay still waits after releasing Q", () => !player.GameplayClockContainer.IsRunning);
+
+            AddUntilStep("refreshed real scheduled delay elapses", () => player.DelayElapsedCount >= 2);
+            AddAssert("refreshed delay is the one that elapsed", () => player.LastElapsedDelayVersion == refreshedDelayVersion);
+            AddUntilStep("gameplay starts after refreshed delay elapses", () => player.GameplayClockContainer.IsRunning);
         }
 
         [Test]
@@ -97,7 +105,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("gameplay stays held while second hold remains active", () => !player.GameplayClockContainer.IsRunning);
 
             AddStep("release Q after second reset", () => InputManager.ReleaseKey(Key.Q));
-            AddUntilStep("gameplay starts after releasing second reset hold", () => player.GameplayClockContainer.IsRunning);
+            AddUntilStep("release schedules another real delay", () => player.ScheduledDelayVersion >= secondResetDelayVersion + 1);
+            AddAssert("gameplay still waits after releasing second reset hold", () => !player.GameplayClockContainer.IsRunning);
+            AddUntilStep("refreshed post-release delay elapses", () => player.DelayElapsedCount == 2);
+            AddUntilStep("gameplay starts after refreshed second-reset delay", () => player.GameplayClockContainer.IsRunning);
         }
 
         private BmsDecodedBeatmap createSourceBeatmap(string text, string path)

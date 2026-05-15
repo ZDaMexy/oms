@@ -4,6 +4,12 @@
 
 ## 2026-05-16
 
+### 实现：pre-start 1 号普通轨纯视觉流速预览宿主接到 `P1-A`
+
+- `BmsHitObjectArea` / `BmsLane` 现已提供独立 preview 容器，pre-start 视觉预览不再需要借道 HUD / toast / mania lookup。
+- `DrawableBmsRuleset` 现会把 skinnable fake note 固定挂到第一非 scratch 普通轨，并继续复用 BMS note fallback。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart"` **24/24** 通过。
+
 ### 文档规划：pre-start 1 号普通轨纯视觉流速预览的宿主边界归到 `P1-A`
 
 - 已明确该 feature 的 `P1-A` 职责只包括 playfield / lane 宿主、skin fallback 与产品表面，不拥有判定 / 计分 / 键音语义本身。

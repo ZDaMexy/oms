@@ -86,6 +86,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private ulong judgementFeedbackOccurrenceId;
         private ulong speedMetricsToastDisplayCount;
         private IBindable<long>? totalScore;
+        private BmsPreStartSpeedPreview? preStartSpeedPreview;
 
         public IBindable<BmsScrollSpeedMetrics> SpeedMetrics => speedMetrics;
 
@@ -110,6 +111,14 @@ namespace osu.Game.Rulesets.Bms.UI
         public IBindable<BmsExScorePacemakerInfo?> ExScorePacemakerInfo => exScorePacemakerInfo;
 
         public IBindable<BmsGameplayFeedbackState> GameplayFeedbackState => gameplayFeedbackState;
+
+        public bool IsPreStartSpeedPreviewVisible => preStartSpeedPreview?.IsPreviewVisible == true;
+
+        public bool IsPreStartSpeedPreviewPaused => preStartSpeedPreview?.IsPreviewPaused == true;
+
+        public int? PreStartSpeedPreviewLaneIndex => preStartSpeedPreview?.LaneIndex;
+
+        public float PreStartSpeedPreviewProgress => preStartSpeedPreview?.PrimaryNoteProgress ?? -1;
 
         internal ulong SpeedMetricsToastDisplayCount => speedMetricsToastDisplayCount;
 
@@ -202,6 +211,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             RefreshLaneCoverFocus();
             refreshSpeedMetrics();
+            initialisePreStartSpeedPreview();
             refreshTimingFeedbackVisualRange();
         }
 
@@ -326,6 +336,9 @@ namespace osu.Game.Rulesets.Bms.UI
             RefreshLaneCoverFocus();
         }
 
+        public void SetPreStartSpeedPreviewState(bool active, bool paused = false)
+            => preStartSpeedPreview?.UpdateState(active, paused);
+
         public bool AdjustSelectedHiSpeed(int amount)
         {
             if (amount == 0)
@@ -361,6 +374,23 @@ namespace osu.Game.Rulesets.Bms.UI
             selectedHiSpeed.Value = getSelectedHiSpeedBindable().Value;
             updateTimeRange();
             refreshSpeedMetrics();
+        }
+
+        private void initialisePreStartSpeedPreview()
+        {
+            if (preStartSpeedPreview != null)
+                return;
+
+            BmsLane? previewLane = Playfield.Lanes.FirstOrDefault(lane => !lane.IsScratch);
+
+            if (previewLane == null)
+                return;
+
+            previewLane.PreviewContainer.Add(preStartSpeedPreview = new BmsPreStartSpeedPreview(
+                previewLane.LayoutLane,
+                Playfield.LaneLayout.Keymode,
+                SpeedMetrics,
+                Playfield.LayoutProfile.HitTargetHeight));
         }
 
         private void updateTimeRange() => TimeRange.Value = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value, Beatmap.GetMostCommonBeatLength(), getInitialBeatLength(), Beatmap.Difficulty.SliderMultiplier) * (playfieldScrollLengthRatio?.Value ?? 1);
