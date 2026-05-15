@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-05-09
+> 最后更新：2026-05-16
 > 本文件记录 `P1-C` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -41,3 +41,5 @@
 
 1. BRJ / LR2 parity 的补强必须与 feedback 验证链保持一致，不允许只改窗口不改训练反馈表达。
 2. 任何改变 judge family 语义、反馈术语、results 训练表达或常驻 HUD 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
+3. 结果侧 BMS 重建不得只按 `BmsLongNoteMode` 回放；`BmsClearLampProcessor` 的 final gauge / gauge history / lamp 计算必须复用完整 beatmap-mod 链。`A-SCR` / `A-NOT` 这类会改写 score/gauge 池的 assist mod 不得在 results/history 链路里退化成“纯显示 mod”。
+4. `PERFECT` / `FULL COMBO` 的结果持久化必须先经过 clear condition 检查；`HCN` body tick 可以在不改变 EX-SCORE 与 head/tail judgement counts 的情况下独立击穿 gauge，因此禁止用聚合统计直接短路灯级结论。

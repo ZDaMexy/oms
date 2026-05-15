@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-05-13
+> 最后更新：2026-05-16
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -40,7 +40,7 @@
 - **BMS 键音通道设置**：`Settings -> 游戏模式 -> BMS -> 键音通道数` 当前已把 shared `BmsKeysoundStore` ceiling 公开为 `1..256` 滑条，默认值现已从 `16` 调整为 `32`。hover 提示会直接概括低值更容易截断 BGM / 键音 / 长按尾音、`32` 为常用折中、高值更适合极高密谱面或较强机器，以及“缺音时先升到 `48/64`、额外负载增加时再逐步下调”的调参路径。该设置仍继续作用于同一 shared pool；运行时改值会重建 channel container，因此可能切断当前正在播放的键音。
 - **P1-A / P1-C 交叉专题**：现阶段这条交叉线已从“strict Classic 收口”推进到“tri-mode Hi-Speed control surface + 阻止谱面开始/ingame start operator surface”。`P1-A` 继续负责 settings / HUD 宿主 / fallback / skin boundary 与 operator overlay / toast 的产品边界，`P1-C` 继续负责 mode-aware speed metrics、`Sudden / Hidden / Lift` 联动、hold modifier 调速语义与同一 feedback family 下的训练表达。aggregate scalar state contract 仍停在第四刀，但当前 `GN` / `WN` 已明确属于 OMS 的 tri-mode runtime surface，而非完整 `FHS`；除冷启动 BMS mod 恢复外，pre-start overlay owner contract、real-player host binding 与 hold 期间 lane 输入转发抑制也已补 focused coverage，后续 backlog 主要转为 full Floating parity（mid-song re-float、soflan range、更加严格的 IIDX start sequencing）、更广的 real-input integration coverage 与后置人工验收。
 - **文档治理基线**：文档目录现已固定为 `doc_md/mainline`、`doc_md/subline`、`doc_md/other`、`doc_md/mini`；任何后续开发必须同步更新对应目录文档，子线与 mini 的变化若影响全局，必须反向同步主线四件套
-- **结果页反馈基线**：BMS results 的 expanded 主评价与 contracted badge 已按 `DJ LEVEL` 显示，主分数区已显式标为 `EX-SCORE`；results summary / gauge history 仍作为后续反馈面收口的复用基础
+- **结果页反馈基线**：BMS results 的 expanded 主评价与 contracted badge 已按 `DJ LEVEL` 显示，主分数区已显式标为 `EX-SCORE`；`BmsClearLampProcessor` 的结果侧 final gauge / gauge history 重放现会复用运行时 long-note mode 与完整 beatmap-mod 链，`HCN` body-tick fail 也不会再把 failed score 误持久化成 `PERFECT` / `FULL COMBO`
 - **回放基线**：BMS replay frame / replay input handler / replay recorder / auto generator 已接通；本地 replay 归档复用 core legacy replay encode/decode 的 custom-ruleset fallback，当前按 lane action 持久化
 - **反馈/训练闭环缺口**：BMS 最近判定 + `FAST/SLOW` + compact judgement summary + live `DJ LEVEL + EX 原始分子/分母 + %` + 带紧凑原因标签的 live `PERFECT / FC / FC LOST` 已入同一 feedback container，并具备瞬时 judge display 生命周期、compact visual timing-offset 与 fixed AAA EX pacemaker；但 controller calibration / deadzone / sensitivity 可见入口、更完整 judge display（超出当前 compact counts）与更丰富 pacemaker 来源仍未落地；按 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md) 已提升为下一阶段优先补强项
 - **判定系统语义差距**：`OD` 主路径已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，其中 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；但 early/late 非对称 BAD / excessive poor、scratch 特例、更完整 long-note release parity 与按 judge family 参数化的 `Empty Poor` 仍未收口
@@ -83,13 +83,13 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-05-13
+### 2026-05-16
 
-- **范围**：收口 `P1-I` 单轨筛选 UI 的 hover 可见性、配色冻结与 `SearchHintTooltip` DI 崩溃，并复核该专题当前已从产品面实现阶段转入回归收口阶段。
-- **本轮修正**：`BmsCompositionRowButton` / `BmsKeyCountToggleButton` 非激活态改为 `ColourProvider.Background3/Background1`，使 `ShearedButton` 的 hover `Lighten(0.2f)` 机制产生清晰可见的色变；RC/LN/SCR 配色冻结为蓝 `(94,190,255)` / 黄 `(255,212,92)` / 橙 `(255,119,86)`；`SearchHintTooltip` 改为由 `SongSelectSearchTextBox` 通过构造函数注入 `OverlayColourProvider`，并把布局收口为 `FillFlowContainer + Container(Width=160f)`。
-- **本轮验证**：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过，`0 error`。
-- **诊断结果**：当前 `P1-I` 已不再停留于“三条独立 range slider 原型”；`BmsCompositionFilterControl` 单轨控件与 `键数` row 已完成交付，剩余缺口集中在 `I4` 的单轨拖拽 headless regression 与 shared visual gate。
-- **说明**：single-file 发布、数据目录迁移与 Release 构建告警清零的发行基线验证继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
+- **范围**：收口 BMS 结果侧 clear lamp / final gauge / gauge history 与 gameplay authority 的对齐，重点覆盖 `HCN` body-tick fail 与 `A-SCR` / `A-NOT` assist replay。
+- **本轮修正**：`BmsClearLampProcessor` 现先检查 clear condition 再授予 `PERFECT` / `FULL COMBO`；结果侧 `CreateGaugeHistory()` 与 fallback final gauge 重算现会先通过 `BmsBeatmapModApplicator` 重放完整 beatmap-mod 链，而不是只重放 long-note mode。
+- **本轮验证**：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest"` **30/30** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest|FullyQualifiedName~BmsGaugeProcessorTest"` **80/80** 通过。
+- **诊断结果**：`HCN` body tick 与 `A-SCR` / `A-NOT` 不再让 results/history 脱离 gameplay authority；结果页持久化 lamp 也不再能在 clear failed 时错误显示为 `PERFECT` / `FULL COMBO`。
+- **说明**：更早的 `P1-I` focused validation 与发行基线验证继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
 
 ## 联网约束
 
@@ -109,7 +109,7 @@
 - 上游裁剪与项目基础，主入口以桌面端为准
 - BMS 解码 → 转换 → 导入 → 7K+1 gameplay → 四套判定 → 六种 gauge + GAS → EX-SCORE / CLEAR LAMP / DJ LEVEL
 - LN / CN / HCN mode-aware 计分与分桶
-- BMS 结果页反馈首轮收口：expanded 主环 / contracted badge 使用 DJ LEVEL，主分数区显式使用 EX-SCORE 文案
+- BMS 结果页反馈首轮收口：expanded 主环 / contracted badge 使用 DJ LEVEL，主分数区显式使用 EX-SCORE 文案，结果侧 gauge / lamp 重建已与 gameplay mod 链对齐
 - 本地/在线难度表来源管理 / 缓存 / MD5 匹配 / 表分组 / Song Select 音符分布图
 - BMS Song Select `外部谱库` / `内部谱库` 分组与 external root snapshot 持久化
 - oms.Input 多源输入（键盘 / XInput / MouseAxis / Raw Input / DirectInput HID）

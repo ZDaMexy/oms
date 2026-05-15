@@ -2,6 +2,14 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-16
+
+### C3 / results feedback 纠偏：clear lamp 与 gauge history 回到 gameplay authority
+
+- `BmsClearLampProcessor` 现会先检查 clear condition 再授予 `PERFECT` / `FULL COMBO`；`HCN` body-tick `IgnoreMiss` 即使不改 EX-SCORE 或聚合 judgement counts，也不会再让 failed run 被结果页误标成更高 lamp。
+- results 侧 `CreateGaugeHistory()` 与 fallback final gauge 重算现会先通过 `BmsBeatmapModApplicator` 复用完整 beatmap-mod 链，而不是只重放 long-note mode；因此 `A-SCR` / `A-NOT` 这类 assist mod 不再让结果图表与 gameplay 脱节。
+- 回归已补到 `BmsClearLampProcessorTest`，锁住 HCN gauge-fail lamp persistence 与 assist-mod gauge-history replay；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest"` **30/30** 通过，`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest|FullyQualifiedName~BmsGaugeProcessorTest"` **80/80** 通过。
+
 ## 2026-05-09
 
 ### C1 / C2 接口口径补丁：settings 改为显示基础下落时间而非运行时 GN/ms

@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-05-16
+
+### BMS：结果侧 clear lamp / gauge history 与 gameplay mod 链重新对齐
+
+- `BmsClearLampProcessor` 现会先检查 clear condition 再授予 `PERFECT` / `FULL COMBO`；`HCN` body-tick `IgnoreMiss` 即使不改变 EX-SCORE 或 `Good/Meh/Miss` 计数，也不会再把 failed run 持久化成更高 lamp。
+- 结果侧 `CreateGaugeHistory()` 与 fallback final gauge 重算现会先通过 `BmsBeatmapModApplicator` 重新应用完整 beatmap-mod 链，而不是只重放 long-note mode；因此 `A-SCR` / `A-NOT` 这类会改写 score/gauge 池的 assist mod 不再让 results/history 偏离 gameplay。
+- `BmsClearLampProcessorTest` 新增 HCN gauge-fail lamp persistence 与 assist-mod gauge-history replay 回归，锁住此次修正。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest"` **30/30** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest|FullyQualifiedName~BmsGaugeProcessorTest"` **80/80** 通过。
+
 ## 2026-05-13
 
 ### P1-I：BMS 选歌筛选 UI 视觉收口

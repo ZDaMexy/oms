@@ -1,13 +1,13 @@
 # P1-C 开发进度：判定语义、绿色数字与反馈闭环
 
-> 最后更新：2026-05-09
+> 最后更新：2026-05-16
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-C` 的真实进展。
 
 ## 当前阶段
 
 - **阶段定位**：C1（权威绿色数字常驻反馈）首轮实现已完成；C2（`Sudden / Hidden / Lift` 联动收口）已从 strict Classic 扩到 tri-mode；C3（判定语义与训练反馈收口）已推进到第七刀，当前已完成“最近判定 + FAST/SLOW”入同一 feedback container、瞬时 judge display 生命周期、compact visual timing-offset sparkline、fixed AAA EX pacemaker 差值、compact live judgement summary、live `DJ LEVEL + EX 原始分子/分母 + %`，以及基于现有 counts 派生、且已带紧凑原因标签的 live `PERFECT / FC / FC LOST` 状态线；与此同时，tri-mode Hi-Speed surface 与 `阻止谱面开始/ingame start` operator window 不仅已接通，也已补上 owner overlay / real-player binding / input-bridge focused coverage。
 - **代码状态**：常驻 speed feedback HUD 已落地，并开始承担 gameplay feedback；`BmsScrollSpeedMetrics` / `BmsSpeedMetricsToast` / `Normal / Floating / Classic Hi-Speed` 调速链均已接到统一 feedback 表达，HUD 现在可区分 `NONE` / `ONLY` / 多 target 可切换状态、cycle 序号，单击 `UI_LaneCoverFocus`（或鼠标中键）会在已启用项之间循环切换持久目标（`Sudden → Hidden → Lift → ...`），同时会显示最近一次判定与 `FAST/SLOW` timing 文案；最近判定反馈已改为瞬时 judge display 语义，会在短时间后自动消隐，重复同类判定也会刷新显示窗口；同一张 feedback card 现已接入 compact visual timing-offset sparkline、fixed AAA 目标的 EX pacemaker 文案、两行 compact live judgement summary、live `DJ LEVEL + EX 原始分子/分母 + %`，以及一条基于现有 judgement counts 派生、可进一步显示 `GR` 或最轻 break bucket 的 live `PERFECT / FC / FC LOST` 状态线。当前 tri-mode surface 中，`Normal` 为默认 settings surface，`Floating` 为 initial-BPM anchored runtime surface，`Classic` 继续锁定 `(100000 / 13) / HS` 与官方 sample；进入 gameplay 后现已统一为“前 5 秒 delayed-start 阻塞 + 全程调速修饰键”这一运行时合同：前 5 秒按住 `UI_PreStartHold` 时会阻塞开谱并显示 pre-start overlay，期间可按键位奇数列增速、偶数列减速，且 `UI_LaneCoverFocus` / 滚轮 / 中键仍可继续调节 `Sudden / Hidden / Lift` 与 target cycle；正式 gameplay 开始后按住同一键仍会继续受理 odd/even lane 调速，并持续刷新居中的 `BMS speed` toast。hold 修饰键按住期间，新的 lane action 不再转发进 gameplay `KeyBindingContainer`，而只属于调整链；`UI_PreStartHold` 与 `UI_LaneCoverFocus` 仍保持独立动作（PreStartHold = 阻止开谱/调速修饰键，LaneCoverFocus = 单击循环目标）。对应覆盖现已分成 owner-level `TestSceneBmsPreStartHiSpeedOverlay`、real-player `TestSceneBmsSoloPlayerPreStart` 与输入桥 `OmsInputRouterTest` 三层：前者锁住 tri-mode 文案 formatting 与“仅在 overlay 可见时响应 odd/even lane 调速”的组件合同，后两者分别锁住真实宿主链上的 **10/10** delayed-start / hold modifier / mode-value binding 语义，以及 **9/9** 的 lane action 转发抑制。display 默认继续通过 `BmsGameplayFeedbackState` 消费 speed metrics / target-state / latest judgement / judgement counts / live EX progress / pacemaker / timing visual range 这批 scalar state，recent history 仍独立流转。与此同时，BMS mod 选中状态与 non-default settings 现已通过 `PersistedModState` 作为 ruleset-local snapshot 持久化；`Sudden` / `Hidden` / `Lift` 的 gameplay wheel 调整则由 `RememberGameplayChanges` 控制是否跨 gameplay clone 回写到当前 selected mod 并延续到回场后状态。考虑 `RulesetConfigCache` 的 startup 顺序后，宿主现会在 cache ready 后 replay 当前 ruleset，因此完全冷启动第一次进入 BMS 也会恢复 selected mods / remembered settings，且不再误报 ruleset failure。
-- **文档状态**：`P1-C` 的计划、状态、变动日志、技术约束已与 C3 第七刀、aggregate scalar state contract 第四刀，以及 2026-04-28 的 pre-start overlay / real-player coverage 同步。
+- **文档状态**：`P1-C` 的计划、状态、变动日志、技术约束已与 C3 第七刀、aggregate scalar state contract 第四刀、2026-05-08 的 pre-start 扩面，以及 2026-05-16 的结果侧 clear lamp / gauge history 对齐修正同步。
 - **外部参考状态**：已完成 [iidx.org](https://iidx.org/) 五篇参考文章（green number / hi-speed / floating / in-game controls / IIDX-LR2-beatoraja differences）的审计，GN 公式 / WN 语义 / LIFT 独立性 / soflan 行为均已与当前代码对照确认，结论已写入 `TECHNICAL_CONSTRAINTS.md`。
 
 ## 已确认事实
@@ -43,7 +43,7 @@
 - 最近判定 feedback 现为瞬时态：短时自动消隐，且重复的同类判定会刷新显示生命周期而不是沿用旧的过期时钟。
 - visual timing-offset 现按 recent timing history 呈现，只吸收有 timing 语义的 basic judgement，不把 `EPOOR` / `ComboBreak` 这类无 timing 语义的结果塞进 sparkline。
 - 旧版 `IBmsHudLayoutDisplay` 兼容策略已在 transformer 层收口：新接口直接摆位，旧接口自动 overlay 包装。
-- 当前 results 页已完成 `DJ LEVEL` / `EX-SCORE` 第一轮收口，但仍不足以形成完整训练反馈闭环。
+- 当前 results 页已完成 `DJ LEVEL` / `EX-SCORE` 第一轮收口；结果侧 `BmsClearLampProcessor` 现也会在 clear check 通过后才授予 `PERFECT` / `FULL COMBO`，并在重建 final gauge / gauge history 时复用完整 beatmap-mod 链，因此 `HCN` body-tick fail 与 `A-SCR` / `A-NOT` assist 场景已不再偏离 gameplay authority；但整体训练反馈闭环仍未完成。
 - 当前 `BEATORAJA` / `LR2` judge mode 已接通基础窗口与分桶，但 parity 仍未收口。
 
 ## 进度矩阵
@@ -83,6 +83,8 @@
 3. 推进 C4，把 `GameplayFeedbackDisplay` 的作者文档与 aggregate state contract 继续补齐。
 
 ## 验证记录
+
+- 2026-05-16：收口 results-side `BmsClearLampProcessor` 语义：`PERFECT` / `FULL COMBO` 现先受 clear condition 约束，`CreateGaugeHistory()` 与 fallback final gauge 重算现先经 `BmsBeatmapModApplicator` 复用完整 mod 链。`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest"` **30/30** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest|FullyQualifiedName~BmsGaugeProcessorTest"` **80/80** 通过。
 
 - 2026-04-28：新增 `TestSceneBmsPreStartHiSpeedOverlay`，直接锁住 pre-start overlay 的 owner contract：tri-mode 文案沿 `BmsHiSpeedMode.FormatValue()` 输出，且 odd/even lane hi-speed adjustment 只在 overlay 可见时受理。`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~TestSceneBmsPreStartHiSpeedOverlay" --configuration Release` **3/3** 通过。
 - 2026-04-28：扩展 `TestSceneBmsSoloPlayerPreStart`，新增“delay 到期但 hold 仍按住时继续可调速”与“overlay mode/value 在真实 player flow 中反映当前 hi-speed surface”回归；同时明确提前松开后应以 `SelectedHiSpeed` 不变作为 authority，而不是把 routed key press 返回值当唯一判断。`dotnet test osu.Game.Rulesets.Bms.Tests --filter "FullyQualifiedName~TestSceneBmsSoloPlayerPreStart" --configuration Release` **8/8** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。

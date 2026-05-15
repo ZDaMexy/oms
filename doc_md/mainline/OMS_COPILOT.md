@@ -599,11 +599,12 @@ NO PLAY → FAILED → ASSIST EASY CLEAR → EASY CLEAR → NORMAL CLEAR
 - HAZARD CLEAR = survived HAZARD gauge to end (no BAD/POOR, but GOOD is permitted — GOOD does not trigger HAZARD fail). Note: HAZARD CLEAR requires no BAD or POOR but allows GOOD, so it is strictly below FULL COMBO.
 - FULL COMBO = no GOOD/BAD/POOR throughout the chart
 - PERFECT = EX-SCORE == MAX EX-SCORE
-- FULL COMBO / PERFECT use the active runtime long-note mode's scored points. `LN` only checks heads; `CN` / `HCN` require both head and tail to remain eligible. `HCN` body ticks can still fail gauge without adding separate combo points.
+- FULL COMBO / PERFECT use the active runtime long-note mode's scored points. `LN` only checks heads; `CN` / `HCN` require both head and tail to remain eligible. `HCN` body ticks can still fail gauge without adding separate combo points, so result persistence must confirm the run still satisfies the clear condition before awarding `FULL COMBO` or `PERFECT`.
+- Result-side clear-lamp / final-gauge / gauge-history reconstruction must reapply the full BMS beatmap-mod chain, not only `BmsLongNoteMode`. Assist mods such as `A-SCR` / `A-NOT` also remove objects from score/gauge pools, and results must remain gameplay-identical.
 
 Only upgrade lamp, never downgrade.
 
-**Current note:** Now that `A-SCR` exists, scratch-lane score-pool exclusion and lamp-eligibility rules must stay specified together with the mod. Do not silently diverge score / gauge / lamp semantics across later leaderboard or persistence work.
+**Current note:** Now that `A-SCR` and `A-NOT` exist, score-pool exclusion, gauge exclusion, and result-side lamp/gauge reconstruction rules must stay specified together with the mods. Do not silently diverge score / gauge / lamp semantics across later leaderboard, persistence, or results-history work.
 
 ### 6.4 Gauge Auto Shift — GAS (`BmsModGaugeAutoShift`)
 
