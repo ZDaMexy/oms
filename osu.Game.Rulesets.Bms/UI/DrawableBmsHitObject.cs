@@ -50,8 +50,9 @@ namespace osu.Game.Rulesets.Bms.UI
         public override IEnumerable<HitSampleInfo> GetSamples()
         {
             IEnumerable<HitSampleInfo> samples = base.GetSamples();
+            var keysoundSample = getKeysoundSample();
 
-            foreach (var keysoundSample in getKeysoundSamples())
+            if (keysoundSample != null)
                 samples = samples.Append(keysoundSample);
 
             return samples;
@@ -120,10 +121,10 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (keysoundStore != null)
             {
-                var keysoundSamples = getKeysoundSamples().Cast<ISampleInfo>().ToArray();
+                var keysoundSample = getKeysoundSample();
 
-                if (keysoundSamples.Length > 0)
-                    keysoundStore.Play(keysoundSamples, CalculateSamplePlaybackBalance(SamplePlaybackPosition));
+                if (keysoundSample != null)
+                    keysoundStore.Play(keysoundSample, CalculateSamplePlaybackBalance(SamplePlaybackPosition));
             }
 
             base.PlaySamples();
@@ -306,22 +307,21 @@ namespace osu.Game.Rulesets.Bms.UI
             mainVisual.Colour = colour;
         }
 
-        private IEnumerable<BmsKeysoundSampleInfo> getKeysoundSamples()
+        private BmsKeysoundSampleInfo? getKeysoundSample()
         {
             switch (HitObject)
             {
                 case BmsHoldNote { HeadKeysoundSample: not null } holdNote:
-                    yield return holdNote.HeadKeysoundSample;
-                    break;
+                    return holdNote.HeadKeysoundSample;
 
                 case BmsHitObject { KeysoundSample: not null } bmsHitObject:
-                    yield return bmsHitObject.KeysoundSample;
-                    break;
+                    return bmsHitObject.KeysoundSample;
 
                 case BmsBgmEvent { KeysoundSample: not null } bgmEvent:
-                    yield return bgmEvent.KeysoundSample;
-                    break;
+                    return bgmEvent.KeysoundSample;
             }
+
+            return null;
         }
 
         protected override void AddNestedHitObject(DrawableHitObject hitObject)

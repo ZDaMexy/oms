@@ -37,7 +37,7 @@
 - **BMS mod 记忆**：BMS 现通过 `BmsRulesetSetting.PersistedModState` 以 ruleset-local JSON snapshot 持久化 mod 选中状态与非默认配置；完全重启或从 mania 切走再切回 BMS 时都可恢复，且不影响 mania。实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 现在关闭再开启也不会丢配置；`Sudden / Hidden / Lift` 还额外提供 `记忆游戏内变动` 开关，默认开启时会把局内调整回写到当前 BMS mod 配置并在回场 / 下次启动后延续。启动早期若 `RulesetConfigCache` 尚未完成加载，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再执行恢复，避免冷启动首轮漏恢复或把 ruleset 误标记失败；该路径已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
 - **BMS 速度语义**：lane cover 现已按 IIDX/LR2 语义显式拆成 `Sudden`（上遮挡）与 `Hidden`（下遮挡）；`Lift` 已作为独立 mod 接入 playfield 几何并影响 `ScrollLengthRatio`；设置页现提供 `Normal / Floating / Classic Hi-Speed` 下拉与当前模式数值 slider，并在数值后追加“不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）”；对应 hover 文案现已简述三种模式的区别，并明确括号内只是基础下落时间，而 `GreenNumber` 需要在游戏内结合 `Sudden / Hidden / Lift` 调节查看。设置页仍不暴露 `GreenNumber` 本身，也不再暴露 `Playfield Scale` 或数值型 `Playfield Horizontal Offset`。当前 playfield scale 已固定为 `1.0`，避免缩放破坏皮肤编排并扭曲权威 visual-speed surface；single-play 侧当前改为四态 `Playfield Style`：`1P（居左）`、`2P（居右）`、`居中（左皿）`、`居中（右皿）`。它只作用于 5K / 7K 的 playfield 停靠与 scratch 视觉侧别，其中 `1P / 2P` 为“侧停靠但保留固定屏侧间距”；不改变尺寸与可见时间语义，也不等价于完整 `1P/2P flip`。9K 固定居中，14K 固定双侧布局。runtime 速度反馈继续保留在 gameplay 内，以 mode-aware `GN + WN + 当前模式和值 + 当前目标` 表达；游玩内滚轮会按当前持久目标调节 `Sudden / Hidden / Lift`，单击 `UI_LaneCoverFocus`（或鼠标中键）会在已启用项之间循环切换持久目标。进入 BMS 游玩后，`UI_PreStartHold` 现已收口为“前 5 秒阻止开始 + 全程调速修饰键”这一运行时合同：前 5 秒按住时继续阻塞开谱并显示右侧 `READY HOLD` overlay，期间奇数列增速、偶数列减速，且 `UI_LaneCoverFocus` / 滚轮 / 中键仍可继续调整 lane cover 与目标切换；若 delayed-start 已在 hold 期间耗尽，则松开 hold 时必须重新给满一段 fresh delay，而不是立即开谱；正式 gameplay 开始后按住同一键也可继续调速，且居中的 `BMS speed` toast 会持续刷新显示。hold 修饰键按住期间，新的 lane action 不再转发进 gameplay 判定链，只承担 Hi-Speed 调节；`UI_PreStartHold` 与 `UI_LaneCoverFocus` 仍保持独立动作（默认 5K/7K/9K：PreStartHold = Q、LaneCoverFocus = W；14K：PreStartHold = T、LaneCoverFocus = Y）。当前 tri-mode surface 已落地，其中 `Classic` 仍锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前只实现 initial-BPM anchored surface，不应包装成完整 mid-song re-float parity。pre-start 1 号普通轨纯视觉流速预览第一版现已落地：`BmsSoloPlayer` 会按 pre-start pending + hold + pause state gate 到 `DrawableBmsRuleset`，并在第一非 scratch 轨的独立 preview 容器中复用 `BmsNoteSkinLookup` 与 `BmsScrollSpeedMetrics` 渲染纯视觉假音符；它不复用真实 `BmsHitObject` / `DrawableBmsHitObject` / lane keysound / judgement 链，且正式 gameplay 中即使继续按住同一调速键也不会再出现。对应自动覆盖现已补到 owner-level `TestSceneBmsPreStartHiSpeedOverlay` **3/3**、pre-start focused slice **24/24** 与输入桥 `OmsInputRouterTest` **9/9**，分别锁定 overlay 文案 / 输入合同、真实 delayed-start / hold modifier / preview gate / release-after-elapsed fresh-delay 语义，以及 hold 期间 lane action 的 gameplay 转发抑制。
 - **osu!mania 滚动速度设置**：`Settings -> 游戏模式 -> osu!mania -> 滚动速度` 当前已通过 hover 文案明确为“标准车道几何下的参考下落时间”；由于不同皮肤会改变车道尺寸、判定线位置与缩放，同一数值不保证跨皮肤体感一致。更换皮肤后应重新校准，且 mania 与 BMS 的下落时间当前不可互相参考。
-- **BMS 键音通道设置**：`Settings -> 游戏模式 -> BMS -> 键音通道数` 当前已把 shared `BmsKeysoundStore` ceiling 公开为 `1..256` 滑条，默认值现已从 `16` 调整为 `32`。hover 提示会直接概括低值更容易截断 BGM / 键音 / 长按尾音、`32` 为常用折中、高值更适合极高密谱面或较强机器，以及“缺音时先升到 `48/64`、额外负载增加时再逐步下调”的调参路径。该设置仍继续作用于同一 shared pool；运行时改值会重建 channel container，因此可能切断当前正在播放的键音。
+- **BMS 键音通道设置**：`Settings -> 游戏模式 -> BMS -> 键音通道数` 当前已把 shared `BmsKeysoundStore` ceiling 公开为 `1..256` 滑条，默认值现已从 `16` 调整为 `32`。hover 提示会直接概括低值更容易截断 BGM / 键音 / 长按尾音、`32` 为常用折中、高值更适合极高密谱面或较强机器，以及“缺音时先升到 `48/64`、额外负载增加时再逐步下调”的调参路径。该设置仍继续作用于同一 shared pool；运行时调高会立即补充通道，调低则会在超额 channel 停播后逐步回收，不再直接切断当前正在播放的键音。
 - **P1-A / P1-C 交叉专题**：现阶段这条交叉线已从“strict Classic 收口”推进到“tri-mode Hi-Speed control surface + 阻止谱面开始/ingame start operator surface”。`P1-A` 继续负责 settings / HUD 宿主 / fallback / skin boundary 与 operator overlay / toast 的产品边界，`P1-C` 继续负责 mode-aware speed metrics、`Sudden / Hidden / Lift` 联动、hold modifier 调速语义与同一 feedback family 下的训练表达；pre-start 1 号普通轨纯视觉流速预览现也沿这条 split 落地，宿主/fallback 归 `P1-A`，显示时序、lane 选择与“绝不接判定链”语义归 `P1-C`。aggregate scalar state contract 仍停在第四刀，但当前 `GN` / `WN` 已明确属于 OMS 的 tri-mode runtime surface，而非完整 `FHS`；除冷启动 BMS mod 恢复外，pre-start overlay owner contract、real-player host binding、preview gate 与 hold 期间 lane 输入转发抑制也已补 focused coverage，后续 backlog 主要转为 full Floating parity（mid-song re-float、soflan range、更加严格的 IIDX start sequencing）、更广的 real-input integration coverage 与后置人工验收。
 - **文档治理基线**：文档目录现已固定为 `doc_md/mainline`、`doc_md/subline`、`doc_md/other`、`doc_md/mini`；任何后续开发必须同步更新对应目录文档，子线与 mini 的变化若影响全局，必须反向同步主线四件套
 - **结果页反馈基线**：BMS results 的 expanded 主评价与 contracted badge 已按 `DJ LEVEL` 显示，主分数区已显式标为 `EX-SCORE`；`BmsClearLampProcessor` 的结果侧 final gauge / gauge history 重放现会复用运行时 long-note mode 与完整 beatmap-mod 链，`HCN` body-tick fail 也不会再把 failed score 误持久化成 `PERFECT` / `FULL COMBO`
@@ -71,7 +71,7 @@
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
 | 桌面端构建 | 通过 | `dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 退出码 0（2026-05-09） |
-| BMS 全量测试 | **706/706** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-04-24） |
+| BMS 全量测试 | **774/774** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-05-16） |
 | Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
 | BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
 | Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`（2026-04-25） |
@@ -85,11 +85,11 @@
 
 ### 2026-05-16
 
-- **范围**：收口 BMS 结果侧 clear lamp / final gauge / gauge history 与 gameplay authority 的对齐，重点覆盖 `HCN` body-tick fail 与 `A-SCR` / `A-NOT` assist replay。
-- **本轮修正**：`BmsClearLampProcessor` 现先检查 clear condition 再授予 `PERFECT` / `FULL COMBO`；结果侧 `CreateGaugeHistory()` 与 fallback final gauge 重算现会先通过 `BmsBeatmapModApplicator` 重放完整 beatmap-mod 链，而不是只重放 long-note mode。
-- **本轮验证**：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest"` **30/30** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore --filter "FullyQualifiedName~BmsClearLampProcessorTest|FullyQualifiedName~BmsGaugeProcessorTest"` **80/80** 通过。
-- **诊断结果**：`HCN` body tick 与 `A-SCR` / `A-NOT` 不再让 results/history 脱离 gameplay authority；结果页持久化 lamp 也不再能在 clear failed 时错误显示为 `PERFECT` / `FULL COMBO`。
-- **说明**：更早的 `P1-I` focused validation 与发行基线验证继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条 focused validation snapshot。
+- **范围**：继续推进 `P1-J`，把 shared keysound timing 的 owner-level focused gap 收口，并验证 lane replay 经过 pooled sample fallback 后的稳定性。
+- **本轮修正**：新增 `TestSceneBmsSharedKeysoundTiming`，把 `DrawableBmsHitObject` 命中与 `BmsLane` lane replay 的 same-frame shared-store 请求从大回归文件里独立出来；同轮把 `Playfield.GetPooledSample()` 收口为“pool 不可用时返回 `null`，由 `SkinnableSound` 自动降级到 unpooled sample”的安全边界，避免 lane replay 在 pooled sample retrieval 失效时直接把错误冒泡到 gameplay 链。
+- **本轮验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSharedKeysoundTiming"` **3/3** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release` **774/774** 通过。
+- **诊断结果**：`P1-J` 当前已把 keysound timing、lane/order 首批热路径分配、`J4` 的 runtime / settings 合同，以及 `J5` 的 ordered-hit + shared timing focused proof 一起收成当前自动化基线；剩余主要风险已缩到 dense-chart / layered-BGM / rapid empty-strike / live channel change 的后置人工验收。
+- **说明**：更早的 BMS 结果页 authority 修补与其他 focused validation 继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条验证快照。
 
 ## 联网约束
 
@@ -153,7 +153,7 @@
 | 1.1.9 BMS 第三批 | 已完成 | HUD / gauge / results / Song Select panels 的 lookup 与 OMS 默认层 |
 | 1.1.10 Partial override | 进行中 | mixed-layer 三类语义已有 runtime 证明；legacy 用户皮肤 component-level fallback 已接通 |
 | 1.1.11 Native-default removal | 进行中 | built-in realm 注册面已瘦身；settings / runtime fallback / source-chain 已收口；公开发行物剥离待收尾 |
-| 1.1.12 测试矩阵与 release gate | 进行中 | Mania skin 92/92、BMS 聚焦 111/111、osu.Game.Tests 18/18 已复核；BMS/mania 全量与 scratch bridge 继续沿用 2026-04-24 快照 |
+| 1.1.12 测试矩阵与 release gate | 进行中 | Mania skin 92/92、BMS 聚焦 111/111、osu.Game.Tests 18/18 已复核；BMS 全量 **774/774** 已于 2026-05-16 复核，mania 全量与 scratch bridge 继续沿用 2026-04-24 快照 |
 
 执行优先顺序：维持 release gate 稳定 → 1.17 analog scratch cross-device edge/hold contract → 真实硬件验收。
 
@@ -186,7 +186,7 @@
 | P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
 | P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker / 权威 GN 与调速反馈 / pre-start 1 号普通轨纯视觉流速预览 | 已编排，专题文档已建立 |
-| P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 | 已编排，专项文档已建立 |
+| P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 | 进行中（`J1` / `J4` 已完成，`J2` / `J3` 首刀已落地，`J5` 自动化已闭合，仅剩人工验收） |
 | P1-D 控制器校准与诊断 | deadzone / sensitivity / scratch 模式说明 / live diagnostics | 下一优先级 |
 | P1-E gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
 | P1-F 首发离线发行基线 | portable.ini + data/ 便携模式已落地 | 已验证 |
@@ -202,7 +202,7 @@
 - **判定系统 parity 缺口**：当前 `BEATORAJA` / `LR2` / `IIDX` judge mode 已接通，但 `BEATORAJA` / `LR2` 仍缺 early/late 非对称窗口、scratch / long-note release 特例，以及按 judge family 参数化的 Empty Poor / excessive poor 触发语义；`IIDX` 也仍待进一步对齐细部体验
 - **反馈闭环缺口**：results 页主评价 / 缩略徽章 / 主分数文案虽已切到 BMS 语义，但结果反馈面本身仍只完成第一轮收口；gameplay 侧当前已具备最近判定、瞬时 judge display、compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`，后续仍缺更完整 judge display 与更丰富 pacemaker 来源，尚未形成完整的 key-sounded BMS 训练闭环
 - **权威绿色数字后续缺口**：常驻 GN HUD 与 C2 的 target-state / cycle / `HOLD` 语义已落地，C3 的最近判定 + `FAST/SLOW` 已具备瞬时 judge display 生命周期，并补上 compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`；后续剩余更完整 judge display 与 pacemaker 扩展仍待继续收口
-- **gameplay hot path / 音频时序缺口**：最新只读审查已确认 shared `BmsKeysoundStore` 当前仍对 gameplay keysound 播放做无条件 `Schedule()` 延后，`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 也仍在按键热路径做容器枚举与临时分配；与此同时，`KeysoundConcurrentChannels` live 改值会 rebuild 整个 pool 并可能切断当前音频。该批问题现已单独归到 `P1-J`，当前仅完成规划与归线，尚未开始代码修补。
+- **gameplay hot path / 音频时序缺口**：`P1-J` 已完成首轮代码落地：shared `BmsKeysoundStore` 的 gameplay keysound 不再无条件 `Schedule()` 到下一帧，`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 也已去掉首批热路径对象物化，`DrawableBmsHitObject.PlaySamples()` 已收口到单样本 keysound 路径；`KeysoundConcurrentChannels` live 改值也已从 rebuild-all 改成 non-destructive resize，并补上 `config -> drawable ruleset -> playfield shared store` 的 direct binding coverage。当前 `TestSceneBmsSharedKeysoundTiming` 也已补齐 shared timing owner-level proof，`Playfield.GetPooledSample()` 在 pool 不可用时会安全回退到 unpooled sample；剩余主风险已收窄为 dense-chart / layered-BGM / rapid empty-strike / live channel change 的后置人工验收尚未执行。
 - **控制器校准 / 诊断**：deadzone / sensitivity / scratch 模式说明 / live diagnostics 尚未落地；当前仅有 supplemental bindings 与 live capture，不足以覆盖 IIDX/BMS 控制器的一致性调校
 - **难度表一致性 / 刷新合同**：manager-owned metadata sync、`RefreshAll` 真实结果合同、wrapper/source identity fallback、分批回写 / 进度反馈，以及 rebuild / reuse 命中旧 set 时的 metadata 自愈都已落地；当前这轮修补可按主链收尾。若后续仍有 `Unrated` 现场反馈，优先按“原始 `.bms` 字节 MD5 与表项 MD5 不一致”处理，不再把它归类为同一批 consumer-side 分组缺口。
 - **内置皮肤候选包**：`SimpleTou-Lazer` 仅为 mania 候选基线，不可提前对外描述为已完成

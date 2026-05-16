@@ -24,13 +24,20 @@ namespace osu.Game.Rulesets.Bms.Audio
 
         public int ConcurrentChannels
         {
-            get => channels.Count;
+            get => desiredConcurrentChannels == 0 ? channels.Count : desiredConcurrentChannels;
             set => updateConcurrentChannels(Math.Clamp(value, MIN_CONCURRENT_CHANNELS, MAX_CONCURRENT_CHANNELS));
         }
 
         private readonly Container<PausableSkinnableSound> channels = new Container<PausableSkinnableSound>();
 
         private int nextChannelIndex;
+        private int desiredConcurrentChannels;
+
+        internal int ActualConcurrentChannels => channels.Count;
+
+        internal IEnumerable<PausableSkinnableSound> ChannelPool => channels;
+
+        internal void ApplyPendingChannelResize() => trimExcessChannels();
 
         public BmsKeysoundStore(int concurrentChannels = DEFAULT_CONCURRENT_CHANNELS)
         {
@@ -41,45 +48,91 @@ namespace osu.Game.Rulesets.Bms.Audio
 
         public void Play(IEnumerable<ISampleInfo> sampleInfos, double balance)
         {
+            if (sampleInfos is ISampleInfo[] sampleArray)
+            {
+                Play(sampleArray, balance);
+                return;
+            }
+
             var samples = sampleInfos.ToArray();
 
-            if (samples.Length == 0)
+            Play(samples, balance);
+        }
+
+        public void Play(ISampleInfo sampleInfo, double balance)
+        {
+            var channel = getNextChannel();
+            channel.Balance.Value = balance;
+            channel.Samples = new[] { sampleInfo };
+            channel.Play();
+        }
+
+        public void Play(ISampleInfo[] sampleInfos, double balance)
+        {
+            if (sampleInfos.Length == 0)
                 return;
 
-            Schedule(() =>
-            {
-                var channel = getNextChannel();
-                channel.Balance.Value = balance;
-                channel.Samples = samples;
-                channel.Play();
-            });
+            var channel = getNextChannel();
+            channel.Balance.Value = balance;
+            channel.Samples = sampleInfos;
+            channel.Play();
         }
 
         private PausableSkinnableSound getNextChannel()
         {
-            if (channels.Count == 0)
+            int selectableChannels = Math.Min(ConcurrentChannels, channels.Count);
+
+            if (selectableChannels == 0)
                 throw new InvalidOperationException("BMS keysound playback requires at least one channel.");
 
+            nextChannelIndex %= selectableChannels;
+
             var channel = channels[nextChannelIndex];
-            nextChannelIndex = (nextChannelIndex + 1) % channels.Count;
+            nextChannelIndex = (nextChannelIndex + 1) % selectableChannels;
             return channel;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            ApplyPendingChannelResize();
         }
 
         private void updateConcurrentChannels(int concurrentChannels)
         {
-            if (channels.Count == concurrentChannels)
+            if (ConcurrentChannels == concurrentChannels && channels.Count <= concurrentChannels)
                 return;
 
-            nextChannelIndex = 0;
-            channels.Clear();
+            desiredConcurrentChannels = concurrentChannels;
 
-            for (int i = 0; i < concurrentChannels; i++)
+            while (channels.Count < concurrentChannels)
+                channels.Add(createChannel());
+
+            nextChannelIndex = ConcurrentChannels == 0 ? 0 : nextChannelIndex % ConcurrentChannels;
+            ApplyPendingChannelResize();
+        }
+
+        private void trimExcessChannels()
+        {
+            for (int i = channels.Count - 1; i >= ConcurrentChannels; i--)
             {
-                channels.Add(new PausableSkinnableSound
-                {
-                    MinimumSampleVolume = DrawableHitObject.MINIMUM_SAMPLE_VOLUME,
-                });
+                var channel = channels[i];
+
+                if (!canRemoveChannel(channel))
+                    continue;
+
+                channels.Remove(channel, false);
             }
         }
+
+        private static bool canRemoveChannel(PausableSkinnableSound channel)
+            => channel.LoadState >= LoadState.Ready ? !channel.IsPlaying : !channel.RequestedPlaying;
+
+        private static PausableSkinnableSound createChannel()
+            => new PausableSkinnableSound
+            {
+                MinimumSampleVolume = DrawableHitObject.MINIMUM_SAMPLE_VOLUME,
+            };
     }
 }

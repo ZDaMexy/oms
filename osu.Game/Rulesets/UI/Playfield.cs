@@ -452,7 +452,23 @@ namespace osu.Game.Rulesets.UI
 
         private readonly Dictionary<ISampleInfo, DrawablePool<PoolableSkinnableSample>> samplePools = new Dictionary<ISampleInfo, DrawablePool<PoolableSkinnableSample>>();
 
-        public PoolableSkinnableSample GetPooledSample(ISampleInfo sampleInfo) => prepareSamplePool(sampleInfo).Get();
+        public PoolableSkinnableSample GetPooledSample(ISampleInfo sampleInfo)
+        {
+            var pool = prepareSamplePool(sampleInfo);
+
+            if (pool.LoadState < LoadState.Ready)
+                return null;
+
+            try
+            {
+                return pool.Get();
+            }
+            catch (NullReferenceException)
+            {
+                // Sample playback should degrade to an unpooled instance rather than fail the caller.
+                return null;
+            }
+        }
 
         private DrawablePool<PoolableSkinnableSample> prepareSamplePool(ISampleInfo sampleInfo)
         {

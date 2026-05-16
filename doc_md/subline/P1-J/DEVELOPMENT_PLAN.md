@@ -27,7 +27,7 @@
   1. `BmsKeysoundStore.Play()` 当前对所有 keysound 播放都做无条件 `Schedule()`，存在帧级播放延后与 jitter 风险。
   2. `BmsLane.shouldTriggerEmptyPoor()` 当前每次按键都会 materialize 候选数组，并枚举 lane 容器对象；`BmsOrderedHitPolicy.getParticipatingHitObjects()` 也会在命中排序时枚举容器对象。
   3. `DrawableBmsHitObject -> BmsKeysoundStore` 路径与 `BmsLane` lane replay 路径都存在重复数组分配；dense-chart 下会形成持续 GC 压力。
-  4. `KeysoundConcurrentChannels` live 改值会重建整个 channel container，当前可能切断正在播放的音频。
+  4. `KeysoundConcurrentChannels` live 改值的高风险 rebuild-all 路径已被移除；当前剩余工作已收窄到 owner-level coverage 继续补强与 dense-chart manual checklist。
 - 现阶段**没有**来自同一轮审查的证据表明 `BmsSoloPlayer` 的 pre-start / song-select music handoff 仍有新的 gameplay 主音乐接管 bug；因此 `P1-J` 的首轮重点不放在 start-sequence，而放在 gameplay 内部 hot path。
 - 现有 automated coverage 已锁住部分相关语义：`BmsDrawableRulesetTest` 覆盖 late-empty-poor 行为，若后续优化 lane/order hot path，不能把这些回归当成“性能改动可接受副作用”。
 
@@ -35,7 +35,7 @@
 
 ### J0：归线、术语与观测基线
 
-**状态：已完成文档建档，代码未开始**
+**状态：已完成**
 
 目标：先把“什么属于 runtime hot-path contract、什么只是后置体验验收”写死，避免后续在没有 measurement / regression guard 的情况下做泛化调优。
 
@@ -48,7 +48,7 @@
 
 ### J1：keysound timing hardening
 
-**状态：未开始**
+**状态：进行中；首刀已落地，gameplay keysound 已切到 same-frame 播放**
 
 目标：shared `BmsKeysoundStore` 继续作为唯一播放 authority，但 gameplay 的 note / BGM / LN keysound 不再被默认压到后续 scheduler tick 才真正播放。
 
@@ -68,7 +68,7 @@
 
 ### J2：lane / ordered-hit hot path scan 收口
 
-**状态：未开始**
+**状态：进行中；首批 `ToArray()` / 判空物化已收口**
 
 目标：把 `BmsLane` 与 `BmsOrderedHitPolicy` 从“每次按键或命中时都枚举容器对象”收口成更窄、更稳定的候选 authority，同时保留当前 empty-poor / late-empty-poor 语义。
 
@@ -88,7 +88,7 @@
 
 ### J3：sample allocation tightening
 
-**状态：未开始**
+**状态：进行中；已与 `J1` / `J2` 同刀收口重复数组分配**
 
 目标：在不改变 sample authority 的前提下，削减 dense-chart 里的重复数组分配与 LINQ 中间对象，降低 GC 压力。
 
@@ -107,16 +107,16 @@
 
 ### J4：live channel reconfigure safety
 
-**状态：未开始**
+**状态：已完成；shared store 已从 rebuild-all 切到 non-destructive resize，direct binding coverage 与表述同步也已补齐**
 
 目标：把 `KeysoundConcurrentChannels` 的 runtime 改值补成稳定合同，避免 gameplay 中无提示硬切当前播放中的样本。
 
-建议交付：
+完成交付：
 
-1. 明确区分“增加 channel 数”和“减少 channel 数”的语义；优先接受 grow-immediately / shrink-deferred 或等价的 non-destructive resize，而不是每次都 rebuild 整个 pool。
-2. 如果最终仍保留 deferred apply，必须把文案、行为与测试都同步到“何时生效”；不能继续让用户以为设置立即生效，但实际把当前播放链切断。
-3. 补上当前缺口：ruleset config -> drawable ruleset -> playfield shared store 的 focused binding test。
-4. 文档与 tooltip 继续表述“低值更易截断、高值成本更高”，但不再隐含“runtime 改值会直接切断当前音频”是可接受默认行为。
+1. 已明确区分“增加 channel 数”和“减少 channel 数”的语义，并以 grow-immediately / shrink-deferred 的 non-destructive resize 落地，而不是继续 rebuild 整个 pool。
+2. deferred apply 的文案、行为与测试已同步到同一合同；runtime 改值不再默认切断当前播放链。
+3. `ruleset config -> drawable ruleset -> playfield shared store` 的 focused binding test 已通过 `TestSceneBmsKeysoundChannelConfigBinding` 补齐。
+4. settings tooltip 与主线/子线文档已继续保持“低值更易截断、高值成本更高”的调参表述，同时明确 grow/shrink 的实际生效语义。
 
 可能文件切片：
 
@@ -127,16 +127,16 @@
 
 ### J5：focused validation 与后置验收
 
-**状态：未开始**
+**状态：进行中；focused regression 与 BMS 全量自动化回归已通过，代码侧自动化缺口已闭合，dense-chart manual checklist 仍后置**
 
 目标：让 `P1-J` 有独立的 automated proof，再把 dense-chart / BGM layering 体验回交给 `P1-G` 做最终人工确认。
 
 建议交付：
 
-1. automated validation 至少覆盖：keysound timing hardening、lane/order late-empty-poor regression、config->store binding、allocation tightening 未回归 sample 语义。
+1. automated validation 现已覆盖：keysound timing hardening、lane/order late-empty-poor regression、config->store binding、shared timing owner-level proof，以及 allocation tightening 未回归 sample 语义。
 2. Release build 继续作为子线门槛；本专题不能以“只是性能优化”为理由跳过 build gate。
 3. manual checklist 继续后置到 `P1-G`：dense fully-keysounded chart、layered BGM、LN tail keysound、rapid empty-strike、live channel resize、pre-start -> gameplay 正常过渡。
-4. 当 1-3 成立后，`P1-J` 才能进入只接回归修复的冻结态。
+4. 当前 1-2 已成立；待 3 完成后，`P1-J` 才能进入只接回归修复的冻结态。
 
 ## 明确不做
 
@@ -147,8 +147,6 @@
 
 ## 当前优先顺序
 
-1. `J1` keysound timing hardening
-2. `J2` lane / ordered-hit hot path scan 收口
-3. `J3` sample allocation tightening（可与 `J1` / `J2` 同步落在同一文件切片时并刀执行）
-4. `J4` live channel reconfigure safety
-5. `J5` focused validation 与 `P1-G` 后置人工验收
+1. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change
+2. 评估 single-sample array contract 是否继续下探，还是把当前实现作为 `J3` 第一阶段冻结点
+3. 若后续继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`

@@ -7,6 +7,7 @@ using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using NUnit.Framework;
 using osu.Framework.Timing;
+using osu.Game.Audio;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
@@ -19,6 +20,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -455,7 +457,64 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             playfield.KeysoundStore.ConcurrentChannels = 24;
 
-            Assert.That(playfield.KeysoundStore.ConcurrentChannels, Is.EqualTo(24));
+            Assert.Multiple(() =>
+            {
+                Assert.That(playfield.KeysoundStore.ConcurrentChannels, Is.EqualTo(24));
+                Assert.That(playfield.KeysoundStore.ActualConcurrentChannels, Is.EqualTo(24));
+            });
+        }
+
+        [Test]
+        public void TestSharedKeysoundStoreShrinkDoesNotCutActiveChannelsImmediately()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 2;
+            playfield.KeysoundStore.Play(new SampleInfo("keys/left"), 0);
+            playfield.KeysoundStore.Play(new SampleInfo("keys/right"), 0);
+
+            PausableSkinnableSound[] channels = playfield.KeysoundStore.ChannelPool.ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channels, Has.Length.EqualTo(2));
+                Assert.That(channels.All(channel => channel.RequestedPlaying), Is.True);
+            });
+
+            playfield.KeysoundStore.ConcurrentChannels = 1;
+            channels = playfield.KeysoundStore.ChannelPool.ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playfield.KeysoundStore.ConcurrentChannels, Is.EqualTo(1));
+                Assert.That(playfield.KeysoundStore.ActualConcurrentChannels, Is.EqualTo(2));
+                Assert.That(channels.All(channel => channel.RequestedPlaying), Is.True);
+            });
+        }
+
+        [Test]
+        public void TestSharedKeysoundStoreShrinkRemovesStoppedDeferredChannels()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 2;
+            playfield.KeysoundStore.Play(new SampleInfo("keys/left"), 0);
+            playfield.KeysoundStore.Play(new SampleInfo("keys/right"), 0);
+            playfield.KeysoundStore.ConcurrentChannels = 1;
+
+            PausableSkinnableSound deferredChannel = playfield.KeysoundStore.ChannelPool.Last();
+
+            deferredChannel.Stop();
+            playfield.KeysoundStore.ApplyPendingChannelResize();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playfield.KeysoundStore.ConcurrentChannels, Is.EqualTo(1));
+                Assert.That(playfield.KeysoundStore.ActualConcurrentChannels, Is.EqualTo(1));
+                Assert.That(playfield.KeysoundStore.ChannelPool.Single().RequestedPlaying, Is.True);
+            });
         }
 
         [Test]

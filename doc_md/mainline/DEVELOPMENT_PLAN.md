@@ -206,7 +206,7 @@
 2. **lane/order hot path scan 收口**：把 `BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 从“每次按键全枚举容器对象”收口到更窄的候选 authority，保持现有 late-empty-poor regression 语义不变。
 3. **sample allocation tightening**：削减 `DrawableBmsHitObject`、`BmsLane` 与 `BmsKeysoundStore` 之间的重复 `ToArray()` / 单元素数组分配，只保留必要的多样本拷贝边界。
 4. **live channel reconfigure safety**：为 `KeysoundConcurrentChannels` 确定稳定策略，优先接受“增长即时、缩减延后到安全边界”或等价的 non-destructive resize，而不是 rebuild-all 后切断正在播放的键音。
-5. **focused validation**：补 owner-level store tests、dense-lane regression、config->playfield-store binding 与 Release build；真实谱面 dense acceptance 再后置到 `P1-G`。
+5. **focused validation**：owner-level store tests、dense-lane regression 与 config->playfield-store binding 当前已补齐；真实谱面 dense acceptance 继续后置到 `P1-G`。
 
 **明确不做：**
 

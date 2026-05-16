@@ -1,7 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Collections.Generic;
-using System.Linq;
 using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
@@ -41,12 +40,30 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private IEnumerable<DrawableBmsHitObject> getParticipatingHitObjects()
         {
-            var aliveObjects = hitObjectContainer.AliveObjects.OfType<DrawableBmsHitObject>().Where(canParticipateInLocking).ToArray();
+            using (var aliveEnumerator = hitObjectContainer.AliveObjects.GetEnumerator())
+            {
+                while (aliveEnumerator.MoveNext())
+                {
+                    if (aliveEnumerator.Current is not DrawableBmsHitObject hitObject || !canParticipateInLocking(hitObject))
+                        continue;
 
-            if (aliveObjects.Length != 0)
-                return aliveObjects;
+                    yield return hitObject;
 
-            return hitObjectContainer.Objects.OfType<DrawableBmsHitObject>().Where(canParticipateInLocking);
+                    while (aliveEnumerator.MoveNext())
+                    {
+                        if (aliveEnumerator.Current is DrawableBmsHitObject remainingHitObject && canParticipateInLocking(remainingHitObject))
+                            yield return remainingHitObject;
+                    }
+
+                    yield break;
+                }
+            }
+
+            foreach (var drawable in hitObjectContainer.Objects)
+            {
+                if (drawable is DrawableBmsHitObject hitObject && canParticipateInLocking(hitObject))
+                    yield return hitObject;
+            }
         }
 
         private static bool canParticipateInLocking(DrawableBmsHitObject hitObject) => hitObject.AcceptsPlayerInput;

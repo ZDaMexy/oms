@@ -7,6 +7,36 @@
 
 ## 2026-05-16
 
+### P1-J：shared keysound timing focused proof 补齐，并把 pooled sample retrieval 收口为安全降级边界
+
+- 新增 `TestSceneBmsSharedKeysoundTiming`，把 `DrawableBmsHitObject` 命中与 `BmsLane` lane replay 的 same-frame shared-store 请求独立成 owner-level focused suite，不再只靠 `BmsDrawableRulesetTest` 间接覆盖。
+- 该 focused scene 还暴露出 lane replay 的 pooled sample retrieval 可能把错误冒泡到 gameplay 链；`Playfield.GetPooledSample()` 现已在 pool 未 ready 或取样失效时返回 `null`，由既有 `SkinnableSound` consumer contract 自动降级为 unpooled sample。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSharedKeysoundTiming"` **3/3** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release` **774/774** 通过。
+
+### P1-J：补齐 `KeysoundConcurrentChannels` 的 drawable binding coverage 与 settings 口径同步
+
+- 新增 headless focused suite `TestSceneBmsKeysoundChannelConfigBinding`，把 `RulesetConfigs` 中的 `KeysoundConcurrentChannels` 改值真实驱到 `DrawableBmsRuleset -> BmsPlayfield.KeysoundStore`，覆盖初始加载和 live update 两条链路。
+- `BmsSettingsSubsection` 的 `键音通道数` hover 提示现已明确 grow-immediately / shrink-deferred 的实际语义：调高会立即补充可用通道，调低会等超额 channel 自然停播后再逐步回收，不再暗示 runtime 改值会直接切断当前音频。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsKeysoundChannelConfigBinding"` **3/3** 通过。
+
+### P1-J：BMS live channel resize 首刀落地，runtime 改值不再整池切音
+
+- `BmsKeysoundStore` 已把 `KeysoundConcurrentChannels` 的 live 改值从 rebuild-all 改成 non-destructive resize：grow 立即扩容，shrink 延后到超额 channel 停播后再裁剪，不再通过整池 `Clear()` 立刻切断当前键音。
+- `BmsDrawableRulesetTest` 新增 shrink 保活与停播后回收两条回归，当前 focused slice 已扩大到 **60/60**；完整 `osu.Game.Rulesets.Bms.Tests` 现为 **766/766**。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsDrawableRulesetTest"` **60/60** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release` **766/766** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### P1-J：BMS gameplay hot path 首轮代码优化开始落地
+
+- `BmsKeysoundStore` 已移除 gameplay keysound 的无条件下一帧 `Schedule()`，并新增数组快路径与单样本入口；命中与 lane replay keysound 默认改走 same-frame 播放。
+- `BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 已去掉首批按键热路径对象物化；`DrawableBmsHitObject.PlaySamples()` 也已收口到单样本 keysound 路径。
+- focused validation：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsDrawableRulesetTest"` **58/58** 通过；补回缺失 chart filter stats 合同后，更宽 `osu.Game.Rulesets.Bms.Tests` 全量回归已恢复，当前最新快照为 **766/766**；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### BMS：缺失 chart filter stats 不再静默过滤，test resolver backfill 合同恢复
+
+- `BmsFilterCriteria` 现继续优先使用 metadata / cache 中的 chart filter stats，但当 stats 缺失时不再直接把 beatmap 静默过滤掉；未知 stats 当前会先放行，等待后台缓存或显式回填收紧匹配结果。
+- 为避免把 song-select filter loop 重新改回 working-beatmap I/O，本轮只在 test resolver 路径上显式调用 `GetOrBackfill()`；这让测试仍可验证“可用时回填并写回 metadata”的合同，同时不把运行时过滤循环重新变重。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsFilterCriteriaTest"` **4/4** 通过；完整 `osu.Game.Rulesets.Bms.Tests` 当前最新快照为 **766/766**。
+
 ### 文档：新建 P1-J 子线承接 BMS gameplay runtime 性能与音频时序治理
 
 - 已正式建立 `doc_md/subline/P1-J/` 四件套，把 shared `BmsKeysoundStore` 播放时序、`BmsLane` / `BmsOrderedHitPolicy` 热路径、sample allocation tightening 与 live channel resize 安全合同统一归线到 `P1-J`。

@@ -213,21 +213,35 @@ namespace osu.Game.Rulesets.Bms.UI
             if (keysoundStore == null || currentLaneKeysound == null)
                 return;
 
-            keysoundStore.Play(new ISampleInfo[] { currentLaneKeysound }, 0);
+            keysoundStore.Play(currentLaneKeysound, 0);
         }
 
         private bool shouldTriggerEmptyPoor()
         {
             double currentTime = Time.Current;
-            DrawableBmsHitObject[] candidates = getEmptyPoorCandidates().ToArray();
+            bool foundCandidate = false;
+            bool supportsExcessivePoor = false;
+            bool canTriggerSupportedEmptyPoor = false;
+            bool hasFutureUnjudgedCandidate = false;
 
-            if (candidates.Length == 0)
+            foreach (var hitObject in getEmptyPoorCandidates())
+            {
+                foundCandidate = true;
+
+                if (hitObject.HitObject.HitWindows is BmsTimingWindows timingWindows && timingWindows.SupportsExcessivePoor)
+                {
+                    supportsExcessivePoor = true;
+                    canTriggerSupportedEmptyPoor |= timingWindows.CanTriggerExcessivePoor(currentTime - hitObject.HitObject.StartTime);
+                    continue;
+                }
+
+                hasFutureUnjudgedCandidate |= !hitObject.Judged && hitObject.HitObject.StartTime > currentTime;
+            }
+
+            if (!foundCandidate)
                 return false;
 
-            if (candidates.Select(hitObject => hitObject.HitObject.HitWindows).OfType<BmsTimingWindows>().Any(timingWindows => timingWindows.SupportsExcessivePoor))
-                return candidates.Any(hitObject => canTriggerExcessivePoor(hitObject, currentTime));
-
-            return candidates.Any(hitObject => !hitObject.Judged && hitObject.HitObject.StartTime > currentTime);
+            return supportsExcessivePoor ? canTriggerSupportedEmptyPoor : hasFutureUnjudgedCandidate;
         }
 
         private IEnumerable<DrawableBmsHitObject> getEmptyPoorCandidates()
