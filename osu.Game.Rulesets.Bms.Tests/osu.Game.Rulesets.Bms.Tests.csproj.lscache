@@ -111,7 +111,9 @@ TestSceneBmsGaugeHistoryPanelLayout.cs
 TestSceneBmsHitTargetState.cs
 TestSceneBmsJudgementDisplayPosition.cs
 TestSceneBmsKeysoundChannelConfigBinding.cs
+TestSceneBmsKeysoundPlaybackLifecycle.cs
 TestSceneBmsLaneCover.cs
+TestSceneBmsPlayerAudioSemantics.cs
 TestSceneBmsPlayfieldLayoutConfig.cs
 TestSceneBmsPreStartHiSpeedOverlay.cs
 TestSceneBmsReplayRecording.cs

@@ -281,11 +281,15 @@ namespace osu.Game.Rulesets.Bms.UI
         private void resolveBodyTicksUpToCurrentTime()
         {
             bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && isHolding;
+            double currentTime = Time.Current;
 
             foreach (var bodyTick in bodyTickDrawables)
             {
-                if (bodyTick.Judged || Time.Current < bodyTick.HitObject.StartTime)
+                if (bodyTick.Judged)
                     continue;
+
+                if (currentTime < bodyTick.HitObject.StartTime)
+                    break;
 
                 bodyTick.ApplyTickResult(hitBodyTick);
             }

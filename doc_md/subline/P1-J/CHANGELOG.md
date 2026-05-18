@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-05-17
+
+### 代码 / 测试：长键 body tick 的每帧解析改为 early-break
+
+- `BmsHoldNote.CreateNestedHitObjects()` 本来就按时间顺序生成 `BodyTicks`；基于这条既有合同，`DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 现在在遇到首个 future tick 时会直接停止扫描，而不是每帧继续把整条长键剩余 body tick 列表从头扫到尾。
+- 这是一条专门针对 dense long-note / HCN 压力场景的 hot-path 减负，不改 tail/body 结算语义，也不碰一次性的 `resolveAllBodyTicks()` 完结路径。
+- focused validation：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~BmsDrawableRulesetTest|FullyQualifiedName~BmsGaugeProcessorTest"` **111/111** 通过。
+
+### 测试：补上 player-level pause / seek 音频语义 proof
+
+- 新增 `TestSceneBmsPlayerAudioSemantics`，把当前用户最关心的两条 BMS player 语义独立锁住：pause / resume 期间 `GameplayClockContainer` 会持位并从原位置继续，而 seek 回 `BmsBgmEvent` 之前后，shared store 的旧请求会被清掉，重新跨过事件时间后会再次发起播放请求。
+- 这条 focused scene 刻意不把 headless 虚拟 source track 的 `Track.IsRunning` 直接当作“真实主音轨已经暂停”的唯一判据，而是把 proof 收口在 Player 当前真正拥有的 gameplay clock 语义和 `BmsBgmEvent` 重播合同上，避免在 backing-track 观察面不足时过度承诺。
+- focused validation：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsPlayerAudioSemantics"` **3/3** 通过。
+
+### 代码 / 测试：继续收口 `BmsLane` 与 shared store 的热路径分配与重复扫描
+
+- `BmsLane` 已移除玩家命中后的重复 ordered-hit `HandleHit()` 调用；player-hit 路径现只在 `DrawableBmsHitObject.OnUserPressedSuccessfully` 上触发一次 locking 扫描，不再在 `NewResult` 上重复做同一轮候选遍历。
+- empty-poor 检查已改成无 `HashSet` 的布尔流式判定。该路径原本只做布尔 OR，不依赖唯一计数，因此去掉按键期去重分配不会改变结果，但能减少每次空击检测的分配压力。
+- `BmsKeysoundStore` 的单样本入口现已切到 channel-local 双缓冲：在继续遵守 `SkinnableSound.Samples` array contract 的前提下，shared store 不再为每次单样本播放临时 new 单元素数组。对应新增 `BmsDrawableRulesetTest.TestSharedKeysoundStoreSingleSamplePathRotatesBuffers`，锁住连续单样本播放仍会更新到新 sample 的合同。
+- focused validation：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~TestSharedKeysoundStoreSingleSamplePathRotatesBuffers|FullyQualifiedName~TestSceneBmsSharedKeysoundTiming|FullyQualifiedName~TestSceneBmsKeysoundPlaybackLifecycle|FullyQualifiedName~BmsOrderedHitPolicyTest|FullyQualifiedName~TestBeatorajaLaneTriggersLateEmptyPoorAfterJudgedNote|FullyQualifiedName~TestLr2LaneDoesNotTriggerLateEmptyPoorAfterJudgedNote"` **11/11** 通过。
+
+### 代码 / 测试：补上 shared keysound store 的 pause / seek 生命周期回收
+
+- `BmsKeysoundStore` 现会监听 `GameplayClockContainer.IsPaused` 与 `OnSeek`，并在 gameplay 暂停或 seek 时统一执行 `StopAllPlayback()`，避免通用 `PausableSkinnableSound` 只立即停掉 looping sample 的默认语义，让长 one-shot BGM / keysound 样本继续穿透暂停或拖拽边界。
+- 新增 headless focused suite `TestSceneBmsKeysoundPlaybackLifecycle`，分别锁住 pause 与 seek 两条 shared-store 生命周期回收链，不再只靠人工复现验证 Autoplay 拖拽与暂停恢复场景。
+- focused validation：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~TestSceneBmsKeysoundPlaybackLifecycle|FullyQualifiedName~TestSceneBmsSharedKeysoundTiming|FullyQualifiedName~TestSceneBmsKeysoundChannelConfigBinding"` **9/9** 通过。
+
 ## 2026-05-16
 
 ### 代码 / 测试：补齐 shared keysound timing 的 owner-level focused proof，并收口 pooled sample fallback 边界

@@ -3,10 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Audio;
 using osu.Game.Rulesets.Objects.Drawables;
+using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Bms.Audio
@@ -16,6 +19,9 @@ namespace osu.Game.Rulesets.Bms.Audio
     /// </summary>
     public partial class BmsKeysoundStore : CompositeDrawable
     {
+        private IBindable<bool>? gameplayPaused;
+        private GameplayClockContainer? gameplayClockContainer;
+
         public const int MIN_CONCURRENT_CHANNELS = 1;
 
         public const int DEFAULT_CONCURRENT_CHANNELS = 32;
@@ -28,7 +34,7 @@ namespace osu.Game.Rulesets.Bms.Audio
             set => updateConcurrentChannels(Math.Clamp(value, MIN_CONCURRENT_CHANNELS, MAX_CONCURRENT_CHANNELS));
         }
 
-        private readonly Container<PausableSkinnableSound> channels = new Container<PausableSkinnableSound>();
+        private readonly Container<BmsKeysoundChannel> channels = new Container<BmsKeysoundChannel>();
 
         private int nextChannelIndex;
         private int desiredConcurrentChannels;
@@ -44,6 +50,24 @@ namespace osu.Game.Rulesets.Bms.Audio
             InternalChild = channels;
 
             ConcurrentChannels = concurrentChannels;
+        }
+
+        [BackgroundDependencyLoader(true)]
+        private void load(GameplayClockContainer? gameplayClockContainer)
+        {
+            this.gameplayClockContainer = gameplayClockContainer;
+
+            if (gameplayClockContainer == null)
+                return;
+
+            gameplayPaused = gameplayClockContainer.IsPaused.GetBoundCopy();
+            gameplayPaused.BindValueChanged(paused =>
+            {
+                if (paused.NewValue)
+                    StopAllPlayback();
+            });
+
+            gameplayClockContainer.OnSeek += StopAllPlayback;
         }
 
         public void Play(IEnumerable<ISampleInfo> sampleInfos, double balance)
@@ -62,9 +86,7 @@ namespace osu.Game.Rulesets.Bms.Audio
         public void Play(ISampleInfo sampleInfo, double balance)
         {
             var channel = getNextChannel();
-            channel.Balance.Value = balance;
-            channel.Samples = new[] { sampleInfo };
-            channel.Play();
+            channel.PlaySingleSample(sampleInfo, balance);
         }
 
         public void Play(ISampleInfo[] sampleInfos, double balance)
@@ -78,7 +100,15 @@ namespace osu.Game.Rulesets.Bms.Audio
             channel.Play();
         }
 
-        private PausableSkinnableSound getNextChannel()
+        public void StopAllPlayback()
+        {
+            foreach (var channel in channels)
+                channel.Stop();
+
+            nextChannelIndex = 0;
+        }
+
+        private BmsKeysoundChannel getNextChannel()
         {
             int selectableChannels = Math.Min(ConcurrentChannels, channels.Count);
 
@@ -97,6 +127,16 @@ namespace osu.Game.Rulesets.Bms.Audio
             base.Update();
 
             ApplyPendingChannelResize();
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            gameplayPaused?.UnbindAll();
+
+            if (gameplayClockContainer != null)
+                gameplayClockContainer.OnSeek -= StopAllPlayback;
+
+            base.Dispose(isDisposing);
         }
 
         private void updateConcurrentChannels(int concurrentChannels)
@@ -129,10 +169,33 @@ namespace osu.Game.Rulesets.Bms.Audio
         private static bool canRemoveChannel(PausableSkinnableSound channel)
             => channel.LoadState >= LoadState.Ready ? !channel.IsPlaying : !channel.RequestedPlaying;
 
-        private static PausableSkinnableSound createChannel()
-            => new PausableSkinnableSound
+        private static BmsKeysoundChannel createChannel()
+            => new BmsKeysoundChannel
             {
                 MinimumSampleVolume = DrawableHitObject.MINIMUM_SAMPLE_VOLUME,
             };
+
+        private sealed partial class BmsKeysoundChannel : PausableSkinnableSound
+        {
+            private readonly ISampleInfo[][] singleSampleBuffers =
+            {
+                new ISampleInfo[1],
+                new ISampleInfo[1],
+            };
+
+            private int nextSingleSampleBufferIndex;
+
+            public void PlaySingleSample(ISampleInfo sampleInfo, double balance)
+            {
+                Balance.Value = balance;
+
+                var sampleBuffer = singleSampleBuffers[nextSingleSampleBufferIndex];
+                nextSingleSampleBufferIndex = (nextSingleSampleBufferIndex + 1) % singleSampleBuffers.Length;
+
+                sampleBuffer[0] = sampleInfo;
+                Samples = sampleBuffer;
+                Play();
+            }
+        }
     }
 }

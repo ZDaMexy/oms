@@ -518,6 +518,27 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestSharedKeysoundStoreSingleSamplePathRotatesBuffers()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 1;
+            playfield.KeysoundStore.Play(new SampleInfo("keys/left"), 0);
+
+            PausableSkinnableSound channel = playfield.KeysoundStore.ChannelPool.Single();
+            var firstSamples = channel.Samples;
+
+            playfield.KeysoundStore.Play(new SampleInfo("keys/right"), 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Samples, Is.Not.SameAs(firstSamples));
+                Assert.That(channel.Samples.Single().LookupNames.First(), Is.EqualTo("keys/right"));
+            });
+        }
+
+        [Test]
         public void TestDrawableHitObjectsExposeKeysoundSamples()
         {
             var beatmap = createPlayableBeatmap();

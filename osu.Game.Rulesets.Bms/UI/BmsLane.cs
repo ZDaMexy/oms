@@ -1,6 +1,5 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -146,11 +145,6 @@ namespace osu.Game.Rulesets.Bms.UI
         private void onNewResult(DrawableHitObject judgedObject, JudgementResult result)
         {
             updateLaneKeysound(judgedObject);
-
-            if (!result.IsHit || judgedObject is not DrawableBmsHitObject bmsHitObject || !bmsHitObject.AcceptsPlayerInput)
-                return;
-
-            hitPolicy.HandleHit(bmsHitObject);
         }
 
         public virtual bool OnPressed(KeyBindingPressEvent<BmsAction> e)
@@ -224,18 +218,37 @@ namespace osu.Game.Rulesets.Bms.UI
             bool canTriggerSupportedEmptyPoor = false;
             bool hasFutureUnjudgedCandidate = false;
 
-            foreach (var hitObject in getEmptyPoorCandidates())
+            void inspectCandidate(DrawableBmsHitObject hitObject)
             {
+                if (!hitObject.AcceptsPlayerInput)
+                    return;
+
                 foundCandidate = true;
 
                 if (hitObject.HitObject.HitWindows is BmsTimingWindows timingWindows && timingWindows.SupportsExcessivePoor)
                 {
                     supportsExcessivePoor = true;
                     canTriggerSupportedEmptyPoor |= timingWindows.CanTriggerExcessivePoor(currentTime - hitObject.HitObject.StartTime);
-                    continue;
+                    return;
                 }
 
                 hasFutureUnjudgedCandidate |= !hitObject.Judged && hitObject.HitObject.StartTime > currentTime;
+            }
+
+            foreach (var hitObject in HitObjectContainer.AliveObjects.OfType<DrawableBmsHitObject>())
+            {
+                inspectCandidate(hitObject);
+
+                if (supportsExcessivePoor && canTriggerSupportedEmptyPoor)
+                    return true;
+            }
+
+            foreach (var hitObject in HitObjectContainer.Objects.OfType<DrawableBmsHitObject>())
+            {
+                inspectCandidate(hitObject);
+
+                if (supportsExcessivePoor && canTriggerSupportedEmptyPoor)
+                    return true;
             }
 
             if (!foundCandidate)
@@ -243,27 +256,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
             return supportsExcessivePoor ? canTriggerSupportedEmptyPoor : hasFutureUnjudgedCandidate;
         }
-
-        private IEnumerable<DrawableBmsHitObject> getEmptyPoorCandidates()
-        {
-            var seen = new HashSet<DrawableBmsHitObject>();
-
-            foreach (var hitObject in HitObjectContainer.AliveObjects.OfType<DrawableBmsHitObject>())
-            {
-                if (hitObject.AcceptsPlayerInput && seen.Add(hitObject))
-                    yield return hitObject;
-            }
-
-            foreach (var hitObject in HitObjectContainer.Objects.OfType<DrawableBmsHitObject>())
-            {
-                if (hitObject.AcceptsPlayerInput && seen.Add(hitObject))
-                    yield return hitObject;
-            }
-        }
-
-        private static bool canTriggerExcessivePoor(DrawableBmsHitObject hitObject, double currentTime)
-            => hitObject.HitObject.HitWindows is BmsTimingWindows timingWindows
-               && timingWindows.CanTriggerExcessivePoor(currentTime - hitObject.HitObject.StartTime);
 
         private sealed partial class DrawableBmsEmptyPoorHitObject : DrawableHitObject<BmsEmptyPoorHitObject>
         {
