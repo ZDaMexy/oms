@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-05-16
+> 最后更新：2026-05-18
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -16,7 +16,7 @@
 
 ## 最新快照
 
-- **当前阶段**：Phase 1.1 皮肤系统专项执行中（BMS 默认层已收口，mania OMS-owned 组件与 release-gate 回归已继续收口；当前主线仍以公开发行物产品面收尾与 1.17 输入硬件/语义验收为先，但外部 IIDX 审计导出的反馈闭环与判定 parity 缺口已抬升为下一优先补强项，其中 BMS 结果页反馈面与 pre-start 1 号普通轨纯视觉流速预览都已明确归到 `P1-C`）
+- **当前阶段**：Phase 1.1 皮肤系统专项执行中（BMS 默认层已收口，mania OMS-owned 组件与 release-gate 回归已继续收口；当前主线仍以公开发行物产品面收尾与 1.17 输入硬件/语义验收为先，但外部 IIDX 审计导出的反馈闭环与判定 parity 缺口已抬升为下一优先补强项；与此同时，`P1-J` 已把 dense full autoplay 从“50k 密段明显慢放”收口到“50k 可完成但仍需确认是否还存在 once-per-run 致命卡顿”）
 - **仓库定位**：Windows-only，保留 osu!mania + BMS，已移除 Osu/Taiko/Catch
 - **主入口**：`osu.Desktop.slnf`（含 7 个项目）
 - **BMS 规模**：约 167 个源文件；`oms.Input` 15 个源文件（含 Windows DirectInput backend）；58 个测试源文件（以上为 2026-04-25 本地文件计数，排除 `bin/obj`）
@@ -25,6 +25,7 @@
 - **BMS 选歌分组**：Song Select 当前已把 BMS 可见分组收窄为 `难度表`、`外部谱库`、`内部谱库`、`曲师`、`谱师`、`BPM`、`星数`、`最近游玩时间`、`谱面时长`、`成绩评级`、`标题`；`难度表` 现为默认分组，`未分组` 与若干上游通用分组只在非 BMS ruleset 保留。进入 BMS 选歌与切换任一 BMS 分组时，当前视图会停留在分组最外层，并以 keyboard selection 高亮当前歌曲/谱面所属的最外层分组；`外部谱库` / `内部谱库` 当前也已走同一条 ruleset-specific hierarchical grouping 管线，不再依赖 `DifficultyTable` 专用特判。该功能面已按主线收口，剩余仅为 `P1-G` 下的 Song Select UI 人工展开验收与后续测试回归。
 - **BMS 选歌排序**：Song Select 当前已使用 ruleset-specific 8 项排序：`标题`、`曲师`、`BPM`、`时长`、`星数`、`点灯状态`、`达成率`、`miss 数`；其中本地成绩派生项的显示标签已明确改用 BMS 专用文案，不再回落到通用 `Clear Lamp` / `准度要求`，mania 不受影响。
 - **P1-I 子线状态**：`I1` / `I2` / `I3` 均已完成落地。`BmsCompositionFilterControl` 已以 BMS-local 私有单轨控件形式落地：`RC / LN / SCR` 三段可独立启停、各自表示最大占比、尾段为空白容差；`BmsCompositionHandle` 拖拽句柄可在段间边界拖拽并显示当前数值；`BmsCompositionRowButton` / `BmsKeyCountToggleButton` 非激活态用 `ColourProvider.Background3/Background1`（hover 效果可见）；`SearchHintTooltip` 已接入并修复 DI 崩溃（构造函数注入，对齐 `ModTooltip` 模式）；颜色冻结 RC=蓝(94,190,255) / LN=黄(255,212,92) / SCR=橙(255,119,86)。`I4` focused regression 仍在进行中（单轨拖拽 headless regression 与 shared visual gate 待补强）。
+- **P1-J 子线状态**：shared keysound timing、lane/order 首轮 hot-path 收口、live channel non-destructive resize、pause/seek 生命周期回收、player-level 音频语义 proof、hold-note body-tick early-break、BMS replay frame 缓存化、full autoplay 的对象级 `AutoPlay` + direct-time replay 分流，以及 full autoplay keysound sample pool 预热都已落地。当前自动化基线已覆盖 full autoplay correctness、HUD/key-counter replay surface 与 keysound 邻接回归；人工侧最新回报是 10k autoplay 无明显变化，50k chart 已可在约 150 平均 / 70 最低 FPS、8ms 延迟下完成，但是否还残留 once-per-run 致命卡顿仍待下一轮现场确认。
 - **BMS 选歌 BPM 显示**：Song Select 左上 BPM 统计现已按 imported chart 的真实 timing data 显示；`BmsImportedBeatmapFactory` 会把首次转换得到的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 raw wrapper，使 `BeatmapTitleWedge` 这类 raw working beatmap consumer 不再回退到默认 `60 BPM`。BPM 分组与排序仍继续使用 persisted `BeatmapInfo.BPM`，两条链当前已不再失配。
 - **存储**：Release 默认 `%APPDATA%/oms/`；`storage.ini` 可迁移到单一自定义数据根；BMS 使用 `chartbms/` 目录、mania 使用 `chartmania/` 目录的文件系统直读存储；Settings → Maintenance 现已拆成 `外部谱库` 与 `内部谱库` 两个 subsection，并把谱库扫描扩展为四个显式入口：`扫描外部谱库（重建）`、`扫描外部谱库（增量）`、`扫描内部谱库（重建）`、`扫描内部谱库（增量）`。其中 `增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录，`重建` 模式则继续重走全部候选目录；当前 managed-root 子目录判定也已补齐 trailing-separator 归一化，避免合法内部目录被误判为“不在托管根下”。`BeatmapSetInfo` 现还会持久化 `ExternalLibraryRootPath`，把 external root snapshot 固定到 beatmap set 上，供 `外部谱库` 分组与后续 fallback 使用。Settings → 常规 → 安装位置 现已把入口明确为 `更改数据目录位置`：选择空目录时会把当前数据内容直接迁入所选目录；若所选目录已有无关文件，则会改用其下 `oms/` 子目录；若所选目录本身已是可用数据目录，则只写入 `storage.ini` 并在重启后切换。整个流程只改变运行时数据根，不移动程序文件。
 - **BMS 难度表来源管理**：Settings → 游戏模式 → BMS → 难度表 当前统一支持本地目录、`index.html`、`header.json`、表体 json 与 `http/https` URL；seeded preset 会按 `source_name` / `display_name` 自动认领现有预置来源；移除已导入 preset 时会清空来源并恢复隐藏占位，而不是删除内置 preset；导入或刷新失败时，设置页与首次启动页都会显示中文分类原因。
@@ -70,7 +71,7 @@
 | Phase 1 完成率 | 70.6% (12/17) | 仅按标记"已完成"项计算 |
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
-| 桌面端构建 | 通过 | `dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 退出码 0（2026-05-09） |
+| 桌面端构建 | 通过 | `dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 退出码 0（2026-05-18） |
 | BMS 全量测试 | **774/774** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-05-16） |
 | Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
 | BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
@@ -83,13 +84,13 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-05-16
+### 2026-05-18
 
-- **范围**：继续推进 `P1-J`，把 shared keysound timing 的 owner-level focused gap 收口，并验证 lane replay 经过 pooled sample fallback 后的稳定性。
-- **本轮修正**：新增 `TestSceneBmsSharedKeysoundTiming`，把 `DrawableBmsHitObject` 命中与 `BmsLane` lane replay 的 same-frame shared-store 请求从大回归文件里独立出来；同轮把 `Playfield.GetPooledSample()` 收口为“pool 不可用时返回 `null`，由 `SkinnableSound` 自动降级到 unpooled sample”的安全边界，避免 lane replay 在 pooled sample retrieval 失效时直接把错误冒泡到 gameplay 链。
-- **本轮验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~TestSceneBmsSharedKeysoundTiming"` **3/3** 通过；完整 `dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release` **774/774** 通过。
-- **诊断结果**：`P1-J` 当前已把 keysound timing、lane/order 首批热路径分配、`J4` 的 runtime / settings 合同，以及 `J5` 的 ordered-hit + shared timing focused proof 一起收成当前自动化基线；剩余主要风险已缩到 dense-chart / layered-BGM / rapid empty-strike / live channel change 的后置人工验收。
-- **说明**：更早的 BMS 结果页 authority 修补与其他 focused validation 继续保留在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条验证快照。
+- **范围**：继续推进 `P1-J`，围绕 dense full autoplay 剩余的慢放/单次卡顿风险，收口 BMS-only full autoplay replay 分流与 keysound sample pool 预热。
+- **本轮修正**：core `FramedReplayInputHandler` 的 generic stepping contract 已确认不再继续放宽；BMS full autoplay 现改走对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样路径，普通 replay 保持逐 replay frame 边界推进。同时，因 BMS gameplay keysound 不自动吃 core `Playfield` 对 `hitObject.Samples` 的通用预热链，当前又补上 `DrawableBmsRuleset.LoadComplete() -> BmsPlayfield.PrewarmKeysounds()`，把 full autoplay 首次命中的 keysound sample pool 初始化前移到进场加载。
+- **本轮验证**：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback|FullyQualifiedName~TestAutoPlayObjectsStillApplyMaxResult"` **4/4** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsSharedKeysoundTiming|FullyQualifiedName~TestSceneBmsKeysoundPlaybackLifecycle|FullyQualifiedName~TestSceneBmsKeysoundChannelConfigBinding"` **9/9** 通过。
+- **诊断结果**：`P1-J` 代码侧当前已完成 shared keysound timing、lane/order 热路径首轮收口、live channel resize 合同、pause/seek proof、replay-side BMS 缓存化、full autoplay 专用 replay 分流，以及 first-use keysound 预热。人工侧最新回报是 10k autoplay 无明显变化，50k chart 已可在约 150 平均 / 70 最低 FPS、8ms 延迟下顺利完成 autoplay；当前未证伪风险已收缩为“是否仍有 once-per-run 致命卡顿”以及 `P1-G` 后置人工 checklist。
+- **说明**：更早的 shared timing、pause/seek proof、hold-note early-break 与 replay-focused 验证历史继续归档在 [CHANGELOG.md](CHANGELOG.md)；本状态页只保留最新一条验证快照。
 
 ## 联网约束
 
@@ -186,7 +187,7 @@
 | P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
 | P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker / 权威 GN 与调速反馈 / pre-start 1 号普通轨纯视觉流速预览 | 已编排，专题文档已建立 |
-| P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 | 进行中（`J1` / `J4` 已完成，`J2` / `J3` 首刀已落地，`J5` 自动化已闭合，仅剩人工验收） |
+| P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 / dense full autoplay replay 分流 | 进行中（`J1` / `J4` 已完成，`J2` / `J3` 首刀已落地，`J5` 自动化已闭合；full autoplay 专用 replay 分流与 keysound 预热已落地，剩余 once-per-run hitch 现场确认与人工验收） |
 | P1-D 控制器校准与诊断 | deadzone / sensitivity / scratch 模式说明 / live diagnostics | 下一优先级 |
 | P1-E gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
 | P1-F 首发离线发行基线 | portable.ini + data/ 便携模式已落地 | 已验证 |
@@ -202,7 +203,7 @@
 - **判定系统 parity 缺口**：当前 `BEATORAJA` / `LR2` / `IIDX` judge mode 已接通，但 `BEATORAJA` / `LR2` 仍缺 early/late 非对称窗口、scratch / long-note release 特例，以及按 judge family 参数化的 Empty Poor / excessive poor 触发语义；`IIDX` 也仍待进一步对齐细部体验
 - **反馈闭环缺口**：results 页主评价 / 缩略徽章 / 主分数文案虽已切到 BMS 语义，但结果反馈面本身仍只完成第一轮收口；gameplay 侧当前已具备最近判定、瞬时 judge display、compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`，后续仍缺更完整 judge display 与更丰富 pacemaker 来源，尚未形成完整的 key-sounded BMS 训练闭环
 - **权威绿色数字后续缺口**：常驻 GN HUD 与 C2 的 target-state / cycle / `HOLD` 语义已落地，C3 的最近判定 + `FAST/SLOW` 已具备瞬时 judge display 生命周期，并补上 compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`；后续剩余更完整 judge display 与 pacemaker 扩展仍待继续收口
-- **gameplay hot path / 音频时序缺口**：`P1-J` 已完成首轮代码落地：shared `BmsKeysoundStore` 的 gameplay keysound 不再无条件 `Schedule()` 到下一帧，`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 也已去掉首批热路径对象物化，`DrawableBmsHitObject.PlaySamples()` 已收口到单样本 keysound 路径；`KeysoundConcurrentChannels` live 改值也已从 rebuild-all 改成 non-destructive resize，并补上 `config -> drawable ruleset -> playfield shared store` 的 direct binding coverage。当前 `TestSceneBmsSharedKeysoundTiming` 也已补齐 shared timing owner-level proof，`Playfield.GetPooledSample()` 在 pool 不可用时会安全回退到 unpooled sample；剩余主风险已收窄为 dense-chart / layered-BGM / rapid empty-strike / live channel change 的后置人工验收尚未执行。
+- **gameplay hot path / 音频时序缺口**：`P1-J` 已从首轮 hot-path 收口继续推进到 dense full autoplay 专项：shared `BmsKeysoundStore` 的 gameplay keysound 已不再无条件 `Schedule()` 到下一帧，`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 已去掉首批热路径对象物化，`DrawableBmsHitObject.PlaySamples()` 已收口到单样本 keysound 路径，`KeysoundConcurrentChannels` live 改值也已从 rebuild-all 改成 non-destructive resize，并补上 `config -> drawable ruleset -> playfield shared store` 的 direct binding coverage；其后又加上 pause/seek 生命周期回收、player-level 音频语义 proof、`BmsReplayFrame` 缓存化、BMS-only full autoplay replay 分流，以及 full autoplay keysound sample pool 预热。当前主风险已不再是“50k 一进密段就明显慢放”，而是 dense real-chart 下是否仍残留 once-per-run 单次致命卡顿，以及 `P1-G` 下的人工 checklist 尚未完成。
 - **控制器校准 / 诊断**：deadzone / sensitivity / scratch 模式说明 / live diagnostics 尚未落地；当前仅有 supplemental bindings 与 live capture，不足以覆盖 IIDX/BMS 控制器的一致性调校
 - **难度表一致性 / 刷新合同**：manager-owned metadata sync、`RefreshAll` 真实结果合同、wrapper/source identity fallback、分批回写 / 进度反馈，以及 rebuild / reuse 命中旧 set 时的 metadata 自愈都已落地；当前这轮修补可按主链收尾。若后续仍有 `Unrated` 现场反馈，优先按“原始 `.bms` 字节 MD5 与表项 MD5 不一致”处理，不再把它归类为同一批 consumer-side 分组缺口。
 - **内置皮肤候选包**：`SimpleTou-Lazer` 仅为 mania 候选基线，不可提前对外描述为已完成

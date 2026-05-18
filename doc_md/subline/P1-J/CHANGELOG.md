@@ -7,6 +7,13 @@
 
 ## 2026-05-18
 
+### 代码 / 测试：补上 BMS keysound 的 autoplay 预热缺口，前移首次 sample pool 初始化
+
+- 进一步排查 dense full autoplay 的“整局只卡一次”后，当前更具体的结论是：core `Playfield` 虽然会预建 `hitObject.Samples` / `AuxiliarySamples` 的 sample pool，但 BMS gameplay keysound 走的是 `BmsKeysoundStore` 专用路径，并不吃这条通用预热链。
+- 为把首次命中的 keysound sample pool 初始化从 gameplay 时刻前移出去，`DrawableBmsRuleset` 现在会在 full autoplay 的 `LoadComplete()` 时收集 beatmap 中所有 BMS keysound，并交给 `BmsPlayfield.PrewarmKeysounds()` 预建底层 sample pool；`Playfield` 也新增了显式的 `PrepareSamplePool()` 入口给 ruleset-local 预热复用。
+- 这条补丁没有继续碰 replay correctness，只是把可能的一次性懒初始化成本挪到进场加载阶段，目标是压掉 dense autoplay 中偶发但致命的首次卡顿。
+- focused validation：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback|FullyQualifiedName~TestAutoPlayObjectsStillApplyMaxResult"` **4/4** 通过；邻接 keysound 回归 `dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsSharedKeysoundTiming|FullyQualifiedName~TestSceneBmsKeysoundPlaybackLifecycle|FullyQualifiedName~TestSceneBmsKeysoundChannelConfigBinding"` **9/9** 通过。
+
 ### 代码 / 测试：BMS full autoplay 分流到对象级 `AutoPlay` 与 direct-time replay 采样
 
 - dense autoplay 的下一刀没有继续碰 core `FramedReplayInputHandler`，而是只对 BMS full autoplay 分流：`DrawableBmsRuleset` 现在会给 full autoplay 下的 `BmsHitObject` 设置对象级 `AutoPlay`，并改用 `BmsAutoplayReplayInputHandler` 作为专用 replay input handler。

@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-05-18
+
+### P1-J：BMS full autoplay 分流到对象级 `AutoPlay` 与 direct-time replay 采样
+
+- dense full autoplay 不再继续尝试放宽 core `FramedReplayInputHandler` 合同；当前实现改为只对 BMS full autoplay 分流：`DrawableBmsRuleset` 会给 full autoplay 下的 `BmsHitObject` 设置对象级 `AutoPlay`，并改用 `BmsAutoplayReplayInputHandler` 直接按当前时间采样 replay state。
+- 这条分流让 replay 输入继续服务 `ReplayPlayer` / HUD / key counter，但不再让 dense full autoplay 的 correctness 继续依赖逐 replay frame 边界推进。普通 replay 仍保留原有 `BmsFramedReplayInputHandler` 与 one-boundary-per-call stepping contract。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback` **3/3** 通过；相邻回归 `dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback|FullyQualifiedName~BmsReplayFrameTest|FullyQualifiedName~TestSceneBmsReplayStability|FullyQualifiedName~TestSceneBmsReplayRecording|FullyQualifiedName~TestAutoPlayObjectsStillApplyMaxResult"` **11/11** 通过。
+
+### P1-J：补上 full autoplay keysound 预热，前移首次 sample pool 初始化
+
+- 进一步排查 dense full autoplay 剩余的“整局只卡一次”后，当前更具体的结论是：core `Playfield` 虽然会预建 `hitObject.Samples` / `AuxiliarySamples` 的 sample pool，但 BMS gameplay keysound 走的是 `BmsKeysoundStore` 专用路径，并不自动吃这条通用预热链。
+- 现在 `DrawableBmsRuleset` 会在 full autoplay 的 `LoadComplete()` 时收集 beatmap 内唯一 `BmsKeysoundSampleInfo`，并通过 `BmsPlayfield.PrewarmKeysounds()` / `Playfield.PrepareSamplePool()` 提前建好底层 sample pool，把首次命中的懒初始化成本前移到进场加载。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback|FullyQualifiedName~TestAutoPlayObjectsStillApplyMaxResult"` **4/4** 通过；邻接 keysound 回归 `dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsSharedKeysoundTiming|FullyQualifiedName~TestSceneBmsKeysoundPlaybackLifecycle|FullyQualifiedName~TestSceneBmsKeysoundChannelConfigBinding"` **9/9** 通过。
+
+## 2026-05-17
+
+### P1-J：pause/seek 语义、shared keysound 生命周期与 dense-chart hot path 继续收口
+
+- `BmsKeysoundStore` 已补上 gameplay pause / seek 生命周期回收，player harness `TestSceneBmsPlayerAudioSemantics` 也独立锁住了 `GameplayClockContainer` pause / resume 持位与 `BmsBgmEvent` seek 后重播两条当前用户侧最关心的语义。
+- 同轮 `BmsLane` 移除了玩家命中后的重复 ordered-hit 扫描，empty-poor 检查去掉 per-press `HashSet` 分配，shared store 单样本路径改成 channel-local 双缓冲；`DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 也改成遇到首个 future tick 就 early-break，避免 dense long-note 场景每帧扫完整条 body tick 尾部。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsPlayerAudioSemantics"` **3/3** 通过；targeted shared-store / ordered-hit focused suite **11/11** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~BmsDrawableRulesetTest|FullyQualifiedName~BmsGaugeProcessorTest"` **111/111** 通过。
+
 ## 2026-05-16
 
 ### P1-J：shared keysound timing focused proof 补齐，并把 pooled sample retrieval 收口为安全降级边界
@@ -78,8 +100,6 @@
 - `SearchHintTooltip` DI 崩溃修复：`[Resolved] OverlayColourProvider` 移到 `SongSelectSearchTextBox`（确在 SongSelect DI 作用域内），通过构造函数传入 tooltip（对齐 `ModTooltip` 模式）；同时把不稳定的 `GridContainer + AutoSizeAxes.Both` 布局替换为 `FillFlowContainer + Container(Width=160f)`。
 - `I3` 实质完成：`BmsCompositionFilterControl` 单轨控件已全面落地，符合"单轨上限段+尾段空白容差+独立启停"产品合同；`I4` 回归收口进行中（单轨拖拽 headless regression 待补）。
 - 验证：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` **0 error**。
-
-
 
 ### P1-I：文档校正 `谱面构成` 最终产品合同
 

@@ -1,6 +1,6 @@
 # P1-J 开发计划：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-05-16
+> 最后更新：2026-05-18
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-J` 的执行顺序；判定/反馈语义见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -23,19 +23,21 @@
 
 - `BmsPlayfield` 当前缓存一个 shared `BmsKeysoundStore`，并由 `DrawableBmsHitObject`、`BmsLane` lane replay / empty-hit playback 与 BGM/note/LN keysound 共用。
 - `DrawableBmsRuleset` 当前通过 `KeysoundConcurrentChannels` 把 settings/runtime 写回到同一个 shared pool；默认值为 `32`，配置范围是 `1..256`。
-- 最新只读审查已确认以下具体风险：
-  1. `BmsKeysoundStore.Play()` 当前对所有 keysound 播放都做无条件 `Schedule()`，存在帧级播放延后与 jitter 风险。
-  2. `BmsLane.shouldTriggerEmptyPoor()` 当前每次按键都会 materialize 候选数组，并枚举 lane 容器对象；`BmsOrderedHitPolicy.getParticipatingHitObjects()` 也会在命中排序时枚举容器对象。
-  3. `DrawableBmsHitObject -> BmsKeysoundStore` 路径与 `BmsLane` lane replay 路径都存在重复数组分配；dense-chart 下会形成持续 GC 压力。
-  4. `KeysoundConcurrentChannels` live 改值的高风险 rebuild-all 路径已被移除；当前剩余工作已收窄到 owner-level coverage 继续补强与 dense-chart manual checklist。
-- 现阶段**没有**来自同一轮审查的证据表明 `BmsSoloPlayer` 的 pre-start / song-select music handoff 仍有新的 gameplay 主音乐接管 bug；因此 `P1-J` 的首轮重点不放在 start-sequence，而放在 gameplay 内部 hot path。
-- 现有 automated coverage 已锁住部分相关语义：`BmsDrawableRulesetTest` 覆盖 late-empty-poor 行为，若后续优化 lane/order hot path，不能把这些回归当成“性能改动可接受副作用”。
+- shared keysound timing hardening 已完成：`BmsKeysoundStore.Play()` 不再对 gameplay keysound 做无条件下一帧 `Schedule()`；pause / seek 生命周期回收也已补齐，并有 player-level `TestSceneBmsPlayerAudioSemantics` 锁住 pause/resume 持位与 `BmsBgmEvent` seek 后重播语义。
+- lane/order hot path 首轮收口已完成：`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 的首批对象物化已移除，玩家命中后的重复 ordered-hit 扫描也已去掉；`DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 现会在遇到首个 future tick 时 early-break。
+- sample allocation tightening 仍在进行中，但当前已落地的边界包括：`DrawableBmsHitObject` 单样本 keysound 路径、`BmsKeysoundStore` channel-local 单样本双缓冲、以及 full autoplay 的 unique keysound sample pool prewarm，用于把首次命中的 sample pool 初始化前移到进场加载。
+- live channel reconfigure safety 已完成：`KeysoundConcurrentChannels` 现为 grow-immediately / shrink-deferred 的 non-destructive resize，并有 `config -> drawable ruleset -> playfield shared store` 的 direct binding coverage。
+- dense autoplay 当前已明确两条冻结事实：
+  1. core `FramedReplayInputHandler` 的 generic stepping contract 不能再被放宽；`SetFrameFromTime()` 仍必须保持 one-boundary-per-call progression。
+  2. 若要继续优化 dense full autoplay，只能在 BMS owner side 分流；当前 full autoplay 已改走对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样，而普通 replay 保持既有边界推进语义。
+- 现阶段**没有**新增证据表明 `BmsSoloPlayer` 的 pre-start / song-select music handoff 仍有新的 gameplay 主音乐接管 bug；因此 `P1-J` 继续把重点放在 gameplay 内部 hot path，而不是 start-sequence。
+- 现有 automated coverage 已锁住相关语义：`BmsDrawableRulesetTest` 覆盖 late-empty-poor，`FramedReplayInputHandlerTest` 锁住 core replay stepping contract，`TestSceneBmsAutoplayReplayPlayback` 锁住 full autoplay correctness 与 replay-loaded HUD/key-counter surface；后续优化不能把这些回归当成“性能改动可接受副作用”。
 
 ## 分期计划
 
 ### J0：归线、术语与观测基线
 
-**状态：已完成**
+状态：已完成
 
 目标：先把“什么属于 runtime hot-path contract、什么只是后置体验验收”写死，避免后续在没有 measurement / regression guard 的情况下做泛化调优。
 
@@ -48,7 +50,7 @@
 
 ### J1：keysound timing hardening
 
-**状态：进行中；首刀已落地，gameplay keysound 已切到 same-frame 播放**
+状态：已完成；same-frame 播放、pause/seek 生命周期回收与 player-level 语义 proof 均已落地
 
 目标：shared `BmsKeysoundStore` 继续作为唯一播放 authority，但 gameplay 的 note / BGM / LN keysound 不再被默认压到后续 scheduler tick 才真正播放。
 
@@ -88,7 +90,7 @@
 
 ### J3：sample allocation tightening
 
-**状态：进行中；已与 `J1` / `J2` 同刀收口重复数组分配**
+状态：进行中；已与 `J1` / `J2` 同刀收口重复数组分配，并继续补到 full autoplay keysound prewarm
 
 目标：在不改变 sample authority 的前提下，削减 dense-chart 里的重复数组分配与 LINQ 中间对象，降低 GC 压力。
 
@@ -107,7 +109,7 @@
 
 ### J4：live channel reconfigure safety
 
-**状态：已完成；shared store 已从 rebuild-all 切到 non-destructive resize，direct binding coverage 与表述同步也已补齐**
+状态：已完成；shared store 已从 rebuild-all 切到 non-destructive resize，direct binding coverage 与表述同步也已补齐
 
 目标：把 `KeysoundConcurrentChannels` 的 runtime 改值补成稳定合同，避免 gameplay 中无提示硬切当前播放中的样本。
 
@@ -127,13 +129,13 @@
 
 ### J5：focused validation 与后置验收
 
-**状态：进行中；focused regression 与 BMS 全量自动化回归已通过，代码侧自动化缺口已闭合，dense-chart manual checklist 仍后置**
+状态：进行中；focused regression 与 BMS 全量自动化回归已通过，autoplay 专用 replay proof 与 keysound-neighbour regression 也已闭合，dense-chart manual checklist 与 once-per-run hitch 现场确认仍后置
 
 目标：让 `P1-J` 有独立的 automated proof，再把 dense-chart / BGM layering 体验回交给 `P1-G` 做最终人工确认。
 
 建议交付：
 
-1. automated validation 现已覆盖：keysound timing hardening、lane/order late-empty-poor regression、config->store binding、shared timing owner-level proof，以及 allocation tightening 未回归 sample 语义。
+1. automated validation 现已覆盖：keysound timing hardening、lane/order late-empty-poor regression、config->store binding、shared timing owner-level proof、player-level pause/seek proof、full autoplay correctness / replay input counter，以及 allocation tightening / keysound prewarm 未回归 sample 语义。
 2. Release build 继续作为子线门槛；本专题不能以“只是性能优化”为理由跳过 build gate。
 3. manual checklist 继续后置到 `P1-G`：dense fully-keysounded chart、layered BGM、LN tail keysound、rapid empty-strike、live channel resize、pre-start -> gameplay 正常过渡。
 4. 当前 1-2 已成立；待 3 完成后，`P1-J` 才能进入只接回归修复的冻结态。
@@ -147,6 +149,6 @@
 
 ## 当前优先顺序
 
-1. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change
-2. 评估 single-sample array contract 是否继续下探，还是把当前实现作为 `J3` 第一阶段冻结点
-3. 若后续继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`
+1. 用同一套 dense autoplay chart 再做现场压测，重点确认 full autoplay keysound prewarm 之后是否仍会出现 once-per-run 单次致命卡顿。
+2. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change。
+3. 评估 single-sample array contract 是否继续下探，还是把当前实现作为 `J3` 第一阶段冻结点；若继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`。

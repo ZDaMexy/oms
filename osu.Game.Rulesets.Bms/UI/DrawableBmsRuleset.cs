@@ -201,6 +201,10 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (Mods.OfType<BmsModAutoplay>().Any())
+                Playfield.PrewarmKeysounds(getBeatmapKeysoundSamples());
+
             NewResult += HandleGameplayJudgementResult;
 
             if (scoreProcessor != null)
@@ -221,6 +225,32 @@ namespace osu.Game.Rulesets.Bms.UI
             refreshSpeedMetrics();
             initialisePreStartSpeedPreview();
             refreshTimingFeedbackVisualRange();
+        }
+
+        private IEnumerable<BmsKeysoundSampleInfo> getBeatmapKeysoundSamples()
+        {
+            foreach (var hitObject in Beatmap.HitObjects)
+            {
+                switch (hitObject)
+                {
+                    case BmsHoldNote holdNote:
+                        if (holdNote.HeadKeysoundSample != null)
+                            yield return holdNote.HeadKeysoundSample;
+
+                        if (holdNote.TailKeysoundSample != null)
+                            yield return holdNote.TailKeysoundSample;
+
+                        break;
+
+                    case BmsHitObject { KeysoundSample: not null } bmsHitObject:
+                        yield return bmsHitObject.KeysoundSample;
+                        break;
+
+                    case BmsBgmEvent { KeysoundSample: not null } bgmEvent:
+                        yield return bgmEvent.KeysoundSample;
+                        break;
+                }
+            }
         }
 
         protected override void Dispose(bool isDisposing)

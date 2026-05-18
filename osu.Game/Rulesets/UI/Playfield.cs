@@ -470,6 +470,9 @@ namespace osu.Game.Rulesets.UI
             }
         }
 
+        public void PrepareSamplePool(ISampleInfo sampleInfo)
+            => prepareSamplePool(sampleInfo);
+
         private DrawablePool<PoolableSkinnableSample> prepareSamplePool(ISampleInfo sampleInfo)
         {
             if (samplePools.TryGetValue(sampleInfo, out var pool)) return pool;

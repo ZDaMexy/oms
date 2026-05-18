@@ -71,6 +71,7 @@ namespace osu.Game.Rulesets.Bms.UI
             HitResult.Miss,
             HitResult.Ok,
         };
+        private readonly HashSet<BmsKeysoundSampleInfo> prewarmedKeysounds = new HashSet<BmsKeysoundSampleInfo>();
 
         private JudgementContainer<DrawableBmsJudgement> judgements = null!;
         private JudgementPooler<DrawableBmsJudgement> judgementPooler = null!;
@@ -203,6 +204,17 @@ namespace osu.Game.Rulesets.Bms.UI
                 return getLane(bmsHitObject).Remove(h);
 
             return base.Remove(h);
+        }
+
+        public void PrewarmKeysounds(IEnumerable<BmsKeysoundSampleInfo> sampleInfos)
+        {
+            foreach (var sampleInfo in sampleInfos)
+            {
+                if (!prewarmedKeysounds.Add(sampleInfo))
+                    continue;
+
+                PrepareSamplePool(sampleInfo);
+            }
         }
 
         private void onNewResult(DrawableHitObject judgedObject, JudgementResult result)

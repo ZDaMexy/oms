@@ -34,7 +34,7 @@
 - 本轮已明确归线：**BMS 结果页反馈面收口** 归属 `P1-C`。当前只在现有 lazer results 骨架内继续推进 `DJ LEVEL` / `EX-SCORE` 语义统一、results summary 与 feedback panel 收口，以及低风险布局贴近；不单独开启高风险的 beatoraja 风格整页重构
 - 新增 `P1-A / P1-C` 交叉主子线：**皮肤设计边界与绿色数字 / Mod 联动专题**。该专题先冻结 BMS HUD / skin boundary 与 runtime feedback contract，再推进常驻 GN 显示、`Sudden / Hidden / Lift` 联动反馈，以及后续 `FAST/SLOW` / judge display / visual timing-offset / pacemaker 的统一承载；详细拆解见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)
 - 需要人工操作的 1.5 真实导入/UI 验收与发行物实机验证统一记录在 `DEVELOPMENT_STATUS.md` 的独立板块，默认放在 Phase 1 阶段末尾或出现阻塞时再执行
-- 当前代码规模（2026-04-25 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **167 个源文件**；`oms.Input` **15 个源文件**（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **58 个测试源文件**。最近一次完整项目级回归仍为 BMS **706/706** 与 mania **761/761** 通过（2026-04-24）；2026-04-25 又完成 `osu.Desktop.slnf` Release 构建、BMS 聚焦 **111/111**、mania OMS skin **92/92** 与 `osu.Game.Tests` 文档 gate **18/18** 的对齐复核
+- 当前代码规模（2026-04-25 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **167 个源文件**；`oms.Input` **15** 个源文件（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **58** 个测试源文件。最近一次完整项目级回归为 BMS **774/774**（2026-05-16）与 mania **761/761**（2026-04-24）；其后 `P1-J` 还补充验证了 BMS replay-focused **7/7**、autoplay/composed replay **11/11**、autoplay-facing **4/4** 与 keysound-neighbour **9/9**，`osu.Desktop` Release 构建最近一次也已于 2026-05-18 通过。
 
 ## Phase 1.x 大主线下的子主线编排
 
@@ -185,6 +185,8 @@
 
 该专题不并入 `P1-C` 或 `P1-E`。`P1-C` 负责判定、反馈与训练闭环语义；`P1-E` 负责真实谱面 gameplay 验校；而本专题的 authority 明确落在 `BmsKeysoundStore`、`DrawableBmsHitObject`、`BmsLane`、`BmsOrderedHitPolicy` 与 shared keysound pool 的 dense-chart hot path 上。若继续硬挂到既有子线，会把“反馈语义冻结点”与“runtime hot-path 优化冻结点”混成一条线，后续难以判断什么属于回归修复、什么属于无边界调优。
 
+当前代码侧已继续前推到 dense full autoplay 的 BMS-only repair slice：core replay fast-forward 已确认撤回，generic `FramedReplayInputHandler` 逐边界推进合同保持不动；full autoplay 则改走对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样，并在 `LoadComplete()` 时预热唯一 keysound sample pool。当前剩余问题不再是“50k 无法完成 autoplay”，而是需要继续确认是否仍存在 once-per-run 单次致命卡顿。
+
 **目标：**
 
 1. 去掉 BMS keysound playback 的默认帧级延后，确保 note / BGM / LN keysound 继续走 shared pool，但不再被无条件量化到后续调度帧。
@@ -206,7 +208,7 @@
 2. **lane/order hot path scan 收口**：把 `BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 从“每次按键全枚举容器对象”收口到更窄的候选 authority，保持现有 late-empty-poor regression 语义不变。
 3. **sample allocation tightening**：削减 `DrawableBmsHitObject`、`BmsLane` 与 `BmsKeysoundStore` 之间的重复 `ToArray()` / 单元素数组分配，只保留必要的多样本拷贝边界。
 4. **live channel reconfigure safety**：为 `KeysoundConcurrentChannels` 确定稳定策略，优先接受“增长即时、缩减延后到安全边界”或等价的 non-destructive resize，而不是 rebuild-all 后切断正在播放的键音。
-5. **focused validation**：owner-level store tests、dense-lane regression 与 config->playfield-store binding 当前已补齐；真实谱面 dense acceptance 继续后置到 `P1-G`。
+5. **focused validation**：owner-level store tests、dense-lane regression、config->playfield-store binding、player-level autoplay proof 与 autoplay-facing keysound-neighbour regressions 当前已补齐；真实谱面 dense acceptance 与 once-per-run hitch 的现场确认继续后置到 `P1-G` / 后续人工压测。
 
 **明确不做：**
 
