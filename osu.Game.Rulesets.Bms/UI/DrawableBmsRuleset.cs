@@ -184,9 +184,17 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override Playfield CreatePlayfield() => new BmsPlayfield(Beatmap);
 
         public override DrawableHitObject<HitObject> CreateDrawableRepresentation(HitObject h)
-            => h is BmsHoldNote holdNote ? new DrawableBmsHoldNote(holdNote) : new DrawableBmsHitObject(h);
+        {
+            if (Mods.OfType<BmsModAutoplay>().Any() && h is BmsHitObject bmsHitObject)
+                bmsHitObject.AutoPlay = true;
 
-        protected override ReplayInputHandler CreateReplayInputHandler(Replay replay) => new BmsFramedReplayInputHandler(replay);
+            return h is BmsHoldNote holdNote ? new DrawableBmsHoldNote(holdNote) : new DrawableBmsHitObject(h);
+        }
+
+        protected override ReplayInputHandler CreateReplayInputHandler(Replay replay)
+            => Mods.OfType<BmsModAutoplay>().Any()
+                ? new BmsAutoplayReplayInputHandler(replay)
+                : new BmsFramedReplayInputHandler(replay);
 
         protected override ReplayRecorder CreateReplayRecorder(Score score) => new BmsReplayRecorder(score);
 

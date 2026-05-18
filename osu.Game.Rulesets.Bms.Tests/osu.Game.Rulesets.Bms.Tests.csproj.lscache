@@ -106,6 +106,7 @@ OmsMouseAxisInputHandlerTest.cs
 OmsXInputButtonInputHandlerTest.cs
 ResultsPanelDisplayContractTest.cs
 StatisticItemContainerTest.cs
+TestSceneBmsAutoplayReplayPlayback.cs
 TestSceneBmsFilterControl.cs
 TestSceneBmsGaugeHistoryPanelLayout.cs
 TestSceneBmsHitTargetState.cs

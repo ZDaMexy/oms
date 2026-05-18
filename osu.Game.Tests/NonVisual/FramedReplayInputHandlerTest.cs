@@ -282,6 +282,37 @@ namespace osu.Game.Tests.NonVisual
         }
 
         [Test]
+        public void TestNonFrameAccuratePlaybackStillAdvancesOneBoundaryPerCall()
+        {
+            replay.Frames = new List<ReplayFrame>
+            {
+                new TestReplayFrame(0),
+                new TestReplayFrame(100),
+                new TestReplayFrame(200),
+                new TestReplayFrame(300),
+            };
+            replay.HasReceivedAllFrames = true;
+
+            handler.FrameAccuratePlayback = false;
+
+            setTime(350, 0);
+            confirmCurrentFrame(0);
+
+            setTime(350, 100);
+            confirmCurrentFrame(1);
+
+            setTime(350, 200);
+            confirmCurrentFrame(2);
+
+            setTime(350, 300);
+            confirmCurrentFrame(3);
+
+            setTime(350, 350);
+            confirmCurrentFrame(3);
+            confirmNextFrame(null);
+        }
+
+        [Test]
         public void TestReplayFramesSortStability()
         {
             const double repeating_time = 5000;

@@ -11,17 +11,19 @@ namespace osu.Game.Rulesets.Bms.Replays
 {
     internal class BmsFramedReplayInputHandler : FramedReplayInputHandler<BmsReplayFrame>
     {
+        private static readonly List<BmsAction> empty_actions = new List<BmsAction>();
+
         public BmsFramedReplayInputHandler(Replay replay)
             : base(replay)
         {
         }
 
-        protected override bool IsImportant(BmsReplayFrame frame) => frame.Actions.Any(action => action.IsLaneAction());
+        protected override bool IsImportant(BmsReplayFrame frame) => frame.LaneActionMask != 0;
 
         protected override void CollectReplayInputs(List<IInput> inputs)
             => inputs.Add(new ReplayState<BmsAction>
             {
-                PressedActions = CurrentFrame?.Actions.Where(action => action.IsLaneAction()).ToList() ?? new List<BmsAction>()
+                PressedActions = (List<BmsAction>?)CurrentFrame?.LaneActions ?? empty_actions
             });
     }
 }

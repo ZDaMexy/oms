@@ -14,6 +14,10 @@ namespace osu.Game.Rulesets.Bms.Replays
     {
         public List<BmsAction> Actions = new List<BmsAction>();
 
+        private readonly List<BmsAction> laneActions = new List<BmsAction>();
+        internal IReadOnlyList<BmsAction> LaneActions => laneActions;
+        internal int LaneActionMask { get; private set; }
+
         public BmsReplayFrame()
         {
         }
@@ -21,18 +25,23 @@ namespace osu.Game.Rulesets.Bms.Replays
         public BmsReplayFrame(double time, params BmsAction[] actions)
             : base(time)
         {
-            Actions.AddRange(actions);
+            foreach (var action in actions)
+                addAction(action);
         }
 
         public void FromLegacy(LegacyReplayFrame legacyFrame, IBeatmap beatmap, ReplayFrame? lastFrame = null)
         {
+            Actions.Clear();
+            laneActions.Clear();
+            LaneActionMask = 0;
+
             var action = BmsAction.Scratch1;
             int activeActions = (int)(legacyFrame.MouseX ?? 0);
 
             while (activeActions > 0 && action <= BmsAction.Key14)
             {
                 if ((activeActions & 1) > 0)
-                    Actions.Add(action);
+                    addAction(action);
 
                 action++;
                 activeActions >>= 1;
@@ -41,15 +50,24 @@ namespace osu.Game.Rulesets.Bms.Replays
 
         public LegacyReplayFrame ToLegacy(IBeatmap beatmap)
         {
-            int keys = 0;
-
-            foreach (var action in Actions.Where(action => action.IsLaneAction()))
-                keys |= 1 << (int)action;
-
-            return new LegacyReplayFrame(Time, keys, null, ReplayButtonState.None);
+            return new LegacyReplayFrame(Time, LaneActionMask, null, ReplayButtonState.None);
         }
 
         public override bool IsEquivalentTo(ReplayFrame other)
-            => other is BmsReplayFrame bmsFrame && Time == bmsFrame.Time && Actions.SequenceEqual(bmsFrame.Actions);
+            => other is BmsReplayFrame bmsFrame
+               && Time == bmsFrame.Time
+               && LaneActionMask == bmsFrame.LaneActionMask
+               && Actions.SequenceEqual(bmsFrame.Actions);
+
+        private void addAction(BmsAction action)
+        {
+            Actions.Add(action);
+
+            if (!action.IsLaneAction())
+                return;
+
+            laneActions.Add(action);
+            LaneActionMask |= 1 << (int)action;
+        }
     }
 }

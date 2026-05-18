@@ -151,6 +151,7 @@ Objects/
 Properties/AssemblyInfo.cs
 Replays/
  BmsAutoGenerator.cs
+ BmsAutoplayReplayInputHandler.cs
  BmsFramedReplayInputHandler.cs
  BmsReplayFrame.cs
 Scoring/

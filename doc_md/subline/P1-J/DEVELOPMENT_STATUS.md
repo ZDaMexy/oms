@@ -1,13 +1,13 @@
 # P1-J 开发进度：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-05-17
+> 最后更新：2026-05-18
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-J` 的真实进展。
 
 ## 当前阶段
 
-- **阶段定位**：`P1-J` 已从 planning-only 进入首轮代码落地；`J1` 已完成，`J2` / `J3` 第一刀已完成，`J4` 已完成，当前重点已收窄到 `J5` 的后置人工验收与 `J3` 是否冻结的决策。
-- **代码状态**：shared `BmsKeysoundStore` 继续作为 BGM / note / LN / lane replay 的统一播放池，但 gameplay keysound 已不再无条件延后到后续 scheduler tick；`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 已去掉首批热路径对象物化，`DrawableBmsHitObject.PlaySamples()` 已收口到单样本 keysound 路径，`KeysoundConcurrentChannels` live 改值也已从 rebuild-all 改为 grow-immediately / shrink-deferred 的 non-destructive resize；同轮还补上 pause / seek 生命周期回收，shared store 现会在 gameplay 暂停与 seek 时主动停掉活跃频道，避免长 one-shot BGM / keysound 样本穿透暂停边界。其后续热路径 follow-up 也已落地：`BmsLane` 不再在玩家命中后通过 `NewResult` 重复触发 ordered-hit 扫描，empty-poor 检查已去掉 per-press `HashSet` 分配，shared store 单样本入口也已改成 channel-local 双缓冲，不再为每次单样本播放临时 new 单元素数组；最新补刀则把 `DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 改成按时间有序的 early-break，不再在每帧把整条长键后续 body tick 全量白扫。
-- **验证状态**：`BmsDrawableRulesetTest` 已在每个切片后持续通过；`J4` 现已同时具备 shared-store shrink 回归与 `config -> drawable ruleset -> playfield` direct binding coverage，其中 `TestSceneBmsKeysoundChannelConfigBinding` **3/3** 已通过；`J5` 侧已同时补上 dedicated `BmsOrderedHitPolicyTest` **2/2**、`TestSceneBmsSharedKeysoundTiming` **3/3**、`TestSceneBmsKeysoundPlaybackLifecycle` **3/3** 与新的 player-level `TestSceneBmsPlayerAudioSemantics` **3/3**，把 scratch stream ordered-hit、shared-store same-frame timing、pause / seek 生命周期回收，以及 seek 回放后的 BGM event 重播语义都从大回归文件里独立出来；本轮还补上 `TestSharedKeysoundStoreSingleSamplePathRotatesBuffers` 并回跑 ordered-hit / empty-poor / shared-store 相关 focused suite **11/11**，完整 `osu.Game.Rulesets.Bms.Tests` 的最近全量快照仍为 **774/774**。
+- **阶段定位**：`P1-J` 已从 planning-only 进入首轮代码落地；`J1` 已完成，`J2` / `J3` 第一刀已完成，`J4` 已完成，当前重点已从 pause / seek 语义确认转入 dense autoplay 的 replay 路径补刀，同时保留 `J5` 的后置人工验收与 `J3` 是否冻结的决策。core replay fast-forward 已确认不再继续；当前 active branch 改为只对 BMS full autoplay 做专用分流。
+- **代码状态**：shared `BmsKeysoundStore` 继续作为 BGM / note / LN / lane replay 的统一播放池，但 gameplay keysound 已不再无条件延后到后续 scheduler tick；`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 已去掉首批热路径对象物化，`DrawableBmsHitObject.PlaySamples()` 已收口到单样本 keysound 路径，`KeysoundConcurrentChannels` live 改值也已从 rebuild-all 改为 grow-immediately / shrink-deferred 的 non-destructive resize；同轮还补上 pause / seek 生命周期回收，shared store 现会在 gameplay 暂停与 seek 时主动停掉活跃频道，避免长 one-shot BGM / keysound 样本穿透暂停边界。其后续热路径 follow-up 也已落地：`BmsLane` 不再在玩家命中后通过 `NewResult` 重复触发 ordered-hit 扫描，empty-poor 检查已去掉 per-press `HashSet` 分配，shared store 单样本入口也已改成 channel-local 双缓冲，不再为每次单样本播放临时 new 单元素数组；`DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 也已改成按时间有序的 early-break，不再在每帧把整条长键后续 body tick 全量白扫。dense autoplay 的 replay 链最近保留了两条 BMS-side 优化：一是 `BmsFramedReplayInputHandler` 继续复用 `BmsReplayFrame` 缓存的 lane-action 掩码与列表，去掉每帧 `Any/Where/ToList`；二是 `DrawableBmsRuleset` 现对 full autoplay 额外分流到“对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 直接按当前时间采样输入状态”的专用路径，不再让 dense full autoplay 继续依赖逐 replay frame 边界驱动判定本身。
+- **验证状态**：`BmsDrawableRulesetTest` 已在每个切片后持续通过；`J4` 现已同时具备 shared-store shrink 回归与 `config -> drawable ruleset -> playfield` direct binding coverage，其中 `TestSceneBmsKeysoundChannelConfigBinding` **3/3** 已通过；`J5` 侧已同时补上 dedicated `BmsOrderedHitPolicyTest` **2/2**、`TestSceneBmsSharedKeysoundTiming` **3/3**、`TestSceneBmsKeysoundPlaybackLifecycle` **3/3** 与新的 player-level `TestSceneBmsPlayerAudioSemantics` **3/3**，把 scratch stream ordered-hit、shared-store same-frame timing、pause / seek 生命周期回收，以及 seek 回放后的 BGM event 重播语义都从大回归文件里独立出来；本轮还补上 `TestSharedKeysoundStoreSingleSamplePathRotatesBuffers` 并回跑 ordered-hit / empty-poor / shared-store 相关 focused suite **11/11**。针对 dense autoplay / replay 的最新 focused validation 当前基线为：在撤回 core skip-fast-forward 后，`FramedReplayInputHandlerTest` **9/9** 通过，BMS replay focused suite `BmsReplayFrameTest|TestSceneBmsReplayStability|TestSceneBmsReplayRecording` **7/7** 通过；新增 `TestSceneBmsAutoplayReplayPlayback` 也已证明 full autoplay 专用路径仍会完成回放、保持非忽略判定全 `Perfect`，并继续驱动 key counter，focused suite **3/3** 通过；相邻 combined replay/autoplay suite **11/11** 通过。完整 `osu.Game.Rulesets.Bms.Tests` 的最近全量快照仍为 **774/774**。
 - **文档状态**：`P1-J` 四件套与主线文档现已同步到“首轮代码已开始落地”的口径，不再停留在仅规划状态。
 
 ## 已确认事实
@@ -20,6 +20,10 @@
 - `BmsLane.shouldTriggerEmptyPoor()` 现已去掉 per-press `HashSet` 去重分配；这段逻辑只做布尔 OR，不依赖唯一计数，重复候选不会改变最终判定。
 - `BmsKeysoundStore` 的单样本入口现已改成 channel-local 双缓冲；在继续遵守 `SkinnableSound.Samples` array contract 的前提下，shared store 不再为每次单样本播放临时构造新的单元素数组。
 - `BmsHoldNote.CreateNestedHitObjects()` 会按时间顺序生成 `BodyTicks`；因此 `DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 现在可以在遇到首个 future tick 时直接 `break`，避免 HCN/CN/LN 长键在每帧重复扫描整条后半段 body tick 列表。
+- dense autoplay 当前确认仍走 `ReplayPlayer -> FrameStabilityContainer -> FramedReplayInputHandler` 链，而不是玩家手动输入链；因此高压 autoplay 掉帧时，replay catch-up 与 replay-state 分配本身也是可优化的 owner surface。
+- non-frame-accurate replay 过去虽然不是“每帧全表扫描”，但在 frame-stable playback 下，`FramedReplayInputHandler.SetFrameFromTime()` 仍承担着“每次调用最多推进一个 replay frame 边界”的合同，供外层 catch-up 循环逐步喂入中间输入状态。dense autoplay 的人工压测已经证明，若在这里单次跨过多个 frame，会直接转化成 autoplay miss，而不是纯性能收益。
+- `BmsReplayFrame` 现已缓存 lane-action mask 与 lane-only action list；`BmsFramedReplayInputHandler` 不再每帧做 `Any/Where/ToList` 来判断重要区间和构造 pressed actions。
+- `DrawableBmsRuleset` 现已把 full autoplay 与普通 replay 区分开：full autoplay 会给 `BmsHitObject` 设置对象级 `AutoPlay`，并改走 `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样；普通 replay 仍保留既有 `BmsFramedReplayInputHandler` 与逐 replay frame 边界推进合同。
 - `KeysoundConcurrentChannels` 当前默认值为 `32`；live 改值已改成 non-destructive resize：grow 立即扩容，shrink 延后到超额 channel 停播后再裁剪，不再通过整池 `Clear()` 立刻切断当前播放。
 - `PausableSkinnableSound` 默认只会在 sample-disable 时立即停掉 looping 样本；为避免长 one-shot `BmsBgmEvent` / keysound 样本穿透 pause / seek，`BmsKeysoundStore` 现额外监听 `GameplayClockContainer.IsPaused` 与 `OnSeek`，并在边界处统一 `StopAllPlayback()`。
 - `TestSceneBmsPlayerAudioSemantics` 现已锁住两条更接近玩家观察面的合同：`GameplayClockContainer` 在 pause / resume 间会持位并从原位置继续，且 `BmsBgmEvent` 在 seek 回事件之前后会清掉旧请求，并在再次跨过事件时间时重新向 shared store 发起播放请求。
@@ -45,12 +49,13 @@
 - **sample 生命周期风险**：底层 `PausableSkinnableSound` / pooled sample contract 仍没有 one-shot sample 的真 pause/resume 能力；当前已先把 pause / seek 逃逸收口为“边界即停播”，但 layered BGM 的恢复体验仍应放在后置人工 checklist 中确认。
 - **主音乐验证边界**：当前新增的 player-level proof 锁住的是 `GameplayClockContainer` pause / resume 持位语义与 `BmsBgmEvent` seek 重播语义；若后续要对“带独立主音轨的 BMS 谱面在 pause 后是否按真实音频位置恢复”做更强结论，仍应补一条带实际 backing-track 观察面的专项验证或人工 checklist。
 - **shared pool 边界风险**：lane replay focused scene 暴露过 pooled sample retrieval 的脆弱边界；当前 `Playfield.GetPooledSample()` 已改为在 pool 不可用时回退 `null`，由 `SkinnableSound` 继续降级到 unpooled sample。后续若再改 pooled-audio authority，必须重跑 shared timing focused suite。
+- **渲染预算风险**：本轮附带日志仍显示 `ReplayPlayer` 场景下 `Texture upload queue large` 与 atlas 扩张记录，但全局统计末尾的 `Bass CPU%` 很低；这说明超高压 autoplay 仍更像 update / render / present 综合预算问题，而不只是音频 mixer 压力。新的 full autoplay 专用 replay 路径已经通过 correctness-focused proof，但是否足以消掉 50k chart 密段慢放，仍要靠下一轮人工压测确认。
 
 ## 下一检查点
 
-1. 执行 dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change 的人工 checklist，并把结果回交 `P1-G`。
-2. 评估是否值得继续把 array-based sample contract 下探到 `PausableSkinnableSound` / `SkinnableSound`，还是把当前 shared-store 双缓冲方案作为 `J3` 的第一阶段冻结点。
-3. 若后续继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`，再决定是否扩大修补范围。
+1. 用同一套 10k / 50k dense autoplay chart 重新做人工压测，确认 full autoplay 专用 replay 路径是否真正消掉密段慢放与变速。
+2. 执行 dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change 的人工 checklist，并把结果回交 `P1-G`。
+3. 评估是否值得继续把 array-based sample contract 下探到 `PausableSkinnableSound` / `SkinnableSound`，还是把当前 shared-store 双缓冲方案作为 `J3` 的第一阶段冻结点。
 
 ## 验证记录
 
@@ -65,3 +70,5 @@
 - 2026-05-17：`BmsLane` 已去掉玩家命中后的重复 ordered-hit `HandleHit()` 扫描，并把 empty-poor 检查改成无 `HashSet` 的布尔流式判定；`BmsKeysoundStore` 的单样本入口也已切到 channel-local 双缓冲，不再为每次单样本播放分配单元素数组。新增 `TestSharedKeysoundStoreSingleSamplePathRotatesBuffers`，并集中回跑 ordered-hit、late-empty-poor、shared-store timing 与 lifecycle focused suite **11/11**，均通过。
 - 2026-05-17：新增 `TestSceneBmsPlayerAudioSemantics`，在 player harness 上锁住两条用户侧最关心的当前合同：pause / resume 不会让 `GameplayClockContainer` 丢位，seek 回 `BmsBgmEvent` 之前后旧请求会被清掉，重新跨过事件时间后会再次发起 BGM 播放请求。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~TestSceneBmsPlayerAudioSemantics"` **3/3** 通过。
 - 2026-05-17：`DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 现已利用 `BodyTicks` 的时间有序性，在遇到首个 future tick 时直接停止扫描，避免 dense long-note / HCN 场景下每帧线性扫完整条长键。针对长键与 gauge 的现有 focused suites `BmsDrawableRulesetTest|BmsGaugeProcessorTest` **111/111** 通过。
+- 2026-05-18：针对 dense autoplay / replay 路径做了两条尝试，其中一条保留、一条撤回。保留项是 `BmsReplayFrame` 的 lane-action 掩码 / 列表缓存，以及 `BmsFramedReplayInputHandler` 直接复用这些缓存，去掉每帧 `Any/Where/ToList`。撤回项是 core `FramedReplayInputHandler` 的 skip-fast-forward：人工高压 autoplay 回报显示它会导致少量到大量 miss，根因是它破坏了 frame-stable playback 依赖的“逐 replay frame 边界推进并逐步应用中间输入状态”的合同。撤回后重新验证：`dotnet test osu.Game.Tests --no-restore -v minimal --filter FullyQualifiedName~FramedReplayInputHandlerTest` **9/9** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "FullyQualifiedName~BmsReplayFrameTest|FullyQualifiedName~TestSceneBmsReplayStability|FullyQualifiedName~TestSceneBmsReplayRecording"` **7/7** 通过。
+- 2026-05-18：dense full autoplay 再补了一刀，但这次不再碰 core replay 合同，而是只对 BMS full autoplay 分流：`DrawableBmsRuleset` 会给 full autoplay 下的 `BmsHitObject` 设置对象级 `AutoPlay`，同时改走 `BmsAutoplayReplayInputHandler`，让 replay 输入退化为“按当前时间采样状态并继续喂 HUD / key counter”，而不是再让判定正确性继续被 dense replay 边界推进驱动。新增 player-level `TestSceneBmsAutoplayReplayPlayback`，并把 stub chart 补成真实 `LN + scratch`，focused validation `dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback` **3/3** 通过；相邻 combined suite `FullyQualifiedName~TestSceneBmsAutoplayReplayPlayback|FullyQualifiedName~BmsReplayFrameTest|FullyQualifiedName~TestSceneBmsReplayStability|FullyQualifiedName~TestSceneBmsReplayRecording|FullyQualifiedName~TestAutoPlayObjectsStillApplyMaxResult` **11/11** 通过。
