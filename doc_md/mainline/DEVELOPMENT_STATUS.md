@@ -184,7 +184,7 @@
 | 子主线 | 焦点 | 状态 |
 | --- | --- | --- |
 | P1-A 产品面与 release gate | Phase 1.1 皮肤专项 → 公开发行物皮肤收尾 | 进行中 |
-| P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
+| P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，公开搜索口径已统一为 `key/keys`、`rc/rice`、`ln`、`scr`（`regular` 仅保留兼容 alias），剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
 | P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker / 权威 GN 与调速反馈 / pre-start 1 号普通轨纯视觉流速预览 | 已编排，专题文档已建立 |
 | P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 / dense full autoplay replay 分流 | 进行中（`J1` / `J4` 已完成，`J2` / `J3` 首刀已落地，`J5` 自动化已闭合；full autoplay 专用 replay 分流与 keysound 预热已落地，剩余 once-per-run hitch 现场确认与人工验收） |

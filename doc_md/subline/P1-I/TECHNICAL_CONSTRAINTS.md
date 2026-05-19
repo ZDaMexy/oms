@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-11
+> 最后更新：2026-05-18
 > 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -35,12 +35,13 @@
 ## 搜索语法约束
 
 1. BMS-only custom keywords 必须通过 `IRulesetFilterCriteria` 接入，不得在 [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../osu.Game/Screens/Select/FilterQueryParser.cs) 里新增 BMS-only switch 分支。
-2. 首轮关键字只允许覆盖 `key` / `keys`、`rc`、`ln`、`scr` 及极少数一一对应 alias；不得在没有明确产品定义前扩成自由别名集合。
+2. 首轮关键字只允许覆盖 `key` / `keys`、`rc` / `rice`、`ln`、`scr` 及极少数一一对应 alias；不得在没有明确产品定义前扩成自由别名集合。
 3. `key` / `keys` 应尽量与 mania 的比较操作符语义一致；同名关键字在不同 ruleset 下允许各自解释，但不得改变 mania 现有行为。
-4. `rc` / `ln` / `scr` 必须按百分比范围语义实现；若 UI 首轮只暴露局部交互，文本语法仍必须完整保留范围匹配能力。
-5. 首轮 `FilterMayChangeFromMods()` 必须保持保守：在当前 BMS filters 不依赖 mods 的前提下返回 `false`，避免无意义的 mod-driven refilter 噪音。
-6. `谱面构成` visual control 首轮只负责生成 enabled segment 的上限约束，即 `rc<=...` / `ln<=...` / `scr<=...` 这类 query fragment；最小值或更复杂组合仍由文本语法承担。
-7. 不得为了贴合当前 visual control 的交互冻结点而削弱文本语法的范围能力；视觉控件可以只覆盖冻结过的编辑语义，再编译成等价 query 片段。
+4. `rc` / `rice` / `ln` / `scr` 必须按百分比范围语义实现；若 UI 首轮只暴露局部交互，文本语法仍必须完整保留范围匹配能力。
+5. `rice` 是 `rc` 的公开长写；`regular` 只允许作为向后兼容 alias 留在 parser 内，不得再写进 tooltip、README 或 `P1-I` 文档口径。
+6. 首轮 `FilterMayChangeFromMods()` 必须保持保守：在当前 BMS filters 不依赖 mods 的前提下返回 `false`，避免无意义的 mod-driven refilter 噪音。
+7. `谱面构成` visual control 首轮只负责生成 enabled segment 的上限约束，即 `rc<=...` / `ln<=...` / `scr<=...` 这类 query fragment；最小值或更复杂组合仍由文本语法承担。
+8. 不得为了贴合当前 visual control 的交互冻结点而削弱文本语法的范围能力；视觉控件可以只覆盖冻结过的编辑语义，再编译成等价 query 片段。
 
 ## 实现边界约束
 

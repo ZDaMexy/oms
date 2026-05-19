@@ -51,7 +51,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             var criteria = new FilterCriteria { RulesetCriteria = new BmsRuleset().CreateRulesetFilterCriteria() };
 
-            FilterQueryParser.ApplyQueries(criteria, "regular>=50 scratch<30");
+            FilterQueryParser.ApplyQueries(criteria, "rice>=50 scratch<30");
 
             int[] matchingBeatmaps = beatmaps.Select((beatmap, index) => (beatmap, index))
                                            .Where(tuple => BeatmapCarouselFilterMatching.CheckCriteriaMatch(tuple.beatmap, criteria))
@@ -81,7 +81,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             var criteria = new FilterCriteria { RulesetCriteria = new BmsRuleset().CreateRulesetFilterCriteria() };
 
-            FilterQueryParser.ApplyQueries(criteria, "regular>=50 scratch<30");
+            FilterQueryParser.ApplyQueries(criteria, "rice>=50 scratch<30");
 
             int[] matchingBeatmaps = beatmaps.Select((beatmap, index) => (beatmap, index))
                                            .Where(tuple => BeatmapCarouselFilterMatching.CheckCriteriaMatch(tuple.beatmap, criteria))

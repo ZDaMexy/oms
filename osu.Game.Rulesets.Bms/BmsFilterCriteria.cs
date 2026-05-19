@@ -70,6 +70,7 @@ namespace osu.Game.Rulesets.Bms
                     return tryParseKeyCountCriteria(op, strValues);
 
                 case "rc":
+                case "rice":
                 case "regular":
                     return FilterQueryParser.TryUpdateCriteriaRange(ref regularNotePercentage, op, strValues);
 

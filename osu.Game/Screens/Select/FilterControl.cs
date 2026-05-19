@@ -859,7 +859,7 @@ namespace osu.Game.Screens.Select
                 var bmsRows = new[]
                 {
                     ("keys  /  key", "键数，多选用逗号  keys=5,7,9"),
-                    ("rc  /  regular", "单点比例 %  （0–100）"),
+                    ("rc  /  rice", "单点比例 %  （0–100）"),
                     ("ln", "长条比例 %"),
                     ("scr  /  scratch", "转盘比例 %"),
                 };

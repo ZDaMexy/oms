@@ -549,6 +549,9 @@ VariantMappingGenerator.cs
 <NUGET>/
  microsoft.extensions.logging.abstractions/9.0.2/analyzers/dotnet/roslyn4.4/cs/Microsoft.Extensions.Logging.Generators.dll
  microsoft.extensions.options/9.0.2/analyzers/dotnet/roslyn4.4/cs/Microsoft.Extensions.Options.SourceGeneration.dll
+ microsoft.net.illink.tasks/8.0.27/analyzers/dotnet/cs/
+  ILLink.CodeFixProvider.dll
+  ILLink.RoslynAnalyzer.dll
  microsoft.netcore.app.ref/8.0.27/analyzers/dotnet/cs/
   Microsoft.Interop.ComInterfaceGenerator.dll
   Microsoft.Interop.JavaScript.JSImportGenerator.dll

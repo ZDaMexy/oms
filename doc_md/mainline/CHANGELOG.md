@@ -7,6 +7,12 @@
 
 ## 2026-05-18
 
+### P1-I：BMS 搜索语法公开口径统一为 `rice`
+
+- BMS Song Select 搜索框 tooltip 已把 `rc / regular` 更正为 `rc / rice`，避免把 `rc` 误解释成错误的长写；当前公开语法统一为 `key/keys`、`rc/rice`、`ln`、`scr`。
+- `BmsFilterCriteria` 已同步支持 `rice` 关键字；`regular` 继续仅作为向后兼容 alias 保留，避免旧查询立即失效，但后续文档、提示与用户口径不再把它作为公开写法。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter FullyQualifiedName~BmsFilterCriteriaTest` **4/4** 通过。
+
 ### P1-J：BMS full autoplay 分流到对象级 `AutoPlay` 与 direct-time replay 采样
 
 - dense full autoplay 不再继续尝试放宽 core `FramedReplayInputHandler` 合同；当前实现改为只对 BMS full autoplay 分流：`DrawableBmsRuleset` 会给 full autoplay 下的 `BmsHitObject` 设置对象级 `AutoPlay`，并改用 `BmsAutoplayReplayInputHandler` 直接按当前时间采样 replay state。

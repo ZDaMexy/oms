@@ -1,5 +1,14 @@
 # P1-I 变动日志
 
+## 2026-05-18
+
+### P1-I：BMS 搜索语法公开口径改为 `rc / rice`
+
+- `SearchHintTooltip` 的 BMS 段落已把 `rc / regular` 更正为 `rc / rice`，与社区常用术语保持一致；当前公开搜索口径统一为 `key/keys`、`rc/rice`、`ln`、`scr`。
+- `BmsFilterCriteria` 已同步支持 `rice` 关键字；`regular` 继续只作为向后兼容 alias 保留，避免既有查询失效，但不再作为 tooltip 或文档里的公开写法。
+- `BmsFilterCriteriaTest` 中与构成比例相关的 query 已切到 `rice>=...`，把这次语义口径直接锁进 focused parser/matcher regression。
+- 验证：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter FullyQualifiedName~BmsFilterCriteriaTest` **4/4** 通过。
+
 ## 2026-05-13
 
 ### P1-I：UI 视觉收口——hover 效果、颜色重排、Tooltip DI 崩溃修复
@@ -32,8 +41,6 @@
   - `SearchHintTooltip` 绑定到搜索框（通过 `IHasCustomTooltip<bool>`）：搜索框为空时显示，展示所有通用与 BMS 专属搜索语法。
 - BMS 分支的 criteria 编译链 `createBmsVisualFilterQuery()` 已明确只在对应行 `Enabled == true` 时生成对应 query fragment，不再把 segment `UpperBound.IsDefault` 作为生效判断。
 - BMS 分支的 `OnSongSelectSetup` / `BmsRuleset.OnSongSelectSetup` callback 已接通：`BmsChartFilterStatsBackfill` 在后台以 `Task.Run` 执行，每约 100 次计算通过 `onCacheUpdated` 触发 `Scheduler.AddOnce(() => updateCriteria())`。
-
-
 
 ### 需求澄清与文档校正：谱面构成的三个值是最大占比
 

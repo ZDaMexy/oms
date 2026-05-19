@@ -1,6 +1,6 @@
 # P1-I 开发计划：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-13
+> 最后更新：2026-05-18
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。`P1-A` 负责共享产品面边界，`P1-H` 负责 read-model / backfill authority；本文件只拆解 `P1-I` 的执行顺序。
 
 ## 子线定位
@@ -42,8 +42,8 @@
 1. 让 BMS ruleset 在 Song Select 中拥有一套独立于 mania 的筛选产品面：`谱面构成` + `键数`。
 2. `谱面构成` 的最终产品面冻结为：单轨，从左到右 `RC / LN / SCR` 三个可编辑上限段，尾段为空白容差；三段独立启用/禁用，三个值各自表示最大占比，不强制和为 `100%`。
 3. 让 BMS visual filters 与自定义搜索语法共用同一套 criteria 语义，而不是 UI 一套、搜索框一套。
-3. 让 RC/LN/SCR 过滤建立在同步可读的 persisted read-model 上，而不是在 carousel 过滤阶段临时加载 playable beatmap。
-4. 保持 mania 与其他 ruleset 的现有筛选 UI、搜索语法与排序/分组行为不回归。
+4. 让 RC/LN/SCR 过滤建立在同步可读的 persisted read-model 上，而不是在 carousel 过滤阶段临时加载 playable beatmap。
+5. 保持 mania 与其他 ruleset 的现有筛选 UI、搜索语法与排序/分组行为不回归。
 
 ## 分期计划
 
@@ -104,11 +104,11 @@
 2. 新增 `BmsFilterCriteria`，接管 BMS-only custom keywords 与匹配。
 3. 首轮关键字范围固定为：
    - `key` / `keys`：键数筛选，语义与 UI 的 `5K / 7K / 9K / 14K` multi-select 对齐
-   - `rc`
+   - `rc` / `rice`：`rice` 是公开长写
    - `ln`
    - `scr`
-   - 如需可读别名，只允许补 `regular` / `scratch` 这类一一对应 alias，不得扩成一组口径不清的同义词
-4. `rc` / `ln` / `scr` 按百分比范围处理，延续 shared `FilterQueryParser.TryUpdateCriteriaRange()` 语义；`key` / `keys` 尽量与 mania 现有 `key` 语法保持操作符一致性。
+   - 如需可读别名，只允许补 `regular` / `scratch` 这类一一对应 alias；其中 `regular` 仅保留为兼容 alias，不再作为公开文档或 tooltip 口径
+4. `rc` / `rice` / `ln` / `scr` 按百分比范围处理，延续 shared `FilterQueryParser.TryUpdateCriteriaRange()` 语义；`key` / `keys` 尽量与 mania 现有 `key` 语法保持操作符一致性。
 5. 共享 `star:` 文本语法首轮保持存在；本专题替换的是 **BMS visual surface**，不是删除 shared parser 的星数关键字。
 6. 首轮 `FilterMayChangeFromMods()` 默认保持 `false`；当前 `key/rc/ln/scr` 都只依赖 beatmap metadata，不依赖现有 BMS mods。只有当未来真的出现会改变筛选结果的 key-count 类 mod，再回头放宽这条约束。
 7. 文本语法的范围表达能力不得为了贴合当前 visual control 而缩水；即使 `谱面构成` UI 首轮只冻结单轨共边界交互，`rc/ln/scr` 文本语法仍继续保留完整比较/范围组合能力。

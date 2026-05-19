@@ -1,19 +1,19 @@
 # P1-I 开发进度：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-13
+> 最后更新：2026-05-18
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-I` 的真实进展。
 
 ## 当前阶段
 
 - **阶段定位**：`I1` / `I2` / `I3` 均已完成落地；`I4` 回归收口仍处于进行中（已有基础 focused tests，但 `BmsCompositionFilterControl` 单轨拖拽的 headless regression 覆盖与 shared visual gate 仍待补强）。
-- **代码状态**：BMS 当前已具备 persisted `ChartFilterStats` metadata、`BmsFilterCriteria`、`BmsRuleset.CreateRulesetFilterCriteria()` 与 shared `FilterControl` 内完整的 BMS-only filter surface。`BmsCompositionFilterControl` 已以 BMS-local 私有单轨控件落地：`RC / LN / SCR` 三段可独立启停、各自表示最大占比、尾段为空白容差；`BmsCompositionHandle` 拖拽句柄可在三段边界间拖拽、并在句柄上显示当前数值；`BmsCompositionRowButton` 基于 `ShearedToggleButton`、激活时用段配色、非激活时用 `ColourProvider.Background3/Background1`（hover 效果可见）；`BmsKeyCountToggleButton` 提供 5K/7K/9K/14K 独立启停。`SearchHintTooltip` 已作为搜索框悬浮提示接入，展示全部 BMS 搜索语法；`OverlayColourProvider` 通过构造函数传递，不依赖 global tooltip-layer DI scope。颜色方案：RC=蓝(94,190,255)、LN=黄(255,212,92)、SCR=橙(255,119,86)。
+- **代码状态**：BMS 当前已具备 persisted `ChartFilterStats` metadata、`BmsFilterCriteria`、`BmsRuleset.CreateRulesetFilterCriteria()` 与 shared `FilterControl` 内完整的 BMS-only filter surface。`BmsCompositionFilterControl` 已以 BMS-local 私有单轨控件落地：`RC / LN / SCR` 三段可独立启停、各自表示最大占比、尾段为空白容差；`BmsCompositionHandle` 拖拽句柄可在三段边界间拖拽、并在句柄上显示当前数值；`BmsCompositionRowButton` 基于 `ShearedToggleButton`、激活时用段配色、非激活时用 `ColourProvider.Background3/Background1`（hover 效果可见）；`BmsKeyCountToggleButton` 提供 5K/7K/9K/14K 独立启停。`SearchHintTooltip` 已作为搜索框悬浮提示接入，展示全部 BMS 搜索语法；当前公开语法已统一为 `key/keys`、`rc/rice`、`ln`、`scr`，其中 `regular` 只保留为兼容 alias。`OverlayColourProvider` 通过构造函数传递，不依赖 global tooltip-layer DI scope。颜色方案：RC=蓝(94,190,255)、LN=黄(255,212,92)、SCR=橙(255,119,86)。
 - **文档状态**：`P1-I` 四件套已更新到当前落地状态。
 
 ## 已确认事实
 
-
 - BMS-only 搜索 / 筛选定制已落在 shared `FilterControl` 内的 ruleset-aware branching，未为此新开 per-ruleset host。
 - BMS custom search 沿 mania 现有模式走 `IRulesetFilterCriteria`；shared parser 没有新增 BMS-only switch。
+- 公开搜索口径现已统一为 `key/keys`、`rc/rice`、`ln`、`scr`；`regular` 只作为兼容 alias 保留在 `BmsFilterCriteria` 内，不再作为 tooltip / 文档公开写法。
 - `RC / LN / SCR` 三段已采用互斥分区：SCR 优先，LN 为非 scratch long note，RC 为剩余。
 - `BmsCompositionFilterControl` 为 BMS-local 私有单轨控件，符合"单轨上限段 + 尾段空白容差 + 独立启停"产品合同。
 - `SearchHintTooltip` crash 修复：根因是 `[Resolved] OverlayColourProvider` 在 global tooltip-layer 不在 DI 作用域；遵循 `ModTooltip` 构造函数注入模式，同时把 `GridContainer + AutoSizeAxes.Both` 布局替换为 `FillFlowContainer + Container(Width=160f)`。
@@ -53,3 +53,4 @@
 
 - 2026-05-11：`dotnet test osu.Game.Rulesets.Bms.Tests -p:GenerateFullPaths=true --filter "FullyQualifiedName~BmsImportIntegrationTest|FullyQualifiedName~BmsBeatmapStatisticsTest|FullyQualifiedName~BmsFilterCriteriaTest|FullyQualifiedName~TestSceneBmsFilterControl"` **30/30** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 - 2026-05-13：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` **0 error**；本轮修复：RC/LN/SCR/5K/7K/9K/14K 按钮 hover 效果（Background3/Background1）、颜色重排（RC=蓝/LN=黄/SCR=橙）、`SearchHintTooltip` DI 崩溃修复（构造函数注入 + FillFlowContainer+Container 布局）。
+- 2026-05-18：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter FullyQualifiedName~BmsFilterCriteriaTest` **4/4** 通过；本轮同步把公开搜索口径修正为 `rc/rice`，并确认 `regular` 仅作为兼容 alias 保留。
