@@ -116,6 +116,23 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestMetadataBackgroundPrefersStageFileOverBackbmp()
+        {
+            const string text = @"
+#TITLE Example Song
+#ARTIST Test Artist
+#STAGEFILE stage.png
+#BACKBMP fallback.png
+#00111:AA00
+";
+
+            var decodedChart = decoder.DecodeText(text, "example.bms");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("stage.png"));
+        }
+
+        [Test]
         public void TestMapsStandardBmeScratchAndUpperKeysToSevenKeyLayout()
         {
             const string text = @"

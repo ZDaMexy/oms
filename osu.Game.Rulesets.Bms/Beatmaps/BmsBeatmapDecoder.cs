@@ -698,6 +698,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (containsAny(playableChannels, 0x21, 0x29))
                 return BmsKeymode.Key14K;
 
+            // Channel 0x17 only exists on the 9-key BMS layout, so a sparse chart that touches this lane
+            // must stay on the 9K path even when not all nine lanes appear in the file.
+            if (playableChannels.Contains(0x17) && !extension.Equals(".bme", StringComparison.OrdinalIgnoreCase))
+                return BmsKeymode.Key9K_Bms;
+
             bool hasAllNineButtons = containsAll(playableChannels, 0x11, 0x19);
 
             if (hasAllNineButtons && !extension.Equals(".bme", StringComparison.OrdinalIgnoreCase))

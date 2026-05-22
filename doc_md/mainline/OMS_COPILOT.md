@@ -230,10 +230,11 @@ Channel `02` affects the duration of the measure in beats. A value of `0.75` mak
 
 1. **`.pms` extension** → `Key9K_Pms`. No further analysis needed. PMS uses channels `11`–`19` mapped to 9 buttons in Pop'n Music order: `11`=Button1, `12`=Button2, …, `19`=Button9. In `BmsLaneLayout`, the `Key9K_Pms` lane order matches Pop'n convention (symmetrical button spread), distinct from `Key9K_Bms` which uses BMS channel order.
 2. **Any note in channels `22`–`28`** → `Key14K` (DP). This rule must be checked early — 14K charts always have 1P-side notes that would otherwise trigger a 5K or 7K match. If both 1P and 2P channels are present, treat as 14K regardless of which 2P channels are used.
-3. **`.bms` / `.bme` / `.bml` with channel `11` and no channels `12`–`19`** (i.e. only lane 1 used in the 1x series) → ambiguous; treat as `Key7K` with scratch on `11`.
-4. **Any note in channels `12`–`16` and none in `17`–`18`** → `Key5K` (5+1 scratch on `11`).
-5. **Any note in channels `17` or `18`** → `Key7K` (7+1 scratch on `11`).
-6. **Notes in all of `11`–`19` with no scratch distinction pattern** → `Key9K_Bms`.
+3. **Any non-`.bme` chart with channel `17` present** → `Key9K_Bms`. OMS treats this lane as the earliest unambiguous sparse-9K signal, so a legal 9K_Bms chart does not need to touch all nine lanes before entering the 9-key path.
+4. **Any non-`.bme` chart with notes in all of `11`–`19`** → `Key9K_Bms`.
+5. **Any chart with channel `18` or `19`, or any `.bme` chart without a 14K match** → `Key7K` (7+1 scratch on `11`). `.bme` remains the compatibility-biased 7-key path even if sparse data touches channel `17`.
+6. **Any chart with notes in `11`–`16` after the checks above** → `Key5K` (5+1 scratch on `11`).
+7. **Fallback** → `Key7K`.
 
 Store the resolved `BmsKeymode` in `BmsBeatmapInfo` immediately after decode. `BmsLaneLayout` and `BmsDifficultyCalculator` read from this field; they must never re-derive keymode independently.
 
@@ -256,7 +257,7 @@ Import pipeline:
 2. `BmsArchiveReader` extracts to a temp directory
 3. Scan extracted folder for any `.bms`/`.bme`/`.bml`/`.pms` file — each file is one **difficulty**
 4. Group all difficulties sharing the same folder into one **BeatmapSet**, regardless of keymode differences. Files with different keymodes (e.g. a 5K chart and a 7K chart in the same folder) are not split into separate sets — keymode is stored as per-difficulty metadata and used for lane layout selection at play time. In the difficulty selector, the keymode is shown as a label on each difficulty entry (e.g. "7K", "5K").
-5. Register keysound and BMP asset paths relative to the extracted folder root
+5. Register keysound and static-art asset paths relative to the extracted folder root. Keysound, preview, and static background references are normalised against the actual extracted filenames; extension-substitution mismatches such as `stage.bmp` → `stage.png` should be resolved during import instead of left to fail silently at play time.
 6. Move extracted folder to OMS chartbms directory, clean up temp
 
 Do **not** convert to `.osz`. OMS reads BMS files directly from disk at runtime.
@@ -268,6 +269,7 @@ Do **not** route imported BMS charts or their dependent assets through the gener
 2. Skip the failed file — do not add it to the BeatmapSet.
 3. If all `.bms`/`.bme`/`.bml`/`.pms` files in the archive fail, abort the import entirely and surface an error notification to the user: "Import failed: no valid BMS files found in archive."
 4. If at least one file succeeds, complete the import and surface a warning notification that lists the skipped filenames.
+5. If a file decodes successfully but the decoder emitted non-fatal warnings (for example unsupported `#RANDOM` branching or degraded header parsing), keep the chart importable, log the detailed warnings, and surface a separate summary notification listing the affected chart filenames and warning counts.
 
 ### 4.3 Keysound System
 
@@ -1154,8 +1156,10 @@ When available, the same panel may also show compact chart metadata lines for:
 
 ### 12.1 Current Scope
 
-- **Static `#STAGEFILE`**: Display as background image during gameplay. Load on chart load.
-- **Static `#BACKBMP`**: Fallback background if `#STAGEFILE` missing.
+- **Static `#STAGEFILE`**: Primary static background art during gameplay.
+- **Static `#BACKBMP`**: Fallback static background if `#STAGEFILE` missing.
+- **Static `#BANNER`**: Final fallback static art if neither `#STAGEFILE` nor `#BACKBMP` resolves.
+- OMS currently resolves static-art references through the imported working-beatmap background chain: import normalises the stored filename against real files on disk, runtime retries common image extension substitutions for older data, and the default `BmsBackgroundLayer` attempts to show the actual background texture while still exposing the displayed asset name to skins.
 - BGA video and BMP sequence animation: **not implemented in Phase 1**.
 
 ### 12.2 Future Scope (BGA Video — Phase 2)

@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-05-22
+
+### 文档：新建 P1-K 子线并冻结 BMS 解析链路治理范围
+
+- 已新建 `doc_md/subline/P1-K/` 四件套，并把 **BMS 解析链路治理** 正式编排为独立 Phase 1.x 子线；主 authority 明确落在 `BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、`BmsBeatmapConverter` 与 parse-side projection reuse，不再继续散挂到 `P1-H`、`P1-J`、`P1-E` 或 consumer 侧的 ad hoc parse。
+- 主线总规划、主线状态页、子线索引已同步加入 `P1-K`，并冻结首轮执行顺序为：`raw/typed 双层模型冻结` → `header/definition/channel no-loss coverage` → `timeline/control-event semantics` → `parse-once/project-many 复用` → `focused validation 与缓存边界`。
+- 本轮文档还把当前 parse-chain 的主要 gap 统一写成子线基线：`SCROLLxx/SC` 未入模型、signed BPM typed surface 不可表示、duplicate channel line 未 compound、同拍位 `BPM/STOP/object` 顺序未冻结，以及 BGA layer / mine / invisible note 仍缺最薄 typed slot。
+- 本轮仅完成文档规划与主线编排，无生产代码改动、无新增测试执行；代码与验证基线继续沿用同日 `788/788` 的主线快照。
+
+### BMS：稀疏 9K_Bms 判定、导入 warning 透传与静态背景链统一修复
+
+- `BmsBeatmapDecoder` 现把“非 `.bme` 且出现 `channel 17`”视为 sparse `9K_Bms` 的合法早期信号，不再要求九个 lane 全部出现后才进入 9 键路径；同时保留 `.bme` 的现有 7 键兼容约定，避免回归既有 seven-key `.bme` conversion/tests。
+- `BmsFolderImporter` / `BmsBeatmapImporter` 现会保留 decoder 的 non-fatal warnings：导入成功时会额外发出一条 parser-warning 摘要通知，并把逐 chart 的 warning 详情写入日志，而不是继续静默吞掉降级解析结果。
+- 静态背景链已统一为 `STAGEFILE > BACKBMP > BANNER`：converter 的 metadata 优先级已与 `BmsBackgroundLayer` 对齐；导入期会把背景文件名规范化到实际存在的图片文件，支持常见扩展名替换；`WorkingBeatmapCache` 也会对旧 metadata 做图片扩展名 fallback；默认 `BmsBackgroundLayer` 在有当前 `WorkingBeatmap` 时会优先尝试显示真实背景贴图，而不再只显示文件名。
+- 验证：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "(FullyQualifiedName~BmsBeatmapDecoderTest|FullyQualifiedName~BmsScoreProcessorTest)"` **79/79** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter "(FullyQualifiedName~BmsBeatmapConverterTest|FullyQualifiedName~BmsImportIntegrationTest|FullyQualifiedName~BmsDrawableRulesetTest)"` **94/94** 通过；`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal` **788/788** 通过。
+
 ## 2026-05-18
 
 ### P1-I：BMS 搜索语法公开口径统一为 `rice`

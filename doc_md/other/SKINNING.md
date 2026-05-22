@@ -152,7 +152,7 @@ public sealed class MyBmsSkin : ISkin
 | --- | --- | --- |
 | `HudLayout` | `IBmsHudLayoutDisplay` | `SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)` |
 | `LaneCover` | `IBmsLaneCoverDisplay` | `SetFocused(bool isFocused)` |
-| `StaticBackgroundLayer` | `IBmsBackgroundLayerDisplay` | `SetDisplayedAssetName(string displayedAssetName)` |
+| `StaticBackgroundLayer` | `IBmsBackgroundLayerDisplay` | `SetDisplayedAssetName(string displayedAssetName)`；默认层在有当前 `WorkingBeatmap` 时还会主动尝试加载实际背景贴图，`displayedAssetName` 继续作为皮肤可消费的元数据/缺失态文案 |
 | `GaugeHistoryPanel` | `IBmsGaugeHistoryPanelDisplay` | `SetHistory(BmsGaugeHistory? history)` |
 | `GaugeHistory` | `IBmsGaugeHistoryDisplay` | `SetHistory(BmsGaugeHistory? history)` |
 | `ResultsSummaryPanel` | `IBmsResultsSummaryPanelDisplay` | `SetSummary(BmsResultsSummaryData? summary)` |
@@ -166,6 +166,7 @@ public sealed class MyBmsSkin : ISkin
 
 - 你返回了自定义 `HudLayout`，但它没实现 `IBmsHudLayoutDisplay`，于是运行时仍然显示默认 HUD。
 - 你返回了自定义 `LaneCover`，但没实现 `SetFocused()`，于是 focus 状态根本不会传进去。
+- 你返回了自定义 `StaticBackgroundLayer`，只接了文件名文案却没自行处理真实贴图或缺失态，于是会退回成“只有标签没有图”的半成品体验。
 - 你返回了自定义判定显示，但没实现 `IAnimatableJudgement`，于是会被判定为不合格并退回默认显示。
 
 ### Step 5：按 lookup 数据做变体，不要复制一堆几乎一样的类

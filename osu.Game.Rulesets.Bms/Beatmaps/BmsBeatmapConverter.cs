@@ -94,7 +94,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             metadata.Artist = string.IsNullOrWhiteSpace(displayArtist) ? rawArtist : displayArtist;
             metadata.ArtistUnicode = metadata.Artist;
             metadata.Tags = string.Empty;
-            metadata.BackgroundFile = bmsInfo.BackgroundFile ?? bmsInfo.StageFile ?? bmsInfo.BannerFile ?? string.Empty;
+            metadata.BackgroundFile = bmsInfo.StageFile ?? bmsInfo.BackgroundFile ?? bmsInfo.BannerFile ?? string.Empty;
 
             string? chartCreator = chartMetadata.TryGetChartCreator(rawArtist);
 

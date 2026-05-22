@@ -305,6 +305,37 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestImportNormalisesStagefileToExistingImageVariant()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-background-normalise-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string importRoot = Path.Combine(storage.GetFullPath("."), "background-normalise", Guid.NewGuid().ToString("N"));
+
+            Directory.CreateDirectory(importRoot);
+            File.WriteAllText(Path.Combine(importRoot, "chart.bms"), @"
+#TITLE Filesystem Test
+#ARTIST OMS
+#BPM 150
+#PLAYLEVEL 12
+#STAGEFILE stage.bmp
+#00111:AA00
+");
+            File.WriteAllText(Path.Combine(importRoot, "stage.png"), "placeholder");
+
+            var importer = new BmsFolderImporter(storage, realm);
+            var result = await importer.Import(new ImportTask(importRoot)).ConfigureAwait(false);
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            result.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.That(set.Beatmaps.Single().Metadata.BackgroundFile, Is.EqualTo("stage.png"));
+            });
+        }
+
+        [Test]
         public async Task TestExternalDirectoryRegistrationUsesSourceDirectoryReadOnly()
         {
             using var storage = new TemporaryNativeStorage($"bms-external-readonly-{Guid.NewGuid():N}");
@@ -554,6 +585,42 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(progress.CompletionText.ToString(), Is.EqualTo("Imported 1 BMS set!"));
                 Assert.That(warning.Text.ToString(), Does.StartWith("Imported with warnings. Skipped BMS files:"));
                 Assert.That(warning.Text.ToString(), Does.Contain("b.bms"));
+                Assert.That(notifications.OfType<SimpleErrorNotification>(), Is.Empty);
+                Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(set => !set.DeletePending)), Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task TestBeatmapImporterPostsParserWarningSummaryForDegradedChart()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-importer-parser-warning-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+            using var archiveStream = createArchiveStream(("Pack/song/chart.bms", @"#TITLE Warning Chart
+#RANDOM 2
+#IF 2
+#00112:AA00
+#ENDIF
+#ENDRANDOM
+#00111:BB00
+"));
+
+            var importer = new BmsBeatmapImporter(storage, realm);
+            var notifications = new List<Notification>();
+            importer.PostNotification = notifications.Add;
+
+            await importer.Import(new[] { new ImportTask(archiveStream, "warning.zip") }).ConfigureAwait(false);
+
+            var progress = notifications.OfType<ProgressNotification>().Single();
+            var warning = notifications.OfType<SimpleNotification>().Single(notification => notification is not SimpleErrorNotification);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(progress.State, Is.EqualTo(ProgressNotificationState.Completed));
+                Assert.That(progress.CompletionText.ToString(), Is.EqualTo("Imported 1 BMS set!"));
+                Assert.That(warning.Text.ToString(), Does.StartWith("Imported with parser warnings. Charts affected:"));
+                Assert.That(warning.Text.ToString(), Does.Contain("chart.bms"));
+                Assert.That(warning.Text.ToString(), Does.Contain("(2)"));
                 Assert.That(notifications.OfType<SimpleErrorNotification>(), Is.Empty);
                 Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(set => !set.DeletePending)), Is.EqualTo(1));
             });

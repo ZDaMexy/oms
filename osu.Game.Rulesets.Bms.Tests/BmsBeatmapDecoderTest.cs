@@ -304,6 +304,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [TestCase("#00112:AA00\n#00116:BB00", "chart.bms", BmsKeymode.Key5K)]
         [TestCase("#00111:AA00\n#00112:BB00\n#00113:CC00\n#00114:DD00\n#00115:EE00\n#00116:FF00\n#00118:HH00\n", "chart.bme", BmsKeymode.Key7K)]
         [TestCase("#00119:II00\n", "chart.bme", BmsKeymode.Key7K)]
+        [TestCase("#00117:GG00\n", "chart.bms", BmsKeymode.Key9K_Bms)]
         [TestCase("#00111:AA00\n#00112:BB00\n#00113:CC00\n#00114:DD00\n#00115:EE00\n#00116:FF00\n#00117:GG00\n#00118:HH00\n#00119:II00\n", "chart.bms", BmsKeymode.Key9K_Bms)]
         [TestCase("#00122:AA00\n", "chart.bme", BmsKeymode.Key14K)]
         [TestCase("#00111:AA00\n", "chart.pms", BmsKeymode.Key9K_Pms)]

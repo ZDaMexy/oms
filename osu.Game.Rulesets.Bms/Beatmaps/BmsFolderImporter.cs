@@ -22,6 +22,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     public class BmsFolderImporter
     {
         public const string SONGS_STORAGE_PATH = "chartbms";
+        private static readonly string[] image_extensions = { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" };
 
         private readonly Storage storage;
         private readonly Storage songsStorage;
@@ -73,12 +74,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
 
             if (preparedBeatmapSet.BeatmapSet == null)
-                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
 
             var existing = tryReuseImportedCopy(preparedBeatmapSet.BeatmapSet);
 
             if (existing != null)
-                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
 
             string destinationPath = allocateDestinationPath(directoryReader.Name, preparedBeatmapSet.BeatmapSet.Hash);
             preparedBeatmapSet.BeatmapSet.FilesystemStoragePath = destinationPath;
@@ -86,7 +87,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             try
             {
                 copyDirectory(directoryReader, destinationPath, cancellationToken);
-                return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
             }
             catch
             {
@@ -109,7 +110,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
 
             if (preparedBeatmapSet.BeatmapSet == null)
-                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
 
             string sourcePath = normaliseExternalPath(directoryReader.GetFullPath(string.Empty));
             string rootSnapshotPath = normaliseExternalPath(rootPath);
@@ -123,14 +124,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (existing != null)
             {
                 existing.PerformWrite(set => set.ExternalLibraryRootPath = rootSnapshotPath);
-                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
             }
 
             preparedBeatmapSet.BeatmapSet.FilesystemStoragePath = sourcePath;
             preparedBeatmapSet.BeatmapSet.IsExternalFilesystemStorage = true;
             preparedBeatmapSet.BeatmapSet.ExternalLibraryRootPath = rootSnapshotPath;
 
-            return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles);
+            return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
         }
 
         private FolderImportResult registerManagedDirectory(string path, CancellationToken cancellationToken)
@@ -145,18 +146,18 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
 
             if (preparedBeatmapSet.BeatmapSet == null)
-                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
 
             string relativePath = getManagedRelativePath(directoryReader.GetFullPath(string.Empty));
             var existing = tryReuseManaged(preparedBeatmapSet.BeatmapSet, relativePath);
 
             if (existing != null)
-                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles);
+                return new FolderImportResult(existing, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
 
             preparedBeatmapSet.BeatmapSet.FilesystemStoragePath = relativePath;
             preparedBeatmapSet.BeatmapSet.IsExternalFilesystemStorage = false;
 
-            return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles);
+            return new FolderImportResult(importIntoRealm(preparedBeatmapSet.BeatmapSet, cancellationToken), preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
         }
 
         private Live<BeatmapSetInfo>? tryReuseImportedCopy(BeatmapSetInfo preparedBeatmapSet)
@@ -289,6 +290,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         {
             var beatmaps = new List<BeatmapInfo>();
             var skippedBeatmapFiles = new List<string>();
+            var importWarnings = new List<ImportWarningSummary>();
             var allKeysoundFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             string? firstPreviewFile = null;
             var beatmapFiles = reader.Filenames.Where(isTopLevelBeatmapFile)
@@ -298,7 +300,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (beatmapFiles.Length == 0)
             {
                 Logger.Log($"No BMS beatmap files found in the import source ({reader.Name}).", LoggingTarget.Database);
-                return new PreparedBeatmapSet(null, Array.Empty<string>());
+                return new PreparedBeatmapSet(null, Array.Empty<string>(), Array.Empty<ImportWarningSummary>());
             }
 
             var beatmapSet = new BeatmapSetInfo
@@ -321,7 +323,16 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 {
                     memoryStream.Position = 0;
                     var loadedBeatmap = BmsImportedBeatmapFactory.Create(memoryStream, beatmapFile);
+                    normaliseBackgroundMetadata(reader, loadedBeatmap);
                     var loadedInfo = loadedBeatmap.BeatmapInfo;
+
+                    if (loadedBeatmap.DecodedChart.Warnings.Count > 0)
+                    {
+                        importWarnings.Add(new ImportWarningSummary(beatmapFile, loadedBeatmap.DecodedChart.Warnings.Count));
+
+                        foreach (string warning in loadedBeatmap.DecodedChart.Warnings)
+                            Logger.Log($"BMS parser warning in {beatmapFile}: {warning}", LoggingTarget.Database);
+                    }
 
                     foreach (string keysoundFile in loadedBeatmap.DecodedChart.BeatmapInfo.KeysoundTable.Values)
                     {
@@ -391,7 +402,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
 
             if (!beatmaps.Any())
-                return new PreparedBeatmapSet(null, skippedBeatmapFiles);
+                return new PreparedBeatmapSet(null, skippedBeatmapFiles, importWarnings);
 
             string? detectedAudioFile = detectFullMusicFile(reader, allKeysoundFiles)
                                         ?? resolvePreviewFile(reader, firstPreviewFile);
@@ -411,7 +422,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 beatmapSet.Beatmaps.Add(beatmap);
             }
 
-            return new PreparedBeatmapSet(beatmapSet, skippedBeatmapFiles);
+            return new PreparedBeatmapSet(beatmapSet, skippedBeatmapFiles, importWarnings);
         }
 
         private void copyDirectory(DirectoryArchiveReader reader, string destinationPath, CancellationToken cancellationToken)
@@ -519,15 +530,34 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         /// </summary>
         private static string? resolvePreviewFile(DirectoryArchiveReader reader, string? previewFilename)
         {
-            if (string.IsNullOrWhiteSpace(previewFilename))
+            string[] audioExtensions = { ".mp3", ".ogg", ".flac", ".wav" };
+            return resolveReferencedFile(reader, previewFilename, audioExtensions);
+        }
+
+        private static void normaliseBackgroundMetadata(DirectoryArchiveReader reader, BmsDecodedBeatmap loadedBeatmap)
+        {
+            var decodedInfo = loadedBeatmap.DecodedChart.BeatmapInfo;
+
+            decodedInfo.StageFile = resolveReferencedFile(reader, decodedInfo.StageFile, image_extensions);
+            decodedInfo.BackgroundFile = resolveReferencedFile(reader, decodedInfo.BackgroundFile, image_extensions);
+            decodedInfo.BannerFile = resolveReferencedFile(reader, decodedInfo.BannerFile, image_extensions);
+
+            loadedBeatmap.BeatmapInfo.Metadata.BackgroundFile = decodedInfo.StageFile ?? decodedInfo.BackgroundFile ?? decodedInfo.BannerFile ?? string.Empty;
+        }
+
+        private static string? resolveReferencedFile(DirectoryArchiveReader reader, string? referencedFilename, IEnumerable<string> alternateExtensions)
+        {
+            if (!Audio.BmsKeysoundSampleInfo.TryNormaliseFilename(referencedFilename, out string? normalisedFilename))
                 return null;
 
-            string[] audioExtensions = { ".mp3", ".ogg", ".flac", ".wav" };
-            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { previewFilename };
+            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                normalisedFilename
+            };
 
-            string baseName = Path.ChangeExtension(previewFilename, null)?.ToStandardisedPath() ?? previewFilename;
+            string baseName = Path.ChangeExtension(normalisedFilename, null)?.ToStandardisedPath() ?? normalisedFilename;
 
-            foreach (string ext in audioExtensions)
+            foreach (string ext in alternateExtensions)
                 candidates.Add(baseName + ext);
 
             foreach (string filename in reader.Filenames)
@@ -547,10 +577,26 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             public IReadOnlyList<string> SkippedBeatmapFiles { get; }
 
-            public FolderImportResult(Live<BeatmapSetInfo>? importedBeatmapSet, IReadOnlyList<string> skippedBeatmapFiles)
+            public IReadOnlyList<ImportWarningSummary> ImportWarnings { get; }
+
+            public FolderImportResult(Live<BeatmapSetInfo>? importedBeatmapSet, IReadOnlyList<string> skippedBeatmapFiles, IReadOnlyList<ImportWarningSummary> importWarnings)
             {
                 ImportedBeatmapSet = importedBeatmapSet;
                 SkippedBeatmapFiles = skippedBeatmapFiles;
+                ImportWarnings = importWarnings;
+            }
+        }
+
+        public sealed class ImportWarningSummary
+        {
+            public string BeatmapFile { get; }
+
+            public int WarningCount { get; }
+
+            public ImportWarningSummary(string beatmapFile, int warningCount)
+            {
+                BeatmapFile = beatmapFile;
+                WarningCount = warningCount;
             }
         }
 
@@ -560,10 +606,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             public IReadOnlyList<string> SkippedBeatmapFiles { get; }
 
-            public PreparedBeatmapSet(BeatmapSetInfo? beatmapSet, IReadOnlyList<string> skippedBeatmapFiles)
+            public IReadOnlyList<ImportWarningSummary> ImportWarnings { get; }
+
+            public PreparedBeatmapSet(BeatmapSetInfo? beatmapSet, IReadOnlyList<string> skippedBeatmapFiles, IReadOnlyList<ImportWarningSummary> importWarnings)
             {
                 BeatmapSet = beatmapSet;
                 SkippedBeatmapFiles = skippedBeatmapFiles;
+                ImportWarnings = importWarnings;
             }
         }
     }

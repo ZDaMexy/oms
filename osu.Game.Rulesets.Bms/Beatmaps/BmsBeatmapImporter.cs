@@ -75,6 +75,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                     var imported = new List<Live<BeatmapSetInfo>>();
                     var skippedBeatmapFiles = new List<string>();
+                    var importWarnings = new List<BmsFolderImporter.ImportWarningSummary>();
 
                     for (int i = 0; i < preparedImport.FolderTasks.Count; i++)
                     {
@@ -92,6 +93,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                                 imported.Add(result.ImportedBeatmapSet);
 
                             skippedBeatmapFiles.AddRange(result.SkippedBeatmapFiles);
+                            importWarnings.AddRange(result.ImportWarnings);
                         }
                         catch (Exception ex)
                         {
@@ -126,6 +128,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     notification.State = ProgressNotificationState.Completed;
 
                     postSkippedFilesWarning(skippedBeatmapFiles);
+                    postImportWarnings(importWarnings);
                 }
                 catch (OperationCanceledException)
                 {
@@ -163,6 +166,32 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             {
                 Icon = FontAwesome.Solid.ExclamationTriangle,
                 Text = $"Imported with warnings. Skipped BMS files: {preview}"
+            });
+        }
+
+        private void postImportWarnings(IReadOnlyCollection<BmsFolderImporter.ImportWarningSummary> importWarnings)
+        {
+            if (importWarnings.Count == 0)
+                return;
+
+            string[] entries = importWarnings.Where(summary => !string.IsNullOrWhiteSpace(summary.BeatmapFile))
+                                             .Select(summary => $"{Path.GetFileName(summary.BeatmapFile)} ({summary.WarningCount})")
+                                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                                             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                                             .ToArray();
+
+            if (entries.Length == 0)
+                return;
+
+            string preview = string.Join(", ", entries.Take(5));
+
+            if (entries.Length > 5)
+                preview += $", and {entries.Length - 5} more";
+
+            postNotification?.Invoke(new SimpleNotification
+            {
+                Icon = FontAwesome.Solid.ExclamationTriangle,
+                Text = $"Imported with parser warnings. Charts affected: {preview}"
             });
         }
 

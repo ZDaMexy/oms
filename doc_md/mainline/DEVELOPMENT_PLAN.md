@@ -22,11 +22,12 @@
 - 当前已完成：1.1、1.2、1.3、1.4、1.9、1.10、1.11、1.12、1.13、1.14、1.15、1.16（共 12 步）
 - 当前进行中：1.5、1.6、1.7、1.8、1.17（共 5 步）
 - Phase 1.1 当前强制执行顺序已收敛为：**1.1.1-1.1.4 → 1.1.7-1.1.9 → 1.1.5-1.1.6 → 1.1.10-1.1.12**；也就是先冻结边界与宿主，再补 BMS playfield 抽象和默认层，之后才启动 mania OMS-owned 默认路径迁移，最后再做 partial override、上游默认皮肤退出和 release gate
-- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-I BMS 选歌筛选与搜索定制** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-J BMS gameplay runtime 性能与音频时序治理** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
+- 当前自动推进优先级顺序已重写为 Phase 1 大主线下的子主线顺序：**P1-A 产品面与 release gate** → **P1-I BMS 选歌筛选与搜索定制** → **P1-B 输入语义与硬件验收** → **P1-C 判定语义与反馈闭环补强** → **P1-J BMS gameplay runtime 性能与音频时序治理** → **P1-K BMS 解析链路治理** → **P1-D 控制器校准与诊断** → **P1-E gameplay / 长条真实谱面验校** → **P1-F 首发离线发行基线** → **P1-G 人工验收后置**；`P1-H` 继续作为存储拓扑支撑线并服务前述子线
 - `P1-H -> Song Select` 桥接专项 **BMS 外部谱库 / 内部谱库分组扩展** 已完成功能面落地：external root snapshot 持久化、shared hierarchical grouping 泛化、BMS dropdown / grouping helper 与 focused regressions 已接通；当前主线不再保留未完成的产品面任务，只保留 `P1-G` 下的手工 UI 验收与后续测试回归，不再回退到“只读当前 `ExternalLibraryConfig` 做运行时最长前缀推导”的旧思路
 - 新增 `P1-H` 内部修补专题：**BMS 难度表一致性与刷新合同收口**。该专题不重开 `1.13` / `1.15`，也不新建独立主/子线；主归属固定为 `P1-H`，`P1-A` 只记录 settings / first-run 等共享产品表面的从属影响。当前排序按 correctness 优先：`既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。
 - 新增 `P1-I` 独立子线：**BMS 选歌筛选与搜索定制**。该专题不并入 `P1-A` 或 `P1-H`；`P1-A` 只记录 BMS-only product surface 分支与 ruleset switch 回退，`P1-H` 只记录 RC/LN/SCR persisted read-model / backfill authority。首轮执行顺序固定为：`read-model 建模` → `ruleset criteria / custom search` → `BMS-only FilterControl UI` → `focused regression`；其中 `I3` 当前已进一步冻结为“单轨 `RC/LN/SCR` 三个上限段 + 尾段空白容差”，不得把三条独立 range slider 当作最终交付。
 - 新增 `P1-J` 独立子线：**BMS gameplay runtime 性能与音频时序治理**。该专题不并入 `P1-C` 或 `P1-E`；`P1-C` 继续负责判定/反馈语义与回归守门，`P1-E` 继续负责真实谱面验校与手工 checklist，`P1-J` 则单独拥有 `BmsKeysoundStore`、`BmsLane`、`BmsOrderedHitPolicy` 以及 dense-chart audio hot path 的优化 authority。首轮执行顺序固定为：`keysound timing hardening` → `lane/order hot path scan 收口` → `sample allocation tightening` → `live channel reconfigure safety` → `focused validation`；不得把它扩成泛化性能愿望单。
+- 新增 `P1-K` 独立子线：**BMS 解析链路治理**。该专题不并入 `P1-H`、`P1-J` 或 `P1-E`；`P1-H` 继续负责存储拓扑、导入/重扫与 persisted metadata 一致性，`P1-J` 继续负责 gameplay runtime hot path，`P1-E` 继续负责真实谱面验校，而 `P1-K` 单独拥有 `BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、`BmsBeatmapConverter` 与 parse-side projection reuse 的 authority。首轮执行顺序固定为：`raw/typed 双层模型冻结` → `header/definition/channel no-loss coverage` → `timeline/control-event semantics` → `parse-once/project-many 复用` → `focused validation 与缓存边界`；不得把它写成泛化兼容愿望单或再次分散到 consumer 侧 ad hoc parse。
 - 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
@@ -34,7 +35,7 @@
 - 本轮已明确归线：**BMS 结果页反馈面收口** 归属 `P1-C`。当前只在现有 lazer results 骨架内继续推进 `DJ LEVEL` / `EX-SCORE` 语义统一、results summary 与 feedback panel 收口，以及低风险布局贴近；不单独开启高风险的 beatoraja 风格整页重构
 - 新增 `P1-A / P1-C` 交叉主子线：**皮肤设计边界与绿色数字 / Mod 联动专题**。该专题先冻结 BMS HUD / skin boundary 与 runtime feedback contract，再推进常驻 GN 显示、`Sudden / Hidden / Lift` 联动反馈，以及后续 `FAST/SLOW` / judge display / visual timing-offset / pacemaker 的统一承载；详细拆解见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)
 - 需要人工操作的 1.5 真实导入/UI 验收与发行物实机验证统一记录在 `DEVELOPMENT_STATUS.md` 的独立板块，默认放在 Phase 1 阶段末尾或出现阻塞时再执行
-- 当前代码规模（2026-04-25 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **167 个源文件**；`oms.Input` **15** 个源文件（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **58** 个测试源文件。最近一次完整项目级回归为 BMS **774/774**（2026-05-16）与 mania **761/761**（2026-04-24）；其后 `P1-J` 还补充验证了 BMS replay-focused **7/7**、autoplay/composed replay **11/11**、autoplay-facing **4/4** 与 keysound-neighbour **9/9**，`osu.Desktop` Release 构建最近一次也已于 2026-05-18 通过。
+- 当前代码规模（2026-04-25 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **167 个源文件**；`oms.Input` **15** 个源文件（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **58** 个测试源文件。最近一次完整项目级回归为 BMS **788/788**（2026-05-22）与 mania **761/761**（2026-04-24）；其后 `P1-J` 还保留了 BMS replay-focused **7/7**、autoplay/composed replay **11/11**、autoplay-facing **4/4** 与 keysound-neighbour **9/9** 的专项基线，`osu.Desktop` Release 构建最近一次也已于 2026-05-18 通过。
 
 ## Phase 1.x 大主线下的子主线编排
 
@@ -47,6 +48,7 @@
 | **P1-B 输入语义与硬件验收** | 1.17 | 收口 analog scratch / cross-device trigger / HID 真实语义 | keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 语义、mixed-source runtime、真实硬件覆盖 | 非阻塞的新输入后端扩张 | scratch bridge 回归稳定，真实 HID 手工验收可执行 |
 | **P1-C 判定语义与反馈闭环** | 1.9、2.1、2.5 的前置收口 | 收口 BRJ / LR2 parity、BMS 训练反馈、权威绿色数字 / 调速反馈与结果反馈面 | judgerank、early/late 非对称窗口、judge-family Empty Poor、FAST/SLOW、judge display、BMS visual timing-offset、EX pacemaker、DJ LEVEL / EX-SCORE 结果页反馈收口、权威绿色数字 HUD、`Sudden / Hidden / Lift` adjustment feedback、pre-start 1 号普通轨纯视觉流速预览 | dan / class / FHS 正式实现 | judge windows、tail release、score bucket、Song Select / gameplay / results 反馈链稳定 |
 | **P1-J BMS gameplay runtime 性能与音频时序治理** | verified hot-path repair slice | 收口 keysound 播放时序、dense-chart 按键热路径、shared audio pool live reconfigure 风险 | `BmsKeysoundStore` same-frame playback、`BmsLane` / `BmsOrderedHitPolicy` 热路径裁剪、sample allocation tightening、safe channel resize、dense-chart focused validation | 全局音频后端替换、Phase 2 功能偷渡、泛仓库“顺手调优” | dense-chart keysound timing 稳定、empty-poor 语义不回归、live channel resize 不再无提示硬切音 |
+| **P1-K BMS 解析链路治理** | parse-chain correctness / reuse slice | 收口 decoder、normalized chart model、converter 语义、调用复用与解析侧缓存边界 | raw/typed 双层模型、SCROLL/negative BPM/duplicate channel line 等 no-loss coverage、同拍位 control-event 顺序、parse-once/project-many projection、focused decoder/converter/importer validation | 重新改写存储拓扑、偷渡 runtime 热路径治理、consumer 自行 ad hoc parse、提前宣称完整特效播放 | 解析层不丢未来事件数据，consumer 共享同一 parse projection，converter 语义与 focused 回归稳定 |
 | **P1-D 控制器校准与诊断** | 1.17 后续产品面 | 提供 deadzone / sensitivity / scratch 模式说明 / diagnostics UI | diagnostics、live capture 扩展、校准 UI、控制器说明文案 | 与当前设备无关的新模式或新硬件抽象 | 常见 IIDX/BMS 控制器可在 UI 内完成基础诊断 |
 | **P1-E gameplay 与长条真实谱面验校** | 1.6、1.7 | 用真实谱面收口 LN/CN/HCN 与 gameplay 边角语义 | 长条边界、HUD 最小必要补强、真实谱面 gameplay 边角、真实谱面验校 | BSS / MSS、Phase 2 键模式扩张 | LN/CN/HCN 真实谱面 checklist 收口 |
 | **P1-F 首发离线发行基线** | 离线发行基线、portable 验收 | 维持 `portable.ini -> data/`、在线更新关闭、覆盖更新可执行与公开 release gate 稳定 | 便携发布、覆盖更新、离线发布口径、公开发行门槛 | 借发行名义恢复在线安装/在线更新 | portable publish 实机通过，公开发行约束可对外复述 |
@@ -56,7 +58,7 @@
 ### 子主线执行规则
 
 1. **所有任务先归线，再实现。** 每次开始工作时，先判断该任务属于哪条 `P1-*` 子主线；若横跨多条，只能指定一条主归属，其他影响视为从属改动。
-2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-I` 允许并行推进，因为它只触及 BMS Song Select 产品面与 search/read-model contract；`P1-B` 继续因真实设备覆盖允许并行；`P1-C` / `P1-J` / `P1-D` 在不打断 `P1-A` / `P1-I` / `P1-B` 稳定性的前提下插队收口，其中 `P1-J` 只接受已在 shared gameplay/audio hot path 上确认的缺陷或明确 validation gap，不吸收泛化性能愿望单。
+2. **默认只允许一条主交付线 + 少量支撑线并行。** 现阶段主交付线是 `P1-A`；`P1-I` 允许并行推进，因为它只触及 BMS Song Select 产品面与 search/read-model contract；`P1-B` 继续因真实设备覆盖允许并行；`P1-C` / `P1-J` / `P1-K` / `P1-D` 在不打断 `P1-A` / `P1-I` / `P1-B` 稳定性的前提下插队收口，其中 `P1-J` 只接受已在 shared gameplay/audio hot path 上确认的缺陷或明确 validation gap，不吸收泛化性能愿望单，`P1-K` 则只接受解析语义、projection reuse 与 parse-side cache 相关工作，不吸收 runtime 每帧热路径或存储拓扑改造。
 3. **`首次启动向导` / `Run setup wizard` 这类共享 onboarding surface 默认归 `P1-A`。** 若页面只是复用现有 `ExternalLibrarySettings`、`InternalLibrarySettings` 或 keybinding subsection，则 `P1-H` / `P1-B` 只记从属影响，不因此新开子线。
 4. **Phase 2 不得反向吞并 Phase 1.x。** 除已先行落地的 `A-SCR` / `A-NOT` / `BmsModAutoplay` / `Mirror` / `Random` 外，`1P/2P flip`、`dan`、`FHS`、BSS / MSS、全键模式扩张仍属于后续能力，不得以“顺手实现”名义进入当前主交付。
 5. **每条子主线必须有冻结点。** 一旦某条子主线达到“稳定门槛”，后续只接受回归修复或明确阻塞项，不再继续吸收无关优化。
@@ -225,6 +227,52 @@
 4. 至少补齐一轮 focused automated coverage 与 Release build；后续 dense-chart / BGM layering 实机 checklist 继续挂在 `P1-G`。
 
 专题详细计划、状态与约束见 [../subline/P1-J/DEVELOPMENT_PLAN.md](../subline/P1-J/DEVELOPMENT_PLAN.md)、[../subline/P1-J/DEVELOPMENT_STATUS.md](../subline/P1-J/DEVELOPMENT_STATUS.md)、[../subline/P1-J/TECHNICAL_CONSTRAINTS.md](../subline/P1-J/TECHNICAL_CONSTRAINTS.md)。
+
+### P1-K 当前新增子线：BMS 解析链路治理
+
+该专题不并入 `P1-H`、`P1-J` 或 `P1-E`。`P1-H` 拥有存储拓扑、导入/重扫与 persisted metadata 一致性；`P1-J` 拥有 gameplay runtime hot path 与音频时序；`P1-E` 拥有真实谱面验校与人工 checklist。当前真正缺少的是一条明确拥有 **解析模型、转换语义、调用复用与解析侧缓存边界** 的子线：如果继续把这部分工作散挂到 importer、Song Select、gameplay 或未来特效层，后续只会重复长出第二套 parse truth。
+
+当前代码已经提供了建线基础：`BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、`BmsBeatmapConverter` 与 `BmsImportedBeatmapFactory` 已形成一条可工作的 parse → convert → import 主链，原始 chart 文件也仍保留在文件系统存储中；但只读审查同时确认了几类仍未冻结的 authority gap，例如 `SCROLLxx/SC` 不进当前模型、signed BPM typed surface 不可表示、duplicate channel line 未 compound、同拍位 `BPM/STOP/object` 顺序未按参考语义冻结，以及 BGA layer / mine / invisible note 仍缺最薄 typed slot。若不先把这些 parse-chain contract 收口，后续播放期优化、真实谱面验校与特效谱支持都会建立在不完整的中间模型上。
+
+**目标：**
+
+1. 建立 raw source snapshot + normalized chart model 的双层 authority，确保未来未消费事件也不会在 decode 阶段丢失。
+2. 收口 header / definition / channel 的 no-loss coverage，至少覆盖 `SCROLL`、signed BPM、duplicate channel line 与未来视觉事件预留槽位。
+3. 冻结 converter 的时间轴与 control-event 语义，让同拍位 `BPM/STOP/object` 与 long-note 编码边界拥有单一 authority。
+4. 把 importer、raw working beatmap、Song Select、gameplay 与未来特效层统一到同一份 parse projection，而不是各自重新读谱面文本。
+5. 把解析侧性能工作限制在 `parse once / project many`、lazy projection 与 cache invalidation，不再把 consumer 自行重 parse 当成默认扩展方式。
+
+**主归线与从属影响：**
+
+1. 主归属固定为 `P1-K`，因为 authority 在 decoder、normalized chart model、converter 语义与 parse-side projection reuse；这些都不是 `P1-H` 的 persisted metadata authority，也不是 `P1-J` 的 runtime hot-path authority。
+2. `P1-H` 只承接 storage / importer / reuse / persisted metadata 侧的从属影响，不拥有第二套 parse semantics。
+3. `P1-J` 只消费 `P1-K` 产出的 normalized snapshot 或投影，不再为 dense-chart / autoplay 路径长出 second parser。
+4. `P1-E` 只承接真实谱面 checklist 与人工验校，负责验证 `P1-K` 语义是否足够服务真实 chart，不负责重新定义 parse model。
+5. `P1-C` 只在新的 parse event 直接驱动 feedback family 时记录从属影响，不拥有 parse-chain authority。
+
+**执行批次：**
+
+1. **raw / typed 双层模型冻结**：明确 raw source snapshot、typed event surface 与 consumer projection 的三层术语和 ownership。
+2. **header / definition / channel no-loss coverage**：补齐 `SCROLLxx/SC`、unknown header/definition bag、duplicate channel line source order 与 compound/overwrite 语义。
+3. **timeline / control-event semantics**：冻结 signed BPM、STOP、measure length、同拍位 control-event 顺序与 long-note encoding 最小表达。
+4. **parse-once / project-many 复用**：让 importer、raw wrapper、Song Select、gameplay、未来视觉层共享同一 parse snapshot 或等价缓存。
+5. **focused validation 与缓存边界**：补齐 decoder / converter / importer focused regressions，并在 source identity、projection invalidation 与 lazy materialization 上建立稳定 cache contract。
+
+**明确不做：**
+
+1. 不借本专题改写存储拓扑、外部谱库扫描或 persisted metadata product surface；这些仍归 `P1-H`。
+2. 不借本专题继续处理 gameplay runtime 每帧热路径、audio backend 或 dense autoplay hitch；这些仍归 `P1-J`。
+3. 不在当前阶段承诺完整特效播放实现；首轮只要求解析层保数、typed slot 预留与 projection 可消费。
+4. 不允许 importer、Song Select、gameplay 或未来视觉层继续各自长出 ad hoc text parser 作为长期方案。
+
+**完成条件：**
+
+1. 解析层具备 no-loss raw snapshot 与可扩展 typed surface，未来视觉/特效事件不会在 decode 阶段直接丢失。
+2. `SCROLL`、signed BPM、duplicate channel line 与同拍位 control-event 顺序都拥有明确合同，而不是继续依赖 consumer 猜测。
+3. importer、raw working beatmap、Song Select、gameplay 与后续视觉层共享同一 parse projection 或 cache，不再重复 ruleset conversion / text parse。
+4. focused decoder / converter / importer regressions 与 Release build 通过后，`P1-K` 才能从 planning-only 进入代码落地。
+
+专题详细计划、状态与约束见 [../subline/P1-K/DEVELOPMENT_PLAN.md](../subline/P1-K/DEVELOPMENT_PLAN.md)、[../subline/P1-K/DEVELOPMENT_STATUS.md](../subline/P1-K/DEVELOPMENT_STATUS.md)、[../subline/P1-K/TECHNICAL_CONSTRAINTS.md](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)。
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
@@ -539,7 +587,7 @@
 2. BmsPlayfield — 继承 ScrollingPlayfield，注册车道
 3. BmsScratchLane — scratch 车道渲染（加宽）
 4. 小节线渲染——读取 MeasureLengthControlPoints 计算位置
-5. BmsBackgroundLayer — 预留渲染槽 + 静态 #STAGEFILE 显示
+5. BmsBackgroundLayer — 预留渲染槽 + 静态 `#STAGEFILE / #BACKBMP / #BANNER` 展示链
 6. 音符 Drawable 绑定——BmsHitObject/BmsHoldNote → 车道内可视元素
 7. 滚动速度——接通基于 timing points 的 scroll-time 链路（后续已演化为 BMS ruleset-local Hi-Speed surface）
 

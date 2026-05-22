@@ -26,6 +26,7 @@ using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Skinning;
 using osu.Game.Storyboards;
+using osu.Game.Utils;
 
 namespace osu.Game.Beatmaps
 {
@@ -159,6 +160,8 @@ namespace osu.Game.Beatmaps
 
         private class BeatmapManagerWorkingBeatmap : WorkingBeatmap
         {
+            private static readonly string[] background_extensions = { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" };
+
             [NotNull]
             private readonly IBeatmapResourceProvider resources;
             private readonly IReadOnlyList<ICustomBeatmapLoader> customBeatmapLoaders;
@@ -251,12 +254,13 @@ namespace osu.Game.Beatmaps
 
                 try
                 {
-                    string fileStorePath = resolveStoragePath(Metadata.BackgroundFile);
-                    var texture = fileStorePath != null ? store.Get(fileStorePath) : null;
+                    var attemptedPaths = new List<string>();
+                    var texture = tryLoadBackgroundTexture(store, attemptedPaths);
 
                     if (texture == null)
                     {
-                        Logger.Log($"Beatmap background failed to load (file {Metadata.BackgroundFile} not found on disk at expected location {fileStorePath}).");
+                        string attempted = attemptedPaths.Count > 0 ? string.Join(", ", attemptedPaths) : "<invalid path>";
+                        Logger.Log($"Beatmap background failed to load (file {Metadata.BackgroundFile} not found on disk at expected location {attempted}).");
                         return null;
                     }
 
@@ -398,13 +402,63 @@ namespace osu.Game.Beatmaps
 
             private string resolveStoragePath(string filename)
             {
-                if (string.IsNullOrEmpty(filename))
+                if (string.IsNullOrWhiteSpace(filename) || FilesystemSanityCheckHelpers.IncursPathTraversalRisk(filename))
+                    return null;
+
+                string standardisedPath = filename.ToStandardisedPath().Trim('/');
+
+                if (string.IsNullOrWhiteSpace(standardisedPath))
                     return null;
 
                 if (!string.IsNullOrEmpty(BeatmapSetInfo.FilesystemStoragePath))
-                    return filename.ToStandardisedPath();
+                    return standardisedPath;
 
-                return BeatmapSetInfo.GetPathForFile(filename);
+                return BeatmapSetInfo.GetPathForFile(standardisedPath);
+            }
+
+            private Texture tryLoadBackgroundTexture(TextureStore store, ICollection<string> attemptedPaths)
+            {
+                foreach (string lookupPath in enumerateBackgroundLookupPaths())
+                {
+                    attemptedPaths.Add(lookupPath);
+
+                    if (store.Get(lookupPath) is Texture texture)
+                        return texture;
+                }
+
+                return null;
+            }
+
+            private IEnumerable<string> enumerateBackgroundLookupPaths()
+            {
+                if (string.IsNullOrWhiteSpace(Metadata?.BackgroundFile))
+                    yield break;
+
+                var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (string candidate in enumerateBackgroundLookupPathCandidates(Metadata.BackgroundFile))
+                {
+                    if (seenPaths.Add(candidate))
+                        yield return candidate;
+                }
+            }
+
+            private IEnumerable<string> enumerateBackgroundLookupPathCandidates(string filename)
+            {
+                string exactPath = resolveStoragePath(filename);
+
+                if (!string.IsNullOrWhiteSpace(exactPath))
+                    yield return exactPath;
+
+                string baseName = Path.ChangeExtension(filename, null)?.ToStandardisedPath() ?? filename.ToStandardisedPath();
+
+                foreach (string ext in background_extensions)
+                {
+                    string candidate = resolveStoragePath(baseName + ext);
+
+                    if (!string.IsNullOrWhiteSpace(candidate))
+                        yield return candidate;
+                }
             }
 
             private string getMainStoryboardFilename(IBeatmapMetadataInfo metadata)

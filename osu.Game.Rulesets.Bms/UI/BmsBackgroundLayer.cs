@@ -1,9 +1,12 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Graphics.Sprites;
@@ -45,7 +48,11 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private FillFlowContainer labelContainer = null!;
         private OsuSpriteText assetLabel = null!;
+        private Sprite backgroundSprite = null!;
         private string displayedAssetName = string.Empty;
+
+        [Resolved(CanBeNull = true)]
+        private IBindable<WorkingBeatmap>? workingBeatmap { get; set; }
 
         public DefaultBmsBackgroundLayerDisplay()
         {
@@ -57,6 +64,12 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             InternalChildren = new Drawable[]
             {
+                backgroundSprite = new Sprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    FillMode = FillMode.Fill,
+                    Alpha = 0,
+                },
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -114,6 +127,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
             };
 
+            workingBeatmap?.BindValueChanged(_ => updateDisplay());
             updateDisplay();
         }
 
@@ -129,6 +143,13 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             bool hasDisplayedAsset = !string.IsNullOrWhiteSpace(displayedAssetName);
+            var background = workingBeatmap?.Value?.GetBackground();
+
+            if (backgroundSprite != null)
+            {
+                backgroundSprite.Texture = background;
+                backgroundSprite.Alpha = background != null ? 0.32f : 0;
+            }
 
             labelContainer.Alpha = hasDisplayedAsset ? 0.85f : 0.45f;
             assetLabel.Text = hasDisplayedAsset ? displayedAssetName : "No STAGEFILE/BACKBMP";
