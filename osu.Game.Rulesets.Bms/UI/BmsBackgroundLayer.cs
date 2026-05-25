@@ -29,7 +29,7 @@ namespace osu.Game.Rulesets.Bms.UI
         public BmsBackgroundLayer(BmsBeatmapInfo? beatmapInfo)
             : base(new BmsSkinComponentLookup(BmsSkinComponents.StaticBackgroundLayer), _ => new DefaultBmsBackgroundLayerDisplay())
         {
-            DisplayedAssetName = beatmapInfo?.StageFile ?? beatmapInfo?.BackgroundFile ?? beatmapInfo?.BannerFile ?? string.Empty;
+            DisplayedAssetName = beatmapInfo?.GetPreferredBackgroundAssetReference() ?? string.Empty;
 
             RelativeSizeAxes = Axes.Both;
             CentreComponent = false;
@@ -110,14 +110,14 @@ namespace osu.Game.Rulesets.Bms.UI
                                     {
                                         Anchor = Anchor.Centre,
                                         Origin = Anchor.Centre,
-                                        Text = "STAGEFILE / BACKBMP",
+                                        Text = "STAGEFILE / BACKBMP / BGA",
                                         Colour = BmsDefaultPlayfieldPalette.MetadataLabel,
                                     },
                                     assetLabel = new OsuSpriteText
                                     {
                                         Anchor = Anchor.Centre,
                                         Origin = Anchor.Centre,
-                                        Text = "No STAGEFILE/BACKBMP",
+                                        Text = "No STAGEFILE/BACKBMP/BGA",
                                         Colour = BmsDefaultPlayfieldPalette.MetadataMissing,
                                     }
                                 }
@@ -152,7 +152,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             labelContainer.Alpha = hasDisplayedAsset ? 0.85f : 0.45f;
-            assetLabel.Text = hasDisplayedAsset ? displayedAssetName : "No STAGEFILE/BACKBMP";
+            assetLabel.Text = hasDisplayedAsset ? displayedAssetName : "No STAGEFILE/BACKBMP/BGA";
             assetLabel.Colour = hasDisplayedAsset ? BmsDefaultPlayfieldPalette.MetadataAsset : BmsDefaultPlayfieldPalette.MetadataMissing;
         }
     }

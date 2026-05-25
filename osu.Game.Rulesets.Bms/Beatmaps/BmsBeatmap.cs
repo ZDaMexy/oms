@@ -31,7 +31,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public override IEnumerable<BeatmapStatistic> GetStatistics()
         {
-            var filterStats = BmsChartFilterStats.FromBeatmap(this);
+            var filterStats = BeatmapInfo.Metadata.GetChartFilterStats();
+
+            if (filterStats == null)
+            {
+                filterStats = BmsChartFilterStats.FromBeatmap(this);
+                BeatmapInfo.Metadata.SetChartFilterStats(filterStats);
+            }
+
             int sum = Math.Max(1, filterStats.TotalPlayableObjectCount);
 
             return new[]

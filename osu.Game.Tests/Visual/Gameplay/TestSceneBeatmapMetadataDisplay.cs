@@ -89,6 +89,30 @@ namespace osu.Game.Tests.Visual.Gameplay
             });
         }
 
+        [Test]
+        public void TestBmsLocalFallbackDisplay()
+        {
+            showMetadataForBeatmap(() => CreateWorkingBeatmap(new Beatmap
+            {
+                BeatmapInfo =
+                {
+                    Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName },
+                    Metadata = new BeatmapMetadata
+                    {
+                        Title = "Fallback Title",
+                        Artist = "Visible Artist /obj: Hidden Creator",
+                        ArtistUnicode = "Visible Artist /obj: Hidden Creator",
+                        RulesetDataJson = "{\"chart_metadata\":{\"sub_artist\":\"obj: Hidden Creator\"}}"
+                    },
+                    DifficultyName = "Fallback Difficulty",
+                    StarRating = RNG.NextDouble(0, 10),
+                }
+            }));
+
+            AddAssert("cleaned artist displayed", () => display.DisplayedArtist, () => Is.EqualTo("Visible Artist"));
+            AddAssert("fallback creator displayed", () => display.DisplayedCreator, () => Is.EqualTo("Hidden Creator"));
+        }
+
         private void showMetadataForBeatmap(Func<IWorkingBeatmap> getBeatmap)
         {
             AddStep("setup display", () =>

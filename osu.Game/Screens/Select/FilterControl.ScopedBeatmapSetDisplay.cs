@@ -8,6 +8,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
@@ -102,6 +103,9 @@ namespace osu.Game.Screens.Select
                 ScopedBeatmapSet.BindValueChanged(_ => updateState(), true);
             }
 
+            internal static RomanisableString GetDisplayedTitleRomanisable(BeatmapSetInfo beatmapSetInfo)
+                => beatmapSetInfo.GetDisplayTitleRomanisable();
+
             private void updateState()
             {
                 if (ScopedBeatmapSet.Value != null)
@@ -110,7 +114,7 @@ namespace osu.Game.Screens.Select
                     text.Clear();
                     text.AddText(SongSelectStrings.TemporarilyShowingAllBeatmapsIn);
                     text.AddText(@" ");
-                    text.AddText(ScopedBeatmapSet.Value.Metadata.GetDisplayTitleRomanisable(), t => t.Font = OsuFont.Style.Body.With(weight: FontWeight.Bold));
+                    text.AddText(GetDisplayedTitleRomanisable(ScopedBeatmapSet.Value), t => t.Font = OsuFont.Style.Body.With(weight: FontWeight.Bold));
                 }
                 else
                 {

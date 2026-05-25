@@ -94,14 +94,17 @@ namespace osu.Game.Screens.Select
 
             if (!match) return false;
 
-            match &= !criteria.Creator.HasFilter || criteria.Creator.Matches(beatmap.Metadata.Author.Username);
+            match &= !criteria.Creator.HasFilter || criteria.Creator.Matches(BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap));
 
             if (criteria.Artist.HasFilter)
             {
+                string displayArtist = BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmap);
+                string displayArtistUnicode = BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmap);
+
                 if (criteria.Artist.ExcludeTerm)
-                    match &= criteria.Artist.Matches(beatmap.Metadata.Artist) && criteria.Artist.Matches(beatmap.Metadata.ArtistUnicode);
+                    match &= criteria.Artist.Matches(displayArtist) && criteria.Artist.Matches(displayArtistUnicode);
                 else
-                    match &= criteria.Artist.Matches(beatmap.Metadata.Artist) || criteria.Artist.Matches(beatmap.Metadata.ArtistUnicode);
+                    match &= criteria.Artist.Matches(displayArtist) || criteria.Artist.Matches(displayArtistUnicode);
             }
 
             if (criteria.Title.HasFilter)

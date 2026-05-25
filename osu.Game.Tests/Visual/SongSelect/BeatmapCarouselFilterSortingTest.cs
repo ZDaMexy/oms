@@ -10,6 +10,7 @@ using NUnit.Framework;
 using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics.Carousel;
+using osu.Game.Rulesets;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Tests.Resources;
@@ -56,6 +57,55 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             Assert.That(results.Last().Metadata.Artist, Is.EqualTo(zzz_uppercase));
             Assert.That(results.SkipLast(diff_count).Last().Metadata.Artist, Is.EqualTo(zzz_lowercase));
+        }
+
+        [Test]
+        public async Task TestSortingByAuthorUsesBmsDisplayCreatorFallback()
+        {
+            var beatmapSets = new List<BeatmapSetInfo>();
+
+            var plainSet = TestResources.CreateTestBeatmapSetInfo();
+            plainSet.Beatmaps[0].Metadata.Author.Username = "AAAAA";
+            beatmapSets.Add(plainSet);
+
+            var bmsSet = TestResources.CreateTestBeatmapSetInfo();
+            var bmsBeatmap = bmsSet.Beatmaps[0];
+            bmsBeatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            bmsBeatmap.Metadata.Author.Username = string.Empty;
+            bmsBeatmap.Metadata.RulesetDataJson = "{\"chart_metadata\":{\"sub_artist\":\"obj: ZZZZZ\"}}";
+            beatmapSets.Add(bmsSet);
+
+            var results = (await runSorting(SortMode.Author, beatmapSets)).ToList();
+
+            Assert.That(results.Last(), Is.EqualTo(bmsBeatmap));
+        }
+
+        [Test]
+        public async Task TestSortingByArtistUsesBmsDisplayArtistFallback()
+        {
+            var beatmapSets = new List<BeatmapSetInfo>();
+
+            var plainSet = TestResources.CreateTestBeatmapSetInfo();
+            plainSet.Beatmaps.ForEach(beatmap =>
+            {
+                beatmap.Metadata.Artist = "Song Artist";
+                beatmap.Metadata.Title = "ZZZZZ";
+            });
+            beatmapSets.Add(plainSet);
+
+            var bmsSet = TestResources.CreateTestBeatmapSetInfo();
+            var bmsBeatmap = bmsSet.Beatmaps[0];
+            bmsSet.Beatmaps.ForEach(beatmap =>
+            {
+                beatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+                beatmap.Metadata.Artist = "Song Artist /obj: Test Charter";
+                beatmap.Metadata.Title = "AAAAA";
+            });
+            beatmapSets.Add(bmsSet);
+
+            var results = (await runSorting(SortMode.Artist, beatmapSets)).ToList();
+
+            Assert.That(results.First().BeatmapSet, Is.EqualTo(bmsBeatmap.BeatmapSet));
         }
 
         [Test]

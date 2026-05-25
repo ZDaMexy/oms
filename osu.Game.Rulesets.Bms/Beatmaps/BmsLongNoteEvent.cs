@@ -5,7 +5,7 @@ using System;
 namespace osu.Game.Rulesets.Bms.Beatmaps
 {
     /// <summary>
-    /// A resolved BMS long note produced from LNOBJ or LNTYPE 1 data.
+    /// A resolved BMS long note produced from LNOBJ or LNTYPE data.
     /// </summary>
     public readonly record struct BmsLongNoteEvent
     {

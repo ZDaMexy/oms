@@ -48,6 +48,12 @@ namespace osu.Game.Overlays.Profile.Sections.Ranks
             Height = height;
         }
 
+        internal static string GetDisplayedArtistText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+
+        internal static string GetDisplayedArtistUnicodeText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+
         [BackgroundDependencyLoader]
         private void load(RulesetStore rulesets)
         {
@@ -324,7 +330,7 @@ namespace osu.Game.Overlays.Profile.Sections.Ranks
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
-                        Text = new RomanisableString(metadata.ArtistUnicode, metadata.Artist),
+                        Text = new RomanisableString(GetDisplayedArtistUnicodeText(beatmapInfo), GetDisplayedArtistText(beatmapInfo)),
                         Font = OsuFont.GetFont(size: 12, italics: true)
                     },
                 };

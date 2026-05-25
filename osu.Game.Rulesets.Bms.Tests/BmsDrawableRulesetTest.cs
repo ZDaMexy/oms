@@ -437,6 +437,37 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestPlayfieldBackgroundLayerFallsBackToProjectedAtBgaBitmap()
+        {
+            var beatmap = createBeatmapFromText(@"
+#TITLE Drawable Stub
+#BPM 120
+#BMP01 projected.png
+#@BGA01 01 0 0 320 240 0 0
+#00101:AA00
+#WAVAA bgm.wav
+#WAVBB key1.wav
+#WAVCC keys/note.wav
+#WAVDD scratch.wav
+#WAVEE hold/head.ogg
+#WAVFF hold/tail.wav
+#00111:BB00
+#00112:CC00
+#00116:DD00
+#LNTYPE 1
+#00152:EE00FF00
+", "drawable-background-projection.bme");
+            var playfield = new BmsPlayfield(beatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playfield.BackgroundLayer, Is.Not.Null);
+                Assert.That(playfield.BackgroundLayer.HasDisplayedAsset, Is.True);
+                Assert.That(playfield.BackgroundLayer.DisplayedAssetName, Is.EqualTo("projected.png"));
+            });
+        }
+
+        [Test]
         public void TestPlayfieldCreatesSharedKeysoundStore()
         {
             var beatmap = createPlayableBeatmap();

@@ -357,6 +357,8 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private readonly BmsGaugeHistory? history;
 
+        internal BmsGaugeHistory? History => history;
+
         public SkinnableBmsGaugeHistoryPanelDisplay(BmsGaugeHistory? history)
             : base(new BmsSkinComponentLookup(BmsSkinComponents.GaugeHistoryPanel), _ => new DefaultBmsGaugeHistoryPanelDisplay())
         {

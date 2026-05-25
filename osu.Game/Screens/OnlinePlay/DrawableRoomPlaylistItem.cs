@@ -121,6 +121,12 @@ namespace osu.Game.Screens.OnlinePlay
         [Resolved(CanBeNull = true)]
         private ManageCollectionsDialog? manageCollectionsDialog { get; set; }
 
+        internal static string GetDisplayedCreatorText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
+
+        internal static bool HasLinkedDisplayedCreator(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.HasLinkedCreatorProfile(beatmapInfo);
+
         public DrawableRoomPlaylistItem(PlaylistItem item, bool loadImmediately = false)
             : base(item)
         {
@@ -345,10 +351,16 @@ namespace osu.Game.Screens.OnlinePlay
             {
                 authorText.Clear();
 
-                if (!string.IsNullOrEmpty(beatmap?.Metadata.Author.Username))
+                string displayCreator = beatmap == null ? string.Empty : GetDisplayedCreatorText(beatmap);
+
+                if (!string.IsNullOrEmpty(displayCreator))
                 {
                     authorText.AddText("mapped by ");
-                    authorText.AddUserLink(beatmap.Metadata.Author);
+
+                    if (beatmap != null && HasLinkedDisplayedCreator(beatmap))
+                        authorText.AddUserLink(beatmap.Metadata.Author);
+                    else
+                        authorText.AddText(displayCreator);
                 }
             }
 

@@ -29,8 +29,11 @@ namespace osu.Game.Screens.Select
                 ? beatmapSet.FilesystemStoragePath!
                 : DeleteConfirmationContentStrings.InternalBeatmapManagedStoragePath;
 
-            BodyText = LocalisableString.Interpolate($"{beatmapSet.Metadata.GetDisplayTitleRomanisable(false)}\n\n{DeleteConfirmationContentStrings.BeatmapSource(source)}\n{DeleteConfirmationContentStrings.BeatmapDeleteAction(deleteAction)}\n{DeleteConfirmationContentStrings.BeatmapStoragePath(storagePath)}");
+            BodyText = LocalisableString.Interpolate($"{GetDisplayedTitleRomanisable(beatmapSet)}\n\n{DeleteConfirmationContentStrings.BeatmapSource(source)}\n{DeleteConfirmationContentStrings.BeatmapDeleteAction(deleteAction)}\n{DeleteConfirmationContentStrings.BeatmapStoragePath(storagePath)}");
         }
+
+        internal static RomanisableString GetDisplayedTitleRomanisable(BeatmapSetInfo beatmapSetInfo)
+            => beatmapSetInfo.GetDisplayTitleRomanisable(includeCreator: false);
 
         [BackgroundDependencyLoader]
         private void load(BeatmapManager beatmapManager)

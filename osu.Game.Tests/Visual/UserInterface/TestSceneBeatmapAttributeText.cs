@@ -90,6 +90,30 @@ namespace osu.Game.Tests.Visual.UserInterface
         }
 
         [Test]
+        public void TestBmsAttributeDisplayUsesLocalFallback()
+        {
+            AddStep("set bms beatmap", () => Beatmap.Value = CreateWorkingBeatmap(new TestBeatmap(new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName })
+            {
+                BeatmapInfo =
+                {
+                    Metadata =
+                    {
+                        Artist = "Visible Artist /obj: Hidden Creator",
+                        ArtistUnicode = "Visible Artist /obj: Hidden Creator",
+                        Author = new RealmUser { Username = string.Empty },
+                        RulesetDataJson = "{\"chart_metadata\":{\"sub_artist\":\"obj: Hidden Creator\"}}"
+                    }
+                }
+            }));
+
+            AddStep("set artist attribute", () => text.Attribute.Value = BeatmapAttribute.Artist);
+            AddAssert("check cleaned artist", getText, () => Is.EqualTo("Artist: Visible Artist"));
+
+            AddStep("set creator attribute", () => text.Attribute.Value = BeatmapAttribute.Creator);
+            AddAssert("check fallback creator", getText, () => Is.EqualTo("Creator: Hidden Creator"));
+        }
+
+        [Test]
         public void TestChangeBeatmap()
         {
             AddStep("set title attribute", () => text.Attribute.Value = BeatmapAttribute.Title);

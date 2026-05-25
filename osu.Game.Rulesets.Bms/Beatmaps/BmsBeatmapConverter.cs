@@ -94,7 +94,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             metadata.Artist = string.IsNullOrWhiteSpace(displayArtist) ? rawArtist : displayArtist;
             metadata.ArtistUnicode = metadata.Artist;
             metadata.Tags = string.Empty;
-            metadata.BackgroundFile = bmsInfo.StageFile ?? bmsInfo.BackgroundFile ?? bmsInfo.BannerFile ?? string.Empty;
+            metadata.BackgroundFile = bmsInfo.GetPreferredBackgroundAssetReference() ?? string.Empty;
 
             string? chartCreator = chartMetadata.TryGetChartCreator(rawArtist);
 
@@ -181,6 +181,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var stopEventsByKey = decodedChart.StopEvents
                                               .GroupBy(toKey)
                                               .ToDictionary(group => group.Key, group => (IReadOnlyList<BmsStopEvent>)group.ToList());
+            var scrollEventsByKey = decodedChart.ScrollEvents
+                                                .GroupBy(toKey)
+                                                .ToDictionary(group => group.Key, group => (IReadOnlyList<BmsScrollEvent>)group.ToList());
 
             int maxMeasureIndex = 0;
 
@@ -192,6 +195,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }));
             register(decodedChart.BpmChangeEvents.Select(toKey));
             register(decodedChart.StopEvents.Select(toKey));
+            register(decodedChart.ScrollEvents.Select(toKey));
 
             double currentTime = 0;
             double currentBpm = getInitialBpm(decodedChart);
@@ -217,7 +221,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                             currentTime += fractionDelta * beatsPerMeasure * getBeatLength(currentBpm);
 
                         var key = new BmsEventTimeKey(measureIndex, fraction);
-                        eventTimes[key] = currentTime;
 
                         if (bpmEventsByKey.TryGetValue(key, out var bpmEvents))
                         {
@@ -242,6 +245,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                                 addTimingControlPoint(controlPointInfo, currentTime, currentBpm);
                             }
                         }
+
+                        if (scrollEventsByKey.TryGetValue(key, out var scrollEvents))
+                        {
+                            foreach (var scrollEvent in scrollEvents)
+                                addEffectControlPoint(controlPointInfo, currentTime, scrollEvent.ScrollValue);
+                        }
+
+                        eventTimes[key] = currentTime;
 
                         previousFraction = fraction;
                     }
@@ -273,6 +284,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static BmsEventTimeKey toKey(BmsStopEvent stopEvent) => new BmsEventTimeKey(stopEvent.MeasureIndex, stopEvent.FractionWithinMeasure);
 
+        private static BmsEventTimeKey toKey(BmsScrollEvent scrollEvent) => new BmsEventTimeKey(scrollEvent.MeasureIndex, scrollEvent.FractionWithinMeasure);
+
         private static BmsKeysoundSampleInfo? createKeysoundSample(BmsBeatmapInfo beatmapInfo, int? keysoundId)
         {
             if (!keysoundId.HasValue)
@@ -285,17 +298,20 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static double getInitialBpm(BmsDecodedChart decodedChart)
         {
-            if (decodedChart.BeatmapInfo.InitialBpm > 0)
+            if (decodedChart.BeatmapInfo.InitialBpm != 0)
                 return decodedChart.BeatmapInfo.InitialBpm;
 
             var firstBpmEvent = decodedChart.BpmChangeEvents.FirstOrDefault();
-            return firstBpmEvent.Bpm > 0 ? firstBpmEvent.Bpm : fallback_initial_bpm;
+            return firstBpmEvent.Bpm != 0 ? firstBpmEvent.Bpm : fallback_initial_bpm;
         }
 
         private static void addTimingControlPoint(ControlPointInfo controlPointInfo, double time, double bpm)
             => controlPointInfo.Add(time, new TimingControlPoint { BeatLength = getBeatLength(bpm) });
 
-        private static double getBeatLength(double bpm) => 60000.0 / Math.Max(1, bpm);
+        private static void addEffectControlPoint(ControlPointInfo controlPointInfo, double time, double scrollSpeed)
+            => controlPointInfo.Add(time, new EffectControlPoint { ScrollSpeed = scrollSpeed });
+
+        private static double getBeatLength(double bpm) => 60000.0 / Math.Max(1, Math.Abs(bpm));
 
         private static int mapLaneIndex(BmsKeymode keymode, int channel)
         {

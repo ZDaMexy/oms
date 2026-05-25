@@ -3,8 +3,6 @@
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace osu.Game.Beatmaps
 {
@@ -60,18 +58,7 @@ namespace osu.Game.Beatmaps
         {
             starRating = default;
 
-            if (metadata == null || string.IsNullOrWhiteSpace(metadata.RulesetDataJson))
-                return false;
-
-            try
-            {
-                var root = JObject.Parse(metadata.RulesetDataJson);
-                return TryParsePlayLevel(root.SelectToken("chart_metadata.play_level")?.Value<string>(), out starRating);
-            }
-            catch (JsonException)
-            {
-                return false;
-            }
+            return TryParsePlayLevel(BmsPersistedMetadataResolver.GetChartMetadata(metadata)?.PlayLevel, out starRating);
         }
 
         public static double ResolveOrDefault(BeatmapMetadata? metadata)

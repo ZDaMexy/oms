@@ -219,6 +219,44 @@ namespace osu.Game.Tests.NonVisual.Filtering
         }
 
         [Test]
+        public void TestCriteriaMatchingCreatorUsesBmsDisplayCreatorFallback()
+        {
+            var beatmap = getExampleBeatmap();
+            beatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            beatmap.Metadata.Author.Username = string.Empty;
+            beatmap.Metadata.RulesetDataJson = "{\"chart_metadata\":{\"sub_artist\":\"obj: Test Charter\"}}";
+
+            var criteria = new FilterCriteria
+            {
+                Creator = new FilterCriteria.OptionalTextFilter { SearchTerm = "Test Charter" }
+            };
+
+            var carouselItem = new CarouselBeatmap(beatmap);
+            carouselItem.Filter(criteria);
+
+            Assert.IsFalse(carouselItem.Filtered.Value);
+        }
+
+        [Test]
+        public void TestCriteriaMatchingArtistDoesNotMatchBmsCreatorSuffix()
+        {
+            var beatmap = getExampleBeatmap();
+            beatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            beatmap.Metadata.Artist = "Test Artist /obj: Test Charter";
+            beatmap.Metadata.ArtistUnicode = "Test Artist /obj: Test Charter";
+
+            var criteria = new FilterCriteria
+            {
+                Artist = new FilterCriteria.OptionalTextFilter { SearchTerm = "Test Charter" }
+            };
+
+            var carouselItem = new CarouselBeatmap(beatmap);
+            carouselItem.Filter(criteria);
+
+            Assert.IsTrue(carouselItem.Filtered.Value);
+        }
+
+        [Test]
         [TestCase("", false)]
         [TestCase("Goes", false)]
         [TestCase("GOES", false)]

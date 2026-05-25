@@ -24,6 +24,7 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Skinning;
@@ -124,11 +125,9 @@ namespace osu.Game.Rulesets.Bms.SongSelect
 
         private BmsNoteDistributionData? computeData(WorkingBeatmap workingBeatmap, CancellationToken cancellationToken)
         {
-            var playableBeatmap = workingBeatmap.GetPlayableBeatmap(ruleset.RulesetInfo, Array.Empty<Mod>(), cancellationToken);
-            var analysis = distributionAnalyzer.Analyze(playableBeatmap, 1000, 1000);
-            var chartMetadata = playableBeatmap is BmsBeatmap bmsBeatmap
-                ? BmsChartMetadata.FromBeatmapInfo(bmsBeatmap.BmsInfo)
-                : null;
+            var analysisBeatmap = ResolveBeatmapForAnalysis(workingBeatmap, ruleset.RulesetInfo, cancellationToken);
+            var analysis = distributionAnalyzer.Analyze(analysisBeatmap, 1000, 1000);
+            var chartMetadata = analysisBeatmap.BeatmapInfo.Metadata.GetChartMetadata();
 
             return new BmsNoteDistributionData(
                 analysis.Windows.Select(window => new BmsNoteDistributionBucket(window.StartTime, window.WeightedNoteCount, window.NormalCount, window.ScratchCount, window.LnCount)).ToArray(),
@@ -138,6 +137,19 @@ namespace osu.Game.Rulesets.Bms.SongSelect
                 analysis.PeakDensityNps,
                 analysis.PeakDensityMs,
                 chartMetadata);
+        }
+
+        internal static IBeatmap ResolveBeatmapForAnalysis(IWorkingBeatmap workingBeatmap, IRulesetInfo rulesetInfo, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(workingBeatmap);
+            ArgumentNullException.ThrowIfNull(rulesetInfo);
+
+            var sourceBeatmap = workingBeatmap.Beatmap;
+
+            if (sourceBeatmap?.HitObjects.OfType<BmsHitObject>().Any() == true)
+                return sourceBeatmap;
+
+            return workingBeatmap.GetPlayableBeatmap(rulesetInfo, Array.Empty<Mod>(), cancellationToken);
         }
 
         private void applyData(BmsNoteDistributionData data, IBeatmapInfo beatmapInfo)

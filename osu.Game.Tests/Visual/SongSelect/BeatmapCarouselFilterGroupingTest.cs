@@ -11,6 +11,7 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Graphics.Carousel;
+using osu.Game.Rulesets;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
@@ -57,6 +58,28 @@ namespace osu.Game.Tests.Visual.SongSelect
         public async Task TestGroupingByAuthor() => await testAlphabeticGroupingMode(GroupMode.Author, applyAuthor);
 
         [Test]
+        public async Task TestGroupingByAuthorUsesBmsDisplayCreatorFallback()
+        {
+            int total = 0;
+            var beatmapSets = new List<BeatmapSetInfo>();
+
+            addBeatmapSet(s =>
+            {
+                s.Beatmaps.ForEach(beatmap =>
+                {
+                    beatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+                    beatmap.Metadata.Author.Username = string.Empty;
+                    beatmap.Metadata.RulesetDataJson = "{\"chart_metadata\":{\"sub_artist\":\"obj: Test Charter\"}}";
+                });
+            }, beatmapSets, out var bmsBeatmap);
+
+            var results = await runGrouping(GroupMode.Author, beatmapSets);
+
+            assertGroup(results, 0, "T", bmsBeatmap.Beatmaps, ref total);
+            assertTotal(results, total);
+        }
+
+        [Test]
         public async Task TestGroupingByTitle() => await testAlphabeticGroupingMode(GroupMode.Title, applyTitle);
 
         private async Task testAlphabeticGroupingMode(GroupMode mode, Func<char, Action<BeatmapSetInfo>> applyBeatmap)
@@ -83,7 +106,7 @@ namespace osu.Game.Tests.Visual.SongSelect
 
         private Action<BeatmapSetInfo> applyArtist(char first)
         {
-            return s => s.Beatmaps[0].Metadata.Artist = $"{first}-artist";
+            return s => s.Beatmaps.ForEach(beatmap => beatmap.Metadata.Artist = $"{first}-artist");
         }
 
         private Action<BeatmapSetInfo> applyAuthor(char first)

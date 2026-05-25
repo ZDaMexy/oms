@@ -27,11 +27,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (fractionWithinMeasure < 0 || fractionWithinMeasure >= 1)
                 throw new ArgumentOutOfRangeException(nameof(fractionWithinMeasure), @"Fraction must be in the range [0, 1).");
 
-            if (sourceValue <= 0)
-                throw new ArgumentOutOfRangeException(nameof(sourceValue), @"Source value must be greater than zero.");
+            if (sourceValue == 0)
+                throw new ArgumentOutOfRangeException(nameof(sourceValue), @"Source value must not be zero.");
 
-            if (bpm <= 0)
-                throw new ArgumentOutOfRangeException(nameof(bpm), @"BPM must be greater than zero.");
+            if (bpm == 0)
+                throw new ArgumentOutOfRangeException(nameof(bpm), @"BPM must not be zero.");
 
             MeasureIndex = measureIndex;
             FractionWithinMeasure = fractionWithinMeasure;

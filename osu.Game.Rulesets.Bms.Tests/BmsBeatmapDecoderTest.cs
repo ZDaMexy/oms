@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
 using osu.Game.Rulesets.Bms.Beatmaps;
@@ -125,6 +126,287 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestRetainsRawChannelCarrierMetadata()
+        {
+            const string text = @"
+#00111:AA00
+#00111:BB00
+#00113:CC00DD00
+";
+
+            var result = decoder.DecodeText(text, "raw-carrier.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.RawChannelEvents, Has.Count.EqualTo(4));
+                Assert.That(result.ChannelEvents, Is.SameAs(result.RawChannelEvents));
+                Assert.That(result.RawChannelEvents[0].RawChannelToken, Is.EqualTo("11"));
+                Assert.That(result.RawChannelEvents[0].SourceLineOrder, Is.EqualTo(0));
+                Assert.That(result.RawChannelEvents[1].SourceLineOrder, Is.EqualTo(1));
+                Assert.That(result.RawChannelEvents[2].RawChannelToken, Is.EqualTo("13"));
+                Assert.That(result.RawChannelEvents[2].SourceLineOrder, Is.EqualTo(2));
+                Assert.That(result.RawChannelEvents[3].SourceLineOrder, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void TestParsesScrollDefinitionsAndKeepsUnknownHeaderBag()
+        {
+            const string text = @"
+#SCROLLAA 1.5
+#FOO BAR
+#XYZAA 42
+#001SC:AA00
+";
+
+            var result = decoder.DecodeText(text, "scroll-placeholder.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BeatmapInfo.ScrollTable[370], Is.EqualTo(1.5).Within(0.001));
+                Assert.That(result.BeatmapInfo.UnknownHeaders["FOO"], Is.EqualTo("BAR"));
+                Assert.That(result.BeatmapInfo.UnknownHeaders["XYZAA"], Is.EqualTo("42"));
+                Assert.That(result.RawChannelEvents, Has.Count.EqualTo(1));
+                Assert.That(result.RawChannelEvents[0].RawChannelToken, Is.EqualTo("SC"));
+                Assert.That(result.RawChannelEvents[0].Channel, Is.EqualTo(-1));
+                Assert.That(result.RawChannelEvents[0].RawValue, Is.EqualTo("AA"));
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.BpmChangeEvents, Is.Empty);
+                Assert.That(result.StopEvents, Is.Empty);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestParsesScrollEventsIntoTypedSurface()
+        {
+            const string text = @"
+#SCROLLAA 0.5
+#SCROLLAB 2.0
+#001SC:AAAB
+";
+
+            var result = decoder.DecodeText(text, "scroll-typed-surface.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ScrollEvents, Has.Count.EqualTo(2));
+                Assert.That(result.ScrollEvents[0].ScrollIndex, Is.EqualTo(370));
+                Assert.That(result.ScrollEvents[0].ScrollValue, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(result.ScrollEvents[0].FractionWithinMeasure, Is.EqualTo(0).Within(0.001));
+                Assert.That(result.ScrollEvents[1].ScrollIndex, Is.EqualTo(371));
+                Assert.That(result.ScrollEvents[1].ScrollValue, Is.EqualTo(2.0).Within(0.001));
+                Assert.That(result.ScrollEvents[1].FractionWithinMeasure, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(result.RawChannelEvents, Has.Count.EqualTo(2));
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.BpmChangeEvents, Is.Empty);
+                Assert.That(result.StopEvents, Is.Empty);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestScrollChannelDoesNotCollideWithOtherUnknownChannels()
+        {
+            const string text = @"
+#SCROLLAA 1.5
+#001SC:AA00
+#001ZZ:BB00
+";
+
+            var result = decoder.DecodeText(text, "scroll-unknown-collision.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.RawChannelEvents, Has.Count.EqualTo(2));
+                Assert.That(result.ScrollEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ScrollEvents[0].ScrollIndex, Is.EqualTo(370));
+                Assert.That(result.ScrollEvents[0].ScrollValue, Is.EqualTo(1.5).Within(0.001));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestParsesBgaEventsIntoTypedSurface()
+        {
+            const string text = @"
+#BMP01 base.png
+#BMP02 poor.png
+#BMP03 layer.png
+#BMP04 layer2.png
+#00104:0100
+#00106:0200
+#00107:0003
+#0010A:0004
+";
+
+            var result = decoder.DecodeText(text, "bga-typed-surface.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BgaEvents, Has.Count.EqualTo(4));
+                Assert.That(result.BgaEvents[0].Layer, Is.EqualTo(BmsBgaLayer.Base));
+                Assert.That(result.BgaEvents[0].BitmapId, Is.EqualTo(1));
+                Assert.That(result.BgaEvents[1].Layer, Is.EqualTo(BmsBgaLayer.Poor));
+                Assert.That(result.BgaEvents[1].BitmapId, Is.EqualTo(2));
+                Assert.That(result.BgaEvents[2].Layer, Is.EqualTo(BmsBgaLayer.Layer));
+                Assert.That(result.BgaEvents[2].BitmapId, Is.EqualTo(3));
+                Assert.That(result.BgaEvents[2].FractionWithinMeasure, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(result.BgaEvents[3].Layer, Is.EqualTo(BmsBgaLayer.Layer2));
+                Assert.That(result.BgaEvents[3].BitmapId, Is.EqualTo(4));
+                Assert.That(result.BgaEvents[3].FractionWithinMeasure, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestParsesRicherBgaDefinitionHeadersIntoTypedSurface()
+        {
+            const string text = @"
+#BGA01 01 0 0 255 255 16 32
+#BGA01 02 1 2 253 254 17 33
+#@BGA02 03 10 20 30 40 50 60
+#ARGB01 0,0,0,0
+#ARGB01 255,128,64,32
+#SWBGA01 100:400:16:1:255,255,255,128 01020304
+#POORBGA 0
+#POORBGA 2
+";
+
+            var result = decoder.DecodeText(text, "bga-definition-typed-surface.bme");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BeatmapInfo.BgaDefinitions, Has.Count.EqualTo(1));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].BitmapReference, Is.EqualTo("02"));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].SourceX1, Is.EqualTo(1));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].SourceY1, Is.EqualTo(2));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].SourceX2, Is.EqualTo(253));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].SourceY2, Is.EqualTo(254));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].DestinationX, Is.EqualTo(17));
+                Assert.That(result.BeatmapInfo.BgaDefinitions[1].DestinationY, Is.EqualTo(33));
+
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions, Has.Count.EqualTo(1));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].BitmapReference, Is.EqualTo("03"));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].SourceX, Is.EqualTo(10));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].SourceY, Is.EqualTo(20));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].Width, Is.EqualTo(30));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].Height, Is.EqualTo(40));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].DestinationX, Is.EqualTo(50));
+                Assert.That(result.BeatmapInfo.AtBgaDefinitions[2].DestinationY, Is.EqualTo(60));
+
+                Assert.That(result.BeatmapInfo.ArgbDefinitions, Has.Count.EqualTo(1));
+                Assert.That(result.BeatmapInfo.ArgbDefinitions[1].Alpha, Is.EqualTo(255));
+                Assert.That(result.BeatmapInfo.ArgbDefinitions[1].Red, Is.EqualTo(128));
+                Assert.That(result.BeatmapInfo.ArgbDefinitions[1].Green, Is.EqualTo(64));
+                Assert.That(result.BeatmapInfo.ArgbDefinitions[1].Blue, Is.EqualTo(32));
+
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions, Has.Count.EqualTo(1));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].FrameDurationMilliseconds, Is.EqualTo(100));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].TotalDurationMilliseconds, Is.EqualTo(400));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].LineChannel, Is.EqualTo(0x16));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].Loop, Is.True);
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].Alpha, Is.EqualTo(255));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].Red, Is.EqualTo(255));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].Green, Is.EqualTo(255));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].Blue, Is.EqualTo(128));
+                Assert.That(result.BeatmapInfo.SwBgaDefinitions[1].Pattern, Is.EqualTo("01020304"));
+
+                Assert.That(result.BeatmapInfo.PoorBgaMode, Is.EqualTo(BmsPoorBgaMode.Undisplayed));
+                Assert.That(result.BeatmapInfo.UnknownHeaders.ContainsKey("BGA01"), Is.False);
+                Assert.That(result.BeatmapInfo.UnknownHeaders.ContainsKey("@BGA02"), Is.False);
+                Assert.That(result.BeatmapInfo.UnknownHeaders.ContainsKey("ARGB01"), Is.False);
+                Assert.That(result.BeatmapInfo.UnknownHeaders.ContainsKey("SWBGA01"), Is.False);
+                Assert.That(result.BeatmapInfo.UnknownHeaders.ContainsKey("POORBGA"), Is.False);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestProjectsRicherBgaDefinitionsIntoCombinedSurface()
+        {
+            const string text = @"
+#BGA01 02 1 2 253 254 17 33
+#@BGA02 03 10 20 30 40 50 60
+#ARGB01 255,128,64,32
+#SWBGA01 100:400:16:1:255,255,255,128 01020304
+#POORBGA 2
+";
+
+            var result = decoder.DecodeText(text, "bga-definition-projection-surface.bme");
+            var projections = new List<BmsVisualDefinitionProjection>(result.BeatmapInfo.GetVisualDefinitionProjections());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projections, Has.Count.EqualTo(2));
+                Assert.That(projections[0].Index, Is.EqualTo(1));
+                Assert.That(projections[0].BgaDefinition, Is.EqualTo(new BmsBgaDefinition(1, "02", 1, 2, 253, 254, 17, 33)));
+                Assert.That(projections[0].AtBgaDefinition, Is.Null);
+                Assert.That(projections[0].ArgbDefinition, Is.EqualTo(new BmsArgbDefinition(1, 255, 128, 64, 32)));
+                Assert.That(projections[0].SwBgaDefinition, Is.EqualTo(new BmsSwBgaDefinition(1, 100, 400, 0x16, true, 255, 255, 255, 128, "01020304")));
+                Assert.That(projections[0].PoorBgaMode, Is.EqualTo(BmsPoorBgaMode.Undisplayed));
+
+                Assert.That(projections[1].Index, Is.EqualTo(2));
+                Assert.That(projections[1].BgaDefinition, Is.Null);
+                Assert.That(projections[1].AtBgaDefinition, Is.EqualTo(new BmsAtBgaDefinition(2, "03", 10, 20, 30, 40, 50, 60)));
+                Assert.That(projections[1].ArgbDefinition, Is.Null);
+                Assert.That(projections[1].SwBgaDefinition, Is.Null);
+                Assert.That(projections[1].PoorBgaMode, Is.EqualTo(BmsPoorBgaMode.Undisplayed));
+
+                Assert.That(result.BeatmapInfo.TryGetVisualDefinitionProjection(1, out BmsVisualDefinitionProjection firstProjection), Is.True);
+                Assert.That(firstProjection, Is.EqualTo(projections[0]));
+
+                Assert.That(result.BeatmapInfo.TryGetVisualDefinitionProjection(3, out _), Is.False);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestParsesInvisibleObjectEventsIntoTypedSurface()
+        {
+            const string text = @"
+#00131:AA00
+#00141:BB00
+";
+
+            var result = decoder.DecodeText(text, "invisible-typed-surface.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.InvisibleObjectEvents, Has.Count.EqualTo(2));
+                Assert.That(result.InvisibleObjectEvents[0].Channel, Is.EqualTo(0x31));
+                Assert.That(result.InvisibleObjectEvents[0].ObjectId, Is.EqualTo(370));
+                Assert.That(result.InvisibleObjectEvents[1].Channel, Is.EqualTo(0x41));
+                Assert.That(result.InvisibleObjectEvents[1].ObjectId, Is.EqualTo(407));
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestParsesMineEventsIntoTypedSurface()
+        {
+            const string text = @"
+#001D1:0A00
+#001E9:ZZ00
+";
+
+            var result = decoder.DecodeText(text, "mine-typed-surface.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.MineEvents, Has.Count.EqualTo(2));
+                Assert.That(result.MineEvents[0].Channel, Is.EqualTo(0xD1));
+                Assert.That(result.MineEvents[0].DamageValue, Is.EqualTo(10));
+                Assert.That(result.MineEvents[1].Channel, Is.EqualTo(0xE9));
+                Assert.That(result.MineEvents[1].DamageValue, Is.EqualTo(1295));
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
         public void TestDecodesShiftJisText()
         {
             const string title = "\u30c6\u30b9\u30c8";
@@ -217,6 +499,58 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestPairsLnType2LongNotesAcrossMeasures()
+        {
+            const string text = @"
+#LNTYPE 2
+#00151:AAZZ
+#00251:ZZ00
+";
+
+            var result = decoder.DecodeText(text, "lntype2.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.LongNoteEvents, Has.Count.EqualTo(1));
+                Assert.That(result.LongNoteEvents[0].LaneChannel, Is.EqualTo(0x11));
+                Assert.That(result.LongNoteEvents[0].HeadObjectId, Is.EqualTo(370));
+                Assert.That(result.LongNoteEvents[0].TailObjectId, Is.EqualTo(1295));
+                Assert.That(result.LongNoteEvents[0].Encoding, Is.EqualTo(BmsLongNoteEncoding.LnType2));
+                Assert.That(result.LongNoteEvents[0].StartMeasureIndex, Is.EqualTo(1));
+                Assert.That(result.LongNoteEvents[0].StartFractionWithinMeasure, Is.EqualTo(0).Within(0.001));
+                Assert.That(result.LongNoteEvents[0].EndMeasureIndex, Is.EqualTo(2));
+                Assert.That(result.LongNoteEvents[0].EndFractionWithinMeasure, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestLnType2DuplicateZeroDoesNotOverwriteExistingSegment()
+        {
+            const string text = @"
+#LNTYPE 2
+#00151:AA00
+#00151:0000
+";
+
+            var result = decoder.DecodeText(text, "lntype2-duplicate-zero.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.LongNoteEvents, Has.Count.EqualTo(1));
+                Assert.That(result.LongNoteEvents[0].LaneChannel, Is.EqualTo(0x11));
+                Assert.That(result.LongNoteEvents[0].HeadObjectId, Is.EqualTo(370));
+                Assert.That(result.LongNoteEvents[0].TailObjectId, Is.EqualTo(370));
+                Assert.That(result.LongNoteEvents[0].Encoding, Is.EqualTo(BmsLongNoteEncoding.LnType2));
+                Assert.That(result.LongNoteEvents[0].StartFractionWithinMeasure, Is.EqualTo(0).Within(0.001));
+                Assert.That(result.LongNoteEvents[0].EndFractionWithinMeasure, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
         public void TestParsesBpmAndStopEvents()
         {
             const string text = @"
@@ -241,6 +575,47 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(result.StopEvents, Has.Count.EqualTo(1));
                 Assert.That(result.StopEvents[0].StopIndex, Is.EqualTo(371));
                 Assert.That(result.StopEvents[0].StopValue, Is.EqualTo(96).Within(0.001));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestPreservesSignedExtendedBpm()
+        {
+            const string text = @"
+#BPMAA -180
+#00108:AA00
+";
+
+            var result = decoder.DecodeText(text, "signed-bpm.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BpmChangeEvents, Has.Count.EqualTo(1));
+                Assert.That(result.BpmChangeEvents[0].Channel, Is.EqualTo(0x08));
+                Assert.That(result.BpmChangeEvents[0].SourceValue, Is.EqualTo(370));
+                Assert.That(result.BpmChangeEvents[0].Bpm, Is.EqualTo(-180).Within(0.001));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestCompoundsDuplicateChannelLinesBySourceOrder()
+        {
+            const string text = @"
+#00111:AA00
+#00111:BB00
+";
+
+            var result = decoder.DecodeText(text, "duplicate-channel-lines.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.RawChannelEvents, Has.Count.EqualTo(2));
+                Assert.That(result.ObjectEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ObjectEvents[0].Channel, Is.EqualTo(0x11));
+                Assert.That(result.ObjectEvents[0].ObjectId, Is.EqualTo(407));
+                Assert.That(result.ObjectEvents[0].FractionWithinMeasure, Is.EqualTo(0).Within(0.001));
                 Assert.That(result.Warnings, Is.Empty);
             });
         }

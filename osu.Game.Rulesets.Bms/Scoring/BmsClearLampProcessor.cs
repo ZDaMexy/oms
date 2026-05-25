@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Beatmaps;
-using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
@@ -105,8 +104,6 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         public static BmsGaugeHistory CreateGaugeHistory(ScoreInfo score, IBeatmap playableBeatmap)
         {
-            BmsBeatmapModApplicator.ApplyToBeatmap(playableBeatmap, score.Mods);
-
             double startTime = playableBeatmap.HitObjects.Count == 0 ? 0 : playableBeatmap.HitObjects.Min(hitObject => hitObject.StartTime);
             double endTime = playableBeatmap.HitObjects.Count == 0 ? 1 : playableBeatmap.HitObjects.Max(hitObject => hitObject.GetEndTime());
 
@@ -153,8 +150,6 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         private static BmsGaugeProcessor calculateGaugeState(ScoreInfo score, IBeatmap playableBeatmap)
         {
-            BmsBeatmapModApplicator.ApplyToBeatmap(playableBeatmap, score.Mods);
-
             var gaugeProcessor = BmsGaugeProcessor.CreateForScore(0, score);
             gaugeProcessor.ApplyBeatmap(playableBeatmap);
 

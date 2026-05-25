@@ -116,6 +116,35 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestConvertsLnType2LongNotes()
+        {
+            const string text = @"
+#BPM 120
+#WAVAA hold/head.wav
+#WAVZZ hold/tail.wav
+#LNTYPE 2
+#00151:AAZZ
+#00251:ZZ00
+";
+
+            var decodedChart = decoder.DecodeText(text, "lntype2.bms");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var holdNote = convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Count(), Is.EqualTo(1));
+                Assert.That(convertedBeatmap.HitObjects.OfType<BmsHitObject>().Count(hitObject => hitObject is not BmsHoldNote), Is.EqualTo(0));
+                Assert.That(holdNote.LaneIndex, Is.EqualTo(1));
+                Assert.That(holdNote.HeadKeysoundId, Is.EqualTo(370));
+                Assert.That(holdNote.TailKeysoundId, Is.EqualTo(1295));
+                Assert.That(holdNote.HeadKeysoundSample?.Filename, Is.EqualTo("hold/head.wav"));
+                Assert.That(holdNote.TailKeysoundSample?.Filename, Is.EqualTo("hold/tail.wav"));
+                Assert.That(holdNote.EndTime, Is.GreaterThan(holdNote.StartTime));
+            });
+        }
+
+        [Test]
         public void TestMetadataBackgroundPrefersStageFileOverBackbmp()
         {
             const string text = @"
@@ -130,6 +159,23 @@ namespace osu.Game.Rulesets.Bms.Tests
             var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
 
             Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("stage.png"));
+        }
+
+        [Test]
+        public void TestMetadataBackgroundFallsBackToProjectedBgaBitmap()
+        {
+            const string text = @"
+#TITLE Example Song
+#ARTIST Test Artist
+#BMP01 projected.png
+#BGA01 01 0 0 255 255 0 0
+#00111:AA00
+";
+
+            var decodedChart = decoder.DecodeText(text, "projected-background.bms");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("projected.png"));
         }
 
         [Test]
@@ -210,6 +256,85 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(timingPoints.Any(point => point.Time == 2500 && point.BPM == 240), Is.True);
                 Assert.That(timingPoints.Any(point => point.Time == 2625 && point.BeatLength == 6), Is.True);
                 Assert.That(timingPoints.Any(point => point.Time == 3125 && point.BPM == 240), Is.True);
+            });
+        }
+
+        [Test]
+        public void TestScrollEventsBuildEffectPointsForRuntimeConsumer()
+        {
+            const string text = @"
+#TITLE Scroll Effect
+#BPM 120
+#SCROLLAA 0.5
+#SCROLLAB 2.0
+#001SC:AAAB
+#00111:CC00
+#00211:DD00
+";
+
+            var decodedChart = decoder.DecodeText(text, "scroll-effect.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var effectPoints = convertedBeatmap.ControlPointInfo.EffectPoints;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(effectPoints, Has.Count.EqualTo(2));
+                Assert.That(effectPoints[0].Time, Is.EqualTo(2000).Within(0.001));
+                Assert.That(effectPoints[0].ScrollSpeed, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(effectPoints[1].Time, Is.EqualTo(3000).Within(0.001));
+                Assert.That(effectPoints[1].ScrollSpeed, Is.EqualTo(2.0).Within(0.001));
+                Assert.That(convertedBeatmap.ControlPointInfo.EffectPointAt(2000).ScrollSpeed, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(convertedBeatmap.ControlPointInfo.EffectPointAt(2999).ScrollSpeed, Is.EqualTo(0.5).Within(0.001));
+                Assert.That(convertedBeatmap.ControlPointInfo.EffectPointAt(3000).ScrollSpeed, Is.EqualTo(2.0).Within(0.001));
+            });
+        }
+
+        [Test]
+        public void TestSamePositionBpmAndStopApplyBeforeObjectTime()
+        {
+            const string text = @"
+#TITLE Control Event Order
+#BPM 120
+#BPMAA 240
+#STOPAB 96
+#00108:AA00
+#00109:AB00
+#00111:CC00
+";
+
+            var decodedChart = decoder.DecodeText(text, "same-position-control-order.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var note = convertedBeatmap.HitObjects.OfType<BmsHitObject>().Single();
+            var timingPoints = convertedBeatmap.ControlPointInfo.TimingPoints;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(note.StartTime, Is.EqualTo(2500).Within(0.001));
+                Assert.That(timingPoints.Any(point => point.Time == 2000 && point.BeatLength == 6), Is.True);
+                Assert.That(timingPoints.Any(point => point.Time == 2500 && point.BPM == 240), Is.True);
+            });
+        }
+
+        [Test]
+        public void TestSignedBpmUsesMagnitudeForTimelineProgression()
+        {
+            const string text = @"
+#TITLE Signed BPM Timing
+#BPM 120
+#BPMAA -180
+#00108:AA00
+#00211:BB00
+";
+
+            var decodedChart = decoder.DecodeText(text, "signed-bpm-timing.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var note = convertedBeatmap.HitObjects.OfType<BmsHitObject>().Single();
+            var timingPoints = convertedBeatmap.ControlPointInfo.TimingPoints;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(note.StartTime, Is.EqualTo(3333.3333333333).Within(0.001));
+                Assert.That(timingPoints.Any(point => point.Time == 2000 && point.BPM == 180), Is.True);
             });
         }
 

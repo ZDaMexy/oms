@@ -152,7 +152,7 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Match.BeatmapSelect
                                                     {
                                                         new TruncatingSpriteText
                                                         {
-                                                            Text = BeatmapsetsStrings.ShowDetailsByArtist(new RomanisableString(beatmapSet.ArtistUnicode, beatmapSet.Artist)),
+                                                            Text = BeatmapsetsStrings.ShowDetailsByArtist(beatmapSet.GetDisplayArtistRomanisable()),
                                                             Font = OsuFont.Default.With(size: 14f, weight: FontWeight.SemiBold),
                                                             RelativeSizeAxes = Axes.X,
                                                         },

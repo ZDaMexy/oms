@@ -45,6 +45,46 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestCreateStatisticsSummaryCarriesSelectedModesAndClearLamp()
+        {
+            var beatmap = createBeatmap(1);
+            var score = createScore(beatmap, HitResult.Perfect);
+
+            score.Accuracy = 1;
+            score.Mods = new Mod[]
+            {
+                new BmsModGaugeHazard(),
+                new BmsModGaugeRulesLr2(),
+                new BmsModJudgeIidx(),
+                new BmsModHellChargeNote(),
+            };
+
+            var statistics = new BmsRuleset().CreateStatisticsForScore(score, beatmap);
+            var summaryStatistic = statistics.Single(statistic => !statistic.RequiresHitEvents);
+            var summaryDisplay = (SkinnableBmsResultsSummaryPanelDisplay)summaryStatistic.CreateContent();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(summaryDisplay.Summary, Is.Not.Null);
+                Assert.That(summaryDisplay.Summary!.GaugeType, Is.EqualTo(BmsGaugeType.Hazard));
+                Assert.That(summaryDisplay.Summary!.GaugeDisplayName, Is.EqualTo("HAZARD"));
+                Assert.That(summaryDisplay.Summary!.GaugeRulesFamily, Is.EqualTo(BmsGaugeRulesFamily.LR2));
+                Assert.That(summaryDisplay.Summary!.JudgeMode, Is.EqualTo(BmsJudgeMode.IIDX));
+                Assert.That(summaryDisplay.Summary!.LongNoteMode, Is.EqualTo(BmsLongNoteMode.HCN));
+                Assert.That(summaryDisplay.Summary!.ExScore, Is.EqualTo(2));
+                Assert.That(summaryDisplay.Summary!.MaxExScore, Is.EqualTo(2));
+                Assert.That(summaryDisplay.Summary!.EmptyPoorCount, Is.Zero);
+                Assert.That(summaryDisplay.Summary!.ComboBreakCount, Is.Zero);
+                Assert.That(summaryDisplay.Summary!.Accuracy, Is.EqualTo(1).Within(0.0001));
+                Assert.That(summaryDisplay.Summary!.DjLevel, Is.EqualTo(BmsDjLevel.AAA));
+                Assert.That(summaryDisplay.Summary!.ClearLamp, Is.Not.Null);
+                Assert.That(summaryDisplay.Summary!.ClearLamp!.Lamp, Is.EqualTo(BmsClearLamp.Perfect));
+                Assert.That(summaryDisplay.Summary!.ClearLamp!.DisplayName, Is.EqualTo("PERFECT"));
+                Assert.That(summaryDisplay.Summary!.ClearLamp!.FinalGauge, Is.GreaterThan(0));
+            });
+        }
+
+        [Test]
         public void TestCreateStatisticsIncludesGaugeHistoryGraph()
         {
             var beatmap = createBeatmap(3);
@@ -59,6 +99,33 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(gaugeHistoryStatistic!.Name.ToString(), Is.Empty);
                 Assert.That(gaugeHistoryStatistic!.RequiresHitEvents, Is.True);
                 Assert.That(gaugeHistoryStatistic.CreateContent(), Is.TypeOf<SkinnableBmsGaugeHistoryPanelDisplay>());
+            });
+        }
+
+        [Test]
+        public void TestCreateStatisticsGaugeHistoryCarriesAutoShiftTimelineState()
+        {
+            var beatmap = createBeatmap(100);
+            var score = createScore(beatmap,
+                Enumerable.Repeat(HitResult.Meh, 10)
+                          .Concat(Enumerable.Repeat(HitResult.Meh, 20))
+                          .Concat(Enumerable.Repeat(HitResult.Perfect, 70))
+                          .ToArray());
+            var gasMod = new BmsModGaugeAutoShift();
+
+            gasMod.StartingGauge.Value = BmsGaugeType.ExHard;
+            gasMod.FloorGauge.Value = BmsGaugeType.Easy;
+            score.Mods = new Mod[] { gasMod };
+
+            var expectedHistory = BmsClearLampProcessor.CreateGaugeHistory(score, beatmap);
+            var statistics = new BmsRuleset().CreateStatisticsForScore(score, beatmap);
+            var gaugeHistoryStatistic = statistics.Single(statistic => statistic.RequiresHitEvents);
+            var gaugeHistoryDisplay = (SkinnableBmsGaugeHistoryPanelDisplay)gaugeHistoryStatistic.CreateContent();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(gaugeHistoryDisplay.History, Is.Not.Null);
+                assertGaugeHistory(gaugeHistoryDisplay.History!, expectedHistory);
             });
         }
 
@@ -583,6 +650,28 @@ namespace osu.Game.Rulesets.Bms.Tests
                 },
                 HitEvents = hitEvents,
             };
+        }
+
+        private static void assertGaugeHistory(BmsGaugeHistory actual, BmsGaugeHistory expected)
+        {
+            Assert.That(actual.StartTime, Is.EqualTo(expected.StartTime).Within(0.000001));
+            Assert.That(actual.EndTime, Is.EqualTo(expected.EndTime).Within(0.000001));
+            Assert.That(actual.Timelines.Count, Is.EqualTo(expected.Timelines.Count));
+
+            for (int i = 0; i < expected.Timelines.Count; i++)
+            {
+                var actualTimeline = actual.Timelines[i];
+                var expectedTimeline = expected.Timelines[i];
+
+                Assert.That(actualTimeline.GaugeType, Is.EqualTo(expectedTimeline.GaugeType));
+                Assert.That(actualTimeline.Samples.Count, Is.EqualTo(expectedTimeline.Samples.Count));
+
+                for (int j = 0; j < expectedTimeline.Samples.Count; j++)
+                {
+                    Assert.That(actualTimeline.Samples[j].Time, Is.EqualTo(expectedTimeline.Samples[j].Time).Within(0.000001));
+                    Assert.That(actualTimeline.Samples[j].Value, Is.EqualTo(expectedTimeline.Samples[j].Value).Within(0.000001));
+                }
+            }
         }
     }
 }

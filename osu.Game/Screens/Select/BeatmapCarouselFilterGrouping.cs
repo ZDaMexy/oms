@@ -186,10 +186,10 @@ namespace osu.Game.Screens.Select
                     return new List<GroupMapping> { new GroupMapping(null, items) };
 
                 case GroupMode.Artist:
-                    return getGroupsBy(b => defineGroupAlphabetically(b.BeatmapSet!.Metadata.Artist), items);
+                    return getGroupsBy(b => defineGroupAlphabetically(BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(b)), items);
 
                 case GroupMode.Author:
-                    return getGroupsBy(b => defineGroupAlphabetically(b.BeatmapSet!.Metadata.Author.Username), items);
+                    return getGroupsBy(b => defineGroupAlphabetically(BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(b)), items);
 
                 case GroupMode.Title:
                     return getGroupsBy(b => defineGroupAlphabetically(b.BeatmapSet!.Metadata.Title), items);

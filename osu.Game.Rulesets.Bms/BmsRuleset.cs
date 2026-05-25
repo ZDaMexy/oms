@@ -269,7 +269,6 @@ namespace osu.Game.Rulesets.Bms
 
         public override void PrepareScoreInfoForResults(ScoreInfo score, IBeatmap playableBeatmap)
         {
-            BmsBeatmapModApplicator.ApplyToBeatmap(playableBeatmap, score.Mods);
             score.SetRulesetData(BmsClearLampProcessor.CreatePersistentData(score, playableBeatmap));
         }
 

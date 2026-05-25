@@ -45,6 +45,9 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Match.RoundResults
         private BeatmapLookupCache beatmapLookupCache { get; set; } = null!;
 
         [Resolved]
+        private BeatmapManager beatmapManager { get; set; } = null!;
+
+        [Resolved]
         private ScoreManager scoreManager { get; set; } = null!;
 
         [Resolved]
@@ -102,25 +105,10 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Match.RoundResults
                 if (apiBeatmap == null)
                     return;
 
+                BeatmapInfo? localBeatmap = beatmapManager.QueryBeatmap(b => b.OnlineID == apiBeatmap.OnlineID);
+
                 // Reference: PlaylistItemResultsScreen
-                setScores(apiScores.Select(s => s.CreateScoreInfo(scoreManager, rulesets, new BeatmapInfo
-                {
-                    Difficulty = new BeatmapDifficulty(apiBeatmap.Difficulty),
-                    Metadata =
-                    {
-                        Artist = apiBeatmap.Metadata.Artist,
-                        Title = apiBeatmap.Metadata.Title,
-                        Author = new RealmUser
-                        {
-                            Username = apiBeatmap.Metadata.Author.Username,
-                            OnlineID = apiBeatmap.Metadata.Author.OnlineID,
-                        }
-                    },
-                    DifficultyName = apiBeatmap.DifficultyName,
-                    StarRating = apiBeatmap.StarRating,
-                    Length = apiBeatmap.Length,
-                    BPM = apiBeatmap.BPM
-                })).ToArray());
+                setScores(apiScores.Select(s => s.CreateScoreInfo(scoreManager, rulesets, CreateScoreBeatmapInfo(apiBeatmap, localBeatmap))).ToArray());
             }
             catch (Exception e)
             {
@@ -132,6 +120,26 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Match.RoundResults
                 Scheduler.Add(() => loadingSpinner.Hide());
             }
         }
+
+        internal static BeatmapInfo CreateScoreBeatmapInfo(APIBeatmap apiBeatmap, BeatmapInfo? localBeatmap = null)
+            => localBeatmap ?? new BeatmapInfo
+            {
+                Difficulty = new BeatmapDifficulty(apiBeatmap.Difficulty),
+                Metadata =
+                {
+                    Artist = apiBeatmap.Metadata.Artist,
+                    Title = apiBeatmap.Metadata.Title,
+                    Author = new RealmUser
+                    {
+                        Username = apiBeatmap.Metadata.Author.Username,
+                        OnlineID = apiBeatmap.Metadata.Author.OnlineID,
+                    }
+                },
+                DifficultyName = apiBeatmap.DifficultyName,
+                StarRating = apiBeatmap.StarRating,
+                Length = apiBeatmap.Length,
+                BPM = apiBeatmap.BPM
+            };
 
         private void setScores(ScoreInfo[] scores) => Scheduler.Add(() =>
         {

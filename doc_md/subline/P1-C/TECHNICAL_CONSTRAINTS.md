@@ -48,5 +48,5 @@
 
 1. BRJ / LR2 parity 的补强必须与 feedback 验证链保持一致，不允许只改窗口不改训练反馈表达。
 2. 任何改变 judge family 语义、反馈术语、results 训练表达或常驻 HUD 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
-3. 结果侧 BMS 重建不得只按 `BmsLongNoteMode` 回放；`BmsClearLampProcessor` 的 final gauge / gauge history / lamp 计算必须复用完整 beatmap-mod 链。`A-SCR` / `A-NOT` 这类会改写 score/gauge 池的 assist mod 不得在 results/history 链路里退化成“纯显示 mod”。
-4. `PERFECT` / `FULL COMBO` 的结果持久化必须先经过 clear condition 检查；`HCN` body tick 可以在不改变 EX-SCORE 与 head/tail judgement counts 的情况下独立击穿 gauge，因此禁止用聚合统计直接短路灯级结论。
+3. 结果侧 BMS 重建不得只按 `BmsLongNoteMode` 回放，也不得对已带 mods 的 playable beatmap 再次应用 beatmap mods；`BmsClearLampProcessor` 的 final gauge / gauge history / lamp 计算必须消费 `Ruleset` contract 传入的已带 mods playable beatmap。`A-SCR` / `A-NOT` 这类会改写 score/gauge 池的 assist mod 不得在 results/history 链路里退化成“纯显示 mod”。`CreateStatisticsForScore()` 的 gauge history consumer 也必须直接消费计算后的 `BmsGaugeHistory`，不得在 panel/UI 层重建 timeline 或把回归退化成仅断言 panel type。
+4. `PERFECT` / `FULL COMBO` 的结果持久化必须先经过 clear condition 检查；`HCN` body tick 可以在不改变 EX-SCORE 与 head/tail judgement counts 的情况下独立击穿 gauge，因此禁止用聚合统计直接短路灯级结论。results summary consumer 也必须直接消费计算后的 `BmsClearLamp`，不得按 gauge type 自行派生 `HAZARD CLEAR` 一类灯级文本。

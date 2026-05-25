@@ -70,7 +70,7 @@ namespace osu.Game.Screens.Select
             switch (sort)
             {
                 case SortMode.Artist:
-                    comparison = OrdinalSortByCaseStringComparer.DEFAULT.Compare(a.BeatmapSet!.Metadata.Artist, b.BeatmapSet!.Metadata.Artist);
+                    comparison = OrdinalSortByCaseStringComparer.DEFAULT.Compare(BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(a), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(b));
                     if (comparison == 0)
                         goto case SortMode.Title;
                     break;
@@ -80,7 +80,7 @@ namespace osu.Game.Screens.Select
                     break;
 
                 case SortMode.Author:
-                    comparison = OrdinalSortByCaseStringComparer.DEFAULT.Compare(a.BeatmapSet!.Metadata.Author.Username, b.BeatmapSet!.Metadata.Author.Username);
+                    comparison = OrdinalSortByCaseStringComparer.DEFAULT.Compare(BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(a), BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(b));
                     break;
 
                 case SortMode.Source:

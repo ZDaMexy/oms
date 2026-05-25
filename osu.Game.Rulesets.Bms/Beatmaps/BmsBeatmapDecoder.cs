@@ -18,6 +18,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private static readonly UTF8Encoding strict_utf8 = new UTF8Encoding(false, true);
         private const string random_branching_warning = "Random branching is not fully supported. OMS only executes the #IF 1 branch inside #RANDOM blocks.";
         private const string random_branch_missing_if1_warning = "Random branching is not fully supported. OMS skipped a #RANDOM block because no #IF 1 branch was found.";
+        private const int unknown_channel = -1;
 
         static BmsBeatmapDecoder()
         {
@@ -48,6 +49,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var decodedChart = new BmsDecodedChart();
             var measureLengthControlPoints = new List<BmsMeasureLengthControlPoint>();
             var playableChannels = new HashSet<int>();
+            int sourceLineOrder = 0;
 
             foreach (string rawLine in preprocessConditionalDirectives(content, decodedChart))
             {
@@ -59,9 +61,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (handleControlDirective(line, decodedChart))
                     continue;
 
-                if (tryParseChannelLine(line, out int measureIndex, out int channel, out string payload))
+                if (tryParseChannelLine(line, out int measureIndex, out int channel, out string rawChannelToken, out string payload))
                 {
-                    handleChannelLine(decodedChart, measureLengthControlPoints, playableChannels, measureIndex, channel, payload);
+                    handleChannelLine(decodedChart, measureLengthControlPoints, playableChannels, measureIndex, channel, rawChannelToken, payload, sourceLineOrder++);
                     continue;
                 }
 
@@ -335,6 +337,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     beatmapInfo.PreviewFile = value;
                     return;
 
+                case "POORBGA":
+                    if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int poorBgaMode)
+                        && Enum.IsDefined(typeof(BmsPoorBgaMode), poorBgaMode))
+                        beatmapInfo.PoorBgaMode = (BmsPoorBgaMode)poorBgaMode;
+                    else
+                        decodedChart.Warnings.Add($@"Failed to parse #POORBGA value '{value}'.");
+                    return;
+
                 case "LNOBJ":
                     if (TryParseBase36(value, out int longNoteObjectId))
                         beatmapInfo.LongNoteObjectId = longNoteObjectId;
@@ -352,6 +362,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             if (tryHandleIndexedHeader(decodedChart, key, value))
                 return;
+
+            beatmapInfo.UnknownHeaders[key] = value;
         }
 
         private static bool tryHandleIndexedHeader(BmsDecodedChart decodedChart, string key, string value)
@@ -390,18 +402,70 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 return true;
             }
 
+            if (key.Length == 8 && key.StartsWith("SCROLL", StringComparison.OrdinalIgnoreCase) && TryParseBase36(key.AsSpan(6), out int scrollIndex))
+            {
+                if (tryParseDouble(value, out double scrollValue))
+                    beatmapInfo.ScrollTable[scrollIndex] = scrollValue;
+                else
+                    decodedChart.Warnings.Add($@"Failed to parse SCROLL value '{value}' for #{key}.");
+
+                return true;
+            }
+
+            if (key.Length == 5 && key.StartsWith("BGA", StringComparison.OrdinalIgnoreCase) && TryParseBase36(key.AsSpan(3), out int bgaDefinitionIndex))
+            {
+                if (tryParseBgaDefinition(value, out string bitmapReference, out int sourceX1, out int sourceY1, out int sourceX2, out int sourceY2, out int destinationX, out int destinationY))
+                    beatmapInfo.BgaDefinitions[bgaDefinitionIndex] = new BmsBgaDefinition(bgaDefinitionIndex, bitmapReference, sourceX1, sourceY1, sourceX2, sourceY2, destinationX, destinationY);
+                else
+                    decodedChart.Warnings.Add($@"Failed to parse #BGA definition value '{value}' for #{key}.");
+
+                return true;
+            }
+
+            if (key.Length == 6 && key.StartsWith("@BGA", StringComparison.OrdinalIgnoreCase) && TryParseBase36(key.AsSpan(4), out int atBgaDefinitionIndex))
+            {
+                if (tryParseAtBgaDefinition(value, out string bitmapReference, out int sourceX, out int sourceY, out int width, out int height, out int destinationX, out int destinationY))
+                    beatmapInfo.AtBgaDefinitions[atBgaDefinitionIndex] = new BmsAtBgaDefinition(atBgaDefinitionIndex, bitmapReference, sourceX, sourceY, width, height, destinationX, destinationY);
+                else
+                    decodedChart.Warnings.Add($@"Failed to parse #@BGA definition value '{value}' for #{key}.");
+
+                return true;
+            }
+
+            if (key.Length == 6 && key.StartsWith("ARGB", StringComparison.OrdinalIgnoreCase) && TryParseBase36(key.AsSpan(4), out int argbDefinitionIndex))
+            {
+                if (tryParseArgbComponents(value, out int alpha, out int red, out int green, out int blue))
+                    beatmapInfo.ArgbDefinitions[argbDefinitionIndex] = new BmsArgbDefinition(argbDefinitionIndex, alpha, red, green, blue);
+                else
+                    decodedChart.Warnings.Add($@"Failed to parse #ARGB definition value '{value}' for #{key}.");
+
+                return true;
+            }
+
+            if (key.Length == 7 && key.StartsWith("SWBGA", StringComparison.OrdinalIgnoreCase) && TryParseBase36(key.AsSpan(5), out int swBgaDefinitionIndex))
+            {
+                if (tryParseSwBgaDefinition(value, out int frameDurationMilliseconds, out int totalDurationMilliseconds, out int lineChannel, out bool loop, out int alpha, out int red, out int green, out int blue, out string pattern))
+                    beatmapInfo.SwBgaDefinitions[swBgaDefinitionIndex] = new BmsSwBgaDefinition(swBgaDefinitionIndex, frameDurationMilliseconds, totalDurationMilliseconds, lineChannel, loop, alpha, red, green, blue, pattern);
+                else
+                    decodedChart.Warnings.Add($@"Failed to parse #SWBGA definition value '{value}' for #{key}.");
+
+                return true;
+            }
+
             return false;
         }
 
         private static void postProcessChannelEvents(BmsDecodedChart decodedChart)
         {
-            var orderedEvents = new List<BmsChannelEvent>(decodedChart.ChannelEvents);
+            var orderedEvents = new List<BmsChannelEvent>(decodedChart.RawChannelEvents);
             orderedEvents.Sort(compareChannelEvents);
+            var effectiveEvents = compoundDuplicateChannelEvents(orderedEvents);
 
             var pendingLnObjHeads = new Dictionary<int, List<BmsObjectEvent>>();
             var pendingLnType1Heads = new Dictionary<int, BmsObjectEvent>();
+            var pendingLnType2Segments = new Dictionary<int, List<BmsObjectEvent>>();
 
-            foreach (var channelEvent in orderedEvents)
+            foreach (var channelEvent in effectiveEvents)
             {
                 switch (channelEvent.Channel)
                 {
@@ -413,6 +477,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         handleInlineBpmEvent(decodedChart, channelEvent);
                         break;
 
+                    case 0x04:
+                    case 0x06:
+                    case 0x07:
+                    case 0x0A:
+                        handleBgaEvent(decodedChart, channelEvent);
+                        break;
+
                     case 0x08:
                         handleExtendedBpmEvent(decodedChart, channelEvent);
                         break;
@@ -422,6 +493,24 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         break;
 
                     default:
+                        if (isScrollChannel(channelEvent))
+                        {
+                            handleScrollEvent(decodedChart, channelEvent);
+                            break;
+                        }
+
+                        if (isInvisibleObjectChannel(channelEvent.Channel))
+                        {
+                            handleInvisibleObjectEvent(decodedChart, channelEvent);
+                            break;
+                        }
+
+                        if (isMineChannel(channelEvent.Channel))
+                        {
+                            handleMineEvent(decodedChart, channelEvent);
+                            break;
+                        }
+
                         if (isPlayableNoteChannel(channelEvent.Channel, decodedChart.BeatmapInfo.Keymode))
                         {
                             handlePlayableNoteEvent(decodedChart, channelEvent, pendingLnObjHeads);
@@ -430,7 +519,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                         if (isLongNoteChannel(channelEvent.Channel, decodedChart.BeatmapInfo.Keymode))
                         {
-                            handleLongNoteChannelEvent(decodedChart, channelEvent, pendingLnType1Heads);
+                            handleLongNoteChannelEvent(decodedChart, channelEvent, pendingLnType1Heads, pendingLnType2Segments);
                             break;
                         }
 
@@ -438,7 +527,44 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 }
             }
 
-            flushPendingLongNoteChannels(decodedChart, pendingLnType1Heads);
+            flushPendingLongNoteChannels(decodedChart, pendingLnType1Heads, pendingLnType2Segments);
+        }
+
+        private static List<BmsChannelEvent> compoundDuplicateChannelEvents(IReadOnlyList<BmsChannelEvent> orderedEvents)
+        {
+            var effectiveEvents = new List<BmsChannelEvent>(orderedEvents.Count);
+
+            foreach (var channelEvent in orderedEvents)
+            {
+                if (effectiveEvents.Count > 0 && isDuplicateChannelCollision(effectiveEvents[^1], channelEvent))
+                {
+                    if (channelEvent.RawValue == "00")
+                        continue;
+
+                    effectiveEvents[^1] = channelEvent;
+                    continue;
+                }
+
+                effectiveEvents.Add(channelEvent);
+            }
+
+            return effectiveEvents;
+        }
+
+        private static bool isDuplicateChannelCollision(BmsChannelEvent left, BmsChannelEvent right)
+            => left.MeasureIndex == right.MeasureIndex
+               && left.FractionWithinMeasure == right.FractionWithinMeasure
+               && hasSameChannelIdentity(left, right);
+
+        private static bool hasSameChannelIdentity(BmsChannelEvent left, BmsChannelEvent right)
+        {
+            if (left.Channel != right.Channel)
+                return false;
+
+            if (left.Channel != unknown_channel)
+                return true;
+
+            return string.Equals(left.RawChannelToken, right.RawChannelToken, StringComparison.OrdinalIgnoreCase);
         }
 
         private static int compareChannelEvents(BmsChannelEvent left, BmsChannelEvent right)
@@ -453,7 +579,20 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (fractionComparison != 0)
                 return fractionComparison;
 
-            return left.Channel.CompareTo(right.Channel);
+            int channelComparison = left.Channel.CompareTo(right.Channel);
+
+            if (channelComparison != 0)
+                return channelComparison;
+
+            if (left.Channel == unknown_channel)
+            {
+                int rawChannelTokenComparison = StringComparer.OrdinalIgnoreCase.Compare(left.RawChannelToken, right.RawChannelToken);
+
+                if (rawChannelTokenComparison != 0)
+                    return rawChannelTokenComparison;
+            }
+
+            return left.SourceLineOrder.CompareTo(right.SourceLineOrder);
         }
 
         private static void handleObjectEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, bool autoPlay)
@@ -465,6 +604,79 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
 
             decodedChart.ObjectEvents.Add(new BmsObjectEvent(channelEvent.MeasureIndex, channelEvent.FractionWithinMeasure, channelEvent.Channel, objectId, autoPlay));
+        }
+
+        private static void handleBgaEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent)
+        {
+            if (!TryParseBase36(channelEvent.RawValue, out int bitmapId))
+            {
+                decodedChart.Warnings.Add($@"Failed to parse BGA token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2}.");
+                return;
+            }
+
+            decodedChart.BgaEvents.Add(new BmsBgaEvent(
+                channelEvent.MeasureIndex,
+                channelEvent.FractionWithinMeasure,
+                channelEvent.Channel,
+                bitmapId,
+                getBgaLayer(channelEvent.Channel)));
+        }
+
+        private static void handleScrollEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent)
+        {
+            if (!TryParseBase36(channelEvent.RawValue, out int scrollIndex))
+            {
+                decodedChart.Warnings.Add($@"Failed to parse SCROLL table index '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}.");
+                return;
+            }
+
+            if (!decodedChart.BeatmapInfo.ScrollTable.TryGetValue(scrollIndex, out double scrollValue))
+            {
+                decodedChart.Warnings.Add($@"Missing SCROLL definition for token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}.");
+                return;
+            }
+
+            if (!double.IsFinite(scrollValue))
+            {
+                decodedChart.Warnings.Add($@"Ignoring non-finite SCROLL value '{scrollValue}' for token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}.");
+                return;
+            }
+
+            decodedChart.ScrollEvents.Add(new BmsScrollEvent(
+                channelEvent.MeasureIndex,
+                channelEvent.FractionWithinMeasure,
+                scrollIndex,
+                scrollValue));
+        }
+
+        private static void handleInvisibleObjectEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent)
+        {
+            if (!TryParseBase36(channelEvent.RawValue, out int objectId))
+            {
+                decodedChart.Warnings.Add($@"Failed to parse invisible object token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2}.");
+                return;
+            }
+
+            decodedChart.InvisibleObjectEvents.Add(new BmsInvisibleObjectEvent(
+                channelEvent.MeasureIndex,
+                channelEvent.FractionWithinMeasure,
+                channelEvent.Channel,
+                objectId));
+        }
+
+        private static void handleMineEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent)
+        {
+            if (!TryParseBase36(channelEvent.RawValue, out int damageValue))
+            {
+                decodedChart.Warnings.Add($@"Failed to parse mine token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2}.");
+                return;
+            }
+
+            decodedChart.MineEvents.Add(new BmsMineEvent(
+                channelEvent.MeasureIndex,
+                channelEvent.FractionWithinMeasure,
+                channelEvent.Channel,
+                damageValue));
         }
 
         private static void handlePlayableNoteEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, List<BmsObjectEvent>> pendingLnObjHeads)
@@ -510,13 +722,29 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             laneEvents.Add(noteEvent);
         }
 
-        private static void handleLongNoteChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, BmsObjectEvent> pendingLnType1Heads)
+        private static void handleLongNoteChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, BmsObjectEvent> pendingLnType1Heads, IDictionary<int, List<BmsObjectEvent>> pendingLnType2Segments)
         {
-            if (decodedChart.BeatmapInfo.LongNoteType != 1)
+            switch (decodedChart.BeatmapInfo.LongNoteType)
             {
-                decodedChart.Warnings.Add($@"Ignoring LN channel event at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2} because only #LNTYPE 1 is currently supported.");
-                return;
+                case 1:
+                    handleLnType1ChannelEvent(decodedChart, channelEvent, pendingLnType1Heads);
+                    return;
+
+                case 2:
+                    handleLnType2ChannelEvent(decodedChart, channelEvent, pendingLnType2Segments);
+                    return;
             }
+
+            if (channelEvent.RawValue == "00")
+                return;
+
+            decodedChart.Warnings.Add($@"Ignoring LN channel event at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2} because only #LNTYPE 1 and #LNTYPE 2 are currently supported.");
+        }
+
+        private static void handleLnType1ChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, BmsObjectEvent> pendingLnType1Heads)
+        {
+            if (channelEvent.RawValue == "00")
+                return;
 
             if (!TryParseBase36(channelEvent.RawValue, out int objectId))
             {
@@ -545,18 +773,72 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             pendingLnType1Heads[laneChannel] = laneEvent;
         }
 
-        private static void flushPendingLongNoteChannels(BmsDecodedChart decodedChart, IDictionary<int, BmsObjectEvent> pendingLnType1Heads)
+        private static void handleLnType2ChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, List<BmsObjectEvent>> pendingLnType2Segments)
+        {
+            int laneChannel = channelEvent.Channel - 0x40;
+
+            if (channelEvent.RawValue == "00")
+            {
+                if (!pendingLnType2Segments.TryGetValue(laneChannel, out var laneEvents) || laneEvents.Count == 0)
+                    return;
+
+                pendingLnType2Segments.Remove(laneChannel);
+
+                var headEvent = laneEvents[0];
+                var tailEvent = laneEvents[^1];
+
+                decodedChart.LongNoteEvents.Add(new BmsLongNoteEvent(
+                    headEvent.MeasureIndex,
+                    headEvent.FractionWithinMeasure,
+                    channelEvent.MeasureIndex,
+                    channelEvent.FractionWithinMeasure,
+                    laneChannel,
+                    headEvent.ObjectId,
+                    tailEvent.ObjectId,
+                    BmsLongNoteEncoding.LnType2));
+                return;
+            }
+
+            if (!TryParseBase36(channelEvent.RawValue, out int objectId))
+            {
+                decodedChart.Warnings.Add($@"Failed to parse object token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2}.");
+                return;
+            }
+
+            var laneEvent = new BmsObjectEvent(channelEvent.MeasureIndex, channelEvent.FractionWithinMeasure, laneChannel, objectId, autoPlay: false);
+
+            if (!pendingLnType2Segments.TryGetValue(laneChannel, out var laneEventsForChannel))
+            {
+                laneEventsForChannel = new List<BmsObjectEvent>();
+                pendingLnType2Segments[laneChannel] = laneEventsForChannel;
+            }
+
+            laneEventsForChannel.Add(laneEvent);
+        }
+
+        private static void flushPendingLongNoteChannels(BmsDecodedChart decodedChart, IDictionary<int, BmsObjectEvent> pendingLnType1Heads, IDictionary<int, List<BmsObjectEvent>> pendingLnType2Segments)
         {
             foreach (var pair in pendingLnType1Heads)
             {
                 decodedChart.Warnings.Add($@"Unclosed LNTYPE 1 long note head at measure {pair.Value.MeasureIndex:000}, channel {pair.Key:X2}. Keeping it as a normal note.");
                 decodedChart.ObjectEvents.Add(pair.Value);
             }
+
+            foreach (var pair in pendingLnType2Segments)
+            {
+                if (pair.Value.Count == 0)
+                    continue;
+
+                decodedChart.Warnings.Add($@"Unclosed LNTYPE 2 long note starting at measure {pair.Value[0].MeasureIndex:000}, channel {pair.Key:X2}. Keeping collected segment objects as normal notes.");
+
+                foreach (var laneEvent in pair.Value)
+                    decodedChart.ObjectEvents.Add(laneEvent);
+            }
         }
 
         private static void handleInlineBpmEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent)
         {
-            if (!int.TryParse(channelEvent.RawValue, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int bpmValue) || bpmValue <= 0)
+            if (!int.TryParse(channelEvent.RawValue, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int bpmValue) || bpmValue == 0)
             {
                 decodedChart.Warnings.Add($@"Failed to parse inline BPM value '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}.");
                 return;
@@ -573,7 +855,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 return;
             }
 
-            if (!decodedChart.BeatmapInfo.ExtendedBpmTable.TryGetValue(bpmIndex, out double bpmValue) || bpmValue <= 0)
+            if (!decodedChart.BeatmapInfo.ExtendedBpmTable.TryGetValue(bpmIndex, out double bpmValue) || bpmValue == 0)
             {
                 decodedChart.Warnings.Add($@"Missing indexed BPM definition for token '{channelEvent.RawValue}' at measure {channelEvent.MeasureIndex:000}.");
                 return;
@@ -651,7 +933,26 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 _ => false,
             };
 
-        private static void handleChannelLine(BmsDecodedChart decodedChart, List<BmsMeasureLengthControlPoint> measureLengthControlPoints, ISet<int> playableChannels, int measureIndex, int channel, string payload)
+        private static bool isInvisibleObjectChannel(int channel)
+            => channel is >= 0x31 and <= 0x3F || channel is >= 0x41 and <= 0x4F;
+
+        private static bool isScrollChannel(BmsChannelEvent channelEvent)
+            => channelEvent.Channel == unknown_channel && channelEvent.RawChannelToken.Equals("SC", StringComparison.OrdinalIgnoreCase);
+
+        private static bool isMineChannel(int channel)
+            => channel is >= 0xD1 and <= 0xD9 || channel is >= 0xE1 and <= 0xE9;
+
+        private static BmsBgaLayer getBgaLayer(int channel)
+            => channel switch
+            {
+                0x04 => BmsBgaLayer.Base,
+                0x06 => BmsBgaLayer.Poor,
+                0x07 => BmsBgaLayer.Layer,
+                0x0A => BmsBgaLayer.Layer2,
+                _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, @"Unsupported BGA channel."),
+            };
+
+        private static void handleChannelLine(BmsDecodedChart decodedChart, List<BmsMeasureLengthControlPoint> measureLengthControlPoints, ISet<int> playableChannels, int measureIndex, int channel, string rawChannelToken, string payload, int sourceLineOrder)
         {
             if (channel == 0x02)
             {
@@ -677,16 +978,20 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             for (int i = 0; i < sliceCount; i++)
             {
                 string token = payload.Substring(i * 2, 2);
+                bool isExplicitRest = token == "00";
 
-                if (token == "00")
+                if (isExplicitRest && !shouldPreserveExplicitRestToken(channel))
                     continue;
 
-                decodedChart.ChannelEvents.Add(new BmsChannelEvent(measureIndex, channel, (double)i / sliceCount, token));
+                decodedChart.RawChannelEvents.Add(new BmsChannelEvent(measureIndex, channel, rawChannelToken, (double)i / sliceCount, token, sourceLineOrder));
 
-                if (TryNormalizePlayableChannel(channel, out int normalizedChannel))
+                if (!isExplicitRest && TryNormalizePlayableChannel(channel, out int normalizedChannel))
                     playableChannels.Add(normalizedChannel);
             }
         }
+
+        private static bool shouldPreserveExplicitRestToken(int channel)
+            => channel is >= 0x51 and <= 0x8C;
 
         private static BmsKeymode detectKeymode(string? filePath, ISet<int> playableChannels)
         {
@@ -726,6 +1031,144 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
 
             return true;
+        }
+
+        private static bool tryParseBgaDefinition(string value, out string bitmapReference, out int sourceX1, out int sourceY1, out int sourceX2, out int sourceY2, out int destinationX, out int destinationY)
+        {
+            bitmapReference = string.Empty;
+            sourceX1 = 0;
+            sourceY1 = 0;
+            sourceX2 = 0;
+            sourceY2 = 0;
+            destinationX = 0;
+            destinationY = 0;
+
+            string[] parts = splitWhitespaceArguments(value);
+
+            if (parts.Length != 7)
+                return false;
+
+            bitmapReference = parts[0];
+
+            return bitmapReference.Length > 0
+                   && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out sourceX1)
+                   && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out sourceY1)
+                   && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out sourceX2)
+                   && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out sourceY2)
+                   && int.TryParse(parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out destinationX)
+                   && int.TryParse(parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out destinationY);
+        }
+
+        private static bool tryParseAtBgaDefinition(string value, out string bitmapReference, out int sourceX, out int sourceY, out int width, out int height, out int destinationX, out int destinationY)
+        {
+            bitmapReference = string.Empty;
+            sourceX = 0;
+            sourceY = 0;
+            width = 0;
+            height = 0;
+            destinationX = 0;
+            destinationY = 0;
+
+            string[] parts = splitWhitespaceArguments(value);
+
+            if (parts.Length != 7)
+                return false;
+
+            bitmapReference = parts[0];
+
+            return bitmapReference.Length > 0
+                   && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out sourceX)
+                   && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out sourceY)
+                   && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out width)
+                   && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out height)
+                   && int.TryParse(parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out destinationX)
+                   && int.TryParse(parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out destinationY);
+        }
+
+        private static bool tryParseArgbComponents(string value, out int alpha, out int red, out int green, out int blue)
+        {
+            alpha = 0;
+            red = 0;
+            green = 0;
+            blue = 0;
+
+            string[] parts = splitArgbArguments(value);
+
+            if (parts.Length != 4)
+                return false;
+
+            return int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out alpha)
+                   && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out red)
+                   && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out green)
+                   && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out blue)
+                   && alpha is >= 0 and <= 255
+                   && red is >= 0 and <= 255
+                   && green is >= 0 and <= 255
+                   && blue is >= 0 and <= 255;
+        }
+
+        private static bool tryParseSwBgaDefinition(string value, out int frameDurationMilliseconds, out int totalDurationMilliseconds, out int lineChannel, out bool loop, out int alpha, out int red, out int green, out int blue, out string pattern)
+        {
+            frameDurationMilliseconds = 0;
+            totalDurationMilliseconds = 0;
+            lineChannel = 0;
+            loop = false;
+            alpha = 0;
+            red = 0;
+            green = 0;
+            blue = 0;
+            pattern = string.Empty;
+
+            int separatorIndex = indexOfFirstWhitespace(value);
+
+            if (separatorIndex < 0)
+                return false;
+
+            string settings = value[..separatorIndex].Trim();
+            pattern = value[(separatorIndex + 1)..].Trim();
+
+            if (pattern.Length == 0 || pattern.Length % 2 != 0)
+                return false;
+
+            string[] settingParts = settings.Split(':');
+
+            if (settingParts.Length != 5)
+                return false;
+
+            if (!int.TryParse(settingParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out frameDurationMilliseconds) || frameDurationMilliseconds <= 0)
+                return false;
+
+            if (!int.TryParse(settingParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out totalDurationMilliseconds) || totalDurationMilliseconds < 0)
+                return false;
+
+            if (!int.TryParse(settingParts[2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out lineChannel))
+                return false;
+
+            if (!int.TryParse(settingParts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int loopValue) || loopValue is < 0 or > 1)
+                return false;
+
+            if (!tryParseArgbComponents(settingParts[4], out alpha, out red, out green, out blue))
+                return false;
+
+            loop = loopValue == 1;
+            return true;
+        }
+
+        private static string[] splitWhitespaceArguments(string value)
+            => value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+
+        private static string[] splitArgbArguments(string value)
+            => value.Replace(',', ' ').Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+
+        private static int indexOfFirstWhitespace(string value)
+        {
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (char.IsWhiteSpace(value[i]))
+                    return i;
+            }
+
+            return -1;
         }
 
         private static bool containsAny(ISet<int> values, int startInclusive, int endInclusive)
@@ -769,10 +1212,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             return false;
         }
 
-        private static bool tryParseChannelLine(string line, out int measureIndex, out int channel, out string payload)
+        private static bool tryParseChannelLine(string line, out int measureIndex, out int channel, out string rawChannelToken, out string payload)
         {
             measureIndex = default;
             channel = default;
+            rawChannelToken = string.Empty;
             payload = string.Empty;
 
             if (line.Length < 7 || line[0] != '#')
@@ -786,10 +1230,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (!int.TryParse(line.AsSpan(1, 3), NumberStyles.Integer, CultureInfo.InvariantCulture, out measureIndex))
                 return false;
 
-            if (!int.TryParse(line.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out channel))
-                return false;
+            rawChannelToken = line.Substring(4, 2);
 
             payload = line[(separatorIndex + 1)..].Trim();
+
+            if (!int.TryParse(rawChannelToken, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out channel))
+                channel = unknown_channel;
+
             return true;
         }
 

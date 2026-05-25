@@ -104,7 +104,7 @@ namespace osu.Game.Skinning
             new SkinInfo
             {
                 Name = beatmapInfo.ToString(),
-                Creator = beatmapInfo.Metadata.Author.Username
+                Creator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo)
             };
     }
 }

@@ -1,8 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace osu.Game.Beatmaps
 {
@@ -88,7 +86,7 @@ namespace osu.Game.Beatmaps
             if (!isBmsBeatmap(beatmap))
                 return null;
 
-            return nullIfWhiteSpace(tryGetBmsChartMetadataString(beatmap.Metadata as BeatmapMetadata, "genre"))
+            return nullIfWhiteSpace(BmsPersistedMetadataResolver.GetChartMetadata(beatmap.Metadata as BeatmapMetadata)?.Genre)
                    ?? nullIfWhiteSpace(beatmap.Metadata.Tags);
         }
 
@@ -109,23 +107,11 @@ namespace osu.Game.Beatmaps
         }
 
         private static string? tryGetBmsCreatorFromRulesetData(BeatmapMetadata? metadata)
-            => TryExtractBmsCreator(tryGetBmsChartMetadataString(metadata, "sub_artist"))?.creator
-               ?? TryExtractBmsCreator(tryGetBmsChartMetadataString(metadata, "comment"))?.creator;
-
-        private static string? tryGetBmsChartMetadataString(BeatmapMetadata? metadata, string fieldName)
         {
-            if (metadata == null || string.IsNullOrWhiteSpace(metadata.RulesetDataJson))
-                return null;
+            var chartMetadata = BmsPersistedMetadataResolver.GetChartMetadata(metadata);
 
-            try
-            {
-                var root = JObject.Parse(metadata.RulesetDataJson);
-                return root.SelectToken($@"chart_metadata.{fieldName}")?.Value<string>();
-            }
-            catch (JsonException)
-            {
-                return null;
-            }
+            return TryExtractBmsCreator(chartMetadata?.SubArtist)?.creator
+                   ?? TryExtractBmsCreator(chartMetadata?.Comment)?.creator;
         }
 
         internal static string StripBmsCreatorFromArtist(string? value)

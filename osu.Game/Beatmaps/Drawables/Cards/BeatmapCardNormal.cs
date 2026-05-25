@@ -9,6 +9,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
+using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables.Cards.Statistics;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
@@ -264,7 +265,7 @@ namespace osu.Game.Beatmaps.Drawables.Cards
 
         private LocalisableString createArtistText()
         {
-            var romanisableArtist = new RomanisableString(BeatmapSet.ArtistUnicode, BeatmapSet.Artist);
+            var romanisableArtist = BeatmapSet.GetDisplayArtistRomanisable();
             return BeatmapsetsStrings.ShowDetailsByArtist(romanisableArtist);
         }
 

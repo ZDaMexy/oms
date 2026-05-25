@@ -431,6 +431,8 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private readonly BmsResultsSummaryData? summary;
 
+        internal BmsResultsSummaryData? Summary => summary;
+
         public SkinnableBmsResultsSummaryPanelDisplay(BmsResultsSummaryData? summary)
             : base(new BmsSkinComponentLookup(BmsSkinComponents.ResultsSummaryPanel), _ => new DefaultBmsResultsSummaryPanelDisplay())
         {

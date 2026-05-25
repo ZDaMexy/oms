@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using osu.Framework.Localisation;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Models;
@@ -13,6 +14,26 @@ namespace osu.Game.Beatmaps
 {
     public static class BeatmapSetInfoExtensions
     {
+        public static RomanisableString GetDisplayArtistRomanisable(this IBeatmapSetInfo beatmapSetInfo)
+        {
+            IBeatmapInfo? firstBeatmap = beatmapSetInfo.Beatmaps?.FirstOrDefault();
+
+            return firstBeatmap != null
+                ? new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(firstBeatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(firstBeatmap))
+                : new RomanisableString(beatmapSetInfo.Metadata.ArtistUnicode, beatmapSetInfo.Metadata.Artist);
+        }
+
+        public static string GetDisplayTitle(this IBeatmapSetInfo beatmapSetInfo, bool includeCreator = true)
+            => beatmapSetInfo.GetDisplayTitleRomanisable(includeCreator).Romanised ?? string.Empty;
+
+        public static RomanisableString GetDisplayTitleRomanisable(this IBeatmapSetInfo beatmapSetInfo, bool includeCreator = true)
+        {
+            IBeatmapInfo? firstBeatmap = beatmapSetInfo.Beatmaps?.FirstOrDefault();
+
+            return firstBeatmap?.GetDisplayTitleRomanisable(includeDifficultyName: false, includeCreator: includeCreator)
+                   ?? beatmapSetInfo.Metadata.GetDisplayTitleRomanisable(includeCreator);
+        }
+
         /// <summary>
         /// Returns the storage path for the file in this beatmapset with the given filename, if any exists, otherwise null.
         /// The path returned is relative to the user file storage.

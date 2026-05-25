@@ -17,6 +17,7 @@
 
 ## 当前结论
 
+- 当前阶段定位：`P1-C` 当前范围已阶段性收口；`CreateStatisticsForScore()` 的 results summary / gauge history consumer proof 已完成，BRJ / LR2 parity 与 full Floating parity 统一后置为 backlog。
 - 当前 `GN / WN` 已在 runtime metrics、常驻 HUD、toast 与 pre-start overlay 中存在，并共享同一组 mode-aware 运行时语义。
 - tri-mode Hi-Speed settings、`阻止谱面开始/ingame start` 的前 5 秒阻塞/全程调速语义，以及“delay 若在 hold 期间耗尽，则松手重给满一段 fresh delay”这条 release 分支都仍属于这条既有 `P1-A / P1-C` 交叉线，不需要新开主线；真正后置的是 full Floating parity。
 - pre-start 1 号普通轨纯视觉流速预览第一版已实现：当前以第一非 scratch 轨上的纯视觉 preview layer 落地，复用当前 note skin lookup 与 scroll authority，并按 pre-start pending / hold / pause state gate；不得经 `BmsHitObject` / `DrawableBmsHitObject` / `BmsLane` 判定或键音链。

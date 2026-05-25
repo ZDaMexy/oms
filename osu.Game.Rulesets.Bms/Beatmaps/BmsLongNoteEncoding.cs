@@ -6,5 +6,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     {
         LnObj,
         LnType1,
+        LnType2,
     }
 }

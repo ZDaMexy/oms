@@ -285,7 +285,7 @@ namespace osu.Game.Overlays.BeatmapSet
                         storyboardIconPill.Hide();
 
                     var titleText = new RomanisableString(newBeatmapSet.TitleUnicode, newBeatmapSet.Title);
-                    var artistText = new RomanisableString(newBeatmapSet.ArtistUnicode, newBeatmapSet.Artist);
+                    var artistText = newBeatmapSet.GetDisplayArtistRomanisable();
 
                     title.Clear();
                     artist.Clear();

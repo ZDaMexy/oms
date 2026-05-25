@@ -192,13 +192,13 @@ namespace osu.Game.Skinning.Components
                     return new RomanisableString(beatmap.Value.BeatmapInfo.Metadata.TitleUnicode, beatmap.Value.BeatmapInfo.Metadata.Title);
 
                 case BeatmapAttribute.Artist:
-                    return new RomanisableString(beatmap.Value.BeatmapInfo.Metadata.ArtistUnicode, beatmap.Value.BeatmapInfo.Metadata.Artist);
+                    return GetDisplayedArtist(beatmap.Value.BeatmapInfo);
 
                 case BeatmapAttribute.DifficultyName:
                     return beatmap.Value.BeatmapInfo.DifficultyName;
 
                 case BeatmapAttribute.Creator:
-                    return beatmap.Value.BeatmapInfo.Metadata.Author.Username;
+                    return GetDisplayedCreator(beatmap.Value.BeatmapInfo);
 
                 case BeatmapAttribute.Source:
                     return beatmap.Value.BeatmapInfo.Metadata.Source;
@@ -241,6 +241,12 @@ namespace osu.Game.Skinning.Components
                     : new BeatmapDifficulty(beatmap.Value.BeatmapInfo.Difficulty);
             }
         }
+
+        internal static RomanisableString GetDisplayedArtist(IBeatmapInfo beatmapInfo)
+            => new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo));
+
+        internal static string GetDisplayedCreator(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
 
         protected override void SetFont(FontUsage font) => text.Font = font.With(size: 40);
 

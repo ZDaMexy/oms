@@ -542,7 +542,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             decodedInfo.BackgroundFile = resolveReferencedFile(reader, decodedInfo.BackgroundFile, image_extensions);
             decodedInfo.BannerFile = resolveReferencedFile(reader, decodedInfo.BannerFile, image_extensions);
 
-            loadedBeatmap.BeatmapInfo.Metadata.BackgroundFile = decodedInfo.StageFile ?? decodedInfo.BackgroundFile ?? decodedInfo.BannerFile ?? string.Empty;
+            foreach (int bitmapIndex in decodedInfo.BitmapTable.Keys.ToArray())
+                decodedInfo.BitmapTable[bitmapIndex] = resolveReferencedFile(reader, decodedInfo.BitmapTable[bitmapIndex], image_extensions) ?? decodedInfo.BitmapTable[bitmapIndex];
+
+            loadedBeatmap.BeatmapInfo.Metadata.BackgroundFile = resolveReferencedFile(reader, decodedInfo.GetPreferredBackgroundAssetReference(), image_extensions) ?? string.Empty;
         }
 
         private static string? resolveReferencedFile(DirectoryArchiveReader reader, string? referencedFilename, IEnumerable<string> alternateExtensions)

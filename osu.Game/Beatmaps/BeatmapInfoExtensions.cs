@@ -26,22 +26,40 @@ namespace osu.Game.Beatmaps
         /// <summary>
         /// A user-presentable display title representing this beatmap.
         /// </summary>
-        public static string GetDisplayTitle(this IBeatmapInfo beatmapInfo) => $"{beatmapInfo.Metadata.GetDisplayTitle()} {getVersionString(beatmapInfo)}".Trim();
+        public static string GetDisplayTitle(this IBeatmapInfo beatmapInfo) => beatmapInfo.GetDisplayTitle(includeDifficultyName: true, includeCreator: true);
+
+        public static string GetDisplayTitle(this IBeatmapInfo beatmapInfo, bool includeDifficultyName, bool includeCreator = true)
+            => beatmapInfo.GetDisplayTitleRomanisable(includeDifficultyName, includeCreator).Romanised ?? string.Empty;
 
         /// <summary>
         /// A user-presentable display title representing this beatmap, with localisation handling for potentially romanisable fields.
         /// </summary>
         public static RomanisableString GetDisplayTitleRomanisable(this IBeatmapInfo beatmapInfo, bool includeDifficultyName = true, bool includeCreator = true)
         {
-            var metadata = beatmapInfo.Metadata.GetDisplayTitleRomanisable(includeCreator);
+            string displayArtist = BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+            string displayArtistUnicode = BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+            string title = beatmapInfo.Metadata.Title;
+            string titleUnicode = string.IsNullOrEmpty(beatmapInfo.Metadata.TitleUnicode) ? title : beatmapInfo.Metadata.TitleUnicode;
+            string creatorSuffix = string.Empty;
+
+            if (includeCreator)
+            {
+                string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
+
+                if (!string.IsNullOrWhiteSpace(displayCreator))
+                    creatorSuffix = $" ({displayCreator})";
+            }
+
+            string original = $"{displayArtistUnicode} - {titleUnicode}{creatorSuffix}".Trim();
+            string romanised = $"{displayArtist} - {title}{creatorSuffix}".Trim();
 
             if (includeDifficultyName)
             {
                 string versionString = getVersionString(beatmapInfo);
-                return new RomanisableString($"{metadata.GetPreferred(true)} {versionString}".Trim(), $"{metadata.GetPreferred(false)} {versionString}".Trim());
+                return new RomanisableString($"{original} {versionString}".Trim(), $"{romanised} {versionString}".Trim());
             }
 
-            return new RomanisableString($"{metadata.GetPreferred(true)}".Trim(), $"{metadata.GetPreferred(false)}".Trim());
+            return new RomanisableString(original, romanised);
         }
 
         public static bool Match(this IBeatmapInfo beatmapInfo, params FilterCriteria.OptionalTextFilter[] filters)

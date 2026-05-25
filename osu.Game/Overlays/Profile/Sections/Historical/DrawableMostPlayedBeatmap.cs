@@ -36,6 +36,12 @@ namespace osu.Game.Overlays.Profile.Sections.Historical
             CornerRadius = corner_radius;
         }
 
+        internal static string GetDisplayedArtistText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+
+        internal static string GetDisplayedArtistUnicodeText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+
         [BackgroundDependencyLoader]
         private void load(OverlayColourProvider colourProvider)
         {
@@ -147,7 +153,7 @@ namespace osu.Game.Overlays.Profile.Sections.Historical
                     },
                     new OsuSpriteText
                     {
-                        Text = new RomanisableString(metadata.ArtistUnicode, metadata.Artist),
+                        Text = new RomanisableString(GetDisplayedArtistUnicodeText(beatmapInfo), GetDisplayedArtistText(beatmapInfo)),
                         Font = OsuFont.GetFont(weight: FontWeight.Regular)
                     },
                 };

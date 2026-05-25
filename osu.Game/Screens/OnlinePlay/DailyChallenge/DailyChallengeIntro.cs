@@ -11,6 +11,7 @@ using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Localisation;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables;
@@ -52,6 +53,12 @@ namespace osu.Game.Screens.OnlinePlay.DailyChallenge
         private bool animationBegan;
 
         private IBindable<StarDifficulty> starDifficulty = null!;
+
+        internal static RomanisableString GetDisplayedTitleRomanisable(IBeatmapInfo beatmapInfo)
+            => beatmapInfo.GetDisplayTitleRomanisable(includeDifficultyName: false);
+
+        internal static string GetDisplayedCreatorText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
 
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Plum);
@@ -248,7 +255,7 @@ namespace osu.Game.Screens.OnlinePlay.DailyChallenge
                                                     Origin = Anchor.TopCentre,
                                                     Shear = -OsuGame.SHEAR,
                                                     MaxWidth = horizontal_info_size,
-                                                    Text = beatmap.BeatmapSet!.Metadata.GetDisplayTitleRomanisable(false),
+                                                    Text = GetDisplayedTitleRomanisable(beatmap),
                                                     Padding = new MarginPadding { Horizontal = 5f },
                                                     Font = OsuFont.GetFont(size: 26),
                                                 },
@@ -263,7 +270,7 @@ namespace osu.Game.Screens.OnlinePlay.DailyChallenge
                                                 },
                                                 new TruncatingSpriteText
                                                 {
-                                                    Text = $"by {beatmap.Metadata.Author.Username}",
+                                                    Text = $"by {GetDisplayedCreatorText(beatmap)}",
                                                     Font = OsuFont.GetFont(size: 16, italics: true),
                                                     MaxWidth = horizontal_info_size,
                                                     Shear = -OsuGame.SHEAR,

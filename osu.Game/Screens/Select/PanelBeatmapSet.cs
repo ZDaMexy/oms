@@ -203,12 +203,7 @@ namespace osu.Game.Screens.Select
 
             titleText.Text = new RomanisableString(beatmapSet.Metadata.TitleUnicode, beatmapSet.Metadata.Title);
 
-            var representativeBeatmap = beatmapSet.Beatmaps.FirstOrDefault();
-
-            if (representativeBeatmap != null)
-                artistText.Text = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(representativeBeatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(representativeBeatmap));
-            else
-                artistText.Text = new RomanisableString(beatmapSet.Metadata.ArtistUnicode, beatmapSet.Metadata.Artist);
+            artistText.Text = beatmapSet.GetDisplayArtistRomanisable();
 
             updateButton.BeatmapSet = beatmapSet;
             statusPill.Status = beatmapSet.Status;

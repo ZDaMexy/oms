@@ -62,6 +62,15 @@ namespace osu.Game.Screens.Ranking.Expanded
             Padding = new MarginPadding(padding);
         }
 
+        internal static string GetDisplayedCreatorText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
+
+        internal static string GetDisplayedArtistText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+
+        internal static string GetDisplayedArtistUnicodeText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+
         [BackgroundDependencyLoader]
         private void load(RealmAccess realmAccess, BeatmapDifficultyCache beatmapDifficultyCache)
         {
@@ -69,7 +78,7 @@ namespace osu.Game.Screens.Ranking.Expanded
             var ruleset = score.Ruleset.CreateInstance();
             var scoreLabel = ruleset.GetResultsScoreLabel(score);
             var metadata = beatmap.BeatmapSet?.Metadata ?? beatmap.Metadata;
-            string creator = metadata.Author.Username;
+            string creator = GetDisplayedCreatorText(beatmap);
 
             StarDifficulty starDifficulty = new StarDifficulty(beatmap.StarRating, 0);
 
@@ -95,7 +104,7 @@ namespace osu.Game.Screens.Ranking.Expanded
 
             var headerChildren = new List<Drawable>
             {
-                new ClickableMetadata(beatmap.OnlineID, metadata),
+                new ClickableMetadata(beatmap.OnlineID, beatmap),
                 new Container
                 {
                     Anchor = Anchor.TopCentre,
@@ -331,8 +340,10 @@ namespace osu.Game.Screens.Ranking.Expanded
             [Resolved]
             private OsuGame? game { get; set; }
 
-            public ClickableMetadata(int beatmapId, IBeatmapMetadataInfo metadata)
+            public ClickableMetadata(int beatmapId, IBeatmapInfo beatmap)
             {
+                var metadata = beatmap.Metadata;
+
                 AutoSizeAxes = Axes.Both;
 
                 Anchor = Anchor.TopCentre;
@@ -356,7 +367,7 @@ namespace osu.Game.Screens.Ranking.Expanded
                         {
                             Anchor = Anchor.TopCentre,
                             Origin = Anchor.TopCentre,
-                            Text = new RomanisableString(metadata.ArtistUnicode, metadata.Artist),
+                            Text = new RomanisableString(GetDisplayedArtistUnicodeText(beatmap), GetDisplayedArtistText(beatmap)),
                             Font = OsuFont.Torus.With(size: 14, weight: FontWeight.SemiBold),
                             MaxWidth = ScorePanel.EXPANDED_WIDTH - padding * 2,
                         }

@@ -59,11 +59,21 @@ namespace osu.Game.Screens.Play
 
         private FillFlowContainer versionFlow;
         private StarRatingDisplay starRatingDisplay;
+        private OsuSpriteText artistText;
+        private MetadataLineInfo creatorText;
+
+        internal string DisplayedArtist => artistText?.Text.ToString() ?? string.Empty;
+
+        internal string DisplayedCreator => creatorText?.Text.ToString() ?? string.Empty;
 
         [BackgroundDependencyLoader]
         private void load(BeatmapDifficultyCache difficultyCache)
         {
+            var beatmapInfo = beatmap.BeatmapInfo;
             var metadata = beatmap.BeatmapInfo.Metadata;
+            string displayArtist = BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+            string displayArtistUnicode = BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+            string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
 
             AutoSizeAxes = Axes.Both;
             Children = new Drawable[]
@@ -89,9 +99,9 @@ namespace osu.Game.Screens.Play
                             Anchor = Anchor.TopCentre,
                             Margin = new MarginPadding { Top = 15 },
                         },
-                        new OsuSpriteText
+                        artistText = new OsuSpriteText
                         {
-                            Text = new RomanisableString(metadata.ArtistUnicode, metadata.Artist),
+                            Text = new RomanisableString(displayArtistUnicode, displayArtist),
                             Font = OsuFont.GetFont(size: 26, italics: true),
                             Origin = Anchor.TopCentre,
                             Anchor = Anchor.TopCentre,
@@ -170,7 +180,7 @@ namespace osu.Game.Screens.Play
                                 new Drawable[]
                                 {
                                     new MetadataLineLabel(CommonStrings.Mapper),
-                                    new MetadataLineInfo(metadata.Author.Username)
+                                    creatorText = new MetadataLineInfo(displayCreator)
                                 }
                             }
                         },
@@ -185,7 +195,7 @@ namespace osu.Game.Screens.Play
                 }
             };
 
-            starDifficulty = difficultyCache.GetBindableDifficulty(beatmap.BeatmapInfo);
+            starDifficulty = difficultyCache.GetBindableDifficulty(beatmapInfo);
 
             Loading = true;
         }

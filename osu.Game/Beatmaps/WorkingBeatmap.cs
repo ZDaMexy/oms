@@ -278,6 +278,10 @@ namespace osu.Game.Beatmaps
             if (rulesetInstance == null)
                 throw new RulesetLoadException("Creating ruleset instance failed when attempting to create playable beatmap.");
 
+            if (mods.Count == 0 && Beatmap is ICachedModlessPlayableBeatmapSource cachedSource
+                && cachedSource.TryGetCachedModlessPlayableBeatmap(ruleset, out var cachedBeatmap))
+                return cachedBeatmap;
+
             IBeatmapConverter converter = CreateBeatmapConverter(Beatmap, rulesetInstance);
 
             // Check if the beatmap can be converted
@@ -344,6 +348,9 @@ namespace osu.Game.Beatmaps
                 token.ThrowIfCancellationRequested();
                 mod.ApplyToBeatmap(converted);
             }
+
+            if (mods.Count == 0 && Beatmap is ICachedModlessPlayableBeatmapSource cacheableSource)
+                cacheableSource.CacheModlessPlayableBeatmap(ruleset, converted);
 
             return converted;
         }

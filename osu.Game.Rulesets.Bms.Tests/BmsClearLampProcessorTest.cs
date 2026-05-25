@@ -160,6 +160,28 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestGaugeHistoryDoesNotReapplyBeatmapModsToPlayableBeatmap()
+        {
+            var beatmap = createBeatmap(2);
+
+            applyBeatmapMods(beatmap, new Mod[] { new BmsModMirror() });
+
+            var mirroredLanes = getLaneSequence(beatmap);
+            var score = new ScoreInfo
+            {
+                Mods = new Mod[] { new BmsModMirror() },
+            };
+
+            var history = BmsClearLampProcessor.CreateGaugeHistory(score, beatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(history.Timelines, Is.Not.Empty);
+                Assert.That(getLaneSequence(beatmap), Is.EqualTo(mirroredLanes));
+            });
+        }
+
+        [Test]
         public void TestPrepareScoreInfoDoesNotPersistPerfectLampWhenHcnBodyTicksFailGauge()
         {
             var beatmap = createHoldBeatmap(total: 200, baselineNoteCount: 0, holdDuration: BmsHoldNoteBodyTick.TICK_QUANTUM * 11);
@@ -190,6 +212,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 },
                 HitEvents = createHitEvents(hitResults),
             };
+
+            applyBeatmapMods(beatmap, score.Mods);
 
             new BmsRuleset().PrepareScoreInfoForResults(score, beatmap);
 
@@ -227,6 +251,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                     (holdNote.Tail!, HitResult.IgnoreHit),
                 }),
             };
+
+            applyBeatmapMods(beatmap, score.Mods);
 
             var history = BmsClearLampProcessor.CreateGaugeHistory(score, beatmap);
 
@@ -309,6 +335,26 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(backloadedGauge, Is.EqualTo(1).Within(0.000001));
                 Assert.That(frontloadedLamp, Is.EqualTo(BmsClearLamp.Failed));
                 Assert.That(backloadedLamp, Is.EqualTo(BmsClearLamp.NormalClear));
+            });
+        }
+
+        [Test]
+        public void TestCalculateFinalGaugeDoesNotReapplyBeatmapModsToPlayableBeatmap()
+        {
+            var beatmap = createBeatmap(2);
+
+            applyBeatmapMods(beatmap, new Mod[] { new BmsModMirror() });
+
+            var mirroredLanes = getLaneSequence(beatmap);
+            var score = createScore(beatmap, HitResult.Perfect, HitResult.Perfect);
+            score.Mods = new Mod[] { new BmsModMirror() };
+
+            var finalGauge = BmsClearLampProcessor.CalculateFinalGauge(score, beatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(finalGauge, Is.GreaterThan(0));
+                Assert.That(getLaneSequence(beatmap), Is.EqualTo(mirroredLanes));
             });
         }
 
@@ -498,6 +544,12 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             return hitEvents;
         }
+
+        private static void applyBeatmapMods(BmsBeatmap beatmap, IEnumerable<Mod>? mods)
+            => BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, mods);
+
+        private static int[] getLaneSequence(BmsBeatmap beatmap)
+            => beatmap.HitObjects.OfType<BmsHitObject>().Select(hitObject => hitObject.LaneIndex).ToArray();
 
         private static Mod createLongNoteModeMod(BmsLongNoteMode longNoteMode)
             => longNoteMode switch

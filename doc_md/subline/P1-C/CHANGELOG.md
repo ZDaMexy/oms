@@ -2,6 +2,26 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-25
+
+### C3 follow-up：gauge history consumer proof 收口为 plain focused 路径
+
+- [../../osu.Game.Rulesets.Bms/UI/BmsGaugeHistoryGraph.cs](../../osu.Game.Rulesets.Bms/UI/BmsGaugeHistoryGraph.cs) 现已让 `SkinnableBmsGaugeHistoryPanelDisplay` 暴露只读 history state，供 focused proof 直接读取 `CreateStatisticsForScore()` 生成的 gauge history 数据，而不再依赖 CLI 下不稳定的 skinnable scene 装载链。
+- [../../osu.Game.Rulesets.Bms.Tests/BmsRulesetStatisticsTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsRulesetStatisticsTest.cs) 新增 `TestCreateStatisticsGaugeHistoryCarriesAutoShiftTimelineState()`，直接锁住 auto-shift `EX-HARD -> HARD -> NORMAL` timeline 与对应 sample/time/value 会端到端进入 gauge history consumer，而不是仅停留在 panel type proof。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~BmsRulesetStatisticsTest.TestCreateStatistics"` **4/4** 通过。
+
+### C3 follow-up：results summary consumer proof 收口为 plain focused 路径
+
+- [../../osu.Game.Rulesets.Bms/UI/BmsResultsSummaryDisplay.cs](../../osu.Game.Rulesets.Bms/UI/BmsResultsSummaryDisplay.cs) 现已让 `SkinnableBmsResultsSummaryPanelDisplay` 暴露只读 summary state，供 focused proof 直接读取 `CreateStatisticsForScore()` 生成的 results summary 数据，而不再依赖 CLI 下不稳定的 skinnable scene 装载链。
+- [../../osu.Game.Rulesets.Bms.Tests/BmsRulesetStatisticsTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsRulesetStatisticsTest.cs) 新增 `TestCreateStatisticsSummaryCarriesSelectedModesAndClearLamp()`，直接锁住 selected modes、EX-SCORE、DJ LEVEL 与 computed clear lamp 会端到端进入 summary consumer，并明确 `PERFECT` / `FULL COMBO` 会继续覆盖 gauge-derived lamp。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~BmsRulesetStatisticsTest.TestCreateStatistics"` **3/3** 通过。
+
+### C3 follow-up：results-side helper 改为消费已带 mods playable beatmap
+
+- [../../osu.Game/Rulesets/Ruleset.cs](../../osu.Game/Rulesets/Ruleset.cs) 已明确 `PrepareScoreInfoForResults()` 与 `CreateStatisticsForScore()` 接收的是“已应用所有相关 mods 的 playable beatmap”；[../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 与 [../../osu.Game.Rulesets.Bms/Scoring/BmsClearLampProcessor.cs](../../osu.Game.Rulesets.Bms/Scoring/BmsClearLampProcessor.cs) 现已按此 contract 消费 caller 传入的 beatmap，不再在 results-side helper 内再次调用 `BmsBeatmapModApplicator`。
+- [../../osu.Game.Rulesets.Bms.Tests/BmsPlayableBeatmapCacheTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsPlayableBeatmapCacheTest.cs) 与 [../../osu.Game.Rulesets.Bms.Tests/BmsClearLampProcessorTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsClearLampProcessorTest.cs) 现已分别补出 `Mirror` focused proof，锁住 `PrepareScoreInfoForResults()`、`CreateGaugeHistory()` 与 `CalculateFinalGauge()` 不会对已带 mods 的 playable beatmap 重复应用 beatmap mods；依赖 long-note / assist 语义的 HCN、autoplay 邻接用例也已改为显式先应用 score mods，再进入 results helper。
+- 验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~BmsPlayableBeatmapCacheTest"` **5/5** 通过；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~BmsClearLampProcessorTest"` **32/32** 通过。
+
 ## 2026-05-16
 
 ### C2：pre-start delay 在 hold 期间耗尽后改为松手重给满一段 delay

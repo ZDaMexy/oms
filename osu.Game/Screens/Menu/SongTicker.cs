@@ -87,6 +87,12 @@ namespace osu.Game.Screens.Menu
             };
         }
 
+        internal static string GetDisplayedArtistText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+
+        internal static string GetDisplayedArtistUnicodeText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
@@ -97,9 +103,10 @@ namespace osu.Game.Screens.Menu
         private void show()
         {
             var metadata = beatmap.Value.Metadata;
+            var beatmapInfo = beatmap.Value.BeatmapInfo;
 
             title.Text = new RomanisableString(metadata.TitleUnicode, metadata.Title);
-            artist.Text = new RomanisableString(metadata.ArtistUnicode, metadata.Artist);
+            artist.Text = new RomanisableString(GetDisplayedArtistUnicodeText(beatmapInfo), GetDisplayedArtistText(beatmapInfo));
 
             this.FadeInFromZero(fade_duration / 2f)
                 .Delay(4000)

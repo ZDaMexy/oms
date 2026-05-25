@@ -336,6 +336,38 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestImportNormalisesProjectedBgaBitmapToExistingImageVariant()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-projected-background-normalise-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string importRoot = Path.Combine(storage.GetFullPath("."), "projected-background-normalise", Guid.NewGuid().ToString("N"));
+
+            Directory.CreateDirectory(importRoot);
+            File.WriteAllText(Path.Combine(importRoot, "chart.bms"), @"
+#TITLE Filesystem Test
+#ARTIST OMS
+#BPM 150
+#PLAYLEVEL 12
+#BMP01 stage.bmp
+#BGA01 01 0 0 255 255 0 0
+#00111:AA00
+");
+            File.WriteAllText(Path.Combine(importRoot, "stage.png"), "placeholder");
+
+            var importer = new BmsFolderImporter(storage, realm);
+            var result = await importer.Import(new ImportTask(importRoot)).ConfigureAwait(false);
+
+            Assert.That(result.ImportedBeatmapSet, Is.Not.Null);
+
+            result.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                Assert.That(set.Beatmaps.Single().Metadata.BackgroundFile, Is.EqualTo("stage.png"));
+            });
+        }
+
+        [Test]
         public async Task TestExternalDirectoryRegistrationUsesSourceDirectoryReadOnly()
         {
             using var storage = new TemporaryNativeStorage($"bms-external-readonly-{Guid.NewGuid():N}");

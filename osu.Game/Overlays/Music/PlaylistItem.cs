@@ -65,10 +65,8 @@ namespace osu.Game.Overlays.Music
 
         private void onItemChanged() => Current.Value.PerformRead(m =>
         {
-            var metadata = m.Metadata;
-
-            var title = new RomanisableString(metadata.TitleUnicode, metadata.Title);
-            var artist = new RomanisableString(metadata.ArtistUnicode, metadata.Artist);
+            var title = new RomanisableString(m.Metadata.TitleUnicode, m.Metadata.Title);
+            var artist = m.GetDisplayArtistRomanisable();
 
             text.CreateContent = () =>
             {

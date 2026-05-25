@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-05-22
+> 最后更新：2026-05-23
 > 本文件记录 `P1-K` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -34,7 +34,7 @@
 1. `K1-A` 到 `K3-A` 首轮只允许改动 in-memory parse chain：`BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、event records 与 `BmsBeatmapConverter`；不得提前改 persisted metadata、Song Select UI 或 runtime hot-path。
 2. `K4-A` 之前，`BmsImportedBeatmapFactory`、`BmsBeatmapLoader`、`BmsFolderImporter`、`BmsBackgroundLayer` 只允许因编译依赖做最小适配，不得在未冻结 parse semantics 的情况下承诺新消费行为。
 3. parse model 的新增字段首轮必须是 additive；不得 repurpose 现有字段含义，也不得让旧字段在不同 consumer 下语义漂移。
-4. parse model 新字段默认只存在于 transient snapshot / projection；除非 `K4-A` 明确需要，否则不得自动扩写到 persisted metadata contract 并把 `P1-H` 一并拖入同一刀。
+4. parse model 新字段默认只存在于 transient snapshot / projection；除非 `K4` follow-up 明确需要，否则不得自动扩写到 persisted metadata contract 并把 `P1-H` 一并拖入同一刀；`BeatmapInfo.Metadata` 上既有的 derived projection 只能复用或回填，不得借 consumer 之名改写第二套 authority。
 5. 若某个 consumer 需求同时要求 parser 变更和 UI/runtime 变更，必须拆成“先保数 / 后消费”的两刀；不得把 parse semantics 变化埋在 UI 或 runtime 改动里一起提交。
 
 ## 回退约束
@@ -42,7 +42,7 @@
 1. 失败后的首选回退只能是“收缩新增暴露面”，不能把已经建立的 no-loss carrier、source line order 或 focused regression 一并删除。
 2. 若 `signed BPM`、duplicate line compound 或 typed visual placeholder 的首轮消费无法稳定，允许把消费层回退到未启用状态；不允许把 parse authority 回退成“继续丢数据”或“继续只保 warning”。
 3. `K3-A` 若暴露出 control-event 顺序问题，只能在 `BmsBeatmapConverter` authority 内修正；不得在 Song Select、gameplay、背景层或未来视觉层各自补局部顺序特判。
-4. `K4-A` 若 projection reuse 导致 stale cache 或 invalidation 不清，允许暂时停留在 parse-chain 内单一 projection authority；不得为此恢复 consumer-local second parse 或 second conversion。
+4. `K4` follow-up 若 projection reuse 导致 stale cache 或 invalidation 不清，允许暂时停留在 parse-chain 内单一 projection authority；不得为此恢复 consumer-local second parse 或 second conversion。
 5. 若某次回退已经需要修改 `P1-H` persisted contract、`P1-J` runtime hot-path 或 `P1-A` UI authority，说明当前切片拆分失败，必须先停下重写文档分线，再继续实现。
 
 ## 时间轴与 converter 约束
@@ -59,6 +59,21 @@
 3. raw working beatmap consumer 可以复用 import 阶段得到的 timing/hitobject/metadata projection；不得再触发 second parser 作为默认显示路径。
 4. runtime visual/effect layers 必须消费 typed visual event 或显式 projection；不得在 render/update 时直接遍历未冻结语义的 raw `ChannelEvents` 充当长期实现。
 5. 任何 derived metadata 若从 parse snapshot 派生，必须有单一写入 authority 与明确 invalidation 规则；不得一边 persisted、一边 runtime cache 各算各的。
+6. `osu.Game` 侧的 BMS display/read-model consumer 不得反向依赖 `osu.Game.Rulesets.Bms`；若需要 persisted BMS `chart_metadata`，必须共享单一 core-side typed projection helper，不得让每个 consumer 各自手拆 `RulesetDataJson` / `JObject.SelectToken("chart_metadata...")`。
+7. Song Select 中暴露 BMS 谱师的 sort/group/filter selector 必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayCreator()`；不得继续把 `Metadata.Author.Username` 当成 legacy BMS 的唯一 creator authority，或在 sorting / grouping / matching 各自维护一套 fallback 提取逻辑。
+8. Song Select 中暴露 BMS 曲师的 sort/group/filter selector，以及 shared beatmap-attribute display 这类本地 metadata consumer，必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayArtist()` / `GetDisplayArtistUnicode()` / `GetDisplayCreator()`；不得继续直接暴露 raw `Metadata.Artist` / `Metadata.ArtistUnicode` / `Metadata.Author.Username`。
+9. gameplay loading / metadata display consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayArtist()` / `GetDisplayArtistUnicode()` / `GetDisplayCreator()`；不得在 `BeatmapMetadataDisplay` 或相邻 gameplay metadata surface 内继续直接展示 raw local artist / creator。
+10. results / ranking metadata display consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayArtist()` / `GetDisplayArtistUnicode()` / `GetDisplayCreator()`；不得在 `ExpandedPanelMiddleContent` 或相邻 results metadata surface 内继续直接展示 raw local artist / creator。
+11. profile beatmap metadata display consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayArtist()` / `GetDisplayArtistUnicode()`；不得在 `DrawableProfileScore`、`DrawableMostPlayedBeatmap` 或相邻 profile metadata surface 内继续直接展示 raw local artist。
+12. menu / now-playing metadata display consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayArtist()` / `GetDisplayArtistUnicode()`；不得在 `SongTicker`、`NowPlayingOverlay` 或相邻 menu metadata surface 内继续直接展示 raw local artist。
+13. online play creator display consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayCreator()`；不得在 `DailyChallengeIntro`、`DrawableRoomPlaylistItem` 或相邻 online play creator surface 内继续直接展示 raw `Metadata.Author.Username`。
+14. 若 online play creator surface 需要 user link，只有在 `BeatmapLocalMetadataDisplayResolver.HasLinkedCreatorProfile()` 为真时才允许保留 link；fallback creator 只能显示为纯文本，不得伪造可点击用户资料。
+15. matchmaking round-results score consumer 在构造 `ScoreInfo` 使用的 beatmap 时，若本地 `BeatmapInfo` 可按 `OnlineID` 命中则必须优先复用；不得无条件把 `APIBeatmap` 重建成最小壳覆盖 persisted `chart_metadata`，否则会绕开 `ExpandedPanelMiddleContent` 已接好的 local metadata display authority。
+16. beatmap skin metadata consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayCreator()`；不得在 `LegacyBeatmapSkin` 或相邻 beatmap skin metadata surface 内继续直接展示 raw `Metadata.Author.Username`。
+17. `IBeatmapInfo` title display consumer 也必须共享 `BeatmapLocalMetadataDisplayResolver.GetDisplayArtist()` / `GetDisplayArtistUnicode()` / `GetDisplayCreator()`；不得在 `BeatmapInfoExtensions.GetDisplayTitleRomanisable()` 或相邻 full-beatmap title display surface 内继续直接拼 raw artist / creator。
+18. daily challenge title display consumer 在能拿到具体 `BeatmapInfo` 时也必须优先共享 full-beatmap title authority，并显式禁用 difficulty name；不得让 `DailyChallengeIntro` 或相邻 daily challenge title surface 继续直接走 `beatmap.BeatmapSet!.Metadata.GetDisplayTitleRomanisable(false)`。
+19. scoped beatmap-set title display consumer 在能拿到具体 `BeatmapInfo` 时也必须优先共享 full-beatmap title authority，并显式禁用 difficulty name；不得让 `FilterControl.ScopedBeatmapSetDisplay` 或相邻 set banner surface 继续直接读 `BeatmapSetInfo.Metadata.GetDisplayTitleRomanisable()` 暴露 raw `/obj:` suffix 或把难度名带进 set 级标题。
+20. delete confirmation title display consumer 在能拿到具体 `BeatmapInfo` 时也必须优先共享同一 set-level title authority，并显式保持“无 creator suffix + 无 difficulty name”的既有合同；不得让 `BeatmapDeleteDialog` 或相邻 delete confirmation title surface 继续直接走 `beatmapSet.Metadata.GetDisplayTitleRomanisable(false)`。
 
 ## 解析侧性能约束
 

@@ -44,5 +44,62 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(filterStats.ScratchNotePercentage, Is.EqualTo(40).Within(0.001));
             });
         }
+
+        [Test]
+        public void TestStatisticsDisplayPrefersPersistedChartFilterStats()
+        {
+            var beatmap = new BmsBeatmap
+            {
+                BeatmapInfo = new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone(), new BeatmapDifficulty(), new BeatmapMetadata()),
+            };
+
+            beatmap.HitObjects.Add(new BmsHitObject { StartTime = 0, LaneIndex = 1 });
+            beatmap.BeatmapInfo.Metadata.SetChartFilterStats(new BmsChartFilterStats
+            {
+                TotalPlayableObjectCount = 10,
+                RegularNoteCount = 4,
+                LongNoteCount = 3,
+                ScratchNoteCount = 3,
+            });
+
+            var statistics = beatmap.GetStatistics().ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(statistics.Select(statistic => statistic.Content), Is.EqualTo(new[] { "4 (40.0%)", "3 (30.0%)", "3 (30.0%)" }));
+                Assert.That(statistics.Select(statistic => statistic.BarDisplayLength), Is.EqualTo(new float?[] { 0.4f, 0.3f, 0.3f }));
+            });
+        }
+
+        [Test]
+        public void TestStatisticsDisplayCachesComputedChartFilterStatsWhenMissing()
+        {
+            var beatmap = new BmsBeatmap
+            {
+                BeatmapInfo = new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone(), new BeatmapDifficulty(), new BeatmapMetadata()),
+            };
+
+            beatmap.HitObjects.AddRange(new HitObject[]
+            {
+                new BmsHitObject { StartTime = 0, LaneIndex = 1 },
+                new BmsHoldNote { StartTime = 100, EndTime = 300, LaneIndex = 2 },
+                new BmsHitObject { StartTime = 400, LaneIndex = 0, IsScratch = true },
+            });
+
+            Assert.That(beatmap.BeatmapInfo.Metadata.GetChartFilterStats(), Is.Null);
+
+            var statistics = beatmap.GetStatistics().ToArray();
+            var cachedStats = beatmap.BeatmapInfo.Metadata.GetChartFilterStats();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(statistics.Select(statistic => statistic.Content), Is.EqualTo(new[] { "1 (33.3%)", "1 (33.3%)", "1 (33.3%)" }));
+                Assert.That(cachedStats, Is.Not.Null);
+                Assert.That(cachedStats!.TotalPlayableObjectCount, Is.EqualTo(3));
+                Assert.That(cachedStats.RegularNoteCount, Is.EqualTo(1));
+                Assert.That(cachedStats.LongNoteCount, Is.EqualTo(1));
+                Assert.That(cachedStats.ScratchNoteCount, Is.EqualTo(1));
+            });
+        }
     }
 }

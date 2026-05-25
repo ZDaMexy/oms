@@ -65,6 +65,7 @@ namespace osu.Game.Tests.Models
             mock.Setup(m => m.Metadata.Title).Returns("title");
             mock.Setup(m => m.Metadata.Author.Username).Returns("author");
             mock.Setup(m => m.DifficultyName).Returns("difficulty");
+            mock.Setup(m => m.Ruleset).Returns(new RulesetInfo { ShortName = "osu" });
 
             Assert.That(mock.Object.GetDisplayString(), Is.EqualTo("artist - title (author) [difficulty]"));
         }
@@ -91,6 +92,7 @@ namespace osu.Game.Tests.Models
             mock.Setup(m => m.Beatmap!.Metadata.Title).Returns("title");
             mock.Setup(m => m.Beatmap!.Metadata.Author.Username).Returns("author");
             mock.Setup(m => m.Beatmap!.DifficultyName).Returns("difficulty");
+            mock.Setup(m => m.Beatmap!.Ruleset).Returns(new RulesetInfo { ShortName = "osu" });
 
             Assert.That(mock.Object.GetDisplayString(), Is.EqualTo("user playing artist - title (author) [difficulty]"));
         }

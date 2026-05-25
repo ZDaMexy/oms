@@ -354,6 +354,12 @@ namespace osu.Game.Overlays
 
         private WorkingBeatmap? currentBeatmap;
 
+        internal static string GetDisplayedArtistText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
+
+        internal static string GetDisplayedArtistUnicodeText(IBeatmapInfo beatmapInfo)
+            => BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
+
         private void trackChanged(WorkingBeatmap beatmap, TrackChangeDirection direction = TrackChangeDirection.None)
         {
             currentBeatmap = beatmap;
@@ -362,6 +368,7 @@ namespace osu.Game.Overlays
             pendingBeatmapSwitch = delegate
             {
                 BeatmapMetadata metadata = beatmap.Metadata;
+                var beatmapInfo = beatmap.BeatmapInfo;
 
                 title.CreateContent = () => new OsuSpriteText
                 {
@@ -372,7 +379,7 @@ namespace osu.Game.Overlays
                 };
                 artist.CreateContent = () => new OsuSpriteText
                 {
-                    Text = new RomanisableString(metadata.ArtistUnicode, metadata.Artist),
+                    Text = new RomanisableString(GetDisplayedArtistUnicodeText(beatmapInfo), GetDisplayedArtistText(beatmapInfo)),
                     Font = artist_font,
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
