@@ -5,6 +5,121 @@
 
 ---
 
+## 2026-05-29
+
+### P1-L Phase 2（Step A–C）：BMS 专用滚动位置积分旁路落地（门控默认 OFF）
+
+落地 beatoraja 风格逐对象位置积分旁路，让 DEAD SOUL [Revive] 的「瞬移 snap / STOP 真冻结 / measure-length 任意定高」成立。**绕开而非改写**共享核心：新增 BMS 专用 `BmsScrollProfile`（converter 并行积分原始未钳制 `D(t)`）+ `BmsStopMotionScrollAlgorithm : IScrollAlgorithm`，经 `BmsPlayfield.CreateChildDependencies` 重缓存的 `BmsScrollingInfo` 注入——**不动 `TimingControlPoint` 钳制、不动 `ScrollingHitObjectContainer`、零核心文件改动**。门控 `BmsGimmickScrollMode` 默认 `Off`（设置面板可切 On/Auto），**判定/计分继续走时间链路、语义不变**。标定实测：DEAD SOUL `GetMostCommonBeatLength`=6（STOP 冻结占 43%）证实正常链路 squash，但默认 Normal hi-speed 模式 `timeRange` 与之无关 + profile base=132 → **Normal 模式零标定即忠实**。详见 [../subline/P1-L/CHANGELOG.md](../subline/P1-L/CHANGELOG.md)。
+
+- 验证：新增 `BmsScrollProfileTest`/`BmsStopMotionScrollAlgorithmTest`/`BmsScrollingInfoTest` + 扩 `BmsBeatmapConverterTest`；BMS 全套 **854/854**；`osu.Desktop.slnf` Release 0 错误、生产代码 0 新增警告。正常链路无回归：OFF 时算法逐实例跟随基类（单测锁定）+ Player 系 gameplay TestScene 全绿。
+- Step D（2026-05-29 续）：演出谱自动检测 `BmsScrollProfile.IsStopMotionGimmick`（`MaxSlope≥50 || FrozenFraction≥0.05`，保守区分特效/变速谱与正常 soflan）已落地。**门控默认改为 `Auto`**（用户拍板）：特效/变速谱开箱即用，正常谱不命中检测、零改动；`Off` 为回退开关，设置文案改发行向。默认 Auto 下正常谱无回归依赖检测无误报（保守）+ `Off` 兜底。
+- 待办：DEAD SOUL 逐帧人工视觉验收（Phase 4）、Floating/Classic 绝对刻度标定、负向滚动（Phase 3）。
+- 附带修复（人工验证发现）：Phase 1 地雷既有 off-by-one——`buildMines` 用键数而非轨道数做 lane 上界，导致最右键轨道（7K lane 7 / 5K lane 5 / 14K lane 14,15）地雷被误丢；新增权威 `BmsRuleset.GetLaneCount`（`BmsLaneLayout` 委托之），加 `TestBuildsMineOnRightmostKeyLane` 回归。
+
+### P1-L 建线 + Phase 1：BMS 演出/Gimmick 谱地雷视觉呈现
+
+新增独立子线 `P1-L`（由 [../other/BMS_GIMMICK_CHART_RENDERING.md](../other/BMS_GIMMICK_CHART_RENDERING.md) 可行性分析升级而来），目标是尽可能忠实复刻 DEAD SOUL [Revive] 这类**演出/观赏谱**。机理结论：这类谱是**定格动画**（132 万 BPM 瞬移 + measure-length 摆位 + STOP 定帧 + 大量地雷作像素，全谱无负值），osu! 前进式滚动 + `BeatLength` 钳制会压扁极端反差，故需 beatoraja 风格的专用滚动旁路（Phase 2 核心）。
+
+**Phase 1（地雷视觉，已落地，完全隔离）**：此前地雷（channel D/E）解码后从不渲染；本轮把地雷渲染为可视、非判定对象，**仿小节线模式**——`BmsMine` 用 `IgnoreJudgement`、不进 `beatmap.HitObjects`、由 `BmsPlayfield.addMines` 直接加到对应 lane，`DrawableBmsMine` 非 `DrawableBmsHitObject`。**零滚动模型改动、零判定/计分改动、零正常游玩链路风险。** 详见 [../subline/P1-L/CHANGELOG.md](../subline/P1-L/CHANGELOG.md)。
+
+- 验证：`BmsBeatmapConverterTest` **16/16**（新增"地雷不泄漏进判定路径"回归）；BMS 全套 **831/831**；`osu.Desktop.slnf` Release 0 错误、生产代码 0 新增警告。
+- 已知限制：Phase 1 仅让地雷可见；DEAD SOUL 的"瞬移定格"仍需 Phase 2 专用滚动旁路才能忠实复刻。
+
+### P1-K：解析 → 谱面/音乐/键音呈现链路审查后的全量修复（含性能优化）
+
+对 BMS「解析 → 谱面/音乐/键音呈现」全链做了一轮审查，把链路正确性/保真 bug 与两处性能问题一次性修完；纯功能新增项（负 BPM 反向滚动、独立 10K 键位、地雷可玩化、`#SPEED`/文本/`#CHANGEOPTION` 建模）显式后置 backlog。详细切片见 [../subline/P1-K/CHANGELOG.md](../subline/P1-K/CHANGELOG.md) 2026-05-29 条目，约束见 [../subline/P1-K/TECHNICAL_CONSTRAINTS.md](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)「键音呈现与控制流约束」。
+
+- **BGM 叠层不再丢失（高优音频保真）**：channel `0x01` 此前被同位去重，同一时刻多条 `#xxx01` 并行 keysound 只剩一个；现 BGM 永不复合，叠层全部保留。
+- **控制流修复错谱**：`#RANDOM` 增量支持 `#ELSE`/`#ELSEIF`/`#SETRANDOM`（修复 `#IF 1` 命中时 `#ELSE` 内容被并入），新增 `#SWITCH` 家族确定性单段选择（修复多 case 被无条件叠成错谱）；`#RANDOM` 默认仍只跑 `#IF 1`。
+- **亚 1 BPM 保真**：`getBeatLength` 不再把 `0<bpm<1` 钳为 1 BPM（对象时序修正）。
+- **键音轨保真**：空键/误击 keysound 改由 converter 期构建的 per-lane 时间线驱动，消费此前被丢弃的不可见对象（channel 31-49），修复开局静音，改为基于谱面而非判定。
+- **性能**：LNOBJ 头移除由 O(n²) 改 O(n)；轨键音解析由每次 O(n) 扫描改二分 O(log n)。
+- **显式保留**：STOP 同拍位（T+D）经审查确认为 K3-A 既有契约，未改。
+- **验证**：`BmsBeatmapDecoderTest` **40/40**、`BmsBeatmapConverterTest` **15/15**、BMS 全套 **830/830**、`osu.Desktop.slnf` Release 构建 0 错误。
+
+### P1-K：BMS→mania 转谱链路审查后全量收口（11 项发现 + K9 #15/#16 新约束）
+
+一次审查暴露的 11 项发现一次性修完，并补齐缺失的两条 K9 硬约束。详细切片见 [../subline/P1-K/CHANGELOG.md](../subline/P1-K/CHANGELOG.md) 2026-05-29 条目。
+
+- **K9 #9 兑现**：`BmsToManiaBeatmapConverter.ConvertBeatmap` 在 flatten 后 `scorableHitObjects.Count == 0`（纯 scratch / 空谱）显式抛 `BeatmapInvalidForRulesetException`，让既有 `BeatmapDifficultyCache` / `BackgroundDataStoreProcessor` 的 catch 自然把它固化为 Failed，与 K10 失败语义对齐。
+- **K9 #16 新约束 + 实施**：新增 `BmsStopFreezeTimingControlPoint : TimingControlPoint` dedicated subclass 替代 `BeatLength = 6` 哨兵——mania `BeatLengthBindable.MinValue = 6` 下任何 BPM ≥ 10000 真实谱面与 sentinel 完全碰撞，类型级标记是唯一不会误删极端 BPM timing 的方式。
+- **K9 #15 新约束**：mania 转谱期不传递 BMS scroll `EffectControlPoint`（既有行为，本轮在 K9 约束里显式声明）。
+- **K5 cache 复用**：`createSourceBeatmap` 改为先查 `ICachedModlessPlayableBeatmapSource`，避免 BMS-side intermediate 被重复转换。
+- **反射缓存对齐**：`ManiaRuleset.tryCreateBmsConverter` 改 `static readonly Func<...>` 委托对齐 `DrawableManiaRuleset` 既有模式。
+- **持久化合同收口**：`BmsPersistedMetadataResolver.parsedDataCache` 写入时主动 evict 旧 key 消除无界增长；`BeatmapDifficultyCache.persist*IfApplicable` 加 `!metadata.IsManaged` 守护防 live realm 实例写抛异常；K10-B 推迟决定在 `LastAppliedDifficultyVersion` 比较处补注释指向 P1-K 文档。
+- **合同注释**：`BmsConvertedScratchSampleHitObject` 补完整 XML 注释，把"依赖 IgnoreJudgement.MaxResult.AffectsCombo() == false 让 autoplay + note-lock 自动跳过"的跨模块合同写明。
+- **次级清理**：`createDifficultyBeatmap` 改 `Metadata.DeepClone()` 防 calculator 反向污染；`initialiseLaneColumnMaps` 收窄 `scratchSampleColumnsByLane` 死赋值。
+
+构建：`dotnet build osu.Desktop -p:Configuration=Release` 0 错误 0 警告。测试：`BmsToManiaBeatmapConverterTest` **17/17**（含 5 条本轮新增 focused 回归）；BMS 全套 **821/821**；核心 focused suite **40/40**。
+
+已知 follow-up：`TestSceneManiaModAutoplay.TestPerfectScoreOnShortHoldNote` CLI 下 TearDownSteps 10s 超时——与 BMS 无关的 mania 自身 visual scene flake，已在文档历史中记录。
+
+---
+
+## 2026-05-28
+
+### P1-K：K10 第二刀（大量 BMS 库 carousel 性能与可用性闭环）
+
+基于真实 58k+ BMS 谱库实测迭代。第一刀 K10-A 已保证未来导入即时就绪；本次第二刀闭合旧库回填路径与 carousel 读路径的剩余瓶颈：
+
+- 启动批处理 BMS 谓词改回客户端 `IsBmsBeatmap()` 过滤——此前 Realm-side 链路在 Realm 20.1.0 + 58k 库下静默返回 0 结果导致旧库永远不被回填；并把 `Found N` 日志移到 early-return 之前，0 命中也写日志。
+- 把 `Calculate()` 无 token 调用下唯一来源是上游 10s 内置超时的 `OperationCanceledException` 改判为确定性失败固化为 Failed（批处理与 K10-A 导入期路径同步）——避免极端谱每次启动浪费 10-25s。
+- `BeatmapDifficultyCache.tryGetImmediateDifficulty` 现也在 `HasCurrentConvertedStarRatingState`（含 Failed）时同步返回 fallback（BMS playlevel），让 carousel 永不为已知失败谱排进 async compute 队列——这是上游 `CacheNullValues => false` 设计的实际绕开方式。
+- `BeatmapCarousel.getEffectiveStarRatingsStrict` 改为 sync-first 两段式：57k+ 持久化的 BMS 谱在第一段 `TryGetCachedDifficulty` 命中，不再为每张分配 async lambda + Task；只有真未命中的零头才走 `Task.WhenAll`。难度过滤滑块在 restricted 范围下也立即响应。
+- 详见 [../subline/P1-K/CHANGELOG.md](../subline/P1-K/CHANGELOG.md) 同日 K10 第二刀条目。
+
+实测验证（用户提供 1779978684 会话 log）：`Found 0` 启动批处理瞬间完成、carousel filter ops 全部 400-800ms 顺利完结、`BeatmapDifficultyCache i:3 h:10 m:3 77%` 极低活动量。"卡顿/排序错位/难度动态变化"三大症状完全消除。
+
+**Known follow-up**：高难谱星数 sprite-text 过渡动画（"数字跳动"）属 UI 显示层独立切片归 P1-A；极端谱滚动卡顿与 texture atlas 多次扩展相关、与本数据层修复无关；Genngaozo 系列谱 >10s 转谱的根因未单独排查（以 Failed 绕开）。
+
+构建：Release 0 错误；`BeatmapCarouselFilter*Test + BmsStarRatingResolverTest` **37/37** 通过。
+
+### P1-K：K10 第一刀（A 导入期持久化）落地；B 实测推迟；附 native 星批处理 return->continue
+
+- [../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs](../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs) 新增 `EnsureConvertedStarRatingPersisted`；[../../osu.Game/Beatmaps/BeatmapUpdater.cs](../../osu.Game/Beatmaps/BeatmapUpdater.cs) 的 `Process()` 在导入期就为 BMS 谱计算并持久化 mania 转谱星，mirror native 星的导入期计算。大批量导入后同一会话切到 mania 即就绪，carousel 不再回退 BMS playlevel 然后异步 warmup 再重排，无需重启等启动批处理。
+- B（读校验加固）经核查：carousel / spread display / difficulty cache 三处消费者共享同一个 RulesetStore detached 实例，`clearOutdatedStarRatings` 每次启动都会就地同步其 LAV；mania 难度版本是编译期常量。LAV 在稳态下可靠同步，B 收益不足以抵消改读路径的风险，**推迟实施**。详见 [../subline/P1-K/DEVELOPMENT_PLAN.md](../subline/P1-K/DEVELOPMENT_PLAN.md) K10 节。
+- 附带：审查发现 [../../osu.Game/Database/BackgroundDataStoreProcessor.cs](../../osu.Game/Database/BackgroundDataStoreProcessor.cs) 的 `populateMissingStarRatings` 在单项谱面被删时会 `return` 中断整批并让进度通知卡死，改为 `continue` 与同文件其它批处理一致。
+- 验证：Release slnf 构建 0 错误；`BmsStarRatingResolverTest` + `BeatmapCarouselFilterSortingTest` 20/20、`BmsToManiaBeatmapConverterTest` 12/12 通过。导入期端到端集成回归列为已知测试缺口。
+
+### P1-K：转谱难度持久化链路失败语义统一
+
+- BMS→mania 转谱星数持久化链一轮失败语义收口：[../../osu.Game/Database/BackgroundDataStoreProcessor.cs](../../osu.Game/Database/BackgroundDataStoreProcessor.cs) 与 [../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs](../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs) 现统一为"只有确定不可转（`BeatmapInvalidForRulesetException`）才持久化 Failed，瞬时异常仅日志、待重试"；缓存懒写路径也补上跨 ruleset 确定失败的 Failed 持久化，与批处理对齐，不再每次重算。
+- 同时收窄启动期 BMS 谱面查询为 Realm 可翻译谓词（按 ruleset short-name 过滤，避免全表客户端扫描），并给 `LastAppliedDifficultyVersion` 内存赋值补依赖注释。
+- 验证：`dotnet build osu.Desktop.slnf -c Release` / `-c Debug` 均 0 错误；`BmsStarRatingResolverTest` + `BeatmapCarouselFilterSortingTest` 13/13、`BmsToManiaBeatmapConverterTest` + autoplay 13/13 通过。详见 [../subline/P1-K/CHANGELOG.md](../subline/P1-K/CHANGELOG.md)。
+
+## 2026-05-27
+
+### P1-K：转谱链后置维护与 Test Explorer 退出标记
+
+- BMS→mania 转谱链一轮无行为变化的维护性收口：STOP-freeze `BeatLength = 6` 提升为 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs) 的公开常量 `StopFreezeBeatLength` 并由 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs) 共享，消除两份独立魔法常量；[../../osu.Game.Rulesets.Mania/UI/DrawableManiaRuleset.cs](../../osu.Game.Rulesets.Mania/UI/DrawableManiaRuleset.cs) 的 BMS drawable 工厂反射改为缓存强类型委托；[../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs](../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs) 的 `conversion_version` 补维护契约注释。
+- [../../osu.Game/osu.Game.csproj](../../osu.Game/osu.Game.csproj) 增加 `<IsTestProject>false</IsTestProject>`：osu.Game 因引用 NUnit（抽象测试场景基类）被 C# Dev Kit 误当测试容器，对其启动 testhost 时缺探测路径解析不到缓存 AutoMapper 而中止发现。退出标记仅影响 IDE 测试发现，不改构建/运行，CLI `dotnet test` 不受影响。
+- 验证：`dotnet build osu.Desktop.slnf -c Release` / `-c Debug` 均 0 错误；Mania 转谱聚焦 Release 14/14、Debug 12/12，`osu.Game.Tests` star/sort 聚焦 13/13 通过。详见 [../subline/P1-K/CHANGELOG.md](../subline/P1-K/CHANGELOG.md)。
+
+## 2026-05-26
+
+### P1-K / P1-A：`K9` 第三刀落地，sample-only scratch autoplay 与 persisted converted star 收口
+
+- [../../osu.Game.Rulesets.Bms/Objects/BmsConvertedScratchSampleHitObject.cs](../../osu.Game.Rulesets.Bms/Objects/BmsConvertedScratchSampleHitObject.cs) 与 [../../osu.Game.Rulesets.Bms/UI/DrawableBmsConvertedScratchSampleHitObject.cs](../../osu.Game.Rulesets.Bms/UI/DrawableBmsConvertedScratchSampleHitObject.cs) 现已把 converted scratch-family 语义冻结为 sample-only、ignore-judgement 的 mania object：它们继续保留原 keysound / head-tail sample 的时间线，但不再占 mania judged column，也不再进入 combo / statistics / star 计算 authority。
+- [../../osu.Game.Rulesets.Mania/Replays/ManiaAutoGenerator.cs](../../osu.Game.Rulesets.Mania/Replays/ManiaAutoGenerator.cs) 现已在 action-point 生成与同列 next-object lookup 两侧都跳过 `Judgement.MaxResult.AffectsCombo() == false` 的对象；因此 converted scratch sample 不再为 autoplay 生成假按键，也不再扰动真实列的 key-up 时机。[../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs](../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs) 现已补上同列 scratch sample + 实 note 的 dedicated autoplay proof。
+- [../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs](../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs)、[../../osu.Game/Beatmaps/BmsStarRatingResolver.cs](../../osu.Game/Beatmaps/BmsStarRatingResolver.cs)、[../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs](../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs) 与 [../../osu.Game/Database/BackgroundDataStoreProcessor.cs](../../osu.Game/Database/BackgroundDataStoreProcessor.cs) 现已把 modless `BMS -> mania` 星数写入 `BeatmapMetadata.RulesetDataJson` 的 BMS payload，并按 target ruleset、difficulty version 与 conversion version 做读取、失效和后台补算；[../../osu.Game/Screens/Select/PanelBeatmapStandalone.SpreadDisplay.cs](../../osu.Game/Screens/Select/PanelBeatmapStandalone.SpreadDisplay.cs) 与 [../../osu.Game/Screens/Select/PanelBeatmapSet.SpreadDisplay.cs](../../osu.Game/Screens/Select/PanelBeatmapSet.SpreadDisplay.cs) 也已改为消费 current-ruleset resolved star，因此重启、切换与 spread dots 不再回退到 raw BMS 星数。
+- 验证：`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "Name~BmsToManiaBeatmapConverterTest|Name~IgnoreOnlyDrawableDoesNotBlockColumnInput|Name~AutoplayIgnoresSampleOnlyScratchObjects"` **14/14** 通过；`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --no-restore --filter "Name~BmsStarRatingResolverTest|Name~BeatmapCarouselFilterSortingTest"` **19/19** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
+### P1-K / P1-A：`K9` 第二刀落地，converted mania 星数 authority 与 Song Select effective-star selector 接通
+
+- [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs) 现已在 dedicated `BMS -> mania` conversion 完成后，对 converted mania beatmap 先执行 `ApplyDefaults()`，再通过 [../../osu.Game/Beatmaps/DirectPlayableWorkingBeatmap.cs](../../osu.Game/Beatmaps/DirectPlayableWorkingBeatmap.cs) 包装成 direct playable working beatmap，并喂给 `ManiaDifficultyCalculator` 完成 target-ruleset 星数重算；因此 converted beatmap 不再继续沿用 source BMS 星数。
+- [../../osu.Game/Screens/Select/BeatmapCarousel.cs](../../osu.Game/Screens/Select/BeatmapCarousel.cs) 现已把 `BeatmapDifficultyCache` 接成 Song Select 的 shared effective-star resolver；[../../osu.Game/Screens/Select/BeatmapCarouselFilterMatching.cs](../../osu.Game/Screens/Select/BeatmapCarouselFilterMatching.cs)、[../../osu.Game/Screens/Select/BeatmapCarouselFilterSorting.cs](../../osu.Game/Screens/Select/BeatmapCarouselFilterSorting.cs) 与 [../../osu.Game/Screens/Select/BeatmapCarouselFilterGrouping.cs](../../osu.Game/Screens/Select/BeatmapCarouselFilterGrouping.cs) 则开始消费这条 resolved-star lookup，因此在 mania 视角下可见的 BMS converted chart，当前已会用 converted mania 星数参与 Song Select 的星数筛选、难度排序与按星数分组，而不再直接吃 raw `BeatmapInfo.StarRating`。
+- [../../osu.Game/Beatmaps/BeatmapInfoExtensions.cs](../../osu.Game/Beatmaps/BeatmapInfoExtensions.cs) 现已新增“是否需要目标 ruleset 星数”和“读取 resolved star rating”的窄 helper，供 dedicated converter 与 Song Select selector 共享同一条 current-ruleset effective-star authority，而不是在各个 surface 内继续手写 `Ruleset.ShortName` / raw star fallback。
+- focused proof 现已扩到两侧：一方面 [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs) 已补到 **9/9**，锁住 converted beatmap 的星数会按 mania 难度算法重算；另一方面 [../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs](../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs)、[../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterGroupingTest.cs](../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterGroupingTest.cs) 与 [../../osu.Game.Tests/NonVisual/Filtering/FilterMatchingTest.cs](../../osu.Game.Tests/NonVisual/Filtering/FilterMatchingTest.cs) 现已新增 conversion-aware effective-star regressions，锁住 sort / group / filter 三条 selector surface。
+- 验证：`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter BmsToManiaBeatmapConverterTest --no-restore` **9/9** 通过；`dotnet test osu.Game.Tests --filter "FullyQualifiedName~TestSortingByDifficultyUsesResolvedConvertedStarRating|FullyQualifiedName~TestGroupedSetDifficultyOrderingUsesResolvedConvertedStarRating|FullyQualifiedName~TestGroupingByDifficultyUsesResolvedConvertedStarRating|FullyQualifiedName~TestCriteriaMatchingUsesResolvedConvertedStarRating" --no-restore` **4/4** 通过。
+
+### P1-K / P1-A：`K9` 首刀落地，BMS -> mania dedicated conversion 与首轮 public gate 接通
+
+- [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs) 现已新增 dedicated `BMS -> mania` converter：它从 decoded BMS source chart 重新 materialize canonical modless BMS playable，再固定按 `5K/7K/9K_Bms/9K_Pms/14K` 矩阵映射到 mania；其中 `14K+2S` 固定为 dual-stage `7 + 7`，scratch-family object 则按同 side / 同 stage 退化到最近存活列，并保留 head/tail keysound sample。
+- [../../osu.Game.Rulesets.Mania/ManiaRuleset.cs](../../osu.Game.Rulesets.Mania/ManiaRuleset.cs) 现已在 mania 入口增加一条反射式 BMS converter factory 分流：当 source beatmap 是 BMS decoded wrapper 时，mania 会委托 BMS 侧 factory 创建 dedicated converter，而不会回退到通用 `IHasXPosition` pass-through 路径；这同时保持了项目依赖方向为 `BMS -> mania`，而不是让 upstream mania 项目直接引用 OMS 的 BMS 项目。
+- [../../osu.Game/Beatmaps/BeatmapInfoExtensions.cs](../../osu.Game/Beatmaps/BeatmapInfoExtensions.cs)、[../../osu.Game/OsuGame.cs](../../osu.Game/OsuGame.cs) 与 [../../osu.Game/Screens/Select/SongSelect.cs](../../osu.Game/Screens/Select/SongSelect.cs) 现已把 `BMS source -> mania target` 的 visibility / ruleset-maintenance gate 接回真实可玩性判断：`AllowGameplayWithRuleset()` 明确承认这条单向转谱，而 `PresentBeatmap` / Song Select 则改为通过 `RequiresRulesetSwitch()` 决定是否继续维持当前 mania ruleset，不再依赖 generic `OnlineID` heuristics。
+- [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs) 现已新增 **8/8** focused tests，锁住 `5K/7K/9K_Bms/9K_Pms/14K` 五类 keymode、`14K -> 7+7` dual-stage、scratch-family head/tail sample 保留、modless source gate，以及 `AllowGameplayWithRuleset()` / `RequiresRulesetSwitch()` 的首轮 public gate。
+- 验证：`dotnet test .\osu.Game.Rulesets.Mania.Tests\osu.Game.Rulesets.Mania.Tests.csproj --filter BmsToManiaBeatmapConverterTest --no-restore` **8/8** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-05-25
 
 ### P1-K：K8 gauge history consumer proof 完成，auto-shift timeline state 写死

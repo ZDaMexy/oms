@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-16
+> 最后更新：2026-05-26
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -25,6 +25,7 @@
 - 首次启动向导、`Run setup wizard` 与无谱面引导这类共享 onboarding / settings-entry surface 归 `P1-A`；若页面只是复用外部 / 内部谱库或按键绑定面板，则 `P1-H` / `P1-B` 只记从属影响，不为此另开子线。
 - desktop 通用 Settings -> 输入 当前也属于共享 settings-entry surface 的产品裁剪范围；若要隐藏 upstream 的数位板 / 触屏点击 / 鼠标 subsection，应在 desktop 宿主层安全隐藏，而不是下移成全宿主删除。
 - 共享层 first-run wizard 若需触发 BMS-only runtime 能力，必须继续避开 `osu.Game -> osu.Game.Rulesets.Bms` 编译期依赖；当前难度表导入页使用反射加载 `BmsDifficultyTableManager`，这条边界应继续保持。
+- 若后续公开 `BMS -> mania` 单向转谱入口，`P1-A` 只承接按钮文案、入口位置与 Song Select / presentation gating；source keymode -> mania keycount、lane flatten、scratch-family 退化与 validity 仍归 `P1-K/K9`，不得把现有 generic `显示转谱` surface 直接升格成该专题的 authority。
 
 ## 专题目标
 
@@ -36,7 +37,7 @@
 
 ### A0：文档与边界冻结
 
-**状态：已完成**
+状态：已完成
 
 - 盘点 BMS skin boundary、HUD 宿主接口、`GN / WN / Lift` 计算链与 `Sudden / Hidden` 联动。
 - 建立专题级计划 / 状态 / 技术约束文档。
@@ -44,7 +45,7 @@
 
 ### A0.5：首次启动向导与设置导流
 
-**状态：已完成首轮落地**
+状态：已完成首轮落地
 
 - 首次启动设置已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。
 - `获取谱面` / `导入` / `难度表设置` / `按键绑定` 四页当前都属于共享产品表面：可复用现有 `ExternalLibrarySettings`、keybinding subsection 与 BMS difficulty-table runtime，但不应因此改写各自底层子线归属。
@@ -57,7 +58,7 @@
 
 ### A1：反馈组件合同冻结
 
-**状态：进行中**
+状态：进行中
 
 目标：为当前和后续 gameplay feedback 建立统一入口，而不是继续把 speed feedback 固定在 toast，同时保持 release gate 与现有 HUD provider 不被打断。
 
@@ -78,7 +79,7 @@
 
 ### B1：权威绿色数字常驻反馈
 
-**状态：已完成，后续围绕 tri-mode operator surface 继续稳态化**
+状态：已完成，后续围绕 tri-mode operator surface 继续稳态化
 
 目标：为 `P1-C` 的常驻 GN 与后续 feedback family 提供稳定宿主边界；当前常驻 GN 已落地，本子线继续维护其宿主、fallback 与 settings / overlay 产品边界。
 
@@ -89,7 +90,7 @@
 
 ### B2：tri-mode settings 与 pre-start hold operator surface
 
-**状态：已完成功能面落地，后续维持验证与边界维护**
+状态：已完成功能面落地，后续维持验证与边界维护
 
 目标：在不破坏 HUD / skin boundary 与项目依赖边界的前提下，把三模式设置、runtime feedback 与 pre-start 调速窗口收口成同一条产品合同。
 
@@ -116,7 +117,7 @@
 
 ### B2：`Sudden / Hidden / Lift` 联动收口
 
-**状态：进行中**
+状态：进行中
 
 目标：让 lane cover focus、当前 target、geometry-effect 与 HUD feedback 表达统一，避免视觉上各说各话。
 
@@ -133,9 +134,29 @@
 - `Sudden / Hidden / Lift` 三项在启用 / 禁用 / 切换时的 HUD 行为可预测。
 - 焦点与 HUD 指示一致。
 
+### B3：BMS -> mania 单向转谱公开表面
+
+状态：进行中（visibility gate、resolved-star selector 与 spread display 已落地；explicit public wording 与更宽 presentation/manual proof 待收口）
+
+目标：在不污染现有 generic convert surface 的前提下，为后续 `BMS -> mania` 单向转谱冻结公开产品表面的入口、文案与可见性边界。
+
+建议交付：
+
+1. 公开表面必须显式视为 `BMS source -> mania target` 的单向入口，不得沿用或暗示 generic all-ruleset convert 口径。
+2. `P1-A` 只拥有入口位置、按钮文案、Song Select / `PresentBeatmap` 可见性与 unsupported case 的产品反馈；source keymode matrix、lane flatten、scratch-family 退化与空结果 suppress contract 继续由 `P1-K/K9` 冻结。
+3. 在 `P1-K/K9` 的 dedicated mapping / autoplay / persisted-star proof 已落地后，`P1-A` 当前已可继续承接 `AllowGameplayWithRuleset()`、`RequiresRulesetSwitch()`、`ShowConvertedBeatmaps` 与 current-ruleset star display 的公开表面；后续不得再回退到 raw-star selector 或 raw-star spread surface。
+4. 首轮 product surface 只允许暴露已支持的 `5K+1S/7K+1S/9K_Bms/9K_Pms/14K+2S` source charts；unsupported source keymode、flatten 后无可游玩对象或 target ruleset gate 失败时，入口必须直接隐藏或给出明确不可用反馈，而不是展示可点击空壳。
+5. focused validation 优先复用 [../P1-K/DEVELOPMENT_PLAN.md](../P1-K/DEVELOPMENT_PLAN.md) 已冻结的 mania convert/autoplay/selector/resolver 与 `PresentBeatmap` / Song Select 测试锚点；只有当 `P1-K/K9` 的 value-level proof 先成立后，才允许补更宽 visual / UX / manual 验证。
+
+验收：
+
+- 用户不会把该入口误读为 generic convert 全面开放。
+- supported / unsupported source chart 的入口可见性与反馈口径一致。
+- `P1-A` 不需要拥有任何 BMS -> mania 映射语义即可稳定承接公开表面。
+
 ### C1：扩展到统一 gameplay feedback 家族
 
-**状态：进行中**
+状态：进行中
 
 目标：在 speed feedback 合同稳定后，把 `FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 纳入同一反馈家族，而不是再开新的临时 overlay。
 
@@ -146,7 +167,6 @@
 3. judgement 位置如果需要与 feedback 排布联动，应显式新增位置合同，不继续扩散硬编码偏移值。
 
 > shared position contract 已落地；后续这一步的重点不再是“先抽常量”，而是决定如何在不破坏现有 skin/judgement 生命周期的前提下继续扩 judge display 的语义与排布。
-
 > 当前 feedback container、shared position contract 与 aggregate snapshot 已落地；本节剩余重点是 richer judge display / history 分层与 results 侧延展，不再是从零搭宿主。
 
 验收：
@@ -156,7 +176,7 @@
 
 ### D1：作者文档与 release gate 收口
 
-**状态：进行中**
+状态：进行中
 
 目标：把这条专题从“实现中合同”变成“可维护的 authoring / release gate 文档”。
 

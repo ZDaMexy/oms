@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using osu.Game.Rulesets.Bms.Beatmaps;
@@ -621,6 +622,53 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestBgmChannelKeepsSimultaneousLayers()
+        {
+            const string text = @"
+#00101:AA00
+#00101:BB00
+";
+
+            var result = decoder.DecodeText(text, "bgm-layers.bms");
+            var bgmEvents = result.ObjectEvents.Where(objectEvent => objectEvent.AutoPlay).ToList();
+
+            Assert.Multiple(() =>
+            {
+                // BGM (channel 01) layers placed at the same position must NOT be compounded — both keysounds survive.
+                Assert.That(bgmEvents, Has.Count.EqualTo(2));
+                Assert.That(bgmEvents.Select(objectEvent => objectEvent.ObjectId), Is.EquivalentTo(new[] { 370, 407 }));
+                Assert.That(bgmEvents.All(objectEvent => objectEvent.Channel == 0x01), Is.True);
+                Assert.That(bgmEvents.All(objectEvent => objectEvent.FractionWithinMeasure == 0), Is.True);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestPairsMultipleLnObjLongNotesAcrossLanesWithBgm()
+        {
+            const string text = @"
+#LNOBJ ZZ
+#00101:CC00
+#00111:AA00ZZ00
+#00112:BB00ZZ00
+";
+
+            var result = decoder.DecodeText(text, "multi-lnobj.bms");
+
+            Assert.Multiple(() =>
+            {
+                // Both LN heads were consumed and removed; only the retained BGM autoplay object remains.
+                Assert.That(result.ObjectEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ObjectEvents[0].AutoPlay, Is.True);
+                Assert.That(result.ObjectEvents[0].Channel, Is.EqualTo(0x01));
+                Assert.That(result.LongNoteEvents, Has.Count.EqualTo(2));
+                Assert.That(result.LongNoteEvents.Select(longNote => longNote.LaneChannel), Is.EquivalentTo(new[] { 0x11, 0x12 }));
+                Assert.That(result.LongNoteEvents.All(longNote => longNote.Encoding == BmsLongNoteEncoding.LnObj), Is.True);
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
         public void TestExecutesIf1BranchInsideRandomBlock()
         {
             const string text = @"
@@ -673,6 +721,126 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(result.Warnings, Has.Count.EqualTo(2));
                 Assert.That(result.Warnings[0], Does.Contain("OMS only executes the #IF 1 branch"));
                 Assert.That(result.Warnings[1], Does.Contain("no #IF 1 branch was found"));
+            });
+        }
+
+        [Test]
+        public void TestRandomElseBranchExecutesWhenIfNotMatched()
+        {
+            const string text = @"
+#RANDOM 2
+#IF 2
+#00111:AA00
+#ELSE
+#00112:BB00
+#ENDIF
+";
+
+            var result = decoder.DecodeText(text, "random-else.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ChannelEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ChannelEvents[0].Channel, Is.EqualTo(0x12));
+                Assert.That(result.Warnings, Has.Count.EqualTo(1));
+                Assert.That(result.Warnings[0], Does.Contain("OMS only executes the #IF 1 branch"));
+            });
+        }
+
+        [Test]
+        public void TestRandomElseBranchSkippedWhenIfMatched()
+        {
+            const string text = @"
+#RANDOM 2
+#IF 1
+#00111:AA00
+#ELSE
+#00112:BB00
+#ENDIF
+";
+
+            var result = decoder.DecodeText(text, "random-else-skipped.bms");
+
+            Assert.Multiple(() =>
+            {
+                // The #ELSE body must NOT leak in when the #IF 1 branch already matched.
+                Assert.That(result.ChannelEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ChannelEvents[0].Channel, Is.EqualTo(0x11));
+            });
+        }
+
+        [Test]
+        public void TestSetRandomHonoursPinnedBranchValue()
+        {
+            const string text = @"
+#SETRANDOM 2
+#IF 1
+#00111:AA00
+#ENDIF
+#IF 2
+#00112:BB00
+#ENDIF
+";
+
+            var result = decoder.DecodeText(text, "setrandom.bms");
+
+            Assert.Multiple(() =>
+            {
+                // #SETRANDOM pins the branch value, so the #IF 2 branch is selected deterministically with no warning.
+                Assert.That(result.ChannelEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ChannelEvents[0].Channel, Is.EqualTo(0x12));
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestSwitchExecutesMatchingCaseAndDoesNotMergeOtherCases()
+        {
+            const string text = @"
+#SWITCH 2
+#CASE 1
+#00111:AA00
+#SKIP
+#CASE 2
+#00112:BB00
+#SKIP
+#ENDSW
+";
+
+            var result = decoder.DecodeText(text, "switch-case.bms");
+
+            Assert.Multiple(() =>
+            {
+                // #SWITCH defaults to value 1, so only #CASE 1 executes; #CASE 2 must NOT be merged in.
+                Assert.That(result.ChannelEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ChannelEvents[0].Channel, Is.EqualTo(0x11));
+                Assert.That(result.Warnings, Has.Count.EqualTo(1));
+                Assert.That(result.Warnings[0], Does.Contain("Switch branching is not fully supported"));
+            });
+        }
+
+        [Test]
+        public void TestSetSwitchFallsBackToDefaultCase()
+        {
+            const string text = @"
+#SETSWITCH 9
+#CASE 1
+#00111:AA00
+#SKIP
+#DEF
+#00112:BB00
+#SKIP
+#ENDSW
+";
+
+            var result = decoder.DecodeText(text, "setswitch-default.bms");
+
+            Assert.Multiple(() =>
+            {
+                // No #CASE 9 exists, so the #DEF branch runs; #SETSWITCH is honoured without a warning.
+                Assert.That(result.ChannelEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ChannelEvents[0].Channel, Is.EqualTo(0x12));
+                Assert.That(result.Warnings, Is.Empty);
             });
         }
 

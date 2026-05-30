@@ -113,16 +113,8 @@ namespace osu.Game.Rulesets.Bms.UI
             return lanes[laneIndex];
         }
 
-        private static int getExpectedLaneCount(BmsKeymode keymode)
-            => keymode switch
-            {
-                BmsKeymode.Key5K => 6,
-                BmsKeymode.Key7K => 8,
-                BmsKeymode.Key9K_Bms => 9,
-                BmsKeymode.Key9K_Pms => 9,
-                BmsKeymode.Key14K => 16,
-                _ => 8,
-            };
+        // Single source of truth for keys + scratch lane count (shared with mine lane-bounds in BmsBeatmapConverter).
+        private static int getExpectedLaneCount(BmsKeymode keymode) => BmsRuleset.GetLaneCount(keymode);
 
         private static HashSet<int> getExpectedScratchLaneIndices(BmsKeymode keymode, int laneCount)
         {

@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Replays;
+using osu.Game.Rulesets.Scoring;
 
 namespace osu.Game.Rulesets.Mania.Replays
 {
@@ -56,6 +57,10 @@ namespace osu.Game.Rulesets.Mania.Replays
             for (int i = 0; i < Beatmap.HitObjects.Count; i++)
             {
                 var currentObject = Beatmap.HitObjects[i];
+
+                if (!canParticipateInAutoplay(currentObject))
+                    continue;
+
                 var nextObjectInColumn = GetNextObject(i); // Get the next object that requires pressing the same button
                 double releaseTime = calculateReleaseTime(currentObject, nextObjectInColumn);
 
@@ -92,12 +97,14 @@ namespace osu.Game.Rulesets.Mania.Replays
 
             for (int i = currentIndex + 1; i < Beatmap.HitObjects.Count; i++)
             {
-                if (Beatmap.HitObjects[i].Column == desiredColumn)
+                if (Beatmap.HitObjects[i].Column == desiredColumn && canParticipateInAutoplay(Beatmap.HitObjects[i]))
                     return Beatmap.HitObjects[i];
             }
 
             return null;
         }
+
+        private static bool canParticipateInAutoplay(HitObject hitObject) => hitObject.Judgement.MaxResult.AffectsCombo();
 
         private interface IActionPoint
         {

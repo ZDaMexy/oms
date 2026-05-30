@@ -20,12 +20,9 @@
 | 公开发行物产品面验收 | 进行中 | 依赖 `P1-A` 的默认皮肤与 release gate 收尾 |
 | 发布口径同步 | 进行中 | 需持续联动 `../../other/RELEASE.md` |
 
-## 验证记录
+## 当前验证基线
 
-- 沿用既有验证结论：Release publish 后 `portable.ini` 会触发 `data/` 自动生成，当前正式压缩包命名为 `oms_YYYYMMDD(.zip)`，并额外包含一份中英双语 `how to update.txt` 用于提示更精炼的手动覆盖更新步骤。
-- 2026-05-09：修复 fresh extract 的 single-file 便携发行物首次运行“先创建 `data/` 后无窗退出”的冷启动失败；`build-release.ps1` 现已显式加入 `IncludeAllContentForSelfExtract=true`。新解压 zip 冷启动恢复正常，8 秒 smoke 复核通过。
-- 本轮新增验证：PowerShell 语法解析通过；实际执行 ` .\build-release.ps1 ` 成功生成 `release-repo/oms_20260509_2.zip`，且 `publish/` 与 zip 根目录均已确认包含 `how to update.txt`。
-- 本轮补充审计：覆盖更新继续按“退出程序 -> 解压覆盖 -> 再启动”执行，不会触发 Velopack 或安装器自更新；便携模式需保留 `portable.ini` 与 `data/`，自定义数据根场景需保留 `storage.ini`。
-- 本轮工作区治理：已确认当前仓库没有 Python 项目级工具链依赖；`.venv` 自动激活只会制造 PowerShell Run 终端碰撞，因此工作区已显式关闭 `python.terminal.activateEnvironment`。
-- 为未来可能的内部 OMS 版号切换补上了最小兼容护栏：`ChangelogOverlay.ShowBuild(string)` 与 `OsuConfigManager.Migrate()` 现已兼容不带上游 `-stream` 后缀的 `oms_YYYYMMDD` 版号。
-- 验证：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- `build-release.ps1` 当前可稳定通过 PowerShell 语法解析并实际产出 `release-repo/oms_YYYYMMDD(.zip)`；最近一次实机打包已确认 `publish/` 与 zip 根目录都包含 `osu!.exe`、`portable.ini`、图标资源与中英双语 `how to update.txt`。
+- `IncludeAllContentForSelfExtract=true` 已锁定 fresh extract 的 single-file 冷启动与 8 秒 smoke 基线；手工覆盖更新继续遵循“退出程序 -> 解压覆盖 -> 再启动”，并保留 `portable.ini`、便携模式下的 `data/` 与任何自定义数据根使用的 `storage.ini`。
+- 未来内部 OMS 版号切换所需的最小兼容护栏已补齐：`ChangelogOverlay.ShowBuild(string)` 与 `OsuConfigManager.Migrate()` 已兼容不带上游 `-stream` 后缀的 `oms_YYYYMMDD` 版号。
+- 当前 `osu.Game` Release 构建可通过；按日期展开的发行链修补与验证记录见 [CHANGELOG.md](CHANGELOG.md)。

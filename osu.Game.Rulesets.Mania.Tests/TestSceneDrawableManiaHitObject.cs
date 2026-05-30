@@ -10,6 +10,8 @@ using osu.Framework.Input.Events;
 using osu.Framework.Timing;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
@@ -70,6 +72,37 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
             AddStep("progress time", () => clock.CurrentTime = 500);
             AddAssert("head is visible", () => note.Head.Alpha == 1);
+        }
+
+        [Test]
+        public void TestIgnoreOnlyDrawableDoesNotBlockColumnInput()
+        {
+            DrawableNote note = null;
+            bool pressAccepted = false;
+
+            AddStep("add ignore-only scratch and note", () =>
+            {
+                var scratch = new BmsConvertedScratchSampleHitObject
+                {
+                    Column = 0,
+                    StartTime = 0,
+                };
+                scratch.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                column.Add(new DrawableBmsConvertedScratchSampleHitObject(scratch));
+
+                var hitObject = new Note
+                {
+                    Column = 0,
+                    StartTime = 0,
+                };
+                hitObject.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                column.Add(note = new DrawableNote(hitObject));
+            });
+
+            AddStep("seek to hit time", () => clock.CurrentTime = 0);
+            AddStep("press note", () => pressAccepted = note.OnPressed(new KeyBindingPressEvent<ManiaAction>(GetContainingInputManager()!.CurrentState, ManiaAction.Key1)));
+            AddAssert("input accepted", () => pressAccepted);
+            AddAssert("note was hit", () => note.Result.HasResult && note.Result.IsHit);
         }
     }
 }

@@ -84,6 +84,16 @@ namespace osu.Game.Rulesets.Bms
                     Current = hiSpeedMode,
                 }),
                 new SettingsItemV2(hiSpeedSlider),
+                new SettingsItemV2(new FormEnumDropdown<BmsGimmickScrollMode>
+                {
+                    Caption = @"特效谱滚动（实验性）",
+                    HintText = "为特效谱／变速谱（如定格动画、瞬移、STOP 定帧）提供更好的渲染还原；若出现异常，将此项调回 Off 即可恢复常规滚动（实验性功能）。\n\n"
+                               + "Off：所有谱走常规前进式滚动，渲染零变化。\n"
+                               + "On：有滚动剖面的谱一律启用特效旁路。\n"
+                               + "Auto（默认）：仅对自动识别为特效/变速谱（极端 BPM 瞬移或明显 STOP 冻结）的谱启用，其余谱走常规滚动。\n\n"
+                               + "仅影响视觉定位；判定/计分不变。",
+                    Current = config.GetBindable<BmsGimmickScrollMode>(BmsRulesetSetting.GimmickScrollMode),
+                }),
                 new SettingsItemV2(new FormEnumDropdown<BmsPlayfieldStyle>
                 {
                     Caption = @"游玩区域样式",

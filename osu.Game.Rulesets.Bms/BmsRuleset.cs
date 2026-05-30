@@ -385,6 +385,22 @@ namespace osu.Game.Rulesets.Bms
                 _ => 7,
             };
 
+        /// <summary>
+        /// Canonical playfield lane count for a keymode, i.e. playable keys PLUS scratch lane(s). This is the authority
+        /// for lane-index bounds; <see cref="GetKeyCount"/> (keys only) must NOT be used as a lane-index bound, otherwise
+        /// the rightmost key lane is wrongly rejected (scratch occupies lane 0, shifting keys to indices 1..n).
+        /// </summary>
+        public static int GetLaneCount(BmsKeymode keymode)
+            => keymode switch
+            {
+                BmsKeymode.Key5K => 6,
+                BmsKeymode.Key7K => 8,
+                BmsKeymode.Key9K_Bms => 9,
+                BmsKeymode.Key9K_Pms => 9,
+                BmsKeymode.Key14K => 16,
+                _ => 8,
+            };
+
         private static string getScoreDisplayBucket(BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode)
             => getScoreDisplayBucket(judgeMode, longNoteMode, null);
 

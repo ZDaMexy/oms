@@ -60,6 +60,11 @@ namespace osu.Game.Beatmaps
                     if (BmsStarRatingResolver.IsBmsBeatmap(beatmap))
                     {
                         beatmap.StarRating = BmsStarRatingResolver.ResolveOrDefault(beatmap);
+
+                        // Compute and persist the BMS -> mania converted star rating at import time (mirroring the native
+                        // star computation above), so converted-ruleset display/sorting is immediately stable without
+                        // waiting for the next-startup reprocessor or an async difficulty lookup. Best-effort by contract.
+                        difficultyCache.EnsureConvertedStarRatingPersisted(beatmap, working);
                     }
                     else
                     {

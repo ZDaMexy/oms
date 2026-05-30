@@ -106,6 +106,33 @@ namespace osu.Game.Tests.NonVisual.Filtering
         }
 
         [Test]
+        public void TestCriteriaMatchingUsesResolvedConvertedStarRating()
+        {
+            var exampleBeatmapInfo = getExampleBeatmap();
+            exampleBeatmapInfo.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            exampleBeatmapInfo.StarRating = 1.0d;
+
+            var criteria = new FilterCriteria
+            {
+                Ruleset = new RulesetInfo { ShortName = "mania" },
+                AllowConvertedBeatmaps = true,
+                UserStarDifficulty = new FilterCriteria.OptionalRange<double>
+                {
+                    Min = 3.0d,
+                    Max = 4.0d,
+                    IsLowerInclusive = true,
+                    IsUpperInclusive = true,
+                }
+            };
+
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(exampleBeatmapInfo, criteria), Is.False);
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(exampleBeatmapInfo, criteria, new Dictionary<Guid, double>
+            {
+                [exampleBeatmapInfo.ID] = 3.5d,
+            }), Is.True);
+        }
+
+        [Test]
         [TestCase(true)]
         [TestCase(false)]
         public void TestCriteriaMatchingRangeMin(bool inclusive)

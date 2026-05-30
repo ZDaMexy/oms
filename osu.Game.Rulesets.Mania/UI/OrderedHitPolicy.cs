@@ -2,10 +2,10 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
-using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.Mania.UI
@@ -33,7 +33,10 @@ namespace osu.Game.Rulesets.Mania.UI
         /// <returns>Whether <paramref name="hitObject"/> can be hit at the given <paramref name="time"/>.</returns>
         public bool IsHittable(DrawableHitObject hitObject, double time)
         {
-            var nextObject = hitObjectContainer.AliveObjects.GetNext(hitObject);
+            if (!canParticipateInLocking(hitObject))
+                return true;
+
+            var nextObject = getNextParticipatingHitObject(hitObject);
             return nextObject == null || time < nextObject.HitObject.StartTime;
         }
 
@@ -52,6 +55,29 @@ namespace osu.Game.Rulesets.Mania.UI
             }
         }
 
+        private DrawableHitObject? getNextParticipatingHitObject(DrawableHitObject hitObject)
+        {
+            bool foundCurrent = false;
+
+            foreach (var candidate in hitObjectContainer.AliveObjects)
+            {
+                if (!canParticipateInLocking(candidate))
+                    continue;
+
+                if (!foundCurrent)
+                {
+                    if (ReferenceEquals(candidate, hitObject))
+                        foundCurrent = true;
+
+                    continue;
+                }
+
+                return candidate;
+            }
+
+            return null;
+        }
+
         private IEnumerable<DrawableHitObject> enumerateHitObjectsUpTo(double targetTime)
         {
             foreach (var obj in hitObjectContainer.AliveObjects)
@@ -59,16 +85,20 @@ namespace osu.Game.Rulesets.Mania.UI
                 if (obj.HitObject.GetEndTime() >= targetTime)
                     yield break;
 
-                yield return obj;
+                if (canParticipateInLocking(obj))
+                    yield return obj;
 
                 foreach (var nestedObj in obj.NestedHitObjects)
                 {
                     if (nestedObj.HitObject.GetEndTime() >= targetTime)
                         break;
 
-                    yield return nestedObj;
+                    if (canParticipateInLocking(nestedObj))
+                        yield return nestedObj;
                 }
             }
         }
+
+        private static bool canParticipateInLocking(DrawableHitObject hitObject) => hitObject.HitObject.Judgement.MaxResult.AffectsCombo();
     }
 }

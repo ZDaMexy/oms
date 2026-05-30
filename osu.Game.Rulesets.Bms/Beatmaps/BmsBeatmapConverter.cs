@@ -18,6 +18,19 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     public class BmsBeatmapConverter : BeatmapConverter<HitObject>
     {
         private const double fallback_initial_bpm = 120;
+
+        /// <summary>
+        /// Lower clamp applied when deriving a beat length from BPM. Keeps timeline progression finite for a zero/near-zero
+        /// BPM while still honouring legitimate sub-1 BPM soflan values (the BMS spec allows BPM well below 1).
+        /// </summary>
+        private const double minimum_effective_bpm = 1e-3;
+
+        /// <summary>
+        /// <see cref="TimingControlPoint.BeatLength"/> written into a <see cref="BmsStopFreezeTimingControlPoint"/>
+        /// to freeze scroll during a BMS STOP. The dedicated subclass — not this value — is the marker used by
+        /// <see cref="BmsToManiaBeatmapConverter"/>; this just picks the bindable's minimum so the BMS-side
+        /// playable surface renders the stop as a hard freeze.
+        /// </summary>
         private const double stop_freeze_beat_length = 6;
 
         private readonly RulesetInfo rulesetInfo;
@@ -111,6 +124,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var hitObjects = new List<HitObject>(decodedChart.ObjectEvents.Count + decodedChart.LongNoteEvents.Count);
 
             beatmap.SetMeasureStartTimes(timeline.MeasureStartTimes);
+            beatmap.ScrollProfile = timeline.ScrollProfile;
 
             foreach (var objectEvent in decodedChart.ObjectEvents)
             {
@@ -168,6 +182,106 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             foreach (var hitObject in beatmap.HitObjects)
                 hitObject.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
+
+            buildLaneKeysoundTimelines(beatmap, decodedChart, eventTimes);
+            buildMines(beatmap, decodedChart, eventTimes);
+        }
+
+        private static void buildMines(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes)
+        {
+            if (decodedChart.MineEvents.Count == 0)
+                return;
+
+            var keymode = decodedChart.BeatmapInfo.Keymode;
+            // Bound by the playfield lane count (keys + scratch), NOT the key count: scratch occupies lane 0, so the
+            // rightmost key maps to lane index = keyCount (e.g. 7K key 7 -> lane 7) and must not be rejected.
+            int laneCount = BmsRuleset.GetLaneCount(keymode);
+            var mines = new List<BmsMine>(decodedChart.MineEvents.Count);
+
+            foreach (var mineEvent in decodedChart.MineEvents)
+            {
+                // Mine channels D1-D9 / E1-E9 mirror the visible note channels 11-19 / 21-29 (offset 0xC0).
+                int visibleChannel = mineEvent.Channel - 0xC0;
+
+                if (!(visibleChannel is (>= 0x11 and <= 0x19) or (>= 0x21 and <= 0x29)))
+                    continue;
+
+                if (!eventTimes.TryGetValue(new BmsEventTimeKey(mineEvent.MeasureIndex, mineEvent.FractionWithinMeasure), out double time))
+                    continue;
+
+                int laneIndex = mapLaneIndex(keymode, visibleChannel);
+
+                if (laneIndex < 0 || laneIndex >= laneCount)
+                    continue;
+
+                mines.Add(new BmsMine { StartTime = time, LaneIndex = laneIndex });
+            }
+
+            if (mines.Count > 0)
+                beatmap.Mines = mines.OrderBy(mine => mine.StartTime).ToList();
+        }
+
+        private static void buildLaneKeysoundTimelines(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes)
+        {
+            var keymode = decodedChart.BeatmapInfo.Keymode;
+            int keyCount = BmsRuleset.GetKeyCount(keymode);
+            var laneKeysounds = new Dictionary<int, List<BmsLaneKeysoundEntry>>();
+
+            void add(int laneIndex, double time, BmsKeysoundSampleInfo? sample)
+            {
+                if (sample == null || laneIndex < 0 || laneIndex >= keyCount)
+                    return;
+
+                if (!laneKeysounds.TryGetValue(laneIndex, out var list))
+                {
+                    list = new List<BmsLaneKeysoundEntry>();
+                    laneKeysounds[laneIndex] = list;
+                }
+
+                list.Add(new BmsLaneKeysoundEntry(time, sample));
+            }
+
+            foreach (var hitObject in beatmap.HitObjects)
+            {
+                switch (hitObject)
+                {
+                    case BmsHoldNote hold:
+                        add(hold.LaneIndex, hold.StartTime, hold.HeadKeysoundSample);
+                        add(hold.LaneIndex, hold.EndTime, hold.TailKeysoundSample);
+                        break;
+
+                    case BmsHitObject note:
+                        add(note.LaneIndex, note.StartTime, note.KeysoundSample);
+                        break;
+                }
+            }
+
+            // Invisible objects (channels 31-49) carry no visible note but DO assign the lane's current keysound.
+            foreach (var invisible in decodedChart.InvisibleObjectEvents)
+            {
+                int visibleChannel = invisible.Channel - 0x20;
+
+                if (!(visibleChannel is (>= 0x11 and <= 0x19) or (>= 0x21 and <= 0x29)))
+                    continue;
+
+                if (!eventTimes.TryGetValue(new BmsEventTimeKey(invisible.MeasureIndex, invisible.FractionWithinMeasure), out double time))
+                    continue;
+
+                add(mapLaneIndex(keymode, visibleChannel), time, createKeysoundSample(decodedChart.BeatmapInfo, invisible.ObjectId));
+            }
+
+            if (laneKeysounds.Count == 0)
+                return;
+
+            var timelines = new Dictionary<int, IReadOnlyList<BmsLaneKeysoundEntry>>(laneKeysounds.Count);
+
+            foreach (var pair in laneKeysounds)
+            {
+                pair.Value.Sort((left, right) => left.Time.CompareTo(right.Time));
+                timelines[pair.Key] = pair.Value;
+            }
+
+            beatmap.LaneKeysoundTimelines = timelines;
         }
 
         private static TimelineBuildResult buildEventTimeline(ControlPointInfo controlPointInfo, BmsDecodedChart decodedChart, CancellationToken cancellationToken)
@@ -196,9 +310,22 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             register(decodedChart.BpmChangeEvents.Select(toKey));
             register(decodedChart.StopEvents.Select(toKey));
             register(decodedChart.ScrollEvents.Select(toKey));
+            register(decodedChart.InvisibleObjectEvents.Select(e => new BmsEventTimeKey(e.MeasureIndex, e.FractionWithinMeasure)));
+            register(decodedChart.MineEvents.Select(e => new BmsEventTimeKey(e.MeasureIndex, e.FractionWithinMeasure)));
 
             double currentTime = 0;
             double currentBpm = getInitialBpm(decodedChart);
+
+            // Parallel accumulation of the BMS stop-motion scroll profile D(t) (P1-L Phase 2), built from the same
+            // unclamped walk that produces note times. Distance is accumulated in scroll-weighted beats here and scaled
+            // into base-BPM ms once the most-common BPM is known (a global constant factor, so post-multiplying is
+            // equivalent). STOP regions advance time but not distance => a true freeze; extreme BPM covers large
+            // distance in near-zero time => a visual snap. This is rendering-only data and never feeds judgement.
+            double currentScroll = 1;
+            double currentDistance = 0;
+            var knotTimes = new List<double> { 0 };
+            var knotDistances = new List<double> { 0 };
+            var bpmDurations = new Dictionary<double, double>();
 
             addTimingControlPoint(controlPointInfo, 0, currentBpm);
 
@@ -218,7 +345,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         double fractionDelta = fraction - previousFraction;
 
                         if (fractionDelta > 0)
-                            currentTime += fractionDelta * beatsPerMeasure * getBeatLength(currentBpm);
+                            advance(fractionDelta * beatsPerMeasure);
 
                         var key = new BmsEventTimeKey(measureIndex, fraction);
 
@@ -240,8 +367,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                                 if (stopDuration <= 0)
                                     continue;
 
-                                controlPointInfo.Add(currentTime, new TimingControlPoint { BeatLength = stop_freeze_beat_length });
+                                controlPointInfo.Add(currentTime, new BmsStopFreezeTimingControlPoint { BeatLength = stop_freeze_beat_length });
                                 currentTime += stopDuration;
+
+                                // Freeze: time advances, distance does not -> a flat plateau in D(t).
+                                knotTimes.Add(currentTime);
+                                knotDistances.Add(currentDistance);
+
                                 addTimingControlPoint(controlPointInfo, currentTime, currentBpm);
                             }
                         }
@@ -249,7 +381,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         if (scrollEventsByKey.TryGetValue(key, out var scrollEvents))
                         {
                             foreach (var scrollEvent in scrollEvents)
+                            {
                                 addEffectControlPoint(controlPointInfo, currentTime, scrollEvent.ScrollValue);
+                                currentScroll = scrollEvent.ScrollValue;
+                            }
                         }
 
                         eventTimes[key] = currentTime;
@@ -258,10 +393,33 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     }
                 }
 
-                currentTime += (1 - previousFraction) * beatsPerMeasure * getBeatLength(currentBpm);
+                advance((1 - previousFraction) * beatsPerMeasure);
             }
 
-            return new TimelineBuildResult(eventTimes, measureStartTimes);
+            // Scale scroll-weighted beats into base-BPM milliseconds so D(t) ~= t for a normal (most-common BPM,
+            // scroll 1) section and the bypass degenerates to constant scroll. The base is the raw, UNCLAMPED
+            // most-common BPM by playing time (132 for DEAD SOUL), not the clamped control-point value.
+            double baseBeatLength = getBeatLength(computeBaseBpm(bpmDurations, currentBpm));
+
+            for (int i = 0; i < knotDistances.Count; i++)
+                knotDistances[i] *= baseBeatLength;
+
+            return new TimelineBuildResult(eventTimes, measureStartTimes, new BmsScrollProfile(knotTimes, knotDistances, baseBeatLength));
+
+            // Advances the timeline by the given number of beats at the current BPM, accumulating the scroll profile
+            // distance and a per-BPM playing-time histogram, and recording a knot. Beats <= 0 are no-ops.
+            void advance(double beats)
+            {
+                if (beats <= 0)
+                    return;
+
+                double dt = beats * getBeatLength(currentBpm);
+                currentTime += dt;
+                currentDistance += currentScroll * beats;
+                bpmDurations[currentBpm] = bpmDurations.GetValueOrDefault(currentBpm) + dt;
+                knotTimes.Add(currentTime);
+                knotDistances.Add(currentDistance);
+            }
 
             void register(IEnumerable<BmsEventTimeKey> keys)
             {
@@ -305,13 +463,35 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             return firstBpmEvent.Bpm != 0 ? firstBpmEvent.Bpm : fallback_initial_bpm;
         }
 
+        /// <summary>
+        /// Picks the BMS scroll profile base BPM: the raw BPM with the most accumulated (non-stop) playing time. This is
+        /// the unclamped analogue of <see cref="osu.Game.Beatmaps.IBeatmap.GetMostCommonBeatLength"/>; extreme-BPM
+        /// snap regions occupy near-zero time so they never become the base.
+        /// </summary>
+        private static double computeBaseBpm(IReadOnlyDictionary<double, double> bpmDurations, double fallbackBpm)
+        {
+            double bestBpm = 0;
+            double bestDuration = -1;
+
+            foreach (var pair in bpmDurations)
+            {
+                if (pair.Value > bestDuration)
+                {
+                    bestDuration = pair.Value;
+                    bestBpm = pair.Key;
+                }
+            }
+
+            return bestBpm != 0 ? bestBpm : fallbackBpm;
+        }
+
         private static void addTimingControlPoint(ControlPointInfo controlPointInfo, double time, double bpm)
             => controlPointInfo.Add(time, new TimingControlPoint { BeatLength = getBeatLength(bpm) });
 
         private static void addEffectControlPoint(ControlPointInfo controlPointInfo, double time, double scrollSpeed)
             => controlPointInfo.Add(time, new EffectControlPoint { ScrollSpeed = scrollSpeed });
 
-        private static double getBeatLength(double bpm) => 60000.0 / Math.Max(1, Math.Abs(bpm));
+        private static double getBeatLength(double bpm) => 60000.0 / Math.Max(minimum_effective_bpm, Math.Abs(bpm));
 
         private static int mapLaneIndex(BmsKeymode keymode, int channel)
         {
@@ -378,10 +558,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             public IReadOnlyList<double> MeasureStartTimes { get; }
 
-            public TimelineBuildResult(Dictionary<BmsEventTimeKey, double> eventTimes, IReadOnlyList<double> measureStartTimes)
+            public BmsScrollProfile ScrollProfile { get; }
+
+            public TimelineBuildResult(Dictionary<BmsEventTimeKey, double> eventTimes, IReadOnlyList<double> measureStartTimes, BmsScrollProfile scrollProfile)
             {
                 EventTimes = eventTimes;
                 MeasureStartTimes = measureStartTimes;
+                ScrollProfile = scrollProfile;
             }
         }
 

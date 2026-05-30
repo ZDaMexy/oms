@@ -11,6 +11,8 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Mania;
+using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Tests.Resources;
@@ -201,11 +203,11 @@ namespace osu.Game.Tests.Visual.SongSelect
 
                 set.DateAdded = DateTimeOffset.FromUnixTimeSeconds(i);
 
-                // only need to set the first as they are a shared reference.
-                var beatmap = set.Beatmaps.First();
-
-                beatmap.Metadata.Artist = "a";
-                beatmap.Metadata.Title = "b";
+                set.Beatmaps.ForEach(beatmap =>
+                {
+                    beatmap.Metadata.Artist = "a";
+                    beatmap.Metadata.Title = "b";
+                });
 
                 beatmapSets.Add(set);
             }
@@ -219,9 +221,79 @@ namespace osu.Game.Tests.Visual.SongSelect
             Assert.That(results.Select(b => b.BeatmapSet!.DateAdded), Is.Ordered.Descending);
         }
 
-        private static async Task<IEnumerable<BeatmapInfo>> runSorting(SortMode sort, List<BeatmapSetInfo> beatmapSets)
+        [Test]
+        public async Task TestSortingByDifficultyUsesResolvedConvertedStarRating()
         {
-            var sorter = new BeatmapCarouselFilterSorting(() => new FilterCriteria { Sort = sort });
+            var maniaRuleset = new ManiaRuleset().RulesetInfo;
+
+            var maniaBeatmapSet = TestResources.CreateTestBeatmapSetInfo(1);
+            var maniaBeatmap = maniaBeatmapSet.Beatmaps[0];
+            maniaBeatmap.Ruleset = maniaRuleset;
+            maniaBeatmap.StarRating = 5;
+
+            var bmsBeatmapSet = TestResources.CreateTestBeatmapSetInfo(1);
+            var bmsBeatmap = bmsBeatmapSet.Beatmaps[0];
+            bmsBeatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            bmsBeatmap.StarRating = 1;
+
+            var results = (await runSorting(new FilterCriteria
+            {
+                Sort = SortMode.Difficulty,
+                Ruleset = maniaRuleset,
+                AllowConvertedBeatmaps = true,
+            }, new List<BeatmapSetInfo> { maniaBeatmapSet, bmsBeatmapSet }, new Dictionary<Guid, double>
+            {
+                [bmsBeatmap.ID] = 9,
+            })).ToList();
+
+            Assert.That(results.Last(), Is.EqualTo(bmsBeatmap));
+        }
+
+        [Test]
+        public async Task TestNonDifficultySortDoesNotRequestResolvedConvertedStarRating()
+        {
+            var maniaRuleset = new ManiaRuleset().RulesetInfo;
+            int lookupCount = 0;
+
+            var beatmapSet = TestResources.CreateTestBeatmapSetInfo(2);
+            var easierBeatmap = beatmapSet.Beatmaps[0];
+            var harderBeatmap = beatmapSet.Beatmaps[1];
+
+            easierBeatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            easierBeatmap.StarRating = 1;
+            harderBeatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            harderBeatmap.StarRating = 2;
+
+            var results = (await runSorting(new FilterCriteria
+            {
+                Sort = SortMode.Title,
+                Ruleset = maniaRuleset,
+                AllowConvertedBeatmaps = true,
+            }, new List<BeatmapSetInfo> { beatmapSet }, (_, _, _) =>
+            {
+                lookupCount++;
+                return Task.FromResult<IReadOnlyDictionary<Guid, double>>(new Dictionary<Guid, double>
+                {
+                    [easierBeatmap.ID] = 8,
+                    [harderBeatmap.ID] = 3,
+                });
+            })).ToList();
+
+            Assert.That(lookupCount, Is.Zero);
+            Assert.That(results.Select(beatmap => beatmap.ID), Is.EqualTo(new[] { easierBeatmap.ID, harderBeatmap.ID }));
+        }
+
+        private static async Task<IEnumerable<BeatmapInfo>> runSorting(SortMode sort, List<BeatmapSetInfo> beatmapSets)
+            => await runSorting(new FilterCriteria { Sort = sort }, beatmapSets).ConfigureAwait(false);
+
+        private static async Task<IEnumerable<BeatmapInfo>> runSorting(FilterCriteria criteria, List<BeatmapSetInfo> beatmapSets,
+                                                                       IReadOnlyDictionary<Guid, double>? resolvedStarRatings = null)
+            => await runSorting(criteria, beatmapSets, (_, _, _) => Task.FromResult(resolvedStarRatings ?? new Dictionary<Guid, double>())).ConfigureAwait(false);
+
+        private static async Task<IEnumerable<BeatmapInfo>> runSorting(FilterCriteria criteria, List<BeatmapSetInfo> beatmapSets,
+                                                                       Func<IEnumerable<BeatmapInfo>, FilterCriteria, CancellationToken, Task<IReadOnlyDictionary<Guid, double>>> getStarRatings)
+        {
+            var sorter = new BeatmapCarouselFilterSorting(() => criteria, _ => new Dictionary<Guid, ScoreInfo>(), getStarRatings);
             var carouselItems = await sorter.Run(beatmapSets.SelectMany(s => s.Beatmaps.Select(b => new CarouselItem(b))), CancellationToken.None);
             return carouselItems.Select(ci => ci.Model).OfType<BeatmapInfo>();
         }

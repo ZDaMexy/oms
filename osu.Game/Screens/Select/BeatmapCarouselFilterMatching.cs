@@ -14,23 +14,37 @@ namespace osu.Game.Screens.Select
 {
     public class BeatmapCarouselFilterMatching : ICarouselFilter
     {
+        private static readonly IReadOnlyDictionary<Guid, double> empty_star_ratings = new Dictionary<Guid, double>();
+
         private readonly Func<FilterCriteria> getCriteria;
+        private readonly Func<IEnumerable<BeatmapInfo>, FilterCriteria, CancellationToken, Task<IReadOnlyDictionary<Guid, double>>> getStarRatings;
 
         public int BeatmapItemsCount { get; private set; }
 
         public BeatmapCarouselFilterMatching(Func<FilterCriteria> getCriteria)
+            : this(getCriteria, static (_, _, _) => Task.FromResult(empty_star_ratings))
         {
-            this.getCriteria = getCriteria;
         }
 
-        public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken) => await Task.Run(() =>
+        public BeatmapCarouselFilterMatching(Func<FilterCriteria> getCriteria,
+                                             Func<IEnumerable<BeatmapInfo>, FilterCriteria, CancellationToken, Task<IReadOnlyDictionary<Guid, double>>> getStarRatings)
         {
+            this.getCriteria = getCriteria;
+            this.getStarRatings = getStarRatings;
+        }
+
+        public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken)
+        {
+            var itemList = items as List<CarouselItem> ?? items.ToList();
             var criteria = getCriteria();
+            var starRatings = requiresStarRatingLookup(criteria)
+                ? await getStarRatings(itemList.Select(item => (BeatmapInfo)item.Model), criteria, cancellationToken).ConfigureAwait(false)
+                : empty_star_ratings;
 
-            return matchItems(items, criteria).ToList();
-        }, cancellationToken).ConfigureAwait(false);
+            return await Task.Run(() => matchItems(itemList, criteria, starRatings).ToList(), cancellationToken).ConfigureAwait(false);
+        }
 
-        private IEnumerable<CarouselItem> matchItems(IEnumerable<CarouselItem> items, FilterCriteria criteria)
+        private IEnumerable<CarouselItem> matchItems(IEnumerable<CarouselItem> items, FilterCriteria criteria, IReadOnlyDictionary<Guid, double> starRatings)
         {
             int countMatching = 0;
 
@@ -41,7 +55,7 @@ namespace osu.Game.Screens.Select
                 if (beatmap.Hidden)
                     continue;
 
-                if (!CheckCriteriaMatch(beatmap, criteria))
+                if (!CheckCriteriaMatch(beatmap, criteria, starRatings))
                     continue;
 
                 countMatching++;
@@ -51,9 +65,10 @@ namespace osu.Game.Screens.Select
             BeatmapItemsCount = countMatching;
         }
 
-        public static bool CheckCriteriaMatch(BeatmapInfo beatmap, FilterCriteria criteria)
+        public static bool CheckCriteriaMatch(BeatmapInfo beatmap, FilterCriteria criteria, IReadOnlyDictionary<Guid, double>? starRatings = null)
         {
             bool match = criteria.Ruleset == null || beatmap.AllowGameplayWithRuleset(criteria.Ruleset!, criteria.AllowConvertedBeatmaps);
+            double resolvedStarRating = beatmap.GetResolvedStarRating(starRatings);
 
             if (criteria.SelectedBeatmapSet != null)
             {
@@ -78,7 +93,7 @@ namespace osu.Game.Screens.Select
 
             if (!match) return false;
 
-            match &= !criteria.StarDifficulty.HasFilter || criteria.StarDifficulty.IsInRange(beatmap.StarRating.FloorToDecimalDigits(2));
+            match &= !criteria.StarDifficulty.HasFilter || criteria.StarDifficulty.IsInRange(resolvedStarRating.FloorToDecimalDigits(2));
             match &= !criteria.ApproachRate.HasFilter || criteria.ApproachRate.IsInRange(beatmap.Difficulty.ApproachRate);
             match &= !criteria.DrainRate.HasFilter || criteria.DrainRate.IsInRange(beatmap.Difficulty.DrainRate);
             match &= !criteria.CircleSize.HasFilter || criteria.CircleSize.IsInRange(beatmap.Difficulty.CircleSize);
@@ -143,7 +158,7 @@ namespace osu.Game.Screens.Select
                 }
             }
 
-            match &= !criteria.UserStarDifficulty.HasFilter || criteria.UserStarDifficulty.IsInRange(beatmap.StarRating);
+            match &= !criteria.UserStarDifficulty.HasFilter || criteria.UserStarDifficulty.IsInRange(resolvedStarRating);
 
             if (!match) return false;
 
@@ -159,5 +174,8 @@ namespace osu.Game.Screens.Select
 
             return match;
         }
+
+        private static bool requiresStarRatingLookup(FilterCriteria criteria)
+            => criteria.Ruleset != null && criteria.AllowConvertedBeatmaps && (criteria.StarDifficulty.HasFilter || criteria.UserStarDifficulty.HasFilter);
     }
 }

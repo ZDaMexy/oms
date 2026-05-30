@@ -1,6 +1,6 @@
 # P1-K 开发计划：BMS 解析链路治理
 
-> 最后更新：2026-05-25
+> 最后更新：2026-05-26
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-K` 的执行顺序；存储/导入一致性见 [../P1-H/DEVELOPMENT_PLAN.md](../P1-H/DEVELOPMENT_PLAN.md)，runtime 热路径与播放期性能见 [../P1-J/DEVELOPMENT_PLAN.md](../P1-J/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -29,7 +29,8 @@
 - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs) 与 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs) 已证明 projection reuse 的价值：imported raw wrapper 可以直接复用首次 conversion 结果，原始 chart 文件也继续保留在文件系统存储中。
 - 当前 parse chain 仍保留了一部分 forward-compatible 缓解面：大多数十六进制轨道还能通过 raw `ChannelEvents` 回收，原始 chart 文件没有丢；但这不能替代 decode model 自身的保数能力。
 - 当前仍待收口的 parse gap 已不再是 projection reuse consumer 本身。本轮 `K5` 已把 `ICachedModlessPlayableBeatmapSource`、`WorkingBeatmap.GetPlayableBeatmap()`、`BmsDecodedBeatmap` 与 `BmsImportedBeatmapFactory` 收口为 source-bound 的 modless playable projection cache contract：无 mods 的 BMS playable projection 现按 source beatmap identity 只 materialize 一次，换 source 或带 mods 则重新转换，loader 首次 conversion 也会把现成 projection seed 回同一 cache boundary；本轮 `K6` 又把 results/statistics 邻接面收口到 `Ruleset` 的“已带 mods playable beatmap”合同，不再让 results/gauge helper 在内部再次应用 beatmap mods。`LNTYPE 2` MGQ 最小表达已于 `K3-B` 落地，BGA / invisible / mine 的第一批 typed slot 已于 `K3-C` 落地，`SCROLLxx/SC` 的 typed consumer contract 已于 `K3-D` 落地，`#BGA`、`#@BGA`、`#ARGB`、`#SWBGA` 与 `#POORBGA` 的 header-side typed surface 已于 `K3-E` 落地，unified visual-definition projection contract 已于 `K3-F` 落地，static background 的首个 projection consumer 已于 `K4-A` 落地，Song Select note distribution graph 已于 `K4-B` 开始优先复用 projected working beatmap，beatmap statistics 已于 `K4-C` 开始优先复用 metadata 中的 `ChartFilterStats`，`osu.Game` 侧 metadata display / star-rating read-model 已于 `K4-D` 开始优先复用统一的 persisted `chart_metadata` projection，Song Select author sort/group/filter 已于 `K4-E` 开始优先复用 display creator fallback，Song Select artist sort/group/filter 与 `BeatmapAttributeText` 已于 `K4-F` 开始优先复用 display artist / creator fallback，`BeatmapMetadataDisplay` 已于 `K4-G` 开始优先复用同一 gameplay metadata display fallback，`ExpandedPanelMiddleContent` 已于 `K4-H` 开始优先复用同一 results metadata display fallback，`DrawableProfileScore` 与 `DrawableMostPlayedBeatmap` 已于 `K4-I` 开始优先复用同一 profile metadata display artist fallback，`SongTicker` 与 `NowPlayingOverlay` 已于 `K4-J` 开始优先复用同一 menu metadata display artist fallback，`DailyChallengeIntro` 已于 `K4-K` 开始优先复用同一 daily challenge creator fallback，`DrawableRoomPlaylistItem` 已于 `K4-L` 开始优先复用同一 online playlist creator fallback 并保留 linked-profile 分支，`SubScreenRoundResults` 已于 `K4-M` 开始优先复用同一 round-results beatmap metadata authority，在本地谱面存在时不再重建 API 最小壳，`LegacyBeatmapSkin` 已于 `K4-N` 开始优先复用同一 beatmap skin creator fallback，`IBeatmapInfo.GetDisplayTitleRomanisable()` 已于 `K4-O` 开始优先复用同一 title display authority，`FilterControl.ScopedBeatmapSetDisplay` 已于 `K4-P` 开始在有具体 beatmap 时优先复用同一 full-beatmap title authority，`DailyChallengeIntro` 已于 `K4-Q` 开始在 title line 有具体 beatmap 时优先复用同一 full-beatmap title authority，并显式禁用 difficulty name，`BeatmapDeleteDialog` 已于 `K4-R` 开始通过 shared set-level title authority 复用首个 beatmap 的 title contract，并继续保持不展示 creator suffix，而 `PanelBeatmapSet` 与 `PlaylistItem` 已于 `K4-S` 开始通过 `BeatmapSetInfoExtensions.GetDisplayArtistRomanisable()` 复用同一 set-level artist authority；本轮又让 plain title chain、display string 与剩余 set-level artist / beatmap-title consumer 全部并入这条 authority，随后 `K7` 与 `K8` 又分别把 results summary consumer proof 与 gauge history consumer proof 收口到 plain focused 路径。因此 `K4`、`K5`、`K6`、`K7` 与 `K8` 都已整体收口，post-`K8` follow-up 现后置为 backlog，不再作为当前进行中项。
-- 本子线的外部语义参考基线固定为 [hitkey BMS 命令参考](https://hitkey.nekokan.dyndns.info/cmds.htm) 与 [bmson specification](https://bmson-spec.readthedocs.io/)。若实现与当前文档冲突，必须先更新其一再继续开发。
+- 本子线的外部语义参考基线固定为 [hitkey BMS 命令参考](https://hitkey.bms.ms/cmds.htm) 与 [bmson specification](https://bmson-spec.readthedocs.io/)，其结构化归纳与解析审查对照清单见 [../../other/BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。若实现与当前文档冲突，必须先更新其一再继续开发。
+- post-`K8` backlog 的首个正式切片现冻结为 `K9`：BMS -> mania 单向转谱合同。该切片当前已进入实现并完成 dedicated converter、public gate、sample-only scratch 运行时、persisted converted star 与 spread display current-ruleset read-model；`P1-K` 继续拥有 source keymode -> mania keycount、lane flatten、scratch-family sample-only 语义、converted-star persistence 与 conversion validity 的 authority，`P1-A` 只承接后续公开表面、入口文案与 Song Select/presentation gating。
 
 ## 首轮执行包
 
@@ -171,10 +172,10 @@
 
 满足下面四条后，`P1-K` 就可以直接按文档开工，而无需再补口头规划：
 
-1. 先按 `K1-A -> K1-B -> K2-A -> K3-A -> K3-B -> K3-C -> K3-D -> K3-E -> K3-F -> K4-A -> K4-B -> K4-C -> K4-D -> K4-E -> K4-F -> K4-G -> K4-H -> K4-I -> K4-J -> K4-K -> K4-L -> K4-M -> K4-N -> K4-O -> K4-P -> K4-Q -> K4-R -> K4-S -> K5 -> K6 -> K7 -> K8` 的顺序推进；当前 `K4`、`K5`、`K6`、`K7` 与 `K8` 已整体收口，若继续推进需另起 post-`K8` 切片，不再继续开新的 `K4/K5/K6/K7/K8` 字母刀。
+1. 先按 `K1-A -> K1-B -> K2-A -> K3-A -> K3-B -> K3-C -> K3-D -> K3-E -> K3-F -> K4-A -> K4-B -> K4-C -> K4-D -> K4-E -> K4-F -> K4-G -> K4-H -> K4-I -> K4-J -> K4-K -> K4-L -> K4-M -> K4-N -> K4-O -> K4-P -> K4-Q -> K4-R -> K4-S -> K5 -> K6 -> K7 -> K8` 的顺序推进；当前 `K4`、`K5`、`K6`、`K7` 与 `K8` 已整体收口，若继续推进则首个正式 post-`K8` 切片固定为 `K9`，不再继续开新的 `K4/K5/K6/K7/K8` 字母刀，也不接受未归线的 backlog 插队。
 2. 每刀只改文件级切片图里列出的 primary files；相邻文件只在编译或测试明确要求时补入。
 3. 每刀完成后先跑对应 focused command，再决定是否进入下一刀。
-4. 任一切片若需要跨到 `P1-H` persisted metadata 或 `P1-J` runtime hot path，就停止并把该变动拆回对应子线，不在 `P1-K` 里硬推。
+4. 任一切片若需要跨到 `P1-H` persisted metadata、`P1-J` runtime hot path 或 `P1-A` 公开 product surface，就停止并把该变动拆回对应子线，不在 `P1-K` 里硬推。
 
 ## 分期计划
 
@@ -305,6 +306,95 @@
 3. 该 proof 同时冻结 auto-shift timeline 的 consumer 语义：`EX-HARD -> HARD -> NORMAL` 的 gauge 转档与每条时间线的 sample/time/value 都必须从 `BmsClearLampProcessor.CreateGaugeHistory()` 端到端进入 results consumer，不得在 panel/UI 层重新拼装或简化成另一套 timeline。
 4. 本轮验证：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore -v minimal --filter "FullyQualifiedName~BmsRulesetStatisticsTest.TestCreateStatistics"` **4/4** 通过；`CreateStatistics` focused slice 现已同时覆盖 summary consumer 与 gauge history consumer 两侧的 value-level proof。
 
+### K9：BMS -> mania 单向转谱合同冻结
+
+状态：进行中（dedicated converter / public gate / sample-only scratch / persisted converted star 已落地；explicit public wording 与更宽 presentation/manual proof 仍待收口）
+
+目标：在不重开第二套 parser、不复用 generic convert heuristics 的前提下，为 BMS source chart 提供独立的 mania playable projection，并把 keymode、lane flatten、scratch-family sample-only 语义、converted-star persistence 与 conversion validity 一次性写死。
+
+已完成 / 冻结交付：
+
+1. 冻结 source/target 矩阵：`5K+1S -> mania 5K`、`7K+1S -> mania 7K`、`9K_Bms -> mania 9K`、`9K_Pms -> mania 9K`、`14K+2S -> mania 14K`；当前专题只允许 `BMS -> mania` 单向路径，不反向支持 `mania -> BMS`，也不把 generic all-ruleset convert surface 一并扩大。
+2. 冻结 lane flatten authority：转换必须继续消费 [../../osu.Game.Rulesets.Bms/UI/BmsLaneLayout.cs](../../osu.Game.Rulesets.Bms/UI/BmsLaneLayout.cs) 与现有 BMS decoded/playable model 提供的 canonical lane order / relative width contract，而不是读取当前用户 `PlayfieldStyle`、scratch 视觉侧别或其它 runtime 布局设置；同一 source chart 的 mania 转谱结果必须与用户皮肤、HUD 与单机布局偏好无关。对于非 scratch playable lanes，flatten 结果固定为“移除 scratch lane 后保留原 canonical 顺序并重新从左到右编号”，不得再引入 geometry-aware shuffle 或 style-aware remap。
+3. 冻结 target stage definition：`5K+1S/7K+1S/9K_Bms/9K_Pms` 分别落到单 stage `5/7/9` 列；`14K+2S` 固定落到 mania dual-stage `7 + 7`，而不是单 stage `14` 列。`14K` 的左右半侧在转谱后继续保持 stage 边界，左侧 object 不得跨到右 stage，右侧 object 也不得跨到左 stage。
+4. 冻结 scratch-family 语义：target keycount 不保留 scratch 作为独立 judged column authority，但 scratch-family object 也不能被静默丢弃；scratch tap 与 scratch long-note 都必须保留原 keysound / head-tail sample 语义，并以 sample-only、ignore-judgement 的 converted mania object 保留时间线，而不是再退化成可判定 `Note` / `HoldNote` 并入真实列。若需要 `Column`，它只能服务同 side / 同 stage 的 drawable/sample anchor，不得重新进入 combo、statistics、star 或 judged-lane authority。`PMS` 因本身无 scratch lane，继续走 9K 一对一列映射，不额外引入 scratch 分支。
+5. 冻结 mania column quantisation 方式：当前 [../../osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapConverter.cs](../../osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapConverter.cs) 的 pass-through path 会把 `IHasXPosition.X` 视为 `0..512` 的横向空间，再量化为目标列；因此 `K9` 不得直接把 [../../osu.Game.Rulesets.Bms/Objects/BmsHitObject.cs](../../osu.Game.Rulesets.Bms/Objects/BmsHitObject.cs) 现有的 `IHasXPosition = LaneIndex` 当成可直接复用的合同，而必须先建立 BMS lane -> normalized mania-space 的专用投影，再进入 mania object materialize path 或等价 helper。
+6. 冻结 source-mod 边界：`K9` 首轮只消费 modless source BMS chart；`BmsModMirror`、`BmsModRandom`、`A-SCR`、`A-NOT`、`Autoplay` 与其它 BMS runtime mod 都不得参与转谱映射、validity 或目标列决定。若未来需要“带 source-side mods 的 BMS -> mania projection”，必须另起后续切片，不得在 `K9` 首轮里与 canonical convert contract 混写。
+7. 冻结 persisted converted-star 合同：modless `BMS -> mania` 星数必须写入 `BeatmapMetadata.RulesetDataJson` 的 BMS payload，并携带 target ruleset、difficulty version 与 conversion version；`BeatmapInfo.StarRating` 继续保留为 source BMS raw star/playlevel authority，不得被 target-ruleset 星数覆盖。
+8. 冻结公开表面边界：`K9` 只拥有 source chart -> mania projection、supported keymode gate、“flatten 后无可游玩对象则不产出 convert 结果”的 validity 合同，以及 current-ruleset resolved-star read-model；它不在同一刀里收口按钮 wording、显式入口文案或更宽的 product proof，相关入口与文案统一后置到 `P1-A`。
+9. 冻结 focused validation 顺序：先补 dedicated mapping / sample proof，覆盖 `5K+1S/7K+1S/9K_Bms/9K_Pms/14K+2S` 五类 keymode、`14K -> 7+7` dual-stage 形态、sample-only scratch keysound 保留、source-side modless gate，以及空结果 suppress case；再补 autoplay ignore-only proof 与 selector/resolver proof；若继续推进公开表面，再补 `PresentBeatmap` / Song Select exposure focused proof 与更宽 visual / navigation proof。
+
+建议测试锚点：
+
+1. [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)：锁住 keymode matrix、flatten column 结果、`14K -> 7+7` dual-stage、sample-only scratch sample preservation、control-point sanitisation、modless source gate 与 converted-star recompute。
+2. [../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs](../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs)：锁住 ignore-only scratch 不阻塞列输入、autoplay 不再为 scratch sample 生成假按键，以及相邻 mania autoplay correctness。
+3. [../../osu.Game.Tests/Beatmaps/BmsStarRatingResolverTest.cs](../../osu.Game.Tests/Beatmaps/BmsStarRatingResolverTest.cs) 与 [../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs](../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs)：锁住 persisted converted star、version gate 与 current-ruleset resolved-star display，不得再回退到 raw BMS star。
+4. [../../osu.Game.Tests/Visual/Navigation/TestScenePresentBeatmap.cs](../../osu.Game.Tests/Visual/Navigation/TestScenePresentBeatmap.cs) 与 [../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs](../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs)：当继续推进公开表面时，锁住 supported / unsupported source chart 的 presentation gate 与 convert visibility 不会误用 generic heuristics。
+
+### K10：BMS -> mania 转谱星数导入期就绪与读取加固
+
+状态：**两刀均已落地，58k+ 谱库实测验证三大症状（卡顿 / 排序错位 / 难度动态变化）完全消除**。
+- **第一刀（A 导入期持久化）已落地**：`BeatmapDifficultyCache.EnsureConvertedStarRatingPersisted` + `BeatmapUpdater.Process()` 在导入期就计算并持久化 mania 转谱星。
+- **第二刀（旧库回填 + carousel 读路径闭合）已落地**：基于真实 58k+ BMS 谱库实测迭代修了一组相互衔接的瓶颈——见 [CHANGELOG.md](CHANGELOG.md) 2026-05-28 "K10 第二刀" 条目。
+- **B（读校验加固）经实测推迟**：本次实测进一步确认稳态下 LAV 在 RulesetStore 单实例共享下可靠同步（详见下方"方案评估"中 B 的实测结论）。
+- **已知 follow-up**：carousel panel 星数 sprite-text 过渡动画（独立 UI 切片归 P1-A）、极端谱滚动卡顿（与 texture atlas 扩展相关）、Genngaozo 系列 >10s 转谱根因（未单独排查，以 Failed 绕开）。
+
+#### 问题与根因
+
+native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.cs](../../osu.Game/Beatmaps/BeatmapUpdater.cs) 的 `Process()` 算好并写入 `BeatmapInfo.StarRating`（realm 列），之后 Song Select 直接读这一个稳定字段，排序天然稳定。而 BMS -> mania 转谱星在导入期**不计算**（`Process()` 只把 `StarRating` 设成 BMS #PLAYLEVEL），它只在两处产生：
+
+1. 下次启动批处理 `BackgroundDataStoreProcessor.populateMissingConvertedStarRatings`；
+2. Song Select 首次在 mania 下查看时由 `BeatmapDifficultyCache` **异步**懒算。
+
+因此大批量导入后、**同一会话内**切到 mania：这些谱没有持久化的转谱星 -> carousel `getEffectiveStarRatings` 读不到 -> 回退到 `BeatmapInfo.StarRating`（BMS playlevel，量纲完全不同）-> 异步 warmup 算出 mania 星后写回 -> **重排跳变**。重启后批处理补齐才稳定。读路径本身没问题（`TryGetCachedDifficulty` / `GetDifficultyAsync` 都先走 `tryGetImmediateDifficulty` 同步读 persisted 值）；问题纯粹是导入期没就绪 + 读校验对 `LastAppliedDifficultyVersion` 的脆弱耦合。
+
+#### 方案评估（已选 A + B）
+
+- **A 导入期持久化（核心）**：在 `BeatmapUpdater.Process()` 对 BMS 谱顺带算并持久化 mania 转谱星，镜像 native 星的导入期计算。直接消除同会话不稳定，无需重启。
+- **B 读校验加固（配套，实测后推迟）**：读路径的 `difficulty_version` 校验本拟不再信任消费者传入、可能过期的 `LastAppliedDifficultyVersion`，改用权威当前 mania 计算器版本。**实测结论：当前不需要、暂不实施。** 经核查，carousel（`FilterCriteria.Ruleset`）、spread display（`ruleset.Value`）与 `BeatmapDifficultyCache.currentRuleset` 三处消费者用的都是**同一个** `RulesetStore.AvailableRulesets` detached 实例（全局 `Ruleset.Value` 由 `RulesetStore.GetRuleset/First` 赋值），而 `clearOutdatedStarRatings` 每次启动都会把该实例的 LAV 同步成当前计算器版本（realm 已持久化后续启动直接带正确值，版本升级当次也会就地更新同一实例）。`ManiaDifficultyCalculator.Version` 还是编译期常量（20241007），写入与读取天然一致。因此"消费者 LAV 过期"仅存在于启动后台处理尚未完成的瞬时、自愈窗口，不构成用户描述的持续症状。强行改读路径会给被多处消费的 read gate 引入风险却无实际收益，故推迟；仅当将来发现确有持有 LAV=0/过期实例的消费者时再实现。
+- C realm 一等字段（否决）：需 realm 迁移，相对现有 JSON metadata 方案过度工程。
+- D carousel 稳定回退占位（否决）：给不出正确值，治标不治本。
+
+#### 设计落点
+
+1. `BeatmapDifficultyCache` 新增 `[Resolved] IRulesetStore` 与公开同步方法 `EnsureConvertedStarRatingPersisted(BeatmapInfo)`：复用现有 per-beatmap 计算 + `BmsPersistedMetadataResolver.SetConvertedStarRating`/`SetConvertedStarRatingFailure` 与已统一的失败语义（确定不可转 -> 固化 Failed；瞬时异常 -> 不持久化）。target ruleset 经 `SupportsConvertedStarRatings` 选出（当前仅 mania）。
+2. `BeatmapUpdater.Process()`：对 BMS 谱在既有 `beatmapSet.Realm!.Write` 事务内、设完 playlevel 星后调用 `difficultyCache.EnsureConvertedStarRatingPersisted(beatmap)`。**必须直接写入已在事务内的 live `beatmap.Metadata`，不得再嵌套 `realmAccess.Write`**（避免嵌套写事务）。整体 best-effort：转换/计算异常绝不能让导入失败。
+3. `BackgroundDataStoreProcessor.populateMissingConvertedStarRatings` 改为复用同一 `EnsureConvertedStarRatingPersisted` 逻辑去重（保留批处理作为历史库 / 版本失效的兜底补算）。
+4. B：`BmsPersistedMetadataResolver.tryGetCurrentConvertedStarRating` 的版本闸改为对照"权威当前 mania 计算器版本"。实现需避免每次读都新建计算器；候选：由 `BeatmapDifficultyCache` 在初始化时缓存一次 mania 计算器 `Version` 并提供给 resolver，或在 resolver 侧 memoize（实现细节在开工前二次确认，避免引入每读一次的难度计算开销）。
+
+#### 涉及文件
+
+- [../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs](../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs)（新方法 + `IRulesetStore`）
+- [../../osu.Game/Beatmaps/BeatmapUpdater.cs](../../osu.Game/Beatmaps/BeatmapUpdater.cs)（`Process()` 内调用）
+- [../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs](../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs)（B 读校验加固）
+- [../../osu.Game/Database/BackgroundDataStoreProcessor.cs](../../osu.Game/Database/BackgroundDataStoreProcessor.cs)（去重复用，兜底保留）
+
+#### 风险与缓解
+
+1. **导入性能**：每张 BMS 导入多跑一次 mania 转换 + 难度计算。缓解：native 谱本就在导入期算星，量级对称；可在已有 current persisted 状态时跳过重算。
+2. **realm 写事务时长 / 嵌套写**：难度计算放进导入写事务（native 星计算已有同样先例，line 69）。缓解：复用同一事务、直接写 live metadata，禁止嵌套 `realmAccess.Write`。
+3. **DI 接线**：`BeatmapDifficultyCache` 新增 `IRulesetStore` 依赖，需确认 headless / test-scene 容器都已注册该依赖，否则 BDL 解析失败。缓解：开工首步先验证 test-scene 装配。
+4. **B 改变失效语义**：必须继续保留 `conversion_version` + `difficulty_version` 双闸，仅把后者的对照源从消费者 LAV 换成权威版本。缓解：focused 回归先锁。
+5. **异常安全**：导入绝不能因转换错误失败。缓解：best-effort 包裹；`BeatmapInvalidForRulesetException` -> 固化 Failed，其它异常 -> 仅日志。
+
+#### 测试落点
+
+1. 新增/扩展 `BeatmapUpdater` 导入后断言：BMS set 经 `Process()` 后，metadata 已带 current-version 的 converted star（成功）或 Failed（确定不可转）。
+2. [../../osu.Game.Tests/Beatmaps/BmsStarRatingResolverTest.cs](../../osu.Game.Tests/Beatmaps/BmsStarRatingResolverTest.cs)：B 的读校验改用权威版本后，旧版本/失配仍判失效、当前版本判有效。
+3. [../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs](../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs)：导入后首帧 resolved star 即为 mania 转谱星、不回退 playlevel；排序稳定。
+4. Release + Debug build gate；`BmsToManiaBeatmapConverterTest` 等既有聚焦面不回归。
+
+#### 验证顺序与回退边界
+
+- 验证顺序：`BeatmapUpdater` 导入 focused proof -> resolver 版本闸 focused proof -> carousel 稳定排序 proof -> 既有转谱/autoplay 聚焦面 -> Release/Debug build。
+- 回退边界：A 与 B 相互独立，可分刀落地（A 不依赖 B，B 不依赖 A）。新方法为增量；若关闭/回退，行为退回当前"启动批处理 + 懒算"路径，不破坏现有数据。
+
+#### 开工定义
+
+1. 确认 `IRulesetStore` 在 `BeatmapDifficultyCache` 宿主（含 test-scene）可解析。
+2. 确认 B 的"权威 mania 计算器版本"获取方式不引入每读一次的难度计算开销。
+3. 确认导入期 best-effort 包裹不改变现有导入失败/通知语义。
+
 ## 明确不做
 
 1. 不借本专题改写 `chartbms/` / `chartmania/` 存储拓扑、外部谱库扫描或难度表 metadata contract；这些仍归 `P1-H`。
@@ -320,3 +410,5 @@
 3. 在 `K3` 冻结时间轴与 control-event 顺序前，不继续扩大 consumer 侧对特殊谱面语义的分散处理。
 4. `K4` 的 projection reuse 现已先服务 static background metadata / import / playfield consumer；后续优先延伸到 raw working beatmap、Song Select 与 statistics，再考虑更广视觉/特效消费面。
 5. 任何缓存或性能动作都排在 focused semantics validation 之后，避免先缓存一套还没冻结的语义。
+6. 当前若继续 post-`K8` 工作，默认优先级固定为 `K9`：先完成 explicit public wording 与更宽的 presentation/manual proof；source mapping、sample-only scratch runtime、autoplay ignore contract 与 persisted converted star 已不再回退为“待开工”。
+7. `K10`：A（导入期持久化）已落地；B（读校验加固）经实测推迟。后续若发现确有持有过期 LAV 的消费者再重开 B；当前剩余 follow-up 是 BeatmapUpdater 导入期端到端集成回归（OsuGameTestScene 级装配，与既有 visual scene CLI discover 不稳的现状一致）。

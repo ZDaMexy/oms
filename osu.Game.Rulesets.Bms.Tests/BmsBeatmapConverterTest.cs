@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using System.Linq;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
@@ -9,6 +10,7 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.UI.Scrolling;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -339,6 +341,106 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestBuildsMinePlacementsWithoutLeakingIntoJudgedObjects()
+        {
+            const string text = @"
+#TITLE Mine Chart
+#BPM 120
+#WAVAA a.wav
+#00111:AA00
+#001D1:00AA0000
+";
+
+            var decodedChart = decoder.DecodeText(text, "mines.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.Multiple(() =>
+            {
+                // Mine channel D1 mirrors visible channel 0x11 => lane 1 (7K); mine sits at measure 1, fraction 1/4.
+                Assert.That(convertedBeatmap.Mines, Has.Count.EqualTo(1));
+                Assert.That(convertedBeatmap.Mines[0].LaneIndex, Is.EqualTo(1));
+                Assert.That(convertedBeatmap.Mines[0].StartTime, Is.EqualTo(2500).Within(0.001));
+
+                // Mines must NOT leak into the judged hit-object / statistics path.
+                Assert.That(convertedBeatmap.HitObjects.OfType<BmsMine>(), Is.Empty);
+                Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void TestBuildsMineOnRightmostKeyLane()
+        {
+            // Regression: the rightmost 7K key (channel 0x19 => lane index 7, since scratch takes lane 0) had its mines
+            // dropped because buildMines bounded by key count (7) instead of lane count (8). A note on 0x19 forces 7K.
+            const string text = @"
+#TITLE Rightmost Mine
+#BPM 120
+#WAVAA a.wav
+#00119:AA00
+#001D9:00AA0000
+";
+
+            var decodedChart = decoder.DecodeText(text, "rightmost-mine.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.Multiple(() =>
+            {
+                // Mine channel D9 mirrors visible channel 0x19 => rightmost key lane 7; it must NOT be dropped.
+                Assert.That(convertedBeatmap.Mines, Has.Count.EqualTo(1));
+                Assert.That(convertedBeatmap.Mines[0].LaneIndex, Is.EqualTo(7));
+            });
+        }
+
+        [Test]
+        public void TestBuildsLaneKeysoundTimelineIncludingInvisibleObjects()
+        {
+            const string text = @"
+#TITLE Lane Keysounds
+#BPM 120
+#WAVAA inv.wav
+#WAVBB note.wav
+#00131:AA00
+#00211:BB00
+";
+
+            var decodedChart = decoder.DecodeText(text, "lane-keysounds.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            // Channel 0x31 (invisible) mirrors visible channel 0x11 => lane 1 in the 7K layout; the lane keysound
+            // timeline must carry the invisible-object keysound (armed earlier) ahead of the later visible note.
+            var timeline = convertedBeatmap.GetLaneKeysoundTimeline(1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(timeline, Has.Count.EqualTo(2));
+                Assert.That(timeline[0].Time, Is.EqualTo(2000).Within(0.001));
+                Assert.That(timeline[0].Sample.Filename, Is.EqualTo("inv.wav"));
+                Assert.That(timeline[1].Time, Is.EqualTo(4000).Within(0.001));
+                Assert.That(timeline[1].Sample.Filename, Is.EqualTo("note.wav"));
+            });
+        }
+
+        [Test]
+        public void TestSubUnitBpmUsesMagnitudeWithoutClampingToOne()
+        {
+            const string text = @"
+#TITLE Sub-unit BPM
+#BPM 120
+#BPMAA 0.5
+#00108:AA00
+#00211:BB00
+";
+
+            var decodedChart = decoder.DecodeText(text, "sub-unit-bpm.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var note = convertedBeatmap.HitObjects.OfType<BmsHitObject>().Single();
+
+            // Measure 0 at 120 BPM (beat length 500) spans 2000ms; the 0.5 BPM change at the start of measure 1 must
+            // use beat length 120000 (NOT clamped to 1 BPM => 60000), so measure 1 spans 480000ms => note at 482000ms.
+            Assert.That(note.StartTime, Is.EqualTo(482000).Within(0.001));
+        }
+
+        [Test]
         public void TestCapturesMeasureStartTimes()
         {
             const string text = @"
@@ -382,6 +484,138 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(playableObjects[1].StartTime, Is.EqualTo(4000).Within(0.001));
                 Assert.That(convertedBeatmap.GetLastObjectTime(), Is.EqualTo(4000).Within(0.001));
                 Assert.That(convertedBeatmap.BeatmapInfo.Length, Is.EqualTo(4000).Within(0.001));
+            });
+        }
+
+        [Test]
+        public void TestScrollProfileFreezesDistanceDuringStop()
+        {
+            // Same timing chart as TestComputesTimingsForMeasureLengthBpmAndStop: a STOP freezes scroll across
+            // [2625, 3125]ms. The stop-motion scroll profile (P1-L Phase 2) must hold distance constant there while
+            // still advancing on normal sections. Note times / control points are unchanged (verified elsewhere).
+            const string text = @"
+#TITLE Timing Chart
+#BPM 120
+#BPMAA 240
+#STOPAB 96
+#00102:0.5
+#00108:00AA
+#00109:000000AB
+#00112:0000AA00
+#00212:AA00
+";
+
+            var decodedChart = decoder.DecodeText(text, "stop-profile.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var profile = convertedBeatmap.ScrollProfile;
+
+            Assert.That(profile, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(profile!.PositionDelta(2625, 3125), Is.EqualTo(0).Within(1e-6)); // frozen during STOP
+                Assert.That(profile.PositionDelta(0, 2000), Is.GreaterThan(0)); // normal section advances
+                Assert.That(profile.PositionDelta(3125, 3250), Is.GreaterThan(0)); // resumes after the freeze
+            });
+        }
+
+        [Test]
+        public void TestScrollProfileDegeneratesToConstantForSingleBpmChart()
+        {
+            // For a single-BPM chart (base BPM = chart BPM, scroll 1) distance must track time: D(t) ~= t, so the
+            // bypass would render identically to constant scroll. This is the regression-friendly degenerate property.
+            const string text = @"
+#TITLE Constant
+#BPM 120
+#00111:AA00
+#00211:BB00
+#00311:CC00
+";
+
+            var decodedChart = decoder.DecodeText(text, "constant-profile.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var profile = convertedBeatmap.ScrollProfile;
+
+            Assert.That(profile, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(profile!.DistanceAt(0), Is.EqualTo(0).Within(0.001));
+                Assert.That(profile.DistanceAt(1000), Is.EqualTo(1000).Within(0.001));
+                Assert.That(profile.DistanceAt(2000), Is.EqualTo(2000).Within(0.001));
+                Assert.That(profile.DistanceAt(4000), Is.EqualTo(4000).Within(0.001));
+                Assert.That(profile.IsStopMotionGimmick, Is.False); // normal chart: Auto must not engage
+            });
+        }
+
+        [Test]
+        public void TestScrollProfileSnapsAcrossExtremeBpm()
+        {
+            // An extreme BPM (1,320,000 — DEAD SOUL's value) covers a normal measure's distance in near-zero time:
+            // the snap. The base stays at 120 (it dominates playing time), so the 120 region keeps slope ~1.
+            const string text = @"
+#TITLE Snap
+#BPM 120
+#BPMAA 1320000
+#00208:AA00
+#00311:CC00
+";
+
+            var decodedChart = decoder.DecodeText(text, "snap-profile.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var profile = convertedBeatmap.ScrollProfile;
+
+            Assert.That(profile, Is.Not.Null);
+
+            double maxSlope = 0;
+
+            for (int i = 1; i < profile!.KnotTimes.Count; i++)
+            {
+                double dt = profile.KnotTimes[i] - profile.KnotTimes[i - 1];
+
+                if (dt > 0)
+                    maxSlope = Math.Max(maxSlope, (profile.KnotDistances[i] - profile.KnotDistances[i - 1]) / dt);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(profile.DistanceAt(1000), Is.EqualTo(1000).Within(0.001)); // 120-BPM base region: slope ~1
+                Assert.That(maxSlope, Is.GreaterThan(1000)); // 1,320,000 / 120 ~= 11000x => snap
+                Assert.That(profile.IsStopMotionGimmick, Is.True); // auto-detected (Step D)
+            });
+        }
+
+        [Test]
+        public void TestStopMotionAlgorithmFreezesOnConvertedStopRegion()
+        {
+            // End-to-end: feed the REAL converter-built profile into the stop-motion algorithm and confirm an object
+            // holds its on-screen position while the play head sits anywhere inside the converted STOP [2625, 3125]ms,
+            // and moves outside it. Same chart as TestScrollProfileFreezesDistanceDuringStop.
+            const string text = @"
+#TITLE Timing Chart
+#BPM 120
+#BPMAA 240
+#STOPAB 96
+#00102:0.5
+#00108:00AA
+#00109:000000AB
+#00112:0000AA00
+#00212:AA00
+";
+
+            var decodedChart = decoder.DecodeText(text, "stop-pipeline.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+            var algorithm = new BmsStopMotionScrollAlgorithm(convertedBeatmap.ScrollProfile!);
+
+            const double time_range = 1000;
+            const float scroll_length = 500;
+
+            float frozenAtStopStart = algorithm.PositionAt(3250, 2625, time_range, scroll_length);
+            float frozenMidStop = algorithm.PositionAt(3250, 3125, time_range, scroll_length);
+            float beforeStop = algorithm.PositionAt(3250, 0, time_range, scroll_length);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(frozenMidStop, Is.EqualTo(frozenAtStopStart).Within(1e-6)); // frozen across the STOP
+                Assert.That(beforeStop, Is.GreaterThan(frozenAtStopStart)); // farther away before the freeze
             });
         }
     }

@@ -18,7 +18,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private static readonly UTF8Encoding strict_utf8 = new UTF8Encoding(false, true);
         private const string random_branching_warning = "Random branching is not fully supported. OMS only executes the #IF 1 branch inside #RANDOM blocks.";
         private const string random_branch_missing_if1_warning = "Random branching is not fully supported. OMS skipped a #RANDOM block because no #IF 1 branch was found.";
+        private const string switch_branching_warning = "Switch branching is not fully supported. OMS deterministically executes the #CASE 1 branch (or the #DEF branch) inside #SWITCH blocks.";
         private const int unknown_channel = -1;
+        private const int bgm_channel = 0x01;
+
+        private static readonly HashSet<string> control_directive_keys = new HashSet<string>
+        {
+            "RANDOM", "SETRANDOM", "IF", "ELSEIF", "ELSE", "ENDIF", "ENDRANDOM",
+            "SWITCH", "SETSWITCH", "CASE", "SKIP", "DEF", "ENDSW",
+        };
+
+        private static readonly HashSet<string> if_chain_terminators = new HashSet<string> { "ELSEIF", "ELSE", "ENDIF" };
 
         static BmsBeatmapDecoder()
         {
@@ -89,74 +99,73 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     lines.Add(line);
             }
 
+            var effectiveLines = new List<string>();
             int index = 0;
-            return collectEffectiveLines(lines, decodedChart, ref index, stopAtEndIf: false);
+            collectEffectiveLines(lines, decodedChart, ref index, effectiveLines, stopDirectives: null);
+            return effectiveLines;
         }
 
-        private static List<string> collectEffectiveLines(IReadOnlyList<string> lines, BmsDecodedChart decodedChart, ref int index, bool stopAtEndIf)
+        /// <summary>
+        /// Appends branch-selected lines into <paramref name="output"/>, expanding nested #RANDOM / #SWITCH blocks.
+        /// Returns without consuming when a directive contained in <paramref name="stopDirectives"/> is encountered
+        /// (returning that key), or null at end of input.
+        /// </summary>
+        private static string? collectEffectiveLines(IReadOnlyList<string> lines, BmsDecodedChart decodedChart, ref int index, List<string> output, ISet<string>? stopDirectives)
         {
-            var effectiveLines = new List<string>();
-
             while (index < lines.Count)
             {
-                string currentLine = lines[index];
-                string trimmedLine = currentLine.Trim();
+                string trimmedLine = lines[index].Trim();
 
-                if (tryGetConditionalDirective(trimmedLine, out string directiveKey, out _))
+                if (tryGetControlDirective(trimmedLine, out string directiveKey, out string directiveValue))
                 {
-                    if (stopAtEndIf && directiveKey == "ENDIF")
-                    {
-                        index++;
-                        break;
-                    }
+                    if (stopDirectives != null && stopDirectives.Contains(directiveKey))
+                        return directiveKey;
 
                     switch (directiveKey)
                     {
                         case "RANDOM":
+                        case "SETRANDOM":
                             index++;
-                            effectiveLines.AddRange(collectRandomBranch(lines, decodedChart, ref index));
+                            collectRandomBlock(lines, decodedChart, ref index, output, isSet: directiveKey == "SETRANDOM", directiveValue);
                             continue;
 
-                        case "IF":
-                            decodedChart.Warnings.Add(@"Ignoring stray #IF block encountered outside #RANDOM.");
+                        case "SWITCH":
+                        case "SETSWITCH":
                             index++;
-                            collectEffectiveLines(lines, decodedChart, ref index, stopAtEndIf: true);
+                            collectSwitchBlock(lines, decodedChart, ref index, output, isSet: directiveKey == "SETSWITCH", directiveValue);
                             continue;
 
-                        case "ENDIF":
-                        case "ENDRANDOM":
-                            decodedChart.Warnings.Add($@"Ignoring stray #{directiveKey} directive encountered outside #RANDOM.");
+                        default:
+                            decodedChart.Warnings.Add($@"Ignoring stray #{directiveKey} directive encountered outside a control block.");
                             index++;
                             continue;
                     }
                 }
 
-                effectiveLines.Add(currentLine);
+                output.Add(lines[index]);
                 index++;
             }
 
-            return effectiveLines;
+            return null;
         }
 
-        private static List<string> collectRandomBranch(IReadOnlyList<string> lines, BmsDecodedChart decodedChart, ref int index)
+        private static void collectRandomBlock(IReadOnlyList<string> lines, BmsDecodedChart decodedChart, ref int index, List<string> output, bool isSet, string value)
         {
-            var effectiveLines = new List<string>();
-            bool foundIf1Branch = false;
-
-            decodedChart.Warnings.Add(random_branching_warning);
+            int selectedValue = resolveSelectedBranchValue(decodedChart, isSet, value, random_branching_warning);
+            bool matchedAnyBranch = false;
+            bool branchTakenInChain = false;
 
             while (index < lines.Count)
             {
                 string trimmedLine = lines[index].Trim();
 
-                if (string.IsNullOrWhiteSpace(trimmedLine))
+                if (!tryGetControlDirective(trimmedLine, out string directiveKey, out string directiveValue))
                 {
+                    // A line that sits directly inside #RANDOM but outside any #IF chain stays unconditionally.
+                    output.Add(lines[index]);
                     index++;
                     continue;
                 }
-
-                if (!tryGetConditionalDirective(trimmedLine, out string directiveKey, out string directiveValue))
-                    break;
 
                 if (directiveKey == "ENDRANDOM")
                 {
@@ -164,30 +173,191 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     break;
                 }
 
-                if (directiveKey != "IF")
-                    break;
-
-                index++;
-
-                var branchLines = collectEffectiveLines(lines, decodedChart, ref index, stopAtEndIf: true);
-
-                if (!int.TryParse(directiveValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int branchValue))
+                if (directiveKey == "IF" || directiveKey == "ELSEIF" || directiveKey == "ELSE")
                 {
-                    decodedChart.Warnings.Add($@"Failed to parse #IF value '{directiveValue}'.");
+                    index++;
+
+                    bool conditionMatches;
+
+                    if (directiveKey == "ELSE")
+                        conditionMatches = !branchTakenInChain;
+                    else if (int.TryParse(directiveValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int branchValue))
+                        conditionMatches = !branchTakenInChain && branchValue == selectedValue;
+                    else
+                    {
+                        decodedChart.Warnings.Add($@"Failed to parse #{directiveKey} value '{directiveValue}'.");
+                        conditionMatches = false;
+                    }
+
+                    var branchBody = new List<string>();
+                    string? terminator = collectEffectiveLines(lines, decodedChart, ref index, branchBody, if_chain_terminators);
+
+                    if (conditionMatches)
+                    {
+                        matchedAnyBranch = true;
+                        branchTakenInChain = true;
+                        output.AddRange(branchBody);
+                    }
+
+                    if (terminator == "ENDIF")
+                    {
+                        index++;
+                        branchTakenInChain = false;
+                    }
+                    else if (terminator == null)
+                        break;
+
+                    // #ELSEIF / #ELSE terminators are intentionally left unconsumed so the loop continues the chain.
                     continue;
                 }
 
-                if (branchValue != 1)
-                    continue;
-
-                foundIf1Branch = true;
-                effectiveLines.AddRange(branchLines);
+                decodedChart.Warnings.Add($@"Ignoring unexpected #{directiveKey} directive inside #RANDOM block.");
+                index++;
             }
 
-            if (!foundIf1Branch)
+            if (!isSet && !matchedAnyBranch)
                 decodedChart.Warnings.Add(random_branch_missing_if1_warning);
+        }
 
-            return effectiveLines;
+        private static void collectSwitchBlock(IReadOnlyList<string> lines, BmsDecodedChart decodedChart, ref int index, List<string> output, bool isSet, string value)
+        {
+            int selectedValue = resolveSelectedBranchValue(decodedChart, isSet, value, switch_branching_warning);
+            var segments = collectSwitchSegments(lines, decodedChart, ref index);
+
+            int startSegment = findSwitchStartSegment(segments, selectedValue);
+
+            if (startSegment < 0)
+                return;
+
+            // C-style fall-through: execute from the selected segment until a #SKIP-terminated segment.
+            for (int i = startSegment; i < segments.Count; i++)
+            {
+                int nestedIndex = 0;
+                collectEffectiveLines(segments[i].Lines, decodedChart, ref nestedIndex, output, stopDirectives: null);
+
+                if (segments[i].EndsWithSkip)
+                    break;
+            }
+        }
+
+        private static List<SwitchSegment> collectSwitchSegments(IReadOnlyList<string> lines, BmsDecodedChart decodedChart, ref int index)
+        {
+            var segments = new List<SwitchSegment>();
+            SwitchSegment? currentSegment = null;
+            int nestedSwitchDepth = 0;
+
+            while (index < lines.Count)
+            {
+                string rawLine = lines[index];
+                string trimmedLine = rawLine.Trim();
+
+                if (tryGetControlDirective(trimmedLine, out string directiveKey, out string directiveValue))
+                {
+                    if (nestedSwitchDepth == 0)
+                    {
+                        if (directiveKey == "ENDSW")
+                        {
+                            index++;
+                            break;
+                        }
+
+                        if (directiveKey == "CASE")
+                        {
+                            currentSegment = new SwitchSegment(parseControlValue(decodedChart, "CASE", directiveValue), isDefault: false);
+                            segments.Add(currentSegment);
+                            index++;
+                            continue;
+                        }
+
+                        if (directiveKey == "DEF")
+                        {
+                            currentSegment = new SwitchSegment(null, isDefault: true);
+                            segments.Add(currentSegment);
+                            index++;
+                            continue;
+                        }
+
+                        if (directiveKey == "SKIP")
+                        {
+                            if (currentSegment != null)
+                                currentSegment.EndsWithSkip = true;
+
+                            index++;
+                            continue;
+                        }
+                    }
+
+                    // Track nested #SWITCH depth so a nested switch's #CASE / #ENDSW are captured raw (expanded later),
+                    // instead of being mistaken for this switch's boundaries.
+                    if (directiveKey == "SWITCH" || directiveKey == "SETSWITCH")
+                        nestedSwitchDepth++;
+                    else if (directiveKey == "ENDSW")
+                        nestedSwitchDepth = Math.Max(0, nestedSwitchDepth - 1);
+                }
+
+                currentSegment?.Lines.Add(rawLine);
+                index++;
+            }
+
+            return segments;
+        }
+
+        private static int findSwitchStartSegment(List<SwitchSegment> segments, int selectedValue)
+        {
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (!segments[i].IsDefault && segments[i].Value == selectedValue)
+                    return i;
+            }
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (segments[i].IsDefault)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private static int resolveSelectedBranchValue(BmsDecodedChart decodedChart, bool isSet, string value, string nonSetWarning)
+        {
+            if (!isSet)
+            {
+                decodedChart.Warnings.Add(nonSetWarning);
+                return 1;
+            }
+
+            if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int pinnedValue))
+                return pinnedValue;
+
+            decodedChart.Warnings.Add($@"Failed to parse pinned control value '{value}'; defaulting to branch 1.");
+            return 1;
+        }
+
+        private static int? parseControlValue(BmsDecodedChart decodedChart, string directiveKey, string value)
+        {
+            if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedValue))
+                return parsedValue;
+
+            decodedChart.Warnings.Add($@"Failed to parse #{directiveKey} value '{value}'.");
+            return null;
+        }
+
+        private sealed class SwitchSegment
+        {
+            public int? Value { get; }
+
+            public bool IsDefault { get; }
+
+            public bool EndsWithSkip { get; set; }
+
+            public List<string> Lines { get; } = new List<string>();
+
+            public SwitchSegment(int? value, bool isDefault)
+            {
+                Value = value;
+                IsDefault = isDefault;
+            }
         }
 
         private static string decodeText(byte[] data)
@@ -245,7 +415,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static bool handleControlDirective(string line, BmsDecodedChart decodedChart)
         {
-            if (tryGetConditionalDirective(line, out string directiveKey, out _))
+            if (tryGetControlDirective(line, out string directiveKey, out _))
             {
                 decodedChart.Warnings.Add($@"Ignoring unexpected #{directiveKey} directive after conditional preprocessing.");
                 return true;
@@ -461,9 +631,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             orderedEvents.Sort(compareChannelEvents);
             var effectiveEvents = compoundDuplicateChannelEvents(orderedEvents);
 
-            var pendingLnObjHeads = new Dictionary<int, List<BmsObjectEvent>>();
+            var pendingLnObjHeads = new Dictionary<int, List<int>>();
             var pendingLnType1Heads = new Dictionary<int, BmsObjectEvent>();
             var pendingLnType2Segments = new Dictionary<int, List<BmsObjectEvent>>();
+            var consumedLnObjHeadIndices = new HashSet<int>();
 
             foreach (var channelEvent in effectiveEvents)
             {
@@ -513,7 +684,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                         if (isPlayableNoteChannel(channelEvent.Channel, decodedChart.BeatmapInfo.Keymode))
                         {
-                            handlePlayableNoteEvent(decodedChart, channelEvent, pendingLnObjHeads);
+                            handlePlayableNoteEvent(decodedChart, channelEvent, pendingLnObjHeads, consumedLnObjHeadIndices);
                             break;
                         }
 
@@ -528,6 +699,27 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
 
             flushPendingLongNoteChannels(decodedChart, pendingLnType1Heads, pendingLnType2Segments);
+            removeConsumedLnObjHeads(decodedChart, consumedLnObjHeadIndices);
+        }
+
+        private static void removeConsumedLnObjHeads(BmsDecodedChart decodedChart, ISet<int> consumedLnObjHeadIndices)
+        {
+            if (consumedLnObjHeadIndices.Count == 0)
+                return;
+
+            var objectEvents = decodedChart.ObjectEvents;
+            var retained = new List<BmsObjectEvent>(Math.Max(0, objectEvents.Count - consumedLnObjHeadIndices.Count));
+
+            for (int i = 0; i < objectEvents.Count; i++)
+            {
+                if (!consumedLnObjHeadIndices.Contains(i))
+                    retained.Add(objectEvents[i]);
+            }
+
+            objectEvents.Clear();
+
+            foreach (var objectEvent in retained)
+                objectEvents.Add(objectEvent);
         }
 
         private static List<BmsChannelEvent> compoundDuplicateChannelEvents(IReadOnlyList<BmsChannelEvent> orderedEvents)
@@ -552,7 +744,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         }
 
         private static bool isDuplicateChannelCollision(BmsChannelEvent left, BmsChannelEvent right)
-            => left.MeasureIndex == right.MeasureIndex
+            // BGM (channel 01) is the spec-mandated exception to channel compounding: multiple #xxx01 lines that
+            // land on the same position are independent simultaneous keysound layers and must all survive.
+            => left.Channel != bgm_channel
+               && left.MeasureIndex == right.MeasureIndex
                && left.FractionWithinMeasure == right.FractionWithinMeasure
                && hasSameChannelIdentity(left, right);
 
@@ -679,7 +874,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 damageValue));
         }
 
-        private static void handlePlayableNoteEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, List<BmsObjectEvent>> pendingLnObjHeads)
+        private static void handlePlayableNoteEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, List<int>> pendingLnObjHeads, ISet<int> consumedLnObjHeadIndices)
         {
             if (!TryParseBase36(channelEvent.RawValue, out int objectId))
             {
@@ -691,13 +886,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             if (decodedChart.BeatmapInfo.LongNoteObjectId == objectId)
             {
-                if (!tryPopPendingLnObjHead(laneChannel, pendingLnObjHeads, out var headEvent))
+                if (!tryPopPendingLnObjHead(laneChannel, pendingLnObjHeads, out int headIndex))
                 {
                     decodedChart.Warnings.Add($@"Encountered LNOBJ tail at measure {channelEvent.MeasureIndex:000}, channel {channelEvent.Channel:X2} without a matching head.");
                     return;
                 }
 
-                tryRemoveObjectEvent(decodedChart.ObjectEvents, headEvent);
+                // Mark the head index for a single deferred removal pass instead of an O(n) scan per LNOBJ tail.
+                var headEvent = decodedChart.ObjectEvents[headIndex];
+                consumedLnObjHeadIndices.Add(headIndex);
                 decodedChart.LongNoteEvents.Add(new BmsLongNoteEvent(
                     headEvent.MeasureIndex,
                     headEvent.FractionWithinMeasure,
@@ -710,16 +907,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 return;
             }
 
+            int noteIndex = decodedChart.ObjectEvents.Count;
             var noteEvent = new BmsObjectEvent(channelEvent.MeasureIndex, channelEvent.FractionWithinMeasure, laneChannel, objectId, autoPlay: false);
             decodedChart.ObjectEvents.Add(noteEvent);
 
             if (!pendingLnObjHeads.TryGetValue(laneChannel, out var laneEvents))
             {
-                laneEvents = new List<BmsObjectEvent>();
+                laneEvents = new List<int>();
                 pendingLnObjHeads[laneChannel] = laneEvents;
             }
 
-            laneEvents.Add(noteEvent);
+            laneEvents.Add(noteIndex);
         }
 
         private static void handleLongNoteChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, BmsObjectEvent> pendingLnType1Heads, IDictionary<int, List<BmsObjectEvent>> pendingLnType2Segments)
@@ -881,12 +1079,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             decodedChart.StopEvents.Add(new BmsStopEvent(channelEvent.MeasureIndex, channelEvent.FractionWithinMeasure, stopIndex, stopValue));
         }
 
-        private static bool tryPopPendingLnObjHead(int laneChannel, IDictionary<int, List<BmsObjectEvent>> pendingLnObjHeads, out BmsObjectEvent headEvent)
+        private static bool tryPopPendingLnObjHead(int laneChannel, IDictionary<int, List<int>> pendingLnObjHeads, out int headIndex)
         {
             if (pendingLnObjHeads.TryGetValue(laneChannel, out var laneEvents) && laneEvents.Count > 0)
             {
                 int lastIndex = laneEvents.Count - 1;
-                headEvent = laneEvents[lastIndex];
+                headIndex = laneEvents[lastIndex];
                 laneEvents.RemoveAt(lastIndex);
 
                 if (laneEvents.Count == 0)
@@ -895,20 +1093,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 return true;
             }
 
-            headEvent = default;
+            headIndex = -1;
             return false;
-        }
-
-        private static void tryRemoveObjectEvent(IList<BmsObjectEvent> objectEvents, BmsObjectEvent targetEvent)
-        {
-            for (int i = objectEvents.Count - 1; i >= 0; i--)
-            {
-                if (objectEvents[i].Equals(targetEvent))
-                {
-                    objectEvents.RemoveAt(i);
-                    return;
-                }
-            }
         }
 
         private static bool isPlayableNoteChannel(int channel, BmsKeymode keymode)
@@ -1269,11 +1455,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             value = line[(separatorIndex + 1)..].Trim();
         }
 
-        private static bool tryGetConditionalDirective(string line, out string key, out string value)
+        private static bool tryGetControlDirective(string line, out string key, out string value)
         {
             splitDirective(line, out key, out value);
 
-            return key is "RANDOM" or "IF" or "ENDIF" or "ENDRANDOM";
+            return control_directive_keys.Contains(key);
         }
 
         private static bool tryParseDouble(string value, out double result)

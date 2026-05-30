@@ -4,6 +4,9 @@
     <OutputType>Library</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);NU1903</NoWarn>
+    <!-- Ships NUnit-based test-scene base classes but is not itself a test container.
+         Opt out of IDE/VSTest test discovery so editors don't launch a testhost against this library. -->
+    <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <PropertyGroup Label="Nuget">
     <Title>osu!</Title>

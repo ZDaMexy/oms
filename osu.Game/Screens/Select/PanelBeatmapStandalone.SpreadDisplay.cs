@@ -158,8 +158,8 @@ namespace osu.Game.Screens.Select
                 var otherStarDifficulties = Beatmap.Value.BeatmapSet!.Beatmaps
                                                    .Except([Beatmap.Value])
                                                    .Where(b => b.AllowGameplayWithRuleset(ruleset.Value, showConvertedBeatmaps.Value))
-                                                   .OrderBy(b => b.StarRating)
-                                                   .Select(b => b.StarRating)
+                                                   .Select(b => getResolvedStarRating(b))
+                                                   .OrderBy(starRating => starRating)
                                                    .ToList();
                 this.FadeTo(otherStarDifficulties.Count > 0 ? 1 : 0, transition_duration, Easing.OutQuint);
 
@@ -224,6 +224,12 @@ namespace osu.Game.Screens.Select
                     }
                 }
             }
+
+            private double getResolvedStarRating(BeatmapInfo beatmap)
+                => beatmap.RequiresRulesetSpecificStarRating(ruleset.Value, showConvertedBeatmaps.Value)
+                   && BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmap, ruleset.Value, out double persistedConvertedStarRating)
+                    ? persistedConvertedStarRating
+                    : beatmap.StarRating;
 
             protected override bool OnMouseDown(MouseDownEvent e)
             {

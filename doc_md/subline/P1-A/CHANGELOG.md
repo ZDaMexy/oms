@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-05-26
+
+### BMS -> mania 公共表面：persisted converted-star display 与 spread display 收口
+
+- `BMS -> mania` 公开表面当前已不再只停留在 visibility gate：modless converted mania 星数现已改为持久化到 BMS metadata payload，并由 `BeatmapDifficultyCache`、`BackgroundDataStoreProcessor` 与 current-ruleset spread display 统一读取，因此 Song Select 的星数筛选、难度排序、按星数分组与 spread dots 都不再继续直接吃 source BMS raw star。
+- 这一步仍保持 `P1-A/P1-K` 边界：`P1-K` 继续拥有 dedicated conversion、sample-only scratch runtime 与 persisted-star authority，`P1-A` 只消费 current-ruleset resolved-star display surface，不把 generic convert heuristics 重新包装成语义 authority。
+- 当前剩余工作已收窄为按钮 wording、显式入口文案与更宽 presentation/manual proof，而不是再回头修 current-ruleset star surface。
+- 验证：`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --no-restore --filter "Name~BmsStarRatingResolverTest|Name~BeatmapCarouselFilterSortingTest"` **19/19** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+
 ## 2026-05-16
 
 ### 实现：pre-start 1 号普通轨纯视觉流速预览宿主接到 `P1-A`
@@ -24,7 +33,7 @@
 - 迁移选择页当前会直接说明三类结果：空目录直接迁入、非空非数据目录改用其下 `oms/` 子目录、已是可用数据目录则仅在重启后切换；这条产品面合同也已同步到 Release / 主线 / `P1-H` 文档口径。
 - 验证：`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
 
-## 2026-05-09
+## 2026-05-09（续）
 
 ### shared settings-entry surface 跟进：osu!mania 滚动速度提示收口为参考值
 

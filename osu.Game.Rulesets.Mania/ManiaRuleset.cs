@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
@@ -12,6 +13,7 @@ using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Configuration;
+using osu.Game.Extensions;
 using osu.Game.Graphics;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
@@ -46,6 +48,10 @@ namespace osu.Game.Rulesets.Mania
 {
     public class ManiaRuleset : Ruleset, ILegacyRuleset
     {
+        private const string bms_decoded_beatmap_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsDecodedBeatmap";
+        private const string bms_to_mania_converter_factory_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsToManiaBeatmapConverterFactory";
+        private const string bms_ruleset_assembly = "osu.Game.Rulesets.Bms";
+
         /// <summary>
         /// The maximum number of supported keys in a single stage.
         /// </summary>
@@ -57,7 +63,40 @@ namespace osu.Game.Rulesets.Mania
 
         public override HealthProcessor CreateHealthProcessor(double drainStartTime) => new ManiaHealthProcessor(drainStartTime);
 
-        public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new ManiaBeatmapConverter(beatmap, this);
+        public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap)
+        {
+            if (beatmap.GetType().FullName == bms_decoded_beatmap_type && tryCreateBmsConverter(beatmap, out var converter))
+                return converter;
+
+            return new ManiaBeatmapConverter(beatmap, this);
+        }
+
+        // Reflection cached at class init so each carousel filter pass over a large BMS library doesn't pay
+        // Type.GetType + GetMethod + Invoke per beatmap (mirrors the pattern already used in DrawableManiaRuleset).
+        private static readonly Type? bmsConverterFactoryType = Type.GetType($"{bms_to_mania_converter_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
+        private static readonly Func<IBeatmap, bool>? bmsCanCreateConverter = createConverterFactoryDelegate<Func<IBeatmap, bool>>("CanCreate");
+        private static readonly Func<IBeatmap, Ruleset, IBeatmapConverter>? bmsCreateConverter = createConverterFactoryDelegate<Func<IBeatmap, Ruleset, IBeatmapConverter>>("Create");
+
+        private static TDelegate? createConverterFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
+        {
+            MethodInfo? method = bmsConverterFactoryType?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+
+            return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
+        }
+
+        private bool tryCreateBmsConverter(IBeatmap beatmap, out IBeatmapConverter converter)
+        {
+            converter = null!;
+
+            if (bmsCanCreateConverter?.Invoke(beatmap) is not true)
+                return false;
+
+            if (bmsCreateConverter?.Invoke(beatmap, this) is not IBeatmapConverter createdConverter)
+                return false;
+
+            converter = createdConverter;
+            return true;
+        }
 
         public override PerformanceCalculator CreatePerformanceCalculator() => new ManiaPerformanceCalculator();
 

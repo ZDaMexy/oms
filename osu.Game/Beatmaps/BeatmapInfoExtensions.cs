@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Localisation;
 using osu.Game.Online.API;
@@ -12,6 +14,9 @@ namespace osu.Game.Beatmaps
 {
     public static class BeatmapInfoExtensions
     {
+        private const string bms_ruleset_short_name = "bms";
+        private const string mania_ruleset_short_name = "mania";
+
         /// <summary>
         /// Given an <see cref="IBeatmap"/>, update length, BPM and object counts.
         /// </summary>
@@ -90,11 +95,28 @@ namespace osu.Game.Beatmaps
             if (beatmap.Ruleset.ShortName == ruleset.ShortName)
                 return true;
 
+            if (allowConversion && beatmap.Ruleset.ShortName == bms_ruleset_short_name && ruleset.ShortName == mania_ruleset_short_name)
+                return true;
+
             if (allowConversion && beatmap.Ruleset.OnlineID == 0 && ruleset.OnlineID != 0)
                 return true;
 
             return false;
         }
+
+        public static bool RequiresRulesetSwitch(this IBeatmapInfo beatmap, RulesetInfo currentRuleset, bool allowConversion)
+            => !beatmap.AllowGameplayWithRuleset(currentRuleset, allowConversion);
+
+        public static bool RequiresRulesetSpecificStarRating(this IBeatmapInfo beatmap, RulesetInfo? ruleset, bool allowConversion)
+        {
+            if (ruleset == null)
+                return false;
+
+            return beatmap.Ruleset.ShortName != ruleset.ShortName && beatmap.AllowGameplayWithRuleset(ruleset, allowConversion);
+        }
+
+        public static double GetResolvedStarRating(this BeatmapInfo beatmap, IReadOnlyDictionary<Guid, double>? resolvedStarRatings)
+            => resolvedStarRatings != null && resolvedStarRatings.TryGetValue(beatmap.ID, out double starRating) ? starRating : beatmap.StarRating;
 
         /// <summary>
         /// Get the beatmap info page URL, or <c>null</c> if unavailable.

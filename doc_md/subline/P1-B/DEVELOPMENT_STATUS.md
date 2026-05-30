@@ -21,7 +21,8 @@
 | 真实 HID 验收 | 未开始 | 仍缺真实 IIDX/BMS 控制器覆盖 |
 | 对外硬件行为口径 | 进行中 | “Windows 默认 DirectInput + HidSharp 诊断后端”已可写入文档 |
 
-## 验证记录
+## 当前验证基线
 
-- 2026-05-09：桌面端 Settings -> 输入 现已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream `MouseSettings` / `TouchSettings` / `TabletSettings`，但不改写 runtime config / handler 消费链。`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- 沿用最近已验证快照：`TestSceneOmsScratchGameplayBridge` **43/43**；主线现状同步认为 keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 主链稳定。
+- desktop Release 构建当前可通过；数位板 / 触屏点击 / 鼠标 subsection 的桌面端安全隐藏已确认不改写 runtime config / handler 消费链。
+- `TestSceneOmsScratchGameplayBridge` 当前基线保持 **43/43**；keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 主链在主线快照中仍视为稳定。
+- 按日期展开的实现与验证记录见 [CHANGELOG.md](CHANGELOG.md)。

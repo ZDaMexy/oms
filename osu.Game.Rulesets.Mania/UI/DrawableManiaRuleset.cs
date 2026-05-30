@@ -1,8 +1,10 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Track;
 using osu.Framework.Bindables;
@@ -34,6 +36,9 @@ namespace osu.Game.Rulesets.Mania.UI
 {
     public partial class DrawableManiaRuleset : DrawableScrollingRuleset<ManiaHitObject>
     {
+        private const string bms_to_mania_drawable_factory_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsToManiaDrawableRepresentationFactory";
+        private const string bms_ruleset_assembly = "osu.Game.Rulesets.Bms";
+
         /// <summary>
         /// The minimum time range. This occurs at a <see cref="ManiaRulesetSetting.ScrollSpeed"/> of 40.
         /// </summary>
@@ -64,6 +69,17 @@ namespace osu.Game.Rulesets.Mania.UI
         public double TargetTimeRange { get; protected set; }
 
         private double currentTimeRange;
+
+        private static readonly Type? bmsDrawableFactoryType = Type.GetType($"{bms_to_mania_drawable_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
+        private static readonly Func<ManiaHitObject, bool>? bmsCanCreateDrawable = createFactoryDelegate<Func<ManiaHitObject, bool>>("CanCreate");
+        private static readonly Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>? bmsCreateDrawable = createFactoryDelegate<Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>>("Create");
+
+        private static TDelegate? createFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
+        {
+            MethodInfo? method = bmsDrawableFactoryType?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+
+            return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
+        }
 
         // Stores the current speed adjustment active in gameplay.
         private readonly Track speedAdjustmentTrack = new TrackVirtual(0);
@@ -199,7 +215,27 @@ namespace osu.Game.Rulesets.Mania.UI
 
         protected override PassThroughInputManager CreateInputManager() => new ManiaInputManager(Ruleset.RulesetInfo, Variant);
 
-        public override DrawableHitObject<ManiaHitObject>? CreateDrawableRepresentation(ManiaHitObject h) => null;
+        public override DrawableHitObject<ManiaHitObject>? CreateDrawableRepresentation(ManiaHitObject h)
+        {
+            if (h.GetType().Assembly.GetName().Name == bms_ruleset_assembly && tryCreateBmsDrawableRepresentation(h, out var drawableRepresentation))
+                return drawableRepresentation;
+
+            return null;
+        }
+
+        private static bool tryCreateBmsDrawableRepresentation(ManiaHitObject hitObject, out DrawableHitObject<ManiaHitObject>? drawableRepresentation)
+        {
+            drawableRepresentation = null;
+
+            if (bmsCanCreateDrawable?.Invoke(hitObject) is not true)
+                return false;
+
+            if (bmsCreateDrawable?.Invoke(hitObject) is not DrawableHitObject<ManiaHitObject> createdDrawableRepresentation)
+                return false;
+
+            drawableRepresentation = createdDrawableRepresentation;
+            return true;
+        }
 
         protected override ReplayInputHandler CreateReplayInputHandler(Replay replay) => new ManiaFramedReplayInputHandler(replay);
 

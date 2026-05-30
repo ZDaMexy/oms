@@ -20,6 +20,7 @@
 - [P1-I/DEVELOPMENT_PLAN.md](P1-I/DEVELOPMENT_PLAN.md)：BMS 选歌筛选与搜索定制。
 - [P1-J/DEVELOPMENT_PLAN.md](P1-J/DEVELOPMENT_PLAN.md)：BMS gameplay runtime 性能与音频时序治理。
 - [P1-K/DEVELOPMENT_PLAN.md](P1-K/DEVELOPMENT_PLAN.md)：BMS 解析链路治理。
+- [P1-L/DEVELOPMENT_PLAN.md](P1-L/DEVELOPMENT_PLAN.md)：BMS 演出/Gimmick 谱视觉复刻（隔离旁路渲染，红线：不改坏正常游玩链路）。
 
 ## 联动要求
 

@@ -228,6 +228,24 @@ namespace osu.Game.Tests.Beatmaps
             Assert.AreEqual(expectedBracket, actualBracket);
         }
 
+        [Test]
+        public void TestTryGetCachedDifficultyReturnsMissUntilComputationCompletes()
+        {
+            TestBeatmapDifficultyCache freshCache = null;
+            BeatmapInfo beatmap = null;
+
+            AddStep("create fresh cache", () => Child = freshCache = new TestBeatmapDifficultyCache());
+            AddStep("select beatmap", () => beatmap = importedSet.Beatmaps.First());
+
+            AddAssert("cache miss before computation", () => freshCache.TryGetCachedDifficulty(beatmap, out _), () => Is.False);
+
+            AddStep("warm cache", () => freshCache.GetDifficultyAsync(beatmap).GetResultSafely());
+
+            AddAssert("cache hit after computation", () =>
+                freshCache.TryGetCachedDifficulty(beatmap, out var starDifficulty)
+                && starDifficulty?.Stars == BASE_STARS);
+        }
+
         private partial class TestBeatmapDifficultyCache : BeatmapDifficultyCache
         {
             public Func<DifficultyCacheLookup, StarDifficulty> ComputeDifficulty { get; set; }

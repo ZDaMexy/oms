@@ -153,9 +153,10 @@ namespace osu.Game.Screens.Select
                     int overflowHidden = 0;
                     bool? lastBeatmapVisible = null;
 
-                    foreach (var beatmap in rulesetGrouping.OrderBy(beatmap => beatmap.StarRating))
+                    foreach (var beatmap in rulesetGrouping.OrderBy(getResolvedStarRating))
                     {
                         bool visible = VisibleBeatmaps.Value?.Contains(beatmap) != false;
+                        double starRating = getResolvedStarRating(beatmap);
 
                         if ((visible && showVisible) || (!visible && showHidden))
                         {
@@ -165,7 +166,7 @@ namespace osu.Game.Screens.Select
                                 Alpha = visible ? 1 : 0.5f,
                                 Anchor = Anchor.CentreLeft,
                                 Origin = Anchor.CentreLeft,
-                                Colour = colours.ForStarDifficulty(beatmap.StarRating),
+                                Colour = colours.ForStarDifficulty(starRating),
                                 Margin = new MarginPadding { Left = lastBeatmapVisible != null && lastBeatmapVisible != visible ? 1 : 0 }
                             };
                             flow.Add(circle);
@@ -208,6 +209,12 @@ namespace osu.Game.Screens.Select
                 Action = () => songSelect?.ScopeToBeatmapSet(BeatmapSet.Value);
                 updateEnabled();
             }
+
+            private double getResolvedStarRating(BeatmapInfo beatmap)
+                => beatmap.RequiresRulesetSpecificStarRating(ruleset.Value, showConvertedBeatmaps.Value)
+                   && BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmap, ruleset.Value, out double persistedConvertedStarRating)
+                    ? persistedConvertedStarRating
+                    : beatmap.StarRating;
 
             private void updateEnabled()
             {

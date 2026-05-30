@@ -13,6 +13,7 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.UI.Scrolling;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
@@ -32,7 +33,12 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
         private readonly BindableFloat liftUnits = new BindableFloat();
         private readonly Bindable<BmsPlayfieldStyle> playfieldStyle = new Bindable<BmsPlayfieldStyle>();
+        private readonly Bindable<BmsGimmickScrollMode> gimmickScrollMode = new Bindable<BmsGimmickScrollMode>();
         private readonly IBindable<double>? laneScrollLengthRatio;
+
+        // BMS-side scrolling info re-cached to lanes so the stop-motion bypass can be injected without touching shared
+        // core types (P1-L Phase 2). Follows the base algorithm exactly until engaged for a gimmick chart.
+        private BmsScrollingInfo bmsScrollingInfo = null!;
 
         [Cached]
         private readonly BmsKeysoundStore keysoundStore = new BmsKeysoundStore();
@@ -96,7 +102,27 @@ namespace osu.Game.Rulesets.Bms.UI
                 AddNested(lane);
 
             if (bmsBeatmap != null)
+            {
                 addMeasureBarLines(bmsBeatmap);
+                addMines(bmsBeatmap);
+            }
+        }
+
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+        {
+            // Shadow the ruleset's shared IScrollingInfo for our lanes with a BMS-side wrapper. Direction/TimeRange pass
+            // through; only the scroll algorithm can later diverge (and only for gimmick charts under the gate). Guarded
+            // so an isolated (parent-less) playfield keeps the base behaviour instead of throwing.
+            var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+            var baseScrollingInfo = parent.Get<IScrollingInfo>();
+
+            if (baseScrollingInfo != null)
+            {
+                bmsScrollingInfo = new BmsScrollingInfo(baseScrollingInfo);
+                dependencies.CacheAs<IScrollingInfo>(bmsScrollingInfo);
+            }
+
+            return dependencies;
         }
 
         [BackgroundDependencyLoader]
@@ -154,6 +180,31 @@ namespace osu.Game.Rulesets.Bms.UI
 
             config.BindWith(BmsRulesetSetting.PlayfieldStyle, playfieldStyle);
             playfieldStyle.BindValueChanged(_ => applyPlayfieldStyle(), true);
+
+            config.BindWith(BmsRulesetSetting.GimmickScrollMode, gimmickScrollMode);
+            gimmickScrollMode.BindValueChanged(_ => updateGimmickScroll(), true);
+        }
+
+        // Engages or reverts the stop-motion bypass per the gate. Reverting is byte-for-byte the normal forward-scroll
+        // path. Auto-detection is deferred to P1-L Phase 2 Step D, so Auto behaves as Off here.
+        private void updateGimmickScroll()
+        {
+            if (bmsScrollingInfo == null)
+                return;
+
+            var profile = (beatmap as BmsBeatmap)?.ScrollProfile;
+
+            bool engage = profile != null && gimmickScrollMode.Value switch
+            {
+                BmsGimmickScrollMode.On => true,
+                BmsGimmickScrollMode.Auto => profile.IsStopMotionGimmick,
+                _ => false,
+            };
+
+            if (engage)
+                bmsScrollingInfo.EngageStopMotion(new BmsStopMotionScrollAlgorithm(profile!));
+            else
+                bmsScrollingInfo.Disengage();
         }
 
         protected override void LoadComplete()
@@ -236,6 +287,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, liftUnits)
                 : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, liftUnits);
 
+            drawableLane.SetKeysoundTimeline((beatmap as BmsBeatmap)?.GetLaneKeysoundTimeline(lane.LaneIndex));
+
             applyLaneBounds(drawableLane, lane, LaneLayout.TotalRelativeWidth);
 
             return drawableLane;
@@ -306,6 +359,20 @@ namespace osu.Game.Rulesets.Bms.UI
                         Major = true,
                     }, lane.LayoutLane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile));
                 }
+            }
+        }
+
+        // Mines are visual-only and live outside beatmap.HitObjects; they are added straight to their lane like bar
+        // lines, so they never enter the scoring / statistics / judged-note path.
+        private void addMines(BmsBeatmap beatmap)
+        {
+            if (lanes.Length == 0)
+                return;
+
+            foreach (var mine in beatmap.Mines)
+            {
+                int laneIndex = Math.Clamp(mine.LaneIndex, 0, lanes.Length - 1);
+                lanes[laneIndex].Add(new DrawableBmsMine(mine));
             }
         }
     }

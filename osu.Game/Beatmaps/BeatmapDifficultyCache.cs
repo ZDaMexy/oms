@@ -59,10 +59,16 @@ namespace osu.Game.Beatmaps
         private BeatmapManager beatmapManager { get; set; } = null!;
 
         [Resolved]
+        private RealmAccess realmAccess { get; set; } = null!;
+
+        [Resolved]
         private Bindable<RulesetInfo> currentRuleset { get; set; } = null!;
 
         [Resolved]
         private Bindable<IReadOnlyList<Mod>> currentMods { get; set; } = null!;
+
+        [Resolved]
+        private IRulesetStore rulesetStore { get; set; } = null!;
 
         private ModSettingChangeTracker? modSettingChangeTracker;
         private ScheduledDelegate? debouncedModSettingsChange;
@@ -134,7 +140,7 @@ namespace osu.Game.Beatmaps
             var bindable = new BindableStarDifficulty(beatmapInfo, cancellationToken)
             {
                 // Start with an approximate known value instead of zero.
-                Value = new StarDifficulty(beatmapInfo.StarRating, 0)
+                Value = getInitialDifficulty(beatmapInfo, currentRuleset.Value, currentMods.Value)
             };
 
             updateBindable(bindable, currentRuleset.Value, currentMods.Value, cancellationToken, computationDelay);
@@ -164,11 +170,8 @@ namespace osu.Game.Beatmaps
             // In the case that the user hasn't given us a ruleset, use the beatmap's default ruleset.
             rulesetInfo ??= beatmapInfo.Ruleset;
 
-            if (rulesetInfo.ShortName == beatmapInfo.Ruleset.ShortName
-                && BmsStarRatingResolver.IsBmsBeatmap(beatmapInfo))
-            {
-                return Task.FromResult<StarDifficulty?>(new StarDifficulty(BmsStarRatingResolver.ResolveOrDefault(beatmapInfo), (beatmapInfo as IBeatmapOnlineInfo)?.MaxCombo ?? 0));
-            }
+            if (tryGetImmediateDifficulty(beatmapInfo, rulesetInfo, mods, out var immediateDifficulty))
+                return Task.FromResult(immediateDifficulty);
 
             var localBeatmapInfo = beatmapInfo as BeatmapInfo;
             var localRulesetInfo = rulesetInfo as RulesetInfo;
@@ -181,6 +184,27 @@ namespace osu.Game.Beatmaps
             }
 
             return GetAsync(new DifficultyCacheLookup(localBeatmapInfo, localRulesetInfo, mods), cancellationToken, computationDelay);
+        }
+
+        public bool TryGetCachedDifficulty(IBeatmapInfo beatmapInfo, out StarDifficulty? starDifficulty, IRulesetInfo? rulesetInfo = null, IEnumerable<Mod>? mods = null)
+        {
+            // In the case that the user hasn't given us a ruleset, use the beatmap's default ruleset.
+            rulesetInfo ??= beatmapInfo.Ruleset;
+
+            if (tryGetImmediateDifficulty(beatmapInfo, rulesetInfo, mods, out starDifficulty))
+                return true;
+
+            var localBeatmapInfo = beatmapInfo as BeatmapInfo;
+            var localRulesetInfo = rulesetInfo as RulesetInfo;
+
+            // Difficulty can only be computed if the beatmap and ruleset are locally available.
+            if (localBeatmapInfo == null || localRulesetInfo == null)
+            {
+                starDifficulty = new StarDifficulty(beatmapInfo.StarRating, (beatmapInfo as IBeatmapOnlineInfo)?.MaxCombo ?? 0);
+                return true;
+            }
+
+            return CheckExists(new DifficultyCacheLookup(localBeatmapInfo, localRulesetInfo, mods), out starDifficulty);
         }
 
         protected override Task<StarDifficulty?> ComputeValueAsync(DifficultyCacheLookup lookup, CancellationToken cancellationToken = default)
@@ -287,16 +311,25 @@ namespace osu.Game.Beatmaps
             var beatmapInfo = key.BeatmapInfo;
             var rulesetInfo = key.Ruleset;
 
+            // Captured outside the try so a definitive conversion failure can be persisted with the correct difficulty version.
+            int difficultyVersion = 0;
+
             try
             {
                 var ruleset = rulesetInfo.CreateInstance();
                 Debug.Assert(ruleset != null);
 
                 PlayableCachedWorkingBeatmap workingBeatmap = new PlayableCachedWorkingBeatmap(beatmapManager.GetWorkingBeatmap(key.BeatmapInfo));
+
+                var difficultyCalculator = ruleset.CreateDifficultyCalculator(workingBeatmap);
+                difficultyVersion = difficultyCalculator.Version;
+
                 IBeatmap playableBeatmap = workingBeatmap.GetPlayableBeatmap(ruleset.RulesetInfo, key.OrderedMods, cancellationToken);
 
-                var difficulty = ruleset.CreateDifficultyCalculator(workingBeatmap).Calculate(key.OrderedMods, cancellationToken);
+                var difficulty = difficultyCalculator.Calculate(key.OrderedMods, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
+
+                persistConvertedStarRatingIfApplicable(key.BeatmapInfo, ruleset.RulesetInfo, key.OrderedMods, difficulty.StarRating, difficultyVersion);
 
                 var performanceCalculator = ruleset.CreatePerformanceCalculator();
                 if (performanceCalculator == null)
@@ -333,6 +366,10 @@ namespace osu.Game.Beatmaps
             {
                 if (rulesetInfo.Equals(beatmapInfo.Ruleset))
                     Logger.Error(invalidForRuleset, $"Failed to convert {beatmapInfo.OnlineID} to the beatmap's default ruleset ({beatmapInfo.Ruleset}).");
+                else
+                    // A cross-ruleset conversion being invalid is deterministic, so persist it as a failed converted star rating.
+                    // This keeps behaviour consistent with the background reprocessor and avoids re-attempting it on every lookup.
+                    persistConvertedStarRatingFailureIfApplicable(beatmapInfo, rulesetInfo, key.OrderedMods, difficultyVersion);
 
                 return null;
             }
@@ -398,6 +435,161 @@ namespace osu.Game.Beatmaps
                 CancellationToken = cancellationToken;
             }
         }
+
+        private StarDifficulty getInitialDifficulty(IBeatmapInfo beatmapInfo, IRulesetInfo? rulesetInfo, IEnumerable<Mod>? mods)
+            => rulesetInfo != null && tryGetImmediateDifficulty(beatmapInfo, rulesetInfo, mods, out var initialDifficulty) && initialDifficulty != null
+                ? initialDifficulty.Value
+                : new StarDifficulty(beatmapInfo.StarRating, 0);
+
+        private static bool tryGetImmediateDifficulty(IBeatmapInfo beatmapInfo, IRulesetInfo rulesetInfo, IEnumerable<Mod>? mods, out StarDifficulty? starDifficulty)
+        {
+            if (rulesetInfo.ShortName == beatmapInfo.Ruleset.ShortName
+                && BmsStarRatingResolver.IsBmsBeatmap(beatmapInfo))
+            {
+                starDifficulty = new StarDifficulty(BmsStarRatingResolver.ResolveOrDefault(beatmapInfo), (beatmapInfo as IBeatmapOnlineInfo)?.MaxCombo ?? 0);
+                return true;
+            }
+
+            if (canUsePersistedConvertedStarRating(beatmapInfo, rulesetInfo, mods))
+            {
+                if (BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmapInfo, rulesetInfo, out double persistedConvertedStarRating))
+                {
+                    starDifficulty = new StarDifficulty(persistedConvertedStarRating, (beatmapInfo as IBeatmapOnlineInfo)?.MaxCombo ?? 0);
+                    return true;
+                }
+
+                // Even when we couldn't resolve a successful converted star, if the persisted state is "current" then
+                // the beatmap is known to have failed conversion (e.g., exceeded DifficultyCalculator's internal 10-second
+                // budget). Return a fallback synchronously so the carousel never queues another async compute that would
+                // re-hit the same slow conversion path on every filter operation requiring star-range lookup.
+                if (beatmapInfo.Metadata is BeatmapMetadata metadata
+                    && BmsPersistedMetadataResolver.HasCurrentConvertedStarRatingState(metadata, rulesetInfo))
+                {
+                    starDifficulty = new StarDifficulty(beatmapInfo.StarRating, (beatmapInfo as IBeatmapOnlineInfo)?.MaxCombo ?? 0);
+                    return true;
+                }
+            }
+
+            starDifficulty = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Persists the freshly computed converted star rating to the BMS metadata payload.
+        /// </summary>
+        /// <remarks>
+        /// Called from <see cref="computeDifficulty"/> on a thread-pool task with no ambient realm write transaction.
+        /// The detached-metadata write only runs when the caller-supplied <paramref name="beatmapInfo"/> carries a
+        /// non-managed <see cref="BeatmapMetadata"/>; otherwise we would write to a live realm row outside an active
+        /// write transaction and throw. The realm-managed live persistence always happens via the explicit
+        /// <see cref="RealmAccess.Write(System.Action{Realms.Realm})"/> below.
+        /// </remarks>
+        private void persistConvertedStarRatingIfApplicable(BeatmapInfo beatmapInfo, RulesetInfo rulesetInfo, IEnumerable<Mod> mods, double starRating, int difficultyVersion)
+        {
+            if (!canUsePersistedConvertedStarRating(beatmapInfo, rulesetInfo, mods))
+                return;
+
+            if (beatmapInfo.Metadata is BeatmapMetadata detachedMetadata && !detachedMetadata.IsManaged)
+                BmsPersistedMetadataResolver.SetConvertedStarRating(detachedMetadata, rulesetInfo, starRating, difficultyVersion);
+
+            realmAccess.Write(realm =>
+            {
+                if (realm.Find<BeatmapInfo>(beatmapInfo.ID) is not BeatmapInfo liveBeatmap)
+                    return;
+
+                BmsPersistedMetadataResolver.SetConvertedStarRating(liveBeatmap.Metadata, rulesetInfo, starRating, difficultyVersion);
+            });
+        }
+
+        /// <summary>
+        /// Persists a deterministic conversion failure (e.g. <see cref="BeatmapInvalidForRulesetException"/> from
+        /// scratch-only / empty source charts, or the upstream calculator's 10s budget timeout) so it isn't retried
+        /// on every star lookup. See <see cref="persistConvertedStarRatingIfApplicable"/> for the IsManaged guard
+        /// rationale.
+        /// </summary>
+        private void persistConvertedStarRatingFailureIfApplicable(BeatmapInfo beatmapInfo, RulesetInfo rulesetInfo, IEnumerable<Mod> mods, int difficultyVersion)
+        {
+            if (!canUsePersistedConvertedStarRating(beatmapInfo, rulesetInfo, mods))
+                return;
+
+            if (beatmapInfo.Metadata is BeatmapMetadata detachedMetadata && !detachedMetadata.IsManaged)
+                BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(detachedMetadata, rulesetInfo, difficultyVersion);
+
+            realmAccess.Write(realm =>
+            {
+                if (realm.Find<BeatmapInfo>(beatmapInfo.ID) is not BeatmapInfo liveBeatmap)
+                    return;
+
+                BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(liveBeatmap.Metadata, rulesetInfo, difficultyVersion);
+            });
+        }
+
+        /// <summary>
+        /// Synchronously computes and persists the converted star rating for a BMS beatmap into its metadata, so that
+        /// converted-ruleset display/sorting is import-time-ready (mirroring how the beatmap's native star rating is
+        /// computed during import). This avoids the carousel falling back to the raw BMS play-level star and then
+        /// re-sorting once the value is computed asynchronously.
+        /// </summary>
+        /// <remarks>
+        /// Best-effort: any failure is logged and must never propagate to the caller (the import pipeline).
+        /// Must be called from within an active realm write transaction that owns <paramref name="beatmapInfo"/>'s
+        /// metadata, because it writes directly to the live metadata rather than opening its own nested write.
+        /// </remarks>
+        public void EnsureConvertedStarRatingPersisted(BeatmapInfo beatmapInfo, IWorkingBeatmap working)
+        {
+            if (!BmsStarRatingResolver.IsBmsBeatmap(beatmapInfo) || beatmapInfo.Metadata is not BeatmapMetadata metadata)
+                return;
+
+            if (rulesetStore.AvailableRulesets.SingleOrDefault(r => BmsPersistedMetadataResolver.SupportsConvertedStarRatings(r)) is not RulesetInfo targetRuleset)
+                return;
+
+            // Already current for this conversion/difficulty version - nothing to do.
+            if (BmsPersistedMetadataResolver.HasCurrentConvertedStarRatingState(metadata, targetRuleset))
+                return;
+
+            int difficultyVersion;
+            DifficultyCalculator calculator;
+
+            try
+            {
+                calculator = targetRuleset.CreateInstance().CreateDifficultyCalculator(working);
+                difficultyVersion = calculator.Version;
+            }
+            catch (Exception e)
+            {
+                Logger.Log($"Failed to set up converted difficulty calculation for {beatmapInfo}: {e}");
+                return;
+            }
+
+            try
+            {
+                double starRating = calculator.Calculate().StarRating;
+                BmsPersistedMetadataResolver.SetConvertedStarRating(metadata, targetRuleset, starRating, difficultyVersion);
+            }
+            catch (BeatmapInvalidForRulesetException)
+            {
+                // Deterministic non-convertibility: persist a failure so it is not retried on every import/startup.
+                BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(metadata, targetRuleset, difficultyVersion);
+            }
+            catch (OperationCanceledException)
+            {
+                // Calculate() is invoked without a cancellation token, so DifficultyCalculator's internal 10-second guard
+                // timer is the only source of cancellation here. That is deterministic per beatmap (genuine slow conversion
+                // that the upstream calculator refuses to wait for), so persist as failed rather than letting song-select
+                // filter operations re-attempt the same slow async compute every time star-range filtering is active.
+                BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(metadata, targetRuleset, difficultyVersion);
+            }
+            catch (Exception e)
+            {
+                // Transient failure: do not persist, so the startup reprocessor can retry later.
+                Logger.Log($"Failed to compute converted star rating for {beatmapInfo}: {e}");
+            }
+        }
+
+        private static bool canUsePersistedConvertedStarRating(IBeatmapInfo beatmapInfo, IRulesetInfo rulesetInfo, IEnumerable<Mod>? mods)
+            => BmsStarRatingResolver.IsBmsBeatmap(beatmapInfo)
+               && BmsPersistedMetadataResolver.SupportsConvertedStarRatings(rulesetInfo)
+               && (mods == null || !mods.Any());
 
         /// <summary>
         /// A working beatmap that caches its playable representation.

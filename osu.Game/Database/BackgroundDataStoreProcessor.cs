@@ -22,6 +22,7 @@ using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Performance;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
 using osu.Game.Screens.Play;
@@ -91,6 +92,7 @@ namespace osu.Game.Database
 
                 clearOutdatedStarRatings();
                 populateMissingStarRatings();
+                populateMissingConvertedStarRatings();
                 processOnlineBeatmapSetsWithNoUpdate();
                 // Note that the previous method will also update these on a fresh run.
                 processBeatmapsWithMissingObjectCounts();
@@ -148,6 +150,8 @@ namespace osu.Game.Database
                         r.Find<RulesetInfo>(ruleset.ShortName)!.LastAppliedDifficultyVersion = currentVersion;
                     });
 
+                    ruleset.LastAppliedDifficultyVersion = currentVersion;
+
                     Logger.Log($"Finished resetting {countReset} beatmap sets for {ruleset.Name}");
                 }
             }
@@ -201,8 +205,10 @@ namespace osu.Game.Database
 
                 var beatmap = realmAccess.Run(r => r.Find<BeatmapInfo>(id)?.Detach());
 
+                // The beatmap may have been deleted between snapshotting the id set and processing it.
+                // Skip this single item rather than aborting the whole batch (which would also leave the notification stuck).
                 if (beatmap == null)
-                    return;
+                    continue;
 
                 try
                 {
@@ -311,6 +317,119 @@ namespace osu.Game.Database
             }
 
             completeNotification(notification, processedCount, beatmapSetIds.Count, failedCount);
+        }
+
+        private void populateMissingConvertedStarRatings()
+        {
+            var maniaRulesetInfo = rulesetStore.AvailableRulesets.SingleOrDefault(r => BmsPersistedMetadataResolver.SupportsConvertedStarRatings(r));
+
+            if (maniaRulesetInfo == null)
+                return;
+
+            var maniaRuleset = maniaRulesetInfo.CreateInstance();
+            int currentDifficultyVersion = maniaRuleset.CreateDifficultyCalculator(gameBeatmap.Value).Version;
+            // NOTE: realm persistence of mania's LastAppliedDifficultyVersion is owned by clearOutdatedStarRatings, which runs
+            // earlier in LoadComplete. This assignment only keeps the in-memory ruleset cache coherent for the reprocess below.
+            maniaRulesetInfo.LastAppliedDifficultyVersion = currentDifficultyVersion;
+
+            HashSet<Guid> beatmapIds = new HashSet<Guid>();
+
+            Logger.Log("Querying for beatmaps with missing converted star ratings...");
+
+            realmAccess.Run(r =>
+            {
+                // NOTE: must filter BMS via client-side `IsBmsBeatmap()` rather than putting `b.Ruleset.ShortName == "bms"`
+                // inside the Realm query. The link-traversal predicate isn't reliably translated by Realm here and silently
+                // produces zero matches against real libraries, leaving every BMS beatmap forever un-backfilled.
+                foreach (var b in r.All<BeatmapInfo>().Where(b => b.BeatmapSet != null))
+                {
+                    if (!BmsStarRatingResolver.IsBmsBeatmap(b))
+                        continue;
+
+                    if (!BmsPersistedMetadataResolver.HasCurrentConvertedStarRatingState(b.Metadata, maniaRulesetInfo))
+                        beatmapIds.Add(b.ID);
+                }
+            });
+
+            // Logged unconditionally (including zero) so the absence of the BMS reprocess pass is diagnosable from the log.
+            Logger.Log($"Found {beatmapIds.Count} beatmaps which require converted star rating reprocessing.");
+
+            if (beatmapIds.Count == 0)
+                return;
+
+            var notification = showProgressNotification(beatmapIds.Count, "Reprocessing converted star rating for beatmaps", "beatmaps' converted star ratings have been updated");
+
+            int processedCount = 0;
+            int failedCount = 0;
+            foreach (Guid id in beatmapIds)
+            {
+                if (notification?.State == ProgressNotificationState.Cancelled)
+                    break;
+
+                updateNotificationProgress(notification, processedCount, beatmapIds.Count);
+
+                sleepIfRequired();
+
+                var beatmap = realmAccess.Run(r => r.Find<BeatmapInfo>(id)?.Detach());
+
+                if (beatmap == null)
+                    continue;
+
+                try
+                {
+                    var working = beatmapManager.GetWorkingBeatmap(beatmap);
+                    double starRating = maniaRuleset.CreateDifficultyCalculator(working).Calculate().StarRating;
+
+                    realmAccess.Write(r =>
+                    {
+                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
+                            BmsPersistedMetadataResolver.SetConvertedStarRating(liveBeatmapInfo.Metadata, maniaRulesetInfo, starRating, currentDifficultyVersion);
+                    });
+
+                    ((IWorkingBeatmapCache)beatmapManager).Invalidate(beatmap);
+                    ++processedCount;
+                }
+                catch (BeatmapInvalidForRulesetException e)
+                {
+                    // The chart genuinely cannot be converted to mania. This is deterministic, so persist it as a failure
+                    // to avoid re-attempting the same conversion on every startup.
+                    Logger.Log($"Beatmap {beatmap} cannot be converted for star rating reprocessing, marking as failed: {e}");
+
+                    realmAccess.Write(r =>
+                    {
+                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
+                            BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(liveBeatmapInfo.Metadata, maniaRulesetInfo, currentDifficultyVersion);
+                    });
+
+                    ++failedCount;
+                }
+                catch (OperationCanceledException e)
+                {
+                    // In this batch context Calculate() is invoked without a cancellation token, so DifficultyCalculator's
+                    // internal 10-second guard timer is the only source of cancellation. That is deterministic per beatmap
+                    // (the conversion genuinely takes longer than the upstream calculator allows), so persist as failed —
+                    // otherwise every subsequent startup re-spends ~10-25 seconds per such beatmap, and song-select filter
+                    // operations end up blocking on the same slow async compute every time star-range filtering is active.
+                    Logger.Log($"Beatmap {beatmap} exceeded the difficulty calculator's internal time budget, marking as failed: {e}");
+
+                    realmAccess.Write(r =>
+                    {
+                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
+                            BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(liveBeatmapInfo.Metadata, maniaRulesetInfo, currentDifficultyVersion);
+                    });
+
+                    ++failedCount;
+                }
+                catch (Exception e)
+                {
+                    // Treat any other error as transient: do not persist a failure marker so the beatmap is retried on the next run.
+                    Logger.Log($"Background processing failed (transient) on converted star rating for {beatmap}: {e}");
+
+                    ++failedCount;
+                }
+            }
+
+            completeNotification(notification, processedCount, beatmapIds.Count, failedCount);
         }
 
         private void processBeatmapsWithMissingObjectCounts()

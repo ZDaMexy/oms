@@ -38,6 +38,8 @@ namespace osu.Game.Screens.Select
     [Cached]
     public partial class BeatmapCarousel : Carousel<BeatmapInfo>
     {
+        private const int max_effective_star_warmup_beatmaps = 128;
+
         public Action<BeatmapInfo>? RequestPresentBeatmap { private get; init; }
 
         /// <summary>
@@ -57,6 +59,7 @@ namespace osu.Game.Screens.Select
         private readonly LoadingLayer loading;
 
         private readonly BeatmapCarouselFilterGrouping grouping;
+        private CancellationTokenSource? effectiveStarWarmupCancellationSource;
 
         /// <summary>
         /// Total number of beatmap difficulties displayed with the filter.
@@ -102,18 +105,30 @@ namespace osu.Game.Screens.Select
 
             Filters = new ICarouselFilter[]
             {
-                new BeatmapCarouselFilterMatching(() => Criteria!),
-                new BeatmapCarouselFilterSorting(() => Criteria!, GetBeatmapInfoGuidToTopLocalScoreMapping),
+                new BeatmapCarouselFilterMatching(() => Criteria!, getEffectiveStarRatingsStrict),
+                new BeatmapCarouselFilterSorting(() => Criteria!, GetBeatmapInfoGuidToTopLocalScoreMapping, getEffectiveStarRatingsNonBlocking),
                 grouping = new BeatmapCarouselFilterGrouping
                 {
                     GetCriteria = () => Criteria!,
                     GetCollections = GetAllCollections,
                     GetLocalUserTopRanks = GetBeatmapInfoGuidToTopRankMapping,
                     GetFavouriteBeatmapSets = GetFavouriteBeatmapSets,
+                    GetStarRatings = getEffectiveStarRatingsNonBlocking,
                 }
             };
 
             AddInternal(loading = new LoadingLayer());
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            base.Dispose(isDisposing);
+
+            if (!isDisposing)
+                return;
+
+            effectiveStarWarmupCancellationSource?.Cancel();
+            effectiveStarWarmupCancellationSource?.Dispose();
         }
 
         [BackgroundDependencyLoader]
@@ -531,6 +546,9 @@ namespace osu.Game.Screens.Select
 
             foreach (var item in Scroll.Panels.OfType<PanelBeatmapSet>().Where(p => p.Item != null))
                 updateVisibleBeatmaps((GroupedBeatmapSet)item.Item!.Model, item);
+
+            if (Criteria != null)
+                queueEffectiveStarWarmup(getVisibleBeatmapsRequiringEffectiveStarRatings(), Criteria);
         }
 
         private void selectRecommendedDifficultyForBeatmapSet(GroupedBeatmapSet set)
@@ -833,6 +851,187 @@ namespace osu.Game.Screens.Select
 
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
+
+        [Resolved]
+        private BeatmapDifficultyCache difficultyCache { get; set; } = null!;
+
+        private async Task<IReadOnlyDictionary<Guid, double>> getEffectiveStarRatingsStrict(IEnumerable<BeatmapInfo> beatmaps, FilterCriteria criteria, CancellationToken cancellationToken)
+        {
+            var beatmapsRequiringLookup = getBeatmapsRequiringEffectiveStarRatings(beatmaps, criteria);
+
+            if (beatmapsRequiringLookup.Count == 0)
+                return new Dictionary<Guid, double>();
+
+            // Sync-first pass: for beatmaps that are immediately resolvable (the dominant case once the persisted converted
+            // star backfill has completed for a large BMS library), avoid allocating one async lambda + state machine + Task
+            // per beatmap. Tens of thousands of `Task.FromResult` awaits is the dominant cost otherwise and makes restricted
+            // star-range filter slider updates feel like infinite loading on huge libraries.
+            var resolvedStarRatings = new Dictionary<Guid, double>(beatmapsRequiringLookup.Count);
+            List<BeatmapInfo>? beatmapsRequiringAsync = null;
+
+            foreach (var beatmap in beatmapsRequiringLookup)
+            {
+                if (difficultyCache.TryGetCachedDifficulty(beatmap, out var starDifficulty, criteria.Ruleset, null))
+                    resolvedStarRatings[beatmap.ID] = starDifficulty?.Stars ?? beatmap.StarRating;
+                else
+                    (beatmapsRequiringAsync ??= new List<BeatmapInfo>()).Add(beatmap);
+            }
+
+            // Async pass only for beatmaps that genuinely need a background compute (no persisted converted star yet).
+            if (beatmapsRequiringAsync != null)
+            {
+                var asyncResults = await Task.WhenAll(beatmapsRequiringAsync.Select(async beatmap =>
+                {
+                    var starDifficulty = await difficultyCache.GetDifficultyAsync(beatmap, criteria.Ruleset, null, cancellationToken).ConfigureAwait(false);
+                    return new KeyValuePair<Guid, double>(beatmap.ID, starDifficulty?.Stars ?? beatmap.StarRating);
+                })).ConfigureAwait(false);
+
+                foreach (var pair in asyncResults)
+                    resolvedStarRatings[pair.Key] = pair.Value;
+            }
+
+            return resolvedStarRatings;
+        }
+
+        private Task<IReadOnlyDictionary<Guid, double>> getEffectiveStarRatingsNonBlocking(IEnumerable<BeatmapInfo> beatmaps, FilterCriteria criteria, CancellationToken cancellationToken)
+        {
+            var beatmapsRequiringLookup = getBeatmapsRequiringEffectiveStarRatings(beatmaps, criteria);
+
+            if (beatmapsRequiringLookup.Count == 0)
+                return Task.FromResult<IReadOnlyDictionary<Guid, double>>(new Dictionary<Guid, double>());
+
+            var resolvedStarRatings = new Dictionary<Guid, double>(beatmapsRequiringLookup.Count);
+            var beatmapsMissingFromCache = new List<BeatmapInfo>();
+
+            foreach (var beatmap in beatmapsRequiringLookup)
+            {
+                if (difficultyCache.TryGetCachedDifficulty(beatmap, out var starDifficulty, criteria.Ruleset, null))
+                    resolvedStarRatings[beatmap.ID] = starDifficulty?.Stars ?? beatmap.StarRating;
+            }
+
+            return Task.FromResult<IReadOnlyDictionary<Guid, double>>(resolvedStarRatings);
+        }
+
+        private static List<BeatmapInfo> getBeatmapsRequiringEffectiveStarRatings(IEnumerable<BeatmapInfo> beatmaps, FilterCriteria criteria)
+        {
+            if (criteria.Ruleset == null)
+                return new List<BeatmapInfo>();
+
+            return beatmaps.Where(beatmap => beatmap.RequiresRulesetSpecificStarRating(criteria.Ruleset, criteria.AllowConvertedBeatmaps))
+                          .GroupBy(beatmap => beatmap.ID)
+                          .Select(group => group.First())
+                          .ToList();
+        }
+
+        private void queueEffectiveStarWarmup(List<BeatmapInfo> beatmaps, FilterCriteria criteria)
+        {
+            if (criteria.Ruleset == null)
+            {
+                cancelEffectiveStarWarmup();
+                return;
+            }
+
+            var beatmapsMissingFromCache = beatmaps.Where(beatmap => !difficultyCache.TryGetCachedDifficulty(beatmap, out _, criteria.Ruleset, null)).ToList();
+
+            if (beatmapsMissingFromCache.Count == 0)
+            {
+                cancelEffectiveStarWarmup();
+                return;
+            }
+
+            var cancellationSource = new CancellationTokenSource();
+            var previousCancellationSource = Interlocked.Exchange(ref effectiveStarWarmupCancellationSource, cancellationSource);
+            previousCancellationSource?.Cancel();
+            previousCancellationSource?.Dispose();
+            var cancellationToken = cancellationSource.Token;
+
+            Task.Run(async () =>
+            {
+                bool anyResolved = false;
+
+                try
+                {
+                    foreach (var beatmap in beatmapsMissingFromCache)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var starDifficulty = await difficultyCache.GetDifficultyAsync(beatmap, criteria.Ruleset, null, cancellationToken).ConfigureAwait(false);
+                        anyResolved |= starDifficulty != null;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                if (!anyResolved || cancellationToken.IsCancellationRequested)
+                    return;
+
+                Schedule(() =>
+                {
+                    if (!ReferenceEquals(Criteria, criteria))
+                        return;
+
+                    Filter(criteria);
+                });
+            });
+        }
+
+        private List<BeatmapInfo> getVisibleBeatmapsRequiringEffectiveStarRatings()
+        {
+            if (Criteria == null)
+                return new List<BeatmapInfo>();
+
+            var beatmaps = new List<BeatmapInfo>(max_effective_star_warmup_beatmaps);
+            var seenBeatmaps = new HashSet<Guid>();
+
+            void addBeatmaps(IEnumerable<BeatmapInfo> candidates)
+            {
+                foreach (var beatmap in candidates)
+                {
+                    if (beatmaps.Count >= max_effective_star_warmup_beatmaps)
+                        return;
+
+                    if (!seenBeatmaps.Add(beatmap.ID))
+                        continue;
+
+                    if (!beatmap.RequiresRulesetSpecificStarRating(Criteria.Ruleset, Criteria.AllowConvertedBeatmaps))
+                        continue;
+
+                    beatmaps.Add(beatmap);
+                }
+            }
+
+            if (CurrentBeatmap != null)
+                addBeatmaps(new[] { CurrentBeatmap });
+
+            foreach (var panel in Scroll.Panels.OfType<Panel>().Where(panel => panel.Item?.IsVisible == true))
+            {
+                switch (panel)
+                {
+                    case PanelBeatmapSet setPanel:
+                        addBeatmaps(setPanel.VisibleBeatmaps.Value ?? ((GroupedBeatmapSet)setPanel.Item!.Model).BeatmapSet.Beatmaps.ToHashSet());
+                        break;
+
+                    default:
+                        if (panel.Item!.Model is GroupedBeatmap groupedBeatmap)
+                            addBeatmaps(new[] { groupedBeatmap.Beatmap });
+                        break;
+                }
+            }
+
+            if (ExpandedBeatmapSet != null && grouping.SetItems.TryGetValue(ExpandedBeatmapSet, out var expandedSetItems))
+                addBeatmaps(expandedSetItems.Select(item => item.Model).OfType<GroupedBeatmap>().Select(groupedBeatmap => groupedBeatmap.Beatmap));
+
+            return beatmaps;
+        }
+
+        private void cancelEffectiveStarWarmup()
+        {
+            var previousCancellationSource = Interlocked.Exchange(ref effectiveStarWarmupCancellationSource, null);
+            previousCancellationSource?.Cancel();
+            previousCancellationSource?.Dispose();
+        }
 
         /// <remarks>
         /// FOOTGUN WARNING: this being sorted on the realm side before detaching is IMPORTANT.

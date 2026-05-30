@@ -26,14 +26,8 @@
 | 删除 / 失效语义 | 未开始 | 待收口 |
 | path identity dedup / 重扫策略 | 未开始 | 待收口 |
 
-## 验证记录
+## 当前验证基线
 
-- 2026-05-09：复核 Settings → 常规 → 安装位置 的数据目录迁移链路，并把入口文案收口为 `更改数据目录位置`；当前已明确三类结果说明：空目录直接迁入、非空非数据目录改用其下 `oms/` 子目录、已是可用数据目录则仅在重启后切换。`dotnet build .\osu.Game\osu.Game.csproj -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- 2026-05-08：修复 BMS imported raw wrapper 缺少 timing data 导致的 Song Select 左上 BPM 恒 `60` 问题；`BmsImportedBeatmapFactory` 现会把首次 conversion 的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 `BmsDecodedBeatmap`。新增 `BmsImportIntegrationTest.TestLoaderPopulatesTimingDataForSongSelectDisplays()`；`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --configuration Release --filter "FullyQualifiedName~BmsImportIntegrationTest"` **23/23** 通过。
-- 2026-04-29：完成 BMS 难度表链路审查与 `P1-H` 归线建档；当前确认的下一轮高价值修补顺序为 `既有谱面 metadata 同步` → `RefreshAll 真实结果合同` → `wrapper/source identity fallback` → `大库响应性`。本轮仅更新文档与约束，未新增代码或测试执行。
-- 2026-04-29：完成难度表前三批 correctness 修补：`BmsDifficultyTableManager` 已收回 persisted beatmap metadata 回写 authority，`RefreshAllTables()` 已改为返回结构化结果并驱动 settings 页区分全成功 / 部分成功 / 全失败，缺省 `name` 的 remote html wrapper 也已恢复稳定 fallback identity 与 preset 认领。聚焦回归 **10/10** 通过。
-- 2026-04-29：完成响应性后置的首个落地切片：persisted metadata 回写现会先计算受影响 MD5 集合，再按 beatmap id 分批写入，避免单次长事务全量重写所有 BMS 谱面。聚焦回归累计 **15/15** 通过。
-- 2026-04-30：完成 reuse 自愈补口：`BmsFolderImporter` 在 rebuild / re-register 命中旧 beatmap set 时也会重新按当前 table index 套用 metadata，避免历史空 metadata 继续让 Song Select 落入 `Unrated`。当前工程修补可收尾；若仍见异常，后续优先做原始 `.bms` 字节 MD5 的现场诊断。聚焦回归累计 **22/22** 通过。
-- 2026-04-23：扩展谱库扫描拓扑为 `外部/内部 × 重建/增量` 四模式，并把内部两种扫描迁移到新的 `内部谱库` subsection。`增量` 模式只补导当前没有 active `FilesystemStoragePath` 记录的目录；`重建` 模式继续重走全部候选目录。`dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~ExternalLibraryScannerTest"` **6/6** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- 2026-04-23：修复内部托管谱库重扫对 managed roots 的尾分隔符误判；`FilesystemSanityCheckHelpers.IsSubDirectory()` 现先归一化尾部分隔符，再比较父子目录链。`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~FilesystemSanityCheckHelpersTest"` **2/2** 通过。
-- 2026-04-23：首次启动向导导入页复用 `ExternalLibrarySettings` 作为 secondary product-surface entry；底层仍共享同一套外部谱库注册与扫描 contract，没有新增独立 storage 逻辑。`dotnet test osu.Game.Tests --filter "FullyQualifiedName~TestSceneFirstRunScreenBehaviour|FullyQualifiedName~TestSceneFirstRunSetupOverlay|FullyQualifiedName~TestSceneFirstRunScreenImportFromStable" --configuration Release` **11/11** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
+- 难度表 manager / importer / wrapper identity / reuse recovery 聚焦回归当前累计 **22/22** 通过。
+- raw-wrapper timing display 合同当前由 `BmsImportIntegrationTest` **23/23** 锁定；外部 / 内部谱库扫描与路径归一化当前由 `ExternalLibraryScannerTest` **6/6** 与 `FilesystemSanityCheckHelpersTest` **2/2** 锁定。
+- 桌面端与 `osu.Game` Release 构建当前可通过；按日期展开的数据根迁移、难度表修补与谱库扫描验证记录见 [CHANGELOG.md](CHANGELOG.md)。

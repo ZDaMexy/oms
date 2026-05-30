@@ -49,6 +49,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
             SetDefault(BmsRulesetSetting.HitTargetVerticalOffset, 0.0, 0.0, 160.0, 1.0);
             SetDefault(BmsRulesetSetting.BarLineHeight, 2.0, 1.0, 6.0, 0.5);
             SetDefault(BmsRulesetSetting.KeysoundConcurrentChannels, BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS);
+            SetDefault(BmsRulesetSetting.GimmickScrollMode, BmsGimmickScrollMode.Auto);
             SetDefault(BmsRulesetSetting.PersistedModState, string.Empty);
         }
 
@@ -75,6 +76,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
         HitTargetVerticalOffset,
         BarLineHeight,
         KeysoundConcurrentChannels,
+        GimmickScrollMode,
         PersistedModState,
     }
 }

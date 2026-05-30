@@ -11,9 +11,6 @@
 
 ## 已确认事实
 
-- BMS-only 搜索 / 筛选定制已落在 shared `FilterControl` 内的 ruleset-aware branching，未为此新开 per-ruleset host。
-- BMS custom search 沿 mania 现有模式走 `IRulesetFilterCriteria`；shared parser 没有新增 BMS-only switch。
-- 公开搜索口径现已统一为 `key/keys`、`rc/rice`、`ln`、`scr`；`regular` 只作为兼容 alias 保留在 `BmsFilterCriteria` 内，不再作为 tooltip / 文档公开写法。
 - `RC / LN / SCR` 三段已采用互斥分区：SCR 优先，LN 为非 scratch long note，RC 为剩余。
 - `BmsCompositionFilterControl` 为 BMS-local 私有单轨控件，符合"单轨上限段 + 尾段空白容差 + 独立启停"产品合同。
 - `SearchHintTooltip` crash 修复：根因是 `[Resolved] OverlayColourProvider` 在 global tooltip-layer 不在 DI 作用域；遵循 `ModTooltip` 构造函数注入模式，同时把 `GridContainer + AutoSizeAxes.Both` 布局替换为 `FillFlowContainer + Container(Width=160f)`。
@@ -22,10 +19,12 @@
 - `ShearedButton.updateState()` 的 hover `Lighten(0.2f)` 要求底色非黑；`BmsCompositionRowButton` / `BmsKeyCountToggleButton` 非激活态已改用 `ColourProvider.Background3/Background1`。
 - RC=蓝(94,190,255)、LN=黄(255,212,92)、SCR=橙(255,119,86) 已是冻结配色；tooltip BMS 强调色已同步改为蓝色匹配 RC。
 - `BmsChartFilterStatsBackfill` 以 `Task.Run` 异步后台执行，每约 100 次计算通过 callback 触发 `Scheduler.AddOnce(() => updateCriteria())`。
-- 旧 BMS 谱面 backfill 路径：先尝试 raw `WorkingBeatmap.Beatmap`，若无可用 `BmsHitObjects` 则回落到 `GetPlayableBeatmap()`。
-- BMS 分支已显式避免把隐藏的 star slider state 写入 `UserStarDifficulty`，不产生幽灵星数过滤。
 
-## 进度矩阵
+## 当前验证基线
+
+- importer / statistics / criteria / BMS-only FilterControl 的首轮 focused suite 当前保持 **30/30**；相关 build gate 当前可通过。
+- `BmsFilterCriteriaTest` 当前保持 **4/4**，并已锁住公开搜索口径 `rc/rice` 与 `regular` 仅作兼容 alias 的合同。
+- 当前桌面构建保持 0 error；按日期展开的 UI 收口、Tooltip DI 修补与验证记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 | 事项 | 状态 | 备注 |
 | --- | --- | --- |
@@ -48,9 +47,3 @@
 1. 为 `BmsCompositionFilterControl` 单轨拖拽语义补 headless 断言覆盖（边界拖拽、填满 100% 时尾段优先压缩）。
 2. 评估是否需要补充 shared visual gate（`TestSceneBeatmapFilterControl` BMS branch）。
 3. 评估是否需要追加 one-shot legacy backfill 工具链，而不是在启动路径硬塞全库扫描。
-
-## 验证记录
-
-- 2026-05-11：`dotnet test osu.Game.Rulesets.Bms.Tests -p:GenerateFullPaths=true --filter "FullyQualifiedName~BmsImportIntegrationTest|FullyQualifiedName~BmsBeatmapStatisticsTest|FullyQualifiedName~BmsFilterCriteriaTest|FullyQualifiedName~TestSceneBmsFilterControl"` **30/30** 通过；`dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 通过。
-- 2026-05-13：`dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m` **0 error**；本轮修复：RC/LN/SCR/5K/7K/9K/14K 按钮 hover 效果（Background3/Background1）、颜色重排（RC=蓝/LN=黄/SCR=橙）、`SearchHintTooltip` DI 崩溃修复（构造函数注入 + FillFlowContainer+Container 布局）。
-- 2026-05-18：`dotnet test osu.Game.Rulesets.Bms.Tests --no-restore -v minimal --filter FullyQualifiedName~BmsFilterCriteriaTest` **4/4** 通过；本轮同步把公开搜索口径修正为 `rc/rice`，并确认 `regular` 仅作为兼容 alias 保留。

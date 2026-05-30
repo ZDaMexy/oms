@@ -19,6 +19,8 @@ namespace osu.Game.Screens.Select
 {
     public class BeatmapCarouselFilterGrouping : ICarouselFilter
     {
+        private static readonly IReadOnlyDictionary<Guid, double> empty_star_ratings = new Dictionary<Guid, double>();
+
         public bool BeatmapSetsGroupedTogether { get; private set; }
 
         /// <summary>
@@ -46,9 +48,16 @@ namespace osu.Game.Screens.Select
         public required Func<List<BeatmapCollection>> GetCollections { get; init; }
         public required Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreRank>> GetLocalUserTopRanks { get; init; }
         public required Func<HashSet<int>> GetFavouriteBeatmapSets { get; init; }
+        public Func<IEnumerable<BeatmapInfo>, FilterCriteria, CancellationToken, Task<IReadOnlyDictionary<Guid, double>>> GetStarRatings { get; init; } = static (_, _, _) => Task.FromResult(empty_star_ratings);
 
         public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken)
         {
+            var itemList = items as List<CarouselItem> ?? items.ToList();
+            var criteria = GetCriteria();
+            var starRatings = requiresStarRatingLookup(criteria)
+                ? await GetStarRatings(itemList.Select(item => (BeatmapInfo)item.Model), criteria, cancellationToken).ConfigureAwait(false)
+                : empty_star_ratings;
+
             return await Task.Run(() =>
             {
                 // preallocate space for the new mappings using last known estimates
@@ -56,7 +65,6 @@ namespace osu.Game.Screens.Select
                 var newSetMap = new Dictionary<GroupedBeatmapSet, HashSet<CarouselItem>>(setMap.Count);
                 var newGroupMap = new Dictionary<GroupDefinition, HashSet<CarouselItem>>(groupMap.Count);
 
-                var criteria = GetCriteria();
                 var newItems = new List<CarouselItem>();
                 Ruleset? ruleset = criteria.Ruleset?.CreateInstance();
 
@@ -65,11 +73,11 @@ namespace osu.Game.Screens.Select
 
                 if (ruleset?.IsSongSelectGroupingHierarchical(criteria.Group) == true)
                 {
-                    displayedBeatmapsCount = addHierarchicalGroups((List<CarouselItem>)items, criteria, ruleset, newItems, newItemMap, newSetMap, newGroupMap, cancellationToken);
+                    displayedBeatmapsCount = addHierarchicalGroups(itemList, criteria, ruleset, newItems, newItemMap, newSetMap, newGroupMap, cancellationToken);
                 }
                 else
                 {
-                    var groups = getGroups((List<CarouselItem>)items, criteria);
+                    var groups = getGroups(itemList, criteria, starRatings);
 
                     foreach (var (group, itemsInGroup) in groups)
                     {
@@ -178,7 +186,7 @@ namespace osu.Game.Screens.Select
             return true;
         }
 
-        private List<GroupMapping> getGroups(List<CarouselItem> items, FilterCriteria criteria)
+        private List<GroupMapping> getGroups(List<CarouselItem> items, FilterCriteria criteria, IReadOnlyDictionary<Guid, double> starRatings)
         {
             switch (criteria.Group)
             {
@@ -218,7 +226,7 @@ namespace osu.Game.Screens.Select
                     return getGroupsBy(b => defineGroupByBPM(FormatUtils.RoundBPM(b.BPM)), items);
 
                 case GroupMode.Difficulty:
-                    return getGroupsBy(b => defineGroupByStars(b.StarRating), items);
+                    return getGroupsBy(b => defineGroupByStars(b.GetResolvedStarRating(starRatings)), items);
 
                 case GroupMode.Length:
                     return getGroupsBy(b => defineGroupByLength(b.Length), items);
@@ -388,6 +396,9 @@ namespace osu.Game.Screens.Select
 
             return new StarDifficultyGroupDefinition(15, "Over 15 Stars", new StarDifficulty(15, 0)).Yield();
         }
+
+        private static bool requiresStarRatingLookup(FilterCriteria criteria)
+            => criteria.Group == GroupMode.Difficulty && criteria.Ruleset != null && criteria.AllowConvertedBeatmaps;
 
         private IEnumerable<GroupDefinition> defineGroupByLength(double length)
         {

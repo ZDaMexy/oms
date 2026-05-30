@@ -12,6 +12,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
@@ -111,7 +112,7 @@ namespace osu.Game.Tests.Visual.SongSelect
 
         private Action<BeatmapSetInfo> applyAuthor(char first)
         {
-            return s => s.Beatmaps[0].Metadata.Author.Username = $"{first}-author";
+            return s => s.Beatmaps.ForEach(beatmap => beatmap.Metadata.Author.Username = $"{first}-author");
         }
 
         private Action<BeatmapSetInfo> applyTitle(char first)
@@ -309,6 +310,33 @@ namespace osu.Game.Tests.Visual.SongSelect
             assertTotal(results, total);
         }
 
+        [Test]
+        public async Task TestGroupingByDifficultyUsesResolvedConvertedStarRating()
+        {
+            int total = 0;
+            var maniaRuleset = new ManiaRuleset().RulesetInfo;
+
+            var beatmapSets = new List<BeatmapSetInfo>();
+            var convertedBeatmapSet = TestResources.CreateTestBeatmapSetInfo(1);
+            var beatmap = convertedBeatmapSet.Beatmaps[0];
+            beatmap.Ruleset = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            beatmap.StarRating = 1.2;
+            beatmapSets.Add(convertedBeatmapSet);
+
+            var results = await runGrouping(new FilterCriteria
+            {
+                Group = GroupMode.Difficulty,
+                Ruleset = maniaRuleset,
+                AllowConvertedBeatmaps = true,
+            }, beatmapSets, new Dictionary<Guid, double>
+            {
+                [convertedBeatmapSet.Beatmaps[0].ID] = 3.2,
+            });
+
+            assertGroup(results, 0, "3 Stars", convertedBeatmapSet.Beatmaps, ref total);
+            assertTotal(results, total);
+        }
+
         private Action<BeatmapSetInfo> applyStars(double stars)
         {
             return s => s.Beatmaps.ForEach(b => b.StarRating = stars);
@@ -421,13 +449,17 @@ namespace osu.Game.Tests.Visual.SongSelect
         private HashSet<int> favouriteBeatmapSets = [];
 
         private async Task<List<CarouselItem>> runGrouping(GroupMode group, List<BeatmapSetInfo> beatmapSets)
+            => await runGrouping(new FilterCriteria { Group = group }, beatmapSets).ConfigureAwait(false);
+
+        private async Task<List<CarouselItem>> runGrouping(FilterCriteria criteria, List<BeatmapSetInfo> beatmapSets, IReadOnlyDictionary<Guid, double>? resolvedStarRatings = null)
         {
             var groupingFilter = new BeatmapCarouselFilterGrouping
             {
-                GetCriteria = () => new FilterCriteria { Group = group },
+                GetCriteria = () => criteria,
                 GetCollections = () => new List<BeatmapCollection>(),
                 GetLocalUserTopRanks = _ => new Dictionary<Guid, ScoreRank>(),
                 GetFavouriteBeatmapSets = () => favouriteBeatmapSets,
+                GetStarRatings = (_, _, _) => Task.FromResult(resolvedStarRatings ?? new Dictionary<Guid, double>()),
             };
 
             return await groupingFilter.Run(beatmapSets.SelectMany(s => s.Beatmaps.Select(b => new CarouselItem(b))).ToList(), CancellationToken.None);

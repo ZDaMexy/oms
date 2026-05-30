@@ -18,52 +18,71 @@ namespace osu.Game.Screens.Select
     public class BeatmapCarouselFilterSorting : ICarouselFilter
     {
         private static readonly IReadOnlyDictionary<Guid, ScoreInfo> empty_top_local_scores = new Dictionary<Guid, ScoreInfo>();
+        private static readonly IReadOnlyDictionary<Guid, double> empty_star_ratings = new Dictionary<Guid, double>();
 
         public int BeatmapItemsCount { get; private set; }
 
         private readonly Func<FilterCriteria> getCriteria;
         private readonly Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreInfo>> getTopLocalScores;
+        private readonly Func<IEnumerable<BeatmapInfo>, FilterCriteria, CancellationToken, Task<IReadOnlyDictionary<Guid, double>>> getStarRatings;
 
         public BeatmapCarouselFilterSorting(Func<FilterCriteria> getCriteria)
-            : this(getCriteria, _ => empty_top_local_scores)
+            : this(getCriteria, _ => empty_top_local_scores, static (_, _, _) => Task.FromResult(empty_star_ratings))
         {
         }
 
         public BeatmapCarouselFilterSorting(Func<FilterCriteria> getCriteria, Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreInfo>> getTopLocalScores)
+            : this(getCriteria, getTopLocalScores, static (_, _, _) => Task.FromResult(empty_star_ratings))
+        {
+        }
+
+        public BeatmapCarouselFilterSorting(Func<FilterCriteria> getCriteria,
+                                            Func<FilterCriteria, IReadOnlyDictionary<Guid, ScoreInfo>> getTopLocalScores,
+                                            Func<IEnumerable<BeatmapInfo>, FilterCriteria, CancellationToken, Task<IReadOnlyDictionary<Guid, double>>> getStarRatings)
         {
             this.getCriteria = getCriteria;
             this.getTopLocalScores = getTopLocalScores;
+            this.getStarRatings = getStarRatings;
         }
 
-        public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken) => await Task.Run(() =>
+        public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken)
         {
             var criteria = getCriteria();
-            var rulesetInstance = criteria.Ruleset?.CreateInstance();
-            var topLocalScores = requiresTopLocalScoreLookup(criteria.Sort) ? getTopLocalScores(criteria) : null;
+            var itemList = items as List<CarouselItem> ?? items.ToList();
 
             bool groupedSets = BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether(criteria);
+            var starRatings = requiresStarRatingLookup(criteria)
+                ? await getStarRatings(itemList.Select(item => (BeatmapInfo)item.Model), criteria, cancellationToken).ConfigureAwait(false)
+                : empty_star_ratings;
 
-            BeatmapItemsCount = items.Count();
-
-            return items.Order(Comparer<CarouselItem>.Create((a, b) =>
+            return await Task.Run(() =>
             {
-                var ab = (BeatmapInfo)a.Model;
-                var bb = (BeatmapInfo)b.Model;
+                var rulesetInstance = criteria.Ruleset?.CreateInstance();
+                var topLocalScores = requiresTopLocalScoreLookup(criteria.Sort) ? getTopLocalScores(criteria) : null;
 
-                if (groupedSets)
+                BeatmapItemsCount = itemList.Count;
+
+                return itemList.Order(Comparer<CarouselItem>.Create((a, b) =>
                 {
-                    if (ab.BeatmapSet!.Equals(bb.BeatmapSet))
-                        return compareDifficulty(ab, bb, criteria.Sort);
+                    var ab = (BeatmapInfo)a.Model;
+                    var bb = (BeatmapInfo)b.Model;
 
-                    // If we're grouping by sets, all fallback sorts need to be aggregates for the set.
-                    return compare(ab, bb, criteria.Sort, aggregate: true, rulesetInstance, topLocalScores);
-                }
+                    if (groupedSets)
+                    {
+                        if (ab.BeatmapSet!.Equals(bb.BeatmapSet))
+                            return compareDifficulty(ab, bb, starRatings);
 
-                return compare(ab, bb, criteria.Sort, aggregate: false, rulesetInstance, topLocalScores);
-            })).ToList();
-        }, cancellationToken).ConfigureAwait(false);
+                        // If we're grouping by sets, all fallback sorts need to be aggregates for the set.
+                        return compare(ab, bb, criteria.Sort, aggregate: true, rulesetInstance, topLocalScores, starRatings);
+                    }
 
-        private static int compare(BeatmapInfo a, BeatmapInfo b, SortMode sort, bool aggregate, Ruleset? rulesetInstance, IReadOnlyDictionary<Guid, ScoreInfo>? topLocalScores)
+                    return compare(ab, bb, criteria.Sort, aggregate: false, rulesetInstance, topLocalScores, starRatings);
+                })).ToList();
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static int compare(BeatmapInfo a, BeatmapInfo b, SortMode sort, bool aggregate, Ruleset? rulesetInstance, IReadOnlyDictionary<Guid, ScoreInfo>? topLocalScores,
+                                   IReadOnlyDictionary<Guid, double>? starRatings)
         {
             int comparison;
 
@@ -88,7 +107,9 @@ namespace osu.Game.Screens.Select
                     break;
 
                 case SortMode.Difficulty:
-                    comparison = a.StarRating.CompareTo(b.StarRating);
+                    comparison = aggregate
+                        ? compareUsingAggregateMax(a, b, beatmap => beatmap.GetResolvedStarRating(starRatings))
+                        : a.GetResolvedStarRating(starRatings).CompareTo(b.GetResolvedStarRating(starRatings));
                     break;
 
                 case SortMode.DateAdded:
@@ -155,12 +176,12 @@ namespace osu.Game.Screens.Select
             return comparison;
         }
 
-        private static int compareDifficulty(BeatmapInfo a, BeatmapInfo b, SortMode sort)
+        private static int compareDifficulty(BeatmapInfo a, BeatmapInfo b, IReadOnlyDictionary<Guid, double>? starRatings)
         {
             int comparison = a.Ruleset.CompareTo(b.Ruleset);
 
             if (comparison == 0)
-                comparison = a.StarRating.CompareTo(b.StarRating);
+                comparison = a.GetResolvedStarRating(starRatings).CompareTo(b.GetResolvedStarRating(starRatings));
 
             return comparison;
         }
@@ -203,5 +224,8 @@ namespace osu.Game.Screens.Select
 
         private static bool requiresTopLocalScoreLookup(SortMode sort)
             => sort is SortMode.ClearLamp or SortMode.Accuracy or SortMode.Misses;
+
+        private static bool requiresStarRatingLookup(FilterCriteria criteria)
+            => criteria.Ruleset != null && criteria.AllowConvertedBeatmaps && criteria.Sort == SortMode.Difficulty;
     }
 }

@@ -3,6 +3,7 @@
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using osu.Game.Rulesets;
 
 namespace osu.Game.Beatmaps
 {
@@ -59,6 +60,20 @@ namespace osu.Game.Beatmaps
             starRating = default;
 
             return TryParsePlayLevel(BmsPersistedMetadataResolver.GetChartMetadata(metadata)?.PlayLevel, out starRating);
+        }
+
+        public static bool TryResolvePersistedConvertedStarRating(IBeatmapInfo beatmapInfo, IRulesetInfo targetRuleset, out double starRating)
+        {
+            ArgumentNullException.ThrowIfNull(beatmapInfo);
+            ArgumentNullException.ThrowIfNull(targetRuleset);
+
+            if (!IsBmsBeatmap(beatmapInfo) || beatmapInfo.Metadata is not BeatmapMetadata metadata)
+            {
+                starRating = default;
+                return false;
+            }
+
+            return BmsPersistedMetadataResolver.TryGetConvertedStarRating(metadata, targetRuleset, out starRating);
         }
 
         public static double ResolveOrDefault(BeatmapMetadata? metadata)

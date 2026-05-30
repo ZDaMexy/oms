@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-05-23
+> 最后更新：2026-05-26
 > 本文件记录 `P1-K` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -16,7 +16,7 @@
 1. `BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、`BmsBeatmapConverter` 是当前 parse-chain 的单一 authority；consumer 不得各自维护长期存在的 ad hoc text parser。
 2. “当前尚未实现播放/显示”不是允许在 decode 阶段丢数据的理由；未消费语义必须保留在 raw snapshot、typed placeholder 或等价扩展槽位中。
 3. 原始 `.bms/.bme/.bml/.pms` 文件的 filesystem retention 只是诊断与兜底手段，不得被当成 decode model 可以继续丢数据的替代方案。
-4. 本子线的外部语义参考固定为 [hitkey BMS 命令参考](https://hitkey.nekokan.dyndns.info/cmds.htm) 与 [bmson specification](https://bmson-spec.readthedocs.io/)；若实现与参考冲突，必须先明确文档或兼容策略，再继续开发。
+4. 本子线的外部语义参考固定为 [hitkey BMS 命令参考](https://hitkey.bms.ms/cmds.htm) 与 [bmson specification](https://bmson-spec.readthedocs.io/)；上述外部规范的结构化归纳、跨实现差异与解析审查对照清单收口在 [../../other/BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)，应优先以该文对照实现。若实现与参考冲突，必须先明确文档或兼容策略，再继续开发。
 
 ## raw / typed model 约束
 
@@ -24,7 +24,7 @@
 2. typed model 可以只为已确认重要的语义建立最薄 surface，但不得通过“typed 未使用”把 raw carrier 一并删掉。
 3. unknown header、unknown indexed definition 与 unknown channel event 必须有显式 bag、typed placeholder 或等价保留槽位；不能继续默默跳过。
 4. `SCROLLxx` 与 `SC` 轨道不得继续在 parser 入口直接丢失；首轮至少要进入 raw snapshot，并为后续 typed projection 预留稳定位置。
-5. duplicate channel line 必须保留 source line order，并具备 compound / overwrite 语义；不得继续把“逐条展开后按 measure/fraction/channel 排序”当成长期合同。
+5. duplicate channel line 必须保留 source line order，并具备 compound / overwrite 语义；不得继续把“逐条展开后按 measure/fraction/channel 排序”当成长期合同。BGM channel `0x01` 是 compound 的强制例外：同位多条 `#xxx01` 是并行 keysound 层，必须全部保留，不得被同位去重折叠成一个。
 6. signed BPM 必须能进入 typed model；即使当前时间推进只使用绝对值，方向信息也必须可恢复。
 7. `LNTYPE 2`、future long-note encoding 与未实现视觉事件必须至少能通过 typed placeholder 或 raw snapshot 被可靠回收；“只 warning、不建模”不能成为长期状态。
 8. BGA base / layer / poor、mine、invisible note 与类似视觉事件，必须至少拥有最薄 typed descriptor 或明确的 projection slot；不得长期只停留在 consumer 自行猜 channel 的状态。
@@ -51,6 +51,16 @@
 2. `STOP`、measure length、default BPM 与 long-note timeline 边界不得由不同 consumer 各自重新推导。
 3. 任何对 BPM 的时间推进计算都不得 silently 抹去原始 sign 信息；若 runtime 当前只支持正向推进，也必须把 sign 单独保留在模型里。
 4. `BmsBeatmapConverter` 只消费 normalized chart model；Song Select、gameplay、背景层或未来特效层不得绕过它自行从 raw text 再算一次 timing。
+5. 从 BPM 推导 beat length 不得把合法的亚 1 BPM（规范允许低至约 0.014）钳成 1；下界只用于避免零/近零 BPM 产生非有限值。`TimingControlPoint.BeatLength` 受框架 bindable `[6,60000]` 钳制只影响显示滚动，不得反过来用作对象时序的钳制依据。
+
+## 键音呈现与控制流约束（2026-05-29 链路审查后冻结）
+
+1. BGM（channel `0x01`）同位叠层不得被去重：解析层必须让同 measure/fraction 的多条 `#xxx01` keysound 全部进入 `ObjectEvents` 并各自生成 `BmsBgmEvent`。
+2. 空键 / 误击的轨 keysound 必须由 `BmsBeatmapConverter` 在转换期构建的 per-lane keysound 时间线（`BmsBeatmap.LaneKeysoundTimelines`）单一驱动；该时间线必须涵盖可见音符、long-note 头/尾与不可见对象（channel `31-49`）的 keysound，并按时间排序。`BmsLane` 只能消费该时间线（at-or-before 二分解析、开局前回退首条目），不得回退到基于判定事件（`NewResult`）的 ad hoc “last judged” keysound，也不得让每个 lane 各自从 hitobjects 再算一套。
+3. 不可见对象（channel `31-49`）属“已解码但此前未消费”语义：现固定经 `channel-0x20` 映射回对应可见 lane 并进入 keysound 时间线；不得再在 decode 后被静默丢弃。
+4. `#RANDOM` 的确定性合同冻结为“仅执行 `#IF 1` 分支”并保留既有告警；`#SETRANDOM n` 必须按作者固定值选支。`#IF`/`#ELSEIF`/`#ELSE` 必须按 chain 语义求值（命中后续分支短路），不得让 `#ELSE` 内容在 `#IF` 已命中时泄漏。
+5. `#SWITCH`/`#SETSWITCH` 必须做确定性单段选择（默认 `#CASE 1` 或 `#SETSWITCH` 固定值，C 风格 fall-through 至 `#SKIP`，无匹配走 `#DEF`，支持嵌套）；不得退回“把所有 `#CASE` 内容无条件并入”导致错谱。
+6. 解析期对 LNOBJ 头的回收不得使用每条长条一次的 O(n) 线性扫描（全 LNOBJ 谱会退化为 O(n²)）；必须用索引标记 + 单次重建等 O(n) 路径。
 
 ## consumer / projection reuse 约束
 
@@ -75,6 +85,35 @@
 19. scoped beatmap-set title display consumer 在能拿到具体 `BeatmapInfo` 时也必须优先共享 full-beatmap title authority，并显式禁用 difficulty name；不得让 `FilterControl.ScopedBeatmapSetDisplay` 或相邻 set banner surface 继续直接读 `BeatmapSetInfo.Metadata.GetDisplayTitleRomanisable()` 暴露 raw `/obj:` suffix 或把难度名带进 set 级标题。
 20. delete confirmation title display consumer 在能拿到具体 `BeatmapInfo` 时也必须优先共享同一 set-level title authority，并显式保持“无 creator suffix + 无 difficulty name”的既有合同；不得让 `BeatmapDeleteDialog` 或相邻 delete confirmation title surface 继续直接走 `beatmapSet.Metadata.GetDisplayTitleRomanisable(false)`。
 
+## K9：BMS -> mania 单向转谱约束
+
+1. `K9` 只允许支持 `BMS -> mania` 单向转谱；当前冻结的 source/target 矩阵只有 `5K+1S -> mania 5K`、`7K+1S -> mania 7K`、`9K_Bms -> mania 9K`、`9K_Pms -> mania 9K` 与 `14K+2S -> mania 14K`。不得把 `mania -> BMS`、generic all-ruleset convert 或其它 keymode 扩张混进同一切片。
+2. `K9` 继续属于 `P1-K` 的 parse / conversion authority：它必须消费现有 `BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、`BmsBeatmapConverter` 与等价 BMS playable projection；不得为转谱再长出第二套 text parser，也不得把现有 `ShowConvertedBeatmaps` / `AllowGameplayWithRuleset()` generic heuristics 当成 conversion semantics authority。
+3. BMS -> mania 的 lane flatten 必须使用 canonical BMS lane contract，而不是当前用户 `PlayfieldStyle`、scratch 视觉侧别或皮肤布局。相同 source chart 的 mania 转谱结果必须与本地单机布局偏好无关；非 scratch playable lanes 的 flatten 结果固定为“移除 scratch lane 后保留 canonical 顺序并重新从左到右编号”。
+4. target stage definition 必须写死在 `K9`：`5K+1S/7K+1S/9K_Bms/9K_Pms` 只能生成单 stage `5/7/9` 列，`14K+2S` 只能生成 dual-stage `7 + 7`。不得把 `14K` 临时实现成单 stage `14` 列，也不得让左右半侧 object 跨 stage 漂移。
+5. 当前 `ManiaBeatmapConverter` 的 pass-through quantisation 会把 `IHasXPosition.X` 视为 `0..512` 横向空间；因此不得直接把 `BmsHitObject.IHasXPosition = LaneIndex` 当成 `K9` 的输入合同。实现必须先建立 BMS lane -> normalized mania-space 的专用投影，再进入 mania column quantisation 或等价 helper。
+6. target keycount 不保留 scratch 作为独立 judged column authority，但 scratch-family object 也不得被静默丢弃。scratch tap / hold 都必须保留原 keysound 与 head-tail sample 语义，并以 sample-only、`IgnoreJudgement` / empty-hitwindow 的 converted mania object 保留时间线；不得再回退成可判定 `Note` / `HoldNote` 并入真实列，也不得重新进入 combo、statistics 或 star-rating authority。若需要 `Column`，它只能作为同 side / 同 stage 的 drawable/sample anchor，不得重新变成 judged-lane merge 语义。
+7. `PMS` 继续视为无 scratch lane 的 9K source path：它不进入 scratch sample-only 分支，也不允许为了统一实现而额外制造 fake scratch 列。
+8. `K9` 首轮只允许消费 modless source BMS chart。`BmsModMirror`、`BmsModRandom`、`A-SCR`、`A-NOT`、`Autoplay` 与其它 BMS runtime mod 都不得参与转谱映射、validity 或目标列决定；若未来要支持 source-side mod-aware conversion，必须另起后续切片。
+9. 若 source chart 在 flatten / degrade 后得不到任何可游玩 mania object，则该 conversion result 必须判定为 invalid，并从 presentation / Song Select surface 隐藏；不得为了“显示转谱”按钮可见而产出空壳结果。
+10. modless converted mania star 必须持久化到 `BeatmapMetadata.RulesetDataJson` 的 BMS payload 中，并至少携带 target ruleset、difficulty version 与 conversion version；不得覆盖 `BeatmapInfo.StarRating`，因为该字段仍是 source BMS raw star / playlevel authority。
+11. current-ruleset 的 converted-star display surface（carousel selector、spread display、cache warmup/backfill）在 `BMS -> mania` 场景下都必须走 resolved converted-star lookup；raw `BeatmapInfo.StarRating` 只继续服务 source BMS surface，不得在 target-ruleset display 中回流。
+12. converted autoplay / replay generation 必须在 press/release schedule 与同列 next-object lookup 两侧都跳过 ignore-only scratch sample object；这些对象可以继续播放 sample，但不得生成假 auto 输入，也不得扰动真实 judged column 的 key-up 时机。
+13. `K9` 不得把 mania keycount-changing mods、dual-stage 分裂或其它 runtime mod surface 当成 source keymode 适配的替代方案；首轮 target stage definition 只由 source keymode matrix 决定。
+14. `K9` 与公开产品表面拆刀：在同一实现中若已经触及顶层入口、按钮文案、ruleset switch 或 generic convert visibility，则停止并拆到 `P1-A`；`P1-K` 只拥有 conversion semantics、validity 与 focused proof。
+15. BMS `SCROLLxx/SC` 经 `BmsBeatmapConverter` 写入的 `EffectControlPoint.ScrollSpeed` 是 BMS 引擎专属视觉滚动语义，不得在 `BmsToManiaBeatmapConverter` 中沿用为 mania 的 `EffectControlPoint`/SV 语义；mania 转谱后的 `ControlPointInfo` 只保留 timing 边界（`TimingControlPoint`），不传递 `EffectControlPoint`。若未来需要把 BMS scroll 语义映射到 mania 视图，必须另起后续切片，并在 K9 约束中显式更新本条。
+16. BMS `STOP` 在 `BmsBeatmapConverter` 中以"冻结滚动"形式写入 `ControlPointInfo` 的 timing 边界时，必须用 dedicated `TimingControlPoint` 子类（如 `BmsStopFreezeTimingControlPoint`）做类型级标记，并由 `BmsToManiaBeatmapConverter.createConvertedControlPointInfo` 按类型剥离；不得用 sentinel `BeatLength` 值做标记，因为 mania `TimingControlPoint.BeatLengthBindable` 的合法范围下界（`MinValue = 6`）与极端高 BPM 真实谱面存在不可分辨碰撞。
+
+## K10：转谱星导入期就绪与读取加固约束（规划中）
+
+1. 导入期持久化只允许写 `BeatmapMetadata.RulesetDataJson` 的 converted-star payload；继续禁止覆盖 `BeatmapInfo.StarRating`（仍是 source BMS playlevel authority）。
+2. 导入期计算必须复用现有 `BMS -> mania` 转换链与 `BmsPersistedMetadataResolver` 持久化合同及已统一的失败语义（确定不可转 -> 固化 Failed；瞬时异常 -> 不持久化待重试）；不得为导入期再造第二套转换或星数计算路径。
+3. 导入期持久化必须在 `BeatmapUpdater.Process()` 既有 realm 写事务内直接写 live metadata，**不得嵌套 `realmAccess.Write`**；且整体 best-effort，转换/计算异常绝不能让导入失败或改变现有导入通知语义。
+4. 启动批处理 `populateMissingConvertedStarRatings` 必须保留为历史库与版本失效的兜底补算，不得因导入期持久化落地而删除。
+5. 读校验加固（B）必须继续保留 `conversion_version` 与 `difficulty_version` 双闸，仅允许把后者的对照源从消费者传入的 `LastAppliedDifficultyVersion` 换成权威当前计算器版本；不得借此弱化或移除任一版本闸。
+6. B 的权威版本获取不得引入"每次读一次难度计算"的开销；必须 memoize / 缓存为每构建一次的常量级读取。
+7. `K10` 为中高风险切片：A（导入期持久化）与 B（读校验加固）必须可分刀独立落地与回退；任一刀落地前先补 focused 回归，禁止只凭 diff 或人工推理跳过 build/test gate。
+
 ## 解析侧性能约束
 
 1. `P1-K` 只处理 parse-side 性能：减少重复 decode、normalize 与 projection；不得借此处理 runtime 每帧热路径或音频 mixer 压力。
@@ -91,3 +130,4 @@
 4. 真实谱面 acceptance 与人工 checklist 继续后置到 `P1-E` / `P1-G`；但不得把自动化缺口全部甩给人工验收。
 5. 任何改变 parse semantics、projection ownership 或 cache authority 的实现，都必须同步更新本目录四件套以及 `../../mainline/DEVELOPMENT_PLAN.md`、`../../mainline/DEVELOPMENT_STATUS.md`、`../../mainline/CHANGELOG.md`。
 6. 第一轮执行必须遵守“focused parser -> focused converter -> focused projection -> full BMS suite -> Release build”这一验证顺序；在更窄的 executable proof 可用时，不得只看 diff 或只依赖人工推理。
+7. `K9` 的第一轮验证顺序固定为“focused mapping / sample-preservation proof -> autoplay ignore-only proof -> selector/resolver focused proof -> `PresentBeatmap` / Song Select focused proof -> Release build”；mapping proof 必须同时锁住 `14K -> 7+7` dual-stage 形态、sample-only scratch 语义与 source-side modless gate。在这些更窄 proof 可用时，不得直接拿 generic convert UI 手测代替。

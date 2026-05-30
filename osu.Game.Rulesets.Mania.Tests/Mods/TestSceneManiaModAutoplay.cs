@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Tests.Visual;
@@ -36,6 +37,32 @@ namespace osu.Game.Rulesets.Mania.Tests.Mods
                     }
                 },
                 PassCondition = () => Player.ScoreProcessor.Combo.Value == 4
+            });
+        }
+
+        [Test]
+        public void TestAutoplayIgnoresSampleOnlyScratchObjects()
+        {
+            CreateModTest(new ModTestData
+            {
+                Autoplay = true,
+                CreateBeatmap = () => new ManiaBeatmap(new StageDefinition(1))
+                {
+                    HitObjects = new List<ManiaHitObject>
+                    {
+                        new BmsConvertedScratchSampleHitObject
+                        {
+                            StartTime = 100,
+                            Column = 0,
+                        },
+                        new Note
+                        {
+                            StartTime = 100,
+                            Column = 0,
+                        },
+                    }
+                },
+                PassCondition = () => Player.ScoreProcessor.Combo.Value == 1
             });
         }
     }

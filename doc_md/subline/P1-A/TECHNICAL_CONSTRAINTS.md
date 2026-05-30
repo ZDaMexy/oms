@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-16
+> 最后更新：2026-05-26
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -25,6 +25,8 @@
 13. 首次启动向导中用户可见的 OMS 文案，若需覆盖上游翻译，必须使用 OMS-owned localisation namespace + 对应 `.resx`；只改 `*Strings.cs` fallback 不足以覆盖简中等非英文资源。
 14. 若共享 desktop settings-entry surface 需要裁剪 upstream 的数位板 / 触屏点击 / 鼠标 subsection，应只在 `OsuGameDesktop` 这类 desktop 宿主层安全隐藏，不能把这类 product-surface trim 下移成 `OsuGameBase` 的全宿主行为；否则会连带改写 test scene / 非 desktop host 的设置装配合同。
 15. `osu!mania` settings 页的 `滚动速度` 若显示毫秒，只能表述为标准车道几何下的参考下落时间；不得包装成跨皮肤或跨 ruleset 的严格体感合同，也不得鼓励拿它直接与 BMS 下落时间对照。
+16. 若后续公开 `BMS -> mania` 单向转谱入口，产品口径必须显式收窄为 `BMS source -> mania target`，不得沿用或暗示 generic all-ruleset convert surface；`ShowConvertedBeatmaps`、`AllowGameplayWithRuleset()` 与顶层“显示转谱”按钮都不能直接被包装成该专题已支持的 authority。
+17. `P1-A` 只拥有 `BMS -> mania` 单向转谱的入口位置、按钮文案、Song Select / presentation gating 与 unavailable feedback；source keymode matrix、lane flatten、scratch-family 退化与空结果 suppress 仍归 `P1-K/K9`，unsupported / invalid case 必须隐藏或明确不可用，而不是展示可点击空壳入口。
 
 ## 皮肤边界约束
 
