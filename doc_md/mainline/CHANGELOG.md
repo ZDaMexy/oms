@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-05-30
+
+### 调查与决策：C# Dev Kit 误把 osu.Game 当测试工程（确认良性，接受现状，不改功能）
+
+现象：C# Dev Kit Test Explorer 反复对 `osu.Game.dll` 起 VSTest testhost 并中止发现；切 `osu.Desktop.slnf`、`Developer: Reload Window` 均无效。
+
+根因（实证定位，先后排除两条错误假设）：
+- **不是** `<IsTestProject>` 没设——MSBuild 实测求值确为 `false`，Dev Kit 的 Project System 不采纳该属性。
+- **不是** deps.json 里的 `nunit.framework.dll`——把它从 `osu.Game.deps.json` 移除（`NUnit` 改 `ExcludeAssets=runtime`）后 Dev Kit 照样选中 osu.Game。
+- 真因：Dev Kit 的 Project System 按"**是否引用 NUnit 包**"把工程归类为测试容器。osu.Game 为给 `*.Tests` 提供抽象测试场景基类（`osu.Game/Tests/**` 的 `BeatmapConversionTest` / `DifficultyCalculatorTest` 等）而引用 NUnit，于是被误归（slnf 日志"3 projects added" = BMS.Tests + Mania.Tests + 被误判的 osu.Game）。
+
+为何不修（两条路都不可取）：
+- "让 testhost 不崩"：试过 `CopyLocalLockFileAssemblies`（依赖闭包落 `osu.Game/bin`），它修掉第一道坎 `AutoMapper`，但 Dev Kit 紧接着撞第二道坎 `Microsoft.TestPlatform.CommunicationUtilities`——testhost **平台自身**缺失（osu.Game 不引用 `Microsoft.NET.Test.Sdk`）；继续补下去等于把 osu.Game 变成完整测试工程——**该尝试已回退**。
+- "阻止选中"：只能移走 NUnit 包引用，需迁出 7 个上游文件，违背少改上游红线。
+- 设置层面：无干净的 Dev Kit/VS Code 开关可单独屏蔽该源。
+
+**结论：接受良性现状。** 该错误只波及 osu.Game 这个伪测试源，**不阻断真实测试**——同一轮日志里 BMS.Tests（860）与 Mania.Tests（780）经 `NUnit Adapter 4.6.0.0` 正常发现；Test Explorer 内真实用例可正常跑，CLI `dotnet test` 一向不受影响。忽略 Test Explorer 里 osu.Game 那个失败节点即可。
+
+- 唯一落库改动：[../../osu.Game/osu.Game.csproj](../../osu.Game/osu.Game.csproj) 在 `<IsTestProject>false</IsTestProject>` 注释上补说明，**无任何功能/构建产物变化**。
+
 ## 2026-05-29
 
 ### P1-L Phase 2（Step A–C）：BMS 专用滚动位置积分旁路落地（门控默认 OFF）

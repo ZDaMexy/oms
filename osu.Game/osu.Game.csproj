@@ -5,7 +5,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);NU1903</NoWarn>
     <!-- Ships NUnit-based test-scene base classes but is not itself a test container.
-         Opt out of IDE/VSTest test discovery so editors don't launch a testhost against this library. -->
+         Opt out of IDE/VSTest test discovery so editors don't launch a testhost against this library.
+         NOTE: C# Dev Kit's Project System ignores this property and misclassifies osu.Game as a test project
+         purely because it references the NUnit package; that misclassification cannot be suppressed from the csproj
+         without either making osu.Game a full test project or removing the NUnit reference. See doc_md CHANGELOG 2026-05-30. -->
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <PropertyGroup Label="Nuget">
