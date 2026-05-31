@@ -570,6 +570,77 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestSharedKeysoundStorePrefersIdleChannelOverBusyOne()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 4;
+
+            // Fill every channel (round-robin), leaving the rotation cursor pointing back at channel 0.
+            var sampleA = new SampleInfo("keys/a");
+            playfield.KeysoundStore.Play(sampleA, 0);
+            playfield.KeysoundStore.Play(new SampleInfo("keys/b"), 0);
+            playfield.KeysoundStore.Play(new SampleInfo("keys/c"), 0);
+            playfield.KeysoundStore.Play(new SampleInfo("keys/d"), 0);
+
+            PausableSkinnableSound[] pool = playfield.KeysoundStore.ChannelPool.ToArray();
+
+            // Free only the third channel, then reconcile the idle set (Update does this per frame in gameplay).
+            pool[2].Stop();
+            playfield.KeysoundStore.ReclaimIdleChannelsForTesting();
+
+            // The next play must reuse the idle channel 2, NOT steal the still-busy channel 0 the round-robin cursor
+            // points at. Pure round-robin would cut channel 0 here even though channel 2 is free (the truncation bug).
+            var sampleE = new SampleInfo("keys/e");
+            playfield.KeysoundStore.Play(sampleE, 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pool[2].Samples.Single(), Is.SameAs(sampleE), "idle channel should receive the new sample");
+                Assert.That(pool[0].Samples.Single(), Is.SameAs(sampleA), "busy channel must not be stolen while one is idle");
+                Assert.That(pool[0].RequestedPlaying, Is.True);
+            });
+        }
+
+        [Test]
+        public void TestSharedKeysoundStoreCutsSameSlotRetrigger()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 4;
+
+            // Same WAV slot (cut group 7) re-triggered while still sounding must reuse one channel (BMS per-WAV cut),
+            // not stack a copy — as consecutive notes referencing one #WAVxx slot produce.
+            playfield.KeysoundStore.Play(new BmsKeysoundSampleInfo("voice/stomp.wav"), 0, 7);
+            playfield.KeysoundStore.Play(new BmsKeysoundSampleInfo("voice/stomp.wav"), 0, 7);
+
+            int busyChannels = playfield.KeysoundStore.ChannelPool.Count(channel => channel.RequestedPlaying);
+
+            Assert.That(busyChannels, Is.EqualTo(1), "re-triggering the same WAV slot must cut/reuse one channel, not stack two");
+        }
+
+        [Test]
+        public void TestSharedKeysoundStoreDoesNotCutDifferentSlotsSharingAFile()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 4;
+
+            // Two different WAV slots (8 and 9) pointing at the same file: charts duplicate a file across slots for
+            // intentional self-overlap (hi-hats, claps). They must NOT share a cut group, so both sound concurrently
+            // (matches LR2/beatoraja). Filename-based grouping would wrongly cut one here.
+            playfield.KeysoundStore.Play(new BmsKeysoundSampleInfo("hat.wav"), 0, 8);
+            playfield.KeysoundStore.Play(new BmsKeysoundSampleInfo("hat.wav"), 0, 9);
+
+            int busyChannels = playfield.KeysoundStore.ChannelPool.Count(channel => channel.RequestedPlaying);
+
+            Assert.That(busyChannels, Is.EqualTo(2), "different WAV slots sharing a file must overlap, not cut");
+        }
+
+        [Test]
         public void TestDrawableHitObjectsExposeKeysoundSamples()
         {
             var beatmap = createPlayableBeatmap();

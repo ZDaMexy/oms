@@ -11,7 +11,9 @@ using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -28,6 +30,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         private BmsLane lane = null!;
         private DrawableBmsHitObject drawable = null!;
         private BmsHitObject note = null!;
+        private BmsHoldNote holdNote = null!;
 
         [SetUp]
         public void SetUp() => Schedule(() =>
@@ -39,6 +42,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap);
 
             note = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
+            holdNote = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
 
             manualClock = new ManualClock
             {
@@ -114,6 +118,86 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("lane replay uses note keysound", () => requestedFilename, () => Is.EqualTo("key1.wav"));
         }
 
+        [Test]
+        public void TestPoorPressStillTriggersKeysound()
+        {
+            bool pressHandled = false;
+            bool requestedImmediately = false;
+            string? requestedFilename = null;
+            HitResult judged = HitResult.None;
+
+            AddUntilStep("drawable ruleset ready", () => isSceneReady());
+            AddStep("press drawable at POOR offset", () =>
+            {
+                var windows = (BmsTimingWindows)note.HitWindows;
+
+                // Land inside the POOR/miss window but outside the closest hit window, so the press judges the note a
+                // non-hit (POOR) and consumes the input — the case that used to be silent.
+                double poorOffset = (windows.WindowFor(HitResult.Meh) + windows.WindowFor(HitResult.Miss)) / 2;
+
+                manualClock.CurrentTime = note.StartTime + poorOffset;
+                testClock.ProcessFrame();
+                drawableRuleset.UpdateSubTree();
+
+                pressHandled = drawable.OnPressed(createPressEvent(BmsAction.Key1));
+                requestedImmediately = drawableRuleset.Playfield.KeysoundStore.ChannelPool.Any(channel => channel.RequestedPlaying);
+                requestedFilename = getRequestedFilename();
+                judged = drawable.Result.Type;
+            });
+
+            AddAssert("press handled", () => pressHandled);
+            AddAssert("note judged a pressed POOR/miss", () => judged, () => Is.EqualTo(HitResult.Miss));
+            AddAssert("shared store still requested keysound on POOR", () => requestedImmediately);
+            AddAssert("keysound is the note keysound", () => requestedFilename, () => Is.EqualTo("key1.wav"));
+        }
+
+        [Test]
+        public void TestHoldNoteTailKeysoundStaysSilentWhileHeadSounds()
+        {
+            DrawableBmsHoldNote holdDrawable = null!;
+            string? headFilename = null;
+            bool tailRequested = false;
+
+            AddUntilStep("drawable ruleset ready", () => isSceneReady());
+            AddStep("seek to hold note", () =>
+            {
+                manualClock.CurrentTime = holdNote.StartTime;
+                testClock.ProcessFrame();
+                drawableRuleset.UpdateSubTree();
+            });
+            AddUntilStep("hold drawable + nested alive", () =>
+            {
+                holdDrawable = drawableRuleset.Playfield.Lanes
+                                              .SelectMany(playfieldLane => playfieldLane.AllHitObjects)
+                                              .OfType<DrawableBmsHoldNote>()
+                                              .FirstOrDefault()!;
+
+                return holdDrawable?.IsLoaded == true
+                       && holdDrawable.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>().Any()
+                       && holdDrawable.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Any();
+            });
+
+            AddStep("play head keysound", () =>
+            {
+                holdDrawable.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>().Single().PlaySamples();
+                headFilename = getRequestedFilename();
+
+                foreach (var channel in drawableRuleset.Playfield.KeysoundStore.ChannelPool)
+                    channel.Stop();
+            });
+
+            AddStep("play tail keysound", () =>
+            {
+                holdDrawable.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Single().PlaySamples();
+                tailRequested = drawableRuleset.Playfield.KeysoundStore.ChannelPool.Any(channel => channel.RequestedPlaying);
+            });
+
+            // The head keysound sounds; the long-note tail must stay silent (LR2/beatoraja behaviour). Otherwise an
+            // LNTYPE1 tail that repeats the head WAV double-triggers it ("stomp your fee feet").
+            AddAssert("head keysound sounded", () => headFilename, () => Is.EqualTo("lnhead.wav"));
+            AddAssert("tail keysound stayed silent", () => !tailRequested);
+        }
+
         private string? getRequestedFilename()
             => drawableRuleset.Playfield.KeysoundStore.ChannelPool.FirstOrDefault(channel => channel.RequestedPlaying)
                        ?.Samples.OfType<BmsKeysoundSampleInfo>().SingleOrDefault()
@@ -136,8 +220,12 @@ namespace osu.Game.Rulesets.Bms.Tests
 #TITLE Shared Keysound Timing Stub
 #BPM 120
 #RANK 2
+#LNTYPE 1
 #WAVBB key1.wav
+#WAVCC lnhead.wav
+#WAVDD lntail.wav
 #00111:BB00
+#00152:CC00DD00
 ";
 
             var decodedChart = decoder.DecodeText(text, "shared-keysound-timing-stub.bme");

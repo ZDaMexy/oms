@@ -188,7 +188,8 @@
 | `#LNMODE n` | beatoraja | 全谱声明长条类型：`1`=LN、`2`=CN（charge note）、`3`=HCN（hell charge note） |
 
 - LN 尾端是否要求 keyup（松手判定）各实现不同（nanasi/HDX 要求 keyup）。
-- OMS 现状：`#LNTYPE 2` 已建立最小 MGQ 状态机（显式 `00` 收口 + duplicate compound 遵循"`00` 不覆盖"），并端到端转成 `BmsHoldNote`（P1-K K3-B）。CN/HCN 与 `#LNMODE` 的真实谱验校归 [P1-E](../subline/P1-E/)。
+- OMS 现状：`#LNTYPE 1`（含**省略 #LNTYPE 时的默认**）与 `#LNTYPE 2`（最小 MGQ 状态机：显式 `00` 收口 + duplicate compound 遵循"`00` 不覆盖"）均端到端转成 `BmsHoldNote`。**省略 #LNTYPE 按规范默认 type 1**（`handleLongNoteChannelEvent` 用 `LongNoteType ?? 1`；2026-05-31 修复，此前缺省会被整条忽略导致少键）。`#LNOBJ` 亦支持。CN/HCN 与 `#LNMODE` 的真实谱验校归 [P1-E](../subline/P1-E/)。
+- LN 尾 keysound：LNTYPE1 尾对象常重复头 WAV。OMS 现已让**长条尾静音**（`DrawableBmsHoldNoteTail.PlaySamples()` 重写为空），对齐 LR2/beatoraja「长条只头发声」；尾对象 WAV 仍 arm 空击 keysound 时间线但不 auto-play（[P1-J](../subline/P1-J/) 2026-05-31）。
 
 ---
 

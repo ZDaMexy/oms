@@ -227,9 +227,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             int keyCount = BmsRuleset.GetKeyCount(keymode);
             var laneKeysounds = new Dictionary<int, List<BmsLaneKeysoundEntry>>();
 
-            void add(int laneIndex, double time, BmsKeysoundSampleInfo? sample)
+            void add(int laneIndex, double time, int? keysoundId, BmsKeysoundSampleInfo? sample)
             {
-                if (sample == null || laneIndex < 0 || laneIndex >= keyCount)
+                if (sample == null || !keysoundId.HasValue || laneIndex < 0 || laneIndex >= keyCount)
                     return;
 
                 if (!laneKeysounds.TryGetValue(laneIndex, out var list))
@@ -238,7 +238,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     laneKeysounds[laneIndex] = list;
                 }
 
-                list.Add(new BmsLaneKeysoundEntry(time, sample));
+                list.Add(new BmsLaneKeysoundEntry(time, keysoundId.Value, sample));
             }
 
             foreach (var hitObject in beatmap.HitObjects)
@@ -246,12 +246,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 switch (hitObject)
                 {
                     case BmsHoldNote hold:
-                        add(hold.LaneIndex, hold.StartTime, hold.HeadKeysoundSample);
-                        add(hold.LaneIndex, hold.EndTime, hold.TailKeysoundSample);
+                        add(hold.LaneIndex, hold.StartTime, hold.HeadKeysoundId, hold.HeadKeysoundSample);
+                        add(hold.LaneIndex, hold.EndTime, hold.TailKeysoundId, hold.TailKeysoundSample);
                         break;
 
                     case BmsHitObject note:
-                        add(note.LaneIndex, note.StartTime, note.KeysoundSample);
+                        add(note.LaneIndex, note.StartTime, note.KeysoundId, note.KeysoundSample);
                         break;
                 }
             }
@@ -267,7 +267,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (!eventTimes.TryGetValue(new BmsEventTimeKey(invisible.MeasureIndex, invisible.FractionWithinMeasure), out double time))
                     continue;
 
-                add(mapLaneIndex(keymode, visibleChannel), time, createKeysoundSample(decodedChart.BeatmapInfo, invisible.ObjectId));
+                add(mapLaneIndex(keymode, visibleChannel), time, invisible.ObjectId, createKeysoundSample(decodedChart.BeatmapInfo, invisible.ObjectId));
             }
 
             if (laneKeysounds.Count == 0)

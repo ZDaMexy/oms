@@ -119,16 +119,46 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override void PlaySamples()
         {
-            if (keysoundStore != null)
-            {
-                var keysoundSample = getKeysoundSample();
-
-                if (keysoundSample != null)
-                    keysoundStore.Play(keysoundSample, CalculateSamplePlaybackBalance(SamplePlaybackPosition));
-            }
-
+            playKeysoundThroughStore();
             base.PlaySamples();
         }
+
+        /// <summary>
+        /// Plays this object's keysound on key-down for a player press that is judged but does not reach the
+        /// <see cref="ArmedState.Hit"/> state (i.e. a POOR/miss press). The base state machine only fires
+        /// <see cref="PlaySamples"/> on a hit, so without this a pressed POOR would be silent — diverging from
+        /// IIDX/LR2/beatoraja, where every key press sounds the targeted note's keysound regardless of judgement.
+        /// Clean hits keep sounding through <see cref="PlaySamples"/>, so this is only invoked for non-hit presses.
+        /// </summary>
+        internal void PlayKeysoundFromPress() => playKeysoundThroughStore();
+
+        private void playKeysoundThroughStore()
+        {
+            if (keysoundStore == null)
+                return;
+
+            var keysoundSample = getKeysoundSample();
+
+            if (keysoundSample == null)
+                return;
+
+            double balance = CalculateSamplePlaybackBalance(SamplePlaybackPosition);
+            int? cutGroup = getKeysoundCutGroup();
+
+            if (cutGroup.HasValue)
+                keysoundStore.Play(keysoundSample, balance, cutGroup.Value);
+            else
+                keysoundStore.Play(keysoundSample, balance);
+        }
+
+        // The BMS WAV slot backing getKeysoundSample(), used as the per-WAV cut group so a re-struck slot restarts
+        // its own channel without grouping different slots that happen to share a file.
+        private int? getKeysoundCutGroup() => HitObject switch
+        {
+            BmsHitObject bmsHitObject => bmsHitObject.KeysoundId,
+            BmsBgmEvent bgmEvent => bgmEvent.KeysoundId,
+            _ => null,
+        };
 
         protected override void CheckForResult(bool userTriggered, double timeOffset)
         {
@@ -245,7 +275,15 @@ namespace osu.Game.Rulesets.Bms.UI
             if (CheckHittable?.Invoke(this, Time.Current) == false)
                 return false;
 
-            return UpdateResult(true);
+            bool judged = UpdateResult(true);
+
+            // A pressed POOR/miss is judged (and consumes the press, so the lane fallback never fires) but never
+            // reaches the Hit state, so PlaySamples does not play the keysound. Sound it here on key-down so the
+            // press is not silent; clean hits already play via PlaySamples and must not double up.
+            if (judged && !Result.IsHit)
+                PlayKeysoundFromPress();
+
+            return judged;
         }
 
         public virtual void OnReleased(KeyBindingReleaseEvent<BmsAction> e)

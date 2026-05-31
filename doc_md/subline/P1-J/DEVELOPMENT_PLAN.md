@@ -59,7 +59,7 @@
 1. 先审出 `BmsKeysoundStore.Play()` 的调用者是否已经处在 gameplay update 线程；若调用链都在同一线程，优先移除无条件 `Schedule()`。
 2. 若确有非 gameplay-thread 调用者，不能继续沿用“全部调度到下一帧”的粗暴路径；应改成显式 queue/flush 或等价的 same-frame marshal，而不是让 gameplay 命中音频永久带帧级延后。
 3. 保持 balance / shared pool / 多样本播放 authority 不变；不得借机让每个 `DrawableBmsHitObject` 拥有自己的 sample player。
-4. 明确验证 note hit、BGM event、LN head/tail 与 lane replay 的播放语义不回归；miss 仍应跳过 note keysound，BGM 继续按既有合同播放。
+4. 明确验证 note hit、BGM event、LN head 与 lane replay 的播放语义不回归；其中"玩家按键必出声"为现行合同——pressed-POOR/miss（含 LN head）在 key-down 时补播该 note keysound，未按键的自然 miss 仍静音；**LN tail 一律不发声**（只头发声），BGM / autoplay 继续按既有合同播放（详见 TECHNICAL_CONSTRAINTS 第 3 / 3a 条）。
 
 可能文件切片：
 

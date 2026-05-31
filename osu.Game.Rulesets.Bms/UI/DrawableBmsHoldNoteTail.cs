@@ -19,6 +19,15 @@ namespace osu.Game.Rulesets.Bms.UI
             HandleUserInput = false;
         }
 
+        public override void PlaySamples()
+        {
+            // BMS long-note ends do not sound in LR2/beatoraja — only the head keysound plays. The tail object's WAV
+            // still arms the lane's empty-press keysound (BmsBeatmap timeline), but auto-playing it on release / auto
+            // end would double the sound (an LNTYPE1 tail commonly repeats the head WAV — e.g. GOODBOUNCE's scratch LN
+            // produced "stomp your fee feet") and, with the per-WAV cut, even cut the head. Intentionally silent: do
+            // not call base.PlaySamples().
+        }
+
         protected override void OnApply()
         {
             base.OnApply();

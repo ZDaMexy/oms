@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-05-31
+
+### 修复：缺省 `#LNTYPE` 时长条被整条丢弃（默认应为 1）
+
+- 现象（用户实测定位）：`GOODBOUNCE [A]`（`_goodbounce(SPA).bms`）等少数差分出现"少键"，且一段人声 keysound "stomp your feet" 念到结尾突然截断。最初怀疑音频/通道池，最终查实是**解码器层**：该谱用 5X/6X 长条通道但**省略 `#LNTYPE`**，而 OMS 的 `BmsBeatmapInfo.LongNoteType` 为 `int?` 缺省 `null`，`handleLongNoteChannelEvent` 只认 `case 1/2`，`null` 直接忽略并仅告警 → **全谱 31 条长条（含 key 与 scratch）被丢弃**。
+- 关键耦合：该曲人声被拆成 `voice1 (1)..(4)`（对象 `7E/7F/7G/7H`），收尾段 `voice1 (4)=7H` 恰好放在 **scratch 长条**（`#00856:...7H00007H...`）上；长条被丢 → "feet" 永不发声 → 听感即"念到 f 截断"。这与 [BMS_FORMAT_REFERENCE §5](../../other/BMS_FORMAT_REFERENCE.md) 写明的「`#LNTYPE 1`（RDM 记法，默认）」直接冲突——是代码没实现该默认。
+- 修复：`BmsBeatmapDecoder.handleLongNoteChannelEvent` 改用 `LongNoteType ?? 1`，缺省按规范当作 type 1（保留 `LongNoteType` 为 `null` 以记录"未声明"，默认只在消费处生效）。显式 `#LNTYPE 1/2` 不变，显式非法值仍告警。
+- 测试：新增 `BmsBeatmapDecoderTest.TestDefaultsToLnType1WhenLnTypeHeaderOmitted`（同时含 key 长条 51 与 scratch 长条 56、无 `#LNTYPE` → 解析出 2 条 LnType1，且其一 LaneChannel=0x16 scratch）。LN 相关 focused **43/43**、完整 `osu.Game.Rulesets.Bms.Tests` **864/864**（Debug）通过。
+- 连带项（已在 P1-J 2026-05-31 闭合）：本次修复后用户实测出现 "stomp your fee feet"——LNTYPE1 长条尾对象重复头 WAV，OMS 此前会播尾 keysound 与头叠 double。已让 `DrawableBmsHoldNoteTail.PlaySamples()` 静音（对齐 LR2/beatoraja「长条只头发声」），详见 [P1-J CHANGELOG](../P1-J/CHANGELOG.md) 2026-05-31。
+
 ## 2026-05-29
 
 ### 解析 → 谱面/音乐/键音呈现链路审查后的全量修复（含性能优化）

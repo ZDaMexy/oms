@@ -500,6 +500,30 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestDefaultsToLnType1WhenLnTypeHeaderOmitted()
+        {
+            // No #LNTYPE header: the BMS spec default is type 1 (RDM notation). A chart authored this way — including
+            // GOODBOUNCE [A], whose scratch LN (channel 56) carries the closing syllable of a vocal — must still parse
+            // its long notes instead of having them silently dropped (which presented as a "truncated" scratch keysound).
+            const string text = @"
+#00151:AA00BB00
+#00156:CC00CC00
+";
+
+            var result = decoder.DecodeText(text, "ln-no-lntype.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BeatmapInfo.LongNoteType, Is.Null, "header absence preserved; default applied at consumption");
+                Assert.That(result.ObjectEvents, Is.Empty);
+                Assert.That(result.LongNoteEvents, Has.Count.EqualTo(2));
+                Assert.That(result.LongNoteEvents.All(ln => ln.Encoding == BmsLongNoteEncoding.LnType1), Is.True);
+                Assert.That(result.LongNoteEvents.Any(ln => ln.LaneChannel == 0x16), Is.True, "scratch long note (channel 56 -> lane 0x16) must parse");
+                Assert.That(result.Warnings, Is.Empty);
+            });
+        }
+
+        [Test]
         public void TestPairsLnType2LongNotesAcrossMeasures()
         {
             const string text = @"

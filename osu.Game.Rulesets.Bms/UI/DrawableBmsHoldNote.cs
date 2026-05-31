@@ -150,6 +150,13 @@ namespace osu.Game.Rulesets.Bms.UI
                 isHolding = true;
                 OnUserPressedSuccessfully?.Invoke(this);
             }
+            else
+            {
+                // A pressed POOR/miss on the head never reaches the Hit state, so its keysound would otherwise be
+                // silent. Sound it on key-down to match a regular note's pressed-POOR behaviour (see
+                // DrawableBmsHitObject.OnPressed). A hit head still plays through its own PlaySamples, so no double-up.
+                headDrawable.PlayKeysoundFromPress();
+            }
 
             return true;
         }

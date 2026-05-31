@@ -1,6 +1,6 @@
 # P1-K 开发进度：BMS 解析链路治理
 
-> 最后更新：2026-05-29（K9/K10 邻接审查后全量收口）
+> 最后更新：2026-05-31（修复缺省 #LNTYPE 长条被整条丢弃）
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-K` 的真实进展。
 
 ## 当前阶段
@@ -15,6 +15,7 @@
 
 - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs) 当前已覆盖文本解码、header 解析、部分 indexed definition 与一部分 typed event 构造，但 parser 入口仍以现有 channel / header 假设为主。
 - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs) 当前已对 `#LNTYPE 2` 建立最小 MGQ 状态机：LN channel 显式 `00` 现会被保留为 closing marker，duplicate line compound 也已遵循 `00` 不覆盖已有对象，使长条可以跨小节连续并在 zero slot 处收口。
+- [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs) 的 `handleLongNoteChannelEvent` 现按 BMS 规范把**缺省 `#LNTYPE` 当作 type 1**（`LongNoteType ?? 1`）。此前缺省（`null`）会让所有 5X/6X 长条被整条忽略（实测 `GOODBOUNCE [A]` 丢 31 条，含承载 vocal 收尾的 scratch 长条 → 听感"键音截断" + 少键）。`LongNoteType` 仍保留 `null` 以记录"未声明"，默认只在消费处生效。详见 [CHANGELOG](CHANGELOG.md) 2026-05-31 与 `BmsBeatmapDecoderTest.TestDefaultsToLnType1WhenLnTypeHeaderOmitted`。
 - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsDecodedChart.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsDecodedChart.cs) 现已显式暴露 `RawChannelEvents`，并保留 `ChannelEvents` 作为兼容别名；与此同时，`ScrollEvents`、`BgaEvents`、`InvisibleObjectEvents` 与 `MineEvents` 也已进入中间模型，raw carrier 开始从“隐式 fallback 列表”转向“显式 raw snapshot + additive typed surface”。
 - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapInfo.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapInfo.cs) 现已具备静态背景字段、keysound/bitmap/bpm/stop tables、`ScrollTable`、`UnknownHeaders`、`BgaDefinitions`、`AtBgaDefinitions`、`ArgbDefinitions`、`SwBgaDefinitions`、`PoorBgaMode`，以及 `GetVisualDefinitionProjections()` / `TryGetVisualDefinitionProjection()` 与 `GetPreferredBackgroundAssetReference()`；其中 static background path 已首次实际消费 richer visual-definition family，并会先把两位 base36 bitmap reference 解析回 `BitmapTable`。
 - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsVisualDefinitions.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsVisualDefinitions.cs) 现已作为 richer BGA-definition header family 的 typed model 入口，承接 `#BGA`、`#@BGA`、`#ARGB`、`#SWBGA` 与 `#POORBGA` 的最薄 definition surface，而不提前把 bitmap 绑定、动画调度或运行时播放语义混进 decoder。

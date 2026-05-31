@@ -922,7 +922,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static void handleLongNoteChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, BmsObjectEvent> pendingLnType1Heads, IDictionary<int, List<BmsObjectEvent>> pendingLnType2Segments)
         {
-            switch (decodedChart.BeatmapInfo.LongNoteType)
+            // #LNTYPE defaults to 1 (RDM notation) when the header is absent — see BMS_FORMAT_REFERENCE §5 and the
+            // behaviour of LR2 / beatoraja. Charts that drive LN channels (5X/6X) without declaring #LNTYPE are common;
+            // treating the absent value as "unsupported" silently dropped EVERY long note (e.g. GOODBOUNCE [A] lost 31
+            // LNs, including a scratch LN carrying the closing syllable of a vocal sample — heard as the voice cutting off).
+            switch (decodedChart.BeatmapInfo.LongNoteType ?? 1)
             {
                 case 1:
                     handleLnType1ChannelEvent(decodedChart, channelEvent, pendingLnType1Heads);

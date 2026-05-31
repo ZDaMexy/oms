@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-05-31
+
+### 代码 / 测试：per-WAV cut 改按 WAV 槽号归组（不再按文件名）
+
+- 审查"误判为截断的两轮修复有无副作用"时发现：per-WAV cut 此前按 `BmsKeysoundSampleInfo` 文件名值相等归组。但谱师常把同一音频文件挂到多个 #WAV 槽专门做自重叠（hi-hat/拍手），按文件名归组会**错误掐断**这些本应并发的声音（GOODBOUNCE 因每槽独立文件未中招，但通用性有缺）。
+- 修复：cut 组键从文件名换成 **WAV 槽号（`KeysoundId`）**。`activeSampleChannels` 改为 `Dictionary<int, _>`，通道记 `CurrentCutGroup`（int?），新增 `Play(sample, balance, int cutGroup)` 承载槽号；槽号由 note/head/BGM 的 `KeysoundId` 与新增的 `BmsLaneKeysoundEntry.KeysoundId`（空击 armed）提供。无槽入口（2 参 `Play` / 数组）走不 cut 路径。对齐 LR2/beatoraja「按槽 cut、不同槽即使同文件也独立重叠」。
+- 涉及文件：`BmsKeysoundStore`、`BmsLaneKeysoundEntry`（+`KeysoundId`）、`BmsBeatmapConverter.buildLaneKeysoundTimelines`、`BmsLane.resolveArmedKeysound`、`DrawableBmsHitObject`（`getKeysoundCutGroup`）。`TECHNICAL_CONSTRAINTS.md` 第 9 条已改写并加红线。
+- 测试：`TestSharedKeysoundStoreCutsSameSlotRetrigger`（同槽重触发只占 1 通道）+ 新增 `TestSharedKeysoundStoreDoesNotCutDifferentSlotsSharingAFile`（不同槽同文件 → 并发 2 通道）。完整 `osu.Game.Rulesets.Bms.Tests` **866/866**（Debug）通过，Release 0 警告 0 错误。
+- 说明：另两处"误判轮"的副作用核查结论——idle-first / shrink dispose 为净改进无副作用；pressed-POOR 出声为刻意行为变化（用户确认保留），不改判定/分数。
+
+### 代码 / 测试：LN tail 不再发声（对齐 LR2/beatoraja「长条只头发声」）
+
+- 承接 P1-K 修复缺省 `#LNTYPE`（长条恢复解析）后，用户实测 GOODBOUNCE 的 scratch 长条出现 "stomp your fee feet"——LNTYPE1 长条尾对象重复了头 WAV（`7H`），OMS 此前在长条尾命中/autoplay 时会再播一次尾 keysound，与头叠成 double，叠加 per-WAV cut 还会掐断头。
+- 修复：`DrawableBmsHoldNoteTail.PlaySamples()` 重写为空（不再自动播放尾 keysound，含 release / autoplay），对齐 LR2/beatoraja「长条只头发声」。尾对象 keysound 仍保留在 object 模型（`TailKeysoundSample` / `GetSamples()`）以 arm 空击 keysound 时间线，仅不再 auto-play。`TECHNICAL_CONSTRAINTS.md` 第 3 条拆出 3a 明确该合同。
+- 测试：新增 `TestSceneBmsSharedKeysoundTiming.TestHoldNoteTailKeysoundStaysSilentWhileHeadSounds`（长条头发声 `lnhead.wav`、尾静音）。`TestSceneBmsSharedKeysoundTiming` **5/5**、完整 `osu.Game.Rulesets.Bms.Tests` **865/865**（Debug）通过；`osu.Game.Rulesets.Bms` Release 0 警告 0 错误。
+
+## 2026-05-30
+
+### 代码 / 测试：键音链路审查修复——idle-first 通道分配、pressed-POOR 补播、shrink 真 dispose
+
+- 审查 bms-play 键音链路，定位到两处"截断"与一处资源缺口：
+  - **提前截断（核心）**：`BmsKeysoundStore.getNextChannel()` 自 initial commit 起为纯 round-robin（不是性能优化引入的回归，但确为热路径），会在远低于复音上限、仍有空闲通道时就回收正在播放的通道——长样本（尤其 layered BGM 长 sustain）被提前切断。改为 **idle-first**：先取空闲通道，只有全部繁忙（真正复音饱和）才按轮转偷取近似最旧者。空闲集由 `reclaimIdleChannels()` 每帧重建（O(N) 读、零分配；`Stack` 预留 `MAX_CONCURRENT_CHANNELS`、`Clear()` 保留容量），`getNextChannel()` 保持 O(1)，不回退 dense-chart 热路径。
+  - **pressed-POOR 静音**：osu! 基类仅在 `ArmedState.Hit` 调 `PlaySamples()`，因此按了键但判为 POOR/miss 并消费了输入的 note 完全静音（lane 回退也因消费而不触发）——偏离 IIDX/LR2/beatoraja"按键必出声"。新增 `DrawableBmsHitObject.PlayKeysoundFromPress()`，在 `OnPressed` 判定为非命中、以及 LN head 在 `TryApplyHeadPress` 非命中时于 key-down 补播该 note keysound；clean hit 仍只走 `PlaySamples`、不 double；未按键的自然 miss 与 tail release miss 仍静音。
+  - **shrink 不释放**：live channel shrink 原用 `Remove(channel, false)`，留下脱挂未 dispose 的 sound drawable。改为先置 `Retired` 再 `Remove(channel, true)` 真 dispose，分配路径跳过 retired 引用。
+- 同日追加 **per-WAV cut（每键音单声部）**：用户反馈 256 通道下仍听到截断后，确认还缺经典 BMS 的"同一 WAV 重触发掐断前一实例"语义。`BmsKeysoundStore` 新增 `activeSampleChannels`（按 `BmsKeysoundSampleInfo` 文件名值相等归组）+ 通道 `CurrentSample`：`getChannelForSample()` 在该通道仍 busy 且 `CurrentSample` 值相等时复用之，令同 WAV 重触发干净重启而非叠加。对齐 BM98/LR2/beatoraja，并缓解同音连打饿死通道池。`TECHNICAL_CONSTRAINTS.md` 新增第 9 条。
+- 文档同步：`TECHNICAL_CONSTRAINTS.md` 第 3 条改写键音播放语义合同（key-down 必出声），新增第 8 条 idle-first 分配 + dispose 合同、第 9 条 per-WAV cut；`DEVELOPMENT_PLAN.md` J1 验证项、`DEVELOPMENT_STATUS.md` 代码/验证/已确认事实/进度矩阵同步。
+- focused validation：`--filter "FullyQualifiedName~Keysound|FullyQualifiedName~TestSceneBmsPlayerAudioSemantics"` **50/50** 通过（含新增 `TestSharedKeysoundStorePrefersIdleChannelOverBusyOne`、`TestPoorPressStillTriggersKeysound`、`TestSharedKeysoundStoreCutsSameSampleRetrigger`）；完整 `osu.Game.Rulesets.Bms.Tests` **863/863**（Debug）通过；`osu.Game.Rulesets.Bms` Release 构建 0 警告 0 错误。
+- ⚠️ 未结：用户报告一段约 1~2 秒人声 keysound 在 256 通道、低密度下仍被截断（"stomp your feet" 念到 f 处断）。静态分析已排除键音通道池（idle-first 经测试证明不偷在播通道；每样本 `DrawablePool` `maximumSize=null` 不回收在播实例；BMS 侧正常播放无显式 stop，仅 pause/seek 触发 `StopAllPlayback`）。根因待用户提供 autoplay 复现 / 该 WAV 的谱面排布（是否被重复触发）后再定位。
+
 ## 2026-05-18
 
 ### 代码 / 测试：补上 BMS keysound 的 autoplay 预热缺口，前移首次 sample pool 初始化

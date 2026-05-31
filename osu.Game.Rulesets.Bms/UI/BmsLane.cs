@@ -185,13 +185,13 @@ namespace osu.Game.Rulesets.Bms.UI
             if (keysoundStore == null || keysoundTimeline.Count == 0)
                 return;
 
-            var sample = resolveArmedKeysound(Time.Current);
+            var entry = resolveArmedKeysound(Time.Current);
 
-            if (sample != null)
-                keysoundStore.Play(sample, 0);
+            if (entry != null)
+                keysoundStore.Play(entry.Value.Sample, 0, entry.Value.KeysoundId);
         }
 
-        private BmsKeysoundSampleInfo? resolveArmedKeysound(double time)
+        private BmsLaneKeysoundEntry? resolveArmedKeysound(double time)
         {
             // Binary search for the most recent assignment at-or-before `time`. Before the first entry, fall back to
             // the first so the lane is never silent and the opening press previews the first keysound.
@@ -212,7 +212,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     high = mid - 1;
             }
 
-            return keysoundTimeline[resolved < 0 ? 0 : resolved].Sample;
+            return keysoundTimeline[resolved < 0 ? 0 : resolved];
         }
 
         private bool shouldTriggerEmptyPoor()

@@ -5,7 +5,27 @@
 
 ---
 
+## 2026-05-31
+
+### 代码 / 测试：修复缺省 `#LNTYPE` 长条被整条丢弃（P1-K，解码器）
+
+承接 2026-05-30 键音链路审查：用户实测把"键音截断"精确定位到 `GOODBOUNCE [A]` 等少数差分的**少键 + scratch 人声截断**，最终查实是**解码器层**——这些谱用 5X/6X 长条通道却省略 `#LNTYPE`，而 OMS 把缺省（`null`）当作"不支持"整条忽略（实测丢 31 条长条，含承载 vocal 收尾段 `voice1 (4)` 的 scratch 长条 → 听感即"念到 f 就断"）。这与 [BMS_FORMAT_REFERENCE §5](../other/BMS_FORMAT_REFERENCE.md) 写明的「`#LNTYPE 1` 为默认」冲突。修复：`handleLongNoteChannelEvent` 改用 `LongNoteType ?? 1`。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md)。
+
+并连带闭合两处（P1-J）：
+- 长条恢复后用户实测 scratch 长条出现 "stomp your fee feet"——LNTYPE1 尾对象重复头 WAV，OMS 此前会播尾 keysound 与头叠 double。已让长条尾静音（`DrawableBmsHoldNoteTail.PlaySamples()` 空实现，对齐 LR2/beatoraja「长条只头发声」）。
+- 复盘前两轮（误判为播放层截断）的副作用时，把 per-WAV cut 的归组粒度从**文件名**收紧到 **WAV 槽号（`KeysoundId`）**：避免错误掐断"多槽同文件做自重叠"的谱（对齐 LR2/beatoraja）。pressed-POOR 出声经确认保留，idle-first / shrink dispose 为净改进。
+
+验证：完整 `osu.Game.Rulesets.Bms.Tests` **866/866**（Debug），Release 0 警告 0 错误。
+
 ## 2026-05-30
+
+### 代码 / 测试：BMS 键音链路审查修复（P1-J）——消除两处"截断"
+
+bms-play 键音链路审查定位并修复：
+- **通道分配提前截断**：`BmsKeysoundStore` 原始纯 round-robin 在仍有空闲通道时也会回收正在播放的通道，长样本（尤其 layered BGM）被提前切断。改为 idle-first（仅在真正复音饱和才轮转偷取），空闲集每帧重建、`getNextChannel` 保持 O(1)，不回退 dense-chart 热路径。
+- **pressed-POOR 静音**：按了键但判 POOR/miss 的 note 此前完全无声（基类只在 Hit 状态播 keysound），偏离 IIDX/LR2/beatoraja"按键必出声"。改为非命中按键在 key-down 补播该 note keysound（含 LN head），clean hit 不 double，未按键自然 miss 与 tail release miss 仍静音。
+- 附带修复 live channel shrink 不 dispose 的脱挂 sound drawable。
+- 详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md)。验证：完整 `osu.Game.Rulesets.Bms.Tests` **862/862**（Debug），Release 构建 0 警告 0 错误。
 
 ### 调查与决策：C# Dev Kit 误把 osu.Game 当测试工程（确认良性，接受现状，不改功能）
 
