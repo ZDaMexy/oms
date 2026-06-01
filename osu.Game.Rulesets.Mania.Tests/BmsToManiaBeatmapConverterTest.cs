@@ -57,7 +57,7 @@ namespace osu.Game.Rulesets.Mania.Tests
         }
 
         [Test]
-        public void TestSevenKeyScratchHoldKeepsHeadTailSamplesWithoutCreatingJudgedObjects()
+        public void TestSevenKeyScratchHoldKeepsHeadSampleButSilencesTailWithoutCreatingJudgedObjects()
         {
             const string text = @"
 #TITLE 7K Scratch Hold
@@ -86,7 +86,8 @@ namespace osu.Game.Rulesets.Mania.Tests
                 Assert.That(key1.Column, Is.EqualTo(0));
                 Assert.That(key7.Column, Is.EqualTo(6));
                 Assert.That(convertedBeatmap.HitObjects.OfType<HoldNote>(), Is.Empty);
-                Assert.That(scratchSamples.Select(getSampleFilename), Is.EqualTo(new[] { "scratch.wav", "scratch-head.wav", "scratch-tail.wav" }));
+                // Scratch LN head still sounds; the tail (scratch-tail.wav) is dropped to match "LN tail silent".
+                Assert.That(scratchSamples.Select(getSampleFilename), Is.EqualTo(new[] { "scratch.wav", "scratch-head.wav" }));
                 Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(2));
             });
         }
@@ -438,6 +439,67 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
         }
 
+        [Test]
+        public void TestBgmEventsBecomeSampleOnlyObjectsWithoutAffectingScorableCounts()
+        {
+            const string text = @"
+#TITLE BGM Layer
+#BPM 120
+#WAVAA key1.wav
+#WAVBB bgm1.wav
+#WAVCC bgm2.wav
+#00111:AA00
+#00101:BB00CC00
+";
+
+            var convertedBeatmap = convertToMania(text, "bgm.bms");
+            var notes = convertedBeatmap.HitObjects.OfType<Note>().ToArray();
+            var bgmSamples = convertedBeatmap.HitObjects.OfType<BmsConvertedBgmSampleHitObject>().OrderBy(hitObject => hitObject.StartTime).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                // The playable note carries its keysound as before; the two autoplay BGM (channel 0x01) layers are no
+                // longer dropped, but surface as sample-only objects that do not inflate the scorable counts.
+                Assert.That(notes.Select(getSampleFilename), Is.EqualTo(new[] { "key1.wav" }));
+                Assert.That(bgmSamples.Select(getSampleFilename), Is.EqualTo(new[] { "bgm1.wav", "bgm2.wav" }));
+                // Slot + sample are carried so the shared store (J6) can play with per-WAV cut and pause/seek handling.
+                Assert.That(bgmSamples.Select(hitObject => hitObject.KeysoundSample?.Filename), Is.EqualTo(new[] { "bgm1.wav", "bgm2.wav" }));
+                Assert.That(bgmSamples.Select(hitObject => hitObject.KeysoundId.HasValue), Has.All.True);
+                Assert.That(bgmSamples.Select(hitObject => hitObject.Column), Has.All.EqualTo(0));
+                Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(notes.Length));
+                Assert.That(convertedBeatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
+            });
+        }
+
+        [Test]
+        public void TestConvertedHoldNoteKeepsHeadKeysoundButSilencesTailToMatchBmsContract()
+        {
+            const string text = @"
+#TITLE LN Tail Silent
+#BPM 120
+#WAVAA head.wav
+#WAVBB tail.wav
+#WAVCC key7.wav
+#LNTYPE 1
+#00151:AA00BB00
+#00117:CC00
+";
+
+            var convertedBeatmap = convertToMania(text, "ln-tail.bme");
+            var hold = convertedBeatmap.HitObjects.OfType<HoldNote>().Single();
+
+            Assert.Multiple(() =>
+            {
+                // Head still sounds (NodeSamples[0]); the tail node sample is emptied so mania does not replay the
+                // head WAV on release, matching the BMS-side "LN tail silent" contract (P1-J #3a) and avoiding the
+                // LNTYPE1 head/tail double.
+                Assert.That(getSampleFilename(hold), Is.EqualTo("head.wav"));
+                Assert.That(hold.NodeSamples, Has.Count.EqualTo(2));
+                Assert.That(hold.NodeSamples[0].OfType<BmsKeysoundSampleInfo>().Single().Filename, Is.EqualTo("head.wav"));
+                Assert.That(hold.NodeSamples[1], Is.Empty);
+            });
+        }
+
         private ManiaBeatmap convertToMania(string text, string filename, Action<BmsDecodedBeatmap>? mutateSource = null)
         {
             var decodedChart = decoder.DecodeText(text, filename);
@@ -462,7 +524,7 @@ namespace osu.Game.Rulesets.Mania.Tests
 
             scorableBeatmap.BeatmapInfo = new BeatmapInfo(maniaRuleset.RulesetInfo.Clone(), convertedBeatmap.Difficulty.Clone(), convertedBeatmap.Metadata);
             scorableBeatmap.ControlPointInfo = convertedBeatmap.ControlPointInfo;
-            scorableBeatmap.HitObjects = convertedBeatmap.HitObjects.Where(hitObject => hitObject is not BmsConvertedScratchSampleHitObject).ToList();
+            scorableBeatmap.HitObjects = convertedBeatmap.HitObjects.Where(hitObject => hitObject is not (BmsConvertedScratchSampleHitObject or BmsConvertedBgmSampleHitObject)).ToList();
 
             return scorableBeatmap;
         }

@@ -104,7 +104,13 @@ namespace osu.Game.Rulesets.Mania.Replays
             return null;
         }
 
-        private static bool canParticipateInAutoplay(HitObject hitObject) => hitObject.Judgement.MaxResult.AffectsCombo();
+        // A hold note's own MaxResult is IgnoreHit (not combo-affecting) — its playable press/release live in the nested
+        // head/tail. Mirror OrderedHitPolicy.canParticipateInLocking by also considering nested objects, so hold notes are
+        // auto-played, while sample-only objects (BMS BGM/scratch keysounds, which carry no combo-affecting nested object)
+        // are still skipped.
+        private static bool canParticipateInAutoplay(HitObject hitObject)
+            => hitObject.Judgement.MaxResult.AffectsCombo()
+               || hitObject.NestedHitObjects.Any(h => h.Judgement.MaxResult.AffectsCombo());
 
         private interface IActionPoint
         {

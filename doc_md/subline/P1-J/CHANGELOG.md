@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-01
+
+### 代码 / 测试：mania 转谱 BGM/scratch 走共享 `BmsKeysoundStore` 落地（J6 首版：E 实测修复 / D 仍未解后置）
+
+承接 P1-K 对 `BMS -> mania` 转谱音频链路的审查（见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md) 2026-06-01）：BGM 补全的"对象发什么"归 P1-K（K11），但补出的 BGM sample-only 对象在 **mania runtime 如何发声、dense-BGM 是否卡顿**归本子线。规划 J6：
+
+- **播放路由差异（须知）**：BMS 原生 BGM 走 shared `BmsKeysoundStore`（32-256 通道、idle-first、per-WAV cut）；mania 侧 sample-only 对象走非池化 `CreateDrawableRepresentation` + 每对象独立 `SkinnableSound`。dense 键音谱 BGM 常数千事件 → 潜在 alloc/GC/首帧懒初始化卡顿。mania 侧无 `BmsKeysoundStore` 等价预热设施。
+- **保真合同**：mania 转谱 BGM 必须 autoplay 出声（与 BMS 原生模式音频一致）；LN 尾在 mania 也须静音（对齐第 3a 条；转谱器不得把尾 keysound 放进 `NodeSamples[1]`，由 K11 落实）。
+- **性能策略（分级）**：先复用 sample-only drawable 范式 + mania 对象池/滚动窗口（只活窗口内对象），实测 dense BGM 谱；若不达标再评估 mania 侧共享样本通道池（复用 `BmsKeysoundStore` 思路，并补 BGM per-WAV cut，`BmsBgmEvent.KeysoundId` 已可用），不得为此新长出 per-note/per-lane 独立 player（沿用约束 1）。
+
+上游 P1-K `K11` 已于同日落地解决「BGM 能否出声」。本子线 **J6 首版实现**：转谱 BGM / scratch sample 不再走 per-object 一次性 `SkinnableSound`，改为经一个**复用的 `BmsKeysoundStore`** 播放——`DrawableManiaRuleset` 检测到 converted-BMS beatmap 时（反射 `BmsToManiaKeysoundStoreFactory.ShouldHost/Create`）创建该 store，在 `CreateChildDependencies` 里 `Cache`（按 runtime 类型 `BmsKeysoundStore`，mania 不能编译期命名它）、`load()` 里 `AddInternal` 到游玩树以解析 `GameplayClockContainer`；转谱对象携带 `KeysoundSample` + `KeysoundId`，drawable `[Resolved(CanBeNull = true)]` 该 store 并 `Play(sample, 0, cutGroup)`（store 缺席则安全回退 `PlaySamples`）。这样暂停 / seek 由 store 统一 `StopAllPlayback`（修 **E**），通道有上限 + idle-first 复用、不再每个 BGM 一个 `SkinnableSound`（降低音频对象数，原意缓解 **D**——实测见下未达预期），并白送 per-WAV cut。
+
+涉及：新增 `BmsToManiaKeysoundStoreFactory`；`BmsConvertedBgmSampleHitObject` / `BmsConvertedScratchSampleHitObject` 加 `KeysoundSample` / `KeysoundId`；两个 converted-sample drawable 改走 store；`BmsToManiaBeatmapConverter` 设这两字段；`DrawableManiaRuleset` 加反射宿主 + `CreateChildDependencies` 缓存 + `load` 挂载（仅 converted-BMS 触发，普通 mania 无影响、BMS 缺席为 no-op）。
+
+验证：`dotnet build osu.Desktop.slnf -c Release` **0 错误 0 警告**；`BmsToManiaBeatmapConverterTest` **19/19**（含 BGM 携带 slot/sample 断言）；完整 `osu.Game.Rulesets.Bms.Tests` **869/869** 无回归。**2026-06-01 用户人工实测**：E 已修复（暂停立即停 BGM）✅、B 的 scratch 长条 double 消失 ✅、普通 mania 无回归 ✅；**D 仍未解**——dense 极端谱高密段仍极度缓慢。J6 共享 store 已把音频从数千 `SkinnableSound` 收成 32 通道，但既然 dense 仍极慢，**说明瓶颈不在音频对象数**（疑 drawable 数量 / 转换链 / 渲染），D 后置、日后处理（需先 profile 定位真瓶颈，再决定归 P1-J 后续切片）。已知残留：mania `Note` / `HoldNote` 自身键音仍走 per-drawable 一次性样本（非本 store），暂停期间长音符键音仍可能播完，属较小残留（用户 E 反馈为连续 BGM、已解）。
+
 ## 2026-05-31
 
 ### 代码 / 测试：per-WAV cut 改按 WAV 槽号归组（不再按文件名）

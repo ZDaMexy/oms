@@ -10,7 +10,7 @@
 - `Settings -> Maintenance` 现已从原先“外部谱库 subsection 混放外部/内部扫描”改为 `外部谱库` / `内部谱库` 双 subsection；内部两种扫描语义已完成层级隔离。
 - `ExternalLibrarySettings` 现也被首次启动向导导入页直接复用，作为 OMS onboarding 的外部谱库导流入口；该入口不新增任何独立扫描逻辑，仍共享 `P1-H` 的外部谱库 contract。
 - Settings → 常规 → 安装位置 当前已把入口明确为 `更改数据目录位置`；它只切换/迁移运行时数据根，不移动程序文件。空目录会直接迁入当前数据内容，非空非数据目录会改用其下 `oms/` 子目录，已是可用数据目录则只写 `storage.ini` 并在重启后切换。
-- 当前另有一条已正式归线的 `P1-H` 修补专题：**BMS 难度表一致性与刷新合同**。其中前三批 correctness 修补已经落地：manager-owned metadata sync、`RefreshAll` 真实结果合同、以及 wrapper/source identity fallback 均已接通并经聚焦回归验证；与此同时，响应性后置与 reuse 自愈也已继续推进：persisted metadata 回写已改为按受影响 MD5 集合分批写入，`RefreshAll` 已补齐逐源进度合同与 settings 页持续反馈，旧 beatmap set 在 rebuild / reuse 命中时也会重新套用当前难度表 metadata。当前这轮工程修补已可收尾；若后续仍有 `Unrated` 反馈，优先进入现场 MD5 差异诊断，不再视为 consumer-side 分组缺口。
+- 当前另有一条已正式归线的 `P1-H` 修补专题：**BMS 难度表一致性与刷新合同**。其中前三批 correctness 修补已经落地：manager-owned metadata sync、`RefreshAll` 真实结果合同、以及 wrapper/source identity fallback 均已接通并经聚焦回归验证；与此同时，响应性后置与 reuse 自愈也已继续推进：persisted metadata 回写已改为按受影响 MD5 集合分批写入，`RefreshAll` 已补齐逐源进度合同与 settings 页持续反馈，旧 beatmap set 在 rebuild / reuse 命中时也会重新套用当前难度表 metadata。当前这轮工程修补已可收尾。2026-05-31 定位并修复**全 `Unrated`** 真根因：转谱星数（`BmsPersistedMetadataData`）与难度表（`BmsBeatmapMetadataData`）各自定义容器类却共用同一 `BeatmapMetadata.RulesetData` 列，`SetRulesetData<T>` 整体覆盖写互相抹掉对方独有字段（转谱星数重算冲掉难度表 entries → 全 Unrated；反向冲掉星数触发反复重算）；已用两侧 `[JsonExtensionData]` 往返保留修复（CONSTRAINTS #22）。同日早先误判为 carousel staleness 并加 per-set `BeatmapSetInfo.DifficultyTableRevision` bump（schema 55），因大库（5.7 万谱）一次开关表命中数千 set → per-set re-detach 卡死 1~2 分钟，已**撤销** bump（字段闲置保留）；回写注入全局 `RealmAccess`（消除第二实例 `cleanupPendingDeletions` 越权）、enable/disable/remove 异步化保留有效。若后续仍有 `Unrated`，先确认**重启后是否仍 `Unrated`**：重启后正常属 carousel 中途未刷新（已知限制，需重启反映），重启后仍 `Unrated` 才查 `RulesetData` 字段是否被其它子系统覆盖、或现场 MD5 差异。
 - 当前还补了一条小型但正式归线的 raw-wrapper 显示合同修补：`BmsImportedBeatmapFactory` 现会把首次转换得到的 `ControlPointInfo` / `HitObjects` / `Breaks` 复用回 raw wrapper，使 Song Select 左上 BPM 这类直接读取 `WorkingBeatmap.Beatmap` 的 raw consumer 不再回退到默认 `60 BPM`；BPM 分组 / 排序仍继续使用 persisted `BeatmapInfo.BPM`，本轮不改变其 authority。
 - 当前剩余重点已扩展为：删除 / 失效语义、path identity dedup / 重扫策略，以及难度表的后置后台任务化 / 取消策略与现场 MD5 诊断工具化。
 
@@ -22,7 +22,7 @@
 | 基础存储拓扑 | 已完成 | `chartbms/` / `chartmania/` / `storage.ini` / `portable.ini` 主链已落地 |
 | 外部谱库管理 | 已完成 | `ExternalLibraryConfig` / `ExternalLibraryScanner` + `外部谱库` subsection 已接通，现支持 `重建 / 增量`，并已复用于首次启动向导导入页 |
 | 内部谱库重扫 | 已完成 | `ManagedLibraryScanner` + `内部谱库` subsection 已接通，现支持 `重建 / 增量`；尾分隔符误判已修复 |
-| 难度表一致性 / 刷新合同 | 已完成（当前修补） | 主链 correctness、反馈与 reuse recovery 已收口；剩余仅为后台任务化 / 取消策略后置与 MD5 现场诊断工具化 |
+| 难度表一致性 / 刷新合同 | 已完成（当前修补） | 主链 correctness、反馈、reuse recovery 已收口；2026-05-31 修复全 `Unrated` 真根因（转谱星数与难度表共用 `RulesetData` 列互相覆盖 → 两侧 `[JsonExtensionData]` 往返保留，CONSTRAINTS #22）；同日撤销误判 staleness 的 per-set bump（大库卡死，中途开关表改重启反映）；注入全局 `RealmAccess` + 异步化保留有效；剩余为中途即时刷新（后续）与 MD5 现场诊断 |
 | 删除 / 失效语义 | 未开始 | 待收口 |
 | path identity dedup / 重扫策略 | 未开始 | 待收口 |
 

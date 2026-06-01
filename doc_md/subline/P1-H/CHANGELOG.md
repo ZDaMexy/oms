@@ -1,5 +1,31 @@
 # P1-H 变动日志
 
+## 2026-05-31
+
+### 订正：难度表全 Unrated 的真根因是 RulesetData 字段互相覆盖（推翻下方 staleness 判断 + 撤销 bump）
+
+实机验证推翻了同日早先的 staleness 判断。**真根因**：转谱星数子系统 `BmsPersistedMetadataData`（osu.Game，`{ chart_metadata, converted_star_ratings }`）与难度表子系统 `BmsBeatmapMetadataData`（BMS，`{ difficulty_table_entries, chart_metadata, chart_filter_stats }`）**各自定义容器类、却都序列化进同一个 `BeatmapMetadata.RulesetData` 列**，而 `SetRulesetData<T>` 是整体覆盖写、Newtonsoft 默认丢弃未知字段 → **互相把对方独有字段整段冲掉**：
+
+- 转谱星数重算 → 反序列化成 `BmsPersistedMetadataData` → `difficulty_table_entries` 被丢 → **全 Unrated**（用户实测：重算 11336 后退出再进即全 Unrated）；
+- 难度表回写 → 丢 `converted_star_ratings` → 启动判定星数 missing → 重算 11336 → 再冲掉难度表 → 破坏性 ping-pong，"有概率"取决于最后谁写。
+
+**修复**：给两个容器类都加 `[JsonExtensionData]`，反序列化时把对方字段存入扩展字典、序列化时原样写回；`BmsBeatmapMetadataData.IsEmpty` 同步计入 ExtensionData（否则清空难度表会 `SetRulesetData(null)` 连星数一起抹掉）。双向回归：`TestDifficultyTableWriteBackPreservesForeignRulesetDataFields`（BMS）+ `TestConvertedStarRatingWritePreservesDifficultyTableFields`（osu.Game）。新增 CONSTRAINTS #22。
+
+**撤销 per-set bump**：下方 staleness 方案的 `BeatmapSetInfo.DifficultyTableRevision++` 在 5.7 万谱库 + 万级条目下，一次表开关命中数千 set → 数千次 carousel per-set re-detach（8 万 update-read + 2000 pending task）→ UI 卡死 1~2 分钟（用户实测）。已移除 bump；字段保留（schema 55 不回退迁移），暂闲置。**代价**：会话中途开关表需重启才反映到分组；启动恒正确。中途即时刷新留作后续轻量方案（分组改走内存索引 + 一次性 re-filter）。
+
+验证：完整 `osu.Game.Rulesets.Bms.Tests` **869/869**、`BmsStarRatingResolverTest` **13/13**；`osu.Desktop.slnf` Release 0 警告 0 错误。**用户实机确认**：修复后转谱星数重算不再复发（ping-pong 打破的决定性证据）、难度表分组正确（退出选曲重进或完全重启后生效）。残留：旧构建已冲掉的 entries 需一次 `禁用→启用` 任一表补回（一次 mutation 用完整 enabled-table lookup 回写所有匹配谱面），之后持久。已知性能项：大库（5.7 万谱）下该回写仍约 1 分钟（`updatePersistedBeatmaps` 用 `AsEnumerable` 全表客户端过滤 + 写上万谱面，#1 后续优化；后台执行不硬阻塞 UI 但掉帧、音乐正常）；会话中途开关表的即时分组刷新仍缺（需退出选曲重进/重启）。
+
+### 修复难度表分组「会话中途启用/刷新后全落 Unrated」+ 回写架构收口 + 健壮性
+
+> ⚠️ **本小节为初判，已被上方订正推翻**：staleness（carousel 缓存陈旧）只是次要现象、非全 Unrated 主因；其 per-set `DifficultyTableRevision` bump 方案在大库下导致 UI 卡死，已撤销。注入全局 `RealmAccess` / 异步化 / MD5 归一化 / 递归保护 / 去 `GetSources().Single` 等改动**保留有效**。
+
+- **根因**：难度表回写改的是 `BeatmapInfo.Metadata.RulesetData`（`BeatmapSetInfo → Beatmaps → Metadata` 下 2 层深 link 属性），而 carousel 数据源 `RealmDetachedBeatmapStore` 只订阅 `All<BeatmapSetInfo>()` 且 `RegisterForNotifications` 不带 keyPaths（Realm 默认浅层通知），深层 link 属性变更不触发集合 modified → carousel 不重新 detach、保持旧快照；切到难度表分组只对旧 detached items 重过滤 → 全 `Unrated`。完全重启后初始全量 detach 才恢复，故表现为"有概率"。MD5 大小写经查不是根因（`BeatmapInfo.MD5Hash` 与表 entry 两侧均为小写）。
+- **主修（精准增量刷新）**：新增 `BeatmapSetInfo.DifficultyTableRevision`（realm schema 54→55，纯新增字段无 migration case）。回写 metadata 的同事务内，对 entries 实际发生变化的 set bump 该标量字段，强制 `All<BeatmapSetInfo>()` 集合 modified → `RealmDetachedBeatmapStore` 增量 re-detach → carousel `Replace` 分支 `FindWithRefresh<BeatmapInfo>().Detach()` 拉最新 metadata 重组，无需重启。
+- **回写架构收口（消除第二 RealmAccess）**：`BmsDifficultyTableManager` 不再在回写时 `new` 第二个 `RealmAccess`（消除其构造期 `cleanupPendingDeletions` 越权物删待删谱面集 + 与全局实例时序竞争），改为构造时注入全局 `RealmAccess`；`GetShared/GetSharedAsync` 增加 `RealmAccess` 参数，settings / first-run 反射桥 / importer 全部传入全局实例。
+- **响应性**：`SetSourceEnabled` / `RemoveSource` 增加 `...Async` 入口，settings 的启用/禁用/移除改走后台线程 + `operationInProgress`，不再在 UI 线程同步回写 + 全表扫描（correctness 已收口，符合本目录约束 #16 的后置时序）。
+- **健壮性**：回写匹配统一 `ToLowerInvariant` 归一化 `BeatmapInfo.MD5Hash`（防御大小写漂移，不放宽 identity 口径，符合 #18）；`loadTableSource` 递归加深度上限（防 HTML→引用→HTML 环路）；`importFromPath` / `refreshTable` 末尾改用手中数据拼装返回，去掉 `GetSources().Single` 全量重查（`RefreshAll` 由此从 O(N) 次全表重载降为常量）。
+- 验证：新增大小写回写、`DifficultyTableRevision` 仅命中集递增、HTML 环路保护三组回归；难度表相关 **23/23**、导入集成 **26/26** 通过；`osu.Desktop.slnf` Release 0 警告 0 错误。人工验证 carousel 中途刷新待用户确认。
+
 ## 2026-05-09
 
 ### 数据目录迁移入口改为按真实语义描述

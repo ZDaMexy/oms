@@ -9,11 +9,21 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 {
     public static class BmsToManiaDrawableRepresentationFactory
     {
-        public static bool CanCreate(ManiaHitObject hitObject) => hitObject is BmsConvertedScratchSampleHitObject;
+        public static bool CanCreate(ManiaHitObject hitObject) => hitObject is BmsConvertedScratchSampleHitObject or BmsConvertedBgmSampleHitObject;
 
         public static DrawableHitObject<ManiaHitObject>? Create(ManiaHitObject hitObject)
-            => hitObject is BmsConvertedScratchSampleHitObject scratchSampleHitObject
-                ? new DrawableBmsConvertedScratchSampleHitObject(scratchSampleHitObject)
-                : null;
+        {
+            switch (hitObject)
+            {
+                case BmsConvertedScratchSampleHitObject scratchSampleHitObject:
+                    return new DrawableBmsConvertedScratchSampleHitObject(scratchSampleHitObject);
+
+                case BmsConvertedBgmSampleHitObject bgmSampleHitObject:
+                    return new DrawableBmsConvertedBgmSampleHitObject(bgmSampleHitObject);
+
+                default:
+                    return null;
+            }
+        }
     }
 }

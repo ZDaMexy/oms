@@ -127,5 +127,34 @@ namespace osu.Game.Tests.Beatmaps
 
             Assert.That(BmsStarRatingResolver.ResolveOrDefault(beatmap), Is.Zero);
         }
+
+        [Test]
+        public void TestConvertedStarRatingWritePreservesDifficultyTableFields()
+        {
+            // The BeatmapMetadata.RulesetData column is shared with the BMS ruleset's difficulty-table payload
+            // (difficulty_table_entries / chart_filter_stats). Persisting a converted star rating must NOT drop
+            // those foreign fields — otherwise recomputing star ratings (e.g. on a difficulty-version bump) wipes
+            // every chart's difficulty-table grouping data, which is exactly the "all Unrated after recompute" bug.
+            var metadata = new BeatmapMetadata
+            {
+                RulesetDataJson =
+                    "{\"difficulty_table_entries\":[{\"TableName\":\"Satellite\",\"Symbol\":\"★\",\"Level\":5,\"LevelLabel\":\"★5\",\"Md5\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"TableSortOrder\":0}]}"
+            };
+            var maniaRuleset = new RulesetInfo { ShortName = "mania", LastAppliedDifficultyVersion = 20241007 };
+
+            BmsPersistedMetadataResolver.SetConvertedStarRating(metadata, maniaRuleset, 6.5, maniaRuleset.LastAppliedDifficultyVersion);
+
+            var beatmap = new BeatmapInfo(new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName }) { Metadata = metadata };
+
+            Assert.Multiple(() =>
+            {
+                // converted star rating landed
+                Assert.That(BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmap, maniaRuleset, out double sr), Is.True);
+                Assert.That(sr, Is.EqualTo(6.5));
+                // the foreign difficulty_table_entries field survived the round-trip
+                Assert.That(metadata.RulesetDataJson, Does.Contain("difficulty_table_entries"));
+                Assert.That(metadata.RulesetDataJson, Does.Contain("Satellite"));
+            });
+        }
     }
 }

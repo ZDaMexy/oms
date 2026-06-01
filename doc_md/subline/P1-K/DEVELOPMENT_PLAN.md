@@ -1,6 +1,6 @@
 # P1-K 开发计划：BMS 解析链路治理
 
-> 最后更新：2026-05-26
+> 最后更新：2026-06-01（订正 K9 #12 autoplay 谓词：`canParticipateInAutoplay` 改 nested-aware、恢复长条 autoplay，验证清单补长条用例；此前新增 K11 切片：BMS→mania 转谱 BGM/autoplay 音频补全与 LN 尾键音对齐）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-K` 的执行顺序；存储/导入一致性见 [../P1-H/DEVELOPMENT_PLAN.md](../P1-H/DEVELOPMENT_PLAN.md)，runtime 热路径与播放期性能见 [../P1-J/DEVELOPMENT_PLAN.md](../P1-J/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -327,7 +327,7 @@
 建议测试锚点：
 
 1. [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)：锁住 keymode matrix、flatten column 结果、`14K -> 7+7` dual-stage、sample-only scratch sample preservation、control-point sanitisation、modless source gate 与 converted-star recompute。
-2. [../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs](../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs)：锁住 ignore-only scratch 不阻塞列输入、autoplay 不再为 scratch sample 生成假按键，以及相邻 mania autoplay correctness。
+2. [../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs](../../osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs)：锁住 ignore-only scratch 不阻塞列输入、autoplay 不再为 scratch/BGM sample 生成假按键、**长条 autoplay 完整按放**（原生 mania 与转谱共用 `ManiaAutoGenerator`，`canParticipateInAutoplay` nested-aware；`TestPerfectScoreOnShortHoldNote` + `TestAutoplayHoldsLongNoteAlongsideSampleOnlyObject`），以及相邻 mania autoplay correctness。
 3. [../../osu.Game.Tests/Beatmaps/BmsStarRatingResolverTest.cs](../../osu.Game.Tests/Beatmaps/BmsStarRatingResolverTest.cs) 与 [../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs](../../osu.Game.Tests/Visual/SongSelect/BeatmapCarouselFilterSortingTest.cs)：锁住 persisted converted star、version gate 与 current-ruleset resolved-star display，不得再回退到 raw BMS star。
 4. [../../osu.Game.Tests/Visual/Navigation/TestScenePresentBeatmap.cs](../../osu.Game.Tests/Visual/Navigation/TestScenePresentBeatmap.cs) 与 [../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs](../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs)：当继续推进公开表面时，锁住 supported / unsupported source chart 的 presentation gate 与 convert visibility 不会误用 generic heuristics。
 
@@ -395,6 +395,48 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 2. 确认 B 的"权威 mania 计算器版本"获取方式不引入每读一次的难度计算开销。
 3. 确认导入期 best-effort 包裹不改变现有导入失败/通知语义。
 
+### K11：BMS -> mania 转谱 BGM / autoplay 音频补全与 LN 尾键音对齐
+
+状态：converter 侧已落地（2026-06-01；BGM sample-only 补全 + LN 尾 node sample 置空，`BmsToManiaBeatmapConverterTest` 19/19、BMS 869/869、Release 0 错误）；dense-BGM 播放期性能与 player-level BGM 出声 proof 后置 P1-J J6
+
+目标：补全 K9 转谱器丢失的 BGM（autoplay channel `0x01`）音频层，并把 LN 尾键音的 mania 行为对齐到 BMS 侧「长条只头发声」，使纯键音 BMS 的 mania 转谱音频与 BMS 原生模式一致；不引入第二套样本源，不改 K9 已冻结的 lane/stage/scratch/star/control-point 语义。
+
+#### 背景与根因（已查实）
+
+1. BGM 丢层：`BmsBeatmapConverter` 已把 autoplay 对象落成 `BmsBgmEvent` 并放入 `BmsBeatmap.HitObjects`；但 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs) 的 `ConvertHitObject` switch 只有 `BmsHoldNote` / `BmsHitObject`，base `BeatmapConverter.convertHitObjects` 把非 `ManiaHitObject` 的 `BmsBgmEvent` 丢给 `ConvertHitObject` 后得空枚举 → BGM 整层丢弃。纯键音 BMS（`detectFullMusicFile` 未命中、`AudioFile` 仅 preview/空）因此在 mania 丢掉歌曲主体。
+2. 暴露面真实：`AllowGameplayWithRuleset`（mania + `ShowConvertedBeatmaps`）+ `DrawableManiaRuleset.CreateDrawableRepresentation` 表明转谱会真实进入 mania 游玩并播 sample-only 对象，非仅 star 用途。
+3. 样本源已 de-risk：[../../osu.Game/Beatmaps/WorkingBeatmapCache.cs](../../osu.Game/Beatmaps/WorkingBeatmapCache.cs) 的 `createResourceProvider` 按 `BeatmapSet.FilesystemStoragePath` 建 `FilesystemBackedBeatmapResourceProvider`，与游玩 ruleset 无关 → BGM 用同型 `BmsKeysoundSampleInfo` piggyback，无需新样本源。
+4. 尾键音分歧：转谱器现把尾 keysound 放进 `NodeSamples[1]`，mania `TailNote` release 时会播放，与 P1-J 约束 3a 冲突。
+
+#### 设计落点
+
+1. 新增 sample-only 对象类型（建议 `BmsConvertedBgmSampleHitObject`，承 `IgnoreJudgement` + `HitWindows.Empty`，与 `BmsConvertedScratchSampleHitObject` 同族）与其 drawable（Alpha=0、`timeOffset>=0` 时 `PlaySamples()` + `ApplyMinResult()`）。
+2. `BmsToManiaBeatmapConverter.ConvertHitObject` 加 `case BmsBgmEvent`：发 sample-only 对象，`Column = 0`，`Samples = createSamples(bgm.KeysoundSample)`，空 sample 跳过。
+3. `isScorableHitObject` 一并排除新类型；确认不进 `TotalObjectCount` / `EndTimeObjectCount` / 难度计算输入。
+4. drawable 工厂 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaDrawableRepresentationFactory.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaDrawableRepresentationFactory.cs) 的 `CanCreate` / `Create` 支持新类型。
+5. LN 尾对齐：`ConvertHitObject` 的 `BmsHoldNote` 分支把 `NodeSamples[1]` 改为空列表（不再 `createSamples(holdNote.TailKeysoundSample)`），头 keysound 仍走 `NodeSamples[0]`。
+
+#### 涉及文件
+
+- 新增 `osu.Game.Rulesets.Bms/Objects/BmsConvertedBgmSampleHitObject.cs`、`osu.Game.Rulesets.Bms/UI/DrawableBmsConvertedBgmSampleHitObject.cs`
+- [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs)（BGM 分支 + 尾对齐 + `isScorableHitObject`）
+- [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaDrawableRepresentationFactory.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaDrawableRepresentationFactory.cs)（新类型 drawable）
+
+#### 测试落点
+
+1. [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)：BGM 事件 → sample-only 对象计数 == 源 autoplay 事件数、不进 scorable / `TotalObjectCount`；BGM 空 sample 跳过；LN 转谱后 `NodeSamples[1]` 为空、`NodeSamples[0]` 仍为头 keysound；star/统计不受 BGM 影响。
+2.（可选）mania player-level：BGM 跨事件时间出声 / seek 语义。
+
+#### 验证顺序与回退边界
+
+- 验证顺序：converter focused（BGM 计数 / 不 scorable / 尾 node sample 为空）-> 难度/统计不回归 -> （可选）mania player-level BGM 出声 -> Release/Debug build。
+- 回退边界：BGM 补全与尾对齐均为增量、可分刀；回退即退回当前"BGM 丢层 + 尾发声"行为，不破坏 K9 既有数据。dense-BGM 播放性能归 P1-J J6，不阻塞本切片功能正确性。
+
+#### 开工定义
+
+1. 确认 mania 实跑一张纯键音 BMS 转谱：note keysound 出声（基线对照）、BGM 静音（待修）。
+2. 确认新 sample-only 类型经 `AffectsCombo() == false` 且**无 combo-affecting 嵌套对象**透传，autoplay key 生成 / note-lock 自动跳过（同 scratch sample-only）。注意谓词须 nested-aware：长条因有 combo 嵌套头尾**不**被跳过，新 sample-only 类型因无嵌套才被跳过，二者区分点是「有无 combo 嵌套对象」而非单看顶层 `AffectsCombo`（见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) #12）。
+
 ## 明确不做
 
 1. 不借本专题改写 `chartbms/` / `chartmania/` 存储拓扑、外部谱库扫描或难度表 metadata contract；这些仍归 `P1-H`。
@@ -412,3 +454,4 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 5. 任何缓存或性能动作都排在 focused semantics validation 之后，避免先缓存一套还没冻结的语义。
 6. 当前若继续 post-`K8` 工作，默认优先级固定为 `K9`：先完成 explicit public wording 与更宽的 presentation/manual proof；source mapping、sample-only scratch runtime、autoplay ignore contract 与 persisted converted star 已不再回退为“待开工”。
 7. `K10`：A（导入期持久化）已落地；B（读校验加固）经实测推迟。后续若发现确有持有过期 LAV 的消费者再重开 B；当前剩余 follow-up 是 BeatmapUpdater 导入期端到端集成回归（OsuGameTestScene 级装配，与既有 visual scene CLI discover 不稳的现状一致）。
+8. `K11`：converter 侧已落地（BGM sample-only 补全 + LN 尾 node sample 置空，`BmsToManiaBeatmapConverterTest` 19/19、BMS 869/869、Release 0 错误）；剩余 dense-BGM 播放期性能与 player-level BGM 出声 proof 交 P1-J J6。

@@ -51,7 +51,7 @@
 4. **批次四：响应性与交互打磨**
    correctness 绿线后，再评估把全量 metadata 回写改为后台任务、分批更新或等价 busy/progress 表达。
 5. **批次五：reuse 自愈与现场诊断边界**
-   internal / external rebuild 或 re-register 命中已有 beatmap set 时，也必须重新按当前 table index 套用 metadata；若现场仍见 `Unrated`，优先诊断原始 `.bms` 字节 MD5 差异，而不是继续怀疑 Song Select consumer 或临时放宽匹配规则。
+   internal / external rebuild 或 re-register 命中已有 beatmap set 时，也必须重新按当前 table index 套用 metadata；若现场仍见 `Unrated`，先确认**重启后是否仍 `Unrated`**——重启后正常属 carousel 中途未刷新（已知限制，需重启反映；per-set `DifficultyTableRevision` bump 因大库卡死已撤），重启后仍 `Unrated` 才查 `RulesetData` 字段是否被其它子系统覆盖（CONSTRAINTS #22）或原始 `.bms` 字节 MD5 差异，而不是怀疑 Song Select consumer 或临时放宽匹配规则。
 
 ### 明确不做
 
@@ -66,4 +66,4 @@
 2. `RefreshAll` 在存在失败时会准确反馈结果，不再显示纯成功提示。
 3. 本地与远端 wrapper/header 缺省命名链路都保持稳定 source identity。
 4. manager-only source mutation、settings / first-run surface 与 Song Select 消费面都具备 focused regression coverage。
-5. rebuild / reuse 命中旧 beatmap set 时不会沿用历史空 metadata；若后续仍有 `Unrated` 反馈，应只剩现场 MD5 差异诊断而不是主链一致性缺口。
+5. rebuild / reuse 命中旧 beatmap set 时不会沿用历史空 metadata；若后续仍有 `Unrated` 反馈，先按「重启后是否仍 `Unrated`」二分——重启后正常归 carousel 中途未刷新（已知限制），重启后仍 `Unrated` 才查 `RulesetData` 字段覆盖（CONSTRAINTS #22）或现场 MD5 差异，而非主链一致性缺口。

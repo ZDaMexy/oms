@@ -8,17 +8,17 @@ using osu.Game.Rulesets.Mania.Objects.Drawables;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
-    public partial class DrawableBmsConvertedScratchSampleHitObject : DrawableManiaHitObject<BmsConvertedScratchSampleHitObject>
+    public partial class DrawableBmsConvertedBgmSampleHitObject : DrawableManiaHitObject<BmsConvertedBgmSampleHitObject>
     {
-        // Hosted + cached by DrawableManiaRuleset when a BMS chart is played as mania (J6): the scratch keysound plays
-        // through the shared store so it honours pause / seek and a bounded channel pool. Null in isolated contexts
-        // (test scenes) -> fall back to PlaySamples().
+        // Hosted + cached by DrawableManiaRuleset when a BMS chart is played as mania (J6): BGM plays through the
+        // shared store so it honours pause / seek and a bounded channel pool, instead of a per-object one-shot sample
+        // that would play through a pause. Null in isolated contexts (test scenes) -> fall back to PlaySamples().
         [Resolved(CanBeNull = true)]
         private BmsKeysoundStore? keysoundStore { get; set; }
 
         public override bool DisplayResult => false;
 
-        public DrawableBmsConvertedScratchSampleHitObject(BmsConvertedScratchSampleHitObject hitObject)
+        public DrawableBmsConvertedBgmSampleHitObject(BmsConvertedBgmSampleHitObject hitObject)
             : base(hitObject)
         {
             Alpha = 0;

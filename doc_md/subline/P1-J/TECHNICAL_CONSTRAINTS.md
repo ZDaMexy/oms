@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-05-18
+> 最后更新：2026-06-01（新增 runtime/audio 第 10 条：mania 转谱 BGM 呈现保真与 dense-BGM 性能归 J6）
 > 本文件记录 `P1-J` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -20,6 +20,7 @@
 7. full autoplay 的 keysound prewarm 只允许复用既有 `Playfield` sample pool 与 shared `BmsKeysoundStore` authority，把首次初始化成本前移到安全边界；不得为此引入第二套 retained sample authority、per-note/per-lane 预解码 player，或绕过既有 pooled/unpooled fallback contract。
 8. `BmsKeysoundStore` 的通道分配必须 **idle-first**：仍有空闲通道时不得回收正在播放的通道（避免在远低于复音上限时就提前截断长样本）；只有在全部通道繁忙（真正复音饱和）时才允许按轮转偷取近似最旧者。该选择不得回退成"每次触发全表扫描"——空闲集每帧重建（`reclaimIdleChannels`，O(N) 读、无分配），`getNextChannel()` 保持 O(1)，以守住 dense-chart 热路径。shrink 裁剪通道时必须真正 dispose 并标记 retired，不得留下脱挂未释放的 sound drawable。
 9. `BmsKeysoundStore` 实现 **per-WAV cut（每键音单声部）**，且**必须按 BMS WAV 槽号（#WAVxx / `KeysoundId`）归组，不得按文件名**：同一槽在仍发声时被再次触发，必须复用其所在通道令其干净重启（掐断前一实例），而不是占用第二个通道叠加副本——对齐 BM98/LR2/beatoraja。**关键红线**：不同槽即使指向同一音频文件也**不得**合并 cut 组——谱师常把同一文件挂到多个 #WAV 槽专门用来自重叠（hi-hat/拍手等），按文件名归组会错误掐断它们。映射 `activeSampleChannels` 以 `int` 槽号为键、`Play(sample, balance, int cutGroup)` 传入，复用前提为"该通道仍 busy 且 `CurrentCutGroup == cutGroup`"，陈旧项自然回退到 `getNextChannel()`；无槽号入口（`Play(sample, balance)` / 多样本数组）不参与 cut（`CurrentCutGroup = null`）。槽号在播放链由 note/head/BGM 的 `KeysoundId`、空击 armed 由 `BmsLaneKeysoundEntry.KeysoundId` 提供。注意：同一槽被谱面重复排布时**后一次必定掐断前一次**（与参考实现一致），属预期。
+10. **`BMS -> mania` 转谱 BGM 的 mania-runtime 呈现保真与性能归本子线 J6**（与 P1-K K11 的"转谱对象语义"分线；K11 + J6 首版均 2026-06-01 落地，详见 CHANGELOG）：J6 首版采用**复用 `BmsKeysoundStore`** 而非「先试对象池、不达标再共享池」——因 **E（暂停停 BGM）必须有中心化 pause-aware store 才能解**（一次性样本不随暂停停止），对象池只能帮 D；故转谱 BGM/scratch 直接经该 store 播放（pause/seek 统一停 + 通道上限）。**注意：E 已 2026-06-01 实测修复，但 D（dense 极端谱高密段）仍极度缓慢——共享 store 已排除「音频对象数」为主因，真瓶颈（疑 drawable 数量 / 转换链 / 渲染）待 profile，D 后置。** 下文要求即由此实现：转谱补出的 BGM sample-only 对象必须在 mania 游玩时 autoplay 出声，使纯键音 BMS 的 mania 转谱音频与 BMS 原生模式一致；不得因 mania 无 `BmsKeysoundStore` 就让 BGM 静音。其 dense-BGM 播放期性能（数千 BGM 事件 → 每对象 `SkinnableSound` 的 alloc/GC/首帧懒初始化）属本子线 dense-chart 热路径治理：首选复用 mania 对象池 / 滚动窗口（`HitObjectContainer` 只激活可见区间对象）；仅当实测不达标时才允许引入 mania 侧共享样本通道池（复用 `BmsKeysoundStore` 的 idle-first / per-WAV cut 思路、按 `BmsBgmEvent.KeysoundId` 归组），**不得为此新长出 per-note / per-lane 独立 sample player（沿用第 1 条）**。同时，mania 转谱的 LN 尾必须与本节第 3a 条一致保持静音：转谱器（K11）不得把尾 keysound 写进 mania `HoldNote.NodeSamples[1]`，否则 mania `TailNote` 会在 release 播放它并对 LNTYPE1 尾复用头 WAV 的谱复现 double。
 
 ## 性能与热路径约束
 

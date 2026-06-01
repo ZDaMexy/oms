@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Objects;
@@ -22,8 +23,15 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         [JsonProperty("chart_filter_stats")]
         public BmsChartFilterStats? ChartFilterStats { get; set; }
 
+        // The single BeatmapMetadata.RulesetData column is shared with osu.Game's BmsPersistedMetadataData
+        // (converted_star_ratings). Capture fields we don't model here so re-serialising a difficulty-table
+        // write does NOT wipe the persisted converted star ratings (which would force a full recompute next
+        // launch, which in turn used to wipe the table entries — a destructive ping-pong).
+        [JsonExtensionData]
+        public IDictionary<string, JToken>? ExtensionData { get; set; }
+
         [JsonIgnore]
-        public bool IsEmpty => DifficultyTableEntries.Count == 0 && ChartMetadata == null && ChartFilterStats == null;
+        public bool IsEmpty => DifficultyTableEntries.Count == 0 && ChartMetadata == null && ChartFilterStats == null && (ExtensionData == null || ExtensionData.Count == 0);
     }
 
     public class BmsChartFilterStats : IEquatable<BmsChartFilterStats>

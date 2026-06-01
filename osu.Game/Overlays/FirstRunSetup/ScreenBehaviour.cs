@@ -17,6 +17,7 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterfaceV2;
+using osu.Game.Database;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.Settings;
@@ -41,6 +42,9 @@ namespace osu.Game.Overlays.FirstRunSetup
 
         [Resolved]
         private Storage storage { get; set; } = null!;
+
+        [Resolved]
+        private RealmAccess realm { get; set; } = null!;
 
         [Resolved(canBeNull: true)]
         private INotificationOverlay? notificationOverlay { get; set; }
@@ -143,7 +147,7 @@ namespace osu.Game.Overlays.FirstRunSetup
         {
             try
             {
-                tableManager = await DifficultyTableManagerAdapter.CreateAsync(storage).ConfigureAwait(true);
+                tableManager = await DifficultyTableManagerAdapter.CreateAsync(storage, realm).ConfigureAwait(true);
 
                 if (IsDisposed)
                     return;
@@ -261,17 +265,17 @@ namespace osu.Game.Overlays.FirstRunSetup
                 this.importFromPathMethod = importFromPathMethod;
             }
 
-            public static async Task<DifficultyTableManagerAdapter> CreateAsync(Storage storage)
+            public static async Task<DifficultyTableManagerAdapter> CreateAsync(Storage storage, RealmAccess realmAccess)
             {
                 var managerType = resolveManagerType();
 
-                var getSharedAsyncMethod = managerType.GetMethod("GetSharedAsync", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Storage), typeof(System.Threading.CancellationToken) }, null)
+                var getSharedAsyncMethod = managerType.GetMethod("GetSharedAsync", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Storage), typeof(RealmAccess), typeof(System.Threading.CancellationToken) }, null)
                                            ?? throw new MissingMethodException(managerType.FullName, "GetSharedAsync");
 
                 var importFromPathMethod = managerType.GetMethod("ImportFromPath", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(string), typeof(Guid?), typeof(bool), typeof(System.Threading.CancellationToken) }, null)
                                            ?? throw new MissingMethodException(managerType.FullName, "ImportFromPath");
 
-                var task = (Task)getSharedAsyncMethod.Invoke(null, new object?[] { storage, default(System.Threading.CancellationToken) })!;
+                var task = (Task)getSharedAsyncMethod.Invoke(null, new object?[] { storage, realmAccess, default(System.Threading.CancellationToken) })!;
                 await task.ConfigureAwait(false);
 
                 object manager = task.GetType().GetProperty("Result")?.GetValue(task)

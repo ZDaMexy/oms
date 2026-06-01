@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using osu.Game.Rulesets;
 
 namespace osu.Game.Beatmaps
@@ -176,6 +177,13 @@ namespace osu.Game.Beatmaps
 
         [JsonProperty("converted_star_ratings")]
         public Dictionary<string, BmsPersistedConvertedStarRating>? ConvertedStarRatings { get; set; }
+
+        // The single BeatmapMetadata.RulesetData column is shared with the BMS ruleset's own payload
+        // (BmsBeatmapMetadataData: difficulty_table_entries / chart_filter_stats). Capture any fields we don't
+        // model here so re-serialising a converted-star-rating write does NOT wipe the difficulty-table data
+        // (and vice versa). Without this, recomputing converted star ratings dropped every chart's table entries.
+        [JsonExtensionData]
+        public IDictionary<string, JToken>? ExtensionData { get; set; }
     }
 
     internal class BmsPersistedConvertedStarRating

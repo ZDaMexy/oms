@@ -24,6 +24,7 @@ using osu.Game.Overlays;
 using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.Settings;
+using osu.Game.Database;
 using osu.Game.Screens;
 using osu.Game.Utils;
 using osuTK;
@@ -51,6 +52,9 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         [Resolved]
         private Storage storage { get; set; } = null!;
+
+        [Resolved]
+        private RealmAccess realm { get; set; } = null!;
 
         [Resolved(canBeNull: true)]
         private INotificationOverlay? notificationOverlay { get; set; }
@@ -209,7 +213,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
             try
             {
-                var manager = await BmsDifficultyTableManager.GetSharedAsync(storage).ConfigureAwait(false);
+                var manager = await BmsDifficultyTableManager.GetSharedAsync(storage, realm).ConfigureAwait(false);
 
                 Schedule(() =>
                 {
@@ -555,10 +559,25 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void toggleSourceEnabled(BmsDifficultyTableSourceInfo source)
         {
-            if (operationInProgress.Value)
+            if (tableManager == null || operationInProgress.Value)
                 return;
 
-            tableManager.SetSourceEnabled(source.ID, !source.Enabled);
+            operationInProgress.Value = true;
+            tableManager.SetSourceEnabledAsync(source.ID, !source.Enabled).ContinueWith(task => Schedule(() => completeToggleEnabled(source, task)));
+        }
+
+        private void completeToggleEnabled(BmsDifficultyTableSourceInfo source, Task task)
+        {
+            operationInProgress.Value = false;
+
+            if (task.IsFaulted)
+            {
+                Logger.Error(task.Exception, $"Failed to toggle BMS difficulty table source {source.ID}.");
+                notificationOverlay?.Post(new SimpleErrorNotification
+                {
+                    Text = $"切换难度表“{source.DisplayName}”状态失败：{getErrorMessage(task.Exception)}"
+                });
+            }
         }
 
         private void startRefresh(BmsDifficultyTableSourceInfo source)
@@ -609,11 +628,34 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private void remove(BmsDifficultyTableSourceInfo source)
         {
-            tableManager.RemoveSource(source.ID);
-            notificationOverlay?.Post(new ProgressCompletionNotification
+            if (tableManager == null || operationInProgress.Value)
+                return;
+
+            operationInProgress.Value = true;
+            tableManager.RemoveSourceAsync(source.ID).ContinueWith(task => Schedule(() => completeRemove(source, task)));
+        }
+
+        private void completeRemove(BmsDifficultyTableSourceInfo source, Task task)
+        {
+            operationInProgress.Value = false;
+
+            if (task.IsCompletedSuccessfully)
             {
-                Text = $"已移除难度表来源“{source.DisplayName}”。"
-            });
+                notificationOverlay?.Post(new ProgressCompletionNotification
+                {
+                    Text = $"已移除难度表来源“{source.DisplayName}”。"
+                });
+                return;
+            }
+
+            if (task.IsFaulted)
+            {
+                Logger.Error(task.Exception, $"Failed to remove BMS difficulty table source {source.ID}.");
+                notificationOverlay?.Post(new SimpleErrorNotification
+                {
+                    Text = $"移除难度表“{source.DisplayName}”失败：{getErrorMessage(task.Exception)}"
+                });
+            }
         }
 
         private static string getErrorMessage(Exception exception)

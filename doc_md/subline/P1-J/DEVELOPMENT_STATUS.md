@@ -1,6 +1,6 @@
 # P1-J 开发进度：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-05-31
+> 最后更新：2026-06-01（J6 首版落地：E「暂停停 BGM」实测修复 / D dense 极端谱性能未解后置）
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-J` 的真实进展。
 
 ## 当前阶段
@@ -36,6 +36,7 @@
 - `DrawableBmsRuleset` 到 `BmsPlayfield.KeysoundStore` 的 `KeysoundConcurrentChannels` live binding 现已有 dedicated headless coverage；`BmsSettingsSubsection` 的提示文案也已同步到“调高立即补通道、调低延后回收、不直接切断当前发声”的当前合同。
 - `BmsDrawableRulesetTest` 现已锁住 late-empty-poor 行为；`P1-J` 任何优化都必须以“不回归这些语义”为前提。
 - 当前同轮审查**没有**新增证据证明 `BmsSoloPlayer` 的 pre-start / start-sequence 主音乐 handoff 仍有新的 gameplay bug，因此 `P1-J` 当前不把它列为首轮重点。
+- **`BMS -> mania` 转谱 BGM 的 mania-runtime 播放：J6 首版已落地（E 实测修复 / D 未解后置）**：此前 mania 侧转谱对象走非池化每对象 `SkinnableSound`、无 `BmsKeysoundStore`，导致暂停不停 BGM（一次性样本播完）+ dense 谱卡顿。J6 首版让转谱 BGM/scratch sample 改走一个**复用的 `BmsKeysoundStore`**：`DrawableManiaRuleset` 检测到 converted-BMS beatmap（反射 `BmsToManiaKeysoundStoreFactory`）时创建该 store、`CreateChildDependencies` 里 `Cache`（按 runtime 类型）、`load` 里 `AddInternal` 到游玩树解析 `GameplayClockContainer`；转谱对象携带 `KeysoundSample`/`KeysoundId`，drawable `[Resolved(CanBeNull = true)]` 后 `Play(sample, 0, cutGroup)`，store 缺席安全回退 `PlaySamples`。暂停/seek 由 store 统一 `StopAllPlayback`（修 E）、通道有上限 idle-first 复用（原意缓解 D）。Release **0 错误**、`BmsToManiaBeatmapConverterTest` **19/19**、BMS **869/869**。**2026-06-01 用户人工实测：E 已修复（暂停立即停 BGM）✅、普通 mania 无回归 ✅；D 仍未解**——dense 极端谱高密段仍极度缓慢，瓶颈不在音频对象数（共享 store 已排除），后置待 profile。残留：mania `Note`/`HoldNote` 自身键音仍 per-drawable。详见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) J6 与 [CHANGELOG](CHANGELOG.md) 2026-06-01。
 
 ## 进度矩阵
 

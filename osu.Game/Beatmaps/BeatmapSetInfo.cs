@@ -59,6 +59,19 @@ namespace osu.Game.Beatmaps
         /// </summary>
         public string? ExternalLibraryRootPath { get; set; }
 
+        /// <summary>
+        /// Reserved scalar for forcing a carousel re-detach of this set after BMS difficulty-table metadata writes.
+        /// </summary>
+        /// <remarks>
+        /// Currently unused. The original per-write bump was removed because, at large library scale, a single
+        /// difficulty-table toggle matches thousands of sets and bumping each one produced a multi-minute carousel
+        /// refresh storm (thousands of per-set re-detaches on the update thread). Difficulty-table grouping now
+        /// relies on persisted metadata read at carousel detach time; mid-session table changes require a restart.
+        /// The column is retained (rather than dropped) to avoid another realm schema migration and to leave room
+        /// for a future lightweight single-shot refresh signal.
+        /// </remarks>
+        public long DifficultyTableRevision { get; set; }
+
         [Ignored]
         public BeatmapOnlineStatus Status
         {

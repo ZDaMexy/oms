@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
+using osu.Game;
 using osu.Game.Beatmaps;
+using osu.Game.Database;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -19,11 +21,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestIndexRebuildsWhenManagerDataChanges()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-index-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string tableRoot = createTableMirror(storage, "satellite-index", "Satellite",
                 new TableEntry("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var index = new BmsTableMd5Index(manager);
 
             int rebuildCount = 0;
@@ -50,12 +53,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestApplyToBeatmapPersistsMetadataPayload()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-index-metadata-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             const string matching_md5 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
             string tableRoot = createTableMirror(storage, "satellite-metadata", "Satellite",
                 new TableEntry(matching_md5, "7"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var index = new BmsTableMd5Index(manager);
 
             await manager.ImportFromPath(tableRoot).ConfigureAwait(false);

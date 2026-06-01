@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-05-26
+> 最后更新：2026-06-01（新增 K11：BMS→mania 转谱 BGM/autoplay 音频补全约束）
 > 本文件记录 `P1-K` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -98,7 +98,7 @@
 9. 若 source chart 在 flatten / degrade 后得不到任何可游玩 mania object，则该 conversion result 必须判定为 invalid，并从 presentation / Song Select surface 隐藏；不得为了“显示转谱”按钮可见而产出空壳结果。
 10. modless converted mania star 必须持久化到 `BeatmapMetadata.RulesetDataJson` 的 BMS payload 中，并至少携带 target ruleset、difficulty version 与 conversion version；不得覆盖 `BeatmapInfo.StarRating`，因为该字段仍是 source BMS raw star / playlevel authority。
 11. current-ruleset 的 converted-star display surface（carousel selector、spread display、cache warmup/backfill）在 `BMS -> mania` 场景下都必须走 resolved converted-star lookup；raw `BeatmapInfo.StarRating` 只继续服务 source BMS surface，不得在 target-ruleset display 中回流。
-12. converted autoplay / replay generation 必须在 press/release schedule 与同列 next-object lookup 两侧都跳过 ignore-only scratch sample object；这些对象可以继续播放 sample，但不得生成假 auto 输入，也不得扰动真实 judged column 的 key-up 时机。
+12. converted autoplay / replay generation 必须在 press/release schedule 与同列 next-object lookup 两侧都跳过 ignore-only scratch / BGM sample object；这些对象可以继续播放 sample，但不得生成假 auto 输入，也不得扰动真实 judged column 的 key-up 时机。**实现谓词必须 nested-aware**：判定一个对象是否参与 autoplay 时，须检查其自身**或任一嵌套对象**的 `MaxResult.AffectsCombo()`（对齐 `OrderedHitPolicy.canParticipateInLocking` 的同源语义），不得只看顶层对象自身的 `MaxResult`。因为 mania `HoldNote` 自身是 `IgnoreJudgement`（`IgnoreHit`，不计 combo），combo 落在其嵌套 `HeadNote`/`TailNote`——只看顶层 `AffectsCombo` 会把**所有长条**误跳过，而 sample-only 对象因**无任何嵌套对象**仍被正确排除。注意 `ManiaAutoGenerator` 是原生 mania 与 BMS→mania 转谱**共用**的 mania-core 生成器，此处任何过broad的过滤会同时回归原生 mania 长条 autoplay；回归守卫为 `TestSceneManiaModAutoplay`（`TestPerfectScoreOnShortHoldNote` + `TestAutoplayHoldsLongNoteAlongsideSampleOnlyObject` 锁长条参与、`TestAutoplayIgnoresSampleOnlyScratchObjects` 锁 sample 跳过）。
 13. `K9` 不得把 mania keycount-changing mods、dual-stage 分裂或其它 runtime mod surface 当成 source keymode 适配的替代方案；首轮 target stage definition 只由 source keymode matrix 决定。
 14. `K9` 与公开产品表面拆刀：在同一实现中若已经触及顶层入口、按钮文案、ruleset switch 或 generic convert visibility，则停止并拆到 `P1-A`；`P1-K` 只拥有 conversion semantics、validity 与 focused proof。
 15. BMS `SCROLLxx/SC` 经 `BmsBeatmapConverter` 写入的 `EffectControlPoint.ScrollSpeed` 是 BMS 引擎专属视觉滚动语义，不得在 `BmsToManiaBeatmapConverter` 中沿用为 mania 的 `EffectControlPoint`/SV 语义；mania 转谱后的 `ControlPointInfo` 只保留 timing 边界（`TimingControlPoint`），不传递 `EffectControlPoint`。若未来需要把 BMS scroll 语义映射到 mania 视图，必须另起后续切片，并在 K9 约束中显式更新本条。
@@ -113,6 +113,18 @@
 5. 读校验加固（B）必须继续保留 `conversion_version` 与 `difficulty_version` 双闸，仅允许把后者的对照源从消费者传入的 `LastAppliedDifficultyVersion` 换成权威当前计算器版本；不得借此弱化或移除任一版本闸。
 6. B 的权威版本获取不得引入"每次读一次难度计算"的开销；必须 memoize / 缓存为每构建一次的常量级读取。
 7. `K10` 为中高风险切片：A（导入期持久化）与 B（读校验加固）必须可分刀独立落地与回退；任一刀落地前先补 focused 回归，禁止只凭 diff 或人工推理跳过 build/test gate。
+
+## K11：BMS -> mania 转谱 BGM / autoplay 音频补全约束（2026-06-01 落地，converter 侧）
+
+> 背景：`K9` 的 `BmsToManiaBeatmapConverter` 当前只把玩家可击打对象（note / LN / scratch sample-only）的键音搬到 mania；BGM（autoplay channel `0x01`）经 `BmsBeatmapConverter` 落成 `BmsBgmEvent` 后进入 `BmsBeatmap.HitObjects`，但 `ConvertHitObject` 的 switch 无 `BmsBgmEvent` 分支，base `BeatmapConverter.convertHitObjects` 将其作为非 `ManiaHitObject` 丢给 `ConvertHitObject` 后得空枚举 → 整层 BGM 被静默丢弃。对纯键音 BMS（无完整 master 音轨，`AudioFile` 仅 preview/空），这等于 mania 转谱丢掉歌曲主体（鼓/贝斯/铺底/人声等非可击打层）。详见 [CHANGELOG](CHANGELOG.md) 2026-06-01 与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) K11 节。
+
+1. BGM（`BmsBgmEvent`）在 `BMS -> mania` 转谱中不得继续被静默丢弃；必须作为 sample-only、`IgnoreJudgement` / empty-hitwindow 的 converted mania object 保留 autoplay 键音时间线，与 scratch sample-only（K9 #6）同族对待——不进 combo、statistics、star-rating、autoplay key 生成与 note-lock。
+2. BGM sample-only 对象只承载 keysound 播放，不得映射到任何 judged column 语义；其 `Column` 只能作为 drawable/sample anchor（默认锚到 column 0），不得因 column 选择改变判定列或 stereo 语义。
+3. converted BGM 对象不得进入 `TotalObjectCount` / `EndTimeObjectCount` / `isScorableHitObject` / 难度计算输入；`scorableHitObjects` 口径必须与现有 scratch sample-only 排除规则一致（统一通过 `isScorableHitObject` 过滤，新类型一并排除），不得让 BGM 撑大 mania 转谱的判定物数量或星数输入。
+4. converted BGM 的样本解析不得新建第二套 sample 源：它与 note keysound 同走 `BmsKeysoundSampleInfo`（`useBeatmapSamples`）→ 经 `WorkingBeatmapCache` 的 `FilesystemBackedBeatmapResourceProvider`（按 `BeatmapSet.FilesystemStoragePath` 建、与游玩 ruleset 无关）解析 `chartbms/` 内 WAV。因此 BGM 补全是 piggyback；不得借此引入 mania 专用 keysound store 或预解码 player（dense-BGM 播放期性能归 `P1-J` J6，见其 TECHNICAL_CONSTRAINTS 第 10 条）。
+5. LN 尾键音 mania 对齐：`BmsToManiaBeatmapConverter` 不得把 LN 尾 keysound 放进 mania `HoldNote.NodeSamples[1]`（mania `TailNote` 会在 release 播放该 node sample，与 BMS 侧「LN tail 一律不发声」即 `P1-J` 约束 3a 冲突，对 LNTYPE1 尾复用头 WAV 的谱会复现 double）。尾 node sample 必须为空列表；头 keysound 仍走 `NodeSamples[0]`。**scratch 长条尾同理**：`createScratchSampleHitObjects` 只发 head sample 对象，不得再为尾单独发 sample-only 对象——scratch 长条尾对象常复用头 WAV，发出即 double（实测 GOODBOUNCE 人声 scratch 长条 "stomp your fee feet"）。
+6. 本切片只补音频保真，不得顺手改 K9 已冻结的 lane flatten / stage definition / scratch sample-only / converted-star / control-point 剥离语义；若发现这些需要联动改动，先停下拆刀。
+7. 验证顺序固定为「converter focused（BGM 计数 / 不 scorable / 尾 node sample 为空）-> 难度/统计不回归 focused -> mania player-level BGM 出声 / seek 语义（可选）-> Release build」；在 converter focused proof 可用时不得只靠 generic convert UI 手测代替。
 
 ## 解析侧性能约束
 

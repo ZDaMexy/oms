@@ -38,7 +38,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             this.storage = storage;
             songsStorage = storage.GetStorageForDirectory(SONGS_STORAGE_PATH);
             realmAccess = realm;
-            this.tableMd5Index = new Lazy<BmsTableMd5Index>(() => tableMd5Index ?? new BmsTableMd5Index(BmsDifficultyTableManager.GetShared(storage)));
+            this.tableMd5Index = new Lazy<BmsTableMd5Index>(() => tableMd5Index ?? new BmsTableMd5Index(BmsDifficultyTableManager.GetShared(storage, realm)));
         }
 
         public Task<FolderImportResult> Import(ImportTask task, ImportParameters parameters = default, CancellationToken cancellationToken = default)

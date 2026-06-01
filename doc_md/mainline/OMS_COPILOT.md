@@ -993,8 +993,9 @@ Most community tables use a two-step fetch:
 - Auto-claim matching seeded presets instead of duplicating them as custom rows
 - Restore seeded preset placeholders when removing an imported preset source
 - Expose `RefreshAllTables()` and `RefreshTable(id)` async methods
-- Share one manager instance between settings and first-run via `GetShared(storage)`
-- Rebuild persisted beatmap metadata after source mutations, then emit `TableDataChanged` so `BmsTableMd5Index` can rebuild its in-memory cache
+- Share one manager instance between settings and first-run via `GetShared(storage, realmAccess)` — pass the injected game-wide `RealmAccess`; never construct a second `RealmAccess` for write-back (its ctor runs `cleanupPendingDeletions`, which would over-reach and race the global instance)
+- Rebuild persisted beatmap metadata after source mutations via the injected `RealmAccess`, then emit `TableDataChanged`. The write uses `BmsBeatmapMetadataData`, which **shares the single `BeatmapMetadata.RulesetData` column** with osu.Game's `BmsPersistedMetadataData` (converted star ratings) — both carry `[JsonExtensionData]` so neither write wipes the other's fields (prior bug: a star recompute wiped every chart's table entries → all Unrated; the reverse forced endless recompute). Carousel does NOT live-refresh on mutation (shallow `BeatmapSetInfo` subscription can't see deep `Metadata` writes) — mid-session table changes need a restart, startup is always correct. (A per-set `DifficultyTableRevision` bump to force re-detach was tried and reverted: multi-minute refresh storm at large library scale.)
+- `SetSourceEnabled` / `RemoveSource` expose async entry points so UI callers never run write-back on the update thread
 - Disabled tables are excluded from index rebuild and song select grouping
 
 ### 10.4 MD5 Matching And Persistence Pipeline
@@ -1008,7 +1009,7 @@ Most community tables use a two-step fetch:
 1. Fetch new table JSON, parse into `List<BmsDifficultyTableEntry>`
 2. Build the current enabled MD5 lookup from cached source rows
 3. Diff the new lookup against the previous lookup to find affected MD5 values
-4. Batch-update persisted beatmap metadata for affected local BMS beatmaps
+4. Batch-update persisted beatmap metadata for affected local BMS beatmaps (normalising `BeatmapInfo.MD5Hash` casing before matching) via the injected `RealmAccess`. The write preserves osu.Game's converted-star-rating fields in the shared `RulesetData` column via `[JsonExtensionData]`. Carousel reflects table changes on its next detach (i.e. on restart for mid-session changes; startup is always correct)
 5. Rebuild the in-memory `BmsTableMd5Index`
 6. Emit `TableDataChanged` so consumers refresh from persisted metadata
 

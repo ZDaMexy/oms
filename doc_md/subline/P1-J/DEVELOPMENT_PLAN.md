@@ -1,6 +1,6 @@
 # P1-J 开发计划：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-05-18
+> 最后更新：2026-06-01（新增 J6：mania 转谱 BGM/键音 runtime 呈现与 dense-BGM 性能）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-J` 的执行顺序；判定/反馈语义见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -140,6 +140,27 @@
 3. manual checklist 继续后置到 `P1-G`：dense fully-keysounded chart、layered BGM、LN tail keysound、rapid empty-strike、live channel resize、pre-start -> gameplay 正常过渡。
 4. 当前 1-2 已成立；待 3 完成后，`P1-J` 才能进入只接回归修复的冻结态。
 
+### J6：BMS -> mania 转谱 BGM / 键音在 mania runtime 的呈现保真与 dense-BGM 性能
+
+状态：首版已落地（2026-06-01；转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`，对象携带 `KeysoundSample`/`KeysoundId`、drawable `[Resolved]` 后 `Play`、缺席安全回退）。**E（暂停停 BGM）已人工实测修复 ✅**；**D（dense 极端谱高密段仍极度缓慢）未解、用户要求后置**——共享 store 已排除「音频对象数」为主因，真瓶颈待 profile（疑 drawable 数量 / 转换链 / 渲染）
+
+目标：让 K11 补出的 BGM sample-only 对象在 mania 游玩时 autoplay 出声（音频与 BMS 原生模式一致），并把 dense-BGM 的播放期性能收口在可接受范围，不为此破坏 shared audio pool authority。
+
+归线说明：转谱"发什么对象"（含 BGM sample-only 与 LN 尾 node sample 为空）归 `P1-K` K11；本阶段只承接这些对象在 mania runtime 的播放保真与 dense-BGM 热路径性能——这是本子线 dense-chart 播放期性能与 shared audio pool authority 的自然延伸，即便它运行在 mania ruleset 内。
+
+建议交付：
+
+1. 先建立基线：mania 实跑纯键音 BMS 转谱，确认 note keysound 出声、BGM 待补（与 BMS 原生模式对照）。
+2. BGM 播放首选复用 mania 对象池 / 滚动窗口（`HitObjectContainer` 只激活可见区间对象），评估 dense BGM（数千事件）下每对象 `SkinnableSound` 的 alloc/GC/首帧懒初始化是否达标。
+3. 若不达标，再评估 mania 侧共享样本通道池：复用 `BmsKeysoundStore` 的 idle-first / per-WAV cut 思路，按 `BmsBgmEvent.KeysoundId` 归组；不得新长出 per-note / per-lane 独立 sample player（沿用约束 1）。
+4. 守住保真合同：mania 转谱 LN 尾静音（对齐 TECHNICAL_CONSTRAINTS 第 3a / 10 条，由 K11 在转谱器侧落实，不把尾 keysound 写进 `NodeSamples[1]`）。
+
+可能文件切片：
+
+1. `osu.Game.Rulesets.Bms/UI/DrawableBmsConvertedBgmSampleHitObject.cs`（K11 新增）
+2. `osu.Game.Rulesets.Mania/UI/DrawableManiaRuleset.cs`（drawable representation / 池化路径，若需要）
+3. 必要时新增 mania 侧 dense-BGM 播放性能 regression / player-level proof
+
 ## 明确不做
 
 1. 不借本专题替换 ManagedBass、重做全局 audio backend 或引入跨 ruleset latency framework。
@@ -152,3 +173,4 @@
 1. 用同一套 dense autoplay chart 再做现场压测，重点确认 full autoplay keysound prewarm 之后是否仍会出现 once-per-run 单次致命卡顿。
 2. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change。
 3. 评估 single-sample array contract 是否继续下探，还是把当前实现作为 `J3` 第一阶段冻结点；若继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`。
+4. `J6`：首版已落地——E（暂停停 BGM）人工实测修复、转谱 BGM/scratch 走复用 `BmsKeysoundStore`。**剩余 D**：dense 极端谱高密段仍极度缓慢，共享 store 已排除「音频对象数」为主因；下一步先 profile 真瓶颈（疑 drawable 数量 / 转换链 / 渲染）再决定切法。用户已要求 D 后置、日后处理。

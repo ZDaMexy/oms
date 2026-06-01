@@ -27,7 +27,8 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestBundledPresetsAreSeeded()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-presets-{Guid.NewGuid():N}");
-            var manager = new BmsDifficultyTableManager(storage);
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            var manager = new BmsDifficultyTableManager(storage, realm);
 
             var sources = manager.GetSources();
 
@@ -43,12 +44,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportDirectoryViaHtmlWrapperPersistsCachedEntriesAcrossRestart()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-import-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string tableRoot = createTableMirror(storage, "satellite-local", "Satellite Local",
                 new TableEntry("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1"),
                 new TableEntry("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "12"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -61,7 +63,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(imported.Entries.Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★1", "★12" }));
             });
 
-            var restartedManager = new BmsDifficultyTableManager(storage);
+            var restartedManager = new BmsDifficultyTableManager(storage, realm);
             var restored = restartedManager.GetSources().Single(source => source.ID == imported.ID);
 
             Assert.Multiple(() =>
@@ -76,11 +78,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportIntoPresetUpdatesExistingPresetSource()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-preset-import-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string tableRoot = createTableMirror(storage, "satellite-preset", "Satellite",
                 new TableEntry("cccccccccccccccccccccccccccccccc", "3"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var preset = manager.GetSources().Single(source => source.IsPreset && source.SourceName == "satellite");
 
             var imported = await manager.ImportFromPath(tableRoot, preset.ID).ConfigureAwait(false);
@@ -100,11 +103,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportMatchingBundledPresetUsesSeededSource()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-preset-match-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string tableRoot = createTableMirror(storage, "custom-local-path", "Satellite",
                 new TableEntry("ffffffffffffffffffffffffffffffff", "5"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var preset = manager.GetSources().Single(source => source.IsPreset && source.SourceName == "satellite");
 
             var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
@@ -123,11 +127,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestRemovingImportedPresetRestoresHiddenPresetPlaceholder()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-preset-remove-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string tableRoot = createTableMirror(storage, "satellite-preset-remove", "Satellite",
                 new TableEntry("abababababababababababababababab", "7"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var preset = manager.GetSources().Single(source => source.IsPreset && source.SourceName == "satellite");
             var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
 
@@ -152,6 +157,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportRemoteHeaderUrlPersistsCachedEntriesAcrossRestart()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-remote-header-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
             using var server = new TestHttpServer();
 
             string headerPath = "/normal/normal_header.json";
@@ -166,7 +172,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 new TableEntry("22222222222222222222222222222222", "4")),
                 "application/json; charset=utf-8");
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var imported = await manager.ImportFromPath(headerUrl).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -178,7 +184,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(imported.Entries.Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "☆1", "☆4" }));
             });
 
-            var restartedManager = new BmsDifficultyTableManager(storage);
+            var restartedManager = new BmsDifficultyTableManager(storage, realm);
             var restored = restartedManager.GetSources().Single(source => source.ID == imported.ID);
 
             Assert.Multiple(() =>
@@ -193,6 +199,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportRemoteHtmlWrapperRefreshesRelativeSources()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-remote-html-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
             using var server = new TestHttpServer();
 
             string indexPath = "/satellite/index.html";
@@ -209,7 +216,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 new TableEntry("33333333333333333333333333333333", "2")),
                 "application/json; charset=utf-8");
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var imported = await manager.ImportFromPath(server.GetUrl(indexPath)).ConfigureAwait(false);
 
             int eventCount = 0;
@@ -235,6 +242,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportRemoteHtmlWrapperWithoutNameKeepsStablePresetIdentity()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-remote-html-fallback-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
             using var server = new TestHttpServer();
 
             string indexPath = "/satellite/index.html";
@@ -251,7 +259,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 new TableEntry("56565656565656565656565656565656", "6")),
                 "application/json; charset=utf-8");
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var preset = manager.GetSources().Single(source => source.IsPreset && source.SourceName == "satellite");
 
             var imported = await manager.ImportFromPath(server.GetUrl(indexPath)).ConfigureAwait(false);
@@ -270,6 +278,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestImportRemoteHeaderRetriesTransientBodyFailure()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-remote-retry-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
             using var server = new TestHttpServer();
 
             string headerPath = "/retry/header.json";
@@ -283,7 +292,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 new TestHttpServer.TestHttpResponse(HttpStatusCode.OK, "application/json; charset=utf-8", createTableBodyJson(
                     new TableEntry("12121212121212121212121212121212", "6"))));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var imported = await manager.ImportFromPath(server.GetUrl(headerPath)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -298,9 +307,10 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedManagerReturnsSameInstanceForSameStorage()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-shared-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
-            var first = BmsDifficultyTableManager.GetShared(storage);
-            var second = BmsDifficultyTableManager.GetShared(storage);
+            var first = BmsDifficultyTableManager.GetShared(storage, realm);
+            var second = BmsDifficultyTableManager.GetShared(storage, realm);
 
             Assert.That(second, Is.SameAs(first));
         }
@@ -309,9 +319,10 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestSharedManagerAsyncReturnsSameInstanceForSameStorage()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-shared-async-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
-            var first = await BmsDifficultyTableManager.GetSharedAsync(storage).ConfigureAwait(false);
-            var second = await BmsDifficultyTableManager.GetSharedAsync(storage).ConfigureAwait(false);
+            var first = await BmsDifficultyTableManager.GetSharedAsync(storage, realm).ConfigureAwait(false);
+            var second = await BmsDifficultyTableManager.GetSharedAsync(storage, realm).ConfigureAwait(false);
 
             Assert.That(second, Is.SameAs(first));
         }
@@ -320,8 +331,9 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestGetSourcesAsyncMatchesSynchronousSnapshot()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-get-sources-async-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var syncSources = manager.GetSources();
             var asyncSources = await manager.GetSourcesAsync().ConfigureAwait(false);
 
@@ -337,11 +349,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestRefreshTableUpdatesEntriesAndEnabledLookupRespectsToggle()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-refresh-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string tableRoot = createTableMirror(storage, "stella-local", "Stella Local",
                 new TableEntry("dddddddddddddddddddddddddddddddd", "2"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
 
             int eventCount = 0;
@@ -384,7 +397,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             const string matchingMd5 = "99999999999999999999999999999999";
             Guid beatmapId = createPersistedBmsBeatmap(realm, matchingMd5);
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             string tableRoot = createTableMirror(storage, "manager-sync", "Satellite",
                 new TableEntry(matchingMd5, "7"));
 
@@ -408,16 +421,97 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public async Task TestMixedCaseBeatmapMd5StillMatchesLowercaseTableEntries()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-md5-case-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            // BeatmapInfo may store an upper-case hash; table entry MD5s are always lower-cased on parse.
+            // Write-back must still match regardless of casing.
+            const string upper_md5 = "ABCDEF0123456789ABCDEF0123456789";
+            Guid beatmapId = createPersistedBmsBeatmap(realm, upper_md5);
+
+            var manager = new BmsDifficultyTableManager(storage, realm);
+            string tableRoot = createTableMirror(storage, "case-test", "Satellite",
+                new TableEntry(upper_md5.ToLowerInvariant(), "7"));
+
+            await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
+
+            Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.EqualTo(new[] { "★7" }));
+        }
+
+        [Test]
+        public void TestDifficultyTableWriteBackPreservesForeignRulesetDataFields()
+        {
+            // The BeatmapMetadata.RulesetData column is shared with osu.Game's converted-star-rating payload
+            // (BmsPersistedMetadataData.converted_star_ratings). Writing difficulty-table entries must NOT drop
+            // foreign fields it doesn't model — otherwise a table write wipes the persisted star rating, which
+            // then forces a full recompute that wipes the table entries back (the destructive ping-pong we hit).
+            var metadata = new BeatmapMetadata
+            {
+                RulesetDataJson =
+                    "{\"converted_star_ratings\":{\"mania\":{\"star_rating\":5.5,\"difficulty_version\":1,\"conversion_version\":20260526,\"failed\":false}}}",
+            };
+
+            metadata.SetDifficultyTableEntries(new[]
+            {
+                new BmsDifficultyTableEntry("Satellite", "★", 5, "★5", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            });
+
+            Assert.Multiple(() =>
+            {
+                // our own field landed
+                Assert.That(metadata.GetDifficultyTableEntries().Select(entry => entry.LevelLabel), Is.EqualTo(new[] { "★5" }));
+                // the foreign converted_star_ratings field survived the round-trip
+                Assert.That(metadata.RulesetDataJson, Does.Contain("converted_star_ratings"));
+                Assert.That(metadata.RulesetDataJson, Does.Contain("5.5"));
+            });
+
+            // clearing our own field must still preserve the foreign payload (must not null out RulesetData)
+            metadata.SetDifficultyTableEntries(Array.Empty<BmsDifficultyTableEntry>());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(metadata.GetDifficultyTableEntries(), Is.Empty);
+                Assert.That(metadata.RulesetDataJson, Does.Contain("converted_star_ratings"));
+            });
+        }
+
+        [Test]
+        public void TestCircularHtmlReferenceFailsGracefully()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-table-circular-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var server = new TestHttpServer();
+
+            string aPath = "/loop/a.html";
+            string bPath = "/loop/b.html";
+
+            server.SetResponse(aPath,
+                $"<html><head><meta name=\"bmstable\" content=\"{server.GetUrl(bPath)}\"></head><body></body></html>",
+                "text/html; charset=utf-8");
+            server.SetResponse(bPath,
+                $"<html><head><meta name=\"bmstable\" content=\"{server.GetUrl(aPath)}\"></head><body></body></html>",
+                "text/html; charset=utf-8");
+
+            var manager = new BmsDifficultyTableManager(storage, realm);
+
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await manager.ImportFromPath(server.GetUrl(aPath)).ConfigureAwait(false));
+        }
+
+        [Test]
         public async Task TestRefreshAllReturnsPartialFailuresAndStillAppliesSuccessfulSources()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-refresh-all-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string successfulRoot = createTableMirror(storage, "refresh-all-ok", "Satellite",
                 new TableEntry("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "2"));
             string failingRoot = createTableMirror(storage, "refresh-all-fail", "Stella",
                 new TableEntry("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "5"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             var successfulSource = await manager.ImportFromPath(successfulRoot).ConfigureAwait(false);
             var failingSource = await manager.ImportFromPath(failingRoot).ConfigureAwait(false);
 
@@ -448,13 +542,14 @@ namespace osu.Game.Rulesets.Bms.Tests
         public async Task TestRefreshAllReportsProgressPerProcessedSource()
         {
             using var storage = new TemporaryNativeStorage($"bms-table-refresh-all-progress-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
 
             string successfulRoot = createTableMirror(storage, "refresh-all-progress-ok", "Satellite",
                 new TableEntry("dededededededededededededededede", "2"));
             string failingRoot = createTableMirror(storage, "refresh-all-progress-fail", "Stella",
                 new TableEntry("efefefefefefefefefefefefefefefef", "5"));
 
-            var manager = new BmsDifficultyTableManager(storage);
+            var manager = new BmsDifficultyTableManager(storage, realm);
             await manager.ImportFromPath(successfulRoot).ConfigureAwait(false);
             await manager.ImportFromPath(failingRoot).ConfigureAwait(false);
 

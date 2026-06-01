@@ -10,6 +10,7 @@ using osu.Framework.Audio.Track;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Extensions.ObjectExtensions;
+using osu.Framework.Graphics;
 using osu.Framework.Input;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
@@ -81,6 +82,43 @@ namespace osu.Game.Rulesets.Mania.UI
             return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
         }
 
+        private const string bms_to_mania_keysound_store_factory_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsToManiaKeysoundStoreFactory";
+
+        private static readonly Type? bmsKeysoundStoreFactoryType = Type.GetType($"{bms_to_mania_keysound_store_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
+        private static readonly Func<IBeatmap, bool>? bmsShouldHostKeysoundStore = createKeysoundStoreFactoryDelegate<Func<IBeatmap, bool>>("ShouldHost");
+        private static readonly Func<Drawable>? bmsCreateKeysoundStore = createKeysoundStoreFactoryDelegate<Func<Drawable>>("Create");
+
+        private static TDelegate? createKeysoundStoreFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
+        {
+            MethodInfo? method = bmsKeysoundStoreFactoryType?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+
+            return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
+        }
+
+        // Shared BMS keysound store hosted for converted-BMS mania playback (J6). Created + cached here so the converted
+        // sample-only drawables (BGM / scratch) can resolve it, and added to the tree in load() so it resolves the
+        // gameplay clock for pause / seek handling. Only created when the beatmap actually carries converted-BMS
+        // keysounds, so normal mania play is unaffected; the BMS assembly being absent is a clean no-op.
+        private Drawable? sharedKeysoundStore;
+
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+        {
+            var dependencies = base.CreateChildDependencies(parent);
+
+            if (bmsShouldHostKeysoundStore?.Invoke(Beatmap) == true && bmsCreateKeysoundStore?.Invoke() is Drawable store)
+            {
+                sharedKeysoundStore = store;
+
+                var wrapped = new DependencyContainer(dependencies);
+                // Cache under the store's runtime type (BmsKeysoundStore) so the BMS-assembly drawables resolve it;
+                // mania cannot name that type at compile time.
+                wrapped.Cache(store);
+                return wrapped;
+            }
+
+            return dependencies;
+        }
+
         // Stores the current speed adjustment active in gameplay.
         private readonly Track speedAdjustmentTrack = new TrackVirtual(0);
 
@@ -142,6 +180,10 @@ namespace osu.Game.Rulesets.Mania.UI
 
             Config.BindWith(ManiaRulesetSetting.TouchOverlay, touchOverlay);
             touchOverlay.BindValueChanged(_ => updateMobileLayout(), true);
+
+            // Host the shared converted-BMS keysound store under the gameplay clock so it resolves pause / seek.
+            if (sharedKeysoundStore != null)
+                AddInternal(sharedKeysoundStore);
         }
 
         private ManiaTouchInputArea? touchInputArea;

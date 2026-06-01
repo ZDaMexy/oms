@@ -109,13 +109,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         NodeSamples = new List<IList<HitSampleInfo>>
                         {
                             createSamples(holdNote.HeadKeysoundSample),
-                            createSamples(holdNote.TailKeysoundSample),
+                            // K11: align with the BMS-side "LN tail silent" contract (P1-J #3a). mania plays the last
+                            // node sample on tail release; carrying the tail keysound here re-introduces the head/tail
+                            // double for LNTYPE1 charts whose tail object repeats the head WAV. Head still sounds via
+                            // NodeSamples[0]; the tail keysound stays in the BMS model only to arm empty-strike lines.
+                            new List<HitSampleInfo>(),
                         },
                     };
                     break;
 
                 case BmsHitObject hitObject when hitObject.IsScratch:
-                    var scratchSampleHitObject = createScratchSampleHitObject(hitObject.StartTime, hitObject.LaneIndex, hitObject.KeysoundSample);
+                    var scratchSampleHitObject = createScratchSampleHitObject(hitObject.StartTime, hitObject.LaneIndex, hitObject.KeysoundSample, hitObject.KeysoundId);
 
                     if (scratchSampleHitObject != null)
                         yield return scratchSampleHitObject;
@@ -129,6 +133,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         Column = getTargetColumn(hitObject.LaneIndex),
                         Samples = createSamples(hitObject.KeysoundSample),
                     };
+                    break;
+
+                // K11: BGM (autoplay channel 0x01) carries the non-playable audio layer (drums / bass / backing /
+                // vocals). Without this it is silently dropped and a pure-keysound BMS plays hollow in mania. Emitted
+                // as a sample-only, ignore-judgement object so it never enters combo / statistics / star / autoplay.
+                case BmsBgmEvent bgmEvent:
+                    var bgmSample = createBgmSampleHitObject(bgmEvent);
+
+                    if (bgmSample != null)
+                        yield return bgmSample;
+
                     break;
             }
         }
@@ -202,18 +217,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private IEnumerable<ManiaHitObject> createScratchSampleHitObjects(BmsHoldNote holdNote)
         {
-            var head = createScratchSampleHitObject(holdNote.StartTime, holdNote.LaneIndex, holdNote.HeadKeysoundSample);
+            // Scratch long-note: only the head sounds. The tail keysound is intentionally dropped to match the
+            // BMS-side "LN tail silent" contract (P1-J #3a) — the same alignment applied to non-scratch holds via the
+            // empty NodeSamples[1]. LNTYPE1 tails commonly repeat the head WAV, so emitting a tail sample object here
+            // re-introduces the head/tail double (e.g. GOODBOUNCE scratch vocal "stomp your fee feet"). K11.
+            var head = createScratchSampleHitObject(holdNote.StartTime, holdNote.LaneIndex, holdNote.HeadKeysoundSample, holdNote.HeadKeysoundId);
 
             if (head != null)
                 yield return head;
-
-            var tail = createScratchSampleHitObject(holdNote.EndTime, holdNote.LaneIndex, holdNote.TailKeysoundSample);
-
-            if (tail != null)
-                yield return tail;
         }
 
-        private BmsConvertedScratchSampleHitObject? createScratchSampleHitObject(double time, int laneIndex, BmsKeysoundSampleInfo? sample)
+        private BmsConvertedScratchSampleHitObject? createScratchSampleHitObject(double time, int laneIndex, BmsKeysoundSampleInfo? sample, int? keysoundId)
         {
             var samples = createSamples(sample);
 
@@ -225,6 +239,28 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 StartTime = time,
                 Column = getScratchSampleColumn(laneIndex),
                 Samples = samples,
+                KeysoundSample = sample,
+                KeysoundId = keysoundId,
+            };
+        }
+
+        private BmsConvertedBgmSampleHitObject? createBgmSampleHitObject(BmsBgmEvent bgmEvent)
+        {
+            var samples = createSamples(bgmEvent.KeysoundSample);
+
+            if (samples.Count == 0)
+                return null;
+
+            // BGM is not bound to a playable lane; it only needs a valid anchor column for the sample-only drawable,
+            // so it pins to column 0 (always valid because CanConvert guarantees totalColumns > 0). Column carries no
+            // judgement / stereo meaning here.
+            return new BmsConvertedBgmSampleHitObject
+            {
+                StartTime = bgmEvent.StartTime,
+                Column = 0,
+                Samples = samples,
+                KeysoundSample = bgmEvent.KeysoundSample,
+                KeysoundId = bgmEvent.KeysoundId,
             };
         }
 
@@ -272,7 +308,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 throw new InvalidOperationException($"BMS lane {laneIndex} is outside the supported {sourceBeatmap.DecodedChart.BeatmapInfo.Keymode} layout.");
         }
 
-        private static bool isScorableHitObject(ManiaHitObject hitObject) => hitObject is not BmsConvertedScratchSampleHitObject;
+        private static bool isScorableHitObject(ManiaHitObject hitObject)
+            => hitObject is not (BmsConvertedScratchSampleHitObject or BmsConvertedBgmSampleHitObject);
 
         private static List<HitSampleInfo> createSamples(BmsKeysoundSampleInfo? sample)
             => sample == null

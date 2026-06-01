@@ -5,7 +5,37 @@
 
 ---
 
+## 2026-06-01
+
+### 代码 / 测试：修复 mania autoplay 整类长条不按（原生 mania 与 BMS→mania 转谱同坏；P1-K K9 #12）
+
+审查 mania autoplay 链路查实回归：autoplay **完全不处理长条**，原生 mania 谱与 BMS→mania 转谱同坏（两者共用 `ManiaAutoGenerator`）。根因：K9「autoplay 跳过 ignore-only sample 对象」契约在 `ManiaAutoGenerator.canParticipateInAutoplay` 里实现为只看顶层对象自身的 `MaxResult.AffectsCombo()`（随 `4aa76f0` P1-L WIP 快照落入），而 mania `HoldNote` 自身是 `IgnoreJudgement`（`IgnoreHit`，不计 combo，combo 落在嵌套 `HeadNote`/`TailNote`）——谓词不下探嵌套，于是每条长条被整体跳过、不生成按/放帧。并列的 note-lock `OrderedHitPolicy` 同按 `AffectsCombo` 过滤却正确，因为它额外遍历嵌套对象。该回归随 `4aa76f0`（只验 BMS 套件、未跑 mania 套件）漏网，上游既有的 `TestPerfectScoreOnShortHoldNote` 当时已静默失败。修复：谓词改 nested-aware（self 或任一嵌套对象影响 combo 即参与），对齐 note-lock 语义；长条复活、sample-only 对象（无嵌套）仍被跳过。`TestSceneManiaModAutoplay` 4/4（新增长条+BGM sample 共存用例）、`osu.Desktop.slnf` Release 0 错误 0 新增警告；**2026-06-01 用户人工实机验证确认 mania 原生谱与 BMS→mania 转谱在 mania mode 下长条 autoplay 均正常**。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 与 CONSTRAINTS #12。
+
+### 代码 / 测试：BMS -> mania 转谱 BGM/autoplay 音频补全落地（K11；dense-BGM 性能 J6 后置）
+
+审查 `BMS -> mania` 单向转谱的非键音音频链路，查实一处音频保真缺口并完成补全规划：BGM（autoplay channel `0x01`）在转 mania 时被静默丢弃——`BmsToManiaBeatmapConverter.ConvertHitObject` 无 `BmsBgmEvent` 分支，base converter 将其作为非 `ManiaHitObject` 丢弃。对纯键音 BMS（无完整 master 音轨、`AudioFile` 仅 preview/空），mania 转谱因此只剩可击打 note 的键音、丢掉鼓/贝斯/铺底/人声等背景层。该缺口在 mania ruleset + `ShowConvertedBeatmaps` 实际游玩 BMS 时发生（`AllowGameplayWithRuleset` + `DrawableManiaRuleset.CreateDrawableRepresentation`），非仅 star 计算用途。已 de-risk：样本源与游玩 ruleset 无关（`WorkingBeatmapCache` 的 `FilesystemBackedBeatmapResourceProvider` 按 BeatmapSet 建、指向 `chartbms/`），BGM 用同型 `BmsKeysoundSampleInfo` piggyback、无需新样本源。连带规划 LN 尾键音 mania 对齐（消除与 BMS「长条只头发声」的分歧）。归线：转谱语义 + 尾对齐归 P1-K K11，mania-runtime 播放保真与 dense-BGM 性能归 P1-J J6。**K11 已落地（converter 侧）**：新增 BGM sample-only 对象/drawable + 转谱器 BGM 分支 + LN 尾 node sample 置空；`BmsToManiaBeatmapConverterTest` 17→**19/19**、完整 `osu.Game.Rulesets.Bms.Tests` **869/869**、`osu.Desktop.slnf` Release 0 错误 0 新增警告。**J6 首版亦已落地**：转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`（`DrawableManiaRuleset` 反射宿主 + `CreateChildDependencies` 缓存 + `load` 挂载到游玩树），暂停/seek 由 store 统一 `StopAllPlayback`（修用户反馈的「暂停不停 BGM」）、通道有上限（原意缓解 dense 卡顿），store 缺席安全回退 per-object 播放。**用户实测：E（暂停停 BGM）已修复 ✅、B 的 scratch double 消失 ✅、普通 mania 无回归 ✅；D（dense 极端谱高密段仍极度缓慢）未解、后置**——共享 store 已排除「音频对象数」为主因，真瓶颈（疑 drawable 数量/转换/渲染）待 profile。残留：mania `Note`/`HoldNote` 自身键音仍 per-drawable。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 与 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-01。
+
 ## 2026-05-31
+
+### 代码 / 测试：难度表全 Unrated 真根因订正 —— 共用 RulesetData 列互相覆盖（P1-H）
+
+实机验证推翻同日早先的 staleness 判断。**真根因**：转谱星数（osu.Game `BmsPersistedMetadataData`：`converted_star_ratings`）与难度表（BMS `BmsBeatmapMetadataData`：`difficulty_table_entries`/`chart_filter_stats`）**各自定义容器类却共用同一个 `BeatmapMetadata.RulesetData` 列**；`SetRulesetData<T>` 整体覆盖 + Newtonsoft 默认丢弃未知字段 → 互相抹掉对方独有字段。转谱星数重算冲掉难度表 entries（全 Unrated，用户实测重算 11336 后即复现）；难度表回写冲掉星数 → 启动判 missing → 重算 → 再冲难度表，破坏性 ping-pong（"有概率"取决于最后谁写）。**修复**：两容器类均加 `[JsonExtensionData]` 往返保留对方字段（`IsEmpty` 计入扩展字段，避免置空连带抹掉对方），双向回归测试已加。同时**撤销**上一条的 per-set `DifficultyTableRevision` bump —— 大库下一次开关表命中数千 set，per-set re-detach 致 UI 卡死 1~2 分钟（用户实测）；改为中途开关表需重启反映、启动恒正确。详见 [P1-H CHANGELOG](../subline/P1-H/CHANGELOG.md) 与 CONSTRAINTS #22。验证：BMS **869/869**、`BmsStarRatingResolverTest` **13/13**、`osu.Desktop.slnf` Release 0 错误；用户实机重启后分组恢复正常。
+
+### 代码 / 测试：修复难度表分组「会话中途启用/刷新后全落 Unrated」+ 回写架构收口（P1-H）
+
+> ⚠️ **本条为初判，主因判断已被上一条订正推翻**：staleness 非全 Unrated 主因；per-set `DifficultyTableRevision` bump 已撤销（大库卡死）。注入全局 `RealmAccess` / 异步化 / MD5 归一化 / 递归保护 / 去 `GetSources().Single` 等改动保留有效。
+
+全面审查 BMS 难度表链路后定位并修复一个用户实测 bug：按难度表分组时谱面有概率全落 `Unrated`。根因是 carousel 缓存陈旧——回写改的是 `BeatmapInfo.Metadata.RulesetData`（`BeatmapSetInfo → Beatmaps → Metadata` 下 2 层深 link 属性），而 `RealmDetachedBeatmapStore` 只浅层订阅 `All<BeatmapSetInfo>()`（`RegisterForNotifications` 不带 keyPaths），深层变更不触发 re-detach；会话中途变更后 carousel 持旧快照，完全重启才恢复（故表现"有概率"）。MD5 大小写经查不是根因（两侧均小写）。
+
+主修（用户拍板「精准增量刷新」方案）：新增 `BeatmapSetInfo.DifficultyTableRevision`（realm schema 54→55，纯新增字段），回写 metadata 同事务内对实际变化的 set bump 该标量字段，强制集合 modified → carousel 增量 re-detach 重组，无需重启。
+
+并连带收口审查暴露的回写架构与健壮性问题：
+- 回写不再 `new` 第二个 `RealmAccess`（消除其构造期 `cleanupPendingDeletions` 越权物删谱面集 + 与全局实例时序竞争），改为注入全局 `RealmAccess`（`GetShared/GetSharedAsync` 增 `RealmAccess` 参数，settings / first-run 反射桥 / importer 同步接线）。
+- `SetSourceEnabled` / `RemoveSource` 异步化，启用/禁用/移除不再在 UI 线程同步回写 + 全表扫描。
+- 回写匹配归一化 `MD5Hash` 大小写（防御，不放宽 identity 口径）；`loadTableSource` 递归加深度上限防 HTML 环路；`import`/`refresh` 去掉末尾 `GetSources().Single` 全量重查（`RefreshAll` 由 O(N) 次全表重载降为常量）。
+- 详见 [P1-H CHANGELOG](../subline/P1-H/CHANGELOG.md) 与 TECHNICAL_CONSTRAINTS #20/#21。
+
+验证：难度表相关 **23/23**、导入集成 **26/26** 通过；`osu.Desktop.slnf` Release 0 警告 0 错误。carousel 中途刷新待用户人工确认。
 
 ### 代码 / 测试：修复缺省 `#LNTYPE` 长条被整条丢弃（P1-K，解码器）
 
@@ -92,7 +122,7 @@ bms-play 键音链路审查定位并修复：
 
 构建：`dotnet build osu.Desktop -p:Configuration=Release` 0 错误 0 警告。测试：`BmsToManiaBeatmapConverterTest` **17/17**（含 5 条本轮新增 focused 回归）；BMS 全套 **821/821**；核心 focused suite **40/40**。
 
-已知 follow-up：`TestSceneManiaModAutoplay.TestPerfectScoreOnShortHoldNote` CLI 下 TearDownSteps 10s 超时——与 BMS 无关的 mania 自身 visual scene flake，已在文档历史中记录。
+已知 follow-up：`TestSceneManiaModAutoplay.TestPerfectScoreOnShortHoldNote` CLI 下 TearDownSteps 10s 超时——与 BMS 无关的 mania 自身 visual scene flake，已在文档历史中记录。**⚠️【2026-06-01 订正】此判断已被推翻**：该超时实为 mania autoplay 长条回归（`canParticipateInAutoplay` 误跳所有 `HoldNote` → combo 到不了 4 → PassCondition 不满足 → 重试至超时），非 visual scene flake；已修复（nested-aware 谓词）并经用户实测，见本日「修复 mania autoplay 整类长条不按」条。
 
 ---
 
