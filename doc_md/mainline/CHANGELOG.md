@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-06-07
+
+### 代码 / 测试：BMS→mania 转谱音频链路审查 + **autoplay/游玩 BGM 人声丢失真因确诊修复（用户实测确认 ✅）**；同日落地 prewarm + store 通道 floor（P1-J J6）
+
+对 BMS→mania 转谱音频链路（BGM 事件 + 键音事件）做完整静态审查，定性为冷热不均两条播放路径：BGM/scratch 走共享 `BmsKeysoundStore`（直接用 sample 对象播放、**绕过惰性 LoadSamples**、per-WAV cut、pause/seek 停、常驻通道池），KEY note/LN head 走 mania 一次性 `PlaySamples`（**依赖惰性 `LoadSamples`**、无 per-WAV cut）；BMS 原生则全键音走 store + autoplay 预热全样本。识别**三条确定结构缺陷**并修复其中两条（均不动对象模型、对齐 BMS 原生）：① **mania 转谱此前完全无 keysound prewarm** → `DrawableManiaRuleset.LoadComplete` 在 converted-BMS + autoplay 下遍历 `Samples`/`NodeSamples` 预热全部 keysound 的 sample pool（对齐 BMS 原生 `PrewarmKeysounds`）；② **转谱 store 固定 32 通道** → `BmsToManiaKeysoundStoreFactory.Create` 改为 `Math.Max(config, 128)` floor（见下方真因）。第三条（跨/同路径无 per-WAV cut = 转谱键音重复）仍后置——唯一修复路径「note/LN 走 store」此前两次运行时回归、须先补 player-level 集成测试。**autoplay/游玩 BGM 人声丢失：真因确诊并修复（用户实测 autoplay+游玩均恢复 ✅）**——后续用户给出「单文件 bgm1、开头正常播、第 16s 人声才消失」的决定性线索，静态解析谱面确诊：是单个长 BGM `bgm1`（measure 1 单次触发、712KB；该谱 channel-01 共 4032 事件、并发峰值 27–36 > 32）被 `BmsKeysoundStore` 32 通道饱和时**轮转偷取掐断**（长 BGM 占通道最久最易被偷），**非** prewarm、**非**惰性 `LoadSamples`、**非** KEY-note 路径（争议人声是 BGM bgm1 长样本，那些方向全部作废）；修复=mania 转谱 store 通道 floor 128（`Math.Max(config, 128)`，远超峰值 → 长 BGM 永不被偷，用户调更高 config≤256 仍生效）。**#1 转谱键音重复（跨路径 per-WAV cut）是独立遗留、仍后置。**排除误区：playback discrepancy 只 log 不 Seek、不会掐断 store BGM。验证：`osu.Desktop.slnf` Release **0 错误 0 警告**、mania autoplay + 转谱 + drawable focused **30/30**、完整 `osu.Game.Rulesets.Bms.Tests` **869/869**；**用户实测 2026-06-07：autoplay 与游玩下 bgm1 第 16s 人声均恢复 ✅**。详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-07。
+
 ## 2026-06-01
 
 ### 代码 / 测试：修复 mania autoplay 整类长条不按（原生 mania 与 BMS→mania 转谱同坏；P1-K K9 #12）

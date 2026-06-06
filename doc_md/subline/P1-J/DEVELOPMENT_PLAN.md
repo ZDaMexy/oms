@@ -1,6 +1,6 @@
 # P1-J 开发计划：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-06-01（新增 J6：mania 转谱 BGM/键音 runtime 呈现与 dense-BGM 性能）
+> 最后更新：2026-06-07（J6：**autoplay/游玩 BGM 人声丢失真因确诊并修复**——长 BGM `bgm1` 被 store 32 通道饱和偷取掐断、转谱 store 通道 floor 128、用户实测 autoplay+游玩均恢复 ✅；同日另落地 prewarm + 通道接配置。per-WAV cut/转谱键音重复仍后置）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-J` 的执行顺序；判定/反馈语义见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -142,7 +142,7 @@
 
 ### J6：BMS -> mania 转谱 BGM / 键音在 mania runtime 的呈现保真与 dense-BGM 性能
 
-状态：首版已落地（2026-06-01；转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`，对象携带 `KeysoundSample`/`KeysoundId`、drawable `[Resolved]` 后 `Play`、缺席安全回退）。**E（暂停停 BGM）已人工实测修复 ✅**；**D（dense 极端谱高密段仍极度缓慢）未解、用户要求后置**——共享 store 已排除「音频对象数」为主因，真瓶颈待 profile（疑 drawable 数量 / 转换链 / 渲染）
+状态：首版已落地（2026-06-01；转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`，对象携带 `KeysoundSample`/`KeysoundId`、drawable `[Resolved]` 后 `Play`、缺席安全回退）。**2026-06-06：尝试把转谱 note/LN 也走 store（补 per-WAV cut）以根除转谱键音重复，因两次运行时回归全部回退到 J6 v1**——回归 1（LN 子类 + 非池化自定义嵌套 head → `DrawableHoldNote.Update()→Head` 空容器崩溃）、回归 2（tap note 走 store 后某 punai 吉他切片完全静音，真因未定性、通道饱和已被数据排除）；详见 CHANGELOG 2026-06-06。当前仅 BGM/scratch 走 store，note/LN 走 mania 一次性，**转谱键音重复=已知遗留**。**E（暂停停 BGM）已人工实测修复 ✅**；**D（dense 极端谱高密段仍极度缓慢）未解、用户要求后置**——共享 store 已排除「音频对象数」为主因，真瓶颈待 profile（疑 drawable 数量 / 转换链 / 渲染）。**2026-06-07：全链路审查后落地两条确定结构缺陷修复（均不动对象模型，验证全绿）：(i) mania 转谱 keysound prewarm（`DrawableManiaRuleset.LoadComplete` gate=converted-BMS+autoplay，遍历 `Samples`/`NodeSamples` 调 `Playfield.PrepareSamplePool`，对齐 BMS 原生——此前 mania 转谱完全无预热）；(ii) 转谱 store 通道 floor 128（`Math.Max(config, 128)`，不再固定 32）。**autoplay/游玩 BGM 人声丢失真因确诊并修复（用户实测均恢复 ✅）：是长 BGM `bgm1`（measure1 单次触发）被 store 32 通道饱和轮转偷取掐断（该谱 channel-01 4032 事件、峰值36>32），非 prewarm/非惰性 LoadSamples/非 KEY-note 路径（全作废）；floor 128 远超峰值 → 长 BGM 永不被偷。** #1 per-WAV cut/转谱键音重复是独立遗留、仍后置（走 store 两次回归、须先集成测试）。详见 CHANGELOG 2026-06-07**
 
 目标：让 K11 补出的 BGM sample-only 对象在 mania 游玩时 autoplay 出声（音频与 BMS 原生模式一致），并把 dense-BGM 的播放期性能收口在可接受范围，不为此破坏 shared audio pool authority。
 
@@ -173,4 +173,4 @@
 1. 用同一套 dense autoplay chart 再做现场压测，重点确认 full autoplay keysound prewarm 之后是否仍会出现 once-per-run 单次致命卡顿。
 2. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change。
 3. 评估 single-sample array contract 是否继续下探，还是把当前实现作为 `J3` 第一阶段冻结点；若继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`。
-4. `J6`：首版已落地——E（暂停停 BGM）人工实测修复、转谱 BGM/scratch 走复用 `BmsKeysoundStore`。**剩余 D**：dense 极端谱高密段仍极度缓慢，共享 store 已排除「音频对象数」为主因；下一步先 profile 真瓶颈（疑 drawable 数量 / 转换链 / 渲染）再决定切法。用户已要求 D 后置、日后处理。
+4. `J6`：首版已落地（E 修复、BGM/scratch 走 store）；**2026-06-06 把转谱 note/LN 也走 store 的尝试因崩溃+静音两次运行时回归全部回退到 J6 v1**——转谱键音重复仍是已知遗留。**2026-06-07 全链路审查后已落地两条确定结构缺陷修复（不动对象模型、验证全绿）：mania 转谱 keysound prewarm + store 通道接配置。** **per-WAV cut/重复音（#1）再尝试前置**：先补 player-level 集成测试 + 运行时日志，定性 tap-note 静音真因（通道饱和已排除），并避免非池化自定义嵌套 hold（必崩）。**autoplay/游玩 BGM 人声丢失**：已确诊并修复（长 BGM `bgm1` 被 store 32 通道饱和偷取掐断、转谱 store 通道 floor 128，用户实测 autoplay+游玩均恢复 ✅）；「惰性 LoadSamples / KEY-note 路径」等假设已全部作废。**剩余 D**：dense 极端谱高密段仍极度缓慢，共享 store 已排除「音频对象数」为主因；下一步先 profile 真瓶颈（疑 drawable 数量 / 转换链 / 渲染）再决定切法。用户已要求 D 后置、日后处理。

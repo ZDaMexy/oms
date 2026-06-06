@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-06-01（修复 mania autoplay 整类长条不按：`ManiaAutoGenerator.canParticipateInAutoplay` 改 nested-aware，用户实测原生+转谱长条 autoplay 均正常；此前同日补 BMS→mania 转谱 BGM 音频遗留与 K11/J6 立项）
+> 最后更新：2026-06-07（J6 **autoplay/游玩 BGM 人声丢失真因确诊并修复**：长 BGM `bgm1` 被 store 32 通道饱和偷取掐断、转谱 store 通道 floor 128、用户实测 autoplay+游玩均恢复 ✅；同日另落地 prewarm + 通道接配置。per-WAV cut/转谱键音重复仍后置。此前 2026-06-01 修复 mania autoplay 整类长条不按 nested-aware）
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -192,7 +192,7 @@
 | P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，公开搜索口径已统一为 `key/keys`、`rc/rice`、`ln`、`scr`（`regular` 仅保留兼容 alias），剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
 | P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 parity / FAST/SLOW / judge display / BMS 结果页反馈面 / visual timing-offset / EX pacemaker / 权威 GN 与调速反馈 / pre-start 1 号普通轨纯视觉流速预览 | 已阶段性收口（当前 feedback family、tri-mode/pre-start 链与 results-side consumer proof 已落地；BRJ/LR2 parity 与 richer judge display 后置 backlog） |
-| P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 / dense full autoplay replay 分流 | 进行中（`J1` / `J4` 已完成，`J2` / `J3` 首刀已落地，`J5` 自动化已闭合；full autoplay 专用 replay 分流与 keysound 预热已落地，剩余 once-per-run hitch 现场确认与人工验收） |
+| P1-J BMS gameplay runtime 性能与音频时序治理 | shared keysound pool 时序 / dense-lane hot path / live channel resize 安全合同 / dense full autoplay replay 分流 | 进行中（`J1` / `J4` 已完成，`J2` / `J3` 首刀已落地，`J5` 自动化已闭合；full autoplay 专用 replay 分流与 keysound 预热已落地，剩余 once-per-run hitch 现场确认与人工验收；J6 autoplay/游玩 BGM 人声丢失真因确诊并修复（长 BGM 被 store 通道饱和偷取掐断、转谱 store 通道 floor 128、用户实测均恢复 ✅），同日落地 prewarm + 通道接配置；转谱键音重复/per-WAV cut 仍后置） |
 | P1-K BMS 解析链路治理 | decoder / normalized chart model / converter 语义 / projection reuse / parse-side cache | 已阶段性收口（`K1-A/K1-B/K2-A/K3-A/K3-B/K3-C/K3-D/K3-E/K3-F`、`K4`、`K5`、`K6`、`K7` 与 `K8` 数字层级已落地并整体收口；`K9` 已落地 dedicated converter、public gate、sample-only scratch runtime、persisted converted star、autoplay fix 与 spread-display read-model，剩余 wording / broader presentation/manual proof 未完工） |
 | P1-D 控制器校准与诊断 | deadzone / sensitivity / scratch 模式说明 / live diagnostics | 下一优先级 |
 | P1-E gameplay 与长条语义 | LN/CN/HCN 真实谱面验校 | 次优先级 |
