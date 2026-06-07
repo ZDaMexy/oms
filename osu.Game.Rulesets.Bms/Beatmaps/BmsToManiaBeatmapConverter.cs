@@ -127,11 +127,18 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     break;
 
                 case BmsHitObject hitObject:
-                    yield return new Note
+                    // Playable KEY note: routed through the shared BmsKeysoundStore (per-WAV cut) like BGM / scratch, so
+                    // a WAV slot shared between BGM and a KEY note — or the same slot retriggered across consecutive
+                    // notes — cuts cleanly instead of stacking duplicate copies (the BMS-native single-store behaviour;
+                    // P1-J #10 / #1). Still carries Samples so keysound prewarm and the store-absent fallback work; the
+                    // KeysoundSample/KeysoundId drive the store path in DrawableBmsConvertedKeyNote.
+                    yield return new BmsConvertedKeyNoteHitObject
                     {
                         StartTime = hitObject.StartTime,
                         Column = getTargetColumn(hitObject.LaneIndex),
                         Samples = createSamples(hitObject.KeysoundSample),
+                        KeysoundSample = hitObject.KeysoundSample,
+                        KeysoundId = hitObject.KeysoundId,
                     };
                     break;
 

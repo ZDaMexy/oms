@@ -5,7 +5,79 @@
 
 ---
 
+## 2026-06-07b（同日晚些，用户 mania 实测）
+
+### 梳理（未解，移交新对话）：`bgm1.ogg` 长 BGM 事件被胡乱按键错误触发 + 重叠 + 不暂停（转谱-mania & BMS 原生）
+
+用户在 `macchitodoncho_SP_HYPER.bms` 剖析 + 转谱-mania/BMS 原生双侧实测，定位出一个**清晰但未解**的 BGM 事件触发/暂停 bug。**因上下文过长，完整梳理移交新对话**——权威 RESUME-HERE 记忆：`reference_bms_bgm1_pause_keytrigger_bug`。
+
+- **对象**：`bgm1.ogg`（**44s 长音频**）= `#WAVYX`，仅 `#00101:YX` 一次（channel 01=BGM 自动层）→ **规范上 100% 是 BGM 事件、不是键音、不该被按键触发**。
+- **已确认事实**：① 转谱-mania 不操作：bgm1 正常播 + 暂停同步停 ✅（BGM 事件暂停在此路径正确）；② 转谱-mania **胡乱按键 → 一堆 bgm1 长音频重叠 + 暂停不停 ✗**（BGM 被错误按键触发！）；③ BMS 原生不操作：bgm1 **非确定性播放 ✗**；④ BMS 原生 bgm1 被触发后暂停 **仍继续播 ✗**。
+- **核心未解问题**：转谱-mania 胡乱按键到底经哪条路径触发了 bgm1？——按规范根本不该（BGM→`BmsConvertedBgmSampleHitObject` sample-only/auto/按键不可触发；mania 无空击键音机制）。候选：解析误塞 lane/键音时间线 / 转谱误转可触发对象 / store 跨槽通道污染（tap-note 路由进同一 store 的 confound）/ BGM 对象被重判。
+- **暂停未停候选**：触发实例走了一次性 `PlaySamples` 回退（不随暂停停）/ 长样本被通道偷取后脱离 `channels` 跟踪 / BMS 原生 32 通道（非转谱 floor 128）饱和偷取长 bgm1。
+- **用户洞察（采纳）**：键音短、即放即完、**可能根本无需暂停**；真正需暂停的是 BGM（长）；混乱根因 = 长 BGM 误入"按键触发的键音"路径。涉及 scratch 的 mania 仅自动播放特殊处理。
+- **三大排查方向**（含代码入口）+ **建议新对话第一步**（store/BGM-object 加运行时日志实测胡乱按键时谁调了 `Play(bgm1)`；先回退 tap-note 路由去 confound；音频发声/静音必须真实 app 实测——虚拟轨单测是盲区）：详见 RESUME-HERE 记忆。
+- **当前代码状态**：tap-note→store 路由"转正"仍 IN（疑普通谱性能 confound、建议先回退）；J6 store/prewarm/floor128 IN；Track 静音修复已回退；本 bgm1 bug + Track 预览泄漏 + 转谱键音 per-WAV cut 重复 均未修。**"结算无法跳转"已澄清=卡顿本身**（`PlaybackRateValid=false` 只取消离线提交、不阻断结算）。
+
+### 回退：上条音轨静音修复（`StopUsingBeatmapClock`）实测无效 + 暴露普通谱转谱-mania 性能回归
+
+用户在 mania 转谱实测并导出日志（`1780836423`），推翻上条"已修复"，并报新性能问题。
+
+- **音轨静音修复无效、已回退**：日志中游玩期仍报 `FrameStabilityContainer:169` "BASS invalid time"（`referenceClock` 独立于游戏帧跳变 >500ms）→ **耦合时钟的真实 app 里时钟源仍是真实 BASS 音轨，`StopUsingBeatmapClock()` 没把它换成虚拟轨**。上条 874/874 单测**全是假阳性**——测试 `Beatmap.Value.Track` 本就是虚拟轨（`TestWorkingBeatmap`），对"音轨是否真静音"是盲区。**已回退**：删 `BmsSoloPlayer.silenceBeatmapTrack` + 其 2 处调用、删 `BmsConvertedSoloPlayer` + `TestSceneBmsConvertedManiaTrackSilence`、`SoloSongSelect.tryCreateRulesetSpecificSoloPlayer` 复原（仅 `ruleset=bms` → `BmsSoloPlayer`）、删 `TestSceneBmsSoloPlayerPreStart.TestSongSelectPreviewTrackIsSilencedOnGameplayStart`。pre-start 套件回到 **24/24**。**Track 泄漏（preview/暂停音频）仍未修**——须先真实 app 取证（为何 StopUsingBeatmapClock 对耦合时钟无效；暂停残留音源是 Track 还是键音 BGM）再重做。**教训**：音频静音类改动在虚拟轨测试环境是盲区，必须真实 app 实测。
+- **结算无法跳转的真因 = 卡顿本身**：日志的 `Playback discrepancy` + "Score submission cancelled" **只取消在线提交（OMS 离线本就禁用）、不阻断结算**；无法跳转结算系密集卡顿致谱面跑不到结尾/被迫退出。
+- **⚠️ 新性能回归（普通谱、非 dense）**：用户明确"刚刚是普通谱面也掉帧+涨延迟"。"涨延迟"=累积特征，**首要嫌疑 = tap-note→store 路由转正引入的非池化 `DrawableBmsConvertedKeyNote` 累积**（mania 精确类型池化、`Note` 子类必非池化）。按用户"一件一件处理"：本轮先回退音轨静音（移除 confound + 不 ship 坏修复）；下一步待用户重测 → 若 perf 仍回归则回退 tap-note 路由（已知 perf 风险、当时已标红）。
+
 ## 2026-06-07
+
+### 代码 / 测试：修复**选歌预览/主音轨泄漏进游玩**（preview/暂停音频 bug，BMS 原生 + 转谱-mania 双路径，运行时确认并修复）
+
+承接用户报"有预览音频的谱面进入游玩时播放预览音频 + 暂停不停的音频"，且警示"可能造成回归与牵连"。彻查 → 运行时确认 → 双路径修复。
+
+- **根因**：`BmsFolderImporter`（行407-413）检测整曲音乐（`detectFullMusicFile`）/预览文件（`resolvePreviewFile`）→ 设 `Metadata.AudioFile` → 这类谱面 `working.Track` 是**真实音频**；osu 游玩基建（`MasterGameplayClockContainer` 包 `working.Track`）把 beatmap Track 当游玩音乐，但 **BMS/转谱的音频是键音**——两条游玩路径都没让 Track 静音（BMS ruleset 全局无 `Track.Stop`/`StopUsingBeatmapClock`/mute）。
+- **运行时确认**：新增 `TestSceneBmsSoloPlayerPreStart.TestSongSelectPreviewTrackIsSilencedOnGameplayStart`（模拟选歌预览在播→进游玩→`Beatmap.Value.Track.IsRunning`）——修复前断言 `==false` 失败（Track 仍在播）。
+- **关键机制坑**：游玩时钟**每帧保持其源 Track 运行**（即便"解耦"），裸 `Track.Stop()` 立即被覆盖 → 必须先 `MasterGameplayClockContainer.StopUsingBeatmapClock()` 把时钟源换成虚拟轨（仍供 timing），再停孤立的真实 Track。
+- **两路径 + 两修复**：
+  - **BMS 原生**（`BmsSoloPlayer`，ruleset=bms）：`StartGameplay` `Reset` **解耦**时钟 → Track 孤立在 preview 位置（注释早写了"may still be playing from song select"却没停）。修复：新增 `silenceBeatmapTrack()`（`StopUsingBeatmapClock()` + `Track.Stop()`），在 `StartGameplay`（pre-start 静音）与 `attemptStartGameplay`（实际游玩开始）各调一次。
+  - **转谱-mania**（标准 `SoloPlayer`，ruleset=mania）：游玩时钟**驱动** Track（从头播当音乐）叠加转谱键音——**与 J6/键音 per-WAV-cut "重复音"调查直接纠缠**（检测到 AudioFile 的转谱谱面"整曲 Track + 键音"双层，易被误判为键音 bug）。修复：新增 `BmsConvertedSoloPlayer : SoloPlayer`（`StartGameplay` → base + `silenceBeatmapTrack` 同机制）；`SoloSongSelect.tryCreateRulesetSpecificSoloPlayer` 增分支——以**非-bms** ruleset 游玩**bms-native beatmap**（`Beatmap.Value.BeatmapInfo.Ruleset.ShortName=="bms"`）时返回 `BmsConvertedSoloPlayer`。
+- **牵连消解**：这条 Track 泄漏是**独立于键音 per-WAV-cut 的另一重叠来源**（song + 键音双层），修掉后键音工作的"重复音"验证不再被它污染。**非本会话键音改动引入**（既有问题）。
+- **验证**：完整 BMS **874/874**（新增 2 个 track-silence regression 测试：`TestSongSelectPreviewTrackIsSilencedOnGameplayStart` + `TestSceneBmsConvertedManiaTrackSilence`；pre-start 全套 **25/25** 无回归，证明 `StopUsingBeatmapClock` 在 pre-start 期不破坏时钟逻辑）；mania `BmsToManiaBeatmapConverterTest`+`TestSceneManiaModAutoplay` **23/23**；`osu.Desktop.slnf` Release **0 错**（`osu!.dll` 产出）。`SoloSongSelect`（osu.Game）改动为 OMS-specific、对非-BMS 谱零影响（gated 在 bms-native 判断）。
+
+### 代码 / 测试：**tap-note→store 路由转正为生产默认**（缺陷③/#1 转谱键音重复的 tap-note 部分已修，待用户真实谱实测；LN 仍后置）
+
+承接同日 tap-note 路由 harness 实测「无静音」结论，按用户决定把路由转正为生产默认（去掉实验 gate），让转谱可游玩 KEY 音符的键音与 BGM/scratch 一样经单一 `BmsKeysoundStore` 获得跨通道 per-WAV cut。
+
+- **改动**：① 删 `BmsToManiaBeatmapConverter.RouteKeyNotesThroughStoreForTesting` flag——`case BmsHitObject` **无条件**发 `BmsConvertedKeyNoteHitObject`（带 `KeysoundSample`/`KeysoundId`，仍保留 `Samples` 供 prewarm + store 缺席回退）；② `BmsToManiaKeysoundStoreFactory.ShouldHost` 增 `BmsConvertedKeyNoteHitObject` → store 现对**每张转谱**都 host（不再只在有 BGM/scratch 时）；③ `BmsConvertedKeyNoteHitObject`/`DrawableBmsConvertedKeyNote`/工厂注释由 EXPERIMENTAL 改生产口径。
+- **效果**：per-WAV cut 现**跨 BGM↔KEY 与 KEY↔KEY（tap）统一生效**——同一 WAV 槽在 BGM 层与 KEY 音符之间、或同槽连续 KEY 之间，干净掐断而非叠加重复一次性副本（对齐 BMS 原生单 store）。转谱键音重复的 **tap-note 部分已修**。
+- **🔴 性能警示（显著、已记入对象注释）**：mania 按**精确类型**池化（`Column.RegisterPool<Note,DrawableNote>`），`Note` 子类必走 `CreateDrawableRepresentation` **非池化**路径（[`Playfield.cs:437`] base-type fallback 仅服务池化路径、对返回非空的 BMS 类型不触发）。故现在**每个转谱 tap 音符都是非池化 drawable**，叠加在既有非池化 BGM/scratch 之上 → 对 dense 谱（P1-J 未解的 **D** 卡顿，瓶颈疑似 drawable 数量）可能加压。**pooling-preserving 替代**（让普通池化 `DrawableNote` 从 mania core 走 shared store、保留池化）= 若 perf 回归的后置正解；不碰第 1 条（用 shared store、非新长 per-note player）。
+- **LN 未动**：LN head 仍走 mania 一次性 `NodeSamples[0]`（per-WAV cut 仍不跨 LN 头）——LN 走 store 须**池化嵌套头**避开 2026-06-06 必崩红线（约束 (a)），后置。
+- **测试**：phase-1 的 baseline split 测试 `TestSceneBmsToManiaKeysoundPlayback`（断言"KEY 音符不进 store"）已随转正过时，**合并删除**，其独有覆盖（floor 128 / sample-only 计数）并入 `TestSceneBmsToManiaKeyNoteStoreRouting`（含 sentinel+settle 健壮模式，断言 `key_a=2`/`key_b=1`/`bgm=2`/`scratch=1` 全部经 store + combo≥4）。**验证**：mania `BmsToManiaBeatmapConverterTest`+`TestSceneManiaModAutoplay`+`TestSceneDrawableManiaHitObject` **26/26**（子类 `: Note` 与 `OfType<Note>()`/计数/star 全兼容）、**完整 BMS 871/871**、`osu.Desktop.slnf` Release **0 错**（`osu!.dll` 产出）。
+- **⚠️ 待用户实测**：headless 测不到 per-WAV-cut **复用**路径（长样本仍播时同槽重触发）+ dense perf；须用户在 `macchitodoncho` 等真实谱验：(1) 键音重复是否消除、(2) per-WAV-cut 复用是否产生意外静音、(3) dense 谱性能是否可接受。若 (2)/(3) 出问题 → git 回退本次转正或转 pooling-preserving 方案。
+
+### 代码 / 测试：用 harness 翻开实验性 **tap-note→store 路由（gated）**，定性 2026-06-06「tap-note 走 store 静音(0 次播放)」——**实测路由本身无静音**，旧静音系 harness 假象/LN 旁路所致
+
+承接同日 harness 落地，按 CONSTRAINTS #10「先测后改」翻开实验性 tap-note→store 路由并实测。**只做 tap-note**（LN 的非池化嵌套头崩溃属约束 (a) 禁区，本轮不碰）。
+
+- **新增（gated，默认 off → 生产零影响）**：`BmsConvertedKeyNoteHitObject : Note`（BMS 程序集，带 `KeysoundSample`/`KeysoundId`）+ `DrawableBmsConvertedKeyNote : DrawableNote`（重写 `PlaySamples` 走 `store.Play(sample, balance, cutGroup)`，store 缺席回退 base）+ 工厂 `CanCreate/Create` 注册 + `BmsToManiaBeatmapConverter.RouteKeyNotesThroughStoreForTesting`（internal static seam）。flag 关闭时 KEY 音符仍是普通 mania `Note`（`case ... when flag` 落到原分支），转换器/工厂行为零变化。
+- **`TestSceneBmsToManiaKeyNoteStoreRouting`**（实验 fixture）+ 控制组：同一谱（长 BGM(AA)／同槽连续 KEY(BB×2)／BGM↔KEY 跨路径共享槽(AA)／scratch(CC)／末尾哨兵 EE）跑 mania autoplay，按 per-file 统计 store `Play` 次数。
+- **关键诊断路径（harness 保真度三连坑，已逐一排除）**：① 单次大跳进 clock → bulk catch-up 可能用 `force=true` 状态判定**跳过 `PlaySamples`**（`DrawableHitObject.cs:493` `if (!force && newState==Hit) PlaySamples()`）；② 连续小步推进但不等 frame-stable → frame-stable 滞后参考时钟 ~2000ms、永远到不了后段音符；③ **manual-clock autoplay 必丢时间上最后一个对象**（控制组普通池化 `Note` 同样 combo=3 → 与路由无关的 harness 假象）。修法：逐段「推进 + AddUntilStep 等 frame-stable 追上」settle + **末尾哨兵音符**吸收"丢最后一个"。
+- **结论（实测）**：修正保真度后，tap-note→store 路由**完全正常、无静音**——`key_a.wav=2`（同槽 BB 重触发两次都进 store）、`bgm.wav=2`（BGM auto + 跨路径 KEY AA 都进 store）、`key_b.wav=1`、`scratch.wav=1`，每个被命中的 tap 音符都触发了 `store.Play`；控制组证明非池化 `BmsConvertedKeyNoteHitObject` drawable **不破坏命中/出声**，且子类**安全穿过 BMS→mania 转换**（未被降级为普通 `Note`）。**2026-06-06 的「0 次播放」未能复现** → 不是 tap-note 路由机制的根本缺陷；旧静音最可能是 (i) 当时生产侧的观测假象（与本轮 harness「丢最后一个对象」同型），或 (ii) 同批 LN 子类改动的连带（LN drawable 崩溃/破坏 playfield），或 (iii) headless 测不到的 per-WAV-cut **复用**路径（长样本仍在播时同槽重触发 → `PerWavCutReuse`）。
+- **headless 局限（明确）**：本 harness 所有 `Play` 决策均为 `IdleChannel`——headless 无音频设备、测试样本零长，样本在下一个音符前已结束，故**未走到 per-WAV-cut 复用分支**。store 的 per-WAV cut 复用逻辑由既有单测 `TestSharedKeysoundStoreCutsSameSlotRetrigger` 单独覆盖（通过）；其在 live player + 长样本下的交互需真实音频/真实谱验证。
+- **验证**：BMS keysound/store/player/converter 子集 + 两个新 fixture **112/112**；mania 侧 `BmsToManiaBeatmapConverterTest` + `TestSceneManiaModAutoplay` **23/23**（flag 默认 off、默认路径不变）。flag 泄漏已防御（baseline fixture `[SetUp]` 同步复位 + 实验 fixture `[TearDown]` 复位）。
+- **下一步（待用户定）**：(A) 把 tap-note→store 路由转正（默认或设置项 + 扩 `ShouldHost` 含 KEY 音符），由用户在 `macchitodoncho` 实测 per-WAV-cut 复用路径；(B) 停在特征化、保留 gated 脚手架 + 测试作根基；(C) 啃 LN 路径（须用池化嵌套头，避开崩溃）。
+
+### 代码 / 测试：转谱音频链路全面审查 + 搭建 **per-WAV cut 缺失（#1 遗留）的 player-level 集成测试 + 运行时日志 harness**（满足 CONSTRAINTS #10 的"再尝试前置(b)"）
+
+承接用户报告"部分其他谱面游玩时 BGM 仍先后重叠"，先做**全链路审查**裁决两个假设，再按 CONSTRAINTS #10 要求搭建"先测后改"所需的 harness（不改 runtime 行为）。
+
+- **审查裁决**：
+  - **假设「BGM 被按键触发」= 否**。`DrawableBmsConvertedBgmSampleHitObject.CheckForResult` 在 `userTriggered` 时直接早退，只在 `timeOffset≥0` 的 auto 路径 `playKeysound()` 一次后 `ApplyMinResult()` 移除；且 BGM 对象 `IgnoreJudgement`+空窗+无嵌套 → autoplay/note-lock 双双跳过。按键无法让 BGM 出声。
+  - **真因 = per-WAV cut 在「音符/LN 头」路径整体缺失 + store(BGM/scratch)↔mania 一次性(note) 跨路径无法互掐**（= 已知缺陷③/#1）。用户感知的"BGM 重叠"实为**同一 WAV 槽既作 BGM 背景层、又作 KEY 音符**时两路径各播一份（原生单 store 会互掐、转谱不会）。
+  - **排除「BGM 自重叠」**：`BmsBgmEvent.KeysoundId` 恒 = `objectEvent.ObjectId`（[`BmsBeatmapConverter:140`]），BGM 永远带 cutGroup → store 内 BGM 同槽必互掐；无 within-object double（BGM 仅 store 路径、LN 头只播 `NodeSamples[0]`、`DrawableHoldNote.PlaySamples` 空操作）。
+- **harness（本次落地）**：
+  - **`BmsKeysoundStore` 运行时播放日志**（`internal`、opt-in、**生产零开销**）：`EnablePlaybackLogForTesting()` 后每次 `Play` 记一条 `KeysoundPlaybackRecord(time, cutGroup, decision, channelIndex, filename)`；`decision ∈ {IdleChannel, PerWavCutReuse, RotationSteal}` 由选择方法（`getNextChannel`/`getChannelForCutGroup`）写一个枚举字段提供；日志关闭时 `recordPlayback` 仅一次 null 检查、无分配（守住 dense 热路径 #8）。时间戳用 `GameplayClockContainer.CurrentTime`（gameplay 量级，便于与事件时刻对齐；大跳进下略超子步事件时刻，细步推进更准）。
+  - **`TestSceneBmsToManiaKeysoundPlayback`**（Bms.Tests，mania-autoplay `PlayerTestScene` + manual reference clock）：用一段同时含「长 BGM(AA)／同槽连续 KEY(BB)／BGM↔KEY 跨路径共享槽(AA)／scratch(CC)」的 BMS 谱转 mania 跑 autoplay，t=0 抓 host 的 store 开日志、推进 clock、dump+断言。**实测日志**：store 仅 2 条 = `scratch.wav`(slot 444) + `bgm.wav`(slot 370)，均 `IdleChannel`；**KEY 音符(key1/key2)完全缺席**；slot 370 即使在 t=5000 又被当 KEY 音符敲一次，store 仍**只 1 条** → per-WAV cut 不跨两路径，与审查结论一致。
+- **意义**：CONSTRAINTS #10 要求"再尝试 note/LN 走 store 前先有 player-level 集成测试 + 运行时日志定性静音真因"——本 harness 即该前置；下一步可在此基座上（先 tap-note、避开 LN 非池化嵌套头红线）翻开实验性 note→store 路由，用日志定性 2026-06-06「`punai` 切片静音(0 次播放)」真因。缺陷③仍未修（维持 J6 v1：note/LN 走 mania 一次性）。
+- **验证**：`osu.Game.Rulesets.Bms.Tests` Debug 编译 0 错；store/keysound/player 回归子集 **109/109**（含 `BmsDrawableRulesetTest` per-WAV cut 单测、`TestSceneBmsKeysoundPlaybackLifecycle`、`TestSceneBmsPlayerAudioSemantics`、新 `TestSceneBmsToManiaKeysoundPlayback`）——store 改动纯增量、日志关闭时 no-op，无回归。
 
 ### 代码 / 测试：autoplay/游玩 BGM 人声丢失**真因确诊 + 修复（用户实测确认 ✅）**——长 BGM 被 store 32 通道饱和偷取掐断，转谱 store 通道 floored 到 128
 

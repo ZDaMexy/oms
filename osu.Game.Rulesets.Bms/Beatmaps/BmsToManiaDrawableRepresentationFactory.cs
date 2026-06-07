@@ -9,7 +9,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 {
     public static class BmsToManiaDrawableRepresentationFactory
     {
-        public static bool CanCreate(ManiaHitObject hitObject) => hitObject is BmsConvertedScratchSampleHitObject or BmsConvertedBgmSampleHitObject;
+        public static bool CanCreate(ManiaHitObject hitObject) => hitObject is BmsConvertedScratchSampleHitObject or BmsConvertedBgmSampleHitObject or BmsConvertedKeyNoteHitObject;
 
         public static DrawableHitObject<ManiaHitObject>? Create(ManiaHitObject hitObject)
         {
@@ -20,6 +20,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 case BmsConvertedBgmSampleHitObject bgmSampleHitObject:
                     return new DrawableBmsConvertedBgmSampleHitObject(bgmSampleHitObject);
+
+                // Playable KEY note routed through the shared store for per-WAV cut (P1-J #10 / #1).
+                case BmsConvertedKeyNoteHitObject keyNoteHitObject:
+                    return new DrawableBmsConvertedKeyNote(keyNoteHitObject);
 
                 default:
                     return null;

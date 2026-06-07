@@ -21,10 +21,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     public static class BmsToManiaKeysoundStoreFactory
     {
         /// <summary>
-        /// Whether the converted beatmap carries any keysound that should route through a shared store.
+        /// Whether the converted beatmap carries any keysound that should route through a shared store. Includes
+        /// playable KEY notes (<see cref="BmsConvertedKeyNoteHitObject"/>) so the store is hosted for every converted
+        /// chart and their keysounds get per-WAV cut — not only charts that happen to carry BGM / scratch samples.
         /// </summary>
         public static bool ShouldHost(IBeatmap beatmap)
-            => beatmap.HitObjects.Any(hitObject => hitObject is BmsConvertedBgmSampleHitObject or BmsConvertedScratchSampleHitObject);
+            => beatmap.HitObjects.Any(hitObject => hitObject is BmsConvertedBgmSampleHitObject or BmsConvertedScratchSampleHitObject or BmsConvertedKeyNoteHitObject);
 
         /// <summary>
         /// Creates the shared keysound store drawable. Returned as <see cref="Drawable"/> so the mania side does not

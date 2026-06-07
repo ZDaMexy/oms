@@ -52,6 +52,17 @@ namespace osu.Game.Rulesets.Bms.Audio
         private int nextChannelIndex;
         private int desiredConcurrentChannels;
 
+        // The channel-selection outcome of the most recent play, recorded into the playback log for diagnostics.
+        // Set by the selection methods (getNextChannel / getChannelForCutGroup) on every play; a single field write
+        // with no allocation, so it stays cheap on the dense-chart hot path (P1-J #8) whether or not logging is on.
+        private KeysoundPlaybackDecision lastDecision;
+
+        // Opt-in, test-only cumulative record of every play (slot, decision, channel, filename, time). Null in
+        // production -> recordPlayback is a single null-check with no allocation (so the diagnostic hook never taxes
+        // the gameplay hot path). A test enables it on the resolved store before advancing the clock, then reads the
+        // sequence back to characterise per-WAV cut / saturation-steal / silence without timing races.
+        private List<KeysoundPlaybackRecord>? playbackLog;
+
         internal int ActualConcurrentChannels => channels.Count;
 
         internal IEnumerable<PausableSkinnableSound> ChannelPool => channels;
@@ -59,6 +70,12 @@ namespace osu.Game.Rulesets.Bms.Audio
         internal void ApplyPendingChannelResize() => trimExcessChannels();
 
         internal void ReclaimIdleChannelsForTesting() => reclaimIdleChannels();
+
+        internal void EnablePlaybackLogForTesting() => playbackLog ??= new List<KeysoundPlaybackRecord>();
+
+        internal void ClearPlaybackLogForTesting() => playbackLog?.Clear();
+
+        internal IReadOnlyList<KeysoundPlaybackRecord> PlaybackLogForTesting => playbackLog ?? (IReadOnlyList<KeysoundPlaybackRecord>)Array.Empty<KeysoundPlaybackRecord>();
 
         public BmsKeysoundStore(int concurrentChannels = DEFAULT_CONCURRENT_CHANNELS)
         {
@@ -107,6 +124,7 @@ namespace osu.Game.Rulesets.Bms.Audio
             var channel = getChannelForCutGroup(cutGroup);
             channel.CurrentCutGroup = cutGroup;
             activeSampleChannels[cutGroup] = channel;
+            recordPlayback(cutGroup, channel, sampleInfo);
             channel.PlaySingleSample(sampleInfo, balance);
         }
 
@@ -118,6 +136,7 @@ namespace osu.Game.Rulesets.Bms.Audio
         {
             var channel = getNextChannel();
             channel.CurrentCutGroup = null;
+            recordPlayback(null, channel, sampleInfo);
             channel.PlaySingleSample(sampleInfo, balance);
         }
 
@@ -130,6 +149,7 @@ namespace osu.Game.Rulesets.Bms.Audio
             channel.CurrentCutGroup = null;
             channel.Balance.Value = balance;
             channel.Samples = sampleInfos;
+            recordPlayback(null, channel, sampleInfos[0]);
             channel.Play();
         }
 
@@ -150,7 +170,10 @@ namespace osu.Game.Rulesets.Bms.Audio
                 && !existing.Retired
                 && !isChannelAvailable(existing)
                 && existing.CurrentCutGroup == cutGroup)
+            {
+                lastDecision = KeysoundPlaybackDecision.PerWavCutReuse;
                 return existing;
+            }
 
             return getNextChannel();
         }
@@ -168,16 +191,48 @@ namespace osu.Game.Rulesets.Bms.Audio
             while (freeChannels.TryPop(out var freeChannel))
             {
                 if (!freeChannel.Retired && isChannelAvailable(freeChannel))
+                {
+                    lastDecision = KeysoundPlaybackDecision.IdleChannel;
                     return freeChannel;
+                }
             }
 
             // Every channel is busy (genuine polyphony saturation): steal in rotation, which approximates oldest-first
             // and stays O(1) on the dense-chart hot path rather than rescanning the whole pool per trigger.
             nextChannelIndex %= selectableChannels;
 
+            lastDecision = KeysoundPlaybackDecision.RotationSteal;
             var channel = channels[nextChannelIndex];
             nextChannelIndex = (nextChannelIndex + 1) % selectableChannels;
             return channel;
+        }
+
+        // Appends one entry to the test-only playback log (no-op + zero allocation when logging is off). Captures the
+        // WAV slot (cut group), the channel-selection outcome (lastDecision), the channel index and the sample's
+        // filename so a harness can replay exactly what the store did for each trigger.
+        private void recordPlayback(int? cutGroup, BmsKeysoundChannel channel, ISampleInfo sampleInfo)
+        {
+            if (playbackLog == null)
+                return;
+
+            int channelIndex = -1;
+
+            for (int i = 0; i < channels.Count; i++)
+            {
+                if (ReferenceEquals(channels[i], channel))
+                {
+                    channelIndex = i;
+                    break;
+                }
+            }
+
+            string? filename = (sampleInfo as BmsKeysoundSampleInfo)?.Filename ?? sampleInfo.LookupNames.FirstOrDefault();
+
+            // Prefer the gameplay clock time so log entries line up with hit-object event times for diagnosis; the
+            // store's own Drawable clock can run above the frame-stability boundary (≈ wall clock) and would not.
+            double time = gameplayClockContainer?.CurrentTime ?? Time.Current;
+
+            playbackLog.Add(new KeysoundPlaybackRecord(time, cutGroup, lastDecision, channelIndex, filename));
         }
 
         protected override void Update()
@@ -288,4 +343,24 @@ namespace osu.Game.Rulesets.Bms.Audio
             }
         }
     }
+
+    /// <summary>
+    /// The channel-selection outcome of a single <see cref="BmsKeysoundStore"/> play, captured for diagnostics.
+    /// </summary>
+    internal enum KeysoundPlaybackDecision
+    {
+        /// <summary>A free (idle) channel was taken from the per-frame free set; nothing was cut.</summary>
+        IdleChannel,
+
+        /// <summary>Per-WAV cut: the channel still sounding this WAV slot was reused, restarting (cutting) it.</summary>
+        PerWavCutReuse,
+
+        /// <summary>Pool saturated (every channel busy): a channel was stolen in rotation, truncating whatever it played.</summary>
+        RotationSteal,
+    }
+
+    /// <summary>
+    /// One entry in <see cref="BmsKeysoundStore"/>'s test-only playback log: what the store did for a single trigger.
+    /// </summary>
+    internal readonly record struct KeysoundPlaybackRecord(double Time, int? CutGroup, KeysoundPlaybackDecision Decision, int ChannelIndex, string? Filename);
 }
