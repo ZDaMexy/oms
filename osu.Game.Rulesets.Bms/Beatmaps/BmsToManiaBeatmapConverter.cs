@@ -245,7 +245,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             {
                 StartTime = time,
                 Column = getScratchSampleColumn(laneIndex),
-                Samples = samples,
+                // Samples MUST stay empty: this sample-only object plays its keysound through the shared store
+                // (KeysoundSample), not mania's per-object path. mania's Column plays the next object's Samples as
+                // key-press feedback (GameplaySampleTriggerSource), so carrying the scratch keysound in Samples would
+                // make pressing that column's key fire the scratch sound (and, for BGM below, bgm1). Keep the computed
+                // `samples` only to gate creation (a valid keysound must exist) and to carry KeysoundSample.
+                Samples = new List<HitSampleInfo>(),
                 KeysoundSample = sample,
                 KeysoundId = keysoundId,
             };
@@ -265,7 +270,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             {
                 StartTime = bgmEvent.StartTime,
                 Column = 0,
-                Samples = samples,
+                // Samples MUST stay empty. This object plays bgm1 etc. through the shared store (KeysoundSample) as an
+                // autoplay layer. mania's Column fires the next object's Samples as key-press feedback
+                // (GameplaySampleTriggerSource.Play on every key down, Column.OnPressed); since BGM objects are pinned
+                // to column 0, a populated Samples here made pressing key1 audibly trigger bgm1 (overlapping on every
+                // press, via the feedback pool's own non-pausable sounds — bypassing the store and pause entirely).
+                // The autoplay BGM still sounds via the store; only the erroneous key-press feedback is removed.
+                Samples = new List<HitSampleInfo>(),
                 KeysoundSample = bgmEvent.KeysoundSample,
                 KeysoundId = bgmEvent.KeysoundId,
             };

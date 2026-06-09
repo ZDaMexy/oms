@@ -51,6 +51,10 @@ namespace osu.Game.Rulesets.Mania.Tests
                 Assert.That(scratch.Column, Is.EqualTo(0));
                 Assert.That(key5.Column, Is.EqualTo(4));
                 Assert.That(getSampleFilename(scratch), Is.EqualTo("scratch.wav"));
+                // Regression guard: the scratch keysound rides on KeysoundSample with an EMPTY Samples, so pressing the
+                // key for the scratch's anchor column does not sound it via mania's per-key feedback (GameplaySampleTriggerSource).
+                Assert.That(scratch.KeysoundSample?.Filename, Is.EqualTo("scratch.wav"));
+                Assert.That(scratch.Samples, Is.Empty);
                 Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(2));
                 Assert.That(convertedBeatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
             });
@@ -465,6 +469,11 @@ namespace osu.Game.Rulesets.Mania.Tests
                 // Slot + sample are carried so the shared store (J6) can play with per-WAV cut and pause/seek handling.
                 Assert.That(bgmSamples.Select(hitObject => hitObject.KeysoundSample?.Filename), Is.EqualTo(new[] { "bgm1.wav", "bgm2.wav" }));
                 Assert.That(bgmSamples.Select(hitObject => hitObject.KeysoundId.HasValue), Has.All.True);
+                // Regression guard: Samples MUST stay empty. mania fires the next object's Samples as per-key sound
+                // feedback (GameplaySampleTriggerSource on every key down); since BGM is pinned to column 0, a populated
+                // Samples made pressing key1 audibly trigger bgm1 (overlapping, bypassing the store and pause). The
+                // keysound rides on KeysoundSample (store path) instead.
+                Assert.That(bgmSamples.Select(hitObject => hitObject.Samples.Count), Has.All.Zero);
                 Assert.That(bgmSamples.Select(hitObject => hitObject.Column), Has.All.EqualTo(0));
                 Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(notes.Length));
                 Assert.That(convertedBeatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
@@ -529,7 +538,16 @@ namespace osu.Game.Rulesets.Mania.Tests
             return scorableBeatmap;
         }
 
+        // The converted keysound lives on Samples for playable notes, but on KeysoundSample (with an intentionally EMPTY
+        // Samples) for the autoplay sample-only objects (BGM / scratch). Those play through the shared store, and an
+        // empty Samples keeps them out of mania's per-key sample feedback (GameplaySampleTriggerSource), which would
+        // otherwise sound the BGM/scratch keysound on a key press in that column (the "press key1 -> bgm1" bug).
         private static string? getSampleFilename(HitObject hitObject)
-            => hitObject.Samples.OfType<BmsKeysoundSampleInfo>().SingleOrDefault()?.Filename;
+            => hitObject switch
+            {
+                BmsConvertedScratchSampleHitObject scratch => scratch.KeysoundSample?.Filename,
+                BmsConvertedBgmSampleHitObject bgm => bgm.KeysoundSample?.Filename,
+                _ => hitObject.Samples.OfType<BmsKeysoundSampleInfo>().SingleOrDefault()?.Filename,
+            };
     }
 }
