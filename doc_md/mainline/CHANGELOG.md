@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06-08
+
+### 代码 / 测试：**解决转谱-mania「按 key1 触发 bgm1 / 胡乱按键长音重叠 / 暂停不停」**——真凶 = mania 按键音效反馈（用户多谱实测确认 ✅，P1-J）
+
+承接 2026-06-07 移交的最高优先级 bug（用户坚称转谱-mania 下按 key1 反复触发 `bgm1.ogg`、多按重叠、暂停不停）。经谱面三重重解析 + 解码/转谱链通读确认**解析与转谱完全正确、无键音/BGM 粘连**，再用分层来源埋点 + 哨兵静音隔离实验 + 最底层 `PoolableSkinnableSample.Play()` 调用栈探针定位**真凶**：mania `Column.OnPressed` **每次按键都调 `GameplaySampleTriggerSource.Play()`**（按键音效反馈），它播放**本列下一个对象的 `Samples`**、用自己一池非循环且不受 store 暂停管的 sound；而转谱 BGM/scratch sample-only 对象被钉在可玩列（BGM→column 0）、其 `Samples` 装着键音（bgm1）→ 按 key1 即经反馈播 bgm1、反复按重叠、绕开 store 故暂停不停。**一个根因解释全部现象**，也解释了为何 store/hit-object 埋点全抓不到。**修复**：`BmsToManiaBeatmapConverter` 把 `BmsConvertedBgmSampleHitObject`/`BmsConvertedScratchSampleHitObject` 的 `Samples` **置空**（它们经 shared `BmsKeysoundStore` 用 `KeysoundSample` 自动发声，`Samples` 多余且只会被按键反馈错误取用）；改动只在转谱器、不碰 osu 核心。**作废本会话先后基于错误诊断的尝试**（store「orphan-on-reuse」已回退、LN-head 已否定、Track/preview 泄漏与"长 BGM 无法 resume"属独立后置问题）。验证：用户真实 app 实测「按 key1 不再触发 bgm1」并在其他原本同问题谱面一并确认；`BmsToManiaBeatmapConverterTest`（含新回归守卫「BGM/scratch `Samples` 必空、键音在 `KeysoundSample`」）**19/19**、`osu.Game.Rulesets.Bms.Tests` **871/871**、`osu.Desktop.slnf` Release **0 错**。详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-08。
+
+---
+
 ## 2026-06-07
 
 ### 代码 / 测试：BMS→mania 转谱音频链路审查 + **autoplay/游玩 BGM 人声丢失真因确诊修复（用户实测确认 ✅）**；同日落地 prewarm + store 通道 floor（P1-J J6）

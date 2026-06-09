@@ -22,11 +22,11 @@ DEAD SOUL [Revive] 的所有效果是**定格动画（stop-motion）**：132 万
 ### Phase 1 — 地雷视觉呈现（✅ 已落地，2026-05-29）
 - 在**现有前进式滚动**下把地雷渲染为可视、非判定对象，零滚动模型改动、零正常链路风险。
 - 落地文件：
-  - [../../osu.Game.Rulesets.Bms/Objects/BmsMine.cs](../../osu.Game.Rulesets.Bms/Objects/BmsMine.cs)（`HitObject`，`IgnoreJudgement` + 空 hit window，仅携 `LaneIndex`）
-  - [../../osu.Game.Rulesets.Bms/UI/DrawableBmsMine.cs](../../osu.Game.Rulesets.Bms/UI/DrawableBmsMine.cs)（仿小节线 drawable，非 `DrawableBmsHitObject`，Phase 1 用非皮肤简单圆形）
-  - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs)（注册地雷时间键 + `buildMines`：`channel-0xC0` 映射回 lane、按时间排序）
-  - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmap.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmap.cs)（`Mines` 列表，**不进 `HitObjects`**）
-  - [../../osu.Game.Rulesets.Bms/UI/BmsPlayfield.cs](../../osu.Game.Rulesets.Bms/UI/BmsPlayfield.cs)（`addMines`，仿 `addMeasureBarLines` 直接加到对应 lane）
+  - [../../osu.Game.Rulesets.Bms/Objects/BmsMine.cs](../../../osu.Game.Rulesets.Bms/Objects/BmsMine.cs)（`HitObject`，`IgnoreJudgement` + 空 hit window，仅携 `LaneIndex`）
+  - [../../osu.Game.Rulesets.Bms/UI/DrawableBmsMine.cs](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsMine.cs)（仿小节线 drawable，非 `DrawableBmsHitObject`，Phase 1 用非皮肤简单圆形）
+  - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs)（注册地雷时间键 + `buildMines`：`channel-0xC0` 映射回 lane、按时间排序）
+  - [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmap.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmap.cs)（`Mines` 列表，**不进 `HitObjects`**）
+  - [../../osu.Game.Rulesets.Bms/UI/BmsPlayfield.cs](../../../osu.Game.Rulesets.Bms/UI/BmsPlayfield.cs)（`addMines`，仿 `addMeasureBarLines` 直接加到对应 lane）
 - 隔离保证：地雷不进 `beatmap.HitObjects`；`DrawableBmsMine` 非 `DrawableBmsHitObject`，被 `OfType<DrawableBmsHitObject>` 天然排除（empty-poor / 键音时间线不受影响）；`IgnoreJudgement` + `DisplayResult=false`（不计分/不显示判定）。
 - 后续小项（非阻塞）：地雷皮肤化（接入 `BmsLaneSkinElements`）、触雷伤害语义（接 gauge，跨 P1-C/Scoring，需单独评估）、极端谱地雷数量的对象池/性能（与 P1-J 协同）。
 

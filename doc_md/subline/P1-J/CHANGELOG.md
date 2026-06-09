@@ -5,9 +5,24 @@
 
 ---
 
+## 2026-06-08（根因确诊 + 修复 + 用户实测确认）
+
+### ✅ 解决：转谱-mania「按 key1 触发 bgm1 / 胡乱按键长音重叠 / 暂停不停」——真凶 = mania 按键音效反馈 `GameplaySampleTriggerSource`
+
+承接 2026-06-07b 移交的最高优先级 bug。**用户实测最终钉死**：转谱-mania 下只按 key1（最左列）就反复触发 `bgm1.ogg`，多按则先后重叠、暂停不停。经谱面三重重解析（`bgm1`=`#WAVYX` 全谱仅 `#00101:YX` 一次、BGM-only、无任何 KEY 通道引用、无同文件跨槽冲突）+ 解码/转谱链通读，确认**解析与转谱完全正确、无键音/BGM 粘连**。先后在 store、`DrawableHitObject.PlaySamples`、KEY/BGM drawable 多处埋点均**抓不到** key1 播 bgm1；最终在最底层发声点 `PoolableSkinnableSample.Play()` 加调用栈探针，定位真凶。
+
+- **根因（调用栈铁证）**：mania `Column.OnPressed`（Column.cs:192）**每次按键都调 `GameplaySampleTriggerSource.Play()`**（按键音效反馈），它播放**本列 `HitObjectContainer` 中下一个对象的 `Samples`**，用自己一池**非循环、不受 store 暂停管**的 `PausableSkinnableSound`。转谱时 **BGM/scratch sample-only 对象被钉在可玩列**（BGM→column 0）、且其 `Samples` 里装着键音（bgm1）→ 按 key1 → 反馈取到 column 0 的 BGM 对象 → 播 bgm1；反复按则反馈池轮转重叠；非循环且绕开 store → 暂停不停。**一个根因解释全部现象**，也解释了为何 store/一次性埋点全抓不到（它既不经 store 也不经 hit-object 的 `PlaySamples`）。
+- **修复（已落地、已验证）**：`BmsToManiaBeatmapConverter` 把 `BmsConvertedBgmSampleHitObject` 与 `BmsConvertedScratchSampleHitObject` 的 `Samples` **置空**。这些 sample-only 对象本就经 shared store 用 `KeysoundSample` 自动发声，`Samples` 对其实际播放是多余的，只会（错误地）被按键反馈取用。置空后：自动 BGM 照常经 store 播放/暂停，按键反馈再也取不到 bgm1。改动定位在转谱器、不碰 osu 核心。
+- **验证**：用户真实 app 实测「按 key1 不再触发 bgm1」**并在其他原本同问题的谱面一并复现修复成立**；日志佐证（所有 `[KEYHIT]` 含 col=0 播的都是鼓/water、无 bgm1，bgm1 仅在自动层 `[BGMAUTO]` 出现）。回归守卫：`BmsToManiaBeatmapConverterTest` 新增「BGM/scratch 的 `Samples` 必须为空、键音在 `KeysoundSample`」断言。`BmsToManiaBeatmapConverterTest` **19/19**、BMS **871/871**、`osu.Desktop.slnf` Release **0 错**。
+- **作废之前的错误方向**（本会话先后基于错误诊断试过、均已回退/否定，留作认知演变）：① store「脱挂留响（orphan-on-reuse）」假设——曾在 `PlaySingleSample` 加 `Stop()`，**已回退**（非本 bug；orphan 是否真实存在属独立待证遗留）；② 转谱 LN head 经 mania 一次性致重叠假设——**否定**（日志 `[ONESHOT]`=0，本谱按键期间无 LN head 发声）；③「长 BGM 当一次性样本无法 resume」属**另一条独立问题**（暂停停掉后恢复截断，native+转谱通用），与本 key-trigger bug 无关、仍后置。
+- **诊断方法教训**：当某发声路径既不经已知 store、也不经 hit-object `PlaySamples` 时，**直接在最底层 `PoolableSkinnableSample.Play()` 加调用栈探针**是定位"隐藏发声路径"最快的手段；按来源标签（store / 一次性 / 反馈）分层埋点 + 哨兵静音隔离实验，是把"用户确信 vs 代码看似不可能"对撞用数据终结的正确流程。
+- **遗留（未动、非本 bug）**：长 BGM resume 截断（需把长 BGM 改走时钟驱动 Track 才能保位暂停/续播）；per-WAV cut 的 orphan-on-reuse（traced，未验证，后置）；BGM/scratch 的 autoplay prewarm（`prewarmConvertedKeysounds` 遍历 `Samples`，置空后 BGM/scratch 不再被预热——仅 `ModAutoplay` 路径受影响、store 仍按需加载，影响小，后置）。
+
+---
+
 ## 2026-06-07b（同日晚些，用户 mania 实测）
 
-### 梳理（未解，移交新对话）：`bgm1.ogg` 长 BGM 事件被胡乱按键错误触发 + 重叠 + 不暂停（转谱-mania & BMS 原生）
+### 梳理（当时未解、移交新对话；✅ **已于 2026-06-08 确诊+修复**，真凶 = `GameplaySampleTriggerSource`，见上方 2026-06-08 条）：`bgm1.ogg` 长 BGM 事件被胡乱按键错误触发 + 重叠 + 不暂停（转谱-mania & BMS 原生）
 
 用户在 `macchitodoncho_SP_HYPER.bms` 剖析 + 转谱-mania/BMS 原生双侧实测，定位出一个**清晰但未解**的 BGM 事件触发/暂停 bug。**因上下文过长，完整梳理移交新对话**——权威 RESUME-HERE 记忆：`reference_bms_bgm1_pause_keytrigger_bug`。
 

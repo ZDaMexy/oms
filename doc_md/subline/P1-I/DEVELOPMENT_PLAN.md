@@ -14,10 +14,10 @@
 
 ## 当前确认基线
 
-- Song Select 右上筛选 UI 当前完全由共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../osu.Game/Screens/Select/FilterControl.cs) 承担；控件为 `sealed`，并由 [../../osu.Game/Screens/Select/SongSelect.cs](../../osu.Game/Screens/Select/SongSelect.cs) 直接构造。
-- 共享搜索解析入口是 [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../osu.Game/Screens/Select/FilterQueryParser.cs)；ruleset-specific 关键字只能通过 `IRulesetFilterCriteria` 扩展。
-- mania 已通过 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 实现 `key` / `ln` 自定义查询；BMS 当前也已接通 `CreateRulesetFilterCriteria()` 与 `BmsFilterCriteria`。当前缺口已不在 parser hook 或 `谱面构成` 产品面实现，而收窄到 `I4` focused regression：单轨拖拽 headless coverage 与 shared visual gate 仍待补强。
-- BMS 键数当前已可稳定从 [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 的 `TryGetKeyCount()` / `Difficulty.CircleSize` 读取。
+- Song Select 右上筛选 UI 当前完全由共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../../osu.Game/Screens/Select/FilterControl.cs) 承担；控件为 `sealed`，并由 [../../osu.Game/Screens/Select/SongSelect.cs](../../../osu.Game/Screens/Select/SongSelect.cs) 直接构造。
+- 共享搜索解析入口是 [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../../osu.Game/Screens/Select/FilterQueryParser.cs)；ruleset-specific 关键字只能通过 `IRulesetFilterCriteria` 扩展。
+- mania 已通过 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 实现 `key` / `ln` 自定义查询；BMS 当前也已接通 `CreateRulesetFilterCriteria()` 与 `BmsFilterCriteria`。当前缺口已不在 parser hook 或 `谱面构成` 产品面实现，而收窄到 `I4` focused regression：单轨拖拽 headless coverage 与 shared visual gate 仍待补强。
+- BMS 键数当前已可稳定从 [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 的 `TryGetKeyCount()` / `Difficulty.CircleSize` 读取。
 - RC/LN/SCR 相关统计当前已具备 persisted metadata authority；`FilterControl` 里的 BMS `谱面构成` 也已由 `BmsCompositionFilterControl` 单轨控件收口，符合“单轨上限段 + 尾段空白容差 + 独立启停”产品合同。
 - 共享 `DisplayStarsMinimum` / `DisplayStarsMaximum` 当前仍驱动 star slider；若只隐藏星数 slider 而不改 criteria 生成链，BMS 仍会被旧的星数过滤误伤。
 
@@ -25,17 +25,17 @@
 
 | 维度 | 首轮锚点 | 用途 |
 | --- | --- | --- |
-| persisted metadata | [../../osu.Game.Rulesets.Bms/DifficultyTable/BmsBeatmapMetadataData.cs](../../osu.Game.Rulesets.Bms/DifficultyTable/BmsBeatmapMetadataData.cs) | 承载 typed filter stats 与 getter/setter helper |
-| import / raw wrapper | [../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs) | 让 decoded/raw working beatmap 与导入链共享同一份 metadata truth |
-| import / reuse authority | [../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs) | 落实新导入、managed/external rebuild、reuse 命中旧 set 时的写入语义 |
-| ruleset search hook | [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../osu.Game.Rulesets.Bms/BmsRuleset.cs) | 接入 `CreateRulesetFilterCriteria()` |
+| persisted metadata | [../../osu.Game.Rulesets.Bms/DifficultyTable/BmsBeatmapMetadataData.cs](../../../osu.Game.Rulesets.Bms/DifficultyTable/BmsBeatmapMetadataData.cs) | 承载 typed filter stats 与 getter/setter helper |
+| import / raw wrapper | [../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs) | 让 decoded/raw working beatmap 与导入链共享同一份 metadata truth |
+| import / reuse authority | [../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs) | 落实新导入、managed/external rebuild、reuse 命中旧 set 时的写入语义 |
+| ruleset search hook | [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../../osu.Game.Rulesets.Bms/BmsRuleset.cs) | 接入 `CreateRulesetFilterCriteria()` |
 | BMS custom criteria | `osu.Game.Rulesets.Bms/BmsFilterCriteria.cs` | 新增 BMS-only custom search / matching authority |
-| shared parser contract | [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../osu.Game/Screens/Select/FilterQueryParser.cs) | 复用 shared range/text parser，不在此新增 BMS-only switch |
-| shared UI host | [../../osu.Game/Screens/Select/FilterControl.cs](../../osu.Game/Screens/Select/FilterControl.cs) | 挂载 BMS-only row branch |
-| visual/style reference | [../../osu.Game/Screens/Select/FilterControl.DifficultyRangeSlider.cs](../../osu.Game/Screens/Select/FilterControl.DifficultyRangeSlider.cs) | 复用现有 sheared slider 风格，不重新发明通用控件皮肤 |
-| importer / metadata tests | [../../osu.Game.Rulesets.Bms.Tests/BmsImportIntegrationTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsImportIntegrationTest.cs) | 锁住新 filter stats 写入、reuse 与 backfill authority |
-| BMS song select tests | [../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSongSelectDifficultyTable.cs](../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSongSelectDifficultyTable.cs) | 复用 `BmsSongSelectTestScene` 做 BMS-only carousel / grouping / filtering integration |
-| shared filter UI tests | [../../osu.Game.Tests/Visual/SongSelect/TestSceneBeatmapFilterControl.cs](../../osu.Game.Tests/Visual/SongSelect/TestSceneBeatmapFilterControl.cs)、[../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs](../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs) | 锁住共享 filter host 的 UI / ruleset-switch 回归 |
+| shared parser contract | [../../osu.Game/Screens/Select/FilterQueryParser.cs](../../../osu.Game/Screens/Select/FilterQueryParser.cs) | 复用 shared range/text parser，不在此新增 BMS-only switch |
+| shared UI host | [../../osu.Game/Screens/Select/FilterControl.cs](../../../osu.Game/Screens/Select/FilterControl.cs) | 挂载 BMS-only row branch |
+| visual/style reference | [../../osu.Game/Screens/Select/FilterControl.DifficultyRangeSlider.cs](../../../osu.Game/Screens/Select/FilterControl.DifficultyRangeSlider.cs) | 复用现有 sheared slider 风格，不重新发明通用控件皮肤 |
+| importer / metadata tests | [../../osu.Game.Rulesets.Bms.Tests/BmsImportIntegrationTest.cs](../../../osu.Game.Rulesets.Bms.Tests/BmsImportIntegrationTest.cs) | 锁住新 filter stats 写入、reuse 与 backfill authority |
+| BMS song select tests | [../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSongSelectDifficultyTable.cs](../../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSongSelectDifficultyTable.cs) | 复用 `BmsSongSelectTestScene` 做 BMS-only carousel / grouping / filtering integration |
+| shared filter UI tests | [../../osu.Game.Tests/Visual/SongSelect/TestSceneBeatmapFilterControl.cs](../../../osu.Game.Tests/Visual/SongSelect/TestSceneBeatmapFilterControl.cs)、[../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs](../../../osu.Game.Tests/Visual/SongSelect/TestSceneSongSelectFiltering.cs) | 锁住共享 filter host 的 UI / ruleset-switch 回归 |
 
 ## 专题目标
 
@@ -79,7 +79,7 @@
    - `LN`：非 scratch 的 long note objects
    - `RC`：剩余的非 scratch、非 long-note playable objects
 3. 百分比默认从计数派生，公式固定为 `count / max(1, total_playable) * 100`；除非后续证明有缓存收益，不把三段百分比再单独当 authority 字段持久化。
-4. 新谱面写入链首轮优先落在 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs) 与 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs](../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)；这样 raw working beatmap、导入后 `BeatmapInfo.Metadata` 与 reuse path 能共享同一 truth。
+4. 新谱面写入链首轮优先落在 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs) 与 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)；这样 raw working beatmap、导入后 `BeatmapInfo.Metadata` 与 reuse path 能共享同一 truth。
 5. 在 import / rebuild / reuse 命中旧 set 的链路里同步写入这份 metadata；不得把 authority 留在仅供详情面板使用的 runtime analyzer cache。
 6. 为已存在且缺失新字段的 BMS 谱面准备 backfill 路径；目标是让用户不需要手工重导整个谱库才能使用新筛选。
 7. backfill 首轮优先顺序固定为：
@@ -100,7 +100,7 @@
 
 建议交付：
 
-1. 在 [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 中正式 override `CreateRulesetFilterCriteria()`。
+1. 在 [../../osu.Game.Rulesets.Bms/BmsRuleset.cs](../../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 中正式 override `CreateRulesetFilterCriteria()`。
 2. 新增 `BmsFilterCriteria`，接管 BMS-only custom keywords 与匹配。
 3. 首轮关键字范围固定为：
    - `key` / `keys`：键数筛选，语义与 UI 的 `5K / 7K / 9K / 14K` multi-select 对齐
@@ -126,7 +126,7 @@
 
 建议交付：
 
-1. 在共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../osu.Game/Screens/Select/FilterControl.cs) 中引入 ruleset-aware row composition：
+1. 在共享 [../../osu.Game/Screens/Select/FilterControl.cs](../../../osu.Game/Screens/Select/FilterControl.cs) 中引入 ruleset-aware row composition：
    - mania / shared ruleset 继续使用现有 star slider
    - BMS ruleset 改为显示 `谱面构成` + `键数`
 2. `谱面构成` 行必须是一条 BMS-only 的 single-row shared-track control，而不是三条彼此独立的 range slider：
