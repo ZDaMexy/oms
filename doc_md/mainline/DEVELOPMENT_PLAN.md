@@ -189,7 +189,7 @@
 
 该专题不并入 `P1-C` 或 `P1-E`。`P1-C` 负责判定、反馈与训练闭环语义；`P1-E` 负责真实谱面 gameplay 验校；而本专题的 authority 明确落在 `BmsKeysoundStore`、`DrawableBmsHitObject`、`BmsLane`、`BmsOrderedHitPolicy` 与 shared keysound pool 的 dense-chart hot path 上。若继续硬挂到既有子线，会把“反馈语义冻结点”与“runtime hot-path 优化冻结点”混成一条线，后续难以判断什么属于回归修复、什么属于无边界调优。
 
-当前代码侧已继续前推到 dense full autoplay 的 BMS-only repair slice：core replay fast-forward 已确认撤回，generic `FramedReplayInputHandler` 逐边界推进合同保持不动；full autoplay 则改走对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样，并在 `LoadComplete()` 时预热唯一 keysound sample pool。当前剩余问题不再是“50k 无法完成 autoplay”，而是需要继续确认是否仍存在 once-per-run 单次致命卡顿。
+当前代码侧已继续前推到 dense full autoplay 的 BMS-only repair slice：core replay fast-forward 已确认撤回，generic `FramedReplayInputHandler` 逐边界推进合同保持不动；full autoplay 则改走对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样；keysound prewarm 自 2026-06-11 起对玩家模式与 autoplay 一律在 `LoadComplete()` 执行（BMS 原生与转谱-mania 对等）。**「once-per-run 单次致命卡顿」已于 2026-06-11 确诊收口**（= 开局段阻塞 gen2 全量 GC，游玩中键音冷解码所致，prewarm 修复、用户实测 ✅）；剩余为 50k 极端 dense 谱 profile（后置）与人工验收。
 
 **目标：**
 
@@ -212,7 +212,7 @@
 2. **lane/order hot path scan 收口**：把 `BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 从“每次按键全枚举容器对象”收口到更窄的候选 authority，保持现有 late-empty-poor regression 语义不变。
 3. **sample allocation tightening**：削减 `DrawableBmsHitObject`、`BmsLane` 与 `BmsKeysoundStore` 之间的重复 `ToArray()` / 单元素数组分配，只保留必要的多样本拷贝边界。
 4. **live channel reconfigure safety**：为 `KeysoundConcurrentChannels` 确定稳定策略，优先接受“增长即时、缩减延后到安全边界”或等价的 non-destructive resize，而不是 rebuild-all 后切断正在播放的键音。
-5. **focused validation**：owner-level store tests、dense-lane regression、config->playfield-store binding、player-level autoplay proof 与 autoplay-facing keysound-neighbour regressions 当前已补齐；真实谱面 dense acceptance 与 once-per-run hitch 的现场确认继续后置到 `P1-G` / 后续人工压测。
+5. **focused validation**：owner-level store tests、dense-lane regression、config->playfield-store binding、player-level autoplay proof 与 autoplay-facing keysound-neighbour regressions 当前已补齐；once-per-run hitch 已于 2026-06-11 确诊收口（开局阻塞 gen2，prewarm 玩家模式修复、用户实测 ✅），真实谱面 dense acceptance 继续后置到 `P1-G`。
 
 **明确不做：**
 

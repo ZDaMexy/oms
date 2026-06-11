@@ -1,6 +1,6 @@
 # P1-J 开发计划：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-06-07（J6：**autoplay/游玩 BGM 人声丢失真因确诊并修复**——长 BGM `bgm1` 被 store 32 通道饱和偷取掐断、转谱 store 通道 floor 128、用户实测 autoplay+游玩均恢复 ✅；同日另落地 prewarm + 通道接配置。per-WAV cut/转谱键音重复仍后置）
+> 最后更新：2026-06-11（J6 游玩期性能三连收口，均用户实测 ✅：tap KEY note 池化〔06-10〕、通道同样本快路径修帧抖动〔06-11，确诊 = 每播 sample-drawable 重建 → gen1 晋升风暴〕、keysound prewarm 放开玩家模式修开局 ~220ms 阻塞 gen2 冻结〔06-11，BMS 原生与转谱对等〕；「once-per-run 卡顿」假设线就此收口。早前 2026-06-07：长 BGM 偷断确诊修复（store floor 128）。剩余：转谱 LN 键音走 store、50k 极端 dense profile、人工 checklist）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-J` 的执行顺序；判定/反馈语义见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -90,7 +90,7 @@
 
 ### J3：sample allocation tightening
 
-状态：进行中；已与 `J1` / `J2` 同刀收口重复数组分配，并继续补到 full autoplay keysound prewarm
+状态：进行中；已与 `J1` / `J2` 同刀收口重复数组分配；keysound prewarm 已从 full autoplay 扩展到玩家模式一律执行（2026-06-11，见 CONSTRAINTS #7）；store 通道同样本快路径（2026-06-11）消除每播 sample-drawable 重建
 
 目标：在不改变 sample authority 的前提下，削减 dense-chart 里的重复数组分配与 LINQ 中间对象，降低 GC 压力。
 
@@ -129,7 +129,7 @@
 
 ### J5：focused validation 与后置验收
 
-状态：进行中；focused regression 与 BMS 全量自动化回归已通过，autoplay 专用 replay proof 与 keysound-neighbour regression 也已闭合，dense-chart manual checklist 与 once-per-run hitch 现场确认仍后置
+状态：进行中；focused regression 与 BMS 全量自动化回归已通过，autoplay 专用 replay proof 与 keysound-neighbour regression 也已闭合；once-per-run hitch 已于 2026-06-11 确诊收口（开局阻塞 gen2 冻结，prewarm 玩家模式修复、用户实测 ✅）；dense-chart manual checklist 仍后置
 
 目标：让 `P1-J` 有独立的 automated proof，再把 dense-chart / BGM layering 体验回交给 `P1-G` 做最终人工确认。
 
@@ -142,7 +142,7 @@
 
 ### J6：BMS -> mania 转谱 BGM / 键音在 mania runtime 的呈现保真与 dense-BGM 性能
 
-状态：首版已落地（2026-06-01；转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`，对象携带 `KeysoundSample`/`KeysoundId`、drawable `[Resolved]` 后 `Play`、缺席安全回退）。**2026-06-06：尝试把转谱 note/LN 也走 store（补 per-WAV cut）以根除转谱键音重复，因两次运行时回归全部回退到 J6 v1**——回归 1（LN 子类 + 非池化自定义嵌套 head → `DrawableHoldNote.Update()→Head` 空容器崩溃）、回归 2（tap note 走 store 后某 punai 吉他切片完全静音，真因未定性、通道饱和已被数据排除）；详见 CHANGELOG 2026-06-06。当前仅 BGM/scratch 走 store，note/LN 走 mania 一次性，**转谱键音重复=已知遗留**。**E（暂停停 BGM）已人工实测修复 ✅**；**D（dense 极端谱高密段仍极度缓慢）未解、用户要求后置**——共享 store 已排除「音频对象数」为主因，真瓶颈待 profile（疑 drawable 数量 / 转换链 / 渲染）。**2026-06-07：全链路审查后落地两条确定结构缺陷修复（均不动对象模型，验证全绿）：(i) mania 转谱 keysound prewarm（`DrawableManiaRuleset.LoadComplete` gate=converted-BMS+autoplay，遍历 `Samples`/`NodeSamples` 调 `Playfield.PrepareSamplePool`，对齐 BMS 原生——此前 mania 转谱完全无预热）；(ii) 转谱 store 通道 floor 128（`Math.Max(config, 128)`，不再固定 32）。**autoplay/游玩 BGM 人声丢失真因确诊并修复（用户实测均恢复 ✅）：是长 BGM `bgm1`（measure1 单次触发）被 store 32 通道饱和轮转偷取掐断（该谱 channel-01 4032 事件、峰值36>32），非 prewarm/非惰性 LoadSamples/非 KEY-note 路径（全作废）；floor 128 远超峰值 → 长 BGM 永不被偷。** #1 per-WAV cut/转谱键音重复是独立遗留、仍后置（走 store 两次回归、须先集成测试）。详见 CHANGELOG 2026-06-07**
+状态：首版已落地（2026-06-01；转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`，对象携带 `KeysoundSample`/`KeysoundId`、drawable `[Resolved]` 后 `Play`、缺席安全回退）。**2026-06-06：尝试把转谱 note/LN 也走 store（补 per-WAV cut）以根除转谱键音重复，因两次运行时回归全部回退到 J6 v1**——回归 1（LN 子类 + 非池化自定义嵌套 head → `DrawableHoldNote.Update()→Head` 空容器崩溃）、回归 2（tap note 走 store 后某 punai 吉他切片完全静音，真因未定性、通道饱和已被数据排除）；详见 CHANGELOG 2026-06-06。当前仅 BGM/scratch 走 store，note/LN 走 mania 一次性，**转谱键音重复=已知遗留**。**E（暂停停 BGM）已人工实测修复 ✅**；**D（dense 极端谱高密段仍极度缓慢）未解、用户要求后置**——共享 store 已排除「音频对象数」为主因，真瓶颈待 profile（疑 drawable 数量 / 转换链 / 渲染）。**2026-06-07：全链路审查后落地两条确定结构缺陷修复（均不动对象模型，验证全绿）：(i) mania 转谱 keysound prewarm（`DrawableManiaRuleset.LoadComplete` gate=converted-BMS+autoplay，遍历 `Samples`/`NodeSamples` 调 `Playfield.PrepareSamplePool`，对齐 BMS 原生——此前 mania 转谱完全无预热）；(ii) 转谱 store 通道 floor 128（`Math.Max(config, 128)`，不再固定 32）。**autoplay/游玩 BGM 人声丢失真因确诊并修复（用户实测均恢复 ✅）：是长 BGM `bgm1`（measure1 单次触发）被 store 32 通道饱和轮转偷取掐断（该谱 channel-01 4032 事件、峰值36>32），非 prewarm/非惰性 LoadSamples/非 KEY-note 路径（全作废）；floor 128 远超峰值 → 长 BGM 永不被偷。** #1 per-WAV cut/转谱键音重复是独立遗留、仍后置（走 store 两次回归、须先集成测试）。详见 CHANGELOG 2026-06-07。**后续推进（详见 CHANGELOG 对应日期）：2026-06-08 tap-note→store 转正生产默认 + bgm1 按键触发修复（`Samples` 置空）；2026-06-10 tap KEY note 改池化（mania `IManiaKeysoundStore`/`IHasManiaKeysound` 接口）；2026-06-11 通道同样本快路径修游玩帧抖动 + prewarm 放开玩家模式修开局 gen2 冻结——三轮均用户实测 ✅，转谱键音重复仅剩 LN 部分。**
 
 目标：让 K11 补出的 BGM sample-only 对象在 mania 游玩时 autoplay 出声（音频与 BMS 原生模式一致），并把 dense-BGM 的播放期性能收口在可接受范围，不为此破坏 shared audio pool authority。
 
@@ -170,7 +170,7 @@
 
 ## 当前优先顺序
 
-1. 用同一套 dense autoplay chart 再做现场压测，重点确认 full autoplay keysound prewarm 之后是否仍会出现 once-per-run 单次致命卡顿。
+1. `J6` 剩余：转谱键音重复的 **LN 部分**——走 store 须**池化嵌套头**（非池化自定义嵌套 head 必崩），先用已落地的 player-level 集成测试 + 运行时日志 harness 取证再尝试（CONSTRAINTS #10 (a)/(b)）。
 2. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change。
-3. 评估 single-sample array contract 是否继续下探，还是把当前实现作为 `J3` 第一阶段冻结点；若继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`。
-4. `J6`（转谱 BGM/scratch/note 音频）：**已闭合 E（暂停停 BGM）/ 长 BGM 通道偷断（store floor 128）/ tap-note→store per-WAV cut（生产默认）/ bgm1 按键触发（BGM/scratch `Samples` 置空）**——逐日过程与两次回退见 [CHANGELOG.md](CHANGELOG.md) 2026-06-01~06-08，约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) #10 / #11。剩余：① 转谱键音重复的 **LN 部分**——走 store 须**池化嵌套头**（非池化自定义嵌套 head 必崩），再尝试用已落地的 player-level 集成测试 + 运行时日志 harness 先取证；② **dense D 卡顿**——共享 store 已排除「音频对象数」为主因，先 profile 真瓶颈（疑 drawable 数量 / 转换链 / 渲染）再决定切法，用户已要求后置；③ tap-note 转正的非池化 drawable perf 待用户真实谱实测，回归则转 pooling-preserving 方案；④ 选歌预览 Track 泄漏（须真实 app 取证再重做）。
+3. 评估 single-sample array contract 是否继续下探，还是把当前实现（含 2026-06-11 通道同样本快路径）作为 `J3` 冻结点；若继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`。
+4. **50k 极端 dense 谱**如重新提上日程：先用 `BmsGameplayStallDiagnostics` 导出日志归因（STALL+GEN2 / gen0:gen1 晋升风暴 / 其它）再定切法；普通密度的游玩期链路已于 2026-06-08~06-11 全部确诊收口（E / 长 BGM 偷断 / tap cut / bgm1 按键触发 / tap 池化 / 帧抖动 / 开局 gen2 冻结，均用户实测 ✅），不再盲改。⑤ 选歌预览 Track 泄漏（须真实 app 取证再重做）。
