@@ -123,6 +123,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var eventTimes = timeline.EventTimes;
             var hitObjects = new List<HitObject>(decodedChart.ObjectEvents.Count + decodedChart.LongNoteEvents.Count);
 
+            // Memoise keysound-sample materialisation by WAV slot for this conversion. The KeysoundTable is fixed per
+            // chart, so the same #WAVxx slot referenced by thousands of notes resolves to one shared (immutable)
+            // BmsKeysoundSampleInfo instead of re-running filename normalisation + allocating a fresh copy per note.
+            var keysoundCache = new Dictionary<int, BmsKeysoundSampleInfo?>();
+
             beatmap.SetMeasureStartTimes(timeline.MeasureStartTimes);
             beatmap.ScrollProfile = timeline.ScrollProfile;
 
@@ -138,7 +143,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     {
                         StartTime = time,
                         KeysoundId = objectEvent.ObjectId,
-                        KeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, objectEvent.ObjectId),
+                        KeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, objectEvent.ObjectId, keysoundCache),
                     });
 
                     continue;
@@ -149,7 +154,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     StartTime = time,
                     LaneIndex = mapLaneIndex(decodedChart.BeatmapInfo.Keymode, objectEvent.Channel),
                     KeysoundId = objectEvent.ObjectId,
-                    KeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, objectEvent.ObjectId),
+                    KeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, objectEvent.ObjectId, keysoundCache),
                     Keymode = decodedChart.BeatmapInfo.Keymode,
                     IsScratch = isScratchLane(decodedChart.BeatmapInfo.Keymode, objectEvent.Channel),
                     AutoPlay = false,
@@ -169,9 +174,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     EndTime = endTime,
                     LaneIndex = mapLaneIndex(decodedChart.BeatmapInfo.Keymode, longNoteEvent.LaneChannel),
                     HeadKeysoundId = longNoteEvent.HeadObjectId,
-                    HeadKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.HeadObjectId),
+                    HeadKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.HeadObjectId, keysoundCache),
                     TailKeysoundId = longNoteEvent.TailObjectId,
-                    TailKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.TailObjectId),
+                    TailKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.TailObjectId, keysoundCache),
                     Keymode = decodedChart.BeatmapInfo.Keymode,
                     IsScratch = isScratchLane(decodedChart.BeatmapInfo.Keymode, longNoteEvent.LaneChannel),
                     AutoPlay = false,
@@ -183,7 +188,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             foreach (var hitObject in beatmap.HitObjects)
                 hitObject.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
 
-            buildLaneKeysoundTimelines(beatmap, decodedChart, eventTimes);
+            buildLaneKeysoundTimelines(beatmap, decodedChart, eventTimes, keysoundCache);
             buildMines(beatmap, decodedChart, eventTimes);
         }
 
@@ -221,7 +226,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 beatmap.Mines = mines.OrderBy(mine => mine.StartTime).ToList();
         }
 
-        private static void buildLaneKeysoundTimelines(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes)
+        private static void buildLaneKeysoundTimelines(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes, Dictionary<int, BmsKeysoundSampleInfo?> keysoundCache)
         {
             var keymode = decodedChart.BeatmapInfo.Keymode;
             int keyCount = BmsRuleset.GetKeyCount(keymode);
@@ -267,7 +272,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (!eventTimes.TryGetValue(new BmsEventTimeKey(invisible.MeasureIndex, invisible.FractionWithinMeasure), out double time))
                     continue;
 
-                add(mapLaneIndex(keymode, visibleChannel), time, invisible.ObjectId, createKeysoundSample(decodedChart.BeatmapInfo, invisible.ObjectId));
+                add(mapLaneIndex(keymode, visibleChannel), time, invisible.ObjectId, createKeysoundSample(decodedChart.BeatmapInfo, invisible.ObjectId, keysoundCache));
             }
 
             if (laneKeysounds.Count == 0)
@@ -444,14 +449,20 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static BmsEventTimeKey toKey(BmsScrollEvent scrollEvent) => new BmsEventTimeKey(scrollEvent.MeasureIndex, scrollEvent.FractionWithinMeasure);
 
-        private static BmsKeysoundSampleInfo? createKeysoundSample(BmsBeatmapInfo beatmapInfo, int? keysoundId)
+        private static BmsKeysoundSampleInfo? createKeysoundSample(BmsBeatmapInfo beatmapInfo, int? keysoundId, Dictionary<int, BmsKeysoundSampleInfo?> cache)
         {
             if (!keysoundId.HasValue)
                 return null;
 
-            return beatmapInfo.KeysoundTable.TryGetValue(keysoundId.Value, out string? filename) && BmsKeysoundSampleInfo.TryCreate(filename, out var sample)
-                ? sample
+            if (cache.TryGetValue(keysoundId.Value, out var cached))
+                return cached;
+
+            var sample = beatmapInfo.KeysoundTable.TryGetValue(keysoundId.Value, out string? filename) && BmsKeysoundSampleInfo.TryCreate(filename, out var created)
+                ? created
                 : null;
+
+            cache[keysoundId.Value] = sample;
+            return sample;
         }
 
         private static double getInitialBpm(BmsDecodedChart decodedChart)

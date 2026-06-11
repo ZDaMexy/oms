@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using osu.Game.Audio;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Mania.Objects;
 
@@ -13,16 +14,18 @@ namespace osu.Game.Rulesets.Bms.Objects
     /// duplicate copies (the BMS-native single-store behaviour; P1-J #10 / #1).
     /// </summary>
     /// <remarks>
-    /// A <see cref="Note"/> subclass: it remains fully scorable / combo- and star-affecting (mania difficulty / autoplay
-    /// / note-lock treat it as a note), so only keysound playback is rerouted. Because mania pools by exact type
-    /// (<c>Column.RegisterPool&lt;Note, DrawableNote&gt;</c>), this subclass is NOT pooled — it goes through
-    /// <c>DrawableManiaRuleset.CreateDrawableRepresentation</c> to <see cref="UI.DrawableBmsConvertedKeyNote"/>.
-    /// PERF CAVEAT: that makes every converted tap note a non-pooled drawable (on top of the already non-pooled BGM /
-    /// scratch sample objects), which adds per-alive allocation on dense charts — a known follow-up for the P1-J dense
-    /// "D" perf line if it regresses; the pooling-preserving alternative would route a plain pooled DrawableNote through
-    /// the store from mania core. Tap notes have no nested objects, so this avoids the LN nested-head crash (#10 (a)).
+    /// A <see cref="Note"/> subclass that stays fully scorable / combo- and star-affecting (mania difficulty / autoplay /
+    /// note-lock treat it as an ordinary note); only keysound playback is rerouted, via <see cref="IHasManiaKeysound"/>.
+    /// It is <b>pooled</b> like any mania note: the converter's drawable factory does not claim it, so
+    /// <c>DrawableManiaRuleset.CreateDrawableRepresentation</c> returns null and the playfield serves it a pooled
+    /// <c>DrawableNote</c> from the registered <c>Note</c> pool (matched by the framework's base-type pool fallback,
+    /// <c>Playfield.prepareDrawableHitObjectPool</c>). That pooled <c>DrawableNote.PlaySamples</c> sees this object as
+    /// <see cref="IHasManiaKeysound"/> and plays the keysound through the hosted <see cref="IManiaKeysoundStore"/> (the
+    /// shared <see cref="BmsKeysoundStore"/>). Keeping it pooled avoids a per-note non-pooled drawable on dense charts —
+    /// the resolution of the earlier P1-J dense "D" allocation/retention concern. Tap notes have no nested objects, so
+    /// none of the LN nested-head pooling hazard applies (#10 (a)); LN keysound routing remains future work.
     /// </remarks>
-    public class BmsConvertedKeyNoteHitObject : Note
+    public class BmsConvertedKeyNoteHitObject : Note, IHasManiaKeysound
     {
         /// <summary>
         /// The BMS keysound played for this KEY note, routed through the shared <see cref="BmsKeysoundStore"/>.
@@ -33,5 +36,9 @@ namespace osu.Game.Rulesets.Bms.Objects
         /// The BMS WAV slot (#WAVxx) of <see cref="KeysoundSample"/>, used as the per-WAV cut group.
         /// </summary>
         public int? KeysoundId { get; set; }
+
+        ISampleInfo? IHasManiaKeysound.KeysoundSample => KeysoundSample;
+
+        int? IHasManiaKeysound.KeysoundCutGroup => KeysoundId;
     }
 }

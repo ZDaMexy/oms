@@ -8,6 +8,8 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Audio;
+using osu.Game.Rulesets.Bms.Diagnostics;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
@@ -17,7 +19,7 @@ namespace osu.Game.Rulesets.Bms.Audio
     /// <summary>
     /// Plays BMS keysounds through a shared channel pool so dense charts do not create an unbounded number of independent sample players.
     /// </summary>
-    public partial class BmsKeysoundStore : CompositeDrawable
+    public partial class BmsKeysoundStore : CompositeDrawable, IManiaKeysoundStore
     {
         private IBindable<bool>? gameplayPaused;
         private GameplayClockContainer? gameplayClockContainer;
@@ -77,9 +79,25 @@ namespace osu.Game.Rulesets.Bms.Audio
 
         internal IReadOnlyList<KeysoundPlaybackRecord> PlaybackLogForTesting => playbackLog ?? (IReadOnlyList<KeysoundPlaybackRecord>)Array.Empty<KeysoundPlaybackRecord>();
 
+        // Diagnostic counters (P1-J J6 perf hunt; read by BmsGameplayStallDiagnostics). Cheap: a HashSet add + two
+        // increments on the gameplay keysound path. seenCutGroups tracks which WAV slots have played, so the FIRST play
+        // of each slot — the one that may trigger a cold sample decode — can be counted via ColdKeysoundFirstPlayCount.
+        private readonly HashSet<int> seenCutGroups = new HashSet<int>();
+        internal long ColdKeysoundFirstPlayCount { get; private set; }
+        internal long TotalKeysoundPlays { get; private set; }
+        internal int DistinctKeysoundSlotsPlayed => seenCutGroups.Count;
+
+        // Managed bytes allocated inside the keysound Play path (update thread), to attribute the gameplay allocation
+        // rate that BmsGameplayStallDiagnostics measures. Confirms whether the per-play SkinnableSound.updateSamples
+        // churn (sample-drawable rebuild on every Samples reassignment) is the dominant allocator vs mania per-frame work.
+        internal long PlayPathAllocatedBytes { get; private set; }
+
         public BmsKeysoundStore(int concurrentChannels = DEFAULT_CONCURRENT_CHANNELS)
         {
-            InternalChild = channels;
+            AddInternal(channels);
+
+            // Long-term diagnostics seam: silent unless real gameplay stalls / GCs (see BmsGameplayStallDiagnostics).
+            AddInternal(new BmsGameplayStallDiagnostics(this));
 
             ConcurrentChannels = concurrentChannels;
         }
@@ -121,11 +139,19 @@ namespace osu.Game.Rulesets.Bms.Audio
         /// </summary>
         public void Play(ISampleInfo sampleInfo, double balance, int cutGroup)
         {
+            long allocBefore = GC.GetAllocatedBytesForCurrentThread();
+
+            TotalKeysoundPlays++;
+            if (seenCutGroups.Add(cutGroup))
+                ColdKeysoundFirstPlayCount++;
+
             var channel = getChannelForCutGroup(cutGroup);
             channel.CurrentCutGroup = cutGroup;
             activeSampleChannels[cutGroup] = channel;
             recordPlayback(cutGroup, channel, sampleInfo);
             channel.PlaySingleSample(sampleInfo, balance);
+
+            PlayPathAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocBefore;
         }
 
         /// <summary>
@@ -134,10 +160,27 @@ namespace osu.Game.Rulesets.Bms.Audio
         /// </summary>
         public void Play(ISampleInfo sampleInfo, double balance)
         {
+            long allocBefore = GC.GetAllocatedBytesForCurrentThread();
+
+            TotalKeysoundPlays++;
+
             var channel = getNextChannel();
             channel.CurrentCutGroup = null;
             recordPlayback(null, channel, sampleInfo);
             channel.PlaySingleSample(sampleInfo, balance);
+
+            PlayPathAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocBefore;
+        }
+
+        // IManiaKeysoundStore: lets a pooled mania DrawableNote (a converted KEY note) play its keysound through this
+        // shared store (per-WAV cut, pause/seek aware) without the mania assembly referencing this type. Bridges to the
+        // cut-group / no-cut single-sample overloads (J6 / P1-J #10).
+        void IManiaKeysoundStore.Play(ISampleInfo sample, double balance, int? cutGroup)
+        {
+            if (cutGroup is int group)
+                Play(sample, balance, group);
+            else
+                Play(sample, balance);
         }
 
         public void Play(ISampleInfo[] sampleInfos, double balance)
@@ -145,12 +188,16 @@ namespace osu.Game.Rulesets.Bms.Audio
             if (sampleInfos.Length == 0)
                 return;
 
+            long allocBefore = GC.GetAllocatedBytesForCurrentThread();
+
+            TotalKeysoundPlays++;
+
             var channel = getNextChannel();
             channel.CurrentCutGroup = null;
-            channel.Balance.Value = balance;
-            channel.Samples = sampleInfos;
             recordPlayback(null, channel, sampleInfos[0]);
-            channel.Play();
+            channel.PlaySampleArray(sampleInfos, balance);
+
+            PlayPathAllocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocBefore;
         }
 
         public void StopAllPlayback()
@@ -330,15 +377,43 @@ namespace osu.Game.Rulesets.Bms.Audio
 
             private int nextSingleSampleBufferIndex;
 
+            // The single sample currently applied to this channel via PlaySingleSample. Lets a re-trigger of the SAME
+            // keysound on the same channel skip the Samples reassignment entirely: assigning a new array reference runs
+            // SkinnableSound.updateSamples — a full sample-drawable teardown/rebuild (RemoveAll + Clear +
+            // GetPooledSample + Add, measured ~30KB of mid-lived allocation per play, plus a whole new drawable
+            // construction whenever the pool's instance is still attached elsewhere). Per-WAV cut pins a slot to its
+            // channel and the converter memoizes one BmsKeysoundSampleInfo per slot, so same-slot re-triggers — the
+            // dominant gameplay path — hit this fast path and become a plain Stop+Play restart (cut semantics
+            // unchanged, matching how a native mania note replays its persistent loaded sound). This churn was the main
+            // converted-BMS per-trigger allocation driver behind the dense-section gen1 promotion storm (P1-J).
+            private ISampleInfo? currentSingleSample;
+
             public void PlaySingleSample(ISampleInfo sampleInfo, double balance)
             {
                 Balance.Value = balance;
 
-                var sampleBuffer = singleSampleBuffers[nextSingleSampleBufferIndex];
-                nextSingleSampleBufferIndex = (nextSingleSampleBufferIndex + 1) % singleSampleBuffers.Length;
+                if (!EqualityComparer<ISampleInfo?>.Default.Equals(currentSingleSample, sampleInfo))
+                {
+                    var sampleBuffer = singleSampleBuffers[nextSingleSampleBufferIndex];
+                    nextSingleSampleBufferIndex = (nextSingleSampleBufferIndex + 1) % singleSampleBuffers.Length;
 
-                sampleBuffer[0] = sampleInfo;
-                Samples = sampleBuffer;
+                    sampleBuffer[0] = sampleInfo;
+                    Samples = sampleBuffer;
+                    currentSingleSample = sampleInfo;
+                }
+
+                Play();
+            }
+
+            public void PlaySampleArray(ISampleInfo[] sampleInfos, double balance)
+            {
+                Balance.Value = balance;
+
+                // Invalidate the single-sample fast path: Samples now holds an arbitrary array, so a future
+                // PlaySingleSample must reassign rather than assume the channel still carries its last single keysound.
+                currentSingleSample = null;
+
+                Samples = sampleInfos;
                 Play();
             }
         }

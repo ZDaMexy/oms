@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using osu.Game.Audio;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Objects;
@@ -25,7 +26,7 @@ namespace osu.Game.Rulesets.Bms.Objects
     /// combo-affecting MaxResult, the autoplay / note-lock filters here would silently regress; the scratch-only /
     /// autoplay focused tests in BmsToManiaBeatmapConverterTest and TestSceneManiaModAutoplay are the regression guard.
     /// </remarks>
-    public class BmsConvertedScratchSampleHitObject : ManiaHitObject
+    public class BmsConvertedScratchSampleHitObject : ManiaHitObject, IHasManiaKeysound
     {
         /// <summary>
         /// The BMS keysound played for this scratch tap / hold head. Routed through the shared
@@ -39,6 +40,10 @@ namespace osu.Game.Rulesets.Bms.Objects
         /// through <see cref="BmsKeysoundStore"/>. Null leaves the playback uncut.
         /// </summary>
         public int? KeysoundId { get; set; }
+
+        ISampleInfo? IHasManiaKeysound.KeysoundSample => KeysoundSample;
+
+        int? IHasManiaKeysound.KeysoundCutGroup => KeysoundId;
 
         public override Judgement CreateJudgement() => new IgnoreJudgement();
 

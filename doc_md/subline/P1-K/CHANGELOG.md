@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-06-10
+
+### 性能 / 代码：转谱器移除冗余 mania 星级自算（每次转换少跑一遍完整 `ManiaDifficultyCalculator`）
+
+审查 `BMS -> mania` 转谱性能面时查实一处冗余：[../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs) `ConvertBeatmap` 末尾在**每次转换**里都跑一遍完整 `ManiaDifficultyCalculator`（真实 strain 计算）把结果写进 `convertedBeatmap.BeatmapInfo.StarRating`。该值在所有已知路径上都被丢弃或重复计算：
+
+- **转换星级持久化路径**（[../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs](../../../osu.Game/Beatmaps/BeatmapDifficultyCache.cs) `computeDifficulty`、`BackgroundDataStoreProcessor`、导入期同步持久化）：先 `GetPlayableBeatmap`（跑转谱器→自算一遍星级），紧接着 `difficultyCalculator.Calculate()` **又用 `ManiaDifficultyCalculator` 从同一份 playable 算一遍**并持久化。转谱器那次结果从不被读取 → 同一张谱的 mania strain **算了两次**；5.7万 谱库重处理时这把一项主成本翻倍。
+- **gameplay 加载路径**：进入转谱 mania 谱时 `GetPlayableBeatmap` 跑转谱器→又算一次完整 strain，而游玩显示/持久化用的星级来自上述 calculator 与数据库 `BeatmapInfo`，**从不读这份临时 playable 的 `BeatmapInfo.StarRating`** → 纯加载延迟。
+
+- **修复**：删除转谱器内的星级自算（连同只为它服务的 `createDifficultyBeatmap` 辅助 + 一次 `Metadata.DeepClone()` + 一次 `scorableHitObjects.ToList()` 分配）。星级唯一归 `ManiaDifficultyCalculator` / 难度缓存所有——与上游 `ManiaBeatmapConverter`（转谱里不设星级）一致。构造函数的 mania-target 校验保留（改为 `is not ManiaRuleset` 守卫，去掉不再使用的 `targetRuleset` 字段）。持久化路径行为不变：持久化的转换星级仍由 `ManiaDifficultyCalculator` 在 `computeDifficulty` 内计算。该「转谱器不得自算星级」约束固化为 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) **K9 #17**（与 K9 #10「转换星级持久化、不得覆盖 `BeatmapInfo.StarRating`」互补：#10 管「在哪存」、#17 管「在哪算」）。
+- **安全性核对**：全仓库无任何调用读取「转换后 playable 谱的 `BeatmapInfo.StarRating`」（grep 验证）；`ManiaDifficultyCalculator.Calculate` 不读取预设 `StarRating`、永远重算。转换后该字段保留 BMS playlevel（`populateMetadata` 所设），不被消费。
+- **测试**：移除只为旧自算契约存在的 `TestConvertedBeatmapStarRatingUsesManiaDifficultyCalculator`；`TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts` 去掉转谱器星级断言、保留 `TotalObjectCount == scorableBeatmap.HitObjects.Count`（scratch sample-only 仍由计数排除证明，即「scratch 不进难度输入」的回归守卫）。`BmsToManiaBeatmapConverterTest` **18/18**（原 19，移除 1），完整 BMS **871/871**，Release 0 错误。
+- **关联**：[P1-J](../P1-J/TECHNICAL_CONSTRAINTS.md) runtime/audio 约束 **#10 的「D（dense）仍慢」子条**把「转换链」列为待 profile 疑点之一——本刀消除的是**加载期**转换冗余；**播放期** dense 段慢（疑 drawable 数量/渲染）仍后置 J6。
+
+### 性能 / 代码：keysound 样本物化按 WAV 槽号 memo（消除每音符重复的文件名规范化与分配）
+
+同次转谱性能审查的低风险项：[../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs) 的 `createKeysoundSample` 此前对**每个**音符/LN 头尾/BGM/不可见对象都重跑一遍 `BmsKeysoundSampleInfo.TryCreate`（含 `IncursPathTraversalRisk` 字符扫描 + `ToStandardisedPath` + `Trim` 多次字符串分配 + 新建对象）。但一张谱的 `#WAVxx` 槽是有限的（百级），同一槽常被数千音符引用 → O(音符数) 的重复规范化。
+
+- **修复**：`buildControlPointsAndHitObjects` 建一个 per-conversion `Dictionary<int, BmsKeysoundSampleInfo?>`，按 `KeysoundId`（WAV 槽号）memo 物化结果，并贯穿 `buildLaneKeysoundTimelines`（不可见对象路径）。同一槽只规范化/分配一次，复杂度降到 O(distinct 槽数)。
+- **行为不变**：`KeysoundTable` 在一次转换内固定，按槽号缓存合法；`BmsKeysoundSampleInfo` 不可变（`sealed`、`Filename` 只读），多音符共享同一实例安全；mania 侧 `BmsToManiaBeatmapConverter.createSamples` 仍 `.With()` 克隆出独立 `HitSampleInfo`，转谱输出无别名。dense 谱减重复 CPU + GC 压力（加载期）。
+- **测试**：完整 BMS **871/871**（含 `BmsBeatmapConverterTest` keysound 时间线 / `LaneKeysoundTimelines` 覆盖）、`BmsToManiaBeatmapConverterTest` **18/18**、Release **0/0**。属「解析侧性能约束 #1（减少重复 normalize）/ #4」既有口径，无新增硬约束。
+- **同次未做（已评估暂缓）**：`buildEventTimeline` 的 `GroupBy×3` + 每 measure `SortedSet<double>` → `List`+排序去重重写——属**常数因子**优化且改动**时序关键热路径**（fraction 排序/去重的浮点边界一致性直接影响音符时刻），无 profiler 证据其为瓶颈；按 [P1-J](../P1-J/TECHNICAL_CONSTRAINTS.md) runtime/audio 约束 #10 D 子条「dense 待 profile」口径，应由实际 profiling 触发，不做臆测性重写。
+
+---
+
 ## 2026-06-01
 
 ### 代码 / 测试：修复 mania autoplay 整类长条不按（`canParticipateInAutoplay` 越界跳过 HoldNote；K9 #12 实现订正）

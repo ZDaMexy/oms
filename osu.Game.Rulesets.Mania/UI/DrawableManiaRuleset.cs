@@ -110,9 +110,16 @@ namespace osu.Game.Rulesets.Mania.UI
                 sharedKeysoundStore = store;
 
                 var wrapped = new DependencyContainer(dependencies);
-                // Cache under the store's runtime type (BmsKeysoundStore) so the BMS-assembly drawables resolve it;
-                // mania cannot name that type at compile time.
+                // Cache under the store's runtime type (BmsKeysoundStore) so the BMS-assembly sample-only drawables
+                // (BGM / scratch) resolve it; mania cannot name that type at compile time.
                 wrapped.Cache(store);
+
+                // Also cache under the mania-owned IManiaKeysoundStore interface so a pooled DrawableNote (a converted
+                // KEY note) can route its keysound through the store without referencing the BMS assembly. This is what
+                // lets converted KEY notes stay pooled instead of each becoming a non-pooled drawable (J6 / P1-J #10).
+                if (store is IManiaKeysoundStore keysoundStore)
+                    wrapped.CacheAs(keysoundStore);
+
                 return wrapped;
             }
 
@@ -193,20 +200,22 @@ namespace osu.Game.Rulesets.Mania.UI
             prewarmConvertedKeysounds();
         }
 
-        // Mirrors BMS-native DrawableBmsRuleset.PrewarmKeysounds (J6 / P1-J): under autoplay every converted keysound
-        // will be hit, so preload them all (into the beatmap sample store / BASS) at load instead of paying the first
-        // disk-load cost mid-gameplay. A converted KEY note / LN head plays its keysound through mania's one-shot
-        // PlaySamples (not the shared store), which only loads the sample lazily on first Update; without prewarm a dense
-        // autoplay section pays a burst of first-time disk loads (a stutter — matching what BMS-native prewarm avoids).
-        // NOTE: prewarm only removes that first-load stutter; it is NOT what fixed the converted "BGM vocal cut ~16s"
-        // report — that was a long BGM stolen by store channel saturation, fixed by the channel floor in
-        // BmsToManiaKeysoundStoreFactory. Gated to converted-BMS charts
-        // under autoplay, matching BMS-native, so normal mania and converted player-mode are unaffected. Walking the
-        // standard Samples / NodeSamples avoids any BMS-assembly type reference — BGM/scratch sample-only objects are
-        // covered too (their keysound is mirrored into Samples), warming the store path's first play as well.
+        // Mirrors BMS-native DrawableBmsRuleset.PrewarmKeysounds (J6 / P1-J): every converted keysound will sound during
+        // the play, so preload them all (decoding into the shared sample store / BASS) at load instead of paying the
+        // first-play decode cost mid-gameplay. Runs for PLAYER MODE too, not just autoplay: a converted chart's full
+        // keysound set (~hundreds of distinct WAVs) otherwise cold-decodes DURING gameplay, and the resulting transient
+        // large buffers / promotion bursts were measured triggering blocking gen2 full GCs (~220ms freezes) in the first
+        // ~30s of play (P1-J, 2026-06-11 probe). Preloading everything before gameplay is also what LR2/beatoraja do.
+        // Two sources are warmed: (1) the standard Samples / NodeSamples (a converted KEY note carries its keysound
+        // there for the store-absent fallback, and a hold node carries the head keysound); (2) the
+        // IHasManiaKeysound.KeysoundSample of every converted object — required because BGM / scratch deliberately
+        // carry EMPTY Samples (so a key press's GameplaySampleTriggerSource can't fire them; P1-J #11), so their
+        // keysound is reachable only via KeysoundSample. Warming the underlying decode also warms the store playback
+        // path, since the store and the playfield sample pool share the same decoded sample-store cache. Gated to
+        // converted-BMS charts (store hosted), so normal mania play is unaffected.
         private void prewarmConvertedKeysounds()
         {
-            if (sharedKeysoundStore == null || !Mods.OfType<ModAutoplay>().Any())
+            if (sharedKeysoundStore == null)
                 return;
 
             foreach (var hitObject in Beatmap.HitObjects)
@@ -220,6 +229,11 @@ namespace osu.Game.Rulesets.Mania.UI
                     foreach (var sample in nodeSamples)
                         Playfield.PrepareSamplePool(sample);
                 }
+
+                // BGM / scratch carry their keysound only here (empty Samples; see above); KEY notes expose theirs too.
+                // Warm it so the store's first play of each unique keysound doesn't hit a cold decode mid-gameplay.
+                if (hitObject is IHasManiaKeysound keysound && keysound.KeysoundSample != null)
+                    Playfield.PrepareSamplePool(keysound.KeysoundSample);
             }
         }
 

@@ -202,8 +202,11 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.LoadComplete();
 
-            if (Mods.OfType<BmsModAutoplay>().Any())
-                Playfield.PrewarmKeysounds(getBeatmapKeysoundSamples());
+            // Preload every distinct keysound at load (player mode included, not just autoplay): a fully-keysounded
+            // chart otherwise cold-decodes hundreds of WAVs DURING gameplay, and on the converted-mania side the
+            // resulting transient large buffers / promotion bursts were measured triggering blocking gen2 full GCs
+            // (~220ms freezes) early in the play (P1-J, 2026-06-11). Preloading before gameplay matches LR2/beatoraja.
+            Playfield.PrewarmKeysounds(getBeatmapKeysoundSamples());
 
             NewResult += HandleGameplayJudgementResult;
 

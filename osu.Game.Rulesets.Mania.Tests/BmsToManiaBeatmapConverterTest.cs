@@ -242,38 +242,14 @@ namespace osu.Game.Rulesets.Mania.Tests
 
             var convertedBeatmap = convertToMania(text, "scratch-stats.bme");
             var scorableBeatmap = createScorableBeatmap(convertedBeatmap);
-            double expectedStarRating = maniaRuleset.CreateDifficultyCalculator(new DirectPlayableWorkingBeatmap(scorableBeatmap, maniaRuleset.RulesetInfo)).Calculate().StarRating;
 
+            // Scratch sample-only objects must be excluded from the scorable set that feeds difficulty/counts. The
+            // converter no longer computes a star itself (ManiaDifficultyCalculator owns that, run over exactly this
+            // scorable set downstream), so the count parity is the regression guard for "scratch doesn't inflate input".
             Assert.Multiple(() =>
             {
                 Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(scorableBeatmap.HitObjects.Count));
                 Assert.That(convertedBeatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
-                Assert.That(convertedBeatmap.BeatmapInfo.StarRating, Is.EqualTo(expectedStarRating).Within(0.0001));
-            });
-        }
-
-        [Test]
-        public void TestConvertedBeatmapStarRatingUsesManiaDifficultyCalculator()
-        {
-            const string text = @"
-#TITLE Recalculate Stars
-#BPM 160
-#WAVAA key1.wav
-#WAVBB key2.wav
-#WAVCC key3.wav
-#00111:AA00BB00CC00
-#00211:AA00BB00CC00
-";
-
-            const double sourceStarRating = 12.34;
-
-            var convertedBeatmap = convertToMania(text, "recalculate-stars.bme", sourceBeatmap => sourceBeatmap.BeatmapInfo.StarRating = sourceStarRating);
-            double expectedStarRating = maniaRuleset.CreateDifficultyCalculator(new DirectPlayableWorkingBeatmap(convertedBeatmap, maniaRuleset.RulesetInfo)).Calculate().StarRating;
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(convertedBeatmap.BeatmapInfo.StarRating, Is.Not.EqualTo(sourceStarRating));
-                Assert.That(convertedBeatmap.BeatmapInfo.StarRating, Is.EqualTo(expectedStarRating).Within(0.0001));
             });
         }
 

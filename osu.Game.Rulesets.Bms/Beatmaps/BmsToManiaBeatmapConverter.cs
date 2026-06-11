@@ -25,7 +25,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private readonly BmsDecodedBeatmap sourceBeatmap;
         private readonly BmsLaneLayout sourceLaneLayout;
-        private readonly ManiaRuleset targetRuleset;
         private readonly int totalColumns;
         private readonly int stageColumns;
         private readonly bool dualStage;
@@ -36,7 +35,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             : base(beatmap, ruleset)
         {
             sourceBeatmap = beatmap as BmsDecodedBeatmap ?? throw new ArgumentException($"{nameof(BmsToManiaBeatmapConverter)} requires a {nameof(BmsDecodedBeatmap)} source.", nameof(beatmap));
-            targetRuleset = ruleset as ManiaRuleset ?? throw new ArgumentException($"{nameof(BmsToManiaBeatmapConverter)} requires a {nameof(ManiaRuleset)} target.", nameof(ruleset));
+
+            if (ruleset is not ManiaRuleset)
+                throw new ArgumentException($"{nameof(BmsToManiaBeatmapConverter)} requires a {nameof(ManiaRuleset)} target.", nameof(ruleset));
 
             sourceLaneLayout = BmsLaneLayout.CreateForKeymode(sourceBeatmap.DecodedChart.BeatmapInfo.Keymode);
             judgementColumnsByLane = new int?[sourceLaneLayout.Lanes.Count];
@@ -74,8 +75,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             foreach (var hitObject in convertedBeatmap.HitObjects)
                 hitObject.ApplyDefaults(convertedBeatmap.ControlPointInfo, convertedBeatmap.Difficulty, cancellationToken);
 
-            convertedBeatmap.BeatmapInfo.StarRating = targetRuleset.CreateDifficultyCalculator(new DirectPlayableWorkingBeatmap(createDifficultyBeatmap(convertedBeatmap, scorableHitObjects), targetRuleset.RulesetInfo)).Calculate(cancellationToken).StarRating;
-
+            // Star rating is intentionally NOT computed here. The converter's only job is the playable projection;
+            // mania star is owned by ManiaDifficultyCalculator, which every consumer re-runs over this same playable
+            // beatmap (BeatmapDifficultyCache.computeDifficulty / BackgroundDataStoreProcessor / import-time persist).
+            // Computing it in-converter ran the full strain pass a second time on the persistence path and added a
+            // wasted pass on the gameplay load path (the displayed/persisted star comes from those calculators, never
+            // from this transient beatmap's BeatmapInfo). Matches upstream ManiaBeatmapConverter, which sets no star.
             return convertedBeatmap;
         }
 
@@ -130,8 +135,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     // Playable KEY note: routed through the shared BmsKeysoundStore (per-WAV cut) like BGM / scratch, so
                     // a WAV slot shared between BGM and a KEY note — or the same slot retriggered across consecutive
                     // notes — cuts cleanly instead of stacking duplicate copies (the BMS-native single-store behaviour;
-                    // P1-J #10 / #1). Still carries Samples so keysound prewarm and the store-absent fallback work; the
-                    // KeysoundSample/KeysoundId drive the store path in DrawableBmsConvertedKeyNote.
+                    // P1-J #10 / #1). Emitted as a Note subclass so it stays a fully POOLED mania DrawableNote; its
+                    // KeysoundSample/KeysoundId (exposed via IHasManiaKeysound) drive the store path in
+                    // DrawableNote.PlaySamples. Still carries Samples for keysound prewarm and the store-absent fallback.
                     yield return new BmsConvertedKeyNoteHitObject
                     {
                         StartTime = hitObject.StartTime,
@@ -171,21 +177,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var converted = (BmsBeatmap)cached_bms_ruleset_instance.CreateBeatmapConverter(sourceBeatmap).Convert(cancellationToken);
             sourceBeatmap.CacheModlessPlayableBeatmap(cached_bms_ruleset_instance.RulesetInfo, converted);
             return converted;
-        }
-
-        private ManiaBeatmap createDifficultyBeatmap(ManiaBeatmap convertedBeatmap, IReadOnlyList<ManiaHitObject> scorableHitObjects)
-        {
-            var difficultyBeatmap = (ManiaBeatmap)CreateBeatmap();
-
-            // DeepClone metadata so a future DifficultyCalculator implementation that decides to mutate it can't leak
-            // back into the converted beatmap's BeatmapInfo. Calculators today only read metadata, but the contract
-            // is shared with ScoreProcessor / PerformanceCalculator and isn't read-only.
-            difficultyBeatmap.BeatmapInfo = new BeatmapInfo(targetRuleset.RulesetInfo.Clone(), convertedBeatmap.Difficulty.Clone(), convertedBeatmap.Metadata.DeepClone());
-            difficultyBeatmap.ControlPointInfo = convertedBeatmap.ControlPointInfo;
-            difficultyBeatmap.Breaks = convertedBeatmap.Breaks;
-            difficultyBeatmap.HitObjects = scorableHitObjects.ToList();
-
-            return difficultyBeatmap;
         }
 
         private static ControlPointInfo createConvertedControlPointInfo(ControlPointInfo sourceControlPointInfo)

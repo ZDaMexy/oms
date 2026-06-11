@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-06-11（J6 转谱游玩期帧抖动真因确诊修复 + 220ms gen2 冻结确诊 + prewarm 放开玩家模式；用户实测 ✅）
+
+### ✅ 「越后越抖 / 按键挂钩 / 休息段恢复 / 规律一顿一顿」确诊修复：每键音触发的 sample-drawable 重建 churn → 晋升风暴
+
+用户实测推翻早期两个方向（「通用 mania 高帧 GC 特性」「冷解码主因」——原生 mania 顶级密度全程 1000fps 平稳，本谱密度远不及）后，经 `BmsGameplayStallDiagnostics` 探针三轮取证 + 代码审查锁定真因链：
+
+- **取证**：分配归因显示 store Play 路径仅占总分配 ~10%（185MB/1.7GB），排除「分配体量」单因；决定性异常 = 后段 **gen0:gen1 锁死 1:1、每 ~40KB 触发一次回收（正常预算 MB 级）、~100 次/秒**——「晋升风暴」签名（中寿命对象逢 gen0 必晋升），gen1 暂停叠成 15–30ms 帧尖峰、规律「一顿一顿」；密度升 → 触发率升 → 越后越糟；休息段触发为零 → 立即平滑。
+- **代码审查**：store 通道 `PlaySingleSample` 每次换 `Samples` 数组引用 → 每次触发跑 `SkinnableSound.updateSamples()` 全量重建（RemoveAll+Clear+GetPooledSample+Add，实测 ~30KB/次、池 miss 时现场构造全新 drawable）；对照原生 mania 音符 `PausableSkinnableSound` 持久加载、重播仅 `Stop+Play` 零重建——**这正是同密度原生平稳、转谱抖的不对称来源**。次级项（已记录暂不动）：mania 按键反馈 `GameplaySampleTriggerSource.GetMostValidObject` 对转谱 column 0 数千 BGM 实体的每按重扫（缓存被 ~30/s 自动判定的 BGM 持续失效）。
+- **修复 = 通道同样本快路径**：`BmsKeysoundChannel` 记住 `currentSingleSample`，同槽重触发（per-WAV cut 钉同通道 + 转谱器同槽 memo 同实例 → 游玩主路径）跳过 `Samples` 赋值、直接重启（cut 语义不变）；多样本入口 `PlaySampleArray` 显式失效缓存防误跳过。
+- **实测 ✅（2026-06-11 用户同谱回归）**：同段密集区 maxFrame 15–30ms → **5–10ms**，gen1 回收单次降至亚毫秒（gcPause ~70–120ms/2s 摊在 120+ 次上、不可感知），用户回报「基本全程稳定高帧低延迟」。
+
+### ✅ 偶发 ~220ms 冻结确诊：开局段阻塞式 gen2 全量 GC（键音游玩中冷解码所致）→ prewarm 放开玩家模式
+
+- 探针抓到 3 次 `STALL+GEN2`（t=16.1/21.1/27.9s，212–229ms，frame 与 gen2+=1 同帧），全部集中开局前 30s；结尾 gen2 为后台并发仅 6ms。玩家模式此前**无预热** → 全场 362 个 WAV 全部游玩中冷解码（`coldKeysoundLoads=362`，集中前 ~55s），瞬时大缓冲/晋升突发把 gen2 预算顶爆。
+- **修复**：keysound prewarm 去掉 `ModAutoplay` 门控（BMS 原生 `DrawableBmsRuleset.LoadComplete` 与转谱-mania `prewarmConvertedKeysounds` 两侧对等），数百解码全部移到加载边界——对齐 LR2/beatoraja「进谱前全量预载」；代价 = 加载期变长（预期取舍）。CONSTRAINTS #7 已重写。
+- 注：用户自述其机器原生 lazer 也偶发莫名卡顿——同为 gen2 冻结机制；本修复拔除转谱侧最大的可控触发器，无法保证根除所有 gen2（剩余属 lazer 通用面）。
+
+### 诊断探针（经用户确认留作长期 seam）
+
+`BmsGameplayStallDiagnostics` 挂在 `BmsKeysoundStore` 下（真实游玩才激活、测试场景静默）：逐帧测 update 线程帧时长，仅在 stall（≥40ms）/gen2/2s 心跳时写 `performance.log`（gen 计数、alloc、`GC.GetTotalPauseDuration` 增量、promoted/pinned、store plays、冷解码数）；store 加 `PlayPathAllocatedBytes`/`TotalKeysoundPlays`/`ColdKeysoundFirstPlayCount` 归因计数器。三轮取证依次排除「音频对象数」「冷解码主因」「分配体量单因」，最终钉死晋升风暴 + gen2 冻结两条根因。
+
+- **验证**：`osu.Desktop.slnf` Release 0 错；焦点回归（路由 2 + shared timing + drawable ruleset + lifecycle + player audio semantics）**78/78**；完整 BMS **871/871**（快路径轮）→ prewarm 放开后再跑 **871/871** + mania 转谱/autoplay **22/22**；**用户三轮实测全确认 ✅**：快路径轮「基本全程稳定」（密集区 maxFrame 15–30ms→5–10ms）；prewarm 轮同谱回归 **游玩中 stalls=0、阻塞 gen2=0**（上轮 4 stalls 含 3 次 ~220ms 冻结 → 0；唯一 gen2 在结尾过场、后台并发仅 8ms；全程 maxFrame 2–12ms @ ~1000fps），用户判定「合格」。注：探针 `coldKeysounds` 计的是「每槽首次经 store 播放」非解码——解码已被预热移到加载屏，故计数仍 362 但冻结消失。
+
+---
+
+## 2026-06-10（J6 性能优化：转谱 tap KEY note 改池化 + 补回 BGM/scratch 预热）
+
+### ✅ 转谱 tap KEY note 从非池化改为池化（消除 CONSTRAINTS #10「当前态」的 🔴 非池化 perf）
+
+承接本轮「转谱-mania 游玩期性能审查」。审查结论：转谱-mania 的 drawable 策略与原生 BMS 基本持平（均非池化），唯一相对原生 mania 更重之处是**每个转谱 tap KEY note 一个常驻非池化 drawable**（`DrawableBmsConvertedKeyNote`），在 `loadObjects` 即全部构造并常驻整局 → 加载期构造 + 内存 + GC 大堆代价（疑 once-per-run 致命卡顿来源）。这正是 CONSTRAINTS #10 标注的「perf 回归时正解：让池化 `DrawableNote` 走 shared store」。
+
+- **方案（Option E，无反射注册池、无核心 BMS 概念泄漏）**：在 mania 定义两个**自有接口** `IManiaKeysoundStore`（`Play(ISampleInfo, double, int?)`）与 `IHasManiaKeysound`（`KeysoundSample`/`KeysoundCutGroup`）。`BmsKeysoundStore` 显式实现前者（桥接到既有 cut/no-cut 重载）；`BmsConvertedKeyNoteHitObject`（仍 `: Note`）显式实现后者。`DrawableManiaRuleset.CreateChildDependencies` 在原有 `Cache(BmsKeysoundStore)` 之外**追加 `CacheAs<IManiaKeysoundStore>`**。`DrawableNote.PlaySamples` 重写：`keysoundStore != null && HitObject is IHasManiaKeysound ks && ks.KeysoundSample != null` 时经接口 `Play(...)`，否则 `base.PlaySamples()`（原生 mania / 无 store 上下文不变）。
+- **关键**：转谱 drawable 工厂（`BmsToManiaDrawableRepresentationFactory`）**不再认领 KEY note** → `CreateDrawableRepresentation` 返回 null → playfield 经框架 `Playfield.prepareDrawableHitObjectPool` 的**基类型池回退**（`typeof(Note).IsInstanceOfType(convertedKeyNote)`）命中 mania `Note` 池 → 发**池化 `DrawableNote`**。删除 `DrawableBmsConvertedKeyNote`。
+- **音频语义零改动**：`PlaySamples` 在命中（`ArmedState.Hit`）时被核心调用，与改造前同一时机、同一 store、同一 cutGroup；per-WAV cut 跨 BGM↔KEY+KEY↔KEY 不变。守 (c)（未新长 per-note/per-lane sample player）；tap 无嵌套对象，不触 (a) LN 嵌套头池化坑（LN 仍后置）。
+- **同轮补回预热缺口**：`prewarmConvertedKeysounds` 现额外按 `IHasManiaKeysound.KeysoundSample` 预热（BGM/scratch/KEY 全覆盖）——修掉 2026-06-08 bgm1 修复置空 BGM/scratch `Samples` 后、它们在 autoplay 下不再被预热的首播冷解码抖动（BGM/scratch `Samples` 空、仅此一途）；同步修正 `prewarmConvertedKeysounds` 已失真的注释。
+- **验证**：`osu.Desktop.slnf` Release **0 错**；`TestSceneBmsToManiaKeyNoteStoreRouting`（#10(b) 要求的 player-level harness，断言每文件 store Play 次数 key_a=2/key_b=1/bgm=2/scratch=1 + floor≥128）**2/2**；`BmsToManiaBeatmapConverterTest`+`TestSceneManiaModAutoplay` **22/22**；完整 `osu.Game.Rulesets.Bms.Tests` **871/871**；完整 mania 套件 **778 通过**，4 个 `TestSceneAutoGeneration` HoldNote 失败经 `git stash -u` 回基线对照确认为**既有失败**（更早 `ManiaAutoGenerator` 改动遗留、与本轮无关），本轮**0 新失败**。
+- **明确后置**（避免拿已实测通过的音频修复赌投机微优化）：① BGM/scratch sample-only 对象仍非池化（每帧 alive 隐形 drawable + scroll 更新），「调度器化」消除每帧开销属更大改动、须先 profile alive 占比；② 转谱 store 128 通道 floor 的每帧扫描/常驻 sound drawable——下调会回归已实测的长 BGM 偷断修复，治本须长样本分池（碰 #8 红线）；③ 稳态高密段渲染/更新预算（与同密度原生 mania 持平那部分），须先 profile 再定主攻方向。
+
+---
+
 ## 2026-06-08（根因确诊 + 修复 + 用户实测确认）
 
 ### ✅ 解决：转谱-mania「按 key1 触发 bgm1 / 胡乱按键长音重叠 / 暂停不停」——真凶 = mania 按键音效反馈 `GameplaySampleTriggerSource`

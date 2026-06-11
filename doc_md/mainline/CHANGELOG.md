@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-11
+
+### 性能 / 代码：转谱-mania 游玩期帧抖动 + 偶发 ~220ms 冻结双确诊修复（P1-J J6；用户实测 ✅）
+
+用户实测（原生 mania 顶级密度全程 1000fps 平稳、本谱密度远不及却抖）推翻「通用高帧 GC / 渲染预算」旧叙事后，经临时探针 `BmsGameplayStallDiagnostics` 三轮取证 + 代码审查确诊两条根因：① **帧抖动**（越后越抖、按键挂钩、休息段恢复、规律一顿一顿）= store 通道每键音触发都换 `Samples` 引用 → 每次跑 `SkinnableSound.updateSamples()` 全量重建 sample-drawable（实测 ~30KB/次中寿命对象）→ **gen1 晋升风暴**（gen0:gen1 锁死 1:1、~100 次/秒、15–30ms 帧尖峰）；原生 mania 音符持久 sound 重播零重建，故同密度原生不抖。修复 = 通道**同样本快路径**（同槽重触发零重建、per-WAV cut 语义不变）；用户同谱实测密集区 maxFrame 15–30ms→**5–10ms**、全程稳定 ✅。② **偶发 ~220ms 冻结** = 开局段阻塞 gen2 全量 GC——玩家模式无键音预热、全场 362 个 WAV 游玩中冷解码（探针抓到 3 次 STALL+GEN2 全在前 30s）；修复 = **keysound prewarm 放开到玩家模式**（BMS 原生 + 转谱两侧对等，对齐 LR2/beatoraja 全量预载，加载期变长属预期取舍）。验证：Release 0 错、焦点 78/78、BMS 871/871×2、mania 22/22；**用户同谱回归实测 ✅（游玩中 stalls=0、阻塞 gen2=0、maxFrame 2–12ms @ ~1000fps，判定「合格」）**。P1-J CONSTRAINTS #7 重写、#10 D 项重写（作废「疑渲染」框架）。详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-11。
+
+---
+
+## 2026-06-10
+
+### 性能 / 代码：转谱 tap KEY note 改池化（经 mania 自有接口路由 shared store，消除非池化 drawable 代价；行为不变；P1-J J6）
+
+对 `BMS -> mania` 转谱**游玩期**性能面做审查（帧数/延迟向）。结论：转谱-mania 的 drawable 策略与**原生 BMS** 基本持平（均非池化、BGM 均为隐形 drawable），唯一相对**原生 mania**更重处 = **每个转谱 tap KEY note 一个常驻非池化 drawable**（`loadObjects` 即全部构造、整局常驻 → 加载/内存/GC 大堆代价，疑 once-per-run 致命卡顿来源）。落地 P1-J CONSTRAINTS #10 早标注的「正解」：在 mania 定义自有接口 `IManiaKeysoundStore`/`IHasManiaKeysound`，让转谱 KEY note 退回**池化 `DrawableNote`**（转谱 drawable 工厂不再认领它 → `CreateDrawableRepresentation` 返回 null → 框架基类型池回退命中 mania `Note` 池），其 `PlaySamples` 经接口把键音交给 hosted `BmsKeysoundStore`（额外按接口 `CacheAs`）；删 `DrawableBmsConvertedKeyNote`。**音频语义零改动**（命中时同时机调用、同 store、同 per-WAV cut）。同轮经 `KeysoundSample` 补回 BGM/scratch 的 autoplay 预热缺口（bgm1 置空 `Samples` 后丢失、仅此一途）并修正失真注释。**明确后置（须先 profile，避免拿已验证音频修复赌投机微优化）**：BGM/scratch 调度器化（消除每帧隐形 drawable）、store 128 floor 下调（会回归长 BGM 偷断修复）、稳态高密段渲染。验证：`TestSceneBmsToManiaKeyNoteStoreRouting`（#10(b) player-level harness）**2/2**、`BmsToManiaBeatmapConverterTest`+`TestSceneManiaModAutoplay` **22/22**、`osu.Game.Rulesets.Bms.Tests` **871/871**、完整 mania **778 通过**（4 个 `TestSceneAutoGeneration` HoldNote 失败经 `git stash -u` 回基线对照确认为**既有失败**、非本轮引入）、`osu.Desktop.slnf` Release **0 错**。详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-10。
+
+### 性能 / 代码：BMS→mania 转谱链路审查落地两项（库级冗余消除，行为不变；P1-K）
+
+对 `BMS -> mania` 转谱性能面做审查，落地两项**行为不变**的冗余消除：① **转谱器移除 mania 星级自算**——`BmsToManiaBeatmapConverter.ConvertBeatmap` 此前每次转换都自跑一遍完整 `ManiaDifficultyCalculator` 写入 `BeatmapInfo.StarRating`，但所有消费面（`BeatmapDifficultyCache.computeDifficulty` / `BackgroundDataStoreProcessor` 启动批处理 / 导入期持久化）都在其后用 `ManiaDifficultyCalculator` 重算并持久化、从不读转谱器那次结果 → 持久化路径 strain **算两遍**（5.7万 库启动重处理时翻倍）、gameplay 加载期凭空多算一遍无人消费；删除后星级唯一归 `ManiaDifficultyCalculator`/难度缓存（与上游 `ManiaBeatmapConverter` 一致，持久化行为不变）。② **keysound 样本按 WAV 槽号 memo**——`BmsBeatmapConverter.createKeysoundSample` 此前对每个音符/LN 头尾/BGM/不可见对象重跑文件名规范化 + 分配，改为 per-conversion 按 `KeysoundId` 缓存（同槽只物化一次，O(音符数)→O(distinct 槽数)，减 dense 谱加载期 CPU/GC）。同次评估**暂缓** `buildEventTimeline` 重写（时序热路径常数因子优化、无 profiler 证据，应由 profiling 触发）。验证：`BmsToManiaBeatmapConverterTest` **18/18**（移除 1 个失效的「转谱器自算星级」契约用例）、`osu.Game.Rulesets.Bms.Tests` **871/871**、`osu.Desktop.slnf` Release **0 错误 0 警告**。新增约束 [P1-K CONSTRAINTS K9 #17](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)（禁止转谱器自算星级）。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-10。
+
+---
+
 ## 2026-06-08
 
 ### 代码 / 测试：**解决转谱-mania「按 key1 触发 bgm1 / 胡乱按键长音重叠 / 暂停不停」**——真凶 = mania 按键音效反馈（用户多谱实测确认 ✅，P1-J）

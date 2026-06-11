@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using osu.Game.Audio;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Objects;
@@ -24,7 +25,7 @@ namespace osu.Game.Rulesets.Bms.Objects
     /// <see cref="Mania.UI.OrderedHitPolicy"/> (<c>canParticipateInLocking</c>), which both test an object's own and
     /// its nested MaxResults, skip it.
     /// </remarks>
-    public class BmsConvertedBgmSampleHitObject : ManiaHitObject
+    public class BmsConvertedBgmSampleHitObject : ManiaHitObject, IHasManiaKeysound
     {
         /// <summary>
         /// The BMS keysound played for this BGM event. Routed through the shared <see cref="BmsKeysoundStore"/> hosted
@@ -39,6 +40,10 @@ namespace osu.Game.Rulesets.Bms.Objects
         /// through <see cref="BmsKeysoundStore"/>. Null leaves the playback uncut.
         /// </summary>
         public int? KeysoundId { get; set; }
+
+        ISampleInfo? IHasManiaKeysound.KeysoundSample => KeysoundSample;
+
+        int? IHasManiaKeysound.KeysoundCutGroup => KeysoundId;
 
         public override Judgement CreateJudgement() => new IgnoreJudgement();
 
