@@ -30,7 +30,7 @@
 - 新增 `P1-K` 独立子线：**BMS 解析链路治理**。该专题不并入 `P1-H`、`P1-J` 或 `P1-E`；`P1-H` 继续负责存储拓扑、导入/重扫与 persisted metadata 一致性，`P1-J` 继续负责 gameplay runtime hot path，`P1-E` 继续负责真实谱面验校，而 `P1-K` 单独拥有 `BmsBeatmapDecoder`、`BmsDecodedChart`、`BmsBeatmapInfo`、`BmsBeatmapConverter` 与 parse-side projection reuse 的 authority。首轮执行顺序固定为：`raw/typed 双层模型冻结` → `header/definition/channel no-loss coverage` → `timeline/control-event semantics` → `parse-once/project-many 复用` → `focused validation 与缓存边界`；不得把它写成泛化兼容愿望单或再次分散到 consumer 侧 ad hoc parse。
 - `P1-K` 当前已正式推进并阶段性收口到 `K8`：`K1-A/K1-B` 已先后把 raw carrier 命名为 `RawChannelEvents`，补上 `ScrollTable`、`UnknownHeaders` 与 `SC` 这类非十六进制 channel 的 raw placeholder 保留；`K2-A` 进一步让 signed BPM 进入 typed model，并给 duplicate line 补上 parser-level compound；`K3-A/K3-B/K3-C/K3-D/K3-E/K3-F` 则已把同拍位 `BPM -> STOP -> object` 顺序、`LNTYPE 2` 最小表达、第一批 visual typed slot、scroll consumer contract、richer BGA-definition headers 与 unified visual-definition projection 冻结在 parse authority 内；`K4-A/K4-B/K4-C/K4-D/K4-E/K4-F/K4-G/K4-H/K4-I/K4-J/K4-K/K4-L/K4-M/K4-N/K4-O/K4-P/K4-Q/K4-R/K4-S` 已把 projection consumer reuse 收口到 metadata/background、Song Select、statistics、core-side persisted metadata、results/profile/menu/online/title/artist display 与 set-level authority；`K5` 已把 source-bound modless playable projection cache / invalidation contract 写死，`K6` 已把 results-side already-modded playable contract 写死，`K7/K8` 则分别把 results summary consumer proof 与 gauge history consumer proof 收口到 plain focused 路径。当前实现范围已阶段性收口，post-`K8` 的 special-chart / long-note consumer follow-up 后置为 backlog，不再作为当前进行中项。
 - 新增 `P1-L` 独立子线：**BMS 演出/Gimmick 谱视觉复刻**（由 [../other/BMS_GIMMICK_CHART_RENDERING.md](../other/BMS_GIMMICK_CHART_RENDERING.md) 可行性分析升级而来）。该专题不并入 `P1-C`/`P1-K`/`P1-J`：`P1-C` 继续负责判定/反馈语义，`P1-K` 继续负责解析模型本体（本线只消费），`P1-J` 继续负责 runtime 性能（协同），而 `P1-L` 单独拥有演出**视觉渲染**（对象/小节线/特效定位）的 authority。**红线：任何阶段都不得改坏正常前进式滚动游玩链路；演出渲染只能作为可隔离、可关闭的旁路。** 分阶段：`Phase 1 地雷视觉`（已落地）→ `Phase 2 BMS 专用滚动位置积分旁路`（Step A–C 已落地：门控默认 OFF、Normal 模式忠实、设置面板可显式开启；Step D 自动检测 + 逐帧人工验收待办）→ `Phase 3 反向/双向/自定义 LN` → `Phase 4 人工逐帧验收`。详见 [../subline/P1-L/DEVELOPMENT_PLAN.md](../subline/P1-L/DEVELOPMENT_PLAN.md)。
-- 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，且 `BEATORAJA` / `LR2` 的 judge-rank difficulty 已进入 runtime 与 score bucket；即便 `Mirror` / `Random` 已作为训练向 gameplay mod 提前落地，后续仍应先收口一轮 early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义
+- 最新判定方向校准：当前 `OD` 已稳定；`BEATORAJA` / `LR2` / `IIDX` judge mode 已显式接通，judge-rank difficulty 已进入 runtime 与 score bucket。**early/late 非对称窗口、scratch / long-note release 特例与 judge-family-specific `Empty Poor` 触发语义已于 2026-06-14（P1-C 第 1–2 刀）落地并溯源锁定**（含修复 beatoraja BAD 早/晚方向写反的真实 bug；窗口源自 beatoraja `JudgeProperty.SEVENKEYS`，由 `BmsJudgementSystemParityTest` 锁定）；剩余仅 gameplay judge display / counts 的反馈区分（第 3 刀）与 IIDX 闭源细节（已收口为 documented heuristic）
 - 当前 gameplay mod 现状：`BmsModAutoScratch`、`BmsModAutoNote`、`BmsModAutoplay`、`BmsModMirror` 与 `BmsModRandom` 已提前落地；后续冻结清单现主要指 `1P/2P flip` / `dan` / `FHS` / `BSS` / `MSS` / 全键模式扩张等未实现能力
 - 当前 BMS mod 记忆合同：configurable BMS mods 现使用 ruleset-local `PersistedModState` snapshot 持久化 selected mod 顺序与 non-default settings；该合同只作用于 BMS，不把 mania / 全局 `SelectedMods` 升格成共享持久层。`Sudden / Hidden / Lift` 的 gameplay write-back 由 mod-local `RememberGameplayChanges` 控制，默认开启但仍属于 BMS-only surface。冷启动首轮恢复不得假设 `RulesetConfigCache` 已 ready；当前宿主合同是先允许无 config 的首轮 apply，再在 cache ready 后 replay 当前 ruleset 完成 restore，这条路径现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
 - 在正式进入更大范围的 Phase 2 训练 / class / speed 体系前，先收口一轮 Phase 1.x 的反馈与训练闭环；这批事项属于当前方向校准后确认的插队优先项，而不是可无限后移的体验润色
@@ -1040,7 +1040,7 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 
 ### 2.1 beatoraja + LR2 判定 Mod
 
-> **基础版已在 Phase 1 提前落地，但完整 parity 尚未收口。** 当前已有 `BeatorajaJudgementSystem`、`Lr2JudgementSystem`、`BmsModJudgeBeatoraja`、`BmsModJudgeLr2`、judge-mode 成绩分桶与基础窗口回归；但 `BEATORAJA` 仍近似为对称 EASY-base 缩放，`LR2` 仍近似为单一 NORMAL 固定窗，尚未覆盖 judgerank tier、early/late 非对称 BAD / excessive poor、scratch 特例与更宽 long-note release 语义。
+> **大部已在 Phase 1.x（P1-C）提前落地（2026-06-14 第 1–2 刀）。** `BeatorajaJudgementSystem` 已是五档 judge-rank 整数截断缩放（25/50/75/100/125%）+ early/late 非对称 BAD + scratch 扩窗 + long-note / long-scratch release 专用窗口；`Lr2JudgementSystem` 已是四档 judge-rank（8/24/40·15/30/60·18/40/100·21/60/120，尾 200）+ pre-note-only excessive poor；窗口数值已从 beatoraja `JudgeProperty.SEVENKEYS` 与外部审计逐项溯源，并由 `BmsJudgementSystemParityTest`（29 case）锁定。第 2 刀还修复了 beatoraja BAD 早/晚非对称**方向写反**的真实 bug。剩余仅：gameplay judge display / counts 的 BAD-early/late 与 empty-poor/note-poor 显式区分（第 3 刀；属性显示面已自动满足），以及 IIDX 闭源细节（empty-poor / CN release 已收口为 documented heuristic）。
 
 **实现：**
 
@@ -1048,10 +1048,10 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 - `Lr2JudgementSystem` parity：EASY / NORMAL / HARD / VERY HARD 四档 judge-rank，以及 pre-note-only excessive poor 语义
 - `BmsJudgeMode` 继续作为显式 rule-family switch；results / replay / leaderboard / local best 继续按 judge mode 分桶，不允许退化为“严格度”标签
 
-**当前仓库说明：** 当前工作区已经有 judge mode 切换、结果展示、分桶与基础窗口测试，但还不能把 `BEATORAJA` / `LR2` 描述成已完成完整 parity。
+**当前仓库说明：** judge-rank tier、整数截断缩放、early/late 非对称 BAD、scratch 扩窗、long-note release 专用窗口与 judge-mode 分桶**均已落地并经 `BmsJudgementSystemParityTest` 锁定**；窗口数值已溯源（beatoraja `JudgeProperty.SEVENKEYS`），方向写反 bug 已修。剩余仅 gameplay 反馈区分（第 3 刀）与 IIDX 闭源细节，可视为「窗口/分桶 parity 已收口、反馈展示 parity 待补」。
 
 **前置依赖：** Phase 1 完成
-**验收：** 单元测试覆盖各 judge rank 的 note windows、early/late 非对称边界、scratch note 扩窗、long-note release 窗口、judge-mode 分桶与结果展示；切换 Mod 后 gameplay 使用对应 rule family。
+**验收：** 单元测试覆盖各 judge rank 的 note windows、early/late 非对称边界、scratch note 扩窗、long-note release 窗口、judge-mode 分桶与结果展示（**已满足**：`BmsJudgementSystemParityTest` 29/29 + `BmsDrawableRulesetTest` 窗口回归）；切换 Mod 后 gameplay 使用对应 rule family。
 
 ---
 
@@ -1095,7 +1095,7 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 
 ### 2.5 Empty Poor 判定
 
-> **基础结果链已在 Phase 1 提前落地，但完整 judge-family 语义尚未收口。** 当前 `BmsLane` 已会注入 synthetic `BmsEmptyPoorHitObject`，并通过测试验证 gauge 伤害、combo 断裂、结果页计数；但触发条件仍是 generic future-note 检查，不是按 `BmsJudgeMode` 参数化的 excessive poor / Empty Poor 语义。
+> **大部已在 Phase 1.x（P1-C）落地。** `BmsLane.shouldTriggerEmptyPoor()` 现已按 active judge family 的 excessive-poor early/late 窗口判定（`BmsTimingWindows.SupportsExcessivePoor` + `CanTriggerExcessivePoor`），四套家族均提供窗口：LR2 `1000/0`（仅 note 前）、OD `500/0`、IIDX/beatoraja `500/150`；generic future-note 检查仅作为「无 excessive-poor 窗口」的兜底（当前无家族命中）。这些窗口已由 `BmsJudgementSystemParityTest` 的 excessive-poor 真值表锁定。结果链继续走 `BmsEmptyPoorHitObject` / `ComboBreak` / gauge damage。
 
 **实现：**
 
@@ -1104,10 +1104,10 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 - `BEATORAJA`：使用独立的 early/late excessive poor 窗口，并为 scratch / long-note release 保留特例扩展点
 - 结果链继续沿用 `BmsEmptyPoorHitObject` / `ComboBreak` / gauge damage 路径，但触发窗口与 note erasure 语义必须由 active judge family 驱动
 
-**当前仓库说明：** 当前工作区尚未把 `Empty Poor` / excessive poor 触发条件参数化到 `BmsJudgeMode`。
+**当前仓库说明：** `Empty Poor` / excessive poor 触发条件**已参数化到 `BmsJudgeMode`**（经各家族 excessive-poor early/late 窗口）。剩余仅 scratch / long-note release 的 excessive-poor 特例扩展（beatoraja scratch 晚窗 160 vs note 150 已有雏形）与 gameplay 反馈面对 EPOOR 的更显式区分（第 3 刀）。
 
 **前置依赖：** Phase 1 完成
-**验收：** lane-level / gameplay-level 测试覆盖 pre-note-only 与 early/late 非对称触发边界；空打仍正确结算 gauge / combo / results，但不同 judge family 的触发窗口不再共用同一套 generic 条件。
+**验收：** lane-level / gameplay-level 测试覆盖 pre-note-only 与 early/late 非对称触发边界（**已满足**：`BmsJudgementSystemParityTest` excessive-poor 真值表含 LR2「仅 note 前」）；空打仍正确结算 gauge / combo / results，不同 judge family 触发窗口不再共用 generic 条件。
 
 ---
 
@@ -1220,11 +1220,11 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 
 **达成条件：**
 
-- [ ] 三套判定系统达到目标 parity（基础 judge-mode 切换已在 Phase 1 提前落地）
+- [~] 三套判定系统达到目标 parity（窗口/分桶/非对称已落地并溯源锁定，P1-C 第 1–2 刀；剩 gameplay 反馈区分第 3 刀）
 - [x] 六种 Gauge + GAS 全部可用（已在 Phase 1 提前落地）
 - [x] A-SCR 可用
 - [x] LN / CN / HCN 长条模式与分桶成绩可用（已在 Phase 1 提前落地）
-- [ ] Empty Poor 达到 judge-family 语义（基础结果链已在 Phase 1 提前落地）
+- [~] Empty Poor 达到 judge-family 语义（触发已按家族 excessive-poor 窗口参数化并锁定；剩 scratch/release 特例与反馈区分）
 - [ ] 5K / 9K / 14K DP 布局完整
 - [ ] 1P/2P 翻转功能正常
 - [ ] HID 旋转编码器和鼠标 scratch 输入可用

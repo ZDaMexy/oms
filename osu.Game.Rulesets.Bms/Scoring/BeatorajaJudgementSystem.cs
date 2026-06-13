@@ -29,10 +29,14 @@ namespace osu.Game.Rulesets.Bms.Scoring
         {
             int scale = getJudgeRankScale(BmsJudgeRankExtensions.FromOverallDifficulty(overallDifficulty));
 
-            noteProfile = createProfile(20, 60, 150, 220, 280, scale, excessivePoorEarly: 500, excessivePoorLate: 150);
-            scratchProfile = createProfile(30, 70, 160, 230, 290, scale, excessivePoorEarly: 500, excessivePoorLate: 160);
-            longNoteReleaseProfile = createProfile(120, 160, 200, 220, 280, scale);
-            longScratchReleaseProfile = createProfile(130, 170, 210, 230, 290, scale);
+            // Base windows sourced from beatoraja's JudgeProperty.SEVENKEYS (exch-bms2/beatoraja, master). The BAD
+            // tier is early/late asymmetric: the early bound is WIDER than the late bound (note {-280000, 220000} µs
+            // -> early 280ms / late 220ms; scratch -> 290/230; long-note release -> 280/220). createProfile takes
+            // (badEarly, badLate) so the early magnitude comes first.
+            noteProfile = createProfile(20, 60, 150, badEarly: 280, badLate: 220, scale, excessivePoorEarly: 500, excessivePoorLate: 150);
+            scratchProfile = createProfile(30, 70, 160, badEarly: 290, badLate: 230, scale, excessivePoorEarly: 500, excessivePoorLate: 160);
+            longNoteReleaseProfile = createProfile(120, 160, 200, badEarly: 280, badLate: 220, scale);
+            longScratchReleaseProfile = createProfile(130, 170, 210, badEarly: 290, badLate: 230, scale);
         }
 
         public override HitResult Evaluate(double offsetMs, bool isLongNoteRelease = false, bool isScratch = false)
@@ -41,19 +45,22 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             double absoluteOffset = Math.Abs(offsetMs);
 
-            if (absoluteOffset <= profile.Windows[0])
+            // Use the same inclusive boundary convention (<= window + BoundaryEpsilon) as the shared
+            // EvaluateOffset path so an exactly-on-boundary offset resolves identically across every judge
+            // family, even though beatoraja keeps its own early/late asymmetric BAD branch below.
+            if (absoluteOffset <= profile.Windows[0] + BoundaryEpsilon)
                 return HitResult.Perfect;
 
-            if (absoluteOffset <= profile.Windows[1])
+            if (absoluteOffset <= profile.Windows[1] + BoundaryEpsilon)
                 return HitResult.Great;
 
-            if (absoluteOffset <= profile.Windows[2])
+            if (absoluteOffset <= profile.Windows[2] + BoundaryEpsilon)
                 return HitResult.Good;
 
             if (offsetMs < 0)
-                return -offsetMs <= profile.BadEarlyWindow ? HitResult.Meh : HitResult.None;
+                return -offsetMs <= profile.BadEarlyWindow + BoundaryEpsilon ? HitResult.Meh : HitResult.None;
 
-            return offsetMs <= profile.BadLateWindow ? HitResult.Meh : HitResult.None;
+            return offsetMs <= profile.BadLateWindow + BoundaryEpsilon ? HitResult.Meh : HitResult.None;
         }
 
         public override double GetEarlyWindow(HitResult result, bool isLongNoteRelease = false, bool isScratch = false)
@@ -81,6 +88,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
             double scaledBadEarly = scaleWindow(badEarly, scale);
             double scaledBadLate = scaleWindow(badLate, scale);
 
+            // The symmetric Windows[3]/[4] slots seed BmsTimingWindows.PoorWindow, which CanStillBeHitByPlayer
+            // consumes on the LATE side (timeOffset > 0) to decide when a passed note auto-misses — so they carry
+            // the late bound, while the wider early BAD bound is applied asymmetrically via BadEarlyWindow below.
             return new WindowProfile(
                 new[] { scaledPerfect, scaledGreat, scaledGood, scaledBadLate, scaledBadLate },
                 scaledBadEarly,

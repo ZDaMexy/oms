@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-14
+
+### 判定 parity 第 2 刀：溯源校正 beatoraja BAD 早/晚非对称（修复方向写反，**行为变更**）+ IIDX empty-poor 结论性收口（P1-C）
+
+承接第 1 刀溯源 G3/G4。**G3＝真实 bug**：从 beatoraja 源码 `JudgeProperty.SEVENKEYS`（exch-bms2/beatoraja）取权威窗口——note BAD = `{…,-280000,220000}`µs（负=早/正=晚 → **早 280ms 比晚 220ms 宽**），scratch 290/230，LN release 280/220。OMS 的 PG/GR/GD 与 scratch/LN 基值逐项吻合，但 [BeatorajaJudgementSystem.cs](../../osu.Game.Rulesets.Bms/Scoring/BeatorajaJudgementSystem.cs) 把 BAD 早/晚**写反**（早 220/晚 280）；修复 = 四个 `createProfile` 改回 `(280,220)/(290,230)/(280,220)/(290,230)` + 补来源注释。**行为影响**：beatoraja 早击至 280ms 仍 BAD、晚击 BAD 收紧到 220ms（晚自动 miss 280→220）；EX-SCORE 存档不变、replay 按新窗口重判。属性显示层本就分早/晚读取，修后 `BAD hit window` 自动正确显示 `-早/+晚`（约束 #1 在该显示面已自动满足）。**G4**：IIDX 闭源、无权威 empty/excessive POOR 单值（审计仅述「note 前或后均可」），故 IIDX `500/150` 与 IIDX CN release 沿用 note 窗口**收口为标注清楚的 OMS 启发式，不宣称 parity**。测试同步（约束 #14 改窗口先改测试）：parity 契约改断言早窗更宽；三处既有锁旧值测试按新值更新（`BmsDrawableRulesetTest` ×2、`BmsRulesetStatisticsTest` ×1）。剩第 3 刀：把区分接进 gameplay judge display / counts。验证：parity **29/29**、BMS **916/916**、Release **0 错误**。约束见 [P1-C CONSTRAINTS #15/#17](../subline/P1-C/TECHNICAL_CONSTRAINTS.md)。详见 [P1-C CHANGELOG](../subline/P1-C/CHANGELOG.md) 2026-06-14。
+
+### 判定 parity 第 1 刀：判定窗口 parity 契约测试 + 统一跨家族边界约定（行为不变；P1-C）
+
+通读 BMS 判定链路后**修正一处文档失真**：`BEATORAJA` / `LR2` / `IIDX` parity **并非「全缺」**。基类已预留全部钩子，且 **IIDX `16.67/33.33/116.67/250`**、**LR2 四档 `8/24/40`·`15/30/60`·`18/40/100`·`21/60/120`（尾 200）** 已与 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md) 逐项吻合，**beatoraja** 已有 `25/50/75/100/125` 整数截断缩放 + early/late 非对称 BAD + scratch/release profile，excessive/empty poor 也已按家族参数化（LR2 `1000/0` 仅 note 前）。真正缺口收窄为：G1 跨家族边界约定不一致、G2 缺 parity 契约测试、G3 beatoraja 非对称溯源、G4 IIDX empty-poor / CN release 溯源。**第 1 刀只动 G1+G2（零行为风险）**：① [BeatorajaJudgementSystem.cs](../../osu.Game.Rulesets.Bms/Scoring/BeatorajaJudgementSystem.cs) 的 `Evaluate` 边界统一加 `+ BoundaryEpsilon`（保留其自有非对称 BAD 分支）；② 新建 [BmsJudgementSystemParityTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs)，按家族×rank 锁定窗口边界 / LR2 四档 / beatoraja 缩放档与非对称 / scratch·release 扩窗 / excessive-poor early-late 真值表 / 跨家族 inclusive 边界，audit-backed 数值锁基线、placeholder（IIDX `500/150`、beatoraja `220/280`）显式标注待溯源（第 2 刀输入）。约束见 [P1-C CONSTRAINTS #14–#17](../subline/P1-C/TECHNICAL_CONSTRAINTS.md)。验证：`BmsJudgementSystemParityTest` **29/29**、`osu.Game.Rulesets.Bms.Tests` **916/916**（887+29）、`osu.Desktop.slnf` Release **0 错误**（生产代码 0 警告）。详见 [P1-C CHANGELOG](../subline/P1-C/CHANGELOG.md) 2026-06-14。
+
+---
+
 ## 2026-06-13
 
 ### 修复：BMS `Random` / `Mirror` 重排被重复应用（同一 playable beatmap 上 3 次 → 自定义 pattern 失真 / 地雷错位）

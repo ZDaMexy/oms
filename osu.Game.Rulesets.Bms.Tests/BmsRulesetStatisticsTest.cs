@@ -191,7 +191,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(accuracyAttribute.AdditionalMetrics[1].Value.ToString(), Is.EqualTo("1 (HARD)"));
                 Assert.That(accuracyAttribute.AdditionalMetrics[2].Name.ToString(), Is.EqualTo("Applied difficulty"));
                 Assert.That(accuracyAttribute.AdditionalMetrics[2].Value.ToString(), Is.EqualTo("VERY HARD"));
-                Assert.That(accuracyAttribute.AdditionalMetrics.Any(metric => metric.Name.ToString() == "BAD hit window" && metric.Value.ToString() == "-55 / +70 ms"), Is.True);
+                Assert.That(accuracyAttribute.AdditionalMetrics.Any(metric => metric.Name.ToString() == "BAD hit window" && metric.Value.ToString() == "-70 / +55 ms"), Is.True);
                 Assert.That(accuracyAttribute.AdditionalMetrics.Any(metric => metric.Name.ToString() == "EPOOR window" && metric.Value.ToString() == "-500 / +150 ms"), Is.True);
             });
         }

@@ -50,3 +50,12 @@
 2. 任何改变 judge family 语义、反馈术语、results 训练表达或常驻 HUD 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
 3. 结果侧 BMS 重建不得只按 `BmsLongNoteMode` 回放，也不得对已带 mods 的 playable beatmap 再次应用 beatmap mods；`BmsClearLampProcessor` 的 final gauge / gauge history / lamp 计算必须消费 `Ruleset` contract 传入的已带 mods playable beatmap。`A-SCR` / `A-NOT` 这类会改写 score/gauge 池的 assist mod 不得在 results/history 链路里退化成“纯显示 mod”。`CreateStatisticsForScore()` 的 gauge history consumer 也必须直接消费计算后的 `BmsGaugeHistory`，不得在 panel/UI 层重建 timeline 或把回归退化成仅断言 panel type。
 4. `PERFECT` / `FULL COMBO` 的结果持久化必须先经过 clear condition 检查；`HCN` body tick 可以在不改变 EX-SCORE 与 head/tail judgement counts 的情况下独立击穿 gauge，因此禁止用聚合统计直接短路灯级结论。results summary consumer 也必须直接消费计算后的 `BmsClearLamp`，不得按 gauge type 自行派生 `HAZARD CLEAR` 一类灯级文本。
+
+## 判定窗口 parity 契约约束（2026-06-14 起）
+
+> 现状校正：判定 parity **不是「全缺」**。四套系统已实现 audit-backed 主窗口、beatoraja 非对称 BAD/scratch/release profile 与按家族参数化的 excessive poor；缺口已收窄为下列 G1–G4，且任何改数都必须经契约测试可见。
+
+14. **判定窗口必须由 parity 契约测试锁定。** 任何对 `OsuOdJudgementSystem` / `IidxJudgementSystem` / `Lr2JudgementSystem` / `BeatorajaJudgementSystem` 窗口数值、非对称方向、scratch / long-note release 扩窗或 excessive/empty poor early/late 的改动，都必须先反映在 [../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs](../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs) 的断言里（先改测试 = 让 parity diff 显式可审），不得静默改数。
+15. **audit/source-backed vs heuristic 必须显式区分。** 已溯源锁定的数值：IIDX `16.67/33.33/116.67/250`、LR2 四档 `8/24/40`·`15/30/60`·`18/40/100`·`21/60/120`（尾 200）、LR2 excessive poor 仅 note 前；beatoraja `25/50/75/100/125` 整数截断缩放 + BAD **早/晚非对称 base 早 280 / 晚 220**（scratch 290/230、LN release 280/220），权威来源 = beatoraja `JudgeProperty.SEVENKEYS`（exch-bms2/beatoraja，master）。**注意方向：早窗（280）比晚窗（220）宽**；OMS 早先写反（早 220 / 晚 280）已于 2026-06-14 第 2 刀修复。无权威单值、保留为**显式 OMS 启发式**（不得对外宣称 parity）的：**IIDX empty-poor `500/150`** 与 **IIDX CN release 沿用 note 窗口**（IIDX 闭源、审计仅述「可发生在 note 前或后」）。测试与代码注释须区分「sourced」与「documented heuristic」。
+16. **跨家族边界约定统一为 `<= window + BmsJudgementSystem.BoundaryEpsilon`（inclusive）。** 含 beatoraja 自有的 early/late 非对称 BAD 分支；新增任何判定家族或 Evaluate 路径都必须沿用该约定，使「正好压线」偏移在所有家族结论一致。
+17. **G1–G4 缺口归属固定在本子线。** G1 边界一致性、G2 契约测试已于第 1 刀收口；**G3（beatoraja 非对称）已于第 2 刀溯源修复（方向写反 → 改回早 280/晚 220）；G4（IIDX empty-poor / CN release）已结论性收口为 documented heuristic（无权威单值，保留并标注）**。剩余第 3 刀须把 parity 区分接进 gameplay 训练反馈表达（约束 #1：不允许只改窗口不改反馈）——属性显示面 `BAD hit window -early/+late` 已自动随窗口正确显示，但 gameplay judge display / counts 仍未显式区分 BAD-early/late 与 empty-poor / note-poor，是第 3 刀的主要缺口。

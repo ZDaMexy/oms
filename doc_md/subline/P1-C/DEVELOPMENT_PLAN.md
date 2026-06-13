@@ -22,7 +22,7 @@
 - 冷启动首轮恢复现已明确要求等待 `RulesetConfigCache` ready：若 startup 首次 ruleset change 发生在 cache `LoadComplete()` 之前，宿主必须延后 replay 当前 ruleset 到 cache ready 后再做 restore；该 path 现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
 - 当前 `Sudden / Hidden / Lift` 已具备 mod-local `RememberGameplayChanges` 开关；开启时局内滚轮改动会跨 gameplay clone 回写到当前 selected mod，并在回场 / 重启后延续，关闭时保持 current-play-only。
 - 当前 results 页已完成 `DJ LEVEL` / `EX-SCORE` 第一轮收口，但还没有形成完整训练反馈闭环。
-- 当前 `BEATORAJA` / `LR2` judge mode 已接通基础路径，但 early/late 非对称窗口、excessive poor 与更完整 long-note release parity 仍未收口。
+- 当前 `BEATORAJA` / `LR2` / `IIDX` judge mode 的 early/late 非对称窗口、excessive poor 与 long-note release parity **已于 2026-06-14（第 1–2 刀）落地并溯源锁定**（窗口源自 beatoraja `JudgeProperty.SEVENKEYS`，由 `BmsJudgementSystemParityTest` 锁；第 2 刀修复 beatoraja BAD 早/晚方向写反的真实 bug）；剩余仅 gameplay judge display / counts 的反馈区分（第 3 刀），IIDX empty-poor / CN release 已收口为 documented heuristic。
 
 ## 分期计划
 
@@ -227,7 +227,7 @@
 
 1. `FAST/SLOW` 与 judge display 优先进入同一 feedback container，而不是和 judgement piece 硬耦合。
 2. visual timing-offset 与 EX pacemaker 也沿同一状态流接入。
-3. BRJ / LR2 的 early/late 非对称窗口、excessive poor 与更完整 long-note release parity 优先纳入同一反馈验证链。
+3. BRJ / LR2 / IIDX 的 early/late 非对称窗口、excessive poor 与 long-note release parity 已落地并由 `BmsJudgementSystemParityTest` 锁定（第 1–2 刀）；剩余把 BAD-early/late、empty-poor vs note-poor 的区分接进同一 gameplay 反馈链（第 3 刀；FAST/SLOW 与 EPOOR 独立标签已覆盖大半）。
 4. results summary / gauge history / `DJ LEVEL` / `EX-SCORE` 继续沿同一训练反馈叙事收口。
 
 > 当前已完成四刀：`DrawableBmsRuleset` 已把最近判定快照为 `LatestJudgementFeedback`，`DefaultBmsSpeedFeedbackDisplay` 已在同一 feedback container 中显示最近判定与 `FAST/SLOW` 文案，并对 `EPOOR` 等无真实 timing 语义的结果省略 timing 后缀；最近判定 feedback 现已具备瞬时 judge display 生命周期，重复同类判定也会刷新显示窗口；同一张 feedback card 现已补上 compact visual timing-offset sparkline，并沿 `RecentJudgementFeedbacks` / `TimingFeedbackVisualRange` 同步消费 recent timing history；fixed AAA EX pacemaker 也已通过 `ExScorePacemakerInfo` 并入同一状态流。剩余工作是继续补更完整 judge display，以及后续可配置 / 更丰富来源的 pacemaker 扩展。

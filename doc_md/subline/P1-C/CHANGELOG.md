@@ -2,6 +2,24 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-14
+
+### 判定 parity 第 2 刀：溯源校正 beatoraja BAD 早/晚非对称方向（G3 修复，**行为变更**）+ 结论性收口 IIDX empty-poor（G4）
+
+承接第 1 刀，溯源 G3/G4。**G3 = 真实 bug（方向反了）**：从 beatoraja 源码 `JudgeProperty.SEVENKEYS`（exch-bms2/beatoraja，master）取得权威窗口——note BAD 为微秒数组 `{…, -280000, 220000}`（**负=早、正=晚** → 早 280ms / 晚 220ms，**早窗更宽**）；scratch 早 290 / 晚 230；long-note release 早 280 / 晚 220。OMS 的 PG/GR/GD 基值与 scratch/LN 基值**逐项吻合**，但 [../../osu.Game.Rulesets.Bms/Scoring/BeatorajaJudgementSystem.cs](../../../osu.Game.Rulesets.Bms/Scoring/BeatorajaJudgementSystem.cs) 的 BAD `badEarly/badLate` 一对被**写反**（早 220 / 晚 280，晚窗更宽）。修复 = 把四个 `createProfile` 的 `(badEarly, badLate)` 改回 `(280,220)/(290,230)/(280,220)/(290,230)`，并补 SEVENKEYS 来源注释。**行为影响**：beatoraja 下早击最多 280ms 仍判 BAD（原 220）、晚击 BAD 上限收紧到 220ms（原 280，POOR/晚自动 miss 窗口同步 280→220）；存档 EX-SCORE 不变、replay 会按新窗口重判。**附带确认**：属性显示层 `BAD hit window` 本就分别读 early/late，修后自动正确显示 `-280/+220`（缩放后 `-70/+55` 等），**约束 #1（反馈须随窗口变）在该显示面已自动满足**。
+- **G4 = 结论性收口（无权威单值，保留为显式 OMS 启发式）**：IIDX 闭源、不公开精确 empty/excessive POOR 窗口，外部审计仅述「可发生在 note 前或后」；故 IIDX `500/150`（前 500 / 后 150）与 IIDX CN release 沿用 note 窗口**保留为标注清楚的 OMS 启发式，不对外宣称 parity**。契约测试相应从「PLACEHOLDER 待溯源」改标为「documented heuristic」。
+- **测试同步（约束 #14：改窗口先改测试）**：① 更新 [BmsJudgementSystemParityTest.cs](../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs) 断言早窗更宽（early 210 > late 165 @NORMAL）；② 三处既有测试此前锁住旧（反向）值，按新值更新——`BmsDrawableRulesetTest.TestDrawableRulesetAppliesSelectedJudgeWindows`（beatoraja POOR/ReleaseMiss 210→165）、`TestTailReleaseUsesExactJudgeWindowBoundaries`（晚向 release 的 BAD 边界改用 `GetLateWindow` 而非 `WindowFor` 的 early-inclusive 最大值）、`BmsRulesetStatisticsTest.TestBeatmapAttributesDisplayUsesJudgeModeAndRankMods`（`-55/+70`→`-70/+55`）。
+- **第 3 刀**：把 BAD-early/late、empty-poor vs note-poor 的区分接进 gameplay judge display / counts（属性显示面已满足，gameplay 反馈面待补）。
+- 验证：`BmsJudgementSystemParityTest` **29/29**、`osu.Game.Rulesets.Bms.Tests` 全量 **916/916**、`osu.Desktop.slnf` Release **0 错误**（生产代码 0 警告）。约束更新见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) #15/#17。
+
+### 判定 parity 第 1 刀：建立判定窗口 parity 契约测试 + 统一跨家族边界约定（行为不变）
+
+全面通读 BMS 判定链路（[../../osu.Game.Rulesets.Bms/Scoring/BmsJudgementSystem.cs](../../../osu.Game.Rulesets.Bms/Scoring/BmsJudgementSystem.cs) → 四套系统 → [../../osu.Game.Rulesets.Bms/Scoring/BmsTimingWindows.cs](../../../osu.Game.Rulesets.Bms/Scoring/BmsTimingWindows.cs) → [../../osu.Game.Rulesets.Bms/UI/DrawableBmsHitObject.cs](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsHitObject.cs) 的 `ResultForPlayerInput` 与 [../../osu.Game.Rulesets.Bms/UI/BmsLane.cs](../../../osu.Game.Rulesets.Bms/UI/BmsLane.cs) 的 `shouldTriggerEmptyPoor`）后**修正一处文档失真叙述**：parity 现状并非「全缺」。基类 `BmsJudgementSystem` 已预留全部钩子（`GetEarlyWindow/GetLateWindow` 支持非对称、`ScratchWindows`、`LongNoteReleaseWindows`、`GetExcessivePoorEarly/LateWindow`），且四套系统中：**IIDX `16.67/33.33/116.67/250`**、**LR2 四档 `8/24/40`·`15/30/60`·`18/40/100`·`21/60/120`（尾 200）** 已与 [../../other/IIDX_REFERENCE_AUDIT.md](../../other/IIDX_REFERENCE_AUDIT.md) 的「判定与 timing」基线**逐项吻合**；**beatoraja** 已用 `25/50/75/100/125` 整数截断缩放 + early/late 非对称 BAD（base 220/280）+ scratch profile + LN-release profile；excessive/empty poor 也已按家族参数化（**LR2 `1000/0` 仅 note 前**、OD `500/0`、IIDX/beatoraja `500/150`）。
+- **真正缺口收窄为四条**（见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) #14）：G1 跨家族边界约定不一致（beatoraja `Evaluate` 无 `BoundaryEpsilon`，其余三家有）；G2 缺判定窗口 parity 契约测试 → parity 无法验证也无法安全改数；G3 beatoraja 非对称方向/量值（220/280）待溯源；G4 IIDX empty-poor `500/150` + CN release 无扩窗待溯源。
+- **本刀只动 G1 + G2（零行为风险）**：① [../../osu.Game.Rulesets.Bms/Scoring/BeatorajaJudgementSystem.cs](../../../osu.Game.Rulesets.Bms/Scoring/BeatorajaJudgementSystem.cs) 的 `Evaluate` 四处边界比较统一加 `+ BoundaryEpsilon`，让「正好压线」偏移在所有家族结论一致（beatoraja 仍保留自有 early/late 非对称 BAD 分支）；② 新建 [../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs](../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs)，按家族×rank 锁定 PG/GR/GD/BAD/POOR 边界、LR2 四档表、beatoraja 缩放档与非对称 BAD、scratch/release 扩窗、excessive-poor early/late 真值表（含 LR2「仅 note 前」）与跨家族 inclusive 边界约定。audit-backed 数值锁成基线、placeholder 数值（IIDX `500/150`、beatoraja `220/280`）在测试与约束里**显式标注待溯源**，作为第 2 刀输入。
+- **后续刀**：第 2 刀溯源校正 G3/G4；第 3 刀把 parity 接进训练反馈（BAD-early/late、empty-poor vs note-poor 按家族区分显示，满足约束 #1）；第 4 刀文档同步 + 全量回归。
+- 验证：`BmsJudgementSystemParityTest` **29/29**、`osu.Game.Rulesets.Bms.Tests` 全量 **916/916**（887+29）、`osu.Desktop.slnf` Release **0 错误**（生产代码 0 警告）。
+
 ## 2026-05-25
 
 ### C3 follow-up：gauge history consumer proof 收口为 plain focused 路径

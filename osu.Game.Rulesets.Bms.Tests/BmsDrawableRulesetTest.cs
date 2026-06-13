@@ -113,7 +113,10 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [TestCase(BmsJudgeMode.OD, 17.5, 43.5, 76.5, 130.5, 167.5, 17.5, 43.5, 76.5, 130.5, 209.375)]
-        [TestCase(BmsJudgeMode.Beatoraja, 15, 45, 112, 210, 210, 90, 120, 150, 210, 210)]
+        // beatoraja BAD is early/late asymmetric (SEVENKEYS: early 280 / late 220). WindowFor(Meh) reports the wider
+        // EARLY bound (210 at NORMAL), while the POOR/Miss window — the late auto-miss timeout — is the narrower LATE
+        // bound (165). Same split applies to the long-note release columns.
+        [TestCase(BmsJudgeMode.Beatoraja, 15, 45, 112, 210, 165, 90, 120, 150, 210, 165)]
         [TestCase(BmsJudgeMode.LR2, 18, 40, 100, 200, 200, 18, 40, 100, 200, 240)]
         [TestCase(BmsJudgeMode.IIDX, 16.67, 33.33, 116.67, 250, 250, 16.67, 33.33, 116.67, 250, 250)]
         public void TestDrawableRulesetAppliesSelectedJudgeWindows(BmsJudgeMode judgeMode, double expectedPerfect, double expectedGreat, double expectedGood, double expectedBad, double expectedPoor, double expectedReleasePerfect, double expectedReleaseGreat, double expectedReleaseGood, double expectedReleaseBad, double expectedReleaseMiss)
@@ -289,7 +292,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             double perfectWindow = tailTimingWindows.WindowFor(HitResult.Perfect, isLongNoteRelease: true);
             double greatWindow = tailTimingWindows.WindowFor(HitResult.Great, isLongNoteRelease: true);
             double goodWindow = tailTimingWindows.WindowFor(HitResult.Good, isLongNoteRelease: true);
-            double mehWindow = tailTimingWindows.WindowFor(HitResult.Meh, isLongNoteRelease: true);
+            // A tail release lands LATE (EndTime + window), so the BAD boundary is the LATE bound. Under beatoraja's
+            // asymmetric BAD that is narrower than WindowFor(Meh) (the early-inclusive maximum); the other tiers are
+            // symmetric so this matches WindowFor for them.
+            double mehWindow = tailTimingWindows.JudgementSystem.GetLateWindow(HitResult.Meh, isLongNoteRelease: true, tailTimingWindows.IsScratch);
             double missWindow = tailTimingWindows.WindowFor(HitResult.Miss, isLongNoteRelease: true);
 
             Assert.Multiple(() =>

@@ -104,6 +104,7 @@
 - IIDX 的常规 POOR 是 late BAD 结束后未命中所触发；excessive / empty POOR 可能发生在 note 前，也可能发生在 note 后，但精确窗口不宜在缺更强来源时写死成单一数值。
 - LR2 的 note timing 不是单一固定窗，而是按 judge rank 分出 EASY / NORMAL / HARD / VERY HARD 四档；一组常见基线分别是 21/60/120/200、18/40/100/200、15/30/60/200、8/24/40/200，且 excessive POOR 只发生在 note 前。
 - beatoraja 不是“LR2 加减几毫秒”：其 EASY 基线比 LR2 更宽，BAD / excessive poor 还带 early / late 非对称；VERY EASY / EASY / NORMAL / HARD / VERY HARD 通过整数截断缩放派生，scratch note 与 long-note release 也有额外扩窗规则。
+- beatoraja 已溯源数值（来源：`bms.player.beatoraja.play.JudgeProperty.SEVENKEYS`，exch-bms2/beatoraja master；2026-06-14 写入 OMS 实现）：缩放档 VERYHARD/HARD/NORMAL/EASY/VERYEASY = EASY(100%) 的 25/50/75/100/125%（整数截断），EASY 基线 note PGREAT ±20 / GREAT ±60 / GOOD ±150ms；BAD **早/晚非对称且早窗更宽**——note 早 280 / 晚 220ms，scratch 早 290 / 晚 230ms，long-note release 早 280 / 晚 220ms。注意「早＝负偏移（按早于 note）」，OMS 早先曾把方向写反，已修正。
 - 对 OMS 的约束：Judge mode 必须继续是明确的规则切换，不应退化成一个模糊的“判定强度”选项；后续若追求 BEATORAJA / LR2 parity，就必须显式建模 judge-rank tier、early/late 非对称窗口、scratch / release 特例，以及 judge-family-specific Empty Poor / excessive poor，而不是长期共用同一个绝对偏移判定器。
 
 ### 长条、CN、BSS、MSS
