@@ -28,10 +28,17 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (laneGroups.Length == 0)
                 return;
 
-            if (tryCreateCustomPatterns(laneGroups, customPattern, out var customPermutations))
+            if (!string.IsNullOrWhiteSpace(customPattern))
             {
-                for (int i = 0; i < laneGroups.Length; i++)
-                    applyPermutation(beatmap, laneGroups[i], customPermutations[i]);
+                // A custom pattern is a deliberate fixed arrangement that overrides the random mode + seed.
+                // Apply it when it is a valid permutation for this chart; if it does not fit (wrong length /
+                // not a permutation), leave the chart unchanged rather than silently substituting a random
+                // shuffle the player did not ask for.
+                if (tryCreateCustomPatterns(laneGroups, customPattern, out var customPermutations))
+                {
+                    for (int i = 0; i < laneGroups.Length; i++)
+                        applyPermutation(beatmap, laneGroups[i], customPermutations[i]);
+                }
 
                 return;
             }
@@ -107,10 +114,24 @@ namespace osu.Game.Rulesets.Bms.Mods
 
             foreach (var hitObject in beatmap.HitObjects.OfType<BmsHitObject>().Where(hitObject => laneMapping.ContainsKey(hitObject.LaneIndex)).ToArray())
                 hitObject.LaneIndex = laneMapping[hitObject.LaneIndex];
+
+            // Mines live outside beatmap.HitObjects (see BmsMine / BmsBeatmap.Mines) but still belong to
+            // a lane, so they must follow the same permutation or they desync from the rearranged chart.
+            // Per-group mappings are disjoint, so iterating here for each group never double-remaps a mine.
+            if (beatmap is BmsBeatmap bmsBeatmap)
+            {
+                foreach (var mine in bmsBeatmap.Mines)
+                {
+                    if (laneMapping.TryGetValue(mine.LaneIndex, out int targetLane))
+                        mine.LaneIndex = targetLane;
+                }
+            }
         }
 
         private static void applyScatterRandom(IBeatmap beatmap, LaneGroup laneGroup, Random random)
         {
+            // S-RANDOM reassigns each note's lane per timestamp and so has no single column permutation;
+            // mines (BmsBeatmap.Mines) are therefore left on their original lanes under this mode.
             var playableObjects = beatmap.HitObjects.OfType<BmsHitObject>()
                                        .Where(hitObject => laneGroup.Contains(hitObject.LaneIndex))
                                        .OrderBy(hitObject => hitObject.StartTime)
@@ -202,6 +223,71 @@ namespace osu.Game.Rulesets.Bms.Mods
             return shuffled;
         }
 
+        /// <summary>
+        /// Whether <paramref name="character"/> is accepted in a custom pattern input. This is the exact
+        /// character set the parser tolerates (digits, plus the separators / scratch marker it strips),
+        /// so the settings text box and <see cref="tryCreateCustomPatterns"/> stay in agreement.
+        /// </summary>
+        internal static bool IsCustomPatternCharacter(char character)
+            => char.IsAsciiDigit(character) || isStrippablePatternCharacter(character);
+
+        private static bool isStrippablePatternCharacter(char character)
+            => char.IsWhiteSpace(character) || character is '|' or '/' or ',' or ';' or '-' or 'S' or 's';
+
+        /// <summary>
+        /// Validates <paramref name="customPattern"/> against a key count (5 / 7 / 9 / 14) and, when valid, returns the
+        /// effective per-side digit layout for display (e.g. 14K "7654321" -> "7654321 / 7654321"). Mirrors the
+        /// validation in <see cref="tryCreateCustomPatterns"/> exactly: 14K is two independent 1–7 sides (NOT a single
+        /// 1–14 permutation), and a single side is mirrored across both. Used by the settings preview; keep the two in sync.
+        /// </summary>
+        internal static bool TryNormaliseCustomPattern(int keyCount, string? customPattern, out string normalised)
+        {
+            normalised = string.Empty;
+
+            int[]? groupSizes = keyCount switch
+            {
+                5 => new[] { 5 },
+                7 => new[] { 7 },
+                9 => new[] { 9 },
+                14 => new[] { 7, 7 },
+                _ => null,
+            };
+
+            if (groupSizes == null || string.IsNullOrWhiteSpace(customPattern))
+                return false;
+
+            string cleaned = new string(customPattern.Where(character => !isStrippablePatternCharacter(character)).ToArray());
+
+            if (cleaned.Length == 0 || cleaned.Any(character => !char.IsAsciiDigit(character)))
+                return false;
+
+            if (groupSizes.Length > 1 && cleaned.Length == groupSizes[0] && groupSizes.All(size => size == groupSizes[0]))
+                cleaned = string.Concat(Enumerable.Repeat(cleaned, groupSizes.Length));
+
+            if (cleaned.Length != groupSizes.Sum())
+                return false;
+
+            var parts = new string[groupSizes.Length];
+            int offset = 0;
+
+            for (int i = 0; i < groupSizes.Length; i++)
+            {
+                int size = groupSizes[i];
+                string part = cleaned.Substring(offset, size);
+                offset += size;
+
+                var expectedDigits = Enumerable.Range(1, size).Select(index => (char)('0' + index)).OrderBy(character => character);
+
+                if (!part.OrderBy(character => character).SequenceEqual(expectedDigits))
+                    return false;
+
+                parts[i] = part;
+            }
+
+            normalised = string.Join(" / ", parts);
+            return true;
+        }
+
         private static bool tryCreateCustomPatterns(IReadOnlyList<LaneGroup> laneGroups, string? customPattern, out IReadOnlyList<int>[] permutations)
         {
             permutations = Array.Empty<IReadOnlyList<int>>();
@@ -209,7 +295,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (string.IsNullOrWhiteSpace(customPattern))
                 return false;
 
-            var cleanedPattern = new string(customPattern.Where(character => !char.IsWhiteSpace(character) && character is not '|' and not '/' and not ',' and not ';' and not '-' && character != 'S' && character != 's').ToArray());
+            var cleanedPattern = new string(customPattern.Where(character => !isStrippablePatternCharacter(character)).ToArray());
 
             if (string.IsNullOrEmpty(cleanedPattern) || cleanedPattern.Any(character => !char.IsDigit(character)))
                 return false;

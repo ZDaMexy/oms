@@ -69,7 +69,10 @@
   <data name="random_type" xml:space="preserve"><value>Random 类型</value></data>
   <data name="random_type_description" xml:space="preserve"><value>选择要应用的 beatmania 风格随机规则。</value></data>
   <data name="custom_pattern" xml:space="preserve"><value>自定义 pattern</value></data>
-  <data name="custom_pattern_description" xml:space="preserve"><value>可选的固定 pattern 覆盖。示例：S7654321、7654321，或 14K 用的 7654321|7654321。</value></data>
+  <data name="custom_pattern_description" xml:space="preserve"><value>固定轨道顺序，每侧一个排列：&#10;5K：54321&#10;7K：7654321&#10;9K：987654321&#10;14K：7654321 1234567（或 7 位镜像到两侧）&#10;scratch 轨保持原位。&#10;填写后将覆盖 Random 类型与随机种子；留空则使用两者。</value></data>
+  <data name="custom_pattern_overrides_hint" xml:space="preserve"><value>填写以覆盖 Random 类型与随机种子</value></data>
+  <data name="custom_pattern_preview_valid" xml:space="preserve"><value>{0}K 谱面下，pattern 将变为 {1}</value></data>
+  <data name="custom_pattern_preview_invalid" xml:space="preserve"><value>所填 pattern 不合法（每侧需为完整排列）</value></data>
   <data name="random_mode_random" xml:space="preserve"><value>RANDOM</value></data>
   <data name="random_mode_r_random" xml:space="preserve"><value>R-RANDOM</value></data>
   <data name="random_mode_s_random" xml:space="preserve"><value>S-RANDOM</value></data>

@@ -23,6 +23,7 @@
 3. `DrawableBmsMine` **不得**继承 `DrawableBmsHitObject`：必须保持为 `DrawableHitObject<BmsMine>`，以便被 `OfType<DrawableBmsHitObject>`（empty-poor / 候选音符扫描）天然排除。
 4. 地雷 channel → lane 映射固定为 `channel - 0xC0`（D1-D9→11-19、E1-E9→21-29），再经 `mapLaneIndex` + lane 范围校验；越界或非可玩通道的地雷丢弃，不得 mis-map 到错误 lane。**范围上界必须用轨道数 `BmsRuleset.GetLaneCount`（键 + scratch），不得用键数 `GetKeyCount`**——否则 scratch 占 lane 0 会使最右键轨道（如 7K lane 7）地雷被误丢（2026-05-29 修复）。
 5. 地雷时间必须复用 converter 的 `eventTimes`（与音符同一时间轴），不得另算一套 timing。
+6. 地雷**必须随 lane 重排（`Mirror` / `Random`）同步移动**：`BmsLaneRearrangement.applyPermutation` 用与音符相同的 lane 映射重排 `BmsBeatmap.Mines`，否则重排后地雷与谱面错位（2026-06-13 修复）。地雷仍**不得**因此进入 `beatmap.HitObjects`（守 #2/#3）——只就地改 `Mines` 元素的 `LaneIndex`。`S-RANDOM` 逐时刻散布、无单一列置换，地雷保持原位（已知边界，非 bug）。注意 `Mirror`/`Random` 既是 `IApplicableToBeatmap`、只能由 `GetPlayableBeatmap` 应用**一次**，`BmsBeatmapModApplicator` 不得再应用它们（lane 置换会复合成 P³）。
 
 ## Phase 2（演出旁路）约束 —— Step A–C 已落地，须长期保持
 

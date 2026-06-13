@@ -203,7 +203,7 @@
 
 ### 高优先级
 
-- **训练向 lane rearrangement 已落地**：`BmsModMirror` 与 `BmsModRandom`（`RANDOM` / `R-RANDOM` / `S-RANDOM` + 自定义 pattern）现已接入 BMS ruleset；当前 Phase 2 冻结重点已转向 `1P/2P flip` / `dan` / `FHS` / BSS / MSS 等更大范围能力
+- **训练向 lane rearrangement 已落地**：`BmsModMirror` 与 `BmsModRandom`（`RANDOM` / `R-RANDOM` / `S-RANDOM` + 自定义 pattern）现已接入 BMS ruleset；**2026-06-13 修复重排被重复应用**——`Mirror`/`Random` 既实现 `IApplicableToBeatmap`（`GetPlayableBeatmap` 应用 1 次）又被 `BmsBeatmapModApplicator` 在 `DrawableBmsRuleset` + `BmsScoreProcessor` 对同一 playable beatmap 再应用 2 次，lane 置换复合成 P³，导致自定义 pattern 失真且地雷不随重排；改为 applicator 不再重排（交 `IApplicableToBeatmap` 单次应用）、地雷经 `applyPermutation` 同步重排（S-RANDOM 例外）。同日并补自定义 pattern 输入体验：字符级过滤、按选中谱面真实键数（`TryGetKeyCount`/`CircleSize`）的实时校验+预览（**14K = 两段 1–7、7 位镜像到两侧，非 1–14**）、tooltip 各键数示例；且**非空但非法的 pattern 不再静默回退随机，改为保持谱面不变**（互斥提示用 placeholder/预览/tooltip，而非禁用 type/seed 控件——后者会让 `Mod.CopyFrom`/clone 经 `BindTo` 抛异常）。当前 Phase 2 冻结重点已转向 `1P/2P flip` / `dan` / `FHS` / BSS / MSS 等更大范围能力
 - **Phase 1.1 剩余**：mania 侧仍有 legacy config/asset lookup 兼容路径与公开发行物产品面收尾；维持 release gate 稳定后继续转向 1.17 输入与真实硬件验收
 - **判定系统 parity 缺口**：当前 `BEATORAJA` / `LR2` / `IIDX` judge mode 已接通，但 `BEATORAJA` / `LR2` 仍缺 early/late 非对称窗口、scratch / long-note release 特例，以及按 judge family 参数化的 Empty Poor / excessive poor 触发语义；`IIDX` 也仍待进一步对齐细部体验
 - **反馈闭环缺口**：results 页主评价 / 缩略徽章 / 主分数文案虽已切到 BMS 语义，但结果反馈面本身仍只完成第一轮收口；gameplay 侧当前已具备最近判定、瞬时 judge display、compact judgement summary、compact visual timing-offset、fixed AAA EX pacemaker 与 live `DJ LEVEL + EX %`，后续仍缺更完整 judge display 与更丰富 pacemaker 来源，尚未形成完整的 key-sounded BMS 训练闭环

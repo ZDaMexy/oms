@@ -334,9 +334,25 @@ namespace osu.Game.Localisation
         public static LocalisableString CustomPattern => new TranslatableString(getKey(@"custom_pattern"), @"Custom pattern");
 
         /// <summary>
-        /// "Optional fixed pattern override. Examples: S7654321, 7654321, or 7654321|7654321 for 14K."
+        /// "Fixed lane order, one permutation per side — 5K: 54321 · 7K: 7654321 · 9K: 987654321 · 14K: 7654321 1234567 (or 7 digits applied to both sides). Scratch stays in place. Overrides the Random type and seed; leave empty to use them."
         /// </summary>
-        public static LocalisableString CustomPatternDescription => new TranslatableString(getKey(@"custom_pattern_description"), @"Optional fixed pattern override. Examples: S7654321, 7654321, or 7654321|7654321 for 14K.");
+        public static LocalisableString CustomPatternDescription => new TranslatableString(getKey(@"custom_pattern_description"), @"Fixed lane order, one permutation per side — 5K: 54321 · 7K: 7654321 · 9K: 987654321 · 14K: 7654321 1234567 (or 7 digits applied to both sides). Scratch stays in place. Overrides the Random type and seed; leave empty to use them.");
+
+        /// <summary>
+        /// "Fill to override the Random type and seed"
+        /// </summary>
+        public static LocalisableString CustomPatternOverridesHint => new TranslatableString(getKey(@"custom_pattern_overrides_hint"), @"Fill to override the Random type and seed");
+
+        /// <summary>
+        /// "On a {0}K chart, the pattern becomes {1}"
+        /// </summary>
+        public static LocalisableString CustomPatternPreviewValid(int keyCount, string normalisedPattern) =>
+            new TranslatableString(getKey(@"custom_pattern_preview_valid"), @"On a {0}K chart, the pattern becomes {1}", keyCount, normalisedPattern);
+
+        /// <summary>
+        /// "Invalid pattern (must be a full permutation per side)"
+        /// </summary>
+        public static LocalisableString CustomPatternPreviewInvalid => new TranslatableString(getKey(@"custom_pattern_preview_invalid"), @"Invalid pattern (must be a full permutation per side)");
 
         /// <summary>
         /// "RANDOM"

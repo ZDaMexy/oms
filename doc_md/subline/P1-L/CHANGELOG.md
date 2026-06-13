@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06-13
+
+### 修复：地雷不随 `Mirror` / `Random` 重排移动（重排后与谱面错位）
+
+审查 BMS `Random` mod 全链路时发现：地雷（`BmsBeatmap.Mines`，按 Phase 1 #2 刻意在 `beatmap.HitObjects` 之外）此前**完全不参与** `Mirror`/`Random` 的 lane 重排——`BmsLaneRearrangement` 只遍历 `HitObjects.OfType<BmsHitObject>()`，音符移动后地雷仍留原轨，与重排后的谱面错位（与 beatmania「整列连同地雷一起换」不符）。地雷此处为视觉-only、不扣血/不计分，故属还原度缺口而非计分 bug。**修复**：`applyPermutation`（覆盖 `Mirror`/`RANDOM`/`R-RANDOM`/自定义 pattern 全部置换模式）在重排音符后，用**同一份 lane 映射**同步重排 `BmsBeatmap.Mines` 的 `LaneIndex`；地雷仍不进 `HitObjects`（守住 Phase 1 #2/#3），per-group 映射不相交故 14K 不会双重重排。`S-RANDOM` 逐时刻散布、无单一列置换，故地雷保持原位（已注释为已知边界）。同批修复 applicator 重复应用导致的 `Random` 失真（详见 [mainline CHANGELOG](../../mainline/CHANGELOG.md) 2026-06-13）。验证：新增 `TestMirrorMovesMinesWithLanes` / `TestRandomCustomPatternMovesMinesWithNotes`（mines 切片）；同日 `Random` 重排修复 + custom-pattern UX 切片一并收口后，BMS 全套 **887/887**、`osu.Desktop.slnf` Release 0 错误。新增约束 Phase 1 #6。
+
+---
+
 ## 2026-05-29
 
 ### Phase 2 Step D：演出谱自动检测（`Auto` 可用，默认仍 OFF）

@@ -26,21 +26,27 @@ namespace osu.Game.Rulesets.Bms.Mods
         [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.RandomType), nameof(BmsModStrings.RandomTypeDescription))]
         public Bindable<BmsRandomMode> RandomMode { get; } = new Bindable<BmsRandomMode>(BmsRandomMode.Random);
 
-        [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.CustomPattern), nameof(BmsModStrings.CustomPatternDescription))]
+        [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.CustomPattern), nameof(BmsModStrings.CustomPatternDescription), SettingControlType = typeof(BmsRandomCustomPatternSettingsControl))]
         public Bindable<string> CustomPattern { get; } = new Bindable<string>(string.Empty);
 
         public override IEnumerable<(LocalisableString setting, LocalisableString value)> SettingDescription
         {
             get
             {
+                // A custom fixed pattern overrides the random mode + seed entirely (see BmsLaneRearrangement.ApplyRandom),
+                // so when one is provided we advertise only the pattern instead of implying the type / seed still apply.
+                if (!string.IsNullOrWhiteSpace(CustomPattern.Value))
+                {
+                    yield return (BmsModStrings.CustomPattern, CustomPattern.Value.Trim().ToUpperInvariant());
+
+                    yield break;
+                }
+
                 if (!RandomMode.IsDefault)
                     yield return (BmsModStrings.RandomType, RandomMode.Value.GetLocalisableDescription());
 
                 if (Seed.Value.HasValue)
                     yield return (ModSettingsStrings.Seed, Seed.Value.Value.ToString());
-
-                if (!string.IsNullOrWhiteSpace(CustomPattern.Value))
-                    yield return (BmsModStrings.CustomPattern, CustomPattern.Value.Trim().ToUpperInvariant());
             }
         }
 
