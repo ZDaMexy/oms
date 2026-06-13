@@ -46,6 +46,29 @@ namespace osu.Game.Beatmaps
             '：',
         };
 
+        // Trailing bracket pairs a BMS chart commonly uses to embed the difficulty / subtitle in #TITLE
+        // (e.g. "GOODBOUNCE [ANOTHER]", "Song（7keys）"). ASCII plus the fullwidth / CJK variants seen in JP charts.
+        private static readonly (char open, char close)[] bms_title_subtitle_brackets =
+        {
+            ('[', ']'),
+            ('(', ')'),
+            ('<', '>'),
+            ('（', '）'),
+            ('［', '］'),
+            ('〈', '〉'),
+            ('【', '】'),
+            ('〔', '〕'),
+        };
+
+        // Symmetric wrappers ("Song -HYPER-", "Song ~ANOTHER~"). Only treated as a difficulty tag when the title
+        // actually ends with the wrapper, so ordinary hyphenated titles ("Re-Loaded") are left untouched.
+        private static readonly char[] bms_title_subtitle_wrappers =
+        {
+            '-',
+            '~',
+            '～',
+        };
+
         public static string GetDisplayArtist(IBeatmapInfo beatmap)
         {
             if (!isBmsBeatmap(beatmap))
@@ -63,6 +86,55 @@ namespace osu.Game.Beatmaps
             string cleaned = StripBmsCreatorFromArtist(source);
 
             return string.IsNullOrWhiteSpace(cleaned) ? GetDisplayArtist(beatmap) : cleaned;
+        }
+
+        public static string GetDisplayTitle(IBeatmapInfo beatmap)
+        {
+            if (!isBmsBeatmap(beatmap))
+                return beatmap.Metadata.Title;
+
+            return getBmsCleanTitle(beatmap, beatmap.Metadata.Title);
+        }
+
+        public static string GetDisplayTitleUnicode(IBeatmapInfo beatmap)
+        {
+            string source = string.IsNullOrWhiteSpace(beatmap.Metadata.TitleUnicode) ? beatmap.Metadata.Title : beatmap.Metadata.TitleUnicode;
+
+            if (!isBmsBeatmap(beatmap))
+                return source;
+
+            string cleaned = getBmsCleanTitle(beatmap, source);
+
+            return string.IsNullOrWhiteSpace(cleaned) ? GetDisplayTitle(beatmap) : cleaned;
+        }
+
+        /// <summary>
+        /// The difficulty name to display for a BMS chart. BMS has no authoritative difficulty field, so this prefers,
+        /// in order: the charter's explicit name — an <c>#SUBTITLE</c> or the bracket tag split off the title tail
+        /// (e.g. <c>Dead Soul [Revive]</c> → "Revive") — then the generic <c>#DIFFICULTY</c> category
+        /// (Beginner/Normal/Hyper/Another/Insane). The explicit name MUST win: the category would otherwise overwrite
+        /// a meaningful name like "Revive" with "Insane". The bare play-level number is dropped (it only duplicates the
+        /// star rating); a symbolic/textual stored name is kept as a last resort.
+        /// </summary>
+        public static string GetDisplayDifficultyName(IBeatmapInfo beatmap)
+        {
+            if (!isBmsBeatmap(beatmap))
+                return beatmap.DifficultyName;
+
+            var chartMetadata = BmsPersistedMetadataResolver.GetChartMetadata(beatmap.Metadata as BeatmapMetadata);
+
+            string? subtitle = nullIfWhiteSpace(chartMetadata?.Subtitle)
+                               ?? TryExtractTitleSubtitle(beatmap.Metadata.Title)?.subtitle;
+
+            if (!string.IsNullOrWhiteSpace(subtitle))
+                return subtitle!;
+
+            string? label = getBmsHeaderDifficultyLabel(chartMetadata?.HeaderDifficulty);
+
+            if (!string.IsNullOrWhiteSpace(label))
+                return label!;
+
+            return isBareNumericPlayLevel(beatmap.DifficultyName) ? string.Empty : beatmap.DifficultyName;
         }
 
         public static string GetDisplayCreator(IBeatmapInfo beatmap)
@@ -104,6 +176,94 @@ namespace osu.Game.Beatmaps
             }
 
             return beatmap.Metadata.Tags.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        private static string getBmsCleanTitle(IBeatmapInfo beatmap, string title)
+        {
+            // Only split a trailing bracket off the title when the chart did NOT provide an explicit #SUBTITLE.
+            // This mirrors the BMS-player convention of implicitly deriving the subtitle from the title tail only
+            // when one wasn't given, and avoids second-guessing a charter who already separated the two.
+            if (!string.IsNullOrWhiteSpace(BmsPersistedMetadataResolver.GetChartMetadata(beatmap.Metadata as BeatmapMetadata)?.Subtitle))
+                return title;
+
+            return TryExtractTitleSubtitle(title)?.cleanTitle ?? title;
+        }
+
+        private static string? getBmsHeaderDifficultyLabel(int? headerDifficulty)
+            => headerDifficulty switch
+            {
+                1 => "Beginner",
+                2 => "Normal",
+                3 => "Hyper",
+                4 => "Another",
+                5 => "Insane",
+                _ => null,
+            };
+
+        private static bool isBareNumericPlayLevel(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            foreach (char c in value.Trim())
+            {
+                if (!char.IsDigit(c))
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Splits a trailing bracket / wrapper tag (the embedded difficulty or subtitle) off the end of a BMS title.
+        /// Returns the cleaned title and the extracted tag, or null when the title has no such trailing tag.
+        /// Only the last trailing group is removed, and only when a non-empty title body remains.
+        /// </summary>
+        internal static (string cleanTitle, string subtitle)? TryExtractTitleSubtitle(string? title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return null;
+
+            string trimmed = title.TrimEnd();
+
+            if (trimmed.Length < 2)
+                return null;
+
+            char lastChar = trimmed[^1];
+
+            foreach (var (open, close) in bms_title_subtitle_brackets)
+            {
+                if (lastChar != close)
+                    continue;
+
+                int openIndex = trimmed.LastIndexOf(open);
+
+                // openIndex <= 0 means there is no matching opener, or the whole title is the bracket — leave as-is.
+                return openIndex <= 0 ? null : buildTitleSubtitleSplit(trimmed, openIndex);
+            }
+
+            foreach (char wrapper in bms_title_subtitle_wrappers)
+            {
+                if (lastChar != wrapper)
+                    continue;
+
+                int openIndex = trimmed.LastIndexOf(wrapper, trimmed.Length - 2);
+
+                return openIndex <= 0 ? null : buildTitleSubtitleSplit(trimmed, openIndex);
+            }
+
+            return null;
+        }
+
+        private static (string cleanTitle, string subtitle)? buildTitleSubtitleSplit(string trimmed, int openIndex)
+        {
+            string subtitle = trimmed[(openIndex + 1)..^1].Trim();
+            string cleanTitle = trimmed[..openIndex].Trim();
+
+            if (string.IsNullOrWhiteSpace(subtitle) || string.IsNullOrWhiteSpace(cleanTitle))
+                return null;
+
+            return (cleanTitle, subtitle);
         }
 
         private static string? tryGetBmsCreatorFromRulesetData(BeatmapMetadata? metadata)

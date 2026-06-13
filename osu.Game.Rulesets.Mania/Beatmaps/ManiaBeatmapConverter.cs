@@ -74,7 +74,14 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
             {
                 double roundedCircleSize = Math.Round(difficulty.CircleSize);
 
-                if (difficulty.SourceRuleset.ShortName == ManiaRuleset.SHORT_NAME)
+                // OMS: a BMS source carries an exact, authoritative keymode in CircleSize (5/7/9/14) set by the BMS
+                // pipeline — the same contract as a native mania beatmap, so trust it directly. The osu!stable
+                // hold-ratio/OD heuristic below was written for osu!/taiko/catch -> mania converts (all removed in
+                // OMS, so that path is now only ever hit by BMS) and would otherwise mis-derive the count purely from
+                // the long-note ratio, collapsing every BMS keymode to 6/7 in the song-select key badge and the
+                // KC attribute bar. Keep the literal in sync with BmsRuleset.SHORT_NAME (this assembly cannot
+                // reference the BMS ruleset).
+                if (difficulty.SourceRuleset.ShortName == ManiaRuleset.SHORT_NAME || difficulty.SourceRuleset.ShortName == @"bms")
                     return (int)Math.Max(1, roundedCircleSize);
 
                 double roundedOverallDifficulty = Math.Round(difficulty.OverallDifficulty);

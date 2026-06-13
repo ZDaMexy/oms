@@ -259,7 +259,7 @@
 
 | 命令 | 含义 / 取值 | 备注 |
 | --- | --- | --- |
-| `#TITLE` / `#SUBTITLE` | 主/副标题 | 部分实现在无 `#SUBTITLE` 时从 `#TITLE` 末尾隐式切出副标题 |
+| `#TITLE` / `#SUBTITLE` | 主/副标题 | 部分实现在无 `#SUBTITLE` 时从 `#TITLE` 末尾隐式切出副标题；OMS 已在**展示层**这样做（`BeatmapLocalMetadataDisplayResolver.GetDisplayTitle`：仅无 `#SUBTITLE` 时切尾部括号/`-X-`/`~X~`，不改存库 Title）。选歌难度名 = 该副标题/标题括号**优先** → `#DIFFICULTY` 类别标签兜底（类别绝不覆盖谱师写的具体名，如 `[Revive]`），见 P1-K CONSTRAINTS #21/#22 |
 | `#ARTIST` / `#SUBARTIST` | 主/副曲师；`#SUBARTIST` 可多行 | OMS 的 BMS local artist/creator 展示已统一走 `BeatmapLocalMetadataDisplayResolver`（P1-K K4 系列） |
 | `#GENRE` | 流派（`#GENLE` 为常见 typo） | |
 | `#MAKER` / `#COMMENT` | 制作来源 / 选歌注释 | |

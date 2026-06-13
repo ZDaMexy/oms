@@ -201,7 +201,7 @@ namespace osu.Game.Screens.Select
             // Choice of background image matches BSS implementation (always uses the lowest `beatmap_id` from the set).
             scheduledBackgroundRetrieval = Scheduler.AddDelayed(s => setBackground.Beatmap = beatmaps.GetWorkingBeatmap(s.Beatmaps.MinBy(b => b.OnlineID)), beatmapSet, 50);
 
-            titleText.Text = new RomanisableString(beatmapSet.Metadata.TitleUnicode, beatmapSet.Metadata.Title);
+            titleText.Text = beatmapSet.GetDisplayMetadataTitleRomanisable();
 
             artistText.Text = beatmapSet.GetDisplayArtistRomanisable();
 

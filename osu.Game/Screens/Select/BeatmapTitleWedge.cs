@@ -216,12 +216,11 @@ namespace osu.Game.Screens.Select
 
         private void updateDisplay()
         {
-            var metadata = working.Value.Metadata;
             var beatmapInfo = working.Value.BeatmapInfo;
 
             statusPill.Status = beatmapInfo.Status;
 
-            var titleText = new RomanisableString(metadata.TitleUnicode, metadata.Title);
+            var titleText = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayTitleUnicode(beatmapInfo), BeatmapLocalMetadataDisplayResolver.GetDisplayTitle(beatmapInfo));
             titleLabel.CreateContent = () => new OsuSpriteText
             {
                 Text = titleText,

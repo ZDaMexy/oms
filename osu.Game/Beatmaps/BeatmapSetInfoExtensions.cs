@@ -23,6 +23,19 @@ namespace osu.Game.Beatmaps
                 : new RomanisableString(beatmapSetInfo.Metadata.ArtistUnicode, beatmapSetInfo.Metadata.Artist);
         }
 
+        /// <summary>
+        /// The set's song title for display only (no artist / creator), with BMS title-tag cleanup applied
+        /// via <see cref="BeatmapLocalMetadataDisplayResolver"/> — mirrors <see cref="GetDisplayArtistRomanisable"/>.
+        /// </summary>
+        public static RomanisableString GetDisplayMetadataTitleRomanisable(this IBeatmapSetInfo beatmapSetInfo)
+        {
+            IBeatmapInfo? firstBeatmap = beatmapSetInfo.Beatmaps?.FirstOrDefault();
+
+            return firstBeatmap != null
+                ? new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayTitleUnicode(firstBeatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayTitle(firstBeatmap))
+                : new RomanisableString(beatmapSetInfo.Metadata.TitleUnicode, beatmapSetInfo.Metadata.Title);
+        }
+
         public static string GetDisplayTitle(this IBeatmapSetInfo beatmapSetInfo, bool includeCreator = true)
             => beatmapSetInfo.GetDisplayTitleRomanisable(includeCreator).Romanised ?? string.Empty;
 

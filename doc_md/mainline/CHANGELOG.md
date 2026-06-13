@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-13
+
+### 展示：BMS 选歌曲名清理 + 难度名"谱师显式名优先、丢冗余数字"（展示层，bms / 转谱两模式一致；P1-K）
+
+继续审查 BMS 谱面在 bms mode 与转谱 mania mode 的 Song Select 信息展示链路（曲名/难度名/曲师/谱师）。两模式共用同一套 carousel 面板、`beatmap.Ruleset` 始终是 `bms`，故 4 字段两模式显示一致、无 per-mode bug；曲师/谱师原已正常。按用户口径修两处缺口（均**展示层**、不改存库、现有库免重导即生效）：① **曲名清理**——BMS 惯例把难度塞进 `#TITLE` 尾部括号（`GOODBOUNCE [ANOTHER]`），新增 `BeatmapLocalMetadataDisplayResolver.GetDisplayTitle`/`GetDisplayTitleUnicode`，**仅无 `#SUBTITLE` 时**切掉尾部成对括号（含全角/CJK）或 `-X-`/`~X~` 包裹，曲名只显示主体；② **难度名"谱师显式名优先、丢数字"**——此前 `DifficultyName` 含冗余 play-level 数字（无 `#DIFFICULTY` 时退化成裸数字，与星数重复），新增 `GetDisplayDifficultyName`，优先级 `#SUBTITLE`/标题括号 → `#DIFFICULTY` 类别标签 → 丢裸数字返回空。**谱师显式名必须压过 `#DIFFICULTY` 类别**——用户实测 `Dead Soul [Revive]`+`#DIFFICULTY 5` 被类别"Insane"盖掉真实名"Revive"（大量谱面真实难度名被 Normal/Hyper/Another 覆盖），初版误把类别放第一已翻转。接线 `PanelBeatmapStandalone`/`PanelBeatmap`/`PanelBeatmapSet`/`BeatmapTitleWedge`。验证：`BmsLocalMetadataDisplayResolverTest` **9/9**，`osu.Game` Release 编译 0/0。约束 [P1-K CONSTRAINTS #21/#22](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-13。
+
+### 修复：converted-mania 选歌键数显示错误（任意 keymode 坍缩成 6/7 → 采信权威 keymode；P1-K）
+
+审查 `BMS -> mania` 转谱在 Song Select 的信息展示链路，定位用户实测的「部分谱面键数显示错误、错的五花八门」。**根因**：mania ruleset 下浏览 BMS 转谱时，carousel `[NK]` badge（`PanelBeatmap` / `PanelBeatmapStandalone` 的 `OnlineID == 3` 分支）与 wedge `KC` 难度属性条（`ManiaRuleset.GetBeatmapAttributesForDisplay`）都经 `ManiaBeatmapConverter.GetColumnCount` → `getColumnCount` 计算键数；该函数只对 `SourceRuleset.ShortName == "mania"` 直接采信 `CircleSize`，而 BMS 持久化 `BeatmapInfo` 的 ruleset 是 `bms`，遂落入为 osu!/taiko/catch→mania convert 设计的列数启发式（按 long-note 占比 + OD）。OMS 删除 osu/taiko/catch 后该分支**只会被 BMS 命中且必然算错**——任意 5K/7K/9K/14K 被坍缩成 **6/7**（随 LN 占比与 rank 跳变）。**修复**：单点改 `getColumnCount`——对 `bms` source 与 `mania` source 一视同仁直接采信权威 `CircleSize`（BMS 由 `BmsBeatmapConverter.populateMetadata` 写为 keymode 列数）；因 badge / `KC` 属性条 / `ManiaFilterCriteria` 键数过滤皆经 `GetColumnCount`，三处同纠。验证：新增 `BmsToManiaBeatmapConverterTest.TestSongSelectKeyCountUsesStoredBmsKeymodeNotConvertHeuristic`（5K/7K/9K_Bms/9K_Pms/14K 参数化），`BmsToManiaBeatmapConverterTest` **23/23**，`osu.Game.Rulesets.Mania` Release **0 错误 0 警告**。新增约束 [P1-K CONSTRAINTS K9 #18](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)（与 #11 转换星级 display 同源）。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-13。
+
+---
+
 ## 2026-06-11
 
 ### 性能 / 代码：转谱-mania 游玩期帧抖动 + 偶发 ~220ms 冻结双确诊修复（P1-J J6；用户实测 ✅）

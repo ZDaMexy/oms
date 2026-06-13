@@ -215,7 +215,7 @@ namespace osu.Game.Screens.Select
             difficultyIcon.Icon = getRulesetIcon(beatmap.Ruleset);
 
             localRank.Beatmap = beatmap;
-            difficultyText.Text = beatmap.DifficultyName;
+            difficultyText.Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmap);
 
             string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap);
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator);

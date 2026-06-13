@@ -233,7 +233,7 @@ namespace osu.Game.Screens.Select
 
             scheduledBackgroundRetrieval = Scheduler.AddDelayed(b => beatmapBackground.Beatmap = beatmaps.GetWorkingBeatmap(b), beatmap, 50);
 
-            titleText.Text = new RomanisableString(beatmapSet.Metadata.TitleUnicode, beatmapSet.Metadata.Title);
+            titleText.Text = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayTitleUnicode(beatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayTitle(beatmap));
             artistText.Text = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmap), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmap));
             updateButton.BeatmapSet = beatmapSet;
             statusPill.Status = beatmap.Status;
@@ -242,7 +242,7 @@ namespace osu.Game.Screens.Select
             difficultyIcon.Show();
 
             localRank.Beatmap = beatmap;
-            difficultyText.Text = beatmap.DifficultyName;
+            difficultyText.Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmap);
 
             string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap);
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator);

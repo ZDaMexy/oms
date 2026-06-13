@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-06-13
+
+### 展示：BMS 选歌曲名清理 + 难度名"谱师显式名优先、丢冗余数字"（展示层，bms / 转谱两模式一致）
+
+继续审查 BMS 谱面在 bms mode 与转谱 mania mode 的 Song Select 信息展示链路（曲名 / 难度名 / 曲师 / 谱师）。结论先行：**两模式共用同一套 carousel 面板**（`PanelBeatmapStandalone` / `PanelBeatmapSet` + `PanelBeatmap`），且 carousel item 的 `beatmap.Ruleset` 始终是谱面自身的 `bms`（不随选中 ruleset 变），`BeatmapLocalMetadataDisplayResolver` 也按 `ShortName == "bms"` 判定，所以这 4 字段两模式**显示一致、无 per-mode 分叉**。曲师（`GetDisplayArtist` 剥离谱师后缀）/ 谱师（`Author.Username` ← `#SUBARTIST`/`#COMMENT`/`#ARTIST` 提取）原已正常。两处缺口按用户口径修复（均**展示层**、不改存库，立即对现有库生效）：
+
+- **曲名清理**：BMS 惯例把难度塞进 `#TITLE` 尾部括号（`GOODBOUNCE [ANOTHER]`、`Song -HYPER-`、`Song（7keys）`），此前曲名原样显示。新增 [../../osu.Game/Beatmaps/BeatmapLocalMetadataDisplayResolver.cs](../../../osu.Game/Beatmaps/BeatmapLocalMetadataDisplayResolver.cs) `GetDisplayTitle` / `GetDisplayTitleUnicode`：**仅当无 `#SUBTITLE` 时**把标题尾部成对括号（`[]()<>` 及全角/CJK `（）【】〈〉［］〔〕`）或对称包裹（`-X-` / `~X~`，要求标题以包裹符结尾，避免误伤 `Re-Loaded`）切出，曲名只显示主体；有 `#SUBTITLE` 则尊重谱师原样不切。
+- **难度名"谱师显式名优先、丢数字"**：此前 `DifficultyName = #DIFFICULTY 标签 + #PLAYLEVEL`（如 `"Another 12"`），无 `#DIFFICULTY` 时退化成裸数字 `"12"`——与星数冗余。新增 `GetDisplayDifficultyName`，优先级：`#SUBTITLE` / 标题尾部括号文本 → `#DIFFICULTY` 类别标签(Beginner/Normal/Hyper/Another/Insane) → 都无则**丢弃裸 play-level 数字返回空**（保留符号/文本型 level）。读持久化 chart metadata 经 `BmsPersistedMetadataResolver.GetChartMetadata`。**（同日实测修正）** 初版误把 `#DIFFICULTY` 类别标签放第一优先，用户用 `[SS001]soundsouler_dead_soul` 实测发现：`Dead Soul [Revive]`（`#DIFFICULTY 5`）被显示成类别"Insane"而非真实难度名"Revive"（同理大量谱面真实难度名被 Normal/Hyper/Another 覆盖）。已翻转为**谱师显式名（`#SUBTITLE`/标题括号）优先、`#DIFFICULTY` 类别仅兜底**——这才是谱师写在 `[Revive]`/`[SP Another]` 里的本意。回归守卫 `TestTitleTagBeatsHeaderDifficultyLabel`（`Dead Soul [Revive]` + `#DIFFICULTY 5` → "Revive"）+ `TestHeaderDifficultyLabelUsedWhenNoTitleTagOrSubtitle`（无显式名时类别兜底）。
+- **接线（选歌界面）**：`PanelBeatmapStandalone`（曲名 + 难度名）、`PanelBeatmap`（难度名）、`PanelBeatmapSet`（set 行曲名经新增 set 级 helper `BeatmapSetInfoExtensions.GetDisplayMetadataTitleRomanisable`，镜像既有 `GetDisplayArtistRomanisable`）、`BeatmapTitleWedge`（曲名，artist 原已走 resolver）。**未改**核心 `BeatmapInfoExtensions.GetDisplayTitleRomanisable`（now-playing / results 等非选歌面，留待后续如需统一再扩）；亦**未改存库 `Title`/`DifficultyName`**（保护 MD5 无关、排序/分组/搜索仍吃原值，且现有库免重导即生效）。
+- **测试**：`BmsLocalMetadataDisplayResolverTest` **9/9**（尾部括号切分、标题括号名压过 `#DIFFICULTY` 类别(`Dead Soul [Revive]`→"Revive")、`#DIFFICULTY` 类别仅在无显式名时兜底、`#SUBTITLE` 存在则不切标题、`-HYPER-` 包裹、裸数字 play-level 置空、非 BMS 原样 7 例 + 2 既有 artist/creator）。`osu.Game` Release 编译 0/0。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) #21/#22。
+
+### 修复：converted-mania 选歌键数显示错误（所有 keymode 坍缩成 6/7 → 改为采信权威 keymode）
+
+审查 `BMS -> mania` 转谱在 Song Select 的**信息展示链路**时定位用户实测的「部分谱面键数显示错误、错的五花八门」根因：
+
+- **症状面**：在 mania ruleset 下浏览 BMS 转谱时，carousel panel 的 `[NK]` badge（[../../osu.Game/Screens/Select/PanelBeatmap.cs](../../../osu.Game/Screens/Select/PanelBeatmap.cs) / [PanelBeatmapStandalone.cs](../../../osu.Game/Screens/Select/PanelBeatmapStandalone.cs) 的 `updateKeyCount`，`OnlineID == 3` 分支）与 wedge / details 的 `KC` 难度属性条（[../../osu.Game.Rulesets.Mania/ManiaRuleset.cs](../../../osu.Game.Rulesets.Mania/ManiaRuleset.cs) `GetBeatmapAttributesForDisplay` / `GetAdjustedDisplayDifficulty`）都把键数显示成与真实 keymode 无关的值。
+- **根因**：两个 surface 最终都经 `ManiaRuleset.GetKeyCount` / `GetBeatmapAttributesForDisplay` → [../../osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapConverter.cs](../../../osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapConverter.cs) `GetColumnCount` → `getColumnCount`。后者只对 `SourceRuleset.ShortName == "mania"` 直接采信 `CircleSize`；BMS 持久化 `BeatmapInfo` 的 `Ruleset` 是 `bms`（[../../osu.Game/Rulesets/Scoring/Legacy/LegacyBeatmapConversionDifficultyInfo.cs](../../../osu.Game/Rulesets/Scoring/Legacy/LegacyBeatmapConversionDifficultyInfo.cs) `FromBeatmapInfo` 取 `beatmapInfo.Ruleset`），于是落入为 osu!/taiko/catch→mania convert 设计的**列数启发式**（按 long-note 占比 + OD 推断）。OMS 已删除 osu/taiko/catch，该启发式分支因此**只会被 BMS 命中，且对 BMS 必然算错**：`<0.2 special -> 7`，否则因 BMS 的 `CircleSize ∈ {5,7,9,14}` 恒 `>= 5` 命中 `roundedOverallDifficulty > 5 ? 7 : 6` —— 任何 5K/7K/9K/14K 谱都被坍缩成 **6 或 7**，随 LN 占比与 rank 在 6/7 间跳变（一张 9K 显示 7、一张 5K 显示 6 ……），即「五花八门」。
+- **修复**：单点改 `getColumnCount`——对 `bms` source 与 `mania` source 一视同仁直接采信权威 `CircleSize`（BMS 的 `CircleSize` 由 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs) `populateMetadata` 写为 keymode 列数 `5/7/9/14`，与 native BMS surface 的 `BmsRuleset.GetKeyCount`/`tryGetStoredBmsKeyCount` 同源）。因 badge、KC 属性条与 [../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs](../../../osu.Game.Rulesets.Mania/ManiaFilterCriteria.cs) 键数过滤全部经由 `GetColumnCount`，单点修复同时纠正三处。`14K` 在该 path（`IsForCurrentRuleset == false`，不触发 `MAX_STAGE_KEYS` dual-split）返回 `14`，与 native BMS 展示一致。
+- **为何不动 panel/wedge**：panel 既有的 `else if (ruleset.ShortName == "bms" ...)` 分支只服务「选中 bms ruleset」场景（`OnlineID != 3`），保持不变；converted（选中 mania）场景由 `getColumnCount` 修复覆盖。在展示层逐 surface 特判（panel ×2 + wedge）会把 BMS 知识散进更多文件，且 wedge 的 `KC` 属性条仍需改 `ManiaRuleset`，反而更散。
+- **约束固化**为 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) **K9 #18**（与 #11「转换星级 display 走 resolved lookup」同源：#11 管星级、#18 管键数）。
+- **测试**：新增 `BmsToManiaBeatmapConverterTest.TestSongSelectKeyCountUsesStoredBmsKeymodeNotConvertHeuristic`（5K/7K/9K_Bms/9K_Pms/14K 参数化，断言 `ManiaRuleset.GetKeyCount` == 真实 keymode；修复前该用例对 9K/14K/5K 会拿到 6/7 而 fail）。`BmsToManiaBeatmapConverterTest` **23/23**（原 18 + 5 参数化），`osu.Game.Rulesets.Mania` Release 构建 0 错误 0 警告。完整 BMS 套件 871/871 不受影响（新用例在 mania 测试工程内）。
+
+---
+
 ## 2026-06-10
 
 ### 性能 / 代码：转谱器移除冗余 mania 星级自算（每次转换少跑一遍完整 `ManiaDifficultyCalculator`）

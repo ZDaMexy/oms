@@ -191,6 +191,33 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
         }
 
+        [TestCase(BmsKeymode.Key5K, 5)]
+        [TestCase(BmsKeymode.Key7K, 7)]
+        [TestCase(BmsKeymode.Key9K_Bms, 9)]
+        [TestCase(BmsKeymode.Key9K_Pms, 9)]
+        [TestCase(BmsKeymode.Key14K, 14)]
+        public void TestSongSelectKeyCountUsesStoredBmsKeymodeNotConvertHeuristic(BmsKeymode keymode, int expectedKeyCount)
+        {
+            // Regression: in song select a BMS chart shown under the mania ruleset resolves its "[NK]" badge and its
+            // KC attribute bar through ManiaRuleset.GetKeyCount -> ManiaBeatmapConverter.GetColumnCount. The stored
+            // BeatmapInfo keeps its bms source ruleset, so the osu!stable hold-ratio/OD convert heuristic used to run
+            // and collapse every keymode to 6/7 (the "键数显示错误，错的五花八门" symptom). The fix trusts the
+            // authoritative CircleSize for a bms source, exactly like a native mania beatmap. CircleSize for a stored
+            // BMS chart is always the keymode column count (set by BmsBeatmapConverter).
+            int storedKeyCount = BmsRuleset.GetKeyCount(keymode);
+            Assert.That(storedKeyCount, Is.EqualTo(expectedKeyCount));
+
+            var beatmapInfo = new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone(), new BeatmapDifficulty { CircleSize = storedKeyCount, OverallDifficulty = 8 }, new BeatmapMetadata())
+            {
+                // A mostly-tap chart (low long-note ratio): the old heuristic took its "< 0.2 special objects" branch
+                // and returned 7 for every keymode here — wrong for 5K/9K/14K and only accidentally right for 7K.
+                TotalObjectCount = 1000,
+                EndTimeObjectCount = 0,
+            };
+
+            Assert.That(maniaRuleset.GetKeyCount(beatmapInfo), Is.EqualTo(expectedKeyCount));
+        }
+
         [Test]
         public void TestConversionIgnoresMutatedSourceWrapperHitObjects()
         {

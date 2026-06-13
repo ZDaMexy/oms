@@ -248,7 +248,7 @@ namespace osu.Game.Screens.Select
                 else
                 {
                     ratingAndNameContainer.FadeIn(300, Easing.OutQuint);
-                    difficultyText.Text = beatmap.Value.BeatmapInfo.DifficultyName;
+                    difficultyText.Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmap.Value.BeatmapInfo);
 
                     string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap.Value.BeatmapInfo);
 
