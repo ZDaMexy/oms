@@ -190,6 +190,36 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             buildLaneKeysoundTimelines(beatmap, decodedChart, eventTimes, keysoundCache);
             buildMines(beatmap, decodedChart, eventTimes);
+            buildBgaTimeline(beatmap, decodedChart, eventTimes);
+        }
+
+        // Resolves the base/poor/layer BGA channel events into a time-ordered, rendering-only timeline on the playable
+        // beatmap (P1-L Phase 5). Like buildMines this stays OUT of HitObjects and never feeds judgement/scoring. Each
+        // event's bitmap id is resolved to a real asset filename through the chart's BitmapTable (already normalised to
+        // on-disk files at import time), and classified image vs video by extension.
+        private static void buildBgaTimeline(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes)
+        {
+            beatmap.PoorBgaMode = decodedChart.BeatmapInfo.PoorBgaMode ?? BmsPoorBgaMode.Default;
+
+            if (decodedChart.BgaEvents.Count == 0)
+                return;
+
+            var bitmapTable = decodedChart.BeatmapInfo.BitmapTable;
+            var entries = new List<BmsBgaTimelineEntry>(decodedChart.BgaEvents.Count);
+
+            foreach (var bgaEvent in decodedChart.BgaEvents)
+            {
+                if (!bitmapTable.TryGetValue(bgaEvent.BitmapId, out string? assetFile) || string.IsNullOrWhiteSpace(assetFile))
+                    continue;
+
+                if (!eventTimes.TryGetValue(new BmsEventTimeKey(bgaEvent.MeasureIndex, bgaEvent.FractionWithinMeasure), out double time))
+                    continue;
+
+                entries.Add(new BmsBgaTimelineEntry(time, bgaEvent.Layer, assetFile, BmsBgaTimelineEntry.IsVideoAsset(assetFile)));
+            }
+
+            if (entries.Count > 0)
+                beatmap.BgaTimeline = entries.OrderBy(entry => entry.StartTime).ToList();
         }
 
         private static void buildMines(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes)
@@ -317,6 +347,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             register(decodedChart.ScrollEvents.Select(toKey));
             register(decodedChart.InvisibleObjectEvents.Select(e => new BmsEventTimeKey(e.MeasureIndex, e.FractionWithinMeasure)));
             register(decodedChart.MineEvents.Select(e => new BmsEventTimeKey(e.MeasureIndex, e.FractionWithinMeasure)));
+            register(decodedChart.BgaEvents.Select(e => new BmsEventTimeKey(e.MeasureIndex, e.FractionWithinMeasure)));
 
             double currentTime = 0;
             double currentBpm = getInitialBpm(decodedChart);

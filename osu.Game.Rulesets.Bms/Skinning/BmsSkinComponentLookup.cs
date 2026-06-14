@@ -26,5 +26,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
         NoteDistributionPanel,
         NoteDistribution,
         StaticBackgroundLayer,
+        BgaPanel,
     }
 }

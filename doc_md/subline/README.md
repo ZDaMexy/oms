@@ -20,9 +20,9 @@
 - [P1-I/DEVELOPMENT_PLAN.md](P1-I/DEVELOPMENT_PLAN.md)：BMS 选歌筛选与搜索定制。
 - [P1-J/DEVELOPMENT_PLAN.md](P1-J/DEVELOPMENT_PLAN.md)：BMS gameplay runtime 性能与音频时序治理。
 - [P1-K/DEVELOPMENT_PLAN.md](P1-K/DEVELOPMENT_PLAN.md)：BMS 解析链路治理。
-- [P1-L/DEVELOPMENT_PLAN.md](P1-L/DEVELOPMENT_PLAN.md)：BMS 演出/Gimmick 谱视觉复刻（隔离旁路渲染，红线：不改坏正常游玩链路）。
+- [P1-L/DEVELOPMENT_PLAN.md](P1-L/DEVELOPMENT_PLAN.md)：BMS 演出/Gimmick 谱视觉复刻（隔离旁路渲染：地雷 / 专用滚动 / BGA 背景图·动画；红线：不改坏正常游玩链路）。
+- [P1-M/DEVELOPMENT_PLAN.md](P1-M/DEVELOPMENT_PLAN.md)：内置音乐播放器（分层 PlayQueue：真队列/重复·随机/曲库搜索排序/收藏歌单/可展开全屏/可视化/播放源 mania·bms·both；红线：不改坏 song-select 试听与 gameplay 音轨控制、离线只用本地轨）。
 
 ## 联动要求
 
-1. 任何开发必须先归线，再更新对应子线目录下的四件套。
-2. 子线变化若改变全局优先级、主线状态或硬约束，必须同步回写 `../mainline/`。
+完整联动更新规则见 [doc_md 总索引 · 联动更新规则](../README.md#联动更新规则)。子线要点：① 先归线，再改对应子线目录下的四件套；② 子线变化若影响全局优先级 / 主线状态 / 硬约束，必须反向回写 `../mainline/` 四件套。

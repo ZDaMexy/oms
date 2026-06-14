@@ -155,7 +155,10 @@ namespace osu.Game.Rulesets.Bms.UI
                                 RelativeSizeAxes = Axes.Both,
                                 CentreComponent = false,
                             },
-                            BackgroundLayer,
+                            // NOTE: the in-playfield BackgroundLayer is intentionally NOT mounted here — inside the
+                            // masked playfield strip it sat under the opaque lane backgrounds and was fully occluded.
+                            // The visible BGA now renders in the skinnable BmsBgaPanel mounted in DrawableBmsRuleset.Overlays
+                            // (above the playfield). BackgroundLayer is kept as a property for skin/metadata compatibility.
                             new Container
                             {
                                 RelativeSizeAxes = Axes.Both,

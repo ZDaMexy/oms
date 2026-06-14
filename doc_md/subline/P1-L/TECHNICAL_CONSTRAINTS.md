@@ -1,6 +1,6 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-05-29
+> 最后更新：2026-06-15
 > 本文件记录 `P1-L` 的硬约束。若实现与本文冲突，先修正其一再继续开发。完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 红线（最高优先级，贯穿全线）
@@ -33,6 +33,27 @@
 4. `BmsScrollProfile` 必须用**原始未钳制** BPM/STOP/measure-length/scroll 构建（复用 `buildEventTimeline` 游走），不得改用钳制后的 `ControlPointInfo`；STOP 段距离零增长（真冻结）、负向滚动留待 Phase 3（当前 `D` 单调非减，`TimeAtDistance` 取最早达成时间）。
 5. **base 刻度 = 非冻结时长最常见 BPM**（`computeBaseBpm`，DEAD SOUL=132）。注意 `GetMostCommonBeatLength` 对演出谱会被 STOP-freeze/钳制点拉成 6；旁路在默认 Normal hi-speed 模式下因 `timeRange` 与之无关而忠实，**不得**为对齐而改用 6 做 base（那会复现 squash）。Floating/Classic 绝对刻度标定归 Phase 4。
 6. 极端谱（DEAD SOUL：5645 地雷、6522 knots、~1300 control point、390 STOP 帧）必须有对象池/生命周期预算（与 P1-J 协同），不得无界实例化导致正常链路卡顿。
+
+## Phase 5（BGA 链路）约束 —— 规划已冻结（2026-06-14），实现期须守
+
+1. **BGA 是视觉-only 旁路**：BGA 时间线（`BmsBeatmap.BgaTimeline`）照 `Mines`/`ScrollProfile` 模式挂 `BmsBeatmap`，**不得进入 `beatmap.HitObjects`**，不得回流判定/计分/统计/`TotalObjectCount`。BGA 浮窗不接收游玩输入。
+2. **零核心改动 + 不被遮挡**：浮窗挂 BMS 侧 `DrawableBmsRuleset.Overlays`（渲染在 playfield 之上）；**不得**重新把可见背景塞回 `BmsPlayfield.playfieldContainer` 内被 lane 背板遮挡的旧位置。不得为 BGA 改写共享核心类型。
+3. **时间轴复用**：BGA 事件时间必须复用 converter 的 `eventTimes`（与音符/地雷同一时间轴），不得另算一套 timing。
+4. **资源直读 `chartbms/`**：BGA 图片经 beatmap 作用域 `TextureStore`、视频经 `WorkingBeatmap.GetStream` 加载（同 storyboard），**不经** hash-backed `files/` store、不转 `.osz`（守 mainline 红线）。
+5. **视频时钟同步**：视频 drawable 必须跟随游玩时钟（`PlaybackPosition = clock - eventTime`），pause/seek/retry 同步，复用 `DrawableStoryboardVideo` 范式；不得让视频脱离 frame-stable 时钟自由播放。
+6. **解码/缺失健壮性**：BGA 资源缺失或视频编解码失败必须**优雅降级**，不得抛异常或刷错误日志、不得拖垮正常游玩链路。具体合同：(a) 视频**优先按绝对文件路径**打开 `new Video(path,…)`——BMS 恒文件系统直读，FFmpeg 对真实文件的探测/seek 远好于基于 .NET-Stream 的 AVIO（后者对老式 **MPEG-1 program-stream `.mpg`** 会在 `avformat_open_input` 阶段直接 `AVERROR_INVALIDDATA` 打不开 → 全黑）；无路径时回退 stream。(b) 仍解不出时通过 `Video.IsFaulted` 检测，base 层**回退显示 STAGEFILE 静态图**（不是黑屏），overlay/poor 层隐藏。路径解析：external 库用绝对 `FilesystemStoragePath`，internal 用 `Storage.GetFullPath(相对路径)`。
+7. **皮肤合同**：`BgaPanel` 是皮肤可定制控件——默认 `DefaultBmsBgaPanelDisplay` 仅在 `OmsSkin`（`providesBuiltInFallbacks`）下作为内建 fallback，非 OMS 皮肤缺失时返回 `null`（照 `BmsSkinTransformer` 既有约定）；位置/尺寸/适配方式皮肤可覆盖，默认实现自带镜像对侧布局（居左→右/居右→左/居中→右/14K→中缝）+ letterbox。
+8. **perf（与 P1-J 协同）**：纹理懒加载并缓存、每视频源单一 drawable、热路径零分配；大视频/海量 `#BMP` 帧需实测 gen0:gen1 与 GC 暂停，不得引入开局阻塞或密谱卡顿。
+9. **范围边界**：v1 仅 native BMS ruleset 路径；converted-mania（Mania ruleset 下游玩，无 `BmsPlayfield`/`Overlays`）不在本期，单独评估。overlay/layer 通道"黑=透明"与 `#ARGB` v1 近似，保真细化后续。
+
+## Phase 5.1（老式视频转码）约束 —— 已落地（2026-06-15），须守
+
+1. **opt-in + 优雅降级**：转码是 `BgaVideoTranscode` 开关下的增强；**无外部 ffmpeg / 关闭 / 转码失败时必须等价于 Phase 5 的静态图回退**，绝不黑屏、绝不抛异常或刷错误日志、绝不拖垮正常游玩链路。OMS **不分发 ffmpeg**（用户自备：PATH 或放进数据目录），避免打包/授权负担。
+2. **仅转码框架打不开的格式**：老式集合 `{.mpg,.mpeg,.avi,.wmv,.flv,.m1v,.m2v,.mkv}`；框架友好集合 `{.mp4,.m4v,.mov,.webm}` 一律直开不转码（不得无谓转码已能播的视频）。
+3. **缓存正确性**：输出落 `<dataRoot>/bga-video-cache/`，文件名键 = `SHA1(源绝对路径|size|mtime)`（源变即重转）；**先写 `<dst>.tmp` 再原子改名**，`File.Exists(dst)` 必须只在文件完整时为真；转码失败必须清掉 .tmp、不得发布半成品。
+4. **不阻塞游玩**：转码走后台 `Task.Run` + 按目标去重；游玩线程只做 `File.Exists`/状态查询与节流（~1s）重试热替换，**不得**在 update 线程同步转码或每帧打盘。
+5. **视频-only**：转码命令必须 `-an`（BGA 不带音轨，音频是谱面键音）；编码到 H.264/yuv420p/mp4（框架确定能解）。
+6. 缓存无大小上限属已知后续项（v1 不做清理），不得因此把缓存写进谱面文件夹或 hash-backed `files/` store。
 
 ## 测试与发布约束
 

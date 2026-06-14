@@ -57,7 +57,7 @@ OMS 当前实际存在两条皮肤制作路线：
 2. Results：`ResultsSummaryPanel` / `ResultsSummary` / `ClearLamp` / `GaugeHistoryPanel` / `GaugeHistory`
 3. Song Select：`NoteDistributionPanel` / `NoteDistribution`
 4. Playfield 壳层：`Backdrop` / `Baseplate` / lane `Background` / `Divider`
-5. Gameplay accent：`HitTarget` / `BarLine` / `LaneCover` / `StaticBackgroundLayer`
+5. Gameplay accent：`HitTarget` / `BarLine` / `LaneCover` / `StaticBackgroundLayer` / `BgaPanel`（P1-L Phase 5，规划中）
 6. Note 主体：`Note` / `LongNoteHead` / `LongNoteBody` / `LongNoteTail`
 7. Judgement：BMS 自定义判定显示
 
@@ -87,6 +87,7 @@ OMS 当前实际存在两条皮肤制作路线：
 | Note / Hold | `BmsNoteSkinLookup` | note、LN 头、LN 身、LN 尾 | `IsScratch`、不同 note element |
 | LaneCover | `BmsLaneCoverSkinLookup` | top cover、bottom cover、focus 表现 | top / bottom / focused |
 | Static BG / 元数据壳层 | `BmsSkinComponentLookup(StaticBackgroundLayer)` | 有背景文件时的显示、无背景文件时的缺省态 | 有 `STAGEFILE/BACKBMP` / 无素材 |
+| BGA 浮窗（P1-L Phase 5，规划中） | `BmsSkinComponentLookup(BgaPanel)` | BGA 播放区外壳/边框、定位与适配方式 | 图序列 / 视频 / POOR 层 / 无 BGA（回退静态图）/ 居左·居右·居中·14K DP 默认布局 |
 | Judgement | `BmsJudgementSkinLookup` | BAD / POOR / EMPTY POOR 的显示方案 | 动画触发、前景代理内容 |
 
 最容易漏掉的点：
@@ -153,6 +154,7 @@ public sealed class MyBmsSkin : ISkin
 | `HudLayout` | `IBmsHudLayoutDisplay` | `SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)` |
 | `LaneCover` | `IBmsLaneCoverDisplay` | `SetFocused(bool isFocused)` |
 | `StaticBackgroundLayer` | `IBmsBackgroundLayerDisplay` | `SetDisplayedAssetName(string displayedAssetName)`；默认层在有当前 `WorkingBeatmap` 时还会主动尝试加载实际背景贴图，`displayedAssetName` 继续作为皮肤可消费的元数据/缺失态文案 |
+| `BgaPanel`（P1-L Phase 5，规划中，接口预留） | `IBmsBgaPanelDisplay` | 运行时把 BGA 时间线 + 资源 store + 游玩时钟喂给面板（最终签名以实现为准）；皮肤可覆盖位置/尺寸/适配，默认实现自带镜像 playfield 布局 + letterbox + POOR 切换 + 无 BGA 回退静态图 |
 | `GaugeHistoryPanel` | `IBmsGaugeHistoryPanelDisplay` | `SetHistory(BmsGaugeHistory? history)` |
 | `GaugeHistory` | `IBmsGaugeHistoryDisplay` | `SetHistory(BmsGaugeHistory? history)` |
 | `ResultsSummaryPanel` | `IBmsResultsSummaryPanelDisplay` | `SetSummary(BmsResultsSummaryData? summary)` |

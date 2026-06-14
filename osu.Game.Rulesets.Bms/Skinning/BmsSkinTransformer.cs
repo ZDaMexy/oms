@@ -91,6 +91,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.StaticBackgroundLayer }:
                     return skinnedComponent is IBmsBackgroundLayerDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsBackgroundLayerDisplay() : null;
 
+                case BmsSkinComponentLookup { Component: BmsSkinComponents.BgaPanel }:
+                    return skinnedComponent is IBmsBgaPanelDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsBgaPanelDisplay() : null;
+
                 case BmsPlayfieldSkinLookup playfieldLookup:
                     return skinnedComponent ?? createBuiltInFallback(() => createDefaultPlayfieldComponent(playfieldLookup));
 

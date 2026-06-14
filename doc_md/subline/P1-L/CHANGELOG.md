@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-06-15
+
+### Phase 5.1：老式 BGA 视频外部 ffmpeg 转码播放（opt-in，缓存 + 本场热替换）
+
+承接 2026-06-14 实测结论——框架捆绑的 FFmpeg 视频管线打不开老式 MPEG-1 program-stream `.mpg`（及 `.wmv/.avi/.flv`），此前只能回退静态图。用户拍板用**外部 ffmpeg** 让其真正播放。
+
+- 新增 [BmsBgaVideoCache](../../../osu.Game.Rulesets.Bms/UI/BmsBgaVideoCache.cs)：`RequiresTranscode` 判老式扩展名（`.mpg/.mpeg/.avi/.wmv/.flv/.m1v/.m2v/.mkv`；`.mp4/.m4v/.mov/.webm` 直接放行）；`Resolve(srcAbs)→{Ready,Pending,Unavailable}`；ffmpeg 解析候选 = `<dataRoot>/ffmpeg.exe`、`<exeDir>/ffmpeg.exe`、PATH `ffmpeg`（首次 `Win32Exception` 即标记本会话不可用）；缓存目录 `<dataRoot>/bga-video-cache/`、文件名 = `SHA1(源路径|size|mtime).mp4`（源变即重转）；转码命令 `ffmpeg -y -i <src> -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart <dst>.tmp`（`-an` 丢音频，**先写 .tmp 再原子改名**，故 `File.Exists(dst)` 即完整）；`Task.Run` 后台 + `inProgress` 去重 + 120s 超时；转码执行器可注入委托便于单测。
+- 配置：[BmsRulesetConfigManager](../../../osu.Game.Rulesets.Bms/Configuration/BmsRulesetConfigManager.cs) 加 `BgaVideoTranscode`（默认 true）；[BmsSettingsSubsection](../../../osu.Game.Rulesets.Bms/BmsSettingsSubsection.cs) 加「转码无法解码的 BGA 视频」开关（注明需自备 ffmpeg）。
+- [BmsBgaPlayer](../../../osu.Game.Rulesets.Bms/UI/BmsBgaPlayer.cs) 集成：load() 建 cache 并对 timeline 内 distinct 老式视频**预热转码**（争取 5s pre-start 内转好）；`createVideo` 经 cache：Ready→`Video(缓存mp4)`、Pending→静态回退占位、Unavailable→直开（老格式 fault→静态）；layer display 对 Pending **节流 1s 重试**，转好后**本场热替换**换入视频；faulted 永久标记不重试（不再黑屏）。
+- **验证**：新增 `BmsBgaVideoCacheTest` 13（扩展名判定 / 友好格式直放 / 无缓存目录 Unavailable / 转码成功→Ready+缓存命中同路径 / 失败→Unavailable 且不留半成品）；BMS 全套 **946/946**；`osu.Desktop.slnf` Release 0 错（生产代码 0 警告）。**实机端到端需用户装 ffmpeg**（`winget install ffmpeg` 或放 `ffmpeg.exe` 进数据目录）后验 `flonne2_bga.mpg`。无 ffmpeg/关闭转码时＝静态图（无回归），`.mp4` 谱不受影响。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) Phase 5.1。
+
+---
+
+## 2026-06-14
+
+### Phase 5（BGA 链路：背景图/背景动画）归线 + 落地（自动化通过；人工视觉验收待办）
+
+审查「BMS 模式游玩时 background image/animation 链路」后定论：解析层（P1-K）已完整产出 BGA 事件与定义，但转换层只取一个静态 `metadata.BackgroundFile`、整条 BGA 时间线被丢弃；显示层 `BmsBackgroundLayer` 是静态占位件且挂在 `playfieldContainer` 内被不透明 lane 背板完全遮挡（14K DP 中缝可坐实）。把此前 mainline Phase 2 future-scope 的 BGA 视频/动画**正式激活并归入 P1-L**（演出视觉复刻），新增 **Phase 5** 并落地全链路。
+
+- **冻结产品决策**（用户拍板）：图序列 + 视频一起做；默认镜像对侧（居左→BGA 右 / 居右→左 / 居中→右 / 14K DP→中缝）；letterbox（`FillMode.Fit`）；皮肤可定制控件 `BgaPanel` + 自定义皮肤接口预留；浮窗挂 `DrawableRuleset.Overlays`（非 OS 窗口）；仅 native 路径、converted-mania 不在 v1。
+- **L5-1 数据携带**：新增 [BmsBgaTimelineEntry](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBgaTimelineEntry.cs)（time/layer/asset/isVideo + `IsVideoAsset` 扩展名判定）；[BmsBeatmap](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmap.cs) 加只读 `BgaTimeline` + `PoorBgaMode`；[BmsBeatmapConverter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs) `buildBgaTimeline` 复用 `eventTimes`→绝对时间、`BitmapTable` 解析文件名、缺失跳过、按时间排序，照 `Mines`/`ScrollProfile` 不进 `HitObjects`。**关键修复**：`buildEventTimeline` 的 `register(...)` 此前不含 BGA 事件 → BGA 时刻不会进 `eventTimes`；已补 `register(decodedChart.BgaEvents...)`。
+- **L5-2 运行时播放器**：新增 [BmsBgaPlayer](../../../osu.Game.Rulesets.Bms/UI/BmsBgaPlayer.cs)：时间线驱动 base/layer/layer2 合成（overlay 加色近似"黑透"）；图片走自建 `TextureStore`（backing `WorkingBeatmapFileStore` 委托 `WorkingBeatmap.GetStream`，直读 `chartbms/`、不经 hash store）、视频走 FFmpeg `Video`+`PlaybackPosition`（跟 frame-stable 游玩时钟，因 `Overlays` 在 `FrameStabilityContainer` 内，seek/retry 安全，复用 `DrawableStoryboardVideo` 范式）；POOR 层按 `#POORBGA` 在 miss flash；letterbox；纯函数 `GetActiveIndex` 二分；解码失败/缺失优雅降级（log Debug、不刷错误）。
+- **L5-3 皮肤浮窗 + 挂载 + 布局**：新增 `BmsSkinComponents.BgaPanel`、[BmsBgaPanel](../../../osu.Game.Rulesets.Bms/UI/BmsBgaPanel.cs)（`IBmsBgaPanelDisplay` + `DefaultBmsBgaPanelDisplay`，`BmsSkinTransformer` 照 `StaticBackgroundLayer` 门控）；挂 [DrawableBmsRuleset.Overlays](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsRuleset.cs)，默认 placement `ResolveDefaultPlacement` 镜像 playfield；无 BGA 时浮窗回退首选静态图；`ShowBga` 开关；miss 经 `HandleGameplayJudgementResult` 转发。`BmsPlayfield` 退役被遮挡的 `BackgroundLayer` 挂点（property 保留作兼容）。
+- **实机验收（用户）+ 微调**：视频 BGA 实机确认在浮窗内正常播放 ✅。按反馈两项微调：① **全屏背景**——此前 [DefaultBmsPlayfieldBackdropDisplay](../../../osu.Game.Rulesets.Bms/UI/BmsDefaultPlayfieldShellDisplays.cs) 是覆盖全屏的不透明深色 Box，把谱面背景完全挡黑（游玩时 `BlurAmount=0` 的全局背景也被它盖住）；改为渲染谱面背景的**模糊（sigma≈20，半分辨率 BufferedContainer，同 song-select）+ 轻暗化（黑 0.4）**铺满整个背景面，play strip（baseplate+lanes）与 BGA 浮窗仍在其上，无背景时回退原深色 Box。② **BGA 浮窗**——默认尺寸缩到 ~75%、由居中侧锚改为**顶角锚**（右→右上 / 左→左上 / 中→顶中），让出 playfield 且避开顶部 gauge/combo。
+- **老式 MPEG-1 `.mpg` BGA 全黑 → 改为静态图回退**（用户报 `Love & Justice/_05_flonne_bt4_god.bme`，BGA=`flonne2_bga.mpg`）。runtime 日志实锤根因＝框架 `VideoDecoder.prepareDecoding()` 在打开阶段 `AVERROR_INVALIDDATA`（非我方链路问题，base 事件 `#00004:01` 正确建立；文件头 `00 00 01 BA` 是合法 MPEG program-stream、beatoraja 能播）。[BmsBgaPlayer](../../../osu.Game.Rulesets.Bms/UI/BmsBgaPlayer.cs) 两层处理：① 视频**优先按绝对文件路径** `new Video(path,…)`（BMS 恒文件系统直读，external 用绝对 `FilesystemStoragePath`、internal 用 `Storage.GetFullPath`），无路径回退 stream；② `Video.IsFaulted` 检测，base 层**回退 STAGEFILE 静态图**（不再黑屏），overlay/poor 隐藏。**实测结论**：该 `.mpg` 按路径打开后**仍 `INVALIDDATA`**——框架捆绑的 FFmpeg（avformat-58/4.x）视频管线对这种老式 program-stream 的打开/探测就失败，**非 BMS 侧可修**（需框架 `VideoDecoder` fork）；filename 路径对它无效，真正生效的是静态图回退。现代 `.mp4`/H.264 BGA 正常播放、无回归。若要让老 `.mpg` 真正播放，唯一现实路径是导入期/工具 transcode `.mpg→.mp4`（独立后续项，未做）。约束 #6 已细化。
+- **验证**：BMS 全套 **933/933**（新增 17：converter 2 + player 13 + skin 2）；`osu.Desktop.slnf` Release **0 错误、0 警告**。剩余人工项：图序列/POOR/14K 中缝/seek 同步逐谱抽验。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) Phase 5。
+
+---
+
 ## 2026-06-13
 
 ### 修复：地雷不随 `Mirror` / `Random` 重排移动（重排后与谱面错位）

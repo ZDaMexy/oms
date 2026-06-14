@@ -14,6 +14,8 @@ using osu.Game.Overlays;
 using osu.Game.Overlays.OSD;
 using osu.Game.Replays;
 using osu.Game.Rulesets.Bms.Audio;
+using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
@@ -87,6 +89,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private ulong speedMetricsToastDisplayCount;
         private IBindable<long>? totalScore;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
+        private BmsBgaPanel? bgaPanel;
+        private readonly Bindable<BmsPlayfieldStyle> bgaPlayfieldStyle = new Bindable<BmsPlayfieldStyle>();
+        private readonly BindableBool showBga = new BindableBool(true);
 
         public IBindable<BmsScrollSpeedMetrics> SpeedMetrics => speedMetrics;
 
@@ -177,6 +182,33 @@ namespace osu.Game.Rulesets.Bms.UI
             getSuddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics(), true);
             getHiddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics(), true);
             getLiftMod()?.LiftUnits.BindValueChanged(_ => refreshSpeedMetrics(), true);
+
+            setupBgaPanel();
+        }
+
+        // Mounts the skinnable BGA panel above the playfield (in Overlays, so lanes never occlude it) and keeps its
+        // default placement mirrored to the playfield style (P1-L Phase 5).
+        private void setupBgaPanel()
+        {
+            if (Beatmap is not BmsBeatmap bmsBeatmap)
+                return;
+
+            bgaPanel = new BmsBgaPanel(bmsBeatmap.BgaTimeline, bmsBeatmap.PoorBgaMode);
+            Overlays.Add(bgaPanel);
+
+            Config.BindWith(BmsRulesetSetting.PlayfieldStyle, bgaPlayfieldStyle);
+            bgaPlayfieldStyle.BindValueChanged(_ => updateBgaPlacement(), true);
+
+            Config.BindWith(BmsRulesetSetting.ShowBga, showBga);
+            showBga.BindValueChanged(visible => bgaPanel.Alpha = visible.NewValue ? 1 : 0, true);
+        }
+
+        private void updateBgaPlacement()
+        {
+            if (bgaPanel == null)
+                return;
+
+            bgaPanel.SetLayout(BmsBgaPanel.ResolveDefaultPlacement(Playfield.LaneLayout.Keymode, bgaPlayfieldStyle.Value));
         }
 
         public override PlayfieldAdjustmentContainer CreatePlayfieldAdjustmentContainer() => new BmsPlayfieldAdjustmentContainer();
@@ -473,6 +505,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal void HandleGameplayJudgementResult(JudgementResult judgementResult)
         {
+            // A miss (POOR) flashes the BGA poor layer per the chart's #POORBGA mode.
+            if (judgementResult.Type == HitResult.Miss)
+                bgaPanel?.NotifyMiss();
+
             BmsJudgementTimingFeedback? feedback = BmsJudgementTimingFeedback.FromResult(judgementResult, ++judgementFeedbackOccurrenceId);
 
             if (feedback.HasValue)

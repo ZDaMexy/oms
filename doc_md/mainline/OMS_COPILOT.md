@@ -102,7 +102,7 @@ oms/
 │   ├── Input/
 │   │   └── BmsInputManager.cs           # BMS-specific input routing + pre-start hold / hi-speed lane mapping
 │   ├── Background/
-│   │   └── BmsBackgroundLayer.cs        # Static BG + future BGA hook
+│   │   └── BmsBackgroundLayer.cs        # Static BG placeholder (superseded by BgaPanel — P1-L Phase 5)
 │   ├── UI/
 │   │   ├── BmsGameplayAdjustmentTarget.cs # Shared Sudden/Hidden/Lift gameplay adjustment target enum
 │   │   └── BmsPreStartHiSpeedOverlay.cs   # Pre-start hold overlay for tri-mode mode/value feedback
@@ -1155,22 +1155,22 @@ When available, the same panel may also show compact chart metadata lines for:
 
 ## 12. BGA System
 
-### 12.1 Current Scope
+### 12.1 Static art chain
 
 - **Static `#STAGEFILE`**: Primary static background art during gameplay.
 - **Static `#BACKBMP`**: Fallback static background if `#STAGEFILE` missing.
 - **Static `#BANNER`**: Final fallback static art if neither `#STAGEFILE` nor `#BACKBMP` resolves.
-- OMS currently resolves static-art references through the imported working-beatmap background chain: import normalises the stored filename against real files on disk, runtime retries common image extension substitutions for older data, and the default `BmsBackgroundLayer` attempts to show the actual background texture while still exposing the displayed asset name to skins.
-- BGA video and BMP sequence animation: **not implemented in Phase 1**.
+- OMS resolves static-art references through the imported working-beatmap background chain: import normalises the stored filename against real files on disk, runtime retries common image extension substitutions for older data, and the full-screen `BackgroundScreenBeatmap` shows it dimmed.
 
-### 12.2 Future Scope (BGA Video — Phase 2)
+### 12.2 BGA timeline / animation (P1-L Phase 5 — landed; manual visual verify pending)
 
-Reserve a `BmsBackgroundLayer` rendering slot in the playfield scene graph. In Phase 2:
-- Parse `#BMP##` index and channel `04`/`06`/`07` BGA events
-- Decode video frames via `ffmpeg.autogen` or similar
-- Render decoded frames to a texture updated per frame
+> Activated + landed 2026-06-14 (Phase 5) / 2026-06-15 (Phase 5.1 legacy-video transcode); was "Phase 2 future scope". Owned by subline **P1-L** (BMS 演出/Gimmick 谱视觉复刻). Automated green (BMS 946/946 + Release 0); in-app per-chart visual verification still handed to manual. See [../subline/P1-L/DEVELOPMENT_PLAN.md](../subline/P1-L/DEVELOPMENT_PLAN.md) Phase 5 + [TECHNICAL_CONSTRAINTS.md](../subline/P1-L/TECHNICAL_CONSTRAINTS.md) Phase 5.
 
-Do not implement video decoding in Phase 1. The slot must exist to avoid architectural rework.
+- Parse layer is complete (P1-K): `BmsDecodedChart.BgaEvents` (channels `04` base / `06` poor / `07` layer / `0A` layer2) + `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` typed defs. Conversion carries a time-ordered `BmsBeatmap.BgaTimeline` (resolved via `eventTimes` + `BitmapTable`), kept OUT of `HitObjects` like `Mines`/`ScrollProfile`.
+- BGA renders in a **skinnable floating panel** (`BgaPanel`) mounted in `DrawableBmsRuleset.Overlays` (above the playfield, NOT occluded by lanes). Image frames via the beatmap `TextureStore`, video via osu!framework FFmpeg `Video` (`WorkingBeatmap.GetStream`, `PlaybackPosition` clock-synced — same pattern as `DrawableStoryboardVideo`). POOR layer shown on miss per `#POORBGA`.
+- **Frozen decisions**: image-sequence + video together; default layout mirrors the playfield (P1→BGA right / P2→left / centre→right / 14K DP→centre gap); letterbox (`FillMode.Fit`); skin-customisable component with custom-skin interface reserved; native BMS ruleset path only (converted-mania deferred).
+- **Red lines** (P1-L): visual-only bypass — never enter `HitObjects`, never feed judgement/scoring; zero shared-core changes; assets read directly from `chartbms/` (never the hash-backed `files/` store); graceful degradation on missing asset / video decode failure.
+- **Legacy video transcode (Phase 5.1, opt-in)**: the bundled FFmpeg can't open legacy MPEG-1 `.mpg` / `.wmv` / `.avi` / `.flv` (`AVERROR_INVALIDDATA`). With the `BgaVideoTranscode` toggle (default on) and a **user-provided external ffmpeg** (on PATH or dropped into the data dir — OMS does NOT ship ffmpeg), `BmsBgaVideoCache` transcodes these to H.264 `.mp4` cached under `<dataRoot>/bga-video-cache/` and hot-swaps them in; without ffmpeg / when off / on failure it stays the static-image fallback (no regression).
 
 ---
 

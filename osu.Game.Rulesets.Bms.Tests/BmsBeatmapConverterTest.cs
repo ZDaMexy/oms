@@ -368,6 +368,79 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestBuildsBgaTimelineWithLayersTimesAndVideoClassification()
+        {
+            // Base 04 / layer 07 / poor 06 channels resolve through the BitmapTable to real assets; poor.mpg is a video.
+            // BPM 120 => measure = 2000ms, measure 1 spans 2000..4000ms.
+            const string text = @"
+#TITLE BGA Chart
+#BPM 120
+#WAVAA a.wav
+#BMP01 base.png
+#BMP02 layer.png
+#BMPFF poor.mpg
+#POORBGA 1
+#00111:AA000000
+#00104:01000000
+#00107:00020000
+#00106:000000FF
+";
+
+            var decodedChart = decoder.DecodeText(text, "bga.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(convertedBeatmap.BgaTimeline, Has.Count.EqualTo(3));
+
+                // Ordered by time: base @ fraction 0 (2000), layer @ 1/4 (2500), poor @ 3/4 (3500).
+                Assert.That(convertedBeatmap.BgaTimeline[0].StartTime, Is.EqualTo(2000).Within(0.001));
+                Assert.That(convertedBeatmap.BgaTimeline[0].Layer, Is.EqualTo(BmsBgaLayer.Base));
+                Assert.That(convertedBeatmap.BgaTimeline[0].AssetFile, Is.EqualTo("base.png"));
+                Assert.That(convertedBeatmap.BgaTimeline[0].IsVideo, Is.False);
+
+                Assert.That(convertedBeatmap.BgaTimeline[1].StartTime, Is.EqualTo(2500).Within(0.001));
+                Assert.That(convertedBeatmap.BgaTimeline[1].Layer, Is.EqualTo(BmsBgaLayer.Layer));
+                Assert.That(convertedBeatmap.BgaTimeline[1].AssetFile, Is.EqualTo("layer.png"));
+
+                Assert.That(convertedBeatmap.BgaTimeline[2].StartTime, Is.EqualTo(3500).Within(0.001));
+                Assert.That(convertedBeatmap.BgaTimeline[2].Layer, Is.EqualTo(BmsBgaLayer.Poor));
+                Assert.That(convertedBeatmap.BgaTimeline[2].AssetFile, Is.EqualTo("poor.mpg"));
+                Assert.That(convertedBeatmap.BgaTimeline[2].IsVideo, Is.True);
+
+                // #POORBGA 1 => Overlay.
+                Assert.That(convertedBeatmap.PoorBgaMode, Is.EqualTo(BmsPoorBgaMode.Overlay));
+
+                // BGA is rendering-only: it must not inflate the judged hit-object / statistics path.
+                Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void TestBgaTimelineSkipsUndefinedBitmapAndDefaultsPoorMode()
+        {
+            // Channel 04 references bitmap 02, but only #BMP01 is defined => the event is skipped, timeline stays empty.
+            // No #POORBGA header => PoorBgaMode defaults to Default.
+            const string text = @"
+#TITLE BGA Missing
+#BPM 120
+#WAVAA a.wav
+#BMP01 base.png
+#00111:AA000000
+#00104:02000000
+";
+
+            var decodedChart = decoder.DecodeText(text, "bga-missing.bme");
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(convertedBeatmap.BgaTimeline, Is.Empty);
+                Assert.That(convertedBeatmap.PoorBgaMode, Is.EqualTo(BmsPoorBgaMode.Default));
+            });
+        }
+
+        [Test]
         public void TestBuildsMineOnRightmostKeyLane()
         {
             // Regression: the rightmost 7K key (channel 0x19 => lane index 7, since scratch takes lane 0) had its mines

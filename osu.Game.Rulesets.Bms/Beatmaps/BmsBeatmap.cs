@@ -48,6 +48,20 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         /// </summary>
         public BmsScrollProfile? ScrollProfile { get; set; }
 
+        /// <summary>
+        /// Time-ordered BGA switches (background image / animation) resolved from the base / poor / layer channels
+        /// (P1-L Phase 5). Like <see cref="Mines"/> / <see cref="ScrollProfile"/> this is rendering-only: it is kept OUT
+        /// of <see cref="Beatmap{T}.HitObjects"/> and never feeds judgement / scoring / statistics. Empty until built by
+        /// <see cref="BmsBeatmapConverter"/>.
+        /// </summary>
+        public IReadOnlyList<BmsBgaTimelineEntry> BgaTimeline { get; set; } = Array.Empty<BmsBgaTimelineEntry>();
+
+        /// <summary>
+        /// The chart's <c>#POORBGA</c> display mode, controlling how the poor (miss) BGA layer is shown. Defaults to
+        /// <see cref="BmsPoorBgaMode.Default"/> when the header is absent.
+        /// </summary>
+        public BmsPoorBgaMode PoorBgaMode { get; set; } = BmsPoorBgaMode.Default;
+
         public void SetMeasureStartTimes(IEnumerable<double> startTimes)
         {
             measureStartTimes.Clear();

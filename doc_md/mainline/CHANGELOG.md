@@ -5,7 +5,19 @@
 
 ---
 
+## 2026-06-15
+
+### BGA Phase 5.1：老式视频外部 ffmpeg 转码播放（opt-in；P1-L）
+
+承接 BGA 落地后的实测——框架捆绑 FFmpeg 打不开老式 MPEG-1 `.mpg`（及 `.wmv/.avi/.flv`），此前回退静态图。新增 `BmsBgaVideoCache`（opt-in `BgaVideoTranscode` 开关，默认开）用**用户自备的外部 ffmpeg**（PATH 或放进数据目录；OMS 不分发）把这类视频后台转 H.264 `.mp4` 缓存到 `<dataRoot>/bga-video-cache/`，`BmsBgaPlayer` 预热转码 + 转好后本场热替换；无 ffmpeg/关闭/失败＝静态图回退（无回归），`.mp4` 谱不受影响。新增 `BmsBgaVideoCacheTest` 13；BMS **946/946**、Release 0 错。详见 [P1-L Phase 5.1](../subline/P1-L/) + [约束 5.1](../subline/P1-L/TECHNICAL_CONSTRAINTS.md)。实机端到端需用户装 ffmpeg 后验。
+
+---
+
 ## 2026-06-14
+
+### BGA 链路激活 + 归入 P1-L Phase 5（落地；自动化通过，人工视觉验收待办）
+
+审查「BMS 模式游玩时 background image/animation 链路」后，把此前标为 **Phase 2 future-scope** 的 BGA 视频/动画**正式激活并归入子线 P1-L**（演出/Gimmick 谱视觉复刻），新增 Phase 5 并落地全链路。**问题定性**：解析层（P1-K）已完整产出 BGA 事件/定义，但转换层只取一个静态 `metadata.BackgroundFile`、BGA 时间线被丢弃；显示层 `BmsBackgroundLayer` 是静态占位件且挂在 `playfieldContainer` 内被不透明 lane 背板完全遮挡（14K DP 中缝坐实）。**落地**：转换携带 `BmsBeatmap.BgaTimeline`（`BmsBgaTimelineEntry`，复用 `eventTimes` + `BitmapTable`，照 `Mines` 不进 `HitObjects`；并补回 `buildEventTimeline` 漏注册的 BGA 事件时刻）；运行时 `BmsBgaPlayer` 在皮肤可定制浮窗 `BgaPanel`（挂 `DrawableRuleset.Overlays`，不被遮挡）按时间线合成图序列 + 视频（视频复用 osu!framework FFmpeg `Video`+`PlaybackPosition` 时钟同步），资源经 `WorkingBeatmap.GetStream` 直读 `chartbms/`（不经 hash store），POOR 层按 `#POORBGA` 在 miss flash，letterbox；默认布局镜像 playfield（P1→右/P2→左/居中→右/14K DP→中缝），`ShowBga` 开关，无 BGA 回退静态图；退役被遮挡的 `BmsBackgroundLayer` 挂点。仅 native 路径，converted-mania 不在 v1。**验证**：BMS 全套 **933/933**（新增 17）、`osu.Desktop.slnf` Release **0 错误 0 警告**；实机逐谱人工视觉验收交接人工。详见 [P1-L 四件套](../subline/P1-L/) Phase 5、[OMS_COPILOT §12](OMS_COPILOT.md)、[DEVELOPMENT_PLAN §2.10](DEVELOPMENT_PLAN.md)。
 
 ### 判定 parity 第 2 刀：溯源校正 beatoraja BAD 早/晚非对称（修复方向写反，**行为变更**）+ IIDX empty-poor 结论性收口（P1-C）
 

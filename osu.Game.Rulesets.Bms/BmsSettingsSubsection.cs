@@ -100,6 +100,23 @@ namespace osu.Game.Rulesets.Bms
                     HintText = @"仅作用于5K/7K",
                     Current = config.GetBindable<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle),
                 }),
+                new SettingsItemV2(new FormCheckBox
+                {
+                    Caption = @"显示 BGA",
+                    HintText = "游玩时在 playfield 旁的浮窗中播放谱面 BGA（背景图/动画/视频）。\n\n"
+                               + "默认按游玩区域样式自动排在 playfield 对侧（1P→右、2P→左、居中→右、14K→中缝）。\n"
+                               + "关闭后仅保留全屏背景。仅影响视觉，不影响判定/计分。",
+                    Current = { BindTarget = config.GetBindable<bool>(BmsRulesetSetting.ShowBga) },
+                }),
+                new SettingsItemV2(new FormCheckBox
+                {
+                    Caption = @"转码无法解码的 BGA 视频",
+                    HintText = "部分老式 BGA 视频（如 MPEG-1 的 .mpg、.wmv、.avi）内置播放器无法解码，默认只显示静态图。\n\n"
+                               + "开启后，若系统已安装 ffmpeg（命令行可用，或把 ffmpeg.exe 放进 OMS 数据目录），"
+                               + "OMS 会在后台把这类视频转成 .mp4 并缓存，之后即可正常播放（首次播放转码期间仍先显示静态图）。\n\n"
+                               + "未安装 ffmpeg 时本项无效果，保持静态图。仅影响视觉，不影响判定/计分。",
+                    Current = { BindTarget = config.GetBindable<bool>(BmsRulesetSetting.BgaVideoTranscode) },
+                }),
                 new SettingsItemV2(new FormSliderBar<int>
                 {
                     Caption = @"键音通道数",

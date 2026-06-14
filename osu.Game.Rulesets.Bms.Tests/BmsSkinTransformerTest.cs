@@ -188,6 +188,22 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestBgaPanelFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel)), Is.AssignableTo<IBmsBgaPanelDisplay>());
+        }
+
+        [Test]
+        public void TestUserSkinWithoutBgaPanelReturnsNullToAllowLaterFallback()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel)), Is.Null);
+        }
+
+        [Test]
         public void TestLegacyHudLayoutStillGetsGameplayFeedbackOverlay()
         {
             var ruleset = new BmsRuleset();

@@ -125,6 +125,16 @@ DEAD SOUL 的演出依赖 **132 万 BPM（瞬移）与基准 132 BPM 的极端�
 - 人工：逐帧截图与 beatoraja/LR2 对照（Phase 4）。
 - 全程：BMS 全套 + Release 门槛；**每阶段都必须证明正常游玩链路无回归。**
 
+## 9b. BGA 演出（P1-L Phase 5，规划冻结 2026-06-14）
+
+BGA（background animation：`#STAGEFILE`/`#BACKBMP`/`#BANNER` 静态图 + 通道 `04/06/07/0A` 的图序列/视频切换 + `#POORBGA` 误判层）也属"演出视觉复刻"，已归入 P1-L 作为 **Phase 5**（独立轨道，不依赖 Phase 2/3 滚动旁路）。
+
+- **现状缺口**：解析层（P1-K）已完整产出 `BgaEvents` + `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA`；但转换层只取一个静态 `metadata.BackgroundFile`、整条 BGA 时间线被丢弃；显示层 `BmsBackgroundLayer` 是静态占位件且挂在 `playfieldContainer` 内被不透明 lane 背板完全遮挡（14K DP 中缝坐实）。
+- **方案**：转换层携带时间线 `BmsBeatmap.BgaTimeline`（照 `Mines`/`ScrollProfile`，不进 `HitObjects`）；运行时 `BmsBgaPlayer` 在皮肤可定制浮窗 `BgaPanel`（挂 `DrawableRuleset.Overlays`、不被遮挡）按时间线合成 base/layer/overlay/layer2，图片走 beatmap `TextureStore`、视频走 osu!framework FFmpeg `Video`（`WorkingBeatmap.GetStream` + `PlaybackPosition` 时钟同步，同 `DrawableStoryboardVideo`），POOR 层按 `#POORBGA` 在 miss 显示。
+- **冻结决策**：图序列 + 视频一起做；默认镜像 playfield（P1→右/P2→左/居中→右/14K DP→中缝）；letterbox；自定义皮肤接口预留；仅 native 路径、converted-mania 不在 v1。
+- **红线**：视觉-only、不进判定/计分；零核心改动；资源直读 `chartbms/`；缺失/解码失败优雅降级。
+- 完整设计/切片见 [P1-L DEVELOPMENT_PLAN Phase 5](../subline/P1-L/DEVELOPMENT_PLAN.md)，约束见 [P1-L TECHNICAL_CONSTRAINTS Phase 5](../subline/P1-L/TECHNICAL_CONSTRAINTS.md)。
+
 ## 10. 联动与升级
 
 1. 本文是 `other/` 分析材料；方向获批后升级为正式 subline（暂定 `P1-L`，四件套），并回写 [mainline](../mainline/) 的全局优先级。

@@ -15,7 +15,9 @@
 | **Phase 2** | BMS 功能完善 — 全键模式、全 Mod、全 Gauge | 13 步 | 个别支撑能力已提前落地，但不视为正式进入 Phase 2 |
 | **Phase 3** | 私服集成 — 在线账号、排行榜、谱面下载 | 6 步 | 维持冻结，等待离线主流程稳定 |
 
-## 当前执行快照（2026-04-28）
+## 当前执行编排（活动状态以 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 为准）
+
+> 本节固定承载子主线归线与执行顺序等**编排级**约定；逐日推进、最新完成项与回归计数属易变状态，统一由 `DEVELOPMENT_STATUS.md` 维护，本节不再复刻一份会过期的快照。
 
 - 当前执行不再按多个并列大阶段管理，而是统一收口为 **Phase 1.x 大主线**：Phase 1 核心 BMS、Phase 1.1 皮肤专项，以及被外部审计插队抬升的输入 / 判定 / 反馈 / 校准事项，都视为 Phase 1 大主线下的子主线
 - 当前第一优先子主线仍是 **Phase 1.1 皮肤系统专项**：在保持 Phase 1 核心 BMS 进度不回退的前提下，后续主精力优先投入 OMS 自有默认皮肤包、mania/BMS 各自独立的 ruleset 皮肤实现，以及上游原生默认皮肤替换
@@ -37,7 +39,7 @@
 - 本轮已明确归线：**BMS 结果页反馈面收口** 归属 `P1-C`。当前只在现有 lazer results 骨架内继续推进 `DJ LEVEL` / `EX-SCORE` 语义统一、results summary 与 feedback panel 收口，以及低风险布局贴近；不单独开启高风险的 beatoraja 风格整页重构
 - 新增 `P1-A / P1-C` 交叉主子线：**皮肤设计边界与绿色数字 / Mod 联动专题**。该专题先冻结 BMS HUD / skin boundary 与 runtime feedback contract，再推进常驻 GN 显示、`Sudden / Hidden / Lift` 联动反馈，以及后续 `FAST/SLOW` / judge display / visual timing-offset / pacemaker 的统一承载；详细拆解见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)
 - 需要人工操作的 1.5 真实导入/UI 验收与发行物实机验证统一记录在 `DEVELOPMENT_STATUS.md` 的独立板块，默认放在 Phase 1 阶段末尾或出现阻塞时再执行
-- 当前代码规模（2026-04-25 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **167 个源文件**；`oms.Input` **15** 个源文件（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **58** 个测试源文件。最近一次完整项目级回归为 BMS **812/812**（2026-05-23）与 mania **761/761**（2026-04-24）；其后 `P1-J` 还保留了 BMS replay-focused **7/7**、autoplay/composed replay **11/11**、autoplay-facing **4/4** 与 keysound-neighbour **9/9** 的专项基线，`K9` 也已补上 mania convert/autoplay focused **14/14** 与 selector/resolver focused **19/19**，`osu.Desktop` Release 构建最近一次已于 2026-05-26 通过。
+- 当前代码规模（2026-04-25 本地文件计数，排除 `bin/obj`）：BMS 规则集约 **167 个源文件**；`oms.Input` **15** 个源文件（含 Windows DirectInput backend）；`osu.Game.Rulesets.Bms.Tests` 当前为 **58** 个测试源文件。**测试 / 构建的最新数值统一以 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 的「开发指标」表为准，本页不再各自维护一份易过期的回归计数。**
 
 ## Phase 1.x 大主线下的子主线编排
 
@@ -277,6 +279,17 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 4. focused decoder / converter / importer regressions 与 Release build 现已作为当前阶段 gate 通过，`P1-K` 已进入代码落地并完成 `K8` 当前范围的阶段性收口。
 
 专题详细计划、状态与约束见 [../subline/P1-K/DEVELOPMENT_PLAN.md](../subline/P1-K/DEVELOPMENT_PLAN.md)、[../subline/P1-K/DEVELOPMENT_STATUS.md](../subline/P1-K/DEVELOPMENT_STATUS.md)、[../subline/P1-K/TECHNICAL_CONSTRAINTS.md](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)。
+
+### P1-M 当前新增子线：内置音乐播放器
+
+- 缘起：审查「右上角正在播放浮窗（同时承担 song-select 试听）」音乐链路后，用户决定将其升级为真正意义上的**内置音乐播放器**。新建子线 **P1-M**。
+- authority：音乐播放器**导航策略**（队列 / 重复模式 / 播放源过滤 / 随机历史）与**播放器 UI**（mini 浮窗 + 可展开全屏）。底层音轨生命周期仍归 `MusicController`（瘦身为纯引擎），不归本线另起第二套。
+- 已对齐范围（用户拍板 2026-06-15）：全功能（队列与播放模式 / 曲库组织 / 播放体验 / 沉浸展示与进阶）+ **播放源可选 mania·bms·both** + mini 浮窗可展开全屏（**复用 `FullscreenOverlay<T>` 壳体**，即那批离线隐藏的在线 overlay 共享的展开壳，与联网无耦合）+ **分层 PlayQueue 服务**（song-select preview 路径独立保留）。
+- 与既有线的边界：判定/计分/gauge 与 gameplay 音轨控制不归本线（只读 `AllowTrackControl`）；BMS BGA 渲染本体归 `P1-L`（M4 BGA-in-player 只跨项目桥接消费）；persisted metadata / 存储拓扑交集归 `P1-H`；播放源过滤与 `P1-I` 的 song-select BMS 筛选概念相邻但不同层（本线过滤播放器音轨池，不复用 P1-I filter criteria）。
+- 红线：① 不改坏 song-select 试听链路；② 不破坏 gameplay 全局音轨控制闸 `AllowTrackControl`；③ 离线优先——只用本地音轨，不接在线试听（`PreviewTrackManager` 在 OMS 已因 `OnlineFeaturesEnabled=false` 失活，保持失活）。
+- 当前状态：规划已对齐、未开工；下一步 Phase 0 地基（PlayQueue 服务层 + 协调契约 + 测试网，行为对等无可见变化）。
+
+专题详细计划、状态与约束见 [../subline/P1-M/DEVELOPMENT_PLAN.md](../subline/P1-M/DEVELOPMENT_PLAN.md)、[../subline/P1-M/DEVELOPMENT_STATUS.md](../subline/P1-M/DEVELOPMENT_STATUS.md)、[../subline/P1-M/TECHNICAL_CONSTRAINTS.md](../subline/P1-M/TECHNICAL_CONSTRAINTS.md)。
 
 ### P1-A / P1-C 交叉专题：皮肤设计边界与绿色数字 / Mod 联动
 
@@ -1158,17 +1171,21 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 
 ---
 
-### 2.10 BGA 视频播放
+### 2.10 BGA 视频/动画播放 —— 已激活并归入 P1-L Phase 5（规划冻结 2026-06-14，实现进行中）
+
+> 此前标为 "Phase 2 future scope"，现正式激活并归入子线 **P1-L**（演出/Gimmick 谱视觉复刻）。完整设计/切片见 [../subline/P1-L/DEVELOPMENT_PLAN.md](../subline/P1-L/DEVELOPMENT_PLAN.md) Phase 5，约束见 [../subline/P1-L/TECHNICAL_CONSTRAINTS.md](../subline/P1-L/TECHNICAL_CONSTRAINTS.md) Phase 5。
 
 **实现：**
 
-- #BMP## 索引解析（BmsBeatmapDecoder 中已预留）
-- Channel 04/06/07 BGA 事件时间轴
-- BmsBackgroundLayer 扩展——ffmpeg.autogen 解码视频帧，纹理更新
-- POOR 层（Channel 06）在 POOR 判定时显示
+- 解析已完成（P1-K）：`#BMP##` 索引、Channel `04/06/07/0A` BGA 事件、`#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` 已 typed。
+- 转换层携带时间线 `BmsBeatmap.BgaTimeline`（复用 `eventTimes` + `BitmapTable`），不进 `HitObjects`。
+- 新增**皮肤可定制浮窗** `BgaPanel`，挂 `DrawableBmsRuleset.Overlays`（不被 lane 遮挡）；图片走 `TextureStore`、视频走 osu!framework FFmpeg `Video`（`GetStream` + `PlaybackPosition` 时钟同步，同 `DrawableStoryboardVideo`）。
+- POOR 层（Channel 06）按 `#POORBGA` 在误判时显示。
+- 默认布局镜像 playfield（P1→右/P2→左/居中→右/14K DP→中缝）、letterbox。
+- **Phase 5.1（opt-in）**：框架打不开的老式视频（MPEG-1 `.mpg`/`.wmv`/`.avi`/`.flv`）经**用户自备外部 ffmpeg** 后台转 `.mp4` 缓存后播放（`BgaVideoTranscode` 开关，无 ffmpeg 则静态图回退）。
 
-**前置依赖：** 1.8（BmsBackgroundLayer 已预留槽位）
-**验收：** 含 BGA 视频的 BMS 谱面播放时正确显示视频，POOR 层在误判时切换。
+**前置依赖：** 解析层（P1-K，已具备）；`DrawableRuleset.Overlays` 挂点（已存在）。
+**验收：** 含 BGA 视频/图序列的 BMS 谱面播放时正确显示、不被遮挡、letterbox、POOR 层在误判时切换、四布局位置正确、seek 同步、正常游玩链路零回归。
 
 ---
 
@@ -1228,7 +1245,7 @@ post-`K8` backlog 的首个正式 follow-up 现固定为 `K9`：BMS -> mania 单
 - [ ] 5K / 9K / 14K DP 布局完整
 - [ ] 1P/2P 翻转功能正常
 - [ ] HID 旋转编码器和鼠标 scratch 输入可用
-- [ ] BGA 视频播放（含 POOR 层）
+- [~] BGA 视频/动画播放（含 POOR 层）—— 已落地并归入 P1-L Phase 5（2026-06-14，自动化通过、人工视觉验收待办）；详见 §2.10
 - [ ] 用户皮肤生态扩展与兼容性工具可用
 
 ---

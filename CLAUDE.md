@@ -36,7 +36,8 @@ OMS 是基于 osu!lazer 的 **Windows-only** 音游客户端：只保留 **osu!m
 - [P1-I](doc_md/subline/P1-I/) — BMS 选歌筛选与搜索定制
 - [P1-J](doc_md/subline/P1-J/) — BMS gameplay runtime 性能与音频时序治理
 - [P1-K](doc_md/subline/P1-K/) — BMS 解析链路治理（decoder / 转换 / projection / parse cache）
-- [P1-L](doc_md/subline/P1-L/) — BMS 演出/Gimmick 谱视觉复刻（地雷渲染 / 专用滚动旁路；红线：不改坏正常游玩链路）
+- [P1-L](doc_md/subline/P1-L/) — BMS 演出/Gimmick 谱视觉复刻（地雷渲染 / 专用滚动旁路 / BGA 背景图·动画链路；红线：不改坏正常游玩链路）
+- [P1-M](doc_md/subline/P1-M/) — 内置音乐播放器（分层 PlayQueue：真队列/重复·随机/曲库搜索排序/收藏歌单/可展开全屏复用 FullscreenOverlay/可视化/播放源 mania·bms·both；红线：不改坏 song-select 试听与 gameplay 音轨控制、离线只用本地轨）
 - 子线总入口：[doc_md/subline/README.md](doc_md/subline/README.md)
 
 ### other（参考材料，不替代主线计划/约束）
