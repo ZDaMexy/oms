@@ -40,7 +40,7 @@
 
 ## 反馈家族约束
 
-1. speed feedback、`FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 应尽量沿同一 feedback family 承载，不再各自新开 ad-hoc overlay。
+1. speed feedback、`FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 应尽量沿同一 feedback family 承载，不再各自新开 ad-hoc overlay。（注：承载这套家族的常驻 `DefaultBmsSpeedFeedbackDisplay` 卡已于 2026-06-15 按产品决定整体移除——FAST/SLOW、judge display、visual timing-offset、EX pacemaker、judgement summary、常驻 GN 全部退出 gameplay；judgement **计数**改由全局 `JudgementCounterDisplay` 承担。本条适用于任何未来重新引入。）
 2. 不得通过遍历 wrapped HUD 子节点、偷改 `GaugeBar`、偷改 `ComboCounter` 的方式植入反馈内容。
 3. toast 可以保留为瞬时强调层，但不得继续承担唯一权威反馈职责。
 

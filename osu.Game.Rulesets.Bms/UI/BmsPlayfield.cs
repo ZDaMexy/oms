@@ -141,8 +141,11 @@ namespace osu.Game.Rulesets.Bms.UI
                     },
                     playfieldContainer = new Container
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
+                        // Top-anchored so the playfield (and therefore the first visible notes) starts at the screen
+                        // top with no gap. Vertical extent is controlled by PlayfieldHeight; applyPlayfieldStyle keeps
+                        // the top anchor and only varies the horizontal side anchoring.
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
                         RelativePositionAxes = Axes.X,
                         RelativeSizeAxes = Axes.Both,
                         Width = LayoutProfile.PlayfieldWidth,
@@ -320,20 +323,20 @@ namespace osu.Game.Rulesets.Bms.UI
             switch (updatedLayout.Style)
             {
                 case BmsPlayfieldStyle.P1:
-                    playfieldContainer.Anchor = Anchor.CentreLeft;
-                    playfieldContainer.Origin = Anchor.CentreLeft;
+                    playfieldContainer.Anchor = Anchor.TopLeft;
+                    playfieldContainer.Origin = Anchor.TopLeft;
                     playfieldContainer.X = side_anchored_horizontal_inset;
                     break;
 
                 case BmsPlayfieldStyle.P2:
-                    playfieldContainer.Anchor = Anchor.CentreRight;
-                    playfieldContainer.Origin = Anchor.CentreRight;
+                    playfieldContainer.Anchor = Anchor.TopRight;
+                    playfieldContainer.Origin = Anchor.TopRight;
                     playfieldContainer.X = -side_anchored_horizontal_inset;
                     break;
 
                 default:
-                    playfieldContainer.Anchor = Anchor.Centre;
-                    playfieldContainer.Origin = Anchor.Centre;
+                    playfieldContainer.Anchor = Anchor.TopCentre;
+                    playfieldContainer.Origin = Anchor.TopCentre;
                     playfieldContainer.X = 0;
                     break;
             }

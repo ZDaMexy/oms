@@ -18,7 +18,8 @@
 ## 当前结论
 
 - 当前阶段定位：`P1-C` 当前范围已阶段性收口；`CreateStatisticsForScore()` 的 results summary / gauge history consumer proof 已完成，BRJ / LR2 parity 与 full Floating parity 统一后置为 backlog。
-- 当前 `GN / WN` 已在 runtime metrics、常驻 HUD、toast 与 pre-start overlay 中存在，并共享同一组 mode-aware 运行时语义。
+- **（2026-06-15 反馈卡移除）** 承载 C1/C3 反馈家族（FAST/SLOW、judge display、visual timing-offset、EX pacemaker、judgement summary、常驻 GN）的常驻 `DefaultBmsSpeedFeedbackDisplay` 已按产品决定整体删除（详见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) / [CHANGELOG.md](CHANGELOG.md)）；判定**计数**改由全局 `JudgementCounterDisplay` 承担（已修 COMBO BREAK），feedback 家族如需重建须另立专题。
+- 当前 `GN / WN` 已在 runtime metrics、toast 与 pre-start overlay 中存在（**常驻 HUD 表达随上条移除**），并共享同一组 mode-aware 运行时语义。
 - tri-mode Hi-Speed settings、`阻止谱面开始/ingame start` 的前 5 秒阻塞/全程调速语义，以及“delay 若在 hold 期间耗尽，则松手重给满一段 fresh delay”这条 release 分支都仍属于这条既有 `P1-A / P1-C` 交叉线，不需要新开主线；真正后置的是 full Floating parity。
 - pre-start 1 号普通轨纯视觉流速预览第一版已实现：当前以第一非 scratch 轨上的纯视觉 preview layer 落地，复用当前 note skin lookup 与 scroll authority，并按 pre-start pending / hold / pause state gate；不得经 `BmsHitObject` / `DrawableBmsHitObject` / `BmsLane` 判定或键音链。
 - `P1-C` 不能绕过 `P1-A` 直接扩写旧版 HUD 接口，也不能把 speed feedback 临时塞进 `GaugeBar`、`ComboCounter` 或 wrapped HUD 子节点。

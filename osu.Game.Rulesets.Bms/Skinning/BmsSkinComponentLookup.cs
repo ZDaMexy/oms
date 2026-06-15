@@ -17,7 +17,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
         HudLayout,
         GaugeBar,
         ComboCounter,
-        SpeedFeedback,
         ClearLamp,
         GaugeHistoryPanel,
         GaugeHistory,

@@ -53,8 +53,8 @@ namespace osu.Game.Screens.Play.HUD.JudgementCounter
             base.LoadComplete();
 
             scoreProcessor.OnResetFromReplayFrame += updateAllCountsFromReplayFrame;
-            scoreProcessor.NewJudgement += judgement => updateCount(judgement, false);
-            scoreProcessor.JudgementReverted += judgement => updateCount(judgement, true);
+            scoreProcessor.NewJudgement += _ => syncCounts();
+            scoreProcessor.JudgementReverted += _ => syncCounts();
         }
 
         private bool hasUpdatedCountsFromReplayFrame;
@@ -75,15 +75,17 @@ namespace osu.Game.Screens.Play.HUD.JudgementCounter
             hasUpdatedCountsFromReplayFrame = true;
         }
 
-        private void updateCount(JudgementResult judgement, bool revert)
+        private void syncCounts()
         {
-            if (!results.TryGetValue(judgement.Type, out var count))
-                return;
-
-            if (revert)
-                count.ResultCount.Value--;
-            else
-                count.ResultCount.Value++;
+            // Sync every counter from the score processor statistics rather than incrementing only the
+            // judged result's counter. Some rulesets expose counters whose HitResult is never an actual
+            // judgement type but is maintained as a derived running statistic by the score processor
+            // (e.g. BMS "combo break", incremented whenever a judgement breaks combo). An increment-on-
+            // matching-type approach would leave those stuck at zero during live play and only populate
+            // them on a replay-frame reset. Reading from statistics is authoritative for all counters
+            // because the processor updates them before raising NewJudgement / JudgementReverted.
+            foreach (var counter in counters)
+                counter.ResultCount.Value = counter.Types.Sum(type => scoreProcessor.Statistics.GetValueOrDefault(type));
         }
     }
 }

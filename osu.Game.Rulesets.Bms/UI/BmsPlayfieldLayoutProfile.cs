@@ -92,11 +92,16 @@ namespace osu.Game.Rulesets.Bms.UI
                 keymode,
                 laneCount,
                 normalLaneRelativeWidth: normalLaneRelativeWidth ?? 1f,
-                scratchLaneRelativeWidth: scratchLaneRelativeWidth ?? 1.25f,
+                // Scratch lane is 1.5× the width of a key lane (2× narrowed by 25%).
+                scratchLaneRelativeWidth: scratchLaneRelativeWidth ?? 1.5f,
                 normalLaneRelativeSpacing: normalLaneRelativeSpacing ?? 0f,
                 scratchLaneRelativeSpacing: scratchLaneRelativeSpacing ?? 0.12f,
-                playfieldWidth: playfieldWidth ?? Math.Clamp(laneCount * 0.06f, 0.35f, 0.8f),
-                playfieldHeight: playfieldHeight ?? 0.9f,
+                // Lanes are normalised to fill this width, so scaling it scales every single-lane (and note) width
+                // uniformly. 0.825 = original × 0.75 (−25%) then × 1.1 (widened back 10%).
+                playfieldWidth: playfieldWidth ?? Math.Clamp(laneCount * 0.06f, 0.35f, 0.8f) * 0.825f,
+                // Combined with the top-anchored playfield (see BmsPlayfield), 0.95 keeps the hit target at 95% screen
+                // height while the playfield top reaches the screen top — so notes appear at the top with no gap.
+                playfieldHeight: playfieldHeight ?? 0.95f,
                 hitTargetHeight: hitTargetHeight ?? 16f,
                 hitTargetVerticalOffset: hitTargetVerticalOffset ?? 0f,
                 hitTargetBarHeight: hitTargetBarHeight ?? 12f,

@@ -35,7 +35,7 @@
 
 ### C1：权威绿色数字常驻反馈
 
-**状态：首轮实现已完成，后续进入 C2 / C3 收口**
+**状态（2026-06-15 更新）：首轮实现曾完成，但承载它的常驻 `DefaultBmsSpeedFeedbackDisplay`（连同 C2/C3 的 FAST/SLOW·EX pacemaker·judge display·visual timing-offset·judgement summary）已按产品决定整体移除。本节及下文 C1 实现清单为历史规划记录；GN 现仅留 toast / pre-start overlay，不再常驻。如重建反馈家族须另立专题。详见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) / [CHANGELOG.md](CHANGELOG.md)。**
 
 目标：让当前 `GN + 可见毫秒 + adjustment target` 不再只存在于 toast，而是拥有常驻、可皮肤化的权威 HUD 表达。
 

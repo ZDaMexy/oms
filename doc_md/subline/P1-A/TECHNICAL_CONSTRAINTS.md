@@ -44,7 +44,7 @@
 
 ## 反馈家族约束
 
-1. 当前专题的第一阶段只收口 speed feedback；后续 `FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 必须尽量沿同一 feedback family 承载，不再各自新开 ad-hoc overlay。
+1. 当前专题的第一阶段只收口 speed feedback；后续 `FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 必须尽量沿同一 feedback family 承载，不再各自新开 ad-hoc overlay。（注：承载这套家族的常驻 `DefaultBmsSpeedFeedbackDisplay` 卡已于 2026-06-15 按产品决定整体移除；本条适用于任何未来重新引入。）
 2. judgement 位置若需要与 feedback 联动，必须新增显式 BMS 位置合同；不得继续复制新的硬编码偏移值。
 3. toast 可以保留为瞬时强调层，但不得继续承担唯一权威反馈职责。
 

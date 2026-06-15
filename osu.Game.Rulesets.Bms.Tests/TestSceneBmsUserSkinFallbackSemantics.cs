@@ -262,12 +262,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                     : base.GetTexture(componentName, wrapModeS, wrapModeT);
         }
 
-        private sealed partial class TestHudLayoutDisplay : Container, IBmsHudLayoutDisplayWithGameplayFeedback
+        private sealed partial class TestHudLayoutDisplay : Container, IBmsHudLayoutDisplay
         {
             public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
-                => SetComponents(wrappedHud, gaugeBar, comboCounter, null!);
-
-            public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter, Drawable gameplayFeedback)
             {
                 Clear();
 
@@ -276,9 +273,6 @@ namespace osu.Game.Rulesets.Bms.Tests
 
                 Add(gaugeBar);
                 Add(comboCounter);
-
-                if (gameplayFeedback != null)
-                    Add(gameplayFeedback);
             }
         }
 

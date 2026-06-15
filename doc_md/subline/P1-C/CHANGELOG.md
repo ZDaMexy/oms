@@ -2,6 +2,16 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-15
+
+### 移除常驻速度反馈卡（`DefaultBmsSpeedFeedbackDisplay` 及其专属反馈子系统，产品决定）
+
+按产品决定删除常驻速度反馈卡——玩家不再使用，理由是按住调整键调挡板时浮窗（toast / pre-start overlay）已显示速度信息。删前已审查并确认安全：该卡是 C1/C3 整条反馈家族的唯一显示载体，其后端 `BmsGameplayFeedbackState` 子系统**仅**服务于它。**删除范围**：① 显示与数据文件 `BmsSpeedFeedbackDisplay`（含 `IBmsSpeedFeedbackDisplay`）/ `BmsGameplayFeedbackState` / `BmsTimingOffsetSparkline` / `BmsExScoreProgressInfo` / `BmsExScorePacemakerInfo` / `BmsJudgementCounts` / `BmsJudgementTimingFeedback`；② `BmsSkinComponents.SpeedFeedback` 枚举 + transformer 的 SpeedFeedback case / HUD 组装注入 / `hasBmsHudLayer` 检查；③ `IBmsHudLayoutDisplayWithGameplayFeedback` 变体、`DefaultBmsHudLayoutDisplay.WrapWithGameplayFeedback`/`ApplyGameplayFeedbackDefaults`、`BmsGameplayFeedbackLayout` 的 gameplay-feedback 摆位（judgement 基线摆位**保留**，仍归 `P1-A` 供 `DrawableBmsJudgement` 用）；④ `DrawableBmsRuleset` 的 `GameplayFeedbackState`/`LatestJudgementFeedback`/`RecentJudgementFeedbacks`/`TimingFeedbackVisualRange`/`ExScorePacemakerInfo` 暴露面与 `refreshGameplayFeedbackState`/`refreshExScorePacemaker`/`refreshTimingFeedbackVisualRange`/pacemaker 订阅/timing-feedback 管线；连带删除对应单元与视觉测试。**功能影响（已知）**：游戏内不再有 FAST/SLOW 逐 note 计时反馈、timing sparkline、EX pacemaker、EX progress、LIVE PERFECT/FC 状态线、compact 判定汇总；如需重新引入须另立专题。**保留不受影响**：`SpeedMetrics`（pre-start 预览仍消费）、`ActiveAdjustmentTarget` 等调整目标状态（lane cover focus + 测试仍用，`BmsRulesetModTest` 的断言已从 `GameplayFeedbackState` 改读这些 bindable）、toast、BGA miss-flash。验证：BMS 全套 **907/907**、`osu.Game.Rulesets.Bms.Tests` Release 构建 **0 错误**。
+
+### 修复：右侧 `JudgementCounterDisplay` 的 COMBO BREAK 计数器游玩中恒为 0
+
+用户发现默认皮肤右侧 7 个判定计数器中有一个不工作（COMBO BREAK）。**根因**：BMS `GetHitResultsForDisplay()` 把 `HitResult.ComboBreak` 列为第 7 个显示项，但 ComboBreak 是 `BmsScoreProcessor` 的**派生统计**——断连判定（Meh/Miss）时在 `ApplyScoreChange` 旁路 `ScoreResultCounts[ComboBreak]++`，从不作为真实 `JudgementResult.Type` 经 `NewJudgement` 流过；而上游 `JudgementCountController` 旧逻辑按 `judgement.Type` 自增对应计数器，故 COMBO BREAK 计数器永不更新（只有 replay-frame reset 走 `updateAllCountsFromReplayFrame` 才经 statistics 同步）。**修复**：`JudgementCountController` 改为每次 `NewJudgement`/`JudgementReverted` 时从 `ScoreProcessor.Statistics` 全量同步每个计数器（`counter.Types.Sum(statistics)`）。统计在 `ApplyResultInternal`→`ApplyScoreChange` 中、`NewJudgement` 触发**之前**已更新，故对 mania 等所有真实-type 计数器行为不变，仅让 ComboBreak 这类派生统计得以实时反映。属上游共享文件（`osu.Game`），mania 同享、行为中性。
+
 ## 2026-06-14
 
 ### 判定 parity 第 2 刀：溯源校正 beatoraja BAD 早/晚非对称方向（G3 修复，**行为变更**）+ 结论性收口 IIDX empty-poor（G4）

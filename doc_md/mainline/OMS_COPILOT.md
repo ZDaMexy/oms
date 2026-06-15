@@ -1322,7 +1322,7 @@ BMS-specific visual rules:
 - `5K` / `7K` / `9K_Bms` / `9K_Pms` / `14K` must reuse one theme family but allow layout-sensitive per-lane rendering.
 - `1P/2P` side flips must not require a second asset family; side-sensitive elements respond to runtime bindables/lookup metadata.
 - Lane cover `Sudden / Hidden` states and lane-cover focus state are first-class skinnable elements, not debug overlays.
-- Persistent gameplay feedback, including speed metrics and later `FAST/SLOW` / judge display / pacemaker data, must remain BMS-owned skinnable components instead of ad-hoc overlays hidden inside unrelated HUD elements.
+- Persistent gameplay feedback, including speed metrics and later `FAST/SLOW` / judge display / pacemaker data, must remain BMS-owned skinnable components instead of ad-hoc overlays hidden inside unrelated HUD elements. (Note: the always-on `DefaultBmsSpeedFeedbackDisplay` card that carried this family — FAST/SLOW, judge display, visual timing-offset, EX pacemaker, judgement summary, always-on GN — was removed 2026-06-15 by product decision; see P1-C. This constraint governs any future re-introduction. Live judgement *counts* are now served by the global `JudgementCounterDisplay`.)
 - If BMS HUD composition needs more children than the current wrapped HUD + gauge bar + combo counter contract, extend it via a versioned optional interface or wrapper contract; do not break `IBmsHudLayoutDisplay` in place.
 - Do not inject gameplay feedback widgets by crawling arbitrary wrapped HUD children or by overloading `GaugeBar` / `ComboCounter` with unrelated semantics.
 - Results summary and clear lamp must remain separable skinnable components, so a skin can override the whole summary panel or only the lamp badge.

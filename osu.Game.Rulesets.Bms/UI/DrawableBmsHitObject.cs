@@ -76,7 +76,10 @@ namespace osu.Game.Rulesets.Bms.UI
             Origin = Anchor.BottomLeft;
             RelativeSizeAxes = Axes.X;
             Width = 1;
-            Height = hitObject is BmsHoldNote ? 28 : 18;
+            // Note bar thickness (regular notes + long-note head/tail caps). 22.5 = 18 + 25%.
+            // The long-note parent's 28 is a non-duration fallback only — the scrolling container overrides it
+            // to the hold length, so it is not a visible note thickness and is left unchanged.
+            Height = hitObject is BmsHoldNote ? 28 : 22.5f;
 
             AddInternal(mainVisual = createMainVisual(hitObject));
 

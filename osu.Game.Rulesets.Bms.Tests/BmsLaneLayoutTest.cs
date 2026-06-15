@@ -128,8 +128,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(layout.Profile.ScratchLaneRelativeWidth, Is.GreaterThan(layout.Profile.NormalLaneRelativeWidth));
                 Assert.That(layout.Profile.NormalLaneRelativeSpacing, Is.EqualTo(0f).Within(0.0001f));
                 Assert.That(layout.Profile.ScratchLaneRelativeSpacing, Is.GreaterThan(layout.Profile.NormalLaneRelativeSpacing));
-                Assert.That(layout.Profile.PlayfieldWidth, Is.EqualTo(0.8f).Within(0.0001f));
-                Assert.That(layout.Profile.PlayfieldHeight, Is.EqualTo(0.9f).Within(0.0001f));
+                Assert.That(layout.Profile.PlayfieldWidth, Is.EqualTo(0.66f).Within(0.0001f));
+                Assert.That(layout.Profile.PlayfieldHeight, Is.EqualTo(0.95f).Within(0.0001f));
                 Assert.That(layout.Profile.HitTargetHeight, Is.EqualTo(16f).Within(0.0001f));
                 Assert.That(layout.Profile.HitTargetBarHeight, Is.EqualTo(12f).Within(0.0001f));
                 Assert.That(layout.Profile.HitTargetLineHeight, Is.EqualTo(3f).Within(0.0001f));

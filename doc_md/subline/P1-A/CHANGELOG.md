@@ -2,6 +2,38 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-15
+
+### BMS 默认皮肤几何二调：宽度回宽 10%、SCRATCH = 键轨 2 倍、音符贴顶无空隙
+
+- **整体宽度 +10%**：`BmsPlayfieldLayoutProfile` 的 `PlayfieldWidth` 系数 `0.75 → 0.825`（原始 ×0.75 后再 ×1.1，覆盖上一条的 −25% 净值为 −17.5%）。
+- **SCRATCH 轨 = 键轨 1.5 倍宽**：`ScratchLaneRelativeWidth` `1.25 → 1.5`（先定 2 倍，随即按口径再缩 25% 落到 1.5；归一化分配，scratch:key = 1.5:1）。
+- **音符贴屏幕顶、无空隙**：`BmsPlayfield` 的 `playfieldContainer` 由居中锚定改为**顶部锚定**（初始 `TopCentre` + `applyPlayfieldStyle` 的 P1→`TopLeft`/P2→`TopRight`/居中→`TopCentre`），`PlayfieldHeight 0.9 → 0.95`。顶边贴屏幕顶（音符从顶部出现），底边/判定线仍在 95% 屏高（位置不变）。判定时序不受影响（GN = 可见时间 = `TimeRange`，与场高无关；场高只改像素扫过距离）。
+- 仅几何/视觉。测试同步：`BmsLaneLayoutTest`（14K 宽 0.6→0.66、高→0.95）、`TestSceneBmsPlayfieldLayoutConfig`（8 轨宽 0.36→0.396、高→0.95、scratch 1.25→1.5、实测 scratch:key 比→1.5、lane 高占比→0.95）。验证：BMS 全套 **907/907**、Release 0 错误。
+
+### BMS 默认皮肤：单轨/音符宽度 −25%、音符厚度 +25%、长条身宽 +25%（视觉/几何默认）
+
+- **单轨宽度 −25%（音符随轨 −25%）**：lane 物理宽由「归一化占比 × `PlayfieldWidth`」决定（见 `BmsPlayfield.applyLaneBounds`），相对宽缩放会被归一化抵消，故唯一物理杠杆是 `PlayfieldWidth`；`BmsPlayfieldLayoutProfile.CreateDefault` 默认 `playfieldWidth` 乘 `0.75`，整条 playfield 连同 lane/音符等比收窄 25%、不引入新间隙。
+- **音符厚度 +25%**：`DrawableBmsHitObject` 音符条高 `18 → 22.5`（普通音符 + 长条头/尾盖；长条父件 `28` 为非时长 fallback、被滚动容器覆盖，非可见厚度，不动）。
+- **长条身宽 +25%**：`DefaultBmsLongNoteBodyDisplay.Width` `0.42 → 0.525`（相对 lane 宽）。
+- 仅几何/视觉，不碰判定/计分/滚动。`PlayfieldWidth` 配置项仍是被忽略的 disabled 设置（strict profile），本次只改 profile 默认。测试同步：`BmsLaneLayoutTest`（14K 0.8→0.6）、`TestSceneBmsPlayfieldLayoutConfig`（8 轨 0.48→0.36）、`BmsSkinTransformerTest`（长条身宽 0.42→0.525 ×2）。验证：BMS 全套 **907/907**、Release 0 错误。
+
+### BMS 默认皮肤：长条去掉尾端标识（视觉默认）
+
+`DefaultBmsLongNoteTailDisplay`（长条释放端全宽亮色端盖）改为 `Alpha = 0`。长条 body 细竖条本就被滚动容器按 hold 时长拉满整段，隐藏尾盖后 body 仍延伸到释放端、不留空缺；最终样式＝头端亮盖 + body 延伸、无尾盖。仅改默认渲染：tail 仍是判定对象（判定/计分不受影响），`BmsNoteSkinElements.LongNoteTail` 组件与 `GetLongNoteTail` 调色保留，皮肤作者可覆盖。验证：`BmsSkinTransformerTest` + `BmsDrawableRulesetTest` **163/163**、Release 0 错误。
+
+### BMS HUD 宿主合同简化：移除 gameplay-feedback overlay 变体（随 P1-C 速度反馈卡删除）
+
+`P1-C` 按产品决定删除常驻速度反馈卡后，`P1-A` 拥有的 BMS HUD 宿主合同同步收窄：移除 `IBmsHudLayoutDisplayWithGameplayFeedback` 变体、`DefaultBmsHudLayoutDisplay.WrapWithGameplayFeedback` 与 transformer 的 legacy overlay 包装分支，`IBmsHudLayoutDisplay` 回到单一 `SetComponents(wrappedHud, gauge, combo)` 合同。`BmsGameplayFeedbackLayout` 收窄为只负责 **judgement 基线摆位**（`GetJudgementAnchor/Offset`、`ApplyJudgementDefaults`，仍由 `DrawableBmsJudgement` 与 `TestSceneBmsJudgementDisplayPosition` 消费）；其 gameplay-feedback 摆位常量 `DefaultGameplayFeedbackPosition`/`ApplyGameplayFeedbackDefaults` 已删除。删除细节与功能影响见 [P1-C CHANGELOG](../P1-C/CHANGELOG.md) 2026-06-15。HUD fallback 红线不变（默认路径 / 无该组件用户皮肤 / 旧接口用户皮肤三条回归仍由 `BmsSkinTransformerTest` 守）。验证：BMS 全套 **907/907**、Release 0 错误。
+
+### 修复：皮肤布局编辑器进 BMS gameplay 报错（HUD 宿主组件序列化往返断裂）
+
+- **背景**：审查皮肤编辑器链路时，用户实机日志暴露进 BMS gameplay 预览（`SkinEditorOverlay+EndlessPlayer`）时两处 error，均指向 `osu.Game.Rulesets.Bms.UI.DefaultBmsSpeedFeedbackDisplay`：`SkinComponentToolbox.attemptAddComponent`（组件 toolbox 反射实例化）与 `SerialisedDrawableInfo.CreateInstance`（用户皮肤布局重建）。
+- **根因**：该速度反馈卡（P1-C 拥有）实现 `ISerialisableDrawable`，但唯一构造是全可选参数 `(IBindable?=null, IBindableList?=null)`；`Activator.CreateInstance(type)` 只匹配真正零参构造，全可选签名抛 `MissingMethodException`。`SkinnableContainer.Reload` 又会把 `BmsSkinTransformer` 在 `MainHUDComponents` 注入的 HUD 子件（gauge/combo/speed feedback）作为 `Components` 序列化进皮肤，故任何在 BMS HUD 上的编辑保存后、重载即崩。姊妹件 `BmsGaugeBar`/`BmsComboCounter` 均有无参构造、往返正常，唯独此卡缺失。
+- **修复**：① 给 `DefaultBmsSpeedFeedbackDisplay` 补显式无参构造（链到现有构造，双参去掉可选默认值；双参唯一调用点是 `TestSceneBmsSpeedFeedbackDisplay`，零参调用点是 transformer，均无影响）；② `SerialisedDrawableInfo.GetAllAvailableDrawables` 增加"必须有公开无参构造"过滤，作为编辑器对所有 ruleset 的防御性收口。`IsEditable` 维持与 gauge/combo 一致（默认可编辑），不改编辑器可选面语义。
+- **范围说明**：日志中 `VideoDecoder faulted`（被预览谱面的 BGA 视频）与缺失 jacket 属谱面自身、已优雅降级，非编辑器缺陷，本次不处理。皮肤编辑器链路本身仍是治理空白（`SKINNING.md` / 本子线尚未把编辑器作为正式 authoring surface 纳入约束），后续若把编辑器升格为皮肤自定义入口需另立专题。
+- **验证**：`dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-build -c Release --filter "FullyQualifiedName~BmsSkinTransformerTest|FullyQualifiedName~TestSceneBmsSpeedFeedbackDisplay"` **121/121**；`dotnet build osu.Desktop.slnf -p:Configuration=Release` **0 错误**。
+
 ## 2026-05-26
 
 ### BMS -> mania 公共表面：persisted converted-star display 与 spread display 收口

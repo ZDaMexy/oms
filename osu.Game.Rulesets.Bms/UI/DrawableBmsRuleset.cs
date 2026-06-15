@@ -44,9 +44,6 @@ namespace osu.Game.Rulesets.Bms.UI
         // Derived from the official-cab reference HS 10 + WN 350 => GN 300.
         public const double MAX_TIME_RANGE = 100000d / 13d;
 
-        private const int max_recent_timing_feedbacks = 12;
-        private const BmsDjLevel default_ex_score_pacemaker_target = BmsDjLevel.AAA;
-
         public new BmsPlayfield Playfield => (BmsPlayfield)base.Playfield;
 
         public BmsLongNoteMode LongNoteMode => BmsScoreProcessor.GetLongNoteMode(Mods);
@@ -78,16 +75,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BindableInt enabledAdjustmentTargetCount = new BindableInt();
         private readonly Bindable<int> activeAdjustmentTargetIndex = new Bindable<int>();
         private readonly BindableBool adjustmentTargetTemporarilyOverridden = new BindableBool();
-        private readonly Bindable<BmsJudgementTimingFeedback?> latestJudgementFeedback = new Bindable<BmsJudgementTimingFeedback?>();
-        private readonly BindableList<BmsJudgementTimingFeedback> recentJudgementFeedbacks = new BindableList<BmsJudgementTimingFeedback>();
-        private readonly BindableDouble timingFeedbackVisualRange = new BindableDouble(1);
-        private readonly Bindable<BmsExScorePacemakerInfo?> exScorePacemakerInfo = new Bindable<BmsExScorePacemakerInfo?>();
-        private readonly Bindable<BmsGameplayFeedbackState> gameplayFeedbackState = new Bindable<BmsGameplayFeedbackState>();
         private readonly BindableBool allowAdjustmentWhilePaused = new BindableBool();
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
-        private ulong judgementFeedbackOccurrenceId;
         private ulong speedMetricsToastDisplayCount;
-        private IBindable<long>? totalScore;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
         private BmsBgaPanel? bgaPanel;
         private readonly Bindable<BmsPlayfieldStyle> bgaPlayfieldStyle = new Bindable<BmsPlayfieldStyle>();
@@ -107,16 +97,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public IBindable<bool> IsAdjustmentTargetTemporarilyOverridden => adjustmentTargetTemporarilyOverridden;
 
-        public IBindable<BmsJudgementTimingFeedback?> LatestJudgementFeedback => latestJudgementFeedback;
-
-        public IBindableList<BmsJudgementTimingFeedback> RecentJudgementFeedbacks => recentJudgementFeedbacks;
-
-        public IBindable<double> TimingFeedbackVisualRange => timingFeedbackVisualRange;
-
-        public IBindable<BmsExScorePacemakerInfo?> ExScorePacemakerInfo => exScorePacemakerInfo;
-
-        public IBindable<BmsGameplayFeedbackState> GameplayFeedbackState => gameplayFeedbackState;
-
         public bool IsPreStartSpeedPreviewVisible => preStartSpeedPreview?.IsPreviewVisible == true;
 
         public bool IsPreStartSpeedPreviewPaused => preStartSpeedPreview?.IsPreviewPaused == true;
@@ -133,13 +113,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private OnScreenDisplay? bmsOnScreenDisplay { get; set; }
 
         [Resolved(CanBeNull = true)]
-        private GameplayClockContainer? gameplayClockContainer { get; set; }
-
-        [Resolved(CanBeNull = true)]
         private IBindable<IReadOnlyList<Mod>>? selectedMods { get; set; }
-
-        [Resolved(CanBeNull = true)]
-        private ScoreProcessor? scoreProcessor { get; set; }
 
         public DrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
@@ -242,24 +216,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             NewResult += HandleGameplayJudgementResult;
 
-            if (scoreProcessor != null)
-            {
-                scoreProcessor.NewJudgement += handleScoreProcessorJudgementChanged;
-                scoreProcessor.JudgementReverted += handleScoreProcessorJudgementChanged;
-
-                totalScore = scoreProcessor.TotalScore.GetBoundCopy();
-                totalScore.BindValueChanged(_ => refreshExScorePacemaker(), true);
-            }
-            else
-                refreshExScorePacemaker();
-
-            if (gameplayClockContainer != null)
-                gameplayClockContainer.OnSeek += clearJudgementTimingFeedback;
-
             RefreshLaneCoverFocus();
             refreshSpeedMetrics();
             initialisePreStartSpeedPreview();
-            refreshTimingFeedbackVisualRange();
         }
 
         private IEnumerable<BmsKeysoundSampleInfo> getBeatmapKeysoundSamples()
@@ -293,17 +252,6 @@ namespace osu.Game.Rulesets.Bms.UI
             base.Dispose(isDisposing);
 
             NewResult -= HandleGameplayJudgementResult;
-
-            if (scoreProcessor != null)
-            {
-                scoreProcessor.NewJudgement -= handleScoreProcessorJudgementChanged;
-                scoreProcessor.JudgementReverted -= handleScoreProcessorJudgementChanged;
-            }
-
-            totalScore?.UnbindAll();
-
-            if (gameplayClockContainer != null)
-                gameplayClockContainer.OnSeek -= clearJudgementTimingFeedback;
         }
 
         public bool AdjustLaneCover(float scrollDelta, bool preferBottom = false)
@@ -373,8 +321,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
             foreach (var laneCover in Playfield.LaneCovers)
                 laneCover.IsFocused.Value = targetPosition == laneCover.CoverPosition;
-
-            refreshGameplayFeedbackState();
         }
 
         protected override bool OnScroll(ScrollEvent e)
@@ -471,36 +417,6 @@ namespace osu.Game.Rulesets.Bms.UI
         private void refreshSpeedMetrics()
         {
             speedMetrics.Value = GetScrollSpeedMetrics();
-            refreshGameplayFeedbackState();
-        }
-
-        private void refreshTimingFeedbackVisualRange()
-        {
-            timingFeedbackVisualRange.Value = FirstAvailableHitWindows.GetAllAvailableWindows()
-                                                             .Where(window => window.result != HitResult.Miss && window.result != HitResult.None)
-                                                             .Select(window => window.length)
-                                                             .DefaultIfEmpty(1)
-                                                             .Max();
-
-            refreshGameplayFeedbackState();
-        }
-
-        private void refreshExScorePacemaker()
-        {
-            if (scoreProcessor is not BmsScoreProcessor bmsScoreProcessor)
-            {
-                exScorePacemakerInfo.Value = null;
-                refreshGameplayFeedbackState();
-                return;
-            }
-
-            exScorePacemakerInfo.Value = BmsExScorePacemakerInfo.Create(
-                default_ex_score_pacemaker_target,
-                bmsScoreProcessor.CurrentExScore,
-                bmsScoreProcessor.JudgedHits,
-                bmsScoreProcessor.MaximumExScore);
-
-            refreshGameplayFeedbackState();
         }
 
         internal void HandleGameplayJudgementResult(JudgementResult judgementResult)
@@ -508,58 +424,10 @@ namespace osu.Game.Rulesets.Bms.UI
             // A miss (POOR) flashes the BGA poor layer per the chart's #POORBGA mode.
             if (judgementResult.Type == HitResult.Miss)
                 bgaPanel?.NotifyMiss();
-
-            BmsJudgementTimingFeedback? feedback = BmsJudgementTimingFeedback.FromResult(judgementResult, ++judgementFeedbackOccurrenceId);
-
-            if (feedback.HasValue)
-            {
-                latestJudgementFeedback.Value = feedback.Value;
-
-                if (feedback.Value.ShowsTimingDirection)
-                    pushRecentTimingFeedback(feedback.Value);
-
-                refreshGameplayFeedbackState();
-            }
         }
 
         private float getLaneCoverUnits(BmsLaneCoverPosition position)
             => Playfield.LaneCovers.FirstOrDefault(cover => cover.CoverPosition == position)?.CoverPercent.Value ?? 0;
-
-        private void clearJudgementTimingFeedback()
-        {
-            latestJudgementFeedback.Value = null;
-            recentJudgementFeedbacks.Clear();
-            refreshGameplayFeedbackState();
-        }
-
-        private void pushRecentTimingFeedback(BmsJudgementTimingFeedback feedback)
-        {
-            if (recentJudgementFeedbacks.Count >= max_recent_timing_feedbacks)
-                recentJudgementFeedbacks.RemoveAt(0);
-
-            recentJudgementFeedbacks.Add(feedback);
-        }
-
-        private void refreshGameplayFeedbackState()
-        {
-            BmsExScoreProgressInfo? exScoreProgressInfo = scoreProcessor is BmsScoreProcessor bmsScoreProcessor
-                ? BmsExScoreProgressInfo.Create(bmsScoreProcessor.CurrentExScore, bmsScoreProcessor.MaximumExScore)
-                : null;
-
-            gameplayFeedbackState.Value = new BmsGameplayFeedbackState(
-                speedMetrics.Value,
-                activeAdjustmentTarget.Value,
-                enabledAdjustmentTargetCount.Value,
-                activeAdjustmentTargetIndex.Value,
-                adjustmentTargetTemporarilyOverridden.Value,
-                latestJudgementFeedback.Value,
-                BmsJudgementCounts.Create(scoreProcessor?.Statistics),
-                exScoreProgressInfo,
-                exScorePacemakerInfo.Value,
-                timingFeedbackVisualRange.Value);
-        }
-
-        private void handleScoreProcessorJudgementChanged(JudgementResult _) => refreshExScorePacemaker();
 
         protected override PassThroughInputManager CreateInputManager() => new BmsInputManager(Ruleset.RulesetInfo, Variant);
 

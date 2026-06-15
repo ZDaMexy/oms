@@ -20,7 +20,7 @@
 - 若后续追加 pre-start 1 号普通轨纯视觉流速预览，宿主必须继续停留在 playfield / lane visual surface，并复用 BMS note lookup / fallback；它不是 HUD / toast 的扩展槽位。
 - 内部 `BmsPlayfieldLayoutProfile` abstraction gate 仍保留，但当前 runtime geometry override surface 已冻结，不再通过设置页暴露会扰动 strict profile 的 layout sliders。
 - 当前 `IBmsHudLayoutDisplay` 只接受 wrapped HUD、gauge bar、combo counter 三类组件；若直接扩签名，会打断现有 HUD provider 合同。
-- judgement 基线与默认 gameplay feedback 摆位现已通过 `BmsGameplayFeedbackLayout` 收口为 shared position contract；后续若继续联动 judge display / feedback，应扩展这条合同，而不是重新散落新的位置常量。
+- judgement 基线摆位现由 `BmsGameplayFeedbackLayout` 收口为 shared position contract（其默认 gameplay feedback 摆位已随速度反馈卡于 2026-06-15 移除，仅余 judgement 基线）；后续若联动 judge display，应扩展这条合同，而不是重新散落新的位置常量。
 - BMS mod ruleset-local memory surface 现已补齐 cold-start path：若 startup 首次 ruleset change 早于 `RulesetConfigCache.LoadComplete()`，宿主必须延后 replay 当前 ruleset 到 cache ready 后再做 restore；这条路径现已有 dedicated integration coverage。
 - 首次启动向导、`Run setup wizard` 与无谱面引导这类共享 onboarding / settings-entry surface 归 `P1-A`；若页面只是复用外部 / 内部谱库或按键绑定面板，则 `P1-H` / `P1-B` 只记从属影响，不为此另开子线。
 - desktop 通用 Settings -> 输入 当前也属于共享 settings-entry surface 的产品裁剪范围；若要隐藏 upstream 的数位板 / 触屏点击 / 鼠标 subsection，应在 desktop 宿主层安全隐藏，而不是下移成全宿主删除。
@@ -79,9 +79,9 @@
 
 ### B1：权威绿色数字常驻反馈
 
-状态：已完成，后续围绕 tri-mode operator surface 继续稳态化
+状态（2026-06-15 更新）：常驻 GN 宿主曾完成，但承载它的常驻速度反馈卡已按产品决定整体移除——**常驻 GN 不复存在，GN 仅留 toast / pre-start overlay**；本节为历史规划记录，tri-mode operator surface 仍在。
 
-目标：为 `P1-C` 的常驻 GN 与后续 feedback family 提供稳定宿主边界；当前常驻 GN 已落地，本子线继续维护其宿主、fallback 与 settings / overlay 产品边界。
+目标（历史）：为 `P1-C` 的常驻 GN 与 feedback family 提供稳定宿主边界。**常驻 GN 与该 feedback family 已于 2026-06-15 整体移除**；本子线现维护的是 tri-mode settings / pre-start overlay 与 HUD 宿主（gauge / combo）边界，feedback 家族如需重建须另立专题。
 
 建议交付：
 
@@ -167,7 +167,7 @@
 3. judgement 位置如果需要与 feedback 排布联动，应显式新增位置合同，不继续扩散硬编码偏移值。
 
 > shared position contract 已落地；后续这一步的重点不再是“先抽常量”，而是决定如何在不破坏现有 skin/judgement 生命周期的前提下继续扩 judge display 的语义与排布。
-> 当前 feedback container、shared position contract 与 aggregate snapshot 已落地；本节剩余重点是 richer judge display / history 分层与 results 侧延展，不再是从零搭宿主。
+> （2026-06-15 更新）shared position contract 中的 **judgement 基线摆位保留**；但 **feedback container 与 aggregate snapshot 已随速度反馈卡移除**，本节 richer judge display / history 分层延展随之作废，如重建须另立专题。
 
 验收：
 

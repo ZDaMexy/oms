@@ -122,6 +122,10 @@ namespace osu.Game.Skinning
                    .Assembly.GetTypes()
                    .Where(t => !t.IsInterface && !t.IsAbstract && t.IsPublic)
                    .Where(t => typeof(ISerialisableDrawable).IsAssignableFrom(t))
+                   // Only surface components the editor can actually instantiate. A type without a public
+                   // parameterless constructor cannot be created via Activator.CreateInstance and would otherwise
+                   // throw while populating the component toolbox.
+                   .Where(t => t.GetConstructor(Type.EmptyTypes) != null)
                    .OrderBy(t => t.Name)
                    .ToArray();
         }

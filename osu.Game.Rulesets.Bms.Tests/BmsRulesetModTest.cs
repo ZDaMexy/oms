@@ -445,7 +445,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawableRuleset.Playfield.LaneCovers.Single(cover => cover.CoverPosition == BmsLaneCoverPosition.Hidden).IsFocused.Value, Is.True);
             });
 
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Hidden, 3, 1, true);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Hidden, 3, 1, true);
 
             drawableRuleset.RefreshLaneCoverFocus();
 
@@ -457,7 +457,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawableRuleset.Playfield.LaneCovers.All(cover => !cover.IsFocused.Value), Is.True);
             });
 
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 3, 2, false);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 3, 2, false);
         }
 
         [Test]
@@ -486,66 +486,6 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(metrics.LiftUnits, Is.EqualTo(150));
                 Assert.That(metrics.WhiteNumber, Is.EqualTo(350));
                 Assert.That(metrics.VisibleLaneUnits, Is.EqualTo(450));
-            });
-        }
-
-        [Test]
-        public void TestGameplayFeedbackStateMirrorsInitialPacemaker()
-        {
-            var beatmap = createPlayableBeatmap();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
-
-            Assert.That(drawableRuleset.ExScorePacemakerInfo.Value, Is.EqualTo(drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo));
-
-            if (!drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo.HasValue)
-                return;
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo!.Value.CurrentExScore, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScorePacemakerInfo!.Value.JudgedHits, Is.EqualTo(0));
-            });
-        }
-
-        [Test]
-        public void TestGameplayFeedbackStateStartsWithZeroJudgementCounts()
-        {
-            var beatmap = createPlayableBeatmap();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.PerfectCount, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.GreatCount, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.GoodCount, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.BadCount, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.PoorCount, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.JudgementCounts.EmptyPoorCount, Is.EqualTo(0));
-            });
-        }
-
-        [Test]
-        public void TestGameplayFeedbackStateMirrorsInitialExScoreProgress()
-        {
-            var beatmap = createPlayableBeatmap();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
-
-            BmsExScoreProgressInfo? expectedProgressInfo = drawableRuleset.ExScorePacemakerInfo.Value.HasValue
-                ? BmsExScoreProgressInfo.Create(
-                    drawableRuleset.ExScorePacemakerInfo.Value.Value.CurrentExScore,
-                    drawableRuleset.ExScorePacemakerInfo.Value.Value.MaximumExScore)
-                : null;
-
-            Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo, Is.EqualTo(expectedProgressInfo));
-
-            if (!drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo.HasValue)
-                return;
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo!.Value.CurrentExScore, Is.EqualTo(0));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo!.Value.MaximumExScore, Is.EqualTo(2));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ExScoreProgressInfo!.Value.DjLevel, Is.EqualTo(BmsDjLevel.F));
             });
         }
 
@@ -590,7 +530,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.Null);
             });
 
-            assertGameplayFeedbackStateTargetState(drawableRuleset, null, 0, -1, false);
+            assertAdjustmentTargetState(drawableRuleset, null, 0, -1, false);
         }
 
         [Test]
@@ -611,7 +551,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawableRuleset.Playfield.LaneCovers.All(cover => !cover.IsFocused.Value), Is.True);
             });
 
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 1, 0, false);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 1, 0, false);
         }
 
         [Test]
@@ -636,7 +576,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Sudden));
             });
 
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Sudden, 3, 0, false);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Sudden, 3, 0, false);
 
             Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
             Assert.That(suddenMod.CoverPercent.Value, Is.EqualTo(251));
@@ -644,74 +584,23 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
             Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(1));
             Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Hidden));
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Hidden, 3, 1, false);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Hidden, 3, 1, false);
             Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
             Assert.That(hiddenMod.CoverPercent.Value, Is.EqualTo(251));
 
             Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
             Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(2));
             Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Lift));
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 3, 2, false);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Lift, 3, 2, false);
             Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
             Assert.That(liftMod.LiftUnits.Value, Is.EqualTo(251));
 
             Assert.That(drawableRuleset.CycleGameplayAdjustmentTarget(), Is.True);
             Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(0));
             Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(BmsGameplayAdjustmentTarget.Sudden));
-            assertGameplayFeedbackStateTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Sudden, 3, 0, false);
+            assertAdjustmentTargetState(drawableRuleset, BmsGameplayAdjustmentTarget.Sudden, 3, 0, false);
             Assert.That(drawableRuleset.AdjustGameplayAdjustment(1), Is.True);
             Assert.That(suddenMod.CoverPercent.Value, Is.EqualTo(252));
-        }
-
-        [Test]
-        public void TestLatestJudgementFeedbackTracksTimingAndIgnoresNonBasicResults()
-        {
-            var beatmap = createPlayableBeatmap();
-            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap, null);
-            var playableHitObject = beatmap.HitObjects.OfType<BmsHitObject>().First();
-            var expectedEmptyPoorFeedback = new BmsJudgementTimingFeedback(HitResult.Ok, 0, false);
-
-            drawableRuleset.HandleGameplayJudgementResult(createResult(playableHitObject, HitResult.Perfect, -3.2));
-
-            Assert.That(drawableRuleset.LatestJudgementFeedback.Value.HasValue, Is.True);
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.Result, Is.EqualTo(HitResult.Perfect));
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.TimeOffset, Is.EqualTo(-3.2).Within(0.001));
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.ShowsTimingDirection, Is.True);
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.LatestJudgementFeedback, Is.EqualTo(drawableRuleset.LatestJudgementFeedback.Value));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.TimingFeedbackVisualRange, Is.EqualTo(drawableRuleset.TimingFeedbackVisualRange.Value));
-            });
-
-            drawableRuleset.HandleGameplayJudgementResult(createResult(new BmsEmptyPoorHitObject(), HitResult.Ok));
-
-            Assert.That(drawableRuleset.LatestJudgementFeedback.Value.HasValue, Is.True);
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.Result, Is.EqualTo(expectedEmptyPoorFeedback.Result));
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.TimeOffset, Is.EqualTo(expectedEmptyPoorFeedback.TimeOffset).Within(0.001));
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.ShowsTimingDirection, Is.EqualTo(expectedEmptyPoorFeedback.ShowsTimingDirection));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.LatestJudgementFeedback, Is.EqualTo(drawableRuleset.LatestJudgementFeedback.Value));
-            });
-
-            drawableRuleset.HandleGameplayJudgementResult(createResult(playableHitObject, HitResult.ComboBreak, 12));
-
-            Assert.That(drawableRuleset.LatestJudgementFeedback.Value.HasValue, Is.True);
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.Result, Is.EqualTo(expectedEmptyPoorFeedback.Result));
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.TimeOffset, Is.EqualTo(expectedEmptyPoorFeedback.TimeOffset).Within(0.001));
-                Assert.That(drawableRuleset.LatestJudgementFeedback.Value!.Value.ShowsTimingDirection, Is.EqualTo(expectedEmptyPoorFeedback.ShowsTimingDirection));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.LatestJudgementFeedback, Is.EqualTo(drawableRuleset.LatestJudgementFeedback.Value));
-            });
-
-            Assert.That(drawableRuleset.RecentJudgementFeedbacks, Has.Count.EqualTo(1));
-            Assert.Multiple(() =>
-            {
-                Assert.That(drawableRuleset.RecentJudgementFeedbacks[0].Result, Is.EqualTo(HitResult.Perfect));
-                Assert.That(drawableRuleset.RecentJudgementFeedbacks[0].TimeOffset, Is.EqualTo(-3.2).Within(0.001));
-                Assert.That(drawableRuleset.RecentJudgementFeedbacks[0].ShowsTimingDirection, Is.True);
-            });
         }
 
         [Test]
@@ -765,28 +654,15 @@ namespace osu.Game.Rulesets.Bms.Tests
             return (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
         }
 
-        private static JudgementResult createResult(HitObject hitObject, HitResult hitResult, double? timeOffset = null)
-        {
-            var result = new JudgementResult(hitObject, hitObject.CreateJudgement())
-            {
-                Type = hitResult,
-            };
-
-            if (timeOffset.HasValue)
-                result.TimeOffset = timeOffset.Value;
-
-            return result;
-        }
-
-        private static void assertGameplayFeedbackStateTargetState(DrawableBmsRuleset drawableRuleset, BmsGameplayAdjustmentTarget? expectedTarget, int expectedCount,
-                                                                   int expectedIndex, bool expectedTemporaryOverride)
+        private static void assertAdjustmentTargetState(DrawableBmsRuleset drawableRuleset, BmsGameplayAdjustmentTarget? expectedTarget, int expectedCount,
+                                                        int expectedIndex, bool expectedTemporaryOverride)
         {
             Assert.Multiple(() =>
             {
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ActiveAdjustmentTarget, Is.EqualTo(expectedTarget));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.EnabledAdjustmentTargetCount, Is.EqualTo(expectedCount));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.ActiveAdjustmentTargetIndex, Is.EqualTo(expectedIndex));
-                Assert.That(drawableRuleset.GameplayFeedbackState.Value.IsAdjustmentTargetTemporarilyOverridden, Is.EqualTo(expectedTemporaryOverride));
+                Assert.That(drawableRuleset.ActiveAdjustmentTarget.Value, Is.EqualTo(expectedTarget));
+                Assert.That(drawableRuleset.EnabledAdjustmentTargetCount.Value, Is.EqualTo(expectedCount));
+                Assert.That(drawableRuleset.ActiveAdjustmentTargetIndex.Value, Is.EqualTo(expectedIndex));
+                Assert.That(drawableRuleset.IsAdjustmentTargetTemporarilyOverridden.Value, Is.EqualTo(expectedTemporaryOverride));
             });
         }
     }

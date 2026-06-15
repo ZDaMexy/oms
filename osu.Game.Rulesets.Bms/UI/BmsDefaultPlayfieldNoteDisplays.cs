@@ -48,7 +48,8 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             Anchor = Anchor.Centre;
             Origin = Anchor.Centre;
-            Width = 0.42f;
+            // Long-note body width: 0.525 = 0.42 + 25% (relative to the lane width).
+            Width = 0.525f;
             Alpha = 0.8f;
             Colour = BmsDefaultPlayfieldPalette.GetLongNoteBody(laneIndex, isScratch, keymode);
         }
@@ -60,6 +61,11 @@ namespace osu.Game.Rulesets.Bms.UI
             : base(laneIndex, isScratch, keymode)
         {
             Colour = BmsDefaultPlayfieldPalette.GetLongNoteTail(laneIndex, isScratch, keymode);
+
+            // No distinct tail end-cap marker: the long-note body already spans the full hold up to the
+            // release end, so the default tail renders nothing (tail-less long-note look). Tail judgement
+            // is unaffected — this is the visual element only.
+            Alpha = 0;
         }
     }
 }

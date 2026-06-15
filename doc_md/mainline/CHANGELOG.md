@@ -7,6 +7,26 @@
 
 ## 2026-06-15
 
+### BMS 默认皮肤几何二调：宽度回宽 10%、SCRATCH = 键轨 2 倍、音符贴顶无空隙（视觉默认，P1-A）
+
+承接上一条几何调整再按用户口径微调：① **整体宽度 +10%**——`PlayfieldWidth` 系数 `0.75 → 0.825`（即原始 ×0.75 后再 ×1.1，覆盖上一条的 0.75）；② **SCRATCH 轨 = 键轨 1.5 倍宽**——`ScratchLaneRelativeWidth` `1.25 → 1.5`（先定 2 倍，随即按口径再缩 25% 落到 1.5；lane 按相对宽归一化分配，scratch 占 1.5 份、key 占 1 份）；③ **音符贴屏幕顶、无空隙**——playfield 容器由居中改为 **顶部锚定**（`BmsPlayfield` 初始 + `applyPlayfieldStyle` 的 P1/P2/居中三态同步改 `Top*`），并 `PlayfieldHeight 0.9 → 0.95`，使顶边贴屏幕顶（音符从顶部出现）、底边/判定线仍停在 95% 屏高（位置不变）。判定时序不变（GN = 可见时间 = TimeRange，与场高无关）。同步更新测试：`BmsLaneLayoutTest`（14K 宽 0.6→0.66、高 0.9→0.95）、`TestSceneBmsPlayfieldLayoutConfig`（8 轨宽 0.36→0.396、高→0.95、scratch 1.25→1.5、实测 scratch:key 比 1.25→1.5、lane 高占比 0.9→0.95）。验证：BMS 全套 **907/907**、Release 0 错误。音符厚度 +25%、长条身宽 +25%（上一条）保持不变。
+
+### BMS 默认皮肤：单轨/音符宽度 −25%、音符厚度 +25%、长条身宽 +25%（视觉默认，P1-A）
+
+按用户口径调默认 BMS playfield/note 几何：① **所有单轨宽度 −25%**（音符随轨自动 −25%）——lane 物理宽 = 归一化占比 × `PlayfieldWidth`，故 `BmsPlayfieldLayoutProfile.CreateDefault` 的 `playfieldWidth` 默认乘 `0.75`（整条 playfield 连同 lane/音符按比例收窄 25%，不引入新间隙）；② **音符厚度 +25%**——`DrawableBmsHitObject` 的音符条高 `18 → 22.5`（覆盖普通音符与长条头/尾盖；长条父件的 `28` 是非时长 fallback、被滚动容器按 hold 长覆盖，不是可见厚度，保持不动）；③ **长条身宽 +25%**——`DefaultBmsLongNoteBodyDisplay.Width` `0.42 → 0.525`（相对 lane 宽）。**仅几何/视觉**，判定/计分/滚动链路不变。同步更新锁这些值的测试：`BmsLaneLayoutTest`（14K PlayfieldWidth 0.8→0.6）、`TestSceneBmsPlayfieldLayoutConfig`（8 轨 0.48→0.36）、`BmsSkinTransformerTest`（长条身宽 0.42→0.525 ×2）。验证：BMS 全套 **907/907**、Release 0 错误。
+
+### BMS 默认皮肤：长条去掉尾端标识（视觉默认，P1-A）
+
+按用户口径把 BMS 默认皮肤长条改成「无尾巴标识」样式：`DefaultBmsLongNoteTailDisplay`（长条释放端的全宽亮色端盖）现 `Alpha = 0`。长条 body（细半透明竖条）本就由父 drawable 按 hold 时长被滚动容器拉满整段，故隐藏尾盖后 body 仍延伸到释放端、不留空缺——头端亮盖 + body 延伸、无尾盖，符合目标样式。**仅视觉**：tail 仍是判定对象，`DrawableBmsHoldNoteTail` 判定/计分链不受影响；`LongNoteTail` skin 组件与 `GetLongNoteTail` 调色仍保留，皮肤作者仍可覆盖出自己的尾端表现。验证：`BmsSkinTransformerTest` + `BmsDrawableRulesetTest` **163/163**、Release 0 错误。
+
+### 移除 BMS 常驻速度反馈卡（产品决定）+ 修复右侧 COMBO BREAK 计数器（P1-C / P1-A）
+
+两项用户驱动改动。**① 移除常驻速度反馈卡** `DefaultBmsSpeedFeedbackDisplay`（即游玩中右上「GN/WN/FAST·SLOW/PAC/LIVE」卡）及其**专属反馈子系统**——玩家不再使用（按住调整键调挡板时浮窗已显示速度信息）。删前审查确认该卡是唯一显示载体、`BmsGameplayFeedbackState` 子系统仅服务于它。删除：卡 + `BmsGameplayFeedbackState`/`BmsTimingOffsetSparkline`/`BmsExScoreProgressInfo`/`BmsExScorePacemakerInfo`/`BmsJudgementCounts`/`BmsJudgementTimingFeedback`、`BmsSkinComponents.SpeedFeedback` 与 transformer 接线、`IBmsHudLayoutDisplayWithGameplayFeedback` 变体与 overlay 包装、`DrawableBmsRuleset` 的 `GameplayFeedbackState`/`LatestJudgementFeedback`/`RecentJudgementFeedbacks`/`TimingFeedbackVisualRange`/`ExScorePacemakerInfo` 暴露面与 pacemaker/timing 管线，连带对应测试。**功能影响**：游戏内不再有 FAST/SLOW 逐 note 计时、timing sparkline、EX pacemaker、EX progress、LIVE PERFECT/FC；判定计数改由右侧 7 计数器承担。**保留**：`SpeedMetrics`（pre-start 预览）、调整目标状态/lane cover focus、toast、BGA miss-flash、judgement 基线摆位。**② 修复右侧 `JudgementCounterDisplay` 的 COMBO BREAK 计数器游玩中恒为 0**：`HitResult.ComboBreak` 是 `BmsScoreProcessor` 派生统计（断连时旁路 +1），从不经 `NewJudgement` 按 type 流过，而 `JudgementCountController` 旧逻辑按 `judgement.Type` 自增；修复＝改为每次判定从 `ScoreProcessor.Statistics` 全量同步各计数器（统计先于事件更新，对 mania 行为中性）。**与上一条 6-15 条目的衔接**：上一条给 `DefaultBmsSpeedFeedbackDisplay` 补的无参构造已随本次整删作废，但 `SerialisedDrawableInfo.GetAllAvailableDrawables` 的「必须有公开无参构造」防御性收口独立保留、仍有效。验证：BMS 全套 **907/907**、`osu.Desktop.slnf` Release 0 错误（仅运行中游戏的 dll 拷贝锁，编译 0 错）。详见 [P1-C CHANGELOG](../subline/P1-C/CHANGELOG.md) 与 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-06-15。
+
+### 修复：皮肤布局编辑器在 BMS 下报错（`DefaultBmsSpeedFeedbackDisplay` 无无参构造）
+
+用户实机日志暴露皮肤编辑器进 BMS gameplay 时两处报错，同一根因。**根因**：`DefaultBmsSpeedFeedbackDisplay`（P1-C 速度反馈卡）实现 `ISerialisableDrawable`，但唯一构造函数是**全可选参数**形式 `(IBindable?=null, IBindableList?=null)`——C# 允许 `new X()`，但 `Activator.CreateInstance(type)` 只认**真正零参**构造，全可选签名不匹配，抛 `MissingMethodException`。后果：① 编辑器组件 toolbox 反射枚举 BMS 程序集全部 `ISerialisableDrawable` 并逐个实例化时崩在它上（`SkinComponentToolbox.attemptAddComponent`）；② `SkinnableContainer.Reload` 会把 transformer 注入的 HUD 子件（gauge/combo/**speed feedback**）当作 `Components` 序列化进用户皮肤，重载时 `SerialisedDrawableInfo.CreateInstance` 重建该卡失败（其姊妹 `BmsGaugeBar`/`BmsComboCounter` 都有无参构造、能正常往返，唯独它不能）。**修复**：① 给 `DefaultBmsSpeedFeedbackDisplay` 补显式无参构造（链到现有双参构造，双参去掉可选默认值；唯一双参调用点是测试，零参调用点是 transformer，均不受影响）——既修 toolbox 崩溃，又让已存皮肤里的该卡按序列化位置自愈重建；② 防御性收口：`SerialisedDrawableInfo.GetAllAvailableDrawables` 增加"必须有公开无参构造"过滤，编辑器今后永不再把无法实例化的 `ISerialisableDrawable` 喂进 toolbox（对所有 ruleset 生效）。**未改**：`IsEditable` 保持与 gauge/combo 一致（默认可编辑），不改编辑器可选面语义；BGA 视频 `VideoDecoder faulted`、缺失 jacket 等日志属被预览谱面自身、非编辑器缺陷，且已优雅降级，本次不在范围。验证：`BmsSkinTransformerTest` + `TestSceneBmsSpeedFeedbackDisplay` 焦点 **121/121**，`osu.Desktop.slnf` Release **0 错误**。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-06-15。
+
 ### BGA Phase 5.1：老式视频外部 ffmpeg 转码播放（opt-in；P1-L）
 
 承接 BGA 落地后的实测——框架捆绑 FFmpeg 打不开老式 MPEG-1 `.mpg`（及 `.wmv/.avi/.flv`），此前回退静态图。新增 `BmsBgaVideoCache`（opt-in `BgaVideoTranscode` 开关，默认开）用**用户自备的外部 ffmpeg**（PATH 或放进数据目录；OMS 不分发）把这类视频后台转 H.264 `.mp4` 缓存到 `<dataRoot>/bga-video-cache/`，`BmsBgaPlayer` 预热转码 + 转好后本场热替换；无 ffmpeg/关闭/失败＝静态图回退（无回归），`.mp4` 谱不受影响。新增 `BmsBgaVideoCacheTest` 13；BMS **946/946**、Release 0 错。详见 [P1-L Phase 5.1](../subline/P1-L/) + [约束 5.1](../subline/P1-L/TECHNICAL_CONSTRAINTS.md)。实机端到端需用户装 ffmpeg 后验。
