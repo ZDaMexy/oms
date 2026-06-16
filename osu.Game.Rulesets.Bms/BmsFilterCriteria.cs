@@ -44,12 +44,18 @@ namespace osu.Game.Rulesets.Bms
 
             if (hasCompositionFilter())
             {
-                filterStats = beatmapInfo.Metadata.GetChartFilterStats() ?? BmsChartFilterStatsBackfill.GetCachedStats(beatmapInfo.ID);
+                // Prefer the backfill cache (populated off the filter loop from authoritative Realm data) and only fall
+                // back to the snapshot's own RulesetDataJson, which may be stale on detached carousel snapshots.
+                var cached = BmsChartFilterStatsBackfill.GetCachedStats(beatmapInfo.ID);
+                var snapshot = beatmapInfo.Metadata.GetChartFilterStats();
+                filterStats = cached ?? snapshot;
 
                 // Keep runtime filter loops off working-beatmap I/O, but still allow tests to exercise
                 // the backfill contract through the dedicated resolver path.
                 if (filterStats == null && BmsChartFilterStatsBackfill.TestResolver != null)
                     filterStats = BmsChartFilterStatsBackfill.GetOrBackfill(beatmapInfo);
+
+                BmsChartFilterStatsBackfill.RecordCompositionMatchDiagnostic(cached != null, snapshot != null);
             }
 
             // Missing stats should not silently hide beatmaps from composition filters.

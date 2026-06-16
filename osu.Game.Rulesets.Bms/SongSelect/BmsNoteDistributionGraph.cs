@@ -14,6 +14,7 @@ using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using osu.Game.Beatmaps;
@@ -22,6 +23,7 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Overlays;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Bms.Objects;
@@ -50,9 +52,9 @@ namespace osu.Game.Rulesets.Bms.SongSelect
         }
 
         [BackgroundDependencyLoader]
-        private void load(BeatmapManager beatmapManager, RealmAccess realmAccess)
+        private void load(BeatmapManager beatmapManager, RealmAccess realmAccess, Storage storage, INotificationOverlay notifications)
         {
-            BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess);
+            BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess, storage, notifications);
 
             InternalChild = panel = new SkinnableNoteDistributionPanelDisplay
             {

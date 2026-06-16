@@ -14,6 +14,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.IO.Stores;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Legacy;
@@ -22,6 +23,7 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Localisation;
 using osu.Game.Online.Leaderboards;
+using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
@@ -513,7 +515,7 @@ namespace osu.Game.Rulesets
         /// Rulesets that require early initialisation (e.g. backfill of per-beatmap statistics)
         /// should override this method.
         /// </summary>
-        public virtual void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Action? onCacheUpdated = null) { }
+        public virtual void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Storage storage, INotificationOverlay notifications, Action? onCacheUpdated = null) { }
 
         /// <summary>
         /// Returns the song select sorting modes that should be exposed for this ruleset.

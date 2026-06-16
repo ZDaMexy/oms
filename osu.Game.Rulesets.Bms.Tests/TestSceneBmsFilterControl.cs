@@ -6,6 +6,7 @@ using NUnit.Framework;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Screens.Select;
 using osuTK;
@@ -145,6 +146,25 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             AddAssert("RC lower bound increased", () => compositionControl.RegularRow.LowerBound.Value > 1);
             AddAssert("RC row enabled by drag", () => compositionControl.RegularRow.Enabled.Value);
+        }
+
+        [Test]
+        public void TestLateCacheSubscriberStillReceivesRefresh()
+        {
+            SelectBmsRuleset();
+            // Loading song select wires the FilterControl, which starts the stats backfill (and registers its own
+            // cache-updated callback). This claims the one-time bootstrap.
+            LoadSongSelect();
+
+            bool lateCallbackInvoked = false;
+
+            // Simulates the beatmap-details graph (or any later caller) re-entering Initialise. The old static guard
+            // returned early and silently dropped this callback; the backfill must now still register and immediately
+            // refresh the late subscriber so its composition filter picks up the already-populated cache.
+            AddStep("register late cache subscriber", () =>
+                BmsChartFilterStatsBackfill.Initialise(Beatmaps, Realm, storage: null, notifications: null, onCacheUpdated: () => lateCallbackInvoked = true));
+
+            AddAssert("late subscriber refreshed immediately", () => lateCallbackInvoked);
         }
 
         private static BeatmapInfo createBeatmap(int keyCount, int regular, int longNote, int scratch)

@@ -17,6 +17,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Configuration;
@@ -105,12 +106,12 @@ namespace osu.Game.Screens.Select
         private IDisposable? collectionsSubscription;
 
         [BackgroundDependencyLoader]
-        private void load(IAPIProvider api, BeatmapManager beatmapManager, RealmAccess realmAccess)
+        private void load(IAPIProvider api, BeatmapManager beatmapManager, RealmAccess realmAccess, Storage storage, INotificationOverlay notifications)
         {
             // Ensure ruleset-specific one-time setup (e.g. stats backfill initialisation) runs before
             // the first filter operation fires in SongSelect.LoadComplete(). Also re-runs if the user
             // switches rulesets while on song select.
-            ruleset.BindValueChanged(r => r.NewValue?.CreateInstance().OnSongSelectSetup(beatmapManager, realmAccess, () =>
+            ruleset.BindValueChanged(r => r.NewValue?.CreateInstance().OnSongSelectSetup(beatmapManager, realmAccess, storage, notifications, () =>
             {
                 // Called from the background backfill task every ~100 computations.
                 // Schedule on the game thread so updateCriteria() runs safely.

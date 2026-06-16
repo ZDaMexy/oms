@@ -467,6 +467,66 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestLightweightChartFilterStatsMatchFullConversion()
+        {
+            // The backfill fast path counts RC/LN/SCR straight off the decoded chart (no full playable conversion).
+            // This locks that it is byte-for-byte equivalent to the authoritative BmsChartFilterStats.FromBeatmap over a
+            // fully converted beatmap — the whole optimization is only safe because note classification depends solely
+            // on AutoPlay (BGM exclusion) and BmsBeatmapConverter.IsScratchLane, which both paths share.
+            const string text = @"
+#TITLE Equivalence
+#ARTIST OMS
+#BPM 150
+#LNOBJ ZZ
+#00101:CC00
+#00111:AA00ZZ00
+#00112:DD00
+#00116:FF00
+";
+            using var fullStream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+            using var lightStream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+
+            var full = BmsChartFilterStats.FromBeatmap(BmsImportedBeatmapFactory.Create(fullStream, "equivalence.bms"));
+            var light = BmsChartFilterStatsBackfill.ComputeFromDecodedChart(BmsImportedBeatmapFactory.DecodeChart(lightStream, "equivalence.bms"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(light, Is.EqualTo(full), "lightweight decode-only count must equal the full-conversion count");
+                Assert.That(full.TotalPlayableObjectCount, Is.EqualTo(3), "3 playable objects; the channel-01 BGM must be excluded");
+                Assert.That(full.LongNoteCount, Is.EqualTo(1), "the channel-11 LNOBJ pair is one long note");
+            });
+        }
+
+        [Test]
+        public async Task TestChartFilterStatsBackfillQueryDoesNotThrowAgainstRealm()
+        {
+            // Regression: Phase 1 of the composition-filter stats backfill used to run
+            // `r.All<BeatmapInfo>().Where(b => b.Ruleset.ShortName == "bms")` directly on Realm's IQueryable, which
+            // Realm cannot translate ("The left-hand side of the Equal operator must be a direct access to a persisted
+            // property"). The exception aborted Phase 1, left the cache empty AND skipped Phase 2 — so the composition
+            // filter silently fail-opened across the entire library. This locks the query against a REAL realm.
+            using var storage = new TemporaryNativeStorage($"bms-filter-backfill-query-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+
+            string importRoot = createImportSource(storage, "filter-backfill-query");
+            var importer = new BmsFolderImporter(storage, realm);
+
+            await importer.Import(new ImportTask(importRoot)).ConfigureAwait(false);
+
+            var bmsBeatmaps = realm.Run(r => BmsChartFilterStatsBackfill.EnumerateBmsBeatmaps(r)
+                                                                        .Select(b => (b.ID, stats: b.Metadata.GetChartFilterStats()))
+                                                                        .ToList());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bmsBeatmaps, Has.Count.EqualTo(1), "the imported BMS beatmap must be visible to the backfill query");
+                Assert.That(bmsBeatmaps.Single().stats, Is.Not.Null, "import-time persistence must leave readable chart-filter-stats for Phase 1 to cache");
+                Assert.That(bmsBeatmaps.Single().stats!.RegularNoteCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task TestManagedDirectoryReuseReappliesDifficultyTableMetadata()
         {
             using var storage = new TemporaryNativeStorage($"bms-managed-reuse-table-{Guid.NewGuid():N}");

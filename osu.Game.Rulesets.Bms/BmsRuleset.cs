@@ -30,12 +30,14 @@ using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.Replays.Types;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Overlays;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Skinning;
 using osu.Framework.Bindables;
+using osu.Framework.Platform;
 using oms.Input;
 
 namespace osu.Game.Rulesets.Bms
@@ -203,8 +205,8 @@ namespace osu.Game.Rulesets.Bms
 
         public override IRulesetFilterCriteria CreateRulesetFilterCriteria() => new BmsFilterCriteria();
 
-        public override void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Action? onCacheUpdated = null)
-            => BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess, onCacheUpdated);
+        public override void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Storage storage, INotificationOverlay notifications, Action? onCacheUpdated = null)
+            => BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess, storage, notifications, onCacheUpdated);
 
         public override IReadOnlyList<SortMode> GetAvailableSongSelectSortModes() =>
         [

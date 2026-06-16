@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06-16
+
+### 修复 BMS 选歌「谱面构成」过滤大曲库"失效" + Phase 2 backfill 性能/UX 全面收口（P1-I）
+
+用户报「谱面构成」(RC/LN/SCR) 过滤在 ~5.8 万谱面库下完全无效，一整轮日志驱动调试后定位真因并收口，用户实测确认正常。**真因（用户 database.log 确诊）**：`BmsChartFilterStatsBackfill` 的 Phase 1 在 Realm `IQueryable` 上比较 link-traversal 属性 `b.Ruleset.ShortName`，Realm LINQ provider 翻译不了抛异常 → 被 `catch` **静默吞掉** → 缓存恒空 + `missingIds==0` 使 Phase 2 整体跳过 → 过滤全库 fail-open。修复＝`EnumerateBmsBeatmaps` 用 `.AsEnumerable()` 内存求值。**性能/UX 收口**：旧库（2026-05-11 导入持久化前）首轮 Phase 2 大规模补算曾致选歌卡顿——逐层定位到真瓶颈是逐张走 `BeatmapManager.GetWorkingBeatmap`（进程级 `lock(workingCache)` 与 UI 同抢、阻塞 update 线程），改为**直读 .bms 旁路**（`computeStatsDirect`）+ **轻量计数解码**（`ComputeFromDecodedChart`，与完整转谱可证等价）+ **批量写回**（~5万微事务→几百个）+ **一次性进度通知**（`ProgressNotification`）+ re-filter 20s 节流 + 诊断日志降 `Verbose`。**核心 API 变更**：`Ruleset.OnSongSelectSetup` 签名加 `Storage` + `INotificationOverlay` 两参（OMS 自有方法，非上游；`FilterControl` / `BmsNoteDistributionGraph` 从 DI 传入）。**沉淀的全局教训**：① Realm 查询禁止在 `IQueryable` 上比较 link-traversal 属性（先 `.AsEnumerable()`）；② 后台 `catch` 必须记日志（否则链路级崩溃表现为"无声失效"）；③ 大批量后台处理禁止逐张走 `GetWorkingBeatmap`（全局锁阻塞 UI，要批处理就直读文件）。06-15 当日"主因=回调竞态"判断被本轮推翻（仍是真实但次要缺陷，保留）。验证：BMS 全套 **910/910**（新增 3 条 backfill 回归）、`osu.Desktop.slnf` Debug 0 错误。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-16 与 [P1-I 约束 #8–#15](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+---
+
 ## 2026-06-15
 
 ### BMS 默认皮肤几何二调：宽度回宽 10%、SCRATCH = 键轨 2 倍、音符贴顶无空隙（视觉默认，P1-A）

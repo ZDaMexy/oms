@@ -81,11 +81,11 @@
 3. 百分比默认从计数派生，公式固定为 `count / max(1, total_playable) * 100`；除非后续证明有缓存收益，不把三段百分比再单独当 authority 字段持久化。
 4. 新谱面写入链首轮优先落在 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsImportedBeatmapFactory.cs) 与 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)；这样 raw working beatmap、导入后 `BeatmapInfo.Metadata` 与 reuse path 能共享同一 truth。
 5. 在 import / rebuild / reuse 命中旧 set 的链路里同步写入这份 metadata；不得把 authority 留在仅供详情面板使用的 runtime analyzer cache。
-6. 为已存在且缺失新字段的 BMS 谱面准备 backfill 路径；目标是让用户不需要手工重导整个谱库才能使用新筛选。
-7. backfill 首轮优先顺序固定为：
-   - 先打通 managed/external rebuild 与 reuse 自愈
-   - 再决定是否补 one-shot batch backfill
-   - 不把第一次实现绑定到 startup 全库扫描
+6. 为已存在且缺失新字段的 BMS 谱面准备 backfill 路径；目标是让用户不需要手工重导整个谱库才能使用新筛选。**（2026-06-16 已落地并经用户实测）** `BmsChartFilterStatsBackfill` 进 BMS 选歌时后台 Phase 1（读已持久化）+ Phase 2（缺失谱直读 .bms 轻量计数补算 + 批量写回 + 进度通知），无需手工重导；旧库首轮渐进收敛、补齐一次后永久。实现细节与硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) read-model #8–#15 与 [CHANGELOG.md](CHANGELOG.md) 2026-06-16。
+7. ~~backfill 首轮优先顺序~~ **（已定调，2026-06-16）**：
+   - managed/external rebuild 与 reuse 自愈已打通；
+   - one-shot batch backfill = 进 BMS 选歌时的后台 Phase 2（直读旁路，避开 `GetWorkingBeatmap` 全局锁），配一次性 `ProgressNotification` 让用户可见；
+   - 未绑定 startup 全库扫描——只在进入 BMS 选歌时触发、且只补 Realm 中真正缺 stats 的谱。
 
 验收：
 

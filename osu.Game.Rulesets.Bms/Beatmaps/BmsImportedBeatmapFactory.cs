@@ -12,6 +12,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private static readonly BmsBeatmapDecoder decoder = new BmsBeatmapDecoder();
         private static readonly BmsRuleset ruleset = new BmsRuleset();
 
+        /// <summary>
+        /// Decodes the raw BMS chart structure ONLY (channel/note events), skipping the expensive playable conversion
+        /// (timeline D(t) walk, keysound materialisation, mines/BGA/scroll profile, ApplyDefaults). Used by the
+        /// chart-filter-stats backfill, which only needs note counts and must not pay the full <see cref="Create"/> cost
+        /// across a large library.
+        /// </summary>
+        internal static BmsDecodedChart DecodeChart(Stream stream, string filename) => decoder.Decode(stream, filename);
+
         public static BmsDecodedBeatmap Create(Stream stream, string filename)
         {
             var decodedChart = decoder.Decode(stream, filename);

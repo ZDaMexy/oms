@@ -156,7 +156,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     KeysoundId = objectEvent.ObjectId,
                     KeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, objectEvent.ObjectId, keysoundCache),
                     Keymode = decodedChart.BeatmapInfo.Keymode,
-                    IsScratch = isScratchLane(decodedChart.BeatmapInfo.Keymode, objectEvent.Channel),
+                    IsScratch = IsScratchLane(decodedChart.BeatmapInfo.Keymode, objectEvent.Channel),
                     AutoPlay = false,
                 });
             }
@@ -178,7 +178,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     TailKeysoundId = longNoteEvent.TailObjectId,
                     TailKeysoundSample = createKeysoundSample(decodedChart.BeatmapInfo, longNoteEvent.TailObjectId, keysoundCache),
                     Keymode = decodedChart.BeatmapInfo.Keymode,
-                    IsScratch = isScratchLane(decodedChart.BeatmapInfo.Keymode, longNoteEvent.LaneChannel),
+                    IsScratch = IsScratchLane(decodedChart.BeatmapInfo.Keymode, longNoteEvent.LaneChannel),
                     AutoPlay = false,
                 });
             }
@@ -583,7 +583,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             return channel - 0x11;
         }
 
-        private static bool isScratchLane(BmsKeymode keymode, int channel)
+        /// <summary>
+        /// Authoritative scratch-lane classifier shared by note conversion and the lightweight chart-filter-stats
+        /// counting path (<see cref="BmsChartFilterStatsBackfill.ComputeFromDecodedChart"/>). Both must agree, so this is
+        /// the single source of truth — do not duplicate the channel rule elsewhere.
+        /// </summary>
+        internal static bool IsScratchLane(BmsKeymode keymode, int channel)
         {
             if (keymode == BmsKeymode.Key5K || keymode == BmsKeymode.Key7K)
                 return channel == 0x16;

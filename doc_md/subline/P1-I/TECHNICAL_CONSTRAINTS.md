@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-18
+> 最后更新：2026-06-16
 > 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -25,12 +25,28 @@
 
 ## read-model 约束
 
+> 8–15 是 2026-06-16 那一轮"失效"根因 + 性能/UX 收口沉淀的 backfill 硬约束；过程见 [CHANGELOG.md](CHANGELOG.md) 2026-06-16。
+
+### 持久化 authority
+
 1. RC/LN/SCR 过滤 authority 必须是同步可读的 persisted metadata ruleset-data；不得在 carousel 过滤阶段为每张候选谱面即时加载 playable beatmap 或重新跑 runtime analyzer。
 2. 新 filter stats 必须在 import / rebuild / reuse 命中旧 set 的链路里一起写入；不得只在新导入谱面可用、旧谱面永远缺失。
-3. 旧谱面缺失 filter stats 时，必须通过 backfill、重扫或等价路径补齐；在缺口未补齐前，不得 silently 把谱面错误过滤掉，也不得伪造默认 `0%` 参与匹配。
+3. 旧谱面缺失 filter stats 时，必须通过 backfill、重扫或等价路径补齐；在缺口未补齐前，不得 silently 把谱面错误过滤掉，也不得伪造默认 `0%` 参与匹配。**禁止把"自动补齐"退化成"要求用户人工重新导入"**：Phase 1 读已持久化 stats、Phase 2 后台自动补算并写回 Realm 是产品合同的一部分。
 4. 若扩展 `BmsBeatmapMetadataData`，必须继续与当前 `chart_metadata` / `difficulty_table_entries` 共存；不得破坏既有 JSON 结构的向后兼容读取。
 5. 新 filter stats 的 authority 必须是计数而不是预烘焙百分比；百分比默认由 `count / max(1, total_playable) * 100` 派生，避免双重 authority 漂移。
 6. Song Select / matcher 读取新字段时应优先走 `BmsBeatmapMetadataData` 的 typed helper；除非在 core 兼容层别无选择，不得在 filter 链直接手写 `JObject.Parse(RulesetDataJson)`。
+7. **匹配取值优先级**：`BmsFilterCriteria.Matches` 必须 `GetCachedStats(ID) ?? GetChartFilterStats()` —— 先用 `BmsChartFilterStatsBackfill` 预填充的权威缓存，detached carousel 快照的 `RulesetDataJson` 仅作兜底（它可能 stale）。不得反过来让快照覆盖缓存。
+
+### backfill 链路红线
+
+8. **Realm 查询红线**：backfill 枚举 BMS 谱面**不得**在 Realm `IQueryable` 上对 link-traversal 属性（`b.Ruleset.ShortName`）做比较——Realm LINQ provider 翻译不了会抛 `left-hand side ... must be a direct access to a persisted property`。必须先 `.AsEnumerable()` 切到内存求值（统一走 `BmsChartFilterStatsBackfill.EnumerateBmsBeatmaps(Realm)`）。此异常曾被静默 catch 导致 Phase 1 整体失败 + Phase 2 跳过（`missingIds==0`）+ 缓存恒空，使过滤对全库 fail-open。回归 `BmsImportIntegrationTest.TestChartFilterStatsBackfillQueryDoesNotThrowAgainstRealm` 用真实 Realm 锁住——mock 数据测不出此类翻译崩溃。
+9. **后台查询/补算的异常不得静默吞掉到无声失败**：`catch` 必须至少记日志（`LoggingTarget.Database`），否则像 #8 这样的链路级崩溃会表现为"功能整体失效但无任何报错"。
+10. **一次性 bootstrap 与回调登记必须解耦**：`Initialise` 有多个调用点（`FilterControl` 传 `onCacheUpdated`，`BmsNoteDistributionGraph` 不传）。一次性 bootstrap 只能跑一次，但**每个 distinct `onCacheUpdated` 都必须被登记、绝不能被"首个调用者独占 guard"吞掉**；bootstrap 已开始/已完成后登记的迟到订阅者必须被**立即 invoke 一次**以拿到已填充缓存（后台 `notifyCacheUpdated` 仅在一次性 backfill 期间 fan-out，结束后不再触发）。回归 `TestSceneBmsFilterControl.TestLateCacheSubscriberStillReceivesRefresh`。
+11. **cache-updated notify 必须节流**：每次 `notifyCacheUpdated()` 会让 song-select carousel 对全库做一次完整 match+sort+group+Y 重排（57k 量级单次 1–3s，跑在 update 线程）。Phase 1/2 的**周期性**刷新必须走 `notifyCacheUpdatedThrottled()`（当前 20s 一次），不得每 N 张就 notify（曾每 100 张 → 每 3.5s 重过滤 → update 线程 ~80% 占用 → 帧数骤降/卡死）。**阶段完成**路径仍直接 `notifyCacheUpdated()` 保证终态。
+12. **后台 backfill 的诊断日志默认 `LogLevel.Verbose`**（写文件、不冒通知 toast）；仅"链路级失败"（如 #8 的 Phase 1 整体崩）允许 `Important`。例行进度/抽样用 Important 会被 osu 通知系统冒成"类报错弹窗"，污染用户体验。
+13. **Phase 2 补算禁止逐张走 `BeatmapManager.GetWorkingBeatmap`**：`WorkingBeatmapCache.GetWorkingBeatmap` 在进程级 `lock (workingCache)` 内执行（song-select/carousel UI 同抢此锁）、`Detach()`、且 Debug 下逐张 Realm 读 hash。57k 次会在锁上串行化并阻塞 update 线程（实测速率被钉死 ~28 张/s、UI 卡顿，且与是否轻量 convert 无关）。必须**直读谱面文件夹的 .bms**（`computeStatsDirect`，复刻 `WorkingBeatmapCache.createResourceProvider`：external→`new NativeStorage(FilesystemStoragePath)`，managed→`gameStorage.GetStorageForDirectory(FilesystemStoragePath)`），仅在直读失败时回落 `GetWorkingBeatmap`。`Storage` 经 `Ruleset.OnSongSelectSetup(..., Storage, ...)` 注入，须与 `BeatmapManager` 同根（base data storage）否则 `chartbms/...` 解析失败。
+14. **轻量计数解码必须与完整转谱的计数可证等价**：Phase 2 走 `ComputeFromDecodedChart`（`DecodeChart` 只解码、不转谱）。正确性依赖硬不变量——note 的 RC/LN/SCR 分类**只**由 `BmsObjectEvent.AutoPlay`（BGM 排除）与 `BmsBeatmapConverter.IsScratchLane(keymode, channel)` 决定，且转换器把每个非 autoplay ObjectEvent / LongNoteEvent **1:1** 变成带相同分类的 `BmsHitObject`/`BmsHoldNote`。**scratch 分类只能有一个真源 `IsScratchLane`，禁止在计数路径另写通道规则**。若将来转换器改变 note 来源/分类（新增非 1:1 的 HitObject 生成、或按 lane 过滤丢弃 note），必须同步轻量计数并更新等价回归 `TestLightweightChartFilterStatsMatchFullConversion`。
+15. **一次性大批量 backfill 必须可见 + 低争用**：旧库首轮 Phase 2（~5万张）即使旁路 GetWorkingBeatmap 仍有可感负载。产品合同=要么流畅到不影响选歌、要么给**进度通知**。当前实现=Phase 2 起 `ProgressNotification`（done/total，完成转 Completed，`INotificationOverlay` 经 `OnSongSelectSetup` 注入，`missingIds==0` 不弹）+ Realm 写回**必须批量**（`flushPendingWrites`，每 `write_batch_size` 一个事务，`writeFlushLock` 串行），不得逐张开微事务争用游戏 realm。降本正道是直读旁路(#13)+轻量计数(#14)+批量写回，而非提高并行度或取消节流(#11)。
 
 ## 搜索语法约束
 

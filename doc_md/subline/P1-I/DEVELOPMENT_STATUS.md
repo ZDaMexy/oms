@@ -1,6 +1,6 @@
 # P1-I 开发进度：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-18
+> 最后更新：2026-06-16
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-I` 的真实进展。
 
 ## 当前阶段
@@ -18,13 +18,22 @@
 - 当 RC/LN/SCR 恰好填满 100% 时，向右拖拽共享边界优先消耗尾段容差，然后才压缩相邻右段；数值输入与外部 bindable 赋值仍走 clamp。
 - `ShearedButton.updateState()` 的 hover `Lighten(0.2f)` 要求底色非黑；`BmsCompositionRowButton` / `BmsKeyCountToggleButton` 非激活态已改用 `ColourProvider.Background3/Background1`。
 - RC=蓝(94,190,255)、LN=黄(255,212,92)、SCR=橙(255,119,86) 已是冻结配色；tooltip BMS 强调色已同步改为蓝色匹配 RC。
-- `BmsChartFilterStatsBackfill` 以 `Task.Run` 异步后台执行，每约 100 次计算通过 callback 触发 `Scheduler.AddOnce(() => updateCriteria())`。
+### backfill 当前合同（2026-06-16 收口，用户实测确认正常）
+
+> 本节是"当前仍有效的事实"。这一轮的根因定位/性能迭代全过程见 [CHANGELOG.md](CHANGELOG.md) 2026-06-16。
+
+- `BmsChartFilterStatsBackfill` 以 `Task.Run` 异步后台执行；刷新过滤的 cache-updated 回调走**订阅者列表**（不被 init 竞态吞掉，迟到订阅者立即 invoke 一次），且周期性刷新**时间节流 20s**（`notifyCacheUpdatedThrottled`），阶段完成仍直接刷新。
+- **Phase 1**（枚举已持久化 stats 填缓存）必须用 `EnumerateBmsBeatmaps(Realm)`——`.AsEnumerable()` 内存求值，**禁止**在 Realm `IQueryable` 上比较 link-traversal 属性 `b.Ruleset.ShortName`（会抛"left-hand side must be a direct access to a persisted property"，曾被静默 catch 导致整链失效）。
+- **Phase 2**（补算缺 stats 的旧库谱）= **直读 .bms**（`computeStatsDirect`，**禁逐张 `GetWorkingBeatmap`**——其进程级 `lock(workingCache)` 会和 UI 抢锁、阻塞 update 线程）+ **轻量计数解码**（`ComputeFromDecodedChart`，与完整转谱**可证等价**，`BmsBeatmapConverter.IsScratchLane` 唯一真源）+ **批量写回**（每 200 张一个 realm 事务）+ **进度通知**（`ProgressNotification` done/total，`missingIds==0` 不弹）。
+- `Matches` 取值 `GetCachedStats(ID) ?? GetChartFilterStats()`（缓存优先、快照兜底）；fail-open（缺 stats 不静默隐藏）不动；生产匹配路径不碰 working-beatmap I/O。
+- **自动化语义**：无需人工重导——Phase 1 读已持久化、Phase 2 后台自动补算并批量写回 Realm（跨会话持久）。旧库（2026-05-11 导入持久化前）首轮 Phase 2 补齐量大，过滤精度渐进收敛、有进度通知可见、补齐一次后永久。
+- 诊断埋点保留（全 `Verbose`/`LoggingTarget.Database`，仅 Phase 1 失败为 Important）：Phase 1 cached/missing、Phase 2 per-item 计时分桶、匹配抽样（5s 节流）。
 
 ## 当前验证基线
 
 - importer / statistics / criteria / BMS-only FilterControl 的首轮 focused suite 当前保持 **30/30**；相关 build gate 当前可通过。
 - `BmsFilterCriteriaTest` 当前保持 **4/4**，并已锁住公开搜索口径 `rc/rice` 与 `regular` 仅作兼容 alias 的合同。
-- 当前桌面构建保持 0 error；按日期展开的 UI 收口、Tooltip DI 修补与验证记录见 [CHANGELOG.md](CHANGELOG.md)。
+- **最近一次验证（2026-06-16）**：BMS 全量 **910/910** 通过，含 backfill 三条新增回归——`TestChartFilterStatsBackfillQueryDoesNotThrowAgainstRealm`（真实 Realm 锁 Phase 1 查询不崩）、`TestLateCacheSubscriberStillReceivesRefresh`（回调不被竞态吞掉）、`TestLightweightChartFilterStatsMatchFullConversion`（轻量计数 ≡ 完整转谱）；`osu.Desktop.slnf` Debug 0 error；用户实测确认过滤生效 + 选歌可用 + 进度通知显示。backfill 硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) read-model #8–#15。
 
 | 事项 | 状态 | 备注 |
 | --- | --- | --- |
@@ -46,4 +55,5 @@
 
 1. 为 `BmsCompositionFilterControl` 单轨拖拽语义补 headless 断言覆盖（边界拖拽、填满 100% 时尾段优先压缩）。
 2. 评估是否需要补充 shared visual gate（`TestSceneBeatmapFilterControl` BMS branch）。
-3. 评估是否需要追加 one-shot legacy backfill 工具链，而不是在启动路径硬塞全库扫描。
+3. （可选）若用户偏好"更慢但完全零卡顿"，给 Phase 2 加低优先级档（并行度降到 1 / 每张让一让 CPU），用更长总时间换零冲击——当前已有进度通知+直读+批量写回，旧库首轮已"够用不碍事"，此为取舍旋钮非必须项。
+4. （可选）诊断埋点（per-item 计时分桶）确认旁路稳定后可移除，保持后台路径精简。
