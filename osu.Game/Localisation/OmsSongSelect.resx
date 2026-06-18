@@ -8,4 +8,7 @@
   <data name="unmapped_external_library" xml:space="preserve"><value>Unmapped External Library</value></data>
   <data name="lamp_status" xml:space="preserve"><value>Lamp Status</value></data>
   <data name="achievement_rate" xml:space="preserve"><value>Achievement Rate</value></data>
+  <data name="display_level" xml:space="preserve"><value>Display Level</value></data>
+  <data name="display_level_songs" xml:space="preserve"><value>Songs → Difficulties</value></data>
+  <data name="display_level_difficulties" xml:space="preserve"><value>Difficulties</value></data>
 </root>

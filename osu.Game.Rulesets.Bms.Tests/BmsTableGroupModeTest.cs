@@ -11,6 +11,7 @@ using osu.Game.Collections;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms.DifficultyTable;
+using osu.Game.Rulesets.Bms.SongSelect;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
@@ -75,6 +76,51 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(groupedCopies.Length, Is.EqualTo(2));
                 Assert.That(groupedCopies.Select(copy => $"{copy.Group!.Parent!.Title}/{copy.Group.Title}"), Is.EquivalentTo(new[] { "Satellite/★1", "Stella/☆3" }));
                 Assert.That(results.Select(item => item.Model).OfType<GroupedBeatmapSet>().Count(), Is.EqualTo(0));
+            });
+        }
+
+        [Test]
+        public void TestGroupDefinitionsCacheReusesResultForIdenticalRulesetData()
+        {
+            var entry = new BmsDifficultyTableEntry("Satellite", "★", 1, "★1", "cache-shared-md5", 0);
+
+            var first = createBeatmap("Cache First", 1.4, entry);
+            var second = createBeatmap("Cache Second", 2.0, entry);
+
+            // identical table entries => identical RulesetData JSON => the same cached array instance is returned.
+            var firstGroups = BmsTableGroupMode.GetGroupDefinitions(first);
+            var secondGroups = BmsTableGroupMode.GetGroupDefinitions(second);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstGroups, Is.SameAs(secondGroups));
+                Assert.That(firstGroups.Last().Title.ToString(), Is.EqualTo("★1"));
+                // cached content must equal a fresh, uncached computation.
+                Assert.That(firstGroups.Select(group => group.Title.ToString()),
+                    Is.EqualTo(BmsTableGroupMode.ComputeGroupDefinitions(first).Select(group => group.Title.ToString())));
+            });
+        }
+
+        [Test]
+        public void TestGroupDefinitionsCacheIsStaleProofWhenEntriesChange()
+        {
+            var beatmap = createBeatmap("Cache Reassigned", 1.4,
+                new BmsDifficultyTableEntry("Satellite", "★", 1, "★1", "cache-reassign-md5", 0));
+
+            var before = BmsTableGroupMode.GetGroupDefinitions(beatmap).ToArray();
+
+            // changing the difficulty-table assignment rewrites RulesetData JSON => new cache key => fresh compute.
+            beatmap.Metadata.SetDifficultyTableEntries(new[]
+            {
+                new BmsDifficultyTableEntry("Stella", "☆", 3, "☆3", "cache-reassign-md5", 1),
+            });
+
+            var after = BmsTableGroupMode.GetGroupDefinitions(beatmap).ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(before.Last().Title.ToString(), Is.EqualTo("★1"));
+                Assert.That(after.Last().Title.ToString(), Is.EqualTo("☆3"));
             });
         }
 

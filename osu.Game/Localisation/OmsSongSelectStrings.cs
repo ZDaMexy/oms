@@ -38,6 +38,21 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString AchievementRate => new TranslatableString(getKey(@"achievement_rate"), @"Achievement Rate");
 
+        /// <summary>
+        /// "Display Level"
+        /// </summary>
+        public static LocalisableString DisplayLevel => new TranslatableString(getKey(@"display_level"), @"Display Level");
+
+        /// <summary>
+        /// "Songs → Difficulties"
+        /// </summary>
+        public static LocalisableString DisplayLevelSongs => new TranslatableString(getKey(@"display_level_songs"), @"Songs → Difficulties");
+
+        /// <summary>
+        /// "Difficulties"
+        /// </summary>
+        public static LocalisableString DisplayLevelDifficulties => new TranslatableString(getKey(@"display_level_difficulties"), @"Difficulties");
+
         private static string getKey(string key) => $@"{prefix}:{key}";
     }
 }

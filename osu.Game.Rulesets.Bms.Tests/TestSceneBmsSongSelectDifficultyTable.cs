@@ -21,6 +21,7 @@ using osu.Game.Overlays;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms.DifficultyTable;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Scoring;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Select;
@@ -77,6 +78,145 @@ namespace osu.Game.Rulesets.Bms.Tests
             SetTitleGrouping();
 
             assertRootLevelVisible("Z");
+        }
+
+        [Test]
+        public void TestCollapseExpandedGroupWalksUpHierarchy()
+        {
+            importDifficultyTableBeatmaps();
+            SelectBmsRuleset();
+            PreselectBeatmap("Satellite Song");
+            SetDifficultyTableGrouping();
+
+            LoadSongSelect();
+            SelectCurrentBeatmapInCarousel();
+
+            AddUntilStep("expanded group is leaf level", () => Carousel.CurrentExpandedGroup.Value?.Title.ToString(), () => Is.EqualTo("★1"));
+
+            AddStep("collapse one level", () => Carousel.CollapseExpandedGroupOneLevel());
+            AddUntilStep("expanded group is table root", () => Carousel.CurrentExpandedGroup.Value?.Title.ToString(), () => Is.EqualTo("Satellite"));
+            AddAssert("table root depth is 0", () => Carousel.CurrentExpandedGroup.Value?.Depth, () => Is.EqualTo(0));
+            AddUntilStep("cursor stays on the collapsed level group", GetKeyboardSelectedVisibleGroupTitle, () => Is.EqualTo("★1"));
+
+            AddStep("collapse to root", () => Carousel.CollapseExpandedGroupOneLevel());
+            AddUntilStep("no expanded group remains", () => Carousel.CurrentExpandedGroup.Value, () => Is.Null);
+            AddUntilStep("cursor stays on the collapsed table group", GetKeyboardSelectedVisibleGroupTitle, () => Is.EqualTo("Satellite"));
+        }
+
+        [Test]
+        public void TestExpandedTableHeaderSharesExpandedStateWithLevel()
+        {
+            importDifficultyTableBeatmaps();
+            SelectBmsRuleset();
+            PreselectBeatmap("Satellite Song");
+            SetDifficultyTableGrouping();
+
+            LoadSongSelect();
+            SelectCurrentBeatmapInCarousel();
+
+            // Expanding down to a level (★1) must also mark the ancestor table header (Satellite, depth 0)
+            // as expanded, so it shows its chevron and protrudes together with the level rather than the
+            // child sticking out past its parent.
+            AddUntilStep("level group is expanded", () => groupPanelExpanded("★1"), () => Is.True);
+            AddUntilStep("parent table header is expanded too", () => groupPanelExpanded("Satellite"), () => Is.True);
+
+            AddStep("collapse to root", () =>
+            {
+                Carousel.CollapseExpandedGroupOneLevel();
+                Carousel.CollapseExpandedGroupOneLevel();
+            });
+            AddUntilStep("collapsed table header is no longer expanded", () => groupPanelExpanded("Satellite"), () => Is.False);
+        }
+
+        [Test]
+        public void TestNonBmsPlayingBeatmapDoesNotExpandGroupOnEntry()
+        {
+            // Reproduces the startup case where the auto-played track is a non-BMS (mania) beatmap.
+            importDifficultyTableBeatmaps();
+            importUnratedBmsBeatmap();
+            importManiaBeatmap("Mania Song");
+
+            SelectBmsRuleset();
+            // Simulate the currently-playing global beatmap being the mania track when entering BMS.
+            PreselectBeatmap("Mania Song");
+            SetDifficultyTableGrouping();
+
+            LoadSongSelect();
+
+            WaitForFiltering();
+            AddUntilStep("wait for visible carousel items", () => GetVisibleCarouselModels().Length, () => Is.GreaterThan(0));
+
+            // The invalid (mania) current beatmap must not trigger fallback auto-selection that expands a group.
+            AddAssert("no group is auto-expanded", () => Carousel.CurrentExpandedGroup.Value, () => Is.Null);
+            AddAssert("only root groups visible", () => GetVisibleCarouselModels().All(model => model is GroupDefinition group && group.Depth == 0), () => Is.True);
+            AddAssert("no beatmap is auto-selected", () => Carousel.CurrentGroupedBeatmap, () => Is.Null);
+        }
+
+        private bool groupPanelExpanded(string title) =>
+            SongSelectScreen.ChildrenOfType<ICarouselPanel>()
+                            .Any(panel => panel.Item?.Model is GroupDefinition group && group.Title.ToString() == title && panel.Expanded.Value);
+
+        private void importUnratedBmsBeatmap()
+        {
+            AddStep("import unrated BMS beatmap", () =>
+            {
+                int setId = Interlocked.Increment(ref nextSetId);
+
+                var beatmap = new BeatmapInfo(new BmsRuleset().RulesetInfo, new BeatmapDifficulty(), new BeatmapMetadata
+                {
+                    Title = "Unrated BMS Song",
+                    Artist = "Unrated BMS Song",
+                })
+                {
+                    OnlineID = setId * 1000,
+                    DifficultyName = "Unrated BMS Song",
+                    StarRating = 1.0,
+                    Length = 120000,
+                    BPM = 150,
+                    Hash = Guid.NewGuid().ToString("N"),
+                    MD5Hash = $"unrated-{Guid.NewGuid():N}".ToLowerInvariant(),
+                };
+
+                // No difficulty table entries => lands in the Unrated group.
+                var beatmapSet = new BeatmapSetInfo { OnlineID = setId, Hash = Guid.NewGuid().ToString("N") };
+                beatmapSet.Beatmaps.Add(beatmap);
+                beatmap.BeatmapSet = beatmapSet;
+
+                Beatmaps.Import(beatmapSet);
+            });
+
+            AddUntilStep("wait for unrated imported", () => Beatmaps.GetAllUsableBeatmapSets().SelectMany(s => s.Beatmaps).Any(b => b.Metadata.Title == "Unrated BMS Song"), () => Is.True);
+        }
+
+        private void importManiaBeatmap(string title)
+        {
+            AddStep($"import mania beatmap {title}", () =>
+            {
+                int setId = Interlocked.Increment(ref nextSetId);
+
+                var beatmap = new BeatmapInfo(new ManiaRuleset().RulesetInfo, new BeatmapDifficulty(), new BeatmapMetadata
+                {
+                    Title = title,
+                    Artist = title,
+                })
+                {
+                    OnlineID = setId * 1000,
+                    DifficultyName = title,
+                    StarRating = 3.0,
+                    Length = 120000,
+                    BPM = 150,
+                    Hash = Guid.NewGuid().ToString("N"),
+                    MD5Hash = $"{title}-{Guid.NewGuid():N}".ToLowerInvariant(),
+                };
+
+                var beatmapSet = new BeatmapSetInfo { OnlineID = setId, Hash = Guid.NewGuid().ToString("N") };
+                beatmapSet.Beatmaps.Add(beatmap);
+                beatmap.BeatmapSet = beatmapSet;
+
+                Beatmaps.Import(beatmapSet);
+            });
+
+            AddUntilStep($"wait for {title} imported", () => Beatmaps.GetAllUsableBeatmapSets().SelectMany(s => s.Beatmaps).Any(b => b.Metadata.Title == title), () => Is.True);
         }
 
         private void importDifficultyTableBeatmaps()

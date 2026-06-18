@@ -167,23 +167,43 @@ namespace osu.Game.Screens.Select
 
         public static bool ShouldGroupBeatmapsTogether(FilterCriteria criteria)
         {
+            // Some groupings/sorts make set-level grouping incoherent (a beatmap set's difficulties
+            // span multiple groups), so difficulties are always shown as standalone panels there,
+            // regardless of any explicit display-level selection.
+            if (GroupingForcesStandaloneDifficulties(criteria))
+                return false;
+
+            // Explicit user-chosen display level (currently BMS-only) overrides the default below.
+            if (criteria.DisplayLevel != null)
+                return criteria.DisplayLevel == DisplayLevel.Songs;
+
+            // In the majority case we group sets together for display.
+            return true;
+        }
+
+        /// <summary>
+        /// Whether the active grouping/sort forces difficulties to be shown as standalone panels,
+        /// i.e. set-level grouping would be incoherent because a beatmap set spans multiple groups.
+        /// When true, any explicit <see cref="FilterCriteria.DisplayLevel"/> is ignored.
+        /// </summary>
+        public static bool GroupingForcesStandaloneDifficulties(FilterCriteria criteria)
+        {
             // Ruleset-specific hierarchical groupings already provide their own structure,
             // so individual beatmaps within a leaf group are displayed as standalone panels
             // rather than being further nested under song-set headers.
             if (criteria.Ruleset?.CreateInstance().IsSongSelectGroupingHierarchical(criteria.Group) == true)
-                return false;
+                return true;
 
             // In certain cases, we intentionally split out difficulties
             // where it's more relevant or convenient to view them as individual items.
             if (criteria.Sort == SortMode.Difficulty || criteria.Group == GroupMode.Difficulty)
-                return false;
+                return true;
             if (criteria.Sort == SortMode.LastPlayed && criteria.Group == GroupMode.LastPlayed)
-                return false;
+                return true;
             if (criteria.Group == GroupMode.RankAchieved)
-                return false;
+                return true;
 
-            // In the majority case we group sets together for display.
-            return true;
+            return false;
         }
 
         private List<GroupMapping> getGroups(List<CarouselItem> items, FilterCriteria criteria, IReadOnlyDictionary<Guid, double> starRatings)

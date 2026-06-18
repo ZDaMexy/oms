@@ -1,6 +1,6 @@
 # P1-I 开发计划：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-05-18
+> 最后更新：2026-06-16
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。`P1-A` 负责共享产品面边界，`P1-H` 负责 read-model / backfill authority；本文件只拆解 `P1-I` 的执行顺序。
 
 ## 子线定位
@@ -190,6 +190,74 @@ dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --configuration Release --fil
 dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
 ```
 
+## 选歌展示层级与层级导航增强（I5–I7）
+
+> 主题区别于 I0–I4（筛选 / 搜索 / read-model）：I5–I7 处理"展示行为耦合""大库层级导航""分组性能"三件事。三项已于 **2026-06-16 落地并通过 focused 回归**（见 [CHANGELOG.md](CHANGELOG.md) 2026-06-16「其二」）；硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) 的「展示层级与层级导航约束」。展示行为收口在共享 [../../osu.Game/Screens/Select/BeatmapCarouselFilterGrouping.cs](../../../osu.Game/Screens/Select/BeatmapCarouselFilterGrouping.cs) `ShouldGroupBeatmapsTogether`：先判 `GroupingForcesStandaloneDifficulties`（强制扁平），否则按 `criteria.DisplayLevel`（BMS）或默认启发式（其他 ruleset，`DisplayLevel==null`）。
+
+### I5：展示层级（歌曲↔谱面）显式控制
+
+状态：已落地（2026-06-16）
+
+背景：当前"歌曲→谱面折叠"vs"谱面扁平"是隐式 Sort/Group 组合的副作用——例如把 Sort 切到「难度」会静默把任意分组拍平，用户既无控制权也无从理解布局为何变化。
+
+建议交付：
+
+1. 与 Sort/Group/Collection 同排新增 `展示层级` `ShearedDropdown`，**首轮 BMS-only**（共享 `FilterControl` 内 ruleset-aware 分支；非 BMS 不显示、不占布局 authority，遵循实现边界约束 #1）。
+2. 两档：「歌曲 → 谱面」/「谱面」，经新增 `FilterCriteria.DisplayLevel`（nullable）驱动 `BeatmapSetsGroupedTogether`：
+   - `DisplayLevel == null`（mania / 其他 ruleset）→ 完全沿用现有启发式，零行为变化；
+   - `DisplayLevel` 非空（BMS）→ 显式决定折叠 / 扁平。
+3. 层级分组（难度表 / 内外库）与 `Group == Difficulty` 时**强制锁定为「谱面」并禁用下拉**，复用现有 sort-lock"记住选择、离开时还原"模式（`FilterControl.sortModeBeforeLockedGrouping` / `updateSortDropdownState`）。
+4. 用新 `OsuSetting`（BMS-local）持久化，不复用 / 污染 `SongSelectGroupMode` / `SongSelectSortingMode`。
+5. `展示层级` 只经 `BeatmapSetsGroupedTogether` 一处收口；scope（临时展示）、随机（set vs beatmap）、面板池化（`PanelBeatmap` vs `PanelBeatmapStandalone`）、间距逻辑都依赖它，不得各自再判一次。
+
+验收：
+
+- BMS 下切换两档，carousel 在折叠 / 扁平间正确切换，且 scope / 随机 / 池化 / 间距不回归。
+- 难度表 / 内外库 / Group=难度 时下拉锁定为「谱面」且禁用；离开这些分组时还原用户上次选择。
+- mania / 其他 ruleset 完全看不到该下拉，布局与行为零变化。
+
+测试落点：`TestSceneBmsSongSelectDifficultyTable`（BMS 折叠 / 扁平 + 锁定）、`TestSceneSongSelectFiltering` / `TestSceneBeatmapFilterControl`（ruleset 切换不串线）。
+
+### I6：层级分组导航（面包屑返回条 + Back 键）
+
+状态：已落地（2026-06-16）
+
+背景：大库 + 难度表多层分组下，用户钻进深组、滚动很远后要上退一级，目前只能滚回去找随谱滚动的组头点击折叠（[BeatmapCarousel.cs:404](../../../osu.Game/Screens/Select/BeatmapCarousel.cs)）。退层原语已齐（`setExpandedGroup` / `ExpandedGroup` / `ResetToRootLevel` / `FocusRootGroupForBeatmap`），缺的只是一个不依赖滚动的触发 UI / 按键。
+
+建议交付：
+
+1. 在 `FilterControl` 仿 `ScopedBeatmapSetDisplay` 新增"层级返回条"，**由 carousel `ExpandedGroup` 驱动，独立于 `ScopedBeatmapSet`**（两者语义不同：scope = 绕过筛选展开某个 set；退层 = 折叠分组路径，严禁缠在一起）。
+2. carousel 暴露只读 `IBindable<GroupDefinition?> CurrentExpandedGroup`（在 `setExpandedGroup` 更新）；`ISongSelect` 增"折叠一级"动作（如 `CollapseExpandedGroupOneLevel()` / `NavigateToGroup`）。
+3. 返回条显示当前展开组路径面包屑（如 `発狂BMS難易度表 › ★1`）；点返回 / Back → `setExpandedGroup(ExpandedGroup.Parent)` + 滚到父组头。
+4. 仅在层级分组激活且 `ExpandedGroup` 可退父级（depth > 0）时显示；root 层隐藏。
+5. `GlobalAction.Back` 优先级：scoped-set 退出 > 层级退回 > 退出 song-select，三者不互吞。
+6. 顺手把"临时展示"banner 的 BMS 文案从"谱面"消歧为"歌曲 / 谱面集"（`TemporarilyShowingAllBeatmapsIn`，display-only，不动存储 / 排序 / MD5）。
+
+验收：
+
+- 深层分组下点返回条 / 按 Back 逐级上退并滚到对应组头，无需手动滚动找组头。
+- 有 scope 时 Back 先退 scope；root 层返回条隐藏、Back 正常退出 song-select。
+- 返回条不污染 `ScopedBeatmapSet` 状态。
+
+测试落点：`TestSceneBmsSongSelectDifficultyTable`（多层展开 / 退层 + 滚动目标）、`TestSceneSongSelectFiltering`（Back 优先级与 scope 共存）。
+
+### I7：难度表分组性能（解析缓存）
+
+状态：已落地（2026-06-16）
+
+背景：`BmsTableGroupMode.GetGroupDefinitions` 每次 refilter × 每张谱面调 `Metadata.GetDifficultyTableEntries()`，后者在 [../../osu.Game/Beatmaps/BeatmapMetadata.cs](../../../osu.Game/Beatmaps/BeatmapMetadata.cs) 是 `JsonConvert.DeserializeObject` 全量反序列化；5 万+ 库即每次操作 5 万+ 次反序列化。
+
+建议交付：
+
+1. **先实测**：用 perf log 确认分组阶段时延与该反序列化占比，确认确属瓶颈后再加缓存（不盲目优化，符合"利大于弊"门槛）。
+2. 若加缓存：按 `RulesetDataJson` 内容键（stale-proof）、有界（避免 5 万+ distinct JSON 无界增长，库变更 / criteria 代际变化时清理）；不改 `BeatmapMetadata.GetRulesetData<T>` 的 shared 语义、不跨 ruleset 漏读。
+3. 次要项：`addHierarchicalGroups` 里每谱 `GetPathFromRoot().ToArray()` 分配可按叶子组缓存路径，仅在确属热点时做。
+4. 不为分组性能在过滤阶段逐张 `GetWorkingBeatmap` 或重跑 analyzer（沿用 read-model 约束 #1 / #13）。
+
+验收：
+
+- 给出 5 万+ 库优化前后 refilter 时延对比；优化后分组阶段不再为主要瓶颈，且分组结果与优化前逐谱一致。
+
 ## 明确不做
 
 1. 不为此专题引入新的 ruleset-level `FilterControl` 替换 hook。
@@ -204,3 +272,4 @@ dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -
 2. `I2` BMS ruleset criteria 与搜索语法
 3. `I3` BMS-only FilterControl 产品面
 4. `I4` 回归与验证收口
+5. `I5`–`I7` 展示层级 / 层级导航 / 分组性能 —— **已落地（2026-06-16）**，focused 回归通过、Release 0 错误

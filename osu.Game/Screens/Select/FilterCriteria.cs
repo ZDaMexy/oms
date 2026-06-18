@@ -20,6 +20,14 @@ namespace osu.Game.Screens.Select
         public GroupMode Group;
         public SortMode Sort;
 
+        /// <summary>
+        /// Explicit display-level selection (currently BMS-only): whether to group difficulties under their
+        /// beatmap set, or show each difficulty as a standalone panel.
+        /// <see langword="null"/> for rulesets that defer to the default heuristic in
+        /// <see cref="BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether"/>.
+        /// </summary>
+        public DisplayLevel? DisplayLevel;
+
         public BeatmapSetInfo? SelectedBeatmapSet;
 
         public OptionalRange<double> StarDifficulty;

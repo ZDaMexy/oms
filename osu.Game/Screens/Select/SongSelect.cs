@@ -597,15 +597,21 @@ namespace osu.Game.Screens.Select
             if (IsFiltering)
                 return false;
 
+            // A fresh grouped entry that intends to stay at the root level (pendingRootGroupFocus) must not
+            // auto-select anything yet, otherwise a group would be expanded around the selection. This applies
+            // even when the current global beatmap is invalid for this ruleset (e.g. a mania track is playing
+            // when entering/switching to BMS): the invalid-selection fallback below would otherwise pick an
+            // arbitrary beatmap and expand its group (observed as the Unrated group auto-expanding). Root group
+            // focus for a compatible current beatmap is still resolved separately via tryFocusRootGroupForCurrentBeatmap().
+            if (shouldSuppressGroupedAutoSelection())
+                return true;
+
             // Refetch to be confident that the current selection is still valid. It may have been deleted or hidden.
             var currentBeatmap = beatmaps.GetWorkingBeatmap(Beatmap.Value.BeatmapInfo, true);
             bool validSelection = checkBeatmapValidForSelection(currentBeatmap.BeatmapInfo);
 
             if (validSelection)
             {
-                if (shouldSuppressGroupedAutoSelection())
-                    return true;
-
                 carousel.CurrentBeatmap = currentBeatmap.BeatmapInfo;
                 return true;
             }
@@ -1293,6 +1299,10 @@ namespace osu.Game.Screens.Select
 
         private readonly Bindable<BeatmapSetInfo?> scopedBeatmapSet = new Bindable<BeatmapSetInfo?>();
         public IBindable<BeatmapSetInfo?> ScopedBeatmapSet => scopedBeatmapSet;
+
+        public IBindable<GroupDefinition?> CurrentExpandedGroup => carousel.CurrentExpandedGroup;
+
+        public void CollapseExpandedGroupOneLevel() => carousel.CollapseExpandedGroupOneLevel();
 
         public void ScopeToBeatmapSet(BeatmapSetInfo beatmapSet)
         {

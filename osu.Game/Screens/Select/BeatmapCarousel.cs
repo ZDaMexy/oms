@@ -316,6 +316,14 @@ namespace osu.Game.Screens.Select
 
         protected GroupDefinition? ExpandedGroup { get; private set; }
 
+        private readonly Bindable<GroupDefinition?> currentExpandedGroup = new Bindable<GroupDefinition?>();
+
+        /// <summary>
+        /// The currently expanded group (the deepest node of the active expansion path), or <see langword="null"/> at root level.
+        /// Exposed for breadcrumb / level-navigation UI.
+        /// </summary>
+        public IBindable<GroupDefinition?> CurrentExpandedGroup => currentExpandedGroup;
+
         protected GroupedBeatmapSet? ExpandedBeatmapSet { get; private set; }
 
         protected override bool ShouldActivateOnKeyboardSelection(CarouselItem item) =>
@@ -340,6 +348,30 @@ namespace osu.Game.Screens.Select
             setExpandedSet(null);
             setExpandedGroup(null);
             Scroll.ScrollTo(0, animated: false);
+        }
+
+        /// <summary>
+        /// Collapses the currently expanded group one level towards the root: the previously expanded group
+        /// becomes a collapsed header again, the keyboard cursor lands on it (without re-expanding it), and it
+        /// is scrolled into view. No-op when nothing is expanded.
+        /// </summary>
+        public void CollapseExpandedGroupOneLevel()
+        {
+            var collapsing = ExpandedGroup;
+            if (collapsing == null)
+                return;
+
+            // Collapsing the parent's expansion leaves `collapsing` visible as a collapsed header
+            // (a child of the now-expanded parent, or a root header when there is no parent).
+            setExpandedGroup(collapsing.Parent);
+
+            // Keep the cursor on the group we just collapsed so the user can step up level by level,
+            // rather than jumping focus onto the parent group.
+            if (grouping.ItemMap.ContainsKey(collapsing))
+            {
+                ChangeKeyboardSelection(collapsing);
+                ScrollToSelection(immediate: true);
+            }
         }
 
         public bool FocusRootGroupForBeatmap(BeatmapInfo? beatmap)
@@ -635,6 +667,11 @@ namespace osu.Game.Screens.Select
             {
                 foreach (var expandedGroup in ExpandedGroup.GetPathFromRoot().Reverse())
                     setExpansionStateOfGroup(expandedGroup, false);
+
+                // The root of a path is never a child of any other group, so its own expanded state
+                // is not covered by setExpansionStateOfGroup above. Reset it explicitly, otherwise the
+                // top-level (e.g. difficulty-table) header would never show its expanded chevron / offset.
+                setGroupItemExpansion(ExpandedGroup.GetPathFromRoot().First(), false);
             }
 
             ExpandedGroup = group;
@@ -643,7 +680,17 @@ namespace osu.Game.Screens.Select
             {
                 foreach (var expandedGroup in ExpandedGroup.GetPathFromRoot())
                     setExpansionStateOfGroup(expandedGroup, true);
+
+                setGroupItemExpansion(ExpandedGroup.GetPathFromRoot().First(), true);
             }
+
+            currentExpandedGroup.Value = group;
+        }
+
+        private void setGroupItemExpansion(GroupDefinition group, bool expanded)
+        {
+            if (grouping.ItemMap.TryGetValue(group, out var entry))
+                entry.item.IsExpanded = expanded;
         }
 
         private void setExpansionStateOfGroup(GroupDefinition group, bool expanded)

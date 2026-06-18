@@ -70,6 +70,26 @@ namespace osu.Game.Screens.Select
         private CollectionDropdown collectionDropdown = null!;
         private SortMode? sortModeBeforeLockedGrouping;
 
+        // BMS-only "display level" control: persisted user preference, plus a guard used while we
+        // programmatically force the dropdown to a locked value (so the preference is not overwritten).
+        private GridContainer sortGroupRow = null!;
+        private ShearedDropdown<DisplayLevel> displayLevelDropdown = null!;
+        private readonly Bindable<DisplayLevel> displayLevelSetting = new Bindable<DisplayLevel>();
+        private bool suppressDisplayLevelSettingWrite;
+
+        // The display-level dropdown sits as a 4th column between group and collection, but only for the BMS ruleset;
+        // other rulesets collapse that column (and its gap) to zero width so the row matches the original layout.
+        private static Dimension[] createSortGroupColumns(bool showDisplayLevel) => new[]
+        {
+            new Dimension(maxSize: 180),
+            new Dimension(GridSizeMode.Absolute, 5),
+            new Dimension(maxSize: 180),
+            new Dimension(GridSizeMode.Absolute, 5),
+            showDisplayLevel ? new Dimension(maxSize: 180) : new Dimension(GridSizeMode.Absolute, 0),
+            new Dimension(GridSizeMode.Absolute, showDisplayLevel ? 5 : 0),
+            new Dimension(),
+        };
+
         /// <summary>
         /// An optional method which can force certain criteria adjustments.
         /// </summary>
@@ -172,21 +192,14 @@ namespace osu.Game.Screens.Select
                                 bmsFiltersContainer = createRulesetSpecificFiltersContainer(bmsFilters),
                             },
                         },
-                        new GridContainer
+                        sortGroupRow = new GridContainer
                         {
                             RelativeSizeAxes = Axes.X,
                             Height = 30,
                             Shear = -OsuGame.SHEAR,
                             RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
-                            ColumnDimensions = new[]
-                            {
-                                new Dimension(maxSize: 180),
-                                new Dimension(GridSizeMode.Absolute, 5),
-                                new Dimension(maxSize: 180),
-                                new Dimension(GridSizeMode.Absolute, 5),
-                                new Dimension(),
-                                new Dimension(GridSizeMode.AutoSize),
-                            },
+                            // The display-level column (index 4) + its gap (index 5) are BMS-only; collapsed to 0 for other rulesets.
+                            ColumnDimensions = createSortGroupColumns(showDisplayLevel: false),
                             Content = new[]
                             {
                                 new[]
@@ -203,6 +216,13 @@ namespace osu.Game.Screens.Select
                                         Items = Array.Empty<GroupMode>(),
                                     },
                                     Empty(),
+                                    displayLevelDropdown = new ShearedDropdown<DisplayLevel>(OmsSongSelectStrings.DisplayLevel)
+                                    {
+                                        RelativeSizeAxes = Axes.X,
+                                        Items = new[] { DisplayLevel.Songs, DisplayLevel.Difficulties },
+                                        Alpha = 0,
+                                    },
+                                    Empty(),
                                     collectionDropdown = new CollectionDropdown
                                     {
                                         RelativeSizeAxes = Axes.X,
@@ -211,6 +231,10 @@ namespace osu.Game.Screens.Select
                             }
                         },
                         new ScopedBeatmapSetDisplay
+                        {
+                            ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
+                        },
+                        new GroupNavigationDisplay
                         {
                             ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
                         }
@@ -233,6 +257,7 @@ namespace osu.Game.Screens.Select
             config.BindWith(OsuSetting.ShowConvertedBeatmaps, showConvertedBeatmaps);
             config.BindWith(OsuSetting.SongSelectSortingMode, sortDropdown.Current);
             config.BindWith(OsuSetting.SongSelectGroupMode, groupDropdown.Current);
+            config.BindWith(OsuSetting.BmsSongSelectDisplayLevel, displayLevelSetting);
 
             standardShowConvertedBeatmapsButton.Active.BindTo(showConvertedBeatmaps);
             bmsShowConvertedBeatmapsButton.Active.BindTo(showConvertedBeatmaps);
@@ -249,6 +274,7 @@ namespace osu.Game.Screens.Select
                 bool sortSelectionChanged = updateAvailableSortingModes();
                 bool groupSelectionChanged = updateAvailableGroupingModes();
                 updateSortDropdownState();
+                updateDisplayLevelDropdownState();
 
                 if (!sortSelectionChanged && !groupSelectionChanged)
                     updateCriteria();
@@ -284,11 +310,37 @@ namespace osu.Game.Screens.Select
             foreach (var button in bmsKeyCountButtons)
                 button.Active.BindValueChanged(_ => updateCriteria());
 
-            sortDropdown.Current.BindValueChanged(_ => updateCriteria());
+            sortDropdown.Current.BindValueChanged(_ =>
+            {
+                updateDisplayLevelDropdownState();
+                updateCriteria();
+            });
             groupDropdown.Current.BindValueChanged(_ =>
             {
                 updateSortDropdownState();
+                updateDisplayLevelDropdownState();
                 updateCriteria();
+            });
+            displayLevelSetting.BindValueChanged(_ =>
+            {
+                // Reflect the persisted preference into the dropdown unless the current grouping/sort
+                // forces it standalone (in which case the dropdown is locked to "Difficulties").
+                if (!displayLevelForcedStandalone())
+                {
+                    suppressDisplayLevelSettingWrite = true;
+                    displayLevelDropdown.Current.Value = displayLevelSetting.Value;
+                    suppressDisplayLevelSettingWrite = false;
+                }
+
+                updateCriteria();
+            });
+            displayLevelDropdown.Current.BindValueChanged(_ =>
+            {
+                // Only genuine user interaction (dropdown enabled, not a programmatic sync) updates the preference.
+                if (suppressDisplayLevelSettingWrite || displayLevelDropdown.Current.Disabled)
+                    return;
+
+                displayLevelSetting.Value = displayLevelDropdown.Current.Value;
             });
             collectionDropdown.Current.BindValueChanged(v =>
             {
@@ -309,6 +361,7 @@ namespace osu.Game.Screens.Select
             localUserFavouriteBeatmapSets.BindCollectionChanged((_, _) => updateCriteria());
             ScopedBeatmapSet.BindValueChanged(_ => updateCriteria(clearScopedSet: false));
 
+            updateDisplayLevelDropdownState();
             updateCriteria();
         }
 
@@ -341,6 +394,9 @@ namespace osu.Game.Screens.Select
 
             bool isBmsRuleset = usingBmsSpecificFilters();
             string effectiveQuery = query;
+
+            // Display level is BMS-only; other rulesets defer to the default grouping heuristic.
+            criteria.DisplayLevel = isBmsRuleset ? displayLevelSetting.Value : null;
 
             if (!isBmsRuleset)
             {
@@ -577,6 +633,10 @@ namespace osu.Game.Screens.Select
 
             setRulesetSpecificFilterVisibility(standardFiltersContainer, !useBmsFilters);
             setRulesetSpecificFilterVisibility(bmsFiltersContainer, useBmsFilters);
+
+            // The display-level dropdown is a BMS-only peer of sort/group; reveal it (and reclaim its column) only for BMS.
+            sortGroupRow.ColumnDimensions = createSortGroupColumns(useBmsFilters);
+            displayLevelDropdown.Alpha = useBmsFilters ? 1 : 0;
         }
 
         private static void setRulesetSpecificFilterVisibility(Container container, bool visible)
@@ -671,6 +731,46 @@ namespace osu.Game.Screens.Select
                 sortDropdown.Current.Value = sortModeBeforeLockedGrouping.Value;
                 sortModeBeforeLockedGrouping = null;
             }
+        }
+
+        /// <summary>
+        /// Whether the current grouping/sort forces difficulties to be shown standalone, in which case
+        /// the display-level dropdown is locked to "Difficulties". Mirrors
+        /// <see cref="BeatmapCarouselFilterGrouping.GroupingForcesStandaloneDifficulties"/> using the live control state.
+        /// </summary>
+        private bool displayLevelForcedStandalone()
+        {
+            var rulesetInstance = ruleset.Value.CreateInstance();
+            var group = groupDropdown.Current.Value;
+            var sort = sortDropdown.Current.Value;
+
+            return rulesetInstance.IsSongSelectGroupingHierarchical(group)
+                   || group == GroupMode.Difficulty
+                   || sort == SortMode.Difficulty
+                   || group == GroupMode.RankAchieved
+                   || (sort == SortMode.LastPlayed && group == GroupMode.LastPlayed);
+        }
+
+        private void updateDisplayLevelDropdownState()
+        {
+            bool forced = displayLevelForcedStandalone();
+
+            suppressDisplayLevelSettingWrite = true;
+
+            // Clear Disabled before mutating Value (a disabled bindable throws on set), then re-lock if needed.
+            displayLevelDropdown.Current.Disabled = false;
+
+            if (forced)
+            {
+                displayLevelDropdown.Current.Value = DisplayLevel.Difficulties;
+                displayLevelDropdown.Current.Disabled = true;
+            }
+            else
+            {
+                displayLevelDropdown.Current.Value = displayLevelSetting.Value;
+            }
+
+            suppressDisplayLevelSettingWrite = false;
         }
 
         protected override void PopIn()

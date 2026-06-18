@@ -28,8 +28,17 @@ namespace osu.Game.Screens.Select
     {
         public const float HEIGHT = CarouselItem.DEFAULT_HEIGHT * 1.2f;
 
+        // Indent each nesting level further right than its parent. Must exceed the keyboard-selection
+        // offset in Panel.updateXOffset so an expanded ancestor always protrudes at least as far as its
+        // (keyboard-selected) expanded descendant, rather than the child sticking out past its parent.
+        private const float depth_x_offset = 30f;
+
+        protected override float AdditionalXOffset =>
+            Item?.Model is GroupDefinition group ? group.Depth * depth_x_offset : 0;
+
         private Drawable iconContainer = null!;
         private OsuSpriteText titleText = null!;
+        private Box contentBackground = null!;
         private TrianglesV2 triangles = null!;
         private CircularContainer countPill = null!;
         private OsuSpriteText countText = null!;
@@ -67,7 +76,7 @@ namespace osu.Game.Screens.Select
             AccentColour = colourProvider.Highlight1;
             Content.Children = new Drawable[]
             {
-                new Box
+                contentBackground = new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = colourProvider.Background5,
@@ -149,7 +158,20 @@ namespace osu.Game.Screens.Select
 
             GroupDefinition group = (GroupDefinition)Item.Model;
 
-            titleText.X = 10f + group.Depth * 20f;
+            // Distinguish nesting levels in hierarchical groupings (e.g. BMS difficulty table → level).
+            // Top-level (table) headers stay rich: a lighter, textured background with a large bright title.
+            // Nested (level) headers go flat: a darker background with no triangles, plus a smaller, dimmer,
+            // further-indented title. The multiple simultaneous cues make the two tiers clearly distinct.
+            bool isRootLevel = group.Depth == 0;
+
+            contentBackground.Colour = isRootLevel ? colourProvider.Background4 : colourProvider.Background6;
+            triangles.Alpha = isRootLevel ? 1f : 0f;
+
+            titleText.Font = isRootLevel
+                ? OsuFont.Style.Heading2
+                : OsuFont.Style.Body.With(weight: FontWeight.SemiBold);
+            titleText.Colour = isRootLevel ? colourProvider.Content1 : colourProvider.Content2;
+            titleText.X = 10f + group.Depth * 24f;
             titleText.Text = group.Title;
             countText.Text = Item.NestedItemCount.ToString("N0");
         }

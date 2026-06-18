@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-06-16
+> 最后更新：2026-06-18（「展示层级与层级导航约束」追加 #15 层级展开态/缩进方向修正）
 > 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -67,6 +67,40 @@
 4. 任何改变 BMS Song Select 筛选语义的改动，都必须同步更新本目录四件套、`../../mainline/DEVELOPMENT_PLAN.md`、`../../mainline/DEVELOPMENT_STATUS.md` 与 `../../mainline/CHANGELOG.md`。
 5. 首轮 UI 若需要新控件，优先接受 BMS-local 私有控件，而不是抢先抽象 shared generic segmented filter component；只有当第二个 ruleset 确认复用时，才值得上提共享层。
 6. 若 shared 抽象提炼来不及，允许直接写 BMS-local 私有 segmented control；但不得再以三个彼此独立的 `ShearedRangeSlider` 拼排原型充当最终交付。
+
+## 展示层级与层级导航约束
+
+> 本节服务 I5–I7（展示层级 / 层级返回条 / 分组性能）。三项已于 2026-06-16 落地、2026-06-18 经用户实机反馈再修两轮（层级展开态/缩进 #15、非 BMS 进入误展开 #16）；本节为已落地实现的硬约束，实现与本节冲突时先改一边再继续。
+
+### 展示层级（I5）
+
+1. **首轮 BMS-only**：mania / 其他 ruleset 维持 `BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether` 现有启发式，BMS 的显式开关不得改变非 BMS 的默认布局。展示层级下拉是共享 sort/group/collection 行里「分组」与「收藏夹」之间的 BMS-only 第 4 列（`FilterControl.createSortGroupColumns`），非 BMS 时该列与其 gap 收 0 宽、下拉 `Alpha=0`，行布局与原先一致——不得为它新增一套独立行或让它在非 BMS 下占布局 authority。
+2. **单一收口点**：两档「歌曲→谱面」/「谱面」必须经新增 `FilterCriteria.DisplayLevel`（nullable）→ `ShouldGroupBeatmapsTogether` → `BeatmapSetsGroupedTogether` 一处决定；`DisplayLevel==null` 即走旧启发式（mania 零行为变化）。scope、随机（set vs beatmap）、面板池化（`PanelBeatmap` vs `PanelBeatmapStandalone`）、间距逻辑都只能读 `BeatmapSetsGroupedTogether`，不得各自再判一次展示形态。
+3. **强制扁平时锁定**：当 `BeatmapCarouselFilterGrouping.GroupingForcesStandaloneDifficulties` 为真——即层级分组（难度表 / 内外库）、`Group==Difficulty`、`Sort==Difficulty`、`Group==RankAchieved` 或 `Sort==LastPlayed && Group==LastPlayed`——展示层级必须锁定为「谱面」并禁用下拉（这些分组下同一 set 的不同难度会被拆进不同组，折叠形态无意义）。锁定期间**不得污染持久化偏好**：`FilterControl` 把 `displayLevelSetting`（config 持久偏好）与下拉 `Current`（显示值）分离，用 `suppressDisplayLevelSettingWrite` guard 实现"强制显示 Difficulties、离开后还原用户偏好"。`criteria.DisplayLevel` 始终传用户偏好（BMS）或 `null`（其他 ruleset）；真正的扁平判定由 `ShouldGroupBeatmapsTogether` 的 `GroupingForcesStandaloneDifficulties` 一处收口，UI 锁定仅为反馈。
+4. **持久化隔离**：用新的 BMS-local `OsuSetting` 持久化展示层级，不得复用或污染 `SongSelectGroupMode` / `SongSelectSortingMode`。
+5. 不得为展示层级新开 per-ruleset `FilterControl` host（沿用实现边界约束 #1）。
+
+### 层级返回条（I6）
+
+6. **状态独立**：层级返回条必须由 carousel 的 `ExpandedGroup`（当前展开组路径）驱动，**独立于 `ScopedBeatmapSet`**。严禁把"层级退回"塞进 scoped-set 状态链——scope = 绕过筛选展开某个 set；退层 = 折叠分组路径，两者语义不同，缠在一起后续必出歧义。
+7. **可见条件**：仅在层级分组激活且 `ExpandedGroup` 存在可退父级（depth > 0）时显示返回条；root 层隐藏。
+8. **退层原语复用 + cursor 停在被折叠组**：返回动作 = `setExpandedGroup(ExpandedGroup.Parent)`，随后键盘 cursor 落在**刚折叠的那个组**（折叠态、不重新展开）并滚入视野，**而非其父组**——让用户逐级上退（`satellite/★7` → cursor 停 `★7` → 再退 cursor 停 `satellite`）。复用现有 `setExpandedGroup` / `ChangeKeyboardSelection` / `ScrollToSelection`，不得新造第二套展开 / 折叠状态机。
+9. **Back 键优先级**：`GlobalAction.Back` 必须按 scoped-set 退出 > 层级退回 > 退出 song-select 排序，三者不得互相吞键。
+10. banner 文案若改，顺手把 `SongSelectStrings.TemporarilyShowingAllBeatmapsIn` 的 BMS 口径从"谱面"消歧为"歌曲 / 谱面集"；该改动只动 display string，不得触碰存储 `Title` / 排序 / 搜索 / MD5。
+
+### 分组性能（I7）
+
+11. **已实现解析缓存（2026-06-16）**：`BmsTableGroupMode` 按 `RulesetDataJson` 内容键缓存计算好的 `GroupDefinition[]`，消除每次 refilter × 每张谱面的全量 `JsonConvert.DeserializeObject`（`GetDifficultyTableEntries` → `BeatmapMetadata.GetRulesetData<T>`，BeatmapMetadata.cs:86）。该优化 correctness-neutral（纯函数 + `GroupDefinition` immutable record，结果可跨谱面共享），由 `BmsTableGroupModeTest` 的"缓存复用 / stale-proof"两条回归锁住。大库（5 万+）的实际收益量化仍建议用户在真实库用 perf log 确认（headless 无大库）。
+12. **解析缓存边界**：若加缓存，必须按 `RulesetDataJson` 内容键（stale-proof）且有界（避免 5 万+ distinct JSON 无界增长，库变更 / criteria 代际变化时清理）；不得改 `BeatmapMetadata.GetRulesetData<T>` 的 shared 语义、不得让缓存跨 ruleset 漏读。
+13. 不得为分组性能在过滤阶段逐张 `GetWorkingBeatmap` 或重跑 analyzer（沿用 read-model 约束 #1 / #13）；分组结果优化前后必须逐谱一致。
+
+### 层级分组视觉（I6 配套）
+
+14. **层级深度的视觉区分必须经 `group.Depth`、且非层级分组零影响**：`PanelGroup.PrepareForUse` 按 `Depth` 多线索分级——根/表名组（depth 0）= `Background4` + 三角纹理可见 + `Heading2` + `Content1`；嵌套/等级组（depth≥1）= `Background6` + 三角纹理 `Alpha=0`（纯平）+ `Body SemiBold` + `Content2` + `Depth*24` 缩进。**单靠相邻 `Background` shade（5↔6）实机不可辨——必须多线索叠加（亮度跨档 + 纹理有无 + 字号 + 字色 + 缩进）才达到"对比明显"。** 因为 mania 等非层级分组所有组都是 depth 0，这条只影响 BMS 难度表/内外库这类多层分组；不得改成按 ruleset / group-mode 硬判定（破坏共享 `PanelGroup` 通用性）。`PanelXOffset` 是 `init`-only、池化面板不可逐项改，故用 shade/纹理/字号而非整面板缩进。
+
+15. **层级展开态与缩进方向（2026-06-18 修正）**：① 路径**根组**的 `IsExpanded` 不被 `setExpansionStateOfGroup`（只设子组）覆盖，必须在 `setExpandedGroup` 显式置位/复位（`setGroupItemExpansion`），否则表名层即便展开也无 chevron、突出量错乱。② 突出（X 偏移）必须让浅层（祖先）≥ 深层（后代）：`Panel.AdditionalXOffset`（`PanelGroup` 返回 `Depth*30`）须 **> `active_x_offset`(25)** 以压过键盘选中偏移，保证展开的祖先组突出不少于其键盘选中的后代组（避免子组比父组更突出）。`AdditionalXOffset` 默认 0、只 `PanelGroup` override，非层级分组（depth 0）零影响。
+
+16. **fresh-entry root-focus 抑制必须覆盖 invalid 当前谱面（2026-06-18 修正）**：`SongSelect.ensureGlobalBeatmapValid` 中 `shouldSuppressGroupedAutoSelection()`（`pendingRootGroupFocus && CurrentGroupedBeatmap==null`）必须在 valid/invalid 分支**之前**短路返回，否则当前全局谱面对本 ruleset invalid 时（如 mania 曲目播放中直接进入 / 切到 BMS）会经 invalid 回退（`SetDefault→IsDefault→NextRandom`）自动选中并 `setExpandedGroup` 展开某分组（误展开 Unrated）。抑制只在 `ShouldResetSongSelectGroupToRoot` 为真的 ruleset（BMS）的 fresh-entry 期间生效；其他 ruleset `pendingRootGroupFocus` 永不置真、零影响。回归 `TestNonBmsPlayingBeatmapDoesNotExpandGroupOnEntry`。
 
 ## 测试与发布约束
 

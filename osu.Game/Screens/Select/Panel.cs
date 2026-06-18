@@ -36,6 +36,13 @@ namespace osu.Game.Screens.Select
 
         protected float PanelXOffset { get; init; }
 
+        /// <summary>
+        /// An additional horizontal offset applied on top of <see cref="PanelXOffset"/> in <see cref="updateXOffset"/>.
+        /// Evaluated live (so it can depend on the currently assigned <see cref="Item"/>), e.g. to indent deeper
+        /// nesting levels of hierarchical group panels further right than their ancestors.
+        /// </summary>
+        protected virtual float AdditionalXOffset => 0;
+
         private Container backgroundContainer = null!;
         private Container iconContainer = null!;
 
@@ -314,7 +321,7 @@ namespace osu.Game.Screens.Select
 
         private void updateXOffset(bool animated = true)
         {
-            float x = PanelXOffset + CORNER_RADIUS;
+            float x = PanelXOffset + CORNER_RADIUS + AdditionalXOffset;
 
             if (!Expanded.Value && !Selected.Value)
             {

@@ -1,5 +1,64 @@
 # P1-I 变动日志
 
+## 2026-06-18（其二）：非 BMS 播放谱面进入 BMS 不再误展开分组
+
+启动时游戏会自动随机播放一首曲目；若该曲目是非 BMS（mania）谱面，**直接进入或从 mania 切到 BMS（难度表分组）时总会误展开某个分组**（用户观察为 Unrated）。根因＝`SongSelect.ensureGlobalBeatmapValid` 的 `shouldSuppressGroupedAutoSelection()`（fresh-entry root-focus 期间抑制自动选中）**只在 `if (validSelection)` 分支内被检查**；当前全局谱面是 mania（对 BMS invalid）时走 invalid 回退（`SetDefault → IsDefault → NextRandom`）自动选中一张 BMS 谱面并 `setExpandedGroup` 展开其分组，而 `FocusRootGroupForBeatmap` 又聚焦不到 mania 谱面（不在 BMS carousel）→ `pendingRootGroupFocus` 一直为真——抑制本应生效却被 invalid 回退绕过。修复＝把 `shouldSuppressGroupedAutoSelection()` 提前到 valid/invalid 分支**之前**短路返回，使 fresh-entry root-focus 期间抑制**所有**自动选中（含 invalid 回退）、保持 root 层不展开；兼容谱面的 root group 聚焦仍由 `tryFocusRootGroupForCurrentBeatmap` 单独处理。只影响 `ShouldResetSongSelectGroupToRoot` 为真的 ruleset（BMS）；mania 等 `pendingRootGroupFocus` 永不置真、零影响。回归 `TestNonBmsPlayingBeatmapDoesNotExpandGroupOnEntry`（临时去掉修复即失败、已验证）。验证：BMS 全套 **918/918**。
+
+---
+
+## 2026-06-18：层级分组展开态 / 缩进方向修正（I6 跟进，用户实机反馈）
+
+用户实机发现两处不符合直觉，均为层级分组（难度表 表名→等级）下**路径根组**的处理缺口：
+
+1. **展开的表名组不显示展开箭头**：`setExpandedGroup` 只通过"父组的 `setExpansionStateOfGroup` 设子组 `IsExpanded`"传播展开态，而**路径根组没有父组、其自身 `IsExpanded` 从不被置位** → 表名组即便展开（其下等级可见）也无 chevron、且吃"未展开"的右推偏移。修复＝`setExpandedGroup` 显式管理路径根组的 `item.IsExpanded`（进入时 true、离开时复位 false，`setGroupItemExpansion` 经 `grouping.ItemMap`）。回归 `TestExpandedTableHeaderSharesExpandedStateWithLevel`。
+2. **子组（等级）比父组（表名）突出得更多**：`Panel.updateXOffset` 的突出量只看 expanded/selected/keyboard-selected、不看层级深度，导致键盘选中的子组比未选中的父组更靠左（突出更多），与"子组在父组之内"的直觉相反。修复＝`Panel` 新增 `protected virtual float AdditionalXOffset`（默认 0，在 `updateXOffset` 叠加），`PanelGroup` override 返回 `group.Depth * 30f`；`30 > active_x_offset(25)` 保证展开的祖先组始终突出 ≥ 其（键盘选中的）后代组、并略多一点。非层级分组（mania 等）全 depth 0 → `AdditionalXOffset==0`、零影响。
+
+验证：`TestSceneBmsSongSelectDifficultyTable` 6/6（含新增）、BMS 全套 **917/917**、共享 `TestScenePanelGroup`/`TestScenePanelSet`/`TestScenePanelBeatmap` 10/10。Release 编译干净（`osu.Desktop` 最终拷贝步被正在运行的游戏进程锁住 = MSB3021 文件锁，非代码问题）。
+
+---
+
+## 2026-06-16（其二）：选歌展示层级 + 层级返回条 + 难度表分组解析缓存（I5–I7）
+
+> 用户授权 detailed 实现（"你详细规划，开工吧"）。三项均落地并通过 focused 回归，`osu.Desktop.slnf` Release 0 错误。本主题区别于本日「其一」的 backfill 收口。
+
+### I5：展示层级（歌曲↔谱面）显式控制
+
+- 新增 BMS-only `展示层级` 下拉（`OmsSongSelectStrings.DisplayLevel`，挂在 `FilterControl.createBmsFilters` 的 BMS 滤镜块内，非 BMS 不显示），两档 `DisplayLevel.Songs`（歌曲→谱面）/`DisplayLevel.Difficulties`（谱面）。
+- 新增 `FilterCriteria.DisplayLevel`（nullable `osu.Game.Screens.Select.Filter.DisplayLevel`）。`ShouldGroupBeatmapsTogether` 重构为：先判 `GroupingForcesStandaloneDifficulties`（提取自原启发式：层级分组 / `Group==Difficulty` / `Sort==Difficulty` / `RankAchieved` / `LastPlayed×LastPlayed`）→ 强制扁平；否则 `DisplayLevel!=null` → `==Songs` 决定折叠/扁平；否则（mania/其他，`DisplayLevel==null`）走原默认 `true`。**mania 零行为变化**（criteria 永远 `null`，逻辑等价改写）。
+- 持久化用新 `OsuSetting.BmsSongSelectDisplayLevel`（默认 `Songs`）。强制扁平分组下下拉锁定为「谱面」并禁用：`displayLevelSetting`(config 偏好) 与下拉 `Current`(显示值) 分离 + `suppressDisplayLevelSettingWrite` guard，**锁定不污染持久化偏好、离开后还原**。`criteria.DisplayLevel` 只在 BMS 时取偏好、否则 `null`。
+- 回归：`BmsDisplayLevelGroupingTest`（3 条：显式两档生效 / 强制扁平忽略 DisplayLevel / `null` 保留默认启发式）。
+
+### I6：层级分组导航（面包屑返回条 + Back 键）
+
+- `BeatmapCarousel` 暴露只读 `IBindable<GroupDefinition?> CurrentExpandedGroup`（在 `setExpandedGroup` 更新）+ `CollapseExpandedGroupOneLevel()`（`setExpandedGroup(ExpandedGroup.Parent)` + `ChangeKeyboardSelection`/`ScrollToSelection` 滚到父组头或被折叠组的 root header）。`ISongSelect` 同步加这两个成员，`SongSelect` 转发给 carousel。
+- 新增 `FilterControl.GroupNavigationDisplay`（仿 `ScopedBeatmapSetDisplay` 视觉，挂在其后）：`CurrentExpandedGroup!=null` 时显示「当前层级：<面包屑路径>」+ 返回按钮；**由 `ExpandedGroup` 驱动、与 `ScopedBeatmapSet` 状态独立**。`GlobalAction.Back` 仅在 `expandedGroup!=null && ScopedBeatmapSet==null` 时消费 → scope 退出优先于层级退回（`FocusedTextBox` 仅在有搜索词时吞 Back，空搜索时自然冒泡到 banner）。
+- 回归：`TestSceneBmsSongSelectDifficultyTable.TestCollapseExpandedGroupWalksUpHierarchy`（叶级 ★1 → 表根 Satellite(depth0) → root null 逐级退）。
+
+### I7：难度表分组解析缓存
+
+- `BmsTableGroupMode` 按 `RulesetDataJson` 内容键缓存计算好的 `GroupDefinition[]`（`ComputeGroupDefinitions` 提为 internal），消除每次 refilter × 每张谱面的全量 `JsonConvert.DeserializeObject`。correctness-neutral（纯函数 + immutable record，跨谱面共享同一数组安全）、stale-proof（JSON 变即换 key）、有界（`cache_soft_cap=200_000` 安全阀）。
+- 回归：`BmsTableGroupModeTest` 新增"缓存复用同一实例 + 内容等价""改 entries 后 stale-proof"两条。
+
+### 二次调整（同日，用户反馈四点）
+
+1. **展示层级下拉移入共享行**：从 BMS 滤镜块挪到 sort/group/collection 那一排，成为「分组」与「收藏夹」之间的 BMS-only 第 4 列（`createSortGroupColumns(showDisplayLevel)` 在 `updateRulesetSpecificFilters` 按 ruleset 切换列宽：BMS=maxSize 180 + gap 5、其他 ruleset=该列与 gap 收 0 + 下拉 `Alpha=0`，非 BMS 行布局与原先一致）。
+2. **层级退回改为停在被折叠的组**：`CollapseExpandedGroupOneLevel` 在 `setExpandedGroup(parent)` 后把键盘 cursor 落在**刚折叠的那个组**（仍折叠、不重新展开）而非其父组——例如在 `satellite/★7` 点返回 → 展开降到 satellite 级、cursor 停在 `★7`（折叠态），再点 → cursor 停在 `satellite`。回归 `TestCollapseExpandedGroupWalksUpHierarchy` 增 cursor 停留断言。
+3. **分组层级视觉区分**（初版 `Background5/6` 实机几乎看不出差异，改为高对比方案）：`PanelGroup.PrepareForUse` 按 `group.Depth` 多线索分级——根/表名组（depth 0）= `Background4`（更亮）+ 保留三角纹理 + `Heading2` + `Content1`（亮）；嵌套/等级组（depth≥1）= `Background6`（深）+ **三角纹理 `Alpha=0`（纯平）** + 更小的 `Body SemiBold` + `Content2`（暗）+ `Depth*24` 缩进。四重线索叠加一眼可分。mania 等非层级分组全为 depth 0 → 不受影响。
+4. **删除"当前层级"前缀**：`GroupNavigationDisplay` 只显示面包屑路径（`発狂BMS難易度表 › ★1`）+ 返回按钮；移除 `OmsSongSelectStrings.CurrentGroupLevel` 及其 resx 条目。
+
+### 验证
+
+```powershell
+dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --filter "FullyQualifiedName~BmsTableGroupModeTest|FullyQualifiedName~BmsDisplayLevelGroupingTest|FullyQualifiedName~TestSceneBmsSongSelectDifficultyTable|FullyQualifiedName~TestSceneBmsFilterControl"
+dotnet test .\osu.Game.Tests\osu.Game.Tests.csproj --filter "FullyQualifiedName~TestScenePanelGroup"
+dotnet build osu.Desktop.slnf -p:Configuration=Release
+```
+
+- BMS：`BmsTableGroupModeTest` 4/4、`BmsDisplayLevelGroupingTest` 3/3、`TestSceneBmsSongSelectDifficultyTable` 5/5、`TestSceneBmsFilterControl` 8/8；BMS 全套 **916/916**。共享 `TestScenePanelGroup` 6/6。`osu.Desktop.slnf` Release 0 错误。
+- shared `BeatmapCarouselFilterGroupingTest` 通过；`TestSceneSongSelectGrouping` 中 `TestCollectionGrouping`/`TestMyMapsGrouping*`/`TestRankAchievedGrouping` 6 条失败是**既有 OMS 分歧**（这些测试 `ImportBeatmapForRuleset(..., 0)` 取 OnlineID==0 的 osu! 标准模式，OMS 已删除 → 空数组 → `TestResources.getRuleset` `% 0` DivideByZero，发生在 import 配置阶段、与本改动无关）。
+
+---
+
 ## 2026-06-16：谱面构成过滤"失效"根因修复 + Phase 2 backfill 性能/UX 全面收口
 
 > 本日一整轮日志驱动调试（多次用户实测）。用户 2026-06-16 末确认"暂时正常、未发现异常"。最终落地合同见本条末尾 §E。06-15 的"回调竞态主因"判断在本条 §A 被推翻（仍是真实但次要缺陷，保留）。

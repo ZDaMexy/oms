@@ -64,5 +64,17 @@ namespace osu.Game.Screens.Select
         /// or <see cref="UnscopeBeatmapSet"/>.
         /// </summary>
         IBindable<BeatmapSetInfo?> ScopedBeatmapSet { get; }
+
+        /// <summary>
+        /// The currently expanded song select group (the deepest active node), or <see langword="null"/> at root level.
+        /// Used by breadcrumb / level-navigation UI for hierarchical groupings.
+        /// </summary>
+        IBindable<GroupDefinition?> CurrentExpandedGroup { get; }
+
+        /// <summary>
+        /// Collapses the currently expanded group one level towards the root, scrolling the group it
+        /// collapses into back into view. No-op when nothing is expanded.
+        /// </summary>
+        void CollapseExpandedGroupOneLevel();
     }
 }

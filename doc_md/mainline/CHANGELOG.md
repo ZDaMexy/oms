@@ -5,7 +5,23 @@
 
 ---
 
+## 2026-06-18
+
+### 非 BMS 播放谱面进入 BMS 不再误展开分组（P1-I）
+
+启动自动随机播放的曲目若是非 BMS（mania）谱面，直接进入或从 mania 切到 BMS（难度表分组）时总会误展开某分组（用户观察为 Unrated）。根因＝`SongSelect.ensureGlobalBeatmapValid` 的 `shouldSuppressGroupedAutoSelection()`（fresh-entry root-focus 期间抑制自动选中）只在 `if (validSelection)` 分支内检查；mania 当前谱面对 BMS invalid → 走 invalid 回退 `SetDefault→IsDefault→NextRandom` 自动选中并展开某分组，而 `FocusRootGroupForBeatmap` 聚焦不到 mania 谱面 → `pendingRootGroupFocus` 一直为真、抑制被回退绕过。修复＝把该抑制提前到 valid/invalid 分支之前短路返回，fresh-entry 期间抑制所有自动选中（含 invalid 回退）、保持 root 层不展开。只影响 `ShouldResetSongSelectGroupToRoot` 为真的 ruleset（BMS）；mania 等零影响。回归 `TestNonBmsPlayingBeatmapDoesNotExpandGroupOnEntry`（去掉修复即失败），BMS 全套 **918/918**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-18（其二）与 [P1-I 约束 #16](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+### BMS 层级分组（难度表）展开态/缩进方向修正（P1-I I6 跟进）
+
+用户实机反馈两处层级分组下不符合直觉的行为，均为**路径根组**（表名层）的处理缺口：① 展开的表名组不显示展开箭头——`setExpandedGroup` 只通过父组的 `setExpansionStateOfGroup` 给子组置 `IsExpanded`，而路径根组无父组、其 `IsExpanded` 从不被置位，故表名层即便展开也无 chevron、且吃"未展开"的右推偏移；修复＝`setExpandedGroup` 显式管理根组 `IsExpanded`。② 子组（等级）比父组（表名）突出更多——`Panel.updateXOffset` 的突出量只看 expanded/selected/keyboard-selected、不看深度，键盘选中的子组反而比未选中的父组更靠左；修复＝新增 `Panel.AdditionalXOffset`（虚方法、默认 0，`PanelGroup` override 返回 `Depth*30`，`30>active_x_offset 25` 压过键盘选中偏移），使祖先组突出 ≥ 其键盘选中后代组、并略多一点。两处均只影响层级分组（mania 等 depth 0 → 零影响）。验证：`TestSceneBmsSongSelectDifficultyTable` 6/6（新增 `TestExpandedTableHeaderSharesExpandedStateWithLevel`）、BMS 全套 **917/917**、共享 `TestScenePanelGroup`/`PanelSet`/`PanelBeatmap` 10/10、Release 编译干净（最终拷贝步被运行中的游戏锁住=文件锁，非代码问题）。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-18 与 [P1-I 约束 #15](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+---
+
 ## 2026-06-16
+
+### BMS 选歌展示层级下拉 + 层级返回条 + 难度表分组解析缓存（P1-I I5–I7）
+
+承接对当前 BMS 选歌分组/展示链路的审查，落地三项（用户授权 detailed 实现）：① **展示层级**——新增 BMS-only 两档下拉「歌曲→谱面 / 谱面」（共享 sort/group/collection 行里「分组」与「收藏夹」之间的第 4 列，非 BMS 收 0 宽、行布局不变），把原先由 Sort/Group 隐式组合决定的折叠/扁平行为收口为显式 `FilterCriteria.DisplayLevel`（nullable）→ `BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether`；强制扁平的分组（难度表/内外库/`Group=Difficulty`/`Sort=Difficulty`/`RankAchieved`/`LastPlayed×LastPlayed`，提取为 `GroupingForcesStandaloneDifficulties`）下锁定为「谱面」并禁用下拉、且不污染持久化偏好；**mania 与其他 ruleset 零行为变化**（`DisplayLevel==null` 等价改写原启发式）。② **层级返回条**——大库多层分组下不必滚动找组头即可上退一级：`BeatmapCarousel` 暴露 `CurrentExpandedGroup` + `CollapseExpandedGroupOneLevel`（cursor 停在刚折叠的组、不重新展开，逐级上退），新增 `FilterControl.GroupNavigationDisplay`（复用 scoped-set banner 视觉但**状态独立**，只显示面包屑路径 + 返回 + `GlobalAction.Back`，scope 退出优先于层级退回）。③ **难度表分组解析缓存**——`BmsTableGroupMode` 按 `RulesetDataJson` 内容键缓存 `GroupDefinition[]`，消除每次 refilter × 每张谱面的全量 JSON 反序列化（correctness-neutral、stale-proof、有界）。④ **层级视觉区分**——共享 `PanelGroup` 按 `group.Depth` 高对比分级：根/表名层 = 更亮背景 + 三角纹理 + 大亮标题；嵌套/等级层 = 更深背景 + 纯平无纹理 + 更小更暗标题 + 缩进；非层级分组全为 depth 0、零影响。验证：`BmsTableGroupModeTest` 4/4、`BmsDisplayLevelGroupingTest` 3/3、`TestSceneBmsSongSelectDifficultyTable` 5/5、`TestSceneBmsFilterControl` 8/8、BMS 全套 **916/916**、共享 `TestScenePanelGroup` 6/6，`osu.Desktop.slnf` Release 0 错误（`TestSceneSongSelectGrouping` 中 6 条失败为既有 OMS 分歧：测试取已删除的 osu! 标准模式 OnlineID 0 致 `TestResources` `%0`，与本改动无关）。**人工视觉验收待用户实机确认**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-16「其二」与 [P1-I 约束「展示层级与层级导航约束」](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
 
 ### 修复 BMS 选歌「谱面构成」过滤大曲库"失效" + Phase 2 backfill 性能/UX 全面收口（P1-I）
 
