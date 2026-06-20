@@ -86,15 +86,19 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                         foreach (var info in EnumerateBmsBeatmaps(r))
                         {
-                            var stats = info.Metadata.GetChartFilterStats();
+                            var (stats, resolved) = info.Metadata.GetChartFilterStatsState();
 
                             if (stats != null)
                             {
                                 if (cachedStats.TryAdd(info.ID, stats))
                                     cachedCount++;
                             }
-                            else
+                            else if (!resolved)
                                 missingIds.Add(info.ID);
+
+                            // else: already processed to an empty/unavailable result on a previous run. Leaving it out
+                            // of missingIds is the whole point — without the persisted "resolved" marker this beatmap
+                            // would be re-computed by Phase 2 on every single launch.
 
                             // Notify periodically so the filter shows incremental results during load
                             // rather than waiting for the entire Phase 1 to complete. Throttled so the carousel
@@ -128,9 +132,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 int processed = 0;
                 int computed = 0;
 
-                // Computed stats are written back to Realm in batches (one transaction per write_batch_size) rather than
-                // one tiny transaction per beatmap, to cut the per-item write churn that contends with the game's realm.
-                var pendingWrites = new ConcurrentQueue<(Guid id, BmsChartFilterStats stats)>();
+                // Computed outcomes are written back to Realm in batches (one transaction per write_batch_size) rather
+                // than one tiny transaction per beatmap, to cut the per-item write churn that contends with the game's
+                // realm. The stats may be null: a null entry still persists a "resolved" marker so the beatmap is not
+                // re-processed next launch.
+                var pendingWrites = new ConcurrentQueue<(Guid id, BmsChartFilterStats? stats)>();
 
                 Parallel.ForEach(missingIds, new ParallelOptions { MaxDegreeOfParallelism = 2 }, id =>
                 {
@@ -142,13 +148,19 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                             var detached = realm.Run(r => r.Find<BeatmapInfo>(id)?.Detach());
                             Interlocked.Add(ref diagRealmReadTicks, Stopwatch.GetTimestamp() - r0);
 
-                            var stats = detached != null ? sanitise(computeStats(detached)) : null;
-
-                            if (stats != null)
+                            // Skip beatmaps deleted between Phase 1 and here; everything else is enqueued so its result
+                            // (stats, or just the resolved marker) is persisted exactly once.
+                            if (detached != null)
                             {
-                                cachedStats[id] = stats;
+                                var stats = sanitise(computeStats(detached));
+
+                                if (stats != null)
+                                {
+                                    cachedStats[id] = stats;
+                                    Interlocked.Increment(ref computed);
+                                }
+
                                 pendingWrites.Enqueue((id, stats));
-                                Interlocked.Increment(ref computed);
                             }
                         }
                         catch { }
@@ -172,7 +184,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 flushPendingWrites(realm, pendingWrites);
                 notifyCacheUpdated();
                 completeProgressNotification(progress, computed);
-                Logger.Log($"[BmsCompositionFilter] backfill Phase 2 done: {computed}/{missingIds.Count} previously-missing beatmaps now have computed chart-filter-stats. Total cached = {cachedStats.Count}.",
+                Logger.Log($"[BmsCompositionFilter] backfill Phase 2 done: {computed}/{missingIds.Count} previously-missing beatmaps now have computed chart-filter-stats; " +
+                           $"{processed - computed} resolved to no usable stats (marked processed so they are NOT retried next launch). Total cached = {cachedStats.Count}.",
                     LoggingTarget.Database, LogLevel.Verbose);
             });
         }
@@ -181,7 +194,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private const int write_batch_size = 200;
         private static readonly object writeFlushLock = new object();
 
-        private static void flushPendingWrites(RealmAccess realm, ConcurrentQueue<(Guid id, BmsChartFilterStats stats)> pendingWrites)
+        private static void flushPendingWrites(RealmAccess realm, ConcurrentQueue<(Guid id, BmsChartFilterStats? stats)> pendingWrites)
         {
             if (pendingWrites.IsEmpty)
                 return;
@@ -190,7 +203,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             // transaction is what turns ~50k tiny write transactions into a few hundred.
             lock (writeFlushLock)
             {
-                var batch = new List<(Guid id, BmsChartFilterStats stats)>();
+                var batch = new List<(Guid id, BmsChartFilterStats? stats)>();
 
                 while (pendingWrites.TryDequeue(out var item))
                     batch.Add(item);
@@ -204,12 +217,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 {
                     realm.Write(r =>
                     {
+                        // ResolveChartFilterStats (not SetChartFilterStats) so a null result still records the
+                        // "resolved" marker — that is what makes the backfill actually one-time per beatmap.
                         foreach (var (id, stats) in batch)
-                            r.Find<BeatmapInfo>(id)?.Metadata.SetChartFilterStats(stats);
+                            r.Find<BeatmapInfo>(id)?.Metadata.ResolveChartFilterStats(stats);
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Log($"[BmsCompositionFilter] backfill write batch of {batch.Count} failed: {ex.Message}", LoggingTarget.Database, LogLevel.Important);
                 }
 
                 Interlocked.Add(ref diagRealmWriteTicks, Stopwatch.GetTimestamp() - w0);
@@ -350,11 +366,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         {
             ArgumentNullException.ThrowIfNull(beatmapInfo);
 
-            if (beatmapInfo.Metadata.GetChartFilterStats() is BmsChartFilterStats existing)
+            var (existing, resolved) = beatmapInfo.Metadata.GetChartFilterStatsState();
+
+            if (existing != null)
             {
                 cachedStats[beatmapInfo.ID] = existing;
                 return existing;
             }
+
+            // Already processed to an empty/unavailable result — honour the marker instead of recomputing every call.
+            if (resolved)
+                return null;
 
             if (cachedStats.TryGetValue(beatmapInfo.ID, out var cached))
                 return cached;
@@ -363,31 +385,38 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             lock (syncRoot)
             {
-                if (beatmapInfo.Metadata.GetChartFilterStats() is BmsChartFilterStats persisted)
+                (existing, resolved) = beatmapInfo.Metadata.GetChartFilterStatsState();
+
+                if (existing != null)
                 {
-                    cachedStats[beatmapInfo.ID] = persisted;
-                    return persisted;
+                    cachedStats[beatmapInfo.ID] = existing;
+                    return existing;
                 }
+
+                if (resolved)
+                    return null;
 
                 if (cachedStats.TryGetValue(beatmapInfo.ID, out cached))
                     return cached;
 
                 var computed = sanitise(computeStats(beatmapInfo));
 
-                if (computed == null)
-                    return null;
+                // Persist the outcome either way: a null result records the "resolved" marker so this beatmap is not
+                // recomputed on subsequent calls / launches.
+                beatmapInfo.Metadata.ResolveChartFilterStats(computed);
 
-                beatmapInfo.Metadata.SetChartFilterStats(computed);
-                cachedStats[beatmapInfo.ID] = computed;
+                if (computed != null)
+                    cachedStats[beatmapInfo.ID] = computed;
 
                 long w0 = Stopwatch.GetTimestamp();
 
                 try
                 {
-                    realmAccess?.Write(realm => realm.Find<BeatmapInfo>(beatmapInfo.ID)?.Metadata.SetChartFilterStats(computed));
+                    realmAccess?.Write(realm => realm.Find<BeatmapInfo>(beatmapInfo.ID)?.Metadata.ResolveChartFilterStats(computed));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Log($"[BmsCompositionFilter] on-demand backfill write failed for {beatmapInfo.ID}: {ex.Message}", LoggingTarget.Database, LogLevel.Important);
                 }
 
                 Interlocked.Add(ref diagRealmWriteTicks, Stopwatch.GetTimestamp() - w0);

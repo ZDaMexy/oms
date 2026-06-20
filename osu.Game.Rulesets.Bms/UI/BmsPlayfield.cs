@@ -28,7 +28,11 @@ namespace osu.Game.Rulesets.Bms.UI
     [Cached]
     public partial class BmsPlayfield : ScrollingPlayfield
     {
-        private const float side_anchored_horizontal_inset = 0.05f;
+        /// <summary>
+        /// Horizontal screen-edge inset kept when the playfield is side-anchored (P1/P2). Exposed so the gauge bar can
+        /// mirror the exact same side anchoring directly under the lanes (see <see cref="DefaultBmsHudLayoutDisplay"/>).
+        /// </summary>
+        public const float SIDE_ANCHORED_HORIZONTAL_INSET = 0.05f;
 
         private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
         private readonly BindableFloat liftUnits = new BindableFloat();
@@ -141,9 +145,10 @@ namespace osu.Game.Rulesets.Bms.UI
                     },
                     playfieldContainer = new Container
                     {
-                        // Top-anchored so the playfield (and therefore the first visible notes) starts at the screen
-                        // top with no gap. Vertical extent is controlled by PlayfieldHeight; applyPlayfieldStyle keeps
-                        // the top anchor and only varies the horizontal side anchoring.
+                        // Top-anchored at the screen edge so the first visible notes appear at the very top (matching the
+                        // green-number "full visible field" semantics). Vertical extent is controlled by PlayfieldHeight;
+                        // applyPlayfieldStyle keeps the top anchor and only varies the horizontal side anchoring. The gauge
+                        // (DefaultBmsHudLayoutDisplay) sits just below the judgement line at PlayfieldHeight.
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.TopCentre,
                         RelativePositionAxes = Axes.X,
@@ -325,13 +330,13 @@ namespace osu.Game.Rulesets.Bms.UI
                 case BmsPlayfieldStyle.P1:
                     playfieldContainer.Anchor = Anchor.TopLeft;
                     playfieldContainer.Origin = Anchor.TopLeft;
-                    playfieldContainer.X = side_anchored_horizontal_inset;
+                    playfieldContainer.X = SIDE_ANCHORED_HORIZONTAL_INSET;
                     break;
 
                 case BmsPlayfieldStyle.P2:
                     playfieldContainer.Anchor = Anchor.TopRight;
                     playfieldContainer.Origin = Anchor.TopRight;
-                    playfieldContainer.X = -side_anchored_horizontal_inset;
+                    playfieldContainer.X = -SIDE_ANCHORED_HORIZONTAL_INSET;
                     break;
 
                 default:

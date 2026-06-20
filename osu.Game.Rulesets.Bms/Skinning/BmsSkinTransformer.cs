@@ -107,6 +107,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     if (!hasBmsHudLayer(skinnedComponent))
                         return null;
 
+                    // Remove the upstream default combo counter and gameplay leaderboard from the wrapped HUD so they are
+                    // not part of the BMS default-skin configuration at all (BMS shows its own combo; OMS is offline-first).
+                    stripDefaultHudElements(skinnedComponent);
+
                     Drawable gaugeBar = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.GaugeBar)) ?? new BmsGaugeBar();
                     ComboCounter comboCounter = (ComboCounter)(GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) ?? new BmsComboCounter());
                     Drawable hudLayout = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)) ?? new DefaultBmsHudLayoutDisplay();
@@ -118,6 +122,19 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
 
             return skinnedComponent;
+        }
+
+        // Strips the wrapped global HUD's default combo counter (duplicates the BMS combo) and gameplay leaderboard
+        // (offline-first) so neither is ever part of the BMS HUD configuration. NOTE the legacy default combo is
+        // `LegacyDefaultComboCounter` (a CompositeDrawable, NOT a ComboCounter) — both are matched. The BMS combo is added
+        // separately and is not inside the wrapped HUD, so removing every combo here is safe. Graceful for skins without them.
+        private static void stripDefaultHudElements(Drawable? wrappedHud)
+        {
+            if (wrappedHud is not Container container)
+                return;
+
+            foreach (var drawable in container.Children.Where(child => child is ComboCounter or LegacyDefaultComboCounter or DrawableGameplayLeaderboard).ToArray())
+                container.Remove(drawable, true);
         }
 
         private bool hasBmsHudLayer(Drawable? wrappedHud)

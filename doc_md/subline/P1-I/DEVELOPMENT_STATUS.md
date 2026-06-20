@@ -28,13 +28,14 @@
 - **Phase 2**（补算缺 stats 的旧库谱）= **直读 .bms**（`computeStatsDirect`，**禁逐张 `GetWorkingBeatmap`**——其进程级 `lock(workingCache)` 会和 UI 抢锁、阻塞 update 线程）+ **轻量计数解码**（`ComputeFromDecodedChart`，与完整转谱**可证等价**，`BmsBeatmapConverter.IsScratchLane` 唯一真源）+ **批量写回**（每 200 张一个 realm 事务）+ **进度通知**（`ProgressNotification` done/total，`missingIds==0` 不弹）。
 - `Matches` 取值 `GetCachedStats(ID) ?? GetChartFilterStats()`（缓存优先、快照兜底）；fail-open（缺 stats 不静默隐藏）不动；生产匹配路径不碰 working-beatmap I/O。
 - **自动化语义**：无需人工重导——Phase 1 读已持久化、Phase 2 后台自动补算并批量写回 Realm（跨会话持久）。旧库（2026-05-11 导入持久化前）首轮 Phase 2 补齐量大，过滤精度渐进收敛、有进度通知可见、补齐一次后永久。
+- **"已处理"负缓存（2026-06-18 其三补）**：missing 判定＝`GetChartFilterStatsState().Resolved` 为假。Phase 2 处理过的谱面**无论是否产出可用 stats 都写回 resolved 标记**（`ResolveChartFilterStats`：非空存 stats、空只置 `ChartFilterStatsResolved`），否则空谱/不可算谱（`ChartFilterStats` 恒 `null`）每次启动被重新归类为 missing 并重算——即"每次启动跑一次构成计算、没有持久化"的根因。import/reuse/`GetOrBackfill` 同走 `ResolveChartFilterStats`；空谱在 `Matches` 仍按 `null` fail-open。详见 TECHNICAL_CONSTRAINTS #16。
 - 诊断埋点保留（全 `Verbose`/`LoggingTarget.Database`，仅 Phase 1 失败为 Important）：Phase 1 cached/missing、Phase 2 per-item 计时分桶、匹配抽样（5s 节流）。
 
 ## 当前验证基线
 
 - importer / statistics / criteria / BMS-only FilterControl 的首轮 focused suite 当前保持 **30/30**；相关 build gate 当前可通过。
 - `BmsFilterCriteriaTest` 当前保持 **4/4**，并已锁住公开搜索口径 `rc/rice` 与 `regular` 仅作兼容 alias 的合同。
-- **最近一次验证（2026-06-16）**：BMS 全量 **910/910** 通过，含 backfill 三条新增回归——`TestChartFilterStatsBackfillQueryDoesNotThrowAgainstRealm`（真实 Realm 锁 Phase 1 查询不崩）、`TestLateCacheSubscriberStillReceivesRefresh`（回调不被竞态吞掉）、`TestLightweightChartFilterStatsMatchFullConversion`（轻量计数 ≡ 完整转谱）；`osu.Desktop.slnf` Debug 0 error；用户实测确认过滤生效 + 选歌可用 + 进度通知显示。backfill 硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) read-model #8–#15。
+- **最近一次验证（2026-06-18 其三）**：BMS 全量 **922/922** 通过，新增 backfill resolved-marker 四条（`BmsChartFilterStatsBackfillTest`：空结果持久化 round-trip / 未处理读回未 resolved / 有 stats 持久化 / 与 converted_star 共存）；`osu.Game.Tests` converted-star/persisted-metadata 17/17；`osu.Game.Rulesets.Bms` Debug 0 error。仍含 2026-06-16 backfill 三条回归（`TestChartFilterStatsBackfillQueryDoesNotThrowAgainstRealm` / `TestLateCacheSubscriberStillReceivesRefresh` / `TestLightweightChartFilterStatsMatchFullConversion`）。backfill 硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) read-model #8–#16。**用户实机验收通过（2026-06-18 其四）**：连跑两次启动，第 2 次启动 `Phase 1 done: 57685 persisted, 0 missing`、补算与"正在分析"通知不再每启动复发（详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-18 其四）。
 
 | 事项 | 状态 | 备注 |
 | --- | --- | --- |
@@ -51,6 +52,7 @@
 - **无解组合风险**：三个值各自表示最大占比；若用户把三者都压得过低，筛选结果允许为空，不能额外发明补偿语义。
 - **范围语义落差风险**：文本 `rc/ln/scr` 保留完整范围语法；不得以贴合当前 visual 交互为由削弱文本语法能力。
 - **拖拽回归缺口**：`BmsCompositionHandle` 共享边界拖拽语义尚无 headless automated coverage；在补测之前只依赖 visual test runner 验证。
+- **选歌偶发掉帧（未定位 / 已搁置，2026-06-18 其四）**：测 I5–I7 分组/展示层级行为时偶发 ~1000→~25FPS 持续波动、切分组层级不恢复、事后不可复现。I5–I7 链路经逐文件审查为事件驱动、未定位为成因；用户所给日志不含帧率/线程耗时数据，唯一 Global Statistics 快照非掉帧现场，证据不足以定因。捕获协议与标准候选见 [CHANGELOG.md](CHANGELOG.md) 2026-06-18 其四；下次复现需现场 `Ctrl+F11` 抓线程瓶颈 + 当场重导日志。
 
 ## 下一检查点
 

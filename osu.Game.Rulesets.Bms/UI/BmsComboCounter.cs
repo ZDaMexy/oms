@@ -1,11 +1,8 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Allocation;
-using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Graphics;
@@ -13,7 +10,6 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
 using osuTK;
-using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -42,16 +38,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override IHasText CreateText() => textComponent = new TextComponent();
 
+        // Bare combo readout: just the COMBO label + count, centred, with no background colour block / border so the
+        // counter sits cleanly over the playfield centre.
         private partial class TextComponent : CompositeDrawable, IHasText
         {
-            private readonly Container body;
-            private readonly Box background;
-            private readonly Box glow;
-            private readonly Box accentStrip;
             private readonly OsuSpriteText labelText;
             private readonly OsuSpriteText countText;
-
-            private Color4 currentAccent = BmsDefaultHudPalette.ComboInactiveAccent;
 
             public LocalisableString Text
             {
@@ -67,62 +59,32 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     AutoSizeAxes = Axes.Both,
                     Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 4),
+                    Spacing = new Vector2(0, 2),
                     Children = new Drawable[]
                     {
                         labelText = new OsuSpriteText
                         {
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre,
                             Text = "COMBO",
                             Font = OsuFont.Default.With(size: 11, weight: FontWeight.Bold),
                             Colour = BmsDefaultHudPalette.SurfaceSubtext,
-                            Padding = new MarginPadding { Left = 4 },
                         },
-                        body = new Container
+                        countText = new OsuSpriteText
                         {
-                            AutoSizeAxes = Axes.Both,
-                            Masking = true,
-                            CornerRadius = 7,
-                            BorderThickness = 1,
-                            BorderColour = BmsDefaultHudPalette.SurfaceBorder,
-                            Children = new Drawable[]
-                            {
-                                background = new Box
-                                {
-                                    RelativeSizeAxes = Axes.Both,
-                                },
-                                glow = new Box
-                                {
-                                    RelativeSizeAxes = Axes.Both,
-                                    Alpha = 0.08f,
-                                },
-                                accentStrip = new Box
-                                {
-                                    RelativeSizeAxes = Axes.X,
-                                    Height = 3,
-                                    Anchor = Anchor.TopCentre,
-                                    Origin = Anchor.TopCentre,
-                                },
-                                countText = new OsuSpriteText
-                                {
-                                    Margin = new MarginPadding
-                                    {
-                                        Top = 7,
-                                        Right = 16,
-                                        Bottom = 8,
-                                        Left = 16,
-                                    },
-                                    Font = OsuFont.Numeric.With(size: 30, fixedWidth: true),
-                                    Colour = BmsDefaultHudPalette.SurfaceText,
-                                }
-                            }
-                        }
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre,
+                            Font = OsuFont.Numeric.With(size: 32, fixedWidth: true),
+                            Colour = BmsDefaultHudPalette.SurfaceText,
+                            Shadow = true,
+                        },
                     }
                 };
             }
 
             public void UpdateState(int combo)
             {
-                currentAccent = combo switch
+                var accent = combo switch
                 {
                     >= 100 => BmsDefaultHudPalette.ComboMilestoneAccent,
                     > 0 => BmsDefaultHudPalette.ComboActiveAccent,
@@ -131,41 +93,24 @@ namespace osu.Game.Rulesets.Bms.UI
 
                 bool active = combo > 0;
 
-                background.Colour = ColourInfo.GradientVertical(
-                    BmsDefaultHudPalette.ComboBackground,
-                    currentAccent.Opacity(active ? 0.16f : 0.06f));
-                glow.Colour = currentAccent;
-                glow.Alpha = active ? 0.16f : 0.08f;
-                accentStrip.Colour = currentAccent;
-                body.BorderColour = currentAccent.Opacity(active ? 0.46f : 0.24f);
-                labelText.Colour = active ? currentAccent : BmsDefaultHudPalette.SurfaceSubtext;
+                labelText.Colour = active ? accent : BmsDefaultHudPalette.SurfaceSubtext;
                 countText.Colour = active ? BmsDefaultHudPalette.SurfaceText : BmsDefaultHudPalette.SurfaceSubtext;
             }
 
             public void Pulse()
             {
-                body.ClearTransforms();
-                body.ScaleTo(new Vector2(1.04f), 60, Easing.OutQuint)
-                    .Then()
-                    .ScaleTo(Vector2.One, 180, Easing.OutQuint);
-
-                glow.ClearTransforms();
-                glow.FadeTo(0.34f, 60, Easing.OutQuint)
-                    .Then()
-                    .FadeTo(0.16f, 220, Easing.OutQuint);
+                countText.ClearTransforms();
+                countText.ScaleTo(new Vector2(1.08f), 60, Easing.OutQuint)
+                         .Then()
+                         .ScaleTo(Vector2.One, 180, Easing.OutQuint);
             }
 
             public void FlashMiss()
             {
-                body.ClearTransforms();
-                body.ScaleTo(new Vector2(0.96f), 70, Easing.OutQuint)
-                    .Then()
-                    .ScaleTo(Vector2.One, 220, Easing.OutQuint);
-
-                glow.ClearTransforms();
-                glow.FadeTo(0.24f, 50, Easing.OutQuint)
-                    .Then()
-                    .FadeTo(0.08f, 240, Easing.OutQuint);
+                countText.ClearTransforms();
+                countText.ScaleTo(new Vector2(0.94f), 70, Easing.OutQuint)
+                         .Then()
+                         .ScaleTo(Vector2.One, 220, Easing.OutQuint);
             }
         }
     }

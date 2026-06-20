@@ -15,6 +15,11 @@ namespace osu.Game.Rulesets.Bms.UI
         public static readonly Color4 TrackShade = new Color4(8, 11, 18, 255);
         public static readonly Color4 ThresholdMarker = new Color4(244, 248, 255, 210);
 
+        // Gauge track tuned to the playfield strip navy (lane background → baseplate) so the bar reads as the bottom of
+        // the playfield column, not a detached widget (matches BmsDefaultPlayfieldPalette lane/baseplate range).
+        public static readonly Color4 GaugeTrackTop = new Color4(26, 32, 48, 255);
+        public static readonly Color4 GaugeTrackBottom = new Color4(13, 19, 31, 255);
+
         public static readonly Color4 ComboBackground = new Color4(12, 18, 28, 245);
         public static readonly Color4 ComboInactiveAccent = new Color4(76, 92, 122, 255);
         public static readonly Color4 ComboActiveAccent = new Color4(255, 196, 112, 255);

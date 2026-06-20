@@ -232,7 +232,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (!preparedBeatmapsByMd5.TryGetValue(beatmap.MD5Hash, out var preparedBeatmap))
                     continue;
 
-                beatmap.Metadata.SetChartFilterStats(preparedBeatmap.Metadata.GetChartFilterStats());
+                beatmap.Metadata.ResolveChartFilterStats(preparedBeatmap.Metadata.GetChartFilterStats());
             }
         }
 

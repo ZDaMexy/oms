@@ -69,6 +69,19 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestGaugeBarStaysVisibleWhenHealthBarHidden()
+        {
+            AddStep("expire pre-start delay", () => player.ExpirePreStartDelay());
+            AddUntilStep("gameplay clock running", () => player.GameplayClockContainer.IsRunning);
+            AddUntilStep("gauge present", () => player.ChildrenOfType<BmsGaugeBar>().Any());
+            // Mimic NoFail / ShowHealthBar=false: HealthDisplay fades itself to 0, which must NOT take the BMS groove
+            // gauge with it (it is core gameplay info, always shown).
+            AddStep("hide generic health bar", () => player.ChildrenOfType<HUDOverlay>().Single().ShowHealthBar.Value = false);
+            AddWaitStep("let fade settle", 30);
+            AddAssert("BMS gauge stays visible", () => player.ChildrenOfType<BmsGaugeBar>().Single().Alpha > 0);
+        }
+
+        [Test]
         public void TestGameplayStartsAfterDelayWithoutHold()
         {
             AddAssert("pre-start overlay exists", () => player.PreStartOverlay != null);

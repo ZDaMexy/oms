@@ -32,13 +32,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScene(playfieldWidth: 0.64, playfieldHeight: 0.72, laneSpacing: 0.08, laneWidth: 1.5, scratchLaneSpacing: 0.24, scratchLaneWidthRatio: 1.6);
 
             AddAssert("profile playfield width stays default", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldWidth, () => Is.EqualTo(0.396f).Within(0.0001f));
-            AddAssert("profile playfield height stays default", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldHeight, () => Is.EqualTo(0.95f).Within(0.0001f));
+            AddAssert("profile playfield height stays default", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldHeight, () => Is.EqualTo(0.92f).Within(0.0001f));
             AddAssert("profile lane width stays default", () => drawableRuleset.Playfield.LayoutProfile.NormalLaneRelativeWidth, () => Is.EqualTo(1f).Within(0.0001f));
             AddAssert("profile lane spacing stays default", () => drawableRuleset.Playfield.LayoutProfile.NormalLaneRelativeSpacing, () => Is.EqualTo(0f).Within(0.0001f));
             AddAssert("profile scratch width stays default", () => drawableRuleset.Playfield.LayoutProfile.ScratchLaneRelativeWidth, () => Is.EqualTo(1.5f).Within(0.0001f));
             AddAssert("profile scratch spacing stays default", () => drawableRuleset.Playfield.LayoutProfile.ScratchLaneRelativeSpacing, () => Is.EqualTo(0.12f).Within(0.0001f));
             AddAssert("scratch lane stays 1.5x the key lane width", () => drawableRuleset.Playfield.Lanes[0].Width / drawableRuleset.Playfield.Lanes[1].Width, () => Is.EqualTo(1.5f).Within(0.05f));
-            AddAssert("lane heights stay default", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height - 0.95f) <= 0.01f));
+            AddAssert("lane heights stay default", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height - 0.92f) <= 0.01f));
         }
 
         [Test]

@@ -11,6 +11,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
 using osuTK;
@@ -20,8 +21,12 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class BmsGaugeBar : HealthDisplay, ISerialisableDrawable
     {
-        private const float bar_height = 20;
-        private const float header_spacing = 6;
+        // Single integrated band: the gauge IS the bottom of the playfield column, with the label/value overlaid on the
+        // bar (IIDX groove-gauge read) rather than floating in a separate header row above it.
+        private const float bar_height = 34;
+
+        // Number of faint vertical dividers slicing the track into even cells (groove-gauge read; not IIDX per-cell detail).
+        private const int segment_count = 10;
 
         private readonly OsuSpriteText gaugeLabel;
         private readonly OsuSpriteText gaugeValue;
@@ -33,6 +38,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Box floorMarker;
         private readonly Box clearMarker;
         private readonly Box highlight;
+        private readonly Box topAccent;
         private IBindable<BmsGaugeType>? currentGaugeType;
         private IBindable<BmsGaugeRulesFamily>? currentGaugeRulesFamily;
         private double currentDisplayMaxGauge = 1;
@@ -44,102 +50,126 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override bool PlayInitialIncreaseAnimation => false;
 
+        [Resolved(CanBeNull = true)]
+        private HUDOverlay? gaugeHudOverlay { get; set; }
+
         public BmsGaugeBar()
         {
             AutoSizeAxes = Axes.Y;
 
-            InternalChild = new FillFlowContainer
+            // The gauge is a single flush band (no surrounding border, no separate header row) so it merges into the
+            // playfield strip above it instead of reading as a bolt-on widget.
+            InternalChild = track = new Container
             {
                 RelativeSizeAxes = Axes.X,
-                AutoSizeAxes = Axes.Y,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, header_spacing),
+                Height = bar_height,
+                Masking = true,
+                CornerRadius = 0,
                 Children = new Drawable[]
                 {
-                    new Container
+                    trackBackground = new Box
                     {
-                        RelativeSizeAxes = Axes.X,
-                        AutoSizeAxes = Axes.Y,
-                        Children = new Drawable[]
-                        {
-                            gaugeLabel = new OsuSpriteText
-                            {
-                                Anchor = Anchor.TopLeft,
-                                Origin = Anchor.TopLeft,
-                                Font = OsuFont.Default.With(size: 12, weight: FontWeight.Bold),
-                                Colour = BmsDefaultHudPalette.SurfaceSubtext,
-                            },
-                            gaugeValue = new OsuSpriteText
-                            {
-                                Anchor = Anchor.TopRight,
-                                Origin = Anchor.TopRight,
-                                Font = OsuFont.Numeric.With(size: 14, fixedWidth: true),
-                                Colour = BmsDefaultHudPalette.SurfaceText,
-                            },
-                        }
+                        RelativeSizeAxes = Axes.Both,
                     },
-                    track = new Container
+                    floorBand = new Box
                     {
-                        RelativeSizeAxes = Axes.X,
-                        Height = bar_height,
-                        Masking = true,
-                        CornerRadius = 10,
-                        BorderThickness = 1,
-                        BorderColour = BmsDefaultHudPalette.SurfaceBorder,
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
+                    },
+                    fill = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Width = 0,
                         Children = new Drawable[]
                         {
-                            trackBackground = new Box
+                            fillBox = new Box
                             {
                                 RelativeSizeAxes = Axes.Both,
                             },
-                            floorBand = new Box
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                Alpha = 0,
-                            },
-                            fill = new Container
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                Width = 0,
-                                Children = new Drawable[]
-                                {
-                                    fillBox = new Box
-                                    {
-                                        RelativeSizeAxes = Axes.Both,
-                                    },
-                                    new Box
-                                    {
-                                        RelativeSizeAxes = Axes.X,
-                                        Height = 2,
-                                        Colour = BmsDefaultHudPalette.SurfaceText.Opacity(0.12f),
-                                    }
-                                }
-                            },
-                            highlight = new Box
+                            new Box
                             {
                                 RelativeSizeAxes = Axes.X,
                                 Height = 2,
-                                Alpha = 0.16f,
-                            },
-                            floorMarker = new Box
-                            {
-                                RelativePositionAxes = Axes.X,
-                                RelativeSizeAxes = Axes.Y,
-                                Width = 2,
-                                Height = 1,
-                                Alpha = 0,
-                            },
-                            clearMarker = new Box
-                            {
-                                RelativePositionAxes = Axes.X,
-                                RelativeSizeAxes = Axes.Y,
-                                Width = 2,
-                                Height = 1,
-                                Alpha = 0,
-                            },
+                                Colour = BmsDefaultHudPalette.SurfaceText.Opacity(0.12f),
+                            }
                         }
-                    }
+                    },
+                    createSegmentTicks(),
+                    highlight = new Box
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Height = 2,
+                        Alpha = 0.16f,
+                    },
+                    floorMarker = new Box
+                    {
+                        RelativePositionAxes = Axes.X,
+                        RelativeSizeAxes = Axes.Y,
+                        Width = 2,
+                        Height = 1,
+                        Alpha = 0,
+                    },
+                    clearMarker = new Box
+                    {
+                        RelativePositionAxes = Axes.X,
+                        RelativeSizeAxes = Axes.Y,
+                        Width = 2,
+                        Height = 1,
+                        Alpha = 0,
+                    },
+                    // Thin gauge-coloured hairline at the top edge — a deliberate "meter starts here" cue under the
+                    // judgement line, in place of a full surrounding border.
+                    topAccent = new Box
+                    {
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.TopLeft,
+                        RelativeSizeAxes = Axes.X,
+                        Height = 1,
+                    },
+                    // Label + value overlaid on the bar (IIDX groove-gauge), shadowed for readability over the fill.
+                    gaugeLabel = new OsuSpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Margin = new MarginPadding { Left = 8 },
+                        Font = OsuFont.Default.With(size: 13, weight: FontWeight.Bold),
+                        Colour = BmsDefaultHudPalette.SurfaceText,
+                        Shadow = true,
+                    },
+                    gaugeValue = new OsuSpriteText
+                    {
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        Margin = new MarginPadding { Right = 8 },
+                        Font = OsuFont.Numeric.With(size: 20, fixedWidth: true),
+                        Colour = BmsDefaultHudPalette.SurfaceText,
+                        Shadow = true,
+                    },
                 }
+            };
+        }
+
+        // Faint, evenly-spaced vertical dividers overlaid on the track to give a segmented groove-gauge read.
+        private static Container createSegmentTicks()
+        {
+            var ticks = new Drawable[segment_count - 1];
+
+            for (int i = 1; i < segment_count; i++)
+            {
+                ticks[i - 1] = new Box
+                {
+                    RelativePositionAxes = Axes.X,
+                    RelativeSizeAxes = Axes.Y,
+                    Width = 1,
+                    X = (float)i / segment_count,
+                    Colour = BmsDefaultHudPalette.SurfaceText.Opacity(0.08f),
+                };
+            }
+
+            return new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Children = ticks,
             };
         }
 
@@ -150,6 +180,19 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // The BMS groove gauge is core gameplay information and must stay visible even when the generic health bar
+            // is hidden (ShowHealthBar=false via NoFail etc.). HealthDisplay fades `this` to 0 in that case; re-assert
+            // full visibility. This binding fires AFTER the base's (bound-copy subscribers run before own subscribers),
+            // so it wins. The HUD-wide ShowHud fade still applies via the parent and is unaffected.
+            if (gaugeHudOverlay != null)
+            {
+                gaugeHudOverlay.ShowHealthBar.BindValueChanged(_ =>
+                {
+                    FinishTransforms();
+                    Alpha = 1;
+                }, true);
+            }
 
             if (HealthProcessor is BmsGaugeProcessor gaugeProcessor)
             {
@@ -195,11 +238,11 @@ namespace osu.Game.Rulesets.Bms.UI
             currentDisplayMaxGauge = gaugeProcessor?.CurrentMaximumGauge ?? 1;
 
             gaugeLabel.Text = getGaugeLabel(gaugeProcessor, gaugeType, gaugeRulesFamily);
-            gaugeLabel.Colour = accentColour;
-            gaugeValue.Colour = BmsDefaultHudPalette.SurfaceText;
 
-            track.BorderColour = accentColour.Opacity(0.32f);
-            trackBackground.Colour = ColourInfo.GradientVertical(BmsDefaultHudPalette.TrackBackground, BmsDefaultHudPalette.TrackShade);
+            // Background matches the playfield strip navy so the band reads as the playfield's bottom; the gauge type is
+            // conveyed by the fill colour + the top hairline, keeping the overlaid text white for readability.
+            trackBackground.Colour = ColourInfo.GradientVertical(BmsDefaultHudPalette.GaugeTrackTop, BmsDefaultHudPalette.GaugeTrackBottom);
+            topAccent.Colour = accentColour.Opacity(0.55f);
 
             fillBox.Colour = barColour;
 

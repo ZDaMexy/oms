@@ -97,6 +97,33 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestRulesetHudStripsDefaultComboAndLeaderboard()
+        {
+            var ruleset = new BmsRuleset();
+            var wrappedHud = new Container
+            {
+                Children = new Drawable[]
+                {
+                    // The real upstream default combo is LegacyDefaultComboCounter (a CompositeDrawable, NOT a ComboCounter).
+                    new LegacyDefaultComboCounter(),
+                    new DrawableGameplayLeaderboard(),
+                }
+            };
+            var transformer = ruleset.CreateSkinTransformer(new TestSkin(rulesetHudComponent: wrappedHud), new BmsBeatmap());
+            var drawable = (Container)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
+
+            Assert.Multiple(() =>
+            {
+                // The upstream default combo + gameplay leaderboard are removed from the wrapped HUD config entirely
+                // (not merely hidden).
+                Assert.That(wrappedHud.Children.OfType<LegacyDefaultComboCounter>(), Is.Empty);
+                Assert.That(wrappedHud.Children.OfType<DrawableGameplayLeaderboard>(), Is.Empty);
+                // The BMS combo stays in the assembled HUD.
+                Assert.That(drawable.Children.OfType<BmsComboCounter>().Count(), Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public void TestGlobalHudFallsBackToWrappedSkin()
         {
             var ruleset = new BmsRuleset();

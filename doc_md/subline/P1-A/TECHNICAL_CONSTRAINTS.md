@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-26
+> 最后更新：2026-06-20
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -27,6 +27,7 @@
 15. `osu!mania` settings 页的 `滚动速度` 若显示毫秒，只能表述为标准车道几何下的参考下落时间；不得包装成跨皮肤或跨 ruleset 的严格体感合同，也不得鼓励拿它直接与 BMS 下落时间对照。
 16. 若后续公开 `BMS -> mania` 单向转谱入口，产品口径必须显式收窄为 `BMS source -> mania target`，不得沿用或暗示 generic all-ruleset convert surface；`ShowConvertedBeatmaps`、`AllowGameplayWithRuleset()` 与顶层“显示转谱”按钮都不能直接被包装成该专题已支持的 authority。
 17. `P1-A` 只拥有 `BMS -> mania` 单向转谱的入口位置、按钮文案、Song Select / presentation gating 与 unavailable feedback；source keymode matrix、lane flatten、scratch-family 退化与空结果 suppress 仍归 `P1-K/K9`，unsupported / invalid case 必须隐藏或明确不可用，而不是展示可点击空壳入口。
+18. **playfield 顶边必须贴屏幕边缘**（top-anchored `Y=0`，音符从屏幕最顶出现，符合 green-number「整屏可见场 = 顶边→判定线」语义）。默认 `PlayfieldHeight` 当前为 `0.92`，是 strict profile 的唯一杠杆（config `PlayfieldHeight` 维持被忽略的 disabled 项，改值改 `BmsPlayfieldLayoutProfile.CreateDefault` 默认），判定线落在 `0.92` 屏高、gauge（`DefaultBmsHudLayoutDisplay.gauge_top = PlayfieldHeight + 0.002`）紧贴其下并止于近屏底。**不得再用整体下移**（曾用的 `PLAYFIELD_VERTICAL_OFFSET` 已删除——它让顶边离开屏幕边缘、违背本约束；要把 gauge 放低就调高 `PlayfieldHeight`，让顶边留在边缘、判定线下移）。调整 `PlayfieldHeight` 必须保持判定时序不变量：仅在 `HitTargetVerticalOffset=0`（`scrollLengthRatio≡1`、`TimeRange` 与场高无关）下成立，场高只改像素扫过距离、不改 GN / 判定窗口；change 后须同步 `BmsLaneLayoutTest` / `TestSceneBmsPlayfieldLayoutConfig` 断言。gauge 的相对-Y 贴线对齐依赖「HUD 与 ruleset 同屏」假设（`BmsPlayfieldAdjustmentContainer` Scale 固定 `1.0`、HUD `MainHUDComponents` 与 playfield 均全屏），不得引入会破坏该假设的 HUD 安全区 inset 或 playfield 缩放。
 
 ## 皮肤边界约束
 
@@ -41,6 +42,9 @@
 1. 不得直接破坏现有 `IBmsHudLayoutDisplay` 签名。若需要额外组件，必须使用 versioned optional interface、wrapper contract，或等价的向后兼容方案。
 2. 旧版 HUD provider 在未实现新接口时必须保持可用；新反馈组件应由 `OmsSkin` 默认路径独立 fallback。
 3. 默认 HUD 不得依赖 Debug overlay、临时 Box 或只在 toast 中可见的链路来维持功能完整。
+4. 默认 gauge 摆位（`DefaultBmsHudLayoutDisplay`）规定为：判定线下方、与 playfield 条带等宽、并随 `PlayfieldStyle` 侧锚（P1 左 / P2 右 / 居中，与 lane 同一套 inset）、垂直贴 `PlayfieldHeight`。该摆位所需的 `PlayfieldWidth / keymode` 必须经 `GameplayState` 可玩谱面解析、`PlayfieldStyle` 必须经 game 级 `IRulesetConfigCache.GetConfigFor(bms)` 解析（与 playfield 子树同一 `BmsRulesetConfigManager` 实例）；**不得为此改 `IBmsHudLayoutDisplay.SetComponents` 签名，也不得把 gauge 迁出 HUD 合同**（gauge 仍是 HUD 子件 + 可皮肤化组件）。无 `GameplayState` / config 的宿主（皮肤编辑器预览 / 测试）须优雅降级（居中 + 兜底宽度），不得抛异常。
+5. BMS gameplay 的 wrapped 全局 HUD 自带的 **默认 combo（`LegacyDefaultComboCounter`，与 `BmsComboCounter` 重复）** 与 **gameplay leaderboard（`DrawableGameplayLeaderboard`，offline-first）** 必须在 `BmsSkinTransformer` 装配 BMS `MainHUDComponents` 时 **从配置树移除**（`stripDefaultHudElements`：`Container.Remove` wrapped 直接子里的 `ComboCounter` / **`LegacyDefaultComboCounter`** / `DrawableGameplayLeaderboard`），而**不是运行时隐藏**（避免首帧闪烁 / 仍进皮肤编辑器序列化）。⚠️ **坑**：上游默认连击 `LegacyDefaultComboCounter` 是 `CompositeDrawable, ISerialisableDrawable`，**不是 `ComboCounter` 子类**——strip 与其回归测试都必须显式覆盖该类型，不能只匹配 `ComboCounter`（否则连击删不掉）。wrapped HUD 其余件（全局层 score 等）保留；BMS combo 由 `SetComponents` 另行添加、不在 wrapped 层。两者**同源**＝上游 `LegacySkin` 的 ruleset-`MainHUDComponents` 默认布局（`new LegacyDefaultComboCounter()` + `new DrawableGameplayLeaderboard()`）。重新放开须显式改 `stripDefaultHudElements` 并同步本约束；不得用 `Alpha=0` / `ShowLeaderboard=false` 之类隐藏式替代"移除"。
+6. `BmsGaugeBar` 继承 `HealthDisplay`，而 `HealthDisplay` 会把自身绑到 `HUDOverlay.ShowHealthBar` 并在其为 false（NoFail 等通用"隐藏血条"开关）时 `FadeTo(0)`。**BMS groove gauge 是核心游玩信息，必须免疫该开关、始终显示**：`BmsGaugeBar.LoadComplete` 订阅 `ShowHealthBar` 变化并重申 `Alpha=1`（在 base 之后注册以压过其淡出）。不得让 BMS gauge 随通用血条开关消失。注意：gauge 摆位/可见性的回归测试必须用**真实 `HUDOverlay`**（裸 `DependencyProvidingContainer` 下 `hudOverlay` 解析为 null、`showHealthBar` 恒 true，会掩盖该淡出路径）。HUD 整体 `ShowHud` 淡入仍应经父级正常生效。
 
 ## 反馈家族约束
 

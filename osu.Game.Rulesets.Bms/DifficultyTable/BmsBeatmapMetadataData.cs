@@ -23,6 +23,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         [JsonProperty("chart_filter_stats")]
         public BmsChartFilterStats? ChartFilterStats { get; set; }
 
+        // Marks that the composition-filter backfill has already processed this beatmap, even when it produced
+        // no usable stats (empty chart / decode failure). Without this, a beatmap whose ChartFilterStats stays
+        // null is reclassified as "missing" on every launch and re-processed by Phase 2 forever — i.e. the
+        // "正在分析 BMS 谱面构成" pass never actually persists for that subset. See BmsChartFilterStatsBackfill.
+        [JsonProperty("chart_filter_stats_resolved")]
+        public bool ChartFilterStatsResolved { get; set; }
+
         // The single BeatmapMetadata.RulesetData column is shared with osu.Game's BmsPersistedMetadataData
         // (converted_star_ratings). Capture fields we don't model here so re-serialising a difficulty-table
         // write does NOT wipe the persisted converted star ratings (which would force a full recompute next
@@ -31,7 +38,7 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
         public IDictionary<string, JToken>? ExtensionData { get; set; }
 
         [JsonIgnore]
-        public bool IsEmpty => DifficultyTableEntries.Count == 0 && ChartMetadata == null && ChartFilterStats == null && (ExtensionData == null || ExtensionData.Count == 0);
+        public bool IsEmpty => DifficultyTableEntries.Count == 0 && ChartMetadata == null && ChartFilterStats == null && !ChartFilterStatsResolved && (ExtensionData == null || ExtensionData.Count == 0);
     }
 
     public class BmsChartFilterStats : IEquatable<BmsChartFilterStats>
@@ -267,6 +274,47 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
             ArgumentNullException.ThrowIfNull(metadata);
 
             return metadata.GetRulesetData<BmsBeatmapMetadataData>()?.ChartFilterStats;
+        }
+
+        /// <summary>
+        /// Reads both the persisted composition stats and whether the backfill has already processed this beatmap,
+        /// in a single deserialise. <c>Resolved</c> is <see langword="true"/> when usable stats are present OR the
+        /// beatmap was explicitly marked processed-with-no-stats — i.e. Phase 1 must NOT re-queue it for Phase 2.
+        /// </summary>
+        public static (BmsChartFilterStats? Stats, bool Resolved) GetChartFilterStatsState(this BeatmapMetadata metadata)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+
+            var data = metadata.GetRulesetData<BmsBeatmapMetadataData>();
+
+            if (data == null)
+                return (null, false);
+
+            return (data.ChartFilterStats, data.ChartFilterStatsResolved || data.ChartFilterStats != null);
+        }
+
+        /// <summary>
+        /// Records the outcome of a composition-stats computation: stores the stats when non-empty and ALWAYS marks
+        /// the beatmap as resolved so it is never re-processed by the backfill, even when <paramref name="chartFilterStats"/>
+        /// is empty/<see langword="null"/> (genuinely empty chart, or a decode that yielded no playable count).
+        /// </summary>
+        public static bool ResolveChartFilterStats(this BeatmapMetadata metadata, BmsChartFilterStats? chartFilterStats)
+        {
+            ArgumentNullException.ThrowIfNull(metadata);
+
+            chartFilterStats = chartFilterStats?.IsEmpty == true ? null : chartFilterStats;
+
+            var data = metadata.GetRulesetData<BmsBeatmapMetadataData>() ?? new BmsBeatmapMetadataData();
+
+            if (data.ChartFilterStatsResolved && EqualityComparer<BmsChartFilterStats?>.Default.Equals(data.ChartFilterStats, chartFilterStats))
+                return false;
+
+            data.ChartFilterStats = chartFilterStats;
+            data.ChartFilterStatsResolved = true;
+
+            metadata.SetRulesetData(data.IsEmpty ? null : data);
+
+            return true;
         }
 
         public static bool SetDifficultyTableEntries(this BeatmapMetadata metadata, IReadOnlyList<BmsDifficultyTableEntry> entries)

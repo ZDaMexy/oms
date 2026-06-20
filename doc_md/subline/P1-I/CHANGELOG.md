@@ -1,5 +1,33 @@
 # P1-I 变动日志
 
+## 2026-06-18（其四）：谱面构成持久化「其三」实机验收通过 + 选歌偶发掉帧观察（已搁置）
+
+**其三 backfill 持久化修复 = 实机验收通过。** 用户连跑两次启动：第 1 次仍执行一次谱面构成补算（旧库一次性 Phase 2），第 2 次启动日志 `[BmsCompositionFilter] backfill Phase 1 done: 57685 beatmaps already have persisted chart-filter-stats, 0 are missing`，未再触发补算或"正在分析"通知。确认"每次启动重算"已收敛为"补齐一次后永久持久化"，与「其三」合同一致。（注：该用户库 57685 张构成全部可算，普通非空 stats 写回即足以让第二次 0 missing；`ChartFilterStatsResolved` 负缓存标记保障的是"空/不可算"子集不再每启动被重归 missing——该库恰无此子集，故标记在本次实测中未被触发但逻辑正确。）本轮无代码改动。
+
+**选歌偶发掉帧观察（未定位 / 已搁置）。** 用户在测试 I5–I7 分组/展示层级行为时，偶发帧数从 ~1000 暴降到 ~25FPS 并持续波动，切换分组/层级不恢复；事后无法复现。逐文件审查 I5–I7（展示层级下拉 / 面包屑导航 / `PanelGroup` 深度渲染 / `BmsTableGroupMode` 分组缓存 / `Panel.AdditionalXOffset`）全为**事件驱动**（仅 group/level 变更时执行），filter/grouping 跑后台线程，**未定位其为成因**——"切分组层级不恢复"恰反证不是这条只在变更时执行的管线。用户所给日志**不含任何帧率/帧时长/线程耗时**，唯一一份 Global Statistics 快照恰在打开 SettingsOverlay 瞬间（纹理上传队列冲到 1200、TextureAtlas 已扩 7 页），非分组掉帧现场。**结论：证据不足以定因，已与用户约定搁置。** 下次复现的捕获协议：现场 `Ctrl+F11` 看 Update/Draw/GC 哪条线程标红 + Alt-Tab 切走切回是否回升（验"窗口非活动→帧率限制器"，2 秒可证伪）+ 当场重导日志拿掉帧期间的 Global Statistics。标准候选（按吻合度排序）：① 纹理图集耗尽走非图集路径致 Draw 绑定暴增（吻合 Draw-bound + 不恢复，既有大库特性、非本次提交引入）；② 窗口被判非活动 → 帧率限制器（吻合"切分组无效"）；③ GC / drawable 池泄漏（暂无证据）。无代码改动。
+
+---
+
+## 2026-06-18（其三）：谱面构成 backfill 对"空/不可算"谱面补持久化标记（每次启动重算根因）
+
+用户反馈："每次新启动游戏进入 BMS 选歌总会进行一次谱面构成计算，没有持久化。"
+
+**根因**＝composition-filter backfill 只在计算出**非空** stats 时才写回（`sanitise` 把空结果折叠成 `null`、`SetChartFilterStats(null)` 不写任何东西）。于是凡是计算结果为空/不可用的谱面——genuinely 空谱（只有 BGM/autoplay channel-01 对象、0 playable）、或 `computeStatsDirect` 直读与 `GetWorkingBeatmap` 回落双双失败的谱面——`ChartFilterStats` 恒为 `null` 且**无任何"已处理"痕迹**。下次启动 Phase 1 把它们重新算进 `missingIds` → Phase 2 重算 → "正在分析 BMS 谱面构成"通知**每次启动都冒一次**。可算谱面在首轮已正确写回并跳过，但这批"空/失败"谱面构成**永不收敛的重算子集**。（已排除写回失败：`RealmAccess.Write` 后台线程取 thread-local realm 提交正常、Realm 事务串行＋写内 live 读使共享 `RulesetData` 列与 converted_star 互不 clobber；`Detach()` 也带 `BeatmapSet`，故直读路径对多数谱面可用。）
+
+**修复**＝引入持久化的"已处理"负缓存标记：
+- `BmsBeatmapMetadataData` 新增 `[JsonProperty("chart_filter_stats_resolved")] bool ChartFilterStatsResolved`（与 `chart_filter_stats` 同列、`IsEmpty` 计入它、`[JsonExtensionData]` 仍兼容 converted_star 共存）。
+- 新 `ResolveChartFilterStats(stats)`：stats 非空＝存 stats，空＝只置 resolved 标记；二者都标记已处理。新 `GetChartFilterStatsState()`＝单次反序列化返回 `(Stats, Resolved)`，`Resolved = ChartFilterStatsResolved || ChartFilterStats != null`。
+- Phase 1 用 `GetChartFilterStatsState()` 归类：有 stats→缓存；无 stats 且 `!Resolved`→missing；无 stats 但 `Resolved`→**跳过**（已处理）。
+- Phase 2 对**每张**已 `Detach` 的谱面入队（stats 可为 `null`），`flushPendingWrites` 走 `ResolveChartFilterStats` 写回——空结果也落 resolved 标记。完成日志补 `processed - computed` 计数（"resolved to no usable stats"）。
+- import（`BmsImportedBeatmapFactory`）/ reuse（`BmsFolderImporter.syncChartFilterStats`）/ `GetOrBackfill` 一律改走 `ResolveChartFilterStats`；`GetOrBackfill` 增 `Resolved` 早退（不再每次重算空谱）。`SetChartFilterStats`（纯 setter）只留给测试与 `BmsBeatmap.GetStatistics` 的内存显示路径。
+- backfill 内被静默吞的写回 `catch{}` 改为记 `Important` 日志（符合 #9 / "后台 catch 必记日志"）。
+
+空谱在 `Matches` 仍按 `null` **fail-open**（标记只阻止重算、不隐藏谱面、不参与过滤判定）。
+
+**验证**：`BmsChartFilterStatsBackfillTest` 新增 resolved-marker 四条（空结果持久化 round-trip / 未处理读回未 resolved / 有 stats 持久化 / 与 converted_star 共存）；BMS 全套 **922/922**；`osu.Game.Tests` converted-star/persisted-metadata **17/17**。沉淀为 TECHNICAL_CONSTRAINTS #16。
+
+---
+
 ## 2026-06-18（其二）：非 BMS 播放谱面进入 BMS 不再误展开分组
 
 启动时游戏会自动随机播放一首曲目；若该曲目是非 BMS（mania）谱面，**直接进入或从 mania 切到 BMS（难度表分组）时总会误展开某个分组**（用户观察为 Unrated）。根因＝`SongSelect.ensureGlobalBeatmapValid` 的 `shouldSuppressGroupedAutoSelection()`（fresh-entry root-focus 期间抑制自动选中）**只在 `if (validSelection)` 分支内被检查**；当前全局谱面是 mania（对 BMS invalid）时走 invalid 回退（`SetDefault → IsDefault → NextRandom`）自动选中一张 BMS 谱面并 `setExpandedGroup` 展开其分组，而 `FocusRootGroupForBeatmap` 又聚焦不到 mania 谱面（不在 BMS carousel）→ `pendingRootGroupFocus` 一直为真——抑制本应生效却被 invalid 回退绕过。修复＝把 `shouldSuppressGroupedAutoSelection()` 提前到 valid/invalid 分支**之前**短路返回，使 fresh-entry root-focus 期间抑制**所有**自动选中（含 invalid 回退）、保持 root 层不展开；兼容谱面的 root group 聚焦仍由 `tryFocusRootGroupForCurrentBeatmap` 单独处理。只影响 `ShouldResetSongSelectGroupToRoot` 为真的 ruleset（BMS）；mania 等 `pendingRootGroupFocus` 永不置真、零影响。回归 `TestNonBmsPlayingBeatmapDoesNotExpandGroupOnEntry`（临时去掉修复即失败、已验证）。验证：BMS 全套 **918/918**。

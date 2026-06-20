@@ -1,6 +1,6 @@
 # P1-A 开发进度：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-05-26
+> 最后更新：2026-06-20
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-A` 的真实进展；`P1-C` 的反馈闭环进展见 [../P1-C/DEVELOPMENT_STATUS.md](../P1-C/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -33,6 +33,7 @@
 - `Sudden` / `Hidden` / `Lift` 现都暴露 `记忆游戏内变动` 开关；默认开启时局内滚轮调整会延续到回场后的 BMS mod 配置，关闭时保持 current-play-only。
 - 当前 `IBmsHudLayoutDisplay` 为单一 `SetComponents(wrappedHud, gauge, combo)` 签名；**`IBmsHudLayoutDisplayWithGameplayFeedback` 变体与 legacy overlay wrapper 已于 2026-06-15 随速度反馈卡移除**（接口回到原始三件套，不实现该接口的旧 HUD layout 仍正常工作）。
 - `BmsSkinTransformer` 在 `MainHUDComponents` 路径组装 gauge / combo；**speed feedback 注入已移除**。
+- **（2026-06-20）gauge 默认摆位改为判定线下方矩形 groove-gauge**：`DefaultBmsHudLayoutDisplay` 把 gauge 放在判定线下方、与 playfield 条带等宽（`Width=PlayfieldWidth`）、随 `PlayfieldStyle` 做 P1/P2/居中侧锚、贴 `PlayfieldHeight`；`BmsGaugeBar` 圆角归零 + 加高 + 等分刻度 + 一体化（海军蓝背板、叠加 `NORMAL`/数值）。`PlayfieldWidth/keymode` 经 `GameplayState`、`PlayfieldStyle` 经 game 级 `IRulesetConfigCache.GetConfigFor(bms)` 解析，**未改 `SetComponents` 签名、gauge 仍是 HUD 子件**；无 `GameplayState`/config 宿主优雅降级居中。`BmsGaugeBar` 继承 `HealthDisplay`，已订阅 `HUDOverlay.ShowHealthBar` 重申满显、**免疫**通用血条/NoFail 开关。playfield **顶边贴屏幕边缘**（top-anchored `Y=0`，音符从屏顶出现）、`PlayfieldHeight 0.95→0.92`（判定线 92% 屏高、下方容纳 gauge；GN/时序不变；曾试 `PLAYFIELD_VERTICAL_OFFSET` 整体下移已删除）。`BmsComboCounter` 默认摆位移到 playfield 宽/高中线交点、并去掉背后 `body` 色块。
 - `BmsGameplayFeedbackLayout` 现仅收口 **judgement 基线摆位**（`GetJudgementAnchor/Offset`、`ApplyJudgementDefaults`，供 `DrawableBmsJudgement` / `TestSceneBmsJudgementDisplayPosition` 用）；其 gameplay-feedback 摆位常量已随卡移除。
 - **（2026-06-15 整体移除）** `DrawableBmsRuleset` 的 `GameplayFeedbackState` / `LatestJudgementFeedback` / `RecentJudgementFeedbacks` / `TimingFeedbackVisualRange` / `ExScorePacemakerInfo` 暴露面与 refresh/pacemaker 管线，连同 `DefaultBmsSpeedFeedbackDisplay` / `BmsGameplayFeedbackState` / `BmsJudgementCounts` / `BmsJudgementTimingFeedback` / `BmsExScoreProgressInfo` / `BmsExScorePacemakerInfo` / `BmsTimingOffsetSparkline`，均按产品决定删除。**保留**：`SpeedMetrics`（pre-start 预览）、调整目标状态（lane cover focus）、toast、BGA miss-flash、judgement 基线摆位。
 - 当前 IIDX 参考文档仍明确要求：不要把现有 OMS speed feedback 对外包装成完整 `FHS`。
@@ -51,6 +52,10 @@
 | pre-start 视觉流速预览宿主边界 | 已完成首轮实现 | playfield / lane host、第一非 scratch 轨宿主与 BMS note fallback 已接通；运行时 gate 与 pause 行为由 `P1-C` focused tests 锁定 |
 | `BMS -> mania` 单向转谱公开表面 | 进行中 | visibility gate、persisted converted-star display 与 spread display 已接通；按钮文案、显式入口与更宽 surface proof 仍待后续收口 |
 | `FAST/SLOW` / judge display / pacemaker 统一承载 | 已移除（2026-06-15） | 承载这套家族的常驻卡已删除；judgement 位置合同保留（供判定显示），feedback 家族如需重建须另立专题 |
+| gauge 下移判定线 + 矩形化 + 等宽镜像 + playfield 顶边贴边（E1） | 已落地（2026-06-20，#1#2 实机验收通过） | gauge 判定线下方矩形 groove-gauge、等宽 + P1/P2/居中侧锚、一体化（导航海军蓝、叠加文案）；playfield **顶边贴屏幕边缘**（曾试整体下移 `PLAYFIELD_VERTICAL_OFFSET` 已删除）、`PlayfieldHeight 0.95→0.92`（GN/时序不变）；`SetComponents` 签名不变、gauge 仍在 HUD 合同内；BMS 933/933 |
+| gauge 免疫 ShowHealthBar / NoFail | 已落地（2026-06-20） | `BmsGaugeBar : HealthDisplay` 会被通用"血条显示"开关（NoFail 等设 `ShowHealthBar=false`）淡出隐藏；订阅 `ShowHealthBar` 重申 `Alpha=1` 始终显示（核心游玩信息）。回归 `TestGaugeBarStaysVisibleWhenHealthBarHidden`（须真实 HUDOverlay 才能复现） |
+| combo 移到 playfield 中心 + 去背景色块 | 已落地（2026-06-20，实机验收通过） | `applyComboPlacement` 放 playfield 宽/高中线交点（随 PlayfieldStyle 镜像）；`BmsComboCounter` 去掉 `body` 色块容器只留居中标签 + 数字。回归 `TestComboCentredOnPlayfield` |
+| 从默认皮肤配置移除 leaderboard + 重复默认 combo | 已落地（2026-06-20，实机验收通过） | `BmsSkinTransformer.stripDefaultHudElements` 在装配期把 wrapped HUD 里的 `LegacyDefaultComboCounter` + `DrawableGameplayLeaderboard` 从配置树移除（非隐藏）；BMS combo / 全局 score 保留。回归 `TestRulesetHudStripsDefaultComboAndLeaderboard` |
 
 ## 当前风险
 

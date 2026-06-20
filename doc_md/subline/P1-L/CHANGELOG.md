@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-20
+
+### BGA 默认摆位：14K 镜像到屏幕**四角**（用户实机三连改之三 + 一次返工修正）
+
+14K 双打 playfield 几乎占满屏宽，原 BGA 默认放**居中 gap**会压游玩区/combo。用户要求 **14K BGA 同时出现在屏幕四角**（左下/左上/右下/右上）。**首版返工**：误读成"单角"只放了右上角、且 keymode 检测（`WorkingBeatmap.Beatmap as BmsBeatmap`）失败退回大尺寸 `side_size` 遮挡 playfield。修正后改 `BmsBgaPanel`：
+
+- **枚举改四角**：`BmsBgaPlacement` 由 `Left/Right/Center` 改为 `TopLeft/TopRight/BottomLeft/BottomRight/Center`（`Center` 保留给皮肤覆盖）。
+- **14K 四角镜像**：`DefaultBmsBgaPanelDisplay` 重构为 `framesContainer` + 多个 frame——14K 时在**四角各 mount 一个 `BmsBgaPlayer`**（同一 timeline、clock 同步），非 14K 单角（仍镜像 playfield 侧 P1→TopRight / P2→TopLeft）。`NotifyMiss` 转发到所有 player。
+- **keymode 可靠解析**：改用 `[Resolved] GameplayState` + `BmsLaneLayout.CreateFor(gameplayState.Beatmap).Keymode`（与 gauge 同一可靠源，取代之前失败的 `WorkingBeatmap.Beatmap as BmsBeatmap`）。
+- **14K 紧凑尺寸贴边**：14K 四角用更小的 `corner_14k_size`（0.13×0.16，配 `bottom_inset 0.06`），恰好落在窄双打侧边距、不压车道/gauge/进度条；非 14K 单角仍 `side_size`（0.225×0.30）。
+- **代价提示**：14K 四 player 对视频 BGA = 4 解码器（图片 BGA 廉价、共享纹理）；如视频卡顿可后续优化为单解码器镜像。仅 BGA 摆位/挂载，不碰解码逻辑。回归 `TestSceneBmsBgaPanelLayout`（14K=4 player、单打=1）+ `BmsBgaPlayerTest`（ResolveDefaultPlacement）。验证：BMS 全套 **933/933**、`osu.Desktop.slnf` Release **0 错误**。**人工实机视觉验收待用户确认**。
+
 ## 2026-06-15
 
 ### Phase 5.1：老式 BGA 视频外部 ffmpeg 转码播放（opt-in，缓存 + 本场热替换）

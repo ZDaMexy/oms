@@ -2,6 +2,57 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-20
+
+### playfield 顶边贴屏幕边缘 + combo 移到 playfield 中心并去背景色块（用户实机三连改之一二）
+
+- **playfield 顶边回到屏幕边缘**：上一版用 `PLAYFIELD_VERTICAL_OFFSET=0.06` 把整条 play 立柱下移，导致顶边离开屏幕顶、留出 header 空带，不符合 green-number「音符从屏幕最顶出现、整屏可见场 = 顶边→判定线」语义。本次**删除 `PLAYFIELD_VERTICAL_OFFSET`**，playfield 恢复纯顶部锚定（`Y=0`）；为保持判定线/gauge 仍停在原低位（~0.92 屏高），把 `DEFAULT_PLAYFIELD_HEIGHT 0.86→0.92`（顶边贴边 + 场更高、音符从顶出现）。判定时序不变量不变（`HitTargetVerticalOffset=0` → `scrollLengthRatio≡1` → `TimeRange`/GN 与场高无关，仅像素扫过距离变）。`gauge_top = DEFAULT_PLAYFIELD_HEIGHT + 0.002`（不再含 offset 项）。同步 `BmsLaneLayoutTest` / `TestSceneBmsPlayfieldLayoutConfig`（0.86→0.92）、`TestSceneBmsHudGaugePlacement`（去掉 offset 项）。
+- **combo 移到 playfield 中心 + 去背景色块**：`DefaultBmsHudLayoutDisplay` 新增 `applyComboPlacement()`，把 `BmsComboCounter` 放到 **playfield 宽/高中线交点**（水平＝按 `PlayfieldStyle` 的 P1 左 / P2 右 / 居中得 playfield 横向中心、复用与 gauge 同一套 `PlayfieldWidth` + inset；垂直＝`PlayfieldHeight/2`），`Anchor=TopLeft, Origin=Centre, RelativePositionAxes=Both`，随 PlayfieldStyle live 重定位；无 GameplayState/config 宿主降级屏幕中心。`BmsComboCounter` 去掉 `TextComponent` 里的 `body` 色块容器（background 渐变 / glow / accentStrip / 圆角边框），只留居中的 `COMBO` 标签 + 数字（pulse/flash 改作用在数字上、带 Shadow）。
+- 回归：`TestSceneBmsHudGaugePlacement.TestComboCentredOnPlayfield`（combo Origin=Centre、相对定位、居中 X=0.5、Y=PlayfieldHeight/2）。验证：BMS 全套 **930/930**、`osu.Desktop.slnf` Release **0 错误**。**人工实机视觉验收待用户确认**。
+
+### 修复：BMS gauge 被通用"血条显示"开关误隐藏（用户实机"gaugebar 没了"）
+
+去掉默认 combo / leaderboard 后用户报「gaugebar 没了」。一轮日志驱动诊断（先排除 strip：真实 `BmsGaugeBar` 在 strip 后布局里仍可见 → 不是 strip）后定位真因：**`BmsGaugeBar : HealthDisplay`，而 `HealthDisplay.LoadComplete` 把自身绑到 `[Resolved] HUDOverlay.ShowHealthBar`，`ShowHealthBar==false` 时 `this.FadeTo(0)` 把 gauge 淡到透明**。某处（NoFail 等通用"隐藏血条"开关 / 设置）把 `ShowHealthBar` 设 false → BMS groove gauge 被一起隐藏（而 combo 不受影响，故"combo 在、gauge 没"）。诊断盲区：之前的 gauge 摆位测试没有真实 `HUDOverlay`（`hudOverlay` 解析为 null → `showHealthBar` 恒 true → gauge 恒可见），掩盖了该路径。
+
+- **修复**：`BmsGaugeBar` 解析 `[Resolved(CanBeNull)] HUDOverlay`，在 `LoadComplete` 里订阅 `ShowHealthBar` 变化并 `FinishTransforms()+Alpha=1` 重申满显——BMS groove gauge 是核心游玩信息，**免疫** 通用血条开关，始终显示。该订阅在 base 之后注册（bound-copy 订阅者先于 own 订阅者触发），故稳定压过 base 的淡出；HUD 整体 `ShowHud` 淡入仍经父级生效、不受影响。
+- 回归：`TestSceneBmsSoloPlayerPreStart.TestGaugeBarStaysVisibleWhenHealthBarHidden`（真实 Player+HUDOverlay，置 `ShowHealthBar=false` 后断言 gauge 仍可见——去掉修复即失败）；另补 `TestSceneBmsHudGaugePlacement` 的 `TestRealGaugeLoadsAndIsVisible` / `TestRealGaugeVisibleAlongsideStrippedWrappedHud`（真实 gauge 在布局/strip 后可见）。验证：BMS 全套 **929/929**、`osu.Desktop.slnf` Release **0 错误**。
+
+### gauge 下移到判定线下方 + 矩形化 + 等宽镜像 playfield（游玩区抬高，视觉/摆位，P1-A E1）
+
+把原先摆在 playfield 顶部的圆角胶囊 gauge 改为 IIDX groove-gauge 观感的矩形条，落在判定线下方、与判定区等宽并随 P1/P2/居中侧锚；同时抬高游玩区腾出下方空带。用户在规划阶段选定「抬高 0.86 / gauge 等宽」。
+
+- **抬高游玩区**：`BmsPlayfieldLayoutProfile` 默认 `PlayfieldHeight 0.95 → 0.86`（提为公开常量 `DEFAULT_PLAYFIELD_HEIGHT`，仍是 strict profile 唯一杠杆，config `PlayfieldHeight` 维持被忽略）。判定线上移到 86% 屏高、下方 ~14% 空带容纳 gauge。**判定时序不变**：`HitTargetVerticalOffset=0` 时 `BmsHitObjectArea.scrollLengthRatio≡1`、`TimeRange` 与场高无关，仅落条像素扫过距离变短（视觉略密），GN / 判定窗口完全不变。
+- **gauge 矩形化**：`BmsGaugeBar` 圆角 `CornerRadius 10→0`、bar 高 `20→28`、数值字号 `14→18`，新增 10 等分极淡竖向刻度（`Opacity 0.08`）营造 groove-gauge 观感（不做 IIDX 逐格细节）；填充 / floor band / clear 标记 / 高光与 `NORMAL`+`20%` 文案均保留。
+- **gauge 下移 + 等宽 + 侧锚镜像**：默认摆位由 `DefaultBmsHudLayoutDisplay` 负责——gauge `RelativeSizeAxes.X` + `Width = PlayfieldWidth`（与 lane 条带等宽）、`RelativePositionAxes.Both` + `Y = PlayfieldHeight + 0.012`（顶边贴判定线下方）、Anchor/Origin/X 按 `PlayfieldStyle.GetAppliedStyle(keymode)` 做 P1 左 / P2 右 / 居中（复用 `BmsPlayfield.SIDE_ANCHORED_HORIZONTAL_INSET`，与 lane 严格同列）。combo 暂留原位。
+- **合同保持（满足「HUD 宿主约束 1」）**：gauge 仍留在 `IBmsHudLayoutDisplay.SetComponents(wrappedHud, gauge, combo)` 合同内，**未改签名**、未迁出 HUD。所需几何经 HUD 可见的 DI 通道取得：`PlayfieldWidth / keymode` 经 `[Resolved] GameplayState` 可玩谱面（`BmsLaneLayout.CreateFor`）、`PlayfieldStyle` 经 game 级 `IRulesetConfigCache.GetConfigFor(bms)`（与 playfield 子树同一 `BmsRulesetConfigManager` 实例，绑定 live 变化）；两者均 `CanBeNull` 解析，皮肤编辑器预览 / 测试等无 `GameplayState`/config 的宿主优雅降级（居中 + 兜底宽度 `0.4`），不抛异常。
+- 仅视觉 / 摆位 / 几何，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读。`BmsPlayfield` 的 `side_anchored_horizontal_inset` 提升为公开常量 `SIDE_ANCHORED_HORIZONTAL_INSET` 供 HUD 复用（值不变）。
+- 测试同步：`PlayfieldHeight 0.95→0.86`（`BmsLaneLayoutTest`、`TestSceneBmsPlayfieldLayoutConfig` 两处断言）；新增 `TestSceneBmsHudGaugePlacement`（等宽 / 判定线下方 / 居中 / P1 侧锚镜像）。`BmsSkinTransformerTest` 的「HUD 含 gauge」回归保持绿（gauge 仍是 HUD 子件）。验证：BMS 全套 **925/925**、`osu.Desktop.slnf` Release **0 错误**。
+
+### （其二）gauge 与 playfield 一体化跟进（用户实机反馈）
+
+首轮实机后用户反馈「间隙再贴紧 + gauge 别像外挂控件、要和 playfield 一体」。本跟进只动 `BmsGaugeBar` 视觉与摆位间隙，几何/合同链路不变：
+
+- **贴紧判定线**：`DefaultBmsHudLayoutDisplay` 的 gauge 顶边偏移 `PlayfieldHeight + 0.012 → +0.002`（近乎贴住判定线下方）。
+- **背景与 playfield 衔接**：gauge 背板改用海军蓝渐变 `BmsDefaultHudPalette.GaugeTrackTop(26,32,48) → GaugeTrackBottom(13,19,31)`，落在 playfield lane/baseplate 色域内，使 gauge band 读作 playfield 立柱的底段而非独立卡片。
+- **去边框 + 单条 band**：移除 gauge 四周 1px 边框，改为仅在顶边一条 gauge-accent 着色 1px hairline（`topAccent`）作为"表头"提示；填充条占满整条 band。
+- **label/value 叠加**：取消浮在空隙里的独立 header 行，把 `NORMAL` 标签（左中）与百分比数值（右中，字号 18→20）叠加在 band 上（IIDX groove-gauge 式），均加 `Shadow` 保证压在填充色上的可读性；band 高 `28→34`。
+- 新增调色 `GaugeTrackTop/GaugeTrackBottom`（不动既有 `TrackBackground`/被分布图复用的 `TrackShade`）。验证：BMS 全套 **925/925**、Release **0 错误**。
+
+### （其三）整条 play 立柱整体下移（用户实机反馈，标注目标位）
+
+> ⚠️ **已于同日撤销**：用户随后要求"playfield 顶边贴屏幕边缘"，本节引入的 `PLAYFIELD_VERTICAL_OFFSET` 已删除、改为提高 `PlayfieldHeight` 到 `0.92`（顶边贴边、判定线/gauge 仍停在 ~0.92）。**当前真相见下方「playfield 顶边贴屏幕边缘」一节**；本节仅留作迭代历史。
+
+用户实机标注希望「整体往下移动」到近屏底。新增共享常量 `BmsPlayfieldLayoutProfile.PLAYFIELD_VERTICAL_OFFSET = 0.06`，把 **playfield 条带 + gauge 一体下移**：`BmsPlayfield.playfieldContainer` 顶部锚定后置 `Y=OFFSET`（`RelativePositionAxes` X→Both；顶边不再贴屏幕顶、留 header 空带），`DefaultBmsHudLayoutDisplay.gauge_top` 同步加该 OFFSET，使判定线落在 `≈0.92` 屏高、gauge 紧贴其下止于近屏底。两者共用同一常量保证不错位。`PlayfieldHeight` 仍 `0.86`、判定时序不变量不受位移影响（位移只改像素扫过位置、不改 GN / 窗口）；lane 高占比断言仍 `0.86`（高度未变），`TestSceneBmsHudGaugePlacement` 的"判定线下方"断言改用 `OFFSET+0.86`。验证：BMS 全套 **925/925**、Release **0 错误**。**人工实机视觉验收待用户确认**（位移幅度 `0.06` 为单一可调常量）。
+
+### BMS gameplay 从默认皮肤配置中移除游玩排行榜与重复（默认）连击数（用户反馈）
+
+用户要求把「默认皮肤左下角连击数 + 左侧排行榜」**从默认皮肤配置中删去（非运行时隐藏）**。两者**同源**：上游 `LegacySkin.GetDrawableComponent` 的 ruleset-`MainHUDComponents` 默认布局里直接 `new LegacyDefaultComboCounter()` + `new DrawableGameplayLeaderboard()`（[LegacySkin.cs:420/422](../../../osu.Game/Skinning/LegacySkin.cs)），经 `BmsSkinTransformer` 包成 BMS HUD 的 wrapped 层。中央金色 combo 是 BMS 自有 `BmsComboCounter`、保留；右上 score 等来自全局（Ruleset==null）层、不受影响。
+
+- **修复＝装配期移除**：`BmsSkinTransformer` 在 wrap BMS `MainHUDComponents` 时调 `stripDefaultHudElements(wrappedHud)`，把 wrapped 容器直接子里的 `ComboCounter` / **`LegacyDefaultComboCounter`** / `DrawableGameplayLeaderboard` **从配置树移除**（`Container.Remove(..., true)`），三类根本不进入 BMS HUD 树（不渲染、不进皮肤编辑器序列化、无首帧闪烁）。BMS combo 是 SetComponents 另行添加、不在 wrapped 层，故移除 wrapped 层所有 combo 安全；对无这些件的皮肤优雅 no-op。
+- **坑（首次实机暴露）**：上游默认连击是 **`LegacyDefaultComboCounter : CompositeDrawable, ISerialisableDrawable`，并非 `ComboCounter` 子类**——只匹配 `ComboCounter` 时 leaderboard 被删、连击仍在。故 strip 必须显式包含 `LegacyDefaultComboCounter`，回归测试也用真实类型而非 `: ComboCounter` 的假替身（后者会误过）。
+- **回退前一版的"隐藏"式尝试**：撤掉 `BmsSoloPlayer.Configuration.ShowLeaderboard=false`（及其 `TestGameplayLeaderboardSuppressed`）与 `DefaultBmsHudLayoutDisplay` 的 foreign-combo 有界重试隐藏（恢复原一次性循环，仅作残留 combo 兜底）——改用单一"配置移除"机制。
+- 回归：`BmsSkinTransformerTest` 新增 `TestRulesetHudStripsDefaultComboAndLeaderboard`（wrapped HUD 放入 combo+leaderboard → 装配后从 wrapped 层移除、BMS combo 保留）。验证：BMS 全套 **926/926**、`osu.Desktop.slnf` Release **0 错误**。**人工实机确认左下角连击与左侧排行榜消失**。
+
 ## 2026-06-15
 
 ### BMS 默认皮肤几何二调：宽度回宽 10%、SCRATCH = 键轨 2 倍、音符贴顶无空隙

@@ -59,7 +59,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var convertedInfo = convertedBeatmap.BeatmapInfo;
             var metadata = convertedInfo.Metadata.DeepClone();
 
-            metadata.SetChartFilterStats(BmsChartFilterStats.FromBeatmap(convertedBeatmap));
+            // Resolve (not just Set) so even a chart with no playable objects is marked processed at import time and
+            // never falls into the startup composition backfill's Phase 2 "missing" set.
+            metadata.ResolveChartFilterStats(BmsChartFilterStats.FromBeatmap(convertedBeatmap));
 
             return new BeatmapInfo(ruleset.RulesetInfo.Clone(), new BeatmapDifficulty(convertedInfo.Difficulty), metadata)
             {

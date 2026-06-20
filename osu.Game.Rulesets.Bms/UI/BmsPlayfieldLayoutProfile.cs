@@ -10,6 +10,16 @@ namespace osu.Game.Rulesets.Bms.UI
     /// </summary>
     public sealed class BmsPlayfieldLayoutProfile
     {
+        /// <summary>
+        /// Default vertical extent of the top-anchored playfield as a fraction of screen height. The playfield top is
+        /// kept at the screen edge (notes appear at the very top) and the hit target / judgement line sits at this
+        /// fraction; the band below it (1 - this) hosts the gauge bar mounted just under the judgement line (see
+        /// <see cref="DefaultBmsHudLayoutDisplay"/>). Timing is unaffected: with HitTargetVerticalOffset = 0 the
+        /// scroll-length ratio stays 1, so TimeRange / GN are independent of this value (it only changes pixel scroll
+        /// span — notes still travel the full top-edge → judgement-line distance, matching the green-number semantics).
+        /// </summary>
+        public const float DEFAULT_PLAYFIELD_HEIGHT = 0.92f;
+
         public BmsKeymode Keymode { get; }
 
         public int LaneCount { get; }
@@ -99,9 +109,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 // Lanes are normalised to fill this width, so scaling it scales every single-lane (and note) width
                 // uniformly. 0.825 = original × 0.75 (−25%) then × 1.1 (widened back 10%).
                 playfieldWidth: playfieldWidth ?? Math.Clamp(laneCount * 0.06f, 0.35f, 0.8f) * 0.825f,
-                // Combined with the top-anchored playfield (see BmsPlayfield), 0.95 keeps the hit target at 95% screen
-                // height while the playfield top reaches the screen top — so notes appear at the top with no gap.
-                playfieldHeight: playfieldHeight ?? 0.95f,
+                // Combined with the top-anchored playfield (see BmsPlayfield), this keeps the playfield top at the screen
+                // top (notes appear with no gap) while the hit target / judgement line sits at DEFAULT_PLAYFIELD_HEIGHT,
+                // leaving the band below it for the gauge bar mounted just under the judgement line.
+                playfieldHeight: playfieldHeight ?? DEFAULT_PLAYFIELD_HEIGHT,
                 hitTargetHeight: hitTargetHeight ?? 16f,
                 hitTargetVerticalOffset: hitTargetVerticalOffset ?? 0f,
                 hitTargetBarHeight: hitTargetBarHeight ?? 12f,

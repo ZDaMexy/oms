@@ -61,16 +61,16 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(BmsBgaPlayer.GetActiveIndex(entries, 0), Is.EqualTo(-1));
         }
 
-        // Default-skin placement mirrors the playfield. 5K/7K honour the style; other keymodes are forced to Center
-        // style by GetAppliedStyle (=> BGA right), and 14K double-play uses the centre gap.
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, BmsBgaPlacement.Right)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, BmsBgaPlacement.Left)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.Center, BmsBgaPlacement.Right)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.CenterRightScratch, BmsBgaPlacement.Right)]
-        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P2, BmsBgaPlacement.Left)]
-        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.P1, BmsBgaPlacement.Right)] // 9K forced Center style => right
-        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.P1, BmsBgaPlacement.Center)] // 14K => centre gap regardless
-        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, BmsBgaPlacement.Center)]
+        // Default-skin placement is a screen corner mirroring the playfield side. 5K/7K honour the style; other keymodes
+        // are forced to Center style by GetAppliedStyle (=> top-right), and 14K double-play also uses a corner (top-right).
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, BmsBgaPlacement.TopRight)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, BmsBgaPlacement.TopLeft)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.Center, BmsBgaPlacement.TopRight)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.CenterRightScratch, BmsBgaPlacement.TopRight)]
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P2, BmsBgaPlacement.TopLeft)]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.P1, BmsBgaPlacement.TopRight)] // 9K forced Center style => top-right
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.P1, BmsBgaPlacement.TopRight)] // 14K => top-right corner regardless
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, BmsBgaPlacement.TopRight)]
         public void TestResolveDefaultPlacementMirrorsPlayfield(BmsKeymode keymode, BmsPlayfieldStyle style, BmsBgaPlacement expected)
         {
             Assert.That(BmsBgaPanel.ResolveDefaultPlacement(keymode, style), Is.EqualTo(expected));

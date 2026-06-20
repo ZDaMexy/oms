@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-16
+> 最后更新：2026-06-20
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -189,11 +189,33 @@
 
 > 当前 mainline 四件套与 `OMS_COPILOT.md` 已跟随 2026-04-28 的 tri-mode / pre-start / library grouping 状态同步；剩余主要是 `SKINNING.md` 的作者入口与 release gate 口径继续补齐。
 
+### E1：gauge 下移判定线下方 + 矩形化 + 等宽镜像 playfield（游玩区抬高）
+
+状态：**已落地（2026-06-20，#1#2 实机验收通过）**。落地过程多轮迭代演进（详见 [CHANGELOG](CHANGELOG.md) 2026-06-20）：本节原计划值 `0.86` 经"间隙贴紧/一体化 → 整体下移(已删 offset) → 顶边贴屏幕边缘"后**最终落到 `PlayfieldHeight=0.92` + playfield 顶边贴边**（GN 语义不变）；另含 gauge 免疫 `ShowHealthBar`、combo 移到 playfield 中心去色块、从默认皮肤配置移除 leaderboard + 重复 combo。
+
+背景：原 gauge bar（`NORMAL / 20%` 圆角胶囊）摆在 playfield 顶部；判定线在 95% 屏高、下方仅 ~5% 空带、且与底部歌曲进度条相挤。按 IIDX groove-gauge 观感把 gauge 下移到判定线下方，并抬高游玩区腾出空带。用户规划阶段选定「gauge 与判定区等宽」；抬高幅度原定 0.86、落地演进为 0.92（顶边贴边）。
+
+目标 / 交付：
+
+1. **抬高游玩区**：`BmsPlayfieldLayoutProfile` 默认 `PlayfieldHeight 0.95 → 0.86`（提常量 `DEFAULT_PLAYFIELD_HEIGHT`，仍是 strict profile 的唯一杠杆，config `PlayfieldHeight` 维持被忽略的 disabled 项）。判定线上移到 86% 屏高、下方 ~14% 空带容纳 gauge。**时序 / GN 不变**：`HitTargetVerticalOffset=0` 时 `BmsHitObjectArea` 的 `scrollLengthRatio≡1`、`TimeRange` 与场高无关，仅落条像素扫过距离变短（视觉略密），判定窗口完全不变。
+2. **gauge 矩形化**：`BmsGaugeBar` 圆角 `CornerRadius 10→0`、bar 高 `20→~28`，保留填充 / floor band / clear 标记 / 高光与 `NORMAL`+`20%` 文案，加极淡等分刻度营造 groove-gauge 观感（不做 IIDX 逐格细节）。
+3. **gauge 下移 + 等宽 + 侧锚镜像**：默认摆位由 `DefaultBmsHudLayoutDisplay` 负责——gauge 顶边贴判定线下方（相对 `Y≈PlayfieldHeight`）、宽度等于 playfield 条带（`Width=PlayfieldWidth`）、并随 `PlayfieldStyle.GetAppliedStyle(keymode)` 做 P1 左 / P2 右 / 居中侧锚（复用与 lane 同一套 `side_anchored_horizontal_inset`），与判定区严格同列。combo 暂留原位（本轮只动 gauge）。
+4. **合同保持**：gauge 仍留在 HUD `IBmsHudLayoutDisplay.SetComponents(wrappedHud, gauge, combo)` 合同内，**不改签名**（满足「HUD 宿主约束 1」）。所需几何经 HUD 可见的 DI 通道取得：`PlayfieldWidth / keymode` 经 `GameplayState` 可玩谱面（`BmsLaneLayout.CreateFor`），`PlayfieldStyle` 经 game 级 `IRulesetConfigCache.GetConfigFor(bms)`（与 playfield 子树同一 `BmsRulesetConfigManager` 实例，可绑定 live 变化）。
+
+红线 / 验收：
+
+- 不动判定窗口 / 计分 / 滚动时序；chartbms 直读不变。
+- `SetComponents` 签名不变；旧 HUD provider 与 gauge / combo / GaugeBar 皮肤 fallback 回归保持绿。
+- 无 `GameplayState` / config 的宿主（皮肤编辑器预览 / 测试）下优雅降级（居中 + 兜底宽度），不抛异常。
+- 测试同步 `PlayfieldHeight 0.95→0.86`（`BmsLaneLayoutTest`、`TestSceneBmsPlayfieldLayoutConfig`）；补 gauge 下移摆位 / 等宽 focused 断言。
+- 实机 7K / 14K / P1 / P2 验收：判定线抬高、gauge 贴线且与 lane 同列等宽、矩形观感、时序无感知变化。
+
 ## 当前优先顺序
 
-1. `A1` 反馈组件合同冻结
-2. 与 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 对齐常驻绿色数字与速度反馈字段集
-3. 与 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 对齐 pre-start 1 号普通轨纯视觉流速预览的 host / fallback route
-4. `B2` `Sudden / Hidden / Lift` 联动收口
-5. `C1` 扩展到统一 gameplay feedback 家族
-6. `D1` 作者文档与 release gate 收口
+1. `E1` gauge 下移判定线 + 矩形化 + 等宽镜像（本轮）
+2. `A1` 反馈组件合同冻结
+3. 与 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 对齐常驻绿色数字与速度反馈字段集
+4. 与 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md) 对齐 pre-start 1 号普通轨纯视觉流速预览的 host / fallback route
+5. `B2` `Sudden / Hidden / Lift` 联动收口
+6. `C1` 扩展到统一 gameplay feedback 家族
+7. `D1` 作者文档与 release gate 收口
