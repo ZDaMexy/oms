@@ -1139,8 +1139,15 @@ namespace osu.Game.Graphics.Carousel
 
         protected override bool OnInvalidate(Invalidation invalidation, InvalidationSource source)
         {
-            // handles the vertical size of the carousel changing (ie. on window resize when aspect ratio has changed).
-            if (invalidation.HasFlag(Invalidation.DrawSize))
+            // handles the vertical size of the carousel changing (ie. on window resize when aspect ratio has changed),
+            // re-centring the current selection.
+            //
+            // Only do this when there is a concrete selection to keep centred. An incidental draw-size change with no
+            // selection — most notably a window minimise/restore while freely browsing a grouped view — would otherwise
+            // re-run selection scrolling and yank the view onto the keyboard cursor or an expanded group header
+            // (see BeatmapCarousel.GetScrollTarget's fallback). Keyboard-only cursors (e.g. group headers) are not a
+            // selection, so they must not anchor the resize re-centre.
+            if (invalidation.HasFlag(Invalidation.DrawSize) && currentSelection.CarouselItem != null)
                 selectionValid.Invalidate();
 
             return base.OnInvalidate(invalidation, source);

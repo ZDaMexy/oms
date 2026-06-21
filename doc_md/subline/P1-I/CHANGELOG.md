@@ -1,5 +1,17 @@
 # P1-I 变动日志
 
+## 2026-06-21：选歌两处「自动跳滑」修复（chart 选中 root-jump / 窗口还原 group-jump）
+
+用户实机发现两处 carousel 视图被自动滚走的 bug，均出现在「非 BMS（mania）曲目正在播放时进入 BMS 难度表分组」的场景，但触发机制与归属各不相同：
+
+**Bug 1：进 BMS 后选中任一谱面，画面自动跳滑到该谱面所属的最外层分组（表名层，非难度层）。** 复刻：mania 正在播放 → 进 BMS 难度表分组 → 手动进难度表/难度/选歌列表点任一谱面 → 画面滑到该谱所属「表」（如 satellite-sl0 的谱跳到 Satellite 表头），而非停在所选谱。根因＝`pendingRootGroupFocus`（fresh-entry 想把当前谱面的 root group 滚到顶）在当前全局谱面对 BMS **invalid**（mania）时**永远满足不了**——`FocusRootGroupForBeatmap(maniaBeatmap)` 在 BMS carousel 里找不到该谱、恒返回 false → 标记一直挂着。等用户手动选第一张 BMS 谱、全局 `Beatmap` 变更触发 `updateVariousState → tryFocusRootGroupForCurrentBeatmap` 时，标记仍为真且此时谱面已可聚焦 → 把视图劫持到那张谱的 root group。修复＝`tryFocusRootGroupForCurrentBeatmap` 在 `carousel.CurrentGroupedBeatmap != null`（已存在具体选中）时**直接放弃** pending focus（清标记、返回 false）——fresh-entry root focus 只在「尚无具体选中」期间有意义，一旦用户选了谱就作废。与 2026-06-18（其二）#16 的抑制是对称补角：#16 抑制 invalid 期间的自动选中，本次放弃 invalid 永不满足的延迟聚焦。回归 `TestSelectingChartWhileNonBmsPlayingDoesNotJumpToRootGroup`（去修复即跳到 "Satellite"、已验证失败）。
+
+**Bug 2：在选歌列表任意滚动位置按 Win 键最小化再返回，画面自动跳滑到当前展开层级的组头。** 复刻：展开 sl5（或仅展开 satellite 表）后自由滚到别处 → Win 最小化 → 返回即跳到 sl5（或 satellite）组头。根因＝窗口最小化/还原会改变 carousel `DrawSize`，触发 base `Carousel.OnInvalidate` 的 `Invalidation.DrawSize` 分支**无条件** `selectionValid.Invalidate()` → 下一帧 `ScrollToSelection()` 重新居中。该 re-center 的语义是「窗口尺寸/纵横比变化时保持选中项居中」，但当没有具体选中（只展开了组、键盘光标停在组头、`currentSelection` 为 null）时，`BeatmapCarousel.GetScrollTarget` 会回退到键盘光标 / `ExpandedGroup` 的位置 → 把自由滚走的视图猛拽回组头。修复＝base `Carousel.OnInvalidate` 把 DrawSize re-center **限定在存在具体选中时**（`currentSelection.CarouselItem != null`）才执行；无具体选中时不重跑选中滚动，保留用户当前滚动位置。**mania 安全**：mania 选歌恒有已提交选中（`ShouldActivateOnKeyboardSelection` 使方向键浏览即 `Activate` 提交），`currentSelection.CarouselItem` 始终非空 → resize 仍照常居中，零行为变化；BMS 难度表是「键盘光标可停在组头而不提交选中」的少数场景，恰是本 bug 的成因。回归 `TestDrawSizeChangeDoesNotRecentreWithoutSelection`（去修复即偏移 ~281px、已验证失败）＋守护 `TestDrawSizeChangeRecentresCommittedSelection`（有选中时 resize 仍居中、防过度收口）。
+
+改动文件＝`osu.Game/Screens/Select/SongSelect.cs`（bug 1）＋`osu.Game/Graphics/Carousel/Carousel.cs`（bug 2，shared base、mania-safe）。沉淀为 TECHNICAL_CONSTRAINTS 展示层级与层级导航约束 #17（root-focus 放弃）/ #18（DrawSize re-center 收口）。验证：BMS 选歌分组全套（难度表+内外库）11/11；新增 3 条回归全过；`osu.Game.Tests` carousel 套件 18 条 pre-existing 失败经 baseline（git stash）比对确认与本次改动无关（headless 输入驱动/排序稳定性既有 flaky）。Release 编译 0 错误。**用户 2026-06-21 实机跑完两个原始复现场景（mania 播放中进 BMS 难度表→选谱；列表任意位置 Win 最小化→还原），确认观感正常、验收通过。**
+
+---
+
 ## 2026-06-18（其四）：谱面构成持久化「其三」实机验收通过 + 选歌偶发掉帧观察（已搁置）
 
 **其三 backfill 持久化修复 = 实机验收通过。** 用户连跑两次启动：第 1 次仍执行一次谱面构成补算（旧库一次性 Phase 2），第 2 次启动日志 `[BmsCompositionFilter] backfill Phase 1 done: 57685 beatmaps already have persisted chart-filter-stats, 0 are missing`，未再触发补算或"正在分析"通知。确认"每次启动重算"已收敛为"补齐一次后永久持久化"，与「其三」合同一致。（注：该用户库 57685 张构成全部可算，普通非空 stats 写回即足以让第二次 0 missing；`ChartFilterStatsResolved` 负缓存标记保障的是"空/不可算"子集不再每启动被重归 missing——该库恰无此子集，故标记在本次实测中未被触发但逻辑正确。）本轮无代码改动。

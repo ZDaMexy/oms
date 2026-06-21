@@ -656,6 +656,17 @@ namespace osu.Game.Screens.Select
             if (!pendingRootGroupFocus)
                 return false;
 
+            // Once a concrete grouped selection exists, the fresh-entry root-group focus is no longer applicable
+            // and must be abandoned. Otherwise, when the current global beatmap was invalid for this ruleset on
+            // entry (e.g. a mania track playing while entering/switching to BMS), the focus can never be satisfied
+            // (FocusRootGroupForBeatmap keeps failing) and lingers, then hijacks the first chart the user manually
+            // selects — snapping the carousel up to that chart's root group instead of leaving it on the selection.
+            if (carousel.CurrentGroupedBeatmap != null)
+            {
+                pendingRootGroupFocus = false;
+                return false;
+            }
+
             if (!carousel.FocusRootGroupForBeatmap(Beatmap.Value.BeatmapInfo))
                 return false;
 

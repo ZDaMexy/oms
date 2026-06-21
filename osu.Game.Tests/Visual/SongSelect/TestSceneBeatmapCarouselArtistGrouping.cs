@@ -406,5 +406,57 @@ namespace osu.Game.Tests.Visual.SongSelect
                 WaitForExpandedGroup(3);
             });
         }
+
+        [Test]
+        public void TestDrawSizeChangeDoesNotRecentreWithoutSelection()
+        {
+            // Reproduces the window minimise/restore jump: while freely browsing a grouped view with the keyboard
+            // cursor resting on a group header (and no committed selection), an incidental draw-size change must NOT
+            // re-centre the view onto that cursor. Previously the resize re-ran selection scrolling and yanked the
+            // scrolled-away view back up to the group header.
+            AddBeatmaps(40, 3, true);
+            WaitForDrawablePanels();
+
+            SelectNextPanel();
+            AddUntilStep("keyboard cursor on a group", () => GetKeyboardSelectedPanel()?.Item?.Model, () => Is.InstanceOf<GroupDefinition>());
+            CheckNoSelection();
+
+            AddStep("scroll to end, away from the cursor group", () => Scroll.ScrollToEnd(false));
+            WaitForScrolling();
+
+            double scrollBefore = 0;
+            AddStep("save scroll position", () => scrollBefore = Scroll.Current);
+
+            // A width change triggers the same Invalidation.DrawSize that a window minimise/restore does.
+            AddStep("simulate window resize (draw-size change)", () => Carousel.Width = 700);
+            WaitForScrolling();
+
+            AddAssert("scroll position preserved (no re-centre)", () => Scroll.Current, () => Is.EqualTo(scrollBefore).Within(1));
+        }
+
+        [Test]
+        public void TestDrawSizeChangeRecentresCommittedSelection()
+        {
+            // Guards the legitimate behaviour the gate must preserve: with a concrete selection, a draw-size change
+            // (window resize) still re-centres that selection.
+            AddBeatmaps(40, 3, true);
+            WaitForDrawablePanels();
+
+            SelectNextSet();
+            CheckHasSelection();
+            WaitForScrolling();
+
+            double centredOnSelection = 0;
+            AddStep("save centred-on-selection position", () => centredOnSelection = Scroll.Current);
+
+            AddStep("scroll to end, away from the selection", () => Scroll.ScrollToEnd(false));
+            WaitForScrolling();
+            AddAssert("scrolled away from selection", () => Scroll.Current, () => Is.Not.EqualTo(centredOnSelection).Within(1));
+
+            AddStep("simulate window resize (draw-size change)", () => Carousel.Width = 700);
+            WaitForScrolling();
+
+            AddAssert("view re-centred back onto the selection", () => Scroll.Current, () => Is.EqualTo(centredOnSelection).Within(1));
+        }
     }
 }

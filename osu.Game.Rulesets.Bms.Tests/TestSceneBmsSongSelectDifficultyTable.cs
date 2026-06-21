@@ -152,6 +152,44 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("no beatmap is auto-selected", () => Carousel.CurrentGroupedBeatmap, () => Is.Null);
         }
 
+        [Test]
+        public void TestSelectingChartWhileNonBmsPlayingDoesNotJumpToRootGroup()
+        {
+            // Reproduces the bug where a non-BMS (mania) track is the global beatmap when entering the BMS
+            // difficulty-table grouping. The fresh-entry root-group focus can never resolve against the invalid
+            // mania beatmap, so it must be abandoned; otherwise it lingers and hijacks the first chart the user
+            // selects, snapping the carousel up to that chart's table root instead of leaving it on the selection.
+            importDifficultyTableBeatmaps();
+            importManiaBeatmap("Mania Song");
+
+            SelectBmsRuleset();
+            // Simulate the currently-playing global beatmap being the mania track when entering BMS.
+            PreselectBeatmap("Mania Song");
+            SetDifficultyTableGrouping();
+
+            LoadSongSelect();
+
+            WaitForFiltering();
+            AddUntilStep("wait for visible carousel items", () => GetVisibleCarouselModels().Length, () => Is.GreaterThan(0));
+            AddAssert("no beatmap auto-selected", () => Carousel.CurrentGroupedBeatmap, () => Is.Null);
+
+            AddStep("user selects Satellite chart", () =>
+            {
+                var bms = Beatmaps.GetAllUsableBeatmapSets().SelectMany(set => set.Beatmaps).Single(b => b.Metadata.Title == "Satellite Song");
+
+                // Mirror the carousel-driven user-selection flow: the carousel selection is set immediately, then
+                // the global beatmap follows (which fires the Beatmap-changed handler that previously triggered the
+                // late root-group focus).
+                Carousel.CurrentBeatmap = bms;
+                Beatmap.Value = Beatmaps.GetWorkingBeatmap(bms);
+            });
+
+            AddUntilStep("selection settled on Satellite chart", () => Carousel.CurrentGroupedBeatmap?.Beatmap.Metadata.Title, () => Is.EqualTo("Satellite Song"));
+            // The carousel must stay on the selected chart's level (★1), not jump up to the table root (Satellite).
+            AddAssert("expanded group is the chart's level", () => Carousel.CurrentExpandedGroup.Value?.Title.ToString(), () => Is.EqualTo("★1"));
+            AddUntilStep("keyboard cursor not on a root table group", GetKeyboardSelectedVisibleGroupTitle, () => Is.Null);
+        }
+
         private bool groupPanelExpanded(string title) =>
             SongSelectScreen.ChildrenOfType<ICarouselPanel>()
                             .Any(panel => panel.Item?.Model is GroupDefinition group && group.Title.ToString() == title && panel.Expanded.Value);

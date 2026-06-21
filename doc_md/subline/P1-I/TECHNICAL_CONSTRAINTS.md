@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-06-18（「展示层级与层级导航约束」追加 #15 层级展开态/缩进方向修正）
+> 最后更新：2026-06-21（「展示层级与层级导航约束」追加 #17 root-focus 放弃 / #18 DrawSize re-center 收口）
 > 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -103,6 +103,10 @@
 15. **层级展开态与缩进方向（2026-06-18 修正）**：① 路径**根组**的 `IsExpanded` 不被 `setExpansionStateOfGroup`（只设子组）覆盖，必须在 `setExpandedGroup` 显式置位/复位（`setGroupItemExpansion`），否则表名层即便展开也无 chevron、突出量错乱。② 突出（X 偏移）必须让浅层（祖先）≥ 深层（后代）：`Panel.AdditionalXOffset`（`PanelGroup` 返回 `Depth*30`）须 **> `active_x_offset`(25)** 以压过键盘选中偏移，保证展开的祖先组突出不少于其键盘选中的后代组（避免子组比父组更突出）。`AdditionalXOffset` 默认 0、只 `PanelGroup` override，非层级分组（depth 0）零影响。
 
 16. **fresh-entry root-focus 抑制必须覆盖 invalid 当前谱面（2026-06-18 修正）**：`SongSelect.ensureGlobalBeatmapValid` 中 `shouldSuppressGroupedAutoSelection()`（`pendingRootGroupFocus && CurrentGroupedBeatmap==null`）必须在 valid/invalid 分支**之前**短路返回，否则当前全局谱面对本 ruleset invalid 时（如 mania 曲目播放中直接进入 / 切到 BMS）会经 invalid 回退（`SetDefault→IsDefault→NextRandom`）自动选中并 `setExpandedGroup` 展开某分组（误展开 Unrated）。抑制只在 `ShouldResetSongSelectGroupToRoot` 为真的 ruleset（BMS）的 fresh-entry 期间生效；其他 ruleset `pendingRootGroupFocus` 永不置真、零影响。回归 `TestNonBmsPlayingBeatmapDoesNotExpandGroupOnEntry`。
+
+17. **fresh-entry root-focus 必须在出现具体选中后放弃（2026-06-21 修正，与 #16 对称）**：`SongSelect.tryFocusRootGroupForCurrentBeatmap` 必须在 `carousel.CurrentGroupedBeatmap != null` 时清掉 `pendingRootGroupFocus` 并直接返回，**不得**再执行 `FocusRootGroupForBeatmap`。否则当前全局谱面对本 ruleset invalid（mania 播放中进 BMS）时 root-focus 永远满足不了、标记长挂，等用户**手动选中第一张 BMS 谱**、`updateVariousState` 因全局 `Beatmap` 变更再次调用本方法时，会把视图劫持滚到该谱的最外层（表名）分组。语义＝root focus 只在「fresh-entry 且尚无具体选中」期间有效，用户一旦选谱即作废。#16（抑制 invalid 期间自动选中）与 #17（放弃 invalid 永不满足的延迟聚焦）是同一 `pendingRootGroupFocus` 生命周期的两个互补收口点，改其一须复核另一。回归 `TestSelectingChartWhileNonBmsPlayingDoesNotJumpToRootGroup`。
+
+18. **DrawSize re-center 必须限定在存在具体选中时（2026-06-21 修正，shared base、mania-safe）**：base `Carousel.OnInvalidate` 的 `Invalidation.DrawSize` 分支只在 `currentSelection.CarouselItem != null` 时才 `selectionValid.Invalidate()`。该分支的语义是「窗口尺寸/纵横比变化时保持**选中项**居中」；窗口最小化/还原同样改变 `DrawSize`，若无条件重跑选中滚动，而此时没有具体选中（BMS 难度表里只展开了组、键盘光标停在组头、`currentSelection` 为 null），`BeatmapCarousel.GetScrollTarget` 的回退（键盘光标 / `ExpandedGroup` 位置）会把用户自由滚走的视图猛拽回组头。**不得**改成无条件 re-center，也**不得**改成读 `currentKeyboardSelection`（键盘光标可能就是组头、正是要避开的目标）——必须用已提交的 `currentSelection`。mania 安全性来自其选歌恒有已提交选中（`ShouldActivateOnKeyboardSelection` 使方向键浏览即 `Activate` 提交），故 `currentSelection.CarouselItem` 始终非空、resize 行为零变化；「键盘光标可停在组头而不提交选中」是 BMS 层级分组特性，也是本 bug 的成因边界。回归 `TestDrawSizeChangeDoesNotRecentreWithoutSelection` ＋守护 `TestDrawSizeChangeRecentresCommittedSelection`（osu.Game.Tests，generic carousel）。
 
 ## 测试与发布约束
 
