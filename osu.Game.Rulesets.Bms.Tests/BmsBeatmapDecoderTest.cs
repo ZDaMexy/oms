@@ -479,6 +479,40 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestConsecutiveLnObjTailsDoNotFabricateOverlappingLongNote()
+        {
+            // `note note tail tail`: the first LNOBJ tail pairs with the immediately-preceding note (BB). The second
+            // consecutive tail must be an orphan — it must NOT reach back to the earlier note (AA) and fabricate a
+            // second long note overlapping the first (two simultaneous holds on one lane, which renders as a stray
+            // "tap" inside the long note). Regression for the "Grayed Out -Antifront-" spf.bml channel-14 artifact.
+            const string text = @"
+#LNOBJ ZZ
+#00111:AABBZZZZ
+";
+
+            var result = decoder.DecodeText(text, "lnobj-consecutive-tails.bms");
+
+            Assert.Multiple(() =>
+            {
+                // Exactly one long note: BB -> ZZ. No second, overlapping long note from the orphan tail.
+                Assert.That(result.LongNoteEvents, Has.Count.EqualTo(1));
+                Assert.That(result.LongNoteEvents[0].LaneChannel, Is.EqualTo(0x11));
+                Assert.That(result.LongNoteEvents[0].HeadObjectId, Is.EqualTo(407)); // BB
+                Assert.That(result.LongNoteEvents[0].TailObjectId, Is.EqualTo(1295)); // ZZ
+                Assert.That(result.LongNoteEvents[0].StartFractionWithinMeasure, Is.EqualTo(0.25).Within(0.001));
+                Assert.That(result.LongNoteEvents[0].EndFractionWithinMeasure, Is.EqualTo(0.5).Within(0.001));
+
+                // The earlier note stays a plain tap, not an LN head.
+                Assert.That(result.ObjectEvents, Has.Count.EqualTo(1));
+                Assert.That(result.ObjectEvents[0].ObjectId, Is.EqualTo(370)); // AA
+                Assert.That(result.ObjectEvents[0].FractionWithinMeasure, Is.EqualTo(0).Within(0.001));
+
+                // The orphan second tail is reported rather than silently fabricating a long note.
+                Assert.That(result.Warnings.Any(w => w.Contains("without a matching head")), Is.True);
+            });
+        }
+
+        [Test]
         public void TestPairsLnType1LongNotes()
         {
             const string text = @"

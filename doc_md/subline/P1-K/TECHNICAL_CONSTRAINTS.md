@@ -61,6 +61,7 @@
 4. `#RANDOM` 的确定性合同冻结为“仅执行 `#IF 1` 分支”并保留既有告警；`#SETRANDOM n` 必须按作者固定值选支。`#IF`/`#ELSEIF`/`#ELSE` 必须按 chain 语义求值（命中后续分支短路），不得让 `#ELSE` 内容在 `#IF` 已命中时泄漏。
 5. `#SWITCH`/`#SETSWITCH` 必须做确定性单段选择（默认 `#CASE 1` 或 `#SETSWITCH` 固定值，C 风格 fall-through 至 `#SKIP`，无匹配走 `#DEF`，支持嵌套）；不得退回“把所有 `#CASE` 内容无条件并入”导致错谱。
 6. 解析期对 LNOBJ 头的回收不得使用每条长条一次的 O(n) 线性扫描（全 LNOBJ 谱会退化为 O(n²)）；必须用索引标记 + 单次重建等 O(n) 路径。
+7. **LNOBJ 尾必须只与它紧邻的前一个普通音符配对**：每条轨在解析期只保留**单个**待配对长条头（最近一个普通音符），普通音符覆盖该候选（前一候选即提交为单点），LNOBJ 尾消费后立即清空该轨的待配对头。**禁止用栈（`List<int>` / LIFO）保留多个待配对头**——否则连续两个 LNOBJ 尾（`音符 音符 01 01` 这类，规范上第 2 个无紧邻头应作孤儿丢弃 + 告警）的第 2 个尾会**回头抓更早、本应已提交为单点的音符**，凭空造出第二条与第一条**时间重叠的长条**（同轨两条同时按住，物理不可能；渲染成"长条里的单点/短块"，bms 与转谱 mania 两模式同现）。回归守卫 `BmsBeatmapDecoderTest.TestConsecutiveLnObjTailsDoNotFabricateOverlappingLongNote`。与 #6 共存：#6 管"头回收用 O(n) 索引标记不用 O(n²) 扫描"，#7 管"头配对用单头不用栈"；两者都在 `pendingLnObjHeads` 上，改其一须复核另一。
 
 ## consumer / projection reuse 约束
 

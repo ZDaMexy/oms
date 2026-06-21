@@ -631,7 +631,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             orderedEvents.Sort(compareChannelEvents);
             var effectiveEvents = compoundDuplicateChannelEvents(orderedEvents);
 
-            var pendingLnObjHeads = new Dictionary<int, List<int>>();
+            // Per-lane LNOBJ head = the single note immediately preceding the next LNOBJ tail (NOT a stack — see
+            // handlePlayableNoteEvent / tryPopPendingLnObjHead for why a stack fabricates overlapping long notes).
+            var pendingLnObjHeads = new Dictionary<int, int>();
             var pendingLnType1Heads = new Dictionary<int, BmsObjectEvent>();
             var pendingLnType2Segments = new Dictionary<int, List<BmsObjectEvent>>();
             var consumedLnObjHeadIndices = new HashSet<int>();
@@ -874,7 +876,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 damageValue));
         }
 
-        private static void handlePlayableNoteEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, List<int>> pendingLnObjHeads, ISet<int> consumedLnObjHeadIndices)
+        private static void handlePlayableNoteEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, int> pendingLnObjHeads, ISet<int> consumedLnObjHeadIndices)
         {
             if (!TryParseBase36(channelEvent.RawValue, out int objectId))
             {
@@ -911,13 +913,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var noteEvent = new BmsObjectEvent(channelEvent.MeasureIndex, channelEvent.FractionWithinMeasure, laneChannel, objectId, autoPlay: false);
             decodedChart.ObjectEvents.Add(noteEvent);
 
-            if (!pendingLnObjHeads.TryGetValue(laneChannel, out var laneEvents))
-            {
-                laneEvents = new List<int>();
-                pendingLnObjHeads[laneChannel] = laneEvents;
-            }
-
-            laneEvents.Add(noteIndex);
+            // LNOBJ pairs each tail with the note IMMEDIATELY before it in the lane. Track only that single most-recent
+            // note as the pending head; overwriting any earlier candidate commits the earlier note as a plain tap.
+            // (A stack here would let a second consecutive LNOBJ tail reach back past the just-consumed head and
+            // fabricate a second long note overlapping the first — two simultaneous holds on one lane, which renders
+            // as a stray "tap" inside the long note.)
+            pendingLnObjHeads[laneChannel] = noteIndex;
         }
 
         private static void handleLongNoteChannelEvent(BmsDecodedChart decodedChart, BmsChannelEvent channelEvent, IDictionary<int, BmsObjectEvent> pendingLnType1Heads, IDictionary<int, List<BmsObjectEvent>> pendingLnType2Segments)
@@ -1083,22 +1084,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             decodedChart.StopEvents.Add(new BmsStopEvent(channelEvent.MeasureIndex, channelEvent.FractionWithinMeasure, stopIndex, stopValue));
         }
 
-        private static bool tryPopPendingLnObjHead(int laneChannel, IDictionary<int, List<int>> pendingLnObjHeads, out int headIndex)
+        private static bool tryPopPendingLnObjHead(int laneChannel, IDictionary<int, int> pendingLnObjHeads, out int headIndex)
         {
-            if (pendingLnObjHeads.TryGetValue(laneChannel, out var laneEvents) && laneEvents.Count > 0)
-            {
-                int lastIndex = laneEvents.Count - 1;
-                headIndex = laneEvents[lastIndex];
-                laneEvents.RemoveAt(lastIndex);
+            // A lane holds at most one pending head (the immediately-preceding note). Consuming it clears the lane, so
+            // a second consecutive LNOBJ tail finds nothing and is treated as an orphan instead of reaching backwards.
+            if (!pendingLnObjHeads.TryGetValue(laneChannel, out headIndex))
+                return false;
 
-                if (laneEvents.Count == 0)
-                    pendingLnObjHeads.Remove(laneChannel);
-
-                return true;
-            }
-
-            headIndex = -1;
-            return false;
+            pendingLnObjHeads.Remove(laneChannel);
+            return true;
         }
 
         private static bool isPlayableNoteChannel(int channel, BmsKeymode keymode)

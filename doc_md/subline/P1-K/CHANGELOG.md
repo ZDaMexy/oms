@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-06-22
+
+### 修复 LNOBJ 长条解码：连续 LNOBJ 尾不得回头造重叠长条（解决"长条里出现单点"）
+
+用户在 `Stella/st4/Grayed Out -Antifront-/spf.bml`（`#LNOBJ 01` 式长条）~11–13s 处发现长条中出现一个"单点"，bms mode 与转谱 mania 两模式同现。脚本逐字节复刻 OMS 的 LNOBJ 解码逻辑跑全谱，确诊为**解析器 bug**（非谱面错误）：
+
+- **现象 + 真因**：通道 14（key4/黄轨）原始序列 `7O 7P 01 01 J5 01`（两个连续 `01` 尾）。OMS 把每条轨的"待配对长条头"存成 **LIFO 栈**（`Dictionary<int, List<int>>`），`01` 来时弹栈顶——第 1 个 `01` 正确配最近的 `7P`，第 2 个 `01` 又**回头弹更早的 `7O`**（本该已是普通单点），凭空造出第二条长条。结果 `LN(7O) 12.316→12.868s` 完全包住 `LN(7P) 12.474→12.632s`：**同一根键上两条时间重叠的长条**（物理上不可能同时按住），短的那条被渲染成"长条里的单点/短块"。全谱扫描此类重叠仅此一处，正对用户所见。两模式同现因共用同一份解码输出。
+- **正确语义**：标准 LNOBJ（[hitkey 命令参考](https://hitkey.bms.ms/cmds.htm)）——`01` 只配它**紧邻的前一个普通音符**；该音符被消费后该轨即无待配对头，第 2 个连续 `01` 是**孤儿尾**（丢弃 + 告警），更早的 `7O` 保持为普通单点。与 beatoraja 行为一致。
+- **修复**：[BmsBeatmapDecoder.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs) 把每轨待配对头从 LIFO 栈改为**单个头**（`Dictionary<int, List<int>>`→`Dictionary<int, int>`）：普通音符**覆盖写**（前一候选即提交为单点）、`tryPopPendingLnObjHead` 取出即清空该轨。正常 / 连打 / 交替长条全不受影响——脚本验证改后该谱长条数 1110→1109（仅去掉那条假长条、0 重叠）；保留既有 O(n) 索引标记删头路径（不违反本子线 LNOBJ 头回收约束）。一处解码修复同纠 bms 与转谱 mania 两模式。
+- 验证：新增回归 `BmsBeatmapDecoderTest.TestConsecutiveLnObjTailsDoNotFabricateOverlappingLongNote`（`#00111:AABBZZZZ` → 唯一 LN `BB→ZZ` + `AA` 保持单点 + 孤儿尾告警；去修复即退化成两条重叠 LN）。BMS 全套 **943/943**、`osu.Desktop.slnf` Release **0 错误**。沉淀为约束「键音呈现与控制流 #7」。**用户 2026-06-22 实机重进该谱确认暂无异常（验收通过）。**
+
+---
+
 ## 2026-06-13
 
 ### 展示：BMS 选歌曲名清理 + 难度名"谱师显式名优先、丢冗余数字"（展示层，bms / 转谱两模式一致）

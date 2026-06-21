@@ -5,7 +5,23 @@
 
 ---
 
+## 2026-06-22
+
+### 修复 LNOBJ 长条解码：连续 LNOBJ 尾造"长条内单点"（P1-K）
+
+用户实机发现 `Stella/st4/Grayed Out -Antifront-/spf.bml`（`#LNOBJ 01` 长条）~11–13s 长条中出现一个"单点"，bms 与转谱 mania 两模式同现。脚本逐字节复刻 OMS 解码逻辑确诊为**解析器 bug、非谱面错误**：通道14 序列 `7O 7P 01 01`（两连续 LNOBJ 尾），OMS 用 **LIFO 栈**存每轨待配对长条头，第 2 个 `01` 回头抓更早的 `7O`（本应已是单点），造出 `LN(7O)12.316→12.868s` 完全包住 `LN(7P)12.474→12.632s` 的**同轨时间重叠长条**（物理不可能同时按住 → 渲染成"长条里的单点"）。修复＝[BmsBeatmapDecoder](../subline/P1-K/CHANGELOG.md) 把每轨待配对头由栈改**单头**（`Dictionary<int,List<int>>`→`Dictionary<int,int>`），尾只配紧邻前一普通音符、消费即清空，连续第 2 个尾作孤儿丢弃（合规范/beatoraja）；正常长条零影响（全谱长条 1110→1109，仅去掉那条假长条）。一处解码修复同纠两模式。新增回归 `TestConsecutiveLnObjTailsDoNotFabricateOverlappingLongNote`；BMS 全套 **943/943**、Release **0 错误**。**用户 2026-06-22 实机确认暂无异常（验收通过）。** 详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-22 与 [P1-K 约束 键音呈现与控制流 #7](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)。
+
+### 选歌右键「打开歌曲/谱面文件位置」——在资源管理器中定位（P1-I / P1-H）
+
+按用户要求在选歌右键菜单加两项「在系统资源管理器中定位」：歌曲条（`PanelBeatmapSet` / 单难度合并条 `PanelBeatmapStandalone`）→「打开歌曲文件位置」（打开父目录并选中歌曲文件夹）；难度（经 `SoloSongSelect.GetForwardActions`，覆盖 `PanelBeatmap` 行 + standalone + footer Options 弹层）→「打开谱面文件位置」（打开歌曲文件夹并选中该 .bms）。**范围＝所有 filesystem-backed 谱面**（`BeatmapSetInfo.FilesystemStoragePath` 非空：BMS chartbms/ + 直读 mania chartmania/；hash 库无文件夹故不显示）。路径解析收口在新共享 helper `osu.Game/Beatmaps/FilesystemBeatmapLocation.cs`（复用 `BmsBgaPlayer.tryGetAbsolutePath` 范式：external＝绝对原样、managed＝`storage.GetFullPath`，难度＝set 目录 + `LocalFilePath` 且 `/`→原生分隔符）；定位走 `GameHost.PresentFileExternally(绝对路径)`（Windows＝`explorer /select`），**不走 `Storage.PresentFileExternally`**（外部库绝对路径越数据根会触发 traversal 守卫抛异常）。外部目录只读打开、绝不改动；目标缺失优雅退回父目录。仅加菜单项 + 解析/定位，不碰筛选/排序/分组/存储写入。新增 `FilesystemBeatmapLocationTest`（6）+ `osu.Game.Tests` 面板 4/4 确认 `[Resolved]` 不破坏加载。验证：BMS 全套 **942/942**、`osu.Desktop.slnf` Release **0 错误**。**人工实机定位行为待用户确认**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-22 与 [P1-I 约束 实现边界 #7](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+---
+
 ## 2026-06-21
+
+### BMS 长条 body 改造（增宽/同 head 色/三态视觉）+ 更正 CN 接回语义（P1-A / P1-E）
+
+按用户要求改造默认皮肤长条 body 视觉，并在评审中确认顺带更正一处 CN 机制 bug。**视觉（P1-A）**：`DefaultBmsLongNoteBodyDisplay` body 增宽 10%（`0.525→0.5775`）、颜色由暗条改为与 head 一致（`GetLongNoteHead`，保留 0.8 透明）；新增皮肤无关三态 `BmsLongNoteBodyState{Idle,Holding,Broken}`，父 `DrawableBmsHoldNote` 每帧由 `isHolding`+head/tail 判定纯派生并经 `IBindable BodyState` 暴露，默认 body 经 `[Resolved] DrawableHitObject` 绑定（mania `DefaultBodyPiece` 同范式）按状态切视觉——**unactivated==activated**（head 色+0.8）、**missed＝去色变灰+降透明度**（新 `GetLongNoteBodyBroken`，alpha 0.32）。**机制更正（P1-E）**：用户确认「CN 松开可重按接回」是开发错误——正确为 `LN`=头判+长条、`CN`=头判+长条+尾判（中途松开永久 miss 不可接回）、`HCN`=头判+长条（持续 gauge）+尾判（可重按恢复）。新增 `AllowsRegrabAfterRelease()`（==HCN），把 `CanApplyLateBodyPress` 与 `OnReleased` 等待接回分支的门控由错误的 `RequiresTailJudgement()`（CN+HCN）收窄为 HCN-only；body 三态纯派生自 `isHolding`，故「仅 HCN 恢复」自动成立。仅视觉+长条松开语义，不碰 head/tail（tail 仍 `Alpha=0`）/判定窗口/计分/滚动/键音/chartbms 直读。更正 3 测 + 新增 1 测（body 生命周期含 HCN 恢复）+ 改 2 条皮肤回归值。验证：BMS 全套 **936/936**、`osu.Game.Rulesets.Bms.Tests` 0 错。**人工实机视觉验收待用户确认**。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) / [P1-E CHANGELOG](../subline/P1-E/CHANGELOG.md) 2026-06-21 与 [P1-A 约束 皮肤边界 6](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) / [P1-E 约束 #4](../subline/P1-E/TECHNICAL_CONSTRAINTS.md)。
 
 ### 原生 BMS 键音保真两改：autoplay=完美游玩 + 键音池自动增长（P1-J）
 
