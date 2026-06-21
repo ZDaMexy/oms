@@ -1,12 +1,13 @@
 # P1-I 开发进度：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-06-21
+> 最后更新：2026-06-22
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-I` 的真实进展。
 
 ## 当前阶段
 
 - **阶段定位**：`I1` / `I2` / `I3` 均已完成落地；`I4` 回归收口仍处于进行中（已有基础 focused tests，但 `BmsCompositionFilterControl` 单轨拖拽的 headless regression 覆盖与 shared visual gate 仍待补强）。`I5`–`I7`（展示层级 / 层级返回条 / 难度表分组解析缓存）已于 2026-06-16 落地并通过 focused 回归（详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-16「其二」）。
 - **I5–I7 当前态**：① 展示层级 = BMS-only 两档下拉「歌曲→谱面 / 谱面」，位于共享 sort/group/collection 行里「分组」与「收藏夹」之间的第 4 列（非 BMS 收 0 宽），经 `FilterCriteria.DisplayLevel` 收口到 `ShouldGroupBeatmapsTogether`；强制扁平分组（层级/Difficulty/RankAchieved/LastPlayed×LastPlayed）下锁定为「谱面」且不污染持久偏好；mania 零行为变化。② 层级返回条 = `FilterControl.GroupNavigationDisplay`（只显示面包屑路径 + 返回，无前缀），由 `BeatmapCarousel.CurrentExpandedGroup` 驱动、独立于 scoped-set，返回/Back 调 `CollapseExpandedGroupOneLevel` 逐级上退、cursor 停在刚折叠的组（不重新展开）。③ 分组解析缓存 = `BmsTableGroupMode` 按 `RulesetDataJson` 键缓存 `GroupDefinition[]`。④ 层级视觉区分 = `PanelGroup` 按 `Depth` 高对比分级（根=Background4+纹理+大亮标题；嵌套=Background6+纯平无纹理+小暗标题+缩进）。⑤（2026-06-18 实机修正）表名根组展开态修正 = `setExpandedGroup` 显式置路径根组 `IsExpanded`（原本只有子组被父组置位，根组永不置位 → 展开的表名组无 chevron、突出量错乱）；突出方向修正 = `Panel.AdditionalXOffset`（`PanelGroup`=`Depth*30`>25）让祖先组突出 ≥ 键盘选中的后代组。⑥（2026-06-21 实机修正）修两处 carousel「自动跳滑」——选谱 root-jump（`pendingRootGroupFocus` 在 mania 播放中进 BMS 时永不满足、长挂被首个选谱劫持 → 出现具体选中即放弃，约束 #17，与 #16 对称）+ 窗口还原 group-jump（最小化/还原改 `DrawSize` → base `Carousel.OnInvalidate` 无选中也 re-center 回退组头 → 限定 `currentSelection.CarouselItem != null` 才居中，shared base、mania-safe，约束 #18），**用户实机验收通过**。**剩余人工视觉验收（下拉锁定观感、返回条面包屑/Back 键、层级配色、展开箭头/突出层次、大库 perf 收益量化）待用户实机确认。**
+- **选歌右键定位（2026-06-22）**：选歌右键菜单新增「打开歌曲文件位置」（歌曲条 `PanelBeatmapSet` / 单难度合并条 `PanelBeatmapStandalone`）与「打开谱面文件位置」（难度，经 `SoloSongSelect.GetForwardActions`），在系统资源管理器中打开并选中歌曲文件夹 / 难度文件。仅对 filesystem-backed 谱面（BMS + 直读 mania）显示；路径解析收口在共享 helper `FilesystemBeatmapLocation`，定位走 `GameHost.PresentFileExternally`（非 `Storage`，避免外部库绝对路径触发 traversal 守卫）。详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-22 与约束 #7（实现边界）。**人工实机定位行为待用户确认。**
 - **代码状态**：BMS 当前已具备 persisted `ChartFilterStats` metadata、`BmsFilterCriteria`、`BmsRuleset.CreateRulesetFilterCriteria()` 与 shared `FilterControl` 内完整的 BMS-only filter surface。`BmsCompositionFilterControl` 已以 BMS-local 私有单轨控件落地：`RC / LN / SCR` 三段可独立启停、各自表示最大占比、尾段为空白容差；`BmsCompositionHandle` 拖拽句柄可在三段边界间拖拽、并在句柄上显示当前数值；`BmsCompositionRowButton` 基于 `ShearedToggleButton`、激活时用段配色、非激活时用 `ColourProvider.Background3/Background1`（hover 效果可见）；`BmsKeyCountToggleButton` 提供 5K/7K/9K/14K 独立启停。`SearchHintTooltip` 已作为搜索框悬浮提示接入，展示全部 BMS 搜索语法；当前公开语法已统一为 `key/keys`、`rc/rice`、`ln`、`scr`，其中 `regular` 只保留为兼容 alias。`OverlayColourProvider` 通过构造函数传递，不依赖 global tooltip-layer DI scope。颜色方案：RC=蓝(94,190,255)、LN=黄(255,212,92)、SCR=橙(255,119,86)。
 - **文档状态**：`P1-I` 四件套已更新到当前落地状态。
 

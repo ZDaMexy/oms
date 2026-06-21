@@ -15,6 +15,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables;
@@ -65,6 +66,12 @@ namespace osu.Game.Screens.Select
 
         [Resolved]
         private OsuGame? game { get; set; }
+
+        [Resolved]
+        private GameHost host { get; set; } = null!;
+
+        [Resolved]
+        private Storage storage { get; set; } = null!;
 
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
@@ -279,6 +286,10 @@ namespace osu.Game.Screens.Select
 
                 if (beatmapSet.Beatmaps.Any(b => b.Hidden))
                     items.Add(new OsuMenuItem(SongSelectStrings.RestoreAllHidden, MenuItemType.Standard, () => songSelect?.RestoreAllHidden(beatmapSet)));
+
+                // Reveal the song folder on disk (filesystem-backed BMS / direct-read mania only).
+                if (FilesystemBeatmapLocation.CreateOpenSongFolderItem(beatmapSet, storage, host) is OsuMenuItem openSongFolderItem)
+                    items.Add(openSongFolderItem);
 
                 items.Add(new OsuMenuItem(CommonStrings.DeleteWithConfirmation, MenuItemType.Destructive, () => songSelect?.Delete(beatmapSet)));
                 return items.ToArray();

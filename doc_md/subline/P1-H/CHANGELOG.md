@@ -1,5 +1,9 @@
 # P1-H 变动日志
 
+## 2026-06-22：新增存储字段消费方 —— 选歌右键「在资源管理器中定位」（从属 P1-I）
+
+主归属 `P1-I`（选歌右键产品面），此处仅登记一个对 P1-H 存储拓扑字段的**新只读消费方**：选歌右键「打开歌曲/谱面文件位置」经新共享 helper `osu.Game/Beatmaps/FilesystemBeatmapLocation.cs` 读取 `BeatmapSetInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` / `BeatmapInfo.LocalFilePath` 解析谱面磁盘绝对路径（external＝绝对原样、managed＝`storage.GetFullPath`、难度＝set 目录 + `LocalFilePath`），与 `BmsBgaPlayer.tryGetAbsolutePath` 同一解析范式。**影响**：若将来 P1-H 改 `FilesystemStoragePath` 的相对/绝对约定或 `LocalFilePath` 语义，须同步该 helper（及 BGA 路径解析）。仅只读消费、不改任何存储写入/扫描/拓扑语义。详见 [P1-I CHANGELOG](../P1-I/CHANGELOG.md) 2026-06-22。
+
 ## 2026-05-31
 
 ### 订正：难度表全 Unrated 的真根因是 RulesetData 字段互相覆盖（推翻下方 staleness 判断 + 撤销 bump）

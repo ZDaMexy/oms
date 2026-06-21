@@ -9,6 +9,7 @@ using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Extensions.LocalisationExtensions;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics.UserInterface;
@@ -50,6 +51,12 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private OsuGame? game { get; set; }
 
+        [Resolved]
+        private GameHost host { get; set; } = null!;
+
+        [Resolved]
+        private Storage storage { get; set; } = null!;
+
         private Sample? sampleConfirmSelection { get; set; }
 
         [BackgroundDependencyLoader]
@@ -64,6 +71,10 @@ namespace osu.Game.Screens.Select
         {
             yield return new OsuMenuItem(ButtonSystemStrings.Play.ToSentence(), MenuItemType.Highlighted, () => SelectAndRun(beatmap, OnStart)) { Icon = FontAwesome.Solid.Check };
             yield return new OsuMenuItem(ButtonSystemStrings.Edit.ToSentence(), MenuItemType.Standard, () => Edit(beatmap)) { Icon = FontAwesome.Solid.PencilAlt };
+
+            // Reveal the chart file on disk (filesystem-backed BMS / direct-read mania only).
+            if (FilesystemBeatmapLocation.CreateOpenChartFileItem(beatmap, storage, host) is OsuMenuItem openChartFileItem)
+                yield return openChartFileItem;
 
             yield return new OsuMenuItemSpacer();
 

@@ -69,6 +69,7 @@
 4. 任何改变 BMS Song Select 筛选语义的改动，都必须同步更新本目录四件套、`../../mainline/DEVELOPMENT_PLAN.md`、`../../mainline/DEVELOPMENT_STATUS.md` 与 `../../mainline/CHANGELOG.md`。
 5. 首轮 UI 若需要新控件，优先接受 BMS-local 私有控件，而不是抢先抽象 shared generic segmented filter component；只有当第二个 ruleset 确认复用时，才值得上提共享层。
 6. 若 shared 抽象提炼来不及，允许直接写 BMS-local 私有 segmented control；但不得再以三个彼此独立的 `ShearedRangeSlider` 拼排原型充当最终交付。
+7. **选歌右键「在资源管理器中定位」必须门控在 filesystem-backed 谱面**（`FilesystemBeatmapLocation.IsFilesystemBacked` ＝ `BeatmapSetInfo.FilesystemStoragePath` 非空，覆盖 BMS chartbms/ + 直读 mania chartmania/；hash 库无文件夹故不出该项），不得对 hash-backed 谱面显示一个会失败的入口。**定位必须走 `GameHost.PresentFileExternally(绝对路径)`，不得用 `Storage.PresentFileExternally`** —— 外部库绝对路径越出数据根，经 storage 会触发 traversal 守卫抛异常。路径解析唯一收口在共享 helper `FilesystemBeatmapLocation`（external＝绝对原样 / managed＝`storage.GetFullPath`；难度＝set 目录 + `LocalFilePath` 且 `/`→原生分隔符），与 `BmsBgaPlayer.tryGetAbsolutePath` 同源，不得在面板里另写一套路径拼接。外部目录**只读**打开、绝不重命名/删除/改动（external「只读」合同）；目标不存在时优雅退回父目录或静默，不得报错。中文硬编码标签「打开歌曲文件位置」「打开谱面文件位置」与 OMS 现有 BMS 中文 UI 一致。
 
 ## 展示层级与层级导航约束
 

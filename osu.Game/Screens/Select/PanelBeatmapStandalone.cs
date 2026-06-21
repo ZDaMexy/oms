@@ -12,12 +12,14 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Overlays;
 using osu.Game.Resources.Localisation.Web;
@@ -48,6 +50,12 @@ namespace osu.Game.Screens.Select
 
         [Resolved]
         private BeatmapDifficultyCache difficultyCache { get; set; } = null!;
+
+        [Resolved]
+        private GameHost host { get; set; } = null!;
+
+        [Resolved]
+        private Storage storage { get; set; } = null!;
 
         private IBindable<StarDifficulty>? starDifficultyBindable;
         private CancellationTokenSource? starDifficultyCancellationSource;
@@ -372,6 +380,10 @@ namespace osu.Game.Screens.Select
 
                 if (songSelect != null)
                     items.AddRange(songSelect.GetForwardActions(beatmap));
+
+                // A standalone panel is also the song bar, so offer to reveal the song folder (filesystem-backed only).
+                if (FilesystemBeatmapLocation.CreateOpenSongFolderItem(beatmap.BeatmapSet, storage, host) is OsuMenuItem openSongFolderItem)
+                    items.Add(openSongFolderItem);
 
                 return items.ToArray();
             }

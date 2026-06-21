@@ -1,5 +1,15 @@
 # P1-I 变动日志
 
+## 2026-06-22：选歌右键「打开歌曲/谱面文件位置」（在资源管理器中定位）
+
+用户要求在 BMS 选歌右键菜单加两项「在系统资源管理器中定位」：歌曲条 → 打开歌曲所在文件夹并选中该歌曲文件夹；难度 → 打开歌曲文件夹并选中该难度文件。
+
+- **范围**：凡**文件系统直读**谱面（`BeatmapSetInfo.FilesystemStoragePath` 非空 —— BMS chartbms/ + 直读 mania chartmania/）都显示；hash 库（导入 .osz，无真实文件夹）不显示。即「所有本地文件夹谱面」，不限 BMS（用户选定）。
+- **路径解析（复用 `BmsBgaPlayer.tryGetAbsolutePath` 范式）**：新增共享 helper `osu.Game/Beatmaps/FilesystemBeatmapLocation.cs` —— `TryGetSetDirectory`（external＝绝对 `FilesystemStoragePath` 原样、managed＝`storage.GetFullPath(相对)`）、`TryGetBeatmapFile`（set 目录 + `BeatmapInfo.LocalFilePath`，标准化 `/` 转原生分隔符）、`IsFilesystemBacked`、`CreateOpenSongFolderItem`/`CreateOpenChartFileItem`（非 filesystem-backed 返回 null）、`Reveal`。
+- **定位 API（红线）**：统一走 `GameHost.PresentFileExternally(绝对路径)`（Windows＝`explorer /select,路径`，打开父目录并选中目标）。**不得用 `Storage.PresentFileExternally`** —— 它对越出数据根的外部库绝对路径会抛 traversal 异常。目标不存在（外部库被移动）时优雅退回 `OpenFileExternally(父目录)`，再不行静默。外部目录只读打开、绝不改动（符合 external「只读」合同）。
+- **挂载点（3 处共享 osu.Game 面板，各 `[Resolved] GameHost` + `Storage`，仅 filesystem-backed 时追加项，中文硬编码标签）**：歌曲条 `PanelBeatmapSet.ContextMenuItems`（删除项之前）→「打开歌曲文件位置」；难度 `SoloSongSelect.GetForwardActions`（Edit 之后）→「打开谱面文件位置」（自动覆盖 `PanelBeatmap` 行 + `PanelBeatmapStandalone` + footer Options 弹层）；单难度合并条 `PanelBeatmapStandalone.ContextMenuItems` 另补「打开歌曲文件位置」（它兼作歌曲条）。
+- **回归**：新增 `FilesystemBeatmapLocationTest`（6 条：managed→GetFullPath / external→绝对原样 / 难度文件 join + 分隔符规整 / hash 库与无 LocalFilePath 返回 false / 菜单项 gating）；`osu.Game.Tests` 的 `TestScenePanelSet` + `TestScenePanelBeatmapStandalone`（4 条）确认新增 `[Resolved]` 不破坏面板加载。验证：BMS 全套 **942/942**、`osu.Game.Tests` 面板 4/4、`osu.Desktop.slnf` Release **0 错误**。**人工实机定位行为待用户确认**。归属：主 `P1-I`（选歌右键产品面），路径解析依赖 `P1-H`（`FilesystemStoragePath`/`LocalFilePath` 存储拓扑）。
+
 ## 2026-06-21：选歌两处「自动跳滑」修复（chart 选中 root-jump / 窗口还原 group-jump）
 
 用户实机发现两处 carousel 视图被自动滚走的 bug，均出现在「非 BMS（mania）曲目正在播放时进入 BMS 难度表分组」的场景，但触发机制与归属各不相同：
