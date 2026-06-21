@@ -566,12 +566,49 @@ namespace osu.Game.Rulesets.Bms.Tests
             PausableSkinnableSound channel = playfield.KeysoundStore.ChannelPool.Single();
             var firstSamples = channel.Samples;
 
+            // Free the single channel and reconcile the idle set so the next play reuses it instead of auto-growing the
+            // pool, exercising the double-buffer rotation: a different sample on the same channel swaps the Samples ref.
+            channel.Stop();
+            playfield.KeysoundStore.ReclaimIdleChannelsForTesting();
+
             playfield.KeysoundStore.Play(new SampleInfo("keys/right"), 0);
 
             Assert.Multiple(() =>
             {
+                Assert.That(playfield.KeysoundStore.ActualConcurrentChannels, Is.EqualTo(1));
                 Assert.That(channel.Samples, Is.Not.SameAs(firstSamples));
                 Assert.That(channel.Samples.Single().LookupNames.First(), Is.EqualTo("keys/right"));
+            });
+        }
+
+        [Test]
+        public void TestSharedKeysoundStoreGrowsUnderSaturationInsteadOfStealing()
+        {
+            var beatmap = createPlayableBeatmap();
+            var playfield = new BmsPlayfield(beatmap);
+
+            playfield.KeysoundStore.ConcurrentChannels = 2;
+
+            var sampleA = new SampleInfo("keys/a");
+            var sampleB = new SampleInfo("keys/b");
+            var sampleC = new SampleInfo("keys/c");
+
+            // Two distinct samples fill the baseline pool. Under the old fixed cap the third would have stolen a
+            // still-sounding channel (truncation); auto-growth must instead ADD a channel so nothing is cut. A steal
+            // would leave the pool at 2 with one sample overwritten, so a count of 3 with all three still requested is
+            // exactly the grow-not-steal signal.
+            playfield.KeysoundStore.Play(sampleA, 0);
+            playfield.KeysoundStore.Play(sampleB, 0);
+            playfield.KeysoundStore.Play(sampleC, 0);
+
+            PausableSkinnableSound[] pool = playfield.KeysoundStore.ChannelPool.ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(playfield.KeysoundStore.ConcurrentChannels, Is.EqualTo(2), "baseline is unchanged");
+                Assert.That(playfield.KeysoundStore.ActualConcurrentChannels, Is.EqualTo(3), "pool grew by one for the third voice");
+                Assert.That(pool.All(channel => channel.RequestedPlaying), Is.True, "no sounding channel was stolen/cut");
+                Assert.That(pool.Select(channel => channel.Samples.Single()), Is.EquivalentTo(new ISampleInfo[] { sampleA, sampleB, sampleC }));
             });
         }
 

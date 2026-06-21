@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-21
+
+### 原生 BMS 键音保真两改：autoplay=完美游玩 + 键音池自动增长（P1-J）
+
+用户对照 beatoraja 反映 autoplay 的「音乐演奏」不正确（疑不发声/重复/发错/截断），并立两条判据：**(A) autoplay 必须等同 100% 完美游玩**（否则真实游玩也有问题）、**(B) 「键音通道数」是否好设计/是否该智能自动**。审查链路后落地两改：① **autoplay = 完美游玩**——确诊 autoplay 每音符**双触发**（音符 `AutoPlay=true` 退出输入 → replay 合成按键直达 `BmsLane` → lane armed 键音叠音符自身 auto-apply 键音；per-WAV cut 多数掩盖、armed≠音符槽或异步通道状态时露馅重复/发错），修复 = `BmsLane` 在本 lane 有自动音符时抑制 armed 键音、发声交给音符（每音符一次声、与完美游玩等价）；连带结论：**32 通道截断 + 同步触发抖动非 autoplay 专属、玩家完美游玩同样存在**。② **键音池固定上限 32 → 自动增长**——`getNextChannel` 饱和不再轮转偷断，改为**新增通道（封顶 256）、仅 256 仍饱和才偷**（保真单调、自然有界、消「截音」；原生此前只有 32、转谱-mania 早 floor 128），`KeysoundConcurrentChannels` 降级为「起始/常驻基线」、tooltip 同步。仅改原生 BMS 键音发声，不碰判定/计分/转谱链。验证：`osu.Desktop.slnf` Release **0 错**、BMS 全套 **936/936**（改写 1 + 新增 2 测）。**实机听感（对照 beatoraja）用户实测确认 ✅（2026-06-21，用户回报「优化及其明显、暂时无异常」；虚拟轨测试对真发声/真不截是盲区，故以实机为准）**；同步触发挤堆（架构性）与解析少键（P1-K）后置。详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-21 与 [P1-J 约束 #3b/#4/#8](../subline/P1-J/TECHNICAL_CONSTRAINTS.md)。
+
+### 修复选歌两处「自动跳滑」：选谱 root-jump + 窗口还原 group-jump（P1-I）
+
+用户实机报两处 carousel 视图被自动滚走的 bug，都出现在「mania 曲目正在播放时进入 BMS 难度表分组」，但机制不同：**Bug 1**＝进 BMS 后手动选中任一谱面，画面自动滑到该谱所属最外层（表名）分组——根因＝`pendingRootGroupFocus`（fresh-entry root 聚焦）在当前全局谱面对 BMS invalid（mania）时永远满足不了、标记长挂，等用户选第一张 BMS 谱时被 `tryFocusRootGroupForCurrentBeatmap` 劫持滚到 root；修复＝出现具体选中（`CurrentGroupedBeatmap != null`）即放弃该 pending focus（与 2026-06-18 #16「抑制 invalid 期间自动选中」对称收口）。**Bug 2**＝选歌列表里自由滚到别处后按 Win 最小化再返回，画面跳到当前展开层级的组头——根因＝窗口最小化/还原改变 carousel `DrawSize`，base `Carousel.OnInvalidate` 无条件重跑「保持选中居中」滚动，而无具体选中时 `BeatmapCarousel.GetScrollTarget` 回退到键盘光标/`ExpandedGroup` 位置、拽回组头；修复＝DrawSize re-center 限定在 `currentSelection.CarouselItem != null` 才执行（mania 选歌恒有已提交选中、零行为变化；「键盘光标停在组头不提交选中」是 BMS 层级分组特性、本 bug 成因边界）。改动＝`SongSelect.cs`（bug 1）+ shared base `Carousel.cs`（bug 2，mania-safe）。回归＝`TestSelectingChartWhileNonBmsPlayingDoesNotJumpToRootGroup` + `TestDrawSizeChangeDoesNotRecentreWithoutSelection` + 守护 `TestDrawSizeChangeRecentresCommittedSelection`（去修复均验证失败）；BMS 选歌分组套件 11/11、新增 3 条全过、`osu.Game.Tests` carousel 18 条 pre-existing 失败经 baseline 比对确认与本改动无关、Release 0 错误。**用户 2026-06-21 实机验收通过（两个原始复现场景观感正常）。** 详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-21 与 [P1-I 约束 #17/#18](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+---
+
 ## 2026-06-20
 
 ### BMS 游玩 HUD 三连改：playfield 顶边贴边 + combo 居中去色块 + 14K BGA 移到角落（P1-A / P1-L）

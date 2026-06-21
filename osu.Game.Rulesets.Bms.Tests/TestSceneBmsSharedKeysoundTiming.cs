@@ -119,6 +119,38 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestAutoPlayNoteSuppressesRedundantLaneKeysound()
+        {
+            bool laneRequestedKeysound = false;
+
+            AddUntilStep("drawable ruleset ready", () => isSceneReady());
+            AddStep("auto-play the note + let it sound itself", () =>
+            {
+                // Emulate BmsModAutoplay's per-note mutation: the note becomes auto-played and sounds via the
+                // auto-apply path (DrawableBmsHitObject.PlaySamples), exactly as in a real autoplay.
+                note.AutoPlay = true;
+
+                manualClock.CurrentTime = note.StartTime;
+                testClock.ProcessFrame();
+                drawableRuleset.UpdateSubTree();
+
+                // Clear whatever the note's own auto-apply sounded, so the next step measures only the lane's behaviour.
+                foreach (var channel in drawableRuleset.Playfield.KeysoundStore.ChannelPool)
+                    channel.Stop();
+            });
+            AddStep("press lane as the autoplay replay would", () =>
+            {
+                _ = lane.OnPressed(createPressEvent(BmsAction.Key1));
+                laneRequestedKeysound = drawableRuleset.Playfield.KeysoundStore.ChannelPool.Any(channel => channel.RequestedPlaying);
+            });
+
+            // In autoplay the note already sounds itself; the lane must NOT also sound its armed keysound, or every
+            // note would double. Mirrors a 100%-perfect play, where the hit note consumes the press and the lane is
+            // silent. (Contrast TestLaneReplayTriggersSharedKeysoundImmediately, where a player note DOES sound here.)
+            AddAssert("lane keysound suppressed for auto-play note", () => !laneRequestedKeysound);
+        }
+
+        [Test]
         public void TestPoorPressStillTriggersKeysound()
         {
             bool pressHandled = false;

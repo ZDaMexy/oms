@@ -185,10 +185,35 @@ namespace osu.Game.Rulesets.Bms.UI
             if (keysoundStore == null || keysoundTimeline.Count == 0)
                 return;
 
+            // Autoplay / auto-scratch / auto-note: the notes in this lane are auto-played and already sound their own
+            // keysound through the note auto-apply path (DrawableBmsHitObject.PlaySamples). The autoplay replay still
+            // synthesises a key press per note, and because an auto note does not accept input the press falls through
+            // to this lane handler. Sounding the lane's armed keysound on top would play every note TWICE — diverging
+            // from an actual 100%-perfect play, where the note consumes the press so the lane never sounds. Leave the
+            // keysound to the notes when this lane is auto-driven; genuine empty presses only happen on a player lane
+            // (a hit note there consumes the press before it can reach here).
+            if (laneHasAutoPlayNote())
+                return;
+
             var entry = resolveArmedKeysound(Time.Current);
 
             if (entry != null)
                 keysoundStore.Play(entry.Value.Sample, 0, entry.Value.KeysoundId);
+        }
+
+        // True when this lane currently hosts an auto-played note (autoplay mod, or auto-scratch / auto-note). Such a
+        // lane is driven entirely by the replay: every press lines up with an auto note that sounds itself, so the
+        // lane's own armed-keysound playback would only duplicate it. Player lanes never match (their notes accept
+        // input and consume the press on a hit), so the empty-press keysound there is unaffected.
+        private bool laneHasAutoPlayNote()
+        {
+            foreach (var aliveObject in HitObjectContainer.AliveObjects)
+            {
+                if (aliveObject is DrawableBmsHitObject bmsObject && !bmsObject.AcceptsPlayerInput)
+                    return true;
+            }
+
+            return false;
         }
 
         private BmsLaneKeysoundEntry? resolveArmedKeysound(double time)

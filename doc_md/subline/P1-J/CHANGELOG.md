@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-06-21（原生 BMS 键音保真两改：autoplay=完美游玩 + 键音池自动增长；构建+全测通过，用户实机实测确认 ✅）
+
+> 起因：用户对照 beatoraja 反映 autoplay 的「音乐演奏」不正确（疑似不发声/重复/发错/截断），并提出两条判据——**(A) autoplay 必须等同 100% 完美游玩**（否则真实游玩也有问题）；**(B)「键音通道数」是否好设计、是否该换成智能自动**。本轮按这两条判据审查链路并落地修复。
+
+### 审查结论（用判据 A 反推归属）
+
+- autoplay 与完美游玩**当前不等价**：完美游玩中音符命中消费按键、lane 不发声、每音符一次声；autoplay 把音符设 `AutoPlay=true`（退出输入）→ replay 合成按键直达 `BmsLane` → lane armed 键音**叠**音符 auto-apply 键音 = **每音符双触发**（per-WAV cut 多数掩盖，armed≠音符槽或异步通道状态时露馅重复/发错）。**这是 autoplay/auto-lane 专属差异**。
+- 其余两项**非 autoplay 专属、玩家完美游玩同样存在**（同一条 store 播放路径）：① 键音池默认 32 通道饱和即偷断 → 截音；② 键音从游戏更新线程同步触发、无样本级前瞻调度 → 帧抖动/GC 时挤堆（架构性，本轮不动，后置）。
+
+### ✅ 改一：autoplay = 100% 完美游玩（消除 lane 双触发，CONSTRAINTS 新增 #3b）
+
+`BmsLane.playCurrentLaneKeysound()` 在**本 lane 存在自动音符**（`HitObjectContainer.AliveObjects` 中有 `!AcceptsPlayerInput` 的 `DrawableBmsHitObject`）时**抑制** armed 键音，发声交给音符自身 → autoplay 每音符只经自身 `PlaySamples` 出一次声，与完美游玩逐次等价。玩家 lane 不匹配（音符接受输入、命中即消费按键），真·空击键音不受影响。回归 `TestAutoPlayNoteSuppressesRedundantLaneKeysound`（对照 `TestLaneReplayTriggersSharedKeysoundImmediately`：玩家音符 lane 仍发声）。
+
+### ✅ 改二：键音池「固定上限 32 + 偷取」→「饱和自动增长（封顶 256）」（CONSTRAINTS #4/#8/产品#2 重写）
+
+- **真因**：原 `getNextChannel` 在全通道繁忙时轮转**偷断**仍在播的样本；默认 32 远低于真实 BMS 复音（叠层 BGM + 长衰减样本，转谱侧实测峰值 27–36>32），转谱-mania 早 floor 128（#10）而**原生只有 32**——同谱原生更糟，且 settings hint 自承「缺音就调高」= 把工程取舍甩给用户。
+- **修复**：饱和（freeChannels 空）时**新增一个通道**（直到 `MAX_CONCURRENT_CHANNELS`=256）而非偷断，仅 256 仍饱和才轮转偷取。保真**单调**（只补不截）、自然有界（≤ 同时发声不同槽数）、O(1) 热路径（空集即判定饱和→增长，不扫描全池，守 #8 旧红线）；增长复用「live 调高 ConcurrentChannels」的运行时建通道路径。`ConcurrentChannels` 降级为「起始/常驻基线」：调高即时扩容、调低 non-destructive（闲置即收、发声延后收），自动增长到基线以上的通道**不随常规播放裁剪**（避免增长/收缩抖动）。settings tooltip 同步为「基线、按需自动增长、通常无需调整」。
+- **遗留（本轮不动）**：同步触发挤堆（架构性，需样本级前瞻调度，后置）；解析/转谱少键导致的「固定缺音」属 P1-K，另查。
+
+### 验证
+
+- `osu.Desktop.slnf` Release **0 错 0 警告**；完整 BMS **936/936**。
+- 受影响单测：改写 `TestSharedKeysoundStoreSingleSamplePathRotatesBuffers`（不再依赖「1 通道强制偷取」旧语义，改 stop+reclaim+复用同通道测双缓冲轮换）；新增 `TestSharedKeysoundStoreGrowsUnderSaturationInsteadOfStealing`（基线 2 + 3 个不同槽 → 池长到 3、三者全 RequestedPlaying、无偷取）与 `TestAutoPlayNoteSuppressesRedundantLaneKeysound`；既有 `TestSceneBmsKeysoundChannelConfigBinding` / `TestSharedKeysoundStoreShrink*` / `TestSceneBmsAutoplayReplayPlayback`（autoplay 非忽略判定仍全 Perfect）全过。
+- **实机听感（对照 beatoraja）用户实测确认 ✅（2026-06-21）**：用户回报「优化及其明显、暂时无异常」。（注：虚拟轨测试对「是否真发声/真不截」是盲区，故此保真结论以用户实机为准。）
+
+---
+
 ## 2026-06-11（J6 转谱游玩期帧抖动真因确诊修复 + 220ms gen2 冻结确诊 + prewarm 放开玩家模式；用户实测 ✅）
 
 ### ✅ 「越后越抖 / 按键挂钩 / 休息段恢复 / 规律一顿一顿」确诊修复：每键音触发的 sample-drawable 重建 churn → 晋升风暴

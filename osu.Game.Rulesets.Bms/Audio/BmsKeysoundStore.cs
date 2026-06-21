@@ -54,6 +54,11 @@ namespace osu.Game.Rulesets.Bms.Audio
         private int nextChannelIndex;
         private int desiredConcurrentChannels;
 
+        // Set when an explicit ConcurrentChannels DECREASE leaves the live pool above the new baseline; the excess idle
+        // channels are then reclaimed gradually in Update. Auto-growth above the baseline does NOT set this (grown
+        // channels persist for the rest of the chart), so routine play never fights growth by trimming it back.
+        private bool hasPendingShrink;
+
         // The channel-selection outcome of the most recent play, recorded into the playback log for diagnostics.
         // Set by the selection methods (getNextChannel / getChannelForCutGroup) on every play; a single field write
         // with no allocation, so it stays cheap on the dense-chart hot path (P1-J #8) whether or not logging is on.
@@ -227,14 +232,12 @@ namespace osu.Game.Rulesets.Bms.Audio
 
         private BmsKeysoundChannel getNextChannel()
         {
-            int selectableChannels = Math.Min(ConcurrentChannels, channels.Count);
-
-            if (selectableChannels == 0)
+            if (channels.Count == 0)
                 throw new InvalidOperationException("BMS keysound playback requires at least one channel.");
 
-            // Prefer a channel known to be idle so a long sample is never cut while idle channels still exist. The
-            // free set is reconciled once per frame; entries stay valid until popped because only playback (which
-            // pops first) makes a pooled channel busy. The retired/availability guards are cheap defensive checks.
+            // 1. Common path (O(1)): take a channel known to be idle from the per-frame free set, so a still-sounding
+            // sample is never cut while idle channels exist. The free set is reconciled once per frame (and seeded on
+            // (re)size); entries stay valid until popped because only playback (which pops first) makes a channel busy.
             while (freeChannels.TryPop(out var freeChannel))
             {
                 if (!freeChannel.Retired && isChannelAvailable(freeChannel))
@@ -244,13 +247,26 @@ namespace osu.Game.Rulesets.Bms.Audio
                 }
             }
 
-            // Every channel is busy (genuine polyphony saturation): steal in rotation, which approximates oldest-first
-            // and stays O(1) on the dense-chart hot path rather than rescanning the whole pool per trigger.
-            nextChannelIndex %= selectableChannels;
+            // 2. The free set is empty: every channel that was idle at this frame's reclaim has already been taken, so
+            // the pool is genuinely saturated. Grow by one channel rather than cutting a sounding sample, up to the
+            // hard ceiling. Growth can only ADD a voice the old fixed cap would have stolen — monotonic for fidelity
+            // (never truncates), self-bounding to the chart's real peak polyphony, and O(1) on the hot path (no rescan,
+            // honouring P1-J #8). It reuses the same runtime channel-creation path as a live ConcurrentChannels raise.
+            if (channels.Count < MAX_CONCURRENT_CHANNELS)
+            {
+                var grown = createChannel();
+                channels.Add(grown);
+                lastDecision = KeysoundPlaybackDecision.GrowPool;
+                return grown;
+            }
+
+            // 3. At the ceiling and still saturated (pathological): steal in rotation, which approximates oldest-first
+            // and stays O(1) rather than rescanning the whole pool per trigger.
+            nextChannelIndex %= channels.Count;
 
             lastDecision = KeysoundPlaybackDecision.RotationSteal;
             var channel = channels[nextChannelIndex];
-            nextChannelIndex = (nextChannelIndex + 1) % selectableChannels;
+            nextChannelIndex = (nextChannelIndex + 1) % channels.Count;
             return channel;
         }
 
@@ -286,7 +302,16 @@ namespace osu.Game.Rulesets.Bms.Audio
         {
             base.Update();
 
-            ApplyPendingChannelResize();
+            // Only reclaim excess channels when an explicit baseline decrease is pending; otherwise leave the
+            // auto-grown pool intact (trimming it every frame would fight growth and churn allocations).
+            if (hasPendingShrink)
+            {
+                trimExcessChannels();
+
+                if (channels.Count <= desiredConcurrentChannels)
+                    hasPendingShrink = false;
+            }
+
             reclaimIdleChannels();
         }
 
@@ -297,10 +322,9 @@ namespace osu.Game.Rulesets.Bms.Audio
         {
             freeChannels.Clear();
 
-            int selectableChannels = Math.Min(ConcurrentChannels, channels.Count);
-
-            // Push high-to-low so the lowest-index idle channel is popped first (stable, predictable allocation).
-            for (int i = selectableChannels - 1; i >= 0; i--)
+            // Scan the whole live pool, including any channels added by auto-growth (the pool can exceed the
+            // ConcurrentChannels baseline). Push high-to-low so the lowest-index idle channel is popped first.
+            for (int i = channels.Count - 1; i >= 0; i--)
             {
                 var channel = channels[i];
 
@@ -321,16 +345,32 @@ namespace osu.Game.Rulesets.Bms.Audio
 
         private void updateConcurrentChannels(int concurrentChannels)
         {
-            if (ConcurrentChannels == concurrentChannels && channels.Count <= concurrentChannels)
+            if (desiredConcurrentChannels == concurrentChannels && channels.Count <= concurrentChannels)
                 return;
 
             desiredConcurrentChannels = concurrentChannels;
 
+            // Grow to the baseline immediately. Auto-growth may later push the pool above this baseline under load;
+            // that excess never sets hasPendingShrink, so routine play does not trim it back (no grow/shrink churn).
             while (channels.Count < concurrentChannels)
                 channels.Add(createChannel());
 
-            nextChannelIndex = ConcurrentChannels == 0 ? 0 : nextChannelIndex % ConcurrentChannels;
-            ApplyPendingChannelResize();
+            if (channels.Count > concurrentChannels)
+            {
+                // Explicit baseline DECREASE below the live pool: reclaim the excess. Idle channels go now; any still
+                // sounding are flagged so Update finishes the shrink once they free up (never cutting audible playback).
+                hasPendingShrink = true;
+                trimExcessChannels();
+
+                if (channels.Count <= concurrentChannels)
+                    hasPendingShrink = false;
+            }
+
+            nextChannelIndex = channels.Count == 0 ? 0 : nextChannelIndex % channels.Count;
+
+            // Seed the idle free set so the first plays (before the first Update reclaim) reuse existing idle channels
+            // rather than needlessly auto-growing the pool.
+            reclaimIdleChannels();
         }
 
         private void trimExcessChannels()
@@ -430,7 +470,10 @@ namespace osu.Game.Rulesets.Bms.Audio
         /// <summary>Per-WAV cut: the channel still sounding this WAV slot was reused, restarting (cutting) it.</summary>
         PerWavCutReuse,
 
-        /// <summary>Pool saturated (every channel busy): a channel was stolen in rotation, truncating whatever it played.</summary>
+        /// <summary>Every existing channel was busy, so the pool grew by one channel rather than cutting a sounding sample.</summary>
+        GrowPool,
+
+        /// <summary>The pool was at its hard ceiling and every channel busy: a channel was stolen in rotation, truncating whatever it played.</summary>
         RotationSteal,
     }
 
