@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Rulesets.Bms.Input;
@@ -24,6 +25,15 @@ namespace osu.Game.Rulesets.Bms.UI
         private bool isHolding;
         private BmsLongNoteMode? longNoteModeOverrideForTesting;
 
+        private readonly Bindable<BmsLongNoteBodyState> bodyState = new Bindable<BmsLongNoteBodyState>();
+
+        /// <summary>
+        /// Live visual state of the long-note body, consumed by skins (e.g. the default body display). Derived
+        /// purely from the head/tail judgement and hold state, so an HCN re-grab flips it back to
+        /// <see cref="BmsLongNoteBodyState.Holding"/> without any special casing.
+        /// </summary>
+        public IBindable<BmsLongNoteBodyState> BodyState => bodyState;
+
         [Resolved(CanBeNull = true)]
         private DrawableBmsRuleset? drawableRuleset { get; set; }
 
@@ -38,6 +48,38 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override void PlaySamples()
         {
+        }
+
+        protected override void OnApply()
+        {
+            base.OnApply();
+
+            // Reset transient hold state so a pooled reuse never inherits the previous note's broken/holding look.
+            isHolding = false;
+            bodyState.Value = BmsLongNoteBodyState.Idle;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            bodyState.Value = computeBodyState();
+        }
+
+        private BmsLongNoteBodyState computeBodyState()
+        {
+            if (isHolding)
+                return BmsLongNoteBodyState.Holding;
+
+            // Head still in flight (or not yet created) — the note is approaching and has not been activated.
+            if (headDrawable?.Judged != true)
+                return BmsLongNoteBodyState.Idle;
+
+            // A clean hold held through to the tail stays "activated" while it fades out, rather than flashing broken.
+            if (headDrawable.IsHit && tailDrawable?.IsHit == true)
+                return BmsLongNoteBodyState.Holding;
+
+            // Head missed, or the hold was released before completion.
+            return BmsLongNoteBodyState.Broken;
         }
 
         protected override void CheckForResult(bool userTriggered, double timeOffset)
@@ -127,7 +169,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
             isHolding = false;
 
-            if (longNoteMode.RequiresTailJudgement())
+            // HCN is the only mode that may be re-grabbed: a non-hit early release leaves the tail unjudged so a
+            // later press can resume the hold. LN and CN treat any premature release as terminal — resolve the tail
+            // immediately (a miss unless released within the tail window) so the note cannot be re-grabbed.
+            if (longNoteMode.AllowsRegrabAfterRelease())
             {
                 if (releaseResult.IsHit() || HasReachedHoldTail(holdNote, Time.Current))
                     resolveTail(releaseResult.IsHit() ? releaseResult : HitResult.Miss);
@@ -175,6 +220,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal bool IsHoldingForTesting => isHolding;
 
+        internal BmsLongNoteBodyState ComputeBodyStateForTesting() => computeBodyState();
+
         internal BmsLongNoteMode LongNoteModeOverrideForTesting
         {
             set
@@ -191,7 +238,7 @@ namespace osu.Game.Rulesets.Bms.UI
             => currentTime >= holdNote.EndTime;
 
         internal static bool CanApplyLateBodyPress(BmsLongNoteMode longNoteMode, BmsHoldNote holdNote, bool tailJudged, double currentTime)
-            => longNoteMode.RequiresTailJudgement()
+            => longNoteMode.AllowsRegrabAfterRelease()
                && !tailJudged
                && currentTime >= holdNote.StartTime
                && !HasMissedTailReleaseWindow(holdNote, currentTime);

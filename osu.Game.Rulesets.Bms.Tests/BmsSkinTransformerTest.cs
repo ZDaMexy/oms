@@ -446,9 +446,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsLongNoteBodyDisplay>());
                 Assert.That(((DefaultBmsLongNoteBodyDisplay)drawable!).IsScratch, Is.False);
-                Assert.That(drawable!.Width, Is.EqualTo(0.525f).Within(0.0001f));
+                Assert.That(drawable!.Width, Is.EqualTo(0.5775f).Within(0.0001f));
                 Assert.That(drawable.Alpha, Is.EqualTo(0.8f).Within(0.0001f));
-                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.YellowKeyLongNoteBody);
+                // Body colour now matches the head (full note colour); idle/default look only (no parent hold note).
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.YellowKeyNote);
             });
         }
 
@@ -462,9 +463,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(drawable, Is.TypeOf<DefaultBmsLongNoteBodyDisplay>());
                 Assert.That(((DefaultBmsLongNoteBodyDisplay)drawable!).IsScratch, Is.True);
-                Assert.That(drawable!.Width, Is.EqualTo(0.525f).Within(0.0001f));
+                Assert.That(drawable!.Width, Is.EqualTo(0.5775f).Within(0.0001f));
                 Assert.That(drawable.Alpha, Is.EqualTo(0.8f).Within(0.0001f));
-                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchLongNoteBody);
+                // Body colour now matches the head (full note colour); idle/default look only (no parent hold note).
+                assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchNote);
             });
         }
 

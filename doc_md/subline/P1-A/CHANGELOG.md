@@ -2,6 +2,18 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-21
+
+### 默认皮肤长条 body 改造：增宽 10% + 同 head 色 + 三态游玩视觉（unactivated/activated/missed）
+
+按用户要求把 BMS 默认皮肤的长条 body 从「静态暗条」改成「随游玩状态变化的同色亮条」。仅动默认皮肤 body 视觉与状态绑定，不碰 head/tail（tail 仍 `Alpha=0`）、判定/计分/滚动/键音/chartbms 直读。
+
+- **增宽 10%**：`DefaultBmsLongNoteBodyDisplay.Width 0.525 → 0.5775`（相对车道宽，×1.1）。
+- **body 颜色与 head 一致**：颜色源从 `GetLongNoteBody`（在 head 色上 darken 0.72 的暗条）改为 `GetLongNoteHead`（= 完整 note 色）；透明度保留 `0.8`（用户选项：body 仍比实心端帽略透、层次更清晰）。
+- **三态游玩视觉（皮肤无关 + 默认映射）**：新增公开枚举 `BmsLongNoteBodyState { Idle, Holding, Broken }`（= 未激活/激活/miss）。父 `DrawableBmsHoldNote` 暴露 `IBindable<BmsLongNoteBodyState> BodyState`，每帧 `Update()` 从 `isHolding` + head/tail 判定**纯派生**（`isHolding`→Holding；head 未判→Idle；head·tail 均 IsHit 的成功收尾→Holding；其余＝头判 miss/中途断开→Broken）。默认 body（`DefaultBmsLongNoteBodyDisplay`）经 `[Resolved] DrawableHitObject`→cast `DrawableBmsHoldNote` 绑定该 bindable（与 mania `DefaultBodyPiece`/`ArgonHoldBodyPiece` 同范式，`DrawableHitObject` 带 `[Cached]`，body 在 `SkinnableDrawable` 内可解析父对象），按状态 80ms 切视觉：**unactivated 与 activated 完全一致**（head 色 + 0.8）、**missed 变淡＝去色变灰 + 降透明度**（新增 `BmsDefaultPlayfieldPalette.GetLongNoteBodyBroken`：朝亮度 0.85 去色 + dim 0.45，alpha 0.32）。非游玩上下文（皮肤回退查询，无父 hold note）解析为 null → 维持 Idle 默认观感，安全。
+- **HCN 恢复天然成立**：Broken→重新击打→`isHolding` 重新 true→派生回 Holding，无需特例（与 P1-E 同步把「松开重按接回」收窄为 HCN-only，故 LN/CN 中途松开后 body 保持 Broken 直到淡出，仅 HCN 可恢复）。
+- 测试同步：`BmsSkinTransformerTest` 两条 LN body 回归（width `0.5775`、色＝head 色 `YellowKeyNote`/`ScratchNote`、alpha `0.8`）；`BmsDrawableRulesetTest` 新增 `TestBodyStateFollowsHcnHoldLifecycleWithRecovery`（Idle→Holding→Broken→Holding）+ 在 CN 用例断言 Broken。验证：BMS 全套 **936/936**、`osu.Game.Rulesets.Bms.Tests` 0 错。**人工实机视觉验收待用户确认**。详见 [P1-E CHANGELOG](../P1-E/CHANGELOG.md) 2026-06-21（CN 机制更正）与记忆 `reference_bms_default_skin_geometry`。
+
 ## 2026-06-20
 
 ### playfield 顶边贴屏幕边缘 + combo 移到 playfield 中心并去背景色块（用户实机三连改之一二）

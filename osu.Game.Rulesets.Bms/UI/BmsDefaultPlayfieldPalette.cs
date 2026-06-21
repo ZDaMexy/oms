@@ -83,6 +83,11 @@ namespace osu.Game.Rulesets.Bms.UI
         public static Color4 GetLongNoteTail(int laneIndex, bool isScratch, BmsKeymode keymode)
             => GetNote(laneIndex, isScratch, keymode);
 
+        // Greyed + dimmed long-note body colour for a broken (missed) hold, derived from the active head colour so a
+        // break is read as the same note "going dead" rather than a different element.
+        public static Color4 GetLongNoteBodyBroken(int laneIndex, bool isScratch, BmsKeymode keymode)
+            => greyOut(GetLongNoteHead(laneIndex, isScratch, keymode), greyAmount: 0.85f, dimFactor: 0.45f);
+
         public static Color4 GetBarLine(bool isMajor) => isMajor ? MajorBarLine : MinorBarLine;
 
         private static NoteColourGroup getNoteColourGroup(int laneIndex, bool isScratch, BmsKeymode keymode)
@@ -127,6 +132,19 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private static Color4 darken(Color4 colour, float factor)
             => new Color4(colour.R * factor, colour.G * factor, colour.B * factor, colour.A);
+
+        // Blend a colour toward its own luminance (grey) by greyAmount, then darken by dimFactor. Alpha is preserved.
+        private static Color4 greyOut(Color4 colour, float greyAmount, float dimFactor)
+        {
+            float luminance = colour.R * 0.299f + colour.G * 0.587f + colour.B * 0.114f;
+            return new Color4(
+                lerp(colour.R, luminance, greyAmount) * dimFactor,
+                lerp(colour.G, luminance, greyAmount) * dimFactor,
+                lerp(colour.B, luminance, greyAmount) * dimFactor,
+                colour.A);
+        }
+
+        private static float lerp(float start, float end, float amount) => start + (end - start) * amount;
 
         private enum NoteColourGroup
         {

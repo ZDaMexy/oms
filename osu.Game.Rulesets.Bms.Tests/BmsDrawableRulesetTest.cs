@@ -1124,7 +1124,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestCnEarlyReleaseCanRepressAndResolveTail()
+        public void TestCnEarlyReleaseResolvesTailAsMissWithoutRegrab()
         {
             var hold = new BmsHoldNote
             {
@@ -1164,6 +1164,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
             Assert.That(headDrawable.Result.Type, Is.EqualTo(HitResult.Perfect));
 
+            // Releasing in the middle of the hold: CN is NOT recoverable, so the tail resolves to a miss at once and
+            // the body reads as broken. (Previously CN incorrectly left the tail open for a re-grab — corrected.)
             manualClock.CurrentTime = hold.StartTime + 10;
             testClock.ProcessFrame();
             drawable.OnReleased(createReleaseEvent());
@@ -1171,27 +1173,91 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(drawable.IsHoldingForTesting, Is.False);
-                Assert.That(tailDrawable.Judged, Is.False);
-                Assert.That(drawable.AllJudged, Is.False);
+                Assert.That(tailDrawable.Result.Type, Is.EqualTo(HitResult.Miss));
+                Assert.That(drawable.AllJudged, Is.True);
+                Assert.That(drawable.ComputeBodyStateForTesting(), Is.EqualTo(BmsLongNoteBodyState.Broken));
             });
 
+            // A later press at the tail must not revive the already-resolved note.
             manualClock.CurrentTime = hold.EndTime;
             testClock.ProcessFrame();
 
-            Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
-            Assert.That(drawable.IsHoldingForTesting, Is.True);
-
-            drawable.OnReleased(createReleaseEvent());
-
             Assert.Multiple(() =>
             {
-                Assert.That(tailDrawable.Result.Type, Is.EqualTo(HitResult.Perfect));
-                Assert.That(drawable.AllJudged, Is.True);
+                Assert.That(drawable.OnPressed(createPressEvent()), Is.False);
+                Assert.That(drawable.IsHoldingForTesting, Is.False);
+                Assert.That(tailDrawable.Result.Type, Is.EqualTo(HitResult.Miss));
             });
         }
 
         [Test]
-        public void TestCnLatePressStartsHoldAfterHeadMiss()
+        public void TestBodyStateFollowsHcnHoldLifecycleWithRecovery()
+        {
+            var hold = new BmsHoldNote
+            {
+                StartTime = 1000,
+                EndTime = 1500,
+                LaneIndex = 1,
+            };
+
+            hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
+            {
+                OverallDifficulty = OsuOdJudgementSystem.MapRankToOverallDifficulty(2),
+            });
+
+            var manualClock = new ManualClock
+            {
+                CurrentTime = hold.StartTime,
+                IsRunning = true,
+            };
+
+            var testClock = new FramedClock(manualClock);
+
+            var drawable = new DrawableBmsHoldNote(hold)
+            {
+                LongNoteModeOverrideForTesting = BmsLongNoteMode.HCN,
+                Clock = testClock,
+            };
+
+            drawable.Apply(hold);
+            testClock.ProcessFrame();
+
+            foreach (var nested in drawable.NestedHitObjects)
+                nested.Clock = testClock;
+
+            // Before the head is hit the body is idle (unactivated).
+            Assert.That(drawable.ComputeBodyStateForTesting(), Is.EqualTo(BmsLongNoteBodyState.Idle));
+
+            // Hitting the head activates the body.
+            Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
+            Assert.That(drawable.ComputeBodyStateForTesting(), Is.EqualTo(BmsLongNoteBodyState.Holding));
+
+            // Releasing mid-hold breaks it (missed look).
+            manualClock.CurrentTime = hold.StartTime + 10;
+            testClock.ProcessFrame();
+            drawable.OnReleased(createReleaseEvent());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawable.IsHoldingForTesting, Is.False);
+                Assert.That(drawable.ComputeBodyStateForTesting(), Is.EqualTo(BmsLongNoteBodyState.Broken));
+            });
+
+            // Re-pressing within the tail window re-grabs (HCN only) and re-activates the body.
+            manualClock.CurrentTime = hold.StartTime + 20;
+            testClock.ProcessFrame();
+
+            Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawable.IsHoldingForTesting, Is.True);
+                Assert.That(drawable.ComputeBodyStateForTesting(), Is.EqualTo(BmsLongNoteBodyState.Holding));
+            });
+        }
+
+        [Test]
+        public void TestCnLatePressDoesNotStartHoldAfterHeadMiss()
         {
             var hold = new BmsHoldNote
             {
@@ -1214,7 +1280,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             var testClock = new FramedClock(manualClock);
 
-            var drawable = new DrawableBmsHoldNote(hold)
+            var drawable = new TestDrawableBmsHoldNote(hold)
             {
                 LongNoteModeOverrideForTesting = BmsLongNoteMode.CN,
                 Clock = testClock,
@@ -1229,22 +1295,27 @@ namespace osu.Game.Rulesets.Bms.Tests
             var headDrawable = drawable.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>().Single();
             var tailDrawable = drawable.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Single();
 
-            Assert.That(drawable.OnPressed(createPressEvent()), Is.True);
+            // The head has already blown its hit window, so the auto-judgement misses it.
+            drawable.TriggerAutoJudgementForTesting();
+            Assert.That(headDrawable.Result.Type, Is.EqualTo(HitResult.Miss));
 
+            // A late press cannot grab the body in CN (only HCN is recoverable) — no hold is started.
             Assert.Multiple(() =>
             {
-                Assert.That(drawable.IsHoldingForTesting, Is.True);
-                Assert.That(headDrawable.Result.Type, Is.EqualTo(HitResult.Miss));
+                Assert.That(drawable.OnPressed(createPressEvent()), Is.False);
+                Assert.That(drawable.IsHoldingForTesting, Is.False);
                 Assert.That(tailDrawable.Judged, Is.False);
+                Assert.That(drawable.ComputeBodyStateForTesting(), Is.EqualTo(BmsLongNoteBodyState.Broken));
             });
 
+            // Reaching the tail resolves it as a miss; the note was never held.
             manualClock.CurrentTime = hold.EndTime;
             testClock.ProcessFrame();
-            drawable.OnReleased(createReleaseEvent());
+            drawable.TriggerAutoJudgementForTesting();
 
             Assert.Multiple(() =>
             {
-                Assert.That(tailDrawable.Result.Type, Is.EqualTo(HitResult.Perfect));
+                Assert.That(tailDrawable.Result.Type, Is.EqualTo(HitResult.Miss));
                 Assert.That(drawable.AllJudged, Is.True);
             });
         }
@@ -1328,9 +1399,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase(BmsLongNoteMode.CN)]
-        [TestCase(BmsLongNoteMode.HCN)]
-        public void TestTailJudgedModesAllowLatePressThroughTailMissBoundary(BmsLongNoteMode longNoteMode)
+        [Test]
+        public void TestHcnAllowsLatePressThroughTailMissBoundaryButCnAndLnNever()
         {
             var hold = new BmsHoldNote
             {
@@ -1348,9 +1418,14 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(longNoteMode, hold, tailJudged: false, hold.EndTime + missWindow), Is.True);
-                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(longNoteMode, hold, tailJudged: false, hold.EndTime + missWindow + 0.001), Is.False);
-                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(longNoteMode, hold, tailJudged: true, hold.EndTime + missWindow), Is.False);
+                // HCN may re-grab right up to the tail miss boundary, but not past it, and not once the tail is judged.
+                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(BmsLongNoteMode.HCN, hold, tailJudged: false, hold.EndTime + missWindow), Is.True);
+                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(BmsLongNoteMode.HCN, hold, tailJudged: false, hold.EndTime + missWindow + 0.001), Is.False);
+                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(BmsLongNoteMode.HCN, hold, tailJudged: true, hold.EndTime + missWindow), Is.False);
+
+                // CN and LN are never recoverable, regardless of timing (corrected: only HCN re-grabs).
+                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(BmsLongNoteMode.CN, hold, tailJudged: false, hold.EndTime + missWindow), Is.False);
+                Assert.That(DrawableBmsHoldNote.CanApplyLateBodyPress(BmsLongNoteMode.LN, hold, tailJudged: false, hold.EndTime + missWindow), Is.False);
             });
         }
 

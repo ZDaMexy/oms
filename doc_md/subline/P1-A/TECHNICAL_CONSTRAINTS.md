@@ -36,6 +36,7 @@
 3. 不得通过遍历 wrapped HUD 子节点、偷改 `GaugeBar`、偷改 `ComboCounter` 的方式植入 speed feedback。
 4. pre-start 视觉流速预览若实现，必须作为 BMS-owned playfield / lane visual surface 接入，并复用 BMS note lookup / fallback；不得塞进 `GameplayFeedbackDisplay`、toast 或 mania lookup。产品口径的“1 号轨道”应解析为第一非 scratch 普通轨，且实际开谱后必须立即消失。
 5. 任何更改皮肤边界、HUD 宿主、fallback 语义或 release gate 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
+6. 长条 body 的**游玩状态视觉**必须经皮肤无关的 `DrawableBmsHoldNote.BodyState`（`IBindable<BmsLongNoteBodyState>`，三态 `Idle/Holding/Broken`，由 `isHolding`+head/tail 判定纯派生）暴露给皮肤；默认皮肤 `DefaultBmsLongNoteBodyDisplay` 经 `[Resolved] DrawableHitObject` 解析父 hold note 绑定该 bindable（mania `DefaultBodyPiece` 同范式）。**不得**把状态判断硬塞进默认 body、也不得让 body 直接读判定内部。默认皮肤当前几何/映射＝width `0.5775`（相对车道宽，body 唯一物理宽度杠杆，缩放相对宽会抵消）、`Idle==Holding`＝head 色（`GetLongNoteHead`）+alpha `0.8`、`Broken`＝`GetLongNoteBodyBroken`（去色变灰+dim）+alpha `0.32`，由 `BmsSkinTransformerTest` 钉值；改这些值须同步该测试。`Broken→恢复` 仅 HCN 成立（见 [P1-E 约束 #4](../P1-E/TECHNICAL_CONSTRAINTS.md)）。仅视觉，不碰判定/计分/滚动/键音/chartbms 直读，也不动 head/tail（tail 仍 `Alpha=0`）。
 
 ## HUD 宿主约束
 

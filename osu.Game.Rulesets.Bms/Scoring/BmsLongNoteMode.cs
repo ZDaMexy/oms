@@ -30,6 +30,14 @@ namespace osu.Game.Rulesets.Bms.Scoring
         public static bool RequiresBodyGaugeTicks(this BmsLongNoteMode longNoteMode)
             => longNoteMode == BmsLongNoteMode.HCN;
 
+        /// <summary>
+        /// Whether releasing the hold before completion leaves it recoverable by pressing again. Only HCN allows
+        /// this: its body is continuously judged, so a re-grab stops the gauge bleed. LN and CN treat any premature
+        /// release as terminal — the tail resolves to a miss immediately and the note cannot be re-grabbed.
+        /// </summary>
+        public static bool AllowsRegrabAfterRelease(this BmsLongNoteMode longNoteMode)
+            => longNoteMode == BmsLongNoteMode.HCN;
+
         public static void ApplyToBeatmap(this BmsLongNoteMode longNoteMode, IBeatmap beatmap)
         {
             bool tailCountsForScore = longNoteMode.RequiresTailJudgement();
