@@ -66,8 +66,17 @@ DEAD SOUL [Revive] 的所有效果是**定格动画（stop-motion）**：132 万
 - `BmsBgaVideoCache`：老式扩展名判定 + `Resolve→{Ready/Pending/Unavailable}` + ffmpeg 候选解析（dataRoot/exeDir/PATH）+ 磁盘缓存（键 `SHA1(源路径|size|mtime).mp4`，先 .tmp 后原子改名）+ 后台 `Task.Run` 去重 + 可注入 runner 单测。
 - 转码命令 `ffmpeg -y -i <src> -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart <dst>`（视频-only、H.264/yuv420p/mp4 = 框架确定能解）。
 - `BgaVideoTranscode` 开关（默认开）+ 设置项；`BmsBgaPlayer` 预热转码 + Pending 节流重试 + 本场热替换；faulted 永久标记不重试。
-- 验收：单测 `BmsBgaVideoCacheTest` 全绿 + BMS 全套绿 + Release 0 错；实机端到端待用户装 ffmpeg 后验老 `.mpg`。
-- 后续：缓存大小上限/清理（v1 未做）；老 `.wmv/.avi` 抽验。
+- 验收：单测 `BmsBgaVideoCacheTest` 全绿 + BMS 全套绿 + Release 0 错。**实机端到端 2026-06-22 用户确认老 `.mpg` BGA 可正常播放 ✅**（经一长串误判后真因＝**并发转码写同一固定 temp 互相穿插污染产物**、坏文件被 `File.Exists` 永久端出；修＝temp 加 Guid + `inProgress` 改 static 跨实例去重 + 原子 overwrite move + `transcode_version`→3，详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-22 五次跟进）。
+
+### Phase 5.2 — BGA 转码加载体验与缓存治理（🔜 规划中，2026-06-22 提出，未实现）
+> Phase 5.1 转码可播后，用户提出 4 项体验/治理需求。**下一次协作专项规划实现。** 注意彼此存在设计张力，需统一方案。
+
+- **R1 一进游戏即播**：当前首次进入先静态、~十多秒后才切视频（转码在后台跑、加载阶段不等待）；重进可直接播（命中缓存）。目标＝转码纳入/前移到加载阶段、加载等待转码完毕后再进入游玩，使 BGA 从开局即播。
+- **R2 缓存治理（避免冗余占用）**：当前转码产物落 `<dataRoot>/bga-video-cache/`（键 `SHA1(源|size|mtime|v{ver})`），**无大小上限/无清理**（Phase 5.1 已知遗留）；长期累积冗余、额外储存占用，不希望。
+- **R3 张力点**：R1（加载等转码）与「不希望持久缓存」冲突——若不持久缓存则每次进图都要等完整转码（更慢）。需统一决策：① 有界缓存（LRU/总量上限/TTL/退出清理）＋加载等待，还是 ② 会话级/内存级缓存＋加载等待＋**显著加快转码**。
+- **R4 转码提速**：~十多秒偏长。稳定提速手段候选：`-preset ultrafast`/`-tune fastdecode`、`-threads`、硬件编码器（`h264_nvenc`/`h264_amf`/`h264_qsv`，用户机有 NVENC——但需权衡可用性探测与跨机兼容）、只在加载期转码并行化等。需实测下落到可接受加载时长。
+- **R5 加载阶段进度显示**：当前加载阶段无任何视觉指示（进度条/百分比）；谱面大或 BGA 转码久→加载久→产品观感差。目标＝为加载阶段（含 BGA 转码进度）加进度/百分比/状态提示。ffmpeg 可解析 `-progress`/stderr 的 `frame=/time=` 推总进度（需总时长）。
+- **开放设计问题（下次先对齐）**：缓存策略（持久有界 vs 会话级 vs 不缓存）；加载是否硬等转码（超时回退静态？）；进度 UI 落点（PlayerLoader 扩展 vs BMS 专属）；硬件编码器是否纳入（可用性探测 + 失败回退 libx264）。
 
 ## 验证顺序（每阶段强制）
 1. 先 focused 单测（如 Phase 1 的 converter 地雷构建 + 不泄漏判定路径）。

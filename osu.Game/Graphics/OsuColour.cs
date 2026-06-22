@@ -76,6 +76,52 @@ namespace osu.Game.Graphics
         }
 
         /// <summary>
+        /// IIDX-style difficulty colour for a BMS chart, keyed on the <c>#DIFFICULTY</c> tier
+        /// (0 / undefined = UNKNOWN, 1 = BEGINNER, 2 = NORMAL, 3 = HYPER, 4 = ANOTHER, 5 = INSANE).
+        /// Used by the BMS-mode difficulty-level pill in place of the numeric star spectrum.
+        /// </summary>
+        public Color4 ForBmsDifficultyLevel(int tier)
+        {
+            switch (tier)
+            {
+                case 1:
+                    return Color4Extensions.FromHex("2fb24c"); // BEGINNER — green
+
+                case 2:
+                    return Color4Extensions.FromHex("2e8be6"); // NORMAL — blue
+
+                case 3:
+                    return Color4Extensions.FromHex("f4c20d"); // HYPER — yellow
+
+                case 4:
+                    return Color4Extensions.FromHex("e53935"); // ANOTHER — red
+
+                case 5:
+                    return Color4Extensions.FromHex("9c44d6"); // INSANE — purple
+
+                default:
+                    return Color4.White; // 0 / undefined — UNKNOWN
+            }
+        }
+
+        /// <summary>
+        /// Readable text colour for the <see cref="ForBmsDifficultyLevel"/> pill background:
+        /// dark on the light fills (UNKNOWN white, HYPER yellow), white on the rest.
+        /// </summary>
+        public Color4 ForBmsDifficultyLevelText(int tier)
+        {
+            switch (tier)
+            {
+                case 0:
+                case 3:
+                    return Color4.Black.Opacity(0.8f);
+
+                default:
+                    return Color4.White;
+            }
+        }
+
+        /// <summary>
         /// Retrieves the colour for a <see cref="ScoreRank"/>.
         /// </summary>
         public static Color4 ForRank(ScoreRank rank)

@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06-22（删除「键音通道数（基线）」设置项：自动化已收口、正确默认化、不留用户配置隐患）
+
+用户要求：键音池自动增长（[2026-06-21] #8）落地后，「设置-游戏模式-BMS-键音通道数（基线）」已无调节必要，删除该 UI 选项；并**正确处理默认化**——不要只隐藏 UI 而让旧用户配置继续生效留下隐患。
+
+- **彻底退役该设置，行为回落到硬编码默认**：删除 `BmsRulesetSetting.KeysoundConcurrentChannels` enum 成员 + `SetDefault` + 设置面板 `FormSliderBar<int>`；删除 `DrawableBmsRuleset` 的 `configKeysoundConcurrentChannels` bindable 与对 `Playfield.KeysoundStore.ConcurrentChannels` 的绑定。原生 BMS 播放的 `BmsKeysoundStore` 现保留**构造默认基线 32**（`DEFAULT_CONCURRENT_CHANNELS`）+ 自动增长（封顶 256）；转谱-mania 的 `BmsToManiaKeysoundStoreFactory.Create` 不再读配置、直接 `Math.Max(DEFAULT, 128)` 楼底（BGM 自动层不被偷）。
+- **无隐患的删除（关键）**：ruleset 配置按 **enum 成员名**（`RealmRulesetSetting.Key = lookup.ToString()`）持久化，非序号——删除中间成员**不会移位**其它设置；且**所有消费方已移除**，旧库里残留的 `KeysoundConcurrentChannels` 行永不再被读取（惰性、无害），用户旧自定义值不再影响行为。`BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` **签名保留**（`DrawableManiaRuleset` 以 `Func<IRulesetConfigCache,Drawable>` 反射绑定，参数现未用但不可改签名）。
+- **测试**：删除已失效的 `TestSceneBmsKeysoundChannelConfigBinding`（2 条，验证配置→store 绑定，功能已不存在）；`BmsRulesetConfigurationTest` 去掉该项默认值断言。`BmsKeysoundStore` 自动增长/per-WAV cut 等行为测试不受影响。BMS 全量 **945/945**；`osu.Desktop.slnf` 代码编译 **0 错误**（仅因游戏运行中锁定 osu.Desktop 输出 dll 导致拷贝步骤失败，与编译无关）。归属：主 `P1-J`（键音池治理）。**2026-06-22 用户实机确认「表现均正常」、验收通过。**
+
 ## 2026-06-21（原生 BMS 键音保真两改：autoplay=完美游玩 + 键音池自动增长；构建+全测通过，用户实机实测确认 ✅）
 
 > 起因：用户对照 beatoraja 反映 autoplay 的「音乐演奏」不正确（疑似不发声/重复/发错/截断），并提出两条判据——**(A) autoplay 必须等同 100% 完美游玩**（否则真实游玩也有问题）；**(B)「键音通道数」是否好设计、是否该换成智能自动**。本轮按这两条判据审查链路并落地修复。

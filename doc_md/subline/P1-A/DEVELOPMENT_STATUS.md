@@ -19,7 +19,7 @@
 - settings 页现显示 mode + value，并在数值后括号显示不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；`GreenNumber` 仍不进入 settings，而继续留在 gameplay feedback 链。
 - `osu!mania` settings 页的 `滚动速度` hover 提示当前也已明确为参考值说明：括号毫秒只代表标准车道几何下的参考下落时间，不作为跨皮肤或跨 ruleset 的严格体感合同；更换 mania 皮肤后应重新校准，且 mania / BMS 的下落时间不可交叉参考。
 - Settings → 常规 → 安装位置 当前已把入口明确为 `更改数据目录位置`；选择空目录时会直接迁入当前数据内容，非空非数据目录会改用其下 `oms/` 子目录，若所选目录本身已是可用数据目录则只在重启后切换。该产品面只切换/迁移运行时数据根，不移动程序文件。
-- `键音通道数` 当前也已作为 BMS settings surface 的独立滑条公开 shared `BmsKeysoundStore` ceiling，范围 `1..256`，默认 `32`；hover 提示会直接说明低值截音风险、高值负载取舍，以及缺音时优先上调到 `48/64` 的调参路径。
+- `键音通道数` 设置项已于 2026-06-22 **删除**（键音池自动增长后无需手调，基线回落硬编码 32；详见 [P1-J CHANGELOG](../P1-J/CHANGELOG.md) 2026-06-22）。BMS settings surface 不再公开该滑条。
 - BMS mod 选中状态与非默认配置现按 ruleset-local JSON snapshot 记忆，仅作用于 BMS；切到 mania 再切回或完全重启后仍恢复。
 - 启动早期若 `RulesetConfigCache` 尚未 ready，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再做 BMS restore；这条 host-boundary 合同同时修复了冷启动首轮漏恢复与误报 ruleset failure。
 - 实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 在 Song Select 中停用 / 启用不会丢配置；停用不再被视为“恢复默认值”。

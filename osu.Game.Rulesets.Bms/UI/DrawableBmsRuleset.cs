@@ -62,13 +62,6 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BindableDouble configClassicHiSpeed = new BindableDouble();
         private readonly BindableDouble selectedHiSpeed = new BindableDouble();
         private IBindable<double>? playfieldScrollLengthRatio;
-        private readonly BindableInt configKeysoundConcurrentChannels = new BindableInt
-        {
-            Default = BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS,
-            MinValue = BmsKeysoundStore.MIN_CONCURRENT_CHANNELS,
-            MaxValue = BmsKeysoundStore.MAX_CONCURRENT_CHANNELS,
-            Precision = 1,
-        };
         private readonly BindableBool laneCoverFocusPressed = new BindableBool();
         private readonly Bindable<BmsScrollSpeedMetrics> speedMetrics = new Bindable<BmsScrollSpeedMetrics>();
         private readonly Bindable<BmsGameplayAdjustmentTarget?> activeAdjustmentTarget = new Bindable<BmsGameplayAdjustmentTarget?>();
@@ -150,9 +143,8 @@ namespace osu.Game.Rulesets.Bms.UI
             configFloatingHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
             configClassicHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
 
-            Config.BindWith(BmsRulesetSetting.KeysoundConcurrentChannels, configKeysoundConcurrentChannels);
-            configKeysoundConcurrentChannels.BindValueChanged(channels => Playfield.KeysoundStore.ConcurrentChannels = channels.NewValue, true);
-
+            // The keysound channel count is no longer user-configurable: the shared pool (created with its default
+            // baseline) auto-grows on demand, so the playfield store is left at its constructed default here.
             getSuddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics(), true);
             getHiddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics(), true);
             getLiftMod()?.LiftUnits.BindValueChanged(_ => refreshSpeedMetrics(), true);

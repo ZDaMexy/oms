@@ -70,6 +70,7 @@ namespace osu.Game.Screens.Select
 
         private ConstrainedIconContainer difficultyIcon = null!;
         private StarRatingDisplay starRatingDisplay = null!;
+        private BmsDifficultyLevelDisplay bmsLevelDisplay = null!;
         private OsuSpriteText difficultyTableText = null!;
         private SpreadDisplay spreadDisplay = null!;
         private PanelLocalRankDisplay localRank = null!;
@@ -206,6 +207,15 @@ namespace osu.Game.Screens.Select
                                             Anchor = Anchor.CentreLeft,
                                             Scale = new Vector2(0.875f),
                                         },
+                                        // BMS mode shows the IIDX difficulty-level pill instead of the star rating.
+                                        // Alpha-toggled with starRatingDisplay (alpha 0 is excluded from the fill flow).
+                                        bmsLevelDisplay = new BmsDifficultyLevelDisplay(StarRatingDisplaySize.Small)
+                                        {
+                                            Origin = Anchor.CentreLeft,
+                                            Anchor = Anchor.CentreLeft,
+                                            Scale = new Vector2(0.875f),
+                                            Alpha = 0,
+                                        },
                                         // Difficulty-table classification (e.g. "sl4" / "★8/sl4"). Alpha 0 when absent
                                         // so the fill-flow excludes it (no phantom spacing between star and spread).
                                         difficultyTableText = new OsuSpriteText
@@ -234,7 +244,11 @@ namespace osu.Game.Screens.Select
         {
             base.LoadComplete();
 
-            ruleset.BindValueChanged(_ => updateKeyCount());
+            ruleset.BindValueChanged(_ =>
+            {
+                updateKeyCount();
+                updateDifficultyLevelDisplay();
+            });
             mods.BindValueChanged(_ => updateKeyCount(), true);
 
             Selected.BindValueChanged(s =>
@@ -270,9 +284,12 @@ namespace osu.Game.Screens.Select
             string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap);
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator);
 
+            bmsLevelDisplay.SetDifficulty(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmap), BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(beatmap));
+
             computeStarRating();
             spreadDisplay.Beatmap.Value = beatmap;
             updateKeyCount();
+            updateDifficultyLevelDisplay();
         }
 
         protected override void FreeAfterUse()
@@ -346,6 +363,19 @@ namespace osu.Game.Screens.Select
                 difficultyIcon.Colour = colourProvider.Content2;
             else
                 difficultyIcon.Colour = starRatingDisplay.DisplayedDifficultyTextColour;
+        }
+
+        // In BMS mode a BMS chart shows the IIDX difficulty-level pill instead of the numeric star rating.
+        // The star pill is kept alive (alpha 0) so the panel accent / spread display still read its spectrum colour.
+        private void updateDifficultyLevelDisplay()
+        {
+            if (Item == null)
+                return;
+
+            bool useBmsLevel = ruleset.Value.ShortName == "bms" && beatmap.Ruleset.ShortName == "bms";
+
+            starRatingDisplay.Alpha = useBmsLevel ? 0 : 1;
+            bmsLevelDisplay.Alpha = useBmsLevel ? 1 : 0;
         }
 
         private void updateKeyCount()

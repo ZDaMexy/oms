@@ -2,16 +2,24 @@
 
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using System;
+using System.IO;
+using System.Threading.Tasks;
+using osu.Game.Graphics;
+using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
+using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
-using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.UI;
+using osuTK;
 
 namespace osu.Game.Rulesets.Bms
 {
@@ -20,6 +28,14 @@ namespace osu.Game.Rulesets.Bms
         protected override LocalisableString Header => "BMS";
 
         private readonly BmsRuleset ruleset;
+
+        [Resolved]
+        private Storage storage { get; set; } = null!;
+
+        [Resolved]
+        private GameHost host { get; set; } = null!;
+
+        private OsuTextFlowContainer ffmpegStatusText = null!;
 
         public BmsSettingsSubsection(BmsRuleset ruleset)
             : base(ruleset)
@@ -35,15 +51,6 @@ namespace osu.Game.Rulesets.Bms
             var normalHiSpeed = config.GetBindable<double>(BmsRulesetSetting.ScrollSpeed);
             var floatingHiSpeed = config.GetBindable<double>(BmsRulesetSetting.FloatingHiSpeed);
             var classicHiSpeed = config.GetBindable<double>(BmsRulesetSetting.ClassicHiSpeed);
-            var keysoundConcurrentChannels = new BindableInt
-            {
-                Default = BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS,
-                MinValue = BmsKeysoundStore.MIN_CONCURRENT_CHANNELS,
-                MaxValue = BmsKeysoundStore.MAX_CONCURRENT_CHANNELS,
-                Precision = 1,
-            };
-
-            config.BindWith(BmsRulesetSetting.KeysoundConcurrentChannels, keysoundConcurrentChannels);
 
             var hiSpeedSlider = new FormSliderBar<double>
             {
@@ -110,25 +117,59 @@ namespace osu.Game.Rulesets.Bms
                 }),
                 new SettingsItemV2(new FormCheckBox
                 {
-                    Caption = @"转码无法解码的 BGA 视频",
-                    HintText = "部分老式 BGA 视频（如 MPEG-1 的 .mpg、.wmv、.avi）内置播放器无法解码，默认只显示静态图。\n\n"
-                               + "开启后，若系统已安装 ffmpeg（命令行可用，或把 ffmpeg.exe 放进 OMS 数据目录），"
-                               + "OMS 会在后台把这类视频转成 .mp4 并缓存，之后即可正常播放（首次播放转码期间仍先显示静态图）。\n\n"
-                               + "未安装 ffmpeg 时本项无效果，保持静态图。仅影响视觉，不影响判定/计分。",
+                    Caption = @"ffmpeg完整BGA支持",
+                    HintText = "对老式BGA提供转码播放支持，需自行放置ffmpeg到数据目录。",
                     Current = { BindTarget = config.GetBindable<bool>(BmsRulesetSetting.BgaVideoTranscode) },
                 }),
-                new SettingsItemV2(new FormSliderBar<int>
+                new Container
                 {
-                    Caption = @"键音通道数（基线）",
-                    HintText = "共享键音播放池的【起始/常驻】大小。\n\n"
-                               + "播放池现在会在高密度段落【按需自动增长】（上限 256），不再因固定上限抢占截断 BGM／键音／长按尾音；空闲时维持此基线大小。\n\n"
-                               + "因此本项通常【无需调整】，保持默认即可获得接近无限复音的效果。\n\n"
-                               + "仅在想控制常驻内存/负载时调整：调低=常驻更省、密集段临时增长更多；调高=减少密集段的增长动作。\n\n"
-                               + "游戏中调高会立即补充通道；调低会在仍在播放的通道自然结束后逐步回收，不会切断正在发声的音频。",
-                    Current = keysoundConcurrentChannels,
-                    KeyboardStep = 1,
-                    LabelFormat = value => $@"{value} 通道",
-                }),
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Padding = SettingsPanel.CONTENT_PADDING,
+                    Child = new FillFlowContainer
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Direction = FillDirection.Vertical,
+                        Spacing = new Vector2(0, 8),
+                        Children = new Drawable[]
+                        {
+                            new FillFlowContainer
+                            {
+                                AutoSizeAxes = Axes.Both,
+                                Direction = FillDirection.Full,
+                                Spacing = new Vector2(10),
+                                Children = new Drawable[]
+                                {
+                                    new SettingsButtonV2
+                                    {
+                                        RelativeSizeAxes = Axes.None,
+                                        AutoSizeAxes = Axes.None,
+                                        Width = 180,
+                                        Height = 40,
+                                        Text = "检测 ffmpeg 安装状态",
+                                        Action = detectFfmpegStatus,
+                                    },
+                                    new SettingsButtonV2
+                                    {
+                                        RelativeSizeAxes = Axes.None,
+                                        AutoSizeAxes = Axes.None,
+                                        Width = 180,
+                                        Height = 40,
+                                        Text = "打开 ffmpeg 安装目录",
+                                        Action = openFfmpegDirectory,
+                                    },
+                                }
+                            },
+                            ffmpegStatusText = new OsuTextFlowContainer(text => text.Font = OsuFont.GetFont(size: 14))
+                            {
+                                RelativeSizeAxes = Axes.X,
+                                AutoSizeAxes = Axes.Y,
+                                Alpha = 0,
+                            },
+                        }
+                    }
+                },
                 new BmsSupplementalBindingSettingsSection(ruleset),
                 new BmsDifficultyTableSettingsSection(),
             };
@@ -140,5 +181,48 @@ namespace osu.Game.Rulesets.Bms
                 return $@"{mode.FormatValue(value)} ({fallTimeMs}ms)";
             }
         }
+
+        private void detectFfmpegStatus()
+        {
+            ffmpegStatusText.Alpha = 1;
+            ffmpegStatusText.Text = @"正在检测 ffmpeg…";
+
+            string[] candidates = getFfmpegCandidates();
+
+            // Probing actually runs ffmpeg (and checks for libx264), so do it off the update thread and marshal the
+            // result back. ProbeFfmpeg never throws, so reading t.Result here is safe.
+            Task.Run(() => BmsBgaVideoCache.ProbeFfmpeg(candidates))
+                .ContinueWith(t => Schedule(() => ffmpegStatusText.Text = describeFfmpegProbe(t.GetResultSafely())));
+        }
+
+        private static string describeFfmpegProbe(BmsBgaVideoCache.FfmpegProbeResult result)
+        {
+            switch (result.State)
+            {
+                case BmsBgaVideoCache.FfmpegProbeState.Ready:
+                    return $@"ffmpeg 可用（含 libx264，H.264 转码）：{result.Path}";
+
+                case BmsBgaVideoCache.FfmpegProbeState.ReadyWithoutH264:
+                    return $@"ffmpeg 可用，但缺少 libx264 编码器，将回退 mpeg4 转码（如需 H.264 画质请换用完整版 ffmpeg）：{result.Path}";
+
+                case BmsBgaVideoCache.FfmpegProbeState.NotExecutable:
+                    return $@"找到 ffmpeg 但无法正常执行（{result.Detail}）：{result.Path}。请确认是有效的 Windows ffmpeg.exe。";
+
+                default:
+                    return @"未检测到 ffmpeg。请将 ffmpeg.exe 放入数据目录（或加入系统 PATH）后重试。";
+            }
+        }
+
+        // Opens the OMS data directory (the storage root) where the user can drop ffmpeg.exe. The trailing separator
+        // makes the host present it as a folder rather than trying to open it as a file.
+        private void openFfmpegDirectory()
+            => host.OpenFileExternally(storage.GetFullPath(string.Empty) + Path.DirectorySeparatorChar);
+
+        // Mirrors the candidate list BmsBgaPlayer feeds the transcode cache: the data directory first, then the app dir.
+        private string[] getFfmpegCandidates() => new[]
+        {
+            storage.GetFullPath("ffmpeg.exe"),
+            Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"),
+        };
     }
 }

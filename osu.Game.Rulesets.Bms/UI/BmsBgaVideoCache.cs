@@ -39,12 +39,22 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private const int transcode_timeout_ms = 120_000;
 
+        // Bump when the transcode arguments OR pipeline change so previously cached outputs (produced by old, possibly
+        // non-decodable/corrupt settings) are re-transcoded under a new cache key instead of being served as-is.
+        // v3: unique temp + cross-instance dedup (v2 outputs could be corrupted by concurrent writers to one temp path).
+        private const int transcode_version = 3;
+
         private readonly string? cacheDirectory;
         private readonly IReadOnlyList<string> ffmpegCandidates;
         private readonly Func<string, string, string, bool> runTranscode;
 
-        // Per-instance state (a cache is created per gameplay). The on-disk cache file is the cross-session dedup.
-        private readonly ConcurrentDictionary<string, byte> inProgress = new ConcurrentDictionary<string, byte>();
+        // In-flight transcodes keyed by DESTINATION path. STATIC so it dedups across cache instances: a cache is created
+        // per gameplay, and an orphaned background transcode from a previous play (or a rapid replay) must not start a
+        // second ffmpeg for the same destination. (Combined with a unique temp file per attempt, this prevents the
+        // concurrent-writer corruption that produced unplayable "Invalid NAL unit size" .mp4s.)
+        private static readonly ConcurrentDictionary<string, byte> inProgress = new ConcurrentDictionary<string, byte>();
+
+        // Per-instance: a transient failure should get a fresh attempt on the next gameplay.
         private readonly ConcurrentDictionary<string, byte> failedDestinations = new ConcurrentDictionary<string, byte>();
         private string? resolvedFfmpeg;
         private bool ffmpegResolved;
@@ -58,6 +68,132 @@ namespace osu.Game.Rulesets.Bms.UI
             this.cacheDirectory = cacheDirectory;
             this.ffmpegCandidates = ffmpegCandidates ?? Array.Empty<string>();
             this.runTranscode = runTranscode ?? runFfmpeg;
+        }
+
+        /// <summary>
+        /// Detects an available external ffmpeg the same way <see cref="resolveFfmpeg"/> would for a transcode: the
+        /// explicit <paramref name="candidates"/> first (a file that exists), then an <c>ffmpeg(.exe)</c> discoverable on
+        /// the system PATH. Returns the resolved executable path, or <c>null</c> when none is available. Used by the
+        /// settings UI to report install status without starting a transcode.
+        /// </summary>
+        public static string? FindAvailableFfmpeg(IReadOnlyList<string>? candidates)
+        {
+            if (candidates != null)
+            {
+                foreach (string candidate in candidates)
+                {
+                    if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+                        return candidate;
+                }
+            }
+
+            string? path = Environment.GetEnvironmentVariable("PATH");
+
+            if (string.IsNullOrEmpty(path))
+                return null;
+
+            foreach (string directory in path.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(directory))
+                    continue;
+
+                try
+                {
+                    foreach (string executable in new[] { "ffmpeg.exe", "ffmpeg" })
+                    {
+                        string full = Path.Combine(directory.Trim(), executable);
+
+                        if (File.Exists(full))
+                            return full;
+                    }
+                }
+                catch
+                {
+                    // a malformed PATH entry must not abort the scan
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>The outcome of actually probing an ffmpeg binary (not just checking the file exists).</summary>
+        public enum FfmpegProbeState
+        {
+            /// <summary>No ffmpeg found among the candidates or on PATH.</summary>
+            NotFound,
+
+            /// <summary>A file was found but it could not be executed / did not behave like ffmpeg.</summary>
+            NotExecutable,
+
+            /// <summary>ffmpeg runs but lacks the libx264 encoder; the transcode will fall back to the built-in mpeg4.</summary>
+            ReadyWithoutH264,
+
+            /// <summary>ffmpeg runs and has libx264 — full H.264 transcode available.</summary>
+            Ready,
+        }
+
+        public readonly record struct FfmpegProbeResult(FfmpegProbeState State, string? Path, string? Detail);
+
+        /// <summary>
+        /// Actually probes ffmpeg (runs <c>ffmpeg -hide_banner -encoders</c>) rather than only checking a file exists,
+        /// so the settings UI can report a truthful status: not found, found-but-not-runnable, runnable-without-libx264
+        /// (transcode will use the mpeg4 fallback), or fully ready. Returns quickly and never throws.
+        /// </summary>
+        public static FfmpegProbeResult ProbeFfmpeg(IReadOnlyList<string>? candidates)
+        {
+            string? path = FindAvailableFfmpeg(candidates);
+
+            if (path == null)
+                return new FfmpegProbeResult(FfmpegProbeState.NotFound, null, null);
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                };
+
+                foreach (string argument in new[] { "-hide_banner", "-encoders" })
+                    startInfo.ArgumentList.Add(argument);
+
+                using var process = Process.Start(startInfo);
+
+                if (process == null)
+                    return new FfmpegProbeResult(FfmpegProbeState.NotExecutable, path, "无法启动进程");
+
+                var stdoutTask = process.StandardOutput.ReadToEndAsync();
+                var stderrTask = process.StandardError.ReadToEndAsync();
+
+                if (!process.WaitForExit(15_000))
+                {
+                    try
+                    {
+                        process.Kill(true);
+                    }
+                    catch
+                    {
+                        // ignored
+                    }
+
+                    return new FfmpegProbeResult(FfmpegProbeState.NotExecutable, path, "执行超时");
+                }
+
+                string output = stdoutTask.GetAwaiter().GetResult() + stderrTask.GetAwaiter().GetResult();
+
+                if (process.ExitCode != 0)
+                    return new FfmpegProbeResult(FfmpegProbeState.NotExecutable, path, $"退出码 {process.ExitCode}");
+
+                bool hasH264 = output.Contains("libx264", StringComparison.OrdinalIgnoreCase);
+                return new FfmpegProbeResult(hasH264 ? FfmpegProbeState.Ready : FfmpegProbeState.ReadyWithoutH264, path, null);
+            }
+            catch (Exception e)
+            {
+                return new FfmpegProbeResult(FfmpegProbeState.NotExecutable, path, e.Message);
+            }
         }
 
         /// <summary>Whether the asset's container is one the framework can't decode and therefore needs transcoding.</summary>
@@ -112,32 +248,27 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void startTranscode(string ffmpeg, string source, string destination)
         {
-            // Dedup concurrent transcodes of the same destination (prewarm + per-event can both request it).
+            // Dedup concurrent transcodes of the same destination (prewarm + per-event, AND across cache instances —
+            // inProgress is static — so a replay / orphaned background transcode never runs a second ffmpeg for it).
             if (!inProgress.TryAdd(destination, 0))
                 return;
 
             Task.Run(() =>
             {
                 bool success = false;
-                string tmp = destination + ".tmp";
+                // Unique temp per attempt: even if two transcodes for this destination ever overlap, each writes its own
+                // file, so neither can interleave bytes into the other (the cause of corrupt, undecodable .mp4 output).
+                string tmp = $"{destination}.{Guid.NewGuid():N}.tmp";
 
                 try
                 {
                     Directory.CreateDirectory(cacheDirectory!);
 
-                    if (File.Exists(tmp))
-                        File.Delete(tmp);
-
                     success = runTranscode(ffmpeg, source, tmp) && File.Exists(tmp);
 
+                    // Atomic publish (overwrite): only a complete file ever appears at the destination path.
                     if (success)
-                    {
-                        if (File.Exists(destination))
-                            File.Delete(destination);
-
-                        // Atomic publish: only a complete file ever appears at the destination path.
-                        File.Move(tmp, destination);
-                    }
+                        File.Move(tmp, destination, true);
                 }
                 catch (Exception e)
                 {
@@ -148,7 +279,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     if (!success)
                     {
-                        failedDestinations.TryAdd(destination, 0);
+                        // One concise line per failed source (full ffmpeg output is logged just above). BGA is cosmetic
+                        // and degrades to its static image, so this is Verbose (log only) — not a user-facing notification.
+                        // Deduped via the failed-set add so retries never re-log.
+                        if (failedDestinations.TryAdd(destination, 0))
+                            Logger.Log($"BGA video transcode failed for '{source}'. The BGA will show its static image instead (see above for the ffmpeg error).", level: LogLevel.Verbose);
 
                         try
                         {
@@ -168,6 +303,66 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private bool runFfmpeg(string ffmpeg, string source, string destinationTmp)
         {
+            // Prefer H.264 (the codec the framework decoder handles most reliably); fall back to the always-built-in
+            // MPEG-4 Part 2 encoder for stripped / LGPL ffmpeg builds that lack libx264. The point of the transcode is
+            // moving the unreadable legacy CONTAINER into a clean .mp4 — either codec decodes fine once it's in .mp4.
+            if (runFfmpegWithEncoder(ffmpeg, source, destinationTmp, "libx264"))
+                return true;
+
+            // ffmpeg itself is missing -> no point retrying with another encoder.
+            if (ffmpegMissing)
+                return false;
+
+            return runFfmpegWithEncoder(ffmpeg, source, destinationTmp, "mpeg4");
+        }
+
+        /// <summary>
+        /// Builds the ffmpeg argument list for a BGA transcode. The output must be decodable by osu!framework's bundled
+        /// FFmpeg (and its D3D11VA hardware path), which is pickier than standalone players:
+        /// <list type="bullet">
+        /// <item><c>-f mp4</c> sets the muxer explicitly — the output is a <c>&lt;hash&gt;.mp4.tmp</c> temp path and
+        /// ffmpeg otherwise infers the container from the unknown <c>.tmp</c> extension ("Unable to choose an output format").</item>
+        /// <item>libx264 <c>-profile:v baseline</c> (no B-frames / no CABAC) — a default High-profile output decoded fine
+        /// in standalone players but failed EVERY packet in-framework ("Failed to send avcodec packet: Invalid data"),
+        /// leaving the BGA black. Baseline is the broadly decodable subset for both HW and old SW decoders. mpeg4 (the
+        /// no-libx264 fallback) has no such profile.</item>
+        /// <item><c>setpts=PTS-STARTPTS</c> resets the source's start-time offset (legacy .mpg often starts at ~0.44s) so
+        /// playback maps cleanly from the gameplay clock and no edit list is written; <c>setsar=1</c> squares the pixels.</item>
+        /// </list>
+        /// Exposed for regression testing.
+        /// </summary>
+        public static string[] BuildTranscodeArguments(string source, string destinationTmp, string encoder)
+        {
+            var arguments = new List<string>
+            {
+                "-y", "-hide_banner",
+                "-i", source,
+                "-an",
+                "-map", "0:v:0",
+                "-c:v", encoder,
+            };
+
+            if (encoder == "libx264")
+            {
+                arguments.Add("-profile:v");
+                arguments.Add("baseline");
+            }
+
+            arguments.Add("-pix_fmt");
+            arguments.Add("yuv420p");
+            arguments.Add("-vf");
+            arguments.Add("setpts=PTS-STARTPTS,setsar=1");
+            arguments.Add("-movflags");
+            arguments.Add("+faststart");
+            arguments.Add("-f");
+            arguments.Add("mp4");
+            arguments.Add(destinationTmp);
+
+            return arguments.ToArray();
+        }
+
+        private bool runFfmpegWithEncoder(string ffmpeg, string source, string destinationTmp, string encoder)
+        {
             var startInfo = new ProcessStartInfo
             {
                 FileName = ffmpeg,
@@ -177,9 +372,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 RedirectStandardOutput = true,
             };
 
-            // Video-only (BGA carries no audio; the chart's keysounds are the audio); H.264 / yuv420p / mp4 is exactly
-            // the format the framework decodes reliably.
-            foreach (string argument in new[] { "-y", "-i", source, "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", destinationTmp })
+            foreach (string argument in BuildTranscodeArguments(source, destinationTmp, encoder))
                 startInfo.ArgumentList.Add(argument);
 
             try
@@ -189,9 +382,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 if (process == null)
                     return false;
 
-                // Drain pipes so a chatty ffmpeg never blocks on a full buffer.
-                process.StandardError.ReadToEnd();
-                process.StandardOutput.ReadToEnd();
+                // Read both pipes concurrently so a chatty ffmpeg never blocks on a full buffer, and so stderr (which
+                // carries the real failure reason) can be surfaced on error.
+                var stderrTask = process.StandardError.ReadToEndAsync();
+                var stdoutTask = process.StandardOutput.ReadToEndAsync();
 
                 if (!process.WaitForExit(transcode_timeout_ms))
                 {
@@ -204,10 +398,20 @@ namespace osu.Game.Rulesets.Bms.UI
                         // ignored
                     }
 
+                    Logger.Log($"BGA video transcode timed out after {transcode_timeout_ms}ms (encoder {encoder}) for '{source}'.", level: LogLevel.Verbose);
                     return false;
                 }
 
-                return process.ExitCode == 0;
+                string stderr = stderrTask.GetAwaiter().GetResult();
+                stdoutTask.GetAwaiter().GetResult();
+
+                if (process.ExitCode == 0)
+                    return true;
+
+                // Full ffmpeg output at Verbose (file log only — no notification spam across retries / both encoders);
+                // startTranscode emits a single user-visible Important summary per failed source.
+                Logger.Log($"BGA video transcode failed (ffmpeg exit {process.ExitCode}, encoder {encoder}) for '{source}':\n{tail(stderr)}", level: LogLevel.Verbose);
+                return false;
             }
             catch (System.ComponentModel.Win32Exception)
             {
@@ -217,9 +421,19 @@ namespace osu.Game.Rulesets.Bms.UI
             }
             catch (Exception e)
             {
-                Logger.Log($"BGA video ffmpeg invocation failed: {e.Message}", level: LogLevel.Debug);
+                Logger.Log($"BGA video ffmpeg invocation failed (encoder {encoder}): {e.Message}", level: LogLevel.Verbose);
                 return false;
             }
+        }
+
+        // Keep only the tail of ffmpeg's (often long) stderr for the log line — the actual error is at the end.
+        private static string tail(string? text, int maxChars = 800)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return "(no ffmpeg output)";
+
+            text = text.Trim();
+            return text.Length <= maxChars ? text : "…" + text[^maxChars..];
         }
 
         private string? resolveFfmpeg()
@@ -249,7 +463,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private static string cacheKey(string sourceAbsolutePath)
         {
             var info = new FileInfo(sourceAbsolutePath);
-            string raw = $"{sourceAbsolutePath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+            string raw = $"{sourceAbsolutePath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|v{transcode_version}";
             byte[] hash = SHA1.HashData(Encoding.UTF8.GetBytes(raw));
             return Convert.ToHexString(hash);
         }

@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-06-22（「展示层级与层级导航约束」追加 #21 mania 难度表分组——grouping 丢弃法只显示转谱 + 空结果指导）
+> 最后更新：2026-06-22（追加 #22 BMS 模式难度等级胶囊——星级换 IIDX 难度标签＋#PLAYLEVEL、按 #DIFFICULTY 上色，其它星形元素保持现状）
 > 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -132,6 +132,18 @@
     - **「只显示转谱」＝grouping 丢弃，禁止改 matching**：`BeatmapCarouselFilterGrouping.addHierarchicalGroups` 对返回**空 group 定义**的谱面直接丢弃，且 `MatchedBeatmapsCount=Filters.Last().BeatmapItemsCount`（grouping 阶段）。故 helper 对**非 BMS** 谱面（`Ruleset.ShortName!="bms"`）返回空 → 原生 mania 被丢弃、计数与列表一致。**不得**为「只显示转谱」去 force `ConvertedOnly` 或改 matching 判据——那会让「N matches」与列表不一致，且与转谱可见性设置纠缠。转谱可见性仍由 #20 的 `ConvertedBeatmaps` 设置在 matching 阶段单独把关（Hidden→无转谱→grouping 丢光→空）。
     - **mania 接线**：`ManiaRuleset` override `GetAvailableSongSelectGroupModes`（「未分组」后插 `GroupMode.DifficultyTable`）/`IsSongSelectGroupingHierarchical`（→true）/`ShouldResetSongSelectGroupToRoot`（→true）/`GetSongSelectGroupDefinitions`（→helper）。复用既有 `GroupMode.DifficultyTable` enum 与「难度表」文案，**不得**为 mania 新造平行 enum。层级树 + 强制扁平 + 落根行为与 BMS 一致，#16/#17（root-focus 收口）ruleset-agnostic 自动适用。
     - **空结果指导**：`NoResultsPlaceholder` 在 mania+DifficultyTable+空时给专项说明——`ConvertedBeatmaps==Hidden` → 可点「启用「显示转谱」」(设 Shown)；否则 → 「导入 BMS 谱面…」提示。同上下文**抑制**通用「enabling automatic conversion」hint。回归 `BmsConvertedDifficultyTableGroupingTest`(4)+`ManiaDifficultyTableGroupingTest`(3，端到端丢原生 mania)。
+
+### BMS 模式难度等级胶囊（替换星级，2026-06-22 其五）
+
+22. **仅 BMS 模式下的 BMS 谱面，选曲星级胶囊换成 IIDX 难度等级胶囊（标签＋#PLAYLEVEL，按 #DIFFICULTY 上色）；其它星形元素保持现状**：
+    - **门控严格双条件**：`当前 ruleset.ShortName=="bms" 且 beatmap.Ruleset.ShortName=="bms"`。转谱-mania 视图（mania 模式下的 BMS 谱面）**必须保留真实转谱星级**——转谱星有意义、不得替换。随 ruleset 切换实时切换（面板绑 `ruleset` 变更、wedge 走 `updateDisplay`）。
+    - **文案＝标签＋原始 #PLAYLEVEL**：`BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel`——标签由 `#DIFFICULTY`（`BmsPersistedMetadataResolver.GetChartMetadata().HeaderDifficulty`）映射大写 `0/未定义=UNKNOWN、1=BEGINNER、2=NORMAL、3=HYPER、4=ANOTHER、5=INSANE`；等级用**原始 `#PLAYLEVEL` 字符串**（谱师标级，verbatim，不做数值解析，故 `12+`/`★7`/`sl3` 原样），无 playlevel 时只显示标签。**不复用** title-case 的 `getBmsHeaderDifficultyLabel`（那个未定义返回 null；胶囊必须永远有标签）。display-only：不动存库 `DifficultyName`/`StarRating`/MD5。
+    - **配色＝IIDX 集中到 `OsuColour`**：`ForBmsDifficultyLevel(tier)` = 白/绿(#2fb24c)/蓝(#2e8be6)/黄(#f4c20d)/红(#e53935)/紫(#9c44d6)；`ForBmsDifficultyLevelText(tier)` = 浅底(UNKNOWN 白、HYPER 黄)用深字、其余白字。`tier` 由 `GetBmsDifficultyTier`（1–5 或 0）给。**不得**沿用 `ForStarDifficulty` 光谱。
+    - **胶囊组件**：新增 `BmsDifficultyLevelDisplay`（`Beatmaps/Drawables/`，镜像 `StarRatingDisplay` 的 `CircularContainer+Box+OsuSpriteText` 圆角形、去星标、无动画），暴露 `DisplayedDifficultyColour/TextColour` 供 wedge 取色。
+    - **挂载＝alpha 切换、不动既有强调色链路（红线）**：三处（`PanelBeatmap`/`PanelBeatmapStandalone`/`BeatmapTitleWedge.DifficultyDisplay`）把新胶囊与原 `StarRatingDisplay` 并存，按门控 alpha 0/1 互斥（alpha 0 被 FillFlow / AutoSize 视为非 present、不占位）。**原星级胶囊保持存活（alpha 0）**继续被 `difficultyCache.GetBindableDifficulty` 喂色 → 面板强调色/三角/tint、`starCounter` 小星星、`SpreadDisplay` 分布点（含 current 点）一律**保持现状**（仍按等级数值光谱色，用户 2026-06-22 选定「其它星形元素全部保持现状」）。
+    - **wedge 难度名取色随胶囊**：wedge 的难度名/「mapped by」/统计强调色，BMS 胶囊激活时改用 `bmsLevelDisplay.DisplayedDifficultyColour`（IIDX 色，与胶囊一致）；非 BMS 时保留原 `DisplayedStars>=cutoff` 光谱逻辑。carousel 面板 tint/三角**不**改（属"保持现状"）。
+    - **加载界面（`PlayerLoader` 的 `BeatmapMetadataDisplay`）同步**：开始游玩的加载页此前只对 artist/creator 走 resolver，标题/难度名仍读存库原值、星级仍是旧 pill。现统一——标题 `GetDisplayTitle/Unicode`（剥 BMS 标题尾括号，避免标题 `[SP ANOTHER]` 与难度名 `SP ANOTHER` 重复）、难度名 `GetDisplayDifficultyName`（→`SP ANOTHER`）、星级换 `BmsDifficultyLevelDisplay`（门控同上：play ruleset＝`[Resolved] IBindable<RulesetInfo>`＝bms 且 beatmap＝bms；转谱-mania 保留真实星级——`GetBindableDifficulty(beatmapInfo)` 无 ruleset 参时本就用 cache 的 `currentRuleset`＝全局 play ruleset，与门控一致）。**只改 `BeatmapMetadataDisplay`，不动中央 `BeatmapInfoExtensions.GetDisplayTitleRomanisable`**（仍服务 now-playing/results，出本专题范围）。
+    - 回归 `BmsLocalMetadataDisplayResolverTest`（+5：标签＋等级 / UNKNOWN(null 与 0) / 原始 playlevel verbatim / 仅标签无 playlevel / 非 BMS 空）；`BeatmapMetadataDisplay` 为视觉组件、无 headless 单测，复用同一组 resolver。
 
 ## 测试与发布约束
 

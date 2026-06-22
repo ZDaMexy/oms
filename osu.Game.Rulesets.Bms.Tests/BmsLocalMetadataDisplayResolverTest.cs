@@ -196,5 +196,81 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayMapperTags(beatmap), Is.Empty);
             });
         }
+
+        [Test]
+        public void TestDifficultyLevelCombinesCategoryAndPlayLevel()
+        {
+            // #DIFFICULTY 2 + #PLAYLEVEL 7 -> the BMS-mode pill shows "NORMAL 7" (tier 2 = blue).
+            var beatmap = bmsBeatmapWithChartMetadata(headerDifficulty: 2, playLevel: "7");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmap), Is.EqualTo("NORMAL 7"));
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(beatmap), Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void TestDifficultyLevelUnknownWhenHeaderDifficultyMissingOrZero()
+        {
+            var missing = bmsBeatmapWithChartMetadata(headerDifficulty: null, playLevel: "9");
+            var zero = bmsBeatmapWithChartMetadata(headerDifficulty: 0, playLevel: "9");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(missing), Is.EqualTo("UNKNOWN 9"));
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(missing), Is.EqualTo(0));
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(zero), Is.EqualTo("UNKNOWN 9"));
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(zero), Is.EqualTo(0));
+            });
+        }
+
+        [Test]
+        public void TestDifficultyLevelKeepsRawPlayLevelText()
+        {
+            // The play level is the charter's raw #PLAYLEVEL string, kept verbatim (no numeric parsing).
+            var beatmap = bmsBeatmapWithChartMetadata(headerDifficulty: 4, playLevel: "12+");
+
+            Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmap), Is.EqualTo("ANOTHER 12+"));
+        }
+
+        [Test]
+        public void TestDifficultyLevelLabelOnlyWhenNoPlayLevel()
+        {
+            var beatmap = bmsBeatmapWithChartMetadata(headerDifficulty: 3, playLevel: string.Empty);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmap), Is.EqualTo("HYPER"));
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(beatmap), Is.EqualTo(3));
+            });
+        }
+
+        [Test]
+        public void TestDifficultyLevelEmptyForNonBmsBeatmap()
+        {
+            var beatmap = new BeatmapInfo(new RulesetInfo { ShortName = "mania" })
+            {
+                Metadata = new BeatmapMetadata { Title = "Song" },
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmap), Is.EqualTo(string.Empty));
+                Assert.That(BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(beatmap), Is.EqualTo(0));
+            });
+        }
+
+        private static BeatmapInfo bmsBeatmapWithChartMetadata(int? headerDifficulty, string playLevel)
+        {
+            var metadata = new BeatmapMetadata();
+
+            metadata.SetRulesetData(new DifficultyTable.BmsBeatmapMetadataData
+            {
+                ChartMetadata = new DifficultyTable.BmsChartMetadata { HeaderDifficulty = headerDifficulty, PlayLevel = playLevel },
+            });
+
+            return new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()) { Metadata = metadata };
+        }
     }
 }

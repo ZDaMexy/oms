@@ -167,6 +167,40 @@ namespace osu.Game.Beatmaps
             return string.Join('/', labels);
         }
 
+        /// <summary>
+        /// The BMS-mode difficulty-level pill text, e.g. <c>"NORMAL 7"</c>. The label comes from <c>#DIFFICULTY</c>
+        /// (0 / undefined → "UNKNOWN", 1-5 → BEGINNER/NORMAL/HYPER/ANOTHER/INSANE) and the level is the raw
+        /// <c>#PLAYLEVEL</c> string (the charter's stated level, kept verbatim). The label is shown on its own when no
+        /// play level is present. Returns an empty string for non-BMS charts. This replaces the numeric star rating
+        /// in BMS mode only; the converted-mania view keeps the real star rating. Display-only.
+        /// </summary>
+        public static string GetDisplayDifficultyLevel(IBeatmapInfo beatmap)
+        {
+            if (!isBmsBeatmap(beatmap))
+                return string.Empty;
+
+            var chartMetadata = BmsPersistedMetadataResolver.GetChartMetadata(beatmap.Metadata as BeatmapMetadata);
+
+            string label = getBmsIidxDifficultyLabel(chartMetadata?.HeaderDifficulty);
+            string playLevel = chartMetadata?.PlayLevel?.Trim() ?? string.Empty;
+
+            return string.IsNullOrEmpty(playLevel) ? label : $"{label} {playLevel}";
+        }
+
+        /// <summary>
+        /// The BMS <c>#DIFFICULTY</c> tier used to colour the difficulty-level pill: <c>1-5</c> for the defined
+        /// categories, or <c>0</c> for an undefined / out-of-range value (UNKNOWN). Always <c>0</c> for non-BMS charts.
+        /// </summary>
+        public static int GetBmsDifficultyTier(IBeatmapInfo beatmap)
+        {
+            if (!isBmsBeatmap(beatmap))
+                return 0;
+
+            int? headerDifficulty = BmsPersistedMetadataResolver.GetChartMetadata(beatmap.Metadata as BeatmapMetadata)?.HeaderDifficulty;
+
+            return headerDifficulty is >= 1 and <= 5 ? headerDifficulty.Value : 0;
+        }
+
         public static string GetDisplayCreator(IBeatmapInfo beatmap)
         {
             if (!string.IsNullOrWhiteSpace(beatmap.Metadata.Author.Username))
@@ -228,6 +262,19 @@ namespace osu.Game.Beatmaps
                 4 => "Another",
                 5 => "Insane",
                 _ => null,
+            };
+
+        // Uppercase IIDX-style category label used by the difficulty-level pill. Unlike getBmsHeaderDifficultyLabel,
+        // an undefined / out-of-range #DIFFICULTY maps to "UNKNOWN" rather than null (the pill always shows a label).
+        private static string getBmsIidxDifficultyLabel(int? headerDifficulty)
+            => headerDifficulty switch
+            {
+                1 => "BEGINNER",
+                2 => "NORMAL",
+                3 => "HYPER",
+                4 => "ANOTHER",
+                5 => "INSANE",
+                _ => "UNKNOWN",
             };
 
         private static bool isBareNumericPlayLevel(string? value)

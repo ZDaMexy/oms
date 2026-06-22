@@ -3,7 +3,6 @@
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Bindables;
-using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.UI;
@@ -49,7 +48,6 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(config.GetBindable<double>(BmsRulesetSetting.HitTargetGlowRadius).Value, Is.EqualTo(6.0));
                 Assert.That(config.GetBindable<double>(BmsRulesetSetting.HitTargetVerticalOffset).Value, Is.EqualTo(0.0));
                 Assert.That(config.GetBindable<double>(BmsRulesetSetting.BarLineHeight).Value, Is.EqualTo(2.0));
-                Assert.That(config.GetBindable<int>(BmsRulesetSetting.KeysoundConcurrentChannels).Value, Is.EqualTo(BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS));
                 Assert.That(config.GetBindable<string>(BmsRulesetSetting.PersistedModState).Value, Is.Empty);
             });
         }

@@ -2,7 +2,6 @@
 
 using osu.Framework.Configuration.Tracking;
 using osu.Game.Configuration;
-using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Configuration;
 
@@ -48,7 +47,6 @@ namespace osu.Game.Rulesets.Bms.Configuration
             SetDefault(BmsRulesetSetting.HitTargetGlowRadius, 6.0, 0.0, 12.0, 0.5);
             SetDefault(BmsRulesetSetting.HitTargetVerticalOffset, 0.0, 0.0, 160.0, 1.0);
             SetDefault(BmsRulesetSetting.BarLineHeight, 2.0, 1.0, 6.0, 0.5);
-            SetDefault(BmsRulesetSetting.KeysoundConcurrentChannels, BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS);
             SetDefault(BmsRulesetSetting.GimmickScrollMode, BmsGimmickScrollMode.Auto);
             SetDefault(BmsRulesetSetting.ShowBga, true);
             SetDefault(BmsRulesetSetting.BgaVideoTranscode, true);
@@ -77,7 +75,10 @@ namespace osu.Game.Rulesets.Bms.Configuration
         HitTargetGlowRadius,
         HitTargetVerticalOffset,
         BarLineHeight,
-        KeysoundConcurrentChannels,
+
+        // Retired: the keysound pool now auto-grows on demand (BmsKeysoundStore), so the manual channel-count
+        // baseline no longer has a UI and is no longer read. Settings persist by enum NAME, so dropping this member
+        // does not shift the others; any value left in an existing config is simply ignored.
         GimmickScrollMode,
         ShowBga,
         BgaVideoTranscode,

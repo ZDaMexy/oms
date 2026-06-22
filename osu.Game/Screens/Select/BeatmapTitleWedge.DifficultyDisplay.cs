@@ -51,6 +51,8 @@ namespace osu.Game.Screens.Select
             private BeatmapDifficultyCache difficultyCache { get; set; } = null!;
 
             private StarRatingDisplay starRatingDisplay = null!;
+            private BmsDifficultyLevelDisplay bmsLevelDisplay = null!;
+            private bool bmsLevelActive;
             private FillFlowContainer nameLine = null!;
             private OsuSpriteText difficultyText = null!;
             private OsuSpriteText mappedByText = null!;
@@ -105,10 +107,27 @@ namespace osu.Game.Screens.Select
                                 {
                                     new[]
                                     {
-                                        starRatingDisplay = new StarRatingDisplay(default, animated: true)
+                                        // BMS mode overlays the IIDX difficulty-level pill on top of (and in place of)
+                                        // the star pill; the container auto-sizes to whichever child is currently shown.
+                                        new Container
                                         {
+                                            AutoSizeAxes = Axes.Both,
                                             Anchor = Anchor.CentreLeft,
                                             Origin = Anchor.CentreLeft,
+                                            Children = new Drawable[]
+                                            {
+                                                starRatingDisplay = new StarRatingDisplay(default, animated: true)
+                                                {
+                                                    Anchor = Anchor.CentreLeft,
+                                                    Origin = Anchor.CentreLeft,
+                                                },
+                                                bmsLevelDisplay = new BmsDifficultyLevelDisplay
+                                                {
+                                                    Anchor = Anchor.CentreLeft,
+                                                    Origin = Anchor.CentreLeft,
+                                                    Alpha = 0,
+                                                },
+                                            },
                                         },
                                         Empty(),
                                         nameLine = new FillFlowContainer
@@ -244,6 +263,7 @@ namespace osu.Game.Screens.Select
                 {
                     ratingAndNameContainer.FadeOut(300, Easing.OutQuint);
                     countStatisticsDisplay.FadeOut(300, Easing.OutQuint);
+                    setBmsLevelActive(false);
                 }
                 else
                 {
@@ -256,12 +276,27 @@ namespace osu.Game.Screens.Select
                         ? () => linkHandler?.HandleLink(new LinkDetails(LinkAction.OpenUserProfile, beatmap.Value.Metadata.Author))
                         : null;
                     mapperText.Text = string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator;
+
+                    bmsLevelDisplay.SetDifficulty(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmap.Value.BeatmapInfo), BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(beatmap.Value.BeatmapInfo));
+
+                    // BMS mode shows the IIDX difficulty-level pill instead of the star rating (converted-mania keeps the star).
+                    bool useBmsLevel = ruleset.Value?.ShortName == "bms" && beatmap.Value.BeatmapInfo.Ruleset.ShortName == "bms";
+                    setBmsLevelActive(useBmsLevel);
                 }
 
                 starRatingDisplay.Current = (Bindable<StarDifficulty>)difficultyCache.GetBindableDifficulty(beatmap.Value.BeatmapInfo, cancellationSource.Token, SongSelect.DIFFICULTY_CALCULATION_DEBOUNCE);
 
                 updateCountStatistics(cancellationSource.Token);
                 updateDifficultyStatistics();
+            }
+
+            // The star pill stays alive (alpha 0) when the BMS pill is shown so its bound difficulty keeps driving
+            // the count/difficulty-statistics layout; only the visible pill and the name tint colour differ.
+            private void setBmsLevelActive(bool active)
+            {
+                bmsLevelActive = active;
+                starRatingDisplay.Alpha = active ? 0 : 1;
+                bmsLevelDisplay.Alpha = active ? 1 : 0;
             }
 
             private void updateCountStatistics(CancellationToken cancellationToken)
@@ -343,7 +378,12 @@ namespace osu.Game.Screens.Select
                 difficultyText.MaxWidth = Math.Max(nameLine.DrawWidth - mappedByText.DrawWidth - mapperText.DrawWidth - 20, 0);
 
                 // Use difficulty colour until it gets too dark to be visible against dark backgrounds.
-                Color4 col = starRatingDisplay.DisplayedStars.Value >= OsuColour.STAR_DIFFICULTY_DEFINED_COLOUR_CUTOFF ? starRatingDisplay.DisplayedDifficultyTextColour : starRatingDisplay.DisplayedDifficultyColour;
+                // In BMS mode the IIDX difficulty colour drives the name tint instead of the star spectrum.
+                Color4 col = bmsLevelActive
+                    ? bmsLevelDisplay.DisplayedDifficultyColour
+                    : starRatingDisplay.DisplayedStars.Value >= OsuColour.STAR_DIFFICULTY_DEFINED_COLOUR_CUTOFF
+                        ? starRatingDisplay.DisplayedDifficultyTextColour
+                        : starRatingDisplay.DisplayedDifficultyColour;
 
                 difficultyText.Colour = col;
                 mappedByText.Colour = col;

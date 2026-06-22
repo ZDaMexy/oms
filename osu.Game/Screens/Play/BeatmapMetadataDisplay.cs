@@ -16,6 +16,7 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Resources.Localisation.Web;
+using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Play.HUD;
 using osuTK;
@@ -59,6 +60,8 @@ namespace osu.Game.Screens.Play
 
         private FillFlowContainer versionFlow;
         private StarRatingDisplay starRatingDisplay;
+        private BmsDifficultyLevelDisplay bmsLevelDisplay;
+        private bool useBmsLevel;
         private OsuSpriteText artistText;
         private MetadataLineInfo creatorText;
 
@@ -67,13 +70,16 @@ namespace osu.Game.Screens.Play
         internal string DisplayedCreator => creatorText?.Text.ToString() ?? string.Empty;
 
         [BackgroundDependencyLoader]
-        private void load(BeatmapDifficultyCache difficultyCache)
+        private void load(BeatmapDifficultyCache difficultyCache, IBindable<RulesetInfo> ruleset)
         {
             var beatmapInfo = beatmap.BeatmapInfo;
             var metadata = beatmap.BeatmapInfo.Metadata;
             string displayArtist = BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo);
             string displayArtistUnicode = BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo);
             string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmapInfo);
+
+            // BMS mode shows the IIDX difficulty-level pill instead of the numeric star rating (converted-mania keeps the star).
+            useBmsLevel = ruleset.Value?.ShortName == "bms" && beatmapInfo.Ruleset.ShortName == "bms";
 
             AutoSizeAxes = Axes.Both;
             Children = new Drawable[]
@@ -93,7 +99,7 @@ namespace osu.Game.Screens.Play
                         }),
                         new OsuSpriteText
                         {
-                            Text = new RomanisableString(metadata.TitleUnicode, metadata.Title),
+                            Text = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayTitleUnicode(beatmapInfo), BeatmapLocalMetadataDisplayResolver.GetDisplayTitle(beatmapInfo)),
                             Font = OsuFont.GetFont(size: 36, italics: true),
                             Origin = Anchor.TopCentre,
                             Anchor = Anchor.TopCentre,
@@ -142,12 +148,18 @@ namespace osu.Game.Screens.Play
                             {
                                 new OsuSpriteText
                                 {
-                                    Text = beatmap.BeatmapInfo.DifficultyName,
+                                    Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmapInfo),
                                     Font = OsuFont.GetFont(size: 26, italics: true),
                                     Anchor = Anchor.TopCentre,
                                     Origin = Anchor.TopCentre,
                                 },
                                 starRatingDisplay = new StarRatingDisplay(default)
+                                {
+                                    Alpha = 0f,
+                                    Anchor = Anchor.TopCentre,
+                                    Origin = Anchor.TopCentre,
+                                },
+                                bmsLevelDisplay = new BmsDifficultyLevelDisplay
                                 {
                                     Alpha = 0f,
                                     Anchor = Anchor.TopCentre,
@@ -195,6 +207,9 @@ namespace osu.Game.Screens.Play
                 }
             };
 
+            if (useBmsLevel)
+                bmsLevelDisplay.SetDifficulty(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel(beatmapInfo), BeatmapLocalMetadataDisplayResolver.GetBmsDifficultyTier(beatmapInfo));
+
             starDifficulty = difficultyCache.GetBindableDifficulty(beatmapInfo);
 
             Loading = true;
@@ -211,8 +226,13 @@ namespace osu.Game.Screens.Play
                 versionFlow.AutoSizeDuration = 300;
                 versionFlow.AutoSizeEasing = Easing.OutQuint;
 
-                starRatingDisplay.FadeIn(300, Easing.InQuint);
+                // In BMS mode the IIDX level pill replaces the star rating; don't fade the star in.
+                if (!useBmsLevel)
+                    starRatingDisplay.FadeIn(300, Easing.InQuint);
             }, true);
+
+            if (useBmsLevel)
+                bmsLevelDisplay.FadeIn(300, Easing.InQuint);
         }
 
         private partial class MetadataLineLabel : OsuSpriteText

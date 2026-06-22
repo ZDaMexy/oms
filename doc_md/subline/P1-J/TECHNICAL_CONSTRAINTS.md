@@ -45,7 +45,7 @@
 ## 产品面与配置约束
 
 1. 不得借 `P1-J` 顺手新增默认对用户开放的 audio latency / offset product surface；BMS 当前主 timing-correction 路径仍以视觉 presentation 调整为主。
-2. settings tooltip 自 2026-06-21 起表述「键音通道数 = 起始/常驻基线，池按需自动增长（上限 256）、通常无需调整」——自动增长已消除「低值截断」，故 tooltip 不再建议「缺音就调高」，改为「仅在想控制常驻内存/负载时调整」（调低=常驻更省、密集段临时增长更多；调高=减少密集段增长动作）。若 runtime apply 语义再变，tooltip 与主线文档必须同步更新。
+2. 「键音通道数（基线）」设置项已于 2026-06-22 **删除**：自动增长（#8）让基线无需手调，基线回落为硬编码 `DEFAULT_CONCURRENT_CHANNELS=32`（原生）/ `Math.Max(32,128)`（转谱楼底）。删除时按「正确默认化、不留隐患」处理——ruleset 配置按 enum 成员名持久化（删中间成员不移位其它）、所有消费方移除（旧库残留值惰性无害不再被读），`BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` 签名保留（mania 反射绑定）。**不得**为「让用户调通道数」重新引入该设置；如确需运行时调参，须重新评估自动增长是否不足，而非简单回退 UI。详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-22。
 3. 本专题不负责引入新的 gameplay mod、Phase 2 speed 体系、全键模式扩张或大范围 HUD/UX 重构。
 
 ## 测试与发布约束

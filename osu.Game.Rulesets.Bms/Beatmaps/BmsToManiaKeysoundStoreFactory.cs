@@ -5,7 +5,6 @@ using System.Linq;
 using osu.Framework.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Audio;
-using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Objects;
 
 namespace osu.Game.Rulesets.Bms.Beatmaps
@@ -39,26 +38,23 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         /// thousands of short BGM slices on the same channel; at the 32-channel default a dense chart saturates (measured
         /// concurrent peak ~36) and <see cref="BmsKeysoundStore"/>'s rotation steal recycles the long-held BGM channel
         /// mid-playback, silencing the rest of that segment (e.g. a vocal that only enters seconds into the file). The
-        /// store is therefore floored well above the autoplay-layer peak so a long BGM is never stolen; a higher
-        /// user-configured <see cref="BmsRulesetSetting.KeysoundConcurrentChannels"/> still wins (the value persists from
-        /// BMS-native play; the mania settings UI doesn't expose it). <paramref name="configCache"/> may be null in
-        /// isolated contexts (test scenes).
+        /// store is therefore floored well above the autoplay-layer peak so a long BGM is never stolen; the pool also
+        /// auto-grows on demand above this floor. <paramref name="configCache"/> is unused now that the channel count is
+        /// no longer user-configurable, but the parameter is kept because <c>DrawableManiaRuleset</c> binds this method
+        /// by reflection as a <c>Func&lt;IRulesetConfigCache, Drawable&gt;</c>.
         /// </remarks>
         public static Drawable Create(IRulesetConfigCache? configCache)
         {
-            var store = new BmsKeysoundStore();
-
-            int configured = configCache?.GetConfigFor(new BmsRuleset()) is BmsRulesetConfigManager config
-                ? config.Get<int>(BmsRulesetSetting.KeysoundConcurrentChannels)
-                : BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS;
-
-            store.ConcurrentChannels = Math.Max(configured, converted_bgm_layer_min_channels);
+            var store = new BmsKeysoundStore
+            {
+                ConcurrentChannels = Math.Max(BmsKeysoundStore.DEFAULT_CONCURRENT_CHANNELS, converted_bgm_layer_min_channels),
+            };
 
             return store;
         }
 
         // The BGM autoplay layer must never have a long segment stolen by pool saturation (see Create remarks). Floored
-        // well above the measured dense-chart concurrent peak (~36); a higher user KeysoundConcurrentChannels still wins.
+        // well above the measured dense-chart concurrent peak (~36); the pool auto-grows further on demand.
         private const int converted_bgm_layer_min_channels = 128;
     }
 }

@@ -49,6 +49,55 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestFindAvailableFfmpegSkipsMissingAndReturnsExistingCandidate()
+        {
+            string present = Path.Combine(tempRoot, "ffmpeg.exe");
+            File.WriteAllText(present, "stub");
+
+            // A non-existent candidate is skipped; the first existing candidate is returned (mirrors transcode resolution).
+            string? found = BmsBgaVideoCache.FindAvailableFfmpeg(new[] { Path.Combine(tempRoot, "missing.exe"), present });
+
+            Assert.That(found, Is.EqualTo(present));
+        }
+
+        [Test]
+        public void TestTranscodeArgumentsSpecifyMp4MuxerForTmpOutput()
+        {
+            // Regression: the output temp path ends in ".mp4.tmp"; without an explicit "-f mp4" ffmpeg infers the
+            // container from the ".tmp" extension and fails the muxer ("Unable to choose an output format").
+            string[] args = BmsBgaVideoCache.BuildTranscodeArguments("in.mpg", "out.mp4.tmp", "libx264");
+
+            int formatIndex = Array.IndexOf(args, "-f");
+            int encoderIndex = Array.IndexOf(args, "-c:v");
+            int profileIndex = Array.IndexOf(args, "-profile:v");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(formatIndex, Is.GreaterThanOrEqualTo(0), "expected an explicit -f format flag");
+                Assert.That(args[formatIndex + 1], Is.EqualTo("mp4"));
+                Assert.That(args[encoderIndex + 1], Is.EqualTo("libx264"));
+                Assert.That(args[^1], Is.EqualTo("out.mp4.tmp"), "the output temp path must be the final argument");
+                // Regression: a default High-profile output failed to decode in-framework; baseline is required for libx264.
+                Assert.That(profileIndex, Is.GreaterThanOrEqualTo(0), "expected an explicit -profile:v for libx264");
+                Assert.That(args[profileIndex + 1], Is.EqualTo("baseline"));
+            });
+        }
+
+        [Test]
+        public void TestTranscodeArgumentsOmitH264ProfileForMpeg4Fallback()
+        {
+            // mpeg4 (the no-libx264 fallback) has no "baseline" profile; passing one would make ffmpeg reject the command.
+            string[] args = BmsBgaVideoCache.BuildTranscodeArguments("in.mpg", "out.mp4.tmp", "mpeg4");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(args, Does.Not.Contain("-profile:v"));
+                Assert.That(args[Array.IndexOf(args, "-c:v") + 1], Is.EqualTo("mpeg4"));
+                Assert.That(args[Array.IndexOf(args, "-f") + 1], Is.EqualTo("mp4"));
+            });
+        }
+
+        [Test]
         public void TestFriendlyFormatResolvesReadyAsIs()
         {
             var cache = new BmsBgaVideoCache(Path.Combine(tempRoot, "cache"), Array.Empty<string>(), (_, _, _) => false);

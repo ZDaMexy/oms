@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-06-22
+
+### BGA 转码设置改名「ffmpeg完整BGA支持」+ 新增「检测 ffmpeg 安装状态 / 打开 ffmpeg 安装目录」按钮
+
+用户要求：把「设置-游戏模式-BMS-转码无法解码的 BGA 视频」改名为 **「ffmpeg完整BGA支持」**，描述精简为「对老式BGA提供转码播放支持，需自行放置ffmpeg到数据目录」；并加两个功能按钮——**检测 ffmpeg 安装状态**、**打开 ffmpeg 安装目录**。
+
+- **改名 + 精简描述**：`BmsSettingsSubsection` 的该 `FormCheckBox` Caption/HintText 更新（绑定的 `BmsRulesetSetting.BgaVideoTranscode` 不变，仅展示层文案）。
+- **检测按钮**：新增 `BmsBgaVideoCache.FindAvailableFfmpeg(IReadOnlyList<string>? candidates)`（public static），**镜像运行时 `resolveFfmpeg` 的解析顺序**：先逐个候选文件存在性、再扫描系统 `PATH` 下 `ffmpeg.exe`/`ffmpeg`，返回解析到的路径或 null。设置面板点击后把结果写入一行状态文字（已检测到→显示路径；未检测到→提示放入数据目录或加 PATH）。候选列表与 `BmsBgaPlayer.setUpVideoCache` 一致＝`storage.GetFullPath("ffmpeg.exe")` + `AppContext.BaseDirectory/ffmpeg.exe`。
+- **打开目录按钮**：`host.OpenFileExternally(storage.GetFullPath(string.Empty) + Path.DirectorySeparatorChar)` 打开 OMS 数据目录（用户放 ffmpeg.exe 处；尾分隔符让宿主按文件夹打开，沿用 `FilesystemBeatmapLocation` 同一手法）。`BmsSettingsSubsection` 新 `[Resolved] Storage`/`[Resolved] GameHost`。
+
+**跟进修复（用户反馈：ffmpeg 已检测到，但 `flonne2_bga.mpg`（`#BMP01`）仍只显示静态图、beatoraja 能正常播放视频+miss BGA）**——诊断：转码失败 → `Resolve` 返回 `Unavailable` → 直开 `.mpg` faulted → 静态；且失败几乎无声（ffmpeg stderr 被读后**丢弃**、仅 `Debug` 记一句通用日志）。最可能根因＝用户的 `ffmpeg.exe` 是**精简/LGPL 版、缺 `libx264`**（转码硬编码 `-c:v libx264`）——beatoraja 用自带解码器，能播≠该 ffmpeg 有 libx264 编码器。三处治理：
+
+- **编码器回退（治本）**：`runFfmpeg` 拆成 `runFfmpegWithEncoder`，先试 `libx264`、失败（且 ffmpeg 非缺失）再试**内置恒有的 `mpeg4`（MPEG-4 Part 2）**。关键认知：框架打不开的是老式**容器**（MPEG-1 program stream），不是编码器——转到干净 `.mp4` 后任一框架可解码的编码器都行，故缺 libx264 也能转。
+- **失败可见化**：并发读 stdout/stderr（避免满缓冲死锁），非零退出/超时/异常时把 **ffmpeg exit code + stderr 末段** 记到 `LogLevel.Important`（runtime log 可见），从此「为何转码失败（如 Unknown encoder 'libx264'、No such file）」可诊断，不再静默退化静态图。
+- **检测“真实化”**（回应用户疑点 1“只查文件存在”）：新增 `BmsBgaVideoCache.ProbeFfmpeg(candidates)` —— 实际运行 `ffmpeg -hide_banner -encoders`，区分 `NotFound / NotExecutable / ReadyWithoutH264（缺 libx264，将回退 mpeg4） / Ready（含 libx264）`；「检测」按钮改走 `ProbeFfmpeg`（后台 `Task.Run` + `Schedule` 回填，`GetResultSafely`），状态行据此给具体结论。`FindAvailableFfmpeg` 保留供 Probe 内部用。
+- **测试/构建**：`BmsBgaVideoCacheTest` 新增 `TestFindAvailableFfmpegSkipsMissingAndReturnsExistingCandidate`（确定性候选解析）；编码器回退与 Probe 走真实进程、不在注入式单测覆盖内（既有注入 runner 用例不回归）。BMS 全量 **946/946**；代码编译 **0 错误**（osu.Desktop 拷贝因游戏运行锁定失败，非编译问题）。归属：主 `P1-L`（BGA 链路 / Phase 5.1 外部 ffmpeg 转码）。
+
+**二次跟进（实机日志定位真因——上面的 libx264 假设是错的）**：用户用新构建实机后给出 runtime log，真因明确＝**输出写到 `<hash>.mp4.tmp`，ffmpeg 按文件扩展名推断输出容器，`.tmp` 不是已知格式 → 选不出 muxer**：`Unable to choose an output format for '...mp4.tmp'; ... Error initializing the muxer ... Invalid argument`。libx264 **一直可用**（错误发生在输入分析之后的 muxer 阶段，libx264 与回退的 mpeg4 报同一错，证实是容器/扩展名、非编码器）。**真正的修复＝转码命令显式加 `-f mp4`**（`BmsBgaVideoCache.BuildTranscodeArguments` 抽出可测，args = `-y -hide_banner -i <src> -an -c:v <enc> -pix_fmt yuv420p -movflags +faststart -f mp4 <dst.tmp>`）。诊断日志改造（上一条）是定位此 bug 的关键——原本失败被静默吞掉。顺带**降噪**：每编码器的完整 ffmpeg stderr 改记 `Verbose`（文件日志、不刷通知），`startTranscode` 每个失败源只发**一条 `Important`** 摘要（用 `failedDestinations.TryAdd` 去重，重试不再重复弹）。编码器回退（libx264→mpeg4）作为非完整版 ffmpeg 的防御保留。新增确定性回归 `TestTranscodeArgumentsSpecifyMp4MuxerForTmpOutput`（断言 args 含 `-f mp4`、编码器、末位为输出 tmp）。BMS 全量 **947/947**；编译 0 错误。
+
+**三次跟进（`-f mp4` 后转码成功但视频全黑、runtime 日志暴涨到 3614 行）**：实机日志显示转码已成功产出 **H.264 mp4**（`-f mp4` 生效、不再报 muxer 错），但 osu!framework 的内置 FFmpeg **解不了**——先 D3D11VA 硬解 `Failed to send avcodec packet: Invalid data found (-1094995529)` → `Disabling hardware decoding` → 软解回退**仍每包失败**，0 帧 → 全黑；且每个失败包记一行（**3360/3614 行就是这个刷屏**，Verbose、仅日志文件无通知）。框架本身能放普通 H.264 mp4（2026-06-14 已验），故是**外部 ffmpeg 产出的码流对框架老版 FFmpeg/硬解路径不兼容**。修复＝把转码约束到**最广兼容的 H.264**：libx264 加 `-profile:v baseline`（无 B 帧/无 CABAC，HW 与老 SW 都稳解；High profile 默认输出在独立播放器正常、在框架内每包失败）、`-vf setpts=PTS-STARTPTS,setsar=1`（清掉老 .mpg ~0.44s 起始偏移避免 edit list + 方形像素）、`-map 0:v:0`（仅取视频流）。mpeg4 回退不加 profile（无 baseline 档）。**关键：旧的不可解码 .mp4 已缓存**——`Resolve` 命中 `File.Exists(destination)` 会直接返回旧坏文件、不重转，故 `cacheKey` 加 `transcode_version`（=2）随转码参数变更失效旧缓存、自动重转（旧文件成孤儿、可删 `<dataRoot>/bga-video-cache/` 回收）。回归 +1 `TestTranscodeArgumentsOmitH264ProfileForMpeg4Fallback`（mpeg4 不得带 `-profile:v`）+ 扩 `TestTranscodeArgumentsSpecifyMp4MuxerForTmpOutput`（断言 libx264 含 `-profile:v baseline`）。BMS 全量 **948/948**；编译 0 错误。
+
+**四次跟进（baseline 仍解不了 + runtime 暴涨到 47948 行；实机日志确诊）**：实机日志显示 **baseline H.264 也解不了**——`opened hardware video decoder ... codec h264` → 每包 `Failed to send avcodec packet: Invalid data` → 软解回退仍每包失败 → 0 帧。**3360/3614→现 47948 行**的刷屏有两源：① 解不了的 .mp4 持续被解码重试；② 转码失败时 `createVideo` 直开原始 `.mpg` 兜底，老式容器同样每包失败再刷屏。**结论：这不是编码 profile 问题（High/baseline 都失败），而是框架内置 FFmpeg/硬解路径对该转码产物不兼容**（框架能放普通 .mp4，2026-06-14 已验；`Video` 仅 `Video(string)/Video(Stream)` 两 ctor、`TargetHardwareVideoDecoders` 在内部 `VideoDecoder` 上、**无法按视频强制软解**，只有全局 `FrameworkSetting.HardwareVideoDecoder`）。本轮做**干净降级**（不再黑屏/不再刷屏/不再弹通知），解码真因留待硬解诊断：
+- **看门狗（`Video.FramesProcessed`）**：附着的视频过宽限期（1s）仍 0 帧 → 判为不可解码 → `dropFaultedVideo`（dispose 视频 → 停止解码线程 → **掐断每包刷屏**）→ 回退静态图。`isUndecodableVideo` + `activeVideoAttachTime`。
+- **静态优先于黑**：`FramesProcessed==0` 期间一律显示静态回退（不黑屏），帧出来（>0）才切视频；`applyActiveEntry` 视频态先 `showFallback()`。
+- **legacy 不再裸开**：`createVideo` 对 `RequiresTranscode` 源在转码不可用时直接回退静态、**不再 `new Video(.mpg)`**（消除 .mpg 每包刷屏源）。
+- **转码失败日志降级 Important→Verbose**（BGA 纯视觉、已优雅降级静态，不再弹通知打扰；去重保留）。
+
+BMS 全量 **948/948**；编译 0 错误。
+
+**五次跟进（真因确诊——前面所有假设都错了）**：用户给出 `h264 ... Error splitting the input into NAL units / Invalid NAL unit size (garbage > small)` + 提议查 ffmpeg。直接动手验证：① 用户 `D:\oms\data\ffmpeg.exe` ＝完整 gyan.dev 8.x 构建、含 libx264，**没问题**；② **用户自己的 ffmpeg 解不了缓存里的 .mp4**（`Invalid NAL unit size (0 > 25614)`）→ 文件本身就是**坏的**；③ 用同一组参数**全新转码一次**→**解码干净**（参数没问题）；④ **模拟两个 ffmpeg 并发写同一个 temp** → 复现出**一模一样的 `Invalid NAL unit size (0 > 25614)`**。**真因＝并发转码写同一个固定 temp 路径 `<hash>.mp4.tmp` 互相穿插污染**：转码 Task 在 BgaPlayer dispose 时不取消，用户退出/快速重放→新一局又对同一 temp 起第二个 ffmpeg→产物字节交错→不可解码。一旦坏文件落缓存，`Resolve` 命中 `File.Exists` 永远端出坏文件。**这同时解释了之前所有现象**（黑屏/静态/HW 失败/SW 失败/High vs baseline 都一样）——根本不是 profile/HW/demux，是文件被并发写坏了。**修复**：① temp 文件名加 `Guid`（`<hash>.<guid>.tmp`）——并发也各写各的、永不穿插；② `inProgress` 改 **static**（跨 cache 实例去重，孤儿/重放不再起第二个 ffmpeg）；③ 发布用 `File.Move(tmp,dest,overwrite:true)` 原子覆盖；④ `transcode_version`→**3** 失效旧坏缓存自动重转。BMS 全量 **948/948**。**实机验收待用户确认（干净构建+清 `bga-video-cache/`+重放，视频应真正播放）。教训：缓存产物损坏会被 `File.Exists` 永久端出、把每次诊断引偏——先验证缓存文件本身是否可解码（用产出它的同一 ffmpeg 解一遍）再怀疑解码端。**
+
 ## 2026-06-20
 
 ### BGA 默认摆位：14K 镜像到屏幕**四角**（用户实机三连改之三 + 一次返工修正）

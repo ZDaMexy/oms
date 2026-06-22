@@ -1,5 +1,17 @@
 # P1-I 变动日志
 
+## 2026-06-22（其五）：BMS 模式选曲星级 → IIDX 难度等级胶囊（标签＋#PLAYLEVEL、按 #DIFFICULTY 上色）
+
+用户要求：BMS 模式下 BMS 谱面的选曲「星级」早就只反馈谱师标级（不算真实星）、不应再用星级形态展示。改为保留原圆角胶囊背景，显示「难度标签 等级」（如 `NORMAL 7`），去掉小数（`.00`），难度色不再用原星级光谱、改用 IIDX 配色。仅针对 BMS 模式下的 BMS 谱面（转谱-mania 视图保留真实转谱星级）。对齐结论：未定义难度＝`UNKNOWN ＋等级`；等级用**原始 #PLAYLEVEL 文本**；其它星形元素（小星星 starCounter、分布点 SpreadDisplay）**全部保持现状**。
+
+- **数据源（已就绪、零碰解析层、零重导）**：`#DIFFICULTY`→`HeaderDifficulty`(int?)、`#PLAYLEVEL`→`PlayLevel`(string) 在导入时由 `BmsBeatmapDecoder` 解析、随 chart metadata 持久化；osu.Game 侧 `BmsPersistedMetadataResolver.GetChartMetadata` 直接可读（`GetDisplayDifficultyName` 早已在用 HeaderDifficulty，实库可靠）。
+- **文案**：新增 `BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyLevel`（标签大写 IIDX：UNKNOWN/BEGINNER/NORMAL/HYPER/ANOTHER/INSANE + 原始 PlayLevel verbatim；无 playlevel 时仅标签）+ `GetBmsDifficultyTier`（1–5 或 0=unknown）。新增大写标签 helper `getBmsIidxDifficultyLabel`（区别于既有 title-case 且未定义返回 null 的 `getBmsHeaderDifficultyLabel`——胶囊永远要有标签）。display-only，不动存库字段/MD5。
+- **配色**：`OsuColour.ForBmsDifficultyLevel(tier)`＝白/绿`#2fb24c`/蓝`#2e8be6`/黄`#f4c20d`/红`#e53935`/紫`#9c44d6`；`ForBmsDifficultyLevelText(tier)`＝浅底(0/3)深字、其余白字。
+- **组件**：新增 `BmsDifficultyLevelDisplay`（`Beatmaps/Drawables/`，镜像 `StarRatingDisplay` 圆角胶囊形、去星标、无动画，暴露 `DisplayedDifficultyColour/TextColour`）。
+- **三处挂载（alpha 互斥、不动强调色链路）**：`PanelBeatmap` / `PanelBeatmapStandalone` / `BeatmapTitleWedge.DifficultyDisplay` 各把新胶囊与原 `StarRatingDisplay` 并存、按「ruleset=bms 且 beatmap=bms」alpha 0/1 互斥切换（alpha 0 不占 FillFlow/AutoSize 位）。**原星级胶囊保持存活(alpha 0)**继续被难度缓存喂色 → 面板 tint/三角、`starCounter`、`SpreadDisplay`(含 current 点) 全部保持现状（光谱色）。wedge 难度名取色 BMS 时随新胶囊 IIDX 色、非 BMS 保留原光谱逻辑。
+- **加载界面同步（用户追加，2026-06-22 同日）**：点击开始后的加载页（`PlayerLoader` 的 `BeatmapMetadataDisplay`）此前难度名仍显存库 `Another 11`、星级仍是旧 `★ 11.00`，与选曲新行为不一致。修：标题改 `GetDisplayTitle/Unicode`（剥 BMS 标题尾括号，免 `[SP ANOTHER]`＋`SP ANOTHER` 重复）、难度名改 `GetDisplayDifficultyName`（→`SP ANOTHER`）、星级换 `BmsDifficultyLevelDisplay`（门控＝play ruleset[`[Resolved] IBindable<RulesetInfo>`]＝bms 且 beatmap＝bms；转谱-mania 保留真实转谱星级，因 `GetBindableDifficulty(beatmapInfo)` 无 ruleset 参本就用 cache `currentRuleset`＝全局 play ruleset）。该组件原本就已对 artist/creator 走 resolver，本次补齐 title/difficulty/star。**不动中央 `GetDisplayTitleRomanisable`**（仍服务 now-playing/results）。
+- **回归**：`BmsLocalMetadataDisplayResolverTest` 14/14（+5 新：标签＋等级 / UNKNOWN(null 与 0) / 原始 playlevel verbatim / 仅标签 / 非 BMS 空）；`osu.Desktop.slnf` Release **0 错误**。沉淀 TECHNICAL_CONSTRAINTS #22。归属：主 `P1-I`（选曲展示面）；取数依赖 `P1-K`/`P1-H` 已持久化的 chart metadata。**实机验收：选曲胶囊用户已确认「符合预期」；加载界面待用户确认。**
+
 ## 2026-06-22（其四）：mania 选曲新增「难度表」分组（只显示 BMS 转谱 + 空结果指导）
 
 用户要求：给 mania 选曲分组下拉新增「难度表」分组，行为同 BMS 模式难度表分组，但**只显示 BMS 转谱**（排除原生 mania）；若因转谱被禁用、或没有 BMS 谱面导致结果为空，给针对性指导说明。

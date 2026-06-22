@@ -210,6 +210,12 @@ namespace osu.Game.Rulesets.Bms.UI
                     }
                 }
 
+                // A legacy container that REQUIRES transcoding but has no playable transcode (no ffmpeg / failed / off):
+                // never raw-open it. The framework can't decode it (that's why it needs transcoding) and a raw open would
+                // fail every packet, spamming the log and showing black. Fall back to the static image instead.
+                if (BmsBgaVideoCache.RequiresTranscode(assetFile))
+                    return (null, false);
+
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                     return (configureVideo(new Video(path, startAtCurrentTime: false)), false);
 
@@ -299,6 +305,13 @@ namespace osu.Game.Rulesets.Bms.UI
             // How often a pending (transcoding) video is re-checked so it can hot-swap in mid-play once ready.
             private const double video_retry_interval = 1000;
 
+            // How long an attached video may run without decoding a single frame before it is treated as undecodable
+            // and dropped (some transcodes open but fail every packet in the framework's decoder — see BmsBgaVideoCache).
+            // Dropping disposes the video, which stops the per-packet decode-error log spam and keeps the static fallback.
+            // Kept short so a non-decodable video is reclaimed quickly (a working decoder produces its first frame well
+            // within this window); the static image is shown throughout, so there is no black gap during the wait.
+            private const double video_decode_grace = 1000;
+
             private readonly BmsBgaTimelineEntry[] entries;
             private readonly Sprite imageSprite;
             private readonly Dictionary<string, Video?> videosByFile = new Dictionary<string, Video?>();
@@ -309,6 +322,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             private int activeIndex = -1;
             private Video? activeVideo;
+            private double activeVideoAttachTime;
             private double lastVideoRetryTime;
 
             public BmsBgaLayerDisplay(BmsBgaTimelineEntry[] entries)
@@ -366,24 +380,36 @@ namespace osu.Game.Rulesets.Bms.UI
                     {
                         lastVideoRetryTime = time;
                         tryAttachVideo(entry);
-
-                        if (activeVideo != null)
-                            imageSprite.Alpha = 0;
                     }
                 }
-                else if (activeVideo.IsFaulted)
+                else if (activeVideo.IsFaulted || isUndecodableVideo(time))
                 {
-                    // The video can't decode (e.g. a legacy container with no transcode available): drop it for good
+                    // The video can't decode (a legacy container with no transcode, or a transcode the framework's
+                    // decoder rejects every packet of): drop it for good (disposing it stops the decode-error spam)
                     // and show the static fallback instead of a black panel.
                     dropFaultedVideo(entry.AssetFile);
                     showFallback();
                 }
-                else
+                else if (activeVideo.FramesProcessed > 0)
                 {
+                    // Actually decoding: reveal the video (synced to the gameplay clock) and hide the static fallback.
                     imageSprite.Alpha = 0;
                     activeVideo.PlaybackPosition = time - entry.StartTime;
                 }
+                else
+                {
+                    // Attached but no frame decoded yet (startup, or a transcode that just hot-swapped in): keep the
+                    // static fallback visible (never a black gap) and advance the clock; the grace check above reclaims
+                    // it if frames never come.
+                    activeVideo.PlaybackPosition = time - entry.StartTime;
+                    showFallback();
+                }
             }
+
+            // True when an attached video has run past the grace period without decoding a single frame — i.e. it opened
+            // but the framework's decoder can't actually decode it (it never faults, it just fails every packet).
+            private bool isUndecodableVideo(double time)
+                => activeVideo != null && activeVideo.FramesProcessed == 0 && time - activeVideoAttachTime > video_decode_grace;
 
             private void applyActiveEntry()
             {
@@ -399,13 +425,13 @@ namespace osu.Game.Rulesets.Bms.UI
 
                 if (entry.IsVideo)
                 {
-                    imageSprite.Alpha = 0;
                     lastVideoRetryTime = Time.Current;
                     tryAttachVideo(entry);
 
-                    // Nothing to play yet (pending / unavailable): show the static fallback as a placeholder.
-                    if (activeVideo == null)
-                        showFallback();
+                    // Show the static fallback as a placeholder until the video actually produces a frame (Update reveals
+                    // the video once FramesProcessed > 0). Covers pending / unavailable AND a Ready video still spinning
+                    // up its decoder, so there is never a black gap.
+                    showFallback();
                 }
                 else
                 {
@@ -422,6 +448,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     hideActiveVideo();
                     activeVideo = video;
+
+                    if (activeVideo != null)
+                        activeVideoAttachTime = Time.Current;
                 }
 
                 if (activeVideo != null)
