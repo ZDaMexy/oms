@@ -32,7 +32,7 @@ namespace osu.Game.Screens.Play
         private readonly IWorkingBeatmap beatmap;
         private readonly Bindable<IReadOnlyList<Mod>> mods;
         private readonly Drawable logoFacade;
-        private LoadingSpinner loading;
+        private VisibilityContainer loading;
 
         public IBindable<IReadOnlyList<Mod>> Mods => mods;
 
@@ -80,6 +80,12 @@ namespace osu.Game.Screens.Play
 
             // BMS mode shows the IIDX difficulty-level pill instead of the numeric star rating (converted-mania keeps the star).
             useBmsLevel = ruleset.Value?.ShortName == "bms" && beatmapInfo.Ruleset.ShortName == "bms";
+
+            // BMS mode also replaces the dim + spinner loading indicator with a scanline that brightens the thumbnail
+            // left→right (progress-driven by the BGA transcode when one is running, else an indeterminate ping-pong).
+            loading = useBmsLevel
+                ? new ScanlineLoadingLayer()
+                : new LoadingLayer(dimBackground: true) { BlockPositionalInput = false };
 
             AutoSizeAxes = Axes.Both;
             Children = new Drawable[]
@@ -130,10 +136,7 @@ namespace osu.Game.Screens.Play
                                     Anchor = Anchor.Centre,
                                     FillMode = FillMode.Fill,
                                 },
-                                loading = new LoadingLayer(dimBackground: true)
-                                {
-                                    BlockPositionalInput = false,
-                                }
+                                loading
                             }
                         },
                         versionFlow = new FillFlowContainer

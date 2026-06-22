@@ -105,6 +105,11 @@ namespace osu.Game.Screens.Play
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Purple);
 
+        // Shared with the async-loaded player subtree (e.g. the BMS BGA transcode) so a slow load step can report
+        // determinate progress to the metadata display's loading indicator. Reset at the start of each load.
+        [Cached]
+        private readonly GameplayLoadProgress loadProgress = new GameplayLoadProgress();
+
         private const double quick_restart_initial_delay = 500;
 
         protected bool BackgroundBrightnessReduction
@@ -532,6 +537,8 @@ namespace osu.Game.Screens.Play
         {
             if (!this.IsCurrentScreen())
                 return;
+
+            loadProgress.Reset();
 
             CurrentPlayer = createPlayer();
             CurrentPlayer.Configuration.AutomaticallySkipIntro |= QuickRestart;

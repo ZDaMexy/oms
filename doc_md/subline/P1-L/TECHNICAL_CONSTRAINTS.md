@@ -1,6 +1,6 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-06-15
+> 最后更新：2026-06-23
 > 本文件记录 `P1-L` 的硬约束。若实现与本文冲突，先修正其一再继续开发。完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 红线（最高优先级，贯穿全线）
@@ -52,8 +52,22 @@
 2. **仅转码框架打不开的格式**：老式集合 `{.mpg,.mpeg,.avi,.wmv,.flv,.m1v,.m2v,.mkv}`；框架友好集合 `{.mp4,.m4v,.mov,.webm}` 一律直开不转码（不得无谓转码已能播的视频）。
 3. **缓存正确性**：输出落 `<dataRoot>/bga-video-cache/`，文件名键 = `SHA1(源绝对路径|size|mtime)`（源变即重转）；**先写 `<dst>.tmp` 再原子改名**，`File.Exists(dst)` 必须只在文件完整时为真；转码失败必须清掉 .tmp、不得发布半成品。
 4. **不阻塞游玩**：转码走后台 `Task.Run` + 按目标去重；游玩线程只做 `File.Exists`/状态查询与节流（~1s）重试热替换，**不得**在 update 线程同步转码或每帧打盘。
-5. **视频-only**：转码命令必须 `-an`（BGA 不带音轨，音频是谱面键音）；编码到 H.264/yuv420p/mp4（框架确定能解）。
-6. 缓存无大小上限属已知后续项（v1 不做清理），不得因此把缓存写进谱面文件夹或 hash-backed `files/` store。
+5. **视频-only**：转码命令必须 `-an`（BGA 不带音轨，音频是谱面键音）；编码到 H.264/yuv420p/mp4（框架确定能解）。**改任何转码参数（`BuildTranscodeArguments`）必须 bump `transcode_version`**——否则 `Resolve` 命中 `File.Exists` 会把旧参数产出的（可能不可解码）缓存当成功端出（2026-06-22 惨案的反复教训）。
+6. 缓存治理见 **Phase 5.2**（已由「无清理」升级为会话级清空）；缓存仍只落 `<dataRoot>/bga-video-cache/`，不得写进谱面文件夹或 hash-backed `files/` store。
+
+## Phase 5.2（转码加载体验与缓存治理）约束 —— R1/R2/R3/R4 已落地（2026-06-23），须守
+
+1. **会话级缓存（R2/R3，用户拍板）**：转码产物每会话内持久（会话内重进同图即时命中），但**不得跨会话累积**。实现＝`BmsBgaVideoCache.ClearSessionCacheOnce` 每进程**一次性清空** `bga-video-cache/`；**必须在本会话任何转码启动之前**清（取"启动期清"而非"退出清"，崩溃也保证下次启动干净）。清空走 `lock` + `sessionCacheCleared` 守卫——第二个调用方等第一个清完再继续，**绝不可在清空与新转码之间留竞态**（否则重蹈并发写坏文件）。清空只删 `bga-video-cache/` 内文件，best-effort、不抛。
+2. **加载等转码（R1）**：转码预热+等待由专用 `BmsBgaVideoPreloader` 负责，它**必须直接挂在 `DrawableBmsRuleset.Overlays`、不得塞进皮肤化的 `BmsBgaPanel` 内**——因为只有直接挂在被 `LoadComponentAsync` 等待的子树上，阻塞它的后台 `load()` 才能真正推迟 player push、让 BGA 开局即播；塞进 `SkinnableDrawable` 则其内容可能异步加载、不阻塞 push。
+3. **等待必须有上限且可回退（R1 安全网）**：`PrewarmAndWait` 的 cap（当前 8s）是硬上限；**超时必须放行**，回落到 Phase 5.1 既有的"静态→后台转好热替换"路径，使本特性**严格只增不减**（命中/快转→开局播；慢转/失败→等价于今天）。不得移除 cap 让加载无限等待；preloader dispose 必须 cancel 等待。
+4. **转码任务跨实例去重（不得乘以并发数）**：`inProgress` 必须 **static** 且值为 `Lazy<Task>`——preloader 与（14K 的 4 个）`BmsBgaPlayer` 对同一产物只 join **同一个**后台转码 Task，总耗时≈一次转码；`Lazy` 保证 `Task.Run` 副作用每产物只触发一次。唯一 temp（`<hash>.<guid>.tmp`）+ 原子 `File.Move(overwrite)` 仍是并发安全的基线，不得回退。
+5. **提速仅用 libx264 `-preset ultrafast`（R4，用户拍板"安全优先"）**：仍 `-profile:v baseline`/yuv420p、不动可解码性；mpeg4 回退分支不得带 `-preset`/`-profile:v`。**硬件编码器（`h264_nvenc` 等）显式不纳入**——产出码流对框架挑剔的内置 FFmpeg 有兼容风险（黑屏惨案底色）、跨机/驱动不确定；若未来要加须 opt-in + 可用性探测 + 失败回退 + 实测可解码 + bump version。
+6. **R5（加载扫描线进度揭示）已落地（2026-06-23）**，须守：
+   - **仅 BMS**：`BeatmapMetadataDisplay` 的扫描线（`ScanlineLoadingLayer`）必须门控在现成的 `ruleset==bms` 条件（与难度胶囊同一门控）；**非 BMS 必须保留原 `LoadingLayer`（dim+spinner）**，不得改坏 mania/其它加载观感。
+   - **优雅降级**：扫描线在**无真实进度时必须乒乓（indeterminate）**、有进度时按 % 揭示；即使进度通道全程沉默，观感也要成立（不得依赖进度才工作）。
+   - **进度通道线程安全 + 跨 DI**：`GameplayLoadProgress` 由 `PlayerLoader` `[Cached]`（这样它的子 `BeatmapMetadataDisplay` 与 `LoadComponentAsync` 异步加载的 player 子树解析到同一实例——是 BMS 侧 `BmsBgaVideoPreloader` 能把进度送到加载界面的**唯一**桥）；写在转码后台线程、读在 update 线程，必须线程安全（`lock`），消费方一律 `CanBeNull`（隔离测试/非 PlayerLoader 路径下为 null）。`PlayerLoader` 每次加载前 `Reset`。
+   - **ffmpeg 进度解析只在真实路径**：逐行流式读 stderr 解析 `Duration:`+`time=`，**不得**破坏注入式 runner 测试（注入 runner 不产进度，扫描线退乒乓）；改 stderr 读取方式不得回到一次性 `ReadToEnd` 而丢失实时性，也不得阻塞/死锁（stdout 仍并发 drain）。
+   - **纯视觉**：扫描线/进度通道不得影响判定/计分/加载成败语义；它只是加载指示。
 
 ## 测试与发布约束
 

@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-06-23
+
+### Phase 5.2：BGA 转码加载体验与缓存治理（R1 开局即播 / R2·R3 会话级缓存 / R4 ultrafast 提速 / R5 扫描线进度揭示）
+
+承接 2026-06-22「老式 `.mpg` BGA 可播」的用户确认。Phase 5.1 仍是**首播先静态、~十多秒后台转好才热替换**，且 `bga-video-cache/` 无清理长期累积。本轮按对齐结论落地全部 5 项需求（R1–R5；R5 进度 UI 用户随后以截图给出方向＝缩略图扫描线）。**设计对齐**：缓存＝会话级清空（用户选②）、提速＝仅 libx264 ultrafast（用户选"安全优先"、不纳 NVENC）、加载＝硬等转码但有 cap 超时回退静态、进度 UI＝仅 BMS 的扫描线（进度驱动 + 乒乓兜底）。
+
+- **R1 开局即播（加载等转码）**：新增 [BmsBgaVideoPreloader](../../../osu.Game.Rulesets.Bms/UI/BmsBgaVideoPreloader.cs)（`Component`），由 [DrawableBmsRuleset.setupBgaPanel](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsRuleset.cs) **直接挂进 `Overlays`（不进皮肤化的 `BmsBgaPanel`）**。其后台 `load()` 阻塞预热+等待——因为它在 `LoadComponentAsync(player)` 等待的子树上，阻塞它就推迟 player push（`PlayerLoader.readyForPush` 依赖 `CurrentPlayer.LoadState==Ready`），转码在第一帧前完成 → BGA 开局即播。**关键认知**：预热端与播放端共享的是**磁盘目录**不是实例（键 `SHA1(源|size|mtime|v4)`），preloader 转好落盘后 `BmsBgaPlayer` 加载时 `File.Exists` 直接 Ready；故 player 端**零改动地享受**（仅删掉它原来的 fire-and-forget 预热 loop，cache 仍按 play-time `Resolve` 用）。**安全网**：`PrewarmAndWait` cap 8s，超时放行 → 回落 Phase 5.1 的"静态→后台热替换"，**严格只增不减**；preloader dispose 时 cancel。
+- **R2/R3 会话级缓存**：新增 `BmsBgaVideoCache.ClearSessionCacheOnce`（`lock` + `sessionCacheCleared` 每进程一次性清空 `bga-video-cache/`，取"启动期清"＝崩溃也保证下次干净），由 preloader 在**任何转码启动之前**调用（它是会话内唯一的 pre-gameplay 转码发起者，故清空绝不与写入竞态）。会话内重进同图仍命中缓存即时；跨会话不累积。清空逻辑抽 `ClearCacheDirectory`（无守卫、可单测）。
+- **R4 ultrafast 提速**：`BuildTranscodeArguments` 的 libx264 分支加 `-preset ultrafast`（mpeg4 回退分支不带），仍 `-profile:v baseline`/yuv420p **不动可解码性**，预计 2–4× 提速。**硬件编码器（NVENC）按用户选择不纳入**（框架内置 FFmpeg 挑剔解码 + 跨机不确定）。`transcode_version` 3→**4** 失效旧缓存自动重转。
+- **转码 Task 可 join + 跨实例去重**：`inProgress` 由 `ConcurrentDictionary<string,byte>` 改 `<string,Lazy<Task>>`，`startTranscode` 返回可 await 的 Task（`Lazy` 保证 `Task.Run` 每产物只触发一次）；14K 的 4 个 player + preloader 对同一产物 join **同一** Task，总耗时≈一次转码。唯一 Guid temp + 原子 `File.Move(overwrite)` 基线保留。新 `Prewarm`（返回 Task 或 null）/`PrewarmAndWait`（`Task.WaitAll(tasks, cap, ct)`，吞 timeout/cancel/aggregate）。
+- **R5 扫描线进度揭示（替代 dim+转圈，用户截图给的方向）**：缩略图加载指示从「暗覆盖 + 中心转圈」换成**从左到右把初始暗覆盖扫亮的扫描线**。新 [ScanlineLoadingLayer](../../../osu.Game/Screens/Play/ScanlineLoadingLayer.cs)（`VisibilityContainer`）：底层亮 `Sprite` 不动，暗 `Box` 锚右、相对宽 `1-reveal` 随揭示收缩，亮扫描线（加色 + Glow）骑在 `reveal` 边缘；**有真实转码进度时按 % 一路揭示，无进度时乒乓（L→R 扫亮 / R→L 回暗）循环**（用户两个选择的自然合一）；`Show`→淡入起扫，`Hide`→最后一次扫满 + 整体淡出（正好接「图2」全亮态）。**作用范围＝仅 BMS**（复用 `BeatmapMetadataDisplay` 现成 `ruleset==bms` 门控，非 BMS 保留原 `LoadingLayer`）。**真实进度桥接**：新 [GameplayLoadProgress](../../../osu.Game/Screens/Play/GameplayLoadProgress.cs)（线程安全 `lock`，任意线程写、update 线程读）`[Cached]` 在 [PlayerLoader](../../../osu.Game/Screens/Play/PlayerLoader.cs)——既被其子 `BeatmapMetadataDisplay`（扫描线读）、又被 `LoadComponentAsync` 异步加载的 player 子树（`BmsBgaVideoPreloader` 写）解析到**同一实例**（跨 DI 作用域的关键）；`PlayerLoader.prepareNewPlayer` 每次加载前 `Reset`。**ffmpeg 实时进度**：`BmsBgaVideoCache` 转码委托加 `Action<double>? onProgress`，`runFfmpegWithEncoder` 改**逐行流式读 stderr**（解析一次性 `Duration:` 总时长 + 反复的 `time=`→`[0,1]`），`PrewarmAndWait` 跨多源取**均值**转发；preloader 把均值 `loadProgress.Report`。新静态 `TryParseFfmpegProgressLine`（可测）。**优雅降级**：无进度→乒乓（即用户要的兜底），故扫描线观感与转码是否真有进度无关。
+- **测试/构建**：`BmsBgaVideoCacheTest` +6（`TestPrewarmAndWaitBlocksUntilTranscodeCompletes`＝等到完成后即 Ready / `TestPrewarmAndWaitReturnsAtCapWhenTranscodeIsSlow`＝慢转不超 cap / `TestPrewarmAndWaitDoesNotWaitForFriendlyOrCachedSources` / `TestClearCacheDirectoryDeletesAllFiles` / `TestParseFfmpegProgress*` ×2）+ 扩 `-preset ultrafast` 断言 + 注入 runner 改 4 参（带 onProgress）；不依赖真 ffmpeg。BMS 全量 **954/954**；`osu.Desktop.slnf` Release **0 错误**（生产代码 0 新增警告，2 个既有 test 警告未动）。**2026-06-23 用户实机初步未见异常**（开局即播 / 会话内重进即时 / 跨会话不留存 / 转码更快 / 扫描线观感 + 进度跟随）；逐谱视觉细验仍待办。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) Phase 5.2。
+
 ## 2026-06-22
 
 ### BGA 转码设置改名「ffmpeg完整BGA支持」+ 新增「检测 ffmpeg 安装状态 / 打开 ffmpeg 安装目录」按钮

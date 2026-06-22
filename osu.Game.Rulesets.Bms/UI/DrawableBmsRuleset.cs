@@ -162,6 +162,11 @@ namespace osu.Game.Rulesets.Bms.UI
             bgaPanel = new BmsBgaPanel(bmsBeatmap.BgaTimeline, bmsBeatmap.PoorBgaMode);
             Overlays.Add(bgaPanel);
 
+            // Transcode legacy BGA videos during loading so the BGA plays from the first frame (P1-L Phase 5.2 R1).
+            // Mounted directly here (not inside the skinnable panel) so its blocking background load is part of the
+            // tree the player push awaits; it self-gates (no-op without legacy video / with transcoding disabled).
+            Overlays.Add(new BmsBgaVideoPreloader(bmsBeatmap.BgaTimeline));
+
             Config.BindWith(BmsRulesetSetting.PlayfieldStyle, bgaPlayfieldStyle);
             bgaPlayfieldStyle.BindValueChanged(_ => updateBgaPlacement(), true);
 

@@ -1,6 +1,6 @@
 # P1-L 开发计划：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-06-15
+> 最后更新：2026-06-23
 > 全局计划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。完整可行性与架构分析见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)（本子线由该分析升级而来）。
 > **红线（最高优先级）：任何阶段都不得改坏 OMS 正常游玩链路（mania 风格前进式滚动判定）。演出渲染只能作为可隔离、可关闭的旁路。**
 
@@ -68,15 +68,14 @@ DEAD SOUL [Revive] 的所有效果是**定格动画（stop-motion）**：132 万
 - `BgaVideoTranscode` 开关（默认开）+ 设置项；`BmsBgaPlayer` 预热转码 + Pending 节流重试 + 本场热替换；faulted 永久标记不重试。
 - 验收：单测 `BmsBgaVideoCacheTest` 全绿 + BMS 全套绿 + Release 0 错。**实机端到端 2026-06-22 用户确认老 `.mpg` BGA 可正常播放 ✅**（经一长串误判后真因＝**并发转码写同一固定 temp 互相穿插污染产物**、坏文件被 `File.Exists` 永久端出；修＝temp 加 Guid + `inProgress` 改 static 跨实例去重 + 原子 overwrite move + `transcode_version`→3，详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-22 五次跟进）。
 
-### Phase 5.2 — BGA 转码加载体验与缓存治理（🔜 规划中，2026-06-22 提出，未实现）
-> Phase 5.1 转码可播后，用户提出 4 项体验/治理需求。**下一次协作专项规划实现。** 注意彼此存在设计张力，需统一方案。
+### Phase 5.2 — BGA 转码加载体验与缓存治理（R1–R5 ✅ 已落地 2026-06-23，用户实机初步未见异常，逐谱视觉细验待办）
+> Phase 5.1 转码可播后用户提出 4 项体验/治理需求 + R5 进度显示，2026-06-23 按对齐结论全部落地（用户实机初步未见异常，逐谱视觉细验待办）。详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-23、约束 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) Phase 5.2。
 
-- **R1 一进游戏即播**：当前首次进入先静态、~十多秒后才切视频（转码在后台跑、加载阶段不等待）；重进可直接播（命中缓存）。目标＝转码纳入/前移到加载阶段、加载等待转码完毕后再进入游玩，使 BGA 从开局即播。
-- **R2 缓存治理（避免冗余占用）**：当前转码产物落 `<dataRoot>/bga-video-cache/`（键 `SHA1(源|size|mtime|v{ver})`），**无大小上限/无清理**（Phase 5.1 已知遗留）；长期累积冗余、额外储存占用，不希望。
-- **R3 张力点**：R1（加载等转码）与「不希望持久缓存」冲突——若不持久缓存则每次进图都要等完整转码（更慢）。需统一决策：① 有界缓存（LRU/总量上限/TTL/退出清理）＋加载等待，还是 ② 会话级/内存级缓存＋加载等待＋**显著加快转码**。
-- **R4 转码提速**：~十多秒偏长。稳定提速手段候选：`-preset ultrafast`/`-tune fastdecode`、`-threads`、硬件编码器（`h264_nvenc`/`h264_amf`/`h264_qsv`，用户机有 NVENC——但需权衡可用性探测与跨机兼容）、只在加载期转码并行化等。需实测下落到可接受加载时长。
-- **R5 加载阶段进度显示**：当前加载阶段无任何视觉指示（进度条/百分比）；谱面大或 BGA 转码久→加载久→产品观感差。目标＝为加载阶段（含 BGA 转码进度）加进度/百分比/状态提示。ffmpeg 可解析 `-progress`/stderr 的 `frame=/time=` 推总进度（需总时长）。
-- **开放设计问题（下次先对齐）**：缓存策略（持久有界 vs 会话级 vs 不缓存）；加载是否硬等转码（超时回退静态？）；进度 UI 落点（PlayerLoader 扩展 vs BMS 专属）；硬件编码器是否纳入（可用性探测 + 失败回退 libx264）。
+- **R1 一进游戏即播（✅）**：新增 `BmsBgaVideoPreloader` 直接挂 `DrawableBmsRuleset.Overlays`，其后台 `load()` 阻塞预热+等待 → 推迟 player push 到转码完成 → BGA 开局即播。预热端/播放端共享磁盘目录（非实例），player 加载时 `File.Exists` 命中即 Ready。cap 8s 超时回落 Phase 5.1 静态→热替换（只增不减）。
+- **R2/R3 会话级缓存（✅，用户选②）**：`ClearSessionCacheOnce` 每进程一次性清空 `bga-video-cache/`（启动期清、转码前清、`lock` 防竞态）；会话内重进即时命中、跨会话不累积。
+- **R4 转码提速（✅，用户选"安全优先"）**：libx264 加 `-preset ultrafast`（不动 baseline 可解码性），`transcode_version`→4 失效旧缓存。**硬件编码器（NVENC）不纳入**（框架解码兼容风险 + 跨机不确定）。
+- **R5 加载阶段进度显示（✅，用户截图给的方向＝扫描线）**：缩略图加载指示改成**从左到右把暗覆盖扫亮的扫描线**（替代 dim+转圈）。新 `ScanlineLoadingLayer`，**仅 BMS** 门控；**有真实转码进度时按 % 揭示、无进度时乒乓循环**（用户两选自然合一）。进度跨 DI 桥＝`GameplayLoadProgress`（`[Cached]` 于 `PlayerLoader`，被其子 `BeatmapMetadataDisplay` 与异步加载的 player 子树共享）；`BmsBgaVideoCache` 逐行解析 ffmpeg stderr `Duration:`+`time=` 推进度。
+- **开放设计问题（已对齐结论）**：缓存策略＝**会话级清空**（非持久有界、非不缓存）；加载＝**硬等转码 + cap 超时回退静态**；硬件编码器＝**不纳入**（仅 ultrafast libx264）；进度 UI 落点＝**加载界面缩略图扫描线**（仅 BMS，进度驱动 + 乒乓兜底）。
 
 ## 验证顺序（每阶段强制）
 1. 先 focused 单测（如 Phase 1 的 converter 地雷构建 + 不泄漏判定路径）。

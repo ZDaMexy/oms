@@ -75,8 +75,8 @@
 | Phase 1 完成率 | 70.6% (12/17) | 仅按标记"已完成"项计算 |
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
-| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -p:Configuration=Release` 0 警告 0 错误（2026-06-15） |
-| BMS 全量测试 | **946/946** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-06-15，含 BGA Phase 5/5.1 共 30 项 + 判定 parity 契约 29 项） |
+| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -p:Configuration=Release` 0 错误（生产代码 0 警告）（2026-06-23） |
+| BMS 全量测试 | **954/954** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-06-23，含 BGA Phase 5/5.1/5.2 + 判定 parity 契约 29 项） |
 | Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
 | BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
 | Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`（2026-04-25） |

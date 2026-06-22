@@ -114,8 +114,10 @@ namespace osu.Game.Rulesets.Bms.UI
             poorLayer.SetResolvers(getTexture, createVideo, null);
         }
 
-        // Builds the external-ffmpeg transcode cache (P1-L Phase 5.1) and prewarms transcodes for legacy video assets
-        // so they have a chance to finish before their event fires (the 5s pre-start gives extra lead time).
+        // Builds the external-ffmpeg transcode cache (P1-L Phase 5.1) used to resolve legacy BGA videos at play time.
+        // The prewarm + load-time wait (so the transcode is ready before the first frame) and the session-level cache
+        // wipe are owned by BmsBgaVideoPreloader (P1-L Phase 5.2); by gameplay time the transcode is already on disk and
+        // a Resolve here is an immediate cache hit. (On a wait timeout the per-event Resolve still kicks / joins it.)
         private void setUpVideoCache(BmsRulesetConfigManager config)
         {
             bool transcodeEnabled = config.GetBindable<bool>(BmsRulesetSetting.BgaVideoTranscode).Value;
@@ -130,17 +132,6 @@ namespace osu.Game.Rulesets.Bms.UI
             };
 
             videoCache = new BmsBgaVideoCache(storage.GetFullPath("bga-video-cache"), ffmpegCandidates);
-
-            foreach (string asset in timeline.Where(entry => entry.IsVideo).Select(entry => entry.AssetFile).Distinct())
-            {
-                if (!BmsBgaVideoCache.RequiresTranscode(asset))
-                    continue;
-
-                string? source = tryGetAbsolutePath(asset);
-
-                if (source != null)
-                    videoCache.Resolve(source);
-            }
         }
 
         /// <summary>Flags a miss so the poor BGA layer flashes per <see cref="BmsPoorBgaMode"/>.</summary>
