@@ -53,6 +53,36 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString DisplayLevelDifficulties => new TranslatableString(getKey(@"display_level_difficulties"), @"Difficulties");
 
+        /// <summary>
+        /// "Hidden"
+        /// </summary>
+        public static LocalisableString ConvertedBeatmapsHidden => new TranslatableString(getKey(@"converted_beatmaps_hidden"), @"Hidden");
+
+        /// <summary>
+        /// "Shown"
+        /// </summary>
+        public static LocalisableString ConvertedBeatmapsShown => new TranslatableString(getKey(@"converted_beatmaps_shown"), @"Shown");
+
+        /// <summary>
+        /// "Converts only"
+        /// </summary>
+        public static LocalisableString ConvertedBeatmapsConvertedOnly => new TranslatableString(getKey(@"converted_beatmaps_converted_only"), @"Converts only");
+
+        /// <summary>
+        /// "The difficulty table grouping only shows BMS converts."
+        /// </summary>
+        public static LocalisableString DifficultyTableManiaOnlyConverts => new TranslatableString(getKey(@"difficulty_table_mania_only_converts"), @"The difficulty table grouping only shows BMS converts.");
+
+        /// <summary>
+        /// "Enable showing converts"
+        /// </summary>
+        public static LocalisableString DifficultyTableEnableConverts => new TranslatableString(getKey(@"difficulty_table_enable_converts"), @"Enable showing converts");
+
+        /// <summary>
+        /// "Import BMS charts to browse them by difficulty table here."
+        /// </summary>
+        public static LocalisableString DifficultyTableNoConvertsHint => new TranslatableString(getKey(@"difficulty_table_no_converts_hint"), @"Import BMS charts to browse them by difficulty table here.");
+
         private static string getKey(string key) => $@"{prefix}:{key}";
     }
 }

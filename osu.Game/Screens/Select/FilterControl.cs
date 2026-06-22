@@ -48,19 +48,22 @@ namespace osu.Game.Screens.Select
 
         private const float corner_radius = 10;
         private const string bms_ruleset_short_name = "bms";
+
+        // The sole conversion target in OMS (BMS → mania). "Converts only" is only meaningful here.
+        private const string mania_ruleset_short_name = "mania";
         private static readonly LocalisableString bms_composition_label = "谱面构成";
         private static readonly LocalisableString bms_key_count_label = "键数";
 
         public IBindable<BeatmapSetInfo?> ScopedBeatmapSet { get; } = new Bindable<BeatmapSetInfo?>();
 
         private SongSelectSearchTextBox searchTextBox = null!;
-        private readonly BindableBool showConvertedBeatmaps = new BindableBool();
+        private readonly Bindable<ConvertedBeatmapsDisplay> convertedBeatmapsDisplay = new Bindable<ConvertedBeatmapsDisplay>();
         private FillFlowContainer<Drawable> rulesetSpecificFiltersHost = null!;
         private Container standardFiltersContainer = null!;
         private Container bmsFiltersContainer = null!;
         private Drawable standardFilters = null!;
         private Drawable bmsFilters = null!;
-        private ShearedToggleButton standardShowConvertedBeatmapsButton = null!;
+        private ConvertedBeatmapsDisplayButton standardShowConvertedBeatmapsButton = null!;
         private ShearedToggleButton bmsShowConvertedBeatmapsButton = null!;
         private DifficultyRangeSlider difficultyRangeSlider = null!;
         private BmsCompositionFilterControl bmsCompositionFilter = null!;
@@ -254,13 +257,26 @@ namespace osu.Game.Screens.Select
 
             difficultyRangeSlider.LowerBound = config.GetBindable<double>(OsuSetting.DisplayStarsMinimum);
             difficultyRangeSlider.UpperBound = config.GetBindable<double>(OsuSetting.DisplayStarsMaximum);
-            config.BindWith(OsuSetting.ShowConvertedBeatmaps, showConvertedBeatmaps);
+            config.BindWith(OsuSetting.ConvertedBeatmapsDisplay, convertedBeatmapsDisplay);
             config.BindWith(OsuSetting.SongSelectSortingMode, sortDropdown.Current);
             config.BindWith(OsuSetting.SongSelectGroupMode, groupDropdown.Current);
             config.BindWith(OsuSetting.BmsSongSelectDisplayLevel, displayLevelSetting);
 
-            standardShowConvertedBeatmapsButton.Active.BindTo(showConvertedBeatmaps);
-            bmsShowConvertedBeatmapsButton.Active.BindTo(showConvertedBeatmaps);
+            // The standard (mania) layout exposes the full tri-state (Hidden / Shown / ConvertedOnly).
+            standardShowConvertedBeatmapsButton.Current.BindTo(convertedBeatmapsDisplay);
+
+            // The BMS layout keeps a plain two-state toggle: BMS has no converts, so "converts only" is meaningless there.
+            // Mirror the shared setting onto it (active whenever converts aren't hidden) and let toggling it set Shown/Hidden,
+            // guarding against the echo so the two stay in sync without feedback.
+            convertedBeatmapsDisplay.BindValueChanged(e => bmsShowConvertedBeatmapsButton.Active.Value = e.NewValue != ConvertedBeatmapsDisplay.Hidden, true);
+            bmsShowConvertedBeatmapsButton.Active.BindValueChanged(e =>
+            {
+                bool convertsAllowed = convertedBeatmapsDisplay.Value != ConvertedBeatmapsDisplay.Hidden;
+                if (e.NewValue == convertsAllowed)
+                    return;
+
+                convertedBeatmapsDisplay.Value = e.NewValue ? ConvertedBeatmapsDisplay.Shown : ConvertedBeatmapsDisplay.Hidden;
+            });
 
             updateRulesetSpecificFilters();
 
@@ -298,7 +314,7 @@ namespace osu.Game.Screens.Select
             searchTextBox.Current.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
-            showConvertedBeatmaps.BindValueChanged(_ => updateCriteria());
+            convertedBeatmapsDisplay.BindValueChanged(_ => updateCriteria());
 
             foreach (var row in bmsCompositionFilter.Rows)
             {
@@ -379,12 +395,19 @@ namespace osu.Game.Screens.Select
             string query = searchTextBox.Current.Value;
             bool isValidUser = localUser.Value.Id > 1;
 
+            var convertedDisplay = convertedBeatmapsDisplay.Value;
+
+            // "Converts only" is meaningful only for a ruleset that can actually have converts (mania, the BMS→mania
+            // target). For any other ruleset it would hide every native chart and empty the list, so degrade it to "shown".
+            if (convertedDisplay == ConvertedBeatmapsDisplay.ConvertedOnly && ruleset.Value.ShortName != mania_ruleset_short_name)
+                convertedDisplay = ConvertedBeatmapsDisplay.Shown;
+
             var criteria = new FilterCriteria
             {
                 SelectedBeatmapSet = ScopedBeatmapSet.Value,
                 Sort = sortDropdown.Current.Value,
                 Group = groupDropdown.Current.Value,
-                AllowConvertedBeatmaps = showConvertedBeatmaps.Value,
+                ConvertedBeatmaps = convertedDisplay,
                 Ruleset = ruleset.Value,
                 Mods = mods.Value,
                 CollectionBeatmapMD5Hashes = collectionDropdown.Current.Value?.Collection?.PerformRead(c => c.BeatmapMD5Hashes).ToImmutableHashSet(),
@@ -467,7 +490,11 @@ namespace osu.Game.Screens.Select
                             MinRange = 0.1f,
                         },
                         Empty(),
-                        standardShowConvertedBeatmapsButton = createShowConvertedBeatmapsButton(),
+                        standardShowConvertedBeatmapsButton = new ConvertedBeatmapsDisplayButton
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                        },
                     },
                 }
             };

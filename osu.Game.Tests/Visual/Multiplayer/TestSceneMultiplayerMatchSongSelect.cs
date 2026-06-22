@@ -181,7 +181,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
         {
             AddStep("reset", () =>
             {
-                configManager.SetValue(OsuSetting.ShowConvertedBeatmaps, false);
+                configManager.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden);
                 Beatmap.SetDefault();
                 SelectedMods.SetDefault();
             });

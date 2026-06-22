@@ -164,7 +164,7 @@ namespace osu.Game.Screens.Select
         private readonly RealmPopulatingOnlineLookupSource onlineLookupSource = new RealmPopulatingOnlineLookupSource();
 
         private Bindable<bool> configBackgroundBlur = null!;
-        private Bindable<bool> showConvertedBeatmaps = null!;
+        private Bindable<ConvertedBeatmapsDisplay> convertedBeatmapsDisplay = null!;
 
         private IDisposable? modSelectOverlayRegistration;
 
@@ -323,7 +323,7 @@ namespace osu.Game.Screens.Select
                 updateBackgroundDim();
             });
 
-            showConvertedBeatmaps = config.GetBindable<bool>(OsuSetting.ShowConvertedBeatmaps);
+            convertedBeatmapsDisplay = config.GetBindable<ConvertedBeatmapsDisplay>(OsuSetting.ConvertedBeatmapsDisplay);
         }
 
         // Colour scheme for mod overlay is left as default (green) to match mods button.
@@ -676,7 +676,7 @@ namespace osu.Game.Screens.Select
 
         private bool checkBeatmapValidForSelection(BeatmapInfo beatmap)
         {
-            if (!beatmap.AllowGameplayWithRuleset(Ruleset.Value, showConvertedBeatmaps.Value))
+            if (!beatmap.AllowGameplayWithRuleset(Ruleset.Value, convertedBeatmapsDisplay.Value != ConvertedBeatmapsDisplay.Hidden))
                 return false;
 
             if (beatmap.Hidden)
@@ -1234,7 +1234,7 @@ namespace osu.Game.Screens.Select
 
             // Don't change the local ruleset if the user is on another ruleset and is showing converted beatmaps.
             // Eventually we probably want to check whether conversion is actually possible for the current ruleset.
-            bool requiresRulesetSwitch = beatmapInfo.RequiresRulesetSwitch(Ruleset.Value, showConvertedBeatmaps.Value);
+            bool requiresRulesetSwitch = beatmapInfo.RequiresRulesetSwitch(Ruleset.Value, convertedBeatmapsDisplay.Value != ConvertedBeatmapsDisplay.Hidden);
 
             if (requiresRulesetSwitch)
             {

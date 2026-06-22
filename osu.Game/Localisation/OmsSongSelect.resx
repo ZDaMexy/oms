@@ -11,4 +11,10 @@
   <data name="display_level" xml:space="preserve"><value>Display Level</value></data>
   <data name="display_level_songs" xml:space="preserve"><value>Songs → Difficulties</value></data>
   <data name="display_level_difficulties" xml:space="preserve"><value>Difficulties</value></data>
+  <data name="converted_beatmaps_hidden" xml:space="preserve"><value>Hidden</value></data>
+  <data name="converted_beatmaps_shown" xml:space="preserve"><value>Shown</value></data>
+  <data name="converted_beatmaps_converted_only" xml:space="preserve"><value>Converts only</value></data>
+  <data name="difficulty_table_mania_only_converts" xml:space="preserve"><value>The difficulty table grouping only shows BMS converts.</value></data>
+  <data name="difficulty_table_enable_converts" xml:space="preserve"><value>Enable showing converts</value></data>
+  <data name="difficulty_table_no_converts_hint" xml:space="preserve"><value>Import BMS charts to browse them by difficulty table here.</value></data>
 </root>

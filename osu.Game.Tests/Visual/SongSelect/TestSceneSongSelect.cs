@@ -122,7 +122,7 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddStep("change ruleset to taiko", () => Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.OnlineID == 1));
 
-            AddStep("disable converts", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("disable converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             AddUntilStep("wait for taiko beatmap selected", () => Beatmap.Value.BeatmapInfo.Ruleset.OnlineID, () => Is.EqualTo(1));
 

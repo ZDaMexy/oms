@@ -806,7 +806,7 @@ namespace osu.Game
                 {
                     // Don't change the local ruleset if the user is on another ruleset and is showing converted beatmaps at song select.
                     // Eventually we probably want to check whether conversion is actually possible for the current ruleset.
-                    bool requiresRulesetSwitch = selection.RequiresRulesetSwitch(Ruleset.Value, LocalConfig.Get<bool>(OsuSetting.ShowConvertedBeatmaps));
+                    bool requiresRulesetSwitch = selection.RequiresRulesetSwitch(Ruleset.Value, LocalConfig.Get<ConvertedBeatmapsDisplay>(OsuSetting.ConvertedBeatmapsDisplay) != ConvertedBeatmapsDisplay.Hidden);
 
                     if (requiresRulesetSwitch)
                     {

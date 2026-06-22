@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
+using osu.Game.Configuration;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Mods;
@@ -59,7 +60,25 @@ namespace osu.Game.Screens.Select
 
         public RulesetInfo? Ruleset;
         public IReadOnlyList<Mod>? Mods;
-        public bool AllowConvertedBeatmaps;
+
+        /// <summary>
+        /// How beatmaps playable only via conversion are displayed: hidden, shown alongside natives, or shown exclusively.
+        /// </summary>
+        public ConvertedBeatmapsDisplay ConvertedBeatmaps;
+
+        /// <summary>
+        /// Whether conversion is permitted at all (i.e. <see cref="ConvertedBeatmaps"/> is not
+        /// <see cref="ConvertedBeatmapsDisplay.Hidden"/>). A convenience boolean projection over the tri-state for
+        /// consumers that only care whether converts are allowed (e.g. star-rating lookup gating). Assigning it maps to
+        /// <see cref="ConvertedBeatmapsDisplay.Shown"/> / <see cref="ConvertedBeatmapsDisplay.Hidden"/>; it cannot
+        /// express <see cref="ConvertedBeatmapsDisplay.ConvertedOnly"/> — set <see cref="ConvertedBeatmaps"/> for that.
+        /// </summary>
+        public bool AllowConvertedBeatmaps
+        {
+            get => ConvertedBeatmaps != ConvertedBeatmapsDisplay.Hidden;
+            set => ConvertedBeatmaps = value ? ConvertedBeatmapsDisplay.Shown : ConvertedBeatmapsDisplay.Hidden;
+        }
+
         public int? BeatmapSetId;
 
         public bool? HasOnlineID;

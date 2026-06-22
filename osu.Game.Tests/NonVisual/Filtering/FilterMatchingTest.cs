@@ -7,6 +7,7 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Bindables;
 using osu.Game.Beatmaps;
+using osu.Game.Configuration;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Mods;
@@ -103,6 +104,74 @@ namespace osu.Game.Tests.NonVisual.Filtering
             var carouselItem = new CarouselBeatmap(exampleBeatmapInfo);
             carouselItem.Filter(criteria);
             Assert.IsFalse(carouselItem.Filtered.Value);
+        }
+
+        private static BeatmapInfo nativeManiaBeatmap() => new BeatmapInfo
+        {
+            Ruleset = new RulesetInfo { ShortName = "mania", OnlineID = 3 },
+            Metadata = new BeatmapMetadata(),
+        };
+
+        private static BeatmapInfo bmsConvertBeatmap() => new BeatmapInfo
+        {
+            Ruleset = new RulesetInfo { ShortName = "bms", OnlineID = -1 },
+            Metadata = new BeatmapMetadata(),
+        };
+
+        [Test]
+        public void TestConvertedBeatmapsHiddenShowsOnlyNative()
+        {
+            var criteria = new FilterCriteria
+            {
+                Ruleset = new RulesetInfo { ShortName = "mania", OnlineID = 3 },
+                ConvertedBeatmaps = ConvertedBeatmapsDisplay.Hidden,
+            };
+
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(nativeManiaBeatmap(), criteria), Is.True);
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(bmsConvertBeatmap(), criteria), Is.False);
+        }
+
+        [Test]
+        public void TestConvertedBeatmapsShownShowsNativeAndConverts()
+        {
+            var criteria = new FilterCriteria
+            {
+                Ruleset = new RulesetInfo { ShortName = "mania", OnlineID = 3 },
+                ConvertedBeatmaps = ConvertedBeatmapsDisplay.Shown,
+            };
+
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(nativeManiaBeatmap(), criteria), Is.True);
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(bmsConvertBeatmap(), criteria), Is.True);
+        }
+
+        [Test]
+        public void TestConvertedBeatmapsConvertedOnlyHidesNative()
+        {
+            var criteria = new FilterCriteria
+            {
+                Ruleset = new RulesetInfo { ShortName = "mania", OnlineID = 3 },
+                ConvertedBeatmaps = ConvertedBeatmapsDisplay.ConvertedOnly,
+            };
+
+            // Native mania charts are hidden; only the BMS convert remains.
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(nativeManiaBeatmap(), criteria), Is.False);
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(bmsConvertBeatmap(), criteria), Is.True);
+        }
+
+        [Test]
+        public void TestAllowConvertedBeatmapsProjection()
+        {
+            // The boolean projection (used by star-rating lookup gating) is true whenever converts aren't hidden.
+            Assert.That(new FilterCriteria { ConvertedBeatmaps = ConvertedBeatmapsDisplay.Hidden }.AllowConvertedBeatmaps, Is.False);
+            Assert.That(new FilterCriteria { ConvertedBeatmaps = ConvertedBeatmapsDisplay.Shown }.AllowConvertedBeatmaps, Is.True);
+            Assert.That(new FilterCriteria { ConvertedBeatmaps = ConvertedBeatmapsDisplay.ConvertedOnly }.AllowConvertedBeatmaps, Is.True);
+
+            // Assigning the boolean maps back onto the tri-state (cannot express ConvertedOnly).
+            var criteria = new FilterCriteria { ConvertedBeatmaps = ConvertedBeatmapsDisplay.ConvertedOnly };
+            criteria.AllowConvertedBeatmaps = false;
+            Assert.That(criteria.ConvertedBeatmaps, Is.EqualTo(ConvertedBeatmapsDisplay.Hidden));
+            criteria.AllowConvertedBeatmaps = true;
+            Assert.That(criteria.ConvertedBeatmaps, Is.EqualTo(ConvertedBeatmapsDisplay.Shown));
         }
 
         [Test]

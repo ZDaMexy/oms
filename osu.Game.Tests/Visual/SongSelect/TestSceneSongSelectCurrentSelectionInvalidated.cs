@@ -44,7 +44,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         [Test]
         public void TestRulesetChange()
         {
-            AddStep("disable converts", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("disable converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             ImportBeatmapForRuleset(0, 1);
             ImportBeatmapForRuleset(0, 1);

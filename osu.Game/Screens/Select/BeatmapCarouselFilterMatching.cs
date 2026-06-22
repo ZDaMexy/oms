@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using osu.Game.Beatmaps;
+using osu.Game.Configuration;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Utils;
 
@@ -67,7 +68,7 @@ namespace osu.Game.Screens.Select
 
         public static bool CheckCriteriaMatch(BeatmapInfo beatmap, FilterCriteria criteria, IReadOnlyDictionary<Guid, double>? starRatings = null)
         {
-            bool match = criteria.Ruleset == null || beatmap.AllowGameplayWithRuleset(criteria.Ruleset!, criteria.AllowConvertedBeatmaps);
+            bool match = matchesConvertedBeatmapsDisplay(beatmap, criteria);
             double resolvedStarRating = beatmap.GetResolvedStarRating(starRatings);
 
             if (criteria.SelectedBeatmapSet != null)
@@ -177,5 +178,34 @@ namespace osu.Game.Screens.Select
 
         private static bool requiresStarRatingLookup(FilterCriteria criteria)
             => criteria.Ruleset != null && criteria.AllowConvertedBeatmaps && (criteria.StarDifficulty.HasFilter || criteria.UserStarDifficulty.HasFilter);
+
+        /// <summary>
+        /// Whether the beatmap passes the ruleset + converted-beatmaps display selection:
+        /// <list type="bullet">
+        /// <item><see cref="ConvertedBeatmapsDisplay.Hidden"/>: only charts native to the current ruleset.</item>
+        /// <item><see cref="ConvertedBeatmapsDisplay.Shown"/>: native charts and converts.</item>
+        /// <item><see cref="ConvertedBeatmapsDisplay.ConvertedOnly"/>: only converts; native charts are excluded.</item>
+        /// </list>
+        /// (For a ruleset that cannot have converts, "converts only" is clamped to "shown" upstream in
+        /// <see cref="FilterControl.CreateCriteria"/> so the list is never emptied.)
+        /// </summary>
+        private static bool matchesConvertedBeatmapsDisplay(BeatmapInfo beatmap, FilterCriteria criteria)
+        {
+            if (criteria.Ruleset == null)
+                return true;
+
+            switch (criteria.ConvertedBeatmaps)
+            {
+                case ConvertedBeatmapsDisplay.Hidden:
+                    return beatmap.AllowGameplayWithRuleset(criteria.Ruleset, allowConversion: false);
+
+                case ConvertedBeatmapsDisplay.ConvertedOnly:
+                    return beatmap.Ruleset.ShortName != criteria.Ruleset.ShortName
+                           && beatmap.AllowGameplayWithRuleset(criteria.Ruleset, allowConversion: true);
+
+                default:
+                    return beatmap.AllowGameplayWithRuleset(criteria.Ruleset, allowConversion: true);
+            }
+        }
     }
 }

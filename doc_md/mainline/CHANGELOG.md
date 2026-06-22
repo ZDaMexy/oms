@@ -7,6 +7,18 @@
 
 ## 2026-06-22
 
+### mania 选曲新增「难度表」分组：只显示 BMS 转谱 + 空结果指导（P1-I）
+
+按用户要求给 mania 选曲分组下拉新增「难度表」分组（行为同 BMS 难度表分组），但只显示 BMS 转谱、排除原生 mania；空结果时给针对性指导。mania ruleset 不引用 BMS ruleset，故难度表分组定义由 osu.Game 新增共享 `BmsConvertedDifficultyTableGrouping` 提供（复用只读 `BmsPersistedMetadataResolver.GetDifficultyTableEntries`，构 表名→等级 树、无条目 Unrated、有界缓存）。**「只显示转谱」用 grouping 丢弃法实现、零改 matching**：`addHierarchicalGroups` 丢弃返回空 group 定义的谱面，且「N matches」取 grouping 阶段计数，故 helper 对非 BMS 谱面返回空 → 原生 mania 被丢弃、计数与列表一致；转谱可见性仍由「显示转谱」设置在 matching 把关（禁用→空）。`ManiaRuleset` override 4 个分组虚方法接线（复用既有 `GroupMode.DifficultyTable`）。`NoResultsPlaceholder` 加空结果指导（转谱禁用→可点启用；转谱已开但空→提示导入 BMS）。回归 `BmsConvertedDifficultyTableGroupingTest`(4)+`ManiaDifficultyTableGroupingTest`(3 端到端)+`BeatmapCarouselFilterGroupingTest` 17/17 不回归，`osu.Desktop.slnf` Release **0 错误**。**用户 2026-06-22 实机验收通过（观测暂无异常）**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-22（其四）与 [P1-I 约束 #21](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+### mania 选曲「显示转谱」按钮改三态：禁用 / 启用 / 仅显示转谱（P1-I）
+
+按用户要求把 mania 选曲筛选区的「显示转谱」从二态（启用/禁用）升为三态：**禁用**＝只原生 mania｜**启用**＝原生+转谱（BMS→mania）｜**仅显示转谱**＝只显示转谱、隐藏原生 mania。单一收口为新 enum `ConvertedBeatmapsDisplay { Hidden, Shown, ConvertedOnly }`：`OsuSetting.ShowConvertedBeatmaps`(bool) 改名 `ConvertedBeatmapsDisplay`(enum，默认 Shown)；`FilterCriteria` 加 enum 字段、`AllowConvertedBeatmaps` 降为其 bool 投影；过滤行为收口在 `BeatmapCarouselFilterMatching` 一处 switch。UI＝mania 用三态循环按钮 `ConvertedBeatmapsDisplayButton`、BMS 保留二态（带 echo 守卫双向同步）、设置面板改三态下拉。**红线**＝OMS 只有 BMS→mania 一条转谱路，`仅转谱` 对非 mania ruleset 会清空列表，故 `FilterControl.CreateCriteria` 对非 mania 把 ConvertedOnly 夹回 Shown、BMS 按钮不暴露该档。回归 `FilterMatchingTest` +4（98/98）、carousel sort+group 25/25、`osu.Desktop.slnf` Release **0 错误**。**用户 2026-06-22 实机验收通过（观测暂无异常）**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-22（其三）与 [P1-I 约束 #20](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+### 标准面板第 4 排加难度表归类（星级 ↔「展示全部难度」按钮 之间，BMS + 转谱-mania）（P1-I / P1-H）
+
+展示层级＝「谱面」时，选歌列表扁平行 `PanelBeatmapStandalone` 第 4 排在 星级 与「临时展示所有难度」按钮之间插入**难度表难度归类**标签（如 Satellite-sl4 → `sl4`；若还属发狂难易度表-★8 → `★8/sl4`，按难度表 `TableSortOrder` 顺序、`/` 分隔一一列举），BMS 选曲与转谱-mania 选曲都生效。osu.Game 不引用 BMS ruleset，故经 `BmsPersistedMetadataResolver.GetDifficultyTableEntries` **只读** `BmsPersistedMetadataData.ExtensionData` 里的 `difficulty_table_entries`（osu.Game 侧 DTO 只建模 4 字段、绝不回写——**严禁建模成可写字段**，否则 converted-star 写回会抹掉 `Symbol`/`Md5` 重蹈 P1-H #22 共享列 clobber）；展示收口在 `BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassification`（display-only，键于 bms ruleset，故两模式取值一致）。无归类（非 BMS / Unrated）则 `Alpha=0` 收起、无幽灵间距。新增 `BeatmapLocalMetadataDisplayResolverTest` 4 条全过、`osu.Game` Release 0 错误 0 警告。**用户 2026-06-22 实机验收通过（观测暂无异常）**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-22（其二）与 [P1-I 约束 #19](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
 ### 修复 LNOBJ 长条解码：连续 LNOBJ 尾造"长条内单点"（P1-K）
 
 用户实机发现 `Stella/st4/Grayed Out -Antifront-/spf.bml`（`#LNOBJ 01` 长条）~11–13s 长条中出现一个"单点"，bms 与转谱 mania 两模式同现。脚本逐字节复刻 OMS 解码逻辑确诊为**解析器 bug、非谱面错误**：通道14 序列 `7O 7P 01 01`（两连续 LNOBJ 尾），OMS 用 **LIFO 栈**存每轨待配对长条头，第 2 个 `01` 回头抓更早的 `7O`（本应已是单点），造出 `LN(7O)12.316→12.868s` 完全包住 `LN(7P)12.474→12.632s` 的**同轨时间重叠长条**（物理不可能同时按住 → 渲染成"长条里的单点"）。修复＝[BmsBeatmapDecoder](../subline/P1-K/CHANGELOG.md) 把每轨待配对头由栈改**单头**（`Dictionary<int,List<int>>`→`Dictionary<int,int>`），尾只配紧邻前一普通音符、消费即清空，连续第 2 个尾作孤儿丢弃（合规范/beatoraja）；正常长条零影响（全谱长条 1110→1109，仅去掉那条假长条）。一处解码修复同纠两模式。新增回归 `TestConsecutiveLnObjTailsDoNotFabricateOverlappingLongNote`；BMS 全套 **943/943**、Release **0 错误**。**用户 2026-06-22 实机确认暂无异常（验收通过）。** 详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-22 与 [P1-K 约束 键音呈现与控制流 #7](../subline/P1-K/TECHNICAL_CONSTRAINTS.md)。

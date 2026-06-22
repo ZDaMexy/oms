@@ -14,12 +14,15 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Localisation;
 using osu.Game.Online.Chat;
 using osu.Game.Overlays;
+using osu.Game.Screens.Select.Filter;
 using osuTK;
 
 namespace osu.Game.Screens.Select
 {
     public partial class NoResultsPlaceholder : VisibilityContainer
     {
+        private const string mania_ruleset_short_name = "mania";
+
         public Action? RequestClearFilterText { get; init; }
 
         private FilterCriteria? filter;
@@ -153,6 +156,27 @@ namespace osu.Game.Screens.Select
                 textFlow.AddParagraph(SongSelectStrings.NoMatchingBeatmapsDescription);
                 textFlow.AddParagraph(string.Empty);
 
+                // The mania difficulty-table grouping shows only BMS converts, so an empty result has a dedicated cause:
+                // either converts are hidden (offer to enable them), or there simply are none to index.
+                bool maniaDifficultyTableGrouping = filter?.Group == GroupMode.DifficultyTable
+                                                    && string.Equals(filter?.Ruleset?.ShortName, mania_ruleset_short_name, StringComparison.Ordinal);
+
+                if (maniaDifficultyTableGrouping)
+                {
+                    textFlow.AddParagraph(OmsSongSelectStrings.DifficultyTableManiaOnlyConverts);
+
+                    if (filter!.ConvertedBeatmaps == ConvertedBeatmapsDisplay.Hidden)
+                    {
+                        addBulletPoint();
+                        textFlow.AddLink(OmsSongSelectStrings.DifficultyTableEnableConverts, () => config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown));
+                    }
+                    else
+                    {
+                        addBulletPoint();
+                        textFlow.AddText(OmsSongSelectStrings.DifficultyTableNoConvertsHint);
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(filter?.SearchText))
                 {
                     addBulletPoint();
@@ -183,11 +207,12 @@ namespace osu.Game.Screens.Select
 
                 // TODO: Add realm queries to hint at which ruleset results are available in (and allow clicking to switch).
                 // TODO: Make this message more certain by ensuring the osu! beatmaps exist before suggesting.
-                if (filter?.Ruleset?.OnlineID != 0 && filter?.AllowConvertedBeatmaps == false)
+                // (Skipped when the mania difficulty-table guidance above already prompts enabling converts.)
+                if (!maniaDifficultyTableGrouping && filter?.Ruleset?.OnlineID != 0 && filter?.AllowConvertedBeatmaps == false)
                 {
                     addBulletPoint();
                     textFlow.AddText("Try ");
-                    textFlow.AddLink("enabling", () => config.SetValue(OsuSetting.ShowConvertedBeatmaps, true));
+                    textFlow.AddLink("enabling", () => config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown));
                     textFlow.AddText(" automatic conversion!");
                 }
             }

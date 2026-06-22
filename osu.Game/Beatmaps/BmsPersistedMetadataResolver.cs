@@ -23,6 +23,42 @@ namespace osu.Game.Beatmaps
             return getPersistedData(metadata)?.ChartMetadata;
         }
 
+        /// <summary>
+        /// Reads the BMS difficulty-table entries persisted by the BMS ruleset's <c>BmsDifficultyTableManager</c>
+        /// (the same <c>RulesetData</c> column, under <c>difficulty_table_entries</c>). This is a READ-ONLY view:
+        /// the entries are pulled from the captured extension data so this never participates in a write-back that
+        /// could drop the foreign <c>Symbol</c>/<c>Md5</c> fields we don't model here. Returns an empty list when the
+        /// chart is not indexed by any enabled table.
+        /// </summary>
+        public static IReadOnlyList<BmsPersistedDifficultyTableEntry> GetDifficultyTableEntries(BeatmapMetadata? metadata)
+        {
+            var extensionData = getPersistedData(metadata)?.ExtensionData;
+
+            if (extensionData == null || !extensionData.TryGetValue("difficulty_table_entries", out var token) || token is not JArray array)
+                return Array.Empty<BmsPersistedDifficultyTableEntry>();
+
+            var entries = new List<BmsPersistedDifficultyTableEntry>(array.Count);
+
+            foreach (var element in array)
+            {
+                BmsPersistedDifficultyTableEntry? entry;
+
+                try
+                {
+                    entry = element.ToObject<BmsPersistedDifficultyTableEntry>();
+                }
+                catch (JsonException)
+                {
+                    entry = null;
+                }
+
+                if (entry != null)
+                    entries.Add(entry);
+            }
+
+            return entries;
+        }
+
         public static bool TryGetConvertedStarRating(BeatmapMetadata? metadata, IRulesetInfo ruleset, out double starRating)
         {
             ArgumentNullException.ThrowIfNull(ruleset);
@@ -184,6 +220,24 @@ namespace osu.Game.Beatmaps
         // (and vice versa). Without this, recomputing converted star ratings dropped every chart's table entries.
         [JsonExtensionData]
         public IDictionary<string, JToken>? ExtensionData { get; set; }
+    }
+
+    // Read-only mirror of the BMS ruleset's BmsDifficultyTableEntry record (serialised PascalCase). Only the fields
+    // needed to render the inline classification are modelled; this type is NEVER serialised back, so omitting
+    // Symbol/Md5 here is safe (the full entry round-trips through BmsPersistedMetadataData.ExtensionData).
+    internal class BmsPersistedDifficultyTableEntry
+    {
+        [JsonProperty("TableName")]
+        public string TableName { get; set; } = string.Empty;
+
+        [JsonProperty("LevelLabel")]
+        public string LevelLabel { get; set; } = string.Empty;
+
+        [JsonProperty("Level")]
+        public int Level { get; set; }
+
+        [JsonProperty("TableSortOrder")]
+        public int TableSortOrder { get; set; }
     }
 
     internal class BmsPersistedConvertedStarRating

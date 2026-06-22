@@ -98,7 +98,7 @@ namespace osu.Game.Tests.Visual.SongSelect
             ImportBeatmapForRuleset(0);
             ImportBeatmapForRuleset(0);
 
-            AddStep("disable converts", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("disable converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
             AddStep("set filter text", () => filterTextBox.Current.Value = $"\"{Beatmaps.GetAllUsableBeatmapSets().Last().Metadata.Title}\"");
 
             AddWaitStep("wait for debounce", 5);
@@ -123,14 +123,14 @@ namespace osu.Game.Tests.Visual.SongSelect
             ImportBeatmapForRuleset(0);
             ImportBeatmapForRuleset(0);
 
-            AddStep("change convert setting", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("change convert setting", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             LoadSongSelect();
 
             AddStep("push child screen", () => Stack.Push(new TestSceneOsuScreenStack.TestScreen("test child")));
             WaitForSuspension();
 
-            AddStep("change convert setting", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, true));
+            AddStep("change convert setting", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown));
 
             AddStep("return", () => SongSelect.MakeCurrent());
             AddUntilStep("wait for current", () => SongSelect.IsCurrentScreen());
@@ -296,7 +296,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         public void TestPlaceholderVisibleWithConvertSetting()
         {
             ImportBeatmapForRuleset(0);
-            AddStep("change convert setting", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("change convert setting", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             LoadSongSelect();
 
@@ -306,7 +306,7 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddStep("click link in placeholder", () => getPlaceholder().ChildrenOfType<DrawableLinkCompiler>().First().TriggerClick());
 
-            AddUntilStep("convert setting changed", () => Config.Get<bool>(OsuSetting.ShowConvertedBeatmaps));
+            AddUntilStep("convert setting changed", () => Config.Get<ConvertedBeatmapsDisplay>(OsuSetting.ConvertedBeatmapsDisplay) != ConvertedBeatmapsDisplay.Hidden);
             AddUntilStep("wait for placeholder visible", () => getPlaceholder()?.State.Value == Visibility.Hidden);
         }
 
@@ -510,9 +510,9 @@ namespace osu.Game.Tests.Visual.SongSelect
         [TestCase(true)]
         public void TestUnscopeByChangingRuleset(bool grouped)
         {
-            bool showConverts = Config.Get<bool>(OsuSetting.ShowConvertedBeatmaps);
+            bool showConverts = Config.Get<ConvertedBeatmapsDisplay>(OsuSetting.ConvertedBeatmapsDisplay) != ConvertedBeatmapsDisplay.Hidden;
 
-            AddStep("hide converts", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("hide converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             ImportBeatmapForRuleset(0, 2);
 
@@ -531,16 +531,16 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddAssert("hard catch difficulty is selected", () => Beatmap.Value.BeatmapInfo, () => Is.EqualTo(findBeatmap("Hard")));
 
-            AddStep("revert convert setting", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, showConverts));
+            AddStep("revert convert setting", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, showConverts ? ConvertedBeatmapsDisplay.Shown : ConvertedBeatmapsDisplay.Hidden));
         }
 
         [TestCase(false)]
         [TestCase(true)]
         public void TestUnscopeByShowingConverts(bool grouped)
         {
-            bool showConverts = Config.Get<bool>(OsuSetting.ShowConvertedBeatmaps);
+            bool showConverts = Config.Get<ConvertedBeatmapsDisplay>(OsuSetting.ConvertedBeatmapsDisplay) != ConvertedBeatmapsDisplay.Hidden;
 
-            AddStep("hide converts", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("hide converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             ImportBeatmapForRuleset(0);
             ImportBeatmapForRuleset(0);
@@ -561,12 +561,12 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddStep("select insane difficulty", () => Beatmap.Value = Beatmaps.GetWorkingBeatmap(findBeatmap("Insane")));
             AddUntilStep("selection changed", () => Beatmap.Value.BeatmapInfo, () => Is.EqualTo(findBeatmap("Insane")));
 
-            AddStep("show converts", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, true));
+            AddStep("show converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown));
             WaitForFiltering();
 
             AddAssert("hard difficulty is selected", () => Beatmap.Value.BeatmapInfo, () => Is.EqualTo(findBeatmap("Hard")));
 
-            AddStep("revert convert setting", () => Config.SetValue(OsuSetting.ShowConvertedBeatmaps, showConverts));
+            AddStep("revert convert setting", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, showConverts ? ConvertedBeatmapsDisplay.Shown : ConvertedBeatmapsDisplay.Hidden));
             AddStep("reset star difficulty filter", () => Config.SetValue(OsuSetting.DisplayStarsMaximum, 10.1));
         }
 

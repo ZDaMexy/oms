@@ -70,6 +70,7 @@ namespace osu.Game.Screens.Select
 
         private ConstrainedIconContainer difficultyIcon = null!;
         private StarRatingDisplay starRatingDisplay = null!;
+        private OsuSpriteText difficultyTableText = null!;
         private SpreadDisplay spreadDisplay = null!;
         private PanelLocalRankDisplay localRank = null!;
         private OsuSpriteText keyCountText = null!;
@@ -205,6 +206,16 @@ namespace osu.Game.Screens.Select
                                             Anchor = Anchor.CentreLeft,
                                             Scale = new Vector2(0.875f),
                                         },
+                                        // Difficulty-table classification (e.g. "sl4" / "★8/sl4"). Alpha 0 when absent
+                                        // so the fill-flow excludes it (no phantom spacing between star and spread).
+                                        difficultyTableText = new OsuSpriteText
+                                        {
+                                            Origin = Anchor.CentreLeft,
+                                            Anchor = Anchor.CentreLeft,
+                                            Font = OsuFont.Style.Caption1.With(weight: FontWeight.SemiBold),
+                                            Colour = colourProvider.Content1,
+                                            Alpha = 0,
+                                        },
                                         spreadDisplay = new SpreadDisplay
                                         {
                                             Origin = Anchor.CentreLeft,
@@ -252,6 +263,10 @@ namespace osu.Game.Screens.Select
             localRank.Beatmap = beatmap;
             difficultyText.Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmap);
 
+            string difficultyTableClassification = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassification(beatmap);
+            difficultyTableText.Text = difficultyTableClassification;
+            difficultyTableText.Alpha = string.IsNullOrEmpty(difficultyTableClassification) ? 0 : 1;
+
             string displayCreator = BeatmapLocalMetadataDisplayResolver.GetDisplayCreator(beatmap);
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator);
 
@@ -269,6 +284,8 @@ namespace osu.Game.Screens.Select
             beatmapBackground.Beatmap = null;
             updateButton.BeatmapSet = null;
             localRank.Beatmap = null;
+            difficultyTableText.Text = string.Empty;
+            difficultyTableText.Alpha = 0;
             starDifficultyBindable = null;
             spreadDisplay.Beatmap.Value = null;
 

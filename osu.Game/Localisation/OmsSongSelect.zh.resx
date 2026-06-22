@@ -11,4 +11,10 @@
   <data name="display_level" xml:space="preserve"><value>展示层级</value></data>
   <data name="display_level_songs" xml:space="preserve"><value>歌曲 → 谱面</value></data>
   <data name="display_level_difficulties" xml:space="preserve"><value>谱面</value></data>
+  <data name="converted_beatmaps_hidden" xml:space="preserve"><value>禁用</value></data>
+  <data name="converted_beatmaps_shown" xml:space="preserve"><value>启用</value></data>
+  <data name="converted_beatmaps_converted_only" xml:space="preserve"><value>仅显示转谱</value></data>
+  <data name="difficulty_table_mania_only_converts" xml:space="preserve"><value>难度表分组只显示 BMS 转谱谱面。</value></data>
+  <data name="difficulty_table_enable_converts" xml:space="preserve"><value>启用「显示转谱」</value></data>
+  <data name="difficulty_table_no_converts_hint" xml:space="preserve"><value>导入 BMS 谱面后即可在此按难度表分组查看。</value></data>
 </root>

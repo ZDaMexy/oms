@@ -256,7 +256,7 @@ namespace osu.Game.Tests.Visual.Navigation
                 InputManager.Key(Key.Number2);
                 InputManager.ReleaseKey(Key.ControlLeft);
             });
-            AddStep("show converts", () => Game.LocalConfig.SetValue(OsuSetting.ShowConvertedBeatmaps, true));
+            AddStep("show converts", () => Game.LocalConfig.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown));
             AddStep("select osu! beatmap", () =>
             {
                 selectedBeatmap = beatmapSet.Beatmaps.First(b => b.Ruleset.OnlineID == 0);

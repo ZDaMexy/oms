@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-06-21（「展示层级与层级导航约束」追加 #17 root-focus 放弃 / #18 DrawSize re-center 收口）
+> 最后更新：2026-06-22（「展示层级与层级导航约束」追加 #21 mania 难度表分组——grouping 丢弃法只显示转谱 + 空结果指导）
 > 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -108,6 +108,30 @@
 17. **fresh-entry root-focus 必须在出现具体选中后放弃（2026-06-21 修正，与 #16 对称）**：`SongSelect.tryFocusRootGroupForCurrentBeatmap` 必须在 `carousel.CurrentGroupedBeatmap != null` 时清掉 `pendingRootGroupFocus` 并直接返回，**不得**再执行 `FocusRootGroupForBeatmap`。否则当前全局谱面对本 ruleset invalid（mania 播放中进 BMS）时 root-focus 永远满足不了、标记长挂，等用户**手动选中第一张 BMS 谱**、`updateVariousState` 因全局 `Beatmap` 变更再次调用本方法时，会把视图劫持滚到该谱的最外层（表名）分组。语义＝root focus 只在「fresh-entry 且尚无具体选中」期间有效，用户一旦选谱即作废。#16（抑制 invalid 期间自动选中）与 #17（放弃 invalid 永不满足的延迟聚焦）是同一 `pendingRootGroupFocus` 生命周期的两个互补收口点，改其一须复核另一。回归 `TestSelectingChartWhileNonBmsPlayingDoesNotJumpToRootGroup`。
 
 18. **DrawSize re-center 必须限定在存在具体选中时（2026-06-21 修正，shared base、mania-safe）**：base `Carousel.OnInvalidate` 的 `Invalidation.DrawSize` 分支只在 `currentSelection.CarouselItem != null` 时才 `selectionValid.Invalidate()`。该分支的语义是「窗口尺寸/纵横比变化时保持**选中项**居中」；窗口最小化/还原同样改变 `DrawSize`，若无条件重跑选中滚动，而此时没有具体选中（BMS 难度表里只展开了组、键盘光标停在组头、`currentSelection` 为 null），`BeatmapCarousel.GetScrollTarget` 的回退（键盘光标 / `ExpandedGroup` 位置）会把用户自由滚走的视图猛拽回组头。**不得**改成无条件 re-center，也**不得**改成读 `currentKeyboardSelection`（键盘光标可能就是组头、正是要避开的目标）——必须用已提交的 `currentSelection`。mania 安全性来自其选歌恒有已提交选中（`ShouldActivateOnKeyboardSelection` 使方向键浏览即 `Activate` 提交），故 `currentSelection.CarouselItem` 始终非空、resize 行为零变化；「键盘光标可停在组头而不提交选中」是 BMS 层级分组特性，也是本 bug 的成因边界。回归 `TestDrawSizeChangeDoesNotRecentreWithoutSelection` ＋守护 `TestDrawSizeChangeRecentresCommittedSelection`（osu.Game.Tests，generic carousel）。
+
+### 标准面板难度表归类展示（2026-06-22）
+
+19. **`PanelBeatmapStandalone` 第 4 排在 星级 与「临时展示所有难度」按钮 之间插入难度表归类标签（如 `sl4` / `★8/sl4`），BMS 选曲与转谱-mania 选曲都生效**：
+    - **取值只读、严禁建模到可写 DTO**：osu.Game 通过新增 `BmsPersistedMetadataResolver.GetDifficultyTableEntries` 读取，**只从已解析缓存的 `BmsPersistedMetadataData.ExtensionData` 里取 `difficulty_table_entries`**（osu.Game 侧 `BmsPersistedDifficultyTableEntry` 只建模 `TableName/LevelLabel/Level/TableSortOrder` 四字段、**绝不回写**）。**不得**把 `difficulty_table_entries` 建模成 osu.Game 可写 `BmsPersistedMetadataData` 的显式字段——那样 converted-star 写回会按缺字段的 DTO 重新序列化、抹掉 `Symbol`/`Md5`，重蹈 [P1-H #22](../P1-H/TECHNICAL_CONSTRAINTS.md) 的「共享 `RulesetData` 列互相 clobber」破坏性 ping-pong。
+    - **展示逻辑收口在 `BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassification`**（display-only，键于 `Ruleset.ShortName=="bms"`，故 BMS-mode 与转谱-mania 同一谱面取值一致）：按 `TableSortOrder` 升序、每个表取一个 `LevelLabel`、用 `/` 连接（被多个难度表索引则一一列举）。`LevelLabel` 已含符号前缀（`buildLevelLabel`：`★`+`8` / `sl`+`4`），直接显示。表顺序＝当前 `TableSortOrder`（导入/启用序），难度表管理改造后顺序会变、本展示自动跟随。
+    - **无归类即收起**：非 BMS 谱面、或未被任何已启用难度表索引（Unrated）时返回空串；面板把该 `OsuSpriteText` `Alpha=0`，借 FillFlow「非 present 子项不参与排布」消除星级↔按钮间的幽灵间距（不得给空标签留固定宽度）。
+    - **不随 ruleset / mod 变化刷新**：归类只依赖谱面自身 BMS 难度表条目，仅在 `PrepareForUse` 取一次；中途启用/禁用难度表的可见性仍沿用既有「重进选歌或重启生效」的 carousel staleness 边界（[reference-bms-difficulty-table]）。回归 `BeatmapLocalMetadataDisplayResolverTest` 4 条（单表 / 多表按 sort order / Unrated 空 / 非 BMS 空）。
+
+### mania「显示转谱」三态（2026-06-22）
+
+20. **「显示转谱」从 bool 二态升为单一三态 enum `ConvertedBeatmapsDisplay { Hidden, Shown, ConvertedOnly }`，单一收口、BMS 夹紧**：
+    - **单一 authority**：持久化设置 `OsuSetting.ConvertedBeatmapsDisplay`（替换原 `ShowConvertedBeatmaps` bool，默认 `Shown`）。过滤判据收口在 `FilterCriteria.ConvertedBeatmaps`；过滤行为收口在 `BeatmapCarouselFilterMatching`（Hidden=`AllowGameplayWithRuleset(...,false)` 仅原生 / Shown=`...,true` 原生+转谱 / ConvertedOnly=`Ruleset!=当前 && ...,true` 仅转谱）。**不得**为三态新开第二个布尔或第二条过滤分支。`FilterCriteria.AllowConvertedBeatmaps` 保留为 enum 的 **bool 投影属性**（`get => != Hidden`；`set` 仅能表达 Shown/Hidden），供 star-lookup 门等「是否允许转谱」消费方读取——不得把它当独立 authority 写。
+    - **BMS 夹紧（红线，防清空列表）**：OMS 唯一转谱路径是 BMS→mania，故只有 mania 能显示转谱。`ConvertedOnly` 对**非 mania** ruleset 会隐藏全部原生谱→清空列表。必须在 `FilterControl.CreateCriteria` 把非 mania ruleset 的 `ConvertedOnly` 夹回 `Shown`（`mania_ruleset_short_name` 常量）；**不得**让 `ConvertedOnly` 原样进入 BMS 模式过滤。BMS 选曲那个「显示转谱」按钮保持二态（只产出 Hidden/Shown），不暴露 `仅转谱`。
+    - **UI 控件**：mania（标准）布局用三态循环按钮 `ConvertedBeatmapsDisplayButton`（继承 `ShearedButton`，`Current` 双绑 enum，点击 Hidden→Shown→ConvertedOnly，文案+高亮色随态、`仅显示转谱` 用区别于 `启用` 的强调色保证三态可辨）；BMS 布局保留二态 `ShearedToggleButton`，与 enum 做**带 echo 守卫的双向同步**（`if(e.NewValue==convertsAllowed)return` 断反馈环，改任一侧须保此守卫）。设置面板用 `FormEnumDropdown<ConvertedBeatmapsDisplay>`（enum `[LocalisableDescription]` → 禁用/启用/仅显示转谱）。
+    - **派生消费方**：所有读「是否允许转谱」的旧 bool 点（`SongSelect.checkBeatmapValidForSelection`/`RequiresRulesetSwitch`、`OsuGame`、两个 `SpreadDisplay` 的 `AllowGameplayWithRuleset`、`NoResultsPlaceholder`）一律改读 `enum != Hidden`，不得各自再存一份 bool 副本。回归 `FilterMatchingTest` 4 条（Hidden/Shown/ConvertedOnly 命中 + 投影）。
+
+### mania 难度表分组（2026-06-22）
+
+21. **mania 选曲新增「难度表」分组，只显示 BMS 转谱，用 grouping 丢弃法实现、零改 matching**：
+    - **跨 ruleset 取数**：mania ruleset 不引用 BMS ruleset，难度表分组定义改由 osu.Game 共享 `BmsConvertedDifficultyTableGrouping.GetGroupDefinitions` 提供（读 `BmsPersistedMetadataResolver.GetDifficultyTableEntries`＝只读 ExtensionData，见 #19），构 表名→等级 两级树、无条目 Unrated、按 RulesetDataJson 内容键有界缓存。**不得**让 mania 反射进 BMS ruleset 取 `BmsTableGroupMode`。
+    - **「只显示转谱」＝grouping 丢弃，禁止改 matching**：`BeatmapCarouselFilterGrouping.addHierarchicalGroups` 对返回**空 group 定义**的谱面直接丢弃，且 `MatchedBeatmapsCount=Filters.Last().BeatmapItemsCount`（grouping 阶段）。故 helper 对**非 BMS** 谱面（`Ruleset.ShortName!="bms"`）返回空 → 原生 mania 被丢弃、计数与列表一致。**不得**为「只显示转谱」去 force `ConvertedOnly` 或改 matching 判据——那会让「N matches」与列表不一致，且与转谱可见性设置纠缠。转谱可见性仍由 #20 的 `ConvertedBeatmaps` 设置在 matching 阶段单独把关（Hidden→无转谱→grouping 丢光→空）。
+    - **mania 接线**：`ManiaRuleset` override `GetAvailableSongSelectGroupModes`（「未分组」后插 `GroupMode.DifficultyTable`）/`IsSongSelectGroupingHierarchical`（→true）/`ShouldResetSongSelectGroupToRoot`（→true）/`GetSongSelectGroupDefinitions`（→helper）。复用既有 `GroupMode.DifficultyTable` enum 与「难度表」文案，**不得**为 mania 新造平行 enum。层级树 + 强制扁平 + 落根行为与 BMS 一致，#16/#17（root-focus 收口）ruleset-agnostic 自动适用。
+    - **空结果指导**：`NoResultsPlaceholder` 在 mania+DifficultyTable+空时给专项说明——`ConvertedBeatmaps==Hidden` → 可点「启用「显示转谱」」(设 Shown)；否则 → 「导入 BMS 谱面…」提示。同上下文**抑制**通用「enabling automatic conversion」hint。回归 `BmsConvertedDifficultyTableGroupingTest`(4)+`ManiaDifficultyTableGroupingTest`(3，端到端丢原生 mania)。
 
 ## 测试与发布约束
 

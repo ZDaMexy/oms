@@ -30,7 +30,9 @@ namespace osu.Game.Screens.Select
             protected override Colour4 DimColour => Colour4.White;
 
             private readonly IBindable<BeatmapSetInfo?> scopedBeatmapSet = new Bindable<BeatmapSetInfo?>();
-            private readonly Bindable<bool> showConvertedBeatmaps = new Bindable<bool>();
+            private readonly Bindable<ConvertedBeatmapsDisplay> convertedBeatmapsDisplay = new Bindable<ConvertedBeatmapsDisplay>();
+
+            private bool allowConvertedBeatmaps => convertedBeatmapsDisplay.Value != ConvertedBeatmapsDisplay.Hidden;
 
             private const double transition_duration = 200;
 
@@ -129,7 +131,7 @@ namespace osu.Game.Screens.Select
                 if (songSelect != null)
                     scopedBeatmapSet.BindTo(songSelect.ScopedBeatmapSet);
 
-                configManager.BindWith(OsuSetting.ShowConvertedBeatmaps, showConvertedBeatmaps);
+                configManager.BindWith(OsuSetting.ConvertedBeatmapsDisplay, convertedBeatmapsDisplay);
             }
 
             protected override void LoadComplete()
@@ -138,7 +140,7 @@ namespace osu.Game.Screens.Select
 
                 Beatmap.BindValueChanged(_ => updateBeatmap());
                 StarDifficulty.BindValueChanged(_ => updateBeatmap());
-                showConvertedBeatmaps.BindValueChanged(_ => updateBeatmap());
+                convertedBeatmapsDisplay.BindValueChanged(_ => updateBeatmap());
                 scopedBeatmapSet.BindValueChanged(_ => updateBeatmap(), true);
                 Enabled.BindValueChanged(_ => updateAppearance(), true);
                 FinishTransforms(true);
@@ -157,7 +159,7 @@ namespace osu.Game.Screens.Select
 
                 var otherStarDifficulties = Beatmap.Value.BeatmapSet!.Beatmaps
                                                    .Except([Beatmap.Value])
-                                                   .Where(b => b.AllowGameplayWithRuleset(ruleset.Value, showConvertedBeatmaps.Value))
+                                                   .Where(b => b.AllowGameplayWithRuleset(ruleset.Value, allowConvertedBeatmaps))
                                                    .Select(b => getResolvedStarRating(b))
                                                    .OrderBy(starRating => starRating)
                                                    .ToList();
@@ -226,7 +228,7 @@ namespace osu.Game.Screens.Select
             }
 
             private double getResolvedStarRating(BeatmapInfo beatmap)
-                => beatmap.RequiresRulesetSpecificStarRating(ruleset.Value, showConvertedBeatmaps.Value)
+                => beatmap.RequiresRulesetSpecificStarRating(ruleset.Value, allowConvertedBeatmaps)
                    && BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmap, ruleset.Value, out double persistedConvertedStarRating)
                     ? persistedConvertedStarRating
                     : beatmap.StarRating;

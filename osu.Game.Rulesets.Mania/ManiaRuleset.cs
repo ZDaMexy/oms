@@ -42,6 +42,8 @@ using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
 using osu.Game.Screens.Edit.Setup;
 using osu.Game.Screens.Ranking.Statistics;
+using osu.Game.Screens.Select;
+using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Mania
@@ -530,6 +532,27 @@ namespace osu.Game.Rulesets.Mania
         {
             return new ManiaFilterCriteria();
         }
+
+        public override IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes()
+        {
+            // Surface the BMS difficulty-table grouping for mania. It shows ONLY BMS converts (native mania charts are
+            // excluded by BmsConvertedDifficultyTableGrouping returning no group definitions for them); an empty result
+            // is explained by NoResultsPlaceholder. Placed right after "No grouping" for prominence.
+            var modes = base.GetAvailableSongSelectGroupModes().ToList();
+            modes.Insert(Math.Min(1, modes.Count), GroupMode.DifficultyTable);
+            return modes;
+        }
+
+        public override bool IsSongSelectGroupingHierarchical(GroupMode mode)
+            => mode == GroupMode.DifficultyTable || base.IsSongSelectGroupingHierarchical(mode);
+
+        public override bool ShouldResetSongSelectGroupToRoot(GroupMode mode)
+            => mode == GroupMode.DifficultyTable || base.ShouldResetSongSelectGroupToRoot(mode);
+
+        public override IEnumerable<GroupDefinition> GetSongSelectGroupDefinitions(GroupMode mode, IBeatmapInfo beatmapInfo)
+            => mode == GroupMode.DifficultyTable
+                ? BmsConvertedDifficultyTableGrouping.GetGroupDefinitions(beatmapInfo)
+                : base.GetSongSelectGroupDefinitions(mode, beatmapInfo);
 
         public override IEnumerable<Drawable> CreateEditorSetupSections() =>
         [

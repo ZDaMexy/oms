@@ -46,7 +46,7 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.BeatmapLeaderboardSortMode, LeaderboardSortMode.Score);
             SetDefault(OsuSetting.BeatmapDetailModsFilter, false);
 
-            SetDefault(OsuSetting.ShowConvertedBeatmaps, true);
+            SetDefault(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown);
             SetDefault(OsuSetting.DisplayStarsMinimum, 0.0, 0, 10, 0.1);
             SetDefault(OsuSetting.DisplayStarsMaximum, 10.1, 0, 10.1, 0.1);
 
@@ -434,7 +434,7 @@ namespace osu.Game.Configuration
         SongSelectBackgroundBlur,
         Version,
         ShowFirstRunSetup,
-        ShowConvertedBeatmaps,
+        ConvertedBeatmapsDisplay,
         Skin,
         ScreenshotFormat,
         ScreenshotCaptureMenuCursor,

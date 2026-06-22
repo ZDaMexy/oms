@@ -112,7 +112,7 @@ namespace osu.Game.Tests.Visual.Navigation
             AddStep("enter song select", () => Game.ChildrenOfType<ButtonSystem>().Single().OnSolo?.Invoke());
             AddUntilStep("song select is current", () => Game.ScreenStack.CurrentScreen is SoloSongSelect songSelect && songSelect.CarouselItemsPresented);
 
-            AddStep("set convert to false", () => Game.LocalConfig.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("set convert to false", () => Game.LocalConfig.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             var firstImport = importScore(1, new CatchRuleset().RulesetInfo);
             presentAndConfirm(firstImport, type);

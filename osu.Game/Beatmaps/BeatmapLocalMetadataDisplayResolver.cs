@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Linq;
 
 namespace osu.Game.Beatmaps
 {
@@ -135,6 +136,35 @@ namespace osu.Game.Beatmaps
                 return label!;
 
             return isBareNumericPlayLevel(beatmap.DifficultyName) ? string.Empty : beatmap.DifficultyName;
+        }
+
+        /// <summary>
+        /// The difficulty-table classification label(s) for a BMS chart, e.g. <c>"sl4"</c>, or <c>"★8/sl4"</c> when the
+        /// chart is indexed by more than one difficulty table. Labels are ordered by the song-select difficulty-table
+        /// order (the table sort order) and joined with <c>'/'</c>, listing one label per indexing table. Returns an empty
+        /// string for non-BMS charts or charts not indexed by any enabled table. Identical between BMS-mode and the
+        /// converted-mania view (the chart stays a BMS beatmap in both). Display-only.
+        /// </summary>
+        public static string GetDisplayDifficultyTableClassification(IBeatmapInfo beatmap)
+        {
+            if (!isBmsBeatmap(beatmap))
+                return string.Empty;
+
+            var entries = BmsPersistedMetadataResolver.GetDifficultyTableEntries(beatmap.Metadata as BeatmapMetadata);
+
+            if (entries.Count == 0)
+                return string.Empty;
+
+            var labels = entries
+                         .GroupBy(entry => (entry.TableSortOrder, entry.TableName))
+                         .OrderBy(group => group.Key.TableSortOrder)
+                         .ThenBy(group => group.Key.TableName, StringComparer.Ordinal)
+                         .Select(group => group.OrderBy(entry => entry.Level)
+                                               .ThenBy(entry => entry.LevelLabel, StringComparer.Ordinal)
+                                               .First().LevelLabel)
+                         .Where(label => !string.IsNullOrWhiteSpace(label));
+
+            return string.Join('/', labels);
         }
 
         public static string GetDisplayCreator(IBeatmapInfo beatmap)

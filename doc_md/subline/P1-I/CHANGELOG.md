@@ -1,5 +1,35 @@
 # P1-I 变动日志
 
+## 2026-06-22（其四）：mania 选曲新增「难度表」分组（只显示 BMS 转谱 + 空结果指导）
+
+用户要求：给 mania 选曲分组下拉新增「难度表」分组，行为同 BMS 模式难度表分组，但**只显示 BMS 转谱**（排除原生 mania）；若因转谱被禁用、或没有 BMS 谱面导致结果为空，给针对性指导说明。
+
+- **跨 ruleset 取数（复用 osu.Game 侧只读 resolver）**：mania ruleset 不引用 BMS ruleset、拿不到 `BmsTableGroupMode`。新增 osu.Game 共享 `BmsConvertedDifficultyTableGrouping`（`Screens/Select/`），用 [[2026-06-22 其二]] 已建的 `BmsPersistedMetadataResolver.GetDifficultyTableEntries`（只读 ExtensionData）构建 表名→等级 的 `GroupDefinition` 两级树（无条目→Unrated），镜像 `BmsTableGroupMode`（含按 RulesetDataJson 内容键的有界解析缓存）。
+- **「只显示转谱」机制 = grouping 丢弃法（零改 matching）**：关键发现——`BeatmapCarouselFilterGrouping.addHierarchicalGroups` 对**返回空 group 定义**的谱面直接**丢弃**，且「N matches」计数取 `Filters.Last()`（=grouping 阶段）。故 `BmsConvertedDifficultyTableGrouping` 对**非 BMS** 谱面（`Ruleset.ShortName!="bms"`，即原生 mania）返回空 → 被 grouping 丢弃，转谱按表分组。无需改 matching、无需 force ConvertedOnly、计数与列表一致。转谱是否出现仍由「显示转谱」设置在 matching 阶段把关（禁用→无转谱→丢光→空）。
+- **mania ruleset 接线**（`ManiaRuleset`）：override `GetAvailableSongSelectGroupModes`（在「未分组」后插入 `GroupMode.DifficultyTable`）/`IsSongSelectGroupingHierarchical`（DifficultyTable→true，触发层级树 + 强制扁平 standalone）/`ShouldResetSongSelectGroupToRoot`（DifficultyTable→true，进选曲落根=表名层）/`GetSongSelectGroupDefinitions`（DifficultyTable→共享 helper）。`GroupMode.DifficultyTable` enum 与「难度表」文案早已存在（原 BMS 专用），直接复用。
+- **空结果指导**（`NoResultsPlaceholder`）：mania+DifficultyTable+空时加专项说明——先 paragraph「难度表分组只显示 BMS 转谱谱面。」；再分两路：`ConvertedBeatmaps==Hidden`→bullet 可点链接「启用「显示转谱」」(→设 `Shown`)；否则（转谱已允许但仍空＝无 BMS 谱面/被其他筛选滤掉）→bullet「导入 BMS 谱面后即可在此按难度表分组查看。」。此上下文下**抑制**通用「enabling automatic conversion」hint（避免重复）。3 串走 `OmsSongSelectStrings`(+resx/zh.resx)。
+- **回归**：`BmsConvertedDifficultyTableGroupingTest`（osu.Game.Tests，4 条：BMS 建树 / 无条目 Unrated / 非 BMS 空 / 非 BMS 带条目仍空）+ `ManiaDifficultyTableGroupingTest`（mania.Tests，3 条：暴露分组项 + 端到端「丢原生 mania·转谱按表分组」+ 未收录转谱进 Unrated）。`BeatmapCarouselFilterGroupingTest` 17/17 不回归；`osu.Desktop.slnf` Release **0 错误**。沉淀为 TECHNICAL_CONSTRAINTS 展示层级与层级导航约束 #21。**用户 2026-06-22 实机验收通过（观测暂无异常）。** 归属：主 `P1-I`（选曲分组面）；取数依赖 `P1-H`（难度表持久化）/复用 osu.Game resolver。
+
+## 2026-06-22（其三）：mania 选曲「显示转谱」按钮改三态（禁用 / 启用 / 仅显示转谱）
+
+用户要求：mania 模式下选曲筛选区的「显示转谱」从「启用/禁用」二态改为「启用/禁用/**仅显示转谱**」三态切换按钮；设置面板同步改三态（用户选定 Q1=三态 enum 收口）；BMS 模式那个按钮保持二态（用户选定 Q2，BMS 无转谱可显示、空操作）。
+
+- **三态语义（mania）**：禁用＝只显示原生 mania；启用＝原生 + 转谱（BMS→mania）；**仅显示转谱**＝只显示转谱、隐藏原生 mania（让"只想在 mania 模式玩 BMS 谱"的人不被原生谱干扰）。
+- **单一收口 enum**：新增 `ConvertedBeatmapsDisplay { Hidden, Shown, ConvertedOnly }`（`osu.Game/Configuration/`，`[LocalisableDescription]` → `OmsSongSelectStrings` 三串 禁用/启用/仅显示转谱）。`OsuSetting.ShowConvertedBeatmaps`(bool) **改名为** `ConvertedBeatmapsDisplay`(enum，默认 `Shown`)——旧 bool 配置键作废（升级后重置为默认"启用"，离线 pre-release 可接受）。`FilterCriteria` 加 `ConvertedBeatmaps` enum 字段 + 把 `AllowConvertedBeatmaps` 保留为 enum 的 **bool 投影属性**（`get => != Hidden`；`set` 映射 Shown/Hidden）——既给"是否允许转谱"消费方（star-lookup 门）一个稳定 bool，又零改动现有测试。
+- **过滤收口点**＝`BeatmapCarouselFilterMatching` 第 70 行：原 `AllowGameplayWithRuleset(ruleset, allowConverted)` 改 `switch(ConvertedBeatmaps)`——Hidden=`allowConversion:false`(原生)、Shown=`allowConversion:true`(原生+转谱)、ConvertedOnly=`Ruleset!=当前 && allowConversion:true`(仅转谱)。star-lookup 两处门(matching:179 / grouping:421)继续读派生 `AllowConvertedBeatmaps`(ConvertedOnly 时仍 true、转谱照常取解析星数)，零改动。
+- **UI**：新增 `ConvertedBeatmapsDisplayButton`(继承 `ShearedButton`，点击循环 Hidden→Shown→ConvertedOnly，文案+高亮色随态：Hidden=灰"显示转谱"、Shown=Highlight1"显示转谱"、ConvertedOnly=Colour1/2 强调色"仅显示转谱")。`FilterControl` 标准(mania)布局换成它(`Current` 双绑 enum)；BMS 布局保留二态 `ShearedToggleButton`，与 enum 做**带 echo 守卫的双向同步**(`Active = enum!=Hidden`；toggle→Shown/Hidden；`if(e.NewValue==convertsAllowed)return` 断环)。设置面板 `FormCheckBox`→`FormEnumDropdown<ConvertedBeatmapsDisplay>`。
+- **BMS 安全（红线）**：BMS 无转谱，`仅转谱` 在 BMS 下会清空列表。故 `FilterControl.CreateCriteria` 对**非 mania** ruleset 把 `ConvertedOnly` 夹回 `Shown`（`mania_ruleset_short_name` 常量，OMS 唯一转谱目标=mania）；BMS 二态按钮也只产出 Hidden/Shown。即使 mania 设 ConvertedOnly 后切到 BMS，列表也不会空。
+- **改动文件**：新增 `ConvertedBeatmapsDisplay.cs` / `ConvertedBeatmapsDisplayButton.cs` + `OmsSongSelectStrings`(+resx/zh.resx 三串)；改 `OsuConfigManager` / `FilterCriteria` / `BeatmapCarouselFilterMatching` / `FilterControl` / `SongSelect`(×2 派生) / `OsuGame` / `NoResultsPlaceholder` / 两个 `SpreadDisplay`(派生) / `SongSelectSettings`。回归：`FilterMatchingTest` 新增 4 条（Hidden 只原生 / Shown 原生+转谱 / ConvertedOnly 隐原生留转谱 / AllowConvertedBeatmaps 投影），全套 98/98；carousel sort+group 25/25；`osu.Desktop.slnf` Release **0 错误**。沉淀为 TECHNICAL_CONSTRAINTS 展示层级与层级导航约束 #20。**用户 2026-06-22 实机验收通过（观测暂无异常）。** 归属：主 `P1-I`（选曲筛选面）。
+
+## 2026-06-22（其二）：标准面板第 4 排加难度表归类（星级 ↔ 按钮 之间，BMS + 转谱-mania）
+
+用户要求：展示层级＝「谱面」时，`PanelBeatmapStandalone`（选歌列表扁平行 / 兼歌曲条）第 4 排由「星级 + 临时展示所有难度按钮」改为「星级 + **难度表难度归类** + 临时展示所有难度按钮」，BMS 选曲与转谱-mania 选曲都生效；被多个难度表索引则按选曲列表的难度表顺序、用 `/` 一一列举（如 Satellite-sl4 显示 `sl4`；若还属于发狂难易度表-★8 则显示 `★8/sl4`）。
+
+- **取值链（关键红线＝只读）**：难度表条目持久化在 BMS ruleset 写入的 `BmsBeatmapMetadataData.difficulty_table_entries`（与 converted-star 共用单个 `BeatmapMetadata.RulesetData` 列）。osu.Game 不引用 BMS ruleset，故新增 `BmsPersistedMetadataResolver.GetDifficultyTableEntries`：复用既有按 JSON 内容键缓存的 `getPersistedData`，**只从 `BmsPersistedMetadataData.ExtensionData` 里读 `difficulty_table_entries`**（osu.Game 侧 `BmsPersistedDifficultyTableEntry` 只建模 `TableName/LevelLabel/Level/TableSortOrder`、**绝不回写**）。**没有**把该字段建模成可写 DTO 字段——否则 converted-star 写回会按缺 `Symbol`/`Md5` 的 DTO 重序列化、抹掉这两字段，重蹈 P1-H #22「共享 RulesetData 列互相 clobber」的破坏性 ping-pong（既有 `TestConvertedStarRatingWritePreservesDifficultyTableFields` 证明 ExtensionData 已忠实保留该字段，本次只读它）。
+- **展示逻辑**：`BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassification`（display-only，键于 `Ruleset.ShortName=="bms"`，BMS-mode 与转谱-mania 同一 BMS 谱面取值一致）→ 按 `TableSortOrder` 升序、每个表取一个 `LevelLabel`、`/` 连接。`LevelLabel` 已含符号前缀（`buildLevelLabel`：`★8` / `sl4`），直接显示。表顺序＝当前 `TableSortOrder`（导入/启用序），日后难度表管理改造改顺序时本展示自动跟随。
+- **面板挂载**：`PanelBeatmapStandalone` 第 4 排 FillFlow 在 `starRatingDisplay` 与 `SpreadDisplay` 之间插 `difficultyTableText`（`Caption1 SemiBold` + `colourProvider.Content1`）；`PrepareForUse` 取归类串、非空才 `Alpha=1`，空（非 BMS / Unrated）则 `Alpha=0` 借 FillFlow「非 present 子项不排布」消除星级↔按钮的幽灵间距；`FreeAfterUse` 复位。只在 `PrepareForUse` 取一次（归类只依赖谱面自身条目、不随 ruleset/mod 变；中途改难度表仍沿用既有重进选歌/重启生效的 carousel staleness 边界）。
+- **回归**：新增 `BeatmapLocalMetadataDisplayResolverTest` 4 条（单表→`sl4` / 多表按 sort order→`★8/sl4` / Unrated→空 / 非 BMS→空），全套 7/7 通过；`osu.Game` Release 编译 0 错误 0 警告。沉淀为 TECHNICAL_CONSTRAINTS 展示层级与层级导航约束 #19。**用户 2026-06-22 实机验收通过（观测暂无异常）。** 归属：主 `P1-I`（选歌标准面板展示面）；取数依赖 `P1-H`（难度表持久化 + 共享 RulesetData 列合同）、复用 `P1-K` 的 `BeatmapLocalMetadataDisplayResolver` 展示解析器。
+
 ## 2026-06-22：选歌右键「打开歌曲/谱面文件位置」（在资源管理器中定位）
 
 用户要求在 BMS 选歌右键菜单加两项「在系统资源管理器中定位」：歌曲条 → 打开歌曲所在文件夹并选中该歌曲文件夹；难度 → 打开歌曲文件夹并选中该难度文件。

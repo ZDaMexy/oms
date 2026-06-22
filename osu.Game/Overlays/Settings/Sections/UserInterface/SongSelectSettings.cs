@@ -21,10 +21,10 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
         {
             Children = new Drawable[]
             {
-                new SettingsItemV2(new FormCheckBox
+                new SettingsItemV2(new FormEnumDropdown<ConvertedBeatmapsDisplay>
                 {
                     Caption = UserInterfaceStrings.ShowConvertedBeatmaps,
-                    Current = config.GetBindable<bool>(OsuSetting.ShowConvertedBeatmaps),
+                    Current = config.GetBindable<ConvertedBeatmapsDisplay>(OsuSetting.ConvertedBeatmapsDisplay),
                 })
                 {
                     Keywords = new[] { "converts", "converted" }

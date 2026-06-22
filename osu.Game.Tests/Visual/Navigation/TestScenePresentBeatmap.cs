@@ -75,7 +75,7 @@ namespace osu.Game.Tests.Visual.Navigation
         [Test]
         public void TestFromSongSelectDifferentRulesetWithConvertDisallowed()
         {
-            AddStep("Set converts disallowed", () => Game.LocalConfig.SetValue(OsuSetting.ShowConvertedBeatmaps, false));
+            AddStep("Set converts disallowed", () => Game.LocalConfig.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
             var osuImport = importBeatmap(1);
             presentAndConfirm(osuImport);
@@ -95,7 +95,7 @@ namespace osu.Game.Tests.Visual.Navigation
         [Test]
         public void TestFromSongSelectDifferentRulesetWithConvertAllowed()
         {
-            AddStep("Set converts allowed", () => Game.LocalConfig.SetValue(OsuSetting.ShowConvertedBeatmaps, true));
+            AddStep("Set converts allowed", () => Game.LocalConfig.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Shown));
 
             var osuImport = importBeatmap(1);
             presentAndConfirm(osuImport);
