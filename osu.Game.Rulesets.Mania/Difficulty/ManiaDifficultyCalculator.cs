@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             {
                 StarRating = skills.OfType<Strain>().Single().DifficultyValue() * difficulty_multiplier,
                 Mods = mods,
-                MaxCombo = beatmap.HitObjects.Sum(maxComboForObject),
+                MaxCombo = beatmap.HitObjects.Where(isDifficultyRelevant).Sum(maxComboForObject),
             };
 
             return attributes;
@@ -62,9 +62,23 @@ namespace osu.Game.Rulesets.Mania.Difficulty
             return 1;
         }
 
+        // OMS: the BMS→mania converter injects sample-only objects (autoplay BGM / scratch keysounds) into the playable
+        // beatmap's HitObjects so they sound during gameplay; native mania never carries these. They must not feed Strain
+        // or MaxCombo, otherwise the converted star rating is inflated by BGM density (every BGM event lands in column 0).
+        // `isScorableHitObject` on the converter only fixes the TotalObjectCount metadata, which this calculator never
+        // reads — it walks beatmap.HitObjects directly — so the exclusion has to happen here. Mirrors the nested-aware
+        // predicate of ManiaAutoGenerator.canParticipateInAutoplay / OrderedHitPolicy.canParticipateInLocking: keep an
+        // object only if it (or any nested object) affects combo. This keeps Note and HoldNote (its combo lives in the
+        // nested head/tail, not the IgnoreHit top level) and drops the no-nested sample-only objects. Provably a no-op
+        // for native mania, whose HitObjects are exclusively Note / HoldNote — so the converted-star fix needs no
+        // ManiaDifficultyCalculator.Version bump (BMS persisted stars are invalidated via the conversion-version gate).
+        private static bool isDifficultyRelevant(HitObject hitObject)
+            => hitObject.Judgement.MaxResult.AffectsCombo()
+               || hitObject.NestedHitObjects.Any(h => h.Judgement.MaxResult.AffectsCombo());
+
         protected override IEnumerable<DifficultyHitObject> CreateDifficultyHitObjects(IBeatmap beatmap, double clockRate)
         {
-            var sortedObjects = beatmap.HitObjects.ToArray();
+            var sortedObjects = beatmap.HitObjects.Where(isDifficultyRelevant).ToArray();
             int totalColumns = ((ManiaBeatmap)beatmap).TotalColumns;
 
             LegacySortHelper<HitObject>.Sort(sortedObjects, Comparer<HitObject>.Create((a, b) => (int)Math.Round(a.StartTime) - (int)Math.Round(b.StartTime)));

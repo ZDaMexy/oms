@@ -1,6 +1,6 @@
 # P1-K 开发计划：BMS 解析链路治理
 
-> 最后更新：2026-06-23（新增 K12 切片：转谱难度输入剔除 sample-only 对象——审查确诊 BGM/scratch 被错误计入 `ManiaDifficultyCalculator` 致转谱星数灌高，规划在难度入口按 nested-aware combo 谓词过滤 + bump `conversion_version`；同步更正 K11 节 415/427 行失真。此前 2026-06-01 订正 K9 #12 autoplay 谓词 nested-aware、新增 K11 切片 BMS→mania 转谱 BGM/autoplay 音频补全与 LN 尾键音对齐）
+> 最后更新：2026-06-23（K12 切片**已落地**：转谱难度输入剔除 sample-only 对象——审查确诊 BGM/scratch 被错误计入 `ManiaDifficultyCalculator` 致转谱星数灌高，已在难度入口加 `isDifficultyRelevant` nested-aware combo 过滤 + bump `conversion_version` `20260623`，pre-fix 反证 +113%、BMS 961/961 + Release 0/0；同步更正 K11 节 415/427 行失真。此前 2026-06-01 订正 K9 #12 autoplay 谓词 nested-aware、新增 K11 切片 BMS→mania 转谱 BGM/autoplay 音频补全与 LN 尾键音对齐）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-K` 的执行顺序；存储/导入一致性见 [../P1-H/DEVELOPMENT_PLAN.md](../P1-H/DEVELOPMENT_PLAN.md)，runtime 热路径与播放期性能见 [../P1-J/DEVELOPMENT_PLAN.md](../P1-J/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -439,7 +439,7 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 
 ### K12：转谱难度输入剔除 sample-only 对象（修复 BGM/scratch 灌水转谱星数）
 
-状态：规划中（2026-06-23 审查确诊，未动产品代码）。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) K12；落地后回写本节状态 + STATUS + CHANGELOG。
+状态：**已落地（2026-06-23）**。`ManiaDifficultyCalculator.isDifficultyRelevant` nested-aware 过滤 + `conversion_version` bump `20260623` + 测试真跑难度断言；pre-fix 反证 scratch 星 `0.817→1.742`（+113%），修复后 `ManiaDifficultyCalculatorTest` 2/2（原生 no-op）、`BmsToManiaBeatmapConverterTest` 24/24、`BmsStarRatingResolverTest` 14/14、BMS 961/961、Release 0/0。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) K12、落地与验证见 [CHANGELOG.md](CHANGELOG.md) 2026-06-23。
 
 目标：让 `BMS -> mania` 转谱星数只反映**可玩音符**的难度，剔除被错误计入的 BGM / scratch sample-only 对象；并对已持久化的灌水星数做一次性失效重算。不改 K9 lane/stage/scratch 语义，不把 sample-only 对象移出 `HitObjects`（仍需在游玩树播 keysound）。
 

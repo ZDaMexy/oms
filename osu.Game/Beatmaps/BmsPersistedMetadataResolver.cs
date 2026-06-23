@@ -13,10 +13,19 @@ namespace osu.Game.Beatmaps
     {
         private const string supported_converted_ruleset = "mania";
 
-        // Bump this (use the change date as YYYYMMDD) whenever BmsToManiaBeatmapConverter changes how it
-        // maps objects, timing, or star rating. Persisted converted star ratings tagged with an older
-        // version are treated as stale and recomputed, so forgetting to bump it leaves outdated stars cached.
-        private const int current_bms_to_mania_conversion_version = 20260526;
+        // Bump this (use the change date as YYYYMMDD) whenever BmsToManiaBeatmapConverter changes how it maps objects,
+        // timing, or star rating — OR whenever the mania difficulty computation over the converted beatmap changes in a
+        // way that only affects BMS-sourced charts. Persisted converted star ratings tagged with an older version are
+        // treated as stale and recomputed, so forgetting to bump it leaves outdated stars cached.
+        //
+        // 20260623 (K12): excluded the converter's sample-only BGM/scratch objects from the mania difficulty input
+        // (ManiaDifficultyCalculator.isDifficultyRelevant) — they were inflating the converted star. That filter is a
+        // PROVABLE NO-OP for native mania (only Note/HoldNote present), so ManiaDifficultyCalculator.Version is
+        // intentionally NOT bumped (bumping it would force clearOutdatedStarRatings to recompute the entire native +
+        // converted mania library, wasteful at scale and wrong for native whose output is unchanged). Bumping THIS
+        // BMS-only conversion version instead invalidates exactly the affected persisted converted stars, which
+        // populateMissingConvertedStarRatings recomputes once on next startup. Keep that asymmetry when revisiting.
+        private const int current_bms_to_mania_conversion_version = 20260623;
 
         public static BmsPersistedChartMetadata? GetChartMetadata(BeatmapMetadata? metadata)
         {

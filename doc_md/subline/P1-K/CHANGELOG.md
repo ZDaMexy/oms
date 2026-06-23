@@ -7,9 +7,9 @@
 
 ## 2026-06-23
 
-### 审查 + 规划（未动产品代码）：转谱星数被 BGM/scratch sample-only 对象灌高 + 更正失真叙述（K12 立项）
+### 审查 + 修复落地（K12）：转谱星数被 BGM/scratch sample-only 对象灌高 + 更正失真叙述
 
-> 本条为**审查发现 + 文档更正 + 修复规划**，**未改任何产品代码**；仅落地 P1-K 四件套 + 主线的文档更正与 K12 规划。代码修复待后续按 K12 实施。
+> 本条含**审查发现 + K12 代码修复已落地 + 文档更正**。先记录审查链路，再记录修复与验证。
 
 应用户要求审查 `BMS -> mania` 转谱星数的「计算 / 展示 / 持久化」链路（针对 mania 模式）。结论：**持久化与展示两段健康、与设计一致；计算段有一处确凿正确性缺陷**。
 
@@ -17,7 +17,8 @@
 - **链路其余两段健康**：持久化＝共享 `RulesetData` 列已用 `[JsonExtensionData]` 防乒乓、双版本闸（`conversion_version` + mania LAV）正确、三条写路径（import/lazy/batch）齐全；展示＝carousel `getEffectiveStarRatings*` / 面板 `SpreadDisplay` / wedge 统一读同一份持久化转谱星、内部一致——问题是「源数据被灌水」而非展示出错。
 - **长期未发现的根因（失真叙述）**：K9 #17 / K11 #3 与测试 `TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts` 的注释都把「`isScorableHitObject`/`TotalObjectCount` 计数排除」**误当成「难度输入排除」**。该测试**从未真跑过** `ManiaDifficultyCalculator`，只断言了 `TotalObjectCount == scorableBeatmap.HitObjects.Count`（难度器根本不读这个字段），故 bug 被「绿测试」掩盖。**❗本条同时更正**此前 CHANGELOG（2026-06-01 K11 落地条「`isScorableHitObject` 一并排除…星数输入」「star/统计不受 BGM 影响」、2026-06-10 条「`TotalObjectCount==…` 守 scratch 不进难度输入」）中的同一失真表述——这些「不进难度输入 / star 不受影响」的结论**当时并未成立**。
 - **连带（版本陈旧）**：K11（2026-06-01，commit `9c97e48`）新增 BGM 对象改变了难度输入，却因上述误判**未 bump** `conversion_version`（仍停在 `20260526`，set 于更早的 `4aa76f0`）；mania `DifficultyCalculator.Version`（`20241007`）也未变。故已持久化的转谱星可能并存「加 BGM 前/后」两套不一致值，且都被当 current。
-- **修复规划（K12，未实施）**：① 在 `ManiaDifficultyCalculator` 难度入口（`CreateDifficultyHitObjects` + `maxComboForObject`）按 **nested-aware combo 谓词**过滤，只留 scorable 对象（保留 `Note` 与嵌套 combo 的 `HoldNote`、剔除无嵌套的 BGM/scratch；与 K9 #12 autoplay/note-lock 同源谓词，不引用 BMS 类型；对原生 mania 可证 no-op）；② **不 bump** mania `Version`（避免触发整库重算，原生输出不变），**bump** `current_bms_to_mania_conversion_version → 20260623`（仅失效重算 BMS 库、复用既有进度通知）；③ 把误导测试改成**真跑** `ManiaDifficultyCalculator.Calculate()` 对「完整 vs scorable-filtered beatmap」断言 star 相等 + 原生 mania no-op sanity。详见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) K12 节、[TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) K12 节、[DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)「已知缺陷」节。
+- **修复（K12，已落地）**：① [ManiaDifficultyCalculator.cs](../../../osu.Game.Rulesets.Mania/Difficulty/ManiaDifficultyCalculator.cs) 难度入口（`CreateDifficultyHitObjects` 的 `beatmap.HitObjects` + `CreateDifficultyAttributes` 的 `maxComboForObject` 求和）改用新 `isDifficultyRelevant` **nested-aware combo 谓词**过滤，只留 scorable 对象（`hitObject.Judgement.MaxResult.AffectsCombo() || NestedHitObjects.Any(同条件)`，镜像 `ManiaAutoGenerator.canParticipateInAutoplay`，不引用 BMS 类型）——保留 `Note` 与嵌套 combo 的 `HoldNote`、剔除无嵌套的 BGM/scratch；② **不 bump** mania `Version`（过滤对原生可证 no-op，避免整库重算），**bump** [BmsPersistedMetadataResolver.cs](../../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs) `current_bms_to_mania_conversion_version` `20260526 → 20260623`（仅失效重算 BMS 库、复用既有进度通知）+ 补非对称注释；③ 测试改成**真跑** `ManiaDifficultyCalculator.Calculate()`：重写 `TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts`（dense scratch 谱）+ 新增 `TestBgmSampleOnlyObjectsDoNotInflateConvertedStarRating`（dense BGM 谱），对「完整 vs scorable-filtered beatmap」断言 star 相等（新增 `PreconvertedWorkingBeatmap` pass-through 避免 `GetPlayableBeatmap` 再转换抹掉 sample-only 对象）；新增 `BmsStarRatingResolverTest.TestPersistedConvertedStarRatingRequiresMatchingConversionVersion` 锁失效路径。
+- **验证**：**pre-fix 反证**＝临时回退过滤后两守卫 FAIL，scratch-dense 谱 scorable 星 `0.817` vs 含 scratch `1.742`（**+113%**，量化了灌水量级）；恢复后：`ManiaDifficultyCalculatorTest` **2/2**（原生钉死星 `2.3493769750220914` 不变，no-op 确认）、`BmsToManiaBeatmapConverterTest` **24/24**、`BmsStarRatingResolverTest` **14/14**、完整 BMS **961/961**、`osu.Desktop.slnf` Release **0 警告 0 错误**。存量已持久化的灌水星将在下次启动由 `populateMissingConvertedStarRatings` 因 conversion_version 失配自动重算（用户侧表现＝一次性「Reprocessing converted star rating」进度通知）。
 - **文档更正落点**：K9 #17 守卫话术、K11 #3、PLAN K11 节 415/427 行、STATUS「对 scorable objects 计算」均已加 ❗更正标记并指向 K12；主线 STATUS/CHANGELOG 已反向同步。
 
 ---

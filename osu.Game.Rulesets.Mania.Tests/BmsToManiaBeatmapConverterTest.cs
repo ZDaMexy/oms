@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
@@ -12,7 +13,9 @@ using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Difficulty;
 using osu.Game.Rulesets.Mania.Objects;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.UI;
 
@@ -256,27 +259,80 @@ namespace osu.Game.Rulesets.Mania.Tests
         [Test]
         public void TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts()
         {
+            // Playable notes (key1 col0 + key5 col4) alongside a DENSE scratch lane (channel 16). The scratch taps become
+            // sample-only objects anchored to column 0; unless excluded from the difficulty input they pile onto column 0
+            // and inflate the converted star (K12).
             const string text = @"
-#TITLE Scratch Stats
+#TITLE Scratch Difficulty
 #BPM 160
 #WAVAA key1.wav
 #WAVBB scratch.wav
-#WAVCC key2.wav
-#WAVDD key3.wav
-#00111:AA00BB00CC00DD00
-#00211:AA00BB00CC00DD00
+#WAVCC key5.wav
+#00111:AA00AA00AA00AA00
+#00115:CC00CC00CC00CC00
+#00116:BBBBBBBBBBBBBBBB
+#00211:AA00AA00AA00AA00
+#00215:CC00CC00CC00CC00
+#00216:BBBBBBBBBBBBBBBB
 ";
 
             var convertedBeatmap = convertToMania(text, "scratch-stats.bme");
             var scorableBeatmap = createScorableBeatmap(convertedBeatmap);
 
-            // Scratch sample-only objects must be excluded from the scorable set that feeds difficulty/counts. The
-            // converter no longer computes a star itself (ManiaDifficultyCalculator owns that, run over exactly this
-            // scorable set downstream), so the count parity is the regression guard for "scratch doesn't inflate input".
+            // Precondition: the converted beatmap really carries sample-only scratch objects the scorable projection drops.
+            Assert.That(convertedBeatmap.HitObjects.OfType<BmsConvertedScratchSampleHitObject>().Any(), Is.True);
+            Assert.That(convertedBeatmap.HitObjects.Count, Is.GreaterThan(scorableBeatmap.HitObjects.Count));
+
+            double convertedStar = calculateConvertedManiaStarRating(convertedBeatmap);
+            double scorableStar = calculateConvertedManiaStarRating(scorableBeatmap);
+
             Assert.Multiple(() =>
             {
+                // Counts already excluded sample-only objects — but this only ever guarded the metadata fields, which the
+                // difficulty calculator never reads.
                 Assert.That(convertedBeatmap.BeatmapInfo.TotalObjectCount, Is.EqualTo(scorableBeatmap.HitObjects.Count));
                 Assert.That(convertedBeatmap.BeatmapInfo.EndTimeObjectCount, Is.EqualTo(0));
+                // The REAL guard (K12): ManiaDifficultyCalculator must yield the same star whether or not the sample-only
+                // objects are present — i.e. it must not count them. Before the K12 filter these two diverged (the scratch
+                // objects inflated column 0). A non-zero scorable star ensures we are not trivially comparing 0 == 0.
+                Assert.That(scorableStar, Is.GreaterThan(0));
+                Assert.That(convertedStar, Is.EqualTo(scorableStar).Within(1e-9));
+            });
+        }
+
+        [Test]
+        public void TestBgmSampleOnlyObjectsDoNotInflateConvertedStarRating()
+        {
+            // Playable notes (key1 col0 + key5 col4) alongside a DENSE autoplay BGM layer (channel 01). Every BGM event
+            // becomes a sample-only object pinned to column 0; unless excluded from the difficulty input they saturate
+            // column 0 and inflate the converted star for keysound-heavy charts (K12).
+            const string text = @"
+#TITLE BGM Difficulty
+#BPM 160
+#WAVAA key1.wav
+#WAVCC key5.wav
+#WAVZZ bgm.wav
+#00111:AA00AA00AA00AA00
+#00115:CC00CC00CC00CC00
+#00101:ZZZZZZZZZZZZZZZZ
+#00211:AA00AA00AA00AA00
+#00215:CC00CC00CC00CC00
+#00201:ZZZZZZZZZZZZZZZZ
+";
+
+            var convertedBeatmap = convertToMania(text, "bgm-difficulty.bms");
+            var scorableBeatmap = createScorableBeatmap(convertedBeatmap);
+
+            Assert.That(convertedBeatmap.HitObjects.OfType<BmsConvertedBgmSampleHitObject>().Any(), Is.True);
+            Assert.That(convertedBeatmap.HitObjects.Count, Is.GreaterThan(scorableBeatmap.HitObjects.Count));
+
+            double convertedStar = calculateConvertedManiaStarRating(convertedBeatmap);
+            double scorableStar = calculateConvertedManiaStarRating(scorableBeatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(scorableStar, Is.GreaterThan(0));
+                Assert.That(convertedStar, Is.EqualTo(scorableStar).Within(1e-9));
             });
         }
 
@@ -539,6 +595,30 @@ namespace osu.Game.Rulesets.Mania.Tests
             scorableBeatmap.HitObjects = convertedBeatmap.HitObjects.Where(hitObject => hitObject is not (BmsConvertedScratchSampleHitObject or BmsConvertedBgmSampleHitObject)).ToList();
 
             return scorableBeatmap;
+        }
+
+        private double calculateConvertedManiaStarRating(ManiaBeatmap beatmap)
+        {
+            // Run the production star calculator over EXACTLY this beatmap. A pass-through working beatmap is required:
+            // the normal WorkingBeatmap.GetPlayableBeatmap would re-run ManiaBeatmapConverter and regenerate plain Notes,
+            // erasing the sample-only BGM/scratch objects these tests are about (and thus hiding the very bug under test).
+            var workingBeatmap = new PreconvertedWorkingBeatmap(beatmap);
+            return new ManiaDifficultyCalculator(maniaRuleset.RulesetInfo, workingBeatmap).Calculate().StarRating;
+        }
+
+        private sealed class PreconvertedWorkingBeatmap : FlatWorkingBeatmap
+        {
+            private readonly IBeatmap playable;
+
+            public PreconvertedWorkingBeatmap(IBeatmap playable)
+                : base(playable)
+            {
+                this.playable = playable;
+            }
+
+            // Return the already-converted beatmap untouched (no re-conversion / ApplyDefaults pass), so the difficulty
+            // calculator sees the converter's sample-only objects exactly as produced.
+            public override IBeatmap GetPlayableBeatmap(IRulesetInfo ruleset, IReadOnlyList<Mod> mods, CancellationToken token) => playable;
         }
 
         // The converted keysound lives on Samples for playable notes, but on KeysoundSample (with an intentionally EMPTY

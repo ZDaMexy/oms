@@ -70,7 +70,7 @@ namespace osu.Game.Tests.Beatmaps
             {
                 Metadata = new BeatmapMetadata
                 {
-                    RulesetDataJson = "{\"chart_metadata\":{\"play_level\":\"★12\"},\"converted_star_ratings\":{\"mania\":{\"star_rating\":7.25,\"difficulty_version\":20241007,\"conversion_version\":20260526}}}"
+                    RulesetDataJson = "{\"chart_metadata\":{\"play_level\":\"★12\"},\"converted_star_ratings\":{\"mania\":{\"star_rating\":7.25,\"difficulty_version\":20241007,\"conversion_version\":20260623}}}"
                 }
             };
             var maniaRuleset = new RulesetInfo { ShortName = "mania", LastAppliedDifficultyVersion = 20241007 };
@@ -82,16 +82,41 @@ namespace osu.Game.Tests.Beatmaps
         [Test]
         public void TestPersistedConvertedStarRatingRequiresMatchingVersion()
         {
+            // conversion_version is current here, so only the difficulty_version mismatch (persisted 20241007 vs ruleset
+            // 20241008) should reject the persisted star — keeping this test surgical to the difficulty-version gate.
             var beatmap = new BeatmapInfo(new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName })
             {
                 Metadata = new BeatmapMetadata
                 {
-                    RulesetDataJson = "{\"converted_star_ratings\":{\"mania\":{\"star_rating\":7.25,\"difficulty_version\":20241007,\"conversion_version\":20260526}}}"
+                    RulesetDataJson = "{\"converted_star_ratings\":{\"mania\":{\"star_rating\":7.25,\"difficulty_version\":20241007,\"conversion_version\":20260623}}}"
                 }
             };
             var maniaRuleset = new RulesetInfo { ShortName = "mania", LastAppliedDifficultyVersion = 20241008 };
 
             Assert.That(BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmap, maniaRuleset, out _), Is.False);
+        }
+
+        [Test]
+        public void TestPersistedConvertedStarRatingRequiresMatchingConversionVersion()
+        {
+            // K12: a stale conversion_version (here 20260526, predating the sample-only difficulty-input fix) must NOT
+            // resolve and must NOT count as current state, even when the difficulty_version matches — so the bump to
+            // 20260623 invalidates the previously inflated persisted stars and they get recomputed on next startup.
+            var metadata = new BeatmapMetadata
+            {
+                RulesetDataJson = "{\"converted_star_ratings\":{\"mania\":{\"star_rating\":7.25,\"difficulty_version\":20241007,\"conversion_version\":20260526}}}"
+            };
+            var beatmap = new BeatmapInfo(new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName })
+            {
+                Metadata = metadata
+            };
+            var maniaRuleset = new RulesetInfo { ShortName = "mania", LastAppliedDifficultyVersion = 20241007 };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(BmsStarRatingResolver.TryResolvePersistedConvertedStarRating(beatmap, maniaRuleset, out _), Is.False);
+                Assert.That(BmsPersistedMetadataResolver.HasCurrentConvertedStarRatingState(metadata, maniaRuleset), Is.False);
+            });
         }
 
         [Test]

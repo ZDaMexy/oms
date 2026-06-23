@@ -7,9 +7,9 @@
 
 ## 2026-06-23
 
-### 审查：BMS→mania 转谱星数被 BGM/scratch 灌高（P1-K，规划 K12，未动产品代码）
+### 修复（K12）：BMS→mania 转谱星数被 BGM/scratch 灌高（P1-K）
 
-应用户要求审查 `BMS→mania` 转谱星数的「计算 / 展示 / 持久化」链路（mania 模式）。结论：**持久化与展示两段健康；计算段有确凿缺陷**——converted mania beatmap 的 `HitObjects` 始终含 BGM（`Column=0`）与 scratch sample-only 对象，`isScorableHitObject` 只改 `TotalObjectCount` 计数、**不移除对象**，而 `ManiaDifficultyCalculator` 直接遍历完整 `HitObjects` 零过滤计入 Strain/MaxCombo（mania 无 beatmap-processor 剥离）→ **转谱星数系统性灌高**（键音型 BMS 灌水可观），影响选歌星数显示/排序/按星分组；**仅星数，游玩计分不受影响**（IgnoreHit 不计分）。长期未发现的根因＝K9 #17/K11 #3 与对应测试注释把「计数排除」误当「难度输入排除」，且该测试从未真跑难度计算。**本次仅落地文档更正 + K12 修复规划，未改产品代码**：规划在 `ManiaDifficultyCalculator` 难度入口按 nested-aware combo 谓词过滤（对原生 mania 可证 no-op）+ bump `conversion_version`（只重算 BMS 库、不 bump mania `Version`）+ 测试改真跑难度断言。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-23、[P1-K DEVELOPMENT_PLAN](../subline/P1-K/DEVELOPMENT_PLAN.md) K12、[P1-K TECHNICAL_CONSTRAINTS](../subline/P1-K/TECHNICAL_CONSTRAINTS.md) K12 与 [P1-K STATUS](../subline/P1-K/DEVELOPMENT_STATUS.md)「已知缺陷」。
+应用户要求审查 `BMS→mania` 转谱星数的「计算 / 展示 / 持久化」链路（mania 模式）。结论：**持久化与展示两段健康；计算段有确凿缺陷**——converted mania beatmap 的 `HitObjects` 始终含 BGM（`Column=0`）与 scratch sample-only 对象，`isScorableHitObject` 只改 `TotalObjectCount` 计数、**不移除对象**，而 `ManiaDifficultyCalculator` 直接遍历完整 `HitObjects` 零过滤计入 Strain/MaxCombo（mania 无 beatmap-processor 剥离）→ **转谱星数系统性灌高**（键音型 BMS 灌水可观），影响选歌星数显示/排序/按星分组；**仅星数，游玩计分不受影响**（IgnoreHit 不计分）。长期未发现的根因＝K9 #17/K11 #3 与对应测试注释把「计数排除」误当「难度输入排除」，且该测试从未真跑难度计算。**K12 修复已落地**：`ManiaDifficultyCalculator.isDifficultyRelevant` 在难度入口（`CreateDifficultyHitObjects` + `maxComboForObject`）按 nested-aware combo 谓词过滤（对原生 mania 可证 no-op，故**不** bump mania `Version`）+ bump `conversion_version` `20260623`（只失效重算 BMS 库）+ 测试改**真跑** `ManiaDifficultyCalculator.Calculate()` 断言「含 vs 不含 sample-only 星数相等」。**pre-fix 反证**＝临时回退后 scratch-dense 谱星 `0.817→1.742`（+113%）；修复后原生 no-op 2/2、转谱器 24/24、resolver 14/14、BMS **961/961**、Release **0/0**。存量灌水星升级后首启由 conversion_version 失配一次性重算。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-23、[P1-K DEVELOPMENT_PLAN](../subline/P1-K/DEVELOPMENT_PLAN.md) K12、[P1-K TECHNICAL_CONSTRAINTS](../subline/P1-K/TECHNICAL_CONSTRAINTS.md) K12 与 [P1-K STATUS](../subline/P1-K/DEVELOPMENT_STATUS.md)「近期修复」。
 
 ### 选歌试听音频泄漏进游玩开头 已修（P1-J）
 
