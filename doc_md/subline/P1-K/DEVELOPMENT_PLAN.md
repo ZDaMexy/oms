@@ -1,6 +1,6 @@
 # P1-K 开发计划：BMS 解析链路治理
 
-> 最后更新：2026-06-01（订正 K9 #12 autoplay 谓词：`canParticipateInAutoplay` 改 nested-aware、恢复长条 autoplay，验证清单补长条用例；此前新增 K11 切片：BMS→mania 转谱 BGM/autoplay 音频补全与 LN 尾键音对齐）
+> 最后更新：2026-06-23（新增 K12 切片：转谱难度输入剔除 sample-only 对象——审查确诊 BGM/scratch 被错误计入 `ManiaDifficultyCalculator` 致转谱星数灌高，规划在难度入口按 nested-aware combo 谓词过滤 + bump `conversion_version`；同步更正 K11 节 415/427 行失真。此前 2026-06-01 订正 K9 #12 autoplay 谓词 nested-aware、新增 K11 切片 BMS→mania 转谱 BGM/autoplay 音频补全与 LN 尾键音对齐）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-K` 的执行顺序；存储/导入一致性见 [../P1-H/DEVELOPMENT_PLAN.md](../P1-H/DEVELOPMENT_PLAN.md)，runtime 热路径与播放期性能见 [../P1-J/DEVELOPMENT_PLAN.md](../P1-J/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -412,7 +412,7 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 
 1. 新增 sample-only 对象类型（建议 `BmsConvertedBgmSampleHitObject`，承 `IgnoreJudgement` + `HitWindows.Empty`，与 `BmsConvertedScratchSampleHitObject` 同族）与其 drawable（Alpha=0、`timeOffset>=0` 时 `PlaySamples()` + `ApplyMinResult()`）。
 2. `BmsToManiaBeatmapConverter.ConvertHitObject` 加 `case BmsBgmEvent`：发 sample-only 对象，`Column = 0`，`Samples = createSamples(bgm.KeysoundSample)`，空 sample 跳过。
-3. `isScorableHitObject` 一并排除新类型；确认不进 `TotalObjectCount` / `EndTimeObjectCount` / 难度计算输入。
+3. `isScorableHitObject` 一并排除新类型；确认不进 `TotalObjectCount` / `EndTimeObjectCount`。**❗更正（2026-06-23，见 K12）**：原文此处把「难度计算输入」也列进来——**未兑现且与代码不符**。`isScorableHitObject` 只改写两个计数元数据字段；`ManiaDifficultyCalculator` 直接遍历 `beatmap.HitObjects`（仍含新增的 BGM sample-only 对象）→ BGM 实际被计入转谱难度。难度输入剔除改由 K12 在难度计算入口实现。
 4. drawable 工厂 [../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaDrawableRepresentationFactory.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaDrawableRepresentationFactory.cs) 的 `CanCreate` / `Create` 支持新类型。
 5. LN 尾对齐：`ConvertHitObject` 的 `BmsHoldNote` 分支把 `NodeSamples[1]` 改为空列表（不再 `createSamples(holdNote.TailKeysoundSample)`），头 keysound 仍走 `NodeSamples[0]`。
 
@@ -424,7 +424,7 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 
 #### 测试落点
 
-1. [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)：BGM 事件 → sample-only 对象计数 == 源 autoplay 事件数、不进 scorable / `TotalObjectCount`；BGM 空 sample 跳过；LN 转谱后 `NodeSamples[1]` 为空、`NodeSamples[0]` 仍为头 keysound；star/统计不受 BGM 影响。
+1. [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)：BGM 事件 → sample-only 对象计数 == 源 autoplay 事件数、不进 scorable / `TotalObjectCount`；BGM 空 sample 跳过；LN 转谱后 `NodeSamples[1]` 为空、`NodeSamples[0]` 仍为头 keysound。**❗更正（2026-06-23，见 K12）**：原文「star/统计不受 BGM 影响」**当时只用 `TotalObjectCount` 计数断言代证、从未真跑难度计算**，实际 star **受** BGM 影响（被灌高）。真正断言转谱 star 不受 BGM/scratch 影响的测试由 K12 补（对完整 vs scorable-filtered beatmap 各跑一次 `ManiaDifficultyCalculator.Calculate()` 断言相等）。
 2.（可选）mania player-level：BGM 跨事件时间出声 / seek 语义。
 
 #### 验证顺序与回退边界
@@ -436,6 +436,52 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 
 1. 确认 mania 实跑一张纯键音 BMS 转谱：note keysound 出声（基线对照）、BGM 静音（待修）。
 2. 确认新 sample-only 类型经 `AffectsCombo() == false` 且**无 combo-affecting 嵌套对象**透传，autoplay key 生成 / note-lock 自动跳过（同 scratch sample-only）。注意谓词须 nested-aware：长条因有 combo 嵌套头尾**不**被跳过，新 sample-only 类型因无嵌套才被跳过，二者区分点是「有无 combo 嵌套对象」而非单看顶层 `AffectsCombo`（见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) #12）。
+
+### K12：转谱难度输入剔除 sample-only 对象（修复 BGM/scratch 灌水转谱星数）
+
+状态：规划中（2026-06-23 审查确诊，未动产品代码）。约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) K12；落地后回写本节状态 + STATUS + CHANGELOG。
+
+目标：让 `BMS -> mania` 转谱星数只反映**可玩音符**的难度，剔除被错误计入的 BGM / scratch sample-only 对象；并对已持久化的灌水星数做一次性失效重算。不改 K9 lane/stage/scratch 语义，不把 sample-only 对象移出 `HitObjects`（仍需在游玩树播 keysound）。
+
+#### 背景与根因（已查实，证据链）
+
+1. `BmsBgmEvent` 是 `HitObject`，在 `BmsBeatmapConverter`（[BmsBeatmapConverter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs) `objectEvent.AutoPlay` 分支）就进了源 `HitObjects`；经 `BmsToManiaBeatmapConverter.ConvertHitObject` 的 `case BmsBgmEvent` → `BmsConvertedBgmSampleHitObject`（`Column = 0`）落入 converted mania `HitObjects`；scratch → `BmsConvertedScratchSampleHitObject`（锚列 0 或 N-1）。
+2. converter 的 `Where(isScorableHitObject)`（[BmsToManiaBeatmapConverter.cs](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs) `ConvertBeatmap`）**只用于改 `TotalObjectCount`/`EndTimeObjectCount`，从不把这些对象移出 `HitObjects`**。
+3. 生产计算路径（`BeatmapDifficultyCache.computeDifficulty` / `BackgroundDataStoreProcessor.populateMissingConvertedStarRatings` / 导入期 `EnsureConvertedStarRatingPersisted`）对 `GetPlayableBeatmap` 返回的**完整** beatmap 跑 `ManiaDifficultyCalculator.Calculate()`。
+4. [ManiaDifficultyCalculator.cs](../../../osu.Game.Rulesets.Mania/Difficulty/ManiaDifficultyCalculator.cs) `CreateDifficultyHitObjects` 与 `CreateDifficultyAttributes(maxComboForObject)` **直接遍历 `beatmap.HitObjects`、零过滤**；mania 无 `CreateBeatmapProcessor` 覆写、`GetPlayableBeatmap` 前后不剥离 ignore 对象。
+5. ⇒ 所有 BGM 事件（全砸进 0 列）+ scratch 样本被当真实音符喂进 Strain/MaxCombo → **转谱星数系统性灌高**，量级随 BGM 密度（键音型 BMS 常 BGM ≥ 可玩音符 → 灌水可观）。仅污染**星数**；游玩计分不受影响（IgnoreHit 不计分）。
+6. 长期未被发现的根因：K9 #17 / K11 #3 与测试 `TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts` 注释都把「`TotalObjectCount` 计数排除」误当成「难度输入排除」。该测试从未真跑过 `ManiaDifficultyCalculator`。
+
+#### 设计落点
+
+1. [ManiaDifficultyCalculator.cs](../../../osu.Game.Rulesets.Mania/Difficulty/ManiaDifficultyCalculator.cs)：在 `CreateDifficultyHitObjects`（`beatmap.HitObjects.ToArray()` 处）与 `CreateDifficultyAttributes` 的 `maxComboForObject` 求和处，先用 nested-aware combo 谓词过滤，只保留 scorable 对象再进 Strain / MaxCombo。
+2. 谓词：通用 `HitObject` 谓词 = `自身.Judgement.MaxResult.AffectsCombo()` 或 `任一 NestedHitObjects 满足同条件`——与 `ManiaAutoGenerator.canParticipateInAutoplay` / `OrderedHitPolicy.canParticipateInLocking` 同源（建议抽 helper 或复用其判定），**不引用 BMS 类型**。保留 `Note`（顶层 combo）、`HoldNote`（嵌套 Head/Tail combo）；剔除 BGM/scratch（IgnoreHit + 无嵌套）。过滤须在建立 `ManiaDifficultyHitObject(current, previous)` **之前**，使「previous」是上一个 scorable 对象。
+3. **版本处理（关键非对称，必须代码注释写明）**：
+   - **不 bump** `ManiaDifficultyCalculator.Version`（20241007）——过滤对原生 mania 是可证 no-op（原生只有 Note/HoldNote、全保留），bump 会触发 `clearOutdatedStarRatings` 重算整个原生+转谱 mania 库（5.7万 规模浪费且对原生语义错误）。
+   - **bump** `BmsPersistedMetadataResolver.current_bms_to_mania_conversion_version` → `20260623`——只闸 BMS 转谱星，已持久化灌水值失配 → 启动期 `populateMissingConvertedStarRatings` 只重算 BMS 库一次（复用既有进度通知）。
+
+#### 涉及文件
+
+- [../../osu.Game.Rulesets.Mania/Difficulty/ManiaDifficultyCalculator.cs](../../../osu.Game.Rulesets.Mania/Difficulty/ManiaDifficultyCalculator.cs)（难度入口 + maxCombo 过滤 + 谓词 helper）
+- [../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs](../../../osu.Game/Beatmaps/BmsPersistedMetadataResolver.cs)（`current_bms_to_mania_conversion_version` bump + 非对称注释）
+- [../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs](../../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)（改真跑难度断言 + 订正误导注释）
+
+#### 测试落点
+
+1. 改写 `TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts` + 新增 BGM 版：对「完整 converted beatmap（含 BGM/scratch）」与 `createScorableBeatmap` 各跑一次 `ManiaDifficultyCalculator.Calculate()`、断言 `StarRating` 相等。测谱让 BGM/scratch 足够密，使**修复前两值可测地不等（失败）、修复后相等（通过）**。订正原 `TotalObjectCount`-only 断言的误导注释（保留计数断言为次级）。
+2. 原生 mania sanity：补/复用一条断言「含 Note+HoldNote 的原生谱过滤前后 `CreateDifficultyHitObjects` 计数与 star 不变」，证明 no-op。
+3. 失效重算：`BmsStarRatingResolverTest` 锁 `conversion_version` 失配 → `HasCurrentConvertedStarRatingState == false`（旧灌水值被判过期）。
+
+#### 验证顺序与回退边界
+
+- 验证顺序：mania 难度 parity focused（完整 vs scorable-filtered 相等 + 原生 no-op）-> `BmsToManiaBeatmapConverterTest` 全绿 -> 完整 BMS 套件 -> mania 套件（原生星数不回归）-> Release build -> 真实库手测（重算后转谱星回落到合理量级）。
+- 回退边界：难度过滤为增量、通用、对原生 no-op；回退即退回当前灌水行为。`conversion_version` bump 为一行，回退则旧值续用。两者可独立回退。
+
+#### 明确拒绝的替代方案（连同理由，防回退踩坑）
+
+1. **bump mania `Version`**：会重算整库（含原生）→ 5.7万 规模性能不可接受、对原生语义错误。改为只 bump `conversion_version`。
+2. **从 playable beatmap 里 strip 掉 BGM/scratch**：这些对象游玩时要播 keysound（P1-J J6），strip 会破坏音频链。
+3. **把 BGM 移出 `HitObjects` 到 `BmsBeatmap` 侧通道（仿 Mines/ScrollProfile）**：需重写 audio/drawable 调度，面大、风险高、动 P1-J。⇒ 选「在 mania 难度入口过滤」最小且正确。
 
 ## 明确不做
 
@@ -454,4 +500,5 @@ native 谱面星数在**导入期**由 [../../osu.Game/Beatmaps/BeatmapUpdater.c
 5. 任何缓存或性能动作都排在 focused semantics validation 之后，避免先缓存一套还没冻结的语义。
 6. 当前若继续 post-`K8` 工作，默认优先级固定为 `K9`：先完成 explicit public wording 与更宽的 presentation/manual proof；source mapping、sample-only scratch runtime、autoplay ignore contract 与 persisted converted star 已不再回退为“待开工”。
 7. `K10`：A（导入期持久化）已落地；B（读校验加固）经实测推迟。后续若发现确有持有过期 LAV 的消费者再重开 B；当前剩余 follow-up 是 BeatmapUpdater 导入期端到端集成回归（OsuGameTestScene 级装配，与既有 visual scene CLI discover 不稳的现状一致）。
+8. `K12`（转谱难度输入剔除 sample-only 对象）为**正确性修复**，优先级高于 K9 剩余 wording / presentation proof：当前转谱星数对键音型 BMS 系统性偏高，直接影响选歌星数显示/排序/按星分组的可信度。落地须连带 bump `conversion_version` 触发一次性重算，并把误导测试改成真跑难度断言。
 8. `K11`：converter 侧已落地（BGM sample-only 补全 + LN 尾 node sample 置空，`BmsToManiaBeatmapConverterTest` 19/19、BMS 869/869、Release 0 错误）；剩余 dense-BGM 播放期性能与 player-level BGM 出声 proof 交 P1-J J6。

@@ -7,6 +7,10 @@
 
 ## 2026-06-23
 
+### 审查：BMS→mania 转谱星数被 BGM/scratch 灌高（P1-K，规划 K12，未动产品代码）
+
+应用户要求审查 `BMS→mania` 转谱星数的「计算 / 展示 / 持久化」链路（mania 模式）。结论：**持久化与展示两段健康；计算段有确凿缺陷**——converted mania beatmap 的 `HitObjects` 始终含 BGM（`Column=0`）与 scratch sample-only 对象，`isScorableHitObject` 只改 `TotalObjectCount` 计数、**不移除对象**，而 `ManiaDifficultyCalculator` 直接遍历完整 `HitObjects` 零过滤计入 Strain/MaxCombo（mania 无 beatmap-processor 剥离）→ **转谱星数系统性灌高**（键音型 BMS 灌水可观），影响选歌星数显示/排序/按星分组；**仅星数，游玩计分不受影响**（IgnoreHit 不计分）。长期未发现的根因＝K9 #17/K11 #3 与对应测试注释把「计数排除」误当「难度输入排除」，且该测试从未真跑难度计算。**本次仅落地文档更正 + K12 修复规划，未改产品代码**：规划在 `ManiaDifficultyCalculator` 难度入口按 nested-aware combo 谓词过滤（对原生 mania 可证 no-op）+ bump `conversion_version`（只重算 BMS 库、不 bump mania `Version`）+ 测试改真跑难度断言。详见 [P1-K CHANGELOG](../subline/P1-K/CHANGELOG.md) 2026-06-23、[P1-K DEVELOPMENT_PLAN](../subline/P1-K/DEVELOPMENT_PLAN.md) K12、[P1-K TECHNICAL_CONSTRAINTS](../subline/P1-K/TECHNICAL_CONSTRAINTS.md) K12 与 [P1-K STATUS](../subline/P1-K/DEVELOPMENT_STATUS.md)「已知缺陷」。
+
 ### 选歌试听音频泄漏进游玩开头 已修（P1-J）
 
 用户以 Lyrith `_7INSANE.bms` 为例反映：部分 BMS 谱面在 songselect 有 preview 音频，autoplay 或正常游玩在游戏**开头都会播这段 preview 音频**（疑广泛存在）。根因＝BMS 游玩音频全由键音驱动（`BmsBeatmapConverter` 从不用 `Metadata.AudioFile`），但 `BmsFolderImporter` 把 AudioFile 设成选歌试听源（`detectFullMusicFile` 取 ≥1MB 未被键音引用的音频——连无 `#PREVIEW` 头的 `_preview.wav` 也中——`?? resolvePreviewFile` 的 `#PREVIEW`），该 `working.Track` 在游玩被 `MasterGameplayClockContainer` 从 0 驱动播放 → 试听音频叠在键音上；bms 原生/转谱-mania、autoplay/正常游玩四种组合全中招。**修复＝mute 方案**：新增 core `Ruleset.PlayBeatmapTrackDuringGameplay`（默认 true，`BmsRuleset` override false）；MGCC **仍以 `working.Track` 作时钟源**（时序/变速/pause-resume-seek 全不变），仅对 opt-out ruleset 在 `addAdjustmentsToTrack`（`ResetTrackAdjustments` 之后）加 `Volume=0`、`removeAdjustmentsFromTrack` 移除（退出还原试听）。门控读谱面**原生** ruleset → 转谱-mania（beatmap 仍 bms）也命中、原生 mania 不动。**此前已废的虚拟轨/换源方案被显式禁止回退**（破坏 audio-semantics 确定性驱时 + 真实耦合时钟下无效 + 单测假阳性）。BMS **957/957**（新增 `TestSceneBmsGameplayTrackMuting` 2 条 + 修回 `TestSceneBmsPlayerAudioSemantics` 2 条）、Release **0/0**；**用户实机确认 ✅（2026-06-23，autoplay+正常开始不再泄漏试听、暂无异常）**。
