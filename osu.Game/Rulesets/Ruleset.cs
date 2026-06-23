@@ -316,6 +316,17 @@ namespace osu.Game.Rulesets
         public virtual string PlayingVerb => "Playing";
 
         /// <summary>
+        /// Whether the beatmap's audio track should be played during gameplay.
+        /// </summary>
+        /// <remarks>
+        /// Rulesets whose gameplay audio is fully self-contained (e.g. BMS, where every sound is a keysound triggered by
+        /// the chart) should return <c>false</c>. For those, the imported audio file only exists to provide a song-select
+        /// preview, and must not be heard over the gameplay audio. When <c>false</c>, gameplay runs on a silent virtual
+        /// track instead of the beatmap track. Defaults to <c>true</c>.
+        /// </remarks>
+        public virtual bool PlayBeatmapTrackDuringGameplay => true;
+
+        /// <summary>
         /// A list of available variant ids.
         /// </summary>
         public virtual IEnumerable<int> AvailableVariants => new[] { 0 };

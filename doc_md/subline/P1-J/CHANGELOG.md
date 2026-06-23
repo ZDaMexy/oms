@@ -5,6 +5,43 @@
 
 ---
 
+## 2026-06-23（选歌试听音频泄漏进游玩开头 已修：beatmap track 在 BMS 游玩静音；mute 方案取代此前已回退的虚拟轨方案）
+
+> 起因：用户以 `D:\beatoraja...\Stella\st4\Lyrith -迷宮リリス-\_7INSANE.bms` 为例，反映「songselect 下部分 BMS 谱面有 preview 音频，autoplay 或正常游玩在游戏开头都会播这段 preview 音频」，并判断是可能广泛存在的 bug。归属主 `P1-J`（音频时序治理），即 STATUS 既有开放遗留 ④。
+
+### 根因（日志 + 代码链路确诊）
+
+- BMS 游玩音频**全部**来自键音：`BmsBeatmapConverter` 把每个对象转成带 `KeysoundSample` 的 `BmsBgmEvent`/`BmsHitObject`/`BmsHoldNote`，**从不引用 `Metadata.AudioFile`**。
+- 但 `BmsFolderImporter.createBeatmapSet` 会把 `Metadata.AudioFile` 设成**选歌试听源**：`detectFullMusicFile`（≥1MB 且未被任何 `#WAV` 键音引用的音频，取最大）`?? resolvePreviewFile`（`#PREVIEW` 头文件）。Lyrith `_7INSANE.bms` **无 `#PREVIEW` 头**，但文件夹有 `_preview.wav`(3.8MB) 未被键音引用 → 被 `detectFullMusicFile` 当「完整音乐」选中设为 AudioFile。
+- 选歌：`MusicController` 播 `working.Track`(=`_preview.wav`) = 用户听到的「preview 音频」（符合预期）。游玩：`MasterGameplayClockContainer` 也以 `working.Track` 为时钟源并从 0 播放 → **开局把试听音频叠在键音上**。`SoloSongSelect.createPlayer` 中 autoplay 走通用 `ReplayPlayer`、正常游玩走 `BmsSoloPlayer`，两者都经 `Player`→MGCC，故四种组合全中招；转谱-mania 因 beatmap 仍 `Ruleset==bms` 同样中招。
+- 框架 `Video`（BGA）只解码视频无音轨，已排除 BGA 为声源。
+
+### 修复（mute 方案，最小行为面）
+
+- 新增核心 `Ruleset.PlayBeatmapTrackDuringGameplay`（virtual，默认 `true`）；`BmsRuleset` override `false`（注释说明 BMS 音频全键音驱动、AudioFile 仅试听）。
+- `MasterGameplayClockContainer` **仍以 `working.Track` 作时钟源**（时序、pause/resume/seek 语义、`TestSceneBmsPlayerAudioSemantics` 用 ManualClock 驱动游玩时钟全部不变）；仅在 `shouldPlayBeatmapTrack(working)`（读谱面**原生** ruleset `working.BeatmapInfo.Ruleset.CreateInstance().PlayBeatmapTrackDuringGameplay`，解析失败 fail-open=true）为 false 时，于 `addAdjustmentsToTrack` 加 `Volume=0` 调整、`removeAdjustmentsFromTrack` 移除。关键顺序：mute 必须加在 `musicController.ResetTrackAdjustments()`（清空所有 Volume 调整）**之后**，否则被清掉；移除在退出游玩时把共享试听轨还原可闻。
+- 门控用谱面原生 ruleset → bms-mode 与转谱-mania（beatmap 仍 bms）都静音，原生 mania/.osu（track 即音乐）不受影响。
+
+### 为何不用此前已回退的虚拟轨方案（STATUS ④ 旧叙事 + 本轮亲历）
+
+- 把 MGCC 源换成 `TrackVirtual`：① **破坏 audio-semantics 测试的确定性驱时**——`TestSceneBmsPlayerAudioSemantics` 用 `advanceReferenceClockBy` 推 `working.Track` 背后的 ManualClock 来驱动游玩时钟，换成实时虚拟轨后这套驱时失效（本轮先试虚拟轨，正是这两条测试超时把我引回 mute）；② 当年实测「在真实耦合时钟下无效」——换源不会停掉原 `working.Track`（它仍被启动着播放），且虚拟轨单测假阳性。**mute 直接静音真正在播的那条 track，不论谁启动它都生效**，是更稳的层级。
+
+### 验证
+
+- `osu.Desktop.slnf` Release **0 警告 0 错误**；BMS 全量 **957/957**（含新增 `TestSceneBmsGameplayTrackMuting` 2 条：bms 谱面 track `AggregateVolume==0`、标准 ruleset `==1` 作正对照；此前因虚拟轨试验失败的 `TestSceneBmsPlayerAudioSemantics` 2 条改 mute 后回绿）。
+- **真实 app 已取证 ✅（2026-06-23 用户实机确认）**：autoplay 与正常开始 原受影响谱面开头不再有试听音频、暂无异常（选歌试听仍正常）。
+
+### Follow-up（同日，用户要求）：选歌试听策略收紧 —— 只有 `#PREVIEW` 才有试听且从头播，其它一律无试听
+
+> 审查 song-select preview 链路后用户决定：**只有 `#PREVIEW` 头时才播试听、且从文件头播；其它情况都不播 preview**。
+
+- **`BmsFolderImporter` 改动**：① `Metadata.AudioFile` **只**来自 `resolvePreviewFile`（`#PREVIEW` 头），删掉此前排在前面的 `detectFullMusicFile`（≥1MB 未被键音引用的音频取最大）；② 命中 `#PREVIEW` 时同时设 `Metadata.PreviewTime = 0` → `WorkingBeatmap.PrepareTrackForPreview` 的 `RestartPoint=0`（从文件头播，取代 `PreviewTime=-1` 的 `0.4*Length` 兜底）；③ 删除 `detectFullMusicFile` 方法与仅供它使用的 `allKeysoundFiles` 排除集构建（含跨扩展名变体）——死代码清理。
+- **链路原理回顾**（确认两改协同）：选歌试听 = `MusicController` 播 `working.Track` + `PrepareTrackForPreview` 设 RestartPoint/looping（[`SongSelect.ensurePlayingSelected`/`beginLooping`](../../../osu.Game/Screens/Select/SongSelect.cs) → [`WorkingBeatmap.PrepareTrackForPreview`](../../../osu.Game/Beatmaps/WorkingBeatmap.cs)）。`Play(newTrack)` → `RestartAsync()` seek 到 RestartPoint。`MusicController.EnsurePlayingSomething` 已有 OMS 防护（`ensurePlayingSkipCount`）防纯键音静音库无限 NextTrack 空转。
+- **后果**：无 `#PREVIEW` 的谱（含 Lyrith `_7INSANE.bms`——有 `_preview.wav` 但无 `#PREVIEW` 头）**从此无选歌试听、AudioFile 空** → 选歌/游玩皆虚拟静音轨；mute 修复（#12）对它们 moot，但对真 `#PREVIEW` 谱仍生效（游玩静音）。两改互补、无冲突。
+- **存量谱回写 `BmsPreviewAudioBackfill`**（导入改动只对新导入生效；用户要求存量谱也立即套用新策略）：新 `BmsPreviewAudioBackfill`（仿 `BmsChartFilterStatsBackfill`），挂在 `BmsRuleset.OnSongSelectSetup`（与 chart-filter-stats backfill 并列）、后台 `Task`。候选 = **非空 `AudioFile`** 的 BMS 谱（空的已合规 → 跳过）。逐候选：直读 `.bms`（managed→`gameStorage.GetStorageForDirectory`、external→`NativeStorage`，仿 `computeStatsDirect`）→ 解码取 `#PREVIEW` → `Storage.Exists` 版 `resolveReferencedFile` 在谱文件夹解析（试 alt 音频扩展名）→ 仅当 `(AudioFile,PreviewTime)` 变化才回写（批量 200/事务、**注入** RealmAccess、绝不 new 第二个）。
+- **首版每启动跑 + 逐项 Realm 读 → 掉帧（用户报告，同日修）**：初版无完成标记（每进选歌都跑）、且逐候选 `realm.Run(Find+Detach)`，57k 库每进选歌重解码所有 AudioFile 谱 → 持续掉帧（日志 33s 内无 `[BmsPreviewAudio] done`＝仍在磨）。**重做**：① **一次性完成标记** `bms-preview-audio-backfill-v1.marker`（Initialise 查标记有则整段跳过、Task 完成写标记、崩溃中断下次续跑且幂等；改逻辑 bump 文件名版本号）；② **单次 Realm 读**把候选快照成 `record struct Candidate`（id/path/fsPath/isExternal/audioFile/previewTime），解码循环零 Realm（只批量写回碰 Realm）→ 大减与 carousel 更新线程的争用；③ **进度通知** `ProgressNotification`（`INotificationOverlay`，begin/update/complete，首启示「正在更新 BMS 选歌预览（一次性）…X/Y」、完成「修正 N 张」；用户面术语用「选歌预览」非「试听」）+ 每 500 张 Verbose 进度日志。测试 seam `internal RunForTesting`。
+- **测试/构建**：BMS 全量 **961/961**（+4 `BmsPreviewAudioBackfillTest`：① 导入设 `AudioFile=preview.ogg`+`PreviewTime=0` 且 backfill no-op；② 无 `#PREVIEW` 即便文件夹有 2MB `song.ogg` 也 AudioFile 空〔验 `detectFullMusicFile` 已删〕；③ backfill 把 stale `fullsong.ogg`/`-1` 纠正回 `preview.ogg`/`0`；④ backfill 清空无 `#PREVIEW` 谱的 AudioFile）——同时覆盖了导入侧改动（此前 `BmsFolderImporter` 无单测）；`osu.Game.Rulesets.Bms` 与 `osu.Desktop.slnf` Release **0/0**。**用户 2026-06-23 实机已运行、暂未见异常**（图示首启进度通知 ~700/3056）：存量库重启后无 `#PREVIEW` 谱不再预览、`#PREVIEW` 谱从头预览、首启有进度通知。
+
 ## 2026-06-22（删除「键音通道数（基线）」设置项：自动化已收口、正确默认化、不留用户配置隐患）
 
 用户要求：键音池自动增长（[2026-06-21] #8）落地后，「设置-游戏模式-BMS-键音通道数（基线）」已无调节必要，删除该 UI 选项；并**正确处理默认化**——不要只隐藏 UI 而让旧用户配置继续生效留下隐患。

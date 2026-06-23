@@ -1,5 +1,13 @@
 # P1-I 变动日志
 
+## 2026-06-23：carousel 面板两处音符图标（preview 指示 + 删左侧 lamp 音符），已落地，用户实机暂未见异常
+
+两项独立 UI 调整（用户提出，互不相关）。
+
+- **① 曲名右侧加 preview 指示音符（仅 BMS 模式 + BMS 谱 + 有试听）**：`PanelBeatmapStandalone` 把 `titleText` 包进新的水平 `FillFlowContainer`，右侧加 `previewIcon`（`SpriteIcon` = `FontAwesome.Solid.Music`，Size 10，`colourProvider.Content2`，默认 `Alpha=0`，`Margin.Left=6`、`Anchor/Origin=CentreLeft`）。在 `updateDifficultyLevelDisplay`（ruleset 变 + `PrepareForUse` 都会调）里 `previewIcon.Alpha = useBmsLevel && !string.IsNullOrEmpty(beatmap.Metadata.AudioFile) ? 1 : 0`（`useBmsLevel`＝当前 ruleset=bms 且 beatmap=bms）。**非空 `AudioFile`＝有 `#PREVIEW`＝会在选歌试听**（与实际试听读同一信号，天然一致；详见 [P1-J 约束 #12](../P1-J/TECHNICAL_CONSTRAINTS.md) 的选歌试听策略）。只在 standalone（有曲名处）加；grouped `PanelBeatmap` 无曲名、不加。
+- **② 删除最左 lamp 状态上的 ruleset 音符图标（BMS，保留 lamp 颜色块）**：`BmsRuleset.CreateIcon()`＝`FontAwesome.Solid.Music`，即左侧 lamp 块上那个音符。`PanelBeatmap` 与 `PanelBeatmapStandalone` 的 `PrepareForUse` 加 `difficultyIcon.Alpha = beatmap.Ruleset.ShortName == "bms" ? 0 : 1`，**并在创建 `difficultyIcon` 时设 `AlwaysPresent = true`**。**踩坑（首版把 lamp 也删了，用户截图发现）**：base `Panel.iconContainer` 是 **AutoSize**、`contentPaddingContainer.Padding.Left = iconContainer.DrawWidth`；AutoSize **不计入 Alpha=0 的非 present child** → 只设 Alpha=0 会让 iconContainer 收缩到 0 → 左 padding 0 → beatmap 背景盖住 lamp 颜色块（`backgroundBorder`），lamp 连块一起没了。`AlwaysPresent=true` 让隐藏的 icon 仍占布局宽 → lamp 块保留、标题不位移、仅音符不可见（＝保留 lamp 状态、去掉音符，符合用户要求）。非 BMS（mania）保留其 ruleset 图标。
+- **测试/构建**：两改皆 core `osu.Game`（`PanelBeatmap.cs` / `PanelBeatmapStandalone.cs`）；panel 无 headless 单测（`TestScenePanelBeatmap*` 在 `osu.Game.Tests` `<Compile Remove>` 列表），靠实机看。`osu.Desktop.slnf` Release **0 错误**、BMS 全量 **961/961** 不回归。约束 #23。**preview 指示音符用户实机确认正常；删音符保留 lamp 经 `AlwaysPresent` 修正后用户 2026-06-23 实机暂未见异常。**
+
 ## 2026-06-22（其五）：BMS 模式选曲星级 → IIDX 难度等级胶囊（标签＋#PLAYLEVEL、按 #DIFFICULTY 上色）
 
 用户要求：BMS 模式下 BMS 谱面的选曲「星级」早就只反馈谱师标级（不算真实星）、不应再用星级形态展示。改为保留原圆角胶囊背景，显示「难度标签 等级」（如 `NORMAL 7`），去掉小数（`.00`），难度色不再用原星级光谱、改用 IIDX 配色。仅针对 BMS 模式下的 BMS 谱面（转谱-mania 视图保留真实转谱星级）。对齐结论：未定义难度＝`UNKNOWN ＋等级`；等级用**原始 #PLAYLEVEL 文本**；其它星形元素（小星星 starCounter、分布点 SpreadDisplay）**全部保持现状**。

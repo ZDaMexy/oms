@@ -291,7 +291,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var beatmaps = new List<BeatmapInfo>();
             var skippedBeatmapFiles = new List<string>();
             var importWarnings = new List<ImportWarningSummary>();
-            var allKeysoundFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             string? firstPreviewFile = null;
             var beatmapFiles = reader.Filenames.Where(isTopLevelBeatmapFile)
                                       .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
@@ -332,26 +331,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                         foreach (string warning in loadedBeatmap.DecodedChart.Warnings)
                             Logger.Log($"BMS parser warning in {beatmapFile}: {warning}", LoggingTarget.Database);
-                    }
-
-                    foreach (string keysoundFile in loadedBeatmap.DecodedChart.BeatmapInfo.KeysoundTable.Values)
-                    {
-                        if (Audio.BmsKeysoundSampleInfo.TryNormaliseFilename(keysoundFile, out string? normalised))
-                        {
-                            allKeysoundFiles.Add(normalised);
-
-                            // BMS charts commonly reference keysound filenames with an extension that differs from the
-                            // actual file on disk (e.g. #WAV01 bgm.wav but the file is bgm.ogg). The audio store
-                            // resolves these at lookup time by trying alternate extensions, but the keysound exclusion
-                            // set must also cover all variants to prevent a cross-extension keysound from being
-                            // mistakenly detected as a full music file.
-                            string baseName = Path.ChangeExtension(normalised, null)?.ToStandardisedPath() ?? normalised;
-                            allKeysoundFiles.Add(baseName);
-                            allKeysoundFiles.Add(baseName + ".wav");
-                            allKeysoundFiles.Add(baseName + ".ogg");
-                            allKeysoundFiles.Add(baseName + ".mp3");
-                            allKeysoundFiles.Add(baseName + ".flac");
-                        }
                     }
 
                     if (firstPreviewFile == null
@@ -404,13 +383,19 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (!beatmaps.Any())
                 return new PreparedBeatmapSet(null, skippedBeatmapFiles, importWarnings);
 
-            string? detectedAudioFile = detectFullMusicFile(reader, allKeysoundFiles)
-                                        ?? resolvePreviewFile(reader, firstPreviewFile);
+            // Song-select preview is provided ONLY by an explicit #PREVIEW header, and is played from the start
+            // (PreviewTime = 0). Charts without a #PREVIEW get no preview audio at all: BMS gameplay audio is entirely
+            // keysound-driven (the converter never uses Metadata.AudioFile), so no other audio file in the folder is
+            // treated as a playable track.
+            string? previewFile = resolvePreviewFile(reader, firstPreviewFile);
 
-            if (detectedAudioFile != null)
+            if (previewFile != null)
             {
                 foreach (var beatmap in beatmaps)
-                    beatmap.Metadata.AudioFile = detectedAudioFile;
+                {
+                    beatmap.Metadata.AudioFile = previewFile;
+                    beatmap.Metadata.PreviewTime = 0;
+                }
             }
 
             hashableBeatmaps.Position = 0;
@@ -479,49 +464,6 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static bool isTopLevelBeatmapFile(string filename)
             => !filename.ToStandardisedPath().Contains('/') && BmsImportExtensions.IsBeatmapFile(filename);
-
-        /// <summary>
-        /// Scans the BMS directory for an audio file that is NOT referenced by any keysound table entry
-        /// and is large enough to be a full music track (≥ 1 MB). Returns the largest such file, or null.
-        /// </summary>
-        private static string? detectFullMusicFile(DirectoryArchiveReader reader, HashSet<string> keysoundFiles)
-        {
-            string[] audioExtensions = { ".mp3", ".ogg", ".flac", ".wav" };
-            const long minimum_music_file_size = 1_000_000; // 1 MB
-
-            string? bestCandidate = null;
-            long bestSize = 0;
-
-            foreach (string filename in reader.Filenames)
-            {
-                string ext = Path.GetExtension(filename);
-
-                if (string.IsNullOrEmpty(ext) || !audioExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
-                    continue;
-
-                string standardised = filename.ToStandardisedPath();
-
-                if (keysoundFiles.Contains(standardised))
-                    continue;
-
-                try
-                {
-                    long fileSize = new FileInfo(reader.GetFullPath(filename)).Length;
-
-                    if (fileSize >= minimum_music_file_size && fileSize > bestSize)
-                    {
-                        bestSize = fileSize;
-                        bestCandidate = standardised;
-                    }
-                }
-                catch
-                {
-                    // Ignore files we can't stat.
-                }
-            }
-
-            return bestCandidate;
-        }
 
         /// <summary>
         /// Resolves a #PREVIEW filename from a BMS header against the actual files in the archive.

@@ -87,6 +87,10 @@ namespace osu.Game.Screens.Select
                 Size = new Vector2(9f),
                 Margin = new MarginPadding { Left = 2.5f, Right = 1.5f },
                 Colour = overlayColourProvider.Background5,
+                // Stay present even when hidden (BMS, see PrepareForUse) so the AutoSize icon container keeps its width:
+                // that width drives the content's left padding, which is what exposes the coloured lamp block. Without
+                // this, hiding the icon collapses the container and the content covers the lamp.
+                AlwaysPresent = true,
             };
 
             Background = backgroundBorder = new Box
@@ -227,6 +231,9 @@ namespace osu.Game.Screens.Select
             base.PrepareForUse();
 
             difficultyIcon.Icon = getRulesetIcon(beatmap.Ruleset);
+            // BMS hides the ruleset (music-note) icon: the coloured leading lamp block alone is the clear-lamp indicator.
+            // The icon keeps its layout size (alpha only), so the lamp block and content position are unchanged.
+            difficultyIcon.Alpha = beatmap.Ruleset.ShortName == "bms" ? 0 : 1;
 
             localRank.Beatmap = beatmap;
             difficultyText.Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmap);

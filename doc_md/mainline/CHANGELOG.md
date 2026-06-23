@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-06-23
+
+### 选歌试听音频泄漏进游玩开头 已修（P1-J）
+
+用户以 Lyrith `_7INSANE.bms` 为例反映：部分 BMS 谱面在 songselect 有 preview 音频，autoplay 或正常游玩在游戏**开头都会播这段 preview 音频**（疑广泛存在）。根因＝BMS 游玩音频全由键音驱动（`BmsBeatmapConverter` 从不用 `Metadata.AudioFile`），但 `BmsFolderImporter` 把 AudioFile 设成选歌试听源（`detectFullMusicFile` 取 ≥1MB 未被键音引用的音频——连无 `#PREVIEW` 头的 `_preview.wav` 也中——`?? resolvePreviewFile` 的 `#PREVIEW`），该 `working.Track` 在游玩被 `MasterGameplayClockContainer` 从 0 驱动播放 → 试听音频叠在键音上；bms 原生/转谱-mania、autoplay/正常游玩四种组合全中招。**修复＝mute 方案**：新增 core `Ruleset.PlayBeatmapTrackDuringGameplay`（默认 true，`BmsRuleset` override false）；MGCC **仍以 `working.Track` 作时钟源**（时序/变速/pause-resume-seek 全不变），仅对 opt-out ruleset 在 `addAdjustmentsToTrack`（`ResetTrackAdjustments` 之后）加 `Volume=0`、`removeAdjustmentsFromTrack` 移除（退出还原试听）。门控读谱面**原生** ruleset → 转谱-mania（beatmap 仍 bms）也命中、原生 mania 不动。**此前已废的虚拟轨/换源方案被显式禁止回退**（破坏 audio-semantics 确定性驱时 + 真实耦合时钟下无效 + 单测假阳性）。BMS **957/957**（新增 `TestSceneBmsGameplayTrackMuting` 2 条 + 修回 `TestSceneBmsPlayerAudioSemantics` 2 条）、Release **0/0**；**用户实机确认 ✅（2026-06-23，autoplay+正常开始不再泄漏试听、暂无异常）**。
+
+**同日 follow-up（审查 song-select preview 链路后，用户决定）：选歌试听策略收紧——只有 `#PREVIEW` 头才有试听、且从文件头播（`PreviewTime=0`）；其它情况一律无试听**。`BmsFolderImporter` 的 `Metadata.AudioFile` 改为只取 `#PREVIEW`（`resolvePreviewFile`）、**删除 `detectFullMusicFile` 启发式**（≥1MB 未引用音频不再当 AudioFile）+ 其 `allKeysoundFiles` 排除集；无 `#PREVIEW` 谱（含 Lyrith `_7INSANE.bms`）从此无试听、AudioFile 空。两改互补（mute 让 `#PREVIEW` 谱游玩静音、本策略限定哪些谱有试听）。**存量谱回写**：新增 `BmsPreviewAudioBackfill`（挂 `OnSongSelectSetup`、后台、候选=非空 AudioFile、批量回写注入 RealmAccess），让已导入库也套用新策略（导入改动只对新导入生效）。**首版每启动跑 + 逐项 Realm 读 → 进选歌掉帧（用户报告，同日修）**：重做为 **① 完成标记文件一次性**（`bms-preview-audio-backfill-v1.marker`，跑过即整段跳过）+ **② 单次 Realm 读快照候选成 struct、解码循环零 Realm** + **③ 进度通知**（`ProgressNotification`，首启示「正在更新 BMS 选歌预览…X/Y」；用户面术语用「选歌预览」非「试听」）。BMS **961/961**（+4 `BmsPreviewAudioBackfillTest`，同时覆盖了此前无单测的导入侧）、Release 0/0；**用户 2026-06-23 实机已运行（图示首启进度通知 ~700/3056），暂未见异常**。
+
+### carousel 面板两处音符图标（P1-I）
+
+两项独立 UI（用户提出）：**① 曲名右侧加 preview 指示音符**——`PanelBeatmapStandalone` 曲名右侧 `SpriteIcon`(Music)，仅「BMS 模式 + BMS 谱 + `Metadata.AudioFile` 非空（＝有 #PREVIEW＝会试听）」时显示；**② 删最左 lamp 块上的 ruleset 音符**——`BmsRuleset.CreateIcon()` 是 `FontAwesome.Solid.Music`，`PanelBeatmap`/`PanelBeatmapStandalone` 对 BMS 谱设 `difficultyIcon.Alpha=0` **且创建时 `AlwaysPresent=true`**（base `Panel.iconContainer` 是 AutoSize、**不计 Alpha=0 的非 present child**，故只设 Alpha=0 会收缩容器、连 lamp 块一起没了〔首版踩坑、用户截图发现〕；`AlwaysPresent` 让隐藏 icon 仍占布局宽 → 标题不位移、lamp 颜色块保留、仅音符不可见）。两改皆 core osu.Game、panel 无 headless 单测（`<Compile Remove>`），Release 0 错误、BMS 961/961 不回归；**用户 2026-06-23 实机暂未见异常**。详见 [P1-I CHANGELOG](../subline/P1-I/CHANGELOG.md) 2026-06-23 与 [P1-I 约束 #23](../subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
+
+详见 [P1-J CHANGELOG](../subline/P1-J/CHANGELOG.md) 2026-06-23 与 [P1-J 约束 #12](../subline/P1-J/TECHNICAL_CONSTRAINTS.md)。
+
 ## 2026-06-22
 
 ### 删除「键音通道数（基线）」设置 + BGA 转码设置改名加按钮（P1-J / P1-L）

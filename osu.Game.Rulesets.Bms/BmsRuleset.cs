@@ -54,6 +54,13 @@ namespace osu.Game.Rulesets.Bms
 
         public override string PlayingVerb => "Playing BMS";
 
+        // BMS gameplay audio is entirely keysound-driven (see BmsBeatmapConverter): every note/BGM event carries its own
+        // sample, and the converter never references the beatmap track. The imported AudioFile is only a song-select
+        // preview (a #PREVIEW file or a large unreferenced audio file detected by BmsFolderImporter), so it must NOT be
+        // played during gameplay — otherwise it is heard at the start of the chart over the keysounds. Same for charts
+        // converted to mania, which keep this bms ruleset on their BeatmapInfo.
+        public override bool PlayBeatmapTrackDuringGameplay => false;
+
         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod>? mods = null) =>
             new DrawableBmsRuleset(this, beatmap, mods);
 
@@ -206,7 +213,14 @@ namespace osu.Game.Rulesets.Bms
         public override IRulesetFilterCriteria CreateRulesetFilterCriteria() => new BmsFilterCriteria();
 
         public override void OnSongSelectSetup(BeatmapManager beatmapManager, RealmAccess realmAccess, Storage storage, INotificationOverlay notifications, Action? onCacheUpdated = null)
-            => BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess, storage, notifications, onCacheUpdated);
+        {
+            BmsChartFilterStatsBackfill.Initialise(beatmapManager, realmAccess, storage, notifications, onCacheUpdated);
+
+            // Bring already-imported charts in line with the current preview-audio policy (preview only from #PREVIEW,
+            // played from the start; everything else no preview). One-time (completion-marker gated), background, with a
+            // progress notification.
+            BmsPreviewAudioBackfill.Initialise(realmAccess, storage, notifications);
+        }
 
         public override IReadOnlyList<SortMode> GetAvailableSongSelectSortModes() =>
         [

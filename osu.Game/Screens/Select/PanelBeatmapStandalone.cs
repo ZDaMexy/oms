@@ -10,6 +10,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
@@ -64,6 +65,7 @@ namespace osu.Game.Screens.Select
         private ScheduledDelegate? scheduledBackgroundRetrieval;
 
         private OsuSpriteText titleText = null!;
+        private SpriteIcon previewIcon = null!;
         private OsuSpriteText artistText = null!;
         private PanelUpdateBeatmapButton updateButton = null!;
         private BeatmapSetOnlineStatusPill statusPill = null!;
@@ -99,6 +101,10 @@ namespace osu.Game.Screens.Select
                 Size = new Vector2(12),
                 Margin = new MarginPadding { Left = 4f, Right = 3f },
                 Colour = colourProvider.Background5,
+                // Stay present even when hidden (BMS, see PrepareForUse) so the AutoSize icon container keeps its width:
+                // that width drives the content's left padding, which is what exposes the coloured lamp block. Without
+                // this, hiding the icon collapses the container and the beatmap background covers the lamp.
+                AlwaysPresent = true,
             };
 
             Background = backgroundBorder = new Box
@@ -140,9 +146,32 @@ namespace osu.Game.Screens.Select
                             AutoSizeAxes = Axes.Both,
                             Children = new Drawable[]
                             {
-                                titleText = new OsuSpriteText
+                                new FillFlowContainer
                                 {
-                                    Font = OsuFont.Style.Heading2.With(typeface: Typeface.TorusAlternate, weight: FontWeight.Bold),
+                                    Direction = FillDirection.Horizontal,
+                                    AutoSizeAxes = Axes.Both,
+                                    Children = new Drawable[]
+                                    {
+                                        titleText = new OsuSpriteText
+                                        {
+                                            Anchor = Anchor.CentreLeft,
+                                            Origin = Anchor.CentreLeft,
+                                            Font = OsuFont.Style.Heading2.With(typeface: Typeface.TorusAlternate, weight: FontWeight.Bold),
+                                        },
+                                        // Music-note icon to the right of the title, shown only for a BMS chart (BMS mode)
+                                        // that has a song-select preview (non-empty AudioFile = a #PREVIEW header).
+                                        // Alpha-toggled in updateDifficultyLevelDisplay.
+                                        previewIcon = new SpriteIcon
+                                        {
+                                            Icon = FontAwesome.Solid.Music,
+                                            Size = new Vector2(10),
+                                            Anchor = Anchor.CentreLeft,
+                                            Origin = Anchor.CentreLeft,
+                                            Margin = new MarginPadding { Left = 6 },
+                                            Colour = colourProvider.Content2,
+                                            Alpha = 0,
+                                        },
+                                    }
                                 },
                                 artistText = new OsuSpriteText
                                 {
@@ -272,7 +301,9 @@ namespace osu.Game.Screens.Select
             statusPill.Status = beatmap.Status;
 
             difficultyIcon.Icon = beatmap.Ruleset.CreateInstance().CreateIcon();
-            difficultyIcon.Show();
+            // BMS hides the ruleset (music-note) icon: the coloured leading lamp block alone is the clear-lamp indicator.
+            // The icon keeps its layout size (alpha only), so the lamp block and title position are unchanged.
+            difficultyIcon.Alpha = beatmap.Ruleset.ShortName == "bms" ? 0 : 1;
 
             localRank.Beatmap = beatmap;
             difficultyText.Text = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyName(beatmap);
@@ -376,6 +407,10 @@ namespace osu.Game.Screens.Select
 
             starRatingDisplay.Alpha = useBmsLevel ? 0 : 1;
             bmsLevelDisplay.Alpha = useBmsLevel ? 1 : 0;
+
+            // A non-empty AudioFile on a BMS chart means it has a #PREVIEW (the only source of preview audio after the
+            // current import policy), so the chart will preview in song-select.
+            previewIcon.Alpha = useBmsLevel && !string.IsNullOrEmpty(beatmap.Metadata.AudioFile) ? 1 : 0;
         }
 
         private void updateKeyCount()

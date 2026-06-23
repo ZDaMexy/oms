@@ -145,6 +145,11 @@
     - **加载界面（`PlayerLoader` 的 `BeatmapMetadataDisplay`）同步**：开始游玩的加载页此前只对 artist/creator 走 resolver，标题/难度名仍读存库原值、星级仍是旧 pill。现统一——标题 `GetDisplayTitle/Unicode`（剥 BMS 标题尾括号，避免标题 `[SP ANOTHER]` 与难度名 `SP ANOTHER` 重复）、难度名 `GetDisplayDifficultyName`（→`SP ANOTHER`）、星级换 `BmsDifficultyLevelDisplay`（门控同上：play ruleset＝`[Resolved] IBindable<RulesetInfo>`＝bms 且 beatmap＝bms；转谱-mania 保留真实星级——`GetBindableDifficulty(beatmapInfo)` 无 ruleset 参时本就用 cache 的 `currentRuleset`＝全局 play ruleset，与门控一致）。**只改 `BeatmapMetadataDisplay`，不动中央 `BeatmapInfoExtensions.GetDisplayTitleRomanisable`**（仍服务 now-playing/results，出本专题范围）。
     - 回归 `BmsLocalMetadataDisplayResolverTest`（+5：标签＋等级 / UNKNOWN(null 与 0) / 原始 playlevel verbatim / 仅标签无 playlevel / 非 BMS 空）；`BeatmapMetadataDisplay` 为视觉组件、无 headless 单测，复用同一组 resolver。
 
+23. **carousel 面板音符图标：曲名右侧 preview 指示（仅 BMS 模式 + BMS 谱 + 有试听）、删左侧 lamp 上的 ruleset 音符（BMS）**：
+    - **preview 指示**：`PanelBeatmapStandalone` 曲名右侧 `previewIcon`（`FontAwesome.Solid.Music`），`updateDifficultyLevelDisplay` 里 `Alpha = (ruleset=bms && beatmap=bms) && !IsNullOrEmpty(beatmap.Metadata.AudioFile) ? 1 : 0`。判据**必须用 `Metadata.AudioFile` 非空**（＝有 `#PREVIEW`＝会试听，与 [P1-J #12] 选歌试听策略同一信号），不得另造判据。只 standalone（有曲名）加，grouped `PanelBeatmap` 不加。
+    - **删左侧 ruleset 音符（保留 lamp 颜色块）**：`PanelBeatmap`+`PanelBeatmapStandalone` 的 `PrepareForUse` 设 `difficultyIcon.Alpha = beatmap.Ruleset.ShortName=="bms" ? 0 : 1`。**★必须同时 `difficultyIcon.AlwaysPresent = true`（创建时）★**：base `Panel.iconContainer` 是 **AutoSize**，AutoSize **不计入 Alpha=0（非 present）child** → 只设 Alpha=0 会让 iconContainer 收缩到 0 → `contentPaddingContainer.Padding.Left=iconContainer.DrawWidth=0` → beatmap 背景盖住 lamp 颜色块（`backgroundBorder`），**lamp 连块一起消失**（2026-06-23 首版踩坑、用户截图发现）。`AlwaysPresent=true` 让隐藏的 icon 仍占布局宽 → lamp 块保留、标题不位移、仅音符不可见。非 BMS 保留其 ruleset 图标（Alpha=1）。
+    - panel 无 headless 单测（`TestScenePanelBeatmap*` 已 `<Compile Remove>`）；靠实机验收。
+
 ## 测试与发布约束
 
 1. 至少补齐三层 focused coverage：metadata/importer、ruleset criteria/parser、Song Select UI / integration。

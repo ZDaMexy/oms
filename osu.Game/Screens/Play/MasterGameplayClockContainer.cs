@@ -58,6 +58,18 @@ namespace osu.Game.Screens.Play
 
         private Track track;
 
+        /// <summary>
+        /// Whether the beatmap track should be heard during gameplay. When false (e.g. BMS, whose gameplay audio is
+        /// entirely keysound-driven), the track still drives the gameplay clock as usual but is muted so an imported
+        /// song-select preview/music file is never heard over the gameplay audio. See
+        /// <see cref="osu.Game.Rulesets.Ruleset.PlayBeatmapTrackDuringGameplay"/>.
+        /// </summary>
+        private readonly bool playBeatmapTrack;
+
+        // Volume adjustment used to mute the beatmap track when playBeatmapTrack is false. Applied/removed alongside the
+        // other gameplay track adjustments so the shared track is restored to audible when gameplay ends.
+        private readonly BindableDouble trackMuteAdjustment = new BindableDouble(0);
+
         [Resolved]
         private MusicController musicController { get; set; } = null!;
 
@@ -71,9 +83,28 @@ namespace osu.Game.Screens.Play
         {
             beatmap = working.Beatmap;
             track = working.Track;
+            playBeatmapTrack = shouldPlayBeatmapTrack(working);
 
             GameplayStartTime = gameplayStartTime;
             StartTime = findEarliestStartTime(gameplayStartTime, beatmap, working.Storyboard);
+        }
+
+        /// <summary>
+        /// Whether the beatmap's own audio track should be heard during gameplay, as declared by the beatmap's ruleset.
+        /// Rulesets whose gameplay audio is self-contained (e.g. BMS keysounds) opt out so an imported song-select
+        /// preview/music file is not played over the gameplay audio.
+        /// </summary>
+        private static bool shouldPlayBeatmapTrack(WorkingBeatmap working)
+        {
+            try
+            {
+                return working.BeatmapInfo.Ruleset.CreateInstance().PlayBeatmapTrackDuringGameplay;
+            }
+            catch
+            {
+                // If the ruleset can't be resolved (e.g. unavailable), fall back to the default of playing the track.
+                return true;
+            }
         }
 
         private static double findEarliestStartTime(double gameplayStartTime, IBeatmap beatmap, Storyboard storyboard)
@@ -209,6 +240,12 @@ namespace osu.Game.Screens.Play
             track.BindAdjustments(AdjustmentsFromMods);
             track.AddAdjustment(AdjustableProperty.Frequency, UserPlaybackRate);
 
+            // Added after ResetTrackAdjustments (which clears volume adjustments) so the mute survives. Rulesets whose
+            // gameplay audio is self-contained mute the beatmap track here rather than dropping it as the clock source,
+            // keeping all gameplay timing identical while silencing the song-select preview/music file.
+            if (!playBeatmapTrack)
+                track.AddAdjustment(AdjustableProperty.Volume, trackMuteAdjustment);
+
             speedAdjustmentsApplied = true;
         }
 
@@ -219,6 +256,9 @@ namespace osu.Game.Screens.Play
 
             track.UnbindAdjustments(AdjustmentsFromMods);
             track.RemoveAdjustment(AdjustableProperty.Frequency, UserPlaybackRate);
+
+            if (!playBeatmapTrack)
+                track.RemoveAdjustment(AdjustableProperty.Volume, trackMuteAdjustment);
 
             speedAdjustmentsApplied = false;
         }
