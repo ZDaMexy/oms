@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -359,74 +360,91 @@ namespace osu.Game.Database
 
             var notification = showProgressNotification(beatmapIds.Count, "Reprocessing converted star rating for beatmaps", "beatmaps' converted star ratings have been updated");
 
+            // The dominant per-beatmap cost is the BMS decode + BMS→mania conversion + mania strain pass (pure CPU/IO).
+            // Run those in parallel to shorten this one-time reprocess, but bound the degree so the game's update and draw
+            // threads always keep dedicated cores — this is what prevents the reprocess from starving the UI and dropping
+            // frames. Realm access stays on this orchestrator thread (the workers never touch realm), and each chunk's
+            // results are flushed in a SINGLE realm write transaction instead of one per beatmap (fewer, larger writes =
+            // less realm contention than the previous per-item loop).
+            int maxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount - 2, 1, 4);
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism };
+            const int chunk_size = 64;
+
             int processedCount = 0;
             int failedCount = 0;
-            foreach (Guid id in beatmapIds)
+
+            foreach (Guid[] idChunk in beatmapIds.Chunk(chunk_size))
             {
                 if (notification?.State == ProgressNotificationState.Cancelled)
                     break;
 
-                updateNotificationProgress(notification, processedCount, beatmapIds.Count);
+                // Realm reads stay on this thread: materialise the chunk's detached beatmaps before fanning out.
+                var beatmaps = realmAccess.Run(r => idChunk.Select(id => r.Find<BeatmapInfo>(id)?.Detach()).Where(b => b != null).Select(b => b!).ToList());
 
-                sleepIfRequired();
+                // (id, starRating, computed, persistFailure): computed → write star; persistFailure → write Failed; neither → transient, skip.
+                var results = new ConcurrentQueue<(Guid id, double starRating, bool computed, bool persistFailure)>();
 
-                var beatmap = realmAccess.Run(r => r.Find<BeatmapInfo>(id)?.Detach());
-
-                if (beatmap == null)
-                    continue;
-
-                try
+                Parallel.ForEach(beatmaps, parallelOptions, beatmap =>
                 {
-                    var working = beatmapManager.GetWorkingBeatmap(beatmap);
-                    double starRating = maniaRuleset.CreateDifficultyCalculator(working).Calculate().StarRating;
+                    // Yield the worker entirely while gameplay / a high-performance session is active (mirrors the previous
+                    // per-item behaviour) so the reprocess never competes with play.
+                    sleepIfRequired();
 
-                    realmAccess.Write(r =>
+                    try
                     {
-                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
+                        var working = beatmapManager.GetWorkingBeatmap(beatmap);
+                        double starRating = maniaRuleset.CreateDifficultyCalculator(working).Calculate().StarRating;
+                        ((IWorkingBeatmapCache)beatmapManager).Invalidate(beatmap);
+                        results.Enqueue((beatmap.ID, starRating, true, false));
+                    }
+                    catch (BeatmapInvalidForRulesetException e)
+                    {
+                        // The chart genuinely cannot be converted to mania. This is deterministic, so persist it as a failure
+                        // to avoid re-attempting the same conversion on every startup.
+                        Logger.Log($"Beatmap {beatmap} cannot be converted for star rating reprocessing, marking as failed: {e}");
+                        results.Enqueue((beatmap.ID, 0, false, true));
+                    }
+                    catch (OperationCanceledException e)
+                    {
+                        // Calculate() is invoked without a cancellation token, so DifficultyCalculator's internal 10-second
+                        // guard timer is the only source of cancellation. That is deterministic per beatmap (the conversion
+                        // genuinely takes longer than the upstream calculator allows), so persist as failed — otherwise every
+                        // subsequent startup re-spends ~10-25 seconds per such beatmap.
+                        Logger.Log($"Beatmap {beatmap} exceeded the difficulty calculator's internal time budget, marking as failed: {e}");
+                        results.Enqueue((beatmap.ID, 0, false, true));
+                    }
+                    catch (Exception e)
+                    {
+                        // Treat any other error as transient: do not persist a failure marker so the beatmap is retried on the next run.
+                        Logger.Log($"Background processing failed (transient) on converted star rating for {beatmap}: {e}");
+                        results.Enqueue((beatmap.ID, 0, false, false));
+                    }
+                });
+
+                // Flush the whole chunk in one write transaction.
+                realmAccess.Write(r =>
+                {
+                    foreach (var (id, starRating, computed, persistFailure) in results)
+                    {
+                        if (r.Find<BeatmapInfo>(id) is not BeatmapInfo liveBeatmapInfo)
+                            continue;
+
+                        if (computed)
                             BmsPersistedMetadataResolver.SetConvertedStarRating(liveBeatmapInfo.Metadata, maniaRulesetInfo, starRating, currentDifficultyVersion);
-                    });
-
-                    ((IWorkingBeatmapCache)beatmapManager).Invalidate(beatmap);
-                    ++processedCount;
-                }
-                catch (BeatmapInvalidForRulesetException e)
-                {
-                    // The chart genuinely cannot be converted to mania. This is deterministic, so persist it as a failure
-                    // to avoid re-attempting the same conversion on every startup.
-                    Logger.Log($"Beatmap {beatmap} cannot be converted for star rating reprocessing, marking as failed: {e}");
-
-                    realmAccess.Write(r =>
-                    {
-                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
+                        else if (persistFailure)
                             BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(liveBeatmapInfo.Metadata, maniaRulesetInfo, currentDifficultyVersion);
-                    });
+                    }
+                });
 
-                    ++failedCount;
-                }
-                catch (OperationCanceledException e)
+                foreach (var result in results)
                 {
-                    // In this batch context Calculate() is invoked without a cancellation token, so DifficultyCalculator's
-                    // internal 10-second guard timer is the only source of cancellation. That is deterministic per beatmap
-                    // (the conversion genuinely takes longer than the upstream calculator allows), so persist as failed —
-                    // otherwise every subsequent startup re-spends ~10-25 seconds per such beatmap, and song-select filter
-                    // operations end up blocking on the same slow async compute every time star-range filtering is active.
-                    Logger.Log($"Beatmap {beatmap} exceeded the difficulty calculator's internal time budget, marking as failed: {e}");
-
-                    realmAccess.Write(r =>
-                    {
-                        if (r.Find<BeatmapInfo>(id) is BeatmapInfo liveBeatmapInfo)
-                            BmsPersistedMetadataResolver.SetConvertedStarRatingFailure(liveBeatmapInfo.Metadata, maniaRulesetInfo, currentDifficultyVersion);
-                    });
-
-                    ++failedCount;
+                    if (result.computed)
+                        ++processedCount;
+                    else
+                        ++failedCount;
                 }
-                catch (Exception e)
-                {
-                    // Treat any other error as transient: do not persist a failure marker so the beatmap is retried on the next run.
-                    Logger.Log($"Background processing failed (transient) on converted star rating for {beatmap}: {e}");
 
-                    ++failedCount;
-                }
+                updateNotificationProgress(notification, processedCount + failedCount, beatmapIds.Count);
             }
 
             completeNotification(notification, processedCount, beatmapIds.Count, failedCount);

@@ -118,6 +118,7 @@
 5. 读校验加固（B）必须继续保留 `conversion_version` 与 `difficulty_version` 双闸，仅允许把后者的对照源从消费者传入的 `LastAppliedDifficultyVersion` 换成权威当前计算器版本；不得借此弱化或移除任一版本闸。
 6. B 的权威版本获取不得引入"每次读一次难度计算"的开销；必须 memoize / 缓存为每构建一次的常量级读取。
 7. `K10` 为中高风险切片：A（导入期持久化）与 B（读校验加固）必须可分刀独立落地与回退；任一刀落地前先补 focused 回归，禁止只凭 diff 或人工推理跳过 build/test gate。
+8. 启动批处理 `populateMissingConvertedStarRatings` 的有界并行（2026-06-23 落地）必须守住三条不变量，**不得**为了再提速而破坏：① 并行度**必须**给 UI（update+draw）留核——`Math.Clamp(Environment.ProcessorCount - 2, 1, 4)`，**禁止**直接用 `ProcessorCount`（会饿死 UI 线程致掉帧）；② realm 读写**只**在编排线程，`Parallel.ForEach` 的 worker **只**做 `GetWorkingBeatmap`+`Calculate`+`Invalidate`（纯 CPU/IO、零 realm），**禁止**在 worker 内 `realmAccess.Write/Run`（即便线程本地实例可行，也会把写竞争散进 N 线程）；③ 写回**必须**按 chunk 批量（一事务/块），**禁止**回退到每张一事务。失败分类（Invalid/10s 超时→Failed、其它→瞬时不持久化）与 `sleepIfRequired()` 让位游玩须保留。范式对齐已实测稳定的 `BmsChartFilterStatsBackfill`。
 
 ## K11：BMS -> mania 转谱 BGM / autoplay 音频补全约束（2026-06-01 落地，converter 侧）
 

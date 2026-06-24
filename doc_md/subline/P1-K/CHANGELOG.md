@@ -21,6 +21,15 @@
 - **验证**：**pre-fix 反证**＝临时回退过滤后两守卫 FAIL，scratch-dense 谱 scorable 星 `0.817` vs 含 scratch `1.742`（**+113%**，量化了灌水量级）；恢复后：`ManiaDifficultyCalculatorTest` **2/2**（原生钉死星 `2.3493769750220914` 不变，no-op 确认）、`BmsToManiaBeatmapConverterTest` **24/24**、`BmsStarRatingResolverTest` **14/14**、完整 BMS **961/961**、`osu.Desktop.slnf` Release **0 警告 0 错误**。存量已持久化的灌水星将在下次启动由 `populateMissingConvertedStarRatings` 因 conversion_version 失配自动重算（用户侧表现＝一次性「Reprocessing converted star rating」进度通知）。
 - **文档更正落点**：K9 #17 守卫话术、K11 #3、PLAN K11 节 415/427 行、STATUS「对 scorable objects 计算」均已加 ❗更正标记并指向 K12；主线 STATUS/CHANGELOG 已反向同步。
 
+### 性能：转谱星批处理改有界并行 + 批量写（K10 reprocess 提速，UI 安全）
+
+K12 的 `conversion_version` bump 会触发一次全 BMS 库转谱星重算；用户关注其速度能否在**不掉帧**的前提下提升。审查 [BackgroundDataStoreProcessor.cs](../../../osu.Game/Database/BackgroundDataStoreProcessor.cs) `populateMissingConvertedStarRatings` 后确认：单张主成本＝BMS 解码 + BMS→mania 转换 + strain（纯 CPU/IO），原实现是**单线程 foreach + 每张一个 realm 写事务**。
+
+- **改造**：按 `chunk_size=64` 分块，块内 `Parallel.ForEach` 算分、块尾**一个** realm 写事务批量回写。
+- **稳定性设计（针对"并行抢 UI 致丢帧"顾虑）**：① 并行度 `Math.Clamp(Environment.ProcessorCount - 2, 1, 4)`——**永远给 update+draw 线程留 ≥2 核**，结构性杜绝 UI CPU 饿死；② **realm 访问只在编排线程**（worker 仅 `GetWorkingBeatmap`+`Calculate`+`Invalidate`，零 realm）→ 无跨线程 realm 竞争（`RealmAccess.Run/Write` 在非 update 线程本就用线程本地实例，但仍保守地不在 worker 用）；③ **批量写**比原每张一事务**更少** realm 争用；④ worker 内保留 `sleepIfRequired()`，游玩/高性能会话时整体让位；⑤ 解码在 `GetWorkingBeatmap` 的 `lock(workingCache)` **之外**惰性发生，锁临界区极短（仅缓存查插）。
+- **行为等价**：每张的计算、失败分类（Invalid/10s 超时→Failed、其它→瞬时跳过）、`SetConvertedStarRating`/`...Failure` 调用、进度/取消通知一律保留；并行只改"多张并发 + 写合批"。预期提速≈所用核数倍（解码 IO 限制下略低）。
+- **验证**：`osu.Desktop.slnf` Release **0 错误**、`BmsStarRatingResolverTest` 14/14。该路径无 headless 集成测试（OsuGameTestScene 级、CLI discover 不稳，既有测试缺口），靠行为等价 + 镜像已实测稳定的 `BmsChartFilterStatsBackfill`（degree-2 并行 + 直读旁路，910/910·922/922 实机通过）的并行范式背书；实机提速与无掉帧待用户下次启动重算时确认。约束固化见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) K10 #8。
+
 ---
 
 ## 2026-06-22
