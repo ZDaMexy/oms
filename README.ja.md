@@ -4,11 +4,12 @@
 
 > BMS と osu!mania のための Windows 向け音楽ゲームクライアント。オフライン優先、インストール不要のポータブル仕様。
 
+[![公式サイト](https://img.shields.io/badge/website-oms.zdamexy.work-FF6B35)](https://oms.zdamexy.work/)
 ![プラットフォーム](https://img.shields.io/badge/platform-Windows%2010%2B-0078D6)
 ![ランタイム](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![ライセンス](https://img.shields.io/badge/license-MIT-green)
 
-OMS は [osu!lazer](https://github.com/ppy/osu) をベースに、osu!・Taiko・Catch を取り除き、**BMS** と **osu!mania** を一つのよりモダンなクライアントにまとめたものです。オフライン優先・ポータブルで、ローカル譜面を直接読み込んでインポートできます。判定・スコア・ゲージ・スピードの仕様は IIDX / LR2 / beatoraja に合わせてあるため、これらのプラットフォームに慣れたプレイヤーならすぐに馴染めます。
+OMS は [osu!lazer](https://github.com/ppy/osu) をベースに、osu!・Taiko・Catch を取り除き、**BMS** と **osu!mania** を一つのよりモダンなクライアントにまとめたものです。オフライン優先・ポータブルで、ローカル譜面を直接読み込んでインポートできます。判定・スコア・ゲージ・スピードの仕様は IIDX / LR2 / beatoraja に合わせてあるため、これらのプラットフォームに慣れたプレイヤーならすぐに馴染めます。詳しくは公式サイト [oms.zdamexy.work](https://oms.zdamexy.work/) をご覧ください。
 
 ## 目次
 

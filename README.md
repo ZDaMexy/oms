@@ -4,11 +4,12 @@
 
 > 面向 BMS 与 osu!mania 的 Windows 音游客户端，离线优先、免安装便携。
 
+[![官网](https://img.shields.io/badge/website-oms.zdamexy.work-FF6B35)](https://oms.zdamexy.work/)
 ![平台](https://img.shields.io/badge/platform-Windows%2010%2B-0078D6)
 ![运行时](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![许可证](https://img.shields.io/badge/license-MIT-green)
 
-OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko、Catch，把 **BMS** 与 **osu!mania** 收进同一个更现代的客户端：离线优先、可便携、支持本地谱面直读导入。判定、计分、Gauge 与速度语义对齐 IIDX / LR2 / beatoraja，熟悉这些平台的玩家可以很快上手。
+OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko、Catch，把 **BMS** 与 **osu!mania** 收进同一个更现代的客户端：离线优先、可便携、支持本地谱面直读导入。判定、计分、Gauge 与速度语义对齐 IIDX / LR2 / beatoraja，熟悉这些平台的玩家可以很快上手。更多信息见项目官网 [oms.zdamexy.work](https://oms.zdamexy.work/)。
 
 ## 目录
 

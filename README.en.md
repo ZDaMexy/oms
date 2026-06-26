@@ -4,11 +4,12 @@
 
 > A Windows rhythm-game client for BMS and osu!mania — offline-first and portable, no installation required.
 
+[![Website](https://img.shields.io/badge/website-oms.zdamexy.work-FF6B35)](https://oms.zdamexy.work/)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-0078D6)
 ![Runtime](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-OMS starts from [osu!lazer](https://github.com/ppy/osu), removes osu!, Taiko and Catch, and brings **BMS** and **osu!mania** together into a single, more modern client: offline-first, portable, with direct-read local chart import. Judgement, scoring, gauges and speed semantics are aligned with IIDX / LR2 / beatoraja, so players familiar with those platforms will feel at home quickly.
+OMS starts from [osu!lazer](https://github.com/ppy/osu), removes osu!, Taiko and Catch, and brings **BMS** and **osu!mania** together into a single, more modern client: offline-first, portable, with direct-read local chart import. Judgement, scoring, gauges and speed semantics are aligned with IIDX / LR2 / beatoraja, so players familiar with those platforms will feel at home quickly. Learn more on the official site: [oms.zdamexy.work](https://oms.zdamexy.work/).
 
 ## Table of Contents
 
