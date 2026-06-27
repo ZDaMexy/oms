@@ -1,117 +1,335 @@
-# OMS 皮肤制作手册
+# OMS BMS 皮肤制作手册（素材 + skin.ini 路线）
 
-> 面向三类读者：
-> 1. 想给 BMS 做可落地皮肤的人
-> 2. 想在仓库内写代码型 skin provider 的开发者
-> 3. 想试验当前 mania 候选包与 `skin.ini` 的制作者
+> **读者**：想给 OMS BMS 做皮肤的制作者，以及在仓库内实现皮肤系统的开发者。
 >
-> 本文只写仓库里已经落地并验证过的能力，不把“未来计划”伪装成“当前可用工作流”。
+> **范围**：**仅游玩界面**。osu!lazer 已不再支持选歌/结果等非游玩界面皮肤，OMS 跟随这一边界——本文不涉及选歌页、结果页、菜单皮肤。
+>
+> **本文是什么（派生文档）**：面向皮肤制作者的 **BMS 素材 + `skin.ini` 皮肤开发视图**。**权威契约不在本文**——组件挂点、ini schema、必备分档与校验行为冻结在 **[P1-A 技术约束 ·「皮肤创作生态（素材 + ini）」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)**，分期在 **[P1-A 开发计划 · `F` 系列](../subline/P1-A/DEVELOPMENT_PLAN.md)**。本文只是把那份契约渲染成制作者可读的形式。若两者冲突，**以 P1-A 四件套为准**（`other/` 是参考材料，不替代主线计划 / 约束）。
+>
+> **实现状态（务必先读）**：截至 **2026-06-27**，皮肤创作生态处于 `F0`（契约冻结，纯文档，未开工实现）；运行时真正执行的皮肤路线仍是**代码型 provider**（见 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)）。素材 + ini 的加载器 / 校验器 / 热重载 / 参考皮肤在 `F1+` 分期落地。本文每个主章节用 `[规划]` / `[部分]` / `[已实现]` 标注当前可用性。**延续本仓库纪律：不把"未来计划"伪装成"当前可用工作流"。** 想立刻动手做皮肤，今天仍走 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)。
 
-## 先说结论
+---
 
-- 现在真正适合投入制作的是 **BMS**，而且优先路线是 **代码型 provider**，不是纯素材包。
-- 现在最稳定的契约是 **BMS lookup 类型、组件边界、状态回调接口、fallback 粒度**。
-- 现在最不稳定的部分是 **BMS 纯素材目录结构、图片命名、`skin.ini` 桥接格式、最终公开分发包格式**。
-- 当前 mania 可以做 **legacy/候选包试验**，但 **不能**把它当作已经冻结的 OMS 皮肤制作流程。
-- 如果你现在就想开始做，最稳妥的做法是：
-  1. 先选一个 BMS 组件族
-  2. 先写代码型 provider
-  3. 先验证 lookup 和状态接口
-  4. 等资源命名冻结后再固化成纯素材包
+## 目录
 
-## 你现在该走哪条路
+1. [这套皮肤能做什么 / 不做什么](#1-这套皮肤能做什么--不做什么)
+2. [皮肤包结构](#2-皮肤包结构-规划)
+3. [`skin.ini` 总览与通用约定](#3-skinini-总览与通用约定-规划)
+4. [车道与几何](#4-车道与几何-规划)
+5. [静态素材族（①类，mania 对齐）](#5-静态素材族类mania-对齐-规划)
+6. [BMS 扩展族（②③类，`[Bms]` 扩展段）](#6-bms-扩展族类bms-扩展段-规划)
+7. [必备 / 推荐 / 可选 三档与校验行为](#7-必备--推荐--可选-三档与校验行为-部分)
+8. [两个编辑面与布局编辑器边界](#8-两个编辑面与布局编辑器边界-部分)
+9. [程序化默认与参考皮肤](#9-程序化默认与参考皮肤-规划)
+10. [制作流程](#10-制作流程-规划)
+- [附录 A：游玩元素全集速查（创作者上限）](#附录-a游玩元素全集速查创作者上限)
+- [附录 B：必备元素清单](#附录-b必备元素清单)
+- [附录 C：`skin.ini` 字段全表](#附录-cskinini-字段全表)
+- [附录 D：进阶——代码型 provider（当前实际运行路线）](#附录-d进阶代码型-provider当前实际运行路线)
+- [附录 E：状态与路线图](#附录-e状态与路线图)
 
-| 目标 | 现在应该怎么做 | 是否推荐 | 原因 |
+---
+
+## 1. 这套皮肤能做什么 / 不做什么
+
+**能做（游玩界面内的一切视觉）**：stage 框架、车道、音符、长条（LN/CN/HCN）、判定线、判定显示、gauge、combo、lane cover、小节线、BGA 浮窗，以及 IIDX 风格的演出件——转盘（turntable）、柱光（keyflash）、命中爆炸（bomb / hit lighting）、长条保持光、ghost/TD 时差、bpm、progress 等。完整上限见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
+
+**两个正交的编辑面**：
+- **`skin.ini` + 素材 = "长相"**：颜色、贴图、几何、显隐。本文主体。
+- **lazer 布局编辑器 = "摆位"**：通用全局 HUD 件（key counter / song progress / 计分 / 判定计数）的位置。边界见 [§8](#8-两个编辑面与布局编辑器边界-部分)。
+
+**不做**：
+- 选歌 / 结果 / 菜单皮肤（lazer 已弃，OMS 跟随）。
+- 改判定窗口、手感、谱面逻辑（皮肤是**纯视觉**的）。
+- 直接读取 LR2 / beatoraja 皮肤文件（`.lr2skin` / `.luaskin` / `.cim`）。本系统是 OMS 自有的素材+ini 规范，**不移植**那些引擎的运行时；但其键名与元素族**对齐**这些生态，便于制作者迁移经验。
+
+---
+
+## 2. 皮肤包结构 `[规划]`
+
+一个 BMS 皮肤是一个文件夹，根部一个 `skin.ini`，其余是素材：
+
+```text
+MyBmsSkin/
+  skin.ini            ← 入口，必需
+  note_white.png
+  note_blue.png
+  note_scratch.png
+  ln_body.png
+  judgeline.png
+  gauge.png
+  turntable.png
+  ...
+```
+
+- 放置位置：OMS 数据目录下的 `skins/`（与 mania 皮肤同级）。
+- 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
+- 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定-规划) 的帧序列约定。
+- 热重载：编辑 `skin.ini` 或替换素材后，游戏内可触发重载预览，无需重启（[§10](#10-制作流程-规划)）。
+
+---
+
+## 3. `skin.ini` 总览与通用约定 `[规划]`
+
+`skin.ini` 由若干 section 组成：
+
+```ini
+[General]
+Name:     My BMS Skin
+Author:   You
+Version:  1.0
+Keymodes: 7K, 14K          ; 本皮肤声明覆盖的 keymode；未声明的回退内置默认
+
+[Bms]
+Keymode:  7K               ; 此段描述 7K 的所有车道/几何/素材
+; ... 7K 的键 ...
+
+[Bms]
+Keymode:  14K              ; DP 单独一段
+; ... 14K 的键 ...
+```
+
+**通用约定**：
+- **按 keymode 分桶**：每个 `[Bms]` 段以 `Keymode:` 开头，对应一个键位模式（沿用 osu!mania「每个 `Keys` 一个 `[Mania]` 段」的习惯）。支持的 keymode：`5K` `7K` `9K`（PMS，无 scratch）`10K` `14K`（DP）。
+- **车道编址**：段内用 lane token 索引每条车道。
+
+  | keymode | scratch | 键 lane token |
+  | --- | --- | --- |
+  | 5K | `S` | `1`..`5` |
+  | 7K | `S` | `1`..`7` |
+  | 9K（PMS） | 无 | `1`..`9` |
+  | 14K（DP） | `S`(P1) `S2`(P2) | `1`..`7`(P1) `8`..`14`(P2) |
+
+  形如 `NoteImageS`、`NoteImage1`、`ColourColumn3`。
+- **颜色**：`r,g,b,a`（0–255），如 `ColourBarline: 150,164,194,200`。
+- **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
+- **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
+- **动画**：帧序列用 `name-0`、`name-1`… 命名 + `LightFramePerSecond` 控速（对齐 mania）；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
+- **前向兼容**：**未知键被忽略并记一条告警**（不报错），所以皮肤可以安全写入未来才实现的键；**未知值**回退默认 + 告警。详见 [§7](#7-必备--推荐--可选-三档与校验行为-部分)。
+
+> **schema 冻结说明**：键名的**权威定义在 [P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)**，本文为其渲染。**与 mania 同义的键一律沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义，已在 [§6](#6-bms-扩展族类bms-扩展段-规划) / [附录 C](#附录-cskinini-字段全表) 标注。当前为 `F0` 草案，改键须同步回写 P1-A 约束与本文。
+
+---
+
+## 4. 车道与几何 `[规划]`
+
+几何键控制车道布局；与 mania 同义者沿用 mania 名。**注意**：当前内置默认几何走 `BmsPlayfieldLayoutProfile` 的归一化策略（车道按比例填满 `PlayfieldWidth`），所以几何键是「相对/像素混合」语义，逐键见 [附录 C](#附录-cskinini-字段全表)。
+
+| 键 | 作用 | 单位/语义 | mania 对应 |
 | --- | --- | --- | --- |
-| 做 BMS 局部 override | 写 BMS 代码型 provider，只替换目标组件 | 推荐 | lookup 和 fallback 已稳定到组件粒度 |
-| 做 BMS 完整视觉原型 | 写 BMS 代码型 provider，逐块替换 | 推荐 | 当前最稳的是代码入口，不是目录规范 |
-| 做 BMS 纯图片皮肤并对外分发 | 先做视觉与组件拆分，暂不锁目录 | 暂不推荐直接定版 | 资源目录、图片命名、`skin.ini` 桥接都还没冻结 |
-| 试验当前 mania 候选包 | 用 legacy/`skin.ini` 方式做试验 | 可做试验 | 仍有一部分路径走 legacy 资源/命名 |
-| 做正式 OMS mania 皮肤 | 先不要当主目标 | 不推荐 | mania 已完成 shell / preset 接线与 8 类 OMS-owned 组件升格，但公开 authoring contract、legacy config/asset lookup 兼容与 release-facing 默认体验仍未冻结 |
+| `PlayfieldWidth` | 整个车道区宽度 | 屏幕宽比例（如 `0.68`） | （ColumnWidth 合算） |
+| `PlayfieldHeight` | 判定线相对高度 | 屏幕高比例（默认 `0.92`） | StagePadding |
+| `HitPosition` | 判定线位置 | 距底像素 | `HitPosition` |
+| `ColumnWidth` | 逐键车道宽 | 相对权重，逗号分隔 | `ColumnWidth` |
+| `ScratchWidth` | scratch 道宽 | 相对权重（默认键道 ×1.5） | —（BMS 独有） |
+| `ColumnSpacing` | 车道间距 | 相对权重 | `ColumnSpacing` |
+| `ColumnLineWidth` | 分隔线宽 | 像素 | `ColumnLineWidth` |
+| `BarlineHeight` | 小节线厚 | 像素 | `BarlineHeight` |
+| `JudgementLine` | 是否显示判定线 | `0/1` | `JudgementLine` |
+| `KeysUnderNotes` | 按键区叠在音符下 | `0/1` | `KeysUnderNotes` |
 
-## 先理解当前真实工作流
+---
 
-OMS 当前实际存在两条皮肤制作路线：
+## 5. 静态素材族（①类，mania 对齐）`[规划]`
 
-1. **BMS 代码型 provider 路线**
-   - 这是当前最推荐、最稳的路线。
-   - 你直接实现 `ISkin.GetDrawableComponent()`，按 BMS lookup 返回自己的 `Drawable`。
-   - 入口和契约见 [osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs)、[osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs)、[osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
+这一族**纯素材 + 颜色 + 位置**，无需引擎动态逻辑——是落地最早、最稳的一批（对应规划中的 P1）。键名尽量对齐 mania，使 osu!mania 皮肤作者零学习成本迁移。
 
-2. **legacy/`skin.ini` mania 试验路线**
-   - 这是当前还可以用于试验的路线，但不是 OMS 最终 authoring contract。
-   - 入口是 `LegacySkin` 体系；OMS 内置预览皮肤 [osu.Game/Skinning/OmsSkin.cs](../../osu.Game/Skinning/OmsSkin.cs) 也是挂在这条链上。
-   - 候选包样例见 [SKIN/SimpleTou-Lazer/skin.ini](../../SKIN/SimpleTou-Lazer/skin.ini)。
+### 5.1 Stage 框架
+| 键 | 作用 | 必备档 |
+| --- | --- | --- |
+| `StageLeft` / `StageRight` / `StageBottom` | IIDX 金属框左/右/下 | 推荐 |
+| `StageHint` | 判定线位置提示条 | 推荐 |
+| `PlayfieldBackdrop` | 车道区外的背景底 | 推荐 |
 
-如果你是第一次开始做 OMS 皮肤，**默认选 BMS 代码型 provider**。只有在你明确知道自己是在试验 legacy mania 资源语义时，才去碰 `skin.ini`。
+### 5.2 Note / Long note
+| 键 | 作用 | 必备档 |
+| --- | --- | --- |
+| `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（缺→内置色块） |
+| `NoteImage{lane}H` | 长条头 | **必备** |
+| `NoteImage{lane}L` | 长条身 | **必备** |
+| `NoteImage{lane}T` | 长条尾 | 推荐（默认透明） |
+| `NoteBodyStyle` | 长条身样式（stretch/repeat） | 可选 |
+| `WidthForNoteHeightScale` | 音符高度按宽缩放 | 可选 |
 
-补充：`Settings -> 游戏模式 -> osu!mania -> 滚动速度` 当前显示的毫秒只代表标准车道几何下的参考下落时间。不同皮肤会因车道宽度、判定线位置与缩放改变体感，因此更换 mania 皮肤后应重新校准，也不要拿这组数值直接对照 BMS 的 Hi-Speed / 下落时间。
+### 5.3 判定线 / 按键区
+| 键 | 作用 | 必备档 |
+| --- | --- | --- |
+| `HitTargetImage` | 判定线/接收区贴图 | 推荐（缺→内置线+辉光） |
+| `KeyImage{lane}` / `KeyImage{lane}D` | 按键区常态/按下态 | 可选 |
 
-## 工作流 A：BMS 代码型 provider 制作手册
+### 5.4 小节线 / 颜色
+| 键 | 作用 | 必备档 |
+| --- | --- | --- |
+| `ColourColumn{lane}` | 逐道车道背景色 | 推荐 |
+| `ColourColumnLine` | 分隔线色 | 推荐 |
+| `ColourJudgementLine` | 判定线色 | 推荐 |
+| `ColourBarline` | 小节线色 | 推荐 |
+| `ColourHold` | 长条身着色 | 可选 |
+| `ColourBreak` | 断连色 | 可选 |
 
-### Step 1：先决定覆盖范围，不要一上来做“整套皮肤”
+### 5.5 Lane cover（SUDDEN+/HIDDEN+/LIFT）
+| 键 | 作用 | 必备档 |
+| --- | --- | --- |
+| `LaneCoverTop` / `LaneCoverBottom` | 顶/底遮罩贴图 | 可选 |
+| `ColourLaneCover` / `ColourLaneCoverFocus` | 遮罩填充 / 调整高亮色 | 可选 |
 
-当前 BMS 是按组件 fallback，不是一张图缺失就整套回退。因此你应该先选一个清晰的目标族：
+---
 
-1. HUD：`HudLayout` / `GaugeBar` / `ComboCounter`
-2. Results：`ResultsSummaryPanel` / `ResultsSummary` / `ClearLamp` / `GaugeHistoryPanel` / `GaugeHistory`
-3. Song Select：`NoteDistributionPanel` / `NoteDistribution`
-4. Playfield 壳层：`Backdrop` / `Baseplate` / lane `Background` / `Divider`
-5. Gameplay accent：`HitTarget` / `BarLine` / `LaneCover` / `StaticBackgroundLayer` / `BgaPanel`（P1-L Phase 5，规划中）
-6. Note 主体：`Note` / `LongNoteHead` / `LongNoteBody` / `LongNoteTail`
-7. Judgement：BMS 自定义判定显示
+## 6. BMS 扩展族（②③类，`[Bms]` 扩展段）`[规划]`
 
-推荐制作顺序：
+这一族在 mania 的 `[Mania]` 段**没有先例**（mania 无 gauge/turntable/bomb 等机制，或当作引擎 HUD），是 OMS 为 BMS 新定义的扩展键。
 
-1. HUD
-2. Results
-3. Song Select
-4. Playfield 壳层与 accent
-5. Note / Hold
-6. Judgement
+**关键原则**：这些件的**动态由引擎驱动**，`skin.ini` 只提供**素材 + 位置 + 缩放 + 颜色**。你不需要写关键帧脚本（这与 LR2/beatoraja 的 timer/op/dst 体系不同；OMS 的可编辑标准对齐 osu-ini 的静态模型）。
 
-原因很简单：前 3 组的接口最清晰、回归最容易、状态复杂度最低。
-
-### Step 2：按组件准备素材，不要按“整套皮肤”空想
-
-当前最实用的做法，是按下面这张表准备素材和状态。
-
-| 组件族 | lookup / 入口 | 你至少要准备什么 | 运行时必须覆盖的状态 |
+### 6.1 ②类：引擎驱动、ini 供素材（实现见规划 P2）
+| 键 | 作用 | 必备档 | 动态来源 |
 | --- | --- | --- | --- |
-| HUD | `BmsSkinComponentLookup(HudLayout/GaugeBar/ComboCounter)` | gauge 条主体、combo 样式、HUD 布局方案 | `HudLayout` 必须接收 wrapped HUD、gauge、combo |
-| Results | `ResultsSummaryPanel` / `ResultsSummary` / `ClearLamp` / `GaugeHistoryPanel` / `GaugeHistory` | panel 外壳、summary 内容、clear lamp、gauge timeline | 有数据 / 无数据 两种状态 |
-| Song Select | `NoteDistributionPanel` / `NoteDistribution` | panel 外壳、分布图本体、摘要文字样式 | 有分布数据 / 无分布数据 |
-| Playfield 壳层 | `BmsPlayfieldSkinLookup` | backdrop、baseplate | 不同 `Keymode` / `LaneCount` |
-| Lane 壳层 | `BmsLaneSkinLookup` | lane background、divider | `IsScratch`、不同 lane count |
-| Receptor / 节拍线 | `BmsLaneSkinLookup` | hit target、bar line | `pressed / focused`、`major / minor` |
-| Note / Hold | `BmsNoteSkinLookup` | note、LN 头、LN 身、LN 尾 | `IsScratch`、不同 note element |
-| LaneCover | `BmsLaneCoverSkinLookup` | top cover、bottom cover、focus 表现 | top / bottom / focused |
-| Static BG / 元数据壳层 | `BmsSkinComponentLookup(StaticBackgroundLayer)` | 有背景文件时的显示、无背景文件时的缺省态 | 有 `STAGEFILE/BACKBMP` / 无素材 |
-| BGA 浮窗（P1-L Phase 5，规划中） | `BmsSkinComponentLookup(BgaPanel)` | BGA 播放区外壳/边框、定位与适配方式 | 图序列 / 视频 / POOR 层 / 无 BGA（回退静态图）/ 居左·居右·居中·14K DP 默认布局 |
-| Judgement | `BmsJudgementSkinLookup` | BAD / POOR / EMPTY POOR 的显示方案 | 动画触发、前景代理内容 |
+| `KeyFlashImage` / `ColourColumnLight` | 柱光/键闪（按下/命中列闪） | 可选 | 按键 on/off |
+| `NoteHitLighting` | 命中爆闪（对齐 mania `LightingN`） | 可选 | 命中事件 |
+| `LnHoldLighting` | 长条保持光（对齐 mania `LightingL`） | 可选 | 持续按住 |
+| `BombImage{lane}` / `ExplosionScale` | 命中爆炸 | 可选 | 命中事件 |
+| `TurntableImage` / `TurntableSpin` | 转盘贴图 + 是否随 scratch 旋转 | 可选 | scratch 输入 |
+| `GhostTdDisplay` | ghost / TD 时差显示 | 可选 | 判定时差 |
 
-最容易漏掉的点：
+### 6.2 ③类：BMS 独有 HUD（实现见规划 P3）
+| 键 | 作用 | 必备档 | 备注 |
+| --- | --- | --- | --- |
+| `GaugeBarImage` | gauge 条主体贴图 | **必备**（缺→内置槽位条） | BMS 无 mania 对应 |
+| `ColourGaugeAssistEasy` / `…Easy` / `…Normal` / `…Hard` / `…ExHard` / `…Hazard` | 六种 gauge 类型配色 | 推荐 | 对齐内置六态 |
+| `GaugeNumber` | gauge 百分比数字样式 | 可选 | |
+| `LaneCoverNumber` | 遮罩绿数（GN / Hi-Speed） | 可选 | |
+| `BpmDisplay` | BPM 显示 | 可选 | |
+| `ProgressBar` | 曲目进度 | 可选 | |
 
-- scratch lane 和 normal lane 必须可读地区分。
-- `LaneCover` 不是一张黑条图就完事，至少要有 top / bottom / focused 的差异。
-- `BarLine` 必须考虑 major / minor。
-- `StaticBackgroundLayer` 必须处理“没有背景资源”的显示。
-- `HudLayout` 不是普通容器，它必须负责把 wrapped HUD、gauge 和 combo 排进去。
+### 6.3 判定显示
+| 键 | 作用 | 必备档 |
+| --- | --- | --- |
+| `JudgePGreat` / `JudgeGreat` / `JudgeGood` / `JudgeBad` / `JudgePoor` / `JudgeEmptyPoor` | 各判定档贴图（对齐 mania `Hit300g`…`Hit0` 语义） | **必备**（缺→内置文字） |
+| `JudgeComboBreak` | 断连提示 | 可选 |
 
-### Step 3：先写最小 provider 骨架
+---
 
-当前 BMS 最小 skin provider 的形状，其实和测试里的 `TestSkin` 一样。参考 [osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)。
+## 7. 必备 / 推荐 / 可选 三档与校验行为 `[部分]`
 
-最小骨架如下：
+生态惯例（osu / LR2 / beatoraja）是 **fail-open**：缺件→引擎默认，坏行→跳过，不硬校验。OMS 在此之上加一层**显式分档 + 诊断**，以支撑"编辑生态"。
+
+### 7.1 三档定义
+- **必备 (Required)**：缺了不可玩或视觉破碎。引擎**始终**有内置兜底，皮肤**可覆盖、不可删**——所以皮肤永远做不出"不可玩"的结果。清单见 [附录 B](#附录-b必备元素清单)。
+- **推荐 (Recommended)**：标准预期，回退到内置可接受。
+- **可选 (Optional)**：纯增强，缺省 = 不显示。
+
+### 7.2 校验三层（加载期）
+1. **语法合法性**：`skin.ini` 可解析、段/键可识别。**未知键→忽略 + 告警**（前向兼容）；**值类型/范围错→回退默认 + 告警**。
+2. **资源引用**：引用的贴图存在；**缺失→回退内置 + 告警**（绝不崩）。
+3. **完备性**：必备件必须能解析（皮肤给或内置兜底）。
+
+### 7.3 行为契约（关键分工）
+- **加载期 = fail-open + 诊断日志**：**永不阻断游玩**。任何缺失/非法都降级到内置兜底并记一条诊断，玩家照常进图。
+- **编辑期 = 比加载期更严**：主动暴露必备槽位、实时校验、**阻止保存**结构性损坏的皮肤。
+- **keymode 覆盖**：皮肤可只声明部分 keymode（如只做 7K），未声明的 keymode → 回退内置默认；`[General] Keymodes:` 用于声明覆盖面与编辑期提示。
+
+---
+
+## 8. 两个编辑面与布局编辑器边界 `[部分]`
+
+两个面**正交、不重叠**：
+- **`skin.ini` + 素材** 管"长相"（贴图/颜色/几何/显隐）。
+- **lazer 布局编辑器** 管"摆位"（位置/缩放/显隐）。
+
+**布局编辑器能摆什么（已知边界）**：它只识别 `ISerialisableDrawable` 的全局 HUD 件——被 `MainHUDComponents` 包裹的通用件（key counter、song progress、计分、准确率、判定计数）。它**看不见 BMS 程序化件**（车道/音符/gauge/combo），其素材选择器也只列已导入文件、无内置资产浏览器。
+
+**因此的设计边界（决议 X）**：BMS 专属 HUD（gauge 条、combo、clear lamp）**保持 `DefaultBmsHudLayoutDisplay` 代码编排 + `skin.ini` 调外观**，不强行升格为可在布局编辑器里自由拖摆的件。换言之——它们的"长相"可换，"摆位"由皮肤布局方案决定，而非布局编辑器。（把它们也做成可编辑器拖摆是未来选项，不在当前范围。）
+
+---
+
+## 9. 程序化默认与参考皮肤 `[规划]`
+
+OMS 同时维护两层"默认"，对齐 osu! 的范式：
+
+- **程序化内置默认（兜底，不可删）** `[已实现]`：当前 BMS 默认皮肤是 **100% 程序化**的——纯色块 + 几何 + 程序化辉光，**零位图素材**（见 `BmsTemporarySkinPalette` / `BmsPlayfieldLayoutProfile`）。**没有 `skin.ini` 时就是它**。它是所有必备件的最终兜底，永远存在。
+- **参考素材皮肤（创作者模板）** `[规划]`：一份能用本系统**复现内置默认观感**的 `skin.ini`。因为默认是程序化的，这份参考皮肤**绝大部分是 ini 数值（颜色/几何/开关），位图素材极少甚至为零**。它既是 P1 的验收对象，也是你制作时**最佳的起点模板**。
+
+> **为什么不"把代码渲染对象导出成 PNG"**：内置默认是纯色块+程序化辉光。把一个 `Colour` 烤成位图会冗余、丢失可缩放性、辉光烤死不可调——纯色车道应是一个 `ColourColumn{lane}` 键，不是一张图。因此程序化辉光这类件保留为"**引擎绘制、ini 参数化**"，不烤图。这与 osu! 一致：osu! 的程序化默认皮肤（Argon）从不导出成文件。
+
+---
+
+## 10. 制作流程 `[规划]`
+
+1. **复制参考皮肤**（[§9](#9-程序化默认与参考皮肤-规划)）为起点，而非从空白开始。
+2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。
+3. **热重载预览**：游戏内重载，立即看效果。
+4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
+5. **看诊断**：加载日志里的告警会列出被忽略/回退的键与缺失素材。
+6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
+
+---
+
+## 附录 A：游玩元素全集速查（创作者上限）
+
+按真实生态（osu!mania `M` / beatoraja `B` / LR2 `L`）铺开的可皮肤化元素全集，作为"创作者上限"。`性质`：`S`=静态素材型 / `D`=动态引擎型。`OMS`：`✅`已有挂点 / `◐`不完备 / `✗`缺。
+
+| 元素族 | 元素 | M | B | L | 性质 | OMS |
+| --- | --- | :-: | :-: | :-: | :-: | :-: |
+| Stage | 框架左/右/下、hint、backdrop | ✓ | ✓ | ✓ | S | ◐ |
+| Lane | 逐道宽/间距/分隔/背景色、柱光 | ✓ | ✓ | ✓ | S/D | ◐ |
+| Note | 逐道贴图/色、高度缩放、body style | ✓ | ✓ | ✓ | S | ◐ |
+| Long note | 头/身/尾、持松态、HCN、保持光 | ~ | ✓ | ✓ | S/D | ◐ |
+| Mine | 地雷 | — | ✓ | ✓ | S | ◐ |
+| 判定线 | 线/接收区、按键常/按下态、位置 | ✓ | ✓ | ✓ | S | ◐ |
+| 命中反馈 | hit lighting、bomb、keyflash、comboburst | ✓ | ✓ | ✓ | D | ✗ |
+| 判定显示 | 各档图、动画、fast/slow、ghost/TD、断连色 | ~ | ✓ | ✓ | S/D | ◐ |
+| Gauge | 条、类型变体、GN% 数字、历史曲线 | — | ✓ | ✓ | D | ✅ |
+| 数字/文本 HUD | combo、计分、判定计数、bpm、progress、title | ~ | ✓ | ✓ | D | ◐ |
+| Lane cover | SUDDEN+/HIDDEN+/LIFT、绿数 | ~ | ✓ | ✓ | D | ✅ |
+| Scratch | 转盘贴图+旋转、激光 | — | ✓ | ✓ | D | ✗ |
+| BGA | BGA 层、POOR 层、frame/定位 | — | ✓ | ✓ | S/D | ✅ |
+| Barline | 小节线 | ✓ | ✓ | ✓ | S | ✅ |
+| Character | poor/judge 立绘（风味·可选） | — | ✓ | ✓ | D | ✗ |
+
+**明确不做**：FAST/SLOW pacemaker（产品已删）、warning arrow（mania 专属）、auto-note 变体、character 立绘（风味）。
+
+---
+
+## 附录 B：必备元素清单
+
+下列为"必备"档——引擎**始终**内置兜底、皮肤可覆盖不可删。皮肤即便完全留空，这些也保证可玩：
+
+- 车道 / playfield 本体
+- 普通音符（`NoteImage{lane}`）
+- 长条头 / 身（`NoteImage{lane}H` / `…L`）
+- 判定线
+- 判定显示（`JudgePGreat`…`JudgeEmptyPoor`）
+- gauge 条（`GaugeBarImage`）
+- combo
+
+其余为推荐 / 可选（[§5](#5-静态素材族类mania-对齐-规划) / [§6](#6-bms-扩展族类bms-扩展段-规划) 各表已标注）。
+
+---
+
+## 附录 C：`skin.ini` 字段全表
+
+> 完整键表随实现细化；当前以 [§4](#4-车道与几何-规划)–[§6](#6-bms-扩展族类bms-扩展段-规划) 的分族表为准。单位/语义约定：
+> - 颜色 = `r,g,b,a`（0–255）。
+> - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth`）。
+> - 像素 = 整数（如 `HitPosition` / `BarlineHeight`）。
+> - 逐道值 = 逗号分隔，顺序按该 keymode 的 lane token 表（[§3](#3-skinini-总览与通用约定-规划)）。
+> - 资源名 = 不带扩展名的相对路径。
+> - 帧动画 = `name-0`/`name-1`… + `LightFramePerSecond`。
+
+---
+
+## 附录 D：进阶——代码型 provider（当前实际运行路线）
+
+> `[已实现]` **这是今天唯一真正运行的皮肤路线**，也是 ②③类引擎驱动件在素材+ini 落地前的唯一覆盖方式。素材+ini 系统上线后，代码型 provider 仍保留为"高级/精细控制"入口。
+
+OMS BMS 皮肤底层是 osu!lazer 的 `ISkin` / `SkinTransformer` / `SkinnableDrawable` 体系。你实现 `ISkin.GetDrawableComponent()`，按 BMS lookup 返回自己的 `Drawable`；`BmsSkinTransformer` 负责路由与按组件 fallback。入口契约见
+[BmsSkinLookups.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs)、
+[BmsSkinComponentLookup.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs)、
+[BmsSkinTransformer.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
+
+**最小骨架**（与测试里的 `TestSkin` 同形，参考 [BmsSkinTransformerTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)）：
 
 ```csharp
-using osu.Framework.Audio.Sample;
-using osu.Framework.Bindables;
-using osu.Framework.Graphics;
-using osu.Framework.Graphics.Textures;
-using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Skinning;
-
 public sealed class MyBmsSkin : ISkin
 {
    public Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -129,382 +347,49 @@ public sealed class MyBmsSkin : ISkin
       };
 
    public Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => null;
-
    public ISample? GetSample(ISampleInfo sampleInfo) => null;
-
-   public IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
-      where TLookup : notnull
-      where TValue : notnull
-      => null;
+   public IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup) where TLookup : notnull where TValue : notnull => null;
 }
 ```
 
-重点：
+**部分组件必须实现特定接口，否则会被退回默认**：
 
-- 当前 BMS 的正式 authoring 入口几乎都在 `GetDrawableComponent()`。
-- 如果你不打算自己提供纹理/音效查询，`GetTexture()` 和 `GetSample()` 可以先返回 `null`。
-- 当前 BMS 没有稳定公开的 ruleset 级 `skin.ini` config bridge，所以 `GetConfig()` 通常也先返回 `null`。
-
-### Step 4：哪些组件必须实现接口，不实现就会被替换掉
-
-`BmsSkinTransformer` 不只是“有就拿，没有就回退”。对某些组件它会要求你返回的对象实现特定接口；如果没实现，它会直接退回默认实现。参考 [osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs)。
-
-| 组件 | 你必须实现的接口 | 运行时会调用什么 |
+| 组件 | 必须实现的接口 | 运行时会调用 |
 | --- | --- | --- |
-| `HudLayout` | `IBmsHudLayoutDisplay` | `SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)` |
-| `LaneCover` | `IBmsLaneCoverDisplay` | `SetFocused(bool isFocused)` |
-| `StaticBackgroundLayer` | `IBmsBackgroundLayerDisplay` | `SetDisplayedAssetName(string displayedAssetName)`；默认层在有当前 `WorkingBeatmap` 时还会主动尝试加载实际背景贴图，`displayedAssetName` 继续作为皮肤可消费的元数据/缺失态文案 |
-| `BgaPanel`（P1-L Phase 5，规划中，接口预留） | `IBmsBgaPanelDisplay` | 运行时把 BGA 时间线 + 资源 store + 游玩时钟喂给面板（最终签名以实现为准）；皮肤可覆盖位置/尺寸/适配，默认实现自带镜像 playfield 布局 + letterbox + POOR 切换 + 无 BGA 回退静态图 |
-| `GaugeHistoryPanel` | `IBmsGaugeHistoryPanelDisplay` | `SetHistory(BmsGaugeHistory? history)` |
-| `GaugeHistory` | `IBmsGaugeHistoryDisplay` | `SetHistory(BmsGaugeHistory? history)` |
-| `ResultsSummaryPanel` | `IBmsResultsSummaryPanelDisplay` | `SetSummary(BmsResultsSummaryData? summary)` |
-| `ResultsSummary` | `IBmsResultsSummaryDisplay` | `SetSummary(BmsResultsSummaryData? summary)` |
-| `ClearLamp` | `IBmsClearLampDisplay` | `SetClearLamp(BmsClearLampData? clearLamp)` |
-| `NoteDistributionPanel` | `IBmsNoteDistributionPanelDisplay` | `SetState(BmsNoteDistributionPanelState? state)` |
-| `NoteDistribution` | `IBmsNoteDistributionDisplay` | `SetData(BmsNoteDistributionData? data)` |
-| `BMS judgement` | `IAnimatableJudgement` | `PlayAnimation()` 和 `GetAboveHitObjectsProxiedContent()` |
+| `HudLayout` | `IBmsHudLayoutDisplay` | `SetComponents(wrappedHud, gaugeBar, comboCounter)` |
+| `LaneCover` | `IBmsLaneCoverDisplay` | `SetFocused(bool)` |
+| `StaticBackgroundLayer` | `IBmsBackgroundLayerDisplay` | `SetDisplayedAssetName(string)`（默认层还会自行加载实际背景贴图） |
+| `BgaPanel` | `IBmsBgaPanelDisplay` | 喂入 BGA 时间线 + 资源 store + 游玩时钟 |
+| `ClearLamp` | `IBmsClearLampDisplay` | `SetClearLamp(...)` |
+| `GaugeHistory(Panel)` | `IBmsGaugeHistoryDisplay` / `…PanelDisplay` | `SetHistory(...)` |
+| BMS judgement | `IAnimatableJudgement` | `PlayAnimation()` / `GetAboveHitObjectsProxiedContent()` |
 
-最常见的坑：
+**按 lookup 数据做变体**（不要写死 7K）：`BmsLaneSkinLookup` 带 `Element/LaneIndex/LaneCount/IsScratch/Keymode/IsMajorBarLine`；`BmsNoteSkinLookup` 带 `Element/LaneIndex/IsScratch`；`BmsJudgementSkinLookup` 带 `Result/DisplayName`。优先从 lookup 与接口回调取数据，不要偷看外层容器布局。
 
-- 你返回了自定义 `HudLayout`，但它没实现 `IBmsHudLayoutDisplay`，于是运行时仍然显示默认 HUD。
-- 你返回了自定义 `LaneCover`，但没实现 `SetFocused()`，于是 focus 状态根本不会传进去。
-- 你返回了自定义 `StaticBackgroundLayer`，只接了文件名文案却没自行处理真实贴图或缺失态，于是会退回成“只有标签没有图”的半成品体验。
-- 你返回了自定义判定显示，但没实现 `IAnimatableJudgement`，于是会被判定为不合格并退回默认显示。
-
-### Step 5：按 lookup 数据做变体，不要复制一堆几乎一样的类
-
-当前 BMS lookup 已经把你需要的分支条件带进来了：
-
-| lookup | 你能拿到的数据 | 应该怎么用 |
-| --- | --- | --- |
-| `BmsPlayfieldSkinLookup` | `Element`、`Keymode`、`LaneCount` | backdrop/baseplate 根据 keymode 和 lane 数做尺寸/装饰差异 |
-| `BmsLaneSkinLookup` | `Element`、`LaneIndex`、`LaneCount`、`IsScratch`、`Keymode`、`IsMajorBarLine` | lane 背景、divider、hit target、bar line 都应读这些值，而不是写死 7K |
-| `BmsNoteSkinLookup` | `Element`、`LaneIndex`、`IsScratch` | note / LN head / LN body / LN tail 用同一套类型分支处理 |
-| `BmsLaneCoverSkinLookup` | `Position` | 顶盖和底盖优先共用同一套实现，再按 position 分支 |
-| `BmsJudgementSkinLookup` | `Result`、`DisplayName` | BAD / POOR / EMPTY POOR 等自定义命名从这里拿，不要自己硬编码另一套名字 |
-
-当前已经公开给皮肤作者的输入状态就是这些。优先从 lookup 和接口回调拿数据，不要偷看外层容器的临时布局细节。
-
-### Step 6：最小可抄的接口实现模板
-
-`HudLayout`：
-
-```csharp
-private sealed partial class MyHudLayout : Container, IBmsHudLayoutDisplay
-{
-   public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
-   {
-      Clear();
-
-      if (wrappedHud != null)
-         Add(wrappedHud);
-
-      Add(gaugeBar);
-      Add(comboCounter);
-
-      gaugeBar.Anchor = Anchor.TopCentre;
-      gaugeBar.Origin = Anchor.TopCentre;
-
-      comboCounter.Anchor = Anchor.TopCentre;
-      comboCounter.Origin = Anchor.TopCentre;
-   }
-}
-```
-
-`LaneCover`：
-
-```csharp
-private sealed partial class MyLaneCover : CompositeDrawable, IBmsLaneCoverDisplay
-{
-   public void SetFocused(bool isFocused)
-   {
-      Alpha = isFocused ? 1f : 0.85f;
-   }
-}
-```
-
-`StaticBackgroundLayer`：
-
-```csharp
-private sealed partial class MyBackgroundLayer : CompositeDrawable, IBmsBackgroundLayerDisplay
-{
-   public void SetDisplayedAssetName(string displayedAssetName)
-   {
-      // 有资源名时显示资源名，没有时显示缺失态。
-   }
-}
-```
-
-`Judgement`：
-
-```csharp
-private sealed partial class MyJudgement : CompositeDrawable, IAnimatableJudgement
-{
-   public void PlayAnimation()
-   {
-      // 从当前时间点开始播你的判定动画。
-   }
-
-   public Drawable? GetAboveHitObjectsProxiedContent() => null;
-}
-```
-
-### Step 7：怎么调样式，才不会和当前 contract 打架
-
-1. 先把布局和状态逻辑放进代码，不要急着锁图片目录。
-2. 优先让一个组件内部吃完自己的状态，不要依赖“外层再帮你补一层特殊判断”。
-3. 如果一个组件需要 scratch / normal 两种表现，优先在同一类里按 `lookup.IsScratch` 分支。
-4. 如果一个组件需要 major / minor 两种节拍线，优先在同一类里按 `lookup.IsMajorBarLine` 分支。
-5. `HudLayout` 要保留 `wrappedHud`，不要把外层 HUD 内容吞掉。
-6. 用 partial override 思维回归：只替换一个组件时，其余组件必须继续工作。
-
-### Step 8：怎么验证你写的皮肤
-
-当前最直接的验证入口是 [osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs](../../osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs)。
-
-推荐验证顺序：
-
-1. 先写一个只覆盖单个组件的测试 skin。
-2. 先确认 `BmsSkinTransformer` 是否拿到了你的组件。
-3. 再确认缺失组件是否只回退自身，而不是拖垮整套皮肤。
-4. 再补 scratch / normal、major / minor、top / bottom / focused 这类状态回归。
-
-建议至少手动检查这些场景：
-
-1. 7K 与 14K 的 lane 数变化
-2. scratch lane 与 normal lane 的差异
-3. LaneCover focused / unfocused 切换
-4. StaticBackgroundLayer 有图 / 无图
-5. Results / Song Select 的有数据 / 无数据状态
-
-当前建议使用的聚焦测试命令：
+**验证**：
 
 ```powershell
 dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsSkinTransformerTest"
 ```
 
-## 工作流 B：legacy / `skin.ini` mania 试验手册
+至少手测：7K/14K lane 数变化、scratch/normal 差异、LaneCover focused 切换、StaticBackgroundLayer 有图/无图。
 
-这一节只适用于：
+---
 
-1. 你明确是在做 **legacy mania 资源试验**
-2. 你在研究当前候选包 [SKIN/SimpleTou-Lazer/skin.ini](../../SKIN/SimpleTou-Lazer/skin.ini)
-3. 你接受它 **不是** 当前 OMS 正式 authoring contract
+## 附录 E：状态与路线图
 
-### 这条路线现在能做什么
-
-- 可以快速试验 mania 的 legacy 图片命名与 `skin.ini` section 写法。
-- 可以给当前候选包做资源替换、路径试验、颜色试验。
-- 可以研究 `KeyImage*`、`NoteImage*`、`Colour*` 这一类 legacy mania 语义。
-
-### 这条路线现在不能承诺什么
-
-- 不能当作 BMS 正式皮肤制作格式。
-- 不能当作 OMS mania 最终公开 contract。
-- 不能假设你调的所有 `skin.ini` 值都会实时控制 `OmsSkin` preview 的布局和壳层行为。
-
-### 目录怎么准备
-
-一个最小 legacy mania 试验目录大致长这样：
-
-```text
-MyLegacySkin/
-  skin.ini
-  mania-note1.png
-  mania-note2.png
-  mania-noteS.png
-  4k/
-   1.png
-  Notes4K/
-   LNBody.png
-```
-
-规则：
-
-1. 路径相对 `skin.ini` 所在目录。
-2. `skin.ini` 里通常写 **不带扩展名** 的资源名。
-3. 不同 keycount 用重复的 `[Mania]` section 区分。
-
-### `skin.ini` 最小写法
-
-当前候选包的真实样例见 [SKIN/SimpleTou-Lazer/skin.ini](../../SKIN/SimpleTou-Lazer/skin.ini)。
-
-最小 7K 样例可以长这样：
-
-```ini
-[General]
-Name: MyLegacyManiaTest
-Author: You
-Version: 2.7
-
-[Mania]
-Keys: 7
-ColumnStart: 270
-HitPosition: 475
-JudgementLine: 0
-ScorePosition: 100
-ComboPosition: 90
-LightFramePerSecond: 0
-LightPosition: 0
-ColumnWidth: 47,47,47,47,47,47,47
-WidthForNoteHeightScale: 35
-
-Colour1: 0,0,0,255
-Colour2: 0,0,0,255
-Colour3: 0,0,0,255
-Colour4: 0,0,0,255
-Colour5: 0,0,0,255
-Colour6: 0,0,0,255
-Colour7: 0,0,0,255
-ColourBarline: 255,255,255,150
-
-KeyImage0: 4k\1
-KeyImage1: 4k\1
-KeyImage2: 4k\1
-KeyImage3: 4k\1
-KeyImage4: 4k\1
-KeyImage5: 4k\1
-KeyImage6: 4k\1
-
-KeyImage0D: 4k\1
-KeyImage1D: 4k\1
-KeyImage2D: 4k\1
-KeyImage3D: 4k\1
-KeyImage4D: 4k\1
-KeyImage5D: 4k\1
-KeyImage6D: 4k\1
-
-NoteImage0: mania-note1
-NoteImage1: mania-note2
-NoteImage2: mania-note1
-NoteImage3: mania-noteS
-NoteImage4: mania-note1
-NoteImage5: mania-note2
-NoteImage6: mania-note1
-
-NoteImage0H: mania-note1
-NoteImage1H: mania-note2
-NoteImage2H: mania-note1
-NoteImage3H: mania-noteS
-NoteImage4H: mania-note1
-NoteImage5H: mania-note2
-NoteImage6H: mania-note1
-
-NoteImage0L: A
-NoteImage1L: A
-NoteImage2L: A
-NoteImage3L: A
-NoteImage4L: A
-NoteImage5L: A
-NoteImage6L: A
-
-NoteImage0T: Notes4K\LNBody
-NoteImage1T: Notes4K\LNBody
-NoteImage2T: Notes4K\LNBody
-NoteImage3T: Notes4K\LNBody
-NoteImage4T: Notes4K\LNBody
-NoteImage5T: Notes4K\LNBody
-NoteImage6T: Notes4K\LNBody
-
-ColumnLineWidth: 0,0,0,0,0,0,0,0
-```
-
-### `skin.ini` 里这些字段现在各自意味着什么
-
-| 字段 | 当前用途 | 备注 |
+| 能力 | 状态 | 阶段 |
 | --- | --- | --- |
-| `[General]` | 名称、作者、版本 | legacy 入口基础信息 |
-| `[Mania]` + `Keys:` | 定义一个 keycount section | 4K/5K/6K/7K/8K/9K 分开写 |
-| `KeyImage*` / `KeyImage*D` | key 正常态 / 按下态图 | 已迁到 `OmsManiaKeyAssetPreset`，仍适合做 legacy 资源试验 |
-| `NoteImage*` / `NoteImage*H` / `NoteImage*L` / `NoteImage*T` | note / LN 各部分图 | 已迁到 `OmsManiaNoteAssetPreset`，仍适合做 legacy 资源试验 |
-| `Colour*` / `ColourLight*` | legacy 颜色语义 | 部分已收口到 OMS preset，不要锁成公开 contract |
-| `ColumnStart` | legacy mania 位置语义 | 仅适合 legacy 试验 |
-| `ComboPosition` | legacy HUD 位置语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
-| `ScorePosition` | legacy judgement 位置语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
-| `ColourBarline` | legacy bar line 颜色语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
-| `BarlineHeight` | legacy bar line 厚度语义 | 已有 OMS shared preset，但不应视为稳定公开 contract |
-| `HitPosition` / `ColumnWidth` / `LightPosition` / `LightFramePerSecond` / `JudgementLine` / `ColumnLineWidth` | legacy mania 参数 | **不应再当成 `OmsSkin` preview 的稳定调参接口** |
+| 代码型 provider（附录 D） | `[已实现]` | 当前唯一运行路线 |
+| 程序化内置默认（兜底） | `[已实现]` | 当前默认皮肤 |
+| 组件契约 + ini schema 冻结（权威源 = P1-A 约束 / PLAN） | `[已实现]` | **`F0`**（2026-06-27，纯文档） |
+| 素材 + ini 加载器 / 校验器 / 热重载 / 参考皮肤（①类静态件） | `[规划]` | `F1`（含验收） |
+| ②类引擎驱动件（keyflash/explosion/bomb/turntable/ghost…）补挂点 | `[规划]` | `F2` |
+| ③类 `[Bms]` 扩展段独有件 + 契约冻结 | `[规划]` | `F3` |
+| 完整可视化 BMS 皮肤编辑器 | `[未排期]` | 后置（决议 Y） |
 
-### 当前 `OmsSkin` preview 下，哪些 mania 值已经不是 `skin.ini` 开关
-
-这部分非常重要。当前 [osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs](../../osu.Game.Rulesets.Mania/Skinning/Oms/ManiaOmsSkinTransformer.cs) 已经把下列值从 raw legacy lookup 收口到 OMS preset，`skin.ini` 不再是它们的最终生效来源：
-
-| OMS Preset | 接管的 legacy lookup |
-| --- | --- |
-| `OmsManiaLayoutPreset` | `HitPosition`、`ColumnWidth`、`ColumnSpacing`、`StagePadding`、`WidthForNoteHeightScale` |
-| `OmsManiaShellPreset` | `LeftLineWidth`、`RightLineWidth`、`ShowJudgementLine`、`LightPosition`、`LightFramePerSecond` |
-| `OmsManiaShellAssetPreset` | `LeftStageImage`、`RightStageImage`、`BottomStageImage`、`HitTargetImage`、`LightImage`、`KeysUnderNotes` |
-| `OmsManiaColumnColourPreset` | `ColumnLineColour`、`JudgementLineColour`、`ColumnBackgroundColour`、`ColumnLightColour` |
-| `OmsManiaKeyAssetPreset` | `KeyImage`、`KeyImageDown` |
-| `OmsManiaNoteAssetPreset` | `NoteImage`、`HoldNoteHeadImage`、`HoldNoteTailImage`、`HoldNoteBodyImage` |
-| `OmsManiaJudgementAssetPreset` | `Hit300g`…`Hit0` |
-| `OmsManiaJudgementPositionPreset` | `ScorePosition`、`ComboPosition` |
-| `OmsManiaBarLinePreset` | `BarLineHeight`、`BarLineColour` |
-| `OmsManiaHitExplosionPreset` | `ExplosionImage`、`ExplosionScale` |
-| `OmsManiaHoldNoteBodyPreset` | `NoteBodyStyle`、`HoldNoteLightImage`、`HoldNoteLightScale` |
-
-运行时规则：
-
-- 带列上下文的 lookup 按所在 stage keycount 取 preset。
-- 没有列上下文的 shared lookup（`HitPosition`、`ScorePosition`、`ComboPosition`、`BarLineHeight`、`BarLineColour`）在 mixed-stage 场景下固定复用第一 stage preset。
-- `Note` / `HoldNoteHead` / `HoldNoteTail` / `HoldNoteBody` / `HitExplosion` / `Judgement` / `ComboCounter` / `BarLine` 已显式路由到 OMS-owned 组件实现，不再继承对应 legacy 类型。
-- 部分路径仍在消费 legacy 语义（note scrolling、combo/HUD 剩余语义、bar-line legacy 语义），因此 **mania authoring contract 尚未冻结**。
-
-另一个容易踩坑的点：legacy 解码本身会做归一化，不是你写多少就等于运行时多少。例如：
-
-- `LightFramePerSecond: 0` 在 legacy 语义里会归一成 `24`
-- `LightPosition` 写的是 legacy 原始值，不是最终屏幕像素
-
-所以如果你现在是在调 mania 候选包，请把它理解为 **legacy 试验环境**，不是正式 OMS authoring API。
-
-## 当前 BMS 组件契约速查表
-
-如果你只是想知道“我现在能覆盖什么”，看这张表就够了。
-
-| 类别 | lookup / 入口 | 现在是否适合正式制作 | 说明 |
-| --- | --- | --- | --- |
-| HUD | `HudLayout` / `GaugeBar` / `ComboCounter` | 适合 | 当前最稳、最推荐先做 |
-| Results | `ResultsSummaryPanel` / `ResultsSummary` / `ClearLamp` / `GaugeHistoryPanel` / `GaugeHistory` | 适合 | 面板外壳与内容已分离 |
-| Song Select | `NoteDistributionPanel` / `NoteDistribution` | 适合 | 面板与图表已分离 |
-| Playfield 壳层 | `Backdrop` / `Baseplate` | 适合 | 通过 `BmsPlayfieldSkinLookup` 进入 |
-| Lane 壳层 | `Background` / `Divider` | 适合 | 注意 scratch / normal 差异 |
-| Receptor / 节拍线 | `HitTarget` / `BarLine` | 适合 | 注意 pressed / focused 与 major / minor |
-| Note / Hold | `Note` / `LongNoteHead` / `LongNoteBody` / `LongNoteTail` | 适合 | 当前 contract 已足够做正式视觉 |
-| LaneCover | `BmsLaneCoverSkinLookup` | 适合 | 记得实现 `IBmsLaneCoverDisplay` |
-| Static BG | `StaticBackgroundLayer` | 适合 | 记得处理无图缺失态 |
-| BMS 自定义 judgement | `BmsJudgementSkinLookup` | 可做 | 需要实现 `IAnimatableJudgement` |
-| BMS 纯素材包目录规范 | 无冻结格式 | 不适合定版 | 等资源命名冻结后再锁 |
-| mania OMS 正式制作 | 仍在迁移中 | 不适合作为主目标 | 当前已完成 shell / preset 收口与 8 类 OMS-owned 组件实现，但 release-facing contract 与 legacy 兼容边界仍未冻结 |
-
-## 当前还没有冻结的部分
-
-以下内容 **不要** 写进对外承诺、不要提早做成“最终规范”：
-
-- BMS 纯素材目录结构
-- BMS 图片命名规范
-- BMS `skin.ini` 桥接格式
-- 面向终端玩家分发的完整 OMS 默认皮肤包定义
-- mania OMS-owned 默认路径的最终资源和配置合同
-- playfield / note / hold / judgement 的最终高保真官方视觉语言
-
-## 如果你现在就要开始做
-
-直接照这个顺序做：
-
-1. 先从 HUD 或 Results 选一个组件族
-2. 先写一个最小 `ISkin` provider
-3. 先让它通过 `BmsSkinTransformer` 路由到你的组件
-4. 再补接口实现和状态回调
-5. 再做 partial override 回归
-6. 最后才考虑是否把视觉资源整理成未来可分发目录
-
-## 后续追踪文档
-
-需要确认当前真实状态时，优先看：
-
-- [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)：当前哪些路径已经落地，哪些仍在迁移
-- [../mainline/CHANGELOG.md](../mainline/CHANGELOG.md)：每次已验证通过的皮肤相关变更
-- [../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md)：下一批还会怎么推进
-- [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)：权威产品边界、fallback 纪律与 release gate
-- [../subline/P1-A/README.md](../subline/P1-A/README.md)：P1-A 皮肤边界、HUD 宿主与 release gate 子线
-- [../subline/P1-C/README.md](../subline/P1-C/README.md)：P1-C 绿色数字、速度反馈与训练反馈闭环子线
+### 后续追踪文档
+- [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)：当前真实状态
+- [../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md)：执行顺序与阶段依赖
+- [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)：权威产品边界、fallback 纪律、release gate
+- [../subline/P1-A/README.md](../subline/P1-A/README.md)：P1-A 皮肤边界子线（本规划主归属）

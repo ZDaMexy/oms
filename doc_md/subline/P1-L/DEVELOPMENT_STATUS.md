@@ -46,7 +46,7 @@
 - focused（滚动/地雷）：`BmsScrollProfileTest` 11、`BmsStopMotionScrollAlgorithmTest` 5、`BmsScrollingInfoTest` 4，`BmsBeatmapConverterTest` 含 profile 冻结/退化/snap/端到端冻结。
 - focused（BGA Phase 5）：`BmsBeatmapConverterTest` 新增 2（时间线层/时刻/视频判定/缺失跳过/PoorBgaMode）；`BmsBgaPlayerTest` 13（`GetActiveIndex` 边界/tie/seek + `ResolveDefaultPlacement` 8 布局映射）；`BmsSkinTransformerTest` 新增 2（`BgaPanel` OMS fallback / 非 OMS null）。
 - focused（BGA Phase 5.1）：`BmsBgaVideoCacheTest` 13（扩展名判定 / 友好格式直放 / 无缓存目录 Unavailable / 转码成功→Ready+缓存命中同路径 / 失败→Unavailable 且不留半成品；注入 runner 不依赖真 ffmpeg）。
-- 更宽：`dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release` **954/954**；`dotnet build osu.Desktop.slnf -p:Configuration=Release` **0 错误**（生产代码 0 新增警告；2 个既有 test 警告未动）。最近一次验证：2026-06-23（BGA Phase 5.2 R1–R5 落地）。
+- 更宽：`dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release` **954/954**（Phase 5.2 验证基线；同日稍后 P1-J #12 + K12 使全量增至 **961/961**，见 [P1-K](../P1-K/DEVELOPMENT_STATUS.md) / [P1-J](../P1-J/DEVELOPMENT_STATUS.md)）；`dotnet build osu.Desktop.slnf -p:Configuration=Release` **0 错误**（生产代码 0 新增警告；2 个既有 test 警告未动）。最近一次验证：2026-06-23（BGA Phase 5.2 R1–R5 落地）。
 - **正常链路无回归证明**：默认 OFF 时 `BmsScrollingInfo.Algorithm` 逐实例跟随基类（`BmsScrollingInfoTest` 锁定）；全部 Player 系 gameplay TestScene（真实加载 DrawableBmsRuleset→BmsPlayfield→lanes，实跑 DI 重缓存路径）全绿。
 
 ## 已知限制 / 下一步

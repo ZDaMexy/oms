@@ -2,6 +2,20 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-27
+
+### BMS 素材 + ini 皮肤创作生态立项 + `F0` 契约冻结（纯文档，未开工实现）
+
+把当前"临时应付"的纯代码型 BMS 皮肤升级成像 mania 那样「放文件夹 + `skin.ini` 即换皮」的产品，正式立项为 `P1-A` 下的 `F` 系列。本轮为大型**规划**，不含代码改动。
+
+- **背景定性**：当前 BMS 皮肤唯一 authoring 入口是写 C# `ISkin.GetDrawableComponent()`（只有开发者能做），且默认皮肤是 **100% 程序化、零位图素材**（`BmsTemporarySkinPalette` 静态色板 + `BmsPlayfieldLayoutProfile` 几何）。缺的是 mania 已有的「素材 + ini 数据层」（osu legacy skin：`LegacyManiaSkinConfiguration` / `Decoder` / `ConfigurationLookup` / `ManiaLegacySkinTransformer` 按文件名约定取图）——BMS 侧这四件全无。
+- **检索校准**：联网检索 osu!mania（skin.ini `[Mania]` 段 + 素材命名）、beatoraja（Lua 规范 + 元素族）、LR2（CSV `#SRC_/#DST_` 对象枚举）三套游玩界面皮肤规范，确认①"osu-ini 标准本身是静态素材型、不含 timer/op/keyframe 动态系统"②上一版标"缺少"的件（keyflash/bomb/turntable/ghost…）在生态里都是一等公民、是真缺口 ③许多件无 osu-ini 先例 → BMS ini 须 `[Mania]` 静态段 + `[Bms]` 扩展段，不照搬 `[Mania]`。
+- **锁定决议（用户已拍板）**：游玩界面 only（lazer 已弃非游玩皮肤）/ 自有 `[Mania]`-对齐 + `[Bms]` 扩展段·按 keymode 分桶 / 程序化兜底（不可删）+ 参考素材皮肤·**不烤 PNG**（纯色→ini 键、辉光引擎绘制 ini 参数化）/ 加载期 fail-open + 诊断、编辑期更严、必备三档 / 手改 ini + 热重载 + 复用 lazer 布局编辑器（**决议 X**：BMS 专属 HUD gauge/combo/clear lamp 保持代码编排不升格为可拖摆 `ISerialisableDrawable`）/ 新 `BmsAssetSkin` 作为被 `BmsSkinTransformer` 包裹的 `ISkin`，**零改现有 lookup 契约**。
+- **关于"代码渲染对象生成文件"的结论**：不建"代码对象 → PNG"导出器（纯色块烤图＝冗余 + 丢可缩放 + 辉光烤死）；默认皮肤文件化＝人工编写复现观感的 reference `skin.ini`（绝大部分是 ini 数值、位图极少），与 osu! 一致（Argon 程序化默认从不导出文件）。
+- **权威层立账（本轮交付）**：契约冻结进 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)「皮肤创作生态（素材 + ini）约束」1–10（权威源）；分期 `F0–F3` 进 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)；状态进 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；mainline `DEVELOPMENT_STATUS` / `DEVELOPMENT_PLAN` / `OMS_COPILOT` 已回写本立项。
+- **`SKINNING.md` 降级重锚**：[../../other/SKINNING.md](../../other/SKINNING.md) 早先被直接写成"本文即 P0 契约"——属层级颠倒（`other/` 是参考材料、不替代主线计划/约束）。本轮纠正：`SKINNING.md` 改为面向制作者的**派生视图**，权威源指向本子线 CONSTRAINTS / PLAN。
+- **`F0` 范围**：纯文档冻结，**无代码改动、无测试运行**。`F1`（`BmsAssetSkin` 加载器 / 校验器 / 热重载 + 参考皮肤，覆盖①类静态件）起未开工，排在主交付线之后。
+
 ## 2026-06-21
 
 ### 默认皮肤长条 body 改造：增宽 10% + 同 head 色 + 三态游玩视觉（unactivated/activated/missed）

@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-20
+> 最后更新：2026-06-27
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -210,6 +210,47 @@
 - 测试同步 `PlayfieldHeight 0.95→0.86`（`BmsLaneLayoutTest`、`TestSceneBmsPlayfieldLayoutConfig`）；补 gauge 下移摆位 / 等宽 focused 断言。
 - 实机 7K / 14K / P1 / P2 验收：判定线抬高、gauge 贴线且与 lane 同列等宽、矩形观感、时序无感知变化。
 
+### F：BMS 素材 + ini 皮肤创作生态（P0–P3）
+
+立项 2026-06-27（大型规划，未开工实现）。目标＝把当前"临时应付"的纯代码型 BMS 皮肤升级成像 mania 那样「放文件夹 + `skin.ini` 即换皮」的产品。**硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md) 「皮肤创作生态（素材 + ini）约束」（权威源）**；面向制作者的渲染文档见 [../../other/SKINNING.md](../../other/SKINNING.md)。范围锁定**仅游玩界面**（lazer 已弃非游玩皮肤）。
+
+锁定决议（用户已拍板，详见 CONSTRAINTS 1–10）：游玩界面 only / 自有 `[Mania]`-对齐 + `[Bms]` 扩展段·keymode 分桶 / 程序化兜底 + 参考素材皮肤·不烤 PNG / fail-open + 诊断·必备三档 / 手改 ini + 热重载 + 复用 lazer 布局编辑器（决议 X：BMS 专属 HUD 保持代码编排不升格）/ 新 `BmsAssetSkin` 包在 `BmsSkinTransformer` 下零改 lookup。
+
+#### F0：组件契约 + ini schema + 必备分档冻结（纯文档）
+
+状态：**已落地（2026-06-27）**
+
+- 组件契约（创作者上限）已按真实生态（osu!mania / beatoraja / LR2，含联网检索校准）铺开，叠加必备 / 推荐 / 可选三档；契约与 ini schema 草案、校验行为已冻结进 CONSTRAINTS 与 `SKINNING.md`。
+- 权威层已立账：本节（PLAN F 系列）+ CONSTRAINTS「皮肤创作生态」节为权威源，`SKINNING.md` 降为派生的制作者视图。
+- 验收：CONSTRAINTS / PLAN / STATUS / CHANGELOG 四件套与 `SKINNING.md` 口径一致；mainline 已回写本立项。
+
+#### F1：素材 + ini 加载器 / 校验器 / 热重载 + 参考皮肤（①类静态件）
+
+状态：未开工
+
+建议交付：
+
+1. 新增 `BmsAssetSkin`（读皮肤文件夹 + `skin.ini`）作为被 `BmsSkinTransformer` 包裹的 `ISkin`，按文件名约定取图喂给现有 `Default*` 组件路径；零改现有 lookup 契约。
+2. ini 解码器 + 配置 schema（对应 mania 的 `LegacyManiaSkinDecoder` / `LegacyManiaSkinConfiguration`）+ 强类型配置 lookup；按 `Keymode:` 分桶。
+3. 校验器：加载期 fail-open + 诊断（未知键忽略 + 告警、缺素材回退 + 告警），必备件内置兜底。
+4. 覆盖①类静态件（lane 背景 / 分隔、note、LN 头身尾、判定线、judgement、stage frame、barline、combo、lane cover、playfield backdrop）；跑通"放文件夹 + 热重载即换皮"最小闭环。
+5. 产出 reference 素材皮肤（复现程序化默认观感、颜色 / 几何为主、近零位图）＝本期验收对象兼创作者模板。
+
+验收：放入 reference 皮肤后游玩界面与程序化默认一致；缺键 / 缺图按 fail-open 回退 + 记诊断；BMS 全套与 Release gate 保持绿；新增 `BmsAssetSkin` 加载 / 校验 focused 测试。
+
+#### F2：②类引擎驱动件补挂点（ini 仅供素材）
+
+状态：未开工
+
+- 为 keyflash / hit explosion / bomb / LN hold light / turntable + laser / ghost-TD 等补 BMS-owned 组件与 lookup；动态由引擎驱动，ini 只供素材 + 位置 + 缩放 + 颜色。
+- 红线：仅视觉，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读；这些件落地前不得在 `SKINNING.md` 标为"当前可用"。
+
+#### F3：③类 `[Bms]` 扩展段独有件 + 契约冻结
+
+状态：未开工
+
+- gauge 条 / 类型 / GN%、cover 绿数、bpm、progress、note distribution 等无 osu-ini 先例的 `[Bms]` 扩展段键落地；公开 authoring 文档收尾；冻结 schema 契约。
+
 ## 当前优先顺序
 
 1. `E1` gauge 下移判定线 + 矩形化 + 等宽镜像（本轮）
@@ -219,3 +260,4 @@
 5. `B2` `Sudden / Hidden / Lift` 联动收口
 6. `C1` 扩展到统一 gameplay feedback 家族
 7. `D1` 作者文档与 release gate 收口
+8. `F1` BMS 素材 + ini 皮肤加载器 / 校验器 / 热重载 + 参考皮肤（`F0` 契约已冻结 2026-06-27；`F1` 未开工，待主交付线腾出窗口后启动）

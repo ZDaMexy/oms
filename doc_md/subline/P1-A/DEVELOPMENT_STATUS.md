@@ -1,6 +1,6 @@
 # P1-A 开发进度：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-20
+> 最后更新：2026-06-27
 > 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-A` 的真实进展；`P1-C` 的反馈闭环进展见 [../P1-C/DEVELOPMENT_STATUS.md](../P1-C/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -10,6 +10,7 @@
 - **首次启动向导状态**：共享层 first-run wizard 现已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 `BmsDifficultyTableManager` 导入 zris 镜像预设；最后一步复用全局、mania 与 BMS keybinding subsection。欢迎页、获取谱面页与导入页的可见文案已切到 OMS-owned localisation namespace + `.resx`，确保简中不再继续显示上游翻译。该专题主归属继续是 `P1-A`；导入页对 `P1-H`、按键绑定页对 `P1-B` 都只形成从属暴露面。
 - **BMS -> mania 转谱公开表面状态**：该表面现已从“首轮 visibility gate 已落地”推进到“visibility gate、persisted converted-star display 与 spread display 已落地、显式 wording 仍未收口”状态。当前 `AllowGameplayWithRuleset()` / `RequiresRulesetSwitch()` 已把 `BMS source -> mania target` 接回真实可玩性判断，modless converted mania 星数也已改为持久化到 BMS metadata payload，并由 `BeatmapDifficultyCache`、后台补算与 current-ruleset spread display 统一读取；因此 Song Select 的星数筛选、难度排序、按星数分组与 spread dots 都不再继续直接吃 source BMS raw star。剩余主要是按钮 wording、显式入口文案与更宽 presentation/manual proof。
 - **文档状态**：`P1-A` 的计划、状态、变动日志、技术约束已与当前宿主合同实现同步，并已把 2026-04-28 的 pre-start overlay / real-player coverage 与 mainline 文档口径一并收平。
+- **皮肤创作生态（素材 + ini）立项状态（2026-06-27 新增）**：BMS 素材 + `skin.ini` 皮肤创作/编辑生态已正式立项（大型规划，**未开工实现**）。`F0`（组件契约 + ini schema 草案 + 必备分档冻结，纯文档）已落地：契约按真实生态（osu!mania / beatoraja / LR2，含联网检索校准）铺开并叠加必备 / 推荐 / 可选三档，权威源冻结进 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)「皮肤创作生态（素材 + ini）约束」与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) `F` 系列，面向制作者的渲染视图见 [../../other/SKINNING.md](../../other/SKINNING.md)（已从"自称 P0 契约"降级重锚为派生视图）。`F1`（`BmsAssetSkin` 加载器 / 校验器 / 热重载 + 参考皮肤）起未开工，排在主交付线之后。当前 BMS 默认皮肤仍是 100% 程序化（零位图素材），按 CONSTRAINTS 决议保留为不可删兜底。
 
 ## 已确认事实
 
@@ -56,6 +57,8 @@
 | gauge 免疫 ShowHealthBar / NoFail | 已落地（2026-06-20） | `BmsGaugeBar : HealthDisplay` 会被通用"血条显示"开关（NoFail 等设 `ShowHealthBar=false`）淡出隐藏；订阅 `ShowHealthBar` 重申 `Alpha=1` 始终显示（核心游玩信息）。回归 `TestGaugeBarStaysVisibleWhenHealthBarHidden`（须真实 HUDOverlay 才能复现） |
 | combo 移到 playfield 中心 + 去背景色块 | 已落地（2026-06-20，实机验收通过） | `applyComboPlacement` 放 playfield 宽/高中线交点（随 PlayfieldStyle 镜像）；`BmsComboCounter` 去掉 `body` 色块容器只留居中标签 + 数字。回归 `TestComboCentredOnPlayfield` |
 | 从默认皮肤配置移除 leaderboard + 重复默认 combo | 已落地（2026-06-20，实机验收通过） | `BmsSkinTransformer.stripDefaultHudElements` 在装配期把 wrapped HUD 里的 `LegacyDefaultComboCounter` + `DrawableGameplayLeaderboard` 从配置树移除（非隐藏）；BMS combo / 全局 score 保留。回归 `TestRulesetHudStripsDefaultComboAndLeaderboard` |
+| 皮肤创作生态 `F0`：组件契约 + ini schema 草案 + 必备分档冻结（纯文档） | 已落地（2026-06-27） | 权威源进 CONSTRAINTS「皮肤创作生态」节 + PLAN `F` 系列；`SKINNING.md` 重置为派生制作者视图；mainline 已回写立项。**未开工实现** |
+| 皮肤创作生态 `F1`：`BmsAssetSkin` 加载器 / 校验器 / 热重载 + 参考皮肤 | 未开工 | 排在主交付线之后；覆盖①类静态件，产出 reference 素材皮肤作验收 |
 
 ## 当前风险
 

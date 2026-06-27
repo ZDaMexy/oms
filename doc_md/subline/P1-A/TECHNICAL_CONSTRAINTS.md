@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-20
+> 最后更新：2026-06-27
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -37,6 +37,21 @@
 4. pre-start 视觉流速预览若实现，必须作为 BMS-owned playfield / lane visual surface 接入，并复用 BMS note lookup / fallback；不得塞进 `GameplayFeedbackDisplay`、toast 或 mania lookup。产品口径的“1 号轨道”应解析为第一非 scratch 普通轨，且实际开谱后必须立即消失。
 5. 任何更改皮肤边界、HUD 宿主、fallback 语义或 release gate 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
 6. 长条 body 的**游玩状态视觉**必须经皮肤无关的 `DrawableBmsHoldNote.BodyState`（`IBindable<BmsLongNoteBodyState>`，三态 `Idle/Holding/Broken`，由 `isHolding`+head/tail 判定纯派生）暴露给皮肤；默认皮肤 `DefaultBmsLongNoteBodyDisplay` 经 `[Resolved] DrawableHitObject` 解析父 hold note 绑定该 bindable（mania `DefaultBodyPiece` 同范式）。**不得**把状态判断硬塞进默认 body、也不得让 body 直接读判定内部。默认皮肤当前几何/映射＝width `0.5775`（相对车道宽，body 唯一物理宽度杠杆，缩放相对宽会抵消）、`Idle==Holding`＝head 色（`GetLongNoteHead`）+alpha `0.8`、`Broken`＝`GetLongNoteBodyBroken`（去色变灰+dim）+alpha `0.32`，由 `BmsSkinTransformerTest` 钉值；改这些值须同步该测试。`Broken→恢复` 仅 HCN 成立（见 [P1-E 约束 #4](../P1-E/TECHNICAL_CONSTRAINTS.md)）。仅视觉，不碰判定/计分/滚动/键音/chartbms 直读，也不动 head/tail（tail 仍 `Alpha=0`）。
+
+## 皮肤创作生态（素材 + ini）约束
+
+> 立项 2026-06-27（大型规划，未开工实现）。本节是 BMS 素材 + `skin.ini` 皮肤创作/编辑生态的**权威约束源**；面向制作者的渲染视图见 [../../other/SKINNING.md](../../other/SKINNING.md)，其内容必须从本节与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) 的 F 系列**派生**，不得反过来把 `other/` 参考层当契约源。分期与验收口径见 PLAN 的 `F0–F3`。
+
+1. **范围＝仅游玩界面。** 跟随 osu!lazer 已弃非游玩界面皮肤的边界：本生态只覆盖游玩界面视觉（stage / lane / note / LN / 判定线 / 判定显示 / gauge / combo / lane cover / 小节线 / BGA + IIDX 演出件）；选歌 / 结果 / 菜单皮肤不在内，相关 lookup（`ResultsSummary*` / `NoteDistribution*`）不属本生态范围。
+2. **不移植 LR2 / beatoraja 运行时。** 不解析 `.lr2skin` / `.luaskin` / `.cim`，不引入其 timer / op / 关键帧 `dst` 动态体系。OMS 自有 ini 是**静态素材模型**；键名 / 元素族**对齐**这些生态仅为降低制作者迁移成本，不构成引擎兼容承诺。
+3. **ini 方言＝自有 `[Mania]`-对齐静态段 + `[Bms]` 扩展段。** 与 mania 同义的键（lane / note / LN / judgeline / lighting / stage / barline）一律沿用 mania 原名（`NoteImage#` / `KeyImage#` / `ColourColumn#` / `HitPosition` / `BarlineHeight` 等）；BMS 独有件（gauge / turntable / scratch / keyflash / bomb / cover 绿数 / ghost-TD / bpm / progress）为 OMS 新定义键，须用 BMS 专属命名（不得借 legacy mania 资源键名，与「皮肤边界约束 2」一致）。按 keymode 分桶（`5K/7K/9K/10K/14K`，每段以 `Keymode:` 开头）。schema 键名当前为 **P0 草案**，改键必须同步回写本节与 `SKINNING.md`。
+4. **架构＝新 `BmsAssetSkin`（读文件夹 + ini）作为被 `BmsSkinTransformer` 包裹的 `ISkin` 注入，零改现有 lookup 契约。** 现有 BMS lookup 类型 / 组件边界 / fallback 粒度是最稳的一层，素材层塞在其下；不得为接入 ini 改动 lookup 签名或 `BmsSkinComponents` 既有成员语义（与「皮肤边界约束 1/2」一致）。
+5. **默认皮肤＝程序化兜底（不可删）+ 参考素材皮肤。** 当前 100% 程序化默认（`BmsTemporarySkinPalette` 静态色板 + `BmsPlayfieldLayoutProfile` 几何、零位图素材）保留为必备件的最终兜底，无 `skin.ini` 时即此（延续 `OMS_COPILOT.md` 「IIDX 直绘层只是 skin-load-failure fallback、非 OMS 内置皮肤方向」口径）。另产出一份能用本生态复现默认观感的 reference `skin.ini`（颜色 / 几何为主、近零位图）作 `F1` 验收对象兼创作者模板。
+6. **不烤图（程序化对象不导出成 PNG）。** 纯色块 → ini 颜色键（`ColourColumn{lane}` 等），不烤成位图；程序化辉光 / 渐变保留为「引擎绘制、ini 参数化」（半径 / 颜色可调），不烤死。与 osu! 一致（Argon 程序化默认从不导出成文件）。
+7. **校验＝加载期 fail-open + 诊断，编辑期更严。** 加载期**永不阻断游玩**：未知键忽略 + 告警（前向兼容，皮肤可写未来才实现的键）、值非法回退默认 + 告警、缺素材回退内置 + 告警；必备件始终有内置兜底，故皮肤理论上做不出"不可玩"结果。编辑期主动暴露必备槽位、实时校验、阻止保存结构性损坏皮肤。
+8. **必备 / 推荐 / 可选三档。** 必备（引擎始终兜底、皮肤可覆盖不可删）＝playfield / lane、note、LN 头 / 身、判定线、判定显示、gauge、combo。其余为推荐 / 可选，缺省回退或不显示。keymode 可只声明子集，未声明回退内置默认（`[General] Keymodes:` 声明覆盖面）。
+9. **两编辑面正交 + 布局编辑器边界（决议 X）。** `skin.ini` + 素材管"长相"，lazer 布局编辑器管通用全局 HUD 件（`ISerialisableDrawable`）的"摆位"。BMS 专属 HUD（gauge / combo / clear lamp）**保持 `DefaultBmsHudLayoutDisplay` 代码编排 + ini 调外观，不升格为布局编辑器可拖摆的 `ISerialisableDrawable`**（与「HUD 宿主约束 1/4」一致：不改 `SetComponents` 签名、不迁出 HUD 合同）；升格为决议 Y，明确后置。
+10. **②③类引擎驱动件＝引擎驱动、ini 仅供素材。** keyflash / explosion / bomb / LN hold light / turntable / ghost-TD 等动态由引擎驱动，ini 只提供素材 + 位置 + 缩放 + 颜色，作者不写关键帧脚本；这些件落地前（`F2`）不得在 `SKINNING.md` 标为"当前可用"。
 
 ## HUD 宿主约束
 
