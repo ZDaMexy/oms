@@ -69,7 +69,7 @@ MyBmsSkin/
 
 ---
 
-## 3. `skin.ini` 总览与通用约定 `[规划]`
+## 3. `skin.ini` 总览与通用约定 `[部分]`（`F1` 解析层已实现）
 
 `skin.ini` 由若干 section 组成：
 
@@ -78,19 +78,19 @@ MyBmsSkin/
 Name:     My BMS Skin
 Author:   You
 Version:  1.0
-Keymodes: 7K, 14K          ; 本皮肤声明覆盖的 keymode；未声明的回退内置默认
+Keymodes: 7K, 14K          // 本皮肤声明覆盖的 keymode；未声明的回退内置默认
 
 [Bms]
-Keymode:  7K               ; 此段描述 7K 的所有车道/几何/素材
-; ... 7K 的键 ...
+Keymode:  7K               // 此段描述 7K 的所有车道/几何/素材
+// ... 7K 的键 ...
 
 [Bms]
-Keymode:  14K              ; DP 单独一段
-; ... 14K 的键 ...
+Keymode:  14K              // DP 单独一段
+// ... 14K 的键 ...
 ```
 
 **通用约定**：
-- **按 keymode 分桶**：每个 `[Bms]` 段以 `Keymode:` 开头，对应一个键位模式（沿用 osu!mania「每个 `Keys` 一个 `[Mania]` 段」的习惯）。支持的 keymode：`5K` `7K` `9K`（PMS，无 scratch）`10K` `14K`（DP）。
+- **按 keymode 分桶**：每个 `[Bms]` 段以 `Keymode:` 开头，对应一个键位模式（沿用 osu!mania「每个 `Keys` 一个 `[Mania]` 段」的习惯）。支持的 keymode（解析自代码 `BmsKeymode`）：`5K`、`7K`、`9K`（=`9K_BMS`）、`9K_PMS`（PMS，无 scratch）、`14K`（DP）；**无 `10K`**（早期草案误列，代码 `BmsKeymode` 不含）。注释用 `//`（对齐 osu/mania skin.ini，与 mania 段同一文件），不是 `;`。
 - **车道编址**：段内用 lane token 索引每条车道。
 
   | keymode | scratch | 键 lane token |
@@ -100,33 +100,37 @@ Keymode:  14K              ; DP 单独一段
   | 9K（PMS） | 无 | `1`..`9` |
   | 14K（DP） | `S`(P1) `S2`(P2) | `1`..`7`(P1) `8`..`14`(P2) |
 
-  形如 `NoteImageS`、`NoteImage1`、`ColourColumn3`。
-- **颜色**：`r,g,b,a`（0–255），如 `ColourBarline: 150,164,194,200`。
+  形如 `NoteImageS`、`NoteImage1`（逐道纹理键内嵌 lane token）。
+- **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色)）。
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
 - **动画**：帧序列用 `name-0`、`name-1`… 命名 + `LightFramePerSecond` 控速（对齐 mania）；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
 - **前向兼容**：**未知键被忽略并记一条告警**（不报错），所以皮肤可以安全写入未来才实现的键；**未知值**回退默认 + 告警。详见 [§7](#7-必备--推荐--可选-三档与校验行为-部分)。
 
-> **schema 冻结说明**：键名的**权威定义在 [P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)**，本文为其渲染。**与 mania 同义的键一律沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义，已在 [§6](#6-bms-扩展族类bms-扩展段-规划) / [附录 C](#附录-cskinini-字段全表) 标注。当前为 `F0` 草案，改键须同步回写 P1-A 约束与本文。
+> **schema 来源说明**：键集 / 语义的**真实依据是代码实现**（`BmsSkinDecoder` / `BmsSkinConfigurationLookups` + `BmsPlayfieldLayoutProfile` / `BmsDefaultPlayfieldPalette` 暴露的可参数化量）；[P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与本文都是**据代码派生的视图**，**不反向约束实现**。**与 mania 同义的键尽量沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义。`F1` 解析层（`[General]` / `[Bms]` 段、几何 / 颜色 / 纹理键）已落地，本文相关字段已据 `F1` 代码更新。
 
 ---
 
-## 4. 车道与几何 `[规划]`
+## 4. 车道与几何 `[部分]`（`F1` 已可解析这些键）
 
-几何键控制车道布局；与 mania 同义者沿用 mania 名。**注意**：当前内置默认几何走 `BmsPlayfieldLayoutProfile` 的归一化策略（车道按比例填满 `PlayfieldWidth`），所以几何键是「相对/像素混合」语义，逐键见 [附录 C](#附录-cskinini-字段全表)。
+几何键控制车道布局；当前内置默认几何走 `BmsPlayfieldLayoutProfile` 的**归一化策略**（车道按相对权重填满 `PlayfieldWidth`），所以是「相对/像素混合」语义。**下表键名与默认值直接对应代码 `BmsPlayfieldLayoutProfile.CreateDefault(...)`**（非 mania 习惯草案——BMS 无 mania 式 `HitPosition` 或逐列 `ColumnWidth`）：
 
-| 键 | 作用 | 单位/语义 | mania 对应 |
+| 键 | 作用 | 单位/语义 | 代码默认值 |
 | --- | --- | --- | --- |
-| `PlayfieldWidth` | 整个车道区宽度 | 屏幕宽比例（如 `0.68`） | （ColumnWidth 合算） |
-| `PlayfieldHeight` | 判定线相对高度 | 屏幕高比例（默认 `0.92`） | StagePadding |
-| `HitPosition` | 判定线位置 | 距底像素 | `HitPosition` |
-| `ColumnWidth` | 逐键车道宽 | 相对权重，逗号分隔 | `ColumnWidth` |
-| `ScratchWidth` | scratch 道宽 | 相对权重（默认键道 ×1.5） | —（BMS 独有） |
-| `ColumnSpacing` | 车道间距 | 相对权重 | `ColumnSpacing` |
-| `ColumnLineWidth` | 分隔线宽 | 像素 | `ColumnLineWidth` |
-| `BarlineHeight` | 小节线厚 | 像素 | `BarlineHeight` |
-| `JudgementLine` | 是否显示判定线 | `0/1` | `JudgementLine` |
-| `KeysUnderNotes` | 按键区叠在音符下 | `0/1` | `KeysUnderNotes` |
+| `PlayfieldWidth` | 整个车道区宽度（归一化杠杆，缩放它等比缩放每条道与音符） | 屏幕宽比例 | `Clamp(lanes×0.06, .35, .8)×0.825` |
+| `PlayfieldHeight` | 判定线相对高度（playfield 顶边贴屏，判定线落此处） | 屏幕高比例 | `0.92` |
+| `NormalLaneWidth` | 键道相对宽 | 相对权重 | `1` |
+| `ScratchLaneWidth` | scratch 道相对宽 | 相对权重 | `1.5` |
+| `NormalLaneSpacing` | 键道间距 | 相对权重 | `0` |
+| `ScratchLaneSpacing` | scratch 邻接间距 | 相对权重 | `0.12` |
+| `HitTargetHeight` | 判定区总高 | 像素 | `16` |
+| `HitTargetBarHeight` | 判定条高 | 像素 | `12` |
+| `HitTargetLineHeight` | 判定线高 | 像素 | `3` |
+| `HitTargetGlowRadius` | 判定线辉光半径 | 像素 | `6` |
+| `BarLineHeight` | 小节线厚 | 像素 | `2` |
+| `LongNoteBodyWidth` | 长条身宽 | 相对车道宽 | `0.5775` |
+
+> `HitTargetVerticalOffset` 必须锁 `0`（保判定时序不变量），故**不开放**给 ini。`JudgementLine` / `KeysUnderNotes` 等 mania 几何键 BMS 代码无对应，已移除。
 
 ---
 
@@ -157,15 +161,20 @@ Keymode:  14K              ; DP 单独一段
 | `HitTargetImage` | 判定线/接收区贴图 | 推荐（缺→内置线+辉光） |
 | `KeyImage{lane}` / `KeyImage{lane}D` | 按键区常态/按下态 | 可选 |
 
-### 5.4 小节线 / 颜色
+### 5.4 小节线 / 颜色 `[部分]`
+音符颜色＝**IIDX 键色组**（白 / 青 / 黄 / 红，按键号 + keymode 派生），**不是逐道任意色**；其余为车道 / 判定 / 小节线 / cover 颜色。键名直接对应 `BmsDefaultPlayfieldPalette`：
+
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
-| `ColourColumn{lane}` | 逐道车道背景色 | 推荐 |
-| `ColourColumnLine` | 分隔线色 | 推荐 |
-| `ColourJudgementLine` | 判定线色 | 推荐 |
-| `ColourBarline` | 小节线色 | 推荐 |
-| `ColourHold` | 长条身着色 | 可选 |
-| `ColourBreak` | 断连色 | 可选 |
+| `NoteColourWhite` / `NoteColourCyan` / `NoteColourYellow` | IIDX 键色组（白 / 青 / 黄键音符） | 推荐 |
+| `NoteColourScratch` | scratch 音符色 | 推荐 |
+| `LaneBackgroundEvenColour` / `LaneBackgroundOddColour` | 键道交替底色 | 推荐 |
+| `ScratchLaneBackgroundColour` | scratch 道底色 | 推荐 |
+| `LaneDividerColour` / `ScratchLaneDividerColour` | 分隔线色 | 推荐 |
+| `HitTargetBarColour` / `HitTargetLineColour` / `HitTargetGlowColour` | 判定区 条 / 线 / 辉光色（scratch 另有 `ScratchHitTarget*Colour`） | 推荐 |
+| `MajorBarLineColour` / `MinorBarLineColour` | 大 / 小节线色 | 推荐 |
+| `LaneCoverFillColour` / `LaneCoverShadeColour` / `LaneCoverFocusColour` | lane cover 填充 / 暗部 / 调整高亮 | 可选 |
+| `PlayfieldBackdropColour` / `PlayfieldBaseplateColour` | 车道区外底 / 底板色 | 可选 |
 
 ### 5.5 Lane cover（SUDDEN+/HIDDEN+/LIFT）
 | 键 | 作用 | 必备档 |
@@ -308,13 +317,12 @@ OMS 同时维护两层"默认"，对齐 osu! 的范式：
 
 ## 附录 C：`skin.ini` 字段全表
 
-> 完整键表随实现细化；当前以 [§4](#4-车道与几何-规划)–[§6](#6-bms-扩展族类bms-扩展段-规划) 的分族表为准。单位/语义约定：
-> - 颜色 = `r,g,b,a`（0–255）。
-> - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth`）。
-> - 像素 = 整数（如 `HitPosition` / `BarlineHeight`）。
-> - 逐道值 = 逗号分隔，顺序按该 keymode 的 lane token 表（[§3](#3-skinini-总览与通用约定-规划)）。
-> - 资源名 = 不带扩展名的相对路径。
-> - 帧动画 = `name-0`/`name-1`… + `LightFramePerSecond`。
+> 完整键表随实现细化；当前以 §4（几何）/ §5（静态素材）/ §6（`[Bms]` 扩展，`F2`+）的分族表为准。单位 / 语义约定：
+> - 颜色 = `r,g,b` 或 `r,g,b,a`（0–255）。
+> - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth` / `LongNoteBodyWidth`）。
+> - 像素 = 整数（如 `HitTargetHeight` / `BarLineHeight`）。
+> - 资源名 = 不带扩展名的相对路径；逐道纹理键内嵌 lane token（数字或 `S` 表 scratch）。
+> - 帧动画属 ②③类引擎驱动件（`F2`+）：`name-0` / `name-1`… 帧序列。
 
 ---
 

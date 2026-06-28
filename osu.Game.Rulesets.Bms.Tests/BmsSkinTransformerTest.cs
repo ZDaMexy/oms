@@ -12,6 +12,7 @@ using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
+using osu.Framework.Testing;
 using osu.Game.Audio;
 using osu.Game.Database;
 using osu.Game.IO;
@@ -784,10 +785,12 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static void assertSingleColour(Drawable drawable, Color4 expected)
         {
-            Assert.That(drawable.Colour.TopLeft.SRGB, Is.EqualTo(expected));
-            Assert.That(drawable.Colour.TopRight.SRGB, Is.EqualTo(expected));
-            Assert.That(drawable.Colour.BottomLeft.SRGB, Is.EqualTo(expected));
-            Assert.That(drawable.Colour.BottomRight.SRGB, Is.EqualTo(expected));
+            // Note components are composites whose visual colour lives on the inner box; lane components are boxes themselves.
+            var box = drawable as Box ?? drawable.ChildrenOfType<Box>().Single();
+            Assert.That(box.Colour.TopLeft.SRGB, Is.EqualTo(expected));
+            Assert.That(box.Colour.TopRight.SRGB, Is.EqualTo(expected));
+            Assert.That(box.Colour.BottomLeft.SRGB, Is.EqualTo(expected));
+            Assert.That(box.Colour.BottomRight.SRGB, Is.EqualTo(expected));
         }
 
         private sealed class TestStorageResourceProvider : IStorageResourceProvider

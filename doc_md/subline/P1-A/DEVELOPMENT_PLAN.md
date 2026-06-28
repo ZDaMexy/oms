@@ -226,7 +226,7 @@
 
 #### F1：素材 + ini 加载器 / 校验器 / 热重载 + 参考皮肤（①类静态件）
 
-状态：未开工
+状态：进行中（gate 定方案 A；第一刀 ini 解析三件套 + 8 用例单测已落地、BMS 969/969；②刀配置源接入待续——见本节末「实现架构」）
 
 建议交付：
 
@@ -237,6 +237,17 @@
 5. 产出 reference 素材皮肤（复现程序化默认观感、颜色 / 几何为主、近零位图）＝本期验收对象兼创作者模板。
 
 验收：放入 reference 皮肤后游玩界面与程序化默认一致；缺键 / 缺图按 fail-open 回退 + 记诊断；BMS 全套与 Release gate 保持绿；新增 `BmsAssetSkin` 加载 / 校验 focused 测试。
+
+实现架构（2026-06-27 代码勘探落账，修正立项期表述）：
+
+1. **fail-open 已天然成立，F1 不得改兜底语义**：`SkinManager.AllSources` 在 `CurrentSkin` 后恒 yield `DefaultOmsSkin`，`RulesetSkinProvidingContainer` 亦把 `DefaultOmsSkin` 显式作为链底 fallback；用户选非 OmsSkin 素材皮肤时，缺件经 `SkinProvidingContainer` 链式查找自动回退到链底 OmsSkin 那层（`providesBuiltInFallbacks = skin is OmsSkin` 为 true）的程序化兜底。该判定是「仅链底默认皮肤兜底」的**正确分层设计**，F1 **不得**为「让素材皮肤兜底」去改它（改了会每层重复注入兜底、破坏分层）。立项期「兜底需重构 / 解耦」的设想**作废**。
+2. **纹理来源 = 被包裹 skin 的 `GetTexture`（不侵入核心）**：素材贴图按文件名约定经被 `BmsSkinTransformer` 包裹的 skin（`LegacySkin` / 用户素材皮肤）`GetTexture` / `GetAnimation` 直取，对齐 mania `NoteImage#` 等，无需新增核心能力。
+3. **结构化配置（颜色/几何/`[Bms]` 段）= 落 ruleset 内独立解析，禁止侵入核心 `LegacySkin`**：核心 `osu.Game/LegacySkin` 把 mania 段解析（`LegacyManiaSkinDecoder` + `maniaConfigurations` 字段 + `GetConfig` 的 `LegacyManiaSkinConfigurationLookup` 分支）**硬编码进 osu.Game**——上游历史包袱。BMS 作为 ruleset 不得照搬；`BmsSkinDecoder` / `BmsSkinConfiguration` / `BmsSkinConfigurationLookup` 必须落在 `osu.Game.Rulesets.Bms`，由独立 BMS 皮肤配置源解析（与红线「保持 `osu.Game` 与 ruleset 模块边界」一致）。
+4. **头号 gate（动工前最后决策）= BMS 结构化配置如何从「SkinManager 选中的皮肤」读到**：皮肤来源已定为复用 SkinManager；用户选的皮肤通常实例化为通用 `LegacySkin`，它不解析 BMS 段。候选：(A) **统一 OMS 皮肤实例化类型**——导入皮肤实例化为同时解析 mania + BMS 段的 OMS 自有 `LegacySkin` 子类（与 [`OMS_COPILOT.md`](../../mainline/OMS_COPILOT.md) 「`CreateSkinTransformer` 从 thin override 进化为完整 OMS fallback provider / 迁离 upstream built-in skin」方向一致，最干净，但触及皮肤导入实例化合同）；(B) `BmsAssetSkin` 借被包裹 skin 的 `IStorageResourceProvider` 重解析皮肤 ini 的 BMS 段（不改导入，但需拿到被包裹 skin 的资源句柄）；(C) BMS 配置走皮肤内独立约定文件 `skin.bms.ini`，`BmsAssetSkin` 单独读。**已定 (A)（用户 2026-06-27 拍板）**：导入皮肤实例化为同时解析 mania + BMS 段的 OMS 自有 `LegacySkin` 子类；F1 第②刀据此接入，须同步守住 mania 侧（`ManiaLegacySkinTransformer` 经核心 `LegacySkin` 读 mania 段的链路）不回归。
+5. **素材化策略 = 改造现有 `DefaultBms*Display` 读 config（颜色/几何/可选纹理），不另起 Asset* 全家桶**：契合 CONSTRAINTS「皮肤创作生态」第 6 条（程序化辉光保留为引擎绘制 + ini 参数化、不烤 PNG），避免双份组件维护。
+6. **schema 由代码实现确立、`SKINNING.md` 据代码派生（勿反向）**：F1 的 ini 键集/语义以「mania `LegacyManiaSkin*` 实现 + BMS 现有 `DefaultBms*Display` / `BmsPlayfieldLayoutProfile` / `BmsDefaultPlayfieldPalette` 真实暴露的可参数化量」为依据，**而非照抄** `SKINNING.md`（`[规划]` 派生草案）或本节/CONSTRAINTS 的 P0 草案键名。已知草案失真点（落码以代码为准）：① **几何**——代码无 mania 式 `HitPosition`/逐列 `ColumnWidth`，真实量＝`PlayfieldWidth`(归一化杠杆 `Clamp(lanes×0.06,.35,.8)×0.825`) / `PlayfieldHeight 0.92` / `Normal·ScratchLaneRelativeWidth`(1 / 1.5) / `…Spacing`(0 / 0.12) / `HitTarget{Height16, BarHeight12, LineHeight3, GlowRadius6, VerticalOffset0}` / `BarLineHeight2`（均 `CreateDefault` 参数、当前 runtime config 被忽略）；② **颜色**——代码是 **IIDX 键色组**（`NoteColourGroup` White/Cyan/Yellow/Scratch 按键号+keymode 派生）+ lane bg(even/odd/scratch) + divider + hit target(bar/line/glow) + barline(major/minor)，**非逐道 `ColourColumn{lane}` 任意色**；③ **LN body** 有真实 `Width 0.5775` / `alpha 0.8·broken 0.32` / 三态 `BodyState`，tail `Alpha=0`（草案未列）。F1 落地后据此回写 `SKINNING.md`。
+
+修正后落地顺序（替代立项期含「解耦兜底」的旧拆分）：① ini 三件套（`BmsSkinDecoder` / `BmsSkinConfiguration` / `BmsSkinConfigurationLookup` + `GetBmsSkinConfig<T>` 扩展，照 `LegacyManiaSkinDecoder`、`Keymode:` 分桶）→ ② BMS 皮肤配置源（按头号 gate 选定方案接入）→ ③ 单条 lookup 最小闭环（note：ini 指定纹理/颜色 → `DefaultBmsNoteDisplay` 渲染，缺件回退程序化 + 诊断）→ ④ 铺开①类静态件 + 校验器（fail-open + 诊断）+ 热重载 → ⑤ reference `skin.ini`（复现程序化默认观感）作验收。
 
 #### F2：②类引擎驱动件补挂点（ini 仅供素材）
 

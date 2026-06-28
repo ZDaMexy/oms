@@ -2,6 +2,7 @@
 
 using System;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Skinning;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -89,6 +90,29 @@ namespace osu.Game.Rulesets.Bms.UI
             => greyOut(GetLongNoteHead(laneIndex, isScratch, keymode), greyAmount: 0.85f, dimFactor: 0.45f);
 
         public static Color4 GetBarLine(bool isMajor) => isMajor ? MajorBarLine : MinorBarLine;
+
+        /// <summary>The IIDX colour-group skin config key (NoteColour White/Cyan/Yellow/Scratch) a lane's notes map to.</summary>
+        public static BmsSkinConfigurationLookups GetNoteColourLookup(int laneIndex, bool isScratch, BmsKeymode keymode)
+            => getNoteColourGroup(laneIndex, isScratch, keymode) switch
+            {
+                NoteColourGroup.Cyan => BmsSkinConfigurationLookups.NoteColourCyan,
+                NoteColourGroup.Yellow => BmsSkinConfigurationLookups.NoteColourYellow,
+                NoteColourGroup.Scratch => BmsSkinConfigurationLookups.NoteColourScratch,
+                _ => BmsSkinConfigurationLookups.NoteColourWhite,
+            };
+
+        /// <summary>The lane-background skin config key a lane maps to (even / odd / scratch), matching <see cref="GetLaneBackground"/>.</summary>
+        public static BmsSkinConfigurationLookups GetLaneBackgroundLookup(int laneIndex, bool isScratch, BmsKeymode keymode)
+        {
+            if (isScratch)
+                return BmsSkinConfigurationLookups.ScratchLaneBackgroundColour;
+
+            int bgIndex = keymode == BmsKeymode.Key14K && laneIndex > 7 ? laneIndex - 7 : laneIndex;
+            return bgIndex % 2 == 0 ? BmsSkinConfigurationLookups.LaneBackgroundEvenColour : BmsSkinConfigurationLookups.LaneBackgroundOddColour;
+        }
+
+        /// <summary>Greyed + dimmed broken-hold colour derived from an active colour (matches <see cref="GetLongNoteBodyBroken"/>).</summary>
+        public static Color4 GreyOutBroken(Color4 activeColour) => greyOut(activeColour, greyAmount: 0.85f, dimFactor: 0.45f);
 
         private static NoteColourGroup getNoteColourGroup(int laneIndex, bool isScratch, BmsKeymode keymode)
         {

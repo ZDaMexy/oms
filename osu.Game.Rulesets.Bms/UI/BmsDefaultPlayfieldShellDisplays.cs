@@ -8,6 +8,8 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Skinning;
 using osuTK;
 using osuTK.Graphics;
 
@@ -87,12 +89,23 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public bool IsScratch { get; }
 
+        public BmsKeymode Keymode { get; }
+
         public DefaultBmsLaneBackgroundDisplay(int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
         {
             LaneIndex = laneIndex;
             IsScratch = isScratch;
+            Keymode = keymode;
             RelativeSizeAxes = Axes.Both;
             Colour = BmsDefaultPlayfieldPalette.GetLaneBackground(laneIndex, isScratch, keymode);
+        }
+
+        [BackgroundDependencyLoader]
+        private void load(ISkinSource skin)
+        {
+            var configured = skin.GetBmsSkinConfig<Color4>(BmsDefaultPlayfieldPalette.GetLaneBackgroundLookup(LaneIndex, IsScratch, Keymode), Keymode)?.Value;
+            if (configured.HasValue)
+                Colour = configured.Value;
         }
     }
 
@@ -100,14 +113,26 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         public bool IsScratch { get; }
 
-        public DefaultBmsLaneDividerDisplay(bool isScratch)
+        public BmsKeymode Keymode { get; }
+
+        public DefaultBmsLaneDividerDisplay(bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
         {
             IsScratch = isScratch;
+            Keymode = keymode;
             Anchor = Anchor.CentreRight;
             Origin = Anchor.CentreRight;
             RelativeSizeAxes = Axes.Y;
             Width = 1;
             Colour = BmsDefaultPlayfieldPalette.GetLaneDivider(isScratch);
+        }
+
+        [BackgroundDependencyLoader]
+        private void load(ISkinSource skin)
+        {
+            var configured = skin.GetBmsSkinConfig<Color4>(
+                IsScratch ? BmsSkinConfigurationLookups.ScratchLaneDividerColour : BmsSkinConfigurationLookups.LaneDividerColour, Keymode)?.Value;
+            if (configured.HasValue)
+                Colour = configured.Value;
         }
     }
 }

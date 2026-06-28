@@ -124,7 +124,11 @@ namespace osu.Game.Skinning
                        || skin.GetType() == typeof(ArgonSkin)
                        || skin.GetType() == typeof(DefaultLegacySkin)
                        || skin.GetType() == typeof(RetroSkin)
-                       || skin.GetType() == typeof(LegacySkin);
+                       || skin.GetType() == typeof(LegacySkin)
+                       // OMS: imported user skins are routed through the BMS ruleset's BmsLegacySkin (a LegacySkin
+                       // subclass). Match it by full name so they stay selectable — NOT `is LegacySkin`, which would
+                       // wrongly include LegacyBeatmapSkin and other LegacySkin subclasses this allowlist excludes.
+                       || skin.GetType().FullName == @"osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin";
             }
         }
 

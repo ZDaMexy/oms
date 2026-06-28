@@ -121,7 +121,7 @@ namespace osu.Game.Skinning
             }
 
             // Always rewrite instantiation info (even after parsing in from the skin json) for sanity.
-            model.InstantiationInfo = createInstance(model).GetType().GetInvariantInstantiationInfo();
+            model.InstantiationInfo = resolveInstantiationInfo(createInstance(model));
 
             checkSkinIniMetadata(model, realm);
         }
@@ -232,6 +232,18 @@ namespace osu.Game.Skinning
 
         private Skin createInstance(SkinInfo item) => item.CreateInstance(skinResources);
 
+        // OMS: route plain legacy skins through the BMS ruleset's BmsLegacySkin so imported/saved user skins additionally
+        // parse the [Bms] skin.ini sections (the inherited LegacySkin still handles mania/general sections). Resolved by
+        // reflection so osu.Game keeps no compile-time dependency on the ruleset; when the BMS ruleset assembly is absent
+        // this stays null and skins keep their original type, leaving non-OMS environments completely untouched.
+        private static readonly string? bms_legacy_skin_instantiation_info =
+            Type.GetType("osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin, osu.Game.Rulesets.Bms")?.GetInvariantInstantiationInfo();
+
+        private static string resolveInstantiationInfo(Skin instance)
+            => instance.GetType() == typeof(LegacySkin) && bms_legacy_skin_instantiation_info != null
+                ? bms_legacy_skin_instantiation_info
+                : instance.GetType().GetInvariantInstantiationInfo();
+
         /// <summary>
         /// Save a skin, serialising any changes to skin layouts to relevant JSON structures.
         /// </summary>
@@ -243,7 +255,7 @@ namespace osu.Game.Skinning
             skin.SkinInfo.PerformWrite(s =>
             {
                 // Update for safety
-                s.InstantiationInfo = skin.GetType().GetInvariantInstantiationInfo();
+                s.InstantiationInfo = resolveInstantiationInfo(skin);
 
                 // Serialise out the SkinInfo itself.
                 string skinInfoJson = JsonConvert.SerializeObject(s, new JsonSerializerSettings { Formatting = Formatting.Indented });

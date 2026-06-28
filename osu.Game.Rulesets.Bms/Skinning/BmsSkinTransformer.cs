@@ -162,7 +162,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             => lookup.Element switch
             {
                 BmsLaneSkinElements.Background => new DefaultBmsLaneBackgroundDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
-                BmsLaneSkinElements.Divider => new DefaultBmsLaneDividerDisplay(lookup.IsScratch),
+                BmsLaneSkinElements.Divider => new DefaultBmsLaneDividerDisplay(lookup.IsScratch, lookup.Keymode),
                 BmsLaneSkinElements.HitTarget => new DefaultBmsHitTargetDisplay(lookup.IsScratch, BmsPlayfieldLayoutProfile.CreateDefault(lookup.Keymode, lookup.LaneCount)),
                 BmsLaneSkinElements.BarLine => new Box
                 {
