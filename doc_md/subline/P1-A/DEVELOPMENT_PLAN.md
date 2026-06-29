@@ -226,7 +226,7 @@
 
 #### F1：素材 + ini 加载器 / 校验器 / 热重载 + 参考皮肤（①类静态件）
 
-状态：进行中（gate 定方案 A；第一刀 ini 解析三件套 + 8 用例单测已落地、BMS 969/969；②刀配置源接入待续——见本节末「实现架构」）
+状态：进行中（**主面已成**——gate 定方案 A；①解析 + ②配置源 + ③**颜色/纹理/几何三轴皮肤化** + **reference 验收 capstone**（[模板](../../other/oms-bms-reference-skin/skin.ini) + `BmsReferenceSkinTest` 逐键 parity）均落，BMS 1001/1001 + core gate 绿；剩仅净新增件 stage 框架 / `KeyImage`——当前进度以 [STATUS](DEVELOPMENT_STATUS.md) / [CHANGELOG](CHANGELOG.md) 为准，架构见本节末「实现架构」）
 
 建议交付：
 
@@ -249,18 +249,59 @@
 
 修正后落地顺序（替代立项期含「解耦兜底」的旧拆分）：① ini 三件套（`BmsSkinDecoder` / `BmsSkinConfiguration` / `BmsSkinConfigurationLookup` + `GetBmsSkinConfig<T>` 扩展，照 `LegacyManiaSkinDecoder`、`Keymode:` 分桶）→ ② BMS 皮肤配置源（按头号 gate 选定方案接入）→ ③ 单条 lookup 最小闭环（note：ini 指定纹理/颜色 → `DefaultBmsNoteDisplay` 渲染，缺件回退程序化 + 诊断）→ ④ 铺开①类静态件 + 校验器（fail-open + 诊断）+ 热重载 → ⑤ reference `skin.ini`（复现程序化默认观感）作验收。
 
-#### F2：②类引擎驱动件补挂点（ini 仅供素材）
+#### F2：②类引擎驱动件补挂点（ini 仅供素材）—— 仿 IIDX/LR2/beatoraja 的真正大头
 
-状态：未开工
+状态：**未开工（2026-06-29 勘察确认：这些件在 OMS BMS 当前零渲染——全仓 grep 无 turntable / keyflash / hit explosion / bomb / LN hold light / ghost-TD 任何组件；盘面结构本身也无 turntable 区、无键区）**
 
-- 为 keyflash / hit explosion / bomb / LN hold light / turntable + laser / ghost-TD 等补 BMS-owned 组件与 lookup；动态由引擎驱动，ini 只供素材 + 位置 + 缩放 + 颜色。
-- 红线：仅视觉，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读；这些件落地前不得在 `SKINNING.md` 标为"当前可用"。
+定位：**这是"皮肤制作者能否还原 LR2/beatoraja 体验、甚至仿 IIDX"的决定性一期。** F1 只让现有静态件（音符/车道/判定线/cover/背景…）可换色换图调几何；IIDX 之所以是 IIDX 的招牌动态件**目前没有组件可供贴图**，必须本期从零造。
+
+- **结构前置（先于贴图）**：盘面需先有承载位——turntable 区（盘侧）、键区（判定线下方，与现 gauge 带的空间冲突需先裁决；`KeyImage`/`KeyImageDown` lookup 已留槽但无件）。这部分会动到 E1/几何已精调的布局，须单独定位决策。
+- **组件清单**（每件＝引擎驱动 + ini 仅供素材/位置/缩放/颜色，作者不写关键帧）：keyflash / 键光柱 · hit explosion（按判定档）· LN hold light · turntable + laser（圆盘旋转 + 扫描光）· bomb 命中动画 · ghost-TD（判定偏移幽灵）· lane beam/lighting。
+- **建议分期**：先 keyflash + hit explosion（最常见、最影响打击反馈观感、无结构改动）→ LN hold light → turntable（需结构前置）→ ghost / laser。
+- **与 P1-L 协作**：[P1-L](../P1-L/) 已落地地雷渲染 / BGA 链；bomb / 演出类件须对齐复用、不重复造；本期仅补"皮肤可换素材"的挂点。
+- **红线**：仅视觉，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读（CONSTRAINTS 第 10 条）；落地前不得在 `SKINNING.md` 标为"当前可用"。
 
 #### F3：③类 `[Bms]` 扩展段独有件 + 契约冻结
 
 状态：未开工
 
 - gauge 条 / 类型 / GN%、cover 绿数、bpm、progress、note distribution 等无 osu-ini 先例的 `[Bms]` 扩展段键落地；公开 authoring 文档收尾；冻结 schema 契约。
+- 含 **gauge 外观皮肤化**（当前 `BmsGaugeBar` 是代码型）；属"必备件 gauge 可覆盖"的 ini 落地面。
+
+### G 系列：皮肤存储与分发轨（与 F 授权面正交，排序独立）
+
+立项 2026-06-29（路线图，未开工）。**F1–F3 解决"什么可被皮肤控制"；G 系列解决"皮肤文件如何被存放/管理/分发"**，两轴正交。源于用户 2026-06-29 提出"皮肤要像 chartmania/chartbms 一样在数据目录可视可管"。
+
+#### G1：皮肤可视文件夹存储（**revisit F1「复用 SkinManager hash 体系」gate 决议**）
+
+状态：未开工（**这是对 F1 gate 决议的方向性调整，需用户拍板后启动**）
+
+- **现状（2026-06-29 勘察）**：皮肤走核心 `SkinImporter : RealmArchiveModelImporter<SkinInfo>`（只认 `.osk`），文件进 realm 的 **hash-backed `files/` 存储**（文件名=内容哈希·人不可读·不可手动管理）。F1 gate（2026-06-27）曾明确"复用 SkinManager·**不走 chartbms 旁路**"——本项即重审该决议。
+- **目标**：皮肤像 chartmania/chartbms 一样在数据目录有**可视、人类可读文件夹**（如 `chartskin/<名>/skin.ini` + 资源），直接读，realm 只索引路径/元数据，不进 hash store。
+- **可复用模型**：[`BmsFolderImporter`](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)（`SONGS_STORAGE_PATH="chartbms"` → 复制进可视文件夹 + realm 索引 `FilesystemStoragePath`；managed/external 两态、路径遍历守卫、复用判重）。新建皮肤文件夹导入/扫描器仿之。
+- **技术要点**：(a) `BmsLegacySkin` 现从 hash store/fallbackStore 读 skin.ini → 改为从可视文件夹的 `IStorageResourceProvider` 读；(b) SkinManager 列表/设置切换仍要能列出+选用文件夹皮肤（`SkinInfo` 需承载"folder-backed"·类比 `BeatmapSetInfo.FilesystemStoragePath`/`IsExternalFilesystemStorage`）；(c) 文件夹直读后改 ini 可**热重载**（F1 既定能力，本项才真正可落）；(d) 与 [P1-H](../P1-H/) 存储拓扑协作（同款外部/内部扫描机制）。
+- **红线**：不破坏核心 SkinManager 对 `.osk`/内置皮肤既有路径；离线优先；不破坏本会话已落的 `BmsLegacySkin` 路由（SkinImporter 改写点）。
+- **风险**：比 F1 的 SkinImporter 路由更深，触及 `SkinInfo.Files` 语义与皮肤实例化的资源来源。
+
+实现架构（2026-06-29 代码勘探落账——读 `SkinManager` / `Skin` 基类 / `SkinImporter` / `BmsFolderImporter`）：
+
+1. **读取机制已证、零改核心资源链。** `Skin` 基类把 `fallbackStore` 并入资源 `store`：skin.ini 经 `store.GetStream(配置名)`、纹理经 `TextureStore(CreateTextureLoaderStore(resources, store))`；realm `Files` 经 `RealmBackedResourceStore`（`SkinInfo.Files[名]→hash→resources.Files`）先查、查不到回落 `fallbackStore`。`OmsSkin` 正是用内嵌 `NamespacedResourceStore` 当 fallbackStore + 空 `SkinInfo.Files`。**故文件夹皮肤 = fallbackStore 换成 `StorageBackedResourceStore(storage.GetStorageForDirectory("chartskin/<名>"))`**（与 SkinManager 既有 `userFiles = StorageBackedResourceStore("files")` 同款 API），skin.ini + 纹理直接从可视文件夹读、不进 hash store、**不改 `Skin`/资源解析核心**。
+2. **实例化接法 = 方案 D4（复用本会话反射范式）。** `SkinManager.GetSkin = skinInfo.CreateInstance(this)` 走 `InstantiationInfo` 反射 `(SkinInfo, IStorageResourceProvider)` ctor——不带 fallbackStore。folder 皮肤改走分支：`SkinInfo.FilesystemStoragePath` 非空时，SkinManager **反射调用皮肤类型的 `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]> fallbackStore)` ctor**（`BmsLegacySkin` 已有该 protected ctor·改 public 供反射），传 `StorageBackedResourceStore(chartskin/<path>)`。核心仍**不编译依赖 ruleset**（反射字符串·同本会话 `SkinImporter` 路由）；非 folder/非 BMS 时零变化。
+3. **realm 模型（须迁移）。** `SkinInfo` 加 `string? FilesystemStoragePath`（+ 可选 `IsExternalFilesystemStorage`），镜像 `BeatmapSetInfo`；`RealmAccess.schema_version` bump——加性 nullable 字段，realm 自动处理、无数据迁移。
+4. **文件夹导入/扫描（仿 [`BmsFolderImporter`](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)）。** 新 `chartskin/` 目录；皮肤文件夹导入器：managed（folder 落 `chartskin/` 下·realm 存相对路径·**不复制到 hash**）/ external（注册外部目录·不复制）；启动扫描 `chartskin/` 入 realm（同 chartbms）。
+5. **SkinManager 列表/选择。** `GetAllUsableSkins` 已从 realm 列非 protected 皮肤→folder 皮肤入 realm 后**自动出现在皮肤下拉、可选用、`CurrentSkinInfo` 切换**；`Delete`/`Rename` 须对 folder 皮肤正确处理（删文件夹 vs 仅删 realm 记录·参 `BmsFolderImporter` managed/external 语义）。
+6. **热重载。** folder 直读后监视 `chartskin/<名>/skin.ini` 变化→重建 skin（F1 既定"热重载"本项才真落地）。
+7. **红线。** 不破坏核心对 `.osk` 导入 / `OmsSkin` 既有路径；不破坏本会话 `SkinImporter` 的 `BmsLegacySkin` 路由；离线优先；mania 段解析仍走核心 `LegacySkin`（folder `BmsLegacySkin` 继承之·共存）；folder 皮肤 `SkinInfo.Files` 留空（空 Files 经 `RealmBackedResourceStore` 安全回落 fallbackStore·已证）。
+
+落地顺序（刀）：① `BmsLegacySkin` folder ctor 转 public + 真实临时目录直读 skin.ini/纹理测试（ruleset-only·低风险）→ ② `SkinInfo.FilesystemStoragePath` 加字段 + `RealmAccess` schema bump（**核心 realm·加性·须跑现有 skin 读写测试 + Release gate**）→ ③ `SkinManager.GetSkin` folder 分支（D4 反射 folder ctor·守卫测试钉死字符串·非 folder 零变化）→ ④ `chartskin/` 文件夹导入器/扫描器（仿 `BmsFolderImporter`·managed/external + 启动扫描）→ ⑤ 列表/选择/删除/重命名 对 folder 皮肤收口 + UI 入口 → ⑥ 热重载。**与 [P1-H](../P1-H/) 存储拓扑协作**（external/managed 扫描机制可复用）。
+
+#### G2：文件型内置默认皮肤（可选）
+
+状态：未开工
+
+- **现状**：BMS 默认皮肤 **100% 程序化**（`BmsDefaultPlayfieldPalette` 颜色 + `BmsPlayfieldLayoutProfile` 几何 via `DefaultBms*Display`）；本会话的 [reference skin.ini](../../other/oms-bms-reference-skin/skin.ini) 仅文档模板，**未接成运行时默认**。
+- **目标（可选）**：把 reference skin.ini 接成实际加载的内置默认（OmsSkin 内嵌 or G1 落地后随 `chartskin/` 自带）。
+- **权衡**：程序化兜底的价值＝任何缺键/文件损坏都有最终保底；改文件型默认须保证文件缺失/损坏时回落程序化（保留 `DefaultBms*` 兜底，文件默认只作"预填覆盖层"）。小工作量；可独立（内嵌）或依赖 G1（随文件夹）。
 
 ## 当前优先顺序
 
@@ -271,4 +312,8 @@
 5. `B2` `Sudden / Hidden / Lift` 联动收口
 6. `C1` 扩展到统一 gameplay feedback 家族
 7. `D1` 作者文档与 release gate 收口
-8. `F1` BMS 素材 + ini 皮肤加载器 / 校验器 / 热重载 + 参考皮肤（`F0` 契约已冻结 2026-06-27；`F1` 未开工，待主交付线腾出窗口后启动）
+8. **`F1` 主面已成（2026-06-29）**：颜色/纹理/几何三轴皮肤化 + reference 验收 capstone 均落；**余项 = stage 框架 / `KeyImage`（净新增件·需定位决策）**
+9. **皮肤后续路线（2026-06-29 立项，待用户拍板优先级——见 `F2` / `G1` / `G2`）**：
+   - `G1` 皮肤可视文件夹存储（revisit F1 hash 决议·"可管理性"最大缺口·中等架构改动）
+   - `F2` ②类引擎驱动件（turntable/keyflash/explosion/bomb/ghost·"还原 IIDX"最大缺口·工作量最大·会动盘面结构）
+   - `G2` 文件型默认皮肤（小·可选） / `F3` ③类 `[Bms]` 扩展段（gauge 样式/GN/bpm）

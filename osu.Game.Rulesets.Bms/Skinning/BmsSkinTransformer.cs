@@ -150,8 +150,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private static Drawable createDefaultPlayfieldComponent(BmsPlayfieldSkinLookup lookup)
             => lookup.Element switch
             {
-                BmsPlayfieldSkinElements.Backdrop => new DefaultBmsPlayfieldBackdropDisplay(),
-                BmsPlayfieldSkinElements.Baseplate => new DefaultBmsPlayfieldBaseplateDisplay(),
+                BmsPlayfieldSkinElements.Backdrop => new DefaultBmsPlayfieldBackdropDisplay(lookup.Keymode),
+                BmsPlayfieldSkinElements.Baseplate => new DefaultBmsPlayfieldBaseplateDisplay(lookup.Keymode),
                 _ => new Box
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -162,13 +162,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             => lookup.Element switch
             {
                 BmsLaneSkinElements.Background => new DefaultBmsLaneBackgroundDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
-                BmsLaneSkinElements.Divider => new DefaultBmsLaneDividerDisplay(lookup.IsScratch, lookup.Keymode),
-                BmsLaneSkinElements.HitTarget => new DefaultBmsHitTargetDisplay(lookup.IsScratch, BmsPlayfieldLayoutProfile.CreateDefault(lookup.Keymode, lookup.LaneCount)),
-                BmsLaneSkinElements.BarLine => new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = BmsDefaultPlayfieldPalette.GetBarLine(lookup.IsMajorBarLine),
-                },
+                BmsLaneSkinElements.Divider => new DefaultBmsLaneDividerDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsLaneSkinElements.HitTarget => new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, BmsPlayfieldLayoutProfile.CreateDefault(lookup.Keymode, lookup.LaneCount)),
+                BmsLaneSkinElements.BarLine => new DefaultBmsBarLineDisplay(lookup.IsMajorBarLine, lookup.Keymode),
                 _ => new Box
                 {
                     RelativeSizeAxes = Axes.Both,

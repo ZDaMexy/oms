@@ -591,7 +591,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.BarLine, 0, 8, false, BmsKeymode.Key7K, true)), Is.TypeOf<Box>());
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.BarLine, 0, 8, false, BmsKeymode.Key7K, true)), Is.TypeOf<DefaultBmsBarLineDisplay>());
         }
 
         [Test]
@@ -785,7 +785,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static void assertSingleColour(Drawable drawable, Color4 expected)
         {
-            // Note components are composites whose visual colour lives on the inner box; lane components are boxes themselves.
+            // Note / lane components are composites whose visual colour lives on the inner box; some elements are boxes themselves.
             var box = drawable as Box ?? drawable.ChildrenOfType<Box>().Single();
             Assert.That(box.Colour.TopLeft.SRGB, Is.EqualTo(expected));
             Assert.That(box.Colour.TopRight.SRGB, Is.EqualTo(expected));

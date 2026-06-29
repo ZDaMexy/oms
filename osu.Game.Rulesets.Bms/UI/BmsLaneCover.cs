@@ -1,13 +1,17 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using osuTK.Graphics;
 
@@ -118,6 +122,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public float FocusEdgeAlpha => focusEdge?.Alpha ?? 0;
 
+        [Resolved(CanBeNull = true)]
+        private GameplayState? gameplayState { get; set; }
+
         public DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition position)
         {
             this.position = position;
@@ -125,48 +132,68 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(ISkinSource skin)
         {
-            InternalChildren = new Drawable[]
+            // Resolve the keymode from the playable beatmap so a skin can bucket cover config per keymode (matches BgaPanel).
+            var keymode = gameplayState != null ? BmsLaneLayout.CreateFor(gameplayState.Beatmap).Keymode : BmsKeymode.Key7K;
+
+            var fillColour = skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.LaneCoverFillColour, keymode)?.Value ?? BmsDefaultPlayfieldPalette.LaneCoverFill;
+            var shadeColour = skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.LaneCoverShadeColour, keymode)?.Value ?? BmsDefaultPlayfieldPalette.LaneCoverShade;
+            var focusColour = skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.LaneCoverFocusColour, keymode)?.Value ?? BmsDefaultPlayfieldPalette.FocusAccent;
+
+            bool isSudden = position == BmsLaneCoverPosition.Sudden;
+            var edgeAnchor = isSudden ? Anchor.BottomLeft : Anchor.TopLeft;
+
+            // Texture base: LaneCoverTopImage for Sudden (covers from the top), LaneCoverBottomImage for Hidden (from the bottom).
+            string? imagePath = skin.GetBmsSkinConfig<string>(isSudden ? BmsSkinConfigurationLookups.LaneCoverTopImage : BmsSkinConfigurationLookups.LaneCoverBottomImage, keymode)?.Value;
+            var texture = !string.IsNullOrEmpty(imagePath) ? skin.GetTexture(imagePath) : null;
+
+            var children = new List<Drawable>
             {
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Alpha = 1,
-                    Colour = BmsDefaultPlayfieldPalette.LaneCoverFill,
-                },
-                new Box
+                texture != null
+                    ? new Sprite { RelativeSizeAxes = Axes.Both, Texture = texture }
+                    : new Box { RelativeSizeAxes = Axes.Both, Alpha = 1, Colour = fillColour },
+            };
+
+            // The programmatic shade gradient only applies to the box fallback; a texture owns its own look.
+            if (texture == null)
+            {
+                children.Add(new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                     Height = 0.18f,
                     Alpha = 0.88f,
-                    Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Colour = position == BmsLaneCoverPosition.Sudden
-                        ? ColourInfo.GradientVertical(Color4.Transparent, BmsDefaultPlayfieldPalette.LaneCoverShade)
-                        : ColourInfo.GradientVertical(BmsDefaultPlayfieldPalette.LaneCoverShade, Color4.Transparent),
-                },
-                focusWash = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Height = 0.3f,
-                    Alpha = 0,
-                    Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Colour = position == BmsLaneCoverPosition.Sudden
-                        ? ColourInfo.GradientVertical(Color4.Transparent, BmsDefaultPlayfieldPalette.FocusWash)
-                        : ColourInfo.GradientVertical(BmsDefaultPlayfieldPalette.FocusWash, Color4.Transparent),
-                },
-                focusEdge = new Box
-                {
-                    RelativeSizeAxes = Axes.X,
-                    Height = 4,
-                    Alpha = 0,
-                    Anchor = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Origin = position == BmsLaneCoverPosition.Sudden ? Anchor.BottomLeft : Anchor.TopLeft,
-                    Colour = BmsDefaultPlayfieldPalette.FocusAccent,
-                }
-            };
+                    Anchor = edgeAnchor,
+                    Origin = edgeAnchor,
+                    Colour = isSudden
+                        ? ColourInfo.GradientVertical(Color4.Transparent, shadeColour)
+                        : ColourInfo.GradientVertical(shadeColour, Color4.Transparent),
+                });
+            }
+
+            children.Add(focusWash = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Height = 0.3f,
+                Alpha = 0,
+                Anchor = edgeAnchor,
+                Origin = edgeAnchor,
+                Colour = isSudden
+                    ? ColourInfo.GradientVertical(Color4.Transparent, BmsDefaultPlayfieldPalette.FocusWash)
+                    : ColourInfo.GradientVertical(BmsDefaultPlayfieldPalette.FocusWash, Color4.Transparent),
+            });
+
+            children.Add(focusEdge = new Box
+            {
+                RelativeSizeAxes = Axes.X,
+                Height = 4,
+                Alpha = 0,
+                Anchor = edgeAnchor,
+                Origin = edgeAnchor,
+                Colour = focusColour,
+            });
+
+            InternalChildren = children.ToArray();
 
             updateFocusState();
         }

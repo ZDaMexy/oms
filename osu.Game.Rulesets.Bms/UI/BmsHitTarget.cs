@@ -1,12 +1,16 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
+using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -80,7 +84,7 @@ namespace osu.Game.Rulesets.Bms.UI
             public Drawable? CurrentDisplay => Drawable;
 
             public SkinnableHitTargetDisplay(BmsHitTarget owner, BmsLaneSkinLookup lookup)
-                : base(lookup, _ => new DefaultBmsHitTargetDisplay(lookup.IsScratch, owner.currentLayoutProfile))
+                : base(lookup, _ => new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, owner.currentLayoutProfile))
             {
                 this.owner = owner;
             }
@@ -100,14 +104,18 @@ namespace osu.Game.Rulesets.Bms.UI
     internal partial class DefaultBmsHitTargetDisplay : CompositeDrawable, IBmsHitTargetDisplay, IBmsHitTargetLayoutDisplay
     {
         private readonly bool isScratch;
+        private readonly BmsKeymode keymode;
 
         private Box bar = null!;
         private Container line = null!;
+        private Box lineFill = null!;
         private Box pressedOverlay = null!;
         private Box focusEdge = null!;
+        private Sprite? textureBase;
         private bool isPressed;
         private bool isFocused;
         private float glowRadius;
+        private Color4 glowColour;
 
         public float PressedOverlayAlpha => pressedOverlay?.Alpha ?? 0;
 
@@ -121,14 +129,15 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal float GlowRadius => glowRadius;
 
-        public DefaultBmsHitTargetDisplay(bool isScratch, BmsPlayfieldLayoutProfile layoutProfile)
+        public DefaultBmsHitTargetDisplay(bool isScratch, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile)
         {
             this.isScratch = isScratch;
+            this.keymode = keymode;
             RelativeSizeAxes = Axes.Both;
 
             var barColour = isScratch ? BmsDefaultPlayfieldPalette.ScratchHitTargetBar : BmsDefaultPlayfieldPalette.HitTargetBar;
             var lineColour = isScratch ? BmsDefaultPlayfieldPalette.ScratchHitTargetLine : BmsDefaultPlayfieldPalette.HitTargetLine;
-            var glowColour = isScratch ? BmsDefaultPlayfieldPalette.ScratchHitTargetGlow : BmsDefaultPlayfieldPalette.HitTargetGlow;
+            glowColour = isScratch ? BmsDefaultPlayfieldPalette.ScratchHitTargetGlow : BmsDefaultPlayfieldPalette.HitTargetGlow;
 
             InternalChildren = new Drawable[]
             {
@@ -145,7 +154,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     Origin = Anchor.BottomLeft,
                     RelativeSizeAxes = Axes.X,
                     Masking = true,
-                    Child = new Box
+                    Child = lineFill = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = lineColour,
@@ -172,19 +181,57 @@ namespace osu.Game.Rulesets.Bms.UI
             updateState();
         }
 
+        [BackgroundDependencyLoader]
+        private void load(ISkinSource skin)
+        {
+            // Colour overrides drive the programmatic bar / line / glow; a texture (below) instead owns the look.
+            var configuredBar = skin.GetBmsSkinConfig<Color4>(isScratch ? BmsSkinConfigurationLookups.ScratchHitTargetBarColour : BmsSkinConfigurationLookups.HitTargetBarColour, keymode)?.Value;
+            if (configuredBar.HasValue)
+                bar.Colour = configuredBar.Value;
+
+            var configuredLine = skin.GetBmsSkinConfig<Color4>(isScratch ? BmsSkinConfigurationLookups.ScratchHitTargetLineColour : BmsSkinConfigurationLookups.HitTargetLineColour, keymode)?.Value;
+            if (configuredLine.HasValue)
+                lineFill.Colour = configuredLine.Value;
+
+            var configuredGlow = skin.GetBmsSkinConfig<Color4>(isScratch ? BmsSkinConfigurationLookups.ScratchHitTargetGlowColour : BmsSkinConfigurationLookups.HitTargetGlowColour, keymode)?.Value;
+            if (configuredGlow.HasValue)
+            {
+                glowColour = configuredGlow.Value;
+                pressedOverlay.Colour = glowColour;
+                applyGlow();
+            }
+
+            // Texture override: a HitTargetImage owns the static look — hide the programmatic bar / line; the press and
+            // focus overlays still draw on top (Depth keeps the texture behind them).
+            string? imagePath = skin.GetBmsSkinConfig<string>(BmsSkinConfigurationLookups.HitTargetImage, keymode)?.Value;
+            var texture = !string.IsNullOrEmpty(imagePath) ? skin.GetTexture(imagePath) : null;
+
+            if (texture != null)
+            {
+                bar.Alpha = 0;
+                line.Alpha = 0;
+                AddInternal(textureBase = new Sprite { RelativeSizeAxes = Axes.Both, Texture = texture, Depth = 1 });
+            }
+        }
+
         public void ApplyLayoutProfile(BmsPlayfieldLayoutProfile layoutProfile)
         {
             glowRadius = layoutProfile.HitTargetGlowRadius;
             bar.Height = layoutProfile.HitTargetBarHeight;
             line.Height = layoutProfile.HitTargetLineHeight;
-            line.EdgeEffect = new EdgeEffectParameters
+            applyGlow();
+            focusEdge.Height = layoutProfile.HitTargetLineHeight;
+        }
+
+        // Rebuilds the line's glow edge effect from the current radius + (possibly skin-overridden) glow colour. Called
+        // from both layout changes (radius) and the skin load (colour) so a later layout change keeps the configured colour.
+        private void applyGlow()
+            => line.EdgeEffect = new EdgeEffectParameters
             {
                 Type = EdgeEffectType.Glow,
                 Radius = glowRadius,
-                Colour = isScratch ? BmsDefaultPlayfieldPalette.ScratchHitTargetGlow : BmsDefaultPlayfieldPalette.HitTargetGlow,
+                Colour = glowColour,
             };
-            focusEdge.Height = layoutProfile.HitTargetLineHeight;
-        }
 
         public void SetPressed(bool isPressed)
         {

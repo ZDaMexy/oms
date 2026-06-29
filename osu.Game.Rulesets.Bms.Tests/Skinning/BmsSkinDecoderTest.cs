@@ -25,6 +25,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             "LaneDividerColour: 88,102,128,200\n" +
             "NoteImage1: notes/white\n" +
             "NoteImageSH: notes/scratch_head\n" +
+            "LaneBackgroundImage1: lanes/white_bg\n" +
+            "LaneDividerImageS: lanes/scratch_divider\n" +
             "HitTargetImage: stage/hit_target // optional trailing comment\n" +
             "UnknownFutureKey: should_be_ignored\n" +
             "\n" +
@@ -76,6 +78,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             Assert.That(c.ImageLookups["NoteImage1"], Is.EqualTo("notes/white"));
             Assert.That(c.ImageLookups["NoteImageSH"], Is.EqualTo("notes/scratch_head"));
+            Assert.That(c.ImageLookups["LaneBackgroundImage1"], Is.EqualTo("lanes/white_bg"));
+            Assert.That(c.ImageLookups["LaneDividerImageS"], Is.EqualTo("lanes/scratch_divider"));
             Assert.That(c.ImageLookups["HitTargetImage"], Is.EqualTo("stage/hit_target"));
         }
 
@@ -85,10 +89,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             var c = config(decode(sample_skin), BmsKeymode.Key7K);
 
             Assert.That(c.ImageLookups.ContainsKey("UnknownFutureKey"), Is.False);
-            // The 7K bucket only stored the recognised keys above (3 geometry, 3 colour, 3 image).
+            // The 7K bucket only stored the recognised keys above (3 geometry, 3 colour, 5 image).
             Assert.That(c.Geometry, Has.Count.EqualTo(3));
             Assert.That(c.Colours, Has.Count.EqualTo(3));
-            Assert.That(c.ImageLookups, Has.Count.EqualTo(3));
+            Assert.That(c.ImageLookups, Has.Count.EqualTo(5));
         }
 
         [Test]

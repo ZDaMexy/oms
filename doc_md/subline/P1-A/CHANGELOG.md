@@ -2,6 +2,75 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-06-29
+
+### `F1` ③刀（续）：纹理铺开 — lane 背景 / 分隔贴图 + composite 化 + 抽共享 `BmsSkinnableVisual`
+
+承接 note 件全家纹理化，把 lane 背景 / 分隔从直接 `Box` 升级为支持「贴图优先 / 颜色回退」的 composite，并把单填充元素的解析逻辑收敛成一个可复用 helper（避免后续 hit target / cover / backdrop 各抄一份 `GetTexture` 链）：
+
+- **新增** `BmsSkinnableVisual.Resolve(skin, imageLookup, colourLookup, keymode, defaultColour, out hasTexture, laneIndex, isScratch)`（`osu.Game.Rulesets.Bms/UI/`）：单填充元素的「贴图→`Sprite`·文件皮肤主导不吃程序化色 / 无贴图→`Box`·颜色 override 或默认」解析。`DefaultBmsNoteDisplayBase.CreateVisual` 改为薄委托（删本地 `GetTexture` 重复 + 多余 `Sprites` using）。helper 注释明确：只服务单填充件；多元素 composite（hit target / cover）自行读纹理分支。
+- **`DefaultBmsLaneBackgroundDisplay` / `DefaultBmsLaneDividerDisplay` `Box→CompositeDrawable`**：构造期挂默认 palette `Box`（未 load 也有观感）；BDL 经 helper 解析。贴图＝per-lane `LaneBackgroundImage{lane}` / `LaneDividerImage{lane}`（lane = 数字或 `S`）；颜色回退沿用既有分组（背景 even/odd/scratch、分隔 scratch/非 scratch）。divider 新增 `LaneIndex`（transformer 传 `lookup.LaneIndex`，原仅 `IsScratch`），故贴图可按车道分桶；几何（CentreRight/Width=1/Y 轴）保持不变。
+- **解析链补全**：`BmsSkinDecoder` 的 `per_lane_image` 正则加 `LaneBackgroundImage|LaneDividerImage` 前缀（按 lane token 存原值）；`BmsLegacySkin.resolveImageKey` 加两条 per-lane case。两者均落 ruleset 内、**零碰核心**。
+- **分层澄清（沿用 note 件结论）**：放了 lane 贴图即由文件皮肤主导、**不吃**程序化颜色；颜色 config 只服务「不画贴图的轻量皮肤」+ 程序化 fallback 参数化（CONSTRAINTS 第 6 条）。
+- **测试**：`BmsDefaultNoteSkinConfigTest` 加 lane bg / divider 纹理用例（有贴图→`Sprite`、颜色断言移内层 `ChildrenOfType<Box>`、divider 构造补 lane index）；`BmsLegacySkinTest` + `BmsSkinDecoderTest` 加 per-lane lane bg / divider 键解析用例（image 计数 3→5）；`BmsSkinTransformerTest` colour helper 注释更新（lane 件现亦 composite）。**BMS 全套 990/990 绿**（+4），无回归。
+- **下一步**（仍属 `F1` ③刀）：hit target / cover 纹理 + 颜色（composite 多元素，自读纹理分支）→ barline（transformer Box 提成独立件 + 颜色）→ stage 框架 / `KeyImage`（无现成件，新增）→ backdrop/baseplate 颜色 → 几何（`BmsPlayfieldLayoutProfile.CreateDefault` 读 config）→ reference skin.ini。
+
+### `F1` ③刀（续）：hit target / bar line / lane cover 颜色 + 纹理铺开
+
+接着把三类带交互/多元素的件接上 ini 配置（颜色 override + 可选贴图），均落 ruleset 内、零碰核心：
+
+- **hit target（`DefaultBmsHitTargetDisplay`，composite 6 颜色 lookup + 贴图）**：新增 `keymode` 字段（构造方 `BmsHitTarget` lambda + transformer 均传 `lookup.Keymode`）。BDL 读 bar/line/glow 三色 × scratch/非 scratch override（缺则 palette）。**贴图**＝`HitTargetImage` 存在则隐藏程序化 bar/line、加 `Sprite`（`Depth=1` 留在 press/focus 覆盖层之下）；glow 颜色提成字段 + `applyGlow()`，使后续 `ApplyLayoutProfile`（半径变化）不冲掉 ini glow 色。`BarHeight`/`LineHeight` 等几何内省属性不变（bar/line 仍在树内、仅 `Alpha=0`），`TestSceneBmsHitTargetState` 不破。
+- **bar line（提成 `DefaultBmsBarLineDisplay`，颜色-only）**：transformer 内联 `Box` + `DrawableBmsBarLine` 内联默认 `Box` 统一替换为独立 `Box` 子类件，BDL 读 `MajorBarLineColour`/`MinorBarLineColour`（+keymode）override 或 palette。无 `BarLineImage` 槽（高度仍由父 bar line 的 layout profile 拥有），故颜色-only。`BmsSkinTransformerTest` bar line 类型断言 `Box`→`DefaultBmsBarLineDisplay`。
+- **lane cover（`DefaultBmsLaneCoverDisplay`，颜色 3 lookup + 贴图 + keymode）**：display 自身经 `[Resolved(CanBeNull)] GameplayState` 解析 keymode（同 `BmsBgaPanel` 模式·**不改 mod/lookup 签名**）。`load()` 改 `load(ISkinSource)`，先解析 `LaneCoverFillColour`/`LaneCoverShadeColour`/`LaneCoverFocusColour`（缺则 palette）再建子树（cover 子树本就在 BDL 建、一遍到位）。**贴图**＝Sudden 读 `LaneCoverTopImage` / Hidden 读 `LaneCoverBottomImage`，存在则 base 用 `Sprite`、跳过程序化 shade 渐变（focus wash/edge 仍叠在上）。focus wash 保持 palette `FocusWash`（无独立 lookup），`LaneCoverFocusColour` 只 override focus edge。
+- **测试**：`BmsDefaultNoteSkinConfigTest` 加 hit target 颜色/贴图、bar line 颜色、lane cover 颜色/贴图 5 用例（composite 件断言「存在某 `Box` 颜色==ini 值」/ 贴图断言 `ChildrenOfType<Sprite>`）。**BMS 全套 995/995 绿**（990→992 hit target→993 bar line→995 cover），无回归。
+- **下一步**（仍属 `F1`）：stage 框架 / `KeyImage`（无现成件，新增组件 + lookup 接线）→ backdrop/baseplate 颜色（`PlayfieldBackdropColour`/`PlayfieldBaseplateColour`）→ 几何（`BmsPlayfieldLayoutProfile.CreateDefault` 读 config·static 无 skin·需调用方传）→ reference skin.ini 验收。
+
+### `F1` ③刀（续）：playfield backdrop / baseplate 颜色 + backdrop 贴图（收口现存 shell 件）
+
+把最后两个现存 shell 件接上 ini，至此**所有现存渲染件**（note 家族 / lane bg / divider / hit target / bar line / lane cover / backdrop / baseplate）均已配置化；剩余仅净新增件（stage 框架 / `KeyImage`）+ 几何 + reference skin。
+
+- **backdrop（`DefaultBmsPlayfieldBackdropDisplay`）**：加 `keymode`（transformer `createDefaultPlayfieldComponent` 传 `lookup.Keymode`）。优先级＝**skin `PlayfieldBackdropImage`（文件皮肤主导·平铺 Sprite·跳过谱面背景模糊）> 谱面背景模糊（既有默认）> 无背景时 `PlayfieldBackdropColour`/palette 平涂**。`load()`→`load(ISkinSource)`。
+- **baseplate（`DefaultBmsPlayfieldBaseplateDisplay`，Box 子类·颜色-only）**：加 `keymode`，BDL 读 `PlayfieldBaseplateColour` override 或 palette。
+- **测试**：`BmsDefaultNoteSkinConfigTest` 加 baseplate 颜色 + backdrop 贴图 2 用例（backdrop 贴图断言「有 `Sprite` 且无 `BufferedContainer`」以区分 skin-texture 路径 vs 谱面模糊路径）。**BMS 全套 997/997 绿**（+2），core Release gate（`osu.Desktop.slnf`）通过。
+- **本会话累计**：F1 ③刀颜色+纹理铺开五刀（lane bg/divider → hit target → bar line → lane cover → backdrop/baseplate），986→997。
+
+### `F1` ③刀（续）：几何经皮肤驱动（profile 11 键 + LN body 宽）
+
+把第三条数据轴（几何）接上 ini——异于颜色/纹理（渲染件 BDL 直读），几何须在有 skin 访问的 `BmsPlayfield` 层把 override 喂进 `BmsPlayfieldLayoutProfile.CreateDefault`：
+
+- **`BmsPlayfield.applySkinGeometry`**：`load` 加 `[Resolved(CanBeNull)] ISkinSource`，按 keymode 读 11 个几何键（`PlayfieldWidth/Height`、`Normal/ScratchLaneWidth`、`Normal/ScratchLaneSpacing`、`HitTarget{Height/BarHeight/LineHeight/GlowRadius}`、`BarLineHeight`），用 `CreateDefault` 可选 override 重建 profile 并 `LaneLayout = CreateFor(beatmap, profile)`。**`HitTargetVerticalOffset` 故意不可皮肤化**（须锁 0 守 `scrollLengthRatio≡1` 的 GN/判定时序不变量，enum 本就排除）。**`if (!anyOverride) return` 守护**：无几何键时保留默认 profile 对象，**非皮肤（及非 OMS）游玩字节一致**。替换后的 profile 经 load 后即触发的 playfield-style 绑定流到已建 lanes（复用既有 `applyPlayfieldStyle` 机制，不新开重排路径）。
+- **`LongNoteBodyWidth`**：唯一不在 profile 的几何量（LN body 件的 `Width`），在 `DefaultBmsLongNoteBodyDisplay.ApplyVisual` 读（默认 `0.5775` 提常量）。
+- **测试**：`TestSceneBmsPlayfieldLayoutConfig` 加 `TestSkinGeometryOverridesStrictProfile`（包 `SkinProvidingContainer` 注入几何皮肤·断言 `LayoutProfile` 取皮肤值·未设键留默认·`HitTargetVerticalOffset` 锁 0；**区别于既有「ruleset config 滑块被忽略」用例**——后者仍绿，证非皮肤路径未变）+ `BmsDefaultNoteSkinConfigTest` 的 LN body 宽用例。
+- **验证**：BMS 全套 **998/999**——唯一失败 `TestLegacyTranscodeFailureBecomesUnavailableAndLeavesNoPartialFile` 是 **预存的 BGA 视频缓存 temp 清理 race**（状态转 Unavailable 与删 `.tmp` 竞争·环境/负载相关），经 `git stash` 回到干净树重建后**同样失败**，证**与本改动零因果**（改动文件零涉 BGA/cache）；core Release gate（`osu.Desktop.slnf`）通过。
+- **至此颜色 / 纹理 / 几何三轴均已皮肤化**；剩余仅净新增件（stage 框架 / `KeyImage`）+ reference skin.ini。
+
+### `F1` reference skin.ini（验收 capstone + 创作者模板）
+
+把"复现程序化默认观感"的参考皮肤落为**自校验的验收门 + 创作者模板**，覆盖已皮肤化的全颜色/纹理/几何面：
+
+- **创作者模板** [doc_md/other/oms-bms-reference-skin/skin.ini](../../other/oms-bms-reference-skin/skin.ini)：7K 全键 + 分节注释 + 作者须知（`//` 注释、键全可选·缺省 fail-open 回默认、颜色 R,G,B[,A] 0–255、几何 px vs 相对、纹理键留空＝默认纯程序化观感、放图即文件皮肤主导该件）。其它 keymode 同键、仅 lane-count 派生的 `PlayfieldWidth` 默认不同。
+- **验收门** `BmsReferenceSkinTest`（2 用例）：把参考 ini 经 `BmsLegacySkin` 解析，**逐键断言等于真实 palette / profile 常量**（几何对 `BmsPlayfieldLayoutProfile.CreateDefault(7K,8)`、颜色对 `BmsDefaultPlayfieldPalette.*`）。**自校验**＝模板里任何值写错、或某默认漂移，都会在此失败；并顺带证全键集端到端 round-trip（decoder→skin→config）。模板 ini 是该测试的镜像（注释版·decoder 剥 `//`），二者锁同步。
+- **验证**：BMS 全套 **1001/1001**（含 reference 2 用例·全绿）。注：`TestLegacyTranscodeFailureBecomesUnavailableAndLeavesNoPartialFile`（预存 BGA 缓存 temp 清理 race）为**间歇 flaky**——本轮通过、几何刀那轮失败；已经 `git stash` 干净树复现证实与本工作零因果（属 P1-L·后台 chip 跟踪）。core Release gate 绿。
+- **F1 状态**：ini 数据层 → 配置源 → 颜色/纹理/几何三轴 → reference 验收**均已落**；**剩余仅净新增件 stage 框架 / `KeyImage`**（当前 playfield 无边框/无 key 区·属新增视觉元素 + 定位决策；`KeyImage` 尤其与"无物理按键区"的现设计冲突，宜独立评估）。
+
+### 皮肤后续路线勘察 + 立项 `G` 系列（存储/分发轨）+ 扩写 `F2`（纯文档·未开工）
+
+应用户 2026-06-29 三问（皮肤可视文件夹管理 / 默认是否落成文件 / 能否还原 LR2·beatoraja·IIDX），勘察代码得三条确凿结论并写进 [DEVELOPMENT_PLAN](DEVELOPMENT_PLAN.md)：
+
+- **① 皮肤存储**：现状皮肤走核心 `SkinImporter : RealmArchiveModelImporter<SkinInfo>`（`.osk` → realm **hash-backed `files/`**·哈希文件名·不可读/不可手管），**无 chartbms 式可视文件夹**；chartbms 可视文件夹模型（`BmsFolderImporter`·`chartbms/<名>-<hash8>/`·realm 仅索引路径）只为谱面建了。F1 gate（06-27）曾定"复用 SkinManager·不走 chartbms 旁路"——用户要求**重审**。→ 立项 **`G1` 皮肤可视文件夹存储**（仿 `BmsFolderImporter`·revisit F1 hash 决议·待拍板）。
+- **② 默认皮肤**：确认 BMS 默认 **100% 程序化**（palette/profile via `DefaultBms*Display`·`OmsSkin` 内嵌 `Skins/Oms` 无 BMS skin.ini）；reference skin.ini 仅文档模板·未接成运行时默认。→ 立项 **`G2` 文件型默认皮肤**（可选·小·须保留程序化兜底）。
+- **③ IIDX/LR2 还原度**：**部分**——F1 让现有静态件可换色/图/几何；但 **turntable / keyflash / hit explosion / bomb / LN hold light / ghost-TD 全仓零渲染**（grep 证·盘面亦无 turntable 区/键区），属 `F2`**未开工**，是"还原 IIDX"的真正大头。→ **扩写 `F2`**（结构前置 + 组件清单 + 分期 + P1-L 协作 + 红线）。
+- **G 系列与 F 正交**：F1–F3＝"什么可被皮肤控制"，G＝"皮肤文件如何存放/管理"。优先级待用户拍板（见 PLAN「当前优先顺序」第 9 条）。**本轮纯文档·无代码改动。**
+
+### `G1` 实现架构勘探落账 + 刀①（folder-backed 皮肤直读建块）
+
+用户看路线图后确认"按推荐来：G1 打头"。勘察核心皮肤实例化/资源链得**可动工的 G1 实现架构**（进 [PLAN](DEVELOPMENT_PLAN.md) G1「实现架构」7 条 + 6 刀序），并落第一刀（ruleset-only·低风险）：
+
+- **★关键架构发现：文件夹直读零改核心资源链**。`Skin` 基类把 `fallbackStore` 并入资源 `store`（skin.ini 经 `store.GetStream`、纹理经 `TextureStore`），realm `Files`（`RealmBackedResourceStore`：`SkinInfo.Files→hash`）先查、空则回落 `fallbackStore`；`OmsSkin` 正是用内嵌 store 当 fallbackStore。**故 folder 皮肤 = fallbackStore 换 `StorageBackedResourceStore(chartskin/<名>)`**（同 SkinManager 既有 `userFiles`），不进 hash、不碰 `Skin`/资源核心。
+- **实例化定方案 D4**：`SkinManager.GetSkin` 对 `SkinInfo.FilesystemStoragePath` 非空的皮肤走分支，**反射调 `BmsLegacySkin(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]> fallbackStore)` ctor**（核心不编译依赖 ruleset·同本会话 SkinImporter 路由范式）。
+- **刀①（已落）**：`BmsLegacySkin` 加该 public folder ctor（委托既有 protected ctor·`[UsedImplicitly]` 供反射）；测试 `TestFolderBackedSkinReadsIniDirectlyFromDisk`——真实临时目录写 `skin.ini` → `StorageBackedResourceStore` 直读 → 断言 `[Bms]` 几何/颜色值解析自磁盘（空 realm Files 回落 fallbackStore 已证）。**BMS 全套 1002/1002 + core Release gate 绿**（纯 ruleset·零核心改动）。
+- **下一刀 = ②realm 迁移**：`SkinInfo` 加 `string? FilesystemStoragePath` + `RealmAccess.schema_version` bump（核心 realm·加性 nullable·须跑现有 skin 读写测试 + Release gate）。
+
 ## 2026-06-27
 
 ### BMS 素材 + ini 皮肤创作生态立项 + `F0` 契约冻结（纯文档，未开工实现）

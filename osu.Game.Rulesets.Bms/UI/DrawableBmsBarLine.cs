@@ -4,7 +4,6 @@ using osu.Framework.Graphics;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
-using osu.Framework.Graphics.Shapes;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Skinning;
@@ -28,11 +27,8 @@ namespace osu.Game.Rulesets.Bms.UI
             Width = 1;
             Height = layoutProfile.BarLineHeight;
 
-            AddInternal(new SkinnableDrawable(new BmsLaneSkinLookup(BmsLaneSkinElements.BarLine, lane.LaneIndex, laneCount, lane.IsScratch, keymode, hitObject.Major), _ => new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = BmsDefaultPlayfieldPalette.GetBarLine(hitObject.Major),
-            })
+            AddInternal(new SkinnableDrawable(new BmsLaneSkinLookup(BmsLaneSkinElements.BarLine, lane.LaneIndex, laneCount, lane.IsScratch, keymode, hitObject.Major),
+                _ => new DefaultBmsBarLineDisplay(hitObject.Major, keymode))
             {
                 RelativeSizeAxes = Axes.Both,
                 CentreComponent = false,

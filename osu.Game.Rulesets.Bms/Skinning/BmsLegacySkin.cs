@@ -35,6 +35,19 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
         }
 
+        /// <summary>
+        /// Folder-backed construction (G1 visible-folder skins): skin.ini + textures are read directly from
+        /// <paramref name="folderStore"/> — a store over a visible skin folder such as <c>chartskin/&lt;name&gt;</c> —
+        /// instead of the realm hash-backed file store. Intended to be reached by reflection from the core skin
+        /// instantiation path for skins whose <see cref="SkinInfo"/> carries a filesystem storage path; the empty realm
+        /// <c>Files</c> list falls through to this store (the same fallback-store pattern <see cref="OmsSkin"/> uses).
+        /// </summary>
+        [UsedImplicitly(ImplicitUseKindFlags.InstantiatedWithFixedConstructorSignature)]
+        public BmsLegacySkin(SkinInfo skin, IStorageResourceProvider resources, IResourceStore<byte[]> folderStore)
+            : this(skin, resources, folderStore, @"skin.ini")
+        {
+        }
+
         protected BmsLegacySkin(SkinInfo skin, IStorageResourceProvider? resources, IResourceStore<byte[]>? fallbackStore, string configurationFilename = @"skin.ini")
             : base(skin, resources, fallbackStore, configurationFilename)
         {
@@ -119,6 +132,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 case BmsSkinConfigurationLookups.KeyImageDown:
                     return hasLane ? $"KeyImage{laneToken}D" : null;
+
+                case BmsSkinConfigurationLookups.LaneBackgroundImage:
+                    return hasLane ? $"LaneBackgroundImage{laneToken}" : null;
+
+                case BmsSkinConfigurationLookups.LaneDividerImage:
+                    return hasLane ? $"LaneDividerImage{laneToken}" : null;
 
                 case BmsSkinConfigurationLookups.HitTargetImage:
                 case BmsSkinConfigurationLookups.StageLeftImage:

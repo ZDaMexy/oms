@@ -2,16 +2,29 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using osu.Framework.Audio;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Rendering.Dummy;
+using osu.Framework.Graphics.Textures;
+using osu.Framework.IO.Stores;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
+using osu.Game.Database;
+using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Mods;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Skinning;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -56,6 +69,24 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("lane hit target bottoms stay at playfield edge", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.BottomLeft.Y - lane.HitTarget.ScreenSpaceDrawQuad.BottomLeft.Y) <= 1f));
             AddAssert("scrolling container edge matches receptor", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.HitObjectContainer.ScreenSpaceDrawQuad.BottomLeft.Y - lane.HitTarget.ScreenSpaceDrawQuad.BottomLeft.Y) <= 1f));
             AddAssert("bar line heights stay default", () => drawableRuleset.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>()).All(barLine => Math.Abs(barLine.Height - 2f) <= 0.0001f));
+        }
+
+        [Test]
+        public void TestSkinGeometryOverridesStrictProfile()
+        {
+            // Unlike the ruleset-config sliders (ignored above), a skin's per-keymode geometry keys DO drive the profile.
+            var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nPlayfieldWidth: 0.5\nPlayfieldHeight: 0.8\nScratchLaneWidth: 2.0\nHitTargetBarHeight: 20\nBarLineHeight: 5\n");
+
+            setupScene(skin: skin);
+
+            AddAssert("profile playfield width from skin", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldWidth, () => Is.EqualTo(0.5f).Within(0.0001f));
+            AddAssert("profile playfield height from skin", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldHeight, () => Is.EqualTo(0.8f).Within(0.0001f));
+            AddAssert("profile scratch width from skin", () => drawableRuleset.Playfield.LayoutProfile.ScratchLaneRelativeWidth, () => Is.EqualTo(2.0f).Within(0.0001f));
+            AddAssert("profile hit target bar height from skin", () => drawableRuleset.Playfield.LayoutProfile.HitTargetBarHeight, () => Is.EqualTo(20f).Within(0.0001f));
+            AddAssert("profile bar line height from skin", () => drawableRuleset.Playfield.LayoutProfile.BarLineHeight, () => Is.EqualTo(5f).Within(0.0001f));
+            // Unset keys keep their defaults (lane width 1, glow 6, vertical offset locked at 0 for timing).
+            AddAssert("unset lane width stays default", () => drawableRuleset.Playfield.LayoutProfile.NormalLaneRelativeWidth, () => Is.EqualTo(1f).Within(0.0001f));
+            AddAssert("hit target vertical offset stays locked at 0", () => drawableRuleset.Playfield.LayoutProfile.HitTargetVerticalOffset, () => Is.EqualTo(0f).Within(0.0001f));
         }
 
         [Test]
@@ -117,7 +148,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             }, () => Is.LessThanOrEqualTo(2f));
         }
 
-        private void setupScene(BmsPlayfieldStyle? playfieldStyle = null, double? playfieldWidth = null, double? playfieldHeight = null, double? laneSpacing = null, double? laneWidth = null, double? scratchLaneSpacing = null, double? scratchLaneWidthRatio = null, double? hitTargetHeight = null, double? hitTargetBarHeight = null, double? hitTargetLineHeight = null, double? hitTargetGlowRadius = null, double? hitTargetVerticalOffset = null, double? barLineHeight = null, IReadOnlyList<Mod>? mods = null)
+        private void setupScene(BmsPlayfieldStyle? playfieldStyle = null, double? playfieldWidth = null, double? playfieldHeight = null, double? laneSpacing = null, double? laneWidth = null, double? scratchLaneSpacing = null, double? scratchLaneWidthRatio = null, double? hitTargetHeight = null, double? hitTargetBarHeight = null, double? hitTargetLineHeight = null, double? hitTargetGlowRadius = null, double? hitTargetVerticalOffset = null, double? barLineHeight = null, IReadOnlyList<Mod>? mods = null, ISkin? skin = null)
         {
             AddStep($"configure layout bridge", () =>
             {
@@ -137,10 +168,16 @@ namespace osu.Game.Rulesets.Bms.Tests
                 config.SetValue(BmsRulesetSetting.HitTargetVerticalOffset, hitTargetVerticalOffset ?? 0.0);
                 config.SetValue(BmsRulesetSetting.BarLineHeight, barLineHeight ?? 2.0);
 
-                Child = drawableRuleset = new TestableDrawableBmsRuleset(new BmsRuleset(), createPlayableBeatmap(), mods)
+                drawableRuleset = new TestableDrawableBmsRuleset(new BmsRuleset(), createPlayableBeatmap(), mods)
                 {
                     RelativeSizeAxes = Axes.Both,
                 };
+
+                // Wrap in the supplied skin so the playfield resolves its per-keymode geometry overrides; with no skin the
+                // ruleset is mounted directly (the default-skin path the rest of the fixture exercises).
+                Child = skin == null
+                    ? drawableRuleset
+                    : new SkinProvidingContainer(skin) { RelativeSizeAxes = Axes.Both, Child = drawableRuleset };
             });
 
             AddUntilStep("drawable ruleset loaded", () => drawableRuleset?.IsLoaded == true);
@@ -171,6 +208,39 @@ namespace osu.Game.Rulesets.Bms.Tests
                 : base(ruleset, beatmap, mods)
             {
             }
+        }
+
+        private class TestBmsLegacySkin : BmsLegacySkin
+        {
+            public TestBmsLegacySkin(string ini)
+                : base(new SkinInfo { Name = @"test" }, new TestResourceProvider(), new IniStore(ini))
+            {
+            }
+        }
+
+        private class TestResourceProvider : IStorageResourceProvider
+        {
+            private readonly IResourceStore<byte[]> empty = new ResourceStore<byte[]>();
+
+            public IRenderer Renderer { get; } = new DummyRenderer();
+            public AudioManager? AudioManager => null;
+            public IResourceStore<byte[]> Files => empty;
+            public IResourceStore<byte[]> Resources => empty;
+            public RealmAccess RealmAccess => null!;
+            public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => null;
+        }
+
+        private class IniStore : IResourceStore<byte[]>
+        {
+            private readonly byte[] data;
+
+            public IniStore(string ini) => data = Encoding.UTF8.GetBytes(ini);
+
+            public byte[] Get(string name) => name == @"skin.ini" ? data : null!;
+            public Task<byte[]> GetAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult(Get(name));
+            public Stream GetStream(string name) => name == @"skin.ini" ? new MemoryStream(data) : null!;
+            public IEnumerable<string> GetAvailableResources() => new[] { @"skin.ini" };
+            public void Dispose() { }
         }
     }
 }

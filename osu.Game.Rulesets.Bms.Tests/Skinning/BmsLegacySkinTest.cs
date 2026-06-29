@@ -12,6 +12,7 @@ using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
+using osu.Framework.Testing;
 using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Difficulty;
@@ -36,6 +37,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             "NoteColourWhite: 243,243,243\n" +
             "NoteImage1: notes/white\n" +
             "NoteImageSH: notes/scratch_head\n" +
+            "LaneBackgroundImage1: lanes/white_bg\n" +
+            "LaneDividerImageS: lanes/scratch_divider\n" +
             "HitTargetImage: stage/target\n";
 
         private static BmsLegacySkin createSkin() => new TestBmsLegacySkin(skin_ini);
@@ -59,6 +62,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [Test]
         public void TestGlobalImageResolved()
             => Assert.That(createSkin().GetBmsSkinConfig<string>(BmsSkinConfigurationLookups.HitTargetImage, BmsKeymode.Key7K)?.Value, Is.EqualTo("stage/target"));
+
+        [Test]
+        public void TestPerLaneBackgroundImageResolved()
+            => Assert.That(createSkin().GetBmsSkinConfig<string>(BmsSkinConfigurationLookups.LaneBackgroundImage, BmsKeymode.Key7K, laneIndex: 1)?.Value, Is.EqualTo("lanes/white_bg"));
+
+        [Test]
+        public void TestScratchLaneDividerImageResolved()
+            => Assert.That(createSkin().GetBmsSkinConfig<string>(BmsSkinConfigurationLookups.LaneDividerImage, BmsKeymode.Key7K, isScratch: true)?.Value, Is.EqualTo("lanes/scratch_divider"));
 
         [Test]
         public void TestUnsetKeyOrKeymodeReturnsNull()
@@ -89,6 +100,24 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 Assert.That(Type.GetType(@"osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin, osu.Game.Rulesets.Bms"), Is.EqualTo(typeof(BmsLegacySkin)));
                 Assert.That(typeof(BmsLegacySkin).FullName, Is.EqualTo(@"osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin"));
+            });
+        }
+
+        [Test]
+        public void TestFolderBackedSkinReadsIniDirectlyFromDisk()
+        {
+            // G1 刀①: a skin folder on disk (chartskin/<name>/skin.ini + assets) is read directly via the public folder
+            // ctor + a StorageBackedResourceStore over the folder — no realm hash-backed copy. The empty realm Files list
+            // falls through to the folder store, so the [Bms] config parses straight off disk.
+            using var folder = new TemporaryNativeStorage($"oms-skin-folder-{Guid.NewGuid():N}");
+            File.WriteAllText(folder.GetFullPath(@"skin.ini"), "[Bms]\nKeymode: 7K\nPlayfieldWidth: 0.42\nNoteColourWhite: 1,2,3\n");
+
+            var skin = new BmsLegacySkin(new SkinInfo { Name = @"folder" }, new TestResourceProvider(), new StorageBackedResourceStore(folder));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, BmsKeymode.Key7K)?.Value, Is.EqualTo(0.42f));
+                Assert.That(skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.NoteColourWhite, BmsKeymode.Key7K)?.Value, Is.EqualTo(new Color4(1, 2, 3, 255)));
             });
         }
 

@@ -55,6 +55,8 @@
 11. **fail-open 依赖「OmsSkin 恒在 fallback 链底」，F1 不得改 `providesBuiltInFallbacks` 语义。** `SkinManager.AllSources` 在 `CurrentSkin` 后恒 yield `DefaultOmsSkin`、`RulesetSkinProvidingContainer` 亦将其作为链底 fallback；素材皮肤缺件经 `SkinProvidingContainer` 链式查找回退到链底 OmsSkin 那层的程序化兜底。`BmsSkinTransformer.providesBuiltInFallbacks = skin is OmsSkin` 是「仅链底默认皮肤兜底」的正确设计，不得为「让素材皮肤兜底」改它（否则每层重复注入兜底、破坏分层）。（2026-06-27 代码勘探修正立项期「兜底需重构」设想。）
 12. **BMS ini 段解析禁止侵入核心 `osu.Game/LegacySkin`。** 核心 `LegacySkin` 把 mania 段解析硬编码进 osu.Game（`LegacyManiaSkinDecoder` / `maniaConfigurations` / `GetConfig` mania 分支）是上游历史包袱；BMS 不得照搬，`BmsSkinDecoder` / `BmsSkinConfiguration` / lookup 必须落 `osu.Game.Rulesets.Bms`。纹理走被包裹 skin 的 `GetTexture`（不侵入），结构化配置由独立 BMS 皮肤配置源解析。「SkinManager 选中的皮肤如何被 BMS 读到结构化配置」（实例化类型 / 借壳 / 独立文件）是 F1 动工前**头号 gate**，候选方案见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) F1「实现架构」第 4 条。
 
+13. **皮肤存储拓扑（文件如何存放）与授权面（什么可被控制）是正交两轴。** F1「**头号 gate**」（约束 12）只解决"BMS 如何读到结构化配置"，**不等于**皮肤文件的存放方式。F1 期皮肤沿用核心 `SkinManager` / `SkinImporter`（`.osk` → realm hash-backed `files/`·不可读）。**该"复用 SkinManager·不走 chartbms 旁路"是 F1 立项决议，2026-06-29 起被用户重审**：若要皮肤像 chartmania/chartbms 一样可视文件夹直读管理，须走 `G1`（仿 `BmsFolderImporter`），属方向性调整，**未拍板前不得擅自改皮肤存储路径**。约束 11/12 的 fail-open 与不侵入核心语义在任一存储方案下都须保持。
+
 ## HUD 宿主约束
 
 1. 不得直接破坏现有 `IBmsHudLayoutDisplay` 签名。若需要额外组件，必须使用 versioned optional interface、wrapper contract，或等价的向后兼容方案。

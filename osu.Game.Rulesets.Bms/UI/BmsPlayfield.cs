@@ -87,6 +87,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private JudgementPooler<DrawableBmsJudgement> judgementPooler = null!;
         private Container playfieldContainer = null!;
 
+        [Resolved(CanBeNull = true)]
+        private ISkinSource? skinSource { get; set; }
+
         public BmsPlayfield(IBeatmap beatmap, BmsPlayfieldLayoutProfile? layoutProfile = null)
         {
             this.beatmap = beatmap;
@@ -132,6 +135,11 @@ namespace osu.Game.Rulesets.Bms.UI
         [BackgroundDependencyLoader]
         private void load(BmsRulesetConfigManager config)
         {
+            // Apply any per-keymode skin geometry before mounting, so the playfield strip + lanes pick up the overridden
+            // profile. Done here (not the constructor) because the skin is only resolvable once the drawable tree exists.
+            if (skinSource != null)
+                applySkinGeometry(skinSource);
+
             AddInternal(new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -303,6 +311,51 @@ namespace osu.Game.Rulesets.Bms.UI
             applyLaneBounds(drawableLane, lane, LaneLayout.TotalRelativeWidth);
 
             return drawableLane;
+        }
+
+        // Rebuilds the layout profile with the active skin's per-keymode geometry overrides. With no override present the
+        // default profile is left untouched, so non-skin (and non-OMS) play stays byte-identical. HitTargetVerticalOffset
+        // is deliberately not skinnable (it must stay 0 to keep scrollLengthRatio == 1, preserving GN / judgement timing).
+        // The replaced profile flows to the already-built lanes via the playfield-style bind that fires right after load.
+        private void applySkinGeometry(ISkin skin)
+        {
+            var keymode = LaneLayout.Keymode;
+
+            float? normalLaneWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneWidth, keymode)?.Value;
+            float? scratchLaneWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneWidth, keymode)?.Value;
+            float? normalLaneSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneSpacing, keymode)?.Value;
+            float? scratchLaneSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneSpacing, keymode)?.Value;
+            float? playfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value;
+            float? playfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value;
+            float? hitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value;
+            float? hitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value;
+            float? hitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value;
+            float? hitTargetGlowRadius = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetGlowRadius, keymode)?.Value;
+            float? barLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.BarLineHeight, keymode)?.Value;
+
+            bool anyOverride = normalLaneWidth != null || scratchLaneWidth != null || normalLaneSpacing != null || scratchLaneSpacing != null
+                               || playfieldWidth != null || playfieldHeight != null || hitTargetHeight != null || hitTargetBarHeight != null
+                               || hitTargetLineHeight != null || hitTargetGlowRadius != null || barLineHeight != null;
+
+            if (!anyOverride)
+                return;
+
+            var profile = BmsPlayfieldLayoutProfile.CreateDefault(
+                keymode,
+                LaneLayout.Profile.LaneCount,
+                normalLaneRelativeWidth: normalLaneWidth,
+                scratchLaneRelativeWidth: scratchLaneWidth,
+                normalLaneRelativeSpacing: normalLaneSpacing,
+                scratchLaneRelativeSpacing: scratchLaneSpacing,
+                playfieldWidth: playfieldWidth,
+                playfieldHeight: playfieldHeight,
+                hitTargetHeight: hitTargetHeight,
+                hitTargetBarHeight: hitTargetBarHeight,
+                hitTargetLineHeight: hitTargetLineHeight,
+                hitTargetGlowRadius: hitTargetGlowRadius,
+                barLineHeight: barLineHeight);
+
+            LaneLayout = BmsLaneLayout.CreateFor(beatmap, profile);
         }
 
         private void applyLaneLayout(BmsLaneLayout laneLayout)

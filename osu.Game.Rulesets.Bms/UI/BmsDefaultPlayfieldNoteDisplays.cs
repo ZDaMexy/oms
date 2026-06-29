@@ -5,7 +5,6 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Objects.Drawables;
@@ -51,24 +50,11 @@ namespace osu.Game.Rulesets.Bms.UI
         protected virtual void ApplyVisual(ISkinSource skin) => InternalChild = CreateVisual(skin, out _);
 
         /// <summary>
-        /// Resolves the visual: a user-skin texture (sprite, owns the look) takes precedence; otherwise a flat box using
-        /// the skin colour override or the palette default.
+        /// Resolves the visual via <see cref="BmsSkinnableVisual"/>: a user-skin texture (sprite, owns the look) takes
+        /// precedence; otherwise a flat box using the skin colour override or the palette default.
         /// </summary>
         protected Drawable CreateVisual(ISkinSource skin, out bool hasTexture)
-        {
-            string? imagePath = skin.GetBmsSkinConfig<string>(ImageLookup, Keymode, LaneIndex, IsScratch)?.Value;
-            var texture = !string.IsNullOrEmpty(imagePath) ? skin.GetTexture(imagePath) : null;
-
-            if (texture != null)
-            {
-                hasTexture = true;
-                return new Sprite { RelativeSizeAxes = Axes.Both, Texture = texture };
-            }
-
-            hasTexture = false;
-            var colour = skin.GetBmsSkinConfig<Color4>(ColourLookup, Keymode)?.Value ?? DefaultColour;
-            return new Box { RelativeSizeAxes = Axes.Both, Colour = colour };
-        }
+            => BmsSkinnableVisual.Resolve(skin, ImageLookup, ColourLookup, Keymode, DefaultColour, out hasTexture, LaneIndex, IsScratch);
     }
 
     internal sealed partial class DefaultBmsNoteDisplay : DefaultBmsNoteDisplayBase
@@ -103,6 +89,8 @@ namespace osu.Game.Rulesets.Bms.UI
         // Broken (missed) alpha — faded well back so a dropped hold visibly recedes.
         private const float broken_alpha = 0.32f;
         private const double state_fade_duration = 80;
+        // Long-note body width relative to the lane (0.525 + 10%); skinnable via the LongNoteBodyWidth geometry key.
+        private const float default_body_width = 0.5775f;
 
         private Drawable visual = null!;
         private Color4 activeColour;
@@ -120,8 +108,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             Anchor = Anchor.Centre;
             Origin = Anchor.Centre;
-            // Long-note body width: 0.5775 = 0.525 + 10% (relative to the lane width).
-            Width = 0.5775f;
+            Width = default_body_width;
             Alpha = active_alpha;
             InternalChild = new Box { RelativeSizeAxes = Axes.Both, Colour = BmsDefaultPlayfieldPalette.GetLongNoteHead(laneIndex, isScratch, keymode) };
         }
@@ -130,6 +117,9 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             visual = CreateVisual(skin, out bool hasTexture);
             InternalChild = visual;
+
+            // Body width is the one LN geometry knob that lives on the element, not the layout profile.
+            Width = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.LongNoteBodyWidth, Keymode)?.Value ?? default_body_width;
 
             // With a texture the sprite owns the colour (active = white tint); broken just greys/dims it. With the box
             // fallback, active follows the colour override / palette and broken is its greyed derivative.
