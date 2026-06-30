@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06-29
+
+### BMS 皮肤：`F1` 主面完成（颜色/纹理/几何三轴皮肤化 + reference 验收）+ `G1` 可视文件夹存储启动（realm schema 56）（P1-A）
+
+把 BMS 皮肤从「纯代码型、默认 100% 程序化」推进到「`skin.ini` 数据层 + 三轴可配 + 可视文件夹存储」。两轴正交进展：**`F1`（什么可被皮肤控制）主面已成**——ini 解析三件套（不侵入核心 `LegacySkin`）→ 配置源（`BmsLegacySkin` + `SkinImporter` 路由）→ **所有现存渲染件颜色/纹理/几何三轴皆 ini 可配**（note 家族 / lane bg / divider / hit target / bar line / lane cover / backdrop / baseplate·贴图优先 Sprite/颜色回退 Box；`BmsPlayfield` 读 11 几何键·`HitTargetVerticalOffset` 锁 0 守时序）+ reference skin.ini 创作者模板 + 自校验门 `BmsReferenceSkinTest`（逐键断言 == 真实默认）；剩 stage 框架 / `KeyImage` 净新增件。**`G1`（皮肤文件如何存放）启动**——目标＝皮肤像 chartmania/chartbms 一样可视文件夹（`chartskin/<名>/skin.ini`）直读管理，revisit「复用 SkinManager hash 存储」决议。**刀①** folder-backed 直读建块（`StorageBackedResourceStore` 当 fallbackStore·零改核心资源链）；**刀②** 核心 realm 迁移——`SkinInfo` 加 `FilesystemStoragePath` + `IsExternalFilesystemStorage`（镜像 `BeatmapSetInfo`）、**`schema_version` 55→56**（加性 nullable/scalar·无 migration case·realm 自动加列填默认；升级即迁移所有用户库，无数据迁移）。**验证**：BMS 全套 **1002/1002** + `osu.Desktop.slnf` Release gate 绿；核心 `osu.Game.Tests.Skins` 57 通过（5 失败为 OMS 删 Osu/Taiko/Catch 后 osu 模式 beatmap 归档解码的预存失败·`git stash` 干净树同样·与皮肤/ schema 改动零因果）。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-06-27/06-29、[P1-A DEVELOPMENT_PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) `F`/`G` 系列、[SKINNING.md](../other/SKINNING.md)。
+
+---
+
 ## 2026-06-23
 
 ### 修复（K12）：BMS→mania 转谱星数被 BGM/scratch 灌高（P1-K）

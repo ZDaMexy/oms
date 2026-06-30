@@ -71,6 +71,16 @@
 - **刀①（已落）**：`BmsLegacySkin` 加该 public folder ctor（委托既有 protected ctor·`[UsedImplicitly]` 供反射）；测试 `TestFolderBackedSkinReadsIniDirectlyFromDisk`——真实临时目录写 `skin.ini` → `StorageBackedResourceStore` 直读 → 断言 `[Bms]` 几何/颜色值解析自磁盘（空 realm Files 回落 fallbackStore 已证）。**BMS 全套 1002/1002 + core Release gate 绿**（纯 ruleset·零核心改动）。
 - **下一刀 = ②realm 迁移**：`SkinInfo` 加 `string? FilesystemStoragePath` + `RealmAccess.schema_version` bump（核心 realm·加性 nullable·须跑现有 skin 读写测试 + Release gate）。
 
+### `G1` 刀②（realm 迁移：`SkinInfo` 承载 folder-backed 字段 + schema bump）
+
+把 folder-backed 皮肤所需的 realm 载体加进核心 `SkinInfo`，使皮肤实例化（刀③·D4 分支）能识别"文件夹皮肤"并定位其磁盘路径。**唯一一刀触及核心 realm schema**，故按"加性 nullable / 无数据迁移 / 跑全验证面"谨慎落地：
+
+- **`SkinInfo` 镜像 `BeatmapSetInfo`**：加 `string? FilesystemStoragePath`（非空＝皮肤由可视文件夹 `chartskin/<名>/` 支撑、`Files` 留空、skin.ini + 纹理直读该路径）+ `bool IsExternalFilesystemStorage`（用户管理的外部只读目录，OMS 永不改名/删除/写入）。带 XML 注释指明镜像来源与 G1 填充点。
+- **`RealmAccess.schema_version` 55→56**（注释：`Add SkinInfo.FilesystemStoragePath and SkinInfo.IsExternalFilesystemStorage … mirroring BeatmapSetInfo`）。**纯加性 nullable/scalar 字段无需 migration case**——`applyMigrationsForVersion` 的 `switch` 不加 `case 56`（与 v50–55 连续 6 个加性版本同模式：realm 自动加列填默认 null/false，迁移回调对该版本仅记日志）。
+- **本刀同时加 `IsExternalFilesystemStorage`（PLAN 标"可选"）的决策**：刀④（导入/扫描器·managed/external 两态）确定需要该 flag；与其将来再 bump 一次 schema，不如此刻一次性加（beatmap 侧 `FilesystemStoragePath` v13 / `IsExternalFilesystemStorage` v54 分两次 bump，正是外部库特性后到所致的反例）。**未加** `ExternalLibraryRootPath`——皮肤"外部库根 vs 条目路径"嵌套语义尚未设计（皮肤比谱库简单·一文件夹一皮肤），属投机字段，留到刀④真需要时再定（届时再 bump）。本刀字段默认 null/false、**本刀不在任何生产路径写入**（填充在刀④），故无 copy/clone/serialise 逻辑需同步。
+- **验证**：`osu.Desktop.slnf` Release 构建 0 错误；**BMS 全套 1002/1002**（整套在 schema 56 下创建/操作 realm）；核心 `osu.Game.Tests.Skins` 过滤 **57 通过 / 5 失败**——5 失败（`TestExportThenImportDefaultSkin` + `TestSceneBeatmapSkinResources` 4 项）经 `git stash` 干净树重跑**逐一同名重现**（"No valid beatmap files found in the beatmap archive"·`BeatmapImporter` 解析 osu 模式谱面归档·OMS 删 Osu/Taiko/Catch 后的预存失败），**与本 schema 改动零因果**；`.osk` 导入 / `OmsSkin` / SkinProvidingContainer 等不依赖 osu beatmap 的皮肤测试均在 57 通过内。
+- **下一刀 = ③ `SkinManager.GetSkin` folder 分支（D4）**：对 `FilesystemStoragePath` 非空的皮肤反射调 `BmsLegacySkin` 的 public folder ctor（刀①已备）、传 `StorageBackedResourceStore(chartskin/<path>)`；守卫测试钉死反射字符串；非 folder/非 BMS 零变化。
+
 ## 2026-06-27
 
 ### BMS 素材 + ini 皮肤创作生态立项 + `F0` 契约冻结（纯文档，未开工实现）

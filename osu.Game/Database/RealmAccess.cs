@@ -105,8 +105,9 @@ namespace osu.Game.Database
         /// 53   2026-04-02    Add BeatmapMetadata.RulesetData for ruleset-specific persisted beatmap payloads.
         /// 54   2026-04-18    Add BeatmapSetInfo.IsExternalFilesystemStorage to distinguish read-only external directories from OMS-managed filesystem copies.
         /// 55   2026-05-31    Add BeatmapSetInfo.DifficultyTableRevision to force carousel re-detach after BMS difficulty-table metadata rewrites.
+        /// 56   2026-06-29    Add SkinInfo.FilesystemStoragePath and SkinInfo.IsExternalFilesystemStorage to support visible folder-backed skins (chartskin/), mirroring BeatmapSetInfo.
         /// </summary>
-        private const int schema_version = 55;
+        private const int schema_version = 56;
 
         /// <summary>
         /// Lock object which is held during <see cref="BlockAllOperations"/> sections, blocking realm retrieval during blocking periods.

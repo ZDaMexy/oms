@@ -62,6 +62,23 @@ namespace osu.Game.Skinning
 
         public IList<RealmNamedFileUsage> Files { get; } = null!;
 
+        /// <summary>
+        /// When set, this skin is backed by a visible, human-readable folder on disk (e.g. <c>chartskin/&lt;name&gt;/</c>)
+        /// rather than the hash-backed realm <c>files/</c> store. <see cref="Files"/> stays empty for folder-backed skins;
+        /// skin resources (skin.ini + textures) are read directly from this path.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors <see cref="osu.Game.Beatmaps.BeatmapSetInfo.FilesystemStoragePath"/>. Populated by the folder-skin
+        /// importer/scanner (see P1-A G1); empty for legacy <c>.osk</c>-imported skins and built-in skins.
+        /// </remarks>
+        public string? FilesystemStoragePath { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="FilesystemStoragePath"/> points to a user-managed external directory.
+        /// External directories must only ever be read from and must never be renamed, deleted, or otherwise mutated by OMS.
+        /// </summary>
+        public bool IsExternalFilesystemStorage { get; set; }
+
         public bool DeletePending { get; set; }
 
         public SkinInfo(string? name = null, string? creator = null, string? instantiationInfo = null)

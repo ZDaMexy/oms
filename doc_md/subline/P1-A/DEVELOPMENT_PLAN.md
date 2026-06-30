@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-27
+> 最后更新：2026-06-29
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -287,13 +287,13 @@
 
 1. **读取机制已证、零改核心资源链。** `Skin` 基类把 `fallbackStore` 并入资源 `store`：skin.ini 经 `store.GetStream(配置名)`、纹理经 `TextureStore(CreateTextureLoaderStore(resources, store))`；realm `Files` 经 `RealmBackedResourceStore`（`SkinInfo.Files[名]→hash→resources.Files`）先查、查不到回落 `fallbackStore`。`OmsSkin` 正是用内嵌 `NamespacedResourceStore` 当 fallbackStore + 空 `SkinInfo.Files`。**故文件夹皮肤 = fallbackStore 换成 `StorageBackedResourceStore(storage.GetStorageForDirectory("chartskin/<名>"))`**（与 SkinManager 既有 `userFiles = StorageBackedResourceStore("files")` 同款 API），skin.ini + 纹理直接从可视文件夹读、不进 hash store、**不改 `Skin`/资源解析核心**。
 2. **实例化接法 = 方案 D4（复用本会话反射范式）。** `SkinManager.GetSkin = skinInfo.CreateInstance(this)` 走 `InstantiationInfo` 反射 `(SkinInfo, IStorageResourceProvider)` ctor——不带 fallbackStore。folder 皮肤改走分支：`SkinInfo.FilesystemStoragePath` 非空时，SkinManager **反射调用皮肤类型的 `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]> fallbackStore)` ctor**（`BmsLegacySkin` 已有该 protected ctor·改 public 供反射），传 `StorageBackedResourceStore(chartskin/<path>)`。核心仍**不编译依赖 ruleset**（反射字符串·同本会话 `SkinImporter` 路由）；非 folder/非 BMS 时零变化。
-3. **realm 模型（须迁移）。** `SkinInfo` 加 `string? FilesystemStoragePath`（+ 可选 `IsExternalFilesystemStorage`），镜像 `BeatmapSetInfo`；`RealmAccess.schema_version` bump——加性 nullable 字段，realm 自动处理、无数据迁移。
+3. **realm 模型（已迁移·刀②落地 2026-06-29）。** `SkinInfo` 已加 `string? FilesystemStoragePath` + `bool IsExternalFilesystemStorage`（镜像 `BeatmapSetInfo`）；`RealmAccess.schema_version` 55→56——加性 nullable/scalar 字段，无 migration case（与 v50–55 同模式·realm 自动加列填默认）。**本刀同时加 `IsExternalFilesystemStorage`**（原标"可选"）以免刀④再 bump 一次 schema（beatmap 侧分 v13/v54 两次 bump 是外部库后到的反例）；**未加 `ExternalLibraryRootPath`**（皮肤外部库嵌套语义未设计·投机字段·留刀④定）。字段本刀不写入任何生产路径（填充在刀④）。
 4. **文件夹导入/扫描（仿 [`BmsFolderImporter`](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)）。** 新 `chartskin/` 目录；皮肤文件夹导入器：managed（folder 落 `chartskin/` 下·realm 存相对路径·**不复制到 hash**）/ external（注册外部目录·不复制）；启动扫描 `chartskin/` 入 realm（同 chartbms）。
 5. **SkinManager 列表/选择。** `GetAllUsableSkins` 已从 realm 列非 protected 皮肤→folder 皮肤入 realm 后**自动出现在皮肤下拉、可选用、`CurrentSkinInfo` 切换**；`Delete`/`Rename` 须对 folder 皮肤正确处理（删文件夹 vs 仅删 realm 记录·参 `BmsFolderImporter` managed/external 语义）。
 6. **热重载。** folder 直读后监视 `chartskin/<名>/skin.ini` 变化→重建 skin（F1 既定"热重载"本项才真落地）。
 7. **红线。** 不破坏核心对 `.osk` 导入 / `OmsSkin` 既有路径；不破坏本会话 `SkinImporter` 的 `BmsLegacySkin` 路由；离线优先；mania 段解析仍走核心 `LegacySkin`（folder `BmsLegacySkin` 继承之·共存）；folder 皮肤 `SkinInfo.Files` 留空（空 Files 经 `RealmBackedResourceStore` 安全回落 fallbackStore·已证）。
 
-落地顺序（刀）：① `BmsLegacySkin` folder ctor 转 public + 真实临时目录直读 skin.ini/纹理测试（ruleset-only·低风险）→ ② `SkinInfo.FilesystemStoragePath` 加字段 + `RealmAccess` schema bump（**核心 realm·加性·须跑现有 skin 读写测试 + Release gate**）→ ③ `SkinManager.GetSkin` folder 分支（D4 反射 folder ctor·守卫测试钉死字符串·非 folder 零变化）→ ④ `chartskin/` 文件夹导入器/扫描器（仿 `BmsFolderImporter`·managed/external + 启动扫描）→ ⑤ 列表/选择/删除/重命名 对 folder 皮肤收口 + UI 入口 → ⑥ 热重载。**与 [P1-H](../P1-H/) 存储拓扑协作**（external/managed 扫描机制可复用）。
+落地顺序（刀）：✅① `BmsLegacySkin` folder ctor 转 public + 真实临时目录直读 skin.ini/纹理测试（ruleset-only·低风险，**已落 2026-06-29**）→ ✅② `SkinInfo` 加 `FilesystemStoragePath`+`IsExternalFilesystemStorage` + `RealmAccess` schema 55→56（核心 realm·加性·**已落 2026-06-29**：Release gate 绿 + BMS 1002/1002 + 核心 Skins 57 通过·5 失败为预存 osu-beatmap 解码失败·`git stash` 干净树同样·零因果）→ ③ `SkinManager.GetSkin` folder 分支（D4 反射 folder ctor·守卫测试钉死字符串·非 folder 零变化）→ ④ `chartskin/` 文件夹导入器/扫描器（仿 `BmsFolderImporter`·managed/external + 启动扫描）→ ⑤ 列表/选择/删除/重命名 对 folder 皮肤收口 + UI 入口 → ⑥ 热重载。**与 [P1-H](../P1-H/) 存储拓扑协作**（external/managed 扫描机制可复用）。
 
 #### G2：文件型内置默认皮肤（可选）
 
