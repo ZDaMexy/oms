@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -15,6 +16,7 @@ using JetBrains.Annotations;
 using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
@@ -68,6 +70,10 @@ namespace osu.Game.Skinning
         // OMS G1: manages chartskin/ visible folder skins (managed + external + startup scan).
         public readonly SkinFolderImporter FolderImporter;
 
+        // OMS G1: watches chartskin/ for skin.ini changes and hot-reloads the current folder-backed skin.
+        private FileSystemWatcher folderSkinWatcher;
+        private Timer hotReloadDebounce;
+
         private readonly IResourceStore<byte[]> userFiles;
 
         private static readonly Live<SkinInfo> random_skin_info = new SkinInfo
@@ -114,6 +120,8 @@ namespace osu.Game.Skinning
             // after realm is ready so folder skins appear in the skin list automatically.
             FolderImporter = new SkinFolderImporter(storage, realm);
             Task.Run(() => FolderImporter.ScanManagedFolders());
+
+            setupFolderSkinWatcher(storage);
 
             DefaultOmsSkin = new OmsSkin(this);
             DefaultClassicSkin = new DefaultLegacySkin(this);
@@ -508,6 +516,53 @@ namespace osu.Game.Skinning
             }
 
             CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
+        }
+
+        // OMS G1: watches chartskin/ for skin.ini changes. When a folder-backed skin's skin.ini is modified or created,
+        // the current skin is reloaded — skin authors can edit skin.ini and see changes immediately without restarting.
+        private void setupFolderSkinWatcher(Storage storage)
+        {
+            string watchPath = storage.GetFullPath(SkinFolderImporter.SKINS_STORAGE_PATH);
+
+            if (!Directory.Exists(watchPath))
+                return;
+
+            folderSkinWatcher = new FileSystemWatcher(watchPath, @"skin.ini")
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.CreationTime,
+                EnableRaisingEvents = true,
+            };
+
+            folderSkinWatcher.Changed += onSkinIniChanged;
+            folderSkinWatcher.Created += onSkinIniChanged;
+        }
+
+        private void onSkinIniChanged(object sender, FileSystemEventArgs e)
+        {
+            // Debounce: skin editors may save multiple times in quick succession.
+            hotReloadDebounce?.Dispose();
+            hotReloadDebounce = new Timer(_ =>
+            {
+                scheduler.Add(() =>
+                {
+                    var currentInfo = CurrentSkinInfo.Value;
+                    string? currentPath = currentInfo?.PerformRead(s => s.FilesystemStoragePath);
+
+                    if (string.IsNullOrEmpty(currentPath))
+                        return;
+
+                    string changedDir = Path.GetDirectoryName(e.FullPath);
+                    string relativePath = Path.GetRelativePath(host.Storage.GetFullPath(string.Empty), changedDir).ToStandardisedPath();
+
+                    if (!string.Equals(relativePath, currentPath.ToStandardisedPath(), StringComparison.OrdinalIgnoreCase))
+                        return;
+
+                    // Re-scan to pick up any newly added assets, then rebuild the current skin.
+                    FolderImporter.ScanManagedFolders();
+                    CurrentSkin.Value = GetSkin(CurrentSkinInfo.Value.Value);
+                });
+            }, null, 1000, Timeout.Infinite);
         }
     }
 }
