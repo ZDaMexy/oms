@@ -31,6 +31,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public bool IsScratch { get; }
 
+        // F2: true when any hold note on this lane is in Holding state; drives the hold light display.
+        public readonly BindableBool AnyHolding = new BindableBool();
+
         public BmsLaneLayout.Lane LayoutLane { get; private set; }
 
         public BmsHitTarget HitTarget { get; }
@@ -100,6 +103,11 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.Both,
                     CentreComponent = false,
                 },
+                new SkinnableDrawable(createLookup(BmsLaneSkinElements.HoldLight))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CentreComponent = false,
+                },
                 hitObjectArea = createHitObjectArea(),
             };
 
@@ -158,6 +166,31 @@ namespace osu.Game.Rulesets.Bms.UI
 
             bmsHitObject.CheckHittable = hitPolicy.IsHittable;
             bmsHitObject.OnUserPressedSuccessfully = hitPolicy.HandleHit;
+
+            if (drawableHitObject is DrawableBmsHoldNote holdNote)
+                trackHoldState(holdNote);
+        }
+
+        private int activeHoldCount;
+
+        private void trackHoldState(DrawableBmsHoldNote holdNote)
+        {
+            holdNote.BodyState.BindValueChanged(e =>
+            {
+                if (e.NewValue == BmsLongNoteBodyState.Holding)
+                {
+                    if (activeHoldCount++ == 0)
+                        AnyHolding.Value = true;
+                }
+                else if (e.OldValue == BmsLongNoteBodyState.Holding)
+                {
+                    if (--activeHoldCount <= 0)
+                    {
+                        activeHoldCount = 0;
+                        AnyHolding.Value = false;
+                    }
+                }
+            });
         }
 
         public virtual bool OnPressed(KeyBindingPressEvent<BmsAction> e)

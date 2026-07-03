@@ -85,5 +85,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         HitLightingImage,
         KeyFlashColour,
         HitLightingColour,
+        HoldLightImage,
+        HoldLightColour,
     }
 }
