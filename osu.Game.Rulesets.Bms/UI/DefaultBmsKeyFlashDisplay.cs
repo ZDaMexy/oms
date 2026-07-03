@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
+using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -28,8 +29,11 @@ namespace osu.Game.Rulesets.Bms.UI
             this.isScratch = isScratch;
             this.keymode = keymode;
 
-            RelativeSizeAxes = Axes.Both;
-            Blending = BlendingParameters.Additive;
+            // Occupies the bottom half of the lane, centred horizontally.
+            RelativeSizeAxes = Axes.X;
+            Height = 0.5f;
+            Anchor = Anchor.BottomCentre;
+            Origin = Anchor.BottomCentre;
             Alpha = 0;
         }
 
@@ -41,25 +45,36 @@ namespace osu.Game.Rulesets.Bms.UI
             string? texturePath = skinSource.GetBmsSkinConfig<string>(
                 BmsSkinConfigurationLookups.KeyFlashImage, keymode, laneIndex, isScratch)?.Value;
 
-            Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
-                BmsSkinConfigurationLookups.KeyFlashColour, keymode)?.Value
-                ?? defaultColour;
-
             if (!string.IsNullOrEmpty(texturePath))
             {
+                // File-skin path: a full-lane sprite (the texture itself provides edge fade / shape).
                 InternalChild = new Sprite
                 {
                     RelativeSizeAxes = Axes.Both,
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
                     FillMode = FillMode.Stretch,
                     Texture = skinSource.GetTexture(texturePath),
                 };
             }
             else
             {
-                InternalChild = new Box
+                // Programmatic default: layered vertical strips at each lane edge, stepping from
+                // wide-dim → narrow-bright, giving a rough glow-fade from edge to centre.
+                Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
+                    BmsSkinConfigurationLookups.KeyFlashColour, keymode)?.Value
+                    ?? defaultColour;
+
+                InternalChildren = new Drawable[]
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = colour.Opacity(0.4f),
+                    // Left edge — three stacked strips, inner to outer
+                    new Box { RelativeSizeAxes = Axes.Y, Width = 4, Anchor = Anchor.CentreLeft, Origin = Anchor.CentreLeft, Colour = colour.Opacity(0.6f) },
+                    new Box { RelativeSizeAxes = Axes.Y, Width = 10, Anchor = Anchor.CentreLeft, Origin = Anchor.CentreLeft, Colour = colour.Opacity(0.2f) },
+                    new Box { RelativeSizeAxes = Axes.Y, Width = 20, Anchor = Anchor.CentreLeft, Origin = Anchor.CentreLeft, Colour = colour.Opacity(0.06f) },
+                    // Right edge
+                    new Box { RelativeSizeAxes = Axes.Y, Width = 4, Anchor = Anchor.CentreRight, Origin = Anchor.CentreRight, Colour = colour.Opacity(0.6f) },
+                    new Box { RelativeSizeAxes = Axes.Y, Width = 10, Anchor = Anchor.CentreRight, Origin = Anchor.CentreRight, Colour = colour.Opacity(0.2f) },
+                    new Box { RelativeSizeAxes = Axes.Y, Width = 20, Anchor = Anchor.CentreRight, Origin = Anchor.CentreRight, Colour = colour.Opacity(0.06f) },
                 };
             }
         }
@@ -68,7 +83,6 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.LoadComplete();
 
-            // Parent chain: DefaultBmsKeyFlashDisplay → SkinnableDrawable → BmsLane
             var lane = Parent?.Parent as BmsLane;
 
             if (lane?.HitTarget == null)
