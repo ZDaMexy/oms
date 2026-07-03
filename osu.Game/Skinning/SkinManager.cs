@@ -65,6 +65,9 @@ namespace osu.Game.Skinning
 
         private readonly LegacySkinExporter skinExporter;
 
+        // OMS G1: manages chartskin/ visible folder skins (managed + external + startup scan).
+        public readonly SkinFolderImporter FolderImporter;
+
         private readonly IResourceStore<byte[]> userFiles;
 
         private static readonly Live<SkinInfo> random_skin_info = new SkinInfo
@@ -106,6 +109,11 @@ namespace osu.Game.Skinning
             {
                 PostNotification = obj => PostNotification?.Invoke(obj),
             };
+
+            // OMS G1: folder-backed skin importer (chartskin/<name>/). Startup scan runs async
+            // after realm is ready so folder skins appear in the skin list automatically.
+            FolderImporter = new SkinFolderImporter(storage, realm);
+            Task.Run(() => FolderImporter.ScanManagedFolders());
 
             DefaultOmsSkin = new OmsSkin(this);
             DefaultClassicSkin = new DefaultLegacySkin(this);

@@ -13,6 +13,14 @@
 
 ---
 
+## 2026-07-04
+
+### BMS 皮肤 `G1` 刀③+④：`SkinManager.GetSkin` folder 分支 + `SkinFolderImporter`（chartskin/ 导入器 + 启动扫描）（P1-A）
+
+**G1 皮肤可视文件夹存储**续刀③④——打造完整的 folder-backed 皮肤管理链路。**刀③** `SkinManager.GetSkin` 加 folder 分支：运行时 `FilesystemStoragePath` 非空的皮肤反射调三参 ctor 注入 folder store，绕过 realm hash store 直读（守卫测试 + 非 folder 零变化）。**刀④** `SkinFolderImporter`（仿 `BmsFolderImporter`）：managed 导入（复制到 `chartskin/<name>/` + realm 索引）、external 注册（绝对路径·不复制）、启动扫描（`chartskin/` 自动发现新皮肤）。`SkinManager` 构造时 `Task.Run` 触发扫描，folder 皮肤在启动后自动出现在皮肤列表。`InstantiationInfo` 反射路由到 `BmsLegacySkin`（与 `SkinImporter` 同范式·BMS 不在场零影响）。**验证**：BMS 全套 **1003/1003** + 核心 Skins 88/97（9 失败为预存 osu-beatmap 解码失败·零因果）+ `osu.Desktop.slnf` Release gate 绿。G1 下一刀＝⑤ 列表/删除/重命名 UI。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-07-04。
+
+---
+
 ## 2026-06-29
 
 ### BMS 皮肤：`F1` 主面完成（颜色/纹理/几何三轴皮肤化 + reference 验收）+ `G1` 可视文件夹存储启动（realm schema 56）（P1-A）

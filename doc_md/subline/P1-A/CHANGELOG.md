@@ -4,6 +4,19 @@
 
 ## 2026-07-04
 
+### `G1` 刀④（SkinFolderImporter·managed/external 导入 + chartskin/ 启动扫描 + SkinManager 接入）
+
+创建 `SkinFolderImporter` 并接入 `SkinManager`，使 folder-backed 皮肤可经 `chartskin/` 可视文件夹导入、注册并由启动扫描自动发现。
+
+- **`SkinFolderImporter`**（`osu.Game/Skinning/SkinFolderImporter.cs`）：仿 `BmsFolderImporter` 模式，`SKINS_STORAGE_PATH = "chartskin"`，`skinsStorage = storage.GetStorageForDirectory(SKINS_STORAGE_PATH)`。
+- **Managed 导入** `ImportManaged(sourcePath)`：验证源目录含 `skin.ini` → 分配唯一名称 → 复制到 `chartskin/<name>/` → 写 realm（`SkinInfo.Name/FilesystemStoragePath/InstantiationInfo[=BmsLegacySkin 反射]/IsExternalFilesystemStorage=false`）。
+- **External 注册** `ImportExternal(sourcePath)`：验证源目录含 `skin.ini` → 正规化绝对路径 → 防重复 → 写 realm（`IsExternalFilesystemStorage=true`）。
+- **启动扫描** `ScanManagedFolders()`：遍历 `chartskin/` 子目录，对有 `skin.ini` 且 realm 中不存在的皮肤自动创建 `SkinInfo` 入 realm。
+- **`SkinManager` 接入**：构造时创建 `FolderImporter` 并 `Task.Run(ScanManagedFolders)` 异步扫描——folder 皮肤在应用启动后自动出现在皮肤下拉列表。
+- **InstantiationInfo 反射**：`Type.GetType("osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin, osu.Game.Rulesets.Bms")?.GetInvariantInstantiationInfo()`——与 `SkinImporter` 路由同范式，BMS 不在场时 null → `InstantiationInfo` 留空 → `LegacySkin` 兜底，非 OMS 环境零影响。
+- **验证**：`osu.Desktop.slnf` Release **0 错误**；BMS 全套 **1003/1003**；核心 Skins 88/97（9 失败为预存 osu-beatmap 归档解码失败·与刀④零因果）。
+- **下一刀 = ⑤ 列表/选择/删除/重命名**：folder 皮肤在 skin 列表中的 UI 入口、删除（删文件夹 vs 仅 realm 记录）、重命名。
+
 ### `G1` 刀③（SkinManager.GetSkin folder 分支·D4 反射 folder ctor·守卫测试·非 folder 零变化）
 
 把 folder-backed 皮肤的运行时实例化接进 `SkinManager.GetSkin`——玩家选皮肤时，`SkinInfo.FilesystemStoragePath` 非空的皮肤走 folder 分支，反射调皮肤类型的三参 ctor `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)` 注入 `StorageBackedResourceStore(chartskin/<path>)`，绕过 realm hash-backed `files/` store 直读可视文件夹。
