@@ -352,3 +352,6 @@ inspectcode
 FodyWeavers.xsd
 
 .idea/.idea.osu.Desktop/.idea/misc.xml
+
+# OMS AI assistant local-only config (memory files themselves ARE tracked)
+.claude/settings.local.json

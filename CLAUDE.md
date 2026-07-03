@@ -79,6 +79,23 @@ dotnet run --project osu.Desktop
 dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore
 ```
 
+## 记忆体系（.claude/memory）
+
+跨会话实战记忆库（claude code 时期起积累），与 `doc_md/` 互补：doc_md 是权威治理源，memory 是踩坑/地雷/验收基线/工作流偏好的快速召回库。
+
+- **索引**：[.claude/memory/MEMORY.md](.claude/memory/MEMORY.md) — 先读索引按需定位单文件，**勿整目录加载**。
+- **覆盖**：项目总览、文档治理盲点、BMS 皮肤创作（P1-A）、选歌展示（P1-I）、音乐播放器（P1-M）、BMS 解析/键音/BGA/判定/转谱/选歌性能等 reference、构建测试、网络限制。
+- **纪律**：memory 是召回辅助，**不替代 doc_md**；冲突以 doc_md 为准并回写两边。带日期的"已修/已落"结论使用前用代码/测试复核。
+- **同步义务**：新踩坑/地雷/验收基线须同次补进 memory 并更新 MEMORY.md 索引。
+
+## 协作工作流约定
+
+- **语言**：中文回应。
+- **任务弧**：审查 → 修复并验证（构建+focused 测试）→ 同步 doc_md **与 memory** → 提交。doc+memory 同步属"done"一部分。
+- **提交授权（显式，覆盖 opencode 默认「未经要求不 commit」）**：任务完成后可直接 `git commit` 当前分支；**`git push` 前须确认**。不开 PR、不新建分支。
+- **尊重设计契约**：对有测试/契约依赖的"看似问题"不盲改，先说明取舍。
+- **其余偏好/地雷**（真机日志权威、Realm link 谓词地雷、同步模式等）见 [.claude/memory/MEMORY.md](.claude/memory/MEMORY.md) 的 `feedback_workflow` 与各 reference。
+
 ## 红线约束（详见 OMS_COPILOT.md）
 
 - 不重新引入 Osu / Taiko / Catch。
