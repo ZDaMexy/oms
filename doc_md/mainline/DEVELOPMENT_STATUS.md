@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-06-29（**P1-A 皮肤创作生态 `F0` 立项**：BMS 素材 + `skin.ini` 皮肤创作/编辑生态正式立项，`F0` 组件契约 + ini schema 草案 + 必备/推荐/可选三档冻结已作为纯文档落地，权威源进 P1-A 四件套、`SKINNING.md` 降为派生视图；**`F1` 皮肤主面已成（2026-06-29）**：ini 解析三件套 + 配置源（`BmsLegacySkin`/`SkinImporter` 路由[改 core·fallback 保护]）+ **颜色 / 纹理 / 几何三轴全部皮肤化**（所有现存渲染件 + `BmsPlayfield.applySkinGeometry`）+ **reference 验收 capstone**（创作者模板 + `BmsReferenceSkinTest` 逐键 parity），BMS 全套 **1002/1002** + Release gate 绿；剩 stage 框架 / `KeyImage` 净新增件。**皮肤存储轨 `G1`（可视文件夹·revisit "复用 SkinManager hash" 决议）已启动·刀①（folder-backed 直读建块）落地**；详见 P1-A 四件套。见下「皮肤系统现状」末条。此前 2026-06-23 同日三件落地：**P1-K K12** 修复 `BMS→mania` 转谱星数被 BGM/scratch sample-only 对象灌高（难度入口 nested-aware 过滤 + `conversion_version` bump，pre-fix 反证 +113%）；**P1-J #12** 修复选歌试听音频泄漏进游玩开头（mute 方案 + 核心 `Ruleset.PlayBeatmapTrackDuringGameplay`，并收紧选歌试听为只 `#PREVIEW`、存量谱 backfill 回写）；**P1-L BGA Phase 5.2** 开局即播 + 会话级缓存 + ultrafast 转码 + 扫描线加载进度；BMS **961/961** + Release **0/0**、用户实机均已验收 / 暂未见异常。）当前真实状态见下「最新快照」，最新验证快照见「最近一次验证」，历史切片见 [CHANGELOG.md](CHANGELOG.md)——按本页规则「最近一次验证只保留最新一条；历史归 CHANGELOG」，抬头不再堆叠历史快照。
+> 最后更新：2026-07-04（**G1 皮肤可视文件夹存储链路贯通**：刀①②③④⑤⑥ 六刀全部落地——folder-backed 直读建块 + realm schema 56 + `SkinManager.GetSkin` folder 分支 + `SkinFolderImporter`（managed/external 导入 + 启动扫描）+ 删除/重命名 folder 感知 + UI（Scan/Open 按钮）+ 热重载（`FileSystemWatcher`）；**F2 引擎驱动件首刀落地**：keyflash（键光柱·双边分层渐变） + hit lighting（命中爆闪） + LN hold light（长条保持光） + mine hit（地雷爆炸）；BMS 全套 **1003/1003** + Release gate 绿；`F2` 剩余 turntable（需布局裁决）/ ghost-TD 待续。详见 P1-A 四件套。此前 2026-06-29 `F1` 皮肤主面已成（ini 三轴皮肤化 + reference 验收）+ `G1` 立项·刀①②落地。）当前真实状态见下「最新快照」，最新验证快照见「最近一次验证」，历史切片见 [CHANGELOG.md](CHANGELOG.md)——按本页规则「最近一次验证只保留最新一条；历史归 CHANGELOG」，抬头不再堆叠历史快照。
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -61,7 +61,7 @@
 - **Native-default removal**：`SetSkinFromConfiguration()` 已把 Argon / Triangles / DefaultLegacy / Retro 统一回退 OMS；`SkinManager` 只注册 `DefaultOmsSkin` 为受保护 built-in，启动时清理历史上游条目；legacy beatmap fallback 已切到 `DefaultOmsSkin`；`SkinManager.AllSources` 已去重
 - **Partial override**：BMS 用户皮肤缺失 BMS 组件时返回 null 让后续 source 承接；mania legacy 用户皮肤缺失 note / hold / judgement / explosion / combo / bar-line 时回退 OMS 组件；mixed-layer 三类语义（mania-only / BMS-only / 双层皮肤）已有 runtime 证明
 - **候选包语义**：`SimpleTou-Lazer` 仅为 mania 侧内置皮肤候选基线，不可对外称为"已完成默认皮肤"
-- **BMS 素材 + ini 皮肤创作生态（P1-A `F`/`G` 系列，2026-06-27 立项；`F1` 主面 2026-06-29 已成）**：把当前纯代码型 BMS 皮肤（唯一入口是写 C# `ISkin.GetDrawableComponent()`、默认皮肤 100% 程序化零素材）升级成像 mania 那样「放文件夹 + `skin.ini` 即换皮」的产品。`F0`（组件契约 + ini schema 草案 + 必备 / 推荐 / 可选三档冻结，按 osu!mania/beatoraja/LR2 真实生态校准）已作为纯文档落地；权威源在 [../subline/P1-A/TECHNICAL_CONSTRAINTS.md](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)「皮肤创作生态」节 + [../subline/P1-A/DEVELOPMENT_PLAN.md](../subline/P1-A/DEVELOPMENT_PLAN.md) `F` 系列，制作者视图见 [../other/SKINNING.md](../other/SKINNING.md)。锁定决议：游玩界面 only / 自有 `[Mania]`-对齐 + `[Bms]` 扩展段 / 程序化兜底 + 参考素材皮肤·不烤 PNG / fail-open + 诊断 / 新 `BmsAssetSkin` 包在 `BmsSkinTransformer` 下零改 lookup。`F1`（实现）**2026-06-27 已动工并打通核心链路**：① ini 解析三件套（`BmsSkinDecoder`/`BmsSkinConfiguration`/`BmsSkinConfigurationLookup`，独立解析器不侵入核心 `LegacySkin`）；② 配置源——`BmsLegacySkin` 经 `ParseConfigurationStream` hook 解析 `[Bms]` 段 + `GetConfig` 应答，`SkinImporter` 路由导入皮肤实例化为 `BmsLegacySkin`（最小 core 改动 + `SkinnableSprite` 连带适配 + fallback 保护：BMS 不在场的非 OMS 环境零变化）；③ 渲染读 config——**颜色 / 纹理 / 几何三轴全部皮肤化**（所有现存渲染件：note 家族 / lane bg / divider / hit target / bar line / lane cover / backdrop / baseplate 均 ini 可配·贴图优先 Sprite / 颜色回退 Box·抽共享 `BmsSkinnableVisual`；`BmsPlayfield.applySkinGeometry` 读 11 几何键·`HitTargetVerticalOffset` 锁 0 守时序）+ **reference 验收 capstone**（创作者模板 [oms-bms-reference-skin/skin.ini](../other/oms-bms-reference-skin/skin.ini) + 自校验门 `BmsReferenceSkinTest` 逐键断言 == 真实默认）均落，BMS 全套 **1002/1002** + Release gate 绿；据代码更正 `SKINNING.md`。**剩 stage 框架 / `KeyImage` 净新增件**。**皮肤存储轨 `G1`（2026-06-29 立项·让皮肤像 chartbms 一样可视文件夹直读·revisit "复用 SkinManager hash 存储" 决议）已启动·刀①（folder-backed 直读建块）+ 刀②（realm 载体·schema 56）+ 刀③（`SkinManager.GetSkin` folder 分支·2026-07-04）+ 刀④（`SkinFolderImporter`·managed/external 导入 + 启动扫描·`SkinManager` 接入·2026-07-04）落地**，BMS **1003/1003** + core Skins 88/97（9 失败预存·零因果）；`F2`（②类引擎驱动件）/ `F3`（③类 `[Bms]` 扩展段）/ `G2`（文件型默认）待续
+- **BMS 素材 + ini 皮肤创作生态（P1-A `F`/`G` 系列）**：`F0`（契约冻结·纯文档）+ `F1`（ini 三轴皮肤化 + reference 验收·BMS 1002/1002）已成。**`G1` 皮肤可视文件夹存储 2026-07-04 链路贯通**：刀①②③④⑤⑥ 全部落地——folder 直读建块 + realm schema 56 + `SkinManager.GetSkin` folder 分支 + `SkinFolderImporter`（managed/external 导入 [皮肤放 `chartskin/<name>/` 即自动发现] + 启动扫描）+ 删除/重命名 folder 感知 + UI（Scan/Open 按钮）+ 热重载（`FileSystemWatcher` 监视 skin.ini·1s debounce·自动重建）。**`F2` 引擎驱动件 2026-07-04 首刀落地**：keyflash（键光柱·双边分层渐变·绑定 `IsPressed`） + hit lighting（命中爆闪·绑定 `ApplyResult`） + LN hold light（长条保持光·绑定 `BodyState.Holding` 计数） + mine hit（地雷爆炸·绑定 `CheckForResult`）；BMS **1003/1003**。`F2` 剩余 turntable（需布局裁决）/ ghost-TD 待续；`F3`/`G2`/F1 stage·KeyImage 后置。
 
 ### 1.17 输入切片现状
 
@@ -76,8 +76,8 @@
 | Phase 1 完成率 | 70.6% (12/17) | 仅按标记"已完成"项计算 |
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
 | Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
-| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -p:Configuration=Release` 0 错误（生产代码 0 警告）（2026-06-23） |
-| BMS 全量测试 | **1003/1003** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-07-04 P1-A `G1` 刀③后重跑：+1 守卫测试 `TestFolderCtorReflectableForSkinManagerGetSkinPath`；含 BGA Phase 5/5.1/5.2 + 判定 parity 29 项。注：1 项 BGA 缓存 temp 清理测试间歇 flaky·`git stash` 干净树同样失败·与皮肤工作零因果·归 P1-L 跟踪） |
+| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -p:Configuration=Release` 0 错误（生产代码 0 警告）（2026-07-04） |
+| BMS 全量测试 | **1003/1003** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-07-04：G1 刀③④⑤⑥ + F2 keyflash/hitlighting/holdlight/minehit 落地后重跑；含 BGA Phase 5/5.1/5.2 + 判定 parity 29 项 + 守卫测试 + F2 4 件。注：1 项 BGA 缓存 temp 清理测试间歇 flaky·`git stash` 干净树同样失败·与皮肤工作零因果·归 P1-L 跟踪） |
 | Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
 | BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
 | Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`（2026-04-25） |
@@ -90,13 +90,20 @@
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-06-23（同日三件落地：P1-K K12 转谱星数修复 + P1-J #12 选歌试听泄漏修复 + P1-L BGA Phase 5.2，BMS 961/961、Release 0/0，用户实机均已验收 / 暂未见异常）
+### 2026-07-04（G1 皮肤可视文件夹存储全链路贯通 + F2 引擎驱动件首刀落地，BMS 1003/1003 + Release gate 绿）
 
-- **P1-K K12（转谱星数修正）**：确诊并修复 `BMS→mania` 转谱星数被 BGM/scratch sample-only 对象灌高——这些对象虽不进 `TotalObjectCount` 计数，但仍留在 `HitObjects` 被 `ManiaDifficultyCalculator` 零过滤计入 Strain/MaxCombo；修复＝`isDifficultyRelevant` 难度入口 nested-aware 过滤（对原生 mania 可证 no-op、不 bump mania `Version`）+ bump `conversion_version` `20260623`（仅失效重算 BMS 库，升级后首启一次性「Reprocessing converted star rating」进度通知）。pre-fix 反证 scratch-dense 谱星 +113%。**仅影响星数显示/排序/分组，游玩计分不变。**
-- **P1-J #12（选歌试听泄漏 + 策略收紧 + 存量回写）**：BMS 游玩音频全由键音驱动，但 `BmsFolderImporter` 把 `Metadata.AudioFile` 设成选歌试听源、被 MGCC 从 0 驱动播放 → 开局叠在键音上（bms 原生/转谱-mania、autoplay/正常游玩四种组合全中招）。修复＝mute 方案（核心 `Ruleset.PlayBeatmapTrackDuringGameplay`，`BmsRuleset` override false；MGCC 仍以 `working.Track` 作时钟源、时序不变，仅 opt-out 时加 `Volume=0`；**虚拟轨/换源方案已显式禁止回退**）。同日收紧选歌试听为只 `#PREVIEW`、从头播、删 `detectFullMusicFile`；存量谱经 `BmsPreviewAudioBackfill`（一次性标记 + 进度通知）回写。
-- **P1-L BGA Phase 5.2（转码加载体验与缓存治理）**：开局即播（`BmsBgaVideoPreloader` 阻塞预热推迟 player push 到首帧就绪）、会话级一次性清缓存、libx264 `-preset ultrafast` 提速、仅 BMS 的扫描线加载进度揭示（`ScanlineLoadingLayer` + `GameplayLoadProgress` 跨 DI 桥）。
-- **测试 / 构建**：`osu.Game.Rulesets.Bms.Tests` 全量 **961/961**、`osu.Desktop.slnf` Release **0 错误 0 警告**；BGA 逐谱人工视觉验收仍交接人工。
-- **更早快照**（均已归档 [CHANGELOG.md](CHANGELOG.md)）：2026-06-22 P1-I 选曲展示/筛选五连（难度表归类 / 「显示转谱」三态 / mania 难度表分组 / IIDX 难度等级胶囊 / 右键打开文件位置）+ P1-K LNOBJ 连续尾解码修复 + BGA 老式 `.mpg` 转码并发写坏缓存确诊修复；2026-06-15 P1-L BGA Phase 5/5.1（BMS 游玩 BGA 背景图·动画·视频链路落地）；2026-06-14 判定 parity 第 1–2 刀（`BmsJudgementSystemParityTest` 29/29 + 修复 beatoraja BAD 早/晚方向写反）。本状态页只保留最新一条快照。
+- **G1 皮肤可视文件夹存储**：刀③④⑤⑥ 全部落地，`chartskin/` 皮肤文件夹像 `chartbms/` 一样可视可管——玩家放皮文件夹到 `chartskin/<name>/` → 应用启动自动发现 → 编辑 `skin.ini` 游戏内 1s 热重载 → 可删除/重命名/浏览。
+  - 刀③ `SkinManager.GetSkin` folder 分支（D4 反射三参 ctor·守卫测试·非 folder 零变化）
+  - 刀④ `SkinFolderImporter`（managed/external 导入 + `chartskin/` 启动扫描 + `SkinManager` 接入）
+  - 刀⑤ 删除/重命名 folder 感知（`DeleteManaged`/`RenameManaged`）+ UI 入口（`SkinSection` Scan/Open 按钮）
+  - 刀⑥ 热重载（`FileSystemWatcher` 监视 `chartskin/`·`skin.ini` 变化·debounce 1s·自动重建当前皮肤）
+- **F2 引擎驱动件**：4 件落地，全部 lane 级集成 + ini 可配。
+  - keyflash（键光柱）：双边分层渐变竖条·底部半高·绑定 `BmsHitTarget.IsPressed`
+  - hit lighting（命中爆闪）：绑定 `DrawableBmsHitObject.ApplyResult`
+  - LN hold light（长条保持光）：绑定 `DrawableBmsHoldNote.BodyState.Holding` 计数
+  - mine hit（地雷爆炸）：绑定 `DrawableBmsMine.CheckForResult`
+- **测试 / 构建**：`osu.Game.Rulesets.Bms.Tests` 全量 **1003/1003**、`osu.Desktop.slnf` Release **0 错误 0 警告**；核心 `osu.Game.Tests.Skins` 88/97（9 失败为 OMS 删除 Osu/Taicho/Catch 后的预存失败·零因果）。
+- **更早快照**（均已归档 [CHANGELOG.md](CHANGELOG.md)）：2026-06-29 P1-A F1 主面完成（三轴皮肤化） + G1 刀①②（直读建块 + realm schema 56）；2026-06-23 P1-K K12（转谱星数）+ P1-J #12（试听泄漏）+ P1-L BGA Phase 5.2。
 
 ## 联网约束
 

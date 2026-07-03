@@ -7,17 +7,21 @@
 
 ## 2026-07-04
 
-### BMS 皮肤 `G1` 刀③：`SkinManager.GetSkin` folder 分支落地（P1-A）
+### 皮肤系统大推进：G1 可视文件夹存储全链路贯通 + F2 引擎驱动件首刀落地（P1-A）
 
-**G1 皮肤可视文件夹存储**续刀③——运行时玩家选皮肤时，`SkinInfo.FilesystemStoragePath` 非空的 folder-backed 皮肤走新分支：反射调皮肤类型三参 ctor `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)` 注入 `StorageBackedResourceStore(chartskin/<path>)`，绕过 realm hash-backed `files/` store 直读可视文件夹。反射范式与 `SkinImporter` 路由一致（核心不编译依赖 ruleset·BMS 不在场回退两参路径·非 OMS 环境零影响）。守卫测试 `TestFolderCtorReflectableForSkinManagerGetSkinPath` 钉死三参 ctor 签名。非 folder 皮肤零变化。**验证**：BMS 全套 **1003/1003**（+1 守卫测试）+ `osu.Desktop.slnf` Release gate 绿。G1 下一刀＝④ `chartskin/` 文件夹导入器/扫描器。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-07-04。
+**G1 皮肤可视文件夹存储（刀③④⑤⑥）**：把 BMS 皮肤从「纯 realm hash store 不可见」升级到「`chartskin/<name>/` 可视文件夹即放即用」。
+- 刀③ `SkinManager.GetSkin` folder 分支（D4 反射三参 ctor·守卫测试·非 folder 零变化）
+- 刀④ `SkinFolderImporter`（仿 `BmsFolderImporter`·managed/external 导入·`chartskin/` 启动扫描·`SkinManager` 接入）
+- 刀⑤ 删除/重命名 folder 感知（`DeleteManaged`/`RenameManaged`）+ UI 入口（`SkinSection` Scan/Open 按钮）
+- 刀⑥ 热重载（`FileSystemWatcher` 监视 `chartskin/`·skin.ini 变化·1s debounce·自动重建当前皮肤）
 
----
+**F2 引擎驱动件（4 件）**：从"全仓零渲染"到 lane 级集成 + ini 可配。
+- keyflash（键光柱）：双边分层渐变竖条·底部半高·绑定 `IsPressed`
+- hit lighting（命中爆闪）：绑定 `ApplyResult`
+- LN hold light（长条保持光）：绑定 `BodyState.Holding` 计数
+- mine hit（地雷爆炸）：绑定 `CheckForResult`
 
-## 2026-07-04
-
-### BMS 皮肤 `G1` 刀③+④：`SkinManager.GetSkin` folder 分支 + `SkinFolderImporter`（chartskin/ 导入器 + 启动扫描）（P1-A）
-
-**G1 皮肤可视文件夹存储**续刀③④——打造完整的 folder-backed 皮肤管理链路。**刀③** `SkinManager.GetSkin` 加 folder 分支：运行时 `FilesystemStoragePath` 非空的皮肤反射调三参 ctor 注入 folder store，绕过 realm hash store 直读（守卫测试 + 非 folder 零变化）。**刀④** `SkinFolderImporter`（仿 `BmsFolderImporter`）：managed 导入（复制到 `chartskin/<name>/` + realm 索引）、external 注册（绝对路径·不复制）、启动扫描（`chartskin/` 自动发现新皮肤）。`SkinManager` 构造时 `Task.Run` 触发扫描，folder 皮肤在启动后自动出现在皮肤列表。`InstantiationInfo` 反射路由到 `BmsLegacySkin`（与 `SkinImporter` 同范式·BMS 不在场零影响）。**验证**：BMS 全套 **1003/1003** + 核心 Skins 88/97（9 失败为预存 osu-beatmap 解码失败·零因果）+ `osu.Desktop.slnf` Release gate 绿。G1 下一刀＝⑤ 列表/删除/重命名 UI。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-07-04。
+**验证**：BMS 全套 **1003/1003** + 核心 Skins 88/97（9 失败预存·零因果）+ `osu.Desktop.slnf` Release gate 绿。F2 剩余 turntable（需布局裁决）/ ghost-TD 待续。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-07-04。
 
 ---
 
