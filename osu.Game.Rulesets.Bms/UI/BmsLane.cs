@@ -108,6 +108,11 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.Both,
                     CentreComponent = false,
                 },
+                new SkinnableDrawable(createLookup(BmsLaneSkinElements.MineHit))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CentreComponent = false,
+                },
                 hitObjectArea = createHitObjectArea(),
             };
 
@@ -152,6 +157,18 @@ namespace osu.Game.Rulesets.Bms.UI
                 if (child is SkinnableDrawable sd && sd.Drawable is DefaultBmsHitLightingDisplay hl)
                 {
                     hl.Flash();
+                    return;
+                }
+            }
+        }
+
+        public void TriggerMineHit()
+        {
+            foreach (var child in InternalChildren)
+            {
+                if (child is SkinnableDrawable sd && sd.Drawable is DefaultBmsMineHitDisplay mh)
+                {
+                    mh.Flash();
                     return;
                 }
             }

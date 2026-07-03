@@ -148,6 +148,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsSkinConfigurationLookups.HoldLightImage:
                     return hasLane ? $"HoldLightImage{laneToken}" : null;
 
+                case BmsSkinConfigurationLookups.MineHitImage:
+                    return hasLane ? $"MineHitImage{laneToken}" : null;
+
                 case BmsSkinConfigurationLookups.HitTargetImage:
                 case BmsSkinConfigurationLookups.StageLeftImage:
                 case BmsSkinConfigurationLookups.StageRightImage:

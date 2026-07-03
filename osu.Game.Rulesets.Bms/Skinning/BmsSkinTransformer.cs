@@ -168,6 +168,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 BmsLaneSkinElements.KeyFlash => new DefaultBmsKeyFlashDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsLaneSkinElements.HitLighting => new DefaultBmsHitLightingDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsLaneSkinElements.HoldLight => new DefaultBmsHoldLightDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsLaneSkinElements.MineHit => new DefaultBmsMineHitDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 _ => new Box
                 {
                     RelativeSizeAxes = Axes.Both,

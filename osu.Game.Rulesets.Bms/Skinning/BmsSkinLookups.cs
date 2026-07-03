@@ -42,6 +42,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         KeyFlash,
         HitLighting,
         HoldLight,
+        MineHit,
     }
 
     public sealed class BmsLaneSkinLookup : ISkinComponentLookup
