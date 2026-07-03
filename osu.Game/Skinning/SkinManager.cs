@@ -471,6 +471,13 @@ namespace osu.Game.Skinning
                 if (items.Any(s => s.ID == currentUserSkin))
                     scheduler.Add(() => CurrentSkinInfo.Value = DefaultOmsSkin.SkinInfo);
 
+                // OMS G1: for managed folder-backed skins, delete the folder from disk before realm removal.
+                foreach (var item in items.ToList())
+                {
+                    if (!string.IsNullOrEmpty(item.FilesystemStoragePath) && !item.IsExternalFilesystemStorage)
+                        FolderImporter.DeleteManaged(item.FilesystemStoragePath);
+                }
+
                 Delete(items.ToList(), silent);
             });
         }
@@ -479,6 +486,10 @@ namespace osu.Game.Skinning
         {
             skin.PerformWrite(s =>
             {
+                // OMS G1: for managed folder-backed skins, rename the folder on disk and update the path.
+                if (!string.IsNullOrEmpty(s.FilesystemStoragePath) && !s.IsExternalFilesystemStorage)
+                    s.FilesystemStoragePath = FolderImporter.RenameManaged(s.FilesystemStoragePath, newName);
+
                 s.Name = newName;
                 skinImporter.UpdateSkinIniMetadata(s, s.Realm!);
             });

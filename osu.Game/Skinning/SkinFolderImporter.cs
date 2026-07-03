@@ -163,6 +163,40 @@ namespace osu.Game.Skinning
         private static string normaliseExternalPath(string path)
             => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
+        /// <summary>
+        /// Delete a managed folder skin: remove the folder from disk and mark the realm entry as pending deletion.
+        /// </summary>
+        public void DeleteManaged(string relativePath)
+        {
+            string fullPath = storage.GetFullPath(relativePath);
+
+            if (Directory.Exists(fullPath))
+                Directory.Delete(fullPath, recursive: true);
+        }
+
+        /// <summary>
+        /// Rename a managed folder skin: move the folder on disk and return the new relative path.
+        /// </summary>
+        public string RenameManaged(string oldRelativePath, string newName)
+        {
+            string oldFullPath = storage.GetFullPath(oldRelativePath);
+            string parentDir = Path.GetDirectoryName(oldRelativePath) ?? string.Empty;
+            string newRelativePath = Path.Combine(parentDir, newName).ToStandardisedPath();
+            string newFullPath = storage.GetFullPath(newRelativePath);
+
+            if (!Directory.Exists(oldFullPath))
+                return oldRelativePath;
+
+            if (string.Equals(oldFullPath, newFullPath, StringComparison.OrdinalIgnoreCase))
+                return oldRelativePath;
+
+            if (Directory.Exists(newFullPath))
+                Directory.Delete(newFullPath, recursive: true);
+
+            Directory.Move(oldFullPath, newFullPath);
+            return newRelativePath;
+        }
+
         private static void copyDirectory(string sourceDir, string destDir)
         {
             Directory.CreateDirectory(destDir);

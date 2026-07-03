@@ -83,6 +83,19 @@ namespace osu.Game.Overlays.Settings.Sections
                         new DeleteSkinButton { Padding = new MarginPadding { Left = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
                     }
                 },
+                // OMS G1: scan chartskin/ for manually added folder skins.
+                new FillFlowContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Direction = FillDirection.Horizontal,
+                    Padding = SettingsPanel.CONTENT_PADDING,
+                    Children = new Drawable[]
+                    {
+                        new ScanFolderSkinsButton { RelativeSizeAxes = Axes.X, Width = 1 / 2f },
+                        new OpenSkinsFolderButton { RelativeSizeAxes = Axes.X, Width = 1 / 2f },
+                    }
+                },
                 new SettingsButtonV2
                 {
                     Text = SkinSettingsStrings.SkinLayoutEditor,
@@ -358,6 +371,38 @@ namespace osu.Game.Overlays.Settings.Sections
             {
                 skins.Rename(skins.CurrentSkinInfo.Value, textBox.Text);
                 PopOut();
+            }
+        }
+
+        // OMS G1: triggers a scan of chartskin/ to discover manually added folder-backed skins.
+        public partial class ScanFolderSkinsButton : SettingsButtonV2
+        {
+            [Resolved]
+            private SkinManager skins { get; set; }
+
+            [BackgroundDependencyLoader]
+            private void load()
+            {
+                Text = @"Scan for folder skins";
+                Action = () => System.Threading.Tasks.Task.Run(() => skins.FolderImporter.ScanManagedFolders());
+            }
+        }
+
+        // OMS G1: opens the chartskin/ folder in file explorer for manual skin management.
+        public partial class OpenSkinsFolderButton : SettingsButtonV2
+        {
+            [Resolved]
+            private SkinManager skins { get; set; }
+
+            [BackgroundDependencyLoader]
+            private void load()
+            {
+                Text = @"Open skins folder";
+                Action = () =>
+                {
+                    string path = System.IO.Path.GetFullPath(SkinFolderImporter.SKINS_STORAGE_PATH);
+                    System.Diagnostics.Process.Start(@"explorer.exe", path);
+                };
             }
         }
     }
