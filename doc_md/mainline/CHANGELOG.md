@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-04
+
+### BMS 皮肤 `G1` 刀③：`SkinManager.GetSkin` folder 分支落地（P1-A）
+
+**G1 皮肤可视文件夹存储**续刀③——运行时玩家选皮肤时，`SkinInfo.FilesystemStoragePath` 非空的 folder-backed 皮肤走新分支：反射调皮肤类型三参 ctor `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)` 注入 `StorageBackedResourceStore(chartskin/<path>)`，绕过 realm hash-backed `files/` store 直读可视文件夹。反射范式与 `SkinImporter` 路由一致（核心不编译依赖 ruleset·BMS 不在场回退两参路径·非 OMS 环境零影响）。守卫测试 `TestFolderCtorReflectableForSkinManagerGetSkinPath` 钉死三参 ctor 签名。非 folder 皮肤零变化。**验证**：BMS 全套 **1003/1003**（+1 守卫测试）+ `osu.Desktop.slnf` Release gate 绿。G1 下一刀＝④ `chartskin/` 文件夹导入器/扫描器。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-07-04。
+
+---
+
 ## 2026-06-29
 
 ### BMS 皮肤：`F1` 主面完成（颜色/纹理/几何三轴皮肤化 + reference 验收）+ `G1` 可视文件夹存储启动（realm schema 56）（P1-A）

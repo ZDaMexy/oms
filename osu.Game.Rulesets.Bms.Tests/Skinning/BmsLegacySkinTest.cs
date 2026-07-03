@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,6 +120,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, BmsKeymode.Key7K)?.Value, Is.EqualTo(0.42f));
                 Assert.That(skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.NoteColourWhite, BmsKeymode.Key7K)?.Value, Is.EqualTo(new Color4(1, 2, 3, 255)));
             });
+        }
+
+        [Test]
+        public void TestFolderCtorReflectableForSkinManagerGetSkinPath()
+        {
+            // G1 刀③: SkinManager.GetSkin reflects into the 3-param ctor
+            // (SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>) for folder-backed skins.
+            // Pin the signature so a rename/refactor won't silently break the folder-backed instantiation path.
+            var folderCtor = typeof(BmsLegacySkin).GetConstructor(
+                new[] { typeof(SkinInfo), typeof(IStorageResourceProvider), typeof(IResourceStore<byte[]>) });
+
+            Assert.That(folderCtor, Is.Not.Null);
         }
 
         private class TestBmsLegacySkin : BmsLegacySkin

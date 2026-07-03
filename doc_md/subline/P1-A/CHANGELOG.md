@@ -2,6 +2,19 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-04
+
+### `G1` 刀③（SkinManager.GetSkin folder 分支·D4 反射 folder ctor·守卫测试·非 folder 零变化）
+
+把 folder-backed 皮肤的运行时实例化接进 `SkinManager.GetSkin`——玩家选皮肤时，`SkinInfo.FilesystemStoragePath` 非空的皮肤走 folder 分支，反射调皮肤类型的三参 ctor `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)` 注入 `StorageBackedResourceStore(chartskin/<path>)`，绕过 realm hash-backed `files/` store 直读可视文件夹。
+
+- **`SkinManager.GetSkin` 加 folder 分支**：检查 `FilesystemStoragePath` 非空 → `createFolderBackedSkin` helper 反射找三参 ctor → 注入 folder store → 返回 skin 实例。非 folder 皮肤和类型缺三参 ctor 的皮肤走原 `skinInfo.CreateInstance(this)` 两参路径，**零变化**。
+- **反射范式**：与 `SkinImporter` 路由（F1 ②刀下半）一致——核心 `osu.Game` 不编译依赖 ruleset，`Type.GetType(InstantiationInfo)` 反射解析类型，`GetConstructor` 反射找 ctor。BMS 程序集不在场时 `Type.GetType` 返回 null → 回退两参路径，非 OMS 环境零影响。
+- **folder store 构造**：`new StorageBackedResourceStore(host.Storage.GetStorageForDirectory(skinInfo.FilesystemStoragePath))`——`FilesystemStoragePath` 存相对路径（如 `chartskin/<name>`，仿 `BmsFolderImporter` 的 `chartbms/<name>` 先例），`host.Storage` 是 game storage 根。
+- **守卫测试** `TestFolderCtorReflectableForSkinManagerGetSkinPath`：钉死 `BmsLegacySkin` 三参 ctor 签名 `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)`，防 rename/refactor 静默打破 folder 实例化路径。
+- **验证**：`osu.Desktop.slnf` Release **0 错误**；BMS 全套 **1003/1003**（+1 守卫测试）。
+- **下一刀 = ④ `chartskin/` 文件夹导入器/扫描器**：仿 `BmsFolderImporter`，managed（folder 落 `chartskin/` 下·realm 存相对路径·不复制到 hash）/ external（注册外部目录·不复制）；启动扫描 `chartskin/` 入 realm。
+
 ## 2026-06-29
 
 ### `F1` ③刀（续）：纹理铺开 — lane 背景 / 分隔贴图 + composite 化 + 抽共享 `BmsSkinnableVisual`

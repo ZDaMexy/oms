@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -250,7 +251,40 @@ namespace osu.Game.Skinning
         /// </summary>
         /// <param name="skinInfo">The skin to lookup.</param>
         /// <returns>A <see cref="Skin"/> instance correlating to the provided <see cref="SkinInfo"/>.</returns>
-        public Skin GetSkin(SkinInfo skinInfo) => skinInfo.CreateInstance(this);
+        public Skin GetSkin(SkinInfo skinInfo)
+        {
+            // OMS G1 刀③: folder-backed skins (chartskin/<name>/) inject a folder store via the skin type's
+            // 3-param ctor (SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>), bypassing the realm
+            // hash-backed file store. Resolved by reflection (same pattern as SkinImporter routing); skins whose
+            // type lacks the 3-param ctor, and non-folder skins, fall through to the default 2-param path unchanged.
+            if (!string.IsNullOrEmpty(skinInfo.FilesystemStoragePath))
+            {
+                Skin folderSkin = createFolderBackedSkin(skinInfo);
+
+                if (folderSkin != null)
+                    return folderSkin;
+            }
+
+            return skinInfo.CreateInstance(this);
+        }
+
+        private Skin createFolderBackedSkin(SkinInfo skinInfo)
+        {
+            Type type = string.IsNullOrEmpty(skinInfo.InstantiationInfo)
+                ? typeof(LegacySkin)
+                : Type.GetType(skinInfo.InstantiationInfo);
+
+            if (type == null)
+                return null;
+
+            var folderCtor = type.GetConstructor(new[] { typeof(SkinInfo), typeof(IStorageResourceProvider), typeof(IResourceStore<byte[]>) });
+
+            if (folderCtor == null)
+                return null;
+
+            var folderStore = new StorageBackedResourceStore(host.Storage.GetStorageForDirectory(skinInfo.FilesystemStoragePath));
+            return (Skin)folderCtor.Invoke(new object[] { skinInfo, this, folderStore });
+        }
 
         /// <summary>
         /// Ensure that the current skin is in a state it can accept user modifications.
