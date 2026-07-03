@@ -33,9 +33,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private readonly List<BmsSkinConfiguration> configurations = new List<BmsSkinConfiguration>();
 
         // Per-lane texture keys: NoteImage{lane}[H|L|T] / KeyImage{lane}[D] / LaneBackgroundImage{lane} /
-        // LaneDividerImage{lane}, lane = digits or "S" (scratch). The optional [HLTD] suffix is only meaningful for
-        // NoteImage (H/L/T) and KeyImage (D); a stray suffix on the lane keys is harmless (stored but never queried).
-        private static readonly Regex per_lane_image = new Regex(@"^(NoteImage|KeyImage|LaneBackgroundImage|LaneDividerImage)(\d+|S)([HLTD])?$", RegexOptions.Compiled);
+        // LaneDividerImage{lane} / KeyFlashImage{lane} / HitLightingImage{lane}, lane = digits or "S" (scratch).
+        // The optional [HLTD] suffix is only meaningful for NoteImage (H/L/T) and KeyImage (D).
+        private static readonly Regex per_lane_image = new Regex(@"^(NoteImage|KeyImage|LaneBackgroundImage|LaneDividerImage|KeyFlashImage|HitLightingImage)(\d+|S)([HLTD])?$", RegexOptions.Compiled);
 
         private static readonly HashSet<BmsSkinConfigurationLookups> geometry_keys = new HashSet<BmsSkinConfigurationLookups>
         {

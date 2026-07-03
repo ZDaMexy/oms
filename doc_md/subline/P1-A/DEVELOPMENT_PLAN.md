@@ -261,6 +261,8 @@
 - **与 P1-L 协作**：[P1-L](../P1-L/) 已落地地雷渲染 / BGA 链；bomb / 演出类件须对齐复用、不重复造；本期仅补"皮肤可换素材"的挂点。
 - **红线**：仅视觉，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读（CONSTRAINTS 第 10 条）；落地前不得在 `SKINNING.md` 标为"当前可用"。
 
+**F2 启动（2026-07-04）**：keyflash + hit lighting 已落地。`BmsLaneSkinElements.KeyFlash`/`HitLighting` + `BmsSkinConfigurationLookups.KeyFlashImage`/`HitLightingImage`/`KeyFlashColour`/`HitLightingColour` + `DefaultBmsKeyFlashDisplay`（绑定 `BmsHitTarget.IsPressed`·`SkinnerDrawable`·可换图/色）+ `DefaultBmsHitLightingDisplay`（`DrawableBmsHitObject.ApplyResult` 触发）。F2 剩余 turntable/LN hold light/bomb/ghost 待续。
+
 #### F3：③类 `[Bms]` 扩展段独有件 + 契约冻结
 
 状态：未开工

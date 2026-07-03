@@ -139,6 +139,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsSkinConfigurationLookups.LaneDividerImage:
                     return hasLane ? $"LaneDividerImage{laneToken}" : null;
 
+                case BmsSkinConfigurationLookups.KeyFlashImage:
+                    return hasLane ? $"KeyFlashImage{laneToken}" : null;
+
+                case BmsSkinConfigurationLookups.HitLightingImage:
+                    return hasLane ? $"HitLightingImage{laneToken}" : null;
+
                 case BmsSkinConfigurationLookups.HitTargetImage:
                 case BmsSkinConfigurationLookups.StageLeftImage:
                 case BmsSkinConfigurationLookups.StageRightImage:

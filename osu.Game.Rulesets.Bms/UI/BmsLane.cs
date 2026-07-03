@@ -90,6 +90,16 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.Both,
                     CentreComponent = false,
                 },
+                new SkinnableDrawable(createLookup(BmsLaneSkinElements.KeyFlash))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CentreComponent = false,
+                },
+                new SkinnableDrawable(createLookup(BmsLaneSkinElements.HitLighting))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CentreComponent = false,
+                },
                 hitObjectArea = createHitObjectArea(),
             };
 
@@ -125,6 +135,18 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (HitTarget.IsPressed.Value != isPressed)
                 HitTarget.IsPressed.Value = isPressed;
+        }
+
+        public void TriggerHitLighting()
+        {
+            foreach (var child in InternalChildren)
+            {
+                if (child is SkinnableDrawable sd && sd.Drawable is DefaultBmsHitLightingDisplay hl)
+                {
+                    hl.Flash();
+                    return;
+                }
+            }
         }
 
         protected override void OnNewDrawableHitObject(DrawableHitObject drawableHitObject)
