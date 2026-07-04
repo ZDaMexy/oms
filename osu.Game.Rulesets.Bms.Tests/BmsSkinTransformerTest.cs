@@ -781,6 +781,99 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.NoteDistribution)), Is.SameAs(skin.NoteDistributionComponent));
         }
 
+        [Test]
+        public void TestKeyFlashFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.KeyFlash, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsKeyFlashDisplay>());
+        }
+
+        [Test]
+        public void TestHitLightingFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.HitLighting, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsHitLightingDisplay>());
+        }
+
+        [Test]
+        public void TestHoldLightFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.HoldLight, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsHoldLightDisplay>());
+        }
+
+        [Test]
+        public void TestMineHitFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.MineHit, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsMineHitDisplay>());
+        }
+
+        [Test]
+        public void TestNonInterfaceF2ComponentFallsBackToDefault()
+        {
+            // User skin returns a bare Container (no IBmsKeyFlashDisplay) for KeyFlash.
+            // The transformer must reject it and fall back to the Default, because BmsLane can only
+            // communicate with F2 components through the interface contract.
+            var skin = new TestSkin(keyFlashComponent: new Container());
+            var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.KeyFlash, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsKeyFlashDisplay>());
+        }
+
+        [Test]
+        public void TestCustomKeyFlashDisplayUsedWhenInterfaceImplemented()
+        {
+            var skin = new TestSkin(keyFlashComponent: new TestKeyFlashDisplay());
+            var transformer = new BmsRuleset().CreateSkinTransformer(skin, new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.KeyFlash, 0, 8, false, BmsKeymode.Key7K)), Is.SameAs(skin.KeyFlashComponent));
+        }
+
+        [Test]
+        public void TestStageLeftFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageLeft, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsStageFrameDisplay>());
+        }
+
+        [Test]
+        public void TestStageRightFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageRight, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsStageFrameDisplay>());
+        }
+
+        [Test]
+        public void TestStageBottomFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageBottom, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsStageFrameDisplay>());
+        }
+
+        [Test]
+        public void TestStageHintFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageHint, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsStageFrameDisplay>());
+        }
+
+        [Test]
+        public void TestGhostTdFallsBackToDefaultDisplay()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
+
+            Assert.That(transformer!.GetDrawableComponent(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.GhostTd, BmsKeymode.Key7K, 8)), Is.TypeOf<DefaultBmsGhostTdDisplay>());
+        }
+
         private static OmsSkin createOmsSkin() => new OmsSkin(new TestStorageResourceProvider());
 
         private static void assertSingleColour(Drawable drawable, Color4 expected)
@@ -833,8 +926,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             public readonly Drawable? NoteComponent;
             public readonly Drawable? LaneCoverComponent;
             public readonly Drawable? StaticBackgroundComponent;
+            public readonly Drawable? KeyFlashComponent;
+            public readonly Drawable? HitLightingComponent;
+            public readonly Drawable? HoldLightComponent;
+            public readonly Drawable? MineHitComponent;
 
-            public TestSkin(Drawable? rulesetHudComponent = null, Drawable? hudLayoutComponent = null, Drawable? gaugeBarComponent = null, Drawable? comboCounterComponent = null, Drawable? clearLampComponent = null, Drawable? gaugeHistoryPanelComponent = null, Drawable? gaugeHistoryComponent = null, Drawable? resultsSummaryPanelComponent = null, Drawable? resultsSummaryComponent = null, Drawable? noteDistributionComponent = null, Drawable? noteDistributionPanelComponent = null, Drawable? playfieldBackdropComponent = null, Drawable? playfieldBaseplateComponent = null, Drawable? laneBackgroundComponent = null, Drawable? laneDividerComponent = null, Drawable? judgementComponent = null, Drawable? noteComponent = null, Drawable? laneCoverComponent = null, Drawable? staticBackgroundComponent = null)
+            public TestSkin(Drawable? rulesetHudComponent = null, Drawable? hudLayoutComponent = null, Drawable? gaugeBarComponent = null, Drawable? comboCounterComponent = null, Drawable? clearLampComponent = null, Drawable? gaugeHistoryPanelComponent = null, Drawable? gaugeHistoryComponent = null, Drawable? resultsSummaryPanelComponent = null, Drawable? resultsSummaryComponent = null, Drawable? noteDistributionComponent = null, Drawable? noteDistributionPanelComponent = null, Drawable? playfieldBackdropComponent = null, Drawable? playfieldBaseplateComponent = null, Drawable? laneBackgroundComponent = null, Drawable? laneDividerComponent = null, Drawable? judgementComponent = null, Drawable? noteComponent = null, Drawable? laneCoverComponent = null, Drawable? staticBackgroundComponent = null, Drawable? keyFlashComponent = null, Drawable? hitLightingComponent = null, Drawable? holdLightComponent = null, Drawable? mineHitComponent = null)
             {
                 RulesetHudComponent = rulesetHudComponent;
                 HudLayoutComponent = hudLayoutComponent;
@@ -855,6 +952,10 @@ namespace osu.Game.Rulesets.Bms.Tests
                 NoteComponent = noteComponent;
                 LaneCoverComponent = laneCoverComponent;
                 StaticBackgroundComponent = staticBackgroundComponent;
+                KeyFlashComponent = keyFlashComponent;
+                HitLightingComponent = hitLightingComponent;
+                HoldLightComponent = holdLightComponent;
+                MineHitComponent = mineHitComponent;
             }
 
             public Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -868,6 +969,10 @@ namespace osu.Game.Rulesets.Bms.Tests
                     BmsPlayfieldSkinLookup { Element: BmsPlayfieldSkinElements.Baseplate } => PlayfieldBaseplateComponent,
                     BmsLaneSkinLookup { Element: BmsLaneSkinElements.Background } => LaneBackgroundComponent,
                     BmsLaneSkinLookup { Element: BmsLaneSkinElements.Divider } => LaneDividerComponent,
+                    BmsLaneSkinLookup { Element: BmsLaneSkinElements.KeyFlash } => KeyFlashComponent,
+                    BmsLaneSkinLookup { Element: BmsLaneSkinElements.HitLighting } => HitLightingComponent,
+                    BmsLaneSkinLookup { Element: BmsLaneSkinElements.HoldLight } => HoldLightComponent,
+                    BmsLaneSkinLookup { Element: BmsLaneSkinElements.MineHit } => MineHitComponent,
                     BmsNoteSkinLookup => NoteComponent,
                     BmsLaneCoverSkinLookup => LaneCoverComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.HudLayout } => HudLayoutComponent,
@@ -978,6 +1083,34 @@ namespace osu.Game.Rulesets.Bms.Tests
             }
 
             public Drawable? GetAboveHitObjectsProxiedContent() => null;
+        }
+
+        private sealed partial class TestKeyFlashDisplay : CompositeDrawable, IBmsKeyFlashDisplay
+        {
+            public void SetPressed(bool pressed)
+            {
+            }
+        }
+
+        private sealed partial class TestHitLightingDisplay : CompositeDrawable, IBmsHitLightingDisplay
+        {
+            public void Flash()
+            {
+            }
+        }
+
+        private sealed partial class TestHoldLightDisplay : CompositeDrawable, IBmsHoldLightDisplay
+        {
+            public void SetHolding(bool holding)
+            {
+            }
+        }
+
+        private sealed partial class TestMineHitDisplay : CompositeDrawable, IBmsMineHitDisplay
+        {
+            public void Flash()
+            {
+            }
         }
 
         private sealed partial class TestComboCounter : DefaultComboCounter

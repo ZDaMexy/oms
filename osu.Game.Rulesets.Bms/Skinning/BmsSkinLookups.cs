@@ -12,6 +12,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
     {
         Backdrop,
         Baseplate,
+        StageLeft,
+        StageRight,
+        StageBottom,
+        StageHint,
+        GhostTd,
     }
 
     public sealed class BmsPlayfieldSkinLookup : ISkinComponentLookup

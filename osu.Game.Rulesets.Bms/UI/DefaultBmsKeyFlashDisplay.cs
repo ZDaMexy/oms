@@ -1,12 +1,12 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Textures;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
@@ -15,13 +15,24 @@ using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
-    public partial class DefaultBmsKeyFlashDisplay : CompositeDrawable
+    /// <summary>
+    /// Interface for the keyflash (column light) F2 display. The lane pushes pressed-state through this interface;
+    /// custom skins implement it to receive key-press state without hardcoding parent traversal.
+    /// </summary>
+    public interface IBmsKeyFlashDisplay
+    {
+        void SetPressed(bool pressed);
+    }
+
+    public partial class DefaultBmsKeyFlashDisplay : CompositeDrawable, IBmsKeyFlashDisplay
     {
         private readonly int laneIndex;
         private readonly bool isScratch;
         private readonly BmsKeymode keymode;
 
-        private IBindable<bool>? pressedSource;
+        private Sprite? keyImageSprite;
+        private Texture? keyImageTexture;
+        private Texture? keyImageDownTexture;
 
         public DefaultBmsKeyFlashDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
         {
@@ -59,6 +70,42 @@ namespace osu.Game.Rulesets.Bms.UI
             }
             else
             {
+                // KeyImage/KeyImageDown alternative route: gives skin authors a "key area" visual that swaps
+                // texture on press, without needing a separate key-area component. Fills the full lane (always
+                // visible), unlike the programmatic default which only occupies the bottom half and fades.
+                string? keyImagePath = skinSource.GetBmsSkinConfig<string>(
+                    BmsSkinConfigurationLookups.KeyImage, keymode, laneIndex, isScratch)?.Value;
+
+                if (!string.IsNullOrEmpty(keyImagePath))
+                {
+                    keyImageTexture = skinSource.GetTexture(keyImagePath);
+
+                    if (keyImageTexture != null)
+                    {
+                        string? keyImageDownPath = skinSource.GetBmsSkinConfig<string>(
+                            BmsSkinConfigurationLookups.KeyImageDown, keymode, laneIndex, isScratch)?.Value;
+
+                        keyImageDownTexture = !string.IsNullOrEmpty(keyImageDownPath)
+                            ? skinSource.GetTexture(keyImageDownPath)
+                            : null;
+
+                        // KeyImage route: fill the full lane area, always visible.
+                        RelativeSizeAxes = Axes.Both;
+                        Anchor = Anchor.Centre;
+                        Origin = Anchor.Centre;
+                        Alpha = 1;
+
+                        keyImageSprite = new Sprite
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            FillMode = FillMode.Stretch,
+                            Texture = keyImageTexture,
+                        };
+                        InternalChild = keyImageSprite;
+                        return;
+                    }
+                }
+
                 // Programmatic default: layered vertical strips at each lane edge, stepping from
                 // wide-dim → narrow-bright, giving a rough glow-fade from edge to centre.
                 Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
@@ -79,31 +126,23 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        protected override void LoadComplete()
-        {
-            base.LoadComplete();
-
-            var lane = Parent?.Parent as BmsLane;
-
-            if (lane?.HitTarget == null)
-                return;
-
-            pressedSource = lane.HitTarget.IsPressed.GetBoundCopy();
-            pressedSource.BindValueChanged(e => SetPressed(e.NewValue), true);
-        }
-
         public void SetPressed(bool pressed)
         {
-            if (pressed)
-                this.FadeIn(40, Easing.OutQuint);
+            if (keyImageSprite != null)
+            {
+                // KeyImage route: swap textures on press (always visible, no fade).
+                keyImageSprite.Texture = pressed && keyImageDownTexture != null
+                    ? keyImageDownTexture
+                    : keyImageTexture;
+            }
             else
-                this.FadeOut(250, Easing.OutQuint);
-        }
-
-        protected override void Dispose(bool isDisposing)
-        {
-            pressedSource?.UnbindAll();
-            base.Dispose(isDisposing);
+            {
+                // Programmatic default: fade in/out.
+                if (pressed)
+                    this.FadeIn(40, Easing.OutQuint);
+                else
+                    this.FadeOut(250, Easing.OutQuint);
+            }
         }
     }
 }

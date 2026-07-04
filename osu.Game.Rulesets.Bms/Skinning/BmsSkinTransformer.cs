@@ -92,10 +92,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     return skinnedComponent is IBmsBgaPanelDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsBgaPanelDisplay() : null;
 
                 case BmsPlayfieldSkinLookup playfieldLookup:
-                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultPlayfieldComponent(playfieldLookup));
+                    if (skinnedComponent != null && satisfiesPlayfieldInterfaceContract(playfieldLookup.Element, skinnedComponent))
+                        return skinnedComponent;
+                    return createBuiltInFallback(() => createDefaultPlayfieldComponent(playfieldLookup));
 
                 case BmsLaneSkinLookup laneLookup:
-                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultLaneComponent(laneLookup));
+                    if (skinnedComponent != null && satisfiesF2InterfaceContract(laneLookup.Element, skinnedComponent))
+                        return skinnedComponent;
+                    return createBuiltInFallback(() => createDefaultLaneComponent(laneLookup));
 
                 case BmsNoteSkinLookup noteLookup:
                     return skinnedComponent ?? createBuiltInFallback(() => createDefaultNoteComponent(noteLookup));
@@ -147,11 +151,44 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private Drawable? createBuiltInFallback(System.Func<Drawable> createDrawable)
             => providesBuiltInFallbacks ? createDrawable() : null;
 
+        /// <summary>
+        /// Checks whether a user-skin component satisfies the F2 interface contract for the given lane element.
+        /// F2 engine-driven elements (KeyFlash/HitLighting/HoldLight/MineHit) require their respective IBms*Display
+        /// interface so the lane can push state (SetPressed/SetHolding) or trigger events (Flash) through it.
+        /// Non-F2 lane elements have no interface requirement and always pass.
+        /// </summary>
+        private static bool satisfiesF2InterfaceContract(BmsLaneSkinElements element, Drawable component)
+            => element switch
+            {
+                BmsLaneSkinElements.KeyFlash => component is IBmsKeyFlashDisplay,
+                BmsLaneSkinElements.HitLighting => component is IBmsHitLightingDisplay,
+                BmsLaneSkinElements.HoldLight => component is IBmsHoldLightDisplay,
+                BmsLaneSkinElements.MineHit => component is IBmsMineHitDisplay,
+                _ => true,
+            };
+
+        /// <summary>
+        /// Checks whether a user-skin component satisfies the interface contract for playfield-level F2 elements.
+        /// Ghost-TD requires IBmsGhostTdDisplay so the playfield can push timing offsets through it.
+        /// Non-F2 playfield elements (Backdrop/Baseplate/Stage) have no interface requirement and always pass.
+        /// </summary>
+        private static bool satisfiesPlayfieldInterfaceContract(BmsPlayfieldSkinElements element, Drawable component)
+            => element switch
+            {
+                BmsPlayfieldSkinElements.GhostTd => component is IBmsGhostTdDisplay,
+                _ => true,
+            };
+
         private static Drawable createDefaultPlayfieldComponent(BmsPlayfieldSkinLookup lookup)
             => lookup.Element switch
             {
                 BmsPlayfieldSkinElements.Backdrop => new DefaultBmsPlayfieldBackdropDisplay(lookup.Keymode),
                 BmsPlayfieldSkinElements.Baseplate => new DefaultBmsPlayfieldBaseplateDisplay(lookup.Keymode),
+                BmsPlayfieldSkinElements.StageLeft => new DefaultBmsStageFrameDisplay(lookup.Element, lookup.Keymode),
+                BmsPlayfieldSkinElements.StageRight => new DefaultBmsStageFrameDisplay(lookup.Element, lookup.Keymode),
+                BmsPlayfieldSkinElements.StageBottom => new DefaultBmsStageFrameDisplay(lookup.Element, lookup.Keymode),
+                BmsPlayfieldSkinElements.StageHint => new DefaultBmsStageFrameDisplay(lookup.Element, lookup.Keymode),
+                BmsPlayfieldSkinElements.GhostTd => new DefaultBmsGhostTdDisplay(),
                 _ => new Box
                 {
                     RelativeSizeAxes = Axes.Both,

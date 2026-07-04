@@ -303,6 +303,160 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddAssert("backdrop shows skin sprite, not blur path", () => backdrop.ChildrenOfType<Sprite>().Any() && !backdrop.ChildrenOfType<BufferedContainer>().Any());
         }
 
+        [Test]
+        public void TestKeyFlashColourOverriddenBySkinConfig()
+        {
+            DefaultBmsKeyFlashDisplay display = null!;
+
+            AddStep("load key flash overriding KeyFlashColour", () =>
+            {
+                var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nKeyFlashColour: 255,0,0\n");
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsKeyFlashDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("key flash uses ini colour", () => display.ChildrenOfType<Box>().Any(b =>
+            {
+                var c = b.Colour.TopLeft.SRGB;
+                return c.R == 1f && c.G == 0f && c.B == 0f;
+            }));
+        }
+
+        [Test]
+        public void TestKeyFlashUsesSkinTextureWhenProvided()
+        {
+            DefaultBmsKeyFlashDisplay display = null!;
+
+            AddStep("load key flash with KeyFlashImage texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nKeyFlashImage1: flashes/white\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsKeyFlashDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("key flash shows sprite, not box", () => display.ChildrenOfType<Sprite>().Any() && !display.ChildrenOfType<Box>().Any());
+        }
+
+        [Test]
+        public void TestKeyFlashUsesKeyImageWhenProvided()
+        {
+            DefaultBmsKeyFlashDisplay display = null!;
+
+            // When KeyImage is provided (but no KeyFlashImage), the KeyFlash display enters the KeyImage route:
+            // full-lane sprite, always visible, texture swap on press.
+            AddStep("load key flash with KeyImage texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nKeyImage1: keys/white\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsKeyFlashDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("key flash shows sprite via KeyImage route", () => display.ChildrenOfType<Sprite>().Any() && !display.ChildrenOfType<Box>().Any());
+            AddAssert("key flash is always visible", () => display.Alpha, () => Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void TestHitLightingColourOverriddenBySkinConfig()
+        {
+            DefaultBmsHitLightingDisplay display = null!;
+
+            AddStep("load hit lighting overriding HitLightingColour", () =>
+            {
+                var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nHitLightingColour: 0,255,0\n");
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsHitLightingDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("hit lighting uses ini colour", () => display.ChildrenOfType<Box>().Any(b =>
+            {
+                var c = b.Colour.TopLeft.SRGB;
+                return c.R == 0f && c.G == 1f && c.B == 0f;
+            }));
+        }
+
+        [Test]
+        public void TestHitLightingUsesSkinTextureWhenProvided()
+        {
+            DefaultBmsHitLightingDisplay display = null!;
+
+            AddStep("load hit lighting with HitLightingImage texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nHitLightingImage1: lighting/hit\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsHitLightingDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("hit lighting shows sprite, not box", () => display.ChildrenOfType<Sprite>().Any() && !display.ChildrenOfType<Box>().Any());
+        }
+
+        [Test]
+        public void TestHoldLightColourOverriddenBySkinConfig()
+        {
+            DefaultBmsHoldLightDisplay display = null!;
+
+            AddStep("load hold light overriding HoldLightColour", () =>
+            {
+                var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nHoldLightColour: 0,0,255\n");
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsHoldLightDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("hold light uses ini colour", () => display.ChildrenOfType<Box>().Any(b =>
+            {
+                var c = b.Colour.TopLeft.SRGB;
+                return c.R == 0f && c.G == 0f && c.B == 1f;
+            }));
+        }
+
+        [Test]
+        public void TestHoldLightUsesSkinTextureWhenProvided()
+        {
+            DefaultBmsHoldLightDisplay display = null!;
+
+            AddStep("load hold light with HoldLightImage texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nHoldLightImage1: lighting/hold\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsHoldLightDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("hold light shows sprite, not box", () => display.ChildrenOfType<Sprite>().Any() && !display.ChildrenOfType<Box>().Any());
+        }
+
+        [Test]
+        public void TestMineHitColourOverriddenBySkinConfig()
+        {
+            DefaultBmsMineHitDisplay display = null!;
+
+            AddStep("load mine hit overriding MineHitColour", () =>
+            {
+                var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nMineHitColour: 255,0,255\n");
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsMineHitDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("mine hit uses ini colour", () => display.ChildrenOfType<Box>().Any(b =>
+            {
+                var c = b.Colour.TopLeft.SRGB;
+                return c.R == 1f && c.G == 0f && c.B == 1f;
+            }));
+        }
+
+        [Test]
+        public void TestMineHitUsesSkinTextureWhenProvided()
+        {
+            DefaultBmsMineHitDisplay display = null!;
+
+            AddStep("load mine hit with MineHitImage texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nMineHitImage1: explosions/mine\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = display = new DefaultBmsMineHitDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => display.IsLoaded);
+            AddAssert("mine hit shows sprite, not box", () => display.ChildrenOfType<Sprite>().Any() && !display.ChildrenOfType<Box>().Any());
+        }
+
         private class TestBmsLegacySkin : BmsLegacySkin
         {
             public TestBmsLegacySkin(string ini)

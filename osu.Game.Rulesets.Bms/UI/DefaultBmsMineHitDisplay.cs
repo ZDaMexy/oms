@@ -13,7 +13,16 @@ using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
-    public partial class DefaultBmsMineHitDisplay : CompositeDrawable
+    /// <summary>
+    /// Interface for the mine-hit (mine explosion flash) F2 display. The lane triggers Flash() through this interface
+    /// on mine judgement; custom skins implement it to receive mine-hit events without concrete-type casting.
+    /// </summary>
+    public interface IBmsMineHitDisplay
+    {
+        void Flash();
+    }
+
+    public partial class DefaultBmsMineHitDisplay : CompositeDrawable, IBmsMineHitDisplay
     {
         private readonly int laneIndex;
         private readonly bool isScratch;

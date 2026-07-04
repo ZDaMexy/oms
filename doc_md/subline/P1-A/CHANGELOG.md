@@ -2,6 +2,35 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-04（续）
+
+### F2 接口契约 + 死代码清理 + F2 测试覆盖 + Stage 框架 + KeyImage 替代路线 + Ghost-TD
+
+按代码审查报告建议的开发顺序，在 Turntable 前完成四个阶段的改动。BMS 全套 **1023/1023**（1 项预存 flaky `TestFailedLampWhenGaugeDoesNotClear`·单跑通过·零因果），Release gate 绿。
+
+**阶段一：F2 接口契约 + 死代码清理**
+
+- 新增 4 个 F2 接口（`IBmsKeyFlashDisplay`/`IBmsHitLightingDisplay`/`IBmsHoldLightDisplay`/`IBmsMineHitDisplay`），Default 实现实现接口。
+- 消除 `Parent?.Parent as BmsLane` 硬编码向上遍历：KeyFlash/HoldLight 绑定从 Default 自绑定改为 `BmsLane.LoadComplete` 通过接口推送（`wireF2Displays`）。
+- `BmsLane.TriggerHitLighting`/`TriggerMineHit` 改为接口转型。`BmsSkinTransformer` 加 `satisfiesF2InterfaceContract` 检查。
+- 删除 `BmsTemporarySkinPalette.cs` 死代码（`git rm`·无引用）。
+
+**阶段二：F2 测试覆盖**
+
+- `BmsDefaultNoteSkinConfigTest` 加 9 个 F2 配置测试（色/纹理/KeyImage 路由）。
+- `BmsSkinTransformerTest` 加 7 个 F2/Stage/Ghost-TD 接口契约测试（Default 回退·非接口回退·接口通过）。
+
+**阶段三：Stage 框架件 + KeyImage 替代路线**
+
+- Stage 框架件落地（`StageLeft`/`StageRight`/`StageBottom`/`StageHint`）：新建 `DefaultBmsStageFrameDisplay`（纯纹理装饰·无程序化回退）+ Transformer 路由 + Playfield 挂载。至此 `StageLeftImage` 等 4 个 ini 键真正生效。
+- KeyImage 走 KeyFlash 替代路线：`DefaultBmsKeyFlashDisplay` 在 `KeyFlashImage` 之后新增 `KeyImage`/`KeyImageDown` 分支，全道 Sprite + 纹理切换，无需独立键区组件。
+
+**阶段四：Ghost-TD 件**
+
+- Ghost-TD（判定偏移幽灵显示）落地（`GhostTd`）：新建 `IBmsGhostTdDisplay` + `DefaultBmsGhostTdDisplay`（判定线处薄竖条·±150ms→±40% 位移·白→红渐变·30ms 淡入 + 800ms 淡出）+ Transformer 接口检查 + Playfield 挂载 + `onNewResult` 推送时差。
+
+**验证**：`osu.Desktop.slnf` Release 0 错误 0 警告；BMS 全套 **1023/1023**（+20 新测试·1003→1023）。
+
 ## 2026-07-04
 
 ### `G1` 刀④（SkinFolderImporter·managed/external 导入 + chartskin/ 启动扫描 + SkinManager 接入）

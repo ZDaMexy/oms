@@ -171,6 +171,27 @@ namespace osu.Game.Rulesets.Bms.UI
                                 RelativeSizeAxes = Axes.Both,
                                 CentreComponent = false,
                             },
+                            // IIDX-style stage frame elements (decorative, texture-only — invisible when no texture provided).
+                            new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageLeft, LaneLayout.Keymode, DisplayColumnCount))
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                CentreComponent = false,
+                            },
+                            new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageRight, LaneLayout.Keymode, DisplayColumnCount))
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                CentreComponent = false,
+                            },
+                            new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageBottom, LaneLayout.Keymode, DisplayColumnCount))
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                CentreComponent = false,
+                            },
+                            new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.StageHint, LaneLayout.Keymode, DisplayColumnCount))
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                CentreComponent = false,
+                            },
                             // NOTE: the in-playfield BackgroundLayer is intentionally NOT mounted here — inside the
                             // masked playfield strip it sat under the opaque lane backgrounds and was fully occluded.
                             // The visible BGA now renders in the skinnable BmsBgaPanel mounted in DrawableBmsRuleset.Overlays
@@ -192,6 +213,12 @@ namespace osu.Game.Rulesets.Bms.UI
                                 RelativeSizeAxes = Axes.Both,
                             },
                             judgementPooler = new JudgementPooler<DrawableBmsJudgement>(gameplay_judgements),
+                            // Ghost-TD: timing-offset indicator at the judgement line (F2 engine-driven).
+                            new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.GhostTd, LaneLayout.Keymode, DisplayColumnCount))
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                CentreComponent = false,
+                            },
                         }
                     }
                 }
@@ -298,6 +325,20 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (judgement != null)
                 judgements.Add(judgement);
+
+            triggerGhostTd(result.TimeOffset);
+        }
+
+        private void triggerGhostTd(double timeOffset)
+        {
+            foreach (var child in playfieldContainer.Children)
+            {
+                if (child is SkinnableDrawable sd && sd.Drawable is IBmsGhostTdDisplay ghostTd)
+                {
+                    ghostTd.SetTimingOffset((float)timeOffset);
+                    return;
+                }
+            }
         }
 
         private BmsLane createLane(BmsLaneLayout.Lane lane)

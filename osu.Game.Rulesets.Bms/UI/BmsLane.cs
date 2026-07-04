@@ -137,6 +137,42 @@ namespace osu.Game.Rulesets.Bms.UI
             return dependencies;
         }
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+            wireF2Displays();
+        }
+
+        private IBindable<bool>? keyFlashPressedSource;
+        private IBindable<bool>? holdLightSource;
+
+        private void wireF2Displays()
+        {
+            foreach (var child in InternalChildren)
+            {
+                if (child is not SkinnableDrawable sd)
+                    continue;
+
+                if (sd.Drawable is IBmsKeyFlashDisplay keyFlash)
+                {
+                    keyFlashPressedSource = HitTarget.IsPressed.GetBoundCopy();
+                    keyFlashPressedSource.BindValueChanged(e => keyFlash.SetPressed(e.NewValue), true);
+                }
+                else if (sd.Drawable is IBmsHoldLightDisplay holdLight)
+                {
+                    holdLightSource = AnyHolding.GetBoundCopy();
+                    holdLightSource.BindValueChanged(e => holdLight.SetHolding(e.NewValue), true);
+                }
+            }
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            keyFlashPressedSource?.UnbindAll();
+            holdLightSource?.UnbindAll();
+            base.Dispose(isDisposing);
+        }
+
         protected override void Update()
         {
             base.Update();
@@ -154,7 +190,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             foreach (var child in InternalChildren)
             {
-                if (child is SkinnableDrawable sd && sd.Drawable is DefaultBmsHitLightingDisplay hl)
+                if (child is SkinnableDrawable sd && sd.Drawable is IBmsHitLightingDisplay hl)
                 {
                     hl.Flash();
                     return;
@@ -166,7 +202,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             foreach (var child in InternalChildren)
             {
-                if (child is SkinnableDrawable sd && sd.Drawable is DefaultBmsMineHitDisplay mh)
+                if (child is SkinnableDrawable sd && sd.Drawable is IBmsMineHitDisplay mh)
                 {
                     mh.Flash();
                     return;

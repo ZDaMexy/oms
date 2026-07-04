@@ -279,13 +279,13 @@ OMS 同时维护两层"默认"，对齐 osu! 的范式：
 
 | 元素族 | 元素 | M | B | L | 性质 | OMS |
 | --- | --- | :-: | :-: | :-: | :-: | :-: |
-| Stage | 框架左/右/下、hint、backdrop | ✓ | ✓ | ✓ | S | ◐ |
-| Lane | 逐道宽/间距/分隔/背景色、柱光 | ✓ | ✓ | ✓ | S/D | ◐ |
+| Stage | 框架左/右/下、hint、backdrop | ✓ | ✓ | ✓ | S | ✅ |
+| Lane | 逐道宽/间距/分隔/背景色、柱光 | ✓ | ✓ | ✓ | S/D | ✅ |
 | Note | 逐道贴图/色、高度缩放、body style | ✓ | ✓ | ✓ | S | ◐ |
 | Long note | 头/身/尾、持松态、HCN、保持光 | ~ | ✓ | ✓ | S/D | ◐ |
-| Mine | 地雷 | — | ✓ | ✓ | S | ◐ |
+| Mine | 地雷 | — | ✓ | ✓ | S | ✅ |
 | 判定线 | 线/接收区、按键常/按下态、位置 | ✓ | ✓ | ✓ | S | ◐ |
-| 命中反馈 | hit lighting、bomb、keyflash、comboburst | ✓ | ✓ | ✓ | D | ✗ |
+| 命中反馈 | hit lighting、bomb、keyflash、comboburst、ghost-TD | ✓ | ✓ | ✓ | D | ✅ |
 | 判定显示 | 各档图、动画、fast/slow、ghost/TD、断连色 | ~ | ✓ | ✓ | S/D | ◐ |
 | Gauge | 条、类型变体、GN% 数字、历史曲线 | — | ✓ | ✓ | D | ✅ |
 | 数字/文本 HUD | combo、计分、判定计数、bpm、progress、title | ~ | ✓ | ✓ | D | ◐ |
@@ -391,8 +391,8 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 | 代码型 provider（附录 D） | `[已实现]` | 当前唯一运行路线 |
 | 程序化内置默认（兜底） | `[已实现]` | 当前默认皮肤 |
 | 组件契约 + ini schema 冻结（权威源 = P1-A 约束 / PLAN） | `[已实现]` | **`F0`**（2026-06-27，纯文档） |
-| 素材 + ini 加载器 / 配置源 / 颜色·纹理·几何三轴 / 参考皮肤验收（①类静态件） | `[部分]` | `F1` 主面已成（所有现存渲染件已可经 `skin.ini` 配置颜色/纹理/几何 + 参考皮肤验收门落地）；剩净新增件 stage 框架 / `KeyImage` + 热重载打磨 |
-| ②类引擎驱动件（keyflash/explosion/bomb/turntable/ghost…）补挂点 | `[规划]` | `F2` |
+| 素材 + ini 加载器 / 配置源 / 颜色·纹理·几何三轴 / 参考皮肤验收（①类静态件） | `[已实现]` | `F1` 主面已成 + stage 框架 / `KeyImage` 替代路线已落地；所有现存渲染件 + Stage 框架均可经 `skin.ini` 配置 |
+| ②类引擎驱动件（keyflash/explosion/bomb/turntable/ghost…）补挂点 | `[部分]` | `F2`：keyflash + hit lighting + LN hold light + mine hit + ghost-TD 已落地（含接口契约 + ini 键 + Default 件 + 测试）；剩 turntable（需布局裁决）/ bomb / comboburst |
 | ③类 `[Bms]` 扩展段独有件 + 契约冻结 | `[规划]` | `F3` |
 | 完整可视化 BMS 皮肤编辑器 | `[未排期]` | 后置（决议 Y） |
 

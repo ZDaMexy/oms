@@ -1,7 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -14,13 +13,20 @@ using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
-    public partial class DefaultBmsHoldLightDisplay : CompositeDrawable
+    /// <summary>
+    /// Interface for the hold-light (LN hold sustained glow) F2 display. The lane pushes holding-state through this
+    /// interface; custom skins implement it to receive hold state without hardcoding parent traversal.
+    /// </summary>
+    public interface IBmsHoldLightDisplay
+    {
+        void SetHolding(bool holding);
+    }
+
+    public partial class DefaultBmsHoldLightDisplay : CompositeDrawable, IBmsHoldLightDisplay
     {
         private readonly int laneIndex;
         private readonly bool isScratch;
         private readonly BmsKeymode keymode;
-
-        private IBindable<bool>? holdSource;
 
         public DefaultBmsHoldLightDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
         {
@@ -64,31 +70,12 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        protected override void LoadComplete()
-        {
-            base.LoadComplete();
-
-            var lane = Parent?.Parent as BmsLane;
-
-            if (lane == null)
-                return;
-
-            holdSource = lane.AnyHolding.GetBoundCopy();
-            holdSource.BindValueChanged(e => SetHolding(e.NewValue), true);
-        }
-
         public void SetHolding(bool holding)
         {
             if (holding)
                 this.FadeIn(80, Easing.OutQuint);
             else
                 this.FadeOut(300, Easing.OutQuint);
-        }
-
-        protected override void Dispose(bool isDisposing)
-        {
-            holdSource?.UnbindAll();
-            base.Dispose(isDisposing);
         }
     }
 }

@@ -13,7 +13,16 @@ using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
-    public partial class DefaultBmsHitLightingDisplay : CompositeDrawable
+    /// <summary>
+    /// Interface for the hit-lighting (hit explosion flash) F2 display. The lane triggers Flash() through this interface
+    /// on note judgement; custom skins implement it to receive hit events without concrete-type casting.
+    /// </summary>
+    public interface IBmsHitLightingDisplay
+    {
+        void Flash();
+    }
+
+    public partial class DefaultBmsHitLightingDisplay : CompositeDrawable, IBmsHitLightingDisplay
     {
         private readonly int laneIndex;
         private readonly bool isScratch;
