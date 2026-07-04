@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的 **BMS 素材 + `skin.ini` 皮肤开发视图**。**权威契约不在本文**——组件挂点、ini schema、必备分档与校验行为冻结在 **[P1-A 技术约束 ·「皮肤创作生态（素材 + ini）」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)**，分期在 **[P1-A 开发计划 · `F` 系列](../subline/P1-A/DEVELOPMENT_PLAN.md)**。本文只是把那份契约渲染成制作者可读的形式。若两者冲突，**以 P1-A 四件套为准**（`other/` 是参考材料，不替代主线计划 / 约束）。
 >
-> **实现状态（务必先读）**：截至 **2026-06-27**，皮肤创作生态处于 `F0`（契约冻结，纯文档，未开工实现）；运行时真正执行的皮肤路线仍是**代码型 provider**（见 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)）。素材 + ini 的加载器 / 校验器 / 热重载 / 参考皮肤在 `F1+` 分期落地。本文每个主章节用 `[规划]` / `[部分]` / `[已实现]` 标注当前可用性。**延续本仓库纪律：不把"未来计划"伪装成"当前可用工作流"。** 想立刻动手做皮肤，今天仍走 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)。
+> **实现状态（务必先读）**：截至 **2026-06-27**，`F1` 已完成（ini 三轴皮肤化 + reference 验收 + Stage + KeyImage）；`F2` 五件 + Ghost-TD + 接口契约已落地（剩 turntable）。运行时真正执行的皮肤路线仍是**代码型 provider**（见 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)）。本文每个主章节用 `[规划]` / `[部分]` / `[已实现]` 标注当前可用性。**延续本仓库纪律：不把"未来计划"伪装成"当前可用工作流"。** 想立刻动手做皮肤，今天仍走 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)。
 
 ---
 
@@ -14,13 +14,13 @@
 
 1. [这套皮肤能做什么 / 不做什么](#1-这套皮肤能做什么--不做什么)
 2. [皮肤包结构](#2-皮肤包结构-规划)
-3. [`skin.ini` 总览与通用约定](#3-skinini-总览与通用约定-规划)
-4. [车道与几何](#4-车道与几何-规划)
-5. [静态素材族（①类，mania 对齐）](#5-静态素材族类mania-对齐-规划)
-6. [BMS 扩展族（②③类，`[Bms]` 扩展段）](#6-bms-扩展族类bms-扩展段-规划)
+3. [`skin.ini` 总览与通用约定](#3-skinini-总览与通用约定-部分)
+4. [车道与几何](#4-车道与几何-部分)
+5. [静态素材族（①类，mania 对齐）](#5-静态素材族类mania-对齐-部分)
+6. [BMS 扩展族（②③类，`[Bms]` 扩展段）](#6-bms-扩展族类bms-扩展段-部分)
 7. [必备 / 推荐 / 可选 三档与校验行为](#7-必备--推荐--可选-三档与校验行为-部分)
 8. [两个编辑面与布局编辑器边界](#8-两个编辑面与布局编辑器边界-部分)
-9. [程序化默认与参考皮肤](#9-程序化默认与参考皮肤-规划)
+9. [程序化默认与参考皮肤](#9-程序化默认与参考皮肤-部分)
 10. [制作流程](#10-制作流程-规划)
 - [附录 A：游玩元素全集速查（创作者上限）](#附录-a游玩元素全集速查创作者上限)
 - [附录 B：必备元素清单](#附录-b必备元素清单)
@@ -64,7 +64,7 @@ MyBmsSkin/
 
 - 放置位置：OMS 数据目录下的 `skins/`（与 mania 皮肤同级）。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
-- 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定-规划) 的帧序列约定。
+- 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定-部分) 的帧序列约定。
 - 热重载：编辑 `skin.ini` 或替换素材后，游戏内可触发重载预览，无需重启（[§10](#10-制作流程-规划)）。
 
 ---
@@ -134,16 +134,16 @@ Keymode:  14K              // DP 单独一段
 
 ---
 
-## 5. 静态素材族（①类，mania 对齐）`[规划]`
+## 5. 静态素材族（①类，mania 对齐）`[部分]`
 
 这一族**纯素材 + 颜色 + 位置**，无需引擎动态逻辑——是落地最早、最稳的一批（对应规划中的 P1）。键名尽量对齐 mania，使 osu!mania 皮肤作者零学习成本迁移。
 
 ### 5.1 Stage 框架
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
-| `StageLeft` / `StageRight` / `StageBottom` | IIDX 金属框左/右/下 | 推荐 |
-| `StageHint` | 判定线位置提示条 | 推荐 |
-| `PlayfieldBackdrop` | 车道区外的背景底 | 推荐 |
+| `StageLeftImage` / `StageRightImage` / `StageBottomImage` | IIDX 金属框左/右/下 | 推荐 |
+| `StageHintImage` | 判定线位置提示条 | 推荐 |
+| `PlayfieldBackdropImage` | 车道区外的背景底 | 推荐 |
 
 ### 5.2 Note / Long note
 | 键 | 作用 | 必备档 |
@@ -179,26 +179,28 @@ Keymode:  14K              // DP 单独一段
 ### 5.5 Lane cover（SUDDEN+/HIDDEN+/LIFT）
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
-| `LaneCoverTop` / `LaneCoverBottom` | 顶/底遮罩贴图 | 可选 |
-| `ColourLaneCover` / `ColourLaneCoverFocus` | 遮罩填充 / 调整高亮色 | 可选 |
+| `LaneCoverTopImage` / `LaneCoverBottomImage` | 顶/底遮罩贴图 | 可选 |
+| `LaneCoverFillColour` / `LaneCoverFocusColour` | 遮罩填充 / 调整高亮色 | 可选 |
 
 ---
 
-## 6. BMS 扩展族（②③类，`[Bms]` 扩展段）`[规划]`
+## 6. BMS 扩展族（②③类，`[Bms]` 扩展段）`[部分]`
 
 这一族在 mania 的 `[Mania]` 段**没有先例**（mania 无 gauge/turntable/bomb 等机制，或当作引擎 HUD），是 OMS 为 BMS 新定义的扩展键。
 
 **关键原则**：这些件的**动态由引擎驱动**，`skin.ini` 只提供**素材 + 位置 + 缩放 + 颜色**。你不需要写关键帧脚本（这与 LR2/beatoraja 的 timer/op/dst 体系不同；OMS 的可编辑标准对齐 osu-ini 的静态模型）。
 
-### 6.1 ②类：引擎驱动、ini 供素材（实现见规划 P2）
+### 6.1 ②类：引擎驱动、ini 供素材
 | 键 | 作用 | 必备档 | 动态来源 |
 | --- | --- | --- | --- |
-| `KeyFlashImage` / `ColourColumnLight` | 柱光/键闪（按下/命中列闪） | 可选 | 按键 on/off |
-| `NoteHitLighting` | 命中爆闪（对齐 mania `LightingN`） | 可选 | 命中事件 |
-| `LnHoldLighting` | 长条保持光（对齐 mania `LightingL`） | 可选 | 持续按住 |
+| `KeyFlashImage` / `KeyFlashColour` | 柱光/键闪（按下/命中列闪） | 可选 | 按键 on/off |
+| `HitLightingImage` / `HitLightingColour` | 命中爆闪（对齐 mania `LightingN`） | 可选 | 命中事件 |
+| `HoldLightImage` / `HoldLightColour` | 长条保持光（对齐 mania `LightingL`） | 可选 | 持续按住 |
+| `MineHitImage` / `MineHitColour` | 地雷命中闪 | 可选 | 地雷命中事件 |
 | `BombImage{lane}` / `ExplosionScale` | 命中爆炸 | 可选 | 命中事件 |
 | `TurntableImage` / `TurntableSpin` | 转盘贴图 + 是否随 scratch 旋转 | 可选 | scratch 输入 |
-| `GhostTdDisplay` | ghost / TD 时差显示 | 可选 | 判定时差 |
+
+> **Ghost-TD**：无 ini 键（纯程序化），通过代码型 provider 路径访问（见 [附录 D](#附录-d进阶代码型-provider当前实际运行路线)），接口 `IBmsGhostTdDisplay.SetTimingOffset(float)`。
 
 ### 6.2 ③类：BMS 独有 HUD（实现见规划 P3）
 | 键 | 作用 | 必备档 | 备注 |
@@ -264,7 +266,7 @@ OMS 同时维护两层"默认"，对齐 osu! 的范式：
 
 ## 10. 制作流程 `[规划]`
 
-1. **复制参考皮肤**（[§9](#9-程序化默认与参考皮肤-规划)）为起点，而非从空白开始。
+1. **复制参考皮肤**（[§9](#9-程序化默认与参考皮肤-部分)）为起点，而非从空白开始。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。
 3. **热重载预览**：游戏内重载，立即看效果。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
@@ -283,9 +285,9 @@ OMS 同时维护两层"默认"，对齐 osu! 的范式：
 | Lane | 逐道宽/间距/分隔/背景色、柱光 | ✓ | ✓ | ✓ | S/D | ✅ |
 | Note | 逐道贴图/色、高度缩放、body style | ✓ | ✓ | ✓ | S | ◐ |
 | Long note | 头/身/尾、持松态、HCN、保持光 | ~ | ✓ | ✓ | S/D | ◐ |
-| Mine | 地雷 | — | ✓ | ✓ | S | ✅ |
+| Mine | 地雷 | — | ✓ | ✓ | D | ✅ |
 | 判定线 | 线/接收区、按键常/按下态、位置 | ✓ | ✓ | ✓ | S | ◐ |
-| 命中反馈 | hit lighting、bomb、keyflash、comboburst、ghost-TD | ✓ | ✓ | ✓ | D | ✅ |
+| 命中反馈 | hit lighting、bomb、keyflash、comboburst、ghost-TD | ✓ | ✓ | ✓ | D | ◐ |
 | 判定显示 | 各档图、动画、fast/slow、ghost/TD、断连色 | ~ | ✓ | ✓ | S/D | ◐ |
 | Gauge | 条、类型变体、GN% 数字、历史曲线 | — | ✓ | ✓ | D | ✅ |
 | 数字/文本 HUD | combo、计分、判定计数、bpm、progress、title | ~ | ✓ | ✓ | D | ◐ |
@@ -311,7 +313,7 @@ OMS 同时维护两层"默认"，对齐 osu! 的范式：
 - gauge 条（`GaugeBarImage`）
 - combo
 
-其余为推荐 / 可选（[§5](#5-静态素材族类mania-对齐-规划) / [§6](#6-bms-扩展族类bms-扩展段-规划) 各表已标注）。
+其余为推荐 / 可选（[§5](#5-静态素材族类mania-对齐-部分) / [§6](#6-bms-扩展族类bms-扩展段-部分) 各表已标注）。
 
 ---
 
@@ -346,8 +348,13 @@ public sealed class MyBmsSkin : ISkin
          BmsSkinComponentLookup { Component: BmsSkinComponents.HudLayout } => new MyHudLayout(),
          BmsSkinComponentLookup { Component: BmsSkinComponents.GaugeBar } => new MyGaugeBar(),
          BmsPlayfieldSkinLookup { Element: BmsPlayfieldSkinElements.Backdrop } => new MyBackdrop(),
+         BmsPlayfieldSkinLookup { Element: BmsPlayfieldSkinElements.GhostTd } => new MyGhostTd(),
          BmsLaneSkinLookup { Element: BmsLaneSkinElements.Background } lane => new MyLaneBackground(lane.IsScratch),
          BmsLaneSkinLookup { Element: BmsLaneSkinElements.HitTarget } lane => new MyHitTarget(lane.IsScratch),
+         BmsLaneSkinLookup { Element: BmsLaneSkinElements.KeyFlash } lane => new MyKeyFlash(lane.IsScratch),
+         BmsLaneSkinLookup { Element: BmsLaneSkinElements.HitLighting } lane => new MyHitLighting(lane.IsScratch),
+         BmsLaneSkinLookup { Element: BmsLaneSkinElements.HoldLight } lane => new MyHoldLight(lane.IsScratch),
+         BmsLaneSkinLookup { Element: BmsLaneSkinElements.MineHit } lane => new MyMineHit(lane.IsScratch),
          BmsNoteSkinLookup { Element: BmsNoteSkinElements.Note } note => new MyNote(note.IsScratch),
          BmsLaneCoverSkinLookup cover => new MyLaneCover(cover.Position),
          BmsJudgementSkinLookup judgement => new MyJudgement(judgement.Result),
@@ -371,6 +378,11 @@ public sealed class MyBmsSkin : ISkin
 | `ClearLamp` | `IBmsClearLampDisplay` | `SetClearLamp(...)` |
 | `GaugeHistory(Panel)` | `IBmsGaugeHistoryDisplay` / `…PanelDisplay` | `SetHistory(...)` |
 | BMS judgement | `IAnimatableJudgement` | `PlayAnimation()` / `GetAboveHitObjectsProxiedContent()` |
+| `KeyFlash` | `IBmsKeyFlashDisplay` | `SetPressed(bool)` |
+| `HitLighting` | `IBmsHitLightingDisplay` | `Flash()` |
+| `HoldLight` | `IBmsHoldLightDisplay` | `SetHolding(bool)` |
+| `MineHit` | `IBmsMineHitDisplay` | `Flash()` |
+| `GhostTd` | `IBmsGhostTdDisplay` | `SetTimingOffset(float)` |
 
 **按 lookup 数据做变体**（不要写死 7K）：`BmsLaneSkinLookup` 带 `Element/LaneIndex/LaneCount/IsScratch/Keymode/IsMajorBarLine`；`BmsNoteSkinLookup` 带 `Element/LaneIndex/IsScratch`；`BmsJudgementSkinLookup` 带 `Result/DisplayName`。优先从 lookup 与接口回调取数据，不要偷看外层容器布局。
 

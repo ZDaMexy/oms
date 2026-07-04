@@ -26,6 +26,8 @@
 - **L1: HoldLight/MineHit 颜色查询**：移到纹理检查之后（与 HitLighting/KeyFlash 一致），避免有纹理时多余 skin config 查询。
 - **L2: findParentLane 提取**：DrawableBmsHitObject 和 DrawableBmsMine 的重复 `findParentLane()` 提取为 `BmsLane.FindParentLane(Drawable)` 公共静态方法。
 
+**构建卫生修复**（commit eae197c + e706b50）：全局 `NoWarn NU1902`（MessagePack 中严重性漏洞审计·OMS 离线优先无攻击面·与现有 NU1903 同模式）+ 修复 `SkinManager.cs` 热重载路径 `string?` 在 `#nullable disable` 下触发 CS8632（改为 `string`）。至此 Release 构建真正 0 警告。
+
 ## 2026-07-04（续）
 
 ### F2 接口契约 + 死代码清理 + F2 测试覆盖 + Stage 框架 + KeyImage 替代路线 + Ghost-TD

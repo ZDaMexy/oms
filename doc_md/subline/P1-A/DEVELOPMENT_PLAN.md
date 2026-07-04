@@ -226,7 +226,7 @@
 
 #### F1：素材 + ini 加载器 / 校验器 / 热重载 + 参考皮肤（①类静态件）
 
-状态：进行中（**主面已成**——gate 定方案 A；①解析 + ②配置源 + ③**颜色/纹理/几何三轴皮肤化** + **reference 验收 capstone**（[模板](../../other/oms-bms-reference-skin/skin.ini) + `BmsReferenceSkinTest` 逐键 parity）均落，BMS 1001/1001 + core gate 绿；剩仅净新增件 stage 框架 / `KeyImage`——当前进度以 [STATUS](DEVELOPMENT_STATUS.md) / [CHANGELOG](CHANGELOG.md) 为准，架构见本节末「实现架构」）
+状态：**已完成**（ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线全部落地，BMS 1024/1024 + core gate 绿；架构见本节末「实现架构」）
 
 建议交付：
 
@@ -251,7 +251,7 @@
 
 #### F2：②类引擎驱动件补挂点（ini 仅供素材）—— 仿 IIDX/LR2/beatoraja 的真正大头
 
-状态：**未开工（2026-06-29 勘察确认：这些件在 OMS BMS 当前零渲染——全仓 grep 无 turntable / keyflash / hit explosion / bomb / LN hold light / ghost-TD 任何组件；盘面结构本身也无 turntable 区、无键区）**
+状态：**进行中（5 件 + Ghost-TD + 接口契约已落地·剩 turntable/bomb/comboburst）**——keyflash + hit lighting + LN hold light + mine hit + ghost-TD 已落，含 5 个接口契约（`IBmsKeyFlashDisplay`/`IBmsHitLightingDisplay`/`IBmsHoldLightDisplay`/`IBmsMineHitDisplay`/`IBmsGhostTdDisplay`）+ Transformer `satisfiesF2InterfaceContract`/`satisfiesPlayfieldInterfaceContract` 检查；BMS 1024/1024。原 2026-06-29 勘察确认这些件在 OMS BMS 当前零渲染——全仓 grep 无 turntable / keyflash / hit explosion / bomb / LN hold light / ghost-TD 任何组件；盘面结构本身也无 turntable 区、无键区
 
 定位：**这是"皮肤制作者能否还原 LR2/beatoraja 体验、甚至仿 IIDX"的决定性一期。** F1 只让现有静态件（音符/车道/判定线/cover/背景…）可换色换图调几何；IIDX 之所以是 IIDX 的招牌动态件**目前没有组件可供贴图**，必须本期从零造。
 
@@ -261,7 +261,7 @@
 - **与 P1-L 协作**：[P1-L](../P1-L/) 已落地地雷渲染 / BGA 链；bomb / 演出类件须对齐复用、不重复造；本期仅补"皮肤可换素材"的挂点。
 - **红线**：仅视觉，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读（CONSTRAINTS 第 10 条）；落地前不得在 `SKINNING.md` 标为"当前可用"。
 
-**F2 启动（2026-07-04）**：keyflash + hit lighting 已落地。`BmsLaneSkinElements.KeyFlash`/`HitLighting` + `BmsSkinConfigurationLookups.KeyFlashImage`/`HitLightingImage`/`KeyFlashColour`/`HitLightingColour` + `DefaultBmsKeyFlashDisplay`（绑定 `BmsHitTarget.IsPressed`·`SkinnerDrawable`·可换图/色）+ `DefaultBmsHitLightingDisplay`（`DrawableBmsHitObject.ApplyResult` 触发）。F2 剩余 turntable/LN hold light/bomb/ghost 待续。
+**F2 进展（2026-07-04 起）**：5 件 + Ghost-TD 已落地——keyflash + hit lighting + LN hold light + mine hit + ghost-TD，含 5 个接口契约（`IBmsKeyFlashDisplay`/`IBmsHitLightingDisplay`/`IBmsHoldLightDisplay`/`IBmsMineHitDisplay`/`IBmsGhostTdDisplay`）+ Transformer `satisfiesF2InterfaceContract`/`satisfiesPlayfieldInterfaceContract` 检查。`BmsLaneSkinElements.KeyFlash`/`HitLighting` + `BmsSkinConfigurationLookups.KeyFlashImage`/`HitLightingImage`/`KeyFlashColour`/`HitLightingColour` + `DefaultBmsKeyFlashDisplay`（绑定 `BmsHitTarget.IsPressed`·`SkinnerDrawable`·可换图/色）+ `DefaultBmsHitLightingDisplay`（`DrawableBmsHitObject.ApplyResult` 触发）。F2 剩余 turntable（需布局裁决）/ bomb / comboburst 待续。
 
 #### F3：③类 `[Bms]` 扩展段独有件 + 契约冻结
 
@@ -314,8 +314,8 @@
 5. `B2` `Sudden / Hidden / Lift` 联动收口
 6. `C1` 扩展到统一 gameplay feedback 家族
 7. `D1` 作者文档与 release gate 收口
-8. **`F1` 主面已成（2026-06-29）**：颜色/纹理/几何三轴皮肤化 + reference 验收 capstone 均落；**余项 = stage 框架 / `KeyImage`（净新增件·需定位决策）**
-9. **皮肤后续路线（2026-06-29 立项，待用户拍板优先级——见 `F2` / `G1` / `G2`）**：
-   - `G1` 皮肤可视文件夹存储（revisit F1 hash 决议·"可管理性"最大缺口·中等架构改动）
-   - `F2` ②类引擎驱动件（turntable/keyflash/explosion/bomb/ghost·"还原 IIDX"最大缺口·工作量最大·会动盘面结构）
+8. **`F1` 已完成**：ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线全部落地（BMS 1024/1024）
+9. **皮肤后续路线（2026-06-29 立项——见 `F2` / `G1` / `G2`）**：
+   - `G1` 皮肤可视文件夹存储（**已完成**·全链路贯通）
+   - `F2` ②类引擎驱动件（5 件 + Ghost-TD + 接口契约已落地·剩 turntable（需布局裁决）/ bomb / comboburst）
    - `G2` 文件型默认皮肤（小·可选） / `F3` ③类 `[Bms]` 扩展段（gauge 样式/GN/bpm）
