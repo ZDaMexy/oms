@@ -42,10 +42,6 @@ namespace osu.Game.Rulesets.Bms.UI
         [BackgroundDependencyLoader]
         private void load(ISkinSource skinSource)
         {
-            Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
-                BmsSkinConfigurationLookups.MineHitColour, keymode)?.Value
-                ?? BmsDefaultPlayfieldPalette.ScratchNote;
-
             string? texturePath = skinSource.GetBmsSkinConfig<string>(
                 BmsSkinConfigurationLookups.MineHitImage, keymode, laneIndex, isScratch)?.Value;
 
@@ -60,6 +56,10 @@ namespace osu.Game.Rulesets.Bms.UI
             }
             else
             {
+                Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
+                    BmsSkinConfigurationLookups.MineHitColour, keymode)?.Value
+                    ?? BmsDefaultPlayfieldPalette.ScratchNote;
+
                 InternalChild = new Box
                 {
                     RelativeSizeAxes = Axes.Both,

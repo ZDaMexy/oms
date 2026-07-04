@@ -29,6 +29,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private const string skin_ini =
             "[General]\n" +
             "Name: Test\n" +
+            "Version: 1\n" +
+            "[Colours]\n" +
+            "Colour1: 255,0,0\n" +
             "[Mania]\n" + // a mania section must coexist untouched (BmsLegacySkin still extends core LegacySkin)
             "Keys: 7\n" +
             "ColumnWidth: 40\n" +
@@ -90,6 +93,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             // The BMS layer must not break core mania-section parsing.
             => Assert.That(createSkin().GetConfig<LegacyManiaSkinConfigurationLookup, float>(
                 new LegacyManiaSkinConfigurationLookup(7, LegacyManiaSkinConfigurationLookups.ColumnWidth, 0))?.Value, Is.EqualTo(40f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR));
+
+        [Test]
+        public void TestGeneralSectionParsedAfterStreamCopy()
+        {
+            // Regression test for stream positioning bug (H1): BmsLegacySkin.ParseConfigurationStream copies the
+            // stream before passing to base. Without resetting stream.Position = 0, the base LegacySkinDecoder
+            // would read an empty stream and [General] values would be permanently lost.
+            // LegacyVersion is set from [General] Version: 1 — it would be 0 (default) if the [General] section was lost.
+            // LegacySkinConfiguration is not public, so use reflection to access LegacyVersion.
+            var config = createSkin().Configuration;
+            var legacyVersionProp = config.GetType().GetProperty("LegacyVersion");
+            Assert.That(legacyVersionProp, Is.Not.Null, "Configuration should be a LegacySkinConfiguration with LegacyVersion");
+            Assert.That(legacyVersionProp!.GetValue(config), Is.EqualTo(1));
+        }
 
         [Test]
         public void TestTypeStringsUsedByCoreResolveToThisType()

@@ -175,7 +175,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     {
                         ApplyResult(result);
 
-                        var lane = findParentLane();
+                        var lane = BmsLane.FindParentLane(this);
                         lane?.TriggerHitLighting();
 
                         if (result.IsHit())
@@ -386,21 +386,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 return new DrawableBmsHitObject(tailEvent);
 
             return base.CreateNestedHitObject(hitObject);
-        }
-
-        private BmsLane? findParentLane()
-        {
-            Drawable? d = this;
-
-            while (d != null)
-            {
-                if (d is BmsLane lane)
-                    return lane;
-
-                d = d.Parent;
-            }
-
-            return null;
         }
     }
 }

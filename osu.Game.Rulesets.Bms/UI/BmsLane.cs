@@ -25,6 +25,25 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class BmsLane : ScrollingPlayfield, IKeyBindingHandler<BmsAction>
     {
+        /// <summary>
+        /// Traverses the Parent chain from <paramref name="drawable"/> to find the containing <see cref="BmsLane"/>.
+        /// Shared by <see cref="Objects.Drawables.DrawableBmsHitObject"/> and <see cref="Objects.Drawables.DrawableBmsMine"/>.
+        /// </summary>
+        public static BmsLane? FindParentLane(Drawable drawable)
+        {
+            Drawable? d = drawable;
+
+            while (d != null)
+            {
+                if (d is BmsLane lane)
+                    return lane;
+
+                d = d.Parent;
+            }
+
+            return null;
+        }
+
         internal readonly Bindable<BmsAction> Action = new Bindable<BmsAction>();
 
         public int LaneIndex { get; }
@@ -55,6 +74,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [Resolved(CanBeNull = true)]
         private BmsKeysoundStore? keysoundStore { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private ISkinSource? skinSource { get; set; }
 
         private IReadOnlyList<BmsLaneKeysoundEntry> keysoundTimeline = Array.Empty<BmsLaneKeysoundEntry>();
 
@@ -141,6 +163,16 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.LoadComplete();
             wireF2Displays();
+
+            if (skinSource != null)
+                skinSource.SourceChanged += onSkinChanged;
+        }
+
+        private void onSkinChanged()
+        {
+            // Re-wire F2 displays after skin hot reload: SkinnableDrawable children reload their content
+            // during the skin change event, so afterwards the new Drawable instances need fresh bindings.
+            wireF2Displays();
         }
 
         private IBindable<bool>? keyFlashPressedSource;
@@ -148,6 +180,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void wireF2Displays()
         {
+            // Unbind previous sources so hot reload doesn't leave stale bindings to disposed components.
+            keyFlashPressedSource?.UnbindAll();
+            holdLightSource?.UnbindAll();
+
             foreach (var child in InternalChildren)
             {
                 if (child is not SkinnableDrawable sd)
@@ -168,8 +204,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override void Dispose(bool isDisposing)
         {
+            if (skinSource != null)
+                skinSource.SourceChanged -= onSkinChanged;
             keyFlashPressedSource?.UnbindAll();
             holdLightSource?.UnbindAll();
+            activeHoldCount = 0;
+            AnyHolding.Value = false;
             base.Dispose(isDisposing);
         }
 

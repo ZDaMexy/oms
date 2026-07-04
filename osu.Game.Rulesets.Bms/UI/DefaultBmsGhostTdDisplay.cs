@@ -50,6 +50,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 Height = 20,
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
+                RelativePositionAxes = Axes.X,
                 Colour = Color4.White,
             };
         }
@@ -58,10 +59,9 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             // Map timing offset to horizontal position: ±max_offset_ms → ±max_offset_x (relative to playfield width).
             float clamped = Math.Clamp(offsetMs / max_offset_ms, -1f, 1f);
-            indicator.RelativePositionAxes = Axes.X;
             indicator.X = clamped * max_offset_x;
 
-            // Colour shifts from white (perfect) toward red (early/late).
+            // Colour shifts from green (perfect) toward red (early/late).
             float severity = Math.Abs(clamped);
             indicator.Colour = new Color4(
                 (byte)(128 + 127 * severity),

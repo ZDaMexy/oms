@@ -33,24 +33,28 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 case BmsPlayfieldSkinElements.StageLeft:
                     RelativeSizeAxes = Axes.Y;
+                    AutoSizeAxes = Axes.X;
                     Anchor = Anchor.CentreLeft;
                     Origin = Anchor.CentreLeft;
                     break;
 
                 case BmsPlayfieldSkinElements.StageRight:
                     RelativeSizeAxes = Axes.Y;
+                    AutoSizeAxes = Axes.X;
                     Anchor = Anchor.CentreRight;
                     Origin = Anchor.CentreRight;
                     break;
 
                 case BmsPlayfieldSkinElements.StageBottom:
                     RelativeSizeAxes = Axes.X;
+                    AutoSizeAxes = Axes.Y;
                     Anchor = Anchor.BottomCentre;
                     Origin = Anchor.BottomCentre;
                     break;
 
                 case BmsPlayfieldSkinElements.StageHint:
                     RelativeSizeAxes = Axes.X;
+                    AutoSizeAxes = Axes.Y;
                     Anchor = Anchor.BottomCentre;
                     Origin = Anchor.BottomCentre;
                     break;

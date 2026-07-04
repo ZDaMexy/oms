@@ -43,7 +43,7 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 ApplyMaxResult();
 
-                var lane = findParentLane();
+                var lane = BmsLane.FindParentLane(this);
                 lane?.TriggerMineHit();
             }
         }
@@ -54,21 +54,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (state == ArmedState.Hit || state == ArmedState.Miss)
                 this.FadeOut(150).Expire();
-        }
-
-        private BmsLane? findParentLane()
-        {
-            Drawable? d = this;
-
-            while (d != null)
-            {
-                if (d is BmsLane lane)
-                    return lane;
-
-                d = d.Parent;
-            }
-
-            return null;
         }
     }
 }

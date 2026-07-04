@@ -47,10 +47,6 @@ namespace osu.Game.Rulesets.Bms.UI
             string? texturePath = skinSource.GetBmsSkinConfig<string>(
                 BmsSkinConfigurationLookups.HoldLightImage, keymode, laneIndex, isScratch)?.Value;
 
-            Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
-                BmsSkinConfigurationLookups.HoldLightColour, keymode)?.Value
-                ?? defaultColour;
-
             if (!string.IsNullOrEmpty(texturePath))
             {
                 InternalChild = new Sprite
@@ -62,6 +58,10 @@ namespace osu.Game.Rulesets.Bms.UI
             }
             else
             {
+                Color4 colour = skinSource.GetBmsSkinConfig<Color4>(
+                    BmsSkinConfigurationLookups.HoldLightColour, keymode)?.Value
+                    ?? defaultColour;
+
                 InternalChild = new Box
                 {
                     RelativeSizeAxes = Axes.Both,

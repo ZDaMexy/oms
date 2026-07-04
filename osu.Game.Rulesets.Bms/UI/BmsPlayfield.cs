@@ -257,10 +257,33 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.LoadComplete();
             NewResult += onNewResult;
+
+            if (skinSource != null)
+                skinSource.SourceChanged += onSkinChanged;
+        }
+
+        private void onSkinChanged()
+        {
+            // Re-apply skin geometry after hot reload: the new skin may carry different geometry overrides
+            // (PlayfieldWidth/Height, lane widths, etc.) that need to be pushed to the playfield and lanes.
+            if (skinSource == null)
+                return;
+
+            var oldProfile = LayoutProfile;
+            applySkinGeometry(skinSource);
+
+            if (!ReferenceEquals(LayoutProfile, oldProfile))
+            {
+                playfieldContainer.Width = LayoutProfile.PlayfieldWidth;
+                playfieldContainer.Height = LayoutProfile.PlayfieldHeight;
+                applyPlayfieldStyle();
+            }
         }
 
         protected override void Dispose(bool isDisposing)
         {
+            if (skinSource != null)
+                skinSource.SourceChanged -= onSkinChanged;
             NewResult -= onNewResult;
             base.Dispose(isDisposing);
         }

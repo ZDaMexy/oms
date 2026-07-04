@@ -2,6 +2,30 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-04（续二）
+
+### 皮肤系统全链路审查修复
+
+对皮肤系统代码链路做系统性审查后，修复所有对长期有益的问题。BMS 全套 **1024/1024**（1 项预存 flaky·零因果），Release gate 0 错误 0 警告。
+
+**高优先级修复**
+
+- **H1: BmsLegacySkin 流定位 bug**：`ParseConfigurationStream` 中 `stream.CopyTo(copy)` 将原始流推进到末尾，`base.ParseConfigurationStream(stream)` 在末尾位置读取空流，导致 `[General]` 段（ComboColours、LegacyVersion 等）永久丢失。修复：在 base 调用前加 `stream.Position = 0`。补回归测试 `TestGeneralSectionParsedAfterStreamCopy`（反射检查 `LegacyVersion == 1`）。
+- **H2a: BmsLane 热重载 F2 绑定失效**：`wireF2Displays()` 仅在 `LoadComplete` 调用一次，热重载后 SkinnableDrawable 创建新 Drawable 实例但 lambda 仍引用旧实例。修复：订阅 `ISkinSource.SourceChanged` 事件重新 wire（`wireF2Displays` 加 unbind-first 逻辑）。
+- **H2b: BmsPlayfield 热重载 geometry 覆盖失效**：`applySkinGeometry` 仅在 `load` 调用一次。修复：订阅 `ISkinSource.SourceChanged` 重新应用 geometry + 更新 `playfieldContainer` 尺寸 + `applyPlayfieldStyle`。
+
+**中优先级修复**
+
+- **M1: DefaultBmsGhostTdDisplay**：`indicator.RelativePositionAxes = Axes.X` 从 `SetTimingOffset` 移到构造器；颜色注释从"white"修正为"green"。
+- **M2: DefaultBmsStageFrameDisplay**：StageLeft/Right 加 `AutoSizeAxes = Axes.X`，StageBottom/Hint 加 `AutoSizeAxes = Axes.Y`，使父级布局边界匹配 Sprite 视觉边界。
+- **M3: BmsLane.trackHoldState**：`Dispose` 中重置 `activeHoldCount = 0` + `AnyHolding.Value = false`，防边缘场景回调错误更新状态。
+- **M4: 14K DP S2 token**：decoder 正则 `(\d+|S)` → `(\d+|S2?)` 匹配 `S2`；`resolveImageKey` 对 14K P2 scratch（`LaneIndex >= 8`）生成 `"S2"` token。
+
+**低优先级修复**
+
+- **L1: HoldLight/MineHit 颜色查询**：移到纹理检查之后（与 HitLighting/KeyFlash 一致），避免有纹理时多余 skin config 查询。
+- **L2: findParentLane 提取**：DrawableBmsHitObject 和 DrawableBmsMine 的重复 `findParentLane()` 提取为 `BmsLane.FindParentLane(Drawable)` 公共静态方法。
+
 ## 2026-07-04（续）
 
 ### F2 接口契约 + 死代码清理 + F2 测试覆盖 + Stage 框架 + KeyImage 替代路线 + Ghost-TD
