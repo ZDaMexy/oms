@@ -547,7 +547,7 @@ namespace osu.Game.Skinning
                 scheduler.Add(() =>
                 {
                     var currentInfo = CurrentSkinInfo.Value;
-                    string? currentPath = currentInfo?.PerformRead(s => s.FilesystemStoragePath);
+                    string currentPath = currentInfo?.PerformRead(s => s.FilesystemStoragePath);
 
                     if (string.IsNullOrEmpty(currentPath))
                         return;
