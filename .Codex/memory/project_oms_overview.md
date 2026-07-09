@@ -1,22 +1,17 @@
 ---
 name: project-oms-overview
-description: "What OMS is — a Windows-only BMS + osu!mania rhythm game client forked from osu!lazer; scope, architecture, and current phase"
-metadata: 
+description: OMS 项目身份与进入任务时必须记住的边界
+metadata:
   node_type: memory
   type: project
-  originSessionId: d9f40bda-cfd5-4076-8bbf-1f08a85c9e5c
 ---
 
-OMS is a Windows-only (Win10 22H2+) rhythm game client forked from osu!lazer, targeting .NET 8 / DesktopGL / osu-framework. It keeps only **osu!mania** and adds a first-class **BMS** mode; Osu/Taiko/Catch are fully deleted (do not reference or re-add them). Goal: replace LR2 and beatoraja as a modern BMS player.
+# OMS 项目召回
 
-**Why:** Offline-first BMS/mania client; long-term (Phase 3) goal is private-server integration (accounts, leaderboards, downloads), but all networked features are hidden/disabled until then.
+- Windows-only osu!lazer fork，只保留 mania，新增第一类 BMS；Osu/Taiko/Catch 已删除。
+- 当前为 Phase 1.x 收尾；Phase 3 前离线优先、默认 endpoint 为空。
+- BMS 直读 `chartbms/`，mania 直读 `chartmania/`；支持 `portable.ini→data/` 与 `storage.ini`。
+- 主工程：`osu.Game`、Mania、Bms、`oms.Input`、`osu.Desktop`。
+- 皮肤任务先读 [[reference_skin_recovery_20260710]]；G1 生产链/F2/Lua 不是当前能力。
 
-**How to apply:**
-- Current phase: **Phase 1.1 skin recovery baseline** + public-release product surface wrap-up + 1.17 input hardware/semantics acceptance. Before any skin work, read `reference_skin_recovery_20260710.md`; G1 production/F2/Lua are not current capabilities. Phase 2/3 are frozen.
-- Release model: portable full packages `oms_YYYYMMDD(.zip)` + manual file-overwrite updates. In-game online update disabled. Don't ship auto-update or online endpoints.
-- Default endpoints are empty; online code in-tree is Phase 3 reserve, not user-facing.
-- Build: `dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m`. BMS tests: `dotnet test osu.Game.Rulesets.Bms.Tests/...`.
-- Key projects: `osu.Game` (core), `osu.Game.Rulesets.Mania`, `osu.Game.Rulesets.Bms` (primary dev target, ~167 files), `oms.Input` (unified input abstraction), `osu.Desktop` (entry).
-- Data root: release `%APPDATA%/oms/`, debug `%APPDATA%/oms-development/`; `portable.ini`→`data/`; `storage.ini` can redirect. BMS charts in `chartbms/`, mania in `chartmania/` (filesystem direct-read, NOT routed through hash-backed `files/` store).
-
-See [[project-oms-docs-governance]] for the mandatory doc-update discipline.
+实时状态、计划和命令不要在 memory 复制，统一读 `AGENTS.md` 与 `doc_md/mainline/{DEVELOPMENT_STATUS,DEVELOPMENT_PLAN}.md`。

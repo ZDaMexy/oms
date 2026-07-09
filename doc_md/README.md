@@ -11,6 +11,13 @@
 
 默认不要整篇加载 `OMS_COPILOT.md`、mainline `DEVELOPMENT_PLAN.md` 的历史版本或任何大型 `CHANGELOG.md`。
 
+## Agent 与记忆入口
+
+- [AGENTS.md](../AGENTS.md) 是唯一跨 Agent 协作规则源。
+- [CLAUDE.md](../CLAUDE.md) 只是 Claude 兼容跳转，不复制规则和状态。
+- [.Codex/memory/MEMORY.md](../.Codex/memory/MEMORY.md) 只路由到特定地雷/诊断；单次任务按需读少量文件，不整库加载。
+- memory 采用“权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项”，不保存可从 CHANGELOG 查询的逐日实现史或旧测试数字。
+
 ## 分层与唯一职责
 
 | 层 | 内容 | 入口 | 是否权威 |
@@ -39,6 +46,7 @@
 - `CHANGELOG` 可以增长，但只通过 `rg -n "日期|P1-X|关键词"` 定点读取，不作为每次会话上下文。
 - 测试数字只在对应 `STATUS` 的最新验证和本次 `CHANGELOG` 各出现一次；旧数字不反复同步。
 - 带日期的结论只要不再影响当前决策，就从 `STATUS/PLAN` 删除，历史由 Git 与 `CHANGELOG` 保存。
+- Agent 适配文件不得复制 `AGENTS.md`；memory 单行建议不超过 800 字符，发现状态叙事时改为链接权威 STATUS。
 
 ## 联动规则
 

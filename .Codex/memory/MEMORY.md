@@ -1,6 +1,6 @@
 # OMS 跨会话记忆索引
 
-> `doc_md/` 是权威治理源；本目录只保存踩坑、验证基线与工作流快速召回。任何带日期的“已修/已落”结论，使用前都要以当前代码、测试和主线状态复核。
+> `doc_md/` 是权威治理源；本目录只保存踩坑、验证基线与工作流快速召回。按任务从索引选择少量文件，勿整库加载。任何带日期的“已修/已落”结论，使用前都要以当前代码、测试和主线状态复核。
 
 ## 项目与协作
 
@@ -8,7 +8,7 @@
 - [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算与同次联动。
 - [反馈工作流](feedback_workflow.md) — 中文协作、真机反馈权威、修复→验证→文档/记忆→提交。
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 分界点、恢复基线、归档 refs、保留/撤回面与重新准入门。**处理皮肤任务先读。**
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — F1/G1 历史设计与实现笔记；顶部恢复声明优先于旧时间线。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 当前可信面、稳定产品决议和实现地雷。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — P1-I 展示层级、返回条、分组与转谱展示。
 - [内置音乐播放器](project_oms_music_player.md) — P1-M 规划与边界。
 

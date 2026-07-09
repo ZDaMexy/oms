@@ -1,32 +1,24 @@
 ---
 name: feedback-workflow
-description: How the user wants work done in OMS — fix → build → focused tests → sync docs & memory; respect design contracts; respond in Chinese
-metadata: 
+description: OMS 用户协作偏好：中文、真机证据、验证/文档/记忆/提交闭环
+metadata:
   node_type: memory
   type: feedback
-  originSessionId: d9f40bda-cfd5-4076-8bbf-1f08a85c9e5c
 ---
 
-Observed working preferences for this user/repo:
+# 协作偏好召回
 
-- **Commit & push directly on the current branch. Never create a new branch for commits.** User doesn't use a PR workflow; branching creates friction. Just `git commit` + `git push` on whatever branch is active. (2026-05-30)
+- 中文沟通。
+- 标准任务弧：归线 → 审查/取证 → 最小修复 → focused/full/build → doc + memory → 当前分支提交。
+- 不新建分支、不走 PR；**push 必须按 AGENTS 取得用户确认**。
+- 真机日志、用户复现和大库数据优先于“代码上应该没问题”或单测假绿。
+- 设计合同变化先解释取舍，不把有意行为当 bug 盲改。
+- STATUS 只更新当前事实和唯一最新验证；命令、数字和过程进 owning CHANGELOG。
 
+## 大库/Realm 特别偏好
 
-- **Language**: user writes in Chinese and explicitly asked to "说中文" — respond in Chinese for OMS work.
-- **Standard task arc**: "审查 → 全量修复并验证 → 同步文档和记忆". After a code review, the user expects: implement the safe fixes, run `osu.Desktop.slnf` build + focused tests, then sync the governance docs AND memory. Treat doc+memory sync as part of "done", not optional.
+- 5万级问题允许多轮取证；先看真实 performance/database log，再优化。
+- Realm link-traversal predicate 可能失败或静默零结果；复杂条件 materialize 后客户端过滤，并记录 Found N（包括 0）。
+- 关注隐藏 timeout、`CacheNullValues=false`、海量 async task allocation 与 UI 线程/全局锁，而不只看算法表面。
 
-**Why:** The repo enforces strict doc governance ([[project-oms-docs-governance]]) and the user follows it through to memory.
-
-**How to apply:**
-- When fixing review findings, distinguish safe refactors from design-contract changes. The user accepted NOT "fixing" intentional design (e.g. star-rating computed inside `BmsToManiaBeatmapConverter.ConvertBeatmap`, the deliberate two-stage source re-conversion) because tests/contracts depend on them — explain the tradeoff instead of blindly changing. This judgment call was validated, not corrected.
-- Doc sync pattern that was accepted: add a dated entry to the owning subline CHANGELOG (e.g. `doc_md/subline/P1-K/CHANGELOG.md`), mirror a condensed entry into `doc_md/mainline/CHANGELOG.md`, replace the single "最近一次验证" snapshot in `doc_md/mainline/DEVELOPMENT_STATUS.md` (older detail already archived in CHANGELOG), and bump "最后更新" dates. Keep STATUS to current-relevant state only.
-- Always include the exact verification commands + pass counts in CHANGELOG entries (matches existing style).
-
-**Testing-loop pattern observed during K10 (2026-05-28)**: user runs the game on their real 58k+ BMS library and provides export-log bundles (`<id>.runtime.log`, `.performance.log`, etc. from `<storage>/exports/compressed-logs/`). The logs are authoritative — when the user said "可能正常" (possibly OK) but symptoms persisted, the actual log diff revealed the next bottleneck each time. Don't trust "fix should work, library too big to test in CLI" reasoning when real-library logs are available — read the perf log's `BeatmapDifficultyCache i:X h:Y m:Z` line and carousel op timings to confirm. Multiple iterations may be needed:
-1. JSON deserialisation cost (per-call parse for 57k beatmaps)
-2. Task allocation cost (57k async lambdas)
-3. Upstream hidden timeouts (`DifficultyCalculator` internal 10s)
-4. Upstream cache behaviour quirks (`CacheNullValues => false`)
-Each was invisible in unit tests but obvious in real-library logs.
-
-**Realm 20.1.0 link-traversal predicate landmine**: `r.All<BeatmapInfo>().Where(b => b.Ruleset.ShortName == "literal")` may silently return zero in Realm 20.1.0 against real datasets. The "optimization" of moving filtering server-side is NOT safe for link-traversal queries. Always filter the server-side query by translatable predicates only (`b.BeatmapSet != null`) and apply complex predicates client-side (`IsBmsBeatmap(b)`). Add a "Found N" log even when N=0 so silent regressions don't recur invisibly.
+权威协作规则始终以 [AGENTS.md](AGENTS.md) 为准；本文件只记录用户偏好和易忘的现场方法。

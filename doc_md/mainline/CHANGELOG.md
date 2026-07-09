@@ -7,6 +7,13 @@
 
 ## 2026-07-10
 
+### Agent 入口与 Codex memory 无损去重
+
+- `AGENTS.md` **107→53 行**：保留开始路径、权威顺序、工作流、命令、提交/push 权限和项目红线，删除与 doc 索引重复的逐子线清单；成为唯一跨 Agent 规则源。
+- `CLAUDE.md` **92→11 行**：改为只引导 Claude 读取 `AGENTS.md`、主线 STATUS/PLAN、子线路由和皮肤恢复审计，不再维护第二套规则副本。
+- `.Codex/memory` 保持 **28 个文件/稳定文件名**，**209.3 KB→66.0 KB**：高噪声记忆改成“权威链接 + 稳定合同 + 地雷/诊断 + 未闭合项”；逐日实现史和旧数字回归 CHANGELOG/Git。
+- 修正 `feedback_workflow.md` 的失真权限：旧“直接 push”改为与 `AGENTS.md` 一致的“当前分支提交，push 前用户确认”。所有 memory 单行已压到 800 字符以内。
+
 ### 文档治理降噪与活动视图重构
 
 - 重写 `doc_md/README.md`，冻结“一个事实一个权威落点”和四类文件边界：STATUS=当前、PLAN=未来/依赖、CONSTRAINTS=稳定合同、CHANGELOG=历史。

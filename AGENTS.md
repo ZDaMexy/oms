@@ -1,107 +1,53 @@
-# AGENTS.md — OMS 仓库导航与文档联动约定
+# AGENTS.md — OMS 协作入口
 
-本文件是给 AI 助手（及任何协作者）的**快速定位索引**。OMS 把治理文档统一收口到 `doc_md/`，本索引帮助每次对话第一时间找到权威来源，并约束"改代码必须同步改文档"的联动规则。
+OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania，新增第一类 BMS；离线优先，Phase 3 前联网功能冻结。
 
-## 项目一句话
+## 开始工作
 
-OMS 是基于 osu!lazer 的 **Windows-only** 音游客户端：只保留 **osu!mania**，新增第一类 **BMS** 模式，已删除 Osu/Taiko/Catch。离线优先，Phase 3 前所有联网功能隐藏/禁用。详见 [README.md](README.md)。
+1. 读 [当前状态](doc_md/mainline/DEVELOPMENT_STATUS.md)。
+2. 读 [当前计划](doc_md/mainline/DEVELOPMENT_PLAN.md)。
+3. 从 [子线路由](doc_md/subline/README.md) 进入所属子线，只读该线 `STATUS` 与任务相关 `CONSTRAINTS`。
+4. 产品红线在 [OMS_COPILOT.md](doc_md/mainline/OMS_COPILOT.md) 按关键词定位；历史在对应 `CHANGELOG` 按日期/子线搜索。两者勿默认整篇加载。
 
-## 每次对话推荐起步顺序
+皮肤任务额外先读 [2026-07-10 恢复审计](doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md)。
 
-1. [doc_md/mainline/DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) — 当前阶段、活动主线、最新验证与阻塞（短，可整篇读）
-2. [doc_md/mainline/DEVELOPMENT_PLAN.md](doc_md/mainline/DEVELOPMENT_PLAN.md) — 当前执行顺序、阶段依赖、验收门（短，可整篇读）
-3. 按归属进入对应 subline 的 `STATUS` 与任务相关 `CONSTRAINTS` 小节
-4. 需要产品红线时在 [doc_md/mainline/OMS_COPILOT.md](doc_md/mainline/OMS_COPILOT.md) 按关键词定位；需要历史时在 `CHANGELOG` 按日期/子线搜索，二者均勿默认整篇加载
+## 权威与文档
 
-## 文档分层与索引
+- `doc_md/mainline`：全局状态、编排、产品约束与历史。
+- `doc_md/subline/P1-*`：专项四件套 `PLAN / STATUS / CHANGELOG / TECHNICAL_CONSTRAINTS`。
+- `doc_md/other`：参考、审计和面向用户/制作者的派生说明。
+- `.Codex/memory`：踩坑与诊断召回，不替代 `doc_md`。
 
-### 总索引
-- [doc_md/README.md](doc_md/README.md) — 文档总索引与分层说明
+冲突顺序：当前代码/测试/真机反馈 → mainline → subline → other → memory。完整低噪声规则见 [doc_md/README.md](doc_md/README.md)。
 
-### mainline（主线，全局权威）
-- [OMS_COPILOT.md](doc_md/mainline/OMS_COPILOT.md) — 产品边界、技术约束、release gate（权威约束源）
-- [DEVELOPMENT_PLAN.md](doc_md/mainline/DEVELOPMENT_PLAN.md) — 全局开发计划与阶段编排
-- [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) — 已验证现状、指标、遗留问题
-- [CHANGELOG.md](doc_md/mainline/CHANGELOG.md) — 按日期倒序的变更摘要
+改动必须同次同步其改变的状态、计划、约束和验证结论；子线只有影响全局优先级、release gate 或硬约束时才向 mainline 回写一句摘要和链接。新踩坑写入对应 memory，并更新 [MEMORY.md](.Codex/memory/MEMORY.md)。
 
-### subline（主线子方向，每条固定维护四件套：PLAN / STATUS / CHANGELOG / TECHNICAL_CONSTRAINTS）
-- [P1-A](doc_md/subline/P1-A/) — 产品面与 release gate，含皮肤边界冻结（当前 Phase 1.1 皮肤专项主归属）
-- [P1-B](doc_md/subline/P1-B/) — 输入语义与硬件验收（analog scratch / 真实 HID）
-- [P1-C](doc_md/subline/P1-C/) — 判定语义与反馈闭环（BRJ/LR2 parity、FAST/SLOW、pacemaker）
-- [P1-D](doc_md/subline/P1-D/) — 控制器校准与诊断（deadzone / sensitivity / diagnostics）
-- [P1-E](doc_md/subline/P1-E/) — gameplay 与长条真实谱面验校（LN/CN/HCN）
-- [P1-F](doc_md/subline/P1-F/) — 首发离线发行基线（portable.ini + data/）
-- [P1-G](doc_md/subline/P1-G/) — 人工验收后置
-- [P1-H](doc_md/subline/P1-H/) — 存储拓扑支撑线（chartmania/、外部/内部谱库扫描）
-- [P1-I](doc_md/subline/P1-I/) — BMS 选歌筛选与搜索定制
-- [P1-J](doc_md/subline/P1-J/) — BMS gameplay runtime 性能与音频时序治理
-- [P1-K](doc_md/subline/P1-K/) — BMS 解析链路治理（decoder / 转换 / projection / parse cache）
-- [P1-L](doc_md/subline/P1-L/) — BMS 演出/Gimmick 谱视觉复刻（地雷渲染 / 专用滚动旁路 / BGA 背景图·动画链路；红线：不改坏正常游玩链路）
-- [P1-M](doc_md/subline/P1-M/) — 内置音乐播放器（分层 PlayQueue：真队列/重复·随机/曲库搜索排序/收藏歌单/可展开全屏复用 FullscreenOverlay/可视化/播放源 mania·bms·both；红线：不改坏 song-select 试听与 gameplay 音轨控制、离线只用本地轨）
-- 子线总入口：[doc_md/subline/README.md](doc_md/subline/README.md)
+## 工作流
 
-### other（参考材料，不替代主线计划/约束）
-- [SKINNING.md](doc_md/other/SKINNING.md) — 皮肤契约、fallback 粒度、未冻结边界
-- [SKIN_SYSTEM_RECOVERY_20260710.md](doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md) — 2026-06-30 分界后的皮肤取证、保全、可信基线与重新准入门
-- [RELEASE.md](doc_md/other/RELEASE.md) — 发行方式、打包约束、公开 release gate
-- [IIDX_REFERENCE_AUDIT.md](doc_md/other/IIDX_REFERENCE_AUDIT.md) — IIDX/LR2/beatoraja 方向校准与训练反馈基线
-- [BMS_FORMAT_REFERENCE.md](doc_md/other/BMS_FORMAT_REFERENCE.md) — BMS/bmson 格式权威参考与解析审查对照清单（服务 P1-K）
-- [BMS_GIMMICK_CHART_RENDERING.md](doc_md/other/BMS_GIMMICK_CHART_RENDERING.md) — 演出/Gimmick 谱视觉复刻可行性与架构分析（已升级为 P1-L）
-- [UPSTREAM.md](doc_md/other/UPSTREAM.md) — 上游锁定点、本地 diff 基线、cherry-pick 风险面
-- 参考材料入口：[doc_md/other/README.md](doc_md/other/README.md)
+1. 先归线并确认现有设计合同。
+2. 审查/取证；真机日志优先于推测。
+3. 实现最小安全切片。
+4. 运行 focused tests；按风险补 full tests 与 Release build。
+5. 同步 doc + memory，运行链接检查与 `git diff --check`。
+6. 在当前分支提交；不开 PR、不新建分支。`git push` 前必须取得用户确认。
 
-### mini（与主线无关的独立事项，每项亦维护四件套）
-- [doc_md/mini/README.md](doc_md/mini/README.md) — mini 事项索引
-- [doc_md/mini/TEMPLATE/](doc_md/mini/TEMPLATE/) — 新建 mini 事项的四件套模板
+语言使用中文。对依赖测试/契约的“看似问题”先说明取舍，不盲改。
 
-## 文档联动更新规则（强制）
+## 常用工程与命令
 
-> 核心纪律：**不允许只改代码不改文档，也不允许保留已失真的文档叙事。**
+主要工程：`osu.Game`、`osu.Game.Rulesets.Mania`、`osu.Game.Rulesets.Bms`、`oms.Input`、`osu.Desktop`。
 
-1. **先归线**：任何开发、调研、修复、验收开始前，先判断归属 `mainline` / `subline` / `other` / `mini`。
-2. **同次同步**：一旦实现/调研/修复/验收改变了计划、状态、约束或验证结论，必须在同一次改动中同步对应文档。
-3. **子线 → 主线反向同步**：subline 或 mini 的变化若影响全局优先级、全局状态或硬约束，必须回写 `doc_md/mainline/` 的四件套。
-4. **other → 主线升级**：`other` 中的参考结论一旦升级为正式约束或执行优先级，必须回写 `mainline` 与相关 `subline`。
-5. **STATUS vs CHANGELOG 分工**：`DEVELOPMENT_STATUS.md` 只保留当前仍影响判读的阶段/事实/风险/验证基线；按日期展开的实现切片、回归命令、构建记录写入同目录 `CHANGELOG.md`，且"最近一次验证"只保留最新一条。
-6. **专项同步面**：Phase 1.1 执行顺序/门槛/候选包语义变化时，须同步 `DEVELOPMENT_PLAN.md`、`README.md`、`SKINNING.md`、`RELEASE.md`、`OMS_COPILOT.md`。
-7. **低噪声预算**：`STATUS` 只留当前事实/风险/下一门/一条最新验证，建议不超过 120 行；`PLAN` 不写实现日记和旧测试数字；大型 `CHANGELOG` 只定点检索。完整规则见 [doc_md/README.md](doc_md/README.md)。
-
-## 关键工程与命令
-
-主要工程：`osu.Game`（核心）· `osu.Game.Rulesets.Mania` · `osu.Game.Rulesets.Bms`（BMS 主开发目标）· `oms.Input`（统一输入抽象）· `osu.Desktop`（桌面入口）。
-
-```shell
-# 构建（优先 osu.Desktop.slnf）
+```powershell
 dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
-
-# 运行
 dotnet run --project osu.Desktop
-
-# BMS 全量测试
 dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore
 ```
 
-## 记忆体系（.Codex/memory）
+## 红线
 
-跨会话实战记忆库（Codex 时期起积累），与 `doc_md/` 互补：doc_md 是权威治理源，memory 是踩坑/地雷/验收基线/工作流偏好的快速召回库。
-
-- **索引**：[.Codex/memory/MEMORY.md](.Codex/memory/MEMORY.md) — 先读索引按需定位单文件，**勿整目录加载**。
-- **覆盖**：项目总览、文档治理盲点、BMS 皮肤创作（P1-A）、选歌展示（P1-I）、音乐播放器（P1-M）、BMS 解析/键音/BGA/判定/转谱/选歌性能等 reference、构建测试、网络限制。
-- **纪律**：memory 是召回辅助，**不替代 doc_md**；冲突以 doc_md 为准并回写两边。带日期的"已修/已落"结论使用前用代码/测试复核。
-- **同步义务**：新踩坑/地雷/验收基线须同次补进 memory 并更新 MEMORY.md 索引。
-
-## 协作工作流约定
-
-- **语言**：中文回应。
-- **任务弧**：审查 → 修复并验证（构建+focused 测试）→ 同步 doc_md **与 memory** → 提交。doc+memory 同步属"done"一部分。
-- **提交授权（显式，覆盖 opencode 默认「未经要求不 commit」）**：任务完成后可直接 `git commit` 当前分支；**`git push` 前须确认**。不开 PR、不新建分支。
-- **尊重设计契约**：对有测试/契约依赖的"看似问题"不盲改，先说明取舍。
-- **其余偏好/地雷**（真机日志权威、Realm link 谓词地雷、同步模式等）见 [.Codex/memory/MEMORY.md](.Codex/memory/MEMORY.md) 的 `feedback_workflow` 与各 reference。
-
-## 红线约束（详见 OMS_COPILOT.md）
-
-- 不重新引入 Osu / Taiko / Catch。
-- 不盲目同步上游，按 [UPSTREAM.md](doc_md/other/UPSTREAM.md) 选择性 cherry-pick。
-- Phase 3 前保持离线优先：默认 endpoint 清空，不把"在线功能预留"当作当前可用能力描述。
-- BMS 谱面直读 `chartbms/`、mania 直读 `chartmania/`，不经过通用 hash-backed `files/` store，不转 `.osz`。
-- 发行物不再以 osu!lazer 原生默认皮肤作为产品表面；维护 OMS 自有内置皮肤。
+- 不重新引入 Osu/Taiko/Catch。
+- 不盲目同步上游；按 [UPSTREAM.md](doc_md/other/UPSTREAM.md) 选择性 cherry-pick。
+- Phase 3 前默认 endpoint 为空，不把在线预留描述成当前能力。
+- BMS 直读 `chartbms/`，mania 直读 `chartmania/`；不转 `.osz`，不经通用 hash-backed `files/`。
+- 发行物不以 osu!lazer 原生默认皮肤作为产品表面；程序化 OMS fallback 不得删除。
+- 皮肤异常期归档只能定点取证，禁止整包 cherry-pick/apply。

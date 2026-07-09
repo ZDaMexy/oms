@@ -1,42 +1,33 @@
 ---
 name: reference-bms-difficulty-table
-description: "BMS 难度表全链 + 全 Unrated 真根因：转谱星数(BmsPersistedMetadataData)与难度表(BmsBeatmapMetadataData)共用单个 BeatmapMetadata.RulesetData 列、整体覆盖写互相抹掉 → 修复=两侧 [JsonExtensionData]；写回用注入的 RealmAccess、carousel 中途不刷新需重启等坑。P1-H CONSTRAINTS #22"
-metadata: 
+description: BMS 难度表持久化、共享 RulesetData clobber 地雷与大库刷新边界
+metadata:
   node_type: memory
   type: reference
-  originSessionId: 903d0da1-1c0d-4abc-b1ad-0f0df5a3760d
 ---
 
-# BMS Difficulty Table — chain, THE root cause (shared RulesetData column), write-back
+# BMS 难度表召回
 
-## Chain (osu.Game.Rulesets.Bms/DifficultyTable/)
-- `BmsDifficultyTableManager`: SQLite `bms-difficulty-tables/tables.db`; 7 presets from embedded `bms_table_presets.json` (default off, no auto network; first-run import opt-in). Parses bmstable HTML `<meta bmstable>` → header.json (`data_url`) → body array; http/https/local.
-- Write-back: import/refresh/enable/disable/remove → `updatePersistedBeatmaps` writes `BeatmapInfo.Metadata` via `BmsBeatmapMetadataData` (a RulesetData payload) → `TableDataChanged`.
-- Consumers read PERSISTED metadata: `BmsTableGroupMode.GetGroupDefinitions` (table→level; empty entries → "Unrated" group), `BmsNoteDistributionGraph`. `BeatmapInfo.MD5Hash` + table md5 both lowercase.
-- **osu.Game-side READ-ONLY consumer (2026-06-22, song-select standalone-panel classification badge)**: `BmsPersistedMetadataResolver.GetDifficultyTableEntries` (osu.Game can't reference the BMS ruleset) reads entries from the cached `BmsPersistedMetadataData.ExtensionData["difficulty_table_entries"]`; osu.Game's `BmsPersistedDifficultyTableEntry` models only `TableName/LevelLabel/Level/TableSortOrder` and is **NEVER serialised back**. LANDMINE: do NOT promote `difficulty_table_entries` to an explicit field on osu.Game's *writable* `BmsPersistedMetadataData` — the converted-star write would then re-serialise via that partial DTO and drop `Symbol`/`Md5`, re-igniting the shared-column ping-pong below. Display formatting (order by `TableSortOrder`, `/`-join level labels) lives in `BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassification`. See [[project-oms-songselect-display-nav]] 2026-06-22 + P1-I CONSTRAINTS #19.
+权威当前态：[P1-H STATUS](doc_md/subline/P1-H/DEVELOPMENT_STATUS.md)；详细约束/历史位于 P1-H。
 
-## THE root cause (fixed 2026-05-31, 2nd pass) — "group-by-table → all Unrated, intermittently / after star recompute"
-**Two independent subsystems serialize DIFFERENT container classes into the SAME `BeatmapMetadata.RulesetData` column, and `BeatmapMetadata.SetRulesetData<T>` is a whole-object overwrite (single JSON string).**
-- `BmsPersistedMetadataData` (osu.Game `BmsPersistedMetadataResolver`) = `{ chart_metadata, converted_star_ratings }` — K9/K10 BMS→mania star persistence.
-- `BmsBeatmapMetadataData` (BMS ruleset `DifficultyTable/`) = `{ difficulty_table_entries, chart_metadata, chart_filter_stats }`.
+## 主链
 
-Newtonsoft deserialize drops unknown members by default → each subsystem's write WIPES the other's exclusive fields:
-- Converted-star recompute → `getPersistedData()` deserializes as `BmsPersistedMetadataData` → `difficulty_table_entries`/`chart_filter_stats` dropped → write-back → **all Unrated** (user saw this right after a "Reprocessing converted star rating (N of 11336)" run).
-- Difficulty-table write → deserializes as `BmsBeatmapMetadataData` → `converted_star_ratings` dropped → next launch sees star "missing" → recomputes ~11k → wipes table again. **Destructive ping-pong**; "intermittent" = whichever wrote last.
+- manager 管理本地/HTTP bmstable source，写回 persisted difficulty-table entries。
+- consumer 从 persisted metadata 分组为表→等级；无条目进入 Unrated。
+- osu.Game 侧难度表 badge 只读 ExtensionData，不用不完整 DTO 写回。
 
-**Fix**: `[JsonExtensionData] public IDictionary<string, JToken>? ExtensionData` on BOTH container classes → unknown fields round-trip preserved (Newtonsoft flattens extension data back to top level on serialize). CRITICAL: `BmsBeatmapMetadataData.IsEmpty` must also count `ExtensionData` — else `SetDifficultyTableEntries(empty)` → `SetRulesetData(null)` nulls the column and wipes the star payload. Two-direction regressions: `BmsDifficultyTableManagerTest.TestDifficultyTableWriteBackPreservesForeignRulesetDataFields` + `BmsStarRatingResolverTest.TestConvertedStarRatingWritePreservesDifficultyTableFields`.
+## “全部 Unrated”真根因
 
-**General rule (enforce going forward)**: the single `RulesetData` column is shared across subsystems AND assemblies. Any new BMS RulesetData payload MUST either share one container or carry `[JsonExtensionData]`. P1-H CONSTRAINTS #22.
+converted star 与难度表使用不同 DTO，却写同一个 `BeatmapMetadata.RulesetData` JSON。whole-object overwrite 会让后写者删除前者未知字段，形成“星数重算→擦难度表→全 Unrated；难度表写回→擦星数→再次重算”的 ping-pong。
 
-**Verified (user, 2026-05-31)**: after the fix, converted-star recompute no longer recurs on an unchanged library (the ping-pong is broken — this is the definitive confirmation) and difficulty-table grouping is correct. RESIDUAL: a new build only prevents FUTURE overwrites — entries already wiped by the old build need ONE `disable→enable` of any table to rewrite (one mutation rewrites all matched beatmaps' full entries since `updatePersistedBeatmaps` uses the complete enabled-table lookup), then it sticks.
+修复合同：所有共享列 DTO 带 `[JsonExtensionData]` 并 round-trip 未知字段；`IsEmpty` 必须把 ExtensionData 计入，不能把只含外来字段的 payload 置 null。
 
-## Diagnosis playbook for "all Unrated"
-- Restart → still Unrated? = persisted entries missing (this root cause, or never written). Fine after restart = a refresh/cache (carousel staleness) issue, NOT this.
-- A "Reprocessing converted star rating (N)" notification firing on an unchanged library = the ping-pong (a table write wiped the star payload, forcing recompute). Must NOT happen after the extensionData fix.
+## 诊断与刷新边界
 
-## Write-back architecture (kept) / carousel staleness (deferred, NOT the main bug)
-- Write-back uses the INJECTED global `RealmAccess` (never `new` a 2nd — its ctor's `cleanupPendingDeletions` over-reaches + races the global). `GetShared(storage, realmAccess)`; settings/first-run reflection bridge/importer pass it. enable/disable/remove have async entry points (off the update thread). MD5 normalized lowercase; `loadTableSource` depth cap; import/refresh build their return from in-hand data (no `GetSources().Single`).
-- **Carousel mid-session staleness is intentionally NOT fixed**: difficulty-table data lives on the deep `Beatmaps.Metadata` link property; `RealmDetachedBeatmapStore` subscribes shallow `All<BeatmapSetInfo>()` (no keyPaths) so deep writes don't trigger re-detach. The earlier per-set `BeatmapSetInfo.DifficultyTableRevision` bump (realm schema 55) to force re-detach was **REVERTED**: at 5.7万-lib + 万级-entries a single table toggle matches thousands of sets → thousands of per-set re-detaches → 8万 update-reads + 2000 pending scheduler tasks → 1–2 min UI freeze (user-confirmed). Column retained (schema 55, currently unused) to avoid another migration. **Mid-session table enable/disable reflects in grouping after EXITING & RE-ENTERING song select (user-verified — lighter than a full app restart), or a restart; startup is always correct.** Also: the write-back itself still costs ~1 min at 5.7万 lib because `updatePersistedBeatmaps` does `realm.All<BeatmapInfo>().AsEnumerable().Where(...)` (full-table client-side filter + writes thousands of matched beatmaps; the #1 perf item — runs on a background thread so the UI isn't hard-blocked but frame rate dips; music keeps playing). Proper future fix = group via an in-memory MD5 index (live lookup) + one-shot re-filter, not persisted-metadata + carousel re-detach (and push the match filter down to realm instead of AsEnumerable).
+- 重启后仍 Unrated：查 persisted entries、MD5 和共享列 clobber。退出再进入 Song Select 后恢复：属于 carousel 深层 link staleness。
+- 不要恢复 per-set revision bump：5万级库会触发成千 re-detach/scheduler task，用户已验证可冻结 UI 数分钟。
+- mid-session table 变化当前通过退出/重进 Song Select 或重启反映；proper future fix 是内存 MD5 index + one-shot refilter。
+- write-back 使用注入的全局 `RealmAccess`；不要 new 第二个实例。
+- 已被旧版本擦掉的 entries 需要一次 table mutation/refresh 重写，修复只能防后续覆盖。
 
-## Test landmines
-- `BmsDifficultyTableManagerTest` needs a real `RealmAccess` per test: `using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME)` right after `using var storage` (dispose order realm-then-storage). Don't use all-numeric MD5 in write-back regressions (hides casing + the field-overwrite bug). Full `osu.Game.Rulesets.Bms.Tests` = 869/869; `BmsStarRatingResolverTest` 13/13 (2026-05-31).
+测试必须双向证明：难度表写保留 foreign fields，star 写保留 difficulty fields。历史数字查 P1-H CHANGELOG。

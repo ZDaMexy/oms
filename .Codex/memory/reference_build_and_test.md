@@ -1,18 +1,26 @@
 ---
 name: reference-build-and-test
-description: "OMS build/test environment specifics — Release vs Debug, NuGet-cache runtime resolution, and the C# Dev Kit Test Explorer quirk on osu.Game"
-metadata: 
+description: OMS 构建入口、当前恢复基线与 C# Dev Kit 误判地雷
+metadata:
   node_type: memory
   type: reference
-  originSessionId: d9f40bda-cfd5-4076-8bbf-1f08a85c9e5c
 ---
 
-OMS build/test environment notes (verified 2026-05-27; Dev Kit quirk re-diagnosed & fixed 2026-05-30):
+# 构建与测试召回
 
-> **2026-07-10 recovery baseline:** BMS 1005/1005; mania default OMS resource 1/1; mania full 787/791 (4 existing HoldNote auto-frame expectation failures); core skin focused 57/62 (Argon/removed-ruleset legacy expectations); Release 0 errors / 20 warnings. The 20 warnings include nine MessagePack 3.1.3 NU1902 advisories printed twice plus the two pre-existing BMS test warnings below. Do not restore the rejected global `NoWarn`; upgrade/audit the dependency separately.
+- build 入口：`osu.Desktop.slnf`；CLI `dotnet test <csproj> --no-build -c Release|Debug` 最可靠。
+- 第三方程序集通过 deps/runtimeconfig 从 NuGet cache 解析，输出目录没有单独 DLL 不一定是错误。
+- 真实测试工程：`osu.Game.Tests`、BMS.Tests、Mania.Tests。
 
-- Build entry: `osu.Desktop.slnf`. Release and Debug both compile clean. CLI `dotnet test <project>.csproj --no-build -c <Release|Debug>` is the reliable verification path.
-- Third-party assemblies (e.g. AutoMapper 13.0.1) are NOT copied into `bin/.../net8.0/`; they resolve at runtime from the NuGet global cache (`~/.nuget/packages/...`) via the project's `deps.json` + `runtimeconfig.json` probing paths. Missing `AutoMapper.dll` in the output dir is normal, not a bug.
-- **C# Dev Kit Test Explorer quirk**: `osu.Game` is a Library that references NUnit (only for abstract test-scene base classes like `DifficultyCalculatorTest`, `BeatmapConversionTest`, all `abstract`). Dev Kit mis-detects it as a test container and launches a testhost against `osu.Game.dll`; since a library has no `runtimeconfig.json`, the testhost lacks NuGet probing paths and fails with "AutoMapper 13.0.1 / lib/net6.0/AutoMapper.dll not found", aborting discovery. **Resolved 2026-05-30 — confirmed BENIGN, accepted as-is (no functional fix). Do NOT re-chase this.** Root cause: Dev Kit's Project System classifies a project as a test container by whether it **references the NUnit *package***. It ignores `<IsTestProject>` (MSBuild evaluates it `false`) and ignores deps.json contents (removing `nunit.framework.dll` via `ExcludeAssets=runtime` did NOT stop selection). `osu.Desktop.slnf` / `Reload Window` don't help. Both fix paths rejected: (1) **make the testhost succeed** — `CopyLocalLockFileAssemblies` fixes stage-1 `AutoMapper` resolution but Dev Kit then hits stage-2 `Microsoft.TestPlatform.CommunicationUtilities` (the testhost *platform* itself, absent because osu.Game has no `Microsoft.NET.Test.Sdk`); completing it = turning osu.Game into a real test project (wrong direction, more upstream divergence) — reverted. (2) **stop selection** — needs removing the NUnit package ref (move the 7 `osu.Game/Tests/**` files out — upstream-divergence red line). No clean Dev Kit/VS Code setting suppresses a single source (only disabling the whole Test Explorer, which loses the real projects too). **Benign because** the same session discovers the real test projects fine (BMS.Tests 860 + Mania.Tests 780 via `NUnit Adapter 4.6.0.0`; misclassified osu.Game is the 3rd of "3 projects added"). Decision (user, 2026-05-30): accept it — use Test Explorer for the real projects or CLI `dotnet test`; ignore the osu.Game red node. Only repo change: an explanatory comment on `<IsTestProject>false</IsTestProject>` in osu.Game.csproj. Faithful CLI repro (both stages, matches Dev Kit exactly): `dotnet vstest osu.Game/bin/Debug/net8.0/osu.Game.dll`.
-- Real test projects (`osu.Game.Tests`, `osu.Game.Rulesets.Bms.Tests`, `osu.Game.Rulesets.Mania.Tests`) have full Debug outputs (deps + runtimeconfig) and discover/run fine.
-- Pre-existing harmless build warnings live in test files (`TestSceneFilesystemBackedStoryboardFallback.cs` CS8600, `BmsRulesetStatisticsTest.cs` CA2007) — not from production code.
+## C# Dev Kit 地雷
+
+`osu.Game` 是 library，但因引用 NUnit 抽象 test scene，Dev Kit 会误识别成测试容器并用缺 runtimeconfig 的 testhost 启动，随后报告 AutoMapper/测试平台程序集缺失。该红节点是已确认 benign：不要通过把 `osu.Game` 变成真实 test project、复制全依赖或移走上游测试基类来修。使用真实测试工程或 CLI。
+
+## 2026-07-10 恢复基线
+
+- BMS 1005/1005；mania 默认 OMS 资源 1/1。
+- mania full 787/791：4 个既有 HoldNote auto-frame 期待失败。
+- core skin 57/62：Argon/已删除 ruleset 的旧测试失配。
+- Release 0 error / 20 warnings：9 个 MessagePack NU1902 在 restore/build 重复 + BMS test CS8600/CA2007。
+
+不要恢复全局 `NoWarn` 隐藏依赖告警；安全升级单独治理。最新数字最终以 mainline STATUS 为准。

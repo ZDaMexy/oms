@@ -1,18 +1,17 @@
 ---
 name: reference-mania-autoplay-holdnote
-description: Mania autoplay HoldNote landmine — top-level-only AffectsCombo filters silently drop ALL long notes; the IgnoreJudgement trap and the ManiaAutoGenerator-vs-OrderedHitPolicy asymmetry
-metadata: 
+description: Mania autoplay/难度过滤 HoldNote 时必须检查 nested judgement
+metadata:
   node_type: memory
   type: reference
-  originSessionId: 81b931e4-f471-4017-a8a1-fa288fcd67d8
 ---
 
-THE landmine: mania `HoldNote.CreateJudgement()` returns `IgnoreJudgement` (`MaxResult = IgnoreHit`, `AffectsCombo()` == **false**). A long note's combo lives entirely in its NESTED `HeadNote`/`TailNote` (both `ManiaJudgement` → Perfect → affects combo). So any predicate that filters TOP-LEVEL `Beatmap.HitObjects` by the object's own `MaxResult.AffectsCombo()` silently drops **every** long note (native mania AND BMS→mania converted — both go through the same `ManiaAutoGenerator`; converter emits BMS LN as mania `HoldNote`). Regular `Note` survives (`ManiaJudgement` affects combo).
+# Mania HoldNote nested judgement 地雷
 
-**The asymmetry to remember:** `OrderedHitPolicy.canParticipateInLocking` (note-lock) ALSO filters by `AffectsCombo`, but it is CORRECT because it additionally walks `obj.NestedHitObjects` and applies the predicate to each — so a hold note participates via its nested head/tail. `ManiaAutoGenerator` only iterates top-level objects and does NOT descend into nested, so the SAME `AffectsCombo` predicate that's fine for note-lock breaks autoplay holds. When copying a "cross-cutting AffectsCombo contract" between these two, you MUST account for the nested walk.
+top-level `HoldNote.CreateJudgement()` 是 `IgnoreJudgement`，combo 位于 nested head/tail。任何只按 top-level `MaxResult.AffectsCombo()` 过滤的逻辑都会删除全部 HoldNote，同时原生 mania 与 BMS→mania 都受影响。
 
-**Correct autoplay predicate** (matches the fix): `o.Judgement.MaxResult.AffectsCombo() || o.NestedHitObjects.Any(n => n.Judgement.MaxResult.AffectsCombo())`. This keeps sample-only objects skipped — `BmsConvertedScratchSampleHitObject` / `BmsConvertedBgmSampleHitObject` are `IgnoreJudgement` AND have **no nested objects at all**, so they stay excluded; that "no nested" property (not the IgnoreHit alone) is what distinguishes them from a hold note.
+正确判据：对象自身 affects combo，或任一 nested judgement affects combo。sample-only BGM/scratch 自身 ignore 且无 nested，仍会被排除。
 
-History: the bad `canParticipateInAutoplay(o) => o.Judgement.MaxResult.AffectsCombo()` was the K9 "autoplay skips ignore-only sample objects" contract (P1-K CONSTRAINTS #12), committed inside the `4aa76f0` "P1-L Phase 2 accumulated WIP snapshot". It slipped because that commit only ran the BMS suite, not mania — the pre-existing upstream guard `TestPerfectScoreOnShortHoldNote` was silently failing. Fixed 2026-06-01 (nested-aware predicate); user-verified by manual real-play — native mania AND BMS→mania converted long-note autoplay both confirmed correct in mania mode. Guards: `osu.Game.Rulesets.Mania.Tests/Mods/TestSceneManiaModAutoplay.cs` (`TestPerfectScoreOnShortHoldNote` + `TestAutoplayHoldsLongNoteAlongsideSampleOnlyObject` lock hold participation; `TestAutoplayIgnoresSampleOnlyScratchObjects` locks sample skip).
+`OrderedHitPolicy` 因遍历 nested 所以同类 predicate 正确；`ManiaAutoGenerator` 只看 top-level 时必须显式 nested-aware。不要在二者间复制 predicate 而忽略遍历差异。
 
-Native BMS autoplay (`BmsAutoGenerator`) is a SEPARATE path — filters by `OfType<BmsHitObject>()`, has its own `BmsHoldNote` release branch, no `AffectsCombo` predicate — so this bug never touched it. Related: the BMS→mania sample-only objects and K11 converter chain are in [[reference-bms-keysound-chain]].
+回归同时锁定：短/长 HoldNote autoplay、旁边存在 sample-only 对象、sample-only 不被 autoplay。Native BMS autoplay 是独立路径。
