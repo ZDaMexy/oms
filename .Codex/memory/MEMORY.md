@@ -30,6 +30,7 @@
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md)
+- [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — `GetKeyCount` 会漏 scratch/末端 lane，修复与验证边界。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md)
 - [lane 重排](reference_bms_lane_rearrangement.md)
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)

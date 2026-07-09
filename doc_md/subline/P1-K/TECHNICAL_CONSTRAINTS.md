@@ -52,12 +52,14 @@
 3. 任何对 BPM 的时间推进计算都不得 silently 抹去原始 sign 信息；若 runtime 当前只支持正向推进，也必须把 sign 单独保留在模型里。
 4. `BmsBeatmapConverter` 只消费 normalized chart model；Song Select、gameplay、背景层或未来特效层不得绕过它自行从 raw text 再算一次 timing。
 5. 从 BPM 推导 beat length 不得把合法的亚 1 BPM（规范允许低至约 0.014）钳成 1；下界只用于避免零/近零 BPM 产生非有限值。`TimingControlPoint.BeatLength` 受框架 bindable `[6,60000]` 钳制只影响显示滚动，不得反过来用作对象时序的钳制依据。
+6. keymode 必须携带来源/诊断。`.pms`、`.bme`、P2 channel 与高位 channel 的当前启发式存在 sparse chart 歧义；在显式 override/导入诊断落地前，不得宣称所有稀疏 5K/7K/9K 都能自动判对。优先级和纠正入口须由单一 parse authority 冻结，layout/skin 不得另猜 keymode。
 
 ## 键音呈现与控制流约束（2026-05-29 链路审查后冻结）
 
 1. BGM（channel `0x01`）同位叠层不得被去重：解析层必须让同 measure/fraction 的多条 `#xxx01` keysound 全部进入 `ObjectEvents` 并各自生成 `BmsBgmEvent`。
 2. 空键 / 误击的轨 keysound 必须由 `BmsBeatmapConverter` 在转换期构建的 per-lane keysound 时间线（`BmsBeatmap.LaneKeysoundTimelines`）单一驱动；该时间线必须涵盖可见音符、long-note 头/尾与不可见对象（channel `31-49`）的 keysound，并按时间排序。`BmsLane` 只能消费该时间线（at-or-before 二分解析、开局前回退首条目），不得回退到基于判定事件（`NewResult`）的 ad hoc “last judged” keysound，也不得让每个 lane 各自从 hitobjects 再算一套。
 3. 不可见对象（channel `31-49`）属“已解码但此前未消费”语义：现固定经 `channel-0x20` 映射回对应可见 lane 并进入 keysound 时间线；不得再在 decode 后被静默丢弃。
+3a. per-lane keysound timeline 的 lane 上界必须使用 `BmsRuleset.GetLaneCount`（键 + scratch），不得使用 `GetKeyCount`。scratch 占 lane 0，5K/7K 最右键和 14K 右侧末键/Scratch2 的索引会大于等于 key count；用 key count 会静默丢其 visible/invisible armed keysound。该修复须覆盖 5K/7K/9K/14K 每轨 smoke，并与相邻 mine 的同类合同保持一致。
 4. `#RANDOM` 的确定性合同冻结为“仅执行 `#IF 1` 分支”并保留既有告警；`#SETRANDOM n` 必须按作者固定值选支。`#IF`/`#ELSEIF`/`#ELSE` 必须按 chain 语义求值（命中后续分支短路），不得让 `#ELSE` 内容在 `#IF` 已命中时泄漏。
 5. `#SWITCH`/`#SETSWITCH` 必须做确定性单段选择（默认 `#CASE 1` 或 `#SETSWITCH` 固定值，C 风格 fall-through 至 `#SKIP`，无匹配走 `#DEF`，支持嵌套）；不得退回“把所有 `#CASE` 内容无条件并入”导致错谱。
 6. 解析期对 LNOBJ 头的回收不得使用每条长条一次的 O(n) 线性扫描（全 LNOBJ 谱会退化为 O(n²)）；必须用索引标记 + 单次重建等 O(n) 路径。

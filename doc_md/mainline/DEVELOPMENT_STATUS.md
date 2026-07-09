@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 F1/schema 56 基线并同步远端；当前先完成皮肤实机验收和数据只读清点，再重做 G1 安全合同，同时继续输入硬件与真实谱面验收。
+OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 `.osk/F1/schema 56` 基线；Skin V1 随后重新定义为“引擎拥有 gameplay truth 与 playfield/BGA 布局，外部 package 拥有视觉/动画/只读事件响应”。当前先完成实机验收和数据只读清点，再按 P1-A `SV1-*` 重做共享合同与 G1，同时继续输入硬件与真实谱面验收。
 
 ## 产品与仓库基线
 
@@ -13,7 +13,7 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 F1
 - 离线优先；Phase 3 前默认 endpoint 为空，联网与自动更新不作为当前能力。
 - BMS 直读 `chartbms/`，mania 直读 `chartmania/`；发行支持 `portable.ini → data/` 与 `storage.ini` 自定义根。
 - 主要入口：`osu.Desktop.slnf`；BMS 主开发目标：`osu.Game.Rulesets.Bms`；统一输入：`oms.Input`。
-- 当前分支 `master` 的恢复提交为 `ef56507`，已与 `origin/master` 同步。
+- 当前协作分支为 `master`；可信恢复锚点是 `ef56507`，后续皮肤工作只能在该基线上按小切片前进。
 
 ## 当前优先级
 
@@ -21,9 +21,10 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 F1
 | --- | --- | --- | --- |
 | 1 | P1-A 皮肤恢复 gate | 自动恢复已完成 | 无外部皮肤、`.osk`、5K/7K/9K/14K 实机视觉 |
 | 2 | schema 56 用户数据 | 未清点 | 只读报告 folder-backed `SkinInfo`，不自动修复 |
-| 3 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority 与删改 containment 重设计 |
-| 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
-| 5 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
+| 3 | Skin V1 共同合同 | 架构/文档已冻结 | neutral ini/layout/event/fallback fixtures |
+| 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
+| 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
+| 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
 
 ## 皮肤系统当前事实
 
@@ -31,15 +32,18 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 F1
 - **fallback**：程序化 `OmsSkin` 仍是最终兜底；用户皮肤缺件必须逐组件回落。
 - **schema**：`SkinInfo.FilesystemStoragePath`、`IsExternalFilesystemStorage` 与 Realm schema 56 保留，但没有生产扫描/选择/删改/热重载。
 - **恢复修正**：base legacy parser 前重置配置流位置；14K 第二皿使用 `S2`/P2 素材映射。
-- **未落地**：G1 生产链、F2/F3/G2、Lua、mania fallback adapter、reference-default 替换。
+- **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
+- **V1 下限/上限**：同一公开 API 必须支持只剩最小可玩色块的 Minimal 皮肤，以及覆盖完整事件/动画能力的 Showcase 皮肤。
+- **未落地**：G1 生产链、shared codec/layout descriptor、scene/event/script runtime、三态 suppress、文件型默认；事故期 F2/Lua/mania adapter/reference-default 均不计能力。
+- **布局风险**：现有 playfield 可读皮肤几何，而 gauge/combo/BGA 仍各自按默认 profile/固定 rect 计算；14K 四角四 BGA player 只是临时实现，不能作为 V1 合同。
 
-完整取证和重新准入门见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)。
+恢复取证见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)；V1 架构与完成定义见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 子线快照
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | 皮肤可信恢复完成；实机和 G1 安全重设计待续 |
+| P1-A | 皮肤可信恢复完成；Skin V1 路线已重构，实机/数据/shared fixtures/G1 待续 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -48,9 +52,9 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 F1
 | P1-G | 人工验收汇总待做 |
 | P1-H | 文件系统谱库与多根扫描基线已落；删除/失效/去重仍是 backlog |
 | P1-I | 选歌分组/筛选/搜索主功能已落；拖拽 headless 与 shared visual 待补 |
-| P1-J | 普通密度音频/性能主故障已收口；转谱 LN、50k profile 与人工音频清单待做 |
-| P1-K | K1–K12 主体阶段性收口；public wording、特殊谱尾项与人工证明待做 |
-| P1-L | 地雷、滚动旁路与 BGA 主链已落；逐谱视觉/反向滚动待做 |
+| P1-J | 普通密度音频/性能主故障已收口；新增末端 lane keysound runtime proof，转谱 LN/50k/人工清单待做 |
+| P1-K | K1–K12 主体阶段性收口；末端 lane timeline 上界与 sparse keymode authority 是 Skin V1 前置修正 |
+| P1-L | BGA 播放主链已落；内容/viewport 解耦协作 P1-A，逐谱视觉/反向滚动待做 |
 | P1-M | 规划完成，未开工 |
 
 入口和下一道门见 [子线路由](../subline/README.md)。
@@ -86,6 +90,9 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 F1
 
 - 生产 Realm 已经是 schema 56；未经只读清点，不得降 schema、自动删除记录或清理 `chartskin/`。
 - BMS 单套测试全绿不证明 mania 默认资源、真实 `SkinManager` 选择链或视觉事件正确。
+- 皮肤几何值当前缺少完整合法域校验；在统一 descriptor 前，极端值还可能让 playfield 与 gauge/combo/BGA 脱节或重叠。
+- BMS lane keysound timeline 仍以 key count 而非 lane count 过滤，5K/7K 边缘轨及 14K 第二皿存在丢失风险；另立 P1-K/P1-J 修复切片，不混入本轮文档改线。
+- “代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”是四种不同完成度，文档和发布说明不得混写。
 - 皮肤 abnormal-period 归档只能定点取证，禁止整包 cherry-pick/apply。
 - 50k 极端 dense、真实硬件、特殊 Gimmick 谱仍需要 profiler/真机证据，禁止凭猜测优化。
 - mainline 与子线旧 `CHANGELOG` 中的历史数字不代表当前 gate；只看本页“最近一次验证”。

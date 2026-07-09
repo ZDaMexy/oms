@@ -1,6 +1,6 @@
 # P1-L 开发计划：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-06-23
+> 最后更新：2026-07-10（Skin V1 的 BGA ownership/layout 边界同步）
 > 全局计划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。完整可行性与架构分析见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)（本子线由该分析升级而来）。
 > **红线（最高优先级）：任何阶段都不得改坏 OMS 正常游玩链路（mania 风格前进式滚动判定）。演出渲染只能作为可隔离、可关闭的旁路。**
 
@@ -9,6 +9,7 @@
 - 目标：在 OMS 内尽可能忠实复刻 DEAD SOUL [Revive] 这类**炫技/观赏（演出）谱**的视觉效果（定格动画式的凭空出现/消失、悬停、反向/双向滚动、LN 跳回等）。
 - authority：演出**视觉渲染**（对象/小节线/特效的屏上定位、**BGA 背景演出**）与其所需的解析消费。判定/计分/gauge 继续归现有链路（P1-C/Scoring），本线不改判定语义。
 - 不拥有：通用前进式滚动游玩链路（保持现状）；解析模型本体（归 P1-K，本线只消费）；运行时音频/性能基线（与 P1-J 协同）。
+- 与 P1-A 的新边界：P1-L 继续拥有 BGA timeline、解码/转码、seek/retry/POOR 内容语义；P1-A `SV1-3/SV1-5` 拥有 gameplay layout snapshot、皮肤 viewport 与 scene API。当前向 skin display 传 raw timeline、14K 创建四个独立 player 只算迁移前实现，不是未来皮肤合同。
 
 ## 机理结论（详见可行性文档）
 
@@ -49,10 +50,12 @@ DEAD SOUL [Revive] 的所有效果是**定格动画（stop-motion）**：132 万
 
 ### Phase 5 — BGA 链路（背景图 / 背景动画）—— ✅ 已落地（2026-06-14；自动化通过、人工视觉验收待办）
 > 独立轨道，不依赖 Phase 2/3 滚动旁路。把此前标为 mainline Phase 2 future-scope 的 BGA 视频/动画正式激活并归入本线。
+>
+> **V1 边界（2026-07-10）**：本节保留的是当前播放能力与历史验收。布局和 skin ownership 已转交 P1-A Skin V1；“skin 自建 player / raw timeline 接口 / 14K 四 player”均不得作为新外部 API 继续扩张。
 
 - **问题**：native BMS 游玩当前没有真正 BGA。解析层（P1-K）已完整产出 `BmsDecodedChart.BgaEvents`（通道 `04`base/`06`poor/`07`layer/`0A`layer2）+ `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` typed 定义，但**转换层只取一个静态 `metadata.BackgroundFile`，整条 BGA 时间线被丢弃**；显示层 `BmsBackgroundLayer` 是静态占位件且挂在 `playfieldContainer` 内、位于不透明 lane 背板之下 → 游玩时被完全遮挡（14K DP 中缝可坐实）。
 - **目标**：BGA 在一个**独立、不被遮挡、皮肤可定制**的浮窗控件中按时间线播放（图序列 + 视频），为自定义皮肤预留接口；默认皮肤自动适配 playfield 居左/居中/居右排列。
-- **已冻结产品决策**：① 图序列 + 视频一起做（视频复用 osu!framework FFmpeg `Video`，同 `DrawableStoryboardVideo` 机制）；② 默认镜像对侧（居左→BGA 右 / 居右→BGA 左 / 居中→BGA 右 / 14K DP→两 playfield 中缝）；③ 等比完整 + 黑边（letterbox，`FillMode.Fit`），毛玻璃填充留作皮肤可选后续；④ "浮窗" = 游戏内皮肤可定制覆盖控件，挂 `DrawableRuleset.Overlays`（**非** OS 窗口）；⑤ 仅 native BMS ruleset 路径，converted-mania 不在 v1。
+- **当期实现决策（不冻结 V1 layout）**：① 图序列 + 视频一起做；② 单打默认在 playfield 对侧，14K 后续改成四角复制；③ 等比完整 + 黑边；④ 游戏内 overlay 而非 OS 窗口；⑤ 仅 native BMS。V1 的最终 viewport 数量/位置由 `BmsGameplayLayoutSnapshot` 决定，内容时钟与解码 authority 必须只有一个。
 - **实现切片**：
   - **L5-1 数据携带**：`BmsBgaTimelineEntry`（time/layer/asset/isVideo）；`BmsBeatmap` 加只读 `BgaTimeline` + `PoorBgaMode`；`BmsBeatmapConverter` 复用 `eventTimes`（与音符同一时间轴）把 `BgaEvents`→绝对时间、`BitmapTable` 解析文件名、扩展名判定视频、缺失跳过、按时间排序。**照 `Mines`/`ScrollProfile` 模式，不进 `HitObjects`。**
   - **L5-2 运行时播放器**：`UI/BmsBgaPlayer` 时间线驱动 base/layer/overlay/layer2 合成；图片走 `Sprite`+beatmap `TextureStore`、视频走 `DrawableVideo`（`WorkingBeatmap.GetStream` + `PlaybackPosition` 同步、pause/seek/retry 跟随）；POOR 层按 `#POORBGA` 在 miss 显示；letterbox；perf 走 P1-J 纪律。
@@ -76,6 +79,13 @@ DEAD SOUL [Revive] 的所有效果是**定格动画（stop-motion）**：132 万
 - **R4 转码提速（✅，用户选"安全优先"）**：libx264 加 `-preset ultrafast`（不动 baseline 可解码性），`transcode_version`→4 失效旧缓存。**硬件编码器（NVENC）不纳入**（框架解码兼容风险 + 跨机不确定）。
 - **R5 加载阶段进度显示（✅，用户截图给的方向＝扫描线）**：缩略图加载指示改成**从左到右把暗覆盖扫亮的扫描线**（替代 dim+转圈）。新 `ScanlineLoadingLayer`，**仅 BMS** 门控；**有真实转码进度时按 % 揭示、无进度时乒乓循环**（用户两选自然合一）。进度跨 DI 桥＝`GameplayLoadProgress`（`[Cached]` 于 `PlayerLoader`，被其子 `BeatmapMetadataDisplay` 与异步加载的 player 子树共享）；`BmsBgaVideoCache` 逐行解析 ffmpeg stderr `Duration:`+`time=` 推进度。
 - **开放设计问题（已对齐结论）**：缓存策略＝**会话级清空**（非持久有界、非不缓存）；加载＝**硬等转码 + cap 超时回退静态**；硬件编码器＝**不纳入**（仅 ultrafast libx264）；进度 UI 落点＝**加载界面缩略图扫描线**（仅 BMS，进度驱动 + 乒乓兜底）。
+
+### Phase 5.3 — Skin V1 BGA 内容/视图解耦（规划；协作 P1-A `SV1-3/SV1-5`）
+
+1. 将 timeline、texture/video decode、playback clock、seek/retry 与 POOR 切换收敛为一个 engine-owned content session；同一谱面不得因多个 viewport 重复创建 player/decoder authority。
+2. skin-facing API 只暴露只读 content handle/proxy、状态事件与 layout snapshot 中的 named viewport；不再交付 raw timeline、resource store 或可改写时钟。
+3. 5K/7K 的 P1/P2/CenterP1/CenterP2、9K BMS/PMS、14K DP 全部消费 P1-A 的最终 rect；四角可以是多个只读镜像 viewport，但不是四个独立内容播放器。
+4. focused tests 锁住单内容源、seek/POOR 同步、多 viewport 不重复解码；人工验收补宽高比/DPI/BGA 不遮 lane。
 
 ## 验证顺序（每阶段强制）
 1. 先 focused 单测（如 Phase 1 的 converter 地雷构建 + 不泄漏判定路径）。

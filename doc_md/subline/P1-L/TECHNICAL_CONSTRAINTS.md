@@ -42,8 +42,8 @@
 4. **资源直读 `chartbms/`**：BGA 图片经 beatmap 作用域 `TextureStore`、视频经 `WorkingBeatmap.GetStream` 加载（同 storyboard），**不经** hash-backed `files/` store、不转 `.osz`（守 mainline 红线）。
 5. **视频时钟同步**：视频 drawable 必须跟随游玩时钟（`PlaybackPosition = clock - eventTime`），pause/seek/retry 同步，复用 `DrawableStoryboardVideo` 范式；不得让视频脱离 frame-stable 时钟自由播放。
 6. **解码/缺失健壮性**：BGA 资源缺失或视频编解码失败必须**优雅降级**，不得抛异常或刷错误日志、不得拖垮正常游玩链路。具体合同：(a) 视频**优先按绝对文件路径**打开 `new Video(path,…)`——BMS 恒文件系统直读，FFmpeg 对真实文件的探测/seek 远好于基于 .NET-Stream 的 AVIO（后者对老式 **MPEG-1 program-stream `.mpg`** 会在 `avformat_open_input` 阶段直接 `AVERROR_INVALIDDATA` 打不开 → 全黑）；无路径时回退 stream。(b) 仍解不出时通过 `Video.IsFaulted` 检测，base 层**回退显示 STAGEFILE 静态图**（不是黑屏），overlay/poor 层隐藏。路径解析：external 库用绝对 `FilesystemStoragePath`，internal 用 `Storage.GetFullPath(相对路径)`。
-7. **皮肤合同**：`BgaPanel` 是皮肤可定制控件——默认 `DefaultBmsBgaPanelDisplay` 仅在 `OmsSkin`（`providesBuiltInFallbacks`）下作为内建 fallback，非 OMS 皮肤缺失时返回 `null`（照 `BmsSkinTransformer` 既有约定）；位置/尺寸/适配方式皮肤可覆盖，默认实现自带**屏幕角落**布局（`BmsBgaPlacement` 四角 + `Center`；5/7/9K 单角镜像 playfield 侧居左→右上/居右→左上/居中→右上；**14K→四角各一个 BGA** 紧凑尺寸贴窄双打边距，2026-06-20 由"中缝"改）+ letterbox。
-8. **perf（与 P1-J 协同）**：纹理懒加载并缓存、每视频源单一 drawable、热路径零分配；大视频/海量 `#BMP` 帧需实测 gen0:gen1 与 GC 暂停，不得引入开局阻塞或密谱卡顿。
+7. **皮肤合同（迁移中）**：当前 `BgaPanel` 允许 display 接收 timeline 并创建 player，默认实现为屏幕角落布局（5/7/9K 单角；14K 四角四 player）。这只描述恢复基线，不再是 Skin V1 目标。目标合同由 P1-A `SV1-3` 拥有：decode/timeline/seek/POOR/clock 与唯一 content surface 留在引擎；皮肤只取得只读 surface、事件和 `BmsGameplayLayoutSnapshot` 提供的 viewport，可 frame/mask/letterbox/decorate。多个 mirror viewport 必须共享同一 content authority，禁止各建独立 player/clock。新合同落地前不得破坏当前 fallback；落地时同步本线 BGA/player/cache 测试。
+8. **perf（与 P1-J 协同）**：纹理懒加载并缓存、每视频源单一 decode/content authority、热路径零分配；大视频/海量 `#BMP` 帧需实测 gen0:gen1 与 GC 暂停，不得引入开局阻塞或密谱卡顿。当前 14K 四 player 路线不得继续扩张。
 9. **范围边界**：v1 仅 native BMS ruleset 路径；converted-mania（Mania ruleset 下游玩，无 `BmsPlayfield`/`Overlays`）不在本期，单独评估。overlay/layer 通道"黑=透明"与 `#ARGB` v1 近似，保真细化后续。
 
 ## Phase 5.1（老式视频转码）约束 —— 已落地（2026-06-15），须守

@@ -34,6 +34,12 @@ P1-K 拥有 decoder、normalized chart model、converter、projection reuse 与 
 
 ## 当前活动顺序
 
+### 0. Skin V1 topology 前置修正
+
+1. 修正 `buildLaneKeysoundTimelines()` 的 lane 上界：必须使用 `GetLaneCount()` 而不是普通键数，并以 5K K5、7K K7、14K K14/S2 的真实末端 lane fixture 防止静默丢声。
+2. 为 sparse 7K/9K 冻结可追溯的 keymode source、诊断与显式纠正入口；layout consumer 不得只依赖“最高出现 channel”启发式猜测。
+3. converter focused 先证明 timeline 完整，再把末端 lane 的运行时发声 proof 交 P1-J；这两项是 P1-A `SV1-3` 布局矩阵的前置 gate。
+
 ### 1. Public surface 收尾
 
 1. 明确 BMS→mania 的入口 wording、source/target ruleset 与转换后限制。

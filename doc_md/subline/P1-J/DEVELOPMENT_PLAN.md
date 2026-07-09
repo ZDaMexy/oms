@@ -1,6 +1,6 @@
 # P1-J 开发计划：BMS gameplay runtime 性能与音频时序治理
 
-> 最后更新：2026-06-11（J6 游玩期性能三连收口，均用户实测 ✅：tap KEY note 池化〔06-10〕、通道同样本快路径修帧抖动〔06-11，确诊 = 每播 sample-drawable 重建 → gen1 晋升风暴〕、keysound prewarm 放开玩家模式修开局 ~220ms 阻塞 gen2 冻结〔06-11，BMS 原生与转谱对等〕；「once-per-run 卡顿」假设线就此收口。早前 2026-06-07：长 BGM 偷断确诊修复（store floor 128）。剩余：转谱 LN 键音走 store、50k 极端 dense profile、人工 checklist）
+> 最后更新：2026-07-10（补 Skin V1 topology 的末端 lane keysound 运行时 gate；既有性能阶段不改）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-J` 的执行顺序；判定/反馈语义见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
 
 ## 子线定位
@@ -34,6 +34,12 @@
 - 现有 automated coverage 已锁住相关语义：`BmsDrawableRulesetTest` 覆盖 late-empty-poor，`FramedReplayInputHandlerTest` 锁住 core replay stepping contract，`TestSceneBmsAutoplayReplayPlayback` 锁住 full autoplay correctness 与 replay-loaded HUD/key-counter surface；后续优化不能把这些回归当成“性能改动可接受副作用”。
 
 ## 分期计划
+
+### J0a：末端 lane keysound runtime proof（近期协作 gate）
+
+状态：待 P1-K 修复 converter lane 上界后执行
+
+目标：证明 5K K5、7K K7、14K K14/S2 进入同一个 shared keysound store 并在玩家/auto 路径按既有语义发声；不能只断言 converter DTO 数量。该 proof 与 P1-A `SV1-3` 全 keymode topology smoke 共用 fixture，不借机改变 keysound pool 或判定语义。
 
 ### J0：归线、术语与观测基线
 

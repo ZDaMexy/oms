@@ -5,6 +5,11 @@
 
 ---
 
+## 2026-07-10（Skin V1 topology 运行时 gate 入计划；无代码改动）
+
+- P1-K 修复 converter lane 上界后，P1-J 必须用玩家/auto 两条路径证明 5K K5、7K K7、14K K14/S2 进入同一 shared keysound store 并发声，不能只验证 DTO 数量。
+- 此 gate 复用 P1-A `SV1-3` 全 keymode topology fixture，不改变既有 sample pool、判定或 autoplay 语义。
+
 ## 2026-06-23（选歌试听音频泄漏进游玩开头 已修：beatmap track 在 BMS 游玩静音；mute 方案取代此前已回退的虚拟轨方案）
 
 > 起因：用户以 `D:\beatoraja...\Stella\st4\Lyrith -迷宮リリス-\_7INSANE.bms` 为例，反映「songselect 下部分 BMS 谱面有 preview 音频，autoplay 或正常游玩在游戏开头都会播这段 preview 音频」，并判断是可能广泛存在的 bug。归属主 `P1-J`（音频时序治理），即 STATUS 既有开放遗留 ④。

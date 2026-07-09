@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-10
+
+### Skin V1 topology 审查发现 converter 末端 lane 丢失与 sparse keymode 风险（已入计划，代码未修）
+
+- `buildLaneKeysoundTimelines()` 当前按 `GetKeyCount()` 限制 lane index，而实际包含 scratch 的 topology 应按 `GetLaneCount()`；会静默丢掉 5K K5、7K K7、14K K14/S2 的 lane keysound timeline。P1-K 计划新增边界 lane converter fixture，修复后交 P1-J 做运行时发声 proof。
+- sparse 7K/9K 只靠最高出现 channel 的启发式可能低估 keymode；后续必须冻结可追溯 source、诊断和显式纠正入口，供 P1-A `SV1-3` layout snapshot 消费。
+- 本项来自只读代码/架构审查；本轮仅同步 PLAN/STATUS/CONSTRAINTS，无 converter 代码或测试变更。
+
 ## 2026-06-23
 
 ### 审查 + 修复落地（K12）：转谱星数被 BGM/scratch sample-only 对象灌高 + 更正失真叙述

@@ -10,7 +10,7 @@
 Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成立判断：
 
 1. BMS/mania 主流程和本地数据升级不阻断用户。
-2. 无外部皮肤时存在 OMS 自有可玩 fallback；用户皮肤缺件逐组件回落。
+2. 无外部皮肤时存在 OMS 自有可玩 rescue fallback；用户皮肤支持 `Provide/Inherit/Suppress`，缺件逐组件回落且可选视觉可明确关闭。
 3. BMS 输入、LN/CN/HCN、键音/BGA 在真实设备与真实谱面上通过验收。
 4. portable `data/`、自定义数据根和覆盖更新不丢用户内容。
 5. Release 构建及约定的 focused/full tests 达到当前基线，已知失败被明确归因。
@@ -32,7 +32,16 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 2. 根据清点结果决定是否需要显式迁移/修复工具；操作前再次备份 Realm 与目录。
 3. 保持当前 `.osk` F1 路线和程序化 `OmsSkin` fallback 稳定，不在本阶段引入 F2/Lua/reference-default。
 
-### R2：G1 可视文件夹存储重设计
+### R2：Skin V1 共同合同冻结
+
+1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/stable ID 和 mania compatibility fixtures。
+2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件。
+3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority。
+4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
+
+架构证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+
+### R3：G1 可视文件夹存储重设计
 
 按独立切片推进，不得从异常期存档整批恢复：
 
@@ -42,36 +51,44 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 4. **热重载**：覆盖 `skin.ini`、素材变化和原子替换；生产 `SkinManager`/选择链测试必须存在。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、删除/重命名均经人工确认。
 
-### R3：Phase 1 玩法与硬件收尾
+### R4：Skin V1 layout、兼容层与外部运行时
+
+1. **layout descriptor**：5K/7K 四 style、9K BMS/PMS、14K DP 的 playfield group/lane/BGA viewport/HUD safe slot 统一求解；BGA 播放 authority 留在引擎。
+2. **mania-compatible ini**：共同字段使用同一 codec/resolver；BMS 只扩展 scratch/side/DP/gauge/BGA/gimmick。
+3. **scene/event ABI**：外部 package 可声明 scene、动画、状态机并消费只读 gameplay 事件，不为每种视觉新增固定 BMS C# 实现。
+4. **sandbox script**：先通过权限/确定性/预算 spike，再作为可选作者层接入；不兼容或移植 LR2/beatoraja runtime。
+5. **双极限证明**：Minimal 皮肤可显式关闭所有可选视觉；Showcase 皮肤只用公开 API 证明接近 IIDX 复杂度的表达力。
+
+### R5：Phase 1 玩法与硬件收尾
 
 1. `P1-B`：analog scratch 跨设备 edge/hold 合同与真实 HID 控制器。
 2. `P1-D`：deadzone、sensitivity、scratch 模式说明与 live diagnostics。
 3. `P1-E`：真实 LN/CN/HCN、长 BGM、键音密集谱和 5K/7K/9K/14K 游玩验校。
 4. `P1-G`：把皮肤、输入、长条、Song Select、BGA 的人工结果汇总为 release checklist。
 
-### R4：公开发行门
+### R6：公开发行门
 
-1. 复核公开皮肤选择面、默认资源与 partial override。
+1. 复核公开皮肤选择面、文件型默认、Minimal/Showcase、三态 fallback 与 rescue fallback。
 2. 复核 `portable.ini → data/`、`storage.ini` 自定义根和覆盖更新。
 3. Release 构建、BMS 全量、mania/core relevant focused tests 通过或已知失败有稳定归因。
-4. 发布说明不得宣称 G1/F2/Lua/在线功能等未通过 gate 的能力。
+4. 发布说明区分 code-provider/ini/scene/script 四层能力；不得宣称未通过 gate 的 G1、script、格式兼容或在线能力。
 
 ## 子线编排
 
 | 子线 | 当前作用 | 与当前顺序的关系 |
 | --- | --- | --- |
-| P1-A | 产品面、皮肤与 release gate | 当前主归属；先完成 R0/R1，再进入 R2 |
-| P1-B | 输入语义与硬件 | R3 主项，与 P1-D/P1-E 联合验收 |
+| P1-A | 产品面、Skin V1 与 release gate | 当前主归属；按 R0–R4 建立恢复、数据、shared contract、G1 与外部运行时 |
+| P1-B | 输入语义与硬件 | R5 主项，与 P1-D/P1-E 联合验收；向皮肤只发布只读输入事件 |
 | P1-C | 判定语义与反馈 | 保持 parity gate；不恢复已删除的常驻反馈卡 |
 | P1-D | 控制器校准 | P1-B 的真实设备配套面 |
 | P1-E | 真实谱面 gameplay | 验证解析/音频/输入在真实谱上的组合结果 |
-| P1-F | 离线发行 | portable 基线已落，R4 复核 |
+| P1-F | 离线发行 | portable 基线已落，R6 复核 |
 | P1-G | 人工验收 | 收口所有无法由 headless tests 证明的结果 |
 | P1-H | 存储拓扑 | 为谱库与 G1 提供路径/authority 经验，但皮肤须独立建模 |
 | P1-I | 选歌筛选 | 主功能已落，只补 focused/visual gate |
-| P1-J | 性能与音频 | 普通密度问题已收口；只按 profiler/真机证据继续 |
-| P1-K | 解析与转换 | 主体阶段性收口；为 P1-E/P1-L 提供稳定 parse authority |
-| P1-L | Gimmick/BGA | 隔离旁路，人工逐谱验证；不得改变正常滚动链 |
+| P1-J | 性能与音频 | 普通密度问题已收口；为末端 lane 提供运行时发声 proof，其余只按 profiler/真机证据继续 |
+| P1-K | 解析与转换 | 先修 lane timeline 上界与 keymode source，再为 P1-A/P1-E/P1-L 提供稳定 topology authority |
+| P1-L | Gimmick/BGA | 保留内容播放 authority；与 P1-A 解耦 skin viewport，继续隔离旁路与逐谱验证 |
 | P1-M | 音乐播放器 | 规划保留，Phase 1 release gate 前不抢占当前恢复与硬件工作 |
 
 具体状态和入口统一从 [子线路由](../subline/README.md) 进入。
@@ -83,7 +100,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | BMS 解析/转换 | raw/typed 模型、主要控制事件、BMS→mania 转换 | 特殊谱尾项与真实谱组合证明 |
 | gameplay/判定 | 主要 keymode、判定家族、gauge、EX score、LN/CN/HCN 链 | 真实设备和真实谱验收 |
 | 音频/BGA | shared keysound、转谱音频主链、BGA 图/视频链 | 转谱 LN、极端 dense、逐谱视觉/暂停恢复体验 |
-| 皮肤 | F1 静态素材/ini + 程序化 fallback + schema 56 | 恢复实机 gate、G1 安全生产链、后续 F2 |
+| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化 rescue + schema 56 | 实机/数据、G1、安全 layout descriptor、shared ini、scene/event/script、Minimal/Showcase |
 | Song Select | BMS 分组、筛选、搜索和主要展示 | 拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | `chartbms/chartmania`、多根扫描、portable/custom root | 删除/失效/去重策略、最终覆盖更新复核 |
 | 输入 | keyboard/Raw/XInput/Mouse/DirectInput 基线 | analog scratch、一致校准、真实硬件 |
@@ -99,7 +116,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | 改动面 | 最低自动验证 | 额外人工验证 |
 | --- | --- | --- |
 | BMS parser/gameplay | BMS focused + BMS full | 命中特殊谱时逐谱验收 |
-| 皮肤/fallback | BMS skin focused + mania 默认资源 + core skin focused + Release | 相关 keymode、用户皮肤、缺件 fallback |
+| 皮肤/fallback | BMS skin focused + mania 默认资源 + core skin focused + Release | 全 keymode/style/BGA、Provide/Inherit/Suppress、Minimal/Showcase、脚本故障隔离 |
 | 输入 | `oms.Input`/bridge focused + BMS relevant | 真实控制器 edge/hold/轴 |
 | 存储/Realm | importer/scanner focused + Release | 备份数据根上的升级/重扫/恢复 |
 | 音频/BGA | 对应 player/store/cache focused + BMS full | pause/seek、长样本、逐谱视听 |

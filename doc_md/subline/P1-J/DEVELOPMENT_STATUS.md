@@ -1,6 +1,6 @@
 # P1-J 当前状态：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-07-10（文档降噪复核；功能状态未改变）
+> 最后更新：2026-07-10（补末端 lane keysound runtime gate；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -43,7 +43,8 @@
 
 ## 当前风险与下一步
 
-1. 转谱 LN：先用现有 player-level harness 取证，再尝试池化嵌套 head；禁止重走曾导致空 Head 容器崩溃的非池化方案。
-2. 50k dense：只有真机重现时才用 `BmsGameplayStallDiagnostics` 区分 gen2、晋升风暴或 render/present；不把普通密度旧问题重新打开。
-3. 人工清单：dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek，结果回交 P1-G。
-4. 长 one-shot 真 pause/resume 仍缺底层能力；当前“边界即停”只能防逃逸，不能宣称保位续播。
+1. lane timeline 边界：P1-K 当前用 key count 过滤，可能丢 5K/7K 最右键及 14K 右侧末键/Scratch2；converter 修复后，本线补每轨空击/不可见 keysound 实机 smoke。
+2. 转谱 LN：先用现有 player-level harness 取证，再尝试池化嵌套 head；禁止重走曾导致空 Head 容器崩溃的非池化方案。
+3. 50k dense：只有真机重现时才用 `BmsGameplayStallDiagnostics` 区分 gen2、晋升风暴或 render/present；不把普通密度旧问题重新打开。
+4. 人工清单：dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek，结果回交 P1-G。
+5. 长 one-shot 真 pause/resume 仍缺底层能力；当前“边界即停”只能防逃逸，不能宣称保位续播。

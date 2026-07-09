@@ -1,6 +1,6 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后更新：2026-07-10（文档降噪复核；功能状态未改变）
+> 最后更新：2026-07-10（Skin V1 topology 审查补两项风险；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
@@ -34,11 +34,15 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 ## 当前风险
 
 - 特殊 long-note、极端控制流和少见 header family 仍可能暴露 typed consumer 缺口。
+- `buildLaneKeysoundTimelines()` 当前以 `GetKeyCount()` 而非 `GetLaneCount()` 过滤 lane，5K/7K 最右键与 14K 右侧末键/Scratch2 的 armed/invisible timeline 可能被丢；已由 2026-07-10 代码审查确认，待独立修复切片。
+- sparse 7K/9K chart 未使用高位 channel 时可能被 keymode 启发式低估；须补来源诊断/显式纠正入口，layout/skin 不得自行二次猜测。
 - public wording/展示证明不完整不等于 parser 错误；先区分存储、projection 与 presentation owner。
 - 任何 parser 改动都可能同时影响 native BMS、转谱 mania、统计、筛选、BGA 与缓存失效，必须跑全量。
 
 ## 下一检查点
 
-1. 收口 BMS→mania 显式入口 wording 与更宽 presentation/manual proof。
-2. 仅由真实谱证据驱动 special LN/control-event follow-up，并同步格式参考与约束。
-3. 继续保持 parser/converter focused + BMS full gate；涉及转谱时加 mania relevant focused。
+1. 以最小切片把 lane timeline 上界改为 lane count，补 5K/7K/9K/14K visible/invisible/edge/scratch 测试并交 P1-J 实机验收。
+2. 冻结 keymode 来源/override/诊断，补 sparse 5K/7K/9K 反例。
+3. 收口 BMS→mania 显式入口 wording 与更宽 presentation/manual proof。
+4. 仅由真实谱证据驱动 special LN/control-event follow-up，并同步格式参考与约束。
+5. 继续保持 parser/converter focused + BMS full gate；涉及转谱时加 mania relevant focused。

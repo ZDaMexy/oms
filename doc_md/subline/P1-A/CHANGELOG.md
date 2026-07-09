@@ -4,6 +4,15 @@
 
 ## 2026-07-10
 
+### Skin V1：完成 mania/BMS 现状审查，按“极简到 IIDX Showcase”重冻首版架构与路线
+
+- **mania 上限结论**：普通 `.osk/[Mania]` 已有成熟素材、配置、帧序列和逐组件 fallback，但 key press、column light、LN hold、hit explosion、judgement/combo 等交互仍由固定 C# 驱动；`ISkin` 返回任意 `Drawable` 只是受信任编译期扩展，不是普通作者运行时。故 BMS 不能靠复制 `ManiaLegacySkinTransformer` 达到目标。
+- **共享/分离决议**：共享 package/resource/ini codec、显式 presence、scene/template/animation、只读 event ABI、三态、诊断/reload/sandbox；mania 保留 stage/column/legacy 坐标 adapter，BMS 保留 scratch/P1-P2/DP/cover/gauge/BGA/gimmick adapter。采用 adapter-first 迁移，不在第一刀重写成熟 mania decoder。
+- **作者上限**：引擎只拥有 gameplay truth、playfield/BGA layout、滚动/LN 裁剪、对象池、内容时钟和安全边界；外部 package 拥有具体 scene、动画和事件响应。V1 必须同时用公共 API 通过 Minimal（仅可玩核心）与 Showcase（IIDX 级表现），可选 judgement/combo/gauge/HUD/装饰允许显式 `Suppress`。
+- **布局审计**：现有 5K/7K 已有 P1/P2/两种居中与左右皿、9K 居中、14K 双 deck/双皿/centre gap；但 HUD 会另建默认 geometry、BGA 使用固定 rect，CenterP2 对侧 BGA 不正确，14K 当前四个独立 BGA player 不是最终合同，geometry 也缺 finite/range 校验。路线新增唯一 `BmsGameplayLayoutSnapshot` 与单一 BGA content authority。
+- **相邻缺陷**：确认 `buildLaneKeysoundTimelines()` 误用 key count 作 lane 上界，会丢 5K/7K 最右键及 14K K14/S2；sparse 7K/9K 的 keymode 启发式也可能低估。代码修复分别进入 P1-K/P1-J，P1-A 布局矩阵负责 smoke gate。
+- **文档与验证**：新增 [Skin V1 架构审计](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)，重写 P1-A PLAN/STATUS/CONSTRAINTS 与创作者手册，并同步 mainline/P1-J/K/L。此切片无运行时代码改动；复跑 BMS parser/legacy/reference/render focused **43/43**、mania `TestSceneOmsBuiltInSkin` **84/84**，仅见既有 MessagePack 3.1.3 `NU1902` 告警。
+
 ### 皮肤系统恢复到可信基线，保全异常期历史并撤回未经验证的生产链
 
 - **取证与选择**：以 2026-06-30 00:05（北京时间）为协作分界。严格分界前最后正式提交为 `b53b798`；采用 `2b27c09` 的树作为恢复基线，仅因为其 schema 56 patch 已存在于分界前 WIP `a4c3346`，同时避免对已打开过的用户 Realm 降 schema。没有移动/改写旧分支历史，而是用本次正常提交承载恢复结果。

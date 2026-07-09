@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-10
+
+### Skin V1 BGA ownership 重冻（文档/架构切片）
+
+- P1-L 继续拥有 BGA timeline、解码/转码、seek/retry/POOR 内容语义；P1-A `SV1-3/SV1-5` 拥有 layout snapshot、skin viewport 与 scene API。
+- 当前 `IBmsBgaPanelDisplay` 接收 raw timeline/resource/clock、14K 创建四个 `BmsBgaPlayer` 的做法降为迁移前实现，不再是未来硬合同。目标为一个 engine-owned content session，向一个或多个 viewport 暴露只读 proxy；多视图不得复制 decoder/player authority。
+- 已同步 PLAN/STATUS/CONSTRAINTS；本轮无 BGA 运行时代码改动，既有播放/转码能力保持。
+
 ## 2026-06-23
 
 ### Phase 5.2：BGA 转码加载体验与缓存治理（R1 开局即播 / R2·R3 会话级缓存 / R4 ultrafast 提速 / R5 扫描线进度揭示）

@@ -1,57 +1,61 @@
-# OMS BMS 皮肤制作手册（素材 + skin.ini 路线）
+# OMS gameplay 皮肤制作手册（当前 `.osk/skin.ini` + Skin V1 路线）
 
 > **读者**：想给 OMS BMS 做皮肤的制作者，以及在仓库内实现皮肤系统的开发者。
 >
 > **范围**：**仅游玩界面**。osu!lazer 已不再支持选歌/结果等非游玩界面皮肤，OMS 跟随这一边界——本文不涉及选歌页、结果页、菜单皮肤。
 >
-> **本文是什么（派生文档）**：面向皮肤制作者的 **BMS 素材 + `skin.ini` 皮肤开发视图**。**权威契约不在本文**——组件挂点、ini schema、必备分档与校验行为冻结在 **[P1-A 技术约束 ·「皮肤创作生态（素材 + ini）」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)**，分期在 **[P1-A 开发计划 · `F` 系列](../subline/P1-A/DEVELOPMENT_PLAN.md)**。本文只是把那份契约渲染成制作者可读的形式。若两者冲突，**以 P1-A 四件套为准**（`other/` 是参考材料，不替代主线计划 / 约束）。
+> **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，`F1` 的解析、配置源、现存静态件颜色/纹理/几何三轴与 reference `skin.ini` 自校验门已落地；当前可用的用户素材路径是把 `skin.ini` + 资源打成 `.osk` 后经游戏导入。`G1` 只保留 folder-backed 构造建块与 Realm schema 56 载体，`chartskin/` 生产扫描/选择/删除/重命名/热重载均未启用；`F2` 动态件、Lua、文件型默认皮肤也未启用。代码型 provider 仍是高级扩展入口（见 [附录 D](#附录-d进阶代码型-provider高级扩展路线)）。恢复依据见 [SKIN_SYSTEM_RECOVERY_20260710.md](SKIN_SYSTEM_RECOVERY_20260710.md)。本文每个主章节继续用 `[规划]` / `[部分]` / `[已实现]` 标注当前可用性。
+> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，当前玩家可用的是 `.osk` + `[Mania]/[Bms] skin.ini`；BMS 现存静态件已有颜色/纹理/几何支持。`chartskin/` 生产链、热重载、三态 suppress、declarative scene、事件 ABI、沙箱脚本和文件型默认均未启用。事故期 F2/Lua 不算当前能力。Skin V1 的目标是让同一外部 API 同时支持 Minimal 与 Showcase，而不是继续把动态主题写死在 BMS C# 中。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
 ## 目录
 
 1. [这套皮肤能做什么 / 不做什么](#1-这套皮肤能做什么--不做什么)
-2. [皮肤包结构](#2-皮肤包结构-规划)
-3. [`skin.ini` 总览与通用约定](#3-skinini-总览与通用约定-规划)
-4. [车道与几何](#4-车道与几何-规划)
-5. [静态素材族（①类，mania 对齐）](#5-静态素材族类mania-对齐-规划)
-6. [BMS 扩展族（②③类，`[Bms]` 扩展段）](#6-bms-扩展族类bms-扩展段-规划)
-7. [必备 / 推荐 / 可选 三档与校验行为](#7-必备--推荐--可选-三档与校验行为-部分)
-8. [两个编辑面与布局编辑器边界](#8-两个编辑面与布局编辑器边界-部分)
-9. [程序化默认与参考皮肤](#9-程序化默认与参考皮肤-规划)
-10. [制作流程](#10-制作流程-规划)
+2. [皮肤包结构](#2-皮肤包结构)
+3. [`skin.ini` 总览与通用约定](#3-skinini-总览与通用约定)
+4. [车道与几何](#4-车道与几何)
+5. [静态素材族（mania 对齐）](#5-静态素材族mania-对齐)
+6. [BMS 扩展族与事件挂点](#6-bms-扩展族与事件挂点)
+7. [必备 / 推荐 / 可选与三态解析](#7-必备--推荐--可选与三态解析)
+8. [三个作者面与布局编辑器边界](#8-三个作者面与布局编辑器边界)
+9. [rescue、文件型默认与验收包](#9-rescue文件型默认与验收包)
+10. [当前制作流程与 V1 验收](#10-当前制作流程与-v1-验收)
 - [附录 A：游玩元素全集速查（创作者上限）](#附录-a游玩元素全集速查创作者上限)
 - [附录 B：必备元素清单](#附录-b必备元素清单)
 - [附录 C：`skin.ini` 字段全表](#附录-cskinini-字段全表)
-- [附录 D：进阶——代码型 provider（高级扩展路线）](#附录-d进阶代码型-provider高级扩展路线)
+- [附录 D：受信任代码型 provider](#附录-d进阶受信任代码型-provider开发扩展)
 - [附录 E：状态与路线图](#附录-e状态与路线图)
 
 ---
 
 ## 1. 这套皮肤能做什么 / 不做什么
 
-**能做（游玩界面内的一切视觉）**：stage 框架、车道、音符、长条（LN/CN/HCN）、判定线、判定显示、gauge、combo、lane cover、小节线、BGA 浮窗，以及 IIDX 风格的演出件——转盘（turntable）、柱光（keyflash）、命中爆炸（bomb / hit lighting）、长条保持光、ghost/TD 时差、bpm、progress 等。完整上限见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
+**V1 目标能做（不是当前全部可用）**：stage、lane、note/LN、判定位置、judgement、gauge、combo、lane cover、BGA frame，以及 turntable、keyflash、hit lighting、hold light、ghost/TD、bpm/progress 等。当前 `.osk/ini` 只实现其中的静态子集；分层矩阵见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
 
-**两个正交的编辑面**：
-- **`skin.ini` + 素材 = "长相"**：颜色、贴图、几何、显隐。本文主体。
-- **lazer 布局编辑器 = "摆位"**：通用全局 HUD 件（key counter / song progress / 计分 / 判定计数）的位置。边界见 [§8](#8-两个编辑面与布局编辑器边界-部分)。
+**V1 作者面分层**：
+
+- `skin.ini` compatibility：mania/BMS 共同素材、颜色和有限参数；
+- declarative scene/animation：稳定 node type、template、binding、variant、tween/state-machine；
+- optional sandbox script：只读事件驱动的复杂组合逻辑；
+- lazer 布局编辑器只继续管理既有通用 HUD，不作为新 scene 文件格式。
 
 **不做**：
 - 选歌 / 结果 / 菜单皮肤（lazer 已弃，OMS 跟随）。
 - 改判定窗口、手感、谱面逻辑（皮肤是**纯视觉**的）。
 - 直接读取 LR2 / beatoraja 皮肤文件（`.lr2skin` / `.luaskin` / `.cim`）。本系统是 OMS 自有的素材+ini 规范，**不移植**那些引擎的运行时；但其键名与元素族**对齐**这些生态，便于制作者迁移经验。
+- 让脚本访问网络、任意文件、进程/线程、反射/原生库，或修改输入、判定、计分、gauge、谱面和 BGA 时间线。
 
 ---
 
-## 2. 皮肤包结构 `[规划]`
+## 2. 皮肤包结构
 
-一个 BMS 皮肤是一个文件夹，根部一个 `skin.ini`，其余是素材：
+当前可用形态是导入 `.osk`；包内根部为 `skin.ini`，其余为素材：
 
 ```text
 MyBmsSkin/
-  skin.ini            ← 入口，必需
+  skin.ini            ← 当前兼容入口
   note_white.png
   note_blue.png
   note_scratch.png
@@ -62,15 +66,16 @@ MyBmsSkin/
   ...
 ```
 
-- 当前生产路径：把该文件夹内容打包为 `.osk` 后经游戏导入；导入器会把皮肤实例化为同时解析 mania + BMS 段的 `BmsLegacySkin`。
-- 规划中的可视目录为 OMS 数据目录下的 `chartskin/`，但可信恢复基线尚未启用该生产链；不要手工放入后期待自动扫描。
+- 当前生产路径：把该文件夹内容打包为 `.osk` 后经游戏导入；导入器会把皮肤实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
+- V1 仍保留 `.osk` compatibility，并恢复受管理/外部只读文件夹。文件夹还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
+- 规划中的可视目录为 OMS 数据目录下的 `chartskin/`，但可信恢复基线尚未启用扫描、选择、删除、重命名或热重载；不要手工放入后期待自动发现。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
-- 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定-规划) 的帧序列约定。
-- 热重载：当前可信基线未启用；修改 `.osk` 来源后需重新导入/重选。`chartskin/` 热重载属于重新设计后的 G1 验收项。
+- 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
+- 热重载：当前可信基线未启用；修改来源后需重新导入/重选。安全路径 authority、完整验证后原子切换与失败保留旧实例属于 `SV1-2` 验收项。
 
 ---
 
-## 3. `skin.ini` 总览与通用约定 `[部分]`（`F1` 解析层已实现）
+## 3. `skin.ini` 总览与通用约定
 
 `skin.ini` 由若干 section 组成：
 
@@ -106,13 +111,28 @@ Keymode:  14K              // DP 单独一段
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
 - **动画**：帧序列用 `name-0`、`name-1`… 命名 + `LightFramePerSecond` 控速（对齐 mania）；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
-- **前向兼容**：**未知键被忽略并记一条告警**（不报错），所以皮肤可以安全写入未来才实现的键；**未知值**回退默认 + 告警。详见 [§7](#7-必备--推荐--可选-三档与校验行为-部分)。
+- **当前容错**：未知键通常被忽略、非法值回落；当前 decoder 没有完整、可查询的结构化诊断，不能承诺每个坏行都有告警。V1 才冻结未知键、非法值、缺资源、不支持 capability 与 fallback 来源的诊断合同。详见 [§7](#7-必备--推荐--可选与三态解析)。
 
 > **schema 来源说明**：键集 / 语义的**真实依据是代码实现**（`BmsSkinDecoder` / `BmsSkinConfigurationLookups` + `BmsPlayfieldLayoutProfile` / `BmsDefaultPlayfieldPalette` 暴露的可参数化量）；[P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与本文都是**据代码派生的视图**，**不反向约束实现**。**与 mania 同义的键尽量沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义。`F1` 解析层（`[General]` / `[Bms]` 段、几何 / 颜色 / 纹理键）已落地，本文相关字段已据 `F1` 代码更新。
 
+### 3.1 `[Mania]` 共同逻辑的 V1 兼容映射
+
+当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：先把现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral model，再逐步共用 codec；第一刀不重写成熟 mania 生产解析器。
+
+gameplay package 内的候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 普通键 bucket（scratch 保持 `Inherit`）→ 文件型默认/rescue。
+
+| BMS 模式 | 全视觉列兼容桶 | 普通键兼容桶 | 备注 |
+| --- | --- | --- | --- |
+| 5K + scratch | `Keys: 6` | `Keys: 5` | 后者只映 K1–K5 |
+| 7K + scratch | `Keys: 8` | `Keys: 7` | 后者只映 K1–K7 |
+| 9K / PMS | `Keys: 9` | `Keys: 9` | BMS/PMS role 仍由 adapter 区分 |
+| 14K + 双 scratch | `Keys: 16` | 显式双 `Keys: 8` deck；或 `Keys: 14` 普通键 | legacy mania 当前按总列数查 `Keys:16`；双 deck 是额外便利路径 |
+
+这只描述 gameplay package slot，不改写 lazer 现有的谱面内皮肤与 ruleset resource provider authority。P2/右皿到底按 visual index 还是 stable lane ID 取列，必须由 fixture 冻结，不能靠“看起来对”决定。
+
 ---
 
-## 4. 车道与几何 `[部分]`（`F1` 已可解析这些键）
+## 4. 车道与几何
 
 几何键控制车道布局；当前内置默认几何走 `BmsPlayfieldLayoutProfile` 的**归一化策略**（车道按相对权重填满 `PlayfieldWidth`），所以是「相对/像素混合」语义。**下表键名与默认值直接对应代码 `BmsPlayfieldLayoutProfile.CreateDefault(...)`**（非 mania 习惯草案——BMS 无 mania 式 `HitPosition` 或逐列 `ColumnWidth`）：
 
@@ -133,11 +153,13 @@ Keymode:  14K              // DP 单独一段
 
 > `HitTargetVerticalOffset` 必须锁 `0`（保判定时序不变量），故**不开放**给 ini。`JudgementLine` / `KeysUnderNotes` 等 mania 几何键 BMS 代码无对应，已移除。
 
+> **当前风险**：这些 float 尚未完整校验 finite、正值、范围和屏内边界；`0`、负值、`NaN` 或超屏值可能进入归一化。并且 playfield 读取皮肤 profile，gauge/combo 会重新创建默认 profile，BGA 仍使用固定 rect。V1 在 `SV1-3` 引入唯一 `BmsGameplayLayoutSnapshot`，先逐字段 fail-open，再让 playfield、HUD、BGA 与外部 scene 共用同一最终 rect。
+
 ---
 
-## 5. 静态素材族（①类，mania 对齐）`[规划]`
+## 5. 静态素材族（mania 对齐）
 
-这一族**纯素材 + 颜色 + 位置**，无需引擎动态逻辑——是落地最早、最稳的一批（对应规划中的 P1）。键名尽量对齐 mania，使 osu!mania 皮肤作者零学习成本迁移。
+当前 `.osk/[Bms]` 已有生产消费方的是 note/LN、lane background/divider、hit target、barline、lane cover、backdrop/baseplate 的颜色/纹理/几何子集。stage/key area 虽有部分解析或设计名，但尚无完整生产渲染消费方；下表同时列出 V1 compatibility 目标，不能把每个键都当作当前已生效。共同项优先复用 mania 语义，BMS 的 scratch/DP role 由 adapter 补足。
 
 ### 5.1 Stage 框架
 | 键 | 作用 | 必备档 |
@@ -185,13 +207,15 @@ Keymode:  14K              // DP 单独一段
 
 ---
 
-## 6. BMS 扩展族（②③类，`[Bms]` 扩展段）`[规划]`
+## 6. BMS 扩展族与事件挂点
 
 这一族在 mania 的 `[Mania]` 段**没有先例**（mania 无 gauge/turntable/bomb 等机制，或当作引擎 HUD），是 OMS 为 BMS 新定义的扩展键。
 
-**关键原则**：这些件的**动态由引擎驱动**，`skin.ini` 只提供**素材 + 位置 + 缩放 + 颜色**。你不需要写关键帧脚本（这与 LR2/beatoraja 的 timer/op/dst 体系不同；OMS 的可编辑标准对齐 osu-ini 的静态模型）。
+**关键原则**：引擎只拥有 gameplay truth、滚动/LN 裁剪、对象池、布局、BGA 解码时钟和只读事件；具体装饰节点、显隐、动画和事件响应由外部 scene/animation 层拥有，复杂组合才进入可选沙箱脚本。不能把这一原则实现成“每个新效果再加一个固定 `DefaultBmsXxxDisplay`”，也不能把 framework `Drawable` 树直接交给脚本。
 
-### 6.1 ②类：引擎驱动、ini 供素材（实现见规划 P2）
+以下键名是 compatibility/slot 候选，不是当前 `.osk` 已兑现的 schema。声明式层应能通过 template、binding、variant、tween/state-machine 完成绝大多数效果；脚本不是做普通 gauge/combo/judgement 的前置条件。
+
+### 6.1 输入 / 命中 / scratch 视觉候选
 | 键 | 作用 | 必备档 | 动态来源 |
 | --- | --- | --- | --- |
 | `KeyFlashImage` / `ColourColumnLight` | 柱光/键闪（按下/命中列闪） | 可选 | 按键 on/off |
@@ -201,135 +225,139 @@ Keymode:  14K              // DP 单独一段
 | `TurntableImage` / `TurntableSpin` | 转盘贴图 + 是否随 scratch 旋转 | 可选 | scratch 输入 |
 | `GhostTdDisplay` | ghost / TD 时差显示 | 可选 | 判定时差 |
 
-### 6.2 ③类：BMS 独有 HUD（实现见规划 P3）
+### 6.2 BMS 独有 HUD 候选
 | 键 | 作用 | 必备档 | 备注 |
 | --- | --- | --- | --- |
-| `GaugeBarImage` | gauge 条主体贴图 | **必备**（缺→内置槽位条） | BMS 无 mania 对应 |
+| `GaugeBarImage` | gauge 条主体贴图 | 可选 | BMS 无 mania 对应；可显式 suppress |
 | `ColourGaugeAssistEasy` / `…Easy` / `…Normal` / `…Hard` / `…ExHard` / `…Hazard` | 六种 gauge 类型配色 | 推荐 | 对齐内置六态 |
 | `GaugeNumber` | gauge 百分比数字样式 | 可选 | |
 | `LaneCoverNumber` | 遮罩绿数（GN / Hi-Speed） | 可选 | |
 | `BpmDisplay` | BPM 显示 | 可选 | |
 | `ProgressBar` | 曲目进度 | 可选 | |
 
-### 6.3 判定显示
+### 6.3 判定显示候选
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
-| `JudgePGreat` / `JudgeGreat` / `JudgeGood` / `JudgeBad` / `JudgePoor` / `JudgeEmptyPoor` | 各判定档贴图（对齐 mania `Hit300g`…`Hit0` 语义） | **必备**（缺→内置文字） |
+| `JudgePGreat` / `JudgeGreat` / `JudgeGood` / `JudgeBad` / `JudgePoor` / `JudgeEmptyPoor` | 各判定档贴图（对齐 mania `Hit300g`…`Hit0` 语义） | 可选；判定位置本身不可关闭 |
 | `JudgeComboBreak` | 断连提示 | 可选 |
 
 ---
 
-## 7. 必备 / 推荐 / 可选 三档与校验行为 `[部分]`
+## 7. 必备 / 推荐 / 可选与三态解析
 
-生态惯例（osu / LR2 / beatoraja）是 **fail-open**：缺件→引擎默认，坏行→跳过，不硬校验。OMS 在此之上加一层**显式分档 + 诊断**，以支撑"编辑生态"。
+当前 nullable lookup 只有“提供 / `null` 后继续 fallback”，没有显式关闭。V1 新增平行 gameplay provider 结果，不直接破坏现有 `ISkin` ABI：
+
+- `Provide`：验证成功后使用；资源坏掉则降为 `Inherit` 并诊断。
+- `Inherit`：按组件继续 compatibility / 文件默认 / rescue。
+- `Suppress`：作者明确不显示，只允许可选视觉；缺文件绝不等于 suppress。
 
 ### 7.1 三档定义
-- **必备 (Required)**：缺了不可玩或视觉破碎。引擎**始终**有内置兜底，皮肤**可覆盖、不可删**——所以皮肤永远做不出"不可玩"的结果。清单见 [附录 B](#附录-b必备元素清单)。
+- **必备 (Required)**：只指可玩核心。lane/scratch 可辨识、note/LN/mine、判定位置，以及启用 lane cover 时的实际遮挡几何必须有 rescue，不能 suppress。清单见 [附录 B](#附录-b必备元素清单)。
 - **推荐 (Recommended)**：标准预期，回退到内置可接受。
-- **可选 (Optional)**：纯增强，缺省 = 不显示。
+- **可选 (Optional)**：纯表现。按键动画、判定图、combo、gauge 视觉、HUD、BGA frame 和装饰效果均可显式 suppress；Minimal 皮肤不得被 fallback 强行补回来。
 
 ### 7.2 校验三层（加载期）
-1. **语法合法性**：`skin.ini` 可解析、段/键可识别。**未知键→忽略 + 告警**（前向兼容）；**值类型/范围错→回退默认 + 告警**。
-2. **资源引用**：引用的贴图存在；**缺失→回退内置 + 告警**（绝不崩）。
+1. **语法合法性**：未知键、非法值与不支持 capability 结构化记录；非法值逐字段回退。
+2. **资源引用**：路径 containment、文件存在、解码像素/字节/纹理/帧数预算均先验证；失败只熔断对应外部层。
 3. **完备性**：必备件必须能解析（皮肤给或内置兜底）。
 
 ### 7.3 行为契约（关键分工）
-- **加载期 = fail-open + 诊断日志**：**永不阻断游玩**。任何缺失/非法都降级到内置兜底并记一条诊断，玩家照常进图。
-- **编辑期 = 比加载期更严**：主动暴露必备槽位、实时校验、**阻止保存**结构性损坏的皮肤。
+- **加载期 = fail-open + 可查询诊断**：错误 package 不阻断游玩；完整验证成功后才原子替换旧实例。当前恢复基线只具备部分 fail-open，没有这套完整诊断/原子 reload。
+- **编辑期 = 比加载期更严**：这是后续工具目标；当前没有完整可视皮肤编辑器。
 - **keymode 覆盖**：皮肤可只声明部分 keymode（如只做 7K），未声明的 keymode → 回退内置默认；`[General] Keymodes:` 用于声明覆盖面与编辑期提示。
 
 ---
 
-## 8. 两个编辑面与布局编辑器边界 `[部分]`
+## 8. 三个作者面与布局编辑器边界
 
-两个面**正交、不重叠**：
-- **`skin.ini` + 素材** 管"长相"（贴图/颜色/几何/显隐）。
-- **lazer 布局编辑器** 管"摆位"（位置/缩放/显隐）。
+三个面职责不同：
+
+- **`skin.ini` compatibility**：既有素材、颜色、有限参数和帧序列。
+- **declarative scene/animation**：稳定 node ID、named layout slot、template、binding、variant 与动画；这是 V1 的主要创作面。
+- **optional sandbox script**：只读事件驱动的复杂组合逻辑，不负责逐帧搬动每个 note。
 
 **布局编辑器能摆什么（已知边界）**：它只识别 `ISerialisableDrawable` 的全局 HUD 件——被 `MainHUDComponents` 包裹的通用件（key counter、song progress、计分、准确率、判定计数）。它**看不见 BMS 程序化件**（车道/音符/gauge/combo），其素材选择器也只列已导入文件、无内置资产浏览器。
 
-**因此的设计边界（决议 X）**：BMS 专属 HUD（gauge 条、combo、clear lamp）**保持 `DefaultBmsHudLayoutDisplay` 代码编排 + `skin.ini` 调外观**，不强行升格为可在布局编辑器里自由拖摆的件。换言之——它们的"长相"可换，"摆位"由皮肤布局方案决定，而非布局编辑器。（把它们也做成可编辑器拖摆是未来选项，不在当前范围。）
+现有 Skin Layout Editor JSON 会序列化 CLR `Type` 并反射构造，只能继续服务既有通用 HUD，**不能**成为外部分发 scene ABI。V1 manifest 使用 allowlist 的稳定 node ID；BMS gauge/combo/clear lamp 等锚定到引擎给出的 named slot，由外部 scene 决定具体表现，不把当前 `DefaultBmsHudLayoutDisplay` 固定编排冻结成上限。
 
 ---
 
-## 9. 程序化默认与参考皮肤 `[部分]`
+## 9. rescue、文件型默认与验收包
 
-OMS 同时维护两层"默认"，对齐 osu! 的范式：
+当前有程序化默认和 reference ini；V1 目标把它们分成三种不同职责：
 
-- **程序化内置默认（兜底，不可删）** `[已实现]`：当前 BMS 默认皮肤是 **100% 程序化**的——纯色块 + 几何 + 程序化辉光，**零位图素材**（见 `BmsDefaultPlayfieldPalette` / `BmsPlayfieldLayoutProfile`）。**没有 `skin.ini` 时就是它**。它是所有必备件的最终兜底，永远存在。
+- **程序化 minimal rescue（不可删）** `[当前较完整，目标收敛]`：当前 BMS 默认仍是纯色块 + 几何 + 程序化辉光。V1 只保留可玩核心，避免它把可选判定、combo、gauge 或装饰强塞回 Minimal。
 - **参考素材皮肤（创作者模板）** `[已实现]`：一份用本系统**复现内置默认观感**的 `skin.ini`，已落地于 [oms-bms-reference-skin/skin.ini](oms-bms-reference-skin/skin.ini)（7K 全键 + 注释 + 作者须知）。因为默认是程序化的，它**全是 ini 数值（颜色/几何），零位图**。它既是验收对象（`BmsReferenceSkinTest` 逐键断言其解析值 == 真实 palette/profile 默认，写错即失败），也是你制作时**最佳的起点模板**——复制它、只改你要改的键即可（缺省的键自动 fail-open 回这些默认）。
+- **OMS 文件型默认** `[未实现]`：必须走与第三方相同的 package/scene/script 公共接口，不得访问私有 C# 视觉 API。
+- **Minimal + Showcase** `[未实现]`：Minimal 只显示可玩核心；Showcase 证明只靠公共素材、scene、事件和可选脚本可达到 IIDX 级完整界面。
 
 > **为什么不"把代码渲染对象导出成 PNG"**：内置默认是纯色块+程序化辉光。把一个 `Colour` 烤成位图会冗余、丢失可缩放性、辉光烤死不可调——纯色车道应是一个 `ColourColumn{lane}` 键，不是一张图。因此程序化辉光这类件保留为"**引擎绘制、ini 参数化**"，不烤图。这与 osu! 一致：osu! 的程序化默认皮肤（Argon）从不导出成文件。
 
 ---
 
-## 10. 制作流程 `[规划]`
+## 10. 当前制作流程与 V1 验收
 
-1. **复制参考皮肤**（[§9](#9-程序化默认与参考皮肤-规划)）为起点，而非从空白开始。
+1. **复制参考皮肤**（[§9](#9-rescue文件型默认与验收包)）为起点，而非从空白开始。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。
-3. **热重载预览**：游戏内重载，立即看效果。
+3. **重新打包、导入和重选**：当前没有可信热重载；不要依赖 `chartskin/` 自动扫描。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
-5. **看诊断**：加载日志里的告警会列出被忽略/回退的键与缺失素材。
+5. **看运行结果与日志**：当前诊断并不完整；遇到静默回退时以实际渲染与 focused test 为准。
 6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
+
+V1 发布前还必须逐一验收 5K/7K 的 P1、P2、CenterP1、CenterP2，9K BMS/PMS，14K DP；每项同时检查 playfield、gauge/combo slot、BGA safe viewport、不同宽高比/DPI，以及 Minimal/Showcase 两个包。热重载只在“新实例验证失败仍保留旧实例”成立后开放。
 
 ---
 
 ## 附录 A：游玩元素全集速查（创作者上限）
 
-按真实生态（osu!mania `M` / beatoraja `B` / LR2 `L`）铺开的可皮肤化元素全集，作为"创作者上限"。`性质`：`S`=静态素材型 / `D`=动态引擎型。`OMS`：`✅`已有挂点 / `◐`不完备 / `✗`缺。
+mania 的上限审查给出的结论不是“它已有通用脚本”，而是“固定 C# 行为宿主很成熟，legacy ini 负责素材/参数”。BMS V1 要复用前者的兼容语义，但用规则集无关 scene/event runtime 打开作者上限。
 
-| 元素族 | 元素 | M | B | L | 性质 | OMS |
-| --- | --- | :-: | :-: | :-: | :-: | :-: |
-| Stage | 框架左/右/下、hint、backdrop | ✓ | ✓ | ✓ | S | ◐ |
-| Lane | 逐道宽/间距/分隔/背景色、柱光 | ✓ | ✓ | ✓ | S/D | ◐ |
-| Note | 逐道贴图/色、高度缩放、body style | ✓ | ✓ | ✓ | S | ◐ |
-| Long note | 头/身/尾、持松态、HCN、保持光 | ~ | ✓ | ✓ | S/D | ◐ |
-| Mine | 地雷 | — | ✓ | ✓ | S | ◐ |
-| 判定线 | 线/接收区、按键常/按下态、位置 | ✓ | ✓ | ✓ | S | ◐ |
-| 命中反馈 | hit lighting、bomb、keyflash、comboburst | ✓ | ✓ | ✓ | D | ✗ |
-| 判定显示 | 各档图、动画、fast/slow、ghost/TD、断连色 | ~ | ✓ | ✓ | S/D | ◐ |
-| Gauge | 条、类型变体、GN% 数字、历史曲线 | — | ✓ | ✓ | D | ✅ |
-| 数字/文本 HUD | combo、计分、判定计数、bpm、progress、title | ~ | ✓ | ✓ | D | ◐ |
-| Lane cover | SUDDEN+/HIDDEN+/LIFT、绿数 | ~ | ✓ | ✓ | D | ✅ |
-| Scratch | 转盘贴图+旋转、激光 | — | ✓ | ✓ | D | ✗ |
-| BGA | BGA 层、POOR 层、frame/定位 | — | ✓ | ✓ | S/D | ✅ |
-| Barline | 小节线 | ✓ | ✓ | ✓ | S | ✅ |
-| Character | poor/judge 立绘（风味·可选） | — | ✓ | ✓ | D | ✗ |
+| 元素族 | mania 当前普通 `.osk` | BMS 当前普通 `.osk` | Skin V1 公共作者面 |
+| --- | --- | --- | --- |
+| Stage / backdrop | legacy 素材与固定布局较完整 | backdrop/baseplate 可配；stage 消费方不完整 | named slot + 静态/动画 scene node |
+| Lane / playfield | column 背景、宽度、间距、key area；行为固定 C# | lane/divider/hit target 的 F1 颜色/纹理/几何 | engine layout snapshot + per-lane template |
+| Note / LN | 逐列素材、body style、固定 C# hold 状态 | note/LN F1 子集；hold truth 在引擎 | pooled note/LN template；滚动与裁剪仍归引擎 |
+| Mine | 无 BMS 语义 | 当前为程序化 visual，未形成外部完整槽 | pooled mine template + hit/visibility event |
+| Key / hit effects | key press、column light、explosion 的素材；动画逻辑固定 C# | hit target 已有，keyflash/bomb/turntable 等未生产化 | press/release/hit/scratch 事件 + effect pool |
+| Judgement | legacy 图片/帧，播放逻辑固定 C# | 主要是程序化/受信任 code provider；非完整 `[Bms]` 作者面 | optional result variant/animation；neutral result key |
+| Combo / gauge / HUD | combo/HUD 走既有固定组件 | BMS 固定 C# HUD，可由受信任 provider 换；普通 ini 上限低 | optional typed binding；可完整 suppress |
+| Lane cover | mania 兼容面有限 | F1 颜色/纹理/几何子集 | engine-owned cover geometry + scene skin |
+| Scratch / DP | 无 BMS role | 有 S/S2 lane topology；无完整转盘演出作者面 | stable lane role、方向/值/速度 capability |
+| BGA | 无 | engine timeline 已可播；当前 display 接 raw timeline、14K 会建多 player | 单一 engine content authority + 只读 viewport/proxy |
+| Barline / timing | legacy barline | F1 barline；STOP/scroll 为 ruleset truth | timing event + pooled visual，不得改 timing |
+| 任意装饰 | 只能利用已有 lookup/固定位置 | 普通包缺少通用 scene | global scene、template、binding、state-machine；复杂时可选脚本 |
 
-**明确不做**：FAST/SLOW pacemaker（产品已删）、warning arrow（mania 专属）、auto-note 变体、character 立绘（风味）。
+V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉、使用公共 scene/event API 且满足预算即可。明确不开放的是改输入、判定、计分、gauge truth、谱面/BGA 时间线、网络/任意文件/进程线程和任意 shader/native code。
 
 ---
 
 ## 附录 B：必备元素清单
 
-下列为"必备"档——引擎**始终**内置兜底、皮肤可覆盖不可删。皮肤即便完全留空，这些也保证可玩：
+下列才是不可 suppress 的最小可玩核心；引擎必须始终有风格中立的 rescue：
 
-- 车道 / playfield 本体
-- 普通音符（`NoteImage{lane}`）
-- 长条头 / 身（`NoteImage{lane}H` / `…L`）
-- 判定线
-- 判定显示（`JudgePGreat`…`JudgeEmptyPoor`）
-- gauge 条（`GaugeBarImage`）
-- combo
+- lane/scratch 的边界和角色可辨识；
+- 普通音符、长条的必要可读部分与 mine；
+- 判定位置；
+- 当 lane cover 玩法启用时，真实遮挡范围与可调状态。
 
-其余为推荐 / 可选（[§5](#5-静态素材族类mania-对齐-规划) / [§6](#6-bms-扩展族类bms-扩展段-规划) 各表已标注）。
+按键动画、判定**显示**、combo、gauge **视觉**、数值 HUD、BGA frame、stage/角色/爆炸等均为可选。它们可 `Inherit` 获得默认表现，也可由作者显式 `Suppress`；这正是“只有色块下落与按键游玩”的合法 Minimal 下限。
 
 ---
 
 ## 附录 C：`skin.ini` 字段全表
 
-> 完整键表随实现细化；当前以 §4（几何）/ §5（静态素材）/ §6（`[Bms]` 扩展，`F2`+）的分族表为准。单位 / 语义约定：
+> 当前真实键以 `BmsSkinDecoder` / lookups 和 reference test 为准；§6 是 V1 候选槽，不等于已实现 ini schema。V1 在 neutral codec fixture 冻结后再发布机器可读 schema。单位 / 语义约定：
 > - 颜色 = `r,g,b` 或 `r,g,b,a`（0–255）。
 > - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth` / `LongNoteBodyWidth`）。
 > - 像素 = 整数（如 `HitTargetHeight` / `BarLineHeight`）。
 > - 资源名 = 不带扩展名的相对路径；逐道纹理键内嵌 lane token（数字或 `S` 表 scratch）。
-> - 帧动画属 ②③类引擎驱动件（`F2`+）：`name-0` / `name-1`… 帧序列。
+> - mania compatibility 帧序列沿用 `name-0` / `name-1`…；新 scene animation 的格式尚未冻结。
 
 ---
 
-## 附录 D：进阶——代码型 provider（高级扩展路线）
+## 附录 D：进阶——受信任代码型 provider（开发扩展）
 
-> `[已实现]` 这是高级/精细控制路线。F1 静态素材已可经 `.osk` + `skin.ini` 导入；尚未实现的 ②③类动态件在重新落地前仍只能由代码型 provider 扩展。
+> `[已实现，但不是普通皮肤分发面]` 这条路需要编译进受信任 C#，理论上可返回任意 `Drawable`。它适合仓库开发、测试和宿主扩展，不能作为第三方 V1 皮肤达到 Showcase 的必要条件，也不能用它证明 scene/script API 已完成。
 
 OMS BMS 皮肤底层是 osu!lazer 的 `ISkin` / `SkinTransformer` / `SkinnableDrawable` 体系。你实现 `ISkin.GetDrawableComponent()`，按 BMS lookup 返回自己的 `Drawable`；`BmsSkinTransformer` 负责路由与按组件 fallback。入口契约见
 [BmsSkinLookups.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs)、
@@ -368,7 +396,7 @@ public sealed class MyBmsSkin : ISkin
 | `HudLayout` | `IBmsHudLayoutDisplay` | `SetComponents(wrappedHud, gaugeBar, comboCounter)` |
 | `LaneCover` | `IBmsLaneCoverDisplay` | `SetFocused(bool)` |
 | `StaticBackgroundLayer` | `IBmsBackgroundLayerDisplay` | `SetDisplayedAssetName(string)`（默认层还会自行加载实际背景贴图） |
-| `BgaPanel` | `IBmsBgaPanelDisplay` | 喂入 BGA 时间线 + 资源 store + 游玩时钟 |
+| `BgaPanel` | `IBmsBgaPanelDisplay` | 当前会喂入 BGA 时间线 + 资源 store + 游玩时钟；这是待迁移接口，不是 V1 外部合同 |
 | `ClearLamp` | `IBmsClearLampDisplay` | `SetClearLamp(...)` |
 | `GaugeHistory(Panel)` | `IBmsGaugeHistoryDisplay` / `…PanelDisplay` | `SetHistory(...)` |
 | BMS judgement | `IAnimatableJudgement` | `PlayAnimation()` / `GetAboveHitObjectsProxiedContent()` |
@@ -389,17 +417,20 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 
 | 能力 | 状态 | 阶段 |
 | --- | --- | --- |
-| 代码型 provider（附录 D） | `[已实现]` | 高级扩展路线 |
-| 程序化内置默认（兜底） | `[已实现]` | 当前默认皮肤 |
-| 组件契约 + ini schema 冻结（权威源 = P1-A 约束 / PLAN） | `[已实现]` | **`F0`**（2026-06-27，纯文档） |
-| 素材 + ini 加载器 / 配置源 / 颜色·纹理·几何三轴 / 参考皮肤验收（①类静态件） | `[部分]` | `F1` 主面已成（所有现存渲染件已可经 `skin.ini` 配置颜色/纹理/几何 + 参考皮肤验收门落地）；剩净新增件 stage 框架 / `KeyImage` + 热重载打磨 |
-| `chartskin/` 可视文件夹生产链 | `[规划]` | `G1` 仅保留 folder ctor + schema 56 载体；扫描/选择/安全删改/内外部路径/热重载须重新实现与验收 |
-| ②类引擎驱动件（keyflash/explosion/bomb/turntable/ghost…）补挂点 | `[规划]` | `F2` |
-| ③类 `[Bms]` 扩展段独有件 + 契约冻结 | `[规划]` | `F3` |
-| 完整可视化 BMS 皮肤编辑器 | `[未排期]` | 后置（决议 Y） |
+| 可信恢复、数据/实机 gate | `[进行中]` | `SV1-0` |
+| neutral layout/event/config DTO、三态、capability 与 fixture | `[规划]` | `SV1-1` |
+| 安全 G1：路径 authority、扫描/选择、原子 reload | `[规划]` | `SV1-2` |
+| 5K/7K 四布局、9K、14K 的唯一 layout snapshot 与单一 BGA content authority | `[规划]` | `SV1-3` |
+| adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划]` | `SV1-4` |
+| declarative scene、模板/对象池、typed binding、只读事件 ABI | `[规划]` | `SV1-5` |
+| 可选脚本沙箱、capability 授权与资源/指令/heap 预算 | `[规划]` | `SV1-6` |
+| OMS 文件型默认 + Minimal + Showcase + 全 release gate | `[规划]` | `SV1-7` |
+
+旧 `F/G` 编号只用于查询 2026-06-27 至恢复事故前后的历史，不再是执行顺序。完整设计取舍、当前代码证据与完成定义见 [Skin V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ### 后续追踪文档
 - [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)：当前真实状态
 - [../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md)：执行顺序与阶段依赖
 - [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)：权威产品边界、fallback 纪律、release gate
 - [../subline/P1-A/README.md](../subline/P1-A/README.md)：P1-A 皮肤边界子线（本规划主归属）
+- [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：本轮 mania/BMS 代码审查、共享边界、layout/event/script 完成定义

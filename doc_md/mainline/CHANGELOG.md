@@ -7,6 +7,10 @@
 
 ## 2026-07-10
 
+### Skin V1 目标与执行路线重冻（P1-A，文档/架构切片）
+
+按用户给出的首版目标完成 mania/BMS 代码审查：mania 当前是“成熟固定 C# 行为宿主 + legacy ini 素材/参数”，并非可供第三方编程的通用运行时。主线因此改为共享 neutral gameplay-skin runtime、规则集专属 topology adapter、唯一 playfield/BGA layout snapshot、declarative scene/read-only event ABI、可选受限脚本与 `Provide/Inherit/Suppress`；发布用 Minimal 与 Showcase 两个同权公共包证明下限和上限。同步识别 HUD/BGA geometry 脱节、14K 多 player、CenterP2 BGA、外部 geometry 校验、sparse keymode 和末端 lane 键音缺失风险，分别路由 P1-A/P1-L/P1-K/P1-J。新增 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)，执行权威改为 P1-A `SV1-0..7`；无运行时代码改动，focused 基线 BMS **43/43**、mania **84/84**，仅见既有 MessagePack `NU1902` 告警。
+
 ### Agent 入口与 Codex memory 无损去重
 
 - `AGENTS.md` **107→53 行**：保留开始路径、权威顺序、工作流、命令、提交/push 权限和项目红线，删除与 doc 索引重复的逐子线清单；成为唯一跨 Agent 规则源。
