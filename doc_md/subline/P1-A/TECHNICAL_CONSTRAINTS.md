@@ -1,6 +1,6 @@
 # P1-A 技术约束：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-29
+> 最后更新：2026-07-10
 > 本文件记录该专题的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
 
 ## 归线约束
@@ -46,7 +46,7 @@
 2. **不移植 LR2 / beatoraja 运行时。** 不解析 `.lr2skin` / `.luaskin` / `.cim`，不引入其 timer / op / 关键帧 `dst` 动态体系。OMS 自有 ini 是**静态素材模型**；键名 / 元素族**对齐**这些生态仅为降低制作者迁移成本，不构成引擎兼容承诺。
 3. **ini 方言＝自有 `[Mania]`-对齐静态段 + `[Bms]` 扩展段。** 与 mania 同义的键（lane / note / LN / judgeline / lighting / stage / barline）一律沿用 mania 原名（`NoteImage#` / `KeyImage#` / `ColourColumn#` / `HitPosition` / `BarlineHeight` 等）；BMS 独有件（gauge / turntable / scratch / keyflash / bomb / cover 绿数 / ghost-TD / bpm / progress）为 OMS 新定义键，须用 BMS 专属命名（不得借 legacy mania 资源键名，与「皮肤边界约束 2」一致）。按 keymode 分桶（`5K/7K/9K/10K/14K`，每段以 `Keymode:` 开头）。schema 键名当前为 **P0 草案**，改键必须同步回写本节与 `SKINNING.md`。**schema 的真实依据是代码实现**（mania `LegacyManiaSkin*` 实现蓝本 + BMS 现有 `DefaultBms*Display` / `BmsPlayfieldLayoutProfile` / `BmsDefaultPlayfieldPalette` 实际暴露的几何/颜色/纹理槽位）；草案字段表（本节键名与 `SKINNING.md` 同属 `[规划]`/派生）**不得当作规范反向约束实现**，`F1` 落地后据代码据实回写 `SKINNING.md`。⚠️ 已知草案失真：`HitPosition`/逐列 `ColumnWidth`/逐道 `ColourColumn#` 等是 mania 习惯草案——BMS 代码无 `HitPosition`（真实＝`PlayfieldHeight`+`HitTargetVerticalOffset`）、几何是 normal/scratch 两类 relative width 非逐列、颜色是 **IIDX 键色组**（White/Cyan/Yellow/Scratch 按键号+keymode 派生）非逐道任意色（详见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) F1「实现架构」第 6 条）。
 4. **架构＝素材 + ini 层作为 `ISkin` 注入，零改现有 lookup 契约。** 现有 BMS lookup 类型 / 组件边界 / fallback 粒度是最稳的一层，素材层塞在其下；不得为接入 ini 改动 lookup 签名或 `BmsSkinComponents` 既有成员语义（与「皮肤边界约束 1/2」一致）。**（`F1` 实现校准 2026-06-27）** 立项期设想的独立 `BmsAssetSkin` 实际实现为 **`BmsLegacySkin : LegacySkin`**：经 `ParseConfigurationStream` hook 解析 `[Bms]` 段、override `GetConfig` 应答 `BmsSkinConfigurationLookup`，由 `SkinImporter` 路由导入皮肤实例化（非「被 `BmsSkinTransformer` 包裹」）；纹理走被包裹 skin 的 `GetTexture`，不侵入核心 `LegacySkin`。lookup 契约确实零改。详见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) F1「实现架构」与 CHANGELOG 2026-06-27。
-5. **默认皮肤＝程序化兜底（不可删）+ 参考素材皮肤。** 当前 100% 程序化默认（`BmsDefaultPlayfieldPalette` 静态色板 + `BmsPlayfieldLayoutProfile` 几何、零位图素材）保留为必备件的最终兜底，无 `skin.ini` 时即此（延续 `OMS_COPILOT.md` 「IIDX 直绘层只是 skin-load-failure fallback、非 OMS 内置皮肤方向」口径）。另产出一份能用本生态复现默认观感的 reference `skin.ini`（颜色 / 几何为主、近零位图）作 `F1` 验收对象兼创作者模板。
+5. **默认皮肤＝程序化兜底（不可删）+ 参考素材皮肤。** 当前 100% 程序化默认（`BmsTemporarySkinPalette` 静态色板 + `BmsPlayfieldLayoutProfile` 几何、零位图素材）保留为必备件的最终兜底，无 `skin.ini` 时即此（延续 `OMS_COPILOT.md` 「IIDX 直绘层只是 skin-load-failure fallback、非 OMS 内置皮肤方向」口径）。另产出一份能用本生态复现默认观感的 reference `skin.ini`（颜色 / 几何为主、近零位图）作 `F1` 验收对象兼创作者模板。
 6. **不烤图（程序化对象不导出成 PNG）。** 纯色块 → ini 颜色键（`ColourColumn{lane}` 等），不烤成位图；程序化辉光 / 渐变保留为「引擎绘制、ini 参数化」（半径 / 颜色可调），不烤死。与 osu! 一致（Argon 程序化默认从不导出成文件）。
 7. **校验＝加载期 fail-open + 诊断，编辑期更严。** 加载期**永不阻断游玩**：未知键忽略 + 告警（前向兼容，皮肤可写未来才实现的键）、值非法回退默认 + 告警、缺素材回退内置 + 告警；必备件始终有内置兜底，故皮肤理论上做不出"不可玩"结果。编辑期主动暴露必备槽位、实时校验、阻止保存结构性损坏皮肤。
 8. **必备 / 推荐 / 可选三档。** 必备（引擎始终兜底、皮肤可覆盖不可删）＝playfield / lane、note、LN 头 / 身、判定线、判定显示、gauge、combo。其余为推荐 / 可选，缺省回退或不显示。keymode 可只声明子集，未声明回退内置默认（`[General] Keymodes:` 声明覆盖面）。
@@ -56,6 +56,8 @@
 12. **BMS ini 段解析禁止侵入核心 `osu.Game/LegacySkin`。** 核心 `LegacySkin` 把 mania 段解析硬编码进 osu.Game（`LegacyManiaSkinDecoder` / `maniaConfigurations` / `GetConfig` mania 分支）是上游历史包袱；BMS 不得照搬，`BmsSkinDecoder` / `BmsSkinConfiguration` / lookup 必须落 `osu.Game.Rulesets.Bms`。纹理走被包裹 skin 的 `GetTexture`（不侵入），结构化配置由独立 BMS 皮肤配置源解析。「SkinManager 选中的皮肤如何被 BMS 读到结构化配置」（实例化类型 / 借壳 / 独立文件）是 F1 动工前**头号 gate**，候选方案见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) F1「实现架构」第 4 条。
 
 13. **皮肤存储拓扑（文件如何存放）与授权面（什么可被控制）是正交两轴。** F1「**头号 gate**」（约束 12）只解决"BMS 如何读到结构化配置"，**不等于**皮肤文件的存放方式。F1 期皮肤沿用核心 `SkinManager` / `SkinImporter`（`.osk` → realm hash-backed `files/`·不可读）。**该"复用 SkinManager·不走 chartbms 旁路"是 F1 立项决议，2026-06-29 起被用户重审**：若要皮肤像 chartmania/chartbms 一样可视文件夹直读管理，须走 `G1`（仿 `BmsFolderImporter`），属方向性调整，**未拍板前不得擅自改皮肤存储路径**。约束 11/12 的 fail-open 与不侵入核心语义在任一存储方案下都须保持。**（2026-06-29 进展：用户已拍板走 `G1`；realm 载体已落地——`SkinInfo` 加 `FilesystemStoragePath` + `IsExternalFilesystemStorage`、`schema_version` 55→56，镜像 `BeatmapSetInfo`。`ExternalLibraryRootPath` 暂未加，留刀④定。folder 皮肤 `SkinInfo.Files` 须留空·经 `RealmBackedResourceStore` 安全回落 fallbackStore。）
+
+14. **2026-07-10 恢复准入门槛。** 2026-06-30 00:05（北京时间）之后的 G1 生产接线、F2 动态件、Lua、mania fallback adapter 与 reference-default 替换均不构成已落地能力。重新引入时必须按独立小切片实现；至少覆盖用户皮肤→OmsSkin 逐组件 fallback、mania 默认资源、managed/external 路径、删除/重命名 containment、热重载、5K/7K/9K/14K 布局与真实事件链，且完成用户实机视觉验收。禁止以同批新增的类型断言测试代替生产链证明。
 
 ## HUD 宿主约束
 

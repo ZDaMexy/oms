@@ -2,86 +2,17 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
-## 2026-07-04（续二）
+## 2026-07-10
 
-### 皮肤系统全链路审查修复
+### 皮肤系统恢复到可信基线，保全异常期历史并撤回未经验证的生产链
 
-对皮肤系统代码链路做系统性审查后，修复所有对长期有益的问题。BMS 全套 **1024/1024**（1 项预存 flaky·零因果），Release gate 0 错误 0 警告。
-
-**高优先级修复**
-
-- **H1: BmsLegacySkin 流定位 bug**：`ParseConfigurationStream` 中 `stream.CopyTo(copy)` 将原始流推进到末尾，`base.ParseConfigurationStream(stream)` 在末尾位置读取空流，导致 `[General]` 段（ComboColours、LegacyVersion 等）永久丢失。修复：在 base 调用前加 `stream.Position = 0`。补回归测试 `TestGeneralSectionParsedAfterStreamCopy`（反射检查 `LegacyVersion == 1`）。
-- **H2a: BmsLane 热重载 F2 绑定失效**：`wireF2Displays()` 仅在 `LoadComplete` 调用一次，热重载后 SkinnableDrawable 创建新 Drawable 实例但 lambda 仍引用旧实例。修复：订阅 `ISkinSource.SourceChanged` 事件重新 wire（`wireF2Displays` 加 unbind-first 逻辑）。
-- **H2b: BmsPlayfield 热重载 geometry 覆盖失效**：`applySkinGeometry` 仅在 `load` 调用一次。修复：订阅 `ISkinSource.SourceChanged` 重新应用 geometry + 更新 `playfieldContainer` 尺寸 + `applyPlayfieldStyle`。
-
-**中优先级修复**
-
-- **M1: DefaultBmsGhostTdDisplay**：`indicator.RelativePositionAxes = Axes.X` 从 `SetTimingOffset` 移到构造器；颜色注释从"white"修正为"green"。
-- **M2: DefaultBmsStageFrameDisplay**：StageLeft/Right 加 `AutoSizeAxes = Axes.X`，StageBottom/Hint 加 `AutoSizeAxes = Axes.Y`，使父级布局边界匹配 Sprite 视觉边界。
-- **M3: BmsLane.trackHoldState**：`Dispose` 中重置 `activeHoldCount = 0` + `AnyHolding.Value = false`，防边缘场景回调错误更新状态。
-- **M4: 14K DP S2 token**：decoder 正则 `(\d+|S)` → `(\d+|S2?)` 匹配 `S2`；`resolveImageKey` 对 14K P2 scratch（`LaneIndex >= 8`）生成 `"S2"` token。
-
-**低优先级修复**
-
-- **L1: HoldLight/MineHit 颜色查询**：移到纹理检查之后（与 HitLighting/KeyFlash 一致），避免有纹理时多余 skin config 查询。
-- **L2: findParentLane 提取**：DrawableBmsHitObject 和 DrawableBmsMine 的重复 `findParentLane()` 提取为 `BmsLane.FindParentLane(Drawable)` 公共静态方法。
-
-**构建卫生修复**（commit eae197c + e706b50）：全局 `NoWarn NU1902`（MessagePack 中严重性漏洞审计·OMS 离线优先无攻击面·与现有 NU1903 同模式）+ 修复 `SkinManager.cs` 热重载路径 `string?` 在 `#nullable disable` 下触发 CS8632（改为 `string`）。至此 Release 构建真正 0 警告。
-
-## 2026-07-04（续）
-
-### F2 接口契约 + 死代码清理 + F2 测试覆盖 + Stage 框架 + KeyImage 替代路线 + Ghost-TD
-
-按代码审查报告建议的开发顺序，在 Turntable 前完成四个阶段的改动。BMS 全套 **1023/1023**（1 项预存 flaky `TestFailedLampWhenGaugeDoesNotClear`·单跑通过·零因果），Release gate 绿。
-
-**阶段一：F2 接口契约 + 死代码清理**
-
-- 新增 4 个 F2 接口（`IBmsKeyFlashDisplay`/`IBmsHitLightingDisplay`/`IBmsHoldLightDisplay`/`IBmsMineHitDisplay`），Default 实现实现接口。
-- 消除 `Parent?.Parent as BmsLane` 硬编码向上遍历：KeyFlash/HoldLight 绑定从 Default 自绑定改为 `BmsLane.LoadComplete` 通过接口推送（`wireF2Displays`）。
-- `BmsLane.TriggerHitLighting`/`TriggerMineHit` 改为接口转型。`BmsSkinTransformer` 加 `satisfiesF2InterfaceContract` 检查。
-- 删除 `BmsTemporarySkinPalette.cs` 死代码（`git rm`·无引用）。
-
-**阶段二：F2 测试覆盖**
-
-- `BmsDefaultNoteSkinConfigTest` 加 9 个 F2 配置测试（色/纹理/KeyImage 路由）。
-- `BmsSkinTransformerTest` 加 7 个 F2/Stage/Ghost-TD 接口契约测试（Default 回退·非接口回退·接口通过）。
-
-**阶段三：Stage 框架件 + KeyImage 替代路线**
-
-- Stage 框架件落地（`StageLeft`/`StageRight`/`StageBottom`/`StageHint`）：新建 `DefaultBmsStageFrameDisplay`（纯纹理装饰·无程序化回退）+ Transformer 路由 + Playfield 挂载。至此 `StageLeftImage` 等 4 个 ini 键真正生效。
-- KeyImage 走 KeyFlash 替代路线：`DefaultBmsKeyFlashDisplay` 在 `KeyFlashImage` 之后新增 `KeyImage`/`KeyImageDown` 分支，全道 Sprite + 纹理切换，无需独立键区组件。
-
-**阶段四：Ghost-TD 件**
-
-- Ghost-TD（判定偏移幽灵显示）落地（`GhostTd`）：新建 `IBmsGhostTdDisplay` + `DefaultBmsGhostTdDisplay`（判定线处薄竖条·±150ms→±40% 位移·白→红渐变·30ms 淡入 + 800ms 淡出）+ Transformer 接口检查 + Playfield 挂载 + `onNewResult` 推送时差。
-
-**验证**：`osu.Desktop.slnf` Release 0 错误 0 警告；BMS 全套 **1023/1023**（+20 新测试·1003→1023）。
-
-## 2026-07-04
-
-### `G1` 刀④（SkinFolderImporter·managed/external 导入 + chartskin/ 启动扫描 + SkinManager 接入）
-
-创建 `SkinFolderImporter` 并接入 `SkinManager`，使 folder-backed 皮肤可经 `chartskin/` 可视文件夹导入、注册并由启动扫描自动发现。
-
-- **`SkinFolderImporter`**（`osu.Game/Skinning/SkinFolderImporter.cs`）：仿 `BmsFolderImporter` 模式，`SKINS_STORAGE_PATH = "chartskin"`，`skinsStorage = storage.GetStorageForDirectory(SKINS_STORAGE_PATH)`。
-- **Managed 导入** `ImportManaged(sourcePath)`：验证源目录含 `skin.ini` → 分配唯一名称 → 复制到 `chartskin/<name>/` → 写 realm（`SkinInfo.Name/FilesystemStoragePath/InstantiationInfo[=BmsLegacySkin 反射]/IsExternalFilesystemStorage=false`）。
-- **External 注册** `ImportExternal(sourcePath)`：验证源目录含 `skin.ini` → 正规化绝对路径 → 防重复 → 写 realm（`IsExternalFilesystemStorage=true`）。
-- **启动扫描** `ScanManagedFolders()`：遍历 `chartskin/` 子目录，对有 `skin.ini` 且 realm 中不存在的皮肤自动创建 `SkinInfo` 入 realm。
-- **`SkinManager` 接入**：构造时创建 `FolderImporter` 并 `Task.Run(ScanManagedFolders)` 异步扫描——folder 皮肤在应用启动后自动出现在皮肤下拉列表。
-- **InstantiationInfo 反射**：`Type.GetType("osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin, osu.Game.Rulesets.Bms")?.GetInvariantInstantiationInfo()`——与 `SkinImporter` 路由同范式，BMS 不在场时 null → `InstantiationInfo` 留空 → `LegacySkin` 兜底，非 OMS 环境零影响。
-- **验证**：`osu.Desktop.slnf` Release **0 错误**；BMS 全套 **1003/1003**；核心 Skins 88/97（9 失败为预存 osu-beatmap 归档解码失败·与刀④零因果）。
-- **下一刀 = ⑤ 列表/选择/删除/重命名**：folder 皮肤在 skin 列表中的 UI 入口、删除（删文件夹 vs 仅 realm 记录）、重命名。
-
-### `G1` 刀③（SkinManager.GetSkin folder 分支·D4 反射 folder ctor·守卫测试·非 folder 零变化）
-
-把 folder-backed 皮肤的运行时实例化接进 `SkinManager.GetSkin`——玩家选皮肤时，`SkinInfo.FilesystemStoragePath` 非空的皮肤走 folder 分支，反射调皮肤类型的三参 ctor `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)` 注入 `StorageBackedResourceStore(chartskin/<path>)`，绕过 realm hash-backed `files/` store 直读可视文件夹。
-
-- **`SkinManager.GetSkin` 加 folder 分支**：检查 `FilesystemStoragePath` 非空 → `createFolderBackedSkin` helper 反射找三参 ctor → 注入 folder store → 返回 skin 实例。非 folder 皮肤和类型缺三参 ctor 的皮肤走原 `skinInfo.CreateInstance(this)` 两参路径，**零变化**。
-- **反射范式**：与 `SkinImporter` 路由（F1 ②刀下半）一致——核心 `osu.Game` 不编译依赖 ruleset，`Type.GetType(InstantiationInfo)` 反射解析类型，`GetConstructor` 反射找 ctor。BMS 程序集不在场时 `Type.GetType` 返回 null → 回退两参路径，非 OMS 环境零影响。
-- **folder store 构造**：`new StorageBackedResourceStore(host.Storage.GetStorageForDirectory(skinInfo.FilesystemStoragePath))`——`FilesystemStoragePath` 存相对路径（如 `chartskin/<name>`，仿 `BmsFolderImporter` 的 `chartbms/<name>` 先例），`host.Storage` 是 game storage 根。
-- **守卫测试** `TestFolderCtorReflectableForSkinManagerGetSkinPath`：钉死 `BmsLegacySkin` 三参 ctor 签名 `(SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>)`，防 rename/refactor 静默打破 folder 实例化路径。
-- **验证**：`osu.Desktop.slnf` Release **0 错误**；BMS 全套 **1003/1003**（+1 守卫测试）。
-- **下一刀 = ④ `chartskin/` 文件夹导入器/扫描器**：仿 `BmsFolderImporter`，managed（folder 落 `chartskin/` 下·realm 存相对路径·不复制到 hash）/ external（注册外部目录·不复制）；启动扫描 `chartskin/` 入 realm。
+- **取证与选择**：以 2026-06-30 00:05（北京时间）为协作分界。严格分界前最后正式提交为 `b53b798`；采用 `2b27c09` 的树作为恢复基线，仅因为其 schema 56 patch 已存在于分界前 WIP `a4c3346`，同时避免对已打开过的用户 Realm 降 schema。没有移动/改写旧分支历史，而是用本次正常提交承载恢复结果。
+- **完整保全**：恢复前 `9e37087`、dirty stash `4bde4c3`、不可达对象均固定在 `refs/archive/pre-recovery-20260710/*`；完整 bundle 与 production/release-test/appdata 运行时备份在 `F:\oms-recovery-archive\20260710-skin-recovery\`。归档可定点取证，不允许整包恢复。
+- **保留**：F1 独立 `[Bms]` parser、`BmsLegacySkin`、`.osk` 导入路由、静态件颜色/纹理/几何、reference ini 自校验、程序化 `OmsSkin` 最终兜底；G1 只保留 folder ctor + `SkinInfo` 两字段/schema 56 载体。
+- **撤回**：G1 `SkinManager` 生产分支/导入扫描/删改/热重载，F2 动态件、Lua、mania fallback adapter 与 reference-default 替换。原因包括外部路径 storage authority 错误、递归删除目标风险、启动扫描清理用户记录、错误 fallback 期待和 mania 默认资源回归。
+- **独立修正**：`BmsLegacySkin` 复制流后重置 position 再交 base parser，恢复 `[General]/[Colours]/[Mania]` 解析；per-lane decoder 支持 `S2`，14K 第二皿 lane 映射到 P2 素材。测试覆盖 General/Mania 共存和 P1/P2 双皿选择。
+- **验证**：H1/H2 focused **15/15**；BMS 全量 **1005/1005**；mania 默认 OMS 资源 **1/1**；Release **0 error / 20 warnings**。mania 全量 **787/791**（4 项既有 HoldNote auto-frame 期待失败），core skin focused **57/62**（1 项 Argon 旧期待 + 4 项已删 ruleset beatmap archive 依赖）。实机视觉仍待用户验收。
+- **治理**：新增 [恢复审计](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，同步 mainline/P1-A/SKINNING/RELEASE/README；把 pre-cutoff Claude 记忆迁入 `.Codex/memory` 并建立恢复优先声明，`.claude/` 作为 legacy workspace 忽略。
 
 ## 2026-06-29
 

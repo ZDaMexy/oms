@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段，当前正在进行皮肤系统专项与输入硬件验收。联网相关的 Phase 3 功能在此之前保持冻结。最新进度以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
+OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段。2026-07-10 已完成一次皮肤系统可信基线恢复：保留已验证的 F1 静态素材 + `skin.ini` 主链与 Realm schema 56，撤回未经实机验收的 G1 生产接线、F2 动态件、Lua 与 reference-default 替换；皮肤专项将从该基线重新小步推进。输入硬件验收继续并行，联网相关的 Phase 3 功能在此之前保持冻结。最新进度以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
 
 ## 贡献
 

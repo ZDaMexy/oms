@@ -175,9 +175,6 @@ namespace osu.Game.Rulesets.Bms.UI
                     {
                         ApplyResult(result);
 
-                        var lane = BmsLane.FindParentLane(this);
-                        lane?.TriggerHitLighting();
-
                         if (result.IsHit())
                             OnUserPressedSuccessfully?.Invoke(this);
                     }

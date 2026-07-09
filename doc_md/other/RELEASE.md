@@ -55,7 +55,7 @@
 
 当前仓库状态说明：
 
-- 上述第 2 条尚未完全满足。BMS 默认层与 BMS fallback 已完成七批 OMS-owned slice 收口；mania 侧已完成 shell / preset 接线与 8 类 OMS-owned 组件升格，`OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin` 已锁定主要 runtime 语义，但公开发行物产品面、少量 legacy config/asset lookup 兼容与最终 release gate 仍在收尾。详见 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)。
+- 上述第 2 条尚未完全满足。2026-07-10 可信恢复后，mania 的既有 OMS 资源链保持有效，BMS 保留 F1 静态素材/ini 主链与程序化最终兜底；未经跨 ruleset 验收的 reference-default 替换已撤回。`chartskin/` 生产链、F2 动态件与文件型默认皮肤均不得计入发行能力。公开发行前仍须完成无外部皮肤的 mania/BMS 全流程人工验收与打包检查。详见 [SKIN_SYSTEM_RECOVERY_20260710.md](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 用户数据存储
 

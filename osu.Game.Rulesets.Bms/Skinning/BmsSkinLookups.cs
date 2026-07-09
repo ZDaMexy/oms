@@ -12,11 +12,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
     {
         Backdrop,
         Baseplate,
-        StageLeft,
-        StageRight,
-        StageBottom,
-        StageHint,
-        GhostTd,
     }
 
     public sealed class BmsPlayfieldSkinLookup : ISkinComponentLookup
@@ -43,11 +38,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
         Divider,
         HitTarget,
         BarLine,
-        // F2 engine-driven: column light flash on key press / hit flash on note judgement / hold light on LN hold.
-        KeyFlash,
-        HitLighting,
-        HoldLight,
-        MineHit,
     }
 
     public sealed class BmsLaneSkinLookup : ISkinComponentLookup

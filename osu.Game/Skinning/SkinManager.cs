@@ -6,17 +6,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
-using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
@@ -67,13 +64,6 @@ namespace osu.Game.Skinning
 
         private readonly LegacySkinExporter skinExporter;
 
-        // OMS G1: manages chartskin/ visible folder skins (managed + external + startup scan).
-        public readonly SkinFolderImporter FolderImporter;
-
-        // OMS G1: watches chartskin/ for skin.ini changes and hot-reloads the current folder-backed skin.
-        private FileSystemWatcher folderSkinWatcher;
-        private Timer hotReloadDebounce;
-
         private readonly IResourceStore<byte[]> userFiles;
 
         private static readonly Live<SkinInfo> random_skin_info = new SkinInfo
@@ -115,13 +105,6 @@ namespace osu.Game.Skinning
             {
                 PostNotification = obj => PostNotification?.Invoke(obj),
             };
-
-            // OMS G1: folder-backed skin importer (chartskin/<name>/). Startup scan runs async
-            // after realm is ready so folder skins appear in the skin list automatically.
-            FolderImporter = new SkinFolderImporter(storage, realm);
-            Task.Run(() => FolderImporter.ScanManagedFolders());
-
-            setupFolderSkinWatcher(storage);
 
             DefaultOmsSkin = new OmsSkin(this);
             DefaultClassicSkin = new DefaultLegacySkin(this);
@@ -267,40 +250,7 @@ namespace osu.Game.Skinning
         /// </summary>
         /// <param name="skinInfo">The skin to lookup.</param>
         /// <returns>A <see cref="Skin"/> instance correlating to the provided <see cref="SkinInfo"/>.</returns>
-        public Skin GetSkin(SkinInfo skinInfo)
-        {
-            // OMS G1 刀③: folder-backed skins (chartskin/<name>/) inject a folder store via the skin type's
-            // 3-param ctor (SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>), bypassing the realm
-            // hash-backed file store. Resolved by reflection (same pattern as SkinImporter routing); skins whose
-            // type lacks the 3-param ctor, and non-folder skins, fall through to the default 2-param path unchanged.
-            if (!string.IsNullOrEmpty(skinInfo.FilesystemStoragePath))
-            {
-                Skin folderSkin = createFolderBackedSkin(skinInfo);
-
-                if (folderSkin != null)
-                    return folderSkin;
-            }
-
-            return skinInfo.CreateInstance(this);
-        }
-
-        private Skin createFolderBackedSkin(SkinInfo skinInfo)
-        {
-            Type type = string.IsNullOrEmpty(skinInfo.InstantiationInfo)
-                ? typeof(LegacySkin)
-                : Type.GetType(skinInfo.InstantiationInfo);
-
-            if (type == null)
-                return null;
-
-            var folderCtor = type.GetConstructor(new[] { typeof(SkinInfo), typeof(IStorageResourceProvider), typeof(IResourceStore<byte[]>) });
-
-            if (folderCtor == null)
-                return null;
-
-            var folderStore = new StorageBackedResourceStore(host.Storage.GetStorageForDirectory(skinInfo.FilesystemStoragePath));
-            return (Skin)folderCtor.Invoke(new object[] { skinInfo, this, folderStore });
-        }
+        public Skin GetSkin(SkinInfo skinInfo) => skinInfo.CreateInstance(this);
 
         /// <summary>
         /// Ensure that the current skin is in a state it can accept user modifications.
@@ -479,13 +429,6 @@ namespace osu.Game.Skinning
                 if (items.Any(s => s.ID == currentUserSkin))
                     scheduler.Add(() => CurrentSkinInfo.Value = DefaultOmsSkin.SkinInfo);
 
-                // OMS G1: for managed folder-backed skins, delete the folder from disk before realm removal.
-                foreach (var item in items.ToList())
-                {
-                    if (!string.IsNullOrEmpty(item.FilesystemStoragePath) && !item.IsExternalFilesystemStorage)
-                        FolderImporter.DeleteManaged(item.FilesystemStoragePath);
-                }
-
                 Delete(items.ToList(), silent);
             });
         }
@@ -494,10 +437,6 @@ namespace osu.Game.Skinning
         {
             skin.PerformWrite(s =>
             {
-                // OMS G1: for managed folder-backed skins, rename the folder on disk and update the path.
-                if (!string.IsNullOrEmpty(s.FilesystemStoragePath) && !s.IsExternalFilesystemStorage)
-                    s.FilesystemStoragePath = FolderImporter.RenameManaged(s.FilesystemStoragePath, newName);
-
                 s.Name = newName;
                 skinImporter.UpdateSkinIniMetadata(s, s.Realm!);
             });
@@ -516,53 +455,6 @@ namespace osu.Game.Skinning
             }
 
             CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
-        }
-
-        // OMS G1: watches chartskin/ for skin.ini changes. When a folder-backed skin's skin.ini is modified or created,
-        // the current skin is reloaded — skin authors can edit skin.ini and see changes immediately without restarting.
-        private void setupFolderSkinWatcher(Storage storage)
-        {
-            string watchPath = storage.GetFullPath(SkinFolderImporter.SKINS_STORAGE_PATH);
-
-            if (!Directory.Exists(watchPath))
-                return;
-
-            folderSkinWatcher = new FileSystemWatcher(watchPath, @"skin.ini")
-            {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.CreationTime,
-                EnableRaisingEvents = true,
-            };
-
-            folderSkinWatcher.Changed += onSkinIniChanged;
-            folderSkinWatcher.Created += onSkinIniChanged;
-        }
-
-        private void onSkinIniChanged(object sender, FileSystemEventArgs e)
-        {
-            // Debounce: skin editors may save multiple times in quick succession.
-            hotReloadDebounce?.Dispose();
-            hotReloadDebounce = new Timer(_ =>
-            {
-                scheduler.Add(() =>
-                {
-                    var currentInfo = CurrentSkinInfo.Value;
-                    string currentPath = currentInfo?.PerformRead(s => s.FilesystemStoragePath);
-
-                    if (string.IsNullOrEmpty(currentPath))
-                        return;
-
-                    string changedDir = Path.GetDirectoryName(e.FullPath);
-                    string relativePath = Path.GetRelativePath(host.Storage.GetFullPath(string.Empty), changedDir).ToStandardisedPath();
-
-                    if (!string.Equals(relativePath, currentPath.ToStandardisedPath(), StringComparison.OrdinalIgnoreCase))
-                        return;
-
-                    // Re-scan to pick up any newly added assets, then rebuild the current skin.
-                    FolderImporter.ScanManagedFolders();
-                    CurrentSkin.Value = GetSkin(CurrentSkinInfo.Value.Value);
-                });
-            }, null, 1000, Timeout.Infinite);
         }
     }
 }

@@ -79,15 +79,5 @@ namespace osu.Game.Rulesets.Bms.Skinning
         LaneCoverFocusColour,
         PlayfieldBackdropColour,
         PlayfieldBaseplateColour,
-
-        // ---- F2 engine-driven elements: keyflash (column light on key press) / hit lighting (flash on hit) ----
-        KeyFlashImage,
-        HitLightingImage,
-        KeyFlashColour,
-        HitLightingColour,
-        HoldLightImage,
-        HoldLightColour,
-        MineHitImage,
-        MineHitColour,
     }
 }

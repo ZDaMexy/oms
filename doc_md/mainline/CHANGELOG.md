@@ -5,25 +5,13 @@
 
 ---
 
-## 2026-07-04
+## 2026-07-10
 
-### 皮肤系统大推进：G1 可视文件夹存储全链路贯通 + F2 引擎驱动件首刀落地（P1-A）
+### 皮肤系统可信恢复与协作基线重建（P1-A）
 
-**G1 皮肤可视文件夹存储（刀③④⑤⑥）**：把 BMS 皮肤从「纯 realm hash store 不可见」升级到「`chartskin/<name>/` 可视文件夹即放即用」。
-- 刀③ `SkinManager.GetSkin` folder 分支（D4 反射三参 ctor·守卫测试·非 folder 零变化）
-- 刀④ `SkinFolderImporter`（仿 `BmsFolderImporter`·managed/external 导入·`chartskin/` 启动扫描·`SkinManager` 接入）
-- 刀⑤ 删除/重命名 folder 感知（`DeleteManaged`/`RenameManaged`）+ UI 入口（`SkinSection` Scan/Open 按钮）
-- 刀⑥ 热重载（`FileSystemWatcher` 监视 `chartskin/`·skin.ini 变化·1s debounce·自动重建当前皮肤）
+以 2026-06-30 00:05（北京时间）为异常协作分界完成 Git/代码/运行时数据三层取证。恢复没有重写旧历史：恢复前 HEAD、dirty tree、不可达对象、完整 bundle 和三个已发现数据根均已保全；当前树以 `2b27c09` 的可信面为基线（其 schema 56 patch 已由分界前 WIP `a4c3346` 证明），撤回其后的 G1 生产链、F2/Lua、mania adapter 与 reference-default 替换。保留 F1 静态素材/ini 主链、程序化逐组件 fallback、folder ctor/schema 56 载体，并独立修复 base parser 流位置及 14K `S2`/P2 双皿素材映射。
 
-**F2 引擎驱动件（4 件）**：从"全仓零渲染"到 lane 级集成 + ini 可配。
-- keyflash（键光柱）：双边分层渐变竖条·底部半高·绑定 `IsPressed`
-- hit lighting（命中爆闪）：绑定 `ApplyResult`
-- LN hold light（长条保持光）：绑定 `BodyState.Holding` 计数
-- mine hit（地雷爆炸）：绑定 `CheckForResult`
-
-**验证**：BMS 全套 **1003/1003** + 核心 Skins 88/97（9 失败预存·零因果）+ `osu.Desktop.slnf` Release gate 绿。F2 剩余 turntable（需布局裁决）/ ghost-TD 待续。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 2026-07-04。
-
----
+自动验证：BMS **1005/1005**、H1/H2 focused **15/15**、mania 默认 OMS 资源 **1/1**、Release **0 error / 20 warnings**；mania 全量 **787/791** 的 4 项失败为既有 HoldNote auto-frame 期待，core skin focused **57/62** 的 5 项为 Argon/已删 ruleset 旧测试失配。无外部皮肤、`.osk` 用户皮肤与 5K/7K/9K/14K 实机视觉仍是显式 release gate。恢复证据、归档位置和重新准入门见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，执行细节见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
 
 ## 2026-06-29
 

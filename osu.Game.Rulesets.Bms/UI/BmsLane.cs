@@ -25,33 +25,11 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class BmsLane : ScrollingPlayfield, IKeyBindingHandler<BmsAction>
     {
-        /// <summary>
-        /// Traverses the Parent chain from <paramref name="drawable"/> to find the containing <see cref="BmsLane"/>.
-        /// Shared by <see cref="Objects.Drawables.DrawableBmsHitObject"/> and <see cref="Objects.Drawables.DrawableBmsMine"/>.
-        /// </summary>
-        public static BmsLane? FindParentLane(Drawable drawable)
-        {
-            Drawable? d = drawable;
-
-            while (d != null)
-            {
-                if (d is BmsLane lane)
-                    return lane;
-
-                d = d.Parent;
-            }
-
-            return null;
-        }
-
         internal readonly Bindable<BmsAction> Action = new Bindable<BmsAction>();
 
         public int LaneIndex { get; }
 
         public bool IsScratch { get; }
-
-        // F2: true when any hold note on this lane is in Holding state; drives the hold light display.
-        public readonly BindableBool AnyHolding = new BindableBool();
 
         public BmsLaneLayout.Lane LayoutLane { get; private set; }
 
@@ -74,9 +52,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [Resolved(CanBeNull = true)]
         private BmsKeysoundStore? keysoundStore { get; set; }
-
-        [Resolved(CanBeNull = true)]
-        private ISkinSource? skinSource { get; set; }
 
         private IReadOnlyList<BmsLaneKeysoundEntry> keysoundTimeline = Array.Empty<BmsLaneKeysoundEntry>();
 
@@ -115,26 +90,6 @@ namespace osu.Game.Rulesets.Bms.UI
                     RelativeSizeAxes = Axes.Both,
                     CentreComponent = false,
                 },
-                new SkinnableDrawable(createLookup(BmsLaneSkinElements.KeyFlash))
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    CentreComponent = false,
-                },
-                new SkinnableDrawable(createLookup(BmsLaneSkinElements.HitLighting))
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    CentreComponent = false,
-                },
-                new SkinnableDrawable(createLookup(BmsLaneSkinElements.HoldLight))
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    CentreComponent = false,
-                },
-                new SkinnableDrawable(createLookup(BmsLaneSkinElements.MineHit))
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    CentreComponent = false,
-                },
                 hitObjectArea = createHitObjectArea(),
             };
 
@@ -159,60 +114,6 @@ namespace osu.Game.Rulesets.Bms.UI
             return dependencies;
         }
 
-        protected override void LoadComplete()
-        {
-            base.LoadComplete();
-            wireF2Displays();
-
-            if (skinSource != null)
-                skinSource.SourceChanged += onSkinChanged;
-        }
-
-        private void onSkinChanged()
-        {
-            // Re-wire F2 displays after skin hot reload: SkinnableDrawable children reload their content
-            // during the skin change event, so afterwards the new Drawable instances need fresh bindings.
-            wireF2Displays();
-        }
-
-        private IBindable<bool>? keyFlashPressedSource;
-        private IBindable<bool>? holdLightSource;
-
-        private void wireF2Displays()
-        {
-            // Unbind previous sources so hot reload doesn't leave stale bindings to disposed components.
-            keyFlashPressedSource?.UnbindAll();
-            holdLightSource?.UnbindAll();
-
-            foreach (var child in InternalChildren)
-            {
-                if (child is not SkinnableDrawable sd)
-                    continue;
-
-                if (sd.Drawable is IBmsKeyFlashDisplay keyFlash)
-                {
-                    keyFlashPressedSource = HitTarget.IsPressed.GetBoundCopy();
-                    keyFlashPressedSource.BindValueChanged(e => keyFlash.SetPressed(e.NewValue), true);
-                }
-                else if (sd.Drawable is IBmsHoldLightDisplay holdLight)
-                {
-                    holdLightSource = AnyHolding.GetBoundCopy();
-                    holdLightSource.BindValueChanged(e => holdLight.SetHolding(e.NewValue), true);
-                }
-            }
-        }
-
-        protected override void Dispose(bool isDisposing)
-        {
-            if (skinSource != null)
-                skinSource.SourceChanged -= onSkinChanged;
-            keyFlashPressedSource?.UnbindAll();
-            holdLightSource?.UnbindAll();
-            activeHoldCount = 0;
-            AnyHolding.Value = false;
-            base.Dispose(isDisposing);
-        }
-
         protected override void Update()
         {
             base.Update();
@@ -226,30 +127,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 HitTarget.IsPressed.Value = isPressed;
         }
 
-        public void TriggerHitLighting()
-        {
-            foreach (var child in InternalChildren)
-            {
-                if (child is SkinnableDrawable sd && sd.Drawable is IBmsHitLightingDisplay hl)
-                {
-                    hl.Flash();
-                    return;
-                }
-            }
-        }
-
-        public void TriggerMineHit()
-        {
-            foreach (var child in InternalChildren)
-            {
-                if (child is SkinnableDrawable sd && sd.Drawable is IBmsMineHitDisplay mh)
-                {
-                    mh.Flash();
-                    return;
-                }
-            }
-        }
-
         protected override void OnNewDrawableHitObject(DrawableHitObject drawableHitObject)
         {
             base.OnNewDrawableHitObject(drawableHitObject);
@@ -259,31 +136,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
             bmsHitObject.CheckHittable = hitPolicy.IsHittable;
             bmsHitObject.OnUserPressedSuccessfully = hitPolicy.HandleHit;
-
-            if (drawableHitObject is DrawableBmsHoldNote holdNote)
-                trackHoldState(holdNote);
-        }
-
-        private int activeHoldCount;
-
-        private void trackHoldState(DrawableBmsHoldNote holdNote)
-        {
-            holdNote.BodyState.BindValueChanged(e =>
-            {
-                if (e.NewValue == BmsLongNoteBodyState.Holding)
-                {
-                    if (activeHoldCount++ == 0)
-                        AnyHolding.Value = true;
-                }
-                else if (e.OldValue == BmsLongNoteBodyState.Holding)
-                {
-                    if (--activeHoldCount <= 0)
-                    {
-                        activeHoldCount = 0;
-                        AnyHolding.Value = false;
-                    }
-                }
-            });
         }
 
         public virtual bool OnPressed(KeyBindingPressEvent<BmsAction> e)

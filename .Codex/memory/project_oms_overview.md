@@ -12,7 +12,7 @@ OMS is a Windows-only (Win10 22H2+) rhythm game client forked from osu!lazer, ta
 **Why:** Offline-first BMS/mania client; long-term (Phase 3) goal is private-server integration (accounts, leaderboards, downloads), but all networked features are hidden/disabled until then.
 
 **How to apply:**
-- Current phase: **Phase 1.1 skin system** + public-release product surface wrap-up + 1.17 input hardware/semantics acceptance. Phase 2/3 are frozen.
+- Current phase: **Phase 1.1 skin recovery baseline** + public-release product surface wrap-up + 1.17 input hardware/semantics acceptance. Before any skin work, read `reference_skin_recovery_20260710.md`; G1 production/F2/Lua are not current capabilities. Phase 2/3 are frozen.
 - Release model: portable full packages `oms_YYYYMMDD(.zip)` + manual file-overwrite updates. In-game online update disabled. Don't ship auto-update or online endpoints.
 - Default endpoints are empty; online code in-tree is Phase 3 reserve, not user-facing.
 - Build: `dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m`. BMS tests: `dotnet test osu.Game.Rulesets.Bms.Tests/...`.

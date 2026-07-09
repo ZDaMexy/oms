@@ -11,7 +11,7 @@ namespace osu.Game.Rulesets.Bms.UI
     /// <summary>
     /// Visual-only drawable for a <see cref="BmsMine"/>. Mirrors the bar-line pattern: it scrolls in its lane,
     /// never accepts player input, and resolves through an ignore-judgement so it stays out of the scoring /
-    /// combo / statistics path.
+    /// combo / statistics path. Phase 1 uses a simple non-skinned circle; skinning is a later phase.
     /// </summary>
     public partial class DrawableBmsMine : DrawableHitObject<BmsMine>
     {
@@ -40,12 +40,7 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void CheckForResult(bool userTriggered, double timeOffset)
         {
             if (timeOffset >= 0)
-            {
                 ApplyMaxResult();
-
-                var lane = BmsLane.FindParentLane(this);
-                lane?.TriggerMineHit();
-            }
         }
 
         protected override void UpdateHitStateTransforms(ArmedState state)

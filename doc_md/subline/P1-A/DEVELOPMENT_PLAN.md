@@ -1,6 +1,6 @@
 # P1-A 开发计划：产品面、release gate 与皮肤边界
 
-> 最后更新：2026-06-29
+> 最后更新：2026-07-10
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-A` 的执行顺序；`P1-C` 的反馈闭环计划见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)。
 
 ## 专题定位
@@ -226,7 +226,7 @@
 
 #### F1：素材 + ini 加载器 / 校验器 / 热重载 + 参考皮肤（①类静态件）
 
-状态：**已完成**（ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线全部落地，BMS 1024/1024 + core gate 绿；架构见本节末「实现架构」）
+状态：进行中（**可信主面已成**——①解析 + ②配置源 + ③现存静态件颜色/纹理/几何三轴 + reference 自校验门均保留；当前用户路径为 `.osk` 导入，剩 stage 框架 / `KeyImage`，加载期诊断与作者工作流仍需补齐。2026-07-10 恢复后不得把 G1 文件夹链、F2 动态件或文件型默认计入 F1 完成度。）
 
 建议交付：
 
@@ -251,7 +251,7 @@
 
 #### F2：②类引擎驱动件补挂点（ini 仅供素材）—— 仿 IIDX/LR2/beatoraja 的真正大头
 
-状态：**进行中（5 件 + Ghost-TD + 接口契约已落地·剩 turntable/bomb/comboburst）**——keyflash + hit lighting + LN hold light + mine hit + ghost-TD 已落，含 5 个接口契约（`IBmsKeyFlashDisplay`/`IBmsHitLightingDisplay`/`IBmsHoldLightDisplay`/`IBmsMineHitDisplay`/`IBmsGhostTdDisplay`）+ Transformer `satisfiesF2InterfaceContract`/`satisfiesPlayfieldInterfaceContract` 检查；BMS 1024/1024。原 2026-06-29 勘察确认这些件在 OMS BMS 当前零渲染——全仓 grep 无 turntable / keyflash / hit explosion / bomb / LN hold light / ghost-TD 任何组件；盘面结构本身也无 turntable 区、无键区
+状态：**未开工（2026-06-29 勘察确认：这些件在 OMS BMS 当前零渲染——全仓 grep 无 turntable / keyflash / hit explosion / bomb / LN hold light / ghost-TD 任何组件；盘面结构本身也无 turntable 区、无键区）**
 
 定位：**这是"皮肤制作者能否还原 LR2/beatoraja 体验、甚至仿 IIDX"的决定性一期。** F1 只让现有静态件（音符/车道/判定线/cover/背景…）可换色换图调几何；IIDX 之所以是 IIDX 的招牌动态件**目前没有组件可供贴图**，必须本期从零造。
 
@@ -260,8 +260,6 @@
 - **建议分期**：先 keyflash + hit explosion（最常见、最影响打击反馈观感、无结构改动）→ LN hold light → turntable（需结构前置）→ ghost / laser。
 - **与 P1-L 协作**：[P1-L](../P1-L/) 已落地地雷渲染 / BGA 链；bomb / 演出类件须对齐复用、不重复造；本期仅补"皮肤可换素材"的挂点。
 - **红线**：仅视觉，不碰判定 / 计分 / 滚动 / 键音 / chartbms 直读（CONSTRAINTS 第 10 条）；落地前不得在 `SKINNING.md` 标为"当前可用"。
-
-**F2 进展（2026-07-04 起）**：5 件 + Ghost-TD 已落地——keyflash + hit lighting + LN hold light + mine hit + ghost-TD，含 5 个接口契约（`IBmsKeyFlashDisplay`/`IBmsHitLightingDisplay`/`IBmsHoldLightDisplay`/`IBmsMineHitDisplay`/`IBmsGhostTdDisplay`）+ Transformer `satisfiesF2InterfaceContract`/`satisfiesPlayfieldInterfaceContract` 检查。`BmsLaneSkinElements.KeyFlash`/`HitLighting` + `BmsSkinConfigurationLookups.KeyFlashImage`/`HitLightingImage`/`KeyFlashColour`/`HitLightingColour` + `DefaultBmsKeyFlashDisplay`（绑定 `BmsHitTarget.IsPressed`·`SkinnerDrawable`·可换图/色）+ `DefaultBmsHitLightingDisplay`（`DrawableBmsHitObject.ApplyResult` 触发）。F2 剩余 turntable（需布局裁决）/ bomb / comboburst 待续。
 
 #### F3：③类 `[Bms]` 扩展段独有件 + 契约冻结
 
@@ -276,7 +274,7 @@
 
 #### G1：皮肤可视文件夹存储（**revisit F1「复用 SkinManager hash 体系」gate 决议**）
 
-状态：未开工（**这是对 F1 gate 决议的方向性调整，需用户拍板后启动**）
+状态：**重新设计中（2026-07-10 可信恢复）**。刀① folder ctor 与刀② schema 56 载体保留；刀③–⑥生产接线因外部路径、删改安全、热重载覆盖和测试证据不合格已撤回，不得整批恢复。
 
 - **现状（2026-06-29 勘察）**：皮肤走核心 `SkinImporter : RealmArchiveModelImporter<SkinInfo>`（只认 `.osk`），文件进 realm 的 **hash-backed `files/` 存储**（文件名=内容哈希·人不可读·不可手动管理）。F1 gate（2026-06-27）曾明确"复用 SkinManager·**不走 chartbms 旁路**"——本项即重审该决议。
 - **目标**：皮肤像 chartmania/chartbms 一样在数据目录有**可视、人类可读文件夹**（如 `chartskin/<名>/skin.ini` + 资源），直接读，realm 只索引路径/元数据，不进 hash store。
@@ -295,7 +293,7 @@
 6. **热重载。** folder 直读后监视 `chartskin/<名>/skin.ini` 变化→重建 skin（F1 既定"热重载"本项才真落地）。
 7. **红线。** 不破坏核心对 `.osk` 导入 / `OmsSkin` 既有路径；不破坏本会话 `SkinImporter` 的 `BmsLegacySkin` 路由；离线优先；mania 段解析仍走核心 `LegacySkin`（folder `BmsLegacySkin` 继承之·共存）；folder 皮肤 `SkinInfo.Files` 留空（空 Files 经 `RealmBackedResourceStore` 安全回落 fallbackStore·已证）。
 
-落地顺序（刀）：✅① `BmsLegacySkin` folder ctor 转 public + 真实临时目录直读 skin.ini/纹理测试（ruleset-only·低风险，**已落 2026-06-29**）→ ✅② `SkinInfo` 加 `FilesystemStoragePath`+`IsExternalFilesystemStorage` + `RealmAccess` schema 55→56（核心 realm·加性·**已落 2026-06-29**：Release gate 绿 + BMS 1002/1002 + 核心 Skins 57 通过·5 失败为预存 osu-beatmap 解码失败·`git stash` 干净树同样·零因果）→ ✅③ `SkinManager.GetSkin` folder 分支（D4 反射 folder ctor·守卫测试钉死字符串·非 folder 零变化·**已落 2026-07-04**：BMS 1003/1003 + gate 绿）→ ✅④ `chartskin/` 文件夹导入器/扫描器（仿 `BmsFolderImporter`·managed/external + 启动扫描 + `SkinManager` 接入·**已落 2026-07-04**：BMS 1003/1003 + Skins 88/97·零因果 + gate 绿）→ ✅⑤ 列表/选择/删除/重命名 + UI 入口（`SkinManager.Delete/Rename` folder 感知 + `SkinSection` 扫描/打开按钮·**已落 2026-07-04**：BMS 1003/1003 + Skins 88/97 + gate 绿）→ ✅⑥ 热重载（`FileSystemWatcher` 监视 chartskin/skin.ini 变化→debounce 1s→自动重建当前皮肤·**已落 2026-07-04**：BMS 1003/1003 + gate 绿）。**G1 可视文件夹存储链路贯通**。**与 [P1-H](../P1-H/) 存储拓扑协作**（external/managed 扫描机制可复用）。
+落地顺序（刀）：✅① `BmsLegacySkin` folder ctor 转 public + 真实临时目录直读 skin.ini/纹理测试（ruleset-only·低风险，**已落 2026-06-29**）→ ✅② `SkinInfo` 加 `FilesystemStoragePath`+`IsExternalFilesystemStorage` + `RealmAccess` schema 55→56（核心 realm·加性·**已落 2026-06-29**：Release gate 绿 + BMS 1002/1002 + 核心 Skins 57 通过·5 失败为预存 osu-beatmap 解码失败·`git stash` 干净树同样·零因果）→ ③ `SkinManager.GetSkin` folder 分支（D4 反射 folder ctor·守卫测试钉死字符串·非 folder 零变化）→ ④ `chartskin/` 文件夹导入器/扫描器（仿 `BmsFolderImporter`·managed/external + 启动扫描）→ ⑤ 列表/选择/删除/重命名 对 folder 皮肤收口 + UI 入口 → ⑥ 热重载。**与 [P1-H](../P1-H/) 存储拓扑协作**（external/managed 扫描机制可复用）。
 
 #### G2：文件型内置默认皮肤（可选）
 
@@ -314,8 +312,9 @@
 5. `B2` `Sudden / Hidden / Lift` 联动收口
 6. `C1` 扩展到统一 gameplay feedback 家族
 7. `D1` 作者文档与 release gate 收口
-8. **`F1` 已完成**：ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线全部落地（BMS 1024/1024）
-9. **皮肤后续路线（2026-06-29 立项——见 `F2` / `G1` / `G2`）**：
-   - `G1` 皮肤可视文件夹存储（**已完成**·全链路贯通）
-   - `F2` ②类引擎驱动件（5 件 + Ghost-TD + 接口契约已落地·剩 turntable（需布局裁决）/ bomb / comboburst）
+8. **`F1` 主面已成（2026-06-29）**：颜色/纹理/几何三轴皮肤化 + reference 验收 capstone 均落；**余项 = stage 框架 / `KeyImage`（净新增件·需定位决策）**
+9. **皮肤后续路线（2026-07-10 恢复后顺序）**：
+   - 先完成恢复基线的全自动回归 + mania/BMS 实机视觉验收，并清点 schema 56 中由已撤回 G1 写入的 folder-backed 记录。
+   - 再从零重做 `G1`：外部目录必须用 `NativeStorage`，所有删除/重命名必须做根目录 containment + 冲突拒绝，素材/ini/原子替换热重载须有生产行为测试。
+   - `F2` ②类引擎驱动件后置到 G1 安全合同与默认/用户皮肤 fallback 矩阵稳定之后；不得直接 cherry-pick 2026-07-04 实现。
    - `G2` 文件型默认皮肤（小·可选） / `F3` ③类 `[Bms]` 扩展段（gauge 样式/GN/bpm）

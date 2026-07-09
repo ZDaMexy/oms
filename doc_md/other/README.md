@@ -10,6 +10,7 @@
 - [BMS_FORMAT_REFERENCE.md](BMS_FORMAT_REFERENCE.md)：BMS / bmson 格式权威参考（channel 编码陷阱、时序、长条、复合规则、控制流与解析审查对照清单），主要服务 [P1-K](../subline/P1-K/) 解析链路审查。
 - [BMS_GIMMICK_CHART_RENDERING.md](BMS_GIMMICK_CHART_RENDERING.md)：BMS 演出/Gimmick 谱（如 DEAD SOUL [Revive]）视觉复刻的可行性与架构分析（机理/方案权威来源）；已升级为子线 [P1-L](../subline/P1-L/)，Phase 1（地雷视觉）已落地。**红线：不得改坏正常游玩链路。**
 - [UPSTREAM.md](UPSTREAM.md)：上游锁定点、本地 diff 基线与 cherry-pick 风险面。
+- [SKIN_SYSTEM_RECOVERY_20260710.md](SKIN_SYSTEM_RECOVERY_20260710.md)：2026-06-30 分界后的皮肤系统取证、恢复锚点、撤回范围与重新准入门槛。
 
 ## 联动要求
 

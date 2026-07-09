@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,8 +29,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             "[General]\n" +
             "Name: Test\n" +
             "Version: 1\n" +
-            "[Colours]\n" +
-            "Colour1: 255,0,0\n" +
             "[Mania]\n" + // a mania section must coexist untouched (BmsLegacySkin still extends core LegacySkin)
             "Keys: 7\n" +
             "ColumnWidth: 40\n" +
@@ -43,7 +40,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             "NoteImageSH: notes/scratch_head\n" +
             "LaneBackgroundImage1: lanes/white_bg\n" +
             "LaneDividerImageS: lanes/scratch_divider\n" +
-            "HitTargetImage: stage/target\n";
+            "HitTargetImage: stage/target\n" +
+            "[Bms]\n" +
+            "Keymode: 14K\n" +
+            "NoteImageS: notes/scratch_p1\n" +
+            "NoteImageS2: notes/scratch_p2\n";
 
         private static BmsLegacySkin createSkin() => new TestBmsLegacySkin(skin_ini);
 
@@ -95,18 +96,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 new LegacyManiaSkinConfigurationLookup(7, LegacyManiaSkinConfigurationLookups.ColumnWidth, 0))?.Value, Is.EqualTo(40f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR));
 
         [Test]
-        public void TestGeneralSectionParsedAfterStreamCopy()
+        public void TestGeneralSectionStillParsed()
         {
-            // Regression test for stream positioning bug (H1): BmsLegacySkin.ParseConfigurationStream copies the
-            // stream before passing to base. Without resetting stream.Position = 0, the base LegacySkinDecoder
-            // would read an empty stream and [General] values would be permanently lost.
-            // LegacyVersion is set from [General] Version: 1 — it would be 0 (default) if the [General] section was lost.
-            // LegacySkinConfiguration is not public, so use reflection to access LegacyVersion.
             var config = createSkin().Configuration;
-            var legacyVersionProp = config.GetType().GetProperty("LegacyVersion");
-            Assert.That(legacyVersionProp, Is.Not.Null, "Configuration should be a LegacySkinConfiguration with LegacyVersion");
-            Assert.That(legacyVersionProp!.GetValue(config), Is.EqualTo(1));
+            var legacyVersion = config.GetType().GetProperty("LegacyVersion");
+
+            Assert.That(legacyVersion, Is.Not.Null);
+            Assert.That(legacyVersion!.GetValue(config), Is.EqualTo(1));
         }
+
+        [TestCase(0, "notes/scratch_p1")]
+        [TestCase(8, "notes/scratch_p2")]
+        public void TestDoublePlayScratchImageResolved(int laneIndex, string expected)
+            => Assert.That(createSkin().GetBmsSkinConfig<string>(
+                BmsSkinConfigurationLookups.NoteImage,
+                BmsKeymode.Key14K,
+                laneIndex,
+                isScratch: true)?.Value, Is.EqualTo(expected));
 
         [Test]
         public void TestTypeStringsUsedByCoreResolveToThisType()
@@ -137,18 +143,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, BmsKeymode.Key7K)?.Value, Is.EqualTo(0.42f));
                 Assert.That(skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.NoteColourWhite, BmsKeymode.Key7K)?.Value, Is.EqualTo(new Color4(1, 2, 3, 255)));
             });
-        }
-
-        [Test]
-        public void TestFolderCtorReflectableForSkinManagerGetSkinPath()
-        {
-            // G1 刀③: SkinManager.GetSkin reflects into the 3-param ctor
-            // (SkinInfo, IStorageResourceProvider, IResourceStore<byte[]>) for folder-backed skins.
-            // Pin the signature so a rename/refactor won't silently break the folder-backed instantiation path.
-            var folderCtor = typeof(BmsLegacySkin).GetConstructor(
-                new[] { typeof(SkinInfo), typeof(IStorageResourceProvider), typeof(IResourceStore<byte[]>) });
-
-            Assert.That(folderCtor, Is.Not.Null);
         }
 
         private class TestBmsLegacySkin : BmsLegacySkin

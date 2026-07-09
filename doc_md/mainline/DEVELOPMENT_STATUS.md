@@ -1,6 +1,6 @@
 # OMS 开发进度与遗留问题
 
-> 最后更新：2026-07-04（**G1 皮肤可视文件夹存储全链路贯通**：刀①②③④⑤⑥ 六刀全部落地——folder-backed 直读建块 + realm schema 56 + `SkinManager.GetSkin` folder 分支 + `SkinFolderImporter`（managed/external 导入 + 启动扫描）+ 删除/重命名 folder 感知 + UI（Scan/Open 按钮）+ 热重载（`FileSystemWatcher`）；**F1 已完成**（ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线）；**F2 5 件 + Ghost-TD + 5 个接口契约已落地**，剩余仅 turntable + bomb + comboburst；**H1/H2 修复**：BmsLegacySkin 流定位 bug + BmsLane/BmsPlayfield 热重载覆盖（`ISkinSource.SourceChanged` 订阅）；`BmsTemporarySkinPalette` 已删除→`BmsDefaultPlayfieldPalette`；BMS 全套 **1024/1024** + Release 0 错误 0 警告。详见 P1-A 四件套。此前 2026-06-29 F1 主面完成 + G1 刀①②落地，更早历史见 [CHANGELOG.md](CHANGELOG.md)。）当前真实状态见下「最新快照」，最新验证快照见「最近一次验证」，历史切片见 [CHANGELOG.md](CHANGELOG.md)——按本页规则「最近一次验证只保留最新一条；历史归 CHANGELOG」，抬头不再堆叠历史快照。
+> 最后更新：2026-07-10。皮肤系统已从 2026-06-30 00:05 协作分界点恢复到可信基线：保留 F1 静态素材/`skin.ini` 主链、程序化 fallback、G1 folder ctor + Realm schema 56，并撤回未经跨 ruleset/实机证明的 G1 生产链、F2、Lua 与 reference-default 替换。完整 Git/运行时保全和准入门见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)。当前真实状态见下「最新快照」，最新验证只保留在「最近一次验证」，历史切片归 [CHANGELOG.md](CHANGELOG.md)。
 > 本文档只记录"仓库里已经真实存在的状态"，不重复规划全文。
 > 详细分步规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，权威技术约束见 [OMS_COPILOT.md](OMS_COPILOT.md)，外部 IIDX / BMS 方向校准见 [../other/IIDX_REFERENCE_AUDIT.md](../other/IIDX_REFERENCE_AUDIT.md)。
 
@@ -61,7 +61,7 @@
 - **Native-default removal**：`SetSkinFromConfiguration()` 已把 Argon / Triangles / DefaultLegacy / Retro 统一回退 OMS；`SkinManager` 只注册 `DefaultOmsSkin` 为受保护 built-in，启动时清理历史上游条目；legacy beatmap fallback 已切到 `DefaultOmsSkin`；`SkinManager.AllSources` 已去重
 - **Partial override**：BMS 用户皮肤缺失 BMS 组件时返回 null 让后续 source 承接；mania legacy 用户皮肤缺失 note / hold / judgement / explosion / combo / bar-line 时回退 OMS 组件；mixed-layer 三类语义（mania-only / BMS-only / 双层皮肤）已有 runtime 证明
 - **候选包语义**：`SimpleTou-Lazer` 仅为 mania 侧内置皮肤候选基线，不可对外称为"已完成默认皮肤"
-- **BMS 素材 + ini 皮肤创作生态（P1-A `F`/`G` 系列）**：`F0`（契约冻结·纯文档）+ `F1`（ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线·BMS 1024/1024）已成。**`G1` 皮肤可视文件夹存储 2026-07-04 全链路贯通**：刀①②③④⑤⑥ 全部落地——folder 直读建块 + realm schema 56 + `SkinManager.GetSkin` folder 分支 + `SkinFolderImporter`（managed/external 导入 [皮肤放 `chartskin/<name>/` 即自动发现] + 启动扫描）+ 删除/重命名 folder 感知 + UI（Scan/Open 按钮）+ 热重载（`FileSystemWatcher` 监视 skin.ini·1s debounce·自动重建）。**`F2` 引擎驱动件 2026-07-04 5 件 + Ghost-TD + 5 个接口契约已落地**：keyflash（键光柱·双边分层渐变·绑定 `IsPressed`） + hit lighting（命中爆闪·绑定 `ApplyResult`） + LN hold light（长条保持光·绑定 `BodyState.Holding` 计数） + mine hit（地雷爆炸·绑定 `CheckForResult`） + 第五件 + ghost-TD + 5 个接口契约；BMS **1024/1024**。`F2` 剩余 turntable（需布局裁决）+ bomb + comboburst；`F3`/`G2` 后置。**H1/H2 修复**：BmsLegacySkin 流定位 bug + BmsLane/BmsPlayfield 热重载覆盖（`ISkinSource.SourceChanged` 订阅）；`BmsTemporarySkinPalette` 已删除，被 `BmsDefaultPlayfieldPalette` 取代。
+- **BMS 素材 + ini 皮肤创作生态（P1-A `F`/`G` 系列；2026-07-10 可信恢复）**：`F0` 契约继续有效；`F1` 保留独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何与 reference ini 自校验。程序化 `OmsSkin` 保持逐组件 fail-open 最终兜底。`G1` 仅保留 folder-backed ctor 和 `SkinInfo.FilesystemStoragePath`/`IsExternalFilesystemStorage` + schema 56 载体；`chartskin/` 扫描/选择/删改/热重载不是当前能力。`F2`/`F3`/`G2`、Lua、mania fallback adapter、reference-default 替换未落地。恢复时独立补入 base parser 前流复位和 14K 右皿 `S2`/`P2` 映射；人工视觉验收仍待用户执行。权威细节见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 与 [恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)。
 
 ### 1.17 输入切片现状
 
@@ -75,36 +75,29 @@
 | --- | --- | --- |
 | Phase 1 完成率 | 70.6% (12/17) | 仅按标记"已完成"项计算 |
 | Phase 1 加权进度 | 85.3% (14.5/17) | 已完成=1, 进行中=0.5, 仅骨架=0.25, 未开始/阻塞=0 |
-| Phase 1.1 皮肤专项 | 进行中 | BMS 默认层已收口；mania OMS-owned 组件、runtime 语义与 release-gate 回归已继续收口；公开发行物产品面待收尾 |
-| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -p:Configuration=Release` 0 错误（生产代码 0 警告）（2026-07-04） |
-| BMS 全量测试 | **1024/1024** | 最近一次全量 `osu.Game.Rulesets.Bms.Tests`（2026-07-04：F2 第五件(ghost-TD) + 接口契约 + Stage 框架 + KeyImage 替代路线 + H1/H2 修复落地后重跑；含 BGA Phase 5/5.1/5.2 + 判定 parity 29 项 + 守卫测试 + F2 5 件 + Ghost-TD。注：1 项 BGA 缓存 temp 清理测试间歇 flaky·`git stash` 干净树同样失败·与皮肤工作零因果·归 P1-L 跟踪） |
-| Mania 全量测试 | **761/761** | 最近一次全量 `osu.Game.Rulesets.Mania.Tests`（2026-04-24） |
+| Phase 1.1 皮肤专项 | 进行中（恢复基线） | F1 静态主链保留；G1 生产链/F2/Lua 撤回；自动回归已完成，实机视觉验收和 G1 安全重设计待续 |
+| 桌面端构建 | 通过 | `dotnet build osu.Desktop.slnf -p:Configuration=Release`：0 错误、20 警告（MessagePack NU1902 18 条重复输出 + 既有 CS8600/CA2007 各 1；2026-07-10） |
+| BMS 全量测试 | **1005/1005** | 2026-07-10 可信恢复树；含 H1 parser 流复位与 H2 14K `S2`/`P2` 映射 |
+| Mania 全量测试 | **787/791** | 2026-07-10；4 项既有 `TestSceneAutoGeneration` HoldNote frame-count 期待失败，恢复未修改 mania/autoplay 代码；默认 OMS 资源专项另为 1/1 |
 | BMS 聚焦回归 | **111/111** | `BmsStartupModPersistenceIntegrationTest` / `BmsModStatePersistenceTest` / `TestSceneBmsSoloPlayerPreStart` / `BmsSkinTransformerTest` / `TestSceneBmsUserSkinFallbackSemantics`（2026-04-25） |
-| Mania 皮肤回归 | **92/92** | `OmsOwnedSkinComponentContractTest` + `TestSceneOmsBuiltInSkin`（2026-04-25） |
+| Mania 默认资源专项 | **1/1** | `TestOmsBuiltInSkinIsRegisteredAndProvidesResources`（2026-07-10），确认未重现 dirty tree 的 BMS reference 覆盖全局 OmsSkin 回归 |
 | Scratch bridge | **43/43** | `TestSceneOmsScratchGameplayBridge` 最近一次快照（2026-04-24） |
 | osu.Game.Tests gate | **18/18** | `ExternalLibraryScannerTest` / `TestSceneFirstRunSetupOverlay` / `TestSceneFirstRunScreenImportFromStable` / `TestSettingsMigration`（2026-04-25） |
+| Core skin focused | **57/62** | 2026-07-10；1 项仍期待已移除的 Argon 默认类型，4 项依赖已移除 ruleset 的 osu beatmap 归档，均属恢复基线既有失配 |
 | K9 转谱聚焦回归 | **33/33** | mania convert/autoplay **14/14** + selector/resolver **19/19**（2026-05-26） |
-| 编译器诊断残留 | 0 | 当前 Release 构建已清零；`CS1574`、本地化 OLOC、`AD0001` 兼容性问题均已处理，SharpCompress GHSA 通过 `NuGetAuditSuppress` 做定点抑制（2026-05-09） |
+| 编译器/依赖诊断 | 20 warnings | Release 构建无 error；MessagePack 3.1.3 的 9 个 NU1902 在 restore/build 两阶段重复报告，另有 BMS test 既有 CS8600/CA2007；不得用全局 NoWarn 伪装为 0 |
 
 ## 最近一次验证
 
 > 严格只保留一条最新快照；详细命令与历史记录归档到 [CHANGELOG.md](CHANGELOG.md)。
 
-### 2026-07-04（F2 五件 + Ghost-TD + 接口契约 + Stage 框架 + KeyImage 替代路线 + H1 流定位 bug 修复 + H2 热重载覆盖 + M1-M4 + L1-L2，BMS 1024/1024 + Release 0 错误 0 警告）
+### 2026-07-10（皮肤系统可信恢复）
 
-- **F2 引擎驱动件**：5 件 + Ghost-TD + 5 个接口契约已落地，全部 lane 级集成 + ini 可配。
-  - keyflash（键光柱）：双边分层渐变竖条·底部半高·绑定 `BmsHitTarget.IsPressed`
-  - hit lighting（命中爆闪）：绑定 `DrawableBmsHitObject.ApplyResult`
-  - LN hold light（长条保持光）：绑定 `DrawableBmsHoldNote.BodyState.Holding` 计数
-  - mine hit（地雷爆炸）：绑定 `DrawableBmsMine.CheckForResult`
-  - 第五件 + Ghost-TD + 5 个接口契约
-  - 剩余仅 turntable + bomb + comboburst
-- **F1**：已完成（ini 三轴皮肤化 + reference 验收 + Stage 框架 + KeyImage 替代路线）
-- **G1**：全链路贯通（folder 直读建块 + realm schema + `SkinManager.GetSkin` folder 分支 + `SkinFolderImporter` + 删除/重命名感知 + UI + 热重载）
-- **H1/H2 修复**：BmsLegacySkin 流定位 bug + BmsLane/BmsPlayfield 热重载覆盖（`ISkinSource.SourceChanged` 订阅）
-- **M1-M4 + L1-L2**：已落地
-- **测试 / 构建**：`osu.Game.Rulesets.Bms.Tests` 全量 **1024/1024**、`osu.Desktop.slnf` Release **0 错误 0 警告**。
-- **更早快照**（均已归档 [CHANGELOG.md](CHANGELOG.md)）：2026-06-29 P1-A F1 主面完成（三轴皮肤化） + G1 刀①②（直读建块 + realm schema 56）；2026-06-23 P1-K K12（转谱星数）+ P1-J #12（试听泄漏）+ P1-L BGA Phase 5.2。
+- **恢复基线**：保留完整历史但把工作树恢复到 `2b27c09` 的可信代码面；schema 56 patch 已由分界前 WIP `a4c3346` 证明，避免对现有 Realm 降级。恢复前 HEAD、dirty tree、不可达对象、完整 bundle 和三个运行时数据根均已保全。
+- **代码**：撤回 G1 生产链、F2/Lua/reference-default 等不可信实现；保留 F1 + schema 56，并补 H1 base parser 流复位、H2 14K 右皿 `S2`/`P2` 映射。
+- **测试**：BMS **1005/1005**；H1/H2 focused **15/15**；mania 默认 OMS 资源 **1/1**。mania 全量 **787/791**（4 项既有 HoldNote auto-frame 期待失败）；core skin focused **57/62**（1 项 Argon 默认类型旧期待 + 4 项已移除 ruleset 的 beatmap archive 依赖）。
+- **构建**：Release **0 错误、20 警告**；其中 18 条为 9 个 MessagePack 3.1.3 NU1902 在两阶段重复报告，另有既有 CS8600/CA2007。旧全局 NoWarn 已随不可信提交撤回，安全升级需独立治理，不能以抑制代替。
+- **人工门**：自动恢复已通过提交门；无外部皮肤、`.osk` 用户皮肤与 5K/7K/9K/14K 实机视觉仍待用户验收，故 `chartskin/`/F2 不宣称可用。
 
 ## 联网约束
 
@@ -168,7 +161,7 @@
 | 1.1.9 BMS 第三批 | 已完成 | HUD / gauge / results / Song Select panels 的 lookup 与 OMS 默认层 |
 | 1.1.10 Partial override | 进行中 | mixed-layer 三类语义已有 runtime 证明；legacy 用户皮肤 component-level fallback 已接通 |
 | 1.1.11 Native-default removal | 进行中 | built-in realm 注册面已瘦身；settings / runtime fallback / source-chain 已收口；公开发行物剥离待收尾 |
-| 1.1.12 测试矩阵与 release gate | 进行中 | Mania skin 92/92、BMS 聚焦 111/111、osu.Game.Tests 18/18 已复核；BMS 全量 **1024/1024** 已于 2026-07-04 复核（P1-A `F1` 皮肤主面完成 + reference 验收 + `G1` 刀①，见上「开发指标」；1 项间歇 BGA flaky 归 P1-L），mania 全量与 scratch bridge 继续沿用 2026-04-24 快照 |
+| 1.1.12 测试矩阵与 release gate | 进行中 | 2026-07-10 恢复门：BMS 1005/1005、mania 默认资源 1/1、Release 0 error；mania 全量 4 项既有 auto-frame 失败与 core skin 5 项上游/已删 ruleset 失配已显式留账。实机视觉仍未完成。 |
 
 执行优先顺序：维持 release gate 稳定 → 1.17 analog scratch cross-device edge/hold contract → 真实硬件验收。
 
@@ -188,6 +181,7 @@
 | 1.5 桌面端拖放导入 / Song Select UI 验收（含外部谱库 / 内部谱库分组展开与 fallback） | 待做 |
 | 桌面端真实 UI smoke test | 已完成 |
 | 便携发行物实际运行与覆盖更新验证 | 已完成 |
+| 皮肤恢复基线：无外部皮肤 + `.osk` 用户皮肤 + 5K/7K/9K/14K fallback/布局视觉 | 待用户实机验收 |
 
 说明：Release publish 后 `portable.ini` 已验证会触发 `data/` 自动生成，目录结构正确；当前覆盖更新路径也已复核通过，但需要在程序完全退出后替换文件，并保留 `portable.ini`、便携模式下的 `data/` 以及任何自定义数据根使用的 `storage.ini`。
 
@@ -197,7 +191,7 @@
 
 | 子主线 | 焦点 | 状态 |
 | --- | --- | --- |
-| P1-A 产品面与 release gate | Phase 1.1 皮肤专项 → 公开发行物皮肤收尾 | 进行中 |
+| P1-A 产品面与 release gate | 皮肤恢复基线实机验收 → schema 56 只读清点 → G1 安全合同重设计 → 公开发行物皮肤收尾 | 进行中（恢复后） |
 | P1-I BMS 选歌筛选与搜索定制 | `I1` / `I2` / `I3` 已完成；BMS-only `谱面构成` / `键数` visual filter、custom search 与 persisted matching authority 已落地，公开搜索口径已统一为 `key/keys`、`rc/rice`、`ln`、`scr`（`regular` 仅保留兼容 alias），剩余单轨拖拽 headless regression 与 shared visual gate 收口 | 进行中（`I4`） |
 | P1-B 输入语义与硬件验收 | analog scratch cross-device contract → 真实 HID 覆盖 | 进行中 |
 | P1-C 判定语义与反馈闭环补强 | BEATORAJA / LR2 / IIDX parity / BMS 结果页反馈面 / 权威 GN 与调速反馈 / pre-start 1 号普通轨纯视觉流速预览（FAST/SLOW·judge display·visual timing-offset·EX pacemaker 曾归此线，已移除，见状态） | 部分回退（tri-mode/pre-start 链、results-side consumer proof 已落地；判定 parity 第 1–2 刀已收口，剩第 3 刀）；**2026-06-15 按产品决定整体移除常驻速度反馈卡**——FAST/SLOW·judge display·visual timing-offset·EX pacemaker·judgement summary·常驻 GN 全部退出 gameplay，judgement 计数改走全局 `JudgementCounterDisplay`（已修 COMBO BREAK），GN 仅留 toast/pre-start。明细见下「遗留问题」与 [P1-C](../subline/P1-C/) |
@@ -216,6 +210,7 @@
 
 - **训练向 lane rearrangement 已落地**：`BmsModMirror` 与 `BmsModRandom`（`RANDOM` / `R-RANDOM` / `S-RANDOM` + 自定义 pattern）现已接入 BMS ruleset；**2026-06-13 修复重排被重复应用**——`Mirror`/`Random` 既实现 `IApplicableToBeatmap`（`GetPlayableBeatmap` 应用 1 次）又被 `BmsBeatmapModApplicator` 在 `DrawableBmsRuleset` + `BmsScoreProcessor` 对同一 playable beatmap 再应用 2 次，lane 置换复合成 P³，导致自定义 pattern 失真且地雷不随重排；改为 applicator 不再重排（交 `IApplicableToBeatmap` 单次应用）、地雷经 `applyPermutation` 同步重排（S-RANDOM 例外）。同日并补自定义 pattern 输入体验：字符级过滤、按选中谱面真实键数（`TryGetKeyCount`/`CircleSize`）的实时校验+预览（**14K = 两段 1–7、7 位镜像到两侧，非 1–14**）、tooltip 各键数示例；且**非空但非法的 pattern 不再静默回退随机，改为保持谱面不变**（互斥提示用 placeholder/预览/tooltip，而非禁用 type/seed 控件——后者会让 `Mod.CopyFrom`/clone 经 `BindTo` 抛异常）。当前 Phase 2 冻结重点已转向 `1P/2P flip` / `dan` / `FHS` / BSS / MSS 等更大范围能力
 - **Phase 1.1 剩余**：mania 侧仍有 legacy config/asset lookup 兼容路径与公开发行物产品面收尾；维持 release gate 稳定后继续转向 1.17 输入与真实硬件验收
+- **皮肤恢复后续**：先完成恢复基线实机视觉验收与 schema 56 folder-backed 记录只读清点；之后 G1 必须从 managed/external 路径和删改 containment 合同重新实现，F2/Lua/reference-default 不得从存档整批恢复。
 - **判定系统 parity 缺口**：**2026-06-14 第 1–2 刀已收口大部**——early/late 非对称窗口、scratch / long-note release 特例与按家族参数化 excessive poor 已实现并经契约测试锁定（`BmsJudgementSystemParityTest` 29/29）+ 统一跨家族边界。第 2 刀从 beatoraja `JudgeProperty.SEVENKEYS` 溯源后**修复了一处真实 bug：BAD 早/晚非对称方向写反**（应早 280/晚 220、早窗更宽，OMS 原为早 220/晚 280），并把 IIDX empty-poor `500/150` 与 CN release 收口为 documented heuristic（IIDX 闭源、无权威单值）。剩余仅第 3 刀：把 BAD-early/late、empty-poor vs note-poor 的区分接进 gameplay judge display / counts（属性显示面已自动满足）。详见 [P1-C CONSTRAINTS #14–#17](../subline/P1-C/TECHNICAL_CONSTRAINTS.md)
 - **反馈闭环缺口（常驻反馈卡已移除）**：results 页主评价 / 缩略徽章 / 主分数文案已切到 BMS 语义，结果反馈面完成第一轮收口；**gameplay 侧的常驻速度反馈卡（`DefaultBmsSpeedFeedbackDisplay`：最近判定 FAST/SLOW、瞬时 judge display、compact judgement summary、visual timing-offset、fixed AAA EX pacemaker、live `DJ LEVEL + EX %`）已于 2026-06-15 按产品决定整体删除**（玩家不用——按调整键调挡板时浮窗已显示速度信息）。judgement **计数**改由全局 `JudgementCounterDisplay`（右侧 7 计数器，已修 COMBO BREAK 实时计数）承担；若未来要重建 key-sounded BMS 训练闭环（FAST/SLOW、pacemaker、judge display）须另立专题
 - **权威绿色数字现状（常驻 GN 已随卡移除）**：C2 的 target-state / cycle / `HOLD` 语义与 pre-start 纯视觉流速预览仍在；但 **C1/C3 的常驻 GN HUD 与反馈家族（FAST/SLOW、judge display 生命周期、judgement summary、visual timing-offset、EX pacemaker、live DJ%）已随速度反馈卡于 2026-06-15 整体移除**，GN 现仅在 `BmsSpeedMetricsToast`（调速时）与 pre-start overlay 查看，不再常驻 HUD
@@ -239,7 +234,7 @@
 
 ### 低优先级
 
-（当前无低优先级功能遗留；Release 构建已确认 `0 warning / 0 error`）
+- BMS test 工程仍有 CS8600/CA2007 各 1；MessagePack 3.1.3 的 9 个 NU1902 属独立依赖安全治理项。当前 Release 是 `0 error / 20 warnings`（restore/build 重复报告 NU1902），不可继续写成 0 warning。
 
 ## 更新约定
 

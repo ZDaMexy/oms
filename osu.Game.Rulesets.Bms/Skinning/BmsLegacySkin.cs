@@ -62,8 +62,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             stream.Position = 0;
             stream.CopyTo(copy);
 
-            // Reset the original stream so the base parser (LegacySkinDecoder for [General]/[Colours])
-            // can read from the start — CopyTo leaves the stream positioned at the end.
+            // CopyTo() leaves the original stream at EOF. The base legacy parser still needs to read
+            // [General], [Colours], and [Mania] from the beginning of the same stream.
             stream.Position = 0;
             base.ParseConfigurationStream(stream);
 
@@ -113,9 +113,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         /// </summary>
         private static string? resolveImageKey(BmsSkinConfigurationLookup lookup)
         {
-            // For 14K DP, the P2 scratch uses token "S2" (lane index >= 8); P1 scratch uses "S".
-            bool isSecondScratch = lookup.IsScratch && lookup.Keymode == BmsKeymode.Key14K
-                && lookup.LaneIndex.HasValue && lookup.LaneIndex.Value >= 8;
+            bool isSecondScratch = lookup.IsScratch
+                                   && lookup.Keymode == BmsKeymode.Key14K
+                                   && lookup.LaneIndex.HasValue
+                                   && lookup.LaneIndex.Value >= 8;
             string laneToken = lookup.IsScratch
                 ? (isSecondScratch ? "S2" : "S")
                 : lookup.LaneIndex?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
@@ -146,18 +147,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 case BmsSkinConfigurationLookups.LaneDividerImage:
                     return hasLane ? $"LaneDividerImage{laneToken}" : null;
-
-                case BmsSkinConfigurationLookups.KeyFlashImage:
-                    return hasLane ? $"KeyFlashImage{laneToken}" : null;
-
-                case BmsSkinConfigurationLookups.HitLightingImage:
-                    return hasLane ? $"HitLightingImage{laneToken}" : null;
-
-                case BmsSkinConfigurationLookups.HoldLightImage:
-                    return hasLane ? $"HoldLightImage{laneToken}" : null;
-
-                case BmsSkinConfigurationLookups.MineHitImage:
-                    return hasLane ? $"MineHitImage{laneToken}" : null;
 
                 case BmsSkinConfigurationLookups.HitTargetImage:
                 case BmsSkinConfigurationLookups.StageLeftImage:
