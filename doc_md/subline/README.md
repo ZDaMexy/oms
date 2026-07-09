@@ -1,28 +1,21 @@
-# 主线子方向文档索引
+# Phase 1.x 子线路由
 
-这里收口从主线可直接追踪的开发方向。每条 `P1-*` 子线都必须固定维护：
+每条子线维护 `PLAN / STATUS / CHANGELOG / TECHNICAL_CONSTRAINTS` 四件套。日常先读 `STATUS`；只有准备实施时才读 `PLAN` 和任务相关约束；历史用 `CHANGELOG` 搜索。
 
-1. `DEVELOPMENT_PLAN.md`
-2. `DEVELOPMENT_STATUS.md`
-3. `CHANGELOG.md`
-4. `TECHNICAL_CONSTRAINTS.md`
+| 子线 | 负责范围 | 当前判定 | 下一道门 |
+| --- | --- | --- | --- |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、release gate、皮肤边界 | 皮肤已恢复到可信 F1/schema 56 基线 | 实机视觉验收、只读数据清点、G1 安全重设计 |
+| [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
+| [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity 主体已落；常驻反馈卡已按产品决定删除 | 保持 parity gate，补剩余人工/展示面 |
+| [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |
+| [P1-E](P1-E/DEVELOPMENT_STATUS.md) | gameplay 与 LN/CN/HCN | 自动链已具备，真实谱面验校未闭合 | 真实谱面长条与输入验收 |
+| [P1-F](P1-F/DEVELOPMENT_STATUS.md) | 离线发行基线 | portable `data/` 基线已验证 | 随 release gate 复核覆盖更新 |
+| [P1-G](P1-G/DEVELOPMENT_STATUS.md) | 人工验收汇总 | 待执行 | 汇总皮肤、输入、长条、Song Select 清单 |
+| [P1-H](P1-H/DEVELOPMENT_STATUS.md) | 存储拓扑 | `chartbms/chartmania` 与多根扫描基线已落 | 删除/失效、去重和重扫策略 |
+| [P1-I](P1-I/DEVELOPMENT_STATUS.md) | BMS 选歌筛选与搜索 | 主功能已落 | 单轨拖拽 headless 与 shared visual gate |
+| [P1-J](P1-J/DEVELOPMENT_STATUS.md) | gameplay 性能与音频 | 普通密度主故障已收口 | 转谱 LN 键音、50k profile、人工音频清单 |
+| [P1-K](P1-K/DEVELOPMENT_STATUS.md) | BMS 解析与转换 | K1–K12 主体阶段性收口 | public wording、特殊谱尾项与更宽人工证明 |
+| [P1-L](P1-L/DEVELOPMENT_STATUS.md) | Gimmick/BGA 视觉 | 地雷、滚动旁路、BGA 主链已落 | 逐谱视觉、反向滚动与性能验证 |
+| [P1-M](P1-M/DEVELOPMENT_STATUS.md) | 内置音乐播放器 | 规划完成，未开工 | PlayQueue 与播放协调地基 |
 
-## 当前子线入口
-
-- [P1-A/README.md](P1-A/README.md)：产品面与 release gate，含皮肤边界冻结。
-- [P1-B/DEVELOPMENT_PLAN.md](P1-B/DEVELOPMENT_PLAN.md)：输入语义与硬件验收。
-- [P1-C/README.md](P1-C/README.md)：判定语义与反馈闭环。
-- [P1-D/DEVELOPMENT_PLAN.md](P1-D/DEVELOPMENT_PLAN.md)：控制器校准与诊断。
-- [P1-E/DEVELOPMENT_PLAN.md](P1-E/DEVELOPMENT_PLAN.md)：gameplay 与长条真实谱面验校。
-- [P1-F/DEVELOPMENT_PLAN.md](P1-F/DEVELOPMENT_PLAN.md)：发行后置与首发离线发布验收。
-- [P1-G/DEVELOPMENT_PLAN.md](P1-G/DEVELOPMENT_PLAN.md)：人工验收后置。
-- [P1-H/DEVELOPMENT_PLAN.md](P1-H/DEVELOPMENT_PLAN.md)：存储拓扑支撑线。
-- [P1-I/DEVELOPMENT_PLAN.md](P1-I/DEVELOPMENT_PLAN.md)：BMS 选歌筛选与搜索定制。
-- [P1-J/DEVELOPMENT_PLAN.md](P1-J/DEVELOPMENT_PLAN.md)：BMS gameplay runtime 性能与音频时序治理。
-- [P1-K/DEVELOPMENT_PLAN.md](P1-K/DEVELOPMENT_PLAN.md)：BMS 解析链路治理。
-- [P1-L/DEVELOPMENT_PLAN.md](P1-L/DEVELOPMENT_PLAN.md)：BMS 演出/Gimmick 谱视觉复刻（隔离旁路渲染：地雷 / 专用滚动 / BGA 背景图·动画；红线：不改坏正常游玩链路）。
-- [P1-M/DEVELOPMENT_PLAN.md](P1-M/DEVELOPMENT_PLAN.md)：内置音乐播放器（分层 PlayQueue：真队列/重复·随机/曲库搜索排序/收藏歌单/可展开全屏/可视化/播放源 mania·bms·both；红线：不改坏 song-select 试听与 gameplay 音轨控制、离线只用本地轨）。
-
-## 联动要求
-
-完整联动更新规则见 [doc_md 总索引 · 联动更新规则](../README.md#联动更新规则)。子线要点：① 先归线，再改对应子线目录下的四件套；② 子线变化若影响全局优先级 / 主线状态 / 硬约束，必须反向回写 `../mainline/` 四件套。
+子线变化只有在影响全局优先级、release gate 或硬约束时才回写 mainline；禁止把整段子线实现史复制到主线。

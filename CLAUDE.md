@@ -10,10 +10,10 @@ OMS 是基于 osu!lazer 的 **Windows-only** 音游客户端：只保留 **osu!m
 
 ## 每次对话推荐起步顺序
 
-1. [doc_md/mainline/OMS_COPILOT.md](doc_md/mainline/OMS_COPILOT.md) — 权威产品约束、技术纪律、release gate（约 1500 行，按需用搜索定位章节，勿整篇加载）
-2. [doc_md/mainline/DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) — 仓库当前真实状态、指标、遗留问题、当前主线
-3. [doc_md/mainline/DEVELOPMENT_PLAN.md](doc_md/mainline/DEVELOPMENT_PLAN.md) — 执行顺序、阶段依赖、验收标准
-4. 按归属进入对应 subline / other / mini 文档（见下方索引）
+1. [doc_md/mainline/DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) — 当前阶段、活动主线、最新验证与阻塞
+2. [doc_md/mainline/DEVELOPMENT_PLAN.md](doc_md/mainline/DEVELOPMENT_PLAN.md) — 当前执行顺序、阶段依赖与验收门
+3. 按归属进入对应 subline 的 `STATUS` 与任务相关 `CONSTRAINTS` 小节
+4. `OMS_COPILOT.md` 和大型 `CHANGELOG` 只按关键词/日期定点读取，不默认整篇加载
 
 ## 文档分层与索引
 
@@ -66,6 +66,7 @@ OMS 是基于 osu!lazer 的 **Windows-only** 音游客户端：只保留 **osu!m
 4. **other → 主线升级**：`other` 中的参考结论一旦升级为正式约束或执行优先级，必须回写 `mainline` 与相关 `subline`。
 5. **STATUS vs CHANGELOG 分工**：`DEVELOPMENT_STATUS.md` 只保留当前仍影响判读的阶段/事实/风险/验证基线；按日期展开的实现切片、回归命令、构建记录写入同目录 `CHANGELOG.md`，且"最近一次验证"只保留最新一条。
 6. **专项同步面**：Phase 1.1 执行顺序/门槛/候选包语义变化时，须同步 `DEVELOPMENT_PLAN.md`、`README.md`、`SKINNING.md`、`RELEASE.md`、`OMS_COPILOT.md`。
+7. **低噪声预算**：`STATUS` 只留当前事实/风险/下一门/一条最新验证，建议不超过 120 行；`PLAN` 不写实现日记和旧测试数字；大型 `CHANGELOG` 只定点检索。完整规则见 [doc_md/README.md](doc_md/README.md)。
 
 ## 关键工程与命令
 

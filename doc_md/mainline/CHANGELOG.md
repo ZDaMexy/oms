@@ -7,6 +7,15 @@
 
 ## 2026-07-10
 
+### 文档治理降噪与活动视图重构
+
+- 重写 `doc_md/README.md`，冻结“一个事实一个权威落点”和四类文件边界：STATUS=当前、PLAN=未来/依赖、CONSTRAINTS=稳定合同、CHANGELOG=历史。
+- 主线 PLAN **1412→113 行**、主线 STATUS **243→97 行**；保留活动顺序、release gate、最新验证和显式风险，删除已由 Git/CHANGELOG/subline 承载的实现百科与多轮旧数字。
+- P1-K PLAN **504→91 行**，把 K0–K12 的逐文件切片史收回 CHANGELOG，只保留 authority、完成矩阵、真实谱驱动的补口流程与验证纪律。
+- 重写 P1-A/C/H/I/J/K/L STATUS 为统一短模板；P1-A **87→55 行**、P1-C **87→43**、P1-H **33→37**（拆开千字符长行）、P1-I **66→42**、P1-J **84→49**、P1-K **78→44**、P1-L **57→40**。历史取证仍完整保留在各自 CHANGELOG 与 Git。
+- 重构 mainline/subline 路由，默认阅读顺序改为“主线 STATUS → 主线 PLAN → 子线 STATUS/相关约束 → 按需查 OMS_COPILOT/CHANGELOG”；AGENTS/CLAUDE 兼容入口与 `.Codex/memory` 同步。
+- 新预算：STATUS 建议 ≤120 行，禁止抬头塞调查史；PLAN 不维护旧测试数字；大型 CHANGELOG 只通过日期/子线/关键词定点搜索。
+
 ### 皮肤系统可信恢复与协作基线重建（P1-A）
 
 以 2026-06-30 00:05（北京时间）为异常协作分界完成 Git/代码/运行时数据三层取证。恢复没有重写旧历史：恢复前 HEAD、dirty tree、不可达对象、完整 bundle 和三个已发现数据根均已保全；当前树以 `2b27c09` 的可信面为基线（其 schema 56 patch 已由分界前 WIP `a4c3346` 证明），撤回其后的 G1 生产链、F2/Lua、mania adapter 与 reference-default 替换。保留 F1 静态素材/ini 主链、程序化逐组件 fallback、folder ctor/schema 56 载体，并独立修复 base parser 流位置及 14K `S2`/P2 双皿素材映射。

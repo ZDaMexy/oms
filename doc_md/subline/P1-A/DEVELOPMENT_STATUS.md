@@ -1,87 +1,55 @@
-# P1-A 开发进度：产品面、release gate 与皮肤边界
+# P1-A 当前状态：产品面、release gate 与皮肤边界
 
 > 最后更新：2026-07-10
-> 主线全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。本文件只记录 `P1-A` 的真实进展；`P1-C` 的反馈闭环进展见 [../P1-C/DEVELOPMENT_STATUS.md](../P1-C/DEVELOPMENT_STATUS.md)。
-> 皮肤恢复的 Git/运行时取证、保全位置与重新准入门见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)。本文中早于该恢复记录的皮肤时间线只作为历史背景，不覆盖下面的当前状态。
+> 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)。
 
 ## 当前阶段
 
-- **阶段定位**：子线建档完成，HUD 宿主与边界冻结已基本稳定，当前进入“tri-mode operator surface 挂接后的稳态化 + `阻止谱面开始/ingame start` 运行时宿主语义收口 + BMS mod surface 记忆合同收口 + onboarding/settings-entry surface 收口”阶段。
-- **代码状态**：HUD 宿主合同为单一 `IBmsHudLayoutDisplay`（wrapped HUD + gauge + combo）+ `DefaultBmsHudLayoutDisplay` 默认摆位；`BmsGameplayFeedbackLayout` 仅保留 judgement 基线摆位。**（2026-06-15 移除）** `IBmsHudLayoutDisplayWithGameplayFeedback` 变体、legacy overlay wrapper、`BmsGameplayFeedbackState` aggregate 与 `DefaultBmsSpeedFeedbackDisplay`（含 FAST/SLOW、judgement counts、EX progress、pacemaker、recent-history、live `PERFECT / FC` 状态线）均按产品决定删除；judgement 计数改走全局 `JudgementCounterDisplay`（已修 COMBO BREAK）。当前 BMS 速度产品面已扩到 tri-mode：settings 提供 `Normal / Floating / Classic Hi-Speed` 下拉和当前模式 slider，`BmsSoloPlayer` / `BmsPreStartHiSpeedOverlay` 已把 `UI_PreStartHold` 收口为“前 5 秒阻止开始 + 全程调速修饰键”这一正式 gameplay operator surface，paused pre-start 状态下仍可继续使用 `Sudden / Hidden / Lift` 调整链；右侧 `READY HOLD` overlay 只保留给前 5 秒阻止开谱窗口，正式 gameplay 开始后按住同一键仍会继续调速，并持续刷新居中的 `BMS speed` toast。对应覆盖现已分成 owner-level `TestSceneBmsPreStartHiSpeedOverlay`、real-player `TestSceneBmsSoloPlayerPreStart` 与输入桥 `OmsInputRouterTest` 三层：前者锁住 tri-mode 文案 formatting 与“仅在 overlay 可见时响应 odd/even lane 调速”的组件合同，后两者分别锁住 **10/10** 的真实宿主链 delayed-start / hold modifier / mode-value binding，以及 **9/9** 的 hold 期间 lane-action gameplay 转发抑制。`UI_PreStartHold`（阻止开谱/调速修饰键）与 `UI_LaneCoverFocus`（单击循环持久目标）已拆为独立动作。desktop shared Settings -> 输入 现已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream 的数位板 / 触屏点击 / 鼠标 subsection，避免把非 OMS 通用设置表面继续暴露给最终桌面产品面；该裁剪不触碰 mouse/touch/tablet runtime config 与 handler 链，并明确保留在 desktop 宿主层。与此同时，BMS mod 选项表面也已收口为 ruleset-local memory surface：`OsuGameBase` 现会在 BMS 切入点恢复 selected mods 与 remembered settings，`ModSelectOverlay` 对标记 mod 不再在 deselect 时 reset，而 `Sudden` / `Hidden` / `Lift` 也已把 `记忆游戏内变动` 作为 mod-local 开关暴露给用户。考虑 `RulesetConfigCache` 的 startup 顺序后，宿主现会在 cache ready 后 replay 当前 ruleset，因此完全冷启动第一次进入 BMS 也会恢复 selected mods / remembered settings，且不会再冒出误报的 ruleset issue 通知。与此同时，`BMS -> mania` 公开表面的第三刀也已接上 persisted converted-star authority：modless converted mania 星数现已写入 BMS metadata payload，并由 `BeatmapDifficultyCache`、`BackgroundDataStoreProcessor` 与 Song Select spread display 统一按 current-ruleset 视角读取，因此 carousel selector 与 spread dots 都不再继续直接吃 source BMS raw star。
-- **首次启动向导状态**：共享层 first-run wizard 现已收口为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定。获取谱面页改为 mania / BMS 外部站点导流与内部谱库补扫提示；导入页直接复用 `ExternalLibrarySettings`；难度表页通过反射调用 `BmsDifficultyTableManager` 导入 zris 镜像预设；最后一步复用全局、mania 与 BMS keybinding subsection。欢迎页、获取谱面页与导入页的可见文案已切到 OMS-owned localisation namespace + `.resx`，确保简中不再继续显示上游翻译。该专题主归属继续是 `P1-A`；导入页对 `P1-H`、按键绑定页对 `P1-B` 都只形成从属暴露面。
-- **BMS -> mania 转谱公开表面状态**：该表面现已从“首轮 visibility gate 已落地”推进到“visibility gate、persisted converted-star display 与 spread display 已落地、显式 wording 仍未收口”状态。当前 `AllowGameplayWithRuleset()` / `RequiresRulesetSwitch()` 已把 `BMS source -> mania target` 接回真实可玩性判断，modless converted mania 星数也已改为持久化到 BMS metadata payload，并由 `BeatmapDifficultyCache`、后台补算与 current-ruleset spread display 统一读取；因此 Song Select 的星数筛选、难度排序、按星数分组与 spread dots 都不再继续直接吃 source BMS raw star。剩余主要是按钮 wording、显式入口文案与更宽 presentation/manual proof。
-- **文档状态**：`P1-A` 的计划、状态、变动日志、技术约束已与当前宿主合同实现同步，并已把 2026-04-28 的 pre-start overlay / real-player coverage 与 mainline 文档口径一并收平。
-- **皮肤创作生态当前状态（2026-07-10 可信恢复）**：`F1` 保留独立 `[Bms]` 解析、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件颜色/纹理/几何和 reference ini 自校验；程序化 `OmsSkin` 仍是逐组件 fail-open 的最终兜底。`G1` 只保留 folder-backed ctor 与 `SkinInfo` schema 56 载体，`chartskin/` 生产扫描/选择/删除/重命名/热重载均未启用。`F2`/`F3`/`G2`、Lua、mania fallback adapter、reference-default 替换均未落地。恢复时另补 base mania parser 前的流复位与 14K 右皿 `S2`/`P2` 映射；focused 回归 15/15，完整回归数字见本次 CHANGELOG 最新条目。
+皮肤异常代码已撤回并恢复到可信 F1/schema 56 基线。自动回归完成，当前阻塞是用户实机视觉验收与生产 Realm 的只读清点；两者完成前不进入 G1 生产实现，也不恢复 F2/Lua/reference-default。
 
-## 已确认事实
+## 当前能力
 
-- BMS 皮肤边界已足够封闭，可继续向 BMS-owned feedback component 扩展。
-- 当前 `GN` / `WN` 来自 `BmsScrollSpeedMetrics`，其输入现已覆盖 `Normal / Floating / Classic Hi-Speed`、`ScrollLengthRatio`、`Sudden`、`Hidden`、`Lift`。
-- 当前 tri-mode Hi-Speed surface 已完成首轮产品接线：`Normal` 走默认 settings surface，`Floating` 提供 initial-BPM anchored runtime surface，`Classic` 继续锁定 `HS 10 + WN 350 => GN 300`；这仍不等价于完整 FHS。
-- settings 页现显示 mode + value，并在数值后括号显示不启用 `Sudden / Hidden / Lift` 时的基础下落时间（ms）；`GreenNumber` 仍不进入 settings，而继续留在 gameplay feedback 链。
-- `osu!mania` settings 页的 `滚动速度` hover 提示当前也已明确为参考值说明：括号毫秒只代表标准车道几何下的参考下落时间，不作为跨皮肤或跨 ruleset 的严格体感合同；更换 mania 皮肤后应重新校准，且 mania / BMS 的下落时间不可交叉参考。
-- Settings → 常规 → 安装位置 当前已把入口明确为 `更改数据目录位置`；选择空目录时会直接迁入当前数据内容，非空非数据目录会改用其下 `oms/` 子目录，若所选目录本身已是可用数据目录则只在重启后切换。该产品面只切换/迁移运行时数据根，不移动程序文件。
-- `键音通道数` 设置项已于 2026-06-22 **删除**（键音池自动增长后无需手调，基线回落硬编码 32；详见 [P1-J CHANGELOG](../P1-J/CHANGELOG.md) 2026-06-22）。BMS settings surface 不再公开该滑条。
-- BMS mod 选中状态与非默认配置现按 ruleset-local JSON snapshot 记忆，仅作用于 BMS；切到 mania 再切回或完全重启后仍恢复。
-- 启动早期若 `RulesetConfigCache` 尚未 ready，`OsuGameBase` 现在会延后 replay 当前 ruleset 到 cache ready 后再做 BMS restore；这条 host-boundary 合同同时修复了冷启动首轮漏恢复与误报 ruleset failure。
-- 实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 在 Song Select 中停用 / 启用不会丢配置；停用不再被视为“恢复默认值”。
-- 首次启动向导当前已固定为六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表设置、按键绑定；这属于共享产品表面收口，而不是新的输入或存储主线。
-- desktop 通用 Settings -> 输入 当前已主动隐藏 upstream 的数位板 / 触屏点击 / 鼠标 subsection；这是共享 settings-entry surface 的产品裁剪，不等于删除底层 input contract。
-- 欢迎页、获取谱面页与导入页的可见文案现已切到 OMS-owned localisation namespace + `.resx`；若仍指向上游 localisation namespace，简中会继续读取上游翻译而不是代码 fallback。
-- 共享层难度表设置页当前通过反射调用 `BmsDifficultyTableManager`，继续保持 `osu.Game` 与 `osu.Game.Rulesets.Bms` 的项目边界。
-- `Playfield Scale` 已从 settings / runtime config 移除并固定为 `1.0`；原来的 `Playfield Horizontal Offset` 也已退出，改为四态 `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`）这一 single-play playfield surface：当前只作用于 5K / 7K 的 playfield 停靠与 scratch 视觉侧别，其中 `1P / 2P` 为“侧停靠但保留固定屏侧间距”；不改变尺寸 / 可见时间语义，也不承担完整 `1P/2P flip` 的绑定与 side-aware skin 合同。
-- `UI_PreStartHold` 现已承担“前 5 秒阻止开始 + 全程调速修饰键”这一统一 operator contract；`UI_LaneCoverFocus` 保持为 click-to-cycle 持久 target，且 HUD / skin boundary 与 legacy fallback 合同保持未破坏。
-- 若后续加入 pre-start 视觉流速预览，宿主应落在第一非 scratch 普通轨的 playfield / lane visual surface，并继续复用 BMS note lookup / fallback，而不是 HUD / toast。
-- `Sudden` / `Hidden` / `Lift` 现都暴露 `记忆游戏内变动` 开关；默认开启时局内滚轮调整会延续到回场后的 BMS mod 配置，关闭时保持 current-play-only。
-- 当前 `IBmsHudLayoutDisplay` 为单一 `SetComponents(wrappedHud, gauge, combo)` 签名；**`IBmsHudLayoutDisplayWithGameplayFeedback` 变体与 legacy overlay wrapper 已于 2026-06-15 随速度反馈卡移除**（接口回到原始三件套，不实现该接口的旧 HUD layout 仍正常工作）。
-- `BmsSkinTransformer` 在 `MainHUDComponents` 路径组装 gauge / combo；**speed feedback 注入已移除**。
-- **（2026-06-20）gauge 默认摆位改为判定线下方矩形 groove-gauge**：`DefaultBmsHudLayoutDisplay` 把 gauge 放在判定线下方、与 playfield 条带等宽（`Width=PlayfieldWidth`）、随 `PlayfieldStyle` 做 P1/P2/居中侧锚、贴 `PlayfieldHeight`；`BmsGaugeBar` 圆角归零 + 加高 + 等分刻度 + 一体化（海军蓝背板、叠加 `NORMAL`/数值）。`PlayfieldWidth/keymode` 经 `GameplayState`、`PlayfieldStyle` 经 game 级 `IRulesetConfigCache.GetConfigFor(bms)` 解析，**未改 `SetComponents` 签名、gauge 仍是 HUD 子件**；无 `GameplayState`/config 宿主优雅降级居中。`BmsGaugeBar` 继承 `HealthDisplay`，已订阅 `HUDOverlay.ShowHealthBar` 重申满显、**免疫**通用血条/NoFail 开关。playfield **顶边贴屏幕边缘**（top-anchored `Y=0`，音符从屏顶出现）、`PlayfieldHeight 0.95→0.92`（判定线 92% 屏高、下方容纳 gauge；GN/时序不变；曾试 `PLAYFIELD_VERTICAL_OFFSET` 整体下移已删除）。`BmsComboCounter` 默认摆位移到 playfield 宽/高中线交点、并去掉背后 `body` 色块。
-- `BmsGameplayFeedbackLayout` 现仅收口 **judgement 基线摆位**（`GetJudgementAnchor/Offset`、`ApplyJudgementDefaults`，供 `DrawableBmsJudgement` / `TestSceneBmsJudgementDisplayPosition` 用）；其 gameplay-feedback 摆位常量已随卡移除。
-- **（2026-06-15 整体移除）** `DrawableBmsRuleset` 的 `GameplayFeedbackState` / `LatestJudgementFeedback` / `RecentJudgementFeedbacks` / `TimingFeedbackVisualRange` / `ExScorePacemakerInfo` 暴露面与 refresh/pacemaker 管线，连同 `DefaultBmsSpeedFeedbackDisplay` / `BmsGameplayFeedbackState` / `BmsJudgementCounts` / `BmsJudgementTimingFeedback` / `BmsExScoreProgressInfo` / `BmsExScorePacemakerInfo` / `BmsTimingOffsetSparkline`，均按产品决定删除。**保留**：`SpeedMetrics`（pre-start 预览）、调整目标状态（lane cover focus）、toast、BGA miss-flash、judgement 基线摆位。
-- 当前 IIDX 参考文档仍明确要求：不要把现有 OMS speed feedback 对外包装成完整 `FHS`。
-
-## 进度矩阵
-
-| 事项 | 状态 | 备注 |
+| 面 | 状态 | 当前事实 |
 | --- | --- | --- |
-| 子线归线到 `P1-A` | 已完成 | 主线文档已挂接 |
-| 皮肤边界与 HUD 宿主审计 | 已完成 | 已明确当前模型与风险点 |
-| 子线级计划 / 状态 / 约束文档 | 已完成 | 文档位于当前目录 |
-| 首次启动向导与设置导流 | 已完成 | 主归属 `P1-A`，`P1-H` / `P1-B` 仅从属暴露 |
-| `GameplayFeedbackDisplay` 合同设计 | 已移除（2026-06-15） | 常驻速度反馈卡及其 HUD-host overlay 变体、aggregate state contract 已按产品决定整体删除；如需重建须另立专题。HUD 宿主合同回到 wrapped HUD + gauge + combo |
-| 常驻 GN HUD | 已移除（2026-06-15） | 随速度反馈卡删除；GN 仅留 toast / pre-start overlay，不再常驻 |
-| `Sudden / Hidden / Lift` HUD 联动 | 进行中 | 宿主与默认摆位已稳定，target-state / cycle / `HOLD` 语义由 `P1-C` 推进；其在 toast 的展示保留 |
-| pre-start 视觉流速预览宿主边界 | 已完成首轮实现 | playfield / lane host、第一非 scratch 轨宿主与 BMS note fallback 已接通；运行时 gate 与 pause 行为由 `P1-C` focused tests 锁定 |
-| `BMS -> mania` 单向转谱公开表面 | 进行中 | visibility gate、persisted converted-star display 与 spread display 已接通；按钮文案、显式入口与更宽 surface proof 仍待后续收口 |
-| `FAST/SLOW` / judge display / pacemaker 统一承载 | 已移除（2026-06-15） | 承载这套家族的常驻卡已删除；judgement 位置合同保留（供判定显示），feedback 家族如需重建须另立专题 |
-| gauge 下移判定线 + 矩形化 + 等宽镜像 + playfield 顶边贴边（E1） | 已落地（2026-06-20，#1#2 实机验收通过） | gauge 判定线下方矩形 groove-gauge、等宽 + P1/P2/居中侧锚、一体化（导航海军蓝、叠加文案）；playfield **顶边贴屏幕边缘**（曾试整体下移 `PLAYFIELD_VERTICAL_OFFSET` 已删除）、`PlayfieldHeight 0.95→0.92`（GN/时序不变）；`SetComponents` 签名不变、gauge 仍在 HUD 合同内；BMS 933/933 |
-| gauge 免疫 ShowHealthBar / NoFail | 已落地（2026-06-20） | `BmsGaugeBar : HealthDisplay` 会被通用"血条显示"开关（NoFail 等设 `ShowHealthBar=false`）淡出隐藏；订阅 `ShowHealthBar` 重申 `Alpha=1` 始终显示（核心游玩信息）。回归 `TestGaugeBarStaysVisibleWhenHealthBarHidden`（须真实 HUDOverlay 才能复现） |
-| combo 移到 playfield 中心 + 去背景色块 | 已落地（2026-06-20，实机验收通过） | `applyComboPlacement` 放 playfield 宽/高中线交点（随 PlayfieldStyle 镜像）；`BmsComboCounter` 去掉 `body` 色块容器只留居中标签 + 数字。回归 `TestComboCentredOnPlayfield` |
-| 从默认皮肤配置移除 leaderboard + 重复默认 combo | 已落地（2026-06-20，实机验收通过） | `BmsSkinTransformer.stripDefaultHudElements` 在装配期把 wrapped HUD 里的 `LegacyDefaultComboCounter` + `DrawableGameplayLeaderboard` 从配置树移除（非隐藏）；BMS combo / 全局 score 保留。回归 `TestRulesetHudStripsDefaultComboAndLeaderboard` |
-| 皮肤创作生态 `F0`：组件契约 + ini schema + 必备分档 | 已落地 | 仍作为 F1/F2/F3 的权威契约；`SKINNING.md` 是派生制作者视图。 |
-| 皮肤创作生态 `F1`：ini 数据层 → 配置源 → 现存静态件 → reference ini | 进行中（可信主面保留） | `.osk` 用户路径可用；颜色/纹理/几何及 reference 自校验保留。H1/H2 focused 15/15。加载期诊断、作者工作流、净新增 stage/`KeyImage` 仍未完成；完整数字见最新 CHANGELOG。 |
-| `G1` 可视文件夹存储 | 重新设计中 | 仅 folder ctor + schema 56 载体保留；生产扫描、选择、managed/external 路径、删除、重命名、热重载已撤回。恢复前实现仅存档，不可整批恢复。 |
-| `F2` / `F3` / `G2` / Lua | 未开始 | 分界点后曾出现的实现与文档宣称不计入当前能力；须按恢复准入门逐片重做并实机验收。 |
+| 共享 onboarding | 已落地 | 六步 OMS flow：欢迎、UI 缩放、获取谱面、导入、难度表、按键绑定 |
+| settings 产品裁剪 | 已落地 | 隐藏不属于 OMS 产品面的上游 tablet/touch/mouse subsection，不删除底层 runtime |
+| BMS→mania 公开表面 | 进行中 | 可玩性、converted star、spread display 已接通；显式 wording/更宽人工证明待做 |
+| BMS HUD 宿主 | 稳定 | `IBmsHudLayoutDisplay` 保持 wrapped HUD + gauge + combo 三件套；不得破坏签名 |
+| gauge/combo 产品面 | 已落地 | 矩形 gauge 位于判定线下；combo 居 playfield 中心；已有实机确认 |
+| tri-mode/pre-start | 已落地基线 | Normal/Floating/Classic 与 pre-start hold/operator surface 已接通；完整 FHS 不得宣称 |
+| 皮肤 F1 | 可信主面保留 | `.osk` + `[Bms]` parser/config source；现存静态件颜色/纹理/几何；reference ini 自校验 |
+| 程序化 fallback | 已保留 | `OmsSkin` 是最终兜底，用户皮肤缺件逐组件回落 |
+| G1 可视文件夹 | 重新设计中 | 仅 folder ctor + `SkinInfo` 两字段/schema 56 载体；没有生产扫描/选择/删改/热重载 |
+| F2/F3/G2/Lua | 未开始 | 异常期实现不计入当前能力 |
+
+## 恢复时保留的两个修正
+
+1. `BmsLegacySkin` 复制配置流后，在 base legacy parser 前把位置重置为 0，保证 `[General]/[Colours]/[Mania]` 共存解析。
+2. per-lane image key 支持 `S2`；14K 第二皿映射到 P2 素材，第一皿保持 `S`/P1。
+
+## 最近验证
+
+| 检查 | 结果 |
+| --- | --- |
+| H1/H2 `BmsLegacySkinTest` | 15/15 |
+| BMS 全量 | 1005/1005 |
+| mania 默认 OMS 资源 | 1/1 |
+| mania 全量 | 787/791；4 项既有 HoldNote auto-frame 失配 |
+| core skin focused | 57/62；5 项 Argon/已删 ruleset 旧测试失配 |
+| Release | 0 error / 20 warnings |
+
+命令、归因和归档位置见 [CHANGELOG.md](CHANGELOG.md) 2026-07-10；本页不保留更旧测试数字。
 
 ## 当前风险
 
-- **接口破坏风险**：如果直接改 `IBmsHudLayoutDisplay.SetComponents(...)` 签名，会立刻打断现有自定义 HUD provider。
-- **术语冒进风险**：如果把当前常驻 GN 直接写成完整 `FHS`，会与 IIDX 参考约束冲突，也会误导用户对当前模型的预期。
-- **边界污染风险**：如果为了赶功能把 speed feedback 偷塞进 `GaugeBar`、`ComboCounter` 或 wrapped HUD 子节点，后续 `FAST/SLOW` / pacemaker 将继续复制同类问题。
-- **preview 宿主污染风险**：如果 pre-start 视觉流速预览被塞进 HUD / toast 或误复用 mania lookup，就会把 playfield 视觉 preview 变成错误的宿主边界问题。
-- **布局扩散风险**：如果不先冻结 judgement / feedback 的位置合同，后续容易继续用新的硬编码偏移叠层。
-- **用户数据风险**：生产 Realm 已是 schema 56，且曾存在 `chartskin/` 数据；在完成只读清点前，任何自动扫描、删除、改名或降 schema 都可能误伤用户皮肤记录或目录。
-- **假绿风险**：BMS 单套测试全绿不能证明 mania 默认资源、真实 `SkinManager` 选择链、逐组件 fallback 或事件驱动视觉正确；这些必须作为独立 gate。
+- schema 56 生产 Realm 可能含异常期写入的 folder-backed 记录；未经备份和只读报告，不得清理。
+- external absolute path、删除/重命名 containment、扫描 authority 和原子热重载都没有可信生产实现。
+- parser/类型测试不能证明真实 `SkinManager`、ruleset fallback 或事件驱动视觉。
+- mania 默认资源必须与 BMS gate 同时通过，禁止用 BMS reference 替换全局 `OmsSkin`。
 
 ## 下一检查点
 
-1. **（已作废，2026-06-15）** 原「评估 richer judge display state 是否进入 `GameplayFeedbackState` contract」一项随该 contract 与常驻速度反馈卡整体删除而失效；如未来重建 gameplay 反馈家族须另立专题重新设计，不再沿用已删的 snapshot 合同。
-2. `BMS -> mania` 公开表面当前已不再以 raw star 驱动 Song Select selector 或 spread dots；下一刀应转向 explicit wording 与更宽 presentation/manual proof，而不是回头重做 current-ruleset star surface。
-3. 若启动 pre-start 视觉流速预览切片，先补 playfield / lane host、第一非 scratch 轨解析与 note fallback 路径，再把可见性 gate 与“无判定副作用”语义交给 `P1-C` focused validation。
-4. 维持 `OmsSkin` 默认路径、legacy HUD wrapper 与 fallback 语义稳定，并把 remaining full Floating parity 缺口明确留在后续路线，不在 `P1-A` 里误写成已完成。
-5. 完成本恢复基线的 BMS/mania/core focused/Release 自动回归，并由用户执行无外部皮肤、`.osk` 用户皮肤及 5K/7K/9K/14K 的实机视觉验收。
-6. 只读清点 schema 56 中的 folder-backed `SkinInfo`，再决定是否需要显式迁移工具；不得以启动扫描顺手清理。
-
-## 历史变动与验证
-
-- 当前仍影响判读的验证结论已在“当前阶段”“进度矩阵”与“下一检查点”中汇总；按日期展开的宿主改动、回归命令与构建记录见 [CHANGELOG.md](CHANGELOG.md)。
+1. 用户完成无外部皮肤、`.osk`、5K/7K/9K/14K 和双皿素材视觉验收。
+2. 只读列出 schema 56 中 folder-backed `SkinInfo` 及对应目录存在性，不做修复。
+3. 在 PLAN 的恢复顺序下重做 G1 路径模型与安全删改测试。
+4. G1 稳定后再评估 F2；每个动态件必须有真实事件、fallback、mania 不回归和实机证明。

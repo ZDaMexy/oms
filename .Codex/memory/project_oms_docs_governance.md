@@ -1,21 +1,50 @@
 ---
 name: project-oms-docs-governance
-description: OMS mandatory documentation discipline — code changes must sync the layered doc_md governance files
-metadata: 
+description: OMS 低噪声文档治理：当前/计划/约束/历史分离，默认短路径读取，memory 只作召回
+metadata:
   node_type: memory
   type: project
-  originSessionId: d9f40bda-cfd5-4076-8bbf-1f08a85c9e5c
 ---
 
-OMS enforces strict documentation governance under `doc_md/`. Any development that changes plan, status, constraints, or verification conclusions MUST update the owning doc in the same change — no code-only changes, no stale narrative allowed.
+# OMS 文档治理记忆
 
-**Why:** The repo treats docs as authoritative governance, not afterthoughts. README explicitly forbids code-only or narrative-only changes.
+## 默认读取路径
 
-**How to apply:**
-- Doc layers: `doc_md/mainline` (global plan/status/changelog/constraints — authoritative), `doc_md/subline/P1-*` (per-direction, each keeps DEVELOPMENT_PLAN/STATUS/CHANGELOG/TECHNICAL_CONSTRAINTS), `doc_md/other` (external audits/release/skin/upstream refs), `doc_md/mini` (independent items).
-- First decide ownership: mainline / subline / other / mini.
-- Subline or mini changes that affect global priority/status/hard constraints must back-sync mainline's four-file set.
-- `DEVELOPMENT_STATUS.md` holds only currently-relevant state; dated implementation slices and build/regression commands go to the same dir's `CHANGELOG.md`.
-- Authoritative product-constraint doc: `doc_md/mainline/OMS_COPILOT.md` (~1500 lines — read targeted sections via Grep, don't load whole).
-- Active sublines (authoritative list in CLAUDE.md / `doc_md/subline/README.md`): P1-A (product surface/release gate, skin wrap-up + F-series 素材+ini skin-authoring ecosystem 立项 2026-06-27, see [[project-oms-bms-skin-authoring]]), P1-B (input/hardware), P1-C (judge semantics + feedback loop, staged-closed; always-on feedback card removed), P1-I (BMS song-select filter/search, in I4), P1-J (gameplay runtime perf/audio timing), P1-K (parse-chain governance, staged-closed at K9; K12 converted-star fix 06-23), P1-L (gimmick/BGA visual repro — BGA chain landed, see [[reference-bms-bga-chain]]), P1-M (built-in music player — planning, see [[project-oms-music-player]]), P1-D (controller calibration, next priority); P1-E/F/G/H are support lines.
-- **Known blind spot (observed 2026-06-27 health pass):** `mainline/DEVELOPMENT_STATUS.md` carries the only *volatile-snapshot* fields — the header `最后更新` date+narrative, the metrics table (BMS/mania test counts), the single `最近一次验证` block, and the Phase 1.1 matrix. These reliably go stale after subline work: contributors update the subline four-file set (and even memory) but forget to back-sync these mainline fields, so mainline ends up *behind* its own sublines. When wrapping any subline slice, explicitly re-write: latest 全量 test count, newest 最近一次验证 snapshot (keep ONE, older drop to CHANGELOG), and flip any 已修 item still parked under 后置/遗留. CHANGELOG/PLAN/OMS_COPILOT are safe — they deliberately hold no volatile snapshot (PLAN/COPILOT carry zero test numbers by design).
+1. `doc_md/mainline/DEVELOPMENT_STATUS.md`：当前阶段、最新验证、风险。
+2. `doc_md/mainline/DEVELOPMENT_PLAN.md`：活动顺序与验收门。
+3. `doc_md/subline/README.md` 路由到所属子线，只读该线 STATUS 与任务相关 CONSTRAINTS。
+4. `OMS_COPILOT.md`、大型 PLAN/CHANGELOG 只用 `rg` 定点搜索，不整篇加载。
+
+## 一个事实一个落点
+
+- STATUS：当前事实、当前风险、下一检查点、唯一最新验证。
+- PLAN：未完成工作、依赖、验收条件、冻结项。
+- TECHNICAL_CONSTRAINTS：稳定合同、红线、必须重跑的验证面。
+- CHANGELOG：日期化实现、调查过程、命令、旧测试数字。
+- README：只做路由和一句话结论。
+- memory：踩坑/诊断/偏好快速召回，不证明当前实现。
+
+## 低噪声纪律
+
+- STATUS 建议 ≤120 行，抬头只能是最后更新与上级入口；禁止塞“此前……”调查史。
+- PLAN 不写逐刀实现和旧测试数字；完成项不再影响依赖时删除，历史由 Git/CHANGELOG 保存。
+- mainline 只抄子线一句摘要和链接，不复制子线全文。
+- 测试数字只在当前 STATUS 最新验证和当次 CHANGELOG 各出现一次。
+- 带日期结论不再影响决策时，从 STATUS/PLAN 删除。
+- 大型 CHANGELOG 允许增长，但通过 `rg -n "YYYY-MM-DD|P1-X|关键词"` 读取。
+
+## 联动与权威
+
+- 先归线；跨线指定一个主归属，其余只链接。
+- 子线变化只有影响全局优先级、release gate 或硬约束时才回写 mainline。
+- other 结论升级为正式决策时进入相应 PLAN/STATUS/CONSTRAINTS。
+- 新踩坑同次更新 memory 与 `MEMORY.md` 索引。
+- 冲突顺序：当前代码/测试/真机反馈 → mainline → subline → other → memory。
+
+## 2026-07-10 整理结果
+
+- mainline PLAN 1412→113 行，STATUS 243→97 行。
+- P1-K PLAN 504→91 行；完成切片保留矩阵，逐文件历史只查 CHANGELOG。
+- P1-A/C/H/I/J/K/L STATUS 已统一成短模板，逐日历史留在 CHANGELOG/Git。
+- 入口顺序已同步到 AGENTS/CLAUDE、doc_md 索引和 subline 路由。
+- 皮肤任务仍先读 `reference_skin_recovery_20260710.md`。

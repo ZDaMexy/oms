@@ -1,5 +1,7 @@
 # OMS — GitHub Copilot Development Context
 
+> **读取与维护规则（2026-07-10）**：本文件只作为产品/架构硬约束库，不作为当前状态页。默认先读 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，再用 `rg -n "关键词" OMS_COPILOT.md` 定点读取相关章节；文中历史日期/测试数字仅是形成约束时的背景，不覆盖当前 STATUS。
+
 > **OMS** is a Windows-only rhythm game client forked from osu!lazer.  
 > It removes all game modes except osu!mania, and adds a new first-class **BMS mode**  
 > designed to fully replace LR2 and beatoraja as a modern BMS player.  

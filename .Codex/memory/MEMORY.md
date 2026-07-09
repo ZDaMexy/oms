@@ -5,7 +5,7 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — OMS 范围、架构、阶段与红线。
-- [文档治理](project_oms_docs_governance.md) — `doc_md` 分层、同次联动和易失真字段。
+- [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算与同次联动。
 - [反馈工作流](feedback_workflow.md) — 中文协作、真机反馈权威、修复→验证→文档/记忆→提交。
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 分界点、恢复基线、归档 refs、保留/撤回面与重新准入门。**处理皮肤任务先读。**
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — F1/G1 历史设计与实现笔记；顶部恢复声明优先于旧时间线。
