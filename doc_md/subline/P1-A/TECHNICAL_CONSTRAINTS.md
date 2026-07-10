@@ -66,24 +66,35 @@
 1. `[Mania]` 现有语法与素材包必须兼容；抽 shared codec 时不得无迁移改变既有用户皮肤行为。
 2. BMS 与 mania 重合的字段使用相同键名、值类型、数组/颜色语义、资源名和 `name-0`/`name-1` 帧序列。`[Bms]` 只定义 scratch/side/DP/gauge/BGA/gimmick 等真正独有字段。
 3. `[Bms]` 共同字段和 `[Mania]` 必须进入同一个 neutral configuration model，不得只复制 enum/key 名。
-4. BMS compatibility 优先级固定为：`[Bms]` role-aware override → full visual-lane bucket（5K+S→`Keys:6`、7K+S→`Keys:8`、9K→`Keys:9`、14K+2S→`Keys:16`）→ key-only bucket（`Keys:5/7/14` 只映普通键、scratch `Inherit`）/14K 显式双 `Keys:8` deck → default/rescue。P2/CenterP2 的 visual index 与 stable lane ID 必须由 fixture 固定，不能靠 renderer 猜。
+4. BMS compatibility 优先级固定为：`[Bms]` role-aware override → full visual-lane bucket（5K+S→`Keys:6`、7K+S→`Keys:8`、9K→`Keys:9`、14K+2S→`Keys:16`）→ key-only bucket（`Keys:5/7/14` 只映普通键、scratch `Inherit`）/14K 显式双 `Keys:8` deck → `oms-simple`。P2/CenterP2 的 visual index 与 stable lane ID 必须由 fixture 固定，不能靠 renderer 猜。
 5. mania 0-based column、当前 BMS `S/S2`/数字 token 必须在 adapter 边界转换成 stable lane ID；renderer/scene 不得继续自行拼 lane key。
 6. BMS 现有 `PlayfieldWidth/Height`、normal/scratch width/spacing 等 F1 字段作为兼容输入保留，但最终映射须进入 engine layout descriptor，不允许脚本直接改时序。
 7. `HitTargetVerticalOffset` 继续锁 0，直到独立专题证明 `scrollLengthRatio`、GN、判定窗口和 replay 不变量；不能通过皮肤偷偷改变。
 8. 加载行为必须 fail-open 并产生结构化诊断：未知键、非法值、缺素材、不支持 capability 和 fallback 来源可查询。当前“静默跳过”只算恢复基线，不算 V1 完成。
-9. neutral config 必须保留 explicit declaration/presence。legacy mania 在缺失 `Keys:` bucket 时生成的默认 configuration 不能视为 `Provide`，也不能遮住后层文件型默认/rescue。
+9. neutral config 必须保留 explicit declaration/presence。legacy mania 在缺失 `Keys:` bucket 时生成的默认 configuration 不能视为 `Provide`，也不能遮住后层 `oms-simple`。
 10. shared codec 采用 adapter-first 迁移：先让现有 legacy decoder 导出 neutral snapshot 并以 fixture 锁定，再替换共同解析；不得一次同时改 tokenizer、mania 生产链和 BMS mapping。
+
+## osu 社区式制作者合同
+
+1. `.osk` 是 V1 的正式分发单位；打开/拖入即可导入，解包后是根含 `skin.ini` 的普通可编辑目录。managed/external folder 是作者工作区与高级管理面，不能取代 `.osk` 的社区交换地位。
+2. `[General]`、`[Colours]`、`[Mania]` 的语法、`Keys:` 分桶、既有素材名、`name-{n}` 动画序列、资源缩放/缺项 fallback 等共同语义以当前 osu legacy compatibility 为基线；BMS 不另造一套同义基础格式。
+3. `[Bms]`、declarative manifest 和 optional script 是 OMS 对第一类 BMS ruleset 的版本化扩展。扩展文件必须可被 OMS validator 识别并产生清晰诊断，不要求作者编译 DLL，也不得冒充上游 osu! 已原生支持的格式。
+4. 只做 mania、只做 BMS 或同时做两者的 `.osk` 都合法；`oms-simple.osk` 与 `oms-complex.osk` 必须在一个包内同时提供 mania/BMS，并可作为第三方作者的真实参考源。
+5. common mania assets/ini 在 OMS 中的行为须有代表性社区皮肤 fixture；OMS 生成的组合包若宣称 mania-compatible，也须验证其 mania 部分不会因 BMS 扩展而改变。
+6. 制作者套件（Skin Authoring Kit）至少包含：两内置包的可编辑源、带注释模板、字段/素材/事件/layout/capability/budget 参考、validator/diagnostic 用法、打包与导入说明。它不是 SDK DLL，也不是第三种 package 格式。
 
 ## fallback 与最小可玩约束
 
 1. V1 lookup 必须区分 `Provide`、`Inherit`、`Suppress`。`null`/缺文件继续表示 `Inherit`，不得同时承担作者主动关闭语义。
 1a. 三态应由平行的 `SkinSlotResult<T>`/gameplay provider（或等价显式类型）承载，不直接改变现有 nullable `ISkin` ABI。`Drawable.Empty()` 不能长期冒充 `Suppress`；`Provide` 构造/资源失败必须降为 `Inherit` + 诊断。
-2. 三态链只替换 gameplay package 内的组件解析：用户 package → ruleset adapter/compatibility → OMS 文件型默认（若当前产品选择需要）→ 程序化 minimal rescue。现有 `BeatmapSkinProvidingContainer` 的谱面内皮肤 enable/colour/hitsound 语义，以及 `RulesetSkinProvidingContainer` 注入 ruleset resource skin 的相对 authority，在另有迁移决议前必须保持；不得把完整现有链误写成只有上述四层。
+2. 三态链只替换 gameplay package 内的组件解析：用户所选 `.osk` → ruleset adapter/compatibility → 随发行物只读携带的 `oms-simple.osk`。现有 `BeatmapSkinProvidingContainer` 的谱面内皮肤 enable/colour/hitsound 语义，以及 `RulesetSkinProvidingContainer` 注入 ruleset resource skin 的相对 authority，在另有迁移决议前必须保持；不得把完整现有链误写成只有上述三层。
 2a. `Suppress` 默认只作用于声明它的 gameplay package slot，不得越权穿透或屏蔽更高优先级的 beatmap-local provider；若未来需要改变该边界，必须单独冻结 precedence fixture 和用户迁移规则。
-3. 以下 gameplay-critical 元素不得被完全 suppress：lane/scratch 可辨识、note、LN、mine、判定位置，以及启用 lane-cover 玩法时的 cover 几何/遮挡。皮肤缺失时必须 rescue fallback。
+3. 以下 gameplay-critical 元素不得被完全 suppress：lane/scratch 可辨识、note、LN、mine、判定位置，以及启用 lane-cover 玩法时的 cover 几何/遮挡。用户包缺失、损坏或非法时必须逐组件回落 `oms-simple`。
 4. key/keyflash、hit explosion、judgement display、combo、gauge visual、文本 HUD、turntable/laser、BGA frame、装饰和其它非核心视觉可以显式 suppress；其 gameplay 状态仍在引擎中正常运行。
-5. `BmsSkinTransformer.providesBuiltInFallbacks = skin is OmsSkin` 的当前分层语义在迁移期保持：只有链底提供 rescue，用户层不重复注入 fallback。
-6. 程序化 `OmsSkin` 不得删除，但目标是收敛为风格中立的 minimal rescue。公开 OMS 文件型默认必须使用与第三方相同的 package/scene/script API，不得获得隐藏私有接口。
+5. `BmsSkinTransformer.providesBuiltInFallbacks = skin is OmsSkin` 只记录当前迁移基线：在 `oms-simple` 达到 mania/BMS parity 前不得贸然删除；达到 parity 后必须由文件包 fallback 取代并退出产品渲染链。
+6. 最终产品不得存在主题化程序化 fallback、硬编码色块/辉光或私有默认视觉。引擎代码可以并且必须保留通用 scene renderer、note/LN host、对象池、layout/event bridge、资源隔离与 gameplay truth，但所有具体颜色、素材、节点和动画来自 `.osk`。
+7. `oms-simple.osk` 是不可被用户修改/删除的 canonical fallback：发行构建锁定版本/hash，启动验证并可从只读 canonical copy 原子恢复工作副本。canonical copy 自身失败属于安装完整性故障，应阻止进入 gameplay 并给出修复指引，禁止静默生成程序化视觉。
+8. `oms-complex.osk` 与 `oms-simple.osk` 同权使用公共 package/scene/script API；可以作为默认选择或展示包，但不得成为 `oms-simple` 之下的隐藏第二 fallback。
 
 ## scene、事件与脚本约束
 
@@ -129,7 +140,7 @@
 5. scanner 只能维护自己创建的 authority 记录；不得删除 `.osk`、未知来源、另一扫描根或用户手工记录。
 6. folder-backed `SkinInfo.Files` 保持空；资源从正确 folder store 读取。非 folder/.osk/Oms 路径必须保持既有行为。
 7. reload 覆盖 ini/scene/script/素材和原子替换；新 package 完整解析/验证成功后原子切换，失败保留旧实例并报告诊断。
-8. 删除 current skin 时先安全切回 rescue；external 删除操作只能解除注册，不能写/改名/删物理目录。
+8. 删除 current skin 时先安全切回 `oms-simple`；external 删除操作只能解除注册，不能写/改名/删物理目录。
 
 ## HUD 与既有迁移约束
 
@@ -149,11 +160,11 @@
 
 ## 测试与发布约束
 
-1. 任何 skin 改动至少同时覆盖用户 package、`Inherit` fallback、`Suppress`、Oms rescue、mania 默认资源和 BMS 对应 keymode。
+1. 任何 skin 改动至少同时覆盖用户 package、`Inherit` fallback、`Suppress`、`oms-simple`、mania 默认资源和 BMS 对应 keymode；迁移期间另保留当前 `OmsSkin` 对照，直到文件 fallback 正式接管。
 2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。
 3. layout 最低矩阵：5K/7K × 四 style，9K BMS，9K PMS，14K；每格覆盖 lane order/bounds/scratch role/BGA viewport/gauge safe slot/时序不变。
 4. sandbox 最低矩阵：权限拒绝、无限循环、内存/节点超限、异常熔断、replay determinism、seek/retry/pause/reload 和 profiler。
-5. V1 release 必须有两个公开 API 验收包：`Minimal` 与 `Showcase`。Minimal 不得被 fallback 补出已显式 suppress 的可选件；Showcase 不得使用私有接口。
+5. V1 release 必须有两个普通 `.osk` 公共 API 验收包：`oms-simple` 与 `oms-complex`，两者均同时包含 mania/BMS。`oms-simple` 不得被补出已显式 suppress 的可选件；`oms-complex` 不得使用私有接口。
 6. BMS full、mania relevant/full、core skin focused、Release 构建和实机视觉/性能结果均需记录；已知失败必须稳定归因。
 7. 文档不得把“代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”混成一个完成状态；能力矩阵必须分列。
 8. 不得宣称 LR2/beatoraja/IIDX 文件格式兼容；“接近 IIDX 表现上限”只描述公开接口表达力。

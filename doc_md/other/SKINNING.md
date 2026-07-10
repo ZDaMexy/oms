@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，当前玩家可用的是 `.osk` + `[Mania]/[Bms] skin.ini`；BMS 现存静态件已有颜色/纹理/几何支持。`chartskin/` 生产链、热重载、三态 suppress、declarative scene、事件 ABI、沙箱脚本和文件型默认均未启用。事故期 F2/Lua 不算当前能力。Skin V1 的目标是让同一外部 API 同时支持 Minimal 与 Showcase，而不是继续把动态主题写死在 BMS C# 中。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，当前玩家可用的是 `.osk` + `[Mania]/[Bms] skin.ini`；BMS 现存静态件已有颜色/纹理/几何支持。`chartskin/` 生产链、热重载、三态 suppress、declarative scene、事件 ABI、沙箱脚本和文件型默认均未启用。事故期 F2/Lua 不算当前能力。Skin V1 的目标是交付同权的 `oms-simple.osk` 与 `oms-complex.osk`，并让第三方使用完全相同的公开 API；当前程序化 `OmsSkin` 仅为迁移基线，最终不进入产品渲染链。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
@@ -20,8 +20,9 @@
 6. [BMS 扩展族与事件挂点](#6-bms-扩展族与事件挂点)
 7. [必备 / 推荐 / 可选与三态解析](#7-必备--推荐--可选与三态解析)
 8. [三个作者面与布局编辑器边界](#8-三个作者面与布局编辑器边界)
-9. [rescue、文件型默认与验收包](#9-rescue文件型默认与验收包)
+9. [`oms-simple`、`oms-complex` 与最终 fallback](#9-oms-simpleoms-complex-与最终-fallback)
 10. [当前制作流程与 V1 验收](#10-当前制作流程与-v1-验收)
+11. [Skin Authoring Kit 是什么](#11-skin-authoring-kit-是什么)
 - [附录 A：游玩元素全集速查（创作者上限）](#附录-a游玩元素全集速查创作者上限)
 - [附录 B：必备元素清单](#附录-b必备元素清单)
 - [附录 C：`skin.ini` 字段全表](#附录-cskinini-字段全表)
@@ -40,6 +41,8 @@
 - declarative scene/animation：稳定 node type、template、binding、variant、tween/state-machine；
 - optional sandbox script：只读事件驱动的复杂组合逻辑；
 - lazer 布局编辑器只继续管理既有通用 HUD，不作为新 scene 文件格式。
+
+**osu 社区对齐**：OMS 延续官方描述的社区工作流——皮肤以 `.osk` 分享、打开或拖入导入，解包后是根含 `skin.ini` 的普通目录；mania 的素材命名、`[Mania] Keys:` 分桶和 `name-{n}` 动画序列保持兼容。[osu! 官方 Skin 页面](https://osu.ppy.sh/wiki/en/Skin)说明了 `.osk`/文件夹导入方式，[osu!mania skinning](https://osu.ppy.sh/wiki/en/Skinning/osu%21mania)与 [`skin.ini`](https://osu.ppy.sh/wiki/en/Skinning/skin.ini)是共同语义基线。`[Bms]`、scene 和 script 是 OMS 对第一类 BMS ruleset 的版本化扩展，不要求编译 DLL，也不冒充上游 osu! 已原生支持。
 
 **不做**：
 - 选歌 / 结果 / 菜单皮肤（lazer 已弃，OMS 跟随）。
@@ -67,7 +70,8 @@ MyBmsSkin/
 ```
 
 - 当前生产路径：把该文件夹内容打包为 `.osk` 后经游戏导入；导入器会把皮肤实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
-- V1 仍保留 `.osk` compatibility，并恢复受管理/外部只读文件夹。文件夹还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
+- V1 以 `.osk` 为正式社区分发物，并恢复受管理/外部只读文件夹作为作者工作区/高级管理面。包内还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
+- 只含 mania、只含 BMS 或同含两者都合法；官方 `oms-simple/oms-complex` 选择同包双 ruleset，以证明第三方无需特殊内置路径也能完成产品级皮肤。
 - 规划中的可视目录为 OMS 数据目录下的 `chartskin/`，但可信恢复基线尚未启用扫描、选择、删除、重命名或热重载；不要手工放入后期待自动发现。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
@@ -119,7 +123,7 @@ Keymode:  14K              // DP 单独一段
 
 当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：先把现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral model，再逐步共用 codec；第一刀不重写成熟 mania 生产解析器。
 
-gameplay package 内的候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 普通键 bucket（scratch 保持 `Inherit`）→ 文件型默认/rescue。
+gameplay package 内的候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 普通键 bucket（scratch 保持 `Inherit`）→ `oms-simple`。
 
 | BMS 模式 | 全视觉列兼容桶 | 普通键兼容桶 | 备注 |
 | --- | --- | --- | --- |
@@ -248,13 +252,13 @@ gameplay package 内的候选顺序为：`[Bms]` role-aware override → 按全�
 当前 nullable lookup 只有“提供 / `null` 后继续 fallback”，没有显式关闭。V1 新增平行 gameplay provider 结果，不直接破坏现有 `ISkin` ABI：
 
 - `Provide`：验证成功后使用；资源坏掉则降为 `Inherit` 并诊断。
-- `Inherit`：按组件继续 compatibility / 文件默认 / rescue。
+- `Inherit`：按组件继续 compatibility，并最终落到只读 `oms-simple.osk`。
 - `Suppress`：作者明确不显示，只允许可选视觉；缺文件绝不等于 suppress。
 
 ### 7.1 三档定义
 - **必备 (Required)**：只指可玩核心。lane/scratch 可辨识、note/LN/mine、判定位置，以及启用 lane cover 时的实际遮挡几何必须有 rescue，不能 suppress。清单见 [附录 B](#附录-b必备元素清单)。
 - **推荐 (Recommended)**：标准预期，回退到内置可接受。
-- **可选 (Optional)**：纯表现。按键动画、判定图、combo、gauge 视觉、HUD、BGA frame 和装饰效果均可显式 suppress；Minimal 皮肤不得被 fallback 强行补回来。
+- **可选 (Optional)**：纯表现。按键动画、判定图、combo、gauge 视觉、HUD、BGA frame 和装饰效果均可显式 suppress；`oms-simple` 不得被 fallback 强行补回来。
 
 ### 7.2 校验三层（加载期）
 1. **语法合法性**：未知键、非法值与不支持 capability 结构化记录；非法值逐字段回退。
@@ -282,29 +286,43 @@ gameplay package 内的候选顺序为：`[Bms]` role-aware override → 按全�
 
 ---
 
-## 9. rescue、文件型默认与验收包
+## 9. `oms-simple`、`oms-complex` 与最终 fallback
 
-当前有程序化默认和 reference ini；V1 目标把它们分成三种不同职责：
+当前仍是程序化默认 + reference ini，只能算迁移基线。V1 最终只有文件皮肤承担具体产品视觉：
 
-- **程序化 minimal rescue（不可删）** `[当前较完整，目标收敛]`：当前 BMS 默认仍是纯色块 + 几何 + 程序化辉光。V1 只保留可玩核心，避免它把可选判定、combo、gauge 或装饰强塞回 Minimal。
-- **参考素材皮肤（创作者模板）** `[已实现]`：一份用本系统**复现内置默认观感**的 `skin.ini`，已落地于 [oms-bms-reference-skin/skin.ini](oms-bms-reference-skin/skin.ini)（7K 全键 + 注释 + 作者须知）。因为默认是程序化的，它**全是 ini 数值（颜色/几何），零位图**。它既是验收对象（`BmsReferenceSkinTest` 逐键断言其解析值 == 真实 palette/profile 默认，写错即失败），也是你制作时**最佳的起点模板**——复制它、只改你要改的键即可（缺省的键自动 fail-open 回这些默认）。
-- **OMS 文件型默认** `[未实现]`：必须走与第三方相同的 package/scene/script 公共接口，不得访问私有 C# 视觉 API。
-- **Minimal + Showcase** `[未实现]`：Minimal 只显示可玩核心；Showcase 证明只靠公共素材、scene、事件和可选脚本可达到 IIDX 级完整界面。
+- **`oms-simple.osk`** `[未实现]`：同包提供 mania/BMS，只显示最小可玩件；canonical copy 随发行物只读携带并校验。用户所选皮肤缺失/损坏关键件时逐组件回落到它。
+- **`oms-complex.osk`** `[未实现]`：同包提供 mania/BMS，覆盖完整 slot/event，证明只靠公共素材、scene、事件和可选脚本可达到 IIDX 级完整界面。
+- **当前 reference ini** `[已实现但仅迁移参考]`：位于 [oms-bms-reference-skin/skin.ini](oms-bms-reference-skin/skin.ini)，用于锁住当前 F1 palette/profile；它不是最终 `oms-simple`，也不能证明双 ruleset 或 scene/event 能力。
+- **当前程序化 `OmsSkin`** `[迁移期]`：在 `oms-simple` 达到 mania/BMS parity、完整性验证、原子恢复和实机 gate 前暂留；之后退出产品渲染链。引擎仍保留通用 renderer、对象池、layout/event bridge，但不再硬编码任何主题颜色、素材、节点或动画。
 
-> **为什么不"把代码渲染对象导出成 PNG"**：内置默认是纯色块+程序化辉光。把一个 `Colour` 烤成位图会冗余、丢失可缩放性、辉光烤死不可调——纯色车道应是一个 `ColourColumn{lane}` 键，不是一张图。因此程序化辉光这类件保留为"**引擎绘制、ini 参数化**"，不烤图。这与 osu! 一致：osu! 的程序化默认皮肤（Argon）从不导出成文件。
+若只读 canonical `oms-simple` 自身校验失败，这是安装完整性故障：应提示修复/恢复包并阻止进入 gameplay，不能静默生成另一套程序化视觉。
 
 ---
 
 ## 10. 当前制作流程与 V1 验收
 
-1. **复制参考皮肤**（[§9](#9-rescue文件型默认与验收包)）为起点，而非从空白开始。
+1. **当前复制 reference ini；V1 复制 `oms-simple` 源目录**（[§9](#9-oms-simpleoms-complex-与最终-fallback)）为起点，而非从空白开始。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。
 3. **重新打包、导入和重选**：当前没有可信热重载；不要依赖 `chartskin/` 自动扫描。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
 5. **看运行结果与日志**：当前诊断并不完整；遇到静默回退时以实际渲染与 focused test 为准。
 6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
 
-V1 发布前还必须逐一验收 5K/7K 的 P1、P2、CenterP1、CenterP2，9K BMS/PMS，14K DP；每项同时检查 playfield、gauge/combo slot、BGA safe viewport、不同宽高比/DPI，以及 Minimal/Showcase 两个包。热重载只在“新实例验证失败仍保留旧实例”成立后开放。
+V1 发布前还必须逐一验收 5K/7K 的 P1、P2、CenterP1、CenterP2，9K BMS/PMS，14K DP；每项同时检查 playfield、gauge/combo slot、BGA safe viewport、不同宽高比/DPI，以及 `oms-simple/oms-complex` 两个包。热重载只在“新实例验证失败仍保留旧实例”成立后开放。
+
+---
+
+## 11. Skin Authoring Kit 是什么
+
+它不是程序库、编译 SDK 或第三种皮肤格式，而是“皮肤作者开工包”：
+
+- `oms-simple` 与 `oms-complex` 的可编辑源目录；
+- 带注释的 `skin.ini`、scene/animation manifest 和 optional script 模板；
+- mania/BMS 元素名、字段、lane role、事件、layout slot、capability 与资源预算参考；
+- validator/diagnostics 的错误定位方法；
+- 从普通目录打包 `.osk`、拖入导入、测试各 keymode 和发布分享的步骤。
+
+它的目的就是把 OMS BMS 制作体验拉回 osu 社区熟悉的路径：复制一个模板、替换素材、改 ini/manifest、进游戏验证、打成 `.osk` 分享，而不是要求作者搭 C# 工程。
 
 ---
 
@@ -340,7 +358,7 @@ V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉
 - 判定位置；
 - 当 lane cover 玩法启用时，真实遮挡范围与可调状态。
 
-按键动画、判定**显示**、combo、gauge **视觉**、数值 HUD、BGA frame、stage/角色/爆炸等均为可选。它们可 `Inherit` 获得默认表现，也可由作者显式 `Suppress`；这正是“只有色块下落与按键游玩”的合法 Minimal 下限。
+按键动画、判定**显示**、combo、gauge **视觉**、数值 HUD、BGA frame、stage/角色/爆炸等均为可选。它们可 `Inherit` 获得 `oms-simple` 表现，也可由作者显式 `Suppress`；这正是“只有色块下落与按键游玩”的合法 `oms-simple` 下限。
 
 ---
 
@@ -357,7 +375,7 @@ V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉
 
 ## 附录 D：进阶——受信任代码型 provider（开发扩展）
 
-> `[已实现，但不是普通皮肤分发面]` 这条路需要编译进受信任 C#，理论上可返回任意 `Drawable`。它适合仓库开发、测试和宿主扩展，不能作为第三方 V1 皮肤达到 Showcase 的必要条件，也不能用它证明 scene/script API 已完成。
+> `[已实现，但不是普通皮肤分发面]` 这条路需要编译进受信任 C#，理论上可返回任意 `Drawable`。它适合仓库开发、测试和宿主扩展，不能作为第三方 V1 皮肤达到 `oms-complex` 表现的必要条件，也不能用它证明 scene/script API 已完成。
 
 OMS BMS 皮肤底层是 osu!lazer 的 `ISkin` / `SkinTransformer` / `SkinnableDrawable` 体系。你实现 `ISkin.GetDrawableComponent()`，按 BMS lookup 返回自己的 `Drawable`；`BmsSkinTransformer` 负责路由与按组件 fallback。入口契约见
 [BmsSkinLookups.cs](../../osu.Game.Rulesets.Bms/Skinning/BmsSkinLookups.cs)、
@@ -424,7 +442,7 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 | adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划]` | `SV1-4` |
 | declarative scene、模板/对象池、typed binding、只读事件 ABI | `[规划]` | `SV1-5` |
 | 可选脚本沙箱、capability 授权与资源/指令/heap 预算 | `[规划]` | `SV1-6` |
-| OMS 文件型默认 + Minimal + Showcase + 全 release gate | `[规划]` | `SV1-7` |
+| `oms-simple` fallback + `oms-complex` + Authoring Kit + 全 release gate | `[规划]` | `SV1-7` |
 
 旧 `F/G` 编号只用于查询 2026-06-27 至恢复事故前后的历史，不再是执行顺序。完整设计取舍、当前代码证据与完成定义见 [Skin V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 

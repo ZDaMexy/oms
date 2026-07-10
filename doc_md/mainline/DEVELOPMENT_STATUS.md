@@ -29,12 +29,13 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 `.
 ## 皮肤系统当前事实
 
 - **保留**：独立 `[Bms]` 解析、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件颜色/纹理/几何、reference ini 自校验。
-- **fallback**：程序化 `OmsSkin` 仍是最终兜底；用户皮肤缺件必须逐组件回落。
+- **fallback 当前态**：程序化 `OmsSkin` 仍是实际链底，但只算迁移实现；最终由只读 `oms-simple.osk` 接管，程序化主题渲染退出产品链。
 - **schema**：`SkinInfo.FilesystemStoragePath`、`IsExternalFilesystemStorage` 与 Realm schema 56 保留，但没有生产扫描/选择/删改/热重载。
 - **恢复修正**：base legacy parser 前重置配置流位置；14K 第二皿使用 `S2`/P2 素材映射。
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
-- **V1 下限/上限**：同一公开 API 必须支持只剩最小可玩色块的 Minimal 皮肤，以及覆盖完整事件/动画能力的 Showcase 皮肤。
-- **未落地**：G1 生产链、shared codec/layout descriptor、scene/event/script runtime、三态 suppress、文件型默认；事故期 F2/Lua/mania adapter/reference-default 均不计能力。
+- **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
+- **社区合同**：`.osk`、根 `skin.ini`、mania 共同素材/动画命名和拖入导入沿用 osu 社区心智；BMS/scene/script 是版本化扩展，作者不需要编译 DLL。
+- **未落地**：G1 生产链、shared codec/layout descriptor、scene/event/script runtime、三态 suppress、`oms-simple/complex`、Authoring Kit 与文件 fallback；事故期 F2/Lua/mania adapter/reference-default 均不计能力。
 - **布局风险**：现有 playfield 可读皮肤几何，而 gauge/combo/BGA 仍各自按默认 profile/固定 rect 计算；14K 四角四 BGA player 只是临时实现，不能作为 V1 合同。
 
 恢复取证见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)；V1 架构与完成定义见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
@@ -78,7 +79,7 @@ OMS 处于 Phase 1.x 收尾期。2026-07-10 已把皮肤系统恢复到可信 `.
 
 | 事项 | 状态 |
 | --- | --- |
-| 无外部皮肤 + `.osk` 用户皮肤 + fallback | 待做 |
+| 无外部皮肤 + `.osk` 用户皮肤 + 当前迁移 fallback | 待做 |
 | BMS 5K/7K/9K/14K 皮肤布局与双皿素材 | 待做 |
 | analog scratch 与真实 HID 控制器 | 待做 |
 | LN/CN/HCN、长 BGM、密集键音真实谱 | 待做 |

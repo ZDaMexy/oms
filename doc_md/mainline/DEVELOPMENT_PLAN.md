@@ -10,7 +10,7 @@
 Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成立判断：
 
 1. BMS/mania 主流程和本地数据升级不阻断用户。
-2. 无外部皮肤时存在 OMS 自有可玩 rescue fallback；用户皮肤支持 `Provide/Inherit/Suppress`，缺件逐组件回落且可选视觉可明确关闭。
+2. 无外部皮肤或用户包损坏时由只读 `oms-simple.osk` 提供可玩 fallback；用户皮肤支持 `Provide/Inherit/Suppress`，缺件逐组件回落且可选视觉可明确关闭。最终产品不保留主题化程序渲染 fallback。
 3. BMS 输入、LN/CN/HCN、键音/BGA 在真实设备与真实谱面上通过验收。
 4. portable `data/`、自定义数据根和覆盖更新不丢用户内容。
 5. Release 构建及约定的 focused/full tests 达到当前基线，已知失败被明确归因。
@@ -30,7 +30,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 1. 只读清点 schema 56 中 `FilesystemStoragePath` 非空的 `SkinInfo`；先报告，不自动删除或改写。
 2. 根据清点结果决定是否需要显式迁移/修复工具；操作前再次备份 Realm 与目录。
-3. 保持当前 `.osk` F1 路线和程序化 `OmsSkin` fallback 稳定，不在本阶段引入 F2/Lua/reference-default。
+3. 保持当前 `.osk` F1 路线和程序化 `OmsSkin` 迁移 fallback 稳定，不在 `oms-simple` parity/完整性/恢复 gate 前提前删除，也不把它写成最终产品能力。
 
 ### R2：Skin V1 共同合同冻结
 
@@ -57,7 +57,8 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 2. **mania-compatible ini**：共同字段使用同一 codec/resolver；BMS 只扩展 scratch/side/DP/gauge/BGA/gimmick。
 3. **scene/event ABI**：外部 package 可声明 scene、动画、状态机并消费只读 gameplay 事件，不为每种视觉新增固定 BMS C# 实现。
 4. **sandbox script**：先通过权限/确定性/预算 spike，再作为可选作者层接入；不兼容或移植 LR2/beatoraja runtime。
-5. **双极限证明**：Minimal 皮肤可显式关闭所有可选视觉；Showcase 皮肤只用公开 API 证明接近 IIDX 复杂度的表达力。
+5. **双极限证明**：`oms-simple.osk` 同包覆盖 mania/BMS、只保留可玩核心并承担最终 fallback；`oms-complex.osk` 同包覆盖 mania/BMS、只用公开 API 证明接近 IIDX 复杂度的表达力。
+6. **社区作者面**：保持 `.osk`、根目录 `skin.ini`、mania 素材/动画命名、解包编辑和拖入导入心智；交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明。
 
 ### R5：Phase 1 玩法与硬件收尾
 
@@ -68,7 +69,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R6：公开发行门
 
-1. 复核公开皮肤选择面、文件型默认、Minimal/Showcase、三态 fallback 与 rescue fallback。
+1. 复核公开皮肤选择面、`oms-simple/oms-complex`、三态 fallback、canonical `oms-simple` 完整性/原子恢复，以及程序化主题渲染已退出产品链。
 2. 复核 `portable.ini → data/`、`storage.ini` 自定义根和覆盖更新。
 3. Release 构建、BMS 全量、mania/core relevant focused tests 通过或已知失败有稳定归因。
 4. 发布说明区分 code-provider/ini/scene/script 四层能力；不得宣称未通过 gate 的 G1、script、格式兼容或在线能力。
@@ -100,7 +101,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | BMS 解析/转换 | raw/typed 模型、主要控制事件、BMS→mania 转换 | 特殊谱尾项与真实谱组合证明 |
 | gameplay/判定 | 主要 keymode、判定家族、gauge、EX score、LN/CN/HCN 链 | 真实设备和真实谱验收 |
 | 音频/BGA | shared keysound、转谱音频主链、BGA 图/视频链 | 转谱 LN、极端 dense、逐谱视觉/暂停恢复体验 |
-| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化 rescue + schema 56 | 实机/数据、G1、安全 layout descriptor、shared ini、scene/event/script、Minimal/Showcase |
+| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56 | 实机/数据、G1、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
 | Song Select | BMS 分组、筛选、搜索和主要展示 | 拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | `chartbms/chartmania`、多根扫描、portable/custom root | 删除/失效/去重策略、最终覆盖更新复核 |
 | 输入 | keyboard/Raw/XInput/Mouse/DirectInput 基线 | analog scratch、一致校准、真实硬件 |
@@ -116,7 +117,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | 改动面 | 最低自动验证 | 额外人工验证 |
 | --- | --- | --- |
 | BMS parser/gameplay | BMS focused + BMS full | 命中特殊谱时逐谱验收 |
-| 皮肤/fallback | BMS skin focused + mania 默认资源 + core skin focused + Release | 全 keymode/style/BGA、Provide/Inherit/Suppress、Minimal/Showcase、脚本故障隔离 |
+| 皮肤/fallback | BMS skin focused + mania 默认资源 + core skin focused + Release | 全 keymode/style/BGA、Provide/Inherit/Suppress、`oms-simple/oms-complex`、canonical 恢复、脚本故障隔离 |
 | 输入 | `oms.Input`/bridge focused + BMS relevant | 真实控制器 edge/hold/轴 |
 | 存储/Realm | importer/scanner focused + Release | 备份数据根上的升级/重扫/恢复 |
 | 音频/BGA | 对应 player/store/cache focused + BMS full | pause/seek、长样本、逐谱视听 |

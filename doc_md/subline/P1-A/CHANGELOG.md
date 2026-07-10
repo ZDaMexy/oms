@@ -4,6 +4,14 @@
 
 ## 2026-07-10
 
+### 产品决议修订：`oms-simple` 文件 fallback、`oms-complex` 上限包与 osu 社区式作者生态
+
+- 用户否决最终程序化 rescue：主题化色块/辉光/默认节点会破坏产品规整性。当前 `OmsSkin` 只作为迁移脚手架保留到文件包 parity/完整性/原子恢复/实机 gate；V1 release 前退出产品渲染链，引擎仅保留通用 renderer、layout/event bridge、对象池与 gameplay truth。
+- 两个验收包正式命名为 `oms-simple.osk` 与 `oms-complex.osk`，均在一个普通 `.osk` 内同时提供 mania/BMS，并与第三方完全同权。`oms-simple` 只保留可玩核心且成为只读 canonical 逐组件 fallback；`oms-complex` 覆盖完整公开 slot/event，证明 IIDX 级表达上限。
+- canonical `oms-simple` 由发行物只读携带、校验并可原子恢复；其自身失败属于安装完整性故障，必须进入明确修复流程，禁止再生成隐藏程序化视觉。
+- 制作者生态对齐 osu 社区：`.osk` 分发、根 `skin.ini`、mania 共同素材/动画命名、普通目录编辑与拖入导入；`[Bms]`/scene/script 作为版本化 ruleset 扩展且不要求 DLL。Skin Authoring Kit 定义为两包可编辑源、注释模板、字段/事件/layout/预算规范、validator/diagnostics 与打包说明，不是另一套 SDK/runtime。
+- 本轮仅同步 PLAN/STATUS/CONSTRAINTS、架构审计、主线和制作者手册；无运行时代码或测试变化。
+
 ### Skin V1：完成 mania/BMS 现状审查，按“极简到 IIDX Showcase”重冻首版架构与路线
 
 - **mania 上限结论**：普通 `.osk/[Mania]` 已有成熟素材、配置、帧序列和逐组件 fallback，但 key press、column light、LN hold、hit explosion、judgement/combo 等交互仍由固定 C# 驱动；`ISkin` 返回任意 `Drawable` 只是受信任编译期扩展，不是普通作者运行时。故 BMS 不能靠复制 `ManiaLegacySkinTransformer` 达到目标。

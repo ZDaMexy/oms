@@ -7,16 +7,16 @@
 第一个完成版不再定义为“把更多固定视觉写进 BMS 内部代码”，而定义为一套可伸缩的外部皮肤运行时：
 
 1. 引擎拥有谱面/输入/判定/BGA 的真实语义、playfield 与 BGA 的安全布局、资源和脚本隔离、fallback 与性能保护。
-2. 外部皮肤拥有具体视觉树、素材、静态/动态装饰、动画和对只读事件的表现响应；除最小可玩 fallback 外，不要求内部代码为每种视觉提供固定实现。
+2. 外部 `.osk` 拥有全部具体视觉树、素材、静态/动态装饰、动画和对只读事件的表现响应；内部代码不提供任何主题化默认视觉，只提供通用 renderer、挂载接口和 gameplay truth。
 3. mania 与 BMS 的共同部分使用同一套配置值、素材解析、帧动画、场景节点和事件 ABI；两者只在 lane topology、scratch/DP、BGA/gauge/gimmick 等规则语义适配上分离。
-4. V1 必须同时证明两个极端：只显示可玩色块的极简皮肤，以及使用同一公开接口实现接近 IIDX 丰富度的展示皮肤。后者证明能力上限，不捆绑或复制商业素材。
+4. V1 必须交付两个同时包含 mania/BMS 的普通社区包：只显示可玩核心并承担最终 fallback 的 `oms-simple.osk`，以及使用同一公开接口实现接近 IIDX 丰富度的 `oms-complex.osk`。后者证明能力上限，不捆绑或复制商业素材。
 5. 当前 F1/G1/F2 命名保留作历史索引；新的执行 authority 改为 P1-A `SV1-0`～`SV1-7`，避免继续把“可配置键数”误当成系统完成度。
 
 ## 用户目标转译为工程合同
 
 ### 极简下限
 
-最小皮肤只需要：
+`oms-simple.osk` 只需要：
 
 - 可区分的 lane/scratch；
 - 可见的 note、LN 与 mine；
@@ -30,7 +30,7 @@
 - `Inherit`：未覆盖，逐组件进入下一 fallback；
 - `Suppress`：作者明确不显示可选组件，不得被 OMS fallback 重新补出。
 
-note/LN/mine、lane/scratch 可读性、判定位置和启用中的 cover 几何属于不可完全 suppress 的最小可玩层；加载失败时仍由程序化 rescue fallback 保底。
+note/LN/mine、lane/scratch 可读性、判定位置和启用中的 cover 几何属于不可完全 suppress 的最小可玩层；用户所选皮肤加载失败时逐组件回落到只读、完整验证的 `oms-simple.osk`。最终产品不存在更下层的程序化视觉；若 canonical `oms-simple` 自身损坏，则视为安装完整性故障并进入修复流程。
 
 ### 表现上限
 
@@ -43,6 +43,18 @@ note/LN/mine、lane/scratch 可读性、判定位置和启用中的 cover 几何
 - 皮肤脚本在沙箱内组合上述能力，而不能写入判定、计分、输入、谱面、Realm 或文件系统。
 
 “能够仿 IIDX”指公开运行时具备足够表达力，不指 OMS 自带 IIDX 资产、兼容 IIDX 文件格式或复刻其内部脚本语言。
+
+### osu 社区式发布与制作者合同
+
+OMS 把 BMS 视为社区认可的第一类 ruleset，皮肤作者不应先学习另一套基础生态：
+
+- `.osk` 是交换/发布物；打开或拖入即可导入，解包后是根含 `skin.ini` 的普通文件夹；
+- `[General]`、`[Colours]`、`[Mania]`、mania 素材名和 `name-{n}` 动画序列保持既有兼容心智；
+- `[Bms]`、scene manifest 和 optional script 是版本化 ruleset 扩展，不要求编译 DLL；
+- 只做 mania、只做 BMS 或两者同包都合法；官方 `oms-simple/oms-complex` 必须选择同包双 ruleset，以证明产品和社区路径一致；
+- source folder、`.osk` 打包、导入、诊断与分享流程应足够简单，使现有 mania skinner 只需学习 BMS 独有 role/event，而不是重学资源系统。
+
+“Skin Authoring Kit”不是另一套 SDK 或运行时，而是制作者拿到即可开工的资料包：`oms-simple/oms-complex` 可编辑源、带注释 `skin.ini`/manifest 模板、素材/字段/事件/layout/capability/budget 参考、validator/diagnostic 用法，以及打包导入说明。
 
 ## mania 当前系统审查
 
@@ -81,7 +93,7 @@ BMS `[Bms]` 段保留 `Keymode:` 和 scratch/side 扩展，但重合字段必须
 | 9K BMS/PMS | `[Mania] Keys: 9` | 同一 bucket | 无 scratch；BMS/PMS 差异留在 ruleset context |
 | 14K + 2 scratch | `[Mania] Keys: 16` | 显式双 `[Mania] Keys:8` deck fallback；`Keys:14` 只映普通键 | legacy mania 按 total columns 查桶；layout 仍建模为两个独立 deck |
 
-gameplay package 内的统一优先级为：`[Bms]` role-aware override → full visual-lane bucket → 显式 deck/key-only bucket（普通键映射、scratch `Inherit`）→ 文件型默认/rescue。具体索引从当前 BMS 的 `S/S2` 与 mania 的 0-based column 统一到内部 stable lane ID；P2/CenterP2 必须用 fixture 钉死 visual index 与 stable lane ID 的关系。
+gameplay package 内的统一优先级为：`[Bms]` role-aware override → full visual-lane bucket → 显式 deck/key-only bucket（普通键映射、scratch `Inherit`）→ `oms-simple`。具体索引从当前 BMS 的 `S/S2` 与 mania 的 0-based column 统一到内部 stable lane ID；P2/CenterP2 必须用 fixture 钉死 visual index 与 stable lane ID 的关系。
 
 这不是完整的 lazer skin-provider 顺序。`BeatmapSkinProvidingContainer` 仍可能提供高于 selected skin 的谱面内皮肤，`RulesetSkinProvidingContainer` 仍会插入 ruleset resource skin；V1 三态只替换 gameplay package resolution，先保持两者既有 enable/colour/hitsound 与相对 authority。`Suppress` 默认不能越权穿透更高优先的 beatmap-local provider；改变这一点必须另立兼容迁移决议和 fixture。
 
@@ -105,7 +117,7 @@ shared resolver 还必须保存“作者是否显式声明该值”。当前 leg
 4. BGA 接口把原始 timeline 和 POOR 信号交给 display，让 display 自己创建 player；这把内容播放 authority 与皮肤视觉混在一起。V1 应由引擎持有唯一 BGA clock/content surface，皮肤只取得只读 viewport/content handle 和事件。
 5. 当前 14K 默认把 BGA 播放器复制到四角；这是一种临时默认表现，不是经过产品确认的布局合同，也不应成为外部皮肤必须继承的语义。
 6. stage/key area 的配置键已可解析但没有生产渲染消费方；gauge/judgement/combo/BGA 在“代码 provider 可替换”和“ini/外部包可制作”两个维度上仍被文档混写。
-7. 当前程序化 fallback 包含较多具体风格。V1 目标应将其收敛为隐藏的 minimal rescue skin；公开默认/展示皮肤必须走与第三方完全相同的文件、scene 和 script 接口。
+7. 当前程序化 fallback 包含具体风格，只能作为迁移脚手架。V1 在 `oms-simple` 达到 mania/BMS parity、完整性校验和原子恢复后将其移出产品渲染链；`oms-simple/oms-complex` 与第三方必须走完全相同的文件、scene 和 script 接口。
 8. playfield 会消费皮肤的宽/高 profile，但默认 gauge/combo 会另建默认 profile，BGA 使用固定 rect；合法 partial geometry skin 已可令三者脱节。
 9. geometry parser 接受任意可解析 float，profile 未验证 finite/正值/范围；零宽、负值、NaN 或超屏值可能进入归一化/布局，违背 fail-open 可玩性。
 10. current lookup 不带 style/player side/visual index/stage/final rect；CenterRightScratch 的 BGA 与 Center 同为右上，无法表达真正 CenterP2 对侧布局。
@@ -191,14 +203,16 @@ V1 自动测试必须覆盖上述每一格的 lane bounds/order、scratch role�
 3. mania/BMS 共同 ini 字段由同一 codec/resolver 解释；BMS compatibility mapping 有 fixtures。
 4. 外部 package 可通过 declarative scene + versioned event ABI 实现所有公开视觉，不需要新增 ruleset C# 类。
 5. sandbox script 可选启用，具备确定性、权限、预算、熔断和 reload 测试。
-6. `Provide/Inherit/Suppress` 贯穿默认、用户、缺件和加载失败路径。
-7. 极简验收皮肤只保留最小可玩件；展示验收皮肤覆盖 press/hit/LN/scratch/judge/gauge/BGA 等事件。两者使用同一公开 API。
-8. 程序化 `OmsSkin` rescue fallback 仍不可删除；公开文件型默认不享有私有接口。
-9. BMS、mania、core skin、Release 和视觉/性能 gate 达标，文档不宣称 LR2/beatoraja/IIDX 文件格式兼容。
+6. `Provide/Inherit/Suppress` 贯穿用户选择、`oms-simple` fallback、缺件和加载失败路径。
+7. `oms-simple.osk` 只保留最小可玩件并作为 canonical fallback；`oms-complex.osk` 覆盖 press/hit/LN/scratch/judge/gauge/BGA 等事件。两者同时包含 mania/BMS、使用同一公开 API，并保留可编辑源。
+8. 程序化 `OmsSkin` 已退出产品渲染链；所有主题颜色、素材、节点和动画来自 `.osk`。canonical `oms-simple` 有构建/启动完整性验证和原子恢复路径。
+9. Skin Authoring Kit、validator/diagnostics、普通 `.osk` 打包/拖入导入与兼容 fixture 完成。
+10. BMS、mania、core skin、Release 和视觉/性能 gate 达标，文档不宣称 LR2/beatoraja/IIDX 文件格式兼容。
 
 ## 迁移原则
 
 - 不恢复事故期 G1/F2/Lua 整批代码；可定点复用测试场景、接口命名和事件推送教训。
 - 现有 F1 `.osk/[Bms]` 静态支持作为兼容输入保留，不要求现有皮肤立即迁移 scene/script。
+- 当前程序化 `OmsSkin` 只能在 `oms-simple` 未完成期间保持迁移兜底；替换顺序必须是“文件包 parity/完整性/恢复/实机 gate → 切 fallback authority → 删除主题化程序绘制”，不得先删再补。
 - 新 shared runtime 先以 adapter 包裹现有实现，组件逐个迁移；不同时重写 parser、布局、存储和脚本。
 - 任何新动态件优先扩展通用事件/scene 能力；在 ABI 缺口被证明前，不新增固定 `DefaultBmsXxxDisplay` 家族。

@@ -12,14 +12,15 @@
 - mania/BMS 共同 ini 语义使用同一 codec/resolver，BMS 只增加 scratch/DP/gauge/BGA/gimmick 扩展。
 - 5K/7K P1/P2/居中左右皿、9K BMS/PMS、14K DP 拥有引擎权威的 playfield/BGA descriptor。
 - 外部皮肤通过声明式 scene/animation 和可选沙箱脚本响应输入、判定、LN、scratch、gauge、BGA 等只读事件。
-- 同一公开 API 既可制作只剩可玩色块的 Minimal 皮肤，也可制作接近 IIDX 复杂度的 Showcase 皮肤。
-- 程序化 `OmsSkin` 保留为最小 rescue fallback；公开文件型默认不得依赖私有 C# 视觉实现。
+- 同一公开 API 既可制作只剩可玩核心的 `oms-simple.osk`，也可制作接近 IIDX 复杂度的 `oms-complex.osk`；两包均同时包含 mania/BMS。
+- 最终 fallback 是只读、完整验证的 `oms-simple.osk`。当前程序化 `OmsSkin` 只算迁移基线，V1 release 前必须退出产品渲染链；引擎只保留通用 renderer 与挂载桥。
+- `.osk`、根目录 `skin.ini`、mania 共同素材/动画命名、解包编辑与拖入导入遵循 osu 社区心智；BMS/scene/script 是版本化 ruleset 扩展，不要求编译 DLL。
 
 ## 当前代码事实
 
 | 面 | 当前状态 | 判读 |
 | --- | --- | --- |
-| 共享选择/fallback | 可用 | `SkinManager` 当前皮肤后恒接 `OmsSkin`；用户缺件逐组件回落 |
+| 共享选择/fallback | 仅迁移基线 | `SkinManager` 当前皮肤后恒接程序化 `OmsSkin`；目标 `oms-simple.osk` 尚未接管 |
 | mania 默认 | 可用基线 | `ManiaOmsSkinTransformer` 覆盖 stage/column/key/note/LN/hit/judgement/combo/HUD；复杂交互仍由内部 C# 固定行为驱动 |
 | mania 用户皮肤 | 可用 | `.osk/[Mania]` legacy 资源、配置和帧动画链成熟 |
 | BMS `.osk` 配置 | 可信主面 | `BmsLegacySkin` 叠加解析 `[Bms]`，保留 `[Mania]`；现存静态件颜色/纹理/几何可配置 |
@@ -30,7 +31,7 @@
 | HUD 几何联动 | 存在缺口 | playfield 读取皮肤 profile，gauge/combo 却重新取默认 profile；皮肤改宽/高后会脱节 |
 | BGA host | 部分可用 | 时间线和 skinnable panel 已有；固定 rect 不消费 skin-resolved playfield，center-right-scratch 仍按右侧 BGA，14K 四角四 player 是临时表现 |
 | G1 文件夹 | 仅载体 | folder ctor + schema 56 字段保留；扫描/实例化/选择/删改/热重载无可信生产链 |
-| 文件型默认 | 未落 | BMS reference ini 仅模板/自校验；当前 BMS 默认仍是程序化视觉 |
+| `oms-simple/complex` | 未落 | 当前 reference ini 仅模板/自校验；两个 mania+BMS 组合 `.osk`、canonical fallback 与作者套件均未制作 |
 
 ## mania 审查结论
 
@@ -60,7 +61,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
 | 7 | scene/event ABI + sandbox script | 未开始 |
-| 8 | Minimal/Showcase/file-default release gate | 未开始 |
+| 8 | `oms-simple` / `oms-complex` / Authoring Kit / file fallback release gate | 未开始 |
 
 ## 最近验证
 
@@ -94,6 +95,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 - `buildLaneKeysoundTimelines()` 的 lane 上界仍错误使用 `GetKeyCount()`；5K/7K 最右键与 14K 右侧末键/第二皿存在 timeline 丢失风险。
 - 只测 parser/类型或孤立接口不能证明真实选择链、事件顺序、脚本安全和视觉正确。
 - 14K 四角 BGA、程序化动态件和内部固定动画都不能被提前描述为 V1 最终方向。
+- 当前程序化 `OmsSkin` 仍是实际链底；在 `oms-simple` 完整性、自动恢复和 mania/BMS parity 过门前不能直接删除，但它也不能进入 V1 最终发行架构。
 
 ## 下一检查点
 

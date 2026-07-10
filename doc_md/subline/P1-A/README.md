@@ -4,10 +4,12 @@ P1-A 负责共享产品表面、Skin V1 架构、BMS playfield/BGA 皮肤边界�
 
 ## 当前结论
 
-- F1 静态素材/`skin.ini` 主链、程序化 fallback 与 Realm schema 56 保留。
+- F1 静态素材/`skin.ini` 主链、当前程序化迁移 fallback 与 Realm schema 56 保留；程序化视觉不是最终产品合同。
 - G1 生产扫描/删改/热重载、F2/Lua/reference-default 已撤回。
 - 第一个完成版已重新定义为“引擎拥有 gameplay truth 与 playfield/BGA 布局，外部 package 拥有具体视觉/动画/只读事件响应”。
 - mania/BMS 共享 neutral ini codec、scene/event ABI 和 sandbox；ruleset topology/adapter 分离。
+- V1 最终交付普通 `oms-simple.osk` 与 `oms-complex.osk`，两包均同含 mania/BMS；前者是只读 canonical fallback，后者证明公开 API 上限。
+- 作者生态沿用 `.osk` + 根 `skin.ini` + 素材/动画命名 + 解包编辑/拖入导入，并交付两包源目录、模板、规范、validator/diagnostics 和打包说明。
 - 下一步固定为：实机视觉 → schema 56 只读清点 → shared fixture → G1 路径安全合同 → layout/ini/scene/script 小切片。
 - 恢复证据：[SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)。
 - V1 架构审计：[SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
