@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-07-13
+
+### Skin V1 数据安全门 STOP（P1-A）
+
+schema 56 只读清点确认 folder-backed/external/path conflict 均为 0，但两条 `SkinInfo` 仍引用已删除的异常期 `BmsOmsReferenceSkin`，其中 managed 记录不会被普通启动修正；生产 Realm 前后 hash/mtime/length 一致。按 stop/go 未启动生产客户端、未进入 `SV1-1`，等待用户决定显式保全/迁移/移除；详见 [脱敏取证报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+
 ## 2026-07-10
 
 ### Skin V1 产品 fallback 与社区交付物修订（P1-A）

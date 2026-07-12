@@ -2,6 +2,16 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-13
+
+### `SV1-0` schema 56 只读取证触发 STOP，未进入三态合同实现
+
+- 在 OMS/osu 进程关闭时先记录生产 `client.realm` 的 length/mtime/SHA-256，再复制到系统临时目录；仅用 Realm SDK dynamic + read-only 打开副本，未用 `RealmAccess` 打开生产文件。取证前后生产文件三项证据完全一致，`chartskin/` 与用户皮肤目录零写入。
+- 共 3 条 `SkinInfo`：`FilesystemStoragePath` 非空 0、external 0、folder-backed 0、DeletePending 0、路径重复/冲突/越界 0；当前选择是 protected OMS 固定 ID，另两条为 managed hash-backed `.osk`。
+- 当前 protected 记录与一条 managed 记录仍引用恢复树已删除的 `BmsOmsReferenceSkin`。前者会被普通启动重写，后者不会，并会落入 `SkinInfo.CreateInstance()` 的历史 `TrianglesSkin` fallback。按 stop/go 判为数据迁移 blocker，未启动生产客户端、未做实机 gate、未实施 `SV1-1`。
+- 自动 gate：BMS skin focused **43/43**、BMS transformer/fallback **104/104**、mania OMS **84/84**、默认资源专项 **1/1**；core skin **57/62** 的 5 项与恢复审计同名，无新失败。每次保留 9 条 MessagePack `NU1902`，BMS 另有既有 `CS8600`/`CA2007`。
+- 脱敏证据、实机待办和三种迁移选项见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。本切片只改文档/memory，不改运行时代码。
+
 ## 2026-07-10
 
 ### 产品决议修订：`oms-simple` 文件 fallback、`oms-complex` 上限包与 osu 社区式作者生态

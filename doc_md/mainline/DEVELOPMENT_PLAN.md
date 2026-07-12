@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-10
+> 最后更新：2026-07-13
 > 本页只保留全局执行顺序、依赖和验收门。子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。当前事实以 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 为准。
 
 ## 当前目标
@@ -28,8 +28,8 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R1：恢复后的数据与皮肤安全门
 
-1. 只读清点 schema 56 中 `FilesystemStoragePath` 非空的 `SkinInfo`；先报告，不自动删除或改写。
-2. 根据清点结果决定是否需要显式迁移/修复工具；操作前再次备份 Realm 与目录。
+1. schema 56 只读清点已完成：folder authority 正常，但两条记录引用已删除异常期类型，当前 **STOP**；见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+2. 等待用户选择保全后重导入、继续保留或保全后移除；任何操作前再次备份 Realm 与关联文件，并以独立定点迁移切片执行。
 3. 保持当前 `.osk` F1 路线和程序化 `OmsSkin` 迁移 fallback 稳定，不在 `oms-simple` parity/完整性/恢复 gate 前提前删除，也不把它写成最终产品能力。
 
 ### R2：Skin V1 共同合同冻结

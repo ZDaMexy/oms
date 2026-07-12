@@ -1,6 +1,6 @@
 # P1-A 开发计划：皮肤系统 V1、产品面与 release gate
 
-> 最后更新：2026-07-10
+> 最后更新：2026-07-13
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，本轮架构审计见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 当前专题定位
@@ -69,17 +69,18 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-0：恢复与数据安全门
 
-状态：自动恢复完成；人工/数据 gate 未完成。
+状态：自动 focused gate 已复核；schema 56 清点于 2026-07-13 **STOP**，人工 gate 未执行。
 
 1. 用户验收无外部皮肤、`.osk`、partial fallback 和 5K/7K/9K/14K 视觉。
-2. 只读报告 schema 56 中 folder-backed `SkinInfo`、authority、目录存在性和当前选择状态。
-3. 未经备份与迁移设计，不改写 Realm、不清理 `chartskin/`、不降低 schema。
+2. 只读报告 schema 56 中 folder-backed `SkinInfo`、authority、目录存在性和当前选择状态。已完成：folder-backed/external/path conflict 均为 0，但两条记录引用已删除的异常期类型；见 [数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+3. 由用户选择异常 managed 记录的保全后重导入、继续保留或保全后移除方案；另立定点迁移切片并在任何写入前重新备份。
+4. 未经备份、用户决定与迁移设计，不改写 Realm、不清理 `chartskin/`、不降低 schema，也不以普通启动的静默 protected-record 重写替代迁移证明。
 
-验收：恢复测试基线稳定；人工记录进入 P1-G；数据报告不产生任何写入。
+验收：恢复测试基线稳定；人工记录进入 P1-G；数据报告不产生任何写入；异常记录完成用户批准的保全/迁移闭环。当前尚未验收。
 
 ### SV1-1：共同合同与 fixture 冻结
 
-状态：架构/文档决议已完成；代码 fixture 未开始。
+状态：架构/文档决议已完成；代码 fixture 未开始，受 `SV1-0` 数据/实机 gate 阻塞。
 
 1. 建立 neutral `GameplaySkinLayoutContext`、lane group/role/side/stable ID DTO 草案。
 2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。

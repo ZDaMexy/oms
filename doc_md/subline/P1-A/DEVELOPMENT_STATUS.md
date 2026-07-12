@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-10
+> 最后更新：2026-07-13
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，本轮架构审计见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 一句话状态
 
-皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；Skin V1 现已重新定义为“引擎拥有 gameplay truth 与 playfield/BGA 布局，外部 package 拥有具体视觉、动画和只读事件响应”。架构/路线文档已冻结，生产实现仍从恢复实机验收和 schema 56 只读清点开始。
+皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线。2026-07-13 的 schema 56 只读清点确认 folder authority 正常，但发现两条仍引用已删除 `BmsOmsReferenceSkin` 的异常期记录；数据 gate 因此 STOP，`SV1-1` 尚未开工，等待用户选择显式保全/迁移/移除方案及后续实机验收。
 
 ## Skin V1 目标
 
@@ -54,9 +54,9 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 | 顺序 | Gate | 状态 |
 | --- | --- | --- |
-| 1 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | 待用户验收 |
-| 2 | schema 56 folder-backed `SkinInfo` 只读报告 | 未执行 |
-| 3 | shared contract/fixture 代码冻结 | 文档完成，代码未开始 |
+| 1 | schema 56 `SkinInfo` 只读报告 | **STOP**：folder-backed 为 0；两条记录引用已删除异常期类型，待用户决定迁移 |
+| 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | 待用户验收；本次未启动会写 protected 记录的生产客户端 |
+| 3 | shared contract/fixture 代码冻结 | 文档完成；受数据 gate 阻塞，代码未开始 |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -64,6 +64,19 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | 8 | `oms-simple` / `oms-complex` / Authoring Kit / file fallback release gate | 未开始 |
 
 ## 最近验证
+
+### `SV1-0` 只读取证（2026-07-13）
+
+| 检查 | 结果 |
+| --- | --- |
+| BMS parser/legacy/reference/render focused | 43/43 |
+| BMS transformer + user fallback | 104/104 |
+| mania `TestSceneOmsBuiltInSkin` / 默认资源专项 | 84/84；专项 1/1 |
+| core skin focused | 57/62；5 项与恢复审计同名，无新失败 |
+| schema 56 副本清点 | 3 条；folder-backed/external/path conflict 均为 0；2 条异常期失效类型引用 |
+| 生产 Realm 零写入 | before/after length、mtime、SHA-256 完全一致 |
+
+每次测试均保留 9 条 MessagePack `NU1902`；BMS 命令另有既有 `CS8600`/`CA2007`。完整脱敏证据与迁移选项见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。实机 gate 未完成。
 
 ### 恢复基线（2026-07-10）
 
@@ -86,7 +99,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 当前风险
 
-- schema 56 可能含异常期 folder-backed 记录；`SkinManager.GetSkin` 当前不消费其路径字段，必须先只读清点。
+- schema 56 没有 folder-backed 记录或路径 authority 冲突，但两条 `SkinInfo` 仍引用恢复树已删除的 `BmsOmsReferenceSkin`；其中 managed 记录不会被 `SkinManager` 的 protected 固定 ID 修正，必须先经用户决定和显式迁移。
 - external absolute path、删除/重命名 containment、scanner authority 和原子 reload 尚无可信生产实现。
 - 当前 parser 对未知/非法 BMS 值是静默 fail-open，作者文档曾误写为“会告警”；结构化诊断是 SV1-4 未完成能力。
 - 皮肤几何值无完整合法域校验；playfield、gauge/combo 与 BGA 尚未消费同一 resolved descriptor，极端值会脱节或重叠。
@@ -99,6 +112,6 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 下一检查点
 
-1. 完成恢复实机 gate 与 schema 56 只读报告。
-2. 为 `GameplaySkinLayoutContext`、三态 fallback、mania compatibility mapping 和事件 ABI 建 fixture。
-3. 按 PLAN 的 SV1-2 起重做 G1，不从异常期归档整批恢复。
+1. 由用户选择异常期 managed 记录的“保全后重导入 / 保留阻塞 / 保全后移除”方案；任何写入前重新备份并另立迁移切片。
+2. 数据恢复后完成无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 与双皿/mania 隔离实机 gate。
+3. 两道门均通过后，才为三态 fallback 等 `SV1-1` 合同建立 fixture；随后按 PLAN 重做 G1。
