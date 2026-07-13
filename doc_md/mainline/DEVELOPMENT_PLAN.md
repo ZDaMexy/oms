@@ -28,11 +28,13 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R1：恢复后的数据与皮肤安全门
 
-1. schema 56 只读清点已完成：folder authority 正常，但两条记录引用已删除异常期类型，当前 **STOP**；见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-2. 等待用户选择保全后重导入、继续保留或保全后移除；任何操作前再次备份 Realm 与关联文件，并以独立定点迁移切片执行。
+1. schema 56 只读清点已完成：folder authority 正常，异常记录已在备份和副本演练后定点处置；见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+2. 用户已选择保全后移除无价值的异常 mutable copy；生产迁移完成并经 read-only reopen 验证。迁移归档保留，物理 orphan blob 暂不做全局清理。
 3. 保持当前 `.osk` F1 路线和程序化 `OmsSkin` 迁移 fallback 稳定，不在 `oms-simple` parity/完整性/恢复 gate 前提前删除，也不把它写成最终产品能力。
 
 ### R2：Skin V1 共同合同冻结
+
+状态：等待 R0 实机视觉 gate；数据 gate 已解除。
 
 1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/stable ID 和 mania compatibility fixtures。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件。

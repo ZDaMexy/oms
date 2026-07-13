@@ -4,7 +4,7 @@
 
 ## 结论
 
-`SV1-0` 自动 focused gate 与恢复基线一致，folder-backed 路径面没有异常；但生产 Realm 中有两条 `SkinInfo.InstantiationInfo` 仍引用恢复树已不存在的异常期类型 `BmsOmsReferenceSkin`，其中一条是 managed hash-backed 记录。该记录若被选择，当前 `SkinInfo.CreateInstance()` 会进入历史 `TrianglesSkin` 兼容 fallback，而不会还原为该包应使用的 `BmsLegacySkin`。因此数据安全门判定为 **STOP**：本窗口不进入 `SV1-1`，不启动生产客户端，不自动迁移、删除或重写任何记录。
+`SV1-0` 自动 focused gate 与恢复基线一致，folder-backed 路径面没有异常；初次清点发现两条 `SkinInfo.InstantiationInfo` 仍引用恢复树已不存在的异常期类型 `BmsOmsReferenceSkin`，其中一条是该异常期内置 reference-default 生成的 managed mutable copy。初始数据安全门因此 **STOP**。用户随后确认该副本没有保留价值并授权定点处置；备份、副本演练和生产单事务迁移已完成，数据 blocker 解除。生产客户端仍未启动，实机 gate 未完成，因此 `SV1-1` 仍未开始。
 
 ## 取证方法与零写入证据
 
@@ -22,7 +22,7 @@
 | SHA-256 | `FB9E4BF7F106D0B0898B3104041380DE42009BBB1558B5204C8EC141AE5AFB40` | 同左 | 一致 |
 | OMS/osu 进程 | `0` | `0` | 无客户端写入源 |
 
-生产 Realm、`chartskin/` 与用户皮肤目录均未被写入、清理、迁移、删除、重命名或自动修复。
+本节所述初次清点阶段中，生产 Realm、`chartskin/` 与用户皮肤目录均未被写入、清理、迁移、删除、重命名或自动修复。后续经用户授权的定点写入另见“迁移处置”。
 
 ## schema 56 清点
 
@@ -49,13 +49,27 @@
 - `Type.GetType()` 无法解析该类型时，当前 `SkinInfo.CreateInstance()` 会返回 `TrianglesSkin`。这既不能证明包内 mania/BMS 素材被正确读取，也与 OMS 最终产品不得依赖上游默认视觉的方向冲突。
 - 该问题不是 folder authority 冲突，但属于异常期数据遗留和明确迁移决策项；在用户决定前不得把数据 gate 或实机 gate 标记为通过。
 
-## 迁移选项（均需用户明确选择后另开切片）
+## 迁移处置（用户授权后已执行）
 
-1. **保全后重导入（建议）**：先再次备份 Realm 与关联 hash-backed 文件；把该 managed 记录导出到隔离位置，验证 `skin.ini`/素材，再经当前 `.osk` importer 新建 `BmsLegacySkin` 记录。新记录通过选择、mania/BMS 与 partial fallback 验收后，才决定是否移除旧记录。该路线不原地猜改类型，回退最清晰。
-2. **仅保留并继续阻塞**：保持生产数据原样，不选择该记录；`SV1-1` 与实机 gate 继续等待，直到迁移工具和验收方案获批。
-3. **保全后移除**：若用户确认该 managed 记录只是异常期生成的无用副本，先导出/备份，再通过显式、定点操作删除；不得由 scanner 或启动清理批量完成。
+内容复核确认异常 managed 记录只有自动生成的 `skin.ini`/`skininfo.json` 与通用 HUD/playfield JSON，没有图片、音频、`[Bms]` 配置或其它 gameplay 素材。用户确认其异常期表现没有价值，选择“保全后定点移除”，不重导入、不迁移旧 HUD。
 
-无论选择哪条路线，protected OMS 固定记录的恢复也应作为同一迁移演练的可见步骤记录，不能把一次普通启动造成的静默重写当作已完成的数据迁移证明。
+1. 在游戏关闭时建立独立恢复归档，包含迁移前 Realm、lock/management、`game.ini`、`storage.ini` 与四个关联 blob；Realm 和四个 blob 均逐项核对 SHA-256。
+2. 在第二代 Realm 副本上以 Realm SDK dynamic 模式演练；预检精确 GUID、旧类型、名称/作者/model hash、4 个 file usages、非 protected、非 folder/external 与总记录数。
+3. 单一事务删除异常 managed GUID，并把 OMS 固定 GUID 的 `Name/Creator/InstantiationInfo/Protected` 精确修正为当前 `OmsSkin.CreateInfo()`；不调用 `RealmAccess`、scanner、`RealmFileStore.Cleanup()` 或任何 GUI。
+4. 副本演练通过后在生产 Realm 执行同一事务，再以 dynamic read-only 独立重开验证。
+
+| 迁移证据 | 结果 |
+| --- | --- |
+| 迁移前备份 SHA-256 | `FB9E4BF7F106D0B0898B3104041380DE42009BBB1558B5204C8EC141AE5AFB40` |
+| 生产迁移后 SHA-256 | `3761AFDAE7F7F18352DD1932880D560B32DFBACD6411BCE7F2BD70CD647BFBD8` |
+| Realm length | 前后均为 `108,003,328` bytes |
+| `SkinInfo` | `3 → 2` |
+| 异常 managed GUID | 已不存在 |
+| OMS 固定记录 | `OMS 默认皮肤` / `OMS 开发组` / `osu.Game.Skinning.OmsSkin, osu.Game` / protected |
+| post-migration read-only reopen | `VERIFY_OK_NO_WRITE`，前后哈希一致 |
+| OMS/osu 进程 | 全程 `0` |
+
+Realm 本次事务提交后 mtime 仍保持旧值，因此不能把 mtime 单独作为写入/未写入证明；以 SHA-256 和动态 schema 状态联合判定。异常记录的 embedded file usages 已随 parent 删除，但四个物理 blob 与独立 `RealmFile` 行本次刻意保留，不做全局 orphan cleanup；它们无运行时 authority，恢复归档也保存了同内容副本。
 
 ## 自动验证与未完成 gate
 
@@ -69,7 +83,7 @@
 
 所有命令均保留告警：每次 9 条 MessagePack 3.1.3 `NU1902`；BMS 命令另见既有 `CS8600` 与 `CA2007`。未使用 `NoWarn`。
 
-实机清单仍全部待用户反馈：无外部皮肤、当前 `.osk` 用户皮肤、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿素材，以及 mania 默认资源隔离。因为启动生产客户端会重写 protected OMS 记录，本次 STOP 后没有执行 GUI 验收。
+实机清单仍全部待用户反馈：无外部皮肤、当前 `.osk` 用户皮肤、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿素材，以及 mania 默认资源隔离。用户明确要求不操控其电脑，因此本次没有启动 GUI；数据 blocker 已解除，但 `SV1-0` 仍等待用户实机结果。
 
 ## 明确未实施
 

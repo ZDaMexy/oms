@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定，但 2026-07-13 的 schema 56 只读清点发现异常期失效类型引用，数据 gate 已 STOP；当前等待用户决定定点迁移并完成实机验收，之后才可进入 P1-A `SV1-1`。
+OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-13 的 schema 56 异常记录已在备份和副本演练后定点处置，数据 blocker 解除。当前仅等待用户实机验收，之后才可进入 P1-A `SV1-1`。
 
 ## 产品与仓库基线
 
@@ -19,8 +19,8 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定，但 2026
 
 | 顺序 | 工作面 | 状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | schema 56 用户数据 | **STOP**：两条记录引用已删除异常期类型 | 用户选择显式保全/迁移/移除方案 |
-| 2 | P1-A 皮肤恢复 gate | 自动 focused 正常；实机未执行 | 数据恢复后验收无外部皮肤、`.osk`、5K/7K/9K/14K |
+| 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
+| 2 | P1-A 皮肤恢复 gate | 自动 focused 正常；实机未执行 | 用户验收无外部皮肤、`.osk`、5K/7K/9K/14K |
 | 3 | Skin V1 共同合同 | 架构/文档已冻结；代码未开始 | `SV1-0` 数据/实机 gate 通过后再建 fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
@@ -30,7 +30,7 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定，但 2026
 
 - **保留**：独立 `[Bms]` 解析、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件颜色/纹理/几何、reference ini 自校验。
 - **fallback 当前态**：程序化 `OmsSkin` 仍是实际链底，但只算迁移实现；最终由只读 `oms-simple.osk` 接管，程序化主题渲染退出产品链。
-- **schema**：schema 56 清点确认没有 folder-backed/external/path conflict，但两条记录仍引用已删除的 `BmsOmsReferenceSkin`；等待用户决定显式迁移，生产数据未写入。
+- **schema**：schema 56 路径 authority 正常；异常 mutable copy 已经用户授权定点移除，OMS fixed-ID 已修正为当前 `OmsSkin`，生产剩余 2 条皮肤记录。
 - **恢复修正**：base legacy parser 前重置配置流位置；14K 第二皿使用 `S2`/P2 素材映射。
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
 - **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
@@ -44,7 +44,7 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定，但 2026
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | 自动恢复稳定；schema 56 数据 gate STOP，等待迁移决定与实机验收；`SV1-1` 未开工 |
+| P1-A | 自动恢复稳定；schema 56 数据 blocker 已解除，等待实机验收；`SV1-1` 未开工 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -70,10 +70,10 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定，但 2026
 | BMS transformer/fallback | **104/104** | 当前 nullable 生产链对照通过 |
 | mania OMS / 默认资源 | **84/84；专项 1/1** | 默认资源未被 BMS reference 覆盖 |
 | core skin focused | **57/62** | 1 项 Argon 旧期待 + 4 项已删除 ruleset 的 beatmap archive 依赖 |
-| schema 56 副本清点 | **STOP** | 3 条记录；路径面正常；2 条失效异常期类型引用 |
-| 生产 Realm 零写入 | **通过** | before/after length、mtime、SHA-256 一致 |
+| schema 56 清点/迁移 | **通过** | 备份/副本演练后生产 3→2 条；异常 GUID 消失，OMS fixed-ID 修正 |
+| post-migration read-only reopen | **通过** | 记录状态精确，复核前后 SHA-256 一致；未启动客户端 |
 
-每次 focused 命令均保留 9 条 MessagePack `NU1902`；BMS 另有既有 `CS8600`/`CA2007`。本切片未改代码，未重跑 BMS full/Release；恢复基线仍为 BMS 1005/1005、Release 0 error/20 warnings。完整证据见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+每次 focused 命令均保留 9 条 MessagePack `NU1902`；BMS 另有既有 `CS8600`/`CA2007`。临时 dynamic-only 迁移工具 0 error / 1 条预期空 schema Fody warning。本切片未改代码，未重跑 BMS full/Release；恢复基线仍为 BMS 1005/1005、Release 0 error/20 warnings。完整证据见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
 
 ## 待人工验收
 
@@ -89,7 +89,7 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定，但 2026
 
 ## 当前风险
 
-- 生产 Realm 的 schema 56 路径面已只读清点，但 managed 记录的失效 `InstantiationInfo` 仍需用户决定；不得自动改写/删除记录或清理 `chartskin/`。
+- schema 56 异常记录已定点处置；四个无 authority orphan blob 暂留并已保全，不得把它们作为 G1 scanner 批量清理的先例。
 - BMS 单套测试全绿不证明 mania 默认资源、真实 `SkinManager` 选择链或视觉事件正确。
 - 皮肤几何值当前缺少完整合法域校验；在统一 descriptor 前，极端值还可能让 playfield 与 gauge/combo/BGA 脱节或重叠。
 - BMS lane keysound timeline 仍以 key count 而非 lane count 过滤，5K/7K 边缘轨及 14K 第二皿存在丢失风险；另立 P1-K/P1-J 修复切片，不混入本轮文档改线。

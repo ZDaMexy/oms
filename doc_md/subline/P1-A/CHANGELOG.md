@@ -12,6 +12,14 @@
 - 自动 gate：BMS skin focused **43/43**、BMS transformer/fallback **104/104**、mania OMS **84/84**、默认资源专项 **1/1**；core skin **57/62** 的 5 项与恢复审计同名，无新失败。每次保留 9 条 MessagePack `NU1902`，BMS 另有既有 `CS8600`/`CA2007`。
 - 脱敏证据、实机待办和三种迁移选项见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。本切片只改文档/memory，不改运行时代码。
 
+### `SV1-0` 异常 managed copy 完成备份、演练和生产定点处置
+
+- 内容复核确认异常记录是 `BmsOmsReferenceSkin` 经 `EnsureMutableSkin()` 生成的 mutable copy，仅含自动 metadata 与 HUD/playfield JSON，没有 gameplay 素材。用户确认其无保留价值并授权执行，且要求不操控桌面。
+- 备份迁移前 Realm/配置/四个关联 blob 并逐项校验；在第二代副本上预检精确 GUID、旧类型、model hash、4 file usages、authority 与总记录数，单事务演练通过后才应用生产。
+- 生产事务将 `SkinInfo` 从 3 条减为 2 条，移除异常 managed GUID，并把 OMS fixed-ID 的四个字段修正为当前 `OmsSkin.CreateInfo()`；post-migration dynamic read-only reopen 返回 `VERIFY_OK_NO_WRITE`。未启动客户端、未运行 scanner/全局 cleanup，四个无 authority blob 暂留且已保全。
+- Realm length 前后同为 108,003,328 bytes，但 SHA-256 从 `FB9E...B40` 变为 `3761...BD8`，mtime 没有变化；新增地雷是 Realm 写入证据不能只看 mtime。临时 dynamic-only 工具构建 0 error / 1 条预期空 schema Fody warning。
+- 数据 blocker 已解除；实机 gate 仍待用户反馈，`SV1-1` 未开始。
+
 ## 2026-07-10
 
 ### 产品决议修订：`oms-simple` 文件 fallback、`oms-complex` 上限包与 osu 社区式作者生态

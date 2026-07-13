@@ -11,6 +11,8 @@
 
 schema 56 只读清点确认 folder-backed/external/path conflict 均为 0，但两条 `SkinInfo` 仍引用已删除的异常期 `BmsOmsReferenceSkin`，其中 managed 记录不会被普通启动修正；生产 Realm 前后 hash/mtime/length 一致。按 stop/go 未启动生产客户端、未进入 `SV1-1`，等待用户决定显式保全/迁移/移除；详见 [脱敏取证报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
 
+用户随后确认异常 mutable copy 无价值并授权定点处置。迁移前 Realm/配置/四个 blob 已保全，副本单事务演练通过后才应用生产：皮肤记录 3→2、异常 GUID 消失、OMS fixed-ID 修正为当前 `OmsSkin`；read-only reopen 验证通过。未操控 GUI、未运行全局 orphan cleanup；数据 blocker 解除，实机 gate 仍待用户反馈。
+
 ## 2026-07-10
 
 ### Skin V1 产品 fallback 与社区交付物修订（P1-A）

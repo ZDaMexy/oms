@@ -26,4 +26,8 @@ metadata:
 
 ## 当前 gate
 
-`SV1-0` 数据 gate 为 STOP；实机 gate 未执行；`SV1-1` 三态合同未开始。恢复 focused 自动门无新回归。
+用户确认异常 managed mutable copy 无价值后，已完成迁移前 Realm/配置/四 blob 保全、副本演练与生产单事务处置：异常 GUID 删除，OMS fixed-ID 修正为 `OmsSkin`，最终 Skin 记录 2 条，read-only reopen 验证通过。未运行全局 orphan cleanup，四个无 authority blob 暂留。
+
+Realm 写事务可能保持旧 mtime；必须以 SHA-256 变化和动态 schema 状态联合证明写入结果，不能只看 mtime。
+
+`SV1-0` 数据 blocker 已解除；实机 gate 未执行；`SV1-1` 三态合同未开始。恢复 focused 自动门无新回归。

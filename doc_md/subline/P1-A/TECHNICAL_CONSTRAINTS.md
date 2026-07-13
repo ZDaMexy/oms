@@ -141,7 +141,7 @@
 6. folder-backed `SkinInfo.Files` 保持空；资源从正确 folder store 读取。非 folder/.osk/Oms 路径必须保持既有行为。
 7. reload 覆盖 ini/scene/script/素材和原子替换；新 package 完整解析/验证成功后原子切换，失败保留旧实例并报告诊断。
 8. 删除 current skin 时先安全切回 `oms-simple`；external 删除操作只能解除注册，不能写/改名/删物理目录。
-9. schema 56 只读清点发现的失效 `InstantiationInfo` 不得依赖 `SkinInfo.CreateInstance()` 的历史 `TrianglesSkin` fallback 静默吞掉，也不得靠普通启动只修 fixed-ID protected 记录后宣称迁移完成。managed hash-backed 记录必须先保全内容，再按用户批准的定点方案重导入、保留或移除；scanner 不得代办该清理。
+9. schema 56 只读清点发现的失效 `InstantiationInfo` 不得依赖 `SkinInfo.CreateInstance()` 的历史 `TrianglesSkin` fallback 静默吞掉，也不得靠普通启动只修 fixed-ID protected 记录后宣称迁移完成。managed hash-backed 记录必须先保全内容，再按用户批准的定点方案重导入、保留或移除；scanner 不得代办该清理。Realm 写事务可能不更新文件 mtime，迁移证据必须同时验证 SHA-256 与动态 schema 状态。
 
 ## HUD 与既有迁移约束
 
