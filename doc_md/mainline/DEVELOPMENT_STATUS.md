@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic taxonomy、neutral lane identity/topology/保持性 validation、config presence、legacy mania scalar/array/四项 global colour/per-column colour accepted provenance、event envelope/order、capability、lane-resource candidate/resolution，以及 process-local topology publication/native continuity 十五个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 前十六个合同切片已完成，最新一切冻结 exact 13 项 legacy mania bucket-global/non-column resource declaration provenance，生产链仍未接入。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，Skin V1 仍不可用；详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
 | 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
-| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology/保持性 validation、config presence、event/capability、lane-resource resolution 与 topology publication/native continuity 十五切完成；生产未接入 | 先冻结 13 项 exact known global resource 的 decoder-time sidecar，再加固六类 lane resource 的 `ImageLookups` provenance；其后继续真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime、full layout/geometry 与 production revision/wire fixtures |
+| 3 | Skin V1 共同合同 | `SV1-1` 前十六切已完成；最新一切冻结 exact 13 项 legacy mania bucket-global resource declaration provenance，生产未接入 | 下一切同时关闭 legacy mania 与 native `[Bms]` 六类 lane-resource 的 mutable `ImageLookups` provenance 窗口；其后继续真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime、full layout/geometry 与 production revision/wire fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -35,7 +35,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
 - **slot taxonomy**：26 个内部 semantic family 已固定 7 critical / 19 optional，descriptor 与 ruleset context 分离；它不是作者 manifest ABI、layout descriptor 或生产 suppress 接线。
 - **lane identity/topology**：强类型 identity、immutable snapshot/index/order 与 neutral validator 之上，已落 topology-only publication/process-local revision owner；internal BMS exact keymode 与 mania ordered stage vector 维护 native continuity。尚无 full layout/geometry、production `layoutRevision`/event producer、wire ABI 或生产接线。
-- **config presence/resolution**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、legacy mania scalar/indexed-array/四项 global colour/per-column colour accepted provenance、两类 neutral stable-lane colour snapshot、六类 lane-resource immutable snapshot、有序 BMS→mania candidate plan、process-local source-aware resolution 与 revision-owner 合同已落；尚无其余完整 field config、真实文件 validation/materialization/shared codec、production fallback 或接线。
+- **config presence/resolution**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource accepted provenance、两类 neutral stable-lane colour snapshot、六类 lane-resource immutable snapshot、有序 BMS→mania candidate plan、process-local source-aware resolution 与 revision-owner 合同已落。尚无其余完整 field config、真实文件 validation/materialization/shared codec、production fallback 或接线。
 - **event foundation**：process-local immutable envelope、engine-owned payload hierarchy 与 internal canonical-stream ordering cursor 已落；尚无 concrete payload family、lifecycle producer/dispatch、sampling、scene/script consumer 或生产接线。
 - **capability foundation**：process-local closed-allowlist evaluator、host support/per-skin authorization 分层、immutable decision 与 hard-deny authority classifier 已落；当前没有真实 capability、manifest/身份绑定/授权存储 UI、runtime gate 或 sandbox。
 - **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
@@ -49,7 +49,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十五个合同切片完成，未接生产链 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十六切已完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -67,9 +67,9 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 ## 最近一次验证
 
-### 2026-07-15 P1-A `SV1-1` 第十五切
+### 2026-07-15 P1-A `SV1-1` 第十六切
 
-第十五切新增 exact legacy mania `Colour{n}` / `ColourLight{n}` decoder-time accepted provenance，以及 topology-bound neutral stable-lane colour snapshot；mania/BMS 映射仅进入平行合同与 fixture，没有接 playfield、renderer、event producer、`SkinManager` 或生产 fallback。新增 shared 18/18、mania 5/5、BMS 14/14，既有 BMS candidate 29/29；config aggregate 83/83，shared gameplay 250/250，BMS full 1146/1146；mania full 827/831，非零仍只有恢复基线同名 4 个 HoldNote auto-frame 期待；core skin 57/62 仍是同名既有 5 项。`osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings，未使用 `NoWarn`。下一步是 13 项 exact known global resource 的 decoder-time sidecar，之后加固六类 lane resource 的 `ImageLookups` provenance；full layout/geometry、production revision/event/wire、真实资源 validation/materialization/shared codec、manifest/runtime、scene/script 与 fallback 接线均未完成，Skin V1 仍不可用。精确矩阵见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+第十六切为 exact 13 项 legacy mania bucket-global/non-column resource-name accepted-string declaration 建立 decoder-time provenance 与 semantic fixed-property snapshot；focused **15/15**、config aggregate **98/98**，`osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**，保留 9 条 MessagePack `NU1902` 重复显示及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。本切复核 BMS full **1146/1146**；mania full **827/831** 仍仅同名 4 项 HoldNote auto-frame 期待，core skin **57/62** 仍仅同名 5 项恢复基线。本切未接 production lookup、renderer、`SkinManager` 或 fallback。下一切同时关闭 legacy mania 与 native `[Bms]` 六类 lane-resource 的 mutable `ImageLookups` provenance 窗口；精确矩阵见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 

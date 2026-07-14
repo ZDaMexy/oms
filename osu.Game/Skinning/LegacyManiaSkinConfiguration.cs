@@ -46,6 +46,23 @@ namespace osu.Game.Skinning
         ColumnLight = 1 << 1,
     }
 
+    internal enum LegacyManiaSkinKnownGlobalResourceField
+    {
+        LightingN = 1 << 0,
+        LightingL = 1 << 1,
+        StageLeft = 1 << 2,
+        StageRight = 1 << 3,
+        StageBottom = 1 << 4,
+        StageLight = 1 << 5,
+        StageHint = 1 << 6,
+        Hit0 = 1 << 7,
+        Hit50 = 1 << 8,
+        Hit100 = 1 << 9,
+        Hit200 = 1 << 10,
+        Hit300 = 1 << 11,
+        Hit300g = 1 << 12,
+    }
+
     public class LegacyManiaSkinConfiguration : IHasCustomColours
     {
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnLineWidth;
@@ -81,6 +98,32 @@ namespace osu.Game.Skinning
         internal GameplaySkinConfigurationDeclaration<Color4> AcceptedComboBreakColour { get; private set; }
 
         internal GameplaySkinConfigurationDeclaration<Color4> AcceptedBarLineColour { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedLightingNResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedLightingLResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedStageLeftResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedStageRightResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedStageBottomResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedStageLightResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedStageHintResource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedHit0Resource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedHit50Resource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedHit100Resource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedHit200Resource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedHit300Resource { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<string> AcceptedHit300gResource { get; private set; }
 
         /// <summary>
         /// Conversion factor from converting legacy positioning values (based in x480 dimensions) to x768.
@@ -261,6 +304,95 @@ namespace osu.Game.Skinning
 
         internal GameplaySkinConfigurationDeclaration<Color4>[] CopyAcceptedPerColumnColourDeclarations(LegacyManiaSkinPerColumnColourField field)
             => getAcceptedPerColumnColours(field).ToArray();
+
+        /// <summary>
+        /// Captures one exact global image declaration immediately after the legacy decoder accepts its
+        /// <c>SplitKeyVal</c>-trimmed compatibility string. The value may be empty and remains filename-unnormalised and
+        /// unvalidated. It may contain a source-provided resource name or path and must not be written to diagnostics without
+        /// sanitisation.
+        /// </summary>
+        internal void AcceptKnownGlobalResource(LegacyManiaSkinKnownGlobalResourceField field, string resourceName)
+        {
+            ArgumentNullException.ThrowIfNull(resourceName);
+            string sourceKey = field switch
+            {
+                LegacyManiaSkinKnownGlobalResourceField.LightingN => "LightingN",
+                LegacyManiaSkinKnownGlobalResourceField.LightingL => "LightingL",
+                LegacyManiaSkinKnownGlobalResourceField.StageLeft => "StageLeft",
+                LegacyManiaSkinKnownGlobalResourceField.StageRight => "StageRight",
+                LegacyManiaSkinKnownGlobalResourceField.StageBottom => "StageBottom",
+                LegacyManiaSkinKnownGlobalResourceField.StageLight => "StageLight",
+                LegacyManiaSkinKnownGlobalResourceField.StageHint => "StageHint",
+                LegacyManiaSkinKnownGlobalResourceField.Hit0 => "Hit0",
+                LegacyManiaSkinKnownGlobalResourceField.Hit50 => "Hit50",
+                LegacyManiaSkinKnownGlobalResourceField.Hit100 => "Hit100",
+                LegacyManiaSkinKnownGlobalResourceField.Hit200 => "Hit200",
+                LegacyManiaSkinKnownGlobalResourceField.Hit300 => "Hit300",
+                LegacyManiaSkinKnownGlobalResourceField.Hit300g => "Hit300g",
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania known global resource field."),
+            };
+            GameplaySkinConfigurationDeclaration<string> declaration = GameplaySkinConfigurationDeclaration<string>.Declared(resourceName);
+
+            ImageLookups[sourceKey] = resourceName;
+
+            switch (field)
+            {
+                case LegacyManiaSkinKnownGlobalResourceField.LightingN:
+                    AcceptedLightingNResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.LightingL:
+                    AcceptedLightingLResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.StageLeft:
+                    AcceptedStageLeftResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.StageRight:
+                    AcceptedStageRightResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.StageBottom:
+                    AcceptedStageBottomResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.StageLight:
+                    AcceptedStageLightResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.StageHint:
+                    AcceptedStageHintResource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.Hit0:
+                    AcceptedHit0Resource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.Hit50:
+                    AcceptedHit50Resource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.Hit100:
+                    AcceptedHit100Resource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.Hit200:
+                    AcceptedHit200Resource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.Hit300:
+                    AcceptedHit300Resource = declaration;
+                    break;
+
+                case LegacyManiaSkinKnownGlobalResourceField.Hit300g:
+                    AcceptedHit300gResource = declaration;
+                    break;
+
+                default:
+                    throw new InvalidOperationException("The validated legacy mania global resource field was not captured.");
+            }
+        }
 
         private float[] getArrayValues(LegacyManiaSkinArrayField field)
         {

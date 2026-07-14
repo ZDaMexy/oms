@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_config_presence
-description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour accepted presence、stable-lane colour mapping、legacy mania synthetic default、ImageLookups 可变窗口与 decoder authority 地雷
+description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/bucket-global-resource accepted presence、semantic resource mapping、stable-lane colour mapping、legacy mania synthetic default、双侧 ImageLookups 可变窗口与 decoder authority 地雷
 metadata:
   node_type: memory
   type: reference
@@ -54,10 +54,19 @@ metadata:
 - mania 映射使用 `GlobalLogicalIndex`，dual-stage 不重启 source index。BMS full visual 使用 `GlobalVisualIndex`；14K eight-column deck 使用 `GroupLocalVisualIndex`，因此两个 deck 可共享同一组 source index；key-only projection 按 non-scratch visual enumeration 编号。三类 BMS projection 当前是相互独立的 fixture-only snapshot；若未来把它们合入同一 candidate plan，必须共享同一个 exact topology reference，不能只凭值相等的 topology 或各自重建的 projection 混装。
 - 该 snapshot 只冻结 accepted provenance 与中性映射，不做 doubled-alpha/zero-alpha compatibility、视觉默认、materialization、fallback 或 renderer 接线，也不是 manifest/wire ABI。Skin V1 因此仍不可用。
 
-第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十五切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour 与两类 per-column colour accepted snapshot；其余扩展 colour、global resource presence、`NoteBodyStyle`、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
+## legacy mania bucket-global resource accepted snapshot
+
+- 第十六切只覆盖 exact、区分大小写且已有 production lookup 的 13 项 legacy mania resource key：`LightingN`、`LightingL`、`StageLeft`、`StageRight`、`StageBottom`、`StageLight`、`StageHint`、`Hit0`、`Hit50`、`Hit100`、`Hit200`、`Hit300`、`Hit300g`。任意其它 `Lighting*` / `Stage*` / `Hit*` 仍可留在 compatibility dictionary，但不能进入 closed sidecar；valid duplicate 使用 last accepted，包括后一个显式空值覆盖前值。
+- 这 13 项属于 exact `Keys:` bucket 的 global/non-column declaration：`LightingN/L` 虽可被各 lane 的视觉消费，源配置仍只有一个 bucket-global resource name；stage frame/hint 与 judgement 同样没有 stable lane identity。因此 snapshot 只保留 `SourceColumnCount`，不绑定或重建 topology。
+- public fixed-property surface 使用 gameplay semantic，而不是把 raw legacy key 提升为跨程序集合同：`LightingN → ExplosionResource`、`LightingL → HoldNoteLightResource`、`StageLeft/Right/Bottom → LeftStageResource/RightStageResource/BottomStageResource`、`StageLight → KeyFlashResource`、`StageHint → HitTargetResource`、`Hit0/50/100/200/300/300g → MissJudgementResource/MehJudgementResource/OkJudgementResource/GoodJudgementResource/GreatJudgementResource/PerfectJudgementResource`。public snapshot 不提供 raw string-key query；raw key 仍留在 decoder-internal classifier 与 compatibility dictionary。
+- `SplitKeyVal()` 只按首个冒号切分并 trim key/value；`StageHint:` 因此是 `Declared(string.Empty)`，引号与其余冒号仍属于 `SplitKeyVal`-trimmed、尚未 `CleanFilename`/validation 的 compatibility string。此处不做扩展名、文件存在性、绝对/越界路径、containment、解码预算或 materialization validation；source-provided resource name/path 不得进入安全字符串或持久诊断。
+- decoder 在接受 exact key 时同时更新 compatibility `ImageLookups` 与 private declaration sidecar；factory 只读 sidecar。decode 后、factory 前或 snapshot 后对 public dictionary 的 add/overwrite/remove/clear/整体替换均不能伪造、擦除或改变 accepted provenance；手工构造 configuration 再填 dictionary 也不能制造 declaration。
+- resource declaration 只证明来源事实，不等于文件有效、slot `Provide`、`Suppress` 或 fallback winner。显式空字符串仍必须进入后续 materializer/diagnostic，而不能在 provenance 层折叠成 `Absent`/`Inherit`。第十六切 focused 15/15、config aggregate 98/98、Release Rebuild 0 error / 20 warnings；它没有接 production lookup、renderer、`SkinManager` 或 fallback。
+
+第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十六切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour、两类 per-column colour 与 13 项 bucket-global resource accepted snapshot；其余扩展 colour、`NoteBodyStyle`、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
 
 ## lane-resource provenance 尚未闭合
 
-- `LegacyManiaGameplaySkinLaneResourceSnapshotFactory` 当前在 factory 调用时直接读取 public mutable `LegacyManiaSkinConfiguration.ImageLookups`。既有 immutable fixture 只证明 snapshot 创建后不随 native mutation 漂移；decode 后、factory 前的新增/替换/删除仍可伪造或擦除 declaration/value。
-- 因此现有 lane-resource snapshot 只能称 compatibility projection，不是完整 decoder-accepted provenance，更不是 security boundary。不得把“来自 decoder output”误写成“只能由 decoder 成功接受的行产生”。
-- 下一切是 13 项 exact known global resource：`LightingN`、`LightingL`、`StageLeft`、`StageRight`、`StageBottom`、`StageLight`、`StageHint`、`Hit0`、`Hit50`、`Hit100`、`Hit200`、`Hit300`、`Hit300g` 的 decoder-time sidecar；随后加固现有 note、LN head/body/tail、key up/down 六类 lane resource 的 `ImageLookups` provenance。两者都必须在 decoder 接受行时写入 immutable/defensively copied sidecar，factory 只读 sidecar；不得从 `ImageLookups` 或其它 public mutable dictionary 反推完整 V1 config。
+- `LegacyManiaGameplaySkinLaneResourceSnapshotFactory` 仍在 factory 调用时读取 public mutable `LegacyManiaSkinConfiguration.ImageLookups`；`BmsGameplaySkinLaneResourceSnapshotFactory` 同样读取 native `[Bms]` bucket 的 mutable `BmsSkinConfiguration.ImageLookups`。既有 immutable fixture 只证明 snapshot 创建后不漂移，不能阻止 decode 后、factory 前的新增/替换/删除伪造或擦除 declaration/value。
+- 因此两侧现有 lane-resource snapshot 都只能称 compatibility projection，不是完整 decoder-accepted provenance，更不是 security boundary。不得把“来自 decoder output”误写成“只能由 decoder 成功接受的行产生”，也不能只关闭 legacy mania 一侧后就宣称共同 candidate plan 已具备 durable provenance。
+- 下一切必须同时为 legacy mania 与 native `[Bms]` 的 note、LN head/body/tail、key up/down 六类 lane resource 建立 decoder-time accepted sidecar，factory 只读各自 sidecar；exact/case/lane-token、显式空值、duplicate-last 与 malformed/unknown 行为分别服从各自现有 decoder，禁止从任一 `ImageLookups` dictionary 反推完整 V1 config。

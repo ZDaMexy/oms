@@ -173,7 +173,29 @@ namespace osu.Game.Skinning
                     case string when pair.Key.StartsWith("Hit", StringComparison.Ordinal):
                     case string when pair.Key.StartsWith("Stage", StringComparison.Ordinal):
                     case string when pair.Key.StartsWith("Lighting", StringComparison.Ordinal):
-                        currentConfig.ImageLookups[pair.Key] = pair.Value;
+                        LegacyManiaSkinKnownGlobalResourceField? knownGlobalResource = pair.Key switch
+                        {
+                            "LightingN" => LegacyManiaSkinKnownGlobalResourceField.LightingN,
+                            "LightingL" => LegacyManiaSkinKnownGlobalResourceField.LightingL,
+                            "StageLeft" => LegacyManiaSkinKnownGlobalResourceField.StageLeft,
+                            "StageRight" => LegacyManiaSkinKnownGlobalResourceField.StageRight,
+                            "StageBottom" => LegacyManiaSkinKnownGlobalResourceField.StageBottom,
+                            "StageLight" => LegacyManiaSkinKnownGlobalResourceField.StageLight,
+                            "StageHint" => LegacyManiaSkinKnownGlobalResourceField.StageHint,
+                            "Hit0" => LegacyManiaSkinKnownGlobalResourceField.Hit0,
+                            "Hit50" => LegacyManiaSkinKnownGlobalResourceField.Hit50,
+                            "Hit100" => LegacyManiaSkinKnownGlobalResourceField.Hit100,
+                            "Hit200" => LegacyManiaSkinKnownGlobalResourceField.Hit200,
+                            "Hit300" => LegacyManiaSkinKnownGlobalResourceField.Hit300,
+                            "Hit300g" => LegacyManiaSkinKnownGlobalResourceField.Hit300g,
+                            _ => null,
+                        };
+
+                        if (knownGlobalResource.HasValue)
+                            currentConfig.AcceptKnownGlobalResource(knownGlobalResource.Value, pair.Value);
+                        else
+                            currentConfig.ImageLookups[pair.Key] = pair.Value;
+
                         break;
                 }
             }
