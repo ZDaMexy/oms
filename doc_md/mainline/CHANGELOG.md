@@ -7,6 +7,10 @@
 
 ## 2026-07-14
 
+### Skin V1 neutral lane identity 第三切（P1-A）
+
+新增 ruleset-neutral 强类型 lane/group ID、group/lane identity、逻辑 presentation side 与 `Key/SpecialKey/Scratch` role；stable ID 跨视觉重排及 topology-preserving layout revision 保持，完整 identity equality 保留当前 metadata。该切片不含 layout aggregate、索引/geometry、真实 mania/BMS adapter、manifest/event ABI 或生产接线；shared focused 73/73，mania/BMS 保持基线，core skin 仍为既有 57/62，强制 Release Rebuild 0 error / 20 warnings。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ### Skin V1 semantic slot taxonomy 第二切（P1-A）
 
 在平行三态地基上新增 26 项 ruleset-neutral 内部 semantic slot taxonomy、descriptor/context 分离与稳定诊断 ID，固定 7 个不可 suppress 的最小可玩 family 和 19 个 optional family；catalog requirement 不能被调用方降级，process-local diagnostic context/exception 不进入 JSON。该 taxonomy 不是作者 manifest ABI、layout descriptor 或生产接线；`SkinManager`、nullable `ISkin`、`OmsSkin` authority 与用户数据均未改变。slot focused 47/47，provider 6/6，mania/BMS 保持基线，core skin 仍为既有 57/62，Release 0 error / 20 warnings。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。

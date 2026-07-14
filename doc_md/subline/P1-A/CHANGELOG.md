@@ -4,6 +4,17 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第三个合同切片：neutral lane identity primitives
+
+- 在 shared `osu.Game.Skinning.Gameplay` 新增强类型 `GameplaySkinLaneGroupId` / `GameplaySkinLaneId`、`GameplaySkinLaneGroupIdentity` / `GameplaySkinLaneIdentity`，以及 `GameplaySkinLaneSide`（`Neutral/Primary/Secondary`）和 `GameplaySkinLaneRole`（`Key/SpecialKey/Scratch`）。公开 `Create()` 统一校验小写 ASCII 点分 opaque ID，避免依赖 BMS-only `InternalsVisibleTo`；ID 使用 ordinal 值相等，hash 只限进程内。
+- producer 合同固定：ID 必须是非敏感 topology token，不得嵌入用户、包、资源名或路径；同一 ID 不得分配给两个不同 semantic group/lane，同一语义实体跨不改变 topology 的 revision 重建时必须复用 ID。stable ID 跨 style、视觉重排、geometry、skin reload 与 topology-preserving layout revision 保持，group membership/role 不漂移。跨这类 revision 关联只比较 `Id`；完整 identity equality 还包含当前 neutral metadata，`Group.Side` 可随 P1/P2 presentation 改变。
+- `Side` 是逻辑 player/deck presentation side，不是屏幕 Left/Right 或 input binding authority；`SpecialKey` 明确是 key input，绝不获得 scratch gameplay 语义。值对象 `ToString()` 只输出受上述非敏感 producer 合同约束的 stable ID，未冻结 JSON/event/manifest ABI。
+- 本切片没有加入 logical/visual/global/group-local index、keymode/style、action/source channel、rect/bounds、真实 mania/BMS token catalog、`GameplaySkinLayoutContext` aggregate 或 adapter。后续 mapping fixture 必须记住：`BmsLaneLayout.Lanes` 按 logical index 存储，不能把枚举位置当 visual index；mania special column 按 stage-local center 判定，双 5+5 的全局 special 是 2/7。
+- identity focused 首次编译被 analyzer `RS0030` 拒绝，因为 fixture 直接调用禁用的 `object.Equals`；改用 `EqualityComparer<object>.Default` 后 identity 26/26、slot+identity 合并 73/73。provider authority 6/6、BMS 43/43 与 104/104、mania 84/84 与专项 1/1；core skin 57/62 仍为同名既有 5 项，强制 `osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings。
+- 最终 XML 合同补强后的首次 whitespace verify 报告 9 处 `ENDOFLINE`（补丁行使用 LF、项目要求 CRLF）；仓库格式器规范化后连续 verify 通过，identity 再跑 26/26。
+- 首个自写 Markdown 检查 pass 将 14 个 `.Codex/memory` 既有仓库根相对链接按文件目录误解析为断链；改为文件相对优先、仓库根回退后复跑 114 个 Markdown / 915 个相对链接 / 0 断链，`git diff --check` 通过。
+- 告警仍为 MessagePack 9 项 `NU1902`（restore/build 重复）及 BMS 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。`dotnet format` 的泛化 workspace-load warning 经 diagnostic verbosity 确认为同一组 9 项 MessagePack advisory，verify 仍为 exit 0。没有改 `SkinManager`、nullable `ISkin`、BMS/mania 生产 layout、`OmsSkin` authority、Realm 或用户皮肤；Skin V1 仍不可用。
+
 ### `SV1-1` 第二个合同切片：ruleset-neutral semantic slot taxonomy
 
 - 新增不可变 `GameplaySkinSlotDescriptor`、`GameplaySkinSlotCatalog` 与 `GameplaySkinSlotLookup<TContext>`：26 个内部语义 family 固定为 7 critical / 19 optional，小写 ASCII 点分 ID 采用 ordinal 精确查询；未知或畸形 ID fail-closed 为 `TryGet=false`，不动态注册。ID 当前只用于内部 taxonomy/诊断，不是作者 manifest ABI，也不携带 lane/keymode/side/result/layout。

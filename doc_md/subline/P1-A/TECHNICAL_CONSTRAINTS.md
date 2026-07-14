@@ -57,6 +57,11 @@
 
 1. mania/BMS 共同的 ini tokenizer、颜色/数值/数组、资源路径、帧序列、诊断、scene node、animation/state-machine、event envelope、fallback 和 sandbox 必须共享实现，不得继续维护两套近似 codec。
 2. 共享层只能认识 `LaneGroupId`、`LaneId`、`LaneRole`、`Side`、bounds、capability 和 stable event DTO；不得出现 `BmsKeymode`、`ManiaAction`、`BmsGaugeProcessor`、`DrawableRuleset` 等具体类型。
+2a. shared identity 使用强类型 `GameplaySkinLaneGroupId` / `GameplaySkinLaneId`，值必须是非敏感的小写 ASCII 点分 opaque topology token 并按 ordinal 比较，不得嵌入用户、包、资源名或路径信息。GroupId 在单一 topology 内不得分配给两个不同 semantic group，LaneId 跨该 topology 全部 group 不得分配给两个不同 semantic lane；同一语义实体可跨不改变 topology 的 revision 重建 identity，但必须复用相同 ID。consumer 不得从 visual order、geometry、本地化文本或 ruleset CLR enum 反推 ID，也不得把进程内 hash 持久化。
+2b. stable ID 跨 P1/P2/center presentation、视觉重排、geometry、skin reload 和不改变 topology 的 layout revision 保持不变；同 LaneId 的 group membership 与 role 不得漂移。跨这类 revision 关联比较 `Id`，而 group/lane identity 的完整值相等包含当前 neutral metadata；未来 aggregate 负责拒绝重复 ID 或 metadata 冲突。
+2c. `GameplaySkinLaneRole` 固定为 `Key/SpecialKey/Scratch`（另有必须拒绝的默认 `Unspecified`）。未来 adapter 必须将 mania odd-stage 的 stage-local centre 映为 `SpecialKey`，但它仍是 key input、绝不能映为 `Scratch`；note/LN/mine 是对象类型，不是 lane role。
+2d. `GameplaySkinLaneSide` 固定为 `Neutral/Primary/Secondary`（另有必须拒绝的默认 `Unspecified`），表示逻辑 player/deck presentation side，绝不等同屏幕 Left/Right、BGA side 或 input binding owner。5K/7K P1/CenterP1 为 Primary、P2/CenterP2 为 Secondary，9K BMS/PMS 为 Neutral，14K 两 deck 分别 Primary/Secondary；style 改变 side 时 stable ID/action 不变。
+2e. identity primitive 不携带 logical/visual/global/group-local index、keymode/style、action/source channel、bounds/rect，也不是 manifest/event JSON ABI。后续 snapshot 必须显式承载这些值：当前 `BmsLaneLayout.Lanes` 是 logical-index 存储，不能把枚举位置误当 visual index；mania special 判定必须使用 stage-local index。
 3. mania adapter 拥有 stage/column、legacy 480 坐标、mania action/result 映射；BMS adapter 拥有 scratch/DP、lane cover、gauge、BGA、STOP/scroll/gimmick 映射。
 4. BMS 不得直接继承/复用 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable 作为生产架构。可以复用其 fixture、共同 codec 和 neutral runtime。
 5. 新动态视觉优先由通用 event/scene 能力表达。在 ABI 缺口经 fixture 证明前，不得继续按“一件效果一个 `DefaultBmsXxxDisplay` + 私有 interface”扩张。
