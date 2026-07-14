@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
@@ -34,8 +33,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             };
 
             int fullVisualKeys = projection.Topology.LanesInVisualOrder.Count;
-            Dictionary<GameplaySkinLaneId, int> fullVisualMapping = projection.Topology.LanesInVisualOrder
-                .ToDictionary(lane => lane.Identity.Id, lane => lane.GlobalVisualIndex);
+            IReadOnlyDictionary<GameplaySkinLaneId, int> fullVisualMapping =
+                BmsGameplaySkinLegacyManiaLaneMappingFactory.CreateFullVisual(projection);
 
             candidates.Add(createManiaCandidate(
                 BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
@@ -46,8 +45,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             if (projection.Keymode == BmsKeymode.Key14K)
             {
-                Dictionary<GameplaySkinLaneId, int> deckMapping = projection.Topology.LanesInLogicalOrder
-                    .ToDictionary(lane => lane.Identity.Id, lane => lane.GroupLocalVisualIndex);
+                IReadOnlyDictionary<GameplaySkinLaneId, int> deckMapping =
+                    BmsGameplaySkinLegacyManiaLaneMappingFactory.CreateEightColumnDeck(projection);
 
                 // One real Keys:8 bucket is projected independently over both engine-owned decks. The legacy decoder
                 // does not preserve a second duplicate Keys:8 section. Deck mapping precedes the 14-key fallback because
@@ -62,10 +61,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             if (projection.Keymode is BmsKeymode.Key5K or BmsKeymode.Key7K or BmsKeymode.Key14K)
             {
-                Dictionary<GameplaySkinLaneId, int> keyOnlyMapping = projection.Topology.LanesInVisualOrder
-                    .Where(lane => lane.Identity.Role != GameplaySkinLaneRole.Scratch)
-                    .Select((lane, columnIndex) => (lane.Identity.Id, columnIndex))
-                    .ToDictionary(mapping => mapping.Id, mapping => mapping.columnIndex);
+                IReadOnlyDictionary<GameplaySkinLaneId, int> keyOnlyMapping =
+                    BmsGameplaySkinLegacyManiaLaneMappingFactory.CreateKeyOnly(projection);
                 int keyOnlyKeys = keyOnlyMapping.Count;
 
                 candidates.Add(createManiaCandidate(

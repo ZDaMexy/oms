@@ -40,6 +40,12 @@ namespace osu.Game.Skinning
         BarLine = 1 << 3,
     }
 
+    internal enum LegacyManiaSkinPerColumnColourField
+    {
+        ColumnBackground = 1 << 0,
+        ColumnLight = 1 << 1,
+    }
+
     public class LegacyManiaSkinConfiguration : IHasCustomColours
     {
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnLineWidth;
@@ -47,6 +53,8 @@ namespace osu.Game.Skinning
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnWidth;
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedExplosionWidth;
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedHoldNoteLightWidth;
+        private readonly GameplaySkinConfigurationDeclaration<Color4>[] acceptedColumnBackgroundColours;
+        private readonly GameplaySkinConfigurationDeclaration<Color4>[] acceptedColumnLightColours;
 
         internal GameplaySkinConfigurationDeclaration<float> AcceptedWidthForNoteHeightScale { get; private set; }
 
@@ -126,6 +134,8 @@ namespace osu.Game.Skinning
             acceptedColumnWidth = new GameplaySkinConfigurationDeclaration<float>[ColumnWidth.Length];
             acceptedExplosionWidth = new GameplaySkinConfigurationDeclaration<float>[ExplosionWidth.Length];
             acceptedHoldNoteLightWidth = new GameplaySkinConfigurationDeclaration<float>[HoldNoteLightWidth.Length];
+            acceptedColumnBackgroundColours = new GameplaySkinConfigurationDeclaration<Color4>[keys];
+            acceptedColumnLightColours = new GameplaySkinConfigurationDeclaration<Color4>[keys];
 
             ColumnLineWidth.AsSpan().Fill(2);
             ColumnWidth.AsSpan().Fill(DEFAULT_COLUMN_SIZE);
@@ -234,6 +244,24 @@ namespace osu.Game.Skinning
             }
         }
 
+        /// <summary>
+        /// Captures one exact legacy <c>Colour{n}</c> or <c>ColourLight{n}</c> declaration immediately after successful
+        /// colour parsing. The zero-based source column remains decoder provenance and is not a stable gameplay lane identity.
+        /// No alpha compatibility transformation, defaulting or visual validation is performed here.
+        /// </summary>
+        internal void AcceptPerColumnColour(LegacyManiaSkinPerColumnColourField field, int sourceColumnIndex, Color4 value)
+        {
+            GameplaySkinConfigurationDeclaration<Color4>[] acceptedColours = getAcceptedPerColumnColours(field);
+
+            if ((uint)sourceColumnIndex >= (uint)acceptedColours.Length)
+                throw new ArgumentOutOfRangeException(nameof(sourceColumnIndex), sourceColumnIndex, "The legacy mania colour index is outside the source bucket.");
+
+            acceptedColours[sourceColumnIndex] = GameplaySkinConfigurationDeclaration<Color4>.Declared(value);
+        }
+
+        internal GameplaySkinConfigurationDeclaration<Color4>[] CopyAcceptedPerColumnColourDeclarations(LegacyManiaSkinPerColumnColourField field)
+            => getAcceptedPerColumnColours(field).ToArray();
+
         private float[] getArrayValues(LegacyManiaSkinArrayField field)
         {
             return field switch
@@ -257,6 +285,16 @@ namespace osu.Game.Skinning
                 LegacyManiaSkinArrayField.ExplosionWidth => acceptedExplosionWidth,
                 LegacyManiaSkinArrayField.HoldNoteLightWidth => acceptedHoldNoteLightWidth,
                 _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania array field."),
+            };
+        }
+
+        private GameplaySkinConfigurationDeclaration<Color4>[] getAcceptedPerColumnColours(LegacyManiaSkinPerColumnColourField field)
+        {
+            return field switch
+            {
+                LegacyManiaSkinPerColumnColourField.ColumnBackground => acceptedColumnBackgroundColours,
+                LegacyManiaSkinPerColumnColourField.ColumnLight => acceptedColumnLightColours,
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania per-column colour field."),
             };
         }
     }

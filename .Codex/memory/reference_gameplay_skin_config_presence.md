@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_config_presence
-description: Skin V1 configuration bucket/scalar/indexed-array/known-global-colour accepted presence、legacy mania synthetic default、ImageLookups 可变窗口与 decoder authority 地雷
+description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour accepted presence、stable-lane colour mapping、legacy mania synthetic default、ImageLookups 可变窗口与 decoder authority 地雷
 metadata:
   node_type: memory
   type: reference
@@ -43,13 +43,21 @@ metadata:
 
 - 第十三切只覆盖现有 production lookup 已消费的四个 exact global key：`ColourColumnLine`、`ColourJudgementLine`、`ColourBreak`、`ColourBarline`。不能把 decoder 的 `StartsWith("Colour")` 任意 key 接受行为公开成 dictionary/string ABI；用户自造 key 可能包含不应进入诊断或文档的数据。
 - capture 必须位于既有 `HandleColours(..., allowAlpha: true)` 成功返回之后；直接在 factory 复制公开可变 `CustomColours` 会让 decode 后 mutation 伪造来源事实。RGB accepted value alpha=255，RGBA/alpha 0 原样保存；valid duplicate last accepted，malformed 不创建或覆盖 sidecar。
-- snapshot 保存 parser `Color4`，不是 renderer 最终色。不得提前调用 doubled-alpha/zero-alpha compatibility、默认回落、额外 range/视觉验证，也不得把 `Colour{n}`/`ColourLight{n}` source token 冒充 stable lane ID。per-column/任意扩展 colour 仍待 neutral taxonomy 与 mapping 决议。
+- snapshot 保存 parser `Color4`，不是 renderer 最终色。不得提前调用 doubled-alpha/zero-alpha compatibility、默认回落或额外 range/视觉验证；任意扩展 colour 仍不属于 closed accepted surface。
 - malformed colour 会让既有 `flushPendingLines()` 在 clear 前退出并阻断同 section 后续；fixture 只锁“不声明/不覆盖”，不能把阻断行为提升为 V1 codec 合同，也不能在 provenance 切片顺手修 parser。
 
-第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十三切新增上述九个 legacy mania primitive scalar、五组 indexed array 与四项 known global colour；其余 per-column/扩展 colour、global resource presence、`NoteBodyStyle`、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
+## legacy mania per-column colour accepted snapshot
+
+- 第十五切只接受 exact canonical、区分大小写的 `Colour{n}` 与 `ColourLight{n}`，其中 `{n}` 是 1-based ASCII 十进制且必须落在当前 `Keys` 范围。`Colour0`、前导零、符号、后缀、大小写变体、越界 index 与其它 `Colour*` key 都不能进入 closed sidecar。
+- capture 必须位于既有 `HandleColours(..., allowAlpha: true)` 成功返回之后；decoder-time sidecar 独立保存 column background/light 的 accepted declaration 与 parser `Color4`。RGB 补 alpha=255，RGBA（含 alpha 0）原样保存；valid duplicate last accepted，malformed 不声明也不覆盖，decode 后对 public `CustomColours` 的 add/replace/remove/clear 都不能伪造或擦除 provenance。
+- neutral snapshot 的 closed field 是 `LaneBackground`（`playfield.lane.background-colour`）与 `LaneLight`（`playfield.lane.light-colour`）。source column index 不是 stable lane ID；factory 必须接收明确的 source-column→`GameplaySkinLaneId` 映射并绑定 exact topology，复制 mapping 后按 logical lane、field 固定排序。partial mapping 与 many-to-one source mapping 都允许，但 target duplicate、越界 source 或 topology 外 lane 必须拒绝。
+- mania 映射使用 `GlobalLogicalIndex`，dual-stage 不重启 source index。BMS full visual 使用 `GlobalVisualIndex`；14K eight-column deck 使用 `GroupLocalVisualIndex`，因此两个 deck 可共享同一组 source index；key-only projection 按 non-scratch visual enumeration 编号。三类 BMS projection 当前是相互独立的 fixture-only snapshot；若未来把它们合入同一 candidate plan，必须共享同一个 exact topology reference，不能只凭值相等的 topology 或各自重建的 projection 混装。
+- 该 snapshot 只冻结 accepted provenance 与中性映射，不做 doubled-alpha/zero-alpha compatibility、视觉默认、materialization、fallback 或 renderer 接线，也不是 manifest/wire ABI。Skin V1 因此仍不可用。
+
+第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十五切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour 与两类 per-column colour accepted snapshot；其余扩展 colour、global resource presence、`NoteBodyStyle`、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
 
 ## lane-resource provenance 尚未闭合
 
 - `LegacyManiaGameplaySkinLaneResourceSnapshotFactory` 当前在 factory 调用时直接读取 public mutable `LegacyManiaSkinConfiguration.ImageLookups`。既有 immutable fixture 只证明 snapshot 创建后不随 native mutation 漂移；decode 后、factory 前的新增/替换/删除仍可伪造或擦除 declaration/value。
 - 因此现有 lane-resource snapshot 只能称 compatibility projection，不是完整 decoder-accepted provenance，更不是 security boundary。不得把“来自 decoder output”误写成“只能由 decoder 成功接受的行产生”。
-- 后续 exact per-column colour、global resource 与最终 lane-resource hardening 必须在 decoder 接受行时写入 immutable/defensively copied sidecar，factory 只读 sidecar；不得从 `CustomColours`、`ImageLookups` 或其它 public mutable dictionary 反推完整 V1 config。本切不顺手改 parser/factory。
+- 下一切是 13 项 exact known global resource：`LightingN`、`LightingL`、`StageLeft`、`StageRight`、`StageBottom`、`StageLight`、`StageHint`、`Hit0`、`Hit50`、`Hit100`、`Hit200`、`Hit300`、`Hit300g` 的 decoder-time sidecar；随后加固现有 note、LN head/body/tail、key up/down 六类 lane resource 的 `ImageLookups` provenance。两者都必须在 decoder 接受行时写入 immutable/defensively copied sidecar，factory 只读 sidecar；不得从 `ImageLookups` 或其它 public mutable dictionary 反推完整 V1 config。

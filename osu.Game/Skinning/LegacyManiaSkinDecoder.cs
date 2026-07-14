@@ -148,6 +148,11 @@ namespace osu.Game.Skinning
                     case string when pair.Key.StartsWith("Colour", StringComparison.Ordinal):
                         HandleColours(currentConfig, line, true);
 
+                        var acceptedColour = currentConfig.CustomColours[pair.Key];
+
+                        if (tryGetPerColumnColour(pair.Key, currentConfig.Keys, out LegacyManiaSkinPerColumnColourField perColumnColour, out int sourceColumnIndex))
+                            currentConfig.AcceptPerColumnColour(perColumnColour, sourceColumnIndex, acceptedColour);
+
                         LegacyManiaSkinKnownGlobalColourField? knownGlobalColour = pair.Key switch
                         {
                             "ColourColumnLine" => LegacyManiaSkinKnownGlobalColourField.ColumnLine,
@@ -158,7 +163,7 @@ namespace osu.Game.Skinning
                         };
 
                         if (knownGlobalColour.HasValue)
-                            currentConfig.AcceptKnownGlobalColour(knownGlobalColour.Value, currentConfig.CustomColours[pair.Key]);
+                            currentConfig.AcceptKnownGlobalColour(knownGlobalColour.Value, acceptedColour);
 
                         break;
 
@@ -204,6 +209,47 @@ namespace osu.Game.Skinning
 
                 currentConfig.AcceptArrayValue(field, i, parsedValue);
             }
+        }
+
+        private static bool tryGetPerColumnColour(
+            string key,
+            int sourceColumnCount,
+            out LegacyManiaSkinPerColumnColourField field,
+            out int sourceColumnIndex)
+        {
+            field = default;
+            sourceColumnIndex = -1;
+
+            const string background_prefix = "Colour";
+            const string light_prefix = "ColourLight";
+
+            string prefix;
+            LegacyManiaSkinPerColumnColourField candidateField;
+
+            if (key.StartsWith(light_prefix, StringComparison.Ordinal))
+            {
+                prefix = light_prefix;
+                candidateField = LegacyManiaSkinPerColumnColourField.ColumnLight;
+            }
+            else if (key.StartsWith(background_prefix, StringComparison.Ordinal))
+            {
+                prefix = background_prefix;
+                candidateField = LegacyManiaSkinPerColumnColourField.ColumnBackground;
+            }
+            else
+                return false;
+
+            string sourceIndexToken = key[prefix.Length..];
+
+            if (!int.TryParse(sourceIndexToken, NumberStyles.None, CultureInfo.InvariantCulture, out int oneBasedSourceColumn)
+                || oneBasedSourceColumn < 1
+                || oneBasedSourceColumn > sourceColumnCount
+                || !string.Equals(sourceIndexToken, oneBasedSourceColumn.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
+                return false;
+
+            field = candidateField;
+            sourceColumnIndex = oneBasedSourceColumn - 1;
+            return true;
         }
     }
 }
