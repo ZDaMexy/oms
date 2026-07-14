@@ -34,7 +34,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：R0/R1 已解除；三态 slot/precedence、内部 semantic taxonomy、neutral lane identity/topology/保持性 transition validation、config bucket explicit-presence、legacy mania primitive scalar/indexed-array accepted snapshot、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/revision-owner 十二个切片已完成，其余共同合同待续。
+状态：R0/R1 已解除；三态 slot/precedence、内部 semantic taxonomy、neutral lane identity/topology/保持性 transition validation、config bucket explicit-presence、legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/revision-owner 十三个切片已完成，其余共同合同待续。
 
 1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane/group identity、immutable order snapshot、neutral topology-preserving validator、实际 decoder bucket presence、六类 lane-resource BMS→mania candidate mapping 与 process-local resolution/owner 已落，native context/revision/wire、full layout/geometry、完整 neutral config、真实资源 validation/materialization/shared codec、production fallback 和 adapter 接线待续。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。

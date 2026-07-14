@@ -147,6 +147,19 @@ namespace osu.Game.Skinning
 
                     case string when pair.Key.StartsWith("Colour", StringComparison.Ordinal):
                         HandleColours(currentConfig, line, true);
+
+                        LegacyManiaSkinKnownGlobalColourField? knownGlobalColour = pair.Key switch
+                        {
+                            "ColourColumnLine" => LegacyManiaSkinKnownGlobalColourField.ColumnLine,
+                            "ColourJudgementLine" => LegacyManiaSkinKnownGlobalColourField.JudgementLine,
+                            "ColourBreak" => LegacyManiaSkinKnownGlobalColourField.ComboBreak,
+                            "ColourBarline" => LegacyManiaSkinKnownGlobalColourField.BarLine,
+                            _ => null,
+                        };
+
+                        if (knownGlobalColour.HasValue)
+                            currentConfig.AcceptKnownGlobalColour(knownGlobalColour.Value, currentConfig.CustomColours[pair.Key]);
+
                         break;
 
                     // Custom sprite paths

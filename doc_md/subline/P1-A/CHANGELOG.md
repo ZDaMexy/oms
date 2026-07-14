@@ -4,6 +4,14 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第十三个合同切片：legacy mania known-global-colour accepted-declaration snapshot
+
+- shared legacy mania configuration/decoder 为现有 production lookup 已消费的四个 exact global colour——`ColourColumnLine`、`ColourJudgementLine`、`ColourBreak`、`ColourBarline`——增加 decoder-time accepted declaration/value sidecar。既有 `HandleColours(..., allowAlpha: true)` 完整成功后才捕获当时 `Color4`；RGB 保留 alpha 255，RGBA 与 alpha 0 原样保存，valid duplicate 为 last accepted，malformed 不创建或覆盖 sidecar。没有改 shared parser 签名、tokenizer、pending-line 时序、compatibility dictionary 或 production lookup。
+- 新增 public、sealed、process-local 的 source-specific exact-bucket snapshot/factory。缺 bucket 为 outer `Absent`，显式空 bucket 为 outer `Declared` 且四字段全 `Absent`；factory 不从公开可变的 `CustomColours` 反推，manual/dictionary clear/overwrite 与 snapshot 后 mutation 均不能伪造或漂移 provenance。fixed-property surface 不暴露 raw key、string lookup 或 dictionary，`ToString()` 只返回类型名。
+- 本切明确排除 `Colour{n}`、`ColourLight{n}` 及其它以 exact 大写 `Colour` 前缀开头的非四项 key；这些有效键仍按原 decoder 进入 compatibility dictionary，但不冻结为 public ABI，lowercase `colour*` 仍被旧 decoder 忽略。snapshot 保存 renderer compatibility 前的 parser value，不做 doubled alpha、zero-alpha 修正、默认回落、额外 range/视觉验证、stable lane 映射或 neutral colour taxonomy。malformed colour 留在 `flushPendingLines()` 队首并阻断同 section 后续的既有坏行为未修复，也未提升为 V1 合同。
+- focused **15/15**；连同 primitive scalar/indexed-array/legacy decoder/declaration 为 **65/65**。shared gameplay **235/235**、mania relevant **120/120**、BMS relevant **108/108**；core skin **57/62** 的 1 项 Argon 旧期待与 4 项已删除 ruleset archive 失败仍和恢复审计同名。额外 mania 全量 **815/819**，4 项仍是恢复基线同组的 `TestSceneAutoGeneration` HoldNote frame-count 期待失败，与本切文件无交集。`osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**；仅保留 9 条 MessagePack 3.1.3 `NU1902` 在 restore/build 重复与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。owning-project formatter exit 0（仅 workspace-load 概括 warning），独立审查 0 blocker / 0 major / 0 minor。首个 Markdown checker 因未含 hidden 文件且根文件 parent 为空而只报 82/858，并伴随 `Join-Path` 错误，判为无效证据；修正为 hidden-aware、root-safe、fail-closed 后权威结果为 **118 个文件 / 932 个相对链接 / 0 断链**。
+- 未实现 per-column colour、完整 neutral/global config、global resources、`NoteBodyStyle`、shared codec/structured malformed diagnostics、真实文件 validation/materialization、`SkinManager`/nullable `ISkin`/renderer/production adapter、`oms-simple`/`oms-complex` 视觉或 fallback authority 切换；未访问生产 Realm、`chartskin/`、用户皮肤目录或网络。第十三切仍只是合同/fixture 地基，Skin V1 不可用。
+
 ### `SV1-1` 第十二个合同切片：legacy mania indexed-array accepted-declaration snapshot
 
 - shared legacy mania configuration/decoder 为 `ColumnLineWidth`、`ColumnSpacing`、`ColumnWidth`、`LightingNWidth → ExplosionWidth`、`LightingLWidth → HoldNoteLightWidth` 增加 private per-index accepted-value sidecar。五个 power-of-two single-value field 通过 exact switch 选择 native/sidecar 数组；field 和 index 在写入任一 view 前完成校验，unknown/composite/越界 fail-closed。decoder 改为 field-driven scale rule：line width 不缩放，其余四组沿用 `×1.6`，未改变 `Split(',')`、`TryParse` 或现有 compatibility 值。

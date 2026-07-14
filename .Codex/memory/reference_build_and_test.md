@@ -34,6 +34,8 @@ solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能�
 
 从 JavaScript host 字符串调用 PowerShell regex 时，普通 template literal 可能先吞掉 `\[` 等反斜杠，让 Markdown link checker 把正文伪匹配为链接并产生假断链。使用 raw string（或正确双重转义）后再以“文件相对优先、仓库根回退”解析；2026-07-14 首个错误脚本曾误报 11 条垃圾目标，修正后权威结果是 118 个 Markdown、932 个相对链接、0 断链。不要把脚本自身转义错误写成仓库文档回归。
 
+同日另一轮复现两个入口遗漏：普通 `rg --files -g '*.md'` 会忽略 `.Codex` 等 hidden 文件，只数到 82 个；仓库根 Markdown 的 `Split-Path -Parent` 又会返回空串，使 `Join-Path` 报错，但脚本若未设 `$ErrorActionPreference = 'Stop'` 仍可能打印误导性的 `BROKEN 0`。权威检查必须使用 `rg --files --hidden -g '*.md' -g '!.git/**'`，把空 parent 规范化为 `.`，并让路径异常 fail-closed；修正后仍为 118/932/0。
+
 ## 2026-07-10 恢复基线
 
 - BMS 1005/1005；mania 默认 OMS 资源 1/1。

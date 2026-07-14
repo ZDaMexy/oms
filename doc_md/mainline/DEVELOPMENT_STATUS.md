@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology/保持性 transition validation、config bucket presence、legacy mania primitive scalar/indexed-array accepted snapshot、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/owner 十二个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology/保持性 transition validation、config bucket presence、legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/owner 十三个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
 | 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
-| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology/保持性 validation、config bucket presence、legacy mania primitive scalar/indexed-array accepted snapshot、event envelope/order、capability negotiation、六类 lane-resource candidate plan 与 internal resolution/owner 十二切完成；生产未接入 | 继续 native context/revision/wire、颜色/global config、真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime 与 full layout fixtures |
+| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology/保持性 validation、config bucket presence、legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot、event envelope/order、capability negotiation、六类 lane-resource candidate plan 与 internal resolution/owner 十三切完成；生产未接入 | 继续 native context/revision/wire、per-column/扩展颜色与 global config、真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime 与 full layout fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -49,7 +49,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十二个合同切片完成，未接生产链 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十三个合同切片完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -67,9 +67,9 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 ## 最近一次验证
 
-### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前十二切
+### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前十三切
 
-用户自行确认完整皮肤实机清单正常；前九切保留 lane-resource shared/mania/BMS 12/12、6/6、29/29 与 resolution/owner 55/55、capability 91/91。第十切新增 neutral topology-preserving validator 12/12；第十一、十二切新增 legacy mania 九个 primitive scalar/五组 indexed array 的 decoder accepted-declaration/value snapshot 18/18、20/20，连同 decoder/declaration 50/50。shared gameplay 235/235、mania relevant 120/120、BMS relevant 108/108，core skin 仍为同名既有 57/62，`osu.Desktop.slnf` Release 0 error / 20 warnings；第九切 BMS 全量 1117/1117 未在后三切重跑。两个 source-specific snapshot 不含颜色/global resources/`NoteBodyStyle`，不修 legacy parser 时序，也不是完整 neutral config；native keymode、revision/wire、full layout/geometry、真实文件 validation/materialization/shared codec、concrete event payload/producer、真实 manifest/授权/runtime、scene/script ABI 与生产接线均未完成。精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+用户自行确认完整皮肤实机清单正常；前九切保留 lane-resource shared/mania/BMS 12/12、6/6、29/29 与 resolution/owner 55/55、capability 91/91。第十切新增 neutral topology-preserving validator 12/12；第十一至十三切新增 legacy mania 九个 primitive scalar、五组 indexed array、四项 exact known global colour 的 decoder accepted-declaration/value snapshot 18/18、20/20、15/15，连同 decoder/declaration 65/65。shared gameplay 235/235、mania relevant 120/120、BMS relevant 108/108，core skin 仍为同名既有 57/62，`osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings；额外 mania 全量 815/819 的 4 项仍是恢复基线同组 HoldNote auto-frame 期待，第九切 BMS 全量 1117/1117 未在后四切重跑。三个 source-specific snapshot 仍不含 per-column/扩展颜色、global resources/`NoteBodyStyle`，不修 legacy parser 时序，也不是完整 neutral config；native keymode、revision/wire、full layout/geometry、真实文件 validation/materialization/shared codec、concrete event payload/producer、真实 manifest/授权/runtime、scene/script ABI 与生产接线均未完成。精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 

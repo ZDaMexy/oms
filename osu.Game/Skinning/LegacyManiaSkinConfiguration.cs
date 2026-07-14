@@ -32,6 +32,14 @@ namespace osu.Game.Skinning
         HoldNoteLightWidth = 1 << 4,
     }
 
+    internal enum LegacyManiaSkinKnownGlobalColourField
+    {
+        ColumnLine = 1 << 0,
+        JudgementLine = 1 << 1,
+        ComboBreak = 1 << 2,
+        BarLine = 1 << 3,
+    }
+
     public class LegacyManiaSkinConfiguration : IHasCustomColours
     {
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnLineWidth;
@@ -57,6 +65,14 @@ namespace osu.Game.Skinning
         internal GameplaySkinConfigurationDeclaration<bool> AcceptedKeysUnderNotes { get; private set; }
 
         internal GameplaySkinConfigurationDeclaration<int> AcceptedLightFramePerSecond { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<Color4> AcceptedColumnLineColour { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<Color4> AcceptedJudgementLineColour { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<Color4> AcceptedComboBreakColour { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<Color4> AcceptedBarLineColour { get; private set; }
 
         /// <summary>
         /// Conversion factor from converting legacy positioning values (based in x480 dimensions) to x768.
@@ -187,6 +203,36 @@ namespace osu.Game.Skinning
 
         internal GameplaySkinConfigurationDeclaration<float>[] CopyAcceptedArrayDeclarations(LegacyManiaSkinArrayField field)
             => getAcceptedArrayValues(field).ToArray();
+
+        /// <summary>
+        /// Captures one known global colour immediately after the legacy decoder successfully accepts its exact source key.
+        /// Unknown and per-column <c>Colour*</c> keys remain part of the mutable compatibility view but are deliberately outside
+        /// this closed provenance sidecar. No alpha compatibility transformation or visual validation is performed here.
+        /// </summary>
+        internal void AcceptKnownGlobalColour(LegacyManiaSkinKnownGlobalColourField field, Color4 value)
+        {
+            switch (field)
+            {
+                case LegacyManiaSkinKnownGlobalColourField.ColumnLine:
+                    AcceptedColumnLineColour = GameplaySkinConfigurationDeclaration<Color4>.Declared(value);
+                    break;
+
+                case LegacyManiaSkinKnownGlobalColourField.JudgementLine:
+                    AcceptedJudgementLineColour = GameplaySkinConfigurationDeclaration<Color4>.Declared(value);
+                    break;
+
+                case LegacyManiaSkinKnownGlobalColourField.ComboBreak:
+                    AcceptedComboBreakColour = GameplaySkinConfigurationDeclaration<Color4>.Declared(value);
+                    break;
+
+                case LegacyManiaSkinKnownGlobalColourField.BarLine:
+                    AcceptedBarLineColour = GameplaySkinConfigurationDeclaration<Color4>.Declared(value);
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania known global colour field.");
+            }
+        }
 
         private float[] getArrayValues(LegacyManiaSkinArrayField field)
         {
