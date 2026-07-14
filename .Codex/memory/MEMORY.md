@@ -15,7 +15,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — CLI gate、恢复基线、targeted formatter 与 C# Dev Kit 误判地雷。
+- [构建与测试](reference_build_and_test.md) — CLI gate、恢复基线、targeted formatter、脚本转义与 C# Dev Kit 误判地雷。
 - [网络访问](reference_network_access.md)
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md)
@@ -45,6 +45,6 @@
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、internal BMS/mania projection 与 logical/visual index 地雷。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket explicit presence、legacy mania synthetic default 与 decoder authority 地雷。
-- [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — 六类逐 lane 资源快照、BMS→mania 候选矩阵与 9K/14K 编址地雷。
+- [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — 六类逐 lane 资源快照、BMS→mania 候选矩阵、逐字段 resolution/revision owner 与 9K/14K 编址地雷。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — process-local envelope、canonical stream ordering、producer authority 与 mutable callback 地雷。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、hard-deny classifier、只读 event token 与 authority-handle 地雷。

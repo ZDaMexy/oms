@@ -80,9 +80,10 @@
 6. BMS 现有 `PlayfieldWidth/Height`、normal/scratch width/spacing 等 F1 字段作为兼容输入保留，但最终映射须进入 engine layout descriptor，不允许脚本直接改时序。
 7. `HitTargetVerticalOffset` 继续锁 0，直到独立专题证明 `scrollLengthRatio`、GN、判定窗口和 replay 不变量；不能通过皮肤偷偷改变。
 8. 加载行为必须 fail-open 并产生结构化诊断：未知键、非法值、缺素材、不支持 capability 和 fallback 来源可查询。当前“静默跳过”只算恢复基线，不算 V1 完成。
-9. neutral config 必须保留 explicit declaration/presence：presence carrier 的默认值是 `Absent`，显式 bucket 即使为空也为 `Declared`；declaration 只表示来源事实，不等于 slot `Provide`、验证成功或 `Suppress`。通用 carrier 必须区分显式 `false`、`0`、空字符串与缺失；当前第八切只覆盖 note、LN head/body/tail、key up/down 六个逐 lane 资源字段，不能写成完整 field-level neutral config 已完成。
-10. shared codec 采用 adapter-first 迁移：mania presence 只能来自 `LegacyManiaSkinDecoder` 实际产出的 bucket，不能来自会为缺失 bucket 合成默认 configuration 的 `LegacySkin` lookup；BMS 只有 `BmsSkinDecoder` 接受并产出的有效 `Keymode` bucket 才算 `Declared`。第八切只新增 decoder-output snapshot 与有序候选计划，未改变 tokenizer、mania/BMS production lookup、renderer 或现有 fallback chain；fixture 稳定后再替换共同解析，不得把这些变更合并成一次生产切换。
+9. neutral config 必须保留 explicit declaration/presence：presence carrier 的默认值是 `Absent`，显式 bucket 即使为空也为 `Declared`；declaration 只表示来源事实，不等于 slot `Provide`、验证成功或 `Suppress`。通用 carrier 必须区分显式 `false`、`0`、空字符串与缺失；当前前九切仍只覆盖 note、LN head/body/tail、key up/down 六个逐 lane 资源字段，不能写成完整 field-level neutral config 已完成。
+10. shared codec 采用 adapter-first 迁移：mania presence 只能来自 `LegacyManiaSkinDecoder` 实际产出的 bucket，不能来自会为缺失 bucket 合成默认 configuration 的 `LegacySkin` lookup；BMS 只有 `BmsSkinDecoder` 接受并产出的有效 `Keymode` bucket 才算 `Declared`。第八切新增 decoder-output snapshot 与有序候选计划，第九切只新增 process-local provider/resolution/owner 合同；均未改变 tokenizer、mania/BMS production lookup、renderer、`SkinManager`、真实 fallback 或 reload。fixture 稳定后再替换共同解析，不得把这些变更合并成一次生产切换。
 11. lane-resource field catalog 是 closed process-local taxonomy，不是 manifest/serialization ABI；snapshot 必须绑定 exact immutable topology、防御性复制、确定性排序、拒绝 null/未知字段/重复 lane-field，缺项为 `Absent`、显式空资源名仍为 `Declared`，安全字符串不得展开资源名。public legacy mania factory 只因跨 ruleset 程序集桥接而公开，不得当作作者/plugin/package/script API。
+12. lane-resource candidate adapter 只发出 canonical marker 前的 selected-package providers，并保持 plan 顺序；完整调用方顺序仍为 beatmap-local → selected candidates → ruleset resources → explicit canonical。lookup 必须匹配 exact topology、canonical field 与该 field 的 semantic descriptor；缺声明不得 materialize，ini candidate 不得制造 `Suppress`，取消异常不得转换为 fallback。当前只有 internal interface/fake owner，没有 concrete production revision manager。
 
 ## osu 社区式制作者合同
 
@@ -104,6 +105,9 @@
 1f. lane/keymode/side/result 等 context 必须由 `GameplaySkinSlotLookup<TContext>` 与 descriptor 分离承载。catalogued resolution 的 requirement 只能来自 descriptor；旧 raw overload 只保留给 uncatalogued compatibility，未来生产接线不得用它绕过 taxonomy。
 1g. LN head/body 保证必要可读性，tail cap 可 suppress。lane cover 只在玩法启用时请求 critical `fill`，该视觉必须挂在引擎强制 geometry/clip host 内，皮肤不得改变真实遮挡范围；`decoration` 仍 optional。`bga.viewport` 只呈现引擎拥有的只读 content surface，不拥有 player/timeline/clock。
 1h. catalogued diagnostic 的 `SlotId` 是可持久化稳定字段；进程内 `Slot`/`Exception` 不得序列化，安全 `ToString()` 也不得展开它们。`ProviderName` 必须是非敏感 authority 名且不得含绝对路径；当前代码只靠 provider 合同约束，不能宣称自动脱敏。
+1i. source-aware lane-resource reference 可以把未验证 resource name 交给 materializer，但稳定诊断、JSON 与安全字符串不得展开它；同一 raw name 在不同 source/Keys/lane/field 下必须保留 authority 区分，不能只按字符串名共享或去重。
+1j. lane-resource materializer 必须在返回前由 revision owner 持有 component 并完成基础验证；winner 与被额外 validator 拒绝/异常隔离的 component 都继续归 owner，resolver/provider/consumer 不得单独 dispose。active 与 provisional owner 不得跨 revision 混用：失败 provisional 只 dispose 自身；成功替换先原子切换并 detach superseded consumer，再 dispose 旧 owner；teardown 同样先 detach 后 dispose。
+1k. 第九切 revision-owner 只是 internal contract/fixture，不证明真实 `.osk` containment/存在性/解码、纹理预算、Drawable parenting/thread affinity、缓存或原子 reload 已实现；这些责任不得下沉给 shared resolver，也不得借此宣称 `SV1-2` 已开工。
 2. 三态链只替换 gameplay package 内的组件解析：用户所选 `.osk` → ruleset adapter/compatibility → 随发行物只读携带的 `oms-simple.osk`。现有 `BeatmapSkinProvidingContainer` 的谱面内皮肤 enable/colour/hitsound 语义，以及 `RulesetSkinProvidingContainer` 注入 ruleset resource skin 的相对 authority，在另有迁移决议前必须保持；不得把完整现有链误写成只有上述三层。
 2a. `Suppress` 默认只作用于声明它的 gameplay package slot，不得越权穿透或屏蔽更高优先级的 beatmap-local provider；若未来需要改变该边界，必须单独冻结 precedence fixture 和用户迁移规则。
 2b. 测试中名为 `oms-simple` 的 fake provider 只证明 canonical 末端语义，不代表真实 `oms-simple.osk` 已制作、校验或接入生产 fallback authority。

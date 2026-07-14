@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_lane_resource_compatibility
-description: Skin V1 六类 lane-resource neutral snapshot、BMS→mania 候选链与 9K/14K 编址地雷
+description: Skin V1 六类 lane-resource snapshot、BMS→mania 候选链、逐字段 resolution/revision owner 与 9K/14K 编址地雷
 metadata:
   node_type: memory
   type: reference
@@ -28,7 +28,7 @@ metadata:
 
 - P2/CenterRightScratch full bucket 使用 global visual index，stable lane ID/action 不变。
 - 14K deck bucket 使用 group-local visual index；同一个真实 Keys8 bucket 投影两次，因为 legacy decoder 不保留第二个 duplicate Keys8 section。Keys8 必须先于 Keys14，才能优先保留 scratch/deck-local presentation。
-- marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；candidate plan 不验证资源、不做 first-value resolution。
+- marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；第八切 candidate plan 自身不验证资源、不做 first-value resolution。第九切另由 internal provider adapter 消费该 plan，不能把两层混写成 production loader。
 
 ## 9K raw token 地雷
 
@@ -36,9 +36,18 @@ metadata:
 
 V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突诊断引入。绝不能同时静默接受 `0..8` 与 `1..9`：两套编号的 `1..8` 含义重叠。
 
+## 第九切 resolution / revision-owner 地雷
+
+- selected-package factory 只发出 canonical marker 前的 candidates 并保持 plan 顺序；完整层级仍由 caller 显式组合 beatmap-local → selected candidates → ruleset resources → canonical。factory 绝不能制造名为 `oms-simple` 的 provider。
+- 缺 bucket/field 直接 `Inherit` 且不得调用 materializer；显式空字符串仍是 declaration，必须交给 materializer 做基础验证。ini declaration 永不产生 `Suppress`，取消异常必须传播。
+- source-aware reference 至少区分 source、Keys、stable lane ID、field 与 raw resource name。同一 raw name 在 BMS/mania 或不同 bucket 下可以有不同结果，不能只按字符串名跨 authority 共用；resource name 不得进入稳定诊断、JSON 或安全字符串。
+- materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
+- active/provisional owner 不能交叉：失败 reload 只 dispose 新 provisional owner，旧 active owner 继续存活；成功原子替换先 detach superseded consumer，再 dispose 旧 owner；teardown 同样先 detach 后 dispose。第九切只有 internal interface/fake owner fixture，没有 concrete production owner、Drawable parenting/thread affinity、缓存或 atomic reload。
+
 ## 2026-07-14 验证基线
 
 - 新增 focused：shared 12/12、mania 6/6、BMS 29/29，合计 47/47。
+- 第九切 BMS resolution/owner 55/55；BMS 全量 1117/1117。
 - 扩回归：shared gameplay 223/223、provider 6/6、mania relevant 119/119 + decoder 7/7、BMS relevant 107/107 + fallback 104/104。
-- core skin 57/62 仍为恢复基线同名 5 项；Release Rebuild 0 error / 20 warnings。
+- core skin 57/62 仍为上一切恢复基线同名 5 项；第九切未改 shared/mania，shared/core/mania focused 均未重跑；Release 0 error / 20 warnings。
 - 未接生产 `SkinManager`/renderer/`ISkin`，未改变程序化 `OmsSkin` 或 fallback authority，未触碰生产数据。

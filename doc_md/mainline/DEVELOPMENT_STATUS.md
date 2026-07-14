@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology、config bucket presence、event envelope/order、capability negotiation/禁止 authority 与六类 lane-resource candidate plan 八个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology、config bucket presence、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/owner 九个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
 | 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
-| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology、config bucket presence、event envelope/order、capability negotiation 与六类 lane-resource candidate plan 八切完成；生产未接入 | 继续完整 config/validation/shared codec、concrete event payload/producer、真实 capability manifest/runtime 与 full layout fixtures |
+| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology、config bucket presence、event envelope/order、capability negotiation、六类 lane-resource candidate plan 与 internal resolution/owner 九切完成；生产未接入 | 继续完整 config/真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime 与 full layout fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -35,7 +35,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
 - **slot taxonomy**：26 个内部 semantic family 已固定 7 critical / 19 optional，descriptor 与 ruleset context 分离；它不是作者 manifest ABI、layout descriptor 或生产 suppress 接线。
 - **lane identity/topology**：强类型 identity 之上已落 immutable snapshot/group/entry、四类 logical/visual index、只读排序视图，以及 internal BMS/mania projection fixtures；尚无 full layout/geometry、transition/wire ABI 或生产接线。
-- **config presence**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、六类 lane-resource immutable snapshot 与有序 BMS→mania candidate plan 已落；尚无其余完整 field config/validation/shared codec、真实 fallback resolution 或生产接线。
+- **config presence/resolution**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、六类 lane-resource immutable snapshot、有序 BMS→mania candidate plan、process-local source-aware resolution 与 revision-owner 合同已落；尚无其余完整 field config、真实文件 validation/materialization/shared codec、production fallback 或接线。
 - **event foundation**：process-local immutable envelope、engine-owned payload hierarchy 与 internal canonical-stream ordering cursor 已落；尚无 concrete payload family、lifecycle producer/dispatch、sampling、scene/script consumer 或生产接线。
 - **capability foundation**：process-local closed-allowlist evaluator、host support/per-skin authorization 分层、immutable decision 与 hard-deny authority classifier 已落；当前没有真实 capability、manifest/身份绑定/授权存储 UI、runtime gate 或 sandbox。
 - **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
@@ -49,7 +49,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前八个合同切片完成，未接生产链 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前九个合同切片完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -67,9 +67,9 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 ## 最近一次验证
 
-### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前八切
+### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前九切
 
-用户自行确认完整皮肤实机清单正常；新增 lane-resource shared/mania/BMS 12/12、6/6、29/29，capability 91/91、shared gameplay focused 223/223（event envelope/cursor 23/23），provider 6/6、mania relevant 119/119 + decoder 7/7、BMS relevant 107/107 + fallback 104/104；core skin 仍为同名既有 57/62，`osu.Desktop.slnf` 强制 Release Rebuild 0 error / 20 warnings。bucket/六字段 presence 与 candidate plan、event header/order、capability decision foundation 仍不是完整 neutral config/validation/shared codec、full layout/geometry、concrete event payload/producer、真实 manifest/授权/runtime、scene/script ABI 或生产能力；精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+用户自行确认完整皮肤实机清单正常；前八切 lane-resource shared/mania/BMS 12/12、6/6、29/29，capability 91/91、shared gameplay focused 223/223（event envelope/cursor 23/23），provider 6/6、mania relevant 119/119 + decoder 7/7、BMS relevant 107/107 + fallback 104/104；第九切 BMS resolution/owner 55/55、BMS 全量 1117/1117，`osu.Desktop.slnf` Release 0 error / 20 warnings。本切未改 shared/mania 源码，shared/core/mania focused 均沿用上一切已记录基线而未重跑，其中 core skin 仍为同名既有 57/62。bucket/六字段 presence/candidate/process-local resolution、event header/order、capability decision foundation 仍不是完整 neutral config、真实文件 validation/materialization/shared codec、full layout/geometry、concrete event payload/producer、真实 manifest/授权/runtime、scene/script ABI 或生产能力；精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 

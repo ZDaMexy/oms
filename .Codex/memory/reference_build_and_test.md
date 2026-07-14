@@ -26,6 +26,10 @@ solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能�
 
 同日另一个多工程切片出现相反表现：solution-level verify 直接对 LF 新文件报告大量 `ENDOFLINE`，并同时提示一处 `IDE0032`；改为 auto-property、使用 owning project 的 whitespace formatter 规范化后才稳定。两种结果说明 solution 聚合输出既可能漏报也可能集中爆出跨项目噪声；最终 authority 仍是逐 owning csproj 的 targeted whitespace/style verify，再重新编译、检查 staged bytes。
 
+## 内联检查脚本转义地雷
+
+从 JavaScript host 字符串调用 PowerShell regex 时，普通 template literal 可能先吞掉 `\[` 等反斜杠，让 Markdown link checker 把正文伪匹配为链接并产生假断链。使用 raw string（或正确双重转义）后再以“文件相对优先、仓库根回退”解析；2026-07-14 首个错误脚本曾误报 11 条垃圾目标，修正后权威结果是 118 个 Markdown、932 个相对链接、0 断链。不要把脚本自身转义错误写成仓库文档回归。
+
 ## 2026-07-10 恢复基线
 
 - BMS 1005/1005；mania 默认 OMS 资源 1/1。
