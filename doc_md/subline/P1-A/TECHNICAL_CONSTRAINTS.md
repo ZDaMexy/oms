@@ -133,6 +133,12 @@
 9. 脚本 VM 必须支持可抢占 instruction quota 与 heap quota；只在回调返回后检查 stopwatch 无法防无限循环，不可作为安全预算。
 10. package/runtime 限制总压缩/解压字节、单资源解码像素、总 decoded bytes/纹理/atlas/动画帧、global/lane/note/effect 节点和每帧预算；超限/异常只熔断脚本/scene/对应组件，不能中断 gameplay。
 11. 脚本 capability 必须声明；允许的可选能力须 per-skin 显式授权、可查询、可撤销。网络/任意文件/反射/进程/线程/原生库/gameplay writes 永不授权。
+11a. capability grant 必须同时满足：package 显式 request、ID 存在于 engine closed allowlist、required host feature 当前可用、需要 per-skin authorization 的项已由当前 skin 获准，并且未命中 hard deny。任一单独的 request/support/grant snapshot 都不能制造权限；unknown 不动态注册，hard deny 永远优先。
+11b. capability ID 是非敏感小写 ASCII opaque token，不得嵌入包名、用户数据、资源名或路径。当前 CLR carrier/diagnostic/JSON 仅为 process-local decision 与隐私 fixture，不是 manifest、持久化或 script ABI；未来 parser 必须先实施 ID 长度、request 数量与 package budget。
+11c. hard-deny catalog/classifier 是 closed allowlist 后的第二道 fail-closed 屏障，不是对任意同义词的穷举。明确禁止 gameplay input/lane/action/layout/judgement-line/cover/scroll/timing/clock/judgement/score/combo/gauge/chart/beatmap/BGA mutation、Realm/config authority，以及 network/arbitrary filesystem/reflection/process/thread/native family。禁止 `gameplay.layout.write` 不等于禁止经 schema 校验的声明式 geometry；package-scoped resource read 也不等于 arbitrary filesystem。
+11d. 当前内部 classifier 对明确 deny root 及 descendant、以及 terminal mutation action 生效；只读 event fixture 以 terminal `.read` 区分，因此 `reset/seek/create/update` 等事件名可出现在前序 segment。该命名规则尚不是 author ABI，未来 catalog/manifest 定稿不得把只读 event family 误分类成写 authority。
+11e. negotiation result 只能携带 immutable granted ID 与结构化 denial，不得携带 delegate/service/object/authority handle；同一 ID 不得同时 grant/deny，hard-denied ID 不得进入 grant。撤销通过重新协商产生新 snapshot，但每个 future host API 仍须实际 runtime gate；本合同不证明旧 scene/script 已原子停用。
+11f. 第七切没有真实 production capability、package identity、授权存储/UI、required/optional、explicit deny 状态、layer activation/fallback、protocol version 或 sandbox runtime。`NoAdditionalAuthorization` 只可用于经产品策略确认的低风险 baseline；允许的可选 package 能力仍必须 per-skin authorization。
 12. 脚本编译和文件 IO 不在 update thread 执行；不得在事件回调做阻塞操作。
 13. 任何脚本引擎选型先通过 preemption/capability isolation、license、Windows 打包、性能/GC 和调试诊断 spike。采用 Lua 不等于兼容 `.luaskin` 或 beatoraja runtime。
 14. 受信任 C# `ISkin` provider 可留作开发/高级扩展，但用户可分发 V1 皮肤不得依赖编译 DLL。

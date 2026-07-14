@@ -20,6 +20,8 @@ metadata:
 
 `dotnet format --include` 对新/未跟踪 test 文件可能给出与真实编译不一致的 `IDE0005` unused-using 建议。不要只凭该 warning 删除 namespace；先看实际符号使用并立刻编译对应 test project。2026-07-14 曾按误报移除 `System.Collections.Generic`，随后 `HashSet<>` 以 `CS0246` 失败；改用已引用 LINQ 的 `ToHashSet()` 后 focused 与 verify 才同时通过。编译器结果高于 formatter 概括 warning。
 
+同日 capability fixture 再次复现：formatter 删除实际用于 `BindingFlags` 的 `System.Reflection`，随后 owning test project 以 4 个 `CS0103` 失败；改用 `System.Reflection.BindingFlags` 全限定名后恢复。不要因为同一误报已见过一次就跳过编译复核。
+
 solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能漏掉新 test 文件的 owning-project `end_of_line` 规则：2026-07-14 一次 solution verify 返回 0，但随后直接对 `osu.Game.Tests.csproj` verify 才报告同一文件 89 行 `ENDOFLINE`。新/未跟踪文件必须再按所属 csproj 执行 whitespace verify，并在规范化后重新暂存和跑 `git diff --cached --check`；不要把 solution-level 0 当成 staged bytes 已合规。
 
 ## 2026-07-10 恢复基线

@@ -46,3 +46,4 @@
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、internal BMS/mania projection 与 logical/visual index 地雷。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket explicit presence、legacy mania synthetic default 与 decoder authority 地雷。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — process-local envelope、canonical stream ordering、producer authority 与 mutable callback 地雷。
+- [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、hard-deny classifier、只读 event token 与 authority-handle 地雷。

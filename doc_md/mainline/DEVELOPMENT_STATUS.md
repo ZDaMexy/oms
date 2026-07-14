@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology、config bucket presence 与 event envelope/order 六个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology、config bucket presence、event envelope/order 与 capability negotiation/禁止 authority 七个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
 | 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
-| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology、config bucket presence 与 event envelope/order 六切完成；生产未接入 | 继续 field-level config、concrete event payload/producer、capability 与 full layout fixtures |
+| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology、config bucket presence、event envelope/order 与 capability negotiation 七切完成；生产未接入 | 继续 field-level config、concrete event payload/producer、真实 capability manifest/runtime 与 full layout fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -37,6 +37,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 - **lane identity/topology**：强类型 identity 之上已落 immutable snapshot/group/entry、四类 logical/visual index、只读排序视图，以及 internal BMS/mania projection fixtures；尚无 full layout/geometry、transition/wire ABI 或生产接线。
 - **config presence**：default=`Absent` 的共享 declaration carrier 与 internal decoder bucket projection 已落；尚无 field-level neutral snapshot、shared codec、compatibility mapping 或生产接线。
 - **event foundation**：process-local immutable envelope、engine-owned payload hierarchy 与 internal canonical-stream ordering cursor 已落；尚无 concrete payload family、lifecycle producer/dispatch、sampling、scene/script consumer 或生产接线。
+- **capability foundation**：process-local closed-allowlist evaluator、host support/per-skin authorization 分层、immutable decision 与 hard-deny authority classifier 已落；当前没有真实 capability、manifest/身份绑定/授权存储 UI、runtime gate 或 sandbox。
 - **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
 - **社区合同**：`.osk`、根 `skin.ini`、mania 共同素材/动画命名和拖入导入沿用 osu 社区心智；BMS/scene/script 是版本化扩展，作者不需要编译 DLL。
 - **未落地**：G1 生产链、shared codec/layout descriptor、scene/event/script runtime、生产三态 suppress、`oms-simple/complex`、Authoring Kit 与文件 fallback；事故期 F2/Lua/mania adapter/reference-default 均不计能力。
@@ -48,7 +49,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前六个合同切片完成，未接生产链 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前七个合同切片完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -66,9 +67,9 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 ## 最近一次验证
 
-### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前六切
+### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前七切
 
-用户自行确认完整皮肤实机清单正常；slot+identity+topology+presence+event shared focused 120/120（event envelope/cursor 23/23）、config presence shared/mania/BMS 5/5、13/13、9/9，既有 provider、mania/BMS focused 保持通过；core skin 仍为同名既有 5 项失败，`osu.Desktop.slnf` 强制 Release Rebuild 0 error / 20 warnings。bucket presence 和 event header/order foundation 仍不是 field-level neutral config/shared codec、full layout/geometry、concrete event payload/producer、scene/script ABI 或生产能力；精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+用户自行确认完整皮肤实机清单正常；capability 91/91、slot+identity+topology+presence+event+capability shared focused 211/211（event envelope/cursor 23/23），provider 6/6、mania relevant 113/113 + decoder 7/7、BMS relevant 78/78 + fallback 104/104；core skin 仍为同名既有 57/62，`osu.Desktop.slnf` 强制 Release Rebuild 0 error / 20 warnings。bucket presence、event header/order 与 capability decision foundation 仍不是 field-level neutral config/shared codec、full layout/geometry、concrete event payload/producer、真实 manifest/授权/runtime、scene/script ABI 或生产能力；精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 

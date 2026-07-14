@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 已完成三态/precedence、ruleset-neutral semantic slot taxonomy、neutral lane identity、immutable lane topology projection、configuration bucket explicit-presence 与 gameplay event envelope/order 六个合同切片，但未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
+皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 已完成三态/precedence、ruleset-neutral semantic slot taxonomy、neutral lane identity、immutable lane topology projection、configuration bucket explicit-presence、gameplay event envelope/order 与 capability negotiation/禁止 authority 七个合同切片，但未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
 
 ## Skin V1 目标
 
@@ -30,6 +30,7 @@
 | semantic slot taxonomy | 第二个合同切片已落 | 26 个内部语义 slot 固定 7 critical / 19 optional、稳定诊断 ID 与 context 分离；不是作者 manifest ABI 或 layout descriptor |
 | neutral lane identity/topology | 第四个合同切片已落 | 强类型 identity 之上新增 immutable snapshot/group/entry、四类零基 logical/visual index、只读排序视图与强类型 lookup；internal BMS/mania projection fixtures 已固定，仍不是完整 layout context、geometry 或生产 adapter 接线 |
 | gameplay event envelope/order | 第六个合同切片已落 | V1 process-local immutable envelope、engine-owned payload hierarchy 与 internal fail-closed canonical-stream cursor 已固定；只有 header/ownership/order fixture，没有具体 event family、完整 state payload、lifecycle producer、dispatch 或 script ABI |
+| capability negotiation/禁止 authority | 第七个合同切片已落 | process-local request/host support/per-skin authorization/decision 分层、closed allowlist 与 hard-deny classifier 已固定；没有真实 capability catalog、manifest、授权存储/UI、runtime gate 或 sandbox |
 | playfield topology | 部分可用 | 5K/7K/9K/14K lane order、双皿和 single-play style 已有自动覆盖；统一 descriptor/全矩阵未落，sparse chart 的 keymode 推断仍有低估风险 |
 | HUD 几何联动 | 存在缺口 | playfield 读取皮肤 profile，gauge/combo 却重新取默认 profile；皮肤改宽/高后会脱节 |
 | BGA host | 部分可用 | 时间线和 skinnable panel 已有；固定 rect 不消费 skin-resolved playfield，center-right-scratch 仍按右侧 BGA，14K 四角四 player 是临时表现 |
@@ -59,7 +60,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | --- | --- | --- |
 | 1 | schema 56 `SkinInfo` 数据安全门 | **通过**：备份与副本演练后定点移除异常 copy、修正 OMS 固定记录；路径 authority 正常 |
 | 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | **通过**：用户于 2026-07-14 自行确认全清单正常；Agent 未操控 GUI |
-| 3 | shared contract/fixture 代码冻结 | 进行中：三态/precedence、semantic slot taxonomy、neutral lane identity/topology、config bucket presence 与 event envelope/order 六切完成；full layout、field-level config、具体 event family/producer 与 capability 仍未完成 |
+| 3 | shared contract/fixture 代码冻结 | 进行中：三态/precedence、semantic slot taxonomy、neutral lane identity/topology、config bucket presence、event envelope/order 与 capability negotiation 七切完成；full layout、field-level config、具体 event family/producer、真实 capability manifest/runtime 仍未完成 |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -68,7 +69,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 最近验证
 
-### `SV1-0` 闭门与 `SV1-1` 前六个合同切片（2026-07-14）
+### `SV1-0` 闭门与 `SV1-1` 前七个合同切片（2026-07-14）
 
 | 检查 | 结果 |
 | --- | --- |
@@ -77,14 +78,17 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | shared declaration / mania bucket / BMS bucket focused | **5/5；13/13；9/9** |
 | lane identity / topology snapshot / shared 合并 | **26/26；19/19；slot+identity+topology+presence+event 120/120** |
 | gameplay event envelope / canonical stream cursor | **23/23**；覆盖 Snapshot/Reset/Edge、mid-session attach high-water、epoch/sequence 连续、负 lead-in time、layout revision、拒绝原子性与溢出边界 |
+| capability negotiation / shared gameplay 总集 | **91/91；211/211**；覆盖 closed allowlist、host support、per-skin authorization、hard-deny family、近义 authority、只读 event token、不可变/矛盾快照与公开面 |
 | `SkinProvidingContainer` / `RulesetSkinProvidingContainer` authority guard | **6/6**；实链顺序为 beatmap-local → selected → ruleset resources → protected built-in |
 | BMS lane layout + topology projection | **26/26**（其中 projection 19/19）；5K/7K 四 style、9K BMS/PMS、14K 双 deck/双皿与 malformed composition 均固定 |
 | BMS parser/legacy/reference/render focused | 43/43 |
 | BMS transformer + user fallback | 104/104 |
-| mania topology/special/`TestSceneOmsBuiltInSkin` / 默认资源专项 | **95/95**（其中 projection 8/8）；专项 1/1 |
+| mania relevant / legacy decoder / 默认资源专项 | **113/113；7/7；专项 1/1**；topology、bucket presence、OMS-owned component 与 `TestSceneOmsBuiltInSkin` 均保持通过 |
 | core skin focused | 57/62；5 项与恢复审计同名，无新失败 |
 | `osu.Desktop.slnf` Release | **0 error / 20 warnings** |
-| Markdown 相对链接 / diff | 116 个文件、923 个相对链接、0 断链；working tree 与 staged diff 检查通过 |
+| Markdown 相对链接 / diff | 117 个文件、926 个相对链接、0 断链；working tree 与 staged diff 检查通过 |
+
+第七切新增 opaque `GameplaySkinCapabilityId`、只读 request/diagnostic/negotiation snapshot 与 internal pure negotiator。request、closed allowlist definition、host feature availability 和当前 skin authorization snapshot 四者任何单项都不能产生 grant；hard-denied authority 优先于 fake allowlist/support/authorization，unknown 不动态注册，host unavailable 优先于 stale grant，允许的 per-skin capability 必须存在当前授权。28 个明确 token、其 descendant、gameplay terminal mutation action 与 Realm/config/network/arbitrary-filesystem/reflection/process/thread/native family 均 hard deny；classifier 只看末端 action，`reset/seek/create/update` 等事件名位于前序 segment 且以 `.read` 结束时不会误杀。结果拒绝 hard-denied grant、同 ID grant+deny、重复 denial 和 code/ID 不一致，且只携带 decision，不携带 service/delegate/authority handle。当前没有 production definition；测试仅使用临时 fake definitions（含只读 token 分类 fixture），没有真实 capability、manifest/package identity/授权持久化/UI、required/optional、layer activation/version、host-call gate、VM 或 sandbox；重新协商只证明 revocation snapshot 变化，不证明运行层会原子停用旧实例。
 
 第六切新增非 generic、只读的 `GameplaySkinEventEnvelope`，固定 `apiVersion/epoch/sequence/gameplayTime/layoutRevision` 与 `Snapshot/Reset/Edge` 投递类别；payload 只能由 shared engine hierarchy 定义，envelope 只由内部 dispatcher 边界构造。internal cursor 只校验 capability/family filtering 前的完整 canonical stream：首次中途 attach 可用完整 Snapshot 建立任意非负 high-water，之后 epoch 与同 epoch sequence 必须连续；gameplay time 同 epoch 非递减但允许负 lead-in 与同时间，Reset 在下一 epoch 的 sequence 0 原子重锚，layout revision 全流不回退且 Edge 不得先行切 revision。任何拒绝不推进 cursor，也不排序、补洞或修复。最终 event 23/23、shared gameplay aggregate 120/120、provider authority 6/6、mania relevant 108/108 + legacy decoder 7/7、BMS relevant 78/78 + transformer/fallback 104/104；core skin 57/62 仍是同名既有 5 项，Release Rebuild 0 error / 20 warnings。每个测试/构建保留 9 条 MessagePack `NU1902`，BMS 编译另保留既有 `CS8600`/`CA2007`，未使用 `NoWarn`。这些 fixture 不能证明真实 reload/seek/retry producer 或 Snapshot/Reset 完整 payload，具体 event families、dispatch、连续采样与生产 host 仍未实施。
 
@@ -121,6 +125,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 - catalogued 诊断的 context/exception 已从 JSON 与安全 `ToString()` 排除，但 `ProviderName` 的隐私仍依赖 provider 遵守“非敏感 authority 名、不得含绝对路径”合同。
 - neutral topology aggregate 已对单 snapshot 的重复 ID/metadata membership conflict、索引 permutation、local/global 顺序和 group 连续块 fail-closed，并显式携带 global/group-local logical/visual index；但跨 revision 稳定仍只是 producer 合同，尚无 transition validator，也没有 keymode/style/action/source、geometry、full `GameplaySkinLayoutContext` 或生产接线。
 - event foundation 目前只有空 fixture payload 可验证 header/ownership/order；无法证明 lifecycle bridge 会在 attach/reload/seek/retry 的真实时点发布完整 Snapshot/Reset，也没有 lifecycle/layout/input/object/judgement/score/timing/BGA payload、连续 scratch/scroll 节流、结构化 runtime fault isolation 或生产 dispatcher。现有 `GameplayClockContainer.OnSeek` 无 reason/time 且 `Reset()` 同样经过 `Seek()`，不得直接冒充 producer。
+- capability foundation 目前没有任何真实 production allowlist entry；ID/request/diagnostic 不是 manifest、持久化或 script ABI，per-skin authorization snapshot 也没有 package identity 绑定、存储、查询/UI 或原子撤销。`Granted` 只是纯决策且不是 authority handle，未来每个 host API 仍须重新做实际 runtime gate；hard-deny catalog/classifier 只是 closed allowlist 后的第二道屏障，不是对任意同义词的穷举。
 - 皮肤几何值无完整合法域校验；playfield、gauge/combo 与 BGA 尚未消费同一 resolved descriptor，极端值会脱节或重叠。
 - sparse 7K/9K chart 可能因未使用高位 channel 被 keymode 启发式低估；布局正确性必须以前置解析诊断/override 为条件。
 - 设置文案仍写 `14K→中缝`，当前代码实际为四角四 player；两者都不是 V1 authority，发布前必须统一到 descriptor。
@@ -132,5 +137,5 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 下一检查点
 
-1. 继续 `SV1-1` 的 field-level config presence/diagnostics、compatibility mapping、capability/禁止写入 authority 与具体 immutable event payload fixtures；bucket presence 和 event envelope/order foundation 已冻结，但完整 neutral config snapshot/shared codec、`GameplaySkinLayoutContext`、geometry、lifecycle producer/dispatch、sampling/throttling 与 transition/wire ABI 仍属后续。前六个合同切片不等于整个 `SV1-1` 完成。
+1. 继续 `SV1-1` 的 field-level config presence/diagnostics、compatibility mapping 与具体 immutable event payload fixtures；bucket presence、event envelope/order 和 capability negotiation/禁止 authority foundation 已冻结，但完整 neutral config snapshot/shared codec、`GameplaySkinLayoutContext`、geometry、lifecycle producer/dispatch、sampling/throttling、真实 capability manifest/version/activation/runtime gate 与 transition/wire ABI 仍属后续。前七个合同切片不等于整个 `SV1-1` 完成。
 2. 在另立生产接线切片前保持 `SkinManager`、nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；G1 仍按 `SV1-2` 独立重做。
