@@ -80,8 +80,8 @@
 6. BMS 现有 `PlayfieldWidth/Height`、normal/scratch width/spacing 等 F1 字段作为兼容输入保留，但最终映射须进入 engine layout descriptor，不允许脚本直接改时序。
 7. `HitTargetVerticalOffset` 继续锁 0，直到独立专题证明 `scrollLengthRatio`、GN、判定窗口和 replay 不变量；不能通过皮肤偷偷改变。
 8. 加载行为必须 fail-open 并产生结构化诊断：未知键、非法值、缺素材、不支持 capability 和 fallback 来源可查询。当前“静默跳过”只算恢复基线，不算 V1 完成。
-9. neutral config 必须保留 explicit declaration/presence。legacy mania 在缺失 `Keys:` bucket 时生成的默认 configuration 不能视为 `Provide`，也不能遮住后层 `oms-simple`。
-10. shared codec 采用 adapter-first 迁移：先让现有 legacy decoder 导出 neutral snapshot 并以 fixture 锁定，再替换共同解析；不得一次同时改 tokenizer、mania 生产链和 BMS mapping。
+9. neutral config 必须保留 explicit declaration/presence：presence carrier 的默认值是 `Absent`，显式 bucket 即使为空也为 `Declared`；declaration 只表示来源事实，不等于 slot `Provide`、验证成功或 `Suppress`。通用 carrier 必须区分显式 `false`、`0`、空字符串与缺失；当前第五切只完成 bucket-level projection，不能写成 field-level neutral config 已完成。
+10. shared codec 采用 adapter-first 迁移：mania presence 只能来自 `LegacyManiaSkinDecoder` 实际产出的 bucket，不能来自会为缺失 bucket 合成默认 configuration 的 `LegacySkin` lookup；BMS 只有 `BmsSkinDecoder` 接受并产出的有效 `Keymode` bucket 才算 `Declared`。fixture 稳定后再替换共同解析；不得一次同时改 tokenizer、mania production lookup/chain 和 BMS compatibility mapping。
 
 ## osu 社区式制作者合同
 

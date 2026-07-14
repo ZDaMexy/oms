@@ -80,18 +80,18 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-1：共同合同与 fixture 冻结
 
-状态：进行中。三态 gameplay slot/fallback/precedence、semantic slot taxonomy、neutral lane identity primitives 与 immutable lane topology projection 四个切片已完成；未接生产选择链，full layout/config/event/capability 等条目仍待续。
+状态：进行中。三态 gameplay slot/fallback/precedence、semantic slot taxonomy、neutral lane identity、immutable lane topology projection 与 configuration bucket explicit-presence 五个切片已完成；未接生产选择链，full layout、field-level config、event/capability 等条目仍待续。
 
 1. 建立 neutral `GameplaySkinLayoutContext`、lane group/role/side/stable ID DTO 草案。**identity + topology projection 已完成**：强类型 GroupId/LaneId、group/lane identity、side/role 与 immutable snapshot/group/entry 已固定；snapshot 显式携带 global/group-local logical/visual index、排序视图与强类型 lookup，并由 internal BMS/mania factory fixture 固定 5K/7K 四 style、9K BMS/PMS、14K 双 deck 与 mania stage-local `SpecialKey`。完整 `GameplaySkinLayoutContext`、bounds/geometry、action/source/native context 与生产 adapter 接线仍待后续。
 2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。**合同/fixture 层已完成**：首切固定三态、坏 `Provide`/provider/validator 失败诊断、optional `Suppress` 与 fake `oms-simple` 末端；第二切固定 26 个内部 semantic slot family（7 critical / 19 optional）、descriptor requirement authority、稳定诊断 ID 及 context 分离。它不是 manifest ABI，生产接线仍待后续。
 3. 以真实 mania skin.ini fixture 固定 tokenizer、数组、动画帧、错误/诊断语义。
 4. 固定 BMS compatibility mapping：`[Bms]` role override → full visual bucket（5K→6、7K→8、9K→9、14K→16）→ key-only bucket（5/7/14，scratch `Inherit`）/14K 显式双 8-column deck → `oms-simple`；P2/CenterP2 mapping 用 fixture 钉死。
-5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。
+5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。**bucket-level foundation 已完成**：实际 decoder 未产出 bucket 时保持 `Absent`，显式空 bucket 仍为 `Declared`；declaration provenance 不等于 `Provide`、验证成功或 `Suppress`。field-level presence、neutral configuration snapshot 与生产 adapter 仍待后续。
 6. 用 fixture 冻结 `BeatmapSkinProvidingContainer` 与 `RulesetSkinProvidingContainer` 的既有相对 authority；三态只接管 gameplay package slot，`Suppress` 默认不得穿透更高优先 beatmap-local provider。**首切已完成**：fixture 固定 beatmap-local → selected → ruleset resources → protected built-in，并验证先命中的 beatmap `Provide` 不会被后层 `Suppress` 穿透。
 7. 建立事件 envelope：`apiVersion/epoch/sequence/gameplayTime/layoutRevision`，以及 attach/reload snapshot、seek/retry reset 与 edge 事件顺序。
 8. 建立禁止写入的 gameplay authority 列表和 capability negotiation 草案。
 
-验收：前四个合同切片已通过 shared slot+identity+topology 92/92、provider authority 6/6、BMS topology projection 19/19、mania topology projection 8/8，以及既有 mania/BMS/core/Release gate；没有接入生产 `SkinManager`。这不等于 `SV1-1` 整体完成；full layout/geometry、config/event/capability、manifest mapping、transition/wire ABI 与生产 adapter 接线仍待后续 fixture。
+验收：前五个合同切片已通过 shared slot+identity+topology+presence 97/97、config presence shared/mania/BMS 5/5、13/13、9/9、provider authority 6/6，以及既有 mania/BMS/core/Release gate；没有接入生产 `SkinManager`。这不等于 `SV1-1` 整体完成；full layout/geometry、field-level config、event/capability、manifest mapping、transition/wire ABI 与生产 adapter 接线仍待后续 fixture。
 
 ### SV1-2：G1 安全存储与原子重载
 
@@ -125,7 +125,7 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-4：mania-compatible ini 共同层
 
-状态：未开始；当前两套 decoder 仅可作为迁移输入。
+状态：shared codec 未开始；`SV1-1` 已提供 bucket-level explicit-presence 前置合同，但完整 neutral snapshot 与生产迁移尚未开始。
 
 1. adapter-first：先由现有 legacy mania/BMS decoder 导出带 explicit presence 的 neutral snapshot；fixture 稳定后再抽 shared codec，不第一刀切换 mania 生产 tokenizer。
 2. `[Bms]` 重合键使用同一 codec；BMS 独有字段由 extension schema 解析。

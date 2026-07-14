@@ -4,6 +4,15 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第五个合同切片：configuration bucket explicit presence
+
+- shared `osu.Game.Skinning.Gameplay` 新增 `GameplaySkinConfigurationDeclaration<T>`：`default`/`Absent` 不携带值，`Declared(T)` 保留显式 `false`、`0` 与空字符串；`Value` 在 absent 时 fail-closed，`TryGetValue()` 不把缺失折叠成 `default(T)`，安全 `ToString()` 只输出状态。它是 process-local declaration provenance，不是 slot `Provide/Inherit/Suppress`、validation result、manifest 或 serialisation ABI。
+- internal mania/BMS factory 只从实际 `LegacyManiaSkinDecoder` / `BmsSkinDecoder.Configurations` 输出查找 exact bucket，并返回 `int`/`BmsKeymode` immutable key marker；不经过会合成缺失 mania bucket 的 `LegacySkin` production lookup，也不把 mutable `LegacyManiaSkinConfiguration` / `BmsSkinConfiguration` 作为 neutral payload。null、同 target duplicate、unsupported gameplay key count/keymode fail-closed；其它 target 的普通 bucket 不改变 exact lookup。
+- fixtures 固定 missing `Keys:`/`Keymode` 为 `Absent`、显式空 bucket 为 `Declared`、`[General]` metadata 不创建 bucket、BMS 显式 zero/空 image 不折叠、malformed field 不抹除已存在 bucket、9K BMS/PMS 分离。审查一度按 `AvailableVariants` 把 11/19 误判为非法 equal-dual variant，首轮收紧还被 0K fixture 立即抓到下界遗漏；二次对照 topology 的 mixed dual authority（两 stage 各 1–10 列）后撤回该过窄判断，最终以 total-column 1–20 为准并恢复 13/13。
+- 最终验证：shared declaration **5/5**、mania bucket **13/13**、BMS bucket **9/9**、shared gameplay contract 合并 **97/97**、legacy mania decoder **7/7**、provider authority **6/6**、mania relevant **113/113**、BMS relevant **71/71** 与 transformer/fallback **104/104**。core skin 仍为同名既有 **57/62**；强制 `osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**。
+- 告警保持为 9 项 MessagePack `NU1902`（restore/build 重复为 18）和 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。首轮 whitespace verify 因审计补丁在两个 CRLF 文件留下 13 行 LF 而报告 `ENDOFLINE`；solution-level verify 随后又漏检未跟踪 core test，owning `osu.Game.Tests.csproj` 复核才报告其 89 行 `ENDOFLINE`。逐项目规范化后最终六文件 targeted verify 通过，workspace-load 概括告警仍对应已知 advisory。Markdown 相对链接 115 个文件 / 920 个链接 / 0 断链，working tree 与 staged diff 检查通过。
+- 本切片没有改 decoder/tokenizer、`LegacySkin` lookup、compatibility mapping、`SkinManager`、nullable `ISkin`、程序化 `OmsSkin` authority、生产 Realm、`chartskin/` 或用户皮肤目录。field-level presence/diagnostics、neutral config snapshot/shared codec、event/capability、生产 adapter 与真实 `oms-simple` 仍未实施；Skin V1 不可用。
+
 ### `SV1-1` 第四个合同切片：neutral lane topology snapshot 与 internal ruleset projections
 
 - 在 shared `osu.Game.Skinning.Gameplay` 新增 immutable `GameplaySkinLaneTopologyEntry` / `Group` / `Snapshot`。entry 显式承载 global/group-local 的 logical/visual 四类零基 index；group/snapshot 提供防御性复制后的只读排序视图和强类型 ID lookup。创建时 fail-closed 拒绝 null/empty、负 index、重复 group/lane ID、membership metadata 冲突、非 permutation、local/global order 不一致与 logical/visual group 非连续块；cross-revision 稳定仍是 producer 合同，不把单 snapshot 校验器冒充 transition validator。

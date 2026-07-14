@@ -7,6 +7,10 @@
 
 ## 2026-07-14
 
+### Skin V1 config bucket presence 第五切（P1-A）
+
+新增 default=`Absent` 的共享 configuration declaration carrier，并由 internal mania/BMS adapter 只依据实际 decoder output 固定 missing/explicit-empty bucket provenance，避免未来 neutral mapping 把 legacy mania 合成默认对象误判为声明；未改 production lookup、decoder、fallback 或用户数据。shared gameplay focused 97/97、mania/BMS presence 13/13 与 9/9，既有回归保持基线，Release Rebuild 0 error / 20 warnings；field-level config/shared codec 与 Skin V1 生产能力仍未完成。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ### Skin V1 neutral lane topology 第四切（P1-A）
 
 在 shared identity 之上新增 immutable lane topology snapshot/group/entry、global/group-local logical/visual 四类零基 index、只读排序视图与 fail-closed invariant；internal BMS/mania projection fixtures 固定 5K/7K 四 style、9K BMS/PMS、14K 双 deck/双皿和 mania stage-local `SpecialKey`。唯一对既有运行时类型的修改是只读暴露 BMS solver 已计算的 `Lane.VisualIndex`，未改变 geometry/render、`SkinManager`、`OmsSkin` authority 或用户数据。shared focused 92/92，BMS/mania projection 19/19 与 8/8，既有回归保持基线，Release Rebuild 0 error / 20 warnings；这仍不是 full layout context 或可用 Skin V1。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
