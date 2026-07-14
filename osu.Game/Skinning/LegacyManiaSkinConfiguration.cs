@@ -5,12 +5,44 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Beatmaps.Formats;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Skinning
 {
+    internal enum LegacyManiaSkinScalarField
+    {
+        WidthForNoteHeightScale = 1 << 0,
+        HitPosition = 1 << 1,
+        LightPosition = 1 << 2,
+        ComboPosition = 1 << 3,
+        ScorePosition = 1 << 4,
+        BarLineHeight = 1 << 5,
+        ShowJudgementLine = 1 << 6,
+        KeysUnderNotes = 1 << 7,
+        LightFramePerSecond = 1 << 8,
+    }
+
     public class LegacyManiaSkinConfiguration : IHasCustomColours
     {
+        internal GameplaySkinConfigurationDeclaration<float> AcceptedWidthForNoteHeightScale { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<float> AcceptedHitPosition { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<float> AcceptedLightPosition { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<float> AcceptedComboPosition { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<float> AcceptedScorePosition { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<float> AcceptedBarLineHeight { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<bool> AcceptedShowJudgementLine { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<bool> AcceptedKeysUnderNotes { get; private set; }
+
+        internal GameplaySkinConfigurationDeclaration<int> AcceptedLightFramePerSecond { get; private set; }
+
         /// <summary>
         /// Conversion factor from converting legacy positioning values (based in x480 dimensions) to x768.
         /// </summary>
@@ -63,5 +95,54 @@ namespace osu.Game.Skinning
         }
 
         public float MinimumColumnWidth => ColumnWidth.Min();
+
+        /// <summary>
+        /// Captures the current compatibility value after the legacy decoder successfully accepts one scalar declaration.
+        /// This process-local sidecar is provenance for decoder output, not an authority or security boundary.
+        /// </summary>
+        internal void MarkScalarDeclared(LegacyManiaSkinScalarField field)
+        {
+            switch (field)
+            {
+                case LegacyManiaSkinScalarField.WidthForNoteHeightScale:
+                    AcceptedWidthForNoteHeightScale = GameplaySkinConfigurationDeclaration<float>.Declared(WidthForNoteHeightScale);
+                    break;
+
+                case LegacyManiaSkinScalarField.HitPosition:
+                    AcceptedHitPosition = GameplaySkinConfigurationDeclaration<float>.Declared(HitPosition);
+                    break;
+
+                case LegacyManiaSkinScalarField.LightPosition:
+                    AcceptedLightPosition = GameplaySkinConfigurationDeclaration<float>.Declared(LightPosition);
+                    break;
+
+                case LegacyManiaSkinScalarField.ComboPosition:
+                    AcceptedComboPosition = GameplaySkinConfigurationDeclaration<float>.Declared(ComboPosition);
+                    break;
+
+                case LegacyManiaSkinScalarField.ScorePosition:
+                    AcceptedScorePosition = GameplaySkinConfigurationDeclaration<float>.Declared(ScorePosition);
+                    break;
+
+                case LegacyManiaSkinScalarField.BarLineHeight:
+                    AcceptedBarLineHeight = GameplaySkinConfigurationDeclaration<float>.Declared(BarLineHeight);
+                    break;
+
+                case LegacyManiaSkinScalarField.ShowJudgementLine:
+                    AcceptedShowJudgementLine = GameplaySkinConfigurationDeclaration<bool>.Declared(ShowJudgementLine);
+                    break;
+
+                case LegacyManiaSkinScalarField.KeysUnderNotes:
+                    AcceptedKeysUnderNotes = GameplaySkinConfigurationDeclaration<bool>.Declared(KeysUnderNotes);
+                    break;
+
+                case LegacyManiaSkinScalarField.LightFramePerSecond:
+                    AcceptedLightFramePerSecond = GameplaySkinConfigurationDeclaration<int>.Declared(LightFramePerSecond);
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania scalar field.");
+            }
+        }
     }
 }

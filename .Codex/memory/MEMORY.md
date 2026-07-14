@@ -44,7 +44,7 @@
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md)
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、neutral transition validator、internal BMS/mania projection 与 native-context 盲区。
-- [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket explicit presence、legacy mania synthetic default 与 decoder authority 地雷。
+- [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket/legacy mania primitive scalar accepted presence、synthetic default、native mutation 与 decoder authority 地雷。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — 六类逐 lane 资源快照、BMS→mania 候选矩阵、逐字段 resolution/revision owner 与 9K/14K 编址地雷。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — process-local envelope、canonical stream ordering、producer authority 与 mutable callback 地雷。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、hard-deny classifier、只读 event token 与 authority-handle 地雷。

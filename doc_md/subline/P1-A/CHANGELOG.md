@@ -4,6 +4,14 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第十一个合同切片：legacy mania primitive scalar accepted-declaration snapshot
+
+- shared legacy mania configuration/decoder 为 `WidthForNoteHeightScale`、`HitPosition`、`LightPosition`、`ComboPosition`、`ScorePosition`、`BarlineHeight`、`JudgementLine`、`KeysUnderNotes`、`LightFramePerSecond` 九个 primitive scalar 增加 internal accepted-value sidecar。只在既有 parse、转换、clamp/scale、bool/FPS 规范化成功赋值后捕获 `Declared(value)`；枚举标识是 single-value discriminant，未知/组合值 fail-closed。sidecar 是 process-local decoder provenance，不是 security/authority boundary。
+- 新增 public、sealed、process-local 的 source-specific bucket snapshot 与 factory。factory 只扫描实际 decoder output 的 exact `Keys:` bucket，不经过会合成默认 configuration 的 production `LegacySkin` lookup；缺 bucket 为外层 `Absent`，显式空 bucket 为外层 `Declared` 且九字段全 `Absent`，显式默认保持 `Declared`。accepted value 在 decoder 时已复制，decode 后先改 native public 字段再调用 factory、或 snapshot 后再改，均不能漂移；手工构造/直接 native mutation 也不能伪造 presence。
+- focused 从初版 presence-only **15/15**，在独立预审指出“factory 读取 mutable native 调用时值”后改为 presence+accepted-value sidecar，并补 mutation fixture；随后又补 duplicate `Keys` discarded bucket 不污染 accepted bucket和 unknown/composite sidecar field fail-closed，最终 **18/18**。连同既有 legacy decoder/declaration 为 **30/30**；fixtures 还覆盖 missing/empty/exact bucket、显式 defaults、既有转换/bool/FPS 规则、scalar-before-Keys、malformed numeric、`NaN`/`Infinity` declared-but-unvalidated、重复 scalar last accepted、伪 duplicate/null decoder output、公开面与安全字符串。独立终审为 0 blocker / 0 major / 0 minor。
+- 扩大验证为 shared gameplay **235/235**、mania relevant **120/120**、BMS relevant **108/108**；core skin **57/62** 的 1 项 Argon 旧期待与 4 项已删除 ruleset archive 失败仍和恢复审计同名，无新失败。最终 `osu.Desktop.slnf` Release **0 error / 20 warnings**；只保留 9 条 MessagePack 3.1.3 `NU1902`（restore/build 重复为 18）与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。多轮 owning-project formatter/verify 均 exit 0，仅显示已知 workspace-load 概括 warning；Markdown **118 文件 / 932 相对链接 / 0 断链**，diff 检查通过。
+- 未覆盖五组数组/per-index mask、颜色、global resources、`NoteBodyStyle`、finite/range validation、完整 neutral config、shared codec、真实文件 validation/materialization 或生产 adapter。`flushPendingLines()` 坏行保留、malformed/duplicate `Keys` 的既有 parser 时序没有顺手改变，另列 shared codec/malformed diagnostics 决议；未接 `SkinManager`、nullable `ISkin`、renderer、真实 `.osk`/`oms-simple` 或 `OmsSkin` authority 切换，也未访问生产 Realm、`chartskin/`、用户皮肤目录或网络。第十一切仍只是合同/fixture 地基，Skin V1 不可用。
+
 ### `SV1-1` 第十个合同切片：neutral topology-preserving transition validator
 
 - shared `osu.Game.Skinning.Gameplay` 新增 public static、process-local 的 `GameplaySkinLaneTopologyTransitionValidator`。它只接收两个已构造的 immutable neutral snapshot：前后 GroupId/LaneId 集合、group logical index、lane group membership/role/global 与 group-local logical index 必须稳定；group side、group visual index 与 lane global/group-local visual index/order明确允许改变。无效 current 以 `ArgumentException` fail-closed；stable ID 可进入诊断，因为既有合同已禁止其中包含用户、包、资源名或路径。

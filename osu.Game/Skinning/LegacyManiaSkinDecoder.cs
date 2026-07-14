@@ -88,30 +88,37 @@ namespace osu.Game.Skinning
 
                     case "BarlineHeight":
                         currentConfig.BarLineHeight = float.Parse(pair.Value, CultureInfo.InvariantCulture);
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.BarLineHeight);
                         break;
 
                     case "HitPosition":
                         currentConfig.HitPosition = (480 - Math.Clamp(float.Parse(pair.Value, CultureInfo.InvariantCulture), 240, 480)) * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.HitPosition);
                         break;
 
                     case "LightPosition":
                         currentConfig.LightPosition = (480 - float.Parse(pair.Value, CultureInfo.InvariantCulture)) * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.LightPosition);
                         break;
 
                     case "ComboPosition":
                         currentConfig.ComboPosition = (float.Parse(pair.Value, CultureInfo.InvariantCulture)) * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.ComboPosition);
                         break;
 
                     case "ScorePosition":
                         currentConfig.ScorePosition = (float.Parse(pair.Value, CultureInfo.InvariantCulture)) * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.ScorePosition);
                         break;
 
                     case "JudgementLine":
                         currentConfig.ShowJudgementLine = pair.Value == "1";
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.ShowJudgementLine);
                         break;
 
                     case "KeysUnderNotes":
                         currentConfig.KeysUnderNotes = pair.Value == "1";
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.KeysUnderNotes);
                         break;
 
                     case "LightingNWidth":
@@ -129,11 +136,13 @@ namespace osu.Game.Skinning
 
                     case "WidthForNoteHeightScale":
                         currentConfig.WidthForNoteHeightScale = (float.Parse(pair.Value, CultureInfo.InvariantCulture)) * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.WidthForNoteHeightScale);
                         break;
 
                     case "LightFramePerSecond":
                         int lightFramePerSecond = int.Parse(pair.Value, CultureInfo.InvariantCulture);
                         currentConfig.LightFramePerSecond = lightFramePerSecond > 0 ? lightFramePerSecond : 24;
+                        currentConfig.MarkScalarDeclared(LegacyManiaSkinScalarField.LightFramePerSecond);
                         break;
 
                     case string when pair.Key.StartsWith("Colour", StringComparison.Ordinal):

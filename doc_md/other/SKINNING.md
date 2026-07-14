@@ -438,7 +438,7 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 | 能力 | 状态 | 阶段 |
 | --- | --- | --- |
 | 可信恢复、数据/实机 gate | `[已完成]` | `SV1-0` |
-| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：十个合同地基切片已落，含 neutral topology-preserving validation]` | `SV1-1` |
+| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：十一个合同地基切片已落，含 neutral topology-preserving validation 与 legacy mania primitive scalar accepted snapshot]` | `SV1-1` |
 | 安全 G1：路径 authority、扫描/选择、原子 reload | `[规划]` | `SV1-2` |
 | 5K/7K 四布局、9K、14K 的唯一 layout snapshot 与单一 BGA content authority | `[规划]` | `SV1-3` |
 | adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划]` | `SV1-4` |
