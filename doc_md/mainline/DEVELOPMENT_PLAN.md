@@ -34,11 +34,11 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：R0/R1 已解除；三态 slot/precedence、内部 semantic taxonomy、neutral lane identity/topology 与 config bucket explicit-presence 五个切片已完成，其余共同合同待续。
+状态：R0/R1 已解除；三态 slot/precedence、内部 semantic taxonomy、neutral lane identity/topology、config bucket explicit-presence 与 event envelope/order 六个切片已完成，其余共同合同待续。
 
 1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane/group identity、immutable order snapshot 与实际 decoder bucket presence 已落，full layout/geometry、field-level neutral config/shared codec、compatibility mapping 和生产 adapter 接线待续。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。
-3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority。
+3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority；process-local envelope/order foundation 已落，concrete payload、producer/dispatch、sampling 与 capability 仍待。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
 
 架构证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。

@@ -80,7 +80,7 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-1：共同合同与 fixture 冻结
 
-状态：进行中。三态 gameplay slot/fallback/precedence、semantic slot taxonomy、neutral lane identity、immutable lane topology projection 与 configuration bucket explicit-presence 五个切片已完成；未接生产选择链，full layout、field-level config、event/capability 等条目仍待续。
+状态：进行中。三态 gameplay slot/fallback/precedence、semantic slot taxonomy、neutral lane identity、immutable lane topology projection、configuration bucket explicit-presence 与 gameplay event envelope/order 六个切片已完成；未接生产选择链，full layout、field-level config、具体 event payload/producer 与 capability 等条目仍待续。
 
 1. 建立 neutral `GameplaySkinLayoutContext`、lane group/role/side/stable ID DTO 草案。**identity + topology projection 已完成**：强类型 GroupId/LaneId、group/lane identity、side/role 与 immutable snapshot/group/entry 已固定；snapshot 显式携带 global/group-local logical/visual index、排序视图与强类型 lookup，并由 internal BMS/mania factory fixture 固定 5K/7K 四 style、9K BMS/PMS、14K 双 deck 与 mania stage-local `SpecialKey`。完整 `GameplaySkinLayoutContext`、bounds/geometry、action/source/native context 与生产 adapter 接线仍待后续。
 2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。**合同/fixture 层已完成**：首切固定三态、坏 `Provide`/provider/validator 失败诊断、optional `Suppress` 与 fake `oms-simple` 末端；第二切固定 26 个内部 semantic slot family（7 critical / 19 optional）、descriptor requirement authority、稳定诊断 ID 及 context 分离。它不是 manifest ABI，生产接线仍待后续。
@@ -88,10 +88,10 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 4. 固定 BMS compatibility mapping：`[Bms]` role override → full visual bucket（5K→6、7K→8、9K→9、14K→16）→ key-only bucket（5/7/14，scratch `Inherit`）/14K 显式双 8-column deck → `oms-simple`；P2/CenterP2 mapping 用 fixture 钉死。
 5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。**bucket-level foundation 已完成**：实际 decoder 未产出 bucket 时保持 `Absent`，显式空 bucket 仍为 `Declared`；declaration provenance 不等于 `Provide`、验证成功或 `Suppress`。field-level presence、neutral configuration snapshot 与生产 adapter 仍待后续。
 6. 用 fixture 冻结 `BeatmapSkinProvidingContainer` 与 `RulesetSkinProvidingContainer` 的既有相对 authority；三态只接管 gameplay package slot，`Suppress` 默认不得穿透更高优先 beatmap-local provider。**首切已完成**：fixture 固定 beatmap-local → selected → ruleset resources → protected built-in，并验证先命中的 beatmap `Provide` 不会被后层 `Suppress` 穿透。
-7. 建立事件 envelope：`apiVersion/epoch/sequence/gameplayTime/layoutRevision`，以及 attach/reload snapshot、seek/retry reset 与 edge 事件顺序。
+7. 建立事件 envelope：`apiVersion/epoch/sequence/gameplayTime/layoutRevision`，以及 attach/reload snapshot、seek/retry reset 与 edge 事件顺序。**envelope/order foundation 已完成**：非 generic engine-owned payload hierarchy 与内部构造的 immutable envelope 固定 `Snapshot/Reset/Edge` 类别；canonical pre-filter cursor 允许首次完整 Snapshot 从任意非负 mid-session high-water attach，之后要求 epoch 与同 epoch sequence 连续、time 非递减、layout revision 不回退，Reset 以新 epoch sequence 0 完整重锚，Edge 只能引用当前 revision，拒绝不推进状态也不排序/修复。当前 fixture 只验证 header/category/order；真实完整 Snapshot/Reset payload、lifecycle/layout/input/object/judgement/score/timing/BGA families、producer/dispatch、连续采样与 production host 仍待后续。
 8. 建立禁止写入的 gameplay authority 列表和 capability negotiation 草案。
 
-验收：前五个合同切片已通过 shared slot+identity+topology+presence 97/97、config presence shared/mania/BMS 5/5、13/13、9/9、provider authority 6/6，以及既有 mania/BMS/core/Release gate；没有接入生产 `SkinManager`。这不等于 `SV1-1` 整体完成；full layout/geometry、field-level config、event/capability、manifest mapping、transition/wire ABI 与生产 adapter 接线仍待后续 fixture。
+验收：前六个合同切片已通过 shared slot+identity+topology+presence+event 120/120（其中 event envelope/cursor 23/23）、config presence shared/mania/BMS 5/5、13/13、9/9、provider authority 6/6，以及既有 mania/BMS/core/Release gate；没有接入生产 `SkinManager`。这不等于 `SV1-1` 整体完成；full layout/geometry、field-level config、concrete event payload/producer、capability、manifest mapping、transition/wire ABI 与生产 adapter 接线仍待后续 fixture。
 
 ### SV1-2：G1 安全存储与原子重载
 
@@ -137,7 +137,7 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-5：声明式 scene、动画与事件 ABI
 
-状态：未开始。
+状态：生产实现未开始；只有 `SV1-1` 的 process-local event envelope/order 前置 fixture，尚无具体 payload family、producer/dispatch、scene consumer 或脚本 ABI。
 
 1. 文件皮肤可声明 sprite/container/text/mask、allowlisted blend/effect preset、clip、frame animation、tween、状态机、typed property binding 和 variant/template；任意自定义 shader 不作为 V1 必需面。
 2. scene renderer 区分 global nodes、lane template、pooled note/LN template 和 pooled ephemeral effect；note scrolling/LN clipping/instancing 仍由引擎 host 驱动，脚本不得逐帧创建/移动谱面对象。

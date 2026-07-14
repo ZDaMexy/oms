@@ -4,6 +4,16 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第六个合同切片：gameplay event envelope 与 canonical stream ordering
+
+- shared `osu.Game.Skinning.Gameplay` 新增非 generic、只读 `GameplaySkinEventEnvelope`、V1 常量、`Snapshot/Reset/Edge` delivery kind 与 engine-owned `GameplaySkinEventPayload` hierarchy。envelope 固定 `apiVersion/epoch/sequence/gameplayTime/layoutRevision`，只允许内部 dispatcher 边界构造；payload 基类不允许第三方 package 派生，后续 concrete family 必须由 shared engine 定义。`gameplayTime` 使用 gameplay clock 毫秒域，允许 finite 负 lead-in，拒绝 NaN/Infinity；正数 future version 可表示以供 fail-closed 拒绝，当前 cursor 只支持 V1。
+- internal `GameplaySkinEventStreamCursor` 只校验 capability/family filtering 前的完整 canonical stream：新 consumer 可从任意非负 mid-session epoch/sequence 的完整 Snapshot high-water attach；之后 epoch 与同 epoch sequence 均严格连续，同 epoch time 非递减且同时间由 sequence 排序。Reset 只能在下一 epoch 的 sequence 0 原子重锚，time 可前跳/后跳；layout revision 全 attachment 不回退，Snapshot/Reset 可保持或推进，Edge 只能引用当前 revision。拒绝不推进状态、不排序/补洞/修复，sequence/epoch 边界禁止 wrap。
+- 独立审查在首轮 21/21 后发现 cursor 自称“complete, unfiltered”却允许 epoch 跳号，fixture 还把 4→7/3→5 当成合法；最终改为严格 `previous+1`，补 epoch gap 与 `long.MaxValue` 防回绕。另把未知 cursor version 改为 fail-closed，只让 envelope header 表示 future positive version；最终 event focused **23/23**、shared gameplay aggregate **120/120**。
+- public-surface fixture 固定 envelope 非 generic、无 public constructor/factory/setter，payload ctor 仅 engine-visible，并拒绝 `Drawable`/`HitObject`/`Bindable`/ruleset-native 属性类型。该反射门只覆盖 envelope/base hierarchy；每个后续 concrete payload 仍必须单独验证 sealed/immutable/defensive-copy/property graph。
+- 本切片没有接入 `GameplayClockContainer.OnSeek`、`DrawableRuleset`、`SkinReloadableDrawable.SourceChanged`、`SkinManager` 或生产 dispatch。现有 `OnSeek` 无 reason/time 且 `Reset()` 同样经过 `Seek()`，`JudgementResult` 会在 revert 回调后 reset，`HitEvent` 仍携带 `HitObject`，现成 reload callback 又会调度/合并，均不能直接冒充稳定 producer。当前 fake payload 只证明 envelope/category/order，不能证明完整 Snapshot/Reset、真实 reload/seek/retry delivery 或 event runtime；Skin V1 仍不可用。
+- 最终验证：event **23/23**、shared gameplay aggregate **120/120**、provider authority **6/6**、mania relevant **108/108** + legacy decoder **7/7**、BMS relevant **78/78** + transformer/fallback **104/104**；core skin 仍为同名既有 **57/62**，强制 `osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**。targeted formatter/analysis 0 文件待改，workspace-load 概括告警仍对应 MessagePack advisory；Markdown 116 文件 / 923 相对链接 / 0 断链，working/untracked diff check 通过。保留 9 条 MessagePack `NU1902`（Release restore/build 重复为 18）与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
+- 未访问或写入生产 Realm、`chartskin/`、用户皮肤目录或网络；未改变 nullable `ISkin`、程序化 `OmsSkin`、fallback authority、layout solver、ini codec、scene/script 或具体 `oms-simple/oms-complex` 视觉。
+
 ### `SV1-1` 第五个合同切片：configuration bucket explicit presence
 
 - shared `osu.Game.Skinning.Gameplay` 新增 `GameplaySkinConfigurationDeclaration<T>`：`default`/`Absent` 不携带值，`Declared(T)` 保留显式 `false`、`0` 与空字符串；`Value` 在 absent 时 fail-closed，`TryGetValue()` 不把缺失折叠成 `default(T)`，安全 `ToString()` 只输出状态。它是 process-local declaration provenance，不是 slot `Provide/Inherit/Suppress`、validation result、manifest 或 serialisation ABI。

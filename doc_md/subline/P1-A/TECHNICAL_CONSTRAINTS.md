@@ -122,6 +122,11 @@
 3a. V1 只开放 allowlisted blend/effect/shader preset；任意 shader/驱动特性不属于 V1 完成条件，后续扩展也必须 capability/version/budget 化。
 4. V1 event family 至少覆盖 lifecycle、layout、input、object/LN/mine、judgement/offset、combo/score/gauge、beat/measure/BPM/STOP/scroll、BGA/POOR。
 5. event envelope 至少携带 `apiVersion/epoch/sequence/gameplayTime/layoutRevision`；attach/reload 先发完整 snapshot，seek/retry 发 reset/new epoch，之后才发 edge。result 使用 neutral key + 可选 ruleset-native ID，不泄露内部 Drawable/HitObject。
+5a. `GameplaySkinEventEnvelope` 是 process-local engine contract，不是 serialisation、script 或 author manifest ABI。外部 package 只能消费已验证 DTO，不能构造 envelope 或发布 gameplay truth；ruleset adapter 只能提交 neutral primitives/调用 shared concrete payload factory，shared dispatcher 独占 `apiVersion/epoch/sequence/gameplayTime/layoutRevision` 盖章。即使 friend assembly 技术上可见 internal member，也禁止直接派生 payload 或发布 envelope。
+5b. `gameplayTime` 使用 gameplay clock 的毫秒域，必须 finite；lead-in/storyboard 可为负，同一时刻可有多个事件并由 sequence 定序，绝不是 wall/update clock。当前 envelope 可承载正数 future version 以便 fail-closed 拒绝，但 canonical cursor 只接受显式支持的 V1，版本不得在 attachment 内变化。
+5c. payload hierarchy 由 shared engine 拥有；每个 concrete payload 必须 sealed、不可变、防御性复制集合且 ruleset-neutral，不得暴露 `Drawable`、`HitObject`、`JudgementResult`、`HitEvent`、`Bindable`、clock、Realm object 或其它可变 native state。`JudgementResult`/revert 等事实必须在 authority 回调栈内复制 primitives，不能排队保存对象引用后再读。
+5d. internal cursor 只校验 capability/family filtering 前的完整 canonical stream，绝不排序、补洞、重放或自动修复。首次 attach/reload 的完整 Snapshot 可从任意非负 mid-session epoch/sequence high-water 建立状态；之后 epoch 严格 `+1`、同 epoch sequence 严格 `+1` 且 time 非递减。Reset 必须位于下一 epoch 的 sequence 0，可重锚前后跳的 time；layout revision 在 attachment 全程不回退，Snapshot/Reset 可保持或推进，Edge 必须等于当前 revision。任何拒绝都不得推进 cursor，计数器耗尽时 fail-closed，禁止 wrap。
+5e. Snapshot 和 Reset 都必须原子携带完整 baseline；Reset 不是“先清空、稍后再等 Snapshot”。当前第六切只有 fake payload 的 envelope/category/order fixture，不能证明完整 baseline、真实 attach/reload/seek/retry producer 或 delivery；在 concrete payload family 与 lifecycle bridge 落地前不得把本合同写成可用 event runtime。
 6. 连续 scratch/scroll 采用固定采样/节流/合并合同；脚本不得要求每个原始轴采样或每帧谱面对象位置回调。
 7. 事件必须按 gameplay clock 排序且 payload 不可变；脚本不得反查 `DrawableBmsRuleset`、遍历父节点或订阅内部 bindable。
 8. replay、seek、retry、pause 和 hot reload 必须定义状态重建；随机数只来自引擎提供的确定性 seed。
