@@ -36,6 +36,13 @@ metadata:
 
 V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突诊断引入。绝不能同时静默接受 `0..8` 与 `1..9`：两套编号的 `1..8` 含义重叠。
 
+## 第十七切 decoder-time provenance 地雷
+
+- shared legacy mania 只接受区分大小写的 `NoteImage{0-based column}[H|L|T]` 与 `KeyImage{column}[D]`，column 必须是当前 `Keys` 范围内的 canonical ASCII 十进制；前导零、符号、Unicode lookalike、越界与其它后缀仍可按既有 parser 留在 compatibility dictionary，但不能进入 private sidecar。
+- native `[Bms]` 只把 note、LN head/body/tail、key up/down 六个 exact prefix/suffix 组合写入 sidecar。raw lane token 服从既有 regex 的 `\d+`、`S`、`S2` 并且不做 normalization；因此 `01` 或 Unicode decimal token 即使被 decoder 接受也不会冒充 projection 查询的 ASCII `1`。`LaneBackground`、`LaneDivider` 与 stray suffix 等 regex-compatible key 继续只存在于 `ImageLookups`。
+- 两侧 factory 均只读 decoder-time accepted sidecar。public dictionary 在 factory 前被 forge、overwrite、remove、clear、replace 或 late-add 都不能改变 provenance；显式空值与 valid duplicate-last 仍保留。invalid enum/composite/index/token/null 必须在任何 sidecar/compatibility 双写前原子拒绝。
+- 这仍是 process-local declaration bridge，不是安全、文件或渲染 authority。文件存在性、containment、解码预算、materialization、component ownership、slot `Provide` 与 fallback winner 均属于后续层。
+
 ## 第九切 resolution / revision-owner 地雷
 
 - selected-package factory 只发出 canonical marker 前的 candidates 并保持 plan 顺序；完整层级仍由 caller 显式组合 beatmap-local → selected candidates → ruleset resources → canonical。factory 绝不能制造名为 `oms-simple` 的 provider。
@@ -44,10 +51,9 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
 - active/provisional owner 不能交叉：失败 reload 只 dispose 新 provisional owner，旧 active owner 继续存活；成功原子替换先 detach superseded consumer，再 dispose 旧 owner；teardown 同样先 detach 后 dispose。第九切只有 internal interface/fake owner fixture，没有 concrete production owner、Drawable parenting/thread affinity、缓存或 atomic reload。
 
-## 2026-07-14 验证基线
+## 2026-07-15 验证基线
 
-- 新增 focused：shared 12/12、mania 6/6、BMS 29/29，合计 47/47。
-- 第九切 BMS resolution/owner 55/55；BMS 全量 1117/1117。
-- 扩回归：shared gameplay 223/223、provider 6/6、mania relevant 119/119 + decoder 7/7、BMS relevant 107/107 + fallback 104/104。
-- core skin 57/62 仍为上一切恢复基线同名 5 项；第九切未改 shared/mania，shared/core/mania focused 均未重跑；Release 0 error / 20 warnings。
-- 未接生产 `SkinManager`/renderer/`ISkin`，未改变程序化 `OmsSkin` 或 fallback authority，未触碰生产数据。
+- 第十七切 focused：shared old+new 21/21、mania 6/6、BMS old+new 40/40；新增 provenance fixture 分别为 legacy mania 9/9 与 BMS 11/11。
+- BMS full 1157/1157；mania full 827/831 的 4 项仍为同名 HoldNote auto-frame 恢复基线；core skin 57/62 仍为同名 5 项恢复基线。
+- `osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings；保留 9 条 MessagePack `NU1902` 重复显示及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
+- 未接生产 `SkinManager`/renderer/`ISkin`，未改变程序化 `OmsSkin` 或 fallback authority，未访问或写入生产数据。

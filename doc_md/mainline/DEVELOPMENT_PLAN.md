@@ -34,9 +34,9 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：R0/R1 已解除；`SV1-1` 前十六个合同切片已完成，最新一切冻结 exact 13 项 legacy mania bucket-global/non-column resource declaration provenance，其余共同合同待续。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，不能把当前地基描述为 Skin V1 可用。
+状态：R0/R1 已解除；`SV1-1` 前十七个合同切片已完成，最新一切同时关闭 legacy mania 与 native `[Bms]` 六类 lane-resource 的 decoder→factory provenance 窗口，其余共同合同待续。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，不能把当前地基描述为 Skin V1 可用。
 
-1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource accepted provenance、六类 lane-resource mapping/resolution 已落。下一切同时加固 legacy mania 与 native `[Bms]` 六类 lane-resource 的 mutable `ImageLookups` provenance；不得从任一 native dictionary 反推 accepted source fact。full layout/geometry、production revision/event/wire、完整 neutral config、真实资源 validation/materialization/shared codec、fallback 和 adapter 接线待续。
+1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource accepted provenance、两侧六类 lane-resource decoder-time accepted provenance、mapping/resolution 已落。下一切先审计剩余 `NoteBodyStyle` 与真实资源 validation/materialization 的责任边界，再只选一个最小闭环；不得从任一 native dictionary 反推 accepted source fact。full layout/geometry、production revision/event/wire、完整 neutral config、shared codec、fallback 和 adapter 接线待续。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。
 3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority；process-local envelope/order 与 capability decision/hard-deny foundation 已落，concrete payload、producer/dispatch、sampling、真实 manifest/version/activation/runtime gate 仍待。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
@@ -103,7 +103,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | BMS 解析/转换 | raw/typed 模型、主要控制事件、BMS→mania 转换 | 特殊谱尾项与真实谱组合证明 |
 | gameplay/判定 | 主要 keymode、判定家族、gauge、EX score、LN/CN/HCN 链 | 真实设备和真实谱验收 |
 | 音频/BGA | shared keysound、转谱音频主链、BGA 图/视频链 | 转谱 LN、极端 dense、逐谱视觉/暂停恢复体验 |
-| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56 | 实机/数据、G1、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
+| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56；SV1-0 自动/数据/实机 gate 已过 | G1、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
 | Song Select | BMS 分组、筛选、搜索和主要展示 | 拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | `chartbms/chartmania`、多根扫描、portable/custom root | 删除/失效/去重策略、最终覆盖更新复核 |
 | 输入 | keyboard/Raw/XInput/Mouse/DirectInput 基线 | analog scratch、一致校准、真实硬件 |

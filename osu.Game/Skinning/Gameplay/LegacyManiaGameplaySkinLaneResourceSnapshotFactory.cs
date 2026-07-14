@@ -13,6 +13,8 @@ namespace osu.Game.Skinning.Gameplay
     /// This adapter never queries <see cref="LegacySkin"/>, because that lookup path synthesises default configurations
     /// for missing <c>Keys:</c> buckets. The supplied lane-to-column map is copied into declarations for a target topology,
     /// allowing both native mania and BMS compatibility projections to use the same legacy field semantics.
+    /// Only decoder-time accepted sidecars are read; later mutation of the public compatibility image dictionary cannot
+    /// forge, erase or alter a declaration.
     /// The type is public only as a cross-ruleset CLR bridge; it is not a stable plugin, package, manifest or script API.
     /// </remarks>
     public static class LegacyManiaGameplaySkinLaneResourceSnapshotFactory
@@ -67,13 +69,12 @@ namespace osu.Game.Skinning.Gameplay
             {
                 foreach (GameplaySkinLaneResourceField field in GameplaySkinLaneResourceFieldCatalog.All)
                 {
-                    string sourceKey = GetImageLookupKey(field, mapping.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedLaneResource(
+                        getLegacyField(field),
+                        mapping.Value);
 
-                    if (!source.ImageLookups.TryGetValue(sourceKey, out string? resourceName))
+                    if (!declaration.TryGetValue(out string? resourceName))
                         continue;
-
-                    if (resourceName == null)
-                        throw new ArgumentException("A decoded legacy mania image declaration cannot contain a null resource name.", nameof(decodedConfigurations));
 
                     declarations.Add(GameplaySkinLaneResourceDeclaration.Create(mapping.Key, field, resourceName));
                 }
@@ -105,6 +106,29 @@ namespace osu.Game.Skinning.Gameplay
 
             if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.KeyPressed))
                 return $"KeyImage{laneToken}D";
+
+            throw new ArgumentException("The requested field is not a legacy mania lane resource.", nameof(field));
+        }
+
+        private static LegacyManiaSkinLaneResourceField getLegacyField(GameplaySkinLaneResourceField field)
+        {
+            if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.Note))
+                return LegacyManiaSkinLaneResourceField.Note;
+
+            if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.LongNoteHead))
+                return LegacyManiaSkinLaneResourceField.LongNoteHead;
+
+            if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.LongNoteBody))
+                return LegacyManiaSkinLaneResourceField.LongNoteBody;
+
+            if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.LongNoteTail))
+                return LegacyManiaSkinLaneResourceField.LongNoteTail;
+
+            if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.Key))
+                return LegacyManiaSkinLaneResourceField.Key;
+
+            if (ReferenceEquals(field, GameplaySkinLaneResourceFieldCatalog.KeyPressed))
+                return LegacyManiaSkinLaneResourceField.KeyPressed;
 
             throw new ArgumentException("The requested field is not a legacy mania lane resource.", nameof(field));
         }

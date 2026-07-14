@@ -11,6 +11,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// <summary>
     /// Projects one actual <see cref="BmsSkinDecoder"/> bucket into the shared lane-resource snapshot.
     /// </summary>
+    /// <remarks>
+    /// Only decoder-time accepted sidecars are read; later mutation of the public compatibility image dictionary cannot
+    /// forge, erase or alter a declaration.
+    /// </remarks>
     internal static class BmsGameplaySkinLaneResourceSnapshotFactory
     {
         public static GameplaySkinConfigurationDeclaration<GameplaySkinLaneResourceSnapshot> Create(
@@ -47,13 +51,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 foreach (GameplaySkinLaneResourceField field in GameplaySkinLaneResourceFieldCatalog.All)
                 {
-                    string sourceKey = LegacyManiaGameplaySkinLaneResourceSnapshotFactory.GetImageLookupKey(field, laneToken);
+                    GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedLaneResource(field, laneToken);
 
-                    if (!source.ImageLookups.TryGetValue(sourceKey, out string? resourceName))
+                    if (!declaration.TryGetValue(out string? resourceName))
                         continue;
-
-                    if (resourceName == null)
-                        throw new ArgumentException("A decoded BMS image declaration cannot contain a null resource name.", nameof(decodedConfigurations));
 
                     declarations.Add(GameplaySkinLaneResourceDeclaration.Create(lane.Identity.Id, field, resourceName));
                 }

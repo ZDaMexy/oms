@@ -173,6 +173,16 @@ namespace osu.Game.Skinning
                     case string when pair.Key.StartsWith("Hit", StringComparison.Ordinal):
                     case string when pair.Key.StartsWith("Stage", StringComparison.Ordinal):
                     case string when pair.Key.StartsWith("Lighting", StringComparison.Ordinal):
+                        if (tryGetLaneResource(
+                                pair.Key,
+                                currentConfig.Keys,
+                                out LegacyManiaSkinLaneResourceField laneResourceField,
+                                out int laneSourceColumnIndex))
+                        {
+                            currentConfig.AcceptLaneResource(laneResourceField, laneSourceColumnIndex, pair.Value);
+                            break;
+                        }
+
                         LegacyManiaSkinKnownGlobalResourceField? knownGlobalResource = pair.Key switch
                         {
                             "LightingN" => LegacyManiaSkinKnownGlobalResourceField.LightingN,
@@ -231,6 +241,65 @@ namespace osu.Game.Skinning
 
                 currentConfig.AcceptArrayValue(field, i, parsedValue);
             }
+        }
+
+        private static bool tryGetLaneResource(
+            string key,
+            int sourceColumnCount,
+            out LegacyManiaSkinLaneResourceField field,
+            out int sourceColumnIndex)
+        {
+            field = default;
+            sourceColumnIndex = -1;
+
+            const string note_prefix = "NoteImage";
+            const string key_prefix = "KeyImage";
+
+            string sourceIndexToken;
+            LegacyManiaSkinLaneResourceField candidateField;
+
+            if (key.StartsWith(note_prefix, StringComparison.Ordinal))
+            {
+                sourceIndexToken = key[note_prefix.Length..];
+                candidateField = LegacyManiaSkinLaneResourceField.Note;
+
+                if (sourceIndexToken.Length > 0)
+                {
+                    candidateField = sourceIndexToken[^1] switch
+                    {
+                        'H' => LegacyManiaSkinLaneResourceField.LongNoteHead,
+                        'L' => LegacyManiaSkinLaneResourceField.LongNoteBody,
+                        'T' => LegacyManiaSkinLaneResourceField.LongNoteTail,
+                        _ => candidateField,
+                    };
+
+                    if (candidateField != LegacyManiaSkinLaneResourceField.Note)
+                        sourceIndexToken = sourceIndexToken[..^1];
+                }
+            }
+            else if (key.StartsWith(key_prefix, StringComparison.Ordinal))
+            {
+                sourceIndexToken = key[key_prefix.Length..];
+                candidateField = LegacyManiaSkinLaneResourceField.Key;
+
+                if (sourceIndexToken.EndsWith('D'))
+                {
+                    candidateField = LegacyManiaSkinLaneResourceField.KeyPressed;
+                    sourceIndexToken = sourceIndexToken[..^1];
+                }
+            }
+            else
+                return false;
+
+            if (!int.TryParse(sourceIndexToken, NumberStyles.None, CultureInfo.InvariantCulture, out int parsedSourceColumn)
+                || parsedSourceColumn < 0
+                || parsedSourceColumn >= sourceColumnCount
+                || !string.Equals(sourceIndexToken, parsedSourceColumn.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
+                return false;
+
+            field = candidateField;
+            sourceColumnIndex = parsedSourceColumn;
+            return true;
         }
 
         private static bool tryGetPerColumnColour(

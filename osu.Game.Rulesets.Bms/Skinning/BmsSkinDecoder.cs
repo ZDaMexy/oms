@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.Skinning
@@ -13,7 +14,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// <summary>
     /// Parses the BMS-specific sections (<c>[General]</c> + per-keymode <c>[Bms]</c>) of a skin.ini into
     /// <see cref="BmsSkinConfiguration"/>s. Standalone by design: it does NOT extend the core
-    /// <see cref="osu.Game.Beatmaps.Formats.LegacyDecoder{T}"/> (whose <c>Section</c> enum has no <c>Bms</c> entry),
+    /// <see cref="Game.Beatmaps.Formats.LegacyDecoder{T}"/> (whose <c>Section</c> enum has no <c>Bms</c> entry),
     /// so all BMS skin parsing stays inside the ruleset and never touches osu.Game.
     /// </summary>
     /// <remarks>
@@ -134,9 +135,15 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private static void applyKey(BmsSkinConfiguration config, string key, string value)
         {
             // Per-lane texture slots keep their full ini key (lane token embedded), matching mania's ImageLookups.
-            if (per_lane_image.IsMatch(key))
+            Match perLaneImage = per_lane_image.Match(key);
+
+            if (perLaneImage.Success)
             {
-                config.ImageLookups[key] = value;
+                if (tryGetLaneResourceField(perLaneImage, out GameplaySkinLaneResourceField field))
+                    config.AcceptLaneResource(field, perLaneImage.Groups[2].Value, value);
+                else
+                    config.ImageLookups[key] = value;
+
                 return;
             }
 
@@ -159,6 +166,29 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 config.ImageLookups[key] = value; // global texture slot (HitTargetImage / StageLeftImage / ...)
             }
+        }
+
+        private static bool tryGetLaneResourceField(Match match, out GameplaySkinLaneResourceField field)
+        {
+            GameplaySkinLaneResourceField? candidate = (match.Groups[1].Value, match.Groups[3].Value) switch
+            {
+                ("NoteImage", "") => GameplaySkinLaneResourceFieldCatalog.Note,
+                ("NoteImage", "H") => GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+                ("NoteImage", "L") => GameplaySkinLaneResourceFieldCatalog.LongNoteBody,
+                ("NoteImage", "T") => GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
+                ("KeyImage", "") => GameplaySkinLaneResourceFieldCatalog.Key,
+                ("KeyImage", "D") => GameplaySkinLaneResourceFieldCatalog.KeyPressed,
+                _ => null,
+            };
+
+            if (candidate == null)
+            {
+                field = null!;
+                return false;
+            }
+
+            field = candidate;
+            return true;
         }
 
         private void parseDeclaredKeymodes(string value)

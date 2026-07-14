@@ -46,6 +46,16 @@ namespace osu.Game.Skinning
         ColumnLight = 1 << 1,
     }
 
+    internal enum LegacyManiaSkinLaneResourceField
+    {
+        Note = 1 << 0,
+        LongNoteHead = 1 << 1,
+        LongNoteBody = 1 << 2,
+        LongNoteTail = 1 << 3,
+        Key = 1 << 4,
+        KeyPressed = 1 << 5,
+    }
+
     internal enum LegacyManiaSkinKnownGlobalResourceField
     {
         LightingN = 1 << 0,
@@ -72,6 +82,12 @@ namespace osu.Game.Skinning
         private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedHoldNoteLightWidth;
         private readonly GameplaySkinConfigurationDeclaration<Color4>[] acceptedColumnBackgroundColours;
         private readonly GameplaySkinConfigurationDeclaration<Color4>[] acceptedColumnLightColours;
+        private readonly GameplaySkinConfigurationDeclaration<string>[] acceptedNoteResources;
+        private readonly GameplaySkinConfigurationDeclaration<string>[] acceptedLongNoteHeadResources;
+        private readonly GameplaySkinConfigurationDeclaration<string>[] acceptedLongNoteBodyResources;
+        private readonly GameplaySkinConfigurationDeclaration<string>[] acceptedLongNoteTailResources;
+        private readonly GameplaySkinConfigurationDeclaration<string>[] acceptedKeyResources;
+        private readonly GameplaySkinConfigurationDeclaration<string>[] acceptedKeyPressedResources;
 
         internal GameplaySkinConfigurationDeclaration<float> AcceptedWidthForNoteHeightScale { get; private set; }
 
@@ -179,6 +195,12 @@ namespace osu.Game.Skinning
             acceptedHoldNoteLightWidth = new GameplaySkinConfigurationDeclaration<float>[HoldNoteLightWidth.Length];
             acceptedColumnBackgroundColours = new GameplaySkinConfigurationDeclaration<Color4>[keys];
             acceptedColumnLightColours = new GameplaySkinConfigurationDeclaration<Color4>[keys];
+            acceptedNoteResources = new GameplaySkinConfigurationDeclaration<string>[keys];
+            acceptedLongNoteHeadResources = new GameplaySkinConfigurationDeclaration<string>[keys];
+            acceptedLongNoteBodyResources = new GameplaySkinConfigurationDeclaration<string>[keys];
+            acceptedLongNoteTailResources = new GameplaySkinConfigurationDeclaration<string>[keys];
+            acceptedKeyResources = new GameplaySkinConfigurationDeclaration<string>[keys];
+            acceptedKeyPressedResources = new GameplaySkinConfigurationDeclaration<string>[keys];
 
             ColumnLineWidth.AsSpan().Fill(2);
             ColumnWidth.AsSpan().Fill(DEFAULT_COLUMN_SIZE);
@@ -304,6 +326,63 @@ namespace osu.Game.Skinning
 
         internal GameplaySkinConfigurationDeclaration<Color4>[] CopyAcceptedPerColumnColourDeclarations(LegacyManiaSkinPerColumnColourField field)
             => getAcceptedPerColumnColours(field).ToArray();
+
+        /// <summary>
+        /// Captures one exact per-column resource declaration when the legacy decoder accepts its canonical source key.
+        /// The resource name may be empty and remains filename-unnormalised and unvalidated.
+        /// </summary>
+        internal void AcceptLaneResource(LegacyManiaSkinLaneResourceField field, int sourceColumnIndex, string resourceName)
+        {
+            ArgumentNullException.ThrowIfNull(resourceName);
+            GameplaySkinConfigurationDeclaration<string>[] declarations = getAcceptedLaneResources(field);
+
+            if ((uint)sourceColumnIndex >= (uint)declarations.Length)
+                throw new ArgumentOutOfRangeException(nameof(sourceColumnIndex), sourceColumnIndex, "The legacy mania lane resource column is outside its Keys bucket.");
+
+            GameplaySkinLaneResourceField canonicalField = field switch
+            {
+                LegacyManiaSkinLaneResourceField.Note => GameplaySkinLaneResourceFieldCatalog.Note,
+                LegacyManiaSkinLaneResourceField.LongNoteHead => GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+                LegacyManiaSkinLaneResourceField.LongNoteBody => GameplaySkinLaneResourceFieldCatalog.LongNoteBody,
+                LegacyManiaSkinLaneResourceField.LongNoteTail => GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
+                LegacyManiaSkinLaneResourceField.Key => GameplaySkinLaneResourceFieldCatalog.Key,
+                LegacyManiaSkinLaneResourceField.KeyPressed => GameplaySkinLaneResourceFieldCatalog.KeyPressed,
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania lane resource field."),
+            };
+            string sourceKey = LegacyManiaGameplaySkinLaneResourceSnapshotFactory.GetImageLookupKey(
+                canonicalField,
+                sourceColumnIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            GameplaySkinConfigurationDeclaration<string> declaration = GameplaySkinConfigurationDeclaration<string>.Declared(resourceName);
+
+            ImageLookups[sourceKey] = resourceName;
+            declarations[sourceColumnIndex] = declaration;
+        }
+
+        internal GameplaySkinConfigurationDeclaration<string> GetAcceptedLaneResource(
+            LegacyManiaSkinLaneResourceField field,
+            int sourceColumnIndex)
+        {
+            GameplaySkinConfigurationDeclaration<string>[] declarations = getAcceptedLaneResources(field);
+
+            if ((uint)sourceColumnIndex >= (uint)declarations.Length)
+                throw new ArgumentOutOfRangeException(nameof(sourceColumnIndex), sourceColumnIndex, "The legacy mania lane resource column is outside its Keys bucket.");
+
+            return declarations[sourceColumnIndex];
+        }
+
+        private GameplaySkinConfigurationDeclaration<string>[] getAcceptedLaneResources(LegacyManiaSkinLaneResourceField field)
+        {
+            return field switch
+            {
+                LegacyManiaSkinLaneResourceField.Note => acceptedNoteResources,
+                LegacyManiaSkinLaneResourceField.LongNoteHead => acceptedLongNoteHeadResources,
+                LegacyManiaSkinLaneResourceField.LongNoteBody => acceptedLongNoteBodyResources,
+                LegacyManiaSkinLaneResourceField.LongNoteTail => acceptedLongNoteTailResources,
+                LegacyManiaSkinLaneResourceField.Key => acceptedKeyResources,
+                LegacyManiaSkinLaneResourceField.KeyPressed => acceptedKeyPressedResources,
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania lane resource field."),
+            };
+        }
 
         /// <summary>
         /// Captures one exact global image declaration immediately after the legacy decoder accepts its
