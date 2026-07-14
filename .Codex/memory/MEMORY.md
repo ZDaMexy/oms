@@ -15,7 +15,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md)
+- [构建与测试](reference_build_and_test.md) — CLI gate、恢复基线、targeted formatter 与 C# Dev Kit 误判地雷。
 - [网络访问](reference_network_access.md)
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md)
@@ -43,4 +43,4 @@
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md)
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
-- [gameplay skin lane identity](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、side/role、topology-preserving revision equality 与 logical/visual index 地雷。
+- [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、internal BMS/mania projection 与 logical/visual index 地雷。

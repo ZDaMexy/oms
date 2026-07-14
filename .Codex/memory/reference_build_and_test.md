@@ -1,6 +1,6 @@
 ---
 name: reference-build-and-test
-description: OMS 构建入口、当前恢复基线与 C# Dev Kit 误判地雷
+description: OMS 构建入口、当前恢复基线、formatter 与 C# Dev Kit 误判地雷
 metadata:
   node_type: memory
   type: reference
@@ -15,6 +15,10 @@ metadata:
 ## C# Dev Kit 地雷
 
 `osu.Game` 是 library，但因引用 NUnit 抽象 test scene，Dev Kit 会误识别成测试容器并用缺 runtimeconfig 的 testhost 启动，随后报告 AutoMapper/测试平台程序集缺失。该红节点是已确认 benign：不要通过把 `osu.Game` 变成真实 test project、复制全依赖或移走上游测试基类来修。使用真实测试工程或 CLI。
+
+## targeted formatter 地雷
+
+`dotnet format --include` 对新/未跟踪 test 文件可能给出与真实编译不一致的 `IDE0005` unused-using 建议。不要只凭该 warning 删除 namespace；先看实际符号使用并立刻编译对应 test project。2026-07-14 曾按误报移除 `System.Collections.Generic`，随后 `HashSet<>` 以 `CS0246` 失败；改用已引用 LINQ 的 `ToHashSet()` 后 focused 与 verify 才同时通过。编译器结果高于 formatter 概括 warning。
 
 ## 2026-07-10 恢复基线
 

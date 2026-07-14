@@ -73,7 +73,7 @@ namespace osu.Game.Skinning.Gameplay
     /// <remarks>
     /// Use <see cref="Id"/> to correlate a lane across topology-preserving layout revisions. Its group ID and role must remain
     /// unchanged; only the group's presentation side may change. Value equality includes all current neutral metadata. This CLR shape
-    /// is not a manifest or event serialisation ABI, and uniqueness or metadata conflicts remain the responsibility of the future
+    /// is not a manifest or event serialisation ABI, and uniqueness or metadata conflicts remain the responsibility of the containing
     /// topology aggregate.
     /// </remarks>
     public sealed class GameplaySkinLaneIdentity : IEquatable<GameplaySkinLaneIdentity>

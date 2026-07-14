@@ -4,6 +4,18 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第四个合同切片：neutral lane topology snapshot 与 internal ruleset projections
+
+- 在 shared `osu.Game.Skinning.Gameplay` 新增 immutable `GameplaySkinLaneTopologyEntry` / `Group` / `Snapshot`。entry 显式承载 global/group-local 的 logical/visual 四类零基 index；group/snapshot 提供防御性复制后的只读排序视图和强类型 ID lookup。创建时 fail-closed 拒绝 null/empty、负 index、重复 group/lane ID、membership metadata 冲突、非 permutation、local/global order 不一致与 logical/visual group 非连续块；cross-revision 稳定仍是 producer 合同，不把单 snapshot 校验器冒充 transition validator。
+- shared snapshot 故意排除 keymode/style、action/source channel、geometry/bounds、revision/native context，既不是完整 `GameplaySkinLayoutContext`，也不是 author manifest/event/JSON ABI。ruleset-specific factory/projection 均为 internal 且目前只有测试引用，没有接入生产 selection/render chain。
+- `BmsLaneLayout.Lane` 只读暴露现有 solver 已计算的 `VisualIndex`，`Lanes` 仍保持 logical `LaneIndex` 存储，`RelativeStart`/几何和渲染行为不变。BMS projection 固定 5K/7K 四 style、9K BMS/PMS 与 14K DP 的 stable token、side、role、global/local order；14K 完整序列为 `S1,K1..K14,S2`、两个 8-lane group。它按 keymode 逐 lane 校验 canonical `(LaneIndex, Action, IsScratch)`，拒绝只满足 lane count、却注入额外 S2 或 9K 假 scratch 的 malformed layout。
+- mania projection 防御性复制 stage authority，只接受 1–2 stage、每 stage 1–10 keys；single 为 Neutral，dual stage 0/1 为 Primary/Secondary。global index 使用 stage column count 前缀和，group-local index 使用 stage-local ordinal，当前 visual=logical；odd-stage centre 映为 `SpecialKey`，绝不赋予 scratch 语义。fixture 固定单 stage、双 5+5、mixed 4+5、null/empty/>2/>10 等边界。
+- 独立审计在最终验证前补出三处测试盲点：canonical count 不等于 canonical composition；14K 必须锁完整 `Scratch + 14×Key + Scratch` role；连续块测试必须包含两组多 lane 的真实交错。修正后最终审计 blocker=0；功能 focused 首轮与审计修正后均无测试失败。
+- 最终验证：shared slot+identity+topology **92/92**，provider authority **6/6**，BMS lane layout+projection **26/26**、parser/legacy/reference/render **43/43**、transformer/fallback **104/104**，mania topology/special/OMS **95/95**、默认资源专项 **1/1**。core skin 仍为既有 **57/62**（1 项 Argon 旧期待、4 项已删除 osu ruleset 的 archive fixture）；强制 `osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**。
+- 静态收尾时 targeted formatter 把 fixture 所需的 `System.Collections.Generic` 误报为 `IDE0005`；按告警移除后 BMS fixture 编译以两处 `CS0246 HashSet<>` 失败。fixture 改用已引用 LINQ 的 `ToHashSet()`，whitespace 规范化后 BMS projection 19/19、最终 targeted verify exit 0。该次失败只发生在测试清理中，未触及生产实现。
+- 最终保留告警为 9 项 MessagePack `NU1902`（restore/build 重复显示）和 BMS 测试工程既有 `CS8600`/`CA2007`，未使用 `NoWarn`。`dotnet format` workspace-load 概括告警仍对应同一组 advisory，source targeted verify 另重报 `BmsLaneLayout` 两个既有 array declaration 的 `IDE0008`；Markdown 相对链接 114 个文件 / 916 个链接 / 0 断链，最终 diff 检查通过。
+- 没有访问或写入生产 Realm、`chartskin/`、用户皮肤目录或网络；没有改 `SkinManager`、nullable `ISkin`、三态生产接线、程序化 `OmsSkin` authority、shared ini、scene/event/script、layout solver 或具体 `oms-simple/oms-complex` 视觉。第四切仍只是合同地基，Skin V1 不可用。
+
 ### `SV1-1` 第三个合同切片：neutral lane identity primitives
 
 - 在 shared `osu.Game.Skinning.Gameplay` 新增强类型 `GameplaySkinLaneGroupId` / `GameplaySkinLaneId`、`GameplaySkinLaneGroupIdentity` / `GameplaySkinLaneIdentity`，以及 `GameplaySkinLaneSide`（`Neutral/Primary/Secondary`）和 `GameplaySkinLaneRole`（`Key/SpecialKey/Scratch`）。公开 `Create()` 统一校验小写 ASCII 点分 opaque ID，避免依赖 BMS-only `InternalsVisibleTo`；ID 使用 ordinal 值相等，hash 只限进程内。
@@ -72,7 +84,7 @@
 ### 皮肤系统恢复到可信基线，保全异常期历史并撤回未经验证的生产链
 
 - **取证与选择**：以 2026-06-30 00:05（北京时间）为协作分界。严格分界前最后正式提交为 `b53b798`；采用 `2b27c09` 的树作为恢复基线，仅因为其 schema 56 patch 已存在于分界前 WIP `a4c3346`，同时避免对已打开过的用户 Realm 降 schema。没有移动/改写旧分支历史，而是用本次正常提交承载恢复结果。
-- **完整保全**：恢复前 `9e37087`、dirty stash `4bde4c3`、不可达对象均固定在 `refs/archive/pre-recovery-20260710/*`；完整 bundle 与 production/release-test/appdata 运行时备份在 `F:\oms-recovery-archive\20260710-skin-recovery\`。归档可定点取证，不允许整包恢复。
+- **完整保全**：恢复前 `9e37087`、dirty stash `4bde4c3`、不可达对象均固定在 `refs/archive/pre-recovery-20260710/*`；完整 bundle 与 production/release-test/appdata 运行时备份保存在 workspace 外恢复归档。归档可定点取证，不允许整包恢复。
 - **保留**：F1 独立 `[Bms]` parser、`BmsLegacySkin`、`.osk` 导入路由、静态件颜色/纹理/几何、reference ini 自校验、程序化 `OmsSkin` 最终兜底；G1 只保留 folder ctor + `SkinInfo` 两字段/schema 56 载体。
 - **撤回**：G1 `SkinManager` 生产分支/导入扫描/删改/热重载，F2 动态件、Lua、mania fallback adapter 与 reference-default 替换。原因包括外部路径 storage authority 错误、递归删除目标风险、启动扫描清理用户记录、错误 fallback 期待和 mania 默认资源回归。
 - **独立修正**：`BmsLegacySkin` 复制流后重置 position 再交 base parser，恢复 `[General]/[Colours]/[Mania]` 解析；per-lane decoder 支持 `S2`，14K 第二皿 lane 映射到 P2 素材。测试覆盖 General/Mania 共存和 P1/P2 双皿选择。

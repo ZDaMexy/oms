@@ -18,6 +18,9 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private readonly Lane[] lanes;
 
+        /// <summary>
+        /// Lanes indexed by logical <see cref="Lane.LaneIndex"/>. Use <see cref="Lane.VisualIndex"/> for resolved left-to-right order.
+        /// </summary>
         public IReadOnlyList<Lane> Lanes => lanes;
 
         public BmsKeymode Keymode { get; }
@@ -100,7 +103,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
                 currentStart += spacingBefore;
 
-                lanes[laneIndex] = new Lane(laneIndex, currentStart, laneWidths[laneIndex], spacingBefore, isScratch, laneActions[laneIndex]);
+                lanes[laneIndex] = new Lane(laneIndex, visualIndex, currentStart, laneWidths[laneIndex], spacingBefore, isScratch, laneActions[laneIndex]);
                 currentStart += laneWidths[laneIndex];
             }
 
@@ -140,6 +143,11 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             public int LaneIndex { get; }
 
+            /// <summary>
+            /// The zero-based left-to-right visual position of this lane in the resolved layout.
+            /// </summary>
+            public int VisualIndex { get; }
+
             public float RelativeStart { get; }
 
             public float RelativeWidth { get; }
@@ -150,9 +158,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
             public BmsAction Action { get; }
 
-            internal Lane(int laneIndex, float relativeStart, float relativeWidth, float relativeSpacingBefore, bool isScratch, BmsAction action)
+            internal Lane(int laneIndex, int visualIndex, float relativeStart, float relativeWidth, float relativeSpacingBefore, bool isScratch, BmsAction action)
             {
                 LaneIndex = laneIndex;
+                VisualIndex = visualIndex;
                 RelativeStart = relativeStart;
                 RelativeWidth = relativeWidth;
                 RelativeSpacingBefore = relativeSpacingBefore;

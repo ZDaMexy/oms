@@ -7,6 +7,10 @@
 
 ## 2026-07-14
 
+### Skin V1 neutral lane topology 第四切（P1-A）
+
+在 shared identity 之上新增 immutable lane topology snapshot/group/entry、global/group-local logical/visual 四类零基 index、只读排序视图与 fail-closed invariant；internal BMS/mania projection fixtures 固定 5K/7K 四 style、9K BMS/PMS、14K 双 deck/双皿和 mania stage-local `SpecialKey`。唯一对既有运行时类型的修改是只读暴露 BMS solver 已计算的 `Lane.VisualIndex`，未改变 geometry/render、`SkinManager`、`OmsSkin` authority 或用户数据。shared focused 92/92，BMS/mania projection 19/19 与 8/8，既有回归保持基线，Release Rebuild 0 error / 20 warnings；这仍不是 full layout context 或可用 Skin V1。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ### Skin V1 neutral lane identity 第三切（P1-A）
 
 新增 ruleset-neutral 强类型 lane/group ID、group/lane identity、逻辑 presentation side 与 `Key/SpecialKey/Scratch` role；stable ID 跨视觉重排及 topology-preserving layout revision 保持，完整 identity equality 保留当前 metadata。该切片不含 layout aggregate、索引/geometry、真实 mania/BMS adapter、manifest/event ABI 或生产接线；shared focused 73/73，mania/BMS 保持基线，core skin 仍为既有 57/62，强制 Release Rebuild 0 error / 20 warnings。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
