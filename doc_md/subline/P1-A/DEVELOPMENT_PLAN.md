@@ -80,18 +80,18 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-1：共同合同与 fixture 冻结
 
-状态：进行中。三态 gameplay slot/fallback/precedence、semantic slot taxonomy、neutral lane identity、immutable lane topology projection、configuration bucket explicit-presence、gameplay event envelope/order 与 capability negotiation/禁止 authority 七个切片已完成；未接生产选择链，full layout、field-level config、具体 event payload/producer、真实 capability catalog/manifest/runtime 等条目仍待续。
+状态：进行中。三态 gameplay slot/fallback/precedence、semantic slot taxonomy、neutral lane identity、immutable lane topology projection、configuration bucket explicit-presence、gameplay event envelope/order、capability negotiation/禁止 authority，以及六类 lane-resource neutral snapshot/BMS→mania 候选链八个切片已完成；未接生产选择链，full layout、完整 field-level config/validation、具体 event payload/producer、真实 capability catalog/manifest/runtime 等条目仍待续。
 
 1. 建立 neutral `GameplaySkinLayoutContext`、lane group/role/side/stable ID DTO 草案。**identity + topology projection 已完成**：强类型 GroupId/LaneId、group/lane identity、side/role 与 immutable snapshot/group/entry 已固定；snapshot 显式携带 global/group-local logical/visual index、排序视图与强类型 lookup，并由 internal BMS/mania factory fixture 固定 5K/7K 四 style、9K BMS/PMS、14K 双 deck 与 mania stage-local `SpecialKey`。完整 `GameplaySkinLayoutContext`、bounds/geometry、action/source/native context 与生产 adapter 接线仍待后续。
 2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。**合同/fixture 层已完成**：首切固定三态、坏 `Provide`/provider/validator 失败诊断、optional `Suppress` 与 fake `oms-simple` 末端；第二切固定 26 个内部 semantic slot family（7 critical / 19 optional）、descriptor requirement authority、稳定诊断 ID 及 context 分离。它不是 manifest ABI，生产接线仍待后续。
 3. 以真实 mania skin.ini fixture 固定 tokenizer、数组、动画帧、错误/诊断语义。
-4. 固定 BMS compatibility mapping：`[Bms]` role override → full visual bucket（5K→6、7K→8、9K→9、14K→16）→ key-only bucket（5/7/14，scratch `Inherit`）/14K 显式双 8-column deck → `oms-simple`；P2/CenterP2 mapping 用 fixture 钉死。
-5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。**bucket-level foundation 已完成**：实际 decoder 未产出 bucket 时保持 `Absent`，显式空 bucket 仍为 `Declared`；declaration provenance 不等于 `Provide`、验证成功或 `Suppress`。field-level presence、neutral configuration snapshot 与生产 adapter 仍待后续。
+4. 固定 BMS compatibility mapping。**六类 lane-resource 候选链地基已完成**：5K 为 `[Bms] → Keys:6 → Keys:5 → canonical marker`，7K 为 `[Bms] → Keys:8 → Keys:7 → marker`，9K BMS/PMS 为 `[Bms] → Keys:9 → marker` 且不重复同一 key-only bucket，14K 为 `[Bms] → Keys:16 → 同一 Keys:8 bucket 按两个 deck 分别投影 → Keys:14 普通键 → marker`。P2/CenterRightScratch 使用 visual index、stable lane ID/action 不变；marker 不伪造或装载 `oms-simple`。
+5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。**bucket + 六类 lane-resource field foundation 已完成**：实际 decoder 未产出 bucket/字段时保持 `Absent`，显式空 bucket/资源名仍为 `Declared`；note、LN head/body/tail、key up/down 被复制到绑定 immutable topology 的快照，declaration provenance 不等于 `Provide`、验证成功或 `Suppress`。scalar/array/colour/global fields、malformed diagnostics、完整 neutral configuration/validation/shared codec 与生产 adapter 仍待后续。
 6. 用 fixture 冻结 `BeatmapSkinProvidingContainer` 与 `RulesetSkinProvidingContainer` 的既有相对 authority；三态只接管 gameplay package slot，`Suppress` 默认不得穿透更高优先 beatmap-local provider。**首切已完成**：fixture 固定 beatmap-local → selected → ruleset resources → protected built-in，并验证先命中的 beatmap `Provide` 不会被后层 `Suppress` 穿透。
 7. 建立事件 envelope：`apiVersion/epoch/sequence/gameplayTime/layoutRevision`，以及 attach/reload snapshot、seek/retry reset 与 edge 事件顺序。**envelope/order foundation 已完成**：非 generic engine-owned payload hierarchy 与内部构造的 immutable envelope 固定 `Snapshot/Reset/Edge` 类别；canonical pre-filter cursor 允许首次完整 Snapshot 从任意非负 mid-session high-water attach，之后要求 epoch 与同 epoch sequence 连续、time 非递减、layout revision 不回退，Reset 以新 epoch sequence 0 完整重锚，Edge 只能引用当前 revision，拒绝不推进状态也不排序/修复。当前 fixture 只验证 header/category/order；真实完整 Snapshot/Reset payload、lifecycle/layout/input/object/judgement/score/timing/BGA families、producer/dispatch、连续采样与 production host 仍待后续。
 8. 建立禁止写入的 gameplay authority 列表和 capability negotiation 草案。**process-local foundation 已完成**：opaque stable ID、显式 request、closed allowlist definition、host feature availability、per-skin authorization snapshot 与 immutable negotiation decision 已分离；判定顺序固定为 hard deny → unknown → host unavailable → per-skin authorization missing → grant。28 个明确 authority token、其后代与保留的 gameplay terminal mutation action，以及 Realm/config/network/arbitrary filesystem/reflection/process/thread/native family 均不可被 fake allowlist/support/grant 覆盖；只读 event token 不因中间出现 reset/seek/update 名称而误杀。当前没有真实可请求 capability、manifest mapping、package identity/授权存储/UI、required/optional 与 layer activation/version/runtime gate。
 
-验收：前七个合同切片已通过 capability 91/91、shared slot+identity+topology+presence+event+capability 211/211（其中 event envelope/cursor 23/23）、config presence shared/mania/BMS 5/5、13/13、9/9、provider authority 6/6，以及既有 mania/BMS/core/Release gate；没有接入生产 `SkinManager`。这不等于 `SV1-1` 整体完成；full layout/geometry、field-level config、concrete event payload/producer、真实 capability catalog/manifest/version/activation/runtime enforcement、transition/wire ABI 与生产 adapter 接线仍待后续 fixture。
+验收：前八个合同切片已通过 capability 91/91、shared gameplay 总集 223/223（其中 event envelope/cursor 23/23）、config presence shared/mania/BMS 5/5、13/13、9/9、新增 lane-resource shared/mania/BMS 12/12、6/6、29/29（合计 47/47）、provider authority 6/6、mania relevant 119/119、BMS relevant 107/107，以及既有 core/Release gate；没有接入生产 `SkinManager`。这不等于 `SV1-1` 整体完成；full layout/geometry、六字段以外的完整 config/validation/shared codec、concrete event payload/producer、真实 capability catalog/manifest/version/activation/runtime enforcement、transition/wire ABI 与生产 adapter 接线仍待后续 fixture。
 
 ### SV1-2：G1 安全存储与原子重载
 
@@ -125,7 +125,7 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-4：mania-compatible ini 共同层
 
-状态：shared codec 未开始；`SV1-1` 已提供 bucket-level explicit-presence 前置合同，但完整 neutral snapshot 与生产迁移尚未开始。
+状态：shared codec 未开始；`SV1-1` 已提供 bucket explicit-presence、六类 lane-resource snapshot 与 BMS→mania 候选计划前置合同，但完整 neutral configuration、验证/resolution 与生产迁移尚未开始。
 
 1. adapter-first：先由现有 legacy mania/BMS decoder 导出带 explicit presence 的 neutral snapshot；fixture 稳定后再抽 shared codec，不第一刀切换 mania 生产 tokenizer。
 2. `[Bms]` 重合键使用同一 codec；BMS 独有字段由 extension schema 解析。

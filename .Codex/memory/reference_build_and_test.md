@@ -24,6 +24,8 @@ metadata:
 
 solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能漏掉新 test 文件的 owning-project `end_of_line` 规则：2026-07-14 一次 solution verify 返回 0，但随后直接对 `osu.Game.Tests.csproj` verify 才报告同一文件 89 行 `ENDOFLINE`。新/未跟踪文件必须再按所属 csproj 执行 whitespace verify，并在规范化后重新暂存和跑 `git diff --cached --check`；不要把 solution-level 0 当成 staged bytes 已合规。
 
+同日另一个多工程切片出现相反表现：solution-level verify 直接对 LF 新文件报告大量 `ENDOFLINE`，并同时提示一处 `IDE0032`；改为 auto-property、使用 owning project 的 whitespace formatter 规范化后才稳定。两种结果说明 solution 聚合输出既可能漏报也可能集中爆出跨项目噪声；最终 authority 仍是逐 owning csproj 的 targeted whitespace/style verify，再重新编译、检查 staged bytes。
+
 ## 2026-07-10 恢复基线
 
 - BMS 1005/1005；mania 默认 OMS 资源 1/1。

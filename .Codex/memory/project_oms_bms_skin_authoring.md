@@ -40,7 +40,8 @@ metadata:
 - `HitTargetVerticalOffset` 保持 0 以守住时间/滚动合同。
 - geometry 当前缺 finite/正值/范围校验；playfield 读 skin profile，但 gauge/combo 会另建默认 profile、BGA 固定 rect。先建唯一 snapshot，再扩表现。
 - legacy mania 缺 `Keys:` bucket 时会合成默认 configuration；neutral model 必须保留 explicit presence，不能把合成默认误判为 `Provide`。
-- `[Mania]` 兼容同时考虑 full visual-lane bucket（6/8/9/16）与 key-only bucket（5/7/9/14，scratch `Inherit`）；14K 可支持显式双 `Keys:8` deck。
+- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；这是未接生产的 candidate plan，不是已装载 fallback。
+- 当前未版本化 9K BMS/PMS per-lane raw token 实际为 `0..8`；V1 canonical `1..9` 必须做版本化迁移/冲突诊断，禁止静默双 alias。
 - 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
 - canonical `oms-simple` 自身失败是安装完整性故障，必须走明确修复路径；禁止偷偷落到另一套程序化颜色/节点。

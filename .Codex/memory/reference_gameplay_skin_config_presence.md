@@ -23,4 +23,4 @@ metadata:
 - BMS presence 只能来自 `BmsSkinDecoder.Configurations`；`[General] Keymodes:` 是 metadata，不创建 bucket。只有有效 `[Bms] Keymode:` 才 `Declared`，9K BMS/PMS 必须分离；bucket 内 malformed field 被跳过不等于 bucket 本身缺失。
 - duplicate section 的 merge/ignore 语义仍归现有 decoder；adapter 只拒绝不可能由真实 decoder 产生的同 target duplicate 输入，不重写 tokenizer 或 compatibility chain。
 
-当前第五切只有 bucket-level provenance。mania field-level explicit presence、malformed declaration 结构化诊断、neutral configuration snapshot、shared codec/compatibility mapping 与生产接线仍未完成。
+第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan；细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。其余 scalar/array/colour/global field presence、malformed declaration 结构化诊断、完整 neutral configuration/validation/shared codec、逐字段 resolution 与生产接线仍未完成。

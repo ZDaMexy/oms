@@ -107,10 +107,12 @@ Keymode:  14K              // DP 单独一段
   | --- | --- | --- |
   | 5K | `S` | `1`..`5` |
   | 7K | `S` | `1`..`7` |
-  | 9K（PMS） | 无 | `1`..`9` |
+  | 9K（BMS/PMS，当前未版本化） | 无 | `0`..`8` |
   | 14K（DP） | `S`(P1) `S2`(P2) | `1`..`7`(P1) `8`..`14`(P2) |
 
   形如 `NoteImageS`、`NoteImage1`（逐道纹理键内嵌 lane token）。
+
+  > **9K 兼容债务**：当前 `BmsLegacySkin` 对非 scratch 直接使用 raw logical lane index，因此无 scratch 的 9K BMS/PMS 实际查询 `0..8`。V1 canonical 作者格式目标仍是 `1..9`，但必须通过显式格式版本、迁移和冲突诊断切换；`1..8` 在两套编号中含义重叠，不能把 `0..8` 与 `1..9` 同时静默当作别名。internal stable lane ID 仍为 `K1..K9`，不等同该 raw token。
 - **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色)）。
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
@@ -121,18 +123,18 @@ Keymode:  14K              // DP 单独一段
 
 ### 3.1 `[Mania]` 共同逻辑的 V1 兼容映射
 
-当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：先把现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral model，再逐步共用 codec；第一刀不重写成熟 mania 生产解析器。
+当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：现已先把六类逐 lane 资源从现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral snapshot，并建立未接生产的候选计划；后续再扩齐配置并逐步共用 codec，不在这一刀重写成熟 mania 生产解析器。
 
-gameplay package 内的候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 普通键 bucket（scratch 保持 `Inherit`）→ `oms-simple`。
+gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 必要的 deck/key-only bucket → `oms-simple`。当前合同 fixture 只保留整个有序候选计划和末端 canonical marker，不验证资源、不选择首值，也没有装载真实 `oms-simple` package。
 
 | BMS 模式 | 全视觉列兼容桶 | 普通键兼容桶 | 备注 |
 | --- | --- | --- | --- |
 | 5K + scratch | `Keys: 6` | `Keys: 5` | 后者只映 K1–K5 |
 | 7K + scratch | `Keys: 8` | `Keys: 7` | 后者只映 K1–K7 |
-| 9K / PMS | `Keys: 9` | `Keys: 9` | BMS/PMS role 仍由 adapter 区分 |
-| 14K + 双 scratch | `Keys: 16` | 显式双 `Keys: 8` deck；或 `Keys: 14` 普通键 | legacy mania 当前按总列数查 `Keys:16`；双 deck 是额外便利路径 |
+| 9K / PMS | `Keys: 9` | — | BMS/PMS role 仍由 adapter 区分；同一 `Keys:9` 不重复加入 key-only candidate |
+| 14K + 双 scratch | `Keys: 16` | 同一 `Keys:8` bucket 分别投影两个 deck，再接 `Keys:14` 普通键 | 固定顺序为 16→8-deck→14；legacy decoder 不保留第二个重复 `Keys:8` section |
 
-这只描述 gameplay package slot，不改写 lazer 现有的谱面内皮肤与 ruleset resource provider authority。P2/右皿到底按 visual index 还是 stable lane ID 取列，必须由 fixture 冻结，不能靠“看起来对”决定。
+这只描述 gameplay package slot，不改写 lazer 现有的谱面内皮肤与 ruleset resource provider authority。当前 fixture 已固定 P2/CenterRightScratch 按 visual index 取 compatibility column，而 stable lane ID/action 不变；生产查询链尚未接入。
 
 ---
 
@@ -435,8 +437,8 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 
 | 能力 | 状态 | 阶段 |
 | --- | --- | --- |
-| 可信恢复、数据/实机 gate | `[进行中]` | `SV1-0` |
-| neutral layout/event/config DTO、三态、capability 与 fixture | `[规划]` | `SV1-1` |
+| 可信恢复、数据/实机 gate | `[已完成]` | `SV1-0` |
+| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：八个合同地基切片已落]` | `SV1-1` |
 | 安全 G1：路径 authority、扫描/选择、原子 reload | `[规划]` | `SV1-2` |
 | 5K/7K 四布局、9K、14K 的唯一 layout snapshot 与单一 BGA content authority | `[规划]` | `SV1-3` |
 | adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划]` | `SV1-4` |

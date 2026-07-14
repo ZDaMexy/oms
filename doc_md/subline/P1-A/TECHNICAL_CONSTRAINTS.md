@@ -75,13 +75,14 @@
 1. `[Mania]` 现有语法与素材包必须兼容；抽 shared codec 时不得无迁移改变既有用户皮肤行为。
 2. BMS 与 mania 重合的字段使用相同键名、值类型、数组/颜色语义、资源名和 `name-0`/`name-1` 帧序列。`[Bms]` 只定义 scratch/side/DP/gauge/BGA/gimmick 等真正独有字段。
 3. `[Bms]` 共同字段和 `[Mania]` 必须进入同一个 neutral configuration model，不得只复制 enum/key 名。
-4. BMS compatibility 优先级固定为：`[Bms]` role-aware override → full visual-lane bucket（5K+S→`Keys:6`、7K+S→`Keys:8`、9K→`Keys:9`、14K+2S→`Keys:16`）→ key-only bucket（`Keys:5/7/14` 只映普通键、scratch `Inherit`）/14K 显式双 `Keys:8` deck → `oms-simple`。P2/CenterP2 的 visual index 与 stable lane ID 必须由 fixture 固定，不能靠 renderer 猜。
-5. mania 0-based column、当前 BMS `S/S2`/数字 token 必须在 adapter 边界转换成 stable lane ID；renderer/scene 不得继续自行拼 lane key。
+4. BMS compatibility 优先级固定为：5K `[Bms] → Keys:6 → Keys:5 → canonical marker`；7K `[Bms] → Keys:8 → Keys:7 → marker`；9K BMS/PMS `[Bms] → Keys:9 → marker`，不得重复制造同一 `Keys:9` key-only candidate；14K `[Bms] → Keys:16 → 同一个真实 Keys:8 bucket 按两个 engine-owned deck 分别投影 → Keys:14 普通键 → marker`。14K deck-local `Keys:8` 必须先于 `Keys:14`，以保留双 scratch 与 deck-local presentation；当前末端 marker 只能是 `Absent` 的未来 `oms-simple` authority 标记，不得伪造已装载 package。P2/CenterRightScratch 的 visual index 与 stable lane ID/action 必须由 fixture 固定，不能靠 renderer 猜。
+5. mania 0-based column、当前 BMS `S/S2`/数字 token 必须在 adapter 边界转换成 stable lane ID；renderer/scene 不得继续自行拼 lane key。当前未版本化 `[Bms]` production lookup 对非 scratch 沿用 raw logical lane index：5K/7K/14K 因 scratch 占 index 0 而得到 `1..`，无 scratch 的 9K BMS/PMS 实际得到 `0..8`；这不改变 internal stable lane ID `K1..K9`。V1 canonical 作者 token 目标 `1..9` 必须经显式格式版本、迁移与冲突诊断引入，禁止同时静默接受 `0..8`/`1..9` 两套重叠别名。
 6. BMS 现有 `PlayfieldWidth/Height`、normal/scratch width/spacing 等 F1 字段作为兼容输入保留，但最终映射须进入 engine layout descriptor，不允许脚本直接改时序。
 7. `HitTargetVerticalOffset` 继续锁 0，直到独立专题证明 `scrollLengthRatio`、GN、判定窗口和 replay 不变量；不能通过皮肤偷偷改变。
 8. 加载行为必须 fail-open 并产生结构化诊断：未知键、非法值、缺素材、不支持 capability 和 fallback 来源可查询。当前“静默跳过”只算恢复基线，不算 V1 完成。
-9. neutral config 必须保留 explicit declaration/presence：presence carrier 的默认值是 `Absent`，显式 bucket 即使为空也为 `Declared`；declaration 只表示来源事实，不等于 slot `Provide`、验证成功或 `Suppress`。通用 carrier 必须区分显式 `false`、`0`、空字符串与缺失；当前第五切只完成 bucket-level projection，不能写成 field-level neutral config 已完成。
-10. shared codec 采用 adapter-first 迁移：mania presence 只能来自 `LegacyManiaSkinDecoder` 实际产出的 bucket，不能来自会为缺失 bucket 合成默认 configuration 的 `LegacySkin` lookup；BMS 只有 `BmsSkinDecoder` 接受并产出的有效 `Keymode` bucket 才算 `Declared`。fixture 稳定后再替换共同解析；不得一次同时改 tokenizer、mania production lookup/chain 和 BMS compatibility mapping。
+9. neutral config 必须保留 explicit declaration/presence：presence carrier 的默认值是 `Absent`，显式 bucket 即使为空也为 `Declared`；declaration 只表示来源事实，不等于 slot `Provide`、验证成功或 `Suppress`。通用 carrier 必须区分显式 `false`、`0`、空字符串与缺失；当前第八切只覆盖 note、LN head/body/tail、key up/down 六个逐 lane 资源字段，不能写成完整 field-level neutral config 已完成。
+10. shared codec 采用 adapter-first 迁移：mania presence 只能来自 `LegacyManiaSkinDecoder` 实际产出的 bucket，不能来自会为缺失 bucket 合成默认 configuration 的 `LegacySkin` lookup；BMS 只有 `BmsSkinDecoder` 接受并产出的有效 `Keymode` bucket 才算 `Declared`。第八切只新增 decoder-output snapshot 与有序候选计划，未改变 tokenizer、mania/BMS production lookup、renderer 或现有 fallback chain；fixture 稳定后再替换共同解析，不得把这些变更合并成一次生产切换。
+11. lane-resource field catalog 是 closed process-local taxonomy，不是 manifest/serialization ABI；snapshot 必须绑定 exact immutable topology、防御性复制、确定性排序、拒绝 null/未知字段/重复 lane-field，缺项为 `Absent`、显式空资源名仍为 `Declared`，安全字符串不得展开资源名。public legacy mania factory 只因跨 ruleset 程序集桥接而公开，不得当作作者/plugin/package/script API。
 
 ## osu 社区式制作者合同
 

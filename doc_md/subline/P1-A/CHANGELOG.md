@@ -4,6 +4,16 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第八个合同切片：lane-resource neutral snapshot 与 BMS→mania compatibility plan
+
+- shared `osu.Game.Skinning.Gameplay` 新增 closed process-local 六字段 catalog：note、LN head/body/tail、key up/down，并关联既有 semantic slot。声明携带 stable lane ID/field/未验证 resource name，显式空字符串保持 `Declared`；immutable snapshot 绑定 exact lane topology、防御性复制、按 logical lane/catalog 确定性排序，拒绝 null、非 catalog field、topology 外 lane 与重复 lane-field，缺项查询返回 `Absent`。安全 `ToString()` 不展开资源名；这不是完整 neutral config、manifest/serialization ABI 或 slot `Provide`。
+- public `LegacyManiaGameplaySkinLaneResourceSnapshotFactory` 只因 mania/BMS 跨程序集共享实际 `LegacyManiaSkinDecoder` field 语义而作为 CLR bridge；它不是 plugin/package/manifest/script API，也绝不经过会为缺失 `Keys:` 合成默认 configuration 的 `LegacySkin` lookup。internal mania adapter 将 native topology 的 global logical column 投影到 snapshot；internal BMS adapter 只读取实际 `BmsSkinDecoder` bucket，scratch 使用 `S/S2`。
+- internal BMS candidate plan 保留整个 bucket/field 候选链而不提前选首值或验证资源：5K `[Bms]→Keys6→Keys5→marker`，7K `[Bms]→Keys8→Keys7→marker`，9K BMS/PMS `[Bms]→Keys9→marker` 且不重复相同 key-only bucket，14K `[Bms]→Keys16→同一 Keys8 bucket 按两个 engine-owned deck 分别投影→Keys14 普通键→marker`。P2/CenterRightScratch full bucket 按 global visual index，14K deck bucket 按 group-local visual index；stable lane ID/action 不变。Keys8 先于 Keys14，以优先保留 scratch/deck-local presentation；末端只是 `Absent` canonical marker，未伪造或装载 `oms-simple`。
+- 对照当前 `BmsLegacySkin.resolveImageKey()` 确认一项文档债：未版本化 5K/7K/14K 因 scratch 位于 logical index 0 而普通键 raw token 从 1 开始，但无 scratch 的 9K BMS/PMS 当前实际为 `0..8`。本切片按当前生产事实建立 fixture；V1 canonical 作者目标 `1..9` 必须另做显式格式版本、迁移和冲突诊断，不能将两套在 `1..8` 上重叠的 token 静默双 alias。
+- 新增 focused shared **12/12**、mania adapter **6/6**、BMS candidate **29/29**，合计 **47/47**；扩回归 shared gameplay **223/223**、provider authority **6/6**、mania relevant **119/119** + legacy decoder **7/7**、BMS relevant **107/107** + transformer/fallback **104/104**。core skin 仍为恢复基线同名既有 **57/62**（1 项 Argon 旧期待、4 项已删除 ruleset archive），强制 `osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**。
+- 首次 source build 暴露一条新增 nullable `CS8602`，补 exact group lookup null guard 后消失；首次 solution-level formatter verify 对 LF 新文件报告 `ENDOFLINE` 并提示一处 `IDE0032`，改为 auto-property、按 owning project 规范化后 targeted verify 通过；后续注释调整再次留下 5 行混合行尾，也由 owning-project formatter 捕获并规范化，最终六个工程 whitespace/style verify 全过。保留 9 条 MessagePack `NU1902`（Release restore/build 重复为 18）与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`；一次 5 秒命令工具超时被中断后以完整 27 秒 Release 重建重新取证，不能把工具超时记作工程失败。Markdown **118 文件 / 932 相对链接 / 0 断链**。
+- 未接 `SkinManager`、nullable `ISkin`、renderer、真实 fallback package 或任何具体视觉；未改变程序化 `OmsSkin`、provider authority 与 production lookup。未访问或写入生产 Realm、`chartskin/`、用户皮肤目录或网络。第八切只是六字段 config/fallback 候选地基，Skin V1 仍不可用。
+
 ### `SV1-1` 第七个合同切片：capability negotiation 与永不授权 authority
 
 - shared `osu.Game.Skinning.Gameplay` 新增 opaque `GameplaySkinCapabilityId`、internal-created immutable request、结构化 denial 与 immutable negotiation snapshot。ID 使用 lowercase ASCII dot-segment/ordinal 强值语义且不得包含用户、包、资源或路径；request 防御性复制、拒绝 duplicate 并按 ordinal 排序。当前 CLR carrier/diagnostic/JSON 只是 process-local decision/隐私 fixture，不是 manifest、持久化或 script ABI；future parser 的 ID length/request count/package budget 尚未定义。
