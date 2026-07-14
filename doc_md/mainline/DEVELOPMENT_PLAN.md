@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-14
+> 最后更新：2026-07-15
 > 本页只保留全局执行顺序、依赖和验收门。子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。当前事实以 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 为准。
 
 ## 当前目标
@@ -34,9 +34,9 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：R0/R1 已解除；三态 slot/precedence、内部 semantic taxonomy、neutral lane identity/topology/保持性 transition validation、config bucket explicit-presence、legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/revision-owner 十三个切片已完成，其余共同合同待续。
+状态：R0/R1 已解除；三态 slot/precedence、内部 semantic taxonomy、neutral lane identity/topology/保持性 validation、config explicit-presence、legacy mania scalar/array/四项 global colour snapshot、event envelope/order、capability、lane-resource candidate/resolution，以及 topology publication/native continuity 十四个切片已完成，其余共同合同待续。
 
-1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane/group identity、immutable order snapshot、neutral topology-preserving validator、实际 decoder bucket presence、六类 lane-resource BMS→mania candidate mapping 与 process-local resolution/owner 已落，native context/revision/wire、full layout/geometry、完整 neutral config、真实资源 validation/materialization/shared codec、production fallback 和 adapter 接线待续。
+1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、六类 lane-resource mapping/resolution 已落。下一切先冻结 decoder-time per-column colour provenance；global resources 也不得从 mutable native dictionary 反推。full layout/geometry、production revision/event/wire、完整 neutral config、真实资源 validation/materialization/shared codec、fallback 和 adapter 接线待续。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。
 3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority；process-local envelope/order 与 capability decision/hard-deny foundation 已落，concrete payload、producer/dispatch、sampling、真实 manifest/version/activation/runtime gate 仍待。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。

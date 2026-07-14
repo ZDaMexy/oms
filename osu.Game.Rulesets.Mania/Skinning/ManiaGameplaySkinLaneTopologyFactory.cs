@@ -15,6 +15,9 @@ namespace osu.Game.Rulesets.Mania.Skinning
     internal static class ManiaGameplaySkinLaneTopologyFactory
     {
         public static GameplaySkinLaneTopologySnapshot Create(ManiaBeatmap beatmap)
+            => CreateProjection(beatmap).Topology;
+
+        internal static ManiaGameplaySkinLaneTopologyProjection CreateProjection(ManiaBeatmap beatmap)
         {
             ArgumentNullException.ThrowIfNull(beatmap);
 
@@ -27,18 +30,26 @@ namespace osu.Game.Rulesets.Mania.Skinning
             if (stages.Any(stage => stage == null || stage.Columns > ManiaRuleset.MAX_STAGE_KEYS))
                 throw new ArgumentException("Every mania stage must use the supported canonical key-count range.", nameof(beatmap));
 
-            var groups = new List<GameplaySkinLaneTopologyGroup>(stages.Length);
+            int[] stageColumnCounts = stages.Select(stage => stage.Columns).ToArray();
+
+            return ManiaGameplaySkinLaneTopologyProjection.Create(stageColumnCounts);
+        }
+
+        internal static GameplaySkinLaneTopologySnapshot CreateCanonicalTopology(IReadOnlyList<int> stageColumnCounts)
+        {
+            var groups = new List<GameplaySkinLaneTopologyGroup>(stageColumnCounts.Count);
             int globalIndex = 0;
 
-            for (int stageIndex = 0; stageIndex < stages.Length; stageIndex++)
+            for (int stageIndex = 0; stageIndex < stageColumnCounts.Count; stageIndex++)
             {
-                StageDefinition stage = stages[stageIndex];
+                int stageColumns = stageColumnCounts[stageIndex];
+                var stage = new StageDefinition(stageColumns);
                 GameplaySkinLaneGroupIdentity groupIdentity = GameplaySkinLaneGroupIdentity.Create(
                     GameplaySkinLaneGroupId.Create($"mania.group.stage-{stageIndex + 1}"),
-                    getSide(stages.Length, stageIndex));
-                var lanes = new List<GameplaySkinLaneTopologyEntry>(stage.Columns);
+                    getSide(stageColumnCounts.Count, stageIndex));
+                var lanes = new List<GameplaySkinLaneTopologyEntry>(stageColumns);
 
-                for (int localIndex = 0; localIndex < stage.Columns; localIndex++)
+                for (int localIndex = 0; localIndex < stageColumns; localIndex++)
                 {
                     GameplaySkinLaneRole role = stage.IsSpecialColumn(localIndex)
                         ? GameplaySkinLaneRole.SpecialKey

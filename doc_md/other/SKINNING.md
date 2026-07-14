@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，当前玩家可用的是 `.osk` + `[Mania]/[Bms] skin.ini`；BMS 现存静态件已有颜色/纹理/几何支持。`chartskin/` 生产链、热重载、三态 suppress、declarative scene、事件 ABI、沙箱脚本和文件型默认均未启用。事故期 F2/Lua 不算当前能力。Skin V1 的目标是交付同权的 `oms-simple.osk` 与 `oms-complex.osk`，并让第三方使用完全相同的公开 API；当前程序化 `OmsSkin` 仅为迁移基线，最终不进入产品渲染链。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，当前玩家可用的是 `.osk` + `[Mania]/[Bms] skin.ini`；BMS 现存静态件已有颜色/纹理/几何支持。到 2026-07-15，`SV1-1` 已积累十四个只在合同/fixture 层的地基切片，最新一切只增加 process-local topology publication/native continuity，仍未接产品链。`chartskin/` 生产链、热重载、三态 suppress、declarative scene、事件 ABI、沙箱脚本和文件型默认均未启用。事故期 F2/Lua 不算当前能力。Skin V1 的目标是交付同权的 `oms-simple.osk` 与 `oms-complex.osk`，并让第三方使用完全相同的公开 API；当前程序化 `OmsSkin` 仅为迁移基线，最终不进入产品渲染链。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
@@ -438,7 +438,7 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 | 能力 | 状态 | 阶段 |
 | --- | --- | --- |
 | 可信恢复、数据/实机 gate | `[已完成]` | `SV1-0` |
-| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：十三个合同地基切片已落，含 neutral topology-preserving validation 与 legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot]` | `SV1-1` |
+| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：十四个合同地基切片已落，含 neutral topology-preserving validation、process-local native-context topology publication/revision 与 legacy mania scalar/array/四项 global colour accepted snapshot；未接生产]` | `SV1-1` |
 | 安全 G1：路径 authority、扫描/选择、原子 reload | `[规划]` | `SV1-2` |
 | 5K/7K 四布局、9K、14K 的唯一 layout snapshot 与单一 BGA content authority | `[规划]` | `SV1-3` |
 | adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划]` | `SV1-4` |

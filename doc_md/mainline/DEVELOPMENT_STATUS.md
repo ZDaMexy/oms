@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-07-14
+> 最后更新：2026-07-15
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic slot taxonomy、neutral lane identity/topology/保持性 transition validation、config bucket presence、legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot、event envelope/order、capability negotiation/禁止 authority、六类 lane-resource candidate plan 与 internal resolution/owner 十三个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的三态/precedence、semantic taxonomy、neutral lane identity/topology/保持性 validation、config presence、legacy mania scalar/array/四项 global colour snapshot、event envelope/order、capability、lane-resource candidate/resolution，以及 process-local topology publication/native continuity 十四个切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
 | 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
-| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology/保持性 validation、config bucket presence、legacy mania primitive scalar/indexed-array/四项 known global colour accepted snapshot、event envelope/order、capability negotiation、六类 lane-resource candidate plan 与 internal resolution/owner 十三切完成；生产未接入 | 继续 native context/revision/wire、per-column/扩展颜色与 global config、真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime 与 full layout fixtures |
+| 3 | Skin V1 共同合同 | `SV1-1` 三态/precedence、semantic taxonomy、lane identity/topology/保持性 validation、config presence、event/capability、lane-resource resolution 与 topology publication/native continuity 十四切完成；生产未接入 | 继续 decoder-time per-column/global config provenance、真实资源 validation/materialization/shared codec、concrete event payload/producer、真实 capability manifest/runtime、full layout/geometry 与 production revision/wire fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -34,7 +34,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 - **恢复修正**：base legacy parser 前重置配置流位置；14K 第二皿使用 `S2`/P2 素材映射。
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
 - **slot taxonomy**：26 个内部 semantic family 已固定 7 critical / 19 optional，descriptor 与 ruleset context 分离；它不是作者 manifest ABI、layout descriptor 或生产 suppress 接线。
-- **lane identity/topology**：强类型 identity 之上已落 immutable snapshot/group/entry、四类 logical/visual index、只读排序视图、neutral topology-preserving validator，以及 internal BMS/mania projection fixtures；尚无 native context/revision authority、full layout/geometry、wire ABI 或生产接线。
+- **lane identity/topology**：强类型 identity、immutable snapshot/index/order 与 neutral validator 之上，已落 topology-only publication/process-local revision owner；internal BMS exact keymode 与 mania ordered stage vector 维护 native continuity。尚无 full layout/geometry、production `layoutRevision`/event producer、wire ABI 或生产接线。
 - **config presence/resolution**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、六类 lane-resource immutable snapshot、有序 BMS→mania candidate plan、process-local source-aware resolution 与 revision-owner 合同已落；尚无其余完整 field config、真实文件 validation/materialization/shared codec、production fallback 或接线。
 - **event foundation**：process-local immutable envelope、engine-owned payload hierarchy 与 internal canonical-stream ordering cursor 已落；尚无 concrete payload family、lifecycle producer/dispatch、sampling、scene/script consumer 或生产接线。
 - **capability foundation**：process-local closed-allowlist evaluator、host support/per-skin authorization 分层、immutable decision 与 hard-deny authority classifier 已落；当前没有真实 capability、manifest/身份绑定/授权存储 UI、runtime gate 或 sandbox。
@@ -49,7 +49,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十三个合同切片完成，未接生产链 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十四个合同切片完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -67,9 +67,9 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 ## 最近一次验证
 
-### 2026-07-14 P1-A `SV1-0` / `SV1-1` 前十三切
+### 2026-07-15 P1-A `SV1-1` 第十四切
 
-用户自行确认完整皮肤实机清单正常；前九切保留 lane-resource shared/mania/BMS 12/12、6/6、29/29 与 resolution/owner 55/55、capability 91/91。第十切新增 neutral topology-preserving validator 12/12；第十一至十三切新增 legacy mania 九个 primitive scalar、五组 indexed array、四项 exact known global colour 的 decoder accepted-declaration/value snapshot 18/18、20/20、15/15，连同 decoder/declaration 65/65。shared gameplay 235/235、mania relevant 120/120、BMS relevant 108/108，core skin 仍为同名既有 57/62，`osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings；额外 mania 全量 815/819 的 4 项仍是恢复基线同组 HoldNote auto-frame 期待，第九切 BMS 全量 1117/1117 未在后四切重跑。三个 source-specific snapshot 仍不含 per-column/扩展颜色、global resources/`NoteBodyStyle`，不修 legacy parser 时序，也不是完整 neutral config；native keymode、revision/wire、full layout/geometry、真实文件 validation/materialization/shared codec、concrete event payload/producer、真实 manifest/授权/runtime、scene/script ABI 与生产接线均未完成。精确矩阵与告警归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+第十四切新增 topology-only publication/process-local revision owner，并以 internal BMS exact keymode 与 mania ordered stage-column vector 关闭 neutral shape 无法表达的 native continuity 盲区；没有接 playfield、renderer、event producer 或 `SkinManager`。shared gameplay 243/243，BMS publication 14/14、topology 34/34、full 1132/1132；mania publication 7/7、topology 16/16、full 822/826，非零仍只有恢复基线同名 4 个 HoldNote auto-frame 期待；core skin 57/62 仍是同名既有 5 项。`osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings，未使用 `NoWarn`。下一步是 decoder-time per-column colour provenance；full layout/geometry、production revision/event/wire、真实资源 validation/materialization/shared codec、manifest/runtime、scene/script 与 fallback 接线均未完成。精确矩阵见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 

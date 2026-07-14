@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_config_presence
-description: Skin V1 configuration bucket/scalar/indexed-array/known-global-colour accepted presence、legacy mania synthetic default 与 decoder authority 地雷
+description: Skin V1 configuration bucket/scalar/indexed-array/known-global-colour accepted presence、legacy mania synthetic default、ImageLookups 可变窗口与 decoder authority 地雷
 metadata:
   node_type: memory
   type: reference
@@ -47,3 +47,9 @@ metadata:
 - malformed colour 会让既有 `flushPendingLines()` 在 clear 前退出并阻断同 section 后续；fixture 只锁“不声明/不覆盖”，不能把阻断行为提升为 V1 codec 合同，也不能在 provenance 切片顺手修 parser。
 
 第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十三切新增上述九个 legacy mania primitive scalar、五组 indexed array 与四项 known global colour；其余 per-column/扩展 colour、global resource presence、`NoteBodyStyle`、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
+
+## lane-resource provenance 尚未闭合
+
+- `LegacyManiaGameplaySkinLaneResourceSnapshotFactory` 当前在 factory 调用时直接读取 public mutable `LegacyManiaSkinConfiguration.ImageLookups`。既有 immutable fixture 只证明 snapshot 创建后不随 native mutation 漂移；decode 后、factory 前的新增/替换/删除仍可伪造或擦除 declaration/value。
+- 因此现有 lane-resource snapshot 只能称 compatibility projection，不是完整 decoder-accepted provenance，更不是 security boundary。不得把“来自 decoder output”误写成“只能由 decoder 成功接受的行产生”。
+- 后续 exact per-column colour、global resource 与最终 lane-resource hardening 必须在 decoder 接受行时写入 immutable/defensively copied sidecar，factory 只读 sidecar；不得从 `CustomColours`、`ImageLookups` 或其它 public mutable dictionary 反推完整 V1 config。本切不顺手改 parser/factory。

@@ -2,6 +2,18 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-15
+
+### `SV1-1` 第十四个合同切片：topology publication、revision 与 native-context continuity
+
+- shared 新增 public、sealed、immutable 的 `GameplaySkinLaneTopologyPublication` 与 `GameplaySkinLaneTopologyRevisionOwner<TNativeContext>`。一个 process-local owner 的首个成功 publication 为 revision 0；后续先执行 exact native-context comparator、既有 neutral topology transition validation 与 checked increment，全部成功才替换 `Current`。native mismatch、comparer 异常、neutral rejection、`long.MaxValue` overflow 与 invalid input 均不推进状态。公开安全字符串不展开 context/topology；该 revision 明确不是 package revision、event `layoutRevision`、serialization/wire ABI、thread-safe owner 或 security boundary。
+- BMS internal wrapper/owner 以 exact `BmsKeymode` 维护 native continuity，`AppliedStyle` 仅为可变 presentation metadata。5K/7K 覆盖 P1/P2、Center/CenterRightScratch 的 visual reorder，以及 P1→Center/P2→CenterRightScratch 这种 topology 不变的 style-only change；9K fixture 先证明 neutral validator 会接受 BMS/PMS 同 shape，再由 native gate 拒绝且后续合法 BMS publication 仍为 revision 1；14K canonical 双 deck 独立重建可发布。没有把 `BmsKeymode` 放进 shared 合同。
+- mania factory 先复制 ordered stage-column vector，再由 projection 自行创建 canonical topology，不再接受调用方传入的任意同 cardinality topology；旧 `Create()` 仍返回相同 neutral snapshot。internal owner 以 exact ordered vector 维护 continuity：同 shape 独立重建递增，4→5 与 `[4,5]→[5,4]` 从 `nativeContext` gate 原子拒绝，beatmap 后续 mutation 不漂移。ruleset wrappers 未接 playfield、renderer、event producer 或 `SkinManager`。
+- focused：shared owner **8/8**、owner+transition **20/20**、shared gameplay **243/243**；BMS publication **14/14**、topology aggregate **34/34**、full **1132/1132**；mania publication **7/7**、topology aggregate **16/16**、full **822/826**。mania 4 项失败仍是恢复基线同名 `TestSceneAutoGeneration` HoldNote frame-count 期待；core skin **57/62** 仍是 1 项 Argon 旧期待与 4 项已删除 ruleset archive。`osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**；仅保留 9 条 MessagePack 3.1.3 `NU1902` 在 restore/build 重复与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。六个 owning-project formatter/analysis verify exit 0（仅 workspace-load 概括 warning）；Markdown **119 文件 / 936 相对链接 / 0 断链**。
+- 三轮独立只读审查均为 0 blocker / 0 major。审查提出的 Mania exception source/canonical construction、BMS style-only 与 9K reject 后 revision fixture 已补齐；规则集 wrapper 的强原子性措辞收窄为 comparator/validation/overflow 等正常拒绝路径，不把灾难性对象分配失败误写成跨 assembly 事务保证。
+- 只读审计另确认旧 lane-resource factory 在调用时读取公开可变 `LegacyManiaSkinConfiguration.ImageLookups`：snapshot 创建后稳定，但 decode 后、factory 前的 mutation 仍可伪造/擦除 declaration。下一切先为 exact `Colour{n}`/`ColourLight{n}` 建 decoder-time accepted sidecar；global resources 后续同样不得从 mutable dictionary 反推。未访问生产 Realm、`chartskin/`、用户皮肤目录或网络。
+- 未实现完整 `GameplaySkinLayoutContext`、bounds/geometry/action/source、production `layoutRevision`/event/wire producer、thread-safe attachment、per-column/扩展 colour、global resources/`NoteBodyStyle`、真实文件 validation/materialization/shared codec、生产 adapter、G1、scene/script、`oms-simple`/`oms-complex` 视觉或 fallback authority 切换。第十四切仍只是合同/fixture 地基，Skin V1 不可用。
+
 ## 2026-07-14
 
 ### `SV1-1` 第十三个合同切片：legacy mania known-global-colour accepted-declaration snapshot
