@@ -4,6 +4,14 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第二个合同切片：ruleset-neutral semantic slot taxonomy
+
+- 新增不可变 `GameplaySkinSlotDescriptor`、`GameplaySkinSlotCatalog` 与 `GameplaySkinSlotLookup<TContext>`：26 个内部语义 family 固定为 7 critical / 19 optional，小写 ASCII 点分 ID 采用 ordinal 精确查询；未知或畸形 ID fail-closed 为 `TryGet=false`，不动态注册。ID 当前只用于内部 taxonomy/诊断，不是作者 manifest ABI，也不携带 lane/keymode/side/result/layout。
+- critical 最小层为 lane surface、judgement line、note、LN head/body、mine 与 active lane-cover fill；LN tail、key/effect/HUD/barline/stage/backdrop/cover decoration/turntable/laser/BGA viewport+frame/decoration 均 optional。lane cover fill 只挂在引擎强制 geometry/clip host 内，BGA viewport 只呈现引擎只读 content surface。
+- 新 resolver overload 把 descriptor 与 ruleset context 一并交给 provider，requirement 只能来自 descriptor；旧 raw overload保持兼容，但 catalog descriptor/lookup 若试图错配 requirement 会拒绝。diagnostic 保留上一切片构造/解构 ABI并新增 `SlotId`，JSON 与安全 `ToString()` 排除 process-local `Slot`/`Exception`；provider name 仍必须由 provider 保证为非敏感 authority。
+- focused 首跑 43/44，唯一失败是新测试把 lazy `Distinct()` 当成有 `Count` 属性的集合；改为显式 `Count()` 后 catalog 34/34、旧 resolver 13/13、合并 47/47。一次并行启动 BMS/mania 测试因共享 `oms.Input/obj` 文件锁报 `CS2012`，顺序复跑后 provider authority 6/6、BMS 43/43 与 104/104、mania 84/84 和专项 1/1；core skin 57/62 仍是同名既有 5 项，Release 0 error / 20 warnings。
+- 告警仍为 MessagePack 9 项 `NU1902`（restore/build 重复）及 BMS 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。没有改 `SkinManager`、nullable `ISkin`、legacy lookup/transformer、`OmsSkin` authority、生产 Realm 或用户皮肤；layout/config/event/capability/manifest、真实 `oms-simple` 与生产 suppress 均未实施。
+
 ### `SV1-0` 实机闭门，`SV1-1` 三态 gameplay slot 合同首切
 
 - 用户亲自确认实机清单全部正常：无外部皮肤、当前 `.osk` 用户皮肤、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿素材，以及 mania 默认资源未被 BMS reference 覆盖；Agent 没有操控 GUI。结合前一日自动与 schema 56 数据门，`SV1-0` 已完成。

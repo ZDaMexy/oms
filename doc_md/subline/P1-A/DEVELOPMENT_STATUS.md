@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 首个最小切片已建立平行三态 gameplay slot 合同、结构化 fallback 诊断和 provider precedence fixtures，但未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
+皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 已完成三态/precedence 首切和 ruleset-neutral semantic slot taxonomy 第二切，但未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
 
 ## Skin V1 目标
 
@@ -27,6 +27,7 @@
 | BMS 共同 ini 实现 | 未统一 | BMS/mania 仍有两套 decoder/resolver，共同键只做到近似语义 |
 | BMS 动态外部运行时 | 未开始 | 当前无 declarative scene/event ABI/sandbox script；事故期 F2/Lua 不计能力 |
 | component suppress | 合同地基已落，生产未接入 | `SkinSlotResult<T>` 已区分 `Provide/Inherit/Suppress`；现有文件皮肤和 `SkinManager` 尚不能消费该合同 |
+| semantic slot taxonomy | 第二个合同切片已落 | 26 个内部语义 slot 固定 7 critical / 19 optional、稳定诊断 ID 与 context 分离；不是作者 manifest ABI 或 layout descriptor |
 | playfield topology | 部分可用 | 5K/7K/9K/14K lane order、双皿和 single-play style 已有自动覆盖；统一 descriptor/全矩阵未落，sparse chart 的 keymode 推断仍有低估风险 |
 | HUD 几何联动 | 存在缺口 | playfield 读取皮肤 profile，gauge/combo 却重新取默认 profile；皮肤改宽/高后会脱节 |
 | BGA host | 部分可用 | 时间线和 skinnable panel 已有；固定 rect 不消费 skin-resolved playfield，center-right-scratch 仍按右侧 BGA，14K 四角四 player 是临时表现 |
@@ -56,7 +57,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | --- | --- | --- |
 | 1 | schema 56 `SkinInfo` 数据安全门 | **通过**：备份与副本演练后定点移除异常 copy、修正 OMS 固定记录；路径 authority 正常 |
 | 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | **通过**：用户于 2026-07-14 自行确认全清单正常；Agent 未操控 GUI |
-| 3 | shared contract/fixture 代码冻结 | 进行中：首个三态 slot/fallback/precedence 切片完成；其余 neutral 合同未开始 |
+| 3 | shared contract/fixture 代码冻结 | 进行中：三态/precedence 与 semantic slot taxonomy 两切完成；layout/config/event/capability 仍未开始 |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -65,12 +66,12 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 最近验证
 
-### `SV1-0` 闭门与 `SV1-1` 首个合同切片（2026-07-14）
+### `SV1-0` 闭门与 `SV1-1` 前两个合同切片（2026-07-14）
 
 | 检查 | 结果 |
 | --- | --- |
 | 用户实机 gate | **通过**：无外部皮肤、当前 `.osk`、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿、mania/BMS 资源隔离均正常 |
-| `GameplaySkinSlotResolverTest` | **13/13** |
+| `GameplaySkinSlotCatalogTest` / `GameplaySkinSlotResolverTest` | **34/34；13/13（合计 47/47）** |
 | `SkinProvidingContainer` / `RulesetSkinProvidingContainer` authority guard | **6/6**；实链顺序为 beatmap-local → selected → ruleset resources → protected built-in |
 | BMS parser/legacy/reference/render focused | 43/43 |
 | BMS transformer + user fallback | 104/104 |
@@ -78,7 +79,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | core skin focused | 57/62；5 项与恢复审计同名，无新失败 |
 | `osu.Desktop.slnf` Release | **0 error / 20 warnings** |
 
-provider guard 首跑为 3/6：原测试夹具的两项旧用例与新增 fixture 都从全局 bindable 取得 mania ruleset，再对通用 `Beatmap` 做错误强转。测试夹具改为显式使用其声明的 `CreateRuleset()` 后最终 6/6；没有改生产 provider。每次测试均保留 9 条 MessagePack `NU1902`；BMS 命令另有既有 `CS8600`/`CA2007`。用户先行的 `osu.Desktop` project Release 为 0 error / 18 warnings；要求的 `.slnf` 首次与最终完整编译均为 0 error / 20 warnings。中间一次增量复核为 0 error / 18 warnings，仅因未重编的 BMS test analyzer 没有重复输出两条既有告警。完整 schema 56 脱敏证据见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+第二切 focused 首跑为 43/44，唯一失败是新 fixture 对 lazy `Distinct()` 错用 `Has.Count`；改为显式 `Count()` 后 catalog 34/34、合并 47/47。一次并行启动 BMS/mania 测试因多个 `dotnet` 进程抢写同一 `oms.Input/obj` 报 `CS2012`，改为顺序执行后全部通过，不是代码回归。首切 provider guard 首跑 3/6 的既有夹具归因仍为“全局 mania ruleset + 通用 Beatmap”错误强转，改用夹具声明的 `CreateRuleset()` 后保持 6/6；生产 provider 未改。每次测试均保留 9 条 MessagePack `NU1902`；BMS 命令另有既有 `CS8600`/`CA2007`。用户先行的 `osu.Desktop` project Release 为 0 error / 18 warnings；要求的 `.slnf` 最终完整编译为 0 error / 20 warnings，未使用 `NoWarn`。完整 schema 56 脱敏证据见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
 
 ### 恢复基线（2026-07-10）
 
@@ -104,6 +105,8 @@ provider guard 首跑为 3/6：原测试夹具的两项旧用例与新增 fixtur
 - schema 56 异常记录已定点处置；四个无 authority 的 orphan blob 暂留且已另行保全，未运行会波及其它记录的全局 cleanup。
 - external absolute path、删除/重命名 containment、scanner authority 和原子 reload 尚无可信生产实现。
 - 当前 parser 对未知/非法 BMS 值是静默 fail-open，作者文档曾误写为“会告警”；结构化诊断是 SV1-4 未完成能力。
+- semantic catalog 的未知 ID 目前只会由 `TryGet()` 拒绝，尚无 manifest parser/作者诊断接线；旧 raw resolver 仍是 uncatalogued compatibility 入口，生产接线必须只走 descriptor overload。
+- catalogued 诊断的 context/exception 已从 JSON 与安全 `ToString()` 排除，但 `ProviderName` 的隐私仍依赖 provider 遵守“非敏感 authority 名、不得含绝对路径”合同。
 - 皮肤几何值无完整合法域校验；playfield、gauge/combo 与 BGA 尚未消费同一 resolved descriptor，极端值会脱节或重叠。
 - sparse 7K/9K chart 可能因未使用高位 channel 被 keymode 启发式低估；布局正确性必须以前置解析诊断/override 为条件。
 - 设置文案仍写 `14K→中缝`，当前代码实际为四角四 player；两者都不是 V1 authority，发布前必须统一到 descriptor。
@@ -115,5 +118,5 @@ provider guard 首跑为 3/6：原测试夹具的两项旧用例与新增 fixtur
 
 ## 下一检查点
 
-1. 继续 `SV1-1` 仍未完成的 neutral layout/config/event/capability 合同；首切片不等于整个 `SV1-1` 完成。
+1. 继续 `SV1-1` 的 neutral lane/group/role/side/stable-ID 身份 DTO，再推进 config/event/capability；前两个合同切片不等于整个 `SV1-1` 完成。
 2. 在另立生产接线切片前保持 `SkinManager`、nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；G1 仍按 `SV1-2` 独立重做。

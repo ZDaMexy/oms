@@ -80,10 +80,10 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-1：共同合同与 fixture 冻结
 
-状态：进行中。首个三态 gameplay slot 合同与 fallback/precedence fixture 切片已完成；未接生产选择链，其余条目未开始。
+状态：进行中。三态 gameplay slot/fallback/precedence 首切和 semantic slot taxonomy 第二切已完成；未接生产选择链，layout/config/event/capability 等条目仍待续。
 
 1. 建立 neutral `GameplaySkinLayoutContext`、lane group/role/side/stable ID DTO 草案。
-2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。**首切已完成**：平行 `SkinSlotResult<T>`/resolver 已固定三态、critical/optional、坏 `Provide`/provider/validator 失败诊断后继续 `Inherit`、optional `Suppress` 终止和名为 `oms-simple` 的 fake 逐组件末端回落；具体 gameplay slot 分类表仍待后续。
+2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。**合同/fixture 层已完成**：首切固定三态、坏 `Provide`/provider/validator 失败诊断、optional `Suppress` 与 fake `oms-simple` 末端；第二切固定 26 个内部 semantic slot family（7 critical / 19 optional）、descriptor requirement authority、稳定诊断 ID 及 context 分离。它不是 manifest ABI，生产接线仍待后续。
 3. 以真实 mania skin.ini fixture 固定 tokenizer、数组、动画帧、错误/诊断语义。
 4. 固定 BMS compatibility mapping：`[Bms]` role override → full visual bucket（5K→6、7K→8、9K→9、14K→16）→ key-only bucket（5/7/14，scratch `Inherit`）/14K 显式双 8-column deck → `oms-simple`；P2/CenterP2 mapping 用 fixture 钉死。
 5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。
@@ -91,7 +91,7 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 7. 建立事件 envelope：`apiVersion/epoch/sequence/gameplayTime/layoutRevision`，以及 attach/reload snapshot、seek/retry reset 与 edge 事件顺序。
 8. 建立禁止写入的 gameplay authority 列表和 capability negotiation 草案。
 
-验收：首个三态/precedence 切片已通过 focused、mania/BMS/core/Release gate，且未接生产 `SkinManager`。这不等于 `SV1-1` 整体完成；neutral config、layout/event/capability 与 mania/BMS 同构输入仍待后续 fixture。
+验收：前两个合同切片已通过 slot focused 47/47、provider authority 6/6、mania/BMS/core/Release gate，且未接生产 `SkinManager`。这不等于 `SV1-1` 整体完成；neutral config、layout/event/capability、manifest mapping 与 mania/BMS 同构输入仍待后续 fixture。
 
 ### SV1-2：G1 安全存储与原子重载
 

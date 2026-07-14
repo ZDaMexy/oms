@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using Newtonsoft.Json;
 
 namespace osu.Game.Skinning.Gameplay
 {
@@ -40,12 +41,23 @@ namespace osu.Game.Skinning.Gameplay
     /// A structured gameplay skin slot resolution diagnostic.
     /// </summary>
     /// <param name="Code">The stable diagnostic code.</param>
-    /// <param name="Slot">The lookup value identifying the affected slot.</param>
+    /// <param name="Slot">The process-local lookup value identifying the affected slot. It is excluded from serialisation.</param>
     /// <param name="ProviderName">The provider which produced the diagnostic.</param>
-    /// <param name="Exception">The associated exception, if any.</param>
+    /// <param name="Exception">The associated process-local exception, if any. It is excluded from serialisation.</param>
     public sealed record GameplaySkinSlotDiagnostic(
         GameplaySkinSlotDiagnosticCode Code,
-        object Slot,
+        [property: JsonIgnore] object Slot,
         string ProviderName,
-        Exception? Exception = null);
+        [property: JsonIgnore] Exception? Exception = null)
+    {
+        /// <summary>
+        /// The stable semantic slot ID, when resolution used a catalog descriptor.
+        /// </summary>
+        public string? SlotId { get; init; }
+
+        /// <summary>
+        /// Returns a persistence-safe summary without process-local lookup or exception content.
+        /// </summary>
+        public override string ToString() => SlotId == null ? Code.ToString() : $"{Code}: {SlotId}";
+    }
 }

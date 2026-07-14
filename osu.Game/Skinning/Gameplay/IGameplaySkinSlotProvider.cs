@@ -13,7 +13,7 @@ namespace osu.Game.Skinning.Gameplay
         where TComponent : notnull
     {
         /// <summary>
-        /// A stable name used in fallback diagnostics.
+        /// A stable, non-sensitive authority name used in fallback diagnostics. It must not contain an absolute resource path.
         /// </summary>
         string Name { get; }
 

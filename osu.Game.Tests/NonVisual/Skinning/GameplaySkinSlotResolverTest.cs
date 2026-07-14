@@ -131,6 +131,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(resolution.Diagnostics[0].Code, Is.EqualTo(GameplaySkinSlotDiagnosticCode.CriticalSuppressionRejected));
                 Assert.That(resolution.Diagnostics[0].ProviderName, Is.EqualTo("selected"));
                 Assert.That(resolution.Diagnostics[0].Slot, Is.EqualTo(TestSlot.Note));
+                Assert.That(resolution.Diagnostics[0].SlotId, Is.Null);
             });
         }
 

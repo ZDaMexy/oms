@@ -34,10 +34,10 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：R0/R1 已解除；首个三态 slot/precedence 合同切片已完成，其余共同合同待续。
+状态：R0/R1 已解除；三态 slot/precedence 首切与内部 semantic taxonomy 第二切已完成，其余共同合同待续。
 
 1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/stable ID 和 mania compatibility fixtures。
-2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行三态 result/resolver 与 precedence fixtures 首切已完成，生产接线和完整 slot 分类仍待后续。
+2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。
 3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
 

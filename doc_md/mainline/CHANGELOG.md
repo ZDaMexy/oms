@@ -7,6 +7,10 @@
 
 ## 2026-07-14
 
+### Skin V1 semantic slot taxonomy 第二切（P1-A）
+
+在平行三态地基上新增 26 项 ruleset-neutral 内部 semantic slot taxonomy、descriptor/context 分离与稳定诊断 ID，固定 7 个不可 suppress 的最小可玩 family 和 19 个 optional family；catalog requirement 不能被调用方降级，process-local diagnostic context/exception 不进入 JSON。该 taxonomy 不是作者 manifest ABI、layout descriptor 或生产接线；`SkinManager`、nullable `ISkin`、`OmsSkin` authority 与用户数据均未改变。slot focused 47/47，provider 6/6，mania/BMS 保持基线，core skin 仍为既有 57/62，Release 0 error / 20 warnings。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ### Skin V1 安全开工门闭环与三态合同首切（P1-A）
 
 用户自行确认 `SV1-0` 完整实机清单正常，自动/数据/实机三门至此全部通过；随后完成 `SV1-1` 首个平行 `Provide/Inherit/Suppress` slot resolver、结构化 fallback 诊断与实际 provider authority fixtures，但未接入 `SkinManager` 或真实 `oms-simple.osk`，Skin V1 尚不可用。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。

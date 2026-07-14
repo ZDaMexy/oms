@@ -42,4 +42,4 @@
 
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md)
-- [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、critical/optional、provider precedence、诊断与候选生命周期地雷。
+- [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
