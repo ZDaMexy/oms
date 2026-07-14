@@ -82,7 +82,19 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Is.EqualTo(secondary.LanesInLogicalOrder.Select(lane => lane.GroupLocalLogicalIndex)));
                 Assert.That(primary.LanesInLogicalOrder.Select(lane => lane.GlobalVisualIndex),
                     Is.Not.EqualTo(secondary.LanesInLogicalOrder.Select(lane => lane.GlobalVisualIndex)));
+                Assert.That(() => GameplaySkinLaneTopologyTransitionValidator.Validate(primary, secondary), Throws.Nothing);
             });
+        }
+
+        [Test]
+        public void TestTransitionValidatorRejectsChangedNeutralTopologyShape()
+        {
+            GameplaySkinLaneTopologySnapshot fiveKey = BmsGameplaySkinLaneTopologyFactory.Create(
+                BmsLaneLayout.CreateForKeymode(BmsKeymode.Key5K)).Topology;
+            GameplaySkinLaneTopologySnapshot sevenKey = BmsGameplaySkinLaneTopologyFactory.Create(
+                BmsLaneLayout.CreateForKeymode(BmsKeymode.Key7K)).Topology;
+
+            Assert.That(() => GameplaySkinLaneTopologyTransitionValidator.Validate(fiveKey, sevenKey), Throws.ArgumentException);
         }
 
         [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.P2)]
@@ -124,6 +136,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Is.EqualTo(pms.Topology.LanesInLogicalOrder.Select(lane => lane.Identity.Role)));
                 Assert.That(bms.Topology.LanesInLogicalOrder.Select(lane => lane.GlobalVisualIndex),
                     Is.EqualTo(pms.Topology.LanesInLogicalOrder.Select(lane => lane.GlobalVisualIndex)));
+                Assert.That(() => GameplaySkinLaneTopologyTransitionValidator.Validate(bms.Topology, pms.Topology), Throws.Nothing,
+                    "The shared neutral validator deliberately cannot replace native keymode continuity checks.");
             });
         }
 

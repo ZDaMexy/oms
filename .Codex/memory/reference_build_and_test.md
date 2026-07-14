@@ -26,6 +26,10 @@ solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能�
 
 同日另一个多工程切片出现相反表现：solution-level verify 直接对 LF 新文件报告大量 `ENDOFLINE`，并同时提示一处 `IDE0032`；改为 auto-property、使用 owning project 的 whitespace formatter 规范化后才稳定。两种结果说明 solution 聚合输出既可能漏报也可能集中爆出跨项目噪声；最终 authority 仍是逐 owning csproj 的 targeted whitespace/style verify，再重新编译、检查 staged bytes。
 
+## 并发构建地雷
+
+多个 agent/命令同时 build/test 引用同一工程时会竞争共享 `obj`/输出，出现 `CS2012` 或 `MSB3026` 文件锁；这不是产品回归，但该次结果也不是有效 gate。最终验证必须串行（或使用真正隔离的输出目录）重跑，记录最初锁冲突和权威串行结果，不能靠重试成功掩盖。
+
 ## 内联检查脚本转义地雷
 
 从 JavaScript host 字符串调用 PowerShell regex 时，普通 template literal 可能先吞掉 `\[` 等反斜杠，让 Markdown link checker 把正文伪匹配为链接并产生假断链。使用 raw string（或正确双重转义）后再以“文件相对优先、仓库根回退”解析；2026-07-14 首个错误脚本曾误报 11 条垃圾目标，修正后权威结果是 118 个 Markdown、932 个相对链接、0 断链。不要把脚本自身转义错误写成仓库文档回归。

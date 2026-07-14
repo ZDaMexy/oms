@@ -17,7 +17,9 @@ metadata:
 - 跨上述 topology-preserving revision 关联只比较 `.Id`；完整 `GameplaySkinLaneGroupIdentity` / `GameplaySkinLaneIdentity` equality 还包含当前 metadata，因此 side 改变时整体 identity 不相等。
 - role 是 `Key/SpecialKey/Scratch`。mania internal projection 将 odd-stage 的 stage-local centre 映为 `SpecialKey`；它仍是 key input，绝不能因为 legacy fallback token `S` 而赋予 scratch gameplay truth。note/LN/mine 是对象类型，不是 lane role。
 - side 是 `Neutral/Primary/Secondary` 的逻辑 player/deck presentation side，不是屏幕 Left/Right、BGA side 或 binding owner。5K/7K P1/CenterP1 为 Primary、P2/CenterP2 为 Secondary；9K 为 Neutral；14K 两 deck 分别 Primary/Secondary。
-- `GameplaySkinLaneTopologyEntry` 保存 global/group-local logical/visual 四类零基 index；group/snapshot 提供 defensive immutable logical/visual order 与强类型 lookup。单 snapshot 拒绝 null/empty、重复 ID、membership conflict、非 permutation、local/global order 不一致与 group 非连续块。跨 revision 稳定仍是 producer 合同，不由当前 constructor 验证 transition。
+- `GameplaySkinLaneTopologyEntry` 保存 global/group-local logical/visual 四类零基 index；group/snapshot 提供 defensive immutable logical/visual order 与强类型 lookup。单 snapshot 拒绝 null/empty、重复 ID、membership conflict、非 permutation、local/global order 不一致与 group 非连续块。
+- public process-local `GameplaySkinLaneTopologyTransitionValidator` 只校验调用方已声明为 topology-preserving 的两个 neutral snapshot：GroupId/LaneId set、group logical index、lane membership/role/global 与 group-local logical index 稳定；side 和全部 visual index/order 可变。不要比较完整 identity equality。
+- validator 不含 native context。9K BMS/PMS neutral shape 相同会通过；keymode/style/action/source/geometry/revision continuity 必须由外层 projection/context 先行验证，不能把该 helper 写成完整 layout transition/wire ABI。
 
 ## internal projection 地雷
 
@@ -28,4 +30,4 @@ metadata:
 - mania projection 只接受 1–2 stage、每 stage 1–10 keys，并先复制可变 stage 列表；single side=Neutral，dual stage 0/1=Primary/Secondary。`StageDefinition.IsSpecialColumn()` 接受 stage-local index；双 5+5 special 的 global index 是 2/7，mixed 4+5 是 6。global index 用 stage count 前缀和，不能对 total columns 求一次中心，也不能把 `ManiaAction` enum ordinal 当 group-local identity。
 - mirror/random/rearrangement 改 hit object 的目标 lane，而不改变固定 playfield topology；对象事件应发布 mod 后目标 LaneId，不能从原始 source channel 反推。
 
-当前第四切只有 internal projection factory/fixture；没有 full `GameplaySkinLayoutContext`、geometry/layout solver、transition/wire ABI 或生产 `SkinManager` 接线。
+当前第四/十切只有 internal projection factory/fixture 与 neutral transition validator；没有 full `GameplaySkinLayoutContext`、geometry/layout solver、native context/revision/wire ABI 或生产 `SkinManager` 接线。

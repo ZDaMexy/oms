@@ -4,6 +4,14 @@
 
 ## 2026-07-14
 
+### `SV1-1` 第十个合同切片：neutral topology-preserving transition validator
+
+- shared `osu.Game.Skinning.Gameplay` 新增 public static、process-local 的 `GameplaySkinLaneTopologyTransitionValidator`。它只接收两个已构造的 immutable neutral snapshot：前后 GroupId/LaneId 集合、group logical index、lane group membership/role/global 与 group-local logical index 必须稳定；group side、group visual index 与 lane global/group-local visual index/order明确允许改变。无效 current 以 `ArgumentException` fail-closed；stable ID 可进入诊断，因为既有合同已禁止其中包含用户、包、资源名或路径。
+- validator 不携带也不推断 keymode/style/action/source/geometry/revision。BMS fixture 固定 5K/7K P1↔P2 的 side/visual reorder 可通过、5K→7K 的 neutral shape 改变会拒绝；9K BMS/PMS 因 neutral shape 相同会通过，测试明确声明 native keymode continuity 仍由外层 projection/context 负责。mania fixture 固定同 stage 独立重建通过、4K→5K 拒绝。shared fixture 另覆盖 null、独立等价重建、group/lane count 与 ID set、group logical order、lane membership/role/logical order，以及公开面不携带状态。
+- 最终 focused transition **12/12**、shared gameplay aggregate **235/235**、mania relevant **120/120**、BMS relevant **108/108**；core skin **57/62** 的 1 项 Argon 旧期待与 4 项已删除 ruleset archive 失败和恢复审计同名，无新失败。`osu.Desktop.slnf` Release **0 error / 20 warnings**，只保留 9 条 MessagePack 3.1.3 `NU1902`（restore/build 重复为 18）与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。第九切 BMS full **1117/1117** 本切未重跑；Markdown **118 文件 / 932 相对链接 / 0 断链**。
+- 首轮 source 编译新增 2 条 nullable `CS8602`，补 exact lookup null guard 后消失；owning-project formatter 首次按仓库规则拒绝 LF/mixed line endings，定点规范化后四个工程 verify 均为 exit 0，只保留无明细 workspace-load 概括 warning。独立审查为 0 blocker / 0 major / 1 minor，唯一测试名把 neutral-shape 拒绝写成过宽的 native-topology 拒绝，已收窄。审查者一次并行启动三个 Debug build 因共享 `osu.Game/obj` 命中 `CS2012` 文件锁，改为串行后 12/12、20/20、9/9；主验证始终串行。BMS relevant 首个过滤器通过 90 项但漏列既有 default-note 组，补齐后权威结果为 108/108。
+- 未接 native context/revision producer、`GameplaySkinLayoutContext`、geometry、event、renderer、`SkinManager`、nullable `ISkin`、真实 `.osk`、`oms-simple` 或生产 adapter；未改变程序化 `OmsSkin` 与 fallback authority，也未访问或写入生产 Realm、`chartskin/`、用户皮肤目录或网络。第十切仍只是合同/fixture 地基，`SV1-1` 继续进行；`SV1-2` 仍只有 ctor/schema carrier，`SV1-3`～`SV1-7` 未进入生产实施，Skin V1 不可用。
+
 ### `SV1-1` 第九个合同切片：六字段逐项 resolution 与 revision-scoped component owner
 
 - BMS 新增 internal lane-resource lookup context、source-aware declaration reference 与 selected-package candidate provider factory。factory 只按既有 plan 顺序发出 canonical marker 前的 providers，不装载或伪造 `oms-simple`；caller 仍显式组合 beatmap-local → selected candidates → ruleset resources → fake canonical。lookup fail-closed 校验 exact immutable topology、canonical field 与对应 semantic descriptor，provider 名只使用稳定非敏感 authority；resource name 不进入 context/reference/diagnostic 的安全字符串或 JSON。

@@ -136,7 +136,8 @@ namespace osu.Game.Skinning.Gameplay
     /// <remarks>
     /// This snapshot deliberately excludes keymode, style, action, source channel, geometry, revision and native ruleset context.
     /// It is not <c>GameplaySkinLayoutContext</c> and does not define a JSON, event or author-facing manifest ABI.
-    /// Cross-revision stability remains a producer contract; <see cref="Create"/> validates one snapshot, not a transition.
+    /// <see cref="Create"/> validates one snapshot. Callers that have separately established compatible native context can use
+    /// <see cref="GameplaySkinLaneTopologyTransitionValidator"/> to validate a topology-preserving neutral transition.
     /// </remarks>
     public sealed class GameplaySkinLaneTopologySnapshot
     {

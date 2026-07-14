@@ -41,6 +41,21 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
         }
 
+        [Test]
+        public void TestTransitionValidatorAcceptsRebuildAndRejectsChangedStageShape()
+        {
+            GameplaySkinLaneTopologySnapshot previous = ManiaGameplaySkinLaneTopologyFactory.Create(createBeatmap(4));
+            GameplaySkinLaneTopologySnapshot rebuilt = ManiaGameplaySkinLaneTopologyFactory.Create(createBeatmap(4));
+            GameplaySkinLaneTopologySnapshot changed = ManiaGameplaySkinLaneTopologyFactory.Create(createBeatmap(5));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rebuilt, Is.Not.SameAs(previous));
+                Assert.That(() => GameplaySkinLaneTopologyTransitionValidator.Validate(previous, rebuilt), Throws.Nothing);
+                Assert.That(() => GameplaySkinLaneTopologyTransitionValidator.Validate(previous, changed), Throws.ArgumentException);
+            });
+        }
+
         [TestCase(1, 0)]
         [TestCase(5, 2)]
         [TestCase(7, 3)]
