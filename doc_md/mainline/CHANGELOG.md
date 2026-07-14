@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-07-14
+
+### Skin V1 安全开工门闭环与三态合同首切（P1-A）
+
+用户自行确认 `SV1-0` 完整实机清单正常，自动/数据/实机三门至此全部通过；随后完成 `SV1-1` 首个平行 `Provide/Inherit/Suppress` slot resolver、结构化 fallback 诊断与实际 provider authority fixtures，但未接入 `SkinManager` 或真实 `oms-simple.osk`，Skin V1 尚不可用。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ## 2026-07-13
 
 ### Skin V1 数据安全门 STOP（P1-A）

@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-13
+> 最后更新：2026-07-14
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，本轮架构审计见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 一句话状态
 
-皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线。2026-07-13 的 schema 56 清点曾因两条失效 `BmsOmsReferenceSkin` 引用 STOP；用户确认异常 mutable copy 无价值后，已完成备份、副本演练与定点生产迁移，数据 blocker 解除。实机 gate 仍待用户反馈，`SV1-1` 尚未开工。
+皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 首个最小切片已建立平行三态 gameplay slot 合同、结构化 fallback 诊断和 provider precedence fixtures，但未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
 
 ## Skin V1 目标
 
@@ -26,7 +26,7 @@
 | BMS `.osk` 配置 | 可信主面 | `BmsLegacySkin` 叠加解析 `[Bms]`，保留 `[Mania]`；现存静态件颜色/纹理/几何可配置 |
 | BMS 共同 ini 实现 | 未统一 | BMS/mania 仍有两套 decoder/resolver，共同键只做到近似语义 |
 | BMS 动态外部运行时 | 未开始 | 当前无 declarative scene/event ABI/sandbox script；事故期 F2/Lua 不计能力 |
-| component suppress | 未支持 | `null` 表示 fallback；文件皮肤尚无显式关闭可选组件的三态合同 |
+| component suppress | 合同地基已落，生产未接入 | `SkinSlotResult<T>` 已区分 `Provide/Inherit/Suppress`；现有文件皮肤和 `SkinManager` 尚不能消费该合同 |
 | playfield topology | 部分可用 | 5K/7K/9K/14K lane order、双皿和 single-play style 已有自动覆盖；统一 descriptor/全矩阵未落，sparse chart 的 keymode 推断仍有低估风险 |
 | HUD 几何联动 | 存在缺口 | playfield 读取皮肤 profile，gauge/combo 却重新取默认 profile；皮肤改宽/高后会脱节 |
 | BGA host | 部分可用 | 时间线和 skinnable panel 已有；固定 rect 不消费 skin-resolved playfield，center-right-scratch 仍按右侧 BGA，14K 四角四 player 是临时表现 |
@@ -55,8 +55,8 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | 顺序 | Gate | 状态 |
 | --- | --- | --- |
 | 1 | schema 56 `SkinInfo` 数据安全门 | **通过**：备份与副本演练后定点移除异常 copy、修正 OMS 固定记录；路径 authority 正常 |
-| 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | 待用户验收；按用户要求未操控 GUI |
-| 3 | shared contract/fixture 代码冻结 | 文档完成；受实机 gate 阻塞，代码未开始 |
+| 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | **通过**：用户于 2026-07-14 自行确认全清单正常；Agent 未操控 GUI |
+| 3 | shared contract/fixture 代码冻结 | 进行中：首个三态 slot/fallback/precedence 切片完成；其余 neutral 合同未开始 |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -65,19 +65,20 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 最近验证
 
-### `SV1-0` 只读取证（2026-07-13）
+### `SV1-0` 闭门与 `SV1-1` 首个合同切片（2026-07-14）
 
 | 检查 | 结果 |
 | --- | --- |
+| 用户实机 gate | **通过**：无外部皮肤、当前 `.osk`、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿、mania/BMS 资源隔离均正常 |
+| `GameplaySkinSlotResolverTest` | **13/13** |
+| `SkinProvidingContainer` / `RulesetSkinProvidingContainer` authority guard | **6/6**；实链顺序为 beatmap-local → selected → ruleset resources → protected built-in |
 | BMS parser/legacy/reference/render focused | 43/43 |
 | BMS transformer + user fallback | 104/104 |
 | mania `TestSceneOmsBuiltInSkin` / 默认资源专项 | 84/84；专项 1/1 |
 | core skin focused | 57/62；5 项与恢复审计同名，无新失败 |
-| schema 56 清点/迁移 | 初始 3 条、路径面正常；用户授权后异常 managed copy 定点移除，最终 2 条 |
-| OMS 固定记录 | 已修正为当前 `OmsSkin.CreateInfo()` 四字段；read-only reopen 验证通过 |
-| 备份/生产证据 | 迁移前备份保持原始 SHA-256；生产迁移后为新 SHA-256；全程进程数 0 |
+| `osu.Desktop.slnf` Release | **0 error / 20 warnings** |
 
-每次测试均保留 9 条 MessagePack `NU1902`；BMS 命令另有既有 `CS8600`/`CA2007`。临时 dynamic-only 迁移工具构建为 0 error / 1 条预期空 schema Fody warning。完整脱敏证据见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。实机 gate 未完成。
+provider guard 首跑为 3/6：原测试夹具的两项旧用例与新增 fixture 都从全局 bindable 取得 mania ruleset，再对通用 `Beatmap` 做错误强转。测试夹具改为显式使用其声明的 `CreateRuleset()` 后最终 6/6；没有改生产 provider。每次测试均保留 9 条 MessagePack `NU1902`；BMS 命令另有既有 `CS8600`/`CA2007`。用户先行的 `osu.Desktop` project Release 为 0 error / 18 warnings；要求的 `.slnf` 首次与最终完整编译均为 0 error / 20 warnings。中间一次增量复核为 0 error / 18 warnings，仅因未重编的 BMS test analyzer 没有重复输出两条既有告警。完整 schema 56 脱敏证据见 [`SV1-0` 数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
 
 ### 恢复基线（2026-07-10）
 
@@ -110,8 +111,9 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 - 只测 parser/类型或孤立接口不能证明真实选择链、事件顺序、脚本安全和视觉正确。
 - 14K 四角 BGA、程序化动态件和内部固定动画都不能被提前描述为 V1 最终方向。
 - 当前程序化 `OmsSkin` 仍是实际链底；在 `oms-simple` 完整性、自动恢复和 mania/BMS parity 过门前不能直接删除，但它也不能进入 V1 最终发行架构。
+- resolver 不拥有候选组件生命周期：被额外 validator 拒绝的 `Drawable`/`IDisposable` 不能由 resolver 擅自 dispose，provider/消费方必须在接线前冻结缓存、parenting 与回收合同。
 
 ## 下一检查点
 
-1. 用户自行完成无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 与双皿/mania 隔离实机 gate，并反馈正常/异常现象。
-2. 实机 gate 通过后，才为三态 fallback 等 `SV1-1` 合同建立 fixture；随后按 PLAN 重做 G1。
+1. 继续 `SV1-1` 仍未完成的 neutral layout/config/event/capability 合同；首切片不等于整个 `SV1-1` 完成。
+2. 在另立生产接线切片前保持 `SkinManager`、nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；G1 仍按 `SV1-2` 独立重做。

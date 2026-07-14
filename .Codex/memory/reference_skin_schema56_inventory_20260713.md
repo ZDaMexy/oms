@@ -30,4 +30,4 @@ metadata:
 
 Realm 写事务可能保持旧 mtime；必须以 SHA-256 变化和动态 schema 状态联合证明写入结果，不能只看 mtime。
 
-`SV1-0` 数据 blocker 已解除；实机 gate 未执行；`SV1-1` 三态合同未开始。恢复 focused 自动门无新回归。
+`SV1-0` 数据 blocker 维持解除；用户于 2026-07-14 自行确认完整实机 gate 正常，自动/数据/实机三门均已通过。`SV1-1` 首个三态合同切片状态看 P1-A STATUS；不要从本数据取证 memory 推断生产 fallback 已接入。

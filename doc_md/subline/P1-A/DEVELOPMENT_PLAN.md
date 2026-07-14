@@ -1,6 +1,6 @@
 # P1-A 开发计划：皮肤系统 V1、产品面与 release gate
 
-> 最后更新：2026-07-13
+> 最后更新：2026-07-14
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，本轮架构审计见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 当前专题定位
@@ -69,29 +69,29 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 
 ### SV1-0：恢复与数据安全门
 
-状态：自动 focused gate 已复核；schema 56 初始 STOP 已经用户授权的定点迁移解除；人工 gate 未执行。
+状态：**已完成**。自动 focused、schema 56 数据安全与用户实机 gate 均已通过。
 
-1. 用户验收无外部皮肤、`.osk`、partial fallback 和 5K/7K/9K/14K 视觉。
+1. 用户验收无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K、14K S1/S2 双皿与 mania/BMS 资源隔离。已于 2026-07-14 由用户自行完成并确认全部正常。
 2. 只读报告 schema 56 中 folder-backed `SkinInfo`、authority、目录存在性和当前选择状态。已完成：folder-backed/external/path conflict 均为 0，但两条记录引用已删除的异常期类型；见 [数据安全门报告](../../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
 3. 由用户选择异常 managed 记录的保全后重导入、继续保留或保全后移除方案；已选择并完成“保全后定点移除”，同时显式修正 OMS fixed-ID 记录。
 4. 未经备份、用户决定与迁移设计，不改写 Realm、不清理 `chartskin/`、不降低 schema，也不以普通启动的静默 protected-record 重写替代迁移证明。
 
-验收：恢复测试基线稳定；数据报告与用户批准的保全/迁移闭环已完成；人工记录进入 P1-G 后才完整验收。当前仅剩实机 gate。
+验收：恢复测试基线稳定；数据报告与用户批准的保全/迁移闭环已完成；用户实机清单已通过。`SV1-0` 闭门，后续全局人工结果仍由 P1-G 汇总。
 
 ### SV1-1：共同合同与 fixture 冻结
 
-状态：架构/文档决议已完成；代码 fixture 未开始，受 `SV1-0` 实机 gate 阻塞。
+状态：进行中。首个三态 gameplay slot 合同与 fallback/precedence fixture 切片已完成；未接生产选择链，其余条目未开始。
 
 1. 建立 neutral `GameplaySkinLayoutContext`、lane group/role/side/stable ID DTO 草案。
-2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。
+2. 冻结 `Provide / Inherit / Suppress` 语义和不可 suppress 的最小可玩组件。**首切已完成**：平行 `SkinSlotResult<T>`/resolver 已固定三态、critical/optional、坏 `Provide`/provider/validator 失败诊断后继续 `Inherit`、optional `Suppress` 终止和名为 `oms-simple` 的 fake 逐组件末端回落；具体 gameplay slot 分类表仍待后续。
 3. 以真实 mania skin.ini fixture 固定 tokenizer、数组、动画帧、错误/诊断语义。
 4. 固定 BMS compatibility mapping：`[Bms]` role override → full visual bucket（5K→6、7K→8、9K→9、14K→16）→ key-only bucket（5/7/14，scratch `Inherit`）/14K 显式双 8-column deck → `oms-simple`；P2/CenterP2 mapping 用 fixture 钉死。
 5. neutral config 保存 explicit declaration/presence；legacy 自动合成的默认 bucket 不得误判为 `Provide`。
-6. 用 fixture 冻结 `BeatmapSkinProvidingContainer` 与 `RulesetSkinProvidingContainer` 的既有相对 authority；三态只接管 gameplay package slot，`Suppress` 默认不得穿透更高优先 beatmap-local provider。
+6. 用 fixture 冻结 `BeatmapSkinProvidingContainer` 与 `RulesetSkinProvidingContainer` 的既有相对 authority；三态只接管 gameplay package slot，`Suppress` 默认不得穿透更高优先 beatmap-local provider。**首切已完成**：fixture 固定 beatmap-local → selected → ruleset resources → protected built-in，并验证先命中的 beatmap `Provide` 不会被后层 `Suppress` 穿透。
 7. 建立事件 envelope：`apiVersion/epoch/sequence/gameplayTime/layoutRevision`，以及 attach/reload snapshot、seek/retry reset 与 edge 事件顺序。
 8. 建立禁止写入的 gameplay authority 列表和 capability negotiation 草案。
 
-验收：仅合同/fixture，不接生产脚本；mania/BMS 对共同输入产生同构 neutral config。
+验收：首个三态/precedence 切片已通过 focused、mania/BMS/core/Release gate，且未接生产 `SkinManager`。这不等于 `SV1-1` 整体完成；neutral config、layout/event/capability 与 mania/BMS 同构输入仍待后续 fixture。
 
 ### SV1-2：G1 安全存储与原子重载
 

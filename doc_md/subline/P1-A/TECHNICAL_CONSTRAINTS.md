@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-13
+> 最后更新：2026-07-14
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 归线与产品边界
@@ -87,8 +87,11 @@
 
 1. V1 lookup 必须区分 `Provide`、`Inherit`、`Suppress`。`null`/缺文件继续表示 `Inherit`，不得同时承担作者主动关闭语义。
 1a. 三态应由平行的 `SkinSlotResult<T>`/gameplay provider（或等价显式类型）承载，不直接改变现有 nullable `ISkin` ABI。`Drawable.Empty()` 不能长期冒充 `Suppress`；`Provide` 构造/资源失败必须降为 `Inherit` + 诊断。
+1b. `default(SkinSlotResult<T>)` 必须是 fail-open 的 `Inherit`，默认 requirement 必须是更安全的 `Critical`。resolver 严格按调用方给定顺序解析，不得自行重排；首个有效 `Provide` 或 optional `Suppress` 终止，critical `Suppress`、provider/构造/validator 失败记录结构化诊断后继续。
+1c. 结构化诊断至少包含 slot、provider 与稳定原因码；持久化或写入仓库时不得携带用户绝对资源路径。resolver 不拥有候选值生命周期，也不得自动 dispose 被 validator 拒绝的 `Drawable`/`IDisposable`：provider 必须先完成基础验证，并与最终消费方显式冻结缓存、parenting 与回收责任。
 2. 三态链只替换 gameplay package 内的组件解析：用户所选 `.osk` → ruleset adapter/compatibility → 随发行物只读携带的 `oms-simple.osk`。现有 `BeatmapSkinProvidingContainer` 的谱面内皮肤 enable/colour/hitsound 语义，以及 `RulesetSkinProvidingContainer` 注入 ruleset resource skin 的相对 authority，在另有迁移决议前必须保持；不得把完整现有链误写成只有上述三层。
 2a. `Suppress` 默认只作用于声明它的 gameplay package slot，不得越权穿透或屏蔽更高优先级的 beatmap-local provider；若未来需要改变该边界，必须单独冻结 precedence fixture 和用户迁移规则。
+2b. 测试中名为 `oms-simple` 的 fake provider 只证明 canonical 末端语义，不代表真实 `oms-simple.osk` 已制作、校验或接入生产 fallback authority。
 3. 以下 gameplay-critical 元素不得被完全 suppress：lane/scratch 可辨识、note、LN、mine、判定位置，以及启用 lane-cover 玩法时的 cover 几何/遮挡。用户包缺失、损坏或非法时必须逐组件回落 `oms-simple`。
 4. key/keyflash、hit explosion、judgement display、combo、gauge visual、文本 HUD、turntable/laser、BGA frame、装饰和其它非核心视觉可以显式 suppress；其 gameplay 状态仍在引擎中正常运行。
 5. `BmsSkinTransformer.providesBuiltInFallbacks = skin is OmsSkin` 只记录当前迁移基线：在 `oms-simple` 达到 mania/BMS parity 前不得贸然删除；达到 parity 后必须由文件包 fallback 取代并退出产品渲染链。

@@ -1,0 +1,32 @@
+---
+name: reference_gameplay_skin_slot_contract
+description: Skin V1 平行三态 slot 的 fail-open、provider precedence、诊断与候选生命周期地雷
+metadata:
+  node_type: memory
+  type: reference
+---
+
+# gameplay skin slot 三态合同
+
+权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只做实现地雷召回。
+
+## 稳定合同
+
+- 使用平行 `SkinSlotResult<T>`，不改变 nullable `ISkin` ABI。`default(SkinSlotResult<T>) == Inherit`；默认 requirement 是 `Critical`。
+- 三态结果使用普通 `readonly struct`；不要改成会自动枚举属性的 `record struct`，否则生成的 `ToString()` 可能读取非 `Provide` 状态下会抛异常的 `Value`。
+- `Provide` 只表示已完成 provider 自身构造/基础验证的值；`Inherit` 继续链；`Suppress` 只在 optional slot 终止。critical `Suppress` 必须诊断后继续。
+- resolver 严格使用调用方提供的 provider 顺序。provider/GetSlot/构造异常、validator=false 或 validator 异常都诊断后逐组件继续；取消异常必须传播，不能伪装成损坏皮肤。
+- `Drawable.Empty()` 是普通值，不具有 `Suppress` 魔法语义。测试中的 fake `oms-simple` 只证明末端回落语义，不代表文件型 canonical fallback 已接入。
+
+## 生命周期地雷
+
+- resolver 不自动 dispose 被 validator 拒绝的 `Drawable`/`IDisposable`：候选可能是 provider 缓存或共享值，擅自释放会造成双重释放/悬空引用。
+- provider 与最终消费方必须在生产接线前冻结 ownership、缓存、parenting 和回收；一个已挂 parent 的 `Drawable` 不能被多个消费方直接复用。provider 应尽量在返回 `Provide` 前完成会分配资源的验证。
+- 诊断对象可以保留异常供运行时查询，但写入仓库/遥测前必须脱敏；稳定字段只需 slot、provider、原因码，不能持久化用户绝对资源路径。
+
+## precedence 与测试夹具
+
+- 现有相对 authority 固定为 beatmap-local → selected/user layers → ruleset resources → protected built-in。先命中的 beatmap `Provide` 不能被后层 `Suppress` 穿透。
+- mania-only OMS 测试环境里，`Ruleset.Value.CreateInstance()` 可能取得 mania ruleset，却配到通用 `Beatmap`，触发 `ManiaBeatmap` 强转失败。测试 generic provider container 时使用夹具自己声明的 `CreateRuleset()`，不要据此修改生产 transformer。
+
+首切片没有接 `SkinManager`、真实 `.osk`、layout/codec/scene/event/script，也没有切换或删除程序化 `OmsSkin`。

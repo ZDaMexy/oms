@@ -1,10 +1,10 @@
-# Skin V1 `SV1-0` 数据安全门报告（2026-07-13）
+# Skin V1 `SV1-0` 数据安全门报告（2026-07-13；2026-07-14 闭门）
 
-> 本报告只记录恢复后 schema 56 的只读取证与 stop/go 结论。当前执行 authority 仍是 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) 与 [P1-A CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文不授权任何生产数据修复。
+> 本报告记录恢复后 schema 56 的只读取证、经用户授权的定点迁移与最终实机闭门。当前执行 authority 仍是 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) 与 [P1-A CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文不授权重复迁移或其它生产数据修复。
 
 ## 结论
 
-`SV1-0` 自动 focused gate 与恢复基线一致，folder-backed 路径面没有异常；初次清点发现两条 `SkinInfo.InstantiationInfo` 仍引用恢复树已不存在的异常期类型 `BmsOmsReferenceSkin`，其中一条是该异常期内置 reference-default 生成的 managed mutable copy。初始数据安全门因此 **STOP**。用户随后确认该副本没有保留价值并授权定点处置；备份、副本演练和生产单事务迁移已完成，数据 blocker 解除。生产客户端仍未启动，实机 gate 未完成，因此 `SV1-1` 仍未开始。
+`SV1-0` 自动 focused gate 与恢复基线一致，folder-backed 路径面没有异常；初次清点发现两条 `SkinInfo.InstantiationInfo` 仍引用恢复树已不存在的异常期类型 `BmsOmsReferenceSkin`，其中一条是该异常期内置 reference-default 生成的 managed mutable copy。初始数据安全门因此 **STOP**。用户随后确认该副本没有保留价值并授权定点处置；备份、副本演练和生产单事务迁移已完成，数据 blocker 解除。2026-07-14 用户又自行确认完整实机清单全部正常，因此自动、数据、实机三门均已通过，`SV1-0` 正式闭门。
 
 ## 取证方法与零写入证据
 
@@ -71,7 +71,7 @@
 
 Realm 本次事务提交后 mtime 仍保持旧值，因此不能把 mtime 单独作为写入/未写入证明；以 SHA-256 和动态 schema 状态联合判定。异常记录的 embedded file usages 已随 parent 删除，但四个物理 blob 与独立 `RealmFile` 行本次刻意保留，不做全局 orphan cleanup；它们无运行时 authority，恢复归档也保存了同内容副本。
 
-## 自动验证与未完成 gate
+## 自动验证与实机闭门
 
 | 检查 | 结果 | 判读 |
 | --- | --- | --- |
@@ -83,10 +83,10 @@ Realm 本次事务提交后 mtime 仍保持旧值，因此不能把 mtime 单独
 
 所有命令均保留告警：每次 9 条 MessagePack 3.1.3 `NU1902`；BMS 命令另见既有 `CS8600` 与 `CA2007`。未使用 `NoWarn`。
 
-实机清单仍全部待用户反馈：无外部皮肤、当前 `.osk` 用户皮肤、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿素材，以及 mania 默认资源隔离。用户明确要求不操控其电脑，因此本次没有启动 GUI；数据 blocker 已解除，但 `SV1-0` 仍等待用户实机结果。
+2026-07-14 用户自行反馈上述实机清单全部正常；Agent 全程未操控 GUI。结合本报告的自动与数据证据，`SV1-0` 已通过。后续 `SV1-1` 首切验证见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 明确未实施
 
-- 没有新增三态 gameplay slot 合同或 fixture；`SV1-1` 未开始。
-- 没有接入 `SkinManager`，没有修改 nullable `ISkin` ABI、provider hierarchy 或 `Drawable.Empty()` 语义。
+- 本报告所述数据处置本身没有新增三态合同；实机闭门后另一个 `SV1-1` 首切才新增平行合同与 fixture。
+- 仍没有接入 `SkinManager`，没有修改 nullable `ISkin` ABI、生产 provider hierarchy 或 `Drawable.Empty()` 语义。
 - 没有实施 G1、layout DTO/solver、shared ini codec、scene/event/script、`oms-simple/oms-complex` 视觉或 `OmsSkin` 删除。

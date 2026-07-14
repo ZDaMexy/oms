@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-13
+> 最后更新：2026-07-14
 > 本页只保留全局执行顺序、依赖和验收门。子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。当前事实以 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 为准。
 
 ## 当前目标
@@ -22,7 +22,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 - Git、dirty tree、不可达对象与运行时数据保全：**已完成**。
 - 可信代码面、文档和 memory 恢复并推送：**已完成**。
 - 自动回归：**已完成**；结果见主线 STATUS。
-- 无外部皮肤、`.osk` 用户皮肤、5K/7K/9K/14K 实机视觉：**待用户验收**。
+- 无外部皮肤、`.osk` 用户皮肤、partial fallback、5K/7K/9K/14K 与双皿/资源隔离实机视觉：**2026-07-14 已通过**。
 
 证据账：[SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)。
 
@@ -34,10 +34,10 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：等待 R0 实机视觉 gate；数据 gate 已解除。
+状态：R0/R1 已解除；首个三态 slot/precedence 合同切片已完成，其余共同合同待续。
 
 1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/stable ID 和 mania compatibility fixtures。
-2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件。
+2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行三态 result/resolver 与 precedence fixtures 首切已完成，生产接线和完整 slot 分类仍待后续。
 3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
 

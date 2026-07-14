@@ -2,6 +2,17 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-14
+
+### `SV1-0` 实机闭门，`SV1-1` 三态 gameplay slot 合同首切
+
+- 用户亲自确认实机清单全部正常：无外部皮肤、当前 `.osk` 用户皮肤、partial fallback、BMS 5K/7K/9K/14K、14K S1/S2 双皿素材，以及 mania 默认资源未被 BMS reference 覆盖；Agent 没有操控 GUI。结合前一日自动与 schema 56 数据门，`SV1-0` 已完成。
+- 在 `osu.Game.Skinning.Gameplay` 新增平行 `SkinSlotResult<T>`、`IGameplaySkinSlotProvider`、`GameplaySkinSlotResolver`、requirement/resolution 与结构化 diagnostic。默认 result=`Inherit`、默认 requirement=`Critical`；有效 `Provide` 与 optional `Suppress` 截断，critical `Suppress`、provider/构造失败、坏 `Provide` 和 validator 异常均诊断后继续 fallback；取消异常继续传播。
+- resolver 严格保留调用方顺序且不 dispose 候选值。focused fixtures 覆盖三态、critical/optional、坏/异常 `Provide`、逐组件 fallback、全链 `Inherit`、fake `oms-simple` 末端、`Drawable.Empty()` 仍是普通 `Provide`，以及 beatmap-local `Provide` 不被后层 `Suppress` 穿透。
+- 实 provider fixture 固定 `BeatmapSkinProvidingContainer` / `RulesetSkinProvidingContainer` 的顺序为 beatmap-local → selected → ruleset resources → protected built-in。guard 首跑 3/6：两项旧用例和新增用例都因测试夹具从全局 bindable 取得 mania ruleset、再强转通用 `Beatmap` 而失败；测试夹具改用其声明的 `CreateRuleset()` 后最终 6/6，生产容器未改。
+- 最终验证：新合同 13/13、provider guard 6/6、BMS skin 43/43、BMS transformer/fallback 104/104、mania OMS 84/84、默认资源专项 1/1；core skin 57/62 的 5 项仍是既有 Argon/已删 ruleset 失配，无新增失败；`osu.Desktop.slnf` Release 首次与最终完整编译均为 0 error / 20 warnings。告警保留为 9 项 MessagePack `NU1902`（restore/build 重复显示为 18）及既有 BMS `CS8600`/`CA2007`；中间增量复核曾因 BMS tests 未重编而只重报 18 项，未使用 `NoWarn`。
+- 本切片没有接入 `SkinManager`、没有改变 nullable `ISkin` ABI、没有删除/切换程序化 `OmsSkin` authority。G1、全量 layout DTO/solver、shared ini codec、scene/event/script、`oms-simple/oms-complex` 视觉与真实 canonical fallback 均未实施；不能据此称 Skin V1 可用。
+
 ## 2026-07-13
 
 ### `SV1-0` schema 56 只读取证触发 STOP，未进入三态合同实现

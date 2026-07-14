@@ -4,6 +4,8 @@
 #nullable disable
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
@@ -46,7 +48,7 @@ namespace osu.Game.Tests.Rulesets
                 requester = new SkinRequester();
                 requester.OnLoadAsync += () => textureOnLoad = requester.GetTexture("test-image");
 
-                Child = new RulesetSkinProvidingContainer(Ruleset.Value.CreateInstance(), Beatmap.Value.Beatmap, Beatmap.Value.Skin)
+                Child = new RulesetSkinProvidingContainer(CreateRuleset(), Beatmap.Value.Beatmap, Beatmap.Value.Skin)
                 {
                     Child = requester
                 };
@@ -55,11 +57,41 @@ namespace osu.Game.Tests.Rulesets
             AddAssert("requester got correct initial texture", () => textureOnLoad != null);
         }
 
+        [Test]
+        public void TestGameplayProviderAuthorityOrder()
+        {
+            NamedSkin beatmapSkin = null;
+            NamedSkin selectedSkin = null;
+            NamedSkin builtInSkin = null;
+
+            AddStep("setup isolated provider chain", () =>
+            {
+                beatmapSkin = new NamedSkin("beatmap-local", false);
+                selectedSkin = new NamedSkin("selected", false);
+                builtInSkin = new NamedSkin("built-in", true);
+
+                Child = new IsolatedSkinProvidingContainer(new[] { selectedSkin, builtInSkin })
+                    .WithChild(new RulesetSkinProvidingContainer(CreateRuleset(), Beatmap.Value.Beatmap, beatmapSkin)
+                        .WithChild(requester = new SkinRequester()));
+            });
+
+            AddAssert("authority order preserved", () =>
+            {
+                ISkin[] sources = requester.AllSources.ToArray();
+
+                return sources.Length == 4
+                       && sources[0] == beatmapSkin
+                       && sources[1] == selectedSkin
+                       && sources[2] is ResourceStoreBackedSkin
+                       && sources[3] == builtInSkin;
+            });
+        }
+
         private void setupProviderStep()
         {
             AddStep("setup provider", () =>
             {
-                Child = new RulesetSkinProvidingContainer(Ruleset.Value.CreateInstance(), Beatmap.Value.Beatmap, Beatmap.Value.Skin)
+                Child = new RulesetSkinProvidingContainer(CreateRuleset(), Beatmap.Value.Beatmap, Beatmap.Value.Skin)
                     .WithChild(requester = new SkinRequester());
             });
         }
@@ -85,6 +117,38 @@ namespace osu.Game.Tests.Rulesets
             public ISample GetSample(ISampleInfo sampleInfo) => skin.GetSample(sampleInfo);
 
             public IBindable<TValue> GetConfig<TLookup, TValue>(TLookup lookup) => skin.GetConfig<TLookup, TValue>(lookup);
+
+            public IEnumerable<ISkin> AllSources => skin.AllSources;
+        }
+
+        private partial class IsolatedSkinProvidingContainer : SkinProvidingContainer
+        {
+            private readonly IEnumerable<ISkin> sources;
+
+            protected override bool AllowFallingBackToParent => false;
+
+            public IsolatedSkinProvidingContainer(IEnumerable<ISkin> sources)
+            {
+                this.sources = sources;
+            }
+
+            protected override void RefreshSources() => SetSources(sources);
+        }
+
+        private class NamedSkin : Skin
+        {
+            public NamedSkin(string name, bool isProtected)
+                : base(new SkinInfo(name) { Protected = isProtected }, null, null, string.Empty)
+            {
+            }
+
+            public override Drawable GetDrawableComponent(ISkinComponentLookup lookup) => null;
+
+            public override Texture GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => null;
+
+            public override ISample GetSample(ISampleInfo sampleInfo) => null;
+
+            public override IBindable<TValue> GetConfig<TLookup, TValue>(TLookup lookup) => null;
         }
     }
 }

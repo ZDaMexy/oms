@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-07-13
+> 最后更新：2026-07-14
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-13 的 schema 56 异常记录已在备份和副本演练后定点处置，数据 blocker 解除。当前仅等待用户实机验收，之后才可进入 P1-A `SV1-1`。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 首个三态 slot/precedence 合同切片已完成但未接生产链。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -20,8 +20,8 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-
 | 顺序 | 工作面 | 状态 | 下一检查点 |
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
-| 2 | P1-A 皮肤恢复 gate | 自动 focused 正常；实机未执行 | 用户验收无外部皮肤、`.osk`、5K/7K/9K/14K |
-| 3 | Skin V1 共同合同 | 架构/文档已冻结；代码未开始 | `SV1-0` 数据/实机 gate 通过后再建 fixtures |
+| 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
+| 3 | Skin V1 共同合同 | `SV1-1` 首个三态/precedence 切片完成；生产未接入 | 继续 neutral config/layout/event/capability fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -35,7 +35,7 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
 - **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
 - **社区合同**：`.osk`、根 `skin.ini`、mania 共同素材/动画命名和拖入导入沿用 osu 社区心智；BMS/scene/script 是版本化扩展，作者不需要编译 DLL。
-- **未落地**：G1 生产链、shared codec/layout descriptor、scene/event/script runtime、三态 suppress、`oms-simple/complex`、Authoring Kit 与文件 fallback；事故期 F2/Lua/mania adapter/reference-default 均不计能力。
+- **未落地**：G1 生产链、shared codec/layout descriptor、scene/event/script runtime、生产三态 suppress、`oms-simple/complex`、Authoring Kit 与文件 fallback；事故期 F2/Lua/mania adapter/reference-default 均不计能力。
 - **布局风险**：现有 playfield 可读皮肤几何，而 gauge/combo/BGA 仍各自按默认 profile/固定 rect 计算；14K 四角四 BGA player 只是临时实现，不能作为 V1 合同。
 
 恢复取证见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)；V1 架构与完成定义见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
@@ -44,7 +44,7 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | 自动恢复稳定；schema 56 数据 blocker 已解除，等待实机验收；`SV1-1` 未开工 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 首个三态合同切片完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -61,6 +61,10 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-
 入口和下一道门见 [子线路由](../subline/README.md)。
 
 ## 最近一次验证
+
+### 2026-07-14 P1-A `SV1-0` / `SV1-1` 首切
+
+用户自行确认完整皮肤实机清单正常；三态合同与 provider authority fixtures 19/19，mania/BMS focused 保持通过，core skin 仍为同名既有 5 项失败，`osu.Desktop.slnf` Release 0 error / 20 warnings。精确矩阵、告警与首跑 fixture 失败归因见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 
@@ -79,8 +83,8 @@ OMS 处于 Phase 1.x 收尾期。皮肤自动恢复 gate 保持稳定；2026-07-
 
 | 事项 | 状态 |
 | --- | --- |
-| 无外部皮肤 + `.osk` 用户皮肤 + 当前迁移 fallback | 待做 |
-| BMS 5K/7K/9K/14K 皮肤布局与双皿素材 | 待做 |
+| 无外部皮肤 + `.osk` 用户皮肤 + partial fallback | **2026-07-14 已通过** |
+| BMS 5K/7K/9K/14K 皮肤布局、双皿素材与 mania/BMS 隔离 | **2026-07-14 已通过** |
 | analog scratch 与真实 HID 控制器 | 待做 |
 | LN/CN/HCN、长 BGM、密集键音真实谱 | 待做 |
 | BGA 图序列/POOR/seek 与 Gimmick 逐谱视觉 | 待做 |
