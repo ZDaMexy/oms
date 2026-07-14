@@ -23,8 +23,23 @@ namespace osu.Game.Skinning
         LightFramePerSecond = 1 << 8,
     }
 
+    internal enum LegacyManiaSkinArrayField
+    {
+        ColumnLineWidth = 1 << 0,
+        ColumnSpacing = 1 << 1,
+        ColumnWidth = 1 << 2,
+        ExplosionWidth = 1 << 3,
+        HoldNoteLightWidth = 1 << 4,
+    }
+
     public class LegacyManiaSkinConfiguration : IHasCustomColours
     {
+        private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnLineWidth;
+        private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnSpacing;
+        private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedColumnWidth;
+        private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedExplosionWidth;
+        private readonly GameplaySkinConfigurationDeclaration<float>[] acceptedHoldNoteLightWidth;
+
         internal GameplaySkinConfigurationDeclaration<float> AcceptedWidthForNoteHeightScale { get; private set; }
 
         internal GameplaySkinConfigurationDeclaration<float> AcceptedHitPosition { get; private set; }
@@ -90,6 +105,12 @@ namespace osu.Game.Skinning
             ExplosionWidth = new float[keys];
             HoldNoteLightWidth = new float[keys];
 
+            acceptedColumnLineWidth = new GameplaySkinConfigurationDeclaration<float>[ColumnLineWidth.Length];
+            acceptedColumnSpacing = new GameplaySkinConfigurationDeclaration<float>[ColumnSpacing.Length];
+            acceptedColumnWidth = new GameplaySkinConfigurationDeclaration<float>[ColumnWidth.Length];
+            acceptedExplosionWidth = new GameplaySkinConfigurationDeclaration<float>[ExplosionWidth.Length];
+            acceptedHoldNoteLightWidth = new GameplaySkinConfigurationDeclaration<float>[HoldNoteLightWidth.Length];
+
             ColumnLineWidth.AsSpan().Fill(2);
             ColumnWidth.AsSpan().Fill(DEFAULT_COLUMN_SIZE);
         }
@@ -143,6 +164,54 @@ namespace osu.Game.Skinning
                 default:
                     throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania scalar field.");
             }
+        }
+
+        /// <summary>
+        /// Writes one decoder-accepted array value to the mutable compatibility view and its declaration sidecar as one
+        /// accepted operation. Field and index validation complete before either view is changed.
+        /// This process-local sidecar is provenance for decoder output, not an authority or security boundary.
+        /// </summary>
+        internal void AcceptArrayValue(LegacyManiaSkinArrayField field, int index, float value)
+        {
+            float[] compatibilityValues = getArrayValues(field);
+            GameplaySkinConfigurationDeclaration<float>[] acceptedValues = getAcceptedArrayValues(field);
+
+            if ((uint)index >= (uint)compatibilityValues.Length)
+                throw new ArgumentOutOfRangeException(nameof(index), index, "The legacy mania array index is outside the source bucket.");
+
+            compatibilityValues[index] = value;
+            acceptedValues[index] = GameplaySkinConfigurationDeclaration<float>.Declared(value);
+        }
+
+        internal int GetArrayLength(LegacyManiaSkinArrayField field) => getArrayValues(field).Length;
+
+        internal GameplaySkinConfigurationDeclaration<float>[] CopyAcceptedArrayDeclarations(LegacyManiaSkinArrayField field)
+            => getAcceptedArrayValues(field).ToArray();
+
+        private float[] getArrayValues(LegacyManiaSkinArrayField field)
+        {
+            return field switch
+            {
+                LegacyManiaSkinArrayField.ColumnLineWidth => ColumnLineWidth,
+                LegacyManiaSkinArrayField.ColumnSpacing => ColumnSpacing,
+                LegacyManiaSkinArrayField.ColumnWidth => ColumnWidth,
+                LegacyManiaSkinArrayField.ExplosionWidth => ExplosionWidth,
+                LegacyManiaSkinArrayField.HoldNoteLightWidth => HoldNoteLightWidth,
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania array field."),
+            };
+        }
+
+        private GameplaySkinConfigurationDeclaration<float>[] getAcceptedArrayValues(LegacyManiaSkinArrayField field)
+        {
+            return field switch
+            {
+                LegacyManiaSkinArrayField.ColumnLineWidth => acceptedColumnLineWidth,
+                LegacyManiaSkinArrayField.ColumnSpacing => acceptedColumnSpacing,
+                LegacyManiaSkinArrayField.ColumnWidth => acceptedColumnWidth,
+                LegacyManiaSkinArrayField.ExplosionWidth => acceptedExplosionWidth,
+                LegacyManiaSkinArrayField.HoldNoteLightWidth => acceptedHoldNoteLightWidth,
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania array field."),
+            };
         }
     }
 }

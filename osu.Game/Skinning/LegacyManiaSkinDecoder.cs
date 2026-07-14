@@ -75,15 +75,15 @@ namespace osu.Game.Skinning
                 switch (pair.Key)
                 {
                     case "ColumnLineWidth":
-                        parseArrayValue(pair.Value, currentConfig.ColumnLineWidth, false);
+                        parseArrayValue(pair.Value, LegacyManiaSkinArrayField.ColumnLineWidth);
                         break;
 
                     case "ColumnSpacing":
-                        parseArrayValue(pair.Value, currentConfig.ColumnSpacing);
+                        parseArrayValue(pair.Value, LegacyManiaSkinArrayField.ColumnSpacing);
                         break;
 
                     case "ColumnWidth":
-                        parseArrayValue(pair.Value, currentConfig.ColumnWidth);
+                        parseArrayValue(pair.Value, LegacyManiaSkinArrayField.ColumnWidth);
                         break;
 
                     case "BarlineHeight":
@@ -122,11 +122,11 @@ namespace osu.Game.Skinning
                         break;
 
                     case "LightingNWidth":
-                        parseArrayValue(pair.Value, currentConfig.ExplosionWidth);
+                        parseArrayValue(pair.Value, LegacyManiaSkinArrayField.ExplosionWidth);
                         break;
 
                     case "LightingLWidth":
-                        parseArrayValue(pair.Value, currentConfig.HoldNoteLightWidth);
+                        parseArrayValue(pair.Value, LegacyManiaSkinArrayField.HoldNoteLightWidth);
                         break;
 
                     case "NoteBodyStyle":
@@ -163,13 +163,22 @@ namespace osu.Game.Skinning
             pendingLines.Clear();
         }
 
-        private void parseArrayValue(string value, float[] output, bool applyScaleFactor = true)
+        private void parseArrayValue(string value, LegacyManiaSkinArrayField field)
         {
             string[] values = value.Split(',');
+            bool applyScaleFactor = field switch
+            {
+                LegacyManiaSkinArrayField.ColumnLineWidth => false,
+                LegacyManiaSkinArrayField.ColumnSpacing or
+                    LegacyManiaSkinArrayField.ColumnWidth or
+                    LegacyManiaSkinArrayField.ExplosionWidth or
+                    LegacyManiaSkinArrayField.HoldNoteLightWidth => true,
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania array field."),
+            };
 
             for (int i = 0; i < values.Length; i++)
             {
-                if (i >= output.Length)
+                if (i >= currentConfig.GetArrayLength(field))
                     break;
 
                 if (!float.TryParse(values[i], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedValue))
@@ -180,7 +189,7 @@ namespace osu.Game.Skinning
                 if (applyScaleFactor)
                     parsedValue *= LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
 
-                output[i] = parsedValue;
+                currentConfig.AcceptArrayValue(field, i, parsedValue);
             }
         }
     }
