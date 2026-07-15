@@ -107,6 +107,8 @@ namespace osu.Game.Skinning
 
         internal GameplaySkinConfigurationDeclaration<int> AcceptedLightFramePerSecond { get; private set; }
 
+        internal GameplaySkinConfigurationDeclaration<LegacyNoteBodyStyle> AcceptedNoteBodyStyle { get; private set; }
+
         internal GameplaySkinConfigurationDeclaration<Color4> AcceptedColumnLineColour { get; private set; }
 
         internal GameplaySkinConfigurationDeclaration<Color4> AcceptedJudgementLineColour { get; private set; }
@@ -255,6 +257,21 @@ namespace osu.Game.Skinning
                 default:
                     throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown legacy mania scalar field.");
             }
+        }
+
+        /// <summary>
+        /// Captures one note-body style immediately after the legacy decoder successfully parses its exact source key.
+        /// The accepted enum value is preserved as-is, including values which are not named by
+        /// <see cref="LegacyNoteBodyStyle"/>, to retain the decoder's existing <see cref="Enum.TryParse{TEnum}(string, out TEnum)"/>
+        /// compatibility semantics. This declaration is not the version-derived effective production style.
+        /// </summary>
+        internal void AcceptNoteBodyStyle(LegacyNoteBodyStyle style)
+        {
+            GameplaySkinConfigurationDeclaration<LegacyNoteBodyStyle> declaration =
+                GameplaySkinConfigurationDeclaration<LegacyNoteBodyStyle>.Declared(style);
+
+            NoteBodyStyle = style;
+            AcceptedNoteBodyStyle = declaration;
         }
 
         /// <summary>

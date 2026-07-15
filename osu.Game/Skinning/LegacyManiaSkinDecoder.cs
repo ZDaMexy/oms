@@ -131,7 +131,7 @@ namespace osu.Game.Skinning
 
                     case "NoteBodyStyle":
                         if (Enum.TryParse<LegacyNoteBodyStyle>(pair.Value, out var style))
-                            currentConfig.NoteBodyStyle = style;
+                            currentConfig.AcceptNoteBodyStyle(style);
                         break;
 
                     case "WidthForNoteHeightScale":

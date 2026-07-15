@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 已完成三态/precedence、ruleset-neutral semantic slot taxonomy、neutral lane identity/immutable topology/保持性 transition validation、configuration bucket explicit-presence、legacy mania 九个 primitive scalar、五组 indexed array、四项 known global colour、exact `Colour{n}` / `ColourLight{n}` per-column colour、exact 十三项 `[Mania] Keys:` bucket-global/non-column resource-name，以及 legacy mania/native `[Bms]` 六类 lane-resource 的 decoder-time accepted provenance、gameplay event envelope/order、capability negotiation/禁止 authority、六类 lane-resource neutral snapshot/BMS→mania 候选链、internal 逐字段 resolution/revision-owner、topology publication/native-context continuity 十七个合同切片。路线仍是 `SV1-1` 进行中、`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现；未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
+皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 已完成三态/precedence、ruleset-neutral semantic slot taxonomy、neutral lane identity/immutable topology/保持性 transition validation、configuration bucket explicit-presence、legacy mania 九个 primitive scalar、五组 indexed array、四项 known global colour、exact `Colour{n}` / `ColourLight{n}` per-column colour、exact 十三项 `[Mania] Keys:` bucket-global/non-column resource-name、legacy mania/native `[Bms]` 六类 lane-resource，以及 legacy mania `NoteBodyStyle` 的 decoder-time accepted provenance、gameplay event envelope/order、capability negotiation/禁止 authority、六类 lane-resource neutral snapshot/BMS→mania 候选链、internal 逐字段 resolution/revision-owner、topology publication/native-context continuity 十八个合同切片。路线仍是 `SV1-1` 进行中、`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现；未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
 
 ## Skin V1 目标
 
@@ -24,7 +24,7 @@
 | mania 默认 | 可用基线 | `ManiaOmsSkinTransformer` 覆盖 stage/column/key/note/LN/hit/judgement/combo/HUD；复杂交互仍由内部 C# 固定行为驱动 |
 | mania 用户皮肤 | 可用 | `.osk/[Mania]` legacy 资源、配置和帧动画链成熟 |
 | BMS `.osk` 配置 | 可信主面 | `BmsLegacySkin` 叠加解析 `[Bms]`，保留 `[Mania]`；现存静态件颜色/纹理/几何可配置 |
-| BMS 共同 ini 实现 | bucket + 六类 lane-resource resolution + legacy mania scalar/indexed-array/colour/resource presence 地基已落、codec 未统一 | 九个 scalar、五组 array、四项 exact global colour、exact `Colour{n}` / `ColourLight{n}`、exact 十三项 bucket-global/non-column resource-name，以及 legacy mania/native `[Bms]` 的 note/LN head/body/tail/key up/down 均已有 decoder-time accepted sidecar；对应 factory 不再从 mutable `ImageLookups` 反推 declaration。legacy classifier 只接受严格零基 ASCII canonical token；native BMS 保留当前 decoder 接受的 raw lane token，尚不进行版本化编号迁移。immutable snapshot/ordered plan/process-local resolution 已有，但任意扩展颜色/资源键、`NoteBodyStyle`、真实文件验证/materializer、shared codec 与生产接线仍未落 |
+| BMS 共同 ini 实现 | bucket + 六类 lane-resource resolution + legacy mania scalar/indexed-array/colour/resource/NoteBodyStyle presence 地基已落、codec 未统一 | 九个 scalar、五组 array、四项 exact global colour、exact `Colour{n}` / `ColourLight{n}`、exact 十三项 bucket-global/non-column resource-name、legacy mania/native `[Bms]` 的 note/LN head/body/tail/key up/down，以及 legacy mania `NoteBodyStyle` 均已有 decoder-time accepted sidecar；对应 factory 不再从 mutable compatibility view 反推 declaration。`NoteBodyStyle` 的独立 snapshot 只保存 parser-accepted enum，不把 `[General] Version` 派生的 production effective default 冒充显式声明。immutable snapshot/ordered plan/process-local resolution 已有，但 native BMS 其余 closed fields、任意扩展颜色/资源键、真实文件验证/materializer、shared codec 与生产接线仍未落 |
 | BMS 动态外部运行时 | 未开始 | 当前无 declarative scene/event ABI/sandbox script；事故期 F2/Lua 不计能力 |
 | component suppress | 合同地基已落，生产未接入 | `SkinSlotResult<T>` 已区分 `Provide/Inherit/Suppress`；现有文件皮肤和 `SkinManager` 尚不能消费该合同 |
 | semantic slot taxonomy | 第二个合同切片已落 | 26 个内部语义 slot 固定 7 critical / 19 optional、稳定诊断 ID 与 context 分离；不是作者 manifest ABI 或 layout descriptor |
@@ -60,7 +60,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | --- | --- | --- |
 | 1 | schema 56 `SkinInfo` 数据安全门 | **通过**：备份与副本演练后定点移除异常 copy、修正 OMS 固定记录；路径 authority 正常 |
 | 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | **通过**：用户于 2026-07-14 自行确认全清单正常；Agent 未操控 GUI |
-| 3 | shared contract/fixture 代码冻结 | 进行中：三态/precedence、semantic slot taxonomy、neutral lane identity/topology/保持性 validation、config presence、legacy mania scalar/array/四项 global colour/exact per-column colour/bucket-global resource snapshot、legacy mania/native BMS lane-resource accepted provenance、event envelope/order、capability、lane-resource candidate/resolution，以及 topology publication/native continuity 十七切已完成。full layout/geometry、生产 revision/event/wire、完整 config/验证、具体 event family/producer、真实 capability manifest/runtime 仍未完成 |
+| 3 | shared contract/fixture 代码冻结 | 进行中：三态/precedence、semantic slot taxonomy、neutral lane identity/topology/保持性 validation、config presence、legacy mania scalar/array/四项 global colour/exact per-column colour/bucket-global resource/`NoteBodyStyle` snapshot、legacy mania/native BMS lane-resource accepted provenance、event envelope/order、capability、lane-resource candidate/resolution，以及 topology publication/native continuity 十八切已完成。full layout/geometry、生产 revision/event/wire、完整 config/验证、具体 event family/producer、真实 capability manifest/runtime 仍未完成 |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -69,7 +69,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 ## 最近验证
 
-### `SV1-0` 闭门与 `SV1-1` 前十七个合同切片（2026-07-15）
+### `SV1-0` 闭门与 `SV1-1` 前十八个合同切片（2026-07-15）
 
 | 检查 | 结果 |
 | --- | --- |
@@ -81,6 +81,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | legacy mania known global colour accepted snapshot | **15/15**；连同 scalar/array/decoder/declaration 合同 **65/65**；覆盖四个 exact global RGB/RGBA、alpha 0、缺/空/exact/duplicate bucket、malformed 不声明/不覆盖、大小写与 unknown/per-column 排除、native dictionary mutation 隔离、closed public surface 与安全字符串 |
 | legacy mania per-column colour accepted snapshot | shared focused **18/18**；config presence/decoder/snapshot aggregate **83/83**；覆盖 exact `Colour{n}` / `ColourLight{n}`、RGB/RGBA/alpha 0、缺/显式空、duplicate last accepted、malformed 不声明/不覆盖、非 canonical/越界拒绝、decode 后 dictionary mutation 隔离、defensive copy 与 immutable topology-bound snapshot |
 | legacy mania bucket-global resource-name accepted snapshot | focused **15/15**；config presence/decoder/snapshot aggregate **98/98**；覆盖 exact 十三项、缺 bucket/显式空 bucket、explicit empty=`Declared`、duplicate last accepted、Keys 前声明、exact classifier、unknown broad-prefix compatibility、完整 `ImageLookups` mutation 隔离、closed semantic public surface 与安全字符串 |
+| legacy mania `NoteBodyStyle` accepted snapshot | focused **26/26**；shared config aggregate **126/126**；覆盖 named/numeric/undefined/comma compatibility、大小写/空/未知拒绝、缺 bucket 与显式空 bucket、pending/duplicate/malformed `Keys` 既有行为、public field mutation 隔离、outer/inner declaration、immutable public surface 与安全字符串 |
 | per-column colour ruleset mapping | mania **5/5**；BMS **14/14**；旧 BMS candidate mapping regression **29/29**。mania 使用 `GlobalLogicalIndex`；BMS full visual 使用 `GlobalVisualIndex`，14K deck 使用 `GroupLocalVisualIndex` 且两个 deck 可共享 source index，key-only 使用非 scratch visual enumeration |
 | lane-resource snapshot / mania adapter / BMS candidate plan | **12/12；6/6；29/29（新增合计 47/47）**；覆盖六字段、显式空值、逐字段 fallback candidate、P2/CenterRightScratch、9K BMS/PMS 与 14K 双 deck |
 | lane-resource decoder-time accepted provenance | shared focused **21/21**；mania focused **6/6**；BMS focused **40/40**；legacy mania/native `[Bms]` factory 均只读 accepted sidecar，两侧字典内容的 overwrite/remove/clear/late-add 及 legacy 整表重赋值均不能伪造、擦除或改写六字段 declaration |
@@ -88,17 +89,23 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | lane identity / topology snapshot / transition validator | **26/26；19/19；12/12**；独立重建、side/visual reorder 允许，ID set、logical order、membership、role 漂移拒绝 |
 | topology publication / native-context owner | shared owner **8/8**，BMS publication **14/14**，mania publication **7/7**；首发 revision 0、成功 checked `+1`，native mismatch/comparer 异常/neutral rejection/overflow 不推进；BMS exact keymode 关闭 9K BMS/PMS neutral-shape 盲区，mania exact ordered stage vector 拒绝换列数与双 stage 重排 |
 | gameplay event envelope / canonical stream cursor | **23/23**；覆盖 Snapshot/Reset/Edge、mid-session attach high-water、epoch/sequence 连续、负 lead-in time、layout revision、拒绝原子性与溢出边界 |
-| capability negotiation / shared neutral gameplay 总集 | **91/91；250/250**；总集包含 per-column neutral snapshot 7 项与 revision owner 8 项，覆盖 closed allowlist、host support、per-skin authorization、hard-deny family、只读 event token、不可变/矛盾快照、native/neutral failure 原子性与公开面；第十六/十七切的 source-specific provenance 加固不改变该 neutral aggregate |
+| capability negotiation / shared neutral gameplay 总集 | **91/91；250/250**；总集包含 per-column neutral snapshot 7 项与 revision owner 8 项，覆盖 closed allowlist、host support、per-skin authorization、hard-deny family、只读 event token、不可变/矛盾快照、native/neutral failure 原子性与公开面；第十六至十八切的 source-specific provenance 加固不改变该 neutral aggregate |
 | `SkinProvidingContainer` / `RulesetSkinProvidingContainer` authority guard | **6/6**；实链顺序为 beatmap-local → selected → ruleset resources → protected built-in |
 | BMS lane layout / topology projection / publication | **7/7；20/20；14/14**（topology projection+publication **34/34**）；5K/7K style-only 与 visual reorder、5K→7K、9K BMS/PMS native mismatch、14K 双 deck/双皿及 malformed composition 均固定 |
 | mania topology projection / publication | **9/9；7/7（合计 16/16）**；canonical topology 只从防御性复制的 ordered stage vector 生成，同 shape 重建可递增，4→5 与 `[4,5]→[5,4]` 从 native gate 原子拒绝 |
-| BMS parser/legacy/reference/render focused | 43/43 |
-| BMS relevant 连续性 / 本切全量 | 上一切 full **1146/1146**；本切以全量 **1157/1157** 覆盖 |
+| BMS skin relevant | **301/301** |
+| BMS relevant 连续性 / 本切全量 | 上一切 full **1157/1157**；本切重跑仍为 **1157/1157** |
 | BMS transformer + user fallback | 104/104 |
-| mania relevant 连续性 / 本切全量 | full **827/831**，仅恢复基线同组 4 个 HoldNote auto-frame 期待失败；第十七切 mania focused **6/6** |
+| mania skin relevant / 本切全量 | skin **182/182**；full **827/831**，仅恢复基线同组 4 个 HoldNote auto-frame 期待失败 |
 | core skin focused | 57/62；5 项与恢复审计同名，无新失败 |
 | `osu.Desktop.slnf` Release | **0 error / 20 warnings** |
 | Markdown 相对链接 / diff | 121 个文件、936 个相对链接、0 断链；working tree 与 staged diff 检查通过 |
+
+第十八切为 exact legacy mania `NoteBodyStyle` 增加 decoder-time accepted sidecar，并由独立、source-specific、immutable bucket snapshot/factory 只读该 sidecar。既有 `Enum.TryParse` compatibility 完整保留：大小写敏感，named、numeric、undefined numeric 与 comma-combined value 仍按当前 parser 接受并保存解析后的 enum；invalid declaration 不伪造 presence，也不擦除此前成功值。缺真实 `Keys:` bucket 为 outer `Absent`，显式 bucket 但无成功字段为 outer `Declared` + inner `Absent`，显式 `Stretch=0` 仍与缺失可区分；decode 后 public nullable field 的 forge/erase/alter 均不改变 provenance。
+
+该 snapshot 刻意不接收 `[General] Version`，也不把 `LegacySkin` 在字段缺失时按 version 派生的 `Stretch`/`RepeatBottom` effective default 或缺 bucket 时合成的 configuration 当作 source declaration。第十八切未改变 production `LegacySkin`、mania `LegacyBodyPiece`、OMS preset、native BMS schema/renderer、`SkinManager`、candidate/fallback、nullable `ISkin` ABI，也没有资源 validation/materialization、package authority 或 shared codec 接线。
+
+第十八切最终 focused **26/26**、shared config aggregate **126/126**、mania skin **182/182**、BMS skin **301/301**、BMS full **1157/1157**；mania full **827/831** 仍仅恢复基线同名 4 个 HoldNote auto-frame 期待失败，core skin **57/62** 仍为恢复基线同名 5 项。Release Rebuild **0 error / 20 warnings**；告警保持为 9 条 MessagePack `NU1902` 在 restore/build 重复显示，以及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。生产 Realm、`chartskin/` 与用户皮肤目录零写入。`SV1-1` 整体仍未完成；下一切不预设实现，优先只读审计 native BMS remaining closed fields、package authority/materializer 边界，再据证据选择一个最小闭环。
 
 第十七切同时为 legacy mania 与 native `[Bms]` 的 note、LN head/body/tail、key up/down 六类 lane-resource 保存 decoder-time accepted declaration/value sidecar，并将两侧 topology-bound snapshot factory 改为只读 sidecar。legacy mania 只把 `NoteImage{n}`、`NoteImage{n}H/L/T`、`KeyImage{n}`、`KeyImage{n}D` 的严格零基 ASCII canonical token 记为 accepted；大小写变体、前导零、符号、越界与相似 suffix 不进入 sidecar，既有 broad-prefix compatibility dictionary 行为保持。native BMS 不在本切规范化 token，继续保留 decoder 实际接受的 raw numeric/`S`/`S2` token 与现有 9K `0..8` compatibility 事实。
 
@@ -176,7 +183,7 @@ BMS internal owner 以 exact `BmsKeymode` 为 continuity authority，`AppliedSty
 - schema 56 异常记录已定点处置；四个无 authority 的 orphan blob 暂留且已另行保全，未运行会波及其它记录的全局 cleanup。
 - external absolute path、删除/重命名 containment、scanner authority 和原子 reload 尚无可信生产实现。
 - 当前 parser 对未知/非法 BMS 值是静默 fail-open，作者文档曾误写为“会告警”；结构化诊断是 SV1-4 未完成能力。
-- 生产 `LegacySkin` lookup 仍会为缺失 `[Mania] Keys:` bucket 合成默认 configuration；九个 scalar、五组 array、四项 global colour、exact per-column colour、exact 十三项 bucket-global/non-column resource-name 与两侧六类 lane-resource 已有 decoder-time provenance，但任意扩展 colour/resource key、`NoteBodyStyle` 与 production validation/materialization 仍未进入 closed schema。第十七切只让 neutral snapshot factory 脱离 mutable `ImageLookups`，没有改变 production `LegacySkin`/`BmsLegacySkin` compatibility consumer 对该公开字典的既有读取。
+- 生产 `LegacySkin` lookup 仍会为缺失 `[Mania] Keys:` bucket 合成默认 configuration；九个 scalar、五组 array、四项 global colour、exact per-column colour、exact 十三项 bucket-global/non-column resource-name、两侧六类 lane-resource 与 legacy mania `NoteBodyStyle` 已有 decoder-time provenance，但 native BMS 其余 closed fields、任意扩展 colour/resource key 与 production validation/materialization 仍未进入 closed schema。第十八切只保存 parser-accepted `NoteBodyStyle` declaration，未改变 production 按 `[General] Version` 派生 effective default；第十七切也只让 lane-resource snapshot factory 脱离 mutable `ImageLookups`，没有改变 production `LegacySkin`/`BmsLegacySkin` compatibility consumer。
 - 当前未版本化 9K BMS/PMS per-lane 资源使用 raw token `0..8`，与 V1 canonical 作者目标 `1..9` 不同；两套编号的 `1..8` 含义重叠，必须通过版本化迁移和诊断解决，不能在 production lookup 静默同时接受。
 - semantic catalog 的未知 ID 目前只会由 `TryGet()` 拒绝，尚无 manifest parser/作者诊断接线；旧 raw resolver 仍是 uncatalogued compatibility 入口，生产接线必须只走 descriptor overload。
 - catalogued 诊断的 context/exception 已从 JSON 与安全 `ToString()` 排除，但 `ProviderName` 的隐私仍依赖 provider 遵守“非敏感 authority 名、不得含绝对路径”合同。
@@ -194,6 +201,6 @@ BMS internal owner 以 exact `BmsKeymode` 为 continuity authority，`AppliedSty
 
 ## 下一检查点
 
-1. 先只读审计剩余 legacy mania/native BMS 配置面，重点核对 `NoteBodyStyle`、资源文件 validation/materialization、动画命名与其它仍从 mutable compatibility view 反推的入口；据审计证据再确定第十八个最小切片，不预先扩大为 shared codec 或生产接线。
-2. 继续 `SV1-1` 的完整 field-level config/production validation/materialization 与 concrete immutable event payload；已冻结 topology-only publication/native continuity、exact per-column colour mapping、十三项 bucket-global resource-name 及两侧六类 lane-resource provenance，但完整 `GameplaySkinLayoutContext`、geometry、production revision/event producer、lifecycle dispatch、sampling/throttling、shared codec、真实文件 fallback/adapter、manifest/runtime gate 与 wire ABI 仍属后续。前十七个合同切片仍不等于整个 `SV1-1` 完成。
+1. 下一切不预设实现；先只读审计 native BMS remaining closed fields、package authority/materializer、资源 validation/动画命名与仍从 mutable compatibility view 反推的入口，再据证据选择一个最小闭环，不扩大为 shared codec 或生产接线。
+2. 继续 `SV1-1` 的完整 field-level config/production validation/materialization 与 concrete immutable event payload；已冻结 topology-only publication/native continuity、exact per-column colour mapping、十三项 bucket-global resource-name、两侧六类 lane-resource 及 legacy mania `NoteBodyStyle` provenance，但完整 `GameplaySkinLayoutContext`、geometry、production revision/event producer、lifecycle dispatch、sampling/throttling、shared codec、真实文件 fallback/adapter、manifest/runtime gate 与 wire ABI 仍属后续。前十八个合同切片仍不等于整个 `SV1-1` 完成。
 3. 在另立生产接线切片前保持 `SkinManager`、nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；G1 仍按 `SV1-2` 独立重做。

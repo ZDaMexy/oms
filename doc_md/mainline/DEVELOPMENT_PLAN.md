@@ -34,9 +34,9 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同冻结
 
-状态：R0/R1 已解除；`SV1-1` 前十七个合同切片已完成，最新一切同时关闭 legacy mania 与 native `[Bms]` 六类 lane-resource 的 decoder→factory provenance 窗口，其余共同合同待续。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，不能把当前地基描述为 Skin V1 可用。
+状态：R0/R1 已解除；`SV1-1` 前十八个合同切片已完成，最新一切关闭 legacy mania `NoteBodyStyle` 的 decoder→factory provenance 窗口，其余共同合同待续。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，不能把当前地基描述为 Skin V1 可用。
 
-1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource accepted provenance、两侧六类 lane-resource decoder-time accepted provenance、mapping/resolution 已落。下一切先审计剩余 `NoteBodyStyle` 与真实资源 validation/materialization 的责任边界，再只选一个最小闭环；不得从任一 native dictionary 反推 accepted source fact。full layout/geometry、production revision/event/wire、完整 neutral config、shared codec、fallback 和 adapter 接线待续。
+1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource/`NoteBodyStyle` accepted provenance、两侧六类 lane-resource decoder-time accepted provenance、mapping/resolution 已落。真实资源 validation/materialization 必须先冻结 package-scoped read authority、resolved containment、资源名/animation codec、解码预算与 concrete owner/thread 责任；在此前只继续选择可独立闭环的配置面。full layout/geometry、production revision/event/wire、完整 neutral config、shared codec、fallback 和 adapter 接线待续。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。
 3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority；process-local envelope/order 与 capability decision/hard-deny foundation 已落，concrete payload、producer/dispatch、sampling、真实 manifest/version/activation/runtime gate 仍待。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
