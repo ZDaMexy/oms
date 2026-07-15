@@ -11,9 +11,9 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Audio;
-using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Input;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Objects;
@@ -214,6 +214,14 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (createLookup(hitObject) is BmsNoteSkinLookup lookup)
             {
+                if (lookup.Element == BmsNoteSkinElements.Note)
+                {
+                    return new BmsAsyncNoteDrawable(lookup)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    };
+                }
+
                 return new SkinnableDrawable(lookup)
                 {
                     RelativeSizeAxes = Axes.Both,

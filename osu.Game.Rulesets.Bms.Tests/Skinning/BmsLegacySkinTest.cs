@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
@@ -114,6 +116,87 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 laneIndex,
                 isScratch: true)?.Value, Is.EqualTo(expected));
 
+        [TestCaseSource(nameof(canonicalOrdinaryNoteDeclarations))]
+        public void TestAcceptedOrdinaryNoteResourceUsesCanonicalLaneToken(
+            BmsKeymode keymode,
+            int laneIndex,
+            bool isScratch,
+            string expected)
+        {
+            GameplaySkinConfigurationDeclaration<string> declaration =
+                new TestBmsLegacySkin(createExactOrdinaryNoteSkinIni()).GetAcceptedBmsOrdinaryNoteResource(keymode, laneIndex, isScratch);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(declaration.IsDeclared, Is.True);
+                Assert.That(declaration.Value, Is.EqualTo(expected));
+            });
+        }
+
+        [TestCase(BmsKeymode.Key5K, -1, false)]
+        [TestCase(BmsKeymode.Key5K, 6, false)]
+        [TestCase(BmsKeymode.Key5K, 0, false)]
+        [TestCase(BmsKeymode.Key5K, 1, true)]
+        [TestCase(BmsKeymode.Key7K, -1, false)]
+        [TestCase(BmsKeymode.Key7K, 8, false)]
+        [TestCase(BmsKeymode.Key7K, 0, false)]
+        [TestCase(BmsKeymode.Key7K, 1, true)]
+        [TestCase(BmsKeymode.Key9K_Bms, -1, false)]
+        [TestCase(BmsKeymode.Key9K_Bms, 9, false)]
+        [TestCase(BmsKeymode.Key9K_Bms, 0, true)]
+        [TestCase(BmsKeymode.Key9K_Pms, -1, false)]
+        [TestCase(BmsKeymode.Key9K_Pms, 9, false)]
+        [TestCase(BmsKeymode.Key9K_Pms, 8, true)]
+        [TestCase(BmsKeymode.Key14K, -1, false)]
+        [TestCase(BmsKeymode.Key14K, 16, false)]
+        [TestCase(BmsKeymode.Key14K, 0, false)]
+        [TestCase(BmsKeymode.Key14K, 15, false)]
+        [TestCase(BmsKeymode.Key14K, 1, true)]
+        [TestCase(BmsKeymode.Key14K, 14, true)]
+        public void TestAcceptedOrdinaryNoteResourceRejectsOutOfRangeAndRoleMismatch(
+            BmsKeymode keymode,
+            int laneIndex,
+            bool isScratch)
+        {
+            GameplaySkinConfigurationDeclaration<string> declaration =
+                new TestBmsLegacySkin(createExactOrdinaryNoteSkinIni()).GetAcceptedBmsOrdinaryNoteResource(keymode, laneIndex, isScratch);
+
+            Assert.That(declaration.IsDeclared, Is.False);
+        }
+
+        [Test]
+        public void TestAcceptedOrdinaryNoteResourcePreservesExplicitEmptyDeclaration()
+        {
+            var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nNoteImage2:\n");
+            GameplaySkinConfigurationDeclaration<string> declaration =
+                skin.GetAcceptedBmsOrdinaryNoteResource(BmsKeymode.Key7K, 2, isScratch: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(declaration.IsDeclared, Is.True);
+                Assert.That(declaration.Value, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void TestImageLookupMutationCannotChangeAcceptedOrdinaryNoteDeclaration()
+        {
+            var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nNoteImage1: accepted\n");
+            BmsSkinConfiguration configuration = getBmsConfiguration(skin, BmsKeymode.Key7K);
+
+            configuration.ImageLookups["NoteImage1"] = "overwritten";
+            assertAcceptedOrdinaryNote(skin, BmsKeymode.Key7K, 1, false, "accepted");
+
+            configuration.ImageLookups.Remove("NoteImage1");
+            assertAcceptedOrdinaryNote(skin, BmsKeymode.Key7K, 1, false, "accepted");
+
+            configuration.ImageLookups.Clear();
+            assertAcceptedOrdinaryNote(skin, BmsKeymode.Key7K, 1, false, "accepted");
+
+            configuration.ImageLookups["NoteImage2"] = "late-added";
+            Assert.That(skin.GetAcceptedBmsOrdinaryNoteResource(BmsKeymode.Key7K, 2, isScratch: false).IsDeclared, Is.False);
+        }
+
         [Test]
         public void TestTypeStringsUsedByCoreResolveToThisType()
         {
@@ -145,6 +228,84 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        private static IEnumerable<TestCaseData> canonicalOrdinaryNoteDeclarations()
+        {
+            yield return ordinaryNoteCase(BmsKeymode.Key5K, 0, true, "5k-S");
+
+            for (int laneIndex = 1; laneIndex <= 5; laneIndex++)
+                yield return ordinaryNoteCase(BmsKeymode.Key5K, laneIndex, false, $"5k-{laneIndex}");
+
+            yield return ordinaryNoteCase(BmsKeymode.Key7K, 0, true, "7k-S");
+
+            for (int laneIndex = 1; laneIndex <= 7; laneIndex++)
+                yield return ordinaryNoteCase(BmsKeymode.Key7K, laneIndex, false, $"7k-{laneIndex}");
+
+            for (int laneIndex = 0; laneIndex <= 8; laneIndex++)
+            {
+                yield return ordinaryNoteCase(BmsKeymode.Key9K_Bms, laneIndex, false, $"9k-bms-{laneIndex}");
+                yield return ordinaryNoteCase(BmsKeymode.Key9K_Pms, laneIndex, false, $"9k-pms-{laneIndex}");
+            }
+
+            yield return ordinaryNoteCase(BmsKeymode.Key14K, 0, true, "14k-S");
+
+            for (int laneIndex = 1; laneIndex <= 14; laneIndex++)
+                yield return ordinaryNoteCase(BmsKeymode.Key14K, laneIndex, false, $"14k-{laneIndex}");
+
+            yield return ordinaryNoteCase(BmsKeymode.Key14K, 15, true, "14k-S2");
+        }
+
+        private static TestCaseData ordinaryNoteCase(BmsKeymode keymode, int laneIndex, bool isScratch, string expected)
+            => new TestCaseData(keymode, laneIndex, isScratch, expected)
+               .SetName($"{nameof(TestAcceptedOrdinaryNoteResourceUsesCanonicalLaneToken)}({keymode},{laneIndex},{isScratch})");
+
+        private static string createExactOrdinaryNoteSkinIni()
+        {
+            var builder = new StringBuilder();
+
+            appendOrdinaryNoteBucket(builder, "5K", "5k", new[] { "S", "1", "2", "3", "4", "5" });
+            appendOrdinaryNoteBucket(builder, "7K", "7k", new[] { "S", "1", "2", "3", "4", "5", "6", "7" });
+            appendOrdinaryNoteBucket(builder, "9K_BMS", "9k-bms", new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8" });
+            appendOrdinaryNoteBucket(builder, "9K_PMS", "9k-pms", new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8" });
+            appendOrdinaryNoteBucket(builder, "14K", "14k", new[] { "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "S2" });
+
+            return builder.ToString();
+        }
+
+        private static void appendOrdinaryNoteBucket(StringBuilder builder, string keymode, string resourcePrefix, IEnumerable<string> laneTokens)
+        {
+            builder.AppendLine("[Bms]");
+            builder.AppendLine($"Keymode: {keymode}");
+
+            foreach (string laneToken in laneTokens)
+                builder.AppendLine($"NoteImage{laneToken}: {resourcePrefix}-{laneToken}");
+        }
+
+        private static BmsSkinConfiguration getBmsConfiguration(BmsLegacySkin skin, BmsKeymode keymode)
+        {
+            FieldInfo? field = typeof(BmsLegacySkin).GetField("bmsConfigurations", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+
+            var configurations = (Dictionary<BmsKeymode, BmsSkinConfiguration>)field!.GetValue(skin)!;
+            return configurations[keymode];
+        }
+
+        private static void assertAcceptedOrdinaryNote(
+            BmsLegacySkin skin,
+            BmsKeymode keymode,
+            int laneIndex,
+            bool isScratch,
+            string expected)
+        {
+            GameplaySkinConfigurationDeclaration<string> declaration =
+                skin.GetAcceptedBmsOrdinaryNoteResource(keymode, laneIndex, isScratch);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(declaration.IsDeclared, Is.True);
+                Assert.That(declaration.Value, Is.EqualTo(expected));
+            });
+        }
+
         private class TestBmsLegacySkin : BmsLegacySkin
         {
             public TestBmsLegacySkin(string ini)
@@ -155,12 +316,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private class TestResourceProvider : IStorageResourceProvider
         {
-            private readonly IResourceStore<byte[]> empty = new ResourceStore<byte[]>();
-
             public IRenderer Renderer { get; } = new DummyRenderer();
             public AudioManager? AudioManager => null;
-            public IResourceStore<byte[]> Files => empty;
-            public IResourceStore<byte[]> Resources => empty;
+            public IResourceStore<byte[]> Files => Resources;
+            public IResourceStore<byte[]> Resources { get; } = new ResourceStore<byte[]>();
             public RealmAccess RealmAccess => null!;
             public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => null;
         }

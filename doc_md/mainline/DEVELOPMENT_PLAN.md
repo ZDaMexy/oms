@@ -32,12 +32,12 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 2. 用户已选择保全后移除无价值的异常 mutable copy；生产迁移完成并经 read-only reopen 验证。迁移归档保留，物理 orphan blob 暂不做全局清理。
 3. 保持当前 `.osk` F1 路线和程序化 `OmsSkin` 迁移 fallback 稳定，不在 `oms-simple` parity/完整性/恢复 gate 前提前删除，也不把它写成最终产品能力。
 
-### R2：Skin V1 共同合同冻结
+### R2：Skin V1 共同合同与首个产品纵切
 
-状态：R0/R1 已解除；`SV1-1` 前二十个合同切片已完成，最新一切关闭 native `[Bms]` exact 12 项 geometry 的 decoder→factory provenance 窗口，其余共同合同待续。恢复后既有 `.osk` 功能已验收，但 Skin V1 新增可见功能仍为 0；`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，不能把当前地基描述为 Skin V1 可用。下一工作不再以继续累加技术切片计数为目标，而是以首个可演示的文件型 gameplay 组件及其逐组件 fallback 纵切为下一检查点。
+状态：R0/R1 已解除；`SV1-1` 在前二十个合同地基之后已实现首个玩家可见组件：当前 selected managed `.osk` 的 BMS 普通短键编号帧动画。自动 gate 已通过，因此当前新增可见功能计为 1；新动画实机仍待确认。`SV1-1` 未完成，`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现，不能把当前纵切描述为 Skin V1 可用。本任务在提交该功能后停止，下一 gate 只记录为用户实机确认。
 
-1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource/`NoteBodyStyle` accepted provenance、native `[Bms]` exact 22 项 colour / 12 项 geometry accepted provenance、两侧六类 lane-resource decoder-time accepted provenance、mapping/resolution 已落。geometry snapshot 只是 parser-accepted source provenance，full finite/range/screen-space validation 与唯一 resolved layout 仍归 neutral descriptor/solver。真实资源 validation/materialization 必须冻结 package-scoped read authority、resolved containment、资源名/animation codec、解码预算与 concrete owner/thread 责任；下一纵切只闭合首个可演示文件型组件必需的最小边界，不得用 in-memory fake 冒充真实文件安全或 fallback 交付。full layout/geometry、production revision/event/wire、完整 neutral config、shared codec 与其余 adapter 接线待续。
-2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，生产接线、作者 manifest mapping 和真实文件 fallback 仍待后续。
+1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource/`NoteBodyStyle` accepted provenance、native `[Bms]` exact 22 项 colour / 12 项 geometry accepted provenance、两侧六类 lane-resource decoder-time accepted provenance、mapping/resolution 已落。geometry snapshot 只是 parser-accepted source provenance，full finite/range/screen-space validation 与唯一 resolved layout 仍归 neutral descriptor/solver。BMS 普通短键是首个真实文件窄纵切，已闭合其所需的精确 package authority、资源/帧验证、预算、owner 与后台准备边界；这不代表其它资源、完整 neutral config/shared codec、layout、production revision/event/wire 或整包重载已经完成。
+2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，BMS 普通短键 critical slot 已把 `Provide/Inherit` 接到生产 gameplay。作者 `Suppress`、其它 slot、manifest mapping 和最终 `oms-simple` 文件 fallback 仍待后续。
 3. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本和禁止写入 authority；process-local envelope/order 与 capability decision/hard-deny foundation 已落，concrete payload、producer/dispatch、sampling、真实 manifest/version/activation/runtime gate 仍待。
 4. 明确 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 直接继承 mania 具体 Drawable/transformer。
 
@@ -103,7 +103,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | BMS 解析/转换 | raw/typed 模型、主要控制事件、BMS→mania 转换 | 特殊谱尾项与真实谱组合证明 |
 | gameplay/判定 | 主要 keymode、判定家族、gauge、EX score、LN/CN/HCN 链 | 真实设备和真实谱验收 |
 | 音频/BGA | shared keysound、转谱音频主链、BGA 图/视频链 | 转谱 LN、极端 dense、逐谱视觉/暂停恢复体验 |
-| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56；SV1-0 自动/数据/实机 gate 已过 | G1、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
+| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56；SV1-0 自动/数据/实机 gate 已过；managed `.osk` BMS 普通短键编号帧动画已通过自动 gate | 新动画实机确认；其它 slot 三态、G1、LN/mania compatibility、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
 | Song Select | BMS 分组、筛选、搜索和主要展示 | 拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | `chartbms/chartmania`、多根扫描、portable/custom root | 删除/失效/去重策略、最终覆盖更新复核 |
 | 输入 | keyboard/Raw/XInput/Mouse/DirectInput 基线 | analog scratch、一致校准、真实硬件 |

@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-皮肤异常代码已撤回并恢复到可信 `.osk/F1/schema 56` 基线；`SV1-0` 的自动回归、数据安全与用户实机 gate 已全部通过。`SV1-1` 已完成三态/precedence、ruleset-neutral semantic slot taxonomy、neutral lane identity/immutable topology/保持性 transition validation、configuration bucket explicit-presence、legacy mania 九个 primitive scalar、五组 indexed array、四项 known global colour、exact `Colour{n}` / `ColourLight{n}` per-column colour、exact 十三项 `[Mania] Keys:` bucket-global/non-column resource-name、legacy mania/native `[Bms]` 六类 lane-resource、legacy mania `NoteBodyStyle`、native `[Bms]` exact 22-colour 与 exact 12-geometry decoder-time accepted provenance、gameplay event envelope/order、capability negotiation/禁止 authority、六类 lane-resource neutral snapshot/BMS→mania 候选链、internal 逐字段 resolution/revision-owner、topology publication/native-context continuity 二十个合同切片。路线仍是 `SV1-1` 进行中、`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现；未接入 `SkinManager`、未改变 nullable `ISkin` ABI，Skin V1 仍不可用。
+`SV1-0` 的自动回归、schema 56 数据安全与用户实机 gate 已全部通过。`SV1-1` 已交付第一个玩家可见纵切：当前选中的已导入 managed `.osk` 可用 `name-0`、`name-1`…编号帧驱动 BMS 普通短键动画，缺失、损坏、越权或超预算素材按既有优先级逐组件回落；静态 `NoteImage` 是恢复基线，不计新增功能。新增可见功能现为 **1**，但该动画尚待用户实机确认。路线仍是 `SV1-1` 进行中、`SV1-2` 只有 early carrier、`SV1-3`～`SV1-7` 未实现，Skin V1 整体仍不可用。
 
 ## Skin V1 目标
 
@@ -19,11 +19,12 @@
 ## 产品功能进度
 
 - **恢复基线功能可用**：当前 `.osk`/legacy mania、BMS F1 静态颜色/纹理/几何、程序化 `OmsSkin` 迁移 fallback 与既有选择链保持可用，自动、数据与实机恢复 gate 已通过。
-- **Skin V1 新增可见功能仍为 0**：前二十切均为 process-local 合同、fixture 或 accepted-provenance 地基，没有让用户或皮肤作者获得新的生产能力，也没有把任一 fake/internal carrier 接入真实选择、渲染或文件链。
+- **Skin V1 新增可见功能为 1**：当前选中的 managed `.osk` 可为 BMS 普通短键提供 osu 社区式编号帧动画；自动 gate 已通过，新增动画的用户实机观感仍待确认。
 
 | Skin V1 产品交付面 | 当前状态 |
 | --- | --- |
-| 三态 gameplay slot 生产接线 | 未交付；只有平行合同/fixture |
+| BMS 普通短键编号帧动画 | **首个纵切已交付自动 gate**；覆盖真实 gameplay、14K S2、动画循环、换肤与逐组件回落，实机待确认 |
+| 三态 gameplay slot 生产接线 | 仅普通短键 critical slot 已消费 `Provide/Inherit`；作者 `Suppress` 与其它 slot 未交付 |
 | `oms-simple.osk` canonical 逐组件 fallback | 未交付；实际链底仍是程序化 `OmsSkin` |
 | 安全 G1 文件夹导入/选择/重载 | 未交付；只有 schema/ctor early carrier |
 | 统一 layout descriptor/solver | 未交付；exact geometry snapshot 只是未验证的来源事实 |
@@ -39,9 +40,10 @@
 | mania 默认 | 可用基线 | `ManiaOmsSkinTransformer` 覆盖 stage/column/key/note/LN/hit/judgement/combo/HUD；复杂交互仍由内部 C# 固定行为驱动 |
 | mania 用户皮肤 | 可用 | `.osk/[Mania]` legacy 资源、配置和帧动画链成熟 |
 | BMS `.osk` 配置 | 可信主面 | `BmsLegacySkin` 叠加解析 `[Bms]`，保留 `[Mania]`；现存静态件颜色/纹理/几何可配置 |
-| BMS 共同 ini 实现 | bucket + 六类 lane-resource resolution + legacy mania scalar/indexed-array/colour/resource/NoteBodyStyle + native exact colour/geometry presence 地基已落、codec 未统一 | 九个 scalar、五组 array、四项 exact global colour、exact `Colour{n}` / `ColourLight{n}`、exact 十三项 bucket-global/non-column resource-name、legacy mania/native `[Bms]` 的 note/LN head/body/tail/key up/down、legacy mania `NoteBodyStyle`，以及 native `[Bms]` exact 22-colour / exact 12-geometry 均已有 decoder-time accepted sidecar；对应 factory 不再从 mutable compatibility view 反推 declaration。native colour/geometry 只把 exact source key 记入 closed provenance，逗号 composite key 仍只保留既有 public compatibility 行为。geometry snapshot 接受 parser 已接受的负值、零、`NaN` 与无穷值，不是有效 layout；真实 validation/materializer、shared codec/诊断与生产接线仍未落 |
-| BMS 动态外部运行时 | 未开始 | 当前无 declarative scene/event ABI/sandbox script；事故期 F2/Lua 不计能力 |
-| component suppress | 合同地基已落，生产未接入 | `SkinSlotResult<T>` 已区分 `Provide/Inherit/Suppress`；现有文件皮肤和 `SkinManager` 尚不能消费该合同 |
+| BMS 普通短键 | 首个真实文件纵切 | managed package 的静态/编号帧 `NoteImage*` 已进入真实 gameplay 与速度预览；只有编号帧动画计作本次新增可见功能 |
+| BMS 共同 ini 实现 | bucket + 六类 lane-resource resolution + legacy mania scalar/indexed-array/colour/resource/NoteBodyStyle + native exact colour/geometry presence 地基已落、codec 未统一 | 九个 scalar、五组 array、四项 exact global colour、exact `Colour{n}` / `ColourLight{n}`、exact 十三项 bucket-global/non-column resource-name、legacy mania/native `[Bms]` 的 note/LN head/body/tail/key up/down、legacy mania `NoteBodyStyle`，以及 native `[Bms]` exact 22-colour / exact 12-geometry 均已有 decoder-time accepted sidecar；对应 factory 不再从 mutable compatibility view 反推 declaration。native colour/geometry 只把 exact source key 记入 closed provenance，逗号 composite key 仍只保留既有 public compatibility 行为。geometry snapshot 接受 parser 已接受的负值、零、`NaN` 与无穷值，不是有效 layout；除普通短键的精确 package validation/materializer 窄纵切外，完整六字段候选链、其它资源、shared codec/诊断与生产接线仍未落 |
+| BMS 动态外部运行时 | scene/event runtime 未开始 | 本次只接 legacy `name-{n}` 图片动画；当前无 declarative scene/event ABI/sandbox script，事故期 F2/Lua 不计能力 |
+| component suppress | 普通短键窄接线 | 普通短键已消费 `Provide/Inherit`；完整三态、optional `Suppress` 与其它 slot 尚未进入生产链 |
 | semantic slot taxonomy | 第二个合同切片已落 | 26 个内部语义 slot 固定 7 critical / 19 optional、稳定诊断 ID 与 context 分离；不是作者 manifest ABI 或 layout descriptor |
 | neutral lane identity/topology | 第四、十、十四个合同切片已落 | 强类型 identity、immutable snapshot/group/entry、四类零基 logical/visual index 与 transition validator 之上，新增 topology-only publication 和 process-local monotonic revision owner；internal BMS 以 exact keymode、mania 以 ordered stage-column vector 维护 native continuity。仍不是完整 layout/geometry、生产 `layoutRevision` producer、event/wire ABI 或 adapter 接线 |
 | gameplay event envelope/order | 第六个合同切片已落 | V1 process-local immutable envelope、engine-owned payload hierarchy 与 internal fail-closed canonical-stream cursor 已固定；只有 header/ownership/order fixture，没有具体 event family、完整 state payload、lifecycle producer、dispatch 或 script ABI |
@@ -75,7 +77,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | --- | --- | --- |
 | 1 | schema 56 `SkinInfo` 数据安全门 | **通过**：备份与副本演练后定点移除异常 copy、修正 OMS 固定记录；路径 authority 正常 |
 | 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | **通过**：用户于 2026-07-14 自行确认全清单正常；Agent 未操控 GUI |
-| 3 | shared contract/fixture 代码冻结 | 进行中：三态/precedence、semantic slot taxonomy、neutral lane identity/topology/保持性 validation、config presence、legacy mania scalar/array/四项 global colour/exact per-column colour/bucket-global resource/`NoteBodyStyle` snapshot、legacy mania/native BMS lane-resource accepted provenance、native BMS exact 22-colour / exact 12-geometry snapshot、event envelope/order、capability、lane-resource candidate/resolution，以及 topology publication/native continuity 二十切已完成。full layout/geometry、生产 revision/event/wire、完整 config/验证、具体 event family/producer、真实 capability manifest/runtime 仍未完成；Skin V1 产品可见新增仍为 0 |
+| 3 | shared contract + 首个产品纵切 | 进行中：前二十个合同地基之上，managed `.osk` BMS 普通短键编号帧动画已进入真实 gameplay，新增可见功能为 1；新动画实机 gate 待确认，完整三态/layout/event/runtime 仍未完成 |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -83,6 +85,21 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | 8 | `oms-simple` / `oms-complex` / Authoring Kit / file fallback release gate | 未开始 |
 
 ## 最近验证
+
+### `SV1-1` 首个玩家可见纵切：managed `.osk` BMS 普通短键编号帧动画（2026-07-15）
+
+| 检查 | 结果 |
+| --- | --- |
+| 产品自动验收 | **26/26**：真实 `.osk` 导入、真实 `DrawableBmsHitObject`/Ruleset 链、14K S2、帧推进与循环、SkinManager A→B、beatmap-local 优先、同包坏轨逐组件 Oms 回落、跨包隔离、旧图保持/latest-wins/取消清理与 package restart |
+| 相关 focused | **283/283** |
+| BMS full | **1333/1333** |
+| `osu.Desktop.slnf` Release | **0 error / 20 warnings** |
+| source review | blocker / major = **0 / 0** |
+| Markdown 相对链接 | **119 个文件 / 934 个相对链接 / 0 断链** |
+| 数据边界 | 只使用隔离 headless 临时存储；生产 Realm、`chartskin/`、用户皮肤目录与网络零访问、零写入 |
+| 实机 | `SV1-0` 恢复清单已通过；本次新编号帧动画尚待用户实机确认，不能复用旧结论 |
+
+本纵切只把当前 selected managed package 的 native `[Bms] NoteImage*` 绑定到同一 package revision，并在后台完整准备后替换；单槽缺失、损坏、越权或超预算不会使短键消失。当前链底仍是程序化 `OmsSkin`，不是 `oms-simple`；该能力不包含 LN、mania compatibility、完整 layout、G1、scene/script 或整包原子热重载。
 
 ### `SV1-0` 闭门与 `SV1-1` 前二十个合同切片（2026-07-15）
 
@@ -118,13 +135,13 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | core skin focused | 第二十切未改 shared/core 且未重跑；既有基线 57/62，5 项与恢复审计同名 |
 | `osu.Desktop.slnf` Release | **0 error / 20 warnings** |
 | source review | blocker / major / minor = **0 / 0 / 0** |
-| Markdown 相对链接 / diff | 121 个文件、936 个相对链接、0 断链；working tree 与 staged diff 检查通过 |
+| Markdown 相对链接 / diff | 当时基线为 121 个文件、936 个相对链接、0 断链；当前结果以上方首个玩家可见纵切为准 |
 
 第二十切为 native `[Bms]` 当前 12 个 exact geometry field 增加 decoder-time private sidecar、internal closed field catalog 与 source-specific immutable bucket snapshot/factory。只有 raw source key 与解析后 canonical field 同名的 exact declaration 进入 sidecar；既有 `Enum.TryParse` comma-composite alias 继续按恢复基线写 public `Geometry` compatibility dictionary，但不升格为 closed source declaration。factory 只读 sidecar，因此 decode 后 public dictionary 的 forge/overwrite/remove/clear/late-add 不能伪造、擦除或改写 accepted provenance。
 
 snapshot 原样保留 invariant float parser 接受的 sign/decimal/exponent、负值、零、`-0`、`NaN`、正负无穷与 overflow/underflow 结果；它不进行 finite、正值、range、screen-space、不重叠或跨字段 validation，也不是 neutral geometry descriptor、resolved layout 或 production `GameplaySkinLayoutContext`。首次和 targeted format 后最终 focused 均为 **49/49**，既有 decoder **8/8**、BMS skin **381/381**、BMS full **1237/1237**；Release Rebuild **0 error / 20 warnings**，source review blocker/major/minor **0/0/0**。第二十切未改 shared/mania/core，未重跑该三组；生产 Realm、`chartskin/`、用户皮肤目录与网络均零访问、零写入。
 
-从产品功能看，第二十切仍只增加不可见的来源事实地基：三态生产接线、`oms-simple` 逐组件 fallback、安全 G1、统一 layout、shared codec/结构化诊断、scene/script 与两个外部包均未交付，Skin V1 新增可见功能仍为 **0**。下一检查点停止继续堆同类 presence 切片，先按产品纵切只读审计“真实文件组件受控选择 + 缺失/损坏时逐组件 fallback”所需最短依赖路径，再据证据决定一个最小实现切片；这不是已接线承诺。
+截至第二十切，产品功能仍只增加不可见的来源事实地基，Skin V1 新增可见功能为 **0**。其后的首个玩家可见纵切已把 managed `.osk` BMS 普通短键编号帧动画接入真实 gameplay，当前新增可见功能因此为 **1**；三态其它 slot、`oms-simple` 逐组件 fallback、安全 G1、统一 layout、shared codec/结构化诊断、scene/script 与两个外部包仍未交付。本任务在该动画提交后停止，下一 gate 是用户实机确认。
 
 第十九切为 native `[Bms]` 当前 22 个 exact colour field 增加 decoder-time private sidecar、internal closed field catalog 与 source-specific immutable bucket snapshot/factory。只有 raw source key 与解析后 canonical field 同名的 exact declaration 进入 sidecar；既有 `Enum.TryParse` 可接受的 comma-composite key 仍按恢复基线写入 public `Colours` compatibility dictionary，但不升格为 closed source declaration。这与第十八切 `NoteBodyStyle` 的 value-composite 保留为 parser-accepted value 是两个不同边界。
 
@@ -211,6 +228,11 @@ BMS internal owner 以 exact `BmsKeymode` 为 continuity authority，`AppliedSty
 
 ## 当前风险
 
+- 当前新增能力只覆盖 BMS 普通短键；LN、key、mania、scene/script 与两个目标社区包均未交付。
+- 当前异步替换保证单个短键宿主保留旧视觉直到新视觉就绪，不等于 `SV1-2` 的整包/全 playfield 同帧原子重载。
+- 普通短键 runtime 已有 raw/decoded/frame/texture 预算，但这不等于 `.osk` 导入前的压缩比/zip-bomb gate；后者仍待 G1。
+- 当前实际链底仍为程序化 `OmsSkin`，不是目标 `oms-simple.osk`。
+
 - schema 56 异常记录已定点处置；四个无 authority 的 orphan blob 暂留且已另行保全，未运行会波及其它记录的全局 cleanup。
 - external absolute path、删除/重命名 containment、scanner authority 和原子 reload 尚无可信生产实现。
 - 当前 parser 对未知/非法 BMS 值是静默 fail-open，作者文档曾误写为“会告警”；结构化诊断是 SV1-4 未完成能力。
@@ -228,10 +250,10 @@ BMS internal owner 以 exact `BmsKeymode` 为 continuity authority，`AppliedSty
 - 只测 parser/类型或孤立接口不能证明真实选择链、事件顺序、脚本安全和视觉正确。
 - 14K 四角 BGA、程序化动态件和内部固定动画都不能被提前描述为 V1 最终方向。
 - 当前程序化 `OmsSkin` 仍是实际链底；在 `oms-simple` 完整性、自动恢复和 mania/BMS parity 过门前不能直接删除，但它也不能进入 V1 最终发行架构。
-- resolver 不拥有候选组件生命周期：第九切已冻结首个 BMS 六字段 revision-owner 借用合同与 active/provisional 隔离，但 concrete production owner、Drawable parenting/thread affinity、缓存与真实 atomic swap/reload 仍未实现，resolver 也不得擅自 dispose 被额外 validator 拒绝的值。
+- resolver 不拥有候选组件生命周期：第九切已冻结首个 BMS 六字段 revision-owner 借用合同与 active/provisional 隔离；普通短键纵切已有 concrete revision owner、private cache 与 per-component 后台替换。完整六字段候选链的 production owner/Drawable parenting、以及 ini/scene/script/全素材共同提交的整包 atomic reload 仍未实现，resolver 也不得擅自 dispose 被额外 validator 拒绝的值。
 
 ## 下一检查点
 
-1. 停止继续堆叠同类 source-presence 切片；先按产品纵切只读审计“真实文件组件受控选择 + 用户包缺失/损坏时逐组件 fallback”从现状到首个可验证闭环的最短依赖路径，明确 package-scoped authority、组件 validation/materialization、三态 adapter 与 `oms-simple` 责任边界后，再选择一个最小实现切片。
-2. 该审计不得写成生产接线已开始或承诺直接交付：完整 `GameplaySkinLayoutContext`、neutral geometry descriptor/solver、production revision/event producer、lifecycle dispatch、shared codec/结构化诊断、真实 G1、manifest/runtime gate、scene/script 与两个外部包仍属后续；前二十个合同切片不等于整个 `SV1-1` 完成，Skin V1 新增可见功能仍为 0。
-3. 在另立并过门的生产纵切前保持 `SkinManager`、nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；`oms-simple` 尚未成为真实 provider，G1 仍按 `SV1-2` 独立重做。
+1. 本任务完成后停止；下一次继续前先由用户实机确认 managed `.osk` 的 BMS 普通短键编号帧动画观感。
+2. 实机确认后再选择下一项玩家可见组件，不再用合同切片数量代表产品进度；LN、mania、layout、G1、`oms-simple`/`oms-complex`、scene/script 均不得因本纵切提前计入。
+3. 保持 nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；`oms-simple` 尚未成为真实 provider，G1 仍按 `SV1-2` 独立重做。

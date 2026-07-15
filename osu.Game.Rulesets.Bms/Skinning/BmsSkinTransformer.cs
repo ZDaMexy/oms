@@ -1,11 +1,13 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Testing;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Logging;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.SongSelect;
 using osu.Game.Rulesets.Bms.UI;
@@ -13,18 +15,23 @@ using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
-using osuTK;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.Skinning
 {
     public class BmsSkinTransformer : SkinTransformer
     {
         private readonly bool providesBuiltInFallbacks;
+        private readonly BmsManagedPackageNoteProvider? managedPackageNoteProvider;
+        private readonly ConcurrentDictionary<string, byte> emittedGameplaySkinDiagnostics = new ConcurrentDictionary<string, byte>();
 
         public BmsSkinTransformer(ISkin skin)
             : base(skin)
         {
             providesBuiltInFallbacks = skin is OmsSkin;
+
+            if (skin is BmsLegacySkin bmsLegacySkin)
+                managedPackageNoteProvider = new BmsManagedPackageNoteProvider(bmsLegacySkin);
         }
 
         public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -97,8 +104,50 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsLaneSkinLookup laneLookup:
                     return skinnedComponent ?? createBuiltInFallback(() => createDefaultLaneComponent(laneLookup));
 
+                case BmsNoteSkinLookup { Element: BmsNoteSkinElements.Note } noteLookup:
+                    if (skinnedComponent != null)
+                        return skinnedComponent;
+
+                    if (managedPackageNoteProvider != null)
+                    {
+                        if (managedPackageNoteProvider.ClaimsDeclaration(noteLookup))
+                        {
+                            GameplaySkinSlotResolution<BmsSourceBoundNoteMaterial> resolution = managedPackageNoteProvider.Resolve(noteLookup);
+                            emitDiagnosticsOnce(resolution.Diagnostics, noteLookup);
+
+                            if (resolution.Result.Kind == SkinSlotResultKind.Provide)
+                                return resolution.Result.Value.CreateDrawable();
+
+                            // This exact source declared the native slot and has now failed the strict package gate.
+                            // Do not retry through its mutable legacy config view or a lower same-named texture.
+                            return null;
+                        }
+                    }
+
+                    string? exactSourceImage = Skin.GetBmsSkinConfig<string>(
+                        BmsSkinConfigurationLookups.NoteImage,
+                        noteLookup.Keymode,
+                        noteLookup.LaneIndex,
+                        noteLookup.IsScratch)?.Value;
+
+                    if (!string.IsNullOrEmpty(exactSourceImage))
+                    {
+                        var texture = Skin.GetTexture(exactSourceImage);
+
+                        if (texture != null)
+                        {
+                            return new Sprite
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Texture = texture,
+                            };
+                        }
+                    }
+
+                    return createBuiltInFallback(() => createDefaultNoteComponent(noteLookup, allowAggregateTextureOverride: false));
+
                 case BmsNoteSkinLookup noteLookup:
-                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultNoteComponent(noteLookup));
+                    return skinnedComponent ?? createBuiltInFallback(() => createDefaultNoteComponent(noteLookup, allowAggregateTextureOverride: true));
 
                 case BmsLaneCoverSkinLookup laneCoverLookup:
                     return skinnedComponent is IBmsLaneCoverDisplay ? skinnedComponent : createBuiltInFallback(() => new DefaultBmsLaneCoverDisplay(laneCoverLookup.Position));
@@ -147,6 +196,23 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private Drawable? createBuiltInFallback(System.Func<Drawable> createDrawable)
             => providesBuiltInFallbacks ? createDrawable() : null;
 
+        private void emitDiagnosticsOnce(IReadOnlyList<GameplaySkinSlotDiagnostic> diagnostics, BmsNoteSkinLookup lookup)
+        {
+            foreach (GameplaySkinSlotDiagnostic diagnostic in diagnostics)
+            {
+                string context = $"{lookup.Keymode}:{lookup.LaneIndex}:{lookup.IsScratch}";
+                string key = $"{diagnostic.Code}:{diagnostic.SlotId}:{diagnostic.ProviderName}:{context}";
+
+                if (!emittedGameplaySkinDiagnostics.TryAdd(key, 0))
+                    continue;
+
+                Logger.Log(
+                    $"Gameplay skin component fallback: code={diagnostic.Code}; slot={diagnostic.SlotId ?? "unknown"}; provider={diagnostic.ProviderName}; context={context}.",
+                    LoggingTarget.Runtime,
+                    LogLevel.Verbose);
+            }
+        }
+
         private static Drawable createDefaultPlayfieldComponent(BmsPlayfieldSkinLookup lookup)
             => lookup.Element switch
             {
@@ -171,10 +237,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 }
             };
 
-        private static Drawable createDefaultNoteComponent(BmsNoteSkinLookup lookup)
+        private static Drawable createDefaultNoteComponent(BmsNoteSkinLookup lookup, bool allowAggregateTextureOverride)
             => lookup.Element switch
             {
-                BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride),
                 BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),

@@ -4,6 +4,16 @@
 
 ## 2026-07-15
 
+### `SV1-1` 首个玩家可见纵切：managed `.osk` BMS 普通短键 numbered-frame animation
+
+- **玩家功能**：当前选中的已导入 managed `.osk` 现在可用 osu 社区式 `name-0`、`name-1`…编号帧驱动 BMS 普通短键动画；既有静态 `NoteImage` 属恢复基线，本次只把编号帧动画计作新增可见功能。
+- **可玩回落**：单个短键素材缺失、损坏、越权或超预算时只让该 slot 沿既有选择链继续回落，不会让短键消失；有效 beatmap-local 视觉仍高于 selected package，跨 package 同名素材不得拼接。
+- **需求对应**：为满足已声明的资源隔离、安全预算与 update thread 不做文件 IO/解码要求，素材声明和帧序列绑定到精确 package revision，并在后台准备完成后发布；换肤期间保留现有视觉，过期结果不会覆盖新选择。
+- **验证**：产品自动验收 **26/26**、相关 focused **283/283**、BMS full **1333/1333**、`osu.Desktop.slnf` Release **0 error / 20 warnings**，独立终审 blocker/major **0/0**；Markdown **119 文件 / 934 相对链接 / 0 断链**。保留 9 条 MessagePack 3.1.3 `NU1902` 在 restore/build 重复显示及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
+- **格式证据**：最终 whitespace 首轮 verify 精确报告三个改动文件的局部混合行尾；工程 formatter 只统一行尾后，source/test 两组 verify 均 exit 0。每次 formatter 仍显示既有的泛化 workspace-load warning，未将它隐去或写成静默无告警。
+- **数据与实机**：测试只使用隔离 headless 临时存储；生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入。`SV1-0` 静态恢复实机清单已通过，但本次新增编号帧动画仍须用户单独实机确认。
+- **边界**：未交付 LN、mania compatibility、完整三态/布局、安全 G1、scene/event/script、`oms-simple.osk`/`oms-complex.osk` 或整包原子重载；程序化 `OmsSkin` 仍是迁移链底，Skin V1 整体仍不可用。本任务在该功能提交后停止。
+
 ### `SV1-1` 第二十个合同切片：native `[Bms]` exact geometry decoder-time accepted provenance
 
 - native BMS configuration/decoder 为当前十二项 geometry lookup 建立 exact、case-sensitive closed catalog 与 decoder-time accepted-value sidecar：`PlayfieldWidth/Height`、normal/scratch lane width/spacing、hit-target height/bar/line/glow、bar-line height 与 long-note body width；`HitTargetVerticalOffset` 明确排除。accepted value 完全沿用既有 invariant `float.TryParse(NumberStyles.Float)`，因此正负号、小数、指数、`-0`、`NaN`、正负 `Infinity`、overflow→Infinity 与 underflow→带符号零都保留为未验证 source fact；malformed 不声明且不擦除先前成功值，valid duplicate 与既有 bucket/merge 时序不变。

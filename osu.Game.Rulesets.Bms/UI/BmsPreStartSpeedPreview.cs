@@ -7,7 +7,6 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Timing;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -120,10 +119,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 Width = 1;
                 Masking = true;
 
-                InternalChild = new SkinnableDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, lane.LaneIndex, lane.IsScratch, keymode))
+                InternalChild = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, lane.LaneIndex, lane.IsScratch, keymode))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    CentreComponent = false,
                 };
             }
 

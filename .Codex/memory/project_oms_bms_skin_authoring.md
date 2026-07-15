@@ -12,7 +12,7 @@ metadata:
 
 ## 当前可信面
 
-- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验。
+- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有首个窄生产纵切——selected managed package 的 BMS 普通短键可使用 `name-{n}` 编号帧动画。
 - 当前 `OmsSkin` 是程序化逐组件链底，但只算迁移基线；最终由只读 `oms-simple.osk` 接管并移出程序化产品视觉。
 - G1 只保留 folder ctor 与 `SkinInfo.FilesystemStoragePath/IsExternalFilesystemStorage` + schema 56 载体；没有扫描/选择/删改/热重载。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 均未落地。
@@ -40,7 +40,7 @@ metadata:
 - `HitTargetVerticalOffset` 保持 0 以守住时间/滚动合同。
 - geometry 当前缺 finite/正值/范围校验；playfield 读 skin profile，但 gauge/combo 会另建默认 profile、BGA 固定 rect。先建唯一 snapshot，再扩表现。
 - legacy mania 缺 `Keys:` bucket 时会合成默认 configuration；neutral model 必须保留 explicit presence，不能把合成默认误判为 `Provide`。
-- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；这是未接生产的 candidate plan，不是已装载 fallback。
+- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；candidate plan 整体仍未接生产、也不是已装载 fallback，native BMS 普通短键的编号帧加载只是首个窄例外。
 - 当前未版本化 9K BMS/PMS per-lane raw token 实际为 `0..8`；V1 canonical `1..9` 必须做版本化迁移/冲突诊断，禁止静默双 alias。
 - 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
@@ -52,4 +52,4 @@ metadata:
 
 ## 下一入口
 
-按 P1-A `SV1-0..7` 推进：恢复/数据 gate → neutral contract/fixture → 安全 G1 → layout/BGA snapshot → shared ini compatibility → scene/event → sandbox → `oms-simple/oms-complex`/Authoring Kit/file fallback。旧 F/G 编号仅作历史索引；被撤回实现查 P1-A CHANGELOG/Git。
+按 P1-A `SV1-0..7` 推进：`SV1-0` 已完成，`SV1-1` 已进入首个玩家可见普通短键动画纵切但整体仍进行中；新动画先经用户实机确认，再由产品决定下一组件。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因该窄纵切提前计为完成。旧 F/G 编号仅作历史索引；被撤回实现查 P1-A CHANGELOG/Git。

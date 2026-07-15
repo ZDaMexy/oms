@@ -37,7 +37,7 @@ metadata:
 - 缺 bucket 是 outer `Absent`；显式 bucket 即使无该 key 也是 outer `Declared` + inner `Absent`。pending-before-`Keys:`、malformed `Keys` 沿用 prior current bucket 和 duplicate bucket 写入 discarded configuration 继续沿用 decoder 现状，未被提升为 shared codec 长期语义。
 - decoder 成功 parse 后同时更新 public compatibility field 与 private accepted sidecar；factory 只读 sidecar。手工构造 configuration 或 decode 后对 public `NoteBodyStyle` 的 erase/alter 都不能伪造、擦除或改变 provenance。
 - 此 snapshot 不是 production effective style：`LegacySkin` 在 declaration 缺失时仍按 `[General] Version < 2.5` 推导 `Stretch`，否则推导 `RepeatBottom`；source-specific factory 禁止查询或复制该默认。focused **26/26**；本切对生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入。
-- 真实 validation/materialization 仍被 package authority 边界阻塞：当前 managed Realm store、zip exact lookup 与 external directory 的 containment/case/duplicate 语义不统一，且尚无窄 package-scoped read capability、resolved-root/reparse 防护、共享资源名/帧序列 codec、解码预算与 concrete owner/thread-affinity 合同。只再增加 in-memory fake materializer 会重复第九切已有 resolution/owner fixture，不得借此宣称真实文件安全或接入 production。
+- 截至 `NoteBodyStyle` 切片，真实 validation/materialization 仍被 package authority 边界阻塞；其后 native BMS 普通短键已闭合首个 package-scoped read/帧序列/预算/owner 窄纵切。managed Realm store、zip 与 external directory 的完整 containment/case/duplicate 统一语义、共享 codec、其它资源和 G1 原子 reload 仍未闭合；不得把该窄例外扩写成通用 production loader。
 
 ## native BMS exact colour accepted snapshot
 
@@ -52,7 +52,7 @@ metadata:
 - 只有 `trySplit` trim 后 ordinal、区分大小写的 exact source key，在既有 `float.TryParse(NumberStyles.Float, InvariantCulture)` 成功后进入 private accepted sidecar。保留 parser 实际接受的符号/小数/指数写法、`-0` 的 sign bit、大小写 `NaN`、正负 `Infinity`；.NET 8 overflow 得到正负无穷，underflow 得到保留符号的正负零，这些都是 declared-but-unvalidated，不得在 provenance 层清洗。空值、thousands comma、hex、underscore、type suffix、坏 exponent、Unicode infinity 与非 ASCII 数字不声明；valid duplicate 取 last accepted，malformed 不声明也不抹除上一成功值。
 - 既有稠密 enum 与默认区分大小写的 `Enum.TryParse` 会把部分逗号 composite source key 按 bitwise value 折叠到某个 `Enum.IsDefined` geometry field；这些别名继续改写 public mutable `Geometry` compatibility view，但不进入 exact sidecar/snapshot。纯 numeric enum key 虽可被 `Enum.TryParse` 表达，仍会被 decoder 的首字符 `char.IsLetter` gate 拒绝。
 - decoder-time `acceptedGeometry` 与 public `Geometry` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add、composite overwrite，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-geometry field、`Absent` stored entry 与 duplicate entry，snapshot 防御性复制；安全 `ToString()` 不展开 field、keymode 或数值。
-- 验证为 focused **49/49**、BMS skin relevant **381/381**、BMS full **1237/1237**、Release Rebuild **0 error / 20 warnings**。这仍只是 accepted provenance：尚无 finite/正值/range/屏内/不重叠 validation、唯一 neutral descriptor/solver 或 production materializer；真实文件纵切还受 package-scoped read authority、resolved containment、资源名/animation codec、解码预算与 concrete owner/thread-affinity 阻塞。恢复后既有 `.osk` 功能已验收，但 Skin V1 新增可见功能仍为 0；下一工作面应转向首个可演示的文件型组件/逐组件 fallback 纵切，不再为累加技术切片计数继续扩张 carrier。
+- 验证为 focused **49/49**、BMS skin relevant **381/381**、BMS full **1237/1237**、Release Rebuild **0 error / 20 warnings**。截至第二十切这仍只是 accepted provenance：尚无 finite/正值/range/屏内/不重叠 validation、唯一 neutral descriptor/solver 或 production materializer，Skin V1 新增可见功能为 0。其后 native BMS 普通短键已成为首个 package-scoped 文件纵切；该窄例外不改变 geometry 仍未验证，也不代表其它资源、shared codec 或完整 materializer 已完成。
 
 ## legacy mania indexed-array accepted snapshot
 

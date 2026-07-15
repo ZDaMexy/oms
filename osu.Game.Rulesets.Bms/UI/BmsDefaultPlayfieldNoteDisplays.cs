@@ -59,15 +59,34 @@ namespace osu.Game.Rulesets.Bms.UI
 
     internal sealed partial class DefaultBmsNoteDisplay : DefaultBmsNoteDisplayBase
     {
-        public DefaultBmsNoteDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
+        private readonly bool allowAggregateTextureOverride;
+
+        public DefaultBmsNoteDisplay(int laneIndex, bool isScratch, BmsKeymode keymode, bool allowAggregateTextureOverride = true)
             : base(laneIndex, isScratch, keymode)
         {
+            this.allowAggregateTextureOverride = allowAggregateTextureOverride;
             // Programmatic default visual; ApplyVisual replaces it with a texture/config visual under a real skin.
             InternalChild = new Box { RelativeSizeAxes = Axes.Both, Colour = BmsDefaultPlayfieldPalette.GetNote(laneIndex, isScratch, keymode) };
         }
 
         protected override BmsSkinConfigurationLookups ImageLookup => BmsSkinConfigurationLookups.NoteImage;
         protected override Color4 DefaultColour => BmsDefaultPlayfieldPalette.GetNote(LaneIndex, IsScratch, Keymode);
+
+        protected override void ApplyVisual(ISkinSource skin)
+        {
+            if (allowAggregateTextureOverride)
+            {
+                base.ApplyVisual(skin);
+                return;
+            }
+
+            // A managed selected package has already had its exact ordinary-note declaration resolved by its own
+            // source-bound provider. The migration fallback must not query that name again through the aggregate source,
+            // where a lower provider could accidentally satisfy it. Colour is a separate scalar slot and remains
+            // compatible while OmsSkin is still the migration-chain bottom.
+            Color4 colour = skin.GetBmsSkinConfig<Color4>(ColourLookup, Keymode)?.Value ?? DefaultColour;
+            InternalChild = new Box { RelativeSizeAxes = Axes.Both, Colour = colour };
+        }
     }
 
     internal sealed partial class DefaultBmsLongNoteHeadDisplay : DefaultBmsNoteDisplayBase

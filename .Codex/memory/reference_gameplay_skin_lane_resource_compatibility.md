@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_lane_resource_compatibility
-description: Skin V1 六类 lane-resource snapshot、BMS→mania 候选链、逐字段 resolution/revision owner 与 9K/14K 编址地雷
+description: Skin V1 六类 lane-resource snapshot、BMS→mania 候选链、逐字段 resolution/revision owner、package-scoped materialization/source isolation/async reload 与 9K/14K 编址地雷
 metadata:
   node_type: memory
   type: reference
@@ -28,7 +28,7 @@ metadata:
 
 - P2/CenterRightScratch full bucket 使用 global visual index，stable lane ID/action 不变。
 - 14K deck bucket 使用 group-local visual index；同一个真实 Keys8 bucket 投影两次，因为 legacy decoder 不保留第二个 duplicate Keys8 section。Keys8 必须先于 Keys14，才能优先保留 scratch/deck-local presentation。
-- marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；第八切 candidate plan 自身不验证资源、不做 first-value resolution。第九切另由 internal provider adapter 消费该 plan，不能把两层混写成 production loader。
+- marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；第八切 candidate plan 自身不验证资源、不做 first-value resolution。第九切另由 internal provider adapter 消费该 plan，不能把两层混写成 production loader。当前 native BMS 普通短键是真实文件的首个窄例外，但没有把整套 candidate plan 或 `oms-simple` marker 生产化。
 
 ## 9K raw token 地雷
 
@@ -51,9 +51,18 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
 - active/provisional owner 不能交叉：失败 reload 只 dispose 新 provisional owner，旧 active owner 继续存活；成功原子替换先 detach superseded consumer，再 dispose 旧 owner；teardown 同样先 detach 后 dispose。第九切只有 internal interface/fake owner fixture，没有 concrete production owner、Drawable parenting/thread affinity、缓存或 atomic reload。
 
+## 首个 production ordinary-note 纵切地雷
+
+- 不能分别向聚合 skin 查询 config 和 texture：声明可能来自 selected package、同名 texture 却来自 ruleset/内置 package，形成跨 provider 拼接。declaration、frame discovery 与 texture decode 必须绑定同一个精确 package revision。
+- `GetTexture()` 之后才检查输入大小、尺寸/像素或累计预算已经太晚；先读受限元数据并做 pre-decode gate，解码后再核对实际值。runtime cap 也不等于 importer 的总解压字节、解压比或 zip-bomb gate。
+- Realm 的 hash-backed package 要先冻结不可变文件名→内容身份快照，再由该 revision 独占 private resource cache；大小写重复、路径越界、身份冲突或缺 blob 均只让对应 slot `Inherit`，不能从另一 package 补齐。
+- generic 同步 reload 会把文件 IO/图片解码带回 update thread。专用异步 note host 应在新视觉完整就绪前保留旧 visual 或 critical fallback，用 generation/cancellation 阻止过期结果发布，并释放所有未采用结果。
+- 当前保证是 per-component publication，不是 package atomic reload；ini/scene/script/所有素材共同验证后一次切换仍属 `SV1-2`。
+- `Box` 继承 `Sprite`；测试若只用 `drawable is Sprite` 会把程序化 fallback 误判为用户贴图，必须验证 source-bound 类型/纹理身份或明确的宿主状态。
+
 ## 2026-07-15 验证基线
 
 - 第十七切 focused：shared old+new 21/21、mania 6/6、BMS old+new 40/40；新增 provenance fixture 分别为 legacy mania 9/9 与 BMS 11/11。
 - BMS full 1157/1157；mania full 827/831 的 4 项仍为同名 HoldNote auto-frame 恢复基线；core skin 57/62 仍为同名 5 项恢复基线。
 - `osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings；保留 9 条 MessagePack `NU1902` 重复显示及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
-- 未接生产 `SkinManager`/renderer/`ISkin`，未改变程序化 `OmsSkin` 或 fallback authority，未访问或写入生产数据。
+- 该组数字是第十七切当时基线；其后 native BMS 普通短键已成为首个 package-scoped production 窄纵切。完整 candidate plan、其它 lane-resource、`oms-simple` authority 与 nullable `ISkin` ABI 仍未切换，也未访问或写入生产数据。
