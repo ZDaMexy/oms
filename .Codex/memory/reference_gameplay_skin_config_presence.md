@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_config_presence
-description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/native-BMS-colour/bucket-global/lane-resource/NoteBodyStyle accepted presence、semantic mapping、legacy mania synthetic default 与 decoder authority 地雷
+description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/native-BMS-colour/geometry/bucket-global/lane-resource/NoteBodyStyle accepted presence、semantic mapping、legacy mania synthetic default 与 decoder authority 地雷
 metadata:
   node_type: memory
   type: reference
@@ -46,6 +46,14 @@ metadata:
 - decoder-time `acceptedColours` 与 public `Colours` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-colour field、`Absent` stored entry 与 duplicate entry，snapshot 另做一次防御性复制；安全 `ToString()` 不展开 field、keymode 或颜色。
 - 验证为 focused **31/31**、BMS skin relevant **332/332**、BMS full **1188/1188**、Release Rebuild **0 error / 20 warnings**。这仍只是 accepted provenance：geometry 尚缺 finite/正值/range/屏内/不重叠 validation 与唯一 resolved layout snapshot；真实 resource validation/materialization 仍需 package-scoped authority/containment、共享资源名/animation codec、解码预算与 concrete owner/thread-affinity。Skin V1 仍不可用。
 
+## native BMS exact geometry accepted snapshot
+
+- 第二十切只覆盖 `BmsSkinConfigurationLookups` 中当前已有 production consumer 的 12 项 geometry：`PlayfieldWidth`、`PlayfieldHeight`、`NormalLaneWidth`、`ScratchLaneWidth`、`NormalLaneSpacing`、`ScratchLaneSpacing`、`HitTargetHeight`、`HitTargetBarHeight`、`HitTargetLineHeight`、`HitTargetGlowRadius`、`BarLineHeight`、`LongNoteBodyWidth`。catalog/snapshot/factory 都是 BMS assembly 内部 source-specific process-local carrier，不是 neutral layout descriptor、validation schema、author manifest/wire ABI 或 production resolved layout。
+- 只有 `trySplit` trim 后 ordinal、区分大小写的 exact source key，在既有 `float.TryParse(NumberStyles.Float, InvariantCulture)` 成功后进入 private accepted sidecar。保留 parser 实际接受的符号/小数/指数写法、`-0` 的 sign bit、大小写 `NaN`、正负 `Infinity`；.NET 8 overflow 得到正负无穷，underflow 得到保留符号的正负零，这些都是 declared-but-unvalidated，不得在 provenance 层清洗。空值、thousands comma、hex、underscore、type suffix、坏 exponent、Unicode infinity 与非 ASCII 数字不声明；valid duplicate 取 last accepted，malformed 不声明也不抹除上一成功值。
+- 既有稠密 enum 与默认区分大小写的 `Enum.TryParse` 会把部分逗号 composite source key 按 bitwise value 折叠到某个 `Enum.IsDefined` geometry field；这些别名继续改写 public mutable `Geometry` compatibility view，但不进入 exact sidecar/snapshot。纯 numeric enum key 虽可被 `Enum.TryParse` 表达，仍会被 decoder 的首字符 `char.IsLetter` gate 拒绝。
+- decoder-time `acceptedGeometry` 与 public `Geometry` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add、composite overwrite，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-geometry field、`Absent` stored entry 与 duplicate entry，snapshot 防御性复制；安全 `ToString()` 不展开 field、keymode 或数值。
+- 验证为 focused **49/49**、BMS skin relevant **381/381**、BMS full **1237/1237**、Release Rebuild **0 error / 20 warnings**。这仍只是 accepted provenance：尚无 finite/正值/range/屏内/不重叠 validation、唯一 neutral descriptor/solver 或 production materializer；真实文件纵切还受 package-scoped read authority、resolved containment、资源名/animation codec、解码预算与 concrete owner/thread-affinity 阻塞。恢复后既有 `.osk` 功能已验收，但 Skin V1 新增可见功能仍为 0；下一工作面应转向首个可演示的文件型组件/逐组件 fallback 纵切，不再为累加技术切片计数继续扩张 carrier。
+
 ## legacy mania indexed-array accepted snapshot
 
 - 第十二切覆盖五组数组：`ColumnLineWidth` 长 `Keys+1`、`ColumnSpacing` 长 `Keys-1`，`ColumnWidth`/`ExplosionWidth`/`HoldNoteLightWidth` 各长 `Keys`。每个 source index 都是独立 declaration；field-level bool 会丢失短数组尾部 presence，禁止使用。
@@ -78,7 +86,7 @@ metadata:
 - decoder 在接受 exact key 时同时更新 compatibility `ImageLookups` 与 private declaration sidecar；factory 只读 sidecar。decode 后、factory 前或 snapshot 后对 public dictionary 的 add/overwrite/remove/clear/整体替换均不能伪造、擦除或改变 accepted provenance；手工构造 configuration 再填 dictionary 也不能制造 declaration。
 - resource declaration 只证明来源事实，不等于文件有效、slot `Provide`、`Suppress` 或 fallback winner。显式空字符串仍必须进入后续 materializer/diagnostic，而不能在 provenance 层折叠成 `Absent`/`Inherit`。第十六切 focused 15/15、config aggregate 98/98、Release Rebuild 0 error / 20 warnings；它没有接 production lookup、renderer、`SkinManager` 或 fallback。
 
-第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；第十七切补齐两侧 decoder-time accepted sidecar 并关闭 factory 前的 mutable dictionary 窗口，细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十六切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour、两类 per-column colour 与 13 项 bucket-global resource accepted snapshot，第十八切另行闭合 `NoteBodyStyle` accepted snapshot，第十九切闭合 native `[Bms]` exact 22 项 colour accepted snapshot；其余 resource、geometry validation、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
+第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；第十七切补齐两侧 decoder-time accepted sidecar 并关闭 factory 前的 mutable dictionary 窗口，细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十六切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour、两类 per-column colour 与 13 项 bucket-global resource accepted snapshot，第十八切另行闭合 `NoteBodyStyle` accepted snapshot，第十九切闭合 native `[Bms]` exact 22 项 colour accepted snapshot，第二十切闭合 native `[Bms]` exact 12 项 geometry accepted snapshot；其余 resource、geometry validation/solver、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
 
 ## lane-resource provenance 已关闭的窗口
 

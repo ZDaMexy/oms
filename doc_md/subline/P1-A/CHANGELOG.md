@@ -4,6 +4,14 @@
 
 ## 2026-07-15
 
+### `SV1-1` 第二十个合同切片：native `[Bms]` exact geometry decoder-time accepted provenance
+
+- native BMS configuration/decoder 为当前十二项 geometry lookup 建立 exact、case-sensitive closed catalog 与 decoder-time accepted-value sidecar：`PlayfieldWidth/Height`、normal/scratch lane width/spacing、hit-target height/bar/line/glow、bar-line height 与 long-note body width；`HitTargetVerticalOffset` 明确排除。accepted value 完全沿用既有 invariant `float.TryParse(NumberStyles.Float)`，因此正负号、小数、指数、`-0`、`NaN`、正负 `Infinity`、overflow→Infinity 与 underflow→带符号零都保留为未验证 source fact；malformed 不声明且不擦除先前成功值，valid duplicate 与既有 bucket/merge 时序不变。
+- 新增 BMS-internal、source-specific、immutable geometry snapshot/factory。factory 只读 private sidecar，public mutable `Geometry` 的手工 forge 或 decode 后 overwrite/remove/clear/late-add 均不能伪造、擦除或改变 provenance。既有 `geometry_keys`、parser 与 production compatibility view 保持；逗号 composite raw key 即使经 `Enum.TryParse` 折叠到已定义 lookup，也只写 public view而不进入 exact sidecar。
+- focused geometry **49/49**、decoder **8/8**、BMS skin focused **381/381**、BMS full **1237/1237**；`osu.Desktop.slnf` Release Rebuild **0 error / 20 warnings**。独立源码终审 **0 blocker / 0 major / 0 minor**，`git diff --check` 通过。formatter/verify 通过，仅保留泛化 workspace-load warning；最终没有新增告警，既有 MessagePack `NU1902` 与 BMS tests 告警均未隐藏或误报为本切回归。
+- 本切不是 finite/positive/range/cross-field/screen-space validation，不是 layout descriptor/solver、neutral config/author manifest/wire ABI，也没有 production lookup/fallback/renderer/`SkinManager`/reload wiring。未访问或写入生产 Realm、`chartskin/`、用户皮肤目录或网络；产品新可见功能仍为 **0**。
+- 路线整体仍为：`SV1-0` 已完成；`SV1-1` 完成第二十个合同/fixture 地基但整体仍进行中；`SV1-2` 只有 early carrier；`SV1-3`～`SV1-7` 未实施，Skin V1 仍不可用。下一步改按可实机演示、可验收的纵向切片推进，不再把 source-provenance 横向扩面本身当作产品进度。
+
 ### `SV1-1` 第十九个合同切片：native `[Bms]` exact colour decoder-time accepted provenance
 
 - native BMS configuration/decoder 为当前生产 colour lookup 已消费的二十二个 exact、case-sensitive source key 建立 closed catalog 与 decoder-time accepted-value sidecar：四项 note colour、五项 lane/background/divider colour、六项 normal/scratch hit-target colour、major/minor barline、三项 lane-cover，以及 playfield backdrop/baseplate。accepted value 完全沿用既有 RGB/RGBA byte parser：三分量补 alpha 255，四分量保留 alpha（含 0），正号、leading zero 与 `-0` 等既有 `NumberStyles.Integer` 行为不在本切重解释；malformed 不声明且不擦除先前成功值，valid duplicate、重复 bucket、pending-before-`Keymode` 与同一 decoder repeated `Parse` 继续既有 merge/last-accepted 语义。

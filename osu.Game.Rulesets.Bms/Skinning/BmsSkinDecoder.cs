@@ -155,7 +155,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (geometry_keys.Contains(lookup))
             {
                 if (tryParseFloat(value, out float number))
-                    config.Geometry[lookup] = number;
+                {
+                    // Preserve the current Enum.TryParse compatibility view, including accidental comma-composite aliases,
+                    // but only exact closed source keys become V1 declaration provenance.
+                    if (BmsGameplaySkinBucketGeometryFieldCatalog.TryGetExact(key, out BmsSkinConfigurationLookups exactField)
+                        && exactField == lookup)
+                    {
+                        config.AcceptGeometry(exactField, number);
+                    }
+                    else
+                        config.Geometry[lookup] = number;
+                }
             }
             else if (key.Contains("Colour", StringComparison.Ordinal))
             {

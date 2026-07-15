@@ -17,6 +17,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     public class BmsSkinConfiguration
     {
         private readonly Dictionary<(GameplaySkinLaneResourceField Field, string LaneToken), string> acceptedLaneResources = new();
+        private readonly Dictionary<BmsSkinConfigurationLookups, float> acceptedGeometry = new();
         private readonly Dictionary<BmsSkinConfigurationLookups, Color4> acceptedColours = new();
 
         public readonly BmsKeymode Keymode;
@@ -38,6 +39,27 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public BmsSkinConfiguration(BmsKeymode keymode)
         {
             Keymode = keymode;
+        }
+
+        /// <summary>
+        /// Captures one exact native BMS geometry declaration immediately after successful invariant float parsing.
+        /// The public dictionary remains the production compatibility view; the private copy is decoder provenance.
+        /// </summary>
+        internal void AcceptGeometry(BmsSkinConfigurationLookups field, float value)
+        {
+            BmsGameplaySkinBucketGeometryFieldCatalog.Validate(field, nameof(field));
+
+            Geometry[field] = value;
+            acceptedGeometry[field] = value;
+        }
+
+        internal GameplaySkinConfigurationDeclaration<float> GetAcceptedGeometry(BmsSkinConfigurationLookups field)
+        {
+            BmsGameplaySkinBucketGeometryFieldCatalog.Validate(field, nameof(field));
+
+            return acceptedGeometry.TryGetValue(field, out float value)
+                ? GameplaySkinConfigurationDeclaration<float>.Declared(value)
+                : GameplaySkinConfigurationDeclaration<float>.Absent;
         }
 
         /// <summary>
