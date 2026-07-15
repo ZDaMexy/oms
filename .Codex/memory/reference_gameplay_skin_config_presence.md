@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_config_presence
-description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/bucket-global/lane-resource/NoteBodyStyle accepted presence、semantic mapping、legacy mania synthetic default 与 decoder authority 地雷
+description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/native-BMS-colour/bucket-global/lane-resource/NoteBodyStyle accepted presence、semantic mapping、legacy mania synthetic default 与 decoder authority 地雷
 metadata:
   node_type: memory
   type: reference
@@ -28,7 +28,7 @@ metadata:
 - 第十一切只覆盖九个 primitive scalar：`WidthForNoteHeightScale`、`HitPosition`、`LightPosition`、`ComboPosition`、`ScorePosition`、`BarlineHeight`、`JudgementLine`、`KeysUnderNotes`、`LightFramePerSecond`。decoder 在既有 parse/conversion/clamp/scale/bool/FPS normalisation 成功赋值后，把 presence 与当时 accepted value 一起写入 internal sidecar；factory 只读 sidecar，不读之后可变的 native public field。
 - 缺 bucket 是 outer `Absent`；显式空 bucket 是 outer `Declared`、九个 inner declaration 均 `Absent`；显式 `0`/`false`/默认数值仍为 `Declared`。malformed numeric 不声明；当前 parser 接受的 `NaN`/`Infinity` 保持 declared-but-unvalidated，不能在 carrier 偷偷清洗。
 - sidecar 是 process-local decoder provenance，不是 authority/security boundary。它解决 decode 后 native mutation 漂移与 synthetic default 反推，但不做 finite/range/layout validation，也不是完整 neutral configuration、manifest 或 serialisation ABI。
-- 第十一切当时未覆盖颜色/resource 字典、`NoteBodyStyle` 与 `[General] Version`；第十八切已另行闭合 `NoteBodyStyle` declaration provenance，但 production version-derived default 仍故意留在该 source snapshot 之外。
+- 第十一切当时未覆盖颜色/resource 字典、`NoteBodyStyle` 与 `[General] Version`；第十八切已另行闭合 `NoteBodyStyle` declaration provenance，第十九切又闭合 native `[Bms]` exact 22 项 colour provenance，但 production version-derived default 仍故意留在 `NoteBodyStyle` source snapshot 之外。
 - 不要顺手修或冻结 `flushPendingLines()` 异常前不清空坏行、malformed `Keys` 可能沿用旧 current config、duplicate `Keys` 后续字段写入 discarded config 等既有坏行为；shared codec/malformed diagnostics 应另立决议。可以锁“不污染 accepted bucket”，不能把阻塞行为写成长期 V1 合同。
 
 ## legacy mania NoteBodyStyle accepted snapshot
@@ -38,6 +38,13 @@ metadata:
 - decoder 成功 parse 后同时更新 public compatibility field 与 private accepted sidecar；factory 只读 sidecar。手工构造 configuration 或 decode 后对 public `NoteBodyStyle` 的 erase/alter 都不能伪造、擦除或改变 provenance。
 - 此 snapshot 不是 production effective style：`LegacySkin` 在 declaration 缺失时仍按 `[General] Version < 2.5` 推导 `Stretch`，否则推导 `RepeatBottom`；source-specific factory 禁止查询或复制该默认。focused **26/26**；本切对生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入。
 - 真实 validation/materialization 仍被 package authority 边界阻塞：当前 managed Realm store、zip exact lookup 与 external directory 的 containment/case/duplicate 语义不统一，且尚无窄 package-scoped read capability、resolved-root/reparse 防护、共享资源名/帧序列 codec、解码预算与 concrete owner/thread-affinity 合同。只再增加 in-memory fake materializer 会重复第九切已有 resolution/owner fixture，不得借此宣称真实文件安全或接入 production。
+
+## native BMS exact colour accepted snapshot
+
+- 第十九切只覆盖 `BmsSkinConfigurationLookups` 中当前已有 production consumer 的 22 项 colour：4 项 note colour group、3 项 lane background、2 项 divider、6 项 hit-target、2 项 barline、3 项 lane-cover，以及 backdrop/baseplate。catalog/snapshot/factory 都是 BMS assembly 内部 source-specific process-local carrier，不是 neutral slot、作者 manifest/wire ABI，也没有新增主题色或 renderer default。
+- 只有 ordinal、区分大小写的 exact source key 在 RGB/RGBA byte parse 成功后进入 private accepted sidecar。既有 `Enum.TryParse` 可把逗号组合名折叠到某个 defined enum value；这种 composite alias 仍只更新 public compatibility `Colours` 字典，不能升格为 exact provenance。valid exact duplicate 取 last accepted，malformed 不声明、也不抹除上一个 accepted 值。
+- decoder-time `acceptedColours` 与 public `Colours` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-colour field、`Absent` stored entry 与 duplicate entry，snapshot 另做一次防御性复制；安全 `ToString()` 不展开 field、keymode 或颜色。
+- 验证为 focused **31/31**、BMS skin relevant **332/332**、BMS full **1188/1188**、Release Rebuild **0 error / 20 warnings**。这仍只是 accepted provenance：geometry 尚缺 finite/正值/range/屏内/不重叠 validation 与唯一 resolved layout snapshot；真实 resource validation/materialization 仍需 package-scoped authority/containment、共享资源名/animation codec、解码预算与 concrete owner/thread-affinity。Skin V1 仍不可用。
 
 ## legacy mania indexed-array accepted snapshot
 
@@ -71,7 +78,7 @@ metadata:
 - decoder 在接受 exact key 时同时更新 compatibility `ImageLookups` 与 private declaration sidecar；factory 只读 sidecar。decode 后、factory 前或 snapshot 后对 public dictionary 的 add/overwrite/remove/clear/整体替换均不能伪造、擦除或改变 accepted provenance；手工构造 configuration 再填 dictionary 也不能制造 declaration。
 - resource declaration 只证明来源事实，不等于文件有效、slot `Provide`、`Suppress` 或 fallback winner。显式空字符串仍必须进入后续 materializer/diagnostic，而不能在 provenance 层折叠成 `Absent`/`Inherit`。第十六切 focused 15/15、config aggregate 98/98、Release Rebuild 0 error / 20 warnings；它没有接 production lookup、renderer、`SkinManager` 或 fallback。
 
-第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；第十七切补齐两侧 decoder-time accepted sidecar 并关闭 factory 前的 mutable dictionary 窗口，细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十六切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour、两类 per-column colour 与 13 项 bucket-global resource accepted snapshot，第十八切另行闭合 `NoteBodyStyle` accepted snapshot；其余扩展 colour/resource、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
+第八切已在 bucket-level provenance 之上增加 note、LN head/body/tail、key up/down 六个 lane-resource 字段的 immutable snapshot 与有序 BMS→mania candidate plan，第九切又冻结其 process-local 逐字段 resolution/revision-owner 合同；第十七切补齐两侧 decoder-time accepted sidecar 并关闭 factory 前的 mutable dictionary 窗口，细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。第十一至十六切新增上述九个 legacy mania primitive scalar、五组 indexed array、四项 known global colour、两类 per-column colour 与 13 项 bucket-global resource accepted snapshot，第十八切另行闭合 `NoteBodyStyle` accepted snapshot，第十九切闭合 native `[Bms]` exact 22 项 colour accepted snapshot；其余 resource、geometry validation、malformed declaration 结构化诊断、完整 neutral configuration、真实文件 validation/materialization/shared codec 与生产接线仍未完成。
 
 ## lane-resource provenance 已关闭的窗口
 

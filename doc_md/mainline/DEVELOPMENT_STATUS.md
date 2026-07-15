@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 前十八个合同切片已完成，最新一切冻结 legacy mania `NoteBodyStyle` 的 decoder-time accepted provenance，生产链仍未接入。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，Skin V1 仍不可用；详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 前十九个合同切片已完成，最新一切冻结 native `[Bms]` exact 22 项 colour 的 decoder-time accepted provenance，生产链仍未接入。`SV1-2` 只有早期 carrier，`SV1-3`～`SV1-7` 未实现，Skin V1 仍不可用；详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 | --- | --- | --- | --- |
 | 1 | schema 56 用户数据 | **通过**：异常 copy 定点移除，OMS fixed-ID 修正 | 保留迁移归档，不运行全局 orphan cleanup |
 | 2 | P1-A 皮肤恢复 gate | **通过**：自动、数据与用户实机清单闭环 | 保留证据，不重复迁移/清理 |
-| 3 | Skin V1 共同合同 | `SV1-1` 前十八切已完成；`NoteBodyStyle` 已只读 decoder-time accepted sidecar，生产未接入 | 真实资源 validation/materialization 须先冻结 package-scoped authority/containment；在此前继续选择可独立闭环的配置面，其后再续 shared codec、event/runtime、full layout/geometry 与 production revision/wire fixtures |
+| 3 | Skin V1 共同合同 | `SV1-1` 前十九切已完成；native `[Bms]` exact 22 项 colour 已只读 decoder-time accepted sidecar，生产未接入 | 真实资源 validation/materialization 须先冻结 package-scoped authority/containment；在此前继续选择可独立闭环的配置面，其后再续 shared codec、event/runtime、full layout/geometry 与 production revision/wire fixtures |
 | 4 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 5 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 6 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -35,7 +35,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 - **V1 方向**：mania/BMS 共享 neutral ini codec、scene/animation、只读事件 ABI、`Provide/Inherit/Suppress` 与 sandbox；ruleset topology/layout adapter 分离。
 - **slot taxonomy**：26 个内部 semantic family 已固定 7 critical / 19 optional，descriptor 与 ruleset context 分离；它不是作者 manifest ABI、layout descriptor 或生产 suppress 接线。
 - **lane identity/topology**：强类型 identity、immutable snapshot/index/order 与 neutral validator 之上，已落 topology-only publication/process-local revision owner；internal BMS exact keymode 与 mania ordered stage vector 维护 native continuity。尚无 full layout/geometry、production `layoutRevision`/event producer、wire ABI 或生产接线。
-- **config presence/resolution**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource/`NoteBodyStyle` accepted provenance、两类 neutral stable-lane colour snapshot、两侧六类 lane-resource decoder-time accepted provenance 与 immutable snapshot、有序 BMS→mania candidate plan、process-local source-aware resolution 与 revision-owner 合同已落。尚无其余完整 field config、真实文件 validation/materialization/shared codec、production fallback 或接线。
+- **config presence/resolution**：default=`Absent` 的共享 declaration carrier、internal decoder bucket projection、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource/`NoteBodyStyle` accepted provenance、native `[Bms]` exact 22 项 colour accepted provenance、两类 neutral stable-lane colour snapshot、两侧六类 lane-resource decoder-time accepted provenance 与 immutable snapshot、有序 BMS→mania candidate plan、process-local source-aware resolution 与 revision-owner 合同已落。尚无其余完整 field config、真实文件 validation/materialization/shared codec、production fallback 或接线。
 - **event foundation**：process-local immutable envelope、engine-owned payload hierarchy 与 internal canonical-stream ordering cursor 已落；尚无 concrete payload family、lifecycle producer/dispatch、sampling、scene/script consumer 或生产接线。
 - **capability foundation**：process-local closed-allowlist evaluator、host support/per-skin authorization 分层、immutable decision 与 hard-deny authority classifier 已落；当前没有真实 capability、manifest/身份绑定/授权存储 UI、runtime gate 或 sandbox。
 - **V1 下限/上限**：同一公开 API 必须交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`；前者是最终 fallback，后者证明完整事件/动画能力。
@@ -49,7 +49,7 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十八切已完成，未接生产链 |
+| P1-A | `SV1-0` 自动/数据/实机全过；`SV1-1` 前十九切已完成，未接生产链 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -67,9 +67,9 @@ OMS 处于 Phase 1.x 收尾期。P1-A `SV1-0` 的自动、schema 56 数据与用
 
 ## 最近一次验证
 
-### 2026-07-15 P1-A `SV1-1` 第十八切
+### 2026-07-15 P1-A `SV1-1` 第十九切
 
-第十八切为 legacy mania exact `NoteBodyStyle` 建立 decoder-time private sidecar 与 source-specific immutable bucket snapshot，保留既有区分大小写的 `Enum.TryParse` 命名、数值与组合值兼容，不从 public mutable field 或 `[General] Version` 推导 production effective default。focused **26/26**；本切未接 production lookup、renderer、`SkinManager`、真实文件 validation/materialization 或 fallback，也没有访问或写入生产 Realm、`chartskin/`、用户皮肤目录及网络。真实 materializer 仍受 package-scoped authority/containment 缺口阻塞，精确矩阵见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+第十九切为 native `[Bms]` 当前生产消费的 exact 22 项 colour 建立 decoder-time private sidecar 与 source-specific immutable bucket snapshot；只有 ordinal exact key 进入 provenance，逗号组合 `Enum.TryParse` 别名仅保留既有 compatibility view，public `Colours` 后续 mutation 不能伪造或改写 snapshot。focused **31/31**，BMS skin relevant **332/332**，BMS full **1188/1188**，Release Rebuild **0 error / 20 warnings**。本切未新增主题色、neutral ABI、production lookup/renderer/`SkinManager`/fallback 接线，也没有访问或写入生产 Realm、`chartskin/`、用户皮肤目录及网络。geometry 仍待 finite/range/layout validation，真实 materializer 仍受 package-scoped authority/containment 缺口阻塞，精确矩阵见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ### 2026-07-13 `SV1-0` 数据安全门
 

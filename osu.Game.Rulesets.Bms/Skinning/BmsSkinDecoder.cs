@@ -160,7 +160,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
             else if (key.Contains("Colour", StringComparison.Ordinal))
             {
                 if (tryParseColour(value, out var colour))
-                    config.Colours[lookup] = colour;
+                {
+                    // Preserve the current Enum.TryParse compatibility view, including accidental comma-composite aliases,
+                    // but only exact closed source keys become V1 declaration provenance.
+                    if (BmsGameplaySkinBucketColourFieldCatalog.TryGetExact(key, out BmsSkinConfigurationLookups exactField)
+                        && exactField == lookup)
+                    {
+                        config.AcceptColour(exactField, colour);
+                    }
+                    else
+                        config.Colours[lookup] = colour;
+                }
             }
             else if (key.EndsWith("Image", StringComparison.Ordinal))
             {
