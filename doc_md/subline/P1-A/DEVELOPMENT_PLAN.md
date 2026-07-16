@@ -22,9 +22,10 @@
 | --- | --- | --- | --- |
 | 0 | `SV1-0` 恢复与数据安全 | 已完成 | 结果只在 STATUS/CHANGELOG 保留，不重开迁移或全局 cleanup |
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
-| 2 | 首个编号帧动画集中视觉验收 | **`V-001` 待用户签收** | Skin V1/release 完成声明前确认真实 managed `.osk` 的动画、选择切换与 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
-| 3 | `SV1-1` 下一玩家可见组件 | **已冻结** | managed `.osk` BMS critical `LongNoteHead` 静态图与连续编号帧动画通过自动、合同、安全与回退 gate |
-| 4 | `SV1-2`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
+| 2 | 已实现纵切的集中视觉验收 | **`V-001`、`V-002` 待用户签收** | Skin V1/release 完成声明前确认真实 managed `.osk` 的普通短键与长条头、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
+| 3 | `SV1-1` 长条头自动门 | **已通过，视觉待验收** | critical `LongNoteHead` 静态图与连续编号帧动画已通过自动、合同、安全与回退 gate，不计作产品交付 |
+| 4 | `SV1-1` 下一玩家可见组件 | **已冻结** | managed `.osk` BMS optional `LongNoteTail` 静态图与连续编号帧动画；只做 `Provide/Inherit`，不提前开放作者 `Suppress` |
+| 5 | `SV1-2`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
 
@@ -34,7 +35,7 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 
 ### SV1-1：共同合同与玩家可见纵切
 
-当前只完成 BMS 普通短键的 selected-package `Provide/Inherit`、逐组件 fallback、精确 package authority 与编号帧动画纵切。后续按“一次一个玩家可见组件”推进：
+当前已完成 BMS 普通短键与长条头的 selected-package `Provide/Inherit`、逐组件 fallback、精确 package authority 与静态图/编号帧动画纵切；两项均视觉待验收。后续按“一次一个玩家可见组件”推进：
 
 1. 产品先选组件，明确它是 critical 或 optional、允许的 `Provide/Inherit/Suppress` 状态及最小可玩回落。
 2. 只补该组件必需的 neutral slot/config/resource mapping，不借机扩完整 manifest、layout 或 event runtime。
@@ -44,7 +45,9 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 
 验收：该组件在真实 gameplay 进入用户选中的 managed package 链，损坏/缺失/越权/超预算均不破坏可玩性，且未实现的 slot/runtime 不被描述为已完成。
 
-当前冻结切片只扩 `LongNoteHead`：复用现有 `[Bms] NoteImage{lane}H` / `NoteImageSH` / `NoteImageS2H` accepted provenance、精确 package revision、60 FPS 连续编号帧、资源预算、后台 preparation 与逐组件回落。它是不可 suppress 的 critical slot；未声明为 `Inherit`，有效静态图/动画为 `Provide`，空值、缺件、损坏、越权或超预算时回落到可见默认头。body/tail、LN/CN/HCN 规则、尺寸/裁剪、layout、manifest、G1 与 event runtime 均不在本切范围。自动矩阵至少覆盖普通 LN、scratch LN、14K `S2`、A→B 切换、坏 head 单组件回落、跨包隔离与异步换源；通过后追加集中视觉项。
+已闭合的 `LongNoteHead` 切片复用 `[Bms] NoteImage{lane}H` / `NoteImageSH` / `NoteImageS2H` accepted provenance、精确 package revision、60 FPS 连续编号帧、资源预算、后台 preparation 与逐组件回落。它是不可 suppress 的 critical slot；未声明为 `Inherit`，有效静态图/动画为 `Provide`，空值、缺件、损坏、越权或超预算时回落到可见默认头。自动矩阵覆盖真实 hold、普通/scratch/14K `S2`、A→B、坏 head 与有效 note 隔离、跨包防串及异步换源；`V-002` 仍待用户集中签收。body/tail、LN/CN/HCN 规则、尺寸/裁剪、layout、manifest、G1 与 event runtime 未被这刀改动。
+
+下一冻结切片只扩 `LongNoteTail`：使用现有 `[Bms] NoteImage{lane}T` / `NoteImageST` / `NoteImageS2T` accepted provenance和现成的 nested tail cap host，复用同一 exact revision、资源预算、后台 preparation、60 FPS 连续编号帧和异步换源。tail 是 optional：未声明为 `Inherit`，有效静态图/动画为 `Provide`；空值、缺件、损坏、越权或超预算时只允许下层完整组件接管，最终 protected 程序化 tail 继续透明。作者 `Suppress` 仍未开放，不能把“链底透明”或缺件冒充 `Suppress`。本刀不改 head/body、Idle/Holding/Broken、LN/CN/HCN、22.5px cap host、长条身宽/拉伸/裁剪、layout、manifest、G1 或 event runtime。自动矩阵至少覆盖普通/scratch/14K `S2` tail、真实 hold 链、A→B、坏 tail 与已有效 note/head 隔离、低层同名防串、body/head 不被拦截与异步换源；通过后追加集中视觉项。
 
 ### SV1-2：G1 安全存储与原子重载
 

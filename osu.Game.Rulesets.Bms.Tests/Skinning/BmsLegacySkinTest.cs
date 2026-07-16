@@ -133,6 +133,41 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [Test]
+        public void TestAcceptedNoteResourceUsesClosedElementMappingAndCanonicalSecondScratch()
+        {
+            var skin = new TestBmsLegacySkin(
+                "[Bms]\n" +
+                "Keymode: 14K\n" +
+                "NoteImageS2: ordinary-second-scratch\n" +
+                "NoteImageS2H: head-second-scratch\n");
+
+            GameplaySkinConfigurationDeclaration<string> ordinary = skin.GetAcceptedBmsNoteResource(
+                BmsNoteSkinElements.Note,
+                BmsKeymode.Key14K,
+                laneIndex: 15,
+                isScratch: true);
+            GameplaySkinConfigurationDeclaration<string> head = skin.GetAcceptedBmsNoteResource(
+                BmsNoteSkinElements.LongNoteHead,
+                BmsKeymode.Key14K,
+                laneIndex: 15,
+                isScratch: true);
+            GameplaySkinConfigurationDeclaration<string> unsupported = skin.GetAcceptedBmsNoteResource(
+                BmsNoteSkinElements.LongNoteBody,
+                BmsKeymode.Key14K,
+                laneIndex: 15,
+                isScratch: true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ordinary.IsDeclared, Is.True);
+                Assert.That(ordinary.Value, Is.EqualTo("ordinary-second-scratch"));
+                Assert.That(head.IsDeclared, Is.True);
+                Assert.That(head.Value, Is.EqualTo("head-second-scratch"));
+                Assert.That(unsupported.IsDeclared, Is.False);
+            });
+        }
+
         [TestCase(BmsKeymode.Key5K, -1, false)]
         [TestCase(BmsKeymode.Key5K, 6, false)]
         [TestCase(BmsKeymode.Key5K, 0, false)]

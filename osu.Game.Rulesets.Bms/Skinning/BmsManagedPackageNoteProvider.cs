@@ -21,11 +21,11 @@ using SixLabors.ImageSharp;
 namespace osu.Game.Rulesets.Bms.Skinning
 {
     /// <summary>
-    /// Resolves the first production Skin V1 component from one exact managed <c>.osk</c> source.
+    /// Resolves the first production Skin V1 note components from one exact managed <c>.osk</c> source.
     /// </summary>
     /// <remarks>
-    /// Only the native BMS ordinary-note declaration is in scope. Mania compatibility candidates, long-note parts,
-    /// folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
+    /// Only the native BMS ordinary-note and long-note-head declarations are in scope. Mania compatibility candidates,
+    /// other long-note parts, folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
     /// </remarks>
     internal sealed class BmsManagedPackageNoteProvider :
         IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, BmsSourceBoundNoteMaterial>
@@ -44,15 +44,15 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            return lookup.Element == BmsNoteSkinElements.Note
-                   && source.GetAcceptedBmsOrdinaryNoteResource(lookup.Keymode, lookup.LaneIndex, lookup.IsScratch).IsDeclared;
+            return tryGetDescriptor(lookup.Element, out _)
+                   && source.GetAcceptedBmsNoteResource(lookup.Element, lookup.Keymode, lookup.LaneIndex, lookup.IsScratch).IsDeclared;
         }
 
         public GameplaySkinSlotResolution<BmsSourceBoundNoteMaterial> Resolve(BmsNoteSkinLookup lookup)
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            if (lookup.Element != BmsNoteSkinElements.Note)
+            if (!tryGetDescriptor(lookup.Element, out GameplaySkinSlotDescriptor descriptor))
             {
                 return GameplaySkinSlotResolver.Resolve(
                     GameplaySkinSlotCatalog.Note,
@@ -61,7 +61,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
 
             return GameplaySkinSlotResolver.Resolve(
-                GameplaySkinSlotCatalog.Note,
+                descriptor,
                 lookup,
                 new[] { this },
                 material => material.FrameCount > 0);
@@ -71,13 +71,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             ArgumentNullException.ThrowIfNull(slot);
 
-            if (!ReferenceEquals(slot.Descriptor, GameplaySkinSlotCatalog.Note)
-                || slot.Context.Element != BmsNoteSkinElements.Note)
+            if (!tryGetDescriptor(slot.Context.Element, out GameplaySkinSlotDescriptor descriptor)
+                || !ReferenceEquals(slot.Descriptor, descriptor))
             {
                 return SkinSlotResult<BmsSourceBoundNoteMaterial>.Inherit;
             }
 
-            GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedBmsOrdinaryNoteResource(
+            GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedBmsNoteResource(
+                slot.Context.Element,
                 slot.Context.Keymode,
                 slot.Context.LaneIndex,
                 slot.Context.IsScratch);
@@ -95,10 +96,25 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (!prepared.SourceRevision.Equals(currentRevision))
                 throw new InvalidOperationException("The selected gameplay skin package changed while its note resources were being prepared.");
 
-            if (!prepared.TryGetMaterial(new BmsManagedPackageNoteSlotKey(slot.Context.Keymode, slot.Context.LaneIndex, slot.Context.IsScratch), out BmsSourceBoundNoteMaterial? material))
+            if (!prepared.TryGetMaterial(
+                    new BmsManagedPackageNoteSlotKey(slot.Context.Element, slot.Context.Keymode, slot.Context.LaneIndex, slot.Context.IsScratch),
+                    out BmsSourceBoundNoteMaterial? material))
                 throw new InvalidDataException("The selected gameplay note component could not be prepared safely.");
 
             return SkinSlotResult<BmsSourceBoundNoteMaterial>.Provide(material!);
+        }
+
+        private static bool tryGetDescriptor(BmsNoteSkinElements element, out GameplaySkinSlotDescriptor descriptor)
+        {
+            GameplaySkinSlotDescriptor? candidate = element switch
+            {
+                BmsNoteSkinElements.Note => GameplaySkinSlotCatalog.Note,
+                BmsNoteSkinElements.LongNoteHead => GameplaySkinSlotCatalog.LongNoteHead,
+                _ => null,
+            };
+
+            descriptor = candidate!;
+            return candidate != null;
         }
     }
 
@@ -139,7 +155,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
         }
     }
 
-    internal readonly record struct BmsManagedPackageNoteSlotKey(BmsKeymode Keymode, int LaneIndex, bool IsScratch);
+    internal readonly record struct BmsManagedPackageNoteSlotKey(
+        BmsNoteSkinElements Element,
+        BmsKeymode Keymode,
+        int LaneIndex,
+        bool IsScratch);
 
     internal sealed record BmsManagedPackageFileRevision(string PackageName, string ContentHash, string StorageKey);
 
@@ -325,7 +345,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     }
 
     /// <summary>
-    /// Preflights and decodes all native ordinary-note declarations for one immutable managed package revision.
+    /// Preflights and decodes all supported native note declarations for one immutable managed package revision.
     /// </summary>
     internal static class BmsManagedPackageNoteMaterializer
     {
@@ -367,7 +387,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedBmsOrdinaryNoteResource(slot.Keymode, slot.LaneIndex, slot.IsScratch);
+                    GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedBmsNoteResource(
+                        slot.Element,
+                        slot.Keymode,
+                        slot.LaneIndex,
+                        slot.IsScratch);
 
                     if (!declaration.TryGetValue(out string? resourceName))
                         continue;
@@ -681,24 +705,27 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         private static IEnumerable<BmsManagedPackageNoteSlotKey> enumerateCanonicalSlots()
         {
-            yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key5K, 0, true);
-            for (int i = 1; i <= 5; i++)
-                yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key5K, i, false);
-
-            yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key7K, 0, true);
-            for (int i = 1; i <= 7; i++)
-                yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key7K, i, false);
-
-            foreach (BmsKeymode keymode in new[] { BmsKeymode.Key9K_Bms, BmsKeymode.Key9K_Pms })
+            foreach (BmsNoteSkinElements element in new[] { BmsNoteSkinElements.Note, BmsNoteSkinElements.LongNoteHead })
             {
-                for (int i = 0; i <= 8; i++)
-                    yield return new BmsManagedPackageNoteSlotKey(keymode, i, false);
-            }
+                yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key5K, 0, true);
+                for (int i = 1; i <= 5; i++)
+                    yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key5K, i, false);
 
-            yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key14K, 0, true);
-            for (int i = 1; i <= 14; i++)
-                yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key14K, i, false);
-            yield return new BmsManagedPackageNoteSlotKey(BmsKeymode.Key14K, 15, true);
+                yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key7K, 0, true);
+                for (int i = 1; i <= 7; i++)
+                    yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key7K, i, false);
+
+                foreach (BmsKeymode keymode in new[] { BmsKeymode.Key9K_Bms, BmsKeymode.Key9K_Pms })
+                {
+                    for (int i = 0; i <= 8; i++)
+                        yield return new BmsManagedPackageNoteSlotKey(element, keymode, i, false);
+                }
+
+                yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key14K, 0, true);
+                for (int i = 1; i <= 14; i++)
+                    yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key14K, i, false);
+                yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key14K, 15, true);
+            }
         }
 
         private static void validateResourceName(string resourceName)

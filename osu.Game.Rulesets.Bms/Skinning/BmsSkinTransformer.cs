@@ -104,7 +104,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsLaneSkinLookup laneLookup:
                     return skinnedComponent ?? createBuiltInFallback(() => createDefaultLaneComponent(laneLookup));
 
-                case BmsNoteSkinLookup { Element: BmsNoteSkinElements.Note } noteLookup:
+                case BmsNoteSkinLookup { Element: BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead } noteLookup:
                     if (skinnedComponent != null)
                         return skinnedComponent;
 
@@ -124,8 +124,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         }
                     }
 
+                    BmsSkinConfigurationLookups exactSourceImageLookup = noteLookup.Element == BmsNoteSkinElements.Note
+                        ? BmsSkinConfigurationLookups.NoteImage
+                        : BmsSkinConfigurationLookups.HoldNoteHeadImage;
                     string? exactSourceImage = Skin.GetBmsSkinConfig<string>(
-                        BmsSkinConfigurationLookups.NoteImage,
+                        exactSourceImageLookup,
                         noteLookup.Keymode,
                         noteLookup.LaneIndex,
                         noteLookup.IsScratch)?.Value;
@@ -241,7 +244,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             => lookup.Element switch
             {
                 BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride),
-                BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride),
                 BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 _ => new Box

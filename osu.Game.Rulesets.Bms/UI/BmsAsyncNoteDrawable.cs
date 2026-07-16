@@ -12,7 +12,7 @@ using osu.Game.Skinning;
 namespace osu.Game.Rulesets.Bms.UI
 {
     /// <summary>
-    /// Resolves an ordinary BMS note away from the update thread and atomically publishes the fully loaded result.
+    /// Resolves a BMS ordinary note or long-note head away from the update thread and atomically publishes the fully loaded result.
     /// </summary>
     /// <remarks>
     /// Initial and live resolution never perform package IO on the update thread. A dynamically-added host keeps a
@@ -33,15 +33,15 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            if (lookup.Element != BmsNoteSkinElements.Note)
-                throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes.", nameof(lookup));
+            if (lookup.Element is not (BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead))
+                throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes and long-note heads.", nameof(lookup));
 
             this.lookup = lookup;
             RelativeSizeAxes = Axes.Both;
 
             // A dynamically-added host (notably the pre-start speed preview) may begin loading on the update thread.
             // Keep the critical note visible while its exact source is prepared asynchronously.
-            Drawable = new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride: false);
+            Drawable = createProtectedFallback(lookup);
             InternalChild = Drawable;
         }
 
@@ -178,7 +178,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     candidate = resolved;
                     cancellationToken?.ThrowIfCancellationRequested();
 
-                    candidate ??= new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride: false);
+                    candidate ??= createProtectedFallback(lookup);
                     Visual = candidate;
                     InternalChild = Visual;
                     adopted = true;
@@ -190,5 +190,21 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
             }
         }
+
+        private static Drawable createProtectedFallback(BmsNoteSkinLookup lookup)
+            => lookup.Element switch
+            {
+                BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(
+                    lookup.LaneIndex,
+                    lookup.IsScratch,
+                    lookup.Keymode,
+                    allowAggregateTextureOverride: false),
+                BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(
+                    lookup.LaneIndex,
+                    lookup.IsScratch,
+                    lookup.Keymode,
+                    allowAggregateTextureOverride: false),
+                _ => throw new ArgumentOutOfRangeException(nameof(lookup), lookup.Element, "Unsupported asynchronous BMS note element."),
+            };
     }
 }

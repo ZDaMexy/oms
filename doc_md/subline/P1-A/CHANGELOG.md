@@ -4,6 +4,15 @@
 
 ## 2026-07-16
 
+### `SV1-1` managed `.osk` BMS 长条头静态图/编号帧动画纵切
+
+- selected managed `.osk` 的 source-bound note provider 从 ordinary note 扩到 critical `LongNoteHead`，只消费 decoder-time accepted native `[Bms] NoteImage{lane}H` / `NoteImageSH` / `NoteImageS2H`。slot key 与 descriptor 现包含 element，materializer 在同一 immutable package revision 内枚举 ordinary/head canonical lanes；连续 `name-0`、`name-1`…仍固定 60 FPS，并复用现有 raw/image/pixel/frame/texture/component/package 预算、containment、大小写冲突和 decode 前后验证，未改预算数字或 importer gate。
+- 真实 `DrawableBmsHoldNote → DrawableBmsHoldNoteHead` 已改走 `BmsAsyncNoteDrawable`；初次加载保持可见 protected head，A→B 准备期间保留旧视觉，只发布当前 generation/revision 的完整结果。selected 声明为空、缺失、损坏、断帧、越界、authority 冲突或超预算时回落到可见默认头；protected fallback 不再反查 aggregate 同名纹理，避免低层裸文件补齐 selected 坏声明，但仍保留独立 colour/palette rescue。body/tail 继续原 `SkinnableDrawable` 路径，LN/CN/HCN、22.5px head host、长条身宽/状态/裁剪、layout、G1、manifest、event runtime 与作者 `Suppress` 均未改。
+- 产品 fixture 从 **28** 扩到 **39** 个 case：新增静态 head、真实完整 hold 的动画推进/循环、7K scratch、14K `S2H`、Note/head A→B 2→3 帧、坏 head 与有效 ordinary note 隔离、beatmap-local provider-order、低层同名防串、authority/filename conflict、Note/head async 换源及 body/tail 不拦截。beatmap-local 仍是注入式 provider fixture，不是 `WorkingBeatmap` 作者格式。
+- 验证：合并态 BMS skin/runtime focused **248/248**，BMS full **1378/1378**；`osu.Desktop.slnf` Release **0 error / 11 known warnings**，即 9 条 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。本切没有改 shared `osu.Game` skin ABI、mania compatibility 或 fallback authority，故未另跑 core/mania 产品测试；Release 已编译 core、mania/BMS 与两个 test project。
+- 稳定性暂态如实保留：产品 fixture 前两轮 **39/39**；第三轮发现真实 hold 仅放在 `+1s` 后会进入判定/停更，导致已到 frame 1 后等不到 frame 0。把测试观察对象移到 `+60s` 后，精确用例 **1/1** 与完整 fixture **39/39** 再过，没有放宽等待；这是 fixture 时窗修正，不是产品加载失败。
+- 新可见能力登记为集中视觉项 `V-002`，与 `V-001` 一样只能称“实现/自动 gate 通过，视觉待验收”，不得计作产品交付、`SV1-1` 完成或 release gate 通过。按用户“不操控电脑、集中反馈”的协作方式，本切未启动 GUI；下一刀经只读依赖审计冻结为 optional `LongNoteTail` 静态图/编号帧动画，只做 `Provide/Inherit`，透明链底不得冒充作者 `Suppress`。
+
 ### 普通短键动画 gate 的隔离自动 runner 与 staging 安全闭环
 
 - 新增 `RunBmsNoteAnimationVisualGate.ps1` 和 exact scene runner：只打开指定 visual test，真实 `SkinManager` 导入内存 good/broken 包，经 `RulesetSkinProvidingContainer → BmsAsyncNoteDrawable` 自动循环 3 轮；场景等待 60 帧/默认回落完全加载，成功停留 3 秒。runner 仅 `--exact-test` 进入严格模式，普通 TestBrowser 参数保持兼容；加载/步骤/watchdog 失败为 1，成功为 0，提前关闭为 3。

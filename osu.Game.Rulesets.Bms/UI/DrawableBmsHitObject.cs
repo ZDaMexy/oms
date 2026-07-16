@@ -214,7 +214,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (createLookup(hitObject) is BmsNoteSkinLookup lookup)
             {
-                if (lookup.Element == BmsNoteSkinElements.Note)
+                if (lookup.Element is BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead)
                 {
                     return new BmsAsyncNoteDrawable(lookup)
                     {

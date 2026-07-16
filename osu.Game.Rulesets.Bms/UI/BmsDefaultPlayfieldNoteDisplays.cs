@@ -91,14 +91,32 @@ namespace osu.Game.Rulesets.Bms.UI
 
     internal sealed partial class DefaultBmsLongNoteHeadDisplay : DefaultBmsNoteDisplayBase
     {
-        public DefaultBmsLongNoteHeadDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
+        private readonly bool allowAggregateTextureOverride;
+
+        public DefaultBmsLongNoteHeadDisplay(int laneIndex, bool isScratch, BmsKeymode keymode, bool allowAggregateTextureOverride = true)
             : base(laneIndex, isScratch, keymode)
         {
+            this.allowAggregateTextureOverride = allowAggregateTextureOverride;
             InternalChild = new Box { RelativeSizeAxes = Axes.Both, Colour = BmsDefaultPlayfieldPalette.GetLongNoteHead(laneIndex, isScratch, keymode) };
         }
 
         protected override BmsSkinConfigurationLookups ImageLookup => BmsSkinConfigurationLookups.HoldNoteHeadImage;
         protected override Color4 DefaultColour => BmsDefaultPlayfieldPalette.GetLongNoteHead(LaneIndex, IsScratch, Keymode);
+
+        protected override void ApplyVisual(ISkinSource skin)
+        {
+            if (allowAggregateTextureOverride)
+            {
+                base.ApplyVisual(skin);
+                return;
+            }
+
+            // The selected managed package's exact head declaration has already been resolved by its source-bound
+            // provider. Do not let an aggregate lookup fill a rejected declaration from a lower same-named texture.
+            // Colour remains a separate scalar fallback while the programmatic palette is still in the chain.
+            Color4 colour = skin.GetBmsSkinConfig<Color4>(ColourLookup, Keymode)?.Value ?? DefaultColour;
+            InternalChild = new Box { RelativeSizeAxes = Axes.Both, Colour = colour };
+        }
     }
 
     internal sealed partial class DefaultBmsLongNoteBodyDisplay : DefaultBmsNoteDisplayBase

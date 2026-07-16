@@ -7,6 +7,10 @@
 
 ## 2026-07-16
 
+### managed `.osk` BMS 长条头纵切自动门通过
+
+selected managed package 现可为 critical `LongNoteHead` 提供 `NoteImage{lane}H`/`SH`/`S2H` 静态图与 60 FPS 连续编号帧；真实 hold head 走后台 preparation 与 per-host 原子发布，坏声明回落到可见 rescue，不从低层同名裸纹理拼件，也不拖垮同包有效 ordinary note。产品 fixture **39/39**、合并 focused **248/248**、BMS full **1378/1378**、Release **0 error / 11 known warnings**；未改 body/tail、LN/CN/HCN、shared/mania authority、layout/G1/scene/script。新视觉登记为 `V-002` 集中待验收，不计作交付；下一切片冻结为 optional `LongNoteTail` 的静态/编号帧 `Provide/Inherit`，本刀不开放作者 `Suppress`。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 与[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。
+
 ### 普通短键动画 gate 完成隔离自动化与安全硬化
 
 在不改产品 runtime 的前提下，为确定性 good/broken 包增加只运行一个 exact scene 的自动可视预检：真实 `SkinManager` 导入、60 帧加载、3 轮 good 动画/broken 回落、120 秒 watchdog、`0/1/3` 退出码，以及内部 GUID host/data storage。host 清理只作用于规范 AppData 直系子目录，逐层非递归删除且不跟随 reparse；手工素材 staging 同样只覆盖两个精确副本并拒绝 reparse/目录冲突。合并 focused **53/53**、root generator **1/1**、非法/缺值 exact CLI exit 1 且新增 host 残留 0，Release **0 error / 20 warnings**；exact 类型只在 executable test project 条件编译，保留 `osu.Game` 原 legacy runner API 且未留下新增 `CS0436`。最终代码按用户要求未重新开窗，`V-001` 仍是视觉待验收而非产品交付。

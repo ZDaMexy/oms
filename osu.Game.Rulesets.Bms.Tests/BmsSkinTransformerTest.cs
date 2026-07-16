@@ -1,8 +1,8 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Linq;
-using osu.Framework.Audio;
 using NUnit.Framework;
+using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -18,6 +18,7 @@ using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.SongSelect;
@@ -406,6 +407,46 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
                 Assert.That(((DefaultBmsNoteDisplay)drawable!).IsScratch, Is.True);
                 assertSingleColour((Drawable)drawable!, BmsDefaultPlayfieldPalette.ScratchNote);
+            });
+        }
+
+        [Test]
+        public void TestAsyncHostSupportsOrdinaryNoteAndLongNoteHead()
+        {
+            var noteHost = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 1, false, BmsKeymode.Key7K));
+            var headHost = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 1, false, BmsKeymode.Key7K));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(noteHost.Drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
+                Assert.That(headHost.Drawable, Is.TypeOf<DefaultBmsLongNoteHeadDisplay>());
+            });
+        }
+
+        [TestCase(BmsNoteSkinElements.LongNoteBody)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestAsyncHostRejectsNonCriticalLongNoteElements(BmsNoteSkinElements element)
+        {
+            Assert.That(
+                () => new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(element, 1, false, BmsKeymode.Key7K)),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void TestDrawableLongNoteHeadUsesAsyncHostWhileBodyAndTailStaySkinnable()
+        {
+            var head = new DrawableBmsHitObject(new BmsHoldNoteHead { LaneIndex = 1, Keymode = BmsKeymode.Key7K });
+            var body = new DrawableBmsHitObject(new BmsHoldNote { LaneIndex = 1, Keymode = BmsKeymode.Key7K });
+            var tail = new DrawableBmsHitObject(new BmsHoldNoteTailEvent { LaneIndex = 1, Keymode = BmsKeymode.Key7K });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(head.ChildrenOfType<BmsAsyncNoteDrawable>().Count(), Is.EqualTo(1));
+                Assert.That(head.ChildrenOfType<SkinnableDrawable>(), Is.Empty);
+                Assert.That(body.ChildrenOfType<BmsAsyncNoteDrawable>(), Is.Empty);
+                Assert.That(body.ChildrenOfType<SkinnableDrawable>().Count(), Is.EqualTo(1));
+                Assert.That(tail.ChildrenOfType<BmsAsyncNoteDrawable>(), Is.Empty);
+                Assert.That(tail.ChildrenOfType<SkinnableDrawable>().Count(), Is.EqualTo(1));
             });
         }
 

@@ -292,26 +292,44 @@ namespace osu.Game.Rulesets.Bms.Skinning
         }
 
         /// <summary>
-        /// Returns the decoder-time accepted native <c>[Bms] NoteImage*</c> declaration for one canonical BMS lane.
+        /// Returns the decoder-time accepted native <c>[Bms] NoteImage*</c> declaration for one supported note element
+        /// and canonical BMS lane.
         /// </summary>
         /// <remarks>
         /// This deliberately reads the closed accepted-declaration sidecar rather than the mutable compatibility
         /// dictionary. Invalid engine lane/role pairs fail closed as absent and do not inherit the legacy lookup's
         /// permissive 14K scratch aliasing.
         /// </remarks>
-        internal GameplaySkinConfigurationDeclaration<string> GetAcceptedBmsOrdinaryNoteResource(
+        internal GameplaySkinConfigurationDeclaration<string> GetAcceptedBmsNoteResource(
+            BmsNoteSkinElements element,
             BmsKeymode keymode,
             int laneIndex,
             bool isScratch)
         {
+            GameplaySkinLaneResourceField? field = element switch
+            {
+                BmsNoteSkinElements.Note => GameplaySkinLaneResourceFieldCatalog.Note,
+                BmsNoteSkinElements.LongNoteHead => GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+                _ => null,
+            };
+
+            if (field == null)
+                return GameplaySkinConfigurationDeclaration<string>.Absent;
+
             if (!tryGetCanonicalLaneToken(keymode, laneIndex, isScratch, out string? laneToken)
                 || !bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration))
             {
                 return GameplaySkinConfigurationDeclaration<string>.Absent;
             }
 
-            return configuration.GetAcceptedLaneResource(GameplaySkinLaneResourceFieldCatalog.Note, laneToken);
+            return configuration.GetAcceptedLaneResource(field, laneToken);
         }
+
+        internal GameplaySkinConfigurationDeclaration<string> GetAcceptedBmsOrdinaryNoteResource(
+            BmsKeymode keymode,
+            int laneIndex,
+            bool isScratch)
+            => GetAcceptedBmsNoteResource(BmsNoteSkinElements.Note, keymode, laneIndex, isScratch);
 
         private static bool tryGetCanonicalLaneToken(BmsKeymode keymode, int laneIndex, bool isScratch, out string laneToken)
         {

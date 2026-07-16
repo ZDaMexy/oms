@@ -97,6 +97,46 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestLongNoteHeadUsesSkinTextureWhenProvided()
+        {
+            DefaultBmsLongNoteHeadDisplay head = null!;
+
+            AddStep("load LN head with NoteImage1H texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nNoteImage1H: notes/head\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = head = new DefaultBmsLongNoteHeadDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => head.IsLoaded);
+            AddAssert("LN head shows sprite, not box", () => head.ChildrenOfType<Sprite>().Any() && !head.ChildrenOfType<Box>().Any());
+        }
+
+        [Test]
+        public void TestProtectedLongNoteHeadFallbackIgnoresAggregateTexture()
+        {
+            DefaultBmsLongNoteHeadDisplay head = null!;
+
+            AddStep("load protected LN head with texture and colour", () =>
+            {
+                var skin = new TexturedTestSkin(
+                    "[Bms]\nKeymode: 7K\nNoteImage1H: notes/head\nNoteColourWhite: 0,255,0\n",
+                    renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin)
+                {
+                    Child = head = new DefaultBmsLongNoteHeadDisplay(
+                        1,
+                        false,
+                        BmsKeymode.Key7K,
+                        allowAggregateTextureOverride: false),
+                };
+            });
+
+            AddUntilStep("loaded", () => head.IsLoaded);
+            AddAssert("protected LN head stays box", () => head.ChildrenOfType<Box>().Count(), () => Is.EqualTo(1));
+            AddAssert("protected LN head keeps scalar colour", () => head.ChildrenOfType<Box>().Single().Colour.TopLeft.SRGB, () => Is.EqualTo(new Color4(0, 255, 0, 255)));
+        }
+
+        [Test]
         public void TestLaneBackgroundColourFromConfig()
         {
             DefaultBmsLaneBackgroundDisplay lane = null!;
@@ -326,12 +366,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private class TestResourceProvider : IStorageResourceProvider
         {
-            private readonly IResourceStore<byte[]> empty = new ResourceStore<byte[]>();
-
             public IRenderer Renderer { get; } = new DummyRenderer();
             public AudioManager? AudioManager => null;
-            public IResourceStore<byte[]> Files => empty;
-            public IResourceStore<byte[]> Resources => empty;
+            public IResourceStore<byte[]> Files { get; } = new ResourceStore<byte[]>();
+            public IResourceStore<byte[]> Resources => Files;
             public RealmAccess RealmAccess => null!;
             public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => null;
         }

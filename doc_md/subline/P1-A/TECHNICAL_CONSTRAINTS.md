@@ -121,10 +121,11 @@
 1l. 资源 declaration 与实际 texture/frame 必须在同一个精确 provider/package authority 内解析；禁止先从聚合配置取声明、再从聚合 texture store 取同名素材，造成跨皮肤拼接。
 1m. 有效的 beatmap-local 直接视觉继续高于 selected package；只有高优先级来源缺失、损坏或验证失败时才 `Inherit`，三态不得默认穿透有效 beatmap-local provider。
 1n. managed Realm package materialization 必须使用不可变的文件名→内容身份快照并绑定 package revision；路径越界、大小写冲突、重复名或 authority 冲突均 fail-open 为对应 slot 的 `Inherit`，不得从另一 package 补齐。
-1o. 文件素材必须在解码前检查输入字节、图片尺寸/像素、帧数与累计预算，并在解码后再次核对实际资源；先无界解码、再检查预算不算防护。当前普通短键 runtime 限值只是安全上限，不是最终 author ABI。
+1o. 文件素材必须在解码前检查输入字节、图片尺寸/像素、帧数与累计预算，并在解码后再次核对实际资源；先无界解码、再检查预算不算防护。当前普通短键/长条头 runtime 限值只是安全上限，不是最终 author ABI。
 1p. 初次装载与 live replacement 的 package IO/解码都不得发生在 update thread；新视觉完整准备并属于当前 revision 前保持现有视觉或 critical fallback，取消、过期或失败结果不得发布且必须释放其临时资源。
-1q. 当前普通短键纵切只保证 per-component 安全发布与回落，不代表 `SV1-2` 的整包原子 reload；ini、scene、script 与所有素材共同成功后一次切换仍是后续 gate。
+1q. 当前普通短键/长条头纵切只保证 per-component 安全发布与回落，不代表 `SV1-2` 的整包原子 reload；ini、scene、script 与所有素材共同成功后一次切换仍是后续 gate。
 1r. runtime 的 raw/decoded/frame/texture cap 不等于 `.osk` importer 的总压缩/解压字节、解压比或 zip-bomb 防护；两道 gate 必须分别实现和验收。
+1s. 当前 managed `.osk` native BMS 生产窄路径只接受 ordinary note 与 `LongNoteHead`：两者按 element + keymode + canonical lane/scratch 绑定 slot，解析同一精确 package revision；连续 `name-0`、`name-1`…固定 60 FPS。`LongNoteHead` 是 critical 且不可 suppress；声明失败必须落到可见 rescue，不能由低层同名 texture 补齐 selected 坏声明。该路径不得拦截 body/tail，也不得改变 LN/CN/HCN、尺寸、裁剪、layout 或其它 provider authority。
 2. 三态链只替换 gameplay package 内的组件解析：用户所选 `.osk` → ruleset adapter/compatibility → 随发行物只读携带的 `oms-simple.osk`。现有 `BeatmapSkinProvidingContainer` 的谱面内皮肤 enable/colour/hitsound 语义，以及 `RulesetSkinProvidingContainer` 注入 ruleset resource skin 的相对 authority，在另有迁移决议前必须保持；不得把完整现有链误写成只有上述三层。
 2a. `Suppress` 默认只作用于声明它的 gameplay package slot，不得越权穿透或屏蔽更高优先级的 beatmap-local provider；若未来需要改变该边界，必须单独冻结 precedence fixture 和用户迁移规则。
 2b. 测试中名为 `oms-simple` 的 fake provider 只证明 canonical 末端语义，不代表真实 `oms-simple.osk` 已制作、校验或接入生产 fallback authority。
@@ -219,4 +220,4 @@
 6. 每次记录本次实际运行的 BMS/mania/core/Release 与人工视觉/性能结果；按上条未要求重跑的套件也要明确写“未运行及原因”。已知失败必须稳定归因，不得把既有失败写成新回归。
 7. 文档不得把“代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”混成一个完成状态；能力矩阵必须分列。
 8. 不得宣称 LR2/beatoraja/IIDX 文件格式兼容；“接近 IIDX 表现上限”只描述公开接口表达力。
-9. managed `.osk` BMS 普通短键编号帧动画必须进入集中用户视觉验收清单，并在 Skin V1/release 宣称完成前取得确认；2026-07-14 的静态恢复验收只能证明 `SV1-0` 基线，不得复用。待签收本身不阻塞后续自动可验证切片，但未签收不得称产品交付、阶段完成或 release gate 通过。
+9. managed `.osk` BMS 普通短键编号帧动画与长条头静态图/编号帧动画必须分别进入集中用户视觉验收清单，并在 Skin V1/release 宣称完成前取得确认；2026-07-14 的静态恢复验收只能证明 `SV1-0` 基线，不得复用。待签收本身不阻塞后续自动可验证切片，但未签收不得称产品交付、阶段完成或 release gate 通过。
