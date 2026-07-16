@@ -4,6 +4,16 @@
 
 ## 2026-07-17
 
+### `SV1-2` 第二刀：ruleset-neutral immutable package revision capsule 合同
+
+- shared core 新增纯 post-capture `SkinPackageRevisionCapsule`：输入是未来 native capture service 提供的稳定逻辑 file/directory entries，不含 filesystem path、Storage 或 authority，当前没有 production caller。它不是 directory inventory/capture service，不证明 containment、no-follow、physical identity、TOCTOU 或读取期间稳定性。
+- factory 将 `\` 统一为 `/` 并做 Unicode NFC，按 Windows case-insensitive 语义拒绝 duplicate、绝对/穿越/ADS/歧义设备名、file/directory 层级冲突和 entry/file/depth/name/raw-byte 预算；精确读取 declared length，以版本 domain + 规范 UTF-8 名 + 长度 + per-file SHA-256 生成确定性 whole-package content revision。空目录计入 entry/depth budget，但不影响 content revision。
+- capsule 独占 defensive byte backing，metadata collection 真只读，resource view 非 owning；`Get`/`GetStream` 返回副本，已有 stream 不受 capsule 退役影响。预期 source failure 返回 typed reason，取消传播；当前 buffer、此前已接管 buffer 与 capsule 退役均有清零证明，失败/取消不返回半成品。resolver 同时只复用等价的 Windows segment validator，未扩大 preflight authority。
+- focused **66/66**，preflight + capsule 合并 **120/120**；core `osu.Game.Tests.Skins` **177/182**，5 项失败仍是恢复基线同名的 1 项 Argon 旧期待和 4 项已删除 Osu ruleset archive fixture，无新增失败；mania `FullyQualifiedName~Skin` **182/182**、BMS `FullyQualifiedName~Skin` **583/583**。`osu.Desktop.slnf --no-restore` Release Rebuild **0 error / 11 known warnings**，保留 9 条 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`。
+- 独立代码、安全和测试终审在补合成 parent 即时预算、合法短读、全结构/预算零 source open、当前/历史 backing 清理、默认预算固定和 NFC lookup 后为 blocker/major **0/0**。剩余 minor 只涉及部分测试对 `IList`/buffer identity 的实现耦合与未穷举同一异常分支，不阻塞 pure capsule 合同。
+- 生产与测试改动文件的 targeted format verify 通过；文档健康检查通过 **122 个 Markdown / 967 个相对链接 / 26 个 memory wiki 链**，仅有 mainline plan 数字比值的既有非失败提醒；`git diff --check` 通过。
+- deterministic 测试全为纯内存 fake；生产 Realm、`chartskin/`、用户目录、网络与 GUI 零访问。下一刀仍须实现 Windows fixed-handle、handle-relative no-follow capture，闭合 8.3/SUBST/junction/hardlink alias、entry/final identity 与读取/枚举竞态；之后才允许 exact-capsule folder factory、选择、scanner、mutation 和 atomic reload 接入。`SV1-2`、G1、Skin V1 与产品交付均未因此完成。
+
 ### `SV1-2` 第一刀：folder authority/path lexical preflight 合同
 
 - shared core 新增无生产消费者的 `SkinFilesystemStorageResolver`，把 schema 56 的字段组合闭合为 Realm `.osk`、`chartskin/<direct-child>` managed folder、只读 drive-letter-qualified Windows external folder或 typed invalid。该语法不证明物理本地盘，mapped drive/SUBST/final identity留给后续 gate。Realm/内置无 folder 记录不触碰 Storage；folder 强制 `Files.Count == 0`，protected/fixed-ID/DeletePending 拒绝，normalised absolute/relative path不进入安全字符串。

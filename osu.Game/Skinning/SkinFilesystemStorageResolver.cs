@@ -330,35 +330,12 @@ namespace osu.Game.Skinning
                 if (isDriveDesignator)
                     continue;
 
-                if (segment.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-                    || segment.EndsWith(' ')
-                    || segment.EndsWith('.')
-                    || isReservedWindowsDeviceName(segment))
+                if (!SkinPackageResourceNameValidator.IsValidWindowsSegment(segment))
                     return false;
             }
 
             return true;
         }
-
-        private static bool isReservedWindowsDeviceName(string segment)
-        {
-            string stem = segment.Split('.')[0];
-
-            if (stem.Equals("CON", StringComparison.OrdinalIgnoreCase)
-                || stem.Equals("PRN", StringComparison.OrdinalIgnoreCase)
-                || stem.Equals("AUX", StringComparison.OrdinalIgnoreCase)
-                || stem.Equals("NUL", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            if (stem.Length != 4 || !isReservedDeviceNumber(stem[3]))
-                return false;
-
-            return stem.StartsWith("COM", StringComparison.OrdinalIgnoreCase)
-                   || stem.StartsWith("LPT", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool isReservedDeviceNumber(char character)
-            => character is >= '1' and <= '9' or '¹' or '²' or '³';
 
         private static bool isUncOrDevicePath(string path)
             => path.StartsWith(new string(Path.DirectorySeparatorChar, 2), StringComparison.Ordinal)

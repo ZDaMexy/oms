@@ -20,7 +20,7 @@ metadata:
 
 - preflight 结果不是 resolved/final physical identity、authority owner tag、mutation token、package inventory、`InstantiationInfo` 验证或选择资格。
 - `File.GetAttributes()` 分段检查存在 TOCTOU；8.3、SUBST、alias/final-path identity、包内 reparse与真实 junction traversal尚未闭合。不能把 normalised path直接交给 `NativeStorage`、scanner、rename/delete或 parser 后宣称安全。
-- external 的 `NativeStorage` 以后只能作为只读 source adapter；parser/decoder 应消费 no-follow 完整捕获并验证后的 OMS 自有 immutable revision capsule，不能持续直读可变 live folder。
+- pure post-capture capsule 已实现，地雷见 [[reference_skin_package_revision_capsule]]；但 Windows native no-follow producer 尚未实现。external 的 `NativeStorage` 以后只能作为只读 source adapter，parser/decoder 只能消费 native capture 完整成功后交付的 OMS 自有 capsule，不能持续直读可变 live folder。
 - scanner 开工前仍需 nullable opaque persistent owner token；null/unknown、`.osk`、另一 root/authority与不完整扫描中未见的记录都不能自动清理。
 - folder factory 必须精确允许 `InstantiationInfo`，不能走 `SkinInfo.CreateInstance()` 的历史 `TrianglesSkin` fallback。整包 reload 还需要 generation/current-selection/revision gate、全 consumer publication barrier和旧 owner安全退役。
 
