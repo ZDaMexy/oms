@@ -1,6 +1,6 @@
 # P1-A 开发计划：皮肤系统 V1、产品面与 release gate
 
-> 最后更新：2026-07-15
+> 最后更新：2026-07-16
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，本轮架构审计见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 当前专题定位
@@ -65,11 +65,11 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 - 外部 scene/event/script runtime；
 - 14K 四角 BGA 作为最终合同。
 
-## 产品功能进度与下一纵切
+## 当前产品进度与暂停点
 
-恢复后的 `.osk`/legacy mania、BMS F1 静态件与程序化 `OmsSkin` fallback 是当前可用基线，不是 Skin V1 新增交付。前二十个 `SV1-1` 切片只建立合同、fixture 与 decoder-time accepted provenance；其后首个产品纵切已把当前 selected managed `.osk` 的 BMS 普通短键 `name-{n}` 编号帧动画接入真实 gameplay。Skin V1 新增可见功能现为 **1**，自动 gate 已通过，新增动画实机待确认。
+恢复后的 `.osk`/legacy mania、BMS F1 静态件与程序化 `OmsSkin` fallback 是当前可用基线，不是 Skin V1 新增交付。前二十个 `SV1-1` 切片只建立合同、fixture 与 decoder-time accepted provenance；其后首个产品纵切已让用户选中的已导入 managed `.osk` 以 BMS 普通短键 `name-{n}` 编号帧动画进入真实 gameplay。Skin V1 新增可见功能现为 **1**，自动 gate 已通过，新增动画实机待确认。
 
-尚未交付的产品闭环包括：其它 slot 的完整三态接线、`oms-simple.osk` canonical 逐组件 fallback、安全 G1、统一 layout descriptor/solver、shared ini codec 与结构化诊断、scene/event runtime、sandbox script，以及同时含 mania/BMS 的 `oms-simple.osk` / `oms-complex.osk` 两个普通社区包。本任务完成后停止；下一检查点是用户实机确认新增编号帧动画，再选择下一项玩家可见组件。
+尚未交付的产品闭环包括：其它 slot 的完整三态接线、`oms-simple.osk` canonical 逐组件 fallback、安全 G1、统一 layout descriptor/solver、shared ini codec 与结构化诊断、scene/event runtime、sandbox script，以及同时含 mania/BMS 的 `oms-simple.osk` / `oms-complex.osk` 两个普通社区包。实现暂停于 `d1ea483`；下一新对话先做文档与 memory 健康治理，且不得借治理启动代码工作或提升 gate。治理完成并重新冻结执行门后，先由用户实机确认新增编号帧动画，再选择下一项玩家可见组件。
 
 ## 强制实施顺序
 
@@ -196,6 +196,8 @@ BMS 不直接继承 `ManiaLegacySkinTransformer`、`Column` 或 mania Drawable�
 | combo/judgement/gauge 是否显示 | 语义存在 | 可 `Provide/Inherit/Suppress` |
 | fallback/sandbox/budget | 是 | 不能绕过 |
 | 文件素材/manifest/script | 加载与隔离 | 内容 |
+
+> 以下逐切说明是待下一轮文档健康治理归档的历史快照，不是当前执行顺序；当前暂停点与下一门只以上方“当前产品进度与暂停点”为准。
 
 第九切只在合同 fixture 中冻结首个 selected-package revision ownership：同一 revision materialize 的 winner/rejected components 由一个 owner 统一持有，resolver/consumer 只借用；失败 provisional revision 只销毁自身，成功原子替换必须先 detach 旧 consumer 再 dispose superseded owner。该切本身不是 `SV1-2` 原子 reload 实现，也没有 concrete production owner、Drawable parenting/thread affinity 或缓存接线；其后的普通短键纵切已补 concrete owner/private cache/per-component replacement，但没有把完整六字段候选链或整包原子 reload 生产化。
 

@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | 已恢复可信基线并冻结 `oms-simple/oms-complex` + 社区作者路线 | 实机/数据、shared fixtures、G1、layout/scene/script、文件 fallback |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；`SV1-1` 新增可见功能 1，动画实机待确认，整体仍不可用 | 实现暂停；下一新对话先做文档/memory 健康治理，之后再闭合动画实机 gate |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity 主体已落；常驻反馈卡已按产品决定删除 | 保持 parity gate，补剩余人工/展示面 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |

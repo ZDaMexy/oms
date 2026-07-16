@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-15
+> 最后更新：2026-07-16
 > 本页只保留全局执行顺序、依赖和验收门。子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。当前事实以 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 为准。
 
 ## 当前目标
@@ -34,7 +34,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 
 ### R2：Skin V1 共同合同与首个产品纵切
 
-状态：R0/R1 已解除；`SV1-1` 在前二十个合同地基之后已实现首个玩家可见组件：当前 selected managed `.osk` 的 BMS 普通短键编号帧动画。自动 gate 已通过，因此当前新增可见功能计为 1；新动画实机仍待确认。`SV1-1` 未完成，`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现，不能把当前纵切描述为 Skin V1 可用。本任务在提交该功能后停止，下一 gate 只记录为用户实机确认。
+状态：R0/R1 已解除；`SV1-1` 在前二十个合同地基之后已实现首个玩家可见组件：用户选中已导入的 managed `.osk` 时，BMS 普通短键可使用编号帧动画。自动 gate 已通过，因此当前新增可见功能计为 1；新动画实机仍待确认。`SV1-1` 未完成，`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现，不能把当前纵切描述为 Skin V1 可用。实现暂停于 `d1ea483`；下一新对话先做文档与 memory 健康治理，治理只归位事实/历史、不改产品合同或代码。治理完成并重新冻结执行门后，再闭合新动画实机 gate，并由产品决定下一组件。
 
 1. 冻结 ruleset-neutral ini codec、layout context、lane group/role/side/stable ID 和 mania compatibility fixtures；lane identity/order snapshot、neutral validator、topology-only publication/process-local native-context revision、decoder bucket presence、legacy mania scalar/indexed-array/四项 global colour/per-column colour/exact 13 项 bucket-global resource/`NoteBodyStyle` accepted provenance、native `[Bms]` exact 22 项 colour / 12 项 geometry accepted provenance、两侧六类 lane-resource decoder-time accepted provenance、mapping/resolution 已落。geometry snapshot 只是 parser-accepted source provenance，full finite/range/screen-space validation 与唯一 resolved layout 仍归 neutral descriptor/solver。BMS 普通短键是首个真实文件窄纵切，已闭合其所需的精确 package authority、资源/帧验证、预算、owner 与后台准备边界；这不代表其它资源、完整 neutral config/shared codec、layout、production revision/event/wire 或整包重载已经完成。
 2. 冻结 `Provide / Inherit / Suppress` 三态及最小可玩组件；平行 result/resolver、precedence fixture 与 26 项内部 semantic slot 分类已完成，BMS 普通短键 critical slot 已把 `Provide/Inherit` 接到生产 gameplay。作者 `Suppress`、其它 slot、manifest mapping 和最终 `oms-simple` 文件 fallback 仍待后续。
@@ -103,7 +103,7 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | BMS 解析/转换 | raw/typed 模型、主要控制事件、BMS→mania 转换 | 特殊谱尾项与真实谱组合证明 |
 | gameplay/判定 | 主要 keymode、判定家族、gauge、EX score、LN/CN/HCN 链 | 真实设备和真实谱验收 |
 | 音频/BGA | shared keysound、转谱音频主链、BGA 图/视频链 | 转谱 LN、极端 dense、逐谱视觉/暂停恢复体验 |
-| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56；SV1-0 自动/数据/实机 gate 已过；managed `.osk` BMS 普通短键编号帧动画已通过自动 gate | 新动画实机确认；其它 slot 三态、G1、LN/mania compatibility、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
+| 皮肤 | `.osk` F1 静态素材/ini + component lookup + 程序化迁移 fallback + schema 56；SV1-0 自动/数据/实机 gate 已过；managed `.osk` BMS 普通短键编号帧动画已通过自动 gate | 先治理文档/memory；之后单独确认新动画实机；其它 slot 三态、G1、LN/mania compatibility、安全 layout descriptor、shared ini、scene/event/script、`oms-simple/oms-complex`、Authoring Kit、移除程序化产品视觉 |
 | Song Select | BMS 分组、筛选、搜索和主要展示 | 拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | `chartbms/chartmania`、多根扫描、portable/custom root | 删除/失效/去重策略、最终覆盖更新复核 |
 | 输入 | keyboard/Raw/XInput/Mouse/DirectInput 基线 | analog scratch、一致校准、真实硬件 |
@@ -119,7 +119,8 @@ Phase 1.x 的完成不以“代码数量”判断，而以以下 gate 同时成�
 | 改动面 | 最低自动验证 | 额外人工验证 |
 | --- | --- | --- |
 | BMS parser/gameplay | BMS focused + BMS full | 命中特殊谱时逐谱验收 |
-| 皮肤/fallback | BMS skin focused + mania 默认资源 + core skin focused + Release | 全 keymode/style/BGA、Provide/Inherit/Suppress、`oms-simple/oms-complex`、canonical 恢复、脚本故障隔离 |
+| 仅 BMS ruleset 内的皮肤组件且不改 shared/mania/fallback authority | BMS skin focused + BMS relevant/full + Release | 对应 keymode、选择/回落与新增视觉实机 |
+| shared skin、mania compatibility 或 fallback authority | core skin focused + mania relevant + BMS relevant + Release | 本次已实现且受影响的 keymode/style/选择/fallback；完整三态、双包、canonical 恢复与脚本矩阵留到对应能力实现及 release gate |
 | 输入 | `oms.Input`/bridge focused + BMS relevant | 真实控制器 edge/hold/轴 |
 | 存储/Realm | importer/scanner focused + Release | 备份数据根上的升级/重扫/恢复 |
 | 音频/BGA | 对应 player/store/cache focused + BMS full | pause/seek、长样本、逐谱视听 |

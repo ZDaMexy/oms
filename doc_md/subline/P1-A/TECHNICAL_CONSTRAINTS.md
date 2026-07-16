@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-15
+> 最后更新：2026-07-16
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 归线与产品边界
@@ -211,12 +211,12 @@
 
 ## 测试与发布约束
 
-1. 任何 skin 改动至少同时覆盖用户 package、`Inherit` fallback、`Suppress`、`oms-simple`、mania 默认资源和 BMS 对应 keymode；迁移期间另保留当前 `OmsSkin` 对照，直到文件 fallback 正式接管。
+1. 验证按实际改动面分层：仅改 BMS ruleset 内组件且未触碰 shared skin、mania compatibility 或 fallback authority 时，至少覆盖用户 package、对应 `Provide/Inherit`、BMS relevant/full 与 Release；修改 shared skin、mania compatibility 或 fallback authority 时，必须追加 core skin focused、mania relevant、BMS relevant 与 Release。`Suppress`、真实 `oms-simple`、canonical 恢复与双 ruleset 包只在对应实现存在后作为 gate，不能用尚不存在的产品面制造伪通过；迁移期间保留当前 `OmsSkin` 对照，直到文件 fallback 正式接管。
 2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。
 3. layout 最低矩阵：5K/7K × 四 style，9K BMS，9K PMS，14K；每格覆盖 lane order/bounds/scratch role/BGA viewport/gauge safe slot/时序不变。
 4. sandbox 最低矩阵：权限拒绝、无限循环、内存/节点超限、异常熔断、replay determinism、seek/retry/pause/reload 和 profiler。
 5. V1 release 必须有两个普通 `.osk` 公共 API 验收包：`oms-simple` 与 `oms-complex`，两者均同时包含 mania/BMS。`oms-simple` 不得被补出已显式 suppress 的可选件；`oms-complex` 不得使用私有接口。
-6. BMS full、mania relevant/full、core skin focused、Release 构建和实机视觉/性能结果均需记录；已知失败必须稳定归因。
+6. 每次记录本次实际运行的 BMS/mania/core/Release 与人工视觉/性能结果；按上条未要求重跑的套件也要明确写“未运行及原因”。已知失败必须稳定归因，不得把既有失败写成新回归。
 7. 文档不得把“代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”混成一个完成状态；能力矩阵必须分列。
 8. 不得宣称 LR2/beatoraja/IIDX 文件格式兼容；“接近 IIDX 表现上限”只描述公开接口表达力。
 9. managed `.osk` BMS 普通短键编号帧动画必须单独取得用户实机确认；2026-07-14 的静态恢复验收只能证明 `SV1-0` 基线，不得复用为新动画 gate。

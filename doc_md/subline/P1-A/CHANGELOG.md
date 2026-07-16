@@ -2,11 +2,22 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-16
+
+### 当前事实、作者文档与 memory 同步；移交下一轮健康治理
+
+- **产品事实未变**：`SV1-0` 自动/数据/2026-07-14 实机三门全过；首个玩家可见普通短键编号帧纵切自动 gate 已过，Skin V1 新增可见功能仍为 **1**，新动画实机仍待确认；`SV1-1` 未完成、`SV1-2` 仅 early carrier、`SV1-3`～`SV1-7` 未实现，Skin V1 整体不可用。
+- **执行暂停点**：实现停在 `d1ea483`。下一新对话只做文档与 memory 健康治理；治理不改代码、产品合同或 gate，也不算产品功能。治理完成并重新冻结执行门后，才先闭合新动画实机 gate，再由产品决定下一组件。
+- **事实纠偏**：把“当前选中的 managed `.osk`”统一改成条件式能力——用户选中已导入 managed 包时该能力生效；schema 56 清点结束时的实际当前选择仍是 protected OMS。测试矩阵按改动 authority 分层，补记首个产品纵切因未改 shared `osu.Game`、mania compatibility 或 fallback authority 而未重跑 core/mania。
+- **派生文档与隐私**：`SKINNING.md` 补齐 ordinary-note 的真实范围、固定 60 FPS、`Keymodes` 仅提示、`Provide/Inherit` 窄生产例外及当前 `OmsSkin`／最终 `oms-simple` 边界；恢复文档与 memory 移除本机绝对路径，只保留脱敏 authority/归档描述。
+- **边界**：本次没有代码、runtime、生产 Realm、`chartskin/`、用户皮肤目录、网络或其它用户数据访问/写入；没有运行产品测试或 Release build，完整保留 2026-07-15 的 26/283/1333、Release 0 error / 20 warnings 与既有告警记录。
+- **文档验证**：hidden-aware 全仓 Markdown 检查为 **119 个文件 / 937 个相对链接 / 0 断链**；`git diff --check` 通过，新增行隐私扫描 **0 命中**。未使用 `NoWarn`，也没有把文档同步写成 runtime 自动 gate。
+
 ## 2026-07-15
 
 ### `SV1-1` 首个玩家可见纵切：managed `.osk` BMS 普通短键 numbered-frame animation
 
-- **玩家功能**：当前选中的已导入 managed `.osk` 现在可用 osu 社区式 `name-0`、`name-1`…编号帧驱动 BMS 普通短键动画；既有静态 `NoteImage` 属恢复基线，本次只把编号帧动画计作新增可见功能。
+- **玩家功能**：当用户选中已导入的 managed `.osk` 时，它可用 osu 社区式 `name-0`、`name-1`…编号帧驱动 BMS 普通短键动画；既有静态 `NoteImage` 属恢复基线，本次只把编号帧动画计作新增可见功能。
 - **可玩回落**：单个短键素材缺失、损坏、越权或超预算时只让该 slot 沿既有选择链继续回落，不会让短键消失；有效 beatmap-local 视觉仍高于 selected package，跨 package 同名素材不得拼接。
 - **需求对应**：为满足已声明的资源隔离、安全预算与 update thread 不做文件 IO/解码要求，素材声明和帧序列绑定到精确 package revision，并在后台准备完成后发布；换肤期间保留现有视觉，过期结果不会覆盖新选择。
 - **验证**：产品自动验收 **26/26**、相关 focused **283/283**、BMS full **1333/1333**、`osu.Desktop.slnf` Release **0 error / 20 warnings**，独立终审 blocker/major **0/0**；Markdown **119 文件 / 934 相对链接 / 0 断链**。保留 9 条 MessagePack 3.1.3 `NU1902` 在 restore/build 重复显示及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。

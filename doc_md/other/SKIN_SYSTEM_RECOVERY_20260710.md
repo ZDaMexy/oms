@@ -20,15 +20,15 @@
 | 采用的隔离基线 | `refs/archive/pre-recovery-20260710/isolation-2b27` |
 | 恢复前 dirty tree（含 untracked） | `refs/archive/pre-recovery-20260710/dirty-stash` / stash `4bde4c3400517e4c505b9be4fc2b321aa6bbe51b` |
 | 当时可达与不可达 Git 对象 | `refs/archive/pre-recovery-20260710/unreachable/*` |
-| 完整 Git bundle | `F:\oms-recovery-archive\20260710-skin-recovery\oms-pre-recovery.bundle` |
-| 运行时数据备份 | `F:\oms-recovery-archive\20260710-skin-recovery\runtime\{production,release-test,appdata}` |
+| 完整 Git bundle | 仓库外脱敏恢复归档中的 `oms-pre-recovery.bundle` |
+| 运行时数据备份 | 同一脱敏恢复归档中的 `runtime/{production,release-test,appdata}` |
 
 `git bundle verify` 已确认 bundle 包含完整历史及恢复用 refs。运行时备份包含三个已发现数据根的 Realm、配置和存在的 `chartskin/`；恢复时没有 OMS/osu 进程占用这些文件。归档仅用于审计和定点取回，**禁止整包 apply/cherry-pick 回主线**。
 
 ## 保留的实现
 
 1. **F1 静态素材/ini 主链**：独立 `[Bms]` 解析、`BmsLegacySkin` 配置源、`.osk` 导入路由、现有静态渲染件的颜色/纹理/几何配置、reference `skin.ini` 自校验门。
-2. **不可删除的程序化最终兜底**：`OmsSkin` 仍处于 fallback 链底；用户皮肤缺件必须逐组件回落。
+2. **恢复期不可提前删除的程序化迁移兜底**：`OmsSkin` 仍处于实际 fallback 链底，用户皮肤缺件必须逐组件回落；它不是最终产品 fallback，Skin V1 最终由只读 `oms-simple.osk` 接管并在发布前让程序化主题视觉退出产品链。
 3. **G1 的两个无生产行为建块**：folder-backed 构造入口；`SkinInfo` 两个 nullable/scalar 字段与 Realm schema 56。它们不等于 `chartskin/` 已可扫描、选择、删改或热重载。
 4. **H1 流位置修正**：`BmsLegacySkin` 复制 `skin.ini` 后，在交给 base mania parser 前把流位置重置到 0。
 5. **H2 14K 双皿映射修正**：decoder 接受 `S2`，14K 右皿 lane 映射到 `P2` 素材，左皿仍映射 `S`/`P1`。
@@ -62,4 +62,4 @@
 - mania 全量：**787/791**；4 项失败均为 `TestSceneAutoGeneration` 的既有 HoldNote frame-count 期待，本恢复未修改 mania/autoplay 代码。
 - core skin focused：**57/62**；1 项仍期待已移除的 Argon 默认类型，4 项依赖已移除 ruleset 的 osu beatmap 归档，属于恢复基线既有测试失配。
 - `osu.Desktop.slnf` Release：**0 error / 20 warnings**。18 条是 MessagePack 3.1.3 的 9 个 NU1902 在 restore/build 两阶段重复报告；其余为 BMS test 工程既有 CS8600/CA2007。恢复不保留用全局 NoWarn 隐藏依赖告警的改动。
-- 人工视觉验收在用户确认前保持未完成。
+- 本审计形成时，人工视觉验收在用户确认前保持未完成；用户已于 2026-07-14 完成 `SV1-0` 全清单，当前结论见 [schema 56 / 实机门报告](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。其后新增的 managed `.osk` BMS 普通短键编号帧动画是独立产品 gate，不能复用该静态恢复结论。

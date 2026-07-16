@@ -5,11 +5,11 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — OMS 范围、架构、阶段与红线。
-- [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算与同次联动。
+- [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算、同次联动与 2026-07-16 P1-A 健康治理交接。
 - [反馈工作流](feedback_workflow.md) — 中文协作、真机反馈权威、修复→验证→文档/记忆→提交。
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 分界点、恢复基线、归档 refs、保留/撤回面与重新准入门。**处理皮肤任务先读。**
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 当前可信面、稳定产品决议和实现地雷。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 当前可信面、首个 managed `.osk` BMS 普通短键 production 纵切、稳定产品决议和实现地雷。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — P1-I 展示层级、返回条、分组与转谱展示。
 - [内置音乐播放器](project_oms_music_player.md) — P1-M 规划与边界。
 

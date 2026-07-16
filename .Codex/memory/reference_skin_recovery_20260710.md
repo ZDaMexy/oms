@@ -13,13 +13,13 @@ metadata:
 - 协作分界点：**2026-06-30 00:05（北京时间）**。
 - 严格分界前最后正式提交：`b53b798`。
 - 采用的工作树基线：`2b27c09`。只因它的 schema 56 patch 已存在于分界前 WIP `a4c3346`，且现有 Realm 已可能升级；不是认可它之后的协作质量。
-- 恢复前 HEAD `9e37087` 与 dirty tree 没有丢弃：分别保存在 `refs/archive/pre-recovery-20260710/head` 和 `.../dirty-stash`；完整 bundle 位于 `F:\oms-recovery-archive\20260710-skin-recovery\oms-pre-recovery.bundle`。
-- 运行时数据备份位于同目录 `runtime/{production,release-test,appdata}`。生产数据根是 `D:\oms\data`，其 Realm 在恢复时约 108 MB，并有 `chartskin/`。
+- 恢复前 HEAD `9e37087` 与 dirty tree 没有丢弃：分别保存在 `refs/archive/pre-recovery-20260710/head` 和 `.../dirty-stash`；完整 bundle 位于仓库外脱敏恢复归档。
+- 运行时数据备份位于同一脱敏归档的 `runtime/{production,release-test,appdata}`。恢复时的生产 authority 是脱敏自定义数据根，其 Realm 约 108 MB，并有 `chartskin/`。
 
-## 当前可信皮肤面
+## 恢复时的可信皮肤面与当前补充
 
-- F1：`BmsSkinDecoder` / `BmsLegacySkin` / `.osk` 导入路由；现存静态件的颜色、纹理、几何；reference ini 自校验。
-- 程序化 `OmsSkin` 是最终兜底，用户皮肤缺件逐组件回落。
+- 恢复基线 F1：`BmsSkinDecoder` / `BmsLegacySkin` / `.osk` 导入路由；现存静态件的颜色、纹理、几何；reference ini 自校验。其后只有 native BMS 普通短键编号帧成为窄生产例外；当前全貌看 P1-A STATUS。
+- 程序化 `OmsSkin` 是恢复时及当前实际迁移链底，用户皮肤缺件逐组件回落；最终产品 fallback 是只读 `oms-simple.osk`，程序化主题视觉必须在 V1 发布前退出。
 - G1 只保留两块：folder-backed ctor；`SkinInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` + Realm schema 56。**没有**生产扫描、选择、安全删改或热重载。
 - 恢复时新增两个独立修正：复制流后 reset position 再交 base parser；14K 右皿 `S2` → `P2` 素材映射。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 替换均未落地。
@@ -30,12 +30,12 @@ metadata:
 - 删除/重命名必须先 resolve、做 root containment、拒绝冲突并考虑 reparse point；禁止“目标存在就递归删除”。
 - 启动扫描不能以本轮扫描结果删除不属于自身 authority 的 Realm 记录。
 - parser/unit 类型断言不证明生产 `SkinManager`、ruleset fallback 或真实事件链已接通。
-- BMS 测试数字变绿不能以破坏 mania 默认资源为代价；跨 ruleset focused gate 必跑。
+- BMS 测试数字变绿不能以破坏 mania 默认资源为代价；触碰 shared skin、mania compatibility 或 fallback authority 时，跨 ruleset focused gate 必跑。
 - 不要恢复旧测试中“用户 BMS 皮肤缺件不得落到 OmsSkin”的错误期待，正确合同是逐组件 fail-open fallback。
 
-## 继续工作的入口
+## 恢复后的历史重开清单与当前入口
 
-1. 先读 `doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md` 与 P1-A 四件套。
-2. 清点 schema 56 数据中的 folder-backed 记录，只读诊断优先，不自动清理。
-3. G1 按 managed/external、安全删改、扫描 authority、热重载四个独立切片重做；每刀都跑 BMS、mania 默认资源、core skin focused 与 Release build。
-4. 真机视觉验收未通过前，不写“已完成/发行可用”。
+1. 先读 `doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md` 与 P1-A 四件套；当前执行门只看 P1-A STATUS/PLAN。
+2. schema 56 清点与定点迁移、`SV1-0` 自动/数据/2026-07-14 实机 gate 均已完成；不要重复打开或清理生产数据。
+3. G1 仍须按 managed/external、安全删改、扫描 authority、热重载四个独立切片重做；测试按实际改动面选择，修改 shared/mania/fallback authority 时才强制追加 core/mania gate。
+4. 2026-07-14 只闭合恢复静态基线；其后新增的普通短键编号帧动画仍须单独实机确认。当前实现暂停，下一新对话先治理文档/memory。

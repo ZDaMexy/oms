@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **实现状态（务必先读）**：截至 **2026-07-10 可信恢复基线**，当前玩家可用的是 `.osk` + `[Mania]/[Bms] skin.ini`；BMS 现存静态件已有颜色/纹理/几何支持。到 2026-07-15，`SV1-1` 已积累十四个只在合同/fixture 层的地基切片，最新一切只增加 process-local topology publication/native continuity，仍未接产品链。`chartskin/` 生产链、热重载、三态 suppress、declarative scene、事件 ABI、沙箱脚本和文件型默认均未启用。事故期 F2/Lua 不算当前能力。Skin V1 的目标是交付同权的 `oms-simple.osk` 与 `oms-complex.osk`，并让第三方使用完全相同的公开 API；当前程序化 `OmsSkin` 仅为迁移基线，最终不进入产品渲染链。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **实现状态（务必先读）**：截至 **2026-07-16**，`SV1-0` 自动、数据与用户实机 gate 已全部通过。`SV1-1` 在前二十个合同/来源事实切片后交付了首个玩家可见纵切：当用户选中已导入的 managed `.osk` 时，native `[Bms] NoteImage*` 可用 `name-0`、`name-1`…驱动 BMS 普通短键动画，并用于真实 gameplay 与开局前速度预览；自动 gate 已通过，新增动画仍待用户实机确认。当前只有普通短键 critical slot 消费 `Provide/Inherit`；作者 `Suppress`、其它 slot、`chartskin/` 生产链、整包原子重载、scene/event/script 与文件型默认均未启用。程序化 `OmsSkin` 仍是迁移链底，Skin V1 整体不可用；最终目标仍是同权的 `oms-simple.osk` 与 `oms-complex.osk`，第三方使用完全相同的公开 API。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
@@ -33,7 +33,7 @@
 
 ## 1. 这套皮肤能做什么 / 不做什么
 
-**V1 目标能做（不是当前全部可用）**：stage、lane、note/LN、判定位置、judgement、gauge、combo、lane cover、BGA frame，以及 turntable、keyflash、hit lighting、hold light、ghost/TD、bpm/progress 等。当前 `.osk/ini` 只实现其中的静态子集；分层矩阵见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
+**V1 目标能做（不是当前全部可用）**：stage、lane、note/LN、判定位置、judgement、gauge、combo、lane cover、BGA frame，以及 turntable、keyflash、hit lighting、hold light、ghost/TD、bpm/progress 等。当前 `.osk/ini` 实现 F1 静态子集，并有一个窄动态例外：managed `.osk` 的 BMS 普通短键编号帧动画；其它动态外部运行时尚未交付。分层矩阵见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
 
 **V1 作者面分层**：
 
@@ -75,7 +75,7 @@ MyBmsSkin/
 - 规划中的可视目录为 OMS 数据目录下的 `chartskin/`，但可信恢复基线尚未启用扫描、选择、删除、重命名或热重载；不要手工放入后期待自动发现。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
-- 热重载：当前可信基线未启用；修改来源后需重新导入/重选。安全路径 authority、完整验证后原子切换与失败保留旧实例属于 `SV1-2` 验收项。
+- 热重载：当前可信基线未启用；修改来源后需重新导入/重选。普通短键在选择 A→B 时可后台准备并保留旧视觉到新视觉就绪，但这不是来源文件热重载，也不是 `SV1-2` 的整包原子切换。安全路径 authority、完整验证后原子切换与失败保留旧实例仍属于 `SV1-2` 验收项。
 
 ---
 
@@ -88,7 +88,7 @@ MyBmsSkin/
 Name:     My BMS Skin
 Author:   You
 Version:  1.0
-Keymodes: 7K, 14K          // 本皮肤声明覆盖的 keymode；未声明的回退内置默认
+Keymodes: 7K, 14K          // 仅作覆盖声明/编辑器提示；实际加载看各 [Bms] Keymode bucket
 
 [Bms]
 Keymode:  7K               // 此段描述 7K 的所有车道/几何/素材
@@ -116,16 +116,16 @@ Keymode:  14K              // DP 单独一段
 - **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色)）。
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
-- **动画**：帧序列用 `name-0`、`name-1`… 命名 + `LightFramePerSecond` 控速（对齐 mania）；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
+- **动画**：帧序列沿用 `name-0`、`name-1`… 命名；当前 BMS 普通短键纵切固定按 60 FPS 循环，`LightFramePerSecond` 不控制该动画。其它 V1 animation 速度 ABI 尚未冻结；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
 - **当前容错**：未知键通常被忽略、非法值回落；当前 decoder 没有完整、可查询的结构化诊断，不能承诺每个坏行都有告警。V1 才冻结未知键、非法值、缺资源、不支持 capability 与 fallback 来源的诊断合同。详见 [§7](#7-必备--推荐--可选与三态解析)。
 
 > **schema 来源说明**：键集 / 语义的**真实依据是代码实现**（`BmsSkinDecoder` / `BmsSkinConfigurationLookups` + `BmsPlayfieldLayoutProfile` / `BmsDefaultPlayfieldPalette` 暴露的可参数化量）；[P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与本文都是**据代码派生的视图**，**不反向约束实现**。**与 mania 同义的键尽量沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义。`F1` 解析层（`[General]` / `[Bms]` 段、几何 / 颜色 / 纹理键）已落地，本文相关字段已据 `F1` 代码更新。
 
 ### 3.1 `[Mania]` 共同逻辑的 V1 兼容映射
 
-当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：现已先把六类逐 lane 资源从现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral snapshot，并建立未接生产的候选计划；后续再扩齐配置并逐步共用 codec，不在这一刀重写成熟 mania 生产解析器。
+当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但完整 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：现已先把六类逐 lane 资源从现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral snapshot，并建立未接生产的候选计划；后续再扩齐配置并逐步共用 codec，不在这一刀重写成熟 mania 生产解析器。唯一生产例外是用户所选已导入 managed package 的 exact native `[Bms] NoteImage*` 普通短键，它不消费 mania candidate，也尚未接真实 `oms-simple`。
 
-gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 必要的 deck/key-only bucket → `oms-simple`。当前合同 fixture 只保留整个有序候选计划和末端 canonical marker，不验证资源、不选择首值，也没有装载真实 `oms-simple` package。
+gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 必要的 deck/key-only bucket → `oms-simple`。完整候选计划当前仍只在合同 fixture 中保留顺序和末端 canonical marker，不验证全部资源、不选择首值，也没有装载真实 `oms-simple` package；上段 ordinary-note 例外只解析精确 native `[Bms]` 声明。
 
 | BMS 模式 | 全视觉列兼容桶 | 普通键兼容桶 | 备注 |
 | --- | --- | --- | --- |
@@ -134,7 +134,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 | 9K / PMS | `Keys: 9` | — | BMS/PMS role 仍由 adapter 区分；同一 `Keys:9` 不重复加入 key-only candidate |
 | 14K + 双 scratch | `Keys: 16` | 同一 `Keys:8` bucket 分别投影两个 deck，再接 `Keys:14` 普通键 | 固定顺序为 16→8-deck→14；legacy decoder 不保留第二个重复 `Keys:8` section |
 
-这只描述 gameplay package slot，不改写 lazer 现有的谱面内皮肤与 ruleset resource provider authority。当前 fixture 已固定 P2/CenterRightScratch 按 visual index 取 compatibility column，而 stable lane ID/action 不变；生产查询链尚未接入。
+这只描述 gameplay package slot，不改写 lazer 现有的谱面内皮肤与 ruleset resource provider authority。当前 fixture 已固定 P2/CenterRightScratch 按 visual index 取 compatibility column，而 stable lane ID/action 不变；完整 compatibility 查询链尚未接生产。普通短键窄纵切保留 beatmap-local 优先级，在用户所选 managed package 失败后继续既有外层 provider 链。
 
 ---
 
@@ -165,7 +165,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 5. 静态素材族（mania 对齐）
 
-当前 `.osk/[Bms]` 已有生产消费方的是 note/LN、lane background/divider、hit target、barline、lane cover、backdrop/baseplate 的颜色/纹理/几何子集。stage/key area 虽有部分解析或设计名，但尚无完整生产渲染消费方；下表同时列出 V1 compatibility 目标，不能把每个键都当作当前已生效。共同项优先复用 mania 语义，BMS 的 scratch/DP role 由 adapter 补足。
+当前 `.osk/[Bms]` 已有生产消费方的是 note/LN、lane background/divider、hit target、barline、lane cover、backdrop/baseplate 的颜色/纹理/几何子集。其中用户选中 managed `.osk` 时，普通 `NoteImage*` 已支持静态图和编号帧动画；LN 与其它素材仍走既有路径。stage/key area 虽有部分解析或设计名，但尚无完整生产渲染消费方；下表同时列出 V1 compatibility 目标，不能把每个键都当作当前已生效。共同项优先复用 mania 语义，BMS 的 scratch/DP role 由 adapter 补足。
 
 ### 5.1 Stage 框架
 | 键 | 作用 | 必备档 |
@@ -177,7 +177,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 ### 5.2 Note / Long note
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
-| `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（缺→内置色块） |
+| `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（当前缺失/损坏时继续外层链并最终落到程序化 `OmsSkin`；V1 目标为 `oms-simple`） |
 | `NoteImage{lane}H` | 长条头 | **必备** |
 | `NoteImage{lane}L` | 长条身 | **必备** |
 | `NoteImage{lane}T` | 长条尾 | 推荐（默认透明） |
@@ -251,26 +251,26 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 7. 必备 / 推荐 / 可选与三态解析
 
-当前 nullable lookup 只有“提供 / `null` 后继续 fallback”，没有显式关闭。V1 新增平行 gameplay provider 结果，不直接破坏现有 `ISkin` ABI：
+现有 `ISkin` ABI 仍是 nullable；当前只有 BMS 普通短键通过平行结果实际消费 `Provide/Inherit`，作者 `Suppress` 尚未生产化。完整 V1 三态目标如下：
 
 - `Provide`：验证成功后使用；资源坏掉则降为 `Inherit` 并诊断。
-- `Inherit`：按组件继续 compatibility，并最终落到只读 `oms-simple.osk`。
-- `Suppress`：作者明确不显示，只允许可选视觉；缺文件绝不等于 suppress。
+- `Inherit`：按组件继续后续链；当前普通短键最终落到程序化 `OmsSkin`，V1 完成后才落到只读 `oms-simple.osk`。
+- `Suppress`：V1 作者明确不显示的目标语义，只允许可选视觉；当前作者包尚不能使用，缺文件绝不等于 suppress。
 
 ### 7.1 三档定义
 - **必备 (Required)**：只指可玩核心。lane/scratch 可辨识、note/LN/mine、判定位置，以及启用 lane cover 时的实际遮挡几何必须有 rescue，不能 suppress。清单见 [附录 B](#附录-b必备元素清单)。
-- **推荐 (Recommended)**：标准预期，回退到内置可接受。
+- **推荐 (Recommended)**：标准预期，回退到当前 `OmsSkin`／最终 `oms-simple` 可接受。
 - **可选 (Optional)**：纯表现。按键动画、判定图、combo、gauge 视觉、HUD、BGA frame 和装饰效果均可显式 suppress；`oms-simple` 不得被 fallback 强行补回来。
 
 ### 7.2 校验三层（加载期）
 1. **语法合法性**：未知键、非法值与不支持 capability 结构化记录；非法值逐字段回退。
 2. **资源引用**：路径 containment、文件存在、解码像素/字节/纹理/帧数预算均先验证；失败只熔断对应外部层。
-3. **完备性**：必备件必须能解析（皮肤给或内置兜底）。
+3. **完备性**：必备件必须能解析（皮肤提供，或由当前 `OmsSkin`／最终 `oms-simple` 兜底）。
 
 ### 7.3 行为契约（关键分工）
-- **加载期 = fail-open + 可查询诊断**：错误 package 不阻断游玩；完整验证成功后才原子替换旧实例。当前恢复基线只具备部分 fail-open，没有这套完整诊断/原子 reload。
+- **加载期 = fail-open + 可查询诊断**：错误 package 不阻断游玩；完整验证成功后才原子替换旧实例。普通短键已有 per-component 后台准备、旧视觉保留与安全回落，但这不代表完整诊断或整包原子 reload。
 - **编辑期 = 比加载期更严**：这是后续工具目标；当前没有完整可视皮肤编辑器。
-- **keymode 覆盖**：皮肤可只声明部分 keymode（如只做 7K），未声明的 keymode → 回退内置默认；`[General] Keymodes:` 用于声明覆盖面与编辑期提示。
+- **keymode 覆盖**：实际覆盖由对应 `[Bms] Keymode:` bucket 及具体 slot 声明决定；`[General] Keymodes:` 当前仅是 informational/editor hint，不参与加载期 gating。缺失 slot 沿当前 `OmsSkin`／最终 `oms-simple` 链回落。
 
 ---
 
@@ -304,7 +304,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 ## 10. 当前制作流程与 V1 验收
 
 1. **当前复制 reference ini；V1 复制 `oms-simple` 源目录**（[§9](#9-oms-simpleoms-complex-与最终-fallback)）为起点，而非从空白开始。
-2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。
+2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}` 指向资源基名并提供 `name-0`、`name-1`…；当前仅已导入 managed `.osk` 的 native `[Bms]` 普通短键支持，固定 60 FPS，LN/mania compatibility 不在本纵切。
 3. **重新打包、导入和重选**：当前没有可信热重载；不要依赖 `chartskin/` 自动扫描。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
 5. **看运行结果与日志**：当前诊断并不完整；遇到静默回退时以实际渲染与 focused test 为准。
@@ -336,7 +336,7 @@ mania 的上限审查给出的结论不是“它已有通用脚本”，而是�
 | --- | --- | --- | --- |
 | Stage / backdrop | legacy 素材与固定布局较完整 | backdrop/baseplate 可配；stage 消费方不完整 | named slot + 静态/动画 scene node |
 | Lane / playfield | column 背景、宽度、间距、key area；行为固定 C# | lane/divider/hit target 的 F1 颜色/纹理/几何 | engine layout snapshot + per-lane template |
-| Note / LN | 逐列素材、body style、固定 C# hold 状态 | note/LN F1 子集；hold truth 在引擎 | pooled note/LN template；滚动与裁剪仍归引擎 |
+| Note / LN | 逐列素材、body style、固定 C# hold 状态 | note/LN F1 静态子集；managed package 的普通 `NoteImage*` 静态/编号帧已进真实 gameplay 与速度预览，LN 动画及其它三态 slot 未接 | pooled note/LN template；滚动与裁剪仍归引擎 |
 | Mine | 无 BMS 语义 | 当前为程序化 visual，未形成外部完整槽 | pooled mine template + hit/visibility event |
 | Key / hit effects | key press、column light、explosion 的素材；动画逻辑固定 C# | hit target 已有，keyflash/bomb/turntable 等未生产化 | press/release/hit/scratch 事件 + effect pool |
 | Judgement | legacy 图片/帧，播放逻辑固定 C# | 主要是程序化/受信任 code provider；非完整 `[Bms]` 作者面 | optional result variant/animation；neutral result key |
@@ -353,14 +353,14 @@ V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉
 
 ## 附录 B：必备元素清单
 
-下列才是不可 suppress 的最小可玩核心；引擎必须始终有风格中立的 rescue：
+下列才是不可 suppress 的最小可玩核心；运行链必须始终有可玩 rescue。当前由程序化 `OmsSkin` 暂代，V1 最终必须由文件型 canonical `oms-simple.osk` 提供：
 
 - lane/scratch 的边界和角色可辨识；
 - 普通音符、长条的必要可读部分与 mine；
 - 判定位置；
 - 当 lane cover 玩法启用时，真实遮挡范围与可调状态。
 
-按键动画、判定**显示**、combo、gauge **视觉**、数值 HUD、BGA frame、stage/角色/爆炸等均为可选。它们可 `Inherit` 获得 `oms-simple` 表现，也可由作者显式 `Suppress`；这正是“只有色块下落与按键游玩”的合法 `oms-simple` 下限。
+在完整三态生产接线完成后，按键动画、判定**显示**、combo、gauge **视觉**、数值 HUD、BGA frame、stage/角色/爆炸等均为可选。它们可 `Inherit` 获得 `oms-simple` 表现，也可由作者显式 `Suppress`；这正是“只有色块下落与按键游玩”的合法 `oms-simple` 下限。
 
 ---
 
@@ -371,7 +371,7 @@ V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉
 > - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth` / `LongNoteBodyWidth`）。
 > - 像素 = 整数（如 `HitTargetHeight` / `BarLineHeight`）。
 > - 资源名 = 不带扩展名的相对路径；逐道纹理键内嵌 lane token（数字或 `S` 表 scratch）。
-> - mania compatibility 帧序列沿用 `name-0` / `name-1`…；新 scene animation 的格式尚未冻结。
+> - 当前 native BMS 普通短键已复用 `name-0` / `name-1`…编号帧命名，但暂按固定 60 FPS；新 scene animation 的格式尚未冻结。
 
 ---
 
@@ -438,15 +438,17 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 | 能力 | 状态 | 阶段 |
 | --- | --- | --- |
 | 可信恢复、数据/实机 gate | `[已完成]` | `SV1-0` |
-| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：十四个合同地基切片已落，含 neutral topology-preserving validation、process-local native-context topology publication/revision 与 legacy mania scalar/array/四项 global colour accepted snapshot；未接生产]` | `SV1-1` |
-| 安全 G1：路径 authority、扫描/选择、原子 reload | `[规划]` | `SV1-2` |
+| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：前二十个合同/provenance 地基 + 1 个玩家可见普通短键编号帧纵切；自动 gate 已过、实机待确认；其它 slot/Suppress 未交付]` | `SV1-1` |
+| 安全 G1：路径 authority、扫描/选择、原子 reload | `[仅 early carrier：folder ctor + schema 56 字段保留；scanner/选择/删改/原子 reload 未交付]` | `SV1-2` |
 | 5K/7K 四布局、9K、14K 的唯一 layout snapshot 与单一 BGA content authority | `[规划]` | `SV1-3` |
-| adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划]` | `SV1-4` |
+| adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划；候选 fixture 已有，只有 native BMS 普通短键是窄生产例外]` | `SV1-4` |
 | declarative scene、模板/对象池、typed binding、只读事件 ABI | `[规划]` | `SV1-5` |
 | 可选脚本沙箱、capability 授权与资源/指令/heap 预算 | `[规划]` | `SV1-6` |
 | `oms-simple` fallback + `oms-complex` + Authoring Kit + 全 release gate | `[规划]` | `SV1-7` |
 
 旧 `F/G` 编号只用于查询 2026-06-27 至恢复事故前后的历史，不再是执行顺序。完整设计取舍、当前代码证据与完成定义见 [Skin V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+
+当前实现暂停于 `d1ea483`。下一新对话先做文档与 memory 健康治理；治理完成并重新冻结执行门后，仍须由用户单独确认 managed `.osk` 的 BMS 普通短键编号帧动画，不能复用 2026-07-14 的 `SV1-0` 静态验收，也不能据此宣称 Skin V1 可用。
 
 ### 后续追踪文档
 - [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)：当前真实状态

@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-15
+> 最后更新：2026-07-16
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，恢复证据见 [SKIN_SYSTEM_RECOVERY_20260710.md](../../other/SKIN_SYSTEM_RECOVERY_20260710.md)，本轮架构审计见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 一句话状态
 
-`SV1-0` 的自动回归、schema 56 数据安全与用户实机 gate 已全部通过。`SV1-1` 已交付第一个玩家可见纵切：当前选中的已导入 managed `.osk` 可用 `name-0`、`name-1`…编号帧驱动 BMS 普通短键动画，缺失、损坏、越权或超预算素材按既有优先级逐组件回落；静态 `NoteImage` 是恢复基线，不计新增功能。新增可见功能现为 **1**，但该动画尚待用户实机确认。路线仍是 `SV1-1` 进行中、`SV1-2` 只有 early carrier、`SV1-3`～`SV1-7` 未实现，Skin V1 整体仍不可用。
+`SV1-0` 的自动回归、schema 56 数据安全与用户实机 gate 已全部通过。`SV1-1` 已交付第一个玩家可见纵切：当用户选中已导入的 managed `.osk` 时，它可用 `name-0`、`name-1`…编号帧驱动 BMS 普通短键动画，缺失、损坏、越权或超预算素材按既有优先级逐组件回落；静态 `NoteImage` 是恢复基线，不计新增功能。新增可见功能现为 **1**，但该动画尚待用户实机确认。路线仍是 `SV1-1` 进行中、`SV1-2` 只有 early carrier、`SV1-3`～`SV1-7` 未实现，Skin V1 整体仍不可用。实现暂停于 `d1ea483`；下一新对话先做文档与 memory 健康治理，未重新冻结执行门前不启动新组件。
 
 ## Skin V1 目标
 
@@ -19,7 +19,7 @@
 ## 产品功能进度
 
 - **恢复基线功能可用**：当前 `.osk`/legacy mania、BMS F1 静态颜色/纹理/几何、程序化 `OmsSkin` 迁移 fallback 与既有选择链保持可用，自动、数据与实机恢复 gate 已通过。
-- **Skin V1 新增可见功能为 1**：当前选中的 managed `.osk` 可为 BMS 普通短键提供 osu 社区式编号帧动画；自动 gate 已通过，新增动画的用户实机观感仍待确认。
+- **Skin V1 新增可见功能为 1**：当用户选中已导入的 managed `.osk` 时，它可为 BMS 普通短键提供 osu 社区式编号帧动画；自动 gate 已通过，新增动画的用户实机观感仍待确认。schema 56 清点结束时的当前选择仍是 protected OMS。
 
 | Skin V1 产品交付面 | 当前状态 |
 | --- | --- |
@@ -77,7 +77,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | --- | --- | --- |
 | 1 | schema 56 `SkinInfo` 数据安全门 | **通过**：备份与副本演练后定点移除异常 copy、修正 OMS 固定记录；路径 authority 正常 |
 | 2 | 无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K 实机视觉 | **通过**：用户于 2026-07-14 自行确认全清单正常；Agent 未操控 GUI |
-| 3 | shared contract + 首个产品纵切 | 进行中：前二十个合同地基之上，managed `.osk` BMS 普通短键编号帧动画已进入真实 gameplay，新增可见功能为 1；新动画实机 gate 待确认，完整三态/layout/event/runtime 仍未完成 |
+| 3 | shared contract + 首个产品纵切 | 进行中：前二十个合同地基之上，managed `.osk` BMS 普通短键编号帧动画已进入真实 gameplay，新增可见功能为 1；新动画实机 gate 待确认，完整三态/layout/event/runtime 仍未完成；实现暂停，下一轮先治理文档/memory |
 | 4 | G1 authority/containment/atomic reload | 未开始重做 |
 | 5 | 全 keymode playfield/BGA descriptor | 未开始 |
 | 6 | mania-compatible shared ini codec | 未开始 |
@@ -98,10 +98,13 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 | Markdown 相对链接 | **119 个文件 / 934 个相对链接 / 0 断链** |
 | 数据边界 | 只使用隔离 headless 临时存储；生产 Realm、`chartskin/`、用户皮肤目录与网络零访问、零写入 |
 | 实机 | `SV1-0` 恢复清单已通过；本次新编号帧动画尚待用户实机确认，不能复用旧结论 |
+| 2026-07-16 文档/memory 同步 | 仅同步事实与治理交接；未改代码、未运行产品测试或 Release，最终链接/whitespace/隐私结果记入本次 CHANGELOG |
 
-本纵切只把当前 selected managed package 的 native `[Bms] NoteImage*` 绑定到同一 package revision，并在后台完整准备后替换；单槽缺失、损坏、越权或超预算不会使短键消失。当前链底仍是程序化 `OmsSkin`，不是 `oms-simple`；该能力不包含 LN、mania compatibility、完整 layout、G1、scene/script 或整包原子热重载。
+本纵切只在用户选择已导入 managed package 时，把其 native `[Bms] NoteImage*` 绑定到同一 package revision，并在后台完整准备后替换；单槽缺失、损坏、越权或超预算不会使短键消失。当前链底仍是程序化 `OmsSkin`，不是 `oms-simple`；该能力不包含 LN、mania compatibility、完整 layout、G1、scene/script 或整包原子热重载。本切未修改 shared `osu.Game`、mania compatibility 或 fallback authority，因此未重跑 core/mania，自动 gate 按 BMS ruleset 内变更范围闭合。
 
 ### `SV1-0` 闭门与 `SV1-1` 前二十个合同切片（2026-07-15）
+
+> 以下至“当前风险”前是已归档切片的验证快照，不是当前执行指令；精简和迁移到 CHANGELOG 留给下一次文档健康治理。
 
 | 检查 | 结果 |
 | --- | --- |
@@ -141,7 +144,7 @@ mania `skin.ini` 的上限是“固定行为宿主 + 素材/有限参数”：ke
 
 snapshot 原样保留 invariant float parser 接受的 sign/decimal/exponent、负值、零、`-0`、`NaN`、正负无穷与 overflow/underflow 结果；它不进行 finite、正值、range、screen-space、不重叠或跨字段 validation，也不是 neutral geometry descriptor、resolved layout 或 production `GameplaySkinLayoutContext`。首次和 targeted format 后最终 focused 均为 **49/49**，既有 decoder **8/8**、BMS skin **381/381**、BMS full **1237/1237**；Release Rebuild **0 error / 20 warnings**，source review blocker/major/minor **0/0/0**。第二十切未改 shared/mania/core，未重跑该三组；生产 Realm、`chartskin/`、用户皮肤目录与网络均零访问、零写入。
 
-截至第二十切，产品功能仍只增加不可见的来源事实地基，Skin V1 新增可见功能为 **0**。其后的首个玩家可见纵切已把 managed `.osk` BMS 普通短键编号帧动画接入真实 gameplay，当前新增可见功能因此为 **1**；三态其它 slot、`oms-simple` 逐组件 fallback、安全 G1、统一 layout、shared codec/结构化诊断、scene/script 与两个外部包仍未交付。本任务在该动画提交后停止，下一 gate 是用户实机确认。
+截至第二十切，产品功能仍只增加不可见的来源事实地基，Skin V1 新增可见功能为 **0**。其后的首个玩家可见纵切已把 managed `.osk` BMS 普通短键编号帧动画接入真实 gameplay，当前新增可见功能因此为 **1**；三态其它 slot、`oms-simple` 逐组件 fallback、安全 G1、统一 layout、shared codec/结构化诊断、scene/script 与两个外部包仍未交付。实现已暂停于 `d1ea483`；下一新对话先做文档/memory 健康治理，之后仍须闭合动画实机 gate。
 
 第十九切为 native `[Bms]` 当前 22 个 exact colour field 增加 decoder-time private sidecar、internal closed field catalog 与 source-specific immutable bucket snapshot/factory。只有 raw source key 与解析后 canonical field 同名的 exact declaration 进入 sidecar；既有 `Enum.TryParse` 可接受的 comma-composite key 仍按恢复基线写入 public `Colours` compatibility dictionary，但不升格为 closed source declaration。这与第十八切 `NoteBodyStyle` 的 value-composite 保留为 parser-accepted value 是两个不同边界。
 
@@ -251,9 +254,11 @@ BMS internal owner 以 exact `BmsKeymode` 为 continuity authority，`AppliedSty
 - 14K 四角 BGA、程序化动态件和内部固定动画都不能被提前描述为 V1 最终方向。
 - 当前程序化 `OmsSkin` 仍是实际链底；在 `oms-simple` 完整性、自动恢复和 mania/BMS parity 过门前不能直接删除，但它也不能进入 V1 最终发行架构。
 - resolver 不拥有候选组件生命周期：第九切已冻结首个 BMS 六字段 revision-owner 借用合同与 active/provisional 隔离；普通短键纵切已有 concrete revision owner、private cache 与 per-component 后台替换。完整六字段候选链的 production owner/Drawable parenting、以及 ini/scene/script/全素材共同提交的整包 atomic reload 仍未实现，resolver 也不得擅自 dispose 被额外 validator 拒绝的值。
+- 本页与 PLAN 均已明显超出低噪声预算并重复保存逐切历史。下一轮治理应把历史与旧数字归回 CHANGELOG，只保留当前事实、未来步骤和稳定约束；治理不得顺手改代码、产品合同或 gate 状态。
 
 ## 下一检查点
 
-1. 本任务完成后停止；下一次继续前先由用户实机确认 managed `.osk` 的 BMS 普通短键编号帧动画观感。
-2. 实机确认后再选择下一项玩家可见组件，不再用合同切片数量代表产品进度；LN、mania、layout、G1、`oms-simple`/`oms-complex`、scene/script 均不得因本纵切提前计入。
-3. 保持 nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；`oms-simple` 尚未成为真实 provider，G1 仍按 `SV1-2` 独立重做。
+1. 实现暂停于 `d1ea483`；下一新对话只进行文档与 memory 健康治理，不修改 runtime/code，不提升任何产品 gate。
+2. 治理目标：STATUS 只保留当前事实、风险、下一门和唯一最新验证；PLAN 只保留未来步骤/依赖/验收；逐切历史与旧数字归回 CHANGELOG，稳定地雷留在 memory/CONSTRAINTS。
+3. 治理完成并重新冻结执行门后，先由用户单独确认 managed `.osk` 的 BMS 普通短键编号帧动画观感，再由产品选择下一项玩家可见组件。
+4. 保持 nullable `ISkin`、程序化 `OmsSkin` 与当前 fallback authority 不变；`oms-simple` 尚未成为真实 provider，G1 仍按 `SV1-2` 独立重做。

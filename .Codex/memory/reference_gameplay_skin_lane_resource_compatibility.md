@@ -60,9 +60,7 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - 当前保证是 per-component publication，不是 package atomic reload；ini/scene/script/所有素材共同验证后一次切换仍属 `SV1-2`。
 - `Box` 继承 `Sprite`；测试若只用 `drawable is Sprite` 会把程序化 fallback 误判为用户贴图，必须验证 source-bound 类型/纹理身份或明确的宿主状态。
 
-## 2026-07-15 验证基线
+## 当前纵切锚点
 
-- 第十七切 focused：shared old+new 21/21、mania 6/6、BMS old+new 40/40；新增 provenance fixture 分别为 legacy mania 9/9 与 BMS 11/11。
-- BMS full 1157/1157；mania full 827/831 的 4 项仍为同名 HoldNote auto-frame 恢复基线；core skin 57/62 仍为同名 5 项恢复基线。
-- `osu.Desktop.slnf` Release Rebuild 0 error / 20 warnings；保留 9 条 MessagePack `NU1902` 重复显示及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
-- 该组数字是第十七切当时基线；其后 native BMS 普通短键已成为首个 package-scoped production 窄纵切。完整 candidate plan、其它 lane-resource、`oms-simple` authority 与 nullable `ISkin` ABI 仍未切换，也未访问或写入生产数据。
+- native BMS 普通短键已成为首个 package-scoped production 窄纵切：managed `.osk` 的编号帧动画自动 gate 已通过，新增动画实机待确认。精确测试数字只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。
+- 完整 candidate plan、其它 lane-resource、`oms-simple` authority 与 nullable `ISkin` ABI 仍未切换；该纵切没有访问或写入生产数据。实现已暂停，下一新对话先做文档/memory 健康治理。

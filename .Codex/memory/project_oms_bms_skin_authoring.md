@@ -12,7 +12,7 @@ metadata:
 
 ## 当前可信面
 
-- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有首个窄生产纵切——selected managed package 的 BMS 普通短键可使用 `name-{n}` 编号帧动画。
+- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有首个窄生产纵切——当用户选中已导入的 managed package 时，BMS 普通短键可使用 `name-{n}` 编号帧动画。该纵切在 `d1ea483` 通过自动 gate，Skin V1 新增可见功能为 1，新动画实机待确认。
 - 当前 `OmsSkin` 是程序化逐组件链底，但只算迁移基线；最终由只读 `oms-simple.osk` 接管并移出程序化产品视觉。
 - G1 只保留 folder ctor 与 `SkinInfo.FilesystemStoragePath/IsExternalFilesystemStorage` + schema 56 载体；没有扫描/选择/删改/热重载。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 均未落地。
@@ -52,4 +52,4 @@ metadata:
 
 ## 下一入口
 
-按 P1-A `SV1-0..7` 推进：`SV1-0` 已完成，`SV1-1` 已进入首个玩家可见普通短键动画纵切但整体仍进行中；新动画先经用户实机确认，再由产品决定下一组件。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因该窄纵切提前计为完成。旧 F/G 编号仅作历史索引；被撤回实现查 P1-A CHANGELOG/Git。
+按 P1-A `SV1-0..7` 推进：`SV1-0` 已完成，`SV1-1` 首个玩家可见普通短键动画纵切已通过自动 gate，但整体仍进行中。实现已暂停；下一新对话先做文档与 memory 健康治理，治理不算产品进度。治理完成并重新冻结执行门后，先闭合新动画实机 gate，再由产品决定下一组件。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因该窄纵切提前计为完成。旧 F/G 编号仅作历史索引；被撤回实现查 P1-A CHANGELOG/Git。
