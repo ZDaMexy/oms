@@ -37,14 +37,14 @@ metadata:
 - 缺 bucket 是 outer `Absent`；显式 bucket 即使无该 key 也是 outer `Declared` + inner `Absent`。pending-before-`Keys:`、malformed `Keys` 沿用 prior current bucket 和 duplicate bucket 写入 discarded configuration 继续沿用 decoder 现状，未被提升为 shared codec 长期语义。
 - decoder 成功 parse 后同时更新 public compatibility field 与 private accepted sidecar；factory 只读 sidecar。手工构造 configuration 或 decode 后对 public `NoteBodyStyle` 的 erase/alter 都不能伪造、擦除或改变 provenance。
 - 此 snapshot 不是 production effective style：`LegacySkin` 在 declaration 缺失时仍按 `[General] Version < 2.5` 推导 `Stretch`，否则推导 `RepeatBottom`；source-specific factory 禁止查询或复制该默认。
-- 真实 validation/materialization 仍受 package authority 边界约束；native BMS 普通短键只有 package-scoped read/帧序列/预算/owner 窄路径。managed Realm store、zip 与 external directory 的完整 containment/case/duplicate 统一语义、共享 codec、其它资源和 G1 原子 reload 是否完成只看 P1-A STATUS，不得从本 snapshot 推断。
+- 真实 validation/materialization 仍受 package authority 边界约束；native BMS 普通短键与长条头/身/尾只有 package-scoped read/帧序列/预算/owner 窄路径。managed Realm store、zip 与 external directory 的完整 containment/case/duplicate 统一语义、共享 codec、其它资源和 G1 原子 reload 是否完成只看 P1-A STATUS，不得从本 snapshot 推断。
 
 ## native BMS exact colour accepted snapshot
 
 - 该 snapshot 只覆盖 `BmsSkinConfigurationLookups` 中已有 production consumer 的 22 项 colour：4 项 note colour group、3 项 lane background、2 项 divider、6 项 hit-target、2 项 barline、3 项 lane-cover，以及 backdrop/baseplate。catalog/snapshot/factory 都是 BMS assembly 内部 source-specific process-local carrier，不是 neutral slot、作者 manifest/wire ABI，也没有新增主题色或 renderer default。
 - 只有 ordinal、区分大小写的 exact source key 在 RGB/RGBA byte parse 成功后进入 private accepted sidecar。既有 `Enum.TryParse` 可把逗号组合名折叠到某个 defined enum value；这种 composite alias 仍只更新 public compatibility `Colours` 字典，不能升格为 exact provenance。valid exact duplicate 取 last accepted，malformed 不声明、也不抹除上一个 accepted 值。
 - decoder-time `acceptedColours` 与 public `Colours` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-colour field、`Absent` stored entry 与 duplicate entry，snapshot 另做一次防御性复制；安全 `ToString()` 不展开 field、keymode 或颜色。
-- 这仍只是 accepted provenance：geometry 尚缺 finite/正值/range/屏内/不重叠 validation 与唯一 resolved layout snapshot；除 native BMS 普通短键窄路径外，真实 resource validation/materialization 仍需 package-scoped authority/containment、共享资源名/animation codec、解码预算与 concrete owner/thread-affinity。
+- 这仍只是 accepted provenance：除 `LongNoteBodyWidth` 的下游字段级 resolver 外，geometry 尚缺 finite/正值/range/屏内/不重叠 validation 与唯一 resolved layout snapshot；除 native BMS 普通短键与长条头/身/尾窄路径外，真实 resource validation/materialization 仍需 package-scoped authority/containment、共享资源名/animation codec、解码预算与 concrete owner/thread-affinity。
 
 ## native BMS exact geometry accepted snapshot
 
@@ -52,7 +52,7 @@ metadata:
 - 只有 `trySplit` trim 后 ordinal、区分大小写的 exact source key，在既有 `float.TryParse(NumberStyles.Float, InvariantCulture)` 成功后进入 private accepted sidecar。保留 parser 实际接受的符号/小数/指数写法、`-0` 的 sign bit、大小写 `NaN`、正负 `Infinity`；.NET 8 overflow 得到正负无穷，underflow 得到保留符号的正负零，这些都是 declared-but-unvalidated，不得在 provenance 层清洗。空值、thousands comma、hex、underscore、type suffix、坏 exponent、Unicode infinity 与非 ASCII 数字不声明；valid duplicate 取 last accepted，malformed 不声明也不抹除上一成功值。
 - 既有稠密 enum 与默认区分大小写的 `Enum.TryParse` 会把部分逗号 composite source key 按 bitwise value 折叠到某个 `Enum.IsDefined` geometry field；这些别名继续改写 public mutable `Geometry` compatibility view，但不进入 exact sidecar/snapshot。纯 numeric enum key 虽可被 `Enum.TryParse` 表达，仍会被 decoder 的首字符 `char.IsLetter` gate 拒绝。
 - decoder-time `acceptedGeometry` 与 public `Geometry` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add、composite overwrite，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-geometry field、`Absent` stored entry 与 duplicate entry，snapshot 防御性复制；安全 `ToString()` 不展开 field、keymode 或数值。
-- 这仍只是 accepted provenance：它本身不提供 finite/正值/range/屏内/不重叠 validation、唯一 neutral descriptor/solver 或 production materializer。native BMS 普通短键的 package-scoped 窄路径不改变 geometry 仍未验证，也不代表其它资源、shared codec 或完整 materializer 已完成。
+- 这仍只是 accepted provenance：它本身不提供 finite/正值/range/屏内/不重叠 validation、唯一 neutral descriptor/solver 或完整 production materializer。当前唯一窄下游例外是 `LongNoteBodyWidth`：可复用 scalar resolver 只接受 finite 且 `0 < width <= 1`，并用稳定 typed reason 区分 `DeclarationAbsent`、`NonFinite`、`AtOrBelowMinimum`、`AboveMaximum`，逐字段回到 `0.5775`。body 素材帧与该 resolved value 必须由同一 source-bound package revision 发布，renderer 不得重读可变 aggregate geometry；这个例外不验证其余 11 个字段，也不代表 shared codec、screen-space/cross-field solver 或 `SV1-3` layout snapshot 已完成。
 
 ## legacy mania indexed-array accepted snapshot
 

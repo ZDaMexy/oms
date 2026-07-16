@@ -1,12 +1,12 @@
 # P1-M 开发计划：内置音乐播放器
 
-> 最后更新：2026-07-16（文档健康治理；产品规划未改变）
+> 最后更新：2026-07-17（主线优先级同步；产品规划未改变）
 > 全局计划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。架构审查结论见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 > **红线：① 不得改坏 song-select 试听链路；② 不得破坏 gameplay 全局音轨控制闸 `AllowTrackControl`；③ 离线优先——播放器只用本地音轨，绝不接在线试听。**
 
 ## 子线定位
 
-当前只保存已对齐的未来设计；在 mainline R2–R6/release gate 完成或产品显式改序前，本线保持未开工，不与活动皮肤、硬件和发行收尾并行抢占。
+当前只保存已对齐的未来设计；在 mainline R3–R6/release gate 完成或产品显式改序前，本线保持未开工，不与活动皮肤、硬件和发行收尾并行抢占。
 
 - 目标：把现有「全局音轨 + 右上角 mini 浮窗（`NowPlayingOverlay`）+ 扁平 playlist」升级为一个**真正意义上的内置音乐播放器**——真队列、重复/随机、曲库搜索排序、收藏/自建歌单、可展开全屏视图、可视化、**播放源（mania / bms / both）可选**、跨会话状态恢复、Windows 媒体键。
 - authority：音乐播放器的**导航策略**（队列 / 重复模式 / 播放源过滤 / 随机历史）与**播放器 UI**（mini 浮窗 + 展开视图）。底层音轨生命周期仍归 `MusicController`（瘦身为纯播放引擎）。

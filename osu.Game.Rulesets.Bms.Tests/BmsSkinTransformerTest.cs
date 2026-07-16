@@ -411,31 +411,40 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestAsyncHostSupportsOrdinaryNoteAndLongNoteCaps()
+        public void TestAsyncHostSupportsOrdinaryNoteAndLongNoteComponents()
         {
             var noteHost = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 1, false, BmsKeymode.Key7K));
             var headHost = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, 1, false, BmsKeymode.Key7K));
+            var bodyHost = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 1, false, BmsKeymode.Key7K));
             var tailHost = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 1, false, BmsKeymode.Key7K));
 
             Assert.Multiple(() =>
             {
                 Assert.That(noteHost.Drawable, Is.TypeOf<DefaultBmsNoteDisplay>());
                 Assert.That(headHost.Drawable, Is.TypeOf<DefaultBmsLongNoteHeadDisplay>());
+                Assert.That(bodyHost.Drawable, Is.TypeOf<DefaultBmsLongNoteBodyDisplay>());
+                Assert.That(bodyHost.Drawable!.Width, Is.EqualTo(BmsGameplaySkinScalarGeometryResolver.DEFAULT_LONG_NOTE_BODY_WIDTH).Within(0.0001f));
+                Assert.That(bodyHost.Drawable.Alpha, Is.EqualTo(0.8f).Within(0.0001f));
                 Assert.That(tailHost.Drawable, Is.TypeOf<DefaultBmsLongNoteTailDisplay>());
                 Assert.That(tailHost.Drawable!.Alpha, Is.Zero);
             });
         }
 
         [Test]
-        public void TestAsyncHostRejectsLongNoteBody()
+        public void TestSourceBoundLongNoteBodyUsesSharedStateHost()
         {
-            Assert.That(
-                () => new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 1, false, BmsKeymode.Key7K)),
-                Throws.ArgumentException);
+            var body = new BmsSourceBoundLongNoteBodyDrawable(new Box(), 0.73f);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(body.Width, Is.EqualTo(0.73f).Within(0.0001f));
+                Assert.That(body.Alpha, Is.EqualTo(0.8f).Within(0.0001f));
+                Assert.That(body.ChildrenOfType<Box>().Count(), Is.EqualTo(1));
+            });
         }
 
         [Test]
-        public void TestDrawableLongNoteCapsUseAsyncHostWhileBodyStaysSkinnable()
+        public void TestDrawableLongNoteComponentsUseAsyncHost()
         {
             var head = new DrawableBmsHitObject(new BmsHoldNoteHead { LaneIndex = 1, Keymode = BmsKeymode.Key7K });
             var body = new DrawableBmsHitObject(new BmsHoldNote { LaneIndex = 1, Keymode = BmsKeymode.Key7K });
@@ -445,8 +454,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(head.ChildrenOfType<BmsAsyncNoteDrawable>().Count(), Is.EqualTo(1));
                 Assert.That(head.ChildrenOfType<SkinnableDrawable>(), Is.Empty);
-                Assert.That(body.ChildrenOfType<BmsAsyncNoteDrawable>(), Is.Empty);
-                Assert.That(body.ChildrenOfType<SkinnableDrawable>().Count(), Is.EqualTo(1));
+                Assert.That(body.ChildrenOfType<BmsAsyncNoteDrawable>().Count(), Is.EqualTo(1));
+                Assert.That(body.ChildrenOfType<SkinnableDrawable>(), Is.Empty);
                 Assert.That(tail.ChildrenOfType<BmsAsyncNoteDrawable>().Count(), Is.EqualTo(1));
                 Assert.That(tail.ChildrenOfType<SkinnableDrawable>(), Is.Empty);
                 Assert.That(tail.Height, Is.EqualTo(22.5f));

@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-16
+> 最后更新：2026-07-17
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 归线与产品边界
@@ -121,13 +121,15 @@
 1l. 资源 declaration 与实际 texture/frame 必须在同一个精确 provider/package authority 内解析；禁止先从聚合配置取声明、再从聚合 texture store 取同名素材，造成跨皮肤拼接。
 1m. 有效的 beatmap-local 直接视觉继续高于 selected package；只有高优先级来源缺失、损坏或验证失败时才 `Inherit`，三态不得默认穿透有效 beatmap-local provider。
 1n. managed Realm package materialization 必须使用不可变的文件名→内容身份快照并绑定 package revision；路径越界、大小写冲突、重复名或 authority 冲突均 fail-open 为对应 slot 的 `Inherit`，不得从另一 package 补齐。
-1o. 文件素材必须在解码前检查输入字节、图片尺寸/像素、帧数与累计预算，并在解码后再次核对实际资源；先无界解码、再检查预算不算防护。当前普通短键/长条头尾 runtime 限值只是安全上限，不是最终 author ABI。
+1o. 文件素材必须在解码前检查输入字节、图片尺寸/像素、帧数与累计预算，并在解码后再次核对实际资源；先无界解码、再检查预算不算防护。当前普通短键/长条 head/body/tail runtime 限值只是安全上限，不是最终 author ABI。
 1p. 初次装载与 live replacement 的 package IO/解码都不得发生在 update thread；新视觉完整准备并属于当前 revision 前保持现有视觉或 critical fallback，取消、过期或失败结果不得发布且必须释放其临时资源。
-1q. 当前普通短键/长条头尾纵切只保证 per-component 安全发布与回落，不代表 `SV1-2` 的整包原子 reload；ini、scene、script 与所有素材共同成功后一次切换仍是后续 gate。
+1q. 当前普通短键/长条 head/body/tail 纵切只保证 per-component 安全发布与回落，不代表 `SV1-2` 的整包原子 reload；ini、scene、script 与所有素材共同成功后一次切换仍是后续 gate。
 1r. runtime 的 raw/decoded/frame/texture cap 不等于 `.osk` importer 的总压缩/解压字节、解压比或 zip-bomb 防护；两道 gate 必须分别实现和验收。
-1s. 当前 managed `.osk` native BMS 生产窄路径只接受 ordinary note、`LongNoteHead` 与 `LongNoteTail`：三者按 element + keymode + canonical lane/scratch 绑定 slot，解析同一精确 package revision；连续 `name-0`、`name-1`…固定 60 FPS。note/head 是 critical 且不可 suppress；声明失败必须落到可见 rescue，不能由低层裸同名 texture 补齐 selected 坏声明。该路径不得拦截 body，也不得改变 LN/CN/HCN、尺寸、裁剪、layout 或其它 provider authority。
+1s. 当前 managed `.osk` native BMS 生产窄路径只接受 ordinary note、`LongNoteHead`、`LongNoteBody` 与 `LongNoteTail`：四者按 element + keymode + canonical lane/scratch 绑定 slot，解析同一精确 package revision；连续 `name-0`、`name-1`…固定 60 FPS。note/head/body 是 critical 且不可 suppress；声明失败必须落到可见 rescue，不能由低层裸同名 texture 补齐 selected 坏声明。该路径不得改变 LN/CN/HCN、尺寸、裁剪、layout 或其它 provider authority。
 1t. `LongNoteTail` 保持 optional：未声明为 `Inherit`，有效静态/连续编号帧为 `Provide`；当前 producer 不产生作者 `Suppress`，空值、坏资源或 protected 链底透明都不得解释为 `Suppress`。selected 失败后下层自己的完整 tail 组件可以接管，只有同名文件而无 accepted declaration 不能补件；protected `OmsSkin` tail 必须 `Alpha=0` 且禁止 aggregate texture lookup。beatmap-local 直接 Drawable 仍优先，tail cap host、判定和 LN/CN/HCN 不变。
-1u. `LongNoteBody` 生产接线前必须先经过唯一共享标量 geometry policy：`LongNoteBodyWidth` 默认 `0.5775`，只接受 finite 且 `0 < width <= 1`，其它值逐字段回落默认并保留稳定拒绝原因。accepted width 必须与 body material 同 exact package revision 准备和发布，禁止从 aggregate source 拼接另一来源宽度。managed/default body 共用一个 Idle/Holding/Broken 状态宿主与既有 alpha/tint/fade，不复制 gameplay 状态机；本约束不等于完整 `SV1-3` layout/screen-space validation。
+1u. `LongNoteBody` 只消费 decoder-time accepted `[Bms] NoteImage{lane}L` / `NoteImageSL` / `NoteImageS2L`，可为静态图或 60 FPS 连续编号帧。它必须经过唯一共享标量 geometry resolver：`LongNoteBodyWidth` 默认 `0.5775`，只接受 finite 且 `0 < width <= 1`；absent、non-finite、小于等于零和大于一分别保留稳定 typed rejection reason并逐字段回落默认。有效 body + 非法 width 仍发布同组件默认宽，只有 body 资源整体失败才 `Inherit`；selected 失败后低层裸同名文件或裸 width 均不得拼件，低层自己的完整 body 组件可接管。
+1v. body texture/frames 与 accepted/default width 必须携带同一个 exact parsed `skin.ini` 内容身份和 package revision进入 prepared material并一起发布；renderer 禁止再从 aggregate skin 反查 width。managed/default body 必须共用真实 Idle/Holding/Broken 状态宿主：active alpha `0.8`、broken alpha `0.32`、后续状态 tint/fade `80ms`，异步首次挂载或 material replacement 立即投影 hold 当前态，HCN regrab 只投影 gameplay authority。不得为此修改 `DrawableBmsHoldNote` 状态 authority、body 拉伸/裁剪或 LN/CN/HCN 规则；该单字段 policy 不等于完整 `SV1-3` layout/screen-space validation。
+1w. 当前成功 preparation cache 不感知同一 `BmsLegacySkin` 实例内的原地 source revision 变化；现状不得混合或发布过期 material，只能安全保留旧视觉/回落并要求重建实例。`SV1-2` 的原子 reload 必须让成功 cache 按 exact revision 失效或通过实例原子替换消除该风险。
 2. 三态链只替换 gameplay package 内的组件解析：用户所选 `.osk` → ruleset adapter/compatibility → 随发行物只读携带的 `oms-simple.osk`。现有 `BeatmapSkinProvidingContainer` 的谱面内皮肤 enable/colour/hitsound 语义，以及 `RulesetSkinProvidingContainer` 注入 ruleset resource skin 的相对 authority，在另有迁移决议前必须保持；不得把完整现有链误写成只有上述三层。
 2a. `Suppress` 默认只作用于声明它的 gameplay package slot，不得越权穿透或屏蔽更高优先级的 beatmap-local provider；若未来需要改变该边界，必须单独冻结 precedence fixture 和用户迁移规则。
 2b. 测试中名为 `oms-simple` 的 fake provider 只证明 canonical 末端语义，不代表真实 `oms-simple.osk` 已制作、校验或接入生产 fallback authority。
@@ -208,8 +210,8 @@
 
 ## 既有 LN 视觉状态合同
 
-1. 在 neutral event adapter 完成前，长条 body 状态继续由 `DrawableBmsHoldNote.BodyState : IBindable<BmsLongNoteBodyState>` 暴露，状态 `Idle/Holding/Broken` 只由 hold gameplay truth 派生；默认 body 不得自行读取判定内部。
-2. 当前兼容默认值保持：body width `0.5775`；`Idle==Holding` 使用 head 色、alpha `0.8`；`Broken` 去色并使用 alpha `0.32`；tail 仍 `Alpha=0`。修改须同步 `BmsSkinTransformerTest`。
+1. 在 neutral event adapter 完成前，长条 body 状态继续由 `DrawableBmsHoldNote.BodyState : IBindable<BmsLongNoteBodyState>` 暴露，状态 `Idle/Holding/Broken` 只由 hold gameplay truth 派生；managed/default body 共用的视觉宿主不得自行读取判定内部。
+2. 当前兼容默认值保持：body width `0.5775`；`Idle==Holding` 使用 head 色、alpha `0.8`；`Broken` 去色并使用 alpha `0.32`；状态改变的 tint/fade 为 `80ms`，异步首次挂载立即投影当前态；tail 仍 `Alpha=0`。修改须同步 `BmsSkinTransformerTest` 与真实 hold 产品 fixture。
 3. `Broken → recover` 只允许 HCN；CN 中途松开不可接回，语义 authority 见 [P1-E 约束](../P1-E/TECHNICAL_CONSTRAINTS.md)。Skin V1 event adapter 只能投影该状态，不得重新解释 LN/CN/HCN 规则。
 
 ## 测试与发布约束
@@ -222,4 +224,5 @@
 6. 每次记录本次实际运行的 BMS/mania/core/Release 与人工视觉/性能结果；按上条未要求重跑的套件也要明确写“未运行及原因”。已知失败必须稳定归因，不得把既有失败写成新回归。
 7. 文档不得把“代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”混成一个完成状态；能力矩阵必须分列。
 8. 不得宣称 LR2/beatoraja/IIDX 文件格式兼容；“接近 IIDX 表现上限”只描述公开接口表达力。
-9. managed `.osk` BMS 普通短键编号帧动画与长条头/尾静态图/编号帧动画必须分别进入集中用户视觉验收清单，并在 Skin V1/release 宣称完成前取得确认；2026-07-14 的静态恢复验收只能证明 `SV1-0` 基线，不得复用。待签收本身不阻塞后续自动可验证切片，但未签收不得称产品交付、阶段完成或 release gate 通过。
+9. managed `.osk` BMS 普通短键编号帧动画与长条 head/body/tail 静态图/编号帧动画必须分别进入集中用户视觉验收清单，并在 Skin V1/release 宣称完成前取得确认；2026-07-14 的静态恢复验收只能证明 `SV1-0` 基线，不得复用。待签收本身不阻塞后续自动可验证切片，但未签收不得称产品交付、`SV1-1` 完成或 release gate 通过。
+10. ordinary note 与 long-note head/body/tail 的首个产品纵切闭合后，剩余 optional slot 不再通过私有逐件 C# provider/display 扩张；它们必须等待 shared scene/runtime 接管并服从对应 ABI、budget 与 fallback gate。

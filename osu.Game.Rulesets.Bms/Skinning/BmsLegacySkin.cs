@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions;
 using osu.Framework.IO.Stores;
 using osu.Game.Extensions;
 using osu.Game.IO;
@@ -39,6 +40,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private readonly object managedPackageNotePreparationLock = new object();
         private readonly CancellationTokenSource managedPackageNotePreparationCancellation = new CancellationTokenSource();
         private ManagedPackageNotePreparationGeneration? managedPackageNotePreparation;
+        private string? parsedConfigurationContentHash;
         private bool disposed;
 
         [UsedImplicitly(ImplicitUseKindFlags.InstantiatedWithFixedConstructorSignature)]
@@ -90,6 +92,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             using var copy = new MemoryStream();
             stream.Position = 0;
             stream.CopyTo(copy);
+
+            copy.Position = 0;
+            parsedConfigurationContentHash = copy.ComputeSHA2Hash();
 
             // CopyTo() leaves the original stream at EOF. The base legacy parser still needs to read
             // [General], [Colours], and [Mania] from the beginning of the same stream.
@@ -144,20 +149,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
         /// Realm liveness alone is not storage authority. Folder-backed and conflicting schema records remain excluded
         /// until the G1 authority and migration gates are implemented. No filesystem path is returned or logged here.
         /// </remarks>
-        internal bool HasManagedPackageGameplayAuthority
-        {
-            get
-            {
-                if (backingKind != BmsLegacySkinBackingKind.RealmPackage || !SkinInfo.IsManaged)
-                    return false;
-
-                return SkinInfo.PerformRead(info =>
-                    string.IsNullOrEmpty(info.FilesystemStoragePath)
-                    && !info.IsExternalFilesystemStorage
-                    && !info.DeletePending
-                    && info.Files.Count > 0);
-            }
-        }
+        internal bool HasManagedPackageGameplayAuthority => backingKind == BmsLegacySkinBackingKind.RealmPackage
+                   && CaptureManagedPackageSourceRevision().HasGameplayAuthority;
 
         internal BmsManagedPackageSourceRevision CaptureManagedPackageSourceRevision()
         {
@@ -180,6 +173,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     info.FilesystemStoragePath,
                     info.IsExternalFilesystemStorage,
                     info.DeletePending,
+                    parsedConfigurationContentHash,
                     files);
             });
         }
@@ -310,6 +304,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 BmsNoteSkinElements.Note => GameplaySkinLaneResourceFieldCatalog.Note,
                 BmsNoteSkinElements.LongNoteHead => GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+                BmsNoteSkinElements.LongNoteBody => GameplaySkinLaneResourceFieldCatalog.LongNoteBody,
                 BmsNoteSkinElements.LongNoteTail => GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
                 _ => null,
             };
@@ -324,6 +319,24 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
 
             return configuration.GetAcceptedLaneResource(field, laneToken);
+        }
+
+        /// <summary>
+        /// Returns one decoder-time accepted native BMS scalar geometry declaration for an exact keymode bucket.
+        /// </summary>
+        /// <remarks>
+        /// This deliberately bypasses the mutable compatibility dictionary and the aggregate skin source. Validation
+        /// and defaulting remain the responsibility of <see cref="BmsGameplaySkinScalarGeometryResolver"/>.
+        /// </remarks>
+        internal GameplaySkinConfigurationDeclaration<float> GetAcceptedBmsGeometry(
+            BmsSkinConfigurationLookups field,
+            BmsKeymode keymode)
+        {
+            BmsGameplaySkinBucketGeometryFieldCatalog.Validate(field, nameof(field));
+
+            return bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration)
+                ? configuration.GetAcceptedGeometry(field)
+                : GameplaySkinConfigurationDeclaration<float>.Absent;
         }
 
         internal GameplaySkinConfigurationDeclaration<string> GetAcceptedBmsOrdinaryNoteResource(

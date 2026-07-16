@@ -29,7 +29,8 @@ metadata:
 
 - resolver 不自动 dispose 被 validator 拒绝的 `Drawable`/`IDisposable`：候选可能是 provider 缓存或共享值，擅自释放会造成双重释放/悬空引用。
 - BMS 六字段的 revision-scoped owner 合同要求：materializer 返回前 owner 取得所有权并完成基础验证，winner/rejected 都只借用；失败 provisional 只释放自身，成功替换先 detach 旧 consumer 再释放 superseded owner。internal interface/fake fixture 不等于 production reload。
-- native BMS 普通短键的 concrete provider、真实 gameplay consumer、private cache 和异步 ownership 不能外推到其它 slot。其它 slot 仍须逐项冻结缓存、Drawable parenting/thread affinity 和真实回收；一个已挂 parent 的 `Drawable` 不能被多个消费方直接复用。provider 应尽量在返回 `Provide` 前完成会分配资源的验证。
+- native BMS 普通短键与长条头/身/尾现有 concrete provider、真实 gameplay consumer、private cache 和异步 ownership 不能外推到其它 slot。其它 slot 仍须逐项冻结缓存、Drawable parenting/thread affinity 和真实回收；一个已挂 parent 的 `Drawable` 不能被多个消费方直接复用。provider 应尽量在返回 `Provide` 前完成会分配资源的验证。
+- critical `LongNoteBody` 的 source-bound visual 和程序化默认 visual 共用一个状态宿主；它只投影真实 `DrawableBmsHoldNote` 的 Idle/Holding/Broken，不创建第二套 gameplay state authority。异步候选发布时必须立即应用当时状态，之后才按约 `80ms` 过渡；素材与 resolved width 则由同一 revision-scoped material 一起拥有。
 - catalogued 诊断用 `SlotId` 作为稳定字段；process-local `Slot`/`Exception` 已排除出 JSON，安全 `ToString()` 也不展开。旧 raw lookup 的 `SlotId` 仍为 null。`ProviderName` 的安全只靠 provider 遵守“非敏感 authority、不得含绝对路径”合同，当前没有自动脱敏。
 
 ## precedence 与测试夹具
@@ -37,4 +38,4 @@ metadata:
 - 现有相对 authority 固定为 beatmap-local → selected/user layers → ruleset resources → protected built-in。先命中的 beatmap `Provide` 不能被后层 `Suppress` 穿透。
 - mania-only OMS 测试环境里，`Ruleset.Value.CreateInstance()` 可能取得 mania ruleset，却配到通用 `Beatmap`，触发 `ManiaBeatmap` 强转失败。测试 generic provider container 时使用夹具自己声明的 `CreateRuleset()`，不要据此修改生产 transformer。
 
-前两个合同切片当时都没有接 `SkinManager`、真实 `.osk`、layout/codec/scene/event/script，也没有切换或删除程序化 `OmsSkin`。其后的 native BMS 普通短键是唯一 package-scoped 窄生产例外；这不代表其它 slot、完整三态、layout/codec/scene/event/script 或 `oms-simple` 已接入。
+前两个合同切片当时都没有接 `SkinManager`、真实 `.osk`、layout/codec/scene/event/script，也没有切换或删除程序化 `OmsSkin`。其后的 native BMS 普通短键首先成为 package-scoped 窄生产例外，现已沿同一受限路径扩到长条头/身/尾；这不代表其它 slot、完整三态、layout/codec/scene/event/script 或 `oms-simple` 已接入。

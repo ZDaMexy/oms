@@ -1,14 +1,13 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -119,70 +118,75 @@ namespace osu.Game.Rulesets.Bms.UI
         }
     }
 
-    internal sealed partial class DefaultBmsLongNoteBodyDisplay : DefaultBmsNoteDisplayBase
+    internal sealed partial class DefaultBmsLongNoteBodyDisplay : BmsLongNoteBodyVisualHost
     {
-        // Idle/Holding alpha — kept slightly translucent so the body still reads as a fill beneath the solid caps.
-        private const float active_alpha = 0.8f;
-        // Broken (missed) alpha — faded well back so a dropped hold visibly recedes.
-        private const float broken_alpha = 0.32f;
-        private const double state_fade_duration = 80;
-        // Long-note body width relative to the lane (0.525 + 10%); skinnable via the LongNoteBodyWidth geometry key.
-        private const float default_body_width = 0.5775f;
+        private readonly bool allowAggregateResourceAndGeometryOverride;
 
-        private Drawable visual = null!;
-        private Color4 activeColour;
-        private Color4 brokenColour;
-        private readonly IBindable<BmsLongNoteBodyState> bodyState = new Bindable<BmsLongNoteBodyState>();
+        public int LaneIndex { get; }
 
-        [Resolved(CanBeNull = true)]
-        private DrawableHitObject? drawableObject { get; set; }
+        public bool IsScratch { get; }
 
-        protected override BmsSkinConfigurationLookups ImageLookup => BmsSkinConfigurationLookups.HoldNoteBodyImage;
-        protected override Color4 DefaultColour => BmsDefaultPlayfieldPalette.GetLongNoteHead(LaneIndex, IsScratch, Keymode);
+        public BmsKeymode Keymode { get; }
 
-        public DefaultBmsLongNoteBodyDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
-            : base(laneIndex, isScratch, keymode)
+        private BmsSkinConfigurationLookups colourLookup => BmsDefaultPlayfieldPalette.GetNoteColourLookup(LaneIndex, IsScratch, Keymode);
+        private Color4 defaultColour => BmsDefaultPlayfieldPalette.GetLongNoteHead(LaneIndex, IsScratch, Keymode);
+
+        public DefaultBmsLongNoteBodyDisplay(
+            int laneIndex,
+            bool isScratch,
+            BmsKeymode keymode,
+            bool allowAggregateResourceAndGeometryOverride = true)
         {
-            Anchor = Anchor.Centre;
-            Origin = Anchor.Centre;
-            Width = default_body_width;
-            Alpha = active_alpha;
-            InternalChild = new Box { RelativeSizeAxes = Axes.Both, Colour = BmsDefaultPlayfieldPalette.GetLongNoteHead(laneIndex, isScratch, keymode) };
+            LaneIndex = laneIndex;
+            IsScratch = isScratch;
+            Keymode = keymode;
+            this.allowAggregateResourceAndGeometryOverride = allowAggregateResourceAndGeometryOverride;
+
+            Color4 colour = BmsDefaultPlayfieldPalette.GetLongNoteHead(laneIndex, isScratch, keymode);
+            ApplyMaterial(
+                new Box { RelativeSizeAxes = Axes.Both, Colour = colour },
+                BmsGameplaySkinScalarGeometryResolver.DEFAULT_LONG_NOTE_BODY_WIDTH,
+                colour);
         }
 
-        protected override void ApplyVisual(ISkinSource skin)
+        [BackgroundDependencyLoader]
+        private void loadDefaultMaterial(ISkinSource skin)
         {
-            visual = CreateVisual(skin, out bool hasTexture);
-            InternalChild = visual;
+            if (!allowAggregateResourceAndGeometryOverride)
+            {
+                // The selected package's exact body declaration and geometry have already been resolved by its
+                // source-bound provider. A protected migration fallback must not fill either from the aggregate chain.
+                // Colour remains an independent scalar fallback while OmsSkin is still the migration-chain bottom.
+                Color4 colour = skin.GetBmsSkinConfig<Color4>(colourLookup, Keymode)?.Value ?? defaultColour;
+                ApplyMaterial(
+                    new Box { RelativeSizeAxes = Axes.Both, Colour = colour },
+                    BmsGameplaySkinScalarGeometryResolver.DEFAULT_LONG_NOTE_BODY_WIDTH,
+                    colour);
+                return;
+            }
 
-            // Body width is the one LN geometry knob that lives on the element, not the layout profile.
-            Width = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.LongNoteBodyWidth, Keymode)?.Value ?? default_body_width;
+            Drawable visual = BmsSkinnableVisual.Resolve(
+                skin,
+                BmsSkinConfigurationLookups.HoldNoteBodyImage,
+                colourLookup,
+                Keymode,
+                defaultColour,
+                out bool hasTexture,
+                LaneIndex,
+                IsScratch);
 
-            // With a texture the sprite owns the colour (active = white tint); broken just greys/dims it. With the box
-            // fallback, active follows the colour override / palette and broken is its greyed derivative.
-            activeColour = hasTexture
+            var configuredWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.LongNoteBodyWidth, Keymode);
+            GameplaySkinConfigurationDeclaration<float> widthDeclaration = configuredWidth == null
+                ? GameplaySkinConfigurationDeclaration<float>.Absent
+                : GameplaySkinConfigurationDeclaration<float>.Declared(configuredWidth.Value);
+            float width = BmsGameplaySkinScalarGeometryResolver.Resolve(
+                BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                widthDeclaration).Value;
+            Color4 activeColour = hasTexture
                 ? Color4.White
-                : skin.GetBmsSkinConfig<Color4>(ColourLookup, Keymode)?.Value ?? DefaultColour;
-            brokenColour = BmsDefaultPlayfieldPalette.GreyOutBroken(activeColour);
+                : skin.GetBmsSkinConfig<Color4>(colourLookup, Keymode)?.Value ?? defaultColour;
 
-            Alpha = active_alpha;
-            visual.Colour = activeColour;
-
-            // In gameplay the body is mounted under its DrawableBmsHoldNote, whose live BodyState drives the look.
-            // Outside gameplay (skin fallback queries) there is no parent, so the body stays in its Idle look.
-            if (drawableObject is DrawableBmsHoldNote holdNote)
-                bodyState.BindTo(holdNote.BodyState);
-
-            bodyState.BindValueChanged(onStateChanged, true);
-        }
-
-        private void onStateChanged(ValueChangedEvent<BmsLongNoteBodyState> state)
-        {
-            // Unactivated and activated look identical; only a broken (missed) hold changes — fading and greying out.
-            bool broken = state.NewValue == BmsLongNoteBodyState.Broken;
-
-            visual.FadeColour(broken ? brokenColour : activeColour, state_fade_duration, Easing.OutQuint);
-            this.FadeTo(broken ? broken_alpha : active_alpha, state_fade_duration, Easing.OutQuint);
+            ApplyMaterial(visual, width, activeColour);
         }
     }
 

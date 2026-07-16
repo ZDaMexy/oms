@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Audio;
+using osu.Framework.Extensions;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Textures;
@@ -139,9 +140,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             var skin = new TestBmsLegacySkin(
                 "[Bms]\n" +
                 "Keymode: 14K\n" +
-                "NoteImageS2: ordinary-second-scratch\n" +
-                "NoteImageS2H: head-second-scratch\n" +
-                "NoteImageS2T: tail-second-scratch\n");
+                 "NoteImageS2: ordinary-second-scratch\n" +
+                 "NoteImageS2H: head-second-scratch\n" +
+                 "NoteImageS2L: body-second-scratch\n" +
+                 "NoteImageS2T: tail-second-scratch\n");
 
             GameplaySkinConfigurationDeclaration<string> ordinary = skin.GetAcceptedBmsNoteResource(
                 BmsNoteSkinElements.Note,
@@ -153,13 +155,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsKeymode.Key14K,
                 laneIndex: 15,
                 isScratch: true);
+            GameplaySkinConfigurationDeclaration<string> body = skin.GetAcceptedBmsNoteResource(
+                BmsNoteSkinElements.LongNoteBody,
+                BmsKeymode.Key14K,
+                laneIndex: 15,
+                isScratch: true);
             GameplaySkinConfigurationDeclaration<string> tail = skin.GetAcceptedBmsNoteResource(
                 BmsNoteSkinElements.LongNoteTail,
                 BmsKeymode.Key14K,
                 laneIndex: 15,
                 isScratch: true);
             GameplaySkinConfigurationDeclaration<string> unsupported = skin.GetAcceptedBmsNoteResource(
-                BmsNoteSkinElements.LongNoteBody,
+                (BmsNoteSkinElements)999,
                 BmsKeymode.Key14K,
                 laneIndex: 15,
                 isScratch: true);
@@ -170,9 +177,108 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(ordinary.Value, Is.EqualTo("ordinary-second-scratch"));
                 Assert.That(head.IsDeclared, Is.True);
                 Assert.That(head.Value, Is.EqualTo("head-second-scratch"));
+                Assert.That(body.IsDeclared, Is.True);
+                Assert.That(body.Value, Is.EqualTo("body-second-scratch"));
                 Assert.That(tail.IsDeclared, Is.True);
                 Assert.That(tail.Value, Is.EqualTo("tail-second-scratch"));
                 Assert.That(unsupported.IsDeclared, Is.False);
+            });
+        }
+
+        [Test]
+        public void TestAcceptedGeometryUsesExactKeymodeBucketAndPreservesParserValue()
+        {
+            var skin = new TestBmsLegacySkin(
+                "[Bms]\n" +
+                "Keymode: 7K\n" +
+                "LongNoteBodyWidth: NaN\n" +
+                "[Bms]\n" +
+                "Keymode: 14K\n" +
+                "LongNoteBodyWidth: 0.25\n");
+
+            GameplaySkinConfigurationDeclaration<float> seven = skin.GetAcceptedBmsGeometry(
+                BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                BmsKeymode.Key7K);
+            GameplaySkinConfigurationDeclaration<float> fourteen = skin.GetAcceptedBmsGeometry(
+                BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                BmsKeymode.Key14K);
+            GameplaySkinConfigurationDeclaration<float> missingBucket = skin.GetAcceptedBmsGeometry(
+                BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                BmsKeymode.Key5K);
+            GameplaySkinConfigurationDeclaration<float> missingField = skin.GetAcceptedBmsGeometry(
+                BmsSkinConfigurationLookups.PlayfieldWidth,
+                BmsKeymode.Key7K);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(seven.IsDeclared, Is.True);
+                Assert.That(float.IsNaN(seven.Value), Is.True);
+                Assert.That(fourteen.Value, Is.EqualTo(0.25f));
+                Assert.That(missingBucket.IsDeclared, Is.False);
+                Assert.That(missingField.IsDeclared, Is.False);
+            });
+        }
+
+        [Test]
+        public void TestGeometryCompatibilityMutationCannotForgeOrAlterAcceptedDeclaration()
+        {
+            var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nLongNoteBodyWidth: 0.75\n");
+            BmsSkinConfiguration configuration = getBmsConfiguration(skin, BmsKeymode.Key7K);
+
+            configuration.Geometry[BmsSkinConfigurationLookups.LongNoteBodyWidth] = 0.25f;
+            configuration.Geometry[BmsSkinConfigurationLookups.PlayfieldWidth] = 0.5f;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(skin.GetAcceptedBmsGeometry(
+                    BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                    BmsKeymode.Key7K).Value, Is.EqualTo(0.75f));
+                Assert.That(skin.GetAcceptedBmsGeometry(
+                    BmsSkinConfigurationLookups.PlayfieldWidth,
+                    BmsKeymode.Key7K).IsDeclared, Is.False);
+                Assert.That(() => skin.GetAcceptedBmsGeometry(
+                    BmsSkinConfigurationLookups.NoteColourWhite,
+                    BmsKeymode.Key7K), Throws.TypeOf<ArgumentOutOfRangeException>());
+            });
+        }
+
+        [Test]
+        public void TestParsedConfigurationHashIsCapturedFromExactBytes()
+        {
+            const string ini = "[Bms]\r\nKeymode: 7K\r\nLongNoteBodyWidth: 0.75\r\n";
+            var skin = new TestBmsLegacySkin(ini);
+            string expected;
+
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(ini)))
+                expected = stream.ComputeSHA2Hash();
+
+            Assert.That(skin.CaptureManagedPackageSourceRevision().ParsedConfigurationContentHash, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void TestManagedRevisionRequiresParsedConfigurationHashToMatchPackage()
+        {
+            string configurationHash = "a".PadLeft(64, 'a');
+            var files = new[]
+            {
+                new BmsManagedPackageFileRevision("skin.ini", configurationHash, "aa/skin"),
+                new BmsManagedPackageFileRevision("body.png", "b".PadLeft(64, 'b'), "bb/body"),
+            };
+            Guid skinId = Guid.NewGuid();
+            var matching = new BmsManagedPackageSourceRevision(
+                skinId, true, null, false, false, configurationHash, files);
+            var mismatch = new BmsManagedPackageSourceRevision(
+                skinId, true, null, false, false, "c".PadLeft(64, 'c'), files);
+            var otherMismatch = new BmsManagedPackageSourceRevision(
+                skinId, true, null, false, false, "d".PadLeft(64, 'd'), files);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(matching.HasGameplayAuthority, Is.True);
+                Assert.That(mismatch.HasGameplayAuthority, Is.False);
+                Assert.That(otherMismatch.HasGameplayAuthority, Is.False);
+                Assert.That(matching, Is.Not.EqualTo(mismatch));
+                Assert.That(mismatch, Is.Not.EqualTo(otherMismatch));
             });
         }
 

@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-07-16
+> 最后更新：2026-07-17
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。managed `.osk` BMS 普通短键、长条头与长条尾纵切均已通过自动 gate，集中视觉项 `V-001`～`V-003` 待确认；下一切片冻结为统一标量几何策略下的长条 body。真实 BMS beatmap-local 作者格式仍须产品另行决定，完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。managed `.osk` BMS 普通短键与长条 head/body/tail 四个可见组件的自动、合同、安全与回退 gate 已闭合，集中视觉项 `V-001`～`V-004` 签收 **0/4**；这只关闭了 R2 的前置合同和首个 Note/LN 纵切自动闭环，工程现转入 R3/`SV1-2`，不代表 `SV1-1`、Skin V1 或 release 完成。真实 BMS beatmap-local 作者格式仍须产品另行决定，完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,15 +21,15 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | Skin V1 已实现纵切 | managed `.osk` 的 BMS 普通短键、长条头与长条尾自动 gate 已过；`V-001`～`V-003` 视觉待验收 | 继续登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
-| 2 | Skin V1 后续纵切 | `SV1-1` 仍未完成；`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现 | 先建立可复用标量几何合法域，再让 managed `.osk` BMS 长条 body 与其宽度同 revision 发布 |
-| 3 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
+| 1 | R3 / `SV1-2` G1 可视文件夹 | 只有 early carrier；异常实现已撤回，整包原子重载未实现 | 建立 managed/external authority、路径 containment、安全存储与整包原子 reload |
+| 2 | R4 / Skin V1 后续合同 | `SV1-1` 整体仍未完成，`SV1-3`～`SV1-7` 未实现 | 补齐完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime；这些不是进入 `SV1-2` 的前置 |
+| 3 | 集中视觉签收 | R2 首个 Note/LN 纵切的四组件自动门已闭合；`V-001`～`V-004` 签收 0/4 | 继续登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 5 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
 
 ## 皮肤系统主线摘要
 
-- 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；新增可见纵切为 managed `.osk` 的 BMS 普通短键、长条头与长条尾静态图/编号帧动画。
+- 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；新增可见纵切为 managed `.osk` 的 BMS 普通短键与长条 head/body/tail 静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，managed/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享 neutral ini/asset/animation/event runtime、三态解析与 sandbox，ruleset topology/layout adapter 分离；当前窄纵切不代表这些能力已经完成。
 - G1、完整 layout/shared codec、其它 slot 三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit 与移除程序化产品视觉均未完成。
@@ -40,7 +40,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 全过；普通短键/长条头/长条尾自动 gate 通过、`V-001`～`V-003` 集中待验收；下一切片为安全标量几何下的 BMS 长条 body |
+| P1-A | `SV1-0` 全过；普通短键与长条 head/body/tail 四组件自动 gate 通过、`V-001`～`V-004` 集中待验收；工程下一优先级为 R3/`SV1-2` G1 安全存储与整包原子重载 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -58,16 +58,16 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 ## 最近一次验证
 
-### 产品/runtime：截至 2026-07-16 的 P1-A 普通短键、长条头与长条尾纵切
+### 产品/runtime：截至 2026-07-17 的 P1-A 普通短键与长条 head/body/tail 纵切
 
 | 证据面 | 结果与边界 |
 | --- | --- |
-| 产品自动验收 | **60/60**，连续三轮全绿；覆盖普通短键及长条头/尾静态与动画、真实 hold 链、7K scratch、14K S2H/S2T、A→B、selected 坏组件隔离、低层裸同名防串与完整组件接管、provider-order、authority 冲突及异步换源；beatmap-local 仍只是注入式 fixture |
-| 自动回归 | 合并态 BMS skin/runtime focused **271/271**、BMS full **1401/1401**；当前 `osu.Desktop.slnf` Release **0 error / 11 known warnings**。普通短键 gate 工具/生成/staging/场景的既有 **53/53** 未在本切重跑 |
+| 产品自动验收 | **94/94**，连续三轮全绿；覆盖普通短键及长条 head/body/tail 静态与动画、真实 hold 链、body 安全宽度与同 revision 发布、Idle/Holding/Broken 状态及异步 hydration、7K scratch/SL、14K S2L、A→B、selected 坏组件隔离、低层裸同名防串与完整组件接管、provider-order、authority 冲突及异步换源；beatmap-local 仍只是注入式 fixture |
+| 自动回归 | 合并态 BMS skin/runtime focused **326/326**、BMS full **1456/1456**；当前 `osu.Desktop.slnf` Release **0 error / 11 known warnings**。普通短键 gate 工具/生成/staging/场景的既有 **53/53** 未在本切重跑 |
 | 未重跑范围 | 本次只改 BMS ruleset 内 provider/renderer/test，未改 shared `osu.Game` skin ABI、mania compatibility 或 fallback authority，因此未另跑 core/mania 产品测试；Release 已编译 core、mania/BMS 与两个 test project |
 | 已知告警 | 保留 MessagePack 3.1.3 `NU1902` 及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn` |
 | 数据与网络 | 测试使用隔离临时存储；exact CLI 失败用例未创建 host 残留。生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入 |
-| 未证明能力 | `V-001`～`V-003` 仍待用户集中确认；LN body、mania compatibility、完整三态/layout/G1/scene/script、双包与整包原子重载不在本切范围；transparent tail 是迁移 fallback，不是作者 `Suppress` |
+| 未证明能力 | `V-001`～`V-004` 仍待用户集中确认；mania compatibility、完整 slot 三态/layout/G1/scene/script、双包与整包原子重载不在首个纵切范围；transparent tail 是迁移 fallback，不是作者 `Suppress` |
 
 ### 文档治理：2026-07-16
 
@@ -75,7 +75,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 ### 手工门素材：2026-07-16
 
-自生成 good/broken `.osk` 与静音 7K `.bme` 的 generator smoke **1/1**，普通短键实际包仍由既有产品链/场景 gate 覆盖；两次生成、Windows PowerShell 5.1/7 输出的 SHA-256 一致。`import-staging` 只覆盖两个已知副本，目录/目标 reparse 与目录冲突 fail-closed；安全/重跑用例仍保留既有 **53/53** 证据。exact runner 只接受内部 GUID host/data storage，含 120 秒 watchdog、显式退出码和不跟随 reparse 的清理；缺失/非法 exact CLI 均 exit 1 且新增 AppData host 残留为 0。按用户当前“不操控电脑”的要求，本切未开窗或操控桌面；用户视觉签收保持 `V-001`～`V-003` 待验收。
+自生成 good/broken `.osk` 与静音 7K `.bme` 的 generator smoke **1/1**，普通短键实际包仍由既有产品链/场景 gate 覆盖；两次生成、Windows PowerShell 5.1/7 输出的 SHA-256 一致。`import-staging` 只覆盖两个已知副本，目录/目标 reparse 与目录冲突 fail-closed；安全/重跑用例仍保留既有 **53/53** 证据。exact runner 只接受内部 GUID host/data storage，含 120 秒 watchdog、显式退出码和不跟随 reparse 的清理；缺失/非法 exact CLI 均 exit 1 且新增 AppData host 残留为 0。按用户当前“不操控电脑”的要求，四组件纵切均未开窗或操控桌面；用户视觉签收保持 `V-001`～`V-004` 待统一验收。
 
 ## 待人工验收
 
@@ -85,17 +85,19 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 | managed `.osk` BMS 普通短键编号帧动画 | **`V-001` 集中待验收**；不阻塞后续自动可证切片，不计为产品交付 |
 | managed `.osk` BMS 长条头静态图/编号帧动画 | **`V-002` 集中待验收**；不阻塞后续自动可证切片，不计为产品交付 |
 | managed `.osk` BMS 长条尾静态图/编号帧动画 | **`V-003` 集中待验收**；不阻塞后续自动可证切片，不计为产品交付；透明链底不是作者 `Suppress` |
+| managed `.osk` BMS 长条 body 静态图/编号帧动画、安全宽度及三态过渡 | **`V-004` 集中待验收**；不阻塞后续自动可证切片，不计为产品交付 |
 | analog scratch、真实 HID、LN/CN/HCN、长 BGM、密集键音真实谱 | 待做 |
 | BGA 图序列/POOR/seek、Gimmick、Song Select 大库与最终发行 | 待做或待复核 |
 
 ## 当前风险
 
 - 四个无 authority orphan blob 暂留并已保全，不得把异常处置作为 G1 scanner 批量清理的先例。
-- 当前可见纵切只覆盖 BMS 普通短键与 LN head/tail，不含 body、key、mania、scene/script；Skin V1 不能据此宣称可用。
+- 当前可见纵切只覆盖 BMS 普通短键与 LN head/body/tail，不含 key、mania、完整 layout/三态或 scene/script；Skin V1 不能据此宣称可用。
 - 当前逐组件异步替换不等于 `SV1-2` 的整包原子重载；runtime 资源预算也不等于 importer 的 zip-bomb gate。
+- 同一 `BmsLegacySkin` 实例的成功 preparation cache 当前不感知 revision；包在原位变化时会安全地维持旧结果或回落，不会混发，但需在 `SV1-2` 的整包 revision/原子重载中消除该陈旧风险。
 - 当前链底仍是程序化 `OmsSkin`，不是最终只读 `oms-simple.osk`。
 - BMS 单套测试全绿不证明 mania 默认资源、真实选择链或视觉事件正确。
-- 皮肤几何值缺少完整合法域校验，统一 descriptor 前仍可能让 playfield 与 gauge/combo/BGA 脱节。
+- `LongNoteBodyWidth` 已有首个安全合法域；完整几何 descriptor 仍归 R4，统一前 playfield 与 gauge/combo/BGA 仍可能脱节。
 - lane keysound timeline 仍有 5K/7K 边缘轨及 14K 第二皿丢失风险，另立 P1-K/P1-J 切片修复。
 - abnormal-period 归档只能定点取证；50k dense、真实硬件和特殊 Gimmick 仍必须以 profiler/实机证据推进。
 

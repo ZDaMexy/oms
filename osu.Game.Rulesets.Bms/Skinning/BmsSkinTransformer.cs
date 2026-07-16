@@ -104,7 +104,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 case BmsLaneSkinLookup laneLookup:
                     return skinnedComponent ?? createBuiltInFallback(() => createDefaultLaneComponent(laneLookup));
 
-                case BmsNoteSkinLookup { Element: BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead or BmsNoteSkinElements.LongNoteTail } noteLookup:
+                case BmsNoteSkinLookup
+                {
+                    Element: BmsNoteSkinElements.Note
+                    or BmsNoteSkinElements.LongNoteHead
+                    or BmsNoteSkinElements.LongNoteBody
+                    or BmsNoteSkinElements.LongNoteTail
+                } noteLookup:
                     if (skinnedComponent != null)
                         return skinnedComponent;
 
@@ -128,6 +134,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     {
                         BmsNoteSkinElements.Note => BmsSkinConfigurationLookups.NoteImage,
                         BmsNoteSkinElements.LongNoteHead => BmsSkinConfigurationLookups.HoldNoteHeadImage,
+                        BmsNoteSkinElements.LongNoteBody => BmsSkinConfigurationLookups.HoldNoteBodyImage,
                         BmsNoteSkinElements.LongNoteTail => BmsSkinConfigurationLookups.HoldNoteTailImage,
                         _ => throw new System.ArgumentOutOfRangeException(nameof(noteLookup), noteLookup.Element, "Unsupported exact-source BMS note element."),
                     };
@@ -249,7 +256,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 BmsNoteSkinElements.Note => new DefaultBmsNoteDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride),
                 BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride),
-                BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
+                BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(
+                    lookup.LaneIndex,
+                    lookup.IsScratch,
+                    lookup.Keymode,
+                    allowAggregateResourceAndGeometryOverride: allowAggregateTextureOverride),
                 BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode, allowAggregateTextureOverride),
                 _ => new Box
                 {

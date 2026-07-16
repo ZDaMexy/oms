@@ -12,7 +12,7 @@ metadata:
 
 ## 当前可信面
 
-- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有 managed package 的 BMS 普通短键、`LongNoteHead` 与 optional `LongNoteTail` 静态/`name-{n}` 编号帧窄生产路径。tail 的透明链底是迁移 fallback，不是作者 `Suppress`。当前 gate 只看 P1-A STATUS，不在 memory 复制提交和测试数字。
+- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有 managed package 的 BMS 普通短键、critical `LongNoteHead` / `LongNoteBody` 与 optional `LongNoteTail` 静态/`name-{n}` 编号帧窄生产路径。body 素材与安全解析后的宽度绑定同一 package revision；tail 的透明链底是迁移 fallback，不是作者 `Suppress`。当前 gate 只看 P1-A STATUS，不在 memory 复制提交和测试数字。
 - 当前 `OmsSkin` 是程序化逐组件链底，但只算迁移基线；最终由只读 `oms-simple.osk` 接管并移出程序化产品视觉。
 - G1 只保留 folder ctor 与 `SkinInfo.FilesystemStoragePath/IsExternalFilesystemStorage` + schema 56 载体；没有扫描/选择/删改/热重载。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 均未落地。
@@ -39,9 +39,12 @@ metadata:
 - 贴图优先；无贴图才使用 ini colour/palette。composite 化后测试要读内层 visual，不读容器自身 colour。
 - lane 宽经总相对宽归一化；同比缩放所有 lane relative width 无效。几何细节见 [[reference_bms_default_skin_geometry]]。
 - `HitTargetVerticalOffset` 保持 0 以守住时间/滚动合同。
-- geometry 当前缺 finite/正值/范围校验；playfield 读 skin profile，但 gauge/combo 会另建默认 profile、BGA 固定 rect。先建唯一 snapshot，再扩表现。
+- geometry 仍整体缺少 finite/正值/range/screen-space/cross-field 的统一 solver；唯一窄例外是 `LongNoteBodyWidth` 已使用可复用标量解析器，只接受 finite 且 `0 < width <= 1`，否则以稳定 typed 原因逐字段回到 `0.5775`。这不是 `SV1-3` layout snapshot；playfield 读 skin profile，但 gauge/combo 会另建默认 profile、BGA 固定 rect。
 - legacy mania 缺 `Keys:` bucket 时会合成默认 configuration；neutral model 必须保留 explicit presence，不能把合成默认误判为 `Provide`。
-- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；candidate plan 整体仍未接生产、也不是已装载 fallback，native BMS 普通短键/长条头/长条尾的 source-bound 加载只是当前窄例外。
+- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；candidate plan 整体仍未接生产、也不是已装载 fallback，native BMS 普通短键/长条头/长条身/长条尾的 source-bound 加载只是当前窄例外。
+- `LongNoteBody` 的 resource frames、resolved width 与解析后 `skin.ini` identity 必须进入同一个 source-bound material；发布后 renderer 不得再向 aggregate skin 查询宽度。selected body 坏声明不得与下层裸同名纹理或裸宽度拼件，只有下层自己的完整组件或 protected rescue 能接管。
+- managed/default body 共用一个状态宿主，由真实 `DrawableBmsHoldNote` 驱动 Idle/Holding/Broken；active alpha `0.8`、broken alpha `0.32`，约 `80ms` tint/fade，HCN 才允许 regrab 回 Holding。异步 body 在状态已改变后到达时要立即投影当前状态，不得另造 gameplay state authority。
+- 当前成功 preparation cache 仍按 `BmsLegacySkin` 实例复用，并非 revision-aware；同一实例原地改变来源时不会混合发布，但可能安全回退或继续使用旧 preparation，需重建 skin 实例才能取得新来源。这个缺口归 `SV1-2` 整包 revision/reload，不得把逐组件 A→B 描述成完整热重载。
 - 当前未版本化 9K BMS/PMS per-lane raw token 实际为 `0..8`；V1 canonical `1..9` 必须做版本化迁移/冲突诊断，禁止静默双 alias。
 - 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
@@ -53,4 +56,4 @@ metadata:
 
 ## 下一入口
 
-视觉验收采用集中签收：切片通过自动、合同、安全与回退 gate 后即可按依赖继续，待签收只能记为“实现／自动 gate 通过，视觉待验收”，不得计作交付、`SV1` 完成或 release gate 通过；只有视觉结论确实影响下一实现才暂停。当前 `V-001`～`V-003` 分别是 managed `.osk` BMS 普通短键、长条头与长条尾，必须在 Skin V1/release 声明前由用户确认，且不得复用 2026-07-14 静态恢复验收。下一切片为 critical `LongNoteBody`：先建立唯一可复用标量几何策略，`LongNoteBodyWidth` 只接受 finite 且 `0 < width <= 1`、否则逐字段回到 `0.5775`，body 素材与 width 必须同 package revision 发布，并复用 Idle/Holding/Broken 状态宿主；不要绕开拉伸/裁剪合同，也不要提前扩成 `SV1-3` screen-space/layout snapshot。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因窄纵切提前计为完成；旧 F/G 编号只作历史索引，被撤回实现查 P1-A CHANGELOG/Git。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退 gate 后即可按依赖继续，待签收只能记为“实现／自动 gate 通过，视觉待验收”，不得计作交付、`SV1` 完成或 release gate 通过；只有视觉结论确实影响下一实现才暂停。当前 `V-001`～`V-004` 分别是 managed `.osk` BMS 普通短键、长条头、长条尾与长条身，均必须在 Skin V1/release 声明前由用户确认，且不得复用 2026-07-14 静态恢复验收。`LongNoteBody` 的素材/宽度同 revision、状态宿主与回退隔离已通过自动 gate，但仍只是逐组件窄纵切；后续入口以 P1-A STATUS/PLAN 为准，并保留上节 `SV1-2` preparation-cache 缺口。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因该纵切提前计为完成；旧 F/G 编号只作历史索引，被撤回实现查 P1-A CHANGELOG/Git。

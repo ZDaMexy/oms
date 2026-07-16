@@ -241,6 +241,80 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestLongNoteBodyInvalidWidthsUseSafeDefault()
+        {
+            foreach (string invalidWidth in new[] { "NaN", "Infinity", "0", "-0.1", "1.1" })
+            {
+                DefaultBmsLongNoteBodyDisplay body = null!;
+
+                AddStep($"load LN body with invalid width {invalidWidth}", () =>
+                {
+                    var skin = new TestBmsLegacySkin($"[Bms]\nKeymode: 7K\nLongNoteBodyWidth: {invalidWidth}\n");
+                    Child = new SkinProvidingContainer(skin) { Child = body = new DefaultBmsLongNoteBodyDisplay(1, false, BmsKeymode.Key7K) };
+                });
+
+                AddUntilStep("loaded", () => body.IsLoaded);
+                AddAssert(
+                    "LN body uses safe default width",
+                    () => body.Width,
+                    () => Is.EqualTo(BmsGameplaySkinScalarGeometryResolver.DEFAULT_LONG_NOTE_BODY_WIDTH).Within(0.0001f));
+            }
+        }
+
+        [Test]
+        public void TestLongNoteBodyTextureUsesWhiteActiveTint()
+        {
+            DefaultBmsLongNoteBodyDisplay body = null!;
+
+            AddStep("load LN body texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nNoteImage1L: notes/body\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = body = new DefaultBmsLongNoteBodyDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => body.IsLoaded);
+            AddAssert("LN body shows textured sprite", () => body.ChildrenOfType<Sprite>().Count(sprite => sprite is not Box), () => Is.EqualTo(1));
+            AddAssert(
+                "LN body texture keeps white active tint",
+                () => body.ChildrenOfType<Sprite>().Single(sprite => sprite is not Box).Colour.TopLeft.SRGB,
+                () => Is.EqualTo(Color4.White));
+        }
+
+        [Test]
+        public void TestProtectedLongNoteBodyFallbackIgnoresAggregateResourceAndGeometry()
+        {
+            DefaultBmsLongNoteBodyDisplay body = null!;
+            TexturedTestSkin skin = null!;
+
+            AddStep("load protected LN body with aggregate texture and width", () =>
+            {
+                skin = new TexturedTestSkin(
+                    "[Bms]\nKeymode: 7K\nNoteImage1L: notes/body\nLongNoteBodyWidth: 0.9\nNoteColourWhite: 0,0,255\n",
+                    renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin)
+                {
+                    Child = body = new DefaultBmsLongNoteBodyDisplay(
+                        1,
+                        false,
+                        BmsKeymode.Key7K,
+                        allowAggregateResourceAndGeometryOverride: false),
+                };
+            });
+
+            AddUntilStep("loaded", () => body.IsLoaded);
+            AddAssert("protected LN body stays box", () => body.ChildrenOfType<Box>().Count(), () => Is.EqualTo(1));
+            AddAssert("protected LN body skips aggregate texture lookup", () => skin.TextureRequestCount, () => Is.Zero);
+            AddAssert(
+                "protected LN body ignores aggregate width",
+                () => body.Width,
+                () => Is.EqualTo(BmsGameplaySkinScalarGeometryResolver.DEFAULT_LONG_NOTE_BODY_WIDTH).Within(0.0001f));
+            AddAssert(
+                "protected LN body keeps scalar colour",
+                () => body.ChildrenOfType<Box>().Single().Colour.TopLeft.SRGB,
+                () => Is.EqualTo(new Color4(0, 0, 255, 255)));
+        }
+
+        [Test]
         public void TestLaneDividerColourFromConfig()
         {
             DefaultBmsLaneDividerDisplay divider = null!;

@@ -13,6 +13,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
 using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osuTK;
@@ -24,8 +25,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// Resolves the first production Skin V1 note components from one exact managed <c>.osk</c> source.
     /// </summary>
     /// <remarks>
-    /// Only the native BMS ordinary-note, long-note-head and long-note-tail declarations are in scope. Mania compatibility
-    /// candidates, the long-note body, folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
+    /// Only the native BMS ordinary-note and long-note declarations are in scope. Mania compatibility candidates,
+    /// folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
     /// </remarks>
     internal sealed class BmsManagedPackageNoteProvider :
         IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, BmsSourceBoundNoteMaterial>
@@ -110,6 +111,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 BmsNoteSkinElements.Note => GameplaySkinSlotCatalog.Note,
                 BmsNoteSkinElements.LongNoteHead => GameplaySkinSlotCatalog.LongNoteHead,
+                BmsNoteSkinElements.LongNoteBody => GameplaySkinSlotCatalog.LongNoteBody,
                 BmsNoteSkinElements.LongNoteTail => GameplaySkinSlotCatalog.LongNoteTail,
                 _ => null,
             };
@@ -173,6 +175,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private readonly Dictionary<string, BmsManagedPackageFileRevision> filesByName;
 
         public Guid SkinId { get; }
+        public string? ParsedConfigurationContentHash { get; }
         public bool HasGameplayAuthority { get; }
         public bool HasFileNameConflict { get; }
         public IReadOnlyList<BmsManagedPackageFileRevision> Files => files;
@@ -183,11 +186,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
             string? filesystemStoragePath,
             bool isExternalFilesystemStorage,
             bool deletePending,
+            string? parsedConfigurationContentHash,
             IEnumerable<BmsManagedPackageFileRevision> files)
         {
             ArgumentNullException.ThrowIfNull(files);
 
             SkinId = skinId;
+            ParsedConfigurationContentHash = parsedConfigurationContentHash;
             var normalisedFiles = new List<BmsManagedPackageFileRevision>();
             filesByName = new Dictionary<string, BmsManagedPackageFileRevision>(StringComparer.OrdinalIgnoreCase);
 
@@ -229,13 +234,18 @@ namespace osu.Game.Rulesets.Bms.Skinning
                          .ThenBy(file => file.ContentHash, StringComparer.Ordinal)
                          .ToArray();
 
+            bool parsedConfigurationMatchesPackage = !string.IsNullOrWhiteSpace(parsedConfigurationContentHash)
+                                                       && filesByName.TryGetValue("skin.ini", out BmsManagedPackageFileRevision? configurationFile)
+                                                       && StringComparer.Ordinal.Equals(configurationFile.ContentHash, parsedConfigurationContentHash);
+
             HasFileNameConflict = conflict;
             HasGameplayAuthority = isRealmManaged
                                    && string.IsNullOrEmpty(filesystemStoragePath)
                                    && !isExternalFilesystemStorage
                                    && !deletePending
                                    && this.files.Length > 0
-                                   && !conflict;
+                                   && !conflict
+                                   && parsedConfigurationMatchesPackage;
         }
 
         public bool TryGetFile(string packageName, out BmsManagedPackageFileRevision file)
@@ -248,6 +258,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             if (other == null
                 || SkinId != other.SkinId
+                || !StringComparer.Ordinal.Equals(ParsedConfigurationContentHash, other.ParsedConfigurationContentHash)
                 || HasGameplayAuthority != other.HasGameplayAuthority
                 || HasFileNameConflict != other.HasFileNameConflict
                 || files.Length != other.files.Length)
@@ -274,6 +285,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             var hash = new HashCode();
             hash.Add(SkinId);
+            hash.Add(ParsedConfigurationContentHash, StringComparer.Ordinal);
             hash.Add(HasGameplayAuthority);
             hash.Add(HasFileNameConflict);
 
@@ -399,7 +411,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                     try
                     {
-                        plans[slot] = createPlan(resources.Files, sourceRevision, resourceName, cancellationToken);
+                        NotePlan plan = createPlan(resources.Files, sourceRevision, resourceName, cancellationToken);
+
+                        if (slot.Element == BmsNoteSkinElements.LongNoteBody)
+                        {
+                            GameplaySkinConfigurationDeclaration<float> widthDeclaration = source.GetAcceptedBmsGeometry(
+                                BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                                slot.Keymode);
+                            BmsGameplaySkinScalarGeometryResolution width = BmsGameplaySkinScalarGeometryResolver.Resolve(
+                                BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                                widthDeclaration);
+
+                            plan = plan with { LongNoteBodyWidth = width };
+                        }
+
+                        plans[slot] = plan;
                     }
                     catch (OperationCanceledException)
                     {
@@ -437,7 +463,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     }
 
                     if (valid)
-                        materials[slot] = new BmsSourceBoundNoteMaterial(frames);
+                        materials[slot] = new BmsSourceBoundNoteMaterial(slot.Element, frames, plan.LongNoteBodyWidth);
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -708,9 +734,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             foreach (BmsNoteSkinElements element in new[]
                      {
-                         BmsNoteSkinElements.Note,
-                         BmsNoteSkinElements.LongNoteHead,
-                         BmsNoteSkinElements.LongNoteTail,
+                          BmsNoteSkinElements.Note,
+                          BmsNoteSkinElements.LongNoteHead,
+                          BmsNoteSkinElements.LongNoteBody,
+                          BmsNoteSkinElements.LongNoteTail,
                      })
             {
                 yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key5K, 0, true);
@@ -755,7 +782,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         private static string frameName(string resourceName, int index) => $"{resourceName}-{index}";
 
-        private sealed record NotePlan(FrameDescriptor[] Frames);
+        private sealed record NotePlan(
+            FrameDescriptor[] Frames,
+            BmsGameplaySkinScalarGeometryResolution? LongNoteBodyWidth = null);
 
         private sealed record FrameDescriptor(
             BmsManagedPackageFileRevision File,
@@ -802,22 +831,46 @@ namespace osu.Game.Rulesets.Bms.Skinning
     }
 
     /// <summary>
-    /// Immutable decoded ordinary-note material owned by one prepared package revision.
+    /// Immutable decoded note material and its component-local scalar geometry owned by one prepared package revision.
     /// </summary>
     internal sealed class BmsSourceBoundNoteMaterial
     {
         private readonly Texture[] frames;
 
+        public BmsNoteSkinElements Element { get; }
         public int FrameCount => frames.Length;
+        public BmsGameplaySkinScalarGeometryResolution? LongNoteBodyWidth { get; }
 
-        public BmsSourceBoundNoteMaterial(Texture[] frames)
+        public BmsSourceBoundNoteMaterial(
+            BmsNoteSkinElements element,
+            Texture[] frames,
+            BmsGameplaySkinScalarGeometryResolution? longNoteBodyWidth = null)
         {
             ArgumentNullException.ThrowIfNull(frames);
 
             if (frames.Length == 0 || Array.Exists(frames, frame => frame == null))
                 throw new ArgumentException("A gameplay note material must contain at least one texture frame.", nameof(frames));
 
+            if (element is not (BmsNoteSkinElements.Note
+                or BmsNoteSkinElements.LongNoteHead
+                or BmsNoteSkinElements.LongNoteBody
+                or BmsNoteSkinElements.LongNoteTail))
+            {
+                throw new ArgumentOutOfRangeException(nameof(element), element, "The gameplay note material uses an unsupported element.");
+            }
+
+            if ((element == BmsNoteSkinElements.LongNoteBody) != longNoteBodyWidth.HasValue)
+                throw new ArgumentException("Only a long-note body material must carry its resolved width.", nameof(longNoteBodyWidth));
+
+            if (longNoteBodyWidth is { } width
+                && (!float.IsFinite(width.Value) || width.Value <= 0 || width.Value > 1))
+            {
+                throw new ArgumentOutOfRangeException(nameof(longNoteBodyWidth), width.Value, "The resolved long-note body width is invalid.");
+            }
+
+            Element = element;
             this.frames = (Texture[])frames.Clone();
+            LongNoteBodyWidth = longNoteBodyWidth;
         }
 
         public Drawable CreateDrawable()
@@ -842,7 +895,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 visual = animation;
             }
 
-            return new BmsSourceBoundNoteDrawable(visual);
+            return Element == BmsNoteSkinElements.LongNoteBody
+                ? new BmsSourceBoundLongNoteBodyDrawable(visual, LongNoteBodyWidth!.Value.Value)
+                : new BmsSourceBoundNoteDrawable(visual);
         }
     }
 

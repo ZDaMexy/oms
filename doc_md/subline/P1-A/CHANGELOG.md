@@ -2,6 +2,17 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-17
+
+### `SV1-1` managed `.osk` BMS critical 长条身与安全宽度纵切
+
+- managed source-bound provider 已扩到 critical、不可 `Suppress` 的 `LongNoteBody`，只消费 decoder-time accepted native `[Bms] NoteImage{lane}L` / `NoteImageSL` / `NoteImageS2L`；静态图与连续 `name-0`、`name-1`…编号帧均沿用 60 FPS、containment、解码前后预算、后台 preparation、取消与 stale result 处置。ordinary note、head、body、tail 四组件至此闭合自动、合同、安全与回退 gate。
+- 新增唯一共享 `LongNoteBodyWidth` scalar resolver：默认 `0.5775`，只接受 finite 且 `0 < width <= 1`；absent、non-finite、小于等于零和大于一均以稳定 typed reason 拒绝并逐字段回落默认。有效 body + 非法 width 继续发布同组件默认宽，只有 body 资源整体失败才 `Inherit`；selected 坏 body 不能由低层裸同名文件或裸 width 拼件，低层自己的完整 body 组件仍可接管。
+- body texture/frames 与 resolved width 现绑定同一个 exact parsed `skin.ini` 内容身份和 package revision进入 prepared material并一起发布，renderer 不再反查 aggregate width。managed/default body 共用真实 Idle/Holding/Broken 视觉宿主，保持 active `0.8`、broken `0.32` 与 80ms tint/fade；异步首次挂载立即投影 hold 当前态，HCN regrab 继续只投影 gameplay authority。未改 `DrawableBmsHoldNote` gameplay state、body 拉伸/裁剪或 LN/CN/HCN 规则。
+- 验证：产品 fixture **94/94** 连续三轮全绿，合并态 focused **326/326**，BMS full **1456/1456**，`osu.Desktop.slnf` Release **0 error / 11 known warnings**；保留 9 条 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`。改动文件 targeted format verify 通过，文件内既存 `IDE1006` 命名债未冒充本切问题；独立终审 blocker/major **0/0**。
+- 新能力登记为集中视觉项 `V-004`，与 `V-001`～`V-003` 一样仍待用户统一签收；按用户“不操控电脑、集中反馈”的协作方式，本切未启动 GUI。当前只能写成“`SV1-1` 首个 Note/LN 产品纵切自动闭环”，不能写成 `SV1-1` 完成、产品交付或 release gate 通过。
+- 工程依赖允许下一门转入 `SV1-2`。当前成功 preparation cache 不感知同一 `BmsLegacySkin` 实例内的原地 source revision 变化；它不会混合或发布过期 material，而会安全保留旧视觉/回落并要求实例重建，须在 `SV1-2` 作为原子 reload 风险处理。剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，后续由 shared scene/runtime 接管。
+
 ## 2026-07-16
 
 ### `SV1-1` managed `.osk` BMS 长条尾静态图/编号帧动画纵切

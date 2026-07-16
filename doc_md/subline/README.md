@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；`SV1-1` 首项自动 gate 通过、`V-001` 集中待验收，整体仍不可用 | 继续 `SV1-1` BMS 长条头及后续依赖切片；视觉项累计到统一清单 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；managed `.osk` BMS Note/LN head/body/tail 四组件自动 gate 闭合，`V-001`～`V-004` 签收 0/4，`SV1-1`/Skin V1 整体仍未完成 | 转入 R3/`SV1-2` G1 安全存储与整包原子重载；视觉项继续累计到统一清单 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity 主体已落；常驻反馈卡已按产品决定删除 | 保持 parity gate，补剩余人工/展示面 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |
@@ -16,6 +16,6 @@
 | [P1-J](P1-J/DEVELOPMENT_STATUS.md) | gameplay 性能与音频 | 普通密度主故障已收口 | 末端 lane 发声 proof、转谱 LN、50k profile、人工清单 |
 | [P1-K](P1-K/DEVELOPMENT_STATUS.md) | BMS 解析与转换 | K1–K12 主体阶段性收口 | lane timeline 上界、sparse keymode authority、特殊谱尾项 |
 | [P1-L](P1-L/DEVELOPMENT_STATUS.md) | Gimmick/BGA 视觉 | 播放主链已落，skin ownership 待迁移 | 单内容源/只读 viewport、逐谱视觉与反向滚动 |
-| [P1-M](P1-M/DEVELOPMENT_STATUS.md) | 内置音乐播放器 | 规划完成，未开工 | 主线 R2–R6/release gate 完成或产品改序后，再启动 PlayQueue 地基 |
+| [P1-M](P1-M/DEVELOPMENT_STATUS.md) | 内置音乐播放器 | 规划完成，未开工 | 主线 R3–R6/release gate 完成或产品改序后，再启动 PlayQueue 地基 |
 
 子线变化只有在影响全局优先级、release gate 或硬约束时才回写 mainline；禁止把整段子线实现史复制到主线。

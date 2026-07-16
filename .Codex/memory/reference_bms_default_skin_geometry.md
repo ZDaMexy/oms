@@ -15,12 +15,12 @@ metadata:
 - 物理 lane 宽 = `RelativeWidth / TotalRelativeWidth × PlayfieldWidth`。同比缩放所有 relative width 会被归一化抵消。
 - 总物理宽只改 `BmsPlayfieldLayoutProfile.CreateDefault().PlayfieldWidth`；scratch:key 比例改 `ScratchLaneRelativeWidth/NormalLaneRelativeWidth`。
 - `BmsRulesetSetting.PlayfieldWidth` 不覆盖 strict profile；不要把已删除的 scale/offset config 接回来。
-- 当前关键值：scratch:key `1.5:1`，playfield height `0.92`，LN body width `0.5775`；具体断言以测试/代码为准。
+- 当前关键值：scratch:key `1.5:1`，playfield height `0.92`，LN body width 默认 `0.5775`；具体断言以测试/代码为准。`LongNoteBodyWidth` 是当前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失/非法按 typed 原因回到默认；其余 geometry 与 screen-space/cross-field 仍未统一验证。
 - playfield 顶边贴屏，`HitTargetVerticalOffset=0`。改变高度只改像素路程，不改 GN/TimeRange；不要重加整体向下 offset。
 
 ## LN 视觉
 
-- body Idle/Holding 使用 head colour + alpha；Broken 灰暗。仅 HCN regrab 可从 Broken 回 Holding，CN/LN 不可。
+- managed source-bound body 与程序化默认 body 共用同一个真实保持状态宿主：Idle/Holding 保留 active material 色彩、alpha `0.8`，Broken 灰暗、alpha `0.32`，约 `80ms` tint/fade。仅 HCN regrab 可从 Broken 回 Holding，CN/LN 不可；异步 material 在状态改变后到达时必须立即继承当前状态。
 - tail 默认 `Alpha=0` 只是视觉；tail judgement 仍存在，皮肤 lookup 仍保留。
 
 ## HUD 合同
@@ -34,4 +34,5 @@ metadata:
 
 - 有贴图时贴图主导，不再叠程序化 colour；无贴图才走 ini colour/palette。
 - 几何由 `BmsPlayfield` 读取配置后重建 profile；无 override 时必须保持原 profile 字节/行为一致。
+- `LongNoteBody` 是 source-bound 窄例外：素材帧与 resolved `LongNoteBodyWidth` 同 package revision 发布，renderer 不再从 aggregate skin 重读宽度；selected 坏 body 不能与下层裸同名纹理/裸宽度拼件。这个例外不等于已建立完整 `BmsGameplayLayoutSnapshot`。
 - 相关测试：lane layout、skin geometry、LN state、gauge placement/visibility、HUD strip。旧精确数字和演进过程查 P1-A CHANGELOG。

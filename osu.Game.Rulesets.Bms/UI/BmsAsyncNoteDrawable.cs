@@ -12,7 +12,7 @@ using osu.Game.Skinning;
 namespace osu.Game.Rulesets.Bms.UI
 {
     /// <summary>
-    /// Resolves a BMS ordinary note or long-note cap away from the update thread and atomically publishes the fully loaded result.
+    /// Resolves a BMS ordinary note or long-note component away from the update thread and atomically publishes the fully loaded result.
     /// </summary>
     /// <remarks>
     /// Initial and live resolution never perform package IO on the update thread. A dynamically-added host keeps a
@@ -33,8 +33,13 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            if (lookup.Element is not (BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead or BmsNoteSkinElements.LongNoteTail))
-                throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes and long-note caps.", nameof(lookup));
+            if (lookup.Element is not (BmsNoteSkinElements.Note
+                or BmsNoteSkinElements.LongNoteHead
+                or BmsNoteSkinElements.LongNoteBody
+                or BmsNoteSkinElements.LongNoteTail))
+            {
+                throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes and supported long-note components.", nameof(lookup));
+            }
 
             this.lookup = lookup;
             RelativeSizeAxes = Axes.Both;
@@ -204,6 +209,11 @@ namespace osu.Game.Rulesets.Bms.UI
                     lookup.IsScratch,
                     lookup.Keymode,
                     allowAggregateTextureOverride: false),
+                BmsNoteSkinElements.LongNoteBody => new DefaultBmsLongNoteBodyDisplay(
+                    lookup.LaneIndex,
+                    lookup.IsScratch,
+                    lookup.Keymode,
+                    allowAggregateResourceAndGeometryOverride: false),
                 BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(
                     lookup.LaneIndex,
                     lookup.IsScratch,

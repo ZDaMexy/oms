@@ -28,7 +28,7 @@ metadata:
 
 - P2/CenterRightScratch full bucket 使用 global visual index，stable lane ID/action 不变。
 - 14K deck bucket 使用 group-local visual index；同一个真实 Keys8 bucket 投影两次，因为 legacy decoder 不保留第二个 duplicate Keys8 section。Keys8 必须先于 Keys14，才能优先保留 scratch/deck-local presentation。
-- marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；candidate plan 自身不验证资源、不做 first-value resolution，另由 internal provider adapter 消费。不能把两层混写成 production loader；native BMS 普通短键的真实文件窄路径也没有把整套 candidate plan 或 `oms-simple` marker 生产化。
+- marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；candidate plan 自身不验证资源、不做 first-value resolution，另由 internal provider adapter 消费。不能把两层混写成 production loader；native BMS 普通短键与长条头/身/尾的真实文件窄路径也没有把整套 candidate plan 或 `oms-simple` marker 生产化。
 
 ## 9K raw token 地雷
 
@@ -51,16 +51,18 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
 - active/provisional owner 不能交叉：失败 reload 只 dispose 新 provisional owner，旧 active owner 继续存活；成功原子替换先 detach superseded consumer，再 dispose 旧 owner；teardown 同样先 detach 后 dispose。这里冻结的是 internal interface/fake owner 合同，不证明 concrete production owner、Drawable parenting/thread affinity、缓存或 atomic reload 已完成。
 
-## 首个 production ordinary-note 纵切地雷
+## production source-bound note/LN 纵切地雷
 
-- 不能分别向聚合 skin 查询 config 和 texture：声明可能来自 selected package、同名 texture 却来自 ruleset/内置 package，形成跨 provider 拼接。declaration、frame discovery 与 texture decode 必须绑定同一个精确 package revision。
+- ordinary note 是首个 production 纵切，之后同一路径扩到 `LongNoteHead`、`LongNoteBody` 与 `LongNoteTail`。不能分别向聚合 skin 查询 config 和 texture：声明可能来自 selected package、同名 texture 却来自 ruleset/内置 package，形成跨 provider 拼接。declaration、frame discovery 与 texture decode 必须绑定同一个精确 package revision。
+- body 还要求 resolved `LongNoteBodyWidth` 与素材帧处于同一 source-bound material/revision；解析后 `skin.ini` identity 必须参与 revision authority，发布后 renderer 不得再读 aggregate width。缺失或非法宽度只在该 material 内用 typed reason 回到 `0.5775`，不得从低层裸 width 拼接。
 - `GetTexture()` 之后才检查输入大小、尺寸/像素或累计预算已经太晚；先读受限元数据并做 pre-decode gate，解码后再核对实际值。runtime cap 也不等于 importer 的总解压字节、解压比或 zip-bomb gate。
 - Realm 的 hash-backed package 要先冻结不可变文件名→内容身份快照，再由该 revision 独占 private resource cache；大小写重复、路径越界、身份冲突或缺 blob 均只让对应 slot `Inherit`，不能从另一 package 补齐。
 - generic 同步 reload 会把文件 IO/图片解码带回 update thread。专用异步 note host 应在新视觉完整就绪前保留旧 visual 或 critical fallback，用 generation/cancellation 阻止过期结果发布，并释放所有未采用结果。
 - 当前保证是 per-component publication，不是 package atomic reload；ini/scene/script/所有素材共同验证后一次切换仍属 `SV1-2`。
+- 成功 preparation cache 当前按 `BmsLegacySkin` 实例复用而非 revision-aware；同一实例原地改变来源时不会混合发布，但可能安全回退或继续使用旧 preparation，需重建 skin 实例。这个限制归 `SV1-2`，不能用选择 A→B 的逐组件测试替代整包热重载 gate。
 - `Box` 继承 `Sprite`；测试若只用 `drawable is Sprite` 会把程序化 fallback 误判为用户贴图，必须验证 source-bound 类型/纹理身份或明确的宿主状态。
 
-## production ordinary-note 边界
+## production source-bound 边界
 
-- native BMS 普通短键是首个 package-scoped production 窄纵切；当前自动/实机 gate 和精确测试数字只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。
+- native BMS 普通短键是首个 package-scoped production 窄纵切，随后已扩到长条头/身/尾；当前自动/实机 gate 和精确测试数字只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。
 - 完整 candidate plan、其它 lane-resource、`oms-simple` authority 与 nullable `ISkin` ABI 未因该窄路径自动成立；该纵切的测试不得访问或写入生产数据。

@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-17
+
+### managed `.osk` BMS 长条 body 纵切自动门通过，工程转入 `SV1-2`
+
+selected managed package 现可为 critical `LongNoteBody` 提供 `NoteImage{lane}L`/`SL`/`S2L` 静态图与 60 FPS 连续编号帧；`LongNoteBodyWidth` 由唯一安全标量策略解析，只接受 finite 且 `0 < width <= 1`，无声明或非法值逐字段回到 `0.5775` 并保留稳定拒绝原因。body 素材与解析后宽度绑定同一精确 package revision 后一起发布，坏资源不会与低层裸同名素材/宽度拼件；managed/default body 共用真实 Idle/Holding/Broken 状态宿主与 80ms 过渡，未复制或改写 `DrawableBmsHoldNote` 的 gameplay 状态权威、拉伸/裁剪及 LN/CN/HCN 语义。产品 fixture **94/94** 连续三轮、合并 focused **326/326**、BMS full **1456/1456**、Release **0 error / 11 known warnings**；全程未开窗或操控 GUI。新视觉登记为 `V-004`，至此普通短键与 LN head/body/tail 四个可见组件的自动、合同、安全与回退 gate 闭合，但 `V-001`～`V-004` 视觉签收仍为 **0/4**，不得称 `SV1-1`、Skin V1 或 release 完成。
+
+R2 至此只关闭进入 G1 所需的前置合同和首个 Note/LN 纵切自动闭环，工程下一优先级转为 R3/`SV1-2` 的 G1 安全存储与整包原子重载；完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime 仍归 R4，不是启动 `SV1-2` 的前置。已知同一 `BmsLegacySkin` 实例的成功 preparation cache 尚不感知 revision：包原位变化时会安全维持旧结果或回落，不会混发，但该陈旧风险必须在 `SV1-2` 的 package revision/原子重载中消除。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 与[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。
+
 ## 2026-07-16
 
 ### managed `.osk` BMS 长条尾纵切自动门通过

@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-16
+> 最后更新：2026-07-17
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -18,39 +18,30 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 ## 已关闭前置
 
 - R0 皮肤异常恢复与 R1 schema 56 数据安全门已经关闭；恢复证据见 [恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，数据证据见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。迁移归档和无 authority orphan blob 继续保全，不做全局清理。
+- R2 已关闭进入 G1 所需的前置合同和首个 Note/LN 纵切自动闭环：managed `.osk` BMS 普通短键与长条 head/body/tail 四组件通过自动、合同、安全与回退 gate。`V-001`～`V-004` 视觉签收仍为 0/4，`SV1-1`、Skin V1 与 release 均不得据此声明完成；完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime 归 R4，不是进入 R3/`SV1-2` 的前置。
 
 ## 强制执行顺序
 
-### R2：闭合首个产品纵切并完成 Skin V1 共同合同
-
-1. 视觉验收采用[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。切片通过自动、合同、安全与回退 gate 后即可按依赖继续；待签收项不得写成产品交付、阶段完成或 release gate 通过。只有视觉结论确实决定后续设计/正确性时才暂停请求反馈。
-2. managed `.osk` BMS 普通短键、长条头与长条尾分别登记为 `V-001`～`V-003`，须在 Skin V1/release 完成声明前取得用户集中确认；2026-07-14 静态恢复结论不得复用。真实 BMS beatmap-local 尚无作者格式/生产 producer，是否扩入产品范围须另行决定，不得用注入式 fixture 冒充实机能力。
-3. 普通短键/head/tail 自动门通过后，`SV1-1` 下一组件冻结为 critical `LongNoteBody`：先建立唯一可复用的 BMS 标量几何策略，首字段 `LongNoteBodyWidth` 只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775` 并给稳定拒绝原因；body 素材与 width 必须绑定同一精确 package revision 后一起发布。managed/default body 共用现有 Idle/Holding/Broken 状态宿主与 80ms 视觉过渡，不复制 gameplay 状态机，不提前实现 `SV1-3` 的 screen-space/layout snapshot，也不改拉伸/裁剪或 LN/CN/HCN 语义。
-4. 完成 ruleset-neutral ini codec、layout context、lane identity/topology、显式配置 presence 与 mania compatibility fixtures；唯一 resolved layout 负责 finite/range/screen-space validation。
-5. 将 `Provide/Inherit/Suppress` 接到所需生产 slot；最小可玩组件不可 suppress，缺件继续逐组件回落，beatmap-local authority 不被无意穿透。
-6. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序和禁止写入 authority；真实 capability、manifest、activation 与 runtime gate 必须 fail-closed。
-7. 保持 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 继承 mania 具体 Drawable/transformer。
-
-详细完成定义与当前切片只从 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) 进入，架构证据见 [Skin V1 架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
-
-### R3：G1 可视文件夹存储重设计
+### R3：`SV1-2` G1 可视文件夹存储重设计
 
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
 2. **安全删改**：resolved-root containment、冲突拒绝、reparse-point/symlink 风险处理；外部目录只读。
 3. **扫描与选择**：扫描只能维护自身 authority 的 Realm 记录，不得清理普通 `.osk`、未知来源记录或无 authority blob。
-4. **热重载**：覆盖 `skin.ini`、素材变化和原子替换；生产 `SkinManager`/选择链测试必须存在。
+4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、删除/重命名均经人工确认。
 
 G1 必须按独立切片推进，不得从异常期存档整批恢复。
 
-### R4：Skin V1 layout、兼容层与外部运行时
+### R4：补齐 Skin V1 共同合同、layout、兼容层与外部运行时
 
-1. **layout descriptor**：统一求解 5K/7K 四 style、9K BMS/PMS、14K DP 的 playfield group/lane/BGA viewport/HUD safe slot；BGA 播放 authority 留在引擎。
-2. **mania-compatible ini**：共同字段使用同一 codec/resolver；BMS 只扩展 scratch/side/DP/gauge/BGA/gimmick。
-3. **scene/event ABI**：外部 package 可声明 scene、动画、状态机并消费只读 gameplay 事件，不为每种视觉新增固定 BMS C# 实现。
+1. **共同合同**：补齐 `SV1-1` 剩余生产 slot 的 `Provide/Inherit/Suppress`、ruleset-neutral shared codec 与 mania compatibility；最小可玩组件不可 suppress，缺件逐组件回落，beatmap-local authority 不被无意穿透；保持 shared runtime 与 mania/BMS adapter 分界，禁止 BMS 继承 mania 具体 Drawable/transformer。
+2. **layout descriptor**：完成 `SV1-3` 的唯一 resolved layout，统一求解 5K/7K 四 style、9K BMS/PMS、14K DP 的 playfield group/lane/BGA viewport/HUD safe slot，并负责 finite/range/screen-space validation；BGA 播放 authority 留在引擎。
+3. **scene/event ABI**：按 `SV1-4`～`SV1-6` 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序、capability/manifest/activation 与 fail-closed runtime gate；外部 package 可声明 scene、动画和状态机，不为每种视觉新增固定 BMS C# 实现。
 4. **sandbox script**：先通过权限、确定性和预算 spike，再作为可选作者层接入；不兼容或移植 LR2/beatoraja runtime。
 5. **双极限证明**：`oms-simple.osk` 同包覆盖 mania/BMS、承担最终 fallback；`oms-complex.osk` 同包覆盖 mania/BMS、只用公开 API 证明表达上限。
-6. **社区作者面**：交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明，同时保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
+6. **社区作者面**：完成 `SV1-7`，交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明，同时保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
+
+R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的前置。视觉验收继续使用[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不作为逐组件串行开工门；只有视觉结论实际决定后续设计或自动证据无法裁决异常时才暂停请求反馈。`V-001`～`V-004` 必须在 Skin V1/release 完成声明前统一签收；真实 BMS beatmap-local 尚无作者格式/生产 producer，不得用注入式 fixture 冒充实机能力。详细完成定义只从 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) 进入，架构证据见 [Skin V1 架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ### R5：Phase 1 玩法与硬件收尾
 
@@ -80,7 +71,7 @@ G1 必须按独立切片推进，不得从异常期存档整批恢复。
 | P1-I | 选歌筛选 | 补 focused/visual 与大库体验 gate |
 | P1-J / P1-K | 音频性能、解析与转换 | 先闭合末端 lane 与 keymode authority，再供 R4/R5 消费 |
 | P1-L | Gimmick/BGA | 保留内容播放 authority，与 P1-A 解耦 skin viewport |
-| P1-M | 音乐播放器 | Phase 1 release gate 前不抢占 R2–R6 |
+| P1-M | 音乐播放器 | Phase 1 release gate 前不抢占 R3–R6 |
 
 具体状态和入口统一从 [子线路由](../subline/README.md) 进入。
 
