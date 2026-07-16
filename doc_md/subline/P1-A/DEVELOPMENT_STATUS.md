@@ -5,18 +5,19 @@
 
 ## 一句话状态
 
-`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 首个玩家可见纵切已把用户选中的 managed `.osk` BMS 普通短键编号帧动画接入真实 gameplay，自动 gate 已通过、用户实机仍待单独确认。2026-07-16 文档与 memory 健康治理已完成，未改变代码、产品合同或 gate；下一道门只闭合该动画实机确认，不启动新组件。
+`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 首个玩家可见纵切已把用户选中的 managed `.osk` BMS 普通短键编号帧动画接入真实 gameplay，自动 gate 已通过、`V-001` 集中待验收。视觉待签收不再串行阻塞后续自动可证切片，但不得计为产品交付或阶段完成；下一切片已冻结为 managed `.osk` BMS 长条头静态图与编号帧动画。
 
 ## 当前产品能力
 
 - **恢复基线可用**：`.osk`/legacy mania、BMS F1 静态颜色/纹理/几何、选择链与程序化 `OmsSkin` 迁移 fallback 保持可用。
-- **Skin V1 新增可见功能为 1**：selected managed package 可为 BMS 普通短键提供 `name-0`、`name-1`…编号帧动画；静态 `NoteImage` 属恢复基线，不计新增功能。
+- **实现并自动验证的新增可见能力为 1**：selected managed package 可为 BMS 普通短键提供 `name-0`、`name-1`…编号帧动画；静态 `NoteImage` 属恢复基线，不计新增能力。
+- **产品视觉签收为 0/1**：编号帧动画已登记为集中视觉项 `V-001`，用户尚未签收，因此不能称为已交付功能。
 - **安全回落已覆盖本纵切**：selected 单槽缺失、损坏、越权或超预算时逐组件回落；跨 package 不拼接资源，异步换源只发布当前 revision 的完整结果。beatmap-local 优先目前只是注入式 provider-order 合同，不是真实 BMS `WorkingBeatmap` 能力。
 - **整体仍不可用**：`SV1-1` 未完成，`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现；不能把首个纵切描述成 Skin V1 可用。
 
 | 产品交付面 | 当前状态 |
 | --- | --- |
-| BMS 普通短键编号帧动画 | 自动 gate 已过；用户实机待确认 |
+| BMS 普通短键编号帧动画 | 实现/自动 gate 已过；`V-001` 集中视觉待验收，未交付 |
 | gameplay slot 三态 | 普通短键 critical slot 已消费 `Provide/Inherit`；作者 `Suppress` 与其它 slot 未交付 |
 | canonical `oms-simple.osk` fallback | 未交付；实际链底仍是程序化 `OmsSkin` |
 | G1 文件夹导入/选择/原子重载 | 未交付；只有 schema/constructor 载体 |
@@ -42,18 +43,19 @@
 | 1 | schema 56 数据安全 | **通过**：异常 copy 已在保全后定点处置，OMS fixed-ID 已修正；不运行全局 orphan cleanup |
 | 2 | 恢复基线实机 | **通过**：无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K、双皿与 mania/BMS 隔离均正常 |
 | 3 | 文档与 memory 健康治理 | **完成**：只归位当前事实、未来步骤、稳定合同和历史；未改代码或产品 gate |
-| 4 | managed `.osk` BMS 普通短键编号帧动画实机 | **待用户单独确认**；使用[确定性手工门素材](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)，不可复用静态恢复结论 |
-| 5 | `SV1-1` 其余共同合同与玩家可见组件 | 未冻结下一组件；完成 gate 4 后再由产品选择 |
+| 4 | managed `.osk` BMS 普通短键编号帧动画视觉 | **`V-001` 集中待验收**；这是完成/release 声明门，不是后续开发开工门，不可复用静态恢复结论 |
+| 5 | `SV1-1` 其余共同合同与玩家可见组件 | 下一切片已冻结为 managed `.osk` BMS 长条头静态图/编号帧动画 |
 | 6 | `SV1-2`～`SV1-7` | 未完成；按 [当前计划](DEVELOPMENT_PLAN.md) 独立过门 |
 
 ## 最新验证
 
-### 产品/runtime：2026-07-15 首个玩家可见纵切
+### 产品/runtime 与 gate 工具：截至 2026-07-16
 
-- 产品自动验收 **26/26**：真实 `.osk` 导入/游玩对象/Ruleset 链、14K S2、帧推进与循环、SkinManager A→B、同包坏轨逐组件回落、跨包隔离及异步换源；其中 beatmap-local 项只是注入式 provider-order fixture。
-- 相关 focused **283/283**，BMS full **1333/1333**，`osu.Desktop.slnf` Release **0 error / 20 warnings**，独立终审 blocker/major **0/0**。
-- 本切未修改 shared `osu.Game`、mania compatibility 或 fallback authority，因此未重跑 core/mania；保留 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
-- 测试只使用隔离 headless 临时存储；生产 Realm、`chartskin/`、用户皮肤目录和网络零访问、零写入。
+- 产品自动验收 **28/28**：真实 `.osk` 导入/游玩对象/Ruleset 链、14K S2、帧推进与循环、SkinManager A→B、同包坏轨逐组件回落、跨包隔离及异步换源；其中 beatmap-local 项只是注入式 provider-order fixture。
+- 产品纵切、生成/staging、视觉场景与 runner safety 合并 focused **53/53**；2026-07-15 广基线仍为 related **283/283**、BMS full **1333/1333**。当前 `osu.Desktop.slnf` Release **0 error / 20 warnings**；exact 类型只在 executable test project 条件编译，`osu.Game` 产品程序集保留原 legacy runner API，没有新增 `CS0436`。
+- 本次只改测试 runner/fixture、脚本和文档，未改 shared skin runtime、mania compatibility 或 fallback authority，因此未重跑 core/mania 产品测试与 BMS full；保留 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。
+- root generator 实跑 **1/1**，两个 staged `.osk` 与确定性原件 SHA-256 一致；staging/reparse/无关文件安全用例与 exact 参数/路径/非递归清理用例均已包含在 **53/53**。非法/缺值 exact CLI 均 exit 1，新增 AppData host 残留为 0。
+- 测试只使用隔离临时存储；生产 Realm、`chartskin/`、用户皮肤目录和网络零访问、零写入。按用户要求未在最终代码上重新开窗或操控桌面，自动可视预检和用户签收不冒充已完成。
 - 本次新动画仍待用户实机确认；当前能力不包含 LN、key、mania compatibility、完整 layout/G1/scene/script 或整包原子重载。
 
 ### 文档：2026-07-16 健康治理
@@ -63,8 +65,8 @@
 
 ### 手工门素材：2026-07-16
 
-- 新增 OMS 自生成、确定性的 good/broken `.osk` 与静音 7K `.bme` 生成器；generator smoke **1/1**，包含两项真实 package 产品链用例后的 `BmsManagedPackageNoteProductTest` **28/28**。
-- 这只提供可复现实机输入，不改变 runtime 或 gate 结论；原始 26 项中的 beatmap-local 是 provider-contract fixture，不是 `WorkingBeatmap` / `chartbms/` 集成，因此手工素材不得宣称 beatmap-local 已通过。
+- 新增 OMS 自生成、确定性的 good/broken `.osk` 与静音 7K `.bme` 生成器，以及隔离 exact-scene 自动可视预检入口；它们只提供可复现输入和自动预检，不改变 runtime 或用户视觉 gate 结论。
+- 原始 26 项中的 beatmap-local 是 provider-contract fixture，不是 `WorkingBeatmap` / `chartbms/` 集成，因此手工素材不得宣称 beatmap-local 已通过。
 
 ## 当前风险
 
@@ -81,6 +83,6 @@
 
 ## 下一检查点
 
-1. 按[手工门说明](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)，由用户单独确认 managed `.osk` 的 BMS 普通短键编号帧动画观感与切换/selected 坏包回落表现。
-2. 实机 gate 通过后，由产品选择 `SV1-1` 下一项玩家可见组件并重新冻结最小切片、依赖与验收。
-3. 在下一组件冻结前保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 G1 未交付状态不变。
+1. 收口普通短键动画的隔离自动可视预检与确定性手工素材，将动画观感、选择切换和 selected 坏包回落保持在[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)的 `V-001`，等待统一用户反馈。
+2. 实现 `SV1-1` 下一最小安全切片：managed `.osk` BMS critical `LongNoteHead` 静态图/连续编号帧动画；保持 body/tail、LN/CN/HCN 语义、layout、event runtime 与 `Suppress` 不变。
+3. 自动、合同、安全与回退 gate 通过后继续按依赖推进；只有视觉结论实际决定下一实现时才暂停。期间保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 G1 未交付状态不变。

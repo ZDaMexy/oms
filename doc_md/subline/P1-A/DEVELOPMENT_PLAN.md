@@ -22,11 +22,11 @@
 | --- | --- | --- | --- |
 | 0 | `SV1-0` 恢复与数据安全 | 已完成 | 结果只在 STATUS/CHANGELOG 保留，不重开迁移或全局 cleanup |
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
-| 2 | 首个编号帧动画用户实机 | **当前唯一活动门** | 用户确认真实 managed `.osk` 的动画、选择切换与 selected 坏包回落；产品另行决定是否扩入真实 beatmap-local 格式 |
-| 3 | `SV1-1` 下一玩家可见组件 | 尚未选择 | 门 2 通过后由产品选定一个组件，再冻结最小切片与验证面 |
+| 2 | 首个编号帧动画集中视觉验收 | **`V-001` 待用户签收** | Skin V1/release 完成声明前确认真实 managed `.osk` 的动画、选择切换与 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
+| 3 | `SV1-1` 下一玩家可见组件 | **已冻结** | managed `.osk` BMS critical `LongNoteHead` 静态图与连续编号帧动画通过自动、合同、安全与回退 gate |
 | 4 | `SV1-2`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
-在门 2 闭合前不启动新组件、不修改 G1、layout、shared codec、scene/script 或 canonical fallback authority。
+视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
 
 beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `WorkingBeatmap` 只产生不解析 `[Bms]` 的 `LegacyBeatmapSkin`；仓库也未定义 `.bme` 的逐谱侧车格式。因此现有注入式 fixture 只证明 provider-order，不证明 BMS 谱面本地素材已可用；若选择实现，必须作为独立作者格式/生产 adapter 纵切重新冻结。
 
@@ -40,9 +40,11 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 2. 只补该组件必需的 neutral slot/config/resource mapping，不借机扩完整 manifest、layout 或 event runtime。
 3. 资源必须绑定 exact package revision，经过 containment、文件/帧/解码/预算验证，在后台准备完成后发布；失败保持旧视觉或逐组件 fallback。
 4. beatmap-local → selected → ruleset resources → protected built-in 相对 authority 不变；不同 package 不得拼件。
-5. 自动 gate 后必须补受影响 keymode、选择/切换/回落的用户实机确认；通过前不计下一项新增可见功能。
+5. 自动 gate 后登记受影响 keymode、选择/切换/回落的集中视觉项；待签收不阻塞下一自动可证切片，但不得计为产品交付或阶段验收完成。
 
 验收：该组件在真实 gameplay 进入用户选中的 managed package 链，损坏/缺失/越权/超预算均不破坏可玩性，且未实现的 slot/runtime 不被描述为已完成。
+
+当前冻结切片只扩 `LongNoteHead`：复用现有 `[Bms] NoteImage{lane}H` / `NoteImageSH` / `NoteImageS2H` accepted provenance、精确 package revision、60 FPS 连续编号帧、资源预算、后台 preparation 与逐组件回落。它是不可 suppress 的 critical slot；未声明为 `Inherit`，有效静态图/动画为 `Provide`，空值、缺件、损坏、越权或超预算时回落到可见默认头。body/tail、LN/CN/HCN 规则、尺寸/裁剪、layout、manifest、G1 与 event runtime 均不在本切范围。自动矩阵至少覆盖普通 LN、scratch LN、14K `S2`、A→B 切换、坏 head 单组件回落、跨包隔离与异步换源；通过后追加集中视觉项。
 
 ### SV1-2：G1 安全存储与原子重载
 

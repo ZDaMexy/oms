@@ -1,6 +1,8 @@
 <Project>
   <PropertyGroup>
     <StartupObject>osu.Game.Tests.VisualTestRunner</StartupObject>
+    <!-- Enables the isolated exact-test runner only in executable test projects linking VisualTestRunner.cs. -->
+    <DefineConstants>$(DefineConstants);OSU_EXECUTABLE_TEST_PROJECT</DefineConstants>
   </PropertyGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="$(MSBuildThisFileDirectory)osu.Game\osu.Game.csproj" />

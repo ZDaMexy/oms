@@ -4,6 +4,18 @@
 
 ## 2026-07-16
 
+### 普通短键动画 gate 的隔离自动 runner 与 staging 安全闭环
+
+- 新增 `RunBmsNoteAnimationVisualGate.ps1` 和 exact scene runner：只打开指定 visual test，真实 `SkinManager` 导入内存 good/broken 包，经 `RulesetSkinProvidingContainer → BmsAsyncNoteDrawable` 自动循环 3 轮；场景等待 60 帧/默认回落完全加载，成功停留 3 秒。runner 仅 `--exact-test` 进入严格模式，普通 TestBrowser 参数保持兼容；加载/步骤/watchdog 失败为 1，成功为 0，提前关闭为 3。
+- exact host/data storage 均由内部固定前缀 + GUID 生成；host 路径必须是规范 AppData 直系子目录，清理逐层非递归且遇任意 reparse/junction 即拒绝，不会跟随外部目标。场景在普通 desktop TestBrowser 缺少 exact marker 时会在导入前 fail-closed，headless NUnit 保持可跑。手工 `import-staging` 只覆盖两个精确已知副本，保留无关文件，并拒绝 staging 根/目标 reparse、文件/目录冲突；确定性原件和 SHA 清单不被消费。
+- 自动验证：产品/生成/staging/scene/runner safety 合并 focused **53/53**，root generator **1/1**，两个 staged/source SHA-256 相同；非法/缺值 exact CLI 均 exit 1，新增 AppData host 残留 0。Release 首轮发现 linked runner 生成代码引入 16 条 `CS0436`，随后将 exact 类型限制为 executable test project 条件编译并保留 `osu.Game` 原 legacy runner API，最终恢复 **0 error / 20 warnings**；只保留既有 `NU1902`、`CS8600`、`CA2007`。
+- 本切只改测试工具、fixture、脚本、编译边界与文档，不改皮肤生产 runtime、fallback authority、Realm、用户皮肤或网络。按用户“不操控电脑”的要求，最终代码未重新开窗；自动 scene 与先前代理观察均不能替代 `V-001` 用户视觉签收。
+
+### 视觉验收调度改为集中签收，下一切片冻结为 BMS 长条头
+
+- 用户决定不再用逐组件 GUI/实机签收串行阻塞开发：切片通过自动、合同、安全与回退 gate 后即可按依赖继续，视觉项统一进入[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。待签收只能记为“实现／自动 gate 通过，视觉待验收”，不得计作产品交付、`SV1` 阶段完成或 release gate 通过；只有视觉结论实际影响下一实现时才暂停。
+- 首项 `V-001` 仍覆盖 managed `.osk` BMS 普通短键编号帧动画、选择切换与 selected 坏包回落，2026-07-14 静态恢复结论不能复用。下一最小安全切片冻结为 critical `LongNoteHead` 的静态图与连续编号帧动画；只复用精确 package revision、预算、异步发布和逐组件回落，不扩 body/tail、`Suppress`、layout、G1 或 event runtime。
+
 ### BMS 普通短键编号帧动画的确定性手工门素材
 
 - 新增根目录 `GenerateBmsNoteAnimationManualGate.ps1` 薄包装和测试侧 generator，按固定像素、PNG 参数、ZIP entry 顺序/时间戳/压缩方式生成 good/broken `.osk`、静音 7K `.bme` 与 SHA-256 清单；不读取 SimpleTou、用户皮肤、生产 Realm、`chartskin/` 或网络。

@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。当前唯一下一门是用确定性素材实机确认 managed `.osk` 的 BMS 普通短键编号帧动画、选择切换和 selected 坏包回落，并由产品决定是否额外定义真实 BMS beatmap-local 作者格式。自动 gate 已通过，但在这一门闭合前不启动下一个 Skin V1 组件；完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。首个 managed `.osk` BMS 普通短键编号帧动画已通过自动 gate，集中视觉项 `V-001` 待确认；下一切片已冻结为 managed `.osk` BMS 长条头静态图与编号帧动画。真实 BMS beatmap-local 作者格式仍须产品另行决定，完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,8 +21,8 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | Skin V1 首个产品纵切 | managed `.osk` 的 BMS 普通短键编号帧动画已通过自动 gate | 用[确定性手工素材](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)确认动画/切换/selected 坏包回落，并决定真实 beatmap-local 是否扩入产品范围 |
-| 2 | Skin V1 后续纵切 | `SV1-1` 仍未完成；`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现 | 实机门闭合后由产品决定下一组件并重新冻结切片 |
+| 1 | Skin V1 首个产品纵切 | managed `.osk` 的 BMS 普通短键编号帧动画已通过自动 gate；`V-001` 视觉待验收 | 登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
+| 2 | Skin V1 后续纵切 | `SV1-1` 仍未完成；`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现 | 先实现 managed `.osk` BMS 长条头静态图/编号帧动画；自动门过后继续按依赖推进 |
 | 3 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 5 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -40,7 +40,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 全过；首个产品纵切自动 gate 通过，新动画实机待确认 |
+| P1-A | `SV1-0` 全过；首个产品纵切自动 gate 通过、`V-001` 集中待验收；下一切片为 BMS 长条头 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -63,10 +63,10 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 | 证据面 | 结果与边界 |
 | --- | --- |
 | 产品自动验收 | **28/28**；覆盖真实导入包/游玩对象/Ruleset 链、14K S2、动画推进与循环、选择切换、坏轨逐组件回落、跨包隔离及异步换源；beatmap-local 只是注入式 provider-order 合同 fixture，不是真实 `WorkingBeatmap` 集成 |
-| 自动回归 | 2026-07-15 基线：focused **283/283**；BMS full **1333/1333**；`osu.Desktop.slnf` Release **0 error / 20 warnings**；独立终审 blocker/major **0/0** |
-| 未重跑范围 | 本切未改 shared `osu.Game`、mania compatibility 或 fallback authority，因此未重跑 core/mania |
+| 自动回归 | 当前 gate 工具、产品纵切、生成/staging 与场景合并 focused **53/53**；2026-07-15 广基线仍为 focused **283/283**、BMS full **1333/1333**；当前 `osu.Desktop.slnf` Release **0 error / 20 warnings** |
+| 未重跑范围 | 本次只改测试 runner/fixture、脚本和文档；exact 类型只在 executable test project 条件编译，`osu.Game` 产品程序集保留原 legacy runner API。未改 shared skin runtime、mania compatibility 或 fallback authority，因此未重跑 core/mania 产品测试与 BMS full |
 | 已知告警 | 保留 MessagePack 3.1.3 `NU1902` 及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn` |
-| 数据与网络 | 测试只使用隔离 headless 临时存储；生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入 |
+| 数据与网络 | 测试使用隔离临时存储；exact CLI 失败用例未创建 host 残留。生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入 |
 | 未证明能力 | 新动画仍待用户实机确认；LN、mania compatibility、完整三态/layout/G1/scene/script、双包与整包原子重载不在本切范围 |
 
 ### 文档治理：2026-07-16
@@ -75,14 +75,14 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 ### 手工门素材：2026-07-16
 
-自生成 good/broken `.osk` 与静音 7K `.bme` 的 generator smoke **1/1**，实际包经产品链验证后上表为 **28/28**；两次生成、Windows PowerShell 5.1/7 输出的 SHA-256 一致。该素材不改 runtime，只为当前人工门提供可复现输入。同次文档健康检查通过（119 个 Markdown、955 个相对链接、22 个 memory wiki 链）。
+自生成 good/broken `.osk` 与静音 7K `.bme` 的 generator smoke **1/1**，实际包经产品链验证后上表为 **28/28**；两次生成、Windows PowerShell 5.1/7 输出的 SHA-256 一致。`import-staging` 只覆盖两个已知副本，目录/目标 reparse 与目录冲突 fail-closed；安全/重跑用例已计入上方 **53/53**。exact runner 只接受内部 GUID host/data storage，含 120 秒 watchdog、显式退出码和不跟随 reparse 的清理；缺失/非法 exact CLI 均 exit 1 且新增 AppData host 残留为 0。按用户当前“不操控电脑”的要求，最终代码未重新开窗；用户视觉签收仍保持 `V-001` 待验收。
 
 ## 待人工验收
 
 | 事项 | 状态 |
 | --- | --- |
 | 恢复基线：无外部皮肤、`.osk`、partial fallback、5K/7K/9K/14K、双皿与隔离 | **2026-07-14 已通过** |
-| managed `.osk` BMS 普通短键编号帧动画 | **当前下一门：待用户单独确认** |
+| managed `.osk` BMS 普通短键编号帧动画 | **`V-001` 集中待验收**；不阻塞后续自动可证切片，不计为产品交付 |
 | analog scratch、真实 HID、LN/CN/HCN、长 BGM、密集键音真实谱 | 待做 |
 | BGA 图序列/POOR/seek、Gimmick、Song Select 大库与最终发行 | 待做或待复核 |
 

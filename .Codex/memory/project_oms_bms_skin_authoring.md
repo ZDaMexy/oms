@@ -53,4 +53,4 @@ metadata:
 
 ## 下一入口
 
-下一产品 gate 是由用户单独确认 managed `.osk` 的 BMS 普通短键编号帧动画；不得复用 2026-07-14 的静态恢复验收。实机结论回写 P1-A STATUS/CHANGELOG 后，再由产品决定下一组件。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因该窄纵切提前计为完成；旧 F/G 编号只作历史索引，被撤回实现查 P1-A CHANGELOG/Git。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退 gate 后即可按依赖继续，待签收只能记为“实现／自动 gate 通过，视觉待验收”，不得计作交付、`SV1` 完成或 release gate 通过；只有视觉结论确实影响下一实现才暂停。当前 `V-001` 是 managed `.osk` BMS 普通短键编号帧动画，必须在 Skin V1/release 声明前由用户确认，且不得复用 2026-07-14 静态恢复验收；下一切片为 critical `LongNoteHead` 静态图/编号帧动画。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因窄纵切提前计为完成；旧 F/G 编号只作历史索引，被撤回实现查 P1-A CHANGELOG/Git。

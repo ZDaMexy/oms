@@ -23,12 +23,13 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R2：闭合首个产品纵切并完成 Skin V1 共同合同
 
-1. 先由用户按[确定性手工门](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)单独实机确认 managed `.osk` 的 BMS 普通短键编号帧动画、选择切换与 selected 坏包回落；该结论不得复用静态恢复验收。真实 BMS beatmap-local 尚无作者格式/生产 producer，须由产品决定是否作为额外纵切定义，不得用注入式自动 fixture 冒充实机能力。
-2. 实机门闭合后，由产品选择 `SV1-1` 的下一组件，并在 P1-A 重新冻结最小切片、受影响 authority、回退路径和自动/实机验收面。
-3. 完成 ruleset-neutral ini codec、layout context、lane identity/topology、显式配置 presence 与 mania compatibility fixtures；唯一 resolved layout 负责 finite/range/screen-space validation。
-4. 将 `Provide/Inherit/Suppress` 接到所需生产 slot；最小可玩组件不可 suppress，缺件继续逐组件回落，beatmap-local authority 不被无意穿透。
-5. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序和禁止写入 authority；真实 capability、manifest、activation 与 runtime gate 必须 fail-closed。
-6. 保持 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 继承 mania 具体 Drawable/transformer。
+1. 视觉验收采用[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。切片通过自动、合同、安全与回退 gate 后即可按依赖继续；待签收项不得写成产品交付、阶段完成或 release gate 通过。只有视觉结论确实决定后续设计/正确性时才暂停请求反馈。
+2. 首个 managed `.osk` BMS 普通短键编号帧动画登记为 `V-001`，须在 Skin V1/release 完成声明前按[确定性手工门](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)取得用户确认；2026-07-14 静态恢复结论不得复用。真实 BMS beatmap-local 尚无作者格式/生产 producer，是否扩入产品范围须另行决定，不得用注入式 fixture 冒充实机能力。
+3. `SV1-1` 下一组件冻结为 managed `.osk` BMS 长条头静态图与编号帧动画；只扩 critical `LongNoteHead`，复用精确 package revision、资源预算、异步发布和逐组件回落，不顺带扩 body/tail、`Suppress`、layout 或 event runtime。
+4. 完成 ruleset-neutral ini codec、layout context、lane identity/topology、显式配置 presence 与 mania compatibility fixtures；唯一 resolved layout 负责 finite/range/screen-space validation。
+5. 将 `Provide/Inherit/Suppress` 接到所需生产 slot；最小可玩组件不可 suppress，缺件继续逐组件回落，beatmap-local authority 不被无意穿透。
+6. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序和禁止写入 authority；真实 capability、manifest、activation 与 runtime gate 必须 fail-closed。
+7. 保持 shared runtime 与 mania/BMS adapter 分界；禁止 BMS 继承 mania 具体 Drawable/transformer。
 
 详细完成定义与当前切片只从 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) 进入，架构证据见 [Skin V1 架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 

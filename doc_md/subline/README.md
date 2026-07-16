@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；文档/memory 健康治理已完成；`SV1-1` 新增可见功能 1，整体仍不可用 | 先闭合 managed `.osk` 普通短键编号帧动画实机 gate，再由产品选择下一组件 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；`SV1-1` 首项自动 gate 通过、`V-001` 集中待验收，整体仍不可用 | 继续 `SV1-1` BMS 长条头及后续依赖切片；视觉项累计到统一清单 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity 主体已落；常驻反馈卡已按产品决定删除 | 保持 parity gate，补剩余人工/展示面 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |

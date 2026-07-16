@@ -16,6 +16,7 @@
 - [SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)：schema 56 只读取证、定点迁移与 `SV1-0` 闭门证据；不授权重复操作生产数据。
 - [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：Skin V1 的架构证据与设计解释；执行顺序和硬约束仍以 P1-A 四件套为准。
 - [SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md](SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)：managed `.osk` BMS 普通短键编号帧动画、选择切换与 selected 坏包回落的确定性手工素材及验收边界。
+- [SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)：Skin V1 自动 gate 后集中等待用户签收的视觉清单、状态定义与反馈记录。
 
 ## 联动要求
 

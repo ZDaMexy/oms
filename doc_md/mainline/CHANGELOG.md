@@ -7,6 +7,14 @@
 
 ## 2026-07-16
 
+### 普通短键动画 gate 完成隔离自动化与安全硬化
+
+在不改产品 runtime 的前提下，为确定性 good/broken 包增加只运行一个 exact scene 的自动可视预检：真实 `SkinManager` 导入、60 帧加载、3 轮 good 动画/broken 回落、120 秒 watchdog、`0/1/3` 退出码，以及内部 GUID host/data storage。host 清理只作用于规范 AppData 直系子目录，逐层非递归删除且不跟随 reparse；手工素材 staging 同样只覆盖两个精确副本并拒绝 reparse/目录冲突。合并 focused **53/53**、root generator **1/1**、非法/缺值 exact CLI exit 1 且新增 host 残留 0，Release **0 error / 20 warnings**；exact 类型只在 executable test project 条件编译，保留 `osu.Game` 原 legacy runner API 且未留下新增 `CS0436`。最终代码按用户要求未重新开窗，`V-001` 仍是视觉待验收而非产品交付。
+
+### Skin V1 视觉验收改为集中签收
+
+按产品决定，Skin V1 不再等待每个组件逐项实机签收后才启动下一组件：自动、合同、安全与回退 gate 通过即可继续按依赖推进，视觉项统一登记到[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。未签收项不得称产品交付、阶段完成或 release gate 通过；只有视觉结论实际决定后续设计时才暂停。首项 `V-001` 仍是 managed `.osk` BMS 普通短键编号帧动画，必须在 Skin V1/release 声明前取得确认；下一最小切片已冻结为 managed `.osk` BMS 长条头静态图/编号帧动画。该调度变化不放松 G1、layout、双包、真实谱/硬件或最终人工 gate。
+
 ### Skin V1 首个人工门改为确定性输入
 
 新增 OMS 自生成的 good/broken `.osk`、静音 7K `.bme` 与 SHA-256 清单，并用真实 package 产品链将 focused 验收扩为 **28/28**；generator smoke **1/1**。取证同时确认原 beatmap-local 用例只是注入式 provider-order 合同，当前没有真实 BMS `WorkingBeatmap` 作者格式/生产 producer；手工门因此只验动画、选择切换和 selected 坏包回落，beatmap-local 是否扩入产品范围待决定。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 与[手工门说明](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)。

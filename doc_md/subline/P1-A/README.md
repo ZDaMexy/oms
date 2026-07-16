@@ -1,6 +1,6 @@
 # P1-A 路由
 
-P1-A 负责 Skin V1、共享皮肤产品面与 release gate。当前 `SV1-0` 已闭门，首个 managed `.osk` BMS 普通短键编号帧动画自动 gate 已过、用户实机待确认；Skin V1 整体仍不可用。
+P1-A 负责 Skin V1、共享皮肤产品面与 release gate。当前 `SV1-0` 已闭门，首个 managed `.osk` BMS 普通短键编号帧动画自动 gate 已过、`V-001` 集中待验收；待签收不阻塞后续自动可证切片，但 Skin V1 整体仍不可用。
 
 - 开工先读 [当前状态](DEVELOPMENT_STATUS.md)。
 - 准备实施时再读 [当前计划](DEVELOPMENT_PLAN.md) 与任务相关的 [技术约束](TECHNICAL_CONSTRAINTS.md)。
