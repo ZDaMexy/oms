@@ -24,8 +24,8 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 ### R2：闭合首个产品纵切并完成 Skin V1 共同合同
 
 1. 视觉验收采用[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。切片通过自动、合同、安全与回退 gate 后即可按依赖继续；待签收项不得写成产品交付、阶段完成或 release gate 通过。只有视觉结论确实决定后续设计/正确性时才暂停请求反馈。
-2. managed `.osk` BMS 普通短键与长条头分别登记为 `V-001`、`V-002`，须在 Skin V1/release 完成声明前取得用户集中确认；2026-07-14 静态恢复结论不得复用。真实 BMS beatmap-local 尚无作者格式/生产 producer，是否扩入产品范围须另行决定，不得用注入式 fixture 冒充实机能力。
-3. 普通短键/长条头自动门通过后，`SV1-1` 下一组件冻结为 managed `.osk` BMS 长条尾静态图与编号帧动画；只扩 optional `LongNoteTail` 的 `Provide/Inherit`，复用精确 package revision、资源预算、异步发布和逐组件回落，不提前实现作者 `Suppress`，不顺带改 body、LN 状态、layout 或 event runtime。
+2. managed `.osk` BMS 普通短键、长条头与长条尾分别登记为 `V-001`～`V-003`，须在 Skin V1/release 完成声明前取得用户集中确认；2026-07-14 静态恢复结论不得复用。真实 BMS beatmap-local 尚无作者格式/生产 producer，是否扩入产品范围须另行决定，不得用注入式 fixture 冒充实机能力。
+3. 普通短键/head/tail 自动门通过后，`SV1-1` 下一组件冻结为 critical `LongNoteBody`：先建立唯一可复用的 BMS 标量几何策略，首字段 `LongNoteBodyWidth` 只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775` 并给稳定拒绝原因；body 素材与 width 必须绑定同一精确 package revision 后一起发布。managed/default body 共用现有 Idle/Holding/Broken 状态宿主与 80ms 视觉过渡，不复制 gameplay 状态机，不提前实现 `SV1-3` 的 screen-space/layout snapshot，也不改拉伸/裁剪或 LN/CN/HCN 语义。
 4. 完成 ruleset-neutral ini codec、layout context、lane identity/topology、显式配置 presence 与 mania compatibility fixtures；唯一 resolved layout 负责 finite/range/screen-space validation。
 5. 将 `Provide/Inherit/Suppress` 接到所需生产 slot；最小可玩组件不可 suppress，缺件继续逐组件回落，beatmap-local authority 不被无意穿透。
 6. 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序和禁止写入 authority；真实 capability、manifest、activation 与 runtime gate 必须 fail-closed。

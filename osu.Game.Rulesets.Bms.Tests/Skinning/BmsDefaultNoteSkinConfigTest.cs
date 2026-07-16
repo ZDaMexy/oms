@@ -137,6 +137,48 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestLongNoteTailUsesLegacyStaticTextureWhenProvided()
+        {
+            DefaultBmsLongNoteTailDisplay tail = null!;
+
+            AddStep("load LN tail with NoteImage1T texture", () =>
+            {
+                var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nNoteImage1T: notes/tail\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin) { Child = tail = new DefaultBmsLongNoteTailDisplay(1, false, BmsKeymode.Key7K) };
+            });
+
+            AddUntilStep("loaded", () => tail.IsLoaded);
+            AddAssert("LN tail shows legacy sprite", () => tail.ChildrenOfType<Sprite>().Any() && !tail.ChildrenOfType<Box>().Any());
+            AddAssert("LN tail becomes visible", () => tail.Alpha, () => Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TestProtectedLongNoteTailFallbackStaysTransparentWithoutAggregateTextureLookup()
+        {
+            DefaultBmsLongNoteTailDisplay tail = null!;
+            TexturedTestSkin skin = null!;
+
+            AddStep("load protected LN tail with aggregate texture", () =>
+            {
+                skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nNoteImage1T: notes/tail\n", renderer.WhitePixel);
+                Child = new SkinProvidingContainer(skin)
+                {
+                    Child = tail = new DefaultBmsLongNoteTailDisplay(
+                        1,
+                        false,
+                        BmsKeymode.Key7K,
+                        allowAggregateTextureOverride: false),
+                };
+            });
+
+            AddUntilStep("loaded", () => tail.IsLoaded);
+            AddAssert("protected LN tail stays transparent", () => tail.Alpha, () => Is.Zero);
+            AddAssert("protected LN tail keeps migration fallback", () => tail.ChildrenOfType<Box>().Count(), () => Is.EqualTo(1));
+            AddAssert("protected LN tail does not mount textured sprite", () => tail.ChildrenOfType<Sprite>().Where(sprite => sprite is not Box), () => Is.Empty);
+            AddAssert("protected LN tail skips aggregate texture lookup", () => skin.TextureRequestCount, () => Is.Zero);
+        }
+
+        [Test]
         public void TestLaneBackgroundColourFromConfig()
         {
             DefaultBmsLaneBackgroundDisplay lane = null!;
@@ -355,13 +397,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             private readonly Texture texture;
 
+            public int TextureRequestCount { get; private set; }
+
             public TexturedTestSkin(string ini, Texture texture)
                 : base(new SkinInfo { Name = @"test" }, new TestResourceProvider(), new IniStore(ini))
             {
                 this.texture = texture;
             }
 
-            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => texture;
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+            {
+                TextureRequestCount++;
+                return texture;
+            }
         }
 
         private class TestResourceProvider : IStorageResourceProvider

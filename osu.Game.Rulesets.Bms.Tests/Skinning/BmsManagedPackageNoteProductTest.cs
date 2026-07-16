@@ -49,6 +49,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
     /// Managed-package cases import a real in-memory <c>.osk</c> into an isolated headless test store and select it
     /// through <see cref="SkinManager"/>. Product-path cases then mount the real BMS skin containers, asynchronous note
     /// host and gameplay hit object. The input archives and gated stores are test-owned and never address production data.
+    /// Beatmap-local skins used here are injected <see cref="ISkin"/> fixtures which prove source ordering only; they do
+    /// not imply that OMS currently exposes a beatmap-local authoring format or package producer.
     /// </remarks>
     [HeadlessTest]
     [TestFixture]
@@ -119,6 +121,31 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             AddStep("resolve long-note head", () => resolved = resolveNoteComponent(BmsNoteSkinElements.LongNoteHead));
             AddStep("assert source-bound static long-note head", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(imported.Skin, Is.TypeOf<BmsLegacySkin>());
+                    Assert.That(resolved, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(resolved!.ChildrenOfType<TextureAnimation>(), Is.Empty);
+                    Assert.That(resolved.ChildrenOfType<Sprite>().Single().Texture, Is.Not.Null);
+                });
+            });
+        }
+
+        [Test]
+        public void TestManagedOskStaticNativeBmsLongNoteTailImageProvidesSourceBoundSprite()
+        {
+            ImportedSkin imported = importAndSelect(
+                "static native BMS long-note tail",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[] { (Key: "NoteImage1T", Resource: "notes/tail-static") },
+                    ("notes/tail-static.png", createPng(3, 5, new Rgba32(240, 40, 80, 255)))));
+
+            Drawable? resolved = null;
+
+            AddStep("resolve long-note tail", () => resolved = resolveNoteComponent(BmsNoteSkinElements.LongNoteTail));
+            AddStep("assert source-bound static long-note tail", () =>
             {
                 Assert.Multiple(() =>
                 {
@@ -233,6 +260,36 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [TestCase(BmsKeymode.Key7K, 1, false, "7K", "NoteImage1T")]
+        [TestCase(BmsKeymode.Key7K, 0, true, "7K", "NoteImageST")]
+        [TestCase(BmsKeymode.Key14K, 15, true, "14K", "NoteImageS2T")]
+        public void TestManagedOskLongNoteTailAnimationRoutesToNormalAndScratchSlots(
+            BmsKeymode keymode,
+            int laneIndex,
+            bool isScratch,
+            string keymodeDeclaration,
+            string resourceDeclaration)
+        {
+            importAndSelect(
+                $"{keymodeDeclaration} {(isScratch ? "scratch" : "normal")} animated native BMS long-note tail",
+                () => createOskWithDeclarations(
+                    keymodeDeclaration,
+                    new[] { (Key: resourceDeclaration, Resource: "notes/tail") },
+                    ("notes/tail-0.png", createPng(5, 5, new Rgba32(220, 80, 50, 255))),
+                    ("notes/tail-1.png", createPng(6, 4, new Rgba32(50, 120, 230, 255)))));
+
+            BmsAsyncNoteDrawable host = null!;
+
+            AddStep("mount routed long-note tail", () => host = mountProductionHosts(
+                new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, laneIndex, isScratch, keymode)).Single());
+            AddUntilStep("routed long-note tail loaded", () => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true });
+            AddStep("assert routed long-note tail animation", () =>
+            {
+                Assert.That(host.Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                Assert.That(host.Drawable!.ChildrenOfType<TextureAnimation>().Single().FrameCount, Is.EqualTo(2));
+            });
+        }
+
         [Test]
         public void TestProductionHostLoadsSelectedAnimationThroughRealRulesetContainers()
         {
@@ -334,8 +391,53 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("hold-note head loops to first frame", () => animation.CurrentFrameIndex == 0);
         }
 
+        [Test]
+        public void TestDrawableBmsHoldNoteTailDisplaysAndLoopsImportedPackageAnimation()
+        {
+            importAndSelect(
+                "gameplay hold-note tail animated native BMS note",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[] { (Key: "NoteImage1T", Resource: "notes/tail") },
+                    ("notes/tail-0.png", createPng(3, 5, new Rgba32(30, 180, 240, 255))),
+                    ("notes/tail-1.png", createPng(5, 3, new Rgba32(250, 210, 30, 255)))));
+
+            DrawableBmsHoldNote drawable = null!;
+            BmsAsyncNoteDrawable host = null!;
+            TextureAnimation animation = null!;
+
+            AddStep("mount real gameplay hold note for tail", () =>
+            {
+                var hold = new BmsHoldNote
+                {
+                    // Keep the real nested tail's judgement/expiry well outside this 60 FPS observation window.
+                    StartTime = Clock.CurrentTime + 60_000,
+                    EndTime = Clock.CurrentTime + 62_000,
+                    LaneIndex = 1,
+                    IsScratch = false,
+                    Keymode = BmsKeymode.Key7K,
+                };
+
+                hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                drawable = mountGameplayHoldNote(hold);
+
+                DrawableBmsHoldNoteTail tail = drawable.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Single();
+                host = tail.ChildrenOfType<BmsAsyncNoteDrawable>().Single();
+            });
+            AddUntilStep("gameplay hold-note tail loaded", () => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true });
+            AddStep("assert gameplay hold-note tail animation", () =>
+            {
+                Assert.That(host.Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                animation = host.Drawable!.ChildrenOfType<TextureAnimation>().Single();
+                Assert.That(animation.FrameCount, Is.EqualTo(2));
+            });
+            AddUntilStep("hold-note tail advances to second frame", () => animation.CurrentFrameIndex == 1);
+            AddUntilStep("hold-note tail loops to first frame", () => animation.CurrentFrameIndex == 0);
+        }
+
         [TestCase(BmsNoteSkinElements.Note)]
         [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
         public void TestSkinManagerSelectionChangeReplacesManagedPackageAnimation(BmsNoteSkinElements element)
         {
             ImportedSkin first = importAndSelect(
@@ -443,8 +545,44 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [Test]
+        public void TestBeatmapLocalLongNoteTailProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
+        {
+            importAndSelect(
+                "selected long-note tails below injected beatmap provider",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[]
+                    {
+                        (Key: "NoteImage1T", Resource: "notes/tail-one"),
+                        (Key: "NoteImage2T", Resource: "notes/tail-two"),
+                    },
+                    ("notes/tail-one.png", createPng(3, 5, new Rgba32(30, 180, 240, 255))),
+                    ("notes/tail-two.png", createPng(5, 3, new Rgba32(250, 210, 30, 255)))));
+
+            BmsAsyncNoteDrawable[] hosts = null!;
+
+            // The injected ISkin proves runtime provider order. It is not evidence of a public beatmap-local file format.
+            AddStep("mount injected beatmap provider above selected long-note tails", () => hosts = mountProductionHosts(
+                new BeatmapLongNoteTailProviderOrderSkin(),
+                new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K),
+                new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, laneIndex: 2, isScratch: false, keymode: BmsKeymode.Key7K)));
+            AddUntilStep("provider-order long-note tails loaded", () =>
+                hosts[0].Drawable is BeatmapNoteDrawable { IsLoaded: true }
+                && hosts[1].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true });
+            AddStep("assert direct beatmap tail wins and broken beatmap texture falls through", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(hosts[0].Drawable, Is.TypeOf<BeatmapNoteDrawable>());
+                    Assert.That(hosts[1].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                });
+            });
+        }
+
         [TestCase(BmsNoteSkinElements.Note)]
         [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
         public void TestLiveSourceChangeLoadsOffUpdateThreadAndKeepsOldVisualUntilReady(BmsNoteSkinElements element)
         {
             MutableSkinSourceContainer source = null!;
@@ -452,14 +590,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Drawable oldVisual = null!;
             var blockingSkin = new BlockingNoteSkin(element: element);
 
-            AddStep("mount initial OMS critical-note host", () =>
+            AddStep("mount initial OMS supported note-component host", () =>
             {
                 Child = source = new MutableSkinSourceContainer(new BmsSkinTransformer(skinManager.DefaultOmsSkin))
                 {
                     Child = host = new BmsAsyncNoteDrawable(createLookup(element)),
                 };
             });
-            AddUntilStep("initial critical note loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
+            AddUntilStep("initial supported note component loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
             AddStep("capture old visual", () => oldVisual = host.Drawable!);
             AddStep("start blocked live replacement", () => source.Replace(
                 new BmsSkinTransformer(blockingSkin),
@@ -471,23 +609,25 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("replacement published", () => host.Drawable is ReloadedNoteDrawable && host.Drawable.IsLoaded);
         }
 
-        [Test]
-        public void TestCancelledBlockedLookupDisposesUnpublishedVisual()
+        [TestCase(BmsNoteSkinElements.Note)]
+        [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestCancelledBlockedLookupDisposesUnpublishedVisual(BmsNoteSkinElements element)
         {
             MutableSkinSourceContainer source = null!;
             BmsAsyncNoteDrawable host = null!;
-            var abandonedSkin = new BlockingNoteSkin("abandoned");
-            var currentSkin = new BlockingNoteSkin("current");
+            var abandonedSkin = new BlockingNoteSkin("abandoned", element);
+            var currentSkin = new BlockingNoteSkin("current", element);
             currentSkin.ReleaseLookup.Set();
 
-            AddStep("mount initial OMS note host", () =>
+            AddStep("mount initial OMS supported note-component host", () =>
             {
                 Child = source = new MutableSkinSourceContainer(new BmsSkinTransformer(skinManager.DefaultOmsSkin))
                 {
-                    Child = host = new BmsAsyncNoteDrawable(createLookup(BmsNoteSkinElements.Note)),
+                    Child = host = new BmsAsyncNoteDrawable(createLookup(element)),
                 };
             });
-            AddUntilStep("initial note loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
+            AddUntilStep("initial supported note component loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
             AddStep("start abandoned blocked lookup", () => source.Replace(
                 new BmsSkinTransformer(abandonedSkin),
                 new BmsSkinTransformer(skinManager.DefaultOmsSkin)));
@@ -500,23 +640,25 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("unpublished abandoned visual is disposed", () => abandonedSkin.LastDrawable?.WasDisposed == true);
         }
 
-        [Test]
-        public void TestQueuedOldResultCannotPublishAfterNewSourceEventArrives()
+        [TestCase(BmsNoteSkinElements.Note)]
+        [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestQueuedOldResultCannotPublishAfterNewSourceEventArrives(BmsNoteSkinElements element)
         {
             MutableSkinSourceContainer source = null!;
             BmsAsyncNoteDrawable host = null!;
             Drawable oldVisual = null!;
-            var oldSkin = new BlockingNoteSkin("old");
-            var currentSkin = new BlockingNoteSkin("current");
+            var oldSkin = new BlockingNoteSkin("old", element);
+            var currentSkin = new BlockingNoteSkin("current", element);
 
-            AddStep("mount initial OMS note host", () =>
+            AddStep("mount initial OMS supported note-component host", () =>
             {
                 Child = source = new MutableSkinSourceContainer(new BmsSkinTransformer(skinManager.DefaultOmsSkin))
                 {
-                    Child = host = new BmsAsyncNoteDrawable(createLookup(BmsNoteSkinElements.Note)),
+                    Child = host = new BmsAsyncNoteDrawable(createLookup(element)),
                 };
             });
-            AddUntilStep("initial note loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
+            AddUntilStep("initial supported note component loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
             AddStep("capture initial visual and queue next source from old loader", () =>
             {
                 oldVisual = host.Drawable!;
@@ -535,33 +677,38 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("current result publishes", () => host.Drawable is ReloadedNoteDrawable { Tag: "current" } && host.Drawable.IsLoaded);
         }
 
-        [Test]
-        public void TestDynamicallyAddedInitialHostLoadsOffUpdateThreadAndKeepsCriticalFallback()
+        [TestCase(BmsNoteSkinElements.Note)]
+        [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestDynamicallyAddedInitialHostLoadsOffUpdateThreadAndKeepsProtectedFallback(BmsNoteSkinElements element)
         {
             MutableSkinSourceContainer source = null!;
             BmsAsyncNoteDrawable host = null!;
-            var blockingSkin = new BlockingNoteSkin();
+            var blockingSkin = new BlockingNoteSkin(element: element);
 
             AddStep("mount and load source container", () => Child = source = new MutableSkinSourceContainer(
                 new BmsSkinTransformer(blockingSkin),
                 new BmsSkinTransformer(skinManager.DefaultOmsSkin)));
             AddUntilStep("source container loaded", () => source.IsLoaded);
-            AddStep("dynamically add initial note host", () => source.Add(host = new BmsAsyncNoteDrawable(createLookup(BmsNoteSkinElements.Note))));
+            AddStep("dynamically add initial note host", () => source.Add(host = new BmsAsyncNoteDrawable(createLookup(element))));
             AddUntilStep("initial lookup entered background", () => blockingSkin.LookupEntered.IsSet);
             AddAssert("initial lookup is not update thread", () => blockingSkin.LookupWasOnUpdateThread, () => Is.False);
-            AddAssert("critical fallback remains visible", () => host.Drawable, () => Is.TypeOf<DefaultBmsNoteDisplay>());
+            AddStep("protected fallback remains installed", () => assertProtectedFallback(host.Drawable, element));
             AddStep("release initial lookup", () => blockingSkin.ReleaseLookup.Set());
             AddUntilStep("initial source visual published", () => host.Drawable is ReloadedNoteDrawable && host.Drawable.IsLoaded);
         }
 
-        [Test]
-        public void TestCancelledPackagePreparationDoesNotCaptureNextRequestGeneration()
+        [TestCase(BmsNoteSkinElements.Note)]
+        [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestCancelledPackagePreparationDoesNotCaptureNextRequestGeneration(BmsNoteSkinElements element)
         {
             ImportedSkin imported = importAndSelect(
-                "cancellable managed package",
-                () => createOsk(
-                    "notes/ordinary",
-                    ("notes/ordinary.png", createPng(4, 3, new Rgba32(80, 180, 240, 255))),
+                $"cancellable managed {element} package",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[] { (Key: getDeclarationKey(element), Resource: "notes/component") },
+                    ("notes/component.png", createPng(4, 3, new Rgba32(80, 180, 240, 255))),
                     ("extra-a.bin", new byte[] { 1 }),
                     ("extra-b.bin", new byte[] { 2 })));
 
@@ -581,12 +728,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 ownedSkins.Add(isolatedSkin);
                 gatedFiles.Enabled = true;
             });
-            AddStep("start first package request", () => firstRequest = resolveWithCancellation(isolatedSkin, firstCancellation.Token));
+            AddStep("start first package request", () => firstRequest = resolveWithCancellation(isolatedSkin, element, firstCancellation.Token));
             AddUntilStep("first generation enters gate", () => gatedFiles.FirstEntered.IsSet);
             AddStep("cancel first and start second package request", () =>
             {
                 firstCancellation.Cancel();
-                secondRequest = resolveWithCancellation(isolatedSkin, secondCancellation.Token);
+                secondRequest = resolveWithCancellation(isolatedSkin, element, secondCancellation.Token);
             });
             AddUntilStep("second generation starts before old gate releases", () => gatedFiles.SecondEntered.IsSet);
             AddStep("release both package generations", () =>
@@ -610,17 +757,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
-        [Test]
-        public void TestAnimationBeyondComponentFrameBudgetFallsBack()
+        [TestCase(BmsNoteSkinElements.Note)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestAnimationBeyondComponentFrameBudgetFallsBack(BmsNoteSkinElements element)
         {
             (string Name, byte[] Content)[] frames = Enumerable.Range(0, BmsManagedPackageNoteMaterializer.MAX_ANIMATION_FRAMES + 1)
                                                                   .Select(index => (
-                                                                      $"notes/ordinary-{index}.png",
+                                                                      $"notes/component-{index}.png",
                                                                       createPng(1, 1, new Rgba32((byte)(index % 255), 80, 160, 255))))
                                                                   .ToArray();
 
-            importAndSelect("over-budget native BMS note", () => createOsk("notes/ordinary", frames));
-            assertOrdinaryNoteFailureReturnsNull("over-budget ordinary note");
+            importAndSelect(
+                $"over-budget native BMS {element}",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[] { (Key: getDeclarationKey(element), Resource: "notes/component") },
+                    frames));
+            assertNoteComponentFailureReturnsNull($"over-budget {element}", element);
         }
 
         [Test]
@@ -743,6 +896,65 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [Test]
+        public void TestInvalidLongNoteTailDeclarationsUseTransparentFallbackWithoutRejectingValidNoteAndHead()
+        {
+            importAndSelect(
+                "valid note and head beside invalid long-note tails",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[]
+                    {
+                        (Key: "NoteImage1", Resource: "notes/valid-note"),
+                        (Key: "NoteImage1H", Resource: "notes/valid-head"),
+                        (Key: "NoteImage1T", Resource: "notes/missing-tail"),
+                        (Key: "NoteImage2T", Resource: "notes/corrupt-tail"),
+                        (Key: "NoteImage3T", Resource: string.Empty),
+                        (Key: "NoteImage4T", Resource: "../outside-tail"),
+                        (Key: "NoteImage5T", Resource: "notes/bad-sequence"),
+                    },
+                    ("notes/valid-note.png", createPng(4, 4, new Rgba32(40, 200, 90, 255))),
+                    ("notes/valid-head.png", createPng(4, 3, new Rgba32(80, 160, 240, 255))),
+                    ("notes/corrupt-tail.png", new byte[] { 0x4f, 0x4d, 0x53, 0x00, 0xff }),
+                    ("outside-tail.png", createPng(3, 3, new Rgba32(200, 30, 30, 255))),
+                    ("notes/bad-sequence-0.png", createPng(3, 4, new Rgba32(80, 160, 240, 255))),
+                    ("notes/bad-sequence-1.png", new byte[] { 0x4f, 0x4d, 0x53, 0x01, 0xfe })));
+
+            BmsAsyncNoteDrawable[] hosts = null!;
+
+            AddStep("mount valid note and head with missing selected tail", () => hosts = mountProductionHosts(
+                new BmsNoteSkinLookup(BmsNoteSkinElements.Note, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K),
+                new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K),
+                new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K)));
+            AddUntilStep("valid components and protected tail fallback loaded", () =>
+                hosts[0].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                && hosts[1].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                && hosts[2].Drawable is DefaultBmsLongNoteTailDisplay { IsLoaded: true });
+            AddStep("assert invalid tails are isolated and fallback stays transparent", () =>
+            {
+                var transformer = new BmsSkinTransformer(skinManager.CurrentSkin.Value);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(hosts[0].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(hosts[1].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    assertProtectedFallback(hosts[2].Drawable, BmsNoteSkinElements.LongNoteTail);
+                    Assert.That(hosts[2].Drawable!.ChildrenOfType<TextureAnimation>(), Is.Empty);
+                    Assert.That(hosts[2].Drawable.ChildrenOfType<Sprite>().Where(sprite => sprite is not Box), Is.Empty);
+
+                    for (int lane = 1; lane <= 5; lane++)
+                    {
+                        int capturedLane = lane;
+                        Drawable? resolved = null;
+
+                        Assert.DoesNotThrow(() => resolved = transformer.GetDrawableComponent(
+                            new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, capturedLane, isScratch: false, keymode: BmsKeymode.Key7K)));
+                        Assert.That(resolved, Is.Null, $"Long-note tail lane {capturedLane} should inherit after its invalid declaration.");
+                    }
+                });
+            });
+        }
+
         [TestCase("filesystem-path")]
         [TestCase("external")]
         [TestCase("delete-pending")]
@@ -756,9 +968,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     {
                         (Key: "NoteImage1", Resource: "notes/ordinary"),
                         (Key: "NoteImage1H", Resource: "notes/head"),
+                        (Key: "NoteImage1T", Resource: "notes/tail"),
                     },
                     ("notes/ordinary.png", createPng(3, 3, new Rgba32(40, 180, 220, 255))),
-                    ("notes/head.png", createPng(3, 4, new Rgba32(220, 100, 40, 255)))));
+                    ("notes/head.png", createPng(3, 4, new Rgba32(220, 100, 40, 255))),
+                    ("notes/tail.png", createPng(4, 3, new Rgba32(100, 220, 40, 255)))));
 
             AddStep($"apply {conflict} metadata conflict", () => imported.Info.PerformWrite(info =>
             {
@@ -783,10 +997,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             assertNoteComponentFailureReturnsNull($"{conflict} authority ordinary note", BmsNoteSkinElements.Note);
             assertNoteComponentFailureReturnsNull($"{conflict} authority long-note head", BmsNoteSkinElements.LongNoteHead);
+            assertNoteComponentFailureReturnsNull($"{conflict} authority long-note tail", BmsNoteSkinElements.LongNoteTail);
         }
 
         [Test]
-        public void TestCaseConflictingManagedPackageFilenameCannotProvideCriticalNotes()
+        public void TestCaseConflictingManagedPackageFilenameCannotProvideSupportedNoteComponents()
         {
             ImportedSkin imported = importAndSelect(
                 "case-conflicting filename package",
@@ -796,6 +1011,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     {
                         (Key: "NoteImage1", Resource: "notes/shared"),
                         (Key: "NoteImage1H", Resource: "notes/shared"),
+                        (Key: "NoteImage1T", Resource: "notes/shared"),
                     },
                     ("notes/shared.png", createPng(3, 3, new Rgba32(40, 180, 220, 255)))));
 
@@ -807,6 +1023,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             assertNoteComponentFailureReturnsNull("filename-conflicting ordinary note", BmsNoteSkinElements.Note);
             assertNoteComponentFailureReturnsNull("filename-conflicting long-note head", BmsNoteSkinElements.LongNoteHead);
+            assertNoteComponentFailureReturnsNull("filename-conflicting long-note tail", BmsNoteSkinElements.LongNoteTail);
         }
 
         [Test]
@@ -845,6 +1062,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         [TestCase(BmsNoteSkinElements.Note)]
         [TestCase(BmsNoteSkinElements.LongNoteHead)]
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
         public void TestLowerSourceSameNamedTextureCannotSatisfyMissingSelectedDeclaration(BmsNoteSkinElements element)
         {
             ImportedSkin lowerTexturePackage = importAndSelect(
@@ -877,9 +1095,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(host.Drawable, element == BmsNoteSkinElements.Note
-                        ? Is.TypeOf<DefaultBmsNoteDisplay>()
-                        : Is.TypeOf<DefaultBmsLongNoteHeadDisplay>());
+                    assertProtectedFallback(host.Drawable, element);
                     Assert.That(host.Drawable.ChildrenOfType<Box>(), Is.Not.Empty);
                     Assert.That(host.Drawable.ChildrenOfType<Sprite>().Where(sprite => sprite is not Box), Is.Empty);
                     Assert.That(host.Drawable.ChildrenOfType<TextureAnimation>(), Is.Empty);
@@ -887,9 +1103,50 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [Test]
+        public void TestLowerSourceCompleteLongNoteTailDeclarationMayTakeOverMissingSelectedTail()
+        {
+            ImportedSkin lowerTailPackage = importAndSelect(
+                "lower complete tail package",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[] { (Key: "NoteImage1T", Resource: "shared/tail") },
+                    ("shared/tail.png", createPng(7, 3, new Rgba32(70, 220, 120, 255)))));
+            ImportedSkin selectedMissingPackage = importAndSelect(
+                "selected missing same-name tail package",
+                () => createOskWithDeclarations(
+                    "7K",
+                    new[] { (Key: "NoteImage1T", Resource: "shared/tail") }));
+
+            BmsAsyncNoteDrawable host = null!;
+
+            AddStep("mount selected, lower complete tail and OMS source chain", () =>
+            {
+                Child = new TestSkinSourceContainer(
+                    new BmsSkinTransformer(selectedMissingPackage.Skin),
+                    new BmsSkinTransformer(lowerTailPackage.Skin),
+                    new BmsSkinTransformer(skinManager.DefaultOmsSkin))
+                {
+                    Child = host = new BmsAsyncNoteDrawable(createLookup(BmsNoteSkinElements.LongNoteTail)),
+                };
+            });
+
+            AddUntilStep("lower complete tail component loaded", () => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true });
+            AddStep("assert lower source took over as a complete component", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(host.Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(host.Drawable!.ChildrenOfType<Sprite>().Single().Texture, Is.Not.Null);
+                    Assert.That(host.Drawable.ChildrenOfType<TextureAnimation>(), Is.Empty);
+                });
+            });
+        }
+
         [TestCase(BmsNoteSkinElements.Note)]
         [TestCase(BmsNoteSkinElements.LongNoteHead)]
-        public void TestCriticalNotePackageDoesNotInterceptUnrelatedNoteElements(BmsNoteSkinElements declaredElement)
+        [TestCase(BmsNoteSkinElements.LongNoteTail)]
+        public void TestManagedNotePackageDoesNotInterceptUnrelatedNoteElements(BmsNoteSkinElements declaredElement)
         {
             importAndSelect(
                 $"{declaredElement}-only package",
@@ -898,7 +1155,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     new[] { (Key: getDeclarationKey(declaredElement), Resource: "notes/component") },
                     ("notes/component.png", createPng(4, 4, new Rgba32(200, 90, 230, 255)))));
 
-            AddStep("assert only declared critical note is intercepted", () =>
+            AddStep("assert only declared managed note component is intercepted", () =>
             {
                 var transformer = new BmsSkinTransformer(skinManager.CurrentSkin.Value);
 
@@ -967,14 +1224,30 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private Drawable? resolveNoteComponent(BmsNoteSkinElements element, int laneIndex = 1, bool isScratch = false, BmsKeymode keymode = BmsKeymode.Key7K)
             => new BmsSkinTransformer(skinManager.CurrentSkin.Value).GetDrawableComponent(new BmsNoteSkinLookup(element, laneIndex, isScratch, keymode));
 
-        private static Task<Drawable?> resolveWithCancellation(BmsLegacySkin skin, CancellationToken cancellationToken)
+        private static Task<Drawable?> resolveWithCancellation(BmsLegacySkin skin, BmsNoteSkinElements element, CancellationToken cancellationToken)
             => Task.Run(() =>
             {
                 using (BmsManagedPackageNoteLoadContext.Enter(cancellationToken))
                 {
-                    return new BmsSkinTransformer(skin).GetDrawableComponent(createLookup(BmsNoteSkinElements.Note));
+                    return new BmsSkinTransformer(skin).GetDrawableComponent(createLookup(element));
                 }
             });
+
+        private static void assertProtectedFallback(Drawable? drawable, BmsNoteSkinElements element)
+        {
+            Type expectedType = element switch
+            {
+                BmsNoteSkinElements.Note => typeof(DefaultBmsNoteDisplay),
+                BmsNoteSkinElements.LongNoteHead => typeof(DefaultBmsLongNoteHeadDisplay),
+                BmsNoteSkinElements.LongNoteTail => typeof(DefaultBmsLongNoteTailDisplay),
+                _ => throw new ArgumentOutOfRangeException(nameof(element), element, "No protected fallback exists for this note element."),
+            };
+
+            Assert.That(drawable, Is.TypeOf(expectedType));
+
+            if (element == BmsNoteSkinElements.LongNoteTail)
+                Assert.That(drawable!.Alpha, Is.Zero, "The protected optional-tail fallback must remain transparent.");
+        }
 
         private BmsAsyncNoteDrawable mountProductionHost(ISkin? beatmapSkin)
         {
@@ -1060,7 +1333,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 BmsNoteSkinElements.Note => "NoteImage1",
                 BmsNoteSkinElements.LongNoteHead => "NoteImage1H",
-                _ => throw new ArgumentOutOfRangeException(nameof(element), element, "Only critical managed-package note elements have declarations in this fixture."),
+                BmsNoteSkinElements.LongNoteTail => "NoteImage1T",
+                _ => throw new ArgumentOutOfRangeException(nameof(element), element, "Only supported managed-package note elements have declarations in this fixture."),
             };
 
         private static MemoryStream createOsk(string? noteResource, params (string Name, byte[] Content)[] entries)
@@ -1314,6 +1588,46 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     && typeof(TValue) == typeof(string))
                 {
                     return SkinUtils.As<TValue>(new Bindable<string>("missing/beatmap-head"));
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Injected runtime-only source used to prove beatmap-provider precedence. This is intentionally not a fixture
+        /// for a user-authored beatmap-local package format, because no such production producer exists yet.
+        /// </summary>
+        private sealed class BeatmapLongNoteTailProviderOrderSkin : Skin
+        {
+            public BeatmapLongNoteTailProviderOrderSkin()
+                : base(new SkinInfo(name: nameof(BeatmapLongNoteTailProviderOrderSkin)), null)
+            {
+            }
+
+            public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
+                => lookup is BmsNoteSkinLookup
+                {
+                    Element: BmsNoteSkinElements.LongNoteTail,
+                    LaneIndex: 1,
+                }
+                    ? new BeatmapNoteDrawable()
+                    : null;
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => null;
+
+            public override ISample? GetSample(ISampleInfo sampleInfo) => null;
+
+            public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
+            {
+                if (lookup is BmsSkinConfigurationLookup
+                    {
+                        Lookup: BmsSkinConfigurationLookups.HoldNoteTailImage,
+                        LaneIndex: 2,
+                    }
+                    && typeof(TValue) == typeof(string))
+                {
+                    return SkinUtils.As<TValue>(new Bindable<string>("missing/beatmap-tail"));
                 }
 
                 return null;

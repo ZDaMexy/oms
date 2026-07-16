@@ -310,6 +310,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 BmsNoteSkinElements.Note => GameplaySkinLaneResourceFieldCatalog.Note,
                 BmsNoteSkinElements.LongNoteHead => GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+                BmsNoteSkinElements.LongNoteTail => GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
                 _ => null,
             };
 

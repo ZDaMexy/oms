@@ -188,9 +188,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
     internal sealed partial class DefaultBmsLongNoteTailDisplay : DefaultBmsNoteDisplayBase
     {
-        public DefaultBmsLongNoteTailDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
+        private readonly bool allowAggregateTextureOverride;
+
+        public DefaultBmsLongNoteTailDisplay(int laneIndex, bool isScratch, BmsKeymode keymode, bool allowAggregateTextureOverride = true)
             : base(laneIndex, isScratch, keymode)
         {
+            this.allowAggregateTextureOverride = allowAggregateTextureOverride;
             // No distinct tail end-cap by default: the body spans the full hold up to the release end (tail-less look).
             // Tail judgement is unaffected — this is the visual element only.
             Alpha = 0;
@@ -202,6 +205,14 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override void ApplyVisual(ISkinSource skin)
         {
+            if (!allowAggregateTextureOverride)
+            {
+                // A rejected exact declaration must not be filled from a lower aggregate texture. The programmatic
+                // tail-less visual remains a real migration fallback (not author suppression), but is transparent.
+                Alpha = 0;
+                return;
+            }
+
             // Only show when the skin supplies a tail texture; otherwise stay hidden (Alpha 0 from the ctor).
             var resolved = CreateVisual(skin, out bool hasTexture);
 
@@ -209,6 +220,11 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 InternalChild = resolved;
                 Alpha = 1;
+            }
+            else
+            {
+                resolved.Dispose();
+                Alpha = 0;
             }
         }
     }

@@ -140,7 +140,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 "[Bms]\n" +
                 "Keymode: 14K\n" +
                 "NoteImageS2: ordinary-second-scratch\n" +
-                "NoteImageS2H: head-second-scratch\n");
+                "NoteImageS2H: head-second-scratch\n" +
+                "NoteImageS2T: tail-second-scratch\n");
 
             GameplaySkinConfigurationDeclaration<string> ordinary = skin.GetAcceptedBmsNoteResource(
                 BmsNoteSkinElements.Note,
@@ -149,6 +150,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 isScratch: true);
             GameplaySkinConfigurationDeclaration<string> head = skin.GetAcceptedBmsNoteResource(
                 BmsNoteSkinElements.LongNoteHead,
+                BmsKeymode.Key14K,
+                laneIndex: 15,
+                isScratch: true);
+            GameplaySkinConfigurationDeclaration<string> tail = skin.GetAcceptedBmsNoteResource(
+                BmsNoteSkinElements.LongNoteTail,
                 BmsKeymode.Key14K,
                 laneIndex: 15,
                 isScratch: true);
@@ -164,6 +170,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(ordinary.Value, Is.EqualTo("ordinary-second-scratch"));
                 Assert.That(head.IsDeclared, Is.True);
                 Assert.That(head.Value, Is.EqualTo("head-second-scratch"));
+                Assert.That(tail.IsDeclared, Is.True);
+                Assert.That(tail.Value, Is.EqualTo("tail-second-scratch"));
                 Assert.That(unsupported.IsDeclared, Is.False);
             });
         }

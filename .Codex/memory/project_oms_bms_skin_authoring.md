@@ -12,7 +12,7 @@ metadata:
 
 ## 当前可信面
 
-- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有 managed package 的 BMS 普通短键与 `LongNoteHead` 静态/`name-{n}` 编号帧窄生产路径。当前 gate 只看 P1-A STATUS，不在 memory 复制提交和测试数字。
+- F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有 managed package 的 BMS 普通短键、`LongNoteHead` 与 optional `LongNoteTail` 静态/`name-{n}` 编号帧窄生产路径。tail 的透明链底是迁移 fallback，不是作者 `Suppress`。当前 gate 只看 P1-A STATUS，不在 memory 复制提交和测试数字。
 - 当前 `OmsSkin` 是程序化逐组件链底，但只算迁移基线；最终由只读 `oms-simple.osk` 接管并移出程序化产品视觉。
 - G1 只保留 folder ctor 与 `SkinInfo.FilesystemStoragePath/IsExternalFilesystemStorage` + schema 56 载体；没有扫描/选择/删改/热重载。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 均未落地。
@@ -41,7 +41,7 @@ metadata:
 - `HitTargetVerticalOffset` 保持 0 以守住时间/滚动合同。
 - geometry 当前缺 finite/正值/范围校验；playfield 读 skin profile，但 gauge/combo 会另建默认 profile、BGA 固定 rect。先建唯一 snapshot，再扩表现。
 - legacy mania 缺 `Keys:` bucket 时会合成默认 configuration；neutral model 必须保留 explicit presence，不能把合成默认误判为 `Provide`。
-- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；candidate plan 整体仍未接生产、也不是已装载 fallback，native BMS 普通短键/长条头的 source-bound 加载只是当前窄例外。
+- 六类 lane-resource 的 `[Mania]` 兼容候选顺序已固定：5K `6→5`、7K `8→7`、9K 只用一个 `9`、14K `16→同一 Keys:8 bucket 分投两 deck→14`，scratch 在 key-only 层保持缺失；candidate plan 整体仍未接生产、也不是已装载 fallback，native BMS 普通短键/长条头/长条尾的 source-bound 加载只是当前窄例外。
 - 当前未版本化 9K BMS/PMS per-lane raw token 实际为 `0..8`；V1 canonical `1..9` 必须做版本化迁移/冲突诊断，禁止静默双 alias。
 - 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
@@ -53,4 +53,4 @@ metadata:
 
 ## 下一入口
 
-视觉验收采用集中签收：切片通过自动、合同、安全与回退 gate 后即可按依赖继续，待签收只能记为“实现／自动 gate 通过，视觉待验收”，不得计作交付、`SV1` 完成或 release gate 通过；只有视觉结论确实影响下一实现才暂停。当前 `V-001`/`V-002` 分别是 managed `.osk` BMS 普通短键与长条头，必须在 Skin V1/release 声明前由用户确认，且不得复用 2026-07-14 静态恢复验收；下一切片为 optional `LongNoteTail` 静态图/编号帧动画，只做 `Provide/Inherit`，透明链底不冒充作者 `Suppress`。body 要等统一安全 geometry 处理后再接，不能绕开 `LongNoteBodyWidth` 非有限/负值与 Idle/Holding/Broken、拉伸/裁剪合同。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因窄纵切提前计为完成；旧 F/G 编号只作历史索引，被撤回实现查 P1-A CHANGELOG/Git。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退 gate 后即可按依赖继续，待签收只能记为“实现／自动 gate 通过，视觉待验收”，不得计作交付、`SV1` 完成或 release gate 通过；只有视觉结论确实影响下一实现才暂停。当前 `V-001`～`V-003` 分别是 managed `.osk` BMS 普通短键、长条头与长条尾，必须在 Skin V1/release 声明前由用户确认，且不得复用 2026-07-14 静态恢复验收。下一切片为 critical `LongNoteBody`：先建立唯一可复用标量几何策略，`LongNoteBodyWidth` 只接受 finite 且 `0 < width <= 1`、否则逐字段回到 `0.5775`，body 素材与 width 必须同 package revision 发布，并复用 Idle/Holding/Broken 状态宿主；不要绕开拉伸/裁剪合同，也不要提前扩成 `SV1-3` screen-space/layout snapshot。安全 G1、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback 均不得因窄纵切提前计为完成；旧 F/G 编号只作历史索引，被撤回实现查 P1-A CHANGELOG/Git。

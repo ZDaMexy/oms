@@ -14,6 +14,7 @@
 | --- | --- | --- | --- | --- |
 | `V-001` | managed `.osk` BMS 普通短键编号帧动画、选择切换、selected 坏包回落 | 产品自动 gate 已通过；隔离自动可视预检工具已建立 | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
 | `V-002` | managed `.osk` BMS 长条头静态图/编号帧动画、scratch/S2、选择切换与坏 head 回落 | 产品自动 gate 已通过；集中验收输入待统一打包 | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
+| `V-003` | managed `.osk` BMS 长条尾静态图/编号帧动画、透明回落与下层完整组件接管 | 产品自动 gate 已通过；集中验收输入待统一打包 | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
 
 ## V-001：BMS 普通短键编号帧动画
 
@@ -48,6 +49,24 @@
 
 - Windows、显示分辨率/DPI、build/commit：待填写。
 - `V-002` 结论：待通过／失败。
+- 若失败：注明矩阵项、实际观感、截图或日志，以及是否会改变后续实现语义。
+
+## V-003：BMS 长条尾静态图与编号帧动画
+
+构建锚点：本条所在提交。为避免逐组件打断开发，本项不单独启动桌面门；最终集中验收前会把确定性素材、build 与启动步骤统一打包。
+
+视觉矩阵：
+
+1. **7K 普通 LN**：`NoteImage1T` 静态图能只覆盖真实长条尾 cap；编号帧版本在固定 22.5px tail host 内连续循环，不改变 head/body、长条长度、裁剪或 release 判定位置。
+2. **scratch / DP**：7K `NoteImageST` 与 14K 第二皿 `NoteImageS2T` 均落到正确长条尾，不串到 head、普通键、P1 scratch 或另一 deck。
+3. **选择切换**：A 包 2 帧 → B 包 3 帧时，准备期间保留旧 tail，完成后整件替换；不混用 A/B 帧，也不残留上一包视觉。
+4. **selected 坏 tail**：缺失、空值、损坏、断帧、越界或超预算时回到透明 protected tail，不显示低层仅同名裸文件；低层若拥有自己的完整 tail 声明和素材，可按 `Inherit` 正常接管。透明链底只是当前迁移 fallback，不能反馈为“作者 Suppress 已生效”。
+5. **隔离与边界**：同包有效 ordinary note/head 保持包内视觉，body 与 Idle/Holding/Broken、LN/CN/HCN、尺寸/滚动/layout 均与切片前一致。本项不验作者 `Suppress`、mania、G1、scene/script、整包原子重载或真实 BMS beatmap-local 作者格式。
+
+反馈记录：
+
+- Windows、显示分辨率/DPI、build/commit：待填写。
+- `V-003` 结论：待通过／失败。
 - 若失败：注明矩阵项、实际观感、截图或日志，以及是否会改变后续实现语义。
 
 后续每个新增可见切片在自动 gate 通过后追加新 ID；P1-G 最终 release checklist 只汇总这里已经签收的结论，不用自动测试替代视觉反馈。

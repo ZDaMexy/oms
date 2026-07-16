@@ -12,11 +12,11 @@ using osu.Game.Skinning;
 namespace osu.Game.Rulesets.Bms.UI
 {
     /// <summary>
-    /// Resolves a BMS ordinary note or long-note head away from the update thread and atomically publishes the fully loaded result.
+    /// Resolves a BMS ordinary note or long-note cap away from the update thread and atomically publishes the fully loaded result.
     /// </summary>
     /// <remarks>
     /// Initial and live resolution never perform package IO on the update thread. A dynamically-added host keeps a
-    /// critical migration fallback, while later skin changes keep the previous visual, until a new selected-package
+    /// protected component-specific migration fallback, while later skin changes keep the previous visual, until a new selected-package
     /// component or its final fallback has fully loaded; the prepared result is then replaced once on update.
     /// This is per-host publication; package/playfield-wide atomic reload remains an SV1-2 responsibility.
     /// </remarks>
@@ -33,14 +33,14 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            if (lookup.Element is not (BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead))
-                throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes and long-note heads.", nameof(lookup));
+            if (lookup.Element is not (BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead or BmsNoteSkinElements.LongNoteTail))
+                throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes and long-note caps.", nameof(lookup));
 
             this.lookup = lookup;
             RelativeSizeAxes = Axes.Both;
 
             // A dynamically-added host (notably the pre-start speed preview) may begin loading on the update thread.
-            // Keep the critical note visible while its exact source is prepared asynchronously.
+            // Keep the component-specific protected fallback while its exact source is prepared asynchronously.
             Drawable = createProtectedFallback(lookup);
             InternalChild = Drawable;
         }
@@ -170,8 +170,8 @@ namespace osu.Game.Rulesets.Bms.UI
                     }
                     catch
                     {
-                        // A source exception must not make the critical note disappear. The final migration fallback is
-                        // intentionally generic here and does not preserve source-controlled exception text.
+                        // A source exception must not bypass the component-specific protected fallback. The final migration
+                        // fallback is intentionally generic here and does not preserve source-controlled exception text.
                         resolved = null;
                     }
 
@@ -200,6 +200,11 @@ namespace osu.Game.Rulesets.Bms.UI
                     lookup.Keymode,
                     allowAggregateTextureOverride: false),
                 BmsNoteSkinElements.LongNoteHead => new DefaultBmsLongNoteHeadDisplay(
+                    lookup.LaneIndex,
+                    lookup.IsScratch,
+                    lookup.Keymode,
+                    allowAggregateTextureOverride: false),
+                BmsNoteSkinElements.LongNoteTail => new DefaultBmsLongNoteTailDisplay(
                     lookup.LaneIndex,
                     lookup.IsScratch,
                     lookup.Keymode,

@@ -7,6 +7,10 @@
 
 ## 2026-07-16
 
+### managed `.osk` BMS 长条尾纵切自动门通过
+
+selected managed package 现可为 optional `LongNoteTail` 提供 `NoteImage{lane}T`/`ST`/`S2T` 静态图与 60 FPS 连续编号帧；真实 hold tail 走后台 preparation 与 per-host 原子发布。未声明或坏 tail 逐组件继承并最终保持程序化透明迁移 fallback，这不是作者 `Suppress`；低层仅有同名裸纹理时不会拼件，但低层自己的完整 tail 组件仍可接管。protected `OmsSkin` tail 保持 `Alpha=0` 且不反查 aggregate 纹理，body/head、LN/CN/HCN 与 22.5px tail host 均未改。产品 fixture **60/60** 连续三轮、合并 focused **271/271**、BMS full **1401/1401**、Release **0 error / 11 known warnings**，独立终审 blocker/major **0/0**。新视觉登记为 `V-003` 集中待验收；下一切片冻结为统一标量几何策略下的 critical `LongNoteBody`。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 与[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。
+
 ### managed `.osk` BMS 长条头纵切自动门通过
 
 selected managed package 现可为 critical `LongNoteHead` 提供 `NoteImage{lane}H`/`SH`/`S2H` 静态图与 60 FPS 连续编号帧；真实 hold head 走后台 preparation 与 per-host 原子发布，坏声明回落到可见 rescue，不从低层同名裸纹理拼件，也不拖垮同包有效 ordinary note。产品 fixture **39/39**、合并 focused **248/248**、BMS full **1378/1378**、Release **0 error / 11 known warnings**；未改 body/tail、LN/CN/HCN、shared/mania authority、layout/G1/scene/script。新视觉登记为 `V-002` 集中待验收，不计作交付；下一切片冻结为 optional `LongNoteTail` 的静态/编号帧 `Provide/Inherit`，本刀不开放作者 `Suppress`。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 与[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。

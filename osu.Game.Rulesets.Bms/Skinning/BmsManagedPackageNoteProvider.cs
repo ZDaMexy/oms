@@ -24,8 +24,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// Resolves the first production Skin V1 note components from one exact managed <c>.osk</c> source.
     /// </summary>
     /// <remarks>
-    /// Only the native BMS ordinary-note and long-note-head declarations are in scope. Mania compatibility candidates,
-    /// other long-note parts, folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
+    /// Only the native BMS ordinary-note, long-note-head and long-note-tail declarations are in scope. Mania compatibility
+    /// candidates, the long-note body, folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
     /// </remarks>
     internal sealed class BmsManagedPackageNoteProvider :
         IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, BmsSourceBoundNoteMaterial>
@@ -110,6 +110,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 BmsNoteSkinElements.Note => GameplaySkinSlotCatalog.Note,
                 BmsNoteSkinElements.LongNoteHead => GameplaySkinSlotCatalog.LongNoteHead,
+                BmsNoteSkinElements.LongNoteTail => GameplaySkinSlotCatalog.LongNoteTail,
                 _ => null,
             };
 
@@ -705,7 +706,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         private static IEnumerable<BmsManagedPackageNoteSlotKey> enumerateCanonicalSlots()
         {
-            foreach (BmsNoteSkinElements element in new[] { BmsNoteSkinElements.Note, BmsNoteSkinElements.LongNoteHead })
+            foreach (BmsNoteSkinElements element in new[]
+                     {
+                         BmsNoteSkinElements.Note,
+                         BmsNoteSkinElements.LongNoteHead,
+                         BmsNoteSkinElements.LongNoteTail,
+                     })
             {
                 yield return new BmsManagedPackageNoteSlotKey(element, BmsKeymode.Key5K, 0, true);
                 for (int i = 1; i <= 5; i++)

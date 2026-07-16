@@ -4,6 +4,14 @@
 
 ## 2026-07-16
 
+### `SV1-1` managed `.osk` BMS 长条尾静态图/编号帧动画纵切
+
+- source-bound provider 从 ordinary note/head 扩到 optional `LongNoteTail`，只消费 decoder-time accepted native `[Bms] NoteImage{lane}T` / `NoteImageST` / `NoteImageS2T`。static 与连续 `name-0`、`name-1`…编号帧固定 60 FPS；descriptor、materializer、exact package revision、containment、大小写冲突、raw/image/pixel/frame/texture/component/package 预算、后台 preparation、取消与 stale result disposal 全部复用既有合同，未改预算数字或 importer gate。
+- 真实 `DrawableBmsHoldNote → DrawableBmsHoldNoteTail` 已改走 `BmsAsyncNoteDrawable`，body 保持原路径。未声明、空值、缺失、损坏、断帧、越界、authority 冲突或超预算均诊断后 `Inherit`；producer 不返回 `Suppress`，程序化透明 tail 也不解释为 `Suppress`。protected `OmsSkin` tail 强制 `Alpha=0` 且不查询 aggregate 同名纹理；selected 坏 tail 不会借低层裸同名文件补件，但低层自己的完整 accepted declaration/resource 可作为完整组件接管。beatmap-local 直接 drawable 仍优先，head/body、LN/CN/HCN、判定/计分/滚动/裁剪、22.5px tail host、layout、G1 与 event runtime 均未改。
+- 产品 fixture 从 **39** 扩到 **60** 个 case并连续跑三轮全绿：覆盖 static tail、真实完整 hold 的动画推进/循环、7K normal/scratch、14K `S2T`、A→B 2→3 帧与旧视觉保留、注入式 beatmap provider 顺序、坏 tail 与有效 note/head 隔离、protected 透明链底、低层裸同名防串/完整组件接管、authority/大小写/资源失败、代表性帧预算、逐组件隔离及后台取消/过期结果。注入式 `ISkin` 只证明 provider order，不是公开 beatmap-local 作者格式。
+- 验证：合并态 BMS skin/runtime focused **271/271**，BMS full **1401/1401**，`osu.Desktop.slnf --no-restore` Release **0 error / 11 known warnings**；保留 9 条 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn`。独立终审 blocker/major **0/0**；文档健康检查为 **120 个 Markdown / 964 个相对链接 / 22 个 memory wiki 链**，`git diff --check` 通过。本切未改 shared `osu.Game` ABI、mania compatibility 或 fallback authority，故未另跑 core/mania 产品测试；Release 已编译相关工程。
+- 新能力登记为集中视觉项 `V-003`，与 `V-001`/`V-002` 一样只能称“实现/自动 gate 通过，视觉待验收”，不得计作产品交付、`SV1-1` 完成或 release gate 通过。按用户“不操控电脑、集中反馈”的协作方式，本切未启动 GUI。下一刀经依赖审计冻结为 critical `LongNoteBody`：先建立可复用标量几何合法域（`LongNoteBodyWidth` 默认 `0.5775`，只接受 finite 且 `0 < width <= 1`），让 body 素材与 width 同 revision 发布，并复用现有 Idle/Holding/Broken 状态宿主；不提前扩成 `SV1-3` layout snapshot。
+
 ### `SV1-1` managed `.osk` BMS 长条头静态图/编号帧动画纵切
 
 - selected managed `.osk` 的 source-bound note provider 从 ordinary note 扩到 critical `LongNoteHead`，只消费 decoder-time accepted native `[Bms] NoteImage{lane}H` / `NoteImageSH` / `NoteImageS2H`。slot key 与 descriptor 现包含 element，materializer 在同一 immutable package revision 内枚举 ordinary/head canonical lanes；连续 `name-0`、`name-1`…仍固定 60 FPS，并复用现有 raw/image/pixel/frame/texture/component/package 预算、containment、大小写冲突和 decode 前后验证，未改预算数字或 importer gate。
