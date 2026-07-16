@@ -190,11 +190,13 @@
 
 1. 2026-06-30 00:05 之后的 G1/F2/Lua/mania adapter/reference-default 不构成当前能力，禁止整批 cherry-pick/apply；只可定点复用设计和测试教训。
 2. schema 56 生产 Realm 未只读清点前，不得降 schema、自动删除/改写 folder-backed `SkinInfo` 或清理 `chartskin/`。
-3. managed relative path 与 external absolute root 是不同 authority；external 必须使用 `NativeStorage` 且永久只读。
+3. managed relative path 与 external root 是不同 authority。V1 首批 preflight 只接受 drive-letter-qualified fully-qualified Windows path；它不证明物理本地盘，mapped network drive、SUBST 与 final identity 留给后续 resolved-identity gate。UNC、device namespace 与盘符/volume root fail-closed。external 后续只能用 `NativeStorage` 作为只读 source adapter且永久只读，不能把绝对路径交给 contained storage，也不能让 external root 与 `chartskin` exact/ancestor/descendant namespace 重叠。
+3a. 当前 `SkinFilesystemStorageResolver` 只闭合 schema 56 声明与检查当时的 lexical/reparse preflight：Realm `.osk` 不触碰 Storage，folder 必须 `Files.Count == 0`，managed 只接受 `chartskin/<direct-child>`，folder protected/fixed-ID/DeletePending 均拒绝；数据根、managed root、package root或 external ancestor 任一 reparse 均拒绝。返回的 normalised absolute/relative path 是敏感的 process-local 值，安全字符串不得展开；`IsValid` 不表示 `InstantiationInfo`、包内容、选择资格、物理 identity 或后续 mutation 已授权。
+3b. lexical preflight 不是安全打开或 mutation capability：`File.GetAttributes()` 存在 TOCTOU，也不闭合 8.3/SUBST/alias/final-path identity、包内条目或真实 junction traversal。任何 production folder factory、inventory、scanner、rename/delete 接线前必须通过 no-follow/handle identity，或先复制为已完整验证的 immutable revision capsule再由 parser/decoder 消费；不得直接拿 normalised path 执行破坏性 I/O。
 4. managed rename/delete/import 必须做 resolved-root containment、冲突拒绝和 reparse-point/symlink 风险处理；不允许仅做字符串前缀判断。
-5. scanner 只能维护自己创建的 authority 记录；不得删除 `.osk`、未知来源、另一扫描根或用户手工记录。
-6. folder-backed `SkinInfo.Files` 保持空；资源从正确 folder store 读取。非 folder/.osk/Oms 路径必须保持既有行为。
-7. reload 覆盖 ini/scene/script/素材和原子替换；新 package 完整解析/验证成功后原子切换，失败保留旧实例并报告诊断。
+5. scanner 只能维护自己创建的 authority 记录；开 scanner 前必须有 nullable opaque persistent owner token，null/unknown 永不自动改写或清理。不得删除 `.osk`、未知来源、另一扫描根、用户手工记录，scan 取消/异常/部分失败也不得以“本轮未见”删除记录。
+6. folder-backed `SkinInfo.Files` 保持空；external `NativeStorage` 或 managed source 只用于捕获 no-follow immutable revision，不得作为运行实例持续直读的 live store。资源必须从同一完整 capsule 读取；非 folder/.osk/Oms 路径保持既有行为。
+7. reload 覆盖 ini/manifest/scene/script/素材和原子替换；新 package 完整解析/验证成功后按 selection/generation/exact revision 一次切换 active publication，失败保留旧实例并报告诊断，只释放 provisional owner。成功后旧 owner 必须等待 consumer detach；多个已挂载 consumer 需要同一 publication barrier，不得把逐 host 原子替换冒充全 playfield 同帧。
 8. 删除 current skin 时先安全切回 `oms-simple`；external 删除操作只能解除注册，不能写/改名/删物理目录。
 9. schema 56 只读清点发现的失效 `InstantiationInfo` 不得依赖 `SkinInfo.CreateInstance()` 的历史 `TrianglesSkin` fallback 静默吞掉，也不得靠普通启动只修 fixed-ID protected 记录后宣称迁移完成。managed hash-backed 记录必须先保全内容，再按用户批准的定点方案重导入、保留或移除；scanner 不得代办该清理。Realm 写事务可能不更新文件 mtime，迁移证据必须同时验证 SHA-256 与动态 schema 状态。
 

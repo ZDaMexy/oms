@@ -4,6 +4,14 @@
 
 ## 2026-07-17
 
+### `SV1-2` 第一刀：folder authority/path lexical preflight 合同
+
+- shared core 新增无生产消费者的 `SkinFilesystemStorageResolver`，把 schema 56 的字段组合闭合为 Realm `.osk`、`chartskin/<direct-child>` managed folder、只读 drive-letter-qualified Windows external folder或 typed invalid。该语法不证明物理本地盘，mapped drive/SUBST/final identity留给后续 gate。Realm/内置无 folder 记录不触碰 Storage；folder 强制 `Files.Count == 0`，protected/fixed-ID/DeletePending 拒绝，normalised absolute/relative path不进入安全字符串。
+- managed 路径只接受 direct child，拒绝 root/sibling-prefix/nested/traversal/ADS/尾点尾空格/Windows 设备名；external 拒绝 relative、UNC/device、盘符根，并拒绝与 managed `chartskin` namespace exact/ancestor/descendant 重叠。现存路径逐段做 data root/managed root/package/external ancestor reparse preflight，缺失、非目录、权限/IO、过长路径均返回稳定 reason。
+- 该类型的 XML/公开属性已明确收窄：这是检查当时的 lexical/reparse preflight，不是 canonical/final physical identity、mutation token、包内容/`InstantiationInfo`/选择资格或 TOCTOU 安全打开。8.3/SUBST/alias、真实 junction 集成、包内条目、no-follow inventory 与 immutable revision capsule留给下一刀；接 `SkinManager`/`NativeStorage`/scanner/mutation 前不得直接使用 normalised path 执行 I/O。
+- focused **54/54**；core skin aggregate **111/116**，5 项失败仍是恢复基线同名的 1 项 Argon 旧期待和 4 项已删除 Osu ruleset archive fixture，无新增失败；mania `FullyQualifiedName~Skin` **182/182**、BMS `FullyQualifiedName~Skin` **583/583**。Release Rebuild **0 error / 11 known warnings**，保留 9 条 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`；targeted whitespace/style 与 CRLF、`git diff --check` 均通过。
+- 三路独立终审在补 external/managed namespace 冲突、移除 mutation 授权误称、收窄 canonical/no-follow 措辞、补 external bytes+mtime+`SkinInfo` 零 mutation和显式 typed reason 后为 blocker/major **0/0**。测试只使用隔离临时目录与注入式 attributes probe；代码没有 production call site，未访问生产 Realm、`chartskin/`、用户皮肤目录或网络，未启动 GUI。`SV1-2`、G1 与 Skin V1 均未因此完成。
+
 ### `SV1-1` managed `.osk` BMS critical 长条身与安全宽度纵切
 
 - managed source-bound provider 已扩到 critical、不可 `Suppress` 的 `LongNoteBody`，只消费 decoder-time accepted native `[Bms] NoteImage{lane}L` / `NoteImageSL` / `NoteImageS2L`；静态图与连续 `name-0`、`name-1`…编号帧均沿用 60 FPS、containment、解码前后预算、后台 preparation、取消与 stale result 处置。ordinary note、head、body、tail 四组件至此闭合自动、合同、安全与回退 gate。

@@ -24,7 +24,7 @@
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
 | 2 | 已实现纵切的集中视觉验收 | **`V-001`～`V-004` 待用户签收** | Skin V1/release 完成声明前确认真实 managed `.osk` 的普通短键与长条 head/body/tail、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
 | 3 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收** | ordinary note 与 critical head/body、optional tail 的静态图/60 FPS 连续编号帧已通过自动、合同、安全与回退 gate；只算首个产品纵切自动闭环，不计作 `SV1-1` 完成或产品交付 |
-| 4 | `SV1-2` G1 安全存储与原子重载 | **下一门** | 闭合 managed/external authority、完整 revision preparation、成功 cache 失效与实例原子切换 |
+| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | authority/path preflight 已闭合；继续完整 revision preparation、生产选择、scanner/mutation ownership、成功 cache 失效与实例原子切换 |
 | 5 | `SV1-3`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。首个 Note/LN 产品纵切已满足进入 `SV1-2` 的工程依赖，但 `SV1-1` 本身仍未完成；G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
@@ -59,12 +59,13 @@ managed 静态/动画与默认 body 共用真实 Idle/Holding/Broken 状态宿�
 
 依赖：保持 `SV1-0` 数据处置结论与当前 `.osk` 路径稳定；不得从异常期存档整包恢复。当前成功 preparation cache 不感知同一 `BmsLegacySkin` 实例内的原地 source revision 变化，虽不会混合/发布过期 material、会安全保留旧视觉或回落，但需要实例重建；这是本门必须处理或显式冻结的原子 reload 风险。
 
-1. 分离 managed 与 external authority；external absolute root 使用 `NativeStorage` 且只读。
-2. managed import/rename/delete 做 resolved-root containment、冲突拒绝及 reparse-point/symlink 风险处理。
-3. scanner 只维护自身 authority，不删除 `.osk`、未知来源或其它 authority 的 Realm 记录。
-4. `SkinManager` 从正确 authority 建立 folder store；非 folder 与 `.osk` 路径保持字节一致。
-5. ini/manifest/script/素材的新 revision 完整验证后一次切换；成功 preparation cache 必须按 exact revision 失效或重建，失败只销毁 provisional revision。
-6. UI 明确区分 managed 删除文件与 external 解除注册。
+1. **已闭合内部 preflight**：schema 56 声明被闭合分类为 Realm `.osk`、`chartskin/<name>` managed、只读 drive-letter-qualified Windows external 或 typed invalid；双 authority、managed/external namespace 重叠、root/ancestor reparse 与歧义 Windows path fail-closed。该结果无生产消费者，只是 lexical/reparse preflight，不证明物理本地盘、mapped drive/SUBST/final identity，也不是 mutation token 或 package validation；UNC/device/volume root 暂不支持。
+2. **不可变 revision capsule**：以 no-follow inventory 捕获完整 filename→content identity，拒绝大小写冲突、包内 traversal/reparse、预算超限、读取中变化与 alias/identity 冲突；external `NativeStorage` 只可作为只读 source adapter，parser/decoder 只消费 OMS 自有 immutable snapshot。
+3. **生产 folder factory/选择**：`SkinManager` 只从已验证 capsule 建立新实例，folder 只接受精确允许的 `InstantiationInfo`，不得进入历史 `TrianglesSkin` fallback；非 folder 与 `.osk` 路径保持既有行为。失败保留当前选择/实例，provisional owner 单独释放。
+4. **scanner ownership**：在开 scanner 前增加 nullable opaque persistent authority owner；legacy/unknown 为 null 且 scanner 永不改写。managed scanner 与 external registration 只维护自己的 token/root，不删除 `.osk`、未知来源、另一 authority 或不完整扫描中未见的记录。
+5. **安全 mutation**：managed import/rename/delete 使用独立 no-follow/handle 服务做 resolved identity、containment、冲突拒绝、即时重验和 rollback；external 永久只读，只允许 register/unregister。不得把第一步 preflight 的 normalised path 当授权。
+6. **整包原子 reload**：ini/manifest/scene/script/素材的新 revision 完整验证后，以 generation/current-selection/revision gate 一次切换 active publication；成功 preparation cache 按 exact revision 重建，失败只销毁 provisional revision并保留旧实例。全 playfield publication barrier 与旧 owner 安全退役必须有生产测试。
+7. **产品 UI/实机**：明确区分 managed 删除文件与 external 解除注册；选择、重启、切换、rename/delete、缺件和原子替换统一进入最终人工清单。
 
 验收：真实选择链、重启、切换、rename/delete、缺件、原子替换和备份数据根均通过自动与人工验证。
 

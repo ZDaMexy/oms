@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。managed `.osk` BMS 普通短键与长条 head/body/tail 四个可见组件的自动、合同、安全与回退 gate 已闭合，集中视觉项 `V-001`～`V-004` 签收 **0/4**；这只关闭了 R2 的前置合同和首个 Note/LN 纵切自动闭环，工程现转入 R3/`SV1-2`，不代表 `SV1-1`、Skin V1 或 release 完成。真实 BMS beatmap-local 作者格式仍须产品另行决定，完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。managed `.osk` BMS 普通短键与长条 head/body/tail 四个可见组件的自动、合同、安全与回退 gate 已闭合，集中视觉项 `V-001`～`V-004` 签收 **0/4**；这只关闭了 R2 的前置合同和首个 Note/LN 纵切自动闭环。工程现处 R3/`SV1-2`：首个 folder authority/path lexical preflight 内部合同已落但无生产调用者，不代表 G1、`SV1-1`、Skin V1 或 release 完成。真实 BMS beatmap-local 作者格式仍须产品另行决定，完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | R3 / `SV1-2` G1 可视文件夹 | 只有 early carrier；异常实现已撤回，整包原子重载未实现 | 建立 managed/external authority、路径 containment、安全存储与整包原子 reload |
+| 1 | R3 / `SV1-2` G1 可视文件夹 | early carrier + 无生产消费者的 authority/path preflight；安全存储、选择与整包原子重载未实现 | 建立不可变 revision capsule，再接 production folder factory、scanner/mutation ownership 与整包原子 reload |
 | 2 | R4 / Skin V1 后续合同 | `SV1-1` 整体仍未完成，`SV1-3`～`SV1-7` 未实现 | 补齐完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime；这些不是进入 `SV1-2` 的前置 |
 | 3 | 集中视觉签收 | R2 首个 Note/LN 纵切的四组件自动门已闭合；`V-001`～`V-004` 签收 0/4 | 继续登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
@@ -32,7 +32,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 - 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；新增可见纵切为 managed `.osk` 的 BMS 普通短键与长条 head/body/tail 静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，managed/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享 neutral ini/asset/animation/event runtime、三态解析与 sandbox，ruleset topology/layout adapter 分离；当前窄纵切不代表这些能力已经完成。
-- G1、完整 layout/shared codec、其它 slot 三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit 与移除程序化产品视觉均未完成。
+- G1 仅新增内部 authority/path preflight；完整安全存储/选择/扫描/删改/原子重载仍未完成。完整 layout/shared codec、其它 slot 三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit 与移除程序化产品视觉也均未完成。
 
 恢复边界见 [2026-07-10 恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，当前实现与未完成 gate 见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，V1 完成定义见 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
@@ -40,7 +40,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 全过；普通短键与长条 head/body/tail 四组件自动 gate 通过、`V-001`～`V-004` 集中待验收；工程下一优先级为 R3/`SV1-2` G1 安全存储与整包原子重载 |
+| P1-A | `SV1-0` 全过；普通短键与长条 head/body/tail 四组件自动 gate 通过、`V-001`～`V-004` 集中待验收；R3 首个 authority/path preflight 已落但无生产调用者，继续不可变 revision capsule与 G1 后续 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |

@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个 managed `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片，工程依赖已允许进入下一门 `SV1-2`。
+`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个 managed `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。工程现已进入 `SV1-2`：首个无生产消费者的 folder authority/path lexical preflight 原语及自动合同已落，真实选择、扫描、删改、不可变 preparation 与原子重载仍未接通。
 
 ## 当前产品能力
 
@@ -13,7 +13,7 @@
 - **实现并自动验证的新增可见能力为 4**：selected managed package 可为 BMS 普通短键提供 `name-0`、`name-1`…编号帧动画，也可为 `NoteImage{lane}H/L/T`（含 `S`/`S2`）长条 head/body/tail 提供静态图和同规则 60 FPS 动画；普通短键静态 `NoteImage` 属恢复基线，不重复计数。
 - **产品视觉签收为 0/4**：普通短键、长条 head、tail 与 body 分别登记为集中视觉项 `V-001`～`V-004`，用户尚未签收，因此只能称实现/自动 gate 通过，不能称已交付功能。
 - **安全回落覆盖 Note/Head/Body/Tail**：selected 单组件缺失、损坏、空值、越权或超预算时逐组件回落；body 是不可 `Suppress` 的 critical 组件，资源失败才 `Inherit`，有效 body 即使 width 缺失或非法也继续使用同组件与默认 `0.5775`。坏 body/tail 都不能从低层裸同名纹理拼件，低层自己的完整组件仍可接管；tail 保持 optional 透明 protected fallback。异步换源只发布当前 revision 的完整结果。beatmap-local 优先目前只是注入式 provider-order 合同，不是真实 BMS `WorkingBeatmap` 能力。
-- **整体仍不可用**：`SV1-1` 未完成，`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现；不能把首个纵切描述成 Skin V1 可用。
+- **整体仍不可用**：`SV1-1` 未完成；`SV1-2` 只有 early carrier 与第一步内部 authority/path preflight，没有生产 folder skin 能力；`SV1-3`～`SV1-7` 未实现。不能把首个纵切或该预检原语描述成 Skin V1 可用。
 
 | 产品交付面 | 当前状态 |
 | --- | --- |
@@ -23,7 +23,7 @@
 | BMS 长条身静态图/编号帧动画与安全宽度 | 实现/自动 gate 已过；`V-004` 集中视觉待验收，未交付；critical、不可 `Suppress` |
 | gameplay slot 三态 | 普通短键/长条头/body critical 与长条尾 optional slot 已消费 `Provide/Inherit`；作者 `Suppress` 与其它 slot 未交付 |
 | canonical `oms-simple.osk` fallback | 未交付；实际链底仍是程序化 `OmsSkin` |
-| G1 文件夹导入/选择/原子重载 | 未交付；只有 schema/constructor 载体 |
+| G1 文件夹导入/选择/原子重载 | 未交付；schema/constructor 载体外新增内部 authority/path preflight，但尚无生产调用者 |
 | 统一 layout descriptor/solver | 未交付；现有 geometry provenance 不是有效 layout |
 | shared ini codec/结构化诊断 | 未交付 |
 | scene/event runtime 与 sandbox script | 未交付 |
@@ -35,7 +35,7 @@
 - `BmsLegacySkin` 继续叠加解析 `[Bms]` 并保留 `[Mania]`；native BMS 普通短键与长条 head/body/tail 是当前仅有的真实 package 文件纵切。
 - internal 26 项 semantic slot、neutral lane identity/topology/revision、config presence/provenance、六类 lane-resource resolution、event envelope/order 与 capability decision foundation 已落；它们仍是 process-local 合同地基，不是作者 manifest、完整 layout、生产事件 runtime 或 sandbox。
 - geometry snapshot 仍只保存 parser 接受的来源事实；当前只有 `LongNoteBodyWidth` 进入唯一共享 scalar resolver，按 finite 且 `0 < width <= 1` 验证并对缺失/非法值逐字段回落 `0.5775`。其它 geometry 的 finite/range/screen-space validation 尚未进入统一 descriptor。
-- G1 只保留 folder constructor 与 schema 56 字段；scanner、authority、containment、选择、删改和热重载无可信生产链。
+- G1 已在既有 folder constructor/schema 56 字段上增加 ruleset-neutral 的存储声明分类与现存目录 lexical/reparse preflight：区分 Realm `.osk`、`chartskin/<name>` managed folder、只读 drive-letter-qualified Windows external folder及 typed invalid；拒绝双 authority、managed/external namespace 重叠、root/ancestor reparse、盘符根、UNC/device/ADS/traversal/Windows 歧义名，安全字符串不展开路径。它只是一瞬时只读预检，不证明路径物理上位于本地盘，也不是 resolved identity、mutation token、package inventory 或生产 folder store；scanner、选择、删改和原子热重载仍无可信生产链。
 - playfield 可读取当前皮肤 profile，但 gauge/combo/BGA 尚未消费同一 resolved descriptor；14K 四角四 BGA player 只是临时表现。
 - mania/BMS 的共同目标仍是 neutral ini codec、scene/event ABI 与 sandbox；ruleset topology/layout adapter 分离，BMS 不继承 mania 具体 Drawable/transformer。
 
@@ -48,9 +48,16 @@
 | 3 | 文档与 memory 健康治理 | **完成**：只归位当前事实、未来步骤、稳定合同和历史；未改代码或产品 gate |
 | 4 | managed `.osk` BMS 普通短键与长条 head/body/tail 视觉 | **`V-001`～`V-004` 集中待验收**；这是完成/release 声明门，不是后续开发开工门，不可复用静态恢复结论 |
 | 5 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收**；四组件自动、合同、安全与回退 gate 通过，但不得写成 `SV1-1` 完成或交付 |
-| 6 | `SV1-2` G1 安全存储与原子重载 | **下一门**；按 [当前计划](DEVELOPMENT_PLAN.md) 开始，`SV1-3`～`SV1-7` 仍未完成 |
+| 6 | `SV1-2` G1 安全存储与原子重载 | **进行中**；第一步 authority/path preflight 自动合同已闭合且零生产调用，下一步是不可变 package revision capsule；`SV1-3`～`SV1-7` 仍未完成 |
 
 ## 最新验证
+
+### `SV1-2` 第一刀 authority/path preflight：2026-07-17
+
+- 新增 focused **54/54**：闭合 schema 56 的 Realm/managed/external/invalid 分类、folder `Files` 双 authority、protected/fixed-ID/DeletePending、managed direct-child、drive-letter-qualified external、managed/external namespace exact/ancestor/descendant 冲突、traversal/ADS/UNC/device/盘符根/尾点尾空格/Windows 设备名、缺失/文件目标、data root/managed root/package/external ancestor reparse、typed IO/path failure、诊断脱敏及 managed/external bytes+mtime+`SkinInfo` 零 mutation。
+- core skin aggregate **111/116**；5 项失败仍是恢复基线同名的 1 项 Argon 默认皮肤旧期待与 4 项依赖已删除 Osu ruleset beatmap archive fixture，无新增失败。跨规则集 relevant 为 mania `FullyQualifiedName~Skin` **182/182**、BMS `FullyQualifiedName~Skin` **583/583**。最终 `osu.Desktop.slnf` Release Rebuild **0 error / 11 known warnings**，即 9 条 MessagePack 3.1.3 `NU1902` 与 BMS tests 既有 `CS8600`/`CA2007`。
+- 三路独立只读终审在修正 mutation-token/canonical/no-follow 误称、external 与 managed namespace 重叠、external 纯度和 typed reason 后为 blocker/major **0/0**。当前 preflight 没有生产调用者；测试只用隔离临时目录和注入式文件属性 probe，未访问生产 Realm、`chartskin/`、用户目录或网络，未启动 GUI 或操控桌面。
+- 尚未证明 8.3/SUBST/物理 identity 去重、真实 junction 集成、TOCTOU 安全打开、完整资源 inventory、`InstantiationInfo`、`NativeStorage` folder store、scanner ownership、mutation 或原子 reload；这些继续是同一 `SV1-2` 的后续 gate，不能用本组 54 项冒充。
 
 ### 产品/runtime 与 gate 工具：截至 2026-07-17
 
@@ -76,6 +83,7 @@
 
 - schema 56 的四个无 authority orphan blob 已保全并暂留；不得把本次定点处置当作 scanner 批量清理先例。
 - 当前真实 package 纵切只覆盖 BMS 普通短键与长条 head/body/tail；单组件安全替换不等于整包/全 playfield 同帧原子 reload。
+- `SkinFilesystemStorageResolver` 返回的 normalised lexical path 只表示检查当时的声明/preflight，不是 capability；`File.GetAttributes()` 仍有 TOCTOU，8.3/SUBST/物理 alias 与包内 reparse 尚未闭合。任何 `SkinManager`、scanner、inventory、rename/delete 接线都必须先引入 no-follow/handle 或不可变安全快照，不能直接消费该字符串执行 I/O。
 - 成功 preparation cache 目前不感知同一 `BmsLegacySkin` 实例内的原地 source revision 变化；现状不会混合或发布过期 material，而是安全保留旧视觉/回落并要求重建实例。`SV1-2` 必须把这项作为原子 reload 风险处理。
 - 真实 BMS beatmap-local 尚无逐谱作者格式和 `WorkingBeatmap` producer；实现它会新增 core 扩展点与公开 sidecar 合同，必须先由产品冻结范围。
 - runtime 图片预算不等于 `.osk` importer 的压缩比/zip-bomb gate；G1 仍须独立实现。
@@ -89,5 +97,5 @@
 ## 下一检查点
 
 1. 将普通短键与长条 head/tail/body 的观感、选择切换和 selected 坏包回落保持在[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)的 `V-001`～`V-004`，等待统一用户反馈；不得把自动测试写成视觉签收。
-2. 进入 `SV1-2` G1 安全存储与原子重载，优先闭合同一 package revision 的扫描、authority、完整 preparation、成功 cache 失效和实例切换；当前同一 `BmsLegacySkin` 实例原地改源需要重建实例的限制必须在该门消除或显式冻结。
+2. 继续 `SV1-2`：下一刀建立不可变 package revision capsule/no-follow inventory，冻结 filename→content identity、大小写冲突、包内 reparse、预算与失败处置；随后才允许 production folder factory/选择链消费。scanner owner tag、安全 mutation 与原子 reload 各自独立过门；当前同一 `BmsLegacySkin` 实例原地改源需要重建实例的限制必须在该门消除或显式冻结。
 3. 剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，留给后续 shared scene/runtime 接管。只有视觉结论实际决定下一实现时才暂停；期间保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 Skin V1 未交付状态不变。
