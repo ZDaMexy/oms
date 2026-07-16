@@ -1,61 +1,38 @@
-# P1-C 技术约束：判定语义、绿色数字与反馈闭环
+# P1-C 技术约束：判定语义与反馈边界
 
-> 最后更新：2026-05-16
-> 本文件记录 `P1-C` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
+> 最后更新：2026-07-16
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
-## 归线约束
+## 归线与产品边界
 
-1. 本子线属于 Phase 1.x 下的 `P1-C`，不得借题把 `FHS`、`dan`、`1P/2P flip`、BSS / MSS 提前带入当前主交付。
-2. `P1-C` 的 feedback family 必须建立在 `P1-A` 冻结的 BMS HUD 宿主与皮肤边界上，不得绕开 `P1-A` 直接改写旧版接口。
+1. P1-C 维护判定 family、窗口/poor/release parity 与反馈语义，不得借题提前引入完整 FHS、dan、1P/2P flip、BSS/MSS。
+2. HUD/skin 宿主和 slot/fallback 归 P1-A；真实谱 LN/CN/HCN 验校归 P1-E；人工结果汇总归 P1-G；Gimmick 视觉位置归 P1-L。
+3. 常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState`、FAST/SLOW、pacemaker、summary 与常驻 GN 已删除，不是当前能力。未来若重建必须另立专题，不得把历史接口当成兼容承诺。
+4. 当前 GN/WN 只能描述 OMS `Normal/Floating/Classic Hi-Speed + Sudden/Hidden/Lift` 的现有 runtime surface，不得对外宣称完整 IIDX FHS。
 
-## 术语与产品约束
+## 判定 family 合同
 
-1. 当前 `GN / WN` 可以表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 的反馈，但不得对外宣称为完整 IIDX `FHS`。
-2. 若引入常驻 GN HUD、toast 或 pre-start overlay，文案必须与当前 tri-mode surface 一致；settings 当前只允许显示“不启用 `Sudden / Hidden / Lift` 的基础下落时间（ms）”，不得显示 `GreenNumber` 本身或 runtime-adjusted 可见毫秒，也不得制造“已完整支持 BPM 补偿 / FHS 全语义”的错误预期。
-3. `Lift` 继续是 geometry control；`Hidden` 继续是下遮挡。两者在命名、状态、HUD 表达与 pre-start hold 交互中都不得重新混写。
-4. 当前 `Floating` 只允许按“initial-BPM anchored surface”对外表述，不得误写成完整 mid-song re-float parity。
+1. `BmsJudgementSystemParityTest` 是 IIDX/LR2/beatoraja/OD 窗口、方向、scratch、long-note release 与 poor 语义的改动门；任何改数必须先让测试差异显式可审。
+2. audit/source-backed 与 documented heuristic 必须区分：
+   - IIDX 主窗口 `16.67/33.33/116.67/250`、LR2 四档与 beatoraja `JudgeProperty.SEVENKEYS` 缩放/非对称值属于已溯源基线。
+   - beatoraja BAD base 早窗 `280`、晚窗 `220`；scratch 为 `290/230`，LN release 为 `280/220`。方向不得再次写反。
+   - IIDX empty-poor `500/150` 与 IIDX CN release 沿用 note window 是 OMS documented heuristic，不得写成闭源官方精确值。
+3. 跨 family 边界统一使用 `<= window + BmsJudgementSystem.BoundaryEpsilon`；新增 Evaluate 路径不得私设另一套压线规则。
+4. scratch、long-note release、excessive poor 与 empty poor 必须保持 family-specific；不得用一套普通 note window 覆盖全部。
+5. judge mode/rank 必须进入 runtime 与 score bucket；显示层不得反向决定判定 family。
+6. HCN 允许 release 后 regrab；普通 CN 中途松开后不可接回。具体 long-note authority 见 [P1-E 约束](../P1-E/TECHNICAL_CONSTRAINTS.md)，P1-C 只消费结论。
+7. 判定、计分和 replay 始终使用时间链；visual scroll、lane cover、skin/layout 或 P1-L 位置旁路不得改变结果。
 
-## GN 公式约束（2026-04-20 经 iidx.org 外部参考验证）
+## 当前反馈与 HUD 边界
 
-1. **IIDX 原始公式**：`GN = 10 × (note 可见帧数 @60fps)` = `Round(VisibleLaneTime_ms × 0.6)`。当前 `BmsScrollSpeedMetrics.GreenNumber` 实现与此完全一致，**不得修改公式**除非 IIDX 参考本身变更。
-2. **WhiteNumber 语义**：`WhiteNumber = SuddenUnits`（SUDDEN+ 遮挡面积占全高千分比），**不受 LIFT 影响**。这与 IIDX 语义一致；beatoraja 在有 LIFT 时的重算语义不同但不是 OMS 当前目标。
-3. **VisibleLaneUnits 计算**：`1000 - SuddenUnits - HiddenUnits`。LIFT 不参与此计算（与 IIDX 一致），但 LIFT 通过几何链（`ScrollLengthRatio`）间接影响 `VisibleLaneTime` 和 `GreenNumber`。
-4. **Soflan 与 GN 显示**：当前 HUD / pre-start overlay 只显示单个 runtime GN，不显示 soflan 范围。`Floating` 首轮虽然会按 initial BPM 重新锚定 base time，但在 full FHS 未实现前，仍不得引入 soflan GN 范围显示（IIDX 的 min-max GN 范围仅在完整 FHS 模式下有意义）。
-5. **GN 典型值参考**：IIDX 玩家常用 GN 区间为 250（极快）– 330（偏慢），等价 VisibleLaneTime ≈ 417ms – 550ms。此数据仅供参考，不作为 OMS 硬编码限制。
-6. **Hi-Speed 可调范围**：当前公开范围应保持 `Normal 1.0 - 20.0`、`Floating 0.5 - 10.0`、`Classic 0.5 - 10.0`；除非明确另开严格 HS / FHS 语义专题，不得悄悄修改这些用户可见范围。
-7. **Classic base time 映射**：当前 `Classic` 的 `ComputeScrollTime(HS)` 必须保持为 `(100000 / 13) / HS`；`HS 10 + WN 350 => GN 300` 的官方 sample 必须持续成立。
-8. **`阻止谱面开始/ingame start` 运行时合同**：进入 BMS gameplay 后必须先有 5 秒 delayed-start 窗口；按住 `UI_PreStartHold` 时在这 5 秒内应阻塞开谱、显示当前模式与数值，并允许按键位奇数列加速、偶数列减速，同时 `UI_LaneCoverFocus`（click-to-cycle）/ 滚轮 / 中键可继续调节 `Sudden / Hidden / Lift` 与 target cycle。若 delayed-start 已在 hold 期间耗尽，则松开 `UI_PreStartHold` 时必须重新调度一整段 fresh delay，而不是直接开始 gameplay。正式 gameplay 开始后，按住同一动作仍必须继续作为 hold-based Hi-Speed 调节修饰键；此时新的 lane action 不得再进入 gameplay hit handling，而只属于调整链。居中的 `BMS speed` toast 应在 hold 期间持续可见；右侧 `READY HOLD` overlay 只保留给前 5 秒阻止开谱窗口。`UI_PreStartHold` 与 `UI_LaneCoverFocus` 已拆为独立动作：PreStartHold = 阻止开谱/调速修饰键，LaneCoverFocus = 单击循环目标。
-9. **strict geometry 冻结**：当前运行时 geometry profile 已冻结；`Playfield Scale` 必须固定为 `1.0` 并保持不可配置，因为缩放会破坏皮肤编排，并把非权威几何缩放混入 `VisibleLaneTime` / `GreenNumber` 体感。
-10. **GN 语义边界**：除 `Sudden / Hidden / Lift` 与当前 single-play `Playfield Style`（`1P（居左）` / `2P（居右）` / `居中（左皿）` / `居中（右皿）`，只改变 5K / 7K 的 playfield 停靠与 scratch 视觉侧别）外，用户可见 layout override 不得再进入 `VisibleLaneTime` / `GreenNumber` 语义链。
-11. **BMS mod 记忆合同**：mod 选中状态与 remembered settings 只允许作为 BMS ruleset-local snapshot 持久化；切 ruleset / 重启可恢复，但不得把 mania / 全局 `SelectedMods` 变成隐式共享存储。
-12. **gameplay adjustment 回写合同**：`Sudden / Hidden / Lift` 的局内滚轮调整只有在 mod-local `RememberGameplayChanges = true` 时才允许写回当前 BMS selected mod 与持久化快照；关闭时必须保持 current-play-only 语义。
-13. **startup replay 时序合同**：`OsuGameBase` 在 startup 首次处理 BMS ruleset 时，若 `RulesetConfigCache` 尚未 ready，不得直接 `GetConfigFor()`；正确合同是允许无 config 的首轮 apply，并在 cache ready 后 replay 当前 ruleset 完成 `PersistedModState` restore。否则会同时造成冷启动 mod 记忆丢失与误报 ruleset failure。
+1. 全局 `JudgementCounterDisplay` 承担当前判定计数；GN 只在现有调速 toast 与 pre-start overlay 出现。不得把已删除的常驻 card 描述为当前 fallback 或待接线组件。
+2. 新反馈不得通过遍历 wrapped HUD 子节点、修改 `GaugeBar`/`ComboCounter` 或暗改 `IBmsHudLayoutDisplay` 三件套宿主植入。
+3. 任何新常驻反馈都必须先在独立专题冻结产品价值、数据 authority、P1-A 宿主、fallback、验收和删除路径；不得复活旧 aggregate 规避设计审查。
+4. `Sudden/Hidden/Lift` target/cycle/remember 行为与判定正交；`Lift` 是 geometry control，`Hidden` 是下遮挡，两者不得混写。
+5. pre-start 视觉流速 preview 只能复用现有 visual/scroll authority；不得创建真实 `BmsHitObject`、使用 `DrawableBmsHitObject`、进入 `HitObjectContainer`，或触发 keysound、judgement、score、replay、autoplay side effect。
 
-## pre-start 视觉预览约束
+## Results 与验证边界
 
-1. pre-start 流速预览若实现，只能在 actual gameplay 尚未开始且 `UI_PreStartHold` 当前按住时显示；真正进入 gameplay 后，即便同一 held action 仍继续承担 ingame 调速修饰键，preview 也必须立即消失。
-2. “1 号轨道”必须按**第一非 scratch 普通轨**解析，而不是 hard-code raw `laneIndex = 0`；5K / 7K / 14K 的 index 0 当前是 scratch，9K 才可直接落第一条 lane。
-3. preview 必须作为纯视觉 layer 实现，复用 `BmsNoteSkinLookup`、`BmsPlayfield`、`BmsHitObjectArea` 与 `BmsScrollSpeedMetrics` 这条现有 visual/scroll authority；不得创建真实 `BmsHitObject`、不得使用 `DrawableBmsHitObject`、不得加入 gameplay `HitObjectContainer`，也不得触发 lane keysound、judgement、score、replay 或 autoplay side effect。
-4. preview 必须跟随同一 pre-start/playfield clock 与 pause state；pause overlay 在 pre-start 中可见时，preview 也必须暂停或冻结，不能在暂停界面下继续下落。
-
-## 反馈家族约束
-
-1. speed feedback、`FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 应尽量沿同一 feedback family 承载，不再各自新开 ad-hoc overlay。（注：承载这套家族的常驻 `DefaultBmsSpeedFeedbackDisplay` 卡已于 2026-06-15 按产品决定整体移除——FAST/SLOW、judge display、visual timing-offset、EX pacemaker、judgement summary、常驻 GN 全部退出 gameplay；judgement **计数**改由全局 `JudgementCounterDisplay` 承担。本条适用于任何未来重新引入。）
-2. 不得通过遍历 wrapped HUD 子节点、偷改 `GaugeBar`、偷改 `ComboCounter` 的方式植入反馈内容。
-3. toast 可以保留为瞬时强调层，但不得继续承担唯一权威反馈职责。
-
-## 判定语义约束
-
-1. BRJ / LR2 parity 的补强必须与 feedback 验证链保持一致，不允许只改窗口不改训练反馈表达。
-2. 任何改变 judge family 语义、反馈术语、results 训练表达或常驻 HUD 的改动，都必须同步更新本目录四件套以及受影响的 `../../mainline/` 文档。
-3. 结果侧 BMS 重建不得只按 `BmsLongNoteMode` 回放，也不得对已带 mods 的 playable beatmap 再次应用 beatmap mods；`BmsClearLampProcessor` 的 final gauge / gauge history / lamp 计算必须消费 `Ruleset` contract 传入的已带 mods playable beatmap。`A-SCR` / `A-NOT` 这类会改写 score/gauge 池的 assist mod 不得在 results/history 链路里退化成“纯显示 mod”。`CreateStatisticsForScore()` 的 gauge history consumer 也必须直接消费计算后的 `BmsGaugeHistory`，不得在 panel/UI 层重建 timeline 或把回归退化成仅断言 panel type。
-4. `PERFECT` / `FULL COMBO` 的结果持久化必须先经过 clear condition 检查；`HCN` body tick 可以在不改变 EX-SCORE 与 head/tail judgement counts 的情况下独立击穿 gauge，因此禁止用聚合统计直接短路灯级结论。results summary consumer 也必须直接消费计算后的 `BmsClearLamp`，不得按 gauge type 自行派生 `HAZARD CLEAR` 一类灯级文本。
-
-## 判定窗口 parity 契约约束（2026-06-14 起）
-
-> 现状校正：判定 parity **不是「全缺」**。四套系统已实现 audit-backed 主窗口、beatoraja 非对称 BAD/scratch/release profile 与按家族参数化的 excessive poor；缺口已收窄为下列 G1–G4，且任何改数都必须经契约测试可见。
-
-14. **判定窗口必须由 parity 契约测试锁定。** 任何对 `OsuOdJudgementSystem` / `IidxJudgementSystem` / `Lr2JudgementSystem` / `BeatorajaJudgementSystem` 窗口数值、非对称方向、scratch / long-note release 扩窗或 excessive/empty poor early/late 的改动，都必须先反映在 [../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs](../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs) 的断言里（先改测试 = 让 parity diff 显式可审），不得静默改数。
-15. **audit/source-backed vs heuristic 必须显式区分。** 已溯源锁定的数值：IIDX `16.67/33.33/116.67/250`、LR2 四档 `8/24/40`·`15/30/60`·`18/40/100`·`21/60/120`（尾 200）、LR2 excessive poor 仅 note 前；beatoraja `25/50/75/100/125` 整数截断缩放 + BAD **早/晚非对称 base 早 280 / 晚 220**（scratch 290/230、LN release 280/220），权威来源 = beatoraja `JudgeProperty.SEVENKEYS`（exch-bms2/beatoraja，master）。**注意方向：早窗（280）比晚窗（220）宽**；OMS 早先写反（早 220 / 晚 280）已于 2026-06-14 第 2 刀修复。无权威单值、保留为**显式 OMS 启发式**（不得对外宣称 parity）的：**IIDX empty-poor `500/150`** 与 **IIDX CN release 沿用 note 窗口**（IIDX 闭源、审计仅述「可发生在 note 前或后」）。测试与代码注释须区分「sourced」与「documented heuristic」。
-16. **跨家族边界约定统一为 `<= window + BmsJudgementSystem.BoundaryEpsilon`（inclusive）。** 含 beatoraja 自有的 early/late 非对称 BAD 分支；新增任何判定家族或 Evaluate 路径都必须沿用该约定，使「正好压线」偏移在所有家族结论一致。
-17. **G1–G4 缺口归属固定在本子线。** G1 边界一致性、G2 契约测试已于第 1 刀收口；**G3（beatoraja 非对称）已于第 2 刀溯源修复（方向写反 → 改回早 280/晚 220）；G4（IIDX empty-poor / CN release）已结论性收口为 documented heuristic（无权威单值，保留并标注）**。剩余第 3 刀须把 parity 区分接进 gameplay 训练反馈表达（约束 #1：不允许只改窗口不改反馈）——属性显示面 `BAD hit window -early/+late` 已自动随窗口正确显示，但 gameplay judge display / counts 仍未显式区分 BAD-early/late 与 empty-poor / note-poor，是第 3 刀的主要缺口。
+1. results 重建必须消费 Ruleset contract 传入的 already-modded playable beatmap，不得重复应用 beatmap mods；gauge history 与 clear lamp 必须由 owning processor 计算，panel/UI 不得重建 timeline 或灯级。
+2. `PERFECT`/`FULL COMBO` 持久化必须先过 clear condition；HCN body tick 可独立影响 gauge，禁止只看聚合 judgement counts 推导灯级。
+3. 判定 family、poor/release、反馈术语或当前 HUD surface 改动，必须同步本目录四件套；影响全局 gate 时再向 mainline 回写摘要。

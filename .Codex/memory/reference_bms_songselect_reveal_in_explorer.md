@@ -4,7 +4,6 @@ description: "Song-select right-click 'reveal song folder / chart file in OS exp
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: 7c49e0d4-4fbb-406a-a077-769f249b4a85
 ---
 
 Song-select right-click **「打开歌曲文件位置」/「打开谱面文件位置」** (reveal in OS file browser, landed 2026-06-22, P1-I; path resolution leans on P1-H storage fields). Lets the user open the file explorer at a beatmap's folder/file with it selected.

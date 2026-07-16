@@ -1,7 +1,7 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-06-23（新增 K12：转谱难度输入必须剔除 sample-only 对象——审查确诊 BGM/scratch 灌水转谱星数；同步更正 K9 #17 / K11 #3 关于「`isScorableHitObject`/`TotalObjectCount` 排除≡难度输入排除」的失真叙述。此前 2026-06-01 新增 K11：BMS→mania 转谱 BGM/autoplay 音频补全约束）
-> 本文件记录 `P1-K` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
+> 最后更新：2026-07-16（文档健康治理；稳定合同未改变）
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
 

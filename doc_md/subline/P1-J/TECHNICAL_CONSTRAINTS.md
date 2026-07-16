@@ -1,67 +1,59 @@
-# P1-J 技术约束：BMS gameplay runtime 性能与音频时序治理
+# P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-06-23（**本轮新增 #12：BMS 游玩 beatmap track 静音（mute `Volume=0`、不换时钟源），修「选歌试听音频泄漏进游玩开头」（STATUS ④）；新增 core `Ruleset.PlayBeatmapTrackDuringGameplay`、`BmsRuleset` override false；禁止回退到此前已废的虚拟轨/换源方案；BMS 957→961/961（+ 选歌预览策略收紧 + 存量谱 backfill 一次性标记/进度通知）；用户 2026-06-23 实机确认（mute）/暂未见异常（策略+backfill+面板音符）。详见 #12 + CHANGELOG 2026-06-23。**此前 2026-06-21（原生 BMS 键音保真两改，构建+全测通过、用户实机实测确认优化明显·暂无异常 ✅）：① **autoplay = 100% 完美游玩**——确诊 autoplay 每音符**双触发**（音符 `AutoPlay=true` 退出输入 → replay 合成按键直达 `BmsLane` → lane armed 键音叠音符自身 auto-apply 键音；per-WAV cut 多数掩盖、armed≠音符槽或异步通道状态时露馅重复/发错）；修复 = lane 在本 lane 有自动音符时抑制 armed 键音、发声交给音符（= 完美游玩，新增 **#3b**）。连带结论：发现的 32 通道截断/同步触发抖动**非 autoplay 专属**、玩家完美游玩同样存在。② **键音池固定上限 32 → 自动增长**：原 `getNextChannel` 饱和即轮转偷断（默认 32、远低于真实复音需求、转谱侧早 floor 128 而原生未享），改为**饱和时新增通道（封顶 256）、仅 256 仍饱和才偷**——保真单调（只补不截）、自然有界、消除「截音」并使 `KeysoundConcurrentChannels` 降级为「起始/常驻基线」（#4 / #8 / 产品 #2 重写，tooltip 同步）。验证：`osu.Desktop.slnf` Release 0 错；BMS 全套 **936/936**（含改写 `TestSharedKeysoundStoreSingleSamplePathRotatesBuffers` + 新增 `TestSharedKeysoundStoreGrowsUnderSaturationInsteadOfStealing` + `TestAutoPlayNoteSuppressesRedundantLaneKeysound`）。此前 2026-06-11：① 转谱游玩期帧抖动真因实测确诊 = 每键音触发的 sample-drawable 重建 churn → 晋升风暴，修复 = store 通道**同样本快路径**（第 10 条 D 项重写、作废「疑渲染」叙事）；② keysound prewarm **放开到玩家模式**（第 7 条重写；BMS 原生 + 转谱-mania 对等）——游玩中数百 WAV 冷解码实测触发 ~220ms 阻塞 gen2 冻结；③ 游玩诊断探针 `BmsGameplayStallDiagnostics` 挂在 store 下（gen/alloc/gcPause/plays 心跳，stall/gen2/2s 心跳才写日志）——**经用户确认留作长期诊断 seam**：以后任何偶发卡顿可直接从导出的 performance.log 归因（`STALL+GEN2` 同帧 = 阻塞 gen2；gen0:gen1→1:1 = 晋升风暴），无需重新埋点。2026-06-10：第 10 条转谱 tap KEY note **已从非池化改为池化**——经 mania 自有 `IManiaKeysoundStore`/`IHasManiaKeysound` 接口让池化 `DrawableNote.PlaySamples` 路由 shared store，删除 `DrawableBmsConvertedKeyNote` 及其工厂分支；消除「每 tap 一个常驻非池化 drawable」的加载/内存/GC 代价，键音语义零改动（per-WAV cut 不变，回归守护 `TestSceneBmsToManiaKeyNoteStoreRouting` **2/2**，BMS **871/871**，转谱器+mania autoplay **22/22**）。同轮补回 BGM/scratch 的 autoplay 预热（经 `KeysoundSample`——bgm1 置空 `Samples` 后曾丢失）。早前 06-10：D「dense 仍慢」子条加交叉引用——转换链**加载期**冗余难度自算已于 P1-K K9 #17 消除，播放期高密段卡顿另议、仍待 profile。06-08：新增第 11 条——转谱 sample-only autoplay 对象 `Samples` 必空、键音只放 `KeysoundSample`）
-> 本文件记录 `P1-J` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
+> 最后更新：2026-07-16
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
-## 归线约束
+## 归线与 authority
 
-1. 本子线属于 Phase 1.x 下的 `P1-J`；主 authority 是 BMS gameplay runtime 的 keysound timing、dense-chart 热路径与 shared audio pool 安全合同，不得回写成 `P1-C` 或 `P1-E` 的主线任务。
-2. `P1-C` 只承接判定 / 反馈语义不回归这条从属约束；`P1-E` 只承接真实谱面验校与 checklist 消费。二者都不得再各自长出第二套 runtime hot-path contract。
+1. `BmsPlayfield.KeysoundStore` / shared `BmsKeysoundStore` 是 BGM、note、LN、lane replay 的唯一 playback pool authority；不得长出长期 per-note、per-lane 或 per-drawable sample player。
+2. P1-K 拥有 converter object、lane timeline 与 keymode truth；P1-C 拥有判定/poor 语义；P1-E/P1-G 拥有真实谱与人工验收。P1-J 不复制这些 authority。
+3. gameplay keysound 必须 same-frame；跨线程 marshal 必须显式、可验证且不能引入固定一帧延迟。
 
-## runtime / audio authority 约束
+## 原生 BMS 发声合同
 
-1. shared `BmsKeysoundStore` 继续是 BGM / note / LN / lane replay 的唯一 playback pool authority；不得为了“更快”重新长出 per-note、per-lane 或 per-drawable 的独立 sample player。
-2. gameplay keysound 播放不得再默认依赖“无条件下一帧调度”作为长期语义；若需要跨线程 marshal，必须是显式、可验证且不引入固定帧级延迟的合同。
-3. note hit、BGM event、LN head keysound、lane replay / empty-hit playback 的语义合同：**玩家按键（key-down）必出声**——命中走 note `PlaySamples`（Hit 状态），而被判为 POOR/miss 且消费了按键的玩家按键（含 LN head）改为在 key-down 时由 `PlayKeysoundFromPress()` 直接补播该 note 的 keysound（对齐 IIDX/LR2/beatoraja 的"按键必出声"，修复此前 pressed-POOR 静音）；**未按键的自然漏过 miss 仍静音**（无 key-down 即无声）；BGM / autoplay 继续在 auto 命中时走 shared pool。clean hit 不得因此 double（只有非命中 press 才显式补播）。
-3a. **LN tail 一律不发声**（`DrawableBmsHoldNoteTail.PlaySamples()` 重写为空，含 release / autoplay）——对齐 LR2/beatoraja「长条只头发声」。LNTYPE1 长条尾对象常重复头 WAV，若播放会与头叠成 double（实测 GOODBOUNCE scratch 长条 → "stomp your fee feet"），叠加 per-WAV cut 还会掐断头。尾对象的 keysound 仍保留在 object 模型（`TailKeysoundSample` / `GetSamples()`）以 **arm 空击 keysound 时间线**（`BmsBeatmap.LaneKeysoundTimelines`），只是不再自动 auto-play。
+1. 玩家 key-down 必须发声：clean hit 由 note `PlaySamples` 发声；被判为 pressed-poor/miss 且消费按键时，由 press path 补播该 note keysound；没有 key-down 的自然漏过 miss 静音。clean hit 不得 double。
+2. LN tail 一律不自动发声；tail keysound 只可保留在对象/timeline 中用于 armed empty-strike 语义。LN head 与普通 note 遵守同一 shared store/cut 合同。
+3. `BmsBeatmap.LaneKeysoundTimelines` 必须覆盖 lane count 全范围。P1-K 构建 timeline，P1-J 证明 5K/7K 最右键、14K 右侧末键与 S2 的 runtime 可达；lane runtime 不得另加补偿 timeline。
+4. autoplay 发声必须与 100% 完美游玩逐次等价：自动音符自己发声时，同 lane 的 armed keysound 必须被抑制；玩家空击语义不受影响。守卫包括 `TestAutoPlayNoteSuppressesRedundantLaneKeysound` 与 lane replay 对照。
+5. full autoplay 的 BMS owner-side 分流不得破坏 core `FramedReplayInputHandler` 的 one-boundary-per-call 合同，也不得让 replay HUD/key counter 失去输入活动。
 
-3aa. `BmsBeatmap.LaneKeysoundTimelines` 必须覆盖 lane count 全范围，而非 key count。P1-K converter 负责构建与边界修复，P1-J 的 runtime/人工验收负责证明 5K/7K 最右键、14K 右侧末键与 Scratch2 的空击/不可见 keysound 可达；不得在 lane runtime 另加第二套补偿时间线。
+## shared store 与资源合同
 
-3b. **autoplay 必须与「100% 完美游玩」逐次发声等价**（2026-06-21）。完美游玩中音符命中**消费按键**、事件不下传 lane → lane 不发声、每音符只经自身 `PlaySamples` 出**一次**声。autoplay 把音符设 `AutoPlay=true`（`HandleUserInput=false`、退出输入处理），replay 合成按键于是直达 `BmsLane`——若 lane 仍对每个合成按键播 armed 键音，就与音符自身的 auto-apply 键音**双触发**（per-WAV cut 多数时塌成一次，但 armed 槽≠音符槽、或 `Play()` 后 `IsPlaying` 异步未及时置位导致两路各占一通道时会真重叠/发错声）。因此 `BmsLane.playCurrentLaneKeysound()` 必须在**本 lane 存在自动音符**（`HitObjectContainer.AliveObjects` 中有 `!AcceptsPlayerInput` 的 `DrawableBmsHitObject`，即 autoplay / auto-scratch / auto-note 驱动的 lane）时**抑制** armed 键音，把发声交给音符自身；玩家 lane 不匹配（音符接受输入、命中即消费按键），其真·空击键音不受影响。回归守卫 `TestAutoPlayNoteSuppressesRedundantLaneKeysound`（对照既有 `TestLaneReplayTriggersSharedKeysoundImmediately`：玩家音符 lane 仍发声）。**红线推论**：autoplay 暴露的键音问题（截断/重复/发错）若非本条双触发，必在玩家完美游玩中同样存在（同一条 store 播放路径）——不得把"只有 autoplay 才有的差异"长期留在 autoplay 侧不查。
-4. `KeysoundConcurrentChannels` 仍由 `BmsRulesetConfigManager` / `BmsSettingsSubsection` 提供持久配置 authority，但其语义自 2026-06-21 起为**起始/常驻基线而非硬上限**：池在饱和时自动增长到该谱真实需要（见 #8），基线只决定开局即建的通道数与空闲时回落的常驻规模。runtime 调高基线立即扩容；调低基线为 non-destructive（闲置通道即时回收、仍发声的延后回收，不得 rebuild-all、不得直接切断当前发声）。**自动增长到基线以上的通道不随常规播放被裁剪**（否则与增长抖动互搏），只有显式调低基线才安排回收。
-5. 任何 live channel resize 策略都不得 silently 截断当前音频后又对外宣称“安全即时生效”。
-6. core generic replay contract 不属于 `P1-J` 可继续放宽的 surface；`FramedReplayInputHandler.SetFrameFromTime()` 在 frame-stable playback 下仍必须保持 one-boundary-per-call progression。若 dense full autoplay 需要继续优化，只能在 BMS owner side 分流，而不是再修改 core replay stepping semantics。
-7. keysound prewarm（**2026-06-11 起对玩家模式与 autoplay 一律执行**，BMS 原生与转谱-mania 两侧对等）只允许复用既有 `Playfield` sample pool 与 shared `BmsKeysoundStore` authority，把首次初始化成本前移到加载边界；不得为此引入第二套 retained sample authority、per-note/per-lane 预解码 player，或绕过既有 pooled/unpooled fallback contract。**放开玩家模式的理由（实测）**：全键音谱的数百个 WAV 若在游玩中现场冷解码，瞬时大缓冲/晋升突发会触发**阻塞式 gen2 全量 GC（实测 3 次 ~220ms 冻结，集中开局前 30s；2026-06-11 探针）**；进谱前全量预载也是 LR2/beatoraja 的标准行为。代价为加载期变长，属预期取舍。
-8. `BmsKeysoundStore` 的通道分配必须 **idle-first，且饱和时自动增长而非偷取**（2026-06-21 由「固定上限+偷取」改）。仍有空闲通道时不得回收正在播放的通道；**全部通道繁忙（真正复音饱和）时必须新增一个通道（直到硬上限 `MAX_CONCURRENT_CHANNELS`=256）而不是偷断仍在播的样本**——增长只补上旧「固定上限+偷取」本会截断的声音，对保真**单调**（绝不多截）、自然有界于该谱真实峰值复音（≤ 同时发声的不同槽数）。只有已达 256 上限仍饱和（病理）才允许按轮转偷取近似最旧者。该路径不得回退成"每次触发全表扫描"——空闲集每帧重建（`reclaimIdleChannels`，O(N) 读、无分配）并在 (re)size 时播种；`getNextChannel()` 保持 O(1)（freeChannels 空集即判定饱和→增长，**不扫描**全池）；增长复用与「live `ConcurrentChannels` 调高」相同的运行时建通道路径。代价：会比旧固定 32 多建一些通道（一次性、按需，prewarm 已让样本解码前移、per-play 已无 drawable 重建 churn，故增量小且有界 256）。shrink 裁剪通道时必须真正 dispose 并标记 retired，不得留下脱挂未释放的 sound drawable。`ConcurrentChannels` 现为「起始/常驻基线」而非硬上限（见 #4）。**原始动机**：旧默认 32 远低于真实 BMS 复音（叠层 BGM + 长衰减样本），例行截音；转谱-mania 早 floor 128（#10）而原生只有 32——同谱原生更糟、且把工程取舍甩给用户旋钮，自动增长一并消除。
-9. `BmsKeysoundStore` 实现 **per-WAV cut（每键音单声部）**，且**必须按 BMS WAV 槽号（#WAVxx / `KeysoundId`）归组，不得按文件名**：同一槽在仍发声时被再次触发，必须复用其所在通道令其干净重启（掐断前一实例），而不是占用第二个通道叠加副本——对齐 BM98/LR2/beatoraja。**关键红线**：不同槽即使指向同一音频文件也**不得**合并 cut 组——谱师常把同一文件挂到多个 #WAV 槽专门用来自重叠（hi-hat/拍手等），按文件名归组会错误掐断它们。映射 `activeSampleChannels` 以 `int` 槽号为键、`Play(sample, balance, int cutGroup)` 传入，复用前提为"该通道仍 busy 且 `CurrentCutGroup == cutGroup`"，陈旧项自然回退到 `getNextChannel()`；无槽号入口（`Play(sample, balance)` / 多样本数组）不参与 cut（`CurrentCutGroup = null`）。槽号在播放链由 note/head/BGM 的 `KeysoundId`、空击 armed 由 `BmsLaneKeysoundEntry.KeysoundId` 提供。注意：同一槽被谱面重复排布时**后一次必定掐断前一次**（与参考实现一致），属预期。
-10. **`BMS -> mania` 转谱 BGM/scratch/note 的 mania-runtime 呈现保真与性能归本子线 J6**（与 P1-K K11 的"转谱对象语义"分线）。绑定约束：
-    - **必须用复用的 `BmsKeysoundStore`**（非对象池）：E（暂停停 BGM）必须有中心化 pause-aware store 才能解（一次性样本不随暂停停），对象池只能帮 D。转谱 BGM/scratch/note 经该 store 播放，pause/seek 统一停。
-    - **转谱 BGM sample-only 对象必须在 mania 游玩 autoplay 出声**：不得因 mania 无原生 `BmsKeysoundStore` 就让 BGM 静音（纯键音 BMS 的 mania 转谱音频须与 BMS 原生一致）。
-    - **mania 转谱 LN 尾必须静音**（同第 3a 条）：转谱器（K11）不得把尾 keysound 写进 `HoldNote.NodeSamples[1]`，否则 `TailNote` release 会播它、对 LNTYPE1 复用头 WAV 的谱复现 double。
-    - **note/LN head 的 per-WAV cut 应经 store 获得**（否则同槽在 store(BGM/scratch) 与 mania 采样两路径间、或同槽连触间无法互掐 → BMS 原生没有的重复）。**再尝试约束**：(a) 不得用非池化自定义嵌套 hold drawable（`DrawableHoldNote.Update()→Head` 空容器必崩；嵌套 head 须池化类型）；(b) 不得靠静态推理在生产里试 store 路由——须先有 player-level 集成测试 + 运行时日志（已落地：`BmsKeysoundStore.EnablePlaybackLogForTesting` + `KeysoundPlaybackRecord` + `TestSceneBmsToManiaKeyNoteStoreRouting`）；(c) 不得为挽回池化新长出 per-note/per-lane 独立 sample player（沿用第 1 条）。
-    - **当前态**：tap-note→store **已转正生产默认**且**已池化**（2026-06-10）。`BmsConvertedKeyNoteHitObject` 仍是 `Note` 子类、保留 `KeysoundSample`/`KeysoundId`，但**不再有专用非池化 drawable**：转谱 drawable 工厂不认领它 → `DrawableManiaRuleset.CreateDrawableRepresentation` 返回 null → playfield 用 mania `Note` 池（框架 `prepareDrawableHitObjectPool` 基类型回退）发**池化 `DrawableNote`**；其 `PlaySamples` 经 `IHasManiaKeysound` 把键音交给 hosted `IManiaKeysoundStore`（=shared `BmsKeysoundStore`，按 `IManiaKeysoundStore` 接口额外缓存）。`ShouldHost` 仍含 KEY 音符（store 对每张转谱谱都 host）。per-WAV cut 跨 BGM↔KEY+KEY↔KEY(tap) 生效不变。✅ **此前 🔴「非池化 perf」已解**：不再每 tap 一个常驻非池化 drawable（消除其加载期构造 + 内存常驻 + 大堆 GC 代价）——正是 pooling-preserving「让池化 `DrawableNote` 走 shared store、不碰第 1 条」的正解，且未新长出 per-note/per-lane sample player（守 (c)）；harness (b) 已用 `TestSceneBmsToManiaKeyNoteStoreRouting` 取证。**LN 部分仍后置**（hold 有嵌套头、受 (a) 池化嵌套头约束；tap 无嵌套故不受影响）。
-    - **转谱 store 通道 floor 128**：`BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` 设 `ConcurrentChannels = Math.Max(config 的 KeysoundConcurrentChannels, 128)`——修长 BGM（如 `bgm1`，整首单次触发、占通道最久）被 32 通道饱和轮转偷断（实测峰值 27–36>32）。转谱 store 专播 BGM 自动层 + scratch（必须完整的背景音乐、非玩家 polyphony 预算），floor 远超峰值 → 长 BGM 永不被偷。治标近似；治本（长样本不进可偷池 / BGM 与 keysound 分池）碰第 8 条 dense hot-path 红线、后置。BMS 原生 store 未动；prewarm 必须复用 core `Playfield.PrepareSamplePool`、不得引入第二套 retained sample authority（沿用第 7 条）。
-    - **转谱游玩期帧抖动真因已实测确诊并修复（2026-06-11，作废早先「疑渲染/drawable 数量」叙事）**：普通密度转谱谱（Angel dust 7K ☆11/☆12 级）游玩期「越后越抖、与按键/音符活动挂钩、休息段恢复、规律一顿一顿」的真因 = **每键音触发的 sample-drawable 重建 churn**——store 通道 `PlaySingleSample` 每次换 `Samples` 数组引用 → 每次触发跑 `SkinnableSound.updateSamples()`（RemoveAll+Clear+GetPooledSample+Add，实测 ~30KB/次、皆中寿命对象）→ gen0 全量晋升 gen1 →「晋升风暴」（实测 gen0:gen1 锁死 1:1、每 ~40KB 触发一次回收、~100 次/秒，gen1 暂停叠成 15–30ms 帧尖峰）；原生 mania 音符的 `PausableSkinnableSound` 是持久加载、重播零重建，故同密度原生不抖。**修复 = 通道同样本快路径**：通道记住 `currentSingleSample`，同槽重触发（per-WAV cut 钉同通道 + 转谱器同槽 memo 同实例 → 主路径）跳过 `Samples` 赋值、直接 `Stop+Play` 重启（cut 语义不变）；多样本入口显式失效缓存。实测同谱同段 maxFrame 15–30ms → **5–10ms**、用户体感稳定 ✅。**遗留的「50k 极端 dense 谱」是否仍慢属另一档**，仍未 profile、仍后置。BGM/scratch sample-only 对象**仍非池化**（每帧 alive 隐形 drawable + scroll 位置更新 + mania 按键反馈 `GetMostValidObject` 对 column 0 数千 BGM 实体的每按重扫——CPU/分配小、已记录为次级项），「调度器化」属更大改动、需 profile alive 占比再定。转谱 store **128 通道 floor** 的每帧扫描/常驻 sound drawable 亦为转谱独有恒定开销，但下调 floor 会回归已实测的长 BGM 偷断修复，故保留（治本须长样本分池、碰第 8 条红线）。早注：「转换链」加载期冗余难度自算已于 2026-06-10 在 [P1-K](../P1-K/TECHNICAL_CONSTRAINTS.md) K9 #17 消除；tap 非池化 drawable 已于 2026-06-10 改池化（见上「当前态」）。
-    - 逐日落地与两次回退、误判作废过程见 CHANGELOG 2026-06-01~06-08。
+1. 通道选择 idle-first；全部通道忙时按需增长到 `MAX_CONCURRENT_CHANNELS=256`，只有达到硬上限仍饱和才允许近似最旧轮转。不得在有空闲通道时偷断声音。
+1a. `getNextChannel()` 必须保持 O(1)，不得在每次 `Play()` 时扫描全池；空闲集合可以每帧以 O(N)、零分配方式统一重建，并在 resize 时播种。任何替代结构都须用 dense profile 证明不回归后才能改变该复杂度合同。
+2. 原生初始/常驻基线为 `DEFAULT_CONCURRENT_CHANNELS=32`；用户“键音通道数”设置已删除，不得仅为手调上限恢复 UI。转谱 store 的 floor 保持 `Math.Max(32, 128)`。
+3. 任何内部 live resize 都必须 non-destructive：调高增量建通道；调低只回收 idle，busy 延后；禁止 rebuild-all 或直接截断当前发声。裁剪的通道必须 dispose 并标记 retired。
+4. per-WAV cut 必须按 `KeysoundId/#WAVxx` 槽号分组，不能按文件名。相同槽重触发应在同一 busy channel 干净重启；不同槽即使引用同一文件也不得合并。无 cut-group 的多样本入口不参与 cut。
+5. same-sample fast path 可以直接 stop/replay，避免每次重建 sample drawable；切到不同样本或多样本时必须正确失效缓存，不能改变 cut 语义。
+6. keysound prewarm 对玩家与 autoplay、原生 BMS 与转谱-mania 对等执行，只复用现有 `Playfield` sample pool 与 shared store；不得建立第二套 retained sample authority。加载期变长是允许的显式取舍，update thread 中冷解码不是。
+7. pause/seek/retry 必须统一停止 one-shot store 播放，防止样本逃逸；当前底层不保证长 one-shot 保位 resume，文档和 UI 不得宣称已支持。
 
-11. **`BMS -> mania` 转谱的 sample-only autoplay 对象（`BmsConvertedBgmSampleHitObject` / `BmsConvertedScratchSampleHitObject`）必须保持 `Samples` 为空**，其键音只放在 `KeysoundSample`（经 shared `BmsKeysoundStore` 自动发声）。**红线起因（2026-06-08 用户实测确诊并修复）**：mania `Column.OnPressed` 每次按键都调 `GameplaySampleTriggerSource.Play()`（按键音效反馈），它播放**本列下一个对象的 `Samples`**，用自己一池非循环、不受 store 暂停管的 `PausableSkinnableSound`。这些 sample-only 对象被钉在可玩列（BGM→column 0、scratch→其锚定列），若其 `Samples` 携带键音，则**按该列的键就会经反馈播出 BGM/scratch 键音**——`bgm1` 被钉在 column 0，按 key1 即反复触发 bgm1、重叠、且绕开 store 与暂停（"按 key1 触发 bgm1 / 胡乱按键长音重叠 / 暂停不停"）。因此转谱器**不得**把这些对象的键音写进 `Samples`（写进去即复现该 bug）；它们经 store 用 `KeysoundSample` 自动播放，`Samples` 对其实际发声是多余的。回归守卫见 `BmsToManiaBeatmapConverterTest`（断言 BGM/scratch 的 `Samples` 为空、键音在 `KeysoundSample`）。**连带缺口已补**：`Samples` 置空曾使 BGM/scratch 不再被 `prewarmConvertedKeysounds` 覆盖；2026-06-10 起预热额外按 `IHasManiaKeysound.KeysoundSample` 路径执行（**正确路径——不得把键音放回 `Samples`，否则复现本 bug**），2026-06-11 起预热更对玩家模式一律执行（见第 7 条）。**注意区分**：可玩 KEY note（`BmsConvertedKeyNoteHitObject`）/ LN head 仍保留 `Samples`（按键反馈播下一个真实 KEY 音是 BMS-like 的、可接受），只有 autoplay sample-only 对象必须空 `Samples`。
+## BMS→mania 音频合同
 
-12. **BMS 游玩期 beatmap track（`working.Track`）必须静音、但仍须作为游玩时钟源**（2026-06-23，修 STATUS ④「选歌试听音频泄漏进游玩开头」）。BMS 游玩音频全由键音驱动（`BmsBeatmapConverter` 从不用 `Metadata.AudioFile`），而 `BmsFolderImporter` 把 AudioFile 设成选歌试听源（`detectFullMusicFile` ≥1MB 未引用音频 `?? resolvePreviewFile` 的 `#PREVIEW`），故该 track 一旦在游玩被播放就会把试听音频叠在键音上。绑定约束：
-    - **门控走 `Ruleset.PlayBeatmapTrackDuringGameplay`**（core virtual，默认 true；`BmsRuleset` override false）。判定读谱面**原生** ruleset（`working.BeatmapInfo.Ruleset.CreateInstance()`），故 bms-mode 与转谱-mania（beatmap 仍 `Ruleset==bms`）都命中、原生 mania/.osu 不动。解析失败必须 fail-open（=播 track），不得抛。
-    - **必须用 mute（`Volume=0` 调整）实现、不得换掉时钟源**。`MasterGameplayClockContainer` 仍以 `working.Track` 作时钟源（解耦时钟随其推进，DT/HT 变速、pause/resume/seek 语义、`TestSceneBmsPlayerAudioSemantics` 用 ManualClock 驱动游玩时钟全部依赖这一点）。mute 在 `addAdjustmentsToTrack` 加、`removeAdjustmentsFromTrack` 移除（退出游玩还原共享试听轨可闻）。
-    - **顺序红线**：mute 调整必须加在 `musicController.ResetTrackAdjustments()`（清空全部 Volume 调整）**之后**，否则被清空失效。
-    - **禁止回退到虚拟轨/换源方案**（已两次踩坑）：把 MGCC 源换成 `TrackVirtual`（a）破坏 audio-semantics 测试的确定性驱时（推 ManualClock 失效）、（b）当年实测在真实耦合时钟下无效——换源不停原 `working.Track`、它仍在播，且虚拟轨单测假阳性。mute 直接静音真正在播的那条 track 才稳。
-    - 回归守卫 `TestSceneBmsGameplayTrackMuting`（bms `AggregateVolume==0` / 标准 ruleset `==1`）+ `TestSceneBmsPlayerAudioSemantics`（证明时钟源未变）。**真实 app 已取证 ✅**（2026-06-23 用户实机确认 autoplay+正常开始不再泄漏试听）。
-    - **选歌试听策略（2026-06-23 follow-up，用户决定）：BMS 试听只来自 `#PREVIEW` 头、且从文件头播（`PreviewTime=0`）；无 `#PREVIEW` 一律无试听**。`BmsFolderImporter` 的 `Metadata.AudioFile` **只**取 `resolvePreviewFile`（`#PREVIEW`）并设 `PreviewTime=0`；**不得**恢复 `detectFullMusicFile`（≥1MB 未引用音频当 AudioFile）那条启发式——它会让无 `#PREVIEW` 的谱也产生试听/可播 track（正是原 bug 与"40% 从中间起播"的来源）。无 `#PREVIEW` 谱 AudioFile 为空 = 虚拟静音轨（mute #12 对其 moot 但对 `#PREVIEW` 谱仍须生效）。**存量谱回写** = `BmsPreviewAudioBackfill`（挂 `OnSongSelectSetup`、后台、候选=非空 AudioFile、批量写回注入 RealmAccess）；导入改动只对新导入生效，故必须有这条 backfill 才能让存量库套用新策略——不得删它。**性能红线（首版踩坑）**：必须 **① 完成标记文件门控一次性**（不得每进选歌都跑）+ **② 单次 Realm 读快照候选成 struct、解码循环零 Realm**（不得逐候选 `realm.Run(Find+Detach)`）+ **③ 进度通知**；初版缺这三条 → 57k 库每进选歌重解码所有 AudioFile 谱、持续掉帧。
+1. P1-K 决定“转出什么对象”，P1-J 决定这些对象在 mania runtime 如何通过 shared store 发声。
+2. 转谱 BGM/scratch/tap note 使用 hosted `IManiaKeysoundStore`/`BmsKeysoundStore`；tap note 保持 mania `DrawableNote` 池化，不恢复专用非池化 drawable。
+3. sample-only BGM/scratch 对象的 `Samples` 必须为空，真实键音只放 `KeysoundSample`；否则 mania column feedback 会把 BGM/scratch 当下一可玩对象按键触发。converter test 必须同时守住空 `Samples` 与存在 `KeysoundSample`。
+4. 转谱 BGM sample-only 对象必须 autoplay 出声；pause/seek 由中心 store 统一停止。
+5. 转谱 LN tail 必须静音。LN head 未来接 store 时须先有 player-level playback log/harness，并使用可池化嵌套 head；禁止非池化自定义 hold drawable和 per-note sample player。
+6. `BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` 签名因 mania 反射绑定保持兼容；内部通道 floor 128 不得无 profile/保真替代方案而下调。
+7. BMS gameplay 的 `working.Track` 必须静音但继续作为 gameplay clock source：
+   - 通过 `Ruleset.PlayBeatmapTrackDuringGameplay` 区分，BMS 为 false，其它 ruleset 默认 true；解析失败 fail-open。
+   - 使用 volume adjustment mute，不替换 `MasterGameplayClockContainer` 的 track source。
+   - mute 必须加在 `musicController.ResetTrackAdjustments()` 之后，退出 gameplay 时移除并恢复共享试听轨。
+   - `TestSceneBmsGameplayTrackMuting` 与 `TestSceneBmsPlayerAudioSemantics` 同时守住静音和时钟。
+8. BMS 选歌试听只来自 `#PREVIEW`，并从 `PreviewTime=0` 播放；无 `#PREVIEW` 时 AudioFile 为空。不得恢复“未引用且大于 1MB 音频即试听”的启发式。
+9. 存量试听策略由 `BmsPreviewAudioBackfill` 一次性后台收敛：完成标记门控、单次 Realm 快照、解码循环零 Realm、批量写回和进度通知必须保留；不得每次进入选歌重复扫描。
 
-## 性能与热路径约束
+## 热路径与诊断
 
-1. `BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 不得长期维持“每次按键/命中都全枚举容器对象”作为 runtime 热路径默认实现。
-2. 优化 lane/order hot path 时，不得破坏 `BEATORAJA` / `LR2` 的 late-empty-poor 差异语义，也不得让 detached test harness 和真实 runtime 走两套互相漂移的判定 authority。
-3. `DrawableBmsHitObject`、`BmsLane` 与 `BmsKeysoundStore` 之间的 sample materialize 边界必须尽量唯一；dense-chart 热路径不得长期保留双重 `ToArray()` 与单元素数组的重复分配。
-4. `P1-J` 只处理已确认的 BMS gameplay hot path；不得把本专题扩大成全仓库渲染、窗口模式、选歌性能或任意 unrelated allocation 清扫。
-5. full autoplay 路径的性能补丁不得破坏 `ReplayPlayer` 当前仍需消费的 replay-loaded surface；HUD / key counter / replay statistics frame 输入若仍由 replay path 提供，就必须在优化后继续保持可见和可验证。
+1. lane/order runtime 不得以每次按键/命中全量枚举容器或重复 `ToArray()` 作为长期默认；优化必须落在 owning abstraction 并保留 detached harness 与真实 runtime 的同一语义。
+2. sample materialization 边界尽量唯一；不得为了少量分配删除多样本、BGM、LN 或 lane replay 能力。
+3. `BmsGameplayStallDiagnostics` 是长期只读诊断 seam。50k/dense 问题必须先用 stall、GC、allocation、play count 和 frame 证据归因，再改对象池、channel、调度或渲染。
+4. 无当前真机复现时不得重开普通密度旧问题，或扩成全仓 LINQ、audio backend、render/present 清扫。
+5. 不新增默认 audio latency/offset surface，不推进新 gameplay mod、Phase 2 speed 体系或大范围 HUD/UX。
 
-## 产品面与配置约束
+## 测试与发布
 
-1. 不得借 `P1-J` 顺手新增默认对用户开放的 audio latency / offset product surface；BMS 当前主 timing-correction 路径仍以视觉 presentation 调整为主。
-2. 「键音通道数（基线）」设置项已于 2026-06-22 **删除**：自动增长（#8）让基线无需手调，基线回落为硬编码 `DEFAULT_CONCURRENT_CHANNELS=32`（原生）/ `Math.Max(32,128)`（转谱楼底）。删除时按「正确默认化、不留隐患」处理——ruleset 配置按 enum 成员名持久化（删中间成员不移位其它）、所有消费方移除（旧库残留值惰性无害不再被读），`BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` 签名保留（mania 反射绑定）。**不得**为「让用户调通道数」重新引入该设置；如确需运行时调参，须重新评估自动增长是否不足，而非简单回退 UI。详见 [CHANGELOG.md](CHANGELOG.md) 2026-06-22。
-3. 本专题不负责引入新的 gameplay mod、Phase 2 speed 体系、全键模式扩张或大范围 HUD/UX 重构。
-
-## 测试与发布约束
-
-1. 至少补齐三层 focused coverage：shared store owner-level 行为、lane/order regression、config->playfield-store binding；不要等代码全做完再临时补测试。
-2. 既有 late-empty-poor、empty-poor gauge/score、LN tail keysound 与 related regression 不得因为“性能优化”而被跳过或删除。
-3. Release build 继续是子线门槛；本专题不能以“只改性能、不改功能”为理由绕过 build gate。
-4. dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel resize 的最终人工确认继续后置到 `P1-G`，但不得把 automation 缺口全部甩给人工验收兜底。
-5. 触碰 BMS full autoplay 专用路径时，至少要保住一条 player-level proof：回放必须能完成、非忽略判定仍为 `Perfect`，并且 replay-loaded HUD / key-counter surfaces 继续能观察到 replay activity。
+1. 修改 store/channel/cut/prewarm 至少覆盖 shared store owner、lane/order、playfield binding、pause/seek 与 BMS relevant/full；修改转谱路径加 converter、mania hold/autoplay relevant 与 player-level playback proof。
+2. late-empty-poor、empty-poor score/gauge、LN tail、replay-loaded HUD/key counter 等回归不得以“性能优化”为由删除。
+3. Release build 仍是代码变更门；dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek 的人工结果交 P1-G，但自动缺口不能全部甩给人工。

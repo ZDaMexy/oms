@@ -1,6 +1,6 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后更新：2026-07-10（同步 Skin V1 的 BGA ownership/layout 边界；功能状态未改变）
+> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
@@ -29,8 +29,8 @@
 
 ## 当前验证
 
-- 2026-07-10 BMS 全量 **1005/1005**，覆盖滚动、地雷、BGA/cache 现有测试。
-- 历史 focused 数字与逐刀实现只查 [CHANGELOG.md](CHANGELOG.md)。
+- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
+- 滚动、地雷、BGA/cache 的本线历史 focused/full 数字与逐刀实现只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 
 ## 下一检查点
 

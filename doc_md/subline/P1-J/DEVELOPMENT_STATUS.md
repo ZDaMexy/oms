@@ -1,11 +1,11 @@
 # P1-J 当前状态：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-07-10（补末端 lane keysound runtime gate；功能状态未改变）
+> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
 
-普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已收口。当前只保留三个活动缺口：转谱 LN 键音池化、50k 极端 dense 谱 profile、真实谱音频人工清单。
+普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已收口。当前只保留四个活动缺口：P1-K 修正后的末端 lane keysound runtime proof、转谱 LN 键音池化、50k 极端 dense 谱 profile、真实谱音频人工清单。
 
 ## 当前有效合同
 
@@ -38,8 +38,8 @@
 
 ## 当前验证
 
-- 2026-07-10 BMS 全量 **1005/1005**，Release **0 error**。
-- focused suite 的历史分项与逐日取证统一查 [CHANGELOG.md](CHANGELOG.md)；本页不重复旧数字。
+- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
+- store/audio/runtime 的本线历史 focused/full 数字与逐日取证统一查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 
 ## 当前风险与下一步
 

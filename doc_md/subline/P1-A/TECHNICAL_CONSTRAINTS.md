@@ -13,13 +13,13 @@
 
 ## 既有产品面硬约束（未被 Skin V1 取代）
 
-1. 当前 `GN / WN` 只能表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 的反馈，不得对外宣称完整 IIDX `FHS`。
+1. 当前 `GN / WN` 只能表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 的反馈；`Floating` 只锚定 initial BPM，不得对外宣称完整 mid-song re-float、soflan GN range 或 IIDX `FHS`。
 2. settings 可显示 Hi-Speed 模式、当前模式值和未启用 `Sudden / Hidden / Lift` 时的基础下落时间；不得在 settings 显示 runtime-adjusted `GreenNumber`/可见毫秒或暗示完整 BPM 补偿/FHS。
 3. `Lift` 是 geometry control，`Hidden` 是下遮挡；命名、状态、HUD 与 pre-start overlay 不得混写。
-4. Hi-Speed 范围保持 `Normal 1.0–20.0`、`Floating 0.5–10.0`、`Classic 0.5–10.0`；Classic 映射保持 `TimeRange = (100000 / 13) / HS`，`HS 10 + WN 350 => GN 300` 必须成立。
+4. Hi-Speed 范围保持 `Normal 1.0–20.0`、`Floating 0.5–10.0`、`Classic 0.5–10.0`；`GreenNumber = Round(VisibleLaneTime_ms × 0.6)`，`WhiteNumber = SuddenUnits`，`VisibleLaneUnits = 1000 - SuddenUnits - HiddenUnits`，Lift 只经几何间接影响可见时间。Classic 映射保持 `TimeRange = (100000 / 13) / HS`，`HS 10 + WN 350 => GN 300` 必须成立。
 5. ruleset runtime geometry profile 继续冻结；`Playfield Scale` 固定 `1.0` 且不可配置。除 `Sudden/Hidden/Lift` 与 5K/7K `Playfield Style` 外，旧 playfield/receptor/bar-line config 不得作为用户可见 runtime contract 影响速度/几何。Skin package geometry 是独立、受 descriptor/合法域约束的作者面，不能借此恢复旧 runtime sliders。
-6. `UI_PreStartHold` 继续承担“前 5 秒阻止开始 + 全程调速修饰键”；`UI_LaneCoverFocus` 是 click-to-cycle 持久 target。`READY HOLD` 只用于阻止开谱窗口，`BMS speed` toast 在 hold 调速期间持续可见。
-7. BMS mod/config 记忆必须 ruleset-local；不得隐式共享到 mania/全局 `SelectedMods`。
+6. `UI_PreStartHold` 继续承担“前 5 秒阻止开始 + 全程调速修饰键”；若 delay 在 hold 中耗尽，松开时必须重新调度完整 delay，不能立即开谱。`UI_LaneCoverFocus` 是 click-to-cycle 持久 target；`READY HOLD` 只用于阻止开谱窗口，`BMS speed` toast 在 hold 调速期间持续可见。
+7. BMS mod/config 记忆必须 ruleset-local；不得隐式共享到 mania/全局 `SelectedMods`。局内 `Sudden/Hidden/Lift` 调整只在 `RememberGameplayChanges=true` 时回写所选 mod 与持久快照，关闭时保持 current-play-only。
 8. 冷启动不得在 `RulesetConfigCache` ready 前调用 `GetConfigFor()` 构建 BMS mod persistence；先允许无 config 首轮 apply，再在 cache ready 后 replay 当前 ruleset restore。
 9. 实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 停用只表示 inactive；除显式 reset/迁移外，不得清空最后配置。
 10. `首次启动向导`、`Run setup wizard` 与无谱面引导归 P1-A；复用的存储/输入语义仍归 P1-H/P1-B。

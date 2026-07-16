@@ -30,4 +30,4 @@ metadata:
 
 ## 尚未闭合
 
-第六切只有空 fixture payload 的 envelope/category/order foundation。它不能证明具体 Snapshot/Reset 携带完整 state，也不能证明 attach/reload/seek/retry 的真实 producer 会正确投递。lifecycle/layout/input/object/LN/mine/judgement/score/gauge/timing/BGA concrete payload、continuous scratch/scroll sampling、structured runtime fault isolation、dispatcher/scene/script consumer 与生产接线均未实现。
+现有 envelope/category/order foundation 的空 fixture payload 不能证明具体 Snapshot/Reset 携带完整 state，也不能证明 attach/reload/seek/retry 的真实 producer 会正确投递。concrete payload、sampling、fault isolation、dispatcher/scene/script consumer 与生产接线的当前状态只看 P1-A；本文件只保留不能由 foundation 推导出的边界。

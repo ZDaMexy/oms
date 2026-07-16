@@ -8,7 +8,7 @@ metadata:
 
 # BMS 键音链路召回
 
-权威约束：[P1-J CONSTRAINTS](doc_md/subline/P1-J/TECHNICAL_CONSTRAINTS.md)；当前态：[P1-J STATUS](doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)；解析侧见 P1-K。
+权威约束：[P1-J CONSTRAINTS](../../doc_md/subline/P1-J/TECHNICAL_CONSTRAINTS.md)；当前态：[P1-J STATUS](../../doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)；解析侧见 P1-K。
 
 ## 四条稳定合同
 

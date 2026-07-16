@@ -4,7 +4,6 @@ description: "BMS #LNOBJ long-note decoding: pair each tail with the immediately
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: 7c49e0d4-4fbb-406a-a077-769f249b4a85
 ---
 
 `#LNOBJ xx` long notes in `BmsBeatmapDecoder` (P1-K). The chart marks LN tails by placing the LNOBJ object value (e.g. `01`) in a key channel; the note **immediately before it in the same lane** is the LN head.

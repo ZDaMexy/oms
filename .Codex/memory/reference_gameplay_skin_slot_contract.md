@@ -28,8 +28,8 @@ metadata:
 ## 生命周期地雷
 
 - resolver 不自动 dispose 被 validator 拒绝的 `Drawable`/`IDisposable`：候选可能是 provider 缓存或共享值，擅自释放会造成双重释放/悬空引用。
-- 第九切已为 BMS 六字段冻结首个 revision-scoped owner 合同：materializer 返回前 owner 取得所有权并完成基础验证，winner/rejected 都只借用；失败 provisional 只释放自身，成功替换先 detach 旧 consumer 再释放 superseded owner。它仍只有 internal interface/fake fixture，不是 production reload。
-- 第九切当时的 concrete provider 与最终消费方仍待冻结；其后 native BMS 普通短键已落 concrete provider、真实 gameplay consumer、private cache 和异步 ownership。其它 slot 仍须冻结缓存、Drawable parenting/thread affinity 和真实回收；一个已挂 parent 的 `Drawable` 不能被多个消费方直接复用。provider 应尽量在返回 `Provide` 前完成会分配资源的验证。
+- BMS 六字段的 revision-scoped owner 合同要求：materializer 返回前 owner 取得所有权并完成基础验证，winner/rejected 都只借用；失败 provisional 只释放自身，成功替换先 detach 旧 consumer 再释放 superseded owner。internal interface/fake fixture 不等于 production reload。
+- native BMS 普通短键的 concrete provider、真实 gameplay consumer、private cache 和异步 ownership 不能外推到其它 slot。其它 slot 仍须逐项冻结缓存、Drawable parenting/thread affinity 和真实回收；一个已挂 parent 的 `Drawable` 不能被多个消费方直接复用。provider 应尽量在返回 `Provide` 前完成会分配资源的验证。
 - catalogued 诊断用 `SlotId` 作为稳定字段；process-local `Slot`/`Exception` 已排除出 JSON，安全 `ToString()` 也不展开。旧 raw lookup 的 `SlotId` 仍为 null。`ProviderName` 的安全只靠 provider 遵守“非敏感 authority、不得含绝对路径”合同，当前没有自动脱敏。
 
 ## precedence 与测试夹具

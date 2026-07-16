@@ -1,5 +1,12 @@
 # P1-B 变动日志
 
+## 2026-07-16
+
+### 文档健康治理：移除已完成建档/B0 噪声
+
+- STATUS/PLAN 保留当前输入主链、未闭合 mixed-source 语义与真实 HID gate；已完成的建档和 desktop settings `B0` 只留历史，不再伪装成未来交付。
+- 本次仅改文档，未改代码，未运行产品测试或 Release。
+
 ## 2026-05-09
 
 ### desktop public settings surface 收口：安全隐藏 upstream mouse/touch/tablet 分区

@@ -1,9 +1,10 @@
 # BMS 格式权威参考
 
 > 最后更新：2026-05-29
-> 本文档把 BMS / bmson 生态的外部规范收敛成 OMS 解析链路可直接对照的事实基线，主要服务 [P1-K（BMS 解析链路治理）](../subline/P1-K/) 的审查与回归立项。
-> 本文档是参考材料，不替代主线计划/约束，也不替代 [P1-K 四件套](../subline/P1-K/)。当实现与本文冲突时，按 [文档联动规则](../../CLAUDE.md) 先修正其一再继续开发。
+> 本文档把 BMS / bmson 生态的外部规范收敛成 OMS 解析链路可直接对照的事实基线，主要服务 [P1-K（BMS 解析链路治理）](../subline/P1-K/DEVELOPMENT_STATUS.md) 的审查与回归立项。
+> 本文档是参考材料，不替代主线计划/约束，也不替代 P1-K 四件套。当实现与本文冲突时，按 [文档联动规则](../README.md) 先修正其一再继续开发。
 > 本文件只做结构化归纳与交叉差异沉淀，不复制站点原文；遇到边界情况请回到「参考来源」逐条核对。
+> 文中的 “OMS 映射快照” 只记录当次代码审查证据，不是当前进度；使用前须以 [P1-K STATUS](../subline/P1-K/DEVELOPMENT_STATUS.md)、当前代码和测试复核。
 
 ## 文档定位
 
@@ -19,7 +20,7 @@
 | 1（镜像） | [SaxxonPike/bms-command-memo](https://github.com/SaxxonPike/bms-command-memo)（GitHub 镜像） | 上面 memo 的稳定镜像 | 内容同 hitkey，原站抽风时用 |
 | 2（可执行回归基线） | [bemusic/bmspec](https://github.com/bemusic/bmspec) | 用 Gherkin/Cucumber 写的可执行规范，本身就是行为测试用例 | 自述"**不是**官方规范"，但可直接当解析器回归基准 |
 | 3（历史起点） | [BM98 BMS format（Urao Yane, 1998）](http://bm98.yaneu.com/bm98/bmsformat.html) | 格式起点，只覆盖最基础 header + channel | 仅作历史参考；**不含** `#BPMxx` / `#STOP` / 长条 / `#SCROLL` |
-| 旁系（非经典 BMS） | [bmson specification](https://bmson-spec.readthedocs.io/en/master/doc/) | JSON 化格式（Bemuse 用），同生态但模型不同 | OMS 当前不读 bmson；仅作设计对照，见末节 |
+| 旁系（非经典 BMS） | [bmson specification](https://bmson-spec.readthedocs.io/en/master/doc/) | JSON 化格式（Bemuse 用），同生态但模型不同 | 本文仅作设计对照；OMS 当前格式范围以 P1-K STATUS 为准 |
 
 > **URL 迁移提醒**：hitkey 原 `hitkey.nekokan.dyndns.info` 域名已迁移/失效，权威地址现为 `https://hitkey.bms.ms/cmds.htm`（同源镜像 `https://bms.ms/~hitkey/`）。仓库内旧链接已统一指向新域名。
 
@@ -150,7 +151,7 @@
 - **channel 03**：两位十六进制 `01`–`FF`，直接表示 1–255 BPM。
 - **channel 08 + `#BPMxx`**：可超 255、可小数、可负。各实现上限差异极大（nanasi ~1e6；LR2/beatoraja ~9e8）。
 - **负 BPM**：行为分歧严重——"reverse（反向滚动）/ stop / ignore / ROARING（死循环）"四类都出现过。**必须显式钉死本实现的语义**。
-  - OMS 现状：`#BPMxx` 允许带符号进入 typed model；timeline 推进按**绝对值**消费，sign 单独保留（见 P1-K K2-A / K3-A）。
+  - OMS 映射快照：`#BPMxx` 允许带符号进入 typed model；timeline 推进按**绝对值**消费，sign 单独保留（见 P1-K K2-A / K3-A）。
 - **03 与 08 同位并存**：处理顺序按文件行序，旧实现（BM98de）对先后敏感；DTXCreator 会把 03 全转成 08。
 
 ### 4.2 STOP
@@ -168,13 +169,13 @@
 
 - `#SCROLLxx <float>` + channel `SC`：作为**滚动速度倍率**改变音符在屏上的移动速度，**不改变 timing/判定**。可跨小节持续（不受"逐小节命名"限制）。兼容性有限，非全实现支持。
 - `#SPEEDxx <float>` + channel `SP`：改变音符间距（soflan 视觉），通常做插值过渡。
-- OMS 现状：`#SCROLLxx`/`SC` 已升格为 `ScrollEvents` + converter 侧 `EffectControlPoint.ScrollSpeed`（P1-K K3-D）；`#SPEEDxx`/`SP` 是否覆盖需在审查中确认（疑似 gap）。
+- OMS 映射快照：`#SCROLLxx`/`SC` 已升格为 `ScrollEvents` + converter 侧 `EffectControlPoint.ScrollSpeed`（P1-K K3-D）；`#SPEEDxx`/`SP` 是否覆盖需在审查中确认（疑似 gap）。
 
 ### 4.5 同拍位事件顺序
 
 - bmson 明确规定同 pulse 处理序：**Notes/BGA → BpmEvent → StopEvent**；同位多个 BPM 取最后一个，多个 STOP 累加。
 - 经典 BMS 无统一书面规定，但 de-facto 与上一致（先应用 tempo/stop 再结算对象时间）。
-- OMS 现状：converter 已单独拥有并冻结同拍位 `BPM → STOP → object` 顺序（P1-K 时间轴约束 / K3-A）。审查时须确认此顺序与上述事实基线一致、且只此一处 authority。
+- OMS 映射快照：converter 已单独拥有并冻结同拍位 `BPM → STOP → object` 顺序（P1-K 时间轴约束 / K3-A）。审查时须确认此顺序与上述事实基线一致、且只此一处 authority。
 
 ---
 
@@ -188,8 +189,8 @@
 | `#LNMODE n` | beatoraja | 全谱声明长条类型：`1`=LN、`2`=CN（charge note）、`3`=HCN（hell charge note） |
 
 - LN 尾端是否要求 keyup（松手判定）各实现不同（nanasi/HDX 要求 keyup）。
-- OMS 现状：`#LNTYPE 1`（含**省略 #LNTYPE 时的默认**）与 `#LNTYPE 2`（最小 MGQ 状态机：显式 `00` 收口 + duplicate compound 遵循"`00` 不覆盖"）均端到端转成 `BmsHoldNote`。**省略 #LNTYPE 按规范默认 type 1**（`handleLongNoteChannelEvent` 用 `LongNoteType ?? 1`；2026-05-31 修复，此前缺省会被整条忽略导致少键）。`#LNOBJ` 亦支持。CN/HCN 与 `#LNMODE` 的真实谱验校归 [P1-E](../subline/P1-E/)。
-- LN 尾 keysound：LNTYPE1 尾对象常重复头 WAV。OMS 现已让**长条尾静音**（`DrawableBmsHoldNoteTail.PlaySamples()` 重写为空），对齐 LR2/beatoraja「长条只头发声」；尾对象 WAV 仍 arm 空击 keysound 时间线但不 auto-play（[P1-J](../subline/P1-J/) 2026-05-31）。
+- OMS 映射快照：`#LNTYPE 1`（含**省略 #LNTYPE 时的默认**）与 `#LNTYPE 2`（最小 MGQ 状态机：显式 `00` 收口 + duplicate compound 遵循"`00` 不覆盖"）均端到端转成 `BmsHoldNote`。**省略 #LNTYPE 按规范默认 type 1**（`handleLongNoteChannelEvent` 用 `LongNoteType ?? 1`；2026-05-31 修复，此前缺省会被整条忽略导致少键）。`#LNOBJ` 亦支持。CN/HCN 与 `#LNMODE` 的真实谱验校归 [P1-E](../subline/P1-E/)。
+- LN 尾 keysound：LNTYPE1 尾对象常重复头 WAV。OMS 映射快照中由 `DrawableBmsHoldNoteTail.PlaySamples()` 保持长条尾静音，对齐 LR2/beatoraja「长条只头发声」；尾对象 WAV 仍 arm 空击 keysound 时间线但不 auto-play（[P1-J](../subline/P1-J/) 2026-05-31）。
 
 ---
 
@@ -305,9 +306,9 @@
 
 ---
 
-## 9. bmson（JSON 旁系，OMS 当前不读）
+## 9. bmson（JSON 旁系，仅作设计对照）
 
-> bmson 是 Bemuse 生态的 JSON 化格式，与经典 BMS **不互通**。OMS 当前只读 `.bms/.bme/.bml/.pms`，故 bmson 仅作未来设计对照。
+> bmson 是 Bemuse 生态的 JSON 化格式，与经典 BMS **不互通**。本文不把 bmson 纳入经典 BMS 合同；OMS 当前支持范围以 P1-K STATUS 为准。
 
 - **顶层**：`version`、`info`、`lines`（小节线 pulse 数组）、`bpm_events`、`stop_events`、`sound_channels`、`bga`。
 - **`info`**：`title`/`subtitle`/`artist`/`subartists[]`/`genre`/`mode_hint`(默认 `"beat-7k"`)/`chart_name`/`level`/`init_bpm`(必填)/`judge_rank`(默认 100)/`total`(默认 100)/`back_image`/`eyecatch_image`/`banner_image`/`preview_music`/`resolution`(默认 240，每四分音符脉冲数)。
@@ -351,7 +352,7 @@
 11. **BGA `04/06/07/0A` + `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA`** 的 typed surface 与静态背景投影（§2.3/§8.3；K3-C/K4-A）。
 12. **文本 channel `99` / `#TEXTxx`** 是否至少进 raw snapshot（§2.3；K1-A "未消费语义必须保留"）。
 13. **编码**：Shift_JIS 默认 + `#CHARSET`；title/artist 解码错误会污染下游持久化与转谱星（§1）。
-14. **未消费即保留**：unknown header / unknown channel / `#SPEED` 等当前未建模项，必须落 raw snapshot 或 typed placeholder，不得在 decode 阶段丢数据（K1-A/K1-B 约束）。
+14. **未消费即保留**：unknown header / unknown channel / `#SPEED` 等尚未由消费链建模的项，必须落 raw snapshot 或 typed placeholder，不得在 decode 阶段丢数据（K1-A/K1-B 约束）。
 
 ---
 

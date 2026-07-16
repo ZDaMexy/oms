@@ -8,7 +8,7 @@ metadata:
 
 # BMS BGA 链路召回
 
-权威当前态：[P1-L STATUS](doc_md/subline/P1-L/DEVELOPMENT_STATUS.md)；历史：[P1-L CHANGELOG](doc_md/subline/P1-L/CHANGELOG.md)。
+权威当前态：[P1-L STATUS](../../doc_md/subline/P1-L/DEVELOPMENT_STATUS.md)；历史：[P1-L CHANGELOG](../../doc_md/subline/P1-L/CHANGELOG.md)。
 
 ## 当前链路
 

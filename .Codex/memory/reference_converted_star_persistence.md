@@ -8,7 +8,7 @@ metadata:
 
 # Converted star 持久化召回
 
-权威约束：[P1-K CONSTRAINTS](doc_md/subline/P1-K/TECHNICAL_CONSTRAINTS.md)；历史：[P1-K CHANGELOG](doc_md/subline/P1-K/CHANGELOG.md)。
+权威约束：[P1-K CONSTRAINTS](../../doc_md/subline/P1-K/TECHNICAL_CONSTRAINTS.md)；历史：[P1-K CHANGELOG](../../doc_md/subline/P1-K/CHANGELOG.md)。
 
 ## 存储与版本
 

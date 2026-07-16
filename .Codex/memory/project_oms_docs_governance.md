@@ -24,10 +24,11 @@ metadata:
 
 memory 模板：权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项。逐日实现史、回退过程和旧数字进入 CHANGELOG/Git；文件名尽量稳定以保护 wiki 链接，单行建议 ≤800 字符。
 
-完整规则以 `AGENTS.md` 和 `doc_md/README.md` 为准。2026-07-10 已完成主线/P1-K PLAN、活动 STATUS 与 Codex memory 降噪，历史仍在 Git/CHANGELOG。
+完整规则以 [AGENTS.md](../../AGENTS.md) 和 [doc_md/README.md](../../doc_md/README.md) 为准；本文件不保存某轮治理前的临时交接状态。
 
-## 2026-07-16 P1-A 健康治理交接
+## 2026-07-16 治理结果
 
-- 当前 P1-A STATUS/PLAN 明显超过自身低噪声预算，并重复保存逐切实现史、旧测试数字和已失效的“下一切”指令；`SKINNING.md` 也混有当前能力、目标能力与历史切片计数。
-- 下一新对话先做结构治理：保持所有产品合同、链接和 gate 语义不变；STATUS 收敛到当前事实/风险/下一门/唯一最新验证，PLAN 收敛到未来步骤/依赖/验收，历史数字迁入 CHANGELOG，memory 只留稳定地雷，派生作者文档只保留一个醒目的当前能力块。
-- 该治理不修改代码、生产数据或 runtime，不把文档整理计作产品功能，也不能把 managed `.osk` 新动画实机 gate 标记为通过。治理结束后重新冻结执行入口，再决定后续实现。
+- 已完成 mainline、subline、`other/` 与 memory 的分层归位：活动 STATUS 只保留当前事实/风险/下一门/最新验证，逐切过程和旧数字回到 CHANGELOG，memory 只做稳定地雷召回，`SKINNING.md` 只保留一个集中当前能力块。
+- 已补齐参考索引、规范相对链接并移除仓库内不必要的本机会话标识与用户数据指纹；精确生产取证值只保存在仓库外脱敏恢复归档。
+- 每次文档改动结束运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`；它兼容 Windows PowerShell 5.1，固定检查链接、四件套/索引完整性、STATUS/README 预算、memory wiki 链、明确隐私残片和 PLAN 会话污染，再配合 `git diff --check`。通用路径、公开 checksum 或合法数字矩阵只能告警复核，不能靠模糊 regex 强迫删除。
+- 本轮只治理文档，不修改代码、生产数据或 runtime，不计作产品功能，也不改变任何自动/人工 gate 结论。后续若 STATUS/PLAN 再混入逐切历史，按上述职责直接归回 CHANGELOG，不新建第二份“当前状态”。

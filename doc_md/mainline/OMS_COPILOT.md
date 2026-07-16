@@ -1,6 +1,6 @@
-# OMS — GitHub Copilot Development Context
+# OMS — 产品与架构约束索引
 
-> **读取与维护规则（2026-07-10）**：本文件只作为产品/架构硬约束库，不作为当前状态页。默认先读 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，再用 `rg -n "关键词" OMS_COPILOT.md` 定点读取相关章节；文中历史日期/测试数字仅是形成约束时的背景，不覆盖当前 STATUS。
+> **读取与维护规则**：跨 Agent 协作规则唯一来源是仓库根 [AGENTS.md](../../AGENTS.md)。本文件只作为产品/架构硬约束索引，不作为当前状态页；默认先读 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，再用 `rg -n "关键词" OMS_COPILOT.md` 定点读取相关章节。当前能力、进度和验证只以 STATUS 为准。
 
 > **OMS** is a Windows-only rhythm game client forked from osu!lazer.  
 > It removes all game modes except osu!mania, and adds a new first-class **BMS mode**  
@@ -14,7 +14,7 @@
 | Field | Value |
 |---|---|
 | **Project Name** | OMS |
-| **Base** | osu!lazer (locked commit, see `UPSTREAM.md`) |
+| **Base** | osu!lazer (locked commit, see [UPSTREAM.md](../other/UPSTREAM.md)) |
 | **Target Platform** | Windows only (Win10 22H2+) |
 | **Runtime** | .NET 8, DesktopGL via osu-framework |
 | **Language** | C# 12 |
@@ -32,7 +32,7 @@ Until Phase 3 begins, OMS follows these product constraints:
 - Current official builds still keep mutable user data under a separate data root (default `%APPDATA%/oms/` for release, `%APPDATA%/oms-development/` for debug). `storage.ini` may redirect everything to one custom root, but do not describe OMS as already shipping an out-of-box program+data single-package layout.
 - Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
 - Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings -> Maintenance add/remove/scan UI is already landed; deletion/invalidation semantics remain future work.
-- All other networked features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and remote table sources, remain disabled or hidden until Phase 3.
+- All OMS-owned networked product features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and automatic update, remain disabled or hidden until Phase 3. A user explicitly adding a public BMS difficulty-table URL is an existing narrow exception independent of OMS private/default endpoints; it must not expand into an OMS online product surface.
 - Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
 
 ---
@@ -112,7 +112,7 @@ oms/
 │   │   ├── BmsModStatePersistence.cs    # Ruleset-local selected-mod/settings persistence for BMS startup and ruleset switches
 │   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (layout, keysound, mod-state snapshot, later feature flags)
 │   ├── Resources/
-│   │   └── bms_table_presets.json       # Bundled preset difficulty table URLs (not hardcoded)
+│   │   └── bms_table_presets.json       # Bundled preset identities (source/display/symbol; no download URLs)
 │   ├── BmsMod.cs                        # Abstract base class for all BMS mods (extends Mod)
 │   └── BmsRuleset.cs                    # Ruleset entry point
 ├── oms.Input/                        # NEW — Unified Input Abstraction Layer
@@ -129,7 +129,7 @@ oms/
     └── Program.cs
 ```
 
-Phase 2 / Phase 3 design targets such as 1P/2P flip, Random, and a dedicated private-server client project are documented later in this file. They are not all present in the current workspace tree.
+Phase 2 / Phase 3 design targets such as 1P/2P flip and a dedicated private-server client project are documented later in this file. `Random` is already present; future refinements do not make it an absent workspace target.
 
 ---
 
@@ -160,7 +160,7 @@ The BMS decoder must handle:
 ```
 #TITLE, #SUBTITLE, #ARTIST, #SUBARTIST, #GENRE, #COMMENT, #BPM, #PLAYLEVEL, #DIFFICULTY, #RANK, #TOTAL
 #STAGEFILE, #BANNER, #BACKBMP
-#WAV## (keysound index), #BMP## (BGA frame index, reserved)
+#WAV## (keysound index), #BMP## (BGA frame index)
 #BPM## (BPM table for #BPMXX channels)
 #STOP## (stop duration table)
 #LNOBJ (long note end marker object)
@@ -193,9 +193,9 @@ The BMS decoder must handle:
 | `01` | BGM (background audio, no hit) |
 | `02` | Measure length multiplier (e.g. `0.75` = 3/4 time for this measure) |
 | `03` | BPM change (direct value, hex integer → decimal BPM) |
-| `04` | BGA base layer (reserved — Phase 2) |
-| `06` | BGA poor layer (reserved — Phase 2, shown on POOR judgment) |
-| `07` | BGA overlay layer (reserved — Phase 2) |
+| `04` | BGA base layer |
+| `06` | BGA poor layer (shown on POOR judgment) |
+| `07` | BGA overlay layer |
 | `08` | BPM change (via #BPM table) |
 | `09` | STOP |
 | `11`–`19` | 1P playable lanes (1-9) |
@@ -277,7 +277,7 @@ Do **not** route imported BMS charts or their dependent assets through the gener
 
 BMS is fully keysounded — every note triggers a specific audio sample.
 
-Current minimum implementation:
+Runtime contract:
 - Decode `#WAV##` entries into beatmap-relative lookup metadata during `BmsBeatmapConverter`
 - Carry that lookup metadata on `BmsBgmEvent`, `BmsHitObject`, and `BmsHoldNote` runtime objects so gameplay drawables do not need a back-reference to decoder output
 - Create nested `BmsHoldNoteTailEvent` objects when a long note defines a distinct tail keysound
@@ -287,7 +287,7 @@ Requirements:
 - Index up to 1295 (`ZZ` in base-36) keysound slots per chart
 - **Supported audio formats:** `.wav` (primary — required), `.ogg` and `.mp3` (secondary — support if ManagedBass can load without additional plugins). Format resolution: attempt the exact filename referenced by `#WAV##` first; if not found, retry with extension substituted in order (`.wav` → `.ogg` → `.mp3`). Log a warning on any substitution. Do not silently succeed without logging.
 - Load samples lazily (on first play), cache in memory during session
-- Current code routes playback through a shared `BmsKeysoundStore` pool whose ceiling is exposed via `BmsRulesetConfigManager` / `BmsSettingsSubsection` as `KeysoundConcurrentChannels`; default is 32 and runtime/UI writes are clamped to `1..256`. Runtime increases grow the pool immediately, while decreases defer shrink until excess channels stop playing, and the `config -> DrawableBmsRuleset -> BmsPlayfield.KeysoundStore` chain now has dedicated headless coverage. The settings tooltip should continue to frame low values as truncation-prone and higher values as higher-cost, rather than implying that larger is always better. `DrawableBmsHitObject` currently auto-applies max result only for `BmsBgmEvent` and any `BmsHitObject` flagged with `AutoPlay = true`; ordinary single notes now accept player-triggered input via the temporary ruleset-local `BmsAction` bridge and resolve against default hit windows, while `DrawableBmsHoldNote` now accepts a valid head press, applies a basic tail release-lenience window, merges head/tail timing into a single final result, and only triggers the tail keysound when that final result is still a hit. POOR grading and full LN head/body/tail semantics remain future work.
+- Route playback through the shared `BmsKeysoundStore` pool. Native BMS keeps an internal baseline and grows automatically when demand exceeds it; converted-mania uses its own safe floor. The removed `KeysoundConcurrentChannels` user setting must not be described or reintroduced as current configuration without a new product decision and runtime proof.
 - BGM channel (`01`) samples play regardless of player input
 - Missing keysound files: log warning, play silence, do not crash
 - On note hit: trigger the note's assigned keysound immediately
@@ -302,7 +302,7 @@ Support both LN encoding styles:
 
 **`#LNTYPE 1`:** Channels `5x`/`6x` define LN lanes. Object start = LN head, next object = LN tail.
 
-**`#LNTYPE 2`:** MGQ format — less common, implement after LNTYPE 1 is stable.
+**`#LNTYPE 2`:** MGQ format — less common. Preserve explicit `00` closing markers and convert the supported minimal expression through the normal hold-note path; unsupported edge cases must remain recoverable through typed/raw preservation rather than being silently discarded.
 
 **Chart encoding and runtime long-note judgment mode are separate axes.** Parsing `#LNOBJ` / `#LNTYPE` only determines head/tail timing. Gameplay then applies a runtime `BmsLongNoteMode`, mirroring beatoraja's distinction between chart `lntype` and play `lnmode`.
 
@@ -682,7 +682,7 @@ LeaderboardJudgeFilter     : string?               = null
 LeaderboardLnModeFilter    : string?               = null
 ```
 
-`BmsKeysoundStore` already uses `KeysoundConcurrentChannels` as its persistent shared-pool ceiling. Keep that ceiling sourced from `BmsRulesetConfigManager`; add new persistent state only when the consuming feature lands.
+`BmsKeysoundStore` capacity is an internal runtime policy with automatic growth, not a persistent user-tunable ceiling. The removed `KeysoundConcurrentChannels` setting must not be used as replay/config authority; add new persistent state only when a consuming feature and its compatibility contract land together.
 
 ### 6.6 DJ LEVEL (`BmsDjLevelCalculator`)
 
@@ -1164,16 +1164,16 @@ When available, the same panel may also show compact chart metadata lines for:
 - **Static `#BANNER`**: Final fallback static art if neither `#STAGEFILE` nor `#BACKBMP` resolves.
 - OMS resolves static-art references through the imported working-beatmap background chain: import normalises the stored filename against real files on disk, runtime retries common image extension substitutions for older data, and the full-screen `BackgroundScreenBeatmap` shows it dimmed.
 
-### 12.2 BGA timeline / animation (P1-L Phase 5 — landed; manual visual verify pending)
+### 12.2 BGA timeline / animation contract
 
-> Activated + landed 2026-06-14 (Phase 5) / 2026-06-15 (Phase 5.1 legacy-video transcode) / 2026-06-23 (Phase 5.2 load-from-start + session cache + ultrafast + scanline load progress); was "Phase 2 future scope". Owned by subline **P1-L** (BMS 演出/Gimmick 谱视觉复刻). Automated green (BMS 954/954 + Release 0); in-app per-chart visual verification still handed to manual. See [../subline/P1-L/DEVELOPMENT_PLAN.md](../subline/P1-L/DEVELOPMENT_PLAN.md) Phase 5 + [TECHNICAL_CONSTRAINTS.md](../subline/P1-L/TECHNICAL_CONSTRAINTS.md) Phase 5.
+Current progress and manual gates belong to [P1-L STATUS](../subline/P1-L/DEVELOPMENT_STATUS.md); detailed invariants live in [P1-L CONSTRAINTS](../subline/P1-L/TECHNICAL_CONSTRAINTS.md).
 
-- Parse layer is complete (P1-K): `BmsDecodedChart.BgaEvents` (channels `04` base / `06` poor / `07` layer / `0A` layer2) + `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` typed defs. Conversion carries a time-ordered `BmsBeatmap.BgaTimeline` (resolved via `eventTimes` + `BitmapTable`), kept OUT of `HitObjects` like `Mines`/`ScrollProfile`.
-- BGA renders in a **skinnable floating panel** (`BgaPanel`) mounted in `DrawableBmsRuleset.Overlays` (above the playfield, NOT occluded by lanes). Image frames via the beatmap `TextureStore`, video via osu!framework FFmpeg `Video` (`WorkingBeatmap.GetStream`, `PlaybackPosition` clock-synced — same pattern as `DrawableStoryboardVideo`). POOR layer shown on miss per `#POORBGA`.
-- **Frozen decisions**: image-sequence + video together; default layout mirrors the playfield (P1→BGA right / P2→left / centre→right / 14K DP→one compact BGA in each of the four screen corners, changed 2026-06-20 from the old centre gap); letterbox (`FillMode.Fit`); skin-customisable component with custom-skin interface reserved; native BMS ruleset path only (converted-mania deferred).
-- **Red lines** (P1-L): visual-only bypass — never enter `HitObjects`, never feed judgement/scoring; zero shared-core changes; assets read directly from `chartbms/` (never the hash-backed `files/` store); graceful degradation on missing asset / video decode failure.
-- **Legacy video transcode (Phase 5.1, opt-in)**: the bundled FFmpeg can't open legacy MPEG-1 `.mpg` / `.wmv` / `.avi` / `.flv` (`AVERROR_INVALIDDATA`). With the `BgaVideoTranscode` toggle (default on) and a **user-provided external ffmpeg** (on PATH or dropped into the data dir — OMS does NOT ship ffmpeg), `BmsBgaVideoCache` transcodes these to H.264 `.mp4` cached under `<dataRoot>/bga-video-cache/` and hot-swaps them in; without ffmpeg / when off / on failure it stays the static-image fallback (no regression).
-- **Load experience + cache governance (Phase 5.2, landed 2026-06-23)**: `BmsBgaVideoPreloader` (mounted directly in `DrawableBmsRuleset.Overlays`) blocks the gameplay load until the transcode finishes, so the BGA plays from the first frame (bounded by an 8s cap → falls back to the Phase 5.1 static-then-hot-swap path). Cache is **session-level** (`ClearSessionCacheOnce` wipes `bga-video-cache/` once per process before any transcode — instant within-session replays, no cross-session accumulation). Transcode sped up with libx264 `-preset ultrafast` (hardware encoders deliberately excluded — framework-decoder compat risk). Loading indicator (R5, BMS only) is a left→right scanline that brightens the metadata thumbnail — progress-driven by the transcode % when one runs (via a `GameplayLoadProgress` channel `[Cached]` on `PlayerLoader`, fed by the BMS preloader parsing ffmpeg stderr), else an indeterminate ping-pong; other rulesets keep the dim + spinner.
+- `BmsDecodedChart.BgaEvents` carries channels `04` base / `06` poor / `07` layer / `0A` layer2 plus typed `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` definitions. Conversion produces a time-ordered `BmsBeatmap.BgaTimeline`, kept outside `HitObjects` like `Mines` and `ScrollProfile`.
+- BGA renders in a skinnable `BgaPanel` above the playfield. Image frames use the beatmap `TextureStore`; video uses the framework playback clock; the POOR layer follows `#POORBGA`.
+- Image sequence and video share one engine-owned content clock. Layout may frame, clip or mirror that surface, but skins must not create independent BGA players; `FillMode.Fit` remains the safe default and converted-mania BGA stays outside this native path until separately gated.
+- BGA is visual-only: it never enters `HitObjects` or judgement/scoring. Assets read directly from `chartbms/`, never the hash-backed `files/` store, and missing/decode-failed assets degrade without crashing.
+- Legacy video transcode is opt-in and depends on a user-provided external ffmpeg; OMS does not ship ffmpeg. Without it, when disabled, or on failure, the runtime must retain the static-image fallback.
+- Transcode publication must be concurrency-safe and atomic. Preload is bounded, cache lifetime is session-scoped, and timeout/failure falls back without turning a load optimisation into a gameplay blocker.
 
 ---
 
@@ -1189,16 +1189,15 @@ OMS continues to use osu!lazer's `ISkin` / `ISkinSource` / `SkinnableDrawable` a
 - `Argon`, `Triangles`, `DefaultLegacy`, `Retro`, and other osu!lazer-native built-in default skins must be removed from OMS's final shipped default selection surface once OMS replacement coverage is complete.
 - During transition, code may temporarily retain upstream classes or resources, but no new OMS feature may depend on them as the intended release fallback.
 - Hard-coded placeholder `Box`-based visuals are acceptable only as temporary development scaffolding. They are not an acceptable release-state fallback once the corresponding Phase 1.1 task is complete.
-- Current built-in skin work has started around `SKIN/SimpleTou-Lazer` as the mania-side candidate baseline plus BMS-side contract expansion. The current BMS IIDX-coloured direct-drawn layer remains only a skin-load-failure feedback/fallback surface; it is not the intended OMS built-in skin direction or proof of release-ready default-skin coverage.
-- **BMS asset + `skin.ini` authoring ecosystem (historical P1-A `F` series, 2026-06-27).** The surviving implementation is `BmsLegacySkin : LegacySkin` plus `.osk` routing and F1 static config. The historical F0 assumption that a procedural built-in would remain the undeletable final fallback is superseded by the 2026-07-10 Skin V1 decision: final fallback is the validated `oms-simple.osk`; programmatic themed rendering is migration scaffolding only. Current authority lives in [P1-A CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md), [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) and the creator view [SKINNING.md](../other/SKINNING.md).
-- **Recovery authority (2026-07-10):** the trustworthy recovered surface is F1 static asset/`skin.ini` support through `.osk`, the procedural `OmsSkin` component-level fallback, and the non-production G1 folder constructor/schema-56 carrier. Post-cutoff G1 production scanning/selection/delete/rename/hot-reload, F2/F3/G2, Lua, mania fallback adapters and reference-default replacement are not current capabilities. They may re-enter only as isolated slices with tests selected by the changed authority, path-containment proof and real-device visual acceptance.
-  The later native BMS ordinary-note numbered-frame slice is a narrow post-recovery exception; current capability and gates live in [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md), not in this dated recovery snapshot. See [../other/SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md).
-- **Skin V1 authority (2026-07-10):** the first complete version is an external gameplay-skin runtime, not a larger family of fixed BMS C# visuals. The engine owns gameplay truth, playfield/BGA layout, generic rendering, package isolation and fallback resolution; `.osk` packages own every concrete colour, asset, node and animation. Mania/BMS share a neutral ini/asset/animation/event runtime and keep ruleset-specific topology adapters. V1 ships `oms-simple.osk` (mania+BMS playable core and canonical fallback) plus `oms-complex.osk` (mania+BMS IIDX-class public-API showcase), both with editable source and the same authoring path as third-party skins. See [../subline/P1-A/DEVELOPMENT_PLAN.md](../subline/P1-A/DEVELOPMENT_PLAN.md) and [../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md).
+- `SKIN/SimpleTou-Lazer` may remain a mania compatibility/reference source, but it is not the architecture or private resource source for the BMS runtime. Direct-drawn BMS visuals are migration/failure feedback, not proof of release-ready default coverage.
+- `BmsLegacySkin : LegacySkin`, `.osk` routing and F1 static config form the compatibility authoring base. The final fallback is validated `oms-simple.osk`; programmatic themed rendering is migration scaffolding only. Authority lives in [P1-A CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md), [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) and [SKINNING.md](../other/SKINNING.md).
+- Abnormal-period G1/F2/Lua/mania-adapter/reference-default work may re-enter only as isolated slices with authority-specific tests, path-containment proof and real-device acceptance; never restore it in bulk. Recovery evidence is preserved in the [recovery audit](../other/SKIN_SYSTEM_RECOVERY_20260710.md).
+- **Skin V1 authority:** the first complete version is an external gameplay-skin runtime, not a larger family of fixed BMS C# visuals. The engine owns gameplay truth, playfield/BGA layout, generic rendering, package isolation and fallback resolution; `.osk` packages own every concrete colour, asset, node and animation. Mania/BMS share a neutral ini/asset/animation/event runtime and keep ruleset-specific topology adapters. V1 ships `oms-simple.osk` plus `oms-complex.osk`, both containing mania+BMS, editable source and the same authoring path as third-party skins.
 
-### 13.1.1 Current Phase 1.1 Execution Order
+### 13.1.1 Phase 1.1 implementation boundaries
 
 - `SKIN/SimpleTou-Lazer` remains a mania-side compatibility/reference source, not the architecture or private resource source for the BMS runtime.
-- Recovery, schema-56 inventory and `SV1-0` are complete; `SV1-1` has delivered one narrow player-visible ordinary-note animation slice but remains incomplete. Implementation is paused at `d1ea483`; the next conversation first performs document/memory health governance, then separately closes the new animation's real-device gate before product chooses another component. Remaining G1, layout, shared codec, scene/event, sandbox and package/release work follows the current P1-A PLAN; governance itself does not advance a product gate.
+- Current execution order and gates are not repeated here; read [mainline PLAN](DEVELOPMENT_PLAN.md) and [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md).
 - Do not build mania and BMS twice. Share codecs, scene/animation primitives, event envelopes, diagnostics, reload and sandbox; keep mania stage/column and BMS scratch/DP/BGA/gauge adapters separate.
 - Do not resume post-cutoff G1/F2/Lua/reference-default code in bulk. The old F/G labels remain historical indexes only; current execution authority is P1-A `SV1-0` through `SV1-7`.
 
@@ -1348,7 +1347,7 @@ BMS-specific visual rules:
 - If BMS HUD composition needs more children than the current wrapped HUD + gauge bar + combo counter contract, extend it via a versioned optional interface or wrapper contract; do not break `IBmsHudLayoutDisplay` in place.
 - Do not inject gameplay feedback widgets by crawling arbitrary wrapped HUD children or by overloading `GaugeBar` / `ComboCounter` with unrelated semantics.
 - Results summary and clear lamp must remain separable skinnable components, so a skin can override the whole summary panel or only the lamp badge.
-- `BmsBackgroundLayer` should present static art through the skin system in Phase 1.1; video BGA remains a later phase and must not block the static background contract.
+- Static art and the engine-owned BGA timeline are separate skin surfaces: the skin may present or frame them, but must not own BGA decoding, playback clocks or judgement state. Missing video capability must continue to degrade to the static-art chain.
 
 ### 13.7 Native Default Skin Removal Policy
 
@@ -1404,7 +1403,7 @@ The skin system must ship with both non-visual and visual validation:
 
 ## 14. Phase 3 Private Server Integration (planned; no current `oms.Server` project)
 
-Current repository status: the workspace does not contain an `oms.Server` project. This section documents the Phase 3 target contract only.
+This section is a frozen Phase 3 target contract. No `oms.Server` project, private-service base URL or default endpoint is implied until Phase 3 is explicitly activated.
 
 ### 14.1 API Client
 
@@ -1489,7 +1488,7 @@ If the server is unreachable, OMS runs fully offline:
 
 ### Phase 2 — BMS Feature Complete
 
-beatoraja + LR2 判定 Mod、全 gauge Mod (ASSIST EASY ~ HAZARD) + GAS、A-SCR、LN/CN/HCN 运行时模式、5K/9K/14K DP 布局、1P/2P flip、Empty Poor、analog axis 输入、LNTYPE 2、BGA 视频、用户皮肤生态。
+能力范围包括判定/gauge/assist、完整 keymode 与 side、analog 输入、长条编码、BGA 和用户皮肤生态。其中已有能力可提前落地，但不因此改变 Phase 1 release gate；未完成项只以 PLAN/STATUS 为准。
 
 ### Phase 3 — Private Server
 
@@ -1533,7 +1532,7 @@ Follow osu!lazer's existing conventions throughout:
 
 ## 18. Upstream Sync Policy
 
-The upstream osu!lazer commit this fork is based on is recorded in `UPSTREAM.md` at repo root.
+The upstream osu!lazer commit this fork is based on is recorded in [UPSTREAM.md](../other/UPSTREAM.md).
 
 - Do **not** blindly pull upstream changes
 - When a critical bug fix or performance improvement lands upstream, cherry-pick selectively
@@ -1542,4 +1541,4 @@ The upstream osu!lazer commit this fork is based on is recorded in `UPSTREAM.md`
 
 ---
 
-*This document is the authoritative context for GitHub Copilot and all AI-assisted development on OMS. Keep it updated as architectural decisions change.*
+*This document indexes stable product and architecture constraints. Cross-Agent workflow rules come only from [AGENTS.md](../../AGENTS.md); current state and execution order come from STATUS/PLAN.*

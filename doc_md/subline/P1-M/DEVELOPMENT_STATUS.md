@@ -1,11 +1,11 @@
 # P1-M 开发进度：内置音乐播放器
 
-> 最后更新：2026-06-15
+> 最后更新：2026-07-16（文档健康治理；尚未开工）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 
 ## 当前阶段
 
-- **阶段定位**：子线 2026-06-15 建立。**规划已与用户对齐，尚未开工**（无代码改动）。下一步 = Phase 0（地基：PlayQueue 服务层 + 协调契约 + 测试网）的详细设计与落地。
+- **阶段定位**：规划已与用户对齐，尚未开工；Phase 1 release gate 前不抢占主线 R2–R6。未来获准启动时，第一步仍是 Phase 0（PlayQueue 服务层、协调契约与测试网）的详细设计和最小落地。
 - **范围**：全功能（M1 队列与播放模式 / M2 曲库组织 / M3 播放体验 / M4+ 沉浸展示与进阶）+ 播放源（mania/bms/both）可选 + mini 浮窗可展开全屏 + 分层 PlayQueue。
 
 ## 架构审查已确认事实（开工前基线，2026-06-15）

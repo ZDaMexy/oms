@@ -5,7 +5,7 @@
 ## 三分钟阅读路径
 
 1. [mainline/DEVELOPMENT_STATUS.md](mainline/DEVELOPMENT_STATUS.md)：当前阶段、活动主线、最新验证和阻塞。
-2. [mainline/DEVELOPMENT_PLAN.md](mainline/DEVELOPMENT_PLAN.md)：全局执行顺序与 release gate。
+2. [mainline/DEVELOPMENT_PLAN.md](mainline/DEVELOPMENT_PLAN.md)：只确认当前活动 gate、退出条件与后续依赖。
 3. 从 [subline/README.md](subline/README.md) 进入所属子线，只读该线 `STATUS` 与任务相关的 `CONSTRAINTS` 小节。
 4. 需要产品红线时，在 [mainline/OMS_COPILOT.md](mainline/OMS_COPILOT.md) 按关键词定位；需要历史时，在对应 `CHANGELOG.md` 按日期或子线编号搜索。
 
@@ -47,6 +47,8 @@
 - 测试数字只在对应 `STATUS` 的最新验证和本次 `CHANGELOG` 各出现一次；旧数字不反复同步。
 - 带日期的结论只要不再影响当前决策，就从 `STATUS/PLAN` 删除，历史由 Git 与 `CHANGELOG` 保存。
 - Agent 适配文件不得复制 `AGENTS.md`；memory 单行建议不超过 800 字符，发现状态叙事时改为链接权威 STATUS。
+- 仓库内 Markdown 链接必须按文件所在目录使用标准相对路径；不依赖“从仓库根再猜一次”的非标准回退。
+- 生产/用户数据精确 hash、mtime、byte size、会话 ID 与可识别个人/机器的 home 路径不得进入文档；通用路径示例和公开制品 checksum 可以保留但须明确语境，其它本机取证路径改用脱敏占位符或仓库外 authority。
 
 ## 联动规则
 
@@ -55,7 +57,7 @@
 3. 子线变化影响全局优先级、release gate 或产品红线时，只向 mainline 回写一条摘要和链接。
 4. `other/` 的结论升级为正式决策时，必须进入对应 `PLAN/STATUS/CONSTRAINTS`。
 5. 新踩坑同步到 `.Codex/memory/`；memory 与文档冲突时以当前代码、测试和 `doc_md` 为准。
-6. 完成前运行相对链接检查与 `git diff --check`，避免索引失效。
+6. 完成前运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check`；脚本兼容 Windows PowerShell 5.1，会检查标准相对链接、四件套/索引完整性、STATUS/README 预算、memory wiki 链、隐私残片和会话级 PLAN 污染；模糊数字/路径只告警复核，不强迫删除合法技术信息。
 
 ## 当前特殊入口
 

@@ -1,7 +1,7 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-06-23
-> 本文件记录 `P1-L` 的硬约束。若实现与本文冲突，先修正其一再继续开发。完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
+> 最后更新：2026-07-16（文档健康治理；稳定合同未改变）
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。若实现与本文冲突，先修正其一再继续开发。
 
 ## 红线（最高优先级，贯穿全线）
 
@@ -34,7 +34,7 @@
 5. **base 刻度 = 非冻结时长最常见 BPM**（`computeBaseBpm`，DEAD SOUL=132）。注意 `GetMostCommonBeatLength` 对演出谱会被 STOP-freeze/钳制点拉成 6；旁路在默认 Normal hi-speed 模式下因 `timeRange` 与之无关而忠实，**不得**为对齐而改用 6 做 base（那会复现 squash）。Floating/Classic 绝对刻度标定归 Phase 4。
 6. 极端谱（DEAD SOUL：5645 地雷、6522 knots、~1300 control point、390 STOP 帧）必须有对象池/生命周期预算（与 P1-J 协同），不得无界实例化导致正常链路卡顿。
 
-## Phase 5（BGA 链路）约束 —— 规划已冻结（2026-06-14），实现期须守
+## Phase 5（BGA 链路）约束 —— 主链已落地、须守；content/viewport ownership 迁移待做
 
 1. **BGA 是视觉-only 旁路**：BGA 时间线（`BmsBeatmap.BgaTimeline`）照 `Mines`/`ScrollProfile` 模式挂 `BmsBeatmap`，**不得进入 `beatmap.HitObjects`**，不得回流判定/计分/统计/`TotalObjectCount`。BGA 浮窗不接收游玩输入。
 2. **零核心改动 + 不被遮挡**：浮窗挂 BMS 侧 `DrawableBmsRuleset.Overlays`（渲染在 playfield 之上）；**不得**重新把可见背景塞回 `BmsPlayfield.playfieldContainer` 内被 lane 背板遮挡的旧位置。不得为 BGA 改写共享核心类型。

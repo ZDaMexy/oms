@@ -8,7 +8,7 @@ metadata:
 
 # BMS 谱面构成过滤召回
 
-权威当前态：[P1-I STATUS](doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)；约束/历史位于同目录。
+权威当前态：[P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)；约束/历史位于同目录。
 
 ## 链路
 

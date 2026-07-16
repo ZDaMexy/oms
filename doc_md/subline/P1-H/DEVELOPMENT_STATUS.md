@@ -1,6 +1,6 @@
 # P1-H 当前状态：存储拓扑
 
-> 最后更新：2026-07-10（文档降噪复核；功能状态未改变）
+> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -26,8 +26,8 @@
 
 ## 当前验证
 
-- 2026-07-10 BMS 全量 **1005/1005**，Release **0 error**。
-- scanner/难度表/raw-wrapper 的历史 focused 数字和命令查 [CHANGELOG.md](CHANGELOG.md)。
+- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
+- scanner/难度表/raw-wrapper 的本线历史 focused/full 数字和命令只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 
 ## 下一检查点
 

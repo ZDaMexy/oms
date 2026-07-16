@@ -5,7 +5,7 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — OMS 范围、架构、阶段与红线。
-- [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算、同次联动与 2026-07-16 P1-A 健康治理交接。
+- [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算、同次联动与持续防回潮规则。
 - [反馈工作流](feedback_workflow.md) — 中文协作、真机反馈权威、修复→验证→文档/记忆→提交。
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 分界点、恢复基线、归档 refs、保留/撤回面与重新准入门。**处理皮肤任务先读。**
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
@@ -15,8 +15,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — CLI gate、恢复基线、targeted formatter、link checker hidden/root-path/转义/宿主插值与 C# Dev Kit 误判地雷。
-- [网络访问](reference_network_access.md)
+- [构建与测试](reference_build_and_test.md) — CLI gate、targeted formatter、并发构建、hidden-aware link checker 与 C# Dev Kit 误判地雷。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md)
 - [难度表](reference_bms_difficulty_table.md)

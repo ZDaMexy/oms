@@ -8,7 +8,7 @@ metadata:
 
 # BMS 默认几何召回
 
-权威当前态：[P1-A STATUS](doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)；皮肤约束：[P1-A CONSTRAINTS](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。本文件只记反直觉旋钮。
+权威当前态：[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)；皮肤约束：[P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。本文件只记反直觉旋钮。
 
 ## 车道与音符
 

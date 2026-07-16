@@ -1,5 +1,12 @@
 # P1-I 变动日志
 
+## 2026-07-16
+
+### 文档健康治理：I0～I3/I5～I7 归档，I4 未完 proof 成为唯一活动计划
+
+- PLAN 将已完成 read-model、criteria、visual filter、展示层级、层级导航和分组性能压为摘要；当前只保留共享边界拖拽 headless、shared visual gate 与有现场证据时的大库诊断。
+- 稳定 RC/LN/SCR、backfill 与 search 合同仍由 CONSTRAINTS 保持，其顶部更新说明改为 STATUS/PLAN/CHANGELOG 路由，不再复制追加项；当前功能和产品 gate 未变。本次仅改文档，未改代码，未运行产品测试或 Release。
+
 ## 2026-06-23：carousel 面板两处音符图标（preview 指示 + 删左侧 lamp 音符），已落地，用户实机暂未见异常
 
 两项独立 UI 调整（用户提出，互不相关）。

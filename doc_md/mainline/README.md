@@ -9,6 +9,4 @@
 | 产品/架构硬约束 | [OMS_COPILOT.md](OMS_COPILOT.md) | 用 `rg` 按主题定位，勿默认整篇加载 |
 | 历史与旧验证 | [CHANGELOG.md](CHANGELOG.md) | 用日期、`P1-X` 或关键词定点搜索 |
 
-详细的文件职责、行数预算和联动规则见 [../README.md](../README.md)。子线状态路由见 [../subline/README.md](../subline/README.md)。
-
-当前特殊事件：2026-07-10 皮肤系统恢复已完成，证据账见 [SKIN_SYSTEM_RECOVERY_20260710.md](../other/SKIN_SYSTEM_RECOVERY_20260710.md)。
+详细的文件职责、行数预算和联动规则见 [../README.md](../README.md)。子线状态路由见 [../subline/README.md](../subline/README.md)；皮肤任务的恢复边界由该路由指向当前 P1-A 与恢复审计。

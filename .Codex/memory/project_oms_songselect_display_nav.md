@@ -8,7 +8,7 @@ metadata:
 
 # BMS 选歌展示与导航召回
 
-权威当前态：[P1-I STATUS](doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)；详细历史：[P1-I CHANGELOG](doc_md/subline/P1-I/CHANGELOG.md)。
+权威当前态：[P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)；详细历史：[P1-I CHANGELOG](../../doc_md/subline/P1-I/CHANGELOG.md)。
 
 ## 已有产品面
 

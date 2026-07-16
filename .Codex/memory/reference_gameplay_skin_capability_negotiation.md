@@ -29,4 +29,4 @@ metadata:
 - public-surface fixture 要同时锁 request factory 仍为 internal，以及 definition/policy/negotiator/hard-deny catalog 不公开；只查 property/constructor 不够。
 - `dotnet format --include` 曾把测试实际使用的 `System.Reflection` 判为 unused 并删除，随后出现 `CS0103 BindingFlags`。对新未跟踪 fixture 必须立即编译 owning test project；必要时使用全限定类型绕过误删。
 
-第七切最终 capability focused 91/91；精确全门数字以 P1-A STATUS 为准。
+精确验证数字与当前接线状态只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。

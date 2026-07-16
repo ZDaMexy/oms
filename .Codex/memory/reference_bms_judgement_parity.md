@@ -8,7 +8,7 @@ metadata:
 
 # BMS 判定 parity 召回
 
-权威当前态：[P1-C STATUS](doc_md/subline/P1-C/DEVELOPMENT_STATUS.md)；窗口约束/来源在 P1-C CONSTRAINTS/CHANGELOG。
+权威当前态：[P1-C STATUS](../../doc_md/subline/P1-C/DEVELOPMENT_STATUS.md)；窗口约束/来源在 P1-C CONSTRAINTS/CHANGELOG。
 
 ## 稳定合同
 

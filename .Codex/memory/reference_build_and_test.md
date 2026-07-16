@@ -1,6 +1,6 @@
 ---
 name: reference-build-and-test
-description: OMS 构建入口、当前恢复基线、formatter 与 C# Dev Kit 误判地雷
+description: OMS 构建入口、formatter、并发构建与 C# Dev Kit 误判地雷
 metadata:
   node_type: memory
   type: reference
@@ -32,17 +32,10 @@ solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能�
 
 ## 内联检查脚本转义地雷
 
-从 JavaScript host 字符串调用 PowerShell regex 时，普通 template literal 可能先吞掉 `\[` 等反斜杠，让 Markdown link checker 把正文伪匹配为链接并产生假断链。使用 raw string（或正确双重转义）后再以“文件相对优先、仓库根回退”解析；2026-07-14 首个错误脚本曾误报 11 条垃圾目标，修正后权威结果是 118 个 Markdown、932 个相对链接、0 断链。不要把脚本自身转义错误写成仓库文档回归。
+- 从 JavaScript host 字符串调用 PowerShell regex 时，普通 template literal 可能先吞掉 `\[` 等反斜杠；`String.raw` 也不会关闭 `${...}` 插值。优先运行仓库内已审查的 checker；必须内联时正确处理两层转义，并在脚本成功退出后才记录结论。
+- 普通 `rg --files -g '*.md'` 会忽略 `.Codex` 等 hidden 文件；根目录 Markdown 的 parent 还可能是空串。检查必须包含 hidden 文件、排除 `.git`、把空 parent 规范化为 `.`，并让路径异常 fail-closed，不能输出带错误的伪 `BROKEN 0`。
+- 仓库内链接统一写成以当前 Markdown 所在目录为基准的标准相对路径；根目录 checker 会拒绝仓库根链接，不再用回退逻辑掩盖非标准写法。标准入口是 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`，必须兼容系统自带 Windows PowerShell 5.1。
 
-`String.raw` 只保留反斜杠，不会关闭 JavaScript template 的 `${...}` 插值。2026-07-15 一次 checker 因命令文本含 PowerShell 风格 `${file}` 而在进入 PowerShell 前触发 `ReferenceError`；该次没有仓库证据。跨宿主脚本应改用 PowerShell `$($file)` 或字符串拼接，并在成功退出后才记录检查结果。
+## 告警纪律
 
-同日另一轮复现两个入口遗漏：普通 `rg --files -g '*.md'` 会忽略 `.Codex` 等 hidden 文件，只数到 82 个；仓库根 Markdown 的 `Split-Path -Parent` 又会返回空串，使 `Join-Path` 报错，但脚本若未设 `$ErrorActionPreference = 'Stop'` 仍可能打印误导性的 `BROKEN 0`。权威检查必须使用 `rg --files --hidden -g '*.md' -g '!.git/**'`，把空 parent 规范化为 `.`，并让路径异常 fail-closed；修正后仍为 118/932/0。
-
-## 2026-07-10 恢复基线
-
-- BMS 1005/1005；mania 默认 OMS 资源 1/1。
-- mania full 787/791：4 个既有 HoldNote auto-frame 期待失败。
-- core skin 57/62：Argon/已删除 ruleset 的旧测试失配。
-- Release 0 error / 20 warnings：9 个 MessagePack NU1902 在 restore/build 重复 + BMS test CS8600/CA2007。
-
-不要恢复全局 `NoWarn` 隐藏依赖告警；安全升级单独治理。最新数字最终以 mainline STATUS 为准。
+不要恢复全局 `NoWarn` 隐藏依赖告警；安全升级单独治理。当前验证数字只看 mainline STATUS，恢复期历史数字查 [恢复审计](../../doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md) 或对应 CHANGELOG，不在 memory 重抄。

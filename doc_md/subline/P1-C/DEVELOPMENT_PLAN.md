@@ -1,249 +1,64 @@
-# P1-C 开发计划：判定语义、绿色数字与反馈闭环
+# P1-C 当前计划：判定语义与反馈边界
 
-> 最后更新：2026-05-16
-> 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-C` 的执行顺序；皮肤边界与 HUD 宿主合同见 [../P1-A/DEVELOPMENT_PLAN.md](../P1-A/DEVELOPMENT_PLAN.md)。
+> 最后更新：2026-07-16
+> 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成实现与删除记录见 [CHANGELOG.md](CHANGELOG.md)。
 
-## 子线定位
+## 子线职责
 
-| 维度 | 归属 | 说明 |
-| --- | --- | --- |
-| 主归属 | `P1-C` | 收口 BRJ / LR2 parity、绿色数字与速度反馈、results feedback 与训练反馈闭环 |
-| 协作子线 | `P1-A` | `P1-C` 的 feedback family 必须建立在 `P1-A` 冻结的 BMS HUD 宿主与皮肤边界上 |
-| 参考输入 | `other` | 受 [../../other/IIDX_REFERENCE_AUDIT.md](../../other/IIDX_REFERENCE_AUDIT.md) 约束，但当前不等价于完整 `FHS` |
+P1-C 只维护 BMS 判定家族、窗口/poor/release parity、判定结果到当前产品反馈面的语义边界，以及相关回归门。
 
-## 当前确认基线
+- HUD/skin 宿主归 P1-A；P1-C 不扩写旧宿主接口。
+- 真实 LN/CN/HCN 与谱面体验归 P1-E，最终人工结果由 P1-G 汇总。
+- 视觉滚动与 Gimmick 位置映射归 P1-L，不得改变 P1-C 的时间判定结果。
+- 完整 FHS、dan、1P/2P flip、BSS/MSS 不进入本线当前交付。
 
-- 当前 `BmsScrollSpeedMetrics` 已能按 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 计算 `VisibleLaneTime`、`WhiteNumber`、`GreenNumber`；其中 `Classic` 继续锁定官方 sample `HS 10 + WN 350 => GN 300`，`Floating` 目前为 initial-BPM anchored runtime surface。
-- 当前 runtime 已同时具备 `BmsSpeedMetricsToast` 与常驻 `GameplayFeedbackDisplay`；toast 只承担操作确认，常驻 feedback card 承担权威表达。
-- 当前 runtime 已具备“前 5 秒 delayed-start 阻塞 + 全程调速修饰键”这一统一 operator contract；`UI_PreStartHold` 在前 5 秒作为阻塞键，正式 gameplay 开始后仍继续承担 hold-based Hi-Speed 调节修饰语义；`UI_LaneCoverFocus`（click-to-cycle）/ 滚轮 / 中键用于 lane-cover 调整与 target cycle，奇偶列按键用于调节当前 Hi-Speed。两个动作已拆分为独立键位。
-- owner-level `TestSceneBmsPreStartHiSpeedOverlay`、real-player `TestSceneBmsSoloPlayerPreStart` 与输入桥 `OmsInputRouterTest` 当前分别锁住 overlay 合同、**10/10** 的 start-sequence / mode-value / ingame hold 路径，以及 **9/9** 的 lane-action gameplay 转发抑制；当前 operator 语义不再停留在“仅有首轮接线”的状态。
-- 当前 `DrawableBmsRuleset`、`BmsPlayfield`、`BmsHitObjectArea` 与 `BmsScrollSpeedMetrics` 已提供足够的 scroll/time authority，可承接 pre-start 1 号普通轨纯视觉流速预览；相对地，`DrawableBmsHitObject`、`BmsLane.OnPressed()`、lane keysound 与 judgement / replay / autoplay authority 都必须避开。
-- 当前 BMS mod 选中状态与 non-default settings 已通过 `BmsRulesetConfigManager.PersistedModState` 以 ruleset-local snapshot 持久化；这只作用于 BMS，切到 mania 再切回或重启后恢复。
-- 冷启动首轮恢复现已明确要求等待 `RulesetConfigCache` ready：若 startup 首次 ruleset change 发生在 cache `LoadComplete()` 之前，宿主必须延后 replay 当前 ruleset 到 cache ready 后再做 restore；该 path 现已由 `BmsStartupModPersistenceIntegrationTest` 锁定。
-- 当前 `Sudden / Hidden / Lift` 已具备 mod-local `RememberGameplayChanges` 开关；开启时局内滚轮改动会跨 gameplay clone 回写到当前 selected mod，并在回场 / 重启后延续，关闭时保持 current-play-only。
-- 当前 results 页已完成 `DJ LEVEL` / `EX-SCORE` 第一轮收口，但还没有形成完整训练反馈闭环。
-- 当前 `BEATORAJA` / `LR2` / `IIDX` judge mode 的 early/late 非对称窗口、excessive poor 与 long-note release parity **已于 2026-06-14（第 1–2 刀）落地并溯源锁定**（窗口源自 beatoraja `JudgeProperty.SEVENKEYS`，由 `BmsJudgementSystemParityTest` 锁；第 2 刀修复 beatoraja BAD 早/晚方向写反的真实 bug）；剩余仅 gameplay judge display / counts 的反馈区分（第 3 刀），IIDX empty-poor / CN release 已收口为 documented heuristic。
-
-## 分期计划
-
-### C0：文档与方向冻结
-
-**状态：已完成**
-
-- 明确 `P1-C` 的工作不等价于提前进入 Phase 2 `FHS`。
-- 把绿色数字、速度反馈、判定语义与训练反馈统一归到同一子线。
-
-### C1：权威绿色数字常驻反馈
-
-**状态（2026-06-15 更新）：首轮实现曾完成，但承载它的常驻 `DefaultBmsSpeedFeedbackDisplay`（连同 C2/C3 的 FAST/SLOW·EX pacemaker·judge display·visual timing-offset·judgement summary）已按产品决定整体移除。本节及下文 C1 实现清单为历史规划记录；GN 现仅留 toast / pre-start overlay，不再常驻。如重建反馈家族须另立专题。详见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) / [CHANGELOG.md](CHANGELOG.md)。**
-
-目标：让当前 `GN + 可见毫秒 + adjustment target` 不再只存在于 toast，而是拥有常驻、可皮肤化的权威 HUD 表达。
-
-#### C1 外部参考基线（2026-04-20 已验证）
-
-以下事实来源于 [iidx.org](https://iidx.org/) 并经代码对照确认：
-
-| 术语 | IIDX | beatoraja | LR2 | OMS 当前 |
-| --- | --- | --- | --- | --- |
-| **Green Number** | `10 × (note 可见帧数 @60fps)` = `VisibleTime_ms × 0.6` | 默认直接显示原始毫秒；部分皮肤同时显示 IIDX GN（绿字）与原始 ms（蓝字） | 依 skin 而变 | `VisibleLaneTime × 0.6`，与 IIDX 公式一致 ✅ |
-| **White Number** | `SUDDEN+ 遮挡面积 / 全屏高 × 1000`，不受 LIFT 影响 | 无 LIFT 时同 IIDX；有 LIFT 时以 `(全高 - LIFT)` 为基准重新计算 | 依 skin 而变 | `= SuddenUnits`，语义同 IIDX ✅ |
-| **LIFT** | `底部抬升面积 / 全屏高 × 1000`，与 SUDDEN+ 独立 | 同 IIDX | — | 独立 geometry control，影响 `ScrollLengthRatio` ✅ |
-| **VisibleLaneUnits** | `1000 - SUD - HID`（LIFT 不参与） | 同上 | — | `1000 - SuddenUnits - HiddenUnits` ✅ |
-| **GN 典型区间** | 250（极快）– 330（偏慢） | 416ms – 550ms（等价 IIDX GN 250-330） | — | 取决于用户 HS + cover |
-| **Normal Hi-Speed** | BPM 无关，基础流速型 | 类似 | — | 已作为默认 settings surface 落地；runtime 已接 HUD / toast / pre-start overlay ✅ |
-| **Classic Hi-Speed** | BPM 依赖，倍率型 | 类似 | BPM 依赖 | strict Classic surface 已按官方 sample 收口，`ComputeScrollTime = (100000 / 13) / HS`；BPM 变化仍通过 relative beat scaling 改变视觉滚速 ✅ |
-| **Floating Hi-Speed** | BPM 无关，恒定视觉速度，需 SUDDEN+/LIFT 才能执行"floating"操作 | 类似 | — | 首轮 surface 已落地：按 initial BPM 锚定 visual speed，并支持 pre-start hold 调速；mid-song re-float / GN range 仍未完成 △ |
-
-> **GN 公式验证**：`BmsScrollSpeedMetrics.GreenNumber = Max(0, Round(VisibleLaneTime × 0.6))`。IIDX 原始公式 = `10 × (VisibleTime / (1000/60))` = `VisibleTime × 0.6`。完全一致，无需修改。
-
-> **Lift 对 GN 的间接影响**：Lift 不参与 `VisibleLaneUnits` 计算（与 IIDX 一致），但 Lift 改变 `BmsHitObjectArea` 内容区几何高度 → `ScrollLengthRatio` 下降 → `RuntimeTimeRange` 下降 → `VisibleLaneTime` 下降 → GN 下降。这条间接链路是正确的。
-
-> **tri-mode 基线**：当前 OMS 已把 `Normal / Floating / Classic` 三模式 settings 与 runtime 反馈接通；其中 `Classic` 的 base time 映射继续保持 `(100000 / 13) / HS` 并锁定 `HS 10 + WN 350 => GN 300`，`Floating` 则暂按 initial BPM 锚定 visual speed。
-
-> **Soflan（曲内 BPM 变化）**：当前 HUD / pre-start overlay 只显示单个 runtime GN，不显示 soflan 范围。IIDX 在完整 FHS 模式下会显示 GN 变动范围（如 "210-840"）；当前 OMS tri-mode surface 仍不引入这类范围显示。
-
-> **归线结论**：当前 tri-mode settings、mode-aware HUD 与 `阻止谱面开始/ingame start` 这条前 5 秒阻塞/全程调速 operator surface 仍归现有 `P1-A / P1-C` 交叉专题，不新开路线；真正后置的是 full Floating parity、soflan GN range 与更严格的 start sequencing。
-
-#### C1 详细实现方案
-
-##### C1.1 提取公共枚举：`BmsGameplayAdjustmentTarget`
-
-- **当前状态**：`BmsGameplayAdjustmentTarget` 是 `DrawableBmsRuleset` 内部 `private enum`。
-- **改动**：提取到独立文件 `osu.Game.Rulesets.Bms/UI/BmsGameplayAdjustmentTarget.cs`，设为 `public enum`。
-- **枚举值**：`Sudden`、`Hidden`、`Lift`（不新增值）。
-- **影响**：`DrawableBmsRuleset` 内的 `currentGameplayAdjustmentTarget` / `getPersistentGameplayAdjustmentTarget()` / toast 等全部改用公共枚举；`formatGameplayAdjustmentTarget()` 也移出或改为公共 static。
-- **零行为变更**。
-
-##### C1.2 添加响应式速度指标 Bindable
-
-- **新增字段**（`DrawableBmsRuleset`）：
-  ```csharp
-  public IBindable<BmsScrollSpeedMetrics> SpeedMetrics => speedMetrics;
-  private readonly Bindable<BmsScrollSpeedMetrics> speedMetrics = new();
-
-  public IBindable<BmsGameplayAdjustmentTarget?> ActiveAdjustmentTarget => activeAdjustmentTarget;
-  private readonly Bindable<BmsGameplayAdjustmentTarget?> activeAdjustmentTarget = new();
-  ```
-- **`BmsScrollSpeedMetrics`** 补 `IEquatable<BmsScrollSpeedMetrics>` + `Equals` / `GetHashCode` 覆写，确保 Bindable 仅在值真正变化时触发通知。
-- **订阅链**（`LoadComplete` 内）：
-  - `configScrollSpeed.BindValueChanged(_ => refreshSpeedMetrics())`
-  - `playfieldScrollLengthRatio.BindValueChanged(_ => refreshSpeedMetrics())`
-  - `getSuddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics())`
-  - `getHiddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics())`
-  - `getLiftMod()?.LiftUnits.BindValueChanged(_ => refreshSpeedMetrics())`
-- **`refreshSpeedMetrics()`**：调用 `GetScrollSpeedMetrics()` 并写入 `speedMetrics.Value`。
-- **`activeAdjustmentTarget`** 在 `CycleGameplayAdjustmentTarget()` 和 `RefreshLaneCoverFocus()` 中同步更新。
-- **Toast** 继续工作，保持原有触发逻辑不变。
-
-##### C1.3 皮肤组件注册
-
-- **`BmsSkinComponents` 枚举**：末尾添加 `SpeedFeedback`。
-- **`BmsSkinTransformer.GetDrawableComponent`**：添加 `case BmsSkinComponentLookup { Component: BmsSkinComponents.SpeedFeedback }:`，采用接口验证模式：
-  ```csharp
-  Drawable? skinnedComponent = base.GetDrawableComponent(lookup);
-  return skinnedComponent is IBmsSpeedFeedbackDisplay ? skinnedComponent : new DefaultBmsSpeedFeedbackDisplay();
-  ```
-
-##### C1.4 接口与默认实现
-
-- **新文件** `osu.Game.Rulesets.Bms/UI/BmsSpeedFeedbackDisplay.cs`：
-  ```csharp
-  public interface IBmsSpeedFeedbackDisplay { }
-
-  public partial class DefaultBmsSpeedFeedbackDisplay : CompositeDrawable, IBmsSpeedFeedbackDisplay
-  {
-      // 通过 [Resolved] 获取 DrawableBmsRuleset
-      // 订阅 SpeedMetrics 与 ActiveAdjustmentTarget
-      // 渲染：
-      //   主行：GN {value}（绿色大号文本，使用 BmsDefaultHudPalette 色）
-      //   副行：{VisibleLaneTime:0}ms（灰色小号文本）
-      //   目标行：HS {ScrollSpeed:N1}  ▶ {Target}（小号文本）
-      //   异常态：当 VisibleLaneUnits ≤ 0 时主行改为 "GN ---"（红色警告）
-  }
-  ```
-- **布局规格**：
-  ```
-  ┌─────────────────┐
-  │  GN 310         │  ← 主指标，绿色
-  │  517ms          │  ← 可见毫秒，灰色
-  │  HS 8.0  ▶ SUD  │  ← 速度 + 当前目标
-  └─────────────────┘
-  ```
-  - 组件锚点默认 `TopRight`，位于 HUD 右上区域。
-  - 尺寸紧凑，不遮挡主 gameplay 区。
-  - 当 `VisibleLaneUnits <= 0`：主行文本变为 `GN ---`，颜色改为 `BmsDefaultHudPalette` 的警告色。
-  - 当没有任何 adjustment target（Sudden/Hidden/Lift 全未启用）时：目标行仅显示 `HS {value}`，不显示 `▶`。
-
-##### C1.5 HUD 布局集成
-
-- **已采用方案**：保留旧 `IBmsHudLayoutDisplay` 签名，新增可选扩展接口 `IBmsHudLayoutDisplayWithGameplayFeedback`。
-- `BmsSkinTransformer` 继续统一组装 `MainHUDComponents`，并 resolve `SpeedFeedback`。
-- 新 HUD layout 若实现扩展接口，则可直接接收 `gameplayFeedback` 组件并自行摆位。
-- 旧 HUD layout 若只实现原接口，则 transformer 自动包一层 overlay 容器，把 HUD layout 与 speed feedback 同时返回。
-- 默认布局位置收口在 `DefaultBmsHudLayoutDisplay.ApplyGameplayFeedbackDefaults()`，当前锚点为 `TopCentre`。
-
-##### C1.6 Toast 语义退位
-
-- **不做代码改动**。`BmsSpeedMetricsToast` 继续在用户执行调速 / 切换目标时弹出。
-- **语义变更**：toast 不再是 GN 的唯一权威来源，仅作为"操作确认"的瞬时强调层。
-- **文档**：在本文件与 `TECHNICAL_CONSTRAINTS.md` 中明确记录这一主次关系。
-
-##### C1.7 测试清单
-
-| 测试 | 类型 | 验证目标 |
-| --- | --- | --- |
-| `BmsScrollSpeedMetrics` IEquatable 正确性 | 单元测试 | 相同参数 `==` 返回 true，不同参数返回 false |
-| `DrawableBmsRuleset.SpeedMetrics` 响应性 | 集成测试 | 改变 ScrollSpeed / CoverPercent 后 Bindable 收到新值 |
-| `DefaultBmsSpeedFeedbackDisplay` 渲染 | 视觉测试 | GN / ms / target 文本正确显示，异常态正确触发 |
-| `BmsSkinTransformer` SpeedFeedback fallback | 皮肤测试 | 外部皮肤返回 null → fallback 到 `DefaultBmsSpeedFeedbackDisplay` |
-| `BmsSkinTransformer` SpeedFeedback 接口验证 | 皮肤测试 | 外部皮肤返回非 `IBmsSpeedFeedbackDisplay` → 被拒绝，fallback |
-| Release build 通过 | 门禁 | `dotnet build osu.Desktop -p:Configuration=Release` exit 0 |
-
-#### C1 文件变动清单
-
-| 操作 | 文件 | 说明 |
-| --- | --- | --- |
-| 新建 | `osu.Game.Rulesets.Bms/UI/BmsGameplayAdjustmentTarget.cs` | 公共枚举 |
-| 新建 | `osu.Game.Rulesets.Bms/UI/BmsSpeedFeedbackDisplay.cs` | 接口 + 默认实现 |
-| 新建 | `osu.Game.Rulesets.Bms.Tests/TestSceneBmsSpeedFeedbackDisplay.cs` | 视觉测试场景 |
-| 修改 | `osu.Game.Rulesets.Bms/UI/BmsScrollSpeedMetrics.cs` | 补 `IEquatable<>` |
-| 修改 | `osu.Game.Rulesets.Bms/UI/DrawableBmsRuleset.cs` | 提取枚举引用、添加响应式 Bindable |
-| 修改 | `osu.Game.Rulesets.Bms/Skinning/BmsSkinComponentLookup.cs` | 枚举添加 `SpeedFeedback` |
-| 修改 | `osu.Game.Rulesets.Bms/Skinning/BmsSkinTransformer.cs` | 添加 SpeedFeedback 分发 case |
-| 修改 | `osu.Game.Rulesets.Bms/UI/BmsHudLayoutDisplay.cs` | 接口扩展 + 默认布局定位 |
-| 修改 | `osu.Game.Rulesets.Bms/UI/BmsDefaultHudPalette.cs` | 可选：添加 GN 配色常量 |
-| 修改 | `osu.Game.Rulesets.Bms.Tests/BmsSkinTransformerTest.cs` | 添加 SpeedFeedback fallback 测试 |
-| 新建 | `osu.Game.Rulesets.Bms.Tests/TestSceneBmsSpeedFeedbackDisplay.cs` | speed feedback 视觉回归 |
-| 更新 | `doc_md/subline/P1-C/*` 四件套 | 同步状态 |
-| 更新 | `doc_md/mainline/DEVELOPMENT_STATUS.md` | 反映 C1 实现进度 |
-| 更新 | `doc_md/mainline/CHANGELOG.md` | 记录变更 |
-
-### C2：`Sudden / Hidden / Lift` 联动收口
-
-**状态：已完成**
-
-目标：让 lane cover focus、当前 target、geometry-effect 与 HUD feedback 表达统一，避免视觉上各说各话。
-
-建议交付：
-
-1. 当前 target 与 lane cover focus state 必须一一对应。
-2. `Lift` 继续保持 geometry control，不与 `Hidden` 混写。
-3. 对“仅启用 1 个 target”“无 target 可切换”“当前 target 因 mod 未启用而失效”给出明确显示策略。
-
-> 当前已完成四刀 + 后续修复：HUD 已能区分 `NONE`、`{TARGET} ONLY`、多 target click-to-cycle 状态与临时覆写文案；`UI_LaneCoverFocus`（click-to-cycle）与 `UI_PreStartHold`（hold gate）已拆分为独立动作；与此同时，BMS-only mod state persistence 与 `RememberGameplayChanges` 局内写回开关也已落地，代码侧收口完成，后续主线转入 C3。
-
-### C2.5：pre-start 1 号普通轨纯视觉流速预览
-
-**状态：已完成 feasibility review，尚未开始实现**
-
-目标：在 actual gameplay 尚未开始且 `UI_PreStartHold` 正在按住时，让“1 号普通轨”出现按当前流速下落的纯视觉预览 note，帮助用户在 pre-start 窗口中校准 Hi-Speed，而不把 preview 误接进判定 / 计分 / 键音链。
-
-当前状态：第一版已落地；以下条目转为持续维护的硬约束与后续 visual polish 基线。
-
-建议交付：
-
-1. 可见性 gate 以“actual gameplay 仍 pending + 当前 `UI_PreStartHold` 为 held”为 authority；按住期间若再次进入 hold 并刷新 5 秒窗口，preview 也应重置；若 delayed-start 已在 hold 期间耗尽，则 release 分支必须先重给一整段 fresh delay，preview 在 release 后隐藏，并只在下一次 held 窗口里再次出现；一旦真正进入 gameplay，哪怕同一动作仍继续承担 ingame 调速修饰键，preview 也必须立即消失。
-2. “1 号轨道”按产品语义定义为**第一条非 scratch 普通轨**：5K / 7K / 14K 不得直接取 raw `laneIndex = 0`，因为该索引当前是 scratch；9K 才可直接落在第一条 lane。
-3. 预览 drawable 必须是 lane/playfield 上的纯视觉层，建议宿主放在 `BmsPlayfield` / `BmsLane` / `BmsHitObjectArea` 附近的专用 preview container；视觉本体可复用 `BmsNoteSkinLookup(BmsNoteSkinElements.Note, ...)` 或等价 fallback，以保持与当前皮肤 note 外观一致。
-4. 运动 authority 必须继续来自 `DrawableBmsRuleset` / `BmsScrollSpeedMetrics` / `Playfield.ScrollLengthRatio` 这条现有 runtime scroll 链，而不是手写第二套独立速度配置；单颗循环 ghost note 即可满足需求，不需要伪造完整 note stream。
-5. 预览必须跟随同一 pre-start/playfield clock；pause overlay 在 pre-start 中可见时，preview 也必须暂停或冻结，不能在暂停界面下继续下落。
-6. 硬约束：不得创建真实 `BmsHitObject`、不得使用 `DrawableBmsHitObject`、不得加入 gameplay `HitObjectContainer`、不得走 `BmsLane.OnPressed()` / lane keysound / `ScoreProcessor` / judgement / replay / autoplay authority。该功能只负责视觉反馈。
-7. focused validation 至少包括：pre-start hold 显示 / 松开隐藏 / 重新按下后重置、delay elapsed 后 release 会重给 full delay、实际开谱后不再显示、odd/even 调速时预览速度同步变化、pause overlay 下不继续下落、全程不产生命中判定 / 分数 / 键音 / replay side effect。
-
-可能文件切片：
-
-1. `BmsSoloPlayer.cs`：暴露或驱动 preview-active gate，确保只在 pre-start pending + hold active 时可见。
-2. 新 `UI/BmsPreStartSpeedPreview*.cs`：承接纯视觉 preview drawable / 容器。
-3. `BmsPlayfield.cs` / `BmsLane.cs`：提供第一非 scratch 轨的宿主层与必要的 preview 挂点。
-4. `TestSceneBmsSoloPlayerPreStart*` 或新的 owner-level scene：覆盖 gating、速度更新与“无判定副作用”回归。
-
-### C3：判定语义与训练反馈收口
-
-**状态：进行中**
-
-目标：在 speed feedback 稳定后，把 `FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 与 results feedback 统一到同一反馈家族。
-
-建议交付：
-
-1. `FAST/SLOW` 与 judge display 优先进入同一 feedback container，而不是和 judgement piece 硬耦合。
-2. visual timing-offset 与 EX pacemaker 也沿同一状态流接入。
-3. BRJ / LR2 / IIDX 的 early/late 非对称窗口、excessive poor 与 long-note release parity 已落地并由 `BmsJudgementSystemParityTest` 锁定（第 1–2 刀）；剩余把 BAD-early/late、empty-poor vs note-poor 的区分接进同一 gameplay 反馈链（第 3 刀；FAST/SLOW 与 EPOOR 独立标签已覆盖大半）。
-4. results summary / gauge history / `DJ LEVEL` / `EX-SCORE` 继续沿同一训练反馈叙事收口。
-
-> 当前已完成四刀：`DrawableBmsRuleset` 已把最近判定快照为 `LatestJudgementFeedback`，`DefaultBmsSpeedFeedbackDisplay` 已在同一 feedback container 中显示最近判定与 `FAST/SLOW` 文案，并对 `EPOOR` 等无真实 timing 语义的结果省略 timing 后缀；最近判定 feedback 现已具备瞬时 judge display 生命周期，重复同类判定也会刷新显示窗口；同一张 feedback card 现已补上 compact visual timing-offset sparkline，并沿 `RecentJudgementFeedbacks` / `TimingFeedbackVisualRange` 同步消费 recent timing history；fixed AAA EX pacemaker 也已通过 `ExScorePacemakerInfo` 并入同一状态流。剩余工作是继续补更完整 judge display，以及后续可配置 / 更丰富来源的 pacemaker 扩展。
-
-### C4：作者文档与 release gate 收口
-
-**状态：未开始**
-
-建议交付：
-
-1. 在 [../../other/SKINNING.md](../../other/SKINNING.md) 中补齐 `GameplayFeedbackDisplay` 的 authoring 入口、fallback 粒度与状态合同。
-2. 在 [../../mainline/OMS_COPILOT.md](../../mainline/OMS_COPILOT.md) 中把绿色数字、速度反馈与训练反馈的术语边界写成硬约束。
-3. 在 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md) 与 [../../mainline/CHANGELOG.md](../../mainline/CHANGELOG.md) 中记录实现状态与验证结果。
-
-## 当前优先顺序
-
-1. `C2.5` pre-start 1 号普通轨纯视觉流速预览
-2. `C3` 判定语义与训练反馈收口
-3. `C4` 作者文档与 release gate 收口
+## 当前基线
+
+- IIDX/LR2/beatoraja/OD 的主要窗口、边界、scratch、release 与 excessive/empty-poor 合同已落，并由 parity test 守门。
+- 常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState` 及其 FAST/SLOW、pacemaker、summary、常驻 GN 已按产品决定删除，不是当前能力。
+- 当前反馈面只有全局 `JudgementCounterDisplay`、调速 toast、pre-start overlay 与既有 target/cycle/remember 行为。
+- pre-start 纯视觉流速 preview 已存在，但不得进入 hit object、判定、计分、键音、replay 或 autoplay authority。
+
+完成阶段的设计和删除经过不在本页展开，按日期查 [CHANGELOG](CHANGELOG.md)。
+
+## 当前执行顺序
+
+### 1. 保持 parity gate
+
+本项是守门职责，不主动扩功能：
+
+1. 任何窗口、非对称方向、scratch、long-note release、excessive/empty poor 改动，先修改 `BmsJudgementSystemParityTest` 让差异可审，再改实现。
+2. 明确区分 audit/source-backed 数值与 IIDX 闭源 documented heuristic；不得把启发式写成完整精确复刻。
+3. 保持跨家族 inclusive/epsilon 边界一致，同时保留各家族的早晚非对称和 poor/release 差异。
+4. 判定时间链与视觉滚动正交；P1-L 旁路、lane cover、皮肤或 HUD 变化不得改变 score/replay truth。
+
+验收：受影响的 parity focused 通过；涉及 gameplay/LN 时补 BMS relevant/full，并确认现有 counter/results 消费没有语义倒退。
+
+### 2. 把真实谱人工证明交给 P1-E/P1-G
+
+1. P1-E 维护代表性 LN/CN/HCN、scratch/release/poor 真实谱 checklist，并记录谱面与预期语义。
+2. P1-G 汇总设备、真实谱与当前可见反馈的人工结果；P1-C 只解释判定合同，不重复建立验收总表。
+3. 人工发现窗口/规则缺陷时重新归回 P1-C；显示、输入或长条 runtime 问题分别回 P1-A/B/D/E。
+
+验收：每个反馈都有谱面、模式、输入条件、期望/实际和归线结论，不能用单一 headless 数字替代真实组合证明。
+
+### 3. 未来反馈需求必须另立专题
+
+只有用户重新确认 FAST/SLOW、pacemaker 或其它训练反馈的产品价值后，才允许新建实施专题；不得直接复活已删除 aggregate/card。
+
+新专题必须先冻结：
+
+1. 玩家问题与最小用户可见结果。
+2. 数据 authority、生命周期与是否需要持久化。
+3. P1-A 提供的宿主/skin slot 与 fallback 粒度。
+4. 与全局 `JudgementCounterDisplay`、toast、pre-start overlay、results 的去重边界。
+5. 自动与人工验收、回退路径和删除策略。
+
+未完成以上决议前，反馈需求不得偷塞进 gauge、combo、wrapped HUD 子节点或旧 `IBmsHudLayoutDisplay` 扩展。
+
+## 当前不做
+
+- 不恢复常驻 GN/FAST-SLOW/pacemaker/summary card，也不把其历史设计当作待实现清单。
+- 不为展示需求修改判定窗口、score bucket、gauge truth 或 replay。
+- 不把完整 Floating/FHS、训练系统或新 gameplay mod 混入 parity 维护。
+- 不复制 P1-E/P1-G 的人工验收状态到本页。

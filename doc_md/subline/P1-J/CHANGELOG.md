@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-07-16
+
+### 文档健康治理：PLAN 收敛到四个未完 gate，音频约束去除事故流水账
+
+- PLAN 只保留末端 lane runtime proof、转谱 LN、50k 证据驱动治理和 P1-G 人工清单；已修复的普通密度/试听故障及逐日回退过程仍按原日期保留在本文件。
+- STATUS 与 PLAN 统一为四个未完 gate；CONSTRAINTS 将超长更新头和事故/旧测试数字归回历史，同时保留原生 BMS、shared store、转谱-mania、track/preview、验证及 `getNextChannel()` O(1)/不得 per-Play 全池扫描的稳定热路径合同。
+- 将历史案例中的本机谱库绝对路径改为 `<chartRoot>` 脱敏占位，保留谱面层级与诊断含义。
+- 当前功能、缺口和产品 gate 未变；本次仅改文档，未改代码，未运行产品测试或 Release。
+
 ## 2026-07-10（Skin V1 topology 运行时 gate 入计划；无代码改动）
 
 - P1-K 修复 converter lane 上界后，P1-J 必须用玩家/auto 两条路径证明 5K K5、7K K7、14K K14/S2 进入同一 shared keysound store 并发声，不能只验证 DTO 数量。
@@ -12,7 +21,7 @@
 
 ## 2026-06-23（选歌试听音频泄漏进游玩开头 已修：beatmap track 在 BMS 游玩静音；mute 方案取代此前已回退的虚拟轨方案）
 
-> 起因：用户以 `D:\beatoraja...\Stella\st4\Lyrith -迷宮リリス-\_7INSANE.bms` 为例，反映「songselect 下部分 BMS 谱面有 preview 音频，autoplay 或正常游玩在游戏开头都会播这段 preview 音频」，并判断是可能广泛存在的 bug。归属主 `P1-J`（音频时序治理），即 STATUS 既有开放遗留 ④。
+> 起因：用户以 `<chartRoot>\Stella\st4\Lyrith -迷宮リリス-\_7INSANE.bms` 为例，反映「songselect 下部分 BMS 谱面有 preview 音频，autoplay 或正常游玩在游戏开头都会播这段 preview 音频」，并判断是可能广泛存在的 bug。归属主 `P1-J`（音频时序治理），即 STATUS 既有开放遗留 ④。
 
 ### 根因（日志 + 代码链路确诊）
 

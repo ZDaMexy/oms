@@ -4,6 +4,14 @@
 
 ## 2026-07-16
 
+### 文档健康治理完成：当前态、未来顺序、稳定合同与历史重新归位
+
+- 将 `DEVELOPMENT_STATUS.md` 从逐切验证账压缩为当前能力、gate、唯一最新产品验证、本次文档治理、仍影响决策的风险和下一门；历史验证仍由本文件按日期保存。
+- 将 `DEVELOPMENT_PLAN.md` 收敛为治理完成后的活动门、`SV1-1` 未完纵切及 `SV1-2`～`SV1-7` 的依赖/验收；移除已完成 `SV1-0` 细史、重复测试数字和第九至二十切历史快照。
+- `README.md` 降为兼容路由；`TECHNICAL_CONSTRAINTS.md` 保留稳定 Skin V1 合同，并把 GN/WN、Floating、预开谱 delay 与 mod 记忆的仍有效合同收成短条，避免它们只埋在旧实现史里。
+- **产品事实与 gate 未变**：新增可见功能仍为 1，首个编号帧动画自动 gate 已过、用户实机待确认，Skin V1 整体仍不可用。此次仅改文档，未改代码，未运行产品测试或 Release。
+- **文档验证**：Windows PowerShell 5.1 与 PowerShell 7 均运行 `CheckDocumentation.ps1` 通过（118 个 Markdown、946 个相对链接、22 个 memory wiki 链），`git diff --check` 通过；P1-J/P1-L 两处历史诊断路径已脱敏且未改变诊断含义。
+
 ### 当前事实、作者文档与 memory 同步；移交下一轮健康治理
 
 - **产品事实未变**：`SV1-0` 自动/数据/2026-07-14 实机三门全过；首个玩家可见普通短键编号帧纵切自动 gate 已过，Skin V1 新增可见功能仍为 **1**，新动画实机仍待确认；`SV1-1` 未完成、`SV1-2` 仅 early carrier、`SV1-3`～`SV1-7` 未实现，Skin V1 整体不可用。
@@ -222,7 +230,7 @@
 - 内容复核确认异常记录是 `BmsOmsReferenceSkin` 经 `EnsureMutableSkin()` 生成的 mutable copy，仅含自动 metadata 与 HUD/playfield JSON，没有 gameplay 素材。用户确认其无保留价值并授权执行，且要求不操控桌面。
 - 备份迁移前 Realm/配置/四个关联 blob 并逐项校验；在第二代副本上预检精确 GUID、旧类型、model hash、4 file usages、authority 与总记录数，单事务演练通过后才应用生产。
 - 生产事务将 `SkinInfo` 从 3 条减为 2 条，移除异常 managed GUID，并把 OMS fixed-ID 的四个字段修正为当前 `OmsSkin.CreateInfo()`；post-migration dynamic read-only reopen 返回 `VERIFY_OK_NO_WRITE`。未启动客户端、未运行 scanner/全局 cleanup，四个无 authority blob 暂留且已保全。
-- Realm length 前后同为 108,003,328 bytes，但 SHA-256 从 `FB9E...B40` 变为 `3761...BD8`，mtime 没有变化；新增地雷是 Realm 写入证据不能只看 mtime。临时 dynamic-only 工具构建 0 error / 1 条预期空 schema Fody warning。
+- Realm length 前后保持一致、脱敏指纹发生变化，而 mtime 没有变化；新增地雷是 Realm 写入证据不能只看 mtime，精确取证值只留仓库外恢复归档。临时 dynamic-only 工具构建 0 error / 1 条预期空 schema Fody warning。
 - 数据 blocker 已解除；实机 gate 仍待用户反馈，`SV1-1` 未开始。
 
 ## 2026-07-10

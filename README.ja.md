@@ -54,20 +54,20 @@ OMS は [osu!lazer](https://github.com/ppy/osu) をベースに、osu!・Taiko�
 
 ### オフライン優先
 
-OMS は現在、完全にオフラインで動作します。アカウント、オンラインランキング、譜面ダウンロード、ニュース / チャット、マルチプレイや観戦などのオンライン機能は既定で非表示または無効になっており、今後の段階で順次開放する予定です。
+OMS のゲームプレイ、ライブラリ、ユーザーデータ経路は既定でオフライン動作します。Phase 3 までは OMS 独自サービスを無効のままにし、既定 endpoint も空のままです。アカウント、オンラインランキング、譜面ダウンロード、ニュース / チャット、マルチプレイや観戦などのオンライン機能は既定で非表示または無効です。
 
 唯一の例外は **BMS 難易度表** です。ローカルパスと公開 URL からのインポート / 更新に対応しており、OMS 独自のサーバーには一切依存しません。
 
 ### BGA 再生
 
-BMS プレイ中、BGA はプレイフィールド横のフローティングパネルにレイアウトに応じて端に寄せて表示されます（1P は右、2P は左、中央は右、14K は中央）。静止背景、画像 BGA、POOR レイヤー、`.mp4` 動画はそのまま利用でき、全画面背景には譜面背景をぼかしたものが表示されます。BMS 設定の「BGA を表示」でパネル全体をオフにできます。
+BMS プレイ中、BGA はプレイフィールド横のフローティングパネルにレイアウトに応じて表示されます（1P は右、2P は左、中央は右、14K は現在四隅）。静止背景、画像 BGA、POOR レイヤー、`.mp4` 動画はそのまま利用でき、全画面背景には譜面背景をぼかしたものが表示されます。BMS 設定の「BGA を表示」でパネル全体をオフにできます。
 
 古い動画形式（`.mpg`、`.wmv`、`.avi`、`.flv`）は内蔵プレイヤーでデコードできず、既定では静止画像が表示されます。これらを再生するには ffmpeg を用意してください。
 
 - システムの PATH に導入する：`winget install ffmpeg`（OMS が起動中なら一度再起動）、または
 - [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) をダウンロードし、`bin\ffmpeg.exe` を OMS のプログラムディレクトリ（`osu!.exe` の隣）またはデータディレクトリ（既定は `%APPDATA%\oms`）に置く。
 
-その上で BMS 設定の「デコードできない BGA 動画をトランスコードする」を有効のままにしてください。該当する譜面を初めて開くとバックグラウンドでトランスコードが行われ、完了するまでは静止画像を表示し、完了後に動画へ切り替わります。結果はデータディレクトリの `bga-video-cache\` にキャッシュされ、次回以降はそのまま再生されます。
+その上で BMS 設定の「デコードできない BGA 動画をトランスコードする」を有効のままにしてください。初回はロード中に最長約 8 秒待機し、間に合えば動画を先頭から再生します。タイムアウトした場合は静止画像を表示し、完了後に動画へ切り替わります。`bga-video-cache\` は現在のプロセスセッション内だけで再利用され、OMS の再起動時に消去された後、必要に応じて再トランスコードされます。
 
 ## ソースからのビルド
 
@@ -97,7 +97,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 - [現状と未解決の課題](doc_md/mainline/DEVELOPMENT_STATUS.md)
 - [変更履歴](doc_md/mainline/CHANGELOG.md)
 
-リポジトリの案内と「コードを変更したらドキュメントも更新する」という規律は [CLAUDE.md](CLAUDE.md) に記載されています。
+リポジトリの案内と「コードを変更したらドキュメントも更新する」という規律は [AGENTS.md](AGENTS.md) に記載されています。`CLAUDE.md` は互換用の案内に限られます。
 
 ## プロジェクトの状況
 
@@ -107,9 +107,9 @@ OMS は **Phase 1**（ローカルの BMS / mania コアフロー）の仕上げ
 
 [Issue](https://github.com/ZDaMexy/oms/issues) でのフィードバックや Pull Request を歓迎します。コードを提出する前に、以下にご注意ください。
 
-- `osu.Desktop.slnf` でのビルドを推奨し、Release ビルドが警告・エラーゼロであることを確認してください。
+- `osu.Desktop.slnf` でのビルドを推奨します。Release はエラーゼロかつ未説明の警告を増やさないことが必要です。既知の警告基準は [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) を参照してください。
 - BMS 関連のロジックを変更する場合は `osu.Game.Rulesets.Bms.Tests` を実行してください。
-- 計画・状況・制約・検証結論を変える変更は、**同じコミット内で** [`doc_md/`](doc_md/README.md) の対応するガバナンスドキュメントを更新する必要があります（[CLAUDE.md](CLAUDE.md) を参照）。
+- 計画・状況・制約・検証結論を変える変更は、**同じコミット内で** [`doc_md/`](doc_md/README.md) の対応するガバナンスドキュメントを更新し、`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` と `git diff --check` を実行してください（[AGENTS.md](AGENTS.md) を参照）。
 
 ## ライセンス
 
@@ -121,5 +121,3 @@ OMS は osu!lazer の方向性を定めたフォークであり、その目標�
 
 - [osu!lazer](https://github.com/ppy/osu) と [osu-framework](https://github.com/ppy/osu-framework) —— OMS の上流の基盤。
 - IIDX、LR2、beatoraja —— 判定・ゲージ・スピード仕様の方向性の参照元。
-</content>
-</invoke>

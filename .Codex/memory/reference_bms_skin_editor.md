@@ -4,7 +4,6 @@ description: "Skin Layout Editor chain in OMS — what it can edit, the BMS/mani
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: 75274b94-147e-42cf-b09d-45853ae648c8
 ---
 
 OMS's "skin editor" = upstream lazer **Skin Layout Editor** (`osu.Game/Overlays/SkinEditor/`), essentially untouched. Entry: `Ctrl+Shift+S` (`GlobalAction.ToggleSkinEditor`) or Settings → Skin → "Skin Layout Editor". Reviewed 2026-06-15.

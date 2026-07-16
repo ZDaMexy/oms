@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **实现状态（务必先读）**：截至 **2026-07-16**，`SV1-0` 自动、数据与用户实机 gate 已全部通过。`SV1-1` 在前二十个合同/来源事实切片后交付了首个玩家可见纵切：当用户选中已导入的 managed `.osk` 时，native `[Bms] NoteImage*` 可用 `name-0`、`name-1`…驱动 BMS 普通短键动画，并用于真实 gameplay 与开局前速度预览；自动 gate 已通过，新增动画仍待用户实机确认。当前只有普通短键 critical slot 消费 `Provide/Inherit`；作者 `Suppress`、其它 slot、`chartskin/` 生产链、整包原子重载、scene/event/script 与文件型默认均未启用。程序化 `OmsSkin` 仍是迁移链底，Skin V1 整体不可用；最终目标仍是同权的 `oms-simple.osk` 与 `oms-complex.osk`，第三方使用完全相同的公开 API。恢复依据见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)，新架构见 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **当前作者能力（2026-07-16）**：已导入并选中的 managed `.osk` 可用 native `[Bms]` 静态字段，并以 `name-0`、`name-1`…为 BMS 普通短键提供编号帧动画；动画自动 gate 已过、用户实机仍待确认。作者 `Suppress`、其它 gameplay slot、`chartskin/` 生产链、整包原子重载、scene/script 与文件型默认尚未开放，程序化 `OmsSkin` 仍是迁移链底，因此 Skin V1 整体不可用。最新状态只看 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)；恢复边界和目标设计分别见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
@@ -21,19 +21,18 @@
 7. [必备 / 推荐 / 可选与三态解析](#7-必备--推荐--可选与三态解析)
 8. [三个作者面与布局编辑器边界](#8-三个作者面与布局编辑器边界)
 9. [`oms-simple`、`oms-complex` 与最终 fallback](#9-oms-simpleoms-complex-与最终-fallback)
-10. [当前制作流程与 V1 验收](#10-当前制作流程与-v1-验收)
+10. [制作流程与 V1 验收](#10-制作流程与-v1-验收)
 11. [Skin Authoring Kit 是什么](#11-skin-authoring-kit-是什么)
 - [附录 A：游玩元素全集速查（创作者上限）](#附录-a游玩元素全集速查创作者上限)
 - [附录 B：必备元素清单](#附录-b必备元素清单)
 - [附录 C：`skin.ini` 字段全表](#附录-cskinini-字段全表)
 - [附录 D：受信任代码型 provider](#附录-d进阶受信任代码型-provider开发扩展)
-- [附录 E：状态与路线图](#附录-e状态与路线图)
 
 ---
 
 ## 1. 这套皮肤能做什么 / 不做什么
 
-**V1 目标能做（不是当前全部可用）**：stage、lane、note/LN、判定位置、judgement、gauge、combo、lane cover、BGA frame，以及 turntable、keyflash、hit lighting、hold light、ghost/TD、bpm/progress 等。当前 `.osk/ini` 实现 F1 静态子集，并有一个窄动态例外：managed `.osk` 的 BMS 普通短键编号帧动画；其它动态外部运行时尚未交付。分层矩阵见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
+**V1 目标能做（不是当前全部可用）**：stage、lane、note/LN、判定位置、judgement、gauge、combo、lane cover、BGA frame，以及 turntable、keyflash、hit lighting、hold light、ghost/TD、bpm/progress 等。当前可用范围只以页首能力块和 P1-A STATUS 为准；元素分层见 [附录 A](#附录-a游玩元素全集速查创作者上限)。
 
 **V1 作者面分层**：
 
@@ -301,11 +300,11 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 
 ---
 
-## 10. 当前制作流程与 V1 验收
+## 10. 制作流程与 V1 验收
 
 1. **当前复制 reference ini；V1 复制 `oms-simple` 源目录**（[§9](#9-oms-simpleoms-complex-与最终-fallback)）为起点，而非从空白开始。
-2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}` 指向资源基名并提供 `name-0`、`name-1`…；当前仅已导入 managed `.osk` 的 native `[Bms]` 普通短键支持，固定 60 FPS，LN/mania compatibility 不在本纵切。
-3. **重新打包、导入和重选**：当前没有可信热重载；不要依赖 `chartskin/` 自动扫描。
+2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}` 指向资源基名并提供 `name-0`、`name-1`…；支持范围以页首能力块为准，帧率目前固定 60 FPS。
+3. **重新打包、导入和重选**：在 P1-A 明确开放原子热重载前，不要依赖 `chartskin/` 自动扫描或局部文件变化。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
 5. **看运行结果与日志**：当前诊断并不完整；遇到静默回退时以实际渲染与 focused test 为准。
 6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
@@ -336,7 +335,7 @@ mania 的上限审查给出的结论不是“它已有通用脚本”，而是�
 | --- | --- | --- | --- |
 | Stage / backdrop | legacy 素材与固定布局较完整 | backdrop/baseplate 可配；stage 消费方不完整 | named slot + 静态/动画 scene node |
 | Lane / playfield | column 背景、宽度、间距、key area；行为固定 C# | lane/divider/hit target 的 F1 颜色/纹理/几何 | engine layout snapshot + per-lane template |
-| Note / LN | 逐列素材、body style、固定 C# hold 状态 | note/LN F1 静态子集；managed package 的普通 `NoteImage*` 静态/编号帧已进真实 gameplay 与速度预览，LN 动画及其它三态 slot 未接 | pooled note/LN template；滚动与裁剪仍归引擎 |
+| Note / LN | 逐列素材、body style、固定 C# hold 状态 | note/LN legacy 静态字段；普通短键编号帧的支持边界见页首能力块 | pooled note/LN template；滚动与裁剪仍归引擎 |
 | Mine | 无 BMS 语义 | 当前为程序化 visual，未形成外部完整槽 | pooled mine template + hit/visibility event |
 | Key / hit effects | key press、column light、explosion 的素材；动画逻辑固定 C# | hit target 已有，keyflash/bomb/turntable 等未生产化 | press/release/hit/scratch 事件 + effect pool |
 | Judgement | legacy 图片/帧，播放逻辑固定 C# | 主要是程序化/受信任 code provider；非完整 `[Bms]` 作者面 | optional result variant/animation；neutral result key |
@@ -430,29 +429,3 @@ dotnet test .\osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj --n
 ```
 
 至少手测：7K/14K lane 数变化、scratch/normal 差异、LaneCover focused 切换、StaticBackgroundLayer 有图/无图。
-
----
-
-## 附录 E：状态与路线图
-
-| 能力 | 状态 | 阶段 |
-| --- | --- | --- |
-| 可信恢复、数据/实机 gate | `[已完成]` | `SV1-0` |
-| neutral layout/event/config DTO、三态、capability 与 fixture | `[进行中：前二十个合同/provenance 地基 + 1 个玩家可见普通短键编号帧纵切；自动 gate 已过、实机待确认；其它 slot/Suppress 未交付]` | `SV1-1` |
-| 安全 G1：路径 authority、扫描/选择、原子 reload | `[仅 early carrier：folder ctor + schema 56 字段保留；scanner/选择/删改/原子 reload 未交付]` | `SV1-2` |
-| 5K/7K 四布局、9K、14K 的唯一 layout snapshot 与单一 BGA content authority | `[规划]` | `SV1-3` |
-| adapter-first 共同 ini codec 与 mania compatibility fallback | `[规划；候选 fixture 已有，只有 native BMS 普通短键是窄生产例外]` | `SV1-4` |
-| declarative scene、模板/对象池、typed binding、只读事件 ABI | `[规划]` | `SV1-5` |
-| 可选脚本沙箱、capability 授权与资源/指令/heap 预算 | `[规划]` | `SV1-6` |
-| `oms-simple` fallback + `oms-complex` + Authoring Kit + 全 release gate | `[规划]` | `SV1-7` |
-
-旧 `F/G` 编号只用于查询 2026-06-27 至恢复事故前后的历史，不再是执行顺序。完整设计取舍、当前代码证据与完成定义见 [Skin V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
-
-当前实现暂停于 `d1ea483`。下一新对话先做文档与 memory 健康治理；治理完成并重新冻结执行门后，仍须由用户单独确认 managed `.osk` 的 BMS 普通短键编号帧动画，不能复用 2026-07-14 的 `SV1-0` 静态验收，也不能据此宣称 Skin V1 可用。
-
-### 后续追踪文档
-- [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)：当前真实状态
-- [../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md)：执行顺序与阶段依赖
-- [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)：权威产品边界、fallback 纪律、release gate
-- [../subline/P1-A/README.md](../subline/P1-A/README.md)：P1-A 皮肤边界子线（本规划主归属）
-- [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：本轮 mania/BMS 代码审查、共享边界、layout/event/script 完成定义

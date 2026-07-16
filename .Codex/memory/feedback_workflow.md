@@ -21,4 +21,4 @@ metadata:
 - Realm link-traversal predicate 可能失败或静默零结果；复杂条件 materialize 后客户端过滤，并记录 Found N（包括 0）。
 - 关注隐藏 timeout、`CacheNullValues=false`、海量 async task allocation 与 UI 线程/全局锁，而不只看算法表面。
 
-权威协作规则始终以 [AGENTS.md](AGENTS.md) 为准；本文件只记录用户偏好和易忘的现场方法。
+权威协作规则始终以 [AGENTS.md](../../AGENTS.md) 为准；本文件只记录用户偏好和易忘的现场方法。

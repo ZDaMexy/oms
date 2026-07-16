@@ -4,7 +4,6 @@ description: "How BMS title/difficulty-name/artist/creator are displayed in song
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: e2eb1021-fe7c-4ffa-830e-2a6241d809e4
 ---
 
 BMS song-select info display (曲名/难度名/曲师/谱师) is centralized in `BeatmapLocalMetadataDisplayResolver` (osu.Game/Beatmaps, internal static). It keys on `beatmap.Ruleset.ShortName == "bms"`.

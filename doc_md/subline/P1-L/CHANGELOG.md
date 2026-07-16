@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-07-16
+
+### 文档健康治理：完成阶段压为基线，PLAN 只保留内容/视图解耦与未完验收
+
+- PLAN 不再展开已落地地雷、滚动旁路、BGA、ffmpeg 与缓存实现史；当前只保留 Skin V1 单 content/viewport、代表谱视觉、反向滚动和证据驱动性能治理。
+- 稳定行为继续由 CONSTRAINTS 保持，并纠正其 BGA 标题为“主链已落地、ownership 迁移待做”；stop-motion memory 也统一当前默认 `Auto`，不再同时保留历史 default Off。逐日实现与事故证据仍在本文件。
+- 当前功能和产品 gate 未变；本次仅改文档，未改代码，未运行产品测试或 Release。
+- 将历史 ffmpeg 诊断中的本机绝对路径改为 `<dataRoot>\ffmpeg.exe`，不改变并发 temp 污染的根因与修复证据。
+
 ## 2026-07-10
 
 ### Skin V1 BGA ownership 重冻（文档/架构切片）
@@ -55,7 +64,7 @@
 
 BMS 全量 **948/948**；编译 0 错误。
 
-**五次跟进（真因确诊——前面所有假设都错了）**：用户给出 `h264 ... Error splitting the input into NAL units / Invalid NAL unit size (garbage > small)` + 提议查 ffmpeg。直接动手验证：① 用户 `D:\oms\data\ffmpeg.exe` ＝完整 gyan.dev 8.x 构建、含 libx264，**没问题**；② **用户自己的 ffmpeg 解不了缓存里的 .mp4**（`Invalid NAL unit size (0 > 25614)`）→ 文件本身就是**坏的**；③ 用同一组参数**全新转码一次**→**解码干净**（参数没问题）；④ **模拟两个 ffmpeg 并发写同一个 temp** → 复现出**一模一样的 `Invalid NAL unit size (0 > 25614)`**。**真因＝并发转码写同一个固定 temp 路径 `<hash>.mp4.tmp` 互相穿插污染**：转码 Task 在 BgaPlayer dispose 时不取消，用户退出/快速重放→新一局又对同一 temp 起第二个 ffmpeg→产物字节交错→不可解码。一旦坏文件落缓存，`Resolve` 命中 `File.Exists` 永远端出坏文件。**这同时解释了之前所有现象**（黑屏/静态/HW 失败/SW 失败/High vs baseline 都一样）——根本不是 profile/HW/demux，是文件被并发写坏了。**修复**：① temp 文件名加 `Guid`（`<hash>.<guid>.tmp`）——并发也各写各的、永不穿插；② `inProgress` 改 **static**（跨 cache 实例去重，孤儿/重放不再起第二个 ffmpeg）；③ 发布用 `File.Move(tmp,dest,overwrite:true)` 原子覆盖；④ `transcode_version`→**3** 失效旧坏缓存自动重转。BMS 全量 **948/948**。**实机验收待用户确认（干净构建+清 `bga-video-cache/`+重放，视频应真正播放）。教训：缓存产物损坏会被 `File.Exists` 永久端出、把每次诊断引偏——先验证缓存文件本身是否可解码（用产出它的同一 ffmpeg 解一遍）再怀疑解码端。**
+**五次跟进（真因确诊——前面所有假设都错了）**：用户给出 `h264 ... Error splitting the input into NAL units / Invalid NAL unit size (garbage > small)` + 提议查 ffmpeg。直接动手验证：① 用户 `<dataRoot>\ffmpeg.exe` ＝完整 gyan.dev 8.x 构建、含 libx264，**没问题**；② **用户自己的 ffmpeg 解不了缓存里的 .mp4**（`Invalid NAL unit size (0 > 25614)`）→ 文件本身就是**坏的**；③ 用同一组参数**全新转码一次**→**解码干净**（参数没问题）；④ **模拟两个 ffmpeg 并发写同一个 temp** → 复现出**一模一样的 `Invalid NAL unit size (0 > 25614)`**。**真因＝并发转码写同一个固定 temp 路径 `<hash>.mp4.tmp` 互相穿插污染**：转码 Task 在 BgaPlayer dispose 时不取消，用户退出/快速重放→新一局又对同一 temp 起第二个 ffmpeg→产物字节交错→不可解码。一旦坏文件落缓存，`Resolve` 命中 `File.Exists` 永远端出坏文件。**这同时解释了之前所有现象**（黑屏/静态/HW 失败/SW 失败/High vs baseline 都一样）——根本不是 profile/HW/demux，是文件被并发写坏了。**修复**：① temp 文件名加 `Guid`（`<hash>.<guid>.tmp`）——并发也各写各的、永不穿插；② `inProgress` 改 **static**（跨 cache 实例去重，孤儿/重放不再起第二个 ffmpeg）；③ 发布用 `File.Move(tmp,dest,overwrite:true)` 原子覆盖；④ `transcode_version`→**3** 失效旧坏缓存自动重转。BMS 全量 **948/948**。**实机验收待用户确认（干净构建+清 `bga-video-cache/`+重放，视频应真正播放）。教训：缓存产物损坏会被 `File.Exists` 永远端出、把每次诊断引偏——先验证缓存文件本身是否可解码（用产出它的同一 ffmpeg 解一遍）再怀疑解码端。**
 
 ## 2026-06-20
 

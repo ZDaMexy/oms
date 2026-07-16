@@ -1,26 +1,8 @@
-# P1-C：判定语义、绿色数字与反馈闭环
+# P1-C 路由
 
-本子线是 Phase 1.x 下的 `P1-C` 正式入口，主承接判定语义补强、绿色数字与速度反馈、results feedback，以及后续 `FAST/SLOW`、judge display、visual timing-offset、EX pacemaker 的统一反馈家族。
+P1-C 负责 BMS 判定家族与反馈语义边界。主要 parity 已落；常驻反馈卡及 FAST/SLOW、pacemaker、summary、常驻 GN 已删除，未来若重建必须另立专题。
 
-## 归线关系
-
-- 主归属 `P1-C`：收口 BRJ / LR2 parity、绿色数字 HUD、速度反馈与训练反馈闭环。
-- 协作子线 `P1-A`：`P1-C` 的 feedback family 依赖 `P1-A` 冻结的 BMS HUD 宿主与皮肤边界；对应入口见 [../P1-A/README.md](../P1-A/README.md)。
-- 参考输入：以 [../../other/IIDX_REFERENCE_AUDIT.md](../../other/IIDX_REFERENCE_AUDIT.md) 做方向校准，但当前不等价于正式进入完整 `FHS` 主线。
-
-## 子线文档
-
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)
-- [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)
-- [CHANGELOG.md](CHANGELOG.md)
-- [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)
-
-## 当前结论
-
-- 当前阶段定位：`P1-C` 当前范围已阶段性收口；`CreateStatisticsForScore()` 的 results summary / gauge history consumer proof 已完成，BRJ / LR2 parity 与 full Floating parity 统一后置为 backlog。
-- **（2026-06-15 反馈卡移除）** 承载 C1/C3 反馈家族（FAST/SLOW、judge display、visual timing-offset、EX pacemaker、judgement summary、常驻 GN）的常驻 `DefaultBmsSpeedFeedbackDisplay` 已按产品决定整体删除（详见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) / [CHANGELOG.md](CHANGELOG.md)）；判定**计数**改由全局 `JudgementCounterDisplay` 承担（已修 COMBO BREAK），feedback 家族如需重建须另立专题。
-- 当前 `GN / WN` 已在 runtime metrics、toast 与 pre-start overlay 中存在（**常驻 HUD 表达随上条移除**），并共享同一组 mode-aware 运行时语义。
-- tri-mode Hi-Speed settings、`阻止谱面开始/ingame start` 的前 5 秒阻塞/全程调速语义，以及“delay 若在 hold 期间耗尽，则松手重给满一段 fresh delay”这条 release 分支都仍属于这条既有 `P1-A / P1-C` 交叉线，不需要新开主线；真正后置的是 full Floating parity。
-- pre-start 1 号普通轨纯视觉流速预览第一版已实现：当前以第一非 scratch 轨上的纯视觉 preview layer 落地，复用当前 note skin lookup 与 scroll authority，并按 pre-start pending / hold / pause state gate；不得经 `BmsHitObject` / `DrawableBmsHitObject` / `BmsLane` 判定或键音链。
-- `P1-C` 不能绕过 `P1-A` 直接扩写旧版 HUD 接口，也不能把 speed feedback 临时塞进 `GaugeBar`、`ComboCounter` 或 wrapped HUD 子节点。
-- 所有涉及判定语义、反馈闭环、pre-start operator surface 与绿色数字表达的改动，都必须同步更新本目录四件套，并在影响全局时反向同步 `../../mainline/`。
+- 开工先读 [当前状态](DEVELOPMENT_STATUS.md)。
+- 修改窗口、poor、release 或反馈边界前，再读 [当前计划](DEVELOPMENT_PLAN.md) 和 [技术约束](TECHNICAL_CONSTRAINTS.md)。
+- 已完成实现、产品删除和旧测试数字只按日期查 [CHANGELOG](CHANGELOG.md)。
+- HUD/skin 宿主见 [P1-A 当前状态](../P1-A/DEVELOPMENT_STATUS.md)；真实谱与人工验收分别归 P1-E/P1-G。

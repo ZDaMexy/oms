@@ -1,6 +1,6 @@
 # P1-E 开发计划：gameplay 与长条真实谱面验校
 
-> 最后更新：2026-04-20
+> 最后更新：2026-07-16（文档健康治理；执行顺序未改变）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。
 
 ## 子线目标

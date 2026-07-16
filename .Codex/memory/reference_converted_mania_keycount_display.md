@@ -4,7 +4,6 @@ description: "Why converted-mania key-count display was wrong/varied in song sel
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: e2eb1021-fe7c-4ffa-830e-2a6241d809e4
 ---
 
 Converted-mania (BMS shown under the mania ruleset) song-select **key-count display** was wrong and "五花八门" (varied) — fixed 2026-06-13.

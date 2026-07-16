@@ -4,7 +4,6 @@ description: "Song-select carousel performance lessons for 50k+ beatmap librarie
 metadata: 
   node_type: memory
   type: reference
-  originSessionId: d9f40bda-cfd5-4076-8bbf-1f08a85c9e5c
 ---
 
 Hard-won lessons from getting OMS song select usable with a 58k+ BMS + 28k mania library (K10 second slice, 2026-05-28). Concrete bottlenecks and the patterns that fixed them — keep these in mind when touching anything carousel/filter/difficulty-cache adjacent.

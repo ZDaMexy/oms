@@ -39,10 +39,10 @@
 
 从 **Phase 1.1 皮肤系统专项** 开始，OMS 的公开发行物需要逐步满足以下约束：
 
-1. 终端产品只保留 **OMS 内置皮肤** 作为唯一内建默认皮肤族，覆盖全局 UI、mania 与 BMS。
+1. 最终 gameplay 默认面由只读 canonical `oms-simple.osk` 覆盖 mania 与 BMS，并以 `oms-complex.osk` 证明公开作者 API 上限；程序化 `OmsSkin` 只保留到前者通过 parity、完整性、原子恢复与实机 gate。
 2. `Argon`、`Triangles`、`DefaultLegacy`、`Retro` 以及其他仅属于 osu!lazer 原生产品表面的内建默认皮肤，不再作为 OMS 的正式内建皮肤对外暴露。
-3. mania 与 BMS 的规则集默认 fallback 必须统一回落到 OMS 内置皮肤，而不是回落到上游原生默认皮肤。
-4. 用户自行安装的自定义皮肤仍可作为覆盖层存在，但缺失的组件必须按组件粒度回退到 OMS 内置皮肤，而不是出现空白或重新落回上游默认资源。
+3. mania 与 BMS 的规则集默认 fallback 必须统一逐组件回落到 `oms-simple.osk`，而不是上游原生默认皮肤或长期程序化主题层。
+4. 用户自行安装的自定义皮肤仍可作为覆盖层存在，但缺失的组件必须按组件粒度回退到 canonical 包，而不是出现空白或重新落回上游默认资源。
 5. `SKIN/SimpleTou-Lazer` 或其后继候选包，在 mania 与 BMS 均完成 OMS-owned 默认路径前，只能被描述为“内置皮肤候选基线”，不得被对外宣称为“已完成的 OMS 默认皮肤”。
 6. 在 Phase 1.1 完成前，仓库里即使仍保留上游默认皮肤实现或资源，也只视为过渡态，不构成公开发行标准。
 
@@ -53,9 +53,7 @@
 3. BMS 专属组件如 scratch lane、lane cover、gauge bar、clear lamp、note distribution 在缺少自定义资源时都能稳定回退到 OMS 内置实现。
 4. BMS playfield 的默认几何、hit target / receptor 与 HUD 默认实现不再依赖临时 feedback 直绘层或硬编码 fallback 才能保持完整可玩。
 
-当前仓库状态说明：
-
-- 上述第 2 条尚未完全满足。2026-07-10 可信恢复后，mania 的既有 OMS 资源链保持有效，BMS 保留 F1 静态素材/ini 主链与程序化最终兜底；未经跨 ruleset 验收的 reference-default 替换已撤回。`chartskin/` 生产链、F2 动态件与文件型默认皮肤均不得计入发行能力。公开发行前仍须完成无外部皮肤的 mania/BMS 全流程人工验收与打包检查。详见 [SKIN_SYSTEM_RECOVERY_20260710.md](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)。
+本节只定义发行约束，不记录易过期的实现进度。当前是否满足这些 gate，以 [主线状态](../mainline/DEVELOPMENT_STATUS.md) 和 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准；恢复边界见 [SKIN_SYSTEM_RECOVERY_20260710.md](SKIN_SYSTEM_RECOVERY_20260710.md)。
 
 ## 用户数据存储
 
@@ -144,7 +142,7 @@
 .\SmokeTestDesktop.ps1        # 8 秒非交互启动验证
 ```
 
-2026-05-09 已复核：修正 single-file 自解压参数后，新解压的便携发行包冷启动恢复正常；Release smoke test 也已通过。
+冒烟结果只对生成它的发行包有效；每次候选包都应重新记录冷启动结果，并把日期、commit 与结果写入 P1-F `CHANGELOG`，不要复用本文中的历史通过结论。
 
 ## 在线功能状态
 

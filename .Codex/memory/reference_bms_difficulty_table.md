@@ -8,7 +8,7 @@ metadata:
 
 # BMS 难度表召回
 
-权威当前态：[P1-H STATUS](doc_md/subline/P1-H/DEVELOPMENT_STATUS.md)；详细约束/历史位于 P1-H。
+权威当前态：[P1-H STATUS](../../doc_md/subline/P1-H/DEVELOPMENT_STATUS.md)；详细约束/历史位于 P1-H。
 
 ## 主链
 

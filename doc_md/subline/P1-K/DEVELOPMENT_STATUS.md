@@ -1,6 +1,6 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后更新：2026-07-10（Skin V1 topology 审查补两项风险；功能状态未改变）
+> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
@@ -28,8 +28,8 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 ## 当前验证
 
-- 2026-07-10 BMS 全量 **1005/1005**。
-- parser/converter/metadata 的分项历史数字和反证样本只保留在 [CHANGELOG.md](CHANGELOG.md)。
+- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
+- parser/converter/metadata 的本线历史 focused/full 数字和反证样本只保留在 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 
 ## 当前风险
 

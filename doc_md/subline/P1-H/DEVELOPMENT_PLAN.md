@@ -1,69 +1,61 @@
-# P1-H 开发计划：存储拓扑支撑线
+# P1-H 当前计划：存储拓扑
 
-> 最后更新：2026-04-29
-> 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。
+> 最后更新：2026-07-16
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定路径/扫描合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成难度表与扫描治理按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
-## 子线目标
+## 子线职责
 
-- 维持 `chartbms/`、`chartmania/`、便携模式，以及“外部/内部谱库各自的重建+增量扫描”这条存储拓扑支撑线稳定。
-- 为后续导入、发布与本地优先策略提供稳定地基。
+P1-H 维护 `chartbms/`、`chartmania/`、portable/custom data root、managed/external 谱库及其 Realm/path authority。它为导入、发行和 P1-A/G1 提供路径经验，但不输出可直接复制的皮肤 scanner/delete 实现。
+
+## 已完成基线
+
+| 面 | 当前结果 |
+| --- | --- |
+| 文件系统谱库 | BMS/mania 直读目录与 managed/external scanner 已落 |
+| 数据根 | `portable.ini → data/` 与 `storage.ini` custom root 已落 |
+| 扫描入口 | external/managed 各自支持重建与增量，职责分离 |
+| 难度表一致性 | manager-owned metadata sync、真实 refresh 结果、identity/fallback、批量写回与 reuse recovery 已收口 |
+| persisted coexistence | 难度表、converted star 等共享 `RulesetData` 时保留未知 JSON 字段 |
+| raw wrapper | timing/hitobject/break authority 可复用，Song Select BPM 不回退默认值 |
+
+完成批次、修复过程和旧测试数字不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
 
 ## 当前执行顺序
 
-1. 维持现有存储拓扑不回退。
-2. 把 `扫描外部谱库` 与 `扫描内部谱库` 的职责持续分离：前者只面向已注册外部根，后者只面向当前数据根下 `chartbms/` / `chartmania/` 的托管目录。
-3. 维持四模式语义清晰：`重建` 必须重走全部候选目录，`增量` 只补导当前没有 active `FilesystemStoragePath` 记录的目录。
-4. `内部谱库` 的两种扫描必须继续停留在独立 subsection，不得重新与外部根管理混放。
-5. 允许 `ExternalLibrarySettings` 作为首次启动向导等共享产品表面的复用入口，但复用不改变扫描语义，也不新增第二套 storage contract。
-6. 维持 managed-root 子目录判定稳定，不因尾部分隔符、大小写或同目录比较而回退；相关修改必须同步保留 focused regression coverage。
-7. 把难度表来源变更到既有谱面 metadata / Song Select read-model 的一致性收口为 manager-owned contract，不再依赖 importer 链上的 lazy side effect。
-8. `RefreshAll` 必须向 settings / first-run 返回真实结果合同；部分失败不能再伪装成全成功。
-9. correctness 收口完成前，不得把“异步化 / 大库响应性优化”当成替代方案；响应性优化只能后置到一致性问题解决之后。
-10. 维持 raw working beatmap consumer 的 timing/statistics authority 稳定；BMS loader 返回给 `WorkingBeatmap.Beatmap` 的 wrapper 必须直接携带已转换的 `ControlPointInfo` / `HitObjects` / `Breaks`，避免 Song Select 等显示面回退到默认 `60 BPM` 或再做一次额外 ruleset conversion。
-11. 继续补齐删除 / 失效语义、path identity dedup 与重扫策略。
-12. 把影响导入、发布或本地数据根的结论同步到主线与发行文档。
+### 1. 删除、失效与重扫语义
 
-## 当前新增专题：BMS 难度表一致性与刷新合同收口
+1. 明确源目录消失、单谱删除、set 变空、重命名和重新出现时 Realm record、目录与选择状态的行为。
+2. external root 永远只读；“删除”只能解除注册或标记失效，不能删用户目录。
+3. managed 删除必须通过 owning scanner/command、resolved-root containment 与冲突检查；不得让增量扫描顺手清理未知记录。
+4. `重建` 重走全部候选目录；`增量` 只补不存在 active filesystem record 的目录，不得混写成隐式 repair-all。
 
-该专题不重开 `1.13 难度表来源管理`、`1.14 MD5 匹配` 或 `1.15 Song Select 表分组`，也不新建一套独立子线文档。它继续挂在 `P1-H` 下，原因是 authority 在 difficulty-table source cache、persisted beatmap metadata 与 Song Select read-model 的一致性，而不是 settings 或 first-run 的产品表面。
+验收：备份数据根上覆盖存在→缺失→重命名→恢复→重扫矩阵，确认 Realm、磁盘和 UI 结果一致且可恢复。
 
-### 专题目标
+### 2. path identity 与重复 root
 
-1. 把“难度表来源变更后，既有 BMS 谱面 metadata 立即更新”收口为正式合同。
-2. 把 `RefreshAll` 的结果语义做实，不再吞掉失败并误报成功。
-3. 稳定 wrapper / header / body 的 source identity、fallback naming 与 preset 认领语义。
-4. 只在 correctness 收口后，再做大库响应性优化。
+1. 冻结规范化路径、大小写、尾分隔符、相对/绝对和 managed/external root 的 identity 规则。
+2. 同一物理目录被重复注册、父子 root 重叠、portable/custom root 切换时必须给出确定结果，不能重复导入或跨 authority 接管。
+3. reparse-point/symlink 风险需要显式判定；在合同冻结前 fail-closed，不做模糊字符串前缀判断。
+4. 改 `FilesystemStoragePath`/`LocalFilePath` 约定时同步所有只读 consumer，包括资源管理器定位与 BGA 路径解析。
 
-### 主归线与从属影响
+验收：Windows 大小写、分隔符、同目录别名、父子 root、重启和数据根迁移矩阵有 focused coverage。
 
-1. 主归属固定为 `P1-H`；因为这是 persisted data / read-model 的一致性问题。
-2. `Settings -> 游戏模式 -> BMS -> 难度表` 与首次启动向导难度表页继续只作为 `P1-A` 的共享产品表面，不拥有第二套 refresh / sync 语义。
-3. `Song Select` 与 `BmsNoteDistributionGraph` 只消费 beatmap metadata；本专题不把它们重新定义成 authority。
+### 3. 现场只读诊断
 
-### 执行批次
+1. 对 difficulty-table/MD5/source identity 不匹配输出脱敏、可定位的只读诊断。
+2. 先区分 persisted 字段覆盖、原始字节 MD5、carousel 中途未刷新与真实 scanner 缺口。
+3. 不在 UI 卡顿路径逐谱加载 working beatmap、全库重算或写 Realm。
 
-1. **批次一：metadata 同步收口**
-   将已存在 BMS 谱面的 difficulty-table metadata bulk update 提升为 manager 的显式职责；导入、单源刷新、全量刷新、启用、禁用、移除都必须走同一条同步路径。
-2. **批次二：RefreshAll 结果合同**
-   为 `RefreshAll` 增加结构化返回值或等价的结果模型，让 settings / first-run 能准确显示总数、成功数、失败数与失败来源。
-3. **批次三：source identity / fallback naming**
-   稳定 HTML wrapper -> `header.json` -> body 的 fallback/source name 传递；缺省 `name` 时不得退化成临时文件名。
-4. **批次四：响应性与交互打磨**
-   correctness 绿线后，再评估把全量 metadata 回写改为后台任务、分批更新或等价 busy/progress 表达。
-5. **批次五：reuse 自愈与现场诊断边界**
-   internal / external rebuild 或 re-register 命中已有 beatmap set 时，也必须重新按当前 table index 套用 metadata；若现场仍见 `Unrated`，先确认**重启后是否仍 `Unrated`**——重启后正常属 carousel 中途未刷新（已知限制，需重启反映；per-set `DifficultyTableRevision` bump 因大库卡死已撤），重启后仍 `Unrated` 才查 `RulesetData` 字段是否被其它子系统覆盖（CONSTRAINTS #22）或原始 `.bms` 字节 MD5 差异，而不是怀疑 Song Select consumer 或临时放宽匹配规则。
+验收：诊断可解释“为何未匹配/未刷新”，不泄露用户绝对路径、不改变库状态，且能明确下一 owning 子线。
 
-### 明确不做
+## 向 P1-A/G1 输出的边界
 
-1. 不新开 `mini` 或平行 `P1-*` 子线。
-2. 不借此启动远端难度表后台同步、OMS backend 镜像或定时刷新。
-3. 不把难度表来源管理泛化成跨 ruleset 通用框架。
-4. 不在 correctness 尚未收口前，优先做复杂管理 UI 或来源运营功能。
+- 可复用：managed/external authority 分离、native path containment、scanner 只维护自身记录、批量 Realm 写回和诊断模式。
+- 不可复制：谱面 scanner 的删除/失效规则、unknown-record cleanup 或把外部目录当 managed 的写权限。
+- G1 必须另行冻结 package identity、skin selection、rename/delete 与 atomic reload。
 
-### 完成条件
+## 明确不做
 
-1. manager-only 来源变更可在当前会话内立即更新既有谱面 metadata、Song Select 分组与详情，不依赖 importer 已先构造、重启或重导。
-2. `RefreshAll` 在存在失败时会准确反馈结果，不再显示纯成功提示。
-3. 本地与远端 wrapper/header 缺省命名链路都保持稳定 source identity。
-4. manager-only source mutation、settings / first-run surface 与 Song Select 消费面都具备 focused regression coverage。
-5. rebuild / reuse 命中旧 beatmap set 时不会沿用历史空 metadata；若后续仍有 `Unrated` 反馈，先按「重启后是否仍 `Unrated`」二分——重启后正常归 carousel 中途未刷新（已知限制），重启后仍 `Unrated` 才查 `RulesetData` 字段覆盖（CONSTRAINTS #22）或现场 MD5 差异，而非主链一致性缺口。
+- 不恢复远端同步、backend 镜像或定时联网刷新。
+- 不把难度表来源管理泛化为跨 ruleset 平台。
+- 不以大库性能优化替代 correctness；性能改动必须先有现场 profile。

@@ -1,7 +1,7 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-06-22（追加 #22 BMS 模式难度等级胶囊——星级换 IIDX 难度标签＋#PLAYLEVEL、按 #DIFFICULTY 上色，其它星形元素保持现状）
-> 本文件记录 `P1-I` 的硬约束。若实现与本文冲突，先修正文档或代码其中一边，再继续开发。
+> 最后更新：2026-07-16（文档健康治理；稳定合同未改变）
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
 

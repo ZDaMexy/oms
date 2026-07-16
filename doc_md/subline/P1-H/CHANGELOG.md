@@ -1,5 +1,12 @@
 # P1-H 变动日志
 
+## 2026-07-16
+
+### 文档健康治理：完成专题压为基线，PLAN 回到删除/path identity/诊断
+
+- 难度表一致性、refresh、identity 与 reuse recovery 的完成批次压为摘要并继续由历史记录承载；当前计划只保留删除/失效、path dedup、现场只读诊断及向 P1-A/G1 输出的边界。
+- 当前存储能力和产品 gate 未变；本次仅改文档，未改代码，未运行产品测试或 Release。
+
 ## 2026-06-22：新增存储字段消费方 —— 选歌右键「在资源管理器中定位」（从属 P1-I）
 
 主归属 `P1-I`（选歌右键产品面），此处仅登记一个对 P1-H 存储拓扑字段的**新只读消费方**：选歌右键「打开歌曲/谱面文件位置」经新共享 helper `osu.Game/Beatmaps/FilesystemBeatmapLocation.cs` 读取 `BeatmapSetInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` / `BeatmapInfo.LocalFilePath` 解析谱面磁盘绝对路径（external＝绝对原样、managed＝`storage.GetFullPath`、难度＝set 目录 + `LocalFilePath`），与 `BmsBgaPlayer.tryGetAbsolutePath` 同一解析范式。**影响**：若将来 P1-H 改 `FilesystemStoragePath` 的相对/绝对约定或 `LocalFilePath` 语义，须同步该 helper（及 BGA 路径解析）。仅只读消费、不改任何存储写入/扫描/拓扑语义。详见 [P1-I CHANGELOG](../P1-I/CHANGELOG.md) 2026-06-22。

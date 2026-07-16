@@ -1,14 +1,14 @@
-# BMS 演出/Gimmick 谱渲染：可行性与架构规划
+# BMS 演出/Gimmick 谱渲染：可行性与架构分析
 
 > 最后更新：2026-05-29
-> 本文档是**可行性与架构分析**（背景/机理/方案的权威来源）。已升级为正式子线 **[P1-L](../subline/P1-L/)**：执行计划/状态/约束/变更以 P1-L 四件套为准，本文只保留分析与架构论证。**Phase 1（地雷视觉）已落地；Phase 2（方案 B — BMS 专用位置积分旁路）Step A–C 已落地**（门控默认 OFF、Normal 模式忠实、可显式开启；逐帧人工验收与自动检测待办，见 [P1-L CHANGELOG](../subline/P1-L/CHANGELOG.md)）。下方第 5 节方案 B 即本次落地路径，第 3-4 节的 squash 结论已被实测证实（`GetMostCommonBeatLength` 实测为 6）。
+> 本文档是 2026-05-29 的**可行性、代码证据与架构分析快照**，不承担当前进度或执行 authority。该事项已升级为正式子线 **[P1-L](../subline/P1-L/DEVELOPMENT_STATUS.md)**；当前计划、状态、约束与历史只看 P1-L 四件套。本文保留的阶段编号和代码映射仅用于解释设计来源，使用前须以当前代码和测试复核。
 > **红线（贯穿全文）：任何实现都不得改坏 OMS 现有的正常游玩链路（mania 风格前进式滚动判定）。** 演出渲染只能作为**可隔离、可关闭**的旁路存在。
 
 ## 0. 文档定位
 
 - 目的：评估"在 OMS 内尽可能完美复刻 DEAD SOUL [Revive] 这类炫技/观赏谱视觉演出"的可行性，给出架构选项与分阶段规划。
-- 触发：对 `D:\...\soundsouler_deadsoul_Revive.bms` 的实谱解剖 + osu! 滚动引擎硬约束核查 + 社区资料检索。
-- 边界：本文聚焦**视觉演出渲染**。解析侧（已能解码 BPM/STOP/measure-length/mine 等）现状见 [../subline/P1-K/](../subline/P1-K/)；运行时性能/音频见 [../subline/P1-J/](../subline/P1-J/)；判定语义见 [../subline/P1-C/](../subline/P1-C/)。
+- 触发：对脱敏的 DEAD SOUL [Revive] 真谱样本进行解剖，并核查 osu! 滚动引擎硬约束和社区资料。
+- 边界：本文聚焦**视觉演出渲染**。解析侧当前能力见 [P1-K](../subline/P1-K/)，运行时性能/音频见 [P1-J](../subline/P1-J/)，判定语义见 [P1-C](../subline/P1-C/)。
 
 ## 1. 案例解剖：DEAD SOUL [Revive]
 
@@ -103,7 +103,9 @@ DEAD SOUL 的演出依赖 **132 万 BPM（瞬移）与基准 132 BPM 的极端�
 4. 不得为演出去解钳/改写共享核心类型 `TimingControlPoint`；BMS 专属语义留在 BMS 侧的位置积分器内。
 5. 每一阶段独立可落地、可回退，均需 focused 回归 + Release 门槛，且不得回归正常链路。
 
-## 7. 分阶段规划（草案，待立项）
+## 7. 审计时的阶段候选（历史设计输入）
+
+以下分段解释方案为何可独立回退，不是当前执行计划；正式顺序以 P1-L PLAN 为准。
 
 - **Phase 0 — 解析完备性核对**：确认地雷、measure-length、STOP、扩展/内联 BPM 已被无损解码进中间模型（多数已具备，见 P1-K）；补齐缺口（如地雷 typed 模型/可视语义）。**纯解码，无渲染改动。**
 - **Phase 1 — 地雷与可视对象呈现**：把 `MineEvents` 落成可视（非判定）对象，进入现有 playfield；先在**正常前进式滚动**下显示地雷（最小、独立、可回退）。这一步即可显著提升观感，且不触碰滚动模型。
@@ -125,18 +127,18 @@ DEAD SOUL 的演出依赖 **132 万 BPM（瞬移）与基准 132 BPM 的极端�
 - 人工：逐帧截图与 beatoraja/LR2 对照（Phase 4）。
 - 全程：BMS 全套 + Release 门槛；**每阶段都必须证明正常游玩链路无回归。**
 
-## 9b. BGA 演出（P1-L Phase 5，规划冻结 2026-06-14）
+## 9b. BGA 演出设计输入
 
-BGA（background animation：`#STAGEFILE`/`#BACKBMP`/`#BANNER` 静态图 + 通道 `04/06/07/0A` 的图序列/视频切换 + `#POORBGA` 误判层）也属"演出视觉复刻"，已归入 P1-L 作为 **Phase 5**（独立轨道，不依赖 Phase 2/3 滚动旁路）。
+BGA（background animation：`#STAGEFILE`/`#BACKBMP`/`#BANNER` 静态图 + 通道 `04/06/07/0A` 的图序列/视频切换 + `#POORBGA` 误判层）也属“演出视觉复刻”，并且可以作为不依赖滚动旁路的独立轨道；当前切片归属和完成度以 P1-L 为准。
 
-- **现状缺口**：解析层（P1-K）已完整产出 `BgaEvents` + `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA`；但转换层只取一个静态 `metadata.BackgroundFile`、整条 BGA 时间线被丢弃；显示层 `BmsBackgroundLayer` 是静态占位件且挂在 `playfieldContainer` 内被不透明 lane 背板完全遮挡（14K DP 中缝坐实）。
+- **审计快照中的缺口**：解析层（P1-K）已产出 `BgaEvents` + `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA`；但转换层只取一个静态 `metadata.BackgroundFile`、整条 BGA 时间线被丢弃；显示层 `BmsBackgroundLayer` 是静态占位件且挂在 `playfieldContainer` 内被不透明 lane 背板完全遮挡（14K DP 中缝坐实）。
 - **方案**：转换层携带时间线 `BmsBeatmap.BgaTimeline`（照 `Mines`/`ScrollProfile`，不进 `HitObjects`）；运行时 `BmsBgaPlayer` 在皮肤可定制浮窗 `BgaPanel`（挂 `DrawableRuleset.Overlays`、不被遮挡）按时间线合成 base/layer/overlay/layer2，图片走 beatmap `TextureStore`、视频走 osu!framework FFmpeg `Video`（`WorkingBeatmap.GetStream` + `PlaybackPosition` 时钟同步，同 `DrawableStoryboardVideo`），POOR 层按 `#POORBGA` 在 miss 显示。
-- **冻结决策**：图序列 + 视频一起做；默认镜像 playfield（P1→右/P2→左/居中→右/14K DP→中缝）；letterbox；自定义皮肤接口预留；仅 native 路径、converted-mania 不在 v1。
+- **当次设计输入**：图序列 + 视频一起做；默认镜像 playfield（P1→右/P2→左/居中→右/14K DP→中缝）；letterbox；自定义皮肤接口预留；仅 native 路径、converted-mania 不在 v1。它不替代 P1-L 后续冻结的正式合同。
 - **红线**：视觉-only、不进判定/计分；零核心改动；资源直读 `chartbms/`；缺失/解码失败优雅降级。
 - 完整设计/切片见 [P1-L DEVELOPMENT_PLAN Phase 5](../subline/P1-L/DEVELOPMENT_PLAN.md)，约束见 [P1-L TECHNICAL_CONSTRAINTS Phase 5](../subline/P1-L/TECHNICAL_CONSTRAINTS.md)。
 
-## 10. 联动与升级
+## 10. 联动归属
 
-1. 本文是 `other/` 分析材料；方向获批后升级为正式 subline（暂定 `P1-L`，四件套），并回写 [mainline](../mainline/) 的全局优先级。
-2. 与现有线的关系：Phase 0/1 的解码与地雷与 [P1-K](../subline/P1-K/) 相关（地雷已在其 backlog）；Phase 2/3 的运行时性能与 [P1-J](../subline/P1-J/) 协同；Phase 4 验收与 [P1-E](../subline/P1-E/)/[P1-G](../subline/P1-G/) 一致。
+1. 本文是 `other/` 分析材料，正式执行已归 [P1-L](../subline/P1-L/)；只有影响全局优先级、release gate 或硬约束时才由 P1-L 回写 mainline。
+2. 与现有线的关系：历史方案中 Phase 0/1 的解码与地雷与 [P1-K](../subline/P1-K/) 相关，Phase 2/3 的运行时性能与 [P1-J](../subline/P1-J/) 协同，Phase 4 验收与 [P1-E](../subline/P1-E/)/[P1-G](../subline/P1-G/) 一致。
 3. 与外部参考：机理对照 [BMS_FORMAT_REFERENCE.md](BMS_FORMAT_REFERENCE.md)（STOP/BPM/measure-length/mine 通道语义）。

@@ -1,182 +1,83 @@
-# P1-J 开发计划：BMS gameplay runtime 性能与音频时序治理
+# P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-07-10（补 Skin V1 topology 的末端 lane keysound 运行时 gate；既有性能阶段不改）
-> 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。本文件只拆解 `P1-J` 的执行顺序；判定/反馈语义见 [../P1-C/DEVELOPMENT_PLAN.md](../P1-C/DEVELOPMENT_PLAN.md)，真实谱面验校见 [../P1-E/DEVELOPMENT_PLAN.md](../P1-E/DEVELOPMENT_PLAN.md)。
+> 最后更新：2026-07-16
+> 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
-## 子线定位
+## 子线职责
 
-| 维度 | 归属 | 说明 |
+P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、lane/order 热路径与基于 profiler 的 dense-chart 治理。
+
+- P1-K 定义 converter 对象、lane timeline 与 keymode truth。
+- P1-C 定义判定/poor 语义；P1-E/P1-G 承接真实谱和人工验收。
+- 不把本线扩成全仓音频后端、渲染、选歌或通用性能专项。
+
+## 当前基线
+
+- 原生 BMS 与转谱-mania 的普通密度主要键音、帧抖动和开局冻结故障已收口。
+- BGM/scratch/tap note 已走 shared `BmsKeysoundStore`；转谱 LN 仍是开放缺口。
+- lane/order 热路径、通道自动增长、per-WAV cut、prewarm、pause/seek stop 与 diagnostics seam 已有稳定合同。
+- BMS gameplay beatmap track 保持静音但仍是时钟源；选歌试听只接受 `#PREVIEW`。
+
+完成阶段和误判/回退过程不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
+
+## 当前执行顺序
+
+### 1. 末端 lane keysound runtime proof
+
+依赖：P1-K 先把 `buildLaneKeysoundTimelines()` 上界从 key count 修为 lane count，并以 converter focused 证明 timeline 完整。
+
+1. 共用 P1-A `SV1-3` topology fixture，覆盖 5K K5、7K K7、14K K14/S2。
+2. 证明末端 lane 进入同一个 shared store，并在玩家、autoplay、空击/不可见 keysound 路径按现有语义发声。
+3. 不只断言 converter DTO 数量；必须有 runtime/playback record 或等价 owner-level proof。
+4. 不借本切改变 pool、cut、判定、lane action 或 skin/layout authority。
+
+验收：converter focused 与 runtime proof 同时通过，且每轨 smoke 可交 P1-A/P1-G 复用。
+
+### 2. 转谱 LN keysound 进入 shared store
+
+依赖：现有 tap-note store 路由、player-level playback log/harness 与 mania hold pooling 行为保持可验证。
+
+1. 先用现有 harness 记录当前 LN head 的播放次数、cut group、pause/seek 与 fallback，不直接在生产猜路由。
+2. LN head 必须经 store 获得 per-WAV cut；tail 继续静音。
+3. 嵌套 head 必须沿 mania 可池化类型接入；禁止恢复会让 `DrawableHoldNote.Head` 为空的非池化自定义 hold drawable。
+4. 不能为绕开 pooling 新增长期 per-note/per-lane sample player。
+5. 新路径失败时保持当前一次性 LN head 行为，不影响已稳定的 BGM/scratch/tap 路径。
+
+验收：真实转谱 LN 不重复、不静音，pause/seek 不逃逸，tap/BGM/scratch 与原生 mania hold pooling 不回归。
+
+### 3. 50k 极端 dense 谱只按证据治理
+
+触发条件：用户在当前版本真机复现，并提供 `BmsGameplayStallDiagnostics` 日志、谱面范围和可重复操作。
+
+1. 先区分阻塞 gen2、gen0→gen1 晋升风暴、shared store 扫描、alive sample-only drawable、render/present 或其它瓶颈。
+2. 给出复现前后相同场景的 frame/GC/allocation/playback 证据，再决定最小 owning abstraction。
+3. 任何调度器化、长样本分池、channel floor 调整或对象模型变化必须单独立项，并保护普通密度基线。
+4. 无复现或证据不足时保持 backlog，不做泛化 LINQ/对象池/渲染清扫。
+
+验收：改动与单一已证实瓶颈对应，自动 proof 和相同真机场景均改善，普通密度无回归。
+
+### 4. 人工音频清单交 P1-G
+
+1. dense fully-keysounded。
+2. layered/long BGM。
+3. rapid empty-strike 与 lane armed keysound。
+4. pause/seek/retry；明确当前 one-shot 只保证边界停止，不保证长样本保位续播。
+5. 原生 BMS 与转谱-mania 的代表谱对照。
+
+P1-J 提供谱面、步骤、期望和自动证据；P1-G 统一记录设备与人工结果。发现缺陷后回 P1-J 修复，不在验收表中长期堆积。
+
+## 验证矩阵
+
+| 改动面 | 最低自动验证 | 额外证明 |
 | --- | --- | --- |
-| 主归属 | `P1-J` | 收口 BMS gameplay runtime 的 keysound 时序、dense-chart 热路径与 shared audio pool 安全合同 |
-| 协作子线 | `P1-C` | `P1-J` 的任何优化都不得破坏 empty-poor、LN tail keysound、judge-family-specific lane 行为与反馈语义 |
-| 协作子线 | `P1-E` | `P1-J` 先把 runtime hot path 收口，再把真实谱面验校与 dense-chart checklist 回交给 `P1-E` / `P1-G` |
-| 协作子线 | `P1-G` | dense fully-keysounded chart、BGM layering、rapid empty-strike 与 live channel change 的最终人工确认仍后置到 `P1-G` |
-
-## 归线结论
-
-- 该专题**不并入 `P1-C`**。`P1-C` 当前负责判定、训练反馈、结果页与绿色数字/调速反馈闭环；它可以约束 `P1-J` 不得回归语义，但不应该再拥有 `BmsKeysoundStore` / `BmsLane` / `BmsOrderedHitPolicy` 这类 shared runtime hot path 的性能 authority。
-- 该专题**不并入 `P1-E`**。`P1-E` 的职责是用真实谱面验证 gameplay 结果，而不是拥有一套独立的 shared pool / lane locking / sample allocation 合同。若把 hot-path 优化挂到 `P1-E`，后续会把“修运行时”和“做验校”混成一条线。
-- 该专题**不并入 `P1-B`**。当前发现的问题不是输入注入链本身，而是输入进入 BMS runtime 后，在 keysound playback、empty-poor 检查与 lane locking 上的后半段热路径。
-- 因此 `P1-J` 作为独立子线成立，和 `P1-I` 一样拥有自己的执行顺序、冻结点与回归边界。
-
-## 当前确认基线
-
-- `BmsPlayfield` 当前缓存一个 shared `BmsKeysoundStore`，并由 `DrawableBmsHitObject`、`BmsLane` lane replay / empty-hit playback 与 BGM/note/LN keysound 共用。
-- `DrawableBmsRuleset` 当前通过 `KeysoundConcurrentChannels` 把 settings/runtime 写回到同一个 shared pool；默认值为 `32`，配置范围是 `1..256`。
-- shared keysound timing hardening 已完成：`BmsKeysoundStore.Play()` 不再对 gameplay keysound 做无条件下一帧 `Schedule()`；pause / seek 生命周期回收也已补齐，并有 player-level `TestSceneBmsPlayerAudioSemantics` 锁住 pause/resume 持位与 `BmsBgmEvent` seek 后重播语义。
-- lane/order hot path 首轮收口已完成：`BmsLane.shouldTriggerEmptyPoor()` 与 `BmsOrderedHitPolicy.getParticipatingHitObjects()` 的首批对象物化已移除，玩家命中后的重复 ordered-hit 扫描也已去掉；`DrawableBmsHoldNote.resolveBodyTicksUpToCurrentTime()` 现会在遇到首个 future tick 时 early-break。
-- sample allocation tightening 仍在进行中，但当前已落地的边界包括：`DrawableBmsHitObject` 单样本 keysound 路径、`BmsKeysoundStore` channel-local 单样本双缓冲、以及 full autoplay 的 unique keysound sample pool prewarm，用于把首次命中的 sample pool 初始化前移到进场加载。
-- live channel reconfigure safety 已完成：`KeysoundConcurrentChannels` 现为 grow-immediately / shrink-deferred 的 non-destructive resize，并有 `config -> drawable ruleset -> playfield shared store` 的 direct binding coverage。
-- dense autoplay 当前已明确两条冻结事实：
-  1. core `FramedReplayInputHandler` 的 generic stepping contract 不能再被放宽；`SetFrameFromTime()` 仍必须保持 one-boundary-per-call progression。
-  2. 若要继续优化 dense full autoplay，只能在 BMS owner side 分流；当前 full autoplay 已改走对象级 `AutoPlay` + `BmsAutoplayReplayInputHandler` 的 direct-time 输入采样，而普通 replay 保持既有边界推进语义。
-- 现阶段**没有**新增证据表明 `BmsSoloPlayer` 的 pre-start / song-select music handoff 仍有新的 gameplay 主音乐接管 bug；因此 `P1-J` 继续把重点放在 gameplay 内部 hot path，而不是 start-sequence。
-- 现有 automated coverage 已锁住相关语义：`BmsDrawableRulesetTest` 覆盖 late-empty-poor，`FramedReplayInputHandlerTest` 锁住 core replay stepping contract，`TestSceneBmsAutoplayReplayPlayback` 锁住 full autoplay correctness 与 replay-loaded HUD/key-counter surface；后续优化不能把这些回归当成“性能改动可接受副作用”。
-
-## 分期计划
-
-### J0a：末端 lane keysound runtime proof（近期协作 gate）
-
-状态：待 P1-K 修复 converter lane 上界后执行
-
-目标：证明 5K K5、7K K7、14K K14/S2 进入同一个 shared keysound store 并在玩家/auto 路径按既有语义发声；不能只断言 converter DTO 数量。该 proof 与 P1-A `SV1-3` 全 keymode topology smoke 共用 fixture，不借机改变 keysound pool 或判定语义。
-
-### J0：归线、术语与观测基线
-
-状态：已完成
-
-目标：先把“什么属于 runtime hot-path contract、什么只是后置体验验收”写死，避免后续在没有 measurement / regression guard 的情况下做泛化调优。
-
-建议交付：
-
-1. 建立 `P1-J` 四件套，并同步主线索引、主线总规划与主线状态页。
-2. 冻结本子线的首轮范围：只处理 shared keysound timing、lane/order hot path、sample allocation 与 live channel resize，不把问题扩张为“整个仓库的性能专项”。
-3. 建立 focused validation checklist：dense fully-keysounded chart、layered BGM、rapid empty-strike、late-empty-poor、live channel change、Release build。
-4. 对仍缺量化验证的点先建立 owner-level test 落点，而不是先开大而泛的 benchmark 框架。
-
-### J1：keysound timing hardening
-
-状态：已完成；same-frame 播放、pause/seek 生命周期回收与 player-level 语义 proof 均已落地
-
-目标：shared `BmsKeysoundStore` 继续作为唯一播放 authority，但 gameplay 的 note / BGM / LN keysound 不再被默认压到后续 scheduler tick 才真正播放。
-
-建议交付：
-
-1. 先审出 `BmsKeysoundStore.Play()` 的调用者是否已经处在 gameplay update 线程；若调用链都在同一线程，优先移除无条件 `Schedule()`。
-2. 若确有非 gameplay-thread 调用者，不能继续沿用“全部调度到下一帧”的粗暴路径；应改成显式 queue/flush 或等价的 same-frame marshal，而不是让 gameplay 命中音频永久带帧级延后。
-3. 保持 balance / shared pool / 多样本播放 authority 不变；不得借机让每个 `DrawableBmsHitObject` 拥有自己的 sample player。
-4. 明确验证 note hit、BGM event、LN head 与 lane replay 的播放语义不回归；其中"玩家按键必出声"为现行合同——pressed-POOR/miss（含 LN head）在 key-down 时补播该 note keysound，未按键的自然 miss 仍静音；**LN tail 一律不发声**（只头发声），BGM / autoplay 继续按既有合同播放（详见 TECHNICAL_CONSTRAINTS 第 3 / 3a 条）。
-
-可能文件切片：
-
-1. `osu.Game.Rulesets.Bms/Audio/BmsKeysoundStore.cs`
-2. `osu.Game.Rulesets.Bms/UI/DrawableBmsHitObject.cs`
-3. `osu.Game.Rulesets.Bms/UI/BmsLane.cs`
-4. `osu.Game.Rulesets.Bms.Tests/*keysound*` 或新的 owner-level store tests
-
-### J2：lane / ordered-hit hot path scan 收口
-
-**状态：进行中；首批 `ToArray()` / 判空物化已收口**
-
-目标：把 `BmsLane` 与 `BmsOrderedHitPolicy` 从“每次按键或命中时都枚举容器对象”收口成更窄、更稳定的候选 authority，同时保留当前 empty-poor / late-empty-poor 语义。
-
-建议交付：
-
-1. `BmsLane.shouldTriggerEmptyPoor()` 不再在每次 `OnPressed()` 时 materialize `DrawableBmsHitObject[]`；应改为按当前前景候选或等价的窄窗口 authority 做判定。
-2. `BmsOrderedHitPolicy.getParticipatingHitObjects()` 不再把 `AliveObjects` / `Objects` 枚举作为 gameplay 热路径的默认实现；若 detached test harness 需要 fallback，应把 fallback 与 runtime hot path 清晰拆开。
-3. `HandleHit()` 与 `IsHittable()` 的优化不能改变现有 late-empty-poor 行为，尤其不能破坏 `BEATORAJA` / `LR2` 差异语义。
-4. 若需要 cache / queue / next-candidate pointer，优先放在 `BmsLane` / `BmsOrderedHitPolicy` 这两个 owning abstraction，而不是外部 UI 或测试 harness 里堆条件分支。
-
-可能文件切片：
-
-1. `osu.Game.Rulesets.Bms/UI/BmsLane.cs`
-2. `osu.Game.Rulesets.Bms/UI/BmsOrderedHitPolicy.cs`
-3. `osu.Game.Rulesets.Bms.Tests/BmsDrawableRulesetTest.cs`
-4. 必要时新增 dedicated lane hot-path regression scene
-
-### J3：sample allocation tightening
-
-状态：进行中；已与 `J1` / `J2` 同刀收口重复数组分配；keysound prewarm 已从 full autoplay 扩展到玩家模式一律执行（2026-06-11，见 CONSTRAINTS #7）；store 通道同样本快路径（2026-06-11）消除每播 sample-drawable 重建
-
-目标：在不改变 sample authority 的前提下，削减 dense-chart 里的重复数组分配与 LINQ 中间对象，降低 GC 压力。
-
-建议交付：
-
-1. 收口 `DrawableBmsHitObject.PlaySamples()` 与 `BmsKeysoundStore.Play()` 之间的双重 `ToArray()`；只保留一处必要的 materialize 边界。
-2. `BmsLane.playCurrentLaneKeysound()` 不再每次按键都 new 一个单元素数组；应提供 dedicated single-sample path 或可复用缓冲。
-3. 任何 allocation tightening 都不能删除多样本播放能力；BGM / LN / 复合 sample 仍必须维持现有合同。
-4. 不把这一刀扩大成全仓库 LINQ 清扫；只处理已确认在 BMS gameplay hot path 上的分配点。
-
-可能文件切片：
-
-1. `osu.Game.Rulesets.Bms/Audio/BmsKeysoundStore.cs`
-2. `osu.Game.Rulesets.Bms/UI/DrawableBmsHitObject.cs`
-3. `osu.Game.Rulesets.Bms/UI/BmsLane.cs`
-
-### J4：live channel reconfigure safety
-
-状态：已完成；shared store 已从 rebuild-all 切到 non-destructive resize，direct binding coverage 与表述同步也已补齐
-
-目标：把 `KeysoundConcurrentChannels` 的 runtime 改值补成稳定合同，避免 gameplay 中无提示硬切当前播放中的样本。
-
-完成交付：
-
-1. 已明确区分“增加 channel 数”和“减少 channel 数”的语义，并以 grow-immediately / shrink-deferred 的 non-destructive resize 落地，而不是继续 rebuild 整个 pool。
-2. deferred apply 的文案、行为与测试已同步到同一合同；runtime 改值不再默认切断当前播放链。
-3. `ruleset config -> drawable ruleset -> playfield shared store` 的 focused binding test 已通过 `TestSceneBmsKeysoundChannelConfigBinding` 补齐。
-4. settings tooltip 与主线/子线文档已继续保持“低值更易截断、高值成本更高”的调参表述，同时明确 grow/shrink 的实际生效语义。
-
-可能文件切片：
-
-1. `osu.Game.Rulesets.Bms/UI/DrawableBmsRuleset.cs`
-2. `osu.Game.Rulesets.Bms/Audio/BmsKeysoundStore.cs`
-3. `osu.Game.Rulesets.Bms/BmsSettingsSubsection.cs`
-4. 对应 settings/config focused tests
-
-### J5：focused validation 与后置验收
-
-状态：进行中；focused regression 与 BMS 全量自动化回归已通过，autoplay 专用 replay proof 与 keysound-neighbour regression 也已闭合；once-per-run hitch 已于 2026-06-11 确诊收口（开局阻塞 gen2 冻结，prewarm 玩家模式修复、用户实测 ✅）；dense-chart manual checklist 仍后置
-
-目标：让 `P1-J` 有独立的 automated proof，再把 dense-chart / BGM layering 体验回交给 `P1-G` 做最终人工确认。
-
-建议交付：
-
-1. automated validation 现已覆盖：keysound timing hardening、lane/order late-empty-poor regression、config->store binding、shared timing owner-level proof、player-level pause/seek proof、full autoplay correctness / replay input counter，以及 allocation tightening / keysound prewarm 未回归 sample 语义。
-2. Release build 继续作为子线门槛；本专题不能以“只是性能优化”为理由跳过 build gate。
-3. manual checklist 继续后置到 `P1-G`：dense fully-keysounded chart、layered BGM、LN tail keysound、rapid empty-strike、live channel resize、pre-start -> gameplay 正常过渡。
-4. 当前 1-2 已成立；待 3 完成后，`P1-J` 才能进入只接回归修复的冻结态。
-
-### J6：BMS -> mania 转谱 BGM / 键音在 mania runtime 的呈现保真与 dense-BGM 性能
-
-状态：首版已落地（2026-06-01；转谱 BGM/scratch 改走复用的 `BmsKeysoundStore`，对象携带 `KeysoundSample`/`KeysoundId`、drawable `[Resolved]` 后 `Play`、缺席安全回退）。**2026-06-06：尝试把转谱 note/LN 也走 store（补 per-WAV cut）以根除转谱键音重复，因两次运行时回归全部回退到 J6 v1**——回归 1（LN 子类 + 非池化自定义嵌套 head → `DrawableHoldNote.Update()→Head` 空容器崩溃）、回归 2（tap note 走 store 后某 punai 吉他切片完全静音，真因未定性、通道饱和已被数据排除）；详见 CHANGELOG 2026-06-06。当前仅 BGM/scratch 走 store，note/LN 走 mania 一次性，**转谱键音重复=已知遗留**。**E（暂停停 BGM）已人工实测修复 ✅**；**D（dense 极端谱高密段仍极度缓慢）未解、用户要求后置**——共享 store 已排除「音频对象数」为主因，真瓶颈待 profile（疑 drawable 数量 / 转换链 / 渲染）。**2026-06-07：全链路审查后落地两条确定结构缺陷修复（均不动对象模型，验证全绿）：(i) mania 转谱 keysound prewarm（`DrawableManiaRuleset.LoadComplete` gate=converted-BMS+autoplay，遍历 `Samples`/`NodeSamples` 调 `Playfield.PrepareSamplePool`，对齐 BMS 原生——此前 mania 转谱完全无预热）；(ii) 转谱 store 通道 floor 128（`Math.Max(config, 128)`，不再固定 32）。**autoplay/游玩 BGM 人声丢失真因确诊并修复（用户实测均恢复 ✅）：是长 BGM `bgm1`（measure1 单次触发）被 store 32 通道饱和轮转偷取掐断（该谱 channel-01 4032 事件、峰值36>32），非 prewarm/非惰性 LoadSamples/非 KEY-note 路径（全作废）；floor 128 远超峰值 → 长 BGM 永不被偷。** #1 per-WAV cut/转谱键音重复是独立遗留、仍后置（走 store 两次回归、须先集成测试）。详见 CHANGELOG 2026-06-07。**后续推进（详见 CHANGELOG 对应日期）：2026-06-08 tap-note→store 转正生产默认 + bgm1 按键触发修复（`Samples` 置空）；2026-06-10 tap KEY note 改池化（mania `IManiaKeysoundStore`/`IHasManiaKeysound` 接口）；2026-06-11 通道同样本快路径修游玩帧抖动 + prewarm 放开玩家模式修开局 gen2 冻结——三轮均用户实测 ✅，转谱键音重复仅剩 LN 部分。**
-
-目标：让 K11 补出的 BGM sample-only 对象在 mania 游玩时 autoplay 出声（音频与 BMS 原生模式一致），并把 dense-BGM 的播放期性能收口在可接受范围，不为此破坏 shared audio pool authority。
-
-归线说明：转谱"发什么对象"（含 BGM sample-only 与 LN 尾 node sample 为空）归 `P1-K` K11；本阶段只承接这些对象在 mania runtime 的播放保真与 dense-BGM 热路径性能——这是本子线 dense-chart 播放期性能与 shared audio pool authority 的自然延伸，即便它运行在 mania ruleset 内。
-
-建议交付：
-
-1. 先建立基线：mania 实跑纯键音 BMS 转谱，确认 note keysound 出声、BGM 待补（与 BMS 原生模式对照）。
-2. BGM 播放首选复用 mania 对象池 / 滚动窗口（`HitObjectContainer` 只激活可见区间对象），评估 dense BGM（数千事件）下每对象 `SkinnableSound` 的 alloc/GC/首帧懒初始化是否达标。
-3. 若不达标，再评估 mania 侧共享样本通道池：复用 `BmsKeysoundStore` 的 idle-first / per-WAV cut 思路，按 `BmsBgmEvent.KeysoundId` 归组；不得新长出 per-note / per-lane 独立 sample player（沿用约束 1）。
-4. 守住保真合同：mania 转谱 LN 尾静音（对齐 TECHNICAL_CONSTRAINTS 第 3a / 10 条，由 K11 在转谱器侧落实，不把尾 keysound 写进 `NodeSamples[1]`）。
-
-可能文件切片：
-
-1. `osu.Game.Rulesets.Bms/UI/DrawableBmsConvertedBgmSampleHitObject.cs`（K11 新增）
-2. `osu.Game.Rulesets.Mania/UI/DrawableManiaRuleset.cs`（drawable representation / 池化路径，若需要）
-3. 必要时新增 mania 侧 dense-BGM 播放性能 regression / player-level proof
+| lane timeline/runtime proof | converter focused + lane/store owner proof + BMS relevant/full | 末端 lane 实机 smoke |
+| 转谱 LN/store | converter + player-level playback log + mania hold relevant + BMS full | 真实 LN、pause/seek |
+| store/channel/cut/prewarm | shared store owner + gameplay timing + BMS full + Release | layered/long BGM |
+| hot path/perf | owning regression + BMS full + Release | 同谱同段 profile 前后对照 |
 
 ## 明确不做
 
-1. 不借本专题替换 ManagedBass、重做全局 audio backend 或引入跨 ruleset latency framework。
-2. 不把“修 gameplay keysound timing”偷换成默认新增用户音频 offset 控件；BMS 当前主 timing-correction 路径仍应保持视觉链路优先。
-3. 不在 `P1-J` 里顺手推进 Phase 2 功能，如 `FHS`、BSS / MSS、全键模式扩张或新的 gameplay mod。
-4. 不把本专题扩写成泛化性能愿望单、渲染愿望单或 borderless/fullscreen 体验总路线；当前 authority 只覆盖 BMS gameplay audio/runtime hot path。
-
-## 当前优先顺序
-
-1. `J6` 剩余：转谱键音重复的 **LN 部分**——走 store 须**池化嵌套头**（非池化自定义嵌套 head 必崩），先用已落地的 player-level 集成测试 + 运行时日志 harness 取证再尝试（CONSTRAINTS #10 (a)/(b)）。
-2. `P1-G` 后置人工验收：dense fully-keysounded chart、layered BGM、rapid empty-strike 与 live channel change。
-3. 评估 single-sample array contract 是否继续下探，还是把当前实现（含 2026-06-11 通道同样本快路径）作为 `J3` 冻结点；若继续触碰 pooled-audio boundary，先回跑 `TestSceneBmsSharedKeysoundTiming` 与完整 `osu.Game.Rulesets.Bms.Tests`。
-4. **50k 极端 dense 谱**如重新提上日程：先用 `BmsGameplayStallDiagnostics` 导出日志归因（STALL+GEN2 / gen0:gen1 晋升风暴 / 其它）再定切法；普通密度的游玩期链路已于 2026-06-08~06-11 全部确诊收口（E / 长 BGM 偷断 / tap cut / bgm1 按键触发 / tap 池化 / 帧抖动 / 开局 gen2 冻结，均用户实测 ✅），不再盲改。⑤ 选歌预览 Track 泄漏（须真实 app 取证再重做）。
+- 不替换 ManagedBass，不新增默认 audio latency/offset 产品面。
+- 不修改 core generic replay stepping 来迁就 BMS autoplay。
+- 不重开已修复的普通密度故障，也不把已修复的试听 track 泄漏列为当前缺口。
+- 不提前推进 FHS、BSS/MSS、新 gameplay mod 或全键模式扩张。

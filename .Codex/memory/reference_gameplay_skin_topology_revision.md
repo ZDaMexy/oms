@@ -26,5 +26,5 @@ metadata:
 
 ## 当前边界与证据
 
-- 第十四切只有 shared carrier/owner、internal BMS/mania wrapper 与 fixture，没有 production attachment、playfield/renderer、event producer/wire、`SkinManager` 或资源生命周期接线。
-- focused 基线：shared owner 8/8、owner+transition 20/20、shared gameplay 243/243；BMS publication 14/14、topology 34/34；mania publication 7/7、topology 16/16。最新 wider gate 以 P1-A STATUS 为准。
+- shared carrier/owner、internal BMS/mania wrapper 与 fixture 不证明 production attachment、playfield/renderer、event producer/wire、`SkinManager` 或资源生命周期已接线；当前完成度只看 P1-A STATUS。
+- 验证必须覆盖 shared owner/transition、BMS 与 mania publication/topology；精确数字和 wider gate 只看 P1-A STATUS/CHANGELOG。

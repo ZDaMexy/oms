@@ -38,4 +38,4 @@ metadata:
 1. 先读 `doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md` 与 P1-A 四件套；当前执行门只看 P1-A STATUS/PLAN。
 2. schema 56 清点与定点迁移、`SV1-0` 自动/数据/2026-07-14 实机 gate 均已完成；不要重复打开或清理生产数据。
 3. G1 仍须按 managed/external、安全删改、扫描 authority、热重载四个独立切片重做；测试按实际改动面选择，修改 shared/mania/fallback authority 时才强制追加 core/mania gate。
-4. 2026-07-14 只闭合恢复静态基线；其后新增的普通短键编号帧动画仍须单独实机确认。当前实现暂停，下一新对话先治理文档/memory。
+4. 2026-07-14 只闭合恢复静态基线；普通短键编号帧动画仍须由用户单独实机确认，不能复用该结论。当前 gate 只看 P1-A STATUS。

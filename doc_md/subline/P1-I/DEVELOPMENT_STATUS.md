@@ -1,6 +1,6 @@
 # P1-I 当前状态：BMS 选歌筛选与搜索
 
-> 最后更新：2026-07-10（文档降噪复核；功能状态未改变）
+> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -26,8 +26,8 @@ I1–I3 与 I5–I7 主功能已落地；I4 focused regression 仍未完全闭�
 
 ## 当前验证
 
-- 2026-07-10 BMS 全量 **1005/1005**，覆盖现有 I 线测试。
-- 既有 importer/statistics/criteria/UI focused 细分数字只保留在 [CHANGELOG.md](CHANGELOG.md)，不在 STATUS 重复维护。
+- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
+- importer/statistics/criteria/UI 的本线历史 focused/full 数字只保留在 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 
 ## 当前风险
 

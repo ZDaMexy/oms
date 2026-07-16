@@ -54,20 +54,20 @@ Charts are read directly from the filesystem: put BMS charts in `chartbms/` and 
 
 ### Offline-first
 
-OMS currently runs fully offline. Accounts, online leaderboards, beatmap downloads, news / chat, multiplayer and spectator features are hidden or disabled by default, and are planned to open up gradually in later phases.
+OMS keeps its core gameplay, libraries and user-data paths offline by default. Until Phase 3, private OMS services stay disabled and default endpoints stay empty. Accounts, online leaderboards, beatmap downloads, news / chat, multiplayer and spectator features are hidden or disabled by default.
 
 The only exception is **BMS difficulty tables**: import / refresh from local paths and public URLs is supported and does not depend on any private OMS server.
 
 ### BGA playback
 
-During BMS play, the BGA is shown in a floating panel beside the playfield, docked by layout (1P right, 2P left, centre right, 14K centre). Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the whole panel off.
+During BMS play, the BGA is shown in floating panels beside the playfield, docked by layout (1P right, 2P left, centre right; 14K currently uses the four corners). Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the panels off.
 
 Legacy video formats (`.mpg`, `.wmv`, `.avi`, `.flv`) cannot be decoded by the built-in player and show a static image by default. To play them you need an ffmpeg binary:
 
 - Install it on the system PATH: `winget install ffmpeg` (restart OMS once if it is already running), or
 - Download [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) and place `bin\ffmpeg.exe` in the OMS program directory (next to `osu!.exe`) or the data directory (default `%APPDATA%\oms`).
 
-Then keep "Transcode undecodable BGA video" enabled in the BMS settings. The first time you open such a chart it transcodes in the background, showing a static image until done and then switching to video; the result is cached in `bga-video-cache\` under the data directory and plays directly on subsequent visits.
+Then keep "Transcode undecodable BGA video" enabled in the BMS settings. On first entry, loading waits for up to about eight seconds: a timely transcode starts the video from the beginning, while a timeout keeps the static image until the video is ready. `bga-video-cache\` is reused only within the current process session; restarting OMS clears it and retranscodes on demand.
 
 ## Building from source
 
@@ -97,7 +97,7 @@ The full product boundaries, development plan, current status and technical cons
 - [Current status & open issues](doc_md/mainline/DEVELOPMENT_STATUS.md)
 - [Changelog](doc_md/mainline/CHANGELOG.md)
 
-Repository navigation and the "code changes must update the docs" discipline are described in [CLAUDE.md](CLAUDE.md).
+Repository navigation and the "code changes must update the docs" discipline are described in [AGENTS.md](AGENTS.md); `CLAUDE.md` is only a compatibility redirect.
 
 ## Project status
 
@@ -107,9 +107,9 @@ OMS is wrapping up **Phase 1** (the local BMS / mania core flow), currently work
 
 Feedback via [Issues](https://github.com/ZDaMexy/oms/issues) and Pull Requests are welcome. Before submitting code, please note:
 
-- Prefer building with `osu.Desktop.slnf` and ensure the Release build is warning-free and error-free.
+- Prefer building with `osu.Desktop.slnf`; Release must be error-free and introduce no unexplained warnings. See [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) for the current known-warning baseline.
 - Run `osu.Game.Rulesets.Bms.Tests` when changing BMS-related logic.
-- Any change that alters a plan, status, constraint or verification conclusion must update the corresponding governance doc under [`doc_md/`](doc_md/README.md) **in the same commit** (see [CLAUDE.md](CLAUDE.md)).
+- Any change that alters a plan, status, constraint or verification conclusion must update the corresponding governance doc under [`doc_md/`](doc_md/README.md) **in the same commit**, then run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` and `git diff --check` (see [AGENTS.md](AGENTS.md)).
 
 ## License
 
@@ -121,5 +121,3 @@ OMS is a directed fork of osu!lazer; its goals and content have diverged noticea
 
 - [osu!lazer](https://github.com/ppy/osu) and [osu-framework](https://github.com/ppy/osu-framework) — the upstream foundation of OMS.
 - IIDX, LR2 and beatoraja — direction references for judgement, gauge and speed semantics.
-</content>
-</invoke>

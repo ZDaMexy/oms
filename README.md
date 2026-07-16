@@ -54,20 +54,20 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 
 ### 离线优先
 
-OMS 目前完全离线运行。账号、在线排行榜、谱面下载、新闻 / 聊天、多人与观战等联网功能默认隐藏或禁用，计划在后续阶段逐步开放。
+OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前，OMS 私有服务与默认 endpoint 保持关闭或为空。账号、在线排行榜、谱面下载、新闻 / 聊天、多人与观战等联网功能默认隐藏或禁用。
 
 唯一的例外是 **BMS 难度表**：已支持本地路径与公共 URL 的导入 / 刷新，不依赖任何 OMS 私有服务器。
 
 ### BGA 背景演出
 
-BMS 游玩时，BGA 显示在 playfield 旁的浮窗里，按布局靠边（1P 右、2P 左、居中右、14K 居中）。静态背景、图片 BGA、POOR 层和 `.mp4` 视频都直接可用，全屏背景为谱面背景图的模糊版。BMS 设置里的「显示 BGA」可关闭整个浮窗。
+BMS 游玩时，BGA 显示在 playfield 旁的浮窗里，按布局靠边（1P 右、2P 左、居中右；14K 当前为四角布局）。静态背景、图片 BGA、POOR 层和 `.mp4` 视频都直接可用，全屏背景为谱面背景图的模糊版。BMS 设置里的「显示 BGA」可关闭整个浮窗。
 
 老式视频格式（`.mpg`、`.wmv`、`.avi`、`.flv`）内置播放器无法解码，默认显示静态图。要播放它们需配一份 ffmpeg：
 
 - 装到系统 PATH：`winget install ffmpeg`（OMS 已开着则重开一次），或
 - 下载 [ffmpeg](https://www.gyan.dev/ffmpeg/builds/)，把 `bin\ffmpeg.exe` 放到 OMS 程序目录（`osu!.exe` 旁）或数据目录（默认 `%APPDATA%\oms`）。
 
-随后保持 BMS 设置里「转码无法解码的 BGA 视频」开启。首次进入这类谱面会在后台转码，转好前显示静态图、转好后切到视频，结果缓存在数据目录的 `bga-video-cache\`，再进即直接播放。
+随后保持 BMS 设置里「转码无法解码的 BGA 视频」开启。首次进入这类谱面时，加载流程最多等待约 8 秒；及时完成即可从头播放视频，超时则先显示静态图、转好后再切换。`bga-video-cache\` 只在当前进程会话内复用，重启 OMS 后会清理并按需重新转码。
 
 ## 从源码构建
 
@@ -97,19 +97,19 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 - [当前状态与遗留问题](doc_md/mainline/DEVELOPMENT_STATUS.md)
 - [变更日志](doc_md/mainline/CHANGELOG.md)
 
-仓库导航与「改代码必须同步改文档」的联动约定见 [CLAUDE.md](CLAUDE.md)。
+仓库导航与「改代码必须同步改文档」的联动约定见 [AGENTS.md](AGENTS.md)；`CLAUDE.md` 仅是兼容跳转。
 
 ## 项目状态
 
-OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段。2026-07-10 已完成一次皮肤系统可信基线恢复：保留已验证的 F1 静态素材 + `skin.ini` 主链与 Realm schema 56，撤回未经实机验收的 G1 生产接线、F2 动态件、Lua 与 reference-default 替换；皮肤专项将从该基线重新小步推进。输入硬件验收继续并行，联网相关的 Phase 3 功能在此之前保持冻结。最新进度以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
+OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段，当前重点是皮肤系统与输入硬件的剩余验收；联网相关的 Phase 3 功能在此之前保持冻结。具体进度与 gate 只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准，本页不复制易过期的实现快照。
 
 ## 贡献
 
 欢迎通过 [Issue](https://github.com/ZDaMexy/oms/issues) 反馈问题，或提交 Pull Request。提交代码前请注意：
 
-- 优先打开 `osu.Desktop.slnf` 构建，确保 Release 构建零警告零错误。
+- 优先打开 `osu.Desktop.slnf` 构建，确保 Release 零错误且不新增未归因告警；当前已知告警基线见 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md)。
 - 改动 BMS 相关逻辑时请运行 `osu.Game.Rulesets.Bms.Tests`。
-- 任何改变计划、状态、约束或验证结论的改动，必须在**同一次提交**中同步更新 [`doc_md/`](doc_md/README.md) 中对应的治理文档（详见 [CLAUDE.md](CLAUDE.md)）。
+- 任何改变计划、状态、约束或验证结论的改动，必须在**同一次提交**中同步更新 [`doc_md/`](doc_md/README.md) 中对应的治理文档，并运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check`（详见 [AGENTS.md](AGENTS.md)）。
 
 ## 许可证
 
@@ -121,5 +121,3 @@ OMS 是 osu!lazer 的定向分支，项目目标与内容已与上游明显分�
 
 - [osu!lazer](https://github.com/ppy/osu) 与 [osu-framework](https://github.com/ppy/osu-framework) —— OMS 的上游基础。
 - IIDX、LR2、beatoraja —— 判定、Gauge 与速度语义的方向校准来源。
-</content>
-</invoke>

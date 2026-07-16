@@ -4,7 +4,6 @@ description: P1-M 内置音乐播放器子线——分层 PlayQueue 架构、双
 metadata: 
   node_type: memory
   type: project
-  originSessionId: 27ba4c4b-efca-43eb-8a6c-64ff4dc8d72b
 ---
 
 P1-M「内置音乐播放器」子线 2026-06-15 建线（四件套 `doc_md/subline/P1-M/`）。把「全局音轨 + 右上角 mini 浮窗 `NowPlayingOverlay` + song-select 试听」升级为真音乐播放器。**规划已与用户对齐，未开工**。

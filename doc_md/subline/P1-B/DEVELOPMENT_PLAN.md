@@ -1,6 +1,6 @@
 # P1-B 开发计划：输入语义与硬件验收
 
-> 最后更新：2026-05-09
+> 最后更新：2026-07-16（文档健康治理；执行顺序未改变）
 > 主线总规划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。
 
 ## 子线目标
@@ -16,9 +16,8 @@
 3. 统一真实硬件覆盖 checklist。
 4. 把可公开说明的硬件行为回写主线与相关参考文档。
 
-## 近期交付
+## 未闭合交付
 
-- `B0` desktop settings surface 收口：安全隐藏 upstream `MouseSettings` / `TouchSettings` / `TabletSettings`，保留 runtime config / handler 链。
 - `B1` mixed-source runtime 语义收口。
 - `B2` 真实 HID / IIDX 控制器验收清单落地。
 - `B3` 将稳定行为同步到 diagnostics / calibration 需求输入。

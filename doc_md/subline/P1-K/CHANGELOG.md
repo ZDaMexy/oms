@@ -5,6 +5,13 @@
 
 ---
 
+## 2026-07-16
+
+### 文档健康治理：STATUS 不再复制旧共同 full 数字，CONSTRAINTS 头部回归路由
+
+- 当前全局产品验证改为链接 mainline 最新快照；CONSTRAINTS 的“最后更新”不再复制 K11/K12 更正史，只路由当前状态、计划与历史。P1-K 的 parser/converter/metadata 历史 focused/full 数字继续只在本文件按日期查询，不冒充当前全局 gate。
+- 当前功能、风险与计划未变；本次仅改文档，未改代码，未运行产品测试或 Release。
+
 ## 2026-07-10
 
 ### Skin V1 topology 审查发现 converter 末端 lane 丢失与 sparse keymode 风险（已入计划，代码未修）

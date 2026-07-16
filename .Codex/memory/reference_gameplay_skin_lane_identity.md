@@ -19,7 +19,7 @@ metadata:
 - side 是 `Neutral/Primary/Secondary` 的逻辑 player/deck presentation side，不是屏幕 Left/Right、BGA side 或 binding owner。5K/7K P1/CenterP1 为 Primary、P2/CenterP2 为 Secondary；9K 为 Neutral；14K 两 deck 分别 Primary/Secondary。
 - `GameplaySkinLaneTopologyEntry` 保存 global/group-local logical/visual 四类零基 index；group/snapshot 提供 defensive immutable logical/visual order 与强类型 lookup。单 snapshot 拒绝 null/empty、重复 ID、membership conflict、非 permutation、local/global order 不一致与 group 非连续块。
 - public process-local `GameplaySkinLaneTopologyTransitionValidator` 只校验调用方已声明为 topology-preserving 的两个 neutral snapshot：GroupId/LaneId set、group logical index、lane membership/role/global 与 group-local logical index 稳定；side 和全部 visual index/order 可变。不要比较完整 identity equality。
-- validator 本身不含 native context，9K BMS/PMS neutral shape 相同仍会通过；第十四切只在外层 internal owner 以 BMS exact keymode、mania exact ordered stage-column vector 补上 process-local continuity/revision。style/action/source/geometry 与 production event/wire continuity 仍未补，不能把 helper 或 owner 写成完整 layout transition ABI；详见 [topology publication/revision](reference_gameplay_skin_topology_revision.md)。
+- validator 本身不含 native context，9K BMS/PMS neutral shape 相同仍会通过；外层 internal owner 以 BMS exact keymode、mania exact ordered stage-column vector 补上 process-local continuity/revision。不能据此把 helper 或 owner 写成完整 layout transition ABI；详见 [topology publication/revision](reference_gameplay_skin_topology_revision.md)。
 
 ## internal projection 地雷
 
@@ -30,4 +30,4 @@ metadata:
 - mania projection 只接受 1–2 stage、每 stage 1–10 keys，并先复制可变 stage 列表；single side=Neutral，dual stage 0/1=Primary/Secondary。`StageDefinition.IsSpecialColumn()` 接受 stage-local index；双 5+5 special 的 global index 是 2/7，mixed 4+5 是 6。global index 用 stage count 前缀和，不能对 total columns 求一次中心，也不能把 `ManiaAction` enum ordinal 当 group-local identity。
 - mirror/random/rearrangement 改 hit object 的目标 lane，而不改变固定 playfield topology；对象事件应发布 mod 后目标 LaneId，不能从原始 source channel 反推。
 
-当前第四/十切冻结 identity/topology/neutral validator，第十四切再冻结 topology-only publication 与 ruleset-native continuity；仍没有 full `GameplaySkinLayoutContext`、geometry/layout solver、production attachment/event `layoutRevision`/wire ABI 或 `SkinManager` 接线。
+identity/topology/neutral validator 与 topology-only publication/ruleset-native continuity 是不同层；它们都不等于 full `GameplaySkinLayoutContext`、geometry/layout solver、production attachment/event `layoutRevision`/wire ABI 或 `SkinManager` 接线。当前完成度只看 P1-A STATUS。
