@@ -11,6 +11,7 @@
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — schema 56 managed/external 分类、Windows 路径歧义、namespace overlap、TOCTOU/identity 与不可误作 mutation capability 的边界。
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — post-capture 内容身份、规范名/预算、defensive ownership、失败清理与不可误作 no-follow capture 的边界。
+- [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver-issued request、physical NT volume、handle-relative no-follow、identity/inventory竞态与非filesystem transaction边界。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 当前可信面、managed `.osk` BMS 普通短键与长条头/身/尾 source-bound production 窄纵切、未定义的真实 beatmap-local 边界、稳定产品决议和实现地雷。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — P1-I 展示层级、返回条、分组与转谱展示。
 - [内置音乐播放器](project_oms_music_player.md) — P1-M 规划与边界。

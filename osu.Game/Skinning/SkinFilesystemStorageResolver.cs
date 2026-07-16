@@ -79,16 +79,24 @@ namespace osu.Game.Skinning
         /// </summary>
         internal string? NormalisedManagedRelativePath { get; }
 
+        /// <summary>
+        /// A sensitive resolver-issued carrier for the later native managed-package capture. This remains null for
+        /// Realm, external and rejected records. It is not a path capability and must never be logged.
+        /// </summary>
+        internal SkinManagedPackageCaptureRequest? ManagedCaptureRequest { get; }
+
         internal SkinFilesystemStorageResolution(
             SkinFilesystemStorageAuthority authority,
             SkinFilesystemStorageRejectionReason rejectionReason = SkinFilesystemStorageRejectionReason.None,
             string? absolutePath = null,
-            string? managedRelativePath = null)
+            string? managedRelativePath = null,
+            SkinManagedPackageCaptureRequest? managedCaptureRequest = null)
         {
             Authority = authority;
             RejectionReason = rejectionReason;
             NormalisedAbsolutePath = absolutePath;
             NormalisedManagedRelativePath = managedRelativePath;
+            ManagedCaptureRequest = managedCaptureRequest;
         }
 
         public override string ToString() => $"{Authority}:{RejectionReason}";
@@ -100,6 +108,8 @@ namespace osu.Game.Skinning
     internal static class SkinFilesystemStorageResolver
     {
         internal const string MANAGED_ROOT_DIRECTORY = "chartskin";
+
+        private static readonly object managed_capture_request_issuer = new object();
 
         private static readonly HashSet<Guid> fixed_skin_ids = new HashSet<Guid>
         {
@@ -216,7 +226,8 @@ namespace osu.Game.Skinning
             return new SkinFilesystemStorageResolution(
                 SkinFilesystemStorageAuthority.ManagedFolder,
                 absolutePath: packageRoot,
-                managedRelativePath: $"{MANAGED_ROOT_DIRECTORY}/{segments[1]}");
+                managedRelativePath: $"{MANAGED_ROOT_DIRECTORY}/{segments[1]}",
+                managedCaptureRequest: new SkinManagedPackageCaptureRequest(storageRoot, segments[1], managed_capture_request_issuer));
         }
 
         private static SkinFilesystemStorageResolution resolveExternal(
@@ -442,6 +453,9 @@ namespace osu.Game.Skinning
 
         private static SkinFilesystemStorageResolution reject(SkinFilesystemStorageRejectionReason reason)
             => new SkinFilesystemStorageResolution(SkinFilesystemStorageAuthority.Invalid, reason);
+
+        internal static bool IsManagedCaptureRequestIssuer(object? candidate)
+            => ReferenceEquals(candidate, managed_capture_request_issuer);
 
         internal interface ISkinFilesystemInfoProvider
         {

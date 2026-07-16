@@ -24,6 +24,8 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
+内部前置已将 authority/path preflight、managed Windows handle-relative/no-follow capture 与 pure immutable capsule 闭合成一条链，但尚无 `SkinManager`/managed folder factory/选择消费方。当前下一刀是只从完整 capture capsule 建立实例的 production managed folder factory/选择；external capture仍未实现，scanner、mutation与原子 reload继续各自过门。
+
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
 2. **安全删改**：resolved-root containment、冲突拒绝、reparse-point/symlink 风险处理；外部目录只读。
 3. **扫描与选择**：扫描只能维护自身 authority 的 Realm 记录，不得清理普通 `.osk`、未知来源记录或无 authority blob。
