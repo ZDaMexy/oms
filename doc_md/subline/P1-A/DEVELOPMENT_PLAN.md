@@ -22,11 +22,13 @@
 | --- | --- | --- | --- |
 | 0 | `SV1-0` 恢复与数据安全 | 已完成 | 结果只在 STATUS/CHANGELOG 保留，不重开迁移或全局 cleanup |
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
-| 2 | 首个编号帧动画用户实机 | **当前唯一活动门** | 用户确认真实 managed `.osk` 的动画、切换、beatmap-local 优先与坏件回落观感 |
+| 2 | 首个编号帧动画用户实机 | **当前唯一活动门** | 用户确认真实 managed `.osk` 的动画、选择切换与 selected 坏包回落；产品另行决定是否扩入真实 beatmap-local 格式 |
 | 3 | `SV1-1` 下一玩家可见组件 | 尚未选择 | 门 2 通过后由产品选定一个组件，再冻结最小切片与验证面 |
 | 4 | `SV1-2`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 在门 2 闭合前不启动新组件、不修改 G1、layout、shared codec、scene/script 或 canonical fallback authority。
+
+beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `WorkingBeatmap` 只产生不解析 `[Bms]` 的 `LegacyBeatmapSkin`；仓库也未定义 `.bme` 的逐谱侧车格式。因此现有注入式 fixture 只证明 provider-order，不证明 BMS 谱面本地素材已可用；若选择实现，必须作为独立作者格式/生产 adapter 纵切重新冻结。
 
 ## 未完成实施顺序
 

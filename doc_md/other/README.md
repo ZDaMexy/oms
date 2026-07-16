@@ -15,6 +15,7 @@
 - [SKIN_SYSTEM_RECOVERY_20260710.md](SKIN_SYSTEM_RECOVERY_20260710.md)：2026-06-30 分界后的皮肤系统取证、恢复锚点、撤回范围与重新准入门槛。
 - [SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)：schema 56 只读取证、定点迁移与 `SV1-0` 闭门证据；不授权重复操作生产数据。
 - [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：Skin V1 的架构证据与设计解释；执行顺序和硬约束仍以 P1-A 四件套为准。
+- [SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md](SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)：managed `.osk` BMS 普通短键编号帧动画、选择切换与 selected 坏包回落的确定性手工素材及验收边界。
 
 ## 联动要求
 

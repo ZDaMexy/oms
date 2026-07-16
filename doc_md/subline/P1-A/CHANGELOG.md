@@ -4,6 +4,12 @@
 
 ## 2026-07-16
 
+### BMS 普通短键编号帧动画的确定性手工门素材
+
+- 新增根目录 `GenerateBmsNoteAnimationManualGate.ps1` 薄包装和测试侧 generator，按固定像素、PNG 参数、ZIP entry 顺序/时间戳/压缩方式生成 good/broken `.osk`、静音 7K `.bme` 与 SHA-256 清单；不读取 SimpleTou、用户皮肤、生产 Realm、`chartskin/` 或网络。
+- good 包为 lane 1 提供 60 张同尺寸编号帧；broken 包声明同一 slot 但只有 frame 1，稳定触发 selected 单槽回落。真实 package 产品链新增两项后 `BmsManagedPackageNoteProductTest` **28/28**，双生成逐文件确定性/ZIP/PNG/7K chart smoke **1/1**；根脚本实际生成成功。只保留既有 MessagePack `NU1902` 与 BMS tests `CS8600`/`CA2007`。
+- 手工说明见[专页](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)。它只验 managed 编号帧、选择切换与 selected 坏包回落，不改变用户实机待确认结论。原 26/26 的 beatmap-local 用例是私有 provider-contract fixture，不是 `WorkingBeatmap` / 真实 `chartbms/` 集成，禁止用本素材把 beatmap-local 或完整 Skin V1 写成实机通过。
+
 ### 文档健康治理完成：当前态、未来顺序、稳定合同与历史重新归位
 
 - 将 `DEVELOPMENT_STATUS.md` 从逐切验证账压缩为当前能力、gate、唯一最新产品验证、本次文档治理、仍影响决策的风险和下一门；历史验证仍由本文件按日期保存。

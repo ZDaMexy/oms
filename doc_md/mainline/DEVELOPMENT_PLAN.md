@@ -23,7 +23,7 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R2：闭合首个产品纵切并完成 Skin V1 共同合同
 
-1. 先由用户单独实机确认 managed `.osk` 的 BMS 普通短键编号帧动画；该结论不得复用静态恢复验收。
+1. 先由用户按[确定性手工门](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)单独实机确认 managed `.osk` 的 BMS 普通短键编号帧动画、选择切换与 selected 坏包回落；该结论不得复用静态恢复验收。真实 BMS beatmap-local 尚无作者格式/生产 producer，须由产品决定是否作为额外纵切定义，不得用注入式自动 fixture 冒充实机能力。
 2. 实机门闭合后，由产品选择 `SV1-1` 的下一组件，并在 P1-A 重新冻结最小切片、受影响 authority、回退路径和自动/实机验收面。
 3. 完成 ruleset-neutral ini codec、layout context、lane identity/topology、显式配置 presence 与 mania compatibility fixtures；唯一 resolved layout 负责 finite/range/screen-space validation。
 4. 将 `Provide/Inherit/Suppress` 接到所需生产 slot；最小可玩组件不可 suppress，缺件继续逐组件回落，beatmap-local authority 不被无意穿透。

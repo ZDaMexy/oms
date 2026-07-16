@@ -34,6 +34,7 @@ metadata:
 ## 实现地雷
 
 - core `LegacySkin` 不得编译依赖 BMS ruleset；BMS 配置留在 ruleset，通过精确反射类型接入。类型匹配必须排除 `LegacyBeatmapSkin` 等其它子类。
+- 不得把注入测试的 `BeatmapNoteSkin` 写成真实 BMS beatmap-local 能力：`WorkingBeatmapCache` 当前只创建不解析 `[Bms]` 的 `LegacyBeatmapSkin`，仓库也未定义 `.bme` 逐谱 sidecar。若产品选择实现，先冻结公开格式与 core custom-loader skin factory；根 `skin.ini` 只能称 beatmap-set-local，不能冒充逐谱。
 - schema 由代码/真实组件确立，`SKINNING.md` 是派生说明，不能反向驱动实现。
 - 贴图优先；无贴图才使用 ini colour/palette。composite 化后测试要读内层 visual，不读容器自身 colour。
 - lane 宽经总相对宽归一化；同比缩放所有 lane relative width 无效。几何细节见 [[reference_bms_default_skin_geometry]]。

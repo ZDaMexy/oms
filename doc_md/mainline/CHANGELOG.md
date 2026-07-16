@@ -7,6 +7,10 @@
 
 ## 2026-07-16
 
+### Skin V1 首个人工门改为确定性输入
+
+新增 OMS 自生成的 good/broken `.osk`、静音 7K `.bme` 与 SHA-256 清单，并用真实 package 产品链将 focused 验收扩为 **28/28**；generator smoke **1/1**。取证同时确认原 beatmap-local 用例只是注入式 provider-order 合同，当前没有真实 BMS `WorkingBeatmap` 作者格式/生产 producer；手工门因此只验动画、选择切换和 selected 坏包回落，beatmap-local 是否扩入产品范围待决定。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md) 与[手工门说明](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)。
+
 ### 全仓文档与 memory 健康治理完成
 
 在不改代码、产品行为、生产数据或 runtime gate 的前提下，重新冻结开工阅读路径和四类文档职责：mainline 只承载全局当前态与编排，subline 只承载专项状态/未来动作/稳定合同/历史，`other/` 回到参考与派生说明，memory 回到踩坑和诊断召回。活动 STATUS/PLAN 移除逐切流水、旧测试数字、提交点和会话级交接，历史完整留在 CHANGELOG/Git；根 README 的工具封装残片、非标准链接、过期状态副本和本机/生产取证敏感值也已治理。新增 `CheckDocumentation.ps1`，持续检查标准相对链接、四件套与索引完整性、低噪声预算、隐私残片和 PLAN 会话污染；全仓检查与 `git diff --check` 通过。没有运行产品测试或 Release，2026-07-15 runtime 证据仍为当前产品验证；Skin V1 下一门仍是用户实机确认普通短键编号帧动画。子线细节见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。

@@ -29,6 +29,7 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Bms.Tests.Skinning.ManualGate;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
 using osu.Game.Tests.Visual;
@@ -121,6 +122,36 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 TextureAnimation animation = resolved!.ChildrenOfType<TextureAnimation>().Single();
                 Assert.That(animation.FrameCount, Is.EqualTo(2));
             });
+        }
+
+        [Test]
+        public void TestManualGateGeneratedGoodPackageUsesProductionAnimation()
+        {
+            importAndSelect(
+                "manual-gate generated animated package",
+                () => new MemoryStream(BmsNoteAnimationManualGateGenerator.CreateGoodPackage(), writable: false));
+
+            BmsAsyncNoteDrawable host = null!;
+
+            AddStep("mount generated manual-gate package", () => host = mountProductionHost(null));
+            AddUntilStep("generated animation loaded", () =>
+                host.Drawable?.ChildrenOfType<TextureAnimation>().SingleOrDefault()?.FrameCount
+                == BmsNoteAnimationManualGateGenerator.ANIMATION_FRAME_COUNT);
+            AddAssert("generated package uses source-bound note", () => host.Drawable, () => Is.TypeOf<BmsSourceBoundNoteDrawable>());
+        }
+
+        [Test]
+        public void TestManualGateGeneratedBrokenPackageFallsBack()
+        {
+            importAndSelect(
+                "manual-gate generated broken package",
+                () => new MemoryStream(BmsNoteAnimationManualGateGenerator.CreateBrokenPackage(), writable: false));
+
+            BmsAsyncNoteDrawable host = null!;
+
+            AddStep("mount generated broken package", () => host = mountProductionHost(null));
+            AddUntilStep("generated broken slot falls back", () => host.Drawable is DefaultBmsNoteDisplay { IsLoaded: true });
+            AddAssert("generated broken package remains playable", () => host.Drawable, () => Is.TypeOf<DefaultBmsNoteDisplay>());
         }
 
         [Test]

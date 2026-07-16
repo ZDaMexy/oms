@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。文档与 memory 健康治理已完成；当前唯一下一门是请用户在实机确认 managed `.osk` 为 BMS 普通短键提供的编号帧动画。自动 gate 已通过，但在这项实机结论闭合前不启动下一个 Skin V1 组件；完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。当前唯一下一门是用确定性素材实机确认 managed `.osk` 的 BMS 普通短键编号帧动画、选择切换和 selected 坏包回落，并由产品决定是否额外定义真实 BMS beatmap-local 作者格式。自动 gate 已通过，但在这一门闭合前不启动下一个 Skin V1 组件；完整 Skin V1 仍不可用。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | Skin V1 首个产品纵切 | managed `.osk` 的 BMS 普通短键编号帧动画已通过自动 gate | 用户单独实机确认该动画；不可复用 2026-07-14 静态恢复结论 |
+| 1 | Skin V1 首个产品纵切 | managed `.osk` 的 BMS 普通短键编号帧动画已通过自动 gate | 用[确定性手工素材](../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)确认动画/切换/selected 坏包回落，并决定真实 beatmap-local 是否扩入产品范围 |
 | 2 | Skin V1 后续纵切 | `SV1-1` 仍未完成；`SV1-2` 只有 early carrier，`SV1-3`～`SV1-7` 未实现 | 实机门闭合后由产品决定下一组件并重新冻结切片 |
 | 3 | G1 可视文件夹 | 异常实现已撤回 | managed/external authority、containment 与原子 reload |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
@@ -58,12 +58,12 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 ## 最近一次验证
 
-### 产品/runtime：2026-07-15 P1-A 首个玩家可见纵切
+### 产品/runtime：截至 2026-07-16 的 P1-A 首个玩家可见纵切
 
 | 证据面 | 结果与边界 |
 | --- | --- |
-| 产品自动验收 | **26/26**；覆盖真实导入包/游玩对象/Ruleset 链、14K S2、动画推进与循环、选择切换、beatmap-local 优先、坏轨逐组件回落、跨包隔离及异步换源 |
-| 自动回归 | focused **283/283**；BMS full **1333/1333**；`osu.Desktop.slnf` Release **0 error / 20 warnings**；独立终审 blocker/major **0/0** |
+| 产品自动验收 | **28/28**；覆盖真实导入包/游玩对象/Ruleset 链、14K S2、动画推进与循环、选择切换、坏轨逐组件回落、跨包隔离及异步换源；beatmap-local 只是注入式 provider-order 合同 fixture，不是真实 `WorkingBeatmap` 集成 |
+| 自动回归 | 2026-07-15 基线：focused **283/283**；BMS full **1333/1333**；`osu.Desktop.slnf` Release **0 error / 20 warnings**；独立终审 blocker/major **0/0** |
 | 未重跑范围 | 本切未改 shared `osu.Game`、mania compatibility 或 fallback authority，因此未重跑 core/mania |
 | 已知告警 | 保留 MessagePack 3.1.3 `NU1902` 及 BMS tests 既有 `CS8600`/`CA2007`，未使用 `NoWarn` |
 | 数据与网络 | 测试只使用隔离 headless 临时存储；生产 Realm、`chartskin/`、用户皮肤目录及网络零访问、零写入 |
@@ -71,7 +71,11 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 ### 文档治理：2026-07-16
 
-本轮只治理文档与 memory 的职责、路由和重复事实，未改产品代码、生产数据或 runtime gate，也未运行产品测试或 Release；Windows PowerShell 5.1 与 PowerShell 7 均运行 `CheckDocumentation.ps1` 通过（118 个 Markdown、946 个相对链接、22 个 memory wiki 链），`git diff --check` 通过。因此上方 2026-07-15 结果仍是当前 runtime 证据，文档检查不替代产品验证。
+本轮只治理文档与 memory 的职责、路由和重复事实，未改产品代码、生产数据或 runtime gate，也未运行产品测试或 Release；Windows PowerShell 5.1 与 PowerShell 7 均运行 `CheckDocumentation.ps1` 通过（118 个 Markdown、946 个相对链接、22 个 memory wiki 链），`git diff --check` 通过。该历史文档检查不替代上方产品验证；2026-07-15 的完整回归仍是当前广基线。
+
+### 手工门素材：2026-07-16
+
+自生成 good/broken `.osk` 与静音 7K `.bme` 的 generator smoke **1/1**，实际包经产品链验证后上表为 **28/28**；两次生成、Windows PowerShell 5.1/7 输出的 SHA-256 一致。该素材不改 runtime，只为当前人工门提供可复现输入。同次文档健康检查通过（119 个 Markdown、955 个相对链接、22 个 memory wiki 链）。
 
 ## 待人工验收
 

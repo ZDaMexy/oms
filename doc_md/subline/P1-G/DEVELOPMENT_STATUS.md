@@ -35,7 +35,7 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 
 ## 下一检查点
 
-1. 先记录 P1-A managed `.osk` 普通短键编号帧动画的单独用户确认。
+1. 先按[确定性手工门说明](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)记录 P1-A managed `.osk` 普通短键编号帧动画、选择切换与 selected 坏包回落的单独用户确认；该素材不声称 beatmap-local `WorkingBeatmap` 集成。
 2. 按 [当前计划](DEVELOPMENT_PLAN.md) 逐项吸收 P1-B/D/E/I/J/L/F 的可验收切片，不等待所有代码线同时结束才建账。
 3. 所有 release gate 就绪后执行一次候选发行物总清单；阻塞项归线修复后只重测受影响矩阵格。
 
