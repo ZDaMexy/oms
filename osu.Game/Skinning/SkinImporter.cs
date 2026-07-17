@@ -28,10 +28,17 @@ namespace osu.Game.Skinning
 
         private readonly ModelManager<SkinInfo> modelManager;
 
-        public SkinImporter(Storage storage, RealmAccess realm, IStorageResourceProvider skinResources)
+        private readonly Func<SkinInfo, bool> canUpdateExisting;
+
+        public SkinImporter(
+            Storage storage,
+            RealmAccess realm,
+            IStorageResourceProvider skinResources,
+            Func<SkinInfo, bool>? canUpdateExisting = null)
             : base(storage, realm)
         {
             this.skinResources = skinResources;
+            this.canUpdateExisting = canUpdateExisting ?? (_ => true);
 
             modelManager = new ModelManager<SkinInfo>(storage, realm);
         }
@@ -58,6 +65,10 @@ namespace osu.Game.Skinning
             return await Realm.WriteAsync<Live<SkinInfo>?>(r =>
             {
                 var skinInfo = r.Find<SkinInfo>(original.ID)!;
+
+                if (!canUpdateExisting(skinInfo))
+                    throw new InvalidOperationException("This skin cannot be updated through the Realm package importer.");
+
                 skinInfo.Files.Clear();
 
                 string[] filesInMountedDirectory = Directory.EnumerateFiles(task.Path, "*.*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(task.Path, f)).ToArray();
@@ -205,7 +216,7 @@ namespace osu.Game.Skinning
                             sw.WriteLine(line);
                     }
 
-                    modelManager.ReplaceFile(existingFile, stream, realm);
+                    modelManager.ReplaceFile(item, existingFile, stream, realm);
                 }
             }
 
@@ -277,7 +288,7 @@ namespace osu.Game.Skinning
                         var oldFile = s.GetFile(filename);
 
                         if (oldFile != null)
-                            modelManager.ReplaceFile(oldFile, streamContent, s.Realm!);
+                            modelManager.ReplaceFile(s, oldFile, streamContent, s.Realm!);
                         else
                             modelManager.AddFile(s, streamContent, filename, s.Realm!);
                     }

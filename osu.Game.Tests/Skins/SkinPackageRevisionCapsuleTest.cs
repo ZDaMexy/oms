@@ -132,6 +132,34 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestOwningResourceStoreRetiresCapsuleExactlyOnce()
+        {
+            SkinPackageRevisionCapsule capsule = createSuccess(
+                SkinPackageCapturedEntry.CreateFile("skin.ini", new byte[] { 1, 2, 3 }));
+            var store = new SkinPackageRevisionResourceStore(capsule);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(store.ContentRevision, Is.EqualTo(capsule.ContentRevision));
+                Assert.That(store.Files, Is.EqualTo(capsule.Files));
+                Assert.That(store.Get("skin.ini"), Is.EqualTo(new byte[] { 1, 2, 3 }));
+                Assert.That(store.ToString(), Is.EqualTo(nameof(SkinPackageRevisionResourceStore)));
+            });
+
+            store.Dispose();
+            Assert.DoesNotThrow(store.Dispose);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => store.Get("skin.ini"), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(() => store.GetStream("skin.ini"), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(() => store.GetAvailableResources(), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(() => store.ContentRevision, Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(() => capsule.CreateResourceView(), Throws.TypeOf<ObjectDisposedException>());
+            });
+        }
+
+        [Test]
         public void TestGetAsyncHonoursCancellation()
         {
             using SkinPackageRevisionCapsule capsule = createSuccess(SkinPackageCapturedEntry.CreateFile("skin.ini", new byte[] { 1 }));

@@ -43,6 +43,9 @@ namespace osu.Game.Skinning
 
         public virtual Skin CreateInstance(IStorageResourceProvider resources)
         {
+            if (!string.IsNullOrEmpty(FilesystemStoragePath) || IsExternalFilesystemStorage)
+                throw new InvalidOperationException("Filesystem-backed skins must be prepared by SkinManager.");
+
             var type = string.IsNullOrEmpty(InstantiationInfo)
                 // handle the case of skins imported before InstantiationInfo was added.
                 ? typeof(LegacySkin)
@@ -65,10 +68,11 @@ namespace osu.Game.Skinning
         /// <summary>
         /// When set, this skin is backed by a visible, human-readable folder on disk (e.g. <c>chartskin/&lt;name&gt;/</c>)
         /// rather than the hash-backed realm <c>files/</c> store. <see cref="Files"/> stays empty for folder-backed skins;
-        /// skin resources (skin.ini + textures) are read directly from this path.
+        /// managed resources are captured through the dedicated filesystem authority path and active instances read an
+        /// immutable package revision instead of reopening live files.
         /// </summary>
         /// <remarks>
-        /// Mirrors <see cref="osu.Game.Beatmaps.BeatmapSetInfo.FilesystemStoragePath"/>. Populated by the folder-skin
+        /// Mirrors <see cref="Beatmaps.BeatmapSetInfo.FilesystemStoragePath"/>. Populated by the folder-skin
         /// importer/scanner (see P1-A G1); empty for legacy <c>.osk</c>-imported skins and built-in skins.
         /// </remarks>
         public string? FilesystemStoragePath { get; set; }

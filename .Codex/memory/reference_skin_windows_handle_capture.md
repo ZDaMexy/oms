@@ -21,10 +21,10 @@ metadata:
 
 - 这不是filesystem transaction。保证仅为：发布bytes来自held identity，且final validation前观察到的变化会拒绝；final check之后的外部变化不影响已复制capsule，但也不存在跨文件系统的事务快照声明。
 - resolver对真实存在的8.3 data-root path可能先经`Path.GetFullPath`展开成长名；native层仍必须拒绝任何未展开alias。真实SUBST命令级integration未跑，当前证据是exact volume-target classifier和fake alias合同。
-- capture已有pure capsule这一internal consumer，但没有`SkinManager`/production managed folder factory/选择消费方；它不验证`InstantiationInfo`/选择资格，不拥有scanner record、mutation token、external registration或active publication。production managed folder factory只能消费完整成功的exact capsule，不能回到normalised path或live `NativeStorage`。
+- capture已有pure capsule及production `SkinManager` exact-capsule factory/guarded selection消费方，但capture本身不验证`InstantiationInfo`/选择资格，也不拥有scanner record、mutation token、external registration或reload publication。factory只能消费完整成功的exact capsule，不能回到normalised path或live `NativeStorage`；选择地雷见[[reference_skin_managed_folder_selection]]。
 - 测试中的反向share gate证明write/file rename受阻，新建child仍可能发生但会被final inventory拒绝；不能把共享模式描述成冻结整个目录树。
 
 ## 入口
 
 - 声明/路径前置见 [[reference_skin_filesystem_authority_preflight]]，capsule ownership见 [[reference_skin_package_revision_capsule]]。
-- 当前测试数字、production接线与下一门只看P1-A STATUS/PLAN；不得把本producer写成G1、folder skin或Skin V1产品能力。
+- 当前测试数字、production接线与下一门只看P1-A STATUS/PLAN；不得把capture producer本身写成G1、folder skin或Skin V1产品能力。

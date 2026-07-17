@@ -73,16 +73,39 @@ namespace osu.Game.Skinning
         /// <param name="fallbackStore">An optional fallback store which will be used for file lookups that are not serviced by realm user storage.</param>
         /// <param name="configurationFilename">An optional filename to read the skin configuration from. If not provided, the configuration will be retrieved from the storage using "skin.ini".</param>
         protected Skin(SkinInfo skin, IStorageResourceProvider? resources, IResourceStore<byte[]>? fallbackStore = null, string configurationFilename = @"skin.ini")
+            : this(skin, resources, fallbackStore, configurationFilename, useExactPackageStore: false)
+        {
+        }
+
+        /// <summary>
+        /// Construct a skin whose package bytes come exclusively from one immutable captured revision.
+        /// </summary>
+        /// <remarks>
+        /// Renderer, audio and texture-loader services still come from <paramref name="resources"/>, but the global
+        /// Realm file store is deliberately absent. This overload is restricted to the managed-folder factory path.
+        /// </remarks>
+        protected Skin(
+            SkinInfo skin,
+            IStorageResourceProvider? resources,
+            IResourceStore<byte[]>? fallbackStore,
+            string configurationFilename,
+            bool useExactPackageStore)
         {
             this.resources = resources;
 
             Name = skin.Name;
 
+            if (useExactPackageStore && fallbackStore is not ISkinPackageRevisionResourceStore)
+                throw new InvalidOperationException("An exact package skin requires an immutable revision resource store.");
+
             if (resources != null)
             {
-                SkinInfo = skin.ToLive(resources.RealmAccess);
+                SkinInfo = useExactPackageStore
+                    ? createDetachedInfoSnapshot(skin).ToLiveUnmanaged()
+                    : skin.ToLive(resources.RealmAccess);
 
-                store.AddStore(new RealmBackedResourceStore<SkinInfo>(SkinInfo, resources.Files, resources.RealmAccess));
+                if (!useExactPackageStore)
+                    store.AddStore(new RealmBackedResourceStore<SkinInfo>(SkinInfo, resources.Files, resources.RealmAccess));
 
                 RecycleSamples();
                 Textures = new TextureStore(resources.Renderer, CreateTextureLoaderStore(resources, store));
@@ -141,6 +164,20 @@ namespace osu.Game.Skinning
                 }
             }
         }
+
+        private static SkinInfo createDetachedInfoSnapshot(SkinInfo source)
+            => new SkinInfo
+            {
+                ID = source.ID,
+                Name = source.Name,
+                Creator = source.Creator,
+                InstantiationInfo = source.InstantiationInfo,
+                Hash = source.Hash,
+                Protected = source.Protected,
+                FilesystemStoragePath = source.FilesystemStoragePath,
+                IsExternalFilesystemStorage = source.IsExternalFilesystemStorage,
+                DeletePending = source.DeletePending,
+            };
 
         /// <summary>
         /// Recreates <see cref="Samples"/>.

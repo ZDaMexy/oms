@@ -35,13 +35,13 @@ namespace osu.Game.Database
             Realm = realm;
         }
 
-        public void DeleteFile(TModel item, RealmNamedFileUsage file) =>
-            performFileOperation(item, managed => DeleteFile(managed, managed.Files.First(f => f.Filename == file.Filename), managed.Realm!));
+        public virtual void DeleteFile(TModel item, RealmNamedFileUsage file) =>
+            performFileOperation(item, managed => DeleteFile(managed, file, managed.Realm!));
 
-        public void ReplaceFile(TModel item, RealmNamedFileUsage file, Stream contents) =>
-            performFileOperation(item, managed => ReplaceFile(file, contents, managed.Realm!));
+        public virtual void ReplaceFile(TModel item, RealmNamedFileUsage file, Stream contents) =>
+            performFileOperation(item, managed => ReplaceFile(managed, file, contents, managed.Realm!));
 
-        public void AddFile(TModel item, Stream contents, string filename) =>
+        public virtual void AddFile(TModel item, Stream contents, string filename) =>
             performFileOperation(item, managed => AddFile(managed, contents, filename, managed.Realm!));
 
         private void performFileOperation(TModel item, Action<TModel> operation)
@@ -69,23 +69,23 @@ namespace osu.Game.Database
         /// <summary>
         /// Delete a file from within an ongoing realm transaction.
         /// </summary>
-        public void DeleteFile(TModel item, RealmNamedFileUsage file, Realm realm)
+        public virtual void DeleteFile(TModel item, RealmNamedFileUsage file, Realm realm)
         {
-            item.Files.Remove(file);
+            item.Files.Remove(item.Files.First(f => f.Filename == file.Filename));
         }
 
         /// <summary>
         /// Replace a file from within an ongoing realm transaction.
         /// </summary>
-        public void ReplaceFile(RealmNamedFileUsage file, Stream contents, Realm realm)
+        public virtual void ReplaceFile(TModel item, RealmNamedFileUsage file, Stream contents, Realm realm)
         {
-            file.File = realmFileStore.Add(contents, realm);
+            item.Files.First(f => f.Filename == file.Filename).File = realmFileStore.Add(contents, realm);
         }
 
         /// <summary>
         /// Add a file from within an ongoing realm transaction. If the file already exists, it is overwritten.
         /// </summary>
-        public void AddFile(TModel item, Stream contents, string filename, Realm realm)
+        public virtual void AddFile(TModel item, Stream contents, string filename, Realm realm)
         {
             filename = filename.ToStandardisedPath();
 
@@ -96,7 +96,7 @@ namespace osu.Game.Database
 
             if (existing != null)
             {
-                ReplaceFile(existing, contents, realm);
+                ReplaceFile(item, existing, contents, realm);
                 return;
             }
 
@@ -110,7 +110,7 @@ namespace osu.Game.Database
         /// Delete multiple items.
         /// This will post notifications tracking progress.
         /// </summary>
-        public void Delete(List<TModel> items, bool silent = false)
+        public virtual void Delete(List<TModel> items, bool silent = false)
         {
             if (items.Count == 0)
             {
@@ -152,7 +152,7 @@ namespace osu.Game.Database
         /// Restore multiple items that were previously deleted.
         /// This will post notifications tracking progress.
         /// </summary>
-        public void Undelete(List<TModel> items, bool silent = false)
+        public virtual void Undelete(List<TModel> items, bool silent = false)
         {
             if (!items.Any())
             {
@@ -189,7 +189,7 @@ namespace osu.Game.Database
             notification.State = ProgressNotificationState.Completed;
         }
 
-        public bool Delete(TModel item)
+        public virtual bool Delete(TModel item)
         {
             // Importantly, begin the realm write *before* re-fetching, else the update realm may not be in a consistent state
             // (ie. if an async import finished very recently).
@@ -207,7 +207,7 @@ namespace osu.Game.Database
             });
         }
 
-        public void Undelete(TModel item)
+        public virtual void Undelete(TModel item)
         {
             // Importantly, begin the realm write *before* re-fetching, else the update realm may not be in a consistent state
             // (ie. if an async import finished very recently).

@@ -22,18 +22,19 @@ using SixLabors.ImageSharp;
 namespace osu.Game.Rulesets.Bms.Skinning
 {
     /// <summary>
-    /// Resolves the first production Skin V1 note components from one exact managed <c>.osk</c> source.
+    /// Resolves the first production Skin V1 note components from one exact managed package source.
     /// </summary>
     /// <remarks>
-    /// Only the native BMS ordinary-note and long-note declarations are in scope. Mania compatibility candidates,
-    /// folder-backed packages and the future <c>oms-simple</c> provider remain outside this adapter.
+    /// Only the native BMS ordinary-note and long-note declarations are in scope. Eligible sources are either one
+    /// validated Realm <c>.osk</c> revision or one immutable managed-folder capsule; mania compatibility candidates and
+    /// the future <c>oms-simple</c> provider remain outside this adapter.
     /// </remarks>
     internal sealed class BmsManagedPackageNoteProvider :
         IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, BmsSourceBoundNoteMaterial>
     {
         private readonly BmsLegacySkin source;
 
-        public string Name => "selected.managed-osk.bms-note";
+        public string Name => "selected.managed-package.bms-note";
 
         public BmsManagedPackageNoteProvider(BmsLegacySkin source)
         {
@@ -126,14 +127,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </summary>
     internal static class BmsManagedPackageNoteLoadContext
     {
-        private static readonly AsyncLocal<CancellationToken?> currentCancellationToken = new AsyncLocal<CancellationToken?>();
+        private static readonly AsyncLocal<CancellationToken?> current_cancellation_token = new AsyncLocal<CancellationToken?>();
 
-        public static CancellationToken CurrentCancellationToken => currentCancellationToken.Value ?? CancellationToken.None;
+        public static CancellationToken CurrentCancellationToken => current_cancellation_token.Value ?? CancellationToken.None;
 
         public static IDisposable Enter(CancellationToken cancellationToken)
         {
-            CancellationToken? previous = currentCancellationToken.Value;
-            currentCancellationToken.Value = cancellationToken;
+            CancellationToken? previous = current_cancellation_token.Value;
+            current_cancellation_token.Value = cancellationToken;
             return new Scope(previous);
         }
 
@@ -153,7 +154,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     return;
 
                 disposed = true;
-                currentCancellationToken.Value = previous;
+                current_cancellation_token.Value = previous;
             }
         }
     }
@@ -167,7 +168,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     internal sealed record BmsManagedPackageFileRevision(string PackageName, string ContentHash, string StorageKey);
 
     /// <summary>
-    /// Immutable authority and file mapping captured from one Realm-backed package revision.
+    /// Immutable authority and file mapping captured from one eligible package revision.
     /// </summary>
     internal sealed class BmsManagedPackageSourceRevision : IEquatable<BmsManagedPackageSourceRevision>
     {
@@ -176,6 +177,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public Guid SkinId { get; }
         public string? ParsedConfigurationContentHash { get; }
+        public string? PackageContentRevision { get; }
         public bool HasGameplayAuthority { get; }
         public bool HasFileNameConflict { get; }
         public IReadOnlyList<BmsManagedPackageFileRevision> Files => files;
@@ -188,11 +190,33 @@ namespace osu.Game.Rulesets.Bms.Skinning
             bool deletePending,
             string? parsedConfigurationContentHash,
             IEnumerable<BmsManagedPackageFileRevision> files)
+            : this(
+                skinId,
+                isRealmManaged,
+                filesystemStoragePath,
+                isExternalFilesystemStorage,
+                deletePending,
+                parsedConfigurationContentHash,
+                packageContentRevision: null,
+                files)
+        {
+        }
+
+        private BmsManagedPackageSourceRevision(
+            Guid skinId,
+            bool hasPackageAuthority,
+            string? filesystemStoragePath,
+            bool isExternalFilesystemStorage,
+            bool deletePending,
+            string? parsedConfigurationContentHash,
+            string? packageContentRevision,
+            IEnumerable<BmsManagedPackageFileRevision> files)
         {
             ArgumentNullException.ThrowIfNull(files);
 
             SkinId = skinId;
             ParsedConfigurationContentHash = parsedConfigurationContentHash;
+            PackageContentRevision = packageContentRevision;
             var normalisedFiles = new List<BmsManagedPackageFileRevision>();
             filesByName = new Dictionary<string, BmsManagedPackageFileRevision>(StringComparer.OrdinalIgnoreCase);
 
@@ -236,16 +260,39 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             bool parsedConfigurationMatchesPackage = !string.IsNullOrWhiteSpace(parsedConfigurationContentHash)
                                                        && filesByName.TryGetValue("skin.ini", out BmsManagedPackageFileRevision? configurationFile)
-                                                       && StringComparer.Ordinal.Equals(configurationFile.ContentHash, parsedConfigurationContentHash);
+                                                       && StringComparer.OrdinalIgnoreCase.Equals(configurationFile.ContentHash, parsedConfigurationContentHash);
 
             HasFileNameConflict = conflict;
-            HasGameplayAuthority = isRealmManaged
+            HasGameplayAuthority = hasPackageAuthority
                                    && string.IsNullOrEmpty(filesystemStoragePath)
                                    && !isExternalFilesystemStorage
                                    && !deletePending
                                    && this.files.Length > 0
                                    && !conflict
                                    && parsedConfigurationMatchesPackage;
+        }
+
+        public static BmsManagedPackageSourceRevision CreateImmutableCapsule(
+            Guid skinId,
+            string? parsedConfigurationContentHash,
+            string packageContentRevision,
+            IReadOnlyList<SkinPackageFileRevision> files)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(packageContentRevision);
+            ArgumentNullException.ThrowIfNull(files);
+
+            return new BmsManagedPackageSourceRevision(
+                skinId,
+                hasPackageAuthority: true,
+                filesystemStoragePath: null,
+                isExternalFilesystemStorage: false,
+                deletePending: false,
+                parsedConfigurationContentHash,
+                packageContentRevision,
+                files.Select(file => new BmsManagedPackageFileRevision(
+                    file.ResourceName,
+                    file.ContentHash,
+                    file.ResourceName)));
         }
 
         public bool TryGetFile(string packageName, out BmsManagedPackageFileRevision file)
@@ -259,6 +306,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (other == null
                 || SkinId != other.SkinId
                 || !StringComparer.Ordinal.Equals(ParsedConfigurationContentHash, other.ParsedConfigurationContentHash)
+                || !StringComparer.Ordinal.Equals(PackageContentRevision, other.PackageContentRevision)
                 || HasGameplayAuthority != other.HasGameplayAuthority
                 || HasFileNameConflict != other.HasFileNameConflict
                 || files.Length != other.files.Length)
@@ -286,6 +334,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             var hash = new HashCode();
             hash.Add(SkinId);
             hash.Add(ParsedConfigurationContentHash, StringComparer.Ordinal);
+            hash.Add(PackageContentRevision, StringComparer.Ordinal);
             hash.Add(HasGameplayAuthority);
             hash.Add(HasFileNameConflict);
 

@@ -35,6 +35,13 @@ namespace osu.Game.Overlays.Settings.Sections
     public partial class SkinSection : SettingsSection
     {
         private SkinDropdown skinDropdown;
+        private SettingsButtonV2 layoutEditorButton;
+        private Bindable<Skin> currentSkin;
+        private Bindable<Live<SkinInfo>> dropdownSelection;
+        private Bindable<Live<SkinInfo>> committedSelection;
+        private bool synchronisingDropdownSelection;
+        private bool dropdownItemsLoading = true;
+        private bool committedSelectionDisabled;
 
         public override LocalisableString Header => SkinSettingsStrings.SkinSectionHeader;
 
@@ -66,7 +73,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     AlwaysShowSearchBar = true,
                     AllowNonContiguousMatching = true,
                     Caption = SkinSettingsStrings.CurrentSkin,
-                    Current = skins.CurrentSkinInfo,
+                    Current = dropdownSelection = new Bindable<Live<SkinInfo>>(skins.CurrentSkinInfo.Value),
                     Items = new[] { skins.CurrentSkinInfo.Value },
                 }),
                 new FillFlowContainer
@@ -83,7 +90,7 @@ namespace osu.Game.Overlays.Settings.Sections
                         new DeleteSkinButton { Padding = new MarginPadding { Left = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
                     }
                 },
-                new SettingsButtonV2
+                layoutEditorButton = new SettingsButtonV2
                 {
                     Text = SkinSettingsStrings.SkinLayoutEditor,
                     Action = () => skinEditor?.ToggleVisibility(),
@@ -95,7 +102,39 @@ namespace osu.Game.Overlays.Settings.Sections
         {
             base.LoadComplete();
 
-            skinDropdown.Current.Disabled = true;
+            updateDropdownDisabled();
+
+            committedSelection = skins.CurrentSkinInfo.GetBoundCopy();
+            committedSelection.BindValueChanged(skin => setDropdownSelection(skin.NewValue), true);
+            committedSelection.BindDisabledChanged(disabled =>
+            {
+                committedSelectionDisabled = disabled;
+                updateDropdownDisabled();
+            }, true);
+
+            dropdownSelection.BindValueChanged(selection =>
+            {
+                if (synchronisingDropdownSelection)
+                    return;
+
+                if (selection.NewValue.ID == SkinInfo.RANDOM_SKIN)
+                {
+                    // Restore the committed selection before choosing so random selection can exclude it.
+                    setDropdownSelection(skins.CurrentSkinInfo.Value);
+                    skins.SelectRandomSkin();
+                    return;
+                }
+
+                skins.CurrentSkinInfo.Value = selection.NewValue;
+
+                // Filesystem-backed requests prepare asynchronously and rejected requests never commit. Keep the
+                // control on the last committed value until SkinManager publishes a coherent pair.
+                setDropdownSelection(skins.CurrentSkinInfo.Value);
+            });
+
+            currentSkin = skins.CurrentSkin.GetBoundCopy();
+            currentSkin.BindValueChanged(_ => updateLayoutEditorState(), true);
+            currentSkin.BindDisabledChanged(_ => updateLayoutEditorState(), true);
 
             realmSubscription = realm.RegisterForNotifications(_ => realm.Realm.All<SkinInfo>()
                                                                          .Where(s => !s.DeletePending)
@@ -103,18 +142,34 @@ namespace osu.Game.Overlays.Settings.Sections
 
             refreshDropdownItems();
 
-            skinDropdown.Current.BindValueChanged(skin =>
-            {
-                if (skin.NewValue.ID == SkinInfo.RANDOM_SKIN)
-                {
-                    // before selecting random, set the skin back to the previous selection.
-                    // this is done because at this point it will be random_skin_info, and would
-                    // cause SelectRandomSkin to be unable to skip the previous selection.
-                    skins.CurrentSkinInfo.Value = skin.OldValue;
-                    skins.SelectRandomSkin();
-                }
-            });
         }
+
+        private void setDropdownSelection(Live<SkinInfo> selection)
+        {
+            synchronisingDropdownSelection = true;
+            bool wasDisabled = dropdownSelection.Disabled;
+
+            try
+            {
+                if (wasDisabled)
+                    dropdownSelection.Disabled = false;
+
+                dropdownSelection.Value = selection;
+            }
+            finally
+            {
+                if (wasDisabled)
+                    dropdownSelection.Disabled = true;
+
+                synchronisingDropdownSelection = false;
+            }
+        }
+
+        private void updateDropdownDisabled()
+            => skinDropdown.Current.Disabled = dropdownItemsLoading || committedSelectionDisabled;
+
+        private void updateLayoutEditorState()
+            => layoutEditorButton.Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
 
         private void skinsChanged(IRealmCollection<SkinInfo> sender, ChangeSet changes)
         {
@@ -146,7 +201,8 @@ namespace osu.Game.Overlays.Settings.Sections
                     dropdownItems.AddRange(items);
 
                     skinDropdown.Items = dropdownItems.ToList();
-                    skinDropdown.Current.Disabled = false;
+                    dropdownItemsLoading = false;
+                    updateDropdownDisabled();
                 });
             }
             catch (Exception e)
@@ -159,7 +215,8 @@ namespace osu.Game.Overlays.Settings.Sections
                         return;
 
                     skinDropdown.Items = new[] { skins.CurrentSkinInfo.Value };
-                    skinDropdown.Current.Disabled = false;
+                    dropdownItemsLoading = false;
+                    updateDropdownDisabled();
                 });
             }
         }
@@ -167,7 +224,10 @@ namespace osu.Game.Overlays.Settings.Sections
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
+            {
                 Interlocked.Increment(ref dropdownRefreshSequence);
+                committedSelection?.UnbindAll();
+            }
 
             base.Dispose(isDisposing);
 
@@ -202,7 +262,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
             }
 
-            private void updateState() => Enabled.Value = !currentSkin.Disabled && currentSkin.Value.SkinInfo.PerformRead(s => !s.Protected);
+            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
 
             public Popover GetPopover()
             {
@@ -233,7 +293,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
             }
 
-            private void updateState() => Enabled.Value = !currentSkin.Disabled && currentSkin.Value.SkinInfo.PerformRead(s => !s.Protected);
+            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
 
             private void export()
             {
@@ -274,7 +334,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
             }
 
-            private void updateState() => Enabled.Value = !currentSkin.Disabled && currentSkin.Value.SkinInfo.PerformRead(s => !s.Protected);
+            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
 
             private void delete()
             {

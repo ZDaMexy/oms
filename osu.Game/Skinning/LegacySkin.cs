@@ -58,6 +58,19 @@ namespace osu.Game.Skinning
         {
         }
 
+        /// <summary>
+        /// Construct a legacy skin over one exact immutable package store, without a Realm file-store fallback.
+        /// </summary>
+        protected LegacySkin(
+            SkinInfo skin,
+            IStorageResourceProvider? resources,
+            IResourceStore<byte[]>? fallbackStore,
+            string configurationFilename,
+            bool useExactPackageStore)
+            : base(skin, resources, fallbackStore, configurationFilename, useExactPackageStore)
+        {
+        }
+
         protected override IResourceStore<TextureUpload> CreateTextureLoaderStore(IStorageResourceProvider resources, IResourceStore<byte[]> storage)
             => new LegacyTextureLoaderStore(base.CreateTextureLoaderStore(resources, storage));
 

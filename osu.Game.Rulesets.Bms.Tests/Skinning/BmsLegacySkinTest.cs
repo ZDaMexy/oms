@@ -14,7 +14,6 @@ using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
-using osu.Framework.Testing;
 using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Difficulty;
@@ -360,20 +359,33 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestFolderBackedSkinReadsIniDirectlyFromDisk()
+        public void TestCapturedFolderSkinReadsOnlyExactCapsule()
         {
-            // G1 刀①: a skin folder on disk (chartskin/<name>/skin.ini + assets) is read directly via the public folder
-            // ctor + a StorageBackedResourceStore over the folder — no realm hash-backed copy. The empty realm Files list
-            // falls through to the folder store, so the [Bms] config parses straight off disk.
-            using var folder = new TemporaryNativeStorage($"oms-skin-folder-{Guid.NewGuid():N}");
-            File.WriteAllText(folder.GetFullPath(@"skin.ini"), "[Bms]\nKeymode: 7K\nPlayfieldWidth: 0.42\nNoteColourWhite: 1,2,3\n");
+            byte[] ini = Encoding.UTF8.GetBytes("[Bms]\nKeymode: 7K\nPlayfieldWidth: 0.42\nNoteColourWhite: 1,2,3\n");
+            SkinPackageRevisionCapsuleCreationResult creation = SkinPackageRevisionCapsuleFactory.Create(new[]
+            {
+                SkinPackageCapturedEntry.CreateFile("skin.ini", ini),
+            });
+            Assert.That(creation.Capsule, Is.Not.Null);
 
-            var skin = new BmsLegacySkin(new SkinInfo { Name = @"folder" }, new TestResourceProvider(), new StorageBackedResourceStore(folder));
+            using var skin = new BmsLegacySkin(
+                new SkinInfo
+                {
+                    Name = @"folder",
+                    FilesystemStoragePath = "chartskin/folder",
+                },
+                new FilesAccessRejectingResourceProvider(),
+                new SkinPackageRevisionResourceStore(creation.Capsule!),
+                useExactPackageStore: true);
+
+            ini[0] = 0;
 
             Assert.Multiple(() =>
             {
                 Assert.That(skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, BmsKeymode.Key7K)?.Value, Is.EqualTo(0.42f));
                 Assert.That(skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.NoteColourWhite, BmsKeymode.Key7K)?.Value, Is.EqualTo(new Color4(1, 2, 3, 255)));
+                Assert.That(skin.HasManagedPackageGameplayAuthority, Is.True);
+                Assert.That(skin.SkinInfo.IsManaged, Is.False);
             });
         }
 
@@ -468,6 +480,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             public IRenderer Renderer { get; } = new DummyRenderer();
             public AudioManager? AudioManager => null;
             public IResourceStore<byte[]> Files => Resources;
+            public IResourceStore<byte[]> Resources { get; } = new ResourceStore<byte[]>();
+            public RealmAccess RealmAccess => null!;
+            public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => null;
+        }
+
+        private class FilesAccessRejectingResourceProvider : IStorageResourceProvider
+        {
+            public IRenderer Renderer { get; } = new DummyRenderer();
+            public AudioManager? AudioManager => null;
+            public IResourceStore<byte[]> Files => throw new AssertionException("Exact package construction must not access the Realm file store.");
             public IResourceStore<byte[]> Resources { get; } = new ResourceStore<byte[]>();
             public RealmAccess RealmAccess => null!;
             public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => null;

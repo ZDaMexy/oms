@@ -262,6 +262,13 @@ namespace osu.Game.Skinning
 
                 resources.Clear();
             }
+
+            GC.SuppressFinalize(this);
+        }
+
+        ~SkinPackageRevisionCapsule()
+        {
+            Dispose();
         }
 
         public override string ToString() => $"{nameof(SkinPackageRevisionCapsule)}:Files{FileCount}:Bytes{TotalBytes}";
@@ -326,6 +333,116 @@ namespace osu.Game.Skinning
                 // Views never own the capsule. The future active publication is the single capsule owner.
             }
         }
+    }
+
+    /// <summary>
+    /// Marks the single owning resource store for one immutable package revision.
+    /// </summary>
+    /// <remarks>
+    /// This is an internal authority contract, not a general-purpose resource-store capability. Implementations must
+    /// own their backing capsule and keep every lookup bound to the advertised exact revision.
+    /// </remarks>
+    internal interface ISkinPackageRevisionResourceStore : IResourceStore<byte[]>
+    {
+        string ContentRevision { get; }
+
+        IReadOnlyList<SkinPackageFileRevision> Files { get; }
+    }
+
+    /// <summary>
+    /// Transfers one capsule into the lifetime of a skin instance.
+    /// </summary>
+    internal sealed class SkinPackageRevisionResourceStore : ISkinPackageRevisionResourceStore
+    {
+        private readonly object sync = new object();
+        private SkinPackageRevisionCapsule? capsule;
+        private IResourceStore<byte[]>? view;
+
+        public string ContentRevision
+        {
+            get
+            {
+                lock (sync)
+                    return getCapsule().ContentRevision;
+            }
+        }
+
+        public IReadOnlyList<SkinPackageFileRevision> Files
+        {
+            get
+            {
+                lock (sync)
+                    return getCapsule().Files;
+            }
+        }
+
+        /// <summary>
+        /// Takes exclusive ownership of <paramref name="capsule"/>.
+        /// </summary>
+        public SkinPackageRevisionResourceStore(SkinPackageRevisionCapsule capsule)
+        {
+            this.capsule = capsule ?? throw new ArgumentNullException(nameof(capsule));
+
+            try
+            {
+                view = capsule.CreateResourceView();
+            }
+            catch
+            {
+                capsule.Dispose();
+                this.capsule = null;
+                throw;
+            }
+        }
+
+        public byte[] Get(string name)
+        {
+            lock (sync)
+                return getView().Get(name);
+        }
+
+        public Task<byte[]> GetAsync(string name, CancellationToken cancellationToken = default)
+        {
+            lock (sync)
+                return getView().GetAsync(name, cancellationToken);
+        }
+
+        public Stream? GetStream(string name)
+        {
+            lock (sync)
+                return getView().GetStream(name);
+        }
+
+        public IEnumerable<string> GetAvailableResources()
+        {
+            lock (sync)
+                return getView().GetAvailableResources();
+        }
+
+        public void Dispose()
+        {
+            IResourceStore<byte[]>? disposedView;
+            SkinPackageRevisionCapsule? disposedCapsule;
+
+            lock (sync)
+            {
+                disposedView = view;
+                disposedCapsule = capsule;
+                view = null;
+                capsule = null;
+            }
+
+            disposedView?.Dispose();
+            disposedCapsule?.Dispose();
+        }
+
+        private SkinPackageRevisionCapsule getCapsule()
+            => capsule ?? throw new ObjectDisposedException(nameof(SkinPackageRevisionResourceStore));
+
+        private IResourceStore<byte[]> getView()
+            => view ?? throw new ObjectDisposedException(nameof(SkinPackageRevisionResourceStore));
+
+        public override string ToString() => nameof(SkinPackageRevisionResourceStore);
     }
 
     internal static class SkinPackageRevisionCapsuleFactory

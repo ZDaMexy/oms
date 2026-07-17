@@ -8,9 +8,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using osu.Framework.Audio;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions;
+using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
+using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Difficulty;
@@ -37,6 +41,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private readonly Dictionary<BmsKeymode, BmsSkinConfiguration> bmsConfigurations = new Dictionary<BmsKeymode, BmsSkinConfiguration>();
         private readonly BmsLegacySkinBackingKind backingKind;
         private readonly IStorageResourceProvider? resourceProvider;
+        private readonly BmsManagedPackageSourceRevision? immutablePackageSourceRevision;
         private readonly object managedPackageNotePreparationLock = new object();
         private readonly CancellationTokenSource managedPackageNotePreparationCancellation = new CancellationTokenSource();
         private ManagedPackageNotePreparationGeneration? managedPackageNotePreparation;
@@ -50,16 +55,28 @@ namespace osu.Game.Rulesets.Bms.Skinning
         }
 
         /// <summary>
-        /// Folder-backed construction (G1 visible-folder skins): skin.ini + textures are read directly from
-        /// <paramref name="folderStore"/> — a store over a visible skin folder such as <c>chartskin/&lt;name&gt;</c> —
-        /// instead of the realm hash-backed file store. Intended to be reached by reflection from the core skin
-        /// instantiation path for skins whose <see cref="SkinInfo"/> carries a filesystem storage path; the empty realm
-        /// <c>Files</c> list falls through to this store (the same fallback-store pattern <see cref="OmsSkin"/> uses).
+        /// Compatibility/test construction with an explicit fallback store. This is not managed-folder authority.
         /// </summary>
         [UsedImplicitly(ImplicitUseKindFlags.InstantiatedWithFixedConstructorSignature)]
         public BmsLegacySkin(SkinInfo skin, IStorageResourceProvider resources, IResourceStore<byte[]> folderStore)
             : this(skin, resources, folderStore, @"skin.ini", BmsLegacySkinBackingKind.ExplicitFallbackStore)
         {
+        }
+
+        /// <summary>
+        /// Managed-folder construction over one already captured immutable package revision. The package store is the
+        /// only source of skin bytes; renderer/audio/texture-loader services still come from <paramref name="resources"/>.
+        /// </summary>
+        [UsedImplicitly(ImplicitUseKindFlags.InstantiatedWithFixedConstructorSignature)]
+        public BmsLegacySkin(
+            SkinInfo skin,
+            IStorageResourceProvider resources,
+            IResourceStore<byte[]> packageStore,
+            bool useExactPackageStore)
+            : this(skin, resources, packageStore, @"skin.ini", BmsLegacySkinBackingKind.CapturedManagedFolder)
+        {
+            if (!useExactPackageStore)
+                throw new ArgumentException("The managed-folder constructor requires exact package authority.", nameof(useExactPackageStore));
         }
 
         protected BmsLegacySkin(SkinInfo skin, IStorageResourceProvider? resources, IResourceStore<byte[]>? fallbackStore, string configurationFilename = @"skin.ini")
@@ -78,10 +95,27 @@ namespace osu.Game.Rulesets.Bms.Skinning
             IResourceStore<byte[]>? fallbackStore,
             string configurationFilename,
             BmsLegacySkinBackingKind backingKind)
-            : base(skin, resources, fallbackStore, configurationFilename)
+            : base(
+                skin,
+                resources,
+                fallbackStore,
+                configurationFilename,
+                useExactPackageStore: backingKind == BmsLegacySkinBackingKind.CapturedManagedFolder)
         {
             this.backingKind = backingKind;
-            resourceProvider = resources;
+
+            if (backingKind == BmsLegacySkinBackingKind.CapturedManagedFolder)
+            {
+                var packageStore = (ISkinPackageRevisionResourceStore)fallbackStore!;
+                resourceProvider = new ExactPackageResourceProvider(resources!, packageStore);
+                immutablePackageSourceRevision = BmsManagedPackageSourceRevision.CreateImmutableCapsule(
+                    skin.ID,
+                    parsedConfigurationContentHash,
+                    packageStore.ContentRevision,
+                    packageStore.Files);
+            }
+            else
+                resourceProvider = resources;
         }
 
         protected override void ParseConfigurationStream(Stream stream)
@@ -142,18 +176,20 @@ namespace osu.Game.Rulesets.Bms.Skinning
         }
 
         /// <summary>
-        /// Whether this instance is a normal Realm-backed <c>.osk</c> package which may participate in the first
+        /// Whether this instance owns an exact eligible package revision which may participate in the first
         /// source-isolated gameplay component path.
         /// </summary>
         /// <remarks>
-        /// Realm liveness alone is not storage authority. Folder-backed and conflicting schema records remain excluded
-        /// until the G1 authority and migration gates are implemented. No filesystem path is returned or logged here.
+        /// Realm liveness alone is not storage authority. Realm packages must pass their existing metadata contract;
+        /// managed folders instead use the immutable revision captured before this instance was constructed.
         /// </remarks>
-        internal bool HasManagedPackageGameplayAuthority => backingKind == BmsLegacySkinBackingKind.RealmPackage
-                   && CaptureManagedPackageSourceRevision().HasGameplayAuthority;
+        internal bool HasManagedPackageGameplayAuthority => CaptureManagedPackageSourceRevision().HasGameplayAuthority;
 
         internal BmsManagedPackageSourceRevision CaptureManagedPackageSourceRevision()
         {
+            if (immutablePackageSourceRevision != null)
+                return immutablePackageSourceRevision;
+
             bool isManaged = SkinInfo.IsManaged;
 
             return SkinInfo.PerformRead(info =>
@@ -450,6 +486,27 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             RealmPackage,
             ExplicitFallbackStore,
+            CapturedManagedFolder,
+        }
+
+        private sealed class ExactPackageResourceProvider : IStorageResourceProvider
+        {
+            private readonly IStorageResourceProvider services;
+
+            public IRenderer Renderer => services.Renderer;
+            public AudioManager? AudioManager => services.AudioManager;
+            public IResourceStore<byte[]> Files { get; }
+            public IResourceStore<byte[]> Resources => services.Resources;
+            public RealmAccess RealmAccess => services.RealmAccess;
+
+            public ExactPackageResourceProvider(IStorageResourceProvider services, IResourceStore<byte[]> files)
+            {
+                this.services = services;
+                Files = files;
+            }
+
+            public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore)
+                => services.CreateTextureLoaderStore(underlyingStore);
         }
 
         private sealed class ManagedPackageNotePreparationGeneration

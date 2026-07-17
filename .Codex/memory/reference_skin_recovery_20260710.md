@@ -20,8 +20,8 @@ metadata:
 
 - 恢复基线 F1：`BmsSkinDecoder` / `BmsLegacySkin` / `.osk` 导入路由；现存静态件的颜色、纹理、几何；reference ini 自校验。其后只有 native BMS 普通短键编号帧成为窄生产例外；当前全貌看 P1-A STATUS。
 - 程序化 `OmsSkin` 是恢复时及当前实际迁移链底，用户皮肤缺件逐组件回落；最终产品 fallback 是只读 `oms-simple.osk`，程序化主题视觉必须在 V1 发布前退出。
-- G1 只保留两块：folder-backed ctor；`SkinInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` + Realm schema 56。**没有**生产扫描、选择、安全删改或热重载。
-- 恢复后 `SV1-2` 已把 authority/path preflight、managed Windows native no-follow capture 与 pure immutable capsule 闭合成内部链，但仍无`SkinManager`/production managed folder factory/选择消费方；它也不是external capture、scanner、mutation token或热重载。地雷见 [[reference_skin_filesystem_authority_preflight]]、[[reference_skin_package_revision_capsule]]、[[reference_skin_windows_handle_capture]]。
+- 恢复基线的G1只保留两块：folder-backed ctor；`SkinInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` + Realm schema 56；在恢复当时**没有**生产扫描、选择、安全删改或热重载。
+- 恢复后 `SV1-2` 已把 authority/path preflight、managed Windows native no-follow capture、pure immutable capsule与已注册合法record的production factory/guarded selection闭合成窄生产链；它仍不是自动发现/导入、external capture、scanner、managed mutation或热重载。地雷见 [[reference_skin_filesystem_authority_preflight]]、[[reference_skin_package_revision_capsule]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_managed_folder_selection]]。
 - 恢复时新增两个独立修正：复制流后 reset position 再交 base parser；14K 右皿 `S2` → `P2` 素材映射。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 替换均未落地。
 
@@ -38,5 +38,5 @@ metadata:
 
 1. 先读 `doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md` 与 P1-A 四件套；当前执行门只看 P1-A STATUS/PLAN。
 2. schema 56 清点与定点迁移、`SV1-0` 自动/数据/2026-07-14 实机 gate 均已完成；不要重复打开或清理生产数据。
-3. G1 仍须按 managed/external、安全删改、扫描 authority、热重载四个独立切片重做；当前完成声明/preflight、pure capsule 与 managed Windows native capture 原语，production factory/选择、external capture、owner tag、mutation 与 reload 仍未完成。测试按实际改动面选择，修改 shared/mania/fallback authority 时才强制追加 core/mania gate。
+3. G1 仍须按 managed/external、安全删改、扫描 authority、热重载四个独立切片重做；当前另已闭合已注册合法managed record的production factory/选择，schema 57 owner/自动发现、external capture、专用mutation与reload仍未完成。测试按实际改动面选择，修改 shared/mania/fallback authority 时才强制追加 core/mania gate。
 4. 2026-07-14 只闭合恢复静态基线；普通短键编号帧动画仍须由用户单独实机确认，不能复用该结论。当前 gate 只看 P1-A STATUS。

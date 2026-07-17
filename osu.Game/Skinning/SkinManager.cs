@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
@@ -14,6 +15,7 @@ using JetBrains.Annotations;
 using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
+using osu.Framework.Development;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
@@ -24,11 +26,27 @@ using osu.Framework.Utils;
 using osu.Game.Audio;
 using osu.Game.Database;
 using osu.Game.IO;
+using osu.Game.Models;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Utils;
+using Realms;
 
 namespace osu.Game.Skinning
 {
+    internal enum SkinSelectionRejectionReason
+    {
+        None,
+        FilesystemDeclarationRejected,
+        UnmanagedFilesystemRecord,
+        ExternalFolderUnsupported,
+        InstantiationInfoNotAllowed,
+        CaptureRejected,
+        CapturedCandidateChanged,
+        FactoryRejected,
+        PreparationCancelled,
+        PreparationFailed,
+    }
+
     /// <summary>
     /// Handles the storage and retrieval of <see cref="Skin"/>s.
     /// </summary>
@@ -56,9 +74,30 @@ namespace osu.Game.Skinning
 
         private readonly IResourceStore<byte[]> resources;
 
+        private readonly Storage storage;
+
         public readonly Bindable<Skin> CurrentSkin = new Bindable<Skin>();
 
-        public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new Bindable<Live<SkinInfo>>(OmsSkin.CreateInfo().ToLiveUnmanaged());
+        public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new SkinSelectionBindable(OmsSkin.CreateInfo().ToLiveUnmanaged());
+
+        internal SkinSelectionRejectionReason LastSelectionRejectionReason { get; private set; }
+
+        internal Func<SkinManagedPackageCaptureRequest, CancellationToken, SkinManagedPackageCaptureResult> ManagedFolderCapture { get; set; }
+            = (request, cancellationToken) => SkinManagedPackageCapture.Capture(request, cancellationToken: cancellationToken);
+
+        internal Func<SkinInfo, IStorageResourceProvider, SkinPackageRevisionCapsule, SkinManagedFolderFactoryResult> ManagedFolderFactoryCreate { get; set; }
+            = SkinManagedFolderFactory.Create;
+
+        internal Action<Action> ManagedFolderCompletionSchedule { get; set; }
+
+        internal Action ManagedFolderBeforeCommit { get; set; } = () => { };
+
+        internal Action<Live<SkinInfo>> SelectionRequestBeforeCommitLock { get; set; } = _ => { };
+
+        private readonly object selectionCommitLock = new object();
+        private long selectionGeneration;
+        private CancellationTokenSource pendingSelectionCancellation;
+        private PreparedManagedFolderSelection preparedManagedFolderSelection;
 
         private readonly SkinImporter skinImporter;
 
@@ -94,14 +133,16 @@ namespace osu.Game.Skinning
         public SkinManager(Storage storage, RealmAccess realm, GameHost host, IResourceStore<byte[]> resources, AudioManager audio, Scheduler scheduler)
             : base(storage, realm)
         {
+            this.storage = storage;
             this.audio = audio;
             this.scheduler = scheduler;
             this.host = host;
             this.resources = resources;
+            ManagedFolderCompletionSchedule = completion => scheduler.Add(completion);
 
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
 
-            skinImporter = new SkinImporter(storage, realm, this)
+            skinImporter = new SkinImporter(storage, realm, this, info => !isFilesystemBacked(info))
             {
                 PostNotification = obj => PostNotification?.Invoke(obj),
             };
@@ -136,7 +177,18 @@ namespace osu.Game.Skinning
 
             CurrentSkinInfo.ValueChanged += skin =>
             {
-                CurrentSkin.Value = skin.NewValue.PerformRead(GetSkin);
+                Skin instance;
+
+                if (preparedManagedFolderSelection is { } prepared
+                    && ReferenceEquals(prepared.Target, skin.NewValue))
+                {
+                    preparedManagedFolderSelection = null;
+                    instance = prepared.Skin;
+                }
+                else
+                    instance = skin.NewValue.PerformRead(GetSkin);
+
+                CurrentSkin.Value = instance;
             };
 
             CurrentSkin.Value = DefaultOmsSkin;
@@ -147,6 +199,8 @@ namespace osu.Game.Skinning
 
                 SourceChanged?.Invoke();
             };
+
+            ((SkinSelectionBindable)CurrentSkinInfo).SelectionRequested = requestSelection;
 
             skinExporter = new LegacySkinExporter(storage)
             {
@@ -168,7 +222,7 @@ namespace osu.Game.Skinning
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
 
                 var userSkins = realm.All<SkinInfo>()
-                                     .Where(s => !s.DeletePending && !s.Protected)
+                                     .Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage)
                                      .AsEnumerable()
                                      .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
                                      .Select(s => s.ToLive(Realm));
@@ -196,7 +250,7 @@ namespace osu.Game.Skinning
 
                 // choose from only user skins, removing the current selection to ensure a new one is chosen.
                 var randomChoices = r.All<SkinInfo>()
-                                     .Where(s => !s.DeletePending && !s.Protected && s.ID != currentSkinId)
+                                     .Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage && s.ID != currentSkinId)
                                      .ToArray();
 
                 if (randomChoices.Length == 0)
@@ -250,7 +304,344 @@ namespace osu.Game.Skinning
         /// </summary>
         /// <param name="skinInfo">The skin to lookup.</param>
         /// <returns>A <see cref="Skin"/> instance correlating to the provided <see cref="SkinInfo"/>.</returns>
-        public Skin GetSkin(SkinInfo skinInfo) => skinInfo.CreateInstance(this);
+        public Skin GetSkin(SkinInfo skinInfo)
+        {
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
+
+            if (resolution.Authority == SkinFilesystemStorageAuthority.RealmPackage)
+                return skinInfo.CreateInstance(this);
+
+            if (resolution.Authority != SkinFilesystemStorageAuthority.ManagedFolder
+                || resolution.ManagedCaptureRequest == null
+                || !skinInfo.IsManaged
+                || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(skinInfo.InstantiationInfo))
+            {
+                throw new InvalidOperationException("The filesystem-backed skin cannot be prepared safely.");
+            }
+
+            SkinInfo snapshot = createFilesystemSkinSnapshot(skinInfo);
+            SkinManagedPackageCaptureResult capture = ManagedFolderCapture(resolution.ManagedCaptureRequest, CancellationToken.None);
+
+            if (!capture.IsSuccess)
+                throw new InvalidOperationException("The managed skin folder could not be captured safely.");
+
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(snapshot, this, capture.Capsule!);
+
+            return factory.Skin ?? throw new InvalidOperationException("The captured managed skin folder could not be instantiated safely.");
+        }
+
+        private bool requestSelection(Live<SkinInfo> target)
+        {
+            SelectionRequest request;
+
+            try
+            {
+                request = target.PerformRead(info => createSelectionRequest(info));
+            }
+            catch
+            {
+                lock (selectionCommitLock)
+                {
+                    Interlocked.Increment(ref selectionGeneration);
+                    cancelPendingSelection();
+                    rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                }
+
+                return false;
+            }
+
+            if (request.Resolution.Authority == SkinFilesystemStorageAuthority.ManagedFolder
+                && !ThreadSafety.IsUpdateThread)
+            {
+                throw new InvalidOperationException("Managed folder skin selection requests must run on the update thread.");
+            }
+
+            SelectionRequestBeforeCommitLock(target);
+
+            lock (selectionCommitLock)
+            {
+                long generation = Interlocked.Increment(ref selectionGeneration);
+                cancelPendingSelection();
+
+                switch (request.Resolution.Authority)
+                {
+                    case SkinFilesystemStorageAuthority.RealmPackage:
+                        LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                        ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(target);
+                        return false;
+
+                    case SkinFilesystemStorageAuthority.ExternalFolder:
+                        rejectSelection(SkinSelectionRejectionReason.ExternalFolderUnsupported);
+                        return false;
+
+                    case SkinFilesystemStorageAuthority.Invalid:
+                        rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                        return false;
+
+                    case SkinFilesystemStorageAuthority.ManagedFolder:
+                        break;
+
+                    default:
+                        rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                        return false;
+                }
+
+                if (request.Resolution.ManagedCaptureRequest == null || request.Snapshot == null)
+                {
+                    rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                    return false;
+                }
+
+                if (!request.IsRealmManaged)
+                {
+                    rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
+                    return false;
+                }
+
+                if (!SkinManagedFolderFactory.IsInstantiationInfoAllowed(request.Snapshot.InstantiationInfo))
+                {
+                    rejectSelection(SkinSelectionRejectionReason.InstantiationInfoNotAllowed);
+                    return false;
+                }
+
+                var cancellation = new CancellationTokenSource();
+                pendingSelectionCancellation = cancellation;
+                SkinManagedPackageCaptureRequest captureRequest = request.Resolution.ManagedCaptureRequest;
+
+                Task.Run(
+                        () => ManagedFolderCapture(captureRequest, cancellation.Token),
+                        cancellation.Token)
+                    .ContinueWith(
+                        task => scheduleManagedFolderSelectionCompletion(generation, target, request, cancellation, task),
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+
+                return false;
+            }
+        }
+
+        private void scheduleManagedFolderSelectionCompletion(
+            long generation,
+            Live<SkinInfo> target,
+            SelectionRequest request,
+            CancellationTokenSource cancellation,
+            Task<SkinManagedPackageCaptureResult> captureTask)
+        {
+            try
+            {
+                ManagedFolderCompletionSchedule(() => completeManagedFolderSelection(generation, target, request, cancellation, captureTask));
+            }
+            catch
+            {
+                if (captureTask.Status == TaskStatus.RanToCompletion)
+                    captureTask.GetAwaiter().GetResult().Capsule?.Dispose();
+                else if (captureTask.IsFaulted)
+                    _ = captureTask.Exception;
+
+                Interlocked.CompareExchange(ref pendingSelectionCancellation, null, cancellation);
+                cancellation.Dispose();
+                rejectSelection(generation, SkinSelectionRejectionReason.PreparationFailed);
+            }
+        }
+
+        private void completeManagedFolderSelection(
+            long generation,
+            Live<SkinInfo> target,
+            SelectionRequest request,
+            CancellationTokenSource cancellation,
+            Task<SkinManagedPackageCaptureResult> captureTask)
+        {
+            Interlocked.CompareExchange(ref pendingSelectionCancellation, null, cancellation);
+
+            cancellation.Dispose();
+
+            if (captureTask.Status != TaskStatus.RanToCompletion)
+            {
+                if (captureTask.IsFaulted)
+                    _ = captureTask.Exception;
+
+                rejectSelection(
+                    generation,
+                    captureTask.IsCanceled
+                        ? SkinSelectionRejectionReason.PreparationCancelled
+                        : SkinSelectionRejectionReason.PreparationFailed);
+
+                return;
+            }
+
+            SkinManagedPackageCaptureResult capture = captureTask.GetAwaiter().GetResult();
+
+            if (generation != Interlocked.Read(ref selectionGeneration))
+            {
+                capture.Capsule?.Dispose();
+                return;
+            }
+
+            if (!capture.IsSuccess)
+            {
+                rejectSelection(generation, SkinSelectionRejectionReason.CaptureRejected);
+                return;
+            }
+
+            bool candidateStillMatches;
+
+            try
+            {
+                candidateStillMatches = target.PerformRead(info => request.Matches(info, storage));
+            }
+            catch
+            {
+                candidateStillMatches = false;
+            }
+
+            if (!candidateStillMatches)
+            {
+                capture.Capsule!.Dispose();
+                rejectSelection(generation, SkinSelectionRejectionReason.CapturedCandidateChanged);
+                return;
+            }
+
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(request.Snapshot!, this, capture.Capsule!);
+
+            if (!factory.IsSuccess)
+            {
+                rejectSelection(generation, SkinSelectionRejectionReason.FactoryRejected);
+                return;
+            }
+
+            if (generation != Interlocked.Read(ref selectionGeneration))
+            {
+                factory.Skin!.Dispose();
+                return;
+            }
+
+            try
+            {
+                candidateStillMatches = target.PerformRead(info => request.Matches(info, storage));
+            }
+            catch
+            {
+                candidateStillMatches = false;
+            }
+
+            if (!candidateStillMatches)
+            {
+                factory.Skin!.Dispose();
+                rejectSelection(generation, SkinSelectionRejectionReason.CapturedCandidateChanged);
+                return;
+            }
+
+            lock (selectionCommitLock)
+            {
+                if (generation != Interlocked.Read(ref selectionGeneration))
+                {
+                    factory.Skin!.Dispose();
+                    return;
+                }
+
+                if (CurrentSkinInfo.Disabled)
+                {
+                    factory.Skin!.Dispose();
+                    rejectSelection(SkinSelectionRejectionReason.PreparationCancelled);
+                    return;
+                }
+
+                try
+                {
+                    ManagedFolderBeforeCommit();
+                }
+                catch
+                {
+                    factory.Skin!.Dispose();
+                    rejectSelection(SkinSelectionRejectionReason.PreparationFailed);
+                    return;
+                }
+
+                if (generation != Interlocked.Read(ref selectionGeneration))
+                {
+                    factory.Skin!.Dispose();
+                    return;
+                }
+
+                var prepared = new PreparedManagedFolderSelection(target, factory.Skin!);
+                preparedManagedFolderSelection = prepared;
+
+                try
+                {
+                    ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(target);
+                }
+                finally
+                {
+                    if (ReferenceEquals(preparedManagedFolderSelection, prepared))
+                    {
+                        preparedManagedFolderSelection = null;
+                        prepared.Skin.Dispose();
+                    }
+                }
+
+                if (generation == Interlocked.Read(ref selectionGeneration)
+                    && CurrentSkinInfo.Value.ID == target.ID
+                    && ReferenceEquals(CurrentSkin.Value, factory.Skin))
+                {
+                    LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                }
+            }
+        }
+
+        private SelectionRequest createSelectionRequest(SkinInfo skinInfo)
+        {
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
+            SkinInfo snapshot = resolution.Authority == SkinFilesystemStorageAuthority.ManagedFolder
+                ? createFilesystemSkinSnapshot(skinInfo)
+                : null;
+
+            return new SelectionRequest(resolution, snapshot, skinInfo.IsManaged);
+        }
+
+        private static SkinInfo createFilesystemSkinSnapshot(SkinInfo source)
+            => new SkinInfo
+            {
+                ID = source.ID,
+                Name = source.Name,
+                Creator = source.Creator,
+                InstantiationInfo = source.InstantiationInfo,
+                Hash = source.Hash,
+                Protected = source.Protected,
+                FilesystemStoragePath = source.FilesystemStoragePath,
+                IsExternalFilesystemStorage = source.IsExternalFilesystemStorage,
+                DeletePending = source.DeletePending,
+            };
+
+        private void cancelPendingSelection()
+        {
+            CancellationTokenSource cancellation = Interlocked.Exchange(ref pendingSelectionCancellation, null);
+
+            if (cancellation == null)
+                return;
+
+            try
+            {
+                cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        private void rejectSelection(SkinSelectionRejectionReason reason)
+        {
+            LastSelectionRejectionReason = reason;
+        }
+
+        private void rejectSelection(long generation, SkinSelectionRejectionReason reason)
+        {
+            lock (selectionCommitLock)
+            {
+                if (generation == Interlocked.Read(ref selectionGeneration))
+                    rejectSelection(reason);
+            }
+        }
 
         /// <summary>
         /// Ensure that the current skin is in a state it can accept user modifications.
@@ -263,6 +654,9 @@ namespace osu.Game.Skinning
         {
             return CurrentSkinInfo.Value.PerformRead(s =>
             {
+                if (isFilesystemBacked(s))
+                    throw new InvalidOperationException("Filesystem-backed skins are read-only until their mutation protocol is available.");
+
                 if (!s.Protected)
                     return false;
 
@@ -303,6 +697,9 @@ namespace osu.Game.Skinning
         /// <returns>Whether any change actually occurred.</returns>
         public bool Save(Skin skin)
         {
+            if (skin.SkinInfo.PerformRead(isFilesystemBacked))
+                throw new InvalidOperationException("Filesystem-backed skins cannot be saved through the Realm package editor.");
+
             if (!skin.SkinInfo.IsManaged)
                 throw new InvalidOperationException($"Attempting to save a skin which is not yet tracked. Call {nameof(EnsureMutableSkin)} first.");
 
@@ -400,17 +797,40 @@ namespace osu.Game.Skinning
         public Task<IEnumerable<Live<SkinInfo>>> Import(ProgressNotification notification, ImportTask[] tasks, ImportParameters parameters = default) =>
             skinImporter.Import(notification, tasks, parameters);
 
-        public Task<Live<SkinInfo>> ImportAsUpdate(ProgressNotification notification, ImportTask task, SkinInfo original) =>
-            skinImporter.ImportAsUpdate(notification, task, original);
+        public Task<Live<SkinInfo>> ImportAsUpdate(ProgressNotification notification, ImportTask task, SkinInfo original)
+        {
+            if (isFilesystemBacked(original))
+                throw new InvalidOperationException("Filesystem-backed skins cannot be replaced through the Realm package importer.");
 
-        public Task<ExternalEditOperation<SkinInfo>> BeginExternalEditing(SkinInfo model) => skinImporter.BeginExternalEditing(model);
+            return skinImporter.ImportAsUpdate(notification, task, original);
+        }
+
+        public Task<ExternalEditOperation<SkinInfo>> BeginExternalEditing(SkinInfo model)
+        {
+            SkinInfo authoritative = Realm.Run(realm =>
+            {
+                SkinInfo record = realm.Find<SkinInfo>(model.ID) ?? throw new InvalidOperationException("The skin is not registered in this Realm.");
+                if (isFilesystemBacked(record))
+                    throw new InvalidOperationException("Filesystem-backed skins cannot enter the Realm external-edit workflow.");
+
+                return record.Detach();
+            });
+
+            return skinImporter.BeginExternalEditing(authoritative);
+        }
 
         public Task<Live<SkinInfo>> Import(ImportTask task, ImportParameters parameters = default, CancellationToken cancellationToken = default) =>
             skinImporter.Import(task, parameters, cancellationToken);
 
         public Task ExportCurrentSkin() => ExportSkin(CurrentSkinInfo.Value);
 
-        public Task ExportSkin(Live<SkinInfo> skin) => skinExporter.ExportAsync(skin);
+        public Task ExportSkin(Live<SkinInfo> skin)
+        {
+            if (skin.PerformRead(isFilesystemBacked))
+                throw new InvalidOperationException("Filesystem-backed skins cannot be exported as Realm packages.");
+
+            return skinExporter.ExportAsync(skin);
+        }
 
         #endregion
 
@@ -419,7 +839,10 @@ namespace osu.Game.Skinning
             Realm.Run(r =>
             {
                 var items = r.All<SkinInfo>()
-                             .Where(s => !s.Protected && !s.DeletePending);
+                             .Where(s => !s.Protected
+                                         && !s.DeletePending
+                                         && string.IsNullOrEmpty(s.FilesystemStoragePath)
+                                         && !s.IsExternalFilesystemStorage);
                 if (filter != null)
                     items = items.Where(filter);
 
@@ -435,12 +858,113 @@ namespace osu.Game.Skinning
 
         public void Rename(Live<SkinInfo> skin, string newName)
         {
+            if (skin.PerformRead(isFilesystemBacked))
+                throw new InvalidOperationException("Filesystem-backed skins cannot be renamed through the Realm package workflow.");
+
             skin.PerformWrite(s =>
             {
                 s.Name = newName;
                 skinImporter.UpdateSkinIniMetadata(s, s.Realm!);
             });
         }
+
+        public override bool Delete(SkinInfo item)
+        {
+            return Realm.Write(realm =>
+            {
+                SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
+
+                if (authoritative == null
+                    || isFilesystemBacked(authoritative)
+                    || authoritative.DeletePending)
+                {
+                    return false;
+                }
+
+                authoritative.DeletePending = true;
+                return true;
+            });
+        }
+
+        public override void Delete(List<SkinInfo> items, bool silent = false)
+            => base.Delete(items.Where(item => !isFilesystemBacked(item)).ToList(), silent);
+
+        public override void Undelete(SkinInfo item)
+        {
+            Realm.Write(realm =>
+            {
+                SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
+
+                if (authoritative == null
+                    || isFilesystemBacked(authoritative)
+                    || !authoritative.DeletePending)
+                {
+                    return;
+                }
+
+                authoritative.DeletePending = false;
+            });
+        }
+
+        public override void Undelete(List<SkinInfo> items, bool silent = false)
+            => base.Undelete(items.Where(item => !isFilesystemBacked(item)).ToList(), silent);
+
+        public override void AddFile(SkinInfo item, Stream contents, string filename)
+        {
+            if (isFilesystemBacked(item))
+                throw new InvalidOperationException("Filesystem-backed skins cannot receive Realm package files.");
+
+            base.AddFile(item, contents, filename);
+        }
+
+        public override void DeleteFile(SkinInfo item, RealmNamedFileUsage file)
+        {
+            if (isFilesystemBacked(item))
+                throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
+
+            base.DeleteFile(item, file);
+        }
+
+        public override void ReplaceFile(SkinInfo item, RealmNamedFileUsage file, Stream contents)
+        {
+            if (isFilesystemBacked(item))
+                throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
+
+            base.ReplaceFile(item, file, contents);
+        }
+
+        public override void AddFile(SkinInfo item, Stream contents, string filename, Realm realm)
+        {
+            if (isFilesystemBacked(item, realm))
+                throw new InvalidOperationException("Filesystem-backed skins cannot receive Realm package files.");
+
+            base.AddFile(item, contents, filename, realm);
+        }
+
+        public override void DeleteFile(SkinInfo item, RealmNamedFileUsage file, Realm realm)
+        {
+            if (isFilesystemBacked(item, realm))
+                throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
+
+            base.DeleteFile(item, file, realm);
+        }
+
+        public override void ReplaceFile(SkinInfo item, RealmNamedFileUsage file, Stream contents, Realm realm)
+        {
+            if (isFilesystemBacked(item, realm))
+                throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
+
+            base.ReplaceFile(item, file, contents, realm);
+        }
+
+        public bool CanModify(Live<SkinInfo> skin)
+            => skin.PerformRead(info => !info.Protected && !isFilesystemBacked(info));
+
+        private static bool isFilesystemBacked(SkinInfo skin)
+            => !string.IsNullOrEmpty(skin.FilesystemStoragePath) || skin.IsExternalFilesystemStorage;
+
+        private static bool isFilesystemBacked(SkinInfo skin, Realm realm)
+            => isFilesystemBacked(realm.Find<SkinInfo>(skin.ID) ?? skin);
 
         public void SetSkinFromConfiguration(string guidString)
         {
@@ -455,6 +979,56 @@ namespace osu.Game.Skinning
             }
 
             CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
+        }
+
+        private sealed class SelectionRequest
+        {
+            public SkinFilesystemStorageResolution Resolution { get; }
+            public SkinInfo Snapshot { get; }
+            public bool IsRealmManaged { get; }
+
+            public SelectionRequest(SkinFilesystemStorageResolution resolution, SkinInfo snapshot, bool isRealmManaged)
+            {
+                Resolution = resolution;
+                Snapshot = snapshot;
+                IsRealmManaged = isRealmManaged;
+            }
+
+            public bool Matches(SkinInfo current, Storage storage)
+            {
+                if (Snapshot == null
+                    || !current.IsManaged
+                    || current.ID != Snapshot.ID
+                    || !string.Equals(current.Name, Snapshot.Name, StringComparison.Ordinal)
+                    || !string.Equals(current.Creator, Snapshot.Creator, StringComparison.Ordinal)
+                    || !string.Equals(current.InstantiationInfo, Snapshot.InstantiationInfo, StringComparison.Ordinal)
+                    || !string.Equals(current.Hash, Snapshot.Hash, StringComparison.Ordinal)
+                    || current.Protected != Snapshot.Protected
+                    || !string.Equals(current.FilesystemStoragePath, Snapshot.FilesystemStoragePath, StringComparison.Ordinal)
+                    || current.IsExternalFilesystemStorage != Snapshot.IsExternalFilesystemStorage
+                    || current.DeletePending != Snapshot.DeletePending
+                    || current.Files.Count != 0)
+                {
+                    return false;
+                }
+
+                SkinFilesystemStorageResolution currentResolution = SkinFilesystemStorageResolver.ResolveExisting(current, storage);
+                return currentResolution.Authority == SkinFilesystemStorageAuthority.ManagedFolder
+                       && currentResolution.ManagedCaptureRequest != null
+                       && SkinManagedFolderFactory.IsInstantiationInfoAllowed(current.InstantiationInfo);
+            }
+        }
+
+        private sealed class PreparedManagedFolderSelection
+        {
+            public Live<SkinInfo> Target { get; }
+            public Skin Skin { get; }
+
+            public PreparedManagedFolderSelection(Live<SkinInfo> target, Skin skin)
+            {
+                Target = target;
+                Skin = skin;
+            }
         }
     }
 }

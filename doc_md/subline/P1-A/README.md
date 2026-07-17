@@ -1,6 +1,6 @@
 # P1-A 路由
 
-P1-A 负责 Skin V1、共享皮肤产品面与 release gate。当前 `SV1-0` 已闭门，managed `.osk` BMS 普通短键与长条 head/body/tail 的首个 Note/LN 产品纵切已闭合自动、合同、安全和回退 gate，`V-001`～`V-004` 集中待验收；这不等于 `SV1-1` 完成或产品交付。工程已进入 `SV1-2`：folder authority/path preflight、managed Windows handle-relative/no-follow capture 与 pure immutable capsule 的内部链已闭合到 capsule，但尚无 `SkinManager`/managed folder factory/选择消费方；下一步是 production managed folder factory/选择，Skin V1 整体仍不可用。
+P1-A 负责 Skin V1、共享皮肤产品面与 release gate。当前 `SV1-0` 已闭门，managed `.osk` BMS 普通短键与长条 head/body/tail 的首个 Note/LN 产品纵切已闭合自动、合同、安全和回退 gate，`V-001`～`V-004` 集中待验收；这不等于 `SV1-1` 完成或产品交付。`SV1-2` 已对Realm中已注册合法managed record闭合native capture、exact-capsule factory与guarded selection；下一步是schema 57 scanner owner/自动发现，专用mutation、external与atomic reload/detach仍未完成，Skin V1整体仍不可用。
 
 - 开工先读 [当前状态](DEVELOPMENT_STATUS.md)。
 - 准备实施时再读 [当前计划](DEVELOPMENT_PLAN.md) 与任务相关的 [技术约束](TECHNICAL_CONSTRAINTS.md)。
