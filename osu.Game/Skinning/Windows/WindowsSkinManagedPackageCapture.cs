@@ -325,6 +325,99 @@ namespace osu.Game.Skinning.Windows
             }
         }
 
+        /// <summary>
+        /// Captures one child which was enumerated from an already-held managed-root authority handle.
+        /// </summary>
+        /// <remarks>
+        /// The caller retains ownership of <paramref name="managedRoot"/>. This method owns every package handle it
+        /// opens and returns only an immutable capsule. The enumerated metadata is revalidated against the opened child
+        /// and against the final managed-root link before a successful result can escape.
+        /// </remarks>
+        internal SkinManagedPackageCaptureResult CaptureObservedChild(
+            IWindowsSkinPackageCaptureHandle managedRoot,
+            WindowsSkinPackageDirectoryEntry candidate,
+            SkinPackageRevisionCapsuleLimits? limits = null,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(managedRoot);
+            ArgumentNullException.ThrowIfNull(candidate);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!isValidRequestSegment(candidate.Name))
+                return SkinManagedPackageCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+
+            if (candidate.Metadata.IsReparsePoint)
+                return SkinManagedPackageCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.ReparsePointEncountered);
+
+            if (candidate.Metadata.Kind != WindowsSkinPackageEntryKind.Directory)
+                return SkinManagedPackageCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.UnsupportedEntryType);
+
+            if (!candidate.Metadata.Identity.IsUsable || candidate.Metadata.DeletePending)
+                return SkinManagedPackageCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture);
+
+            limits ??= SkinPackageRevisionCapsuleLimits.Default;
+
+            var handles = new List<IWindowsSkinPackageCaptureHandle>();
+            SkinPackageRevisionCapsule? provisionalCapsule = null;
+
+            try
+            {
+                IWindowsSkinPackageCaptureHandle packageRoot = own(
+                    fileSystem.OpenChildNoFollow(
+                        managedRoot,
+                        candidate.Name,
+                        WindowsSkinPackageOpenMode.CapturedDirectory,
+                        SkinManagedPackageCaptureRejectionReason.PackageUnavailable),
+                    handles);
+                WindowsSkinPackageEntryMetadata packageRootMetadata = fileSystem.QueryMetadata(packageRoot);
+                validateOpenedEntry(candidate.Metadata, packageRootMetadata);
+
+                var capture = new CaptureState(fileSystem, limits, handles, cancellationToken);
+                capture.CapturePackage(packageRoot, packageRootMetadata);
+                capture.ValidatePinnedNodes();
+
+                cancellationToken.ThrowIfCancellationRequested();
+                SkinPackageRevisionCapsuleCreationResult capsuleResult = SkinPackageRevisionCapsuleFactory.Create(
+                    capture.CapturedEntries,
+                    limits,
+                    cancellationToken);
+
+                if (!capsuleResult.IsSuccess)
+                    return SkinManagedPackageCaptureResult.RejectCapsule(capsuleResult.RejectionReason);
+
+                provisionalCapsule = capsuleResult.Capsule!;
+
+                cancellationToken.ThrowIfCancellationRequested();
+                capture.ValidatePinnedNodes();
+                capture.ValidateFinalInventories();
+                validatePackageRootPath(
+                    managedRoot,
+                    candidate.Name,
+                    candidate.Metadata,
+                    cancellationToken);
+                capture.ValidatePinnedNodes();
+
+                cancellationToken.ThrowIfCancellationRequested();
+                disposeHandles(handles);
+                SkinManagedPackageCaptureResult success = SkinManagedPackageCaptureResult.Success(provisionalCapsule);
+                provisionalCapsule = null;
+                return success;
+            }
+            catch (CapsuleRejectionException exception)
+            {
+                return SkinManagedPackageCaptureResult.RejectCapsule(exception.RejectionReason);
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception)
+            {
+                return SkinManagedPackageCaptureResult.Reject(exception.RejectionReason);
+            }
+            finally
+            {
+                provisionalCapsule?.Dispose();
+                disposeHandles(handles);
+            }
+        }
+
         private void validateAuthorityNodes(IReadOnlyList<NodeRecord> nodes, CancellationToken cancellationToken)
         {
             foreach (NodeRecord node in nodes)

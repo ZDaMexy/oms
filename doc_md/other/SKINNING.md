@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-07-17）**：已导入并选中的 managed `.osk` 可用 native `[Bms]` 静态字段；`NoteImage{lane}` 普通短键与 `NoteImage{lane}H/L/T` 长条头、身、尾（含 `S`/`S2`）可使用静态图或 `name-0`、`name-1`…连续编号帧，当前固定 60 FPS。`LongNoteBodyWidth` 是目前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失或非法时回到 `0.5775`；body 素材与解析后宽度绑定同一 package revision。四项自动 gate 已过，`V-001`～`V-004` 用户视觉仍集中待验收。tail 未声明/坏声明最终为透明迁移 fallback，但作者 `Suppress` 仍未开放；其它 gameplay slot、`chartskin/` 生产链、整包原子重载、scene/script 与文件型默认也尚未开放，程序化 `OmsSkin` 仍是迁移链底，因此 Skin V1 整体不可用。最新状态只看 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)；恢复边界和目标设计分别见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **当前作者能力（2026-07-17）**：已导入并选中的 managed `.osk` 可用 native `[Bms]` 静态字段；`NoteImage{lane}` 普通短键与 `NoteImage{lane}H/L/T` 长条头、身、尾（含 `S`/`S2`）可使用静态图或 `name-0`、`name-1`…连续编号帧，当前固定 60 FPS。`LongNoteBodyWidth` 是目前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失或非法时回到 `0.5775`；body 素材与解析后宽度绑定同一 package revision。受管理工作目录现可放在数据根的`chartskin/<包目录>/`，程序会在**下次启动**安全扫描并把有效包加入皮肤选择面；这不是实时监视或热重载。四项自动 gate 已过，`V-001`～`V-004` 用户视觉仍集中待验收。tail 未声明/坏声明最终为透明迁移 fallback，但作者 `Suppress` 仍未开放；专用目录删改、external、整包原子重载、其它 gameplay slot、scene/script 与文件型默认也尚未开放，程序化 `OmsSkin` 仍是迁移链底，因此 Skin V1 整体不可用。最新状态只看 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)；恢复边界和目标设计分别见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
@@ -53,7 +53,7 @@
 
 ## 2. 皮肤包结构
 
-当前可用形态是导入 `.osk`；包内根部为 `skin.ini`，其余为素材：
+当前可用形态有两种：把正式分发包作为 `.osk` 导入，或把开发中的目录放入受管理的 `chartskin/<包目录>/` 并在下次启动时自动发现。两种形态的包内根部都是 `skin.ini`，其余为素材：
 
 ```text
 MyBmsSkin/
@@ -68,13 +68,13 @@ MyBmsSkin/
   ...
 ```
 
-- 当前生产路径：把该文件夹内容打包为 `.osk` 后经游戏导入；导入器会把皮肤实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
+- 正式分发/导入路径：把该文件夹内容打包为 `.osk` 后经游戏导入；作者工作目录也可直接放入 `chartskin/<包目录>/`，由下次启动的一次性扫描注册。两条路径都会把合法 BMS 包实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
 - V1 以 `.osk` 为正式社区分发物，并恢复受管理/外部只读文件夹作为作者工作区/高级管理面。包内还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
 - 只含 mania、只含 BMS 或同含两者都合法；官方 `oms-simple/oms-complex` 选择同包双 ruleset，以证明第三方无需特殊内置路径也能完成产品级皮肤。
-- 规划中的可视目录为 OMS 数据目录下的 `chartskin/`，但可信恢复基线尚未启用扫描、选择、删除、重命名或热重载；不要手工放入后期待自动发现。
+- 可视受管理目录为 OMS 数据目录下的 `chartskin/`：每个 direct child 是一个包目录，根必须含有效 `skin.ini`。程序完整启动后会后台扫描一次，有效包进入皮肤选择面；文件、reparse、坏包或扫描竞态不会被导入，也不会借“未见”清理未知/普通 `.osk` 记录。启动后新增或修改目录须重启才会重新发现；当前仍没有专用删除、重命名或热重载。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
-- 热重载：当前可信基线未启用；修改来源后需重新导入/重选。普通短键与长条头/身/尾在选择 A→B 时可按组件后台准备并保留旧视觉到新视觉就绪，body 的素材与解析后宽度会以同一 package revision 一起切换；这不是来源文件热重载，也不是 `SV1-2` 的整包原子切换。安全路径 authority、完整验证后原子切换与失败保留旧实例仍属于 `SV1-2` 验收项。
+- 热重载：当前未启用；修改 `chartskin` 来源后须重启让 scanner 更新记录，再重新选择。普通短键与长条头/身/尾在选择 A→B 时可按组件后台准备并保留旧视觉到新视觉就绪，body 的素材与解析后宽度会以同一 package revision 一起切换；这不是来源文件热重载，也不是 `SV1-2` 的整包原子切换。完整验证后原子切换、全 consumer detach 与失败保留旧实例仍属于 `SV1-2` 验收项。
 
 ---
 
@@ -306,7 +306,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 
 1. **当前复制 reference ini；V1 复制 `oms-simple` 源目录**（[§9](#9-oms-simpleoms-complex-与最终-fallback)）为起点，而非从空白开始。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}`、长条头身尾可让 `NoteImage{lane}H/L/T` 指向资源基名并提供 `name-0`、`name-1`…；body 宽度可用 `LongNoteBodyWidth`，只接受 finite 且 `0 < width <= 1`。支持范围以页首能力块为准，帧率目前固定 60 FPS。
-3. **重新打包、导入和重选**：在 P1-A 明确开放原子热重载前，不要依赖 `chartskin/` 自动扫描或局部文件变化。
+3. **重新载入和重选**：正式包走重新打包/导入；`chartskin/` 工作目录修改后重启，让一次性 scanner 对账，再重新选择。原子热重载开放前，不要依赖运行中的局部文件变化。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
 5. **看运行结果与日志**：当前诊断并不完整；遇到静默回退时以实际渲染与 focused test 为准。
 6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。

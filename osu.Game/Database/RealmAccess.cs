@@ -106,8 +106,9 @@ namespace osu.Game.Database
         /// 54   2026-04-18    Add BeatmapSetInfo.IsExternalFilesystemStorage to distinguish read-only external directories from OMS-managed filesystem copies.
         /// 55   2026-05-31    Add BeatmapSetInfo.DifficultyTableRevision to force carousel re-detach after BMS difficulty-table metadata rewrites.
         /// 56   2026-06-29    Add SkinInfo.FilesystemStoragePath and SkinInfo.IsExternalFilesystemStorage to support visible folder-backed skins (chartskin/), mirroring BeatmapSetInfo.
+        /// 57   2026-07-17    Add SkinInfo.FilesystemStorageAuthorityOwner as nullable scanner ownership metadata. Existing records deliberately remain unowned.
         /// </summary>
-        private const int schema_version = 56;
+        private const int schema_version = 57;
 
         /// <summary>
         /// Lock object which is held during <see cref="BlockAllOperations"/> sections, blocking realm retrieval during blocking periods.
@@ -428,7 +429,7 @@ namespace osu.Game.Database
 
                     foreach (string directory in pendingDeleteDirectories)
                     {
-                        if (osu.Game.Utils.FilesystemSanityCheckHelpers.IncursPathTraversalRisk(directory))
+                        if (FilesystemSanityCheckHelpers.IncursPathTraversalRisk(directory))
                         {
                             Logger.Log($"Skipping deletion of filesystem-backed beatmap directory '{directory}' due to path traversal risk.", LoggingTarget.Database);
                             continue;
@@ -1348,6 +1349,10 @@ namespace osu.Game.Database
                     foreach (var score in migration.NewRealm.All<ScoreInfo>().Where(s => s.LegacyOnlineID == 0))
                         score.LegacyOnlineID = -1;
 
+                    break;
+
+                case 57:
+                    // Deliberately do not backfill ownership. A missing/unknown owner must never be claimed by migration.
                     break;
             }
 

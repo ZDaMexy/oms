@@ -172,7 +172,7 @@ namespace osu.Game.Skinning
             if (skinInfo.Protected)
                 return reject(SkinFilesystemStorageRejectionReason.ProtectedRecord);
 
-            if (fixed_skin_ids.Contains(skinInfo.ID))
+            if (IsFixedSkinId(skinInfo.ID))
                 return reject(SkinFilesystemStorageRejectionReason.FixedIdRecord);
 
             if (skinInfo.Files.Count > 0)
@@ -229,6 +229,8 @@ namespace osu.Game.Skinning
                 managedRelativePath: $"{MANAGED_ROOT_DIRECTORY}/{segments[1]}",
                 managedCaptureRequest: new SkinManagedPackageCaptureRequest(storageRoot, segments[1], managed_capture_request_issuer));
         }
+
+        internal static bool IsFixedSkinId(Guid id) => fixed_skin_ids.Contains(id);
 
         private static SkinFilesystemStorageResolution resolveExternal(
             string declaredPath,

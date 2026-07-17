@@ -14,7 +14,7 @@ metadata:
 
 - F1：独立 `[Bms]` parser、`BmsLegacySkin` 配置源、`.osk` 导入路由、现存静态件的颜色/纹理/几何、reference ini 自校验；其上已有 managed package 的 BMS 普通短键、critical `LongNoteHead` / `LongNoteBody` 与 optional `LongNoteTail` 静态/`name-{n}` 编号帧窄生产路径。body 素材与安全解析后的宽度绑定同一 package revision；tail 的透明链底是迁移 fallback，不是作者 `Suppress`。当前 gate 只看 P1-A STATUS，不在 memory 复制提交和测试数字。
 - 当前 `OmsSkin` 是程序化逐组件链底，但只算迁移基线；最终由只读 `oms-simple.osk` 接管并移出程序化产品视觉。
-- G1现已让Realm中已注册合法managed record经authority/path preflight、Windows native capture、pure immutable capsule与production exact-capsule factory进入guarded `SkinManager`选择；active BMS Note/Head/Body/Tail绑定同一immutable revision。schema 57 scanner owner/自动发现、external capture、专用删改与热重载仍未接通，地雷见[[reference_skin_managed_folder_selection]]。
+- G1现已让schema 57 exact-owner启动scanner自动发现/reconcile合法`chartskin/<direct-child>`，并经authority/path preflight、Windows native capture、pure immutable capsule与production exact-capsule factory进入guarded `SkinManager`选择；active BMS Note/Head/Body/Tail绑定同一immutable revision。external capture、专用删改与热重载仍未接通，地雷见[[reference_skin_managed_folder_selection]]。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default 均未落地。
 - 恢复修正：base parser 前重置配置流；14K 第二皿使用 `S2`/P2 素材。
 

@@ -4,6 +4,16 @@
 
 ## 2026-07-17
 
+### `SV1-2` 第五刀：schema 57 exact-owner managed启动自动发现/reconcile
+
+- Realm schema从56升至57，`SkinInfo`新增nullable opaque `FilesystemStorageAuthorityOwner`；migration明确零backfill，旧/null记录保持unknown且scanner永不claim。roundtrip与真实动态schema56升级测试锁住token大小写/opaque原样持久化、旧字段保留和owner=null。folder selection与`Skin` detached snapshot同时携带owner，capture/factory期间owner变化会被authoritative复核拒绝，但owner本身不授予filesystem capability。
+- 新managed scanner只维护exact token `oms.skin.managed-folder.scanner.v1`。完整snapshot分离全部合法direct-child `ObservedPaths`与通过capture/metadata的`ValidDiscoveries`：valid可add/update/revive；只有唯一、结构合法、exact-own且未observed的记录可soft-delete。null/foreign/duplicate/mixed Realm files/external/protected/fixed-ID/普通`.osk`均不claim不改；observed file/reparse/坏包保护既有记录。所有reconcile在一个Realm事务内，非法snapshot、根缺失/不可读、异常、取消或不完整scan零negative；apply及commit前取消使整笔事务回滚，scanner从不删除磁盘文件。
+- Windows source从physical volume handle逐段固定data root与同一个held `chartskin` handle，baseline枚举、候选相对no-follow capture和最终完整inventory/authority-link复验共享该authority。每个valid包复用既有immutable capsule gate，根`skin.ini`按大小写不敏感定位并以strict decoding、1MiB metadata上限、256字符/控制字符限制提取Name/Author；case collision或坏metadata只保留observed。真实NTFS刚写目录的LastWrite/Change时间可能延迟落稳，因此仅对明确identity/inventory race做最多3次、每次25ms、可取消的**完整session**重试，失败轮不发布partial snapshot。source/result/异常安全字符串不展开路径、名字或revision。
+- `OsuGame.LoadComplete`末尾由线程池执行一次scan；既有Realm通知链自动刷新Skin dropdown，不自动切换当前皮肤。`Dispose`最先cancel并同步join scanner，再由base释放Realm；固定日志不记录异常正文。headless lifecycle以500ms闭锁证明worker非update thread、恰运行一次、Dispose确实等待，并在worker finally访问Realm成功后才返回。
+- focused结果：schema/scanner **12/12**，native fake+真实Windows **55/55**，startup/Dispose lifecycle **2/2**，BMS production selection **15/15**。真实native smoke在source dispose后成功rename/delete包目录，证明handle释放；最终独立安全审查blocker/major **0/0**。全程未启动GUI、开窗或操控桌面，`V-001`～`V-004`仍0/4。
+- 扩大回归为core相关 **222/222**、mania skin **182/182**、BMS full **1483/1483**；改动文件三工程format verify均exit 0，`osu.Desktop.slnf` Release **0 error / 20 emitted known warnings**（9条MessagePack `NU1902`在restore/build重复为18条，加BMS tests既有`CS8600`/`CA2007`）。
+- 当前产品语义是“合法`chartskin/<direct-child>`在重启后自动进入选择面”，不是watcher或热重载；启动后原位变化、新revision publication、全consumer detach、专用managed import/rename/delete与external registration/capture仍未实现。因此G1、`SV1-2`、Skin V1与产品交付均未完成，下一刀转入专用managed mutation。
+
 ### `SV1-2` 第四刀：production managed folder exact-capsule factory 与 guarded selection
 
 - 生产`SkinManager`现只对Realm中authoritative `IsManaged`且由resolver认定合法的`chartskin/<direct-child>`记录启动后台native no-follow capture；成功capsule通过明确exact-store marker转入owning revision store，再由closed ordinal allowlist精确实例化`BmsLegacySkin`。folder要求根`skin.ini`和公开exact-capsule四参数构造入口，不添加live `RealmBackedResourceStore`，也不再经`SkinInfo.CreateInstance()`落入历史`TrianglesSkin` fallback；普通`.osk`、`OmsSkin`与mania路径保持既有行为。

@@ -7,6 +7,10 @@
 
 ## 2026-07-17
 
+### `SV1-2` schema 57 scanner owner与managed启动自动发现闭合
+
+Realm现以nullable opaque owner区分scanner归属，旧/null/foreign记录零claim；Windows启动scanner从held `chartskin` authority handle完成Observed/Valid分离、逐包immutable capture与最终稳定inventory复验，只在完整scan的单一事务内维护exact-own记录。合法direct child重启后可自动进入选肤面，坏包/文件/reparse仍observed而不触发误删；根缺失、竞态、取消或异常零提交，退出先cancel+join再释放Realm。focused为schema/scanner **12/12**、native fake+真实 **55/55**、生命周期 **2/2**、production选择 **15/15**；扩大回归core相关 **222/222**、mania skin **182/182**、BMS full **1483/1483**，三工程format verify通过，Release **0 error / 20 emitted known warnings**，独立终审blocker/major **0/0**。全程未操控GUI，视觉仍0/4。本切不是watcher/热重载，也未实现专用managed mutation、external或atomic reload/detach。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ### `SV1-2` managed Windows native capture 内部安全门闭合
 
 R3 现已把 resolver-issued managed `chartskin/<name>` request 接到 strict physical NT volume、fixed-handle/handle-relative no-follow capture，再交给 immutable capsule；全节点 identity/metadata、hardlink/alias/reparse、busy writer、预算、读取/枚举竞态与最终 inventory/authority-link复验均有typed fail-closed合同，成功返回前不遗留live handle或stream。capture focused **47/47**（真实Windows 11/11、0 skipped）、三项内部合同合并 **167/167**，core skin **224/229**（5项既有失败）、mania **182/182**、BMS **583/583**，Release Rebuild **0 error / 11 known warnings**；全程未操控GUI。该能力仅是managed内部producer，当前无`SkinManager`/production managed folder factory/选择消费方，也不含external capture、scanner/mutation或原子reload；下一门转为production managed folder factory/选择，G1、Skin V1及`V-001`～`V-004`状态均未因此完成。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。

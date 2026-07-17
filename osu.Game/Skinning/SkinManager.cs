@@ -610,6 +610,7 @@ namespace osu.Game.Skinning
                 Protected = source.Protected,
                 FilesystemStoragePath = source.FilesystemStoragePath,
                 IsExternalFilesystemStorage = source.IsExternalFilesystemStorage,
+                FilesystemStorageAuthorityOwner = source.FilesystemStorageAuthorityOwner,
                 DeletePending = source.DeletePending,
             };
 
@@ -1006,6 +1007,7 @@ namespace osu.Game.Skinning
                     || current.Protected != Snapshot.Protected
                     || !string.Equals(current.FilesystemStoragePath, Snapshot.FilesystemStoragePath, StringComparison.Ordinal)
                     || current.IsExternalFilesystemStorage != Snapshot.IsExternalFilesystemStorage
+                    || !string.Equals(current.FilesystemStorageAuthorityOwner, Snapshot.FilesystemStorageAuthorityOwner, StringComparison.Ordinal)
                     || current.DeletePending != Snapshot.DeletePending
                     || current.Files.Count != 0)
                 {

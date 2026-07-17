@@ -74,6 +74,7 @@ using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Select;
 using osu.Game.Seasonal;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Windows;
 using osu.Game.Updater;
 using osu.Game.Users;
 using osu.Game.Utils;
@@ -94,7 +95,7 @@ namespace osu.Game
     {
 #if DEBUG
         // Different port allows running release and debug builds alongside each other.
-    public const string IPC_PIPE_NAME = "oms-debug";
+        public const string IPC_PIPE_NAME = "oms-debug";
 #else
     public const string IPC_PIPE_NAME = "oms";
 #endif
@@ -947,7 +948,7 @@ namespace osu.Game
                     Beatmap.Value = BeatmapManager.GetWorkingBeatmap(databasedBeatmap);
 
                 var currentLeaderboard = LeaderboardManager.CurrentCriteria;
-                var scoreDisplayBucket = databasedScore.ScoreInfo.Ruleset.CreateInstance().GetScoreDisplayBucket(databasedScore.ScoreInfo);
+                string scoreDisplayBucket = databasedScore.ScoreInfo.Ruleset.CreateInstance().GetScoreDisplayBucket(databasedScore.ScoreInfo);
 
                 bool leaderboardBeatmapMatches = currentLeaderboard != null && databasedBeatmap.Equals(currentLeaderboard.Beatmap);
                 bool leaderboardRulesetMatches = currentLeaderboard != null && databasedScore.ScoreInfo.Ruleset.Equals(currentLeaderboard.Ruleset);
@@ -1054,6 +1055,9 @@ namespace osu.Game
 
         private PerformFromMenuRunner performFromMainMenuTask;
 
+        private CancellationTokenSource managedSkinFolderScanCancellation;
+        private Task managedSkinFolderScanTask;
+
         public void PerformFromScreen(Action<IScreen> action, IEnumerable<Type> validScreens = null)
         {
             performFromMainMenuTask?.Cancel();
@@ -1085,6 +1089,8 @@ namespace osu.Game
 
         protected override void Dispose(bool isDisposing)
         {
+            stopManagedSkinFolderScan();
+
             // Without this, tests may deadlock due to cancellation token not becoming cancelled before disposal.
             // To reproduce, run `TestSceneButtonSystemNavigation` ensuring `TestConstructor` runs before `TestFastShortcutKeys`.
             detachedBeatmapStore?.Dispose();
@@ -1405,6 +1411,63 @@ namespace osu.Game
 
             // Importantly, this should be run after binding PostNotification to the import handlers so they can present the import after game startup.
             handleStartupImport();
+
+            startManagedSkinFolderScan();
+        }
+
+        private void startManagedSkinFolderScan()
+        {
+            var cancellation = new CancellationTokenSource();
+            managedSkinFolderScanCancellation = cancellation;
+            managedSkinFolderScanTask = Task.Run(() => PerformManagedSkinFolderScan(cancellation.Token), cancellation.Token);
+        }
+
+        private void stopManagedSkinFolderScan()
+        {
+            CancellationTokenSource cancellation = Interlocked.Exchange(ref managedSkinFolderScanCancellation, null);
+            Task scanTask = Interlocked.Exchange(ref managedSkinFolderScanTask, null);
+
+            try
+            {
+                cancellation?.Cancel();
+            }
+            catch
+            {
+                // Cancellation callback failures must not bypass the join below.
+            }
+
+            try
+            {
+                scanTask?.GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+            {
+            }
+            catch
+            {
+                // Observe unexpected failures without exposing a potentially path-bearing exception.
+                Logger.Log("Managed skin folder scan ended unexpectedly.", level: LogLevel.Error);
+            }
+            finally
+            {
+                cancellation?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Performs the one-shot managed skin folder scan on a worker thread after the full game has loaded.
+        /// </summary>
+        /// <remarks>
+        /// This method must not wait on the update scheduler because disposal synchronously joins it before Realm is
+        /// released. It is virtual only to allow deterministic headless lifecycle coverage.
+        /// </remarks>
+        protected virtual void PerformManagedSkinFolderScan(CancellationToken cancellationToken)
+        {
+            var scanner = new SkinManagedFolderScanner(
+                ClientRealm,
+                new WindowsSkinManagedFolderDiscoverySource(Storage));
+
+            scanner.Scan(cancellationToken);
         }
 
         private void handleBackButton()

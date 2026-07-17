@@ -11,6 +11,7 @@ metadata:
 ## 已闭合的窄生产链
 
 - 只对Realm中已注册、authoritative `IsManaged`且resolver认定合法的`chartskin/<direct-child>`记录工作：resolver-issued request → Windows handle-relative no-follow capture → immutable capsule → exact marker/owning store → closed allowlist factory → guarded atomic selection。
+- schema 57 startup scanner现会从同一held `chartskin` authority产生完整stable inventory，以exact owner token新增、更新、revive或soft-delete自身的唯一合法记录；`ObservedPaths`与`ValidDiscoveries`分离，坏包只保护同path，null/foreign/冲突记录永不claim。它只做一轮启动reconcile，不是watcher、mutation或reload。
 - folder allowlist当前必须ordinal精确匹配`osu.Game.Rulesets.Bms.Skinning.BmsLegacySkin, osu.Game.Rulesets.Bms`，并要求根`skin.ini`和公开exact-capsule四参数构造入口；不得走live `RealmBackedResourceStore`、宽松type解析或历史`TrianglesSkin` fallback。普通`.osk`、`OmsSkin`与mania路径不能被全局冻结。
 - capsule/store ownership只转移一次；失败、取消、stale、竞态、reentrant或scheduler fault都保留旧`CurrentSkinInfo`/`CurrentSkin` pair并清理provisional owner。active Note/Head/Body/Tail只读同一immutable revision，capture后的磁盘变化不会混入当前实例。
 - managed folder selection request在update thread进入；普通Realm `.osk`选择保留既有线程兼容。所有请求的generation bump与Realm commit、managed completion的最终generation check与commit必须串在同一commit lock内，防止后台Realm/invalid/external请求被旧folder completion覆盖。capture完成后与factory完成后双重复核authoritative记录，prepared target还要求同一对象identity。generic `Bindable`、Dropdown或lease不得获得committed值的双向写入口，UI只通过request surface提交并单向镜像committed状态。
@@ -23,5 +24,5 @@ metadata:
 
 ## 仍未完成
 
-- schema 57 nullable opaque scanner owner、managed自动发现/reconcile、专用no-follow mutation journal/rollback、external registration/capture、整包reload与全consumer detach barrier均未实现。因此当前只能称“已注册合法managed记录的factory/选择自动门通过”，不能称G1、`SV1-2`、Skin V1或产品交付完成。
+- 专用no-follow mutation journal/rollback、external registration/capture、整包reload与全consumer detach barrier仍未实现。因此当前可称“managed启动自动发现/reconcile与合法记录factory/选择自动门通过”，仍不能称G1、`SV1-2`、Skin V1或产品交付完成。
 - 前置安全边界见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_package_revision_capsule]]；当前测试数字和下一刀只看P1-A STATUS/PLAN。

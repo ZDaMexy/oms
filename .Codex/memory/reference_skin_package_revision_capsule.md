@@ -18,7 +18,7 @@ metadata:
 ## 不能误推的能力
 
 - 精确长度不能发现同长度内容在读取期间变化；纯 capsule 也不能证明 bytes 来自 preflight root、同一物理 entry 或一次稳定 inventory。
-- managed Windows fixed root handle + handle-relative/no-follow capture及其production exact-capsule factory/选择已实现，地雷见 [[reference_skin_windows_handle_capture]]与[[reference_skin_managed_folder_selection]]；factory仍只能消费完整成功的capsule。external capture、scanner、mutation与atomic reload publication尚未实现。
+- managed Windows fixed root handle + handle-relative/no-follow capture、schema 57 exact-owner scanner及production exact-capsule factory/选择已实现，地雷见 [[reference_skin_windows_handle_capture]]与[[reference_skin_managed_folder_selection]]；factory仍只能消费完整成功的capsule。external capture、专用mutation与atomic reload publication尚未实现。
 - content revision 不是 `InstantiationInfo`、选择资格、generation、scanner owner、mutation token 或 active publication revision；这些 gate 不能由 hash 替代。
 - production managed folder factory现已走exact-capsule marker/owning store构造路径，不让live `RealmBackedResourceStore`排在capsule前面。普通`.osk`与SkinEditor当前依赖Realm live store/refresh，没有被全局冻结；其原子更新另走prepared revision/new-instance协议。
 - active capsule 的单一 owner 必须先 detach 全部 consumer 再 dispose。逐 host 替换不等于全 playfield publication barrier。
@@ -26,4 +26,4 @@ metadata:
 ## 入口
 
 - path/authority 前置边界见 [[reference_skin_filesystem_authority_preflight]]，managed native producer见 [[reference_skin_windows_handle_capture]]。
-- 当前完成度、测试数字与scanner owner下一门只看P1-A STATUS/PLAN；不得把capsule本合同写成G1或Skin V1产品能力。
+- 当前完成度、测试数字与managed mutation下一门只看P1-A STATUS/PLAN；不得把capsule本合同写成G1或Skin V1产品能力。

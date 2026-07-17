@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
+using System.Text;
 using System.Threading;
 using NUnit.Framework;
 using osu.Game.Skinning;
@@ -491,6 +492,163 @@ namespace osu.Game.Tests.Skins
                 Assert.That(entry.Metadata.ToString(), Does.Not.Contain(secret));
                 Assert.That(entry.Metadata.Identity.ToString(), Does.Not.Contain(secret));
                 Assert.That(exception.ToString(), Does.Not.Contain(secret));
+            });
+        }
+
+        [Test]
+        public void TestManagedRootDiscoverySeparatesObservedFromValidAndUsesCapsuleMetadata()
+        {
+            FakePackage package = createPackage("valid-package");
+            package.Package.AddFile("SKIN.INI", Encoding.UTF8.GetBytes("[General]\nName: Capsule Name\nAuthor: Capsule Creator\n"));
+            package.ManagedRoot.AddDirectory("missing-ini").AddFile("asset.png", new byte[] { 1 });
+            package.ManagedRoot.AddFile("occupied-by-file", new byte[] { 2 });
+            FakeNode reparse = package.ManagedRoot.AddDirectory("reparse-package");
+            reparse.IsReparsePoint = true;
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.True);
+                Assert.That(snapshot.FailureReason, Is.EqualTo(SkinManagedFolderScanFailureReason.None));
+                Assert.That(snapshot.ObservedManagedRelativePaths, Is.EquivalentTo(new[]
+                {
+                    "chartskin/valid-package",
+                    "chartskin/missing-ini",
+                    "chartskin/occupied-by-file",
+                    "chartskin/reparse-package",
+                }));
+                Assert.That(snapshot.ValidDiscoveries, Has.Count.EqualTo(1));
+                Assert.That(snapshot.ValidDiscoveries[0].ManagedRelativePath, Is.EqualTo("chartskin/valid-package"));
+                Assert.That(snapshot.ValidDiscoveries[0].Name, Is.EqualTo("Capsule Name"));
+                Assert.That(snapshot.ValidDiscoveries[0].Creator, Is.EqualTo("Capsule Creator"));
+                Assert.That(snapshot.ValidDiscoveries[0].ContentRevision, Is.Not.Empty);
+                Assert.That(snapshot.ToString(), Does.Not.Contain("valid-package"));
+                Assert.That(snapshot.ValidDiscoveries[0].ToString(), Does.Not.Contain("Capsule Name"));
+                Assert.That(snapshot.ValidDiscoveries[0].ToString(), Does.Not.Contain(snapshot.ValidDiscoveries[0].ContentRevision));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+                Assert.That(package.FileSystem.LastReadBuffer, Is.Not.Null);
+                Assert.That(package.FileSystem.LastReadBuffer!, Is.All.Zero);
+            });
+        }
+
+        [Test]
+        public void TestManagedRootDiscoveryInvalidUtf8RemainsObservedButNotValid()
+        {
+            FakePackage package = createPackage();
+            package.Package.AddFile("skin.ini", new byte[] { 0xC3, 0x28 });
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.True);
+                Assert.That(snapshot.ObservedManagedRelativePaths, Is.EqualTo(new[] { "chartskin/package" }));
+                Assert.That(snapshot.ValidDiscoveries, Is.Empty);
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+                Assert.That(package.FileSystem.LastReadBuffer, Is.Not.Null);
+                Assert.That(package.FileSystem.LastReadBuffer!, Is.All.Zero);
+            });
+        }
+
+        [Test]
+        public void TestManagedRootDiscoveryRetainsCaseCollisionAsObservedButNotValid()
+        {
+            FakePackage package = createPackage("Package");
+            package.Package.AddFile("skin.ini", Encoding.UTF8.GetBytes("Name: First"));
+            package.ManagedRoot.AddDirectory("package").AddFile("skin.ini", Encoding.UTF8.GetBytes("Name: Second"));
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.True);
+                Assert.That(snapshot.ObservedManagedRelativePaths, Has.Count.EqualTo(1));
+                Assert.That(snapshot.ObservedManagedRelativePaths[0], Is.EqualTo("chartskin/Package"));
+                Assert.That(snapshot.ValidDiscoveries, Is.Empty);
+                Assert.That(package.FileSystem.OpenCount(package.Package), Is.Zero);
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestManagedRootDiscoveryFinalInventoryRacePublishesNoPartialSnapshot()
+        {
+            FakePackage package = createPackage();
+            package.Package.AddFile("skin.ini", Encoding.UTF8.GetBytes("Name: Stable Before Race"));
+            package.FileSystem.OnOperation = operation =>
+            {
+                if (operation.Kind == FakeOperationKind.CreateReadStream)
+                    package.ManagedRoot.AddDirectory("late-package");
+            };
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.False);
+                Assert.That(snapshot.FailureReason, Is.EqualTo(SkinManagedFolderScanFailureReason.RootUnstable));
+                Assert.That(snapshot.ObservedManagedRelativePaths, Is.Empty);
+                Assert.That(snapshot.ValidDiscoveries, Is.Empty);
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+                Assert.That(package.FileSystem.LastReadBuffer, Is.Not.Null);
+                Assert.That(package.FileSystem.LastReadBuffer!, Is.All.Zero);
+            });
+        }
+
+        [Test]
+        public void TestManagedRootDiscoveryMissingRootIsIncompleteAndNonAuthoritative()
+        {
+            FakePackage package = createPackage();
+            Assert.That(package.DataRoot.Children.Remove(package.ManagedRoot), Is.True);
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.False);
+                Assert.That(snapshot.FailureReason, Is.EqualTo(SkinManagedFolderScanFailureReason.RootUnavailable));
+                Assert.That(snapshot.ObservedManagedRelativePaths, Is.Empty);
+                Assert.That(snapshot.ValidDiscoveries, Is.Empty);
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestManagedRootDiscoveryCancellationCleansHeldAuthorityHandles()
+        {
+            FakePackage package = createPackage();
+            using var cancellation = new CancellationTokenSource();
+            package.FileSystem.OnOperation = operation =>
+            {
+                if (operation.Kind == FakeOperationKind.Enumerate && operation.Node == package.ManagedRoot)
+                    cancellation.Cancel();
+            };
+
+            Assert.Throws<OperationCanceledException>(() =>
+                new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover(cancellation.Token));
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestManagedRootDiscoveryUnexpectedFailureDoesNotExposeSensitiveException()
+        {
+            const string secret = @"C:\private-root\private-package";
+            FakePackage package = createPackage();
+            package.FileSystem.OnOperation = operation =>
+            {
+                if (operation.Kind == FakeOperationKind.Enumerate && operation.Node == package.ManagedRoot)
+                    throw new InvalidOperationException(secret);
+            };
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(@"C:\data", package.FileSystem).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.False);
+                Assert.That(snapshot.FailureReason, Is.EqualTo(SkinManagedFolderScanFailureReason.NativeFailure));
+                Assert.That(snapshot.ToString(), Does.Not.Contain(secret));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
             });
         }
 

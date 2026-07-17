@@ -83,6 +83,15 @@ namespace osu.Game.Skinning
         /// </summary>
         public bool IsExternalFilesystemStorage { get; set; }
 
+        /// <summary>
+        /// Opaque persistent identity of the scanner authority which owns this filesystem-backed record.
+        /// </summary>
+        /// <remarks>
+        /// This is ownership metadata only and never grants filesystem read or mutation authority. A <see langword="null"/>
+        /// value means the owner is unknown; scanners must not claim, rewrite, or clean up such a record automatically.
+        /// </remarks>
+        public string? FilesystemStorageAuthorityOwner { get; set; }
+
         public bool DeletePending { get; set; }
 
         public SkinInfo(string? name = null, string? creator = null, string? instantiationInfo = null)

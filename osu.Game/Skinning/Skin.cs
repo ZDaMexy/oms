@@ -176,6 +176,7 @@ namespace osu.Game.Skinning
                 Protected = source.Protected,
                 FilesystemStoragePath = source.FilesystemStoragePath,
                 IsExternalFilesystemStorage = source.IsExternalFilesystemStorage,
+                FilesystemStorageAuthorityOwner = source.FilesystemStorageAuthorityOwner,
                 DeletePending = source.DeletePending,
             };
 

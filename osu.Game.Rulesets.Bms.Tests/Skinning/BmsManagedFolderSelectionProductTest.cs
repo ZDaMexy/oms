@@ -94,6 +94,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(selected, Is.TypeOf<BmsLegacySkin>());
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(candidate.ID));
                     Assert.That(selected!.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(selected.SkinInfo.Value.FilesystemStorageAuthorityOwner, Is.EqualTo(SkinManagedFolderScanner.AUTHORITY_OWNER));
                     Assert.That(sourceChangedCount, Is.EqualTo(1));
                     Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
                     Assert.That(manager.CanModify(candidate), Is.False);
@@ -433,6 +434,39 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestAuthorityOwnerMutationDuringFactoryCannotPublishPreparedSkin()
+        {
+            Live<SkinInfo> candidate = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+
+            AddStep("create candidate and owner-mutating factory", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                manager.ManagedFolderFactoryCreate = (snapshot, resources, capsule) =>
+                {
+                    SkinManagedFolderFactoryResult result = SkinManagedFolderFactory.Create(snapshot, resources, capsule);
+                    candidate.PerformWrite(info => info.FilesystemStorageAuthorityOwner = "changed-owner");
+                    return result;
+                };
+            });
+
+            AddStep("request candidate", () => manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for owner-change rejection", () => manager.LastSelectionRejectionReason == SkinSelectionRejectionReason.CapturedCandidateChanged);
+            AddStep("assert prepared skin was never published", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(sourceChangedCount, Is.Zero);
+                });
+            });
+        }
+
+        [Test]
         public void TestReentrantRejectedRequestDoesNotLoseItsReason()
         {
             Live<SkinInfo> valid = null!;
@@ -685,6 +719,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             var info = new SkinInfo("managed folder", "OMS tests", instantiationInfo)
             {
                 FilesystemStoragePath = relativePath,
+                FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER,
             };
 
             Realm.Write(realm => realm.Add(info));

@@ -24,11 +24,11 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、managed Windows handle-relative/no-follow capture、pure immutable capsule与已注册合法record的production exact-capsule factory/guarded selection现已闭合成窄生产链。当前下一刀是schema 57 nullable scanner owner与managed自动发现/reconcile；专用mutation、external registration/capture与atomic reload/detach继续各自过门。
+authority/path preflight、managed Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection，以及schema 57 exact-owner启动自动发现/reconcile现已闭合成窄生产链。当前下一刀是专用managed mutation；external registration/capture与atomic reload/detach继续各自过门。
 
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
 2. **安全删改**：resolved-root containment、冲突拒绝、reparse-point/symlink 风险处理；外部目录只读。
-3. **扫描与选择**：扫描只能维护自身 authority 的 Realm 记录，不得清理普通 `.osk`、未知来源记录或无 authority blob。
+3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。
 4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、删除/重命名均经人工确认。
 

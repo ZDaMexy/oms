@@ -79,6 +79,33 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestManagedFolderDiscoveryUsesNativeStableInventoryAndReleasesHandles()
+        {
+            File.WriteAllText(
+                Path.Combine(packageRoot, "skin.ini"),
+                "[General]\nName: Native Discovery\nAuthor: OMS Test\n",
+                new UTF8Encoding(false, true));
+
+            SkinManagedFolderDiscoverySnapshot snapshot = new WindowsSkinManagedFolderDiscoverySource(storage).Discover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.IsComplete, Is.True);
+                Assert.That(snapshot.FailureReason, Is.EqualTo(SkinManagedFolderScanFailureReason.None));
+                Assert.That(snapshot.ObservedManagedRelativePaths, Is.EqualTo(new[] { "chartskin/package" }));
+                Assert.That(snapshot.ValidDiscoveries, Has.Count.EqualTo(1));
+                Assert.That(snapshot.ValidDiscoveries[0].ManagedRelativePath, Is.EqualTo("chartskin/package"));
+                Assert.That(snapshot.ValidDiscoveries[0].Name, Is.EqualTo("Native Discovery"));
+                Assert.That(snapshot.ValidDiscoveries[0].Creator, Is.EqualTo("OMS Test"));
+                Assert.That(snapshot.ValidDiscoveries[0].ContentRevision, Is.Not.Empty);
+            });
+
+            string moved = packageRoot + "-moved";
+            Assert.DoesNotThrow(() => Directory.Move(packageRoot, moved));
+            Assert.DoesNotThrow(() => Directory.Delete(moved, true));
+        }
+
+        [Test]
         public void TestEmptyPackageRejectedWithoutLeakingHandles()
         {
             SkinManagedPackageCaptureResult result = capture();
