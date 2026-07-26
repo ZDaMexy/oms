@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-17
+> 最后更新：2026-07-26
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐切历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -22,9 +22,9 @@
 | --- | --- | --- | --- |
 | 0 | `SV1-0` 恢复与数据安全 | 已完成 | 结果只在 STATUS/CHANGELOG 保留，不重开迁移或全局 cleanup |
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
-| 2 | 已实现纵切的集中视觉验收 | **`V-001`～`V-004` 待用户签收** | Skin V1/release 完成声明前确认真实 managed `.osk` 的普通短键与长条 head/body/tail、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
+| 2 | 已实现纵切的集中视觉验收 | **`V-001`～`V-004` 待用户签收** | Skin V1/release 完成声明前确认真实已导入 `.osk` 的普通短键与长条 head/body/tail、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
 | 3 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收** | ordinary note 与 critical head/body、optional tail 的静态图/60 FPS 连续编号帧已通过自动、合同、安全与回退 gate；只算首个产品纵切自动闭环，不计作 `SV1-1` 完成或产品交付 |
-| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | schema 57 exact-owner managed启动自动发现、production factory/选择已闭合；继续专用mutation、external与atomic reload/detach barrier |
+| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | schema 57 exact-owner受管目录启动发现、production factory/选择已闭合；先闭合mutation authority/recovery foundation，再按操作切片、external、atomic reload/detach barrier推进 |
 | 5 | `SV1-3`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。首个 Note/LN 产品纵切已满足进入 `SV1-2` 的工程依赖，但 `SV1-1` 本身仍未完成；G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
@@ -35,38 +35,25 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 
 ### SV1-1：共同合同与玩家可见纵切
 
-当前已完成 BMS 普通短键与长条 head/body/tail 的 selected-package `Provide/Inherit`、逐组件 fallback、精确 package authority 与静态图/编号帧动画纵切；四项均视觉待验收。该结果闭合首个 Note/LN 产品纵切的自动门，但不代表 `SV1-1` 整体完成。该纵切遵守以下顺序：
+已导入 `.osk` 的 BMS 普通短键与长条 head/body/tail 已闭合 selected-package `Provide/Inherit`、逐组件 fallback、exact revision、安全预算与静态图/编号帧动画自动门；详细过程只查 [CHANGELOG](CHANGELOG.md)。四项 `V-001`～`V-004` 仍待集中签收，因此该结果不能写成 `SV1-1` 完成或产品交付。
 
-1. 产品先选组件，明确它是 critical 或 optional、允许的 `Provide/Inherit/Suppress` 状态及最小可玩回落。
-2. 只补该组件必需的 neutral slot/config/resource mapping，不借机扩完整 manifest、layout 或 event runtime。
-3. 资源必须绑定 exact package revision，经过 containment、文件/帧/解码/预算验证，在后台准备完成后发布；失败保持旧视觉或逐组件 fallback。
-4. beatmap-local → selected → ruleset resources → protected built-in 相对 authority 不变；不同 package 不得拼件。
-5. 自动 gate 后登记受影响 keymode、选择/切换/回落的集中视觉项；待签收不阻塞下一自动可证切片，但不得计为产品交付或阶段验收完成。
-
-验收：该组件在真实 gameplay 进入用户选中的 managed package 链，损坏/缺失/越权/超预算均不破坏可玩性，且未实现的 slot/runtime 不被描述为已完成。
-
-已闭合的 `LongNoteHead` 切片复用 `[Bms] NoteImage{lane}H` / `NoteImageSH` / `NoteImageS2H` accepted provenance、精确 package revision、60 FPS 连续编号帧、资源预算、后台 preparation 与逐组件回落。它是不可 suppress 的 critical slot；未声明为 `Inherit`，有效静态图/动画为 `Provide`，空值、缺件、损坏、越权或超预算时回落到可见默认头。自动矩阵覆盖真实 hold、普通/scratch/14K `S2`、A→B、坏 head 与有效 note 隔离、跨包防串及异步换源；`V-002` 仍待用户集中签收。该刀未改 body/tail、LN/CN/HCN 规则、尺寸/裁剪、layout、manifest、G1 与 event runtime。
-
-已闭合的 `LongNoteTail` 切片使用 `[Bms] NoteImage{lane}T` / `NoteImageST` / `NoteImageS2T` accepted provenance和现成 nested tail cap host，复用同一 exact revision、资源预算、后台 preparation、60 FPS 连续编号帧和异步换源。tail 保持 optional：未声明为 `Inherit`，有效静态图/动画为 `Provide`；坏声明只允许下层完整组件接管，最终 protected 程序化 tail 透明。producer 没有产生 `Suppress`，透明链底也未冒充 `Suppress`。自动矩阵覆盖 normal/scratch/14K `S2`、真实 hold、A→B、透明 fallback、低层裸文件防串/完整组件接管、authority/预算及 async cancel/stale；`V-003` 仍待用户集中签收。
-
-已闭合的 `LongNoteBody` 切片使用 `[Bms] NoteImage{lane}L` / `NoteImageSL` / `NoteImageS2L` 的静态图或 60 FPS 连续编号帧，并先建立唯一、可被未来 layout descriptor 复用的 `LongNoteBodyWidth` resolver。width 默认 `0.5775`，只接受 finite 且 `0 < width <= 1` 的相对 lane 值；absent/非法/越界逐字段回落默认并产生稳定 typed reason，不在 drawable 内临时判断。accepted width 与 body 纹理/帧绑定同一 exact parsed `skin.ini`/package revision并进入 prepared material，发布后 renderer 不得从 aggregate skin 重新取宽度；有效 body + 非法 width 使用同组件默认宽，只有 body 资源整体失败才 `Inherit`。body 是 critical、不可 `Suppress`；selected 坏 body 不能借低层裸同名文件拼件，低层完整 body 组件可以接管。
-
-managed 静态/动画与默认 body 共用真实 Idle/Holding/Broken 状态宿主，保留 active `0.8`、broken `0.32`、80ms tint/fade；异步首次挂载须立即投影 hold 当前态，HCN regrab 继续只投影 gameplay authority。本刀未改 `DrawableBmsHoldNote` gameplay state、body 拉伸/裁剪、LN/CN/HCN，也未定义 playfield/stage/lane/BGA/HUD rect、screen-space 像素下限、不重叠、style/DPI/keymode authority 或原子 layout snapshot，因此不是提前实现完整 `SV1-3`。`V-004` 仍待集中签收。
-
-到此停止用私有逐件 C# provider/display 扩张剩余 optional slot；后续表现组件由 shared scene/runtime 接管。当前只闭合 `SV1-1` 首个 Note/LN 产品纵切的自动门，不得写成 `SV1-1` 完成；下一实施门转入 `SV1-2`。
+剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，等待 shared scene/runtime 接管；真实 beatmap-local 作者格式也须单独冻结。后续组件仍须先明确 critical/optional 与 `Provide/Inherit/Suppress` 语义，保持 beatmap-local → selected → ruleset resources → protected fallback 的相对 authority，绑定 exact revision，并在集中清单登记受影响视觉项。
 
 ### SV1-2：G1 安全存储与原子重载
 
-依赖：保持 `SV1-0` 数据处置结论与当前 `.osk` 路径稳定；不得从异常期存档整包恢复。managed folder 当前active实例绑定immutable capsule，磁盘原地变化不会混合或发布到该实例，但也不会自动reload；实例重建、全consumer publication barrier与旧owner安全退役仍是本门必须处理的原子reload风险。
+依赖：保持 `SV1-0` 数据处置结论与现有 `.osk` 路径稳定；不得从异常期存档整包恢复。受管目录active实例绑定immutable capsule，磁盘原地变化不会混入该实例，也不会自动reload。
 
-1. **已闭合内部 preflight**：schema 56 声明被闭合分类为 Realm `.osk`、`chartskin/<name>` managed、只读 drive-letter-qualified Windows external 或 typed invalid；双 authority、managed/external namespace 重叠、root/ancestor reparse 与歧义 Windows path fail-closed。该结果无生产消费者，只是 lexical/reparse preflight，不证明物理本地盘、mapped drive/SUBST/final identity，也不是 mutation token 或 package validation；UNC/device/volume root 暂不支持。
-2. **已闭合 pure capsule 内核**：从 capture producer 提供的稳定逻辑条目建立自有 defensive byte snapshot、确定性 content revision 与 non-owning 只读资源视图；拒绝资源名/大小写/NFC 冲突、file/directory 层级冲突、预算和精确长度失败，失败与取消不得留下半成品。该内核自身无 path、authority 或 filesystem dependency；第三刀producer与第四刀production exact-store consumer均已接通，但单独使用它仍不证明capture安全或reload原子性。
-3. **已闭合 managed Windows native no-follow capture**：只有 resolver-issued managed request 可进入；从 exact physical NT volume handle 逐段 handle-relative enumeration/open，固定全部目录/文件 identity 并拒绝 reparse、未由 resolver 展开成长名的 alternate/8.3 alias、hardlink/重复 identity、unsupported volume mapping、busy writer与读取/枚举竞态。所有 handle 持有到 capsule 构造和 final metadata/inventory/authority-link 复验完成，成功前释放；它不是 filesystem transaction，且尚未覆盖 external source。
-4. **已闭合 production managed folder factory/选择**：`SkinManager`只为Realm authoritative managed记录异步capture，只从exact-capsule marker/owning store建立精确allowlisted `BmsLegacySkin`新实例，folder不得进入历史`TrianglesSkin` fallback。capture完成后与factory完成后双重复核authoritative记录，提交另过generation/current-selection与prepared target identity门；guarded binding图禁止generic two-way bind/Dropdown/lease绕过。失败、过期、竞态、reentrant或scheduler fault均保留旧pair并释放provisional owner。普通`.osk`、`OmsSkin`与mania路径保持既有行为；旧folder Realm mutation入口按authoritative ID冻结，但这不等于专用managed mutation已实现。
-5. **已闭合 scanner ownership/启动自动发现**：schema 57增加nullable opaque persistent authority owner；legacy/unknown保持null且scanner永不改写。managed source从held `chartskin` handle分离Observed/Valid并逐包capture，只有完整稳定scan可在单一Realm事务内新增、更新、revive或soft-delete exact-own记录；取消在commit前回滚。设置页由既有Realm通知刷新，不自动选肤；这是一次启动scan，不是watcher/reload。
-6. **当前下一刀安全 mutation**：managed import/rename/delete 使用独立 no-follow/handle 服务做 resolved identity、containment、冲突拒绝、即时重验和 rollback；external 永久只读，只允许 register/unregister。不得把第一步 preflight 的 normalised path 当授权。
-7. **整包原子 reload**：ini/manifest/scene/script/素材的新 revision 完整验证后，以 generation/current-selection/revision gate 一次切换 active publication；成功 preparation cache 按 exact revision 重建，失败只销毁 provisional revision并保留旧实例。全 playfield publication barrier 与旧 owner 安全退役必须有生产测试。
-8. **产品 UI/实机**：明确区分 managed 删除文件与 external 解除注册；选择、重启、切换、rename/delete、缺件和原子替换统一进入最终人工清单。
+已闭合的窄生产链为：schema 56-origin存储声明preflight → held-root Windows native no-follow capture → pure immutable capsule → exact-capsule `BmsLegacySkin` factory/guarded selection → schema 57 exact-owner单次启动发现/reconcile。preflight已有managed生产选择消费者；external分支仍无production capture/selection consumer并保持拒绝。旧folder mutation入口按authoritative ID冻结。各切片边界和验证只查 [STATUS](DEVELOPMENT_STATUS.md) 与 [CHANGELOG](CHANGELOG.md)，不能把lexical path、owner字段、capture request或scanner结果当作mutation capability。
+
+后续按以下顺序独立过门：
+
+1. **mutation authority/recovery foundation**：先冻结rename、staged import、delete各自的产品语义和冲突行为。已有记录必须复核唯一、folder-backed、空`Files`、非external/protected/fixed-ID、合法direct-child、exact scanner owner及该操作允许的`DeletePending`状态；这些只提供资格。staged import还必须冻结允许的source authority、新记录由谁及在何线性化点发布。既有source由held `chartskin` root固定no-follow physical identity；尚不存在的rename/import target只能先保留为该held root下经过规范化和collision/absence验证的direct-child name slot，创建/移动后再固定新identity并final-verify。staged source须来自另行批准并固定identity的authority，不能把任意live path当能力。filesystem与Realm的跨域步骤必须先写durable journal，以启动幂等恢复先于scanner；scanner、selection与mutation共享明确的互斥/线性化点。取消、异常、重启或歧义状态均fail-closed、诊断脱敏，不得留下未经journal解释的半提交。完成foundation本身不开放UI或任何真实写操作。
+2. **rename**：产品先决定目录名、`skin.ini`展示名或两者联动的语义；再以独立端到端切片覆盖source/target identity、碰撞、reparse/hardlink、scanner竞态、恢复与选择一致性。
+3. **staged import**：先决定来源所有权、copy/move语义、包名与冲突策略；只允许完整staging验证成功后进入受管root，失败清理provisional状态并保留原来源。
+4. **delete**：最后开放。删除current skin前必须等待当时已验证的protected fallback真实选择提交，不能只异步调度；canonical接管前为程序化`OmsSkin`，接管后为`oms-simple.osk`。切换失败、无法确认提交或恢复状态不明时拒绝物理删除。
+5. **external registration/capture**：与受管目录mutation分离；external永久只读，只允许register/unregister，不提供物理rename/delete。
+6. **整包原子 reload/detach**：ini/manifest/scene/script/素材的新revision完整验证后，以generation/current-selection/revision gate一次切换全consumer publication；失败只销毁provisional revision并保留旧实例，旧owner等待全部consumer detach。
+7. **产品 UI/实机**：只有对应操作自动、安全与恢复gate闭合后才开放入口；明确区分受管目录物理删除与external解除注册，选择、重启、切换、rename/delete、缺件和原子替换统一进入最终人工清单。
 
 验收：真实选择链、重启、切换、rename/delete、缺件、原子替换和备份数据根均通过自动与人工验证。
 

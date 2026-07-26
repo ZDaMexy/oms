@@ -18,16 +18,16 @@ metadata:
 
 ## 恢复时的可信皮肤面与当前补充
 
-- 恢复基线 F1：`BmsSkinDecoder` / `BmsLegacySkin` / `.osk` 导入路由；现存静态件的颜色、纹理、几何；reference ini 自校验。其后只有 native BMS 普通短键编号帧成为窄生产例外；当前全貌看 P1-A STATUS。
-- 程序化 `OmsSkin` 是恢复时及当前实际迁移链底，用户皮肤缺件逐组件回落；最终产品 fallback 是只读 `oms-simple.osk`，程序化主题视觉必须在 V1 发布前退出。
+- 恢复基线 F1：`BmsSkinDecoder` / `BmsLegacySkin` / `.osk` 导入路由；现存静态件的颜色、纹理、几何；reference ini 自校验。恢复后先以native BMS普通短键编号帧重开窄生产纵切，之后又扩到长条head/body/tail；这是历史顺序，当前可见能力与待验收项只看P1-A STATUS和集中视觉清单。
+- 程序化`OmsSkin`是恢复时的实际迁移链底；在P1-A明确记录canonical接管前继续作为保护性迁移保障，最终fallback必须是只读`oms-simple.osk`，程序化主题视觉须在V1发布前退出。
 - 恢复基线的G1只保留两块：folder-backed ctor；`SkinInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` + Realm schema 56；在恢复当时**没有**生产扫描、选择、安全删改或热重载。
-- 恢复后 `SV1-2` 已把 authority/path preflight、managed Windows native no-follow capture、pure immutable capsule、schema 57 exact-owner启动scanner与production factory/guarded selection闭合成窄生产链；它仍不是专用managed mutation、external capture或热重载。地雷见 [[reference_skin_filesystem_authority_preflight]]、[[reference_skin_package_revision_capsule]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_managed_folder_selection]]。
+- 截至2026-07-17的恢复后重开历史曾依次加入authority/path preflight、managed Windows native no-follow capture、pure immutable capsule、schema 57 exact-owner启动scanner与production factory/guarded selection；这只是带日期的历史锚点，不是实时完成度。当前状态只看P1-A，专项地雷见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_package_revision_capsule]]、[[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_scanner]]与[[reference_skin_managed_folder_selection]]。
 - 恢复时新增两个独立修正：复制流后 reset position 再交 base parser；14K 右皿 `S2` → `P2` 素材映射。
-- F2/F3/G2、Lua、mania fallback adapter、reference-default 替换均未落地。
+- F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复时撤回或未进入可信基线的历史面；当前等价实现状态须从`SV1-*`计划重新判断。
 
 ## 旧实现地雷
 
-- external absolute path 不能交给 contained storage；使用 `NativeStorage`，并明确 authority root。
+- future external adapter不得把absolute path交给contained storage；只能在明确authority root后以`NativeStorage`作为只读source，并经自身resolved-identity/capture gate。
 - 删除/重命名必须先 resolve、做 root containment、拒绝冲突并考虑 reparse point；禁止“目标存在就递归删除”。
 - 启动扫描不能以本轮扫描结果删除不属于自身 authority 的 Realm 记录。
 - parser/unit 类型断言不证明生产 `SkinManager`、ruleset fallback 或真实事件链已接通。
@@ -38,5 +38,5 @@ metadata:
 
 1. 先读 `doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md` 与 P1-A 四件套；当前执行门只看 P1-A STATUS/PLAN。
 2. schema 56 清点与定点迁移、`SV1-0` 自动/数据/2026-07-14 实机 gate 均已完成；不要重复打开或清理生产数据。
-3. G1 仍按 managed/external、安全删改、扫描 authority、热重载独立过门；当前已闭合schema 57 exact-owner启动自动发现/reconcile及合法managed record的production factory/选择，external capture、专用mutation与reload仍未完成。测试按实际改动面选择，修改 shared/mania/fallback authority 时才强制追加 core/mania gate。
-4. 2026-07-14 只闭合恢复静态基线；普通短键编号帧动画仍须由用户单独实机确认，不能复用该结论。当前 gate 只看 P1-A STATUS。
+3. G1继续按受管目录mutation、external、扫描authority与热重载独立过门；不要从本恢复memory推断任一门的实时完成度，只看P1-A。测试按实际改动面选择，修改shared/mania/fallback authority时才强制追加core/mania gate。
+4. 2026-07-14只闭合恢复静态基线；其后新增的普通短键与长条head/body/tail视觉都必须按集中清单单独签收，不能复用该结论。

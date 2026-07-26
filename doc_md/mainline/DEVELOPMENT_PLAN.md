@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-17
+> 最后更新：2026-07-26
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -18,16 +18,16 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 ## 已关闭前置
 
 - R0 皮肤异常恢复与 R1 schema 56 数据安全门已经关闭；恢复证据见 [恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，数据证据见 [`SV1-0` 报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。迁移归档和无 authority orphan blob 继续保全，不做全局清理。
-- R2 已关闭进入 G1 所需的前置合同和首个 Note/LN 纵切自动闭环：managed `.osk` BMS 普通短键与长条 head/body/tail 四组件通过自动、合同、安全与回退 gate。`V-001`～`V-004` 视觉签收仍为 0/4，`SV1-1`、Skin V1 与 release 均不得据此声明完成；完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime 归 R4，不是进入 R3/`SV1-2` 的前置。
+- R2 已关闭进入 G1 所需的前置合同和首个 Note/LN 纵切自动闭环：已导入 `.osk` 的 BMS 普通短键与长条 head/body/tail 四组件通过自动、合同、安全与回退 gate。`V-001`～`V-004` 视觉签收仍为 0/4，`SV1-1`、Skin V1 与 release 均不得据此声明完成；完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime 归 R4，不是进入 R3/`SV1-2` 的前置。
 
 ## 强制执行顺序
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、managed Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection，以及schema 57 exact-owner启动自动发现/reconcile现已闭合成窄生产链。当前下一刀是专用managed mutation；external registration/capture与atomic reload/detach继续各自过门。
+authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection，以及schema 57 exact-owner启动发现/reconcile现已闭合成窄生产链。当前先闭合专用 mutation authority/recovery foundation，再按 rename → staged import → delete 分操作过门；external registration/capture与atomic reload/detach继续各自独立过门。
 
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
-2. **安全删改**：resolved-root containment、冲突拒绝、reparse-point/symlink 风险处理；外部目录只读。
+2. **安全删改**：任何真实写入前先冻结产品语义、scanner/selection/mutation线性化、durable recovery journal与启动幂等恢复；每个操作分别满足held-root authority、containment、冲突与reparse/hardlink拒绝。可安全判定时幂等forward/rollback到明确完成态或旧态；不能安全判定时保留journal、冻结相关路径并禁止scanner negative cleanup。external永久只读。
 3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。
 4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、删除/重命名均经人工确认。

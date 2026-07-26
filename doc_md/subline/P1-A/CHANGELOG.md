@@ -2,6 +2,17 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-26
+
+### 当前合同、产品语言与跨会话记忆复核
+
+- 代码只读取证确认`bd40966`仍为产品基线：schema 57 owner/scanner、native capture、exact-capsule factory与guarded selection已经形成合法受管目录的窄生产链；external production registration/capture、专用mutation、durable recovery journal、整包publication barrier与全consumer detach仍不存在。旧folder mutation入口被冻结，不等于已有安全删改。
+- 取证确认scanner的`scanGate`只串行单实例，discovery snapshot返回前held-root authority已经释放，启动链也没有journal recovery前置阶段。未来mutation因此必须先实现共享authority/线性化、启动“先恢复后scanner”、跨filesystem/Realm durable journal与歧义状态fail-closed；已有记录的exact owner和Realm记录只提供资格。既有受管source与受管target authority必须从held `chartskin` root下的no-follow physical identity即时签发；staged source则必须来自另行批准并固定identity的authority，新记录发布authority仍须冻结。
+- PLAN把已完成的Note/LN和G1前五个切片压回STATUS/CHANGELOG，只展开未完成顺序：先foundation且不开放UI/真实写入，再按rename、staged import、delete独立端到端过门，随后external与atomic reload/detach。rename的目录名/展示名语义及import来源/copy-move/冲突语义仍须先冻结，不能由实现猜测。
+- 既有普通delete命中current时只异步调度`DefaultOmsSkin`后继续删除，不能证明selection pair已经提交。硬约束现要求受管目录current delete等待当时已验证protected fallback真实提交；迁移期为程序化`OmsSkin`，canonical接管后为`oms-simple.osk`。确认式路径未实现前保持冻结，失败或恢复状态不明时拒绝物理删除。
+- 制作者说明与视觉清单统一区分已导入`.osk`和`chartskin`受管目录；scanner只发现/注册、不自动选择。清单移除旧测试数字与漂移构建锚点，视觉结论仍为`V-001`～`V-004`待统一签收。memory删除重复当前态/逐刀史，补scanner frontmatter、authority交叉路由及mutation协调地雷；不提前创建尚未冻结的mutation实现memory。
+- 本轮只改文档与memory，未修改runtime/生产数据，未运行产品测试或Release，未启动GUI。`CheckDocumentation.ps1`通过（125个Markdown、978个相对链接、48个memory wiki链），`git diff --check`通过；不改变`bd40966`记录的任何自动/人工gate。
+
 ## 2026-07-17
 
 ### `SV1-2` 第五刀：schema 57 exact-owner managed启动自动发现/reconcile

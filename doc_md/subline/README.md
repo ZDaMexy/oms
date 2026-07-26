@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；managed `.osk` BMS Note/LN head/body/tail 四组件自动 gate 闭合，`V-001`～`V-004` 签收 0/4；`SV1-2` managed启动自动发现/factory/选择已闭合 | 专用managed mutation → external → 整包原子重载；`SV1-1`/Skin V1 整体仍未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `SV1-0` 全过；已导入 `.osk` 的 BMS Note/LN head/body/tail 四组件自动 gate 闭合，`V-001`～`V-004` 签收 0/4；`SV1-2`受管目录启动发现/factory/选择已闭合 | mutation authority/recovery foundation → rename/staged import/delete → external → 整包原子重载；`SV1-1`/Skin V1 整体仍未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity 主体已落；常驻反馈卡已按产品决定删除 | 保持 parity gate，补剩余人工/展示面 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |

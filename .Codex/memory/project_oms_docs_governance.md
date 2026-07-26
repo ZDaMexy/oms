@@ -26,9 +26,9 @@ memory 模板：权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项
 
 完整规则以 [AGENTS.md](../../AGENTS.md) 和 [doc_md/README.md](../../doc_md/README.md) 为准；本文件不保存某轮治理前的临时交接状态。
 
-## 2026-07-16 治理结果
+## 持续防回潮
 
-- 已完成 mainline、subline、`other/` 与 memory 的分层归位：活动 STATUS 只保留当前事实/风险/下一门/最新验证，逐切过程和旧数字回到 CHANGELOG，memory 只做稳定地雷召回，`SKINNING.md` 只保留一个集中当前能力块。
-- 已补齐参考索引、规范相对链接并移除仓库内不必要的本机会话标识与用户数据指纹；精确生产取证值只保存在仓库外脱敏恢复归档。
-- 每次文档改动结束运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`；它兼容 Windows PowerShell 5.1，固定检查链接、四件套/索引完整性、STATUS/README 预算、memory wiki 链、明确隐私残片和 PLAN 会话污染，再配合 `git diff --check`。通用路径、公开 checksum 或合法数字矩阵只能告警复核，不能靠模糊 regex 强迫删除。
-- 本轮只治理文档，不修改代码、生产数据或 runtime，不计作产品功能，也不改变任何自动/人工 gate 结论。后续若 STATUS/PLAN 再混入逐切历史，按上述职责直接归回 CHANGELOG，不新建第二份“当前状态”。
+- 文档/记忆同步只改变治理事实，不得冒充runtime、产品测试或人工gate；产品代码基线和最新验证只由STATUS指向，旧数字留在CHANGELOG。
+- 每次文档改动结束运行`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`；它兼容Windows PowerShell 5.1，检查链接、四件套/索引完整性、STATUS/README预算、memory wiki链、明确隐私残片与PLAN会话污染，再配合`git diff --check`。
+- 若STATUS/PLAN再次混入逐切历史，直接归回CHANGELOG；若memory重复当前进度或另一memory的详细合同，改成权威链接/交叉路由，不新建第二份当前状态。
+- 通用路径、公开checksum或合法数字矩阵只能告警复核，不能靠模糊regex强迫删除；精确生产取证值只保存在仓库外脱敏恢复归档。

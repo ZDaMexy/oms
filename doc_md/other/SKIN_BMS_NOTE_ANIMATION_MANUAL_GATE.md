@@ -1,6 +1,6 @@
 # BMS 普通短键编号帧动画手工门
 
-本页只用于复现当前 managed `.osk` 的 BMS 普通短键编号帧动画、皮肤选择切换和 selected 坏包逐组件回落。素材全部由 OMS 测试侧代码生成，不读取 `SKIN/SimpleTou-Lazer` 或用户皮肤。
+本页只用于复现当前已导入 `.osk` 的 BMS 普通短键编号帧动画、皮肤选择切换和 selected 坏包逐组件回落。素材全部由 OMS 测试侧代码生成，不读取 `SKIN/SimpleTou-Lazer` 或用户皮肤。
 
 ## 生成
 

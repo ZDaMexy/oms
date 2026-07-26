@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_config_presence
-description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/native-BMS-colour/geometry/bucket-global/lane-resource/NoteBodyStyle accepted presence、semantic mapping、legacy mania synthetic default 与 decoder authority 地雷
+description: Skin V1 configuration bucket/scalar/indexed-array/global/per-column-colour/native-BMS-colour/geometry/bucket-global/NoteBodyStyle accepted presence、semantic mapping、legacy mania synthetic default 与 decoder authority 地雷
 metadata:
   node_type: memory
   type: reference
@@ -18,7 +18,7 @@ metadata:
 
 ## decoder authority 地雷
 
-- `LegacySkin.lookupForMania()` 在缺少目标 `[Mania] Keys:` bucket 时会合成 `LegacyManiaSkinConfiguration`。未来 neutral adapter 若从 production lookup 读取，就会把未声明的默认对象误判为 `Provide` 并遮住 `oms-simple`。
+- `LegacySkin.lookupForMania()` 在缺少目标 `[Mania] Keys:` bucket 时会合成 `LegacyManiaSkinConfiguration`。neutral adapter若从production lookup读取，就会把未声明的默认对象误判为`Provide`并遮住`oms-simple`；presence必须继续只来自decoder-time accepted sidecar。
 - mania presence 只能来自 `LegacyManiaSkinDecoder.Decode()` 实际输出：没有 `Keys:` 就是 `Absent`，只有 `Keys:` 的空 bucket 仍是 `Declared`。当前 topology 允许 1–2 个各 1–10 列的 mixed stage，因此这里只能按总列范围 1–20 校验；`AvailableVariants` 的等分 dual 列表不能用来拒绝 11/13/15/17/19 这类内部可表达总列数。
 - BMS presence 只能来自 `BmsSkinDecoder.Configurations`；`[General] Keymodes:` 是 metadata，不创建 bucket。只有有效 `[Bms] Keymode:` 才 `Declared`，9K BMS/PMS 必须分离；bucket 内 malformed field 被跳过不等于 bucket 本身缺失。
 - duplicate section 的 merge/ignore 语义仍归现有 decoder；adapter 只拒绝不可能由真实 decoder 产生的同 target duplicate 输入，不重写 tokenizer 或 compatibility chain。
@@ -37,7 +37,7 @@ metadata:
 - 缺 bucket 是 outer `Absent`；显式 bucket 即使无该 key 也是 outer `Declared` + inner `Absent`。pending-before-`Keys:`、malformed `Keys` 沿用 prior current bucket 和 duplicate bucket 写入 discarded configuration 继续沿用 decoder 现状，未被提升为 shared codec 长期语义。
 - decoder 成功 parse 后同时更新 public compatibility field 与 private accepted sidecar；factory 只读 sidecar。手工构造 configuration 或 decode 后对 public `NoteBodyStyle` 的 erase/alter 都不能伪造、擦除或改变 provenance。
 - 此 snapshot 不是 production effective style：`LegacySkin` 在 declaration 缺失时仍按 `[General] Version < 2.5` 推导 `Stretch`，否则推导 `RepeatBottom`；source-specific factory 禁止查询或复制该默认。
-- 真实 validation/materialization 仍受 package authority 边界约束；native BMS 普通短键与长条头/身/尾只有 package-scoped read/帧序列/预算/owner 窄路径。managed Realm store、zip 与 external directory 的完整 containment/case/duplicate 统一语义、共享 codec、其它资源和 G1 原子 reload 是否完成只看 P1-A STATUS，不得从本 snapshot 推断。
+- 真实 validation/materialization 仍受 package authority 边界约束；native BMS 普通短键与长条头/身/尾只有 package-scoped read/帧序列/预算/owner 窄路径。Realm/hash-backed store、zip与external directory的完整containment/case/duplicate统一语义、共享codec、其它资源和G1原子reload是否完成只看P1-A STATUS，不得从本snapshot推断。
 
 ## native BMS exact colour accepted snapshot
 
@@ -75,7 +75,7 @@ metadata:
 - capture 必须位于既有 `HandleColours(..., allowAlpha: true)` 成功返回之后；decoder-time sidecar 独立保存 column background/light 的 accepted declaration 与 parser `Color4`。RGB 补 alpha=255，RGBA（含 alpha 0）原样保存；valid duplicate last accepted，malformed 不声明也不覆盖，decode 后对 public `CustomColours` 的 add/replace/remove/clear 都不能伪造或擦除 provenance。
 - neutral snapshot 的 closed field 是 `LaneBackground`（`playfield.lane.background-colour`）与 `LaneLight`（`playfield.lane.light-colour`）。source column index 不是 stable lane ID；factory 必须接收明确的 source-column→`GameplaySkinLaneId` 映射并绑定 exact topology，复制 mapping 后按 logical lane、field 固定排序。partial mapping 与 many-to-one source mapping 都允许，但 target duplicate、越界 source 或 topology 外 lane 必须拒绝。
 - mania 映射使用 `GlobalLogicalIndex`，dual-stage 不重启 source index。BMS full visual 使用 `GlobalVisualIndex`；14K eight-column deck 使用 `GroupLocalVisualIndex`，因此两个 deck 可共享同一组 source index；key-only projection 按 non-scratch visual enumeration 编号。三类 BMS projection 当前是相互独立的 fixture-only snapshot；若未来把它们合入同一 candidate plan，必须共享同一个 exact topology reference，不能只凭值相等的 topology 或各自重建的 projection 混装。
-- 该 snapshot 只冻结 accepted provenance 与中性映射，不做 doubled-alpha/zero-alpha compatibility、视觉默认、materialization、fallback 或 renderer 接线，也不是 manifest/wire ABI。Skin V1 因此仍不可用。
+- 该 snapshot 只冻结 accepted provenance 与中性映射，不做 doubled-alpha/zero-alpha compatibility、视觉默认、materialization、fallback 或 renderer 接线，也不是 manifest/wire ABI；它本身不构成 Skin V1 已交付能力，Skin V1 完整产品面仍未交付。
 
 ## legacy mania bucket-global resource accepted snapshot
 
@@ -86,10 +86,4 @@ metadata:
 - decoder 在接受 exact key 时同时更新 compatibility `ImageLookups` 与 private declaration sidecar；factory 只读 sidecar。decode 后、factory 前或 snapshot 后对 public dictionary 的 add/overwrite/remove/clear/整体替换均不能伪造、擦除或改变 accepted provenance；手工构造 configuration 再填 dictionary 也不能制造 declaration。
 - resource declaration 只证明来源事实，不等于文件有效、slot `Provide`、`Suppress` 或 fallback winner。显式空字符串仍必须进入后续 materializer/diagnostic，而不能在 provenance 层折叠成 `Absent`/`Inherit`；该 snapshot 本身不证明 production lookup、renderer、`SkinManager` 或 fallback 已接线。
 
-lane-resource 的 immutable snapshot、有序 BMS→mania candidate plan、逐字段 resolution/revision-owner 与 decoder-time accepted sidecar 细节见 [lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。本文件只集中保存 configuration presence 的反直觉 parser/provenance 合同；完整 neutral configuration、validation/materialization/shared codec 与生产接线状态以 P1-A 为准。
-
-## lane-resource provenance 已关闭的窗口
-
-- `LegacyManiaGameplaySkinLaneResourceSnapshotFactory` 与 `BmsGameplaySkinLaneResourceSnapshotFactory` 只读各自 decoder-time private sidecar；decode 后、factory 前对两侧 public `ImageLookups` 内容的新增、替换、删除、清空，以及 legacy 字典的整体重赋值，均不能伪造、擦除或改变 declaration/value。手工构造 configuration 再填字典同样不能制造 accepted provenance。
-- 这只证明 exact decoder line 被接受，不是 security boundary，也不证明资源文件存在、可解码、未越界、已通过预算或可转为 slot `Provide`。public compatibility dictionary 继续保留原行为；不得因 sidecar 存在而清理、拒绝或重解释兼容 key。
-- Legacy mania exact key 使用 0-based canonical ASCII column index；native BMS 保存未规范化 raw lane token，9K 为 `0..8`，5K/7K/14K 的 `S`、数字及 14K `S2` 语义保持不变。两侧显式空值和 valid duplicate-last 均保留；exact/case/token 之外的 compatibility 行不能进入 closed sidecar。
+lane-resource的immutable snapshot、有序BMS→mania candidate plan、逐字段resolution/revision-owner、decoder-time accepted sidecar与mutable-window地雷统一见[lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)。本文件只保存configuration presence的反直觉parser/provenance合同；完整neutral configuration、validation/materialization/shared codec与生产接线状态以P1-A为准。

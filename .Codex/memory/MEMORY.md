@@ -1,22 +1,25 @@
 # OMS 跨会话记忆索引
 
-> `doc_md/` 是权威治理源；本目录只保存踩坑、验证基线与工作流快速召回。按任务从索引选择少量文件，勿整库加载。任何带日期的“已修/已落”结论，使用前都要以当前代码、测试和主线状态复核。
+> `doc_md/` 是权威治理源；本目录只保存稳定踩坑、诊断线索与工作流快速召回，不常驻当前测试数字或逐刀进度。按任务从索引选择少量文件，勿整库加载；任何“已修/已落”结论都要以当前代码、测试和主线状态复核。
 
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — OMS 范围、架构、阶段与红线。
 - [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算、同次联动与持续防回潮规则。
 - [反馈工作流](feedback_workflow.md) — 中文协作、真机反馈权威、修复→验证→文档/记忆→提交。
-- [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 分界点、恢复基线、归档 refs、保留/撤回面与重新准入门。**处理皮肤任务先读。**
-- [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
-- [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — schema 56 managed/external 分类、Windows 路径歧义、namespace overlap、TOCTOU/identity 与不可误作 mutation capability 的边界。
-- [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — post-capture 内容身份、规范名/预算、defensive ownership、失败清理与不可误作 no-follow capture 的边界。
-- [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver-issued request、physical NT volume、handle-relative no-follow、identity/inventory竞态与非filesystem transaction边界。
-- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、authoritative mutation冻结、reentrant/任务异常与旧owner detach地雷。
-- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner、Observed/Valid分离、完整scan单事务reconcile、native held-root发现与启动cancel/join地雷。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 当前可信面、managed `.osk` BMS 普通短键与长条头/身/尾 source-bound production 窄纵切、未定义的真实 beatmap-local 边界、稳定产品决议和实现地雷。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — P1-I 展示层级、返回条、分组与转谱展示。
 - [内置音乐播放器](project_oms_music_player.md) — P1-M 规划与边界。
+
+## 皮肤恢复与存储
+
+- [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 分界点、恢复基线、归档 refs、保留/撤回面与重新准入门。**处理皮肤任务先读。**
+- [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
+- [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — schema 56-origin managed/external 声明分类、Windows 路径歧义、namespace overlap、TOCTOU/identity 与不可误作 mutation capability 的边界。
+- [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — post-capture 内容身份、规范名/预算、defensive ownership、失败清理与不可误作 no-follow capture 的边界。
+- [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver-issued request、physical NT volume、handle-relative no-follow、identity/inventory竞态与非filesystem transaction边界。
+- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner、Observed/Valid分离、完整scan单事务reconcile、native held-root发现与启动cancel/join地雷。
+- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、authoritative mutation冻结、reentrant/任务异常与旧owner detach地雷。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
 
 ## 构建、存储与产品面参考
 
@@ -49,7 +52,7 @@
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、neutral transition validator 与 internal BMS/mania projection。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision、BMS keymode/mania ordered-stage continuity、失败原子性与非 production `layoutRevision` 边界。
-- [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket/legacy mania scalar/indexed-array/global/per-column-colour/native `[Bms]` exact 22 colour / 12 geometry/bucket-global/lane-resource/`NoteBodyStyle` accepted presence、semantic mapping、per-index mask、synthetic default、decoder authority 与 materializer authority 地雷。
+- [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket/legacy mania scalar/indexed-array/global/per-column-colour/native `[Bms]` exact 22 colour / 12 geometry/bucket-global/`NoteBodyStyle` accepted presence、semantic mapping、per-index mask、synthetic default与decoder authority地雷。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — 六类逐 lane 资源 decoder-time provenance/快照、BMS→mania 候选矩阵、逐字段 resolution/revision owner、package-scoped materialization/source isolation/async reload 与 9K/14K 编址地雷。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — process-local envelope、canonical stream ordering、producer authority 与 mutable callback 地雷。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、hard-deny classifier、只读 event token 与 authority-handle 地雷。

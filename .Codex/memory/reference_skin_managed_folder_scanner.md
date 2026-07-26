@@ -1,6 +1,14 @@
+---
+name: reference_skin_managed_folder_scanner
+description: schema 57 exact-owner受管目录启动发现、Observed/Valid、Realm reconcile及未来mutation协调地雷
+metadata:
+  node_type: memory
+  type: reference
+---
+
 # managed skin folder scanner（schema 57）
 
-> 快速召回 `chartskin/` 自动发现、Realm 归属与启动生命周期的安全边界。当前产品事实仍以 `doc_md/subline/P1-A` 为准。
+> 快速召回 `chartskin/` 自动发现、Realm 归属与启动生命周期的安全边界。当前产品事实以 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) 为准；前后authority链见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_managed_folder_selection]]。
 
 ## 归属与 Realm reconcile
 
@@ -31,3 +39,9 @@
 - 设置页已有 Realm `SkinInfo` notification → `GetAllUsableSkinsAsync()` → dropdown 刷新链；scanner 不需要第二套 UI refresh，也不会自动切换当前皮肤。
 - 这是一次启动扫描，不是 watcher 或热重载。启动后原位编辑、新 revision publication、全 consumer detach、managed rename/delete/import、external registration/capture 仍是后续独立 gate。
 - 测试只用 fake、隔离 Realm/临时 Windows 根和 headless lifecycle；不要为验证 scanner 启动可见 GUI，也不要触碰生产 `chartskin/`。
+
+## 与未来 mutation 的协调地雷
+
+- 当前`scanGate`只串行同一scanner实例；它不是跨scanner/selection/mutation的共享authority。旧mutation入口被冻结，所以现状没有合法并发写面，不能据此推断未来安全。
+- discovery返回snapshot前held-root session已经释放，snapshot→Realm reconcile之间不再持有filesystem authority；未来mutation必须显式定义这一窗口的共享线性化、最终复核与冲突策略。
+- 当前启动顺序没有durable mutation journal recovery阶段。任何跨filesystem/Realm mutation必须先落可幂等恢复的journal，并保证“先恢复、后scanner”；未决journal关联路径不得被negative reconcile解释为普通缺失或新增。

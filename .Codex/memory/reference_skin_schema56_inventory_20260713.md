@@ -22,9 +22,9 @@ metadata:
 - schema/path 正常不代表 `SkinInfo` 可实例化。本次 3 条记录中 folder-backed/external 均为 0，但两条 `InstantiationInfo` 指向恢复树已删除的 `BmsOmsReferenceSkin`。
 - fixed-ID protected OMS 记录会被 `SkinManager` 构造时静默重写；managed 记录不会。不要用一次普通启动把前者改绿后宣称数据迁移完成。
 - `SkinInfo.CreateInstance()` 对解析失败类型仍回落 `TrianglesSkin`。对 BMS `.osk` 而言这会掩盖失效类型并绕开预期的 `BmsLegacySkin`，也违反 OMS 最终不依赖上游默认视觉的产品方向。
-- 处理顺序：重新备份 → 保全 managed hash-backed 内容 → 用户选择重导入/保留/移除 → 独立定点迁移与实机验证。scanner 不得自动清理。
+- 当时采用的处置顺序：重新备份 → 保全 managed hash-backed 内容 → 用户选择重导入/保留/移除 → 独立定点迁移与实机验证。scanner 不得自动清理；不要把这段历史流程误作当前待执行任务。
 
-## 当前 gate
+## 处置结论
 
 用户确认异常 managed mutable copy 无价值后，已完成迁移前 Realm/配置/四 blob 保全、副本演练与生产单事务处置：异常 GUID 删除，OMS fixed-ID 修正为 `OmsSkin`，最终 Skin 记录 2 条，read-only reopen 验证通过。未运行全局 orphan cleanup，四个无 authority blob 暂留。
 

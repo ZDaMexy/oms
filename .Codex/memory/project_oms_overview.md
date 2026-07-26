@@ -12,6 +12,6 @@ metadata:
 - 当前为 Phase 1.x 收尾；Phase 3 前离线优先、默认 endpoint 为空。
 - BMS 直读 `chartbms/`，mania 直读 `chartmania/`；支持 `portable.ini→data/` 与 `storage.ini`。
 - 主工程：`osu.Game`、Mania、Bms、`oms.Input`、`osu.Desktop`。
-- 皮肤任务先读 [[reference_skin_recovery_20260710]]；G1 生产链/F2/Lua 不是当前能力。
+- 皮肤任务先读[[reference_skin_recovery_20260710]]；G1及其它Skin V1面的实时完成度只看P1-A STATUS/PLAN，scanner与selection类技术地雷分别从[[reference_skin_managed_folder_scanner]]和[[reference_skin_managed_folder_selection]]进入。
 
 实时状态、计划和命令不要在 memory 复制，统一读 `AGENTS.md` 与 `doc_md/mainline/{DEVELOPMENT_STATUS,DEVELOPMENT_PLAN}.md`。

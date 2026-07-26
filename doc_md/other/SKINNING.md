@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-07-17）**：已导入并选中的 managed `.osk` 可用 native `[Bms]` 静态字段；`NoteImage{lane}` 普通短键与 `NoteImage{lane}H/L/T` 长条头、身、尾（含 `S`/`S2`）可使用静态图或 `name-0`、`name-1`…连续编号帧，当前固定 60 FPS。`LongNoteBodyWidth` 是目前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失或非法时回到 `0.5775`；body 素材与解析后宽度绑定同一 package revision。受管理工作目录现可放在数据根的`chartskin/<包目录>/`，程序会在**下次启动**安全扫描并把有效包加入皮肤选择面；这不是实时监视或热重载。四项自动 gate 已过，`V-001`～`V-004` 用户视觉仍集中待验收。tail 未声明/坏声明最终为透明迁移 fallback，但作者 `Suppress` 仍未开放；专用目录删改、external、整包原子重载、其它 gameplay slot、scene/script 与文件型默认也尚未开放，程序化 `OmsSkin` 仍是迁移链底，因此 Skin V1 整体不可用。最新状态只看 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)；恢复边界和目标设计分别见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **当前作者能力（2026-07-26）**：选中的用户 BMS 包（已导入 `.osk`，或已发现的 `chartskin` 受管目录）可用 native `[Bms]` 静态字段；`NoteImage{lane}` 普通短键与 `NoteImage{lane}H/L/T` 长条头、身、尾（含 `S`/`S2`）可使用静态图或 `name-0`、`name-1`…连续编号帧，当前固定 60 FPS。`LongNoteBodyWidth` 是目前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失或非法时回到 `0.5775`；body 素材与解析后宽度绑定同一 package revision。开发工作目录可放在数据根的`chartskin/<包目录>/`，程序会在**下次启动**安全扫描并把有效包加入皮肤选择面；扫描不会自动选中它，也不是实时监视或热重载。四项自动 gate 已过，`V-001`～`V-004` 用户视觉仍集中待验收。tail 未声明/坏声明最终为透明迁移 fallback，但作者 `Suppress` 仍未开放；专用目录删改、external、整包原子重载、其它 gameplay slot、scene/script 与文件型默认也尚未开放，程序化 `OmsSkin` 仍是迁移链底，因此Skin V1完整产品面尚未交付。最新状态只看 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)；恢复边界和目标设计分别见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ---
 
@@ -53,7 +53,7 @@
 
 ## 2. 皮肤包结构
 
-当前可用形态有两种：把正式分发包作为 `.osk` 导入，或把开发中的目录放入受管理的 `chartskin/<包目录>/` 并在下次启动时自动发现。两种形态的包内根部都是 `skin.ini`，其余为素材：
+当前可用形态有两种：把正式分发包作为 `.osk` 导入，或把开发中的目录放入受管 `chartskin/<包目录>/` 并在下次启动时自动发现。两种形态的包内根部都是 `skin.ini`，其余为素材：
 
 ```text
 MyBmsSkin/
@@ -68,10 +68,10 @@ MyBmsSkin/
   ...
 ```
 
-- 正式分发/导入路径：把该文件夹内容打包为 `.osk` 后经游戏导入；作者工作目录也可直接放入 `chartskin/<包目录>/`，由下次启动的一次性扫描注册。两条路径都会把合法 BMS 包实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
-- V1 以 `.osk` 为正式社区分发物，并恢复受管理/外部只读文件夹作为作者工作区/高级管理面。包内还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
+- 正式分发/导入路径：把该文件夹内容打包为 `.osk` 后经游戏导入；作者工作目录也可直接放入 `chartskin/<包目录>/`，由下次启动的一次性扫描注册。用户选中后，两条路径都会把合法 BMS 包实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
+- V1 以 `.osk` 为正式社区分发物，并恢复受管目录/外部只读目录作为作者工作区/高级管理面。包内还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
 - 只含 mania、只含 BMS 或同含两者都合法；官方 `oms-simple/oms-complex` 选择同包双 ruleset，以证明第三方无需特殊内置路径也能完成产品级皮肤。
-- 可视受管理目录为 OMS 数据目录下的 `chartskin/`：每个 direct child 是一个包目录，根必须含有效 `skin.ini`。程序完整启动后会后台扫描一次，有效包进入皮肤选择面；文件、reparse、坏包或扫描竞态不会被导入，也不会借“未见”清理未知/普通 `.osk` 记录。启动后新增或修改目录须重启才会重新发现；当前仍没有专用删除、重命名或热重载。
+- 可视受管目录为 OMS 数据目录下的 `chartskin/`：每个 direct child 是一个包目录，根必须含有效 `skin.ini`。程序完整启动后会后台扫描一次，有效包进入皮肤选择面，但不会自动选中。新出现的文件、reparse或坏包不会新增记录；同路径若已有scanner exact-own记录则会保留而不因暂时无效被误清理，但选择时仍须重新通过capture/factory，失败只保留旧皮肤而不会发布坏包。根扫描不完整或发生竞态时整轮零对账。启动后新增或修改目录须重启才会重新发现；当前仍没有专用删除、重命名或热重载。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
 - 热重载：当前未启用；修改 `chartskin` 来源后须重启让 scanner 更新记录，再重新选择。普通短键与长条头/身/尾在选择 A→B 时可按组件后台准备并保留旧视觉到新视觉就绪，body 的素材与解析后宽度会以同一 package revision 一起切换；这不是来源文件热重载，也不是 `SV1-2` 的整包原子切换。完整验证后原子切换、全 consumer detach 与失败保留旧实例仍属于 `SV1-2` 验收项。
@@ -122,7 +122,7 @@ Keymode:  14K              // DP 单独一段
 
 ### 3.1 `[Mania]` 共同逻辑的 V1 兼容映射
 
-当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但完整 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：现已先把六类逐 lane 资源从现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral snapshot，并建立未接生产的候选计划；后续再扩齐配置并逐步共用 codec，不在这一刀重写成熟 mania 生产解析器。当前生产例外是用户所选已导入 managed package 的 exact native `[Bms] NoteImage*` 普通短键与 `NoteImage*H/L/T` 长条头身尾；它们不消费 mania candidate，也尚未接真实 `oms-simple`。
+当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但完整 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：现已先把六类逐 lane 资源从现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral snapshot，并建立未接生产的候选计划；后续再扩齐配置并逐步共用 codec，不在这一刀重写成熟 mania 生产解析器。当前生产例外是用户选中的 BMS 包对 exact native `[Bms] NoteImage*` 普通短键与 `NoteImage*H/L/T` 长条头身尾的查询；它们不消费 mania candidate，也尚未接真实 `oms-simple`。
 
 gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 必要的 deck/key-only bucket → `oms-simple`。完整候选计划当前仍只在合同 fixture 中保留顺序和末端 canonical marker，不验证全部资源、不选择首值，也没有装载真实 `oms-simple` package；上段 note/head/body/tail 例外只解析精确 native `[Bms]` 声明。
 
@@ -164,7 +164,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 5. 静态素材族（mania 对齐）
 
-当前 `.osk/[Bms]` 已有生产消费方的是 note/LN、lane background/divider、hit target、barline、lane cover、backdrop/baseplate 的颜色/纹理/几何子集。其中用户选中 managed `.osk` 时，普通 `NoteImage*` 与长条头身尾 `NoteImage*H/L/T` 已支持静态图和编号帧动画；body 还会同 revision 使用经过安全域解析的 `LongNoteBodyWidth`。其它素材仍走既有路径。stage/key area 虽有部分解析或设计名，但尚无完整生产渲染消费方；下表同时列出 V1 compatibility 目标，不能把每个键都当作当前已生效。共同项优先复用 mania 语义，BMS 的 scratch/DP role 由 adapter 补足。
+当前用户 BMS 包的 `[Bms]` 已有生产消费方的是 note/LN、lane background/divider、hit target、barline、lane cover、backdrop/baseplate 的颜色/纹理/几何子集。其中普通 `NoteImage*` 与长条头身尾 `NoteImage*H/L/T` 已支持静态图和编号帧动画；body 还会同 revision 使用经过安全域解析的 `LongNoteBodyWidth`。其它素材仍走既有路径。stage/key area 虽有部分解析或设计名，但尚无完整生产渲染消费方；下表同时列出 V1 compatibility 目标，不能把每个键都当作当前已生效。共同项优先复用 mania 语义，BMS 的 scratch/DP role 由 adapter 补足。
 
 ### 5.1 Stage 框架
 | 键 | 作用 | 必备档 |
@@ -177,13 +177,13 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
 | `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（当前缺失/损坏时继续外层链并最终落到程序化 `OmsSkin`；V1 目标为 `oms-simple`） |
-| `NoteImage{lane}H` | 长条头 | **必备**（当前 selected managed `.osk` 支持静态图/连续编号帧；坏声明回落到可见 rescue） |
-| `NoteImage{lane}L` | 长条身 | **必备**（当前 selected managed `.osk` 支持静态图/连续编号帧；素材与安全解析后的 `LongNoteBodyWidth` 同 revision 发布，坏声明回落到可见 rescue） |
-| `NoteImage{lane}T` | 长条尾 | 推荐（当前 selected managed `.osk` 支持静态图/连续编号帧；未声明/坏声明最终为透明迁移 fallback，但不是 `Suppress`） |
+| `NoteImage{lane}H` | 长条头 | **必备**（当前选中的用户 BMS 包支持静态图/连续编号帧；坏声明回落到可见 rescue） |
+| `NoteImage{lane}L` | 长条身 | **必备**（当前选中的用户 BMS 包支持静态图/连续编号帧；素材与安全解析后的 `LongNoteBodyWidth` 同 revision 发布，坏声明回落到可见 rescue） |
+| `NoteImage{lane}T` | 长条尾 | 推荐（当前选中的用户 BMS 包支持静态图/连续编号帧；未声明/坏声明最终为透明迁移 fallback，但不是 `Suppress`） |
 | `NoteBodyStyle` | 长条身样式（stretch/repeat） | 可选 |
 | `WidthForNoteHeightScale` | 音符高度按宽缩放 | 可选 |
 
-当前 managed body 与程序化默认 body 复用引擎拥有的 Idle/Holding/Broken 状态宿主：active alpha `0.8`、broken alpha `0.32`，约 `80ms` 过渡；HCN regrab 可回到 Holding。皮肤只改变表现，不改变 LN/CN/HCN 判定、长度、拉伸或裁剪规则。
+当前用户包 body 与程序化默认 body 复用引擎拥有的 Idle/Holding/Broken 状态宿主：active alpha `0.8`、broken alpha `0.32`，约 `80ms` 过渡；HCN regrab 可回到 Holding。皮肤只改变表现，不改变 LN/CN/HCN 判定、长度、拉伸或裁剪规则。
 
 ### 5.3 判定线 / 按键区
 | 键 | 作用 | 必备档 |

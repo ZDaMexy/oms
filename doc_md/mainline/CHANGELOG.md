@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-07-26
+
+### 皮肤系统文档与 memory authority 同步
+
+- 只读复核当前代码、mainline/P1-A四件套、恢复审计、制作者说明、视觉清单与相关memory；产品代码基线保持`bd40966`，本轮未修改runtime/生产数据，未重跑产品测试或Release，也未启动GUI或操控桌面。
+- 两份STATUS移除已被最新scanner基线取代的factory/preflight/旧测试数字与“scanner尚未实现”等逐刀历史；当前只保留schema 57 exact-owner启动发现→native capture→immutable capsule→guarded selection窄链及其边界。产品语言区分“已导入`.osk`（Realm/hash-backed包）”与“`chartskin`受管目录（folder-backed）”，自动发现明确为只加入选择面、不自动选中。
+- R3计划收敛为mutation authority/recovery foundation → rename → staged import → delete → external → atomic reload/detach。filesystem/Realm跨域写入必须先有durable journal、启动幂等恢复及scanner/selection/mutation共享线性化；rename/import语义与staged import新记录发布authority未冻结前不开放写面。删除current skin必须等待已验证protected fallback真正提交，迁移期为程序化`OmsSkin`、canonical接管后为`oms-simple.osk`，失败则拒绝删除。
+- 集中视觉清单不再复制会漂移的自动测试数字或“本条所在提交”锚点；实际验收时填写真实commit/build，`V-001`～`V-004`仍待统一反馈。memory索引按恢复→清点→preflight→capsule→capture→scanner→selection→authoring重排，并补齐scanner与未来mutation协调、普通delete异步调度不可冒充fallback提交等地雷。
+- 文档门禁：`CheckDocumentation.ps1`通过（125个Markdown、978个相对链接、48个memory wiki链），`git diff --check`通过。该结论只验证文档治理，不改变任何产品自动/人工gate。
+
 ## 2026-07-17
 
 ### `SV1-2` schema 57 scanner owner与managed启动自动发现闭合
