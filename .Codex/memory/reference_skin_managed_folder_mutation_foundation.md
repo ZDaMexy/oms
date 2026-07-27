@@ -43,3 +43,9 @@ metadata:
 - foundation闭合不表示rename、staged import或delete已实现。三者仍须分别冻结产品语义，并通过physical write、final identity、Realm publication、crash-point、幂等恢复、取消、selection竞态与真实Windows gate后才能开放UI。
 - rename journal的source→target identity-continuity只定义未来“物理目录移动”所需安全包络，不决定展示名/`skin.ini`是否联动；staged import不决定copy/move或冲突策略；delete confirmation不执行任何Realm/磁盘删除。
 - journal、identity、relative path、operation/record ID与native异常都可能敏感；安全`ToString()`/日志只能输出类型、phase、kind、status或计数。
+
+## 产品可达性与下轮rename入口
+
+- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护与selection最终authoritative重读已由production消费；三个`Open*`入口、native write primitive和operation handler尚无production caller。因此它是现有发现/选择链已经使用的安全底座，但不是玩家可见删改能力。
+- 下一轮必须停止横向扩foundation，先冻结rename是否只改工作目录名或还联动`skin.ini`展示名；若联动内容，先复核journal v1是否缺少old/new metadata。实现必须直接消费现有`OpenRename`→Prepared durable receipt→held-root physical move→final identity→Realm一致性→operation-specific recovery handler，禁止另建平行coordinator/journal。
+- 真实Windows collision/reparse/hardlink/busy-writer、各crash point、取消、selection/scanner竞态与重启恢复全部过门前不得接UI；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。

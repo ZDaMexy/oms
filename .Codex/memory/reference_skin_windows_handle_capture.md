@@ -27,4 +27,4 @@ metadata:
 ## 入口
 
 - 声明/路径前置见 [[reference_skin_filesystem_authority_preflight]]，capsule ownership见 [[reference_skin_package_revision_capsule]]。
-- 当前测试数字、production接线与下一门只看P1-A STATUS/PLAN；不得把capture producer本身写成G1、folder skin或Skin V1产品能力。
+- 当前测试数字、production接线与下一门只看P1-A STATUS/PLAN；held mutation authority另见[[reference_skin_managed_folder_mutation_foundation]]，不得把capture producer本身写成G1、folder skin或Skin V1产品能力。

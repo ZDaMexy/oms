@@ -1,6 +1,6 @@
 ---
 name: reference_skin_managed_folder_scanner
-description: schema 57 exact-owner受管目录启动发现、Observed/Valid、Realm reconcile及未来mutation协调地雷
+description: schema 57 exact-owner受管目录启动发现、Observed/Valid、Realm reconcile及mutation/recovery协调地雷
 metadata:
   node_type: memory
   type: reference

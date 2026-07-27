@@ -75,7 +75,8 @@
 - 当前真实 package 纵切只覆盖 BMS 普通短键与长条 head/body/tail；单组件安全替换不等于整包/全 playfield 同帧原子 reload。
 - `SkinFilesystemStorageResolver` 返回的 normalised lexical path 只表示检查当时的声明/preflight，不是 capability；production managed folder factory 现已只消费 resolver-issued request 经 Windows fixed-handle capture 完整成功后返回的 exact capsule，不从 normalised path 或 live `NativeStorage` 直接进入 parser。capture 仍不是 mutation token、external adapter 或 filesystem transaction。
 - managed folder现可在重启后的完整稳定scan中自动发现并进入选择面；scanner不watch启动后的磁盘变化、不自动选择或reload。专用mutation foundation已提供held authority、durable journal/recovery与共享线性化，但旧mutation入口仍冻结，且没有任何物理写入或Realm新记录publisher。
-- filesystem与Realm不能组成同一原子事务；公共foundation只关闭首个外部步骤前的Prepared journal、启动恢复先于scanner、歧义冻结和参与者互斥。受管目录“rename”究竟只改目录名、只改`skin.ini`展示名还是两者联动仍未冻结，staged import的copy/move与冲突语义、新记录one-shot publisher、各操作crash-point handler也尚未实现；现有通用Rename/Delete/Import UI继续保持禁用。
+- filesystem与Realm不能组成同一原子事务；公共foundation只关闭首个外部步骤前的Prepared journal、启动恢复先于scanner、歧义冻结和参与者互斥。production recovery当前没有operation handler，因此任何有效nonterminal journal只能保留并冻结，不能把安全停机写成自动前滚/回滚已经可用。受管目录“rename”究竟只改目录名、只改`skin.ini`展示名还是两者联动仍未冻结，staged import的copy/move与冲突语义、新记录one-shot publisher、各操作crash-point handler也尚未实现；现有通用Rename/Delete/Import UI继续保持禁用。
+- resolved external identity尚未实现；当前Realm只要存在任一external filesystem声明，就会保守阻断全部managed mutation。这是临时fail-closed边界，external切片必须改为基于resolved identity的局部冲突判断。invalid/IO journal造成的冻结目前也没有用户可见的脱敏诊断，开放真实操作前须补支持性状态与恢复说明。
 - current managed delete的fallback pair确认门已存在，但实际delete仍没有入口；canonical接管前只接受受保护程序化`OmsSkin`，以后必须改为已验证只读`oms-simple.osk`。任何split pair或无法确认都拒绝，不得把foundation写成删除能力。
 - active capsule 已与当前实例绑定且磁盘变化不会混入，但旧 owner 的退役必须等待全consumer detach；当前没有整包reload publication barrier，不得把一次selection pair提交写成全playfield同帧reload。
 - 成功 preparation cache 仍按 `BmsLegacySkin` 实例复用；managed folder 实例的 source 已固定为 immutable capsule，因此磁盘变化不会污染 cache，但新 revision 必须经新实例与 publication barrier 发布。`SV1-2` 仍须闭合这一整包 reload/旧 owner 退役流程。

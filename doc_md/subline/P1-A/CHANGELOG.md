@@ -16,6 +16,14 @@
 - production/core-test/BMS-test三工程targeted formatter及verify均exit 0；`osu.Desktop.slnf` Release **0 error / 18 emitted known warnings**，均为MessagePack 3.1.3既有`NU1902`在restore/build重复输出，未用`NoWarn`隐藏。`CheckDocumentation.ps1`通过（126个Markdown、980个相对链接、51个memory wiki链），仅保留mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。
 - foundation没有任何create/move/rename/delete primitive、operation-specific recovery handler、Realm新记录publisher或UI。rename目录名/展示名语义、staged import copy/move与冲突、真实delete、external和atomic reload/detach仍按PLAN独立过门，不得把本切写成G1、`SV1-2`或产品交付完成。
 
+### 本轮协作收口：foundation产品可达性与价值复核
+
+- 只读取证确认本轮并非孤立测试抽象：共享coordinator、启动recovery顺序、scanner冻结/negative-cleanup保护与selection最终authoritative重读都已接入production；它们立即约束现有受管目录发现与选择，直接收口恢复审计中曾出现的snapshot→Realm竞态和陈旧selection发布风险。
+- 三个`OpenRename/OpenStagedImport/OpenDelete`入口、native write primitive及operation-specific recovery handler则刻意没有production caller；因此本轮没有新增玩家可见rename/import/delete能力。当前production遇到有效nonterminal journal只会保留并冻结，这是尚未接操作handler时的安全状态，不是可恢复操作已经交付。
+- 价值判断为“必要安全底座、尚待纵切兑现”：既有记录资格、held source/target、durable receipt、journal phase、启动冻结及current delete fallback pair可被后三个操作直接复用；若后续继续横向扩foundation而不交付首条真实rename，就会开始形成沉没成本。下一对话必须先冻结rename产品语义并直接消费现有authority/coordinator/journal/recovery，不得另建平行链。
+- 后续已知硬门包括：rename是否联动`skin.ini`展示名可能决定journal v1是否够用；真实操作须提供可判定crash state的幂等handler；external落地时须把“任一external声明全局阻断”收窄为resolved-identity局部冲突；canonical接管时须把delete fallback从程序化`OmsSkin`切到只读`oms-simple.osk`；开放操作前还须补脱敏恢复状态。该复核不改变当前执行顺序或gate结论。
+- 本次收口只同步当前风险、路由与跨会话记忆，没有修改runtime，因此不重复运行产品测试或Release；`CheckDocumentation.ps1`通过（126个Markdown、980个相对链接、56个memory wiki链），仅保留mainline PLAN数字比值的既有非失败提醒，`git diff --check`通过。
+
 ## 2026-07-26
 
 ### 当前合同、产品语言与跨会话记忆复核

@@ -15,7 +15,7 @@ metadata:
 - 用户当前能选择哪种包、哪些slot已经进入production、哪些视觉待签收，只看P1-A STATUS与`SKINNING.md`页首；本memory不复制逐刀完成度、测试数字或“下一刀”。
 - source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同，不能反推普通短键/LN、受管目录、external或reload当前已经交付。
 - 程序化`OmsSkin`是恢复期迁移保障；在P1-A明确记录canonical `oms-simple.osk`完成parity、完整性、恢复与实机gate并接管前不得删除，接管后必须退出产品渲染链。
-- G1任务先查P1-A当前门；发现/选择专项地雷从[[reference_skin_managed_folder_scanner]]与[[reference_skin_managed_folder_selection]]进入。技术节点记录窄合同，不等于G1完成证明。
+- G1任务先查P1-A当前门；发现/选择/mutation专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明。
 - F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复期撤回/未恢复面的历史名称；不要把旧编号写成当前状态，现行等价范围只从`SV1-*`计划映射。
 - 恢复期保留的稳定修正是base parser前重置配置流，以及14K第二皿使用`S2`/P2素材；若代码改变仍须以当前fixture复核。
 
