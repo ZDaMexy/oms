@@ -106,6 +106,111 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestMutationAuthorityFixesExistingIdentityAndAbsentTargetSlot()
+        {
+            File.WriteAllText(Path.Combine(packageRoot, "skin.ini"), "held mutation authority");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+            SkinManagedFolderPhysicalIdentity rootIdentity;
+            SkinManagedFolderPhysicalIdentity sourceIdentity;
+
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+            {
+                rootIdentity = session.ManagedRootIdentity;
+                sourceIdentity = session.CaptureExistingSource("chartskin/package", CancellationToken.None);
+                SkinManagedFolderTargetNameSlot target = session.CaptureAbsentTargetNameSlot(
+                    "chartskin/renamed",
+                    CancellationToken.None);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(rootIdentity.IsUsable, Is.True);
+                    Assert.That(sourceIdentity.IsUsable, Is.True);
+                    Assert.That(sourceIdentity, Is.Not.EqualTo(rootIdentity));
+                    Assert.That(target.ManagedRelativePath, Is.EqualTo("chartskin/renamed"));
+                    Assert.That(target.ManagedRootIdentity, Is.EqualTo(rootIdentity));
+                    Assert.That(target.ToString(), Does.Not.Contain(dataRoot));
+                    Assert.That(sourceIdentity.ToString(), Does.Not.Contain(dataRoot));
+                    Assert.Throws<IOException>(() => Directory.Move(packageRoot, packageRoot + "-blocked"));
+                });
+
+                Assert.DoesNotThrow(() => session.ValidateCompleteAndStable(CancellationToken.None));
+            }
+
+            string moved = packageRoot + "-moved";
+            Assert.DoesNotThrow(() => Directory.Move(packageRoot, moved));
+            Assert.DoesNotThrow(() => Directory.Move(moved, packageRoot));
+        }
+
+        [Test]
+        public void TestMutationTargetSlotCollisionAndLateCreationFailClosed()
+        {
+            File.WriteAllText(Path.Combine(packageRoot, "skin.ini"), "held mutation authority");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+
+            using ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None);
+
+            Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                () => session.CaptureAbsentTargetNameSlot("chartskin/PACKAGE", CancellationToken.None));
+
+            SkinManagedFolderTargetNameSlot target = session.CaptureAbsentTargetNameSlot(
+                "chartskin/new-package",
+                CancellationToken.None);
+            Assert.That(target.ManagedRelativePath, Is.EqualTo("chartskin/new-package"));
+
+            Directory.CreateDirectory(Path.Combine(dataRoot, "chartskin", "new-package"));
+            Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                () => session.ValidateCompleteAndStable(CancellationToken.None));
+        }
+
+        [Test]
+        public void TestMutationAuthorityCapturesOnlyExactOperationDerivedStagedSource()
+        {
+            Guid operationId = Guid.Parse("abcdefab-cdef-abcd-efab-cdefabcdefab");
+            string stagingRoot = Path.Combine(dataRoot, "skin-mutation-staging");
+            string stagedSource = Path.Combine(stagingRoot, operationId.ToString("N"));
+            Directory.CreateDirectory(stagedSource);
+            File.WriteAllText(Path.Combine(stagedSource, "skin.ini"), "held staged source");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+            SkinManagedFolderStagedSourceCapture capture;
+
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+            {
+                capture = session.CaptureStagedSource(operationId, CancellationToken.None);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(capture.StagedRootIdentity.IsUsable, Is.True);
+                    Assert.That(capture.SourceIdentity.IsUsable, Is.True);
+                    Assert.That(
+                        capture.IsUsableFor(session.ManagedRootIdentity),
+                        Is.True);
+                    Assert.That(capture.StagedRootIdentity, Is.Not.EqualTo(capture.SourceIdentity));
+                    Assert.Throws<IOException>(() => Directory.Move(stagedSource, stagedSource + "-blocked"));
+                    Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                        () => session.CaptureStagedSource(Guid.NewGuid(), CancellationToken.None));
+                    Assert.DoesNotThrow(() => session.ValidateCompleteAndStable(CancellationToken.None));
+                });
+            }
+
+            string moved = stagedSource + "-moved";
+            Assert.DoesNotThrow(() => Directory.Move(stagedSource, moved));
+            Assert.DoesNotThrow(() => Directory.Move(moved, stagedSource));
+        }
+
+        [Test]
+        public void TestMutationAuthorityRejectsCaseAliasForOperationDerivedStagedSlot()
+        {
+            Guid operationId = Guid.Parse("abcdefab-cdef-abcd-efab-cdefabcdefab");
+            string upperOperationSlot = operationId.ToString("N").ToUpperInvariant();
+            Directory.CreateDirectory(Path.Combine(dataRoot, "skin-mutation-staging", upperOperationSlot));
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+
+            using ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None);
+            Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                () => session.CaptureStagedSource(operationId, CancellationToken.None));
+        }
+
+        [Test]
         public void TestEmptyPackageRejectedWithoutLeakingHandles()
         {
             SkinManagedPackageCaptureResult result = capture();

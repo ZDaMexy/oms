@@ -2,6 +2,20 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-27
+
+### `SV1-2` managed chartskin mutation authority/recovery foundation
+
+- 代码取证确认旧scanner的`scanGate`只串行单实例，native discovery返回后held `chartskin` authority已释放，selection使用自身提交边界，普通delete命中current只异步调度fallback后继续流程。新增共享`SkinManagedFolderOperationCoordinator`：短lease允许同线程嵌套，detached mutation reservation不可重入且可跨线程交还；scanner从discovery到Realm reconcile返回、selection最终authoritative重读/pair发布、mutation和recovery全部通过该边界线性化。`SkinManager`构造期先恢复，`OsuGame`worker再用同一外层lease连续幂等执行recovery→scanner。
+- 专用mutation authority按ID刷新重读既有record并复核唯一合法direct-child、空`Files`、非external/protected/fixed/DeletePending、exact scanner owner、allowlisted类型与非空revision；任一external filesystem声明在resolved identity实现前保守阻断managed mutation。Windows session从物理卷逐段no-follow持有data root/`chartskin`/source identity；source handle拒绝外部write/delete，target只签发held root绑定、NFC/Windows规范和case-insensitive absence/collision验证过的name slot，不预造identity。修正staged source held DELETE handle与authority-link复验的share/access配对，根链share未放宽。
+- staged source不接受调用方path/token，只能从固定`skin-mutation-staging/{operationId:N}`捕获同卷staging-root/source held identity。staged新记录的planned ID固定为operation ID，并以immutable plan绑定target path、managed-root identity与version；plan不是Realm writer且scanner不能消费，真正one-shot publisher留到staged-import独立切片的durable`FilesystemApplied`+final target identity之后。
+- 新canonical version-1 journal采用稳定文件名、严格UTF-8/固定schema与token type、duplicate拒绝、SHA-256、128 KiB预算、同目录write-through temporary+`Flush(true)`及Windows原子write-through replace。intent只能从Prepared开始，显式phase图单调推进，terminal不可重写且A不能覆盖B；精确孤儿temp可清理，canonical目录/reparse、locked/ACL/IO与未知journal-like sibling均fail-closed。session落盘后必须exact reload才返回绑定session/store/journal的durable receipt，未终结dispose或不确定持久化结果粘性冻结关联路径。
+- 启动recovery对已配置operation handler的可判定状态可幂等forward/rollback；本轮未开放handler，因此有效nonterminal保留journal并精确冻结source/target，invalid/unsupported/IO全局冻结。terminal只在compare-delete并确认Missing后解冻；先前歧义后突然Missing仍保持冻结。scanner的valid add/update/revive与negative cleanup、managed selection及新mutation均服从冻结。
+- delete foundation只在update thread、held mutation reservation与exact Prepared receipt下确认受保护fallback pair；迁移期精确要求程序化`OmsSkin`的protected Realm record/type与最终`CurrentSkinInfo`/`CurrentSkin` pair。独立审查发现原`NotRequired`只看info半边会在可达split-brain下误放行，现收紧为两半ID一致且都非目标；split pair、fallback/selection/receipt/authority失败均拒绝并在未发生外部mutation时abort Prepared。该路径没有删除Realm record或目录。
+- 新增/扩充authority资格和post-open owner/hash/DeletePending/target drift、coordinator重入/跨线程、journal store/recovery故障矩阵、scanner冻结/线性化、Windows staged authority及BMS真实选择/fallback pair合同。focused合并 **107/107**，BMS production selection/fallback **24/24**；扩大回归core skin **337/341**，4项均为既有removed Osu archive fixture且Argon旧失败本轮通过；mania skin **182/182**、BMS full **1492/1492**。最终独立审查blocker/major **0/0**；未启动GUI或操控桌面，`V-001`～`V-004`仍0/4。
+- production/core-test/BMS-test三工程targeted formatter及verify均exit 0；`osu.Desktop.slnf` Release **0 error / 18 emitted known warnings**，均为MessagePack 3.1.3既有`NU1902`在restore/build重复输出，未用`NoWarn`隐藏。`CheckDocumentation.ps1`通过（126个Markdown、980个相对链接、51个memory wiki链），仅保留mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。
+- foundation没有任何create/move/rename/delete primitive、operation-specific recovery handler、Realm新记录publisher或UI。rename目录名/展示名语义、staged import copy/move与冲突、真实delete、external和atomic reload/detach仍按PLAN独立过门，不得把本切写成G1、`SV1-2`或产品交付完成。
+
 ## 2026-07-26
 
 ### 当前合同、产品语言与跨会话记忆复核

@@ -27,5 +27,5 @@ metadata:
 ## 验证与工作流
 
 - 第一刀 fixture 同时锁 managed/external bytes、mtime 与 `SkinInfo` 不变，避免“只比较目录项名称”产生零写入假阳性。
-- capture已有真实Windows package/nested junction、hardlink、busy writer与反向share/final-inventory gate；mutation service仍需独立真实junction/rename/delete门，不能用只读capture测试关闭完整G1安全门。
+- capture已有真实Windows package/nested junction、hardlink、busy writer与反向share/final-inventory gate；mutation foundation另有held managed root/source、target name slot、fixed staging authority、durable journal与共享线性化，但没有物理写primitive。每个真实rename/import/delete仍需独立junction/collision/final identity/crash-point门，不能用foundation测试关闭完整G1安全门。
 - 当前进度、精确测试数字与下一刀只看 P1-A STATUS/PLAN；本 memory 不把 preflight本身写成 folder skin产品能力。

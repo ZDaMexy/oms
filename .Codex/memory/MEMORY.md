@@ -19,6 +19,7 @@
 - [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver-issued request、physical NT volume、handle-relative no-follow、identity/inventory竞态与非filesystem transaction边界。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner、Observed/Valid分离、完整scan单事务reconcile、native held-root发现与启动cancel/join地雷。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、authoritative mutation冻结、reentrant/任务异常与旧owner detach地雷。
+- [managed chartskin mutation foundation](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、共享线性化、durable journal/recovery、歧义冻结与current delete受保护fallback pair地雷。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
 
 ## 构建、存储与产品面参考

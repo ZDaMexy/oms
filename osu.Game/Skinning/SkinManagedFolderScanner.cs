@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using osu.Game.Database;
 using Realms;
@@ -187,14 +186,19 @@ namespace osu.Game.Skinning
 
         private readonly RealmAccess realm;
         private readonly ISkinManagedFolderDiscoverySource source;
+        private readonly SkinManagedFolderOperationCoordinator coordinator;
         private readonly SemaphoreSlim scanGate = new SemaphoreSlim(1, 1);
 
         internal Action ReconciliationBeforeCommit { get; set; } = () => { };
 
-        public SkinManagedFolderScanner(RealmAccess realm, ISkinManagedFolderDiscoverySource source)
+        public SkinManagedFolderScanner(
+            RealmAccess realm,
+            ISkinManagedFolderDiscoverySource source,
+            SkinManagedFolderOperationCoordinator? coordinator = null)
         {
             this.realm = realm ?? throw new ArgumentNullException(nameof(realm));
             this.source = source ?? throw new ArgumentNullException(nameof(source));
+            this.coordinator = coordinator ?? new SkinManagedFolderOperationCoordinator();
         }
 
         public SkinManagedFolderScanResult Scan(CancellationToken cancellationToken = default)
@@ -203,6 +207,7 @@ namespace osu.Game.Skinning
 
             try
             {
+                using SkinManagedFolderOperationCoordinator.Lease operationLease = coordinator.Enter(cancellationToken);
                 SkinManagedFolderDiscoverySnapshot snapshot;
 
                 try
@@ -286,6 +291,12 @@ namespace osu.Game.Skinning
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (coordinator.IsPathFrozen(discovery.ManagedRelativePath))
+                {
+                    conflicts.Add(discovery.ManagedRelativePath);
+                    continue;
+                }
+
                 if (!recordsByPath.TryGetValue(discovery.ManagedRelativePath, out List<SkinInfo>? matches))
                 {
                     additions.Add(discovery);
@@ -321,6 +332,12 @@ namespace osu.Game.Skinning
                     continue;
 
                 if (matches.Count != 1 || owned.Length != 1 || !isMutableOwnedRecord(owned[0]))
+                {
+                    conflicts.Add(path);
+                    continue;
+                }
+
+                if (coordinator.IsPathFrozen(path))
                 {
                     conflicts.Add(path);
                     continue;
@@ -425,46 +442,7 @@ namespace osu.Game.Skinning
         }
 
         private static bool tryNormaliseManagedRelativePath(string? path, out string normalisedPath)
-        {
-            normalisedPath = string.Empty;
-
-            if (string.IsNullOrEmpty(path)
-                || path.Contains('\\')
-                || path.StartsWith('/')
-                || path.EndsWith('/'))
-            {
-                return false;
-            }
-
-            string[] segments = path.Split('/', StringSplitOptions.None);
-
-            if (segments.Length != 2
-                || !string.Equals(segments[0], SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            string child;
-
-            try
-            {
-                child = segments[1].Normalize(NormalizationForm.FormC);
-            }
-            catch (ArgumentException)
-            {
-                return false;
-            }
-
-            if (segments[1].Length > 255
-                || child.Length > 255
-                || !SkinPackageResourceNameValidator.IsValidWindowsSegment(child))
-            {
-                return false;
-            }
-
-            normalisedPath = $"{SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY}/{child}";
-            return true;
-        }
+            => SkinManagedFolderPath.TryNormalise(path, out normalisedPath);
 
         private static bool hasExactOwner(SkinInfo record)
             => string.Equals(record.FilesystemStorageAuthorityOwner, AUTHORITY_OWNER, StringComparison.Ordinal);

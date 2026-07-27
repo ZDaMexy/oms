@@ -135,6 +135,183 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestDeleteFoundationConfirmsProtectedOmsPairWithoutDeleting()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Skin? selected = null;
+
+            AddStep("create eligible managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+            });
+
+            AddStep("select managed folder", () => manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("confirm fallback pair under delete authority", () =>
+            {
+                selected = manager.CurrentSkin.Value;
+                SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
+                    Guid.NewGuid(),
+                    candidate.ID);
+
+                Assert.That(authority.IsSuccess, Is.True);
+
+                using SkinManagedFolderMutationAuthoritySession session = authority.Session!;
+                SkinManagedFolderDurableMutationReceipt receipt = session.PersistPreparedJournal();
+                SkinManagedFolderProtectedFallbackCommitResult result =
+                    manager.CommitProtectedFallbackPairForDelete(session, receipt);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.Committed));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(candidate.PerformRead(info => info.DeletePending), Is.False);
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                });
+
+                Assert.That(session.TryAbortPreparedJournal(receipt), Is.True, "foundation test must leave no unresolved delete intent");
+            });
+
+            AddStep("dispose superseded managed skin", () => selected!.Dispose());
+        }
+
+        [Test]
+        public void TestDeleteFoundationRejectsWhenFallbackCannotCommit()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+
+            AddStep("create eligible managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+            });
+
+            AddStep("select managed folder", () => manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("disable selection and reject fallback commit", () =>
+            {
+                SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
+                    Guid.NewGuid(),
+                    candidate.ID);
+
+                Assert.That(authority.IsSuccess, Is.True);
+
+                using SkinManagedFolderMutationAuthoritySession session = authority.Session!;
+                SkinManagedFolderDurableMutationReceipt receipt = session.PersistPreparedJournal();
+                manager.CurrentSkinInfo.Disabled = true;
+                SkinManagedFolderProtectedFallbackCommitResult result =
+                    manager.CommitProtectedFallbackPairForDelete(session, receipt);
+                manager.CurrentSkinInfo.Disabled = false;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.SelectionDisabled));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(candidate.PerformRead(info => info.DeletePending), Is.False);
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestDeleteFoundationKeepsDurableIntentWhenFallbackIsNotRequired()
+        {
+            Live<SkinInfo> candidate = null!;
+
+            AddStep("create unselected eligible managed folder", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+            });
+
+            AddStep("confirm no fallback change is required", () =>
+            {
+                SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
+                    Guid.NewGuid(),
+                    candidate.ID);
+
+                Assert.That(authority.IsSuccess, Is.True);
+
+                using SkinManagedFolderMutationAuthoritySession session = authority.Session!;
+                SkinManagedFolderDurableMutationReceipt receipt = session.PersistPreparedJournal();
+                SkinManagedFolderProtectedFallbackCommitResult result =
+                    manager.CommitProtectedFallbackPairForDelete(session, receipt);
+                SkinManagedFolderMutationJournalLoadResult journal =
+                    new SkinManagedFolderMutationJournalStore(LocalStorage).Load();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(journal.IsLoaded, Is.True);
+                    Assert.That(journal.Journal!.Phase, Is.EqualTo(SkinManagedFolderMutationPhase.Prepared));
+                });
+
+                Assert.That(session.TryAbortPreparedJournal(receipt), Is.True, "foundation test must leave no unresolved delete intent");
+            });
+        }
+
+        [Test]
+        public void TestDeleteFoundationNeverTreatsSplitSelectionPairAsNotRequired()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Skin? selected = null;
+
+            AddStep("create and select eligible managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("construct reachable split selection pair", () =>
+            {
+                selected = manager.CurrentSkin.Value;
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
+
+                Assert.Throws<InvalidOperationException>(() => manager.CurrentSkin.Value = selected);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                });
+            });
+            AddStep("reject delete when protected pair cannot be reconfirmed", () =>
+            {
+                SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
+                    Guid.NewGuid(),
+                    candidate.ID);
+
+                Assert.That(authority.IsSuccess, Is.True);
+
+                using SkinManagedFolderMutationAuthoritySession session = authority.Session!;
+                SkinManagedFolderDurableMutationReceipt receipt = session.PersistPreparedJournal();
+                SkinManagedFolderProtectedFallbackCommitResult result =
+                    manager.CommitProtectedFallbackPairForDelete(session, receipt);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
         public void TestInvalidInstantiationInfoIsRejectedSynchronouslyWithoutChangingCurrent()
         {
             Live<SkinInfo> candidate = null!;
@@ -207,6 +384,128 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(captureCalls, Is.Zero);
                     Assert.That(sourceChangedCount, Is.Zero);
                 });
+            });
+        }
+
+        [TestCase(null)]
+        [TestCase("foreign-scanner:v1")]
+        public void TestManagedFolderWithoutExactScannerOwnerCannotBeSelected(string? authorityOwner)
+        {
+            Live<SkinInfo> candidate = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            int captureCalls = 0;
+
+            AddStep("create folder with non-authoritative owner", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.FilesystemStorageAuthorityOwner = authorityOwner);
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                manager.ManagedFolderCapture = (_, _) =>
+                {
+                    captureCalls++;
+                    throw new AssertionException("A folder without the exact scanner owner must not reach native capture.");
+                };
+            });
+
+            AddStep("request non-authoritative selection", () => manager.CurrentSkinInfo.Value = candidate);
+            AddStep("assert owner rejection preserves publication", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.UnmanagedFilesystemRecord));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(captureCalls, Is.Zero);
+                    Assert.That(sourceChangedCount, Is.Zero);
+                });
+            });
+        }
+
+        [Test]
+        public void TestFrozenManagedFolderCannotBeSelected()
+        {
+            Live<SkinInfo> candidate = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            string managedPath = string.Empty;
+            int captureCalls = 0;
+
+            AddStep("create and freeze managed folder", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                managedPath = candidate.PerformRead(info => info.FilesystemStoragePath!);
+                manager.ManagedFolderOperationCoordinator.FreezePaths(new[] { managedPath });
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                manager.ManagedFolderCapture = (_, _) =>
+                {
+                    captureCalls++;
+                    throw new AssertionException("A recovery-frozen folder must not reach native capture.");
+                };
+            });
+
+            AddStep("request frozen selection", () => manager.CurrentSkinInfo.Value = candidate);
+            AddStep("assert recovery rejection preserves publication", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.MutationRecoveryPending));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(captureCalls, Is.Zero);
+                    Assert.That(sourceChangedCount, Is.Zero);
+                });
+            });
+            AddStep("unfreeze managed folder", () => manager.ManagedFolderOperationCoordinator.UnfreezePaths(new[] { managedPath }));
+        }
+
+        [Test]
+        public void TestConstructorRecoveryFreezesConfiguredManagedSelection()
+        {
+            Live<SkinInfo> candidate = null!;
+            SkinManager? recoveringManager = null;
+            var store = new SkinManagedFolderMutationJournalStore(LocalStorage);
+            SkinManagedFolderMutationJournal? journal = null;
+
+            AddStep("create candidate and unresolved journal", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                string managedPath = candidate.PerformRead(info => info.FilesystemStoragePath!);
+                journal = SkinManagedFolderMutationJournal.CreatePreparedDelete(
+                    Guid.NewGuid(),
+                    candidate.ID,
+                    new SkinManagedFolderPhysicalIdentity(101, 201, 202),
+                    managedPath,
+                    new SkinManagedFolderPhysicalIdentity(101, 102, 103));
+                store.Write(journal);
+            });
+            AddStep("construct manager and apply configured selection", () =>
+            {
+                recoveringManager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler)
+                {
+                    ManagedFolderCapture = (_, _) => throw new AssertionException("frozen startup selection reached native capture")
+                };
+                recoveringManager.SetSkinFromConfiguration(candidate.ID.ToString());
+            });
+            AddStep("assert recovery ran before configured selection", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        recoveringManager!.InitialManagedFolderMutationRecoveryResult.Status,
+                        Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.Ambiguous));
+                    Assert.That(
+                        recoveringManager.LastSelectionRejectionReason,
+                        Is.EqualTo(SkinSelectionRejectionReason.MutationRecoveryPending));
+                    Assert.That(recoveringManager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(recoveringManager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                });
+
+                SkinManagedFolderMutationJournal rolledBack = journal!.WithRolledBack();
+                store.Write(rolledBack);
+                store.Delete(rolledBack);
             });
         }
 
@@ -463,6 +762,61 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
                     Assert.That(sourceChangedCount, Is.Zero);
                 });
+            });
+        }
+
+        [Test]
+        public void TestMutationParticipantBeforeFinalBoundaryCannotPublishStalePreparedSkin()
+        {
+            var factoryCompleted = new ManualResetEventSlim();
+            var mutationHeld = new ManualResetEventSlim();
+            var releaseMutation = new ManualResetEventSlim();
+            Live<SkinInfo> candidate = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            Task? mutationTask = null;
+
+            AddStep("create candidate and boundary mutation", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                manager.ManagedFolderFactoryCreate = (snapshot, resources, capsule) =>
+                {
+                    SkinManagedFolderFactoryResult result = SkinManagedFolderFactory.Create(snapshot, resources, capsule);
+                    factoryCompleted.Set();
+                    Assert.That(mutationHeld.Wait(TimeSpan.FromSeconds(10)), Is.True);
+                    releaseMutation.Set();
+                    return result;
+                };
+                mutationTask = Task.Run(() =>
+                {
+                    Assert.That(factoryCompleted.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+                    using (manager.ManagedFolderOperationCoordinator.Enter())
+                    {
+                        candidate.PerformWrite(info => info.FilesystemStorageAuthorityOwner = "changed-before-final-boundary");
+                        mutationHeld.Set();
+                        Assert.That(releaseMutation.Wait(TimeSpan.FromSeconds(10)), Is.True);
+                    }
+                });
+            });
+
+            AddStep("request candidate", () => manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for boundary rejection", () => manager.LastSelectionRejectionReason == SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+            AddStep("assert stale prepared skin was retired", () =>
+            {
+                Assert.That(mutationTask!.Wait(TimeSpan.FromSeconds(10)), Is.True);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(sourceChangedCount, Is.Zero);
+                });
+
+                factoryCompleted.Dispose();
+                mutationHeld.Dispose();
+                releaseMutation.Dispose();
             });
         }
 

@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Game.Database;
 using osu.Game.Models;
@@ -355,6 +356,178 @@ namespace osu.Game.Tests.Skins
                     Assert.That(realm.Realm.Find<SkinInfo>(existing)!.DeletePending, Is.False);
                     Assert.That(realm.Realm.All<SkinInfo>().Any(info => info.FilesystemStoragePath == managed_path), Is.False);
                 });
+            });
+        }
+
+        [Test]
+        public void TestFrozenPathsSkipAllReconciliationWhileOtherPathsProceed()
+        {
+            RunTestWithRealm((realm, _) =>
+            {
+                Guid frozenUpdate = addRecord(realm, "chartskin/frozen-update", SkinManagedFolderScanner.AUTHORITY_OWNER, name: "Frozen original");
+                Guid frozenRevive = addRecord(
+                    realm,
+                    "chartskin/frozen-revive",
+                    SkinManagedFolderScanner.AUTHORITY_OWNER,
+                    name: "Frozen deleted",
+                    deletePending: true);
+                Guid frozenAbsent = addRecord(realm, "chartskin/frozen-absent", SkinManagedFolderScanner.AUTHORITY_OWNER);
+                Guid normalUpdate = addRecord(realm, "chartskin/normal-update", SkinManagedFolderScanner.AUTHORITY_OWNER, name: "Normal original");
+                Guid normalRevive = addRecord(
+                    realm,
+                    "chartskin/normal-revive",
+                    SkinManagedFolderScanner.AUTHORITY_OWNER,
+                    name: "Normal deleted",
+                    deletePending: true);
+                Guid normalAbsent = addRecord(realm, "chartskin/normal-absent", SkinManagedFolderScanner.AUTHORITY_OWNER);
+
+                var discoveries = new[]
+                {
+                    new SkinManagedFolderDiscovery("chartskin/frozen-add", "Frozen add", "Scanner", "frozen-add-revision"),
+                    new SkinManagedFolderDiscovery("chartskin/frozen-update", "Frozen changed", "Scanner", "frozen-update-revision"),
+                    new SkinManagedFolderDiscovery("chartskin/frozen-revive", "Frozen revived", "Scanner", "frozen-revive-revision"),
+                    new SkinManagedFolderDiscovery("chartskin/normal-add", "Normal add", "Scanner", "normal-add-revision"),
+                    new SkinManagedFolderDiscovery("chartskin/normal-update", "Normal changed", "Scanner", "normal-update-revision"),
+                    new SkinManagedFolderDiscovery("chartskin/normal-revive", "Normal revived", "Scanner", "normal-revive-revision"),
+                };
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                coordinator.FreezePaths(new[]
+                {
+                    "chartskin/frozen-add",
+                    "chartskin/frozen-update",
+                    "chartskin/frozen-revive",
+                    "chartskin/frozen-absent",
+                });
+
+                SkinManagedFolderScanResult result = new SkinManagedFolderScanner(
+                    realm,
+                    new MutableSource(SkinManagedFolderDiscoverySnapshot.Complete(
+                        discoveries.Select(discovery => discovery.ManagedRelativePath),
+                        discoveries)),
+                    coordinator).Scan();
+
+                SkinInfo[] records = realm.Realm.All<SkinInfo>().ToArray();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.True);
+                    Assert.That(result.Added, Is.EqualTo(1));
+                    Assert.That(result.Updated, Is.EqualTo(1));
+                    Assert.That(result.Revived, Is.EqualTo(1));
+                    Assert.That(result.SoftDeleted, Is.EqualTo(1));
+                    Assert.That(result.Conflicts, Is.EqualTo(4));
+
+                    Assert.That(records.Any(record => string.Equals(record.FilesystemStoragePath, "chartskin/frozen-add", StringComparison.OrdinalIgnoreCase)), Is.False);
+                    Assert.That(realm.Realm.Find<SkinInfo>(frozenUpdate)!.Name, Is.EqualTo("Frozen original"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(frozenUpdate)!.Hash, Is.EqualTo("original-revision"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(frozenRevive)!.Name, Is.EqualTo("Frozen deleted"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(frozenRevive)!.DeletePending, Is.True);
+                    Assert.That(realm.Realm.Find<SkinInfo>(frozenAbsent)!.DeletePending, Is.False);
+
+                    Assert.That(records.Single(record => string.Equals(record.FilesystemStoragePath, "chartskin/normal-add", StringComparison.OrdinalIgnoreCase)).Name, Is.EqualTo("Normal add"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(normalUpdate)!.Name, Is.EqualTo("Normal changed"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(normalUpdate)!.Hash, Is.EqualTo("normal-update-revision"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(normalRevive)!.Name, Is.EqualTo("Normal revived"));
+                    Assert.That(realm.Realm.Find<SkinInfo>(normalRevive)!.DeletePending, Is.False);
+                    Assert.That(realm.Realm.Find<SkinInfo>(normalAbsent)!.DeletePending, Is.True);
+                });
+            });
+        }
+
+        [Test]
+        public void TestCoordinatorSerialisesScannerRealmCommitWithAnotherParticipant()
+        {
+            RunTestWithRealm((realm, _) =>
+            {
+                var reconciliationEntered = new ManualResetEventSlim();
+                var releaseReconciliation = new ManualResetEventSlim();
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var discovery = new SkinManagedFolderDiscovery(managed_path, "Managed name", "Managed creator", "revision-1");
+                var scanner = new SkinManagedFolderScanner(
+                    realm,
+                    new MutableSource(complete(discovery)),
+                    coordinator)
+                {
+                    ReconciliationBeforeCommit = () =>
+                    {
+                        reconciliationEntered.Set();
+                        releaseReconciliation.Wait(TimeSpan.FromSeconds(10));
+                    },
+                };
+
+                Task<SkinManagedFolderScanResult> scanTask = Task.Run(() => scanner.Scan());
+                bool reconciliationStarted = reconciliationEntered.Wait(TimeSpan.FromSeconds(10));
+                bool participantCancelledWhileScannerHeldLease = false;
+                int recordsBeforeScannerCommit;
+
+                try
+                {
+                    using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+
+                    try
+                    {
+                        using SkinManagedFolderOperationCoordinator.Lease unexpectedLease = coordinator.Enter(cancellation.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        participantCancelledWhileScannerHeldLease = true;
+                    }
+
+                    recordsBeforeScannerCommit = realm.Realm.All<SkinInfo>().Count();
+                }
+                finally
+                {
+                    releaseReconciliation.Set();
+                }
+
+                bool scanCompleted = scanTask.Wait(TimeSpan.FromSeconds(10));
+                SkinManagedFolderScanResult result = scanTask.GetAwaiter().GetResult();
+                realm.Run(r => r.Refresh());
+
+                using SkinManagedFolderOperationCoordinator.Lease participantAfterCommit = coordinator.Enter();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reconciliationStarted, Is.True);
+                    Assert.That(participantCancelledWhileScannerHeldLease, Is.True);
+                    Assert.That(recordsBeforeScannerCommit, Is.Zero);
+                    Assert.That(scanCompleted, Is.True);
+                    Assert.That(result.IsSuccess, Is.True);
+                    Assert.That(result.Added, Is.EqualTo(1));
+                    Assert.That(realm.Realm.All<SkinInfo>(), Has.Count.EqualTo(1));
+                });
+
+                reconciliationEntered.Dispose();
+                releaseReconciliation.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestFrozenPathMatchingNormalisesRootCaseChildCaseAndUnicode()
+        {
+            const string decomposed = "CHARTSKIN/Cafe\u0301";
+            const string composed = "chartskin/Caf\u00e9";
+            const string upper_composed = "ChartSkin/CAF\u00c9";
+            const string distinct = "chartskin/Cafeteria";
+
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            coordinator.FreezePaths(new[] { decomposed });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(coordinator.IsPathFrozen(composed), Is.True);
+                Assert.That(coordinator.IsPathFrozen(upper_composed), Is.True);
+                Assert.That(coordinator.IsPathFrozen(distinct), Is.False);
+                Assert.That(coordinator.IsPathFrozen("chartskin/nested/package"), Is.True);
+            });
+
+            coordinator.UnfreezePaths(new[] { upper_composed });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(coordinator.IsPathFrozen(decomposed), Is.False);
+                Assert.That(coordinator.IsPathFrozen(composed), Is.False);
+                Assert.That(coordinator.IsMutationBlocked, Is.False);
             });
         }
 

@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-26
+> 最后更新：2026-07-27
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐切历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -24,7 +24,7 @@
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
 | 2 | 已实现纵切的集中视觉验收 | **`V-001`～`V-004` 待用户签收** | Skin V1/release 完成声明前确认真实已导入 `.osk` 的普通短键与长条 head/body/tail、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
 | 3 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收** | ordinary note 与 critical head/body、optional tail 的静态图/60 FPS 连续编号帧已通过自动、合同、安全与回退 gate；只算首个产品纵切自动闭环，不计作 `SV1-1` 完成或产品交付 |
-| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | schema 57 exact-owner受管目录启动发现、production factory/选择已闭合；先闭合mutation authority/recovery foundation，再按操作切片、external、atomic reload/detach barrier推进 |
+| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | schema 57 exact-owner受管目录启动发现、production factory/选择及mutation authority/recovery foundation已闭合；当前进入rename独立切片，再按staged import、delete、external、atomic reload/detach barrier推进 |
 | 5 | `SV1-3`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。首个 Note/LN 产品纵切已满足进入 `SV1-2` 的工程依赖，但 `SV1-1` 本身仍未完成；G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
@@ -43,11 +43,11 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 
 依赖：保持 `SV1-0` 数据处置结论与现有 `.osk` 路径稳定；不得从异常期存档整包恢复。受管目录active实例绑定immutable capsule，磁盘原地变化不会混入该实例，也不会自动reload。
 
-已闭合的窄生产链为：schema 56-origin存储声明preflight → held-root Windows native no-follow capture → pure immutable capsule → exact-capsule `BmsLegacySkin` factory/guarded selection → schema 57 exact-owner单次启动发现/reconcile。preflight已有managed生产选择消费者；external分支仍无production capture/selection consumer并保持拒绝。旧folder mutation入口按authoritative ID冻结。各切片边界和验证只查 [STATUS](DEVELOPMENT_STATUS.md) 与 [CHANGELOG](CHANGELOG.md)，不能把lexical path、owner字段、capture request或scanner结果当作mutation capability。
+已闭合的窄生产链为：schema 56-origin存储声明preflight → held-root Windows native no-follow capture → pure immutable capsule → exact-capsule `BmsLegacySkin` factory/guarded selection → schema 57 exact-owner单次启动发现/reconcile → 专用mutation authority/shared coordinator/versioned journal与启动recovery foundation。preflight已有managed生产选择消费者；external分支仍无production capture/selection consumer并保持拒绝。旧folder mutation入口按authoritative ID冻结。各切片边界和验证只查 [STATUS](DEVELOPMENT_STATUS.md) 与 [CHANGELOG](CHANGELOG.md)，不能把lexical path、owner字段、capture request、scanner结果、publication plan或Prepared receipt当作实际文件写入能力。
 
 后续按以下顺序独立过门：
 
-1. **mutation authority/recovery foundation**：先冻结rename、staged import、delete各自的产品语义和冲突行为。已有记录必须复核唯一、folder-backed、空`Files`、非external/protected/fixed-ID、合法direct-child、exact scanner owner及该操作允许的`DeletePending`状态；这些只提供资格。staged import还必须冻结允许的source authority、新记录由谁及在何线性化点发布。既有source由held `chartskin` root固定no-follow physical identity；尚不存在的rename/import target只能先保留为该held root下经过规范化和collision/absence验证的direct-child name slot，创建/移动后再固定新identity并final-verify。staged source须来自另行批准并固定identity的authority，不能把任意live path当能力。filesystem与Realm的跨域步骤必须先写durable journal，以启动幂等恢复先于scanner；scanner、selection与mutation共享明确的互斥/线性化点。取消、异常、重启或歧义状态均fail-closed、诊断脱敏，不得留下未经journal解释的半提交。完成foundation本身不开放UI或任何真实写操作。
+1. **mutation authority/recovery foundation（已闭合）**：已有记录按ID刷新重读完整资格，既有source与fixed staging source由held native root固定no-follow identity，尚不存在的target只表示为root-bound规范化空name slot；staged新记录只生成planned ID/path/root/version的immutable publication plan而非Realm writer。scanner、selection、mutation/recovery现共用线性化边界，版本化strict journal在首个外部步骤前durable落盘，启动先幂等恢复再scanner；有效歧义精确冻结、invalid/unknown/IO全局冻结，scanner negative cleanup服从冻结。current delete只有程序化`OmsSkin` protected pair确认门，没有实际删除。foundation本身未开放UI、物理写入或Realm新记录发布。
 2. **rename**：产品先决定目录名、`skin.ini`展示名或两者联动的语义；再以独立端到端切片覆盖source/target identity、碰撞、reparse/hardlink、scanner竞态、恢复与选择一致性。
 3. **staged import**：先决定来源所有权、copy/move语义、包名与冲突策略；只允许完整staging验证成功后进入受管root，失败清理provisional状态并保留原来源。
 4. **delete**：最后开放。删除current skin前必须等待当时已验证的protected fallback真实选择提交，不能只异步调度；canonical接管前为程序化`OmsSkin`，接管后为`oms-simple.osk`。切换失败、无法确认提交或恢复状态不明时拒绝物理删除。

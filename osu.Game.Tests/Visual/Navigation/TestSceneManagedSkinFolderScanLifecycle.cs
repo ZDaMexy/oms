@@ -43,8 +43,12 @@ namespace osu.Game.Tests.Visual.Navigation
         [Test]
         public void TestScannerStartsOnceAndIsJoinedBeforeRealmDisposal()
         {
+            AddUntilStep("managed recovery completed", () => lifecycleGame.RecoveryCompleted.IsSet);
             AddUntilStep("managed scan started", () => lifecycleGame.ScanStarted.IsSet);
             AddAssert("load completed on update thread", () => lifecycleGame.LoadCompleteRanOnUpdateThread);
+            AddAssert("managed recovery invoked once", () => lifecycleGame.RecoveryInvocationCount == 1);
+            AddAssert("managed recovery runs off update thread", () => !lifecycleGame.RecoveryRanOnUpdateThread);
+            AddAssert("recovery completed before scan", () => lifecycleGame.RecoveryCompletedBeforeScan);
             AddAssert("managed scan invoked once", () => lifecycleGame.ScanInvocationCount == 1);
             AddAssert("managed scan runs off update thread", () => !lifecycleGame.ScanRanOnUpdateThread);
             AddAssert("managed scan uses a different thread", () => lifecycleGame.ScanThreadId != lifecycleGame.LoadCompleteThreadId);
@@ -84,6 +88,8 @@ namespace osu.Game.Tests.Visual.Navigation
             private static readonly TimeSpan join_observation_window = TimeSpan.FromMilliseconds(500);
 
             public readonly ManualResetEventSlim ScanStarted = new ManualResetEventSlim();
+            public readonly ManualResetEventSlim RecoveryStarted = new ManualResetEventSlim();
+            public readonly ManualResetEventSlim RecoveryCompleted = new ManualResetEventSlim();
             public readonly ManualResetEventSlim CancellationObserved = new ManualResetEventSlim();
             public readonly ManualResetEventSlim AllowScanCompletion = new ManualResetEventSlim();
             public readonly ManualResetEventSlim ScanCompleted = new ManualResetEventSlim();
@@ -92,7 +98,10 @@ namespace osu.Game.Tests.Visual.Navigation
             public readonly ManualResetEventSlim DisposalObserverCompleted = new ManualResetEventSlim();
 
             private int scanInvocationCount;
+            private int recoveryInvocationCount;
             private bool loadCompleteRanOnUpdateThread;
+            private bool recoveryRanOnUpdateThread;
+            private bool recoveryCompletedBeforeScan;
             private bool scanRanOnUpdateThread;
             private bool cancellationWasRequested;
             private bool cancellationWaitTimedOut;
@@ -107,7 +116,10 @@ namespace osu.Game.Tests.Visual.Navigation
             public int ScanThreadId { get; private set; }
 
             public int ScanInvocationCount => Volatile.Read(ref scanInvocationCount);
+            public int RecoveryInvocationCount => Volatile.Read(ref recoveryInvocationCount);
             public bool LoadCompleteRanOnUpdateThread => Volatile.Read(ref loadCompleteRanOnUpdateThread);
+            public bool RecoveryRanOnUpdateThread => Volatile.Read(ref recoveryRanOnUpdateThread);
+            public bool RecoveryCompletedBeforeScan => Volatile.Read(ref recoveryCompletedBeforeScan);
             public bool ScanRanOnUpdateThread => Volatile.Read(ref scanRanOnUpdateThread);
             public bool CancellationWasRequested => Volatile.Read(ref cancellationWasRequested);
             public bool CancellationWaitTimedOut => Volatile.Read(ref cancellationWaitTimedOut);
@@ -160,6 +172,7 @@ namespace osu.Game.Tests.Visual.Navigation
             protected override void PerformManagedSkinFolderScan(CancellationToken cancellationToken)
             {
                 Interlocked.Increment(ref scanInvocationCount);
+                recoveryCompletedBeforeScan = RecoveryCompleted.IsSet;
                 ScanThreadId = Environment.CurrentManagedThreadId;
                 scanRanOnUpdateThread = ThreadSafety.IsUpdateThread;
                 ScanStarted.Set();
@@ -198,6 +211,15 @@ namespace osu.Game.Tests.Visual.Navigation
                 }
             }
 
+            protected override void PerformManagedSkinFolderMutationRecovery(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref recoveryInvocationCount);
+                recoveryRanOnUpdateThread = ThreadSafety.IsUpdateThread;
+                RecoveryStarted.Set();
+                RecoveryCompleted.Set();
+            }
+
             protected override void Dispose(bool isDisposing)
             {
                 DisposeStarted.Set();
@@ -215,6 +237,8 @@ namespace osu.Game.Tests.Visual.Navigation
             public void DisposeTestResources()
             {
                 ScanStarted.Dispose();
+                RecoveryStarted.Dispose();
+                RecoveryCompleted.Dispose();
                 CancellationObserved.Dispose();
                 AllowScanCompletion.Dispose();
                 ScanCompleted.Dispose();

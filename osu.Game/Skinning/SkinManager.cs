@@ -28,6 +28,7 @@ using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Models;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Skinning.Windows;
 using osu.Game.Utils;
 using Realms;
 
@@ -42,9 +43,23 @@ namespace osu.Game.Skinning
         InstantiationInfoNotAllowed,
         CaptureRejected,
         CapturedCandidateChanged,
+        MutationRecoveryPending,
+        ManagedFolderOperationInProgress,
         FactoryRejected,
         PreparationCancelled,
         PreparationFailed,
+    }
+
+    internal enum SkinManagedFolderProtectedFallbackCommitResult
+    {
+        Committed,
+        NotRequired,
+        WrongThread,
+        AuthorityRejected,
+        RecoveryPending,
+        SelectionDisabled,
+        FallbackInvalid,
+        PairNotCommitted,
     }
 
     /// <summary>
@@ -94,7 +109,15 @@ namespace osu.Game.Skinning
 
         internal Action<Live<SkinInfo>> SelectionRequestBeforeCommitLock { get; set; } = _ => { };
 
-        private readonly object selectionCommitLock = new object();
+        internal SkinManagedFolderOperationCoordinator ManagedFolderOperationCoordinator { get; } = new SkinManagedFolderOperationCoordinator();
+
+        internal SkinManagedFolderMutationAuthority ManagedFolderMutationAuthority { get; }
+
+        internal SkinManagedFolderMutationRecoveryResult InitialManagedFolderMutationRecoveryResult { get; }
+
+        private readonly SkinManagedFolderMutationRecovery managedFolderMutationRecovery;
+        private readonly ISkinManagedFolderMutationJournalStore managedFolderMutationJournalStore;
+
         private long selectionGeneration;
         private CancellationTokenSource pendingSelectionCancellation;
         private PreparedManagedFolderSelection preparedManagedFolderSelection;
@@ -139,6 +162,18 @@ namespace osu.Game.Skinning
             this.host = host;
             this.resources = resources;
             ManagedFolderCompletionSchedule = completion => scheduler.Add(completion);
+
+            managedFolderMutationJournalStore = new SkinManagedFolderMutationJournalStore(storage);
+            managedFolderMutationRecovery = new SkinManagedFolderMutationRecovery(
+                managedFolderMutationJournalStore,
+                ManagedFolderOperationCoordinator);
+            InitialManagedFolderMutationRecoveryResult = managedFolderMutationRecovery.Recover();
+            ManagedFolderMutationAuthority = new SkinManagedFolderMutationAuthority(
+                realm,
+                storage,
+                ManagedFolderOperationCoordinator,
+                new WindowsSkinManagedFolderMutationNativeAuthority(storage),
+                managedFolderMutationJournalStore);
 
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
 
@@ -206,6 +241,124 @@ namespace osu.Game.Skinning
             {
                 PostNotification = obj => PostNotification?.Invoke(obj)
             };
+        }
+
+        internal SkinManagedFolderMutationRecoveryResult RecoverManagedFolderMutations(CancellationToken cancellationToken = default)
+            => managedFolderMutationRecovery.Recover(cancellationToken);
+
+        /// <summary>
+        /// Confirms the protected fallback pair while a future delete authority still owns the shared coordinator.
+        /// </summary>
+        /// <remarks>
+        /// This method performs no Realm or filesystem deletion. Before canonical package takeover the only accepted
+        /// fallback is the exact programmatic <see cref="OmsSkin"/> type/record pair. The delete slice must replace this policy
+        /// only after <c>oms-simple.osk</c> becomes the validated protected authority.
+        /// </remarks>
+        internal SkinManagedFolderProtectedFallbackCommitResult CommitProtectedFallbackPairForDelete(
+            SkinManagedFolderMutationAuthoritySession authority,
+            SkinManagedFolderDurableMutationReceipt durableReceipt,
+            CancellationToken cancellationToken = default)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                return SkinManagedFolderProtectedFallbackCommitResult.WrongThread;
+
+            if (authority == null
+                || authority.Kind != SkinManagedFolderMutationKind.Delete
+                || authority.ExistingRecord == null
+                || durableReceipt == null
+                || !authority.HasCoordinatorAuthority(ManagedFolderOperationCoordinator))
+            {
+                return SkinManagedFolderProtectedFallbackCommitResult.AuthorityRejected;
+            }
+
+            SkinManagedFolderProtectedFallbackCommitResult result = authority.RunWithDurableReceipt(
+                durableReceipt,
+                SkinManagedFolderProtectedFallbackCommitResult.AuthorityRejected,
+                () => commitProtectedFallbackPairForDeleteHeld(authority, cancellationToken),
+                cancellationToken);
+
+            if (result is not (SkinManagedFolderProtectedFallbackCommitResult.Committed
+                or SkinManagedFolderProtectedFallbackCommitResult.NotRequired))
+            {
+                authority.TryAbortPreparedJournal(durableReceipt, cancellationToken);
+            }
+
+            return result;
+        }
+
+        private SkinManagedFolderProtectedFallbackCommitResult commitProtectedFallbackPairForDeleteHeld(
+            SkinManagedFolderMutationAuthoritySession authority,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (ManagedFolderOperationCoordinator.IsPathFrozen(authority.ExistingRecord.ManagedRelativePath))
+                return SkinManagedFolderProtectedFallbackCommitResult.RecoveryPending;
+
+            Guid currentInfoId = CurrentSkinInfo.Value.ID;
+            Guid currentSkinId = CurrentSkin.Value.SkinInfo.ID;
+
+            if (currentInfoId == currentSkinId
+                && currentInfoId != authority.ExistingRecord.RecordId)
+            {
+                return SkinManagedFolderProtectedFallbackCommitResult.NotRequired;
+            }
+
+            if (CurrentSkinInfo.Disabled)
+                return SkinManagedFolderProtectedFallbackCommitResult.SelectionDisabled;
+
+            bool fallbackIsValid = Realm.Run(r =>
+            {
+                r.Refresh();
+                SkinInfo fallback = r.Find<SkinInfo>(SkinInfo.OMS_SKIN);
+
+                return fallback != null
+                       && fallback.Protected
+                       && !fallback.DeletePending
+                       && fallback.Files.Count == 0
+                       && string.IsNullOrEmpty(fallback.FilesystemStoragePath)
+                       && !fallback.IsExternalFilesystemStorage
+                       && string.Equals(
+                           fallback.InstantiationInfo,
+                           DefaultOmsSkin.SkinInfo.Value.InstantiationInfo,
+                           StringComparison.Ordinal);
+            });
+
+            if (!fallbackIsValid
+                || DefaultOmsSkin.GetType() != typeof(OmsSkin)
+                || DefaultOmsSkin.SkinInfo.ID != SkinInfo.OMS_SKIN
+                || !DefaultOmsSkin.SkinInfo.Value.Protected)
+            {
+                return SkinManagedFolderProtectedFallbackCommitResult.FallbackInvalid;
+            }
+
+            try
+            {
+                Interlocked.Increment(ref selectionGeneration);
+                cancelPendingSelection();
+                ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(DefaultOmsSkin.SkinInfo);
+            }
+            catch
+            {
+                return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
+            }
+
+            bool pairCommitted = CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                                 && CurrentSkin.Value.GetType() == typeof(OmsSkin)
+                                 && CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN
+                                 && CurrentSkinInfo.Value.PerformRead(info =>
+                                     info.Protected
+                                     && string.Equals(
+                                         info.InstantiationInfo,
+                                         DefaultOmsSkin.SkinInfo.Value.InstantiationInfo,
+                                         StringComparison.Ordinal));
+
+            if (!pairCommitted)
+                return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
+
+            return authority.Validate(cancellationToken)
+                ? SkinManagedFolderProtectedFallbackCommitResult.Committed
+                : SkinManagedFolderProtectedFallbackCommitResult.AuthorityRejected;
         }
 
         /// <summary>
@@ -314,6 +467,8 @@ namespace osu.Game.Skinning
             if (resolution.Authority != SkinFilesystemStorageAuthority.ManagedFolder
                 || resolution.ManagedCaptureRequest == null
                 || !skinInfo.IsManaged
+                || !string.Equals(skinInfo.FilesystemStorageAuthorityOwner, SkinManagedFolderScanner.AUTHORITY_OWNER, StringComparison.Ordinal)
+                || ManagedFolderOperationCoordinator.IsPathFrozen(skinInfo.FilesystemStoragePath)
                 || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(skinInfo.InstantiationInfo))
             {
                 throw new InvalidOperationException("The filesystem-backed skin cannot be prepared safely.");
@@ -340,12 +495,17 @@ namespace osu.Game.Skinning
             }
             catch
             {
-                lock (selectionCommitLock)
+                if (tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease operationLease))
                 {
-                    Interlocked.Increment(ref selectionGeneration);
-                    cancelPendingSelection();
-                    rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                    using (operationLease)
+                    {
+                        Interlocked.Increment(ref selectionGeneration);
+                        cancelPendingSelection();
+                        rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                    }
                 }
+                else
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
 
                 return false;
             }
@@ -358,7 +518,13 @@ namespace osu.Game.Skinning
 
             SelectionRequestBeforeCommitLock(target);
 
-            lock (selectionCommitLock)
+            if (!tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease initialLease))
+            {
+                rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                return false;
+            }
+
+            using (initialLease)
             {
                 long generation = Interlocked.Increment(ref selectionGeneration);
                 cancelPendingSelection();
@@ -395,6 +561,18 @@ namespace osu.Game.Skinning
                 if (!request.IsRealmManaged)
                 {
                     rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
+                    return false;
+                }
+
+                if (!request.HasExactScannerOwner)
+                {
+                    rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
+                    return false;
+                }
+
+                if (ManagedFolderOperationCoordinator.IsPathFrozen(request.Snapshot.FilesystemStoragePath))
+                {
+                    rejectSelection(SkinSelectionRejectionReason.MutationRecoveryPending);
                     return false;
                 }
 
@@ -516,23 +694,17 @@ namespace osu.Game.Skinning
                 return;
             }
 
-            try
-            {
-                candidateStillMatches = target.PerformRead(info => request.Matches(info, storage));
-            }
-            catch
-            {
-                candidateStillMatches = false;
-            }
-
-            if (!candidateStillMatches)
+            if (!ManagedFolderOperationCoordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease finalLease))
             {
                 factory.Skin!.Dispose();
-                rejectSelection(generation, SkinSelectionRejectionReason.CapturedCandidateChanged);
+
+                if (generation == Interlocked.Read(ref selectionGeneration))
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+
                 return;
             }
 
-            lock (selectionCommitLock)
+            using (finalLease)
             {
                 if (generation != Interlocked.Read(ref selectionGeneration))
                 {
@@ -544,6 +716,39 @@ namespace osu.Game.Skinning
                 {
                     factory.Skin!.Dispose();
                     rejectSelection(SkinSelectionRejectionReason.PreparationCancelled);
+                    return;
+                }
+
+                Live<SkinInfo> authoritativeTarget = null;
+
+                try
+                {
+                    authoritativeTarget = Realm.Run(r =>
+                    {
+                        r.Refresh();
+                        SkinInfo current = r.Find<SkinInfo>(target.ID);
+                        return current != null && request.Matches(current, storage)
+                            ? current.ToLive(Realm)
+                            : null;
+                    });
+                    candidateStillMatches = authoritativeTarget != null;
+                }
+                catch
+                {
+                    candidateStillMatches = false;
+                }
+
+                if (!candidateStillMatches)
+                {
+                    factory.Skin!.Dispose();
+                    rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                    return;
+                }
+
+                if (ManagedFolderOperationCoordinator.IsPathFrozen(request.Snapshot!.FilesystemStoragePath))
+                {
+                    factory.Skin!.Dispose();
+                    rejectSelection(SkinSelectionRejectionReason.MutationRecoveryPending);
                     return;
                 }
 
@@ -564,12 +769,12 @@ namespace osu.Game.Skinning
                     return;
                 }
 
-                var prepared = new PreparedManagedFolderSelection(target, factory.Skin!);
+                var prepared = new PreparedManagedFolderSelection(authoritativeTarget, factory.Skin!);
                 preparedManagedFolderSelection = prepared;
 
                 try
                 {
-                    ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(target);
+                    ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(authoritativeTarget);
                 }
                 finally
                 {
@@ -581,7 +786,7 @@ namespace osu.Game.Skinning
                 }
 
                 if (generation == Interlocked.Read(ref selectionGeneration)
-                    && CurrentSkinInfo.Value.ID == target.ID
+                    && CurrentSkinInfo.Value.ID == authoritativeTarget.ID
                     && ReferenceEquals(CurrentSkin.Value, factory.Skin))
                 {
                     LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
@@ -596,7 +801,11 @@ namespace osu.Game.Skinning
                 ? createFilesystemSkinSnapshot(skinInfo)
                 : null;
 
-            return new SelectionRequest(resolution, snapshot, skinInfo.IsManaged);
+            return new SelectionRequest(
+                resolution,
+                snapshot,
+                skinInfo.IsManaged,
+                string.Equals(skinInfo.FilesystemStorageAuthorityOwner, SkinManagedFolderScanner.AUTHORITY_OWNER, StringComparison.Ordinal));
         }
 
         private static SkinInfo createFilesystemSkinSnapshot(SkinInfo source)
@@ -637,11 +846,25 @@ namespace osu.Game.Skinning
 
         private void rejectSelection(long generation, SkinSelectionRejectionReason reason)
         {
-            lock (selectionCommitLock)
+            if (!tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease operationLease))
+                return;
+
+            using (operationLease)
             {
                 if (generation == Interlocked.Read(ref selectionGeneration))
                     rejectSelection(reason);
             }
+        }
+
+        private bool tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease operationLease)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+            {
+                operationLease = ManagedFolderOperationCoordinator.Enter();
+                return true;
+            }
+
+            return ManagedFolderOperationCoordinator.TryEnter(out operationLease);
         }
 
         /// <summary>
@@ -987,18 +1210,25 @@ namespace osu.Game.Skinning
             public SkinFilesystemStorageResolution Resolution { get; }
             public SkinInfo Snapshot { get; }
             public bool IsRealmManaged { get; }
+            public bool HasExactScannerOwner { get; }
 
-            public SelectionRequest(SkinFilesystemStorageResolution resolution, SkinInfo snapshot, bool isRealmManaged)
+            public SelectionRequest(
+                SkinFilesystemStorageResolution resolution,
+                SkinInfo snapshot,
+                bool isRealmManaged,
+                bool hasExactScannerOwner)
             {
                 Resolution = resolution;
                 Snapshot = snapshot;
                 IsRealmManaged = isRealmManaged;
+                HasExactScannerOwner = hasExactScannerOwner;
             }
 
             public bool Matches(SkinInfo current, Storage storage)
             {
                 if (Snapshot == null
                     || !current.IsManaged
+                    || !string.Equals(current.FilesystemStorageAuthorityOwner, SkinManagedFolderScanner.AUTHORITY_OWNER, StringComparison.Ordinal)
                     || current.ID != Snapshot.ID
                     || !string.Equals(current.Name, Snapshot.Name, StringComparison.Ordinal)
                     || !string.Equals(current.Creator, Snapshot.Creator, StringComparison.Ordinal)

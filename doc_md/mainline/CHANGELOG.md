@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-07-27
+
+### `SV1-2` managed mutation authority/recovery公共地基闭合
+
+R3现已补齐scanner/selection/mutation共享线性化、held existing/staged source与root-bound target slot、strict versioned durable journal、启动先恢复后scanner、歧义冻结及current delete程序化`OmsSkin` protected pair确认；split pair与任何无法确认状态都拒绝。本切没有物理/Realm写primitive或UI，下一门仍是rename，再按staged import、delete、external和atomic reload/detach独立过门；focused **107/107**、BMS选择/fallback **24/24**、core skin **337/341**（4项既有removed archive）、mania **182/182**、BMS full **1492/1492**，Release **0 error / 18 known warnings**，文档/diff门通过，独立审查blocker/major **0/0**，全程未操控GUI。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ## 2026-07-26
 
 ### 皮肤系统文档与 memory authority 同步

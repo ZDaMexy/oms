@@ -25,6 +25,8 @@ namespace osu.Game.Skinning.Windows
         AuthorityDirectory,
         CapturedDirectory,
         CapturedFile,
+        MutationSourceDirectory,
+        MutationSourceVerificationDirectory,
     }
 
     internal readonly struct WindowsSkinPackagePhysicalIdentity : IEquatable<WindowsSkinPackagePhysicalIdentity>
@@ -34,6 +36,8 @@ namespace osu.Game.Skinning.Windows
         private readonly ulong fileIdPart1;
 
         internal ulong VolumeSerialNumber => volumeSerialNumber;
+        internal ulong FileIdPart0 => fileIdPart0;
+        internal ulong FileIdPart1 => fileIdPart1;
 
         public bool IsUsable => volumeSerialNumber != 0 && (fileIdPart0 != 0 || fileIdPart1 != 0);
 
@@ -1191,6 +1195,21 @@ namespace osu.Game.Skinning.Windows
                     openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
                     break;
 
+                case WindowsSkinPackageOpenMode.MutationSourceDirectory:
+                    desiredAccess = NativeMethods.FILE_LIST_DIRECTORY
+                                    | NativeMethods.FILE_READ_ATTRIBUTES
+                                    | NativeMethods.DELETE
+                                    | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ;
+                    openOptions |= NativeMethods.FILE_DIRECTORY_FILE;
+                    break;
+
+                case WindowsSkinPackageOpenMode.MutationSourceVerificationDirectory:
+                    desiredAccess = NativeMethods.FILE_LIST_DIRECTORY | NativeMethods.FILE_READ_ATTRIBUTES | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE;
+                    openOptions |= NativeMethods.FILE_DIRECTORY_FILE;
+                    break;
+
                 default:
                     throw reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
             }
@@ -1424,6 +1443,7 @@ namespace osu.Game.Skinning.Windows
         internal const uint FILE_LIST_DIRECTORY = 0x00000001;
         internal const uint FILE_READ_DATA = 0x00000001;
         internal const uint FILE_READ_ATTRIBUTES = 0x00000080;
+        internal const uint DELETE = 0x00010000;
         internal const uint SYNCHRONIZE = 0x00100000;
         internal const uint FILE_SHARE_READ = 0x00000001;
         internal const uint FILE_SHARE_WRITE = 0x00000002;

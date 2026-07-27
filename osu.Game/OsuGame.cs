@@ -1419,7 +1419,7 @@ namespace osu.Game
         {
             var cancellation = new CancellationTokenSource();
             managedSkinFolderScanCancellation = cancellation;
-            managedSkinFolderScanTask = Task.Run(() => PerformManagedSkinFolderScan(cancellation.Token), cancellation.Token);
+            managedSkinFolderScanTask = Task.Run(() => performManagedSkinFolderStartup(cancellation.Token), cancellation.Token);
         }
 
         private void stopManagedSkinFolderScan()
@@ -1455,7 +1455,29 @@ namespace osu.Game
         }
 
         /// <summary>
-        /// Performs the one-shot managed skin folder scan on a worker thread after the full game has loaded.
+        /// Re-runs durable managed-folder mutation recovery immediately before startup discovery.
+        /// </summary>
+        /// <remarks>
+        /// The same recovery is primed by <see cref="SkinManager"/> construction before configured skin selection. This
+        /// second idempotent pass fixes the worker ordering at recovery-before-scanner and catches a journal which may
+        /// have appeared during startup.
+        /// </remarks>
+        protected virtual void PerformManagedSkinFolderMutationRecovery(CancellationToken cancellationToken)
+        {
+            SkinManager.RecoverManagedFolderMutations(cancellationToken);
+        }
+
+        private void performManagedSkinFolderStartup(CancellationToken cancellationToken)
+        {
+            using SkinManagedFolderOperationCoordinator.Lease startupLease =
+                SkinManager.ManagedFolderOperationCoordinator.Enter(cancellationToken);
+            PerformManagedSkinFolderMutationRecovery(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            PerformManagedSkinFolderScan(cancellationToken);
+        }
+
+        /// <summary>
+        /// Performs the one-shot managed skin folder scan on a worker thread after mutation recovery.
         /// </summary>
         /// <remarks>
         /// This method must not wait on the update scheduler because disposal synchronously joins it before Realm is
@@ -1465,7 +1487,8 @@ namespace osu.Game
         {
             var scanner = new SkinManagedFolderScanner(
                 ClientRealm,
-                new WindowsSkinManagedFolderDiscoverySource(Storage));
+                new WindowsSkinManagedFolderDiscoverySource(Storage),
+                SkinManager.ManagedFolderOperationCoordinator);
 
             scanner.Scan(cancellationToken);
         }

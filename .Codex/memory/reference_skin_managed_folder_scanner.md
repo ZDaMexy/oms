@@ -8,7 +8,7 @@ metadata:
 
 # managed skin folder scanner（schema 57）
 
-> 快速召回 `chartskin/` 自动发现、Realm 归属与启动生命周期的安全边界。当前产品事实以 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) 为准；前后authority链见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_managed_folder_selection]]。
+> 快速召回 `chartskin/` 自动发现、Realm 归属与启动生命周期的安全边界。当前产品事实以 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) 为准；前后authority链见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]。
 
 ## 归属与 Realm reconcile
 
@@ -35,13 +35,13 @@ metadata:
 
 ## 启动与当前产品边界
 
-- `OsuGame.LoadComplete()` 最后在线程池启动一次扫描；不得绑定 update scheduler。`OsuGame.Dispose()` 必须先 cancel + join，再进入 `OsuGameBase.Dispose()` 释放 Realm。
+- `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以同一共享coordinator外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须先cancel + join，再进入`OsuGameBase.Dispose()`释放Realm。
 - 设置页已有 Realm `SkinInfo` notification → `GetAllUsableSkinsAsync()` → dropdown 刷新链；scanner 不需要第二套 UI refresh，也不会自动切换当前皮肤。
 - 这是一次启动扫描，不是 watcher 或热重载。启动后原位编辑、新 revision publication、全 consumer detach、managed rename/delete/import、external registration/capture 仍是后续独立 gate。
 - 测试只用 fake、隔离 Realm/临时 Windows 根和 headless lifecycle；不要为验证 scanner 启动可见 GUI，也不要触碰生产 `chartskin/`。
 
-## 与未来 mutation 的协调地雷
+## 与 mutation foundation 的协调地雷
 
-- 当前`scanGate`只串行同一scanner实例；它不是跨scanner/selection/mutation的共享authority。旧mutation入口被冻结，所以现状没有合法并发写面，不能据此推断未来安全。
-- discovery返回snapshot前held-root session已经释放，snapshot→Realm reconcile之间不再持有filesystem authority；未来mutation必须显式定义这一窗口的共享线性化、最终复核与冲突策略。
-- 当前启动顺序没有durable mutation journal recovery阶段。任何跨filesystem/Realm mutation必须先落可幂等恢复的journal，并保证“先恢复、后scanner”；未决journal关联路径不得被negative reconcile解释为普通缺失或新增。
+- `scanGate`仍只负责同一scanner实例去重；真正跨scanner/selection/mutation/recovery的authority是共享`SkinManagedFolderOperationCoordinator`。scanner从discovery开始持有短lease直到Realm事务返回，因此snapshot→Realm reconcile不再允许进程内mutation插入。
+- 启动先恢复后scanner；有效未决journal冻结其source/target，invalid/unknown/IO冻结整个namespace。reconcile在规划valid add/update/revive和negative soft-delete时都必须查询冻结状态，不能把半成品解释成普通新增或缺失。
+- 这只关闭公共线性化与恢复地基。实际rename/import/delete仍需自己的held native write authority、最终identity与crash-point gate；scanner lease绝不能被当作物理写能力。
