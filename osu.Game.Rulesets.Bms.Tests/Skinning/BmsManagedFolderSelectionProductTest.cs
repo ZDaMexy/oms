@@ -20,6 +20,7 @@ using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Windows;
 using osu.Game.Tests.Visual;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -786,9 +787,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     SkinManagedFolderFactoryResult result = SkinManagedFolderFactory.Create(snapshot, resources, capsule);
                     factoryCompleted.Set();
                     Assert.That(mutationHeld.Wait(TimeSpan.FromSeconds(10)), Is.True);
-                    releaseMutation.Set();
                     return result;
                 };
+                manager.ManagedFolderSelectionFinalBoundaryContended =
+                    () => releaseMutation.Set();
                 mutationTask = Task.Run(() =>
                 {
                     Assert.That(factoryCompleted.Wait(TimeSpan.FromSeconds(10)), Is.True);
@@ -1349,6 +1351,728 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(afterShutdown.GetAwaiter().GetResult().Status, Is.EqualTo(SkinManagedFolderRenameOperationStatus.Shutdown));
                     Assert.That(new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestManagedFolderStagedImportPublishesWithoutSelectionAndScannerDoesNotDuplicate()
+        {
+            Guid operationId = Guid.Empty;
+            string stagedSource = string.Empty;
+            string targetChildName = string.Empty;
+            string targetManagedPath = string.Empty;
+            string targetRoot = string.Empty;
+            Live<SkinInfo> initialInfo = null!;
+            Skin initialSkin = null!;
+            Live<SkinInfo> imported = null!;
+            Task<SkinManagedFolderStagedImportOperationResult>? importTask = null;
+            SkinManagedFolderScanResult? scanResult = null;
+
+            AddStep("create fixed provisional package", () =>
+            {
+                operationId = Guid.NewGuid();
+                stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                targetChildName = $"imported-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                targetRoot = LocalStorage.GetFullPath(targetManagedPath);
+                Directory.CreateDirectory(
+                    LocalStorage.GetFullPath(
+                        SkinFilesystemStorageResolver
+                            .MANAGED_ROOT_DIRECTORY));
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+                initialInfo = manager.CurrentSkinInfo.Value;
+                initialSkin = manager.CurrentSkin.Value;
+            });
+
+            AddStep("start internal staged import", () =>
+                importTask = manager.ImportManagedFolderAsync(
+                    operationId,
+                    targetChildName));
+            AddUntilStep(
+                "wait for staged import",
+                () => importTask?.IsCompleted == true);
+            AddStep("assert publication does not select", () =>
+            {
+                SkinManagedFolderStagedImportOperationResult result =
+                    importTask!.GetAwaiter().GetResult();
+                imported = manager.Query(info => info.ID == operationId);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.True);
+                    Assert.That(imported, Is.Not.Null);
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(initialInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(initialSkin));
+                    Assert.That(sourceChangedCount, Is.Zero);
+                    Assert.That(Directory.Exists(stagedSource), Is.False);
+                    Assert.That(Directory.Exists(targetRoot), Is.True);
+                    Assert.That(
+                        imported.PerformRead(info => info.ID),
+                        Is.EqualTo(operationId));
+                    Assert.That(
+                        imported.PerformRead(info => info.FilesystemStoragePath),
+                        Is.EqualTo(targetManagedPath));
+                    Assert.That(
+                        imported.PerformRead(info => info.Name),
+                        Is.EqualTo("managed folder product test"));
+                    Assert.That(
+                        imported.PerformRead(info => info.Creator),
+                        Is.EqualTo("OMS tests"));
+                    Assert.That(
+                        imported.PerformRead(info => info.Hash),
+                        Is.Not.Empty);
+                    Assert.That(
+                        imported.PerformRead(info => info.InstantiationInfo),
+                        Is.EqualTo(
+                            SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO));
+                    Assert.That(
+                        imported.PerformRead(info => info.Files.Count),
+                        Is.Zero);
+                    Assert.That(
+                        imported.PerformRead(
+                            info => info.IsExternalFilesystemStorage),
+                        Is.False);
+                    Assert.That(
+                        imported.PerformRead(
+                            info => info.FilesystemStorageAuthorityOwner),
+                        Is.EqualTo(SkinManagedFolderScanner.AUTHORITY_OWNER));
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage)
+                            .Load()
+                            .Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+
+            AddStep("run production scanner after handoff", () =>
+            {
+                var scanner = new SkinManagedFolderScanner(
+                    Realm,
+                    new WindowsSkinManagedFolderDiscoverySource(LocalStorage),
+                    manager.ManagedFolderOperationCoordinator);
+                scanResult = scanner.Scan();
+            });
+            AddStep("assert scanner reuses exact imported record", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(scanResult!.IsSuccess, Is.True);
+                    Assert.That(scanResult.Added, Is.Zero);
+                    Assert.That(
+                        Realm.Run(realm => realm.All<SkinInfo>()
+                            .Count(info => info.ID == operationId)),
+                        Is.EqualTo(1));
+                    Assert.That(
+                        manager.Query(info => info.ID == operationId).ID,
+                        Is.EqualTo(imported.ID));
+                    Assert.That(sourceChangedCount, Is.Zero);
+                });
+            });
+
+            AddStep("explicitly select imported package", () =>
+                manager.CurrentSkinInfo.Value = imported);
+            AddUntilStep("wait for explicit imported selection", () =>
+                manager.CurrentSkinInfo.Value.ID == operationId
+                && manager.CurrentSkin.Value.SkinInfo.ID == operationId
+                && manager.CurrentSkin.Value is BmsLegacySkin);
+            AddStep("assert explicit selection loads final target capsule", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.CurrentSkin.Value,
+                        Is.TypeOf<BmsLegacySkin>());
+                    Assert.That(sourceChangedCount, Is.EqualTo(1));
+                    Assert.That(manager.LastSelectionRejectionReason,
+                        Is.EqualTo(SkinSelectionRejectionReason.None));
+                });
+            });
+        }
+
+        [Test]
+        public void TestUnrelatedPendingSelectionWaitsForStagedImportAndStillCommits()
+        {
+            Guid operationId = Guid.Empty;
+            Live<SkinInfo> candidate = null!;
+            Task<SkinManagedFolderStagedImportOperationResult>? importTask = null;
+            var captureEntered = new ManualResetEventSlim();
+            var releaseCapture = new ManualResetEventSlim();
+            var importAuthorityOpened = new ManualResetEventSlim();
+            var releaseImport = new ManualResetEventSlim();
+            var selectionWaited = new ManualResetEventSlim();
+
+            AddStep("create unrelated candidate and staged package", () =>
+            {
+                (_, candidate) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                operationId = Guid.NewGuid();
+                string stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+
+                var nativeCapture = manager.ManagedFolderCapture;
+                manager.ManagedFolderCapture = (request, cancellationToken) =>
+                {
+                    captureEntered.Set();
+                    Assert.That(
+                        releaseCapture.Wait(
+                            TimeSpan.FromSeconds(30),
+                            cancellationToken),
+                        Is.True);
+                    return nativeCapture(request, cancellationToken);
+                };
+                manager.ManagedFolderStagedImportAuthorityOpened = () =>
+                {
+                    importAuthorityOpened.Set();
+                    Assert.That(
+                        releaseImport.Wait(TimeSpan.FromSeconds(30)),
+                        Is.True);
+                };
+                manager.ManagedFolderSelectionWaitingForStagedImport = () =>
+                {
+                    selectionWaited.Set();
+                    releaseImport.Set();
+                    Assert.That(
+                        importTask!.Wait(TimeSpan.FromSeconds(30)),
+                        Is.True);
+                };
+            });
+
+            AddStep("request unrelated pending selection", () =>
+                manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep(
+                "wait for pending capture",
+                () => captureEntered.IsSet);
+            AddStep("start staged import and hold its authority", () =>
+                importTask = manager.ImportManagedFolderAsync(
+                    operationId,
+                    $"imported-{Guid.NewGuid():N}"));
+            AddUntilStep(
+                "wait for staged authority",
+                () => importAuthorityOpened.IsSet);
+            AddStep("release pending capture into mutation boundary", () =>
+                releaseCapture.Set());
+            AddUntilStep(
+                "wait for selection to observe import reservation",
+                () => selectionWaited.IsSet);
+            AddUntilStep(
+                "wait for import and unrelated selection",
+                () => importTask?.IsCompleted == true
+                      && manager.CurrentSkinInfo.Value.ID == candidate.ID
+                      && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("assert import caused no selection churn", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        importTask!.GetAwaiter().GetResult().IsSuccess,
+                        Is.True);
+                    Assert.That(
+                        manager.CurrentSkin.Value,
+                        Is.TypeOf<BmsLegacySkin>());
+                    Assert.That(sourceChangedCount, Is.EqualTo(1));
+                    Assert.That(
+                        manager.LastSelectionRejectionReason,
+                        Is.EqualTo(SkinSelectionRejectionReason.None));
+                    Assert.That(
+                        manager.Query(info => info.ID == operationId),
+                        Is.Not.Null);
+                });
+
+                captureEntered.Dispose();
+                releaseCapture.Dispose();
+                importAuthorityOpened.Dispose();
+                releaseImport.Dispose();
+                selectionWaited.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestManagedFolderStagedImportWaitsForScannerSnapshotCommit()
+        {
+            Guid operationId = Guid.Empty;
+            string stagedSource = string.Empty;
+            string targetChildName = string.Empty;
+            string targetManagedPath = string.Empty;
+            Task<SkinManagedFolderScanResult>? scanTask = null;
+            Task<SkinManagedFolderStagedImportOperationResult>? importTask = null;
+            var scannerBeforeCommit = new ManualResetEventSlim();
+            var releaseScanner = new ManualResetEventSlim();
+
+            AddStep("create staged package and blocking scanner", () =>
+            {
+                operationId = Guid.NewGuid();
+                stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                Directory.CreateDirectory(
+                    LocalStorage.GetFullPath(
+                        SkinFilesystemStorageResolver
+                            .MANAGED_ROOT_DIRECTORY));
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+                targetChildName = $"imported-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                var scanner = new SkinManagedFolderScanner(
+                    Realm,
+                    new FixedManagedFolderDiscoverySource(
+                        SkinManagedFolderDiscoverySnapshot.Complete(
+                            Array.Empty<string>(),
+                            Array.Empty<SkinManagedFolderDiscovery>())),
+                    manager.ManagedFolderOperationCoordinator)
+                {
+                    ReconciliationBeforeCommit = () =>
+                    {
+                        scannerBeforeCommit.Set();
+                        Assert.That(
+                            releaseScanner.Wait(TimeSpan.FromSeconds(30)),
+                            Is.True);
+                    },
+                };
+                scanTask = Task.Run(() => scanner.Scan());
+            });
+
+            AddUntilStep(
+                "wait for scanner commit boundary",
+                () => scannerBeforeCommit.IsSet);
+            AddStep("start import behind scanner lease", () =>
+                importTask = manager.ImportManagedFolderAsync(
+                    operationId,
+                    targetChildName));
+            AddUntilStep(
+                "wait for blocked import worker",
+                () => manager.IsManagedFolderStagedImportRunning);
+            AddStep("assert import has not crossed scanner commit", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(importTask!.IsCompleted, Is.False);
+                    Assert.That(Directory.Exists(stagedSource), Is.True);
+                    Assert.That(
+                        Directory.Exists(
+                            LocalStorage.GetFullPath(targetManagedPath)),
+                        Is.False);
+                    Assert.That(
+                        manager.Query(info => info.ID == operationId),
+                        Is.Null);
+                });
+
+                releaseScanner.Set();
+            });
+            AddUntilStep(
+                "wait for scanner then import",
+                () => scanTask?.IsCompleted == true
+                      && importTask?.IsCompleted == true);
+            AddStep("assert serialized import committed", () =>
+            {
+                SkinManagedFolderStagedImportOperationResult import =
+                    importTask!.GetAwaiter().GetResult();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        scanTask!.GetAwaiter().GetResult().IsSuccess,
+                        Is.True);
+                    Assert.That(
+                        import.IsSuccess,
+                        Is.True,
+                        $"{import};Authority={import.AuthorityRejectionReason}");
+                    Assert.That(Directory.Exists(stagedSource), Is.False);
+                    Assert.That(
+                        Directory.Exists(
+                            LocalStorage.GetFullPath(targetManagedPath)),
+                        Is.True);
+                    Assert.That(
+                        manager.Query(info => info.ID == operationId),
+                        Is.Not.Null);
+                });
+
+                scannerBeforeCommit.Dispose();
+                releaseScanner.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestAmbiguousStagedImportRestartFreezesSelectionAndScannerNegativeCleanup()
+        {
+            Guid operationId = Guid.Empty;
+            string targetManagedPath = string.Empty;
+            Live<SkinInfo> conflictingRecord = null!;
+            SkinManager? recoveringManager = null;
+            SkinManagedFolderMutationJournal? preparedJournal = null;
+            SkinManagedFolderScanResult? scanResult = null;
+            SkinManagedFolderMutationJournalStore? store = null;
+
+            AddStep("persist prepared import then create foreign target", () =>
+            {
+                operationId = Guid.NewGuid();
+                string targetChildName =
+                    $"ambiguous-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                string stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                Directory.CreateDirectory(
+                    LocalStorage.GetFullPath(
+                        SkinFilesystemStorageResolver
+                            .MANAGED_ROOT_DIRECTORY));
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+                store = new SkinManagedFolderMutationJournalStore(
+                    LocalStorage);
+
+                SkinManagedFolderMutationAuthorityResult opened =
+                    manager.ManagedFolderMutationAuthority.OpenStagedImport(
+                        operationId,
+                        targetChildName);
+                Assert.That(opened.IsSuccess, Is.True);
+
+                using (SkinManagedFolderMutationAuthoritySession session =
+                       opened.Session!)
+                {
+                    session.PersistPreparedJournal();
+                    SkinManagedFolderMutationJournalLoadResult loaded =
+                        store.Load();
+                    Assert.That(loaded.IsLoaded, Is.True);
+                    preparedJournal = loaded.Journal;
+                }
+
+                string targetRoot =
+                    LocalStorage.GetFullPath(targetManagedPath);
+                Directory.CreateDirectory(targetRoot);
+                createCompletePackage(targetRoot);
+                var conflict = new SkinInfo(
+                    "foreign target",
+                    "OMS tests",
+                    SkinManagedFolderFactory
+                        .ALLOWED_INSTANTIATION_INFO)
+                {
+                    ID = operationId,
+                    Hash = "foreign-revision",
+                    FilesystemStoragePath = targetManagedPath,
+                    FilesystemStorageAuthorityOwner =
+                        SkinManagedFolderScanner.AUTHORITY_OWNER,
+                };
+                Realm.Write(realm => realm.Add(conflict));
+                conflictingRecord =
+                    manager.Query(info => info.ID == operationId);
+                Assert.That(conflictingRecord, Is.Not.Null);
+            });
+
+            AddStep("construct manager with ambiguous import recovery", () =>
+            {
+                recoveringManager = new SkinManager(
+                    LocalStorage,
+                    Realm,
+                    host,
+                    Resources,
+                    Audio,
+                    Scheduler)
+                {
+                    ManagedFolderCapture = (_, _) =>
+                        throw new AssertionException(
+                            "recovery-frozen selection reached native capture"),
+                };
+            });
+            AddStep("request frozen target and scan complete absence", () =>
+            {
+                recoveringManager!.CurrentSkinInfo.Value =
+                    conflictingRecord;
+                var scanner = new SkinManagedFolderScanner(
+                    Realm,
+                    new FixedManagedFolderDiscoverySource(
+                        SkinManagedFolderDiscoverySnapshot.Complete(
+                            Array.Empty<string>(),
+                            Array.Empty<SkinManagedFolderDiscovery>())),
+                    recoveringManager.ManagedFolderOperationCoordinator);
+                scanResult = scanner.Scan();
+            });
+            AddStep("assert foreign target and record remain frozen", () =>
+            {
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(
+                            recoveringManager!
+                                .InitialManagedFolderMutationRecoveryResult
+                                .Status,
+                            Is.EqualTo(
+                                SkinManagedFolderMutationRecoveryStatus
+                                    .Ambiguous));
+                        Assert.That(
+                            recoveringManager.LastSelectionRejectionReason,
+                            Is.EqualTo(
+                                SkinSelectionRejectionReason
+                                    .MutationRecoveryPending));
+                        Assert.That(
+                            recoveringManager.CurrentSkinInfo.Value.ID,
+                            Is.EqualTo(SkinInfo.OMS_SKIN));
+                        Assert.That(
+                            recoveringManager.CurrentSkin.Value,
+                            Is.TypeOf<OmsSkin>());
+                        Assert.That(
+                            recoveringManager
+                                .ManagedFolderOperationCoordinator
+                                .IsPathFrozen(targetManagedPath),
+                            Is.True);
+                        Assert.That(scanResult!.IsSuccess, Is.True);
+                        Assert.That(scanResult.Conflicts, Is.EqualTo(1));
+                        Assert.That(
+                            conflictingRecord.PerformRead(
+                                info => info.DeletePending),
+                            Is.False);
+                        Assert.That(store!.Load().IsLoaded, Is.True);
+                    });
+                }
+                finally
+                {
+                    SkinManagedFolderMutationJournal rolledBack =
+                        preparedJournal!.WithRolledBack();
+                    store!.Write(rolledBack);
+                    store.Delete(rolledBack);
+                }
+            });
+        }
+
+        [Test]
+        public void TestManagedFolderMutationShutdownJoinsImportAndRejectsBothKinds()
+        {
+            Guid operationId = Guid.Empty;
+            Live<SkinInfo> renameCandidate = null!;
+            SkinManagedFolderOperationCoordinator.Lease? heldLease = null;
+            Task<SkinManagedFolderStagedImportOperationResult>? importTask = null;
+            Task<SkinManagedFolderStagedImportOperationResult>? importAfterShutdown = null;
+            Task<SkinManagedFolderRenameOperationResult>? renameAfterShutdown = null;
+
+            AddStep("hold coordinator and start staged import", () =>
+            {
+                operationId = Guid.NewGuid();
+                string stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+                (_, renameCandidate) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                renameCandidate.PerformWrite(
+                    info => info.Hash = "registered-revision");
+                heldLease = manager.ManagedFolderOperationCoordinator.Enter();
+                importTask = manager.ImportManagedFolderAsync(
+                    operationId,
+                    $"imported-{Guid.NewGuid():N}");
+            });
+            AddUntilStep(
+                "wait for blocked staged import",
+                () => manager.IsManagedFolderStagedImportRunning);
+            AddStep("shutdown and synchronously join all mutations", () =>
+            {
+                try
+                {
+                    manager.ShutdownManagedFolderMutations();
+                }
+                finally
+                {
+                    heldLease!.Dispose();
+                }
+
+                importAfterShutdown = manager.ImportManagedFolderAsync(
+                    Guid.NewGuid(),
+                    $"imported-{Guid.NewGuid():N}");
+                renameAfterShutdown = manager.RenameManagedFolderAsync(
+                    renameCandidate.ID,
+                    $"renamed-{Guid.NewGuid():N}");
+            });
+            AddStep("assert unified shutdown state", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(importTask!.IsCompleted, Is.True);
+                    Assert.That(
+                        importTask.GetAwaiter().GetResult().Status,
+                        Is.EqualTo(
+                            SkinManagedFolderStagedImportOperationStatus.Cancelled));
+                    Assert.That(
+                        manager.IsManagedFolderStagedImportRunning,
+                        Is.False);
+                    Assert.That(
+                        importAfterShutdown!.GetAwaiter().GetResult().Status,
+                        Is.EqualTo(
+                            SkinManagedFolderStagedImportOperationStatus.Shutdown));
+                    Assert.That(
+                        renameAfterShutdown!.GetAwaiter().GetResult().Status,
+                        Is.EqualTo(
+                            SkinManagedFolderRenameOperationStatus.Shutdown));
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage)
+                            .Load()
+                            .Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestStagedImportRestartRecoveryRollsTargetForward()
+        {
+            Guid operationId = Guid.Empty;
+            string targetChildName = string.Empty;
+            string targetManagedPath = string.Empty;
+            string stagedSource = string.Empty;
+            SkinManager? recoveringManager = null;
+
+            AddStep("leave durable filesystem-applied staged import", () =>
+            {
+                operationId = Guid.NewGuid();
+                targetChildName = $"recovered-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                Directory.CreateDirectory(
+                    LocalStorage.GetFullPath(
+                        SkinFilesystemStorageResolver
+                            .MANAGED_ROOT_DIRECTORY));
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+
+                SkinManagedFolderMutationAuthorityResult opened =
+                    manager.ManagedFolderMutationAuthority.OpenStagedImport(
+                        operationId,
+                        targetChildName);
+                Assert.That(opened.IsSuccess, Is.True);
+
+                using SkinManagedFolderMutationAuthoritySession session =
+                    opened.Session!;
+                SkinManagedFolderDurableMutationReceipt receipt =
+                    session.PersistPreparedJournal();
+                session.ApplyCapturedStagedImportWithDurableReceipt(receipt);
+
+                SkinManagedFolderMutationJournalLoadResult journal =
+                    new SkinManagedFolderMutationJournalStore(LocalStorage).Load();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(journal.IsLoaded, Is.True);
+                    Assert.That(
+                        journal.Journal!.Phase,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationPhase.FilesystemApplied));
+                    Assert.That(Directory.Exists(stagedSource), Is.False);
+                    Assert.That(
+                        Directory.Exists(
+                            LocalStorage.GetFullPath(targetManagedPath)),
+                        Is.True);
+                });
+            });
+
+            AddStep("construct manager and run production startup recovery", () =>
+                recoveringManager = new SkinManager(
+                    LocalStorage,
+                    Realm,
+                    host,
+                    Resources,
+                    Audio,
+                    Scheduler));
+            AddStep("assert target-forward recovery published once", () =>
+            {
+                Live<SkinInfo> recovered =
+                    recoveringManager!.Query(info => info.ID == operationId);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        recoveringManager.InitialManagedFolderMutationRecoveryResult
+                            .Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationRecoveryStatus
+                                .RecoveredForward));
+                    Assert.That(recovered, Is.Not.Null);
+                    Assert.That(
+                        recovered.PerformRead(
+                            info => info.FilesystemStoragePath),
+                        Is.EqualTo(targetManagedPath));
+                    Assert.That(
+                        Realm.Run(realm => realm.All<SkinInfo>()
+                            .Count(info => info.ID == operationId)),
+                        Is.EqualTo(1));
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage)
+                            .Load()
+                            .Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestStagedImportRestartRecoveryCleansPreparedSource()
+        {
+            Guid operationId = Guid.Empty;
+            string stagedSource = string.Empty;
+            SkinManager? recoveringManager = null;
+
+            AddStep("leave durable prepared staged import", () =>
+            {
+                operationId = Guid.NewGuid();
+                stagedSource = LocalStorage.GetFullPath(
+                    $"skin-mutation-staging/{operationId:N}");
+                Directory.CreateDirectory(
+                    LocalStorage.GetFullPath(
+                        SkinFilesystemStorageResolver
+                            .MANAGED_ROOT_DIRECTORY));
+                Directory.CreateDirectory(stagedSource);
+                createCompletePackage(stagedSource);
+
+                SkinManagedFolderMutationAuthorityResult opened =
+                    manager.ManagedFolderMutationAuthority.OpenStagedImport(
+                        operationId,
+                        $"rolled-back-{Guid.NewGuid():N}");
+                Assert.That(opened.IsSuccess, Is.True);
+
+                using SkinManagedFolderMutationAuthoritySession session =
+                    opened.Session!;
+                session.PersistPreparedJournal();
+                Assert.That(
+                    new SkinManagedFolderMutationJournalStore(LocalStorage)
+                        .Load()
+                        .Journal!
+                        .Phase,
+                    Is.EqualTo(SkinManagedFolderMutationPhase.Prepared));
+            });
+
+            AddStep("construct manager and run prepared rollback recovery", () =>
+                recoveringManager = new SkinManager(
+                    LocalStorage,
+                    Realm,
+                    host,
+                    Resources,
+                    Audio,
+                    Scheduler));
+            AddStep("assert only provisional source was removed", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        recoveringManager!.InitialManagedFolderMutationRecoveryResult
+                            .Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationRecoveryStatus
+                                .RecoveredRollback));
+                    Assert.That(Directory.Exists(stagedSource), Is.False);
+                    Assert.That(
+                        recoveringManager.Query(info => info.ID == operationId),
+                        Is.Null);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage)
+                            .Load()
+                            .Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
             });
         }

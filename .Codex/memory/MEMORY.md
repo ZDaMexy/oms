@@ -16,10 +16,10 @@
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — schema 56-origin managed/external 声明分类、Windows 路径歧义、namespace overlap、TOCTOU/identity 与不可误作 mutation capability 的边界。
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — post-capture 内容身份、规范名/预算、defensive ownership、失败清理与不可误作 no-follow capture 的边界。
-- [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver-issued request、physical NT volume、handle-relative no-follow、identity/inventory竞态与非filesystem transaction边界。
-- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner、Observed/Valid分离、完整scan单事务reconcile、native held-root发现与启动cancel/join地雷。
-- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、authoritative mutation冻结、reentrant/任务异常与旧owner detach地雷。
-- [managed chartskin mutation foundation / rename](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、directory-only rename、NTFS descendant handoff、durable recovery、歧义冻结与current delete fallback地雷。
+- [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver/staging held authority、physical NT volume、handle-relative no-follow、DELETE/share-delete、identity/inventory竞态与非filesystem transaction边界。
+- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner与staged publisher handoff、Observed/Valid分离、完整scan单事务reconcile、plan隔离及统一shutdown地雷。
+- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、rename/import pending差异、authoritative mutation冻结与旧owner detach地雷。
+- [managed chartskin mutation foundation / rename / staged import](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、rename与fixed-source import、NTFS descendant handoff、kind-routed durable recovery、scanner-owner publisher与current delete fallback地雷。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
 
 ## 构建、存储与产品面参考

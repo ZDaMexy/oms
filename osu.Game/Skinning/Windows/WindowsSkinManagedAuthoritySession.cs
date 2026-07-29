@@ -34,12 +34,18 @@ namespace osu.Game.Skinning.Windows
         private readonly WindowsSkinPackageEntryMetadata managedRootMetadata;
         private readonly WindowsSkinPackageDirectoryEntry[] baselineEntries;
         private IWindowsSkinPackageCaptureHandle? mutationManagedRoot;
+        private OpenedDirectory? mutationStagingRoot;
+        private WindowsSkinPackageDirectoryEntry[]? mutationStagingBaselineEntries;
+        private WindowsSkinPackageDirectoryEntry? mutationStagedSourceBaselineEntry;
         private OpenedDirectory? mutationSource;
         private WindowsSkinPackageDirectoryEntry? mutationSourceBaselineEntry;
         private HeldMutationTree? mutationSourceTree;
         private string? mutationSourceOriginalName;
         private SkinManagedFolderTargetNameSlot? mutationTargetNameSlot;
         private MutationRenameState mutationRenameState;
+        private bool stagedMutationCaptured;
+        private bool stagedMutationForwardApplied;
+        private bool stagedMutationRolledBack;
         private bool disposed;
 
         public IReadOnlyList<WindowsSkinPackageDirectoryEntry> BaselineEntries { get; }
@@ -171,7 +177,7 @@ namespace osu.Game.Skinning.Windows
             ObjectDisposedException.ThrowIf(disposed, this);
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (mutationSource != null)
+            if (mutationSource != null || stagedMutationCaptured)
                 throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
 
             if (!SkinManagedFolderPath.TryNormalise(managedRelativePath, out string normalisedPath)
@@ -216,6 +222,7 @@ namespace osu.Game.Skinning.Windows
             mutationSourceBaselineEntry = candidate;
             mutationSourceTree = tree;
             mutationSourceOriginalName = candidate.Name;
+            mutationRenameState = MutationRenameState.Prepared;
             return toMutationIdentity(opened.Metadata.Identity);
         }
 
@@ -240,10 +247,12 @@ namespace osu.Game.Skinning.Windows
             if (mutationTargetNameSlot != null)
                 throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
 
+            ensureMutationManagedRoot(cancellationToken);
+
             try
             {
                 using IWindowsSkinPackageCaptureHandle unexpected = fileSystem.OpenChildNoFollow(
-                    mutationManagedRoot ?? managedRoot,
+                    mutationManagedRoot!,
                     childName,
                     WindowsSkinPackageOpenMode.CapturedDirectory,
                     SkinManagedPackageCaptureRejectionReason.PackageUnavailable);
@@ -267,8 +276,12 @@ namespace osu.Game.Skinning.Windows
             ObjectDisposedException.ThrowIf(disposed, this);
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (operationId == Guid.Empty)
+            if (operationId == Guid.Empty
+                || mutationSource != null
+                || stagedMutationCaptured)
+            {
                 throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
 
             OpenedDirectory stagingRoot = openExpectedDirectory(
                 fileSystem,
@@ -290,11 +303,29 @@ namespace osu.Game.Skinning.Windows
             authorityNodes.Add(new NodeRecord(stagingRoot.Handle, stagingRoot.Metadata));
 
             string expectedSourceName = operationId.ToString("N");
+            WindowsSkinPackageDirectoryEntry[] stagingBaseline = canonicaliseDirectoryEntries(
+                getDirectoryEntries(
+                    fileSystem,
+                    stagingRoot.Handle,
+                    max_authority_directory_entries,
+                    cancellationToken));
+            WindowsSkinPackageDirectoryEntry? sourceCandidate =
+                getOptionalExactNameEntry(stagingBaseline, expectedSourceName);
+
+            if (sourceCandidate == null
+                || !string.Equals(
+                    sourceCandidate.Name,
+                    expectedSourceName,
+                    StringComparison.Ordinal))
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.PackageUnavailable);
+            }
+
             OpenedDirectory source = openExpectedDirectory(
                 fileSystem,
                 stagingRoot.Handle,
                 expectedSourceName,
-                WindowsSkinPackageOpenMode.MutationSourceDirectory,
+                WindowsSkinPackageOpenMode.ProvisionalDirectory,
                 SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
                 cancellationToken,
                 handles);
@@ -302,17 +333,104 @@ namespace osu.Game.Skinning.Windows
             if (!string.Equals(source.CanonicalName, expectedSourceName, StringComparison.Ordinal))
                 throw reject(SkinManagedPackageCaptureRejectionReason.AlternateNameAlias);
 
-            authorityLinks.Add(new AuthorityLinkRecord(
-                stagingRoot.Handle,
-                source.CanonicalName,
+            HeldMutationTree sourceTree = holdMutationTree(
+                source.Handle,
                 source.Metadata,
-                WindowsSkinPackageOpenMode.MutationSourceVerificationDirectory));
-            authorityNodes.Add(new NodeRecord(source.Handle, source.Metadata));
+                handles,
+                cancellationToken,
+                provisional: true);
+            SkinManagedPackageCaptureResult captured = packageCapture.CaptureProvisionalChild(
+                stagingRoot.Handle,
+                sourceCandidate,
+                cancellationToken: cancellationToken);
 
+            if (!captured.IsSuccess
+                || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    captured.PhysicalTreeFingerprint))
+            {
+                throw reject(
+                    captured.IsSuccess
+                        ? SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture
+                        : captured.RejectionReason == SkinManagedPackageCaptureRejectionReason.CapsuleRejected
+                        ? SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture
+                        : captured.RejectionReason);
+            }
+
+            SkinPackageRevisionCapsule capsule = captured.Capsule!;
+
+            try
+            {
+                mutationStagingRoot = stagingRoot;
+                mutationStagingBaselineEntries = stagingBaseline;
+                mutationStagedSourceBaselineEntry = sourceCandidate;
+                mutationSource = source;
+                mutationSourceBaselineEntry = sourceCandidate;
+                mutationSourceTree = sourceTree;
+                mutationSourceOriginalName = expectedSourceName;
+                stagedMutationCaptured = true;
+                ValidateCompleteAndStable(cancellationToken);
+                var result = new SkinManagedFolderStagedSourceCapture(
+                    toMutationIdentity(stagingRoot.Metadata.Identity),
+                    toMutationIdentity(source.Metadata.Identity),
+                    captured.PhysicalTreeFingerprint!,
+                    capsule);
+                capsule = null!;
+                return result;
+            }
+            finally
+            {
+                capsule?.Dispose();
+            }
+        }
+
+        internal SkinManagedFolderStagedImportFilesystemResult MoveCapturedStagedMutationSourceToTarget(
+            SkinManagedFolderTargetNameSlot targetNameSlot,
+            string expectedContentRevision,
+            string expectedTreeFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!stagedMutationCaptured
+                || stagedMutationForwardApplied
+                || stagedMutationRolledBack
+                || mutationSource is not { } source
+                || mutationSourceTree == null
+                || mutationTargetNameSlot == null
+                || mutationManagedRoot == null
+                || mutationStagingRoot == null
+                || mutationStagingBaselineEntries == null
+                || mutationStagedSourceBaselineEntry == null
+                || !ReferenceEquals(targetNameSlot, mutationTargetNameSlot)
+                || targetNameSlot.ManagedRootIdentity != ManagedRootIdentity
+                || !SkinManagedFolderMutationJournal.IsValidContentRevision(
+                    expectedContentRevision)
+                || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    expectedTreeFingerprint))
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            string targetName = getManagedDirectChildName(
+                targetNameSlot.ManagedRelativePath);
             ValidateCompleteAndStable(cancellationToken);
-            return new SkinManagedFolderStagedSourceCapture(
-                toMutationIdentity(stagingRoot.Metadata.Identity),
-                toMutationIdentity(source.Metadata.Identity));
+            validateHeldMutationTree(fileSystem, mutationSourceTree, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            releaseMutationTreeDescendants(mutationSourceTree, source.Handle);
+            fileSystem.RenameChildNoReplace(
+                source.Handle,
+                mutationManagedRoot,
+                targetName);
+            stagedMutationForwardApplied = true;
+
+            // As with rename, cancellation no longer owns the outcome after the first visible physical step.
+            return captureAndValidateMovedStagedPackage(
+                targetName,
+                expectedContentRevision,
+                expectedTreeFingerprint,
+                CancellationToken.None);
         }
 
         internal SkinManagedFolderPhysicalIdentity RenameCapturedMutationSourceToTarget(
@@ -412,6 +530,275 @@ namespace osu.Game.Skinning.Windows
             }
         }
 
+        internal SkinManagedFolderStagedImportInspection InspectStagedMutationImportState(
+            Guid operationId,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+            CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (operationId == Guid.Empty
+                || !expectedStagedRootIdentity.IsUsable
+                || !expectedSourceIdentity.IsUsable
+                || expectedStagedRootIdentity.VolumeSerialNumber
+                   != managedRootMetadata.Identity.VolumeSerialNumber
+                || expectedSourceIdentity.VolumeSerialNumber
+                   != managedRootMetadata.Identity.VolumeSerialNumber)
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            string sourceName = operationId.ToString("N");
+            string targetName = getManagedDirectChildName(targetManagedRelativePath);
+            ensureMutationManagedRoot(cancellationToken);
+
+            if (stagedMutationCaptured && stagedMutationForwardApplied)
+                validateMovedStagedLocation(targetName, cancellationToken);
+            else if (stagedMutationCaptured && stagedMutationRolledBack)
+                validateRolledBackStagedLocation(cancellationToken);
+            else
+                validateBaselineCompleteAndStable(cancellationToken);
+
+            var inspectionHandles = new List<IWindowsSkinPackageCaptureHandle>();
+
+            try
+            {
+                WindowsSkinPackageDirectoryEntry? stagingEntry = getOptionalExactNameEntry(
+                    getDirectoryEntries(
+                        fileSystem,
+                        dataRoot,
+                        max_authority_directory_entries,
+                        cancellationToken),
+                    "skin-mutation-staging");
+
+                if (stagingEntry == null
+                    || !string.Equals(
+                        stagingEntry.Name,
+                        "skin-mutation-staging",
+                        StringComparison.Ordinal)
+                    || stagingEntry.Metadata.Kind != WindowsSkinPackageEntryKind.Directory
+                    || stagingEntry.Metadata.IsReparsePoint
+                    || toMutationIdentity(stagingEntry.Metadata.Identity)
+                    != expectedStagedRootIdentity)
+                {
+                    return stagedInspection(
+                        SkinManagedFolderStagedImportInspectionStatus.RootIdentityMismatch);
+                }
+
+                OpenedDirectory stagingRoot = openExpectedDirectory(
+                    fileSystem,
+                    dataRoot,
+                    stagingEntry.Name,
+                    WindowsSkinPackageOpenMode.AuthorityDirectory,
+                    SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                    cancellationToken,
+                    inspectionHandles);
+
+                if (toMutationIdentity(stagingRoot.Metadata.Identity)
+                    != expectedStagedRootIdentity)
+                {
+                    return stagedInspection(
+                        SkinManagedFolderStagedImportInspectionStatus.RootIdentityMismatch);
+                }
+
+                WindowsSkinPackageDirectoryEntry[] stagingInventory =
+                    canonicaliseDirectoryEntries(
+                        getDirectoryEntries(
+                            fileSystem,
+                            stagingRoot.Handle,
+                            max_authority_directory_entries,
+                            cancellationToken));
+                WindowsSkinPackageDirectoryEntry[] managedInventory =
+                    getCurrentManagedRootInventory(cancellationToken);
+                WindowsSkinPackageDirectoryEntry? source =
+                    getOptionalExactNameEntry(stagingInventory, sourceName);
+                WindowsSkinPackageDirectoryEntry? target =
+                    getOptionalExactNameEntry(managedInventory, targetName);
+
+                if ((source != null
+                     && !string.Equals(
+                         source.Name,
+                         sourceName,
+                         StringComparison.Ordinal))
+                    || (target != null
+                        && !string.Equals(
+                            target.Name,
+                        targetName,
+                        StringComparison.Ordinal)))
+                {
+                    validateInspectionRoots(
+                        stagingRoot,
+                        stagingInventory,
+                        cancellationToken);
+                    return stagedInspection(
+                        SkinManagedFolderStagedImportInspectionStatus
+                            .IdentityMismatch);
+                }
+
+                if (source != null && target != null)
+                {
+                    captureInspectionMetadata(
+                        stagingRoot.Handle,
+                        source,
+                        out _,
+                        cancellationToken);
+                    captureInspectionMetadata(
+                        mutationManagedRoot!,
+                        target,
+                        out _,
+                        cancellationToken);
+                    validateInspectionRoots(
+                        stagingRoot,
+                        stagingInventory,
+                        cancellationToken);
+                    return stagedInspection(
+                        SkinManagedFolderStagedImportInspectionStatus.Both);
+                }
+
+                if (source == null && target == null)
+                {
+                    validateInspectionRoots(
+                        stagingRoot,
+                        stagingInventory,
+                        cancellationToken);
+                    validateExactStagedInspectionState(
+                        stagingRoot.Handle,
+                        sourceName,
+                        targetName,
+                        expectedSourceIdentity,
+                        SkinManagedFolderStagedImportInspectionStatus.Neither,
+                        cancellationToken);
+                    return stagedInspection(
+                        SkinManagedFolderStagedImportInspectionStatus.Neither);
+                }
+
+                WindowsSkinPackageDirectoryEntry existing = source ?? target!;
+
+                if (toMutationIdentity(existing.Metadata.Identity)
+                    != expectedSourceIdentity)
+                {
+                    return stagedInspection(
+                        SkinManagedFolderStagedImportInspectionStatus.IdentityMismatch);
+                }
+
+                SkinManagedFolderPackageMetadata? metadata =
+                    captureInspectionMetadata(
+                        source != null
+                            ? stagingRoot.Handle
+                            : mutationManagedRoot!,
+                        existing,
+                        out string? treeFingerprint,
+                        cancellationToken);
+                validateInspectionRoots(
+                    stagingRoot,
+                    stagingInventory,
+                    cancellationToken);
+                SkinManagedFolderStagedImportInspectionStatus determinateStatus =
+                    source != null
+                        ? SkinManagedFolderStagedImportInspectionStatus.SourceOnly
+                        : SkinManagedFolderStagedImportInspectionStatus.TargetOnly;
+                validateExactStagedInspectionState(
+                    stagingRoot.Handle,
+                    sourceName,
+                    targetName,
+                    expectedSourceIdentity,
+                    determinateStatus,
+                    cancellationToken);
+
+                return new SkinManagedFolderStagedImportInspection(
+                    determinateStatus,
+                    ManagedRootIdentity,
+                    source == null ? expectedSourceIdentity : null,
+                    metadata,
+                    treeFingerprint);
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception) when (
+                exception.RejectionReason
+                == SkinManagedPackageCaptureRejectionReason.PackageUnavailable)
+            {
+                return stagedInspection(
+                    SkinManagedFolderStagedImportInspectionStatus.RootIdentityMismatch);
+            }
+            finally
+            {
+                disposeHandles(inspectionHandles);
+            }
+
+            SkinManagedFolderStagedImportInspection stagedInspection(
+                SkinManagedFolderStagedImportInspectionStatus status)
+                => new SkinManagedFolderStagedImportInspection(
+                    status,
+                    ManagedRootIdentity);
+        }
+
+        internal void CleanupExactStagedMutationSource(
+            Guid operationId,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+            CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            SkinManagedFolderStagedImportInspection before =
+                InspectStagedMutationImportState(
+                    operationId,
+                    targetManagedRelativePath,
+                    expectedStagedRootIdentity,
+                    expectedSourceIdentity,
+                    cancellationToken);
+
+            if (before.Status == SkinManagedFolderStagedImportInspectionStatus.Neither)
+                return;
+
+            if (before.Status != SkinManagedFolderStagedImportInspectionStatus.SourceOnly)
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+
+            if (stagedMutationCaptured
+                && !stagedMutationForwardApplied
+                && mutationSource is { } heldSource
+                && mutationSourceTree != null
+                && mutationStagingRoot is { } heldStagingRoot
+                && toMutationIdentity(heldSource.Metadata.Identity)
+                   == expectedSourceIdentity
+                && toMutationIdentity(heldStagingRoot.Metadata.Identity)
+                   == expectedStagedRootIdentity)
+            {
+                validateHeldMutationTree(
+                    fileSystem,
+                    mutationSourceTree,
+                    cancellationToken);
+                deleteHeldTree(mutationSourceTree);
+                mutationSource = null;
+                mutationSourceTree = null;
+                stagedMutationRolledBack = true;
+            }
+            else
+            {
+                deleteFreshStagedSource(
+                    operationId,
+                    expectedStagedRootIdentity,
+                    expectedSourceIdentity,
+                    cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            SkinManagedFolderStagedImportInspection after =
+                InspectStagedMutationImportState(
+                    operationId,
+                    targetManagedRelativePath,
+                    expectedStagedRootIdentity,
+                    expectedSourceIdentity,
+                    cancellationToken);
+
+            if (after.Status != SkinManagedFolderStagedImportInspectionStatus.Neither)
+                throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+        }
+
         /// <summary>
         /// Verifies that the authority chain is still linked to the held identities and that the complete direct-child
         /// inventory is byte-for-byte metadata-equivalent to the baseline enumeration.
@@ -420,6 +807,23 @@ namespace osu.Game.Skinning.Windows
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (stagedMutationCaptured)
+            {
+                if (stagedMutationForwardApplied)
+                {
+                    validateMovedStagedLocation(
+                        getManagedDirectChildName(
+                            mutationTargetNameSlot!.ManagedRelativePath),
+                        cancellationToken);
+                }
+                else if (stagedMutationRolledBack)
+                    validateRolledBackStagedLocation(cancellationToken);
+                else
+                    validatePreparedStagedLocation(cancellationToken);
+
+                return;
+            }
 
             if (mutationRenameState == MutationRenameState.ForwardApplied)
             {
@@ -507,11 +911,537 @@ namespace osu.Game.Skinning.Windows
             mutationManagedRoot = opened.Handle;
         }
 
+        private SkinManagedFolderStagedImportFilesystemResult captureAndValidateMovedStagedPackage(
+            string targetName,
+            string expectedContentRevision,
+            string expectedTreeFingerprint,
+            CancellationToken cancellationToken)
+        {
+            validateMovedStagedLocation(targetName, cancellationToken);
+            WindowsSkinPackageDirectoryEntry[] current =
+                getCurrentManagedRootInventory(cancellationToken);
+            WindowsSkinPackageDirectoryEntry? target =
+                getOptionalExactNameEntry(current, targetName);
+
+            if (target == null
+                || mutationSource is not { } source
+                || target.Metadata.Identity != source.Metadata.Identity)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+            }
+
+            SkinManagedPackageCaptureResult captured =
+                packageCapture.CaptureProvisionalChild(
+                    mutationManagedRoot!,
+                    target,
+                    cancellationToken: cancellationToken);
+
+            if (!captured.IsSuccess
+                || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    captured.PhysicalTreeFingerprint))
+            {
+                throw reject(
+                    captured.IsSuccess
+                        ? SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture
+                        : captured.RejectionReason
+                    == SkinManagedPackageCaptureRejectionReason.CapsuleRejected
+                        ? SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture
+                        : captured.RejectionReason);
+            }
+
+            SkinPackageRevisionCapsule capsule = captured.Capsule!;
+
+            try
+            {
+                if (!string.Equals(
+                        capsule.ContentRevision,
+                        expectedContentRevision,
+                        StringComparison.Ordinal)
+                    || !string.Equals(
+                        captured.PhysicalTreeFingerprint,
+                        expectedTreeFingerprint,
+                        StringComparison.Ordinal))
+                {
+                    throw reject(
+                        SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture);
+                }
+
+                validateMovedStagedLocation(targetName, cancellationToken);
+                return new SkinManagedFolderStagedImportFilesystemResult(
+                    toMutationIdentity(target.Metadata.Identity),
+                    captured.PhysicalTreeFingerprint!,
+                    capsule);
+            }
+            catch
+            {
+                capsule.Dispose();
+                throw;
+            }
+        }
+
+        private void validatePreparedStagedLocation(
+            CancellationToken cancellationToken)
+        {
+            if (mutationStagingRoot is not { } stagingRoot
+                || mutationStagingBaselineEntries == null
+                || mutationSource is not { } source
+                || mutationSourceTree == null
+                || mutationStagedSourceBaselineEntry == null)
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            validateBaselineCompleteAndStable(cancellationToken);
+            validateLinkInventory(
+                stagingRoot.Handle,
+                mutationStagingBaselineEntries,
+                cancellationToken);
+            validateHeldMutationTree(
+                fileSystem,
+                mutationSourceTree,
+                cancellationToken);
+
+            WindowsSkinPackageEntryMetadata held =
+                fileSystem.QueryMetadata(source.Handle);
+
+            if (held.Identity != source.Metadata.Identity
+                || held.Kind != WindowsSkinPackageEntryKind.Directory
+                || held.IsReparsePoint
+                || held.DeletePending)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+            }
+        }
+
+        private void validateMovedStagedLocation(
+            string targetName,
+            CancellationToken cancellationToken)
+        {
+            if (mutationStagingRoot is not { } stagingRoot
+                || mutationStagingBaselineEntries == null
+                || mutationStagedSourceBaselineEntry == null
+                || mutationSource is not { } source
+                || mutationSourceTree == null
+                || mutationManagedRoot == null
+                || mutationSourceOriginalName == null)
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
+            validateAuthorityLinks(fileSystem, authorityLinks, cancellationToken);
+            validateInventoryWithoutEntry(
+                stagingRoot.Handle,
+                mutationStagingBaselineEntries,
+                mutationStagedSourceBaselineEntry,
+                cancellationToken);
+
+            WindowsSkinPackageDirectoryEntry[] managed =
+                getCurrentManagedRootInventory(cancellationToken);
+
+            if (managed.Length != baselineEntries.Length + 1)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+            }
+
+            WindowsSkinPackageDirectoryEntry? target =
+                getOptionalExactNameEntry(managed, targetName);
+
+            if (target == null
+                || !string.Equals(target.Name, targetName, StringComparison.Ordinal)
+                || target.Metadata.Kind != WindowsSkinPackageEntryKind.Directory
+                || target.Metadata.IsReparsePoint
+                || target.Metadata.DeletePending
+                || target.Metadata.Identity != source.Metadata.Identity)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+            }
+
+            foreach (WindowsSkinPackageDirectoryEntry baseline in baselineEntries)
+            {
+                WindowsSkinPackageDirectoryEntry? matching =
+                    managed.SingleOrDefault(
+                        entry => string.Equals(
+                            entry.Name,
+                            baseline.Name,
+                            StringComparison.Ordinal));
+
+                if (matching == null
+                    || !DirectoryEntryComparer.Instance.Equals(
+                        baseline,
+                        matching))
+                {
+                    throw reject(
+                        SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+                }
+            }
+
+            WindowsSkinPackageEntryMetadata heldMetadata =
+                fileSystem.QueryMetadata(source.Handle);
+
+            if (heldMetadata.IsReparsePoint
+                || heldMetadata.Kind != WindowsSkinPackageEntryKind.Directory
+                || heldMetadata.Identity != source.Metadata.Identity
+                || heldMetadata.NumberOfLinks != 1
+                || heldMetadata.DeletePending)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+            }
+
+            if (mutationSourceTree.DescendantsReleased)
+            {
+                OpenedDirectory reopened = openExpectedDirectory(
+                    fileSystem,
+                    mutationManagedRoot,
+                    targetName,
+                    WindowsSkinPackageOpenMode.ProvisionalDirectory,
+                    SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged,
+                    cancellationToken,
+                    handles);
+                HeldMutationTree recaptured = holdMutationTree(
+                    reopened.Handle,
+                    reopened.Metadata,
+                    handles,
+                    cancellationToken,
+                    provisional: true);
+                validateRecapturedMutationTree(
+                    mutationSourceTree,
+                    recaptured);
+                mutationSourceTree = recaptured;
+            }
+
+            validateHeldMutationTree(
+                fileSystem,
+                mutationSourceTree,
+                cancellationToken);
+            validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
+            validateAuthorityLinks(fileSystem, authorityLinks, cancellationToken);
+        }
+
+        private void validateRolledBackStagedLocation(
+            CancellationToken cancellationToken)
+        {
+            if (mutationStagingRoot is not { } stagingRoot
+                || mutationStagingBaselineEntries == null
+                || mutationStagedSourceBaselineEntry == null)
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
+            validateAuthorityLinks(fileSystem, authorityLinks, cancellationToken);
+            validateExactInventory(
+                mutationManagedRoot ?? managedRoot,
+                baselineEntries,
+                cancellationToken);
+            validateInventoryWithoutEntry(
+                stagingRoot.Handle,
+                mutationStagingBaselineEntries,
+                mutationStagedSourceBaselineEntry,
+                cancellationToken);
+            validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
+            validateAuthorityLinks(fileSystem, authorityLinks, cancellationToken);
+        }
+
+        private void validateInspectionRoots(
+            OpenedDirectory stagingRoot,
+            WindowsSkinPackageDirectoryEntry[] stagingBaseline,
+            CancellationToken cancellationToken)
+        {
+            validateLinkInventory(
+                stagingRoot.Handle,
+                stagingBaseline,
+                cancellationToken);
+            validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
+            validateAuthorityLinks(fileSystem, authorityLinks, cancellationToken);
+        }
+
+        private SkinManagedFolderPackageMetadata? captureInspectionMetadata(
+            IWindowsSkinPackageCaptureHandle parent,
+            WindowsSkinPackageDirectoryEntry candidate,
+            out string? treeFingerprint,
+            CancellationToken cancellationToken)
+        {
+            treeFingerprint = null;
+            SkinManagedPackageCaptureResult captured =
+                packageCapture.CaptureProvisionalChild(
+                    parent,
+                    candidate,
+                    cancellationToken: cancellationToken);
+
+            if (!captured.IsSuccess)
+            {
+                if (captured.RejectionReason
+                    == SkinManagedPackageCaptureRejectionReason.CapsuleRejected)
+                {
+                    return null;
+                }
+
+                throw reject(captured.RejectionReason);
+            }
+
+            if (!SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    captured.PhysicalTreeFingerprint))
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture);
+            }
+
+            using SkinPackageRevisionCapsule capsule = captured.Capsule!;
+            treeFingerprint = captured.PhysicalTreeFingerprint;
+
+            return SkinManagedFolderPackageMetadataReader.TryRead(
+                capsule,
+                out SkinManagedFolderPackageMetadata? metadata)
+                ? metadata
+                : null;
+        }
+
+        private void validateExactStagedInspectionState(
+            IWindowsSkinPackageCaptureHandle stagingRoot,
+            string sourceName,
+            string targetName,
+            SkinManagedFolderPhysicalIdentity expectedIdentity,
+            SkinManagedFolderStagedImportInspectionStatus expectedStatus,
+            CancellationToken cancellationToken)
+        {
+            WindowsSkinPackageDirectoryEntry? source =
+                getOptionalExactNameEntry(
+                    canonicaliseDirectoryEntries(
+                        getDirectoryEntries(
+                            fileSystem,
+                            stagingRoot,
+                            max_authority_directory_entries,
+                            cancellationToken)),
+                    sourceName);
+            WindowsSkinPackageDirectoryEntry? target =
+                getOptionalExactNameEntry(
+                    getCurrentManagedRootInventory(cancellationToken),
+                    targetName);
+
+            bool sourceExact = isExactSlot(source, sourceName);
+            bool targetExact = isExactSlot(target, targetName);
+            bool valid = expectedStatus switch
+            {
+                SkinManagedFolderStagedImportInspectionStatus.SourceOnly =>
+                    sourceExact && target == null,
+                SkinManagedFolderStagedImportInspectionStatus.TargetOnly =>
+                    source == null && targetExact,
+                SkinManagedFolderStagedImportInspectionStatus.Neither =>
+                    source == null && target == null,
+                _ => false,
+            };
+
+            if (!valid)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason
+                        .EntryChangedDuringCapture);
+            }
+
+            return;
+
+            bool isExactSlot(
+                WindowsSkinPackageDirectoryEntry? current,
+                string expectedName)
+                => current != null
+                   && string.Equals(
+                       current.Name,
+                       expectedName,
+                       StringComparison.Ordinal)
+                   && current.Metadata.Kind
+                   == WindowsSkinPackageEntryKind.Directory
+                   && !current.Metadata.IsReparsePoint
+                   && !current.Metadata.DeletePending
+                   && toMutationIdentity(current.Metadata.Identity)
+                   == expectedIdentity;
+        }
+
+        private void deleteFreshStagedSource(
+            Guid operationId,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+            CancellationToken cancellationToken)
+        {
+            var cleanupHandles = new List<IWindowsSkinPackageCaptureHandle>();
+
+            try
+            {
+                OpenedDirectory stagingRoot = openExpectedDirectory(
+                    fileSystem,
+                    dataRoot,
+                    "skin-mutation-staging",
+                    WindowsSkinPackageOpenMode.AuthorityDirectory,
+                    SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                    cancellationToken,
+                    cleanupHandles);
+
+                if (toMutationIdentity(stagingRoot.Metadata.Identity)
+                    != expectedStagedRootIdentity)
+                {
+                    throw reject(
+                        SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+                }
+
+                string sourceName = operationId.ToString("N");
+                WindowsSkinPackageDirectoryEntry[] stagingInventory =
+                    canonicaliseDirectoryEntries(
+                        getDirectoryEntries(
+                            fileSystem,
+                            stagingRoot.Handle,
+                            max_authority_directory_entries,
+                            cancellationToken));
+                WindowsSkinPackageDirectoryEntry? candidate =
+                    getOptionalExactNameEntry(stagingInventory, sourceName);
+
+                if (candidate == null
+                    || !string.Equals(
+                        candidate.Name,
+                        sourceName,
+                        StringComparison.Ordinal)
+                    || toMutationIdentity(candidate.Metadata.Identity)
+                       != expectedSourceIdentity)
+                {
+                    throw reject(
+                        SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+                }
+
+                OpenedDirectory source = openExpectedDirectory(
+                    fileSystem,
+                    stagingRoot.Handle,
+                    sourceName,
+                    WindowsSkinPackageOpenMode.ProvisionalDirectory,
+                    SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                    cancellationToken,
+                    cleanupHandles);
+                HeldMutationTree tree = holdMutationTree(
+                    source.Handle,
+                    source.Metadata,
+                    cleanupHandles,
+                    cancellationToken,
+                    provisional: true);
+                captureInspectionMetadata(
+                    stagingRoot.Handle,
+                    candidate,
+                    out _,
+                    cancellationToken);
+                validateHeldMutationTree(fileSystem, tree, cancellationToken);
+                deleteHeldTree(tree, cleanupHandles);
+            }
+            finally
+            {
+                disposeHandles(cleanupHandles);
+            }
+        }
+
+        private void deleteHeldTree(HeldMutationTree tree)
+            => deleteHeldTree(tree, handles);
+
+        private void deleteHeldTree(
+            HeldMutationTree tree,
+            List<IWindowsSkinPackageCaptureHandle> ownerHandles)
+        {
+            if (tree.DescendantsReleased)
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+
+            for (int i = tree.Nodes.Count - 1; i >= 0; i--)
+            {
+                IWindowsSkinPackageCaptureHandle handle = tree.Nodes[i].Handle;
+                fileSystem.DeleteNoFollow(handle);
+                handle.Dispose();
+                ownerHandles.Remove(handle);
+            }
+
+            tree.DescendantsReleased = true;
+        }
+
+        private void validateExactInventory(
+            IWindowsSkinPackageCaptureHandle directory,
+            WindowsSkinPackageDirectoryEntry[] expected,
+            CancellationToken cancellationToken)
+        {
+            WindowsSkinPackageDirectoryEntry[] current;
+
+            try
+            {
+                current = canonicaliseDirectoryEntries(
+                    getDirectoryEntries(
+                        fileSystem,
+                        directory,
+                        expected.Length,
+                        cancellationToken));
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception) when (
+                exception.RejectionReason
+                == SkinManagedPackageCaptureRejectionReason.DirectoryEnumerationBudgetExceeded)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+            }
+
+            if (!expected.SequenceEqual(
+                    current,
+                    DirectoryEntryComparer.Instance))
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+            }
+        }
+
+        private void validateLinkInventory(
+            IWindowsSkinPackageCaptureHandle directory,
+            WindowsSkinPackageDirectoryEntry[] expected,
+            CancellationToken cancellationToken)
+        {
+            WindowsSkinPackageDirectoryEntry[] current;
+
+            try
+            {
+                current = canonicaliseDirectoryEntries(
+                    getDirectoryEntries(
+                        fileSystem,
+                        directory,
+                        expected.Length,
+                        cancellationToken));
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception) when (
+                exception.RejectionReason
+                == SkinManagedPackageCaptureRejectionReason.DirectoryEnumerationBudgetExceeded)
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+            }
+
+            if (!mutationInventoryLinksMatch(expected, current))
+            {
+                throw reject(
+                    SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+            }
+        }
+
+        private void validateInventoryWithoutEntry(
+            IWindowsSkinPackageCaptureHandle directory,
+            WindowsSkinPackageDirectoryEntry[] baseline,
+            WindowsSkinPackageDirectoryEntry removed,
+            CancellationToken cancellationToken)
+        {
+            WindowsSkinPackageDirectoryEntry[] expected =
+                baseline.Where(entry => !ReferenceEquals(entry, removed)).ToArray();
+            validateExactInventory(directory, expected, cancellationToken);
+        }
+
         private HeldMutationTree holdMutationTree(
             IWindowsSkinPackageCaptureHandle root,
             WindowsSkinPackageEntryMetadata rootMetadata,
             List<IWindowsSkinPackageCaptureHandle> treeHandles,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool provisional = false)
         {
             var nodes = new List<MutationTreeNodeRecord>();
             var directories = new List<MutationTreeDirectoryRecord>();
@@ -519,7 +1449,7 @@ namespace osu.Game.Skinning.Windows
             int entryCount = 0;
 
             captureNode(root, rootMetadata);
-            var tree = new HeldMutationTree(nodes, directories);
+            var tree = new HeldMutationTree(nodes, directories, provisional);
             validateHeldMutationTree(fileSystem, tree, cancellationToken);
             return tree;
 
@@ -596,8 +1526,14 @@ namespace osu.Game.Skinning.Windows
 
                     WindowsSkinPackageOpenMode mode = entry.Metadata.Kind switch
                     {
-                        WindowsSkinPackageEntryKind.Directory => WindowsSkinPackageOpenMode.MutationSourceVerificationDirectory,
-                        WindowsSkinPackageEntryKind.File => WindowsSkinPackageOpenMode.MutationSourceVerificationFile,
+                        WindowsSkinPackageEntryKind.Directory when provisional =>
+                            WindowsSkinPackageOpenMode.ProvisionalDirectory,
+                        WindowsSkinPackageEntryKind.File when provisional =>
+                            WindowsSkinPackageOpenMode.ProvisionalFile,
+                        WindowsSkinPackageEntryKind.Directory =>
+                            WindowsSkinPackageOpenMode.MutationSourceVerificationDirectory,
+                        WindowsSkinPackageEntryKind.File =>
+                            WindowsSkinPackageOpenMode.MutationSourceVerificationFile,
                         _ => throw reject(SkinManagedPackageCaptureRejectionReason.UnsupportedEntryType),
                     };
                     IWindowsSkinPackageCaptureHandle child = own(
@@ -644,7 +1580,13 @@ namespace osu.Game.Skinning.Windows
                     throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
                 }
 
-                if (!directory.Baseline.SequenceEqual(current, DirectoryEntryComparer.Instance))
+                bool inventoryMatches = tree.Provisional
+                    ? mutationInventoryLinksMatch(directory.Baseline, current)
+                    : directory.Baseline.SequenceEqual(
+                        current,
+                        DirectoryEntryComparer.Instance);
+
+                if (!inventoryMatches)
                     throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
             }
 
@@ -695,6 +1637,30 @@ namespace osu.Game.Skinning.Windows
                 tree.Nodes[i].Handle.Dispose();
 
             tree.DescendantsReleased = true;
+        }
+
+        private static bool mutationInventoryLinksMatch(
+            WindowsSkinPackageDirectoryEntry[] expected,
+            WindowsSkinPackageDirectoryEntry[] actual)
+        {
+            if (expected.Length != actual.Length)
+                return false;
+
+            for (int i = 0; i < expected.Length; i++)
+            {
+                if (!string.Equals(
+                        expected[i].Name,
+                        actual[i].Name,
+                        StringComparison.Ordinal)
+                    || expected[i].Metadata.Identity
+                       != actual[i].Metadata.Identity
+                    || expected[i].Metadata.Kind != actual[i].Metadata.Kind)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static void validateRecapturedMutationTree(
@@ -1234,7 +2200,8 @@ namespace osu.Game.Skinning.Windows
 
         private sealed record HeldMutationTree(
             IReadOnlyList<MutationTreeNodeRecord> Nodes,
-            IReadOnlyList<MutationTreeDirectoryRecord> Directories)
+            IReadOnlyList<MutationTreeDirectoryRecord> Directories,
+            bool Provisional)
         {
             internal bool DescendantsReleased { get; set; }
         }

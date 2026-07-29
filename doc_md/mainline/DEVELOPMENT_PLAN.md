@@ -24,13 +24,13 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、专用mutation authority/recovery foundation及directory-only rename现已闭合成窄生产链。当前按staged import → delete推进；external registration/capture与atomic reload/detach继续各自独立过门。
+authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、专用mutation authority/recovery foundation、directory-only rename及fixed-source staged import现已闭合成窄生产链。当前推进managed delete；external registration/capture与atomic reload/detach继续各自独立过门。
 
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
-2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、current delete protected fallback pair门及directory-only rename已闭合；rename仍无UI。当前staged import → delete必须分别冻结产品语义并满足held-root write authority、containment、冲突、reparse/hardlink、final identity、Realm publication与crash-point恢复；可安全判定时幂等forward/rollback到明确完成态或旧态，不能安全判定时保留journal并继续冻结。external永久只读。
+2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、current delete protected fallback pair门、directory-only rename及fixed-source staged import已闭合；staged import以durable content/tree fingerprint固定Prepared，current recovery严格逐阶段write + exact reload且拒绝fixed-ID journal，rename/import仍无UI。当前managed delete必须独立满足held-root write authority、containment、冲突、reparse/hardlink、final identity、Realm publication与crash-point恢复；可安全判定时幂等forward/rollback到明确完成态或旧态，不能安全判定时保留journal并继续冻结。external永久只读。
 3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。
 4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
-5. **实机 gate**：managed/external、重启、切换、缺件 fallback、删除/重命名均经人工确认。
+5. **实机 gate**：managed/external、重启、切换、缺件 fallback、导入/删除/重命名均经人工确认。
 
 G1 必须按独立切片推进，不得从异常期存档整批恢复。
 

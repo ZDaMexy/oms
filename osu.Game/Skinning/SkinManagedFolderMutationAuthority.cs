@@ -58,6 +58,98 @@ namespace osu.Game.Skinning
         public override string ToString() => $"{nameof(SkinManagedFolderRenameInspection)}:{Status}";
     }
 
+    internal enum SkinManagedFolderStagedImportInspectionStatus
+    {
+        SourceOnly,
+        TargetOnly,
+        Both,
+        Neither,
+        IdentityMismatch,
+        RootIdentityMismatch,
+    }
+
+    /// <summary>
+    /// Non-sensitive physical inspection of one fixed staged source and managed target slot.
+    /// </summary>
+    internal sealed class SkinManagedFolderStagedImportInspection
+    {
+        public SkinManagedFolderStagedImportInspectionStatus Status { get; }
+
+        public SkinManagedFolderPhysicalIdentity ManagedRootIdentity { get; }
+
+        public SkinManagedFolderPhysicalIdentity? TargetIdentity { get; }
+
+        public SkinManagedFolderPackageMetadata? PackageMetadata { get; }
+
+        public string? TreeFingerprint { get; }
+
+        public SkinManagedFolderStagedImportInspection(
+            SkinManagedFolderStagedImportInspectionStatus status,
+            SkinManagedFolderPhysicalIdentity managedRootIdentity,
+            SkinManagedFolderPhysicalIdentity? targetIdentity = null,
+            SkinManagedFolderPackageMetadata? packageMetadata = null,
+            string? treeFingerprint = null)
+        {
+            if (!Enum.IsDefined(status)
+                || !managedRootIdentity.IsUsable
+                || (treeFingerprint != null
+                    && !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        treeFingerprint)))
+            {
+                throw new ArgumentException("The staged-import inspection is invalid.");
+            }
+
+            Status = status;
+            ManagedRootIdentity = managedRootIdentity;
+            TargetIdentity = targetIdentity;
+            PackageMetadata = packageMetadata;
+            TreeFingerprint = treeFingerprint;
+        }
+
+        public override string ToString()
+            => $"{nameof(SkinManagedFolderStagedImportInspection)}:{Status}";
+    }
+
+    /// <summary>
+    /// Exact, final target capture returned after an identity-preserving staged move.
+    /// </summary>
+    internal sealed class SkinManagedFolderStagedImportFilesystemResult : IDisposable
+    {
+        private SkinPackageRevisionCapsule? capsule;
+
+        public SkinManagedFolderPhysicalIdentity TargetIdentity { get; }
+
+        public string TreeFingerprint { get; }
+
+        public SkinPackageRevisionCapsule Capsule
+            => capsule ?? throw new ObjectDisposedException(nameof(SkinManagedFolderStagedImportFilesystemResult));
+
+        public SkinManagedFolderStagedImportFilesystemResult(
+            SkinManagedFolderPhysicalIdentity targetIdentity,
+            string treeFingerprint,
+            SkinPackageRevisionCapsule capsule)
+        {
+            if (!targetIdentity.IsUsable
+                || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    treeFingerprint))
+            {
+                throw new ArgumentException("The staged-import target evidence is invalid.");
+            }
+
+            TargetIdentity = targetIdentity;
+            TreeFingerprint = treeFingerprint;
+            this.capsule = capsule ?? throw new ArgumentNullException(nameof(capsule));
+        }
+
+        public void Dispose()
+        {
+            SkinPackageRevisionCapsule? owned = Interlocked.Exchange(ref capsule, null);
+            owned?.Dispose();
+        }
+
+        public override string ToString() => nameof(SkinManagedFolderStagedImportFilesystemResult);
+    }
+
     internal interface ISkinManagedFolderMutationNativeAuthority
     {
         ISkinManagedFolderMutationNativeSession Open(CancellationToken cancellationToken);
@@ -83,24 +175,82 @@ namespace osu.Game.Skinning
             SkinManagedFolderTargetNameSlot targetNameSlot,
             CancellationToken cancellationToken);
 
+        SkinManagedFolderStagedImportFilesystemResult MoveCapturedStagedSourceToTarget(
+            SkinManagedFolderTargetNameSlot targetNameSlot,
+            string expectedContentRevision,
+            string expectedTreeFingerprint,
+            CancellationToken cancellationToken);
+
         SkinManagedFolderRenameInspection InspectRenameState(
             string sourceManagedRelativePath,
             string targetManagedRelativePath,
             SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
             CancellationToken cancellationToken);
 
+        SkinManagedFolderStagedImportInspection InspectStagedImportState(
+            Guid operationId,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+            CancellationToken cancellationToken);
+
+        void CleanupExactStagedSource(
+            Guid operationId,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+            CancellationToken cancellationToken);
+
         void ValidateCompleteAndStable(CancellationToken cancellationToken);
     }
 
-    internal readonly record struct SkinManagedFolderStagedSourceCapture(
-        SkinManagedFolderPhysicalIdentity StagedRootIdentity,
-        SkinManagedFolderPhysicalIdentity SourceIdentity)
+    internal sealed class SkinManagedFolderStagedSourceCapture : IDisposable
     {
+        private SkinPackageRevisionCapsule? capsule;
+
+        public SkinManagedFolderPhysicalIdentity StagedRootIdentity { get; }
+
+        public SkinManagedFolderPhysicalIdentity SourceIdentity { get; }
+
+        public string TreeFingerprint { get; }
+
+        public SkinPackageRevisionCapsule Capsule
+            => capsule ?? throw new ObjectDisposedException(nameof(SkinManagedFolderStagedSourceCapture));
+
+        public SkinManagedFolderStagedSourceCapture(
+            SkinManagedFolderPhysicalIdentity stagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity sourceIdentity,
+            string treeFingerprint,
+            SkinPackageRevisionCapsule capsule)
+        {
+            if (!SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    treeFingerprint))
+            {
+                throw new ArgumentException(
+                    "The staged source tree fingerprint is invalid.",
+                    nameof(treeFingerprint));
+            }
+
+            StagedRootIdentity = stagedRootIdentity;
+            SourceIdentity = sourceIdentity;
+            TreeFingerprint = treeFingerprint;
+            this.capsule = capsule ?? throw new ArgumentNullException(nameof(capsule));
+        }
+
         public bool IsUsableFor(SkinManagedFolderPhysicalIdentity managedRootIdentity)
             => StagedRootIdentity.IsUsable
                && SourceIdentity.IsUsable
+               && capsule != null
+               && SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                   TreeFingerprint)
                && StagedRootIdentity.VolumeSerialNumber == managedRootIdentity.VolumeSerialNumber
                && SourceIdentity.VolumeSerialNumber == managedRootIdentity.VolumeSerialNumber;
+
+        public void Dispose()
+        {
+            SkinPackageRevisionCapsule? owned = Interlocked.Exchange(ref capsule, null);
+            owned?.Dispose();
+        }
 
         public override string ToString() => nameof(SkinManagedFolderStagedSourceCapture);
     }
@@ -142,15 +292,26 @@ namespace osu.Game.Skinning
         public string RelativePath { get; }
         public SkinManagedFolderPhysicalIdentity PhysicalIdentity { get; }
         public SkinManagedFolderPhysicalIdentity StagedRootIdentity { get; }
+        public string ContentRevision { get; }
+        public string TreeFingerprint { get; }
 
         internal SkinManagedFolderStagedSourceAuthority(
             Guid operationId,
             SkinManagedFolderPhysicalIdentity physicalIdentity,
             SkinManagedFolderPhysicalIdentity stagedRootIdentity,
-            SkinManagedFolderPhysicalIdentity managedRootIdentity)
+            SkinManagedFolderPhysicalIdentity managedRootIdentity,
+            string contentRevision,
+            string treeFingerprint)
         {
             if (operationId == Guid.Empty
-                || !new SkinManagedFolderStagedSourceCapture(stagedRootIdentity, physicalIdentity).IsUsableFor(managedRootIdentity))
+                || !stagedRootIdentity.IsUsable
+                || !physicalIdentity.IsUsable
+                || stagedRootIdentity.VolumeSerialNumber != managedRootIdentity.VolumeSerialNumber
+                || physicalIdentity.VolumeSerialNumber != managedRootIdentity.VolumeSerialNumber
+                || !SkinManagedFolderMutationJournal.IsValidContentRevision(
+                    contentRevision)
+                || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    treeFingerprint))
             {
                 throw new ArgumentException("The staged source authority is invalid.");
             }
@@ -159,6 +320,8 @@ namespace osu.Game.Skinning
             RelativePath = SkinManagedFolderMutationJournal.GetExpectedStagedSourceRelativePath(operationId);
             PhysicalIdentity = physicalIdentity;
             StagedRootIdentity = stagedRootIdentity;
+            ContentRevision = contentRevision;
+            TreeFingerprint = treeFingerprint;
         }
 
         public bool Validate(SkinManagedFolderPhysicalIdentity managedRootIdentity)
@@ -167,7 +330,14 @@ namespace osu.Game.Skinning
                    RelativePath,
                     SkinManagedFolderMutationJournal.GetExpectedStagedSourceRelativePath(OperationId),
                     StringComparison.Ordinal)
-               && new SkinManagedFolderStagedSourceCapture(StagedRootIdentity, PhysicalIdentity).IsUsableFor(managedRootIdentity);
+               && StagedRootIdentity.IsUsable
+               && PhysicalIdentity.IsUsable
+               && StagedRootIdentity.VolumeSerialNumber == managedRootIdentity.VolumeSerialNumber
+               && PhysicalIdentity.VolumeSerialNumber == managedRootIdentity.VolumeSerialNumber
+               && SkinManagedFolderMutationJournal.IsValidContentRevision(
+                   ContentRevision)
+               && SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                   TreeFingerprint);
 
         public override string ToString() => nameof(SkinManagedFolderStagedSourceAuthority);
     }
@@ -216,6 +386,10 @@ namespace osu.Game.Skinning
                && ManagedRootIdentity == managedRootIdentity
                && string.Equals(Version, SkinManagedFolderMutationJournal.NEW_RECORD_PUBLICATION_PLAN_VERSION, StringComparison.Ordinal);
 
+        public SkinManagedFolderNewRecordPublicationData CreatePublicationData(
+            SkinManagedFolderPackageMetadata metadata)
+            => new SkinManagedFolderNewRecordPublicationData(this, metadata);
+
         public override string ToString() => nameof(SkinManagedFolderNewRecordPublicationPlan);
     }
 
@@ -250,6 +424,8 @@ namespace osu.Game.Skinning
         private readonly Func<CancellationToken, bool> validateLogicalAuthority;
         private readonly object sessionGate = new object();
         private SkinManagedFolderMutationJournal? durableJournal;
+        private SkinManagedFolderNewRecordPublicationData? stagedImportPublicationData;
+        private bool stagedImportPublisherAttempted;
 
         public Guid OperationId { get; }
         public SkinManagedFolderMutationKind Kind { get; }
@@ -427,7 +603,9 @@ namespace osu.Game.Skinning
                         ManagedRootIdentity,
                         TargetNameSlot.ManagedRelativePath,
                         StagedSource.PhysicalIdentity,
-                        StagedSource.StagedRootIdentity),
+                        StagedSource.StagedRootIdentity,
+                        StagedSource.ContentRevision,
+                        StagedSource.TreeFingerprint),
 
                 _ => throw new InvalidOperationException("The held managed-folder mutation authority is incomplete."),
             };
@@ -507,6 +685,254 @@ namespace osu.Game.Skinning
                 {
                     coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
                     throw new SkinManagedFolderMutationJournalException();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Moves the held operation-owned provisional package into its managed target, captures the exact final capsule,
+        /// and durably records the scanner-equivalent publication fingerprint.
+        /// </summary>
+        internal SkinManagedFolderPhysicalIdentity ApplyCapturedStagedImportWithDurableReceipt(
+            SkinManagedFolderDurableMutationReceipt receipt,
+            CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                if (Kind != SkinManagedFolderMutationKind.StagedImport
+                    || TargetNameSlot == null
+                    || StagedSource == null
+                    || NewRecordPublicationPlan == null
+                    || nativeSession == null
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.Prepared } prepared
+                    || receipt == null
+                    || !Validate(cancellationToken)
+                    || !receipt.ValidateHeld(this, journalStore))
+                {
+                    throw new InvalidOperationException("The held staged-import authority is no longer valid.");
+                }
+
+                SkinManagedFolderStagedImportFilesystemResult? filesystemResult = null;
+
+                try
+                {
+                    filesystemResult = nativeSession.MoveCapturedStagedSourceToTarget(
+                        TargetNameSlot,
+                        StagedSource.ContentRevision,
+                        StagedSource.TreeFingerprint,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+
+                using (filesystemResult)
+                {
+                    try
+                    {
+                        if (filesystemResult.TargetIdentity != StagedSource.PhysicalIdentity
+                            || !string.Equals(
+                                filesystemResult.TreeFingerprint,
+                                StagedSource.TreeFingerprint,
+                                StringComparison.Ordinal)
+                            || !SkinManagedFolderPackageMetadataReader.TryRead(
+                                filesystemResult.Capsule,
+                                out SkinManagedFolderPackageMetadata? metadata)
+                            || !string.Equals(
+                                metadata!.ContentRevision,
+                                StagedSource.ContentRevision,
+                                StringComparison.Ordinal))
+                        {
+                            throw new InvalidOperationException("The final staged-import package changed.");
+                        }
+
+                        SkinManagedFolderNewRecordPublicationData publication =
+                            NewRecordPublicationPlan.CreatePublicationData(metadata);
+                        SkinManagedFolderMutationJournal filesystemApplied =
+                            prepared.WithFilesystemApplied(
+                                filesystemResult.TargetIdentity,
+                                publication.Fingerprint);
+                        writeAndConfirm(filesystemApplied);
+                        durableJournal = filesystemApplied;
+                        stagedImportPublicationData = publication;
+                        return filesystemResult.TargetIdentity;
+                    }
+                    catch
+                    {
+                        coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                        throw new SkinManagedFolderMutationJournalException();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invokes the staged import's one-shot Realm publisher only from an exact durable FilesystemApplied state.
+        /// </summary>
+        internal bool TryPublishStagedImportRealm(
+            Func<SkinManagedFolderNewRecordPublicationData, bool> publishRealm,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(publishRealm);
+
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.StagedImport
+                    || stagedImportPublisherAttempted
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.FilesystemApplied } filesystemApplied
+                    || stagedImportPublicationData is not { } publication
+                    || !string.Equals(
+                        filesystemApplied.NewRecordPublicationFingerprint,
+                        publication.Fingerprint,
+                        StringComparison.Ordinal)
+                    || !isExactDurableJournal(filesystemApplied)
+                    || !isCapturedStagedImportTargetStable(
+                        filesystemApplied,
+                        publication,
+                        cancellationToken))
+                {
+                    return false;
+                }
+
+                stagedImportPublisherAttempted = true;
+
+                try
+                {
+                    if (!publishRealm(publication))
+                    {
+                        coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                        return false;
+                    }
+
+                    if (!isCapturedStagedImportTargetStable(
+                            filesystemApplied,
+                            publication,
+                            cancellationToken))
+                    {
+                        coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                        return false;
+                    }
+
+                    SkinManagedFolderMutationJournal realmApplied = filesystemApplied.WithRealmApplied();
+                    writeAndConfirm(realmApplied);
+                    durableJournal = realmApplied;
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    return false;
+                }
+            }
+        }
+
+        internal bool TryCommitStagedImport(CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.StagedImport
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.RealmApplied } realmApplied
+                    || stagedImportPublicationData is not { } publication
+                    || !isExactDurableJournal(realmApplied)
+                    || !isCapturedStagedImportTargetStable(
+                        realmApplied,
+                        publication,
+                        cancellationToken))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    SkinManagedFolderMutationJournal committed = realmApplied.WithCommitted();
+                    writeAndConfirm(committed);
+                    durableJournal = committed;
+                    journalStore.Delete(committed);
+
+                    if (journalStore.Load().Status != SkinManagedFolderMutationJournalLoadStatus.Missing)
+                        throw new InvalidOperationException("The committed staged-import journal remains visible.");
+
+                    durableJournal = null;
+                    coordinator.UnfreezeRecoveryPaths(committed.GetAffectedManagedRelativePaths());
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(realmApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(realmApplied.GetAffectedManagedRelativePaths());
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cleans only the exact operation-owned provisional source before terminally rolling back a Prepared import.
+        /// </summary>
+        internal bool TryRollbackPreparedStagedImport(
+            SkinManagedFolderDurableMutationReceipt receipt,
+            CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.StagedImport
+                    || TargetNameSlot == null
+                    || StagedSource == null
+                    || nativeSession == null
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.Prepared } prepared
+                    || receipt == null
+                    || !receipt.ValidateHeld(this, journalStore))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    nativeSession.CleanupExactStagedSource(
+                        OperationId,
+                        TargetNameSlot.ManagedRelativePath,
+                        StagedSource.StagedRootIdentity,
+                        StagedSource.PhysicalIdentity,
+                        cancellationToken);
+
+                    SkinManagedFolderMutationJournal rolledBack = prepared.WithRolledBack();
+                    writeAndConfirm(rolledBack);
+                    durableJournal = rolledBack;
+                    journalStore.Delete(rolledBack);
+
+                    if (journalStore.Load().Status != SkinManagedFolderMutationJournalLoadStatus.Missing)
+                        throw new InvalidOperationException("The rolled-back staged-import journal remains visible.");
+
+                    durableJournal = null;
+                    coordinator.UnfreezeRecoveryPaths(rolledBack.GetAffectedManagedRelativePaths());
+                    return true;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                    return false;
                 }
             }
         }
@@ -643,6 +1069,60 @@ namespace osu.Game.Skinning
             }
         }
 
+        private bool isCapturedStagedImportTargetStable(
+            SkinManagedFolderMutationJournal journal,
+            SkinManagedFolderNewRecordPublicationData publication,
+            CancellationToken cancellationToken)
+        {
+            if (nativeSession == null
+                || journal.TargetManagedRelativePath == null
+                || journal.StagedRootIdentity == null
+                || journal.StagedSourceIdentity == null
+                || journal.TargetIdentity == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                SkinManagedFolderStagedImportInspection inspection = nativeSession.InspectStagedImportState(
+                    journal.OperationId,
+                    journal.TargetManagedRelativePath,
+                    journal.StagedRootIdentity.Value,
+                    journal.StagedSourceIdentity.Value,
+                    cancellationToken);
+
+                if (inspection.Status != SkinManagedFolderStagedImportInspectionStatus.TargetOnly
+                    || inspection.ManagedRootIdentity != journal.ManagedRootIdentity
+                    || inspection.TargetIdentity != journal.StagedSourceIdentity
+                    || inspection.TargetIdentity != journal.TargetIdentity
+                    || inspection.PackageMetadata == null
+                    || !string.Equals(
+                        inspection.TreeFingerprint,
+                        journal.StagedSourceTreeFingerprint,
+                        StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                SkinManagedFolderNewRecordPublicationData recaptured =
+                    NewRecordPublicationPlan!.CreatePublicationData(inspection.PackageMetadata);
+                return string.Equals(recaptured.Fingerprint, publication.Fingerprint, StringComparison.Ordinal)
+                       && string.Equals(
+                           journal.NewRecordPublicationFingerprint,
+                           publication.Fingerprint,
+                           StringComparison.Ordinal);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private bool isExactDurableJournal(SkinManagedFolderMutationJournal expected)
         {
             try
@@ -673,7 +1153,8 @@ namespace osu.Game.Skinning
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (durableJournal == null
+                if (Kind == SkinManagedFolderMutationKind.StagedImport
+                    || durableJournal == null
                     || durableJournal.Phase != SkinManagedFolderMutationPhase.Prepared
                     || receipt == null
                     || !receipt.ValidateHeld(this, journalStore))
@@ -901,21 +1382,33 @@ namespace osu.Game.Skinning
 
                 nativeSession = nativeAuthority.Open(cancellationToken);
                 SkinManagedFolderTargetNameSlot target = nativeSession.CaptureAbsentTargetNameSlot(targetPath, cancellationToken);
-                SkinManagedFolderStagedSourceCapture stagedCapture = nativeSession.CaptureStagedSource(operationId, cancellationToken);
+                SkinManagedFolderStagedSourceAuthority stagedSource;
 
-                if (!stagedCapture.IsUsableFor(nativeSession.ManagedRootIdentity))
+                using (SkinManagedFolderStagedSourceCapture stagedCapture =
+                       nativeSession.CaptureStagedSource(operationId, cancellationToken))
                 {
-                    return rejectAndRelease(
-                        SkinManagedFolderMutationAuthorityRejectionReason.StagedSourceRejected,
-                        ref coordinatorLease,
-                        ref nativeSession);
+                    if (!stagedCapture.IsUsableFor(nativeSession.ManagedRootIdentity)
+                        || !SkinManagedFolderPackageMetadataReader.TryRead(
+                            stagedCapture.Capsule,
+                            out SkinManagedFolderPackageMetadata? stagedMetadata)
+                        || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(
+                            SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO))
+                    {
+                        return rejectAndRelease(
+                            SkinManagedFolderMutationAuthorityRejectionReason.StagedSourceRejected,
+                            ref coordinatorLease,
+                            ref nativeSession);
+                    }
+
+                    stagedSource = new SkinManagedFolderStagedSourceAuthority(
+                        operationId,
+                        stagedCapture.SourceIdentity,
+                        stagedCapture.StagedRootIdentity,
+                        nativeSession.ManagedRootIdentity,
+                        stagedMetadata!.ContentRevision,
+                        stagedCapture.TreeFingerprint);
                 }
 
-                var stagedSource = new SkinManagedFolderStagedSourceAuthority(
-                    operationId,
-                    stagedCapture.SourceIdentity,
-                    stagedCapture.StagedRootIdentity,
-                    nativeSession.ManagedRootIdentity);
                 var publicationPlan = new SkinManagedFolderNewRecordPublicationPlan(
                     operationId,
                     target.ManagedRelativePath,

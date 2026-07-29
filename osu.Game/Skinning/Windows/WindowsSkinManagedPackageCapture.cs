@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
@@ -29,6 +31,8 @@ namespace osu.Game.Skinning.Windows
         MutationSourceDirectory,
         MutationSourceVerificationDirectory,
         MutationSourceVerificationFile,
+        ProvisionalDirectory,
+        ProvisionalFile,
     }
 
     internal readonly struct WindowsSkinPackagePhysicalIdentity : IEquatable<WindowsSkinPackagePhysicalIdentity>
@@ -179,6 +183,8 @@ namespace osu.Game.Skinning.Windows
             IWindowsSkinPackageCaptureHandle targetParent,
             string targetName);
 
+        void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle);
+
         Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file);
     }
 
@@ -287,7 +293,13 @@ namespace osu.Game.Skinning.Windows
                     cancellationToken,
                     handles);
 
-                var capture = new CaptureState(fileSystem, limits, handles, cancellationToken);
+                var capture = new CaptureState(
+                    fileSystem,
+                    limits,
+                    handles,
+                    WindowsSkinPackageOpenMode.CapturedDirectory,
+                    WindowsSkinPackageOpenMode.CapturedFile,
+                    cancellationToken);
                 capture.CapturePackage(packageRoot.Handle, packageRoot.Metadata);
                 capture.ValidatePinnedNodes();
 
@@ -311,12 +323,16 @@ namespace osu.Game.Skinning.Windows
                     managedRoot.Handle,
                     packageRoot.CanonicalName,
                     packageRoot.Metadata,
+                    WindowsSkinPackageOpenMode.CapturedDirectory,
                     cancellationToken);
                 capture.ValidatePinnedNodes();
 
                 cancellationToken.ThrowIfCancellationRequested();
+                string physicalTreeFingerprint =
+                    capture.ComputePhysicalTreeFingerprint(provisionalCapsule.ContentRevision);
                 disposeHandles(handles);
-                SkinManagedPackageCaptureResult success = SkinManagedPackageCaptureResult.Success(provisionalCapsule);
+                SkinManagedPackageCaptureResult success =
+                    SkinManagedPackageCaptureResult.Success(provisionalCapsule, physicalTreeFingerprint);
                 provisionalCapsule = null;
                 return success;
             }
@@ -349,8 +365,48 @@ namespace osu.Game.Skinning.Windows
             WindowsSkinPackageDirectoryEntry candidate,
             SkinPackageRevisionCapsuleLimits? limits = null,
             CancellationToken cancellationToken = default)
+            => captureChild(
+                managedRoot,
+                candidate,
+                WindowsSkinPackageOpenMode.CapturedDirectory,
+                WindowsSkinPackageOpenMode.CapturedDirectory,
+                WindowsSkinPackageOpenMode.CapturedFile,
+                limits,
+                cancellationToken);
+
+        /// <summary>
+        /// Captures one provisional child through the complete package capsule gate while holding delete-capable,
+        /// no-follow handles for its full tree.
+        /// </summary>
+        /// <remarks>
+        /// The caller retains ownership of <paramref name="parent"/>. This method does not delete the child and no
+        /// handle escapes the capture; the provisional modes only make the same full-tree validation suitable for a
+        /// separately authorised staged cleanup or identity-preserving move.
+        /// </remarks>
+        internal SkinManagedPackageCaptureResult CaptureProvisionalChild(
+            IWindowsSkinPackageCaptureHandle parent,
+            WindowsSkinPackageDirectoryEntry candidate,
+            SkinPackageRevisionCapsuleLimits? limits = null,
+            CancellationToken cancellationToken = default)
+            => captureChild(
+                parent,
+                candidate,
+                WindowsSkinPackageOpenMode.ProvisionalDirectory,
+                WindowsSkinPackageOpenMode.ProvisionalDirectory,
+                WindowsSkinPackageOpenMode.ProvisionalFile,
+                limits,
+                cancellationToken);
+
+        private SkinManagedPackageCaptureResult captureChild(
+            IWindowsSkinPackageCaptureHandle parent,
+            WindowsSkinPackageDirectoryEntry candidate,
+            WindowsSkinPackageOpenMode rootOpenMode,
+            WindowsSkinPackageOpenMode childDirectoryOpenMode,
+            WindowsSkinPackageOpenMode childFileOpenMode,
+            SkinPackageRevisionCapsuleLimits? limits,
+            CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(managedRoot);
+            ArgumentNullException.ThrowIfNull(parent);
             ArgumentNullException.ThrowIfNull(candidate);
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -375,15 +431,21 @@ namespace osu.Game.Skinning.Windows
             {
                 IWindowsSkinPackageCaptureHandle packageRoot = own(
                     fileSystem.OpenChildNoFollow(
-                        managedRoot,
+                        parent,
                         candidate.Name,
-                        WindowsSkinPackageOpenMode.CapturedDirectory,
+                        rootOpenMode,
                         SkinManagedPackageCaptureRejectionReason.PackageUnavailable),
                     handles);
                 WindowsSkinPackageEntryMetadata packageRootMetadata = fileSystem.QueryMetadata(packageRoot);
                 validateOpenedEntry(candidate.Metadata, packageRootMetadata);
 
-                var capture = new CaptureState(fileSystem, limits, handles, cancellationToken);
+                var capture = new CaptureState(
+                    fileSystem,
+                    limits,
+                    handles,
+                    childDirectoryOpenMode,
+                    childFileOpenMode,
+                    cancellationToken);
                 capture.CapturePackage(packageRoot, packageRootMetadata);
                 capture.ValidatePinnedNodes();
 
@@ -402,15 +464,19 @@ namespace osu.Game.Skinning.Windows
                 capture.ValidatePinnedNodes();
                 capture.ValidateFinalInventories();
                 validatePackageRootPath(
-                    managedRoot,
+                    parent,
                     candidate.Name,
                     candidate.Metadata,
+                    rootOpenMode,
                     cancellationToken);
                 capture.ValidatePinnedNodes();
 
                 cancellationToken.ThrowIfCancellationRequested();
+                string physicalTreeFingerprint =
+                    capture.ComputePhysicalTreeFingerprint(provisionalCapsule.ContentRevision);
                 disposeHandles(handles);
-                SkinManagedPackageCaptureResult success = SkinManagedPackageCaptureResult.Success(provisionalCapsule);
+                SkinManagedPackageCaptureResult success =
+                    SkinManagedPackageCaptureResult.Success(provisionalCapsule, physicalTreeFingerprint);
                 provisionalCapsule = null;
                 return success;
             }
@@ -485,15 +551,16 @@ namespace osu.Game.Skinning.Windows
         }
 
         private void validatePackageRootPath(
-            IWindowsSkinPackageCaptureHandle managedRoot,
+            IWindowsSkinPackageCaptureHandle parent,
             string packageCanonicalName,
             WindowsSkinPackageEntryMetadata packageBaseline,
+            WindowsSkinPackageOpenMode rootOpenMode,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            WindowsSkinPackageDirectoryEntry[] matches = getDirectoryEntries(managedRoot, cancellationToken)
-                                                        .Where(entry => namesEqual(entry.Name, packageCanonicalName))
-                                                        .ToArray();
+            WindowsSkinPackageDirectoryEntry[] matches = getDirectoryEntries(parent, cancellationToken)
+                                                         .Where(entry => namesEqual(entry.Name, packageCanonicalName))
+                                                         .ToArray();
 
             if (matches.Length > 1)
                 throw reject(SkinManagedPackageCaptureRejectionReason.AlternateNameAlias);
@@ -502,9 +569,9 @@ namespace osu.Game.Skinning.Windows
                 throw reject(SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
 
             using IWindowsSkinPackageCaptureHandle reopened = fileSystem.OpenChildNoFollow(
-                managedRoot,
+                parent,
                 packageCanonicalName,
-                WindowsSkinPackageOpenMode.CapturedDirectory,
+                rootOpenMode,
                 SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
 
             WindowsSkinPackageEntryMetadata reopenedMetadata = fileSystem.QueryMetadata(reopened);
@@ -740,9 +807,15 @@ namespace osu.Game.Skinning.Windows
 
         private sealed class CaptureState
         {
+            private const string physical_tree_fingerprint_domain =
+                "OMS/SkinManagedPackagePhysicalTreeFingerprint/v1";
+
             private readonly IWindowsSkinPackageCaptureFileSystem fileSystem;
             private readonly SkinPackageRevisionCapsuleLimits limits;
             private readonly List<IWindowsSkinPackageCaptureHandle> handles;
+            private readonly WindowsSkinPackageOpenMode directoryOpenMode;
+            private readonly WindowsSkinPackageOpenMode fileOpenMode;
+            private readonly bool provisional;
             private readonly CancellationToken cancellationToken;
             private readonly List<NodeRecord> nodes = new List<NodeRecord>();
             private readonly List<DirectoryRecord> directories = new List<DirectoryRecord>();
@@ -757,11 +830,17 @@ namespace osu.Game.Skinning.Windows
                 IWindowsSkinPackageCaptureFileSystem fileSystem,
                 SkinPackageRevisionCapsuleLimits limits,
                 List<IWindowsSkinPackageCaptureHandle> handles,
+                WindowsSkinPackageOpenMode directoryOpenMode,
+                WindowsSkinPackageOpenMode fileOpenMode,
                 CancellationToken cancellationToken)
             {
                 this.fileSystem = fileSystem;
                 this.limits = limits;
                 this.handles = handles;
+                this.directoryOpenMode = directoryOpenMode;
+                this.fileOpenMode = fileOpenMode;
+                provisional = directoryOpenMode == WindowsSkinPackageOpenMode.ProvisionalDirectory
+                              && fileOpenMode == WindowsSkinPackageOpenMode.ProvisionalFile;
                 this.cancellationToken = cancellationToken;
             }
 
@@ -814,9 +893,75 @@ namespace osu.Game.Skinning.Windows
                         throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
                     }
 
-                    if (!directory.Baseline.SequenceEqual(current, DirectoryEntryComparer.Instance))
+                    bool inventoryMatches = provisional
+                        ? linksMatch(directory.Baseline, current)
+                        : directory.Baseline.SequenceEqual(
+                            current,
+                            DirectoryEntryComparer.Instance);
+
+                    if (!inventoryMatches)
                         throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
                 }
+            }
+
+            public string ComputePhysicalTreeFingerprint(string contentRevision)
+            {
+                ArgumentNullException.ThrowIfNull(contentRevision);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var writer = new CanonicalHashWriter(hash);
+                writer.WriteUtf8(physical_tree_fingerprint_domain);
+                writer.WriteUtf8(contentRevision);
+                writer.WriteInt32(nodes.Count);
+
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WindowsSkinPackageEntryMetadata metadata = nodes[i].Baseline;
+                    writer.WriteByte(0x4e);
+                    writer.WriteInt32(i);
+                    writer.WritePhysicalIdentity(metadata.Identity);
+                    writer.WriteInt32((int)metadata.Kind);
+                    writer.WriteInt64(metadata.Length);
+                    writer.WriteInt64(metadata.CreationTime);
+
+                    bool includeRenameMutableTimestamps = i != 0;
+                    writer.WriteBoolean(includeRenameMutableTimestamps);
+
+                    if (includeRenameMutableTimestamps)
+                    {
+                        writer.WriteInt64(metadata.LastWriteTime);
+                        writer.WriteInt64(metadata.ChangeTime);
+                    }
+
+                    writer.WriteUInt32(metadata.FileAttributes);
+                    writer.WriteUInt32(metadata.ReparseTag);
+                    writer.WriteUInt32(metadata.NumberOfLinks);
+                    writer.WriteBoolean(metadata.DeletePending);
+                }
+
+                writer.WriteInt32(directories.Count);
+
+                for (int i = 0; i < directories.Count; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    DirectoryRecord directory = directories[i];
+                    writer.WriteByte(0x44);
+                    writer.WriteInt32(i);
+                    writer.WriteInt32(directory.NodeIndex);
+                    writer.WriteInt32(directory.Baseline.Length);
+
+                    foreach (WindowsSkinPackageDirectoryEntry entry in directory.Baseline)
+                    {
+                        writer.WriteByte(0x45);
+                        writer.WriteUtf8(entry.Name);
+                        writer.WritePhysicalIdentity(entry.Metadata.Identity);
+                        writer.WriteInt32((int)entry.Metadata.Kind);
+                    }
+                }
+
+                return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
             }
 
             private void captureDirectory(
@@ -841,8 +986,9 @@ namespace osu.Game.Skinning.Windows
                     throw new CapsuleRejectionException(SkinPackageRevisionCapsuleRejectionReason.EntryCountBudgetExceeded);
                 }
 
+                int directoryNodeIndex = nodes.Count;
                 nodes.Add(new NodeRecord(directory, directoryMetadata));
-                directories.Add(new DirectoryRecord(directory, entries));
+                directories.Add(new DirectoryRecord(directory, directoryNodeIndex, entries));
 
                 foreach (WindowsSkinPackageDirectoryEntry entry in entries)
                 {
@@ -887,8 +1033,8 @@ namespace osu.Game.Skinning.Windows
                         throw new CapsuleRejectionException(SkinPackageRevisionCapsuleRejectionReason.EntryCountBudgetExceeded);
 
                     WindowsSkinPackageOpenMode openMode = entry.Metadata.Kind == WindowsSkinPackageEntryKind.Directory
-                        ? WindowsSkinPackageOpenMode.CapturedDirectory
-                        : WindowsSkinPackageOpenMode.CapturedFile;
+                        ? directoryOpenMode
+                        : fileOpenMode;
 
                     IWindowsSkinPackageCaptureHandle child = own(
                         fileSystem.OpenChildNoFollow(
@@ -944,11 +1090,100 @@ namespace osu.Game.Skinning.Windows
                 }
             }
 
+            private sealed class CanonicalHashWriter
+            {
+                private static readonly UTF8Encoding strict_utf8 = new UTF8Encoding(false, true);
+
+                private readonly IncrementalHash hash;
+
+                public CanonicalHashWriter(IncrementalHash hash)
+                {
+                    this.hash = hash;
+                }
+
+                public void WriteByte(byte value)
+                {
+                    Span<byte> buffer = stackalloc byte[1];
+                    buffer[0] = value;
+                    hash.AppendData(buffer);
+                }
+
+                public void WriteBoolean(bool value) => WriteByte(value ? (byte)1 : (byte)0);
+
+                public void WriteInt32(int value)
+                {
+                    Span<byte> buffer = stackalloc byte[sizeof(int)];
+                    BinaryPrimitives.WriteInt32BigEndian(buffer, value);
+                    hash.AppendData(buffer);
+                }
+
+                public void WriteUInt32(uint value)
+                {
+                    Span<byte> buffer = stackalloc byte[sizeof(uint)];
+                    BinaryPrimitives.WriteUInt32BigEndian(buffer, value);
+                    hash.AppendData(buffer);
+                }
+
+                public void WriteInt64(long value)
+                {
+                    Span<byte> buffer = stackalloc byte[sizeof(long)];
+                    BinaryPrimitives.WriteInt64BigEndian(buffer, value);
+                    hash.AppendData(buffer);
+                }
+
+                public void WriteUInt64(ulong value)
+                {
+                    Span<byte> buffer = stackalloc byte[sizeof(ulong)];
+                    BinaryPrimitives.WriteUInt64BigEndian(buffer, value);
+                    hash.AppendData(buffer);
+                }
+
+                public void WritePhysicalIdentity(WindowsSkinPackagePhysicalIdentity identity)
+                {
+                    WriteUInt64(identity.VolumeSerialNumber);
+                    WriteUInt64(identity.FileIdPart0);
+                    WriteUInt64(identity.FileIdPart1);
+                }
+
+                public void WriteUtf8(string value)
+                {
+                    ArgumentNullException.ThrowIfNull(value);
+                    byte[] bytes = strict_utf8.GetBytes(value);
+                    WriteInt32(bytes.Length);
+                    hash.AppendData(bytes);
+                }
+            }
+
             private static WindowsSkinPackageDirectoryEntry[] canonicaliseDirectoryEntries(IEnumerable<WindowsSkinPackageDirectoryEntry> entries)
                 => entries.Where(entry => entry.Name is not "." and not "..")
                           .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
                           .ThenBy(entry => entry.Name, StringComparer.Ordinal)
                           .ToArray();
+
+            private static bool linksMatch(
+                WindowsSkinPackageDirectoryEntry[] expected,
+                WindowsSkinPackageDirectoryEntry[] actual)
+            {
+                if (expected.Length != actual.Length)
+                    return false;
+
+                for (int i = 0; i < expected.Length; i++)
+                {
+                    if (!string.Equals(
+                            expected[i].Name,
+                            actual[i].Name,
+                            StringComparison.Ordinal)
+                        || expected[i].Metadata.Identity
+                           != actual[i].Metadata.Identity
+                        || expected[i].Metadata.Kind
+                           != actual[i].Metadata.Kind)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         }
 
         private sealed class DirectoryEntryComparer : IEqualityComparer<WindowsSkinPackageDirectoryEntry>
@@ -992,6 +1227,7 @@ namespace osu.Game.Skinning.Windows
 
         private readonly record struct DirectoryRecord(
             IWindowsSkinPackageCaptureHandle Handle,
+            int NodeIndex,
             WindowsSkinPackageDirectoryEntry[] Baseline);
     }
 
@@ -1229,6 +1465,24 @@ namespace osu.Game.Skinning.Windows
                     openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
                     break;
 
+                case WindowsSkinPackageOpenMode.ProvisionalDirectory:
+                    desiredAccess = NativeMethods.FILE_LIST_DIRECTORY
+                                    | NativeMethods.FILE_READ_ATTRIBUTES
+                                    | NativeMethods.DELETE
+                                    | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE;
+                    openOptions |= NativeMethods.FILE_DIRECTORY_FILE;
+                    break;
+
+                case WindowsSkinPackageOpenMode.ProvisionalFile:
+                    desiredAccess = NativeMethods.FILE_READ_DATA
+                                    | NativeMethods.FILE_READ_ATTRIBUTES
+                                    | NativeMethods.DELETE
+                                    | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE;
+                    openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
+                    break;
+
                 default:
                     throw reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
             }
@@ -1340,6 +1594,15 @@ namespace osu.Game.Skinning.Windows
             }
         }
 
+        public void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle)
+        {
+            NativeHandle nativeHandle = getNativeHandle(handle);
+            int status = NativeMethods.DeleteNoFollow(nativeHandle.Handle);
+
+            if (status != NativeMethods.STATUS_SUCCESS)
+                throw mapDeleteNtStatus(status);
+        }
+
         public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
         {
             NativeHandle nativeFile = getNativeHandle(file);
@@ -1380,6 +1643,17 @@ namespace osu.Game.Skinning.Windows
                 NativeMethods.STATUS_OBJECT_NAME_NOT_FOUND or NativeMethods.STATUS_OBJECT_PATH_NOT_FOUND or NativeMethods.STATUS_NOT_A_DIRECTORY or NativeMethods.STATUS_FILE_IS_A_DIRECTORY => reject(unavailableReason),
                 NativeMethods.STATUS_OBJECT_NAME_COLLISION => reject(unavailableReason),
                 _ => reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure),
+            };
+        }
+
+        private static WindowsSkinPackageCaptureFileSystemException mapDeleteNtStatus(int status)
+        {
+            return status switch
+            {
+                NativeMethods.STATUS_CANNOT_DELETE => reject(SkinManagedPackageCaptureRejectionReason.SourceBusy),
+                NativeMethods.STATUS_DIRECTORY_NOT_EMPTY => reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged),
+                NativeMethods.STATUS_DELETE_PENDING or NativeMethods.STATUS_FILE_DELETED => reject(SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture),
+                _ => mapNtStatus(status, SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture),
             };
         }
 
@@ -1494,8 +1768,12 @@ namespace osu.Game.Skinning.Windows
         internal const int STATUS_OBJECT_NAME_COLLISION = unchecked((int)0xC0000035);
         internal const int STATUS_OBJECT_PATH_NOT_FOUND = unchecked((int)0xC000003A);
         internal const int STATUS_SHARING_VIOLATION = unchecked((int)0xC0000043);
+        internal const int STATUS_DELETE_PENDING = unchecked((int)0xC0000056);
+        internal const int STATUS_DIRECTORY_NOT_EMPTY = unchecked((int)0xC0000101);
         internal const int STATUS_FILE_IS_A_DIRECTORY = unchecked((int)0xC00000BA);
         internal const int STATUS_NOT_A_DIRECTORY = unchecked((int)0xC0000103);
+        internal const int STATUS_CANNOT_DELETE = unchecked((int)0xC0000121);
+        internal const int STATUS_FILE_DELETED = unchecked((int)0xC0000123);
         internal const int STATUS_REPARSE_POINT_ENCOUNTERED = unchecked((int)0xC000050B);
 
         internal const uint FILE_LIST_DIRECTORY = 0x00000001;
@@ -1514,6 +1792,9 @@ namespace osu.Game.Skinning.Windows
         internal const uint OBJ_DONT_REPARSE = 0x00001000;
         internal const uint SL_RESTART_SCAN = 0x00000001;
         internal const uint SL_RETURN_SINGLE_ENTRY = 0x00000002;
+        internal const uint FILE_DISPOSITION_DELETE = 0x00000001;
+        internal const uint FILE_DISPOSITION_POSIX_SEMANTICS = 0x00000002;
+        internal const uint FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010;
 
         internal const int ERROR_FILE_NOT_FOUND = 2;
         internal const int ERROR_PATH_NOT_FOUND = 3;
@@ -1617,6 +1898,20 @@ namespace osu.Game.Skinning.Windows
                 FILE_INFORMATION_CLASS.FileRenameInformationEx);
         }
 
+        internal static unsafe int DeleteNoFollow(SafeFileHandle handle)
+        {
+            uint flags = FILE_DISPOSITION_DELETE
+                         | FILE_DISPOSITION_POSIX_SEMANTICS
+                         | FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE;
+
+            return NtSetInformationFile(
+                handle,
+                out _,
+                (IntPtr)(&flags),
+                sizeof(uint),
+                FILE_INFORMATION_CLASS.FileDispositionInformationEx);
+        }
+
         internal static (int RootDirectoryOffset, int FileNameLengthOffset, int FileNameOffset)
             GetFileRenameInfoOffsets(int pointerSize)
             => pointerSize switch
@@ -1692,6 +1987,7 @@ namespace osu.Game.Skinning.Windows
         internal enum FILE_INFORMATION_CLASS
         {
             FileIdExtdDirectoryInformation = 60,
+            FileDispositionInformationEx = 64,
             FileRenameInformationEx = 65,
         }
 

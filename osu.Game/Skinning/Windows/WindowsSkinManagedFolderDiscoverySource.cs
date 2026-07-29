@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
 using System.Security;
-using System.Text;
 using System.Threading;
 using osu.Framework.Platform;
 
@@ -21,14 +20,8 @@ namespace osu.Game.Skinning.Windows
     /// </remarks>
     internal sealed class WindowsSkinManagedFolderDiscoverySource : ISkinManagedFolderDiscoverySource
     {
-        private const long max_metadata_file_bytes = 1024 * 1024;
-        private const int max_metadata_value_characters = 256;
         private const int max_stable_inventory_attempts = 3;
         private const int stable_inventory_retry_delay_milliseconds = 25;
-        private const string unnamed_skin = "No name";
-        private const string unknown_creator = "Unknown";
-
-        private static readonly Encoding strict_utf8 = new UTF8Encoding(false, true);
 
         private readonly Func<string> getDataRootAbsolutePath;
         private readonly IWindowsSkinPackageCaptureFileSystem? fileSystem;
@@ -171,13 +164,15 @@ namespace osu.Game.Skinning.Windows
 
                 using SkinPackageRevisionCapsule capsule = capture.Capsule!;
 
-                if (tryReadMetadata(capsule, out string name, out string creator))
+                if (SkinManagedFolderPackageMetadataReader.TryRead(
+                        capsule,
+                        out SkinManagedFolderPackageMetadata? metadata))
                 {
                     discoveries.Add(new SkinManagedFolderDiscovery(
                         managedRelativePath,
-                        name,
-                        creator,
-                        capsule.ContentRevision));
+                        metadata!.Name,
+                        metadata.Creator,
+                        metadata.ContentRevision));
                 }
             }
 
@@ -191,97 +186,6 @@ namespace osu.Game.Skinning.Windows
                                .ThenBy(path => path, StringComparer.Ordinal),
                 discoveries);
         }
-
-        private static bool tryReadMetadata(
-            SkinPackageRevisionCapsule capsule,
-            out string name,
-            out string creator)
-        {
-            name = unnamed_skin;
-            creator = unknown_creator;
-
-            SkinPackageFileRevision? skinIni = capsule.Files.SingleOrDefault(
-                file => string.Equals(file.ResourceName, "skin.ini", StringComparison.OrdinalIgnoreCase));
-
-            if (skinIni == null || skinIni.Length > max_metadata_file_bytes)
-                return false;
-
-            try
-            {
-                using var resources = capsule.CreateResourceView();
-                using Stream? stream = resources.GetStream("skin.ini");
-
-                if (stream == null)
-                    return false;
-
-                using var reader = new StreamReader(stream, strict_utf8, true, 1024, leaveOpen: false);
-                bool inGeneralSection = true;
-                string? parsedName = null;
-                string? parsedCreator = null;
-                string? line;
-
-                while ((line = reader.ReadLine()) != null)
-                {
-                    if (string.IsNullOrWhiteSpace(line) || line.AsSpan().TrimStart().StartsWith("//".AsSpan(), StringComparison.Ordinal))
-                        continue;
-
-                    int commentIndex = line.IndexOf("//", StringComparison.Ordinal);
-
-                    if (commentIndex > 0)
-                        line = line[..commentIndex];
-
-                    line = line.TrimEnd();
-
-                    if (line.StartsWith('[') && line.EndsWith(']'))
-                    {
-                        inGeneralSection = string.Equals(line[1..^1], "General", StringComparison.Ordinal);
-                        continue;
-                    }
-
-                    if (!inGeneralSection)
-                        continue;
-
-                    int separator = line.IndexOf(':');
-
-                    if (separator < 0)
-                        continue;
-
-                    string key = line[..separator].Trim();
-                    string value = line[(separator + 1)..].Trim();
-
-                    if (string.Equals(key, "Name", StringComparison.Ordinal))
-                    {
-                        if (!isSafeMetadataValue(value))
-                            return false;
-
-                        parsedName = value;
-                    }
-                    else if (string.Equals(key, "Author", StringComparison.Ordinal))
-                    {
-                        if (!isSafeMetadataValue(value))
-                            return false;
-
-                        parsedCreator = value;
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(parsedName))
-                    name = parsedName;
-
-                if (!string.IsNullOrEmpty(parsedCreator))
-                    creator = parsedCreator;
-
-                return true;
-            }
-            catch (Exception exception) when (exception is IOException or ObjectDisposedException or DecoderFallbackException)
-            {
-                return false;
-            }
-        }
-
-        private static bool isSafeMetadataValue(string value)
-            => value.Length <= max_metadata_value_characters
-               && !value.Any(char.IsControl);
 
         private static Func<string> createDataRootAccessor(Storage storage)
         {

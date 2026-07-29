@@ -20,12 +20,12 @@ metadata:
 
 - preflight 结果不是 resolved/final physical identity、authority owner tag、mutation token、package inventory、`InstantiationInfo` 验证或选择资格。
 - `File.GetAttributes()` 分段检查存在 TOCTOU，不能把 normalised path直接交给 `NativeStorage`、scanner、rename/delete或 parser 后宣称安全。managed production factory必须只消费resolver-issued request经native capture完整成功后的capsule；capture地雷见 [[reference_skin_windows_handle_capture]]。
-- preflight → managed Windows native no-follow producer → pure capsule → production exact-capsule factory/guarded selection已实现于已注册合法managed记录；external的resolved-identity/capture仍未实现。其`NativeStorage`以后只能作为只读source adapter，parser/decoder只能消费完整成功后交付的OMS自有capsule，不能持续直读可变live folder。选择链地雷见[[reference_skin_managed_folder_selection]]。
-- schema 57 scanner现以nullable opaque persistent owner token精确隔离authority；只维护exact-own且结构仍合法的记录。null/unknown、`.osk`、另一root/authority与不完整扫描中未见的记录都不能自动清理；observed-invalid保护同path，完整稳定inventory才可负向清理其它确实absent的exact-own记录。完整scanner地雷见[[reference_skin_managed_folder_scanner]]。
+- preflight → managed Windows native no-follow producer → pure capsule → production exact-capsule factory/guarded selection已实现于已注册合法managed记录；directory-only rename与fixed-source staged import也已有各自专用held-authority consumer，但它们仍不能从normalised path授权。external的resolved-identity/capture仍未实现；其`NativeStorage`以后只能作为只读source adapter，parser/decoder只能消费完整成功后交付的OMS自有capsule，不能持续直读可变live folder。选择链地雷见[[reference_skin_managed_folder_selection]]。
+- schema 57 scanner现以nullable opaque persistent owner token精确隔离authority；只维护exact-own且结构仍合法、由scanner创建或由staged-import one-shot publisher通过同等级门合法交接的记录。普通scanner不消费publication plan。null/unknown、`.osk`、另一root/authority与不完整扫描中未见的记录都不能自动清理；observed-invalid保护同path，完整稳定inventory才可负向清理其它确实absent的exact-own记录。完整scanner地雷见[[reference_skin_managed_folder_scanner]]。
 - production managed folder factory现已精确允许`InstantiationInfo`并拒绝`SkinInfo.CreateInstance()`历史`TrianglesSkin` fallback；整包reload仍需要全consumer publication barrier和旧owner安全退役，不能用单次selection pair提交冒充。
 
 ## 验证与工作流
 
 - 第一刀 fixture 同时锁 managed/external bytes、mtime 与 `SkinInfo` 不变，避免“只比较目录项名称”产生零写入假阳性。
-- capture已有真实Windows package/nested junction、hardlink、busy writer与反向share/final-inventory gate；mutation foundation另有held managed root/source、target name slot、fixed staging authority、durable journal与共享线性化。directory-only rename已直接消费这条authority并通过held-root/no-follow no-replace、junction/collision/final identity/crash-point与恢复门；staged import/delete仍无各自production write primitive，不能用rename或foundation测试关闭它们及完整G1安全门。
+- capture已有真实Windows package/nested junction、hardlink、busy writer与反向share/final-inventory gate；mutation foundation另有既存held managed/staging authority roots、target name slot、durable journal与共享线性化。directory-only rename与fixed-source staged import已分别消费这条authority，并通过held-root/no-follow no-replace、junction/collision/final identity/capsule fingerprint、crash-point与按kind恢复门；managed delete仍无production write primitive，不能用rename/import或foundation测试关闭它及完整G1安全门。
 - 当前进度、精确测试数字与下一刀只看 P1-A STATUS/PLAN；本 memory 不把 preflight本身写成 folder skin产品能力。

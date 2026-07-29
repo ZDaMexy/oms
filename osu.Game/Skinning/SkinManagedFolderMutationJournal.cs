@@ -80,7 +80,7 @@ namespace osu.Game.Skinning
     }
 
     /// <summary>
-    /// Version-one durable intent for one managed-folder mutation.
+    /// Versioned durable intent for one managed-folder mutation.
     /// </summary>
     /// <remarks>
     /// Relative slots and physical identities are recovery data and must not be included in logs or safe diagnostics.
@@ -89,7 +89,8 @@ namespace osu.Game.Skinning
     [JsonObject(MemberSerialization.OptIn)]
     internal sealed class SkinManagedFolderMutationJournal
     {
-        public const int CURRENT_VERSION = 1;
+        public const int LEGACY_VERSION = 1;
+        public const int CURRENT_VERSION = 2;
         public const string STAGED_SOURCE_AUTHORITY = "oms.skin.managed-folder.staging.v1";
         public const string NEW_RECORD_PUBLICATION_PLAN_VERSION = "oms.skin.managed-folder.scanner-publication-plan.v1";
 
@@ -138,6 +139,18 @@ namespace osu.Game.Skinning
         [JsonProperty(nameof(NewRecordPublicationPlanVersion), Required = Required.AllowNull)]
         public string? NewRecordPublicationPlanVersion { get; }
 
+        [JsonProperty(nameof(StagedSourceContentRevision), Required = Required.Default)]
+        public string? StagedSourceContentRevision { get; }
+
+        [JsonProperty(nameof(StagedSourceTreeFingerprint), Required = Required.Default)]
+        public string? StagedSourceTreeFingerprint { get; }
+
+        [JsonProperty(
+            nameof(NewRecordPublicationFingerprint),
+            Required = Required.Default,
+            NullValueHandling = NullValueHandling.Ignore)]
+        public string? NewRecordPublicationFingerprint { get; }
+
         [JsonConstructor]
         private SkinManagedFolderMutationJournal(
             int version,
@@ -154,7 +167,10 @@ namespace osu.Game.Skinning
             string? stagedSourceRelativePath,
             SkinManagedFolderPhysicalIdentity? stagedSourceIdentity,
             SkinManagedFolderPhysicalIdentity? stagedRootIdentity,
-            string? newRecordPublicationPlanVersion)
+            string? newRecordPublicationPlanVersion,
+            string? stagedSourceContentRevision = null,
+            string? stagedSourceTreeFingerprint = null,
+            string? newRecordPublicationFingerprint = null)
         {
             Version = version;
             OperationId = operationId;
@@ -171,6 +187,9 @@ namespace osu.Game.Skinning
             StagedSourceIdentity = stagedSourceIdentity;
             StagedRootIdentity = stagedRootIdentity;
             NewRecordPublicationPlanVersion = newRecordPublicationPlanVersion;
+            StagedSourceContentRevision = stagedSourceContentRevision;
+            StagedSourceTreeFingerprint = stagedSourceTreeFingerprint;
+            NewRecordPublicationFingerprint = newRecordPublicationFingerprint;
         }
 
         public static SkinManagedFolderMutationJournal CreatePreparedRename(
@@ -181,6 +200,7 @@ namespace osu.Game.Skinning
             SkinManagedFolderPhysicalIdentity sourceIdentity,
             string targetManagedRelativePath)
             => createValidated(
+                CURRENT_VERSION,
                 operationId,
                 SkinManagedFolderMutationKind.Rename,
                 SkinManagedFolderMutationPhase.Prepared,
@@ -189,6 +209,9 @@ namespace osu.Game.Skinning
                 sourceManagedRelativePath,
                 targetManagedRelativePath,
                 sourceIdentity,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -203,6 +226,7 @@ namespace osu.Game.Skinning
             string sourceManagedRelativePath,
             SkinManagedFolderPhysicalIdentity sourceIdentity)
             => createValidated(
+                CURRENT_VERSION,
                 operationId,
                 SkinManagedFolderMutationKind.Delete,
                 SkinManagedFolderMutationPhase.Prepared,
@@ -216,6 +240,9 @@ namespace osu.Game.Skinning
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null);
 
         public static SkinManagedFolderMutationJournal CreatePreparedStagedImport(
@@ -223,8 +250,11 @@ namespace osu.Game.Skinning
             SkinManagedFolderPhysicalIdentity managedRootIdentity,
             string targetManagedRelativePath,
             SkinManagedFolderPhysicalIdentity stagedSourceIdentity,
-            SkinManagedFolderPhysicalIdentity stagedRootIdentity)
+            SkinManagedFolderPhysicalIdentity stagedRootIdentity,
+            string stagedSourceContentRevision,
+            string stagedSourceTreeFingerprint)
             => createValidated(
+                CURRENT_VERSION,
                 operationId,
                 SkinManagedFolderMutationKind.StagedImport,
                 SkinManagedFolderMutationPhase.Prepared,
@@ -238,10 +268,14 @@ namespace osu.Game.Skinning
                 GetExpectedStagedSourceRelativePath(operationId),
                 stagedSourceIdentity,
                 stagedRootIdentity,
-                NEW_RECORD_PUBLICATION_PLAN_VERSION);
+                NEW_RECORD_PUBLICATION_PLAN_VERSION,
+                stagedSourceContentRevision,
+                stagedSourceTreeFingerprint,
+                null);
 
         public SkinManagedFolderMutationJournal WithFilesystemApplied(
-            SkinManagedFolderPhysicalIdentity? targetIdentity = null)
+            SkinManagedFolderPhysicalIdentity? targetIdentity = null,
+            string? newRecordPublicationFingerprint = null)
         {
             if (Phase != SkinManagedFolderMutationPhase.Prepared)
                 throw new InvalidOperationException("The managed-folder mutation phase transition is invalid.");
@@ -254,15 +288,23 @@ namespace osu.Game.Skinning
             else if (Kind == SkinManagedFolderMutationKind.StagedImport)
             {
                 if (targetIdentity is not { IsUsable: true }
-                    || targetIdentity.Value.VolumeSerialNumber != ManagedRootIdentity.VolumeSerialNumber)
+                    || targetIdentity != StagedSourceIdentity
+                    || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        newRecordPublicationFingerprint))
                 {
-                    throw new InvalidOperationException("The staged import target identity is not root-bound.");
+                    throw new InvalidOperationException("The staged import target publication is invalid.");
                 }
             }
-            else if (targetIdentity != null)
+            else if (targetIdentity != null || newRecordPublicationFingerprint != null)
                 throw new InvalidOperationException("A managed-folder delete cannot publish a target identity.");
 
-            return createWithPhase(SkinManagedFolderMutationPhase.FilesystemApplied, targetIdentity);
+            if (Kind == SkinManagedFolderMutationKind.Rename && newRecordPublicationFingerprint != null)
+                throw new InvalidOperationException("A managed-folder rename cannot publish a new record.");
+
+            return createWithPhase(
+                SkinManagedFolderMutationPhase.FilesystemApplied,
+                targetIdentity,
+                newRecordPublicationFingerprint);
         }
 
         public SkinManagedFolderMutationJournal WithRealmApplied()
@@ -270,7 +312,10 @@ namespace osu.Game.Skinning
             if (Phase != SkinManagedFolderMutationPhase.FilesystemApplied)
                 throw new InvalidOperationException("The managed-folder mutation phase transition is invalid.");
 
-            return createWithPhase(SkinManagedFolderMutationPhase.RealmApplied, TargetIdentity);
+            return createWithPhase(
+                SkinManagedFolderMutationPhase.RealmApplied,
+                TargetIdentity,
+                NewRecordPublicationFingerprint);
         }
 
         public SkinManagedFolderMutationJournal WithCommitted()
@@ -278,7 +323,10 @@ namespace osu.Game.Skinning
             if (Phase != SkinManagedFolderMutationPhase.RealmApplied)
                 throw new InvalidOperationException("The managed-folder mutation phase transition is invalid.");
 
-            return createWithPhase(SkinManagedFolderMutationPhase.Committed, TargetIdentity);
+            return createWithPhase(
+                SkinManagedFolderMutationPhase.Committed,
+                TargetIdentity,
+                NewRecordPublicationFingerprint);
         }
 
         public SkinManagedFolderMutationJournal WithRolledBack()
@@ -286,17 +334,28 @@ namespace osu.Game.Skinning
             if (Phase is SkinManagedFolderMutationPhase.Committed or SkinManagedFolderMutationPhase.RolledBack)
                 throw new InvalidOperationException("A terminal managed-folder mutation journal cannot be reopened.");
 
-            return createWithPhase(SkinManagedFolderMutationPhase.RolledBack, TargetIdentity);
+            return createWithPhase(
+                SkinManagedFolderMutationPhase.RolledBack,
+                TargetIdentity,
+                NewRecordPublicationFingerprint);
         }
 
         internal SkinManagedFolderMutationJournal WithRecoveryTerminalPhase(
             SkinManagedFolderMutationPhase terminalPhase,
-            SkinManagedFolderPhysicalIdentity? recoveredTargetIdentity = null)
+            SkinManagedFolderPhysicalIdentity? recoveredTargetIdentity = null,
+            string? recoveredNewRecordPublicationFingerprint = null)
         {
             if (Phase is SkinManagedFolderMutationPhase.Committed or SkinManagedFolderMutationPhase.RolledBack
                 || terminalPhase is not (SkinManagedFolderMutationPhase.Committed or SkinManagedFolderMutationPhase.RolledBack))
             {
                 throw new InvalidOperationException("The managed-folder recovery transition is invalid.");
+            }
+
+            if (terminalPhase == SkinManagedFolderMutationPhase.Committed
+                && Version == CURRENT_VERSION
+                && Phase != SkinManagedFolderMutationPhase.RealmApplied)
+            {
+                throw new InvalidOperationException("A current managed-folder mutation must durably pass through every forward phase.");
             }
 
             if (TargetIdentity != null
@@ -306,23 +365,43 @@ namespace osu.Game.Skinning
                 throw new InvalidOperationException("The recovered managed-folder target identity changed.");
             }
 
+            if (NewRecordPublicationFingerprint != null
+                && recoveredNewRecordPublicationFingerprint != null
+                && !string.Equals(
+                    NewRecordPublicationFingerprint,
+                    recoveredNewRecordPublicationFingerprint,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("The recovered managed-folder publication changed.");
+            }
+
+            SkinManagedFolderPhysicalIdentity? finalTargetIdentity =
+                TargetIdentity ?? recoveredTargetIdentity;
+            string? finalPublicationFingerprint =
+                NewRecordPublicationFingerprint
+                ?? recoveredNewRecordPublicationFingerprint;
+
             if (terminalPhase == SkinManagedFolderMutationPhase.Committed
                 && Kind == SkinManagedFolderMutationKind.Rename)
             {
-                if (recoveredTargetIdentity != null && recoveredTargetIdentity.Value != SourceIdentity)
+                if (finalTargetIdentity != SourceIdentity)
                     throw new InvalidOperationException("The recovered managed-folder move changed physical identity.");
             }
 
             if (terminalPhase == SkinManagedFolderMutationPhase.Committed
                 && Kind == SkinManagedFolderMutationKind.StagedImport
-                && recoveredTargetIdentity is { } stagedTarget
-                && (!stagedTarget.IsUsable
-                    || stagedTarget.VolumeSerialNumber != ManagedRootIdentity.VolumeSerialNumber))
+                && (finalTargetIdentity is not { } stagedTarget
+                    || stagedTarget != StagedSourceIdentity
+                    || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        finalPublicationFingerprint)))
             {
-                throw new InvalidOperationException("The recovered staged import target identity is not root-bound.");
+                throw new InvalidOperationException("The recovered staged import publication is invalid.");
             }
 
-            return createWithPhase(terminalPhase, TargetIdentity ?? recoveredTargetIdentity);
+            return createWithPhase(
+                terminalPhase,
+                finalTargetIdentity,
+                finalPublicationFingerprint);
         }
 
         public IReadOnlyList<string> GetAffectedManagedRelativePaths()
@@ -343,7 +422,7 @@ namespace osu.Game.Skinning
 
         public bool IsValid()
         {
-            if (Version != CURRENT_VERSION
+            if (Version is not (LEGACY_VERSION or CURRENT_VERSION)
                 || OperationId == Guid.Empty
                 || !Enum.IsDefined(Kind)
                 || !Enum.IsDefined(Phase)
@@ -366,7 +445,17 @@ namespace osu.Game.Skinning
                 || TargetIdentity is { IsUsable: false }
                 || StagedSourceIdentity is { IsUsable: false }
                 || StagedRootIdentity is { IsUsable: false }
-                || (Phase == SkinManagedFolderMutationPhase.Prepared && TargetIdentity != null))
+                || (StagedSourceContentRevision != null
+                    && !IsValidContentRevision(StagedSourceContentRevision))
+                || (StagedSourceTreeFingerprint != null
+                    && !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        StagedSourceTreeFingerprint))
+                || (NewRecordPublicationFingerprint != null
+                    && !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        NewRecordPublicationFingerprint))
+                || (Phase == SkinManagedFolderMutationPhase.Prepared
+                    && (TargetIdentity != null
+                        || NewRecordPublicationFingerprint != null)))
             {
                 return false;
             }
@@ -395,10 +484,14 @@ namespace osu.Game.Skinning
                     && StagedSourceRelativePath == null
                     && StagedSourceIdentity == null
                     && StagedRootIdentity == null
-                    && NewRecordPublicationPlanVersion == null,
+                    && NewRecordPublicationPlanVersion == null
+                    && StagedSourceContentRevision == null
+                    && StagedSourceTreeFingerprint == null
+                    && NewRecordPublicationFingerprint == null,
 
                 SkinManagedFolderMutationKind.StagedImport =>
                     RecordId == OperationId
+                    && !SkinFilesystemStorageResolver.IsFixedSkinId(OperationId)
                     && SourceManagedRelativePath == null
                     && SourceIdentity == null
                     && TargetManagedRelativePath != null
@@ -409,8 +502,16 @@ namespace osu.Game.Skinning
                     && StagedSourceIdentity.Value.VolumeSerialNumber == ManagedRootIdentity.VolumeSerialNumber
                     && StagedRootIdentity.Value.VolumeSerialNumber == ManagedRootIdentity.VolumeSerialNumber
                     && (TargetIdentity == null
-                        || TargetIdentity.Value.VolumeSerialNumber == ManagedRootIdentity.VolumeSerialNumber)
-                    && string.Equals(NewRecordPublicationPlanVersion, NEW_RECORD_PUBLICATION_PLAN_VERSION, StringComparison.Ordinal),
+                        || TargetIdentity == StagedSourceIdentity)
+                    && string.Equals(NewRecordPublicationPlanVersion, NEW_RECORD_PUBLICATION_PLAN_VERSION, StringComparison.Ordinal)
+                    && (Version == LEGACY_VERSION
+                        ? StagedSourceContentRevision == null
+                          && StagedSourceTreeFingerprint == null
+                        : IsValidContentRevision(StagedSourceContentRevision)
+                          && SkinManagedFolderNewRecordPublicationData
+                              .IsValidFingerprint(
+                                  StagedSourceTreeFingerprint))
+                    && hasValidStagedPublicationState(),
 
                 SkinManagedFolderMutationKind.Delete =>
                     RecordId is { } deleteRecordId
@@ -424,7 +525,10 @@ namespace osu.Game.Skinning
                     && StagedSourceRelativePath == null
                     && StagedSourceIdentity == null
                     && StagedRootIdentity == null
-                    && NewRecordPublicationPlanVersion == null,
+                    && NewRecordPublicationPlanVersion == null
+                    && StagedSourceContentRevision == null
+                    && StagedSourceTreeFingerprint == null
+                    && NewRecordPublicationFingerprint == null,
 
                 _ => false,
             };
@@ -433,8 +537,48 @@ namespace osu.Game.Skinning
         public override string ToString()
             => $"{nameof(SkinManagedFolderMutationJournal)}:V{Version}:{Kind}:{Phase}";
 
+        public bool ShouldSerializeStagedSourceContentRevision()
+            => Version != LEGACY_VERSION;
+
+        public bool ShouldSerializeStagedSourceTreeFingerprint()
+            => Version != LEGACY_VERSION;
+
+        private bool hasValidStagedPublicationState()
+        {
+            if (Version == LEGACY_VERSION)
+                return NewRecordPublicationFingerprint == null;
+
+            bool hasTarget = TargetIdentity != null;
+            bool hasPublicationFingerprint =
+                SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                    NewRecordPublicationFingerprint);
+
+            return Phase switch
+            {
+                SkinManagedFolderMutationPhase.Prepared =>
+                    !hasTarget && NewRecordPublicationFingerprint == null,
+
+                SkinManagedFolderMutationPhase.FilesystemApplied
+                    or SkinManagedFolderMutationPhase.RealmApplied
+                    or SkinManagedFolderMutationPhase.Committed =>
+                    hasTarget && hasPublicationFingerprint,
+
+                SkinManagedFolderMutationPhase.RolledBack =>
+                    hasTarget
+                        ? hasPublicationFingerprint
+                        : NewRecordPublicationFingerprint == null,
+
+                _ => false,
+            };
+        }
+
         internal static string GetExpectedStagedSourceRelativePath(Guid operationId)
             => $"skin-mutation-staging/{operationId:N}";
+
+        internal static bool IsValidContentRevision(string? contentRevision)
+            => contentRevision is { Length: 64 }
+               && contentRevision.All(character => character is >= '0' and <= '9'
+                   or >= 'A' and <= 'F');
 
         internal bool IsSameMonotonicIntent(SkinManagedFolderMutationJournal candidate)
         {
@@ -454,31 +598,82 @@ namespace osu.Game.Skinning
                    && StagedSourceIdentity == candidate.StagedSourceIdentity
                    && StagedRootIdentity == candidate.StagedRootIdentity
                    && string.Equals(NewRecordPublicationPlanVersion, candidate.NewRecordPublicationPlanVersion, StringComparison.Ordinal)
-                   && isAllowedPhaseProgression(Phase, candidate.Phase)
-                   && (Phase != candidate.Phase || TargetIdentity == candidate.TargetIdentity);
+                   && string.Equals(
+                       StagedSourceContentRevision,
+                       candidate.StagedSourceContentRevision,
+                       StringComparison.Ordinal)
+                   && string.Equals(
+                       StagedSourceTreeFingerprint,
+                       candidate.StagedSourceTreeFingerprint,
+                       StringComparison.Ordinal)
+                   && (NewRecordPublicationFingerprint == null
+                       || string.Equals(
+                           NewRecordPublicationFingerprint,
+                           candidate.NewRecordPublicationFingerprint,
+                           StringComparison.Ordinal))
+                   && isAllowedPhaseProgression(candidate.Phase)
+                   && (Phase != candidate.Phase
+                       || (TargetIdentity == candidate.TargetIdentity
+                           && string.Equals(
+                               NewRecordPublicationFingerprint,
+                               candidate.NewRecordPublicationFingerprint,
+                               StringComparison.Ordinal)));
         }
 
         internal bool IsExactSameJournal(SkinManagedFolderMutationJournal candidate)
             => IsSameMonotonicIntent(candidate)
                && candidate.IsSameMonotonicIntent(this)
                && Phase == candidate.Phase
-               && TargetIdentity == candidate.TargetIdentity;
+               && TargetIdentity == candidate.TargetIdentity
+               && string.Equals(
+                   NewRecordPublicationFingerprint,
+                   candidate.NewRecordPublicationFingerprint,
+                   StringComparison.Ordinal);
 
-        private static bool isAllowedPhaseProgression(
-            SkinManagedFolderMutationPhase current,
+        private bool isAllowedPhaseProgression(
             SkinManagedFolderMutationPhase candidate)
-            => current switch
+        {
+            if (Version == LEGACY_VERSION)
+            {
+                return Phase switch
+                {
+                    SkinManagedFolderMutationPhase.Prepared =>
+                        candidate is SkinManagedFolderMutationPhase.Prepared
+                            or SkinManagedFolderMutationPhase.FilesystemApplied
+                            or SkinManagedFolderMutationPhase.Committed
+                            or SkinManagedFolderMutationPhase.RolledBack,
+
+                    SkinManagedFolderMutationPhase.FilesystemApplied =>
+                        candidate is SkinManagedFolderMutationPhase.FilesystemApplied
+                            or SkinManagedFolderMutationPhase.RealmApplied
+                            or SkinManagedFolderMutationPhase.Committed
+                            or SkinManagedFolderMutationPhase.RolledBack,
+
+                    SkinManagedFolderMutationPhase.RealmApplied =>
+                        candidate is SkinManagedFolderMutationPhase.RealmApplied
+                            or SkinManagedFolderMutationPhase.Committed
+                            or SkinManagedFolderMutationPhase.RolledBack,
+
+                    SkinManagedFolderMutationPhase.Committed =>
+                        candidate == SkinManagedFolderMutationPhase.Committed,
+
+                    SkinManagedFolderMutationPhase.RolledBack =>
+                        candidate == SkinManagedFolderMutationPhase.RolledBack,
+
+                    _ => false,
+                };
+            }
+
+            return Phase switch
             {
                 SkinManagedFolderMutationPhase.Prepared =>
                     candidate is SkinManagedFolderMutationPhase.Prepared
                         or SkinManagedFolderMutationPhase.FilesystemApplied
-                        or SkinManagedFolderMutationPhase.Committed
                         or SkinManagedFolderMutationPhase.RolledBack,
 
                 SkinManagedFolderMutationPhase.FilesystemApplied =>
                     candidate is SkinManagedFolderMutationPhase.FilesystemApplied
                         or SkinManagedFolderMutationPhase.RealmApplied
-                        or SkinManagedFolderMutationPhase.Committed
                         or SkinManagedFolderMutationPhase.RolledBack,
 
                 SkinManagedFolderMutationPhase.RealmApplied =>
@@ -494,8 +689,10 @@ namespace osu.Game.Skinning
 
                 _ => false,
             };
+        }
 
         private static SkinManagedFolderMutationJournal createValidated(
+            int version,
             Guid operationId,
             SkinManagedFolderMutationKind kind,
             SkinManagedFolderMutationPhase phase,
@@ -509,10 +706,13 @@ namespace osu.Game.Skinning
             string? stagedSourceRelativePath,
             SkinManagedFolderPhysicalIdentity? stagedSourceIdentity,
             SkinManagedFolderPhysicalIdentity? stagedRootIdentity,
-            string? newRecordPublicationPlanVersion)
+            string? newRecordPublicationPlanVersion,
+            string? stagedSourceContentRevision,
+            string? stagedSourceTreeFingerprint,
+            string? newRecordPublicationFingerprint)
         {
             var journal = new SkinManagedFolderMutationJournal(
-                CURRENT_VERSION,
+                version,
                 operationId,
                 kind,
                 phase,
@@ -526,7 +726,10 @@ namespace osu.Game.Skinning
                 stagedSourceRelativePath,
                 stagedSourceIdentity,
                 stagedRootIdentity,
-                newRecordPublicationPlanVersion);
+                newRecordPublicationPlanVersion,
+                stagedSourceContentRevision,
+                stagedSourceTreeFingerprint,
+                newRecordPublicationFingerprint);
 
             if (!journal.IsValid())
                 throw new ArgumentException("The managed-folder mutation journal is invalid.");
@@ -536,8 +739,10 @@ namespace osu.Game.Skinning
 
         private SkinManagedFolderMutationJournal createWithPhase(
             SkinManagedFolderMutationPhase phase,
-            SkinManagedFolderPhysicalIdentity? targetIdentity)
+            SkinManagedFolderPhysicalIdentity? targetIdentity,
+            string? newRecordPublicationFingerprint)
             => createValidated(
+                Version,
                 OperationId,
                 Kind,
                 phase,
@@ -551,7 +756,10 @@ namespace osu.Game.Skinning
                 StagedSourceRelativePath,
                 StagedSourceIdentity,
                 StagedRootIdentity,
-                NewRecordPublicationPlanVersion);
+                NewRecordPublicationPlanVersion,
+                StagedSourceContentRevision,
+                StagedSourceTreeFingerprint,
+                newRecordPublicationFingerprint);
     }
 
     internal enum SkinManagedFolderMutationJournalLoadStatus
@@ -602,7 +810,7 @@ namespace osu.Game.Skinning
         private const int movefile_write_through = 0x8;
 
         private static readonly UTF8Encoding strict_utf8 = new UTF8Encoding(false, true);
-        private static readonly string[] journal_payload_properties =
+        private static readonly string[] legacy_journal_payload_properties =
         {
             nameof(SkinManagedFolderMutationJournal.Version),
             nameof(SkinManagedFolderMutationJournal.OperationId),
@@ -620,6 +828,17 @@ namespace osu.Game.Skinning
             nameof(SkinManagedFolderMutationJournal.StagedRootIdentity),
             nameof(SkinManagedFolderMutationJournal.NewRecordPublicationPlanVersion),
         };
+
+        private static readonly string[] current_journal_payload_properties =
+            legacy_journal_payload_properties
+                .Append(nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision))
+                .Append(nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint))
+                .ToArray();
+
+        private static readonly string[] current_journal_payload_properties_with_fingerprint =
+            current_journal_payload_properties
+                .Append(nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint))
+                .ToArray();
 
         private static readonly string[] physical_identity_properties =
         {
@@ -706,16 +925,19 @@ namespace osu.Game.Skinning
                 if (!hasExactProperties(document, "version", "payload", "sha256")
                     || document["version"]?.Type != JTokenType.Integer
                     || document["payload"] is not JObject payload
-                    || document["sha256"]?.Type != JTokenType.String
-                    || !hasExactJournalPayloadSchema(payload))
+                    || document["sha256"]?.Type != JTokenType.String)
                 {
                     return new SkinManagedFolderMutationJournalLoadResult(SkinManagedFolderMutationJournalLoadStatus.Invalid);
                 }
 
                 int version = document.Value<int>("version");
 
-                if (version != SkinManagedFolderMutationJournal.CURRENT_VERSION)
+                if (version is not (SkinManagedFolderMutationJournal.LEGACY_VERSION
+                    or SkinManagedFolderMutationJournal.CURRENT_VERSION))
                     return new SkinManagedFolderMutationJournalLoadResult(SkinManagedFolderMutationJournalLoadStatus.UnsupportedVersion);
+
+                if (!hasExactJournalPayloadSchema(payload, version))
+                    return new SkinManagedFolderMutationJournalLoadResult(SkinManagedFolderMutationJournalLoadStatus.Invalid);
 
                 string canonicalPayload = payload.ToString(Formatting.None);
                 string expectedChecksum = computeChecksum(canonicalPayload);
@@ -773,8 +995,11 @@ namespace osu.Game.Skinning
 
             if (existing.Status == SkinManagedFolderMutationJournalLoadStatus.Missing)
             {
-                if (journal.Phase != SkinManagedFolderMutationPhase.Prepared)
+                if (journal.Version != SkinManagedFolderMutationJournal.CURRENT_VERSION
+                    || journal.Phase != SkinManagedFolderMutationPhase.Prepared)
+                {
                     throw new InvalidOperationException("A new managed-folder mutation journal must start prepared.");
+                }
             }
             else if (!existing.IsLoaded
                      || existing.Journal!.Phase is SkinManagedFolderMutationPhase.Committed or SkinManagedFolderMutationPhase.RolledBack
@@ -786,7 +1011,7 @@ namespace osu.Game.Skinning
             string payload = JsonConvert.SerializeObject(journal, Formatting.None, SkinManagedFolderMutationJson.CreateSettings());
             var document = new JObject
             {
-                ["version"] = SkinManagedFolderMutationJournal.CURRENT_VERSION,
+                ["version"] = journal.Version,
                 ["payload"] = JObject.Parse(payload),
                 ["sha256"] = computeChecksum(payload),
             };
@@ -861,23 +1086,80 @@ namespace osu.Game.Skinning
         private static string computeChecksum(string value)
             => Convert.ToHexString(SHA256.HashData(strict_utf8.GetBytes(value))).ToLowerInvariant();
 
-        private static bool hasExactJournalPayloadSchema(JObject payload)
-            => hasExactProperties(payload, journal_payload_properties)
-               && payload[nameof(SkinManagedFolderMutationJournal.Version)]?.Type == JTokenType.Integer
-               && payload[nameof(SkinManagedFolderMutationJournal.OperationId)]?.Type == JTokenType.String
-               && payload[nameof(SkinManagedFolderMutationJournal.Kind)]?.Type == JTokenType.Integer
-               && payload[nameof(SkinManagedFolderMutationJournal.Phase)]?.Type == JTokenType.Integer
-               && hasType(payload[nameof(SkinManagedFolderMutationJournal.RecordId)], JTokenType.String, true)
-               && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.ManagedRootIdentity)], false)
-               && hasType(payload[nameof(SkinManagedFolderMutationJournal.SourceManagedRelativePath)], JTokenType.String, true)
-               && hasType(payload[nameof(SkinManagedFolderMutationJournal.TargetManagedRelativePath)], JTokenType.String, true)
-               && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.SourceIdentity)])
-               && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.TargetIdentity)])
-               && hasType(payload[nameof(SkinManagedFolderMutationJournal.StagedSourceAuthority)], JTokenType.String, true)
-               && hasType(payload[nameof(SkinManagedFolderMutationJournal.StagedSourceRelativePath)], JTokenType.String, true)
-               && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.StagedSourceIdentity)])
-               && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.StagedRootIdentity)])
-               && hasType(payload[nameof(SkinManagedFolderMutationJournal.NewRecordPublicationPlanVersion)], JTokenType.String, true);
+        private static bool hasExactJournalPayloadSchema(JObject payload, int version)
+        {
+            bool hasStagedSourceContentRevision = payload.ContainsKey(
+                nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision));
+            bool hasStagedSourceTreeFingerprint = payload.ContainsKey(
+                nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint));
+            bool hasFingerprint = payload.ContainsKey(
+                nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint));
+            string[] expectedProperties = version == SkinManagedFolderMutationJournal.LEGACY_VERSION
+                ? legacy_journal_payload_properties
+                : hasFingerprint
+                    ? current_journal_payload_properties_with_fingerprint
+                    : current_journal_payload_properties;
+
+            if (!hasExactProperties(payload, expectedProperties)
+                || (version == SkinManagedFolderMutationJournal.LEGACY_VERSION
+                    && (hasStagedSourceContentRevision
+                        || hasStagedSourceTreeFingerprint
+                        || hasFingerprint))
+                || (version == SkinManagedFolderMutationJournal.CURRENT_VERSION
+                    && (!hasStagedSourceContentRevision
+                        || !hasStagedSourceTreeFingerprint))
+                || payload.Value<int?>(nameof(SkinManagedFolderMutationJournal.Version)) != version
+                || payload[nameof(SkinManagedFolderMutationJournal.Kind)]?.Type != JTokenType.Integer
+                || payload[nameof(SkinManagedFolderMutationJournal.Phase)]?.Type != JTokenType.Integer)
+            {
+                return false;
+            }
+
+            var kind = (SkinManagedFolderMutationKind)payload.Value<int>(
+                nameof(SkinManagedFolderMutationJournal.Kind));
+            var phase = (SkinManagedFolderMutationPhase)payload.Value<int>(
+                nameof(SkinManagedFolderMutationJournal.Phase));
+
+            if (version == SkinManagedFolderMutationJournal.CURRENT_VERSION
+                && kind == SkinManagedFolderMutationKind.StagedImport
+                && phase is SkinManagedFolderMutationPhase.FilesystemApplied
+                    or SkinManagedFolderMutationPhase.RealmApplied
+                    or SkinManagedFolderMutationPhase.Committed
+                && !hasFingerprint)
+            {
+                return false;
+            }
+
+            return
+                payload[nameof(SkinManagedFolderMutationJournal.Version)]?.Type == JTokenType.Integer
+                && payload[nameof(SkinManagedFolderMutationJournal.OperationId)]?.Type == JTokenType.String
+                && payload[nameof(SkinManagedFolderMutationJournal.Kind)]?.Type == JTokenType.Integer
+                && payload[nameof(SkinManagedFolderMutationJournal.Phase)]?.Type == JTokenType.Integer
+                && hasType(payload[nameof(SkinManagedFolderMutationJournal.RecordId)], JTokenType.String, true)
+                && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.ManagedRootIdentity)], false)
+                && hasType(payload[nameof(SkinManagedFolderMutationJournal.SourceManagedRelativePath)], JTokenType.String, true)
+                && hasType(payload[nameof(SkinManagedFolderMutationJournal.TargetManagedRelativePath)], JTokenType.String, true)
+                && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.SourceIdentity)])
+                && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.TargetIdentity)])
+                && hasType(payload[nameof(SkinManagedFolderMutationJournal.StagedSourceAuthority)], JTokenType.String, true)
+                && hasType(payload[nameof(SkinManagedFolderMutationJournal.StagedSourceRelativePath)], JTokenType.String, true)
+                && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.StagedSourceIdentity)])
+                && hasExactPhysicalIdentitySchema(payload[nameof(SkinManagedFolderMutationJournal.StagedRootIdentity)])
+                && hasType(payload[nameof(SkinManagedFolderMutationJournal.NewRecordPublicationPlanVersion)], JTokenType.String, true)
+                && (version == SkinManagedFolderMutationJournal.LEGACY_VERSION
+                    || hasType(
+                        payload[nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision)],
+                        JTokenType.String,
+                        true))
+                && (version == SkinManagedFolderMutationJournal.LEGACY_VERSION
+                    || hasType(
+                        payload[nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint)],
+                        JTokenType.String,
+                        true))
+                && (!hasFingerprint
+                    || payload[nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint)]?.Type
+                    == JTokenType.String);
+        }
 
         private static bool hasExactPhysicalIdentitySchema(JToken? value, bool allowNull = true)
             => (allowNull && value?.Type == JTokenType.Null)

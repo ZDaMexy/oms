@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个已导入 `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。`SV1-2` 的schema 57 owner、held-root启动scanner、exact-capsule factory/guarded selection、专用mutation authority/recovery foundation及directory-only managed chartskin rename现已闭合：rename只移动`chartskin/<direct-child>`并更新同一Realm record的managed path，作者展示/包内容不变；durable阶段、identity-aware恢复、歧义冻结、selection/scanner竞态与shutdown join均有自动合同。入口仍为internal且UI未开放；下一门是staged import，随后才是delete、external与atomic reload/detach。
+`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个已导入 `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。`SV1-2` 的schema 57 owner、held-root启动scanner、exact-capsule factory/guarded selection、专用mutation authority/recovery foundation、directory-only managed chartskin rename及managed chartskin staged import现已闭合。staged import只把OMS为本operation持有的固定同卷provisional副本完整capture后identity-preserving no-replace move到既存managed authority root，并one-shot发布exact scanner-owned record；不自动选择且无关pending selection可继续。入口仍为internal且UI未开放；下一门是managed delete，随后才是external与atomic reload/detach。
 
 ## 当前产品能力
 
@@ -13,7 +13,7 @@
 - **实现并自动验证的新增可见能力为 4**：选中的用户 BMS 包可为普通短键提供 `name-0`、`name-1`…编号帧动画，也可为 `NoteImage{lane}H/L/T`（含 `S`/`S2`）长条 head/body/tail 提供静态图和同规则 60 FPS 动画；普通短键静态 `NoteImage` 属恢复基线，不重复计数。
 - **产品视觉签收为 0/4**：普通短键、长条 head、tail 与 body 分别登记为集中视觉项 `V-001`～`V-004`，用户尚未签收，因此只能称实现/自动 gate 通过，不能称已交付功能。
 - **安全回落覆盖 Note/Head/Body/Tail**：selected 单组件缺失、损坏、空值、越权或超预算时逐组件回落；body 是不可 `Suppress` 的 critical 组件，资源失败才 `Inherit`，有效 body 即使 width 缺失或非法也继续使用同组件与默认 `0.5775`。坏 body/tail 都不能从低层裸同名纹理拼件，低层自己的完整组件仍可接管；tail 保持 optional 透明 protected fallback。异步换源只发布当前 revision 的完整结果。beatmap-local 优先目前只是注入式 provider-order 合同，不是真实 BMS `WorkingBeatmap` 能力。
-- **Skin V1完整产品面仍未交付**：`SV1-1` 未完成；`SV1-2` 已有受管目录启动发现、生产选择、mutation/recovery公共地基及真实directory-only rename，但没有UI、staged import、delete、external或原子reload；`SV1-3`～`SV1-7`未实现。不能把rename切片描述成G1、Skin V1或产品交付完成。
+- **Skin V1完整产品面仍未交付**：`SV1-1` 未完成；`SV1-2` 已有受管目录启动发现、生产选择、mutation/recovery公共地基及真实directory-only rename/staged import，但没有UI、managed delete、external或原子reload/detach；`SV1-3`～`SV1-7`未实现。不能把这些internal切片描述成G1、Skin V1或产品交付完成。
 
 | 产品交付面 | 当前状态 |
 | --- | --- |
@@ -23,7 +23,7 @@
 | BMS 长条身静态图/编号帧动画与安全宽度 | 实现/自动 gate 已过；`V-004` 集中视觉待验收，未交付；critical、不可 `Suppress` |
 | gameplay slot 三态 | 普通短键/长条头/body critical 与长条尾 optional slot 已消费 `Provide/Inherit`；作者 `Suppress` 与其它 slot 未交付 |
 | canonical `oms-simple.osk` fallback | 未交付；实际链底仍是程序化 `OmsSkin` |
-| G1 文件夹发现/选择/原子重载 | 部分实现、未交付；schema 57 exact-owner启动发现、production factory/选择及directory-only rename自动gate已过，但UI、import/delete、external与原子reload/detach未实现 |
+| G1 文件夹发现/选择/原子重载 | 部分实现、未交付；schema 57 exact-owner启动发现、production factory/选择、directory-only rename及staged import自动gate已过，但UI、managed delete、external与原子reload/detach未实现 |
 | 统一 layout descriptor/solver | 未交付；现有 geometry provenance 不是有效 layout |
 | shared ini codec/结构化诊断 | 未交付 |
 | scene/event runtime 与 sandbox script | 未交付 |
@@ -42,6 +42,8 @@
 - production `SkinManager` 现在只为 Realm 中 authoritative `IsManaged` 且解析合法的 folder 记录启动后台 capture；capture 后以 exact ordinal allowlist 验证 `InstantiationInfo`、要求根 `skin.ini` 与精确 capsule 构造入口，factory 前后均复核 authoritative record，最终在共享coordinator内重新取得本Realm authoritative live record并一次提交 `CurrentSkinInfo`/`CurrentSkin`。未注册/unmanaged、external、非法类型、hardlink、capture/factory 失败、过期 generation、竞态、reentrant 请求或 completion scheduler fault 均保留旧 pair并回收 provisional owner；普通 `.osk`、`OmsSkin` 与 mania 路径不改。
 - committed selection 使用封闭绑定图与显式 request surface，generic `Bindable`/Dropdown/lease 不能两向绕过预提交 gate；settings 只镜像已提交值。folder 的旧编辑、导出、通用重命名、delete/undelete、文件 mutation、update-import 与 external-edit 路径均冻结，并在真正 Realm mutation 内按 ID 重新取得 authoritative record，调用方伪造/陈旧 `SkinInfo` 字段不能授权。新的专用foundation签发held existing/staged source、root-bound absent target slot、immutable新记录publication plan与exact durable receipt。
 - 专用internal rename已形成真实production纵切：首个物理可见步骤前durable写入Prepared；Windows held-root/no-follow primitive以no-replace方式把source direct child移动到target slot并保持同一physical identity；随后依次持久化`FilesystemApplied → RealmApplied → Committed`，成功后compare-delete terminal journal并确认Missing。Realm只修改同一记录的`FilesystemStoragePath`，不发布新记录、不改scanner owner、revision/hash、`Name`、`Creator`或`skin.ini`。成功后active immutable capsule可继续服务已有consumer，全局selection generation前进并取消当时的pending selection，旧generation不得发布，未来重新选择从新路径capture；歧义恢复冻结source/target并继续禁止scanner negative cleanup，shutdown在Realm释放前cancel+join worker。active owner的全consumer detach barrier仍未实现。
+- 专用internal staged import同样直接消费既有authority/coordinator/journal/recovery：source固定为`skin-mutation-staging/{operationId:N}`，是upstream stager预先复制、外部原来源仍保留且由OMS为本operation持有的provisional副本；managed root是既存authority root，不由import创建。source先从held staging root做no-follow完整package capture并验证根`skin.ini`、closed实例类型、capsule revision、reparse/hardlink/duplicate/busy-writer与inventory，再把uppercase content revision及覆盖空目录、全节点identity/kind/length/time/attributes/reparse/link/delete和exact ordinal层级的lowercase physical-tree fingerprint写入durable Prepared。随后由held staging parent/source和managed root执行同卷identity-preserving no-replace move；target重捕identity/capsule/tree fingerprint必须与Prepared exact一致。`FilesystemApplied`与最终Realm ID/path/owner冲突复核后，one-shot publisher只发布`ID = operationId`、exact target path、最终capsule metadata/hash、closed实例类型、空`Files`、非external/protected/DeletePending且交接exact scanner owner的一条record。publication plan不是Realm writer，普通scanner不消费plan。
+- staged import不自动选择或替换current active immutable capsule，也不沿用rename的全局pending取消；无关pending selection只要最终authoritative复核仍成立就继续，import恰在selection首次final-boundary争用后完成的竞态由completion epoch重试收口。它按staged-import kind复用同一phase graph、canonical journal与recovery；所有可判定physical结果返回前重枚举source/target双槽，可判定状态只前滚exact target或清理exact provisional source/计划record，部分self-cleanup崩溃可按exact root identity/tree幂等续跑。both始终保持歧义，neither仅在无法继续证明provisional可丢弃时保持歧义，root/source/target identity mismatch、physical-tree/content drift或foreign/conflicting Realm也均保留journal并冻结。worker与rename/startup worker服从同一Realm释放前cancel + join边界，脱敏状态只输出kind/phase/status/count。
 - playfield 可读取当前皮肤 profile，但 gauge/combo/BGA 尚未消费同一 resolved descriptor；14K 四角四 BGA player 只是临时表现。
 - mania/BMS 的共同目标仍是 neutral ini codec、scene/event ABI 与 sandbox；ruleset topology/layout adapter 分离，BMS 不继承 mania 具体 Drawable/transformer。
 
@@ -54,9 +56,17 @@
 | 3 | 文档与 memory 健康治理 | **完成**：只归位当前事实、未来步骤、稳定合同和历史；未改代码或产品 gate |
 | 4 | 已导入 `.osk` 的 BMS 普通短键与长条 head/body/tail 视觉 | **`V-001`～`V-004` 集中待验收**；这是完成/release 声明门，不是后续开发开工门，不可复用静态恢复结论 |
 | 5 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收**；四组件自动、合同、安全与回退 gate 通过，但不得写成 `SV1-1` 完成或交付 |
-| 6 | `SV1-2` G1 安全存储与原子重载 | **进行中**；schema 57受管目录启动发现、production factory/选择、mutation authority/recovery foundation及directory-only rename自动门已闭合；当前推进staged import，再按delete、external与atomic reload/detach独立过门；`SV1-3`～`SV1-7`仍未完成 |
+| 6 | `SV1-2` G1 安全存储与原子重载 | **进行中**；schema 57受管目录启动发现、production factory/选择、mutation authority/recovery foundation、directory-only rename及staged import自动门已闭合；当前推进managed delete，再按external与atomic reload/detach独立过门；`SV1-3`～`SV1-7`仍未完成 |
 
 ## 最新验证
+
+### `SV1-2` managed chartskin staged import：2026-07-29
+
+- internal production staged import只接受OMS为本operation持有的固定`skin-mutation-staging/{operationId:N}` provisional副本；upstream stager必须预先复制并保留外部原来源。staging root/source与既存managed authority root同卷held no-follow，source完整package capture通过后才允许进入move阶段。
+- Windows primitive以held staging parent/source和held managed root执行identity-preserving no-replace move；target name-slot先按NFC/Windows/direct-child规则拒绝大小写、physical及Realm ID/path冲突。durable Prepared已绑定source exact identity、uppercase capsule revision与lowercase完整physical-tree fingerprint；fingerprint覆盖capsule revision、空目录、节点identity/kind/length/creation/attributes/reparse/link/delete及exact ordinal层级边界。最终target no-follow重捕必须与三者exact一致，且每次可判定inspection返回前都重新枚举source/target双槽。之后闭合`FilesystemApplied → RealmApplied → Committed`并exact compare-delete确认Missing。
+- one-shot Realm publisher只在最终target capture和最终冲突复核后发布一条exact record：`ID = operationId`，path为exact target managed path，`Name`/`Creator`/hash来自最终capsule，实例类型为closed allowlist，`Files`为空、非external/protected、`DeletePending=false`，并在scanner同等级注册门通过后交接exact scanner owner。publication plan本身不是Realm writer，ordinary startup scanner不消费plan。
+- import不自动选择、不替换current active capsule，也不复用rename的全局pending取消语义；无关pending selection在authoritative复核仍成立时继续，包含import在首次final-boundary争用后刚好完成的completion race。production recovery按staged-import kind与rename共用coordinator、journal store和启动recovery顺序；current journal即使已有终态证据也必须逐一write + exact reload `FilesystemApplied → RealmApplied → Committed`并每阶段重检，publisher绝不早于durable FilesystemApplied，checkpoint失败只留下最后durable phase，fresh restart继续且不重复publication。partial self-cleanup重启只续删同一exact provisional root；fixed skin ID staged journal无论checksum是否有效都判invalid；歧义、physical-tree/content drift与foreign state保留journal并冻结；shutdown统一在Realm释放前cancel + join。
+- 验证为core focused **265/265**、BMS完整selection产品类 **36/36**、core skin broad **856/862**（4项removed Osu archive fixture及2项既有native-default视觉/资源假设）、mania skin **182/182**、BMS full **1504/1504**；三工程targeted formatter verify、`CheckDocumentation.ps1`与`git diff --check`通过，Release **0 error / 20 emitted known warnings**，独立终审修复项闭合后blocker/major/moderate **0/0/0**。全程未启动GUI或操控桌面，没有新增视觉签收；`V-001`～`V-004`仍为0/4，managed/external/重启/切换/import/delete等最终视觉与实机gate仍未完成。UI、managed delete、external、reload与atomic detach继续冻结。
 
 ### `SV1-2` directory-only managed chartskin rename：2026-07-29
 
@@ -76,8 +86,8 @@
 - schema 56 的四个无 authority orphan blob 已保全并暂留；schema 57迁移保持owner=null，当前scanner也不会claim、去重或清理它们。
 - 当前真实 package 纵切只覆盖 BMS 普通短键与长条 head/body/tail；单组件安全替换不等于整包/全 playfield 同帧原子 reload。
 - `SkinFilesystemStorageResolver` 返回的 normalised lexical path 只表示检查当时的声明/preflight，不是 capability；production managed folder factory 现已只消费 resolver-issued request 经 Windows fixed-handle capture 完整成功后返回的 exact capsule，不从 normalised path 或 live `NativeStorage` 直接进入 parser。capture 仍不是 mutation token、external adapter 或 filesystem transaction。
-- managed folder现可在重启后的完整稳定scan中自动发现并进入选择面；scanner不watch启动后的磁盘变化、不自动选择或reload。专用directory-only rename已有真实internal写入与同记录path-only Realm更新，但旧mutation入口和所有UI仍冻结；staged import/delete尚无物理写入或Realm新记录publisher。
-- filesystem与Realm不能组成同一原子事务；rename依靠Prepared journal、identity-aware recovery和歧义冻结收口。真实NTFS要求在final preflight后释放descendant handles再紧邻move/re-capture，因此该窄窗口不是filesystem transaction、oplock/TxF级全树排他或字节内容快照；可观察差异会保留journal并冻结。staged import的copy/move与冲突语义、新记录one-shot publisher、delete crash-point handler仍未实现；现有通用Rename/Delete/Import UI继续保持禁用。
+- managed folder现可在重启后的完整稳定scan中自动发现并进入选择面；scanner不watch启动后的磁盘变化、不自动选择或reload。专用directory-only rename与staged import已有真实internal物理写入及对应Realm更新/新记录publisher，但旧mutation入口和所有UI仍冻结；managed delete尚无物理写入或Realm record删除。
+- filesystem与Realm不能组成同一原子事务；rename与staged import都依靠Prepared journal、identity-aware recovery和歧义冻结收口。真实NTFS要求在final preflight后释放descendant handles再紧邻move/re-capture，因此该窄窗口不是filesystem transaction、oplock/TxF级全树排他或字节内容快照；可观察差异会保留journal并冻结。delete crash-point handler仍未实现；现有通用Rename/Delete/Import UI继续保持禁用。
 - resolved external identity尚未实现；当前Realm只要存在任一external filesystem声明，就会保守阻断全部managed mutation。这是临时fail-closed边界，external切片必须改为基于resolved identity的局部冲突判断。invalid/IO journal造成的冻结目前也没有用户可见的脱敏诊断，开放真实操作前须补支持性状态与恢复说明。
 - current managed delete的fallback pair确认门已存在，但实际delete仍没有入口；canonical接管前只接受受保护程序化`OmsSkin`，以后必须改为已验证只读`oms-simple.osk`。任何split pair或无法确认都拒绝，不得把foundation写成删除能力。
 - active capsule 已与当前实例绑定且磁盘变化不会混入，但旧 owner 的退役必须等待全consumer detach；当前没有整包reload publication barrier，不得把一次selection pair提交写成全playfield同帧reload。
@@ -94,5 +104,5 @@
 ## 下一检查点
 
 1. 将普通短键与长条 head/tail/body 的观感、选择切换和 selected 坏包回落保持在[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)的 `V-001`～`V-004`，等待统一用户反馈；不得把自动测试写成视觉签收。
-2. 继续 `SV1-2`：下一刀推进staged import，先冻结来源所有权、copy/move、冲突策略与真正one-shot record publisher，并直接复用现有authority/coordinator/journal/recovery；自动、安全与恢复gate闭合前不开放UI。之后依次推进delete（消费已闭合的protected pair门后才允许实际删除）、external与atomic reload/detach。directory-only rename保持internal production surface与上述自动回归门，不顺带开放UI。
+2. 继续 `SV1-2`：下一刀推进managed delete，消费已闭合的protected pair门后才允许实际删除，并继续直接复用现有authority/coordinator/journal/recovery；自动、安全与恢复gate闭合前不开放UI。之后依次推进external与atomic reload/detach。directory-only rename和staged import保持internal production surface与上述自动回归门，不顺带开放UI。
 3. 剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，留给后续 shared scene/runtime 接管。只有视觉结论实际决定下一实现时才暂停；期间保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 Skin V1 未交付状态不变。

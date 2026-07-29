@@ -314,11 +314,11 @@ namespace osu.Game.Tests.Skins
             Directory.CreateDirectory(stagedSource);
             File.WriteAllText(Path.Combine(stagedSource, "skin.ini"), "held staged source");
             var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
-            SkinManagedFolderStagedSourceCapture capture;
 
             using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
             {
-                capture = session.CaptureStagedSource(operationId, CancellationToken.None);
+                using SkinManagedFolderStagedSourceCapture capture =
+                    session.CaptureStagedSource(operationId, CancellationToken.None);
 
                 Assert.Multiple(() =>
                 {
@@ -680,6 +680,9 @@ namespace osu.Game.Tests.Skins
                 string targetName)
                 => inner.RenameChildNoReplace(source, targetParent, targetName);
 
+            public void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle)
+                => inner.DeleteNoFollow(handle);
+
             public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
             {
                 if (Interlocked.Exchange(ref blocked, 1) == 0)
@@ -734,6 +737,9 @@ namespace osu.Game.Tests.Skins
                 beforeRename();
                 inner.RenameChildNoReplace(source, targetParent, targetName);
             }
+
+            public void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle)
+                => inner.DeleteNoFollow(handle);
 
             public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
                 => inner.CreateNonOwningReadStream(file);

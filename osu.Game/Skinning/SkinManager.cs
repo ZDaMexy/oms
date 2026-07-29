@@ -109,6 +109,12 @@ namespace osu.Game.Skinning
 
         internal Action<Live<SkinInfo>> SelectionRequestBeforeCommitLock { get; set; } = _ => { };
 
+        internal Action ManagedFolderStagedImportAuthorityOpened { get; set; } = () => { };
+
+        internal Action ManagedFolderSelectionFinalBoundaryContended { get; set; } = () => { };
+
+        internal Action ManagedFolderSelectionWaitingForStagedImport { get; set; } = () => { };
+
         internal SkinManagedFolderOperationCoordinator ManagedFolderOperationCoordinator { get; } = new SkinManagedFolderOperationCoordinator();
 
         internal SkinManagedFolderMutationAuthority ManagedFolderMutationAuthority { get; }
@@ -118,11 +124,16 @@ namespace osu.Game.Skinning
         private readonly SkinManagedFolderMutationRecovery managedFolderMutationRecovery;
         private readonly ISkinManagedFolderMutationJournalStore managedFolderMutationJournalStore;
         private readonly SkinManagedFolderRenameOperation managedFolderRenameOperation;
+        private readonly SkinManagedFolderStagedImportOperation managedFolderStagedImportOperation;
         private readonly object managedFolderRenameLifecycleGate = new object();
         private CancellationTokenSource activeManagedFolderRenameCancellation;
         private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
+        private CancellationTokenSource activeManagedFolderStagedImportCancellation;
+        private Task<SkinManagedFolderStagedImportOperationResult> activeManagedFolderStagedImportTask;
         private SkinManagedFolderRenameOperationResult lastManagedFolderRenameResult;
-        private bool managedFolderRenameShutdown;
+        private SkinManagedFolderStagedImportOperationResult lastManagedFolderStagedImportResult;
+        private bool managedFolderMutationShutdown;
+        private long managedFolderStagedImportBoundaryEpoch;
 
         internal SkinManagedFolderRenameOperationResult LastManagedFolderRenameResult
             => Volatile.Read(ref lastManagedFolderRenameResult);
@@ -133,6 +144,21 @@ namespace osu.Game.Skinning
             {
                 lock (managedFolderRenameLifecycleGate)
                     return activeManagedFolderRenameTask is { IsCompleted: false };
+            }
+        }
+
+        internal SkinManagedFolderStagedImportOperationResult LastManagedFolderStagedImportResult
+            => Volatile.Read(ref lastManagedFolderStagedImportResult);
+
+        internal bool IsManagedFolderStagedImportRunning
+        {
+            get
+            {
+                lock (managedFolderRenameLifecycleGate)
+                {
+                    return activeManagedFolderStagedImportTask
+                        is { IsCompleted: false };
+                }
             }
         }
 
@@ -190,10 +216,28 @@ namespace osu.Game.Skinning
                 managedFolderMutationNativeAuthority,
                 managedFolderMutationJournalStore);
             managedFolderRenameOperation = new SkinManagedFolderRenameOperation(realm, ManagedFolderMutationAuthority);
+            managedFolderStagedImportOperation =
+                new SkinManagedFolderStagedImportOperation(
+                    realm,
+                    ManagedFolderMutationAuthority)
+                {
+                    AuthorityOpened =
+                        () => ManagedFolderStagedImportAuthorityOpened(),
+                };
             managedFolderMutationRecovery = new SkinManagedFolderMutationRecovery(
                 managedFolderMutationJournalStore,
                 ManagedFolderOperationCoordinator,
-                new SkinManagedFolderRenameRecoveryHandler(realm, managedFolderMutationNativeAuthority));
+                new SkinManagedFolderMutationRecoveryHandlerRouter(
+                    (
+                        SkinManagedFolderMutationKind.Rename,
+                        new SkinManagedFolderRenameRecoveryHandler(
+                            realm,
+                            managedFolderMutationNativeAuthority)),
+                    (
+                        SkinManagedFolderMutationKind.StagedImport,
+                        new SkinManagedFolderStagedImportRecoveryHandler(
+                            realm,
+                            managedFolderMutationNativeAuthority))));
             InitialManagedFolderMutationRecoveryResult = managedFolderMutationRecovery.Recover();
 
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
@@ -282,10 +326,11 @@ namespace osu.Game.Skinning
         {
             lock (managedFolderRenameLifecycleGate)
             {
-                if (managedFolderRenameShutdown)
+                if (managedFolderMutationShutdown)
                     return completedRenameResult(SkinManagedFolderRenameOperationStatus.Shutdown);
 
-                if (activeManagedFolderRenameTask is { IsCompleted: false })
+                if (activeManagedFolderRenameTask is { IsCompleted: false }
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false })
                     return completedRenameResult(SkinManagedFolderRenameOperationStatus.Busy);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -310,23 +355,84 @@ namespace osu.Game.Skinning
         }
 
         /// <summary>
-        /// Cancels and synchronously joins the managed rename worker before Realm can be released.
+        /// Starts one internal staged import from the fixed operation-derived provisional slot.
         /// </summary>
-        internal void ShutdownManagedFolderRename()
+        internal Task<SkinManagedFolderStagedImportOperationResult>
+            ImportManagedFolderAsync(
+                Guid operationId,
+                string targetChildName,
+                CancellationToken cancellationToken = default)
         {
-            CancellationTokenSource cancellation;
-            Task<SkinManagedFolderRenameOperationResult> operationTask;
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown)
+                {
+                    return completedStagedImportResult(
+                        SkinManagedFolderStagedImportOperationStatus.Shutdown);
+                }
+
+                if (activeManagedFolderRenameTask is { IsCompleted: false }
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false })
+                {
+                    return completedStagedImportResult(
+                        SkinManagedFolderStagedImportOperationStatus.Busy);
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return completedStagedImportResult(
+                        SkinManagedFolderStagedImportOperationStatus.Cancelled);
+                }
+
+                var operationCancellation =
+                    CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken);
+                Task<SkinManagedFolderStagedImportOperationResult> operationTask =
+                    Task.Run(
+                        () => executeManagedFolderStagedImport(
+                            operationId,
+                            targetChildName,
+                            operationCancellation.Token),
+                        CancellationToken.None);
+
+                activeManagedFolderStagedImportCancellation =
+                    operationCancellation;
+                activeManagedFolderStagedImportTask = operationTask;
+
+                _ = operationTask.ContinueWith(
+                    _ => completeManagedFolderStagedImportTask(
+                        operationTask,
+                        operationCancellation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        /// <summary>
+        /// Cancels and synchronously joins every managed-folder mutation worker before Realm can be released.
+        /// </summary>
+        internal void ShutdownManagedFolderMutations()
+        {
+            CancellationTokenSource renameCancellation;
+            CancellationTokenSource importCancellation;
+            Task<SkinManagedFolderRenameOperationResult> renameTask;
+            Task<SkinManagedFolderStagedImportOperationResult> importTask;
 
             lock (managedFolderRenameLifecycleGate)
             {
-                managedFolderRenameShutdown = true;
-                cancellation = activeManagedFolderRenameCancellation;
-                operationTask = activeManagedFolderRenameTask;
+                managedFolderMutationShutdown = true;
+                renameCancellation = activeManagedFolderRenameCancellation;
+                importCancellation = activeManagedFolderStagedImportCancellation;
+                renameTask = activeManagedFolderRenameTask;
+                importTask = activeManagedFolderStagedImportTask;
             }
 
             try
             {
-                cancellation?.Cancel();
+                renameCancellation?.Cancel();
             }
             catch
             {
@@ -335,13 +441,37 @@ namespace osu.Game.Skinning
 
             try
             {
-                operationTask?.GetAwaiter().GetResult();
+                importCancellation?.Cancel();
+            }
+            catch
+            {
+                // Cancellation callback failures must not bypass either join below.
+            }
+
+            try
+            {
+                renameTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Observe unexpected failures without exposing a potentially sensitive exception.
+            }
+
+            try
+            {
+                importTask?.GetAwaiter().GetResult();
             }
             catch
             {
                 // Observe unexpected failures without exposing a potentially sensitive exception.
             }
         }
+
+        /// <summary>
+        /// Compatibility entry point retained for existing rename lifecycle callers.
+        /// </summary>
+        internal void ShutdownManagedFolderRename()
+            => ShutdownManagedFolderMutations();
 
         private SkinManagedFolderRenameOperationResult executeManagedFolderRename(
             Guid recordId,
@@ -374,12 +504,51 @@ namespace osu.Game.Skinning
             return result;
         }
 
+        private SkinManagedFolderStagedImportOperationResult
+            executeManagedFolderStagedImport(
+                Guid operationId,
+                string targetChildName,
+                CancellationToken cancellationToken)
+        {
+            SkinManagedFolderStagedImportOperationResult result;
+
+            try
+            {
+                result = managedFolderStagedImportOperation.Execute(
+                    operationId,
+                    targetChildName,
+                    cancellationToken);
+            }
+            catch
+            {
+                result = SkinManagedFolderStagedImportOperationResult.Failure(
+                    SkinManagedFolderStagedImportOperationStatus
+                        .PreparedJournalOutcomeUncertain);
+            }
+
+            // Import deliberately does not advance selectionGeneration, cancel an unrelated pending selection,
+            // select the new record, or replace the active immutable capsule.
+            Volatile.Write(ref lastManagedFolderStagedImportResult, result);
+            Interlocked.Increment(ref managedFolderStagedImportBoundaryEpoch);
+            return result;
+        }
+
         private Task<SkinManagedFolderRenameOperationResult> completedRenameResult(
             SkinManagedFolderRenameOperationStatus status)
         {
             SkinManagedFolderRenameOperationResult result =
                 SkinManagedFolderRenameOperationResult.Failure(status);
             Volatile.Write(ref lastManagedFolderRenameResult, result);
+            return Task.FromResult(result);
+        }
+
+        private Task<SkinManagedFolderStagedImportOperationResult>
+            completedStagedImportResult(
+                SkinManagedFolderStagedImportOperationStatus status)
+        {
+            SkinManagedFolderStagedImportOperationResult result =
+                SkinManagedFolderStagedImportOperationResult.Failure(status);
+            Volatile.Write(ref lastManagedFolderStagedImportResult, result);
             return Task.FromResult(result);
         }
 
@@ -393,6 +562,24 @@ namespace osu.Game.Skinning
                 {
                     activeManagedFolderRenameTask = null;
                     activeManagedFolderRenameCancellation = null;
+                }
+            }
+
+            operationCancellation.Dispose();
+        }
+
+        private void completeManagedFolderStagedImportTask(
+            Task<SkinManagedFolderStagedImportOperationResult> operationTask,
+            CancellationTokenSource operationCancellation)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (ReferenceEquals(
+                        activeManagedFolderStagedImportTask,
+                        operationTask))
+                {
+                    activeManagedFolderStagedImportTask = null;
+                    activeManagedFolderStagedImportCancellation = null;
                 }
             }
 
@@ -847,14 +1034,71 @@ namespace osu.Game.Skinning
                 return;
             }
 
-            if (!ManagedFolderOperationCoordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease finalLease))
+            long stagedImportBoundaryEpoch =
+                Interlocked.Read(ref managedFolderStagedImportBoundaryEpoch);
+
+            if (!ManagedFolderOperationCoordinator.TryEnter(
+                    out SkinManagedFolderOperationCoordinator.Lease finalLease))
             {
-                factory.Skin!.Dispose();
+                ManagedFolderSelectionFinalBoundaryContended();
+                bool stagedImportRunning = IsManagedFolderStagedImportRunning;
+                bool stagedImportCompletedAcrossBoundary =
+                    stagedImportBoundaryEpoch
+                    != Interlocked.Read(
+                        ref managedFolderStagedImportBoundaryEpoch);
 
-                if (generation == Interlocked.Read(ref selectionGeneration))
-                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                if (!stagedImportRunning
+                    && !stagedImportCompletedAcrossBoundary)
+                {
+                    factory.Skin!.Dispose();
 
-                return;
+                    if (generation == Interlocked.Read(ref selectionGeneration))
+                    {
+                        rejectSelection(
+                            SkinSelectionRejectionReason
+                                .ManagedFolderOperationInProgress);
+                    }
+
+                    return;
+                }
+
+                try
+                {
+                    ManagedFolderSelectionWaitingForStagedImport();
+
+                    if (!IsManagedFolderStagedImportRunning)
+                    {
+                        // The import may have completed after the failed TryEnter but before the lifecycle observation.
+                        // Retry once so that this harmless interleaving cannot reject an unrelated prepared selection.
+                        if (!ManagedFolderOperationCoordinator.TryEnter(out finalLease))
+                        {
+                            factory.Skin!.Dispose();
+
+                            if (generation == Interlocked.Read(ref selectionGeneration))
+                            {
+                                rejectSelection(
+                                    SkinSelectionRejectionReason
+                                        .ManagedFolderOperationInProgress);
+                            }
+
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // A staged import does not invalidate an unrelated prepared selection. Wait for its detached
+                        // mutation reservation, then perform the same generation/Realm/path/freeze checks below.
+                        finalLease = ManagedFolderOperationCoordinator.Enter();
+                    }
+                }
+                catch
+                {
+                    factory.Skin!.Dispose();
+                    rejectSelection(
+                        generation,
+                        SkinSelectionRejectionReason.PreparationFailed);
+                    return;
+                }
             }
 
             using (finalLease)

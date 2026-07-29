@@ -7,6 +7,10 @@
 
 ## 2026-07-29
 
+### `SV1-2` managed chartskin staged import 闭合
+
+`SV1-2` 已闭合internal production staged import：只消费OMS持有的固定`skin-mutation-staging/{operationId:N}` provisional副本，upstream stager保留外部原来源；held no-follow完整capture以durable content revision + full physical-tree fingerprint固定Prepared，再同卷identity-preserving no-replace move到既存managed authority root，并由exact one-shot publisher合法交接scanner owner。current recovery严格逐阶段write + exact reload`FilesystemApplied → RealmApplied → Committed`且publisher不早于durable filesystem phase，fixed-ID journal拒绝；普通scanner不消费plan，import不自动选择、无关pending selection继续，操作按kind复用既有coordinator/journal/recovery并统一shutdown。focused **265/265**、BMS selection产品类 **36/36**、core skin **856/862**（6项既有基线）、mania **182/182**、BMS full **1504/1504**、Release **0 error / 20 known warnings**，终审blocker/major/moderate **0/0/0**。未启动GUI或操控桌面，视觉与实机gate仍未完成；UI、managed delete、external、reload与atomic detach继续冻结，下一优先级为managed delete。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ### `SV1-2` directory-only managed chartskin rename 闭合
 
 `SV1-2` 已闭合directory-only managed chartskin rename：只移动`chartskin/<direct-child>`工作目录并更新同一Realm record path，作者展示与包内容不变；durable phase、identity-aware recovery、selection/scanner/shutdown gate及真实Windows held-root-relative no-replace门均已覆盖。真实NTFS的descendant release→move→recapture窄窗口不是filesystem transaction，歧义由journal与路径冻结收口。focused **195/195**、BMS full **1497/1497**、Release **0 error / 20 known warnings**，独立审查blocker/major/minor **0/0/0**；未操控GUI。UI、staged import、delete、external和reload仍冻结，下一优先级为staged import。详见 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。

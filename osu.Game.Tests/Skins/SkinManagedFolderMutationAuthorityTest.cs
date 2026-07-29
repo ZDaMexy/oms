@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -22,6 +23,7 @@ namespace osu.Game.Tests.Skins
         private static readonly SkinManagedFolderPhysicalIdentity source_identity = new SkinManagedFolderPhysicalIdentity(11, 22, 23);
         private static readonly SkinManagedFolderPhysicalIdentity staged_root_identity = new SkinManagedFolderPhysicalIdentity(11, 31, 32);
         private static readonly SkinManagedFolderPhysicalIdentity staged_identity = new SkinManagedFolderPhysicalIdentity(11, 33, 34);
+        private static readonly string staged_tree_fingerprint = new string('b', 64);
 
         [Test]
         public void TestEligibleExistingRecordBindsExactNativePhysicalIdentityAndKeepsSessionHeld()
@@ -437,6 +439,277 @@ namespace osu.Game.Tests.Skins
             });
         }
 
+        [TestCase("")]
+        [TestCase(".")]
+        [TestCase("nested/target")]
+        [TestCase("target\\child")]
+        public void TestStagedImportInvalidTargetRejectedBeforeNativeOpenOrJournal(
+            string targetChildName)
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                var native = new FakeNativeAuthority();
+                var journalStore = createEmptyJournalStore();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    new SkinManagedFolderOperationCoordinator(),
+                    native,
+                    journalStore);
+
+                SkinManagedFolderMutationAuthorityResult result =
+                    authority.OpenStagedImport(
+                        Guid.NewGuid(),
+                        targetChildName);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.False);
+                    Assert.That(
+                        result.RejectionReason,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationAuthorityRejectionReason
+                                .InvalidTargetNameSlot));
+                    Assert.That(native.OpenedSessions, Is.Zero);
+                    Assert.That(native.MoveCalls, Is.Zero);
+                    Assert.That(journalStore.Writes, Is.Empty);
+                });
+            });
+        }
+
+        [TestCase("target", "chartskin/TARGET")]
+        [TestCase("Cafe\u0301", "chartskin/Caf\u00e9")]
+        public void TestStagedImportTargetRealmCollisionUsesCaseInsensitiveNfcIdentity(
+            string targetChildName,
+            string occupiedPath)
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                addRecord(realm, path: occupiedPath);
+                var native = new FakeNativeAuthority();
+                var journalStore = createEmptyJournalStore();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    new SkinManagedFolderOperationCoordinator(),
+                    native,
+                    journalStore);
+
+                SkinManagedFolderMutationAuthorityResult result =
+                    authority.OpenStagedImport(
+                        Guid.NewGuid(),
+                        targetChildName);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.False);
+                    Assert.That(
+                        result.RejectionReason,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationAuthorityRejectionReason
+                                .TargetNameSlotOccupied));
+                    Assert.That(native.OpenedSessions, Is.Zero);
+                    Assert.That(native.MoveCalls, Is.Zero);
+                    Assert.That(journalStore.Writes, Is.Empty);
+                });
+            });
+        }
+
+        [Test]
+        public void TestStagedImportRecordIdCollisionRejectsBeforeNativeOpenOrJournal()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid operationId = Guid.NewGuid();
+                addRecord(
+                    realm,
+                    operationId,
+                    "chartskin/foreign-operation-id");
+                var native = new FakeNativeAuthority();
+                var journalStore = createEmptyJournalStore();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    new SkinManagedFolderOperationCoordinator(),
+                    native,
+                    journalStore);
+
+                SkinManagedFolderMutationAuthorityResult result =
+                    authority.OpenStagedImport(operationId, "target");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.False);
+                    Assert.That(
+                        result.RejectionReason,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationAuthorityRejectionReason
+                                .TargetNameSlotOccupied));
+                    Assert.That(native.OpenedSessions, Is.Zero);
+                    Assert.That(native.MoveCalls, Is.Zero);
+                    Assert.That(journalStore.Writes, Is.Empty);
+                });
+            });
+        }
+
+        [Test]
+        public void TestStagedImportPhysicalTargetCollisionRejectsBeforeJournalOrMove()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                var native = new FakeNativeAuthority
+                {
+                    RejectTargetCapture = true,
+                };
+                var journalStore = createEmptyJournalStore();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    new SkinManagedFolderOperationCoordinator(),
+                    native,
+                    journalStore);
+
+                SkinManagedFolderMutationAuthorityResult result =
+                    authority.OpenStagedImport(Guid.NewGuid(), "target");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.False);
+                    Assert.That(
+                        result.RejectionReason,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationAuthorityRejectionReason
+                                .NativeAuthorityRejected));
+                    Assert.That(
+                        native.CapturedTargetPaths,
+                        Is.EqualTo(new[] { "chartskin/target" }));
+                    Assert.That(native.CapturedStagedOperationIds, Is.Empty);
+                    Assert.That(native.ActiveSessions, Is.Zero);
+                    Assert.That(native.MoveCalls, Is.Zero);
+                    Assert.That(journalStore.Writes, Is.Empty);
+                });
+            });
+        }
+
+        [TestCase(PostOpenStagedRealmDriftCase.RecordId)]
+        [TestCase(PostOpenStagedRealmDriftCase.TargetPath)]
+        [TestCase(PostOpenStagedRealmDriftCase.ExternalDeclaration)]
+        public void TestPostOpenStagedRealmDriftInvalidatesAuthorityBeforeJournalOrMove(
+            PostOpenStagedRealmDriftCase driftCase)
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid operationId = Guid.NewGuid();
+                var native = new FakeNativeAuthority();
+                var journalStore = createEmptyJournalStore();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    new SkinManagedFolderOperationCoordinator(),
+                    native,
+                    journalStore);
+                SkinManagedFolderMutationAuthorityResult result =
+                    authority.OpenStagedImport(operationId, "target");
+
+                Assert.That(result.IsSuccess, Is.True);
+                using SkinManagedFolderMutationAuthoritySession session =
+                    result.Session!;
+
+                realm.Write(r =>
+                {
+                    switch (driftCase)
+                    {
+                        case PostOpenStagedRealmDriftCase.RecordId:
+                            r.Add(createEligibleRecord(
+                                operationId,
+                                "chartskin/foreign-operation-id"));
+                            break;
+
+                        case PostOpenStagedRealmDriftCase.TargetPath:
+                            r.Add(createEligibleRecord(
+                                path: "chartskin/target"));
+                            break;
+
+                        case PostOpenStagedRealmDriftCase.ExternalDeclaration:
+                            SkinInfo external = createEligibleRecord(
+                                path: "chartskin/external");
+                            external.IsExternalFilesystemStorage = true;
+                            r.Add(external);
+                            break;
+
+                        default:
+                            throw new ArgumentOutOfRangeException(
+                                nameof(driftCase),
+                                driftCase,
+                                null);
+                    }
+                });
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(session.Validate(), Is.False);
+                    Assert.Throws<InvalidOperationException>(
+                        () => session.PersistPreparedJournal());
+                    Assert.That(
+                        journalStore.Current.Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    Assert.That(journalStore.Writes, Is.Empty);
+                    Assert.That(journalStore.DeleteCalls, Is.Zero);
+                    Assert.That(native.MoveCalls, Is.Zero);
+                    Assert.That(native.ActiveSessions, Is.EqualTo(1));
+                });
+            });
+        }
+
+        [TestCase(InvalidStagedCapsuleCase.MissingSkinIni)]
+        [TestCase(InvalidStagedCapsuleCase.InvalidUtf8)]
+        [TestCase(InvalidStagedCapsuleCase.UnsafeMetadata)]
+        public void TestStagedImportRejectsInvalidCapsuleMetadataBeforeJournalOrMove(
+            InvalidStagedCapsuleCase invalidCase)
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                var native = new FakeNativeAuthority();
+                native.StagedCapture.Dispose();
+                native.StagedCapture = new SkinManagedFolderStagedSourceCapture(
+                    staged_root_identity,
+                    staged_identity,
+                    staged_tree_fingerprint,
+                    createInvalidStagedCapsule(invalidCase));
+                var journalStore = createEmptyJournalStore();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    new SkinManagedFolderOperationCoordinator(),
+                    native,
+                    journalStore);
+
+                SkinManagedFolderMutationAuthorityResult result =
+                    authority.OpenStagedImport(Guid.NewGuid(), "target");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.False);
+                    Assert.That(
+                        result.RejectionReason,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationAuthorityRejectionReason
+                                .StagedSourceRejected));
+                    Assert.That(
+                        native.CapturedStagedOperationIds,
+                        Has.Length.EqualTo(1));
+                    Assert.That(native.ActiveSessions, Is.Zero);
+                    Assert.That(native.MoveCalls, Is.Zero);
+                    Assert.That(journalStore.Writes, Is.Empty);
+                    Assert.That(
+                        journalStore.Current.Status,
+                        Is.EqualTo(
+                            SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
         [Test]
         public void TestStagedImportRejectsFixedExistingOrInvalidNativeSourceAuthority()
         {
@@ -451,9 +724,12 @@ namespace osu.Game.Tests.Skins
                 SkinManagedFolderMutationAuthorityResult existingIdResult =
                     authority.OpenStagedImport(existingId, "target-b");
 
+                native.StagedCapture.Dispose();
                 native.StagedCapture = new SkinManagedFolderStagedSourceCapture(
                     new SkinManagedFolderPhysicalIdentity(99, 31, 32),
-                    new SkinManagedFolderPhysicalIdentity(99, 33, 34));
+                    new SkinManagedFolderPhysicalIdentity(99, 33, 34),
+                    staged_tree_fingerprint,
+                    createStagedCapsule());
                 SkinManagedFolderMutationAuthorityResult invalidNative =
                     authority.OpenStagedImport(Guid.NewGuid(), "target-c");
 
@@ -830,6 +1106,55 @@ namespace osu.Game.Tests.Skins
                 DeletePending = false,
             };
 
+        private static SkinPackageRevisionCapsule createStagedCapsule()
+        {
+            SkinPackageRevisionCapsuleCreationResult result = SkinPackageRevisionCapsuleFactory.Create(new[]
+            {
+                SkinPackageCapturedEntry.CreateFile(
+                    "skin.ini",
+                    Encoding.UTF8.GetBytes("[General]\nName: Staged package\nAuthor: OMS Test\n")),
+            });
+
+            return result.IsSuccess && result.Capsule != null
+                ? result.Capsule
+                : throw new InvalidOperationException("The staged test capsule could not be created.");
+        }
+
+        private static SkinPackageRevisionCapsule createInvalidStagedCapsule(
+            InvalidStagedCapsuleCase invalidCase)
+        {
+            SkinPackageCapturedEntry entry = invalidCase switch
+            {
+                InvalidStagedCapsuleCase.MissingSkinIni =>
+                    SkinPackageCapturedEntry.CreateFile(
+                        "notes.txt",
+                        Encoding.UTF8.GetBytes("No metadata file.")),
+
+                InvalidStagedCapsuleCase.InvalidUtf8 =>
+                    SkinPackageCapturedEntry.CreateFile(
+                        "skin.ini",
+                        new byte[] { 0xc3, 0x28 }),
+
+                InvalidStagedCapsuleCase.UnsafeMetadata =>
+                    SkinPackageCapturedEntry.CreateFile(
+                        "skin.ini",
+                        Encoding.UTF8.GetBytes(
+                            "[General]\nName: Unsafe\u0001Name\nAuthor: OMS Test\n")),
+
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(invalidCase),
+                    invalidCase,
+                    null),
+            };
+            SkinPackageRevisionCapsuleCreationResult result =
+                SkinPackageRevisionCapsuleFactory.Create(new[] { entry });
+
+            return result.IsSuccess && result.Capsule != null
+                ? result.Capsule
+                : throw new InvalidOperationException(
+                    "The invalid staged test capsule could not be created.");
+        }
+
         public enum IneligibleRecordCase
         {
             OwnerMissing,
@@ -856,6 +1181,20 @@ namespace osu.Game.Tests.Skins
             TargetPathCollision,
         }
 
+        public enum PostOpenStagedRealmDriftCase
+        {
+            RecordId,
+            TargetPath,
+            ExternalDeclaration,
+        }
+
+        public enum InvalidStagedCapsuleCase
+        {
+            MissingSkinIni,
+            InvalidUtf8,
+            UnsafeMetadata,
+        }
+
         private sealed class FakeNativeAuthority : ISkinManagedFolderMutationNativeAuthority
         {
             private readonly object sync = new object();
@@ -869,11 +1208,16 @@ namespace osu.Game.Tests.Skins
             public bool RejectTargetCapture { get; set; }
             public bool ThrowOnDispose { get; set; }
             public SkinManagedFolderStagedSourceCapture StagedCapture { get; set; } =
-                new SkinManagedFolderStagedSourceCapture(staged_root_identity, staged_identity);
+                new SkinManagedFolderStagedSourceCapture(
+                    staged_root_identity,
+                    staged_identity,
+                    staged_tree_fingerprint,
+                    createStagedCapsule());
 
             public int ActiveSessions => Volatile.Read(ref activeSessions);
             public int DisposedSessions => Volatile.Read(ref disposedSessions);
             public int OpenedSessions => Volatile.Read(ref openedSessions);
+            public int MoveCalls { get; private set; }
 
             public string[] CapturedSourcePaths
             {
@@ -985,9 +1329,42 @@ namespace osu.Game.Tests.Skins
                     throw new NotSupportedException();
                 }
 
+                public SkinManagedFolderStagedImportFilesystemResult MoveCapturedStagedSourceToTarget(
+                    SkinManagedFolderTargetNameSlot targetNameSlot,
+                    string expectedContentRevision,
+                    string expectedTreeFingerprint,
+                    CancellationToken cancellationToken)
+                {
+                    ensureHeld(cancellationToken);
+                    owner.MoveCalls++;
+                    throw new NotSupportedException();
+                }
+
                 public SkinManagedFolderRenameInspection InspectRenameState(
                     string sourceManagedRelativePath,
                     string targetManagedRelativePath,
+                    SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                    CancellationToken cancellationToken)
+                {
+                    ensureHeld(cancellationToken);
+                    throw new NotSupportedException();
+                }
+
+                public SkinManagedFolderStagedImportInspection InspectStagedImportState(
+                    Guid operationId,
+                    string targetManagedRelativePath,
+                    SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                    SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                    CancellationToken cancellationToken)
+                {
+                    ensureHeld(cancellationToken);
+                    throw new NotSupportedException();
+                }
+
+                public void CleanupExactStagedSource(
+                    Guid operationId,
+                    string targetManagedRelativePath,
+                    SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
                     SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
                     CancellationToken cancellationToken)
                 {

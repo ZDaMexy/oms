@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Linq;
 using System.Threading;
 using osu.Game.Skinning.Windows;
 
@@ -70,23 +71,48 @@ namespace osu.Game.Skinning
 
         public SkinPackageRevisionCapsule? Capsule { get; }
 
+        /// <summary>
+        /// A non-sensitive SHA-256 commitment to the captured capsule revision and exact physical package tree.
+        /// </summary>
+        /// <remarks>
+        /// Present only for successful results. The fingerprint is suitable for equality checks and durable recovery
+        /// evidence, but it is not a filesystem capability and cannot be used to reopen any captured handle.
+        /// </remarks>
+        public string? PhysicalTreeFingerprint { get; }
+
         public bool IsSuccess => Capsule != null;
 
         private SkinManagedPackageCaptureResult(
             SkinManagedPackageCaptureRejectionReason rejectionReason,
             SkinPackageRevisionCapsuleRejectionReason capsuleRejectionReason,
-            SkinPackageRevisionCapsule? capsule)
+            SkinPackageRevisionCapsule? capsule,
+            string? physicalTreeFingerprint)
         {
             RejectionReason = rejectionReason;
             CapsuleRejectionReason = capsuleRejectionReason;
             Capsule = capsule;
+            PhysicalTreeFingerprint = physicalTreeFingerprint;
         }
 
-        internal static SkinManagedPackageCaptureResult Success(SkinPackageRevisionCapsule capsule)
-            => new SkinManagedPackageCaptureResult(
+        internal static SkinManagedPackageCaptureResult Success(
+            SkinPackageRevisionCapsule capsule,
+            string physicalTreeFingerprint)
+        {
+            ArgumentNullException.ThrowIfNull(capsule);
+
+            if (!isLowercaseSha256(physicalTreeFingerprint))
+                throw new ArgumentException("The physical tree fingerprint must be a lowercase SHA-256 value.", nameof(physicalTreeFingerprint));
+
+            return new SkinManagedPackageCaptureResult(
                 SkinManagedPackageCaptureRejectionReason.None,
                 SkinPackageRevisionCapsuleRejectionReason.None,
-                capsule ?? throw new ArgumentNullException(nameof(capsule)));
+                capsule,
+                physicalTreeFingerprint);
+        }
+
+        private static bool isLowercaseSha256(string? value)
+            => value is { Length: 64 }
+               && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
         internal static SkinManagedPackageCaptureResult Reject(SkinManagedPackageCaptureRejectionReason reason)
         {
@@ -94,7 +120,11 @@ namespace osu.Game.Skinning
                 || reason is SkinManagedPackageCaptureRejectionReason.None or SkinManagedPackageCaptureRejectionReason.CapsuleRejected)
                 throw new ArgumentOutOfRangeException(nameof(reason));
 
-            return new SkinManagedPackageCaptureResult(reason, SkinPackageRevisionCapsuleRejectionReason.None, null);
+            return new SkinManagedPackageCaptureResult(
+                reason,
+                SkinPackageRevisionCapsuleRejectionReason.None,
+                null,
+                null);
         }
 
         internal static SkinManagedPackageCaptureResult RejectCapsule(SkinPackageRevisionCapsuleRejectionReason reason)
@@ -105,6 +135,7 @@ namespace osu.Game.Skinning
             return new SkinManagedPackageCaptureResult(
                 SkinManagedPackageCaptureRejectionReason.CapsuleRejected,
                 reason,
+                null,
                 null);
         }
 

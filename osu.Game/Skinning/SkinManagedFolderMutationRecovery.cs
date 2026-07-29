@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace osu.Game.Skinning
@@ -17,12 +18,14 @@ namespace osu.Game.Skinning
     internal readonly record struct SkinManagedFolderMutationRecoveryInspection(
         SkinManagedFolderMutationRecoveryDecision Decision,
         SkinManagedFolderPhysicalIdentity? ObservedManagedRootIdentity = null,
-        SkinManagedFolderPhysicalIdentity? TargetIdentity = null);
+        SkinManagedFolderPhysicalIdentity? TargetIdentity = null,
+        string? NewRecordPublicationFingerprint = null);
 
     internal readonly record struct SkinManagedFolderMutationRecoveryActionResult(
         bool IsSuccess,
         SkinManagedFolderPhysicalIdentity? ObservedManagedRootIdentity = null,
-        SkinManagedFolderPhysicalIdentity? TargetIdentity = null);
+        SkinManagedFolderPhysicalIdentity? TargetIdentity = null,
+        string? NewRecordPublicationFingerprint = null);
 
     internal interface ISkinManagedFolderMutationRecoveryHandler
     {
@@ -37,6 +40,73 @@ namespace osu.Game.Skinning
         SkinManagedFolderMutationRecoveryActionResult TryRollBack(
             SkinManagedFolderMutationJournal journal,
             CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Routes the single canonical mutation journal to an operation-specific production recovery policy.
+    /// </summary>
+    internal sealed class SkinManagedFolderMutationRecoveryHandlerRouter : ISkinManagedFolderMutationRecoveryHandler
+    {
+        private readonly IReadOnlyDictionary<SkinManagedFolderMutationKind, ISkinManagedFolderMutationRecoveryHandler> handlers;
+
+        public SkinManagedFolderMutationRecoveryHandlerRouter(
+            params (SkinManagedFolderMutationKind Kind, ISkinManagedFolderMutationRecoveryHandler Handler)[] handlers)
+        {
+            ArgumentNullException.ThrowIfNull(handlers);
+
+            var mapped = new Dictionary<SkinManagedFolderMutationKind, ISkinManagedFolderMutationRecoveryHandler>();
+
+            foreach ((SkinManagedFolderMutationKind kind, ISkinManagedFolderMutationRecoveryHandler handler) in handlers)
+            {
+                if (!Enum.IsDefined(kind)
+                    || handler == null
+                    || !mapped.TryAdd(kind, handler))
+                {
+                    throw new ArgumentException("The managed-folder recovery route is invalid.", nameof(handlers));
+                }
+            }
+
+            this.handlers = mapped;
+        }
+
+        public SkinManagedFolderMutationRecoveryInspection Inspect(
+            SkinManagedFolderMutationJournal journal,
+            CancellationToken cancellationToken)
+            => tryGetHandler(journal, out ISkinManagedFolderMutationRecoveryHandler? handler)
+                ? handler!.Inspect(journal, cancellationToken)
+                : ambiguousInspection();
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollForward(
+            SkinManagedFolderMutationJournal journal,
+            CancellationToken cancellationToken)
+            => tryGetHandler(journal, out ISkinManagedFolderMutationRecoveryHandler? handler)
+                ? handler!.TryRollForward(journal, cancellationToken)
+                : failedAction();
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollBack(
+            SkinManagedFolderMutationJournal journal,
+            CancellationToken cancellationToken)
+            => tryGetHandler(journal, out ISkinManagedFolderMutationRecoveryHandler? handler)
+                ? handler!.TryRollBack(journal, cancellationToken)
+                : failedAction();
+
+        private bool tryGetHandler(
+            SkinManagedFolderMutationJournal journal,
+            out ISkinManagedFolderMutationRecoveryHandler? handler)
+        {
+            handler = null;
+            return journal != null && handlers.TryGetValue(journal.Kind, out handler);
+        }
+
+        private static SkinManagedFolderMutationRecoveryInspection ambiguousInspection()
+            => new SkinManagedFolderMutationRecoveryInspection(
+                SkinManagedFolderMutationRecoveryDecision.Ambiguous);
+
+        private static SkinManagedFolderMutationRecoveryActionResult failedAction()
+            => new SkinManagedFolderMutationRecoveryActionResult(false);
+
+        public override string ToString()
+            => $"{nameof(SkinManagedFolderMutationRecoveryHandlerRouter)}:Count={handlers.Count}";
     }
 
     internal enum SkinManagedFolderMutationRecoveryStatus
@@ -199,51 +269,170 @@ namespace osu.Game.Skinning
             return inspection.Decision switch
             {
                 SkinManagedFolderMutationRecoveryDecision.RollForward =>
-                    recoverDeterminable(
+                    recoverForward(
                         journal,
-                        SkinManagedFolderMutationPhase.Committed,
-                        SkinManagedFolderMutationRecoveryStatus.RecoveredForward,
-                        handler.TryRollForward,
+                        inspection,
                         cancellationToken),
 
                 SkinManagedFolderMutationRecoveryDecision.RollBack =>
-                    recoverDeterminable(
+                    recoverRollback(
                         journal,
-                        SkinManagedFolderMutationPhase.RolledBack,
-                        SkinManagedFolderMutationRecoveryStatus.RecoveredRollback,
-                        handler.TryRollBack,
                         cancellationToken),
 
                 SkinManagedFolderMutationRecoveryDecision.AlreadyCommitted =>
-                    persistAndRemoveTerminal(
+                    recoverForward(
                         journal,
-                        SkinManagedFolderMutationPhase.Committed,
-                        SkinManagedFolderMutationRecoveryStatus.RecoveredForward,
-                        inspection.TargetIdentity),
+                        inspection,
+                        cancellationToken),
 
                 SkinManagedFolderMutationRecoveryDecision.AlreadyRolledBack =>
-                    persistAndRemoveTerminal(
+                    persistRolledBackAndRemove(
                         journal,
-                        SkinManagedFolderMutationPhase.RolledBack,
-                        SkinManagedFolderMutationRecoveryStatus.RecoveredRollback,
+                        null,
                         null),
 
                 _ => result(SkinManagedFolderMutationRecoveryStatus.Ambiguous),
             };
         }
 
-        private SkinManagedFolderMutationRecoveryResult recoverDeterminable(
+        private SkinManagedFolderMutationRecoveryResult recoverForward(
             SkinManagedFolderMutationJournal journal,
-            SkinManagedFolderMutationPhase terminalPhase,
-            SkinManagedFolderMutationRecoveryStatus successStatus,
-            Func<SkinManagedFolderMutationJournal, CancellationToken, SkinManagedFolderMutationRecoveryActionResult> recoverAction,
+            SkinManagedFolderMutationRecoveryInspection inspection,
+            CancellationToken cancellationToken)
+        {
+            if (!isExactForwardEvidence(journal, inspection))
+                return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+
+            SkinManagedFolderMutationJournal current = journal;
+
+            if (current.Phase == SkinManagedFolderMutationPhase.Prepared)
+            {
+                SkinManagedFolderMutationJournal filesystemApplied;
+
+                try
+                {
+                    filesystemApplied = current.WithFilesystemApplied(
+                        inspection.TargetIdentity,
+                        inspection.NewRecordPublicationFingerprint);
+                }
+                catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+
+                if (!tryPersistAndConfirm(filesystemApplied))
+                    return result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+
+                current = filesystemApplied;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!tryInspect(current, cancellationToken, out inspection)
+                    || !isExactForwardEvidence(current, inspection))
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+            }
+
+            if (inspection.Decision == SkinManagedFolderMutationRecoveryDecision.RollForward)
+            {
+                SkinManagedFolderMutationRecoveryActionResult actionResult;
+
+                try
+                {
+                    actionResult = handler!.TryRollForward(current, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+
+                if (!actionResult.IsSuccess
+                    || actionResult.ObservedManagedRootIdentity != current.ManagedRootIdentity
+                    || !isExactForwardEvidence(
+                        current,
+                        actionResult.TargetIdentity,
+                        actionResult.NewRecordPublicationFingerprint))
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!tryInspect(current, cancellationToken, out inspection)
+                    || inspection.Decision != SkinManagedFolderMutationRecoveryDecision.AlreadyCommitted
+                    || !isExactForwardEvidence(current, inspection))
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+            }
+            else if (inspection.Decision != SkinManagedFolderMutationRecoveryDecision.AlreadyCommitted)
+            {
+                return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+            }
+
+            if (current.Phase == SkinManagedFolderMutationPhase.FilesystemApplied)
+            {
+                SkinManagedFolderMutationJournal realmApplied;
+
+                try
+                {
+                    realmApplied = current.WithRealmApplied();
+                }
+                catch (InvalidOperationException)
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+
+                if (!tryPersistAndConfirm(realmApplied))
+                    return result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+
+                current = realmApplied;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!tryInspect(current, cancellationToken, out inspection)
+                    || inspection.Decision != SkinManagedFolderMutationRecoveryDecision.AlreadyCommitted
+                    || !isExactForwardEvidence(current, inspection))
+                {
+                    return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+                }
+            }
+            else if (current.Phase != SkinManagedFolderMutationPhase.RealmApplied)
+            {
+                return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+            }
+
+            SkinManagedFolderMutationJournal committed;
+
+            try
+            {
+                committed = current.WithCommitted();
+            }
+            catch (InvalidOperationException)
+            {
+                return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+            }
+
+            if (!tryPersistAndConfirm(committed))
+                return result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+
+            return tryRemoveTerminalJournal(committed)
+                ? result(SkinManagedFolderMutationRecoveryStatus.RecoveredForward)
+                : result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+        }
+
+        private SkinManagedFolderMutationRecoveryResult recoverRollback(
+            SkinManagedFolderMutationJournal journal,
             CancellationToken cancellationToken)
         {
             SkinManagedFolderMutationRecoveryActionResult actionResult;
 
             try
             {
-                actionResult = recoverAction(journal, cancellationToken);
+                actionResult = handler!.TryRollBack(journal, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -254,51 +443,143 @@ namespace osu.Game.Skinning
                 return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
             }
 
-            if (!actionResult.IsSuccess)
+            if (!actionResult.IsSuccess
+                || actionResult.ObservedManagedRootIdentity != journal.ManagedRootIdentity)
+            {
                 return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
-
-            if (actionResult.ObservedManagedRootIdentity != journal.ManagedRootIdentity)
-                return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+            }
 
             cancellationToken.ThrowIfCancellationRequested();
-            return persistAndRemoveTerminal(
+            return persistRolledBackAndRemove(
                 journal,
-                terminalPhase,
-                successStatus,
-                actionResult.TargetIdentity);
+                actionResult.TargetIdentity,
+                actionResult.NewRecordPublicationFingerprint);
         }
 
-        private SkinManagedFolderMutationRecoveryResult persistAndRemoveTerminal(
+        private SkinManagedFolderMutationRecoveryResult persistRolledBackAndRemove(
             SkinManagedFolderMutationJournal journal,
-            SkinManagedFolderMutationPhase terminalPhase,
-            SkinManagedFolderMutationRecoveryStatus successStatus,
-            SkinManagedFolderPhysicalIdentity? recoveredTargetIdentity)
+            SkinManagedFolderPhysicalIdentity? recoveredTargetIdentity,
+            string? recoveredNewRecordPublicationFingerprint)
         {
-            SkinManagedFolderMutationJournal terminal;
+            SkinManagedFolderMutationJournal rolledBack;
 
             try
             {
-                terminal = journal.WithRecoveryTerminalPhase(terminalPhase, recoveredTargetIdentity);
+                rolledBack = journal.WithRecoveryTerminalPhase(
+                    SkinManagedFolderMutationPhase.RolledBack,
+                    recoveredTargetIdentity,
+                    recoveredNewRecordPublicationFingerprint);
             }
             catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
             {
                 return result(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
             }
 
+            if (!tryPersistAndConfirm(rolledBack))
+                return result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+
+            return tryRemoveTerminalJournal(rolledBack)
+                ? result(SkinManagedFolderMutationRecoveryStatus.RecoveredRollback)
+                : result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+        }
+
+        private bool tryInspect(
+            SkinManagedFolderMutationJournal journal,
+            CancellationToken cancellationToken,
+            out SkinManagedFolderMutationRecoveryInspection inspection)
+        {
             try
             {
-                journalStore.Write(terminal);
+                inspection = handler!.Inspect(journal, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                inspection = default;
+                return false;
+            }
+
+            return inspection.Decision != SkinManagedFolderMutationRecoveryDecision.Ambiguous
+                   && inspection.ObservedManagedRootIdentity == journal.ManagedRootIdentity;
+        }
+
+        private static bool isExactForwardEvidence(
+            SkinManagedFolderMutationJournal journal,
+            SkinManagedFolderMutationRecoveryInspection inspection)
+            => inspection.Decision is SkinManagedFolderMutationRecoveryDecision.RollForward
+                    or SkinManagedFolderMutationRecoveryDecision.AlreadyCommitted
+               && inspection.ObservedManagedRootIdentity == journal.ManagedRootIdentity
+               && isExactForwardEvidence(
+                   journal,
+                   inspection.TargetIdentity,
+                   inspection.NewRecordPublicationFingerprint);
+
+        private static bool isExactForwardEvidence(
+            SkinManagedFolderMutationJournal journal,
+            SkinManagedFolderPhysicalIdentity? targetIdentity,
+            string? publicationFingerprint)
+        {
+            if (journal.TargetIdentity != null
+                && journal.TargetIdentity != targetIdentity)
+            {
+                return false;
+            }
+
+            if (journal.NewRecordPublicationFingerprint != null
+                && !string.Equals(
+                    journal.NewRecordPublicationFingerprint,
+                    publicationFingerprint,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return journal.Kind switch
+            {
+                SkinManagedFolderMutationKind.Rename =>
+                    targetIdentity == journal.SourceIdentity
+                    && publicationFingerprint == null,
+
+                SkinManagedFolderMutationKind.StagedImport =>
+                    targetIdentity == journal.StagedSourceIdentity
+                    && SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        publicationFingerprint),
+
+                SkinManagedFolderMutationKind.Delete =>
+                    targetIdentity == null
+                    && publicationFingerprint == null,
+
+                _ => false,
+            };
+        }
+
+        private bool tryPersistAndConfirm(
+            SkinManagedFolderMutationJournal journal)
+        {
+            try
+            {
+                journalStore.Write(journal);
+                SkinManagedFolderMutationJournalLoadResult loaded =
+                    journalStore.Load();
+
+                if (!loaded.IsLoaded
+                    || !loaded.Journal!.IsExactSameJournal(journal))
+                {
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+
+                unresolvedIntent = journal;
+                return true;
             }
             catch
             {
                 globalUnresolved = true;
                 coordinator.FreezeAllRecoveryPaths();
-                return result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
+                return false;
             }
-
-            return tryRemoveTerminalJournal(terminal)
-                ? result(successStatus)
-                : result(SkinManagedFolderMutationRecoveryStatus.JournalIoFailure);
         }
 
         private bool tryRemoveTerminalJournal(SkinManagedFolderMutationJournal journal)

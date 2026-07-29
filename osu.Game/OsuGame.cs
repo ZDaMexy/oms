@@ -1090,7 +1090,7 @@ namespace osu.Game
         protected override void Dispose(bool isDisposing)
         {
             stopManagedSkinFolderScan();
-            SkinManager?.ShutdownManagedFolderRename();
+            SkinManager?.ShutdownManagedFolderMutations();
 
             // Without this, tests may deadlock due to cancellation token not becoming cancelled before disposal.
             // To reproduce, run `TestSceneButtonSystemNavigation` ensuring `TestConstructor` runs before `TestFastShortcutKeys`.

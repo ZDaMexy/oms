@@ -372,6 +372,131 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestPhysicalTreeFingerprintIsStableLowercaseAndIncludesCapsuleRevision()
+        {
+            FakePackage package = createPackage();
+            FakeNode file = package.Package.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+
+            SkinManagedPackageCaptureResult first = package.Capture();
+            SkinManagedPackageCaptureResult second = package.Capture();
+            file.Content[1] = 9;
+            SkinManagedPackageCaptureResult contentChanged = package.Capture();
+
+            using SkinPackageRevisionCapsule firstCapsule = first.Capsule!;
+            using SkinPackageRevisionCapsule secondCapsule = second.Capsule!;
+            using SkinPackageRevisionCapsule changedCapsule = contentChanged.Capsule!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.IsSuccess, Is.True);
+                Assert.That(second.IsSuccess, Is.True);
+                Assert.That(contentChanged.IsSuccess, Is.True);
+                Assert.That(first.PhysicalTreeFingerprint, Does.Match("^[0-9a-f]{64}$"));
+                Assert.That(second.PhysicalTreeFingerprint, Is.EqualTo(first.PhysicalTreeFingerprint));
+                Assert.That(secondCapsule.ContentRevision, Is.EqualTo(firstCapsule.ContentRevision));
+                Assert.That(changedCapsule.ContentRevision, Is.Not.EqualTo(firstCapsule.ContentRevision));
+                Assert.That(contentChanged.PhysicalTreeFingerprint, Is.Not.EqualTo(first.PhysicalTreeFingerprint));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestPhysicalTreeFingerprintOmitsOnlyRootRenameTimestamps()
+        {
+            FakePackage package = createPackage();
+            FakeNode file = package.Package.AddFile("skin.ini", new byte[] { 1 });
+
+            SkinManagedPackageCaptureResult baseline = package.Capture();
+            package.Package.LastWriteTime++;
+            package.Package.ChangeTime++;
+            SkinManagedPackageCaptureResult rootTimestampsAdvanced = package.Capture();
+            file.ChangeTime++;
+            SkinManagedPackageCaptureResult descendantMetadataChanged = package.Capture();
+
+            using SkinPackageRevisionCapsule baselineCapsule = baseline.Capsule!;
+            using SkinPackageRevisionCapsule rootAdvancedCapsule = rootTimestampsAdvanced.Capsule!;
+            using SkinPackageRevisionCapsule descendantChangedCapsule = descendantMetadataChanged.Capsule!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rootAdvancedCapsule.ContentRevision, Is.EqualTo(baselineCapsule.ContentRevision));
+                Assert.That(rootTimestampsAdvanced.PhysicalTreeFingerprint, Is.EqualTo(baseline.PhysicalTreeFingerprint));
+                Assert.That(descendantChangedCapsule.ContentRevision, Is.EqualTo(baselineCapsule.ContentRevision));
+                Assert.That(descendantMetadataChanged.PhysicalTreeFingerprint, Is.Not.EqualTo(baseline.PhysicalTreeFingerprint));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestPhysicalTreeFingerprintCoversOrdinalEmptyDirectoryInventory()
+        {
+            FakePackage package = createPackage();
+            package.Package.AddFile("skin.ini", new byte[] { 1 });
+            FakeNode empty = package.Package.AddDirectory("empty");
+
+            SkinManagedPackageCaptureResult baseline = package.Capture();
+            empty.Name = "Empty";
+            SkinManagedPackageCaptureResult recased = package.Capture();
+
+            using SkinPackageRevisionCapsule baselineCapsule = baseline.Capsule!;
+            using SkinPackageRevisionCapsule recasedCapsule = recased.Capsule!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(recasedCapsule.ContentRevision, Is.EqualTo(baselineCapsule.ContentRevision));
+                Assert.That(recased.PhysicalTreeFingerprint, Is.Not.EqualTo(baseline.PhysicalTreeFingerprint));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestPhysicalTreeFingerprintCoversDirectoryInventoryBoundaries()
+        {
+            FakePackage package = createPackage();
+            package.Package.AddFile("skin.ini", new byte[] { 1 });
+            FakeNode left = package.Package.AddDirectory("left");
+            FakeNode right = package.Package.AddDirectory("right");
+            FakeNode empty = left.AddDirectory("empty");
+
+            SkinManagedPackageCaptureResult baseline = package.Capture();
+            Assert.That(left.Children.Remove(empty), Is.True);
+            right.Children.Add(empty);
+            SkinManagedPackageCaptureResult reparented = package.Capture();
+
+            using SkinPackageRevisionCapsule baselineCapsule = baseline.Capsule!;
+            using SkinPackageRevisionCapsule reparentedCapsule = reparented.Capsule!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reparentedCapsule.ContentRevision, Is.EqualTo(baselineCapsule.ContentRevision));
+                Assert.That(reparented.PhysicalTreeFingerprint, Is.Not.EqualTo(baseline.PhysicalTreeFingerprint));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestProvisionalChildCaptureReturnsSamePhysicalTreeFingerprint()
+        {
+            FakePackage package = createPackage();
+            package.Package.AddDirectory("empty");
+            package.Package.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+
+            SkinManagedPackageCaptureResult normal = package.Capture();
+            SkinManagedPackageCaptureResult provisional = captureProvisional(package);
+
+            using SkinPackageRevisionCapsule normalCapsule = normal.Capsule!;
+            using SkinPackageRevisionCapsule provisionalCapsule = provisional.Capsule!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provisional.IsSuccess, Is.True);
+                Assert.That(provisional.PhysicalTreeFingerprint, Is.EqualTo(normal.PhysicalTreeFingerprint));
+                Assert.That(provisionalCapsule.ContentRevision, Is.EqualTo(normalCapsule.ContentRevision));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
         public void TestDecomposedPackageDirectoryRemainsStableAcrossFinalValidation()
         {
             FakePackage package = createPackage("e\u0301");
@@ -992,6 +1117,30 @@ namespace osu.Game.Tests.Skins
                 identity.FileIdPart1);
         }
 
+        private static SkinManagedPackageCaptureResult captureProvisional(FakePackage package)
+        {
+            using IWindowsSkinPackageCaptureHandle volumeRoot = package.FileSystem.OpenLocalVolumeRoot('C');
+            using IWindowsSkinPackageCaptureHandle dataRoot = package.FileSystem.OpenChildNoFollow(
+                volumeRoot,
+                "data",
+                WindowsSkinPackageOpenMode.AuthorityDirectory,
+                SkinManagedPackageCaptureRejectionReason.PackageUnavailable);
+            using IWindowsSkinPackageCaptureHandle managedRoot = package.FileSystem.OpenChildNoFollow(
+                dataRoot,
+                SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY,
+                WindowsSkinPackageOpenMode.AuthorityDirectory,
+                SkinManagedPackageCaptureRejectionReason.PackageUnavailable);
+            WindowsSkinPackageDirectoryEntry candidate = package.FileSystem.Enumerate(
+                managedRoot,
+                1,
+                CancellationToken.None).Single();
+
+            return new WindowsSkinManagedPackageCapture(package.FileSystem).CaptureProvisionalChild(
+                managedRoot,
+                candidate,
+                cancellationToken: CancellationToken.None);
+        }
+
         private static void assertRejected(
             FakePackage package,
             SkinManagedPackageCaptureResult result,
@@ -1003,6 +1152,7 @@ namespace osu.Game.Tests.Skins
                 Assert.That(result.RejectionReason, Is.EqualTo(reason));
                 Assert.That(result.CapsuleRejectionReason, Is.EqualTo(SkinPackageRevisionCapsuleRejectionReason.None));
                 Assert.That(result.Capsule, Is.Null);
+                Assert.That(result.PhysicalTreeFingerprint, Is.Null);
                 Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
             });
         }
@@ -1018,6 +1168,7 @@ namespace osu.Game.Tests.Skins
                 Assert.That(result.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.CapsuleRejected));
                 Assert.That(result.CapsuleRejectionReason, Is.EqualTo(reason));
                 Assert.That(result.Capsule, Is.Null);
+                Assert.That(result.PhysicalTreeFingerprint, Is.Null);
                 Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
             });
         }
@@ -1045,6 +1196,7 @@ namespace osu.Game.Tests.Skins
             QueryMetadata,
             RenameBegin,
             RenameEnd,
+            Delete,
             CreateReadStream,
             ReadSource,
         }
@@ -1170,6 +1322,7 @@ namespace osu.Game.Tests.Skins
 
                 WindowsSkinPackageEntryKind expectedKind = mode == WindowsSkinPackageOpenMode.CapturedFile
                                                             || mode == WindowsSkinPackageOpenMode.MutationSourceVerificationFile
+                                                            || mode == WindowsSkinPackageOpenMode.ProvisionalFile
                     ? WindowsSkinPackageEntryKind.File
                     : WindowsSkinPackageEntryKind.Directory;
 
@@ -1217,6 +1370,29 @@ namespace osu.Game.Tests.Skins
                 invoke(FakeOperationKind.RenameEnd, sourceNode);
             }
 
+            public void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle)
+            {
+                FakeHandle fakeHandle = getHandle(handle);
+                FakeNode node = fakeHandle.Node;
+                invoke(FakeOperationKind.Delete, node);
+
+                if (node.DeletePending)
+                    throw failure(SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture);
+
+                if (node.Kind == WindowsSkinPackageEntryKind.Directory && node.Children.Count != 0)
+                    throw failure(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+
+                FakeNode[] currentParents = enumerateNodes(volumeRoot)
+                                            .Where(candidate => candidate.Children.Contains(node))
+                                            .ToArray();
+
+                if (currentParents.Length != 1)
+                    throw failure(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
+
+                node.DeletePending = true;
+                fakeHandle.DeleteOnClose = true;
+            }
+
             public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
             {
                 FakeNode node = getNode(file);
@@ -1238,13 +1414,16 @@ namespace osu.Game.Tests.Skins
             }
 
             private FakeNode getNode(IWindowsSkinPackageCaptureHandle handle)
+                => getHandle(handle).Node;
+
+            private static FakeHandle getHandle(IWindowsSkinPackageCaptureHandle handle)
             {
                 if (handle is not FakeHandle fake)
                     throw new ArgumentException(nameof(handle));
 
                 ObjectDisposedException.ThrowIf(fake.IsDisposed, fake);
 
-                return fake.Node;
+                return fake;
             }
 
             private void invoke(FakeOperationKind kind, FakeNode node)
@@ -1255,10 +1434,20 @@ namespace osu.Game.Tests.Skins
                 OnOperation?.Invoke(new FakeOperation(kind, node, index));
             }
 
-            private void close()
+            private void close(FakeHandle handle)
             {
                 ActiveHandleCount--;
                 Assert.That(ActiveHandleCount, Is.GreaterThanOrEqualTo(0));
+
+                if (!handle.DeleteOnClose)
+                    return;
+
+                FakeNode[] currentParents = enumerateNodes(volumeRoot)
+                                            .Where(candidate => candidate.Children.Contains(handle.Node))
+                                            .ToArray();
+
+                Assert.That(currentParents, Has.Length.EqualTo(1));
+                Assert.That(currentParents[0].Children.Remove(handle.Node), Is.True);
             }
 
             private static IEnumerable<FakeNode> enumerateNodes(FakeNode root)
@@ -1298,6 +1487,8 @@ namespace osu.Game.Tests.Skins
 
                 public bool IsDisposed { get; private set; }
 
+                public bool DeleteOnClose { get; set; }
+
                 public FakeHandle(FakeFileSystem owner, FakeNode node)
                 {
                     this.owner = owner;
@@ -1310,7 +1501,7 @@ namespace osu.Game.Tests.Skins
                         return;
 
                     IsDisposed = true;
-                    owner.close();
+                    owner.close(this);
 
                     if (Node.ThrowOnDispose)
                         throw new InvalidOperationException("dispose-sentinel");
@@ -1409,6 +1600,8 @@ namespace osu.Game.Tests.Skins
 
             public long ChangeTime { get; set; }
 
+            public long LastWriteTime { get; set; }
+
             public uint NumberOfLinks { get; set; } = 1;
 
             public bool IsReparsePoint { get; set; }
@@ -1417,6 +1610,8 @@ namespace osu.Game.Tests.Skins
 
             public bool ThrowOnDispose { get; set; }
 
+            public bool DeletePending { get; set; }
+
             private FakeNode(string name, WindowsSkinPackageEntryKind kind, byte[] content)
             {
                 Name = name;
@@ -1424,6 +1619,7 @@ namespace osu.Game.Tests.Skins
                 Content = content;
                 FileId = next_id++;
                 ChangeTime = checked((long)FileId + 1000);
+                LastWriteTime = checked((long)FileId + 200);
             }
 
             public static FakeNode CreateDirectory(string name) => new FakeNode(name, WindowsSkinPackageEntryKind.Directory, Array.Empty<byte>());
@@ -1460,12 +1656,12 @@ namespace osu.Game.Tests.Skins
                     Kind,
                     Content.LongLength,
                     checked((long)FileId + 100),
-                    checked((long)FileId + 200),
+                    LastWriteTime,
                     ChangeTime,
                     attributes,
                     reparseTag,
                     forEnumeration ? 0 : NumberOfLinks,
-                    false);
+                    DeletePending);
             }
         }
     }

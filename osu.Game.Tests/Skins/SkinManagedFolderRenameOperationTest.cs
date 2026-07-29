@@ -686,6 +686,16 @@ namespace osu.Game.Tests.Skins
                         : source_identity;
                 }
 
+                public SkinManagedFolderStagedImportFilesystemResult MoveCapturedStagedSourceToTarget(
+                    SkinManagedFolderTargetNameSlot targetNameSlot,
+                    string expectedContentRevision,
+                    string expectedTreeFingerprint,
+                    CancellationToken cancellationToken)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw new NotSupportedException();
+                }
+
                 public SkinManagedFolderRenameInspection InspectRenameState(
                     string sourceManagedRelativePath,
                     string targetManagedRelativePath,
@@ -703,6 +713,28 @@ namespace osu.Game.Tests.Skins
                     }
 
                     return new SkinManagedFolderRenameInspection(owner.Status);
+                }
+
+                public SkinManagedFolderStagedImportInspection InspectStagedImportState(
+                    Guid operationId,
+                    string targetManagedRelativePath,
+                    SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                    SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                    CancellationToken cancellationToken)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw new NotSupportedException();
+                }
+
+                public void CleanupExactStagedSource(
+                    Guid operationId,
+                    string targetManagedRelativePath,
+                    SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                    SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                    CancellationToken cancellationToken)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw new NotSupportedException();
                 }
 
                 public void ValidateCompleteAndStable(CancellationToken cancellationToken)

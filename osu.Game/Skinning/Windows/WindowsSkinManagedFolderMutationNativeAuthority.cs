@@ -47,6 +47,10 @@ namespace osu.Game.Skinning.Windows
             {
                 dataRootAbsolutePath = getDataRootAbsolutePath();
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch
             {
                 throw new SkinManagedFolderMutationNativeAuthorityException();
@@ -161,6 +165,30 @@ namespace osu.Game.Skinning.Windows
                 }
             }
 
+            public SkinManagedFolderStagedImportFilesystemResult MoveCapturedStagedSourceToTarget(
+                SkinManagedFolderTargetNameSlot targetNameSlot,
+                string expectedContentRevision,
+                string expectedTreeFingerprint,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().MoveCapturedStagedMutationSourceToTarget(
+                        targetNameSlot,
+                        expectedContentRevision,
+                        expectedTreeFingerprint,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
             public SkinManagedFolderRenameInspection InspectRenameState(
                 string sourceManagedRelativePath,
                 string targetManagedRelativePath,
@@ -172,6 +200,58 @@ namespace osu.Game.Skinning.Windows
                     return getSession().InspectMutationRenameState(
                         sourceManagedRelativePath,
                         targetManagedRelativePath,
+                        expectedSourceIdentity,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public SkinManagedFolderStagedImportInspection InspectStagedImportState(
+                Guid operationId,
+                string targetManagedRelativePath,
+                SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().InspectStagedMutationImportState(
+                        operationId,
+                        targetManagedRelativePath,
+                        expectedStagedRootIdentity,
+                        expectedSourceIdentity,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public void CleanupExactStagedSource(
+                Guid operationId,
+                string targetManagedRelativePath,
+                SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    getSession().CleanupExactStagedMutationSource(
+                        operationId,
+                        targetManagedRelativePath,
+                        expectedStagedRootIdentity,
                         expectedSourceIdentity,
                         cancellationToken);
                 }
