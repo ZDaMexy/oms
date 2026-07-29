@@ -28,12 +28,12 @@ metadata:
 
 - 产品语义已冻结：只把一个`chartskin/<direct-child>`工作目录移动到同一held managed root下的空target name slot，并更新同一authoritative Realm record的`FilesystemStoragePath`。目录名是工作区存储身份；`skin.ini [General] Name`、Realm `Name`/`Creator`、包内容、revision/hash和scanner owner都是作者内容/既有身份，rename不得修改。
 - 生产链直接消费既有`OpenRename`、held root/source、target slot、shared coordinator、canonical journal和exact durable receipt。首个物理可见步骤前必须durable `Prepared`，之后闭合`FilesystemApplied → RealmApplied → Committed`；可在物理步骤前安全取消时走`RolledBack`并exact-delete terminal journal。
-- 成功rename不替换当前skin pair：active immutable capsule继续服务既有consumer；selection generation推进并取消旧路径pending preparation，未来重新选择从新path重新capture。scanner snapshot→Realm commit、selection final commit、rename/recovery共用同一coordinator，`OsuGame.Dispose`在Realm释放前cancel+join rename worker。
+- 成功rename不替换当前skin pair：active immutable capsule继续服务既有consumer；全局selection generation推进并取消当时的pending preparation，旧generation不得发布，未来重新选择从新path重新capture。scanner snapshot→Realm commit、selection final commit、rename/recovery共用同一coordinator，`OsuGame.Dispose`在Realm释放前cancel+join rename worker。
 
 ## NTFS descendant-handle边界
 
 - 真实NTFS诊断证明：即使descendant handles均允许`FILE_SHARE_DELETE`，非空目录在这些handles仍打开时用`NtSetInformationFile(FileRenameInformationEx)`执行flags `0`或POSIX诊断flag `0x2`均返回`STATUS_ACCESS_DENIED (0xC0000022)`。
-- 因此最终完整held-tree preflight和caller取消检查后只释放descendant handles，exact managed-root与source-directory identity继续持有；随后不再观察caller cancellation，立即做held-root-relative no-replace move。move后用`CancellationToken.None`从target no-follow重捕完整树，核对source identity、reparse/hardlink/duplicate/busy-writer、逐节点metadata和inventory并重新持有，才允许Realm path-only publication。
+- 因此最终完整held-tree preflight和caller取消检查后只释放descendant handles，exact managed-root与source-directory identity继续持有；随后不再观察caller cancellation，立即做held-root-relative no-replace move。move后用`CancellationToken.None`从target no-follow重捕完整树，核对source identity与root结构字段、descendant exact metadata、目录项name/identity/kind inventory，并重跑reparse/hardlink/duplicate/busy-writer gate后重新持有，才允许Realm path-only publication。renamed root的rename-related change timestamps允许前进，不能据此放宽descendant。
 - 这是可恢复的同目录identity路径rename，不是oplock/TxF/filesystem transaction，也不保证release→move→recapture窄窗口的字节级排他。不得误写成descendant handles跨move持有或原子内容快照；任何可观察差异都保留journal并冻结。
 
 ## durable journal与恢复

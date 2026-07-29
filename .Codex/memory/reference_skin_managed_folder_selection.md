@@ -18,12 +18,13 @@ metadata:
 
 ## mutation 与生命周期地雷
 
-- 调用方持有的`SkinInfo`即使ID相同也不是authority。delete/undelete、update import、external edit和base/interface mutation必须在真正Realm事务内按ID重新取得authoritative记录后判定；importer要在`Files.Clear()`前复核。旧folder mutation目前只是冻结，不是专用managed rename/delete/import已实现。
+- 调用方持有的`SkinInfo`即使ID相同也不是authority。delete/undelete、update import、external edit和base/interface mutation必须在真正Realm事务内按ID重新取得authoritative记录后判定；importer要在`Files.Clear()`前复核。directory-only managed rename已有唯一internal production operation，但旧通用rename及其它folder mutation继续冻结；不得把专用rename写成delete/import或UI已实现。
+- rename成功只推进全局selection generation并取消当时的pending preparation，不替换或dispose当前active immutable capsule；旧generation不得发布，旧request还会被authoritative path复核与coordinator final boundary阻止发布，未来重新选择只能从Realm新managed path capture。shutdown必须cancel+join rename worker后才释放Realm。
 - 受管目录delete foundation现在可在held mutation reservation与exact Prepared receipt下确认程序化`OmsSkin`的`CurrentSkinInfo`/`CurrentSkin` pair；两半ID一致且都非目标时才允许`NotRequired`，split-brain、fallback无效或无法确认都拒绝并安全abort。它不执行Realm或物理删除；真实delete仍保持冻结，canonical接管后fallback policy才改为`oms-simple.osk`。
 - 同值/disabled检查必须先于准备；内部commit不能留下可被reentrant请求复用的“正在提交”旁路。异步completion也不能覆盖更晚的reentrant rejection reason，task fault必须显式观察且诊断不能泄露路径。
 - selection pair一次提交不等于全playfield atomic reload。旧capsule/owner只能在所有consumer detach后退役；在publication barrier闭合前，不要为即时释放旧owner破坏仍挂载consumer。
 
 ## 不可误推的完成度
 
-- 即使本页的factory/selection窄合同与公共mutation authority/recovery foundation存在，也不证明rename/import/delete任一真实写操作、external registration/capture、整包reload或全consumer detach barrier已经完成，更不能单独证明G1、`SV1-2`、Skin V1或产品交付。实时状态、测试数字与下一门只看P1-A STATUS/PLAN。
+- 本页的factory/selection链已闭合与directory-only rename的生产交互，但不证明staged import/delete、rename UI、external registration/capture、整包reload或全consumer detach barrier已经完成，更不能单独证明G1、`SV1-2`、Skin V1或产品交付。实时状态、测试数字与下一门只看P1-A STATUS/PLAN。
 - 前置安全边界见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_package_revision_capsule]]。

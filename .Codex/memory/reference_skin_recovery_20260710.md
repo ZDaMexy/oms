@@ -21,7 +21,7 @@ metadata:
 - 恢复基线 F1：`BmsSkinDecoder` / `BmsLegacySkin` / `.osk` 导入路由；现存静态件的颜色、纹理、几何；reference ini 自校验。恢复后先以native BMS普通短键编号帧重开窄生产纵切，之后又扩到长条head/body/tail；这是历史顺序，当前可见能力与待验收项只看P1-A STATUS和集中视觉清单。
 - 程序化`OmsSkin`是恢复时的实际迁移链底；在P1-A明确记录canonical接管前继续作为保护性迁移保障，最终fallback必须是只读`oms-simple.osk`，程序化主题视觉须在V1发布前退出。
 - 恢复基线的G1只保留两块：folder-backed ctor；`SkinInfo.FilesystemStoragePath` / `IsExternalFilesystemStorage` + Realm schema 56；在恢复当时**没有**生产扫描、选择、安全删改或热重载。
-- 截至2026-07-27的恢复后重开历史曾依次加入authority/path preflight、managed Windows native no-follow capture、pure immutable capsule、schema 57 exact-owner启动scanner、production factory/guarded selection及公共mutation/recovery foundation；这只是带日期的历史锚点，不是实时完成度。当前状态只看P1-A，专项地雷见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_package_revision_capsule]]、[[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]。
+- 截至2026-07-29的恢复后重开历史曾依次加入authority/path preflight、managed Windows native no-follow capture、pure immutable capsule、schema 57 exact-owner启动scanner、production factory/guarded selection、公共mutation/recovery foundation及directory-only rename；这只是带日期的历史锚点，不是实时完成度。当前状态只看P1-A，专项地雷见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_package_revision_capsule]]、[[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]。
 - 恢复时新增两个独立修正：复制流后 reset position 再交 base parser；14K 右皿 `S2` → `P2` 素材映射。
 - F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复时撤回或未进入可信基线的历史面；当前等价实现状态须从`SV1-*`计划重新判断。
 
@@ -38,5 +38,5 @@ metadata:
 
 1. 先读 `doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md` 与 P1-A 四件套；当前执行门只看 P1-A STATUS/PLAN。
 2. schema 56 清点与定点迁移、`SV1-0` 自动/数据/2026-07-14 实机 gate 均已完成；不要重复打开或清理生产数据。
-3. G1继续按rename→staged import→delete、external、atomic reload/detach独立过门；不要从本恢复memory推断任一门的实时完成度，只看P1-A。测试按实际改动面选择，修改shared/mania/fallback authority时才强制追加core/mania gate。
+3. directory-only rename已经按独立切片过门；G1下一步按staged import→delete、external、atomic reload/detach继续推进。不要从本恢复memory推断任一门的实时完成度，只看P1-A。测试按实际改动面选择，修改shared/mania/fallback authority时才强制追加core/mania gate。
 4. 2026-07-14只闭合恢复静态基线；其后新增的普通短键与长条head/body/tail视觉都必须按集中清单单独签收，不能复用该结论。

@@ -35,13 +35,13 @@ metadata:
 
 ## 启动与当前产品边界
 
-- `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以同一共享coordinator外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须先cancel + join，再进入`OsuGameBase.Dispose()`释放Realm。
+- `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以同一共享coordinator外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须先cancel + join startup scanner worker，再由`ShutdownManagedFolderRename()` cancel + join rename worker，最后才进入`OsuGameBase.Dispose()`释放Realm。
 - 设置页已有 Realm `SkinInfo` notification → `GetAllUsableSkinsAsync()` → dropdown 刷新链；scanner 不需要第二套 UI refresh，也不会自动切换当前皮肤。
-- 这是一次启动扫描，不是 watcher 或热重载。启动后原位编辑、新 revision publication、全 consumer detach、managed rename/delete/import、external registration/capture 仍是后续独立 gate。
+- 这是一次启动扫描，不是 watcher 或热重载。directory-only managed rename已有独立internal production operation，但scanner本身不执行rename；启动后原位编辑、新revision publication、全consumer detach、staged import/delete、rename UI及external registration/capture仍是后续独立gate。
 - 测试只用 fake、隔离 Realm/临时 Windows 根和 headless lifecycle；不要为验证 scanner 启动可见 GUI，也不要触碰生产 `chartskin/`。
 
 ## 与 mutation foundation 的协调地雷
 
 - `scanGate`仍只负责同一scanner实例去重；真正跨scanner/selection/mutation/recovery的authority是共享`SkinManagedFolderOperationCoordinator`。scanner从discovery开始持有短lease直到Realm事务返回，因此snapshot→Realm reconcile不再允许进程内mutation插入。
 - 启动先恢复后scanner；有效未决journal冻结其source/target，invalid/unknown/IO冻结整个namespace。reconcile在规划valid add/update/revive和negative soft-delete时都必须查询冻结状态，不能把半成品解释成普通新增或缺失。
-- 这只关闭公共线性化与恢复地基。实际rename/import/delete仍需自己的held native write authority、最终identity与crash-point gate；scanner lease绝不能被当作物理写能力。
+- 公共线性化与恢复地基已被directory-only rename直接消费，rename具备自己的held native write authority、最终identity与crash-point gate；staged import/delete仍须各自独立闭合。scanner lease绝不能被当作任何物理写能力。

@@ -18,10 +18,10 @@ metadata:
 ## 不能误推的能力
 
 - 精确长度不能发现同长度内容在读取期间变化；纯 capsule 也不能证明 bytes 来自 preflight root、同一物理 entry 或一次稳定 inventory。
-- managed Windows fixed root handle + handle-relative/no-follow capture、schema 57 exact-owner scanner、production exact-capsule factory/选择及公共mutation/recovery foundation已实现，地雷见 [[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]；factory仍只能消费完整成功的capsule。external capture、真实rename/staged import/delete与atomic reload publication尚未实现。
+- managed Windows fixed root handle + handle-relative/no-follow capture、schema 57 exact-owner scanner、production exact-capsule factory/选择、公共mutation/recovery foundation及directory-only rename已实现，地雷见 [[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]；factory仍只能消费完整成功的capsule。external capture、staged import/delete与atomic reload publication尚未实现，rename UI也仍冻结。
 - content revision 不是 `InstantiationInfo`、选择资格、generation、scanner owner、mutation token 或 active publication revision；这些 gate 不能由 hash 替代。
 - production managed folder factory现已走exact-capsule marker/owning store构造路径，不让live `RealmBackedResourceStore`排在capsule前面。普通`.osk`与SkinEditor当前依赖Realm live store/refresh，没有被全局冻结；其原子更新另走prepared revision/new-instance协议。
-- active capsule 的单一 owner 必须先 detach 全部 consumer 再 dispose。逐 host 替换不等于全 playfield publication barrier。
+- active capsule 的单一 owner 必须先 detach 全部 consumer 再 dispose。directory-only rename不销毁当前active capsule；成功后推进全局selection generation并取消当时的pending selection，旧generation不得发布，未来重新选择从Realm新managed path重捕。逐 host 替换不等于全 playfield publication barrier。
 
 ## 入口
 
