@@ -8,11 +8,11 @@ using osu.Framework.Platform;
 namespace osu.Game.Skinning.Windows
 {
     /// <summary>
-    /// Opens a held, handle-relative authority session for future managed-folder mutations.
+    /// Opens a held, handle-relative authority session for managed-folder mutations.
     /// </summary>
     /// <remarks>
-    /// This adapter exposes no create, move, rename or delete primitive. It only fixes existing source identity and an
-    /// absent direct-child name slot beneath the same held <c>chartskin</c> root.
+    /// This adapter fixes existing source identity and an absent direct-child name slot beneath the same held
+    /// <c>chartskin</c> root. Its only write primitive is an identity-preserving, handle-relative, no-replace rename.
     /// </remarks>
     internal sealed class WindowsSkinManagedFolderMutationNativeAuthority : ISkinManagedFolderMutationNativeAuthority
     {
@@ -132,6 +132,48 @@ namespace osu.Game.Skinning.Windows
                 try
                 {
                     return getSession().CaptureStagedMutationSource(operationId, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public SkinManagedFolderPhysicalIdentity RenameCapturedSourceToTarget(
+                SkinManagedFolderTargetNameSlot targetNameSlot,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().RenameCapturedMutationSourceToTarget(targetNameSlot, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public SkinManagedFolderRenameInspection InspectRenameState(
+                string sourceManagedRelativePath,
+                string targetManagedRelativePath,
+                SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().InspectMutationRenameState(
+                        sourceManagedRelativePath,
+                        targetManagedRelativePath,
+                        expectedSourceIdentity,
+                        cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {

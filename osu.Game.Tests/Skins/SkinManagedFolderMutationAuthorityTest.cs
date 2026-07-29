@@ -977,6 +977,24 @@ namespace osu.Game.Tests.Skins
                     return owner.StagedCapture;
                 }
 
+                public SkinManagedFolderPhysicalIdentity RenameCapturedSourceToTarget(
+                    SkinManagedFolderTargetNameSlot targetNameSlot,
+                    CancellationToken cancellationToken)
+                {
+                    ensureHeld(cancellationToken);
+                    throw new NotSupportedException();
+                }
+
+                public SkinManagedFolderRenameInspection InspectRenameState(
+                    string sourceManagedRelativePath,
+                    string targetManagedRelativePath,
+                    SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                    CancellationToken cancellationToken)
+                {
+                    ensureHeld(cancellationToken);
+                    throw new NotSupportedException();
+                }
+
                 public void ValidateCompleteAndStable(CancellationToken cancellationToken)
                     => ensureHeld(cancellationToken);
 

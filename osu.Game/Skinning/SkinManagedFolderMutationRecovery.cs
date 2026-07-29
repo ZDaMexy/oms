@@ -75,8 +75,8 @@ namespace osu.Game.Skinning
     /// Recovers one journal before managed-folder scanning is allowed to reconcile Realm records.
     /// </summary>
     /// <remarks>
-    /// Operation-specific handlers are deliberately absent until each rename, staged-import or delete slice passes its
-    /// own gate. Until then, a non-terminal valid journal is ambiguous and freezes its exact paths. Invalid or unknown
+    /// An operation-specific handler is injected only after that vertical slice passes its own gate. Rename now has a
+    /// production handler; unimplemented kinds remain ambiguous and freeze their exact paths. Invalid or unknown
     /// journal data freezes the whole managed namespace because no safe path set can be derived.
     /// </remarks>
     internal sealed class SkinManagedFolderMutationRecovery

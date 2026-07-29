@@ -31,6 +31,33 @@ namespace osu.Game.Skinning
         public override string ToString() => nameof(SkinManagedFolderMutationNativeAuthorityException);
     }
 
+    internal enum SkinManagedFolderRenameInspectionStatus
+    {
+        SourceOnly,
+        TargetOnly,
+        Both,
+        Neither,
+        IdentityMismatch,
+    }
+
+    /// <summary>
+    /// Non-sensitive held-root inspection of the two direct-child slots named by a rename journal.
+    /// </summary>
+    internal readonly record struct SkinManagedFolderRenameInspection
+    {
+        public SkinManagedFolderRenameInspectionStatus Status { get; }
+
+        public SkinManagedFolderRenameInspection(SkinManagedFolderRenameInspectionStatus status)
+        {
+            if (!Enum.IsDefined(status))
+                throw new ArgumentOutOfRangeException(nameof(status));
+
+            Status = status;
+        }
+
+        public override string ToString() => $"{nameof(SkinManagedFolderRenameInspection)}:{Status}";
+    }
+
     internal interface ISkinManagedFolderMutationNativeAuthority
     {
         ISkinManagedFolderMutationNativeSession Open(CancellationToken cancellationToken);
@@ -50,6 +77,16 @@ namespace osu.Game.Skinning
 
         SkinManagedFolderTargetNameSlot CaptureAbsentTargetNameSlot(
             string managedRelativePath,
+            CancellationToken cancellationToken);
+
+        SkinManagedFolderPhysicalIdentity RenameCapturedSourceToTarget(
+            SkinManagedFolderTargetNameSlot targetNameSlot,
+            CancellationToken cancellationToken);
+
+        SkinManagedFolderRenameInspection InspectRenameState(
+            string sourceManagedRelativePath,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
             CancellationToken cancellationToken);
 
         void ValidateCompleteAndStable(CancellationToken cancellationToken);
@@ -415,6 +452,217 @@ namespace osu.Game.Skinning
                 T result = action();
                 return receipt.ValidateHeld(this, journalStore) ? result : rejected;
             }
+        }
+
+        /// <summary>
+        /// Applies the held rename only while the exact durable Prepared receipt remains authoritative, then durably
+        /// records the identity-preserving filesystem result.
+        /// </summary>
+        internal SkinManagedFolderPhysicalIdentity ApplyCapturedRenameWithDurableReceipt(
+            SkinManagedFolderDurableMutationReceipt receipt,
+            CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                if (Kind != SkinManagedFolderMutationKind.Rename
+                    || ExistingRecord == null
+                    || TargetNameSlot == null
+                    || nativeSession == null
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.Prepared } prepared
+                    || receipt == null
+                    || !Validate(cancellationToken)
+                    || !receipt.ValidateHeld(this, journalStore))
+                {
+                    throw new InvalidOperationException("The held managed-folder rename authority is no longer valid.");
+                }
+
+                SkinManagedFolderPhysicalIdentity targetIdentity;
+
+                try
+                {
+                    // The native contract observes cancellation only before the physical move. Once the move becomes
+                    // visible it completes final verification without the caller token and reports any later failure as
+                    // an outcome-uncertain native rejection.
+                    targetIdentity = nativeSession.RenameCapturedSourceToTarget(TargetNameSlot, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+
+                try
+                {
+                    SkinManagedFolderMutationJournal filesystemApplied =
+                        prepared.WithFilesystemApplied(targetIdentity);
+                    writeAndConfirm(filesystemApplied);
+                    durableJournal = filesystemApplied;
+                    return targetIdentity;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Runs the rename's authoritative Realm path update from an exact durable FilesystemApplied state and records
+        /// the completed Realm phase. The action must update only the already-authoritative record.
+        /// </summary>
+        internal bool TryApplyRenameRealm(
+            Func<bool> applyRealm,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(applyRealm);
+
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.Rename
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.FilesystemApplied } filesystemApplied
+                    || !isExactDurableJournal(filesystemApplied)
+                    || !isCapturedRenameTargetStable(filesystemApplied, cancellationToken))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    if (!applyRealm())
+                    {
+                        coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                        return false;
+                    }
+
+                    if (!isCapturedRenameTargetStable(filesystemApplied, cancellationToken))
+                    {
+                        coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                        return false;
+                    }
+
+                    SkinManagedFolderMutationJournal realmApplied = filesystemApplied.WithRealmApplied();
+                    writeAndConfirm(realmApplied);
+                    durableJournal = realmApplied;
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Durably commits and compare-deletes a completed rename intent. The held intent is cleared only after the
+        /// canonical journal slot is proven missing.
+        /// </summary>
+        internal bool TryCommitRename(CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.Rename
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.RealmApplied } realmApplied
+                    || !isExactDurableJournal(realmApplied)
+                    || !isCapturedRenameTargetStable(realmApplied, cancellationToken))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    SkinManagedFolderMutationJournal committed = realmApplied.WithCommitted();
+                    writeAndConfirm(committed);
+                    durableJournal = committed;
+                    journalStore.Delete(committed);
+
+                    if (journalStore.Load().Status != SkinManagedFolderMutationJournalLoadStatus.Missing)
+                        throw new InvalidOperationException("The committed managed-folder rename journal remains visible.");
+
+                    durableJournal = null;
+                    coordinator.UnfreezeRecoveryPaths(committed.GetAffectedManagedRelativePaths());
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(realmApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(realmApplied.GetAffectedManagedRelativePaths());
+                    return false;
+                }
+            }
+        }
+
+        private bool isCapturedRenameTargetStable(
+            SkinManagedFolderMutationJournal journal,
+            CancellationToken cancellationToken)
+        {
+            if (nativeSession == null
+                || journal.SourceManagedRelativePath == null
+                || journal.TargetManagedRelativePath == null
+                || journal.SourceIdentity == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                SkinManagedFolderRenameInspection inspection = nativeSession.InspectRenameState(
+                    journal.SourceManagedRelativePath,
+                    journal.TargetManagedRelativePath,
+                    journal.SourceIdentity.Value,
+                    cancellationToken);
+                return inspection.Status == SkinManagedFolderRenameInspectionStatus.TargetOnly;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool isExactDurableJournal(SkinManagedFolderMutationJournal expected)
+        {
+            try
+            {
+                SkinManagedFolderMutationJournalLoadResult loaded = journalStore.Load();
+                return loaded.IsLoaded && loaded.Journal!.IsExactSameJournal(expected);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void writeAndConfirm(SkinManagedFolderMutationJournal journal)
+        {
+            journalStore.Write(journal);
+            SkinManagedFolderMutationJournalLoadResult loaded = journalStore.Load();
+
+            if (!loaded.IsLoaded || !loaded.Journal!.IsExactSameJournal(journal))
+                throw new SkinManagedFolderMutationJournalException();
         }
 
         internal bool TryAbortPreparedJournal(

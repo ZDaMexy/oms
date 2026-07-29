@@ -142,6 +142,114 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestMutationRenameHoldsCompleteTree()
+        {
+            string nested = Path.Combine(packageRoot, "nested");
+            string file = Path.Combine(nested, "skin.ini");
+            string renamedRoot = Path.Combine(dataRoot, SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY, "renamed");
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(file, "held rename");
+            using (WindowsSkinManagedAuthoritySession session = WindowsSkinManagedAuthoritySession.Open(
+                       dataRoot,
+                       new NativeWindowsSkinPackageCaptureFileSystem(),
+                       CancellationToken.None))
+            {
+                SkinManagedFolderPhysicalIdentity sourceIdentity =
+                    session.CaptureExistingMutationSource("chartskin/package", CancellationToken.None);
+                SkinManagedFolderTargetNameSlot target =
+                    session.CaptureAbsentMutationTargetNameSlot("chartskin/renamed", CancellationToken.None);
+
+                Assert.That(
+                    session.RenameCapturedMutationSourceToTarget(target, CancellationToken.None),
+                    Is.EqualTo(sourceIdentity));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(Directory.Exists(packageRoot), Is.False);
+                    Assert.That(Directory.Exists(renamedRoot), Is.True);
+                    Assert.That(File.ReadAllText(Path.Combine(renamedRoot, "nested", "skin.ini")), Is.EqualTo("held rename"));
+                });
+
+            }
+
+            string renamedFile = Path.Combine(renamedRoot, "nested", "skin.ini");
+            Assert.DoesNotThrow(() => File.WriteAllText(renamedFile, "released"));
+        }
+
+        [Test]
+        public void TestMutationRenameRestartInspectionIsIdentityAware()
+        {
+            File.WriteAllText(Path.Combine(packageRoot, "skin.ini"), "restart inspection");
+            string renamedRoot = Path.Combine(dataRoot, SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY, "renamed");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+            SkinManagedFolderPhysicalIdentity sourceIdentity;
+
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+                sourceIdentity = session.CaptureExistingSource("chartskin/package", CancellationToken.None);
+
+            assertInspection(SkinManagedFolderRenameInspectionStatus.SourceOnly);
+            Directory.Move(packageRoot, renamedRoot);
+            assertInspection(SkinManagedFolderRenameInspectionStatus.TargetOnly);
+            Directory.CreateDirectory(packageRoot);
+            assertInspection(SkinManagedFolderRenameInspectionStatus.Both);
+            Directory.Delete(packageRoot);
+            Directory.Delete(renamedRoot, true);
+            assertInspection(SkinManagedFolderRenameInspectionStatus.Neither);
+            Directory.CreateDirectory(packageRoot);
+            assertInspection(SkinManagedFolderRenameInspectionStatus.IdentityMismatch);
+
+            void assertInspection(SkinManagedFolderRenameInspectionStatus expectedStatus)
+            {
+                using ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None);
+                SkinManagedFolderRenameInspection inspection = session.InspectRenameState(
+                    "chartskin/package",
+                    "chartskin/renamed",
+                    sourceIdentity,
+                    CancellationToken.None);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(inspection.Status, Is.EqualTo(expectedStatus));
+                    Assert.That(inspection.ToString(), Is.EqualTo($"SkinManagedFolderRenameInspection:{expectedStatus}"));
+                    Assert.That(inspection.ToString(), Does.Not.Contain(dataRoot));
+                    Assert.That(inspection.ToString(), Does.Not.Contain(sourceIdentity.FileIdPart0.ToString()));
+                });
+            }
+        }
+
+        [Test]
+        public void TestMutationRenameRejectsNestedBusyWriter()
+        {
+            string file = Path.Combine(packageRoot, "skin.ini");
+            File.WriteAllText(file, "busy");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+
+            using (File.Open(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+            {
+                Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                    () => session.CaptureExistingSource("chartskin/package", CancellationToken.None));
+            }
+        }
+
+        [Test]
+        public void TestMutationRenameRejectsNestedHardLink()
+        {
+            string source = Path.Combine(packageRoot, "skin.ini");
+            string alias = Path.Combine(packageRoot, "alias.ini");
+            File.WriteAllText(source, "hardlink");
+
+            if (!HardLinkHelper.TryCreateHardLink(alias, source))
+                Assert.Ignore("The test volume does not support hard links.");
+
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+
+            using ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None);
+            Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                () => session.CaptureExistingSource("chartskin/package", CancellationToken.None));
+        }
+
+        [Test]
         public void TestMutationTargetSlotCollisionAndLateCreationFailClosed()
         {
             File.WriteAllText(Path.Combine(packageRoot, "skin.ini"), "held mutation authority");
@@ -160,6 +268,41 @@ namespace osu.Game.Tests.Skins
             Directory.CreateDirectory(Path.Combine(dataRoot, "chartskin", "new-package"));
             Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
                 () => session.ValidateCompleteAndStable(CancellationToken.None));
+        }
+
+        [Test]
+        public void TestMutationRenameNativeTargetRaceDoesNotReplace()
+        {
+            string file = Path.Combine(packageRoot, "skin.ini");
+            string targetRoot = Path.Combine(dataRoot, SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY, "raced");
+            File.WriteAllText(file, "source");
+            var raceFileSystem = new RenameRaceFileSystem(
+                new NativeWindowsSkinPackageCaptureFileSystem(),
+                () => Directory.CreateDirectory(targetRoot));
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(dataRoot, raceFileSystem);
+            SkinManagedFolderPhysicalIdentity sourceIdentity;
+
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+            {
+                sourceIdentity = session.CaptureExistingSource("chartskin/package", CancellationToken.None);
+                SkinManagedFolderTargetNameSlot target =
+                    session.CaptureAbsentTargetNameSlot("chartskin/raced", CancellationToken.None);
+
+                Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                    () => session.RenameCapturedSourceToTarget(target, CancellationToken.None));
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(packageRoot), Is.True);
+                Assert.That(File.ReadAllText(file), Is.EqualTo("source"));
+                Assert.That(Directory.Exists(targetRoot), Is.True);
+            });
+
+            using ISkinManagedFolderMutationNativeSession verification = authority.Open(CancellationToken.None);
+            Assert.That(
+                verification.CaptureExistingSource("chartskin/package", CancellationToken.None),
+                Is.EqualTo(sourceIdentity));
         }
 
         [Test]
@@ -531,6 +674,12 @@ namespace osu.Game.Tests.Skins
             public WindowsSkinPackageEntryMetadata QueryMetadata(IWindowsSkinPackageCaptureHandle handle)
                 => inner.QueryMetadata(handle);
 
+            public void RenameChildNoReplace(
+                IWindowsSkinPackageCaptureHandle source,
+                IWindowsSkinPackageCaptureHandle targetParent,
+                string targetName)
+                => inner.RenameChildNoReplace(source, targetParent, targetName);
+
             public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
             {
                 if (Interlocked.Exchange(ref blocked, 1) == 0)
@@ -543,6 +692,51 @@ namespace osu.Game.Tests.Skins
 
                 return inner.CreateNonOwningReadStream(file);
             }
+        }
+
+        private sealed class RenameRaceFileSystem : IWindowsSkinPackageCaptureFileSystem
+        {
+            private readonly IWindowsSkinPackageCaptureFileSystem inner;
+            private readonly Action beforeRename;
+
+            public RenameRaceFileSystem(
+                IWindowsSkinPackageCaptureFileSystem inner,
+                Action beforeRename)
+            {
+                this.inner = inner;
+                this.beforeRename = beforeRename;
+            }
+
+            public IWindowsSkinPackageCaptureHandle OpenLocalVolumeRoot(char driveLetter)
+                => inner.OpenLocalVolumeRoot(driveLetter);
+
+            public IReadOnlyList<WindowsSkinPackageDirectoryEntry> Enumerate(
+                IWindowsSkinPackageCaptureHandle directory,
+                int maxEntries,
+                CancellationToken cancellationToken)
+                => inner.Enumerate(directory, maxEntries, cancellationToken);
+
+            public IWindowsSkinPackageCaptureHandle OpenChildNoFollow(
+                IWindowsSkinPackageCaptureHandle parent,
+                string name,
+                WindowsSkinPackageOpenMode mode,
+                SkinManagedPackageCaptureRejectionReason unavailableReason)
+                => inner.OpenChildNoFollow(parent, name, mode, unavailableReason);
+
+            public WindowsSkinPackageEntryMetadata QueryMetadata(IWindowsSkinPackageCaptureHandle handle)
+                => inner.QueryMetadata(handle);
+
+            public void RenameChildNoReplace(
+                IWindowsSkinPackageCaptureHandle source,
+                IWindowsSkinPackageCaptureHandle targetParent,
+                string targetName)
+            {
+                beforeRename();
+                inner.RenameChildNoReplace(source, targetParent, targetName);
+            }
+
+            public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
+                => inner.CreateNonOwningReadStream(file);
         }
     }
 }

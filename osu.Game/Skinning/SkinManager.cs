@@ -117,6 +117,24 @@ namespace osu.Game.Skinning
 
         private readonly SkinManagedFolderMutationRecovery managedFolderMutationRecovery;
         private readonly ISkinManagedFolderMutationJournalStore managedFolderMutationJournalStore;
+        private readonly SkinManagedFolderRenameOperation managedFolderRenameOperation;
+        private readonly object managedFolderRenameLifecycleGate = new object();
+        private CancellationTokenSource activeManagedFolderRenameCancellation;
+        private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
+        private SkinManagedFolderRenameOperationResult lastManagedFolderRenameResult;
+        private bool managedFolderRenameShutdown;
+
+        internal SkinManagedFolderRenameOperationResult LastManagedFolderRenameResult
+            => Volatile.Read(ref lastManagedFolderRenameResult);
+
+        internal bool IsManagedFolderRenameRunning
+        {
+            get
+            {
+                lock (managedFolderRenameLifecycleGate)
+                    return activeManagedFolderRenameTask is { IsCompleted: false };
+            }
+        }
 
         private long selectionGeneration;
         private CancellationTokenSource pendingSelectionCancellation;
@@ -164,16 +182,19 @@ namespace osu.Game.Skinning
             ManagedFolderCompletionSchedule = completion => scheduler.Add(completion);
 
             managedFolderMutationJournalStore = new SkinManagedFolderMutationJournalStore(storage);
-            managedFolderMutationRecovery = new SkinManagedFolderMutationRecovery(
-                managedFolderMutationJournalStore,
-                ManagedFolderOperationCoordinator);
-            InitialManagedFolderMutationRecoveryResult = managedFolderMutationRecovery.Recover();
+            var managedFolderMutationNativeAuthority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
             ManagedFolderMutationAuthority = new SkinManagedFolderMutationAuthority(
                 realm,
                 storage,
                 ManagedFolderOperationCoordinator,
-                new WindowsSkinManagedFolderMutationNativeAuthority(storage),
+                managedFolderMutationNativeAuthority,
                 managedFolderMutationJournalStore);
+            managedFolderRenameOperation = new SkinManagedFolderRenameOperation(realm, ManagedFolderMutationAuthority);
+            managedFolderMutationRecovery = new SkinManagedFolderMutationRecovery(
+                managedFolderMutationJournalStore,
+                ManagedFolderOperationCoordinator,
+                new SkinManagedFolderRenameRecoveryHandler(realm, managedFolderMutationNativeAuthority));
+            InitialManagedFolderMutationRecoveryResult = managedFolderMutationRecovery.Recover();
 
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
 
@@ -245,6 +266,138 @@ namespace osu.Game.Skinning
 
         internal SkinManagedFolderMutationRecoveryResult RecoverManagedFolderMutations(CancellationToken cancellationToken = default)
             => managedFolderMutationRecovery.Recover(cancellationToken);
+
+        /// <summary>
+        /// Starts one directory-only managed chartskin rename without exposing it through the current skin UI.
+        /// </summary>
+        /// <remarks>
+        /// The operation ID is generated internally and never returned or logged. A successful rename invalidates any
+        /// in-flight selection preparation, while the currently active immutable capsule may continue to serve its
+        /// existing consumers until a later selection captures the record's new managed path.
+        /// </remarks>
+        internal Task<SkinManagedFolderRenameOperationResult> RenameManagedFolderAsync(
+            Guid recordId,
+            string targetChildName,
+            CancellationToken cancellationToken = default)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderRenameShutdown)
+                    return completedRenameResult(SkinManagedFolderRenameOperationStatus.Shutdown);
+
+                if (activeManagedFolderRenameTask is { IsCompleted: false })
+                    return completedRenameResult(SkinManagedFolderRenameOperationStatus.Busy);
+
+                if (cancellationToken.IsCancellationRequested)
+                    return completedRenameResult(SkinManagedFolderRenameOperationStatus.Cancelled);
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<SkinManagedFolderRenameOperationResult> operationTask = Task.Run(
+                    () => executeManagedFolderRename(recordId, targetChildName, operationCancellation.Token),
+                    CancellationToken.None);
+
+                activeManagedFolderRenameCancellation = operationCancellation;
+                activeManagedFolderRenameTask = operationTask;
+
+                _ = operationTask.ContinueWith(
+                    _ => completeManagedFolderRenameTask(operationTask, operationCancellation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        /// <summary>
+        /// Cancels and synchronously joins the managed rename worker before Realm can be released.
+        /// </summary>
+        internal void ShutdownManagedFolderRename()
+        {
+            CancellationTokenSource cancellation;
+            Task<SkinManagedFolderRenameOperationResult> operationTask;
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                managedFolderRenameShutdown = true;
+                cancellation = activeManagedFolderRenameCancellation;
+                operationTask = activeManagedFolderRenameTask;
+            }
+
+            try
+            {
+                cancellation?.Cancel();
+            }
+            catch
+            {
+                // Cancellation callback failures must not bypass the join below.
+            }
+
+            try
+            {
+                operationTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Observe unexpected failures without exposing a potentially sensitive exception.
+            }
+        }
+
+        private SkinManagedFolderRenameOperationResult executeManagedFolderRename(
+            Guid recordId,
+            string targetChildName,
+            CancellationToken cancellationToken)
+        {
+            SkinManagedFolderRenameOperationResult result;
+
+            try
+            {
+                result = managedFolderRenameOperation.Execute(
+                    Guid.NewGuid(),
+                    recordId,
+                    targetChildName,
+                    cancellationToken);
+            }
+            catch
+            {
+                result = SkinManagedFolderRenameOperationResult.Failure(
+                    SkinManagedFolderRenameOperationStatus.PreparedJournalOutcomeUncertain);
+            }
+
+            if (result.IsSuccess)
+            {
+                Interlocked.Increment(ref selectionGeneration);
+                cancelPendingSelection();
+            }
+
+            Volatile.Write(ref lastManagedFolderRenameResult, result);
+            return result;
+        }
+
+        private Task<SkinManagedFolderRenameOperationResult> completedRenameResult(
+            SkinManagedFolderRenameOperationStatus status)
+        {
+            SkinManagedFolderRenameOperationResult result =
+                SkinManagedFolderRenameOperationResult.Failure(status);
+            Volatile.Write(ref lastManagedFolderRenameResult, result);
+            return Task.FromResult(result);
+        }
+
+        private void completeManagedFolderRenameTask(
+            Task<SkinManagedFolderRenameOperationResult> operationTask,
+            CancellationTokenSource operationCancellation)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (ReferenceEquals(activeManagedFolderRenameTask, operationTask))
+                {
+                    activeManagedFolderRenameTask = null;
+                    activeManagedFolderRenameCancellation = null;
+                }
+            }
+
+            operationCancellation.Dispose();
+        }
 
         /// <summary>
         /// Confirms the protected fallback pair while a future delete authority still owns the shared coordinator.

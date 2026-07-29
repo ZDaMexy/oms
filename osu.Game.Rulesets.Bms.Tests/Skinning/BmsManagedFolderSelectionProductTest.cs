@@ -969,6 +969,391 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestManagedFolderRenameKeepsActiveCapsuleAndRecapturesFromNewPath()
+        {
+            string sourceRoot = string.Empty;
+            string targetRoot = string.Empty;
+            string targetChildName = string.Empty;
+            string targetManagedPath = string.Empty;
+            string originalName = string.Empty;
+            string originalCreator = string.Empty;
+            string originalHash = string.Empty;
+            byte[] originalSkinIni = null!;
+            Live<SkinInfo> candidate = null!;
+            Live<SkinInfo> realmPackage = null!;
+            Skin? activeManagedSkin = null;
+            Task<SkinManagedFolderRenameOperationResult>? renameTask = null;
+            string? recapturedChildName = null;
+
+            AddStep("create rename candidate and Realm package", () =>
+            {
+                (sourceRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                targetChildName = $"renamed-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                targetRoot = LocalStorage.GetFullPath(targetManagedPath);
+                originalSkinIni = File.ReadAllBytes(Path.Combine(sourceRoot, "skin.ini"));
+                candidate.PerformRead(info =>
+                {
+                    originalName = info.Name;
+                    originalCreator = info.Creator;
+                    originalHash = info.Hash;
+                });
+                realmPackage = createRealmPackageCandidate();
+            });
+
+            AddStep("select managed candidate", () => manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for managed candidate", () =>
+                manager.CurrentSkinInfo.Value.ID == candidate.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID
+                && manager.CurrentSkin.Value is BmsLegacySkin);
+            AddStep("rename selected managed folder", () =>
+            {
+                activeManagedSkin = manager.CurrentSkin.Value;
+                renameTask = manager.RenameManagedFolderAsync(candidate.ID, targetChildName);
+            });
+            AddUntilStep("wait for rename", () => renameTask?.IsCompleted == true);
+            AddStep("assert directory-only rename preserves active capsule", () =>
+            {
+                SkinManagedFolderRenameOperationResult result = renameTask!.GetAwaiter().GetResult();
+                var transformer = new BmsSkinTransformer(activeManagedSkin!);
+                Drawable? note = resolve(transformer, BmsNoteSkinElements.Note);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.True);
+                    Assert.That(Directory.Exists(sourceRoot), Is.False);
+                    Assert.That(Directory.Exists(targetRoot), Is.True);
+                    Assert.That(File.ReadAllBytes(Path.Combine(targetRoot, "skin.ini")), Is.EqualTo(originalSkinIni));
+                    Assert.That(candidate.PerformRead(info => info.FilesystemStoragePath), Is.EqualTo(targetManagedPath));
+                    Assert.That(candidate.PerformRead(info => info.Name), Is.EqualTo(originalName));
+                    Assert.That(candidate.PerformRead(info => info.Creator), Is.EqualTo(originalCreator));
+                    Assert.That(candidate.PerformRead(info => info.Hash), Is.EqualTo(originalHash));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(activeManagedSkin));
+                    Assert.That(sourceChangedCount, Is.EqualTo(1));
+                    Assert.That(new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    assertStaticSourceBound(note, typeof(BmsSourceBoundNoteDrawable));
+                });
+            });
+
+            AddStep("select Realm package", () => manager.CurrentSkinInfo.Value = realmPackage);
+            AddUntilStep("wait for Realm package", () =>
+                manager.CurrentSkinInfo.Value.ID == realmPackage.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == realmPackage.ID);
+            AddStep("dispose superseded capsule and request renamed candidate", () =>
+            {
+                activeManagedSkin!.Dispose();
+                var nativeCapture = manager.ManagedFolderCapture;
+                manager.ManagedFolderCapture = (request, cancellationToken) =>
+                {
+                    recapturedChildName = request.PackageDirectoryName;
+                    return nativeCapture(request, cancellationToken);
+                };
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for recaptured candidate", () =>
+                manager.CurrentSkinInfo.Value.ID == candidate.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID
+                && manager.CurrentSkin.Value is BmsLegacySkin);
+            AddStep("assert future capture uses renamed path", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkin.Value, Is.Not.SameAs(activeManagedSkin));
+                    Assert.That(recapturedChildName, Is.EqualTo(targetChildName));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.Value.FilesystemStoragePath, Is.EqualTo(targetManagedPath));
+                    Assert.That(Directory.Exists(sourceRoot), Is.False);
+                    Assert.That(Directory.Exists(targetRoot), Is.True);
+                    Assert.That(sourceChangedCount, Is.EqualTo(3));
+                });
+            });
+        }
+
+        [Test]
+        public void TestManagedFolderRenameCancelsPendingOldPathSelection()
+        {
+            string sourceRoot = string.Empty;
+            string targetRoot = string.Empty;
+            string targetChildName = string.Empty;
+            string targetManagedPath = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            Task<SkinManagedFolderRenameOperationResult>? renameTask = null;
+            var captureEntered = new ManualResetEventSlim();
+            var captureExited = new ManualResetEventSlim();
+            var releaseCapture = new ManualResetEventSlim();
+
+            AddStep("create candidate and block old-path capture", () =>
+            {
+                (sourceRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                targetChildName = $"renamed-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                targetRoot = LocalStorage.GetFullPath(targetManagedPath);
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                var nativeCapture = manager.ManagedFolderCapture;
+                manager.ManagedFolderCapture = (request, cancellationToken) =>
+                {
+                    captureEntered.Set();
+
+                    try
+                    {
+                        Assert.That(releaseCapture.Wait(TimeSpan.FromSeconds(30), cancellationToken), Is.True);
+                        return nativeCapture(request, cancellationToken);
+                    }
+                    finally
+                    {
+                        captureExited.Set();
+                    }
+                };
+            });
+
+            AddStep("request candidate", () => manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for old-path capture", () => captureEntered.IsSet);
+            AddStep("rename while selection is pending", () =>
+                renameTask = manager.RenameManagedFolderAsync(candidate.ID, targetChildName));
+            AddUntilStep("wait for rename completion", () => renameTask?.IsCompleted == true);
+            AddUntilStep("wait for pending capture cancellation", () => captureExited.IsSet);
+            AddStep("assert stale selection never publishes", () =>
+            {
+                SkinManagedFolderRenameOperationResult result = renameTask!.GetAwaiter().GetResult();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.IsSuccess, Is.True);
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(sourceChangedCount, Is.Zero);
+                    Assert.That(candidate.PerformRead(info => info.FilesystemStoragePath), Is.EqualTo(targetManagedPath));
+                    Assert.That(Directory.Exists(sourceRoot), Is.False);
+                    Assert.That(Directory.Exists(targetRoot), Is.True);
+                });
+
+                releaseCapture.Set();
+                captureEntered.Dispose();
+                captureExited.Dispose();
+                releaseCapture.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestManagedFolderRenameWaitsForScannerSnapshotCommit()
+        {
+            string sourceRoot = string.Empty;
+            string targetRoot = string.Empty;
+            string sourceManagedPath = string.Empty;
+            string targetChildName = string.Empty;
+            string targetManagedPath = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Task<SkinManagedFolderScanResult>? scanTask = null;
+            Task<SkinManagedFolderRenameOperationResult>? renameTask = null;
+            var scannerBeforeCommit = new ManualResetEventSlim();
+            var releaseScanner = new ManualResetEventSlim();
+
+            AddStep("create candidate and blocking scanner snapshot", () =>
+            {
+                (sourceRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                sourceManagedPath = candidate.PerformRead(info => info.FilesystemStoragePath!);
+                targetChildName = $"renamed-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                targetRoot = LocalStorage.GetFullPath(targetManagedPath);
+                var discovery = new SkinManagedFolderDiscovery(
+                    sourceManagedPath,
+                    candidate.PerformRead(info => info.Name),
+                    candidate.PerformRead(info => info.Creator),
+                    candidate.PerformRead(info => info.Hash));
+                var scanner = new SkinManagedFolderScanner(
+                    Realm,
+                    new FixedManagedFolderDiscoverySource(
+                        SkinManagedFolderDiscoverySnapshot.Complete(
+                            new[] { sourceManagedPath },
+                            new[] { discovery })),
+                    manager.ManagedFolderOperationCoordinator)
+                {
+                    ReconciliationBeforeCommit = () =>
+                    {
+                        scannerBeforeCommit.Set();
+                        Assert.That(releaseScanner.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                    },
+                };
+                scanTask = Task.Run(() => scanner.Scan());
+            });
+
+            AddUntilStep("wait for scanner commit boundary", () => scannerBeforeCommit.IsSet);
+            AddStep("start rename behind scanner lease", () =>
+                renameTask = manager.RenameManagedFolderAsync(candidate.ID, targetChildName));
+            AddUntilStep("wait for rename worker", () => manager.IsManagedFolderRenameRunning);
+            AddStep("assert rename has not crossed scanner commit", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(renameTask!.IsCompleted, Is.False);
+                    Assert.That(Directory.Exists(sourceRoot), Is.True);
+                    Assert.That(Directory.Exists(targetRoot), Is.False);
+                    Assert.That(candidate.PerformRead(info => info.FilesystemStoragePath), Is.EqualTo(sourceManagedPath));
+                });
+
+                releaseScanner.Set();
+            });
+            AddUntilStep("wait for scanner completion", () => scanTask?.IsCompleted == true);
+            AddUntilStep("wait for serialized rename", () => renameTask?.IsCompleted == true);
+            AddStep("assert scanner then rename committed", () =>
+            {
+                SkinManagedFolderScanResult scan = scanTask!.GetAwaiter().GetResult();
+                SkinManagedFolderRenameOperationResult rename = renameTask!.GetAwaiter().GetResult();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(scan.IsSuccess, Is.True);
+                    Assert.That(rename.IsSuccess, Is.True);
+                    Assert.That(candidate.PerformRead(info => info.FilesystemStoragePath), Is.EqualTo(targetManagedPath));
+                    Assert.That(Directory.Exists(sourceRoot), Is.False);
+                    Assert.That(Directory.Exists(targetRoot), Is.True);
+                });
+
+                scannerBeforeCommit.Dispose();
+                releaseScanner.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestAmbiguousRenameRestartFreezesSelectionAndScannerNegativeCleanup()
+        {
+            string sourceRoot = string.Empty;
+            string sourceManagedPath = string.Empty;
+            string targetManagedPath = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            SkinManager? recoveringManager = null;
+            SkinManagedFolderMutationJournal? preparedJournal = null;
+            SkinManagedFolderScanResult? scanResult = null;
+            SkinManagedFolderMutationJournalStore? store = null;
+
+            AddStep("persist prepared rename and create ambiguous target", () =>
+            {
+                store = new SkinManagedFolderMutationJournalStore(LocalStorage);
+                (sourceRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                sourceManagedPath = candidate.PerformRead(info => info.FilesystemStoragePath!);
+                string targetChildName = $"renamed-{Guid.NewGuid():N}";
+                targetManagedPath = $"chartskin/{targetChildName}";
+                SkinManagedFolderMutationAuthorityResult opened = manager.ManagedFolderMutationAuthority.OpenRename(
+                    Guid.NewGuid(),
+                    candidate.ID,
+                    targetChildName);
+
+                Assert.That(opened.IsSuccess, Is.True);
+
+                using (SkinManagedFolderMutationAuthoritySession session = opened.Session!)
+                {
+                    session.PersistPreparedJournal();
+                    SkinManagedFolderMutationJournalLoadResult loaded = store!.Load();
+                    Assert.That(loaded.IsLoaded, Is.True);
+                    preparedJournal = loaded.Journal;
+                }
+
+                Directory.CreateDirectory(LocalStorage.GetFullPath(targetManagedPath));
+            });
+
+            AddStep("construct manager with ambiguous production recovery", () =>
+            {
+                recoveringManager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler)
+                {
+                    ManagedFolderCapture = (_, _) => throw new AssertionException("recovery-frozen selection reached native capture")
+                };
+            });
+            AddStep("request recovery-frozen candidate and scan complete absence", () =>
+            {
+                recoveringManager!.CurrentSkinInfo.Value = candidate;
+                var scanner = new SkinManagedFolderScanner(
+                    Realm,
+                    new FixedManagedFolderDiscoverySource(
+                        SkinManagedFolderDiscoverySnapshot.Complete(
+                            Array.Empty<string>(),
+                            Array.Empty<SkinManagedFolderDiscovery>())),
+                    recoveringManager.ManagedFolderOperationCoordinator);
+                scanResult = scanner.Scan();
+            });
+            AddStep("assert journal and record remain frozen", () =>
+            {
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(
+                            recoveringManager!.InitialManagedFolderMutationRecoveryResult.Status,
+                            Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.Ambiguous));
+                        Assert.That(
+                            recoveringManager.LastSelectionRejectionReason,
+                            Is.EqualTo(SkinSelectionRejectionReason.MutationRecoveryPending));
+                        Assert.That(recoveringManager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                        Assert.That(recoveringManager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(recoveringManager.ManagedFolderOperationCoordinator.IsPathFrozen(sourceManagedPath), Is.True);
+                        Assert.That(recoveringManager.ManagedFolderOperationCoordinator.IsPathFrozen(targetManagedPath), Is.True);
+                        Assert.That(scanResult!.IsSuccess, Is.True);
+                        Assert.That(scanResult.Conflicts, Is.EqualTo(1));
+                        Assert.That(candidate.PerformRead(info => info.DeletePending), Is.False);
+                        Assert.That(store!.Load().IsLoaded, Is.True);
+                    });
+                }
+                finally
+                {
+                    SkinManagedFolderMutationJournal rolledBack = preparedJournal!.WithRolledBack();
+                    store!.Write(rolledBack);
+                    store.Delete(rolledBack);
+                }
+            });
+        }
+
+        [Test]
+        public void TestManagedFolderRenameShutdownCancelsAndJoinsWorker()
+        {
+            Live<SkinInfo> candidate = null!;
+            SkinManagedFolderOperationCoordinator.Lease? heldScannerLease = null;
+            Task<SkinManagedFolderRenameOperationResult>? renameTask = null;
+            Task<SkinManagedFolderRenameOperationResult>? afterShutdown = null;
+
+            AddStep("hold shared coordinator and start rename", () =>
+            {
+                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                heldScannerLease = manager.ManagedFolderOperationCoordinator.Enter();
+                renameTask = manager.RenameManagedFolderAsync(candidate.ID, $"renamed-{Guid.NewGuid():N}");
+            });
+            AddUntilStep("wait for blocked rename worker", () => manager.IsManagedFolderRenameRunning);
+            AddStep("shutdown and synchronously join rename", () =>
+            {
+                try
+                {
+                    manager.ShutdownManagedFolderRename();
+                }
+                finally
+                {
+                    heldScannerLease!.Dispose();
+                }
+
+                afterShutdown = manager.RenameManagedFolderAsync(candidate.ID, $"renamed-{Guid.NewGuid():N}");
+            });
+            AddStep("assert worker joined and restart rejected", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(renameTask!.IsCompleted, Is.True);
+                    Assert.That(renameTask.GetAwaiter().GetResult().Status, Is.EqualTo(SkinManagedFolderRenameOperationStatus.Cancelled));
+                    Assert.That(manager.IsManagedFolderRenameRunning, Is.False);
+                    Assert.That(afterShutdown!.IsCompleted, Is.True);
+                    Assert.That(afterShutdown.GetAwaiter().GetResult().Status, Is.EqualTo(SkinManagedFolderRenameOperationStatus.Shutdown));
+                    Assert.That(new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
         public void TestFilesystemMutationFreezeCannotBeBypassedThroughBaseOrInterfaces()
         {
             Live<SkinInfo> candidate = null!;
@@ -1132,6 +1517,22 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             Assert.That(drawable, Is.TypeOf(expectedType));
             Assert.That(drawable!.ChildrenOfType<Sprite>().Single().Texture, Is.Not.Null);
+        }
+
+        private sealed class FixedManagedFolderDiscoverySource : ISkinManagedFolderDiscoverySource
+        {
+            private readonly SkinManagedFolderDiscoverySnapshot snapshot;
+
+            public FixedManagedFolderDiscoverySource(SkinManagedFolderDiscoverySnapshot snapshot)
+            {
+                this.snapshot = snapshot;
+            }
+
+            public SkinManagedFolderDiscoverySnapshot Discover(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return snapshot;
+            }
         }
     }
 }

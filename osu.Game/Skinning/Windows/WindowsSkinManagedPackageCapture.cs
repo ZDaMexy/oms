@@ -25,8 +25,10 @@ namespace osu.Game.Skinning.Windows
         AuthorityDirectory,
         CapturedDirectory,
         CapturedFile,
+        MutationManagedRootDirectory,
         MutationSourceDirectory,
         MutationSourceVerificationDirectory,
+        MutationSourceVerificationFile,
     }
 
     internal readonly struct WindowsSkinPackagePhysicalIdentity : IEquatable<WindowsSkinPackagePhysicalIdentity>
@@ -171,6 +173,11 @@ namespace osu.Game.Skinning.Windows
             SkinManagedPackageCaptureRejectionReason unavailableReason);
 
         WindowsSkinPackageEntryMetadata QueryMetadata(IWindowsSkinPackageCaptureHandle handle);
+
+        void RenameChildNoReplace(
+            IWindowsSkinPackageCaptureHandle source,
+            IWindowsSkinPackageCaptureHandle targetParent,
+            string targetName);
 
         Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file);
     }
@@ -1195,6 +1202,12 @@ namespace osu.Game.Skinning.Windows
                     openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
                     break;
 
+                case WindowsSkinPackageOpenMode.MutationManagedRootDirectory:
+                    desiredAccess = NativeMethods.FILE_LIST_DIRECTORY | NativeMethods.FILE_READ_ATTRIBUTES | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_WRITE;
+                    openOptions |= NativeMethods.FILE_DIRECTORY_FILE;
+                    break;
+
                 case WindowsSkinPackageOpenMode.MutationSourceDirectory:
                     desiredAccess = NativeMethods.FILE_LIST_DIRECTORY
                                     | NativeMethods.FILE_READ_ATTRIBUTES
@@ -1208,6 +1221,12 @@ namespace osu.Game.Skinning.Windows
                     desiredAccess = NativeMethods.FILE_LIST_DIRECTORY | NativeMethods.FILE_READ_ATTRIBUTES | NativeMethods.SYNCHRONIZE;
                     shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE;
                     openOptions |= NativeMethods.FILE_DIRECTORY_FILE;
+                    break;
+
+                case WindowsSkinPackageOpenMode.MutationSourceVerificationFile:
+                    desiredAccess = NativeMethods.FILE_READ_DATA | NativeMethods.FILE_READ_ATTRIBUTES | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE;
+                    openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
                     break;
 
                 default:
@@ -1285,6 +1304,42 @@ namespace osu.Game.Skinning.Windows
                 standard.DeletePending != 0);
         }
 
+        public void RenameChildNoReplace(
+            IWindowsSkinPackageCaptureHandle source,
+            IWindowsSkinPackageCaptureHandle targetParent,
+            string targetName)
+        {
+            NativeHandle nativeSource = getNativeHandle(source);
+            NativeHandle nativeTargetParent = getNativeHandle(targetParent);
+
+            if (targetName.Length > 255 || !SkinPackageResourceNameValidator.IsValidWindowsSegment(targetName))
+                throw reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
+
+            bool parentAddedRef = false;
+
+            try
+            {
+                nativeTargetParent.Handle.DangerousAddRef(ref parentAddedRef);
+
+                int status = NativeMethods.RenameRelativeNoReplace(
+                    nativeSource.Handle,
+                    nativeTargetParent.Handle.DangerousGetHandle(),
+                    targetName);
+
+                if (status != NativeMethods.STATUS_SUCCESS)
+                {
+                    throw mapNtStatus(
+                        status,
+                        SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+                }
+            }
+            finally
+            {
+                if (parentAddedRef)
+                    nativeTargetParent.Handle.DangerousRelease();
+            }
+        }
+
         public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
         {
             NativeHandle nativeFile = getNativeHandle(file);
@@ -1323,6 +1378,7 @@ namespace osu.Game.Skinning.Windows
                 NativeMethods.STATUS_SHARING_VIOLATION => reject(SkinManagedPackageCaptureRejectionReason.SourceBusy),
                 NativeMethods.STATUS_REPARSE_POINT_ENCOUNTERED or NativeMethods.STATUS_STOPPED_ON_SYMLINK => reject(SkinManagedPackageCaptureRejectionReason.ReparsePointEncountered),
                 NativeMethods.STATUS_OBJECT_NAME_NOT_FOUND or NativeMethods.STATUS_OBJECT_PATH_NOT_FOUND or NativeMethods.STATUS_NOT_A_DIRECTORY or NativeMethods.STATUS_FILE_IS_A_DIRECTORY => reject(unavailableReason),
+                NativeMethods.STATUS_OBJECT_NAME_COLLISION => reject(unavailableReason),
                 _ => reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure),
             };
         }
@@ -1336,6 +1392,7 @@ namespace osu.Game.Skinning.Windows
                 NativeMethods.ERROR_ACCESS_DENIED => reject(SkinManagedPackageCaptureRejectionReason.AccessDenied),
                 NativeMethods.ERROR_SHARING_VIOLATION => reject(SkinManagedPackageCaptureRejectionReason.SourceBusy),
                 NativeMethods.ERROR_FILE_NOT_FOUND or NativeMethods.ERROR_PATH_NOT_FOUND => reject(unavailableReason),
+                NativeMethods.ERROR_FILE_EXISTS or NativeMethods.ERROR_ALREADY_EXISTS => reject(unavailableReason),
                 _ => reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure),
             };
         }
@@ -1434,6 +1491,7 @@ namespace osu.Game.Skinning.Windows
         internal const int STATUS_ACCESS_DENIED = unchecked((int)0xC0000022);
         internal const int STATUS_BUFFER_TOO_SMALL = unchecked((int)0xC0000023);
         internal const int STATUS_OBJECT_NAME_NOT_FOUND = unchecked((int)0xC0000034);
+        internal const int STATUS_OBJECT_NAME_COLLISION = unchecked((int)0xC0000035);
         internal const int STATUS_OBJECT_PATH_NOT_FOUND = unchecked((int)0xC000003A);
         internal const int STATUS_SHARING_VIOLATION = unchecked((int)0xC0000043);
         internal const int STATUS_FILE_IS_A_DIRECTORY = unchecked((int)0xC00000BA);
@@ -1461,6 +1519,8 @@ namespace osu.Game.Skinning.Windows
         internal const int ERROR_PATH_NOT_FOUND = 3;
         internal const int ERROR_ACCESS_DENIED = 5;
         internal const int ERROR_SHARING_VIOLATION = 32;
+        internal const int ERROR_FILE_EXISTS = 80;
+        internal const int ERROR_ALREADY_EXISTS = 183;
 
         internal const int FILE_ID_EXTD_DIRECTORY_INFORMATION_HEADER_SIZE = 88;
         internal const int FILE_ID_EXTD_CREATION_TIME_OFFSET = 8;
@@ -1505,6 +1565,14 @@ namespace osu.Game.Skinning.Windows
             uint queryFlags,
             IntPtr fileName);
 
+        [DllImport("ntdll.dll", ExactSpelling = true)]
+        private static extern int NtSetInformationFile(
+            SafeFileHandle fileHandle,
+            out IO_STATUS_BLOCK ioStatusBlock,
+            IntPtr fileInformation,
+            uint length,
+            FILE_INFORMATION_CLASS fileInformationClass);
+
         internal static unsafe int OpenRelative(
             IntPtr parentHandle,
             string name,
@@ -1521,6 +1589,57 @@ namespace osu.Game.Skinning.Windows
             uint openOptions,
             out SafeFileHandle fileHandle)
             => open(IntPtr.Zero, name, desiredAccess, shareAccess, openOptions, out fileHandle);
+
+        internal static unsafe int RenameRelativeNoReplace(
+            SafeFileHandle source,
+            IntPtr targetParentHandle,
+            string targetName)
+        {
+            (int rootDirectoryOffset, int fileNameLengthOffset, int fileNameOffset) =
+                GetFileRenameInfoOffsets(IntPtr.Size);
+            int fileNameBytes = checked(targetName.Length * sizeof(char));
+            int bufferSize = GetFileRenameInfoBufferSize(IntPtr.Size, fileNameBytes);
+            byte* buffer = stackalloc byte[bufferSize];
+            new Span<byte>(buffer, bufferSize).Clear();
+            // FileRenameInfoEx interprets the first field as flags. Zero is the narrow no-replace contract.
+            *(uint*)buffer = 0;
+            *(IntPtr*)(buffer + rootDirectoryOffset) = targetParentHandle;
+            *(uint*)(buffer + fileNameLengthOffset) = checked((uint)fileNameBytes);
+
+            fixed (char* targetNameBuffer = targetName)
+                Buffer.MemoryCopy(targetNameBuffer, buffer + fileNameOffset, fileNameBytes, fileNameBytes);
+
+            return NtSetInformationFile(
+                source,
+                out _,
+                (IntPtr)buffer,
+                checked((uint)bufferSize),
+                FILE_INFORMATION_CLASS.FileRenameInformationEx);
+        }
+
+        internal static (int RootDirectoryOffset, int FileNameLengthOffset, int FileNameOffset)
+            GetFileRenameInfoOffsets(int pointerSize)
+            => pointerSize switch
+            {
+                4 => (4, 8, 12),
+                8 => (8, 16, 20),
+                _ => throw new ArgumentOutOfRangeException(nameof(pointerSize)),
+            };
+
+        internal static int GetFileRenameInfoBufferSize(int pointerSize, int fileNameBytes)
+        {
+            if (fileNameBytes < sizeof(char) || fileNameBytes % sizeof(char) != 0)
+                throw new ArgumentOutOfRangeException(nameof(fileNameBytes));
+
+            int structureSize = pointerSize switch
+            {
+                4 => 16,
+                8 => 24,
+                _ => throw new ArgumentOutOfRangeException(nameof(pointerSize)),
+            };
+
+            return checked(structureSize + fileNameBytes);
+        }
 
         private static unsafe int open(
             IntPtr parentHandle,
@@ -1564,11 +1683,16 @@ namespace osu.Game.Skinning.Windows
                && Marshal.SizeOf<FILE_ID_INFO>() == 24
                && Marshal.SizeOf<FILE_BASIC_INFO>() == 40
                && Marshal.SizeOf<FILE_STANDARD_INFO>() == 24
-               && Marshal.SizeOf<FILE_ATTRIBUTE_TAG_INFO>() == 8;
+               && Marshal.SizeOf<FILE_ATTRIBUTE_TAG_INFO>() == 8
+               && GetFileRenameInfoOffsets(IntPtr.Size)
+                  == (IntPtr.Size == 8
+                      ? (8, 16, 20)
+                      : (4, 8, 12));
 
         internal enum FILE_INFORMATION_CLASS
         {
             FileIdExtdDirectoryInformation = 60,
+            FileRenameInformationEx = 65,
         }
 
         internal enum FILE_INFO_BY_HANDLE_CLASS

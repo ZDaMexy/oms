@@ -2,6 +2,19 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-29
+
+### `SV1-2` managed chartskin directory-only rename 独立端到端切片
+
+- 产品语义冻结为“目录身份与作者展示身份分离”：rename只把一个`chartskin/<direct-child>`工作目录从source slot移动到target slot，并更新同一authoritative Realm record的`FilesystemStoragePath`。根`skin.ini [General] Name`、Realm `Name`/`Creator`、包字节、revision/hash和scanner owner均不修改；没有发布新record，也没有接入旧通用rename或UI。
+- 操作直接消费既有`SkinManagedFolderMutationAuthority.OpenRename`、held managed root/source、target name slot、shared coordinator、canonical journal store与exact durable receipt。首个物理可见步骤前必须durable Prepared；成功链严格闭合`Prepared → FilesystemApplied → RealmApplied → Committed`并compare-delete确认Missing，物理步骤前取消可写`RolledBack`后exact cleanup，物理步骤一旦尝试则由journal/recovery而非caller cancellation接管不确定结果。
+- Windows production primitive使用source DELETE handle与held managed-root handle执行relative no-replace `FileRenameInformationEx`，不从absolute path、字符串前缀或live `Storage`授权。完整gate覆盖大小写/NFC collision、reparse、hardlink、重复physical identity、busy writer、target race、source/target identity continuity、逐节点metadata/inventory与最终复验；target被竞争创建时不覆盖。
+- 真实NTFS取证确认：descendant handles即使允许`FILE_SHARE_DELETE`，flags `0`与诊断用POSIX `0x2`仍使非空目录rename返回`STATUS_ACCESS_DENIED (0xC0000022)`。实现因此在最后一次完整held-tree preflight与caller取消检查后释放仅descendant handles，继续持有exact root/source identity，不再观察caller取消，立即move，再以`CancellationToken.None`从target no-follow重捕并重新持有完整树。该release→move→recapture窄窗口不是filesystem transaction、全树排他或字节内容快照；任何可观察漂移都保留journal并冻结。
+- rename production recovery按physical slot和Realm path四格幂等收敛：`SourceOnly/source`已回滚、`SourceOnly/target`回滚Realm、`TargetOnly/source`前滚Realm、`TargetOnly/target`已提交。`Both/Neither/IdentityMismatch`、record/root identity或Realm path不可信均保持歧义、保留journal、冻结source/target并继续禁止scanner negative cleanup；恢复只改同一record path，不改展示/内容元数据。
+- 成功rename不销毁active immutable capsule；selection generation推进并取消旧路径pending preparation，未来重新选择从新path capture。scanner snapshot→Realm commit与rename共用coordinator；重启歧义同时阻止selection和negative cleanup；shutdown在Realm释放前cancel并同步join worker。operation/recovery只暴露脱敏status，不记录path、record/operation ID、identity或native异常正文。
+- 自动验证：rename authority/native/journal/recovery/scanner focused **195/195**；BMS rename lifecycle **5/5**、完整selection产品类 **29/29**；core skin broad **783/789**，其中4项为removed Osu archive fixture，另2项既有native-default视觉/资源假设在隔离复跑仍失败且不触及本切；mania skin **182/182**、BMS skin **624/624**、BMS full **1497/1497**。production/core-test/BMS-test三工程targeted format verify通过；`osu.Desktop.slnf` Release **0 error / 20 emitted known warnings**，均为9条MessagePack `NU1902`在restore/build重复及BMS tests既有`CS8600`/`CA2007`。`CheckDocumentation.ps1`通过（126个Markdown、982个相对链接、56个memory wiki链），`git diff --check`通过；独立终审blocker/major/minor **0/0/0**。
+- 本轮未启动GUI或操控桌面，`V-001`～`V-004`仍为0/4，rename没有新增视觉签收项。UI、staged import、实际delete、external与atomic reload/detach继续冻结；本切不等于G1、`SV1-2`、Skin V1或release完成。
+
 ## 2026-07-27
 
 ### `SV1-2` managed chartskin mutation authority/recovery foundation
