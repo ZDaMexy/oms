@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-07-29
+> 最后更新：2026-07-31
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -24,11 +24,11 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、专用mutation authority/recovery foundation、directory-only rename及fixed-source staged import现已闭合成窄生产链。当前推进managed delete；external registration/capture与atomic reload/detach继续各自独立过门。
+authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、专用mutation authority/recovery foundation、directory-only rename及fixed-source staged import现已闭合成窄生产链。当前先复现并修复configured managed selection与startup scanner的协调竞态；之后不得继续扩张无production consumer的横向foundation，下一产品纵切须明确现有import或后续delete如何获得真实caller、诊断与最终UI，external registration/capture与atomic reload/detach继续各自独立过门。
 
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
-2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、current delete protected fallback pair门、directory-only rename及fixed-source staged import已闭合；staged import以durable content/tree fingerprint固定Prepared，current recovery严格逐阶段write + exact reload且拒绝fixed-ID journal，rename/import仍无UI。当前managed delete必须独立满足held-root write authority、containment、冲突、reparse/hardlink、final identity、Realm publication与crash-point恢复；可安全判定时幂等forward/rollback到明确完成态或旧态，不能安全判定时保留journal并继续冻结。external永久只读。
-3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。
+2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、current delete protected fallback pair门、directory-only rename及fixed-source staged import已闭合；staged import以durable content/tree fingerprint固定Prepared，current recovery严格逐阶段write + exact reload且拒绝fixed-ID journal。rename/import目前只有internal implementation surface，既无非测试caller，也无external→fixed provisional production stager或UI。未来stager须独立闭合source authority、no-follow、预算、取消、失败清理与脱敏诊断，不能把任意caller path直接传给mutation。
+3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。当前必须先用确定性交错测试证明configured managed selection不会因startup scanner普通争用而永久拒绝；修复不得阻塞update thread，也不得把真实mutation争用泛化为可等待成功。
 4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、导入/删除/重命名均经人工确认。
 
@@ -42,6 +42,8 @@ G1 必须按独立切片推进，不得从异常期存档整批恢复。
 4. **sandbox script**：先通过权限、确定性和预算 spike，再作为可选作者层接入；不兼容或移植 LR2/beatoraja runtime。
 5. **双极限证明**：`oms-simple.osk` 同包覆盖 mania/BMS、承担最终 fallback；`oms-complex.osk` 同包覆盖 mania/BMS、只用公开 API 证明表达上限。
 6. **社区作者面**：完成 `SV1-7`，交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明，同时保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
+
+R4 的shared contract、topology、event/capability与candidate类型只有在同一切片或紧随切片存在production host/renderer/authoring consumer时才继续扩展；现有无production consumer的合同地基可以保留，但不能以新增DTO/fixture替代玩家能力进度。
 
 R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的前置。视觉验收继续使用[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不作为逐组件串行开工门；只有视觉结论实际决定后续设计或自动证据无法裁决异常时才暂停请求反馈。`V-001`～`V-004` 必须在 Skin V1/release 完成声明前统一签收；真实 BMS beatmap-local 尚无作者格式/生产 producer，不得用注入式 fixture 冒充实机能力。详细完成定义只从 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) 进入，架构证据见 [Skin V1 架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 

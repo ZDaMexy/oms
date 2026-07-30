@@ -2,6 +2,17 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-07-31
+
+### 产品可达性、开发价值与跨会话交接审计
+
+- 以已推送的`c53f1e08d88a023a56267bbeb5802d6cc9bfc080`为runtime基线，反查真实入口、非测试caller、selection/rendering链与最终Skin V1门。已导入`.osk`的BMS Note/LN四组件真实进入`BmsRuleset → BmsSkinTransformer → BmsManagedPackageNoteProvider → BmsAsyncNoteDrawable`；合法managed目录经startup scanner注册后可进入现有dropdown并由guarded exact-capsule selection发布。这些是玩家可达能力，不是fixture幻象。
+- `RenameManagedFolderAsync`与`ImportManagedFolderAsync`全仓没有非测试caller；fixed staged import也没有把外部来源安全复制到`skin-mutation-staging/{operationId:N}`的production stager或UI。operation、journal、recovery和shutdown已在production程序集装配并解决真实数据安全/崩溃一致性问题，但本身没有新增玩家可触发功能；今后不得把internal method或production项目代码量写成产品E2E。
+- 新发现Major启动竞态：configured managed selection在`OsuGame.load()`先异步capture，startup scanner随后持有shared coordinator做完整discovery/reconcile；若completion撞上scanner，当前非staged-import的final-boundary争用会直接`ManagedFolderOperationInProgress`且不重试。已有测试分别覆盖无争用configured selection与scanner lifecycle，没有覆盖二者交错。下一刀改为先确定性复现并修复；不得阻塞update thread或放宽真实mutation争用，scanner后仍须重做generation/Realm/path/owner/freeze复核。
+- 最终Skin V1仍处于“安全地基显著推进、玩家可见能力只有窄纵切、作者runtime尚未成形”的阶段：`SV1-0`完成；`SV1-1`仅Note/LN四组件自动门且`V-001`～`V-004`为0/4；`SV1-2`缺caller/stager/UI、delete、external和atomic reload/detach；`SV1-3`～`SV1-7`没有产品实现，canonical双包与Authoring Kit未落，程序化`OmsSkin`仍是链底。若为排期强制量化，release-ready玩家产品仅约25%～30%，该区间不是gate。
+- 同步mainline/P1-A STATUS/PLAN/CONSTRAINTS、路由、other索引及managed selection/mutation/authoring memory；新增[产品进度审计](../../other/SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md)作为dated证据。后续shared slot/topology/config/event/capability/candidate合同只有在同切或紧随切片存在production consumer时才继续扩张。竞态闭合后，对thin staged-import product caller/stager与managed delete做产品go/no-go，而不是默认再堆一层无入口后端。
+- 本次未修改runtime、未重跑产品测试或Release，也未启动GUI/操控桌面、未新增视觉签收；`c53f1e0`的验证数字保持在2026-07-29原始条目，不倒写历史。`CheckDocumentation.ps1`通过（127个Markdown、998个相对链接、57个memory wiki链），仅保留mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。
+
 ## 2026-07-29
 
 ### `SV1-2` managed chartskin staged import 独立端到端切片

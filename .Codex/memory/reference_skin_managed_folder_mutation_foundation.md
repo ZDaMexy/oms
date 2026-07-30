@@ -20,7 +20,7 @@ metadata:
 
 - 既有rename/delete候选每次按ID从Realm刷新重读：必须是唯一合法`chartskin/<direct-child>`、`Files`空、非external/protected/fixed-ID/DeletePending、exact scanner owner、allowlisted实例类型且revision非空；任何external filesystem声明尚无resolved identity，因此当前保守阻断全部managed mutation。
 - Windows mutation session从物理本地卷逐段no-follow固定data root与held `chartskin` root。既有source只从该根捕获direct-child identity并持有带DELETE权限、拒绝外部write/delete的handle；target只是一枚同held root绑定、经NFC/Windows命名与case-insensitive collision/absence验证的name slot，绝不能预造physical identity。
-- staged source不接受调用方path/token，只能来自data root下固定`skin-mutation-staging/{operationId:N}`；它是upstream stager预先复制、外部原来源已保留且由OMS为本operation独占持有的可丢弃provisional副本。staging root与managed root都是既存held authority root，不能由import临时创建或替换；两者与source必须同volume并全程复验identity和canonical name。
+- staged source不接受调用方path/token，只能来自data root下固定`skin-mutation-staging/{operationId:N}`；合同要求future upstream stager预先复制、保留外部原来源，并把副本交给OMS作为本operation独占持有的可丢弃provisional。当前仓库没有该production stager；未来必须独立闭合source authority、no-follow、budget、cancellation、cleanup与脱敏诊断，普通递归copy或任意caller path不能直接进入mutation。staging root与managed root都是既存held authority root，不能由import临时创建或替换；两者与source必须同volume并全程复验identity和canonical name。
 - staged import的immutable publication plan固定`ID = operationId`并绑定target slot、managed-root identity与version。plan**不是Realm写权限**，ordinary startup scanner不得消费；production one-shot publisher只在durable `FilesystemApplied`、exact target recapture/fingerprint和最终Realm ID/path/owner冲突复核后执行。
 - held session在生成或持久化Prepared journal前都会重新验证native inventory/authority links及Realm资格；owner/hash/DeletePending/target collision等post-open漂移一律拒绝。rename与staged import现各有唯一专用physical move及Realm消费者；managed delete仍没有写primitive或Realm record删除。
 
@@ -73,12 +73,12 @@ metadata:
 
 ## 不可误推
 
-- rename与fixed-source staged import internal production纵切已经实现，但没有UI，也不表示G1、`SV1-2`、Skin V1或reload已交付。managed delete、external与atomic reload/detach仍须分别闭合，所有通用rename/import/delete入口继续冻结。
+- rename与fixed-source staged import internal production纵切已经实现，但没有非测试caller、stager或UI，也不表示G1、`SV1-2`、Skin V1或reload已交付。managed delete、external与atomic reload/detach仍须分别闭合，所有通用rename/import/delete入口继续冻结。
 - rename不联动展示名/`skin.ini`；staged import只move受控provisional副本、不会修改包字节或自动选择；delete confirmation仍不执行任何Realm/磁盘删除。
 - journal、identity、relative path、operation/record ID与native异常都可能敏感；安全`ToString()`/日志只能输出类型、phase、kind、status或计数。
 
 ## 产品可达性与下一纵切
 
-- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护、selection最终authoritative重读、directory-only rename及fixed-source staged import都已由production消费；rename/import仍是internal surface，不是玩家可见删改能力。
+- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由玩家可达的启动发现/选择链消费；directory-only rename及fixed-source staged import只在production assembly内部被operation/recovery组装，没有应用caller，不是玩家可见删改能力。
 - `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename与staged-import worker；不得新建脱离该边界的后台链。
-- 下一纵切为managed delete；external、reload/atomic detach与所有UI继续冻结。operation/recovery状态只能脱敏输出；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。
+- operation/recovery状态只能脱敏输出；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。每一新切片都要明确它连接的真实caller/host/renderer，不能用production项目中的internal类型数量代替产品进度。

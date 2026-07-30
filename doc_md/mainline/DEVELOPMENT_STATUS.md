@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-07-29
+> 最后更新：2026-07-31
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。选中的用户 BMS 包已经闭合普通短键与长条 head/body/tail 四个可见组件的自动、合同、安全与回退 gate；集中视觉输入当前使用已导入 `.osk`，`V-001`～`V-004` 签收 **0/4**。这只关闭了 R2 的前置合同和首个 Note/LN 纵切自动闭环。R3/`SV1-2` 现已闭合schema 57 owner/启动scanner、exact-capsule factory/selection、managed mutation authority/recovery foundation、directory-only rename及fixed-source staged import；两者仍为internal且UI未开放。下一门是managed delete，external及atomic reload/detach仍缺，因此G1、`SV1-1`、Skin V1与release均未完成。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。Skin V1 采用“自动门后连续开发、视觉集中签收”：切片通过自动、合同、安全与回退验证后即可按依赖继续，未获用户签收时只能记为“实现／自动 gate 通过，视觉待验收”，不得计为产品交付或阶段完成。选中的用户 BMS 包已经闭合普通短键与长条 head/body/tail 四个可见组件的自动、合同、安全与回退 gate；集中视觉输入当前使用已导入 `.osk`，`V-001`～`V-004` 签收 **0/4**。这只关闭了 R2 的前置合同和首个 Note/LN 纵切自动闭环。R3/`SV1-2` 现已闭合schema 57 owner/启动scanner、exact-capsule factory/selection、managed mutation authority/recovery foundation、directory-only rename及fixed-source staged import；手工放入的managed folder可被发现并选择，但rename/import没有非测试caller，external→provisional stager与UI也不存在。当前先修复已配置managed选择与启动scanner的竞争风险，再决定下一产品纵切；G1、`SV1-1`、Skin V1与release均未完成。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -21,7 +21,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | R3 / `SV1-2` G1 可视文件夹 | schema 57 owner、启动发现、factory/选择、mutation foundation、directory-only rename及staged import已闭合；UI、managed delete、external与reload仍冻结 | 推进managed delete独立端到端切片；之后分别闭合external与整包原子reload/detach |
+| 1 | R3 / `SV1-2` G1 可视文件夹 | 启动发现/选择真实可达；rename及staged import后端已闭合但无应用caller/stager/UI；managed delete、external与reload仍冻结 | 先复现并修复configured managed selection与startup scanner竞争；之后以真实产品consumer为门推进下一纵切 |
 | 2 | R4 / Skin V1 后续合同 | `SV1-1` 整体仍未完成，`SV1-3`～`SV1-7` 未实现 | 补齐完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime；这些不是进入 `SV1-2` 的前置 |
 | 3 | 集中视觉签收 | R2 首个 Note/LN 纵切的四组件自动门已闭合；`V-001`～`V-004` 签收 0/4 | 继续登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
@@ -32,7 +32,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 - 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；选中的用户 BMS 包可为普通短键与长条 head/body/tail 提供静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，用户包/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享 neutral ini/asset/animation/event runtime、三态解析与 sandbox，ruleset topology/layout adapter 分离；当前窄纵切不代表这些能力已经完成。
-- G1 的authority/path preflight、managed Windows native capture、pure capsule、production factory/guarded selection、schema 57 exact-owner启动发现、mutation authority/recovery foundation、directory-only rename及fixed-source staged import已组成窄生产链；staged import以同卷identity-preserving move和exact one-shot scanner-owner handoff发布新record，不自动选择，并与rename/scanner/selection共用coordinator、journal、按kind recovery及shutdown边界。UI、实际delete、external capture与原子重载/detach仍未完成；完整layout/shared codec、其它slot三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit与移除程序化产品视觉也均未完成。
+- G1 的authority/path preflight、managed Windows native capture、pure capsule、production factory/guarded selection、schema 57 exact-owner启动发现、mutation authority/recovery foundation、directory-only rename及fixed-source staged import已组成窄生产链；真正玩家可达的是启动发现与选择，rename/import仅为production-assembled internal surface，仓库没有external→fixed provisional stager、非测试caller或UI。UI、实际delete、external capture与原子重载/detach仍未完成；完整layout/shared codec、其它slot三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit与移除程序化产品视觉也均未完成。
 
 恢复边界见 [2026-07-10 恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，当前实现与未完成 gate 见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，V1 完成定义见 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
@@ -40,7 +40,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 全过；普通短键与长条 head/body/tail 四组件自动 gate 通过、`V-001`～`V-004` 集中待验收；R3启动发现/factory/选择、mutation foundation、directory-only rename及staged import已闭合，当前按managed delete、external、reload推进 |
+| P1-A | `SV1-0` 全过；普通短键与长条 head/body/tail 四组件自动 gate 通过、`V-001`～`V-004` 集中待验收；R3启动发现/选择可达，rename/import为无caller的安全后端；先修启动选择/scanner竞态 |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -81,7 +81,8 @@ internal production staged import现只消费固定`skin-mutation-staging/{opera
 - 当前逐组件异步替换不等于 `SV1-2` 的整包原子重载；runtime 资源预算也不等于 importer 的 zip-bomb gate。
 - managed folder active实例已固定到immutable capsule，磁盘原位变化不会混入当前结果，也不会自动reload；新revision仍须在`SV1-2`以新实例、全consumer publication barrier和旧owner安全退役闭合。
 - managed自动发现只在`OsuGame.LoadComplete`后执行一次；启动后新增或原位修改目录不会被watch，也不会自动reload，当前需重启重新发现。
-- directory-only rename与fixed-source staged import已有internal production纵切但UI未开放；真实NTFS的descendant release→move→recapture窄窗口不是filesystem transaction，歧义由durable journal与路径冻结收口。实际delete、external及atomic reload/detach仍未完成。
+- configured managed skin先异步capture、startup scanner随后从discovery到Realm reconcile持有同一coordinator；若二者在selection最终发布边界相撞，当前generic争用会一次性拒绝selection。现有测试没有覆盖该启动交错，下一刀必须先确定性复现并修复，不能在update thread阻塞或放宽真实mutation的fail-closed边界。
+- directory-only rename与fixed-source staged import已有internal production纵切但无非测试caller；仓库也没有把玩家外部来源安全复制到fixed provisional slot的production stager。真实NTFS的descendant release→move→recapture窄窗口不是filesystem transaction，歧义由durable journal与路径冻结收口。实际delete、external及atomic reload/detach仍未完成。
 - 当前链底仍是程序化 `OmsSkin`，不是最终只读 `oms-simple.osk`。
 - BMS 单套测试全绿不证明 mania 默认资源、真实选择链或视觉事件正确。
 - `LongNoteBodyWidth` 已有首个安全合法域；完整几何 descriptor 仍归 R4，统一前 playfield 与 gauge/combo/BGA 仍可能脱节。

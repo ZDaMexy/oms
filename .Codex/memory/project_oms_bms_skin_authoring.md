@@ -16,6 +16,7 @@ metadata:
 - source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同，不能反推普通短键/LN、受管目录、external或reload当前已经交付。
 - 程序化`OmsSkin`是恢复期迁移保障；在P1-A明确记录canonical `oms-simple.osk`完成parity、完整性、恢复与实机gate并接管前不得删除，接管后必须退出产品渲染链。
 - G1任务先查P1-A当前门；发现/选择/mutation专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明。
+- 产品可达性必须按caller追到真实入口：production程序集内的internal operation/recovery不等于玩家功能；shared topology/config/event/capability/candidate合同没有production host/renderer/authoring consumer时也不计进度。后续不得横向扩张无同切或紧随切片consumer的抽象。
 - F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复期撤回/未恢复面的历史名称；不要把旧编号写成当前状态，现行等价范围只从`SV1-*`计划映射。
 - 恢复期保留的稳定修正是base parser前重置配置流，以及14K第二皿使用`S2`/P2素材；若代码改变仍须以当前fixture复核。
 
@@ -46,6 +47,7 @@ metadata:
 - `LongNoteBody` 的 resource frames、resolved width 与解析后 `skin.ini` identity 必须进入同一个 source-bound material；发布后 renderer 不得再向 aggregate skin 查询宽度。selected body 坏声明不得与下层裸同名纹理或裸宽度拼件，只有下层自己的完整组件或 protected rescue 能接管。
 - selected-package/default body共用一个状态宿主，由真实`DrawableBmsHoldNote`驱动Idle/Holding/Broken；active alpha `0.8`、broken alpha `0.32`，约`80ms` tint/fade，HCN才允许regrab回Holding。异步body在状态已改变后到达时要立即投影当前状态，不得另造gameplay state authority。
 - 当前受管目录的`BmsLegacySkin`实例绑定exact immutable capsule，磁盘原地变化不会混入active preparation，也不会自动reload；取得新来源仍需prepared revision/new-instance切换。全consumer publication barrier与旧owner detach归`SV1-2`整包reload，不得把selection pair或逐组件A→B描述成完整热重载。
+- configured managed selection在startup scanner持有shared coordinator期间完成capture时不能被当作generic mutation永久拒绝；修复必须保持update thread非阻塞并在scanner后重做全部authoritative复核，不得因此放宽rename/import/delete争用。
 - 当前未版本化 9K BMS/PMS per-lane raw token 实际为 `0..8`；V1 canonical `1..9` 必须做版本化迁移/冲突诊断，禁止静默双 alias。
 - 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
