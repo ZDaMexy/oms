@@ -334,7 +334,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
             }
 
-            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
+            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanDelete(currentSkin.Value.SkinInfo);
 
             private void delete()
             {
@@ -355,11 +355,9 @@ namespace osu.Game.Overlays.Settings.Sections
             [BackgroundDependencyLoader]
             private void load(SkinManager manager)
             {
-                DangerousAction = () =>
-                {
-                    manager.Delete(skin.SkinInfo.Value);
-                    manager.CurrentSkinInfo.SetDefault();
-                };
+                // The dialog remains synchronous, but the manager owns and observes the complete async lifetime.
+                // Only the detached ID crosses this boundary; authoritative fields are re-read after confirmation.
+                DangerousAction = () => _ = manager.DeleteSkinAsync(skin.SkinInfo.ID);
             }
         }
 

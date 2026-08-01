@@ -475,7 +475,10 @@ namespace osu.Game.Tests.Skins
                     Guid.NewGuid(),
                     root_identity,
                     source_path,
-                    source_identity);
+                    source_identity,
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    SkinManagedFolderDeleteManifest.Create(
+                        new[] { new string('a', 64) }));
                 var native = new FakeRenameNativeAuthority();
                 var handler = new SkinManagedFolderRenameRecoveryHandler(realm, native);
 

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
@@ -16,7 +17,10 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Models;
+using osu.Game.Overlays;
+using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
@@ -49,6 +53,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             AddStep("create isolated skin manager", () =>
             {
+                string journalPath = LocalStorage.GetFullPath(
+                    SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME);
+
+                if (File.Exists(journalPath))
+                    File.Delete(journalPath);
+
+                Realm.Write(realm =>
+                {
+                    SkinInfo? oms = realm.Find<SkinInfo>(SkinInfo.OMS_SKIN);
+
+                    if (oms != null)
+                        oms.FilesystemStorageAuthorityOwner = null;
+                });
+
                 manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
                 sourceChangedCount = 0;
                 manager.SourceChanged += () => sourceChangedCount++;
@@ -60,6 +78,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             AddStep("dispose selected folder skin", () =>
             {
+                manager?.ShutdownManagedFolderMutations();
+
                 if (manager?.CurrentSkin.Value is { } current
                     && !ReferenceEquals(current, manager.DefaultOmsSkin)
                     && !ReferenceEquals(current, manager.DefaultClassicSkin))
@@ -224,6 +244,77 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestManagedDeleteRejectsNonCanonicalProtectedFallbackBeforePhysicalDetach()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Task<bool>? deleteTask = null;
+
+            AddStep("create current delete target", () =>
+            {
+                (packageRoot, candidate) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+            });
+            AddUntilStep("wait for current delete target capture stability", () =>
+                candidate.PerformRead(info =>
+                {
+                    SkinFilesystemStorageResolution resolution =
+                        SkinFilesystemStorageResolver.ResolveExisting(info, LocalStorage);
+                    SkinManagedPackageCaptureResult capture =
+                        manager.ManagedFolderCapture(
+                            resolution.ManagedCaptureRequest!,
+                            CancellationToken.None);
+                    capture.Capsule?.Dispose();
+                    return capture.IsSuccess;
+                }));
+            AddStep("select current delete target", () =>
+                manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for current fallback-validation selection outcome", () =>
+                (manager.CurrentSkinInfo.Value.ID == candidate.ID
+                 && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID)
+                || manager.LastSelectionRejectionReason != SkinSelectionRejectionReason.None);
+            AddStep("require current fallback-validation target", () =>
+                Assert.That(
+                    manager.CurrentSkin.Value.SkinInfo.ID,
+                    Is.EqualTo(candidate.ID),
+                    $"selection rejected: {manager.LastSelectionRejectionReason}"));
+            AddStep("drift protected fallback owner", () =>
+                Realm.Write(r =>
+                    r.Find<SkinInfo>(SkinInfo.OMS_SKIN)!
+                     .FilesystemStorageAuthorityOwner = "foreign-owner"));
+            AddStep("request delete with noncanonical fallback", () =>
+                deleteTask = manager.DeleteSkinAsync(candidate.ID));
+            AddUntilStep("wait for fallback rejection", () =>
+                deleteTask?.IsCompleted == true);
+            AddStep("assert rejection preceded physical detach", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deleteTask!.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(
+                        manager.LastManagedFolderDeleteResult.Status,
+                        Is.EqualTo(SkinManagedFolderDeleteOperationStatus.FallbackRejected));
+                    Assert.That(
+                        manager.LastManagedFolderDeleteResult.FallbackCommitResult,
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.FallbackInvalid));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+
+                Realm.Write(r =>
+                    r.Find<SkinInfo>(SkinInfo.OMS_SKIN)!
+                     .FilesystemStorageAuthorityOwner = null);
+            });
+        }
+
+        [Test]
         public void TestDeleteFoundationKeepsDurableIntentWhenFallbackIsNotRequired()
         {
             Live<SkinInfo> candidate = null!;
@@ -310,6 +401,561 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
+            });
+        }
+
+        [Test]
+        public void TestManagedDeleteProductionCallerCommitsFallbackAndConvergesPhysicalAndRealmState()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Skin? selected = null;
+            Task<bool>? deleteTask = null;
+
+            AddStep("create and select deletable managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("request dedicated asynchronous delete", () =>
+            {
+                selected = manager.CurrentSkin.Value;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CanModify(candidate), Is.False);
+                    Assert.That(manager.CanDelete(candidate), Is.True);
+                });
+
+                deleteTask = manager.DeleteSkinAsync(candidate.ID);
+                Assert.That(deleteTask.IsCompleted, Is.False, "the update-thread caller must not wait for native deletion");
+            });
+            AddUntilStep("wait for managed delete", () => deleteTask?.IsCompleted == true);
+            AddStep("assert coherent fallback and delete convergence", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        deleteTask!.GetAwaiter().GetResult(),
+                        Is.True,
+                        $"{manager.LastManagedFolderDeleteResult}; "
+                        + $"fallback={manager.LastManagedFolderDeleteResult.FallbackCommitResult}");
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(Directory.Exists(packageRoot), Is.False);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) == null), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+            AddStep("dispose detached deleted skin", () => selected!.Dispose());
+        }
+
+        [Test]
+        public void TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins()
+        {
+            string deletedRoot = string.Empty;
+            Live<SkinInfo> deleted = null!;
+            Live<SkinInfo> selectable = null!;
+            Skin? deletedSkin = null;
+            Task<bool>? deleteTask = null;
+            SkinSelectionRejectionReason reentrantRejection = SkinSelectionRejectionReason.None;
+            bool reentrantAttempted = false;
+            int captureCalls = 0;
+
+            AddStep("create current delete target and later selection", () =>
+            {
+                (deletedRoot, deleted) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                (_, selectable) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                deleted.PerformWrite(info => info.Hash = "delete-revision");
+                selectable.PerformWrite(info => info.Hash = "selection-revision");
+                manager.CurrentSkinInfo.Value = deleted;
+            });
+            AddUntilStep("wait for current delete target", () =>
+                manager.CurrentSkin.Value.SkinInfo.ID == deleted.ID);
+            AddStep("install fallback reentrant selection", () =>
+            {
+                deletedSkin = manager.CurrentSkin.Value;
+                var nativeCapture = manager.ManagedFolderCapture;
+                manager.ManagedFolderCapture = (request, cancellationToken) =>
+                {
+                    Interlocked.Increment(ref captureCalls);
+                    return nativeCapture(request, cancellationToken);
+                };
+                manager.SourceChanged += () =>
+                {
+                    if (reentrantAttempted
+                        || manager.CurrentSkinInfo.Value.ID != SkinInfo.OMS_SKIN)
+                    {
+                        return;
+                    }
+
+                    reentrantAttempted = true;
+                    manager.CurrentSkinInfo.Value = selectable;
+                    reentrantRejection = manager.LastSelectionRejectionReason;
+                };
+            });
+            AddStep("delete current target", () =>
+                deleteTask = manager.DeleteSkinAsync(deleted.ID));
+            AddUntilStep("wait for reentrant delete convergence", () =>
+                deleteTask?.IsCompleted == true);
+            AddUntilStep("wait for reentrant selection linearisation", () =>
+                reentrantAttempted
+                && (reentrantRejection == SkinSelectionRejectionReason.ManagedFolderOperationInProgress
+                    || Volatile.Read(ref captureCalls) > 0));
+            AddStep("assert reentrant request could not split fallback pair", () =>
+            {
+                bool rejectedDuringDelete = reentrantRejection
+                                            == SkinSelectionRejectionReason.ManagedFolderOperationInProgress;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deleteTask!.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(reentrantAttempted, Is.True);
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(manager.CurrentSkinInfo.Value.ID));
+                    Assert.That(Directory.Exists(deletedRoot), Is.False);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(deleted.ID) == null), Is.True);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(selectable.ID) != null), Is.True);
+                });
+
+                if (rejectedDuringDelete)
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(captureCalls, Is.Zero);
+                        Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                        Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    });
+                }
+                else
+                    Assert.That(captureCalls, Is.EqualTo(1));
+            });
+            AddStep("explicit post-delete latest selection", () =>
+            {
+                if (reentrantRejection == SkinSelectionRejectionReason.ManagedFolderOperationInProgress)
+                    manager.CurrentSkinInfo.Value = selectable;
+            });
+            AddUntilStep("wait for explicit latest selection", () =>
+                manager.CurrentSkin.Value.SkinInfo.ID == selectable.ID);
+            AddStep("dispose detached deleted skin", () =>
+            {
+                Assert.That(captureCalls, Is.EqualTo(1));
+                deletedSkin!.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestManagedDeleteFallbackSourceChangeCanReentrantlyShutdownAndJoinWorker()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Skin? deletedSkin = null;
+            Task<bool>? deleteTask = null;
+            Task? shutdownTask = null;
+            bool shutdownEntered = false;
+            bool shutdownCompletedInsideCallback = false;
+
+            AddStep("create current delete target", () =>
+            {
+                (packageRoot, candidate) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for current shutdown target", () =>
+                manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("install source-change shutdown reentry", () =>
+            {
+                deletedSkin = manager.CurrentSkin.Value;
+                manager.SourceChanged += () =>
+                {
+                    if (shutdownEntered
+                        || manager.CurrentSkinInfo.Value.ID != SkinInfo.OMS_SKIN)
+                    {
+                        return;
+                    }
+
+                    shutdownEntered = true;
+                    shutdownTask = Task.Run(manager.ShutdownManagedFolderMutations);
+                    shutdownCompletedInsideCallback = shutdownTask.Wait(TimeSpan.FromSeconds(10));
+                };
+            });
+            AddStep("delete current target into reentrant shutdown", () =>
+                deleteTask = manager.DeleteSkinAsync(candidate.ID));
+            AddUntilStep("wait for shutdown and delete terminal state", () =>
+                shutdownTask?.IsCompleted == true && deleteTask?.IsCompleted == true);
+            AddStep("assert source callback did not form a join cycle", () =>
+            {
+                bool deleted = deleteTask!.GetAwaiter().GetResult();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(shutdownEntered, Is.True);
+                    Assert.That(shutdownCompletedInsideCallback, Is.True);
+                    Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(Directory.Exists(packageRoot), Is.EqualTo(!deleted));
+                    Assert.That(
+                        Realm.Run(r => r.Find<SkinInfo>(candidate.ID) != null),
+                        Is.EqualTo(!deleted));
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+
+                deletedSkin!.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestManagedDeleteRealSettingsButtonAndDialogReturnBeforeConvergence()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            DialogOverlay dialogOverlay = null!;
+            SkinSection.DeleteSkinButton deleteButton = null!;
+            Skin? deletedSkin = null;
+
+            AddStep("create and select managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("assert authoritative delete affordance", () =>
+            {
+                deletedSkin = manager.CurrentSkin.Value;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkin.Disabled, Is.False);
+                    Assert.That(manager.CanDelete(manager.CurrentSkin.Value.SkinInfo), Is.True);
+                });
+            });
+            AddStep("mount real settings delete caller", () =>
+            {
+                var callerHost = new ManagedDeleteSettingsCallerHost(manager);
+                dialogOverlay = callerHost.DialogOverlay;
+                deleteButton = callerHost.DeleteButton;
+                Add(callerHost);
+            });
+            AddUntilStep("wait for real settings caller load", () => deleteButton.IsLoaded);
+            AddUntilStep("wait for independent delete affordance", () => deleteButton.Enabled.Value);
+            AddStep("open real delete dialog", () => deleteButton.TriggerClick());
+            AddUntilStep(
+                "wait for real delete dialog",
+                () => dialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog);
+            AddStep(
+                "confirm without blocking update thread",
+                () => dialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
+            AddUntilStep(
+                "wait for physical and Realm convergence",
+                () => !Directory.Exists(packageRoot)
+                      && Realm.Run(r => r.Find<SkinInfo>(candidate.ID) == null));
+            AddAssert("protected pair is coherent", () =>
+                manager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && manager.CurrentSkin.Value is OmsSkin
+                && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
+            AddStep("dispose detached deleted skin", () => deletedSkin!.Dispose());
+        }
+
+        [Test]
+        public void TestManagedDeleteProductionCallerDeletesNonCurrentWithoutChangingProtectedPair()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Task<bool>? deleteTask = null;
+            Live<SkinInfo>? originalInfo = null;
+            Skin? originalSkin = null;
+
+            AddStep("create non-current deletable managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+            });
+            AddStep("request non-current managed delete", () => deleteTask = manager.DeleteSkinAsync(candidate.ID));
+            AddUntilStep("wait for non-current delete", () => deleteTask?.IsCompleted == true);
+            AddStep("assert protected pair was not replaced", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deleteTask!.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(Directory.Exists(packageRoot), Is.False);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) == null), Is.True);
+                });
+            });
+        }
+
+        [Test]
+        public void TestManagedDeleteAffordanceFailsClosedForEveryNonAuthoritativeDeclaration()
+        {
+            Live<SkinInfo> candidate = null!;
+            string originalPath = string.Empty;
+
+            AddStep("create exact managed delete candidate", () =>
+            {
+                (_, candidate) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info =>
+                {
+                    info.Hash = "registered-revision";
+                    originalPath = info.FilesystemStoragePath!;
+                });
+                Assert.That(manager.CanDelete(candidate), Is.True);
+            });
+            AddStep("reject foreign and null owner", () =>
+            {
+                candidate.PerformWrite(info => info.FilesystemStorageAuthorityOwner = "foreign-owner");
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info => info.FilesystemStorageAuthorityOwner = null);
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info =>
+                    info.FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER);
+            });
+            AddStep("reject invalid path and external declaration", () =>
+            {
+                candidate.PerformWrite(info => info.FilesystemStoragePath = "chartskin/nested/invalid");
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info => info.FilesystemStoragePath = originalPath);
+                candidate.PerformWrite(info => info.IsExternalFilesystemStorage = true);
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info => info.IsExternalFilesystemStorage = false);
+            });
+            AddStep("reject protected pending hash and factory drift", () =>
+            {
+                candidate.PerformWrite(info => info.Protected = true);
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info => info.Protected = false);
+                candidate.PerformWrite(info => info.DeletePending = true);
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info => info.DeletePending = false);
+                candidate.PerformWrite(info => info.Hash = string.Empty);
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                candidate.PerformWrite(info => info.InstantiationInfo = "foreign.Type, foreign.Assembly");
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                candidate.PerformWrite(info =>
+                    info.InstantiationInfo = typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+            });
+            AddStep("reject duplicate path and fixed protected fallback", () =>
+            {
+                var duplicate = new SkinInfo(
+                    "duplicate",
+                    "OMS tests",
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo())
+                {
+                    Hash = "duplicate-revision",
+                    FilesystemStoragePath = originalPath,
+                    FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER,
+                };
+                Realm.Write(r => r.Add(duplicate));
+                Assert.That(manager.CanDelete(candidate), Is.False);
+                Realm.Write(r => r.Remove(r.Find<SkinInfo>(duplicate.ID)!));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CanDelete(manager.DefaultOmsSkin.SkinInfo), Is.False);
+                    Assert.That(manager.CanModify(candidate), Is.False);
+                    Assert.That(manager.CanDelete(candidate), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
+                });
+            });
+        }
+
+        [Test]
+        public void TestRealmPackageSettingsDeleteKeepsLegacySoftDeleteAndDefaultSemantics()
+        {
+            Live<SkinInfo> realmPackage = null!;
+            Task<bool>? deleteTask = null;
+
+            AddStep("create and select ordinary Realm package", () =>
+            {
+                realmPackage = createRealmPackageCandidate();
+                manager.CurrentSkinInfo.Value = realmPackage;
+            });
+            AddStep("assert ordinary package remains independently deletable", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(realmPackage.ID));
+                    Assert.That(manager.CanModify(realmPackage), Is.True);
+                    Assert.That(manager.CanDelete(realmPackage), Is.True);
+                });
+            });
+            AddStep("confirm ordinary settings delete", () => deleteTask = manager.DeleteSkinAsync(realmPackage.ID));
+            AddStep("assert legacy soft delete and protected default", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deleteTask!.IsCompletedSuccessfully, Is.True);
+                    Assert.That(deleteTask.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(realmPackage.PerformRead(info => info.DeletePending), Is.True);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(realmPackage.ID) != null), Is.True);
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestManagedDeleteQueuedFallbackIsClaimedByShutdownAndLateCallbackIsNoOp()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            Task<bool>? deleteTask = null;
+            Action? queuedFallback = null;
+
+            AddStep("create non-current deletable managed folder", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "registered-revision");
+                manager.ManagedFolderDeleteFallbackSchedule = action => queuedFallback = action;
+            });
+            AddStep("request delete without running queued fallback", () =>
+            {
+                deleteTask = manager.DeleteSkinAsync(candidate.ID);
+                Assert.That(deleteTask.IsCompleted, Is.False);
+            });
+            AddUntilStep("wait for queued fallback", () => queuedFallback != null);
+            AddStep("shutdown joins delete without update scheduler", () => manager.ShutdownManagedFolderMutations());
+            AddStep("invoke late fallback callback", () => queuedFallback!());
+            AddStep("assert shutdown owned cleanup exactly once", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deleteTask!.IsCompleted, Is.True);
+                    Assert.That(deleteTask.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestManagedDeleteSerialisesScannerAndSelectionFailsClosedWithoutRetry()
+        {
+            string deletedRoot = string.Empty;
+            Live<SkinInfo> deleted = null!;
+            Live<SkinInfo> selectable = null!;
+            Task<bool>? deleteTask = null;
+            Task<SkinManagedFolderScanResult>? scanTask = null;
+            var scannerBeforeCommit = new ManualResetEventSlim();
+            var releaseScanner = new ManualResetEventSlim();
+            int captureCalls = 0;
+
+            AddStep("create delete and selection candidates", () =>
+            {
+                (deletedRoot, deleted) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                (_, selectable) = createCandidate(
+                    createCompletePackage,
+                    typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                deleted.PerformWrite(info => info.Hash = "delete-revision");
+                selectable.PerformWrite(info => info.Hash = "selection-revision");
+                var nativeCapture = manager.ManagedFolderCapture;
+                manager.ManagedFolderCapture = (request, cancellationToken) =>
+                {
+                    Interlocked.Increment(ref captureCalls);
+                    return nativeCapture(request, cancellationToken);
+                };
+
+                var scanner = new SkinManagedFolderScanner(
+                    Realm,
+                    new WindowsSkinManagedFolderDiscoverySource(LocalStorage),
+                    manager.ManagedFolderOperationCoordinator)
+                {
+                    ReconciliationBeforeCommit = () =>
+                    {
+                        scannerBeforeCommit.Set();
+                        Assert.That(releaseScanner.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                    },
+                };
+                scanTask = Task.Run(() => scanner.Scan());
+            });
+            AddUntilStep("wait for scanner commit boundary", () => scannerBeforeCommit.IsSet);
+            AddStep("reject manual selection during scanner boundary", () =>
+            {
+                manager.CurrentSkinInfo.Value = selectable;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.LastSelectionRejectionReason,
+                        Is.EqualTo(SkinSelectionRejectionReason.ManagedFolderOperationInProgress));
+                    Assert.That(captureCalls, Is.Zero);
+                    Assert.That(scanTask!.IsCompleted, Is.False);
+                    Assert.That(Directory.Exists(deletedRoot), Is.True);
+                });
+            });
+            AddStep("start delete behind scanner commit", () =>
+                deleteTask = manager.DeleteSkinAsync(deleted.ID));
+            AddUntilStep("wait for queued delete worker", () => manager.IsManagedFolderDeleteRunning);
+            AddStep("assert delete has not crossed scanner commit", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deleteTask!.IsCompleted, Is.False);
+                    Assert.That(Directory.Exists(deletedRoot), Is.True);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(deleted.ID) != null), Is.True);
+                });
+
+                releaseScanner.Set();
+            });
+            AddUntilStep("wait for scanner then delete convergence", () =>
+                deleteTask?.IsCompleted == true && scanTask?.IsCompleted == true);
+            AddStep("assert no stale scanner resurrection or selection retry", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        deleteTask!.GetAwaiter().GetResult(),
+                        Is.True,
+                        $"{manager.LastManagedFolderDeleteResult}; "
+                        + $"fallback={manager.LastManagedFolderDeleteResult.FallbackCommitResult}");
+                    Assert.That(scanTask!.GetAwaiter().GetResult().IsSuccess, Is.True);
+                    Assert.That(Directory.Exists(deletedRoot), Is.False);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(deleted.ID) == null), Is.True);
+                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(selectable.ID) != null), Is.True);
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(captureCalls, Is.Zero);
+                });
+            });
+            AddStep("explicit post-delete selection may capture", () =>
+                manager.CurrentSkinInfo.Value = selectable);
+            AddUntilStep("wait for explicit post-delete selection", () =>
+                manager.CurrentSkin.Value.SkinInfo.ID == selectable.ID);
+            AddStep("release race fixtures", () =>
+            {
+                Assert.That(captureCalls, Is.EqualTo(1));
+                scannerBeforeCommit.Dispose();
+                releaseScanner.Dispose();
             });
         }
 
@@ -480,7 +1126,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     candidate.ID,
                     new SkinManagedFolderPhysicalIdentity(101, 201, 202),
                     managedPath,
-                    new SkinManagedFolderPhysicalIdentity(101, 102, 103));
+                    new SkinManagedFolderPhysicalIdentity(101, 102, 103),
+                    candidate.PerformRead(SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint),
+                    SkinManagedFolderDeleteManifest.Create(
+                        new[] { new string('a', 64) }));
                 store.Write(journal);
             });
             AddStep("construct manager and apply configured selection", () =>
@@ -3637,6 +4286,28 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return snapshot;
+            }
+        }
+
+        private partial class ManagedDeleteSettingsCallerHost : CompositeDrawable
+        {
+            [Cached]
+            private readonly SkinManager skinManager;
+
+            [Cached(typeof(IDialogOverlay))]
+            public DialogOverlay DialogOverlay { get; } = new DialogOverlay();
+
+            public SkinSection.DeleteSkinButton DeleteButton { get; } = new SkinSection.DeleteSkinButton();
+
+            public ManagedDeleteSettingsCallerHost(SkinManager skinManager)
+            {
+                this.skinManager = skinManager;
+                RelativeSizeAxes = Axes.Both;
+                InternalChildren = new Drawable[]
+                {
+                    DeleteButton,
+                    DialogOverlay,
+                };
             }
         }
 

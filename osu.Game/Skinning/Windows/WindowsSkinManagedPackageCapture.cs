@@ -33,6 +33,8 @@ namespace osu.Game.Skinning.Windows
         MutationSourceVerificationFile,
         ProvisionalDirectory,
         ProvisionalFile,
+        DeleteExclusiveDirectory,
+        DeleteExclusiveFile,
     }
 
     internal readonly struct WindowsSkinPackagePhysicalIdentity : IEquatable<WindowsSkinPackagePhysicalIdentity>
@@ -1480,6 +1482,24 @@ namespace osu.Game.Skinning.Windows
                                     | NativeMethods.DELETE
                                     | NativeMethods.SYNCHRONIZE;
                     shareAccess = NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE;
+                    openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
+                    break;
+
+                case WindowsSkinPackageOpenMode.DeleteExclusiveDirectory:
+                    desiredAccess = NativeMethods.FILE_LIST_DIRECTORY
+                                    | NativeMethods.FILE_READ_ATTRIBUTES
+                                    | NativeMethods.DELETE
+                                    | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ;
+                    openOptions |= NativeMethods.FILE_DIRECTORY_FILE;
+                    break;
+
+                case WindowsSkinPackageOpenMode.DeleteExclusiveFile:
+                    desiredAccess = NativeMethods.FILE_READ_DATA
+                                    | NativeMethods.FILE_READ_ATTRIBUTES
+                                    | NativeMethods.DELETE
+                                    | NativeMethods.SYNCHRONIZE;
+                    shareAccess = NativeMethods.FILE_SHARE_READ;
                     openOptions |= NativeMethods.FILE_NON_DIRECTORY_FILE;
                     break;
 

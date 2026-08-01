@@ -93,6 +93,7 @@ namespace osu.Game.Skinning
         public const int CURRENT_VERSION = 2;
         public const string STAGED_SOURCE_AUTHORITY = "oms.skin.managed-folder.staging.v1";
         public const string NEW_RECORD_PUBLICATION_PLAN_VERSION = "oms.skin.managed-folder.scanner-publication-plan.v1";
+        private const string delete_tombstone_prefix = ".oms-delete-";
 
         [JsonProperty(nameof(Version), Required = Required.Always)]
         public int Version { get; }
@@ -151,6 +152,18 @@ namespace osu.Game.Skinning
             NullValueHandling = NullValueHandling.Ignore)]
         public string? NewRecordPublicationFingerprint { get; }
 
+        [JsonProperty(
+            nameof(DeleteSourceNodeManifest),
+            Required = Required.Default,
+            NullValueHandling = NullValueHandling.Ignore)]
+        public string? DeleteSourceNodeManifest { get; }
+
+        [JsonProperty(
+            nameof(DeleteFallbackDisposition),
+            Required = Required.Default,
+            NullValueHandling = NullValueHandling.Ignore)]
+        public SkinManagedFolderDeleteFallbackDisposition? DeleteFallbackDisposition { get; }
+
         [JsonConstructor]
         private SkinManagedFolderMutationJournal(
             int version,
@@ -170,7 +183,9 @@ namespace osu.Game.Skinning
             string? newRecordPublicationPlanVersion,
             string? stagedSourceContentRevision = null,
             string? stagedSourceTreeFingerprint = null,
-            string? newRecordPublicationFingerprint = null)
+            string? newRecordPublicationFingerprint = null,
+            string? deleteSourceNodeManifest = null,
+            SkinManagedFolderDeleteFallbackDisposition? deleteFallbackDisposition = null)
         {
             Version = version;
             OperationId = operationId;
@@ -190,6 +205,8 @@ namespace osu.Game.Skinning
             StagedSourceContentRevision = stagedSourceContentRevision;
             StagedSourceTreeFingerprint = stagedSourceTreeFingerprint;
             NewRecordPublicationFingerprint = newRecordPublicationFingerprint;
+            DeleteSourceNodeManifest = deleteSourceNodeManifest;
+            DeleteFallbackDisposition = deleteFallbackDisposition;
         }
 
         public static SkinManagedFolderMutationJournal CreatePreparedRename(
@@ -217,6 +234,8 @@ namespace osu.Game.Skinning
                 null,
                 null,
                 null,
+                null,
+                null,
                 null);
 
         public static SkinManagedFolderMutationJournal CreatePreparedDelete(
@@ -224,7 +243,9 @@ namespace osu.Game.Skinning
             Guid recordId,
             SkinManagedFolderPhysicalIdentity managedRootIdentity,
             string sourceManagedRelativePath,
-            SkinManagedFolderPhysicalIdentity sourceIdentity)
+            SkinManagedFolderPhysicalIdentity sourceIdentity,
+            string existingRecordFingerprint,
+            string deleteSourceNodeManifest)
             => createValidated(
                 CURRENT_VERSION,
                 operationId,
@@ -233,7 +254,7 @@ namespace osu.Game.Skinning
                 recordId,
                 managedRootIdentity,
                 sourceManagedRelativePath,
-                null,
+                GetExpectedDeleteTombstoneRelativePath(operationId),
                 sourceIdentity,
                 null,
                 null,
@@ -243,6 +264,8 @@ namespace osu.Game.Skinning
                 null,
                 null,
                 null,
+                existingRecordFingerprint,
+                deleteSourceNodeManifest,
                 null);
 
         public static SkinManagedFolderMutationJournal CreatePreparedStagedImport(
@@ -271,6 +294,8 @@ namespace osu.Game.Skinning
                 NEW_RECORD_PUBLICATION_PLAN_VERSION,
                 stagedSourceContentRevision,
                 stagedSourceTreeFingerprint,
+                null,
+                null,
                 null);
 
         public SkinManagedFolderMutationJournal WithFilesystemApplied(
@@ -295,7 +320,13 @@ namespace osu.Game.Skinning
                     throw new InvalidOperationException("The staged import target publication is invalid.");
                 }
             }
-            else if (targetIdentity != null || newRecordPublicationFingerprint != null)
+            else if (Kind == SkinManagedFolderMutationKind.Delete
+                     && (targetIdentity != null
+                         || (newRecordPublicationFingerprint != null
+                             && !string.Equals(
+                                 newRecordPublicationFingerprint,
+                                 NewRecordPublicationFingerprint,
+                                 StringComparison.Ordinal))))
                 throw new InvalidOperationException("A managed-folder delete cannot publish a target identity.");
 
             if (Kind == SkinManagedFolderMutationKind.Rename && newRecordPublicationFingerprint != null)
@@ -305,6 +336,41 @@ namespace osu.Game.Skinning
                 SkinManagedFolderMutationPhase.FilesystemApplied,
                 targetIdentity,
                 newRecordPublicationFingerprint);
+        }
+
+        public SkinManagedFolderMutationJournal WithDeleteFallbackDisposition(
+            SkinManagedFolderDeleteFallbackDisposition disposition)
+        {
+            if (Kind != SkinManagedFolderMutationKind.Delete
+                || Phase != SkinManagedFolderMutationPhase.Prepared
+                || DeleteFallbackDisposition != null
+                || !Enum.IsDefined(disposition))
+            {
+                throw new InvalidOperationException(
+                    "The managed-folder delete fallback disposition cannot be changed.");
+            }
+
+            return createValidated(
+                Version,
+                OperationId,
+                Kind,
+                Phase,
+                RecordId,
+                ManagedRootIdentity,
+                SourceManagedRelativePath,
+                TargetManagedRelativePath,
+                SourceIdentity,
+                TargetIdentity,
+                StagedSourceAuthority,
+                StagedSourceRelativePath,
+                StagedSourceIdentity,
+                StagedRootIdentity,
+                NewRecordPublicationPlanVersion,
+                StagedSourceContentRevision,
+                StagedSourceTreeFingerprint,
+                NewRecordPublicationFingerprint,
+                DeleteSourceNodeManifest,
+                disposition);
         }
 
         public SkinManagedFolderMutationJournal WithRealmApplied()
@@ -453,7 +519,12 @@ namespace osu.Game.Skinning
                 || (NewRecordPublicationFingerprint != null
                     && !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
                         NewRecordPublicationFingerprint))
-                || (Phase == SkinManagedFolderMutationPhase.Prepared
+                || (DeleteSourceNodeManifest != null
+                    && !SkinManagedFolderDeleteManifest.IsValid(DeleteSourceNodeManifest))
+                || (DeleteFallbackDisposition != null
+                    && !Enum.IsDefined(DeleteFallbackDisposition.Value))
+                || (Kind != SkinManagedFolderMutationKind.Delete
+                    && Phase == SkinManagedFolderMutationPhase.Prepared
                     && (TargetIdentity != null
                         || NewRecordPublicationFingerprint != null)))
             {
@@ -487,7 +558,9 @@ namespace osu.Game.Skinning
                     && NewRecordPublicationPlanVersion == null
                     && StagedSourceContentRevision == null
                     && StagedSourceTreeFingerprint == null
-                    && NewRecordPublicationFingerprint == null,
+                    && NewRecordPublicationFingerprint == null
+                    && DeleteSourceNodeManifest == null
+                    && DeleteFallbackDisposition == null,
 
                 SkinManagedFolderMutationKind.StagedImport =>
                     RecordId == OperationId
@@ -511,15 +584,24 @@ namespace osu.Game.Skinning
                           && SkinManagedFolderNewRecordPublicationData
                               .IsValidFingerprint(
                                   StagedSourceTreeFingerprint))
-                    && hasValidStagedPublicationState(),
+                    && hasValidStagedPublicationState()
+                    && DeleteSourceNodeManifest == null
+                    && DeleteFallbackDisposition == null,
 
                 SkinManagedFolderMutationKind.Delete =>
                     RecordId is { } deleteRecordId
                     && deleteRecordId != Guid.Empty
                     && SourceManagedRelativePath != null
+                    && string.Equals(
+                        TargetManagedRelativePath,
+                        GetExpectedDeleteTombstoneRelativePath(OperationId),
+                        StringComparison.Ordinal)
+                    && !string.Equals(
+                        SourceManagedRelativePath,
+                        TargetManagedRelativePath,
+                        StringComparison.OrdinalIgnoreCase)
                     && SourceIdentity is { IsUsable: true }
                     && SourceIdentity.Value.VolumeSerialNumber == ManagedRootIdentity.VolumeSerialNumber
-                    && TargetManagedRelativePath == null
                     && TargetIdentity == null
                     && StagedSourceAuthority == null
                     && StagedSourceRelativePath == null
@@ -528,7 +610,10 @@ namespace osu.Game.Skinning
                     && NewRecordPublicationPlanVersion == null
                     && StagedSourceContentRevision == null
                     && StagedSourceTreeFingerprint == null
-                    && NewRecordPublicationFingerprint == null,
+                    && SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
+                        NewRecordPublicationFingerprint)
+                    && SkinManagedFolderDeleteManifest.IsValid(DeleteSourceNodeManifest)
+                    && hasValidDeleteFallbackState(),
 
                 _ => false,
             };
@@ -542,6 +627,20 @@ namespace osu.Game.Skinning
 
         public bool ShouldSerializeStagedSourceTreeFingerprint()
             => Version != LEGACY_VERSION;
+
+        private bool hasValidDeleteFallbackState()
+            => Phase switch
+            {
+                SkinManagedFolderMutationPhase.Prepared
+                    or SkinManagedFolderMutationPhase.RolledBack => true,
+
+                SkinManagedFolderMutationPhase.FilesystemApplied
+                    or SkinManagedFolderMutationPhase.RealmApplied
+                    or SkinManagedFolderMutationPhase.Committed =>
+                    DeleteFallbackDisposition != null,
+
+                _ => false,
+            };
 
         private bool hasValidStagedPublicationState()
         {
@@ -575,6 +674,14 @@ namespace osu.Game.Skinning
         internal static string GetExpectedStagedSourceRelativePath(Guid operationId)
             => $"skin-mutation-staging/{operationId:N}";
 
+        internal static string GetExpectedDeleteTombstoneRelativePath(Guid operationId)
+        {
+            if (operationId == Guid.Empty)
+                throw new ArgumentException("The managed-folder delete operation ID is invalid.", nameof(operationId));
+
+            return $"{SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY}/{delete_tombstone_prefix}{operationId:N}";
+        }
+
         internal static bool IsValidContentRevision(string? contentRevision)
             => contentRevision is { Length: 64 }
                && contentRevision.All(character => character is >= '0' and <= '9'
@@ -606,6 +713,12 @@ namespace osu.Game.Skinning
                        StagedSourceTreeFingerprint,
                        candidate.StagedSourceTreeFingerprint,
                        StringComparison.Ordinal)
+                   && string.Equals(
+                       DeleteSourceNodeManifest,
+                       candidate.DeleteSourceNodeManifest,
+                       StringComparison.Ordinal)
+                   && (DeleteFallbackDisposition == null
+                       || DeleteFallbackDisposition == candidate.DeleteFallbackDisposition)
                    && (NewRecordPublicationFingerprint == null
                        || string.Equals(
                            NewRecordPublicationFingerprint,
@@ -628,7 +741,12 @@ namespace osu.Game.Skinning
                && string.Equals(
                    NewRecordPublicationFingerprint,
                    candidate.NewRecordPublicationFingerprint,
-                   StringComparison.Ordinal);
+                   StringComparison.Ordinal)
+               && string.Equals(
+                   DeleteSourceNodeManifest,
+                   candidate.DeleteSourceNodeManifest,
+                   StringComparison.Ordinal)
+               && DeleteFallbackDisposition == candidate.DeleteFallbackDisposition;
 
         private bool isAllowedPhaseProgression(
             SkinManagedFolderMutationPhase candidate)
@@ -709,7 +827,9 @@ namespace osu.Game.Skinning
             string? newRecordPublicationPlanVersion,
             string? stagedSourceContentRevision,
             string? stagedSourceTreeFingerprint,
-            string? newRecordPublicationFingerprint)
+            string? newRecordPublicationFingerprint,
+            string? deleteSourceNodeManifest,
+            SkinManagedFolderDeleteFallbackDisposition? deleteFallbackDisposition)
         {
             var journal = new SkinManagedFolderMutationJournal(
                 version,
@@ -729,7 +849,9 @@ namespace osu.Game.Skinning
                 newRecordPublicationPlanVersion,
                 stagedSourceContentRevision,
                 stagedSourceTreeFingerprint,
-                newRecordPublicationFingerprint);
+                newRecordPublicationFingerprint,
+                deleteSourceNodeManifest,
+                deleteFallbackDisposition);
 
             if (!journal.IsValid())
                 throw new ArgumentException("The managed-folder mutation journal is invalid.");
@@ -759,7 +881,11 @@ namespace osu.Game.Skinning
                 NewRecordPublicationPlanVersion,
                 StagedSourceContentRevision,
                 StagedSourceTreeFingerprint,
-                newRecordPublicationFingerprint);
+                Kind == SkinManagedFolderMutationKind.Delete
+                    ? NewRecordPublicationFingerprint
+                    : newRecordPublicationFingerprint,
+                DeleteSourceNodeManifest,
+                DeleteFallbackDisposition);
     }
 
     internal enum SkinManagedFolderMutationJournalLoadStatus
@@ -805,7 +931,7 @@ namespace osu.Game.Skinning
     {
         internal const string JOURNAL_FILENAME = "skin-managed-mutation-journal.json";
 
-        private const int max_journal_bytes = 128 * 1024;
+        private const int max_journal_bytes = 1024 * 1024;
         private const int movefile_replace_existing = 0x1;
         private const int movefile_write_through = 0x8;
 
@@ -833,11 +959,6 @@ namespace osu.Game.Skinning
             legacy_journal_payload_properties
                 .Append(nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision))
                 .Append(nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint))
-                .ToArray();
-
-        private static readonly string[] current_journal_payload_properties_with_fingerprint =
-            current_journal_payload_properties
-                .Append(nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint))
                 .ToArray();
 
         private static readonly string[] physical_identity_properties =
@@ -1094,17 +1215,31 @@ namespace osu.Game.Skinning
                 nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint));
             bool hasFingerprint = payload.ContainsKey(
                 nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint));
+            bool hasDeleteManifest = payload.ContainsKey(
+                nameof(SkinManagedFolderMutationJournal.DeleteSourceNodeManifest));
+            bool hasDeleteFallbackDisposition = payload.ContainsKey(
+                nameof(SkinManagedFolderMutationJournal.DeleteFallbackDisposition));
             string[] expectedProperties = version == SkinManagedFolderMutationJournal.LEGACY_VERSION
                 ? legacy_journal_payload_properties
-                : hasFingerprint
-                    ? current_journal_payload_properties_with_fingerprint
-                    : current_journal_payload_properties;
+                : current_journal_payload_properties
+                    .Concat(hasFingerprint
+                        ? new[] { nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint) }
+                        : Array.Empty<string>())
+                    .Concat(hasDeleteManifest
+                        ? new[] { nameof(SkinManagedFolderMutationJournal.DeleteSourceNodeManifest) }
+                        : Array.Empty<string>())
+                    .Concat(hasDeleteFallbackDisposition
+                        ? new[] { nameof(SkinManagedFolderMutationJournal.DeleteFallbackDisposition) }
+                        : Array.Empty<string>())
+                    .ToArray();
 
             if (!hasExactProperties(payload, expectedProperties)
                 || (version == SkinManagedFolderMutationJournal.LEGACY_VERSION
                     && (hasStagedSourceContentRevision
                         || hasStagedSourceTreeFingerprint
-                        || hasFingerprint))
+                        || hasFingerprint
+                        || hasDeleteManifest
+                        || hasDeleteFallbackDisposition))
                 || (version == SkinManagedFolderMutationJournal.CURRENT_VERSION
                     && (!hasStagedSourceContentRevision
                         || !hasStagedSourceTreeFingerprint))
@@ -1158,7 +1293,13 @@ namespace osu.Game.Skinning
                         true))
                 && (!hasFingerprint
                     || payload[nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint)]?.Type
-                    == JTokenType.String);
+                    == JTokenType.String)
+                && (!hasDeleteManifest
+                    || payload[nameof(SkinManagedFolderMutationJournal.DeleteSourceNodeManifest)]?.Type
+                    == JTokenType.String)
+                && (!hasDeleteFallbackDisposition
+                    || payload[nameof(SkinManagedFolderMutationJournal.DeleteFallbackDisposition)]?.Type
+                    == JTokenType.Integer);
         }
 
         private static bool hasExactPhysicalIdentitySchema(JToken? value, bool allowNull = true)

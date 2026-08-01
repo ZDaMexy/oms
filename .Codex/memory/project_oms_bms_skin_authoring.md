@@ -15,7 +15,7 @@ metadata:
 - 用户当前能选择哪种包、哪些slot已经进入production、哪些视觉待签收，只看P1-A STATUS与`SKINNING.md`页首；本memory不复制逐刀完成度、测试数字或“下一刀”。
 - source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同，不能反推普通短键/LN、受管目录、external或reload当前已经交付。
 - 程序化`OmsSkin`是恢复期迁移保障；在P1-A明确记录canonical `oms-simple.osk`完成parity、完整性、恢复与实机gate并接管前不得删除，接管后必须退出产品渲染链。
-- G1任务先查P1-A当前门；发现/选择/mutation专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明。
+- G1任务先查P1-A当前门；发现/选择/rename/staged-import/managed-delete专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明。
 - 产品可达性必须按caller追到真实入口：production程序集内的internal operation/recovery不等于玩家功能；shared topology/config/event/capability/candidate合同没有production host/renderer/authoring consumer时也不计进度。后续不得横向扩张无同切或紧随切片consumer的抽象。
 - F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复期撤回/未恢复面的历史名称；不要把旧编号写成当前状态，现行等价范围只从`SV1-*`计划映射。
 - 恢复期保留的稳定修正是base parser前重置配置流，以及14K第二皿使用`S2`/P2素材；若代码改变仍须以当前fixture复核。
@@ -53,7 +53,7 @@ metadata:
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
 - canonical `oms-simple` 自身失败是安装完整性故障，必须走明确修复路径；禁止偷偷落到另一套程序化颜色/节点。
 - 脚本 VM 必须可抢占并有 instruction/heap/node/resource quota；回调返回后再看 stopwatch 无法阻止 `while true`。
-- G1 future external adapter对absolute path只能把`NativeStorage`作为只读source，并先闭合自身resolved identity/capture；受管目录删除/重命名必须使用held-root no-follow identity、journal/recovery与共享线性化，scanner不得删除不属于自身authority的Realm记录。细节回到P1-A CONSTRAINTS，不在memory冻结操作语义。
+- G1 future external adapter对absolute path只能把`NativeStorage`作为只读source，并先闭合自身resolved identity/capture；external“删除”永远只能解除注册。managed物理delete已由专用settings caller闭合，受管目录删除/重命名仍必须使用held-root no-follow identity、journal/recovery与共享线性化，scanner不得删除不属于自身authority的Realm记录。细节回到P1-A CONSTRAINTS，不在本页复制逐phase语义。
 - 异常期代码只可定点参考，禁止整批恢复。
 - lane keysound timeline 上界地雷见 [[reference_bms_lane_keysound_timeline_bounds]]。
 

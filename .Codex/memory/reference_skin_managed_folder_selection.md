@@ -20,15 +20,15 @@ metadata:
 
 ## mutation 与生命周期地雷
 
-- 调用方持有的`SkinInfo`即使ID相同也不是authority。delete/undelete、update import、external edit和base/interface mutation必须在真正Realm事务内按ID重新取得authoritative记录后判定；旧importer要在`Files.Clear()`前复核。directory-only rename与fixed-source staged import各有唯一internal production operation，但当前没有非测试caller，staged import也没有external→provisional production stager；旧通用rename/import及其它folder mutation继续冻结。不得把专用操作写成managed delete、任意path import、UI或玩家功能已实现。
+- 调用方持有的`SkinInfo`即使ID相同也不是authority。delete/undelete、update import、external edit和base/interface mutation必须在真正Realm事务内按ID重新取得authoritative记录后判定；旧importer要在`Files.Clear()`前复核。directory-only rename与fixed-source staged import各有唯一internal production operation但没有非测试caller，staged import也没有external→provisional production stager；managed delete则只由现有settings确认框经独立fresh `CanDelete`和async record-ID caller消费。旧通用rename/import/delete及其它folder mutation继续冻结，不得把专用delete类推为任意path cleanup、external删除或通用Realm hard-delete。
 - rename成功只推进全局selection generation并取消当时的pending preparation，不替换或dispose当前active immutable capsule；旧generation不得发布，旧request还会被authoritative path复核与coordinator final boundary阻止发布，未来重新选择只能从Realm新managed path capture。shutdown必须cancel+join rename worker后才释放Realm。
 - staged import成功不自动选择新record、不替换或dispose active immutable capsule，也不复用rename的全局pending取消。无关pending selection在one-shot publication后按authoritative ID/path/owner复核仍成立时继续；selection首次final admission失败后从coordinator取得exact staged-import holder的completion object，即使import在失败后立刻完成，该对象也会可靠完成并触发fresh retry，不再通过外部`IsRunning`或全局completion epoch猜测。generic mutation争用仍拒绝。任何planned ID/path冲突必须在首个物理步骤前拒绝。Realm notification刷新候选列表不等于selection commit。
-- 受管目录delete foundation现在可在held mutation reservation与exact Prepared receipt下确认程序化`OmsSkin`的`CurrentSkinInfo`/`CurrentSkin` pair；两半ID一致且都非目标时才允许`NotRequired`，split-brain、fallback无效或无法确认都拒绝并安全abort。它不执行Realm或物理删除；真实delete仍保持冻结，canonical接管后fallback policy才改为`oms-simple.osk`。
+- 受管目录delete在held mutation reservation与exact Prepared receipt下先确认与`OmsSkin.CreateInfo()`逐字段一致的`CurrentSkinInfo`/`CurrentSkin` pair，再允许physical detach；两半ID一致且都非目标时才允许`NotRequired`。split-brain、fallback无效或无法确认都在detach前拒绝并安全abort；只有durable disposition为`ProtectedPairCommitted`时，detach边界、Realm compare-remove与recovery才继续重验exact protected fallback Realm record，`NotRequired`明确不创建或要求该record。canonical接管后fallback policy才改为`oms-simple.osk`。
 - 同值/disabled检查必须先于准备；内部commit不能留下可被reentrant请求复用的“正在提交”旁路。异步completion也不能覆盖更晚的reentrant rejection reason，task fault必须显式观察且诊断不能泄露路径。
 - selection pair一次提交不等于全playfield atomic reload。旧capsule/owner只能在所有consumer detach后退役；在publication barrier闭合前，不要为即时释放旧owner破坏仍挂载consumer。
-- startup scanner、rename、staged-import、selection capture-scheduling与contention waiter必须在Realm释放前统一cancel + synchronous join；queued completion capsule需由scheduler callback或shutdown恰好一方claim/reap，晚到callback只能no-op。scheduler fault不得在generic lease后阻塞等待，否则shutdown会形成反向依赖。
+- startup scanner、rename、staged-import、managed delete、selection capture-scheduling与contention waiter必须在Realm释放前统一cancel + synchronous join；queued selection capsule与delete fallback completion需由scheduler callback或shutdown恰好一方claim/reap，晚到callback只能no-op。delete fallback必须先完成worker等待的TCS再发布可能重入shutdown的`SourceChanged`；scheduler fault不得在generic lease后阻塞等待，否则shutdown会形成反向依赖。
 
 ## 不可误推的完成度
 
-- 本页的factory/selection链已闭合与directory-only rename、fixed-source staged import的生产交互，但不证明managed delete、rename/import UI、external registration/capture、整包reload或全consumer detach barrier已经完成，更不能单独证明G1、`SV1-2`、Skin V1或产品交付。本切未做GUI/视觉签收；实时状态、测试数字与下一门只看P1-A STATUS/PLAN。
+- 本页的factory/selection链已闭合与directory-only rename、fixed-source staged import及settings managed delete的生产交互，但不证明rename/import UI、external registration/capture、整包reload或全consumer detach barrier已经完成，更不能单独证明G1、`SV1-2`、Skin V1或产品交付。本切未做GUI实机/视觉签收；实时状态、测试数字与下一门只看P1-A STATUS/PLAN。
 - 前置安全边界见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_package_revision_capsule]]。

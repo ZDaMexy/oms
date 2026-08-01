@@ -134,6 +134,262 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestMutationTreeRejectsDepthThirtyThreeWithoutRenameAndReleasesHandles()
+        {
+            FakePackage package = createPackage();
+            FakeNode parent = package.Package;
+            FakeNode? overDepth = null;
+
+            for (int depth = 1; depth <= SkinPackageRevisionCapsuleLimits.Default.MaxDepth + 1; depth++)
+            {
+                parent = parent.AddDirectory($"depth-{depth:D2}");
+
+                if (depth == SkinPackageRevisionCapsuleLimits.Default.MaxDepth + 1)
+                    overDepth = parent;
+            }
+
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(@"C:\data", package.FileSystem);
+
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+            {
+                Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                    () => session.CaptureExistingSource("chartskin/package", CancellationToken.None));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(overDepth, Is.Not.Null);
+                    Assert.That(package.FileSystem.OpenCount(overDepth!), Is.Zero);
+                    Assert.That(package.FileSystem.OperationIndex(FakeOperationKind.RenameBegin, package.Package), Is.Zero);
+                });
+            }
+
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestMutationTreeRejectsNestedChildBeyondWideEntryBudgetBeforeOpeningIt()
+        {
+            FakePackage package = createPackage();
+            FakeNode firstDirectory = package.Package.AddDirectory("0000-directory");
+            FakeNode nestedChild = firstDirectory.AddFile("nested.bin", new byte[] { 1 });
+
+            for (int i = 1; i < SkinPackageRevisionCapsuleLimits.Default.MaxEntryCount; i++)
+                package.Package.AddFile($"{i:D4}.bin", new byte[] { 1 });
+
+            Assert.That(
+                package.Package.Children,
+                Has.Count.EqualTo(SkinPackageRevisionCapsuleLimits.Default.MaxEntryCount));
+
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(@"C:\data", package.FileSystem);
+
+            using (ISkinManagedFolderMutationNativeSession session = authority.Open(CancellationToken.None))
+            {
+                Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                    () => session.CaptureExistingSource("chartskin/package", CancellationToken.None));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(package.FileSystem.OpenCount(firstDirectory), Is.GreaterThan(0));
+                    Assert.That(package.FileSystem.OpenCount(nestedChild), Is.Zero);
+                    Assert.That(package.FileSystem.OperationIndex(FakeOperationKind.RenameBegin, package.Package), Is.Zero);
+                });
+            }
+
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestLiveDeleteRejectsDirectoryCreationTimeDriftBeforeDisposition()
+        {
+            FakePackage package = createPackage();
+            FakeNode nested = package.Package.AddDirectory("nested");
+            nested.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(
+                @"C:\data",
+                package.FileSystem);
+            const string source_path = "chartskin/package";
+            const string tombstone_path = "chartskin/.oms-delete-contract";
+
+            using (ISkinManagedFolderMutationNativeSession session =
+                   authority.Open(CancellationToken.None))
+            {
+                SkinManagedFolderPhysicalIdentity sourceIdentity =
+                    session.CaptureExistingSource(source_path, CancellationToken.None);
+                string manifest = session.GetCapturedDeleteSourceNodeManifest(
+                    CancellationToken.None);
+                SkinManagedFolderTargetNameSlot target =
+                    session.CaptureAbsentTargetNameSlot(
+                        tombstone_path,
+                        CancellationToken.None);
+                session.RenameCapturedSourceToTarget(target, CancellationToken.None);
+                nested.CreationTime++;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                        () => session.CleanupExactDeleteTombstone(
+                            source_path,
+                            tombstone_path,
+                            sourceIdentity,
+                            manifest,
+                            CancellationToken.None));
+                    Assert.That(package.Package.Name, Is.EqualTo(
+                        ".oms-delete-contract"));
+                    Assert.That(package.FileSystem.OperationIndex(
+                        FakeOperationKind.Delete,
+                        nested), Is.Zero);
+                    Assert.That(package.FileSystem.OperationIndex(
+                        FakeOperationKind.Delete,
+                        package.Package), Is.Zero);
+                });
+            }
+
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestDeleteExclusiveRecaptureBlocksRootAndChildRenameDuringDisposition()
+        {
+            FakePackage package = createPackage();
+            FakeNode nested = package.Package.AddDirectory("nested");
+            nested.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+            FakeNode outside = package.DataRoot.AddDirectory("outside");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(
+                @"C:\data",
+                package.FileSystem);
+            const string source_path = "chartskin/package";
+            const string tombstone_path = "chartskin/.oms-delete-exclusive";
+            bool rootRenameBlocked = false;
+            bool childRenameBlocked = false;
+            bool attempted = false;
+
+            using (ISkinManagedFolderMutationNativeSession session =
+                   authority.Open(CancellationToken.None))
+            {
+                SkinManagedFolderPhysicalIdentity sourceIdentity =
+                    session.CaptureExistingSource(source_path, CancellationToken.None);
+                string manifest = session.GetCapturedDeleteSourceNodeManifest(
+                    CancellationToken.None);
+                SkinManagedFolderTargetNameSlot target =
+                    session.CaptureAbsentTargetNameSlot(
+                        tombstone_path,
+                        CancellationToken.None);
+                session.RenameCapturedSourceToTarget(target, CancellationToken.None);
+                package.FileSystem.OnOperation = operation =>
+                {
+                    if (attempted || operation.Kind != FakeOperationKind.Delete)
+                        return;
+
+                    attempted = true;
+                    rootRenameBlocked = !package.FileSystem.TryMoveDirectChild(
+                        package.ManagedRoot,
+                        package.Package,
+                        outside,
+                        "escaped-root");
+                    childRenameBlocked = !package.FileSystem.TryMoveDirectChild(
+                        package.Package,
+                        nested,
+                        package.ManagedRoot,
+                        "escaped-child");
+                };
+
+                session.CleanupExactDeleteTombstone(
+                    source_path,
+                    tombstone_path,
+                    sourceIdentity,
+                    manifest,
+                    CancellationToken.None);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(attempted, Is.True);
+                Assert.That(rootRenameBlocked, Is.True);
+                Assert.That(childRenameBlocked, Is.True);
+                Assert.That(package.ManagedRoot.Children, Is.Empty);
+                Assert.That(outside.Children, Is.Empty);
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestLiveDeleteRejectsChildRemovedBeforeExclusiveRecaptureWithoutDeletingAnything()
+        {
+            FakePackage package = createPackage();
+            FakeNode nested = package.Package.AddDirectory("nested");
+            FakeNode file = nested.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+            FakeNode outside = package.DataRoot.AddDirectory("outside");
+            var authority = new WindowsSkinManagedFolderMutationNativeAuthority(
+                @"C:\data",
+                package.FileSystem);
+            const string source_path = "chartskin/package";
+            const string tombstone_path = "chartskin/.oms-delete-live-gap";
+            bool relocated = false;
+
+            using (ISkinManagedFolderMutationNativeSession session =
+                   authority.Open(CancellationToken.None))
+            {
+                SkinManagedFolderPhysicalIdentity sourceIdentity =
+                    session.CaptureExistingSource(source_path, CancellationToken.None);
+                string manifest = session.GetCapturedDeleteSourceNodeManifest(
+                    CancellationToken.None);
+                SkinManagedFolderTargetNameSlot target =
+                    session.CaptureAbsentTargetNameSlot(
+                        tombstone_path,
+                        CancellationToken.None);
+                session.RenameCapturedSourceToTarget(target, CancellationToken.None);
+                package.FileSystem.OnOperation = operation =>
+                {
+                    if (relocated
+                        || operation.Kind != FakeOperationKind.OpenChild
+                        || operation.Node != package.ManagedRoot
+                        || operation.Mode
+                           != WindowsSkinPackageOpenMode.DeleteExclusiveDirectory)
+                    {
+                        return;
+                    }
+
+                    relocated = package.FileSystem.TryMoveDirectChild(
+                        package.Package,
+                        nested,
+                        outside,
+                        "relocated-child");
+
+                    if (!relocated)
+                        throw new InvalidOperationException("The live-gap relocation was unexpectedly blocked.");
+                };
+
+                Assert.Throws<SkinManagedFolderMutationNativeAuthorityException>(
+                    () => session.CleanupExactDeleteTombstone(
+                        source_path,
+                        tombstone_path,
+                        sourceIdentity,
+                        manifest,
+                        CancellationToken.None));
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(relocated, Is.True);
+                Assert.That(package.Package.Name, Is.EqualTo(
+                    ".oms-delete-live-gap"));
+                Assert.That(outside.Children, Has.Count.EqualTo(1));
+                Assert.That(outside.Children[0], Is.SameAs(nested));
+                Assert.That(nested.Children.Single(), Is.SameAs(file));
+                Assert.That(package.FileSystem.OperationIndex(
+                    FakeOperationKind.Delete,
+                    package.Package), Is.Zero);
+                Assert.That(package.FileSystem.OperationIndex(
+                    FakeOperationKind.Delete,
+                    nested), Is.Zero);
+                Assert.That(package.FileSystem.OperationIndex(
+                    FakeOperationKind.Delete,
+                    file), Is.Zero);
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
         public void TestTargetRaceIsNoReplaceAndKeepsSourceIdentity()
         {
             FakePackage package = createPackage();
@@ -1218,7 +1474,11 @@ namespace osu.Game.Tests.Skins
             IdentityMismatch,
         }
 
-        private readonly record struct FakeOperation(FakeOperationKind Kind, FakeNode Node, int Index);
+        private readonly record struct FakeOperation(
+            FakeOperationKind Kind,
+            FakeNode Node,
+            int Index,
+            WindowsSkinPackageOpenMode? Mode = null);
 
         private sealed class FakeFileSystem : IWindowsSkinPackageCaptureFileSystem
         {
@@ -1226,6 +1486,7 @@ namespace osu.Game.Tests.Skins
             private readonly Dictionary<(FakeOperationKind Kind, FakeNode Node), int> operationIndexes = new Dictionary<(FakeOperationKind, FakeNode), int>();
             private readonly Dictionary<(FakeNode Parent, string Alias), FakeNode> aliases = new Dictionary<(FakeNode, string), FakeNode>();
             private readonly Dictionary<FakeNode, int> openCounts = new Dictionary<FakeNode, int>();
+            private readonly List<FakeHandle> activeHandles = new List<FakeHandle>();
 
             public Action<FakeOperation>? OnOperation { get; set; }
 
@@ -1261,6 +1522,33 @@ namespace osu.Game.Tests.Skins
 
                 child.Name = targetName;
                 parent.Children.Add(child);
+            }
+
+            public bool TryMoveDirectChild(
+                FakeNode sourceParent,
+                FakeNode child,
+                FakeNode targetParent,
+                string targetName)
+            {
+                if (!sourceParent.Children.Contains(child)
+                    || targetParent.Children.Any(candidate => namesEqual(candidate.Name, targetName)))
+                {
+                    throw new InvalidOperationException("The fake rename request is invalid.");
+                }
+
+                if (activeHandles.Any(handle =>
+                        !handle.IsDisposed
+                        && ReferenceEquals(handle.Node, child)
+                        && handle.Mode is WindowsSkinPackageOpenMode.DeleteExclusiveDirectory
+                            or WindowsSkinPackageOpenMode.DeleteExclusiveFile))
+                {
+                    return false;
+                }
+
+                sourceParent.Children.Remove(child);
+                child.Name = targetName;
+                targetParent.Children.Add(child);
+                return true;
             }
 
             public IWindowsSkinPackageCaptureHandle OpenLocalVolumeRoot(char driveLetter)
@@ -1311,7 +1599,7 @@ namespace osu.Game.Tests.Skins
                 SkinManagedPackageCaptureRejectionReason unavailableReason)
             {
                 FakeNode parentNode = getNode(parent);
-                invoke(FakeOperationKind.OpenChild, parentNode);
+                invoke(FakeOperationKind.OpenChild, parentNode, mode);
                 FakeNode? child = parentNode.Children.SingleOrDefault(candidate => string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
 
                 if (child == null)
@@ -1323,6 +1611,7 @@ namespace osu.Game.Tests.Skins
                 WindowsSkinPackageEntryKind expectedKind = mode == WindowsSkinPackageOpenMode.CapturedFile
                                                             || mode == WindowsSkinPackageOpenMode.MutationSourceVerificationFile
                                                             || mode == WindowsSkinPackageOpenMode.ProvisionalFile
+                                                            || mode == WindowsSkinPackageOpenMode.DeleteExclusiveFile
                     ? WindowsSkinPackageEntryKind.File
                     : WindowsSkinPackageEntryKind.Directory;
 
@@ -1335,7 +1624,7 @@ namespace osu.Game.Tests.Skins
                 if (mode == WindowsSkinPackageOpenMode.CapturedFile)
                     OpenedCapturedFileCount++;
 
-                return open(child);
+                return open(child, mode);
             }
 
             public WindowsSkinPackageEntryMetadata QueryMetadata(IWindowsSkinPackageCaptureHandle handle)
@@ -1406,11 +1695,15 @@ namespace osu.Game.Tests.Skins
                     () => LastReadStreamDisposed = true);
             }
 
-            private FakeHandle open(FakeNode node)
+            private FakeHandle open(
+                FakeNode node,
+                WindowsSkinPackageOpenMode? mode = null)
             {
                 ActiveHandleCount++;
                 openCounts[node] = openCounts.GetValueOrDefault(node) + 1;
-                return new FakeHandle(this, node);
+                var handle = new FakeHandle(this, node, mode);
+                activeHandles.Add(handle);
+                return handle;
             }
 
             private FakeNode getNode(IWindowsSkinPackageCaptureHandle handle)
@@ -1426,18 +1719,22 @@ namespace osu.Game.Tests.Skins
                 return fake;
             }
 
-            private void invoke(FakeOperationKind kind, FakeNode node)
+            private void invoke(
+                FakeOperationKind kind,
+                FakeNode node,
+                WindowsSkinPackageOpenMode? mode = null)
             {
                 OperationCount++;
                 int index = operationIndexes.GetValueOrDefault((kind, node)) + 1;
                 operationIndexes[(kind, node)] = index;
-                OnOperation?.Invoke(new FakeOperation(kind, node, index));
+                OnOperation?.Invoke(new FakeOperation(kind, node, index, mode));
             }
 
             private void close(FakeHandle handle)
             {
                 ActiveHandleCount--;
                 Assert.That(ActiveHandleCount, Is.GreaterThanOrEqualTo(0));
+                Assert.That(activeHandles.Remove(handle), Is.True);
 
                 if (!handle.DeleteOnClose)
                     return;
@@ -1489,10 +1786,16 @@ namespace osu.Game.Tests.Skins
 
                 public bool DeleteOnClose { get; set; }
 
-                public FakeHandle(FakeFileSystem owner, FakeNode node)
+                public WindowsSkinPackageOpenMode? Mode { get; }
+
+                public FakeHandle(
+                    FakeFileSystem owner,
+                    FakeNode node,
+                    WindowsSkinPackageOpenMode? mode)
                 {
                     this.owner = owner;
                     Node = node;
+                    Mode = mode;
                 }
 
                 public void Dispose()
@@ -1602,6 +1905,8 @@ namespace osu.Game.Tests.Skins
 
             public long LastWriteTime { get; set; }
 
+            public long CreationTime { get; set; }
+
             public uint NumberOfLinks { get; set; } = 1;
 
             public bool IsReparsePoint { get; set; }
@@ -1618,6 +1923,7 @@ namespace osu.Game.Tests.Skins
                 Kind = kind;
                 Content = content;
                 FileId = next_id++;
+                CreationTime = checked((long)FileId + 100);
                 ChangeTime = checked((long)FileId + 1000);
                 LastWriteTime = checked((long)FileId + 200);
             }
@@ -1655,7 +1961,7 @@ namespace osu.Game.Tests.Skins
                     new WindowsSkinPackagePhysicalIdentity(1, FileId, FileId * 17),
                     Kind,
                     Content.LongLength,
-                    checked((long)FileId + 100),
+                    CreationTime,
                     LastWriteTime,
                     ChangeTime,
                     attributes,

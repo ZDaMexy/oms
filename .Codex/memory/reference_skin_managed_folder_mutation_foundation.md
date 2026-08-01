@@ -1,6 +1,6 @@
 ---
 name: reference_skin_managed_folder_mutation_foundation
-description: chartskin mutation foundation、directory-only rename、fixed-source staged import、durable recovery与NTFS handoff边界
+description: chartskin mutation foundation、rename/staged import、managed delete、durable recovery与NTFS handoff边界
 metadata:
   node_type: memory
   type: reference
@@ -22,7 +22,7 @@ metadata:
 - Windows mutation session从物理本地卷逐段no-follow固定data root与held `chartskin` root。既有source只从该根捕获direct-child identity并持有带DELETE权限、拒绝外部write/delete的handle；target只是一枚同held root绑定、经NFC/Windows命名与case-insensitive collision/absence验证的name slot，绝不能预造physical identity。
 - staged source不接受调用方path/token，只能来自data root下固定`skin-mutation-staging/{operationId:N}`；合同要求future upstream stager预先复制、保留外部原来源，并把副本交给OMS作为本operation独占持有的可丢弃provisional。当前仓库没有该production stager；未来必须独立闭合source authority、no-follow、budget、cancellation、cleanup与脱敏诊断，普通递归copy或任意caller path不能直接进入mutation。staging root与managed root都是既存held authority root，不能由import临时创建或替换；两者与source必须同volume并全程复验identity和canonical name。
 - staged import的immutable publication plan固定`ID = operationId`并绑定target slot、managed-root identity与version。plan**不是Realm写权限**，ordinary startup scanner不得消费；production one-shot publisher只在durable `FilesystemApplied`、exact target recapture/fingerprint和最终Realm ID/path/owner冲突复核后执行。
-- held session在生成或持久化Prepared journal前都会重新验证native inventory/authority links及Realm资格；owner/hash/DeletePending/target collision等post-open漂移一律拒绝。rename与staged import现各有唯一专用physical move及Realm消费者；managed delete仍没有写primitive或Realm record删除。
+- held session在生成或持久化Prepared journal前都会重新验证native inventory/authority links及Realm资格；owner/hash/DeletePending/target collision等post-open漂移一律拒绝。rename、staged import与managed delete现各有唯一专用physical/Realm消费者；只有managed delete由现有settings确认框提供真实玩家caller，rename/import仍无非测试caller。
 
 ## directory-only rename真实行为
 
@@ -46,10 +46,11 @@ metadata:
 
 ## durable journal与恢复
 
-- canonical journal使用稳定文件名`skin-managed-mutation-journal.json`与payload version；严格UTF-8、固定schema/类型、重复字段拒绝、SHA-256校验和、128 KiB上限。新intent只能从Prepared开始，phase按显式图单调推进；terminal不可重写，A intent不能覆盖B intent。current staged forward只允许`Prepared → FilesystemApplied → RealmApplied → Committed`，不能直跳terminal；RolledBack的target identity/publication fingerprint必须none/none或exact+valid成对。fixed skin ID不得作为staged operation/record ID，payload重算checksum也仍是invalid。legacy v1仍可按旧schema重写terminal并删除，重写不得混入v2字段而导致下一次strict load失败。
+- canonical journal使用稳定文件名`skin-managed-mutation-journal.json`与payload version；严格UTF-8、固定schema/类型、重复字段拒绝、SHA-256校验和、1 MiB上限（用于最多8193个定长delete-node fingerprint，最大manifest round-trip仍须低于该界）。新intent只能从Prepared开始，phase按显式图单调推进；terminal不可重写，A intent不能覆盖B intent。current staged/delete forward只允许`Prepared → FilesystemApplied → RealmApplied → Committed`，不能直跳terminal；delete允许Prepared同phase从空fallback disposition单调补成`NotRequired`/`ProtectedPairCommitted`。RolledBack证明按kind验证：staged target identity/publication fingerprint须none/none或exact+valid成对，delete不发布target identity且可保留空/已确认disposition。fixed skin ID不得作为staged operation/record ID，payload重算checksum也仍是invalid。legacy v1仍可按旧schema重写非Delete terminal并删除，重写不得混入v2字段而导致下一次strict load失败。
 - 写入使用同目录临时文件、write-through、`Flush(true)`与Windows `MoveFileEx(REPLACE_EXISTING|WRITE_THROUGH)`。精确孤儿temp可判定为未发布并清理；canonical目录/reparse、锁定/ACL/IO或未知journal-like sibling不得伪装成Missing。
-- mutation session只能经绑定的canonical store持久化，落盘后必须精确reload才返回durable receipt。receipt绑定session、store和exact Prepared journal，消费前后都复验；未解决session dispose或持久化结果不确定会粘性冻结关联路径。无外部mutation时可把Prepared写成RolledBack、精确删除并确认Missing后abort。
-- recovery按journal kind路由到rename或staged-import production handler，并复用同一coordinator/store/receipt；managed delete仍unsupported/frozen。current forward恢复即使已看见终态证据，也必须逐一write + exact reload缺失的`FilesystemApplied → RealmApplied → Committed`，每阶段重新inspection；publisher/action绝不早于durable FilesystemApplied，phase fault只保留最后durable journal，fresh restart继续且不重复publication。有效但无handler的nonterminal journal继续保留并精确冻结source/target，scanner对这些路径连negative cleanup都禁止；invalid/unknown/IO无法安全导出路径时冻结整个managed namespace。handler inspection/action必须回报与journal相同的held authority-root identity，否则保持歧义。
+- mutation session只能经绑定的canonical store持久化，落盘后必须精确reload才返回durable receipt。receipt绑定session、store和exact Prepared journal，消费前后都复验；未解决session dispose或持久化结果不确定会粘性冻结关联路径。首个物理步骤前logical/native authority漂移若canonical receipt仍exact，可把Prepared compare-write为RolledBack、精确删除并确认Missing；receipt或写入结果已漂移时不能假装安全abort，须冻结。
+- recovery按journal kind路由到rename、staged-import或managed-delete production handler，并复用同一coordinator/store/receipt。current forward恢复即使已看见终态证据，也必须逐一write + exact reload缺失的`FilesystemApplied → RealmApplied → Committed`，每阶段重新inspection；publisher/action绝不早于durable FilesystemApplied，phase fault只保留最后durable journal，fresh restart继续且不重复publication。有效但无handler的nonterminal journal继续保留并精确冻结source/target，scanner对这些路径连negative cleanup都禁止；invalid/unknown/IO无法安全导出路径时冻结整个managed namespace。handler inspection/action必须回报与journal相同的held authority-root identity，否则保持歧义。
+- journal payload保持v2。Delete Prepared必须固定operation-derived `.oms-delete-{operationId:N}` tombstone，在既有publication fingerprint槽绑定exact existing Realm record，并持久化排序、版本化的exact source-node manifest；physical phase另须已有durable fallback disposition。pre-product legacy-v1或旧v2 Delete若缺任一证据必须strict Invalid并全局冻结，不猜测迁移。v2 Rename/StagedImport与legacy-v1非Delete terminal rewrite/delete合同不变；旧时期没有production delete caller，不能声称存在可恢复的玩家delete intent。
 - terminal journal只在compare-delete后再次确认Missing才解除冻结；仍见同一terminal则幂等重试。一次歧义后journal突然Missing不能被当成成功；必须保持冻结到新启动/可证明恢复路径。
 
 ## rename恢复矩阵
@@ -67,19 +68,27 @@ metadata:
 
 ## current delete fallback
 
-- 实际物理delete仍不存在。当前foundation只在update thread、同一mutation reservation与exact durable receipt下确认fallback pair。
-- 迁移期唯一允许的fallback是Realm中受保护、非DeletePending、无folder/files声明且实例信息匹配的程序化`OmsSkin`，并要求`CurrentSkinInfo`和`CurrentSkin`最终同时指向exact OMS record/type。canonical接管后这条policy才可替换为只读`oms-simple.osk`。
-- `NotRequired`只允许两半ID一致且都不是删除目标；任何split-brain不得放行。fallback无效、selection disabled、提交异常、pair未确认、authority漂移或receipt失效都拒绝未来delete，并在没有发生外部mutation时abort Prepared journal。
+- managed delete在update thread、同一mutation reservation与exact durable receipt下确认fallback pair，真实提交成功后才允许worker做首个physical detach。
+- 迁移期唯一允许的fallback必须与`OmsSkin.CreateInfo()`逐字段一致：exact ID/Name/Creator/InstantiationInfo、空Hash、protected、非DeletePending、无folder/files/external/owner，并要求`CurrentSkinInfo`和`CurrentSkin`最终同时指向exact OMS record/type。canonical接管后这条policy才可替换为只读`oms-simple.osk`。
+- `NotRequired`只允许两半ID一致且都不是删除目标；任何split-brain不得放行，并须将该决定durable固化。fallback无效、selection disabled、提交异常、pair未确认均拒绝；authority漂移只在receipt仍exact时安全abort，receipt/写入漂移则冻结。`ProtectedPairCommitted`在detach物理边界、Realm compare-remove与recovery都要重验exact protected fallback Realm record；`NotRequired`恢复明确不创建或要求该record。漂移时保留最后durable journal和record，recovery不得凭physical terminal猜成成功。
+
+## managed delete真实行为与恢复
+
+- 现有settings delete button/dialog只通过独立fresh-authoritative`CanDelete`和manager-owned `DeleteSkinAsync(record ID)`进入本operation；普通Realm `.osk`保持soft delete + default，旧通用folder `CanModify/Delete`、protected/fixed、external、foreign/null owner、非法path继续fail-closed。
+- Prepared绑定held managed-root/source、operation-derived tombstone、exact existing-record fingerprint与bounded exact source-node manifest，再单调持久化fallback disposition。完整树以显式迭代walker受capsule depth/entry/path及pending-handle预算约束。final no-follow tree/authority/identity复核及caller取消检查后，首个外部步骤只能是held-root-relative source→tombstone no-replace detach；之后不再观察caller cancellation。rename后的verification handles没有DELETE权，须验证后释放，再从held root以fresh no-follow delete-exclusive handles（持有DELETE、只共享READ）重捕；same-session live tree仍须与manifest精确相等，release→exclusive重捕窄窗内完成的node移出因此在0次disposition时拒绝，只有fresh recovery session的partial survivor可接受durable子集。
+- exclusive tree取得后再把已持有root/child移到sibling或authority外由sharing violation阻断，但目录handle不封namespace。preflight前可见的foreign addition/replacement及reparse、hardlink、duplicate/metadata/inventory drift、source replacement或同级collision仍在0次disposition时拒绝。final preflight后竞态新增/replacement绝不进入held delete list或被删除，可能在manifest节点部分清理后令root删除失败；此时保留FilesystemApplied journal与Realm record并冻结。始终不得触及foreign、managed root、sibling或caller path。
+- Realm只在durable FilesystemApplied后compare-remove journal绑定的exact record。recovery按source/tombstone/manifest/Realm fingerprint/disposition逐phase前滚或安全回滚；raw disposition却出现TargetOnly/Neither、Both、identity mismatch、foreign/conflicting record、缺证据或歧义都冻结。`ProtectedPairCommitted`在`FilesystemApplied/RealmApplied + source absent + tombstone absent + Realm absent`时仍须有exact protected fallback Realm record；`NotRequired`不要求该record。重启恢复不声称能重验detach前的旧runtime pair。
+- fallback completion经update scheduler时由callback或shutdown恰一方claim/reap；先完成worker等待的TCS，再发布可能重入的`SourceChanged`。late callback no-op，update thread不等待，Realm释放前必须cancel/join delete及其它全部worker。
 
 ## 不可误推
 
-- rename与fixed-source staged import internal production纵切已经实现，但没有非测试caller、stager或UI，也不表示G1、`SV1-2`、Skin V1或reload已交付。managed delete、external与atomic reload/detach仍须分别闭合，所有通用rename/import/delete入口继续冻结。
-- rename不联动展示名/`skin.ini`；staged import只move受控provisional副本、不会修改包字节或自动选择；delete confirmation仍不执行任何Realm/磁盘删除。
+- rename与fixed-source staged import internal production纵切已经实现但没有非测试caller、stager或UI；managed delete由现有settings确认框玩家可达。三者都不表示G1、`SV1-2`、Skin V1或reload已交付，所有旧通用rename/import/delete入口继续冻结。
+- rename不联动展示名/`skin.ini`；staged import只move受控provisional副本、不会修改包字节或自动选择；managed delete只适用于eligible managed direct-child并会物理删除，不得类推为external删除、任意path cleanup或通用Realm hard-delete。
 - journal、identity、relative path、operation/record ID与native异常都可能敏感；安全`ToString()`/日志只能输出类型、phase、kind、status或计数。
 
 ## 产品可达性与下一纵切
 
-- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由玩家可达的启动发现/选择链消费；directory-only rename及fixed-source staged import只在production assembly内部被operation/recovery组装，没有应用caller，不是玩家可见删改能力。
-- `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename、staged-import与selection retry worker；queued selection completion必须在shutdown被reap或晚到no-op，不得新建脱离该边界的后台链。
+- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由玩家可达的启动发现/选择/delete链消费；directory-only rename及fixed-source staged import仍只在production assembly内部被operation/recovery组装，没有应用caller。
+- `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename、staged-import、managed delete与selection capture/retry worker；queued selection/delete fallback completion必须在shutdown被reap或晚到no-op，不得新建脱离该边界的后台链。
 - operation/recovery状态只能脱敏输出；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。每一新切片都要明确它连接的真实caller/host/renderer，不能用production项目中的internal类型数量代替产品进度。
-- 当前go/no-go：managed delete有settings delete dialog/caller雏形及protected fallback foundation，下一切conditional GO，但必须新建独立`CanDelete`/async caller并同切闭合held-root物理删除、Realm收敛、journal recovery、selection/shutdown与隐私；不得解冻旧通用`Delete`直连。thin staged-import stager/caller当前NO-GO，external source→fixed provisional的可信authority/no-follow复制、预算、取消、清理、诊断与真实caller未一起冻结前，不能把任意path或普通递归copy包装成“thin”产品入口。
+- 当前go/no-go：managed delete产品纵切已闭合；旧通用`Delete/CanModify`继续冻结。thin staged-import stager/caller仍NO-GO，external source→fixed provisional的可信authority/no-follow复制、预算、取消、清理、诊断与真实caller未一起冻结前，不能把任意path或普通递归copy包装成“thin”产品入口。external registration/capture与atomic reload/detach仍须分别指出同切consumer后过门。

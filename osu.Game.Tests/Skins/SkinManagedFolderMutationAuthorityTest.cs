@@ -54,12 +54,16 @@ namespace osu.Game.Tests.Skins
                     Assert.That(session.ExistingRecord!.RecordId, Is.EqualTo(recordId));
                     Assert.That(session.ExistingRecord.ManagedRelativePath, Is.EqualTo(source_path));
                     Assert.That(session.ExistingRecord.PhysicalIdentity, Is.EqualTo(source_identity));
-                    Assert.That(session.TargetNameSlot, Is.Null);
+                    Assert.That(session.TargetNameSlot, Is.Not.Null);
+                    Assert.That(
+                        session.TargetNameSlot!.ManagedRelativePath,
+                        Is.EqualTo(SkinManagedFolderMutationJournal.GetExpectedDeleteTombstoneRelativePath(session.OperationId)));
                     Assert.That(session.NewRecordPublicationPlan, Is.Null);
                     Assert.That(prepared.Kind, Is.EqualTo(SkinManagedFolderMutationKind.Delete));
                     Assert.That(prepared.OperationId, Is.EqualTo(session.OperationId));
                     Assert.That(prepared.RecordId, Is.EqualTo(recordId));
                     Assert.That(prepared.SourceIdentity, Is.EqualTo(source_identity));
+                    Assert.That(prepared.NewRecordPublicationFingerprint, Is.EqualTo(session.ExistingRecord.RecordFingerprint));
                     Assert.That(native.CapturedSourcePaths, Is.EqualTo(new[] { source_path }));
                     Assert.That(native.ActiveSessions, Is.EqualTo(1));
                     Assert.That(native.DisposedSessions, Is.Zero);
@@ -1006,7 +1010,11 @@ namespace osu.Game.Tests.Skins
             var native = new FakeNativeAuthority();
             ISkinManagedFolderMutationNativeSession nativeSession = native.Open(CancellationToken.None);
             var target = new SkinManagedFolderTargetNameSlot(secret_target_path, root_identity);
-            var existing = new SkinManagedFolderExistingRecordAuthority(recordId, secret_source_path, secretIdentity);
+            var existing = new SkinManagedFolderExistingRecordAuthority(
+                recordId,
+                secret_source_path,
+                secretIdentity,
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
             var store = createEmptyJournalStore();
             using var session = new SkinManagedFolderMutationAuthoritySession(
                 operationId,
@@ -1297,6 +1305,14 @@ namespace osu.Game.Tests.Skins
                     ensureHeld(cancellationToken);
                     owner.captureSource(managedRelativePath);
                     return source_identity;
+                }
+
+                public string GetCapturedDeleteSourceNodeManifest(
+                    CancellationToken cancellationToken)
+                {
+                    ensureHeld(cancellationToken);
+                    return SkinManagedFolderDeleteManifest.Create(
+                        new[] { new string('a', 64) });
                 }
 
                 public SkinManagedFolderTargetNameSlot CaptureAbsentTargetNameSlot(

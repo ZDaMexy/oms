@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-08-01
+> 最后更新：2026-08-02
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -24,11 +24,11 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、configured managed selection与startup scanner的非阻塞异步协调、专用mutation authority/recovery foundation、directory-only rename及fixed-source staged import现已闭合成窄生产链。下一产品纵切以managed delete为conditional GO：必须同切连接真实async caller，并闭合protected fallback、held-root物理删除、Realm收敛、crash recovery、取消与脱敏诊断。thin staged-import stager/caller当前NO-GO；在external source→fixed provisional的可信no-follow复制、预算、取消、清理、隐私合同及真实caller未冻结前，不得把它当薄封装。external registration/capture与atomic reload/detach继续各自独立过门。
+authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、configured managed selection与startup scanner的非阻塞异步协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及settings managed delete现已闭合成窄生产链。managed delete已同切连接真实async caller、protected fallback、held-root物理删除、Realm收敛、crash recovery、取消与脱敏诊断；旧通用folder delete仍冻结。thin staged-import stager/caller当前NO-GO；在external source→fixed provisional的可信no-follow复制、预算、取消、清理、隐私合同及真实caller未冻结前，不得把它当薄封装。external registration/capture与atomic reload/detach继续各自独立过门，新增抽象必须指出同切production consumer。
 
 1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
-2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、current delete protected fallback pair门、directory-only rename及fixed-source staged import已闭合；staged import以durable content/tree fingerprint固定Prepared，current recovery严格逐阶段write + exact reload且拒绝fixed-ID journal。rename/import目前只有internal implementation surface，既无非测试caller，也无external→fixed provisional production stager或UI。未来stager须独立闭合source authority、no-follow、预算、取消、失败清理与脱敏诊断，不能把任意caller path直接传给mutation。
-3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。configured managed selection只对exact startup/staged-import contention做后台等待与fresh retry，并以startup/generic mutation observation及retry-lease复核保持rename/delete/普通mutation fail-closed；不得回退成update-thread等待或全局epoch猜测。
+2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、directory-only rename、fixed-source staged import及settings managed delete已闭合。delete以operation-derived tombstone、exact existing-record fingerprint、bounded source-node manifest和durable fallback disposition固定Prepared；current目标先提交exact protected fallback pair，再以fresh no-follow delete-exclusive DELETE handles只清理manifest成员并compare-remove Realm record。same-session live重捕仍须exact，release窄窗移出在0次disposition时拒绝；partial restart才允许durable子集，exclusive tree取得后的已持有节点relocation由sharing violation阻断。目录namespace的preflight后竞态新增绝不被删除；若导致partial exact cleanup后root失败，则保留journal/Realm冻结。首步后由recovery而非caller cancellation收口。rename/import目前只有internal implementation surface，既无非测试caller，也无external→fixed provisional production stager或UI。未来stager须独立闭合source authority、no-follow、预算、取消、失败清理与脱敏诊断，不能把任意caller path直接传给mutation。
+3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。configured managed selection只对exact startup/staged-import contention做后台等待与fresh retry，并以startup/generic mutation observation及retry-lease复核保持rename、专用delete和其它generic mutation fail-closed；不得回退成update-thread等待或全局epoch猜测。
 4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、导入/删除/重命名均经人工确认。
 

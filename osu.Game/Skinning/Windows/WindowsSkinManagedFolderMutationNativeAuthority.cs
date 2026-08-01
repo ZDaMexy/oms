@@ -213,6 +213,50 @@ namespace osu.Game.Skinning.Windows
                 }
             }
 
+            public string GetCapturedDeleteSourceNodeManifest(
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().GetCapturedMutationDeleteSourceNodeManifest(
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public void CleanupExactDeleteTombstone(
+                string sourceManagedRelativePath,
+                string tombstoneManagedRelativePath,
+                SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+                string expectedSourceNodeManifest,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    getSession().CleanupExactMutationDeleteTombstone(
+                        sourceManagedRelativePath,
+                        tombstoneManagedRelativePath,
+                        expectedSourceIdentity,
+                        expectedSourceNodeManifest,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
             public SkinManagedFolderStagedImportInspection InspectStagedImportState(
                 Guid operationId,
                 string targetManagedRelativePath,

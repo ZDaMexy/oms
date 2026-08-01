@@ -24,6 +24,7 @@ namespace osu.Game.Tests.Skins
         private const string target_path = "chartskin/target";
         private const string publication_fingerprint = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         private const string replacement_publication_fingerprint = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        private const string second_delete_node_fingerprint = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         private const string staged_content_revision = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
         private const string staged_tree_fingerprint = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
@@ -56,7 +57,10 @@ namespace osu.Game.Tests.Skins
                 deleteRecordId,
                 root_identity,
                 source_path,
-                source_identity);
+                source_identity,
+                publication_fingerprint,
+                SkinManagedFolderDeleteManifest.Create(
+                    new[] { publication_fingerprint }));
             SkinManagedFolderMutationJournal stagedImport = SkinManagedFolderMutationJournal.CreatePreparedStagedImport(
                 importOperationId,
                 root_identity,
@@ -79,8 +83,17 @@ namespace osu.Game.Tests.Skins
 
                 Assert.That(delete.RecordId, Is.EqualTo(deleteRecordId));
                 Assert.That(delete.SourceIdentity, Is.EqualTo(source_identity));
-                Assert.That(delete.TargetManagedRelativePath, Is.Null);
-                Assert.That(delete.GetAffectedManagedRelativePaths(), Is.EqualTo(new[] { source_path }));
+                Assert.That(
+                    delete.TargetManagedRelativePath,
+                    Is.EqualTo(SkinManagedFolderMutationJournal.GetExpectedDeleteTombstoneRelativePath(deleteOperationId)));
+                Assert.That(delete.NewRecordPublicationFingerprint, Is.EqualTo(publication_fingerprint));
+                Assert.That(
+                    delete.GetAffectedManagedRelativePaths(),
+                    Is.EqualTo(new[]
+                    {
+                        source_path,
+                        SkinManagedFolderMutationJournal.GetExpectedDeleteTombstoneRelativePath(deleteOperationId),
+                    }));
 
                 Assert.That(stagedImport.RecordId, Is.EqualTo(importOperationId));
                 Assert.That(stagedImport.ManagedRootIdentity, Is.EqualTo(root_identity));
@@ -102,6 +115,161 @@ namespace osu.Game.Tests.Skins
                     Is.EqualTo(SkinManagedFolderMutationJournal.NEW_RECORD_PUBLICATION_PLAN_VERSION));
                 Assert.That(stagedImport.GetAffectedManagedRelativePaths(), Is.EqualTo(new[] { target_path }));
             });
+        }
+
+        [Test]
+        public void TestDeleteManifestIsCanonicalBoundedAndSupportsCrashSubsetProof()
+        {
+            string manifest = SkinManagedFolderDeleteManifest.Create(new[]
+            {
+                second_delete_node_fingerprint,
+                publication_fingerprint,
+            });
+            string firstOnly = SkinManagedFolderDeleteManifest.Create(
+                new[] { publication_fingerprint });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(SkinManagedFolderDeleteManifest.IsValid(manifest), Is.True);
+                Assert.That(
+                    SkinManagedFolderDeleteManifest.IsSubset(firstOnly, manifest),
+                    Is.True);
+                Assert.That(
+                    SkinManagedFolderDeleteManifest.IsSubset(manifest, firstOnly),
+                    Is.False);
+                Assert.That(
+                    () => SkinManagedFolderDeleteManifest.Create(Array.Empty<string>()),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => SkinManagedFolderDeleteManifest.Create(new[]
+                    {
+                        publication_fingerprint,
+                        publication_fingerprint,
+                    }),
+                    Throws.ArgumentException);
+            });
+        }
+
+        [Test]
+        public void TestMaximumDeleteManifestRoundTripsWithinDurableJournalBudget()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            string[] nodeFingerprints = Enumerable.Range(
+                    0,
+                    SkinManagedFolderDeleteManifest.MaximumNodeCount)
+                .Select(index => Convert.ToHexString(
+                        SHA256.HashData(BitConverter.GetBytes(index)))
+                    .ToLowerInvariant())
+                .ToArray();
+            string manifest = SkinManagedFolderDeleteManifest.Create(
+                nodeFingerprints);
+            SkinManagedFolderMutationJournal journal =
+                SkinManagedFolderMutationJournal.CreatePreparedDelete(
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        root_identity,
+                        source_path,
+                        source_identity,
+                        publication_fingerprint,
+                        manifest)
+                    .WithDeleteFallbackDisposition(
+                        SkinManagedFolderDeleteFallbackDisposition.NotRequired);
+
+            store.Write(journal);
+            SkinManagedFolderMutationJournalLoadResult loaded = store.Load();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.Status, Is.EqualTo(
+                    SkinManagedFolderMutationJournalLoadStatus.Loaded));
+                Assert.That(loaded.Journal!.DeleteSourceNodeManifest,
+                    Is.EqualTo(manifest));
+                Assert.That(new FileInfo(getJournalPath(storage)).Length,
+                    Is.LessThan(1024 * 1024));
+            });
+        }
+
+        [Test]
+        public void TestDeleteFallbackDispositionIsDurableMonotonicEvidence()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal rawPrepared =
+                SkinManagedFolderMutationJournal.CreatePreparedDelete(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    root_identity,
+                    source_path,
+                    source_identity,
+                    publication_fingerprint,
+                    SkinManagedFolderDeleteManifest.Create(
+                        new[] { publication_fingerprint }));
+            SkinManagedFolderMutationJournal confirmed =
+                rawPrepared.WithDeleteFallbackDisposition(
+                    SkinManagedFolderDeleteFallbackDisposition.NotRequired);
+
+            store.Write(rawPrepared);
+            store.Write(confirmed);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rawPrepared.DeleteFallbackDisposition, Is.Null);
+                Assert.That(rawPrepared.IsSameMonotonicIntent(confirmed), Is.True);
+                Assert.That(confirmed.IsSameMonotonicIntent(rawPrepared), Is.False);
+                Assert.That(rawPrepared.IsExactSameJournal(confirmed), Is.False);
+                Assert.That(
+                    () => confirmed.WithDeleteFallbackDisposition(
+                        SkinManagedFolderDeleteFallbackDisposition.ProtectedPairCommitted),
+                    Throws.InvalidOperationException);
+                Assert.That(
+                    confirmed.WithFilesystemApplied().DeleteFallbackDisposition,
+                    Is.EqualTo(
+                        SkinManagedFolderDeleteFallbackDisposition.NotRequired));
+            });
+            assertLoadedEquivalent(store, confirmed);
+        }
+
+        [Test]
+        public void TestDeleteManifestAndFallbackTamperAreRejectedWithMatchingChecksum()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal prepared = createPreparedDelete();
+            SkinManagedFolderMutationJournal filesystem =
+                prepared.WithFilesystemApplied();
+            Action<JObject>[] tampers =
+            {
+                payload => payload.Remove(
+                    nameof(SkinManagedFolderMutationJournal.DeleteSourceNodeManifest)),
+                payload => payload[
+                    nameof(SkinManagedFolderMutationJournal.DeleteSourceNodeManifest)] =
+                    "v1:not-a-fingerprint",
+                payload => payload.Remove(
+                    nameof(SkinManagedFolderMutationJournal.DeleteFallbackDisposition)),
+                payload => payload[
+                    nameof(SkinManagedFolderMutationJournal.DeleteFallbackDisposition)] = 999,
+            };
+
+            foreach (Action<JObject> tamper in tampers)
+            {
+                string journalPath = getJournalPath(storage);
+
+                if (File.Exists(journalPath))
+                    File.Delete(journalPath);
+
+                store.Write(prepared);
+                store.Write(filesystem);
+                JObject document = readDocument(storage);
+                var payload = (JObject)document["payload"]!;
+                tamper(payload);
+                document["sha256"] =
+                    computeChecksum(payload.ToString(Formatting.None));
+                writeDocument(storage, document);
+
+                Assert.That(store.Load().Status, Is.EqualTo(
+                    SkinManagedFolderMutationJournalLoadStatus.Invalid));
+            }
         }
 
         [Test]
@@ -151,7 +319,10 @@ namespace osu.Game.Tests.Skins
                     Guid.NewGuid(),
                     root_identity,
                     source_path,
-                    default),
+                    default,
+                    publication_fingerprint,
+                    SkinManagedFolderDeleteManifest.Create(
+                        new[] { publication_fingerprint })),
                 Throws.ArgumentException);
         }
 
@@ -504,7 +675,7 @@ namespace osu.Game.Tests.Skins
             writeRaw(storage, "{\"version\":1,\"payload\":");
             Assert.That(store.Load().Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Invalid), "truncated");
 
-            File.WriteAllBytes(getJournalPath(storage), new byte[128 * 1024 + 1]);
+            File.WriteAllBytes(getJournalPath(storage), new byte[1024 * 1024 + 1]);
             Assert.That(store.Load().Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Invalid), "oversize");
         }
 
@@ -1368,6 +1539,8 @@ namespace osu.Game.Tests.Skins
                 Assert.That(actual.StagedSourceContentRevision, Is.EqualTo(expected.StagedSourceContentRevision));
                 Assert.That(actual.StagedSourceTreeFingerprint, Is.EqualTo(expected.StagedSourceTreeFingerprint));
                 Assert.That(actual.NewRecordPublicationFingerprint, Is.EqualTo(expected.NewRecordPublicationFingerprint));
+                Assert.That(actual.DeleteSourceNodeManifest, Is.EqualTo(expected.DeleteSourceNodeManifest));
+                Assert.That(actual.DeleteFallbackDisposition, Is.EqualTo(expected.DeleteFallbackDisposition));
                 Assert.That(actual.GetAffectedManagedRelativePaths(), Is.EqualTo(expected.GetAffectedManagedRelativePaths()));
                 Assert.That(actual.IsValid(), Is.True);
             });
@@ -1425,7 +1598,12 @@ namespace osu.Game.Tests.Skins
                 Guid.NewGuid(),
                 root_identity,
                 source_path,
-                source_identity);
+                source_identity,
+                publication_fingerprint,
+                SkinManagedFolderDeleteManifest.Create(
+                    new[] { publication_fingerprint }))
+                .WithDeleteFallbackDisposition(
+                    SkinManagedFolderDeleteFallbackDisposition.NotRequired);
 
         private static SkinManagedFolderMutationJournal createCommittedDelete()
             => createPreparedDelete()
@@ -1611,6 +1789,8 @@ namespace osu.Game.Tests.Skins
 
         public int DeleteNoOpCallsRemaining { get; set; }
 
+        public Action<SkinManagedFolderMutationJournal>? AfterWrite { get; set; }
+
         public MemoryMutationJournalStore(
             SkinManagedFolderMutationJournal journal,
             IList<string>? events = null)
@@ -1651,6 +1831,7 @@ namespace osu.Game.Tests.Skins
             Current = new SkinManagedFolderMutationJournalLoadResult(
                 SkinManagedFolderMutationJournalLoadStatus.Loaded,
                 journal);
+            AfterWrite?.Invoke(journal);
         }
 
         public void Delete(SkinManagedFolderMutationJournal expectedJournal)
@@ -1735,7 +1916,8 @@ namespace osu.Game.Tests.Skins
                     ? SkinManagedFolderMutationRecoveryDecision.AlreadyCommitted
                     : decision,
                 inspectionRootIdentity ?? journal.ManagedRootIdentity,
-                targetIdentity);
+                targetIdentity,
+                journal.NewRecordPublicationFingerprint);
         }
 
         public SkinManagedFolderMutationRecoveryActionResult TryRollForward(
@@ -1753,7 +1935,8 @@ namespace osu.Game.Tests.Skins
             return new SkinManagedFolderMutationRecoveryActionResult(
                 ActionSucceeds,
                 actionRootIdentity ?? journal.ManagedRootIdentity,
-                targetIdentity);
+                targetIdentity,
+                journal.NewRecordPublicationFingerprint);
         }
 
         public SkinManagedFolderMutationRecoveryActionResult TryRollBack(

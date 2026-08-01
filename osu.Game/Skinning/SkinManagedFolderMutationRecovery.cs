@@ -550,7 +550,11 @@ namespace osu.Game.Skinning
 
                 SkinManagedFolderMutationKind.Delete =>
                     targetIdentity == null
-                    && publicationFingerprint == null,
+                    && SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(publicationFingerprint)
+                    && string.Equals(
+                        publicationFingerprint,
+                        journal.NewRecordPublicationFingerprint,
+                        StringComparison.Ordinal),
 
                 _ => false,
             };

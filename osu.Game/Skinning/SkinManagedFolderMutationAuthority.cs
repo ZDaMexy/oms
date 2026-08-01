@@ -163,6 +163,9 @@ namespace osu.Game.Skinning
             string managedRelativePath,
             CancellationToken cancellationToken);
 
+        string GetCapturedDeleteSourceNodeManifest(CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         SkinManagedFolderStagedSourceCapture CaptureStagedSource(
             Guid operationId,
             CancellationToken cancellationToken);
@@ -186,6 +189,14 @@ namespace osu.Game.Skinning
             string targetManagedRelativePath,
             SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
             CancellationToken cancellationToken);
+
+        void CleanupExactDeleteTombstone(
+            string sourceManagedRelativePath,
+            string tombstoneManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedSourceIdentity,
+            string expectedSourceNodeManifest,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
 
         SkinManagedFolderStagedImportInspection InspectStagedImportState(
             Guid operationId,
@@ -398,15 +409,28 @@ namespace osu.Game.Skinning
         public Guid RecordId { get; }
         public string ManagedRelativePath { get; }
         public SkinManagedFolderPhysicalIdentity PhysicalIdentity { get; }
+        public string RecordFingerprint { get; }
+        public string? DeleteSourceNodeManifest { get; }
 
         internal SkinManagedFolderExistingRecordAuthority(
             Guid recordId,
             string managedRelativePath,
-            SkinManagedFolderPhysicalIdentity physicalIdentity)
+            SkinManagedFolderPhysicalIdentity physicalIdentity,
+            string recordFingerprint,
+            string? deleteSourceNodeManifest = null)
         {
+            if (!SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(recordFingerprint)
+                || (deleteSourceNodeManifest != null
+                    && !SkinManagedFolderDeleteManifest.IsValid(deleteSourceNodeManifest)))
+            {
+                throw new ArgumentException("The authoritative managed-folder record fingerprint is invalid.", nameof(recordFingerprint));
+            }
+
             RecordId = recordId;
             ManagedRelativePath = managedRelativePath;
             PhysicalIdentity = physicalIdentity;
+            RecordFingerprint = recordFingerprint;
+            DeleteSourceNodeManifest = deleteSourceNodeManifest;
         }
 
         public override string ToString() => nameof(SkinManagedFolderExistingRecordAuthority);
@@ -426,6 +450,7 @@ namespace osu.Game.Skinning
         private SkinManagedFolderMutationJournal? durableJournal;
         private SkinManagedFolderNewRecordPublicationData? stagedImportPublicationData;
         private bool stagedImportPublisherAttempted;
+        private bool deleteRealmPublisherAttempted;
 
         public Guid OperationId { get; }
         public SkinManagedFolderMutationKind Kind { get; }
@@ -472,7 +497,11 @@ namespace osu.Game.Skinning
                 || !coordinatorLease.IsMutationReservationHeldBy(coordinator)
                 || (existingRecord != null
                     && (!existingRecord.PhysicalIdentity.IsUsable
+                        || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(existingRecord.RecordFingerprint)
                         || existingRecord.PhysicalIdentity.VolumeSerialNumber != ManagedRootIdentity.VolumeSerialNumber))
+                || (kind == SkinManagedFolderMutationKind.Delete
+                    ? !SkinManagedFolderDeleteManifest.IsValid(existingRecord?.DeleteSourceNodeManifest)
+                    : existingRecord?.DeleteSourceNodeManifest != null)
                 || (targetNameSlot != null && targetNameSlot.ManagedRootIdentity != ManagedRootIdentity)
                 || (stagedSource != null && !stagedSource.Validate(ManagedRootIdentity))
                 || (newRecordPublicationPlan != null
@@ -588,7 +617,9 @@ namespace osu.Game.Skinning
                         ExistingRecord.RecordId,
                         ManagedRootIdentity,
                         ExistingRecord.ManagedRelativePath,
-                        ExistingRecord.PhysicalIdentity),
+                        ExistingRecord.PhysicalIdentity,
+                        ExistingRecord.RecordFingerprint,
+                        ExistingRecord.DeleteSourceNodeManifest!),
 
                 SkinManagedFolderMutationKind.StagedImport
                     when TargetNameSlot != null
@@ -685,6 +716,285 @@ namespace osu.Game.Skinning
                 {
                     coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
                     throw new SkinManagedFolderMutationJournalException();
+                }
+            }
+        }
+
+        internal SkinManagedFolderDurableMutationReceipt PersistDeleteFallbackDisposition(
+            SkinManagedFolderDurableMutationReceipt receipt,
+            SkinManagedFolderProtectedFallbackCommitResult fallbackResult,
+            CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                SkinManagedFolderDeleteFallbackDisposition disposition = fallbackResult switch
+                {
+                    SkinManagedFolderProtectedFallbackCommitResult.NotRequired =>
+                        SkinManagedFolderDeleteFallbackDisposition.NotRequired,
+
+                    SkinManagedFolderProtectedFallbackCommitResult.Committed =>
+                        SkinManagedFolderDeleteFallbackDisposition.ProtectedPairCommitted,
+
+                    _ => throw new InvalidOperationException(
+                        "The managed-folder delete fallback was not committed."),
+                };
+
+                if (Kind != SkinManagedFolderMutationKind.Delete
+                    || durableJournal is not
+                    {
+                        Phase: SkinManagedFolderMutationPhase.Prepared,
+                        DeleteFallbackDisposition: null,
+                    } prepared
+                    || receipt == null
+                    || !Validate(cancellationToken)
+                    || !receipt.ValidateHeld(this, journalStore))
+                {
+                    throw new InvalidOperationException(
+                        "The held managed-folder delete receipt is no longer valid.");
+                }
+
+                SkinManagedFolderMutationJournal confirmed =
+                    prepared.WithDeleteFallbackDisposition(disposition);
+
+                try
+                {
+                    writeAndConfirm(confirmed);
+                    durableJournal = confirmed;
+                    return new SkinManagedFolderDurableMutationReceipt(
+                        this,
+                        journalStore,
+                        confirmed);
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(
+                        prepared.GetAffectedManagedRelativePaths());
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Detaches the exact held delete source into its operation-derived tombstone and durably records the first
+        /// visible filesystem phase. The caller token is observed only before the no-replace move.
+        /// </summary>
+        internal bool ApplyCapturedDeleteWithDurableReceipt(
+            SkinManagedFolderDurableMutationReceipt receipt,
+            Func<bool> validateBeforePhysicalDetach,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(validateBeforePhysicalDetach);
+
+            lock (sessionGate)
+            {
+                if (Kind != SkinManagedFolderMutationKind.Delete
+                    || ExistingRecord == null
+                    || TargetNameSlot == null
+                    || nativeSession == null
+                    || durableJournal is not
+                    {
+                        Phase: SkinManagedFolderMutationPhase.Prepared,
+                        DeleteFallbackDisposition: not null,
+                    } prepared
+                    || receipt == null)
+                {
+                    throw new InvalidOperationException("The held managed-folder delete authority is no longer valid.");
+                }
+
+                // Before the first physical step, an exact still-held receipt can be safely compare-aborted even if
+                // the logical/native authority has drifted. Receipt drift itself remains outcome-uncertain because it
+                // prevents that exact rollback proof.
+                if (!Validate(cancellationToken)
+                    || !receipt.ValidateHeld(this, journalStore))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    if (!validateBeforePhysicalDetach()
+                        || !Validate(cancellationToken)
+                        || !receipt.ValidateHeld(this, journalStore))
+                    {
+                        return false;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return false;
+                }
+
+                try
+                {
+                    SkinManagedFolderPhysicalIdentity tombstoneIdentity =
+                        nativeSession.RenameCapturedSourceToTarget(TargetNameSlot, cancellationToken);
+
+                    if (tombstoneIdentity != ExistingRecord.PhysicalIdentity)
+                        throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+
+                try
+                {
+                    SkinManagedFolderMutationJournal filesystemApplied = prepared.WithFilesystemApplied();
+                    writeAndConfirm(filesystemApplied);
+                    durableJournal = filesystemApplied;
+                    return true;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(prepared.GetAffectedManagedRelativePaths());
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recursively deletes only the exact operation tombstone using the held no-follow native authority.
+        /// </summary>
+        internal bool TryDeleteCapturedTombstone(CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.Delete
+                    || ExistingRecord == null
+                    || TargetNameSlot == null
+                    || nativeSession == null
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.FilesystemApplied } filesystemApplied
+                    || !isExactDurableJournal(filesystemApplied))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    nativeSession.CleanupExactDeleteTombstone(
+                        ExistingRecord.ManagedRelativePath,
+                        TargetNameSlot.ManagedRelativePath,
+                        ExistingRecord.PhysicalIdentity,
+                        ExistingRecord.DeleteSourceNodeManifest!,
+                        cancellationToken);
+
+                    return isCapturedDeleteFullyRemoved(filesystemApplied, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes the exact authoritative Realm record only after both physical slots are proven absent.
+        /// </summary>
+        internal bool TryApplyDeleteRealm(
+            Func<bool> applyRealm,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(applyRealm);
+
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.Delete
+                    || deleteRealmPublisherAttempted
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.FilesystemApplied } filesystemApplied
+                    || !isExactDurableJournal(filesystemApplied)
+                    || !isCapturedDeleteFullyRemoved(filesystemApplied, cancellationToken))
+                {
+                    return false;
+                }
+
+                deleteRealmPublisherAttempted = true;
+
+                try
+                {
+                    if (!applyRealm()
+                        || !isCapturedDeleteFullyRemoved(filesystemApplied, cancellationToken))
+                    {
+                        coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                        return false;
+                    }
+
+                    SkinManagedFolderMutationJournal realmApplied = filesystemApplied.WithRealmApplied();
+                    writeAndConfirm(realmApplied);
+                    durableJournal = realmApplied;
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(filesystemApplied.GetAffectedManagedRelativePaths());
+                    return false;
+                }
+            }
+        }
+
+        internal bool TryCommitDelete(CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (Kind != SkinManagedFolderMutationKind.Delete
+                    || coordinatorLease?.IsMutationReservationHeldBy(coordinator) != true
+                    || durableJournal is not { Phase: SkinManagedFolderMutationPhase.RealmApplied } realmApplied
+                    || !isExactDurableJournal(realmApplied)
+                    || !isCapturedDeleteFullyRemoved(realmApplied, cancellationToken))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    SkinManagedFolderMutationJournal committed = realmApplied.WithCommitted();
+                    writeAndConfirm(committed);
+                    durableJournal = committed;
+                    journalStore.Delete(committed);
+
+                    if (journalStore.Load().Status != SkinManagedFolderMutationJournalLoadStatus.Missing)
+                        throw new InvalidOperationException("The committed managed-folder delete journal remains visible.");
+
+                    durableJournal = null;
+                    coordinator.UnfreezeRecoveryPaths(committed.GetAffectedManagedRelativePaths());
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    coordinator.FreezeRecoveryPaths(realmApplied.GetAffectedManagedRelativePaths());
+                    throw;
+                }
+                catch
+                {
+                    coordinator.FreezeRecoveryPaths(realmApplied.GetAffectedManagedRelativePaths());
+                    return false;
                 }
             }
         }
@@ -1069,6 +1379,37 @@ namespace osu.Game.Skinning
             }
         }
 
+        private bool isCapturedDeleteFullyRemoved(
+            SkinManagedFolderMutationJournal journal,
+            CancellationToken cancellationToken)
+        {
+            if (nativeSession == null
+                || journal.SourceManagedRelativePath == null
+                || journal.TargetManagedRelativePath == null
+                || journal.SourceIdentity == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                SkinManagedFolderRenameInspection inspection = nativeSession.InspectRenameState(
+                    journal.SourceManagedRelativePath,
+                    journal.TargetManagedRelativePath,
+                    journal.SourceIdentity.Value,
+                    cancellationToken);
+                return inspection.Status == SkinManagedFolderRenameInspectionStatus.Neither;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private bool isCapturedStagedImportTargetStable(
             SkinManagedFolderMutationJournal journal,
             SkinManagedFolderNewRecordPublicationData publication,
@@ -1154,9 +1495,19 @@ namespace osu.Game.Skinning
                 cancellationToken.ThrowIfCancellationRequested();
 
                 if (Kind == SkinManagedFolderMutationKind.StagedImport
-                    || durableJournal == null
-                    || durableJournal.Phase != SkinManagedFolderMutationPhase.Prepared
                     || receipt == null
+                    || !receipt.IsOwnedBy(this, journalStore))
+                {
+                    return false;
+                }
+
+                // The update-thread fallback owner may have already compare-deleted the exact Prepared intent before
+                // returning its rejection to the worker. Treat a durably missing canonical slot as an idempotently
+                // confirmed abort, while never accepting a different or later visible journal.
+                if (durableJournal == null)
+                    return receipt.IsCanonicalJournalMissing();
+
+                if (durableJournal.Phase != SkinManagedFolderMutationPhase.Prepared
                     || !receipt.ValidateHeld(this, journalStore))
                 {
                     return false;
@@ -1229,8 +1580,7 @@ namespace osu.Game.Skinning
             SkinManagedFolderMutationAuthoritySession candidateSession,
             ISkinManagedFolderMutationJournalStore candidateStore)
         {
-            if (!ReferenceEquals(session, candidateSession)
-                || !ReferenceEquals(journalStore, candidateStore))
+            if (!IsOwnedBy(candidateSession, candidateStore))
             {
                 return false;
             }
@@ -1239,6 +1589,24 @@ namespace osu.Game.Skinning
             {
                 SkinManagedFolderMutationJournalLoadResult loaded = journalStore.Load();
                 return loaded.IsLoaded && loaded.Journal!.IsExactSameJournal(journal);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        internal bool IsOwnedBy(
+            SkinManagedFolderMutationAuthoritySession candidateSession,
+            ISkinManagedFolderMutationJournalStore candidateStore)
+            => ReferenceEquals(session, candidateSession)
+               && ReferenceEquals(journalStore, candidateStore);
+
+        internal bool IsCanonicalJournalMissing()
+        {
+            try
+            {
+                return journalStore.Load().Status == SkinManagedFolderMutationJournalLoadStatus.Missing;
             }
             catch
             {
@@ -1476,11 +1844,17 @@ namespace osu.Game.Skinning
 
             string? targetPath = null;
 
-            if (kind == SkinManagedFolderMutationKind.Rename
-                && !SkinManagedFolderPath.TryCreateFromChildName(targetChildName, out targetPath))
+            if (kind == SkinManagedFolderMutationKind.Rename)
             {
-                return SkinManagedFolderMutationAuthorityResult.Reject(
-                    SkinManagedFolderMutationAuthorityRejectionReason.InvalidTargetNameSlot);
+                if (!SkinManagedFolderPath.TryCreateFromChildName(targetChildName, out targetPath))
+                {
+                    return SkinManagedFolderMutationAuthorityResult.Reject(
+                        SkinManagedFolderMutationAuthorityRejectionReason.InvalidTargetNameSlot);
+                }
+            }
+            else if (kind == SkinManagedFolderMutationKind.Delete)
+            {
+                targetPath = SkinManagedFolderMutationJournal.GetExpectedDeleteTombstoneRelativePath(operationId);
             }
 
             SkinManagedFolderOperationCoordinator.Lease? coordinatorLease = null;
@@ -1540,6 +1914,9 @@ namespace osu.Game.Skinning
                 SkinManagedFolderPhysicalIdentity sourceIdentity = nativeSession.CaptureExistingSource(
                     qualification.ManagedRelativePath!,
                     cancellationToken);
+                string? deleteSourceNodeManifest = kind == SkinManagedFolderMutationKind.Delete
+                    ? nativeSession.GetCapturedDeleteSourceNodeManifest(cancellationToken)
+                    : null;
                 SkinManagedFolderTargetNameSlot? target = targetPath == null
                     ? null
                     : nativeSession.CaptureAbsentTargetNameSlot(targetPath, cancellationToken);
@@ -1562,7 +1939,9 @@ namespace osu.Game.Skinning
                 var existing = new SkinManagedFolderExistingRecordAuthority(
                     recordId,
                     qualification.ManagedRelativePath!,
-                    sourceIdentity);
+                    sourceIdentity,
+                    qualification.RecordFingerprint,
+                    deleteSourceNodeManifest);
                 var session = new SkinManagedFolderMutationAuthoritySession(
                     operationId,
                     kind,
@@ -1641,6 +2020,7 @@ namespace osu.Game.Skinning
                     record.Creator,
                     record.InstantiationInfo,
                     record.Hash,
+                    SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint(record),
                     record.DeletePending,
                     eligible,
                     pathValid && matchingPaths != 1);
@@ -1709,6 +2089,7 @@ namespace osu.Game.Skinning
             public string Creator { get; }
             public string InstantiationInfo { get; }
             public string Hash { get; }
+            public string RecordFingerprint { get; }
             public bool DeletePending { get; }
             public bool IsEligible { get; }
             public bool HasPathConflict { get; }
@@ -1720,6 +2101,7 @@ namespace osu.Game.Skinning
                 string creator,
                 string instantiationInfo,
                 string hash,
+                string recordFingerprint,
                 bool deletePending,
                 bool isEligible,
                 bool hasPathConflict)
@@ -1730,6 +2112,7 @@ namespace osu.Game.Skinning
                 Creator = creator;
                 InstantiationInfo = instantiationInfo;
                 Hash = hash;
+                RecordFingerprint = recordFingerprint;
                 DeletePending = deletePending;
                 IsEligible = isEligible;
                 HasPathConflict = hasPathConflict;
@@ -1742,6 +2125,7 @@ namespace osu.Game.Skinning
                    && string.Equals(Creator, other.Creator, StringComparison.Ordinal)
                    && string.Equals(InstantiationInfo, other.InstantiationInfo, StringComparison.Ordinal)
                    && string.Equals(Hash, other.Hash, StringComparison.Ordinal)
+                   && string.Equals(RecordFingerprint, other.RecordFingerprint, StringComparison.Ordinal)
                    && DeletePending == other.DeletePending
                    && IsEligible == other.IsEligible
                    && HasPathConflict == other.HasPathConflict;

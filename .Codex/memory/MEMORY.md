@@ -19,7 +19,7 @@
 - [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver/staging held authority、physical NT volume、handle-relative no-follow、DELETE/share-delete、identity/inventory竞态与非filesystem transaction边界。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner与staged publisher handoff、Observed/Valid分离、完整scan单事务reconcile、plan隔离及统一shutdown地雷。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、typed startup/staged retry、generic mutation双epoch借权与旧owner detach地雷。
-- [managed chartskin mutation foundation / rename / staged import](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、无production stager/caller边界、NTFS handoff、kind-routed durable recovery与managed delete conditional-GO地雷。
+- [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、无production stager/caller边界、NTFS handoff、kind-routed durable recovery、exact fallback与settings managed delete地雷。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
 
 ## 构建、存储与产品面参考

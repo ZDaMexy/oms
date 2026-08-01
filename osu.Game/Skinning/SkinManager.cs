@@ -105,6 +105,8 @@ namespace osu.Game.Skinning
 
         internal Action<Action> ManagedFolderCompletionSchedule { get; set; }
 
+        internal Action<Action> ManagedFolderDeleteFallbackSchedule { get; set; }
+
         internal Action ManagedFolderBeforeCommit { get; set; } = () => { };
 
         internal Action<Live<SkinInfo>> SelectionRequestBeforeCommitLock { get; set; } = _ => { };
@@ -127,6 +129,7 @@ namespace osu.Game.Skinning
         private readonly ISkinManagedFolderMutationJournalStore managedFolderMutationJournalStore;
         private readonly SkinManagedFolderRenameOperation managedFolderRenameOperation;
         private readonly SkinManagedFolderStagedImportOperation managedFolderStagedImportOperation;
+        private readonly SkinManagedFolderDeleteOperation managedFolderDeleteOperation;
         private readonly object managedFolderRenameLifecycleGate = new object();
         private readonly object managedFolderSelectionLifecycleGate = new object();
         private readonly CancellationTokenSource managedFolderSelectionRetryCancellation = new CancellationTokenSource();
@@ -136,10 +139,16 @@ namespace osu.Game.Skinning
         private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
         private CancellationTokenSource activeManagedFolderStagedImportCancellation;
         private Task<SkinManagedFolderStagedImportOperationResult> activeManagedFolderStagedImportTask;
+        private CancellationTokenSource activeManagedFolderDeleteCancellation;
+        private Task<SkinManagedFolderDeleteOperationResult> activeManagedFolderDeleteTask;
+        private PendingManagedFolderDeleteFallback pendingManagedFolderDeleteFallback;
         private SkinManagedFolderRenameOperationResult lastManagedFolderRenameResult;
         private SkinManagedFolderStagedImportOperationResult lastManagedFolderStagedImportResult;
+        private SkinManagedFolderDeleteOperationResult lastManagedFolderDeleteResult;
         private bool managedFolderMutationShutdown;
         private int managedFolderSelectionShutdown;
+        private int managedFolderDeleteFallbackSourceChangeDeferral;
+        private int managedFolderDeleteFallbackSourceChangePending;
 
         internal SkinManagedFolderRenameOperationResult LastManagedFolderRenameResult
             => Volatile.Read(ref lastManagedFolderRenameResult);
@@ -165,6 +174,18 @@ namespace osu.Game.Skinning
                     return activeManagedFolderStagedImportTask
                         is { IsCompleted: false };
                 }
+            }
+        }
+
+        internal SkinManagedFolderDeleteOperationResult LastManagedFolderDeleteResult
+            => Volatile.Read(ref lastManagedFolderDeleteResult);
+
+        internal bool IsManagedFolderDeleteRunning
+        {
+            get
+            {
+                lock (managedFolderRenameLifecycleGate)
+                    return activeManagedFolderDeleteTask is { IsCompleted: false };
             }
         }
 
@@ -212,6 +233,7 @@ namespace osu.Game.Skinning
             this.host = host;
             this.resources = resources;
             ManagedFolderCompletionSchedule = completion => scheduler.Add(completion);
+            ManagedFolderDeleteFallbackSchedule = completion => scheduler.Add(completion);
 
             managedFolderMutationJournalStore = new SkinManagedFolderMutationJournalStore(storage);
             var managedFolderMutationNativeAuthority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
@@ -222,6 +244,10 @@ namespace osu.Game.Skinning
                 managedFolderMutationNativeAuthority,
                 managedFolderMutationJournalStore);
             managedFolderRenameOperation = new SkinManagedFolderRenameOperation(realm, ManagedFolderMutationAuthority);
+            managedFolderDeleteOperation = new SkinManagedFolderDeleteOperation(
+                realm,
+                ManagedFolderMutationAuthority,
+                commitManagedFolderDeleteFallback);
             managedFolderStagedImportOperation =
                 new SkinManagedFolderStagedImportOperation(
                     realm,
@@ -237,6 +263,11 @@ namespace osu.Game.Skinning
                     (
                         SkinManagedFolderMutationKind.Rename,
                         new SkinManagedFolderRenameRecoveryHandler(
+                            realm,
+                            managedFolderMutationNativeAuthority)),
+                    (
+                        SkinManagedFolderMutationKind.Delete,
+                        new SkinManagedFolderDeleteRecoveryHandler(
                             realm,
                             managedFolderMutationNativeAuthority)),
                     (
@@ -303,6 +334,12 @@ namespace osu.Game.Skinning
                 if (!skin.NewValue.SkinInfo.Equals(CurrentSkinInfo.Value))
                     throw new InvalidOperationException($"Setting {nameof(CurrentSkin)}'s value directly is not supported. Use {nameof(CurrentSkinInfo)} instead.");
 
+                if (Volatile.Read(ref managedFolderDeleteFallbackSourceChangeDeferral) != 0)
+                {
+                    Volatile.Write(ref managedFolderDeleteFallbackSourceChangePending, 1);
+                    return;
+                }
+
                 SourceChanged?.Invoke();
             };
 
@@ -336,7 +373,8 @@ namespace osu.Game.Skinning
                     return completedRenameResult(SkinManagedFolderRenameOperationStatus.Shutdown);
 
                 if (activeManagedFolderRenameTask is { IsCompleted: false }
-                    || activeManagedFolderStagedImportTask is { IsCompleted: false })
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false }
+                    || activeManagedFolderDeleteTask is { IsCompleted: false })
                     return completedRenameResult(SkinManagedFolderRenameOperationStatus.Busy);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -378,7 +416,8 @@ namespace osu.Game.Skinning
                 }
 
                 if (activeManagedFolderRenameTask is { IsCompleted: false }
-                    || activeManagedFolderStagedImportTask is { IsCompleted: false })
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false }
+                    || activeManagedFolderDeleteTask is { IsCompleted: false })
                 {
                     return completedStagedImportResult(
                         SkinManagedFolderStagedImportOperationStatus.Busy);
@@ -418,6 +457,50 @@ namespace osu.Game.Skinning
         }
 
         /// <summary>
+        /// Starts one exact managed-folder delete. Admission is update-thread-only; all filesystem and Realm work is
+        /// owned by the manager worker and remains joined by <see cref="ShutdownManagedFolderMutations"/>.
+        /// </summary>
+        internal Task<SkinManagedFolderDeleteOperationResult> DeleteManagedFolderAsync(
+            Guid recordId,
+            CancellationToken cancellationToken = default)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                return completedDeleteResult(SkinManagedFolderDeleteOperationStatus.WrongThread);
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown)
+                    return completedDeleteResult(SkinManagedFolderDeleteOperationStatus.Shutdown);
+
+                if (activeManagedFolderRenameTask is { IsCompleted: false }
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false }
+                    || activeManagedFolderDeleteTask is { IsCompleted: false })
+                {
+                    return completedDeleteResult(SkinManagedFolderDeleteOperationStatus.Busy);
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                    return completedDeleteResult(SkinManagedFolderDeleteOperationStatus.Cancelled);
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<SkinManagedFolderDeleteOperationResult> operationTask = Task.Run(
+                    () => executeManagedFolderDelete(recordId, operationCancellation.Token),
+                    CancellationToken.None);
+
+                activeManagedFolderDeleteCancellation = operationCancellation;
+                activeManagedFolderDeleteTask = operationTask;
+
+                _ = operationTask.ContinueWith(
+                    _ => completeManagedFolderDeleteTask(operationTask, operationCancellation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        /// <summary>
         /// Cancels and synchronously joins every managed-folder mutation worker before Realm can be released.
         /// </summary>
         internal void ShutdownManagedFolderMutations()
@@ -426,16 +509,22 @@ namespace osu.Game.Skinning
 
             CancellationTokenSource renameCancellation;
             CancellationTokenSource importCancellation;
+            CancellationTokenSource deleteCancellation;
             Task<SkinManagedFolderRenameOperationResult> renameTask;
             Task<SkinManagedFolderStagedImportOperationResult> importTask;
+            Task<SkinManagedFolderDeleteOperationResult> deleteTask;
+            PendingManagedFolderDeleteFallback pendingDeleteFallback;
 
             lock (managedFolderRenameLifecycleGate)
             {
                 managedFolderMutationShutdown = true;
                 renameCancellation = activeManagedFolderRenameCancellation;
                 importCancellation = activeManagedFolderStagedImportCancellation;
+                deleteCancellation = activeManagedFolderDeleteCancellation;
                 renameTask = activeManagedFolderRenameTask;
                 importTask = activeManagedFolderStagedImportTask;
+                deleteTask = activeManagedFolderDeleteTask;
+                pendingDeleteFallback = pendingManagedFolderDeleteFallback;
             }
 
             try
@@ -458,6 +547,17 @@ namespace osu.Game.Skinning
 
             try
             {
+                deleteCancellation?.Cancel();
+            }
+            catch
+            {
+                // Cancellation callback failures must not bypass the delete join below.
+            }
+
+            cancelManagedFolderDeleteFallback(pendingDeleteFallback);
+
+            try
+            {
                 renameTask?.GetAwaiter().GetResult();
             }
             catch
@@ -468,6 +568,15 @@ namespace osu.Game.Skinning
             try
             {
                 importTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Observe unexpected failures without exposing a potentially sensitive exception.
+            }
+
+            try
+            {
+                deleteTask?.GetAwaiter().GetResult();
             }
             catch
             {
@@ -602,6 +711,29 @@ namespace osu.Game.Skinning
             return result;
         }
 
+        private SkinManagedFolderDeleteOperationResult executeManagedFolderDelete(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            SkinManagedFolderDeleteOperationResult result;
+
+            try
+            {
+                result = managedFolderDeleteOperation.Execute(
+                    Guid.NewGuid(),
+                    recordId,
+                    cancellationToken);
+            }
+            catch
+            {
+                result = SkinManagedFolderDeleteOperationResult.Failure(
+                    SkinManagedFolderDeleteOperationStatus.PreparedJournalOutcomeUncertain);
+            }
+
+            Volatile.Write(ref lastManagedFolderDeleteResult, result);
+            return result;
+        }
+
         private Task<SkinManagedFolderRenameOperationResult> completedRenameResult(
             SkinManagedFolderRenameOperationStatus status)
         {
@@ -618,6 +750,15 @@ namespace osu.Game.Skinning
             SkinManagedFolderStagedImportOperationResult result =
                 SkinManagedFolderStagedImportOperationResult.Failure(status);
             Volatile.Write(ref lastManagedFolderStagedImportResult, result);
+            return Task.FromResult(result);
+        }
+
+        private Task<SkinManagedFolderDeleteOperationResult> completedDeleteResult(
+            SkinManagedFolderDeleteOperationStatus status)
+        {
+            SkinManagedFolderDeleteOperationResult result =
+                SkinManagedFolderDeleteOperationResult.Failure(status);
+            Volatile.Write(ref lastManagedFolderDeleteResult, result);
             return Task.FromResult(result);
         }
 
@@ -653,6 +794,135 @@ namespace osu.Game.Skinning
             }
 
             operationCancellation.Dispose();
+        }
+
+        private void completeManagedFolderDeleteTask(
+            Task<SkinManagedFolderDeleteOperationResult> operationTask,
+            CancellationTokenSource operationCancellation)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (ReferenceEquals(activeManagedFolderDeleteTask, operationTask))
+                {
+                    activeManagedFolderDeleteTask = null;
+                    activeManagedFolderDeleteCancellation = null;
+                }
+            }
+
+            operationCancellation.Dispose();
+        }
+
+        private SkinManagedFolderProtectedFallbackCommitResult commitManagedFolderDeleteFallback(
+            SkinManagedFolderMutationAuthoritySession authority,
+            SkinManagedFolderDurableMutationReceipt durableReceipt,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var pending = new PendingManagedFolderDeleteFallback(
+                authority,
+                durableReceipt,
+                cancellationToken);
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown)
+                    throw new OperationCanceledException(cancellationToken);
+
+                pendingManagedFolderDeleteFallback = pending;
+            }
+
+            using CancellationTokenRegistration cancellationRegistration = cancellationToken.Register(
+                () => cancelManagedFolderDeleteFallback(pending));
+
+            try
+            {
+                ManagedFolderDeleteFallbackSchedule(
+                    () => completeManagedFolderDeleteFallback(pending));
+            }
+            catch
+            {
+                if (claimManagedFolderDeleteFallback(pending))
+                {
+                    pending.Completion.TrySetResult(
+                        SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted);
+                }
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+                cancelManagedFolderDeleteFallback(pending);
+
+            return pending.Completion.Task.GetAwaiter().GetResult();
+        }
+
+        private void completeManagedFolderDeleteFallback(PendingManagedFolderDeleteFallback pending)
+        {
+            if (!claimManagedFolderDeleteFallback(pending))
+                return;
+
+            SkinManagedFolderProtectedFallbackCommitResult result;
+
+            Interlocked.Increment(ref managedFolderDeleteFallbackSourceChangeDeferral);
+
+            try
+            {
+                result = CommitProtectedFallbackPairForDelete(
+                    pending.Authority,
+                    pending.DurableReceipt,
+                    CancellationToken.None);
+
+                if (result == SkinManagedFolderProtectedFallbackCommitResult.NotRequired)
+                {
+                    Interlocked.Increment(ref selectionGeneration);
+                    cancelPendingSelection();
+                }
+            }
+            catch
+            {
+                result = SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref managedFolderDeleteFallbackSourceChangeDeferral);
+            }
+
+            pending.Completion.TrySetResult(result);
+            publishDeferredManagedFolderDeleteFallbackSourceChange();
+        }
+
+        private void publishDeferredManagedFolderDeleteFallbackSourceChange()
+        {
+            if (Volatile.Read(ref managedFolderDeleteFallbackSourceChangeDeferral) != 0
+                || Interlocked.Exchange(
+                    ref managedFolderDeleteFallbackSourceChangePending,
+                    0) == 0)
+            {
+                return;
+            }
+
+            SourceChanged?.Invoke();
+        }
+
+        private void cancelManagedFolderDeleteFallback(PendingManagedFolderDeleteFallback pending)
+        {
+            if (pending == null || !claimManagedFolderDeleteFallback(pending))
+                return;
+
+            pending.Completion.TrySetCanceled(pending.CancellationToken);
+        }
+
+        private bool claimManagedFolderDeleteFallback(PendingManagedFolderDeleteFallback pending)
+        {
+            if (pending == null || !pending.TryClaim())
+                return false;
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (ReferenceEquals(pendingManagedFolderDeleteFallback, pending))
+                    pendingManagedFolderDeleteFallback = null;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -707,8 +977,10 @@ namespace osu.Game.Skinning
             Guid currentInfoId = CurrentSkinInfo.Value.ID;
             Guid currentSkinId = CurrentSkin.Value.SkinInfo.ID;
 
-            if (currentInfoId == currentSkinId
-                && currentInfoId != authority.ExistingRecord.RecordId)
+            if (currentInfoId != currentSkinId)
+                return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
+
+            if (currentInfoId != authority.ExistingRecord.RecordId)
             {
                 return SkinManagedFolderProtectedFallbackCommitResult.NotRequired;
             }
@@ -719,24 +991,14 @@ namespace osu.Game.Skinning
             bool fallbackIsValid = Realm.Run(r =>
             {
                 r.Refresh();
-                SkinInfo fallback = r.Find<SkinInfo>(SkinInfo.OMS_SKIN);
-
-                return fallback != null
-                       && fallback.Protected
-                       && !fallback.DeletePending
-                       && fallback.Files.Count == 0
-                       && string.IsNullOrEmpty(fallback.FilesystemStoragePath)
-                       && !fallback.IsExternalFilesystemStorage
-                       && string.Equals(
-                           fallback.InstantiationInfo,
-                           DefaultOmsSkin.SkinInfo.Value.InstantiationInfo,
-                           StringComparison.Ordinal);
+                return SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(
+                    r.Find<SkinInfo>(SkinInfo.OMS_SKIN));
             });
 
             if (!fallbackIsValid
                 || DefaultOmsSkin.GetType() != typeof(OmsSkin)
-                || DefaultOmsSkin.SkinInfo.ID != SkinInfo.OMS_SKIN
-                || !DefaultOmsSkin.SkinInfo.Value.Protected)
+                || !DefaultOmsSkin.SkinInfo.PerformRead(
+                    SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord))
             {
                 return SkinManagedFolderProtectedFallbackCommitResult.FallbackInvalid;
             }
@@ -755,12 +1017,10 @@ namespace osu.Game.Skinning
             bool pairCommitted = CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
                                  && CurrentSkin.Value.GetType() == typeof(OmsSkin)
                                  && CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN
-                                 && CurrentSkinInfo.Value.PerformRead(info =>
-                                     info.Protected
-                                     && string.Equals(
-                                         info.InstantiationInfo,
-                                         DefaultOmsSkin.SkinInfo.Value.InstantiationInfo,
-                                         StringComparison.Ordinal));
+                                 && CurrentSkinInfo.Value.PerformRead(
+                                     SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord)
+                                 && CurrentSkin.Value.SkinInfo.PerformRead(
+                                     SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord);
 
             if (!pairCommitted)
                 return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
@@ -896,6 +1156,21 @@ namespace osu.Game.Skinning
 
         private bool requestSelection(Live<SkinInfo> target)
         {
+            if (ThreadSafety.IsUpdateThread)
+            {
+                if (ManagedFolderOperationCoordinator.TryEnterForSelection(
+                        out SkinManagedFolderOperationCoordinator.Lease preflightLease,
+                        out SkinManagedFolderOperationCoordinator.SelectionContention preflightContention))
+                {
+                    preflightLease.Dispose();
+                }
+                else if (preflightContention == null)
+                {
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                    return false;
+                }
+            }
+
             SelectionRequest request;
 
             try
@@ -1871,6 +2146,8 @@ namespace osu.Game.Skinning
                 SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
 
                 if (authoritative == null
+                    || authoritative.Protected
+                    || SkinFilesystemStorageResolver.IsFixedSkinId(authoritative.ID)
                     || isFilesystemBacked(authoritative)
                     || authoritative.DeletePending)
                 {
@@ -1956,6 +2233,145 @@ namespace osu.Game.Skinning
         public bool CanModify(Live<SkinInfo> skin)
             => skin.PerformRead(info => !info.Protected && !isFilesystemBacked(info));
 
+        /// <summary>
+        /// Returns the settings delete affordance from a fresh authoritative Realm read. This grants no mutation
+        /// capability; confirmation re-enters the dedicated operation and repeats every logical/native check.
+        /// </summary>
+        internal bool CanDelete(Live<SkinInfo> skin)
+        {
+            if (skin == null)
+                return false;
+
+            try
+            {
+                Guid recordId = skin.ID;
+                return Realm.Run(r =>
+                {
+                    r.Refresh();
+                    return classifyDeleteCandidate(r, recordId) != DeleteCandidateKind.Rejected;
+                });
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Existing settings delete caller. Realm packages retain their legacy soft-delete/default transition, while
+        /// exact managed folders are delegated to the manager-owned journalled worker.
+        /// </summary>
+        internal Task<bool> DeleteSkinAsync(
+            Guid recordId,
+            CancellationToken cancellationToken = default)
+        {
+            if (!ThreadSafety.IsUpdateThread || cancellationToken.IsCancellationRequested)
+                return Task.FromResult(false);
+
+            DeleteCandidateKind candidateKind;
+            SkinInfo ordinarySnapshot = null;
+
+            try
+            {
+                candidateKind = Realm.Run(r =>
+                {
+                    r.Refresh();
+                    SkinInfo authoritative = r.Find<SkinInfo>(recordId);
+                    DeleteCandidateKind kind = classifyDeleteCandidate(r, recordId);
+
+                    if (kind == DeleteCandidateKind.RealmPackage)
+                        ordinarySnapshot = authoritative?.Detach();
+
+                    return kind;
+                });
+            }
+            catch
+            {
+                return Task.FromResult(false);
+            }
+
+            if (candidateKind == DeleteCandidateKind.RealmPackage)
+            {
+                bool deleted = ordinarySnapshot != null && Delete(ordinarySnapshot);
+
+                if (deleted)
+                    CurrentSkinInfo.SetDefault();
+
+                return Task.FromResult(deleted);
+            }
+
+            if (candidateKind != DeleteCandidateKind.ManagedFolder)
+                return Task.FromResult(false);
+
+            return reduceManagedFolderDeleteResult(DeleteManagedFolderAsync(recordId, cancellationToken));
+        }
+
+        private async Task<bool> reduceManagedFolderDeleteResult(
+            Task<SkinManagedFolderDeleteOperationResult> operationTask)
+        {
+            try
+            {
+                return (await operationTask.ConfigureAwait(false)).IsSuccess;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private DeleteCandidateKind classifyDeleteCandidate(Realm realm, Guid recordId)
+        {
+            SkinInfo record = realm.Find<SkinInfo>(recordId);
+
+            if (record == null
+                || !record.IsManaged
+                || record.Protected
+                || record.DeletePending
+                || SkinFilesystemStorageResolver.IsFixedSkinId(record.ID))
+            {
+                return DeleteCandidateKind.Rejected;
+            }
+
+            if (string.IsNullOrEmpty(record.FilesystemStoragePath))
+            {
+                return record.IsExternalFilesystemStorage
+                    ? DeleteCandidateKind.Rejected
+                    : DeleteCandidateKind.RealmPackage;
+            }
+
+            if (record.IsExternalFilesystemStorage
+                || record.Files.Count != 0
+                || !string.Equals(
+                    record.FilesystemStorageAuthorityOwner,
+                    SkinManagedFolderScanner.AUTHORITY_OWNER,
+                    StringComparison.Ordinal)
+                || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(record.InstantiationInfo)
+                || string.IsNullOrEmpty(record.Hash)
+                || !SkinManagedFolderPath.TryNormalise(record.FilesystemStoragePath, out string normalisedPath)
+                || !string.Equals(record.FilesystemStoragePath, normalisedPath, StringComparison.Ordinal)
+                || ManagedFolderOperationCoordinator.IsMutationBlocked
+                || ManagedFolderOperationCoordinator.IsPathFrozen(normalisedPath)
+                || realm.All<SkinInfo>().AsEnumerable().Any(candidate => candidate.IsExternalFilesystemStorage))
+            {
+                return DeleteCandidateKind.Rejected;
+            }
+
+            int matchingPaths = realm.All<SkinInfo>()
+                                     .AsEnumerable()
+                                     .Count(candidate =>
+                                         SkinManagedFolderPath.TryNormalise(
+                                             candidate.FilesystemStoragePath,
+                                             out string candidatePath)
+                                         && string.Equals(
+                                             candidatePath,
+                                             normalisedPath,
+                                             StringComparison.OrdinalIgnoreCase));
+
+            return matchingPaths == 1
+                ? DeleteCandidateKind.ManagedFolder
+                : DeleteCandidateKind.Rejected;
+        }
+
         private static bool isFilesystemBacked(SkinInfo skin)
             => !string.IsNullOrEmpty(skin.FilesystemStoragePath) || skin.IsExternalFilesystemStorage;
 
@@ -2003,6 +2419,32 @@ namespace osu.Game.Skinning
             }
         }
 
+        private sealed class PendingManagedFolderDeleteFallback
+        {
+            private int claimed;
+
+            public SkinManagedFolderMutationAuthoritySession Authority { get; }
+            public SkinManagedFolderDurableMutationReceipt DurableReceipt { get; }
+            public CancellationToken CancellationToken { get; }
+            public TaskCompletionSource<SkinManagedFolderProtectedFallbackCommitResult> Completion { get; }
+                = new TaskCompletionSource<SkinManagedFolderProtectedFallbackCommitResult>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public PendingManagedFolderDeleteFallback(
+                SkinManagedFolderMutationAuthoritySession authority,
+                SkinManagedFolderDurableMutationReceipt durableReceipt,
+                CancellationToken cancellationToken)
+            {
+                Authority = authority ?? throw new ArgumentNullException(nameof(authority));
+                DurableReceipt = durableReceipt ?? throw new ArgumentNullException(nameof(durableReceipt));
+                CancellationToken = cancellationToken;
+            }
+
+            public bool TryClaim() => Interlocked.CompareExchange(ref claimed, 1, 0) == 0;
+
+            public override string ToString() => nameof(PendingManagedFolderDeleteFallback);
+        }
+
         private sealed class SelectionRequest
         {
             public SkinFilesystemStorageResolution Resolution { get; }
@@ -2047,6 +2489,13 @@ namespace osu.Game.Skinning
                        && currentResolution.ManagedCaptureRequest != null
                        && SkinManagedFolderFactory.IsInstantiationInfoAllowed(current.InstantiationInfo);
             }
+        }
+
+        private enum DeleteCandidateKind
+        {
+            Rejected,
+            RealmPackage,
+            ManagedFolder,
         }
 
         private sealed class PreparedManagedFolderSelection
