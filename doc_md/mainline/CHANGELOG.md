@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-08-01
+
+### Skin V1 启动可靠性与产品价值收口
+
+configured managed selection与startup scanner的Major竞态已在`551a64af3bc2958db4baa57421b73fee61f259ac`闭合：真实配置恢复可在typed startup/staged completion后后台fresh retry，update thread不阻塞，generic mutation继续fail-closed。产品复核确认本切保护现有玩家链但不增加可见功能，最终可发布Skin V1仍约25%～30%；后续停止扩张无consumer foundation，managed delete为下一conditional GO，thin staged-import stager/caller维持NO-GO。完整价值分层、最终目标差距和跨会话边界见 [2026-08-01 Skin V1产品进度与交接](../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260801.md) 与 [P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
+
 ## 2026-07-31
 
 ### Skin V1 产品可达性与交接审计

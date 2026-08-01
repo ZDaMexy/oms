@@ -47,7 +47,7 @@ metadata:
 - `LongNoteBody` 的 resource frames、resolved width 与解析后 `skin.ini` identity 必须进入同一个 source-bound material；发布后 renderer 不得再向 aggregate skin 查询宽度。selected body 坏声明不得与下层裸同名纹理或裸宽度拼件，只有下层自己的完整组件或 protected rescue 能接管。
 - selected-package/default body共用一个状态宿主，由真实`DrawableBmsHoldNote`驱动Idle/Holding/Broken；active alpha `0.8`、broken alpha `0.32`，约`80ms` tint/fade，HCN才允许regrab回Holding。异步body在状态已改变后到达时要立即投影当前状态，不得另造gameplay state authority。
 - 当前受管目录的`BmsLegacySkin`实例绑定exact immutable capsule，磁盘原地变化不会混入active preparation，也不会自动reload；取得新来源仍需prepared revision/new-instance切换。全consumer publication barrier与旧owner detach归`SV1-2`整包reload，不得把selection pair或逐组件A→B描述成完整热重载。
-- configured managed selection在startup scanner持有shared coordinator期间完成capture时不能被当作generic mutation永久拒绝；修复必须保持update thread非阻塞并在scanner后重做全部authoritative复核，不得因此放宽rename/import/delete争用。
+- configured managed selection与startup scanner的竞态已用typed `StartupSequence`/staged-import completion和fresh retry闭合：update thread不等待，retry跨startup与generic mutation双epoch观察，并重做generation、authoritative Realm、path/owner/freeze、factory/capsule及latest-wins/reentrant复核；generic mutation任一边界跨越仍fail-closed，不得为rename/import/delete复用startup特例。
 - 当前未版本化 9K BMS/PMS per-lane raw token 实际为 `0..8`；V1 canonical `1..9` 必须做版本化迁移/冲突诊断，禁止静默双 alias。
 - 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
