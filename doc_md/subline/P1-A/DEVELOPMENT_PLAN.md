@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-07-31
+> 最后更新：2026-08-01
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐切历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -24,7 +24,7 @@
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
 | 2 | 已实现纵切的集中视觉验收 | **`V-001`～`V-004` 待用户签收** | Skin V1/release 完成声明前确认真实已导入 `.osk` 的普通短键与长条 head/body/tail、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
 | 3 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收** | ordinary note 与 critical head/body、optional tail 的静态图/60 FPS 连续编号帧已通过自动、合同、安全与回退 gate；只算首个产品纵切自动闭环，不计作 `SV1-1` 完成或产品交付 |
-| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | 启动发现/选择玩家可达；rename/import后端闭合但无caller/stager/UI；当前先修configured selection↔startup scanner竞态，再按production consumer推进后续切片 |
+| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中** | 启动发现/选择及configured startup协调玩家可达；rename/import后端无caller/stager/UI；下一切managed delete conditional GO，thin stager/caller当前NO-GO |
 | 5 | `SV1-3`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。首个 Note/LN 产品纵切已满足进入 `SV1-2` 的工程依赖，但 `SV1-1` 本身仍未完成；G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
@@ -50,11 +50,12 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 1. **mutation authority/recovery foundation（已闭合）**：已有记录按ID刷新重读完整资格，既有source与fixed staging source由held native root固定no-follow identity，尚不存在的target只表示为root-bound规范化空name slot；staged新记录只生成planned ID/path/root/version的immutable publication plan而非Realm writer。scanner、selection、mutation/recovery共用线性化边界，版本化strict journal在首个外部步骤前durable落盘，启动先幂等恢复再scanner；有效歧义精确冻结、invalid/unknown/IO全局冻结，scanner negative cleanup服从冻结。current delete只有程序化`OmsSkin` protected pair确认门，没有实际删除。foundation本身未开放UI或Realm新记录发布。
 2. **rename（已闭合，UI仍冻结）**：工作区存储身份是`chartskin/<direct-child>`目录名，作者展示身份来自包内容。操作只移动direct-child目录并更新同一Realm record的managed path；不修改根`skin.ini [General] Name`、作者名、包字节、revision/hash或scanner owner。Prepared durable、held-root no-replace move、final identity、Realm一致性、恢复矩阵、selection/scanner竞态、取消与shutdown join保持为回归门。
 3. **staged import后端（已闭合，尚不可由玩家触发）**：只消费固定`skin-mutation-staging/{operationId:N}`下由OMS为本operation持有的provisional副本。未来production stager必须独立完成external source authority、no-follow复制、预算、取消、失败清理与脱敏诊断，并保留外部原来源；当前仓库没有该stager或应用caller。后端以durable content revision + full physical-tree fingerprint固定Prepared，再同卷identity-preserving no-replace move并由one-shot publisher交接scanner owner；import不自动选择。
-4. **startup selection/scanner竞态（当前）**：用确定性交错覆盖configured managed selection capture completion与startup scanner持锁相撞；选择不能因无害startup scan永久拒绝。修复只能通过明确启动排序或异步等待/重试后完整重做generation/Realm/path/owner/freeze检查，不得阻塞update thread，也不得放宽rename/import/delete等真实mutation的generic rejection。
-5. **下一产品纵切go/no-go**：竞态闭合后，在thin staged-import stager/caller与managed delete之间按最短玩家价值链选择；不得继续增加没有同切或紧随切片production consumer的共享抽象。managed delete仍必须等待已验证protected fallback真实提交，满足held-root write authority、crash recovery与Realm/磁盘收敛。
-6. **external registration/capture**：与受管目录mutation分离；external永久只读，只允许register/unregister，不提供物理rename/delete。
-7. **整包原子 reload/detach**：ini/manifest/scene/script/素材的新revision完整验证后，以generation/current-selection/revision gate一次切换全consumer publication；失败只销毁provisional revision并保留旧实例，旧owner等待全部consumer detach。
-8. **产品 UI/实机**：安全后端与真实caller闭合后才开放最小入口；明确区分受管目录物理删除与external解除注册，选择、重启、切换、rename/import/delete、缺件和原子替换统一进入最终人工清单。
+4. **startup selection/scanner竞态（已闭合）**：configured preparation以startup/generic mutation observation贯穿typed contention waiter、deferred scheduler callback与chained retry；只等待exact startup/staged-import completion，fresh retry重新做generation/current pair/Realm/path/owner/freeze/allowlist/capture/factory检查。manual managed请求与generic mutation继续fail-closed，普通Realm `.osk`不受影响；update thread不等待，shutdown统一cancel/reap/join。该矩阵保留为后续coordinator/scheduler变更的强制回归。
+5. **managed delete（下一产品切片，conditional GO）**：现有settings delete dialog/caller雏形与protected fallback foundation提供最短玩家价值链。先冻结独立`CanDelete`与async caller语义，再同切闭合held-root no-follow physical primitive、durable delete journal/recovery、Realm record收敛、current pair fallback、选择/scanner竞态、取消/shutdown、隐私诊断与focused/full/Release gate；不得把旧`CanModify`/通用`Delete`解冻后直连foundation。
+6. **thin staged-import stager/caller（当前NO-GO）**：后端虽已闭合，但external source→fixed provisional不是薄封装。只有可信source authority、handle-relative no-follow copy、容量/文件数预算、取消、失败/重启清理、脱敏诊断与真实应用caller在同一纵切冻结后才重新go/no-go；禁止任意path直传或只添无production consumer的stager抽象。
+7. **external registration/capture**：与受管目录mutation分离；external永久只读，只允许register/unregister，不提供物理rename/delete。
+8. **整包原子 reload/detach**：ini/manifest/scene/script/素材的新revision完整验证后，以generation/current-selection/revision gate一次切换全consumer publication；失败只销毁provisional revision并保留旧实例，旧owner等待全部consumer detach。
+9. **产品 UI/实机**：安全后端与真实caller闭合后才开放最小入口；明确区分受管目录物理删除与external解除注册，选择、重启、切换、rename/import/delete、缺件和原子替换统一进入最终人工清单。
 
 验收：真实选择链、重启、切换、rename/import/delete、缺件、原子替换和备份数据根均通过自动与人工验证。
 

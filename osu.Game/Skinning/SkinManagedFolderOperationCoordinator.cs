@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace osu.Game.Skinning
 {
@@ -17,7 +18,6 @@ namespace osu.Game.Skinning
     /// </remarks>
     internal sealed class SkinManagedFolderOperationCoordinator
     {
-        private readonly SemaphoreSlim operationGate = new SemaphoreSlim(1, 1);
         private readonly object ownershipGate = new object();
         private readonly object freezeGate = new object();
         private readonly HashSet<string> frozenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -27,6 +27,9 @@ namespace osu.Game.Skinning
         private int ownerManagedThreadId;
         private int leaseDepth;
         private LeaseKind ownerKind;
+        private long startupSequenceEpoch;
+        private long mutationReservationEpoch;
+        private TaskCompletionSource<object?>? activeRetryableCompletion;
 
         public Lease Enter(CancellationToken cancellationToken = default)
             => enter(LeaseKind.ShortScope, cancellationToken);
@@ -34,15 +37,86 @@ namespace osu.Game.Skinning
         internal Lease EnterMutation(CancellationToken cancellationToken = default)
             => enter(LeaseKind.MutationReservation, cancellationToken);
 
+        internal Lease EnterStagedImport(CancellationToken cancellationToken = default)
+            => enter(LeaseKind.StagedImportReservation, cancellationToken);
+
+        internal Lease EnterStartupSequence(CancellationToken cancellationToken = default)
+            => enter(LeaseKind.StartupSequence, cancellationToken);
+
+        internal bool IsStartupSequenceHeldByCurrentThread
+        {
+            get
+            {
+                lock (ownershipGate)
+                {
+                    return leaseDepth > 0
+                           && ownerManagedThreadId == Environment.CurrentManagedThreadId
+                           && ownerKind == LeaseKind.StartupSequence;
+                }
+            }
+        }
+
+        internal SelectionPreparationObservation CaptureSelectionPreparationObservation()
+        {
+            lock (ownershipGate)
+                return new SelectionPreparationObservation(startupSequenceEpoch, mutationReservationEpoch);
+        }
+
+        internal SelectionContention? TryGetRetryableContentionSince(SelectionPreparationObservation observation)
+        {
+            lock (ownershipGate)
+            {
+                if (startupSequenceEpoch == observation.StartupSequenceEpoch
+                    || mutationReservationEpoch != observation.MutationReservationEpoch)
+                {
+                    return null;
+                }
+
+                if (leaseDepth > 0)
+                {
+                    if (ownerKind == LeaseKind.StartupSequence && activeRetryableCompletion != null)
+                    {
+                        return new SelectionContention(
+                            SelectionContentionKind.StartupSequence,
+                            activeRetryableCompletion.Task);
+                    }
+
+                    if (ownerKind == LeaseKind.StagedImportReservation && activeRetryableCompletion != null)
+                    {
+                        return new SelectionContention(
+                            SelectionContentionKind.StagedImport,
+                            activeRetryableCompletion.Task);
+                    }
+
+                    if (ownerKind != LeaseKind.ShortScope
+                        || ownerManagedThreadId != Environment.CurrentManagedThreadId)
+                    {
+                        return null;
+                    }
+                }
+
+                return new SelectionContention(
+                    SelectionContentionKind.StartupSequence,
+                    Task.CompletedTask);
+            }
+        }
+
+        internal bool IsMutationReservationEpochCurrent(SelectionPreparationObservation observation)
+        {
+            lock (ownershipGate)
+                return mutationReservationEpoch == observation.MutationReservationEpoch;
+        }
+
         public bool TryEnter(out Lease? lease)
         {
             int currentThreadId = Environment.CurrentManagedThreadId;
 
             lock (ownershipGate)
             {
-                if (leaseDepth > 0 && ownerManagedThreadId == currentThreadId)
+                if (leaseDepth > 0)
                 {
-                    if (ownerKind != LeaseKind.ShortScope)
+                    if (ownerManagedThreadId != currentThreadId
+                        || !canNestShortScope(ownerKind))
                     {
                         lease = null;
                         return false;
@@ -52,23 +126,48 @@ namespace osu.Game.Skinning
                     lease = new Lease(this, LeaseKind.ShortScope);
                     return true;
                 }
-            }
 
-            if (!operationGate.Wait(0))
-            {
-                lease = null;
-                return false;
+                publishOwnerHeld(currentThreadId, LeaseKind.ShortScope, null);
+                lease = new Lease(this, LeaseKind.ShortScope);
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Tries to enter a selection publication boundary without blocking the caller.
+        /// </summary>
+        /// <remarks>
+        /// When the exact current holder is the startup recovery/scanner sequence or a staged import, its typed
+        /// completion is returned so the selection can retry asynchronously. Generic short scopes, rename and delete
+        /// reservations never return retry authority.
+        /// </remarks>
+        internal bool TryEnterForSelection(out Lease? lease, out SelectionContention? contention)
+        {
+            int currentThreadId = Environment.CurrentManagedThreadId;
 
             lock (ownershipGate)
             {
-                ownerManagedThreadId = currentThreadId;
-                leaseDepth = 1;
-                ownerKind = LeaseKind.ShortScope;
-            }
+                if (leaseDepth > 0)
+                {
+                    if (ownerManagedThreadId == currentThreadId
+                        && canNestShortScope(ownerKind))
+                    {
+                        leaseDepth++;
+                        lease = new Lease(this, LeaseKind.ShortScope);
+                        contention = null;
+                        return true;
+                    }
 
-            lease = new Lease(this, LeaseKind.ShortScope);
-            return true;
+                    lease = null;
+                    contention = tryCreateSelectionContentionHeld();
+                    return false;
+                }
+
+                publishOwnerHeld(currentThreadId, LeaseKind.ShortScope, null);
+                lease = new Lease(this, LeaseKind.ShortScope);
+                contention = null;
+                return true;
+            }
         }
 
         private Lease enter(LeaseKind requestedKind, CancellationToken cancellationToken)
@@ -77,31 +176,94 @@ namespace osu.Game.Skinning
 
             int currentThreadId = Environment.CurrentManagedThreadId;
 
-            lock (ownershipGate)
+            TaskCompletionSource<object?>? retryableCompletion = isRetryableSelectionContention(requestedKind)
+                ? new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously)
+                : null;
+            CancellationTokenRegistration cancellationRegistration = default;
+
+            try
             {
-                if (leaseDepth > 0 && ownerManagedThreadId == currentThreadId)
+                lock (ownershipGate)
                 {
-                    if (ownerKind != LeaseKind.ShortScope || requestedKind != LeaseKind.ShortScope)
+                    if (leaseDepth > 0 && ownerManagedThreadId == currentThreadId)
                     {
-                        throw new InvalidOperationException(
-                            "A detached managed-folder mutation reservation cannot be re-entered.");
+                        if (!canNestShortScope(ownerKind) || requestedKind != LeaseKind.ShortScope)
+                        {
+                            throw new InvalidOperationException(
+                                "A managed-folder mutation reservation or startup sequence cannot be re-entered.");
+                        }
+
+                        leaseDepth++;
+                        return new Lease(this, LeaseKind.ShortScope);
                     }
 
-                    leaseDepth++;
-                    return new Lease(this, LeaseKind.ShortScope);
+                    cancellationRegistration = cancellationToken.UnsafeRegister(
+                        static state =>
+                        {
+                            var coordinator = (SkinManagedFolderOperationCoordinator)state!;
+
+                            lock (coordinator.ownershipGate)
+                                Monitor.PulseAll(coordinator.ownershipGate);
+                        },
+                        this);
+
+                    while (leaseDepth > 0)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Monitor.Wait(ownershipGate);
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    publishOwnerHeld(currentThreadId, requestedKind, retryableCompletion);
+                    return new Lease(this, requestedKind);
                 }
             }
-
-            operationGate.Wait(cancellationToken);
-
-            lock (ownershipGate)
+            finally
             {
-                ownerManagedThreadId = currentThreadId;
-                leaseDepth = 1;
-                ownerKind = requestedKind;
-            }
+                cancellationRegistration.Dispose();
 
-            return new Lease(this, requestedKind);
+                if (retryableCompletion != null)
+                {
+                    lock (ownershipGate)
+                    {
+                        if (!ReferenceEquals(activeRetryableCompletion, retryableCompletion))
+                            retryableCompletion.TrySetResult(null);
+                    }
+                }
+            }
+        }
+
+        private void publishOwnerHeld(
+            int currentThreadId,
+            LeaseKind kind,
+            TaskCompletionSource<object?>? retryableCompletion)
+        {
+            ownerManagedThreadId = currentThreadId;
+            leaseDepth = 1;
+            ownerKind = kind;
+            activeRetryableCompletion = retryableCompletion;
+
+            if (kind == LeaseKind.StartupSequence)
+                startupSequenceEpoch++;
+            else if (kind == LeaseKind.MutationReservation)
+                mutationReservationEpoch++;
+        }
+
+        private SelectionContention? tryCreateSelectionContentionHeld()
+        {
+            if (activeRetryableCompletion == null)
+                return null;
+
+            return ownerKind switch
+            {
+                LeaseKind.StartupSequence => new SelectionContention(
+                    SelectionContentionKind.StartupSequence,
+                    activeRetryableCompletion.Task),
+                LeaseKind.StagedImportReservation => new SelectionContention(
+                    SelectionContentionKind.StagedImport,
+                    activeRetryableCompletion.Task),
+                _ => null,
+            };
         }
 
         public T RunExclusive<T>(Func<T> action, CancellationToken cancellationToken = default)
@@ -234,6 +396,7 @@ namespace osu.Game.Skinning
         private void exit()
         {
             bool release;
+            TaskCompletionSource<object?>? completedRetryableContention = null;
 
             lock (ownershipGate)
             {
@@ -245,14 +408,24 @@ namespace osu.Game.Skinning
 
                 if (release)
                 {
+                    if (isRetryableSelectionContention(ownerKind))
+                        completedRetryableContention = activeRetryableCompletion;
+
                     ownerManagedThreadId = 0;
                     ownerKind = default;
+                    activeRetryableCompletion = null;
+                    Monitor.PulseAll(ownershipGate);
                 }
             }
 
-            if (release)
-                operationGate.Release();
+            completedRetryableContention?.TrySetResult(null);
         }
+
+        private static bool canNestShortScope(LeaseKind kind)
+            => kind is LeaseKind.ShortScope or LeaseKind.StartupSequence;
+
+        private static bool isRetryableSelectionContention(LeaseKind kind)
+            => kind is LeaseKind.StartupSequence or LeaseKind.StagedImportReservation;
 
         public sealed class Lease : IDisposable
         {
@@ -269,7 +442,8 @@ namespace osu.Game.Skinning
                 => ReferenceEquals(owner, candidate);
 
             internal bool IsMutationReservationHeldBy(SkinManagedFolderOperationCoordinator candidate)
-                => kind == LeaseKind.MutationReservation && ReferenceEquals(owner, candidate);
+                => (kind is LeaseKind.MutationReservation or LeaseKind.StagedImportReservation)
+                   && ReferenceEquals(owner, candidate);
 
             public void Dispose()
             {
@@ -283,7 +457,31 @@ namespace osu.Game.Skinning
         {
             ShortScope,
             MutationReservation,
+            StagedImportReservation,
+            StartupSequence,
         }
+
+        internal enum SelectionContentionKind
+        {
+            StartupSequence,
+            StagedImport,
+        }
+
+        internal sealed class SelectionContention
+        {
+            public SelectionContentionKind Kind { get; }
+            public Task Completion { get; }
+
+            public SelectionContention(SelectionContentionKind kind, Task completion)
+            {
+                Kind = kind;
+                Completion = completion;
+            }
+        }
+
+        internal readonly record struct SelectionPreparationObservation(
+            long StartupSequenceEpoch,
+            long MutationReservationEpoch);
     }
 
     internal static class SkinManagedFolderPath

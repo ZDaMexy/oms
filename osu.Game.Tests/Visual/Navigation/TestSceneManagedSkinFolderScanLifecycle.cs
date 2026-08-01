@@ -52,6 +52,7 @@ namespace osu.Game.Tests.Visual.Navigation
             AddAssert("managed scan invoked once", () => lifecycleGame.ScanInvocationCount == 1);
             AddAssert("managed scan runs off update thread", () => !lifecycleGame.ScanRanOnUpdateThread);
             AddAssert("managed scan uses a different thread", () => lifecycleGame.ScanThreadId != lifecycleGame.LoadCompleteThreadId);
+            AddAssert("managed scan owns startup sequence", () => lifecycleGame.ScanOwnedStartupSequence);
 
             AddStep("arm worker completion gate", () => lifecycleGame.HoldAfterCancellation = true);
             AddStep("start disposal observer", () => lifecycleGame.StartDisposalObserver());
@@ -103,6 +104,7 @@ namespace osu.Game.Tests.Visual.Navigation
             private bool recoveryRanOnUpdateThread;
             private bool recoveryCompletedBeforeScan;
             private bool scanRanOnUpdateThread;
+            private bool scanOwnedStartupSequence;
             private bool cancellationWasRequested;
             private bool cancellationWaitTimedOut;
             private bool completionGateWaitTimedOut;
@@ -121,6 +123,7 @@ namespace osu.Game.Tests.Visual.Navigation
             public bool RecoveryRanOnUpdateThread => Volatile.Read(ref recoveryRanOnUpdateThread);
             public bool RecoveryCompletedBeforeScan => Volatile.Read(ref recoveryCompletedBeforeScan);
             public bool ScanRanOnUpdateThread => Volatile.Read(ref scanRanOnUpdateThread);
+            public bool ScanOwnedStartupSequence => Volatile.Read(ref scanOwnedStartupSequence);
             public bool CancellationWasRequested => Volatile.Read(ref cancellationWasRequested);
             public bool CancellationWaitTimedOut => Volatile.Read(ref cancellationWaitTimedOut);
             public bool CompletionGateWaitTimedOut => Volatile.Read(ref completionGateWaitTimedOut);
@@ -175,6 +178,7 @@ namespace osu.Game.Tests.Visual.Navigation
                 recoveryCompletedBeforeScan = RecoveryCompleted.IsSet;
                 ScanThreadId = Environment.CurrentManagedThreadId;
                 scanRanOnUpdateThread = ThreadSafety.IsUpdateThread;
+                scanOwnedStartupSequence = SkinManager.ManagedFolderOperationCoordinator.IsStartupSequenceHeldByCurrentThread;
                 ScanStarted.Set();
 
                 try

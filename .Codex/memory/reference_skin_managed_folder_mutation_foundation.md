@@ -12,9 +12,9 @@ metadata:
 
 ## 共享线性化
 
-- scanner、selection、mutation与recovery共用一个`SkinManagedFolderOperationCoordinator`。普通短临界区允许同线程嵌套，以便启动worker用一个外层lease连续执行recovery→scanner；mutation reservation是detached、不可重入的独占持有，跨线程dispose后才释放。
+- scanner、selection、mutation与recovery共用一个`SkinManagedFolderOperationCoordinator`。holder分为普通短临界区、generic mutation reservation、staged-import reservation与startup sequence：普通短临界区及startup内的短临界区只允许同线程嵌套；两类mutation reservation不可重入且独占，session可跨线程dispose；startup/staged holder各自携带selection可等待的typed completion，generic holder永不携带。阻塞participant用可取消monitor wait，update-thread selection只做non-blocking admission；ownership取得/发布必须在同一锁内，不能留`SemaphoreSlim`已取得而holder尚不可见的空窗。
 - scanner从native discovery开始一直持有共享边界到Realm reconcile提交结束，不能再把snapshot与Realm commit之间暴露给mutation。managed selection的最终authoritative Realm重读、冻结检查与`CurrentSkinInfo`/`CurrentSkin`发布也在同一边界内；提交时使用本Realm重新取得的`Live<SkinInfo>`，不发布调用方传入的陈旧live对象。
-- `SkinManager`构造期先恢复再允许配置选择；`OsuGame`启动worker随后在同一个外层lease内再次幂等恢复并立即scanner，二者之间没有进程内插入点。update-thread selection遇到占用时fail-closed而不阻塞；普通后台Realm请求可等待边界并在之后按既有latest-wins合同提交。
+- `SkinManager`构造期先恢复再允许配置选择；`OsuGame`启动worker随后在同一个typed startup sequence外层lease内再次幂等恢复并立即scanner，二者之间没有mutation插入点。已经开始的configured managed preparation可等待该exact startup completion后fresh retry；新的manual managed请求仍遇占用即fail-closed。preparation的startup/generic mutation observation必须贯穿整个retry chain，generic epoch跨越即拒绝，并在retry short lease内再次复核；普通后台Realm请求可按既有latest-wins合同提交。
 
 ## mutation资格不是写能力
 
@@ -80,5 +80,6 @@ metadata:
 ## 产品可达性与下一纵切
 
 - coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由玩家可达的启动发现/选择链消费；directory-only rename及fixed-source staged import只在production assembly内部被operation/recovery组装，没有应用caller，不是玩家可见删改能力。
-- `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename与staged-import worker；不得新建脱离该边界的后台链。
+- `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename、staged-import与selection retry worker；queued selection completion必须在shutdown被reap或晚到no-op，不得新建脱离该边界的后台链。
 - operation/recovery状态只能脱敏输出；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。每一新切片都要明确它连接的真实caller/host/renderer，不能用production项目中的internal类型数量代替产品进度。
+- 当前go/no-go：managed delete有settings delete dialog/caller雏形及protected fallback foundation，下一切conditional GO，但必须新建独立`CanDelete`/async caller并同切闭合held-root物理删除、Realm收敛、journal recovery、selection/shutdown与隐私；不得解冻旧通用`Delete`直连。thin staged-import stager/caller当前NO-GO，external source→fixed provisional的可信authority/no-follow复制、预算、取消、清理、诊断与真实caller未一起冻结前，不能把任意path或普通递归copy包装成“thin”产品入口。

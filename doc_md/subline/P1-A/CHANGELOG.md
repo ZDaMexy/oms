@@ -2,6 +2,18 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-08-01
+
+### `SV1-2` configured managed selection ↔ startup scanner 独立端到端切片
+
+- 先以真实`SkinManager` native capture/factory、shared coordinator与真实scanner建立确定性headless产品交错：configured candidate首轮capture被阻塞，startup sequence内scanner遍历慢/多包snapshot并在Realm reconcile前受控暂停，随后让capture completion撞入最终发布边界。修复前该测试超时且始终保留旧`OmsSkin` pair，证明大目录/慢capture风险真实存在；另锁定scanner在capture完成前已退出、在首轮factory中退出两种completed ordering，避免只修active-holder时序。
+- startup recovery→scanner现使用typed `StartupSequence`外层lease，staged import使用独立typed reservation，rename/delete/其它真实mutation保持generic reservation。coordinator ownership发布与non-blocking selection admission在同一锁内线性化；阻塞participant改为可取消的monitor wait，没有旧`SemaphoreSlim`取得后尚未发布owner的空窗。final boundary只为exact active startup/staged-import holder返回其completion；generic short scope或mutation reservation仍返回无retry authority。
+- 每次managed preparation捕获startup sequence epoch与generic mutation epoch。Realm mismatch发生在scanner已完成后时，crossed startup epoch可触发fresh retry；generic mutation在首次mismatch前、factory后direct typed boundary前、已注册waiter但deferred callback未执行前、或后续typed chain中任一时刻跨越，都会在排队前或持有retry short lease后被复核并fail-closed。observation贯穿contention waiter、scheduler callback与chained retry，关闭check→fresh preparation的TOCTOU；staged import不计入generic epoch，并用exact holder completion保留“失败后立刻完成”的既有语义，不再依赖全局running/epoch猜测。
+- retry worker只在后台等待typed completion，update thread始终non-blocking；回到update scheduler后先要求shutdown/disabled、generation、旧`CurrentSkinInfo`/`CurrentSkin` pair仍一致，再从Realm按ID重取记录，重新解析path/owner/freeze/allowlist并重新native capture/factory。latest accepted request、reentrant请求、记录删除、owner/path/freeze/factory变化都会胜出。startup期间新的manual managed选择仍即时`ManagedFolderOperationInProgress`且不取消既有configured preparation；普通Realm `.osk`保持同步路径，不触发managed capture。
+- selection lifecycle新增capture-scheduling task、contention waiter与queued completion的统一ownership。shutdown先封门、推进generation并cancel capture/retry CTS，再原子claim并回收已完成capsule/CTS，最后join worker；已被宿主丢弃的queued callback之后只会no-op。completion scheduler fault即使撞上generic lease也只做non-blocking稳定化，不会让shutdown反向等待mutation或泄漏owner/unobserved task。
+- 自动验证：coordinator **11/11**、startup scanner lifecycle **2/2**、完整managed selection产品类 **52/52**、core managed **275/275**、mania skin **182/182**、BMS full **1520/1520**。core skin broad **863/869**，六项失败与既有基线完全一致：四项`TestSceneBeatmapSkinResources`依赖已移除Osu ruleset archive fixture，以及`TestBackgroundCyclingOnDefaultSkin(True)`、`TestSampleUpdatedBeforePlaybackWhenNotPresent`两项既有native-default视觉/资源假设。production/core-test/BMS-test三工程targeted formatter verify、`CheckDocumentation.ps1`与`git diff --check`通过；`osu.Desktop.slnf` Release **0 error / 20 emitted known warnings**，仍为9条MessagePack `NU1902`在restore/build重复及BMS tests既有`CS8600`/`CA2007`。三路独立终审最终blocker/major/moderate **0/0/0**。
+- 本切没有实现UI、production stager、managed delete、external、reload/detach、scene/script或canonical包，也未启动GUI/操控桌面或新增视觉签收。按最短玩家价值链复核：managed delete已有settings delete dialog/caller雏形、专用authority与protected fallback foundation，下一切**conditional GO**，但必须同切闭合独立`CanDelete`/async caller、物理+Realm删除、journal recovery、current fallback、取消/shutdown与隐私；thin staged-import stager/caller仍缺external→fixed provisional可信source/no-follow复制、预算、取消、清理、诊断和真实caller，当前**NO-GO**，不得继续增加无consumer foundation。
+
 ## 2026-07-31
 
 ### 产品可达性、开发价值与跨会话交接审计

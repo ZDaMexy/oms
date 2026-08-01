@@ -1354,7 +1354,7 @@ namespace osu.Game.Skinning
 
             try
             {
-                coordinatorLease = coordinator.EnterMutation(cancellationToken);
+                coordinatorLease = coordinator.EnterStagedImport(cancellationToken);
 
                 if (coordinator.IsMutationBlocked)
                 {

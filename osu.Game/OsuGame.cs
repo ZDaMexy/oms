@@ -1471,7 +1471,7 @@ namespace osu.Game
         private void performManagedSkinFolderStartup(CancellationToken cancellationToken)
         {
             using SkinManagedFolderOperationCoordinator.Lease startupLease =
-                SkinManager.ManagedFolderOperationCoordinator.Enter(cancellationToken);
+                SkinManager.ManagedFolderOperationCoordinator.EnterStartupSequence(cancellationToken);
             PerformManagedSkinFolderMutationRecovery(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             PerformManagedSkinFolderScan(cancellationToken);

@@ -113,6 +113,8 @@ namespace osu.Game.Skinning
 
         internal Action ManagedFolderSelectionFinalBoundaryContended { get; set; } = () => { };
 
+        internal Action ManagedFolderSelectionWaitingForStartup { get; set; } = () => { };
+
         internal Action ManagedFolderSelectionWaitingForStagedImport { get; set; } = () => { };
 
         internal SkinManagedFolderOperationCoordinator ManagedFolderOperationCoordinator { get; } = new SkinManagedFolderOperationCoordinator();
@@ -126,6 +128,10 @@ namespace osu.Game.Skinning
         private readonly SkinManagedFolderRenameOperation managedFolderRenameOperation;
         private readonly SkinManagedFolderStagedImportOperation managedFolderStagedImportOperation;
         private readonly object managedFolderRenameLifecycleGate = new object();
+        private readonly object managedFolderSelectionLifecycleGate = new object();
+        private readonly CancellationTokenSource managedFolderSelectionRetryCancellation = new CancellationTokenSource();
+        private readonly HashSet<Task> managedFolderSelectionWorkerTasks = new HashSet<Task>();
+        private readonly HashSet<PendingManagedFolderSelectionCompletion> pendingManagedFolderSelectionCompletions = new HashSet<PendingManagedFolderSelectionCompletion>();
         private CancellationTokenSource activeManagedFolderRenameCancellation;
         private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
         private CancellationTokenSource activeManagedFolderStagedImportCancellation;
@@ -133,7 +139,7 @@ namespace osu.Game.Skinning
         private SkinManagedFolderRenameOperationResult lastManagedFolderRenameResult;
         private SkinManagedFolderStagedImportOperationResult lastManagedFolderStagedImportResult;
         private bool managedFolderMutationShutdown;
-        private long managedFolderStagedImportBoundaryEpoch;
+        private int managedFolderSelectionShutdown;
 
         internal SkinManagedFolderRenameOperationResult LastManagedFolderRenameResult
             => Volatile.Read(ref lastManagedFolderRenameResult);
@@ -416,6 +422,8 @@ namespace osu.Game.Skinning
         /// </summary>
         internal void ShutdownManagedFolderMutations()
         {
+            shutdownManagedFolderSelections();
+
             CancellationTokenSource renameCancellation;
             CancellationTokenSource importCancellation;
             Task<SkinManagedFolderRenameOperationResult> renameTask;
@@ -464,6 +472,68 @@ namespace osu.Game.Skinning
             catch
             {
                 // Observe unexpected failures without exposing a potentially sensitive exception.
+            }
+        }
+
+        private void shutdownManagedFolderSelections()
+        {
+            CancellationTokenSource pendingSelection = null;
+            PendingManagedFolderSelectionCompletion[] pendingCompletions;
+            bool cancellationRequired = false;
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) == 0)
+                {
+                    Volatile.Write(ref managedFolderSelectionShutdown, 1);
+                    Interlocked.Increment(ref selectionGeneration);
+                    pendingSelection = Interlocked.Exchange(ref pendingSelectionCancellation, null);
+                    cancellationRequired = true;
+                }
+
+                pendingCompletions = pendingManagedFolderSelectionCompletions.ToArray();
+                pendingManagedFolderSelectionCompletions.Clear();
+            }
+
+            if (cancellationRequired)
+            {
+                try
+                {
+                    pendingSelection?.Cancel();
+                }
+                catch
+                {
+                    // Cancellation callback failures must not bypass the joins below.
+                }
+
+                try
+                {
+                    managedFolderSelectionRetryCancellation.Cancel();
+                }
+                catch
+                {
+                    // Cancellation callback failures must not bypass the joins below.
+                }
+            }
+
+            foreach (PendingManagedFolderSelectionCompletion pendingCompletion in pendingCompletions)
+                discardManagedFolderSelectionCompletion(pendingCompletion);
+
+            Task[] workerTasks;
+
+            lock (managedFolderSelectionLifecycleGate)
+                workerTasks = managedFolderSelectionWorkerTasks.ToArray();
+
+            foreach (Task workerTask in workerTasks)
+            {
+                try
+                {
+                    workerTask.GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    // Retry failures are reduced to stable selection state and must not escape shutdown.
+                }
             }
         }
 
@@ -529,7 +599,6 @@ namespace osu.Game.Skinning
             // Import deliberately does not advance selectionGeneration, cancel an unrelated pending selection,
             // select the new record, or replace the active immutable capsule.
             Volatile.Write(ref lastManagedFolderStagedImportResult, result);
-            Interlocked.Increment(ref managedFolderStagedImportBoundaryEpoch);
             return result;
         }
 
@@ -893,86 +962,189 @@ namespace osu.Game.Skinning
                 }
 
                 if (request.Resolution.ManagedCaptureRequest == null || request.Snapshot == null)
-                {
                     rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
-                    return false;
-                }
+                else
+                    beginManagedFolderSelectionPreparation(generation, target, request);
 
-                if (!request.IsRealmManaged)
-                {
-                    rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
-                    return false;
-                }
+                return false;
+            }
+        }
 
-                if (!request.HasExactScannerOwner)
-                {
-                    rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
-                    return false;
-                }
+        private void beginManagedFolderSelectionPreparation(
+            long generation,
+            Live<SkinInfo> target,
+            SelectionRequest request)
+        {
+            if (request.Resolution.ManagedCaptureRequest == null || request.Snapshot == null)
+            {
+                rejectSelection(SkinSelectionRejectionReason.FilesystemDeclarationRejected);
+                return;
+            }
 
-                if (ManagedFolderOperationCoordinator.IsPathFrozen(request.Snapshot.FilesystemStoragePath))
-                {
-                    rejectSelection(SkinSelectionRejectionReason.MutationRecoveryPending);
-                    return false;
-                }
+            if (!request.IsRealmManaged || !request.HasExactScannerOwner)
+            {
+                rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
+                return;
+            }
 
-                if (!SkinManagedFolderFactory.IsInstantiationInfoAllowed(request.Snapshot.InstantiationInfo))
+            if (ManagedFolderOperationCoordinator.IsPathFrozen(request.Snapshot.FilesystemStoragePath))
+            {
+                rejectSelection(SkinSelectionRejectionReason.MutationRecoveryPending);
+                return;
+            }
+
+            if (!SkinManagedFolderFactory.IsInstantiationInfoAllowed(request.Snapshot.InstantiationInfo))
+            {
+                rejectSelection(SkinSelectionRejectionReason.InstantiationInfoNotAllowed);
+                return;
+            }
+
+            SkinManagedPackageCaptureRequest captureRequest = request.Resolution.ManagedCaptureRequest;
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
                 {
-                    rejectSelection(SkinSelectionRejectionReason.InstantiationInfoNotAllowed);
-                    return false;
+                    rejectSelection(SkinSelectionRejectionReason.PreparationCancelled);
+                    return;
                 }
 
                 var cancellation = new CancellationTokenSource();
                 pendingSelectionCancellation = cancellation;
-                SkinManagedPackageCaptureRequest captureRequest = request.Resolution.ManagedCaptureRequest;
+                SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation =
+                    ManagedFolderOperationCoordinator.CaptureSelectionPreparationObservation();
+                Task<SkinManagedPackageCaptureResult> captureTask = Task.Run(
+                    () => ManagedFolderCapture(captureRequest, cancellation.Token),
+                    cancellation.Token);
+                Task completionSchedulingTask = captureTask.ContinueWith(
+                    task => scheduleManagedFolderSelectionCompletion(
+                        generation,
+                        target,
+                        request,
+                        preparationObservation,
+                        cancellation,
+                        task),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
 
-                Task.Run(
-                        () => ManagedFolderCapture(captureRequest, cancellation.Token),
-                        cancellation.Token)
-                    .ContinueWith(
-                        task => scheduleManagedFolderSelectionCompletion(generation, target, request, cancellation, task),
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously,
-                        TaskScheduler.Default);
-
-                return false;
+                trackManagedFolderSelectionWorkerHeld(completionSchedulingTask);
             }
+        }
+
+        private void trackManagedFolderSelectionWorkerHeld(Task workerTask)
+        {
+            managedFolderSelectionWorkerTasks.Add(workerTask);
+
+            _ = workerTask.ContinueWith(
+                completed =>
+                {
+                    lock (managedFolderSelectionLifecycleGate)
+                        managedFolderSelectionWorkerTasks.Remove(completed);
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         private void scheduleManagedFolderSelectionCompletion(
             long generation,
             Live<SkinInfo> target,
             SelectionRequest request,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
             CancellationTokenSource cancellation,
             Task<SkinManagedPackageCaptureResult> captureTask)
         {
+            var pendingCompletion = new PendingManagedFolderSelectionCompletion(
+                generation,
+                target,
+                request,
+                preparationObservation,
+                cancellation,
+                captureTask);
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+                {
+                    discardManagedFolderSelectionCompletion(pendingCompletion);
+                    return;
+                }
+
+                pendingManagedFolderSelectionCompletions.Add(pendingCompletion);
+            }
+
             try
             {
-                ManagedFolderCompletionSchedule(() => completeManagedFolderSelection(generation, target, request, cancellation, captureTask));
+                ManagedFolderCompletionSchedule(() => completeManagedFolderSelection(pendingCompletion));
             }
             catch
             {
-                if (captureTask.Status == TaskStatus.RanToCompletion)
-                    captureTask.GetAwaiter().GetResult().Capsule?.Dispose();
-                else if (captureTask.IsFaulted)
-                    _ = captureTask.Exception;
+                bool claimed;
 
-                Interlocked.CompareExchange(ref pendingSelectionCancellation, null, cancellation);
-                cancellation.Dispose();
-                rejectSelection(generation, SkinSelectionRejectionReason.PreparationFailed);
+                lock (managedFolderSelectionLifecycleGate)
+                    claimed = pendingManagedFolderSelectionCompletions.Remove(pendingCompletion);
+
+                if (claimed)
+                {
+                    discardManagedFolderSelectionCompletion(pendingCompletion);
+                    tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationFailed);
+                }
             }
         }
 
-        private void completeManagedFolderSelection(
+        private void completeManagedFolderSelection(PendingManagedFolderSelectionCompletion pendingCompletion)
+        {
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (!pendingManagedFolderSelectionCompletions.Remove(pendingCompletion))
+                    return;
+
+                completeManagedFolderSelectionHeld(
+                    pendingCompletion.Generation,
+                    pendingCompletion.Target,
+                    pendingCompletion.Request,
+                    pendingCompletion.PreparationObservation,
+                    pendingCompletion.Cancellation,
+                    pendingCompletion.CaptureTask);
+            }
+        }
+
+        private void discardManagedFolderSelectionCompletion(PendingManagedFolderSelectionCompletion pendingCompletion)
+        {
+            Interlocked.CompareExchange(
+                ref pendingSelectionCancellation,
+                null,
+                pendingCompletion.Cancellation);
+            pendingCompletion.Cancellation.Dispose();
+
+            if (pendingCompletion.CaptureTask.Status == TaskStatus.RanToCompletion)
+                pendingCompletion.CaptureTask.GetAwaiter().GetResult().Capsule?.Dispose();
+            else if (pendingCompletion.CaptureTask.IsFaulted)
+                _ = pendingCompletion.CaptureTask.Exception;
+        }
+
+        private void completeManagedFolderSelectionHeld(
             long generation,
             Live<SkinInfo> target,
             SelectionRequest request,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
             CancellationTokenSource cancellation,
             Task<SkinManagedPackageCaptureResult> captureTask)
         {
             Interlocked.CompareExchange(ref pendingSelectionCancellation, null, cancellation);
 
             cancellation.Dispose();
+
+            if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+            {
+                if (captureTask.Status == TaskStatus.RanToCompletion)
+                    captureTask.GetAwaiter().GetResult().Capsule?.Dispose();
+                else if (captureTask.IsFaulted)
+                    _ = captureTask.Exception;
+
+                return;
+            }
 
             if (captureTask.Status != TaskStatus.RanToCompletion)
             {
@@ -1016,6 +1188,15 @@ namespace osu.Game.Skinning
             if (!candidateStillMatches)
             {
                 capture.Capsule!.Dispose();
+
+                if (tryScheduleManagedFolderSelectionRetryAfterCrossedStartup(
+                        generation,
+                        target.ID,
+                        preparationObservation))
+                {
+                    return;
+                }
+
                 rejectSelection(generation, SkinSelectionRejectionReason.CapturedCandidateChanged);
                 return;
             }
@@ -1034,71 +1215,40 @@ namespace osu.Game.Skinning
                 return;
             }
 
-            long stagedImportBoundaryEpoch =
-                Interlocked.Read(ref managedFolderStagedImportBoundaryEpoch);
-
-            if (!ManagedFolderOperationCoordinator.TryEnter(
-                    out SkinManagedFolderOperationCoordinator.Lease finalLease))
+            if (!ManagedFolderOperationCoordinator.TryEnterForSelection(
+                    out SkinManagedFolderOperationCoordinator.Lease finalLease,
+                    out SkinManagedFolderOperationCoordinator.SelectionContention selectionContention))
             {
                 ManagedFolderSelectionFinalBoundaryContended();
-                bool stagedImportRunning = IsManagedFolderStagedImportRunning;
-                bool stagedImportCompletedAcrossBoundary =
-                    stagedImportBoundaryEpoch
-                    != Interlocked.Read(
-                        ref managedFolderStagedImportBoundaryEpoch);
 
-                if (!stagedImportRunning
-                    && !stagedImportCompletedAcrossBoundary)
+                if (selectionContention != null)
                 {
+                    if (!ManagedFolderOperationCoordinator.IsMutationReservationEpochCurrent(preparationObservation))
+                    {
+                        factory.Skin!.Dispose();
+                        rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                        return;
+                    }
+
+                    Guid expectedCurrentInfoId = CurrentSkinInfo.Value.ID;
+                    Skin expectedCurrentSkin = CurrentSkin.Value;
                     factory.Skin!.Dispose();
-
-                    if (generation == Interlocked.Read(ref selectionGeneration))
-                    {
-                        rejectSelection(
-                            SkinSelectionRejectionReason
-                                .ManagedFolderOperationInProgress);
-                    }
-
-                    return;
-                }
-
-                try
-                {
-                    ManagedFolderSelectionWaitingForStagedImport();
-
-                    if (!IsManagedFolderStagedImportRunning)
-                    {
-                        // The import may have completed after the failed TryEnter but before the lifecycle observation.
-                        // Retry once so that this harmless interleaving cannot reject an unrelated prepared selection.
-                        if (!ManagedFolderOperationCoordinator.TryEnter(out finalLease))
-                        {
-                            factory.Skin!.Dispose();
-
-                            if (generation == Interlocked.Read(ref selectionGeneration))
-                            {
-                                rejectSelection(
-                                    SkinSelectionRejectionReason
-                                        .ManagedFolderOperationInProgress);
-                            }
-
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        // A staged import does not invalidate an unrelated prepared selection. Wait for its detached
-                        // mutation reservation, then perform the same generation/Realm/path/freeze checks below.
-                        finalLease = ManagedFolderOperationCoordinator.Enter();
-                    }
-                }
-                catch
-                {
-                    factory.Skin!.Dispose();
-                    rejectSelection(
+                    scheduleManagedFolderSelectionRetryAfterContention(
                         generation,
-                        SkinSelectionRejectionReason.PreparationFailed);
+                        target.ID,
+                        expectedCurrentInfoId,
+                        expectedCurrentSkin,
+                        preparationObservation,
+                        selectionContention);
                     return;
                 }
+
+                factory.Skin!.Dispose();
+
+                if (generation == Interlocked.Read(ref selectionGeneration))
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+
+                return;
             }
 
             using (finalLease)
@@ -1138,6 +1288,15 @@ namespace osu.Game.Skinning
                 if (!candidateStillMatches)
                 {
                     factory.Skin!.Dispose();
+
+                    if (tryScheduleManagedFolderSelectionRetryAfterCrossedStartup(
+                            generation,
+                            target.ID,
+                            preparationObservation))
+                    {
+                        return;
+                    }
+
                     rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
                     return;
                 }
@@ -1188,6 +1347,210 @@ namespace osu.Game.Skinning
                 {
                     LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
                 }
+            }
+        }
+
+        private bool tryScheduleManagedFolderSelectionRetryAfterCrossedStartup(
+            long generation,
+            Guid targetId,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation)
+        {
+            SkinManagedFolderOperationCoordinator.SelectionContention contention =
+                ManagedFolderOperationCoordinator.TryGetRetryableContentionSince(preparationObservation);
+
+            if (contention == null)
+                return false;
+
+            scheduleManagedFolderSelectionRetryAfterContention(
+                generation,
+                targetId,
+                CurrentSkinInfo.Value.ID,
+                CurrentSkin.Value,
+                preparationObservation,
+                contention);
+            return true;
+        }
+
+        private void scheduleManagedFolderSelectionRetryAfterContention(
+            long generation,
+            Guid targetId,
+            Guid expectedCurrentInfoId,
+            Skin expectedCurrentSkin,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
+            SkinManagedFolderOperationCoordinator.SelectionContention contention)
+        {
+            if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+                return;
+
+            try
+            {
+                if (contention.Kind == SkinManagedFolderOperationCoordinator.SelectionContentionKind.StartupSequence)
+                    ManagedFolderSelectionWaitingForStartup();
+                else
+                    ManagedFolderSelectionWaitingForStagedImport();
+            }
+            catch
+            {
+                rejectSelection(generation, SkinSelectionRejectionReason.PreparationFailed);
+                return;
+            }
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+                    return;
+
+                Task workerTask = waitForManagedFolderContentionAndScheduleRetry(
+                    generation,
+                    targetId,
+                    expectedCurrentInfoId,
+                    expectedCurrentSkin,
+                    preparationObservation,
+                    contention.Completion,
+                    managedFolderSelectionRetryCancellation.Token);
+                trackManagedFolderSelectionWorkerHeld(workerTask);
+            }
+        }
+
+        private async Task waitForManagedFolderContentionAndScheduleRetry(
+            long generation,
+            Guid targetId,
+            Guid expectedCurrentInfoId,
+            Skin expectedCurrentSkin,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
+            Task contentionCompletion,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await contentionCompletion.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Yield();
+                cancellationToken.ThrowIfCancellationRequested();
+
+                ManagedFolderCompletionSchedule(
+                    () => retryManagedFolderSelectionAfterContention(
+                        generation,
+                        targetId,
+                        expectedCurrentInfoId,
+                        expectedCurrentSkin,
+                        preparationObservation));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) == 0)
+                    tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationFailed);
+            }
+        }
+
+        private void retryManagedFolderSelectionAfterContention(
+            long generation,
+            Guid targetId,
+            Guid expectedCurrentInfoId,
+            Skin expectedCurrentSkin,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation)
+        {
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                retryManagedFolderSelectionAfterContentionHeld(
+                    generation,
+                    targetId,
+                    expectedCurrentInfoId,
+                    expectedCurrentSkin,
+                    preparationObservation);
+            }
+        }
+
+        private void retryManagedFolderSelectionAfterContentionHeld(
+            long generation,
+            Guid targetId,
+            Guid expectedCurrentInfoId,
+            Skin expectedCurrentSkin,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation)
+        {
+            if (Volatile.Read(ref managedFolderSelectionShutdown) != 0
+                || generation != Interlocked.Read(ref selectionGeneration)
+                || CurrentSkinInfo.Disabled
+                || CurrentSkinInfo.Value.ID != expectedCurrentInfoId
+                || !ReferenceEquals(CurrentSkin.Value, expectedCurrentSkin))
+            {
+                return;
+            }
+
+            if (!ManagedFolderOperationCoordinator.TryEnterForSelection(
+                    out SkinManagedFolderOperationCoordinator.Lease retryLease,
+                    out SkinManagedFolderOperationCoordinator.SelectionContention nextContention))
+            {
+                if (nextContention != null)
+                {
+                    if (!ManagedFolderOperationCoordinator.IsMutationReservationEpochCurrent(preparationObservation))
+                    {
+                        rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                        return;
+                    }
+
+                    scheduleManagedFolderSelectionRetryAfterContention(
+                        generation,
+                        targetId,
+                        expectedCurrentInfoId,
+                        expectedCurrentSkin,
+                        preparationObservation,
+                        nextContention);
+                }
+                else if (generation == Interlocked.Read(ref selectionGeneration))
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+
+                return;
+            }
+
+            using (retryLease)
+            {
+                if (!ManagedFolderOperationCoordinator.IsMutationReservationEpochCurrent(preparationObservation))
+                {
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                    return;
+                }
+
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0
+                    || generation != Interlocked.Read(ref selectionGeneration)
+                    || CurrentSkinInfo.Disabled
+                    || CurrentSkinInfo.Value.ID != expectedCurrentInfoId
+                    || !ReferenceEquals(CurrentSkin.Value, expectedCurrentSkin))
+                {
+                    return;
+                }
+
+                Live<SkinInfo> authoritativeTarget;
+                SelectionRequest retryRequest;
+
+                try
+                {
+                    authoritativeTarget = Realm.Run(r =>
+                    {
+                        r.Refresh();
+                        return r.Find<SkinInfo>(targetId)?.ToLive(Realm);
+                    });
+
+                    if (authoritativeTarget == null)
+                    {
+                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                        return;
+                    }
+
+                    retryRequest = authoritativeTarget.PerformRead(createSelectionRequest);
+                }
+                catch
+                {
+                    rejectSelection(SkinSelectionRejectionReason.PreparationFailed);
+                    return;
+                }
+
+                if (generation != Interlocked.Read(ref selectionGeneration))
+                    return;
+
+                beginManagedFolderSelectionPreparation(generation, authoritativeTarget, retryRequest);
             }
         }
 
@@ -1244,6 +1607,18 @@ namespace osu.Game.Skinning
         private void rejectSelection(long generation, SkinSelectionRejectionReason reason)
         {
             if (!tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease operationLease))
+                return;
+
+            using (operationLease)
+            {
+                if (generation == Interlocked.Read(ref selectionGeneration))
+                    rejectSelection(reason);
+            }
+        }
+
+        private void tryRejectSelectionWithoutBlocking(long generation, SkinSelectionRejectionReason reason)
+        {
+            if (!ManagedFolderOperationCoordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease operationLease))
                 return;
 
             using (operationLease)
@@ -1600,6 +1975,32 @@ namespace osu.Game.Skinning
             }
 
             CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
+        }
+
+        private sealed class PendingManagedFolderSelectionCompletion
+        {
+            public long Generation { get; }
+            public Live<SkinInfo> Target { get; }
+            public SelectionRequest Request { get; }
+            public SkinManagedFolderOperationCoordinator.SelectionPreparationObservation PreparationObservation { get; }
+            public CancellationTokenSource Cancellation { get; }
+            public Task<SkinManagedPackageCaptureResult> CaptureTask { get; }
+
+            public PendingManagedFolderSelectionCompletion(
+                long generation,
+                Live<SkinInfo> target,
+                SelectionRequest request,
+                SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
+                CancellationTokenSource cancellation,
+                Task<SkinManagedPackageCaptureResult> captureTask)
+            {
+                Generation = generation;
+                Target = target;
+                Request = request;
+                PreparationObservation = preparationObservation;
+                Cancellation = cancellation;
+                CaptureTask = captureTask;
+            }
         }
 
         private sealed class SelectionRequest
