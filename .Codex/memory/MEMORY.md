@@ -22,7 +22,7 @@
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、无production stager/caller边界、NTFS handoff、kind-routed durable recovery、exact fallback与settings managed delete地雷。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 2026-08-09产品链NO-GO、caller缺口、BMS/mania/core mixed-revision consumer与旧owner退役重新开门条件。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
-- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→renderer→用户结果核算价值、约三成release-ready差距、无caller后端止损及external完整作者工作区准入。
+- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→renderer→用户结果核算价值、约三成release-ready差距、`C1`～`C7`持久新对话燃尽、无caller后端止损及作者工作区准入。
 
 ## 构建、存储与产品面参考
 

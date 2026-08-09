@@ -55,6 +55,12 @@
 
 稳定依赖主链为：**external G1完整纵切 → reload路线决策与条件GO实现 → P1-K前置 → `SV1-3` → `SV1-4` → `SV1-5` → `SV1-6` → `SV1-7` → 集中视觉/性能/release**。
 
+## 协作粒度纠偏：七个持久新对话预算
+
+同日用户指出`SV1-0`～`SV1-7`已经被远多于八轮协作拆解，阶段编号不应掩盖prompt过小。现改用[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)中的`C1`～`C7`燃尽：`C1`作者工作区/G1 UX与archive安全、`C2`当前consumer reload/detach、`C3`P1-K+layout、`C4`shared codec/catalog/resolver、`C5`scene/event及剩余slot production、`C6`sandbox及最终整包reload门、`C7`canonical/Authoring Kit/自动release。当前为`0/7 closed，C1待启动`。reload触发/允许场景、beatmap-local V1范围与VM选型仍须在相应campaign同一对话取得产品决定并立即实现，不能预写成未经授权的事实，也不能单独消耗campaign。
+
+一个campaign是一段持久对话，不是一个turn、一个commit或一次上下文窗口；允许多轮、compaction和多个有意义提交。audit、NO-GO、路线冻结、红测、foundation/DTO、单个caller/consumer或文档不能作为campaign终态。未闭合就留在同一对话继续，必须等待用户产品选择时也不生成下一handoff prompt；若提前完成则可在原对话直接进入下一campaign。`C7`退出时，当前已知非人工Skin V1范围必须全部收口，只准保留人工视觉、真实设备与长时间体验签收。人工反馈产生的新缺陷属于未来新证据，不得预先假定不存在。
+
 ## 已有能力可复用，但不足以成为reload foundation
 
 - managed selection已有fresh authoritative Realm/path/owner/freeze/capture/factory复核、immutable capsule/new instance准备、generation/current pair、latest-wins/reentrant和shutdown ownership基础。
@@ -80,7 +86,7 @@
 
 冻结边界如下：
 
-1. 用户明确选择根含`skin.ini`的package目录；external永久只读，不复制、写入、重命名或删除源，也不借thin stager/import。
+1. 用户明确选择根含`skin.ini`的package目录；external源永久只读。register/select/restart/unregister不隐式复制、写入、重命名或删除源。后续`C1`同campaign的独立Import Managed Copy必须由用户明确触发，以fresh held physical proof向OMS fixed provisional staging做no-follow复制，绝不修改外部源；这不是thin/arbitrary-path stager。
 2. `NativeStorage`只作source adapter；strict local physical Windows root必须以逐段no-follow identity、完整稳定inventory、预算与package metadata生成immutable capsule，运行实例不得持续读取live store。
 3. 完整capture/factory成功后才原子发布带独立versioned service-owner token的Realm记录；token只证明本服务可管理记录，不授权path/source bytes或physical identity。重复lexical/physical identity、null/foreign旧记录、reparse/hardlink/busy writer、mapped/SUBST/UNC/device/root或managed重叠全部fail-closed。
 4. 注册不自动选择；记录进入现有dropdown。每次用户选择或configured restart都fresh held capture，active实例绑定exact capsule；原位修改不污染current，same-value不冒充reload。验收只冻结BMS Note/LN与既有legacy mania note/hold各一个具体artifact，不据此宣称完整mania compatibility。
@@ -94,5 +100,5 @@
 
 - atomic reload的三路独立追踪对caller/renderer、consumer publication及capsule owner/tests得出一致NO-GO；追加的产品价值、最终差距与后续策略三路审计又一致确认：现有真实玩家链与安全投入有价值，但无caller后端不得再计产品进度，external完整作者工作区是P1-A/`SV1-2`下一工程GO/NO-GO候选。
 - 没有runtime或测试文件变更，因此未运行focused/full、targeted formatter或Release。最近代码基线仍是2026-08-02记录的core managed **281/281**、Windows native delete **11/11**、managed selection/settings **62/62**、mania skin **182/182**、BMS full **1530/1530**、core skin **911/917**与mania full **827/831**同组既有失败、Release **0 error / 20 known warnings**。
-- `CheckDocumentation.ps1`通过（132个Markdown、1037个相对链接、72个memory wiki链），仅有mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。独立终审在收紧noncurrent unregister、service-owner/physical-proof与owner边界后，blocker/major/moderate为 **0/0/0**。
-- external完整产品纵切仍排在atomic reload/detach之前；thin staged-import stager/caller与reload同样保持NO-GO。后续工作不得把本审计写成reload实现、G1完成、Skin V1完成或release通过，也不得为追求提交量拆回无caller foundation。
+- `CheckDocumentation.ps1`通过（132个Markdown、1042个相对链接、72个memory wiki链），仅有mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。external边界与后续`C1`～`C7`范围/依赖分别经过独立终审，最终blocker/major/moderate为 **0/0/0**。
+- external注册/选择子门仍排在full managed-copy stager与atomic reload/detach之前；thin/arbitrary-path/foundation-only stager保持NO-GO，`C1`要求的fresh-authoritative full product stager只有在external子门成功且UI/恢复/测试同切时才GO。reload归`C2`并在其全consumer路线实际闭合前保持NO-GO。后续不得把本审计写成G1、Skin V1或release通过，也不得为追求提交量拆回无caller foundation。

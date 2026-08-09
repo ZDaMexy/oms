@@ -9,6 +9,8 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 ## 产品与仓库基线
 
+Skin V1后续进度现以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEVELOPMENT_PLAN.md)报告，而不是把`SV1-*`能力编号当作交付计数。当前为`0/7 closed，C1待启动`；每个campaign保持active直到完整退出门，审计、NO-GO、foundation或单个提交不计完成。`C7`退出时，2026-08-09已知非人工P1-A范围必须全部收口，只允许保留人工视觉、实机与长时间体验签收。
+
 - Windows-only，保留 osu!mania + 第一类 BMS；Osu/Taiko/Catch 已删除。
 - 离线优先；Phase 3 前 OMS 私有服务与默认 endpoint 保持为空。用户主动添加公共 BMS 难度表 URL 是既有窄例外，不代表 OMS 在线产品能力已开放。
 - BMS 直读 `chartbms/`，mania 直读 `chartmania/`；发行支持 `portable.ini → data/` 与 `storage.ini` 自定义根。
@@ -32,7 +34,7 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 - 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；选中的用户 BMS 包可为普通短键与长条 head/body/tail 提供静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，用户包/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享 neutral ini/asset/animation/event runtime、三态解析与 sandbox，ruleset topology/layout adapter 分离；当前窄纵切不代表这些能力已经完成。
-- G1 的authority/path preflight、managed Windows native capture、pure capsule、production factory/guarded selection、schema 57 exact-owner启动发现、configured selection↔startup scanner非阻塞协调、mutation authority/recovery、directory-only rename、fixed-source staged import及managed delete已组成窄生产链；玩家可达的是启动发现/选择和现有settings确认式物理delete，rename/import仍只是production-assembled internal surface，仓库没有external→fixed provisional stager、非测试caller或UI。capsule、`551a`协调与delete journal直接保护真实选择/删除和玩家文件，具有产品安全价值；但无caller的rename/import专属后端不能继续按代码量计进度。下一纵切只评估具备真实settings caller、只读capture、selection/restart和unregister的external完整作者工作区；atomic reload/detach保持NO-GO。完整layout/shared codec、其它slot三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit与移除程序化产品视觉也均未完成。
+- G1 的authority/path preflight、managed Windows native capture、pure capsule、production factory/guarded selection、schema 57 exact-owner启动发现、configured selection↔startup scanner非阻塞协调、mutation authority/recovery、directory-only rename、fixed-source staged import及managed delete已组成窄生产链；玩家可达的是启动发现/选择和现有settings确认式物理delete，rename/import仍只是production-assembled internal surface，仓库没有external→fixed provisional stager、非测试caller或UI。capsule、`551a`协调与delete journal直接保护真实选择/删除和玩家文件，具有产品安全价值；但无caller的rename/import专属后端不能继续按代码量计进度。`C1`必须先闭合具备真实settings caller、只读capture、selection/restart和unregister的external作者工作区，再以fresh service-owned source proof接通独立Import Managed Copy、rename/delete与支持面；thin/foundation-only stager仍NO-GO。atomic reload/detach归`C2`且当前保持NO-GO。完整layout/shared codec、其它slot三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit与移除程序化产品视觉也均未完成。
 
 恢复边界见 [2026-07-10 恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，当前实现与未完成 gate 见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，V1 完成定义见 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 

@@ -34,7 +34,13 @@
 - **此前投入不是无意义劳动**：真实玩家链已经从程序化默认扩展到已导入`.osk`的BMS Note/LN渲染，以及managed目录的重启发现、选择和settings物理删除。immutable capsule、`551a`启动协调与delete journal/recovery直接保护这些真实入口和玩家文件，不是纯抽象美化。
 - **投入结构明显偏向安全地基**：directory-only rename和fixed-source staged import的专属operation/recovery虽然进入production程序集，但仍没有非测试caller/stager/UI，只能算可复用风险资产，不能按代码量或测试量计作玩家功能。既有topology/config/event/capability fixture同理；没有production host/renderer/authoring consumer就不得继续横向扩张。
 - **最终产品仍有主要主体未实现**：`SV1-3`唯一layout、`SV1-4`shared codec、`SV1-5`scene/event、`SV1-6`sandbox及`SV1-7`双canonical包/Authoring Kit均未形成产品链；程序化`OmsSkin`仍是链底，新增视觉人工签收仍为0/4。完整分阶段差距见[2026-08-09交接](../../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
-- **后续按整条玩家纵切计进度**：下一候选是external只读作者工作区，一次闭合settings注册、Windows resolved-identity/no-follow capture、Realm记录、dropdown选择/配置重启、真实renderer及只解除注册；不得只提交external DTO、registry或capture service。完成后才冻结reload触发/允许场景/consumer协议并重新过门。
+- **后续按完整campaign计进度**：`C1`先闭合external settings注册、Windows resolved-identity/no-follow capture、Realm、选择/重启、renderer及unregister，再以fresh service-owned source proof接通独立Import Managed Copy、managed rename/delete和journal支持面；不得停在external DTO/registry/capture或thin stager。`C2`随后同campaign冻结并实现reload触发/允许场景/全consumer协议。
+
+## 七个交付 Campaign 燃尽状态
+
+`SV1-*`是能力分类而不是交付计数。执行计划已改为[P1-A PLAN的`C1`～`C7`持久campaign预算](DEVELOPMENT_PLAN.md)：当前为 **`0/7` closed，`C1`待启动**。每个campaign保持active直到完整退出门；audit、NO-GO、red test或foundation均不单独计数。`C7`退出时，当前已知非人工Skin V1任务必须全部收口，只剩集中视觉、真实设备与长时间体验签收。
+
+燃尽映射为：`C1`作者文件工作区/G1 UX → `C2`当前consumer revision reload/detach → `C3`P1-K+唯一layout → `C4`shared codec/catalog/resolver/mania compatibility → `C5`scene/event及剩余slot production并关闭`SV1-1`自动门 → `C6`sandbox并让ini/manifest/scene/script全部加入revision协议、关闭最终G1自动门 → `C7`canonical双包/Authoring Kit/自动release。当前约三成的dated估计退居背景信息，后续主要报告`Cxx closed / active / remaining`与具体用户能力，不再用阶段编号或小提交制造进度。
 
 ## 当前实现事实
 
@@ -108,5 +114,5 @@
 ## 下一检查点
 
 1. 将普通短键与长条 head/tail/body 的观感、选择切换和 selected 坏包回落保持在[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)的 `V-001`～`V-004`，等待统一用户反馈；不得把自动测试写成视觉签收。
-2. 继续 `SV1-2`：managed delete产品纵切已闭合，旧通用delete继续冻结。下一高价值候选是external只读作者工作区的完整settings注册/独立行级管理→capture→selection/restart→unregister产品纵切；行持有record ID并提供Open Folder/Unregister，不得复用只绑定current的Delete按钮/dialog。service-owner token不授权source，selection与managed冲突判断须fresh held physical proof。只有rename、staged-import、managed delete等全部真实admission都能把相关external root/ancestry proof保持并复验到final collision linearization point，才可安全收窄全局阻断；否则external纵切NO-GO。首切只允许noncurrent unregister；任一current half指向目标或pair split都须禁用/稳定拒绝，用户先显式选择并提交其他skin，unregister不dispose任何旧`Skin`/capsule，也不借机预建reload barrier。没有真实caller、具体BMS/legacy-mania renderer artifact与解除注册同切闭合时不得先加foundation。thin staged-import stager/caller继续**NO-GO**；atomic reload/detach也维持**NO-GO**，只有产品先冻结触发方式、允许场景及全consumer publication/detach协议后才可重新评估。
+2. 继续`C1`/`SV1-2`：先完成external只读settings注册/独立行级管理→capture→selection/restart→unregister；行持有record ID并提供Open Folder/Unregister，不复用current Delete按钮/dialog。随后同campaign以fresh service-owned external proof提供独立Import Managed Copy，接通fixed provisional stager/import、managed rename/delete及journal冻结/恢复支持面。register/select/unregister不隐式复制，显式import只向OMS staging no-follow复制且永不修改外部源。service-owner token不授权source；rename、staged-import、delete全部admission必须把external root/ancestry proof保持至final collision point，否则`C1`不能退出。首切仍只允许noncurrent unregister，current与reload/detach归`C2`；thin/arbitrary-path或foundation-only stager继续**NO-GO**。
 3. 剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，留给后续 shared scene/runtime 接管。只有视觉结论实际决定下一实现时才暂停；期间保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 Skin V1 未交付状态不变。

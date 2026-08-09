@@ -4,6 +4,13 @@
 
 ## 2026-08-09
 
+### 协作粒度纠偏与七个持久campaign燃尽
+
+- 用户指出`SV1-0`～`SV1-7`已经被远多于八轮协作拆解，阶段编号与实际推进粒度不再匹配。复核确认`SV1-*`本意是能力依赖而非会话次数，但此前handoff prompt确实允许审计、单个foundation或一条窄纵切消耗整轮，导致产品完成度与协作轮数脱节。
+- 执行总览改为`C1`～`C7`新对话prompt硬预算：`C1`作者文件工作区/G1 UX与archive安全，`C2`当前consumer revision reload/detach，`C3`P1-K+唯一layout，`C4`shared codec/catalog/resolver/mania compatibility，`C5`scene/event及剩余slot production，`C6`sandbox并关闭ini/manifest/scene/script最终reload门，`C7`canonical双包/Authoring Kit/自动release。当前为`0/7 closed`；完整范围、退出门和阶段映射只看PLAN。reload触发/允许场景、beatmap-local V1范围与VM选型若仍需产品确认，必须在各自campaign同一对话取得决定并立即实现，不能预写未经授权的结论或单独消耗编号。
+- 一个campaign是一段持久对话而非一个turn/commit，允许多轮、compaction、多个有意义提交和多组测试。audit、NO-GO、路线冻结、红测、DTO/foundation、单个caller/consumer或文档不能推进编号；未过退出门就留在同一对话，若需用户产品决策也在原对话等待。`C7`结束时只准保留人工视觉、真实设备与长时间体验签收，不能把已知代码/测试/工具/release任务继续外溢。
+- 本次只重排产品执行预算并同步文档/memory，没有runtime或测试文件变化，故未重跑focused/full、formatter或Release；最近代码验证继续沿用2026-08-02基线。`CheckDocumentation.ps1`通过（132个Markdown、1042个相对链接、72个memory wiki链），仅有mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。两路独立范围/可行性终审补齐optional-slot阶段、产品决定授权、跨代reload consumer、普通`.osk` owner、archive安全、VM作者ABI与canonical旧journal迁移后，最终blocker/major/moderate为 **0/0/0**。
+
 ### 产品价值、最终差距与后续大纵切收口
 
 - 三路只读审计按真实caller→manager/backend→renderer→用户结果重新分类此前Skin投入。玩家当前真实可达的是：普通`.osk`导入/选择后BMS Note与LN head/body/tail进入renderer；合法managed目录手工放入后重启发现并从settings dropdown选择；eligible managed目录可从settings确认框安全物理删除。immutable capsule直接保证active package revision不被磁盘并发变化混入，`551a`协调直接保护configured managed skin的启动恢复，shared coordinator/journal/recovery已被真实delete消费并保护玩家文件，因此这些复杂安全工作不是无意义抽象。

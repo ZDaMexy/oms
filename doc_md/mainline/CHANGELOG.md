@@ -13,6 +13,8 @@
 
 下一高价值候选改为external只读作者工作区的完整settings→resolved-identity/no-follow capture→Realm注册→dropdown选择/配置重启→真实renderer→只解除注册纵切；没有完整caller和consumer链不得先建foundation。current managed atomic reload/detach因无production caller、全consumer publication/detach和owner退役协议保持NO-GO；thin staged-import stager/caller同样NO-GO。该优先级只改变后续产品工作包，不改变现有release gate或2026-08-02代码验证基线；完整分阶段差距与门槛见[2026-08-09交接](../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)及[P1-A当前状态](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
+同日根据用户对协作粒度的纠偏，`SV1-*`明确只作能力taxonomy，剩余自动工作另设`C1`～`C7`最多七个持久新对话campaign：作者工作区/G1 UX与archive安全、当前consumer reload/detach、P1-K+layout、shared codec/catalog/resolver、scene/event及剩余slot production、sandbox并关闭最终整包reload门、canonical/Authoring Kit/自动release。未闭合campaign不得生成下一handoff prompt；audit、产品路线决定、NO-GO、DTO/foundation或单个提交不能消耗编号。第七个退出时只留人工签收，详见[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)。
+
 ## 2026-08-01
 
 ### Skin V1 启动可靠性与产品价值收口
