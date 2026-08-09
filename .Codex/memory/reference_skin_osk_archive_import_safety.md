@@ -18,7 +18,7 @@ metadata:
 
 ## C1硬门
 
-- ordinary `.osk`使用两层skin-scoped preflight：在`ImportTask.GetReader`/`ZipArchive.Open`前只限制compressed source length并把非seekable stream写入bounded spool；bounded archive open后立即有界枚举central-directory metadata，完成entry/name/declared-size gate后才允许`Filenames`向后续暴露。任何`GetStream`、fast hash、`Files.Add`、model construction或`SkinInfo` publication都在完整准入之后；实际copy/hash流再次硬计数并观察cancellation，不信任declared size。
+- ordinary `.osk`使用两层skin-scoped preflight：在`ImportTask.GetReader`/`ZipArchive.Open`前只限制compressed source length并把非seekable stream写入bounded spool；随后由自身受compressed-input、central-directory bytes、entry count与内存预算约束的metadata parser/open立即枚举central-directory，不能先让通用reader无界物化metadata再后置检查。完整entry/name/type/declared-size gate后才允许`Filenames`向后续暴露；任何`GetStream`、fast hash、`Files.Add`、model construction或`SkinInfo` publication都在准入之后，实际copy/hash流再次硬计数并观察cancellation，不信任declared size。
 - name gate同时检查raw与common-prefix-shortened结果：slash/NFC/Windows case-fold重复、file-directory conflict、空名、traversal、ADS/device/trailing-dot-space及路径/层级上限；encrypted、overflow、truncated/CRC、symlink/special entry和zero/unknown/data-descriptor必须bounded accept或typed reject。
 - `skininfo.json`中的untrusted `InstantiationInfo`必须经过closed compatibility allowlist或稳定legacy fallback，禁止任意CLR type activation；archive ingress预算与runtime texture/decode预算是两层不同合同，不得互相冒充。
 - 拒绝、取消或失败不产生`SkinInfo`、Realm file reference、仅由本次创建的orphan blob/temp，也不能误删共享content-addressed blob；原`.osk`保留，只有成功继续既有`ShouldDeleteArchive`语义。Shift-JIS、公共顶层目录、`Skin.InI`及历史有效包必须回归。
