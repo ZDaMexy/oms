@@ -15,6 +15,8 @@
 
 同日根据用户对协作粒度的纠偏，`SV1-*`明确只作能力taxonomy，剩余自动工作另设`C1`～`C7`最多七个持久新对话campaign：作者工作区/G1 UX与archive安全、当前consumer reload/detach、P1-K+layout、shared codec/catalog/resolver、scene/event及剩余slot production、sandbox并关闭最终整包reload门、canonical/Authoring Kit/自动release。未闭合campaign不得生成下一handoff prompt；audit、产品路线决定、NO-GO、DTO/foundation或单个提交不能消耗编号。第七个退出时只留人工签收，详见[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)。
 
+规划变更后的全层级复审进一步消除了旧的“external子门完成后立即进入reload”路由：external只占`C1`首个顺序子门，随后必须在同一campaign关闭full managed-copy stager/import、managed rename/delete与journal支持UX、普通`.osk` archive安全，`C1`整体通过后才进入`C2`。`C2`只关闭当前production consumer协议，`C3`～`C6`新增consumer逐次加入，最终`ini/manifest/scene/script/素材`整包reload与G1自动门到`C6`关闭；该澄清不改变任何runtime或既有验证基线。
+
 ## 2026-08-01
 
 ### Skin V1 启动可靠性与产品价值收口

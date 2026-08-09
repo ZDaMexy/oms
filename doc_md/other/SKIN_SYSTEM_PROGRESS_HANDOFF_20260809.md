@@ -42,7 +42,7 @@
 | --- | --- | --- |
 | `SV1-0` | **完成**：schema 56清点、定点数据处置、自动与恢复实机门闭合 | 已闭门，不重开；价值是可信数据基线，不是新增作者能力 |
 | `SV1-1` | **部分**：selected `.osk`/managed BMS包的Note与LN head/body/tail静态/60 FPS编号帧、`Provide/Inherit`、逐组件回落、exact revision、body宽度安全域与状态宿主进入真实链 | 缺`Suppress`、其它slot、真实beatmap-local作者格式、完整shared resolver/mania compatibility；`V-001`～`V-004`为0/4。optional视觉等待scene/runtime，不再逐件堆C# |
-| `SV1-2` / G1 | **进行中**：managed目录可重启发现、选择和settings物理删除；rename/import只有安全后端 | 缺external register/capture/select/unregister、可信stager/import UX、atomic reload/detach与完整G1人工矩阵。先external完整纵切，再冻结reload路线 |
+| `SV1-2` / G1 | **进行中**：managed目录可重启发现、选择和settings物理删除；rename/import只有安全后端 | `C1`先整体关闭external register/capture/select/unregister、full stager/import、rename/delete/journal支持UX与archive安全；之后`C2`关闭当前consumer协议，`C3`～`C6`持续纳入新增consumer，`C6`才关闭最终整包reload/G1自动门 |
 | `SV1-3` layout | **目标未实现**：neutral topology与`LongNoteBodyWidth`单字段resolver只是前置 | 先由P1-K修正keymode/lane timeline，再建立5K/7K四style、9K BMS/PMS、14K DP唯一layout snapshot；当前playfield/HUD/BGA仍可能脱节 |
 | `SV1-4` shared codec | **目标未实现**：decoder-time presence/provenance及candidate fixture不等于production | 依赖stable lane/layout；缺共享resolver/codec生产消费、完整字段与结构化诊断 |
 | `SV1-5` scene/event | **目标未实现**：event envelope/cursor/capability negotiation仍是process-local合同 | 依赖`SV1-3/4`；缺manifest/schema、allowlisted scene graph、状态机、真实event adapter/host/renderer与Snapshot/Reset |
@@ -53,7 +53,7 @@
 
 三个现实体验缺口必须与“约三成”同时阅读：managed作者流程仍依赖手工放置目录和重启，没有注册/import/rename/reload UX；`V-001`～`V-004`仍为0/4，自动gate没有证明最终观感；invalid/IO journal freeze虽然优先保护数据，却没有用户可见的支持/修复界面，异常时可能安全但不可自助地卡住mutation。
 
-稳定依赖主链为：**external G1完整纵切 → reload路线决策与条件GO实现 → P1-K前置 → `SV1-3` → `SV1-4` → `SV1-5` → `SV1-6` → `SV1-7` → 集中视觉/性能/release**。
+稳定依赖主链为：**`C1`完整作者文件工作区 → `C2`当前consumer revision协议 → `C3` P1-K+layout → `C4` shared codec → `C5` scene/event → `C6` sandbox+最终整包reload/G1自动门 → `C7` canonical/Authoring Kit/自动release → 集中视觉、真实设备与长时间体验签收**。
 
 ## 协作粒度纠偏：七个持久新对话预算
 
@@ -78,9 +78,9 @@
 
 只有真实caller、全consumer publication/detach、失败保留旧实例和owner生命周期能在同一纵切闭合时才重新判GO。否则继续NO-GO，禁止manager-only reload API、强制同ID selection、逐组件`SourceChanged`拼接、即时dispose旧owner或无consumer DTO/barrier抽象。
 
-## 后续高价值工作包：external只读作者工作区
+## `C1`首个顺序子门：external只读作者工作区
 
-下一实施候选不是external foundation，而是一条可由作者验证的完整链：
+external子门不是foundation，而是一条可由作者验证的完整链；但它也不是`C1`终态，完成后必须在同一campaign继续full managed-copy stager、rename/delete UI、journal支持与普通`.osk` archive安全：
 
 `settings添加外部皮肤文件夹及独立registrations行级管理 → Windows resolved-identity/no-follow完整capture → versioned service-owner Realm注册 → existing dropdown选择/配置重启 → BMS Note/LN及legacy mania note/hold最小renderer artifact → 行级打开源目录/只解除注册且绝不物理修改源`
 
@@ -89,16 +89,18 @@
 1. 用户明确选择根含`skin.ini`的package目录；external源永久只读。register/select/restart/unregister不隐式复制、写入、重命名或删除源。后续`C1`同campaign的独立Import Managed Copy必须由用户明确触发，以fresh held physical proof向OMS fixed provisional staging做no-follow复制，绝不修改外部源；这不是thin/arbitrary-path stager。
 2. `NativeStorage`只作source adapter；strict local physical Windows root必须以逐段no-follow identity、完整稳定inventory、预算与package metadata生成immutable capsule，运行实例不得持续读取live store。
 3. 完整capture/factory成功后才原子发布带独立versioned service-owner token的Realm记录；token只证明本服务可管理记录，不授权path/source bytes或physical identity。重复lexical/physical identity、null/foreign旧记录、reparse/hardlink/busy writer、mapped/SUBST/UNC/device/root或managed重叠全部fail-closed。
-4. 注册不自动选择；记录进入现有dropdown。每次用户选择或configured restart都fresh held capture，active实例绑定exact capsule；原位修改不污染current，same-value不冒充reload。验收只冻结BMS Note/LN与既有legacy mania note/hold各一个具体artifact，不据此宣称完整mania compatibility。
-5. settings新增独立external registrations列表/行级管理面；每行持有已提交record ID并提供Open Folder与Unregister，不得复用只绑定`CurrentSkin`的既有Delete按钮/dialog。rename/export/editor/update-import保持冻结，“删除”文案必须明确为解除注册，由manager-owned async record-ID入口完成。首个纵切只允许noncurrent unregister：`CurrentSkinInfo`/`CurrentSkin`两半都不指向目标时才可执行；任一半指向目标或pair split时行级操作禁用且manager稳定拒绝，用户须先显式选择并真实提交另一个skin。Realm失败保留记录，任何结果都保留物理源；unregister不dispose任何prior `Skin`/capsule，也不宣称consumer detach或owner retirement。
-6. 要把当前“任一external阻断全部managed mutation”的临时策略收窄为局部冲突，每个真实managed mutation admission都必须fresh重取相关service-owned记录，并把external physical root/ancestry held proof保持、复验到该operation的final collision linearization point，再与held managed root/source/target比较。若rename、staged-import、managed delete及竞态测试不能同切闭合，则external纵切NO-GO并保留全局阻断；owner token或瞬时resolve都不够。
+4. 注册不自动选择；记录进入现有dropdown。每次用户选择或configured restart都fresh held capture，active实例绑定exact capsule；原位修改不污染current，same-value不冒充reload，切走再选或重启可在安全commit更新本服务的metadata/hash observation。configured external不得绕过`551a`：它与startup recovery/scanner取得确定性顺序或等待exact typed completion后fresh retry，generic mutation epoch跨越即fail-closed、update thread不等待、shutdown exact join。验收只冻结BMS Note/LN与既有legacy mania note/hold各一个具体artifact，不据此宣称完整mania compatibility。
+5. settings新增独立external registrations列表/行级管理面；每行持有已提交record ID并提供Open Folder、Import Managed Copy与Unregister，不得复用只绑定`CurrentSkin`的既有Delete按钮/dialog。rename/export/editor/update-import保持冻结，“删除”文案必须明确为解除注册，由manager-owned async record-ID入口完成。首个纵切只允许pure-Realm noncurrent unregister：真正事务内fresh compare-remove exact service-owner record，不解析/触碰source，所以source缺失、不可读或漂移仍可解除陈旧注册；`CurrentSkinInfo`/`CurrentSkin.SkinInfo`两半ID必须coherent且都非目标，任一半命中或pair split时行级操作禁用且manager稳定拒绝。Realm失败保留记录，任何结果都保留物理源；unregister不dispose任何prior `Skin`/capsule，也不宣称consumer detach或owner retirement。
+6. external register/unregister Realm commit与scanner、selection、rename、staged-import、managed delete必须共享coordinator或等价exact集合epoch。每个真实managed mutation admission fresh取得所有相关service-owned记录与held external physical root/ancestry proof，并在final collision linearization point重读比较exact Realm集合、ID/path/owner，再与held managed root/source/target比较。并发新注册、unresolved、foreign/null、identity/set drift或重叠继续fail-closed；owner token、UI缓存或瞬时resolve都不够。若全部真实admission及竞态测试不能同切闭合，则external子门NO-GO并保留全局阻断。
 7. settings caller、capture、Realm、selection/restart、上述具体renderer artifact、unregister、取消/shutdown、脱敏诊断与真实Windows产品/headless测试必须同切闭合。若只能交付request/DTO/registry/capture service，应STOP而非提交半条纵切；不得借external切片预建reload barrier。
 
-本工作包不包含watcher、reload、thin stager、任意path import、逐件optional slot、layout/shared codec、scene/script或canonical包。完成后再对手动settings reload、允许场景与全consumer协议做独立路线决策。
+external子门本身不夹带watcher、reload、任意path import、逐件optional slot、layout/shared codec、scene/script或canonical包；但通过后不得生成`C2` prompt，必须留在同一`C1`继续full managed-copy stager、rename/delete/journal支持UX与普通`.osk` archive安全。只有`C1`整体过退出门后，才在`C2`同一campaign完成reload路线决策并立即实现当前consumer协议；路线决策不能单独消耗一次对话。
+
+`C1`后半另有四项不可省略的硬门：Folder Skin Workspace按committed record ID管理，external行是Open/Import Managed Copy/Unregister，managed行是Open/Rename Folder，普通Realm `.osk`不进列表；现有current Delete button/dialog保持唯一managed delete caller，Rename Folder不复用会改展示名/`skin.ini`的旧popover。Import Managed Copy只接收external record ID和用户明确target child，operation ID/staging path由manager生成；fresh capture成对产出exact capsule与含显式empty directory的immutable logical-tree manifest，文件bytes只来自capsule，destination handles按manifest no-follow/no-replace重建。首个provisional write前建立single canonical v3 combined intent，phase覆盖copy/ProvisionalReady及既有move/publish，并durable绑定external registry digest/non-overlap disposition；pre-C1 v2 schema冻结只读，不创建第二journal或交权空窗。journal支持只显示稳定状态/原因与脱敏bundle，仅允许fresh inspection唯一证明时由manager重试，绝不提供删journal/解除冻结/让用户选前滚回滚。ordinary `.osk`先在archive open前限制compressed source/bounded spool，bounded open后立即检查central-directory metadata，且早于任何`Filenames/GetStream/hash/Files.Add`消费；unknown/zero/data-descriptor实际流继续硬预算与取消，失败不留Realm记录、file reference、orphan blob/temp并保留原archive。
 
 ## 本轮验证与下一入口
 
-- atomic reload的三路独立追踪对caller/renderer、consumer publication及capsule owner/tests得出一致NO-GO；追加的产品价值、最终差距与后续策略三路审计又一致确认：现有真实玩家链与安全投入有价值，但无caller后端不得再计产品进度，external完整作者工作区是P1-A/`SV1-2`下一工程GO/NO-GO候选。
+- atomic reload的三路独立追踪对caller/renderer、consumer publication及capsule owner/tests得出一致NO-GO；追加的产品价值、最终差距与后续策略三路审计又一致确认：现有真实玩家链与安全投入有价值，但无caller后端不得再计产品进度。external注册/选择只是`C1`首个顺序子门；`C1`还必须继续关闭full managed-copy stager、rename/delete UI、journal支持与`.osk` archive安全，不能以external完成冒充campaign退出。
 - 没有runtime或测试文件变更，因此未运行focused/full、targeted formatter或Release。最近代码基线仍是2026-08-02记录的core managed **281/281**、Windows native delete **11/11**、managed selection/settings **62/62**、mania skin **182/182**、BMS full **1530/1530**、core skin **911/917**与mania full **827/831**同组既有失败、Release **0 error / 20 known warnings**。
-- `CheckDocumentation.ps1`通过（132个Markdown、1042个相对链接、72个memory wiki链），仅有mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。external边界与后续`C1`～`C7`范围/依赖分别经过独立终审，最终blocker/major/moderate为 **0/0/0**。
-- external注册/选择子门仍排在full managed-copy stager与atomic reload/detach之前；thin/arbitrary-path/foundation-only stager保持NO-GO，`C1`要求的fresh-authoritative full product stager只有在external子门成功且UI/恢复/测试同切时才GO。reload归`C2`并在其全consumer路线实际闭合前保持NO-GO。后续不得把本审计写成G1、Skin V1或release通过，也不得为追求提交量拆回无caller foundation。
+- `CheckDocumentation.ps1`通过（133个Markdown、1046个相对链接、72个memory wiki链），仅有mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。external边界、C1可执行性及后续`C1`～`C7`范围/依赖分别经过独立终审，最终blocker/major/moderate为 **0/0/0**。
+- external注册/选择子门仍排在full managed-copy stager与revision协议之前；thin/arbitrary-path/foundation-only stager保持NO-GO，`C1`要求的fresh-authoritative full product stager只有在external子门成功且UI/恢复/测试同切时才GO。当前production consumer的reload/owner协议归`C2`并在真实caller路线闭合前保持NO-GO；C3～C6新增consumer逐次加入，最终整包reload/G1自动门到`C6`才关闭。后续不得把本审计写成G1、Skin V1或release通过，也不得为追求提交量拆回无caller foundation。

@@ -18,7 +18,7 @@
 - [SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md](SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md)：基于`c53f1e0`的历史阶段快照；其中启动选择竞态已在2026-08-01闭合，不得当作当前状态。
 - [SKIN_SYSTEM_PROGRESS_HANDOFF_20260801.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260801.md)：基于`551a64a`的产品价值复核、最终Skin V1差距、下一纵切go/no-go与跨会话边界；不替代P1-A当前状态。
 - [SKIN_SYSTEM_PROGRESS_HANDOFF_20260802.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260802.md)：managed delete玩家纵切闭合后的产品行为、安全/恢复合同、验证基线与下一会话边界；不替代P1-A当前状态。
-- [SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)：current managed atomic reload/detach NO-GO、既有Skin投入的产品价值分层、`SV1-0`～`SV1-7`最终差距、约三成release-ready完成度及external完整作者工作区后续大纵切；不替代P1-A当前状态。
+- [SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)：current managed atomic reload/detach NO-GO、既有Skin投入的产品价值分层、`SV1-0`～`SV1-7`最终差距、约三成release-ready完成度，以及`C1`～`C7`持久campaign燃尽与完整`C1`作者文件工作区入口；不替代P1-A当前状态。
 - [SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md](SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)：已导入 `.osk` 的 BMS 普通短键编号帧动画、选择切换与 selected 坏包回落的确定性手工素材及验收边界。
 - [SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)：Skin V1 自动 gate 后集中等待用户签收的视觉清单、状态定义与反馈记录。
 

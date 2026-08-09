@@ -11,7 +11,8 @@ metadata:
 ## 当前结论
 
 - 2026-08-09按真实settings/selection/renderer/owner链审计，current managed atomic reload/detach为**NO-GO**；不得新增reload foundation。当前状态与顺序只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，dated证据见[2026-08-09交接](../../doc_md/other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
-- PLAN仍把external registration/capture排在atomic reload/detach之前。managed reload只有在已有production caller/host/renderer能让完整纵切独立闭合时才可例外提前；当前仓库没有reload current managed revision的caller、UI、watcher或manager API。
+- 后续燃尽把当前production consumer的revision publication/lease/detach协议放入`C2`；`C3`～`C6`新增layout/scene/script consumer必须同切加入该协议，直到`C6`才关闭覆盖`ini/manifest/scene/script/素材`的最终整包reload与G1自动门。该计划不把2026-08-09 NO-GO改写成当前已实现事实；`C1`未关闭及`C2`真实caller/路线未取得产品终态前仍禁止预建barrier foundation。
+- PLAN把完整`C1`作者文件工作区排在`C2`当前consumer revision协议之前；external registration/capture只是`C1`首个子门，不能完成后立即跳到reload。当前仓库没有reload current managed revision的caller、UI、watcher或manager API。
 - settings/config/hotkey只请求selection，same-value在准备前短路；startup scanner是单次reconcile而非watcher。filesystem-backed skin继续被editor、update import与external edit拒绝。普通Realm `ExternalEditOverlay`的new-instance后立即dispose旧实例不是managed caller，也没有barrier，不能复用。
 
 ## publication 与 owner 地雷

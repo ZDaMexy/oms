@@ -23,7 +23,7 @@ Skin V1后续进度现以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | R3 / `SV1-2` G1 可视文件夹 | 启动发现/选择、configured startup协调与settings managed delete已闭合；rename及staged import后端仍无应用caller/stager/UI；external未交付，atomic reload/detach当前NO-GO | 下一高价值候选是settings external只读工作区的注册→capture→选择/重启→解除注册完整纵切；禁止先建无caller backend，thin stager/caller继续NO-GO |
+| 1 | R3 / `SV1-2` G1 可视文件夹 | 启动发现/选择、configured startup协调与settings managed delete已闭合；rename及staged import后端仍无应用caller/stager/UI；external未交付，atomic reload/detach当前NO-GO | 执行`C1`完整作者工作区：external注册/选择子门后继续full managed-copy stager、rename/delete UI、journal支持与`.osk` archive安全；禁止在external或thin foundation停下 |
 | 2 | R4 / Skin V1 后续合同 | `SV1-1` 整体仍未完成，`SV1-3`～`SV1-7` 未实现 | 补齐完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime；这些不是进入 `SV1-2` 的前置 |
 | 3 | 集中视觉签收 | R2 首个 Note/LN 纵切的四组件自动门已闭合；`V-001`～`V-004` 签收 0/4 | 继续登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
@@ -34,7 +34,7 @@ Skin V1后续进度现以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/
 - 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；选中的用户 BMS 包可为普通短键与长条 head/body/tail 提供静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，用户包/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享 neutral ini/asset/animation/event runtime、三态解析与 sandbox，ruleset topology/layout adapter 分离；当前窄纵切不代表这些能力已经完成。
-- G1 的authority/path preflight、managed Windows native capture、pure capsule、production factory/guarded selection、schema 57 exact-owner启动发现、configured selection↔startup scanner非阻塞协调、mutation authority/recovery、directory-only rename、fixed-source staged import及managed delete已组成窄生产链；玩家可达的是启动发现/选择和现有settings确认式物理delete，rename/import仍只是production-assembled internal surface，仓库没有external→fixed provisional stager、非测试caller或UI。capsule、`551a`协调与delete journal直接保护真实选择/删除和玩家文件，具有产品安全价值；但无caller的rename/import专属后端不能继续按代码量计进度。`C1`必须先闭合具备真实settings caller、只读capture、selection/restart和unregister的external作者工作区，再以fresh service-owned source proof接通独立Import Managed Copy、rename/delete与支持面；thin/foundation-only stager仍NO-GO。atomic reload/detach归`C2`且当前保持NO-GO。完整layout/shared codec、其它slot三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit与移除程序化产品视觉也均未完成。
+- G1 的authority/path preflight、managed Windows native capture、pure capsule、production factory/guarded selection、schema 57 exact-owner启动发现、configured selection↔startup scanner非阻塞协调、mutation authority/recovery、directory-only rename、fixed-source staged import及managed delete已组成窄生产链；玩家可达的是启动发现/选择和现有settings确认式物理delete，rename/import仍只是production-assembled internal surface，仓库没有external→fixed provisional stager、非测试caller或UI。capsule、`551a`协调与delete journal直接保护真实选择/删除和玩家文件，具有产品安全价值；但无caller的rename/import专属后端不能继续按代码量计进度。`C1`必须先闭合具备真实settings caller、只读capture、selection/restart和unregister的external作者工作区，再以fresh-authoritative service-owned record作provenance/admission、fresh held physical proof授权capture；paired exact capsule/logical manifest提供source，destination handles只授权写入，随后接通独立Import Managed Copy、rename/delete、journal支持与archive安全。thin/foundation-only stager仍NO-GO。当前consumer revision protocol归`C2`且保持NO-GO，最终整包门到`C6`关闭。完整layout/shared codec、其它slot三态、scene/event/script、`oms-simple/oms-complex`、Authoring Kit与移除程序化产品视觉也均未完成。
 
 恢复边界见 [2026-07-10 恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，当前实现与未完成 gate 见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，V1 完成定义见 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
@@ -85,7 +85,7 @@ Skin V1后续进度现以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/
 - 四个无 authority orphan blob 暂留并已保全；schema 57迁移保持owner=null，当前scanner也不会claim、去重或清理它们。
 - 当前可见纵切只覆盖 BMS 普通短键与 LN head/body/tail，不含 key、mania、完整 layout/三态或 scene/script；Skin V1 不能据此宣称可用。
 - 当前逐组件异步替换不等于 `SV1-2` 的整包原子重载；runtime 资源预算也不等于 importer 的 zip-bomb gate。
-- managed folder active实例已固定到immutable capsule，磁盘原位变化不会混入当前结果，也不会自动reload；新revision仍须在`SV1-2`以新实例、全consumer publication barrier和旧owner安全退役闭合。
+- managed folder active实例已固定到immutable capsule，磁盘原位变化不会混入当前结果，也不会自动reload；当前production consumer的新revision publication与旧owner退役归`C2`，`C3`～`C6`新增consumer须逐次加入，最终整包reload/G1自动门只在`C6`闭合。
 - managed自动发现只在`OsuGame.LoadComplete`后执行一次；启动后新增或原位修改目录不会被watch，也不会自动reload，当前需重启重新发现。
 - configured managed selection只对typed startup/staged-import contention异步重试；generic mutation epoch一旦跨越即fail-closed。该协调不是watcher或热重载，启动后新增/原位修改仍需重启；后续变更必须保留direct、completed、deferred与chained四类交错回归。
 - directory-only rename与fixed-source staged import已有internal production纵切但无非测试caller；仓库也没有把玩家外部来源安全复制到fixed provisional slot的production stager。当前因此不应把stager称作thin切片，也不得继续横向扩张无caller foundation。managed delete已由现有settings入口消费，但其tombstone/recovery同样不是filesystem transaction；external未完成，atomic reload/detach已经产品审计为NO-GO。

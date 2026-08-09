@@ -28,14 +28,14 @@ metadata:
 
 ## 后续整条纵切
 
-P1-A/`SV1-2`下一工程GO/NO-GO候选是external只读作者工作区：
+P1-A/`SV1-2`下一执行单元是完整`C1`作者文件工作区；external只读注册/选择是首个顺序子门，不是campaign终态：
 
 `settings目录选择/独立registrations行级管理 → resolved physical identity/no-follow capture → immutable capsule → versioned service-owner Realm注册 → dropdown选择/配置重启 → BMS Note/LN与legacy mania note/hold最小artifact → 行级打开源目录/只解除注册`
 
-- external源永久只读；register/select/restart/unregister不隐式复制、写入、rename或删除源。settings必须新增持有已提交record ID的独立external registrations行级管理面，提供Open Folder/Unregister，不得复用只绑定current的Delete按钮/dialog；`C1`后半另提供用户明确触发的Import Managed Copy，以fresh held source proof只向OMS fixed provisional staging做no-follow复制，仍绝不修改外部源。unregister与managed physical delete必须使用不同文案和API。
-- 注册不自动选择，active实例不读live store，same-value与原位变化不冒充reload。
+- external源永久只读；register/select/restart/unregister不隐式复制、写入、rename或删除源。Folder Skin Workspace按committed record ID管理：external行提供Open Folder/Import Managed Copy/Unregister，scanner-owned managed行提供Open Folder/Rename Folder，普通Realm`.osk`不进列表；现有current Delete button/dialog保持唯一managed delete caller。Import Managed Copy只接收external record ID与用户明确target child，operation ID/staging path由manager生成；fresh capture成对产出exact capsule与含empty directory的immutable logical manifest，文件bytes只来自capsule，destination handles按manifest重建。首写前已有single canonical v3 combined intent并覆盖copy→ProvisionalReady→既有move/publish，仍绝不修改external源。
+- 注册不自动选择，active实例不读live store，same-value与原位变化不冒充reload；切走再选或configured restart经fresh capsule取得新revision。configured external必须延续typed startup completion、generic epoch fail-closed、update-thread non-blocking与shutdown join，不能因external不归scanner维护而绕过`551a`。
 - versioned service-owner token只授权本服务管理Realm记录，不是source capability。selection与冲突判断仍须fresh held physical proof；要收窄managed mutation全局阻断，每个真实admission必须把相关external root/ancestry proof保持到final collision linearization point，否则本纵切NO-GO并保留全局阻断。
-- 首个纵切只允许noncurrent unregister：current pair两半都不指向目标时才可执行，任一半目标或pair split时UI禁用且manager稳定拒绝，用户须先显式选择并提交其他skin。unregister不dispose任何prior `Skin`/capsule，也不宣称detach/retirement。
+- 首个纵切只允许pure-Realm noncurrent unregister：事务内按record ID compare-remove exact service-owner记录，不解析/触碰source；source缺失/不可读/漂移仍可解除陈旧注册。current pair两半ID必须coherent且都不指向目标，任一半目标或pair split时UI禁用且manager稳定拒绝。unregister不dispose任何prior `Skin`/capsule，也不宣称detach/retirement。
 - settings caller、capture、Realm、selection/restart、BMS Note/LN与legacy mania note/hold具体artifact、noncurrent unregister与current稳定拒绝、取消/shutdown、脱敏诊断及真实Windows测试必须同切闭合。该mania artifact不等于完整mania compatibility；若只能交付request/DTO/registry/capture foundation则NO-GO。
 - hard boundaries与产品语义回到P1-A CONSTRAINTS；external专项实现后再新增独立memory，不在本页预写native细节。
 
@@ -45,13 +45,13 @@ P1-A/`SV1-2`下一工程GO/NO-GO候选是external只读作者工作区：
 
 | Campaign | 最低完整结果 |
 | --- | --- |
-| `C1` | external只读作者工作区 + managed rename/import/delete真实UX + 可证明的journal支持面 + 普通`.osk` archive importer安全门，关闭G1作者文件工作区 |
+| `C1` | external只读作者工作区 + typed startup/exact-set linearization + durable full managed-copy stager + managed rename/import/delete真实UX + 可证明的journal支持面 + 普通`.osk` early archive importer安全门，关闭G1作者文件工作区 |
 | `C2` | 冻结真实可达reload路线；当前全部production consumer与普通`.osk`统一revision publication/detach/owner retirement，并完成current external unregister |
 | `C3` | P1-K keymode/lane前置 + 唯一layout snapshot及全部BMS/mania/BGA/HUD consumer |
 | `C4` | shared codec、完整public catalog/三态resolver、现有consumer迁移、mania compatibility与结构化诊断；beatmap-local范围同campaign取得终态决定 |
 | `C5` | manifest/scene/animation/state/event完整production runtime与BMS/mania hosts，让剩余optional slot进入production并关闭`SV1-1`自动门；所有scene host加入revision lease/detach协议 |
 | `C6` | 可抢占sandbox VM、公开语言/编译验证工具链、授权持久化、预算、determinism、熔断与profiler；script host加入revision协议并关闭ini/manifest/scene/script最终reload/G1自动门 |
-| `C7` | canonical双包、Authoring Kit、validator、旧journal durable fallback迁移、canonical损坏安装修复、`OmsSkin`产品authority退出及全部自动release收敛 |
+| `C7` | canonical双包、Authoring Kit、validator、证据完整的supported pre-C1 v2与C1后journal迁移、invalid旧Delete安装修复、canonical损坏修复、`OmsSkin`产品authority退出及全部自动release收敛 |
 
 - 当前为`0/7 closed，C1待启动`。一个campaign是一段持久新对话，可跨多轮、compaction、多个提交；未过退出门就留在原对话，不生成下一prompt。
 - audit、NO-GO、路线冻结、红测、foundation/DTO、单个caller/consumer、单个提交或文档不能推进编号；需用户产品决策也在原对话等待。
@@ -60,10 +60,10 @@ P1-A/`SV1-2`下一工程GO/NO-GO候选是external只读作者工作区：
 
 ## 后续依赖顺序
 
-1. external G1完整纵切。
-2. 冻结manual reload触发、live gameplay允许/拒绝/延后语义及全consumer participation/detach协议，再对atomic reload重新GO/NO-GO；当前仍查[[reference_skin_atomic_reload_detach]]。
-3. P1-K keymode/lane timeline前置。
-4. `SV1-3`唯一layout → `SV1-4`shared codec → `SV1-5`scene/event → `SV1-6`sandbox。
-5. `SV1-7` canonical `oms-simple/oms-complex`、Authoring Kit、集中视觉/性能/release。
+1. `C1`完整作者文件工作区：external只是首个子门；随后同campaign关闭full managed-copy stager、rename/delete/journal支持UX与普通`.osk` archive安全。
+2. `C2`在同一campaign冻结manual reload触发、live gameplay允许/拒绝/延后语义及当前全consumer participation/detach协议并立即实现；不能让路线审计独占一次对话，当前地雷仍查[[reference_skin_atomic_reload_detach]]。
+3. `C3`完成P1-K keymode/lane timeline前置与唯一layout，新增consumer同步加入revision协议。
+4. `C4` shared codec → `C5` scene/event → `C6` sandbox；每个新consumer同切加入revision协议，`C6`才关闭最终整包reload/G1自动门。
+5. `C7` canonical `oms-simple/oms-complex`、Authoring Kit与自动release；退出后只保留集中视觉、真实设备和长时间体验签收。
 
 thin/arbitrary-path/foundation-only staged-import stager、逐件optional slot私有C#、提前canonical包及无consumer shared foundation继续NO-GO；`C1`计划的full product stager必须以已注册external的fresh physical proof为source authority并同切接入UI/恢复/测试，不能被前述NO-GO误读为禁止完整纵切。作者面整体决议见[[project_oms_bms_skin_authoring]]。
