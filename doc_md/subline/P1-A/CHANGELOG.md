@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-08-09
+
+### `SV1-2` current managed atomic reload/detach 产品 GO/NO-GO
+
+- 严格按现行PLAN的external registration/capture→atomic reload/detach顺序，三路独立只读审计追踪settings/config/hotkey、selection commit、capsule owner及真实renderer/consumer。仓库没有reload current managed revision的production caller、UI、watcher或manager API：settings只提交selection，same-value请求不启动准备，startup scanner只做一次reconcile，filesystem-backed skin继续被editor、update import与external edit拒绝。普通Realm skin的`ExternalEditOverlay`虽会new instance后立即dispose old，但既不接受managed source，也没有consumer barrier，不能成为越序复用入口。
+- 现有`SkinManager`只在manager内提交`CurrentSkinInfo`/`CurrentSkin` pair并广播`SourceChanged`，不存在package revision publication对象、consumer registry/ack、detach receipt或旧instance retire queue。真实渲染链无法在同一边界发布：`BmsPlayfield`于loader一次读取并缓存geometry且不监听`SourceChanged`；BMS Note/LN gameplay与pre-start preview分别使用独立`BmsAsyncNoteDrawable` host；`SkinReloadableDrawable`、core/mania drawables及菜单背景混合同步、scheduler、next-update和过渡持有旧`Skin`。因此逐组件SourceChanged、per-host异步A→B和selection pair都不能描述为整包原子reload。
+- managed exact capsule/store由active `Skin`拥有；dispose会释放texture/sample/fallback store/capsule，BMS实例还会取消package note preparation。成功selection没有等待全部consumer后退役旧owner的协议，现有产品测试只能手工dispose superseded managed skin。即时dispose会破坏仍挂载consumer，不dispose则无法证明生命周期闭合；既有测试也不覆盖same-ID revision gate、全host publication、失败保留exact旧pair/owner、detach后dispose-once或reload latest-wins/reentrant/cancel/shutdown。
+- 产品结论为**NO-GO，本轮停止且不增加reload foundation**。重新开门前必须先由产品冻结真实触发方式、live gameplay等允许场景及全部consumer participation/publication/detach/retirement协议；否则“先建红测”本身就会发明缺失的caller和barrier，违反同切闭合要求。本轮没有runtime、测试或release gate变化，因此没有运行focused/full、targeted formatter或Release；2026-08-02代码基线与managed delete、scanner/selection/mutation协调及`551a`全部强制回归保持不变。`CheckDocumentation.ps1`通过（131个Markdown、1030个相对链接、67个memory wiki链），仅有mainline PLAN数字比值的既有非失败提醒；`git diff --check`通过。新增[2026-08-09产品交接](../../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)，mainline执行顺序无需改写。
+
 ## 2026-08-02
 
 ### `SV1-2` managed chartskin delete 独立产品纵切

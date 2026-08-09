@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-08-02
+> 最后更新：2026-08-09
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。恢复与架构证据按需查 [恢复审计](../../other/SKIN_SYSTEM_RECOVERY_20260710.md) 和 [V1 架构审计](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
 ## 一句话状态
 
-`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个已导入 `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。`SV1-2` 的schema 57 owner、held-root启动scanner、exact-capsule factory/guarded selection、configured managed selection↔startup scanner非阻塞协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及managed delete产品纵切现已闭合。玩家可通过手工放置目录→重启发现→既有dropdown选择，并从现有settings删除确认框物理删除eligible managed skin；rename/import仍没有非测试caller，thin staged-import stager/caller当前NO-GO。external、atomic reload/detach、scene/script与canonical包仍未交付。
+`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个已导入 `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。`SV1-2` 的schema 57 owner、held-root启动scanner、exact-capsule factory/guarded selection、configured managed selection↔startup scanner非阻塞协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及managed delete产品纵切现已闭合。玩家可通过手工放置目录→重启发现→既有dropdown选择，并从现有settings删除确认框物理删除eligible managed skin；rename/import仍没有非测试caller，thin staged-import stager/caller当前NO-GO。2026-08-09产品链审计确认current managed atomic reload/detach当前也为**NO-GO**：既无真实production caller，也无覆盖BMS/mania/core全部consumer的publication/detach barrier；external、scene/script与canonical包同样未交付。
 
 ## 当前产品能力
 
@@ -13,7 +13,7 @@
 - **实现并自动验证的新增可见能力为 4**：选中的用户 BMS 包可为普通短键提供 `name-0`、`name-1`…编号帧动画，也可为 `NoteImage{lane}H/L/T`（含 `S`/`S2`）长条 head/body/tail 提供静态图和同规则 60 FPS 动画；普通短键静态 `NoteImage` 属恢复基线，不重复计数。
 - **产品视觉签收为 0/4**：普通短键、长条 head、tail 与 body 分别登记为集中视觉项 `V-001`～`V-004`，用户尚未签收，因此只能称实现/自动 gate 通过，不能称已交付功能。
 - **安全回落覆盖 Note/Head/Body/Tail**：selected 单组件缺失、损坏、空值、越权或超预算时逐组件回落；body 是不可 `Suppress` 的 critical 组件，资源失败才 `Inherit`，有效 body 即使 width 缺失或非法也继续使用同组件与默认 `0.5775`。坏 body/tail 都不能从低层裸同名纹理拼件，低层自己的完整组件仍可接管；tail 保持 optional 透明 protected fallback。异步换源只发布当前 revision 的完整结果。beatmap-local 优先目前只是注入式 provider-order 合同，不是真实 BMS `WorkingBeatmap` 能力。
-- **Skin V1完整产品面仍未交付**：`SV1-1` 未完成；`SV1-2` 已有玩家可达的受管目录启动发现/选择与最小settings managed delete，rename/staged import仍是无应用caller的后端；没有production stager、external或原子reload/detach，`SV1-3`～`SV1-7`未实现。不能把这些窄切片描述成G1、Skin V1或产品交付完成。
+- **Skin V1完整产品面仍未交付**：`SV1-1` 未完成；`SV1-2` 已有玩家可达的受管目录启动发现/选择与最小settings managed delete，rename/staged import仍是无应用caller的后端；没有production stager或external。原子reload/detach已经完成独立审计但因缺caller、全consumer barrier与安全owner退役而NO-GO，`SV1-3`～`SV1-7`未实现。不能把这些窄切片描述成G1、Skin V1或产品交付完成。
 
 | 产品交付面 | 当前状态 |
 | --- | --- |
@@ -23,7 +23,7 @@
 | BMS 长条身静态图/编号帧动画与安全宽度 | 实现/自动 gate 已过；`V-004` 集中视觉待验收，未交付；critical、不可 `Suppress` |
 | gameplay slot 三态 | 普通短键/长条头/body critical 与长条尾 optional slot 已消费 `Provide/Inherit`；作者 `Suppress` 与其它 slot 未交付 |
 | canonical `oms-simple.osk` fallback | 未交付；实际链底仍是程序化 `OmsSkin` |
-| G1 文件夹发现/选择/原子重载 | 部分实现、未交付；启动发现/选择及settings managed delete玩家可达，rename/import后端自动gate已过但无caller/stager/UI；external与原子reload/detach未闭合 |
+| G1 文件夹发现/选择/原子重载 | 部分实现、未交付；启动发现/选择及settings managed delete玩家可达，rename/import后端自动gate已过但无caller/stager/UI；external未闭合，atomic reload/detach因无真实caller及全consumer barrier当前NO-GO |
 | 统一 layout descriptor/solver | 未交付；现有 geometry provenance 不是有效 layout |
 | shared ini codec/结构化诊断 | 未交付 |
 | scene/event runtime 与 sandbox script | 未交付 |
@@ -57,9 +57,16 @@
 | 3 | 文档与 memory 健康治理 | **完成**：只归位当前事实、未来步骤、稳定合同和历史；未改代码或产品 gate |
 | 4 | 已导入 `.osk` 的 BMS 普通短键与长条 head/body/tail 视觉 | **`V-001`～`V-004` 集中待验收**；这是完成/release 声明门，不是后续开发开工门，不可复用静态恢复结论 |
 | 5 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收**；四组件自动、合同、安全与回退 gate 通过，但不得写成 `SV1-1` 完成或交付 |
-| 6 | `SV1-2` G1 安全存储与原子重载 | **进行中**；启动发现/选择与settings managed delete真实可达，rename/import后端无caller/stager/UI，thin stager/caller当前NO-GO；external与atomic reload/detach仍未完成，`SV1-3`～`SV1-7`仍未完成 |
+| 6 | `SV1-2` G1 安全存储与原子重载 | **进行中**；启动发现/选择与settings managed delete真实可达，rename/import后端无caller/stager/UI，thin stager/caller当前NO-GO；external未完成，atomic reload/detach经产品链审计为NO-GO，`SV1-3`～`SV1-7`仍未完成 |
 
 ## 最新验证
+
+### `SV1-2` current managed atomic reload/detach 产品 GO/NO-GO：2026-08-09
+
+- 按现有产品链只读追踪settings、启动配置、hotkey、selection与editor/external-edit入口：仓库没有“重载当前managed revision”的production caller、UI、watcher或manager API。settings只提交选择；same-value选择在准备前短路；filesystem-backed skin继续被editor、update import与external edit拒绝。唯一会重建实例的`ExternalEditOverlay`只服务普通Realm skin并立即dispose旧实例，既不适用于managed source，也没有consumer barrier，不能复用为本切caller。
+- 当前managed selection只在manager内提交`CurrentSkinInfo`/`CurrentSkin` pair并广播`SourceChanged`，没有package revision publication对象、consumer注册表/ack、detach receipt或旧实例retire queue。真实consumer还存在明确的mixed-revision窗口：`BmsPlayfield`在loader中一次读取并缓存geometry且不监听`SourceChanged`；BMS Note/LN与pre-start preview各自通过per-host异步准备发布；core/mania drawable混合同步、逐host scheduler和next-update更新；菜单背景会在过渡期继续持有旧`Skin`。逐组件`SkinReloadableDrawable`、`BmsAsyncNoteDrawable`及一次selection pair提交均不是整包原子reload。
+- exact capsule当前由新`Skin`实例持有；`Skin.Dispose()`会释放texture/sample/fallback store与capsule，`BmsLegacySkin.Dispose()`还会取消package note preparation。成功selection没有等待consumer并退役旧实例的协议，既有产品测试只能手工dispose superseded managed skin。因此即时释放旧owner会破坏仍挂载consumer，不释放又无法闭合生命周期。
+- 结论为**NO-GO，停止且不增加reload foundation**。在产品先决定触发方式（手动settings、watcher或其它安全入口）、允许场景（是否含live gameplay）和全部consumer的participation/publication/detach协议前，无法建立不先发明API/barrier的真实产品红测。本轮没有runtime或测试改动，也未运行focused/full、formatter或Release；2026-08-02的**281/281、11/11、62/62、182/182、1530/1530、911/917、827/831、Release 0 error / 20 known warnings**继续作为最近代码基线，`551a`协调矩阵与managed delete全合同保持强制回归。完整取证见[2026-08-09交接](../../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
 
 ### `SV1-2` managed chartskin delete：2026-08-02
 
@@ -80,8 +87,8 @@
 - filesystem与Realm不能组成同一原子事务；rename、staged import与managed delete都依靠Prepared journal、identity-aware recovery和歧义冻结收口。真实NTFS的directory-entry move/recapture与delete tombstone cleanup都不是filesystem transaction、oplock/TxF级全树排他或字节内容快照；可观察差异会保留journal并冻结。旧通用Rename/Delete/Import入口继续禁用。
 - resolved external identity尚未实现；当前Realm只要存在任一external filesystem声明，就会保守阻断全部managed mutation。这是临时fail-closed边界，external切片必须改为基于resolved identity的局部冲突判断。invalid/IO journal造成的冻结仍没有用户可见支持界面；operation只提供脱敏内部状态。
 - current managed delete在物理detach前要求exact protected程序化`OmsSkin` pair，canonical接管后必须改为已验证只读`oms-simple.osk`。任何split pair、fallback字段漂移或无法确认都拒绝；现有delete可达性不等于canonical fallback或atomic detach已完成。
-- active capsule 已与当前实例绑定且磁盘变化不会混入，但旧 owner 的退役必须等待全consumer detach；当前没有整包reload publication barrier，不得把一次selection pair提交写成全playfield同帧reload。
-- 成功 preparation cache 仍按 `BmsLegacySkin` 实例复用；managed folder 实例的 source 已固定为 immutable capsule，因此磁盘变化不会污染 cache，但新 revision 必须经新实例与 publication barrier 发布。`SV1-2` 仍须闭合这一整包 reload/旧 owner 退役流程。
+- active capsule 已与当前实例绑定且磁盘变化不会混入，但旧 owner 的退役必须等待全consumer detach。2026-08-09审计确认现有`SourceChanged`扇出与selection pair无法提供该证明：`BmsPlayfield`缓存geometry且不监听事件，BMS/core/mania/菜单背景分别在不同调度与过渡边界更新；不得把它们写成全playfield同帧reload，也不得即时dispose旧owner。
+- 成功 preparation cache 仍按 `BmsLegacySkin` 实例复用；managed folder 实例的 source 已固定为 immutable capsule，因此磁盘变化不会污染 cache，但新 revision 必须经新实例与全consumer publication/detach协议发布。当前既无真实reload caller，也没有该协议；在触发方式、允许场景与consumer参与模型完成产品路线决策前，本项维持NO-GO而不是继续增加foundation。
 - 真实 BMS beatmap-local 尚无逐谱作者格式和 `WorkingBeatmap` producer；实现它会新增 core 扩展点与公开 sidecar 合同，必须先由产品冻结范围。
 - runtime 图片预算不等于 `.osk` importer 的压缩比/zip-bomb gate；G1 仍须独立实现。
 - 程序化 `OmsSkin` 在 `oms-simple` parity/完整性/恢复 gate 前不能删除，但也不能写成最终产品能力。
@@ -94,5 +101,5 @@
 ## 下一检查点
 
 1. 将普通短键与长条 head/tail/body 的观感、选择切换和 selected 坏包回落保持在[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)的 `V-001`～`V-004`，等待统一用户反馈；不得把自动测试写成视觉签收。
-2. 继续 `SV1-2`：managed delete产品纵切已闭合，旧通用delete继续冻结。thin staged-import stager/caller仍为**NO-GO**，除非external source→fixed provisional可信复制与真实caller能同切闭合；下一步只在明确production consumer后对external registration/capture与atomic reload/detach分别go/no-go，不再增加无consumer foundation。
+2. 继续 `SV1-2`：managed delete产品纵切已闭合，旧通用delete继续冻结。thin staged-import stager/caller仍为**NO-GO**，除非external source→fixed provisional可信复制与真实caller能同切闭合。计划顺序保持external registration/capture在atomic reload/detach之前；2026-08-09审计已将current managed reload判为**NO-GO**，只有产品先冻结触发方式、允许场景及全consumer publication/detach协议后才可重新评估，不得先补manager-only API、强制同ID selection或无consumer barrier foundation。
 3. 剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，留给后续 shared scene/runtime 接管。只有视觉结论实际决定下一实现时才暂停；期间保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 Skin V1 未交付状态不变。

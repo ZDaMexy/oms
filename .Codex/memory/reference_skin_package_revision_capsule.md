@@ -22,9 +22,9 @@ metadata:
 - content revision 不是 `InstantiationInfo`、选择资格、generation、scanner owner、mutation token 或 active publication revision；这些 gate 不能由 hash 替代。
 - staged import必须分别保留held source capture与move后target recapture的完整package fingerprint；只有physical identity、规范inventory、capsule content revision和最终`skin.ini` metadata均exact，one-shot publisher才可从最终target capsule生成Realm `Name`/`Creator`/hash。publication plan或目录名不能替代该fingerprint，也不得推导作者展示字段。
 - production managed folder factory现已走exact-capsule marker/owning store构造路径，不让live `RealmBackedResourceStore`排在capsule前面。普通`.osk`与SkinEditor当前依赖Realm live store/refresh，没有被全局冻结；其原子更新另走prepared revision/new-instance协议。
-- active capsule 的单一 owner 必须先 detach 全部 consumer 再 dispose。directory-only rename不销毁当前active capsule；fixed-source staged import也不自动选择或替换active capsule，且不会取消无关pending selection。逐 host 替换不等于全 playfield publication barrier。
+- active capsule 的单一 owner 必须先 detach 全部 consumer 再 dispose。directory-only rename不销毁当前active capsule；fixed-source staged import也不自动选择或替换active capsule，且不会取消无关pending selection。逐 host 替换不等于全 playfield publication barrier；2026-08-09审计确认现有manager/renderer没有该barrier，NO-GO与重新开门条件见[[reference_skin_atomic_reload_detach]]。
 
 ## 入口
 
 - path/authority 前置边界见 [[reference_skin_filesystem_authority_preflight]]，managed native producer见 [[reference_skin_windows_handle_capture]]。
-- 当前完成度、测试数字与受管目录下一门只看P1-A STATUS/PLAN；不得把capsule本合同写成G1或Skin V1产品能力。
+- 当前完成度、测试数字与受管目录下一门只看P1-A STATUS/PLAN；不得把capsule本合同写成G1或Skin V1产品能力。整包reload/detach不要从capsule合同反推，先查[[reference_skin_atomic_reload_detach]]。
