@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-08-02
+> 最后更新：2026-08-09
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -24,12 +24,12 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、configured managed selection与startup scanner的非阻塞异步协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及settings managed delete现已闭合成窄生产链。managed delete已同切连接真实async caller、protected fallback、held-root物理删除、Realm收敛、crash recovery、取消与脱敏诊断；旧通用folder delete仍冻结。thin staged-import stager/caller当前NO-GO；在external source→fixed provisional的可信no-follow复制、预算、取消、清理、隐私合同及真实caller未冻结前，不得把它当薄封装。external registration/capture与atomic reload/detach继续各自独立过门，新增抽象必须指出同切production consumer。
+authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、configured managed selection与startup scanner的非阻塞异步协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及settings managed delete现已闭合成窄生产链。managed delete已同切连接真实async caller、protected fallback、held-root物理删除、Realm收敛、crash recovery、取消与脱敏诊断；旧通用folder delete仍冻结。thin staged-import stager/caller当前NO-GO；在external source→fixed provisional的可信no-follow复制、预算、取消、清理、隐私合同及真实caller未冻结前，不得把它当薄封装。下一高价值候选是external只读作者工作区的完整产品纵切，必须一次闭合settings目录选择、resolved-identity/no-follow capture、Realm注册、dropdown选择/配置重启、真实renderer与只解除注册。current managed atomic reload/detach因无caller与全consumer协议保持NO-GO；新增抽象必须指出同切production consumer。
 
-1. **路径模型**：managed 与 external authority 分离；外部绝对路径使用 `NativeStorage`。
+1. **路径模型与external产品纵切**：managed 与 external authority 分离；外部绝对路径只把`NativeStorage`作为只读source adapter。external永久只读，只允许settings明确注册、进入既有选择/重启链及解除注册，不复制、写入、重命名或删除源。Realm service-owner token只证明本服务可管理该注册记录，不授权path/source bytes；selection与冲突判断必须fresh取得held physical root/ancestry proof。只有该proof能在全部真实managed mutation admission中持有并复验到各自final collision linearization point，合法service-owned非重叠external才可把当前全局阻断收窄为局部判断；无法同切闭合则external纵切NO-GO并保留全局阻断。没有真实settings caller、immutable capture/factory、具体BMS Note/LN与legacy mania note/hold最小renderer、unregister及上述冲突证明同切消费时不得先交付registry/capture foundation。
 2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、directory-only rename、fixed-source staged import及settings managed delete已闭合。delete以operation-derived tombstone、exact existing-record fingerprint、bounded source-node manifest和durable fallback disposition固定Prepared；current目标先提交exact protected fallback pair，再以fresh no-follow delete-exclusive DELETE handles只清理manifest成员并compare-remove Realm record。same-session live重捕仍须exact，release窄窗移出在0次disposition时拒绝；partial restart才允许durable子集，exclusive tree取得后的已持有节点relocation由sharing violation阻断。目录namespace的preflight后竞态新增绝不被删除；若导致partial exact cleanup后root失败，则保留journal/Realm冻结。首步后由recovery而非caller cancellation收口。rename/import目前只有internal implementation surface，既无非测试caller，也无external→fixed provisional production stager或UI。未来stager须独立闭合source authority、no-follow、预算、取消、失败清理与脱敏诊断，不能把任意caller path直接传给mutation。
 3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。configured managed selection只对exact startup/staged-import contention做后台等待与fresh retry，并以startup/generic mutation observation及retry-lease复核保持rename、专用delete和其它generic mutation fail-closed；不得回退成update-thread等待或全局epoch猜测。
-4. **整包原子重载**：覆盖 `skin.ini`、素材变化和原子替换；以 package revision 为发布单位，并消除同一 `BmsLegacySkin` 实例成功 preparation cache 不感知 revision 的陈旧风险；生产 `SkinManager`/选择链测试必须存在。
+4. **整包原子重载（当前NO-GO）**：external完整纵切之后先冻结真实触发方式、live gameplay等允许场景和全部consumer participation/publication/detach/retirement协议，再重新GO/NO-GO。获准实现仍须覆盖`skin.ini`、素材变化和原子替换，以package revision为发布单位，并消除同一`BmsLegacySkin`实例成功preparation cache不感知revision的陈旧风险；生产caller、`SkinManager`/选择链及全renderer测试必须同时存在，不能用`SourceChanged`、selection pair或per-host reloadable替代barrier。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、导入/删除/重命名均经人工确认。
 
 G1 必须按独立切片推进，不得从异常期存档整批恢复。

@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个已导入 `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。`SV1-2` 的schema 57 owner、held-root启动scanner、exact-capsule factory/guarded selection、configured managed selection↔startup scanner非阻塞协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及managed delete产品纵切现已闭合。玩家可通过手工放置目录→重启发现→既有dropdown选择，并从现有settings删除确认框物理删除eligible managed skin；rename/import仍没有非测试caller，thin staged-import stager/caller当前NO-GO。2026-08-09产品链审计确认current managed atomic reload/detach当前也为**NO-GO**：既无真实production caller，也无覆盖BMS/mania/core全部consumer的publication/detach barrier；external、scene/script与canonical包同样未交付。
+`SV1-0` 自动、schema 56 数据与用户实机 gate 已全部通过；`SV1-1` 的首个已导入 `.osk` BMS Note/LN 产品纵切现已覆盖普通短键与长条 head/body/tail，四组件的自动、合同、安全和回退 gate 均已闭合，`V-001`～`V-004` 集中待验收。这只表示首个产品纵切自动闭环，不是 `SV1-1` 完成或产品交付；视觉待签收不再串行阻塞后续自动可证切片。`SV1-2` 的schema 57 owner、held-root启动scanner、exact-capsule factory/guarded selection、configured managed selection↔startup scanner非阻塞协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及managed delete产品纵切现已闭合。玩家可通过手工放置目录→重启发现→既有dropdown选择，并从现有settings删除确认框物理删除eligible managed skin；rename/import仍没有非测试caller，thin staged-import stager/caller当前NO-GO。2026-08-09产品链审计确认current managed atomic reload/detach当前也为**NO-GO**：既无真实production caller，也无覆盖BMS/mania/core全部consumer的publication/detach barrier；external、scene/script与canonical包同样未交付。按最终release-ready玩家能力只能概括为**约三成**，工程/安全地基约半数且显著高于玩家完成度；两者不是gate，也没有线性剩余工期含义。
 
 ## 当前产品能力
 
@@ -28,6 +28,13 @@
 | shared ini codec/结构化诊断 | 未交付 |
 | scene/event runtime 与 sandbox script | 未交付 |
 | `oms-simple.osk` / `oms-complex.osk` / Authoring Kit | 未交付 |
+
+## 产品价值与最终差距
+
+- **此前投入不是无意义劳动**：真实玩家链已经从程序化默认扩展到已导入`.osk`的BMS Note/LN渲染，以及managed目录的重启发现、选择和settings物理删除。immutable capsule、`551a`启动协调与delete journal/recovery直接保护这些真实入口和玩家文件，不是纯抽象美化。
+- **投入结构明显偏向安全地基**：directory-only rename和fixed-source staged import的专属operation/recovery虽然进入production程序集，但仍没有非测试caller/stager/UI，只能算可复用风险资产，不能按代码量或测试量计作玩家功能。既有topology/config/event/capability fixture同理；没有production host/renderer/authoring consumer就不得继续横向扩张。
+- **最终产品仍有主要主体未实现**：`SV1-3`唯一layout、`SV1-4`shared codec、`SV1-5`scene/event、`SV1-6`sandbox及`SV1-7`双canonical包/Authoring Kit均未形成产品链；程序化`OmsSkin`仍是链底，新增视觉人工签收仍为0/4。完整分阶段差距见[2026-08-09交接](../../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
+- **后续按整条玩家纵切计进度**：下一候选是external只读作者工作区，一次闭合settings注册、Windows resolved-identity/no-follow capture、Realm记录、dropdown选择/配置重启、真实renderer及只解除注册；不得只提交external DTO、registry或capture service。完成后才冻结reload触发/允许场景/consumer协议并重新过门。
 
 ## 当前实现事实
 
@@ -85,7 +92,7 @@
 - managed folder现可在重启后的完整稳定scan中自动发现并进入选择面；scanner不watch启动后的磁盘变化、不自动选择或reload。现有settings入口可物理删除eligible managed direct-child并收敛其Realm record；专用directory-only rename与staged import仍只有internal物理写入后端且无非测试caller。旧通用folder mutation入口继续冻结。
 - configured managed selection的startup重试只覆盖exact startup/staged-import typed contention；任何generic mutation reservation跨越都会抑制retry。后续若改coordinator、scheduler或shutdown，必须保留active/completed scanner、direct/deferred/chained generic与latest-wins回归，不能退回全局running/epoch猜测或update-thread等待。
 - filesystem与Realm不能组成同一原子事务；rename、staged import与managed delete都依靠Prepared journal、identity-aware recovery和歧义冻结收口。真实NTFS的directory-entry move/recapture与delete tombstone cleanup都不是filesystem transaction、oplock/TxF级全树排他或字节内容快照；可观察差异会保留journal并冻结。旧通用Rename/Delete/Import入口继续禁用。
-- resolved external identity尚未实现；当前Realm只要存在任一external filesystem声明，就会保守阻断全部managed mutation。这是临时fail-closed边界，external切片必须改为基于resolved identity的局部冲突判断。invalid/IO journal造成的冻结仍没有用户可见支持界面；operation只提供脱敏内部状态。
+- resolved external identity尚未实现；当前Realm只要存在任一external filesystem声明，就会保守阻断全部managed mutation。这是临时fail-closed边界；仅有owner token或瞬时resolve不足以安全局部化，external切片必须让每个真实managed mutation admission持有并复验所有相关external physical root/ancestry proof到final collision linearization point，否则本纵切NO-GO并保留全局阻断。invalid/IO journal造成的冻结仍没有用户可见支持界面；operation只提供脱敏内部状态。
 - current managed delete在物理detach前要求exact protected程序化`OmsSkin` pair，canonical接管后必须改为已验证只读`oms-simple.osk`。任何split pair、fallback字段漂移或无法确认都拒绝；现有delete可达性不等于canonical fallback或atomic detach已完成。
 - active capsule 已与当前实例绑定且磁盘变化不会混入，但旧 owner 的退役必须等待全consumer detach。2026-08-09审计确认现有`SourceChanged`扇出与selection pair无法提供该证明：`BmsPlayfield`缓存geometry且不监听事件，BMS/core/mania/菜单背景分别在不同调度与过渡边界更新；不得把它们写成全playfield同帧reload，也不得即时dispose旧owner。
 - 成功 preparation cache 仍按 `BmsLegacySkin` 实例复用；managed folder 实例的 source 已固定为 immutable capsule，因此磁盘变化不会污染 cache，但新 revision 必须经新实例与全consumer publication/detach协议发布。当前既无真实reload caller，也没有该协议；在触发方式、允许场景与consumer参与模型完成产品路线决策前，本项维持NO-GO而不是继续增加foundation。
@@ -101,5 +108,5 @@
 ## 下一检查点
 
 1. 将普通短键与长条 head/tail/body 的观感、选择切换和 selected 坏包回落保持在[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)的 `V-001`～`V-004`，等待统一用户反馈；不得把自动测试写成视觉签收。
-2. 继续 `SV1-2`：managed delete产品纵切已闭合，旧通用delete继续冻结。thin staged-import stager/caller仍为**NO-GO**，除非external source→fixed provisional可信复制与真实caller能同切闭合。计划顺序保持external registration/capture在atomic reload/detach之前；2026-08-09审计已将current managed reload判为**NO-GO**，只有产品先冻结触发方式、允许场景及全consumer publication/detach协议后才可重新评估，不得先补manager-only API、强制同ID selection或无consumer barrier foundation。
+2. 继续 `SV1-2`：managed delete产品纵切已闭合，旧通用delete继续冻结。下一高价值候选是external只读作者工作区的完整settings注册/独立行级管理→capture→selection/restart→unregister产品纵切；行持有record ID并提供Open Folder/Unregister，不得复用只绑定current的Delete按钮/dialog。service-owner token不授权source，selection与managed冲突判断须fresh held physical proof。只有rename、staged-import、managed delete等全部真实admission都能把相关external root/ancestry proof保持并复验到final collision linearization point，才可安全收窄全局阻断；否则external纵切NO-GO。首切只允许noncurrent unregister；任一current half指向目标或pair split都须禁用/稳定拒绝，用户先显式选择并提交其他skin，unregister不dispose任何旧`Skin`/capsule，也不借机预建reload barrier。没有真实caller、具体BMS/legacy-mania renderer artifact与解除注册同切闭合时不得先加foundation。thin staged-import stager/caller继续**NO-GO**；atomic reload/detach也维持**NO-GO**，只有产品先冻结触发方式、允许场景及全consumer publication/detach协议后才可重新评估。
 3. 剩余 optional slot 不再沿私有逐件 C# provider/display 扩张，留给后续 shared scene/runtime 接管。只有视觉结论实际决定下一实现时才暂停；期间保持 nullable `ISkin`、程序化 `OmsSkin`、当前 fallback authority 与 Skin V1 未交付状态不变。

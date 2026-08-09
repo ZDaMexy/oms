@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-08-09
+
+### Skin V1 产品价值、最终差距与后续工作包收口
+
+三路只读审计按真实caller→manager/backend→renderer→用户结果重新核算Skin投入：已导入`.osk`的BMS Note/LN、managed目录重启发现/选择及settings物理删除是玩家可达能力；immutable capsule、`551a`启动协调和delete journal/recovery直接保护这些入口与玩家文件，具有真实安全价值。directory-only rename与fixed-source staged import的专属部分仍无caller/stager/UI，只能算潜在后端；external、atomic reload、layout/shared codec、scene/script、canonical双包与Authoring Kit均不得计入已交付。按release-ready产品能力只能概括为**约三成**，工程/安全地基约半数且显著高于玩家完成度；两者不是gate，也没有线性剩余工期含义。
+
+下一高价值候选改为external只读作者工作区的完整settings→resolved-identity/no-follow capture→Realm注册→dropdown选择/配置重启→真实renderer→只解除注册纵切；没有完整caller和consumer链不得先建foundation。current managed atomic reload/detach因无production caller、全consumer publication/detach和owner退役协议保持NO-GO；thin staged-import stager/caller同样NO-GO。该优先级只改变后续产品工作包，不改变现有release gate或2026-08-02代码验证基线；完整分阶段差距与门槛见[2026-08-09交接](../other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)及[P1-A当前状态](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+
 ## 2026-08-01
 
 ### Skin V1 启动可靠性与产品价值收口

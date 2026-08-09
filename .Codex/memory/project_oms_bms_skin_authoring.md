@@ -15,7 +15,7 @@ metadata:
 - 用户当前能选择哪种包、哪些slot已经进入production、哪些视觉待签收，只看P1-A STATUS与`SKINNING.md`页首；本memory不复制逐刀完成度、测试数字或“下一刀”。
 - source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同，不能反推普通短键/LN、受管目录、external或reload当前已经交付。
 - 程序化`OmsSkin`是恢复期迁移保障；在P1-A明确记录canonical `oms-simple.osk`完成parity、完整性、恢复与实机gate并接管前不得删除，接管后必须退出产品渲染链。
-- G1任务先查P1-A当前门；发现/选择/rename/staged-import/managed-delete专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明。
+- G1任务先查P1-A当前门；发现/选择/rename/staged-import/managed-delete专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明；产品价值核算与后续完整纵切准入见[[project_oms_skin_product_progress]]。
 - 产品可达性必须按caller追到真实入口：production程序集内的internal operation/recovery不等于玩家功能；shared topology/config/event/capability/candidate合同没有production host/renderer/authoring consumer时也不计进度。后续不得横向扩张无同切或紧随切片consumer的抽象。
 - F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复期撤回/未恢复面的历史名称；不要把旧编号写成当前状态，现行等价范围只从`SV1-*`计划映射。
 - 恢复期保留的稳定修正是base parser前重置配置流，以及14K第二皿使用`S2`/P2素材；若代码改变仍须以当前fixture复核。
@@ -59,4 +59,4 @@ metadata:
 
 ## 下一入口
 
-视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响下一实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。后续工程入口只看P1-A STATUS/PLAN；安全G1其余部分、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback均不得因窄纵切或已注册folder选择提前计为完成。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响下一实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。后续工程入口只看P1-A STATUS/PLAN，并按[[project_oms_skin_product_progress]]坚持完整caller→renderer→用户结果纵切；安全G1其余部分、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback均不得因窄纵切或已注册folder选择提前计为完成。

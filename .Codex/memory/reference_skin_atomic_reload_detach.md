@@ -32,3 +32,4 @@ metadata:
 - exact capsule/owner：[[reference_skin_package_revision_capsule]]。
 - managed selection与`551a`协调：[[reference_skin_managed_folder_selection]]、[[reference_skin_managed_folder_scanner]]。
 - authoring/product边界：[[project_oms_bms_skin_authoring]]。
+- release-ready差距与external前置工作包：[[project_oms_skin_product_progress]]。
