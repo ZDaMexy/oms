@@ -24,7 +24,7 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — C1前置已满足后的C2入口、2026-08-09 NO-GO遗留缺口、BMS/mania/core mixed-revision consumer与旧owner退役条件。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — skin-scoped pre-open/CEN gate、流式取消预算、same-hash participant、record/blob asymmetric baseline与rollback锁序地雷。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
-- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→renderer→用户结果核算价值、`1/7 closed，C2 active`、七个持久campaign燃尽及无caller后端止损。
+- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer或直接用户结果核算价值、`1/7 closed，C2 active`、非等权最终差距、fixed-staging共同底层复用与无caller后端止损。
 
 ## 构建、存储与产品面参考
 

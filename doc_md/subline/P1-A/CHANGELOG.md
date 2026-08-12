@@ -12,6 +12,12 @@
 - 最终独立终审另闭合两处真实生命周期/漂移窗口：Workspace records与journal support只读worker现由manager统一跟踪，shutdown封门后cancel并同步join，UI关闭只取消自身刷新；managed Open在初始与held-capture后的final Realm视图都重新证明normalized path唯一，旧row遇同路径重复声明不调用host。
 - 最终验证：Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt最终独立复审均为blocker/major/moderate **0/0/0**。C1因此闭合为`1/7 closed`，`C2 active`；G1/`SV1-2`/Skin V1/release与`V-001`～`V-004`仍未完成。
 
+### C1产品价值与C2交接终验
+
+- 只读产品复核从真实settings/import caller追到manager、selection、BMS/mania consumer与用户结果，确认C1主要交付没有无caller或无consumer冒充进度：作者可真实注册、选择、复制、打开、重命名、删除、解除注册并查看恢复支持，ordinary `.osk` 仍从拖入导入进入选择与renderer。Windows authority、journal/recovery和receipt的体量用于防止external源写入、错目标删改、partial copy与共享blob误删；它们是昂贵但直接保护玩家数据的安全价值，不是视觉完成度。
+- 仓库中C1前已有的internal fixed-staging import surface仍没有独立非测试caller；StagedImport operation/handler不被ManagedCopy直接调用，但共同的fixed-slot authority/native move+inspection及journal/coordinator/recovery框架已复用，故不计作额外用户功能，也不能把全部共同底层判成死代码。进度口径固定为`1/7`硬campaign通过但不换算14%；数据/导入安全与作者工作区已过门，current revision、layout、shared codec/三态、scene/event、sandbox、canonical发行与视觉/release仍按C2～C7逐门闭合。
+- C2执行prompt补入真实Reload触发与live gameplay允许/defer/reject决定、完整production holder inventory、prepare/commit线性化、same-record-ID三源红测、`ExternalEditOverlay`即时dispose旁路、current external失败原子性及真实caller→renderer→owner终审，禁止用watcher、DTO、单consumer或路线审计假完成。详见[完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
+
 ## 2026-08-12
 
 ### C1意外中断后的最小checkpoint收口

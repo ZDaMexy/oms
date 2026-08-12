@@ -11,6 +11,8 @@ OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成
 
 Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEVELOPMENT_PLAN.md)报告。`C1` 已通过真实caller/consumer、失败恢复、宽测试、Release、文档和独立终审的退出门；当前是`1/7 closed，C2 active`，不用C1的完成证据代替C2的全consumer原子发布与owner退役证明。
 
+`1/7`是非等权硬退出门计数，不换算14%或线性工期。产品核算确认C1主要交付均有真实caller；selection/import/ManagedCopy等涉及包生效的链另有BMS/mania production consumer证据，Open/Rename/Delete/Unregister/support则形成直接用户结果。底层复杂度直接保护用户目录与共享资源；但最终用户可见Skin V1仍处早期，统一revision生命周期、layout、shared codec/三态、scene/event、sandbox、canonical双包与发行闭环均未交付。
+
 - Windows-only，保留 osu!mania + 第一类 BMS；Osu/Taiko/Catch 已删除。
 - 离线优先；Phase 3 前 OMS 私有服务与默认 endpoint 保持为空。用户主动添加公共 BMS 难度表 URL 是既有窄例外，不代表 OMS 在线产品能力已开放。
 - BMS 直读 `chartbms/`，mania 直读 `chartmania/`；发行支持 `portable.ini → data/` 与 `storage.ini` 自定义根。

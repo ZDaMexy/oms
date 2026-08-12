@@ -25,6 +25,14 @@ metadata:
 - external源永久只读；service-owner token只证明Realm记录归属，不是source capability。selection、Open、ManagedCopy与managed mutation collision都依赖fresh held physical proof；noncurrent Unregister是唯一不触source I/O的pure-Realm compare-remove。
 - current external unregister、watcher/same-ID reload/force reload和全部consumer publication/detach/owner retirement归C2；完整layout/shared codec、scene/event、sandbox、canonical双包、Authoring Kit与release也未交付。视觉`V-001`～`V-004`仍0/4。
 
+## C1最终产品价值核算
+
+- 真实链以settings/import caller为起点：Folder Skin Workspace的注册、选择、Open、ManagedCopy、Rename、Delete、noncurrent Unregister与support面进入manager；external/managed selection再进入BMS Note/LN与legacy mania note/hold consumer。ordinary `.osk`从真实拖入导入进入selection/renderer，bounded ingress与receipt直接保护该路径。
+- C1的大部分代码量属于Windows held authority、exact-set、journal/recovery、并发receipt与产品测试。它不增加scene/script表现力，但直接防止external源被写、错目标删改、partial copy、半提交Realm与共享blob误删，属于用户数据安全价值。
+- 仓库仍有一个C1前已有、没有独立非测试caller的internal fixed-staging import surface；StagedImport operation/handler仍无production caller，但共同的fixed-slot authority/native move+inspection及journal/coordinator/recovery框架已被ManagedCopy复用，因此不计作额外用户功能，也不能把全部共同底层当死代码。C1新增完成清单中的主要交付均有production caller；selection/import/ManagedCopy另有production consumer证据，Open/Rename/Delete/Unregister/support形成直接用户结果。不得因底层复杂就误判为无意义，也不得把这项结论用于继续扩张无caller foundation。
+- 进度只报`1/7 closed`硬退出门，不换算14%或线性工期。当前恢复/导入安全与作者目录工作区已过门；current revision、唯一layout、shared codec/全slot三态、scene/event、sandbox、canonical双包/Authoring Kit、视觉与release均未完成。最终用户可见Skin V1仍在早期，工程安全基础明显先行。
+- C1实现密度已经是维护风险；代码量不算产品进度。C2应从真实caller切入，提取小而封闭的revision/participant/lease协议并复用fixture，避免继续把生命周期逻辑集中进`SkinManager`或复制超长产品场景；但也不得借重构之名重做C1或先造无caller framework。
+
 ## C1已关闭合同（后续不可降级）
 
 P1-A/`SV1-2`的`C1`作者文件工作区已关闭；下列链是C2及后续必须保留的输入合同：
@@ -60,9 +68,10 @@ P1-A/`SV1-2`的`C1`作者文件工作区已关闭；下列链是C2及后续必�
 ## 后续依赖顺序
 
 1. `C2`先冻结真实可达manual reload触发、live gameplay允许/拒绝/延后语义与当前全consumer participation/detach协议，并在同一campaign实现；路线审计不能替代纵切，稳定地雷见[[reference_skin_atomic_reload_detach]]。
-2. C2统一ordinary Realm `.osk`、managed与external来源的prepared revision publication；失败保留exact旧pair，全部旧consumer detach后才幂等退役owner，current external unregister只能在coherent fallback/new revision及detach完成后发生。
-3. `C3`完成P1-K keymode/lane timeline前置与唯一layout，新增consumer同步加入revision协议。
-4. `C4` shared codec → `C5` scene/event → `C6` sandbox；每个新consumer同切加入revision协议，`C6`才关闭最终整包reload/G1自动门。
-5. `C7` canonical `oms-simple/oms-complex`、Authoring Kit与自动release；退出后只保留集中视觉、真实设备和长时间体验签收。
+2. C2先从production object graph清点所有跨update/frame/fade持有Skin、texture、sample、fallback store或capsule的holder；分成coherent重建consumer、lease-only生命周期holder和已证明无旧owner者。menu/shell/background/transition只作生命周期审计，不扩张为作者皮肤面。三源必须覆盖same-record-ID/content-revision reload，所有可失败工作止于prepare，commit barrier只做不可分割发布，失败保留exact旧pair，全部旧consumer detach后才幂等退役owner；同时冻结prepare/commit期间动态attach/detach与late attach语义。
+3. 定点审计`ExternalEditOverlay`、update-import和所有new-instance后立即dispose旧owner的旁路；必须迁移或连UI/backend稳定禁用。current external unregister只在coherent fallback/new revision与全部detach后pure-Realm compare-remove，任一步失败都保留record/旧pair且source零变化；current managed Delete同样先完成fallback publication/detach，再进入C1既有journal/物理mutation。
+4. `C3`完成P1-K keymode/lane timeline前置与唯一layout，新增consumer同步加入revision协议。
+5. `C4` shared codec → `C5` scene/event → `C6` sandbox；每个新consumer同切加入revision协议，`C6`才关闭最终整包reload/G1自动门。
+6. `C7` canonical `oms-simple/oms-complex`、Authoring Kit与自动release；退出后只保留集中视觉、真实设备和长时间体验签收。
 
 thin/arbitrary-path/foundation-only staged-import stager、逐件optional slot私有C#、提前canonical包及无consumer shared foundation继续NO-GO；现有full ManagedCopy必须保持“已注册external fresh physical proof + paired capsule/manifest + single v3 intent + UI/recovery/tests”整体，不能退化为普通递归copy。作者面整体决议见[[project_oms_bms_skin_authoring]]。

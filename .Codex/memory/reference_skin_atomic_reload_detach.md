@@ -25,8 +25,10 @@ metadata:
 ## 重新开门门槛
 
 - C2先冻结唯一真实触发方式、允许场景（尤其live gameplay是否允许或延后）和全部consumer participation/publication/detach/retirement协议；红测必须从该可达caller跨manager直到真实renderer/owner，不能只发明barrier DTO。
+- participant inventory须从完整production object graph取得，并区分coherent重建consumer、lease-only lifecycle holder与已证明不持旧owner者；menu/shell/background/transition只作旧owner生命周期覆盖，不扩大为作者皮肤面。冻结prepare/commit窗口的动态attach/detach：prepare中新增consumer不漏barrier，commit前detach不悬挂retire，commit后late attach只取得已提交revision和对应lease。
 - 纵切须统一ordinary Realm `.osk`、managed与external来源：fresh authoritative Realm/path/owner/freeze/capture/factory复核、完整immutable revision与new skin instance后台准备、generation/current-selection/revision gate、所有consumer coherent publication、失败保留exact旧revision、全consumer detach后幂等dispose旧owner，以及latest-wins/reentrant/首个不可逆边界前取消/shutdown exact claim-reap-join与脱敏诊断。
 - current external unregister只能在coherent fallback/new revision已经发布且所有旧consumer detach后做pure-Realm compare-remove；失败时source record与旧pair都应保持，不得先注销再尝试切换。ordinary `.osk`现有new-instance后立即dispose旧实例的旁路必须迁入统一协议或被禁用。
+- current managed Delete也必须把protected fallback publication与旧revision detach接入C2协议；只有二者成功后才可沿用C1既有journal/physical detach，失败不得先删目录。测试至少覆盖same-record-ID/content-revision三源、attach-during-prepare、detach-before-commit、late attach、跨revision fade与`ExternalEditOverlay` reachable bypass。
 - 禁止manager-only reload API、强制同ID selection、逐组件`SourceChanged`拼接、即时dispose旧owner或没有真实caller/consumer的barrier/DTO foundation。managed delete journal/detach是独立operation合同，不提供reload的全renderer生命周期事务。
 
 ## 关联入口

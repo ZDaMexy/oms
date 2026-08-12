@@ -16,6 +16,24 @@
 - **ordinary `.osk` 安全导入**：仍是hash-backed Realm package；skin-scoped reader在内容消费前完成raw/central-directory/name/type/size有界准入，actual stream持续验证CRC/比率/总量/取消。fault/cancel的exact receipt只回滚本次新增的零引用record/blob，不会删共享hash。
 - **未交付**：current revision reload/detach、唯一layout、shared codec、剩余slot三态、scene/event、sandbox、canonical双包与Authoring Kit；程序化`OmsSkin`仍是迁移链底。
 
+## 最终 Skin V1 差距总览
+
+`1/7 closed`是硬退出门计数，不是14%的线性工期或完成度；各campaign不等权，后续scene、sandbox与canonical发行体量显著更大。当前按玩家结果分面如下：
+
+| 产品面 | 当前结论 | 距最终预期 |
+| --- | --- | --- |
+| 恢复、数据与导入安全 | **通过** | 保持现有恢复/receipt边界，后续不得重做或放宽 |
+| 作者目录工作区 | **C1通过** | 已有真实注册/选择/复制/Open/Rename/Delete/Unregister；原位即时reload不在C1 |
+| current revision生命周期 | **C2 active，未实现** | 三种source仍缺全consumer coherent publication、detach ack与owner retire；current external不能安全解除注册 |
+| 唯一layout | **未实现** | 5K/7K四style、9K BMS/PMS、14K DP及BGA/HUD/gauge/combo仍未统一到一个revision snapshot |
+| shared codec/catalog/三态 | **未实现** | 当前只有BMS Note/LN窄`Provide/Inherit`，尚无全slot `Suppress`、mania parity和完整结构化诊断 |
+| scene/event与完整表现力 | **未实现** | 当前用户包仅覆盖窄静态/编号帧Note/LN；其余key/mine/judgement/gauge/combo/BGA/effect尚未进入公共声明式runtime |
+| optional sandbox | **未实现** | 无受限VM、工具链、授权、预算、确定性、熔断与profiler |
+| canonical发行闭环 | **未实现** | `oms-simple/oms-complex`、Authoring Kit、validator、只读恢复与程序化`OmsSkin`退役尚未交付 |
+| 集中视觉与release | **0/4待签收，release未完成** | 仍需最终自动门、真实设备/谱面/视觉签收与发行复核 |
+
+产品价值按`真实caller → authoritative manager/backend → production consumer或直接用户结果`核算。C1新增的主要交付均有真实设置/导入caller；selection/import/ManagedCopy等包生效链另有BMS/mania consumer证据，Open/Rename/Delete/Unregister/support形成直接用户结果。大量Windows authority、journal/recovery与receipt代码直接防止外部源被写、错目标删改、partial copy和共享blob误删，不是用内部类型数量制造进度。仓库仍保留一个C1前已有、没有独立非测试caller的fixed-staging import surface；其StagedImport operation/handler仍无production caller，但共同的fixed-slot authority/native move+inspection及journal/coordinator/recovery框架已被ManagedCopy复用，因此既不计作额外用户功能，也不能把全部共同底层判成死代码。后续继续禁止无caller/consumer的foundation独占campaign。
+
 ## 七个交付 Campaign
 
 `SV1-*` 是能力分类，`C1`～`C7` 才是交付燃尽。当前为 **`1/7 closed，C2 active`**：
@@ -48,3 +66,4 @@ C2不得只造manager-only reload API、same-ID selection或per-host reloadable�
 - current external unregister必须由C2先发布coherent fallback/新revision并等待所有consumer detach；现有C1只允许pure-Realm noncurrent unregister。
 - core Skin的4个已知fixture失败不得用于隐藏新回归；后续改shared importer/skin时仍须比对同一基线。
 - 当前可见纵切仅覆盖BMS普通短键与LN head/body/tail；唯一layout、完整三态/scene/script与canonical fallback未完成。
+- C1体量与集中度已形成维护风险，代码量本身不得作为进度。C2应从真实caller切入，提取小而封闭的revision/participant/lease协议并复用fixture，避免继续把生命周期复杂度堆入单一manager或复制超长场景测试；这不授权先造无caller framework，也不要求本轮回头重构C1。
