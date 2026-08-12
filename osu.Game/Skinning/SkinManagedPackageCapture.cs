@@ -58,6 +58,9 @@ namespace osu.Game.Skinning
         EntryChangedDuringCapture,
         InventoryChanged,
         CapsuleRejected,
+        AuthorityDepthBudgetExceeded,
+        HeldHandleBudgetExceeded,
+        LogicalManifestBudgetExceeded,
     }
 
     /// <summary>

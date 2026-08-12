@@ -46,6 +46,7 @@ namespace osu.Game.Tests.Skins
                 Assert.That(resolution.IsFilesystemBacked, Is.False);
                 Assert.That(resolution.NormalisedAbsolutePath, Is.Null);
                 Assert.That(resolution.ManagedCaptureRequest, Is.Null);
+                Assert.That(resolution.ExternalCaptureRequest, Is.Null);
                 Assert.That(resolution.RejectionReason, Is.EqualTo(SkinFilesystemStorageRejectionReason.None));
             });
         }
@@ -89,6 +90,7 @@ namespace osu.Game.Tests.Skins
                 Assert.That(resolution.NormalisedAbsolutePath, Is.EqualTo(packagePath));
                 Assert.That(resolution.NormalisedManagedRelativePath, Is.EqualTo("chartskin/Managed Skin"));
                 Assert.That(resolution.ManagedCaptureRequest, Is.Not.Null);
+                Assert.That(resolution.ExternalCaptureRequest, Is.Null);
                 Assert.That(resolution.ManagedCaptureRequest!.NormalisedDataRootAbsolutePath, Is.EqualTo(dataRoot));
                 Assert.That(resolution.ManagedCaptureRequest.PackageDirectoryName, Is.EqualTo("Managed Skin"));
                 Assert.That(resolution.ManagedCaptureRequest.ToString(), Is.EqualTo(nameof(SkinManagedPackageCaptureRequest)));
@@ -138,6 +140,12 @@ namespace osu.Game.Tests.Skins
                 Assert.That(resolution.NormalisedAbsolutePath, Is.EqualTo(externalPath));
                 Assert.That(resolution.NormalisedManagedRelativePath, Is.Null);
                 Assert.That(resolution.ManagedCaptureRequest, Is.Null);
+                Assert.That(resolution.ExternalCaptureRequest, Is.Not.Null);
+                Assert.That(resolution.ExternalCaptureRequest!.NormalisedAbsolutePath, Is.EqualTo(externalPath));
+                Assert.That(resolution.ExternalCaptureRequest.DriveLetter, Is.EqualTo(char.ToUpperInvariant(externalPath[0])));
+                Assert.That(resolution.ExternalCaptureRequest.PathSegments, Is.Not.Empty);
+                Assert.That(resolution.ExternalCaptureRequest.ToString(), Is.EqualTo(nameof(SkinExternalPackageCaptureRequest)));
+                Assert.That(resolution.ExternalCaptureRequest.ToString(), Does.Not.Contain(externalPath));
                 Assert.That(resolution.ToString(), Does.Not.Contain("external skin"));
                 Assert.That(resolution.ToString(), Does.Not.Contain(externalPath));
                 Assert.That(snapshotEntries(), Is.EqualTo(entriesBefore));
@@ -497,6 +505,7 @@ namespace osu.Game.Tests.Skins
                 Assert.That(resolution.NormalisedAbsolutePath, Is.Null);
                 Assert.That(resolution.NormalisedManagedRelativePath, Is.Null);
                 Assert.That(resolution.ManagedCaptureRequest, Is.Null);
+                Assert.That(resolution.ExternalCaptureRequest, Is.Null);
             });
         }
 

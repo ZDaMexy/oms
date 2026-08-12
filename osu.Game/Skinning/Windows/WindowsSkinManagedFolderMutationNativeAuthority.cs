@@ -88,6 +88,9 @@ namespace osu.Game.Skinning.Windows
             public SkinManagedFolderPhysicalIdentity ManagedRootIdentity
                 => session?.ManagedRootIdentity ?? throw new ObjectDisposedException(nameof(Session));
 
+            public SkinFolderPhysicalAncestryProof ManagedRootAncestryProof
+                => session?.ManagedRootAncestryProof ?? throw new ObjectDisposedException(nameof(Session));
+
             public Session(WindowsSkinManagedAuthoritySession session)
             {
                 this.session = session ?? throw new ArgumentNullException(nameof(session));
@@ -136,6 +139,146 @@ namespace osu.Game.Skinning.Windows
                 try
                 {
                     return getSession().CaptureStagedMutationSource(operationId, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public SkinManagedFolderPhysicalIdentity PrepareManagedCopyStaging(
+                Guid operationId,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().PrepareManagedCopyStaging(operationId, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public SkinManagedFolderPhysicalIdentity CreateManagedCopyProvisionalRoot(
+                Guid operationId,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().CreateManagedCopyProvisionalRoot(operationId, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public void WriteManagedCopyProvisional(
+                Guid operationId,
+                SkinPackageRevisionCapsule capsule,
+                SkinManagedCopyLogicalManifest logicalManifest,
+                Action firstDestinationWrite,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    getSession().WriteManagedCopyProvisional(
+                        operationId,
+                        capsule,
+                        logicalManifest,
+                        firstDestinationWrite,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public bool IsManagedCopyProvisionalAbsent(
+                Guid operationId,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().IsManagedCopyProvisionalAbsent(operationId, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public SkinManagedCopyProvisionalInspection InspectManagedCopyProvisionalState(
+                Guid operationId,
+                string targetManagedRelativePath,
+                SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                SkinManagedFolderPhysicalIdentity? expectedProvisionalIdentity,
+                SkinManagedCopyLogicalManifest logicalManifest,
+                string expectedContentRevision,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().InspectManagedCopyProvisionalState(
+                        operationId,
+                        targetManagedRelativePath,
+                        expectedStagedRootIdentity,
+                        expectedProvisionalIdentity,
+                        logicalManifest,
+                        expectedContentRevision,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
+            public void CleanupExactManagedCopyProvisional(
+                Guid operationId,
+                string targetManagedRelativePath,
+                SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+                SkinManagedFolderPhysicalIdentity expectedProvisionalIdentity,
+                SkinManagedCopyLogicalManifest logicalManifest,
+                string expectedContentRevision,
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    getSession().CleanupExactManagedCopyProvisional(
+                        operationId,
+                        targetManagedRelativePath,
+                        expectedStagedRootIdentity,
+                        expectedProvisionalIdentity,
+                        logicalManifest,
+                        expectedContentRevision,
+                        cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {

@@ -24,6 +24,7 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Dialog;
+using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.SkinEditor;
 using osu.Game.Skinning;
 using osuTK;
@@ -95,6 +96,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     Text = SkinSettingsStrings.SkinLayoutEditor,
                     Action = () => skinEditor?.ToggleVisibility(),
                 },
+                new FolderSkinWorkspace(),
             };
         }
 
@@ -316,7 +318,11 @@ namespace osu.Game.Overlays.Settings.Sections
             [Resolved(CanBeNull = true)]
             private IDialogOverlay dialogOverlay { get; set; }
 
+            [Resolved(CanBeNull = true)]
+            private INotificationOverlay notificationOverlay { get; set; }
+
             private Bindable<Skin> currentSkin;
+            private System.Threading.Tasks.Task activeDeletion;
 
             [BackgroundDependencyLoader]
             private void load()
@@ -334,30 +340,108 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
             }
 
-            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanDelete(currentSkin.Value.SkinInfo);
+            private void updateState() => Enabled.Value = activeDeletion == null
+                                                          && !currentSkin.Disabled
+                                                          && skins.CanDelete(currentSkin.Value.SkinInfo.ID);
 
             private void delete()
             {
-                dialogOverlay?.Push(new SkinDeleteDialog(currentSkin.Value));
+                Skin current = currentSkin.Value;
+                dialogOverlay?.Push(new SkinDeleteDialog(current.SkinInfo.ID, current.SkinInfo.Value.Name)
+                {
+                    DeleteRequested = startDeletion,
+                });
+            }
+
+            private void startDeletion(Guid recordId)
+            {
+                if (activeDeletion != null)
+                    return;
+
+                Enabled.Value = false;
+                activeDeletion = observeDeletionAsync(recordId);
+            }
+
+            private async System.Threading.Tasks.Task observeDeletionAsync(Guid recordId)
+            {
+                try
+                {
+                    bool success = await skins.DeleteSkinAsync(recordId).ConfigureAwait(false);
+
+                    if (!success)
+                    {
+                        Schedule(() => notificationOverlay?.Post(new SimpleErrorNotification
+                        {
+                            Text = SkinSettingsStrings.FolderSkinOperationRejected,
+                        }));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Failed to delete the current skin from settings.");
+
+                    Schedule(() => notificationOverlay?.Post(new SimpleErrorNotification
+                    {
+                        Text = SkinSettingsStrings.FolderSkinOperationFailed,
+                    }));
+                }
+                finally
+                {
+                    Schedule(() =>
+                    {
+                        activeDeletion = null;
+
+                        if (!IsDisposed)
+                            updateState();
+                    });
+                }
             }
         }
 
         public partial class SkinDeleteDialog : DeletionDialog
         {
-            private readonly Skin skin;
+            internal Guid RecordId { get; }
 
-            public SkinDeleteDialog(Skin skin)
+            internal Action<Guid> DeleteRequested { private get; init; }
+
+            public SkinDeleteDialog(Guid recordId, string immutableLabel)
             {
-                this.skin = skin;
-                BodyText = skin.SkinInfo.Value.Name;
+                RecordId = recordId;
+                BodyText = immutableLabel;
             }
 
             [BackgroundDependencyLoader]
             private void load(SkinManager manager)
             {
-                // The dialog remains synchronous, but the manager owns and observes the complete async lifetime.
-                // Only the detached ID crosses this boundary; authoritative fields are re-read after confirmation.
-                DangerousAction = () => _ = manager.DeleteSkinAsync(skin.SkinInfo.ID);
+                // The dialog deliberately retains only immutable confirmation data. The manager re-reads all
+                // authoritative fields after confirmation and owns the complete asynchronous operation lifetime.
+                DangerousAction = () =>
+                {
+                    if (DeleteRequested != null)
+                    {
+                        DeleteRequested(RecordId);
+                        return;
+                    }
+
+                    deletionTask ??= observeDeletionAsync(manager);
+                };
+            }
+
+            private System.Threading.Tasks.Task deletionTask;
+
+            private async System.Threading.Tasks.Task observeDeletionAsync(SkinManager manager)
+            {
+                try
+                {
+                    bool success = await manager.DeleteSkinAsync(RecordId).ConfigureAwait(false);
+
+                    if (!success)
+                        Logger.Log("The detached skin deletion request was rejected.", level: LogLevel.Important);
+                }
+                catch
+                {
+                    Logger.Log("A detached skin deletion request failed.", level: LogLevel.Error);
+                }
             }
         }
 

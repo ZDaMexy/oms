@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-08-13
+
+### Skin V1 C1作者文件工作区闭门
+
+P1-A七个campaign的`C1`已闭合。Folder Skin Workspace现以record-ID fresh authority管理external Open / Import Managed Copy / Unregister与managed Open / Rename / Delete；external继续永久只读，选择/configured restart由fresh held no-follow capture产生immutable capsule+manifest，service-owner只管Realm记录。Rename/StagedImport/Delete/ManagedCopy持有exact external registry物理证明至final Realm线性化，single-v3 journal按封闭`(version, kind, phase)`图恢复，terminal compare-delete后仅在fresh Missing可证时解冻。ordinary `.osk` 新增skin-scoped bounded archive reader与transactional RealmFileStore receipt；并发same-hash participant、分组fault重试、record/blob非对称baseline均保持exact rollback且不伤共享blob。
+
+终审收口将Workspace records/support只读worker纳入manager shutdown cancel+同步join，并让managed Open在held capture前后都fresh复核normalized path唯一；因此UI关闭、应用退出及旧row同路径重复声明均fail-closed。
+
+最终验证：`osu.Game` Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；`osu.Desktop.slnf` Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt独立最终复审均为blocker/major/moderate **0/0/0**。燃尽更新为`1/7 closed，C2 active`；current consumer revision publication/reload/detach/retire、G1、`SV1-2`、Skin V1、release与`V-001`～`V-004`仍未完成。完成边界与C2执行prompt见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
+
+## 2026-08-12
+
+### Skin V1 C1意外中断最小checkpoint
+
+同一`C1`对话已在未提交工作树形成Folder Skin Workspace、external只读capture/registry/select/restart/pure-Realm noncurrent unregister、exact-set managed mutation、single-v3 ManagedCopy、managed Open/Rename/Delete、动态脱敏journal支持及ordinary `.osk` bounded ingress的真实产品checkpoint。停止扩功能后仅做确定性收口：`osu.Game` Debug build 0 error，core smoke **152/152**、BMS/Workspace产品smoke **34/34**；组合旅程的唯一测试隔离假红已按exact target record定位修正。P1-A/mainline/作者手册/交接与memory同步后，`CheckDocumentation.ps1`通过（135个Markdown、1064个相对链接、74个memory wiki链，仅PLAN数字比值复核提醒），`git diff --check`无内容错误。宽回归、Release、独立终审、targeted formatter与提交尚未执行，因此严格保持`0/7 closed，C1 active`；完整事实、缺口与续接prompt见[C1中断交接](../other/SKIN_SYSTEM_C1_INTERRUPTED_HANDOFF_20260812.md)及[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+
 ## 2026-08-09
 
 ### Skin V1 产品价值、最终差距与后续工作包收口

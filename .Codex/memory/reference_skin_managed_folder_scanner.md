@@ -37,7 +37,7 @@ metadata:
 
 - `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以typed `StartupSequence`外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须在`OsuGameBase.Dispose()`释放Realm前统一cancel + synchronous join startup scanner、rename/staged-import/managed-delete worker及selection capture-scheduling/contention worker。pending selection/delete-fallback completion由shutdown或scheduler callback恰好一方claim/reap，晚到callback只no-op；queued completion本身不是可join worker，也不得为它等待update scheduler。细节见[[reference_skin_managed_folder_selection]]。
 - 设置页已有 Realm `SkinInfo` notification → `GetAllUsableSkinsAsync()` → dropdown 刷新链；scanner 不需要第二套 UI refresh，也不会自动切换当前皮肤。
-- 这是一次启动扫描，不是watcher或热重载。directory-only rename与fixed-source staged import已有独立internal production operation，managed delete已有现有settings caller；scanner本身不执行move/import/delete，也不消费`SkinManagedFolderNewRecordPublicationPlan`。启动后原位编辑、新revision publication、全consumer detach、rename/import UI及external registration/capture仍是后续独立gate。
+- 这是一次启动扫描，不是watcher或热重载。directory-only rename、manager-owned ManagedCopy/fixed-source staged import与managed delete已有Folder Skin Workspace真实caller；scanner本身不执行move/import/delete，也不消费`SkinManagedFolderNewRecordPublicationPlan`。external registration/capture由独立exact registry链负责，不由scanner claim。启动后原位编辑、新revision publication与全consumer detach仍归C2独立gate。
 - 测试只用 fake、隔离 Realm/临时 Windows 根和 headless lifecycle；不要为验证 scanner 启动可见 GUI，也不要触碰生产 `chartskin/`。
 
 ## 与 mutation foundation 的协调地雷
@@ -45,4 +45,4 @@ metadata:
 - `scanGate`仍只负责同一scanner实例去重；真正跨scanner/selection/mutation/recovery的authority是共享`SkinManagedFolderOperationCoordinator`。独立scanner从discovery开始持有short scope直到Realm事务返回；startup lifecycle则在typed `StartupSequence`外层嵌套该short scope，因此snapshot→Realm reconcile不再允许进程内mutation插入，并可让已先开始的configured selection辨识exact startup completion后异步fresh retry。
 - 启动先恢复后scanner；有效未决journal冻结其source/target，invalid/unknown/IO冻结整个namespace。reconcile在规划valid add/update/revive和negative soft-delete时都必须查询冻结状态，不能把半成品解释成普通新增或缺失。
 - 公共线性化与按kind恢复已被directory-only rename、fixed-source staged import及managed delete直接消费；scanner从native snapshot到Realm commit全程串在同一coordinator内，不能与one-shot publisher/delete recovery竞争或把half-applied source/tombstone/target解释成普通新增。scanner lease绝不能被当作任何物理写能力；专用delete仍是generic mutation且不得取得startup retry authority。
-- staged import不自动选择；Realm notification可以刷新选择列表，但不能替换current pair或取消无关pending selection。本切没有GUI/视觉签收，不能把scanner record可见性写成玩家完成gate。
+- staged import/ManagedCopy不自动选择；Realm notification可以刷新选择列表，但不能替换current pair或取消无关pending selection。Workspace虽已有真实caller，scanner record可见性本身仍不是玩家完成gate或视觉签收。

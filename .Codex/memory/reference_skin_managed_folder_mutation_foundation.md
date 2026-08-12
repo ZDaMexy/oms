@@ -1,6 +1,6 @@
 ---
 name: reference_skin_managed_folder_mutation_foundation
-description: chartskin mutation foundation、rename/staged import、managed delete、durable recovery与NTFS handoff边界
+description: chartskin rename/staged import/delete/ManagedCopy、v3 exact-set recovery与NTFS handoff边界
 metadata:
   node_type: memory
   type: reference
@@ -18,13 +18,13 @@ metadata:
 
 ## mutation资格不是写能力
 
-- 既有rename/delete候选每次按ID从Realm刷新重读：必须是唯一合法`chartskin/<direct-child>`、`Files`空、非external/protected/fixed-ID/DeletePending、exact scanner owner、allowlisted实例类型且revision非空；任何external filesystem声明尚无resolved identity，因此当前保守阻断全部managed mutation。
+- 既有rename/delete候选每次按ID从Realm刷新重读：必须是唯一合法`chartskin/<direct-child>`、`Files`空、非external/protected/fixed-ID/DeletePending、exact scanner owner、allowlisted实例类型且revision非空。current v3 admission会在同一coordinator lease下捕获有界exact external declaration set及全部held physical proofs；合法非重叠external不再全局阻断，foreign/null owner、集合超限、overlap或proof/generation drift仍fail-closed。
 - Windows mutation session从物理本地卷逐段no-follow固定data root与held `chartskin` root。既有source只从该根捕获direct-child identity并持有带DELETE权限、拒绝外部write/delete的handle；target只是一枚同held root绑定、经NFC/Windows命名与case-insensitive collision/absence验证的name slot，绝不能预造physical identity。
-- staged source不接受调用方path/token，只能来自data root下固定`skin-mutation-staging/{operationId:N}`；当前仓库没有production stager。C1的manager-owned Import Managed Copy必须让fresh external capture成对产出exact capsule与含显式empty directory的bounded immutable logical-tree manifest；文件bytes只从capsule读取，destination handles按manifest no-follow/no-replace重建，绝不重开external path。
-- **创建provisional root/写入首个byte发生在既有StagedImport Prepared之前**，因此C1只允许single canonical v3 combined intent：首写前绑定external exact record fingerprint、capsule revision、held staging root、operation-derived source/target与logical manifest，phase覆盖copy/ProvisionalReady及既有move/publish。partial copy只清理exact planned OMS subset，foreign/drift冻结；禁止第二journal、目录年龄/operation-like name或启动清空staging猜测回收。staging root与managed root都是既存held authority root，不能由import临时创建或替换；两者与source必须同volume并全程复验identity和canonical name。
+- fixed staged source不接受调用方path/token，只能来自data root下`skin-mutation-staging/{operationId:N}`。current manager-owned Import Managed Copy只接external record ID和用户明确target child，由fresh external capture成对产出exact capsule与含显式empty directory的bounded immutable logical-tree manifest；文件bytes只从capsule读取，destination handles按manifest no-follow/no-replace重建，绝不重开external path。
+- **创建provisional root/写入首个byte发生在既有StagedImport Prepared之前**，因此current writer使用single canonical v3 combined intent：首写前绑定external exact record fingerprint、capsule revision、held staging root、operation-derived source/target与logical manifest，phase覆盖Copying/ProvisionalReady及既有move/publish。partial copy只清理exact durable owned subset，foreign/drift冻结；禁止第二journal、目录年龄/operation-like name或启动清空staging猜测回收。staging root与managed root都是既存held authority root，不能由import临时创建或替换；两者与source必须同volume并全程复验identity和canonical name。
 - staged import的immutable publication plan固定`ID = operationId`并绑定target slot、managed-root identity与version。plan**不是Realm写权限**，ordinary startup scanner不得消费；production one-shot publisher只在durable `FilesystemApplied`、exact target recapture/fingerprint和最终Realm ID/path/owner冲突复核后执行。
 - C1收窄“存在external就全局阻断”后，v3 Rename/StagedImport/Delete/ManagedCopy必须在首个物理步骤前durable保存external-registry generation/集合digest与non-overlap disposition，并在fresh recovery重取当前service-owned集合与held physical proof；external register/unregister与proof→final collision共享同一线性化边界。pre-C1 v2按production尚无service-owned external的历史合同冻结读取，不能静默补写；v3缺disposition/digest须Invalid/freeze。disposition不新增external绝对path/raw external record ID/raw physical identity；canonical recovery必需的manager operation ID/managed fingerprint仍可按schema持久化，UI/诊断一律脱敏。
-- held session在生成或持久化Prepared journal前都会重新验证native inventory/authority links及Realm资格；owner/hash/DeletePending/target collision等post-open漂移一律拒绝。rename、staged import与managed delete现各有唯一专用physical/Realm消费者；只有managed delete由现有settings确认框提供真实玩家caller，rename/import仍无非测试caller。
+- held session在生成或持久化Prepared journal前都会重新验证native inventory/authority links、external exact set及Realm资格；owner/hash/DeletePending/target collision等post-open漂移一律拒绝。rename、staged import、managed delete与ManagedCopy各有唯一专用physical/Realm消费者；Folder Skin Workspace现通过record-ID manager surface提供Open/Rename/Delete/Import Managed Copy真实caller，旧通用folder mutation仍冻结。
 
 ## directory-only rename真实行为
 
@@ -48,12 +48,12 @@ metadata:
 
 ## durable journal与恢复
 
-- canonical journal使用稳定文件名`skin-managed-mutation-journal.json`与payload version；严格UTF-8、固定schema/类型、重复字段拒绝、SHA-256校验和、1 MiB上限（用于最多8193个定长delete-node fingerprint，最大manifest round-trip仍须低于该界）。新intent只能从Prepared开始，phase按显式图单调推进；terminal不可重写，A intent不能覆盖B intent。current staged/delete forward只允许`Prepared → FilesystemApplied → RealmApplied → Committed`，不能直跳terminal；delete允许Prepared同phase从空fallback disposition单调补成`NotRequired`/`ProtectedPairCommitted`。RolledBack证明按kind验证：staged target identity/publication fingerprint须none/none或exact+valid成对，delete不发布target identity且可保留空/已确认disposition。fixed skin ID不得作为staged operation/record ID，payload重算checksum也仍是invalid。legacy v1仍可按旧schema重写非Delete terminal并删除，重写不得混入v2字段而导致下一次strict load失败。
+- canonical journal使用稳定文件名`skin-managed-mutation-journal.json`；严格UTF-8、固定schema/类型、重复字段拒绝、SHA-256校验和、1 MiB上限。准入按`(version, kind, phase)`闭集验证：v1/v2只接受其历史Rename/StagedImport/Delete phase图；即使在v3，`Copying`/`ProvisionalReady`也只允许ManagedCopy，Rename/StagedImport/Delete一律Invalid/freeze。current v3新intent只能从Prepared开始，Rename/StagedImport/Delete沿既有phase图，ManagedCopy显式加入Copying/ProvisionalReady后再进入FilesystemApplied/RealmApplied/Committed；terminal不可重写，A intent不能覆盖B intent，delete Prepared只允许fallback disposition单调补写。v3同时绑定external generation/digest/non-overlap disposition，缺失或不匹配即Invalid/freeze。v1/v2按各自frozen schema dispatch与恢复，绝不注入v3 optional字段或创建新旧version intent。
 - 写入使用同目录临时文件、write-through、`Flush(true)`与Windows `MoveFileEx(REPLACE_EXISTING|WRITE_THROUGH)`。精确孤儿temp可判定为未发布并清理；canonical目录/reparse、锁定/ACL/IO或未知journal-like sibling不得伪装成Missing。
 - mutation session只能经绑定的canonical store持久化，落盘后必须精确reload才返回durable receipt。receipt绑定session、store和exact Prepared journal，消费前后都复验；未解决session dispose或持久化结果不确定会粘性冻结关联路径。首个物理步骤前logical/native authority漂移若canonical receipt仍exact，可把Prepared compare-write为RolledBack、精确删除并确认Missing；receipt或写入结果已漂移时不能假装安全abort，须冻结。
-- recovery按journal kind路由到rename、staged-import或managed-delete production handler，并复用同一coordinator/store/receipt。current forward恢复即使已看见终态证据，也必须逐一write + exact reload缺失的`FilesystemApplied → RealmApplied → Committed`，每阶段重新inspection；publisher/action绝不早于durable FilesystemApplied，phase fault只保留最后durable journal，fresh restart继续且不重复publication。有效但无handler的nonterminal journal继续保留并精确冻结source/target，scanner对这些路径连negative cleanup都禁止；invalid/unknown/IO无法安全导出路径时冻结整个managed namespace。handler inspection/action必须回报与journal相同的held authority-root identity，否则保持歧义。
-- pre-C1 production writer/current schema为v2。Delete Prepared固定operation-derived `.oms-delete-{operationId:N}` tombstone，在既有publication fingerprint槽绑定exact existing Realm record，并持久化排序、版本化source-node manifest与physical phase前durable fallback disposition。C1 writer必须升级为single canonical v3；v2 reader语义永久冻结，不追加optional字段。证据完整的v2 Rename/StagedImport/Delete继续按旧合同恢复；pre-product legacy-v1或旧v2 Delete若缺任一证据仍strict Invalid并全局冻结，不猜测迁移。旧时期没有production delete caller，不能声称缺证据intent代表可恢复玩家delete。
-- terminal journal只在compare-delete后再次确认Missing才解除冻结；仍见同一terminal则幂等重试。一次歧义后journal突然Missing不能被当成成功；必须保持冻结到新启动/可证明恢复路径。
+- recovery按journal kind路由到rename、staged-import、managed-delete或ManagedCopy production handler，并复用同一coordinator/store/receipt。v3 recovery从取得mutation lease开始持有native与external snapshot到terminal compare-delete，每个Realm事务复核exact declaration set；forward即使已见终态证据也逐一write + exact reload缺失phase。ManagedCopy Copying只有exact empty durable root可rollback，完整capsule/manifest/content exact才forward，非空不完整保持Ambiguous。有效但无handler的nonterminal journal继续冻结；invalid/unknown/IO不能安全导出路径时冻结整个managed namespace。
+- current production writer/schema为v3。Delete Prepared固定operation-derived `.oms-delete-{operationId:N}` tombstone、existing-record fingerprint、source-node manifest与fallback disposition；ManagedCopy增加exact external binding与durable logical manifest。v2 reader语义永久冻结，不追加optional字段；证据完整的v2 Rename/StagedImport/Delete继续按旧合同恢复，legacy-v1/旧v2缺证据仍strict Invalid且不猜测迁移。
+- terminal journal必须先在held native/external authority及exact Realm declaration仍成立时执行compare-delete，删除后只允许再次读到`Missing`才解除冻结；仍见同一terminal则幂等重试，foreign/invalid/IO均保持冻结。不能先把journal删掉再补authority/Realm验证，也不能把“删后读取异常”解释为Missing或成功；一次歧义后journal突然Missing同样不能被当成成功。
 
 ## rename恢复矩阵
 
@@ -76,7 +76,7 @@ metadata:
 
 ## managed delete真实行为与恢复
 
-- 当前现有settings delete button/dialog只通过独立fresh-authoritative`CanDelete`和manager-owned `DeleteSkinAsync(record ID)`进入本operation。C1 Folder Skin Workspace可为scanner-owned managed行增加第二个UI入口，但它只传committed record ID并复用同一fresh `CanDelete`、确认语义、`DeleteSkinAsync`、journal/recovery；不构造/选择noncurrent `Skin`，不成为第二authority。确认框后的operation须fresh决定coherent noncurrent=`NotRequired`、current=exact protected fallback、split=拒绝，不能沿用dialog打开时的pair快照。普通Realm `.osk`保持soft delete + default且不进Workspace，旧通用folder `CanModify/Delete`、protected/fixed、external、foreign/null owner、非法path继续fail-closed。
+- 既有current settings按钮与Folder Skin Workspace managed row都只把committed record ID交给fresh-authoritative`CanDelete(Guid)`和manager-owned `DeleteSkinAsync(Guid)`；共享确认框只持detached ID与immutable label，不构造/选择noncurrent `Skin`，也不成为第二authority。确认后的operation fresh决定coherent noncurrent=`NotRequired`、current=exact protected fallback、split=拒绝，不能沿用dialog打开时的pair快照。普通Realm `.osk`保持soft delete + default且不进Workspace，旧通用folder `CanModify/Delete`、protected/fixed、external、foreign/null owner、非法path继续fail-closed。
 - Prepared绑定held managed-root/source、operation-derived tombstone、exact existing-record fingerprint与bounded exact source-node manifest，再单调持久化fallback disposition。完整树以显式迭代walker受capsule depth/entry/path及pending-handle预算约束。final no-follow tree/authority/identity复核及caller取消检查后，首个外部步骤只能是held-root-relative source→tombstone no-replace detach；之后不再观察caller cancellation。rename后的verification handles没有DELETE权，须验证后释放，再从held root以fresh no-follow delete-exclusive handles（持有DELETE、只共享READ）重捕；same-session live tree仍须与manifest精确相等，release→exclusive重捕窄窗内完成的node移出因此在0次disposition时拒绝，只有fresh recovery session的partial survivor可接受durable子集。
 - exclusive tree取得后再把已持有root/child移到sibling或authority外由sharing violation阻断，但目录handle不封namespace。preflight前可见的foreign addition/replacement及reparse、hardlink、duplicate/metadata/inventory drift、source replacement或同级collision仍在0次disposition时拒绝。final preflight后竞态新增/replacement绝不进入held delete list或被删除，可能在manifest节点部分清理后令root删除失败；此时保留FilesystemApplied journal与Realm record并冻结。始终不得触及foreign、managed root、sibling或caller path。
 - Realm只在durable FilesystemApplied后compare-remove journal绑定的exact record。recovery按source/tombstone/manifest/Realm fingerprint/disposition逐phase前滚或安全回滚；raw disposition却出现TargetOnly/Neither、Both、identity mismatch、foreign/conflicting record、缺证据或歧义都冻结。`ProtectedPairCommitted`在`FilesystemApplied/RealmApplied + source absent + tombstone absent + Realm absent`时仍须有exact protected fallback Realm record；`NotRequired`不要求该record。重启恢复不声称能重验detach前的旧runtime pair。
@@ -84,13 +84,13 @@ metadata:
 
 ## 不可误推
 
-- rename与fixed-source staged import internal production纵切已经实现但没有非测试caller、stager或UI；managed delete由现有settings确认框玩家可达。三者都不表示G1、`SV1-2`、Skin V1或reload已交付，所有旧通用rename/import/delete入口继续冻结。
+- rename、fixed-source staged import、managed delete与full ManagedCopy现由Folder Skin Workspace/manager surface组成已关闭的C1产品链；这仍不表示最终G1 reload、`SV1-2`、Skin V1或release已交付。所有旧通用rename/import/delete入口继续冻结。
 - rename不联动展示名/`skin.ini`；staged import只move受控provisional副本、不会修改包字节或自动选择；managed delete只适用于eligible managed direct-child并会物理删除，不得类推为external删除、任意path cleanup或通用Realm hard-delete。
 - journal、identity、relative path、operation/record ID与native异常都可能敏感；安全`ToString()`/日志只能输出类型、phase、kind、status或计数。
 
 ## 产品可达性与下一纵切
 
-- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由玩家可达的启动发现/选择/delete链消费；directory-only rename及fixed-source staged import仍只在production assembly内部被operation/recovery组装，没有应用caller。
+- coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由启动发现/选择、Workspace Rename/Delete/ManagedCopy及recovery链消费；external register/unregister与全部managed mutation共享exact-set线性化。
 - `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename、staged-import、managed delete与selection capture/retry worker；queued selection/delete fallback completion必须在shutdown被reap或晚到no-op，不得新建脱离该边界的后台链。
 - operation/recovery状态只能脱敏输出；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。每一新切片都要明确它连接的真实caller/host/renderer，不能用production项目中的internal类型数量代替产品进度。
-- 当前go/no-go：managed delete产品纵切已闭合；旧通用`Delete/CanModify`继续冻结。thin staged-import stager/caller仍NO-GO，external source→fixed provisional的可信authority/no-follow复制、预算、取消、清理、诊断与真实caller未一起冻结前，不能把任意path或普通递归copy包装成“thin”产品入口。external registration/capture与atomic reload/detach仍须分别指出同切consumer后过门。
+- 当前go/no-go：C1已关闭external Workspace、exact-set mutation与full ManagedCopy，燃尽为`1/7 closed，C2 active`。旧通用`Delete/CanModify`及thin/arbitrary-path stager继续冻结；不能把现有held-authority/capsule+manifest/single-v3纵切退化成普通递归copy。current external unregister与atomic reload/detach归C2。

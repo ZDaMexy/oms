@@ -1,18 +1,27 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
+using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
@@ -20,15 +29,29 @@ using osu.Game.Models;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Settings.Sections;
+using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Mania;
+using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Skinning.Legacy;
+using osu.Game.Rulesets.Mania.UI;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Rulesets.UI.Scrolling.Algorithms;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Windows;
 using osu.Game.Tests.Visual;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using ManiaDrawableHoldNote = osu.Game.Rulesets.Mania.Objects.Drawables.DrawableHoldNote;
+using ManiaDrawableNote = osu.Game.Rulesets.Mania.Objects.Drawables.DrawableNote;
+using ManiaHoldNote = osu.Game.Rulesets.Mania.Objects.HoldNote;
+using ManiaNote = osu.Game.Rulesets.Mania.Objects.Note;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
 {
@@ -45,6 +68,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private SkinManager manager = null!;
         private int sourceChangedCount;
+        private readonly HashSet<string> externalPackageRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         protected override bool UseFreshStoragePerRun => true;
 
@@ -65,10 +89,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                     if (oms != null)
                         oms.FilesystemStorageAuthorityOwner = null;
+
+                    foreach (SkinInfo external in realm.All<SkinInfo>()
+                                                       .Where(record => record.IsExternalFilesystemStorage)
+                                                       .ToArray())
+                    {
+                        realm.Remove(external);
+                    }
                 });
 
+                Directory.CreateDirectory(LocalStorage.GetFullPath(SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY));
                 manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
                 sourceChangedCount = 0;
+                externalPackageRoots.Clear();
                 manager.SourceChanged += () => sourceChangedCount++;
             });
         }
@@ -86,8 +119,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     current.Dispose();
                 }
+
+                deleteExternalPackageRoots();
             });
         }
+
+        [TearDown]
+        public void CleanUpExternalPackageRoots() => deleteExternalPackageRoots();
 
         [Test]
         public void TestManagedFolderSelectionPublishesImmutableSourceBoundBmsSkin()
@@ -668,6 +706,705 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && manager.CurrentSkin.Value is OmsSkin
                 && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
             AddStep("dispose detached deleted skin", () => deletedSkin!.Dispose());
+        }
+
+        [Test]
+        public void TestFolderWorkspaceManagedRowDialogRechecksNonCurrentToCurrentAndCommitsFallback()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+            Skin? selected = null;
+
+            AddStep("create non-current managed workspace row", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-current-transition");
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for managed workspace delete row", () =>
+                callerHost.IsLoaded
+                && callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
+                             ?.ActionButtons[2].Enabled.Value == true);
+            AddStep("open detached row delete dialog", () =>
+                callerHost.Workspace.Rows.Single(row => row.RecordId == candidate.ID)
+                          .ActionButtons[2]
+                          .TriggerClick());
+            AddUntilStep("wait for detached row delete dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == candidate.ID);
+            AddStep("make dialog target current before confirmation", () =>
+                manager.CurrentSkinInfo.Value = candidate);
+            AddUntilStep("wait for target current pair", () =>
+                manager.CurrentSkinInfo.Value.ID == candidate.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("confirm detached row delete", () =>
+            {
+                selected = manager.CurrentSkin.Value;
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>();
+            });
+            AddUntilStep("observe workspace delete request", () =>
+                callerHost.Workspace.OperationInProgress
+                || manager.IsManagedFolderDeleteRunning
+                || manager.LastManagedFolderDeleteResult != null);
+            AddRepeatStep("allow workspace delete progress", () => { }, 300);
+            AddUntilStep("wait for workspace delete request to settle", () =>
+                !callerHost.Workspace.OperationInProgress
+                && !manager.IsManagedFolderDeleteRunning);
+            AddUntilStep("wait for workspace row delete convergence", () =>
+                !Directory.Exists(packageRoot)
+                && Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) == null));
+            AddStep("assert confirmation re-read committed fallback", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.LastManagedFolderDeleteResult.FallbackCommitResult,
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.Committed));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(callerHost.Workspace.OperationInProgress, Is.False);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+
+                selected!.Dispose();
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceManagedRowDialogRechecksCurrentToNonCurrentAsNotRequired()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+            Skin? superseded = null;
+
+            AddStep("create and select current workspace target", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-not-required-transition");
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for current workspace target", () =>
+                manager.CurrentSkinInfo.Value.ID == candidate.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("mount full skin section", () =>
+            {
+                superseded = manager.CurrentSkin.Value;
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for current managed workspace row", () =>
+                callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
+                          ?.ActionButtons[2].Enabled.Value == true);
+            AddStep("open current row delete dialog", () =>
+                callerHost.Workspace.Rows.Single(row => row.RecordId == candidate.ID)
+                          .ActionButtons[2]
+                          .TriggerClick());
+            AddUntilStep("wait for current row dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == candidate.ID);
+            AddStep("switch away before confirmation", () =>
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo);
+            AddUntilStep("wait for protected non-current pair", () =>
+                manager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
+            AddStep("confirm now-non-current row delete", () =>
+            {
+                superseded!.Dispose();
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>();
+            });
+            AddRepeatStep("allow non-current row delete progress", () => { }, 300);
+            AddUntilStep("wait for non-current row delete convergence", () =>
+                !callerHost.Workspace.OperationInProgress
+                && !manager.IsManagedFolderDeleteRunning
+                && !Directory.Exists(packageRoot)
+                && Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) == null));
+            AddStep("assert fallback was not required", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.LastManagedFolderDeleteResult.FallbackCommitResult,
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceManagedRowDialogRejectsSplitPairAtConfirmation()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+            Skin? selected = null;
+
+            AddStep("create and select split-test workspace target", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-split-transition");
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for split-test target", () =>
+                manager.CurrentSkinInfo.Value.ID == candidate.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("mount split-test full skin section", () =>
+            {
+                selected = manager.CurrentSkin.Value;
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for split-test workspace row", () =>
+                callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
+                          ?.ActionButtons[2].Enabled.Value == true);
+            AddStep("open split-test row dialog", () =>
+                callerHost.Workspace.Rows.Single(row => row.RecordId == candidate.ID)
+                          .ActionButtons[2]
+                          .TriggerClick());
+            AddUntilStep("wait for split-test dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == candidate.ID);
+            AddStep("construct split pair before confirmation", () =>
+            {
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
+                Assert.Throws<InvalidOperationException>(() => manager.CurrentSkin.Value = selected);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                });
+            });
+            AddStep("confirm split-test row dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
+            AddUntilStep("wait for split-test rejection", () =>
+                !callerHost.Workspace.OperationInProgress
+                && !manager.IsManagedFolderDeleteRunning
+                && manager.LastManagedFolderDeleteResult != null);
+            AddStep("assert split pair failed closed", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.LastManagedFolderDeleteResult.FallbackCommitResult,
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted));
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [TestCase("missing")]
+        [TestCase("same-label-different-id")]
+        [TestCase("owner")]
+        [TestCase("path")]
+        [TestCase("hash")]
+        [TestCase("delete-pending")]
+        [TestCase("external-generation")]
+        public void TestFolderWorkspaceManagedRowDialogRevalidatesDetachedRecordAtConfirmation(string mutation)
+        {
+            string packageRoot = string.Empty;
+            Guid recordId = Guid.Empty;
+            Guid replacementId = Guid.Empty;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+
+            AddStep("create detached-record workspace row", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-detached-record");
+                recordId = candidate.ID;
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for detached-record workspace row", () =>
+                callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == recordId)
+                          ?.ActionButtons[2].Enabled.Value == true);
+            AddStep("open detached-record dialog", () =>
+                callerHost.Workspace.Rows.Single(row => row.RecordId == recordId)
+                          .ActionButtons[2]
+                          .TriggerClick());
+            AddUntilStep("wait for detached-record dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == recordId);
+            AddStep("mutate authority after dialog open", () =>
+            {
+                var dialog = (SkinSection.SkinDeleteDialog)callerHost.DialogOverlay.CurrentDialog!;
+                Assert.That(dialog.BodyText.ToString(), Is.EqualTo("managed folder"));
+
+                Realm.Write(realm =>
+                {
+                    SkinInfo target = realm.Find<SkinInfo>(recordId)!;
+
+                    switch (mutation)
+                    {
+                        case "missing":
+                            realm.Remove(target);
+                            break;
+
+                        case "same-label-different-id":
+                            replacementId = Guid.NewGuid();
+                            string name = target.Name;
+                            string creator = target.Creator;
+                            string instantiation = target.InstantiationInfo;
+                            string hash = target.Hash;
+                            string path = target.FilesystemStoragePath!;
+                            realm.Remove(target);
+                            realm.Add(new SkinInfo(name, creator, instantiation)
+                            {
+                                ID = replacementId,
+                                Hash = hash,
+                                FilesystemStoragePath = path,
+                                FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER,
+                            });
+                            break;
+
+                        case "owner":
+                            target.FilesystemStorageAuthorityOwner = "foreign.workspace.owner";
+                            break;
+
+                        case "path":
+                            target.FilesystemStoragePath = "chartskin/non-canonical/child";
+                            break;
+
+                        case "hash":
+                            target.Hash = string.Empty;
+                            break;
+
+                        case "delete-pending":
+                            target.DeletePending = true;
+                            break;
+
+                        case "external-generation":
+                            realm.Add(new SkinInfo("external drift", "OMS tests", SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
+                            {
+                                ID = Guid.NewGuid(),
+                                Hash = "external-generation-drift",
+                                FilesystemStoragePath = Path.Combine(Path.GetTempPath(), $"external-drift-{Guid.NewGuid():N}"),
+                                IsExternalFilesystemStorage = true,
+                                FilesystemStorageAuthorityOwner = SkinExternalFolderRegistry.AUTHORITY_OWNER,
+                            });
+                            break;
+
+                        default:
+                            throw new AssertionException($"Unknown detached record mutation {mutation}.");
+                    }
+                });
+            });
+            AddStep("confirm detached-record dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
+            AddUntilStep("wait for detached-record rejection", () =>
+                !callerHost.Workspace.OperationInProgress
+                && !manager.IsManagedFolderDeleteRunning);
+            AddStep("assert detached id failed closed", () =>
+            {
+                bool targetExpected = mutation is not ("missing" or "same-label-different-id");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(recordId) != null), Is.EqualTo(targetExpected));
+                    Assert.That(
+                        replacementId == Guid.Empty || Realm.Run(realm => realm.Find<SkinInfo>(replacementId) != null),
+                        Is.True,
+                        "A same-labelled replacement must never be treated as the confirmed record.");
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [TestCase("stale-source")]
+        [TestCase("same-label-different-id")]
+        [TestCase("owner")]
+        [TestCase("path")]
+        [TestCase("duplicate-path")]
+        [TestCase("freeze")]
+        public void TestFolderWorkspaceManagedOpenRowRevalidatesDriftBeforeExternalLaunch(string mutation)
+        {
+            string packageRoot = string.Empty;
+            string managedPath = string.Empty;
+            Guid recordId = Guid.Empty;
+            Guid replacementId = Guid.Empty;
+            int externalLaunches = 0;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+            FolderSkinWorkspace.FolderSkinWorkspaceRow detachedRow = null!;
+
+            AddStep("create managed open-folder row", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-open-drift");
+                managedPath = candidate.PerformRead(info => info.FilesystemStoragePath!);
+                recordId = candidate.ID;
+                manager.OpenFolderExternally = _ => Interlocked.Increment(ref externalLaunches);
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for managed open-folder row", () =>
+            {
+                detachedRow = callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == recordId)!;
+                return detachedRow?.ActionButtons[0].Enabled.Value == true;
+            });
+            AddStep("drift authority and click detached open row", () =>
+            {
+                switch (mutation)
+                {
+                    case "stale-source":
+                        Directory.Delete(packageRoot, recursive: true);
+                        break;
+
+                    case "same-label-different-id":
+                        Realm.Write(realm =>
+                        {
+                            SkinInfo target = realm.Find<SkinInfo>(recordId)!;
+                            replacementId = Guid.NewGuid();
+                            string name = target.Name;
+                            string creator = target.Creator;
+                            string instantiation = target.InstantiationInfo;
+                            string hash = target.Hash;
+                            string path = target.FilesystemStoragePath!;
+                            realm.Remove(target);
+                            realm.Add(new SkinInfo(name, creator, instantiation)
+                            {
+                                ID = replacementId,
+                                Hash = hash,
+                                FilesystemStoragePath = path,
+                                FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER,
+                            });
+                        });
+                        break;
+
+                    case "owner":
+                        candidate.PerformWrite(info => info.FilesystemStorageAuthorityOwner = "foreign.workspace.owner");
+                        break;
+
+                    case "path":
+                        candidate.PerformWrite(info => info.FilesystemStoragePath = "chartskin/non-canonical/child");
+                        break;
+
+                    case "duplicate-path":
+                        Realm.Write(realm => realm.Add(new SkinInfo(
+                            "duplicate managed declaration",
+                            "OMS tests",
+                            typeof(BmsLegacySkin).GetInvariantInstantiationInfo())
+                        {
+                            ID = Guid.NewGuid(),
+                            Hash = "duplicate-managed-path",
+                            FilesystemStoragePath = managedPath,
+                            FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER,
+                        }));
+                        break;
+
+                    case "freeze":
+                        manager.ManagedFolderOperationCoordinator.FreezePaths(new[] { managedPath });
+                        break;
+
+                    default:
+                        throw new AssertionException($"Unknown open-folder mutation {mutation}.");
+                }
+
+                detachedRow.ActionButtons[0].TriggerClick();
+            });
+            AddUntilStep("wait for managed open-folder rejection", () => !callerHost.Workspace.OperationInProgress);
+            AddStep("assert no stale path reached the host", () =>
+            {
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(externalLaunches, Is.Zero);
+                        Assert.That(replacementId == Guid.Empty
+                                    || Realm.Run(realm => realm.Find<SkinInfo>(replacementId) != null), Is.True);
+                        Assert.That(
+                            new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                            Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    });
+                }
+                finally
+                {
+                    if (mutation == "freeze")
+                        manager.ManagedFolderOperationCoordinator.UnfreezePaths(new[] { managedPath });
+                }
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceManagedRowDeleteDialogCancelIsSideEffectFree()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+
+            AddStep("create cancellable managed workspace row", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-cancel");
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for cancellable workspace row", () =>
+                callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
+                          ?.ActionButtons[2].Enabled.Value == true);
+            AddStep("open cancellable workspace dialog", () =>
+                callerHost.Workspace.Rows.Single(row => row.RecordId == candidate.ID)
+                          .ActionButtons[2]
+                          .TriggerClick());
+            AddUntilStep("wait for cancellable workspace dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == candidate.ID);
+            AddStep("cancel workspace dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogCancelButton>());
+            AddUntilStep("wait for workspace dialog dismissal", () => callerHost.DialogOverlay.CurrentDialog == null);
+            AddStep("assert cancellation performed no mutation", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(callerHost.Workspace.OperationInProgress, Is.False);
+                    Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestFullSkinSectionCurrentDeleteKeepsOrdinaryRealmPackageRegression()
+        {
+            Live<SkinInfo> ordinary = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+
+            AddStep("create and select ordinary Realm package", () =>
+            {
+                ordinary = createRealmPackageCandidate();
+                manager.CurrentSkinInfo.Value = ordinary;
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for ordinary current delete button", () =>
+                manager.CurrentSkinInfo.Value.ID == ordinary.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == ordinary.ID
+                && callerHost.CurrentDeleteButton.Enabled.Value);
+            AddStep("open ordinary current delete dialog", () => callerHost.CurrentDeleteButton.TriggerClick());
+            AddUntilStep("wait for ordinary current delete dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == ordinary.ID);
+            AddStep("confirm ordinary current delete", () =>
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
+            AddUntilStep("wait for ordinary soft delete", () =>
+                ordinary.PerformRead(info => info.DeletePending)
+                && manager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
+            AddStep("assert ordinary package never entered folder mutation", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(ordinary.ID) != null), Is.True);
+                    Assert.That(ordinary.PerformRead(info => info.FilesystemStoragePath), Is.Null);
+                    Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceManagedRowDeleteDoubleConfirmDisablesReentryAndShutdownJoins()
+        {
+            string firstRoot = string.Empty;
+            string secondRoot = string.Empty;
+            Live<SkinInfo> first = null!;
+            Live<SkinInfo> second = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+            SkinManagedFolderOperationCoordinator.Lease? heldLease = null;
+            SkinSection.SkinDeleteDialog dialog = null!;
+
+            AddStep("create two managed workspace rows", () =>
+            {
+                (firstRoot, first) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                (secondRoot, second) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                first.PerformWrite(info => info.Hash = "workspace-double-confirm-first");
+                second.PerformWrite(info => info.Hash = "workspace-double-confirm-second");
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for two managed workspace rows", () =>
+                callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == first.ID)
+                          ?.ActionButtons[2].Enabled.Value == true
+                && callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == second.ID)
+                             ?.ActionButtons[2].Enabled.Value == true);
+            AddStep("open first managed row dialog", () =>
+                callerHost.Workspace.Rows.Single(row => row.RecordId == first.ID)
+                          .ActionButtons[2]
+                          .TriggerClick());
+            AddUntilStep("wait for first managed row dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog current
+                && current.RecordId == first.ID);
+            AddStep("hold coordinator and double-confirm", () =>
+            {
+                heldLease = manager.ManagedFolderOperationCoordinator.Enter();
+                dialog = (SkinSection.SkinDeleteDialog)callerHost.DialogOverlay.CurrentDialog!;
+                dialog.PerformAction<PopupDialogDangerousButton>();
+                dialog.PerformAction<PopupDialogDangerousButton>();
+            });
+            AddUntilStep("wait for one observed workspace operation", () =>
+                callerHost.Workspace.OperationInProgress
+                && manager.IsManagedFolderDeleteRunning);
+            AddStep("assert every row is disabled against reentry", () =>
+            {
+                Assert.That(callerHost.Workspace.Rows.SelectMany(row => row.ActionButtons)
+                                      .All(button => !button.Enabled.Value), Is.True);
+                callerHost.Workspace.Rows.Single(row => row.RecordId == second.ID)
+                          .ActionButtons[2]
+                          .TriggerClick();
+            });
+            AddStep("shutdown joins the single observed row operation", () =>
+            {
+                try
+                {
+                    manager.ShutdownManagedFolderMutations();
+                }
+                finally
+                {
+                    heldLease!.Dispose();
+                    heldLease = null;
+                }
+            });
+            AddUntilStep("wait for workspace shutdown observation", () =>
+                !callerHost.Workspace.OperationInProgress
+                && !manager.IsManagedFolderDeleteRunning);
+            AddStep("assert double-click reentry and shutdown left both targets", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(Directory.Exists(firstRoot), Is.True);
+                    Assert.That(Directory.Exists(secondRoot), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(first.ID) != null), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(second.ID) != null), Is.True);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                });
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceOperationFailureLogsOnlyStableGenericText()
+        {
+            const string sensitive_exception_text = "C:\\private-author-workspace\\native-exception-body";
+            FullSkinSettingsCallerHost callerHost = null!;
+            Task? operationTask = null;
+            var entries = new ConcurrentQueue<LogEntry>();
+
+            void capture(LogEntry entry) => entries.Enqueue(entry);
+
+            AddStep("mount workspace for redacted log boundary", () =>
+                Add(callerHost = new FullSkinSettingsCallerHost(manager)));
+            AddUntilStep("wait for workspace redacted log boundary", () => callerHost.Workspace.IsLoaded);
+            AddStep("invoke failing UI operation", () =>
+            {
+                Logger.NewEntry += capture;
+                MethodInfo method = typeof(FolderSkinWorkspace).GetMethod(
+                    "performOperationAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?? throw new AssertionException("Missing workspace operation observer.");
+                var failingOperation = (Func<Task<bool>>)(() =>
+                    Task.FromException<bool>(new IOException(sensitive_exception_text)));
+                operationTask = (Task)method.Invoke(callerHost.Workspace, new object[] { failingOperation, false })!;
+            });
+            AddUntilStep("wait for redacted operation log", () => operationTask?.IsCompleted == true);
+            AddStep("unsubscribe and assert exception body was discarded", () =>
+            {
+                Logger.NewEntry -= capture;
+                string[] messages = entries.Select(entry => entry.Message).ToArray();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(messages, Has.Some.EqualTo("A folder skin workspace operation failed."));
+                    Assert.That(messages.Any(message => message.Contains(sensitive_exception_text, StringComparison.Ordinal)), Is.False);
+                    Assert.That(messages.Any(message => message.Contains("IOException", StringComparison.Ordinal)), Is.False);
+                });
+            });
+        }
+
+        [Test]
+        public void TestCurrentDeleteJournalCompletionDynamicallyRefreshesRedactedWorkspaceSupport()
+        {
+            const string sensitive_exception_text = "C:\\private-author-workspace\\native-fault-detail";
+            string packageRoot = string.Empty;
+            string journalPath = string.Empty;
+            Live<SkinInfo> candidate = null!;
+            FullSkinSettingsCallerHost callerHost = null!;
+            SettingsNote supportNote = null!;
+            Action? queuedFallback = null;
+
+            AddStep("create current target with deferred fallback", () =>
+            {
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                candidate.PerformWrite(info => info.Hash = "workspace-dynamic-support");
+                manager.ManagedFolderDeleteFallbackSchedule = action => queuedFallback = action;
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("wait for dynamic-support current target", () =>
+                manager.CurrentSkinInfo.Value.ID == candidate.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
+            AddStep("mount dynamic-support full skin section", () =>
+                Add(callerHost = new FullSkinSettingsCallerHost(manager)));
+            AddUntilStep("wait for initial redacted support", () =>
+            {
+                supportNote = callerHost.Workspace.ChildrenOfType<SettingsNote>().Single();
+                return supportNote.Current.Value?.Text.ToString().Contains("No pending recovery", StringComparison.Ordinal) == true;
+            });
+            AddUntilStep("wait for current delete button", () => callerHost.CurrentDeleteButton.Enabled.Value);
+            AddStep("open current delete support dialog", () => callerHost.CurrentDeleteButton.TriggerClick());
+            AddUntilStep("wait for current delete support dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
+                && dialog.RecordId == candidate.ID);
+            AddStep("confirm current delete support dialog", () =>
+                callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
+            AddUntilStep("wait for durable prepared journal", () =>
+                queuedFallback != null
+                && new SkinManagedFolderMutationJournalStore(LocalStorage).Load().IsLoaded);
+            AddStep("replace durable journal with sensitive invalid payload", () =>
+            {
+                journalPath = LocalStorage.GetFullPath(SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME);
+                File.WriteAllText(journalPath, $"invalid journal {sensitive_exception_text}");
+                queuedFallback!();
+            });
+            AddUntilStep("wait for journal-retaining delete completion", () =>
+                !manager.IsManagedFolderDeleteRunning
+                && manager.LastManagedFolderDeleteResult != null);
+            AddUntilStep("wait for manager-event support refresh", () =>
+                supportNote.Current.Value?.Text.ToString().Contains("state=invalid", StringComparison.Ordinal) == true);
+            AddStep("assert support projection is dynamic and redacted", () =>
+            {
+                string support = supportNote.Current.Value!.Text.ToString();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.LastManagedFolderDeleteResult.IsSuccess, Is.False);
+                    Assert.That(new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Invalid));
+                    Assert.That(support, Does.Contain("Recovery needs support"));
+                    Assert.That(support, Does.Contain("state=invalid"));
+                    Assert.That(support, Does.Not.Contain(sensitive_exception_text));
+                    Assert.That(support, Does.Not.Contain(packageRoot));
+                    Assert.That(support, Does.Not.Contain(journalPath));
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                });
+
+                File.Delete(journalPath);
+            });
         }
 
         [Test]
@@ -4201,6 +4938,1217 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [Test]
+        public void TestExternalFolderWorkspaceRegistrationIsNonSelectingConcurrentSafeAndIdempotent()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            SkinManagedFolderOperationCoordinator.Lease? heldLease = null;
+            Task<bool>? firstRegistration = null;
+            Task<bool>? concurrentRegistration = null;
+            Task<bool>? idempotentRegistration = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+
+            AddStep("create external package and start blocked registration", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                heldLease = manager.ManagedFolderOperationCoordinator.Enter();
+                firstRegistration = manager.RegisterExternalFolderAsync(packageRoot);
+                concurrentRegistration = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddStep("observe concurrent rejection and release registration", () =>
+            {
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(firstRegistration!.IsCompleted, Is.False);
+                        Assert.That(concurrentRegistration!.IsCompleted, Is.True);
+                        Assert.That(concurrentRegistration.GetAwaiter().GetResult(), Is.False);
+                        Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                        Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    });
+                }
+                finally
+                {
+                    heldLease!.Dispose();
+                    heldLease = null;
+                }
+            });
+            AddUntilStep("wait for first registration", () => firstRegistration?.IsCompleted == true);
+            AddStep("retry exact committed path", () =>
+            {
+                Assert.That(firstRegistration!.GetAwaiter().GetResult(), Is.True);
+                idempotentRegistration = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for idempotent registration", () => idempotentRegistration?.IsCompleted == true);
+            AddStep("query workspace and dropdown consumers", () =>
+            {
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for workspace records", () => workspaceTask?.IsCompleted == true);
+            AddUntilStep("wait for dropdown records", () => dropdownTask?.IsCompleted == true);
+            AddStep("assert one visible immutable external record without selection", () =>
+            {
+                FolderSkinWorkspaceRecord row = workspaceTask!.GetAwaiter().GetResult()
+                                                               .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External);
+                Live<SkinInfo> dropdownRecord = dropdownTask!.GetAwaiter().GetResult()
+                                                             .Single(record => record.ID == row.RecordId);
+                int committedExternalRecords = Realm.Run(realm => realm.All<SkinInfo>()
+                    .Count(record => record.IsExternalFilesystemStorage));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(idempotentRegistration!.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(committedExternalRecords, Is.EqualTo(1));
+                    Assert.That(row.RecordId, Is.Not.EqualTo(Guid.Empty));
+                    Assert.That(row.DisplayLabel, Is.EqualTo("managed folder product test"));
+                    Assert.That(row.CanUnregister, Is.True);
+                    Assert.That(dropdownRecord.PerformRead(record => record.Name), Is.EqualTo(row.DisplayLabel));
+                    Assert.That(dropdownRecord.PerformRead(record => record.IsExternalFilesystemStorage), Is.True);
+                    Assert.That(dropdownRecord.PerformRead(record => record.FilesystemStorageAuthorityOwner),
+                        Is.EqualTo(SkinExternalFolderRegistry.AUTHORITY_OWNER));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(sourceChangedCount, Is.Zero);
+                });
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderDropdownExcludesInexactRecordsButKeepsStaleRegisteredRecordVisible()
+        {
+            string packageRoot = string.Empty;
+            Guid registeredId = Guid.Empty;
+            Guid foreignOwnerId = Guid.NewGuid();
+            Guid missingOwnerId = Guid.NewGuid();
+            Guid filefulOwnerId = Guid.NewGuid();
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<IList<Live<SkinInfo>>>? staleDropdownTask = null;
+            Task<IList<Live<SkinInfo>>>? filteredDropdownTask = null;
+
+            AddStep("register exact external dropdown record", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for exact external registration", () => registrationTask?.IsCompleted == true);
+            AddStep("remove source and query dropdown", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+                Directory.Delete(packageRoot, recursive: true);
+                staleDropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for stale workspace record", () => workspaceTask?.IsCompleted == true);
+            AddUntilStep("wait for stale dropdown record", () => staleDropdownTask?.IsCompleted == true);
+            AddStep("select still-visible stale external record", () =>
+            {
+                registeredId = workspaceTask!.GetAwaiter().GetResult()
+                                             .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External)
+                                             .RecordId;
+                Live<SkinInfo> staleRecord = staleDropdownTask!.GetAwaiter().GetResult()
+                                                               .Single(record => record.ID == registeredId);
+                manager.CurrentSkinInfo.Value = staleRecord;
+            });
+            AddUntilStep("wait for stale source rejection", () =>
+                manager.LastSelectionRejectionReason != SkinSelectionRejectionReason.None);
+            AddStep("add structurally inexact external records", () =>
+            {
+                Realm.Write(realm =>
+                {
+                    realm.Add(new SkinInfo("foreign owner", "OMS tests", SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
+                    {
+                        ID = foreignOwnerId,
+                        Hash = "foreign-owner-hash",
+                        FilesystemStoragePath = Path.Combine(Path.GetTempPath(), $"foreign-owner-{Guid.NewGuid():N}"),
+                        IsExternalFilesystemStorage = true,
+                        FilesystemStorageAuthorityOwner = "foreign.owner",
+                    });
+                    realm.Add(new SkinInfo("missing owner", "OMS tests", SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
+                    {
+                        ID = missingOwnerId,
+                        Hash = "missing-owner-hash",
+                        FilesystemStoragePath = Path.Combine(Path.GetTempPath(), $"missing-owner-{Guid.NewGuid():N}"),
+                        IsExternalFilesystemStorage = true,
+                        FilesystemStorageAuthorityOwner = null,
+                    });
+
+                    var fileful = new SkinInfo("fileful owner token", "OMS tests", SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
+                    {
+                        ID = filefulOwnerId,
+                        Hash = "fileful-owner-hash",
+                        FilesystemStoragePath = Path.Combine(Path.GetTempPath(), $"fileful-owner-{Guid.NewGuid():N}"),
+                        IsExternalFilesystemStorage = true,
+                        FilesystemStorageAuthorityOwner = SkinExternalFolderRegistry.AUTHORITY_OWNER,
+                    };
+                    fileful.Files.Add(new RealmNamedFileUsage(new RealmFile { Hash = $"file-{Guid.NewGuid():N}" }, "payload.bin"));
+                    realm.Add(fileful);
+                });
+
+                filteredDropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for structurally filtered dropdown", () => filteredDropdownTask?.IsCompleted == true);
+            AddStep("assert only exact stale record remains visible", () =>
+            {
+                Guid[] visibleIds = filteredDropdownTask!.GetAwaiter().GetResult().Select(record => record.ID).ToArray();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(visibleIds, Does.Contain(registeredId));
+                    Assert.That(visibleIds, Does.Not.Contain(foreignOwnerId));
+                    Assert.That(visibleIds, Does.Not.Contain(missingOwnerId));
+                    Assert.That(visibleIds, Does.Not.Contain(filefulOwnerId));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(manager.LastSelectionRejectionReason, Is.Not.EqualTo(SkinSelectionRejectionReason.None));
+                });
+            });
+        }
+
+        [Test]
+        public void TestUnresolvedManagedFolderJournalBlocksExternalUnregisterInWorkspaceAndCommit()
+        {
+            string externalRoot = string.Empty;
+            Guid externalRecordId = Guid.Empty;
+            Live<SkinInfo> managedCandidate = null!;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<bool>? unregisterTask = null;
+            SkinManagedFolderMutationJournal? unresolvedJournal = null;
+            SkinManagedFolderMutationJournalStore? journalStore = null;
+
+            AddStep("register external before recovery freeze", () =>
+            {
+                externalRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(externalRoot);
+            });
+            AddUntilStep("wait for external before recovery freeze", () => registrationTask?.IsCompleted == true);
+            AddStep("persist unresolved managed-folder journal", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                externalRecordId = Realm.Run(realm => realm.All<SkinInfo>()
+                                                           .Single(record => record.IsExternalFilesystemStorage)
+                                                           .ID);
+                (_, managedCandidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                journalStore = new SkinManagedFolderMutationJournalStore(LocalStorage);
+                string managedPath = managedCandidate.PerformRead(record => record.FilesystemStoragePath!);
+                unresolvedJournal = SkinManagedFolderMutationJournal.CreatePreparedDelete(
+                    Guid.NewGuid(),
+                    managedCandidate.ID,
+                    new SkinManagedFolderPhysicalIdentity(501, 502, 503),
+                    managedPath,
+                    new SkinManagedFolderPhysicalIdentity(501, 602, 603),
+                    managedCandidate.PerformRead(SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint),
+                    SkinManagedFolderDeleteManifest.Create(new[] { new string('d', 64) }));
+                journalStore!.Write(unresolvedJournal);
+
+                manager.ShutdownManagedFolderMutations();
+                manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
+                sourceChangedCount = 0;
+                manager.SourceChanged += () => sourceChangedCount++;
+            });
+            AddStep("query recovery-frozen workspace", () =>
+            {
+                Assert.That(
+                    manager.InitialManagedFolderMutationRecoveryResult.Status,
+                    Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.Ambiguous));
+                Assert.That(manager.ManagedFolderOperationCoordinator.IsMutationBlocked, Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+            });
+            AddUntilStep("wait for recovery-frozen workspace", () => workspaceTask?.IsCompleted == true);
+            AddStep("attempt unregister through manager commit surface", () =>
+            {
+                FolderSkinWorkspaceRecord external = workspaceTask!.GetAwaiter().GetResult()
+                                                                   .Single(record => record.RecordId == externalRecordId);
+                Assert.That(external.CanUnregister, Is.False);
+                unregisterTask = manager.UnregisterExternalFolderAsync(externalRecordId);
+            });
+            AddUntilStep("wait for blocked external unregister", () => unregisterTask?.IsCompleted == true);
+            AddStep("assert unresolved journal retained external registration", () =>
+            {
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(unregisterTask!.GetAwaiter().GetResult(), Is.False);
+                        Assert.That(manager.Query(record => record.ID == externalRecordId), Is.Not.Null);
+                        Assert.That(Directory.Exists(externalRoot), Is.True);
+                        Assert.That(journalStore!.Load().IsLoaded, Is.True);
+                    });
+                }
+                finally
+                {
+                    SkinManagedFolderMutationJournal rolledBack = unresolvedJournal!.WithRolledBack();
+                    journalStore!.Write(rolledBack);
+                    journalStore.Delete(rolledBack);
+                }
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceManagerRejectsUntrimmedTargetNames()
+        {
+            const string target_name = "  authority sensitive target  ";
+            string managedPath = string.Empty;
+            string packageRoot = string.Empty;
+            Guid externalId = Guid.Empty;
+            Live<SkinInfo> managed = null!;
+            string[] managedFolderRecordsBefore = Array.Empty<string>();
+            Task<SkinManagedFolderRenameOperationResult>? renameTask = null;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<bool>? importTask = null;
+
+            AddStep("create managed rename target", () =>
+            {
+                (_, managed) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                managed.PerformWrite(info =>
+                {
+                    info.Hash = "untrimmed-rename-source";
+                    managedPath = info.FilesystemStoragePath!;
+                });
+                renameTask = manager.RenameManagedFolderAsync(managed.ID, target_name);
+            });
+            AddUntilStep("wait for untrimmed rename rejection", () => renameTask?.IsCompleted == true);
+            AddStep("register external import source", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(renameTask!.GetAwaiter().GetResult().IsSuccess, Is.False);
+                    Assert.That(managed.PerformRead(info => info.FilesystemStoragePath), Is.EqualTo(managedPath));
+                    Assert.That(Directory.Exists(LocalStorage.GetFullPath(managedPath)), Is.True);
+                });
+
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for external import source", () => registrationTask?.IsCompleted == true);
+            AddStep("query external import record", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+            });
+            AddUntilStep("wait for external import record", () => workspaceTask?.IsCompleted == true);
+            AddStep("submit exact untrimmed import name", () =>
+            {
+                externalId = workspaceTask!.GetAwaiter().GetResult()
+                                           .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External)
+                                           .RecordId;
+                managedFolderRecordsBefore = Realm.Run(realm => realm.All<SkinInfo>()
+                    .Where(record => !record.IsExternalFilesystemStorage
+                                     && !string.IsNullOrEmpty(record.FilesystemStoragePath))
+                    .AsEnumerable()
+                    .Select(record => $"{record.ID:N}|{record.FilesystemStoragePath}")
+                    .OrderBy(value => value, StringComparer.Ordinal)
+                    .ToArray());
+                importTask = manager.ImportManagedCopyAsync(externalId, target_name);
+            });
+            AddStep("assert untrimmed import rejected before mutation", () =>
+            {
+                string[] managedFolderRecordsAfter = Realm.Run(realm => realm.All<SkinInfo>()
+                    .Where(record => !record.IsExternalFilesystemStorage
+                                     && !string.IsNullOrEmpty(record.FilesystemStoragePath))
+                    .AsEnumerable()
+                    .Select(record => $"{record.ID:N}|{record.FilesystemStoragePath}")
+                    .OrderBy(value => value, StringComparer.Ordinal)
+                    .ToArray());
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(importTask!.IsCompleted, Is.True);
+                    Assert.That(importTask.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(managedFolderRecordsAfter, Is.EqualTo(managedFolderRecordsBefore));
+                    Assert.That(Directory.Exists(LocalStorage.GetFullPath($"chartskin/{target_name}")), Is.False);
+                    Assert.That(new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                });
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderWorkspaceExplicitSelectionIsFreshAndImplicitSelectorsExcludeIt()
+        {
+            string packageRoot = string.Empty;
+            Guid recordId = Guid.Empty;
+            string displayLabel = string.Empty;
+            Guid implicitRequestId = Guid.Empty;
+            string registrationHash = string.Empty;
+            Live<SkinInfo> dropdownRecord = null!;
+            Skin? firstSelection = null;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+
+            AddStep("create and register external package", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for external registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query path-free workspace row", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+            });
+            AddUntilStep("wait for path-free workspace row", () => workspaceTask?.IsCompleted == true);
+            AddStep("query dropdown", () =>
+            {
+                FolderSkinWorkspaceRecord row = workspaceTask!.GetAwaiter().GetResult()
+                                                               .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External);
+                recordId = row.RecordId;
+                displayLabel = row.DisplayLabel;
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for dropdown", () => dropdownTask?.IsCompleted == true);
+            AddStep("select visible external dropdown item", () =>
+            {
+                dropdownRecord = dropdownTask!.GetAwaiter().GetResult().Single(record => record.ID == recordId);
+                Assert.That(dropdownRecord.PerformRead(record => record.Name), Is.EqualTo(displayLabel));
+                registrationHash = dropdownRecord.PerformRead(record => record.Hash);
+                manager.CurrentSkinInfo.Value = dropdownRecord;
+            });
+            AddUntilStep("wait for first external selection", () =>
+                manager.CurrentSkinInfo.Value.ID == recordId
+                && manager.CurrentSkin.Value.SkinInfo.ID == recordId
+                && manager.CurrentSkin.Value is BmsLegacySkin);
+            AddStep("switch away and mutate source", () =>
+            {
+                firstSelection = manager.CurrentSkin.Value;
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
+                string skinIni = File.ReadAllText(Path.Combine(packageRoot, "skin.ini"));
+                File.WriteAllText(
+                    Path.Combine(packageRoot, "skin.ini"),
+                    skinIni.Replace("Name: managed folder product test", "Name: refreshed external observation")
+                           .Replace("Author: OMS tests", "Author: refreshed author")
+                           .Replace("LongNoteBodyWidth: 0.4", "LongNoteBodyWidth: 0.7"));
+            });
+            AddStep("reselect external dropdown item", () => manager.CurrentSkinInfo.Value = dropdownRecord);
+            AddUntilStep("wait for fresh external selection", () =>
+                manager.CurrentSkinInfo.Value.ID == recordId
+                && manager.CurrentSkin.Value.SkinInfo.ID == recordId
+                && !ReferenceEquals(manager.CurrentSkin.Value, firstSelection));
+            AddStep("assert reselection captured fresh source", () =>
+            {
+                Drawable? body = resolve(new BmsSkinTransformer(manager.CurrentSkin.Value), BmsNoteSkinElements.LongNoteBody);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<BmsLegacySkin>());
+                    Assert.That(manager.CurrentSkin.Value, Is.Not.SameAs(firstSelection));
+                    Assert.That(body, Is.TypeOf<BmsSourceBoundLongNoteBodyDrawable>());
+                    Assert.That(body!.Width, Is.EqualTo(0.7f).Within(0.0001f));
+                    Assert.That(dropdownRecord.PerformRead(record => record.Name), Is.EqualTo("refreshed external observation"));
+                    Assert.That(dropdownRecord.PerformRead(record => record.Creator), Is.EqualTo("refreshed author"));
+                    Assert.That(dropdownRecord.PerformRead(record => record.Hash), Is.Not.Empty);
+                    Assert.That(dropdownRecord.PerformRead(record => record.Hash), Is.Not.EqualTo(registrationHash));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.Value.Name, Is.EqualTo("refreshed external observation"));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.Value.Creator, Is.EqualTo("refreshed author"));
+                    Assert.That(
+                        manager.CurrentSkin.Value.SkinInfo.Value.Hash,
+                        Is.EqualTo(dropdownRecord.PerformRead(record => record.Hash)));
+                });
+            });
+            AddStep("random excludes external", () =>
+            {
+                implicitRequestId = Guid.Empty;
+                manager.SelectionRequestBeforeCommitLock = target => implicitRequestId = target.ID;
+                manager.SelectRandomSkin();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(implicitRequestId, Is.Not.EqualTo(Guid.Empty));
+                    Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
+                });
+            });
+            AddStep("explicitly reselect before next", () => manager.CurrentSkinInfo.Value = dropdownRecord);
+            AddUntilStep("wait for external before next", () => manager.CurrentSkinInfo.Value.ID == recordId && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
+            AddStep("next excludes external", () =>
+            {
+                implicitRequestId = Guid.Empty;
+                manager.SelectNextSkin();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(implicitRequestId, Is.Not.EqualTo(Guid.Empty));
+                    Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
+                });
+            });
+            AddStep("explicitly reselect before previous", () => manager.CurrentSkinInfo.Value = dropdownRecord);
+            AddUntilStep("wait for external before previous", () => manager.CurrentSkinInfo.Value.ID == recordId && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
+            AddStep("previous excludes external", () =>
+            {
+                implicitRequestId = Guid.Empty;
+                manager.SelectPreviousSkin();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(implicitRequestId, Is.Not.EqualTo(Guid.Empty));
+                    Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
+                });
+                manager.SelectionRequestBeforeCommitLock = _ => { };
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderSelectionHoldsTargetPhysicalRootUntilFinalCommit()
+        {
+            string packageRoot = string.Empty;
+            string replacementRoot = string.Empty;
+            Guid recordId = Guid.Empty;
+            Live<SkinInfo> dropdownRecord = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            Action? deferredCompletion = null;
+            Task<bool>? registrationTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+
+            AddStep("register target external package", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for target registration", () => registrationTask?.IsCompleted == true);
+            AddStep("defer target selection completion", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for target dropdown", () => dropdownTask?.IsCompleted == true);
+            AddStep("request held target selection", () =>
+            {
+                dropdownRecord = dropdownTask!.GetAwaiter().GetResult()
+                                              .Single(record => record.PerformRead(info => info.IsExternalFilesystemStorage));
+                recordId = dropdownRecord.ID;
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                manager.ManagedFolderCompletionSchedule = completion => deferredCompletion = completion;
+                manager.CurrentSkinInfo.Value = dropdownRecord;
+            });
+            AddUntilStep("wait for held target completion", () => deferredCompletion != null);
+            AddStep("prove target root replacement is denied while proof is held", () =>
+            {
+                replacementRoot = $"{packageRoot}-replacement";
+                Exception? replacementFailure = null;
+
+                try
+                {
+                    Directory.Move(packageRoot, replacementRoot);
+                }
+                catch (Exception exception)
+                {
+                    replacementFailure = exception;
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(replacementFailure, Is.TypeOf<IOException>().Or.TypeOf<UnauthorizedAccessException>());
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Directory.Exists(replacementRoot), Is.False);
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                });
+            });
+            AddStep("run held target completion", () => deferredCompletion!());
+            AddUntilStep("wait for target commit", () =>
+                manager.CurrentSkinInfo.Value.ID == recordId
+                && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
+            AddStep("restore target completion scheduler", () =>
+                manager.ManagedFolderCompletionSchedule = completion => Scheduler.Add(completion));
+        }
+
+        [Test]
+        public void TestExternalFolderSelectionHoldsEveryRegistryPhysicalRootUntilFinalCommit()
+        {
+            string targetRoot = string.Empty;
+            string unrelatedRoot = string.Empty;
+            string unrelatedReplacementRoot = string.Empty;
+            Guid targetId = Guid.Empty;
+            Live<SkinInfo> targetRecord = null!;
+            Action? deferredCompletion = null;
+            Task<bool>? targetRegistrationTask = null;
+            Task<bool>? unrelatedRegistrationTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+
+            AddStep("register target and unrelated external packages", () =>
+            {
+                targetRoot = createExternalPackage(createCompletePackage);
+                unrelatedRoot = createExternalPackage(createCompletePackage);
+                targetRegistrationTask = manager.RegisterExternalFolderAsync(targetRoot);
+            });
+            AddUntilStep("wait for target external registration", () => targetRegistrationTask?.IsCompleted == true);
+            AddStep("register unrelated external package", () =>
+            {
+                Assert.That(targetRegistrationTask!.GetAwaiter().GetResult(), Is.True);
+                unrelatedRegistrationTask = manager.RegisterExternalFolderAsync(unrelatedRoot);
+            });
+            AddUntilStep("wait for unrelated external registration", () => unrelatedRegistrationTask?.IsCompleted == true);
+            AddStep("query both external dropdown records", () =>
+            {
+                Assert.That(unrelatedRegistrationTask!.GetAwaiter().GetResult(), Is.True);
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for both external dropdown records", () => dropdownTask?.IsCompleted == true);
+            AddStep("defer target selection completion", () =>
+            {
+                targetRecord = dropdownTask!.GetAwaiter().GetResult()
+                                            .Single(record => record.PerformRead(info =>
+                                                string.Equals(info.FilesystemStoragePath, targetRoot, StringComparison.OrdinalIgnoreCase)));
+                targetId = targetRecord.ID;
+                manager.ManagedFolderCompletionSchedule = completion => deferredCompletion = completion;
+                manager.CurrentSkinInfo.Value = targetRecord;
+            });
+            AddUntilStep("wait for exact registry completion", () => deferredCompletion != null);
+            AddStep("prove unrelated root replacement is denied by exact-set proof", () =>
+            {
+                unrelatedReplacementRoot = $"{unrelatedRoot}-replacement";
+                Exception? replacementFailure = null;
+
+                try
+                {
+                    Directory.Move(unrelatedRoot, unrelatedReplacementRoot);
+                }
+                catch (Exception exception)
+                {
+                    replacementFailure = exception;
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(replacementFailure, Is.TypeOf<IOException>().Or.TypeOf<UnauthorizedAccessException>());
+                    Assert.That(Directory.Exists(unrelatedRoot), Is.True);
+                    Assert.That(Directory.Exists(unrelatedReplacementRoot), Is.False);
+                });
+            });
+            AddStep("run exact registry completion", () => deferredCompletion!());
+            AddUntilStep("wait for exact registry target commit", () =>
+                manager.CurrentSkinInfo.Value.ID == targetId
+                && manager.CurrentSkin.Value.SkinInfo.ID == targetId);
+            AddStep("restore exact registry completion scheduler", () =>
+                manager.ManagedFolderCompletionSchedule = completion => Scheduler.Add(completion));
+        }
+
+        [Test]
+        public void TestExternalFolderSelectionRejectsACompletedGenericMutationBeforeFinalCommit()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> targetRecord = null!;
+            Live<SkinInfo> originalInfo = null!;
+            Skin originalSkin = null!;
+            Action? deferredCompletion = null;
+            Task<bool>? registrationTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+
+            AddStep("register external epoch candidate", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for external epoch registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query external epoch candidate", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for external epoch dropdown", () => dropdownTask?.IsCompleted == true);
+            AddStep("defer external epoch completion", () =>
+            {
+                targetRecord = dropdownTask!.GetAwaiter().GetResult()
+                                            .Single(record => record.PerformRead(info => info.IsExternalFilesystemStorage));
+                originalInfo = manager.CurrentSkinInfo.Value;
+                originalSkin = manager.CurrentSkin.Value;
+                manager.ManagedFolderCompletionSchedule = completion => deferredCompletion = completion;
+                manager.CurrentSkinInfo.Value = targetRecord;
+            });
+            AddUntilStep("wait for external epoch completion", () => deferredCompletion != null);
+            AddStep("cross completed generic mutation reservation", () =>
+            {
+                using (manager.ManagedFolderOperationCoordinator.EnterMutation())
+                {
+                }
+            });
+            AddStep("run stale external epoch completion", () => deferredCompletion!());
+            AddStep("assert generic mutation epoch rejects external commit", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(originalInfo));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(originalSkin));
+                    Assert.That(manager.LastSelectionRejectionReason,
+                        Is.EqualTo(SkinSelectionRejectionReason.CapturedCandidateChanged));
+                });
+                manager.ManagedFolderCompletionSchedule = completion => Scheduler.Add(completion);
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderSelectionLatestRequestWinsWhileCaptureAuthorityIsHeld()
+        {
+            string packageRoot = string.Empty;
+            Live<SkinInfo> targetRecord = null!;
+            Live<SkinInfo> fallback = null!;
+            long generationBeforeFallback = 0;
+            FieldInfo? generationField = null;
+            Task<bool>? registrationTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+            using var captureOpened = new ManualResetEventSlim();
+            using var releaseCapture = new ManualResetEventSlim();
+
+            AddStep("register latest-wins external candidate", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for latest-wins registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query latest-wins external candidate", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for latest-wins dropdown", () => dropdownTask?.IsCompleted == true);
+            AddStep("block external capture after exact authority opens", () =>
+            {
+                targetRecord = dropdownTask!.GetAwaiter().GetResult()
+                                            .Single(record => record.PerformRead(info => info.IsExternalFilesystemStorage));
+                fallback = manager.DefaultClassicSkin.SkinInfo;
+                generationField = typeof(SkinManager).GetField(
+                    "selectionGeneration",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(generationField, Is.Not.Null);
+                manager.ExternalFolderSelectionCaptureAuthorityOpened = () =>
+                {
+                    captureOpened.Set();
+                    if (!releaseCapture.Wait(TimeSpan.FromSeconds(10)))
+                        throw new TimeoutException("Timed out waiting to release external capture authority.");
+                };
+                manager.CurrentSkinInfo.Value = targetRecord;
+            });
+            AddUntilStep("wait for external capture authority", () => captureOpened.IsSet);
+            AddStep("request distinct Realm fallback while external capture is held", () =>
+            {
+                generationBeforeFallback = (long)generationField!.GetValue(manager)!;
+                manager.CurrentSkinInfo.Value = fallback;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(fallback.ID));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(fallback.ID));
+                    Assert.That((long)generationField.GetValue(manager)!, Is.GreaterThan(generationBeforeFallback));
+                    Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
+                });
+            });
+            AddStep("release stale external capture", () => releaseCapture.Set());
+            AddUntilStep("wait for latest Realm request to remain committed", () =>
+                manager.CurrentSkinInfo.Value.ID == fallback.ID
+                && manager.CurrentSkin.Value.SkinInfo.ID == fallback.ID
+                && (long)generationField!.GetValue(manager)! > generationBeforeFallback);
+            AddStep("assert latest request was accepted and restore hook", () =>
+            {
+                Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
+                manager.ExternalFolderSelectionCaptureAuthorityOpened = () => { };
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderSelectionShutdownCancelsJoinsAndReleasesCapturedAuthority()
+        {
+            string packageRoot = string.Empty;
+            string movedRoot = string.Empty;
+            Live<SkinInfo> targetRecord = null!;
+            FieldInfo? generationField = null;
+            long generationBeforeShutdown = 0;
+            Task? shutdownTask = null;
+            Task<bool>? registrationTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+            using var captureOpened = new ManualResetEventSlim();
+            using var releaseCapture = new ManualResetEventSlim();
+
+            AddStep("register shutdown external candidate", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for shutdown external registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query shutdown external candidate", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for shutdown external dropdown", () => dropdownTask?.IsCompleted == true);
+            AddStep("block external physical authority capture", () =>
+            {
+                targetRecord = dropdownTask!.GetAwaiter().GetResult()
+                                            .Single(record => record.PerformRead(info => info.IsExternalFilesystemStorage));
+                generationField = typeof(SkinManager).GetField(
+                    "selectionGeneration",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(generationField, Is.Not.Null);
+                manager.ExternalFolderSelectionCaptureAuthorityOpened = () =>
+                {
+                    captureOpened.Set();
+                    if (!releaseCapture.Wait(TimeSpan.FromSeconds(10)))
+                        throw new TimeoutException("Timed out waiting to release external capture authority during shutdown.");
+                };
+                manager.CurrentSkinInfo.Value = targetRecord;
+            });
+            AddUntilStep("wait for shutdown physical authority", () => captureOpened.IsSet);
+            AddStep("start selection shutdown while authority is held", () =>
+            {
+                generationBeforeShutdown = (long)generationField!.GetValue(manager)!;
+                shutdownTask = Task.Run(manager.ShutdownManagedFolderMutations);
+            });
+            AddUntilStep("wait for shutdown cancellation boundary", () =>
+                (long)generationField!.GetValue(manager)! > generationBeforeShutdown);
+            AddStep("release cancelled physical capture", () => releaseCapture.Set());
+            AddUntilStep("wait for selection shutdown join", () => shutdownTask?.IsCompleted == true);
+            AddStep("assert shutdown reclaimed physical owners", () =>
+            {
+                shutdownTask!.GetAwaiter().GetResult();
+                movedRoot = packageRoot + ".moved";
+                Directory.Move(packageRoot, movedRoot);
+                Directory.Move(movedRoot, packageRoot);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                });
+                manager.ExternalFolderSelectionCaptureAuthorityOpened = () => { };
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderWorkspaceConfiguredRestartUsesRealBmsAndLegacyManiaRenderersWithoutMutatingSource()
+        {
+            string packageRoot = string.Empty;
+            string configuredSelection = string.Empty;
+            Guid recordId = Guid.Empty;
+            string displayLabel = string.Empty;
+            string sourcePhysicalDigestBeforeRegistration = string.Empty;
+            string sourcePhysicalDigestAfterUnregister = string.Empty;
+            FolderInventorySnapshot sourceBeforeRegistration = default;
+            FolderInventorySnapshot sourceBeforeUnregister = default;
+            FolderInventorySnapshot sourceAfterUnregister = default;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+            Task<bool>? unregisterTask = null;
+            Skin firstSelectedSkin = null!;
+            Skin restartedSelectedSkin = null!;
+            JourneyRendererHost firstRenderer = null!;
+            JourneyRendererHost restartedRenderer = null!;
+            Drawable firstBmsOrdinaryArtifact = null!;
+            Drawable firstBmsBodyArtifact = null!;
+            Drawable firstManiaNoteArtifact = null!;
+            Drawable firstManiaBodyArtifact = null!;
+
+            AddStep("create immutable external renderer package", () =>
+            {
+                packageRoot = createExternalPackage(createRendererJourneyPackage);
+                sourceBeforeRegistration = captureFolderInventory(packageRoot);
+                sourcePhysicalDigestBeforeRegistration = captureExternalRootPhysicalDigest(packageRoot);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for external renderer registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query workspace and dropdown records", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for renderer workspace record", () => workspaceTask?.IsCompleted == true);
+            AddUntilStep("wait for renderer dropdown record", () => dropdownTask?.IsCompleted == true);
+            AddStep("select external renderer from dropdown", () =>
+            {
+                FolderSkinWorkspaceRecord row = workspaceTask!.GetAwaiter().GetResult()
+                                                               .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External);
+                recordId = row.RecordId;
+                displayLabel = row.DisplayLabel;
+                configuredSelection = recordId.ToString();
+
+                Live<SkinInfo> dropdownRecord = dropdownTask!.GetAwaiter().GetResult()
+                                                            .Single(record => record.ID == recordId);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(displayLabel, Is.EqualTo("external renderer journey"));
+                    Assert.That(dropdownRecord.PerformRead(record => record.Name), Is.EqualTo(displayLabel));
+                    Assert.That(dropdownRecord.PerformRead(record => record.IsExternalFilesystemStorage), Is.True);
+                });
+
+                manager.CurrentSkinInfo.Value = dropdownRecord;
+            });
+            AddUntilStep("wait for external renderer selection", () =>
+                manager.CurrentSkinInfo.Value.ID == recordId
+                && manager.CurrentSkin.Value.SkinInfo.ID == recordId
+                && manager.CurrentSkin.Value is BmsLegacySkin);
+            AddStep("mount first selected-skin renderer host", () =>
+            {
+                firstSelectedSkin = manager.CurrentSkin.Value;
+                Add(firstRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+            });
+            AddUntilStep("wait for first renderer host load", () => firstRenderer.IsLoaded);
+            AddStep("mount first BMS production provider", () => firstRenderer.ShowBms());
+            AddUntilStep("wait for first BMS renderer artifacts", () => firstRenderer.BmsArtifactsLoaded);
+            AddStep("assert first BMS production renderer artifacts", () =>
+            {
+                assertJourneyBmsRendererArtifacts(firstRenderer);
+                firstBmsOrdinaryArtifact = firstRenderer.BmsOrdinaryArtifact;
+                firstBmsBodyArtifact = firstRenderer.BmsBodyArtifact;
+            });
+            AddStep("mount first mania production provider", () => firstRenderer.ShowMania());
+            AddUntilStep("wait for first mania renderer artifacts", () => firstRenderer.ManiaArtifactsLoaded);
+            AddStep("assert first mania production renderer artifacts", () =>
+            {
+                assertJourneyManiaRendererArtifacts(firstRenderer);
+                firstManiaNoteArtifact = firstRenderer.ManiaNoteArtifact;
+                firstManiaBodyArtifact = firstRenderer.ManiaBodyArtifact;
+            });
+            AddStep("retire first production renderer trees", () => firstRenderer.Expire());
+            AddUntilStep("wait for first renderer retirement", () => firstRenderer.Parent == null);
+            AddStep("restart skin manager with configured external id", () =>
+            {
+                manager.ShutdownManagedFolderMutations();
+                firstSelectedSkin.Dispose();
+
+                manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
+                sourceChangedCount = 0;
+                manager.SourceChanged += () => sourceChangedCount++;
+                manager.SetSkinFromConfiguration(configuredSelection);
+            });
+            AddUntilStep("wait for configured external restart selection", () =>
+                manager.CurrentSkinInfo.Value.ID == recordId
+                && manager.CurrentSkin.Value.SkinInfo.ID == recordId
+                && manager.CurrentSkin.Value is BmsLegacySkin);
+            AddStep("mount restarted production renderer trees", () =>
+            {
+                restartedSelectedSkin = manager.CurrentSkin.Value;
+                Assert.That(restartedSelectedSkin, Is.Not.SameAs(firstSelectedSkin));
+                Add(restartedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+            });
+            AddUntilStep("wait for restarted renderer host load", () => restartedRenderer.IsLoaded);
+            AddStep("mount restarted BMS production provider", () => restartedRenderer.ShowBms());
+            AddUntilStep("wait for restarted BMS renderer artifacts", () => restartedRenderer.BmsArtifactsLoaded);
+            AddStep("assert fresh configured BMS artifacts", () =>
+            {
+                assertJourneyBmsRendererArtifacts(restartedRenderer);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(restartedRenderer.BmsOrdinaryArtifact, Is.Not.SameAs(firstBmsOrdinaryArtifact));
+                    Assert.That(restartedRenderer.BmsBodyArtifact, Is.Not.SameAs(firstBmsBodyArtifact));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(recordId));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(recordId));
+                    Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
+                });
+            });
+            AddStep("mount restarted mania production provider", () => restartedRenderer.ShowMania());
+            AddUntilStep("wait for restarted mania renderer artifacts", () => restartedRenderer.ManiaArtifactsLoaded);
+            AddStep("assert fresh configured mania artifacts", () =>
+            {
+                assertJourneyManiaRendererArtifacts(restartedRenderer);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(restartedRenderer.ManiaNoteArtifact, Is.Not.SameAs(firstManiaNoteArtifact));
+                    Assert.That(restartedRenderer.ManiaBodyArtifact, Is.Not.SameAs(firstManiaBodyArtifact));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(recordId));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(recordId));
+                    Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
+                });
+            });
+            AddStep("retire restarted production renderer trees", () => restartedRenderer.Expire());
+            AddUntilStep("wait for restarted renderer retirement", () => restartedRenderer.Parent == null);
+            AddStep("switch away and unregister external renderer", () =>
+            {
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                });
+
+                restartedSelectedSkin.Dispose();
+                sourceBeforeUnregister = captureFolderInventory(packageRoot);
+                unregisterTask = manager.UnregisterExternalFolderAsync(recordId);
+            });
+            AddUntilStep("wait for external renderer unregister", () => unregisterTask?.IsCompleted == true);
+            AddStep("assert unregister preserved every source byte", () =>
+            {
+                sourceAfterUnregister = captureFolderInventory(packageRoot);
+                sourcePhysicalDigestAfterUnregister = captureExternalRootPhysicalDigest(packageRoot);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(unregisterTask!.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(manager.Query(record => record.ID == recordId), Is.Null);
+                    Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(sourceBeforeUnregister, Is.EqualTo(sourceBeforeRegistration));
+                    Assert.That(sourceAfterUnregister, Is.EqualTo(sourceBeforeRegistration));
+                    Assert.That(sourceAfterUnregister.InventoryDigest, Is.EqualTo(sourceBeforeRegistration.InventoryDigest));
+                    Assert.That(sourceAfterUnregister.BytesDigest, Is.EqualTo(sourceBeforeRegistration.BytesDigest));
+                    Assert.That(sourcePhysicalDigestAfterUnregister, Is.EqualTo(sourcePhysicalDigestBeforeRegistration));
+                });
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestExternalFolderWorkspaceUnregistersNonCurrentRecordWithoutSourceAuthority(bool sourceMissing)
+        {
+            const string drift_marker = "\n// external source drift retained\n";
+            string packageRoot = string.Empty;
+            Guid recordId = Guid.Empty;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<bool>? unregisterTask = null;
+
+            AddStep("create and register non-current external package", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for external registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query external record id", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+            });
+            AddUntilStep("wait for external record id", () => workspaceTask?.IsCompleted == true);
+            AddStep("remove or drift external source", () =>
+            {
+                recordId = workspaceTask!.GetAwaiter().GetResult()
+                                         .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External)
+                                         .RecordId;
+
+                if (sourceMissing)
+                    Directory.Delete(packageRoot, recursive: true);
+                else
+                    File.AppendAllText(Path.Combine(packageRoot, "skin.ini"), drift_marker);
+
+                unregisterTask = manager.UnregisterExternalFolderAsync(recordId);
+            });
+            AddStep("assert pure Realm unregister completed", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(unregisterTask!.IsCompleted, Is.True);
+                    Assert.That(unregisterTask.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(manager.Query(record => record.ID == recordId), Is.Null);
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(Directory.Exists(packageRoot), Is.EqualTo(!sourceMissing));
+
+                    if (!sourceMissing)
+                        Assert.That(File.ReadAllText(Path.Combine(packageRoot, "skin.ini")), Does.EndWith(drift_marker));
+                });
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderWorkspaceUnregisterRejectsCurrentAndSplitSelectionPairs()
+        {
+            string packageRoot = string.Empty;
+            Guid recordId = Guid.Empty;
+            Live<SkinInfo> dropdownRecord = null!;
+            Skin? selected = null;
+            Task<bool>? registrationTask = null;
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+            Task<bool>? currentUnregister = null;
+            Task<bool>? splitUnregister = null;
+
+            AddStep("create and register external package", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddUntilStep("wait for external registration", () => registrationTask?.IsCompleted == true);
+            AddStep("query external consumers", () =>
+            {
+                Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+                dropdownTask = manager.GetAllUsableSkinsAsync();
+            });
+            AddUntilStep("wait for workspace record", () => workspaceTask?.IsCompleted == true);
+            AddUntilStep("wait for dropdown record", () => dropdownTask?.IsCompleted == true);
+            AddStep("select external dropdown record", () =>
+            {
+                recordId = workspaceTask!.GetAwaiter().GetResult()
+                                         .Single(record => record.Kind == FolderSkinWorkspaceRecordKind.External)
+                                         .RecordId;
+                dropdownRecord = dropdownTask!.GetAwaiter().GetResult().Single(record => record.ID == recordId);
+                manager.CurrentSkinInfo.Value = dropdownRecord;
+            });
+            AddUntilStep("wait for current external pair", () =>
+                manager.CurrentSkinInfo.Value.ID == recordId
+                && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
+            AddStep("reject unregister of current pair", () =>
+            {
+                currentUnregister = manager.UnregisterExternalFolderAsync(recordId);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(currentUnregister.IsCompleted, Is.True);
+                    Assert.That(currentUnregister.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(manager.Query(record => record.ID == recordId), Is.Not.Null);
+                });
+            });
+            AddStep("construct split pair and reject unregister", () =>
+            {
+                selected = manager.CurrentSkin.Value;
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
+                Assert.Throws<InvalidOperationException>(() => manager.CurrentSkin.Value = selected);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(recordId));
+                });
+
+                splitUnregister = manager.UnregisterExternalFolderAsync(recordId);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(splitUnregister.IsCompleted, Is.True);
+                    Assert.That(splitUnregister.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(manager.Query(record => record.ID == recordId), Is.Not.Null);
+                });
+            });
+        }
+
+        [Test]
+        public void TestExternalFolderWorkspaceShutdownJoinsObservedTaskAndRejectsReentry()
+        {
+            string packageRoot = string.Empty;
+            SkinManagedFolderOperationCoordinator.Lease? heldLease = null;
+            Task<bool>? registrationTask = null;
+            Task<bool>? afterShutdown = null;
+
+            AddStep("hold coordinator and start external registration", () =>
+            {
+                packageRoot = createExternalPackage(createCompletePackage);
+                heldLease = manager.ManagedFolderOperationCoordinator.Enter();
+                registrationTask = manager.RegisterExternalFolderAsync(packageRoot);
+                Assert.That(registrationTask.IsCompleted, Is.False);
+            });
+            AddStep("shutdown and synchronously join workspace worker", () =>
+            {
+                try
+                {
+                    manager.ShutdownManagedFolderMutations();
+                }
+                finally
+                {
+                    heldLease!.Dispose();
+                    heldLease = null;
+                }
+
+                afterShutdown = manager.RegisterExternalFolderAsync(packageRoot);
+            });
+            AddStep("assert task observation and fail-closed reentry", () =>
+            {
+                int externalRecords = Realm.Run(realm => realm.All<SkinInfo>()
+                    .Count(record => record.IsExternalFilesystemStorage));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(registrationTask!.IsCompleted, Is.True);
+                    Assert.That(registrationTask.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(afterShutdown!.IsCompleted, Is.True);
+                    Assert.That(afterShutdown.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(externalRecords, Is.Zero);
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(manager.CurrentSkin.Value.SkinInfo.ID));
+                });
+            });
+        }
+
+        [Test]
+        public void TestFolderWorkspaceReadWorkersAreCancelledAndJoinedOnShutdown()
+        {
+            var recordsEntered = new ManualResetEventSlim();
+            var recordsCancelled = new ManualResetEventSlim();
+            var supportEntered = new ManualResetEventSlim();
+            var supportCancelled = new ManualResetEventSlim();
+            Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? recordsTask = null;
+            Task<FolderSkinJournalSupportSnapshot>? supportTask = null;
+            Task? shutdownTask = null;
+
+            AddStep("start tracked workspace read workers", () =>
+            {
+                manager.FolderWorkspaceRecordsReadStarted = token =>
+                {
+                    recordsEntered.Set();
+                    token.WaitHandle.WaitOne();
+                    recordsCancelled.Set();
+                    token.ThrowIfCancellationRequested();
+                };
+                manager.FolderWorkspaceJournalSupportReadStarted = token =>
+                {
+                    supportEntered.Set();
+                    token.WaitHandle.WaitOne();
+                    supportCancelled.Set();
+                    token.ThrowIfCancellationRequested();
+                };
+
+                recordsTask = manager.GetFolderSkinWorkspaceRecordsAsync();
+                supportTask = manager.GetManagedFolderJournalSupportSnapshotAsync();
+            });
+            AddUntilStep("wait for both reads to enter", () => recordsEntered.IsSet && supportEntered.IsSet);
+            AddStep("shutdown joins both reads", () => shutdownTask = Task.Run(manager.ShutdownManagedFolderMutations));
+            AddUntilStep("wait for joined shutdown", () => shutdownTask?.IsCompleted == true);
+            AddStep("assert cancellation observation and closed reentry", () =>
+            {
+                Task<IReadOnlyList<FolderSkinWorkspaceRecord>> afterShutdown = manager.GetFolderSkinWorkspaceRecordsAsync();
+                Task<FolderSkinJournalSupportSnapshot> supportAfterShutdown = manager.GetManagedFolderJournalSupportSnapshotAsync();
+
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(shutdownTask!.IsCompletedSuccessfully, Is.True);
+                        Assert.That(recordsCancelled.IsSet, Is.True);
+                        Assert.That(supportCancelled.IsSet, Is.True);
+                        Assert.That(recordsTask!.IsCanceled, Is.True);
+                        Assert.That(supportTask!.IsCanceled, Is.True);
+                        Assert.That(afterShutdown.IsCanceled, Is.True);
+                        Assert.That(supportAfterShutdown.IsCanceled, Is.True);
+                    });
+                }
+                finally
+                {
+                    manager.FolderWorkspaceRecordsReadStarted = _ => { };
+                    manager.FolderWorkspaceJournalSupportReadStarted = _ => { };
+                    recordsEntered.Dispose();
+                    recordsCancelled.Dispose();
+                    supportEntered.Dispose();
+                    supportCancelled.Dispose();
+                }
+            });
+        }
+
+        private string createExternalPackage(Action<string> populate)
+        {
+            string packageRoot = Path.Combine(Path.GetTempPath(), $"oms-bms-external-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(packageRoot);
+            externalPackageRoots.Add(packageRoot);
+            populate(packageRoot);
+            return packageRoot;
+        }
+
+        private void deleteExternalPackageRoots()
+        {
+            foreach (string packageRoot in externalPackageRoots.ToArray())
+            {
+                if (Directory.Exists(packageRoot))
+                    Directory.Delete(packageRoot, recursive: true);
+            }
+
+            externalPackageRoots.Clear();
+        }
+
         private (string PackageRoot, Live<SkinInfo> Candidate) createCandidate(Action<string> populate, string instantiationInfo)
         {
             string folderName = $"folder-{Guid.NewGuid():N}";
@@ -4256,6 +6204,131 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             File.WriteAllBytes(Path.Combine(notes, "tail.png"), createPng(new Rgba32(120, 230, 70, 255)));
         }
 
+        private static void createRendererJourneyPackage(string packageRoot)
+        {
+            string bmsNotes = Path.Combine(packageRoot, "notes");
+            string mania = Path.Combine(packageRoot, "mania");
+            Directory.CreateDirectory(bmsNotes);
+            Directory.CreateDirectory(mania);
+
+            File.WriteAllText(
+                Path.Combine(packageRoot, "skin.ini"),
+                "[General]\n" +
+                "Name: external renderer journey\n" +
+                "Author: OMS tests\n" +
+                "Version: 2.7\n" +
+                "\n" +
+                "[Bms]\n" +
+                "Keymode: 7K\n" +
+                "NoteImage1: notes/note\n" +
+                "NoteImage1H: notes/head\n" +
+                "NoteImage1L: notes/body\n" +
+                "NoteImage1T: notes/tail\n" +
+                "LongNoteBodyWidth: 0.4\n" +
+                "\n" +
+                "[Mania]\n" +
+                "Keys: 4\n" +
+                "KeyImage0: mania/key\n" +
+                "KeyImage0D: mania/key-down\n" +
+                "NoteImage0: mania/note\n" +
+                "NoteImage0H: mania/head\n" +
+                "NoteImage0L: mania/body\n" +
+                "NoteImage0T: mania/tail\n");
+
+            File.WriteAllBytes(Path.Combine(bmsNotes, "note.png"), createPng(new Rgba32(240, 40, 80, 255)));
+            File.WriteAllBytes(Path.Combine(bmsNotes, "head.png"), createPng(new Rgba32(40, 180, 240, 255)));
+            File.WriteAllBytes(Path.Combine(bmsNotes, "body.png"), createPng(new Rgba32(250, 210, 30, 255)));
+            File.WriteAllBytes(Path.Combine(bmsNotes, "tail.png"), createPng(new Rgba32(120, 230, 70, 255)));
+            File.WriteAllBytes(Path.Combine(mania, "key.png"), createPng(new Rgba32(70, 80, 100, 255)));
+            File.WriteAllBytes(Path.Combine(mania, "key-down.png"), createPng(new Rgba32(120, 140, 180, 255)));
+            File.WriteAllBytes(Path.Combine(mania, "note.png"), createPng(new Rgba32(220, 70, 200, 255)));
+            File.WriteAllBytes(Path.Combine(mania, "head.png"), createPng(new Rgba32(70, 210, 220, 255)));
+            File.WriteAllBytes(Path.Combine(mania, "body.png"), createPng(new Rgba32(240, 170, 50, 255)));
+            File.WriteAllBytes(Path.Combine(mania, "tail.png"), createPng(new Rgba32(90, 220, 110, 255)));
+        }
+
+        private static FolderInventorySnapshot captureFolderInventory(string packageRoot)
+        {
+            string[] directories = Directory.GetDirectories(packageRoot, "*", SearchOption.AllDirectories)
+                                            .Select(path => normaliseRelativePath(packageRoot, path))
+                                            .OrderBy(path => path, StringComparer.Ordinal)
+                                            .ToArray();
+            (string RelativePath, byte[] Bytes)[] files = Directory.GetFiles(packageRoot, "*", SearchOption.AllDirectories)
+                                                                  .Select(path => (
+                                                                      RelativePath: normaliseRelativePath(packageRoot, path),
+                                                                      Bytes: File.ReadAllBytes(path)))
+                                                                  .OrderBy(file => file.RelativePath, StringComparer.Ordinal)
+                                                                  .ToArray();
+
+            using var inventoryPayload = new MemoryStream();
+            using var inventoryWriter = new BinaryWriter(inventoryPayload, Encoding.UTF8, leaveOpen: true);
+            inventoryWriter.Write("folder-inventory-v1");
+
+            foreach (string directory in directories)
+            {
+                inventoryWriter.Write('D');
+                inventoryWriter.Write(directory);
+            }
+
+            foreach ((string relativePath, byte[] bytes) in files)
+            {
+                inventoryWriter.Write('F');
+                inventoryWriter.Write(relativePath);
+                inventoryWriter.Write(bytes.LongLength);
+            }
+
+            inventoryWriter.Flush();
+
+            using var bytesPayload = new MemoryStream();
+            using var bytesWriter = new BinaryWriter(bytesPayload, Encoding.UTF8, leaveOpen: true);
+            bytesWriter.Write("folder-bytes-v1");
+
+            foreach ((string relativePath, byte[] bytes) in files)
+            {
+                bytesWriter.Write(relativePath);
+                bytesWriter.Write(bytes.LongLength);
+                bytesWriter.Write(bytes);
+            }
+
+            bytesWriter.Flush();
+
+            return new FolderInventorySnapshot(
+                directories.Length,
+                files.Length,
+                files.Sum(file => (long)file.Bytes.Length),
+                Convert.ToHexString(SHA256.HashData(inventoryPayload.ToArray())),
+                Convert.ToHexString(SHA256.HashData(bytesPayload.ToArray())));
+        }
+
+        private string captureExternalRootPhysicalDigest(string packageRoot)
+        {
+            var probe = new SkinInfo(instantiationInfo: SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
+            {
+                FilesystemStoragePath = packageRoot,
+                IsExternalFilesystemStorage = true,
+                FilesystemStorageAuthorityOwner = SkinExternalFolderRegistry.AUTHORITY_OWNER,
+            };
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(probe, LocalStorage);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolution.Authority, Is.EqualTo(SkinFilesystemStorageAuthority.ExternalFolder));
+                Assert.That(resolution.ExternalCaptureRequest, Is.Not.Null);
+            });
+
+            SkinExternalFolderAuthorityCaptureResult capture =
+                new SkinExternalFolderCaptureService().OpenAuthority(resolution.ExternalCaptureRequest);
+            Assert.That(capture.IsSuccess, Is.True, capture.ToString());
+
+            using ISkinExternalFolderAuthoritySession authority = capture.Session!;
+            string digest = authority.PhysicalProof.Digest;
+            authority.Validate();
+            return digest;
+        }
+
+        private static string normaliseRelativePath(string root, string path)
+            => Path.GetRelativePath(root, path).Replace('\\', '/');
+
         private static byte[] createPng(Rgba32 colour)
         {
             using var image = new Image<Rgba32>(3, 5, colour);
@@ -4271,6 +6344,272 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             Assert.That(drawable, Is.TypeOf(expectedType));
             Assert.That(drawable!.ChildrenOfType<Sprite>().Single().Texture, Is.Not.Null);
+        }
+
+        private static void assertJourneyBmsRendererArtifacts(JourneyRendererHost renderer)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(renderer.ChildrenOfType<RulesetSkinProvidingContainer>().Single(), Is.SameAs(renderer.BmsProvider));
+                Assert.That(renderer.BmsOrdinary, Is.TypeOf<DrawableBmsHitObject>());
+                Assert.That(renderer.BmsHold, Is.TypeOf<DrawableBmsHoldNote>());
+                Assert.That(renderer.BmsOrdinaryArtifact, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                Assert.That(renderer.BmsHeadArtifact, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                Assert.That(renderer.BmsBodyArtifact, Is.TypeOf<BmsSourceBoundLongNoteBodyDrawable>());
+                Assert.That(renderer.BmsTailArtifact, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                Assert.That(renderer.BmsBodyArtifact.Width, Is.EqualTo(0.4f).Within(0.0001f));
+            });
+
+            foreach (Drawable artifact in new[]
+                     {
+                         renderer.BmsOrdinaryArtifact,
+                         renderer.BmsHeadArtifact,
+                         renderer.BmsBodyArtifact,
+                         renderer.BmsTailArtifact,
+                     })
+            {
+                assertLoadedTexturedArtifact(artifact);
+            }
+        }
+
+        private static void assertJourneyManiaRendererArtifacts(JourneyRendererHost renderer)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(renderer.ChildrenOfType<RulesetSkinProvidingContainer>().Single(), Is.SameAs(renderer.ManiaProvider));
+                Assert.That(renderer.ManiaNote, Is.TypeOf<ManiaDrawableNote>());
+                Assert.That(renderer.ManiaHold, Is.TypeOf<ManiaDrawableHoldNote>());
+                Assert.That(renderer.ManiaNoteArtifact, Is.TypeOf<LegacyNotePiece>());
+                Assert.That(renderer.ManiaHeadArtifact, Is.TypeOf<LegacyHoldNoteHeadPiece>());
+                Assert.That(renderer.ManiaBodyArtifact, Is.TypeOf<LegacyBodyPiece>());
+                Assert.That(renderer.ManiaTailArtifact, Is.TypeOf<LegacyHoldNoteTailPiece>());
+            });
+
+            foreach (Drawable artifact in new[]
+                     {
+                         renderer.ManiaNoteArtifact,
+                         renderer.ManiaHeadArtifact,
+                         renderer.ManiaBodyArtifact,
+                         renderer.ManiaTailArtifact,
+                     })
+            {
+                assertLoadedTexturedArtifact(artifact);
+            }
+        }
+
+        private static void assertLoadedTexturedArtifact(Drawable artifact)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(artifact.IsLoaded, Is.True, $"{artifact.GetType().Name} did not load through the production provider tree.");
+                Assert.That(
+                    artifact.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null),
+                    Is.True,
+                    $"{artifact.GetType().Name} did not publish a textured renderer artifact.");
+            });
+        }
+
+        private readonly record struct FolderInventorySnapshot(
+            int DirectoryCount,
+            int FileCount,
+            long TotalBytes,
+            string InventoryDigest,
+            string BytesDigest);
+
+        private sealed partial class JourneyRendererHost : SkinProvidingContainer
+        {
+            [Cached]
+            private readonly SkinManager skinManager;
+
+            [Cached(typeof(IScrollingInfo))]
+            private readonly IScrollingInfo scrollingInfo = new JourneyScrollingInfo();
+
+            [Cached]
+            private readonly ScoreProcessor scoreProcessor = new ScoreProcessor(new ManiaRuleset());
+
+            public DrawableBmsHitObject BmsOrdinary { get; }
+            public DrawableBmsHoldNote BmsHold { get; }
+            public ManiaDrawableNote ManiaNote { get; }
+            public ManiaDrawableHoldNote ManiaHold { get; }
+            public RulesetSkinProvidingContainer BmsProvider { get; }
+            public RulesetSkinProvidingContainer ManiaProvider { get; }
+
+            private readonly Container providerHost;
+
+            public Drawable BmsOrdinaryArtifact => BmsOrdinary.ChildrenOfType<BmsAsyncNoteDrawable>().Single().Drawable!;
+
+            public Drawable BmsHeadArtifact => BmsHold.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>()
+                                                       .Single()
+                                                       .ChildrenOfType<BmsAsyncNoteDrawable>()
+                                                       .Single()
+                                                       .Drawable!;
+
+            public Drawable BmsBodyArtifact => BmsHold.ChildrenOfType<BmsAsyncNoteDrawable>()
+                                                       .Single(host => host.Drawable is BmsSourceBoundLongNoteBodyDrawable)
+                                                       .Drawable!;
+
+            public Drawable BmsTailArtifact => BmsHold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>()
+                                                       .Single()
+                                                       .ChildrenOfType<BmsAsyncNoteDrawable>()
+                                                       .Single()
+                                                       .Drawable!;
+
+            public Drawable ManiaNoteArtifact => ManiaNote.ChildrenOfType<LegacyNotePiece>()
+                                                         .Single(piece => piece.GetType() == typeof(LegacyNotePiece));
+
+            public Drawable ManiaHeadArtifact => ManiaProvider.ChildrenOfType<LegacyHoldNoteHeadPiece>().Single();
+            public Drawable ManiaBodyArtifact => ManiaProvider.ChildrenOfType<LegacyBodyPiece>().Single();
+            public Drawable ManiaTailArtifact => ManiaProvider.ChildrenOfType<LegacyHoldNoteTailPiece>().Single();
+
+            public bool BmsArtifactsLoaded =>
+                BmsOrdinary.ChildrenOfType<BmsAsyncNoteDrawable>()
+                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true })
+                && BmsHold.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>()
+                          .Any(head => head.ChildrenOfType<BmsAsyncNoteDrawable>()
+                                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }))
+                && BmsHold.ChildrenOfType<BmsAsyncNoteDrawable>()
+                          .Any(host => host.Drawable is BmsSourceBoundLongNoteBodyDrawable { IsLoaded: true })
+                && BmsHold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>()
+                          .Any(tail => tail.ChildrenOfType<BmsAsyncNoteDrawable>()
+                                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }));
+
+            public bool ManiaArtifactsLoaded =>
+                ManiaNote.ChildrenOfType<LegacyNotePiece>()
+                            .Any(piece => piece.GetType() == typeof(LegacyNotePiece) && piece.IsLoaded)
+                && ManiaProvider.ChildrenOfType<LegacyHoldNoteHeadPiece>().Any(piece => piece.IsLoaded)
+                && ManiaProvider.ChildrenOfType<LegacyBodyPiece>().Any(piece => piece.IsLoaded)
+                && ManiaProvider.ChildrenOfType<LegacyHoldNoteTailPiece>().Any(piece => piece.IsLoaded);
+
+            public JourneyRendererHost(SkinManager skinManager, double bmsStartTime, double maniaStartTime)
+                : base(skinManager.CurrentSkin.Value)
+            {
+                this.skinManager = skinManager;
+                RelativeSizeAxes = Axes.Both;
+
+                var controlPoints = new ControlPointInfo();
+                var difficulty = new BeatmapDifficulty();
+
+                var bmsRuleset = new BmsRuleset();
+                var bmsBeatmap = new BmsBeatmap
+                {
+                    BeatmapInfo = { Ruleset = bmsRuleset.RulesetInfo },
+                };
+                var bmsOrdinary = new BmsHitObject
+                {
+                    StartTime = bmsStartTime,
+                    LaneIndex = 1,
+                    IsScratch = false,
+                    Keymode = BmsKeymode.Key7K,
+                };
+                bmsOrdinary.ApplyDefaults(controlPoints, difficulty);
+                BmsOrdinary = new DrawableBmsHitObject(bmsOrdinary);
+                BmsOrdinary.Apply(bmsOrdinary);
+
+                var bmsHold = new BmsHoldNote
+                {
+                    StartTime = bmsStartTime,
+                    EndTime = bmsStartTime + 2_000,
+                    LaneIndex = 1,
+                    IsScratch = false,
+                    Keymode = BmsKeymode.Key7K,
+                };
+                bmsHold.ApplyDefaults(controlPoints, difficulty);
+                BmsHold = new DrawableBmsHoldNote(bmsHold);
+                BmsHold.Apply(bmsHold);
+
+                var maniaRuleset = new ManiaRuleset();
+                var stageDefinition = new StageDefinition(4);
+                var maniaBeatmap = new ManiaBeatmap(stageDefinition)
+                {
+                    BeatmapInfo = { Ruleset = maniaRuleset.RulesetInfo },
+                };
+                var maniaNote = new ManiaNote
+                {
+                    Column = 0,
+                    StartTime = maniaStartTime,
+                };
+                maniaNote.ApplyDefaults(controlPoints, difficulty);
+                ManiaNote = new ManiaDrawableNote(maniaNote);
+
+                var maniaHold = new ManiaHoldNote
+                {
+                    Column = 0,
+                    StartTime = maniaStartTime,
+                    Duration = 2_000,
+                };
+                maniaHold.ApplyDefaults(controlPoints, difficulty);
+                ManiaHold = new ManiaDrawableHoldNote(maniaHold);
+
+                var maniaColumnHost = new JourneyManiaColumnContainer(0, ManiaAction.Key1, stageDefinition);
+                maniaColumnHost.Add(ManiaNote);
+                maniaColumnHost.Add(ManiaHold);
+
+                BmsProvider = new RulesetSkinProvidingContainer(bmsRuleset, bmsBeatmap, null)
+                {
+                    Child = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            BmsOrdinary,
+                            BmsHold,
+                        },
+                    },
+                };
+
+                ManiaProvider = new RulesetSkinProvidingContainer(maniaRuleset, maniaBeatmap, null)
+                {
+                    Child = maniaColumnHost,
+                };
+
+                InternalChild = providerHost = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                };
+            }
+
+            public void ShowBms() => providerHost.Child = BmsProvider;
+
+            public void ShowMania() => providerHost.Child = ManiaProvider;
+        }
+
+        private sealed partial class JourneyManiaColumnContainer : Container
+        {
+            protected override Container<Drawable> Content => content;
+
+            private readonly Container content;
+
+            [Cached]
+            private readonly Column column;
+
+            [Cached]
+            private readonly StageDefinition stageDefinition;
+
+            public JourneyManiaColumnContainer(int columnIndex, ManiaAction action, StageDefinition stageDefinition)
+            {
+                this.stageDefinition = stageDefinition;
+                RelativeSizeAxes = Axes.Both;
+
+                InternalChildren = new Drawable[]
+                {
+                    column = new Column(columnIndex, false)
+                    {
+                        Action = { Value = action },
+                        Alpha = 0,
+                    },
+                    content = new ManiaInputManager(new ManiaRuleset().RulesetInfo, stageDefinition.Columns)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                };
+            }
+        }
+
+        private sealed class JourneyScrollingInfo : IScrollingInfo
+        {
+            public IBindable<ScrollingDirection> Direction { get; } = new Bindable<ScrollingDirection>();
+            public IBindable<double> TimeRange { get; } = new Bindable<double>(5_000);
+            public IBindable<IScrollAlgorithm> Algorithm { get; } = new Bindable<IScrollAlgorithm>(new ConstantScrollAlgorithm());
         }
 
         private sealed class FixedManagedFolderDiscoverySource : ISkinManagedFolderDiscoverySource
@@ -4306,6 +6645,35 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 InternalChildren = new Drawable[]
                 {
                     DeleteButton,
+                    DialogOverlay,
+                };
+            }
+        }
+
+        private partial class FullSkinSettingsCallerHost : CompositeDrawable
+        {
+            [Cached]
+            private readonly SkinManager skinManager;
+
+            [Cached]
+            private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Purple);
+
+            [Cached(typeof(IDialogOverlay))]
+            public DialogOverlay DialogOverlay { get; } = new DialogOverlay();
+
+            public SkinSection Section { get; } = new SkinSection();
+
+            public FolderSkinWorkspace Workspace => Section.ChildrenOfType<FolderSkinWorkspace>().Single();
+
+            public SkinSection.DeleteSkinButton CurrentDeleteButton => Section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single();
+
+            public FullSkinSettingsCallerHost(SkinManager skinManager)
+            {
+                this.skinManager = skinManager;
+                RelativeSizeAxes = Axes.Both;
+                InternalChildren = new Drawable[]
+                {
+                    Section,
                     DialogOverlay,
                 };
             }

@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-08-09）**：选中的用户 BMS 包（已导入 `.osk`，或已发现的 `chartskin` 受管目录）可用 native `[Bms]` 静态字段；`NoteImage{lane}` 普通短键与 `NoteImage{lane}H/L/T` 长条头、身、尾（含 `S`/`S2`）可使用静态图或 `name-0`、`name-1`…连续编号帧，当前固定 60 FPS。`LongNoteBodyWidth` 是目前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失或非法时回到 `0.5775`；body 素材与解析后宽度绑定同一 package revision。开发工作目录可放在数据根的`chartskin/<包目录>/`，程序会在**下次启动**安全扫描并把有效包加入皮肤选择面；扫描不会自动选中它，也不是实时监视或热重载。已配置的managed skin在启动capture与scanner争用时会在后台等待typed startup completion后fresh retry，update thread不阻塞；启动期间新的手动managed选择和真实generic mutation仍fail-closed。符合资格的受管目录现在可从既有设置删除确认框触发物理删除；若删除的是当前皮肤，程序会先真实切到受保护的`OmsSkin` fallback。普通已导入`.osk`仍沿用皮肤库的既有删除语义，external未来也只能解除注册而不能删除外部原目录。四项自动 gate 已过，`V-001`～`V-004` 用户视觉仍集中待验收。tail 未声明/坏声明最终为透明迁移 fallback，但作者 `Suppress` 仍未开放；directory-only rename与fixed-source staged import安全后端已闭合，但二者没有玩家/制作者caller或UI，staged import也没有external→provisional production stager。external与整包原子重载仍未开放；2026-08-09产品链审计进一步确认current managed atomic reload/detach当前NO-GO，因为没有真实reload caller，也没有覆盖BMS/mania/core全部consumer的publication/detach barrier。其它 gameplay slot、scene/script 与文件型默认同样未开放，程序化 `OmsSkin` 仍是迁移链底，因此Skin V1完整产品面尚未交付。最新状态只看 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)；恢复边界和目标设计分别见 [恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+> **当前作者能力（2026-08-13）**：选中的用户 BMS 包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录；三者可用 native `[Bms]` 静态字段，`NoteImage{lane}` 与 `NoteImage{lane}H/L/T`（含 `S`/`S2`）支持静态图或固定 60 FPS 的连续编号帧。Workspace 可 fresh-authoritative Open external/managed；external 只允许显式选择、复制为新 managed direct child 或在 noncurrent 时解除注册，绝不写改删原目录；managed 行可重命名或经确认物理删除。ordinary `.osk` 继续是hash-backed Realm package，由skin-scoped bounded archive gate和exact rollback receipt保护。C1已通过产品、安全、宽回归与Release门，当前为`1/7 closed，C2 active`；这不等于G1、`SV1-2`或Skin V1完成。current revision reload/detach、其它gameplay slot、scene/script、canonical双包和Authoring Kit仍未开放，程序化`OmsSkin`仍是迁移链底。权威状态见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，C2边界见[C1完成交接](SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
 >
 > **受管目录删除边界**：首个物理步骤前的失败或取消会无损拒绝；detach开始后只由durable journal/recovery收口。Windows目录handle不锁住namespace，final preflight后的竞态新增不会被删除，但可能在部分目标节点已经清理后令操作冻结；这不是all-or-nothing全树删除。
 
@@ -55,7 +55,7 @@
 
 ## 2. 皮肤包结构
 
-当前可用形态有两种：把正式分发包作为 `.osk` 导入，或把开发中的目录放入受管 `chartskin/<包目录>/` 并在下次启动时自动发现。两种形态的包内根部都是 `skin.ini`，其余为素材：
+当前有三种来源形态：把正式分发包作为 `.osk` 导入；把开发目录放入受管 `chartskin/<包目录>/` 并在下次启动时自动发现；或在 Folder Skin Workspace 中选择合格的只读 external 目录进行注册。三种形态的包内根部都是 `skin.ini`，其余为素材：
 
 ```text
 MyBmsSkin/
@@ -70,15 +70,16 @@ MyBmsSkin/
   ...
 ```
 
-- 正式分发/导入路径：把该文件夹内容打包为 `.osk` 后经游戏导入；作者工作目录也可直接放入 `chartskin/<包目录>/`，由下次启动的一次性扫描注册。用户选中后，两条路径都会把合法 BMS 包实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
-- V1 以 `.osk` 为正式社区分发物，并恢复受管目录/外部只读目录作为作者工作区/高级管理面。包内还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
+- 正式分发仍使用 `.osk`；skin-scoped importer 会在 archive metadata、entry stream、hash、file-store 与 model publication 前执行有界准入，失败或取消保留源文件且不会清理共享 hash。作者工作目录可放入 `chartskin/<包目录>/` 由下一次启动扫描，也可在 Workspace 中注册为只读 external。用户显式选中后，合法 BMS 包会实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
+- V1 仍以 `.osk` 为正式社区分发物；受管目录与 external 只读目录是作者工作区/高级管理面。external 注册不自动选择，random/next/previous 不会隐式选中；切走后重新选择或 configured restart 会 fresh capture。包内未来还会容纳 declarative scene/animation manifest 与可选沙箱脚本；文件名和 schema 要到 `SV1-5/6` 才冻结，当前不要据草案制作。
 - 只含 mania、只含 BMS 或同含两者都合法；官方 `oms-simple/oms-complex` 选择同包双 ruleset，以证明第三方无需特殊内置路径也能完成产品级皮肤。
 - 可视受管目录为 OMS 数据目录下的 `chartskin/`：每个 direct child 是一个包目录，根必须含有效 `skin.ini`。程序完整启动后会后台扫描一次，有效包进入皮肤选择面，但不会自动选中。新出现的文件、reparse或坏包不会新增记录；同路径若已有scanner exact-own记录则会保留而不因暂时无效被误清理，但选择时仍须重新通过capture/factory，失败只保留旧皮肤而不会发布坏包。根扫描不完整或发生竞态时整轮零对账。启动后新增或修改目录须重启才会重新发现。若本次启动在scanner前已经按配置开始managed selection，selection可在exact typed startup/staged-import completion后于后台fresh retry，并重新验证generation、authoritative record、path/owner/freeze和factory/capsule；update thread不等待，新的手动managed选择与generic mutation仍fail-closed。
-- 设置里的现有删除确认框可删除当前符合资格的受管目录；这是不可撤销的物理删除，成功时对应皮肤记录也会收敛，current目标会先切到受保护fallback。首个物理步骤前的失败或取消会无损拒绝；detach开始后由durable journal/recovery收口。final preflight后竞态新增的foreign节点不会被删除，但可能在部分目标节点已经清理后令操作冻结，因此不能把该操作理解成all-or-nothing全树删除。
-- 内部directory-only rename只改变direct-child目录名与同一记录的managed path，不改`skin.ini`、作者展示名或包内容；它与fixed-source staged import均无玩家/制作者入口，热重载也仍未开放。
+- Folder Skin Workspace 的 managed 行和既有 current 删除按钮共用 record-ID authority、确认语义、fallback 与 journal/recovery；删除是不可撤销的物理操作，current 目标会先切到受保护 fallback。首个物理步骤前的失败或取消会无损拒绝；detach 后只由 durable recovery 收口。final preflight 后竞态新增的 foreign 节点不会被删除，但可能令部分清理后的操作冻结，因此不能把它理解成 all-or-nothing filesystem transaction。
+- Workspace 的 Rename Folder 只改变 direct-child 目录名与同一记录的 managed path，不改 `skin.ini`、作者展示名、Creator、hash 或包内容。Import Managed Copy 需要作者明确给出新的 direct-child 名称，文件只从 external 的 immutable capsule 复制，目录结构来自同次捕获的 bounded manifest，不覆盖、merge 或自动 suffix，也不自动选择新副本；external 原目录始终只读。热重载仍未开放。
+- external 行的 Unregister 只移除 coherent noncurrent 的 exact service-owned Realm 记录；即使源目录已缺失或漂移也不会解析、写入或删除源。current 或 split pair 会拒绝，须先显式切换到其它皮肤。Open Folder 由 manager fresh 重读并证明精确目录后再导航，UI 不缓存绝对路径。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
-- 热重载：当前未启用；修改 `chartskin` 来源后须重启让 scanner 更新记录，再重新选择。普通短键与长条头/身/尾在选择 A→B 时可按组件后台准备并保留旧视觉到新视觉就绪，body 的素材与解析后宽度会以同一 package revision 一起切换；这不是来源文件热重载，也不是 `SV1-2` 的整包原子切换。现有`SourceChanged`只让各drawable/host在自己的调度边界重新查询，BMS playfield geometry还会保持loader时缓存值；因此可能出现mixed revision，也无法据此判断旧package owner何时可释放。current managed atomic reload/detach已在2026-08-09判为NO-GO，须先决定真实触发方式、live gameplay等允许场景和全部consumer participation/detach协议，之后才可建立产品红测与实现。
+- 热重载：当前未启用。managed 目录新增仍需重启 scanner；external 原位变化不会混入 active capsule，切走再选或 configured restart 才会 fresh capture。普通短键与长条头/身/尾在选择 A→B 时可按组件后台准备并保留旧视觉到新视觉就绪，body 的素材与解析后宽度会以同一 package revision 一起切换；这不是来源文件热重载，也不是整包原子切换。现有 `SourceChanged` 无法证明全部 BMS/mania/core consumer 已 detach 或旧 owner 可释放，current consumer publication/detach/retire 正在C2闭合。
 
 ---
 

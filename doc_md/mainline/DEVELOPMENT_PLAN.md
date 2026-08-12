@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-08-09
+> 最后更新：2026-08-13
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -22,16 +22,18 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 ## 强制执行顺序
 
-Skin V1剩余工作不再用`SV1-*`阶段编号暗示协作轮数。P1-A现采用最多七个持久新对话campaign的硬预算：作者文件工作区/G1 UX与archive安全、当前consumer reload/detach、P1-K+唯一layout、shared codec/catalog/resolver、scene/event及剩余slot production、sandbox并关闭最终整包reload门、canonical双包/Authoring Kit/自动release。每个campaign必须在同一对话持续到真实caller/consumer、失败回退、宽测试、文档与终审闭合；审计、产品路线决定或foundation不能单独消耗一次handoff。第七个退出时只留人工视觉/实机签收，完整燃尽表见[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)。
+Skin V1剩余工作不再用`SV1-*`阶段编号暗示协作轮数。P1-A采用最多七个持久campaign的硬预算：作者文件工作区/G1 UX与archive安全、当前consumer reload/detach、P1-K+唯一layout、shared codec/catalog/resolver、scene/event及剩余slot production、sandbox并关闭最终整包reload门、canonical双包/Authoring Kit/自动release。每个campaign必须在同一对话持续到真实caller/consumer、失败回退、宽测试、文档与终审闭合；审计、产品路线决定或foundation不能单独消耗一次handoff。第七个campaign退出时只留人工视觉/实机签收，完整燃尽表见[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)。
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-authority/path preflight、受管目录 Windows handle-relative/no-follow capture、pure immutable capsule、production exact-capsule factory/guarded selection、schema 57 exact-owner启动发现/reconcile、configured managed selection与startup scanner的非阻塞异步协调、专用mutation authority/recovery、directory-only rename、fixed-source staged import后端及settings managed delete现已闭合成窄生产链。managed delete已同切连接真实async caller、protected fallback、held-root物理删除、Realm收敛、crash recovery、取消与脱敏诊断；旧通用folder delete仍冻结。thin/foundation-only staged-import stager/caller当前NO-GO；在external source→fixed provisional的可信no-follow复制、预算、取消、清理、隐私合同及真实caller未冻结前，不得把它当薄封装。下一执行单元是`C1`完整作者文件工作区：先闭合external只读注册/选择/重启/解除注册，再以fresh-authoritative service-owned record只作provenance/admission、以fresh held physical proof授权capture；capture成对产出exact capsule与logical-tree manifest，文件bytes只从capsule读取，destination handles只授权no-follow/no-replace写入。随后提供独立“Import Managed Copy”并接通现有staged-import、rename/delete、journal支持与普通`.osk` archive安全；不得停在external或stager任一半。current consumer revision protocol归`C2`，最终ini/manifest/scene/script整包reload门到`C6`关闭；在无真实caller与consumer协议时仍保持NO-GO。
+> `C1` 已于2026-08-13通过产品旅程、失败恢复、宽回归、Release、文档与独立终审，作者文件工作区和ordinary `.osk` 安全导入成为稳定C2输入。当前是`1/7 closed，C2 active`；完成边界与执行prompt见[C1 完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
 
-1. **路径模型与external产品纵切**：managed 与 external authority 分离；外部绝对路径只把`NativeStorage`作为只读source adapter。external源永久只读；register/select/restart/unregister不隐式复制、写入、重命名或删除源。`C1`中独立、用户明确触发的“Import Managed Copy”可在fresh held proof后把bytes no-follow复制到OMS fixed provisional staging，但仍不得修改外部源或把register冒充import。Realm service-owner token只证明本服务可管理该注册记录，不授权path/source bytes；selection与冲突判断必须fresh取得held physical root/ancestry proof。只有该proof能在全部真实managed mutation admission中持有并复验到各自final collision linearization point，合法service-owned非重叠external才可把当前全局阻断收窄为局部判断；无法同切闭合则external纵切NO-GO并保留全局阻断。没有真实settings caller、immutable capture/factory、具体BMS Note/LN与legacy mania note/hold最小renderer、unregister及上述冲突证明同切消费时不得先交付registry/capture foundation。
-2. **安全删改**：公共scanner/selection/mutation线性化、durable recovery journal、启动幂等恢复、歧义冻结、directory-only rename、fixed-source staged import及settings managed delete已闭合。delete以operation-derived tombstone、exact existing-record fingerprint、bounded source-node manifest和durable fallback disposition固定Prepared；current目标先提交exact protected fallback pair，再以fresh no-follow delete-exclusive DELETE handles只清理manifest成员并compare-remove Realm record。same-session live重捕仍须exact，release窄窗移出在0次disposition时拒绝；partial restart才允许durable子集，exclusive tree取得后的已持有节点relocation由sharing violation阻断。目录namespace的preflight后竞态新增绝不被删除；若导致partial exact cleanup后root失败，则保留journal/Realm冻结。首步后由recovery而非caller cancellation收口。rename/import目前只有internal implementation surface，既无非测试caller，也无external→fixed provisional production stager或UI。未来stager须独立闭合source authority、no-follow、预算、取消、失败清理与脱敏诊断，不能把任意caller path直接传给mutation。
-3. **扫描与选择**：启动扫描已按exact owner、Observed/Valid分离和完整scan单事务reconcile落地；继续保持只维护自身authority，不得清理普通`.osk`、未知来源记录或无authority blob。它不是watcher/热重载。configured managed selection只对exact startup/staged-import contention做后台等待与fresh retry，并以startup/generic mutation observation及retry-lease复核保持rename、专用delete和其它generic mutation fail-closed；不得回退成update-thread等待或全局epoch猜测。
-4. **revision protocol与最终整包原子重载（当前NO-GO）**：只有`C1`完整作者文件工作区——含external子门、full managed-copy stager、rename/delete与journal支持UX、普通`.osk` archive安全——整体关闭后，`C2`才冻结真实触发方式、live gameplay等允许场景和当前全部consumer participation/publication/detach/retirement协议并重新GO/NO-GO；不得在external子门后提前跳转。`C2`只关闭当时已有production consumer，`C3`～`C6`新增consumer须同切加入，直到`C6`才以package revision为单位覆盖`skin.ini`、manifest、scene、script与素材的最终整包原子替换，并消除同一`BmsLegacySkin`实例成功preparation cache不感知revision的陈旧风险。每一阶段的生产caller、`SkinManager`/选择链及对应全renderer测试必须同时存在，不能用`SourceChanged`、selection pair或per-host reloadable替代barrier。
+authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`必须对当前全部production consumer一次性实现revision publication/detach/retire，不能停在manager-only API、same-ID selection或逐组件`SourceChanged`；最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
+
+1. **保全C1边界**：Workspace动作继续只按record ID fresh重读；external永久只读，service-owner不授权source bytes；exact registry physical proof须持有至final Realm线性化。v1/v2 schema保持strict frozen，v3 `(version, kind, phase)`按白名单验证，terminal journal只在exact compare-delete后确认Missing。
+2. **冻结C2产品路线并实现**：从真实可达入口确定V1 reload触发方式及允许场景，并在同一campaign完成ruleset-neutral immutable revision准备、update-thread publication barrier、participant registry、revision lease/detach receipt与retire queue。
+3. **覆盖当前所有consumer**：BMS geometry/Note/LN/pre-start preview、core/mania drawable、menu/shell/background/transition必须参与同一coherent publication；任一prepare/commit失败保留exact旧pair/revision，最后一个consumer detach后旧owner才dispose exactly once。
+4. **消除旁路**：ordinary Realm `.osk` 现有new-instance后立即dispose的旁路必须迁移到新协议或稳定禁用；current external fallback+unregister只能在新revision coherent发布且全consumer detach后Realm compare-remove。覆盖latest-wins、reentrant、cancel/shutdown、失败旧pair不变和脱敏诊断。
 5. **实机 gate**：managed/external、重启、切换、缺件 fallback、导入/删除/重命名均经人工确认。
 
 G1 必须按独立切片推进，不得从异常期存档整批恢复。

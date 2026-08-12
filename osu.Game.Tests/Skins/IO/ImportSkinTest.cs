@@ -5,14 +5,20 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Extensions;
 using osu.Framework.Platform;
+using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
+using osu.Game.Models;
 using osu.Game.Skinning;
+using osu.Game.Skinning.IO;
 using osu.Game.Tests.Resources;
 using SharpCompress.Archives.Zip;
 
@@ -295,6 +301,258 @@ namespace osu.Game.Tests.Skins.IO
         #endregion
 
         [Test]
+        public Task TestFailedArchiveImportRemovesOnlyNewFileStoreReceipts() => runSkinTest(async osu =>
+        {
+            var skinManager = osu.Dependencies.Get<SkinManager>();
+            var realmAccess = osu.Dependencies.Get<RealmAccess>();
+            var fileStore = new RealmFileStore(realmAccess, osu.Dependencies.Get<Storage>());
+            byte[] newContent = Guid.NewGuid().ToByteArray();
+            byte[] sharedContent = Guid.NewGuid().ToByteArray();
+
+            string newHash = new MemoryStream(newContent).ComputeSHA2Hash();
+            string sharedHash = new MemoryStream(sharedContent).ComputeSHA2Hash();
+            string newPath = new RealmFile { Hash = newHash }.GetStoragePath();
+            string sharedPath = new RealmFile { Hash = sharedHash }.GetStoragePath();
+
+            Assert.That(realmAccess.Run(realm => realm.Find<RealmFile>(newHash)), Is.Null);
+            Assert.That(fileStore.Storage.Exists(newPath), Is.False);
+
+            realmAccess.Write(realm => fileStore.Add(new MemoryStream(sharedContent), realm));
+            Assert.That(realmAccess.Run(realm => realm.Find<RealmFile>(sharedHash)), Is.Not.Null);
+            Assert.That(fileStore.Storage.Exists(sharedPath), Is.True);
+
+            int skinCountBefore = realmAccess.Run(realm => realm.All<SkinInfo>().Count());
+            using MemoryStream archive = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("new-resource.bin", newContent),
+                new SkinArchiveReaderTest.ZipEntry("shared-resource.bin", sharedContent),
+                new SkinArchiveReaderTest.ZipEntry("broken-resource.bin", new byte[] { 1, 2, 3 }) { DeclaredCrc = 0x12345678 });
+
+            try
+            {
+                await skinManager.Import(new ImportTask(archive, "failed.osk"));
+                Assert.Fail("CRC-invalid archive was accepted.");
+            }
+            catch (SkinArchiveImportException exception)
+            {
+                Assert.That(exception.Reason, Is.EqualTo(SkinArchiveRejectionReason.CrcMismatch));
+            }
+
+            Assert.That(realmAccess.Run(realm => realm.All<SkinInfo>().Count()), Is.EqualTo(skinCountBefore));
+            Assert.That(realmAccess.Run(realm => realm.Find<RealmFile>(newHash)), Is.Null);
+            Assert.That(fileStore.Storage.Exists(newPath), Is.False);
+            Assert.That(realmAccess.Run(realm => realm.Find<RealmFile>(sharedHash)), Is.Not.Null);
+            Assert.That(fileStore.Storage.Exists(sharedPath), Is.True);
+
+            string validPath = Path.Combine(Path.GetTempPath(), $"oms-valid-{Guid.NewGuid():N}.osk");
+            string invalidPath = Path.Combine(Path.GetTempPath(), $"oms-invalid-{Guid.NewGuid():N}.osk");
+
+            try
+            {
+                using (MemoryStream valid = SkinArchiveReaderTest.BuildZip(
+                           new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("safe source", "OMS"))))
+                    File.WriteAllBytes(validPath, valid.ToArray());
+
+                using (MemoryStream invalid = SkinArchiveReaderTest.BuildZip(
+                           new SkinArchiveReaderTest.ZipEntry("resource.bin", new byte[] { 1, 2, 3 }) { DeclaredCrc = 0x12345678 }))
+                    File.WriteAllBytes(invalidPath, invalid.ToArray());
+
+                var validImported = await skinManager.Import(new ImportTask(validPath));
+                Assert.That(validImported, Is.Not.Null);
+                Assert.That(File.Exists(validPath), Is.False);
+
+                try
+                {
+                    await skinManager.Import(new ImportTask(invalidPath));
+                    Assert.Fail("CRC-invalid source archive was accepted.");
+                }
+                catch (SkinArchiveImportException exception)
+                {
+                    Assert.That(exception.Reason, Is.EqualTo(SkinArchiveRejectionReason.CrcMismatch));
+                }
+
+                Assert.That(File.Exists(invalidPath), Is.True);
+            }
+            finally
+            {
+                File.Delete(validPath);
+                File.Delete(invalidPath);
+            }
+
+            const string rawType = "System.String, System.Private.CoreLib";
+            using MemoryStream unknownTypeArchive = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("skininfo.json", Encoding.UTF8.GetBytes($"{{\"InstantiationInfo\":\"{rawType}\"}}")),
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("safe type", "OMS")));
+
+            var canonicalImported = await skinManager.Import(new ImportTask(unknownTypeArchive, "safe-type.osk"));
+            canonicalImported.PerformRead(info =>
+            {
+                Assert.That(info.InstantiationInfo, Is.Not.EqualTo(rawType));
+                Assert.That(() => info.CreateInstance(skinManager), Throws.Nothing);
+            });
+        }, "osk-archive-safety");
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task TestFailureAfterFileRecordCommitRollsBackExactly(bool cancel) => runSkinTest(async osu =>
+        {
+            var skinManager = osu.Dependencies.Get<SkinManager>();
+            var realmAccess = osu.Dependencies.Get<RealmAccess>();
+            var fileStore = new RealmFileStore(realmAccess, osu.Dependencies.Get<Storage>());
+            byte[] newContent = Guid.NewGuid().ToByteArray();
+            byte[] sharedContent = Guid.NewGuid().ToByteArray();
+            string newHash = new MemoryStream(newContent).ComputeSHA2Hash();
+            string sharedHash = new MemoryStream(sharedContent).ComputeSHA2Hash();
+            string newPath = new RealmFile { Hash = newHash }.GetStoragePath();
+            string sharedPath = new RealmFile { Hash = sharedHash }.GetStoragePath();
+
+            realmAccess.Write(realm =>
+            {
+                RealmFile shared = fileStore.Add(new MemoryStream(sharedContent), realm);
+                var beatmapSet = new BeatmapSetInfo();
+                beatmapSet.Files.Add(new RealmNamedFileUsage(shared, "shared.resource"));
+                realm.Add(beatmapSet);
+            });
+
+            int skinCountBefore = realmAccess.Run(realm => realm.All<SkinInfo>().Count());
+            using MemoryStream archive = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("new-resource.bin", newContent),
+                new SkinArchiveReaderTest.ZipEntry("shared-resource.bin", sharedContent),
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("fault after file records", "OMS")));
+
+            using var cancellation = new CancellationTokenSource();
+            skinManager.SkinImportAfterFileRecordsCommittedTestHook = token =>
+            {
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                    token.ThrowIfCancellationRequested();
+                }
+
+                throw new DeterministicSkinImportFaultException();
+            };
+
+            try
+            {
+                if (cancel)
+                {
+                    Assert.ThrowsAsync<OperationCanceledException>(async () => await skinManager.Import(
+                        new ImportTask(archive, "cancel-after-file-records.osk"), cancellationToken: cancellation.Token));
+                }
+                else
+                {
+                    Assert.ThrowsAsync<DeterministicSkinImportFaultException>(async () =>
+                        await skinManager.Import(new ImportTask(archive, "fault-after-file-records.osk")));
+                }
+            }
+            finally
+            {
+                skinManager.SkinImportAfterFileRecordsCommittedTestHook = null;
+            }
+
+            Assert.That(realmAccess.Run(realm => realm.All<SkinInfo>().Count()), Is.EqualTo(skinCountBefore));
+            Assert.That(realmAccess.Run(realm => realm.Find<RealmFile>(newHash)), Is.Null);
+            Assert.That(fileStore.Storage.Exists(newPath), Is.False);
+            Assert.That(realmAccess.Run(realm => realm.Find<RealmFile>(sharedHash)?.Usages.Count()), Is.EqualTo(1));
+            Assert.That(fileStore.Storage.Exists(sharedPath), Is.True);
+
+            using MemoryStream valid = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("queue remains usable", "OMS")));
+            var imported = await skinManager.Import(new ImportTask(valid, "valid-after-fault.osk"));
+            Assert.That(imported, Is.Not.Null);
+        });
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task TestFailureAfterSkinMetadataRewriteRestoresExactStoreBaseline(bool cancel) => runSkinTest(async osu =>
+        {
+            var skinManager = osu.Dependencies.Get<SkinManager>();
+            var realmAccess = osu.Dependencies.Get<RealmAccess>();
+            var rootStorage = osu.Dependencies.Get<Storage>();
+            var fileStore = new RealmFileStore(realmAccess, rootStorage);
+            byte[] sharedContent = Guid.NewGuid().ToByteArray();
+
+            realmAccess.Write(realm =>
+            {
+                RealmFile shared = fileStore.Add(new MemoryStream(sharedContent), realm);
+                var beatmapSet = new BeatmapSetInfo();
+                beatmapSet.Files.Add(new RealmNamedFileUsage(shared, "shared.resource"));
+                realm.Add(beatmapSet);
+            });
+
+            StoreInventory baseline = captureStoreInventory(realmAccess, fileStore);
+            using MemoryStream archive = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("shared-resource.bin", sharedContent),
+                new SkinArchiveReaderTest.ZipEntry("new-resource.bin", Guid.NewGuid().ToByteArray()),
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("metadata source", "OMS")));
+            using var cancellation = new CancellationTokenSource();
+            skinManager.SkinImportAfterPopulateTestHook = token =>
+            {
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                    token.ThrowIfCancellationRequested();
+                }
+
+                throw new DeterministicSkinImportFaultException();
+            };
+
+            try
+            {
+                if (cancel)
+                {
+                    Assert.ThrowsAsync<OperationCanceledException>(async () => await skinManager.Import(
+                        new ImportTask(archive, "cancel-after-metadata.osk"), cancellationToken: cancellation.Token));
+                }
+                else
+                {
+                    Assert.ThrowsAsync<DeterministicSkinImportFaultException>(async () =>
+                        await skinManager.Import(new ImportTask(archive, "fault-after-metadata.osk")));
+                }
+            }
+            finally
+            {
+                skinManager.SkinImportAfterPopulateTestHook = null;
+            }
+
+            Assert.That(captureStoreInventory(realmAccess, fileStore), Is.EqualTo(baseline));
+
+            using MemoryStream valid = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("valid after metadata fault", "OMS")));
+            Assert.That(await skinManager.Import(new ImportTask(valid, "valid-after-metadata-fault.osk")), Is.Not.Null);
+        });
+
+        private static StoreInventory captureStoreInventory(RealmAccess realmAccess, RealmFileStore fileStore)
+        {
+            string[] realmFiles = realmAccess.Run(realm => realm.All<RealmFile>()
+                .AsEnumerable()
+                .Select(file => $"{file.Hash}:{file.Usages.Count()}:{file.BacklinksCount}")
+                .OrderBy(value => value, StringComparer.Ordinal)
+                .ToArray());
+            string[] skinIds = realmAccess.Run(realm => realm.All<SkinInfo>()
+                .AsEnumerable()
+                .Select(skin => skin.ID.ToString("N"))
+                .OrderBy(value => value, StringComparer.Ordinal)
+                .ToArray());
+            string filesRoot = fileStore.Storage.GetFullPath(string.Empty);
+            string[] blobs = Directory.Exists(filesRoot)
+                ? Directory.EnumerateFiles(filesRoot, "*", SearchOption.AllDirectories)
+                           .Select(path => Path.GetRelativePath(filesRoot, path).Replace('\\', '/'))
+                           .OrderBy(value => value, StringComparer.Ordinal)
+                           .ToArray()
+                : Array.Empty<string>();
+
+            return new StoreInventory(
+                string.Join('|', realmFiles),
+                string.Join('|', skinIds),
+                string.Join('|', blobs));
+        }
+
+        private readonly record struct StoreInventory(
+            string RealmFiles,
+            string SkinIds,
+            string Blobs);
+
+        [Test]
         public async Task TestExternallyMountingWithSubDirectory()
         {
             using (HeadlessGameHost host = new CleanRunHeadlessGameHost())
@@ -341,10 +599,10 @@ namespace osu.Game.Tests.Skins.IO
         }
 
         /// <remarks>
-        /// Note that this test passing / failing is platform / OS-specific (if it is to fail, it'll fail on windows).
+        /// Invalid Windows path semantics are rejected at archive ingress, before any external-edit mount can occur.
         /// </remarks>
         [Test]
-        public async Task TestExternallyMountingImportWithInvalidFilename()
+        public async Task TestImportRejectsInvalidWindowsFilenameBeforeExternalMount()
         {
             using (HeadlessGameHost host = new CleanRunHeadlessGameHost())
             {
@@ -357,21 +615,15 @@ namespace osu.Game.Tests.Skins.IO
                     zip.AddEntry("test?.png", new MemoryStream(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }));
                     zip.SaveTo(zipStream);
 
-                    var import = await loadSkinIntoOsu(osu, new ImportTask(zipStream, "test skin.osk"));
-
-                    var skinManager = osu.Dependencies.Get<SkinManager>();
-                    var externalEdit = await skinManager.BeginExternalEditing(import.PerformRead(s => s.Detach())); // should not fail
-
-                    Assert.That(Directory.Exists(externalEdit.MountedPath));
-                    Assert.That(new DirectoryInfo(externalEdit.MountedPath).GetFiles().Select(f => f.Name), Is.EquivalentTo(new[]
+                    try
                     {
-                        "skin.ini",
-                        "test.png"
-                    }));
-
-                    Task finishTask = Task.CompletedTask;
-                    host.UpdateThread.Scheduler.Add(() => finishTask = externalEdit.Finish());
-                    await finishTask;
+                        await loadSkinIntoOsu(osu, new ImportTask(zipStream, "test skin.osk"));
+                        Assert.Fail("Archive with a Windows-invalid entry name was accepted.");
+                    }
+                    catch (SkinArchiveImportException exception)
+                    {
+                        Assert.That(exception.Reason, Is.EqualTo(SkinArchiveRejectionReason.InvalidEntryName));
+                    }
                 }
                 finally
                 {
@@ -462,6 +714,13 @@ namespace osu.Game.Tests.Skins.IO
             writer.Flush();
 
             return stream;
+        }
+
+        private static byte[] generateSkinIniBytes(string name, string author)
+            => Encoding.UTF8.GetBytes($"[General]{Environment.NewLine}Name: {name}{Environment.NewLine}Author: {author}{Environment.NewLine}");
+
+        private sealed class DeterministicSkinImportFaultException : Exception
+        {
         }
 
         private async Task runSkinTest(Func<OsuGameBase, Task> action, [CallerMemberName] string callingMethodName = @"")

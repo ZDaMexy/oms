@@ -82,6 +82,97 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        [Platform("Win")]
+        public void TestExactNonEmptyExternalSetAllowsDeleteAndBindsPreparedJournal()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid operationId = Guid.NewGuid();
+                Guid recordId = addManagedRecord(realm);
+                Guid externalId = SkinExternalExactSetTestHelper.AddServiceOwnedRecord(
+                    realm,
+                    storage,
+                    $"delete-admission-{Guid.NewGuid():N}");
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var store = emptyStore();
+                var native = new FakeDeleteNativeAuthority(operationId);
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    coordinator,
+                    native,
+                    store);
+                var operation = new SkinManagedFolderDeleteOperation(
+                    realm,
+                    authority,
+                    (_, _, _) => SkinManagedFolderProtectedFallbackCommitResult.NotRequired);
+
+                SkinManagedFolderDeleteOperationResult result = operation.Execute(operationId, recordId);
+                SkinManagedFolderMutationJournal? prepared = store.Writes.FirstOrDefault();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.Status, Is.EqualTo(SkinManagedFolderDeleteOperationStatus.Succeeded));
+                    Assert.That(prepared, Is.Not.Null);
+                    Assert.That(prepared?.ExternalRegistryGeneration ?? 0, Is.GreaterThan(0));
+                    Assert.That(prepared?.ExternalCollisionDisposition,
+                        Is.EqualTo(SkinExternalCollisionDisposition.ExactRegisteredExternalSet));
+                    Assert.That(realm.Realm.Find<SkinInfo>(externalId), Is.Not.Null);
+                    Assert.That(realm.Realm.Find<SkinInfo>(recordId), Is.Null);
+                    Assert.That(store.DeleteCalls, Is.EqualTo(1));
+                    Assert.That(coordinator.IsMutationBlocked, Is.False);
+                });
+            });
+        }
+
+        [Test]
+        [Platform("Win")]
+        public void TestFinalDeleteRealmTransactionRejectsExternalDeclarationDrift()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid operationId = Guid.NewGuid();
+                Guid recordId = addManagedRecord(realm);
+                Guid externalId = SkinExternalExactSetTestHelper.AddServiceOwnedRecord(
+                    realm,
+                    storage,
+                    $"delete-drift-{Guid.NewGuid():N}");
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var store = emptyStore();
+                var native = new FakeDeleteNativeAuthority(operationId)
+                {
+                    OnNeitherInspection = () =>
+                        SkinExternalExactSetTestHelper.DriftDeclaration(realm, externalId),
+                };
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    coordinator,
+                    native,
+                    store);
+                var operation = new SkinManagedFolderDeleteOperation(
+                    realm,
+                    authority,
+                    (_, _, _) => SkinManagedFolderProtectedFallbackCommitResult.NotRequired);
+
+                SkinManagedFolderDeleteOperationResult result = operation.Execute(operationId, recordId);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.Status,
+                        Is.EqualTo(SkinManagedFolderDeleteOperationStatus.RealmOutcomeUncertain));
+                    Assert.That(native.Status, Is.EqualTo(SkinManagedFolderRenameInspectionStatus.Neither));
+                    Assert.That(store.Current.Journal?.Phase,
+                        Is.EqualTo(SkinManagedFolderMutationPhase.FilesystemApplied));
+                    Assert.That(store.DeleteCalls, Is.Zero);
+                    Assert.That(realm.Realm.Find<SkinInfo>(recordId), Is.Not.Null);
+                    Assert.That(coordinator.IsPathFrozen(source_path), Is.True);
+                    Assert.That(coordinator.IsPathFrozen(native.TombstonePath), Is.True);
+                });
+            });
+        }
+
+        [Test]
         public void TestFallbackRejectionRollsBackBeforePhysicalDetach()
         {
             RunTestWithRealm((realm, storage) =>
@@ -1076,6 +1167,10 @@ namespace osu.Game.Tests.Skins
 
             public Action? AfterRename { get; init; }
 
+            public Action? OnNeitherInspection { get; init; }
+
+            private int neitherInspectionCallbackInvoked;
+
             public FakeDeleteNativeAuthority(
                 Guid operationId,
                 SkinManagedFolderRenameInspectionStatus status = SkinManagedFolderRenameInspectionStatus.SourceOnly)
@@ -1095,6 +1190,13 @@ namespace osu.Game.Tests.Skins
                 private readonly FakeDeleteNativeAuthority owner;
 
                 public SkinManagedFolderPhysicalIdentity ManagedRootIdentity => root_identity;
+
+                public SkinFolderPhysicalAncestryProof ManagedRootAncestryProof { get; } =
+                    new SkinFolderPhysicalAncestryProof(new[]
+                    {
+                        new SkinManagedFolderPhysicalIdentity(91, 1, 1),
+                        root_identity,
+                    });
 
                 public Session(FakeDeleteNativeAuthority owner)
                 {
@@ -1179,6 +1281,12 @@ namespace osu.Game.Tests.Skins
                     CancellationToken cancellationToken)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    if (owner.Status == SkinManagedFolderRenameInspectionStatus.Neither
+                        && Interlocked.Exchange(ref owner.neitherInspectionCallbackInvoked, 1) == 0)
+                    {
+                        owner.OnNeitherInspection?.Invoke();
+                    }
 
                     if (!string.Equals(sourceManagedRelativePath, source_path, StringComparison.Ordinal)
                         || !string.Equals(targetManagedRelativePath, owner.TombstonePath, StringComparison.Ordinal)

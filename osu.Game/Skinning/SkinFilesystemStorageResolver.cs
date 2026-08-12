@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security;
 using osu.Framework.Platform;
 
@@ -85,18 +86,27 @@ namespace osu.Game.Skinning
         /// </summary>
         internal SkinManagedPackageCaptureRequest? ManagedCaptureRequest { get; }
 
+        /// <summary>
+        /// A sensitive resolver-issued carrier for a later held native external-package capture. The request contains
+        /// no read authority; it must be consumed by the Windows no-follow adapter. It remains null for Realm, managed
+        /// and rejected records.
+        /// </summary>
+        internal SkinExternalPackageCaptureRequest? ExternalCaptureRequest { get; }
+
         internal SkinFilesystemStorageResolution(
             SkinFilesystemStorageAuthority authority,
             SkinFilesystemStorageRejectionReason rejectionReason = SkinFilesystemStorageRejectionReason.None,
             string? absolutePath = null,
             string? managedRelativePath = null,
-            SkinManagedPackageCaptureRequest? managedCaptureRequest = null)
+            SkinManagedPackageCaptureRequest? managedCaptureRequest = null,
+            SkinExternalPackageCaptureRequest? externalCaptureRequest = null)
         {
             Authority = authority;
             RejectionReason = rejectionReason;
             NormalisedAbsolutePath = absolutePath;
             NormalisedManagedRelativePath = managedRelativePath;
             ManagedCaptureRequest = managedCaptureRequest;
+            ExternalCaptureRequest = externalCaptureRequest;
         }
 
         public override string ToString() => $"{Authority}:{RejectionReason}";
@@ -110,6 +120,7 @@ namespace osu.Game.Skinning
         internal const string MANAGED_ROOT_DIRECTORY = "chartskin";
 
         private static readonly object managed_capture_request_issuer = new object();
+        private static readonly object external_capture_request_issuer = new object();
 
         private static readonly HashSet<Guid> fixed_skin_ids = new HashSet<Guid>
         {
@@ -175,7 +186,7 @@ namespace osu.Game.Skinning
             if (IsFixedSkinId(skinInfo.ID))
                 return reject(SkinFilesystemStorageRejectionReason.FixedIdRecord);
 
-            if (skinInfo.Files.Count > 0)
+            if (skinInfo.Files?.Count > 0)
                 return reject(SkinFilesystemStorageRejectionReason.MixedStorageAuthorities);
 
             return skinInfo.IsExternalFilesystemStorage
@@ -288,9 +299,30 @@ namespace osu.Game.Skinning
             if (inspection != SkinFilesystemStorageRejectionReason.None)
                 return reject(inspection);
 
+            string relativePath;
+            string[] segments;
+
+            try
+            {
+                relativePath = Path.GetRelativePath(volumeRoot, packageRoot);
+                segments = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.None);
+            }
+            catch (Exception exception) when (isPathException(exception))
+            {
+                return reject(SkinFilesystemStorageRejectionReason.UnsupportedPathSyntax);
+            }
+
+            if (segments.Length == 0 || segments.Any(string.IsNullOrEmpty))
+                return reject(SkinFilesystemStorageRejectionReason.UnsupportedPathSyntax);
+
             return new SkinFilesystemStorageResolution(
                 SkinFilesystemStorageAuthority.ExternalFolder,
-                absolutePath: packageRoot);
+                absolutePath: packageRoot,
+                externalCaptureRequest: new SkinExternalPackageCaptureRequest(
+                    packageRoot,
+                    volumeRoot[0],
+                    segments,
+                    external_capture_request_issuer));
         }
 
         private static bool tryGetPortableSegments(string path, out string[] segments)
@@ -458,6 +490,9 @@ namespace osu.Game.Skinning
 
         internal static bool IsManagedCaptureRequestIssuer(object? candidate)
             => ReferenceEquals(candidate, managed_capture_request_issuer);
+
+        internal static bool IsExternalCaptureRequestIssuer(object? candidate)
+            => ReferenceEquals(candidate, external_capture_request_issuer);
 
         internal interface ISkinFilesystemInfoProvider
         {

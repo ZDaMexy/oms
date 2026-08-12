@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using osu.Framework.Platform;
@@ -18,6 +19,7 @@ namespace osu.Game.Skinning
         InvalidTargetNameSlot,
         TargetNameSlotOccupied,
         StagedSourceRejected,
+        ExternalRegistryRejected,
         NativeAuthorityRejected,
     }
 
@@ -110,6 +112,60 @@ namespace osu.Game.Skinning
             => $"{nameof(SkinManagedFolderStagedImportInspection)}:{Status}";
     }
 
+    internal enum SkinManagedCopyProvisionalInspectionStatus
+    {
+        Absent,
+        Empty,
+        Partial,
+        Complete,
+        TargetOccupied,
+        IdentityMismatch,
+        RootIdentityMismatch,
+        ManifestMismatch,
+    }
+
+    /// <summary>
+    /// Non-sensitive held inspection of the operation-derived managed-copy provisional slot.
+    /// </summary>
+    internal sealed class SkinManagedCopyProvisionalInspection
+    {
+        public SkinManagedCopyProvisionalInspectionStatus Status { get; }
+
+        public SkinManagedFolderPhysicalIdentity ManagedRootIdentity { get; }
+
+        public SkinManagedFolderPhysicalIdentity? ProvisionalIdentity { get; }
+
+        public SkinManagedFolderPackageMetadata? PackageMetadata { get; }
+
+        public string? TreeFingerprint { get; }
+
+        public SkinManagedCopyProvisionalInspection(
+            SkinManagedCopyProvisionalInspectionStatus status,
+            SkinManagedFolderPhysicalIdentity managedRootIdentity,
+            SkinManagedFolderPhysicalIdentity? provisionalIdentity = null,
+            SkinManagedFolderPackageMetadata? packageMetadata = null,
+            string? treeFingerprint = null)
+        {
+            if (!Enum.IsDefined(status)
+                || !managedRootIdentity.IsUsable
+                || (provisionalIdentity != null && !provisionalIdentity.Value.IsUsable)
+                || (treeFingerprint != null
+                    && !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(treeFingerprint)))
+            {
+                throw new ArgumentException("The managed-copy provisional inspection is invalid.");
+            }
+
+            Status = status;
+            ManagedRootIdentity = managedRootIdentity;
+            ProvisionalIdentity = provisionalIdentity;
+            PackageMetadata = packageMetadata;
+            TreeFingerprint = treeFingerprint;
+        }
+
+        public override string ToString()
+            => $"{nameof(SkinManagedCopyProvisionalInspection)}:{Status}";
+    }
+
     /// <summary>
     /// Exact, final target capture returned after an identity-preserving staged move.
     /// </summary>
@@ -159,6 +215,9 @@ namespace osu.Game.Skinning
     {
         SkinManagedFolderPhysicalIdentity ManagedRootIdentity { get; }
 
+        SkinFolderPhysicalAncestryProof ManagedRootAncestryProof
+            => throw new NotSupportedException();
+
         SkinManagedFolderPhysicalIdentity CaptureExistingSource(
             string managedRelativePath,
             CancellationToken cancellationToken);
@@ -169,6 +228,49 @@ namespace osu.Game.Skinning
         SkinManagedFolderStagedSourceCapture CaptureStagedSource(
             Guid operationId,
             CancellationToken cancellationToken);
+
+        SkinManagedFolderPhysicalIdentity PrepareManagedCopyStaging(
+            Guid operationId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        SkinManagedFolderPhysicalIdentity CreateManagedCopyProvisionalRoot(
+            Guid operationId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        void WriteManagedCopyProvisional(
+            Guid operationId,
+            SkinPackageRevisionCapsule capsule,
+            SkinManagedCopyLogicalManifest logicalManifest,
+            Action firstDestinationWrite,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        bool IsManagedCopyProvisionalAbsent(
+            Guid operationId,
+            CancellationToken cancellationToken)
+            => false;
+
+        SkinManagedCopyProvisionalInspection InspectManagedCopyProvisionalState(
+            Guid operationId,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity? expectedProvisionalIdentity,
+            SkinManagedCopyLogicalManifest logicalManifest,
+            string expectedContentRevision,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        void CleanupExactManagedCopyProvisional(
+            Guid operationId,
+            string targetManagedRelativePath,
+            SkinManagedFolderPhysicalIdentity expectedStagedRootIdentity,
+            SkinManagedFolderPhysicalIdentity expectedProvisionalIdentity,
+            SkinManagedCopyLogicalManifest logicalManifest,
+            string expectedContentRevision,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
 
         SkinManagedFolderTargetNameSlot CaptureAbsentTargetNameSlot(
             string managedRelativePath,
@@ -225,6 +327,8 @@ namespace osu.Game.Skinning
 
         public string TreeFingerprint { get; }
 
+        public SkinExternalPackageLogicalManifest? LogicalManifest { get; }
+
         public SkinPackageRevisionCapsule Capsule
             => capsule ?? throw new ObjectDisposedException(nameof(SkinManagedFolderStagedSourceCapture));
 
@@ -232,7 +336,8 @@ namespace osu.Game.Skinning
             SkinManagedFolderPhysicalIdentity stagedRootIdentity,
             SkinManagedFolderPhysicalIdentity sourceIdentity,
             string treeFingerprint,
-            SkinPackageRevisionCapsule capsule)
+            SkinPackageRevisionCapsule capsule,
+            SkinExternalPackageLogicalManifest? logicalManifest = null)
         {
             if (!SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(
                     treeFingerprint))
@@ -246,6 +351,7 @@ namespace osu.Game.Skinning
             SourceIdentity = sourceIdentity;
             TreeFingerprint = treeFingerprint;
             this.capsule = capsule ?? throw new ArgumentNullException(nameof(capsule));
+            LogicalManifest = logicalManifest;
         }
 
         public bool IsUsableFor(SkinManagedFolderPhysicalIdentity managedRootIdentity)
@@ -443,6 +549,7 @@ namespace osu.Game.Skinning
     {
         private SkinManagedFolderOperationCoordinator.Lease? coordinatorLease;
         private ISkinManagedFolderMutationNativeSession? nativeSession;
+        private SkinExternalFolderRegistrySnapshot? externalRegistrySnapshot;
         private readonly SkinManagedFolderOperationCoordinator coordinator;
         private readonly ISkinManagedFolderMutationJournalStore journalStore;
         private readonly Func<CancellationToken, bool> validateLogicalAuthority;
@@ -460,6 +567,8 @@ namespace osu.Game.Skinning
         public SkinManagedFolderNewRecordPublicationPlan? NewRecordPublicationPlan { get; }
         public SkinManagedFolderPhysicalIdentity ManagedRootIdentity { get; }
 
+        public SkinExternalRegistryJournalBinding ExternalRegistryBinding { get; }
+
         internal SkinManagedFolderMutationAuthoritySession(
             Guid operationId,
             SkinManagedFolderMutationKind kind,
@@ -471,10 +580,12 @@ namespace osu.Game.Skinning
             ISkinManagedFolderMutationJournalStore journalStore,
             SkinManagedFolderOperationCoordinator.Lease coordinatorLease,
             ISkinManagedFolderMutationNativeSession nativeSession,
+            SkinExternalFolderRegistrySnapshot externalRegistrySnapshot,
             Func<CancellationToken, bool> validateLogicalAuthority)
         {
             ArgumentNullException.ThrowIfNull(coordinatorLease);
             ArgumentNullException.ThrowIfNull(nativeSession);
+            ArgumentNullException.ThrowIfNull(externalRegistrySnapshot);
             ArgumentNullException.ThrowIfNull(coordinator);
             ArgumentNullException.ThrowIfNull(journalStore);
             ArgumentNullException.ThrowIfNull(validateLogicalAuthority);
@@ -486,15 +597,23 @@ namespace osu.Game.Skinning
             StagedSource = stagedSource;
             NewRecordPublicationPlan = newRecordPublicationPlan;
             ManagedRootIdentity = nativeSession.ManagedRootIdentity;
+            ExternalRegistryBinding = new SkinExternalRegistryJournalBinding(
+                externalRegistrySnapshot.ExternalRegistryGeneration,
+                externalRegistrySnapshot.ExternalRegistryDigest,
+                externalRegistrySnapshot.IsEmpty
+                    ? SkinExternalCollisionDisposition.NoRegisteredExternalFolders
+                    : SkinExternalCollisionDisposition.ExactRegisteredExternalSet);
             this.coordinator = coordinator;
             this.journalStore = journalStore;
             this.coordinatorLease = coordinatorLease;
             this.nativeSession = nativeSession;
+            this.externalRegistrySnapshot = externalRegistrySnapshot;
             this.validateLogicalAuthority = validateLogicalAuthority;
 
             if (operationId == Guid.Empty
                 || !ManagedRootIdentity.IsUsable
                 || !coordinatorLease.IsMutationReservationHeldBy(coordinator)
+                || !externalRegistrySnapshot.Validate(coordinatorLease)
                 || (existingRecord != null
                     && (!existingRecord.PhysicalIdentity.IsUsable
                         || !SkinManagedFolderNewRecordPublicationData.IsValidFingerprint(existingRecord.RecordFingerprint)
@@ -520,6 +639,7 @@ namespace osu.Game.Skinning
             lock (sessionGate)
             {
                 if (nativeSession == null
+                    || externalRegistrySnapshot == null
                     || coordinatorLease == null
                     || !coordinatorLease.IsMutationReservationHeldBy(coordinator))
                 {
@@ -534,11 +654,37 @@ namespace osu.Game.Skinning
                 try
                 {
                     nativeSession.ValidateCompleteAndStable(cancellationToken);
-                    return validateLogicalAuthority(cancellationToken);
+                    return externalRegistrySnapshot.Validate(coordinatorLease, cancellationToken)
+                           && validateLogicalAuthority(cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
                     throw;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        internal bool ExactlyMatchesExternalRegistryDeclarations(
+            IEnumerable<SkinInfo> records)
+        {
+            ArgumentNullException.ThrowIfNull(records);
+
+            lock (sessionGate)
+            {
+                if (externalRegistrySnapshot == null
+                    || coordinatorLease == null
+                    || !coordinatorLease.IsMutationReservationHeldBy(coordinator))
+                {
+                    return false;
+                }
+
+                try
+                {
+                    return externalRegistrySnapshot.ExactlyMatchesRealmDeclarations(records);
                 }
                 catch
                 {
@@ -576,7 +722,11 @@ namespace osu.Game.Skinning
                     journalStore.Write(journal);
                     SkinManagedFolderMutationJournalLoadResult loaded = journalStore.Load();
 
-                    if (!loaded.IsLoaded || !loaded.Journal!.IsExactSameJournal(journal))
+                    if (!loaded.IsLoaded
+                        || !loaded.Journal!.IsExactSameJournal(journal)
+                        || externalRegistrySnapshot == null
+                        || coordinatorLease == null
+                        || !externalRegistrySnapshot.Validate(coordinatorLease, cancellationToken))
                         throw new InvalidOperationException("The prepared managed-folder mutation journal was not durable.");
 
                     durableJournal = journal;
@@ -608,7 +758,8 @@ namespace osu.Game.Skinning
                         ManagedRootIdentity,
                         ExistingRecord.ManagedRelativePath,
                         ExistingRecord.PhysicalIdentity,
-                        TargetNameSlot.ManagedRelativePath),
+                        TargetNameSlot.ManagedRelativePath,
+                        ExternalRegistryBinding),
 
                 SkinManagedFolderMutationKind.Delete
                     when ExistingRecord != null =>
@@ -619,7 +770,8 @@ namespace osu.Game.Skinning
                         ExistingRecord.ManagedRelativePath,
                         ExistingRecord.PhysicalIdentity,
                         ExistingRecord.RecordFingerprint,
-                        ExistingRecord.DeleteSourceNodeManifest!),
+                        ExistingRecord.DeleteSourceNodeManifest!,
+                        ExternalRegistryBinding),
 
                 SkinManagedFolderMutationKind.StagedImport
                     when TargetNameSlot != null
@@ -636,7 +788,8 @@ namespace osu.Game.Skinning
                         StagedSource.PhysicalIdentity,
                         StagedSource.StagedRootIdentity,
                         StagedSource.ContentRevision,
-                        StagedSource.TreeFingerprint),
+                        StagedSource.TreeFingerprint,
+                        ExternalRegistryBinding),
 
                 _ => throw new InvalidOperationException("The held managed-folder mutation authority is incomplete."),
             };
@@ -1469,7 +1622,17 @@ namespace osu.Game.Skinning
             try
             {
                 SkinManagedFolderMutationJournalLoadResult loaded = journalStore.Load();
-                return loaded.IsLoaded && loaded.Journal!.IsExactSameJournal(expected);
+                return loaded.IsLoaded
+                       && loaded.Journal!.IsExactSameJournal(expected)
+                       && externalRegistrySnapshot != null
+                       && coordinatorLease != null
+                       && externalRegistrySnapshot.Validate(coordinatorLease)
+                       && expected.ExternalRegistryGeneration == ExternalRegistryBinding.Generation
+                       && string.Equals(
+                           expected.ExternalRegistryDigest,
+                           ExternalRegistryBinding.Digest,
+                           StringComparison.Ordinal)
+                       && expected.ExternalCollisionDisposition == ExternalRegistryBinding.Disposition;
             }
             catch
             {
@@ -1482,7 +1645,11 @@ namespace osu.Game.Skinning
             journalStore.Write(journal);
             SkinManagedFolderMutationJournalLoadResult loaded = journalStore.Load();
 
-            if (!loaded.IsLoaded || !loaded.Journal!.IsExactSameJournal(journal))
+            if (!loaded.IsLoaded
+                || !loaded.Journal!.IsExactSameJournal(journal)
+                || externalRegistrySnapshot == null
+                || coordinatorLease == null
+                || !externalRegistrySnapshot.Validate(coordinatorLease))
                 throw new SkinManagedFolderMutationJournalException();
         }
 
@@ -1542,13 +1709,21 @@ namespace osu.Game.Skinning
             {
                 try
                 {
-                    nativeSession?.Dispose();
+                    try
+                    {
+                        externalRegistrySnapshot?.Dispose();
+                    }
+                    finally
+                    {
+                        nativeSession?.Dispose();
+                    }
                 }
                 finally
                 {
                     if (durableJournal != null)
                         coordinator.FreezeRecoveryPaths(durableJournal.GetAffectedManagedRelativePaths());
 
+                    externalRegistrySnapshot = null;
                     nativeSession = null;
                     coordinatorLease?.Dispose();
                     coordinatorLease = null;
@@ -1661,19 +1836,30 @@ namespace osu.Game.Skinning
         private readonly SkinManagedFolderOperationCoordinator coordinator;
         private readonly ISkinManagedFolderMutationNativeAuthority nativeAuthority;
         private readonly ISkinManagedFolderMutationJournalStore journalStore;
+        private readonly SkinExternalFolderRegistryService externalRegistry;
 
         public SkinManagedFolderMutationAuthority(
             RealmAccess realm,
             Storage storage,
             SkinManagedFolderOperationCoordinator coordinator,
             ISkinManagedFolderMutationNativeAuthority nativeAuthority,
-            ISkinManagedFolderMutationJournalStore journalStore)
+            ISkinManagedFolderMutationJournalStore journalStore,
+            ISkinExternalFolderCaptureService? externalCaptureService = null,
+            SkinExternalFolderRegistryLimits? externalRegistryLimits = null,
+            SkinExternalFolderRegistryService? externalRegistryService = null)
         {
             this.realm = realm ?? throw new ArgumentNullException(nameof(realm));
             ArgumentNullException.ThrowIfNull(storage);
             this.coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             this.nativeAuthority = nativeAuthority ?? throw new ArgumentNullException(nameof(nativeAuthority));
             this.journalStore = journalStore ?? throw new ArgumentNullException(nameof(journalStore));
+            externalRegistry = externalRegistryService
+                               ?? new SkinExternalFolderRegistryService(
+                                   realm,
+                                   storage,
+                                   coordinator,
+                                   externalCaptureService ?? new SkinExternalFolderCaptureService(),
+                                   externalRegistryLimits);
         }
 
         public SkinManagedFolderMutationAuthorityResult OpenRename(
@@ -1719,6 +1905,7 @@ namespace osu.Game.Skinning
 
             SkinManagedFolderOperationCoordinator.Lease? coordinatorLease = null;
             ISkinManagedFolderMutationNativeSession? nativeSession = null;
+            SkinExternalFolderRegistrySnapshot? externalRegistrySnapshot = null;
 
             try
             {
@@ -1732,14 +1919,6 @@ namespace osu.Game.Skinning
                         ref nativeSession);
                 }
 
-                if (hasUnresolvedExternalFilesystemDeclaration())
-                {
-                    return rejectAndRelease(
-                        SkinManagedFolderMutationAuthorityRejectionReason.TargetNameSlotOccupied,
-                        ref coordinatorLease,
-                        ref nativeSession);
-                }
-
                 if (hasRealmPathConflict(targetPath) || hasRealmRecordIdConflict(operationId))
                 {
                     return rejectAndRelease(
@@ -1749,6 +1928,22 @@ namespace osu.Game.Skinning
                 }
 
                 nativeSession = nativeAuthority.Open(cancellationToken);
+                SkinExternalFolderRegistryCaptureResult externalRegistryCapture =
+                    externalRegistry.CaptureExactSet(
+                        coordinatorLease,
+                        new[] { nativeSession.ManagedRootAncestryProof },
+                        cancellationToken);
+
+                if (!externalRegistryCapture.IsSuccess)
+                {
+                    return rejectAndRelease(
+                        SkinManagedFolderMutationAuthorityRejectionReason.ExternalRegistryRejected,
+                        ref coordinatorLease,
+                        ref nativeSession,
+                        ref externalRegistrySnapshot);
+                }
+
+                externalRegistrySnapshot = externalRegistryCapture.Snapshot!;
                 SkinManagedFolderTargetNameSlot target = nativeSession.CaptureAbsentTargetNameSlot(targetPath, cancellationToken);
                 SkinManagedFolderStagedSourceAuthority stagedSource;
 
@@ -1765,7 +1960,8 @@ namespace osu.Game.Skinning
                         return rejectAndRelease(
                             SkinManagedFolderMutationAuthorityRejectionReason.StagedSourceRejected,
                             ref coordinatorLease,
-                            ref nativeSession);
+                            ref nativeSession,
+                            ref externalRegistrySnapshot);
                     }
 
                     stagedSource = new SkinManagedFolderStagedSourceAuthority(
@@ -1785,14 +1981,15 @@ namespace osu.Game.Skinning
 
                 if (hasRealmPathConflict(targetPath)
                     || hasRealmRecordIdConflict(operationId)
-                    || hasUnresolvedExternalFilesystemDeclaration()
                     || !stagedSource.Validate(nativeSession.ManagedRootIdentity)
+                    || !externalRegistrySnapshot.Validate(coordinatorLease, cancellationToken)
                     || target.ManagedRootIdentity != nativeSession.ManagedRootIdentity)
                 {
                     return rejectAndRelease(
                         SkinManagedFolderMutationAuthorityRejectionReason.TargetNameSlotOccupied,
                         ref coordinatorLease,
-                        ref nativeSession);
+                        ref nativeSession,
+                        ref externalRegistrySnapshot);
                 }
 
                 var session = new SkinManagedFolderMutationAuthoritySession(
@@ -1806,18 +2003,19 @@ namespace osu.Game.Skinning
                     journalStore,
                     coordinatorLease,
                     nativeSession,
+                    externalRegistrySnapshot,
                     token => !coordinator.IsMutationBlocked
-                             && !hasUnresolvedExternalFilesystemDeclaration()
                              && !hasRealmPathConflict(targetPath)
                              && !hasRealmRecordIdConflict(operationId)
                              && stagedSource.Validate(target.ManagedRootIdentity));
                 coordinatorLease = null;
                 nativeSession = null;
+                externalRegistrySnapshot = null;
                 return SkinManagedFolderMutationAuthorityResult.Success(session);
             }
             catch (OperationCanceledException)
             {
-                release(ref coordinatorLease, ref nativeSession);
+                release(ref coordinatorLease, ref nativeSession, ref externalRegistrySnapshot);
                 throw;
             }
             catch
@@ -1825,7 +2023,8 @@ namespace osu.Game.Skinning
                 return rejectAndRelease(
                     SkinManagedFolderMutationAuthorityRejectionReason.NativeAuthorityRejected,
                     ref coordinatorLease,
-                    ref nativeSession);
+                    ref nativeSession,
+                    ref externalRegistrySnapshot);
             }
         }
 
@@ -1859,6 +2058,7 @@ namespace osu.Game.Skinning
 
             SkinManagedFolderOperationCoordinator.Lease? coordinatorLease = null;
             ISkinManagedFolderMutationNativeSession? nativeSession = null;
+            SkinExternalFolderRegistrySnapshot? externalRegistrySnapshot = null;
 
             try
             {
@@ -1868,14 +2068,6 @@ namespace osu.Game.Skinning
                 {
                     return rejectAndRelease(
                         SkinManagedFolderMutationAuthorityRejectionReason.RecoveryPending,
-                        ref coordinatorLease,
-                        ref nativeSession);
-                }
-
-                if (hasUnresolvedExternalFilesystemDeclaration())
-                {
-                    return rejectAndRelease(
-                        SkinManagedFolderMutationAuthorityRejectionReason.ExistingRecordPathConflict,
                         ref coordinatorLease,
                         ref nativeSession);
                 }
@@ -1911,6 +2103,22 @@ namespace osu.Game.Skinning
                 }
 
                 nativeSession = nativeAuthority.Open(cancellationToken);
+                SkinExternalFolderRegistryCaptureResult externalRegistryCapture =
+                    externalRegistry.CaptureExactSet(
+                        coordinatorLease,
+                        new[] { nativeSession.ManagedRootAncestryProof },
+                        cancellationToken);
+
+                if (!externalRegistryCapture.IsSuccess)
+                {
+                    return rejectAndRelease(
+                        SkinManagedFolderMutationAuthorityRejectionReason.ExternalRegistryRejected,
+                        ref coordinatorLease,
+                        ref nativeSession,
+                        ref externalRegistrySnapshot);
+                }
+
+                externalRegistrySnapshot = externalRegistryCapture.Snapshot!;
                 SkinManagedFolderPhysicalIdentity sourceIdentity = nativeSession.CaptureExistingSource(
                     qualification.ManagedRelativePath!,
                     cancellationToken);
@@ -1928,12 +2136,14 @@ namespace osu.Game.Skinning
                     || !finalQualification.IsEligible
                     || !qualification.Matches(finalQualification)
                     || (targetPath != null && hasRealmPathConflict(targetPath))
+                    || !externalRegistrySnapshot.Validate(coordinatorLease, cancellationToken)
                     || (target != null && target.ManagedRootIdentity != nativeSession.ManagedRootIdentity))
                 {
                     return rejectAndRelease(
                         SkinManagedFolderMutationAuthorityRejectionReason.ExistingRecordIneligible,
                         ref coordinatorLease,
-                        ref nativeSession);
+                        ref nativeSession,
+                        ref externalRegistrySnapshot);
                 }
 
                 var existing = new SkinManagedFolderExistingRecordAuthority(
@@ -1953,11 +2163,12 @@ namespace osu.Game.Skinning
                     journalStore,
                     coordinatorLease,
                     nativeSession,
+                    externalRegistrySnapshot,
                     token =>
                     {
                         token.ThrowIfCancellationRequested();
 
-                        if (coordinator.IsMutationBlocked || hasUnresolvedExternalFilesystemDeclaration())
+                        if (coordinator.IsMutationBlocked)
                             return false;
 
                         ExistingRecordQualification? current = qualifyExistingRecord(recordId);
@@ -1968,11 +2179,12 @@ namespace osu.Game.Skinning
                     });
                 coordinatorLease = null;
                 nativeSession = null;
+                externalRegistrySnapshot = null;
                 return SkinManagedFolderMutationAuthorityResult.Success(session);
             }
             catch (OperationCanceledException)
             {
-                release(ref coordinatorLease, ref nativeSession);
+                release(ref coordinatorLease, ref nativeSession, ref externalRegistrySnapshot);
                 throw;
             }
             catch
@@ -1980,7 +2192,8 @@ namespace osu.Game.Skinning
                 return rejectAndRelease(
                     SkinManagedFolderMutationAuthorityRejectionReason.NativeAuthorityRejected,
                     ref coordinatorLease,
-                    ref nativeSession);
+                    ref nativeSession,
+                    ref externalRegistrySnapshot);
             }
         }
 
@@ -2043,19 +2256,22 @@ namespace osu.Game.Skinning
                 return r.Find<SkinInfo>(recordId) != null;
             });
 
-        private bool hasUnresolvedExternalFilesystemDeclaration()
-            => realm.Run(r =>
-            {
-                r.Refresh();
-                return r.All<SkinInfo>().AsEnumerable().Any(candidate => candidate.IsExternalFilesystemStorage);
-            });
-
         private static SkinManagedFolderMutationAuthorityResult rejectAndRelease(
             SkinManagedFolderMutationAuthorityRejectionReason reason,
             ref SkinManagedFolderOperationCoordinator.Lease? coordinatorLease,
             ref ISkinManagedFolderMutationNativeSession? nativeSession)
         {
             release(ref coordinatorLease, ref nativeSession);
+            return SkinManagedFolderMutationAuthorityResult.Reject(reason);
+        }
+
+        private static SkinManagedFolderMutationAuthorityResult rejectAndRelease(
+            SkinManagedFolderMutationAuthorityRejectionReason reason,
+            ref SkinManagedFolderOperationCoordinator.Lease? coordinatorLease,
+            ref ISkinManagedFolderMutationNativeSession? nativeSession,
+            ref SkinExternalFolderRegistrySnapshot? externalRegistrySnapshot)
+        {
+            release(ref coordinatorLease, ref nativeSession, ref externalRegistrySnapshot);
             return SkinManagedFolderMutationAuthorityResult.Reject(reason);
         }
 
@@ -2075,6 +2291,38 @@ namespace osu.Game.Skinning
             }
             finally
             {
+                nativeSession = null;
+                coordinatorLease?.Dispose();
+                coordinatorLease = null;
+            }
+        }
+
+        private static void release(
+            ref SkinManagedFolderOperationCoordinator.Lease? coordinatorLease,
+            ref ISkinManagedFolderMutationNativeSession? nativeSession,
+            ref SkinExternalFolderRegistrySnapshot? externalRegistrySnapshot)
+        {
+            try
+            {
+                try
+                {
+                    externalRegistrySnapshot?.Dispose();
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    nativeSession?.Dispose();
+                }
+                catch
+                {
+                }
+            }
+            finally
+            {
+                externalRegistrySnapshot = null;
                 nativeSession = null;
                 coordinatorLease?.Dispose();
                 coordinatorLease = null;

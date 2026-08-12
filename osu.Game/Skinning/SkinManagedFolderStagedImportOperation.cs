@@ -157,7 +157,7 @@ namespace osu.Game.Skinning
 
             // The move is externally visible. Do not observe caller cancellation from this point onward.
             if (!session.TryPublishStagedImportRealm(
-                    publishExactNewRecord,
+                    publication => publishExactNewRecord(session, publication),
                     CancellationToken.None))
             {
                 return failure(
@@ -174,13 +174,14 @@ namespace osu.Game.Skinning
         }
 
         private bool publishExactNewRecord(
+            SkinManagedFolderMutationAuthoritySession session,
             SkinManagedFolderNewRecordPublicationData publication)
         {
             bool applied = realm.Write(r =>
             {
                 r.Refresh();
 
-                if (hasUnresolvedExternalDeclaration(r)
+                if (!session.ExactlyMatchesExternalRegistryDeclarations(r.All<SkinInfo>())
                     || r.Find<SkinInfo>(publication.RecordId) != null
                     || hasPathConflict(r, publication.RecordId, publication.ManagedRelativePath))
                 {
@@ -201,17 +202,13 @@ namespace osu.Game.Skinning
                 SkinInfo? record = r.Find<SkinInfo>(publication.RecordId);
                 return record != null
                        && publication.IsExactRecord(record)
-                       && !hasUnresolvedExternalDeclaration(r)
+                       && session.ExactlyMatchesExternalRegistryDeclarations(r.All<SkinInfo>())
                        && !hasPathConflict(
                            r,
                            publication.RecordId,
                            publication.ManagedRelativePath);
             });
         }
-
-        private static bool hasUnresolvedExternalDeclaration(Realm realm)
-            => realm.All<SkinInfo>().AsEnumerable().Any(
-                candidate => candidate.IsExternalFilesystemStorage);
 
         private static bool hasPathConflict(
             Realm realm,
@@ -237,7 +234,8 @@ namespace osu.Game.Skinning
     /// Production recovery policy for one fixed operation-owned staged import.
     /// </summary>
     internal sealed class SkinManagedFolderStagedImportRecoveryHandler
-        : ISkinManagedFolderMutationRecoveryHandler
+        : ISkinManagedFolderMutationRecoveryHandler,
+          ISkinManagedFolderMutationHeldRecoveryHandler
     {
         private readonly RealmAccess realm;
         private readonly ISkinManagedFolderMutationNativeAuthority nativeAuthority;
@@ -259,6 +257,33 @@ namespace osu.Game.Skinning
 
             using ISkinManagedFolderMutationNativeSession native =
                 nativeAuthority.Open(cancellationToken);
+            return inspect(journal, native, null, cancellationToken);
+        }
+
+        public bool CanHandle(SkinManagedFolderMutationKind kind)
+            => kind == SkinManagedFolderMutationKind.StagedImport;
+
+        public SkinManagedFolderMutationRecoveryInspection InspectHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+        {
+            if (!tryValidateJournal(journal)
+                || authority == null
+                || !authority.Validate(cancellationToken))
+            {
+                return ambiguousInspection();
+            }
+
+            return inspect(journal, authority.NativeSession, authority, cancellationToken);
+        }
+
+        private SkinManagedFolderMutationRecoveryInspection inspect(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationNativeSession native,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
 
             if (native.ManagedRootIdentity != journal.ManagedRootIdentity)
                 return ambiguousInspection();
@@ -283,7 +308,11 @@ namespace osu.Game.Skinning
                 journal,
                 publication,
                 requireDurableFingerprint: physical.Status
-                    == SkinManagedFolderStagedImportInspectionStatus.Neither);
+                    == SkinManagedFolderStagedImportInspectionStatus.Neither,
+                authority);
+
+            if (!validateAuthority(authority, cancellationToken))
+                return ambiguousInspection();
 
             return (physical.Status, realmState) switch
             {
@@ -336,6 +365,34 @@ namespace osu.Game.Skinning
 
             using ISkinManagedFolderMutationNativeSession native =
                 nativeAuthority.Open(cancellationToken);
+            return tryRollForward(journal, native, null, cancellationToken);
+        }
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollForwardHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+        {
+            if (!tryValidateJournal(journal)
+                || authority == null
+                || !authority.Validate(cancellationToken))
+            {
+                return failedAction();
+            }
+
+            return tryRollForward(
+                journal,
+                authority.NativeSession,
+                authority,
+                cancellationToken);
+        }
+
+        private SkinManagedFolderMutationRecoveryActionResult tryRollForward(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationNativeSession native,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
 
             if (native.ManagedRootIdentity != journal.ManagedRootIdentity)
                 return failedAction();
@@ -359,11 +416,12 @@ namespace osu.Game.Skinning
             RealmState realmState = inspectRealmState(
                 journal,
                 publication,
-                requireDurableFingerprint: false);
+                requireDurableFingerprint: false,
+                authority);
 
             if (realmState == RealmState.Absent)
             {
-                if (!publishRecoveryRecord(publication))
+                if (!publishRecoveryRecord(publication, authority, cancellationToken))
                     return failedAction();
             }
             else if (realmState != RealmState.Exact)
@@ -392,9 +450,11 @@ namespace osu.Game.Skinning
                     publication.Fingerprint,
                     StringComparison.Ordinal)
                 || inspectRealmState(
-                    journal,
-                    publication,
-                    requireDurableFingerprint: false) != RealmState.Exact)
+                     journal,
+                     publication,
+                     requireDurableFingerprint: false,
+                     authority) != RealmState.Exact
+                || !validateAuthority(authority, cancellationToken))
             {
                 return failedAction();
             }
@@ -415,6 +475,34 @@ namespace osu.Game.Skinning
 
             using ISkinManagedFolderMutationNativeSession native =
                 nativeAuthority.Open(cancellationToken);
+            return tryRollBack(journal, native, null, cancellationToken);
+        }
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollBackHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+        {
+            if (!tryValidateJournal(journal)
+                || authority == null
+                || !authority.Validate(cancellationToken))
+            {
+                return failedAction();
+            }
+
+            return tryRollBack(
+                journal,
+                authority.NativeSession,
+                authority,
+                cancellationToken);
+        }
+
+        private SkinManagedFolderMutationRecoveryActionResult tryRollBack(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationNativeSession native,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
 
             if (native.ManagedRootIdentity != journal.ManagedRootIdentity)
                 return failedAction();
@@ -439,7 +527,8 @@ namespace osu.Game.Skinning
             RealmState realmState = inspectRealmState(
                 journal,
                 publication,
-                requireDurableFingerprint);
+                requireDurableFingerprint,
+                authority);
 
             if (realmState == RealmState.Conflict)
                 return failedAction();
@@ -448,7 +537,9 @@ namespace osu.Game.Skinning
                 && !deleteExactRecoveryRecord(
                     journal,
                     publication,
-                    requireDurableFingerprint))
+                    requireDurableFingerprint,
+                    authority,
+                    cancellationToken))
             {
                 return failedAction();
             }
@@ -457,12 +548,18 @@ namespace osu.Game.Skinning
 
             if (before.Status == SkinManagedFolderStagedImportInspectionStatus.SourceOnly)
             {
+                if (!validateAuthority(authority, cancellationToken))
+                    return failedAction();
+
                 native.CleanupExactStagedSource(
                     journal.OperationId,
                     journal.TargetManagedRelativePath!,
                     journal.StagedRootIdentity!.Value,
                     journal.StagedSourceIdentity!.Value,
                     cancellationToken);
+
+                if (!validateAuthority(authority, cancellationToken))
+                    return failedAction();
             }
 
             SkinManagedFolderStagedImportInspection after =
@@ -472,7 +569,9 @@ namespace osu.Game.Skinning
                 || inspectRealmState(
                     journal,
                     null,
-                    requireDurableFingerprint: true) != RealmState.Absent)
+                    requireDurableFingerprint: true,
+                    authority) != RealmState.Absent
+                || !validateAuthority(authority, cancellationToken))
             {
                 return failedAction();
             }
@@ -535,12 +634,13 @@ namespace osu.Game.Skinning
         private RealmState inspectRealmState(
             SkinManagedFolderMutationJournal journal,
             SkinManagedFolderNewRecordPublicationData? publication,
-            bool requireDurableFingerprint)
+            bool requireDurableFingerprint,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority)
             => realm.Run(r =>
             {
                 r.Refresh();
 
-                if (hasUnresolvedExternalDeclaration(r))
+                if (!externalDeclarationsMatch(r, authority))
                     return RealmState.Conflict;
 
                 SkinInfo? record = r.Find<SkinInfo>(journal.OperationId);
@@ -562,13 +662,18 @@ namespace osu.Game.Skinning
             });
 
         private bool publishRecoveryRecord(
-            SkinManagedFolderNewRecordPublicationData publication)
+            SkinManagedFolderNewRecordPublicationData publication,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
         {
+            if (!validateAuthority(authority, cancellationToken))
+                return false;
+
             bool added = realm.Write(r =>
             {
                 r.Refresh();
 
-                if (hasUnresolvedExternalDeclaration(r)
+                if (!externalDeclarationsMatch(r, authority)
                     || r.Find<SkinInfo>(publication.RecordId) != null
                     || hasPathConflict(
                         r,
@@ -583,29 +688,38 @@ namespace osu.Game.Skinning
                 return publication.IsExactRecord(record);
             });
 
-            return added && realm.Run(r =>
+            return added
+                   && validateAuthority(authority, cancellationToken)
+                   && realm.Run(r =>
             {
                 r.Refresh();
                 SkinInfo? record = r.Find<SkinInfo>(publication.RecordId);
                 return record != null
                        && publication.IsExactRecord(record)
-                       && !hasUnresolvedExternalDeclaration(r)
+                       && externalDeclarationsMatch(r, authority)
                        && !hasPathConflict(
                            r,
                            publication.RecordId,
                            publication.ManagedRelativePath);
-            });
+            })
+                   && validateAuthority(authority, cancellationToken);
         }
 
         private bool deleteExactRecoveryRecord(
             SkinManagedFolderMutationJournal journal,
             SkinManagedFolderNewRecordPublicationData? publication,
-            bool requireDurableFingerprint)
-            => realm.Write(r =>
+            bool requireDurableFingerprint,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
+            if (!validateAuthority(authority, cancellationToken))
+                return false;
+
+            bool deleted = realm.Write(r =>
             {
                 r.Refresh();
 
-                if (hasUnresolvedExternalDeclaration(r)
+                if (!externalDeclarationsMatch(r, authority)
                     || hasPathConflict(
                         r,
                         journal.OperationId,
@@ -629,6 +743,20 @@ namespace osu.Game.Skinning
                 r.Remove(record);
                 return true;
             });
+
+            return deleted && validateAuthority(authority, cancellationToken);
+        }
+
+        private static bool externalDeclarationsMatch(
+            Realm realm,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority)
+            => authority?.ExactlyMatchesRealmDeclarations(realm.All<SkinInfo>())
+               ?? !hasUnresolvedExternalDeclaration(realm);
+
+        private static bool validateAuthority(
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+            => authority?.Validate(cancellationToken) ?? true;
 
         private static bool isExactDurableRecord(
             SkinManagedFolderMutationJournal journal,
@@ -698,7 +826,8 @@ namespace osu.Game.Skinning
             SkinManagedFolderMutationJournal journal)
             => journal != null
                && journal.IsValid()
-               && journal.Version == SkinManagedFolderMutationJournal.CURRENT_VERSION
+               && journal.Version is SkinManagedFolderMutationJournal.PRE_C1_VERSION
+                   or SkinManagedFolderMutationJournal.CURRENT_VERSION
                && journal.Kind == SkinManagedFolderMutationKind.StagedImport
                && journal.RecordId == journal.OperationId
                && journal.TargetManagedRelativePath != null

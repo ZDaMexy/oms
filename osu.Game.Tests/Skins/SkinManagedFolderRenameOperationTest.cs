@@ -86,6 +86,97 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        [Platform("Win")]
+        public void TestExactNonEmptyExternalSetAllowsRenameAndBindsPreparedJournal()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid recordId = addRecord(realm, source_path);
+                Guid externalId = SkinExternalExactSetTestHelper.AddServiceOwnedRecord(
+                    realm,
+                    storage,
+                    $"rename-admission-{Guid.NewGuid():N}");
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var store = emptyStore();
+                var native = new FakeRenameNativeAuthority();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    coordinator,
+                    native,
+                    store);
+
+                SkinManagedFolderRenameOperationResult result =
+                    new SkinManagedFolderRenameOperation(realm, authority).Execute(
+                        Guid.NewGuid(),
+                        recordId,
+                        "target");
+                SkinManagedFolderMutationJournal? prepared = store.Writes.FirstOrDefault();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.Status, Is.EqualTo(SkinManagedFolderRenameOperationStatus.Succeeded));
+                    Assert.That(prepared, Is.Not.Null);
+                    Assert.That(prepared?.ExternalRegistryGeneration ?? 0, Is.GreaterThan(0));
+                    Assert.That(prepared?.ExternalCollisionDisposition,
+                        Is.EqualTo(SkinExternalCollisionDisposition.ExactRegisteredExternalSet));
+                    Assert.That(realm.Realm.Find<SkinInfo>(externalId), Is.Not.Null);
+                    Assert.That(realm.Realm.Find<SkinInfo>(recordId)!.FilesystemStoragePath,
+                        Is.EqualTo(target_path));
+                    Assert.That(store.DeleteCalls, Is.EqualTo(1));
+                    Assert.That(coordinator.IsMutationBlocked, Is.False);
+                });
+            });
+        }
+
+        [Test]
+        [Platform("Win")]
+        public void TestFinalRenameRealmTransactionRejectsExternalDeclarationDrift()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid recordId = addRecord(realm, source_path);
+                Guid externalId = SkinExternalExactSetTestHelper.AddServiceOwnedRecord(
+                    realm,
+                    storage,
+                    $"rename-drift-{Guid.NewGuid():N}");
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var store = emptyStore();
+                var native = new FakeRenameNativeAuthority
+                {
+                    OnTargetInspection = () =>
+                        SkinExternalExactSetTestHelper.DriftDeclaration(realm, externalId),
+                };
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    coordinator,
+                    native,
+                    store);
+
+                SkinManagedFolderRenameOperationResult result =
+                    new SkinManagedFolderRenameOperation(realm, authority).Execute(
+                        Guid.NewGuid(),
+                        recordId,
+                        "target");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.Status,
+                        Is.EqualTo(SkinManagedFolderRenameOperationStatus.RealmOutcomeUncertain));
+                    Assert.That(native.Status, Is.EqualTo(SkinManagedFolderRenameInspectionStatus.TargetOnly));
+                    Assert.That(store.Current.Journal?.Phase,
+                        Is.EqualTo(SkinManagedFolderMutationPhase.FilesystemApplied));
+                    Assert.That(store.DeleteCalls, Is.Zero);
+                    Assert.That(realm.Realm.Find<SkinInfo>(recordId)!.FilesystemStoragePath,
+                        Is.EqualTo(source_path));
+                    Assert.That(coordinator.IsPathFrozen(source_path), Is.True);
+                    Assert.That(coordinator.IsPathFrozen(target_path), Is.True);
+                });
+            });
+        }
+
+        [Test]
         public void TestCancellationBeforeVisibleMoveRollsBackPreparedIntent()
         {
             RunTestWithRealm((realm, storage) =>
@@ -596,6 +687,10 @@ namespace osu.Game.Tests.Skins
 
             public Action? AfterVisibleMove { get; init; }
 
+            public Action? OnTargetInspection { get; init; }
+
+            private int targetInspectionCallbackInvoked;
+
             public int OpenCalls { get; private set; }
             public int RenameCalls { get; private set; }
 
@@ -611,6 +706,13 @@ namespace osu.Game.Tests.Skins
                 private readonly FakeRenameNativeAuthority owner;
 
                 public SkinManagedFolderPhysicalIdentity ManagedRootIdentity => root_identity;
+
+                public SkinFolderPhysicalAncestryProof ManagedRootAncestryProof { get; } =
+                    new SkinFolderPhysicalAncestryProof(new[]
+                    {
+                        new SkinManagedFolderPhysicalIdentity(91, 1, 1),
+                        root_identity,
+                    });
 
                 public Session(FakeRenameNativeAuthority owner)
                 {
@@ -706,6 +808,12 @@ namespace osu.Game.Tests.Skins
                     CancellationToken cancellationToken)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    if (owner.Status == SkinManagedFolderRenameInspectionStatus.TargetOnly
+                        && Interlocked.Exchange(ref owner.targetInspectionCallbackInvoked, 1) == 0)
+                    {
+                        owner.OnTargetInspection?.Invoke();
+                    }
 
                     if (!string.Equals(sourceManagedRelativePath, source_path, StringComparison.Ordinal)
                         || !string.Equals(targetManagedRelativePath, target_path, StringComparison.Ordinal)

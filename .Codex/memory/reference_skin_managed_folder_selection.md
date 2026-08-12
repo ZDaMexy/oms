@@ -20,7 +20,7 @@ metadata:
 
 ## mutation 与生命周期地雷
 
-- 调用方持有的`SkinInfo`即使ID相同也不是authority。delete/undelete、update import、external edit和base/interface mutation必须在真正Realm事务内按ID重新取得authoritative记录后判定；旧importer要在`Files.Clear()`前复核。directory-only rename与fixed-source staged import各有唯一internal production operation但没有非测试caller，staged import也没有external→provisional production stager；managed delete则只由现有settings确认框经独立fresh `CanDelete`和async record-ID caller消费。旧通用rename/import/delete及其它folder mutation继续冻结，不得把专用delete类推为任意path cleanup、external删除或通用Realm hard-delete。
+- 调用方持有的`SkinInfo`即使ID相同也不是authority。delete/undelete、update import、external edit和base/interface mutation必须在真正Realm事务内按ID重新取得authoritative记录后判定；旧importer要在`Files.Clear()`前复核。Folder Skin Workspace已为directory-only rename、manager-owned external→provisional ManagedCopy/fixed-source staged import及managed delete提供record-ID真实caller；旧通用rename/import/delete及其它folder mutation继续冻结，不得把专用delete类推为任意path cleanup、external源删除或通用Realm hard-delete。
 - rename成功只推进全局selection generation并取消当时的pending preparation，不替换或dispose当前active immutable capsule；旧generation不得发布，旧request还会被authoritative path复核与coordinator final boundary阻止发布，未来重新选择只能从Realm新managed path capture。shutdown必须cancel+join rename worker后才释放Realm。
 - staged import成功不自动选择新record、不替换或dispose active immutable capsule，也不复用rename的全局pending取消。无关pending selection在one-shot publication后按authoritative ID/path/owner复核仍成立时继续；selection首次final admission失败后从coordinator取得exact staged-import holder的completion object，即使import在失败后立刻完成，该对象也会可靠完成并触发fresh retry，不再通过外部`IsRunning`或全局completion epoch猜测。generic mutation争用仍拒绝。任何planned ID/path冲突必须在首个物理步骤前拒绝。Realm notification刷新候选列表不等于selection commit。
 - 受管目录delete在held mutation reservation与exact Prepared receipt下先确认与`OmsSkin.CreateInfo()`逐字段一致的`CurrentSkinInfo`/`CurrentSkin` pair，再允许physical detach；两半ID一致且都非目标时才允许`NotRequired`。split-brain、fallback无效或无法确认都在detach前拒绝并安全abort；只有durable disposition为`ProtectedPairCommitted`时，detach边界、Realm compare-remove与recovery才继续重验exact protected fallback Realm record，`NotRequired`明确不创建或要求该record。canonical接管后fallback policy才改为`oms-simple.osk`。
@@ -30,5 +30,5 @@ metadata:
 
 ## 不可误推的完成度
 
-- 本页的factory/selection链已闭合与directory-only rename、fixed-source staged import及settings managed delete的生产交互，但不证明rename/import UI、external registration/capture、整包reload或全consumer detach barrier已经完成，更不能单独证明G1、`SV1-2`、Skin V1或产品交付。本切未做GUI实机/视觉签收；实时状态、测试数字与下一门只看P1-A STATUS/PLAN。
+- C1已经闭合factory/selection、Workspace rename/ManagedCopy/delete及external registration/capture的生产交互；这只关闭作者工作区/G1 UX，不证明整包reload、全consumer detach barrier、`SV1-2`、Skin V1或产品交付。燃尽现为`1/7 closed，C2 active`；实时状态与当前门只看P1-A STATUS/PLAN。
 - 前置安全边界见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_package_revision_capsule]]；整包生命周期边界见[[reference_skin_atomic_reload_detach]]。

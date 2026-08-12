@@ -2,6 +2,27 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-08-13
+
+### C1作者文件工作区与archive安全闭门
+
+- Folder Skin Workspace、external strict read-only registration/capture/select/configured restart/Open/pure-Realm noncurrent Unregister、managed Open/Rename/Delete、manager-owned full ManagedCopy与dynamic redacted journal support已形成真实settings→manager→BMS/mania renderer链。external selection不在慢capture期持有coordinator，但持有managed authority/full registry snapshot/target package session到final；final callback fresh复核generation/generic epoch/current pair、target/full-set declaration与physical proof，再compare transaction并发布fresh Name/Creator/Hash。latest distinct request可越过被阻塞的旧capture，旧请求不发布；shutdown取消/join释放全部handles。
+- journal/recovery收紧为封闭`(version, kind, phase)`白名单，ManagedCopy的Copying/ProvisionalReady不能被legacy kind/version接受。terminal journal仅在exact Realm/held authority下compare-delete，删除后fresh inspection只确认Missing，消除Missing+freeze旁路。Rename/StagedImport/Delete/ManagedCopy的exact external declaration/proof持有至final Realm线性化，v1/v2 schema保持strict frozen。
+- ordinary `.osk` 使用bounded `SkinArchiveReader`：自解析EOCD/central directory、封闭InstantiationInfo、实际CRC/length/ratio/aggregate与cancellation完成后才允许model publication。`RealmArchiveModelImporter`/`SkinImporter`将transactional import scope的token贯穿hash/copy/metadata/Add/Replace/final commit。`RealmFileStore` 按exact same-hash participant group并发，多组rollback故障隔离且generation-safe可重试；Realm record与blob baseline独立判定ownership，覆盖双向非对称baseline而不删共享asset。
+- 最终独立终审另闭合两处真实生命周期/漂移窗口：Workspace records与journal support只读worker现由manager统一跟踪，shutdown封门后cancel并同步join，UI关闭只取消自身刷新；managed Open在初始与held-capture后的final Realm视图都重新证明normalized path唯一，旧row遇同路径重复声明不调用host。
+- 最终验证：Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt最终独立复审均为blocker/major/moderate **0/0/0**。C1因此闭合为`1/7 closed`，`C2 active`；G1/`SV1-2`/Skin V1/release与`V-001`～`V-004`仍未完成。
+
+## 2026-08-12
+
+### C1意外中断后的最小checkpoint收口
+
+- C1未提交工作树已形成真实Folder Skin Workspace：external行仅暴露Open Folder / Import Managed Copy / Unregister，exact scanner-owned managed行暴露Open Folder / Rename Folder / Delete，ordinary Realm `.osk`不进入列表；row/dialog只保留committed record ID与immutable label，manager在操作时fresh重读authority。current与noncurrent managed row delete、split/record/owner/path/hash/DeletePending/external-set漂移、取消/重入/shutdown及ordinary `.osk` soft-delete回归均已有真实settings/manager测试。
+- external注册使用resolver-issued Windows请求与held no-follow physical ancestry/session，在预算内原子产出immutable capsule、logical manifest与physical proof；service-owned Realm记录进入显式dropdown/configured restart，但random/next/previous排除。noncurrent Unregister为pure-Realm compare-remove，source missing/drift仍可清理记录，current/split与unresolved journal稳定拒绝，源目录identity/inventory/bytes保持不变。
+- v3 journal新增external registry generation/digest/disposition及ManagedCopy的Prepared/Copying/ProvisionalReady；pre-C1 v1/v2保持严格version dispatch和旧phase recovery。Rename/StagedImport/Delete/ManagedCopy均在held exact-set下准入并在final Realm线性化点复核，旧“任一external全局阻断”已原子收窄；legacy recovery无held authority时仍按旧empty-set fail-closed。support inspector只读，只有唯一安全forward/rollback才提供manager-owned retry，UI只显示稳定脱敏状态。
+- manager-owned ManagedCopy只接external record ID与用户明确direct-child，operation ID/staging由manager生成；首个provisional root/byte前已durable exact reload single canonical v3 intent。文件bytes只来自同次capsule，目录/空目录来自paired manifest，destination用no-follow/no-replace handles重建；首写前取消可exact rollback，首写后由journal/recovery收口，foreign replacement/partial evidence保留journal并冻结。完整产品旅程已贯通注册→copy（不自动选择）→BMS/mania渲染→restart→Open→Rename→restart render→external Unregister→managed Delete，external physical proof/inventory/bytes前后相同。
+- ordinary `.osk`改为skin-scoped ingress：在`ImportTask.GetReader`/archive open前做raw length与bounded spool，自解析EOCD/central-directory并冻结name/type/size metadata后才允许通用内容读取；actual stream持续计数、CRC/ratio/aggregate/cancellation复核，untrusted `InstantiationInfo`只走closed compatibility mapping。opt-in RealmFileStore exact receipt在fault/cancel时compare-remove本次新增零引用record/blob，不跑全局Cleanup且保留共享hash blob；成功仍保持hash-backed Realm与success-only source delete。
+- 因对话意外中断，用户要求停止原目标并最小收口。本次仅修正Journey2测试按唯一`chartskin/<target>`定位managed row，避免共享fixture已有同类记录导致`Single(kind)`假红。验证：`osu.Game` Debug build 0 error/9个已知MessagePack `NU1902`；core archive/journal/recovery/exact-set smoke **152/152**；BMS/Workspace/两条产品旅程相关smoke **34/34**。P1-A四件套、mainline、作者手册、中断交接及memory同步后，`CheckDocumentation.ps1`通过（135个Markdown、1064个相对链接、74个memory wiki链，仅PLAN数字比值复核提醒），`git diff --check`无内容错误。尚未跑core/mania/BMS相关full、Release、targeted formatter、独立产品/安全/并发终审，也尚未提交，因此燃尽保持 **`0/7 closed，C1 active`**，不得生成C2或宣告G1/SV1-2/Skin V1/release完成。完整续接入口见[2026-08-12中断交接](../../other/SKIN_SYSTEM_C1_INTERRUPTED_HANDOFF_20260812.md)。
+
 ## 2026-08-09
 
 ### 协作粒度纠偏与七个持久campaign燃尽

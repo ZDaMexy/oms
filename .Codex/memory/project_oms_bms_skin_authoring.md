@@ -53,10 +53,10 @@ metadata:
 - 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；还要保留 beatmap-local skin 与 ruleset resource skin 的既有 authority。
 - canonical `oms-simple` 自身失败是安装完整性故障，必须走明确修复路径；禁止偷偷落到另一套程序化颜色/节点。
 - 脚本 VM 必须可抢占并有 instruction/heap/node/resource quota；回调返回后再看 stopwatch 无法阻止 `while true`。
-- G1 future external adapter对absolute path只能把`NativeStorage`作为只读source，并先闭合自身resolved identity/capture；external“删除”永远只能解除注册。managed物理delete已由专用settings caller闭合，受管目录删除/重命名仍必须使用held-root no-follow identity、journal/recovery与共享线性化，scanner不得删除不属于自身authority的Realm记录。细节回到P1-A CONSTRAINTS，不在本页复制逐phase语义。
+- G1 external Workspace与ordinary `.osk` ingress安全门已随C1关闭；`NativeStorage`只作为只读capture adapter，service-owned record不是capability，selection/Open/ManagedCopy仍须fresh held identity。external“删除”在C1只实现coherent noncurrent的pure-Realm解除注册，不写改删源；current解除注册必须等C2的coherent revision切换和全consumer detach。managed删除/重命名继续使用held-root no-follow identity、v3 journal/recovery与exact-set线性化，scanner不得删除不属于自身authority的Realm记录。细节见[[reference_skin_external_workspace_managed_copy]]与P1-A CONSTRAINTS。
 - 异常期代码只可定点参考，禁止整批恢复。
 - lane keysound timeline 上界地雷见 [[reference_bms_lane_keysound_timeline_bounds]]。
 
-## 下一入口
+## 当前工程入口
 
-视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响下一实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。后续工程入口只看P1-A STATUS/PLAN，并按[[project_oms_skin_product_progress]]坚持完整caller→renderer→用户结果纵切；安全G1其余部分、layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback均不得因窄纵切或已注册folder选择提前计为完成。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响后续实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。燃尽为`1/7 closed，C2 active`；工程入口是统一ordinary Realm `.osk`、managed与external来源的current revision publication/detach/owner retirement并补current external unregister。layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback仍不得因C1关闭提前计为完成。

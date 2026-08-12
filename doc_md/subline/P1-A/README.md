@@ -1,8 +1,9 @@
 # P1-A 路由
 
-P1-A 负责 Skin V1、共享皮肤产品面与 release gate。当前 `SV1-0` 已闭门，已导入 `.osk` 的 BMS 普通短键与长条 head/body/tail 首个 Note/LN 产品纵切已闭合自动、合同、安全和回退 gate，`V-001`～`V-004` 集中待验收；这不等于 `SV1-1` 完成或产品交付。`SV1-2` 已闭合schema 57 exact-owner受管目录启动发现、native capture、exact-capsule factory/guarded selection、configured managed selection与startup scanner的异步协调、专用mutation authority/recovery foundation、directory-only rename、fixed-source staged import后端，以及由现有settings删除确认框消费的managed delete产品纵切。合法managed folder可在重启后发现、选择并经确认物理删除；rename/import仍没有非测试caller，thin/foundation-only staged-import stager/caller当前NO-GO。2026-08-09只读产品审计确认current managed atomic reload/detach同样NO-GO：仓库没有真实caller，也没有覆盖全部renderer的publication/detach barrier。按release-ready玩家能力当前约三成；`C1`将external只读注册/选择与full managed-copy stager、rename/delete/support UX、archive安全作为同一作者文件工作区campaign，禁止只补无caller后端；当前consumer revision协议归`C2`，最终整包reload门到`C6`关闭。后续执行共`C1`～`C7`持久交付campaign，当前`0/7 closed、C1待启动`；campaign未过完整退出门不推进编号。scene/script与canonical包仍未交付，Skin V1完整产品面尚未交付。
+P1-A 负责 Skin V1、共享皮肤产品面与 release gate。`C1` 已闭合Folder Skin Workspace、external只读注册/选择/configured restart/noncurrent Unregister、managed Open/Rename/Delete、single-v3 ManagedCopy/exact-set recovery与ordinary `.osk` bounded ingress/zero-residue receipt，当前为`1/7 closed，C2 active`。`C2`要从真实可达触发到BMS、mania/core与menu/shell等现有全部consumer，同切完成coherent revision publication、detach receipt与owner retire；不得用selection pair、`SourceChanged`或manager-only API冒充。已导入`.osk`的BMS普通短键与长条head/body/tail首个纵切自动门已过，但`V-001`～`V-004`仍为0/4；G1、`SV1-1`、`SV1-2`、Skin V1与release均未完成，程序化`OmsSkin`仍是迁移链底。
 
 - 开工先读 [当前状态](DEVELOPMENT_STATUS.md)。
 - 准备实施时再读 [当前计划](DEVELOPMENT_PLAN.md) 与任务相关的 [技术约束](TECHNICAL_CONSTRAINTS.md)。
 - 历史只按日期或 `SV1-*` 定点查 [CHANGELOG](CHANGELOG.md)。
 - 恢复和架构证据按需查 [恢复审计](../../other/SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+- C1闭门边界与C2执行prompt见 [2026-08-13完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。

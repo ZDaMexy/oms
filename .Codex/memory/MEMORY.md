@@ -16,14 +16,15 @@
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 副本只读取证、定点迁移、失效 `InstantiationInfo`/`TrianglesSkin` 与 Realm mtime 不可靠地雷。
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — schema 56-origin managed/external 声明分类、Windows 路径歧义、namespace overlap、TOCTOU/identity 与不可误作 mutation capability 的边界。
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — post-capture 内容身份、规范名/预算、defensive ownership、失败清理与不可误作 no-follow capture 的边界。
-- [managed skin Windows handle capture](reference_skin_windows_handle_capture.md) — resolver/staging held authority、physical NT volume、handle-relative no-follow、DELETE/share-delete、identity/inventory竞态与非filesystem transaction边界。
+- [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — managed/external resolver与staging held authority、physical NT volume、handle-relative no-follow、identity/inventory竞态、external proof生命周期及非filesystem transaction边界。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — schema 57 exact owner与staged publisher handoff、Observed/Valid分离、完整scan单事务reconcile、plan隔离及统一shutdown地雷。
-- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、typed startup/staged retry、generic mutation双epoch借权与旧owner detach地雷。
-- [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、无production stager/caller边界、NTFS handoff、kind-routed durable recovery、exact fallback与settings managed delete地雷。
-- [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 2026-08-09产品链NO-GO、caller缺口、BMS/mania/core mixed-revision consumer与旧owner退役重新开门条件。
-- [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — C1恶意归档preflight、zero/unknown-size流式预算、name歧义、失败零Realm/file-store残留与共享reader回归地雷。
+- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule allowlist/ownership、guarded选择、typed startup/staged retry、generic mutation双epoch借权、C1 Workspace caller与旧owner detach地雷。
+- [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、NTFS handoff、`(version,kind,phase)`闭集、terminal compare-delete与Workspace managed动作地雷。
+- [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — service owner不等于capability、held-to-final physical proof、no-lease capture/latest-wins、fresh metadata、pure-Realm unregister与single-v3 copy/recovery地雷。
+- [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — C1前置已满足后的C2入口、2026-08-09 NO-GO遗留缺口、BMS/mania/core mixed-revision consumer与旧owner退役条件。
+- [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — skin-scoped pre-open/CEN gate、流式取消预算、same-hash participant、record/blob asymmetric baseline与rollback锁序地雷。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、不可误推边界、真实 beatmap-local 缺口与实现地雷；实时能力只看 P1-A。
-- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→renderer→用户结果核算价值、约三成release-ready差距、`C1`～`C7`持久新对话燃尽、无caller后端止损及作者工作区准入。
+- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→renderer→用户结果核算价值、`1/7 closed，C2 active`、七个持久campaign燃尽及无caller后端止损。
 
 ## 构建、存储与产品面参考
 

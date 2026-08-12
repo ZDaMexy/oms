@@ -254,7 +254,7 @@ namespace osu.Game.Database
             cancellationToken.ThrowIfCancellationRequested();
 
             Live<TModel>? import;
-            using (ArchiveReader reader = task.GetReader())
+            using (ArchiveReader reader = await OpenArchiveReaderAsync(task, cancellationToken).ConfigureAwait(false))
                 import = await importFromArchive(reader, parameters, cancellationToken).ConfigureAwait(false);
 
             // We may or may not want to delete the file depending on where it is stored.
@@ -273,6 +273,13 @@ namespace osu.Game.Database
 
             return import;
         }
+
+        /// <summary>
+        /// Opens the archive reader used by this importer. Specialised importers may perform format-specific ingress
+        /// validation here, before an archive reader can expose metadata or a model can be constructed.
+        /// </summary>
+        protected virtual ValueTask<ArchiveReader> OpenArchiveReaderAsync(ImportTask task, CancellationToken cancellationToken)
+            => ValueTask.FromResult(task.GetReader());
 
         /// <summary>
         /// Create and import a model based off the provided <see cref="ArchiveReader"/>.
@@ -321,14 +328,25 @@ namespace osu.Game.Database
         /// <param name="archive">An optional archive to use for model population.</param>
         /// <param name="parameters">Parameters to further configure the import process.</param>
         /// <param name="cancellationToken">An optional cancellation token.</param>
-        public virtual Live<TModel>? ImportModel(TModel item, ArchiveReader? archive = null, ImportParameters parameters = default, CancellationToken cancellationToken = default) => Realm.Run(realm =>
+        public virtual Live<TModel>? ImportModel(TModel item, ArchiveReader? archive = null, ImportParameters parameters = default, CancellationToken cancellationToken = default)
+        {
+            using RealmFileStore.ImportScope? importScope = UseTransactionalFileImportScope
+                ? Files.BeginImportScope(cancellationToken)
+                : null;
+
+            Live<TModel>? result = importModel(item, archive, parameters, cancellationToken);
+            importScope?.Complete();
+            return result;
+        }
+
+        private Live<TModel>? importModel(TModel item, ArchiveReader? archive, ImportParameters parameters, CancellationToken cancellationToken) => Realm.Run(realm =>
         {
             TModel? existing;
 
-            if (parameters.Batch && archive != null)
+            if (parameters.Batch && archive != null && UseFastImportPrecheck)
             {
                 // this is a fast bail condition to improve large import performance.
-                item.Hash = computeHashFast(archive);
+                item.Hash = computeHashFast(archive, cancellationToken);
 
                 existing = CheckForExisting(item, realm);
 
@@ -370,6 +388,8 @@ namespace osu.Game.Database
                     // We intentionally delay adding to realm to avoid blocking on a write during disk operations.
                     foreach (var filenames in getShortenedFilenames(archive))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         if (FilesystemSanityCheckHelpers.IncursPathTraversalRisk(filenames.shortened))
                             throw new InvalidOperationException($@"Filename ""{filenames.original}"" is not allowed.");
 
@@ -377,6 +397,8 @@ namespace osu.Game.Database
                             files.Add(new RealmNamedFileUsage(Files.Add(s, realm, false, parameters.PreferHardLinks), filenames.shortened));
                     }
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 using (var transaction = realm.BeginWrite())
                 {
@@ -392,13 +414,21 @@ namespace osu.Game.Database
                 }
 
                 item.Files.AddRange(files);
-                item.Hash = ComputeHash(item);
+                item.Hash = computeHash(item, cancellationToken);
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // TODO: do we want to make the transaction this local? not 100% sure, will need further investigation.
                 using (var transaction = realm.BeginWrite())
                 {
+                    ImportAfterFileRecordsCommittedTestHook?.Invoke(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     // TODO: we may want to run this outside of the transaction.
                     Populate(item, archive, realm, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ImportAfterPopulateTestHook?.Invoke(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
 
                     // Populate() may have adjusted file content (see SkinImporter.updateSkinIniMetadata), so regardless of whether a fast check was done earlier, let's
                     // check for existing items a second time.
@@ -431,6 +461,10 @@ namespace osu.Game.Database
 
                     PostImport(item, realm, parameters);
 
+                    // Cancellation must remain authoritative until the final Realm publication boundary. In particular,
+                    // Populate() may rewrite metadata-backed files after the previous cancellation checkpoint.
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     transaction.Commit();
                 }
 
@@ -453,9 +487,32 @@ namespace osu.Game.Database
         /// Large files should be avoided if possible.
         /// </summary>
         /// <remarks>
-        /// This is only used by the default hash implementation. If <see cref="ComputeHash"/> is overridden, it will not be used.
+        /// This is only used by the default hash implementation. If <see cref="ComputeHash(TModel)"/> is overridden, it will not be used.
         /// </remarks>
         protected abstract string[] HashableFileTypes { get; }
+
+        /// <summary>
+        /// Whether batch imports may read archive entries before the normal file import pass to perform an optimised hash precheck.
+        /// </summary>
+        protected virtual bool UseFastImportPrecheck => true;
+
+        /// <summary>
+        /// Whether file-store writes made while importing one model should be tracked by an exact receipt and rolled back
+        /// if the import faults or is cancelled. Disabled by default to preserve other importers' established behaviour.
+        /// </summary>
+        protected virtual bool UseTransactionalFileImportScope => false;
+
+        /// <summary>
+        /// Optional deterministic test hook invoked after imported file records have been committed but before model
+        /// population and final publication. Production importers leave this unset.
+        /// </summary>
+        internal Action<CancellationToken>? ImportAfterFileRecordsCommittedTestHook { get; set; }
+
+        /// <summary>
+        /// Optional deterministic test hook invoked after model population and any metadata-backed file rewrites, but
+        /// before duplicate resolution and final Realm publication. Production importers leave this unset.
+        /// </summary>
+        internal Action<CancellationToken>? ImportAfterPopulateTestHook { get; set; }
 
         internal static void LogForModel(TModel? model, string message, Exception? e = null)
         {
@@ -479,7 +536,12 @@ namespace osu.Game.Database
         /// <remarks>
         ///  In the case of no matching files, a hash will be generated from the passed archive's <see cref="ArchiveReader.Name"/>.
         /// </remarks>
-        public string ComputeHash(TModel item)
+        public string ComputeHash(TModel item) => computeHash(item, CancellationToken.None);
+
+        protected string ComputeHash(TModel item, CancellationToken cancellationToken)
+            => computeHash(item, cancellationToken);
+
+        private string computeHash(TModel item, CancellationToken cancellationToken)
         {
             // for now, concatenate all hashable files in the set to create a unique hash.
             MemoryStream hashable = new MemoryStream();
@@ -488,30 +550,53 @@ namespace osu.Game.Database
             {
                 using (Stream? s = Files.Store.GetStream(file.File.GetStoragePath()))
                 {
-                    s?.CopyTo(hashable);
+                    if (s != null)
+                        copyWithCancellation(s, hashable, cancellationToken);
                 }
             }
 
             if (hashable.Length > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 return hashable.ComputeSHA2Hash();
+            }
 
             return item.Hash;
         }
 
-        private string computeHashFast(ArchiveReader reader)
+        private string computeHashFast(ArchiveReader reader, CancellationToken cancellationToken)
         {
             MemoryStream hashable = new MemoryStream();
 
             foreach (string? file in reader.Filenames.Where(f => HashableFileTypes.Any(ext => f.EndsWith(ext, StringComparison.OrdinalIgnoreCase))).Order())
             {
                 using (Stream s = reader.GetStream(file))
-                    s.CopyTo(hashable);
+                    copyWithCancellation(s, hashable, cancellationToken);
             }
 
             if (hashable.Length > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 return hashable.ComputeSHA2Hash();
+            }
 
+            cancellationToken.ThrowIfCancellationRequested();
             return reader.Name.ComputeSHA2Hash();
+        }
+
+        private static void copyWithCancellation(Stream source, Stream destination, CancellationToken cancellationToken)
+        {
+            byte[] buffer = new byte[81920];
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int read = source.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                    return;
+
+                destination.Write(buffer, 0, read);
+            }
         }
 
         private IEnumerable<(string original, string shortened)> getShortenedFilenames(ArchiveReader reader)
@@ -573,7 +658,7 @@ namespace osu.Game.Database
 
         /// <summary>
         /// Whether import can be skipped after finding an existing import early in the process.
-        /// Only valid when <see cref="ComputeHash"/> is not overridden.
+        /// Only valid when <see cref="ComputeHash(TModel)"/> is not overridden.
         /// </summary>
         /// <param name="existing">The existing model.</param>
         /// <param name="import">The newly imported model.</param>

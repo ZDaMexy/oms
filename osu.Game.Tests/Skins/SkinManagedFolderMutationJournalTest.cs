@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -362,7 +363,551 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
-        public void TestVersionTwoStagedPublicationFingerprintRoundTripsAndRemainsMonotonic()
+        public void TestManagedCopyPreparedIntentRoundTripsAndFreezesExactEvidence()
+        {
+            Guid operationId = Guid.NewGuid();
+            Guid externalRecordId = Guid.NewGuid();
+            SkinManagedCopyLogicalManifest manifest = createManagedCopyManifest(
+                SkinPackageCapturedEntry.CreateDirectory("empty"),
+                SkinPackageCapturedEntry.CreateFile("skin.ini", new byte[] { 1, 2, 3 }));
+            var externalRegistry = new SkinExternalRegistryJournalBinding(
+                7,
+                replacement_publication_fingerprint,
+                SkinExternalCollisionDisposition.ExactRegisteredExternalSet);
+
+            SkinManagedFolderMutationJournal prepared =
+                SkinManagedFolderMutationJournal.CreatePreparedManagedCopy(
+                    operationId,
+                    externalRecordId,
+                    root_identity,
+                    target_path,
+                    staged_root_identity,
+                    staged_content_revision,
+                    publication_fingerprint,
+                    replacement_publication_fingerprint,
+                    manifest,
+                    externalRegistry);
+
+            assertRoundTrip(prepared);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(prepared.Kind, Is.EqualTo(SkinManagedFolderMutationKind.ManagedCopy));
+                Assert.That(prepared.Phase, Is.EqualTo(SkinManagedFolderMutationPhase.Prepared));
+                Assert.That(prepared.RecordId, Is.EqualTo(externalRecordId));
+                Assert.That(prepared.SourceManagedRelativePath, Is.Null);
+                Assert.That(prepared.TargetManagedRelativePath, Is.EqualTo(target_path));
+                Assert.That(prepared.StagedSourceAuthority, Is.EqualTo(SkinManagedFolderMutationJournal.STAGED_SOURCE_AUTHORITY));
+                Assert.That(
+                    prepared.StagedSourceRelativePath,
+                    Is.EqualTo(SkinManagedFolderMutationJournal.GetExpectedStagedSourceRelativePath(operationId)));
+                Assert.That(prepared.StagedSourceIdentity, Is.Null);
+                Assert.That(prepared.StagedRootIdentity, Is.EqualTo(staged_root_identity));
+                Assert.That(prepared.StagedSourceContentRevision, Is.EqualTo(staged_content_revision));
+                Assert.That(prepared.ManagedCopyExternalRecordFingerprint, Is.EqualTo(publication_fingerprint));
+                Assert.That(prepared.ManagedCopyExternalCaptureFingerprint, Is.EqualTo(replacement_publication_fingerprint));
+                Assert.That(prepared.ManagedCopyLogicalManifest, Is.EqualTo(manifest.Encoded));
+                Assert.That(prepared.ManagedCopyLogicalManifestDigest, Is.EqualTo(manifest.Digest));
+                Assert.That(prepared.ExternalRegistryGeneration, Is.EqualTo(7));
+                Assert.That(prepared.ExternalRegistryDigest, Is.EqualTo(replacement_publication_fingerprint));
+                Assert.That(
+                    prepared.ExternalCollisionDisposition,
+                    Is.EqualTo(SkinExternalCollisionDisposition.ExactRegisteredExternalSet));
+                Assert.That(prepared.GetAffectedManagedRelativePaths(), Is.EqualTo(new[] { target_path }));
+            });
+        }
+
+        [Test]
+        public void TestManagedCopyPhaseGraphIsStrictMonotonicAndTerminal()
+        {
+            SkinManagedFolderMutationJournal prepared = createPreparedManagedCopy();
+            SkinManagedFolderMutationJournal copying = prepared.WithCopying(staged_identity);
+            SkinManagedFolderMutationJournal provisionalReady = copying.WithProvisionalReady(
+                staged_identity,
+                staged_tree_fingerprint,
+                publication_fingerprint);
+            SkinManagedFolderMutationJournal filesystem = provisionalReady.WithFilesystemApplied(
+                staged_identity,
+                publication_fingerprint);
+            SkinManagedFolderMutationJournal realm = filesystem.WithRealmApplied();
+            SkinManagedFolderMutationJournal committed = realm.WithCommitted();
+
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+
+            foreach (SkinManagedFolderMutationJournal journal in new[]
+                     {
+                         prepared,
+                         copying,
+                         provisionalReady,
+                         filesystem,
+                         realm,
+                         committed,
+                     })
+            {
+                store.Write(journal);
+                assertLoadedEquivalent(store, journal);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    new[]
+                    {
+                        prepared.Phase,
+                        copying.Phase,
+                        provisionalReady.Phase,
+                        filesystem.Phase,
+                        realm.Phase,
+                        committed.Phase,
+                    },
+                    Is.EqualTo(new[]
+                    {
+                        SkinManagedFolderMutationPhase.Prepared,
+                        SkinManagedFolderMutationPhase.Copying,
+                        SkinManagedFolderMutationPhase.ProvisionalReady,
+                        SkinManagedFolderMutationPhase.FilesystemApplied,
+                        SkinManagedFolderMutationPhase.RealmApplied,
+                        SkinManagedFolderMutationPhase.Committed,
+                    }));
+                Assert.That(prepared.IsSameMonotonicIntent(copying), Is.True);
+                Assert.That(copying.IsSameMonotonicIntent(prepared), Is.False);
+                Assert.That(copying.IsSameMonotonicIntent(provisionalReady), Is.True);
+                Assert.That(provisionalReady.IsSameMonotonicIntent(filesystem), Is.True);
+                Assert.That(filesystem.IsSameMonotonicIntent(realm), Is.True);
+                Assert.That(realm.IsSameMonotonicIntent(committed), Is.True);
+                Assert.That(() => prepared.WithProvisionalReady(
+                    staged_identity,
+                    staged_tree_fingerprint,
+                    publication_fingerprint), Throws.InvalidOperationException);
+                Assert.That(() => prepared.WithFilesystemApplied(
+                    staged_identity,
+                    publication_fingerprint), Throws.InvalidOperationException);
+                Assert.That(() => copying.WithCopying(staged_identity), Throws.InvalidOperationException);
+                Assert.That(() => copying.WithRealmApplied(), Throws.InvalidOperationException);
+                Assert.That(() => provisionalReady.WithCopying(staged_identity), Throws.InvalidOperationException);
+                Assert.That(() => committed.WithRolledBack(), Throws.InvalidOperationException);
+            });
+        }
+
+        [Test]
+        public void TestManagedCopyManifestTamperIsRejectedEvenWithMatchingOuterChecksum()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal journal = createPreparedManagedCopy();
+
+            Action<JObject>[] tampers =
+            {
+                payload => payload.Remove(nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifest)),
+                payload => payload.Remove(nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifestDigest)),
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifest)] = "not-base64",
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifestDigest)] =
+                    replacement_publication_fingerprint,
+                payload =>
+                {
+                    string encoded = payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifest)]!.Value<string>()!;
+                    byte[] bytes = Convert.FromBase64String(encoded);
+                    bytes[^1] ^= 1;
+                    payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifest)] = Convert.ToBase64String(bytes);
+                },
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyExternalRecordFingerprint)] =
+                    publication_fingerprint.ToUpperInvariant(),
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyExternalCaptureFingerprint)] = "invalid",
+                payload => payload[nameof(SkinManagedFolderMutationJournal.Phase)] =
+                    (int)SkinManagedFolderMutationPhase.ProvisionalReady,
+            };
+
+            foreach (Action<JObject> tamper in tampers)
+                assertSemanticTamperRejected(storage, store, journal, tamper);
+        }
+
+        [Test]
+        public void TestManagedCopyMalformedDurableTreeAndBudgetsAreRejectedWithMatchingChecksums()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal journal = createPreparedManagedCopy();
+            (string Name, SkinExternalPackageLogicalEntryKind Kind, long Length)[][] malformedManifests =
+            {
+                new[]
+                {
+                    ("parent", SkinExternalPackageLogicalEntryKind.File, 0L),
+                    ("parent/child.ini", SkinExternalPackageLogicalEntryKind.File, 0L),
+                },
+                new[]
+                {
+                    ("missing/child.ini", SkinExternalPackageLogicalEntryKind.File, 0L),
+                },
+                new[]
+                {
+                    ("huge.bin", SkinExternalPackageLogicalEntryKind.File,
+                        SkinPackageRevisionCapsuleLimits.Default.MaxFileBytes + 1),
+                },
+                Enumerable.Range(0, 9)
+                          .Select(index => (
+                              $"aggregate-{index:D2}.bin",
+                              SkinExternalPackageLogicalEntryKind.File,
+                              SkinPackageRevisionCapsuleLimits.Default.MaxFileBytes))
+                          .ToArray(),
+            };
+
+            foreach ((string Name, SkinExternalPackageLogicalEntryKind Kind, long Length)[] entries in malformedManifests)
+            {
+                (string encoded, string digest) = encodeManagedCopyManifest(entries);
+                assertSemanticTamperRejected(
+                    storage,
+                    store,
+                    journal,
+                    payload =>
+                    {
+                        payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifest)] = encoded;
+                        payload[nameof(SkinManagedFolderMutationJournal.ManagedCopyLogicalManifestDigest)] = digest;
+                    });
+            }
+        }
+
+        [Test]
+        public void TestMaximumManagedCopyManifestRoundTripsBelowOneMiBJournalBoundary()
+        {
+            SkinManagedCopyLogicalManifest maximum = createBoundaryManagedCopyManifest(63);
+            SkinManagedFolderMutationJournal journal = createPreparedManagedCopy(maximum);
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+
+            store.Write(journal);
+            SkinManagedFolderMutationJournalLoadResult loaded = store.Load();
+            long journalBytes = new FileInfo(getJournalPath(storage)).Length;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Loaded));
+                Assert.That(loaded.Journal!.ManagedCopyLogicalManifest, Is.EqualTo(maximum.Encoded));
+                Assert.That(loaded.Journal.ManagedCopyLogicalManifestDigest, Is.EqualTo(maximum.Digest));
+                Assert.That(journalBytes, Is.GreaterThan(900 * 1024));
+                Assert.That(journalBytes, Is.LessThanOrEqualTo(1024 * 1024));
+                Assert.That(() => createBoundaryManagedCopyManifest(64), Throws.InvalidOperationException);
+            });
+        }
+
+        [Test]
+        public void TestJournalVersionAndPersistedEnumValuesAreFrozen()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(SkinManagedFolderMutationJournal.LEGACY_VERSION, Is.EqualTo(1));
+                Assert.That(SkinManagedFolderMutationJournal.PRE_C1_VERSION, Is.EqualTo(2));
+                Assert.That(SkinManagedFolderMutationJournal.CURRENT_VERSION, Is.EqualTo(3));
+                Assert.That(
+                    Enum.GetValues<SkinManagedFolderMutationKind>().Select(value => (int)value),
+                    Is.EqualTo(new[] { 1, 2, 3, 4 }),
+                    "Rename/StagedImport/Delete/ManagedCopy numeric values are durable schema.");
+                Assert.That(
+                    Enum.GetValues<SkinManagedFolderMutationPhase>().Select(value => (int)value),
+                    Is.EqualTo(new[] { 1, 2, 3, 4, 5, 6, 7 }),
+                    "Prepared through ProvisionalReady numeric values are durable schema.");
+                Assert.That(
+                    Enum.GetValues<SkinManagedFolderDeleteFallbackDisposition>().Select(value => (int)value),
+                    Is.EqualTo(new[] { 1, 2 }));
+                Assert.That(
+                    Enum.GetValues<SkinExternalCollisionDisposition>().Select(value => (int)value),
+                    Is.EqualTo(new[] { 1, 2 }));
+            });
+        }
+
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, (int)SkinManagedFolderMutationKind.Rename, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, (int)SkinManagedFolderMutationKind.Rename, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, (int)SkinManagedFolderMutationKind.StagedImport, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, (int)SkinManagedFolderMutationKind.StagedImport, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, (int)SkinManagedFolderMutationKind.Delete, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, (int)SkinManagedFolderMutationKind.Delete, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, (int)SkinManagedFolderMutationKind.Rename, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, (int)SkinManagedFolderMutationKind.Rename, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, (int)SkinManagedFolderMutationKind.StagedImport, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, (int)SkinManagedFolderMutationKind.StagedImport, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, (int)SkinManagedFolderMutationKind.Delete, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, (int)SkinManagedFolderMutationKind.Delete, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.CURRENT_VERSION, (int)SkinManagedFolderMutationKind.Rename, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.CURRENT_VERSION, (int)SkinManagedFolderMutationKind.Rename, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.CURRENT_VERSION, (int)SkinManagedFolderMutationKind.StagedImport, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.CURRENT_VERSION, (int)SkinManagedFolderMutationKind.StagedImport, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        [TestCase(SkinManagedFolderMutationJournal.CURRENT_VERSION, (int)SkinManagedFolderMutationKind.Delete, (int)SkinManagedFolderMutationPhase.Copying)]
+        [TestCase(SkinManagedFolderMutationJournal.CURRENT_VERSION, (int)SkinManagedFolderMutationKind.Delete, (int)SkinManagedFolderMutationPhase.ProvisionalReady)]
+        public void TestManagedCopyOnlyPhasesAreRejectedForEveryLegacyKindWithoutHandlerDispatch(
+            int version,
+            int kindValue,
+            int phaseValue)
+        {
+            var kind = (SkinManagedFolderMutationKind)kindValue;
+            using var storage = createStorage();
+            var durableStore = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal journal = createCurrentPreparedJournal(kind);
+
+            if (version == SkinManagedFolderMutationJournal.CURRENT_VERSION)
+                durableStore.Write(journal);
+            else
+                writeVersionFixture(storage, journal, version);
+
+            JObject document = readDocument(storage);
+            var payload = (JObject)document["payload"]!;
+            payload[nameof(SkinManagedFolderMutationJournal.Phase)] = phaseValue;
+            document["sha256"] = computeChecksum(payload.ToString(Formatting.None));
+            writeDocument(storage, document);
+
+            SkinManagedFolderMutationJournalLoadResult loaded = durableStore.Load();
+            var memoryStore = new MemoryMutationJournalStore(loaded);
+            var handler = new RecordingRecoveryHandler(SkinManagedFolderMutationRecoveryDecision.RollForward);
+            SkinManagedFolderMutationRecoveryResult recovery = new SkinManagedFolderMutationRecovery(
+                memoryStore,
+                new SkinManagedFolderOperationCoordinator(),
+                handler).Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Invalid));
+                Assert.That(recovery.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.InvalidJournal));
+                Assert.That(handler.InspectCalls, Is.Zero);
+                Assert.That(handler.ForwardCalls, Is.Zero);
+                Assert.That(handler.RollbackCalls, Is.Zero);
+            });
+        }
+
+        [TestCase((int)SkinManagedFolderMutationKind.Rename)]
+        [TestCase((int)SkinManagedFolderMutationKind.StagedImport)]
+        [TestCase((int)SkinManagedFolderMutationKind.Delete)]
+        public void TestPreC1VersionTwoPreparedSchemaLoadsAndExistingJournalRoundTrips(int kindValue)
+        {
+            var kind = (SkinManagedFolderMutationKind)kindValue;
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal current = createCurrentPreparedJournal(kind);
+            writeVersionFixture(
+                storage,
+                current,
+                SkinManagedFolderMutationJournal.PRE_C1_VERSION);
+
+            SkinManagedFolderMutationJournalLoadResult loaded = store.Load();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Loaded));
+                Assert.That(loaded.Journal, Is.Not.Null);
+                Assert.That(loaded.Journal!.Version, Is.EqualTo(SkinManagedFolderMutationJournal.PRE_C1_VERSION));
+                Assert.That(loaded.Journal.Kind, Is.EqualTo(kind));
+                Assert.That(loaded.Journal.Phase, Is.EqualTo(SkinManagedFolderMutationPhase.Prepared));
+                Assert.That(loaded.Journal.ExternalRegistryGeneration, Is.Null);
+                Assert.That(loaded.Journal.ExternalRegistryDigest, Is.Null);
+                Assert.That(loaded.Journal.ExternalCollisionDisposition, Is.Null);
+                Assert.That(loaded.Journal.IsValid(), Is.True);
+            });
+
+            // Rewriting an already-durable v2 intent remains supported for recovery. This is deliberately not a
+            // new-v2 creation path: the canonical v2 fixture is present before Write() is called.
+            store.Write(loaded.Journal!);
+            assertLoadedEquivalent(store, loaded.Journal!);
+            assertPayloadOmitsC1Fields(readDocument(storage));
+
+            // Once absent, the exact same v2 prepared value cannot be used to create a new intent.
+            File.Delete(getJournalPath(storage));
+            Assert.That(() => store.Write(loaded.Journal!), Throws.InvalidOperationException);
+        }
+
+        [TestCase(
+            (int)SkinManagedFolderMutationKind.Rename,
+            (int)SkinManagedFolderMutationPhase.Prepared,
+            (int)SkinManagedFolderMutationRecoveryDecision.RollBack,
+            (int)SkinManagedFolderMutationRecoveryStatus.RecoveredRollback,
+            (int)SkinManagedFolderMutationPhase.RolledBack)]
+        [TestCase(
+            (int)SkinManagedFolderMutationKind.StagedImport,
+            (int)SkinManagedFolderMutationPhase.FilesystemApplied,
+            (int)SkinManagedFolderMutationRecoveryDecision.RollBack,
+            (int)SkinManagedFolderMutationRecoveryStatus.RecoveredRollback,
+            (int)SkinManagedFolderMutationPhase.RolledBack)]
+        [TestCase(
+            (int)SkinManagedFolderMutationKind.Delete,
+            (int)SkinManagedFolderMutationPhase.RealmApplied,
+            (int)SkinManagedFolderMutationRecoveryDecision.RollForward,
+            (int)SkinManagedFolderMutationRecoveryStatus.RecoveredForward,
+            (int)SkinManagedFolderMutationPhase.Committed)]
+        public void TestPreC1VersionTwoPhaseRecoveryRemainsCompatible(
+            int kindValue,
+            int phaseValue,
+            int decisionValue,
+            int expectedStatusValue,
+            int expectedTerminalPhaseValue)
+        {
+            var kind = (SkinManagedFolderMutationKind)kindValue;
+            var phase = (SkinManagedFolderMutationPhase)phaseValue;
+            var decision = (SkinManagedFolderMutationRecoveryDecision)decisionValue;
+            var expectedStatus = (SkinManagedFolderMutationRecoveryStatus)expectedStatusValue;
+            var expectedTerminalPhase = (SkinManagedFolderMutationPhase)expectedTerminalPhaseValue;
+            using var storage = createStorage();
+            var durableStore = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal current = createCurrentRecoveryJournal(kind);
+
+            Assert.That(current.Phase, Is.EqualTo(phase));
+            writeVersionFixture(
+                storage,
+                current,
+                SkinManagedFolderMutationJournal.PRE_C1_VERSION);
+            SkinManagedFolderMutationJournalLoadResult loaded = durableStore.Load();
+            Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Loaded));
+
+            var memoryStore = new MemoryMutationJournalStore(loaded.Journal!);
+            var handler = new RecordingRecoveryHandler(decision);
+            var recovery = new SkinManagedFolderMutationRecovery(
+                memoryStore,
+                new SkinManagedFolderOperationCoordinator(),
+                handler);
+
+            SkinManagedFolderMutationRecoveryResult result = recovery.Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(expectedStatus));
+                Assert.That(result.IsResolved, Is.True);
+                Assert.That(memoryStore.Writes, Is.Not.Empty);
+                Assert.That(memoryStore.Writes.Last().Version, Is.EqualTo(SkinManagedFolderMutationJournal.PRE_C1_VERSION));
+                Assert.That(memoryStore.Writes.Last().Phase, Is.EqualTo(expectedTerminalPhase));
+                Assert.That(memoryStore.Writes.All(write => write.IsValid()), Is.True);
+                Assert.That(memoryStore.Writes.All(write => write.ExternalRegistryGeneration == null), Is.True);
+                Assert.That(memoryStore.Writes.All(write => write.ExternalRegistryDigest == null), Is.True);
+                Assert.That(memoryStore.Writes.All(write => write.ExternalCollisionDisposition == null), Is.True);
+                Assert.That(memoryStore.DeleteCalls, Is.EqualTo(1));
+                Assert.That(memoryStore.Current.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+            });
+        }
+
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration))]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest))]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition))]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration))]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest))]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition))]
+        public void TestFrozenLegacySchemasRejectOptionalC1Fields(int version, string propertyName)
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            writeVersionFixture(
+                storage,
+                SkinManagedFolderMutationJournal.CreatePreparedRename(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    root_identity,
+                    source_path,
+                    source_identity,
+                    target_path),
+                version);
+            JObject document = readDocument(storage);
+            var payload = (JObject)document["payload"]!;
+            payload[propertyName] = propertyName switch
+            {
+                nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration) => 0,
+                nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest) => SkinExternalFolderRegistry.EmptyRegistryDigest,
+                _ => (int)SkinExternalCollisionDisposition.NoRegisteredExternalFolders,
+            };
+            document["sha256"] = computeChecksum(payload.ToString(Formatting.None));
+            writeDocument(storage, document);
+
+            Assert.That(store.Load().Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Invalid));
+        }
+
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION)]
+        public void TestFrozenLegacyVersionCannotStartNewIntent(int version)
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            writeVersionFixture(
+                storage,
+                SkinManagedFolderMutationJournal.CreatePreparedRename(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    root_identity,
+                    source_path,
+                    source_identity,
+                    target_path),
+                version);
+            SkinManagedFolderMutationJournalLoadResult loaded = store.Load();
+            Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Loaded));
+
+            File.Delete(getJournalPath(storage));
+
+            Assert.That(() => store.Write(loaded.Journal!), Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void TestVersionThreeExternalRegistryBindingMissingUnknownOrMismatchedIsRejected()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal journal = SkinManagedFolderMutationJournal.CreatePreparedRename(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                root_identity,
+                source_path,
+                source_identity,
+                target_path);
+            Action<JObject>[] tampers =
+            {
+                payload => payload.Remove(nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration)),
+                payload => payload.Remove(nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest)),
+                payload => payload.Remove(nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition)),
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration)] = -1,
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest)] = "not-a-digest",
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition)] = 999,
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration)] = 1,
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition)] =
+                    (int)SkinExternalCollisionDisposition.ExactRegisteredExternalSet,
+                payload => payload[nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest)] =
+                    replacement_publication_fingerprint,
+            };
+
+            foreach (Action<JObject> tamper in tampers)
+                assertSemanticTamperRejected(storage, store, journal, tamper);
+        }
+
+        [Test]
+        public void TestVersionThreeMonotonicRewriteRejectsChangedExternalRegistryBinding()
+        {
+            using var storage = createStorage();
+            var store = new SkinManagedFolderMutationJournalStore(storage);
+            Guid operationId = Guid.NewGuid();
+            Guid recordId = Guid.NewGuid();
+            SkinManagedFolderMutationJournal emptyBinding = SkinManagedFolderMutationJournal.CreatePreparedRename(
+                operationId,
+                recordId,
+                root_identity,
+                source_path,
+                source_identity,
+                target_path);
+            var exactBinding = new SkinExternalRegistryJournalBinding(
+                1,
+                replacement_publication_fingerprint,
+                SkinExternalCollisionDisposition.ExactRegisteredExternalSet);
+            SkinManagedFolderMutationJournal changedBinding = SkinManagedFolderMutationJournal.CreatePreparedRename(
+                operationId,
+                recordId,
+                root_identity,
+                source_path,
+                source_identity,
+                target_path,
+                exactBinding);
+
+            store.Write(emptyBinding);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyBinding.IsSameMonotonicIntent(changedBinding), Is.False);
+                Assert.That(changedBinding.IsSameMonotonicIntent(emptyBinding), Is.False);
+                Assert.That(() => store.Write(changedBinding), Throws.InvalidOperationException);
+            });
+            assertLoadedEquivalent(store, emptyBinding);
+        }
+
+        [Test]
+        public void TestVersionThreeStagedPublicationFingerprintRoundTripsAndRemainsMonotonic()
         {
             using var storage = createStorage();
             var store = new SkinManagedFolderMutationJournalStore(storage);
@@ -413,7 +958,7 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
-        public void TestVersionTwoStagedPublicationFingerprintTamperIsRejected()
+        public void TestVersionThreeStagedPublicationFingerprintTamperIsRejected()
         {
             using var storage = createStorage();
             var store = new SkinManagedFolderMutationJournalStore(storage);
@@ -470,7 +1015,7 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
-        public void TestVersionTwoStagedFixedRecordIdTamperIsRejected()
+        public void TestVersionThreeStagedFixedRecordIdTamperIsRejected()
         {
             using var storage = createStorage();
             var store = new SkinManagedFolderMutationJournalStore(storage);
@@ -506,16 +1051,10 @@ namespace osu.Game.Tests.Skins
             store.Write(prepared);
             store.Write(filesystem);
 
-            JObject document = readDocument(storage);
-            var payload = (JObject)document["payload"]!;
-            document["version"] = SkinManagedFolderMutationJournal.LEGACY_VERSION;
-            payload[nameof(SkinManagedFolderMutationJournal.Version)] =
-                SkinManagedFolderMutationJournal.LEGACY_VERSION;
-            payload.Remove(nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint));
-            payload.Remove(nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision));
-            payload.Remove(nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint));
-            document["sha256"] = computeChecksum(payload.ToString(Formatting.None));
-            writeDocument(storage, document);
+            writeVersionFixture(
+                storage,
+                filesystem,
+                SkinManagedFolderMutationJournal.LEGACY_VERSION);
 
             SkinManagedFolderMutationJournalLoadResult loaded = store.Load();
 
@@ -547,7 +1086,7 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
-        public void TestVersionTwoStagedRolledBackTargetAndFingerprintMustRemainPaired()
+        public void TestVersionThreeStagedRolledBackTargetAndFingerprintMustRemainPaired()
         {
             using var storage = createStorage();
             var store = new SkinManagedFolderMutationJournalStore(storage);
@@ -618,15 +1157,10 @@ namespace osu.Game.Tests.Skins
                     target_path);
             store.Write(prepared);
 
-            JObject document = readDocument(storage);
-            var payload = (JObject)document["payload"]!;
-            document["version"] = SkinManagedFolderMutationJournal.LEGACY_VERSION;
-            payload[nameof(SkinManagedFolderMutationJournal.Version)] =
-                SkinManagedFolderMutationJournal.LEGACY_VERSION;
-            payload.Remove(nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision));
-            payload.Remove(nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint));
-            document["sha256"] = computeChecksum(payload.ToString(Formatting.None));
-            writeDocument(storage, document);
+            writeVersionFixture(
+                storage,
+                prepared,
+                SkinManagedFolderMutationJournal.LEGACY_VERSION);
 
             SkinManagedFolderMutationJournalLoadResult loaded = store.Load();
             Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Loaded));
@@ -1541,8 +2075,108 @@ namespace osu.Game.Tests.Skins
                 Assert.That(actual.NewRecordPublicationFingerprint, Is.EqualTo(expected.NewRecordPublicationFingerprint));
                 Assert.That(actual.DeleteSourceNodeManifest, Is.EqualTo(expected.DeleteSourceNodeManifest));
                 Assert.That(actual.DeleteFallbackDisposition, Is.EqualTo(expected.DeleteFallbackDisposition));
+                Assert.That(actual.ExternalRegistryGeneration, Is.EqualTo(expected.ExternalRegistryGeneration));
+                Assert.That(actual.ExternalRegistryDigest, Is.EqualTo(expected.ExternalRegistryDigest));
+                Assert.That(actual.ExternalCollisionDisposition, Is.EqualTo(expected.ExternalCollisionDisposition));
+                Assert.That(actual.ManagedCopyExternalRecordFingerprint, Is.EqualTo(expected.ManagedCopyExternalRecordFingerprint));
+                Assert.That(actual.ManagedCopyExternalCaptureFingerprint, Is.EqualTo(expected.ManagedCopyExternalCaptureFingerprint));
+                Assert.That(actual.ManagedCopyLogicalManifest, Is.EqualTo(expected.ManagedCopyLogicalManifest));
+                Assert.That(actual.ManagedCopyLogicalManifestDigest, Is.EqualTo(expected.ManagedCopyLogicalManifestDigest));
                 Assert.That(actual.GetAffectedManagedRelativePaths(), Is.EqualTo(expected.GetAffectedManagedRelativePaths()));
                 Assert.That(actual.IsValid(), Is.True);
+            });
+        }
+
+        private static SkinManagedFolderMutationJournal createCurrentPreparedJournal(
+            SkinManagedFolderMutationKind kind)
+            => kind switch
+            {
+                SkinManagedFolderMutationKind.Rename =>
+                    SkinManagedFolderMutationJournal.CreatePreparedRename(
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        root_identity,
+                        source_path,
+                        source_identity,
+                        target_path),
+
+                SkinManagedFolderMutationKind.StagedImport =>
+                    createPreparedStagedImport(),
+
+                SkinManagedFolderMutationKind.Delete =>
+                    createPreparedDelete(),
+
+                _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+            };
+
+        private static SkinManagedFolderMutationJournal createCurrentRecoveryJournal(
+            SkinManagedFolderMutationKind kind)
+            => kind switch
+            {
+                SkinManagedFolderMutationKind.Rename =>
+                    createCurrentPreparedJournal(kind),
+
+                SkinManagedFolderMutationKind.StagedImport =>
+                    createPreparedStagedImport().WithFilesystemApplied(
+                        staged_identity,
+                        publication_fingerprint),
+
+                SkinManagedFolderMutationKind.Delete =>
+                    createPreparedDelete()
+                        .WithFilesystemApplied()
+                        .WithRealmApplied(),
+
+                _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+            };
+
+        internal static void writeVersionFixture(
+            TemporaryNativeStorage storage,
+            SkinManagedFolderMutationJournal current,
+            int version)
+        {
+            if (version is not (SkinManagedFolderMutationJournal.LEGACY_VERSION
+                or SkinManagedFolderMutationJournal.PRE_C1_VERSION))
+            {
+                throw new ArgumentOutOfRangeException(nameof(version));
+            }
+
+            string currentPayload = JsonConvert.SerializeObject(
+                current,
+                Formatting.None,
+                SkinManagedFolderMutationJson.CreateSettings());
+            var payload = JObject.Parse(currentPayload);
+            payload[nameof(SkinManagedFolderMutationJournal.Version)] = version;
+            payload.Remove(nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration));
+            payload.Remove(nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest));
+            payload.Remove(nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition));
+
+            if (version == SkinManagedFolderMutationJournal.LEGACY_VERSION)
+            {
+                payload.Remove(nameof(SkinManagedFolderMutationJournal.StagedSourceContentRevision));
+                payload.Remove(nameof(SkinManagedFolderMutationJournal.StagedSourceTreeFingerprint));
+                payload.Remove(nameof(SkinManagedFolderMutationJournal.NewRecordPublicationFingerprint));
+                payload.Remove(nameof(SkinManagedFolderMutationJournal.DeleteSourceNodeManifest));
+                payload.Remove(nameof(SkinManagedFolderMutationJournal.DeleteFallbackDisposition));
+            }
+
+            var document = new JObject
+            {
+                ["version"] = version,
+                ["payload"] = payload,
+                ["sha256"] = computeChecksum(payload.ToString(Formatting.None)),
+            };
+            writeDocument(storage, document);
+        }
+
+        private static void assertPayloadOmitsC1Fields(JObject document)
+        {
+            var payload = (JObject)document["payload"]!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload.ContainsKey(nameof(SkinManagedFolderMutationJournal.ExternalRegistryGeneration)), Is.False);
+                Assert.That(payload.ContainsKey(nameof(SkinManagedFolderMutationJournal.ExternalRegistryDigest)), Is.False);
+                Assert.That(payload.ContainsKey(nameof(SkinManagedFolderMutationJournal.ExternalCollisionDisposition)), Is.False);
             });
         }
 
@@ -1621,7 +2255,98 @@ namespace osu.Game.Tests.Skins
                 staged_content_revision,
                 staged_tree_fingerprint);
 
-        private static TemporaryNativeStorage createStorage([System.Runtime.CompilerServices.CallerMemberName] string testName = "")
+        private static SkinManagedFolderMutationJournal createPreparedManagedCopy(
+            SkinManagedCopyLogicalManifest? manifest = null)
+            => SkinManagedFolderMutationJournal.CreatePreparedManagedCopy(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                root_identity,
+                target_path,
+                staged_root_identity,
+                staged_content_revision,
+                publication_fingerprint,
+                replacement_publication_fingerprint,
+                manifest ?? createManagedCopyManifest(
+                    SkinPackageCapturedEntry.CreateDirectory("empty"),
+                    SkinPackageCapturedEntry.CreateFile("skin.ini", new byte[] { 1, 2, 3 })),
+                new SkinExternalRegistryJournalBinding(
+                    1,
+                    replacement_publication_fingerprint,
+                    SkinExternalCollisionDisposition.ExactRegisteredExternalSet));
+
+        private static SkinManagedCopyLogicalManifest createBoundaryManagedCopyManifest(int paddingLength)
+        {
+            var entries = new SkinPackageCapturedEntry[8191];
+            entries[0] = SkinPackageCapturedEntry.CreateDirectory("m");
+            string padding = new string('x', paddingLength);
+
+            for (int i = 1; i < entries.Length; i++)
+            {
+                entries[i] = SkinPackageCapturedEntry.CreateFile(
+                    $"m/{i - 1:D4}-{padding}.bin",
+                    Array.Empty<byte>());
+            }
+
+            return createManagedCopyManifest(entries);
+        }
+
+        private static SkinManagedCopyLogicalManifest createManagedCopyManifest(
+            params SkinPackageCapturedEntry?[] entries)
+        {
+            SkinPackageRevisionCapsuleCreationResult capsuleResult =
+                SkinPackageRevisionCapsuleFactory.Create(entries);
+            Assert.That(capsuleResult.IsSuccess, Is.True);
+            Assert.That(capsuleResult.Capsule, Is.Not.Null);
+
+            using SkinPackageRevisionCapsule capsule = capsuleResult.Capsule!;
+            bool created = SkinExternalPackageLogicalManifest.TryCreate(
+                entries,
+                capsule,
+                int.MaxValue,
+                out SkinExternalPackageLogicalManifest? externalManifest);
+            Assert.That(created, Is.True);
+            Assert.That(externalManifest, Is.Not.Null);
+            return SkinManagedCopyLogicalManifest.Create(externalManifest!);
+        }
+
+        private static (string Encoded, string Digest) encodeManagedCopyManifest(
+            IReadOnlyList<(string Name, SkinExternalPackageLogicalEntryKind Kind, long Length)> entries)
+        {
+            using var stream = new MemoryStream();
+            stream.Write(Encoding.ASCII.GetBytes("OMS/SkinManagedCopyLogicalManifest/v1\0"));
+            writeInt32(1);
+            writeInt32(entries.Count);
+
+            foreach ((string name, SkinExternalPackageLogicalEntryKind kind, long length) in entries)
+            {
+                byte[] nameBytes = strict_utf8.GetBytes(name);
+                writeInt32(nameBytes.Length);
+                stream.Write(nameBytes);
+                stream.WriteByte((byte)kind);
+                writeInt64(length);
+            }
+
+            byte[] payload = stream.ToArray();
+            return (
+                Convert.ToBase64String(payload),
+                Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant());
+
+            void writeInt32(int value)
+            {
+                Span<byte> bytes = stackalloc byte[sizeof(int)];
+                BinaryPrimitives.WriteInt32BigEndian(bytes, value);
+                stream.Write(bytes);
+            }
+
+            void writeInt64(long value)
+            {
+                Span<byte> bytes = stackalloc byte[sizeof(long)];
+                BinaryPrimitives.WriteInt64BigEndian(bytes, value);
+                stream.Write(bytes);
+            }
+        }
+
+        internal static TemporaryNativeStorage createStorage([System.Runtime.CompilerServices.CallerMemberName] string testName = "")
             => new TemporaryNativeStorage($"{testName}-{Guid.NewGuid():N}");
 
         private static string getJournalPath(TemporaryNativeStorage storage)
@@ -1745,6 +2470,431 @@ namespace osu.Game.Tests.Skins
             });
         }
 
+        [Test]
+        public void TestC1RecoveryHoldsExactEmptyAuthorityThroughTerminalDelete()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: true);
+            store.AfterWrite = _ => Assert.That(authority.ActiveSessions, Is.EqualTo(1));
+            store.BeforeDelete = () => Assert.That(authority.ActiveSessions, Is.EqualTo(1));
+            var recovery = new SkinManagedFolderMutationRecovery(
+                store,
+                coordinator,
+                handler,
+                authority);
+
+            SkinManagedFolderMutationRecoveryResult result = recovery.Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.RecoveredRollback));
+                Assert.That(authority.ObservedMutationLease, Is.True);
+                Assert.That(authority.OpenCalls, Is.EqualTo(1));
+                Assert.That(authority.ActiveSessions, Is.Zero);
+                Assert.That(authority.DisposedSessions, Is.EqualTo(1));
+                Assert.That(authority.ValidateCalls, Is.GreaterThan(3));
+                Assert.That(store.DeleteCalls, Is.EqualTo(1));
+                Assert.That(coordinator.IsMutationBlocked, Is.False);
+            });
+        }
+
+        [Test]
+        public void TestC1RecoveryAllowsExactNonEmptyExternalRegistryBinding()
+        {
+            var binding = new SkinExternalRegistryJournalBinding(
+                77,
+                new string('a', 64),
+                SkinExternalCollisionDisposition.ExactRegisteredExternalSet);
+            SkinManagedFolderMutationJournal journal = createPreparedDelete(binding);
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: false,
+                binding);
+
+            SkinManagedFolderMutationRecoveryResult result =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    handler,
+                    authority)
+                .Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.RecoveredRollback));
+                Assert.That(handler.RollbackCalls, Is.EqualTo(1));
+                Assert.That(store.DeleteCalls, Is.EqualTo(1));
+                Assert.That(authority.DisposedSessions, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void TestC1RecoveryRejectsExternalBindingMismatchBeforeHandler()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var foreignBinding = new SkinExternalRegistryJournalBinding(
+                88,
+                new string('b', 64),
+                SkinExternalCollisionDisposition.ExactRegisteredExternalSet);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: false,
+                foreignBinding);
+
+            SkinManagedFolderMutationRecoveryResult result =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    handler,
+                    authority)
+                .Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.Ambiguous));
+                Assert.That(handler.InspectCalls, Is.Zero);
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+                Assert.That(authority.ActiveSessions, Is.Zero);
+                Assert.That(coordinator.IsMutationBlocked, Is.True);
+            });
+        }
+
+        [Test]
+        public void TestC1RecoveryAuthorityDriftAfterWriteStopsBeforeTerminalDelete()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: true);
+            store.AfterWrite = _ => authority.Invalidate();
+
+            SkinManagedFolderMutationRecoveryResult result =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    handler,
+                    authority)
+                .Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.Ambiguous));
+                Assert.That(store.Writes.Select(write => write.Phase),
+                    Is.EqualTo(new[] { SkinManagedFolderMutationPhase.RolledBack }));
+                Assert.That(store.DeleteCalls, Is.Zero);
+                Assert.That(store.Current.Journal!.Phase, Is.EqualTo(SkinManagedFolderMutationPhase.RolledBack));
+                Assert.That(authority.ActiveSessions, Is.Zero);
+                Assert.That(coordinator.IsMutationBlocked, Is.True);
+            });
+        }
+
+        [Test]
+        public void TestC1RecoveryAuthorityDriftImmediatelyBeforeDeletePreservesTerminalJournal()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: true)
+            {
+                InvalidateOnValidateCall = 8,
+            };
+
+            SkinManagedFolderMutationRecoveryResult result =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    handler,
+                    authority)
+                .Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.Ambiguous));
+                Assert.That(store.Writes.Select(write => write.Phase),
+                    Is.EqualTo(new[] { SkinManagedFolderMutationPhase.RolledBack }));
+                Assert.That(store.DeleteCalls, Is.Zero);
+                Assert.That(store.Current.Journal!.Phase, Is.EqualTo(SkinManagedFolderMutationPhase.RolledBack));
+                Assert.That(coordinator.IsMutationBlocked, Is.True);
+            });
+        }
+
+        [Test]
+        public void TestC1RecoveryAuthorityDriftAfterCompareDeleteMissingRemainsResolved()
+        {
+            SkinManagedFolderMutationJournal prepared = createPreparedDelete();
+            SkinManagedFolderMutationJournal terminal = prepared.WithRecoveryTerminalPhase(
+                SkinManagedFolderMutationPhase.RolledBack,
+                null,
+                prepared.NewRecordPublicationFingerprint);
+            var store = new MemoryMutationJournalStore(terminal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: true,
+                allowTerminalWithoutHandler: true);
+            store.AfterDelete = authority.Invalidate;
+
+            SkinManagedFolderMutationRecoveryResult result =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    recoveryAuthority: authority)
+                .Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.RemovedTerminalJournal));
+                Assert.That(result.IsResolved, Is.True);
+                Assert.That(store.DeleteCalls, Is.EqualTo(1));
+                Assert.That(store.Current.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                Assert.That(authority.Invalidated, Is.True);
+                Assert.That(coordinator.IsMutationBlocked, Is.False);
+            });
+        }
+
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, false)]
+        [TestCase(SkinManagedFolderMutationJournal.LEGACY_VERSION, true)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, false)]
+        [TestCase(SkinManagedFolderMutationJournal.PRE_C1_VERSION, true)]
+        public void TestPreC1RecoveryRequiresEmptyExternalRegistry(
+            int version,
+            bool externalRegistryPresent)
+        {
+            using var storage = SkinManagedFolderMutationJournalTest.createStorage();
+            var durableStore = new SkinManagedFolderMutationJournalStore(storage);
+            SkinManagedFolderMutationJournal legacyCompatible =
+                SkinManagedFolderMutationJournal.CreatePreparedRename(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    new SkinManagedFolderPhysicalIdentity(41, 401, 402),
+                    source_path,
+                    new SkinManagedFolderPhysicalIdentity(41, 42, 43),
+                    target_path);
+            SkinManagedFolderMutationJournalTest.writeVersionFixture(
+                storage,
+                legacyCompatible,
+                version);
+            SkinManagedFolderMutationJournalLoadResult loaded = durableStore.Load();
+            Assert.That(loaded.Status, Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Loaded));
+            Assert.That(loaded.Journal, Is.Not.Null);
+            var store = new MemoryMutationJournalStore(loaded.Journal!);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: !externalRegistryPresent);
+
+            SkinManagedFolderMutationRecoveryResult result =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    handler,
+                    authority)
+                .Recover();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(externalRegistryPresent
+                    ? SkinManagedFolderMutationRecoveryStatus.Ambiguous
+                    : SkinManagedFolderMutationRecoveryStatus.RecoveredRollback));
+                Assert.That(handler.InspectCalls, Is.EqualTo(externalRegistryPresent ? 0 : 1));
+                Assert.That(store.DeleteCalls, Is.EqualTo(externalRegistryPresent ? 0 : 1));
+                Assert.That(store.Writes.All(write => write.Version == version), Is.True);
+            });
+        }
+
+        [Test]
+        public void TestC1SupportInspectionIsReadOnlyExactAndRequiresHeldHandler()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var authority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: true);
+            var recovery = new SkinManagedFolderMutationRecovery(
+                store,
+                coordinator,
+                handler,
+                authority);
+
+            FolderSkinJournalSupportSnapshot snapshot = recovery.InspectSupportSnapshot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.CanRetry, Is.True);
+                Assert.That(snapshot.DiagnosticBundle, Does.Not.Contain(journal.OperationId.ToString()));
+                Assert.That(snapshot.DiagnosticBundle, Does.Not.Contain(journal.SourceManagedRelativePath));
+                Assert.That(handler.InspectCalls, Is.EqualTo(1));
+                Assert.That(handler.ForwardCalls + handler.RollbackCalls, Is.Zero);
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+                Assert.That(authority.ObservedMutationLease, Is.True);
+                Assert.That(authority.ActiveSessions, Is.Zero);
+                Assert.That(coordinator.IsMutationBlocked, Is.False);
+            });
+
+            var missingHandlerAuthority = new FakeMutationRecoveryAuthority(
+                coordinator,
+                registryIsEmpty: true);
+            FolderSkinJournalSupportSnapshot withoutHandler =
+                new SkinManagedFolderMutationRecovery(
+                    store,
+                    coordinator,
+                    handler: null,
+                    recoveryAuthority: missingHandlerAuthority)
+                .InspectSupportSnapshot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(withoutHandler.CanRetry, Is.False);
+                Assert.That(missingHandlerAuthority.OpenCalls, Is.Zero);
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestSupportInspectionMissingIsReadOnlyAndNotRetryable()
+        {
+            var store = new MemoryMutationJournalStore(
+                new SkinManagedFolderMutationJournalLoadResult(
+                    SkinManagedFolderMutationJournalLoadStatus.Missing));
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var recovery = new SkinManagedFolderMutationRecovery(store, coordinator);
+
+            FolderSkinJournalSupportSnapshot snapshot = recovery.InspectSupportSnapshot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.CanRetry, Is.False);
+                Assert.That(snapshot.Status, Is.Not.Empty);
+                Assert.That(snapshot.Reason, Is.Not.Empty);
+                Assert.That(snapshot.DiagnosticBundle, Does.Contain("state=missing"));
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+                Assert.That(coordinator.IsMutationBlocked, Is.False);
+            });
+        }
+
+        [Test]
+        public void TestSupportInspectionOffersRetryOnlyForUniqueActionAndDoesNotExecuteIt()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.RollBack);
+            var recovery = new SkinManagedFolderMutationRecovery(store, coordinator, handler);
+
+            FolderSkinJournalSupportSnapshot snapshot = recovery.InspectSupportSnapshot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.CanRetry, Is.True);
+                Assert.That(handler.InspectCalls, Is.EqualTo(1));
+                Assert.That(handler.ForwardCalls, Is.Zero);
+                Assert.That(handler.RollbackCalls, Is.Zero);
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+                Assert.That(coordinator.IsMutationBlocked, Is.False);
+            });
+        }
+
+        [Test]
+        public void TestSupportInspectionAmbiguousIsNotRetryableAndBundleIsRedacted()
+        {
+            SkinManagedFolderMutationJournal journal = createPreparedDelete();
+            var store = new MemoryMutationJournalStore(journal);
+            var handler = new RecordingRecoveryHandler(
+                SkinManagedFolderMutationRecoveryDecision.Ambiguous);
+            var recovery = new SkinManagedFolderMutationRecovery(
+                store,
+                new SkinManagedFolderOperationCoordinator(),
+                handler);
+
+            FolderSkinJournalSupportSnapshot snapshot = recovery.InspectSupportSnapshot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.CanRetry, Is.False);
+                Assert.That(snapshot.DiagnosticBundle, Does.Not.Contain(journal.OperationId.ToString()));
+                Assert.That(snapshot.DiagnosticBundle, Does.Not.Contain(journal.RecordId!.Value.ToString()));
+                Assert.That(snapshot.DiagnosticBundle, Does.Not.Contain(journal.SourceManagedRelativePath));
+                Assert.That(snapshot.DiagnosticBundle, Does.Not.Contain(journal.ManagedRootIdentity.VolumeSerialNumber.ToString()));
+                Assert.That(handler.ForwardCalls + handler.RollbackCalls, Is.Zero);
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestSupportInspectionTerminalOffersOnlyCanonicalCleanupRetry()
+        {
+            SkinManagedFolderMutationJournal terminal = createPreparedDelete()
+                                                          .WithFilesystemApplied()
+                                                          .WithRealmApplied()
+                                                          .WithCommitted();
+            var store = new MemoryMutationJournalStore(terminal);
+            var recovery = new SkinManagedFolderMutationRecovery(
+                store,
+                new SkinManagedFolderOperationCoordinator());
+
+            FolderSkinJournalSupportSnapshot snapshot = recovery.InspectSupportSnapshot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.CanRetry, Is.True);
+                Assert.That(snapshot.DiagnosticBundle, Does.Contain("state=terminal"));
+                Assert.That(store.Writes, Is.Empty);
+                Assert.That(store.DeleteCalls, Is.Zero);
+            });
+        }
+
+        private static SkinManagedFolderMutationJournal createPreparedDelete(
+            SkinExternalRegistryJournalBinding? externalRegistry = null)
+        {
+            const string fingerprint = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+            return SkinManagedFolderMutationJournal.CreatePreparedDelete(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    new SkinManagedFolderPhysicalIdentity(41, 401, 402),
+                    source_path,
+                    new SkinManagedFolderPhysicalIdentity(41, 42, 43),
+                    fingerprint,
+                    SkinManagedFolderDeleteManifest.Create(new[] { fingerprint }),
+                    externalRegistry)
+                .WithDeleteFallbackDisposition(
+                    SkinManagedFolderDeleteFallbackDisposition.NotRequired);
+        }
+
         private static Guid addRecord(RealmAccess realm, string path)
         {
             var record = new SkinInfo("Recovery record", "OMS tests", SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
@@ -1790,6 +2940,10 @@ namespace osu.Game.Tests.Skins
         public int DeleteNoOpCallsRemaining { get; set; }
 
         public Action<SkinManagedFolderMutationJournal>? AfterWrite { get; set; }
+
+        public Action? BeforeDelete { get; set; }
+
+        public Action? AfterDelete { get; set; }
 
         public MemoryMutationJournalStore(
             SkinManagedFolderMutationJournal journal,
@@ -1844,6 +2998,7 @@ namespace osu.Game.Tests.Skins
 
             events?.Add("delete");
             DeleteCalls++;
+            BeforeDelete?.Invoke();
 
             if (ThrowOnDelete)
                 throw new IOException("Injected journal delete fault.");
@@ -1855,6 +3010,7 @@ namespace osu.Game.Tests.Skins
             }
 
             Current = new SkinManagedFolderMutationJournalLoadResult(SkinManagedFolderMutationJournalLoadStatus.Missing);
+            AfterDelete?.Invoke();
         }
 
         public void SetCurrent(SkinManagedFolderMutationJournalLoadResult current)
@@ -1863,7 +3019,9 @@ namespace osu.Game.Tests.Skins
         }
     }
 
-    internal sealed class RecordingRecoveryHandler : ISkinManagedFolderMutationRecoveryHandler
+    internal sealed class RecordingRecoveryHandler
+        : ISkinManagedFolderMutationRecoveryHandler,
+          ISkinManagedFolderMutationHeldRecoveryHandler
     {
         private readonly SkinManagedFolderMutationRecoveryDecision decision;
         private readonly IList<string>? events;
@@ -1920,6 +3078,17 @@ namespace osu.Game.Tests.Skins
                 journal.NewRecordPublicationFingerprint);
         }
 
+        public bool CanHandle(SkinManagedFolderMutationKind kind)
+            => kind is SkinManagedFolderMutationKind.Rename
+                or SkinManagedFolderMutationKind.StagedImport
+                or SkinManagedFolderMutationKind.Delete;
+
+        public SkinManagedFolderMutationRecoveryInspection InspectHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+            => Inspect(journal, cancellationToken);
+
         public SkinManagedFolderMutationRecoveryActionResult TryRollForward(
             SkinManagedFolderMutationJournal journal,
             CancellationToken cancellationToken)
@@ -1939,6 +3108,12 @@ namespace osu.Game.Tests.Skins
                 journal.NewRecordPublicationFingerprint);
         }
 
+        public SkinManagedFolderMutationRecoveryActionResult TryRollForwardHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+            => TryRollForward(journal, cancellationToken);
+
         public SkinManagedFolderMutationRecoveryActionResult TryRollBack(
             SkinManagedFolderMutationJournal journal,
             CancellationToken cancellationToken)
@@ -1952,6 +3127,141 @@ namespace osu.Game.Tests.Skins
             return new SkinManagedFolderMutationRecoveryActionResult(
                 ActionSucceeds,
                 actionRootIdentity ?? journal.ManagedRootIdentity);
+        }
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollBackHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+            => TryRollBack(journal, cancellationToken);
+    }
+
+    internal sealed class FakeMutationRecoveryAuthority
+        : ISkinManagedFolderMutationRecoveryAuthority
+    {
+        private readonly SkinManagedFolderOperationCoordinator coordinator;
+        private readonly SkinExternalRegistryJournalBinding binding;
+
+        private readonly bool allowTerminalWithoutHandler;
+
+        public bool RegistryIsEmpty { get; }
+
+        public bool Invalidated { get; private set; }
+
+        public int OpenCalls { get; private set; }
+
+        public int ActiveSessions { get; private set; }
+
+        public int DisposedSessions { get; private set; }
+
+        public int ValidateCalls { get; private set; }
+
+        public bool ObservedMutationLease { get; private set; }
+
+        public int? InvalidateOnValidateCall { get; init; }
+
+        public FakeMutationRecoveryAuthority(
+            SkinManagedFolderOperationCoordinator coordinator,
+            bool registryIsEmpty,
+            SkinExternalRegistryJournalBinding? binding = null,
+            bool allowTerminalWithoutHandler = false)
+        {
+            this.coordinator = coordinator;
+            RegistryIsEmpty = registryIsEmpty;
+            this.binding = binding ?? SkinExternalRegistryJournalBinding.Empty;
+            this.allowTerminalWithoutHandler = allowTerminalWithoutHandler;
+        }
+
+        public ISkinManagedFolderMutationRecoveryAuthoritySession? TryOpen(
+            SkinManagedFolderOperationCoordinator.Lease? coordinatorLease,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            OpenCalls++;
+            ObservedMutationLease = coordinatorLease?.IsMutationReservationHeldBy(coordinator) == true;
+
+            if (!ObservedMutationLease)
+                return null;
+
+            ActiveSessions++;
+            return new Session(this);
+        }
+
+        public void Invalidate() => Invalidated = true;
+
+        private sealed class Session : ISkinManagedFolderMutationRecoveryAuthoritySession
+        {
+            private readonly FakeMutationRecoveryAuthority owner;
+            private bool disposed;
+
+            public ISkinManagedFolderMutationNativeSession NativeSession
+                => throw new InvalidOperationException("The recording handler must not consume native authority.");
+
+            public Session(FakeMutationRecoveryAuthority owner)
+            {
+                this.owner = owner;
+            }
+
+            public bool IsExactFor(SkinManagedFolderMutationJournal journal)
+            {
+                if (disposed || journal == null || !journal.IsValid())
+                    return false;
+
+                if (owner.allowTerminalWithoutHandler
+                    && journal.Phase is SkinManagedFolderMutationPhase.Committed
+                        or SkinManagedFolderMutationPhase.RolledBack)
+                {
+                    return true;
+                }
+
+                if (journal.Version is SkinManagedFolderMutationJournal.LEGACY_VERSION
+                    or SkinManagedFolderMutationJournal.PRE_C1_VERSION)
+                {
+                    return owner.RegistryIsEmpty;
+                }
+
+                SkinExternalCollisionDisposition expectedDisposition = owner.RegistryIsEmpty
+                    ? SkinExternalCollisionDisposition.NoRegisteredExternalFolders
+                    : SkinExternalCollisionDisposition.ExactRegisteredExternalSet;
+
+                return journal.Version == SkinManagedFolderMutationJournal.CURRENT_VERSION
+                       && journal.ExternalRegistryGeneration == owner.binding.Generation
+                       && string.Equals(
+                           journal.ExternalRegistryDigest,
+                           owner.binding.Digest,
+                           StringComparison.Ordinal)
+                       && journal.ExternalCollisionDisposition == expectedDisposition
+                       && owner.binding.Disposition == expectedDisposition;
+            }
+
+            public bool Validate(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                owner.ValidateCalls++;
+
+                if (owner.InvalidateOnValidateCall == owner.ValidateCalls)
+                    owner.Invalidate();
+
+                return !disposed && !owner.Invalidated;
+            }
+
+            public bool ExactlyMatchesRealmDeclarations(IEnumerable<SkinInfo> records)
+            {
+                ArgumentNullException.ThrowIfNull(records);
+                return !disposed && !owner.Invalidated;
+            }
+
+            public void Dispose()
+            {
+                if (disposed)
+                    return;
+
+                disposed = true;
+                owner.ActiveSessions--;
+                owner.DisposedSessions++;
+            }
+
+            public override string ToString() => nameof(Session);
         }
     }
 }

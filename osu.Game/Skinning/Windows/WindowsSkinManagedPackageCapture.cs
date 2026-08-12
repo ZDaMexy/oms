@@ -188,6 +188,15 @@ namespace osu.Game.Skinning.Windows
         void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle);
 
         Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file);
+
+        IWindowsSkinPackageCaptureHandle CreateChildNoFollowNoReplace(
+            IWindowsSkinPackageCaptureHandle parent,
+            string name,
+            bool directory)
+            => throw new NotSupportedException();
+
+        Stream CreateNonOwningWriteStream(IWindowsSkinPackageCaptureHandle file)
+            => throw new NotSupportedException();
     }
 
     internal sealed class WindowsSkinPackageCaptureFileSystemException : Exception
@@ -351,6 +360,218 @@ namespace osu.Game.Skinning.Windows
                 provisionalCapsule?.Dispose();
 
                 disposeHandles(handles);
+            }
+        }
+
+        /// <summary>
+        /// Opens and retains a no-follow root-to-leaf physical proof for one resolver-issued external folder.
+        /// </summary>
+        internal SkinExternalFolderAuthorityCaptureResult OpenExternalAuthority(
+            SkinExternalPackageCaptureRequest? request,
+            SkinExternalPackageCaptureLimits? limits = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            limits ??= SkinExternalPackageCaptureLimits.Default;
+
+            if (!tryValidateExternalRequest(request, limits, out char driveLetter, out string[] pathSegments))
+            {
+                return SkinExternalFolderAuthorityCaptureResult.Reject(
+                    request != null && request.PathSegments.Count > limits.MaxAuthorityDepth
+                        ? SkinManagedPackageCaptureRejectionReason.AuthorityDepthBudgetExceeded
+                        : SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            var handles = new List<IWindowsSkinPackageCaptureHandle>();
+            bool ownershipTransferred = false;
+
+            try
+            {
+                IWindowsSkinPackageCaptureHandle volumeRoot = own(
+                    fileSystem.OpenLocalVolumeRoot(driveLetter),
+                    handles,
+                    limits.MaxHeldHandleCount);
+                WindowsSkinPackageEntryMetadata volumeRootMetadata = queryStableRoot(volumeRoot);
+                var authorityNodes = new List<NodeRecord>
+                {
+                    new NodeRecord(volumeRoot, volumeRootMetadata),
+                };
+                var authorityLinks = new List<AuthorityLinkRecord>();
+                IWindowsSkinPackageCaptureHandle current = volumeRoot;
+
+                for (int i = 0; i < pathSegments.Length; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WindowsSkinPackageOpenMode mode = i == pathSegments.Length - 1
+                        ? WindowsSkinPackageOpenMode.CapturedDirectory
+                        : WindowsSkinPackageOpenMode.AuthorityDirectory;
+                    OpenedDirectory opened = openExpectedDirectory(
+                        current,
+                        pathSegments[i],
+                        mode,
+                        SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                        cancellationToken,
+                        handles,
+                        limits.MaxHeldHandleCount);
+                    authorityLinks.Add(new AuthorityLinkRecord(current, opened.CanonicalName, opened.Metadata));
+                    authorityNodes.Add(new NodeRecord(opened.Handle, opened.Metadata));
+                    current = opened.Handle;
+                }
+
+                validateAuthorityNodes(authorityNodes, cancellationToken);
+                validateAuthorityLinks(authorityLinks, cancellationToken);
+                var proof = createPhysicalAncestryProof(authorityNodes);
+                var session = new ExternalAuthoritySession(
+                    this,
+                    handles,
+                    authorityNodes,
+                    authorityLinks,
+                    proof);
+                ownershipTransferred = true;
+                return SkinExternalFolderAuthorityCaptureResult.Success(session);
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception)
+            {
+                return SkinExternalFolderAuthorityCaptureResult.Reject(exception.RejectionReason);
+            }
+            finally
+            {
+                if (!ownershipTransferred)
+                    disposeHandles(handles);
+            }
+        }
+
+        /// <summary>
+        /// Captures an external package and returns a session which retains the exact capsule, logical manifest and all
+        /// native root/ancestry/tree handles until explicitly disposed.
+        /// </summary>
+        internal SkinExternalPackageCaptureResult CaptureExternalHeld(
+            SkinExternalPackageCaptureRequest? request,
+            SkinExternalPackageCaptureLimits? limits = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            limits ??= SkinExternalPackageCaptureLimits.Default;
+
+            if (!tryValidateExternalRequest(request, limits, out char driveLetter, out string[] pathSegments))
+            {
+                return SkinExternalPackageCaptureResult.Reject(
+                    request != null && request.PathSegments.Count > limits.MaxAuthorityDepth
+                        ? SkinManagedPackageCaptureRejectionReason.AuthorityDepthBudgetExceeded
+                        : SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            var handles = new List<IWindowsSkinPackageCaptureHandle>();
+            SkinPackageRevisionCapsule? provisionalCapsule = null;
+            bool ownershipTransferred = false;
+
+            try
+            {
+                IWindowsSkinPackageCaptureHandle volumeRoot = own(
+                    fileSystem.OpenLocalVolumeRoot(driveLetter),
+                    handles,
+                    limits.MaxHeldHandleCount);
+                WindowsSkinPackageEntryMetadata volumeRootMetadata = queryStableRoot(volumeRoot);
+                var authorityNodes = new List<NodeRecord>
+                {
+                    new NodeRecord(volumeRoot, volumeRootMetadata),
+                };
+                var authorityLinks = new List<AuthorityLinkRecord>();
+                IWindowsSkinPackageCaptureHandle current = volumeRoot;
+
+                for (int i = 0; i < pathSegments.Length; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WindowsSkinPackageOpenMode mode = i == pathSegments.Length - 1
+                        ? WindowsSkinPackageOpenMode.CapturedDirectory
+                        : WindowsSkinPackageOpenMode.AuthorityDirectory;
+                    OpenedDirectory opened = openExpectedDirectory(
+                        current,
+                        pathSegments[i],
+                        mode,
+                        SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                        cancellationToken,
+                        handles,
+                        limits.MaxHeldHandleCount);
+                    authorityLinks.Add(new AuthorityLinkRecord(current, opened.CanonicalName, opened.Metadata));
+                    authorityNodes.Add(new NodeRecord(opened.Handle, opened.Metadata));
+                    current = opened.Handle;
+                }
+
+                NodeRecord packageRoot = authorityNodes[^1];
+                var capture = new CaptureState(
+                    fileSystem,
+                    limits.CapsuleLimits,
+                    handles,
+                    WindowsSkinPackageOpenMode.CapturedDirectory,
+                    WindowsSkinPackageOpenMode.CapturedFile,
+                    cancellationToken,
+                    limits.MaxHeldHandleCount);
+                capture.CapturePackage(packageRoot.Handle, packageRoot.Baseline);
+                capture.ValidatePinnedNodes();
+
+                SkinPackageRevisionCapsuleCreationResult capsuleResult = SkinPackageRevisionCapsuleFactory.Create(
+                    capture.CapturedEntries,
+                    limits.CapsuleLimits,
+                    cancellationToken);
+
+                if (!capsuleResult.IsSuccess)
+                    return SkinExternalPackageCaptureResult.RejectCapsule(capsuleResult.RejectionReason);
+
+                provisionalCapsule = capsuleResult.Capsule!;
+
+                if (!SkinExternalPackageLogicalManifest.TryCreate(
+                        capture.CapturedEntries,
+                        provisionalCapsule,
+                        limits.MaxLogicalManifestBytes,
+                        out SkinExternalPackageLogicalManifest? logicalManifest))
+                {
+                    return SkinExternalPackageCaptureResult.Reject(
+                        SkinManagedPackageCaptureRejectionReason.LogicalManifestBudgetExceeded);
+                }
+
+                capture.ValidatePinnedNodes();
+                capture.ValidateFinalInventories();
+                validateAuthorityNodes(authorityNodes, cancellationToken);
+                validateAuthorityLinks(authorityLinks, cancellationToken);
+                capture.ValidatePinnedNodes();
+
+                string physicalTreeFingerprint = capture.ComputePhysicalTreeFingerprint(provisionalCapsule.ContentRevision);
+                SkinFolderPhysicalAncestryProof proof = createPhysicalAncestryProof(authorityNodes);
+                string captureFingerprint = computeExternalCaptureFingerprint(
+                    provisionalCapsule.ContentRevision,
+                    logicalManifest!.Digest,
+                    physicalTreeFingerprint,
+                    proof.Digest);
+                var session = new ExternalPackageCaptureSession(
+                    this,
+                    handles,
+                    authorityNodes,
+                    authorityLinks,
+                    proof,
+                    capture,
+                    provisionalCapsule,
+                    logicalManifest,
+                    physicalTreeFingerprint,
+                    captureFingerprint);
+                provisionalCapsule = null;
+                ownershipTransferred = true;
+                return SkinExternalPackageCaptureResult.Success(session);
+            }
+            catch (CapsuleRejectionException exception)
+            {
+                return SkinExternalPackageCaptureResult.RejectCapsule(exception.RejectionReason);
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception)
+            {
+                return SkinExternalPackageCaptureResult.Reject(exception.RejectionReason);
+            }
+            finally
+            {
+                provisionalCapsule?.Dispose();
+
+                if (!ownershipTransferred)
+                    disposeHandles(handles);
             }
         }
 
@@ -595,7 +816,8 @@ namespace osu.Game.Skinning.Windows
             WindowsSkinPackageOpenMode mode,
             SkinManagedPackageCaptureRejectionReason unavailableReason,
             CancellationToken cancellationToken,
-            List<IWindowsSkinPackageCaptureHandle> handles)
+            List<IWindowsSkinPackageCaptureHandle> handles,
+            int maxHeldHandleCount = int.MaxValue)
         {
             if (!isValidRequestSegment(requestedName))
                 throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
@@ -645,9 +867,11 @@ namespace osu.Game.Skinning.Windows
             if (candidate.Metadata.Kind != WindowsSkinPackageEntryKind.Directory)
                 throw reject(SkinManagedPackageCaptureRejectionReason.UnsupportedEntryType);
 
+            ensureHandleCapacity(handles, maxHeldHandleCount);
             IWindowsSkinPackageCaptureHandle opened = own(
                 fileSystem.OpenChildNoFollow(parent, candidate.Name, mode, unavailableReason),
-                handles);
+                handles,
+                maxHeldHandleCount);
             WindowsSkinPackageEntryMetadata openedMetadata = fileSystem.QueryMetadata(opened);
             validateOpenedEntry(candidate.Metadata, openedMetadata);
             return new OpenedDirectory(opened, openedMetadata, candidate.Name);
@@ -709,6 +933,78 @@ namespace osu.Game.Skinning.Windows
             {
                 throw reject(SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture);
             }
+        }
+
+        private static bool tryValidateExternalRequest(
+            SkinExternalPackageCaptureRequest? request,
+            SkinExternalPackageCaptureLimits limits,
+            out char driveLetter,
+            out string[] pathSegments)
+        {
+            driveLetter = default;
+            pathSegments = Array.Empty<string>();
+
+            if (request == null
+                || !char.IsAsciiLetter(request.DriveLetter)
+                || request.PathSegments.Count == 0
+                || request.PathSegments.Count > limits.MaxAuthorityDepth)
+            {
+                return false;
+            }
+
+            pathSegments = request.PathSegments.ToArray();
+
+            if (pathSegments.Any(segment => !isValidRequestSegment(segment)))
+                return false;
+
+            driveLetter = char.ToUpperInvariant(request.DriveLetter);
+            string expectedPath;
+
+            try
+            {
+                expectedPath = Path.GetFullPath($@"{driveLetter}:\{string.Join('\\', pathSegments)}");
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return false;
+            }
+
+            return string.Equals(
+                Path.TrimEndingDirectorySeparator(expectedPath),
+                Path.TrimEndingDirectorySeparator(request.NormalisedAbsolutePath),
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static SkinFolderPhysicalAncestryProof createPhysicalAncestryProof(
+            IReadOnlyList<NodeRecord> authorityNodes)
+            => new SkinFolderPhysicalAncestryProof(authorityNodes.Select(node => new SkinManagedFolderPhysicalIdentity(
+                node.Baseline.Identity.VolumeSerialNumber,
+                node.Baseline.Identity.FileIdPart0,
+                node.Baseline.Identity.FileIdPart1)));
+
+        private static string computeExternalCaptureFingerprint(
+            string contentRevision,
+            string logicalManifestDigest,
+            string physicalTreeFingerprint,
+            string ancestryProofDigest)
+        {
+            const string domain = "OMS/SkinExternalPackageCaptureFingerprint/v1\0";
+            using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            appendFingerprintPart(hash, domain);
+            appendFingerprintPart(hash, contentRevision);
+            appendFingerprintPart(hash, logicalManifestDigest);
+            appendFingerprintPart(hash, physicalTreeFingerprint);
+            appendFingerprintPart(hash, ancestryProofDigest);
+            return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+        }
+
+        private static void appendFingerprintPart(IncrementalHash hash, string value)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(value);
+            Span<byte> length = stackalloc byte[sizeof(int)];
+            BinaryPrimitives.WriteInt32BigEndian(length, bytes.Length);
+            hash.AppendData(length);
+            hash.AppendData(bytes);
         }
 
         private static bool tryParseDataRoot(
@@ -773,13 +1069,28 @@ namespace osu.Game.Skinning.Windows
 
         private static IWindowsSkinPackageCaptureHandle own(
             IWindowsSkinPackageCaptureHandle handle,
-            List<IWindowsSkinPackageCaptureHandle> handles)
+            List<IWindowsSkinPackageCaptureHandle> handles,
+            int maxHeldHandleCount = int.MaxValue)
         {
             if (handle == null)
                 throw new InvalidOperationException("The native adapter returned no handle.");
 
+            if (handles.Count >= maxHeldHandleCount)
+            {
+                handle.Dispose();
+                throw reject(SkinManagedPackageCaptureRejectionReason.HeldHandleBudgetExceeded);
+            }
+
             handles.Add(handle);
             return handle;
+        }
+
+        private static void ensureHandleCapacity(
+            IReadOnlyCollection<IWindowsSkinPackageCaptureHandle> handles,
+            int maxHeldHandleCount)
+        {
+            if (handles.Count >= maxHeldHandleCount)
+                throw reject(SkinManagedPackageCaptureRejectionReason.HeldHandleBudgetExceeded);
         }
 
         private static WindowsSkinPackageCaptureFileSystemException reject(SkinManagedPackageCaptureRejectionReason reason)
@@ -807,6 +1118,132 @@ namespace osu.Game.Skinning.Windows
                 ExceptionDispatchInfo.Capture(firstException).Throw();
         }
 
+        private class ExternalAuthoritySession : ISkinExternalFolderAuthoritySession
+        {
+            private readonly WindowsSkinManagedPackageCapture owner;
+            private readonly List<NodeRecord> authorityNodes;
+            private readonly List<AuthorityLinkRecord> authorityLinks;
+            protected readonly List<IWindowsSkinPackageCaptureHandle> Handles;
+            private int disposed;
+
+            public SkinFolderPhysicalAncestryProof PhysicalProof { get; }
+
+            public int HeldHandleCount => Volatile.Read(ref disposed) == 0 ? Handles.Count : 0;
+
+            public ExternalAuthoritySession(
+                WindowsSkinManagedPackageCapture owner,
+                List<IWindowsSkinPackageCaptureHandle> handles,
+                List<NodeRecord> authorityNodes,
+                List<AuthorityLinkRecord> authorityLinks,
+                SkinFolderPhysicalAncestryProof physicalProof)
+            {
+                this.owner = owner;
+                Handles = handles;
+                this.authorityNodes = authorityNodes;
+                this.authorityLinks = authorityLinks;
+                PhysicalProof = physicalProof;
+            }
+
+            public virtual void Validate(CancellationToken cancellationToken = default)
+            {
+                throwIfDisposed();
+                validateAuthority(cancellationToken);
+            }
+
+            protected void ValidateAuthority(CancellationToken cancellationToken)
+            {
+                throwIfDisposed();
+                validateAuthority(cancellationToken);
+            }
+
+            protected void ThrowIfDisposed() => throwIfDisposed();
+
+            private void validateAuthority(CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                owner.validateAuthorityNodes(authorityNodes, cancellationToken);
+                owner.validateAuthorityLinks(authorityLinks, cancellationToken);
+            }
+
+            public virtual void Dispose()
+            {
+                if (Interlocked.Exchange(ref disposed, 1) != 0)
+                    return;
+
+                disposeHandles(Handles);
+            }
+
+            private void throwIfDisposed()
+                => ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
+
+            public override string ToString() => nameof(ExternalAuthoritySession);
+        }
+
+        private sealed class ExternalPackageCaptureSession : ExternalAuthoritySession, ISkinExternalPackageCaptureSession
+        {
+            private readonly CaptureState capture;
+            private SkinPackageRevisionCapsule? capsule;
+
+            public SkinExternalPackageLogicalManifest LogicalManifest { get; }
+
+            public string PhysicalTreeFingerprint { get; }
+
+            public string CaptureFingerprint { get; }
+
+            public ExternalPackageCaptureSession(
+                WindowsSkinManagedPackageCapture owner,
+                List<IWindowsSkinPackageCaptureHandle> handles,
+                List<NodeRecord> authorityNodes,
+                List<AuthorityLinkRecord> authorityLinks,
+                SkinFolderPhysicalAncestryProof physicalProof,
+                CaptureState capture,
+                SkinPackageRevisionCapsule capsule,
+                SkinExternalPackageLogicalManifest logicalManifest,
+                string physicalTreeFingerprint,
+                string captureFingerprint)
+                : base(owner, handles, authorityNodes, authorityLinks, physicalProof)
+            {
+                this.capture = capture;
+                this.capsule = capsule;
+                LogicalManifest = logicalManifest;
+                PhysicalTreeFingerprint = physicalTreeFingerprint;
+                CaptureFingerprint = captureFingerprint;
+            }
+
+            public override void Validate(CancellationToken cancellationToken = default)
+            {
+                ThrowIfDisposed();
+                cancellationToken.ThrowIfCancellationRequested();
+                capture.ValidatePinnedNodes(cancellationToken);
+                capture.ValidateFinalInventories(cancellationToken);
+                ValidateAuthority(cancellationToken);
+                capture.ValidatePinnedNodes(cancellationToken);
+            }
+
+            public SkinPackageRevisionCapsule TakeCapsule()
+            {
+                ThrowIfDisposed();
+                SkinPackageRevisionCapsule? taken = Interlocked.Exchange(ref capsule, null);
+                return taken ?? throw new InvalidOperationException("The external package capsule has already been taken.");
+            }
+
+            public override void Dispose()
+            {
+                SkinPackageRevisionCapsule? owned = Interlocked.Exchange(ref capsule, null);
+
+                try
+                {
+                    owned?.Dispose();
+                }
+                finally
+                {
+                    base.Dispose();
+                }
+            }
+
+            public override string ToString() => nameof(ExternalPackageCaptureSession);
+        }
+
         private sealed class CaptureState
         {
             private const string physical_tree_fingerprint_domain =
@@ -818,6 +1255,7 @@ namespace osu.Game.Skinning.Windows
             private readonly WindowsSkinPackageOpenMode directoryOpenMode;
             private readonly WindowsSkinPackageOpenMode fileOpenMode;
             private readonly bool provisional;
+            private readonly int maxHeldHandleCount;
             private readonly CancellationToken cancellationToken;
             private readonly List<NodeRecord> nodes = new List<NodeRecord>();
             private readonly List<DirectoryRecord> directories = new List<DirectoryRecord>();
@@ -834,7 +1272,8 @@ namespace osu.Game.Skinning.Windows
                 List<IWindowsSkinPackageCaptureHandle> handles,
                 WindowsSkinPackageOpenMode directoryOpenMode,
                 WindowsSkinPackageOpenMode fileOpenMode,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                int maxHeldHandleCount = int.MaxValue)
             {
                 this.fileSystem = fileSystem;
                 this.limits = limits;
@@ -844,6 +1283,7 @@ namespace osu.Game.Skinning.Windows
                 provisional = directoryOpenMode == WindowsSkinPackageOpenMode.ProvisionalDirectory
                               && fileOpenMode == WindowsSkinPackageOpenMode.ProvisionalFile;
                 this.cancellationToken = cancellationToken;
+                this.maxHeldHandleCount = maxHeldHandleCount;
             }
 
             public void CapturePackage(
@@ -856,11 +1296,13 @@ namespace osu.Game.Skinning.Windows
                 captureDirectory(packageRoot, packageRootMetadata, null, 0);
             }
 
-            public void ValidatePinnedNodes()
+            public void ValidatePinnedNodes(CancellationToken? validationToken = null)
             {
+                CancellationToken token = validationToken ?? cancellationToken;
+
                 foreach (NodeRecord node in nodes)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    token.ThrowIfCancellationRequested();
                     WindowsSkinPackageEntryMetadata current = fileSystem.QueryMetadata(node.Handle);
 
                     if (current.IsReparsePoint)
@@ -876,11 +1318,13 @@ namespace osu.Game.Skinning.Windows
                 }
             }
 
-            public void ValidateFinalInventories()
+            public void ValidateFinalInventories(CancellationToken? validationToken = null)
             {
+                CancellationToken token = validationToken ?? cancellationToken;
+
                 foreach (DirectoryRecord directory in directories)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    token.ThrowIfCancellationRequested();
                     WindowsSkinPackageDirectoryEntry[] current;
 
                     try
@@ -888,7 +1332,7 @@ namespace osu.Game.Skinning.Windows
                         current = canonicaliseDirectoryEntries(fileSystem.Enumerate(
                             directory.Handle,
                             directory.Baseline.Length,
-                            cancellationToken));
+                            token));
                     }
                     catch (WindowsSkinPackageCaptureFileSystemException exception) when (exception.RejectionReason == SkinManagedPackageCaptureRejectionReason.DirectoryEnumerationBudgetExceeded)
                     {
@@ -1038,13 +1482,15 @@ namespace osu.Game.Skinning.Windows
                         ? directoryOpenMode
                         : fileOpenMode;
 
+                    ensureHandleCapacity(handles, maxHeldHandleCount);
                     IWindowsSkinPackageCaptureHandle child = own(
                         fileSystem.OpenChildNoFollow(
                             directory,
                             entry.Name,
                             openMode,
                             SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture),
-                        handles);
+                        handles,
+                        maxHeldHandleCount);
                     WindowsSkinPackageEntryMetadata childMetadata = fileSystem.QueryMetadata(child);
                     validateOpenedEntry(entry.Metadata, childMetadata);
 
@@ -1629,6 +2075,72 @@ namespace osu.Game.Skinning.Windows
             return new NonOwningRandomAccessReadStream(nativeFile.Handle);
         }
 
+        public IWindowsSkinPackageCaptureHandle CreateChildNoFollowNoReplace(
+            IWindowsSkinPackageCaptureHandle parent,
+            string name,
+            bool directory)
+        {
+            NativeHandle nativeParent = getNativeHandle(parent);
+
+            if (!SkinPackageResourceNameValidator.IsValidWindowsSegment(name))
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+
+            uint desiredAccess = NativeMethods.FILE_READ_ATTRIBUTES
+                                 | NativeMethods.DELETE
+                                 | NativeMethods.SYNCHRONIZE
+                                 | (directory
+                                     ? NativeMethods.FILE_LIST_DIRECTORY
+                                     : NativeMethods.FILE_READ_DATA | NativeMethods.FILE_WRITE_DATA);
+            uint openOptions = NativeMethods.FILE_SYNCHRONOUS_IO_NONALERT
+                               | NativeMethods.FILE_OPEN_REPARSE_POINT
+                               | (directory
+                                   ? NativeMethods.FILE_DIRECTORY_FILE
+                                   : NativeMethods.FILE_NON_DIRECTORY_FILE);
+            SafeFileHandle? created = null;
+            bool parentAddedRef = false;
+
+            try
+            {
+                nativeParent.Handle.DangerousAddRef(ref parentAddedRef);
+                int status = NativeMethods.CreateRelativeNoReplace(
+                    nativeParent.Handle.DangerousGetHandle(),
+                    name,
+                    desiredAccess,
+                    NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_DELETE,
+                    openOptions,
+                    out created);
+
+                if (status != NativeMethods.STATUS_SUCCESS)
+                {
+                    created?.Dispose();
+                    throw mapNtStatus(status, SkinManagedPackageCaptureRejectionReason.InventoryChanged);
+                }
+
+                if (created == null || created.IsInvalid)
+                {
+                    created?.Dispose();
+                    throw reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
+                }
+
+                SafeFileHandle owned = created;
+                created = null;
+                return new NativeHandle(owned);
+            }
+            finally
+            {
+                created?.Dispose();
+
+                if (parentAddedRef)
+                    nativeParent.Handle.DangerousRelease();
+            }
+        }
+
+        public Stream CreateNonOwningWriteStream(IWindowsSkinPackageCaptureHandle file)
+        {
+            NativeHandle nativeFile = getNativeHandle(file);
+            return new NonOwningRandomAccessWriteStream(nativeFile.Handle);
+        }
+
         private static T queryInfo<T>(SafeFileHandle handle, NativeMethods.FILE_INFO_BY_HANDLE_CLASS informationClass)
             where T : unmanaged
         {
@@ -1771,6 +2283,66 @@ namespace osu.Game.Skinning.Windows
             public override void SetLength(long value) => throw new NotSupportedException();
             public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
+
+        private sealed class NonOwningRandomAccessWriteStream : Stream
+        {
+            private const int max_write_size = 1024 * 1024;
+
+            private readonly SafeFileHandle handle;
+            private long position;
+
+            public override bool CanRead => false;
+            public override bool CanSeek => false;
+            public override bool CanWrite => true;
+            public override long Length => throw new NotSupportedException();
+
+            public override long Position
+            {
+                get => position;
+                set => throw new NotSupportedException();
+            }
+
+            public NonOwningRandomAccessWriteStream(SafeFileHandle handle)
+            {
+                this.handle = handle ?? throw new ArgumentNullException(nameof(handle));
+            }
+
+            public override void Flush() => RandomAccess.FlushToDisk(handle);
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                ArgumentNullException.ThrowIfNull(buffer);
+                ArgumentOutOfRangeException.ThrowIfNegative(offset);
+                ArgumentOutOfRangeException.ThrowIfNegative(count);
+
+                if (offset > buffer.Length - count)
+                    throw new ArgumentException("The write range is invalid.");
+
+                while (count > 0)
+                {
+                    int length = Math.Min(count, max_write_size);
+                    RandomAccess.Write(handle, buffer.AsSpan(offset, length), position);
+                    position = checked(position + length);
+                    offset += length;
+                    count -= length;
+                }
+            }
+
+            public override void Write(ReadOnlySpan<byte> buffer)
+            {
+                while (!buffer.IsEmpty)
+                {
+                    ReadOnlySpan<byte> chunk = buffer[..Math.Min(buffer.Length, max_write_size)];
+                    RandomAccess.Write(handle, chunk, position);
+                    position = checked(position + chunk.Length);
+                    buffer = buffer[chunk.Length..];
+                }
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+        }
     }
 
     [SupportedOSPlatform("windows10.0.16299")]
@@ -1798,6 +2370,7 @@ namespace osu.Game.Skinning.Windows
 
         internal const uint FILE_LIST_DIRECTORY = 0x00000001;
         internal const uint FILE_READ_DATA = 0x00000001;
+        internal const uint FILE_WRITE_DATA = 0x00000002;
         internal const uint FILE_READ_ATTRIBUTES = 0x00000080;
         internal const uint DELETE = 0x00010000;
         internal const uint SYNCHRONIZE = 0x00100000;
@@ -1808,6 +2381,8 @@ namespace osu.Game.Skinning.Windows
         internal const uint FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020;
         internal const uint FILE_NON_DIRECTORY_FILE = 0x00000040;
         internal const uint FILE_OPEN_REPARSE_POINT = 0x00200000;
+        internal const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
+        internal const uint FILE_CREATE = 0x00000002;
         internal const uint OBJ_CASE_INSENSITIVE = 0x00000040;
         internal const uint OBJ_DONT_REPARSE = 0x00001000;
         internal const uint SL_RESTART_SCAN = 0x00000001;
@@ -1854,6 +2429,20 @@ namespace osu.Game.Skinning.Windows
             uint openOptions);
 
         [DllImport("ntdll.dll", ExactSpelling = true)]
+        private static extern int NtCreateFile(
+            out SafeFileHandle fileHandle,
+            uint desiredAccess,
+            ref OBJECT_ATTRIBUTES objectAttributes,
+            out IO_STATUS_BLOCK ioStatusBlock,
+            IntPtr allocationSize,
+            uint fileAttributes,
+            uint shareAccess,
+            uint createDisposition,
+            uint createOptions,
+            IntPtr eaBuffer,
+            uint eaLength);
+
+        [DllImport("ntdll.dll", ExactSpelling = true)]
         internal static extern int NtQueryDirectoryFileEx(
             SafeFileHandle fileHandle,
             IntPtr eventHandle,
@@ -1890,6 +2479,45 @@ namespace osu.Game.Skinning.Windows
             uint openOptions,
             out SafeFileHandle fileHandle)
             => open(IntPtr.Zero, name, desiredAccess, shareAccess, openOptions, out fileHandle);
+
+        internal static unsafe int CreateRelativeNoReplace(
+            IntPtr parentHandle,
+            string name,
+            uint desiredAccess,
+            uint shareAccess,
+            uint createOptions,
+            out SafeFileHandle fileHandle)
+        {
+            fixed (char* nameBuffer = name)
+            {
+                var unicodeName = new UNICODE_STRING
+                {
+                    Length = checked((ushort)(name.Length * sizeof(char))),
+                    MaximumLength = checked((ushort)((name.Length + 1) * sizeof(char))),
+                    Buffer = (IntPtr)nameBuffer,
+                };
+                var attributes = new OBJECT_ATTRIBUTES
+                {
+                    Length = (uint)Marshal.SizeOf<OBJECT_ATTRIBUTES>(),
+                    RootDirectory = parentHandle,
+                    ObjectName = (IntPtr)(&unicodeName),
+                    Attributes = OBJ_CASE_INSENSITIVE | OBJ_DONT_REPARSE,
+                };
+
+                return NtCreateFile(
+                    out fileHandle,
+                    desiredAccess,
+                    ref attributes,
+                    out _,
+                    IntPtr.Zero,
+                    FILE_ATTRIBUTE_NORMAL,
+                    shareAccess,
+                    FILE_CREATE,
+                    createOptions,
+                    IntPtr.Zero,
+                    0);
+            }
+        }
 
         internal static unsafe int RenameRelativeNoReplace(
             SafeFileHandle source,

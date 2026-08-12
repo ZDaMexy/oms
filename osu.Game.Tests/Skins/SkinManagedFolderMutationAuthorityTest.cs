@@ -206,7 +206,7 @@ namespace osu.Game.Tests.Skins
                     Assert.That(result.IsSuccess, Is.False);
                     Assert.That(
                         result.RejectionReason,
-                        Is.EqualTo(recordCase is IneligibleRecordCase.PathNotUnique or IneligibleRecordCase.ExternalFolder
+                        Is.EqualTo(recordCase == IneligibleRecordCase.PathNotUnique
                             ? SkinManagedFolderMutationAuthorityRejectionReason.ExistingRecordPathConflict
                             : SkinManagedFolderMutationAuthorityRejectionReason.ExistingRecordIneligible));
                     Assert.That(result.Session, Is.Null);
@@ -876,8 +876,8 @@ namespace osu.Game.Tests.Skins
                 Assert.Multiple(() =>
                 {
                     Assert.That(result.IsSuccess, Is.False);
-                    Assert.That(result.RejectionReason, Is.EqualTo(SkinManagedFolderMutationAuthorityRejectionReason.ExistingRecordPathConflict));
-                    Assert.That(native.OpenedSessions, Is.Zero);
+                    Assert.That(result.RejectionReason, Is.EqualTo(SkinManagedFolderMutationAuthorityRejectionReason.ExternalRegistryRejected));
+                    Assert.That(native.OpenedSessions, Is.EqualTo(1));
                 });
             });
         }
@@ -1000,48 +1000,58 @@ namespace osu.Game.Tests.Skins
         [Test]
         public void TestAuthorityDiagnosticsDoNotExposePathsPhysicalIdsOrOperationRecordIds()
         {
-            const string secret_source_path = "chartskin/authority-secret-source";
-            const string secret_target_path = "chartskin/authority-secret-target";
-            Guid operationId = Guid.Parse("a52bab4e-cbb3-4ab1-b793-10acec825de4");
-            Guid recordId = Guid.Parse("391c7de9-0a4e-4e54-9a2e-2e36bf8cb54b");
-            var secretIdentity = new SkinManagedFolderPhysicalIdentity(11, 123456789, 456789123);
-            var coordinator = new SkinManagedFolderOperationCoordinator();
-            using SkinManagedFolderOperationCoordinator.Lease coordinatorLease = coordinator.EnterMutation();
-            var native = new FakeNativeAuthority();
-            ISkinManagedFolderMutationNativeSession nativeSession = native.Open(CancellationToken.None);
-            var target = new SkinManagedFolderTargetNameSlot(secret_target_path, root_identity);
-            var existing = new SkinManagedFolderExistingRecordAuthority(
-                recordId,
-                secret_source_path,
-                secretIdentity,
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-            var store = createEmptyJournalStore();
-            using var session = new SkinManagedFolderMutationAuthoritySession(
-                operationId,
-                SkinManagedFolderMutationKind.Rename,
-                existing,
-                target,
-                null,
-                null,
-                coordinator,
-                store,
-                coordinatorLease,
-                nativeSession,
-                _ => true);
-            SkinManagedFolderMutationAuthorityResult success = SkinManagedFolderMutationAuthorityResult.Success(session);
-            SkinManagedFolderMutationAuthorityResult rejection = SkinManagedFolderMutationAuthorityResult.Reject(
-                SkinManagedFolderMutationAuthorityRejectionReason.NativeAuthorityRejected);
-            var exception = new SkinManagedFolderMutationNativeAuthorityException();
-            SkinManagedFolderMutationJournal journal = SkinManagedFolderMutationJournal.CreatePreparedRename(
-                operationId,
-                recordId,
-                root_identity,
-                secret_source_path,
-                secretIdentity,
-                secret_target_path);
-
-            string[] diagnostics =
+            RunTestWithRealm((realm, storage) =>
             {
+                const string secret_source_path = "chartskin/authority-secret-source";
+                const string secret_target_path = "chartskin/authority-secret-target";
+                Guid operationId = Guid.Parse("a52bab4e-cbb3-4ab1-b793-10acec825de4");
+                Guid recordId = Guid.Parse("391c7de9-0a4e-4e54-9a2e-2e36bf8cb54b");
+                var secretIdentity = new SkinManagedFolderPhysicalIdentity(11, 123456789, 456789123);
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                using SkinManagedFolderOperationCoordinator.Lease coordinatorLease = coordinator.EnterMutation();
+                var registry = new SkinExternalFolderRegistryService(
+                    realm,
+                    storage,
+                    coordinator,
+                    new SkinExternalFolderCaptureService());
+                SkinExternalFolderRegistryCaptureResult registryCapture = registry.CaptureExactSet(coordinatorLease);
+                Assert.That(registryCapture.IsSuccess, Is.True);
+                var native = new FakeNativeAuthority();
+                ISkinManagedFolderMutationNativeSession nativeSession = native.Open(CancellationToken.None);
+                var target = new SkinManagedFolderTargetNameSlot(secret_target_path, root_identity);
+                var existing = new SkinManagedFolderExistingRecordAuthority(
+                    recordId,
+                    secret_source_path,
+                    secretIdentity,
+                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+                var store = createEmptyJournalStore();
+                using var session = new SkinManagedFolderMutationAuthoritySession(
+                    operationId,
+                    SkinManagedFolderMutationKind.Rename,
+                    existing,
+                    target,
+                    null,
+                    null,
+                    coordinator,
+                    store,
+                    coordinatorLease,
+                    nativeSession,
+                    registryCapture.Snapshot!,
+                    _ => true);
+                SkinManagedFolderMutationAuthorityResult success = SkinManagedFolderMutationAuthorityResult.Success(session);
+                SkinManagedFolderMutationAuthorityResult rejection = SkinManagedFolderMutationAuthorityResult.Reject(
+                    SkinManagedFolderMutationAuthorityRejectionReason.NativeAuthorityRejected);
+                var exception = new SkinManagedFolderMutationNativeAuthorityException();
+                SkinManagedFolderMutationJournal journal = SkinManagedFolderMutationJournal.CreatePreparedRename(
+                    operationId,
+                    recordId,
+                    root_identity,
+                    secret_source_path,
+                    secretIdentity,
+                    secret_target_path);
+
+                string[] diagnostics =
+                {
                 secretIdentity.ToString(),
                 target.ToString(),
                 existing.ToString(),
@@ -1051,8 +1061,8 @@ namespace osu.Game.Tests.Skins
                 exception.ToString(),
                 journal.ToString(),
             };
-            string[] secrets =
-            {
+                string[] secrets =
+                {
                 secret_source_path,
                 secret_target_path,
                 operationId.ToString(),
@@ -1064,13 +1074,14 @@ namespace osu.Game.Tests.Skins
                 secretIdentity.FileIdPart1.ToString(),
             };
 
-            Assert.Multiple(() =>
-            {
-                foreach (string diagnostic in diagnostics)
+                Assert.Multiple(() =>
                 {
-                    foreach (string secret in secrets)
-                        Assert.That(diagnostic, Does.Not.Contain(secret));
-                }
+                    foreach (string diagnostic in diagnostics)
+                    {
+                        foreach (string secret in secrets)
+                            Assert.That(diagnostic, Does.Not.Contain(secret));
+                    }
+                });
             });
         }
 
@@ -1292,6 +1303,13 @@ namespace osu.Game.Tests.Skins
                 private int disposed;
 
                 public SkinManagedFolderPhysicalIdentity ManagedRootIdentity => root_identity;
+
+                public SkinFolderPhysicalAncestryProof ManagedRootAncestryProof { get; } =
+                    new SkinFolderPhysicalAncestryProof(new[]
+                    {
+                        new SkinManagedFolderPhysicalIdentity(11, 1, 1),
+                        root_identity,
+                    });
 
                 public FakeNativeSession(FakeNativeAuthority owner)
                 {

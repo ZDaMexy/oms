@@ -16,6 +16,7 @@ using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.IO.Archives;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Skinning.IO;
 using Realms;
 
 namespace osu.Game.Skinning
@@ -47,9 +48,24 @@ namespace osu.Game.Skinning
 
         protected override string[] HashableFileTypes => new[] { ".ini", ".json" };
 
+        protected override bool UseFastImportPrecheck => false;
+
+        protected override bool UseTransactionalFileImportScope => true;
+
+        protected override ValueTask<ArchiveReader> OpenArchiveReaderAsync(ImportTask task, CancellationToken cancellationToken)
+            => SkinArchiveReader.OpenAsync(task, cancellationToken);
+
         protected override bool ShouldDeleteArchive(string path) => string.Equals(Path.GetExtension(path), @".osk", StringComparison.OrdinalIgnoreCase);
 
-        protected override SkinInfo CreateModel(ArchiveReader archive, ImportParameters parameters) => new SkinInfo { Name = archive.Name ?? @"No name" };
+        protected override SkinInfo CreateModel(ArchiveReader archive, ImportParameters parameters)
+        {
+            var result = new SkinInfo { Name = archive.Name ?? @"No name" };
+
+            if (archive is SkinArchiveReader skinArchive)
+                result.InstantiationInfo = getInstantiationInfo(skinArchive.InstantiationKind);
+
+            return result;
+        }
 
         private const string unknown_creator_string = @"Unknown";
 
@@ -103,42 +119,25 @@ namespace osu.Game.Skinning
 
         protected override void Populate(SkinInfo model, ArchiveReader? archive, Realm realm, CancellationToken cancellationToken = default)
         {
-            var skinInfoFile = model.GetFile(skin_info_file);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            if (skinInfoFile != null)
-            {
-                try
-                {
-                    using (var existingStream = Files.Storage.GetStream(skinInfoFile.File.GetStoragePath()))
-                    using (var reader = new StreamReader(existingStream))
-                    {
-                        var deserialisedSkinInfo = JsonConvert.DeserializeObject<SkinInfo>(reader.ReadToEnd());
-
-                        if (deserialisedSkinInfo != null)
-                        {
-                            // for now we only care about the instantiation info.
-                            // eventually we probably want to transfer everything across.
-                            model.InstantiationInfo = deserialisedSkinInfo.InstantiationInfo;
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    LogForModel(model, $"Error during {skin_info_file} parsing, falling back to default", e);
-
-                    // Not sure if we should still run the import in the case of failure here, but let's do so for now.
-                    model.InstantiationInfo = string.Empty;
-                }
-            }
+            // Never activate the CLR type string from an imported skininfo.json. The skin archive reader resolves it to a
+            // closed compatibility kind before model construction; this second application also protects direct ImportModel callers.
+            model.InstantiationInfo = getInstantiationInfo(SkinArchiveInstantiationPolicy.Resolve(model.InstantiationInfo));
 
             // Always rewrite instantiation info (even after parsing in from the skin json) for sanity.
             model.InstantiationInfo = resolveInstantiationInfo(createInstance(model));
 
-            checkSkinIniMetadata(model, realm);
+            cancellationToken.ThrowIfCancellationRequested();
+            checkSkinIniMetadata(model, realm, cancellationToken);
         }
 
-        private void checkSkinIniMetadata(SkinInfo item, Realm realm)
+        private void checkSkinIniMetadata(
+            SkinInfo item,
+            Realm realm,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var instance = createInstance(item);
 
             // This function can be run on fresh import or save. The logic here ensures a skin.ini file is in a good state for both operations.
@@ -168,11 +167,15 @@ namespace osu.Game.Skinning
             // Regardless of whether this is an import or not, let's write the skin.ini if non-existing or non-matching.
             // This is (weirdly) done inside ComputeHash to avoid adding a new method to handle this case. After switching to realm it can be moved into another place.
             if (skinIniSourcedName != item.Name)
-                UpdateSkinIniMetadata(item, realm);
+                UpdateSkinIniMetadata(item, realm, cancellationToken);
         }
 
-        public void UpdateSkinIniMetadata(SkinInfo item, Realm realm)
+        public void UpdateSkinIniMetadata(
+            SkinInfo item,
+            Realm realm,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string nameLine = @$"Name: {item.Name}";
             string authorLine = @$"Author: {item.Creator}";
 
@@ -207,22 +210,30 @@ namespace osu.Game.Skinning
                         {
                             string? line;
                             while ((line = sr.ReadLine()) != null)
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 sw.WriteLine(line);
+                            }
                         }
 
                         sw.WriteLine();
 
                         foreach (string line in newLines)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
                             sw.WriteLine(line);
+                        }
                     }
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     modelManager.ReplaceFile(item, existingFile, stream, realm);
                 }
             }
 
             // The hash is already populated at this point in import.
             // As we have changed files, it needs to be recomputed.
-            item.Hash = ComputeHash(item);
+            cancellationToken.ThrowIfCancellationRequested();
+            item.Hash = ComputeHash(item, cancellationToken);
 
             void writeNewSkinIni()
             {
@@ -231,13 +242,18 @@ namespace osu.Game.Skinning
                     using (var sw = new StreamWriter(stream, Encoding.UTF8, 1024, true))
                     {
                         foreach (string line in newLines)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
                             sw.WriteLine(line);
+                        }
                     }
 
+                    cancellationToken.ThrowIfCancellationRequested();
                     modelManager.AddFile(item, stream, @"skin.ini", realm);
                 }
 
-                item.Hash = ComputeHash(item);
+                cancellationToken.ThrowIfCancellationRequested();
+                item.Hash = ComputeHash(item, cancellationToken);
             }
         }
 
@@ -254,6 +270,18 @@ namespace osu.Game.Skinning
             => instance.GetType() == typeof(LegacySkin) && bms_legacy_skin_instantiation_info != null
                 ? bms_legacy_skin_instantiation_info
                 : instance.GetType().GetInvariantInstantiationInfo();
+
+        private static string getInstantiationInfo(SkinArchiveInstantiationKind kind) => kind switch
+        {
+            SkinArchiveInstantiationKind.Legacy => bms_legacy_skin_instantiation_info ?? typeof(LegacySkin).GetInvariantInstantiationInfo(),
+            SkinArchiveInstantiationKind.DefaultLegacy => typeof(DefaultLegacySkin).GetInvariantInstantiationInfo(),
+            SkinArchiveInstantiationKind.Triangles => typeof(TrianglesSkin).GetInvariantInstantiationInfo(),
+            SkinArchiveInstantiationKind.Argon => typeof(ArgonSkin).GetInvariantInstantiationInfo(),
+            SkinArchiveInstantiationKind.ArgonPro => typeof(ArgonProSkin).GetInvariantInstantiationInfo(),
+            SkinArchiveInstantiationKind.Retro => typeof(RetroSkin).GetInvariantInstantiationInfo(),
+            SkinArchiveInstantiationKind.Oms => typeof(OmsSkin).GetInvariantInstantiationInfo(),
+            _ => bms_legacy_skin_instantiation_info ?? typeof(LegacySkin).GetInvariantInstantiationInfo(),
+        };
 
         /// <summary>
         /// Save a skin, serialising any changes to skin layouts to relevant JSON structures.

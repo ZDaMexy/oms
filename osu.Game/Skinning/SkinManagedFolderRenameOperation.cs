@@ -184,7 +184,7 @@ namespace osu.Game.Skinning
 
                 if (record == null
                     || !isEligibleRecordAt(record, existing.ManagedRelativePath)
-                    || hasUnresolvedExternalDeclaration(r)
+                    || !session.ExactlyMatchesExternalRegistryDeclarations(r.All<SkinInfo>())
                     || hasPathConflict(r, record.ID, existing.ManagedRelativePath)
                     || hasPathConflict(r, record.ID, target.ManagedRelativePath))
                 {
@@ -215,9 +215,6 @@ namespace osu.Game.Skinning
                && string.Equals(record.FilesystemStoragePath, normalisedPath, StringComparison.Ordinal)
                && string.Equals(normalisedPath, expectedManagedRelativePath, StringComparison.Ordinal);
 
-        private static bool hasUnresolvedExternalDeclaration(Realm realm)
-            => realm.All<SkinInfo>().AsEnumerable().Any(candidate => candidate.IsExternalFilesystemStorage);
-
         private static bool hasPathConflict(
             Realm realm,
             Guid authoritativeRecordId,
@@ -237,7 +234,9 @@ namespace osu.Game.Skinning
     /// <summary>
     /// Production recovery policy for directory-only managed chartskin rename journals.
     /// </summary>
-    internal sealed class SkinManagedFolderRenameRecoveryHandler : ISkinManagedFolderMutationRecoveryHandler
+    internal sealed class SkinManagedFolderRenameRecoveryHandler
+        : ISkinManagedFolderMutationRecoveryHandler,
+          ISkinManagedFolderMutationHeldRecoveryHandler
     {
         private readonly RealmAccess realm;
         private readonly ISkinManagedFolderMutationNativeAuthority nativeAuthority;
@@ -258,6 +257,33 @@ namespace osu.Game.Skinning
                 return ambiguousInspection();
 
             using ISkinManagedFolderMutationNativeSession native = nativeAuthority.Open(cancellationToken);
+            return inspect(journal, native, null, cancellationToken);
+        }
+
+        public bool CanHandle(SkinManagedFolderMutationKind kind)
+            => kind == SkinManagedFolderMutationKind.Rename;
+
+        public SkinManagedFolderMutationRecoveryInspection InspectHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+        {
+            if (!tryValidateRenameJournal(journal)
+                || authority == null
+                || !authority.Validate(cancellationToken))
+            {
+                return ambiguousInspection();
+            }
+
+            return inspect(journal, authority.NativeSession, authority, cancellationToken);
+        }
+
+        private SkinManagedFolderMutationRecoveryInspection inspect(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationNativeSession native,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
 
             if (native.ManagedRootIdentity != journal.ManagedRootIdentity)
                 return ambiguousInspection();
@@ -267,7 +293,10 @@ namespace osu.Game.Skinning
                 journal.TargetManagedRelativePath!,
                 journal.SourceIdentity!.Value,
                 cancellationToken);
-            RealmState realmState = inspectRealmState(journal);
+            RealmState realmState = inspectRealmState(journal, authority);
+
+            if (!validateAuthority(authority, cancellationToken))
+                return ambiguousInspection();
 
             return (physical.Status, realmState) switch
             {
@@ -306,7 +335,8 @@ namespace osu.Game.Skinning
                 RealmState.Target,
                 journal.TargetManagedRelativePath,
                 journal.SourceIdentity,
-                cancellationToken);
+                cancellationToken,
+                null);
 
         public SkinManagedFolderMutationRecoveryActionResult TryRollBack(
             SkinManagedFolderMutationJournal journal,
@@ -317,7 +347,34 @@ namespace osu.Game.Skinning
                 RealmState.Source,
                 journal.SourceManagedRelativePath,
                 null,
-                cancellationToken);
+                cancellationToken,
+                null);
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollForwardHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+            => tryReconcileRealmToPhysical(
+                journal,
+                SkinManagedFolderRenameInspectionStatus.TargetOnly,
+                RealmState.Target,
+                journal.TargetManagedRelativePath,
+                journal.SourceIdentity,
+                cancellationToken,
+                authority);
+
+        public SkinManagedFolderMutationRecoveryActionResult TryRollBackHeld(
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession authority,
+            CancellationToken cancellationToken)
+            => tryReconcileRealmToPhysical(
+                journal,
+                SkinManagedFolderRenameInspectionStatus.SourceOnly,
+                RealmState.Source,
+                journal.SourceManagedRelativePath,
+                null,
+                cancellationToken,
+                authority);
 
         public override string ToString() => nameof(SkinManagedFolderRenameRecoveryHandler);
 
@@ -327,12 +384,50 @@ namespace osu.Game.Skinning
             RealmState finalRealmState,
             string? finalRealmPath,
             SkinManagedFolderPhysicalIdentity? targetIdentity,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority)
         {
             if (!tryValidateRenameJournal(journal) || finalRealmPath == null)
                 return failedAction();
 
-            using ISkinManagedFolderMutationNativeSession native = nativeAuthority.Open(cancellationToken);
+            if (authority == null)
+            {
+                using ISkinManagedFolderMutationNativeSession opened = nativeAuthority.Open(cancellationToken);
+                return reconcileRealmToPhysical(
+                    journal,
+                    requiredPhysicalState,
+                    finalRealmState,
+                    finalRealmPath,
+                    targetIdentity,
+                    opened,
+                    null,
+                    cancellationToken);
+            }
+
+            if (!authority.Validate(cancellationToken))
+                return failedAction();
+
+            return reconcileRealmToPhysical(
+                journal,
+                requiredPhysicalState,
+                finalRealmState,
+                finalRealmPath,
+                targetIdentity,
+                authority.NativeSession,
+                authority,
+                cancellationToken);
+        }
+
+        private SkinManagedFolderMutationRecoveryActionResult reconcileRealmToPhysical(
+            SkinManagedFolderMutationJournal journal,
+            SkinManagedFolderRenameInspectionStatus requiredPhysicalState,
+            RealmState finalRealmState,
+            string finalRealmPath,
+            SkinManagedFolderPhysicalIdentity? targetIdentity,
+            ISkinManagedFolderMutationNativeSession native,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
 
             if (native.ManagedRootIdentity != journal.ManagedRootIdentity)
                 return failedAction();
@@ -346,7 +441,11 @@ namespace osu.Game.Skinning
             if (before.Status != requiredPhysicalState)
                 return failedAction();
 
-            bool realmApplied = applyRecoveryRealmPath(journal, finalRealmPath);
+            bool realmApplied = applyRecoveryRealmPath(
+                journal,
+                finalRealmPath,
+                authority,
+                cancellationToken);
 
             if (!realmApplied)
                 return failedAction();
@@ -359,7 +458,8 @@ namespace osu.Game.Skinning
                 cancellationToken);
 
             if (after.Status != requiredPhysicalState
-                || inspectRealmState(journal) != finalRealmState)
+                || inspectRealmState(journal, authority) != finalRealmState
+                || !validateAuthority(authority, cancellationToken))
             {
                 return failedAction();
             }
@@ -371,14 +471,15 @@ namespace osu.Game.Skinning
         }
 
         private RealmState inspectRealmState(
-            SkinManagedFolderMutationJournal journal)
+            SkinManagedFolderMutationJournal journal,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority)
             => realm.Run(r =>
             {
                 r.Refresh();
                 SkinInfo? record = r.Find<SkinInfo>(journal.RecordId!.Value);
 
                 if (record == null
-                    || hasUnresolvedExternalDeclaration(r)
+                    || !externalDeclarationsMatch(r, authority)
                     || !isEligibleRecoveryRecord(record)
                     || hasPathConflict(r, record.ID, journal.SourceManagedRelativePath!)
                     || hasPathConflict(r, record.ID, journal.TargetManagedRelativePath!))
@@ -404,14 +505,20 @@ namespace osu.Game.Skinning
 
         private bool applyRecoveryRealmPath(
             SkinManagedFolderMutationJournal journal,
-            string expectedPath)
-            => realm.Write(r =>
+            string expectedPath,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+        {
+            if (!validateAuthority(authority, cancellationToken))
+                return false;
+
+            bool applied = realm.Write(r =>
             {
                 r.Refresh();
                 SkinInfo? record = r.Find<SkinInfo>(journal.RecordId!.Value);
 
                 if (record == null
-                    || hasUnresolvedExternalDeclaration(r)
+                    || !externalDeclarationsMatch(r, authority)
                     || !isEligibleRecoveryRecord(record)
                     || hasPathConflict(r, record.ID, journal.SourceManagedRelativePath!)
                     || hasPathConflict(r, record.ID, journal.TargetManagedRelativePath!))
@@ -434,6 +541,20 @@ namespace osu.Game.Skinning
                 record.FilesystemStoragePath = expectedPath;
                 return true;
             });
+
+            return applied && validateAuthority(authority, cancellationToken);
+        }
+
+        private static bool externalDeclarationsMatch(
+            Realm realm,
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority)
+            => authority?.ExactlyMatchesRealmDeclarations(realm.All<SkinInfo>())
+               ?? !hasUnresolvedExternalDeclaration(realm);
+
+        private static bool validateAuthority(
+            ISkinManagedFolderMutationRecoveryAuthoritySession? authority,
+            CancellationToken cancellationToken)
+            => authority?.Validate(cancellationToken) ?? true;
 
         private static bool isEligibleRecoveryRecord(SkinInfo record)
             => record.IsManaged

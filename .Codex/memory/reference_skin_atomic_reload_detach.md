@@ -1,18 +1,18 @@
 ---
 name: reference_skin_atomic_reload_detach
-description: current managed skin整包原子reload/detach的2026-08-09 NO-GO、真实consumer缺口与重新开门条件
+description: ordinary .osk、managed与external current revision原子publication/detach的C2入口、2026-08-09 NO-GO遗留缺口与关闭条件
 metadata:
   node_type: memory
   type: reference
 ---
 
-# Managed skin atomic reload/detach 地雷
+# Skin current revision atomic reload/detach 地雷
 
 ## 当前结论
 
-- 2026-08-09按真实settings/selection/renderer/owner链审计，current managed atomic reload/detach为**NO-GO**；不得新增reload foundation。当前状态与顺序只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，dated证据见[2026-08-09交接](../../doc_md/other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
-- 后续燃尽把当前production consumer的revision publication/lease/detach协议放入`C2`；`C3`～`C6`新增layout/scene/script consumer必须同切加入该协议，直到`C6`才关闭覆盖`ini/manifest/scene/script/素材`的最终整包reload与G1自动门。该计划不把2026-08-09 NO-GO改写成当前已实现事实；`C1`未关闭及`C2`真实caller/路线未取得产品终态前仍禁止预建barrier foundation。
-- PLAN把完整`C1`作者文件工作区排在`C2`当前consumer revision协议之前；external registration/capture只是`C1`首个子门，不能完成后立即跳到reload。当前仓库没有reload current managed revision的caller、UI、watcher或manager API。
+- 2026-08-09按真实settings/selection/renderer/owner链审计，current managed atomic reload/detach为**NO-GO**。C1作者文件工作区前置已经满足，燃尽现为`1/7 closed，C2 active`；这表示可以在C2冻结真实路线并实现纵切，不表示旧NO-GO所列consumer/lifecycle缺口已经消失。当前状态与顺序只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，dated证据见[2026-08-09交接](../../doc_md/other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
+- C2承接当前production consumer的revision publication/lease/detach协议；`C3`～`C6`新增layout/scene/script consumer必须同切加入该协议，直到`C6`才关闭覆盖`ini/manifest/scene/script/素材`的最终整包reload与G1自动门。C2必须先冻结唯一真实触发、允许场景和participant集合，再以同一campaign的红测与实现闭合，禁止脱离caller预建barrier foundation。
+- C1已经提供external registration/capture、managed Workspace与ordinary `.osk` ingress安全输入；当前仓库仍没有reload current revision的真实caller/UI/watcher或manager API。C2不得把same-value selection、现有`SourceChanged`或ordinary `.osk`即时dispose链冒充该caller。
 - settings/config/hotkey只请求selection，same-value在准备前短路；startup scanner是单次reconcile而非watcher。filesystem-backed skin继续被editor、update import与external edit拒绝。普通Realm `ExternalEditOverlay`的new-instance后立即dispose旧实例不是managed caller，也没有barrier，不能复用。
 
 ## publication 与 owner 地雷
@@ -24,8 +24,9 @@ metadata:
 
 ## 重新开门门槛
 
-- 产品先冻结唯一真实触发方式、允许场景（尤其live gameplay是否允许）和全部consumer participation/publication/detach/retirement协议；在此之前，“先写红测”会先发明缺失caller/barrier，不是合格产品红测。
-- 获准纵切仍须fresh authoritative Realm/path/owner/freeze/capture/factory复核、完整immutable capsule与new skin instance准备、generation/current-selection/revision gate、所有consumer coherent publication、失败保留exact旧revision、全consumer detach后幂等dispose旧owner，以及latest-wins/reentrant/首个不可逆边界前取消/shutdown exact claim-reap-join与脱敏诊断。
+- C2先冻结唯一真实触发方式、允许场景（尤其live gameplay是否允许或延后）和全部consumer participation/publication/detach/retirement协议；红测必须从该可达caller跨manager直到真实renderer/owner，不能只发明barrier DTO。
+- 纵切须统一ordinary Realm `.osk`、managed与external来源：fresh authoritative Realm/path/owner/freeze/capture/factory复核、完整immutable revision与new skin instance后台准备、generation/current-selection/revision gate、所有consumer coherent publication、失败保留exact旧revision、全consumer detach后幂等dispose旧owner，以及latest-wins/reentrant/首个不可逆边界前取消/shutdown exact claim-reap-join与脱敏诊断。
+- current external unregister只能在coherent fallback/new revision已经发布且所有旧consumer detach后做pure-Realm compare-remove；失败时source record与旧pair都应保持，不得先注销再尝试切换。ordinary `.osk`现有new-instance后立即dispose旧实例的旁路必须迁入统一协议或被禁用。
 - 禁止manager-only reload API、强制同ID selection、逐组件`SourceChanged`拼接、即时dispose旧owner或没有真实caller/consumer的barrier/DTO foundation。managed delete journal/detach是独立operation合同，不提供reload的全renderer生命周期事务。
 
 ## 关联入口

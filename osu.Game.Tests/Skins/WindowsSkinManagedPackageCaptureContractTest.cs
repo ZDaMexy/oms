@@ -595,6 +595,272 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestExternalHeldCaptureProducesPairedManifestCapsuleAndProof()
+        {
+            FakeExternalPackage package = createExternalPackage();
+            package.Package.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+            FakeNode nested = package.Package.AddDirectory("Nested");
+            nested.AddDirectory("empty");
+            nested.AddFile("note.png", new byte[] { 4, 5 });
+
+            SkinExternalPackageCaptureResult result = package.CaptureHeld();
+
+            Assert.That(result.IsSuccess, Is.True);
+            ISkinExternalPackageCaptureSession session = result.Session!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.GreaterThan(0));
+                Assert.That(session.HeldHandleCount, Is.EqualTo(package.FileSystem.ActiveHandleCount));
+                Assert.That(session.PhysicalProof.HeldNodeCount, Is.EqualTo(3));
+                Assert.That(session.PhysicalProof.Digest, Does.Match("^[0-9a-f]{64}$"));
+                Assert.That(session.PhysicalTreeFingerprint, Does.Match("^[0-9a-f]{64}$"));
+                Assert.That(session.CaptureFingerprint, Does.Match("^[0-9a-f]{64}$"));
+                Assert.That(
+                    session.LogicalManifest.Entries.Select(entry => (entry.RelativePath, entry.Kind, entry.Length)),
+                    Is.EqualTo(new[]
+                    {
+                        ("Nested", SkinExternalPackageLogicalEntryKind.Directory, 0L),
+                        ("Nested/empty", SkinExternalPackageLogicalEntryKind.Directory, 0L),
+                        ("Nested/note.png", SkinExternalPackageLogicalEntryKind.File, 2L),
+                        ("skin.ini", SkinExternalPackageLogicalEntryKind.File, 3L),
+                    }));
+                Assert.That(session.LogicalManifest.Digest, Does.Match("^[0-9a-f]{64}$"));
+                Assert.That(session.LogicalManifest.CanonicalByteCount, Is.LessThanOrEqualTo(SkinExternalPackageCaptureLimits.DEFAULT_MAX_LOGICAL_MANIFEST_BYTES));
+                Assert.That(package.FileSystem.OperationIndex(FakeOperationKind.RenameBegin, package.Package), Is.Zero);
+                Assert.That(package.FileSystem.OperationIndex(FakeOperationKind.Delete, package.Package), Is.Zero);
+            });
+
+            session.Validate();
+            using SkinPackageRevisionCapsule capsule = session.TakeCapsule();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(capsule.ContentRevision, Is.EqualTo(session.LogicalManifest.ContentRevision));
+                Assert.That(capsule.FileCount, Is.EqualTo(session.LogicalManifest.FileCount));
+                Assert.That(capsule.TotalBytes, Is.EqualTo(session.LogicalManifest.TotalFileBytes));
+                Assert.Throws<InvalidOperationException>(() => session.TakeCapsule());
+            });
+
+            session.Dispose();
+            session.Dispose();
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestExternalManifestAndCaptureFingerprintBindEmptyDirectories()
+        {
+            FakeExternalPackage package = createExternalPackage();
+            package.Package.AddFile("skin.ini", new byte[] { 1 });
+
+            SkinExternalPackageCaptureResult first = package.CaptureHeld();
+            string firstRevision;
+            string firstManifest;
+            string firstCapture;
+
+            using (ISkinExternalPackageCaptureSession session = first.Session!)
+            using (SkinPackageRevisionCapsule capsule = session.TakeCapsule())
+            {
+                firstRevision = capsule.ContentRevision;
+                firstManifest = session.LogicalManifest.Digest;
+                firstCapture = session.CaptureFingerprint;
+            }
+
+            package.Package.AddDirectory("empty");
+            SkinExternalPackageCaptureResult second = package.CaptureHeld();
+
+            using (ISkinExternalPackageCaptureSession session = second.Session!)
+            using (SkinPackageRevisionCapsule capsule = session.TakeCapsule())
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(capsule.ContentRevision, Is.EqualTo(firstRevision));
+                    Assert.That(session.LogicalManifest.Digest, Is.Not.EqualTo(firstManifest));
+                    Assert.That(session.CaptureFingerprint, Is.Not.EqualTo(firstCapture));
+                    Assert.That(
+                        session.LogicalManifest.Entries.Single(entry => entry.RelativePath == "empty").Kind,
+                        Is.EqualTo(SkinExternalPackageLogicalEntryKind.Directory));
+                });
+            }
+
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestExternalProofOnlySessionDoesNotReadPackageBytes()
+        {
+            FakeExternalPackage package = createExternalPackage();
+            package.Package.AddFile("skin.ini", new byte[] { 1, 2, 3 });
+
+            SkinExternalFolderAuthorityCaptureResult result = package.OpenAuthority();
+
+            Assert.That(result.IsSuccess, Is.True);
+
+            using (ISkinExternalFolderAuthoritySession session = result.Session!)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(session.HeldHandleCount, Is.EqualTo(3));
+                    Assert.That(package.FileSystem.ReadStreamCount, Is.Zero);
+                    Assert.That(package.FileSystem.OpenCount(package.Package.Children.Single()), Is.Zero);
+                });
+
+                session.Validate();
+            }
+
+            Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [TestCase("volume")]
+        [TestCase("ancestor")]
+        [TestCase("package")]
+        [TestCase("nested")]
+        public void TestExternalCaptureRejectsReparseAtEveryHeldLevel(string level)
+        {
+            FakeExternalPackage package = createExternalPackage();
+            FakeNode target = level switch
+            {
+                "volume" => package.VolumeRoot,
+                "ancestor" => package.ExternalRoot,
+                "package" => package.Package,
+                "nested" => package.Package.AddDirectory("nested"),
+                _ => throw new ArgumentOutOfRangeException(nameof(level)),
+            };
+            target.IsReparsePoint = true;
+
+            SkinExternalPackageCaptureResult result = package.CaptureHeld();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.IsSuccess, Is.False);
+                Assert.That(result.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.ReparsePointEncountered));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [TestCase((int)MutationTreeHazard.HardLink)]
+        [TestCase((int)MutationTreeHazard.DuplicateIdentity)]
+        [TestCase((int)MutationTreeHazard.BusyWriter)]
+        public void TestExternalCaptureRejectsFileIdentityAndWriterHazards(int hazardValue)
+        {
+            var hazard = (MutationTreeHazard)hazardValue;
+            FakeExternalPackage package = createExternalPackage();
+            FakeNode first = package.Package.AddFile("first.bin", new byte[] { 1 });
+            FakeNode second = package.Package.AddFile("second.bin", new byte[] { 2 });
+
+            switch (hazard)
+            {
+                case MutationTreeHazard.HardLink:
+                    first.NumberOfLinks = 2;
+                    break;
+
+                case MutationTreeHazard.DuplicateIdentity:
+                    second.FileId = first.FileId;
+                    break;
+
+                case MutationTreeHazard.BusyWriter:
+                    first.IsBusy = true;
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(hazard));
+            }
+
+            SkinExternalPackageCaptureResult result = package.CaptureHeld();
+            SkinManagedPackageCaptureRejectionReason expected = hazard switch
+            {
+                MutationTreeHazard.HardLink => SkinManagedPackageCaptureRejectionReason.HardLinkedFile,
+                MutationTreeHazard.DuplicateIdentity => SkinManagedPackageCaptureRejectionReason.DuplicatePhysicalIdentity,
+                _ => SkinManagedPackageCaptureRejectionReason.SourceBusy,
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.IsSuccess, Is.False);
+                Assert.That(result.RejectionReason, Is.EqualTo(expected));
+                Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void TestExternalCaptureAndHeldValidationRejectInventoryAndIdentityDrift()
+        {
+            FakeExternalPackage inventoryPackage = createExternalPackage();
+            inventoryPackage.Package.AddFile("skin.ini", new byte[] { 1 });
+            inventoryPackage.FileSystem.OnOperation = operation =>
+            {
+                if (operation.Kind == FakeOperationKind.CreateReadStream)
+                    inventoryPackage.Package.AddFile("late.ini", new byte[] { 2 });
+            };
+
+            SkinExternalPackageCaptureResult inventory = inventoryPackage.CaptureHeld();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inventory.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.InventoryChanged));
+                Assert.That(inventoryPackage.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+
+            FakeExternalPackage identityPackage = createExternalPackage();
+            FakeNode heldFile = identityPackage.Package.AddFile("skin.ini", new byte[] { 1 });
+            SkinExternalPackageCaptureResult held = identityPackage.CaptureHeld();
+            Assert.That(held.IsSuccess, Is.True);
+
+            using (ISkinExternalPackageCaptureSession session = held.Session!)
+            {
+                heldFile.ChangeTime++;
+                WindowsSkinPackageCaptureFileSystemException? exception = Assert.Throws<WindowsSkinPackageCaptureFileSystemException>(
+                    () => session.Validate());
+                Assert.That(exception!.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture));
+            }
+
+            Assert.That(identityPackage.FileSystem.ActiveHandleCount, Is.Zero);
+        }
+
+        [Test]
+        public void TestExternalCaptureBudgetsFailClosedAndReleaseHandles()
+        {
+            FakeExternalPackage depthPackage = createExternalPackage();
+            depthPackage.Package.AddFile("skin.ini", new byte[] { 1 });
+            var depthLimits = new SkinExternalPackageCaptureLimits(
+                SkinPackageRevisionCapsuleLimits.Default,
+                maxAuthorityDepth: 1,
+                maxHeldHandleCount: 20,
+                maxLogicalManifestBytes: 1024);
+            SkinExternalPackageCaptureResult depth = depthPackage.CaptureHeld(depthLimits);
+
+            FakeExternalPackage handlePackage = createExternalPackage();
+            handlePackage.Package.AddFile("skin.ini", new byte[] { 1 });
+            var handleLimits = new SkinExternalPackageCaptureLimits(
+                SkinPackageRevisionCapsuleLimits.Default,
+                maxAuthorityDepth: 8,
+                maxHeldHandleCount: 3,
+                maxLogicalManifestBytes: 1024);
+            SkinExternalPackageCaptureResult handles = handlePackage.CaptureHeld(handleLimits);
+
+            FakeExternalPackage manifestPackage = createExternalPackage();
+            manifestPackage.Package.AddFile("skin.ini", new byte[] { 1 });
+            var manifestLimits = new SkinExternalPackageCaptureLimits(
+                SkinPackageRevisionCapsuleLimits.Default,
+                maxAuthorityDepth: 8,
+                maxHeldHandleCount: 20,
+                maxLogicalManifestBytes: 1);
+            SkinExternalPackageCaptureResult manifest = manifestPackage.CaptureHeld(manifestLimits);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(depth.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.AuthorityDepthBudgetExceeded));
+                Assert.That(depthPackage.FileSystem.OperationCount, Is.Zero);
+                Assert.That(depthPackage.FileSystem.ActiveHandleCount, Is.Zero);
+                Assert.That(handles.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.HeldHandleBudgetExceeded));
+                Assert.That(handlePackage.FileSystem.ActiveHandleCount, Is.Zero);
+                Assert.That(handlePackage.FileSystem.OpenCount(handlePackage.Package.Children.Single()), Is.Zero);
+                Assert.That(manifest.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.LogicalManifestBudgetExceeded));
+                Assert.That(manifestPackage.FileSystem.ActiveHandleCount, Is.Zero);
+            });
+        }
+
+        [Test]
         public void TestDeterministicNestedCaptureAndOwnership()
         {
             FakePackage first = createPackage();
@@ -773,6 +1039,11 @@ namespace osu.Game.Tests.Skins
             Assert.Multiple(() =>
             {
                 Assert.Throws<InvalidOperationException>(() => new SkinManagedPackageCaptureRequest(@"C:\data", "package", new object()));
+                Assert.Throws<InvalidOperationException>(() => new SkinExternalPackageCaptureRequest(
+                    @"C:\external\package",
+                    'C',
+                    new[] { "external", "package" },
+                    new object()));
                 Assert.That(package.FileSystem.OperationCount, Is.Zero);
                 Assert.That(package.FileSystem.ActiveHandleCount, Is.Zero);
             });
@@ -1353,6 +1624,16 @@ namespace osu.Game.Tests.Skins
             return new FakePackage(fileSystem, request, volumeRoot, dataRoot, managedRoot, packageRoot);
         }
 
+        private static FakeExternalPackage createExternalPackage(string packageName = "package")
+        {
+            FakeNode volumeRoot = FakeNode.CreateDirectory("C:");
+            FakeNode externalRoot = volumeRoot.AddDirectory("external");
+            FakeNode packageRoot = externalRoot.AddDirectory(packageName);
+            var fileSystem = new FakeFileSystem(volumeRoot);
+            SkinExternalPackageCaptureRequest request = issueExternalRequest($@"C:\external\{packageName}");
+            return new FakeExternalPackage(fileSystem, request, volumeRoot, externalRoot, packageRoot);
+        }
+
         private static SkinManagedPackageCaptureRequest issueRequest(string dataRoot, string packageName)
         {
             SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(
@@ -1362,6 +1643,21 @@ namespace osu.Game.Tests.Skins
 
             Assert.That(resolution.ManagedCaptureRequest, Is.Not.Null);
             return resolution.ManagedCaptureRequest!;
+        }
+
+        private static SkinExternalPackageCaptureRequest issueExternalRequest(string absolutePath)
+        {
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(
+                new SkinInfo
+                {
+                    FilesystemStoragePath = absolutePath,
+                    IsExternalFilesystemStorage = true,
+                },
+                @"C:\data",
+                AllDirectoriesFilesystemInfoProvider.Instance);
+
+            Assert.That(resolution.ExternalCaptureRequest, Is.Not.Null);
+            return resolution.ExternalCaptureRequest!;
         }
 
         private static SkinManagedFolderPhysicalIdentity toMutationIdentity(FakeNode node)
@@ -1441,6 +1737,24 @@ namespace osu.Game.Tests.Skins
                 SkinPackageRevisionCapsuleLimits? limits = null,
                 CancellationToken cancellationToken = default)
                 => new WindowsSkinManagedPackageCapture(FileSystem).Capture(Request, limits, cancellationToken);
+        }
+
+        private sealed record FakeExternalPackage(
+            FakeFileSystem FileSystem,
+            SkinExternalPackageCaptureRequest Request,
+            FakeNode VolumeRoot,
+            FakeNode ExternalRoot,
+            FakeNode Package)
+        {
+            public SkinExternalPackageCaptureResult CaptureHeld(
+                SkinExternalPackageCaptureLimits? limits = null,
+                CancellationToken cancellationToken = default)
+                => new WindowsSkinManagedPackageCapture(FileSystem).CaptureExternalHeld(Request, limits, cancellationToken);
+
+            public SkinExternalFolderAuthorityCaptureResult OpenAuthority(
+                SkinExternalPackageCaptureLimits? limits = null,
+                CancellationToken cancellationToken = default)
+                => new WindowsSkinManagedPackageCapture(FileSystem).OpenExternalAuthority(Request, limits, cancellationToken);
         }
 
         private enum FakeOperationKind

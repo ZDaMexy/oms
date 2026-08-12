@@ -128,6 +128,94 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        [Platform("Win")]
+        public void TestExactNonEmptyExternalSetAllowsStagedImportAndBindsPreparedJournal()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid operationId = Guid.NewGuid();
+                Guid externalId = SkinExternalExactSetTestHelper.AddServiceOwnedRecord(
+                    realm,
+                    storage,
+                    $"staged-admission-{Guid.NewGuid():N}");
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var store = emptyStore();
+                var native = new FakeStagedNativeAuthority();
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    coordinator,
+                    native,
+                    store);
+
+                SkinManagedFolderStagedImportOperationResult result =
+                    new SkinManagedFolderStagedImportOperation(realm, authority).Execute(
+                        operationId,
+                        "storage-slot");
+                SkinManagedFolderMutationJournal? prepared = store.Writes.FirstOrDefault();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.Status,
+                        Is.EqualTo(SkinManagedFolderStagedImportOperationStatus.Succeeded));
+                    Assert.That(prepared, Is.Not.Null);
+                    Assert.That(prepared?.ExternalRegistryGeneration ?? 0, Is.GreaterThan(0));
+                    Assert.That(prepared?.ExternalCollisionDisposition,
+                        Is.EqualTo(SkinExternalCollisionDisposition.ExactRegisteredExternalSet));
+                    Assert.That(realm.Realm.Find<SkinInfo>(externalId), Is.Not.Null);
+                    Assert.That(realm.Realm.Find<SkinInfo>(operationId), Is.Not.Null);
+                    Assert.That(store.DeleteCalls, Is.EqualTo(1));
+                    Assert.That(coordinator.IsMutationBlocked, Is.False);
+                });
+            });
+        }
+
+        [Test]
+        [Platform("Win")]
+        public void TestFinalStagedImportRealmTransactionRejectsExternalDeclarationDrift()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Guid operationId = Guid.NewGuid();
+                Guid externalId = SkinExternalExactSetTestHelper.AddServiceOwnedRecord(
+                    realm,
+                    storage,
+                    $"staged-drift-{Guid.NewGuid():N}");
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var store = emptyStore();
+                var native = new FakeStagedNativeAuthority
+                {
+                    OnTargetInspection = () =>
+                        SkinExternalExactSetTestHelper.DriftDeclaration(realm, externalId),
+                };
+                var authority = new SkinManagedFolderMutationAuthority(
+                    realm,
+                    storage,
+                    coordinator,
+                    native,
+                    store);
+
+                SkinManagedFolderStagedImportOperationResult result =
+                    new SkinManagedFolderStagedImportOperation(realm, authority).Execute(
+                        operationId,
+                        "storage-slot");
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.Status,
+                        Is.EqualTo(SkinManagedFolderStagedImportOperationStatus.RealmOutcomeUncertain));
+                    Assert.That(native.Status,
+                        Is.EqualTo(SkinManagedFolderStagedImportInspectionStatus.TargetOnly));
+                    Assert.That(store.Current.Journal?.Phase,
+                        Is.EqualTo(SkinManagedFolderMutationPhase.FilesystemApplied));
+                    Assert.That(store.DeleteCalls, Is.Zero);
+                    Assert.That(realm.Realm.Find<SkinInfo>(operationId), Is.Null);
+                    Assert.That(coordinator.IsMutationBlocked, Is.True);
+                });
+            });
+        }
+
+        [Test]
         public void TestLivePublishRejectsFinalTreeFingerprintDriftAndFreezesIntent()
         {
             RunTestWithRealm((realm, storage) =>
@@ -1472,6 +1560,10 @@ namespace osu.Game.Tests.Skins
 
             public Action? AfterVisibleMove { get; init; }
 
+            public Action? OnTargetInspection { get; init; }
+
+            private int targetInspectionCallbackInvoked;
+
             public int MoveCalls { get; private set; }
 
             public int CleanupCalls { get; private set; }
@@ -1515,6 +1607,13 @@ namespace osu.Game.Tests.Skins
 
                 public SkinManagedFolderPhysicalIdentity ManagedRootIdentity
                     => root_identity;
+
+                public SkinFolderPhysicalAncestryProof ManagedRootAncestryProof { get; } =
+                    new SkinFolderPhysicalAncestryProof(new[]
+                    {
+                        new SkinManagedFolderPhysicalIdentity(301, 1, 1),
+                        root_identity,
+                    });
 
                 public Session(FakeStagedNativeAuthority owner)
                 {
@@ -1633,6 +1732,12 @@ namespace osu.Game.Tests.Skins
                         CancellationToken cancellationToken)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    if (owner.Status == SkinManagedFolderStagedImportInspectionStatus.TargetOnly
+                        && Interlocked.Exchange(ref owner.targetInspectionCallbackInvoked, 1) == 0)
+                    {
+                        owner.OnTargetInspection?.Invoke();
+                    }
 
                     if (operationId == Guid.Empty
                         || !string.Equals(

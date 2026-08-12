@@ -119,6 +119,20 @@ namespace osu.Game.Skinning
 
         internal Action ManagedFolderSelectionWaitingForStagedImport { get; set; } = () => { };
 
+        internal Action<string> OpenFolderExternally { get; set; }
+
+        internal Action ExternalFolderSelectionCaptureAuthorityOpened { get; set; } = () => { };
+
+        internal Action<CancellationToken> FolderWorkspaceRecordsReadStarted { get; set; } = _ => { };
+
+        internal Action<CancellationToken> FolderWorkspaceJournalSupportReadStarted { get; set; } = _ => { };
+
+        /// <summary>
+        /// Signals that a manager-owned mutation/recovery worker reached an observable completion boundary and the
+        /// redacted journal support projection should be re-inspected. No journal or path data crosses this event.
+        /// </summary>
+        internal event Action ManagedFolderJournalStateChanged;
+
         internal SkinManagedFolderOperationCoordinator ManagedFolderOperationCoordinator { get; } = new SkinManagedFolderOperationCoordinator();
 
         internal SkinManagedFolderMutationAuthority ManagedFolderMutationAuthority { get; }
@@ -127,20 +141,29 @@ namespace osu.Game.Skinning
 
         private readonly SkinManagedFolderMutationRecovery managedFolderMutationRecovery;
         private readonly ISkinManagedFolderMutationJournalStore managedFolderMutationJournalStore;
+        private readonly ISkinManagedFolderMutationNativeAuthority managedFolderMutationNativeAuthority;
+        private readonly ISkinExternalFolderCaptureService externalFolderCaptureService;
+        private readonly SkinExternalFolderRegistryService externalFolderRegistry;
         private readonly SkinManagedFolderRenameOperation managedFolderRenameOperation;
         private readonly SkinManagedFolderStagedImportOperation managedFolderStagedImportOperation;
         private readonly SkinManagedFolderDeleteOperation managedFolderDeleteOperation;
         private readonly object managedFolderRenameLifecycleGate = new object();
+        private readonly HashSet<FolderWorkspaceReadOperation> folderWorkspaceReadOperations = new HashSet<FolderWorkspaceReadOperation>();
         private readonly object managedFolderSelectionLifecycleGate = new object();
         private readonly CancellationTokenSource managedFolderSelectionRetryCancellation = new CancellationTokenSource();
         private readonly HashSet<Task> managedFolderSelectionWorkerTasks = new HashSet<Task>();
         private readonly HashSet<PendingManagedFolderSelectionCompletion> pendingManagedFolderSelectionCompletions = new HashSet<PendingManagedFolderSelectionCompletion>();
+        private readonly HashSet<PendingExternalFolderSelectionCompletion> pendingExternalFolderSelectionCompletions = new HashSet<PendingExternalFolderSelectionCompletion>();
         private CancellationTokenSource activeManagedFolderRenameCancellation;
         private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
         private CancellationTokenSource activeManagedFolderStagedImportCancellation;
         private Task<SkinManagedFolderStagedImportOperationResult> activeManagedFolderStagedImportTask;
         private CancellationTokenSource activeManagedFolderDeleteCancellation;
         private Task<SkinManagedFolderDeleteOperationResult> activeManagedFolderDeleteTask;
+        private CancellationTokenSource activeManagedFolderRecoveryCancellation;
+        private Task<bool> activeManagedFolderRecoveryTask;
+        private CancellationTokenSource activeFolderWorkspaceCancellation;
+        private Task<bool> activeFolderWorkspaceTask;
         private PendingManagedFolderDeleteFallback pendingManagedFolderDeleteFallback;
         private SkinManagedFolderRenameOperationResult lastManagedFolderRenameResult;
         private SkinManagedFolderStagedImportOperationResult lastManagedFolderStagedImportResult;
@@ -195,6 +218,18 @@ namespace osu.Game.Skinning
 
         private readonly SkinImporter skinImporter;
 
+        internal Action<CancellationToken> SkinImportAfterFileRecordsCommittedTestHook
+        {
+            get => skinImporter.ImportAfterFileRecordsCommittedTestHook;
+            set => skinImporter.ImportAfterFileRecordsCommittedTestHook = value;
+        }
+
+        internal Action<CancellationToken> SkinImportAfterPopulateTestHook
+        {
+            get => skinImporter.ImportAfterPopulateTestHook;
+            set => skinImporter.ImportAfterPopulateTestHook = value;
+        }
+
         private readonly LegacySkinExporter skinExporter;
 
         private readonly IResourceStore<byte[]> userFiles;
@@ -234,15 +269,24 @@ namespace osu.Game.Skinning
             this.resources = resources;
             ManagedFolderCompletionSchedule = completion => scheduler.Add(completion);
             ManagedFolderDeleteFallbackSchedule = completion => scheduler.Add(completion);
+            OpenFolderExternally = path => host.OpenFileExternally(path);
 
             managedFolderMutationJournalStore = new SkinManagedFolderMutationJournalStore(storage);
-            var managedFolderMutationNativeAuthority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+            managedFolderMutationNativeAuthority = new WindowsSkinManagedFolderMutationNativeAuthority(storage);
+            externalFolderCaptureService = new SkinExternalFolderCaptureService();
+            externalFolderRegistry = new SkinExternalFolderRegistryService(
+                realm,
+                storage,
+                ManagedFolderOperationCoordinator,
+                externalFolderCaptureService);
             ManagedFolderMutationAuthority = new SkinManagedFolderMutationAuthority(
                 realm,
                 storage,
                 ManagedFolderOperationCoordinator,
                 managedFolderMutationNativeAuthority,
-                managedFolderMutationJournalStore);
+                managedFolderMutationJournalStore,
+                externalFolderCaptureService,
+                externalRegistryService: externalFolderRegistry);
             managedFolderRenameOperation = new SkinManagedFolderRenameOperation(realm, ManagedFolderMutationAuthority);
             managedFolderDeleteOperation = new SkinManagedFolderDeleteOperation(
                 realm,
@@ -274,7 +318,16 @@ namespace osu.Game.Skinning
                         SkinManagedFolderMutationKind.StagedImport,
                         new SkinManagedFolderStagedImportRecoveryHandler(
                             realm,
-                            managedFolderMutationNativeAuthority))));
+                            managedFolderMutationNativeAuthority)),
+                    (
+                        SkinManagedFolderMutationKind.ManagedCopy,
+                        new SkinManagedFolderManagedCopyRecoveryHandler(
+                            realm,
+                            managedFolderMutationNativeAuthority))),
+                new SkinManagedFolderMutationRecoveryAuthority(
+                    ManagedFolderOperationCoordinator,
+                    managedFolderMutationNativeAuthority,
+                    externalFolderRegistry));
             InitialManagedFolderMutationRecoveryResult = managedFolderMutationRecovery.Recover();
 
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
@@ -352,7 +405,1490 @@ namespace osu.Game.Skinning
         }
 
         internal SkinManagedFolderMutationRecoveryResult RecoverManagedFolderMutations(CancellationToken cancellationToken = default)
-            => managedFolderMutationRecovery.Recover(cancellationToken);
+        {
+            SkinManagedFolderMutationRecoveryResult result = managedFolderMutationRecovery.Recover(cancellationToken);
+            notifyManagedFolderJournalStateChanged();
+            return result;
+        }
+
+        /// <summary>
+        /// Returns a path-free support projection. Callers should invoke this away from the update thread because the
+        /// operation-specific inspector may need bounded native and Realm reads.
+        /// </summary>
+        internal Task<FolderSkinJournalSupportSnapshot> GetManagedFolderJournalSupportSnapshotAsync(
+            CancellationToken cancellationToken = default)
+            => startFolderWorkspaceRead(
+                token =>
+                {
+                    FolderWorkspaceJournalSupportReadStarted(token);
+                    token.ThrowIfCancellationRequested();
+                    return managedFolderMutationRecovery.InspectSupportSnapshot(token);
+                },
+                cancellationToken);
+
+        /// <summary>
+        /// Re-inspects and, only when still uniquely recoverable, runs the canonical recovery policy on a joined worker.
+        /// </summary>
+        internal Task<bool> RetryManagedFolderJournalRecoveryAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                return Task.FromResult(false);
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown
+                    || cancellationToken.IsCancellationRequested
+                    || activeManagedFolderRenameTask is { IsCompleted: false }
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false }
+                    || activeManagedFolderDeleteTask is { IsCompleted: false }
+                    || activeManagedFolderRecoveryTask is { IsCompleted: false }
+                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                {
+                    return Task.FromResult(false);
+                }
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<bool> operationTask = Task.Run(
+                    () => executeManagedFolderRecoveryRetry(operationCancellation.Token),
+                    CancellationToken.None);
+
+                activeManagedFolderRecoveryCancellation = operationCancellation;
+                activeManagedFolderRecoveryTask = operationTask;
+
+                _ = operationTask.ContinueWith(
+                    _ => completeManagedFolderRecoveryTask(operationTask, operationCancellation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        /// <summary>
+        /// Returns immutable, path-free workspace rows from one fresh Realm view. Capability bits are hints only; each
+        /// operation re-reads and re-proves its target after confirmation.
+        /// </summary>
+        internal Task<IReadOnlyList<FolderSkinWorkspaceRecord>> GetFolderSkinWorkspaceRecordsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            Guid currentInfoId = CurrentSkinInfo.Value.ID;
+            Guid currentSkinId = CurrentSkin.Value.SkinInfo.ID;
+            bool currentPairCoherent = currentInfoId == currentSkinId;
+
+            return startFolderWorkspaceRead(
+                cancellationToken =>
+                {
+                    FolderWorkspaceRecordsReadStarted(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    return Realm.Run(r =>
+                    {
+                        r.Refresh();
+                        SkinInfo[] records = r.All<SkinInfo>().AsEnumerable().ToArray();
+                        var rows = new List<FolderSkinWorkspaceRecord>();
+
+                        foreach (SkinInfo record in records)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            if (!record.IsManaged
+                                || record.Protected
+                                || record.DeletePending
+                                || record.Files.Count != 0
+                                || SkinFilesystemStorageResolver.IsFixedSkinId(record.ID)
+                                || string.IsNullOrEmpty(record.FilesystemStoragePath))
+                            {
+                                continue;
+                            }
+
+                            string displayLabel = string.IsNullOrWhiteSpace(record.Name)
+                                ? "Folder skin"
+                                : record.Name;
+
+                            if (record.IsExternalFilesystemStorage)
+                            {
+                                if (!string.Equals(
+                                        record.FilesystemStorageAuthorityOwner,
+                                        SkinExternalFolderRegistry.AUTHORITY_OWNER,
+                                        StringComparison.Ordinal))
+                                {
+                                    continue;
+                                }
+
+                                SkinFilesystemStorageResolution resolution =
+                                    SkinFilesystemStorageResolver.ResolveExisting(record, storage);
+                                bool sourceUsable = resolution.Authority == SkinFilesystemStorageAuthority.ExternalFolder
+                                                    && SkinManagedFolderFactory.IsInstantiationInfoAllowed(record.InstantiationInfo)
+                                                    && !string.IsNullOrEmpty(record.Hash);
+
+                                rows.Add(new FolderSkinWorkspaceRecord(
+                                    record.ID,
+                                    displayLabel,
+                                    FolderSkinWorkspaceRecordKind.External,
+                                    canOpenFolder: sourceUsable,
+                                    canImportManagedCopy: sourceUsable,
+                                    canUnregister: !ManagedFolderOperationCoordinator.IsMutationBlocked
+                                                   && currentPairCoherent
+                                                   && currentInfoId != record.ID
+                                                   && currentSkinId != record.ID,
+                                    canRename: false,
+                                    canDelete: false));
+                                continue;
+                            }
+
+                            if (!string.Equals(
+                                    record.FilesystemStorageAuthorityOwner,
+                                    SkinManagedFolderScanner.AUTHORITY_OWNER,
+                                    StringComparison.Ordinal)
+                                || !SkinManagedFolderPath.TryNormalise(
+                                    record.FilesystemStoragePath,
+                                    out string normalisedPath)
+                                || !string.Equals(
+                                    record.FilesystemStoragePath,
+                                    normalisedPath,
+                                    StringComparison.Ordinal)
+                                || records.Count(candidate =>
+                                    SkinManagedFolderPath.TryNormalise(
+                                        candidate.FilesystemStoragePath,
+                                        out string candidatePath)
+                                    && string.Equals(
+                                        candidatePath,
+                                        normalisedPath,
+                                        StringComparison.OrdinalIgnoreCase)) != 1
+                                || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(record.InstantiationInfo)
+                                || string.IsNullOrEmpty(record.Hash))
+                            {
+                                continue;
+                            }
+
+                            bool mutationAvailable = !ManagedFolderOperationCoordinator.IsMutationBlocked
+                                                     && !ManagedFolderOperationCoordinator.IsPathFrozen(normalisedPath);
+                            rows.Add(new FolderSkinWorkspaceRecord(
+                                record.ID,
+                                displayLabel,
+                                FolderSkinWorkspaceRecordKind.Managed,
+                                canOpenFolder: !ManagedFolderOperationCoordinator.IsPathFrozen(normalisedPath),
+                                canImportManagedCopy: false,
+                                canUnregister: false,
+                                canRename: mutationAvailable,
+                                canDelete: mutationAvailable));
+                        }
+
+                        return (IReadOnlyList<FolderSkinWorkspaceRecord>)rows
+                            .OrderBy(row => row.DisplayLabel, StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(row => row.RecordId)
+                            .ToArray();
+                    });
+                },
+                cancellationToken);
+        }
+
+        private Task<T> startFolderWorkspaceRead<T>(
+            Func<CancellationToken, T> read,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(read);
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown || cancellationToken.IsCancellationRequested)
+                    return Task.FromCanceled<T>(new CancellationToken(canceled: true));
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<T> operationTask = Task.Run(
+                    () =>
+                    {
+                        operationCancellation.Token.ThrowIfCancellationRequested();
+                        T result = read(operationCancellation.Token);
+                        operationCancellation.Token.ThrowIfCancellationRequested();
+                        return result;
+                    },
+                    operationCancellation.Token);
+                var operation = new FolderWorkspaceReadOperation(operationTask, operationCancellation);
+                folderWorkspaceReadOperations.Add(operation);
+
+                _ = operationTask.ContinueWith(
+                    _ => completeFolderWorkspaceRead(operation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        private void completeFolderWorkspaceRead(FolderWorkspaceReadOperation operation)
+        {
+            if (operation.Task.IsFaulted)
+                _ = operation.Task.Exception;
+
+            lock (managedFolderRenameLifecycleGate)
+                folderWorkspaceReadOperations.Remove(operation);
+
+            operation.Cancellation.Dispose();
+        }
+
+        internal Task<bool> RegisterExternalFolderAsync(string selectedDirectory, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(selectedDirectory))
+                return Task.FromResult(false);
+
+            return startFolderWorkspaceOperation(
+                token => registerExternalFolder(selectedDirectory, token),
+                cancellationToken);
+        }
+
+        internal Task<bool> OpenFolderAsync(Guid recordId, CancellationToken cancellationToken = default)
+        {
+            if (recordId == Guid.Empty)
+                return Task.FromResult(false);
+
+            return startFolderWorkspaceOperation(
+                token => openFolder(recordId, token),
+                cancellationToken);
+        }
+
+        internal Task<bool> ImportManagedCopyAsync(Guid externalRecordId, string targetChildName, CancellationToken cancellationToken = default)
+        {
+            if (externalRecordId == Guid.Empty
+                || !SkinManagedFolderPath.TryCreateFromChildName(targetChildName, out _))
+            {
+                return Task.FromResult(false);
+            }
+
+            return startFolderWorkspaceOperation(
+                token => importManagedCopy(externalRecordId, targetChildName, token),
+                cancellationToken);
+        }
+
+        internal Task<bool> UnregisterExternalFolderAsync(Guid recordId, CancellationToken cancellationToken = default)
+        {
+            if (!ThreadSafety.IsUpdateThread
+                || recordId == Guid.Empty
+                || cancellationToken.IsCancellationRequested)
+            {
+                return Task.FromResult(false);
+            }
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown
+                    || hasActiveFolderMutationHeld())
+                {
+                    return Task.FromResult(false);
+                }
+
+                if (!ManagedFolderOperationCoordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease operationLease))
+                    return Task.FromResult(false);
+
+                using (operationLease)
+                {
+                    if (ManagedFolderOperationCoordinator.IsMutationBlocked)
+                        return Task.FromResult(false);
+
+                    bool removed = unregisterExternalFolderOnUpdateThread(recordId, cancellationToken);
+
+                    if (removed)
+                    {
+                        Interlocked.Increment(ref selectionGeneration);
+                        cancelPendingSelection();
+                    }
+
+                    return Task.FromResult(removed);
+                }
+            }
+        }
+
+        private Task<bool> startFolderWorkspaceOperation(
+            Func<CancellationToken, bool> operation,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(operation);
+
+            if (!ThreadSafety.IsUpdateThread || cancellationToken.IsCancellationRequested)
+                return Task.FromResult(false);
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown || hasActiveFolderMutationHeld())
+                    return Task.FromResult(false);
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<bool> operationTask = Task.Run(
+                    () => executeFolderWorkspaceOperation(operation, operationCancellation.Token),
+                    CancellationToken.None);
+
+                activeFolderWorkspaceCancellation = operationCancellation;
+                activeFolderWorkspaceTask = operationTask;
+
+                _ = operationTask.ContinueWith(
+                    _ => completeFolderWorkspaceTask(operationTask, operationCancellation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        private bool hasActiveFolderMutationHeld()
+            => activeManagedFolderRenameTask is { IsCompleted: false }
+               || activeManagedFolderStagedImportTask is { IsCompleted: false }
+               || activeManagedFolderDeleteTask is { IsCompleted: false }
+               || activeManagedFolderRecoveryTask is { IsCompleted: false }
+               || activeFolderWorkspaceTask is { IsCompleted: false };
+
+        private static bool executeFolderWorkspaceOperation(
+            Func<CancellationToken, bool> operation,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return operation(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void completeFolderWorkspaceTask(
+            Task<bool> operationTask,
+            CancellationTokenSource operationCancellation)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (ReferenceEquals(activeFolderWorkspaceTask, operationTask))
+                {
+                    activeFolderWorkspaceTask = null;
+                    activeFolderWorkspaceCancellation = null;
+                }
+            }
+
+            operationCancellation.Dispose();
+            notifyManagedFolderJournalStateChanged();
+        }
+
+        private bool registerExternalFolder(string selectedDirectory, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var candidate = new SkinInfo(
+                instantiationInfo: SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO)
+            {
+                FilesystemStoragePath = selectedDirectory,
+                IsExternalFilesystemStorage = true,
+                FilesystemStorageAuthorityOwner = SkinExternalFolderRegistry.AUTHORITY_OWNER,
+            };
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(candidate, storage);
+
+            if (resolution.Authority != SkinFilesystemStorageAuthority.ExternalFolder
+                || resolution.ExternalCaptureRequest == null
+                || resolution.NormalisedAbsolutePath == null)
+            {
+                return false;
+            }
+
+            using SkinManagedFolderOperationCoordinator.Lease operationLease =
+                ManagedFolderOperationCoordinator.EnterMutation(cancellationToken);
+
+            if (ManagedFolderOperationCoordinator.IsMutationBlocked)
+                return false;
+
+            using ISkinManagedFolderMutationNativeSession managedAuthority =
+                managedFolderMutationNativeAuthority.Open(cancellationToken);
+            SkinExternalFolderRegistryCaptureResult registryCapture = externalFolderRegistry.CaptureExactSet(
+                operationLease,
+                new[] { managedAuthority.ManagedRootAncestryProof },
+                cancellationToken);
+
+            if (!registryCapture.IsSuccess)
+                return false;
+
+            using SkinExternalFolderRegistrySnapshot registrySnapshot = registryCapture.Snapshot!;
+
+            // A second registration of the same exact committed declaration converges idempotently.
+            if (registrySnapshot.ContainsNormalisedPath(resolution.NormalisedAbsolutePath))
+                return registrySnapshot.Validate(operationLease, cancellationToken);
+
+            SkinExternalPackageCaptureResult packageCapture = externalFolderCaptureService.CaptureHeld(
+                resolution.ExternalCaptureRequest,
+                cancellationToken: cancellationToken);
+
+            if (!packageCapture.IsSuccess)
+                return false;
+
+            using ISkinExternalPackageCaptureSession packageSession = packageCapture.Session!;
+
+            if (packageSession.PhysicalProof.Overlaps(managedAuthority.ManagedRootAncestryProof)
+                || registrySnapshot.Overlaps(packageSession.PhysicalProof)
+                || !registrySnapshot.Validate(operationLease, cancellationToken))
+            {
+                return false;
+            }
+
+            SkinPackageRevisionCapsule capsule = packageSession.TakeCapsule();
+
+            if (!SkinManagedFolderPackageMetadataReader.TryRead(
+                    capsule,
+                    out SkinManagedFolderPackageMetadata metadata))
+            {
+                capsule.Dispose();
+                return false;
+            }
+
+            candidate.FilesystemStoragePath = resolution.NormalisedAbsolutePath;
+            candidate.Name = metadata!.Name;
+            candidate.Creator = metadata.Creator;
+            candidate.Hash = metadata.ContentRevision;
+
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(candidate, this, capsule);
+
+            if (!factory.IsSuccess)
+                return false;
+
+            factory.Skin!.Dispose();
+            packageSession.Validate(cancellationToken);
+            managedAuthority.ValidateCompleteAndStable(cancellationToken);
+
+            if (!registrySnapshot.Validate(operationLease, cancellationToken))
+                return false;
+
+            bool published = Realm.Write(r =>
+            {
+                r.Refresh();
+
+                if (!registrySnapshot.ExactlyMatchesRealmDeclarations(r.All<SkinInfo>())
+                    || r.Find<SkinInfo>(candidate.ID) != null
+                    || r.All<SkinInfo>().AsEnumerable().Any(existing =>
+                        existing.IsExternalFilesystemStorage
+                        && pathsOverlap(
+                            existing.FilesystemStoragePath,
+                            candidate.FilesystemStoragePath)))
+                {
+                    return false;
+                }
+
+                r.Add(candidate);
+                SkinInfo committed = r.Find<SkinInfo>(candidate.ID);
+                return committed != null
+                       && isExactExternalRegistryRecord(committed)
+                       && folderRecordMatches(candidate, committed);
+            });
+
+            if (!published)
+                return false;
+
+            Interlocked.Increment(ref selectionGeneration);
+            cancelPendingSelection();
+            return true;
+        }
+
+        private bool importManagedCopy(
+            Guid externalRecordId,
+            string targetChildName,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!SkinManagedFolderPath.TryCreateFromChildName(targetChildName, out string targetManagedPath))
+                return false;
+
+            Guid operationId = Guid.NewGuid();
+            SkinInfo externalRecord = Realm.Run(r =>
+            {
+                r.Refresh();
+                SkinInfo current = r.Find<SkinInfo>(externalRecordId);
+                return current != null && isExactExternalRegistryRecord(current)
+                    ? current.Detach()
+                    : null;
+            });
+
+            if (externalRecord == null)
+                return false;
+
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(externalRecord, storage);
+
+            if (resolution.Authority != SkinFilesystemStorageAuthority.ExternalFolder
+                || resolution.ExternalCaptureRequest == null)
+            {
+                return false;
+            }
+
+            string externalRecordFingerprint =
+                SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint(externalRecord);
+            bool firstDestinationWrite = false;
+            SkinManagedFolderMutationJournal journal = null;
+
+            using SkinManagedFolderOperationCoordinator.Lease operationLease =
+                ManagedFolderOperationCoordinator.EnterStagedImport(cancellationToken);
+
+            if (ManagedFolderOperationCoordinator.IsMutationBlocked
+                || hasManagedCopyRealmConflict(operationId, targetManagedPath))
+            {
+                return false;
+            }
+
+            using ISkinManagedFolderMutationNativeSession managedAuthority =
+                managedFolderMutationNativeAuthority.Open(cancellationToken);
+            SkinExternalFolderRegistryCaptureResult registryCapture = externalFolderRegistry.CaptureExactSet(
+                operationLease,
+                new[] { managedAuthority.ManagedRootAncestryProof },
+                cancellationToken);
+
+            if (!registryCapture.IsSuccess)
+                return false;
+
+            using SkinExternalFolderRegistrySnapshot registrySnapshot = registryCapture.Snapshot!;
+
+            if (!registrySnapshot.ContainsRecordId(externalRecordId)
+                || !registrySnapshot.TryGetPhysicalProof(
+                    externalRecordId,
+                    out SkinFolderPhysicalAncestryProof registeredSourceProof)
+                || registeredSourceProof == null)
+            {
+                return false;
+            }
+
+            SkinExternalPackageCaptureResult sourceCapture = externalFolderCaptureService.CaptureHeld(
+                resolution.ExternalCaptureRequest,
+                cancellationToken: cancellationToken);
+
+            if (!sourceCapture.IsSuccess)
+                return false;
+
+            using ISkinExternalPackageCaptureSession sourceSession = sourceCapture.Session!;
+
+            if (!string.Equals(
+                    registeredSourceProof.Digest,
+                    sourceSession.PhysicalProof.Digest,
+                    StringComparison.Ordinal)
+                || !registrySnapshot.Validate(operationLease, cancellationToken))
+            {
+                return false;
+            }
+
+            SkinPackageRevisionCapsule capturedCapsule = sourceSession.TakeCapsule();
+            SkinPackageRevisionCapsule workingCapsule = null;
+
+            try
+            {
+                SkinPackageRevisionCapsuleCreationResult clone = cloneManagedCopyCapsule(
+                    capturedCapsule,
+                    sourceSession.LogicalManifest,
+                    cancellationToken);
+
+                if (!clone.IsSuccess)
+                {
+                    capturedCapsule.Dispose();
+                    return false;
+                }
+
+                workingCapsule = clone.Capsule!;
+
+                if (!SkinManagedFolderPackageMetadataReader.TryRead(
+                        capturedCapsule,
+                        out SkinManagedFolderPackageMetadata sourceMetadata)
+                    || !string.Equals(
+                        sourceMetadata!.ContentRevision,
+                        workingCapsule.ContentRevision,
+                        StringComparison.Ordinal))
+                {
+                    capturedCapsule.Dispose();
+                    return false;
+                }
+
+                SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(
+                    externalRecord,
+                    this,
+                    capturedCapsule);
+                capturedCapsule = null;
+
+                if (!factory.IsSuccess)
+                    return false;
+
+                factory.Skin!.Dispose();
+                SkinManagedCopyLogicalManifest logicalManifest =
+                    SkinManagedCopyLogicalManifest.Create(sourceSession.LogicalManifest);
+                SkinManagedFolderTargetNameSlot targetSlot = managedAuthority.CaptureAbsentTargetNameSlot(
+                    targetManagedPath,
+                    cancellationToken);
+                SkinManagedFolderPhysicalIdentity stagedRootIdentity =
+                    managedAuthority.PrepareManagedCopyStaging(operationId, cancellationToken);
+                var externalBinding = new SkinExternalRegistryJournalBinding(
+                    registrySnapshot.ExternalRegistryGeneration,
+                    registrySnapshot.ExternalRegistryDigest,
+                    registrySnapshot.IsEmpty
+                        ? SkinExternalCollisionDisposition.NoRegisteredExternalFolders
+                        : SkinExternalCollisionDisposition.ExactRegisteredExternalSet);
+
+                if (targetSlot.ManagedRootIdentity != managedAuthority.ManagedRootIdentity
+                    || stagedRootIdentity.VolumeSerialNumber != managedAuthority.ManagedRootIdentity.VolumeSerialNumber
+                    || !validateManagedCopyAuthority(
+                        externalRecord,
+                        externalRecordFingerprint,
+                        operationId,
+                        targetManagedPath,
+                        operationLease,
+                        managedAuthority,
+                        registrySnapshot,
+                        sourceSession,
+                        CancellationToken.None))
+                {
+                    return false;
+                }
+
+                journal = SkinManagedFolderMutationJournal.CreatePreparedManagedCopy(
+                    operationId,
+                    externalRecordId,
+                    managedAuthority.ManagedRootIdentity,
+                    targetManagedPath,
+                    stagedRootIdentity,
+                    workingCapsule.ContentRevision,
+                    externalRecordFingerprint,
+                    sourceSession.CaptureFingerprint,
+                    logicalManifest,
+                    externalBinding);
+                persistManagedCopyJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+
+                SkinManagedFolderPhysicalIdentity provisionalRootIdentity =
+                    managedAuthority.CreateManagedCopyProvisionalRoot(
+                        operationId,
+                        cancellationToken);
+                journal = journal.WithCopying(provisionalRootIdentity);
+                persistManagedCopyJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+
+                try
+                {
+                    managedAuthority.WriteManagedCopyProvisional(
+                        operationId,
+                        workingCapsule,
+                        logicalManifest,
+                        () =>
+                        {
+                            SkinManagedFolderMutationJournalLoadResult loaded =
+                                managedFolderMutationJournalStore.Load();
+
+                            if (!loaded.IsLoaded
+                                || !loaded.Journal!.IsExactSameJournal(journal)
+                                || !registrySnapshot.Validate(operationLease, CancellationToken.None)
+                                || !validateManagedCopyDurableRealmState(
+                                    journal,
+                                    externalRecord,
+                                    externalRecordFingerprint,
+                                    operationId,
+                                    targetManagedPath))
+                            {
+                                throw new SkinManagedFolderMutationJournalException();
+                            }
+
+                            sourceSession.Validate(CancellationToken.None);
+                            firstDestinationWrite = true;
+                        },
+                        cancellationToken);
+                }
+                catch
+                {
+                    if (!firstDestinationWrite
+                        && tryRollbackManagedCopyBeforeFirstWrite(
+                            journal,
+                            externalRecord,
+                            externalRecordFingerprint,
+                            operationId,
+                            targetManagedPath,
+                            operationLease,
+                            managedAuthority,
+                            registrySnapshot,
+                            sourceSession))
+                    {
+                        journal = null;
+                    }
+
+                    throw;
+                }
+
+                // The durable intent owns every subsequent outcome. Caller cancellation can no longer roll it back.
+                using SkinManagedFolderStagedSourceCapture provisional =
+                    managedAuthority.CaptureStagedSource(operationId, CancellationToken.None);
+
+                if (!provisional.IsUsableFor(managedAuthority.ManagedRootIdentity)
+                    || provisional.LogicalManifest == null
+                    || !logicalManifest.Matches(provisional.LogicalManifest)
+                    || !string.Equals(
+                        provisional.Capsule.ContentRevision,
+                        workingCapsule.ContentRevision,
+                        StringComparison.Ordinal)
+                    || !SkinManagedFolderPackageMetadataReader.TryRead(
+                        provisional.Capsule,
+                        out SkinManagedFolderPackageMetadata provisionalMetadata))
+                {
+                    throw new InvalidOperationException("The managed-copy provisional package changed.");
+                }
+
+                var publicationPlan = new SkinManagedFolderNewRecordPublicationPlan(
+                    operationId,
+                    targetManagedPath,
+                    managedAuthority.ManagedRootIdentity);
+                SkinManagedFolderNewRecordPublicationData publication =
+                    publicationPlan.CreatePublicationData(provisionalMetadata!);
+                journal = journal.WithProvisionalReady(
+                    provisional.SourceIdentity,
+                    provisional.TreeFingerprint,
+                    publication.Fingerprint);
+                persistManagedCopyJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+
+                using SkinManagedFolderStagedImportFilesystemResult moved =
+                    managedAuthority.MoveCapturedStagedSourceToTarget(
+                        targetSlot,
+                        provisionalMetadata.ContentRevision,
+                        provisional.TreeFingerprint,
+                        CancellationToken.None);
+
+                if (moved.TargetIdentity != provisional.SourceIdentity
+                    || !string.Equals(moved.TreeFingerprint, provisional.TreeFingerprint, StringComparison.Ordinal)
+                    || !string.Equals(moved.Capsule.ContentRevision, provisionalMetadata.ContentRevision, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException("The managed-copy move changed the captured package.");
+                }
+
+                journal = journal.WithFilesystemApplied(
+                    moved.TargetIdentity,
+                    publication.Fingerprint);
+                persistManagedCopyJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+
+                if (!publishManagedCopyRecord(
+                        publication,
+                        externalRecord,
+                        externalRecordFingerprint,
+                        operationId,
+                        targetManagedPath,
+                        operationLease,
+                        managedAuthority,
+                        registrySnapshot,
+                        sourceSession))
+                {
+                    throw new InvalidOperationException("The managed-copy Realm publication was rejected.");
+                }
+
+                journal = journal.WithRealmApplied();
+                persistManagedCopyJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+                journal = journal.WithCommitted();
+                persistManagedCopyJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+                deleteManagedCopyTerminalJournalExact(
+                    journal,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+                journal = null;
+                Interlocked.Increment(ref selectionGeneration);
+                cancelPendingSelection();
+                return true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested && !firstDestinationWrite)
+            {
+                if (journal != null
+                    && journal.Phase == SkinManagedFolderMutationPhase.Prepared
+                    && tryRollbackManagedCopyBeforeFirstWrite(
+                        journal,
+                        externalRecord,
+                        externalRecordFingerprint,
+                        operationId,
+                        targetManagedPath,
+                        operationLease,
+                        managedAuthority,
+                        registrySnapshot,
+                        sourceSession))
+                {
+                    journal = null;
+                }
+                else if (journal != null)
+                    ManagedFolderOperationCoordinator.FreezeRecoveryPaths(journal.GetAffectedManagedRelativePaths());
+
+                return false;
+            }
+            catch
+            {
+                if (journal != null)
+                    ManagedFolderOperationCoordinator.FreezeRecoveryPaths(journal.GetAffectedManagedRelativePaths());
+
+                return false;
+            }
+            finally
+            {
+                capturedCapsule?.Dispose();
+                workingCapsule?.Dispose();
+            }
+        }
+
+        private SkinPackageRevisionCapsuleCreationResult cloneManagedCopyCapsule(
+            SkinPackageRevisionCapsule source,
+            SkinExternalPackageLogicalManifest manifest,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            ArgumentNullException.ThrowIfNull(manifest);
+            using IResourceStore<byte[]> resources = source.CreateResourceView();
+            SkinPackageCapturedEntry[] entries = manifest.Entries.Select(entry =>
+            {
+                if (entry.Kind == SkinExternalPackageLogicalEntryKind.Directory)
+                    return SkinPackageCapturedEntry.CreateDirectory(entry.RelativePath);
+
+                return SkinPackageCapturedEntry.CreateFile(
+                    entry.RelativePath,
+                    entry.Length,
+                    () => resources.GetStream(entry.RelativePath));
+            }).ToArray();
+            return SkinPackageRevisionCapsuleFactory.Create(entries, cancellationToken: cancellationToken);
+        }
+
+        private bool validateManagedCopyAuthority(
+            SkinInfo externalRecord,
+            string externalRecordFingerprint,
+            Guid operationId,
+            string targetManagedPath,
+            SkinManagedFolderOperationCoordinator.Lease operationLease,
+            ISkinManagedFolderMutationNativeSession managedAuthority,
+            SkinExternalFolderRegistrySnapshot registrySnapshot,
+            ISkinExternalPackageCaptureSession sourceSession,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                managedAuthority.ValidateCompleteAndStable(cancellationToken);
+                sourceSession.Validate(cancellationToken);
+
+                if (!registrySnapshot.Validate(operationLease, cancellationToken)
+                    || hasManagedCopyRealmConflict(operationId, targetManagedPath))
+                {
+                    return false;
+                }
+
+                return Realm.Run(r =>
+                {
+                    r.Refresh();
+                    SkinInfo current = r.Find<SkinInfo>(externalRecord.ID);
+                    return current != null
+                           && folderRecordMatches(externalRecord, current)
+                           && string.Equals(
+                               SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint(current),
+                               externalRecordFingerprint,
+                               StringComparison.Ordinal)
+                           && registrySnapshot.ExactlyMatchesRealmDeclarations(r.All<SkinInfo>());
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void persistManagedCopyJournalExact(
+            SkinManagedFolderMutationJournal journal,
+            SkinInfo externalRecord,
+            string externalRecordFingerprint,
+            Guid operationId,
+            string targetManagedPath,
+            SkinManagedFolderOperationCoordinator.Lease operationLease,
+            ISkinManagedFolderMutationNativeSession managedAuthority,
+            SkinExternalFolderRegistrySnapshot registrySnapshot,
+            ISkinExternalPackageCaptureSession sourceSession)
+        {
+            ArgumentNullException.ThrowIfNull(journal);
+
+            try
+            {
+                managedFolderMutationJournalStore.Write(journal);
+                SkinManagedFolderMutationJournalLoadResult loaded = managedFolderMutationJournalStore.Load();
+
+                if (!loaded.IsLoaded
+                    || !loaded.Journal!.IsExactSameJournal(journal)
+                    || !validateManagedCopyDurableRealmState(
+                        journal,
+                        externalRecord,
+                        externalRecordFingerprint,
+                        operationId,
+                        targetManagedPath)
+                    || !validateManagedCopyHeldAuthority(
+                        operationLease,
+                        managedAuthority,
+                        registrySnapshot,
+                        sourceSession))
+                {
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+            }
+            catch
+            {
+                ManagedFolderOperationCoordinator.FreezeRecoveryPaths(journal.GetAffectedManagedRelativePaths());
+                throw;
+            }
+        }
+
+        private bool validateManagedCopyHeldAuthority(
+            SkinManagedFolderOperationCoordinator.Lease operationLease,
+            ISkinManagedFolderMutationNativeSession managedAuthority,
+            SkinExternalFolderRegistrySnapshot registrySnapshot,
+            ISkinExternalPackageCaptureSession sourceSession)
+        {
+            try
+            {
+                managedAuthority.ValidateCompleteAndStable(CancellationToken.None);
+                sourceSession.Validate(CancellationToken.None);
+                return registrySnapshot.Validate(operationLease, CancellationToken.None);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void deleteManagedCopyTerminalJournalExact(
+            SkinManagedFolderMutationJournal terminalJournal,
+            SkinInfo externalRecord,
+            string externalRecordFingerprint,
+            Guid operationId,
+            string targetManagedPath,
+            SkinManagedFolderOperationCoordinator.Lease operationLease,
+            ISkinManagedFolderMutationNativeSession managedAuthority,
+            SkinExternalFolderRegistrySnapshot registrySnapshot,
+            ISkinExternalPackageCaptureSession sourceSession)
+        {
+            ArgumentNullException.ThrowIfNull(terminalJournal);
+
+            try
+            {
+                if (terminalJournal.Phase is not (SkinManagedFolderMutationPhase.Committed
+                    or SkinManagedFolderMutationPhase.RolledBack))
+                {
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+
+                if (!validateManagedCopyDurableRealmState(
+                        terminalJournal,
+                        externalRecord,
+                        externalRecordFingerprint,
+                        operationId,
+                        targetManagedPath)
+                    || !validateManagedCopyHeldAuthority(
+                        operationLease,
+                        managedAuthority,
+                        registrySnapshot,
+                        sourceSession))
+                {
+                    throw new SkinManagedFolderMutationJournalException();
+                }
+
+                managedFolderMutationJournalStore.Delete(terminalJournal);
+                SkinManagedFolderMutationJournalLoadResult loaded = managedFolderMutationJournalStore.Load();
+
+                if (loaded.Status != SkinManagedFolderMutationJournalLoadStatus.Missing)
+                    throw new SkinManagedFolderMutationJournalException();
+            }
+            catch
+            {
+                ManagedFolderOperationCoordinator.FreezeRecoveryPaths(
+                    terminalJournal.GetAffectedManagedRelativePaths());
+                throw;
+            }
+        }
+
+        private bool validateManagedCopyDurableRealmState(
+            SkinManagedFolderMutationJournal journal,
+            SkinInfo externalRecord,
+            string externalRecordFingerprint,
+            Guid operationId,
+            string targetManagedPath)
+            => Realm.Run(r =>
+            {
+                r.Refresh();
+                SkinInfo currentExternal = r.Find<SkinInfo>(externalRecord.ID);
+
+                if (currentExternal == null
+                    || !folderRecordMatches(externalRecord, currentExternal)
+                    || !string.Equals(
+                        SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint(currentExternal),
+                        externalRecordFingerprint,
+                        StringComparison.Ordinal)
+                    || r.All<SkinInfo>().AsEnumerable().Any(candidate =>
+                        candidate.ID != operationId
+                        && SkinManagedFolderPath.TryNormalise(
+                            candidate.FilesystemStoragePath,
+                            out string candidatePath)
+                        && string.Equals(candidatePath, targetManagedPath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+
+                SkinInfo published = r.Find<SkinInfo>(operationId);
+                bool shouldBePublished = journal.Phase is SkinManagedFolderMutationPhase.RealmApplied
+                    or SkinManagedFolderMutationPhase.Committed;
+
+                if (shouldBePublished)
+                {
+                    return published != null
+                           && string.Equals(
+                               SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint(published),
+                               journal.NewRecordPublicationFingerprint,
+                               StringComparison.Ordinal);
+                }
+
+                return published == null;
+            });
+
+        private bool tryRollbackManagedCopyBeforeFirstWrite(
+            SkinManagedFolderMutationJournal journal,
+            SkinInfo externalRecord,
+            string externalRecordFingerprint,
+            Guid operationId,
+            string targetManagedPath,
+            SkinManagedFolderOperationCoordinator.Lease operationLease,
+            ISkinManagedFolderMutationNativeSession managedAuthority,
+            SkinExternalFolderRegistrySnapshot registrySnapshot,
+            ISkinExternalPackageCaptureSession sourceSession)
+        {
+            try
+            {
+                managedAuthority.ValidateCompleteAndStable(CancellationToken.None);
+
+                if (!managedAuthority.IsManagedCopyProvisionalAbsent(
+                        operationId,
+                        CancellationToken.None))
+                {
+                    return false;
+                }
+
+                SkinManagedFolderMutationJournal rolledBack = journal.WithRolledBack();
+                persistManagedCopyJournalExact(
+                    rolledBack,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+                deleteManagedCopyTerminalJournalExact(
+                    rolledBack,
+                    externalRecord,
+                    externalRecordFingerprint,
+                    operationId,
+                    targetManagedPath,
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool publishManagedCopyRecord(
+            SkinManagedFolderNewRecordPublicationData publication,
+            SkinInfo externalRecord,
+            string externalRecordFingerprint,
+            Guid operationId,
+            string targetManagedPath,
+            SkinManagedFolderOperationCoordinator.Lease operationLease,
+            ISkinManagedFolderMutationNativeSession managedAuthority,
+            SkinExternalFolderRegistrySnapshot registrySnapshot,
+            ISkinExternalPackageCaptureSession sourceSession)
+        {
+            if (!validateManagedCopyHeldAuthority(
+                    operationLease,
+                    managedAuthority,
+                    registrySnapshot,
+                    sourceSession))
+            {
+                return false;
+            }
+
+            bool added = Realm.Write(r =>
+            {
+                r.Refresh();
+                SkinInfo currentExternal = r.Find<SkinInfo>(externalRecord.ID);
+
+                if (currentExternal == null
+                    || !folderRecordMatches(externalRecord, currentExternal)
+                    || !string.Equals(
+                        SkinManagedFolderNewRecordPublicationData.ComputeRecordFingerprint(currentExternal),
+                        externalRecordFingerprint,
+                        StringComparison.Ordinal)
+                    || !registrySnapshot.ExactlyMatchesRealmDeclarations(r.All<SkinInfo>())
+                    || r.Find<SkinInfo>(operationId) != null
+                    || r.All<SkinInfo>().AsEnumerable().Any(candidate =>
+                        candidate.ID != operationId
+                        && SkinManagedFolderPath.TryNormalise(
+                            candidate.FilesystemStoragePath,
+                            out string candidatePath)
+                        && string.Equals(candidatePath, targetManagedPath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+
+                SkinInfo record = publication.CreateRecord();
+                r.Add(record);
+                return publication.IsExactRecord(record);
+            });
+
+            return added
+                   && validateManagedCopyHeldAuthority(
+                       operationLease,
+                       managedAuthority,
+                       registrySnapshot,
+                       sourceSession)
+                   && Realm.Run(r =>
+                   {
+                       r.Refresh();
+                       SkinInfo record = r.Find<SkinInfo>(operationId);
+                       return record != null
+                              && publication.IsExactRecord(record)
+                              && registrySnapshot.ExactlyMatchesRealmDeclarations(r.All<SkinInfo>());
+                   });
+        }
+
+        private bool hasManagedCopyRealmConflict(Guid operationId, string targetManagedPath)
+            => Realm.Run(r =>
+            {
+                r.Refresh();
+                return r.Find<SkinInfo>(operationId) != null
+                       || r.All<SkinInfo>().AsEnumerable().Any(candidate =>
+                           SkinManagedFolderPath.TryNormalise(
+                               candidate.FilesystemStoragePath,
+                               out string candidatePath)
+                           && string.Equals(candidatePath, targetManagedPath, StringComparison.OrdinalIgnoreCase));
+            });
+
+        private bool unregisterExternalFolderOnUpdateThread(Guid recordId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            Guid currentInfoId = CurrentSkinInfo.Value.ID;
+            Guid currentSkinId = CurrentSkin.Value.SkinInfo.ID;
+
+            if (currentInfoId != currentSkinId
+                || currentInfoId == recordId
+                || currentSkinId == recordId
+                || !externalFolderRegistry.TryReadAndValidateDeclarations(
+                    out SkinExternalFolderRegistryDeclaration[] declarations,
+                    out _,
+                    out _,
+                    out _)
+                || declarations.All(declaration => declaration.RecordId != recordId))
+            {
+                return false;
+            }
+
+            try
+            {
+                return Realm.Write(r =>
+                {
+                    r.Refresh();
+
+                    if (CurrentSkinInfo.Value.ID != currentInfoId
+                        || CurrentSkin.Value.SkinInfo.ID != currentSkinId
+                        || currentInfoId != currentSkinId
+                        || !exactlyMatchesExternalDeclarations(r.All<SkinInfo>(), declarations))
+                    {
+                        return false;
+                    }
+
+                    SkinInfo target = r.Find<SkinInfo>(recordId);
+
+                    if (target == null || !isExactExternalRegistryRecord(target))
+                        return false;
+
+                    r.Remove(target);
+                    return r.Find<SkinInfo>(recordId) == null;
+                });
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool openFolder(Guid recordId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SkinInfo snapshot = Realm.Run(r =>
+            {
+                r.Refresh();
+                SkinInfo current = r.Find<SkinInfo>(recordId);
+                return current != null && isExactFolderWorkspaceRecord(r.All<SkinInfo>(), current)
+                    ? current.Detach()
+                    : null;
+            });
+
+            if (snapshot == null)
+                return false;
+
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(snapshot, storage);
+
+            if (!resolution.IsFilesystemBacked || resolution.NormalisedAbsolutePath == null)
+                return false;
+
+            if (!snapshot.IsExternalFilesystemStorage
+                && (snapshot.FilesystemStoragePath == null
+                    || ManagedFolderOperationCoordinator.IsPathFrozen(snapshot.FilesystemStoragePath)))
+            {
+                return false;
+            }
+
+            using SkinManagedFolderOperationCoordinator.Lease operationLease =
+                ManagedFolderOperationCoordinator.Enter(cancellationToken);
+            using ISkinManagedFolderMutationNativeSession managedAuthority =
+                managedFolderMutationNativeAuthority.Open(cancellationToken);
+            SkinExternalFolderRegistryCaptureResult registryCapture = externalFolderRegistry.CaptureExactSet(
+                operationLease,
+                new[] { managedAuthority.ManagedRootAncestryProof },
+                cancellationToken);
+
+            if (!registryCapture.IsSuccess)
+                return false;
+
+            using SkinExternalFolderRegistrySnapshot registrySnapshot = registryCapture.Snapshot!;
+
+            if (snapshot.IsExternalFilesystemStorage)
+            {
+                if (resolution.ExternalCaptureRequest == null
+                    || !registrySnapshot.ContainsRecordId(recordId))
+                {
+                    return false;
+                }
+
+                SkinExternalFolderAuthorityCaptureResult externalCapture = externalFolderCaptureService.OpenAuthority(
+                    resolution.ExternalCaptureRequest,
+                    cancellationToken: cancellationToken);
+
+                if (!externalCapture.IsSuccess)
+                    return false;
+
+                using ISkinExternalFolderAuthoritySession externalAuthority = externalCapture.Session!;
+
+                if (!registrySnapshot.TryGetPhysicalProof(recordId, out SkinFolderPhysicalAncestryProof registeredProof)
+                    || registeredProof == null
+                    || !string.Equals(registeredProof.Digest, externalAuthority.PhysicalProof.Digest, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                externalAuthority.Validate(cancellationToken);
+            }
+            else
+            {
+                if (resolution.ManagedCaptureRequest == null)
+                    return false;
+
+                managedAuthority.CaptureExistingSource(snapshot.FilesystemStoragePath!, cancellationToken);
+                managedAuthority.ValidateCompleteAndStable(cancellationToken);
+            }
+
+            bool recordStillMatches = Realm.Run(r =>
+            {
+                r.Refresh();
+                SkinInfo current = r.Find<SkinInfo>(recordId);
+                return current != null
+                       && folderRecordMatches(snapshot, current)
+                       && isExactFolderWorkspaceRecord(r.All<SkinInfo>(), current);
+            });
+
+            if (!recordStillMatches
+                || (!snapshot.IsExternalFilesystemStorage
+                    && ManagedFolderOperationCoordinator.IsPathFrozen(snapshot.FilesystemStoragePath!))
+                || !registrySnapshot.Validate(operationLease, cancellationToken))
+                return false;
+
+            OpenFolderExternally(resolution.NormalisedAbsolutePath + Path.DirectorySeparatorChar);
+            return true;
+        }
+
+        private static bool exactlyMatchesExternalDeclarations(
+            IEnumerable<SkinInfo> records,
+            IReadOnlyList<SkinExternalFolderRegistryDeclaration> declarations)
+        {
+            SkinInfo[] external = records.Where(record => record.IsExternalFilesystemStorage)
+                                         .OrderBy(record => record.ID.ToString("N"), StringComparer.Ordinal)
+                                         .ToArray();
+
+            if (external.Length != declarations.Count)
+                return false;
+
+            for (int i = 0; i < external.Length; i++)
+            {
+                SkinInfo record = external[i];
+                SkinExternalFolderRegistryDeclaration declaration = declarations[i];
+
+                if (record.ID != declaration.RecordId
+                    || !isExactExternalRegistryRecord(record)
+                    || !string.Equals(record.FilesystemStoragePath, declaration.DeclaredPath, StringComparison.Ordinal)
+                    || !string.Equals(record.FilesystemStorageAuthorityOwner, declaration.AuthorityOwner, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool isExactExternalRegistryRecord(SkinInfo record)
+            => record.IsManaged
+               && record.IsExternalFilesystemStorage
+               && !record.Protected
+               && !record.DeletePending
+               && record.Files.Count == 0
+               && !SkinFilesystemStorageResolver.IsFixedSkinId(record.ID)
+               && !string.IsNullOrEmpty(record.FilesystemStoragePath)
+               && string.Equals(
+                   record.FilesystemStorageAuthorityOwner,
+                   SkinExternalFolderRegistry.AUTHORITY_OWNER,
+                   StringComparison.Ordinal)
+               && SkinManagedFolderFactory.IsInstantiationInfoAllowed(record.InstantiationInfo)
+               && !string.IsNullOrEmpty(record.Hash);
+
+        private static bool isExactFolderWorkspaceRecord(IEnumerable<SkinInfo> records, SkinInfo record)
+        {
+            if (record.IsExternalFilesystemStorage)
+                return isExactExternalRegistryRecord(record);
+
+            if (!record.IsManaged
+                || record.Protected
+                || record.DeletePending
+                || record.Files.Count != 0
+                || SkinFilesystemStorageResolver.IsFixedSkinId(record.ID)
+                || !string.Equals(
+                    record.FilesystemStorageAuthorityOwner,
+                    SkinManagedFolderScanner.AUTHORITY_OWNER,
+                    StringComparison.Ordinal)
+                || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(record.InstantiationInfo)
+                || string.IsNullOrEmpty(record.Hash)
+                || !SkinManagedFolderPath.TryNormalise(record.FilesystemStoragePath, out string normalisedPath)
+                || !string.Equals(record.FilesystemStoragePath, normalisedPath, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return records.Count(candidate =>
+                SkinManagedFolderPath.TryNormalise(candidate.FilesystemStoragePath, out string candidatePath)
+                && string.Equals(candidatePath, normalisedPath, StringComparison.OrdinalIgnoreCase)) == 1;
+        }
+
+        private static bool folderRecordMatches(SkinInfo expected, SkinInfo current)
+            => expected.ID == current.ID
+               && string.Equals(expected.Name, current.Name, StringComparison.Ordinal)
+               && string.Equals(expected.Creator, current.Creator, StringComparison.Ordinal)
+               && string.Equals(expected.InstantiationInfo, current.InstantiationInfo, StringComparison.Ordinal)
+               && string.Equals(expected.Hash, current.Hash, StringComparison.Ordinal)
+               && expected.Protected == current.Protected
+               && expected.DeletePending == current.DeletePending
+               && string.Equals(expected.FilesystemStoragePath, current.FilesystemStoragePath, StringComparison.Ordinal)
+               && expected.IsExternalFilesystemStorage == current.IsExternalFilesystemStorage
+               && string.Equals(
+                   expected.FilesystemStorageAuthorityOwner,
+                   current.FilesystemStorageAuthorityOwner,
+                   StringComparison.Ordinal)
+               && current.Files.Count == 0;
+
+        private static bool pathsOverlap(string left, string right)
+        {
+            if (string.IsNullOrEmpty(left) || string.IsNullOrEmpty(right))
+                return false;
+
+            try
+            {
+                string normalisedLeft = Path.TrimEndingDirectorySeparator(Path.GetFullPath(left));
+                string normalisedRight = Path.TrimEndingDirectorySeparator(Path.GetFullPath(right));
+
+                return string.Equals(normalisedLeft, normalisedRight, StringComparison.OrdinalIgnoreCase)
+                       || isStrictChildPath(normalisedLeft, normalisedRight)
+                       || isStrictChildPath(normalisedRight, normalisedLeft);
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private static bool isStrictChildPath(string candidate, string root)
+        {
+            string prefix = Path.EndsInDirectorySeparator(root)
+                ? root
+                : root + Path.DirectorySeparatorChar;
+            return candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        }
 
         /// <summary>
         /// Starts one directory-only managed chartskin rename without exposing it through the current skin UI.
@@ -374,7 +1910,9 @@ namespace osu.Game.Skinning
 
                 if (activeManagedFolderRenameTask is { IsCompleted: false }
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
-                    || activeManagedFolderDeleteTask is { IsCompleted: false })
+                    || activeManagedFolderDeleteTask is { IsCompleted: false }
+                    || activeManagedFolderRecoveryTask is { IsCompleted: false }
+                    || activeFolderWorkspaceTask is { IsCompleted: false })
                     return completedRenameResult(SkinManagedFolderRenameOperationStatus.Busy);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -417,7 +1955,9 @@ namespace osu.Game.Skinning
 
                 if (activeManagedFolderRenameTask is { IsCompleted: false }
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
-                    || activeManagedFolderDeleteTask is { IsCompleted: false })
+                    || activeManagedFolderDeleteTask is { IsCompleted: false }
+                    || activeManagedFolderRecoveryTask is { IsCompleted: false }
+                    || activeFolderWorkspaceTask is { IsCompleted: false })
                 {
                     return completedStagedImportResult(
                         SkinManagedFolderStagedImportOperationStatus.Busy);
@@ -474,7 +2014,9 @@ namespace osu.Game.Skinning
 
                 if (activeManagedFolderRenameTask is { IsCompleted: false }
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
-                    || activeManagedFolderDeleteTask is { IsCompleted: false })
+                    || activeManagedFolderDeleteTask is { IsCompleted: false }
+                    || activeManagedFolderRecoveryTask is { IsCompleted: false }
+                    || activeFolderWorkspaceTask is { IsCompleted: false })
                 {
                     return completedDeleteResult(SkinManagedFolderDeleteOperationStatus.Busy);
                 }
@@ -510,9 +2052,14 @@ namespace osu.Game.Skinning
             CancellationTokenSource renameCancellation;
             CancellationTokenSource importCancellation;
             CancellationTokenSource deleteCancellation;
+            CancellationTokenSource recoveryCancellation;
+            CancellationTokenSource workspaceCancellation;
+            FolderWorkspaceReadOperation[] workspaceReadOperations;
             Task<SkinManagedFolderRenameOperationResult> renameTask;
             Task<SkinManagedFolderStagedImportOperationResult> importTask;
             Task<SkinManagedFolderDeleteOperationResult> deleteTask;
+            Task<bool> recoveryTask;
+            Task<bool> workspaceTask;
             PendingManagedFolderDeleteFallback pendingDeleteFallback;
 
             lock (managedFolderRenameLifecycleGate)
@@ -521,9 +2068,14 @@ namespace osu.Game.Skinning
                 renameCancellation = activeManagedFolderRenameCancellation;
                 importCancellation = activeManagedFolderStagedImportCancellation;
                 deleteCancellation = activeManagedFolderDeleteCancellation;
+                recoveryCancellation = activeManagedFolderRecoveryCancellation;
+                workspaceCancellation = activeFolderWorkspaceCancellation;
+                workspaceReadOperations = folderWorkspaceReadOperations.ToArray();
                 renameTask = activeManagedFolderRenameTask;
                 importTask = activeManagedFolderStagedImportTask;
                 deleteTask = activeManagedFolderDeleteTask;
+                recoveryTask = activeManagedFolderRecoveryTask;
+                workspaceTask = activeFolderWorkspaceTask;
                 pendingDeleteFallback = pendingManagedFolderDeleteFallback;
             }
 
@@ -554,6 +2106,36 @@ namespace osu.Game.Skinning
                 // Cancellation callback failures must not bypass the delete join below.
             }
 
+            try
+            {
+                recoveryCancellation?.Cancel();
+            }
+            catch
+            {
+                // Cancellation callback failures must not bypass the recovery join below.
+            }
+
+            try
+            {
+                workspaceCancellation?.Cancel();
+            }
+            catch
+            {
+                // Cancellation callback failures must not bypass the workspace join below.
+            }
+
+            foreach (FolderWorkspaceReadOperation operation in workspaceReadOperations)
+            {
+                try
+                {
+                    operation.Cancellation.Cancel();
+                }
+                catch
+                {
+                    // Cancellation callback failures must not bypass the read-worker joins below.
+                }
+            }
+
             cancelManagedFolderDeleteFallback(pendingDeleteFallback);
 
             try
@@ -582,12 +2164,43 @@ namespace osu.Game.Skinning
             {
                 // Observe unexpected failures without exposing a potentially sensitive exception.
             }
+
+            try
+            {
+                recoveryTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Observe unexpected failures without exposing a potentially sensitive exception.
+            }
+
+            try
+            {
+                workspaceTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Observe unexpected failures without exposing a potentially sensitive exception.
+            }
+
+            foreach (FolderWorkspaceReadOperation operation in workspaceReadOperations)
+            {
+                try
+                {
+                    operation.Task.GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    // Observe cancellation and unexpected failures before Realm can be released.
+                }
+            }
         }
 
         private void shutdownManagedFolderSelections()
         {
             CancellationTokenSource pendingSelection = null;
             PendingManagedFolderSelectionCompletion[] pendingCompletions;
+            PendingExternalFolderSelectionCompletion[] pendingExternalCompletions;
             bool cancellationRequired = false;
 
             lock (managedFolderSelectionLifecycleGate)
@@ -602,6 +2215,8 @@ namespace osu.Game.Skinning
 
                 pendingCompletions = pendingManagedFolderSelectionCompletions.ToArray();
                 pendingManagedFolderSelectionCompletions.Clear();
+                pendingExternalCompletions = pendingExternalFolderSelectionCompletions.ToArray();
+                pendingExternalFolderSelectionCompletions.Clear();
             }
 
             if (cancellationRequired)
@@ -627,6 +2242,9 @@ namespace osu.Game.Skinning
 
             foreach (PendingManagedFolderSelectionCompletion pendingCompletion in pendingCompletions)
                 discardManagedFolderSelectionCompletion(pendingCompletion);
+
+            foreach (PendingExternalFolderSelectionCompletion pendingCompletion in pendingExternalCompletions)
+                discardExternalFolderSelectionCompletion(pendingCompletion);
 
             Task[] workerTasks;
 
@@ -734,6 +2352,32 @@ namespace osu.Game.Skinning
             return result;
         }
 
+        private bool executeManagedFolderRecoveryRetry(CancellationToken cancellationToken)
+        {
+            try
+            {
+                FolderSkinJournalSupportSnapshot before =
+                    managedFolderMutationRecovery.InspectSupportSnapshot(cancellationToken);
+
+                if (!before.CanRetry)
+                    return false;
+
+                SkinManagedFolderMutationRecoveryResult result =
+                    managedFolderMutationRecovery.Recover(cancellationToken);
+
+                return result.IsResolved;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch
+            {
+                // Recovery failures are represented by the next redacted support snapshot.
+                return false;
+            }
+        }
+
         private Task<SkinManagedFolderRenameOperationResult> completedRenameResult(
             SkinManagedFolderRenameOperationStatus status)
         {
@@ -776,6 +2420,7 @@ namespace osu.Game.Skinning
             }
 
             operationCancellation.Dispose();
+            notifyManagedFolderJournalStateChanged();
         }
 
         private void completeManagedFolderStagedImportTask(
@@ -794,6 +2439,7 @@ namespace osu.Game.Skinning
             }
 
             operationCancellation.Dispose();
+            notifyManagedFolderJournalStateChanged();
         }
 
         private void completeManagedFolderDeleteTask(
@@ -810,6 +2456,44 @@ namespace osu.Game.Skinning
             }
 
             operationCancellation.Dispose();
+            notifyManagedFolderJournalStateChanged();
+        }
+
+        private void completeManagedFolderRecoveryTask(
+            Task<bool> operationTask,
+            CancellationTokenSource operationCancellation)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (ReferenceEquals(activeManagedFolderRecoveryTask, operationTask))
+                {
+                    activeManagedFolderRecoveryTask = null;
+                    activeManagedFolderRecoveryCancellation = null;
+                }
+            }
+
+            operationCancellation.Dispose();
+            notifyManagedFolderJournalStateChanged();
+        }
+
+        private void notifyManagedFolderJournalStateChanged()
+        {
+            Action handlers = ManagedFolderJournalStateChanged;
+
+            if (handlers == null)
+                return;
+
+            foreach (Action handler in handlers.GetInvocationList())
+            {
+                try
+                {
+                    handler();
+                }
+                catch
+                {
+                    // A support observer cannot affect worker completion or expose a worker exception.
+                }
+            }
         }
 
         private SkinManagedFolderProtectedFallbackCommitResult commitManagedFolderDeleteFallback(
@@ -1044,8 +2728,10 @@ namespace osu.Game.Skinning
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
 
                 var userSkins = realm.All<SkinInfo>()
-                                     .Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage)
+                                     .Where(s => !s.DeletePending && !s.Protected)
                                      .AsEnumerable()
+                                     .Where(s => !s.IsExternalFilesystemStorage
+                                                 || isExactExternalRegistryRecord(s))
                                      .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
                                      .Select(s => s.ToLive(Realm));
 
@@ -1095,7 +2781,7 @@ namespace osu.Game.Skinning
             if (CurrentSkinInfo.Disabled)
                 return;
 
-            var skins = GetAllUsableSkins();
+            var skins = getImplicitlySelectableSkins();
 
             int i = skins.IndexOf(CurrentSkinInfo.Value);
 
@@ -1109,6 +2795,28 @@ namespace osu.Game.Skinning
             } while (skins[i].ID == SkinInfo.RANDOM_SKIN);
 
             CurrentSkinInfo.Value = skins[i];
+        }
+
+        private IList<Live<SkinInfo>> getImplicitlySelectableSkins()
+        {
+            var skins = new List<Live<SkinInfo>>();
+
+            Realm.Run(realm =>
+            {
+                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
+
+                foreach (SkinInfo skin in realm.All<SkinInfo>()
+                                              .Where(s => !s.DeletePending
+                                                          && !s.Protected
+                                                          && !s.IsExternalFilesystemStorage)
+                                              .AsEnumerable()
+                                              .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    skins.Add(skin.ToLive(Realm));
+                }
+            });
+
+            return skins;
         }
 
         /// <summary>
@@ -1194,10 +2902,11 @@ namespace osu.Game.Skinning
                 return false;
             }
 
-            if (request.Resolution.Authority == SkinFilesystemStorageAuthority.ManagedFolder
+            if (request.Resolution.Authority is SkinFilesystemStorageAuthority.ManagedFolder
+                    or SkinFilesystemStorageAuthority.ExternalFolder
                 && !ThreadSafety.IsUpdateThread)
             {
-                throw new InvalidOperationException("Managed folder skin selection requests must run on the update thread.");
+                throw new InvalidOperationException("Folder skin selection requests must run on the update thread.");
             }
 
             SelectionRequestBeforeCommitLock(target);
@@ -1221,7 +2930,7 @@ namespace osu.Game.Skinning
                         return false;
 
                     case SkinFilesystemStorageAuthority.ExternalFolder:
-                        rejectSelection(SkinSelectionRejectionReason.ExternalFolderUnsupported);
+                        beginExternalFolderSelectionPreparation(generation, target, request);
                         return false;
 
                     case SkinFilesystemStorageAuthority.Invalid:
@@ -1243,6 +2952,395 @@ namespace osu.Game.Skinning
 
                 return false;
             }
+        }
+
+        private void beginExternalFolderSelectionPreparation(
+            long generation,
+            Live<SkinInfo> target,
+            SelectionRequest request)
+        {
+            if (request.Resolution.ExternalCaptureRequest == null
+                || request.Snapshot == null
+                || !request.IsRealmManaged
+                || !request.HasExactExternalOwner
+                || !SkinManagedFolderFactory.IsInstantiationInfoAllowed(request.Snapshot.InstantiationInfo))
+            {
+                rejectSelection(SkinSelectionRejectionReason.UnmanagedFilesystemRecord);
+                return;
+            }
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+                {
+                    rejectSelection(SkinSelectionRejectionReason.PreparationCancelled);
+                    return;
+                }
+
+                var cancellation = new CancellationTokenSource();
+                pendingSelectionCancellation = cancellation;
+                SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation =
+                    ManagedFolderOperationCoordinator.CaptureSelectionPreparationObservation();
+                Task<ExternalFolderSelectionPreparationResult> preparationTask = Task.Run(
+                    () => prepareExternalFolderSelection(request, cancellation.Token),
+                    cancellation.Token);
+                Task completionSchedulingTask = preparationTask.ContinueWith(
+                    task => scheduleExternalFolderSelectionCompletion(
+                        generation,
+                        target,
+                        request,
+                        preparationObservation,
+                        cancellation,
+                        task),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                trackManagedFolderSelectionWorkerHeld(completionSchedulingTask);
+            }
+        }
+
+        private ExternalFolderSelectionPreparationResult prepareExternalFolderSelection(
+            SelectionRequest request,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            ISkinManagedFolderMutationNativeSession managedAuthority = null;
+            SkinExternalFolderRegistrySnapshot registrySnapshot = null;
+            ISkinExternalPackageCaptureSession packageSession = null;
+            Skin preparedSkin = null;
+
+            try
+            {
+                if (ManagedFolderOperationCoordinator.IsMutationBlocked)
+                    return ExternalFolderSelectionPreparationResult.Reject;
+
+                managedAuthority = managedFolderMutationNativeAuthority.Open(cancellationToken);
+                SkinExternalFolderRegistryCaptureResult registryCapture = externalFolderRegistry.CaptureExactSetForSelection(
+                    new[] { managedAuthority.ManagedRootAncestryProof },
+                    ExternalFolderSelectionCaptureAuthorityOpened,
+                    cancellationToken);
+
+                if (!registryCapture.IsSuccess)
+                    return ExternalFolderSelectionPreparationResult.Reject;
+
+                registrySnapshot = registryCapture.Snapshot!;
+
+                if (!registrySnapshot.ContainsRecordId(request.Snapshot.ID)
+                    || !registrySnapshot.TryGetPhysicalProof(
+                        request.Snapshot.ID,
+                        out SkinFolderPhysicalAncestryProof registeredProof)
+                    || registeredProof == null)
+                {
+                    return ExternalFolderSelectionPreparationResult.Reject;
+                }
+
+                SkinExternalPackageCaptureResult packageCapture = externalFolderCaptureService.CaptureHeld(
+                    request.Resolution.ExternalCaptureRequest,
+                    cancellationToken: cancellationToken);
+
+                if (!packageCapture.IsSuccess)
+                    return ExternalFolderSelectionPreparationResult.Reject;
+
+                packageSession = packageCapture.Session!;
+
+                if (!string.Equals(
+                        registeredProof.Digest,
+                        packageSession.PhysicalProof.Digest,
+                        StringComparison.Ordinal))
+                {
+                    return ExternalFolderSelectionPreparationResult.Reject;
+                }
+
+                SkinPackageRevisionCapsule capsule = packageSession.TakeCapsule();
+
+                if (!SkinManagedFolderPackageMetadataReader.TryRead(
+                        capsule,
+                        out SkinManagedFolderPackageMetadata metadata))
+                {
+                    capsule.Dispose();
+                    return ExternalFolderSelectionPreparationResult.Reject;
+                }
+
+                SkinInfo freshSnapshot = createFilesystemSkinSnapshot(request.Snapshot);
+                freshSnapshot.Name = metadata!.Name;
+                freshSnapshot.Creator = metadata.Creator;
+                freshSnapshot.Hash = metadata.ContentRevision;
+                SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(
+                    freshSnapshot,
+                    this,
+                    capsule);
+
+                if (!factory.IsSuccess)
+                    return ExternalFolderSelectionPreparationResult.Reject;
+
+                preparedSkin = factory.Skin!;
+                packageSession.Validate(cancellationToken);
+                managedAuthority.ValidateCompleteAndStable(cancellationToken);
+
+                ExternalFolderSelectionPreparationResult result = ExternalFolderSelectionPreparationResult.Success(
+                    preparedSkin,
+                    metadata,
+                    managedAuthority,
+                    registrySnapshot,
+                    packageSession);
+                preparedSkin = null;
+                managedAuthority = null;
+                registrySnapshot = null;
+                packageSession = null;
+                return result;
+            }
+            finally
+            {
+                preparedSkin?.Dispose();
+                packageSession?.Dispose();
+                registrySnapshot?.Dispose();
+                managedAuthority?.Dispose();
+            }
+        }
+
+        private void scheduleExternalFolderSelectionCompletion(
+            long generation,
+            Live<SkinInfo> target,
+            SelectionRequest request,
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
+            CancellationTokenSource cancellation,
+            Task<ExternalFolderSelectionPreparationResult> preparationTask)
+        {
+            var pendingCompletion = new PendingExternalFolderSelectionCompletion(
+                generation,
+                target,
+                request,
+                preparationObservation,
+                cancellation,
+                preparationTask);
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+                {
+                    discardExternalFolderSelectionCompletion(pendingCompletion);
+                    return;
+                }
+
+                pendingExternalFolderSelectionCompletions.Add(pendingCompletion);
+            }
+
+            try
+            {
+                ManagedFolderCompletionSchedule(() => completeExternalFolderSelection(pendingCompletion));
+            }
+            catch
+            {
+                bool claimed;
+
+                lock (managedFolderSelectionLifecycleGate)
+                    claimed = pendingExternalFolderSelectionCompletions.Remove(pendingCompletion);
+
+                if (claimed)
+                {
+                    discardExternalFolderSelectionCompletion(pendingCompletion);
+                    tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationFailed);
+                }
+            }
+        }
+
+        private void completeExternalFolderSelection(PendingExternalFolderSelectionCompletion pendingCompletion)
+        {
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (!pendingExternalFolderSelectionCompletions.Remove(pendingCompletion))
+                    return;
+            }
+
+            Interlocked.CompareExchange(
+                ref pendingSelectionCancellation,
+                null,
+                pendingCompletion.Cancellation);
+            pendingCompletion.Cancellation.Dispose();
+
+            if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+            {
+                disposeExternalPreparationTask(pendingCompletion.PreparationTask);
+                return;
+            }
+
+            if (pendingCompletion.PreparationTask.Status != TaskStatus.RanToCompletion)
+            {
+                if (pendingCompletion.PreparationTask.IsFaulted)
+                    _ = pendingCompletion.PreparationTask.Exception;
+
+                rejectSelection(
+                    pendingCompletion.Generation,
+                    pendingCompletion.PreparationTask.IsCanceled
+                        ? SkinSelectionRejectionReason.PreparationCancelled
+                        : SkinSelectionRejectionReason.PreparationFailed);
+                return;
+            }
+
+            ExternalFolderSelectionPreparationResult prepared =
+                pendingCompletion.PreparationTask.GetAwaiter().GetResult();
+
+            if (!prepared.IsSuccess
+                || pendingCompletion.Generation != Interlocked.Read(ref selectionGeneration))
+            {
+                prepared.Dispose();
+
+                if (!prepared.IsSuccess)
+                    rejectSelection(pendingCompletion.Generation, SkinSelectionRejectionReason.CaptureRejected);
+
+                return;
+            }
+
+            if (!ManagedFolderOperationCoordinator.TryEnterForSelection(
+                    out SkinManagedFolderOperationCoordinator.Lease finalLease,
+                    out SkinManagedFolderOperationCoordinator.SelectionContention contention))
+            {
+                prepared.Dispose();
+
+                if (contention != null
+                    && ManagedFolderOperationCoordinator.IsMutationReservationEpochCurrent(
+                        pendingCompletion.PreparationObservation))
+                {
+                    scheduleManagedFolderSelectionRetryAfterContention(
+                        pendingCompletion.Generation,
+                        pendingCompletion.Target.ID,
+                        CurrentSkinInfo.Value.ID,
+                        CurrentSkin.Value,
+                        pendingCompletion.PreparationObservation,
+                        contention);
+                }
+                else
+                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+
+                return;
+            }
+
+            try
+            {
+                using (finalLease)
+                {
+                    if (pendingCompletion.Generation != Interlocked.Read(ref selectionGeneration)
+                        || CurrentSkinInfo.Disabled
+                        || !ManagedFolderOperationCoordinator.IsMutationReservationEpochCurrent(
+                            pendingCompletion.PreparationObservation)
+                        || ManagedFolderOperationCoordinator.IsMutationBlocked)
+                    {
+                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                        return;
+                    }
+
+                    try
+                    {
+                        prepared.PackageSession!.Validate();
+                        prepared.ManagedAuthority!.ValidateCompleteAndStable(CancellationToken.None);
+
+                        if (!prepared.RegistrySnapshot!.TryGetPhysicalProof(
+                                pendingCompletion.Target.ID,
+                                out SkinFolderPhysicalAncestryProof registeredProof)
+                            || registeredProof == null
+                            || !string.Equals(
+                                registeredProof.Digest,
+                                prepared.PackageSession.PhysicalProof.Digest,
+                                StringComparison.Ordinal)
+                            || !prepared.RegistrySnapshot.Validate(finalLease, CancellationToken.None))
+                        {
+                            rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                        return;
+                    }
+
+                    Live<SkinInfo> authoritativeTarget = null;
+
+                    try
+                    {
+                        bool observationsPublished = Realm.Write(r =>
+                        {
+                            r.Refresh();
+                            SkinInfo current = r.Find<SkinInfo>(pendingCompletion.Target.ID);
+
+                            if (current == null
+                                || !pendingCompletion.Request.MatchesDeclaredFields(current)
+                                || !prepared.RegistrySnapshot.ExactlyMatchesRealmDeclarations(r.All<SkinInfo>()))
+                            {
+                                return false;
+                            }
+
+                            current.Name = prepared.Metadata!.Name;
+                            current.Creator = prepared.Metadata.Creator;
+                            current.Hash = prepared.Metadata.ContentRevision;
+                            return true;
+                        });
+
+                        if (observationsPublished)
+                            authoritativeTarget = pendingCompletion.Target;
+                    }
+                    catch
+                    {
+                        authoritativeTarget = null;
+                    }
+
+                    if (authoritativeTarget == null)
+                    {
+                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                        return;
+                    }
+
+                    Skin preparedSkin = prepared.TransferSkin();
+                    var preparedCommit = new PreparedManagedFolderSelection(authoritativeTarget, preparedSkin);
+                    preparedManagedFolderSelection = preparedCommit;
+
+                    try
+                    {
+                        ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(authoritativeTarget);
+                    }
+                    finally
+                    {
+                        if (ReferenceEquals(preparedManagedFolderSelection, preparedCommit))
+                        {
+                            preparedManagedFolderSelection = null;
+                            preparedCommit.Skin.Dispose();
+                        }
+                    }
+
+                    if (pendingCompletion.Generation == Interlocked.Read(ref selectionGeneration)
+                        && CurrentSkinInfo.Value.ID == authoritativeTarget.ID
+                        && ReferenceEquals(CurrentSkin.Value, preparedSkin))
+                    {
+                        LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                    }
+                }
+            }
+            finally
+            {
+                prepared.Dispose();
+            }
+        }
+
+        private void discardExternalFolderSelectionCompletion(
+            PendingExternalFolderSelectionCompletion pendingCompletion)
+        {
+            Interlocked.CompareExchange(
+                ref pendingSelectionCancellation,
+                null,
+                pendingCompletion.Cancellation);
+            pendingCompletion.Cancellation.Dispose();
+            disposeExternalPreparationTask(pendingCompletion.PreparationTask);
+        }
+
+        private static void disposeExternalPreparationTask(
+            Task<ExternalFolderSelectionPreparationResult> preparationTask)
+        {
+            if (preparationTask.Status == TaskStatus.RanToCompletion)
+                preparationTask.GetAwaiter().GetResult().Dispose();
+            else if (preparationTask.IsFaulted)
+                _ = preparationTask.Exception;
         }
 
         private void beginManagedFolderSelectionPreparation(
@@ -1825,14 +3923,18 @@ namespace osu.Game.Skinning
                 if (generation != Interlocked.Read(ref selectionGeneration))
                     return;
 
-                beginManagedFolderSelectionPreparation(generation, authoritativeTarget, retryRequest);
+                if (retryRequest.Resolution.Authority == SkinFilesystemStorageAuthority.ExternalFolder)
+                    beginExternalFolderSelectionPreparation(generation, authoritativeTarget, retryRequest);
+                else
+                    beginManagedFolderSelectionPreparation(generation, authoritativeTarget, retryRequest);
             }
         }
 
         private SelectionRequest createSelectionRequest(SkinInfo skinInfo)
         {
             SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
-            SkinInfo snapshot = resolution.Authority == SkinFilesystemStorageAuthority.ManagedFolder
+            SkinInfo snapshot = resolution.Authority is SkinFilesystemStorageAuthority.ManagedFolder
+                    or SkinFilesystemStorageAuthority.ExternalFolder
                 ? createFilesystemSkinSnapshot(skinInfo)
                 : null;
 
@@ -1840,7 +3942,8 @@ namespace osu.Game.Skinning
                 resolution,
                 snapshot,
                 skinInfo.IsManaged,
-                string.Equals(skinInfo.FilesystemStorageAuthorityOwner, SkinManagedFolderScanner.AUTHORITY_OWNER, StringComparison.Ordinal));
+                string.Equals(skinInfo.FilesystemStorageAuthorityOwner, SkinManagedFolderScanner.AUTHORITY_OWNER, StringComparison.Ordinal),
+                string.Equals(skinInfo.FilesystemStorageAuthorityOwner, SkinExternalFolderRegistry.AUTHORITY_OWNER, StringComparison.Ordinal));
         }
 
         private static SkinInfo createFilesystemSkinSnapshot(SkinInfo source)
@@ -2242,9 +4345,20 @@ namespace osu.Game.Skinning
             if (skin == null)
                 return false;
 
+            return CanDelete(skin.ID);
+        }
+
+        /// <summary>
+        /// Path-free workspace affordance. The identifier is never treated as authority; every field is classified
+        /// from a fresh Realm view and confirmation repeats the same checks inside the operation.
+        /// </summary>
+        internal bool CanDelete(Guid recordId)
+        {
+            if (recordId == Guid.Empty)
+                return false;
+
             try
             {
-                Guid recordId = skin.ID;
                 return Realm.Run(r =>
                 {
                     r.Refresh();
@@ -2350,8 +4464,7 @@ namespace osu.Game.Skinning
                 || !SkinManagedFolderPath.TryNormalise(record.FilesystemStoragePath, out string normalisedPath)
                 || !string.Equals(record.FilesystemStoragePath, normalisedPath, StringComparison.Ordinal)
                 || ManagedFolderOperationCoordinator.IsMutationBlocked
-                || ManagedFolderOperationCoordinator.IsPathFrozen(normalisedPath)
-                || realm.All<SkinInfo>().AsEnumerable().Any(candidate => candidate.IsExternalFilesystemStorage))
+                || ManagedFolderOperationCoordinator.IsPathFrozen(normalisedPath))
             {
                 return DeleteCandidateKind.Rejected;
             }
@@ -2391,6 +4504,112 @@ namespace osu.Game.Skinning
             }
 
             CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
+        }
+
+        private sealed class ExternalFolderSelectionPreparationResult : IDisposable
+        {
+            public static ExternalFolderSelectionPreparationResult Reject { get; } =
+                new ExternalFolderSelectionPreparationResult(null, null, null, null, null);
+
+            private Skin skin;
+            private ISkinManagedFolderMutationNativeSession managedAuthority;
+            private SkinExternalFolderRegistrySnapshot registrySnapshot;
+            private ISkinExternalPackageCaptureSession packageSession;
+
+            public Skin Skin => skin;
+            public SkinManagedFolderPackageMetadata Metadata { get; }
+            public ISkinManagedFolderMutationNativeSession ManagedAuthority => managedAuthority;
+            public SkinExternalFolderRegistrySnapshot RegistrySnapshot => registrySnapshot;
+            public ISkinExternalPackageCaptureSession PackageSession => packageSession;
+            public bool IsSuccess => Skin != null;
+
+            private ExternalFolderSelectionPreparationResult(
+                Skin skin,
+                SkinManagedFolderPackageMetadata metadata,
+                ISkinManagedFolderMutationNativeSession managedAuthority,
+                SkinExternalFolderRegistrySnapshot registrySnapshot,
+                ISkinExternalPackageCaptureSession packageSession)
+            {
+                this.skin = skin;
+                Metadata = metadata;
+                this.managedAuthority = managedAuthority;
+                this.registrySnapshot = registrySnapshot;
+                this.packageSession = packageSession;
+            }
+
+            public static ExternalFolderSelectionPreparationResult Success(
+                Skin skin,
+                SkinManagedFolderPackageMetadata metadata,
+                ISkinManagedFolderMutationNativeSession managedAuthority,
+                SkinExternalFolderRegistrySnapshot registrySnapshot,
+                ISkinExternalPackageCaptureSession packageSession)
+                => new ExternalFolderSelectionPreparationResult(
+                    skin ?? throw new ArgumentNullException(nameof(skin)),
+                    metadata ?? throw new ArgumentNullException(nameof(metadata)),
+                    managedAuthority ?? throw new ArgumentNullException(nameof(managedAuthority)),
+                    registrySnapshot ?? throw new ArgumentNullException(nameof(registrySnapshot)),
+                    packageSession ?? throw new ArgumentNullException(nameof(packageSession)));
+
+            public Skin TransferSkin()
+                => Interlocked.Exchange(ref skin, null)
+                   ?? throw new InvalidOperationException("The prepared external skin has already been transferred.");
+
+            public void Dispose()
+            {
+                Skin ownedSkin = Interlocked.Exchange(ref skin, null);
+                ISkinExternalPackageCaptureSession ownedPackageSession = Interlocked.Exchange(ref packageSession, null);
+                SkinExternalFolderRegistrySnapshot ownedRegistrySnapshot = Interlocked.Exchange(ref registrySnapshot, null);
+                ISkinManagedFolderMutationNativeSession ownedManagedAuthority = Interlocked.Exchange(ref managedAuthority, null);
+
+                try
+                {
+                    ownedSkin?.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        ownedPackageSession?.Dispose();
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            ownedRegistrySnapshot?.Dispose();
+                        }
+                        finally
+                        {
+                            ownedManagedAuthority?.Dispose();
+                        }
+                    }
+                }
+            }
+        }
+
+        private sealed class PendingExternalFolderSelectionCompletion
+        {
+            public long Generation { get; }
+            public Live<SkinInfo> Target { get; }
+            public SelectionRequest Request { get; }
+            public SkinManagedFolderOperationCoordinator.SelectionPreparationObservation PreparationObservation { get; }
+            public CancellationTokenSource Cancellation { get; }
+            public Task<ExternalFolderSelectionPreparationResult> PreparationTask { get; }
+
+            public PendingExternalFolderSelectionCompletion(
+                long generation,
+                Live<SkinInfo> target,
+                SelectionRequest request,
+                SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
+                CancellationTokenSource cancellation,
+                Task<ExternalFolderSelectionPreparationResult> preparationTask)
+            {
+                Generation = generation;
+                Target = target;
+                Request = request;
+                PreparationObservation = preparationObservation;
+                Cancellation = cancellation;
+                PreparationTask = preparationTask;
+            }
         }
 
         private sealed class PendingManagedFolderSelectionCompletion
@@ -2445,50 +4664,105 @@ namespace osu.Game.Skinning
             public override string ToString() => nameof(PendingManagedFolderDeleteFallback);
         }
 
+        private sealed class FolderWorkspaceReadOperation
+        {
+            public Task Task { get; }
+            public CancellationTokenSource Cancellation { get; }
+
+            public FolderWorkspaceReadOperation(Task task, CancellationTokenSource cancellation)
+            {
+                Task = task ?? throw new ArgumentNullException(nameof(task));
+                Cancellation = cancellation ?? throw new ArgumentNullException(nameof(cancellation));
+            }
+        }
+
         private sealed class SelectionRequest
         {
             public SkinFilesystemStorageResolution Resolution { get; }
             public SkinInfo Snapshot { get; }
             public bool IsRealmManaged { get; }
             public bool HasExactScannerOwner { get; }
+            public bool HasExactExternalOwner { get; }
 
             public SelectionRequest(
                 SkinFilesystemStorageResolution resolution,
                 SkinInfo snapshot,
                 bool isRealmManaged,
-                bool hasExactScannerOwner)
+                bool hasExactScannerOwner,
+                bool hasExactExternalOwner)
             {
                 Resolution = resolution;
                 Snapshot = snapshot;
                 IsRealmManaged = isRealmManaged;
                 HasExactScannerOwner = hasExactScannerOwner;
+                HasExactExternalOwner = hasExactExternalOwner;
             }
 
             public bool Matches(SkinInfo current, Storage storage)
             {
-                if (Snapshot == null
-                    || !current.IsManaged
-                    || !string.Equals(current.FilesystemStorageAuthorityOwner, SkinManagedFolderScanner.AUTHORITY_OWNER, StringComparison.Ordinal)
-                    || current.ID != Snapshot.ID
-                    || !string.Equals(current.Name, Snapshot.Name, StringComparison.Ordinal)
-                    || !string.Equals(current.Creator, Snapshot.Creator, StringComparison.Ordinal)
-                    || !string.Equals(current.InstantiationInfo, Snapshot.InstantiationInfo, StringComparison.Ordinal)
-                    || !string.Equals(current.Hash, Snapshot.Hash, StringComparison.Ordinal)
-                    || current.Protected != Snapshot.Protected
-                    || !string.Equals(current.FilesystemStoragePath, Snapshot.FilesystemStoragePath, StringComparison.Ordinal)
-                    || current.IsExternalFilesystemStorage != Snapshot.IsExternalFilesystemStorage
-                    || !string.Equals(current.FilesystemStorageAuthorityOwner, Snapshot.FilesystemStorageAuthorityOwner, StringComparison.Ordinal)
-                    || current.DeletePending != Snapshot.DeletePending
-                    || current.Files.Count != 0)
-                {
+                if (!MatchesDeclaredFields(current))
                     return false;
-                }
 
                 SkinFilesystemStorageResolution currentResolution = SkinFilesystemStorageResolver.ResolveExisting(current, storage);
-                return currentResolution.Authority == SkinFilesystemStorageAuthority.ManagedFolder
-                       && currentResolution.ManagedCaptureRequest != null
-                       && SkinManagedFolderFactory.IsInstantiationInfoAllowed(current.InstantiationInfo);
+                return currentResolution.Authority == Resolution.Authority
+                       && SkinManagedFolderFactory.IsInstantiationInfoAllowed(current.InstantiationInfo)
+                       && (Resolution.Authority switch
+                       {
+                           SkinFilesystemStorageAuthority.ManagedFolder =>
+                               HasExactScannerOwner
+                               && string.Equals(
+                                   current.FilesystemStorageAuthorityOwner,
+                                   SkinManagedFolderScanner.AUTHORITY_OWNER,
+                                   StringComparison.Ordinal)
+                               && currentResolution.ManagedCaptureRequest != null,
+
+                           SkinFilesystemStorageAuthority.ExternalFolder =>
+                               HasExactExternalOwner
+                               && current.IsExternalFilesystemStorage
+                               && string.Equals(
+                                   current.FilesystemStorageAuthorityOwner,
+                                   SkinExternalFolderRegistry.AUTHORITY_OWNER,
+                                   StringComparison.Ordinal)
+                               && currentResolution.ExternalCaptureRequest != null,
+
+                           _ => false,
+                       });
             }
+
+            public bool MatchesDeclaredFields(SkinInfo current)
+                => Snapshot != null
+                   && current.IsManaged
+                   && current.ID == Snapshot.ID
+                   && string.Equals(current.Name, Snapshot.Name, StringComparison.Ordinal)
+                   && string.Equals(current.Creator, Snapshot.Creator, StringComparison.Ordinal)
+                   && string.Equals(current.InstantiationInfo, Snapshot.InstantiationInfo, StringComparison.Ordinal)
+                   && string.Equals(current.Hash, Snapshot.Hash, StringComparison.Ordinal)
+                   && current.Protected == Snapshot.Protected
+                   && string.Equals(current.FilesystemStoragePath, Snapshot.FilesystemStoragePath, StringComparison.Ordinal)
+                   && current.IsExternalFilesystemStorage == Snapshot.IsExternalFilesystemStorage
+                   && string.Equals(current.FilesystemStorageAuthorityOwner, Snapshot.FilesystemStorageAuthorityOwner, StringComparison.Ordinal)
+                   && current.DeletePending == Snapshot.DeletePending
+                   && current.Files.Count == 0
+                   && (Resolution.Authority switch
+                   {
+                       SkinFilesystemStorageAuthority.ManagedFolder =>
+                           HasExactScannerOwner
+                           && !current.IsExternalFilesystemStorage
+                           && string.Equals(
+                               current.FilesystemStorageAuthorityOwner,
+                               SkinManagedFolderScanner.AUTHORITY_OWNER,
+                               StringComparison.Ordinal),
+
+                       SkinFilesystemStorageAuthority.ExternalFolder =>
+                           HasExactExternalOwner
+                           && current.IsExternalFilesystemStorage
+                           && string.Equals(
+                               current.FilesystemStorageAuthorityOwner,
+                               SkinExternalFolderRegistry.AUTHORITY_OWNER,
+                               StringComparison.Ordinal),
+
+                       _ => false,
+                   });
         }
 
         private enum DeleteCandidateKind

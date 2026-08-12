@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -547,6 +548,126 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
+        public void TestExternalHeldNativeCaptureRetainsProofAndEmptyDirectoryManifest()
+        {
+            string externalRoot = Path.Combine(dataRoot, "external-author");
+            string movedRoot = externalRoot + "-moved";
+            Directory.CreateDirectory(Path.Combine(externalRoot, "nested", "empty"));
+            string ini = Path.Combine(externalRoot, "skin.ini");
+            File.WriteAllBytes(ini, new byte[] { 1, 2, 3 });
+            File.WriteAllBytes(Path.Combine(externalRoot, "nested", "note.png"), new byte[] { 4, 5 });
+            SkinExternalPackageCaptureRequest request = resolveExternalRequest(externalRoot);
+            var service = new SkinExternalFolderCaptureService();
+            SkinExternalPackageCaptureResult result = service.CaptureHeld(request);
+
+            Assert.That(result.IsSuccess, Is.True);
+            ISkinExternalPackageCaptureSession session = result.Session!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.HeldHandleCount, Is.GreaterThan(0));
+                Assert.That(session.LogicalManifest.Entries.Any(entry =>
+                    entry.RelativePath == "nested/empty"
+                    && entry.Kind == SkinExternalPackageLogicalEntryKind.Directory), Is.True);
+                Assert.That(session.CaptureFingerprint, Does.Match("^[0-9a-f]{64}$"));
+                Assert.Throws<IOException>(() => Directory.Move(externalRoot, movedRoot));
+                Assert.That(File.ReadAllBytes(ini), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            });
+
+            session.Validate();
+            using SkinPackageRevisionCapsule capsule = session.TakeCapsule();
+            using var resources = capsule.CreateResourceView();
+            Assert.That(resources.Get("nested/note.png"), Is.EqualTo(new byte[] { 4, 5 }));
+            session.Dispose();
+
+            Assert.DoesNotThrow(() => Directory.Move(externalRoot, movedRoot));
+            Assert.DoesNotThrow(() => Directory.Move(movedRoot, externalRoot));
+        }
+
+        [Test]
+        public void TestExternalHeldNativeCaptureRejectsBusyWriter()
+        {
+            string busyRoot = Path.Combine(dataRoot, "external-busy");
+            Directory.CreateDirectory(busyRoot);
+            string busyFile = Path.Combine(busyRoot, "skin.ini");
+            File.WriteAllText(busyFile, "busy");
+            SkinExternalPackageCaptureRequest busyRequest = resolveExternalRequest(busyRoot);
+            var service = new SkinExternalFolderCaptureService();
+
+            using (File.Open(busyFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                SkinExternalPackageCaptureResult busy = service.CaptureHeld(busyRequest);
+                Assert.That(busy.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.SourceBusy));
+            }
+        }
+
+        [Test]
+        public void TestExternalHeldNativeCaptureRejectsHardLink()
+        {
+            string hardLinkRoot = Path.Combine(dataRoot, "external-hardlink");
+            Directory.CreateDirectory(hardLinkRoot);
+            string source = Path.Combine(hardLinkRoot, "skin.ini");
+            string alias = Path.Combine(hardLinkRoot, "alias.ini");
+            File.WriteAllText(source, "hardlink");
+
+            if (!HardLinkHelper.TryCreateHardLink(alias, source))
+                Assert.Ignore("The test volume does not support hard links.");
+
+            SkinExternalPackageCaptureResult hardLink = new SkinExternalFolderCaptureService().CaptureHeld(resolveExternalRequest(hardLinkRoot));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hardLink.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.HardLinkedFile));
+                Assert.That(File.ReadAllText(source), Is.EqualTo("hardlink"));
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestExternalHeldNativeCaptureRejectsPackageAndNestedJunction(bool packageRootIsJunction)
+        {
+            string externalRoot = Path.Combine(dataRoot, "external-junction-package");
+            Directory.CreateDirectory(externalRoot);
+            File.WriteAllText(Path.Combine(externalRoot, "skin.ini"), "original");
+            SkinExternalPackageCaptureRequest request = resolveExternalRequest(externalRoot);
+            string target = Path.Combine(dataRoot, "external-junction-target");
+            Directory.CreateDirectory(target);
+            string marker = Path.Combine(target, "marker.txt");
+            File.WriteAllText(marker, "must survive");
+            string junction;
+
+            if (packageRootIsJunction)
+            {
+                Directory.Delete(externalRoot, true);
+                junction = externalRoot;
+            }
+            else
+            {
+                junction = Path.Combine(externalRoot, "nested-junction");
+            }
+
+            try
+            {
+                createDirectoryJunctionOrIgnore(junction, target);
+                SkinExternalPackageCaptureResult result = new SkinExternalFolderCaptureService().CaptureHeld(request);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.ReparsePointEncountered));
+                    Assert.That(result.Session, Is.Null);
+                    Assert.That(File.ReadAllText(marker), Is.EqualTo("must survive"));
+                });
+            }
+            finally
+            {
+                deleteReparsePointIfPresent(junction);
+
+                if (!Directory.Exists(externalRoot))
+                    Directory.CreateDirectory(externalRoot);
+            }
+        }
+
+        [Test]
         public void TestNullRequestRejectedBeforeNativeIo()
         {
             SkinManagedPackageCaptureResult result = SkinManagedPackageCapture.Capture(null);
@@ -573,6 +694,18 @@ namespace osu.Game.Tests.Skins
 
             Assert.That(resolution.ManagedCaptureRequest, Is.Not.Null);
             return resolution.ManagedCaptureRequest!;
+        }
+
+        private SkinExternalPackageCaptureRequest resolveExternalRequest(string externalRoot)
+        {
+            SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(new SkinInfo
+            {
+                FilesystemStoragePath = externalRoot,
+                IsExternalFilesystemStorage = true,
+            }, storage);
+
+            Assert.That(resolution.ExternalCaptureRequest, Is.Not.Null);
+            return resolution.ExternalCaptureRequest!;
         }
 
         private static void createDirectoryJunctionOrIgnore(string linkPath, string targetPath)
