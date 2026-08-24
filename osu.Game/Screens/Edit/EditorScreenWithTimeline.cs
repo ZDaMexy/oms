@@ -4,6 +4,7 @@
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Game.Graphics;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Screens.Edit.Compose.Components.Timeline;
 
@@ -18,6 +19,8 @@ namespace osu.Game.Screens.Edit
 
         private LoadingSpinner spinner = null!;
         private Container timelineContent = null!;
+        private PendingAsyncDrawableOwnership<Drawable>? pendingMainContentOwnership;
+        private PendingAsyncDrawableOwnership<TimelineArea>? pendingTimelineOwnership;
 
         protected EditorScreenWithTimeline(EditorScreenMode type)
             : base(type)
@@ -99,19 +102,112 @@ namespace osu.Game.Screens.Edit
         {
             base.LoadComplete();
 
-            LoadComponentAsync(CreateMainContent(), content =>
+            Drawable mainContent = CreateMainContent();
+            var mainOwnership = new PendingAsyncDrawableOwnership<Drawable>(mainContent);
+            pendingMainContentOwnership = mainOwnership;
+
+            try
             {
-                spinner.State.Value = Visibility.Hidden;
-
-                MainContent.Add(content);
-                content.FadeInFromZero(300, Easing.OutQuint);
-
-                LoadComponentAsync(TimelineArea = new TimelineArea(CreateTimelineContent()), timeline =>
+                mainOwnership.Attach(LoadComponentAsync(mainOwnership.Loadable, loaded =>
                 {
-                    ConfigureTimeline(timeline);
-                    timelineContent.Add(timeline);
-                });
-            });
+                    if (!ReferenceEquals(pendingMainContentOwnership, mainOwnership)
+                        || !mainOwnership.TryTransfer(loaded, out Drawable? ownedContent))
+                    {
+                        return;
+                    }
+
+                    pendingMainContentOwnership = null;
+                    try
+                    {
+                        spinner.State.Value = Visibility.Hidden;
+
+                        MainContent.Add(ownedContent!);
+                        ownedContent.FadeInFromZero(300, Easing.OutQuint);
+                        beginTimelineLoad();
+                    }
+                    catch
+                    {
+                        if (ownedContent!.Parent == null)
+                            ownedContent.Dispose();
+
+                        throw;
+                    }
+                    finally
+                    {
+                        mainOwnership.CompleteTransfer();
+                    }
+                }), Scheduler);
+            }
+            catch
+            {
+                if (ReferenceEquals(pendingMainContentOwnership, mainOwnership))
+                    pendingMainContentOwnership = null;
+
+                mainOwnership.ReclaimUnstarted();
+                throw;
+            }
+        }
+
+        private void beginTimelineLoad()
+        {
+            var timeline = new TimelineArea(CreateTimelineContent());
+            TimelineArea = timeline;
+            var ownership = new PendingAsyncDrawableOwnership<TimelineArea>(timeline);
+            pendingTimelineOwnership = ownership;
+
+            try
+            {
+                ownership.Attach(LoadComponentAsync(ownership.Loadable, loaded =>
+                {
+                    if (!ReferenceEquals(pendingTimelineOwnership, ownership)
+                        || !ownership.TryTransfer(loaded, out TimelineArea? owned))
+                    {
+                        return;
+                    }
+
+                    pendingTimelineOwnership = null;
+
+                    try
+                    {
+                        ConfigureTimeline(owned!);
+                        timelineContent.Add(owned);
+                    }
+                    catch
+                    {
+                        if (owned!.Parent == null)
+                            owned.Dispose();
+
+                        throw;
+                    }
+                    finally
+                    {
+                        ownership.CompleteTransfer();
+                    }
+                }), Scheduler);
+            }
+            catch
+            {
+                if (ReferenceEquals(pendingTimelineOwnership, ownership))
+                    pendingTimelineOwnership = null;
+
+                ownership.ReclaimUnstarted();
+                throw;
+            }
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<Drawable>? mainOwnership = pendingMainContentOwnership;
+            pendingMainContentOwnership = null;
+            mainOwnership?.Cancel();
+
+            PendingAsyncDrawableOwnership<TimelineArea>? timelineOwnership = pendingTimelineOwnership;
+            pendingTimelineOwnership = null;
+            timelineOwnership?.Cancel();
+
+            base.Dispose(isDisposing);
+            mainOwnership?.JoinAfterParentDisposal();
+            timelineOwnership?.JoinAfterParentDisposal();
         }
 
         protected virtual void ConfigureTimeline(TimelineArea timelineArea)

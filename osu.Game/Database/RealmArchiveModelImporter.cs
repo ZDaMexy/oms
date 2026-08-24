@@ -197,7 +197,7 @@ namespace osu.Game.Database
 
         public virtual Task<Live<TModel>?> ImportAsUpdate(ProgressNotification notification, ImportTask task, TModel original) => throw new NotImplementedException();
 
-        public async Task<ExternalEditOperation<TModel>> BeginExternalEditing(TModel model)
+        public virtual async Task<ExternalEditOperation<TModel>> BeginExternalEditing(TModel model)
         {
             string mountedPath = Path.Join(Path.GetTempPath(), model.Hash);
 

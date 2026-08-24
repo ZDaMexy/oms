@@ -1090,7 +1090,6 @@ namespace osu.Game
         protected override void Dispose(bool isDisposing)
         {
             stopManagedSkinFolderScan();
-            SkinManager?.ShutdownManagedFolderMutations();
 
             // Without this, tests may deadlock due to cancellation token not becoming cancelled before disposal.
             // To reproduce, run `TestSceneButtonSystemNavigation` ensuring `TestConstructor` runs before `TestFastShortcutKeys`.
@@ -1731,6 +1730,15 @@ namespace osu.Game
                     return true;
 
                 case GlobalAction.ToggleSkinEditor:
+                    if (!SkinAuthoringAvailability.LegacyEditorAvailable)
+                    {
+                        Notifications.Post(new SimpleErrorNotification
+                        {
+                            Text = SkinSettingsStrings.SkinAuthoringUnavailable,
+                        });
+                        return true;
+                    }
+
                     skinEditor.ToggleVisibility();
                     return true;
 

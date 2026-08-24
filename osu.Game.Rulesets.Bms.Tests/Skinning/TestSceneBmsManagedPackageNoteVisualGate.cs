@@ -45,6 +45,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private Task<Live<SkinInfo>> goodImport = null!;
         private Task<Live<SkinInfo>> brokenImport = null!;
+        private Task<bool>? goodDelete;
+        private Task<bool>? brokenDelete;
         private NonDeletingImportTask goodImportTask = null!;
         private NonDeletingImportTask brokenImportTask = null!;
         private Live<SkinInfo> goodSkin = null!;
@@ -55,6 +57,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private Guid goodSkinId;
         private Guid brokenSkinId;
 
+        private Container? noteMount;
         private BmsAsyncNoteDrawable noteHost = null!;
         private Box statusBackground = null!;
         private OsuSpriteText statusText = null!;
@@ -84,7 +87,35 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TearDownSteps]
         public void TearDownSteps()
         {
-            AddStep("restore original skin and remove gate imports", cleanupGateState);
+            AddStep("detach live production note host", detachProductionNoteHost);
+            AddStep("restore the originally selected skin", () =>
+            {
+                if (originalSkin != null)
+                    skinManager.CurrentSkinInfo.Value = originalSkin;
+            });
+            AddUntilStep("wait for the original current pair", () =>
+                originalSkin == null || selectedSkinIs(originalSkin));
+            AddStep("delete the good gate import through SkinManager", () =>
+                goodDelete = goodSkinId == Guid.Empty
+                    ? Task.FromResult(true)
+                    : skinManager.DeleteSkinAsync(goodSkinId));
+            AddUntilStep("wait for the good gate import deletion", () => goodDelete?.IsCompleted == true);
+            AddStep("assert the good gate import deletion", () =>
+            {
+                Assert.That(goodDelete!.GetAwaiter().GetResult(), Is.True);
+                goodSkinId = Guid.Empty;
+            });
+            AddStep("delete the broken gate import through SkinManager", () =>
+                brokenDelete = brokenSkinId == Guid.Empty
+                    ? Task.FromResult(true)
+                    : skinManager.DeleteSkinAsync(brokenSkinId));
+            AddUntilStep("wait for the broken gate import deletion", () => brokenDelete?.IsCompleted == true);
+            AddStep("assert the broken gate import deletion", () =>
+            {
+                Assert.That(brokenDelete!.GetAwaiter().GetResult(), Is.True);
+                brokenSkinId = Guid.Empty;
+            });
+            AddStep("dispose visual gate resources", cleanupGateState);
         }
 
         [Test]
@@ -147,23 +178,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             try
             {
-                attemptCleanup("restore the originally selected skin", () =>
-                {
-                    if (originalSkin != null)
-                        skinManager.CurrentSkinInfo.Value = originalSkin;
-                });
-
-                attemptCleanup("remove the imported visual-gate skins", () =>
-                {
-                    if (goodSkinId == Guid.Empty && brokenSkinId == Guid.Empty)
-                        return;
-
-                    Guid good = goodSkinId;
-                    Guid broken = brokenSkinId;
-                    skinManager.Delete(skin => skin.ID == good || skin.ID == broken, silent: true);
-                    goodSkinId = Guid.Empty;
-                    brokenSkinId = Guid.Empty;
-                });
+                attemptCleanup("detach the live production note host", detachProductionNoteHost);
             }
             finally
             {
@@ -186,10 +201,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             originalSkin = null;
             goodImport = null!;
             brokenImport = null!;
+            goodDelete = null;
+            brokenDelete = null;
             goodImportTask = null!;
             brokenImportTask = null!;
             goodSkin = null!;
             brokenSkin = null!;
+            noteMount = null;
+            goodSkinId = Guid.Empty;
+            brokenSkinId = Guid.Empty;
 
             void attemptCleanup(string operation, Action action)
             {
@@ -215,6 +235,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             brokenImportTask = null!;
             goodSkin = null!;
             brokenSkin = null!;
+            goodDelete = null;
+            brokenDelete = null;
             goodArchive = null;
             brokenArchive = null;
             goodSkinId = Guid.Empty;
@@ -225,12 +247,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private void buildDisplay()
         {
-            var ruleset = new BmsRuleset();
-            var beatmap = new BmsBeatmap
-            {
-                BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
-            };
-
             Child = new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -295,16 +311,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                                 Children = new Drawable[]
                                 {
                                     new Box
-                                    {
-                                        RelativeSizeAxes = Axes.Both,
-                                        Colour = new Color4(13, 24, 40, 255),
-                                    },
-                                    new RulesetSkinProvidingContainer(ruleset, beatmap, null)
-                                    {
-                                        RelativeSizeAxes = Axes.Both,
-                                        Child = noteHost = new BmsAsyncNoteDrawable(
-                                            new BmsNoteSkinLookup(BmsNoteSkinElements.Note, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K)),
-                                    },
+                                     {
+                                         RelativeSizeAxes = Axes.Both,
+                                         Colour = new Color4(13, 24, 40, 255),
+                                     },
+                                     noteMount = new Container
+                                     {
+                                         RelativeSizeAxes = Axes.Both,
+                                         Child = createProductionNoteHost(),
+                                     },
                                 },
                             },
                             new OsuSpriteText
@@ -329,14 +344,61 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             };
         }
 
+        private RulesetSkinProvidingContainer createProductionNoteHost()
+        {
+            var ruleset = new BmsRuleset();
+            var beatmap = new BmsBeatmap
+            {
+                BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+            };
+
+            return new RulesetSkinProvidingContainer(ruleset, beatmap, null)
+            {
+                RelativeSizeAxes = Axes.Both,
+                Child = noteHost = new BmsAsyncNoteDrawable(
+                    new BmsNoteSkinLookup(BmsNoteSkinElements.Note, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K)),
+            };
+        }
+
+        private void detachProductionNoteHost()
+        {
+            noteMount?.Clear(disposeChildren: true);
+            noteHost = null!;
+        }
+
+        private void mountProductionNoteHost()
+        {
+            if (noteMount == null)
+                throw new InvalidOperationException("The visual gate note mount is not available.");
+
+            noteMount.Child = createProductionNoteHost();
+        }
+
         private void queueGoodPhase(int cycle)
         {
-            AddStep($"cycle {cycle}: select good package", () =>
+            AddStep($"cycle {cycle}: reject good package while live preview is attached", () =>
             {
                 showLoading(cycle, "GOOD · 正在异步加载 60 帧包");
+                Live<SkinInfo> previousSelection = skinManager.CurrentSkinInfo.Value;
+                Skin previousOwner = skinManager.CurrentSkin.Value;
+                SkinCurrentRevision previousRevision = skinManager.CurrentRevision;
+                BmsAsyncNoteDrawable previousHost = noteHost;
+
                 skinManager.CurrentSkinInfo.Value = goodSkin;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skinManager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.LiveGameplayActive));
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(previousSelection));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(previousOwner));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(previousRevision));
+                    Assert.That(noteHost, Is.SameAs(previousHost));
+                });
             });
+            AddStep($"cycle {cycle}: detach live preview before good selection", detachProductionNoteHost);
+            AddStep($"cycle {cycle}: select good package", () => skinManager.CurrentSkinInfo.Value = goodSkin);
             AddUntilStep($"cycle {cycle}: good selection active", () => selectedSkinIs(goodSkin));
+            AddStep($"cycle {cycle}: remount live preview on good revision", mountProductionNoteHost);
             AddUntilStep($"cycle {cycle}: 60-frame visual loaded", () =>
                 noteHost.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
                 && noteHost.Drawable.ChildrenOfType<TextureAnimation>().SingleOrDefault()?.FrameCount
@@ -348,12 +410,29 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private void queueBrokenPhase(int cycle)
         {
-            AddStep($"cycle {cycle}: select broken package", () =>
+            AddStep($"cycle {cycle}: reject broken package while live preview is attached", () =>
             {
                 showLoading(cycle, "BROKEN · 正在异步验证缺失 frame 0 的回落");
+                Live<SkinInfo> previousSelection = skinManager.CurrentSkinInfo.Value;
+                Skin previousOwner = skinManager.CurrentSkin.Value;
+                SkinCurrentRevision previousRevision = skinManager.CurrentRevision;
+                BmsAsyncNoteDrawable previousHost = noteHost;
+
                 skinManager.CurrentSkinInfo.Value = brokenSkin;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skinManager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.LiveGameplayActive));
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(previousSelection));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(previousOwner));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(previousRevision));
+                    Assert.That(noteHost, Is.SameAs(previousHost));
+                });
             });
+            AddStep($"cycle {cycle}: detach live preview before broken selection", detachProductionNoteHost);
+            AddStep($"cycle {cycle}: select broken package", () => skinManager.CurrentSkinInfo.Value = brokenSkin);
             AddUntilStep($"cycle {cycle}: broken selection active", () => selectedSkinIs(brokenSkin));
+            AddStep($"cycle {cycle}: remount live preview on broken revision", mountProductionNoteHost);
             AddUntilStep($"cycle {cycle}: default fallback loaded", () => noteHost.Drawable is DefaultBmsNoteDisplay { IsLoaded: true });
             AddStep($"cycle {cycle}: begin broken dwell", () =>
                 beginDwell(cycle, "BROKEN 已安全回落 · DefaultBmsNoteDisplay", new Color4(156, 55, 24, 255)));

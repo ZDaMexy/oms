@@ -51,6 +51,11 @@ namespace osu.Game.Screens.Menu
         public Action? OnPlaylists;
         public Action<Room>? OnDailyChallenge;
 
+        /// <summary>
+        /// Whether the legacy skin editor is exposed by this button system.
+        /// </summary>
+        public bool SkinEditorEnabled { get; init; } = true;
+
         private readonly IBindable<bool> isIdle = new BindableBool();
 
         private OsuLogo? logo;
@@ -179,7 +184,9 @@ namespace osu.Game.Screens.Menu
             {
                 Padding = new MarginPadding { Left = WEDGE_WIDTH },
             });
-            buttonsEdit.Add(new MainMenuButton(SkinEditorStrings.SkinEditor.ToLower(), @"button-default-select", OsuIcon.SkinB, new Color4(220, 160, 0, 255), (_, _) => OnEditSkin?.Invoke(), Key.S));
+            if (SkinEditorEnabled)
+                buttonsEdit.Add(new MainMenuButton(SkinEditorStrings.SkinEditor.ToLower(), @"button-default-select", OsuIcon.SkinB, new Color4(220, 160, 0, 255), (_, _) => OnEditSkin?.Invoke(), Key.S));
+
             buttonsEdit.ForEach(b => b.VisibleState = ButtonSystemState.Edit);
 
             buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Play, @"button-play-select", OsuIcon.Logo, new Color4(102, 68, 204, 255), (_, _) => State = ButtonSystemState.Play, Key.P, Key.M,

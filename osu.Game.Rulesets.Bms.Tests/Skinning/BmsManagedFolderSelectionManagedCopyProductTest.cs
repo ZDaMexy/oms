@@ -13,7 +13,6 @@ using NUnit.Framework;
 using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
-using osu.Game.Skinning.Windows;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
 {
@@ -41,10 +40,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Guid[] managedRecordBaseline = Array.Empty<Guid>();
             Live<SkinInfo> managedDropdown = null!;
             Live<SkinInfo> externalDropdown = null!;
-            Skin? selectedManagedSkin = null;
             Skin? restartedManagedSkin = null;
-            Skin? renamedManagedSkin = null;
-            Skin? selectedExternalSkin = null;
             Skin? reselectedManagedSkin = null;
             JourneyRendererHost firstRenderer = null!;
             JourneyRendererHost restartedRenderer = null!;
@@ -202,7 +198,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("mount copied managed renderer host", () =>
             {
                 finishStage("copied managed selection", TimeSpan.FromSeconds(20));
-                selectedManagedSkin = manager.CurrentSkin.Value;
                 startStage("copied renderer");
                 Add(firstRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
             });
@@ -228,7 +223,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 startStage("copied manager restart");
                 manager.ShutdownManagedFolderMutations();
-                selectedManagedSkin!.Dispose();
                 manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
                 sourceChangedCount = 0;
                 manager.SourceChanged += () => sourceChangedCount++;
@@ -339,7 +333,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 startStage("renamed manager restart");
                 manager.ShutdownManagedFolderMutations();
-                restartedManagedSkin!.Dispose();
                 manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
                 sourceChangedCount = 0;
                 manager.SourceChanged += () => sourceChangedCount++;
@@ -364,7 +357,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(managed.CanDelete, Is.True);
                     Assert.That(captureFolderInventory(externalRoot), Is.EqualTo(externalSnapshot));
                 });
-                renamedManagedSkin = manager.CurrentSkin.Value;
                 startStage("renamed restart renderer");
                 Add(renamedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
             });
@@ -400,8 +392,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("switch external non-current", () =>
             {
                 finishStage("external selection", TimeSpan.FromSeconds(20));
-                renamedManagedSkin!.Dispose();
-                selectedExternalSkin = manager.CurrentSkin.Value;
                 startStage("managed reselection");
                 manager.CurrentSkinInfo.Value = managedDropdown;
             });
@@ -413,7 +403,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 finishStage("managed reselection", TimeSpan.FromSeconds(20));
                 reselectedManagedSkin = manager.CurrentSkin.Value;
-                selectedExternalSkin!.Dispose();
                 workspaceTask = manager.GetFolderSkinWorkspaceRecordsAsync();
             });
             AddUntilStep("wait for unregister-ready workspace", () => workspaceTask?.IsCompleted == true);
@@ -477,7 +466,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
 
-                reselectedManagedSkin?.Dispose();
                 manager.ShutdownManagedFolderMutations();
             });
 
@@ -947,12 +935,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         (terminalFaultStore?.Load() ?? journalStore.Load()).Status,
                         Is.EqualTo(
                             terminalDeleteFault switch
-                             {
-                                 "Present" => SkinManagedFolderMutationJournalLoadStatus.Loaded,
-                                 "Invalid" => SkinManagedFolderMutationJournalLoadStatus.Invalid,
-                                 "RealmDrift" => SkinManagedFolderMutationJournalLoadStatus.Loaded,
-                                 _ => SkinManagedFolderMutationJournalLoadStatus.Missing,
-                             }));
+                            {
+                                "Present" => SkinManagedFolderMutationJournalLoadStatus.Loaded,
+                                "Invalid" => SkinManagedFolderMutationJournalLoadStatus.Invalid,
+                                "RealmDrift" => SkinManagedFolderMutationJournalLoadStatus.Loaded,
+                                _ => SkinManagedFolderMutationJournalLoadStatus.Missing,
+                            }));
                     Assert.That(
                         manager.ManagedFolderOperationCoordinator.IsMutationBlocked,
                         Is.EqualTo(terminalDeleteFault != null));

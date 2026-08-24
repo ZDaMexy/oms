@@ -8,7 +8,7 @@ metadata:
 
 # Ordinary `.osk` archive import safety 地雷
 
-> 实时范围、数值预算与完成状态只看[P1-A PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)、[STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。本页的skin-scoped安全链已随C1关闭；完成边界与C2入口见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
+> 实时范围、数值预算与完成状态只看[P1-A PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)、[STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。本页的skin-scoped安全链已随C1关闭；C2 current revision完成边界见[[reference_skin_atomic_reload_detach]]。
 
 ## pre-C1失败链（禁止重新引入）
 
@@ -23,6 +23,7 @@ metadata:
 - `skininfo.json`中的untrusted `InstantiationInfo`必须经过closed compatibility allowlist或稳定legacy fallback，禁止任意CLR type activation；archive ingress预算与runtime texture/decode预算是两层不同合同，不得互相冒充。
 - 拒绝、取消或失败不产生`SkinInfo`、Realm file reference、仅由本次创建的orphan blob/temp，也不能误删共享content-addressed blob；原`.osk`保留，只有成功继续既有`ShouldDeleteArchive`语义。cancellation须穿过source spool、entry copy/CRC、metadata rewrite、hash、`Files.Add`与model population，并在最终Realm publication事务前再次检查。Shift-JIS、公共顶层目录、`Skin.InI`及历史有效包必须回归。
 - 当前通过`RealmArchiveModelImporter`的protected virtual reader/scope hook仅让`SkinImporter`选择专用reader、关闭fast precheck并启用exact receipt；beatmap/score等默认仍走原reader。共享基类与`RealmFileStore`的默认路径回归已纳入C1退出门。普通`.osk`继续是hash-backed Realm package，不得转为external/managed或接入managed-copy stager。
+- bounded ingress/receipt只负责导入安全，不授予reload或mutation authority。ordinary current `.osk`的same-ID Reload使用fresh Realm declaration set与逐blob hash准备新revision；已发布owner不受Realm record的file-declaration path、external或DeletePending projection漂移污染，late renderer仍消费active immutable capsule；fresh reload/mutation重读到path改变造成的declaration mismatch时拒绝，不得误称registry file drift。current Delete先发布protected fallback并等待old detach，再做Realm soft-delete，Realm失败恢复exact旧pair/revision、record与blob。两者都不得放宽importer、update-import或direct current file mutation。
 
 ## 2026-08-13 C1关闭合同
 

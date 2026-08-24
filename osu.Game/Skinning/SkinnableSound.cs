@@ -20,6 +20,10 @@ namespace osu.Game.Skinning
     /// </summary>
     public partial class SkinnableSound : SkinReloadableDrawable, IAdjustableAudioComponent
     {
+        // This object is only an aggregate/control wrapper. Each PoolableSkinnableSample descendant owns and stages
+        // its exact sample resource and active-channel tail independently.
+        private protected override bool ParticipatesInCurrentRevision => false;
+
         /// <summary>
         /// The minimum allowable volume for <see cref="Samples"/>.
         /// <see cref="Samples"/> that specify a lower <see cref="ISampleInfo.Volume"/> will be forcibly pulled up to this volume.

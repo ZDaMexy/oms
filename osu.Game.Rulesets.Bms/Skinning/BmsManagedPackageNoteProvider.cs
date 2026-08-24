@@ -128,24 +128,36 @@ namespace osu.Game.Rulesets.Bms.Skinning
     internal static class BmsManagedPackageNoteLoadContext
     {
         private static readonly AsyncLocal<CancellationToken?> current_cancellation_token = new AsyncLocal<CancellationToken?>();
+        private static readonly AsyncLocal<SkinCurrentRevisionLeaseTransfer?> current_revision_lease_transfer = new AsyncLocal<SkinCurrentRevisionLeaseTransfer?>();
 
         public static CancellationToken CurrentCancellationToken => current_cancellation_token.Value ?? CancellationToken.None;
 
-        public static IDisposable Enter(CancellationToken cancellationToken)
+        public static IDisposable Enter(
+            CancellationToken cancellationToken,
+            SkinCurrentRevisionLeaseTransfer? revisionLeaseTransfer = null)
         {
             CancellationToken? previous = current_cancellation_token.Value;
+            SkinCurrentRevisionLeaseTransfer? previousRevisionLeaseTransfer = current_revision_lease_transfer.Value;
             current_cancellation_token.Value = cancellationToken;
-            return new Scope(previous);
+            current_revision_lease_transfer.Value = revisionLeaseTransfer;
+            return new Scope(previous, previousRevisionLeaseTransfer);
         }
+
+        public static SkinCurrentRevisionLease? TryTakeRevisionWorkLease()
+            => current_revision_lease_transfer.Value?.TryTake();
 
         private sealed class Scope : IDisposable
         {
             private readonly CancellationToken? previous;
+            private readonly SkinCurrentRevisionLeaseTransfer? previousRevisionLeaseTransfer;
             private bool disposed;
 
-            public Scope(CancellationToken? previous)
+            public Scope(
+                CancellationToken? previous,
+                SkinCurrentRevisionLeaseTransfer? previousRevisionLeaseTransfer)
             {
                 this.previous = previous;
+                this.previousRevisionLeaseTransfer = previousRevisionLeaseTransfer;
             }
 
             public void Dispose()
@@ -155,6 +167,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 disposed = true;
                 current_cancellation_token.Value = previous;
+                current_revision_lease_transfer.Value = previousRevisionLeaseTransfer;
             }
         }
     }

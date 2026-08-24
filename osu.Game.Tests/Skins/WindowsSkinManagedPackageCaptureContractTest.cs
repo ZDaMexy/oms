@@ -16,7 +16,7 @@ namespace osu.Game.Tests.Skins
     [TestFixture]
     [Platform("Win")]
     [SupportedOSPlatform("windows10.0.16299")]
-    public class WindowsSkinManagedPackageCaptureContractTest
+    public partial class WindowsSkinManagedPackageCaptureContractTest
     {
         [TestCase(@"\Device\HarddiskVolume3", true)]
         [TestCase(@"\device\harddiskvolume42", true)]
@@ -1812,6 +1812,10 @@ namespace osu.Game.Tests.Skins
 
             public int OpenedCapturedFileCount { get; private set; }
 
+            public int HandleOpenCount { get; private set; }
+
+            public int HandleDisposeCallCount { get; private set; }
+
             public byte[]? LastReadBuffer { get; private set; }
 
             public bool LastReadStreamDisposed { get; private set; }
@@ -2014,6 +2018,7 @@ namespace osu.Game.Tests.Skins
                 WindowsSkinPackageOpenMode? mode = null)
             {
                 ActiveHandleCount++;
+                HandleOpenCount++;
                 openCounts[node] = openCounts.GetValueOrDefault(node) + 1;
                 var handle = new FakeHandle(this, node, mode);
                 activeHandles.Add(handle);
@@ -2114,6 +2119,8 @@ namespace osu.Game.Tests.Skins
 
                 public void Dispose()
                 {
+                    owner.HandleDisposeCallCount++;
+
                     if (IsDisposed)
                         return;
 

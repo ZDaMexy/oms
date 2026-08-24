@@ -221,8 +221,8 @@ namespace osu.Game.Skinning.Windows
     /// </summary>
     /// <remarks>
     /// The guarantee is deliberately narrower than a filesystem transaction: every published byte came from a held
-    /// identity handle, and mutations observed before final validation fail the capture. No handle or deferred source
-    /// escapes this method, and this type has no production <c>SkinManager</c> caller yet.
+    /// identity handle, and mutations observed before final validation fail the capture. Direct capture closes every
+    /// handle before returning; held capture transfers the complete authority/tree handle set to an explicit session.
     /// </remarks>
     [SupportedOSPlatform("windows10.0.16299")]
     internal sealed class WindowsSkinManagedPackageCapture
@@ -360,6 +360,156 @@ namespace osu.Game.Skinning.Windows
                 provisionalCapsule?.Dispose();
 
                 disposeHandles(handles);
+            }
+        }
+
+        /// <summary>
+        /// Captures a managed package and returns a session which retains the exact capsule and all native
+        /// root/authority/tree handles until explicitly disposed.
+        /// </summary>
+        internal SkinManagedPackageHeldCaptureResult CaptureManagedHeld(
+            SkinManagedPackageCaptureRequest? request,
+            SkinManagedPackageHeldCaptureLimits? limits = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            limits ??= SkinManagedPackageHeldCaptureLimits.Default;
+
+            if (request == null || !tryParseDataRoot(request, out char driveLetter, out string[] dataRootSegments))
+                return SkinManagedPackageHeldCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+
+            // Include the fixed managed-root and package-root links in the authority depth budget.
+            if (dataRootSegments.Length > limits.MaxAuthorityDepth - 2)
+            {
+                return SkinManagedPackageHeldCaptureResult.Reject(
+                    SkinManagedPackageCaptureRejectionReason.AuthorityDepthBudgetExceeded);
+            }
+
+            var handles = new List<IWindowsSkinPackageCaptureHandle>();
+            SkinPackageRevisionCapsule? provisionalCapsule = null;
+            bool ownershipTransferred = false;
+
+            try
+            {
+                IWindowsSkinPackageCaptureHandle volumeRoot = own(
+                    fileSystem.OpenLocalVolumeRoot(driveLetter),
+                    handles,
+                    limits.MaxHeldHandleCount);
+                WindowsSkinPackageEntryMetadata volumeRootMetadata = queryStableRoot(volumeRoot);
+                var authorityNodes = new List<NodeRecord>
+                {
+                    new NodeRecord(volumeRoot, volumeRootMetadata),
+                };
+                var authorityLinks = new List<AuthorityLinkRecord>();
+
+                IWindowsSkinPackageCaptureHandle current = volumeRoot;
+
+                foreach (string segment in dataRootSegments)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    OpenedDirectory opened = openExpectedDirectory(
+                        current,
+                        segment,
+                        WindowsSkinPackageOpenMode.AuthorityDirectory,
+                        SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                        cancellationToken,
+                        handles,
+                        limits.MaxHeldHandleCount);
+                    authorityLinks.Add(new AuthorityLinkRecord(current, opened.CanonicalName, opened.Metadata));
+                    current = opened.Handle;
+                    authorityNodes.Add(new NodeRecord(current, opened.Metadata));
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                OpenedDirectory managedRoot = openExpectedDirectory(
+                    current,
+                    SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY,
+                    WindowsSkinPackageOpenMode.AuthorityDirectory,
+                    SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                    cancellationToken,
+                    handles,
+                    limits.MaxHeldHandleCount);
+                authorityNodes.Add(new NodeRecord(managedRoot.Handle, managedRoot.Metadata));
+                authorityLinks.Add(new AuthorityLinkRecord(current, managedRoot.CanonicalName, managedRoot.Metadata));
+
+                cancellationToken.ThrowIfCancellationRequested();
+                OpenedDirectory packageRoot = openExpectedDirectory(
+                    managedRoot.Handle,
+                    request.PackageDirectoryName,
+                    WindowsSkinPackageOpenMode.CapturedDirectory,
+                    SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                    cancellationToken,
+                    handles,
+                    limits.MaxHeldHandleCount);
+
+                var capture = new CaptureState(
+                    fileSystem,
+                    limits.CapsuleLimits,
+                    handles,
+                    WindowsSkinPackageOpenMode.CapturedDirectory,
+                    WindowsSkinPackageOpenMode.CapturedFile,
+                    cancellationToken,
+                    limits.MaxHeldHandleCount);
+                capture.CapturePackage(packageRoot.Handle, packageRoot.Metadata);
+                capture.ValidatePinnedNodes();
+
+                cancellationToken.ThrowIfCancellationRequested();
+                SkinPackageRevisionCapsuleCreationResult capsuleResult = SkinPackageRevisionCapsuleFactory.Create(
+                    capture.CapturedEntries,
+                    limits.CapsuleLimits,
+                    cancellationToken);
+
+                if (!capsuleResult.IsSuccess)
+                    return SkinManagedPackageHeldCaptureResult.RejectCapsule(capsuleResult.RejectionReason);
+
+                provisionalCapsule = capsuleResult.Capsule!;
+
+                cancellationToken.ThrowIfCancellationRequested();
+                capture.ValidatePinnedNodes();
+                capture.ValidateFinalInventories();
+                validateAuthorityNodes(authorityNodes, cancellationToken);
+                validateAuthorityLinks(authorityLinks, cancellationToken);
+                validatePackageRootPath(
+                    managedRoot.Handle,
+                    packageRoot.CanonicalName,
+                    packageRoot.Metadata,
+                    WindowsSkinPackageOpenMode.CapturedDirectory,
+                    cancellationToken);
+                capture.ValidatePinnedNodes();
+
+                cancellationToken.ThrowIfCancellationRequested();
+                string physicalTreeFingerprint =
+                    capture.ComputePhysicalTreeFingerprint(provisionalCapsule.ContentRevision);
+                var session = new ManagedPackageCaptureSession(
+                    this,
+                    handles,
+                    authorityNodes,
+                    authorityLinks,
+                    managedRoot.Handle,
+                    packageRoot.CanonicalName,
+                    packageRoot.Metadata,
+                    capture,
+                    provisionalCapsule,
+                    physicalTreeFingerprint);
+                SkinManagedPackageHeldCaptureResult success = SkinManagedPackageHeldCaptureResult.Success(session);
+                provisionalCapsule = null;
+                ownershipTransferred = true;
+                return success;
+            }
+            catch (CapsuleRejectionException exception)
+            {
+                return SkinManagedPackageHeldCaptureResult.RejectCapsule(exception.RejectionReason);
+            }
+            catch (WindowsSkinPackageCaptureFileSystemException exception)
+            {
+                return SkinManagedPackageHeldCaptureResult.Reject(exception.RejectionReason);
+            }
+            finally
+            {
+                provisionalCapsule?.Dispose();
+
+                if (!ownershipTransferred)
+                    disposeHandles(handles);
             }
         }
 
@@ -1116,6 +1266,116 @@ namespace osu.Game.Skinning.Windows
 
             if (firstException != null)
                 ExceptionDispatchInfo.Capture(firstException).Throw();
+        }
+
+        private sealed class ManagedPackageCaptureSession : ISkinManagedPackageCaptureSession
+        {
+            private readonly WindowsSkinManagedPackageCapture owner;
+            private readonly List<IWindowsSkinPackageCaptureHandle> handles;
+            private readonly List<NodeRecord> authorityNodes;
+            private readonly List<AuthorityLinkRecord> authorityLinks;
+            private readonly IWindowsSkinPackageCaptureHandle managedRoot;
+            private readonly string packageCanonicalName;
+            private readonly WindowsSkinPackageEntryMetadata packageBaseline;
+            private readonly CaptureState capture;
+            private readonly object stateLock = new object();
+            private SkinPackageRevisionCapsule? capsule;
+            private bool disposed;
+
+            public string PhysicalTreeFingerprint { get; }
+
+            public int HeldHandleCount
+            {
+                get
+                {
+                    lock (stateLock)
+                        return disposed ? 0 : handles.Count;
+                }
+            }
+
+            public ManagedPackageCaptureSession(
+                WindowsSkinManagedPackageCapture owner,
+                List<IWindowsSkinPackageCaptureHandle> handles,
+                List<NodeRecord> authorityNodes,
+                List<AuthorityLinkRecord> authorityLinks,
+                IWindowsSkinPackageCaptureHandle managedRoot,
+                string packageCanonicalName,
+                WindowsSkinPackageEntryMetadata packageBaseline,
+                CaptureState capture,
+                SkinPackageRevisionCapsule capsule,
+                string physicalTreeFingerprint)
+            {
+                this.owner = owner;
+                this.handles = handles;
+                this.authorityNodes = authorityNodes;
+                this.authorityLinks = authorityLinks;
+                this.managedRoot = managedRoot;
+                this.packageCanonicalName = packageCanonicalName;
+                this.packageBaseline = packageBaseline;
+                this.capture = capture;
+                this.capsule = capsule;
+                PhysicalTreeFingerprint = physicalTreeFingerprint;
+            }
+
+            public SkinPackageRevisionCapsule TakeCapsule()
+            {
+                lock (stateLock)
+                {
+                    throwIfDisposed();
+                    SkinPackageRevisionCapsule? taken = capsule;
+                    capsule = null;
+                    return taken ?? throw new InvalidOperationException("The managed package capsule has already been taken.");
+                }
+            }
+
+            public void Validate(CancellationToken cancellationToken = default)
+            {
+                lock (stateLock)
+                {
+                    throwIfDisposed();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    capture.ValidatePinnedNodes(cancellationToken);
+                    capture.ValidateFinalInventories(cancellationToken);
+                    owner.validateAuthorityNodes(authorityNodes, cancellationToken);
+                    owner.validateAuthorityLinks(authorityLinks, cancellationToken);
+                    owner.validatePackageRootPath(
+                        managedRoot,
+                        packageCanonicalName,
+                        packageBaseline,
+                        WindowsSkinPackageOpenMode.CapturedDirectory,
+                        cancellationToken);
+                    capture.ValidatePinnedNodes(cancellationToken);
+                }
+            }
+
+            public void Dispose()
+            {
+                SkinPackageRevisionCapsule? ownedCapsule;
+
+                lock (stateLock)
+                {
+                    if (disposed)
+                        return;
+
+                    disposed = true;
+                    ownedCapsule = capsule;
+                    capsule = null;
+                }
+
+                try
+                {
+                    ownedCapsule?.Dispose();
+                }
+                finally
+                {
+                    disposeHandles(handles);
+                }
+            }
+
+            private void throwIfDisposed()
+                => ObjectDisposedException.ThrowIf(disposed, this);
+
+            public override string ToString() => nameof(ManagedPackageCaptureSession);
         }
 
         private class ExternalAuthoritySession : ISkinExternalFolderAuthoritySession

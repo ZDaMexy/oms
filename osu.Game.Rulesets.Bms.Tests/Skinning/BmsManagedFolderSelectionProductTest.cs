@@ -25,6 +25,7 @@ using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
+using osu.Game.Localisation;
 using osu.Game.Models;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Dialog;
@@ -109,17 +110,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TearDownSteps]
         public void TearDownSteps()
         {
-            AddStep("dispose selected folder skin", () =>
+            AddStep("shutdown skin manager", () =>
             {
                 manager?.ShutdownManagedFolderMutations();
-
-                if (manager?.CurrentSkin.Value is { } current
-                    && !ReferenceEquals(current, manager.DefaultOmsSkin)
-                    && !ReferenceEquals(current, manager.DefaultClassicSkin))
-                {
-                    current.Dispose();
-                }
-
                 deleteExternalPackageRoots();
             });
         }
@@ -195,11 +188,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestDeleteFoundationConfirmsProtectedOmsPairWithoutDeleting()
+        public void TestDeleteFoundationRejectsCurrentBeforeC2PublicationWithoutDeleting()
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            Skin? selected = null;
+            Live<SkinInfo> selectionA = null!;
+            Skin selected = null!;
+            SkinCurrentRevision revisionA = null!;
 
             AddStep("create eligible managed folder", () =>
             {
@@ -209,9 +204,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             AddStep("select managed folder", () => manager.CurrentSkinInfo.Value = candidate);
             AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("confirm fallback pair under delete authority", () =>
+            AddStep("reject C1 fallback callback before C2 publication", () =>
             {
+                selectionA = manager.CurrentSkinInfo.Value;
                 selected = manager.CurrentSkin.Value;
+                revisionA = manager.CurrentRevision;
                 SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
                     Guid.NewGuid(),
                     candidate.ID);
@@ -225,21 +222,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.Committed));
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(selected));
+                    Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
                     Assert.That(candidate.PerformRead(info => info.DeletePending), Is.False);
                     Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID)), Is.Not.Null);
+                    Assert.That(
+                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
-
-                Assert.That(session.TryAbortPreparedJournal(receipt), Is.True, "foundation test must leave no unresolved delete intent");
             });
-
-            AddStep("dispose superseded managed skin", () => selected!.Dispose());
         }
 
         [Test]
-        public void TestDeleteFoundationRejectsWhenFallbackCannotCommit()
+        public void TestDeleteFoundationCannotDisableSelectionToBypassPublication()
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
@@ -252,7 +251,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             AddStep("select managed folder", () => manager.CurrentSkinInfo.Value = candidate);
             AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("disable selection and reject fallback commit", () =>
+            AddStep("reject disabled bypass and fallback without C2 transaction", () =>
             {
                 SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
                     Guid.NewGuid(),
@@ -262,14 +261,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 using SkinManagedFolderMutationAuthoritySession session = authority.Session!;
                 SkinManagedFolderDurableMutationReceipt receipt = session.PersistPreparedJournal();
-                manager.CurrentSkinInfo.Disabled = true;
+                InvalidOperationException disabled = Assert.Throws<InvalidOperationException>(
+                    () => manager.CurrentSkinInfo.Disabled = true)!;
                 SkinManagedFolderProtectedFallbackCommitResult result =
                     manager.CommitProtectedFallbackPairForDelete(session, receipt);
-                manager.CurrentSkinInfo.Disabled = false;
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.SelectionDisabled));
+                    Assert.That(disabled.Message, Is.EqualTo(SkinSelectionBindable.DISABLE_DISABLED_DIAGNOSTIC));
+                    Assert.That(manager.CurrentSkinInfo.Disabled, Is.False);
+                    Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted));
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(candidate.ID));
                     Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
                     Assert.That(candidate.PerformRead(info => info.DeletePending), Is.False);
@@ -392,11 +393,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestDeleteFoundationNeverTreatsSplitSelectionPairAsNotRequired()
+        public void TestDeleteFoundationBackingProjectionTamperCannotImpersonateProtectedFallback()
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            Skin? selected = null;
+            Live<SkinInfo> selectionA = null!;
+            Skin selected = null!;
+            SkinCurrentRevision revisionA = null!;
+            FolderInventorySnapshot sourceA = default;
 
             AddStep("create and select eligible managed folder", () =>
             {
@@ -405,19 +409,29 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkinInfo.Value = candidate;
             });
             AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("construct reachable split selection pair", () =>
+            AddStep("tamper only the guarded owner backing projection", () =>
             {
+                selectionA = manager.CurrentSkinInfo.Value;
                 selected = manager.CurrentSkin.Value;
-                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
+                revisionA = manager.CurrentRevision;
+                sourceA = captureFolderInventory(packageRoot);
 
-                Assert.Throws<InvalidOperationException>(() => manager.CurrentSkin.Value = selected);
+                // CommitPrepared is an internal projection primitive, not publication authority. Even a friend
+                // assembly cannot make its backing value observable through the immutable current pair.
+                ((SkinInstanceBindable)manager.CurrentSkin).CommitPrepared(manager.DefaultOmsSkin);
+
                 Assert.Multiple(() =>
                 {
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(selected));
+                    Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(manager.CurrentRevision.Owner, Is.SameAs(selected));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID)), Is.Not.Null);
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceA));
                 });
             });
-            AddStep("reject delete when protected pair cannot be reconfirmed", () =>
+            AddStep("C1 callback rejects delete before C2 fallback publication", () =>
             {
                 SkinManagedFolderMutationAuthorityResult authority = manager.ManagedFolderMutationAuthority.OpenDelete(
                     Guid.NewGuid(),
@@ -433,8 +447,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted));
-                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(selected));
+                    Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
                     Assert.That(Directory.Exists(packageRoot), Is.True);
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceA));
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID)), Is.Not.Null);
                     Assert.That(
                         new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
@@ -447,7 +466,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            Skin? selected = null;
             Task<bool>? deleteTask = null;
 
             AddStep("create and select deletable managed folder", () =>
@@ -459,8 +477,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
             AddStep("request dedicated asynchronous delete", () =>
             {
-                selected = manager.CurrentSkin.Value;
-
                 Assert.Multiple(() =>
                 {
                     Assert.That(manager.CanModify(candidate), Is.False);
@@ -482,6 +498,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         + $"fallback={manager.LastManagedFolderDeleteResult.FallbackCommitResult}");
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
                     Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(
+                        manager.LastManagedFolderDeleteResult.FallbackCommitResult,
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired),
+                        "C2 publishes the protected fallback before re-entering C1.");
                     Assert.That(Directory.Exists(packageRoot), Is.False);
                     Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) == null), Is.True);
                     Assert.That(
@@ -489,7 +509,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
             });
-            AddStep("dispose detached deleted skin", () => selected!.Dispose());
         }
 
         [Test]
@@ -498,7 +517,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string deletedRoot = string.Empty;
             Live<SkinInfo> deleted = null!;
             Live<SkinInfo> selectable = null!;
-            Skin? deletedSkin = null;
             Task<bool>? deleteTask = null;
             SkinSelectionRejectionReason reentrantRejection = SkinSelectionRejectionReason.None;
             bool reentrantAttempted = false;
@@ -520,7 +538,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkin.Value.SkinInfo.ID == deleted.ID);
             AddStep("install fallback reentrant selection", () =>
             {
-                deletedSkin = manager.CurrentSkin.Value;
                 var nativeCapture = manager.ManagedFolderCapture;
                 manager.ManagedFolderCapture = (request, cancellationToken) =>
                 {
@@ -582,11 +599,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddUntilStep("wait for explicit latest selection", () =>
                 manager.CurrentSkin.Value.SkinInfo.ID == selectable.ID);
-            AddStep("dispose detached deleted skin", () =>
-            {
-                Assert.That(captureCalls, Is.EqualTo(1));
-                deletedSkin!.Dispose();
-            });
+            AddAssert("latest selection captured once", () => captureCalls == 1);
         }
 
         [Test]
@@ -599,6 +612,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Task? shutdownTask = null;
             bool shutdownEntered = false;
             bool shutdownCompletedInsideCallback = false;
+            Live<SkinInfo>? selectionA = null;
+            SkinCurrentRevision? revisionA = null;
 
             AddStep("create current delete target", () =>
             {
@@ -612,7 +627,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
             AddStep("install source-change shutdown reentry", () =>
             {
+                selectionA = manager.CurrentSkinInfo.Value;
                 deletedSkin = manager.CurrentSkin.Value;
+                revisionA = manager.CurrentRevision;
                 manager.SourceChanged += () =>
                 {
                     if (shutdownEntered
@@ -630,6 +647,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 deleteTask = manager.DeleteSkinAsync(candidate.ID));
             AddUntilStep("wait for shutdown and delete terminal state", () =>
                 shutdownTask?.IsCompleted == true && deleteTask?.IsCompleted == true);
+            AddUntilStep("wait for shutdown revision reap", () =>
+                revisionA?.Retired.IsCompleted == true);
             AddStep("assert source callback did not form a join cycle", () =>
             {
                 bool deleted = deleteTask!.GetAwaiter().GetResult();
@@ -639,18 +658,37 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(shutdownEntered, Is.True);
                     Assert.That(shutdownCompletedInsideCallback, Is.True);
                     Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
-                    Assert.That(Directory.Exists(packageRoot), Is.EqualTo(!deleted));
-                    Assert.That(
-                        Realm.Run(r => r.Find<SkinInfo>(candidate.ID) != null),
-                        Is.EqualTo(!deleted));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(manager.CurrentSkinInfo.Value.ID));
                     Assert.That(
                         new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
 
-                deletedSkin!.Dispose();
+                if (deleted)
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                        Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(manager.CurrentRevision, Is.Not.SameAs(revisionA));
+                        Assert.That(revisionA!.Retired.IsCompleted, Is.True);
+                        Assert.That(Directory.Exists(packageRoot), Is.False);
+                        Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) == null), Is.True);
+                    });
+                }
+                else
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                        Assert.That(manager.CurrentSkin.Value, Is.SameAs(deletedSkin));
+                        Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
+                        Assert.That(revisionA!.Retired.IsCompleted, Is.True);
+                        Assert.That(Directory.Exists(packageRoot), Is.True);
+                        Assert.That(Realm.Run(r => r.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                    });
+                }
+
             });
         }
 
@@ -661,7 +699,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Live<SkinInfo> candidate = null!;
             DialogOverlay dialogOverlay = null!;
             SkinSection.DeleteSkinButton deleteButton = null!;
-            Skin? deletedSkin = null;
 
             AddStep("create and select managed folder", () =>
             {
@@ -674,7 +711,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for managed selection", () => manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
             AddStep("assert authoritative delete affordance", () =>
             {
-                deletedSkin = manager.CurrentSkin.Value;
                 Assert.Multiple(() =>
                 {
                     Assert.That(manager.CurrentSkin.Disabled, Is.False);
@@ -705,16 +741,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
                 && manager.CurrentSkin.Value is OmsSkin
                 && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
-            AddStep("dispose detached deleted skin", () => deletedSkin!.Dispose());
         }
 
         [Test]
-        public void TestFolderWorkspaceManagedRowDialogRechecksNonCurrentToCurrentAndCommitsFallback()
+        public void TestFolderWorkspaceManagedRowDialogRechecksNonCurrentToCurrentThroughC2Fallback()
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
             FullSkinSettingsCallerHost callerHost = null!;
-            Skin? selected = null;
+            Skin selected = null!;
+            SkinCurrentRevision revisionA = null!;
 
             AddStep("create non-current managed workspace row", () =>
             {
@@ -741,6 +777,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("confirm detached row delete", () =>
             {
                 selected = manager.CurrentSkin.Value;
+                revisionA = manager.CurrentRevision;
                 callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>();
             });
             AddUntilStep("observe workspace delete request", () =>
@@ -753,23 +790,25 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && !manager.IsManagedFolderDeleteRunning);
             AddUntilStep("wait for workspace row delete convergence", () =>
                 !Directory.Exists(packageRoot)
-                && Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) == null));
-            AddStep("assert confirmation re-read committed fallback", () =>
+                && Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) == null)
+                && revisionA.Retired.IsCompleted);
+            AddStep("assert confirmation re-read used C2 fallback before C1", () =>
             {
                 Assert.Multiple(() =>
                 {
                     Assert.That(
                         manager.LastManagedFolderDeleteResult.FallbackCommitResult,
-                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.Committed));
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired),
+                        "C2 publishes the protected fallback before C1 re-enters under the held delete authority.");
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
                     Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.Not.SameAs(selected));
+                    Assert.That(revisionA.Retired.IsCompletedSuccessfully, Is.True);
                     Assert.That(callerHost.Workspace.OperationInProgress, Is.False);
                     Assert.That(
                         new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
                 });
-
-                selected!.Dispose();
             });
         }
 
@@ -779,7 +818,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
             FullSkinSettingsCallerHost callerHost = null!;
-            Skin? superseded = null;
 
             AddStep("create and select current workspace target", () =>
             {
@@ -792,7 +830,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
             AddStep("mount full skin section", () =>
             {
-                superseded = manager.CurrentSkin.Value;
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
             AddUntilStep("wait for current managed workspace row", () =>
@@ -812,7 +849,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
             AddStep("confirm now-non-current row delete", () =>
             {
-                superseded!.Dispose();
                 callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>();
             });
             AddRepeatStep("allow non-current row delete progress", () => { }, 300);
@@ -838,62 +874,85 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestFolderWorkspaceManagedRowDialogRejectsSplitPairAtConfirmation()
+        public void TestFolderWorkspaceManagedRowDialogUsesAuthoritativePairAfterBackingProjectionTamper()
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
             FullSkinSettingsCallerHost callerHost = null!;
-            Skin? selected = null;
+            Live<SkinInfo> selectionA = null!;
+            Skin selected = null!;
+            SkinCurrentRevision revisionA = null!;
+            FolderInventorySnapshot sourceA = default;
 
-            AddStep("create and select split-test workspace target", () =>
+            AddStep("create and select authority-projection workspace target", () =>
             {
                 (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 candidate.PerformWrite(info => info.Hash = "workspace-split-transition");
                 manager.CurrentSkinInfo.Value = candidate;
             });
-            AddUntilStep("wait for split-test target", () =>
+            AddUntilStep("wait for authority-projection target", () =>
                 manager.CurrentSkinInfo.Value.ID == candidate.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("mount split-test full skin section", () =>
+            AddStep("mount authority-projection full skin section", () =>
             {
+                selectionA = manager.CurrentSkinInfo.Value;
                 selected = manager.CurrentSkin.Value;
+                revisionA = manager.CurrentRevision;
+                sourceA = captureFolderInventory(packageRoot);
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            AddUntilStep("wait for split-test workspace row", () =>
+            AddUntilStep("wait for authority-projection workspace row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
                           ?.ActionButtons[2].Enabled.Value == true);
-            AddStep("open split-test row dialog", () =>
+            AddStep("open authority-projection row dialog", () =>
                 callerHost.Workspace.Rows.Single(row => row.RecordId == candidate.ID)
                           .ActionButtons[2]
                           .TriggerClick());
-            AddUntilStep("wait for split-test dialog", () =>
+            AddUntilStep("wait for authority-projection dialog", () =>
                 callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
                 && dialog.RecordId == candidate.ID);
-            AddStep("construct split pair before confirmation", () =>
+            AddStep("tamper owner backing projection before confirmation", () =>
             {
-                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
-                Assert.Throws<InvalidOperationException>(() => manager.CurrentSkin.Value = selected);
+                ((SkinInstanceBindable)manager.CurrentSkin).CommitPrepared(manager.DefaultOmsSkin);
+
                 Assert.Multiple(() =>
                 {
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(candidate.ID));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(selected));
+                    Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(manager.CurrentRevision.Owner, Is.SameAs(selected));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceA));
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID)), Is.Not.Null);
                 });
             });
-            AddStep("confirm split-test row dialog", () =>
+            AddStep("confirm authoritative current row dialog", () =>
                 callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
-            AddUntilStep("wait for split-test rejection", () =>
+            AddUntilStep("observe authoritative current delete", () =>
+                callerHost.Workspace.OperationInProgress
+                || manager.IsManagedFolderDeleteRunning
+                || manager.LastManagedFolderDeleteResult != null);
+            AddUntilStep("wait for authoritative current delete", () =>
                 !callerHost.Workspace.OperationInProgress
                 && !manager.IsManagedFolderDeleteRunning
-                && manager.LastManagedFolderDeleteResult != null);
-            AddStep("assert split pair failed closed", () =>
+                && manager.LastManagedFolderDeleteResult?.IsSuccess == true
+                && !Directory.Exists(packageRoot)
+                && Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) == null)
+                && revisionA.Retired.IsCompleted);
+            AddStep("assert fallback detach and managed delete used authoritative pair", () =>
             {
                 Assert.Multiple(() =>
                 {
+                    Assert.That(manager.LastManagedFolderDeleteResult.IsSuccess, Is.True);
                     Assert.That(
                         manager.LastManagedFolderDeleteResult.FallbackCommitResult,
-                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted));
-                    Assert.That(Directory.Exists(packageRoot), Is.True);
-                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID) != null), Is.True);
+                        Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(manager.DefaultOmsSkin));
+                    Assert.That(manager.CurrentRevision.Owner, Is.SameAs(manager.DefaultOmsSkin));
+                    Assert.That(revisionA.Retired.IsCompletedSuccessfully, Is.True);
+                    Assert.That(Directory.Exists(packageRoot), Is.False);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(candidate.ID)), Is.Null);
                     Assert.That(
                         new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                         Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
@@ -1181,12 +1240,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [Test]
         public void TestFullSkinSectionCurrentDeleteKeepsOrdinaryRealmPackageRegression()
         {
+            MemoryStream archive = null!;
+            Task<Live<SkinInfo>>? importTask = null;
             Live<SkinInfo> ordinary = null!;
             FullSkinSettingsCallerHost callerHost = null!;
 
-            AddStep("create and select ordinary Realm package", () =>
+            AddStep("import real ordinary Realm package", () =>
             {
-                ordinary = createRealmPackageCandidate();
+                archive = createCurrentMutationOsk();
+                importTask = manager.Import(new ImportTask(archive, $"full-settings-delete-{Guid.NewGuid():N}.osk"));
+            });
+            AddUntilStep("wait for real ordinary Realm import", () => importTask?.IsCompleted == true);
+            AddStep("select real ordinary Realm package", () =>
+            {
+                ordinary = importTask!.GetAwaiter().GetResult();
                 manager.CurrentSkinInfo.Value = ordinary;
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
@@ -1206,15 +1273,22 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
             AddStep("assert ordinary package never entered folder mutation", () =>
             {
-                Assert.Multiple(() =>
+                try
                 {
-                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(ordinary.ID) != null), Is.True);
-                    Assert.That(ordinary.PerformRead(info => info.FilesystemStoragePath), Is.Null);
-                    Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
-                    Assert.That(
-                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
-                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
-                });
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(ordinary.ID) != null), Is.True);
+                        Assert.That(ordinary.PerformRead(info => info.FilesystemStoragePath), Is.Null);
+                        Assert.That(manager.IsManagedFolderDeleteRunning, Is.False);
+                        Assert.That(
+                            new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                            Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    });
+                }
+                finally
+                {
+                    archive.Dispose();
+                }
             });
         }
 
@@ -1521,38 +1595,64 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [Test]
         public void TestRealmPackageSettingsDeleteKeepsLegacySoftDeleteAndDefaultSemantics()
         {
+            MemoryStream archive = null!;
+            Task<Live<SkinInfo>>? importTask = null;
             Live<SkinInfo> realmPackage = null!;
             Task<bool>? deleteTask = null;
+            FullSkinSettingsCallerHost callerHost = null!;
 
-            AddStep("create and select ordinary Realm package", () =>
+            AddStep("import real ordinary Realm package", () =>
             {
-                realmPackage = createRealmPackageCandidate();
-                manager.CurrentSkinInfo.Value = realmPackage;
+                archive = createCurrentMutationOsk();
+                importTask = manager.Import(new ImportTask(archive, $"settings-delete-{Guid.NewGuid():N}.osk"));
             });
-            AddStep("assert ordinary package remains independently deletable", () =>
+            AddUntilStep("wait for ordinary Realm import", () => importTask?.IsCompleted == true);
+            AddStep("select real ordinary Realm package", () =>
+            {
+                realmPackage = importTask!.GetAwaiter().GetResult();
+                manager.CurrentSkinInfo.Value = realmPackage;
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for ordinary package settings controls", () =>
+                callerHost.RenameButton.IsLoaded
+                && callerHost.ExportButton.IsLoaded
+                && callerHost.LayoutEditorButton.IsLoaded);
+            AddStep("assert current ordinary package mutation UI is fail-closed", () =>
             {
                 Assert.Multiple(() =>
                 {
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(realmPackage.ID));
-                    Assert.That(manager.CanModify(realmPackage), Is.True);
+                    Assert.That(manager.CanModify(realmPackage), Is.False);
+                    Assert.That(manager.CanExport(realmPackage), Is.True);
+                    Assert.That(callerHost.RenameButton.Enabled.Value, Is.False);
+                    Assert.That(callerHost.LayoutEditorButton.Enabled.Value, Is.False);
+                    Assert.That(callerHost.ExportButton.Enabled.Value, Is.True);
                     Assert.That(manager.CanDelete(realmPackage), Is.True);
                 });
             });
             AddStep("confirm ordinary settings delete", () => deleteTask = manager.DeleteSkinAsync(realmPackage.ID));
+            AddUntilStep("wait for ordinary settings delete", () => deleteTask?.IsCompleted == true);
             AddStep("assert legacy soft delete and protected default", () =>
             {
-                Assert.Multiple(() =>
+                try
                 {
-                    Assert.That(deleteTask!.IsCompletedSuccessfully, Is.True);
-                    Assert.That(deleteTask.GetAwaiter().GetResult(), Is.True);
-                    Assert.That(realmPackage.PerformRead(info => info.DeletePending), Is.True);
-                    Assert.That(Realm.Run(r => r.Find<SkinInfo>(realmPackage.ID) != null), Is.True);
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
-                    Assert.That(
-                        new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
-                        Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
-                });
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(deleteTask!.IsCompletedSuccessfully, Is.True);
+                        Assert.That(deleteTask.GetAwaiter().GetResult(), Is.True);
+                        Assert.That(realmPackage.PerformRead(info => info.DeletePending), Is.True);
+                        Assert.That(Realm.Run(r => r.Find<SkinInfo>(realmPackage.ID) != null), Is.True);
+                        Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                        Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(
+                            new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
+                            Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
+                    });
+                }
+                finally
+                {
+                    archive.Dispose();
+                }
             });
         }
 
@@ -2786,11 +2886,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             var realmRequestReachedBoundary = new ManualResetEventSlim();
             var finalBoundaryContended = new ManualResetEventSlim();
             var retryWaiting = new ManualResetEventSlim();
+            var retryScheduled = new ManualResetEventSlim();
             Live<SkinInfo> managedCandidate = null!;
             Live<SkinInfo> realmPackage = null!;
             SkinPackageRevisionCapsule? firstCapsule = null;
             Task? startupTask = null;
-            Task? realmRequestTask = null;
+            Action? deferredRetry = null;
             int captureCalls = 0;
 
             AddStep("create managed and newer Realm candidates", () =>
@@ -2835,27 +2936,33 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
             });
             AddUntilStep("wait for startup sequence", () => startupHeld.IsSet);
-            AddStep("queue newer Realm selection", () =>
-                realmRequestTask = Task.Run(() => manager.CurrentSkinInfo.Value = realmPackage));
-            AddUntilStep("wait for Realm request boundary", () => realmRequestReachedBoundary.IsSet);
             AddStep("release managed capture", releaseCapture.Set);
             AddUntilStep("wait for startup final contention", () => finalBoundaryContended.IsSet);
             AddUntilStep("wait for registered startup retry", () => retryWaiting.IsSet);
+            AddStep("defer startup retry completion", () => manager.ManagedFolderCompletionSchedule = completion =>
+            {
+                deferredRetry = completion;
+                retryScheduled.Set();
+            });
             AddStep("release startup after retry registration", releaseStartup.Set);
+            AddUntilStep("wait for deferred startup retry", () => retryScheduled.IsSet && startupTask?.IsCompleted == true);
+            AddStep("request newer Realm selection on update thread", () => manager.CurrentSkinInfo.Value = realmPackage);
+            AddUntilStep("wait for Realm request boundary", () => realmRequestReachedBoundary.IsSet);
             AddUntilStep("wait for newer Realm selection", () =>
-                realmRequestTask?.IsCompleted == true
-                && manager.CurrentSkinInfo.Value.ID == realmPackage.ID
+                manager.CurrentSkinInfo.Value.ID == realmPackage.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == realmPackage.ID);
+            AddStep("run stale startup retry", () => deferredRetry!());
             AddStep("assert latest accepted selection wins", () =>
             {
                 Assert.That(startupTask!.Wait(TimeSpan.FromSeconds(30)), Is.True);
                 Assert.Multiple(() =>
                 {
-                    Assert.That(realmRequestTask!.IsCompletedSuccessfully, Is.True);
                     Assert.That(startupTask.IsCompletedSuccessfully, Is.True);
                     Assert.That(captureCalls, Is.EqualTo(1));
                     Assert.That(sourceChangedCount, Is.EqualTo(1));
                     Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(realmPackage.ID));
+                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(realmPackage.ID));
                     Assert.That(firstCapsule, Is.Not.Null);
                     Assert.That(() => firstCapsule!.CreateResourceView(), Throws.TypeOf<ObjectDisposedException>());
                 });
@@ -2867,6 +2974,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 realmRequestReachedBoundary.Dispose();
                 finalBoundaryContended.Dispose();
                 retryWaiting.Dispose();
+                retryScheduled.Dispose();
             });
         }
 
@@ -3621,14 +3729,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestConcurrentRealmSelectionSupersedesManagedCommitAtomically()
+        public void TestReentrantUpdateThreadRealmSelectionSupersedesManagedCommitAtomically()
         {
             Live<SkinInfo> managed = null!;
             Live<SkinInfo> realmPackage = null!;
             Skin? supersededManagedSkin = null;
-            Task? realmRequest = null;
-            var realmRequestReachedLock = new ManualResetEventSlim();
-            var allowRealmRequest = new ManualResetEventSlim();
+            bool realmRequestCompleted = false;
 
             AddStep("create managed and Realm candidates", () =>
             {
@@ -3641,25 +3747,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         supersededManagedSkin = manager.CurrentSkin.Value;
                 };
 
-                manager.SelectionRequestBeforeCommitLock = target =>
-                {
-                    if (target.ID != realmPackage.ID)
-                        return;
-
-                    realmRequestReachedLock.Set();
-                    Assert.That(allowRealmRequest.Wait(TimeSpan.FromSeconds(5)), Is.True);
-                };
-
                 manager.ManagedFolderBeforeCommit = () =>
                 {
-                    realmRequest = Task.Run(() => manager.CurrentSkinInfo.Value = realmPackage);
-                    Assert.That(realmRequestReachedLock.Wait(TimeSpan.FromSeconds(5)), Is.True);
-                    allowRealmRequest.Set();
+                    manager.CurrentSkinInfo.Value = realmPackage;
+                    realmRequestCompleted = true;
                 };
             });
 
             AddStep("request managed candidate", () => manager.CurrentSkinInfo.Value = managed);
-            AddUntilStep("wait for concurrent Realm request", () => realmRequest?.IsCompleted == true);
+            AddUntilStep("wait for reentrant Realm request", () => realmRequestCompleted);
             AddUntilStep("wait for Realm package to remain current", () =>
                 manager.CurrentSkinInfo.Value.ID == realmPackage.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == realmPackage.ID);
@@ -3667,15 +3763,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(realmRequest!.IsCompletedSuccessfully, Is.True);
-                    Assert.That(supersededManagedSkin, Is.Not.Null);
+                    Assert.That(realmRequestCompleted, Is.True);
+                    Assert.That(supersededManagedSkin, Is.Null,
+                        "the stale managed owner must never become current before the reentrant latest request");
                     Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
-                    Assert.That(sourceChangedCount, Is.EqualTo(2));
+                    Assert.That(sourceChangedCount, Is.EqualTo(1));
                 });
-
-                supersededManagedSkin!.Dispose();
-                realmRequestReachedLock.Dispose();
-                allowRealmRequest.Dispose();
             });
         }
 
@@ -3811,9 +3904,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for Realm package", () =>
                 manager.CurrentSkinInfo.Value.ID == realmPackage.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == realmPackage.ID);
-            AddStep("dispose superseded capsule and request renamed candidate", () =>
+            AddStep("request renamed candidate", () =>
             {
-                activeManagedSkin!.Dispose();
                 var nativeCapture = manager.ManagedFolderCapture;
                 manager.ManagedFolderCapture = (request, cancellationToken) =>
                 {
@@ -4849,11 +4941,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             Live<SkinInfo> candidate = null!;
             SkinInfo spoof = null!;
-            Task<Live<SkinInfo>>? spoofUpdate = null;
+            string packageRoot = string.Empty;
+            FolderInventorySnapshot sourceBefore = default;
+            Live<SkinInfo> selectionBefore = null!;
+            Skin ownerBefore = null!;
+            SkinCurrentRevision revisionBefore = null!;
 
             AddStep("create managed folder record", () =>
             {
-                (_, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                sourceBefore = captureFolderInventory(packageRoot);
+                selectionBefore = manager.CurrentSkinInfo.Value;
+                ownerBefore = manager.CurrentSkin.Value;
+                revisionBefore = manager.CurrentRevision;
             });
 
             AddStep("exercise inherited mutation surfaces", () => candidate.PerformRead(info =>
@@ -4920,21 +5020,33 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 candidate.PerformWrite(info => info.DeletePending = false);
             });
 
-            AddStep("start spoofed package update", () => spoofUpdate = manager.ImportAsUpdate(
-                new ProgressNotification(),
-                new ImportTask(new MemoryStream(new byte[] { 5 }), "spoof-update.osk"),
-                spoof));
-            AddUntilStep("wait for spoofed update rejection", () => spoofUpdate?.IsCompleted == true);
+            AddStep("reject spoofed package update", () =>
+            {
+                var exception = Assert.Throws<InvalidOperationException>(() => manager.ImportAsUpdate(
+                    new ProgressNotification(),
+                    new ImportTask(new MemoryStream(new byte[] { 5 }), "spoof-update.osk"),
+                    spoof));
+
+                Assert.That(exception!.Message, Is.EqualTo(SkinAuthoringAvailability.UPDATE_IMPORT_DISABLED_DIAGNOSTIC));
+            });
             AddStep("assert authoritative folder record is unchanged", () =>
             {
-                Assert.That(spoofUpdate!.IsFaulted, Is.True);
-                Assert.That(spoofUpdate.Exception!.GetBaseException(), Is.TypeOf<InvalidOperationException>());
-                candidate.PerformRead(info =>
+                Assert.Multiple(() =>
                 {
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(selectionBefore));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(ownerBefore));
+                    Assert.That(manager.CurrentRevision, Is.SameAs(revisionBefore));
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceBefore));
+                });
+
+                candidate.PerformRead(info => Assert.Multiple(() =>
+                {
+                    Assert.That(info.Name, Is.EqualTo("managed folder"));
                     Assert.That(info.Files, Is.Empty);
                     Assert.That(info.DeletePending, Is.False);
                     Assert.That(info.FilesystemStoragePath, Does.StartWith("chartskin/"));
-                });
+                    Assert.That(info.FilesystemStorageAuthorityOwner, Is.EqualTo(SkinManagedFolderScanner.AUTHORITY_OWNER));
+                }));
             });
         }
 
@@ -5816,7 +5928,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("restart skin manager with configured external id", () =>
             {
                 manager.ShutdownManagedFolderMutations();
-                firstSelectedSkin.Dispose();
 
                 manager = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
                 sourceChangedCount = 0;
@@ -5873,7 +5984,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
                 });
 
-                restartedSelectedSkin.Dispose();
                 sourceBeforeUnregister = captureFolderInventory(packageRoot);
                 unregisterTask = manager.UnregisterExternalFolderAsync(recordId);
             });
@@ -5951,17 +6061,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestExternalFolderWorkspaceUnregisterRejectsCurrentAndSplitSelectionPairs()
+        public void TestExternalFolderWorkspaceAuthorityProjectionTamperCannotSplitCurrentUnregister()
         {
             string packageRoot = string.Empty;
             Guid recordId = Guid.Empty;
             Live<SkinInfo> dropdownRecord = null!;
-            Skin? selected = null;
+            Bindable<Skin> ownerProjection = null!;
+            Skin selected = null!;
+            SkinCurrentRevision revisionA = null!;
+            SkinCurrentRevisionLease oldHolder = null!;
+            FolderInventorySnapshot sourceA = default;
+            string physicalDigestA = string.Empty;
             Task<bool>? registrationTask = null;
             Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
             Task<IList<Live<SkinInfo>>>? dropdownTask = null;
             Task<bool>? currentUnregister = null;
-            Task<bool>? splitUnregister = null;
 
             AddStep("create and register external package", () =>
             {
@@ -5988,33 +6102,72 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for current external pair", () =>
                 manager.CurrentSkinInfo.Value.ID == recordId
                 && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
-            AddStep("reject unregister of current pair", () =>
-            {
-                currentUnregister = manager.UnregisterExternalFolderAsync(recordId);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(currentUnregister.IsCompleted, Is.True);
-                    Assert.That(currentUnregister.GetAwaiter().GetResult(), Is.False);
-                    Assert.That(manager.Query(record => record.ID == recordId), Is.Not.Null);
-                });
-            });
-            AddStep("construct split pair and reject unregister", () =>
+            AddStep("tamper only the guarded backing projection", () =>
             {
                 selected = manager.CurrentSkin.Value;
-                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
-                Assert.Throws<InvalidOperationException>(() => manager.CurrentSkin.Value = selected);
+                revisionA = manager.CurrentRevision;
+                oldHolder = manager.AcquireCurrentRevisionHolderLease();
+                ownerProjection = manager.CurrentSkin.GetBoundCopy();
+                sourceA = captureFolderInventory(packageRoot);
+                physicalDigestA = captureExternalRootPhysicalDigest(packageRoot);
+
+                // CommitPrepared is the manager's private projection primitive. Even an InternalsVisibleTo caller
+                // cannot use it to replace the immutable PublishedCurrentSkinPair read by public root/copy getters.
+                ((SkinInstanceBindable)manager.CurrentSkin).CommitPrepared(manager.DefaultOmsSkin);
+
                 Assert.Multiple(() =>
                 {
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(recordId));
+                    Assert.That(manager.CurrentSkinInfo.Value, Is.SameAs(dropdownRecord));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(selected));
+                    Assert.That(ownerProjection.Value, Is.SameAs(selected));
+                    Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(manager.CurrentRevision.Owner, Is.SameAs(selected));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
+                    Assert.That(manager.Query(record => record.ID == recordId), Is.Not.Null);
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceA));
+                    Assert.That(captureExternalRootPhysicalDigest(packageRoot), Is.EqualTo(physicalDigestA));
                 });
 
-                splitUnregister = manager.UnregisterExternalFolderAsync(recordId);
+                currentUnregister = manager.UnregisterExternalFolderAsync(recordId);
+            });
+            AddUntilStep("wait for protected fallback behind exact old holder", () =>
+                manager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && ReferenceEquals(manager.CurrentSkin.Value, manager.DefaultOmsSkin));
+            AddStep("assert Realm and source wait for exact old detach", () =>
+            {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(splitUnregister.IsCompleted, Is.True);
-                    Assert.That(splitUnregister.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(currentUnregister!.IsCompleted, Is.False);
+                    Assert.That(revisionA.ConsumersDetached.IsCompleted, Is.False);
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
                     Assert.That(manager.Query(record => record.ID == recordId), Is.Not.Null);
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceA));
+                    Assert.That(captureExternalRootPhysicalDigest(packageRoot), Is.EqualTo(physicalDigestA));
+                });
+
+                oldHolder.Dispose();
+            });
+            AddUntilStep("wait for exact old consumers to detach", () =>
+                revisionA.ConsumersDetached.IsCompleted);
+            AddUntilStep("wait for current unregister task", () =>
+                currentUnregister?.IsCompleted == true);
+            AddStep("assert current unregister succeeded", () =>
+                Assert.That(currentUnregister!.GetAwaiter().GetResult(), Is.True));
+            AddUntilStep("wait for pure Realm remove", () =>
+                manager.Query(record => record.ID == recordId) == null);
+            AddUntilStep("wait for exact old revision retire", () =>
+                revisionA.Retired.IsCompleted);
+            AddStep("assert authoritative current unregister never touched source", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(currentUnregister!.GetAwaiter().GetResult(), Is.True);
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentSkin.Value, Is.SameAs(manager.DefaultOmsSkin));
+                    Assert.That(manager.CurrentRevision.Owner, Is.SameAs(manager.DefaultOmsSkin));
+                    Assert.That(revisionA.Retired.IsCompletedSuccessfully, Is.True);
+                    Assert.That(captureFolderInventory(packageRoot), Is.EqualTo(sourceA));
+                    Assert.That(captureExternalRootPhysicalDigest(packageRoot), Is.EqualTo(physicalDigestA));
                 });
             });
         }
@@ -6368,7 +6521,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                          renderer.BmsTailArtifact,
                      })
             {
-                assertLoadedTexturedArtifact(artifact);
+                assertReadyTexturedArtifact(artifact);
             }
         }
 
@@ -6402,6 +6555,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(artifact.IsLoaded, Is.True, $"{artifact.GetType().Name} did not load through the production provider tree.");
+                Assert.That(
+                    artifact.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null),
+                    Is.True,
+                    $"{artifact.GetType().Name} did not publish a textured renderer artifact.");
+            });
+        }
+
+        private static void assertReadyTexturedArtifact(Drawable artifact)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    artifact.LoadState,
+                    Is.GreaterThanOrEqualTo(LoadState.Ready),
+                    $"{artifact.GetType().Name} did not prepare through the production provider tree.");
                 Assert.That(
                     artifact.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null),
                     Is.True,
@@ -6463,15 +6631,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             public bool BmsArtifactsLoaded =>
                 BmsOrdinary.ChildrenOfType<BmsAsyncNoteDrawable>()
-                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true })
+                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable artifact
+                                        && artifact.LoadState >= LoadState.Ready)
                 && BmsHold.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>()
                           .Any(head => head.ChildrenOfType<BmsAsyncNoteDrawable>()
-                                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }))
+                                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable artifact
+                                                        && artifact.LoadState >= LoadState.Ready))
                 && BmsHold.ChildrenOfType<BmsAsyncNoteDrawable>()
-                          .Any(host => host.Drawable is BmsSourceBoundLongNoteBodyDrawable { IsLoaded: true })
+                          .Any(host => host.Drawable is BmsSourceBoundLongNoteBodyDrawable artifact
+                                       && artifact.LoadState >= LoadState.Ready)
                 && BmsHold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>()
                           .Any(tail => tail.ChildrenOfType<BmsAsyncNoteDrawable>()
-                                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }));
+                                           .Any(host => host.Drawable is BmsSourceBoundNoteDrawable artifact
+                                                        && artifact.LoadState >= LoadState.Ready));
 
             public bool ManiaArtifactsLoaded =>
                 ManiaNote.ChildrenOfType<LegacyNotePiece>()
@@ -6540,9 +6712,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 maniaHold.ApplyDefaults(controlPoints, difficulty);
                 ManiaHold = new ManiaDrawableHoldNote(maniaHold);
 
-                var maniaColumnHost = new JourneyManiaColumnContainer(0, ManiaAction.Key1, stageDefinition);
-                maniaColumnHost.Add(ManiaNote);
-                maniaColumnHost.Add(ManiaHold);
+                var maniaColumnHost = new JourneyManiaColumnContainer(0, ManiaAction.Key1, stageDefinition)
+                {
+                    ManiaNote,
+                    ManiaHold
+                };
 
                 BmsProvider = new RulesetSkinProvidingContainer(bmsRuleset, bmsBeatmap, null)
                 {
@@ -6661,11 +6835,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             [Cached(typeof(IDialogOverlay))]
             public DialogOverlay DialogOverlay { get; } = new DialogOverlay();
 
+            [Cached(typeof(INotificationOverlay))]
+            private readonly RecordingNotificationOverlay notificationOverlay = new RecordingNotificationOverlay();
+
+            public IReadOnlyList<Notification> PostedNotifications => notificationOverlay.Notifications;
+
             public SkinSection Section { get; } = new SkinSection();
 
             public FolderSkinWorkspace Workspace => Section.ChildrenOfType<FolderSkinWorkspace>().Single();
 
             public SkinSection.DeleteSkinButton CurrentDeleteButton => Section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single();
+
+            public SkinSection.RenameSkinButton RenameButton => Section.ChildrenOfType<SkinSection.RenameSkinButton>().Single();
+
+            public SkinSection.ExportSkinButton ExportButton => Section.ChildrenOfType<SkinSection.ExportSkinButton>().Single();
+
+            public SettingsButtonV2 LayoutEditorButton => Section.ChildrenOfType<SettingsButtonV2>()
+                .Single(button => button.Text.ToString() == SkinSettingsStrings.SkinLayoutEditor.ToString());
 
             public FullSkinSettingsCallerHost(SkinManager skinManager)
             {
@@ -6677,6 +6863,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     DialogOverlay,
                 };
             }
+        }
+
+        private sealed class RecordingNotificationOverlay : INotificationOverlay
+        {
+            public List<Notification> Notifications { get; } = new List<Notification>();
+
+            public void Post(Notification notification) => Notifications.Add(notification);
+
+            public void Hide()
+            {
+            }
+
+            public IBindable<int> UnreadCount { get; } = new Bindable<int>();
+
+            public IEnumerable<Notification> AllNotifications => Notifications;
         }
 
         public enum StartupRetryInvalidation

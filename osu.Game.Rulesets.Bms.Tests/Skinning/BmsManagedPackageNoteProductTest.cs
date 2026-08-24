@@ -72,6 +72,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TearDownSteps]
         public void TearDownSteps()
         {
+            AddStep("detach live production hosts", () =>
+                Clear(disposeChildren: true));
             AddStep("restore OMS skin and dispose archives", () =>
             {
                 skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo;
@@ -866,7 +868,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestLongNoteBodySelectionChangePublishesFramesAndWidthFromOneRevision()
+        public void TestLongNoteBodySelectionRejectsLiveHostThenPublishesAfterDetach()
         {
             ImportedSkin first = importAndSelect(
                 "first selected animated body package",
@@ -882,6 +884,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             BmsAsyncNoteDrawable host = null!;
             Drawable firstVisual = null!;
+            Live<SkinInfo> firstSelection = null!;
+            Skin firstOwner = null!;
+            SkinCurrentRevision firstRevision = null!;
 
             AddStep("mount host under first selected body package", () => host = mountProductionHosts(createLookup(BmsNoteSkinElements.LongNoteBody)).Single());
             AddUntilStep("first selected body revision loaded", () =>
@@ -890,10 +895,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("capture first body revision", () =>
             {
                 firstVisual = host.Drawable!;
+                firstSelection = skinManager.CurrentSkinInfo.Value;
+                firstOwner = skinManager.CurrentSkin.Value;
+                firstRevision = skinManager.CurrentRevision;
                 Assert.That(firstVisual.Width, Is.EqualTo(0.4f).Within(0.0001f));
             });
 
-            ImportedSkin second = importAndSelect(
+            ImportedSkin second = importSkin(
                 "second selected animated body package",
                 () => createOskWithDeclarations(
                     "7K",
@@ -904,15 +912,29 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     },
                     ("notes/body-0.png", createPng(2, 6, new Rgba32(220, 60, 90, 255))),
                     ("notes/body-1.png", createPng(6, 2, new Rgba32(60, 220, 120, 255))),
-                    ("notes/body-2.png", createPng(4, 4, new Rgba32(90, 80, 240, 255)))),
-                () =>
+                    ("notes/body-2.png", createPng(4, 4, new Rgba32(90, 80, 240, 255)))));
+
+            AddStep("reject second body selection while live host is attached", () =>
+            {
+                skinManager.CurrentSkinInfo.Value = second.Info;
+
+                Assert.Multiple(() =>
                 {
-                    Assert.That(host.Drawable, Is.SameAs(firstVisual), "The old body must remain published while the new revision prepares.");
+                    Assert.That(skinManager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.LiveGameplayActive));
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(firstSelection));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(firstOwner));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(firstRevision));
+                    Assert.That(host.Drawable, Is.SameAs(firstVisual), "The live body must remain on the exact old revision after rejection.");
                     Assert.That(host.Drawable!.Width, Is.EqualTo(0.4f).Within(0.0001f));
                     Assert.That(host.Drawable.ChildrenOfType<TextureAnimation>().Single().FrameCount, Is.EqualTo(2));
                 });
+            });
 
-            AddUntilStep("second body revision atomically replaces first", () =>
+            AddStep("detach first live body host", () => Assert.That(Remove(Child, disposeImmediately: true), Is.True));
+            selectImported("second selected animated body package", second);
+            AddStep("mount host under second selected body package", () => host = mountProductionHosts(createLookup(BmsNoteSkinElements.LongNoteBody)).Single());
+
+            AddUntilStep("second body revision loads after safe detach", () =>
                 host.Drawable is BmsSourceBoundLongNoteBodyDrawable { IsLoaded: true }
                 && host.Drawable.ChildrenOfType<TextureAnimation>().SingleOrDefault()?.FrameCount == 3
                 && Math.Abs(host.Drawable.Width - 0.8f) < 0.0001f);
@@ -933,7 +955,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TestCase(BmsNoteSkinElements.LongNoteHead)]
         [TestCase(BmsNoteSkinElements.LongNoteBody)]
         [TestCase(BmsNoteSkinElements.LongNoteTail)]
-        public void TestSkinManagerSelectionChangeReplacesManagedPackageAnimation(BmsNoteSkinElements element)
+        public void TestSelectionRejectsLiveHostThenProvidesPackageAnimationAfterDetach(BmsNoteSkinElements element)
         {
             ImportedSkin first = importAndSelect(
                 $"first selected animated {element} package",
@@ -945,24 +967,50 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             BmsAsyncNoteDrawable host = null!;
             Drawable firstVisual = null!;
+            Live<SkinInfo> firstSelection = null!;
+            Skin firstOwner = null!;
+            SkinCurrentRevision firstRevision = null!;
 
             AddStep("mount host under first selected package", () => host = mountProductionHosts(createLookup(element)).Single());
             AddUntilStep("first selected animation loaded", () => host.Drawable?.ChildrenOfType<TextureAnimation>().SingleOrDefault()?.FrameCount == 2);
-            AddStep("capture first selected visual", () => firstVisual = host.Drawable!);
+            AddStep("capture first selected visual", () =>
+            {
+                firstVisual = host.Drawable!;
+                firstSelection = skinManager.CurrentSkinInfo.Value;
+                firstOwner = skinManager.CurrentSkin.Value;
+                firstRevision = skinManager.CurrentRevision;
+            });
 
-            ImportedSkin second = importAndSelect(
+            ImportedSkin second = importSkin(
                 $"second selected animated {element} package",
                 () => createOskWithDeclarations(
                     "7K",
                     new[] { (Key: getDeclarationKey(element), Resource: "notes/component") },
                     ("notes/component-0.png", createPng(2, 6, new Rgba32(220, 60, 90, 255))),
                     ("notes/component-1.png", createPng(6, 2, new Rgba32(60, 220, 120, 255))),
-                    ("notes/component-2.png", createPng(4, 4, new Rgba32(90, 80, 240, 255)))),
-                () => Assert.That(host.Drawable, Is.SameAs(firstVisual), "The previous visual must remain published while the new revision loads."));
+                    ("notes/component-2.png", createPng(4, 4, new Rgba32(90, 80, 240, 255)))));
 
-            AddUntilStep("second selected animation replaces first", () =>
+            AddStep("reject second selection while live host is attached", () =>
+            {
+                skinManager.CurrentSkinInfo.Value = second.Info;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skinManager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.LiveGameplayActive));
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(firstSelection));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(firstOwner));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(firstRevision));
+                    Assert.That(host.Drawable, Is.SameAs(firstVisual));
+                });
+            });
+
+            AddStep("detach first live host", () => Assert.That(Remove(Child, disposeImmediately: true), Is.True));
+            selectImported($"second selected animated {element} package", second);
+            AddStep("mount host under second selected package", () => host = mountProductionHosts(createLookup(element)).Single());
+
+            AddUntilStep("second selected animation loads after safe detach", () =>
                 host.Drawable?.ChildrenOfType<TextureAnimation>().SingleOrDefault()?.FrameCount == 3);
-            AddStep("assert real selection event reached mounted host", () =>
+            AddStep("assert safely selected package reached remounted host", () =>
             {
                 Assert.Multiple(() =>
                 {
@@ -1581,7 +1629,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TestCase("filesystem-path")]
         [TestCase("external")]
         [TestCase("delete-pending")]
-        public void TestConflictingManagedAuthorityCannotProvide(string conflict)
+        public void TestBackingRealmAuthorityConflictCannotMutatePublishedRevision(string conflict)
         {
             ImportedSkin imported = importAndSelect(
                 $"{conflict} authority package",
@@ -1599,6 +1647,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     ("notes/head.png", createPng(3, 4, new Rgba32(220, 100, 40, 255))),
                     ("notes/body.png", createPng(4, 4, new Rgba32(80, 140, 230, 255))),
                     ("notes/tail.png", createPng(4, 3, new Rgba32(100, 220, 40, 255)))));
+
+            Live<SkinInfo> publishedSelection = null!;
+            Skin publishedOwner = null!;
+            SkinCurrentRevision publishedRevision = null!;
+            BmsAsyncNoteDrawable[] hosts = null!;
+
+            AddStep("capture immutable published revision", () =>
+            {
+                publishedSelection = skinManager.CurrentSkinInfo.Value;
+                publishedOwner = skinManager.CurrentSkin.Value;
+                publishedRevision = skinManager.CurrentRevision;
+            });
 
             AddStep($"apply {conflict} metadata conflict", () => imported.Info.PerformWrite(info =>
             {
@@ -1621,14 +1681,33 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 }
             }));
 
-            assertNoteComponentFailureReturnsNull($"{conflict} authority ordinary note", BmsNoteSkinElements.Note);
-            assertNoteComponentFailureReturnsNull($"{conflict} authority long-note head", BmsNoteSkinElements.LongNoteHead);
-            assertNoteComponentFailureReturnsNull($"{conflict} authority long-note body", BmsNoteSkinElements.LongNoteBody);
-            assertNoteComponentFailureReturnsNull($"{conflict} authority long-note tail", BmsNoteSkinElements.LongNoteTail);
+            AddStep("mount real renderer after backing projection drift", () => hosts = mountProductionHosts(
+                createLookup(BmsNoteSkinElements.Note),
+                createLookup(BmsNoteSkinElements.LongNoteHead),
+                createLookup(BmsNoteSkinElements.LongNoteBody),
+                createLookup(BmsNoteSkinElements.LongNoteTail)));
+            AddUntilStep("wait for exact published revision visuals", () =>
+                hosts[0].Drawable is BmsSourceBoundNoteDrawable
+                && hosts[1].Drawable is BmsSourceBoundNoteDrawable
+                && hosts[2].Drawable is BmsSourceBoundLongNoteBodyDrawable
+                && hosts[3].Drawable is BmsSourceBoundNoteDrawable);
+            AddStep("assert backing projection cannot mutate active revision", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(publishedSelection));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(publishedOwner));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(publishedRevision));
+                    Assert.That(hosts[0].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(hosts[1].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(hosts[2].Drawable, Is.TypeOf<BmsSourceBoundLongNoteBodyDrawable>());
+                    Assert.That(hosts[3].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                });
+            });
         }
 
         [Test]
-        public void TestCaseConflictingManagedPackageFilenameCannotProvideSupportedNoteComponents()
+        public void TestCaseConflictingBackingRealmFilenameCannotMutatePublishedRevision()
         {
             ImportedSkin imported = importAndSelect(
                 "case-conflicting filename package",
@@ -1644,16 +1723,47 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     },
                     ("notes/shared.png", createPng(3, 3, new Rgba32(40, 180, 220, 255)))));
 
+            Live<SkinInfo> publishedSelection = null!;
+            Skin publishedOwner = null!;
+            SkinCurrentRevision publishedRevision = null!;
+            BmsAsyncNoteDrawable[] hosts = null!;
+
+            AddStep("capture immutable filename revision", () =>
+            {
+                publishedSelection = skinManager.CurrentSkinInfo.Value;
+                publishedOwner = skinManager.CurrentSkin.Value;
+                publishedRevision = skinManager.CurrentRevision;
+            });
+
             AddStep("add case-conflicting package filename metadata", () => imported.Info.PerformWrite(info =>
             {
                 RealmNamedFileUsage existing = info.Files.Single(file => file.Filename == "notes/shared.png");
                 info.Files.Add(new RealmNamedFileUsage(existing.File, "NOTES/SHARED.PNG"));
             }));
 
-            assertNoteComponentFailureReturnsNull("filename-conflicting ordinary note", BmsNoteSkinElements.Note);
-            assertNoteComponentFailureReturnsNull("filename-conflicting long-note head", BmsNoteSkinElements.LongNoteHead);
-            assertNoteComponentFailureReturnsNull("filename-conflicting long-note body", BmsNoteSkinElements.LongNoteBody);
-            assertNoteComponentFailureReturnsNull("filename-conflicting long-note tail", BmsNoteSkinElements.LongNoteTail);
+            AddStep("mount real renderer after filename projection drift", () => hosts = mountProductionHosts(
+                createLookup(BmsNoteSkinElements.Note),
+                createLookup(BmsNoteSkinElements.LongNoteHead),
+                createLookup(BmsNoteSkinElements.LongNoteBody),
+                createLookup(BmsNoteSkinElements.LongNoteTail)));
+            AddUntilStep("wait for immutable filename revision visuals", () =>
+                hosts[0].Drawable is BmsSourceBoundNoteDrawable
+                && hosts[1].Drawable is BmsSourceBoundNoteDrawable
+                && hosts[2].Drawable is BmsSourceBoundLongNoteBodyDrawable
+                && hosts[3].Drawable is BmsSourceBoundNoteDrawable);
+            AddStep("assert filename projection cannot mutate active revision", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(publishedSelection));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(publishedOwner));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(publishedRevision));
+                    Assert.That(hosts[0].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(hosts[1].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                    Assert.That(hosts[2].Drawable, Is.TypeOf<BmsSourceBoundLongNoteBodyDrawable>());
+                    Assert.That(hosts[3].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                });
+            });
         }
 
         [Test]
@@ -1720,12 +1830,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     selectedDeclarations));
 
             BmsAsyncNoteDrawable host = null!;
+            Skin lowerSource = null!;
 
             AddStep("mount selected, lower and Oms source chain", () =>
             {
+                lowerSource = createOwnedExactRealmSource(lowerTexturePackage);
                 Child = new TestSkinSourceContainer(
                     new BmsSkinTransformer(selectedMissingPackage.Skin),
-                    new BmsSkinTransformer(lowerTexturePackage.Skin),
+                    new BmsSkinTransformer(lowerSource),
                     new BmsSkinTransformer(skinManager.DefaultOmsSkin))
                 {
                     Child = host = new BmsAsyncNoteDrawable(createLookup(element)),
@@ -1769,12 +1881,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     }));
 
             BmsAsyncNoteDrawable host = null!;
+            Skin lowerSource = null!;
 
             AddStep("mount selected, lower complete body and OMS source chain", () =>
             {
+                lowerSource = createOwnedExactRealmSource(lowerBodyPackage);
                 Child = new TestSkinSourceContainer(
                     new BmsSkinTransformer(selectedMissingPackage.Skin),
-                    new BmsSkinTransformer(lowerBodyPackage.Skin),
+                    new BmsSkinTransformer(lowerSource),
                     new BmsSkinTransformer(skinManager.DefaultOmsSkin))
                 {
                     Child = host = new BmsAsyncNoteDrawable(createLookup(BmsNoteSkinElements.LongNoteBody)),
@@ -1810,12 +1924,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     new[] { (Key: "NoteImage1T", Resource: "shared/tail") }));
 
             BmsAsyncNoteDrawable host = null!;
+            Skin lowerSource = null!;
 
             AddStep("mount selected, lower complete tail and OMS source chain", () =>
             {
+                lowerSource = createOwnedExactRealmSource(lowerTailPackage);
                 Child = new TestSkinSourceContainer(
                     new BmsSkinTransformer(selectedMissingPackage.Skin),
-                    new BmsSkinTransformer(lowerTailPackage.Skin),
+                    new BmsSkinTransformer(lowerSource),
                     new BmsSkinTransformer(skinManager.DefaultOmsSkin))
                 {
                     Child = host = new BmsAsyncNoteDrawable(createLookup(BmsNoteSkinElements.LongNoteTail)),
@@ -1864,6 +1980,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private ImportedSkin importAndSelect(string label, Func<MemoryStream> createArchive, Action? afterSelect = null)
         {
+            ImportedSkin imported = importSkin(label, createArchive);
+            selectImported(label, imported, afterSelect);
+            return imported;
+        }
+
+        private Skin createOwnedExactRealmSource(ImportedSkin imported)
+        {
+            Skin source = skinManager.GetSkin(imported.Info.Value);
+            ownedSkins.Add(source);
+            return source;
+        }
+
+        private ImportedSkin importSkin(string label, Func<MemoryStream> createArchive)
+        {
             var imported = new ImportedSkin();
 
             AddStep($"create {label} osk", () =>
@@ -1879,9 +2009,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
 
             AddUntilStep($"wait for {label} import", () => imported.ImportTask?.IsCompleted == true);
+            AddStep($"resolve {label} import", () => imported.Info = imported.ImportTask.GetAwaiter().GetResult());
+
+            return imported;
+        }
+
+        private void selectImported(string label, ImportedSkin imported, Action? afterSelect = null)
+        {
             AddStep($"select {label}", () =>
             {
-                imported.Info = imported.ImportTask.GetAwaiter().GetResult();
                 skinManager.CurrentSkinInfo.Value = imported.Info;
                 imported.Skin = skinManager.CurrentSkin.Value;
                 afterSelect?.Invoke();
@@ -1892,8 +2028,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && skinManager.CurrentSkinInfo.Value.ID == imported.Info.ID
                 && skinManager.CurrentSkin.Value.SkinInfo.ID == imported.Info.ID
                 && skinManager.CurrentSkin.Value is BmsLegacySkin);
-
-            return imported;
         }
 
         private void assertNoteComponentFailureReturnsNull(string label, BmsNoteSkinElements element)

@@ -1,6 +1,6 @@
 ---
 name: reference_skin_atomic_reload_detach
-description: ordinary .osk、managed与external current revision原子publication/detach的C2入口、2026-08-09 NO-GO遗留缺口与关闭条件
+description: 三源current revision原子publication/lease/detach/retire的C2完成态、唯一manual Reload、live fail-closed与current mutation边界
 metadata:
   node_type: memory
   type: reference
@@ -8,32 +8,41 @@ metadata:
 
 # Skin current revision atomic reload/detach 地雷
 
-## 当前结论
+## 当前结论（2026-08-24，C2已签发）
 
-- 2026-08-09按真实settings/selection/renderer/owner链审计，current managed atomic reload/detach为**NO-GO**。C1作者文件工作区前置已经满足，燃尽现为`1/7 closed，C2 active`；这表示可以在C2冻结真实路线并实现纵切，不表示旧NO-GO所列consumer/lifecycle缺口已经消失。当前状态与顺序只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，dated证据见[2026-08-09交接](../../doc_md/other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。
-- C2承接当前production consumer的revision publication/lease/detach协议；`C3`～`C6`新增layout/scene/script consumer必须同切加入该协议，直到`C6`才关闭覆盖`ini/manifest/scene/script/素材`的最终整包reload与G1自动门。C2必须先冻结唯一真实触发、允许场景和participant集合，再以同一campaign的红测与实现闭合，禁止脱离caller预建barrier foundation。
-- C1已经提供external registration/capture、managed Workspace与ordinary `.osk` ingress安全输入；当前仓库仍没有reload current revision的真实caller/UI/watcher或manager API。C2不得把same-value selection、现有`SourceChanged`或ordinary `.osk`即时dispose链冒充该caller。
-- settings/config/hotkey只请求selection，same-value在准备前短路；startup scanner是单次reconcile而非watcher。filesystem-backed skin继续被editor、update import与external edit拒绝。普通Realm `ExternalEditOverlay`的new-instance后立即dispose旧实例不是managed caller，也没有barrier，不能复用。
+- C2已由真实Settings caller接通ordinary Realm `.osk`、managed与external三源same-record-ID/content-revision纵切，并通过focused/full、Release、文档门与独立终审；权威燃尽是`2/7 closed，C3 active`。当前状态只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，完整participant/holder/bypass inventory与已签发C3 prompt见[C2完成交接](../../doc_md/other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+- 唯一产品入口是Settings → Skin → `Reload current skin`。Folder Skin Workspace无行级Reload，same-value selection仍no-op，startup scanner仍只做一次reconcile，不实现watcher；legacy Skin Editor、external-edit与update-import的UI/backend均稳定fail-closed。
+- live gameplay/gameplay preview由`RulesetSkinProvidingContainer`和`PlayerLoader`登记`LiveGameplayHost`，manager在任何source capture/parse/provisional prepare前确定拒绝并给出退出后重试反馈。其它attached且无staged receipt的visual consumer也fail-closed；禁止先改变active pair再延后。
+- C2只关闭当前production consumer。C3～C6新增layout/codec/scene/script consumer必须同切加入协议；`ini/manifest/scene/script/素材`最终整包reload与G1自动门仍到C6关闭。
 
-## publication 与 owner 地雷
+## revision、participant 与 owner
 
-- `SkinManager`的`CurrentSkinInfo`/`CurrentSkin` pair只在manager内coherent，随后`SourceChanged`是事件扇出；没有package revision publication对象、consumer snapshot/registry、ack、detach receipt或old-instance retire queue。pair commit、`SkinReloadableDrawable`和`BmsAsyncNoteDrawable`都不是整包atomic reload。
-- `BmsPlayfield`在loader一次读取skin geometry并缓存layout/profile，不监听`SourceChanged`。BMS Note/LN gameplay与pre-start preview是独立per-host异步consumer；core/mania drawable还混合同步、scheduler和next-update更新；菜单背景会在fade/expire期间继续持有旧`Skin`。当前publication可产生旧geometry+新shell/note等mixed revision。
-- exact capsule经factory转入`Skin` owning store；`Skin.Dispose()`释放texture/sample/fallback store/capsule，`BmsLegacySkin.Dispose()`还取消package note preparation。成功selection没有全consumer detach后的退役协议，既有产品测试手工dispose superseded managed skin。即时dispose可能破坏旧consumer，不dispose则owner生命周期未闭合。
-- 现有测试只证明capsule/store ownership、guarded selection和per-host A→B，不证明same-ID revision gate、全host barrier、failure保留exact旧pair/owner、detach后dispose once或reload latest-wins/reentrant/cancel/shutdown join。
+- `SkinCurrentRevision`绑定generation、record ID、content revision、source kind和exact owning `Skin`；manager、participant、work与operation lease分别表示current authority、visible attach、隐藏异步work与rollback存活，不能用record ID或`SourceChanged`猜owner。
+- participant inventory分三类：必须coherent处理的core/mania/BMS provider/renderer、generic skinnable、ordinary provider、fountain/sample/storyboard与pending screen/player graph；跨fade/sample/materializer/callback的lease-only holder；以及只聚合descendant的sound wrapper、guarded UI projection、独立beatmap/ruleset authority和已禁用authoring路径。完整类型表只在C2 handoff维护，memory不复制第二份authority。
+- prepare开始前capture participant/current/source snapshot；source与全部staged material准备后、commit前以及publication lock内再次复核participant generation、target generation、current selection/owner/revision和exact source revision。Realm/blob/held filesystem I/O、capture、parser、texture/sample/materializer等所有可失败工作必须止于background prepare。
+- `BmsAsyncNoteDrawable`/`SkinnableContainer`的non-alive host需要GameHost scheduler：outer `Loading`时先等Ready再admit inner，之后`SourceChanged` rebuild也走host scheduler。base source event先同步调用旧work invalidation，再以generation标记调度fresh rebuild；独立第二订阅者会与host scheduler竞速并误杀新generation。Dispose或publication shutdown先进入participant terminal、推进generation并取消pending/Ready admission；否则可能非法mutation、吞掉exact-B rebuild或让晚到callback复活已关闭participant。
+- update-thread commit只交换已准备且可逆的内存引用；全部participant ready前B不可见，commit fault须逆序rollback并保持exact A。prepare中attach或commit前detach使snapshot失效并有界fresh retry；commit后late attach只取得已提交revision与lease。commit前取消保A，commit开始后取消不得回滚成split。
+- old manager lease释放后，还必须同时满足`ConsumersDetached`与`WorkDetached`；最后participant/work/operation lease detach后才能在update thread exactly-once retire owner。异步graph的framework callback与ownership sentinel须使用同一scheduler保持FIFO；Editor mode graph固定为`ScreenContainer.Scheduler`。shutdown先claim participant集合并令每个participant进入terminal，再调用真实owner hook cancel/reap callback、join真实worker/materializer/work fence，最后同步detach/revision回收；manager不能只发cancel或代替consumer释放work lease。
+- BMS/Skinnable invalidation须在各自work admission gate内推进generation并exact claim pending owner/CTS；prepare install和finish publish都比较captured generation，shutdown/dispose同样在gate内推进generation后claim。因此CTS completion不能与invalidation形成double-dispose/已dispose正常窄窗；跨代worker只能回收，不能装入field或发布。
+- latest-wins允许新request在旧uncooperative worker退出前发布，但旧worker永不commit且operation admission保持到真实退出。成功publication清理诊断必须compare自己的generation：同代startup contention成功可清`None`；若`SourceChanged` observer重入并推进generation产生新的invalid/reentrant拒绝，outer completion不得覆盖其脱敏reason。
 
-## 重新开门门槛
+## 三源 exact authority
 
-- C2先冻结唯一真实触发方式、允许场景（尤其live gameplay是否允许或延后）和全部consumer participation/publication/detach/retirement协议；红测必须从该可达caller跨manager直到真实renderer/owner，不能只发明barrier DTO。
-- participant inventory须从完整production object graph取得，并区分coherent重建consumer、lease-only lifecycle holder与已证明不持旧owner者；menu/shell/background/transition只作旧owner生命周期覆盖，不扩大为作者皮肤面。冻结prepare/commit窗口的动态attach/detach：prepare中新增consumer不漏barrier，commit前detach不悬挂retire，commit后late attach只取得已提交revision和对应lease。
-- 纵切须统一ordinary Realm `.osk`、managed与external来源：fresh authoritative Realm/path/owner/freeze/capture/factory复核、完整immutable revision与new skin instance后台准备、generation/current-selection/revision gate、所有consumer coherent publication、失败保留exact旧revision、全consumer detach后幂等dispose旧owner，以及latest-wins/reentrant/首个不可逆边界前取消/shutdown exact claim-reap-join与脱敏诊断。
-- current external unregister只能在coherent fallback/new revision已经发布且所有旧consumer detach后做pure-Realm compare-remove；失败时source record与旧pair都应保持，不得先注销再尝试切换。ordinary `.osk`现有new-instance后立即dispose旧实例的旁路必须迁入统一协议或被禁用。
-- current managed Delete也必须把protected fallback publication与旧revision detach接入C2协议；只有二者成功后才可沿用C1既有journal/physical detach，失败不得先删目录。测试至少覆盖same-record-ID/content-revision三源、attach-during-prepare、detach-before-commit、late attach、跨revision fade与`ExternalEditOverlay` reachable bypass。
-- 禁止manager-only reload API、强制同ID selection、逐组件`SourceChanged`拼接、即时dispose旧owner或没有真实caller/consumer的barrier/DTO foundation。managed delete journal/detach是独立operation合同，不提供reload的全renderer生命周期事务。
+- ordinary Realm `.osk`：fresh detached metadata与完整file declaration，逐blob读取并核对SHA-256，再构造规范capsule/content revision；declaration/blob漂移保A。发布后Realm record的file-declaration path、external或DeletePending projection漂移不得改变active selection/owner/revision，late renderer继续消费active immutable owner；fresh reload/mutation重读到path改变造成的declaration mismatch时拒绝。不要误称registry file drift。
+- managed：exact scanner-owner record、resolver request、held no-follow package session与metadata content revision保持到commit validation。
+- external：exact service-owner record、full registry declaration/physical proof、held package session与content revision保持到commit；OMS始终不写source。
+- `NoChange`只比较exact prepared content revision，不替换owner。direct current file mutation、retained stale handle、update-import或external-edit不能绕过统一admission。
+
+## current mutation
+
+- current external Unregister先发布protected fallback并等待old `ConsumersDetached`，再fresh compare fallback/current generation/full registry/exact service-owner record并pure-Realm remove。prepare/publication/detach/fresh compare/Realm任一步失败借old-revision operation lease恢复exact A并保留record；source missing/drift不授予source I/O，任何结果source零变化。
+- current managed Delete先held capture并证明exact source/content revision等于current，再发布fallback并等待detach；此边界成功前不得创建journal或触碰physical tree，失败保留或恢复A。之后才进入C1 single-v3 journal/physical mutation；首个physical步骤后的uncertain failure只保证durable recovery与protected fallback，不承诺恢复A。C7前fallback仍为程序化`OmsSkin`。
+- current ordinary `.osk` Delete同样先fallback+detach，再做Realm soft-delete；Realm失败恢复exact旧pair/revision、record与blob。
+- 禁止manager-only API、强制same-ID selection、per-host reloadable、逐component `SourceChanged`拼接、即时dispose旧owner或无caller/consumer的barrier foundation。
 
 ## 关联入口
 
 - exact capsule/owner：[[reference_skin_package_revision_capsule]]。
-- managed selection与`551a`协调：[[reference_skin_managed_folder_selection]]、[[reference_skin_managed_folder_scanner]]。
-- authoring/product边界：[[project_oms_bms_skin_authoring]]。
-- release-ready差距与external前置工作包：[[project_oms_skin_product_progress]]。
+- managed/external authority：[[reference_skin_managed_folder_selection]]、[[reference_skin_managed_folder_scanner]]、[[reference_skin_external_workspace_managed_copy]]。
+- mutation recovery：[[reference_skin_managed_folder_mutation_foundation]]、[[reference_skin_osk_archive_import_safety]]。
+- authoring/product边界：[[project_oms_bms_skin_authoring]]、[[project_oms_skin_product_progress]]。

@@ -2,6 +2,16 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-08-24
+
+### C2 current revision publication / reload / detach 闭门
+
+- 真实Folder Skin Workspace、legacy author-preview与Settings host比较后，唯一触发冻结为Settings → Skin的`Reload current skin`：覆盖ordinary Realm`.osk`、managed、external三种current source；Workspace无第二Reload，same-value selection继续no-op，scanner继续只做启动reconcile且不实现watcher。`RulesetSkinProvidingContainer`/`PlayerLoader`将gameplay与preview标成`LiveGameplayHost`，manager在任何source prepare前确定拒绝并给出退出后重试反馈，绝不先改变active pair。
+- `SkinCurrentRevision`、background prepare、update-thread reversible barrier、participant registry、manager/participant/work/operation lease、detach fence与retire queue已接入真实Settings→manager→BMS/mania/core/shell owner链。完整inventory区分coherent visual consumer、跨fade/sample/materializer/callback的lease-only holder及已证明不持current owner的wrapper/UI/独立authority；dynamic attach/detach、late attach、latest-wins、reentrant/cancel/scheduler/shutdown与最后lease detach exactly-once retire进入统一合同。base source invalidation在event栈内同步取消旧work，再按generation调度fresh rebuild；participant shutdown先进入terminal并取消pending/Ready admission，再由真实owner hook回收work。BMS/Skinnable在work admission gate内推进generation并exact claim pending owner/CTS，prepare install与finish publish比较captured generation，shutdown/dispose沿同一gate claim，因此不保留CTS已dispose异常窄窗。成功诊断清理按request generation守卫，outer成功不能覆盖observer推进generation后的新拒绝reason。
+- current external Unregister、current managed Delete与ordinary current`.osk` Delete均先发布protected fallback并等待old detach；external随后fresh compare exact service-owner/record/current revision并pure-Realm remove，source零I/O；managed随后才进入C1 journal/physical boundary，首个physical后的uncertain failure由durable recovery保持fallback而不承诺恢复A；ordinary随后Realm soft-delete，失败恢复旧pair/revision、record/blob。legacy Skin Editor、external-edit、update-import和direct current mutation旁路已连UI/backend稳定禁用或纳入统一admission。
+- 最终宽验证为core focused **204/204**、`FullyQualifiedName~PendingAsyncDrawableOwnership` visual/host **11/11**、core canonical `~Skin` **1137/1143**、mania `~Skin` **182/182**、BMS `~Skin` **796/796（8m53s）**与BMS full **1670/1670（10m09s）**；full使用`--blame-hang 5m`且明确全数完成、未生成hang sequence。core六项失败与既有精确基线完全相同：四项`TestSceneBeatmapSkinResources`依赖removed-Osu fixture、`TestBackgroundCyclingOnDefaultSkin(True)`及Argon `TestSampleUpdatedBeforePlaybackWhenNotPresent`。另有完整真实C2产品路径集 **314/314**、final drift + half-loaded + Ready sentinel **6/6**。Release含restore首跑 **0 error / 20 known warnings（41.88s）**，formatter后`--no-restore`复验 **0 error / 11 known warnings（36.58s）**；分别为18/9次MessagePack `NU1902`输出加BMS tests既有`CS8600`/`CA2007`。core、core-tests、BMS、BMS-tests、mania-tests owning-project targeted formatter均exit 0，仅保留`IDE1006`不可自动修复提示。participant/holder、reachable bypass、concurrency/owner及tests/product-contract四项独立终审均为blocker/major/moderate **0/0/0**。
+- 最终文档门为`CheckDocumentation.ps1` **137 Markdown / 1071 relative links / 80 memory wiki links**通过，仅有两份PLAN的预期数字比值提醒；`git diff --check -- doc_md .Codex/memory`通过。C2因此闭合；权威燃尽推进为 **`2/7 closed，C3 active`**。C1/C2冻结输入、完整participant/holder/bypass inventory、最终验证与已签发C3 prompt见[C2完成交接](../../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。当前master的有意义提交由主任务在最终文档检查后创建，本记录不预写commit hash且不授权push。
+
 ## 2026-08-13
 
 ### C1作者文件工作区与archive安全闭门
@@ -10,7 +20,7 @@
 - journal/recovery收紧为封闭`(version, kind, phase)`白名单，ManagedCopy的Copying/ProvisionalReady不能被legacy kind/version接受。terminal journal仅在exact Realm/held authority下compare-delete，删除后fresh inspection只确认Missing，消除Missing+freeze旁路。Rename/StagedImport/Delete/ManagedCopy的exact external declaration/proof持有至final Realm线性化，v1/v2 schema保持strict frozen。
 - ordinary `.osk` 使用bounded `SkinArchiveReader`：自解析EOCD/central directory、封闭InstantiationInfo、实际CRC/length/ratio/aggregate与cancellation完成后才允许model publication。`RealmArchiveModelImporter`/`SkinImporter`将transactional import scope的token贯穿hash/copy/metadata/Add/Replace/final commit。`RealmFileStore` 按exact same-hash participant group并发，多组rollback故障隔离且generation-safe可重试；Realm record与blob baseline独立判定ownership，覆盖双向非对称baseline而不删共享asset。
 - 最终独立终审另闭合两处真实生命周期/漂移窗口：Workspace records与journal support只读worker现由manager统一跟踪，shutdown封门后cancel并同步join，UI关闭只取消自身刷新；managed Open在初始与held-capture后的final Realm视图都重新证明normalized path唯一，旧row遇同路径重复声明不调用host。
-- 最终验证：Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt最终独立复审均为blocker/major/moderate **0/0/0**。C1因此闭合为`1/7 closed`，`C2 active`；G1/`SV1-2`/Skin V1/release与`V-001`～`V-004`仍未完成。
+- 最终验证：Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt最终独立复审均为blocker/major/moderate **0/0/0**。C1因此关闭首项并转入C2；G1/`SV1-2`/Skin V1/release与`V-001`～`V-004`仍未完成。
 
 ### C1产品价值与C2交接终验
 

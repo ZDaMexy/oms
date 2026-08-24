@@ -132,10 +132,9 @@ namespace osu.Game.Tests.Skins
         }
 
         [Test]
-        public void TestDisabledValueDoesNotIssueSelectionRequest()
+        public void TestDisablingGuardedSelectionFailsClosed()
         {
             Live<SkinInfo> original = new SkinInfo { Name = "original" }.ToLiveUnmanaged();
-            Live<SkinInfo> requested = new SkinInfo { Name = "requested" }.ToLiveUnmanaged();
             int requests = 0;
             var guarded = new SkinSelectionBindable(original)
             {
@@ -144,12 +143,17 @@ namespace osu.Game.Tests.Skins
                     requests++;
                     return false;
                 },
-                Disabled = true,
             };
 
-            Assert.That(() => guarded.Value = requested, Throws.TypeOf<InvalidOperationException>());
-            Assert.That(requests, Is.Zero);
-            Assert.That(guarded.Value, Is.SameAs(original));
+            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => guarded.Disabled = true)!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.Message, Is.EqualTo(SkinSelectionBindable.DISABLE_DISABLED_DIAGNOSTIC));
+                Assert.That(guarded.Disabled, Is.False);
+                Assert.That(requests, Is.Zero);
+                Assert.That(guarded.Value, Is.SameAs(original));
+            });
         }
     }
 }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using ManagedBass.Fx;
 using osu.Framework.Allocation;
@@ -52,6 +53,12 @@ namespace osu.Game.Screens.Play
 
         protected virtual double PlayerPushDelay => 1800 + disclaimers.Count * 500;
 
+        /// <summary>
+        /// A scheduling boundary between taking explicit handoff ownership and committing the player to the screen
+        /// stack. The production value is zero; tests may widen this boundary to exercise cancellation deterministically.
+        /// </summary>
+        protected virtual double PlayerHandoffDelay => 0;
+
         public override bool HideOverlaysOnEnter => hideOverlays;
 
         public override bool DisallowExternalBeatmapRulesetChanges => true;
@@ -83,6 +90,9 @@ namespace osu.Game.Screens.Play
         protected Task? LoadTask { get; private set; }
 
         protected Task? DisposalTask { get; private set; }
+
+        private PendingAsyncDrawableOwnership<Player>? pendingPlayerOwnership;
+        private CancellationTokenSource? playerLoadCancellation;
 
         private FillFlowContainer disclaimers = null!;
         private GridContainer sideContent = null!;
@@ -152,9 +162,15 @@ namespace osu.Game.Screens.Play
         public Player? CurrentPlayer { get; private set; }
 
         /// <summary>
-        /// Whether the current player instance has been consumed via <see cref="consumePlayer"/>.
+        /// Whether the current player instance has been successfully handed to the screen stack.
         /// </summary>
         private bool playerConsumed;
+
+        /// <summary>
+        /// A fully loaded player retained across the content-out delay. The loader remains its sole owner until
+        /// the screen-stack <c>Push</c> returns successfully.
+        /// </summary>
+        private Player? pendingPlayerHandoff;
 
         private LogoTrackingContainer content = null!;
         private IDisposable? logoTracking;
@@ -181,6 +197,9 @@ namespace osu.Game.Screens.Play
 
         [Resolved]
         private AudioManager audioManager { get; set; } = null!;
+
+        [Resolved]
+        private SkinManager skinManager { get; set; } = null!;
 
         [Resolved]
         private BatteryInfo? batteryInfo { get; set; }
@@ -342,7 +361,7 @@ namespace osu.Game.Screens.Play
 
         private void refetchLeaderboard(bool force)
         {
-            var scoreDisplayBucket = Ruleset.Value.CreateInstance().GetScoreDisplayBucket(Mods.Value);
+            string? scoreDisplayBucket = Ruleset.Value.CreateInstance().GetScoreDisplayBucket(Mods.Value);
 
             leaderboardManager?.FetchWithCriteria(new LeaderboardCriteria(
                 Beatmap.Value.BeatmapInfo,
@@ -524,35 +543,102 @@ namespace osu.Game.Screens.Play
             }
         }
 
-        private Player consumePlayer()
-        {
-            Debug.Assert(!playerConsumed);
-            Debug.Assert(CurrentPlayer != null);
-
-            playerConsumed = true;
-            return CurrentPlayer;
-        }
-
         private void prepareNewPlayer()
         {
             if (!this.IsCurrentScreen())
                 return;
 
+            cancelPendingPlayerLoad();
             loadProgress.Reset();
 
-            CurrentPlayer = createPlayer();
-            CurrentPlayer.Configuration.AutomaticallySkipIntro |= QuickRestart;
-            CurrentPlayer.RestartCount = restartCount++;
-            CurrentPlayer.PrepareLoaderForRestart = prepareForRestart;
+            Player player = createPlayer();
+            CurrentPlayer = player;
+            player.Configuration.AutomaticallySkipIntro |= QuickRestart;
+            player.RestartCount = restartCount++;
+            player.PrepareLoaderForRestart = prepareForRestart;
 
-            LoadTask = LoadComponentAsync(CurrentPlayer, _ =>
+            SkinRevisionParticipantRegistration initialParticipant;
+
+            try
             {
-                MetadataInfo.Loading = false;
-                OnPlayerLoaded();
-            });
+                initialParticipant = skinManager.RegisterRevisionParticipant(
+                    SkinRevisionParticipantKind.LiveGameplayHost,
+                    $"{nameof(PlayerLoader)} (initial load)",
+                    blocksRevisionPublication: true);
+            }
+            catch
+            {
+                CurrentPlayer = null;
+                player.Dispose();
+                throw;
+            }
+
+            var ownership = new PendingAsyncDrawableOwnership<Player>(player, initialParticipant.Dispose);
+            var cancellation = new CancellationTokenSource();
+            pendingPlayerOwnership = ownership;
+            playerLoadCancellation = cancellation;
+
+            try
+            {
+                LoadTask = LoadComponentAsync(ownership.Loadable, loaded =>
+                {
+                    if (!ReferenceEquals(pendingPlayerOwnership, ownership)
+                        || !ownership.TryTransfer(loaded, out Player? owned))
+                    {
+                        return;
+                    }
+
+                    pendingPlayerOwnership = null;
+                    playerLoadCancellation?.Dispose();
+                    playerLoadCancellation = null;
+                    CurrentPlayer = owned;
+
+                    try
+                    {
+                        MetadataInfo.Loading = false;
+                        OnPlayerLoaded();
+                    }
+                    catch
+                    {
+                        if (!playerConsumed && ReferenceEquals(CurrentPlayer, owned))
+                        {
+                            CurrentPlayer = null;
+                            owned!.Dispose();
+                        }
+
+                        throw;
+                    }
+                    finally
+                    {
+                        ownership.CompleteTransfer();
+                    }
+                }, cancellation.Token);
+                ownership.Attach(LoadTask, Scheduler);
+            }
+            catch
+            {
+                if (ReferenceEquals(pendingPlayerOwnership, ownership))
+                    pendingPlayerOwnership = null;
+
+                if (ReferenceEquals(CurrentPlayer, player))
+                    CurrentPlayer = null;
+
+                playerLoadCancellation = null;
+                cancellation.Dispose();
+                ownership.ReclaimUnstarted();
+                throw;
+            }
         }
 
         protected virtual void OnPlayerLoaded()
+        {
+        }
+
+        /// <summary>
+        /// Invoked after this loader has claimed the fully loaded player but before the screen-stack handoff is
+        /// scheduled. The loader remains the sole owner until <c>Push</c> succeeds.
+        /// </summary>
+        protected virtual void OnPlayerHandoffPrepared(Player player)
         {
         }
 
@@ -683,21 +769,34 @@ namespace osu.Game.Screens.Play
 
             scheduledPushPlayer = Scheduler.AddDelayed(() =>
                 {
-                    // ensure that once we have reached this "point of no return", readyForPush will be false for all future checks (until a new player instance is prepared).
-                    Player consumedPlayer = consumePlayer();
+                    Debug.Assert(!playerConsumed);
+                    Debug.Assert(CurrentPlayer != null);
+                    Debug.Assert(pendingPlayerHandoff == null);
 
-                    consumedPlayer.OnShowingResults += endHighPerformance;
+                    // Retain exact ownership through the second, transform-scheduled handoff. Exiting or disposal
+                    // before Push succeeds reclaims this player and its live-gameplay revision participant.
+                    Player playerToPush = pendingPlayerHandoff = CurrentPlayer;
+                    OnPlayerHandoffPrepared(playerToPush);
+
+                    playerToPush.OnShowingResults += endHighPerformance;
 
                     ContentOut();
 
-                    TransformSequence<PlayerLoader> pushSequence = this.Delay(0);
+                    TransformSequence<PlayerLoader> pushSequence = this.Delay(PlayerHandoffDelay);
 
                     // This goes hand-in-hand with the restoration of low pass filter in contentOut().
                     this.TransformBindableTo(volumeAdjustment, 0, CONTENT_OUT_DURATION, Easing.OutCubic);
 
                     pushSequence.Schedule(() =>
                     {
-                        if (!this.IsCurrentScreen()) return;
+                        if (!ReferenceEquals(pendingPlayerHandoff, playerToPush))
+                            return;
+
+                        if (!this.IsCurrentScreen())
+                        {
+                            reclaimPendingPlayerHandoff(playerToPush);
+                            return;
+                        }
 
                         LoadTask = null;
 
@@ -705,10 +804,32 @@ namespace osu.Game.Screens.Play
                         // Note that this may change if the player we load requested a re-run.
                         ValidForResume = false;
 
-                        if (consumedPlayer.LoadedBeatmapSuccessfully)
-                            this.Push(consumedPlayer);
+                        if (playerToPush.LoadedBeatmapSuccessfully)
+                        {
+                            try
+                            {
+                                this.Push(playerToPush);
+                                pendingPlayerHandoff = null;
+                                playerConsumed = true;
+                            }
+                            catch
+                            {
+                                if (playerToPush.Parent == null)
+                                    reclaimPendingPlayerHandoff(playerToPush);
+                                else
+                                {
+                                    pendingPlayerHandoff = null;
+                                    playerConsumed = true;
+                                }
+
+                                throw;
+                            }
+                        }
                         else
+                        {
+                            reclaimPendingPlayerHandoff(playerToPush);
                             this.Exit();
+                        }
                     });
                 },
                 // When a quick restart is activated, the metadata content will display some time later if it's taking too long.
@@ -720,6 +841,45 @@ namespace osu.Game.Screens.Play
         {
             scheduledPushPlayer?.Cancel();
             scheduledPushPlayer = null;
+            reclaimPendingPlayerHandoff();
+        }
+
+        private void reclaimPendingPlayerHandoff(Player? expected = null)
+        {
+            Player? pending = pendingPlayerHandoff;
+
+            if (pending == null || (expected != null && !ReferenceEquals(pending, expected)))
+                return;
+
+            pendingPlayerHandoff = null;
+
+            if (ReferenceEquals(CurrentPlayer, pending))
+                CurrentPlayer = null;
+
+            pending.Dispose();
+        }
+
+        private PendingAsyncDrawableOwnership<Player>? cancelPendingPlayerLoad()
+        {
+            PendingAsyncDrawableOwnership<Player>? ownership =
+                Interlocked.Exchange(ref pendingPlayerOwnership, null);
+            ownership?.Cancel();
+
+            CancellationTokenSource? cancellation = Interlocked.Exchange(ref playerLoadCancellation, null);
+
+            if (cancellation != null)
+            {
+                try
+                {
+                    cancellation.Cancel();
+                }
+                finally
+                {
+                    cancellation.Dispose();
+                }
+            }
+
+            return ownership;
         }
 
         private void endHighPerformance()
@@ -734,12 +894,25 @@ namespace osu.Game.Screens.Play
 
         protected override void Dispose(bool isDisposing)
         {
+            PendingAsyncDrawableOwnership<Player>? pendingOwnership = cancelPendingPlayerLoad();
+
             base.Dispose(isDisposing);
 
             if (isDisposing)
             {
-                // if the player never got pushed, we should explicitly dispose it.
-                DisposalTask = LoadTask?.ContinueWith(_ => CurrentPlayer?.Dispose());
+                // If loading was still in-flight, base disposal joined and disposed the framework-owned resource-free
+                // wrapper. Join the exact returned task before releasing its temporary publication blocker.
+                pendingOwnership?.JoinAfterParentDisposal();
+
+                reclaimPendingPlayerHandoff();
+
+                if (!playerConsumed && pendingOwnership == null && CurrentPlayer != null)
+                    CurrentPlayer.Dispose();
+
+                if (!playerConsumed)
+                    CurrentPlayer = null;
+
+                DisposalTask = LoadTask == null ? null : Task.CompletedTask;
             }
 
             // This is only a failsafe; should be disposed more immediately by `endHighPerformance` call.

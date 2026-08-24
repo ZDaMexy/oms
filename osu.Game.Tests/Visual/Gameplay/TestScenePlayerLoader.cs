@@ -33,6 +33,7 @@ using osu.Game.Scoring;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.PlayerSettings;
+using osu.Game.Skinning;
 using osu.Game.Utils;
 using osuTK;
 using osuTK.Input;
@@ -55,6 +56,9 @@ namespace osu.Game.Tests.Visual.Gameplay
 
         [Resolved]
         private OsuConfigManager config { get; set; }
+
+        [Resolved]
+        private SkinManager skinManager { get; set; }
 
         [Cached(typeof(INotificationOverlay))]
         private readonly NotificationOverlay notificationOverlay;
@@ -176,6 +180,10 @@ namespace osu.Game.Tests.Visual.Gameplay
         [Test]
         public void TestEarlyExitAfterPlayerConstruction()
         {
+            int participantBaseline = 0;
+
+            AddStep("capture revision participant baseline", () =>
+                participantBaseline = skinManager.CurrentRevision.ParticipantLeaseCount);
             AddStep("load dummy beatmap", () => resetPlayer(false, () => SelectedMods.Value = new[] { new OsuModNightcore() }));
             AddUntilStep("wait for current", () => loader.IsCurrentScreen());
             AddAssert("mod rate applied", () => Beatmap.Value.Track.Rate != 1);
@@ -184,6 +192,8 @@ namespace osu.Game.Tests.Visual.Gameplay
             AddUntilStep("wait for not current", () => !loader.IsCurrentScreen());
             AddAssert("player did not load", () => !player.IsLoaded);
             AddUntilStep("player disposed", () => loader.DisposalTask?.IsCompleted == true);
+            AddUntilStep("temporary and gameplay participants detached", () =>
+                skinManager.CurrentRevision.ParticipantLeaseCount == participantBaseline);
             AddAssert("mod rate still applied", () => Beatmap.Value.Track.Rate != 1);
         }
 

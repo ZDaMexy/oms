@@ -70,27 +70,29 @@ metadata:
 
 ## current delete fallback
 
-- managed delete在update thread、同一mutation reservation与exact durable receipt下确认fallback pair，真实提交成功后才允许worker做首个physical detach。
-- 迁移期唯一允许的fallback必须与`OmsSkin.CreateInfo()`逐字段一致：exact ID/Name/Creator/InstantiationInfo、空Hash、protected、非DeletePending、无folder/files/external/owner，并要求`CurrentSkinInfo`和`CurrentSkin`最终同时指向exact OMS record/type。canonical接管后这条policy才可替换为只读`oms-simple.osk`。
-- `NotRequired`只允许两半ID一致且都不是删除目标；任何split-brain不得放行，并须将该决定durable固化。fallback无效、selection disabled、提交异常、pair未确认均拒绝；authority漂移只在receipt仍exact时安全abort，receipt/写入漂移则冻结。`ProtectedPairCommitted`在detach物理边界、Realm compare-remove与recovery都要重验exact protected fallback Realm record；`NotRequired`恢复明确不创建或要求该record。漂移时保留最后durable journal和record，recovery不得凭physical terminal猜成成功。
+- current managed delete先取得并全程持有mutation reservation与held exact source/content authority，再在C2 publication transaction中fresh重取current selection/owner/revision/generation并证明exact一致；随后在update thread发布protected fallback revision并等待旧`ConsumersDetached`。participant/source/split/fallback失败或该边界前取消都不得创建journal、移动/删除目录，且须保留或恢复exact A并释放reservation/session。
+- 迁移期fallback必须与`OmsSkin.CreateInfo()`逐字段一致：exact ID/Name/Creator/InstantiationInfo、空Hash、protected、非DeletePending、无folder/files/external/owner，并要求`CurrentSkinInfo`、`CurrentSkin`和`CurrentRevision`在同一barrier指向exact OMS authority。C7 canonical接管后才替换为只读`oms-simple.osk`。
+- fallback+detach成功后才在既有reservation/session内创建C1 Prepared journal并durable保存`ProtectedPairCommitted`；首个physical步骤前继续fresh复核fallback current revision与held target authority。此后由journal/tombstone/Realm/recovery收口，首个physical步骤后的uncertain outcome只保证保持fallback和durable intent，不承诺恢复A。
+- current delete测试与诊断必须把fallback publication、old consumers detach、physical/Realm completion分成三个独立等待门；一个覆盖全流程的总timeout会掩盖究竟是participant未detach还是C1 mutation未完成，也容易让cleanup在live provider仍挂载时误用legacy同步Delete。
+- `NotRequired`只允许current三元authority coherent且都不是删除目标；任何split不得放行。fallback无效、selection disabled、revision/receipt漂移或提交异常均拒绝或冻结；recovery不得凭physical terminal猜成成功。
 
 ## managed delete真实行为与恢复
 
-- 既有current settings按钮与Folder Skin Workspace managed row都只把committed record ID交给fresh-authoritative`CanDelete(Guid)`和manager-owned `DeleteSkinAsync(Guid)`；共享确认框只持detached ID与immutable label，不构造/选择noncurrent `Skin`，也不成为第二authority。确认后的operation fresh决定coherent noncurrent=`NotRequired`、current=exact protected fallback、split=拒绝，不能沿用dialog打开时的pair快照。普通Realm `.osk`保持soft delete + default且不进Workspace，旧通用folder `CanModify/Delete`、protected/fixed、external、foreign/null owner、非法path继续fail-closed。
+- 既有current settings按钮与Folder Skin Workspace managed row都只把committed record ID交给fresh-authoritative`CanDelete(Guid)`和manager-owned`DeleteSkinAsync(Guid)`；共享确认框只持detached ID与immutable label，不构造/选择noncurrent `Skin`，也不成为第二authority。确认后的operation fresh决定coherent noncurrent=`NotRequired`、current=C2 fallback transaction、split=拒绝，不能沿用dialog打开时的pair快照。ordinary current `.osk`也先fallback publication+old detach，再做Realm soft-delete；Realm失败恢复exact旧pair/revision、record/blob。旧通用folder `CanModify/Delete`、protected/fixed、external、foreign/null owner、非法path继续fail-closed。
 - Prepared绑定held managed-root/source、operation-derived tombstone、exact existing-record fingerprint与bounded exact source-node manifest，再单调持久化fallback disposition。完整树以显式迭代walker受capsule depth/entry/path及pending-handle预算约束。final no-follow tree/authority/identity复核及caller取消检查后，首个外部步骤只能是held-root-relative source→tombstone no-replace detach；之后不再观察caller cancellation。rename后的verification handles没有DELETE权，须验证后释放，再从held root以fresh no-follow delete-exclusive handles（持有DELETE、只共享READ）重捕；same-session live tree仍须与manifest精确相等，release→exclusive重捕窄窗内完成的node移出因此在0次disposition时拒绝，只有fresh recovery session的partial survivor可接受durable子集。
 - exclusive tree取得后再把已持有root/child移到sibling或authority外由sharing violation阻断，但目录handle不封namespace。preflight前可见的foreign addition/replacement及reparse、hardlink、duplicate/metadata/inventory drift、source replacement或同级collision仍在0次disposition时拒绝。final preflight后竞态新增/replacement绝不进入held delete list或被删除，可能在manifest节点部分清理后令root删除失败；此时保留FilesystemApplied journal与Realm record并冻结。始终不得触及foreign、managed root、sibling或caller path。
 - Realm只在durable FilesystemApplied后compare-remove journal绑定的exact record。recovery按source/tombstone/manifest/Realm fingerprint/disposition逐phase前滚或安全回滚；raw disposition却出现TargetOnly/Neither、Both、identity mismatch、foreign/conflicting record、缺证据或歧义都冻结。`ProtectedPairCommitted`在`FilesystemApplied/RealmApplied + source absent + tombstone absent + Realm absent`时仍须有exact protected fallback Realm record；`NotRequired`不要求该record。重启恢复不声称能重验detach前的旧runtime pair。
-- fallback completion经update scheduler时由callback或shutdown恰一方claim/reap；先完成worker等待的TCS，再发布可能重入的`SourceChanged`。late callback no-op，update thread不等待，Realm释放前必须cancel/join delete及其它全部worker。
+- fallback completion经update scheduler时由callback或shutdown恰一方claim/reap；先完成worker等待的TCS，再发布可能重入的`SourceChanged`。late callback no-op，update thread不等待，Realm释放前必须cancel/join delete、reload、materializer/work fence及其它全部worker。outer成功诊断清理须由request generation守卫，不能覆盖observer重入后的较新拒绝reason。
 
 ## 不可误推
 
-- rename、fixed-source staged import、managed delete与full ManagedCopy现由Folder Skin Workspace/manager surface组成已关闭的C1产品链；这仍不表示最终G1 reload、`SV1-2`、Skin V1或release已交付。所有旧通用rename/import/delete入口继续冻结。
+- rename、fixed-source staged import、managed delete与full ManagedCopy由Folder Skin Workspace/manager surface组成已关闭的C1产品链；C2 current revision/mutation也已签发，但仍不表示G1最终整包门、`SV1-2`整体、Skin V1或release已交付。所有旧通用rename/import/delete入口继续冻结。
 - rename不联动展示名/`skin.ini`；staged import只move受控provisional副本、不会修改包字节或自动选择；managed delete只适用于eligible managed direct-child并会物理删除，不得类推为external删除、任意path cleanup或通用Realm hard-delete。
 - journal、identity、relative path、operation/record ID与native异常都可能敏感；安全`ToString()`/日志只能输出类型、phase、kind、status或计数。
 
 ## 产品可达性与下一纵切
 
 - coordinator、recovery-before-scanner、scanner冻结/negative-cleanup保护和selection最终authoritative重读已由启动发现/选择、Workspace Rename/Delete/ManagedCopy及recovery链消费；external register/unregister与全部managed mutation共享exact-set线性化。
-- `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename、staged-import、managed delete与selection capture/retry worker；queued selection/delete fallback completion必须在shutdown被reap或晚到no-op，不得新建脱离该边界的后台链。
+- `OsuGame.Dispose`必须在Realm释放前统一cancel + synchronous join startup scanner、rename、staged-import、managed delete、selection/reload capture/retry、materializer/work fence与retire worker；queued selection/reload/delete completion必须在shutdown被reap或晚到no-op，不得新建脱离该边界的后台链。
 - operation/recovery状态只能脱敏输出；若继续增加没有当前或紧随纵切production消费者的抽象，应视为过度工程风险。每一新切片都要明确它连接的真实caller/host/renderer，不能用production项目中的internal类型数量代替产品进度。
-- 当前go/no-go：C1已关闭external Workspace、exact-set mutation与full ManagedCopy，燃尽为`1/7 closed，C2 active`。旧通用`Delete/CanModify`及thin/arbitrary-path stager继续冻结；不能把现有held-authority/capsule+manifest/single-v3纵切退化成普通递归copy。current external unregister与atomic reload/detach归C2。
+- 当前go/no-go：C1已关闭external Workspace、exact-set mutation与full ManagedCopy；C2 current external/managed/ordinary mutation和atomic reload/detach也已签发，燃尽为`2/7 closed，C3 active`。旧通用`Delete/CanModify`及thin/arbitrary-path stager继续冻结；不能把held-authority/capsule+manifest/single-v3纵切退化成普通递归copy。

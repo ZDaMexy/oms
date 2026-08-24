@@ -44,6 +44,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private readonly BmsManagedPackageSourceRevision? immutablePackageSourceRevision;
         private readonly object managedPackageNotePreparationLock = new object();
         private readonly CancellationTokenSource managedPackageNotePreparationCancellation = new CancellationTokenSource();
+        // Includes active, cached and request-abandoned generations until their true Task completion. A cancelled
+        // caller may stop waiting before synchronous package IO observes cancellation, so the revision owner must keep
+        // every such generation claimable for final detach/shutdown join.
+        private readonly HashSet<ManagedPackageNotePreparationGeneration> managedPackageNotePreparations = new HashSet<ManagedPackageNotePreparationGeneration>();
         private ManagedPackageNotePreparationGeneration? managedPackageNotePreparation;
         private string? parsedConfigurationContentHash;
         private bool disposed;
@@ -241,12 +245,24 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     BmsManagedPackageSourceRevision sourceRevision = CaptureManagedPackageSourceRevision();
                     var workCancellation = CancellationTokenSource.CreateLinkedTokenSource(managedPackageNotePreparationCancellation.Token);
                     CancellationToken cancellationToken = workCancellation.Token;
+                    SkinCurrentRevisionLease? revisionWorkLease = BmsManagedPackageNoteLoadContext.TryTakeRevisionWorkLease();
+                    Task<BmsManagedPackageNoteRevision> task;
 
-                    Task<BmsManagedPackageNoteRevision> task = Task.Run(
-                        () => BmsManagedPackageNoteMaterializer.Prepare(this, sourceRevision, cancellationToken),
-                        cancellationToken);
+                    try
+                    {
+                        task = Task.Run(
+                            () => BmsManagedPackageNoteMaterializer.Prepare(this, sourceRevision, cancellationToken),
+                            cancellationToken);
+                    }
+                    catch
+                    {
+                        revisionWorkLease?.Dispose();
+                        workCancellation.Dispose();
+                        throw;
+                    }
 
-                    managedPackageNotePreparation = new ManagedPackageNotePreparationGeneration(task, workCancellation);
+                    managedPackageNotePreparation = new ManagedPackageNotePreparationGeneration(task, workCancellation, revisionWorkLease);
+                    managedPackageNotePreparations.Add(managedPackageNotePreparation);
                 }
 
                 preparation = managedPackageNotePreparation;
@@ -303,22 +319,59 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
         }
 
-        private static void disposePreparationWhenComplete(ManagedPackageNotePreparationGeneration preparation)
+        private void disposePreparationWhenComplete(ManagedPackageNotePreparationGeneration preparation)
         {
             if (Interlocked.Exchange(ref preparation.CleanupRegistered, 1) != 0)
                 return;
 
             _ = preparation.Task.ContinueWith(
-                task =>
-                {
-                    if (task.Status == TaskStatus.RanToCompletion)
-                        task.GetAwaiter().GetResult().Dispose();
-
-                    preparation.Cancellation.Dispose();
-                },
+                _ => cleanupPreparation(preparation),
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
+        }
+
+        private void cleanupPreparation(ManagedPackageNotePreparationGeneration preparation)
+        {
+            if (Interlocked.Exchange(ref preparation.CleanupClaimed, 1) != 0)
+            {
+                preparation.CleanupCompletion.Task.GetAwaiter().GetResult();
+                return;
+            }
+
+            try
+            {
+                if (preparation.Task.Status == TaskStatus.RanToCompletion)
+                {
+                    try
+                    {
+                        preparation.Task.GetAwaiter().GetResult().Dispose();
+                    }
+                    catch
+                    {
+                        // Retirement is best-effort for provider-owned GPU resources, but the remaining generation
+                        // bookkeeping and exact package release must still complete.
+                    }
+                }
+                else if (preparation.Task.IsFaulted)
+                    _ = preparation.Task.Exception;
+
+                try
+                {
+                    preparation.Cancellation.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Exactly-once cleanup normally prevents this; tolerate an already reaped CTS defensively.
+                }
+
+                lock (managedPackageNotePreparationLock)
+                    managedPackageNotePreparations.Remove(preparation);
+            }
+            finally
+            {
+                preparation.CleanupCompletion.TrySetResult();
+            }
         }
 
         /// <summary>
@@ -513,47 +566,70 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             public readonly Task<BmsManagedPackageNoteRevision> Task;
             public readonly CancellationTokenSource Cancellation;
+            private SkinCurrentRevisionLease? revisionWorkLease;
 
             public int Waiters;
             public int CleanupRegistered;
+            public int CleanupClaimed;
             public bool Abandoned;
+            public readonly TaskCompletionSource CleanupCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public ManagedPackageNotePreparationGeneration(
                 Task<BmsManagedPackageNoteRevision> task,
-                CancellationTokenSource cancellation)
+                CancellationTokenSource cancellation,
+                SkinCurrentRevisionLease? revisionWorkLease)
             {
                 Task = task;
                 Cancellation = cancellation;
+                this.revisionWorkLease = revisionWorkLease;
+
+                _ = task.ContinueWith(
+                    _ => Interlocked.Exchange(ref this.revisionWorkLease, null)?.Dispose(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
             }
         }
 
         protected override void Dispose(bool isDisposing)
         {
+            ManagedPackageNotePreparationGeneration[] preparations;
+
             lock (managedPackageNotePreparationLock)
             {
                 if (disposed)
                     return;
 
                 disposed = true;
+                managedPackageNotePreparation = null;
+                preparations = managedPackageNotePreparations.ToArray();
+
+                foreach (ManagedPackageNotePreparationGeneration preparation in preparations)
+                    preparation.Abandoned = true;
             }
 
             managedPackageNotePreparationCancellation.Cancel();
 
-            ManagedPackageNotePreparationGeneration? preparation;
-
-            lock (managedPackageNotePreparationLock)
-            {
-                preparation = managedPackageNotePreparation;
-                managedPackageNotePreparation = null;
-
-                if (preparation != null)
-                    preparation.Abandoned = true;
-            }
-
-            if (preparation != null)
-            {
+            foreach (ManagedPackageNotePreparationGeneration preparation in preparations)
                 tryCancelPreparation(preparation);
-                disposePreparationWhenComplete(preparation);
+
+            foreach (ManagedPackageNotePreparationGeneration preparation in preparations)
+            {
+                try
+                {
+                    preparation.Task.GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                    // Cancellation is the expected owner-retirement path for unfinished materialization.
+                }
+                catch
+                {
+                    // Materialization failures are already fail-closed at the provider boundary. Retirement must still
+                    // join and reap every generation before the exact package store is released.
+                }
+
+                cleanupPreparation(preparation);
             }
 
             base.Dispose(isDisposing);

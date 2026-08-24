@@ -23,7 +23,8 @@ namespace osu.Game.Graphics.Backgrounds
 
         private AudioContainer storyboardContainer = null!;
         private DrawableStoryboard? drawableStoryboard;
-        private CancellationTokenSource? loadCancellationSource = new CancellationTokenSource();
+        private CancellationTokenSource? loadCancellationSource;
+        private PendingAsyncDrawableOwnership<DrawableStoryboard>? pendingStoryboardOwnership;
 
         [Resolved(CanBeNull = true)]
         private MusicController? musicController { get; set; }
@@ -52,21 +53,73 @@ namespace osu.Game.Graphics.Backgrounds
         public void LoadStoryboard(bool async = true)
         {
             Debug.Assert(drawableStoryboard == null);
+            Debug.Assert(pendingStoryboardOwnership == null);
 
             if (!Beatmap.Storyboard.HasDrawable)
                 return;
 
-            drawableStoryboard = new DrawableStoryboard(Beatmap.Storyboard, mods.Value)
+            var storyboard = new DrawableStoryboard(Beatmap.Storyboard, mods.Value)
             {
                 Clock = storyboardClock
             };
+            drawableStoryboard = storyboard;
 
             if (async)
-                LoadComponentAsync(drawableStoryboard, finishLoad, (loadCancellationSource = new CancellationTokenSource()).Token);
+            {
+                var ownership = new PendingAsyncDrawableOwnership<DrawableStoryboard>(storyboard);
+                var cancellation = new CancellationTokenSource();
+                pendingStoryboardOwnership = ownership;
+                loadCancellationSource = cancellation;
+
+                try
+                {
+                    ownership.Attach(LoadComponentAsync(ownership.Loadable, loaded =>
+                    {
+                        if (!ReferenceEquals(pendingStoryboardOwnership, ownership)
+                            || !ownership.TryTransfer(loaded, out DrawableStoryboard? owned))
+                        {
+                            return;
+                        }
+
+                        pendingStoryboardOwnership = null;
+                        loadCancellationSource?.Dispose();
+                        loadCancellationSource = null;
+
+                        try
+                        {
+                            finishLoad(owned!);
+                        }
+                        catch
+                        {
+                            if (owned!.Parent == null)
+                                owned.Dispose();
+
+                            throw;
+                        }
+                        finally
+                        {
+                            ownership.CompleteTransfer();
+                        }
+                    }, cancellation.Token), Scheduler);
+                }
+                catch
+                {
+                    if (ReferenceEquals(pendingStoryboardOwnership, ownership))
+                        pendingStoryboardOwnership = null;
+
+                    if (ReferenceEquals(drawableStoryboard, storyboard))
+                        drawableStoryboard = null;
+
+                    loadCancellationSource = null;
+                    cancellation.Dispose();
+                    ownership.ReclaimUnstarted();
+                    throw;
+                }
+            }
             else
             {
-                LoadComponent(drawableStoryboard);
-                finishLoad(drawableStoryboard);
+                LoadComponent(storyboard);
+                finishLoad(storyboard);
             }
 
             void finishLoad(DrawableStoryboard s)
@@ -84,7 +137,12 @@ namespace osu.Game.Graphics.Backgrounds
             if (drawableStoryboard == null)
                 return;
 
+            PendingAsyncDrawableOwnership<DrawableStoryboard>? ownership = pendingStoryboardOwnership;
+            pendingStoryboardOwnership = null;
+            ownership?.Cancel();
+
             loadCancellationSource?.Cancel();
+            loadCancellationSource?.Dispose();
             loadCancellationSource = null;
 
             // clear is intentionally used here for the storyboard to be disposed asynchronously.
@@ -122,9 +180,22 @@ namespace osu.Game.Graphics.Backgrounds
 
         protected override void Dispose(bool isDisposing)
         {
-            base.Dispose(isDisposing);
+            PendingAsyncDrawableOwnership<DrawableStoryboard>? pendingOwnership = pendingStoryboardOwnership;
+
+            if (isDisposing)
+            {
+                pendingStoryboardOwnership = null;
+                pendingOwnership?.Cancel();
+                loadCancellationSource?.Cancel();
+                loadCancellationSource?.Dispose();
+                loadCancellationSource = null;
+            }
+
             if (musicController != null)
                 musicController.TrackChanged -= onTrackChanged;
+
+            base.Dispose(isDisposing);
+            pendingOwnership?.JoinAfterParentDisposal();
         }
     }
 }

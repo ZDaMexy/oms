@@ -17,8 +17,8 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Input;
 using osu.Game.Input.Bindings;
-using osuTK;
 using osu.Game.Localisation;
+using osuTK;
 
 namespace osu.Game.Screens.Menu
 {
@@ -118,7 +118,7 @@ namespace osu.Game.Screens.Menu
                 .FadeOutFromOne(2000, Easing.OutQuint);
         }
 
-        private const int available_tips = 30;
+        private const int available_tips = 28;
 
         private LocalisableString getRandomTip()
         {
@@ -187,41 +187,35 @@ namespace osu.Game.Screens.Menu
                     return MenuTipStrings.PeekHUDWhenHidden(keyBindingStore.GetReadableKeyCombinationsFor(GlobalAction.HoldForHUD).FirstOrDefault() ?? InputSettingsStrings.ActionHasNoKeyBinding);
 
                 case 19:
-                    return MenuTipStrings.SkinEditor(keyBindingStore.GetReadableKeyCombinationsFor(GlobalAction.ToggleSkinEditor).FirstOrDefault() ?? InputSettingsStrings.ActionHasNoKeyBinding);
-
-                case 20:
-                    return MenuTipStrings.DragAndDropImageInSkinEditor;
-
-                case 21:
                     return MenuTipStrings.ModPresets;
 
-                case 22:
+                case 20:
                     return MenuTipStrings.ModCustomisationSettings;
 
-                case 23:
+                case 21:
                     return MenuTipStrings.SkinChangeShortcuts([
                         keyBindingStore.GetReadableKeyCombinationsFor(GlobalAction.RandomSkin).FirstOrDefault() ?? InputSettingsStrings.ActionHasNoKeyBinding,
                         keyBindingStore.GetReadableKeyCombinationsFor(GlobalAction.PreviousSkin).FirstOrDefault() ?? InputSettingsStrings.ActionHasNoKeyBinding,
                         keyBindingStore.GetReadableKeyCombinationsFor(GlobalAction.NextSkin).FirstOrDefault() ?? InputSettingsStrings.ActionHasNoKeyBinding,
                     ]);
 
-                case 24:
+                case 22:
                     return MenuTipStrings.ToggleReplaySettingsShortcut(keyBindingStore.GetReadableKeyCombinationsFor(GlobalAction.ToggleReplaySettings).FirstOrDefault()
                                                                        ?? InputSettingsStrings.ActionHasNoKeyBinding);
 
-                case 25:
+                case 23:
                     return MenuTipStrings.CopyModsFromScore;
 
-                case 26:
+                case 24:
                     return MenuTipStrings.AutoplayBeatmapShortcut;
 
-                case 27:
+                case 25:
                     return MenuTipStrings.LazerIsNotAWord;
 
-                case 28:
+                case 26:
                     return MenuTipStrings.RightMouseAbsoluteScroll;
 
-                case 29:
+                case 27:
                     return MenuTipStrings.ShiftClickInBeatmapOverlay;
             }
 

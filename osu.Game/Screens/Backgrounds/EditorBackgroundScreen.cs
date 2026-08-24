@@ -24,6 +24,7 @@ namespace osu.Game.Screens.Backgrounds
         private readonly Container dimContainer;
 
         private CancellationTokenSource? cancellationTokenSource;
+        private PendingAsyncDrawableOwnership<Container>? pendingRefreshOwnership;
         private Bindable<float> dimLevel = null!;
         private Bindable<bool> showStoryboard = null!;
 
@@ -101,16 +102,86 @@ namespace osu.Game.Screens.Backgrounds
 
         public void RefreshBackground()
         {
-            cancellationTokenSource?.Cancel();
-            LoadComponentsAsync(createContent(), loaded =>
-            {
-                dimContainer.Clear();
-                dimContainer.AddRange(loaded);
+            cancelPendingRefresh();
 
-                background = dimContainer.OfType<BeatmapBackground>().Single();
-                storyboardContainer = dimContainer.OfType<Container>().Single();
-                updateState(0);
-            }, (cancellationTokenSource = new CancellationTokenSource()).Token);
+            var loadedContent = new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Children = createContent().ToArray(),
+            };
+            var ownership = new PendingAsyncDrawableOwnership<Container>(loadedContent);
+            var cancellation = new CancellationTokenSource();
+            pendingRefreshOwnership = ownership;
+            cancellationTokenSource = cancellation;
+
+            try
+            {
+                ownership.Attach(LoadComponentAsync(ownership.Loadable, loaded =>
+                {
+                    if (!ReferenceEquals(pendingRefreshOwnership, ownership)
+                        || !ownership.TryTransfer(loaded, out Container? owned))
+                    {
+                        return;
+                    }
+
+                    pendingRefreshOwnership = null;
+                    cancellationTokenSource?.Dispose();
+                    cancellationTokenSource = null;
+                    Container content = owned!;
+
+                    try
+                    {
+                        dimContainer.Clear();
+                        dimContainer.Add(content);
+
+                        background = content.OfType<BeatmapBackground>().Single();
+                        storyboardContainer = content.OfType<Container>().Single();
+                        updateState(0);
+                    }
+                    catch
+                    {
+                        if (content.Parent == null)
+                            content.Dispose();
+
+                        throw;
+                    }
+                    finally
+                    {
+                        ownership.CompleteTransfer();
+                    }
+                }, cancellation.Token), Scheduler);
+            }
+            catch
+            {
+                if (ReferenceEquals(pendingRefreshOwnership, ownership))
+                    pendingRefreshOwnership = null;
+
+                cancellationTokenSource = null;
+                cancellation.Dispose();
+                ownership.ReclaimUnstarted();
+                throw;
+            }
+        }
+
+        private PendingAsyncDrawableOwnership<Container>? cancelPendingRefresh()
+        {
+            PendingAsyncDrawableOwnership<Container>? ownership = pendingRefreshOwnership;
+            pendingRefreshOwnership = null;
+            ownership?.Cancel();
+
+            cancellationTokenSource?.Cancel();
+            cancellationTokenSource?.Dispose();
+            cancellationTokenSource = null;
+
+            return ownership;
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<Container>? ownership = isDisposing ? cancelPendingRefresh() : null;
+
+            base.Dispose(isDisposing);
+            ownership?.JoinAfterParentDisposal();
         }
 
         public override bool Equals(BackgroundScreen? other)

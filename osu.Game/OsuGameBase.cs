@@ -205,7 +205,7 @@ namespace osu.Game
 
         protected Storage Storage { get; set; }
 
-        protected RealmAccess ClientRealm => realm;
+        protected RealmAccess ClientRealm { get; private set; }
 
         /// <summary>
         /// The language in which the game is currently displayed in.
@@ -257,8 +257,6 @@ namespace osu.Game
         protected MultiplayerClient MultiplayerClient { get; private set; }
 
         private MetadataClient metadataClient;
-
-        private RealmAccess realm;
 
         protected SafeAreaContainer SafeAreaContainer { get; private set; }
 
@@ -321,9 +319,9 @@ namespace osu.Game
 
             Resources.AddStore(new DllResourceStore(OsuResources.ResourceAssembly));
 
-            dependencies.Cache(realm = new RealmAccess(Storage, CLIENT_DATABASE_FILENAME, Host.UpdateThread));
+            dependencies.Cache(ClientRealm = new RealmAccess(Storage, CLIENT_DATABASE_FILENAME, Host.UpdateThread));
 
-            dependencies.CacheAs<RulesetStore>(RulesetStore = new RealmRulesetStore(realm, Storage));
+            dependencies.CacheAs<RulesetStore>(RulesetStore = new RealmRulesetStore(ClientRealm, Storage));
             dependencies.CacheAs<IRulesetStore>(RulesetStore);
 
             Decoder.RegisterDependencies(RulesetStore);
@@ -346,7 +344,7 @@ namespace osu.Game
 
             Audio.Samples.PlaybackConcurrency = SAMPLE_CONCURRENCY;
 
-            dependencies.Cache(SkinManager = new SkinManager(Storage, realm, Host, Resources, Audio, Scheduler));
+            dependencies.Cache(SkinManager = new SkinManager(Storage, ClientRealm, Host, Resources, Audio, Scheduler));
             dependencies.CacheAs<ISkinSource>(SkinManager);
 
             EndpointConfiguration endpoints = CreateEndpoints();
@@ -368,9 +366,9 @@ namespace osu.Game
             dependencies.Cache(difficultyCache = new BeatmapDifficultyCache());
 
             // ordering is important here to ensure foreign keys rules are not broken in ModelStore.Cleanup()
-            dependencies.Cache(ScoreManager = new ScoreManager(RulesetStore, () => BeatmapManager, Storage, realm, API, LocalConfig));
+            dependencies.Cache(ScoreManager = new ScoreManager(RulesetStore, () => BeatmapManager, Storage, ClientRealm, API, LocalConfig));
 
-            dependencies.Cache(BeatmapManager = new BeatmapManager(Storage, realm, API, Audio, Resources, Host, defaultBeatmap, difficultyCache, performOnlineLookups: OnlineFeaturesEnabled,
+            dependencies.Cache(BeatmapManager = new BeatmapManager(Storage, ClientRealm, API, Audio, Resources, Host, defaultBeatmap, difficultyCache, performOnlineLookups: OnlineFeaturesEnabled,
                 customBeatmapLoaders: CreateCustomBeatmapLoaders()));
             dependencies.CacheAs<IWorkingBeatmapCache>(BeatmapManager);
 
@@ -386,7 +384,7 @@ namespace osu.Game
             dependencies.CacheAs(MultiplayerClient = new OnlineMultiplayerClient(endpoints));
             dependencies.CacheAs(metadataClient = new OnlineMetadataClient(endpoints));
 
-            base.Content.Add(new BeatmapOnlineChangeIngest(beatmapUpdater, realm, metadataClient));
+            base.Content.Add(new BeatmapOnlineChangeIngest(beatmapUpdater, ClientRealm, metadataClient));
 
             BeatmapManager.ProcessBeatmap = (beatmapSet, scope) => beatmapUpdater.Process(beatmapSet, scope);
 
@@ -396,7 +394,7 @@ namespace osu.Game
             dependencies.Cache(beatmapCache = new BeatmapLookupCache());
             base.Content.Add(beatmapCache);
 
-            dependencies.CacheAs<IRulesetConfigCache>(rulesetConfigCache = new RulesetConfigCache(realm, RulesetStore));
+            dependencies.CacheAs<IRulesetConfigCache>(rulesetConfigCache = new RulesetConfigCache(ClientRealm, RulesetStore));
 
             var powerStatus = CreateBatteryInfo();
             if (powerStatus != null)
@@ -471,7 +469,7 @@ namespace osu.Game
             base.Content.Add(new TouchInputInterceptor());
             base.Content.Add(hitErrorTracker);
 
-            KeyBindingStore = new RealmKeyBindingStore(realm, keyCombinationProvider);
+            KeyBindingStore = new RealmKeyBindingStore(ClientRealm, keyCombinationProvider);
             KeyBindingStore.Register(globalBindings, RulesetStore.AvailableRulesets);
             dependencies.Cache(KeyBindingStore);
 
@@ -609,7 +607,7 @@ namespace osu.Game
                 {
                     try
                     {
-                        realmBlocker = realm.BlockAllOperations("migration");
+                        realmBlocker = ClientRealm.BlockAllOperations("migration");
                         success = true;
                     }
                     catch (Exception ex)
@@ -886,12 +884,18 @@ namespace osu.Game
             rulesetModStatePersistence?.Dispose();
             base.Dispose(isDisposing);
 
+            // Tear down the game-owned drawable graph first. A test/external host may still retain a registered
+            // participant beyond this graph; publication shutdown therefore asks each exact owner to cancel/reap any
+            // hidden work and joins WorkDetached without impersonating its visual detach. Realm remains available
+            // until every admitted mutation and owner-touching worker has converged.
+            SkinManager?.ShutdownManagedFolderMutations();
+
             RulesetStore?.Dispose();
             LocalConfig?.Dispose();
 
             beatmapUpdater?.Dispose();
 
-            realm?.Dispose();
+            ClientRealm?.Dispose();
 
             if (Host != null)
                 Host.ExceptionThrown -= onExceptionThrown;

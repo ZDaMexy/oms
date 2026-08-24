@@ -22,6 +22,7 @@ using osu.Game.Screens.Edit.Components;
 using osu.Game.Screens.Edit.Components.Timelines.Summary;
 using osu.Game.Screens.Edit.GameplayTest;
 using osu.Game.Screens.Play;
+using osu.Game.Skinning;
 using osu.Game.Storyboards;
 using osu.Game.Tests.Beatmaps.IO;
 using osuTK.Input;
@@ -39,6 +40,9 @@ namespace osu.Game.Tests.Visual.Editing
 
         [Resolved]
         private BeatmapManager beatmaps { get; set; }
+
+        [Resolved]
+        private SkinManager skinManager { get; set; }
 
         private BeatmapSetInfo importedBeatmapSet;
 
@@ -74,6 +78,28 @@ namespace osu.Game.Tests.Visual.Editing
             AddUntilStep("current screen is editor", () => Stack.CurrentScreen is Editor);
             AddUntilStep("background is correct", () => this.ChildrenOfType<BackgroundScreenStack>().Single().CurrentScreen is EditorBackgroundScreen);
             AddAssert("no mods selected", () => SelectedMods.Value.Count == 0);
+        }
+
+        [Test]
+        public void TestRapidEditorBackgroundRefreshReclaimsSupersededSkinHost()
+        {
+            EditorBackgroundScreen background = null;
+            int participantBaseline = 0;
+
+            AddUntilStep("resolve editor background", () =>
+                (background = this.ChildrenOfType<BackgroundScreenStack>().Single().CurrentScreen as EditorBackgroundScreen) != null
+                && background.ChildrenOfType<EditorSkinProvidingContainer>().Count() == 1);
+            AddStep("capture editor background participant baseline", () =>
+                participantBaseline = skinManager.CurrentRevision.ParticipantLeaseCount);
+            AddStep("refresh twice before first callback", () =>
+            {
+                background.RefreshBackground();
+                background.RefreshBackground();
+            });
+            AddUntilStep("only latest editor skin host attached", () =>
+                background.ChildrenOfType<EditorSkinProvidingContainer>().Count() == 1);
+            AddUntilStep("superseded editor background participant reclaimed", () =>
+                skinManager.CurrentRevision.ParticipantLeaseCount == participantBaseline);
         }
 
         [Test]

@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-08-13
+> 最后更新：2026-08-24
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -26,15 +26,15 @@ Skin V1剩余工作不再用`SV1-*`阶段编号暗示协作轮数。P1-A采用�
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-> `C1` 已于2026-08-13通过产品旅程、失败恢复、宽回归、Release、文档与独立终审，作者文件工作区和ordinary `.osk` 安全导入成为稳定C2输入。当前是`1/7 closed，C2 active`；完成边界与执行prompt见[C1 完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
+> `C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合；当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C2事实、inventory与已签发C3入口见[C2完成交接](../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
 
-authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`必须对当前全部production consumer一次性实现revision publication/detach/retire，不能停在manager-only API、same-ID selection或逐组件`SourceChanged`；最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
+authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`已从真实Settings caller到当前production participant接通revision publication/detach/retire；C3～C6新增consumer继续同切加入，最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
 
 1. **保全C1边界**：Workspace动作继续只按record ID fresh重读；external永久只读，service-owner不授权source bytes；exact registry physical proof须持有至final Realm线性化。v1/v2 schema保持strict frozen，v3 `(version, kind, phase)`按白名单验证，terminal journal只在exact compare-delete后确认Missing。
-2. **冻结C2产品路线并实现**：从真实可达入口确定V1 reload触发方式及允许场景，并在同一campaign完成ruleset-neutral immutable revision准备、update-thread publication barrier、participant registry、revision lease/detach receipt与retire queue。
-3. **覆盖当前所有consumer**：BMS geometry/Note/LN/pre-start preview、core/mania drawable、menu/shell/background/transition必须参与同一coherent publication；任一prepare/commit失败保留exact旧pair/revision，最后一个consumer detach后旧owner才dispose exactly once。
-4. **消除旁路**：ordinary Realm `.osk` 现有new-instance后立即dispose的旁路必须迁移到新协议或稳定禁用；current external fallback+unregister只能在新revision coherent发布且全consumer detach后Realm compare-remove。覆盖latest-wins、reentrant、cancel/shutdown、失败旧pair不变和脱敏诊断。
-5. **实机 gate**：managed/external、重启、切换、缺件 fallback、导入/删除/重命名均经人工确认。
+2. **保全C2边界**：Settings唯一manual Reload、live gameplay/preview source prepare前拒绝与no-watcher边界继续冻结；三源current revision、participant registry、lease/detach/retire与current mutation不得退回逐component `SourceChanged`或即时dispose。
+3. **先闭合P1-K Skin前置**：修正lane timeline上界到`GetLaneCount()`，覆盖末端lane/Scratch2与真实发声；冻结sparse keymode source/override/diagnostic，不由layout猜keymode。
+4. **交付唯一layout**：唯一ruleset-neutral context与immutable BMS snapshot/mania adapter覆盖全部style/deck/scratch/BGA/HUD；playfield、Note/LN、pre-start、BGA、gauge/combo及HUD只消费同一snapshot，并同切加入C2 revision协议。
+5. **C3 exit gate**：真实decode→layout owner→BMS/mania/core renderer红测、三源same-ID package+layout A→B、失败保A、动态participant/retire、宽测试、Release、文档与独立终审全部闭合后才推进C4。
 
 G1 必须按独立切片推进，不得从异常期存档整批恢复。
 

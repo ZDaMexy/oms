@@ -13,6 +13,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
@@ -35,6 +36,13 @@ namespace osu.Game.Overlays.SkinEditor
     public partial class ExternalEditOverlay : OsuFocusedOverlayContainer
     {
         private const double transition_duration = 300;
+        private const double unavailable_feedback_duration = 1800;
+
+        internal static bool IsSkinExternalEditingAvailable => false;
+
+        internal const string EXTERNAL_EDITING_DISABLED_DIAGNOSTIC =
+            SkinAuthoringAvailability.EXTERNAL_EDITING_DISABLED_DIAGNOSTIC;
+
         private FillFlowContainer flow = null!;
 
         [Cached]
@@ -105,6 +113,18 @@ namespace osu.Game.Overlays.SkinEditor
         {
             if (taskCompletionSource != null)
                 throw new InvalidOperationException("Cannot start multiple concurrent external edits!");
+
+            // Keep an independent UI-side gate in addition to SkinManager's authoritative backend rejection. This
+            // prevents a future or indirect UI caller from remounting the legacy update-import workflow by mistake.
+            if (!IsSkinExternalEditingAvailable)
+            {
+                Show();
+                showUnavailableFeedback(
+                    SkinEditorStrings.ExternalEditingUnavailable,
+                    SkinEditorStrings.ExternalEditingUnavailableDescription);
+                Scheduler.AddDelayed(Hide, unavailable_feedback_duration);
+                return Task.FromException(new InvalidOperationException(EXTERNAL_EDITING_DISABLED_DIAGNOSTIC));
+            }
 
             Show();
             showSpinner("Mounting external skin...");
@@ -218,19 +238,16 @@ namespace osu.Game.Overlays.SkinEditor
 
             Schedule(() =>
             {
-                var oldSkin = skinManager.CurrentSkin!.Value;
-                var newSkinInfo = oldSkin.SkinInfo.PerformRead(s => s);
-
-                // Create a new skin instance to ensure the skin is reloaded
-                // If there's a better way to reload the skin, this should be replaced with it.
+                // A legacy operation may have started before the UI/backend gates were closed. Finish cleaning up its
+                // mounted directory, but never publish the Realm update through CurrentSkin or dispose the active owner.
+                // Current revision publication and retirement are exclusively owned by SkinManager's revision protocol.
                 setGlobalSkinDisabled(false);
-                skinManager.CurrentSkin.Value = newSkinInfo.CreateInstance(skinManager);
-
-                oldSkin.Dispose();
-
-                Hide();
+                showUnavailableFeedback(
+                    SkinEditorStrings.ExternalChangesNotActivated,
+                    SkinEditorStrings.ExternalChangesNotActivatedDescription);
+                Scheduler.AddDelayed(Hide, unavailable_feedback_duration);
             });
-            taskCompletionSource.SetResult();
+            taskCompletionSource.SetException(new InvalidOperationException(EXTERNAL_EDITING_DISABLED_DIAGNOSTIC));
             taskCompletionSource = null;
         }
 
@@ -294,6 +311,30 @@ namespace osu.Game.Overlays.SkinEditor
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
                     State = { Value = Visibility.Visible }
+                },
+            };
+        }
+
+        private void showUnavailableFeedback(LocalisableString title, LocalisableString description)
+        {
+            foreach (var button in flow.ChildrenOfType<RoundedButton>())
+                button.Enabled.Value = false;
+
+            flow.Children = new Drawable[]
+            {
+                new OsuSpriteText
+                {
+                    Text = title,
+                    Font = OsuFont.Default.With(size: 26),
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                },
+                new OsuTextFlowContainer
+                {
+                    Text = description,
+                    Width = 420,
+                    AutoSizeAxes = Axes.Y,
+                    TextAnchor = Anchor.TopCentre,
                 },
             };
         }

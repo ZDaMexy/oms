@@ -1,6 +1,7 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -13,6 +14,7 @@ using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Events;
+using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Extensions;
@@ -60,6 +62,17 @@ namespace osu.Game.Screens.Ranking.Statistics
         private Sample? popInSample;
         private Sample? popOutSample;
         private CancellationTokenSource? loadCancellation;
+        private PendingAsyncDrawableOwnership<Container<Drawable>>? pendingStatisticsLoad;
+
+        internal Func<Container<Drawable>, Container<Drawable>> StatisticsContainerFactory { get; set; }
+            = container => container;
+
+        internal Func<ScoreInfo, IBeatmap, IEnumerable<StatisticItem>>? StatisticsItemsFactory { get; set; }
+
+        internal Scheduler? StatisticsLoadCallbackScheduler { get; set; }
+
+        internal Task? PendingStatisticsLoadTask
+            => Volatile.Read(ref pendingStatisticsLoad)?.LoadTask;
 
         public StatisticsPanel()
         {
@@ -92,8 +105,7 @@ namespace osu.Game.Screens.Ranking.Statistics
 
         private void populateStatistics(ValueChangedEvent<ScoreInfo?> score)
         {
-            loadCancellation?.Cancel();
-            loadCancellation = null;
+            cancelPendingStatisticsLoad();
 
             foreach (var child in content)
                 child.FadeOut(150).Expire();
@@ -107,17 +119,28 @@ namespace osu.Game.Screens.Ranking.Statistics
 
             spinner.Show();
 
-            var localCancellationSource = loadCancellation = new CancellationTokenSource();
+            var localCancellationSource = new CancellationTokenSource();
+            Volatile.Write(ref loadCancellation, localCancellationSource);
+            CancellationToken cancellationToken = localCancellationSource.Token;
 
             var workingBeatmap = beatmapManager.GetWorkingBeatmap(newScore.BeatmapInfo);
 
             // Todo: The placement of this is temporary. Eventually we'll both generate the playable beatmap _and_ run through it in a background task to generate the hit events.
-            Task.Run(() => workingBeatmap.GetPlayableBeatmap(newScore.Ruleset, newScore.Mods), loadCancellation.Token).ContinueWith(task => Schedule(() =>
+            Task.Run(() => workingBeatmap.GetPlayableBeatmap(newScore.Ruleset, newScore.Mods), cancellationToken).ContinueWith(task => Schedule(() =>
             {
+                if (cancellationToken.IsCancellationRequested
+                    || IsDisposed
+                    || Score.Value?.Equals(newScore) != true)
+                {
+                    return;
+                }
+
                 bool hitEventsAvailable = newScore.HitEvents.Count != 0;
                 Container<Drawable> container;
 
-                var statisticItems = CreateStatisticItems(newScore, task.GetResultSafely()).ToArray();
+                IBeatmap playableBeatmap = task.GetResultSafely();
+                var statisticItems = (StatisticsItemsFactory?.Invoke(newScore, playableBeatmap)
+                                      ?? CreateStatisticItems(newScore, playableBeatmap)).ToArray();
 
                 if (!hitEventsAvailable && statisticItems.All(c => c.RequiresHitEvents))
                 {
@@ -202,17 +225,111 @@ namespace osu.Game.Screens.Ranking.Statistics
                     }
                 }
 
-                LoadComponentAsync(container, d =>
-                {
-                    if (Score.Value?.Equals(newScore) != true)
-                        return;
+                container = StatisticsContainerFactory(container);
 
-                    spinner.Hide();
-                    content.Add(d);
-                    d.FadeIn(250, Easing.OutQuint);
-                }, localCancellationSource.Token);
-            }), localCancellationSource.Token);
+                if (cancellationToken.IsCancellationRequested
+                    || IsDisposed
+                    || Score.Value?.Equals(newScore) != true)
+                {
+                    container.Dispose();
+                    return;
+                }
+
+                var ownership = new PendingAsyncDrawableOwnership<Container<Drawable>>(container);
+                Interlocked.Exchange(ref pendingStatisticsLoad, ownership)?.Cancel();
+
+                try
+                {
+                    Scheduler callbackScheduler = StatisticsLoadCallbackScheduler ?? Scheduler;
+                    Task loadTask = LoadComponentAsync(
+                        ownership.Loadable,
+                        loaded => finishStatisticsLoad(ownership, loaded, newScore, localCancellationSource),
+                        cancellationToken,
+                        callbackScheduler);
+                    ownership.Attach(loadTask, callbackScheduler);
+                }
+                catch
+                {
+                    Interlocked.CompareExchange(ref pendingStatisticsLoad, null, ownership);
+                    if (ReferenceEquals(Interlocked.CompareExchange(ref loadCancellation, null, localCancellationSource), localCancellationSource))
+                        localCancellationSource.Dispose();
+
+                    ownership.ReclaimUnstarted();
+                    throw;
+                }
+            }), cancellationToken);
         }
+
+        private void finishStatisticsLoad(
+            PendingAsyncDrawableOwnership<Container<Drawable>> ownership,
+            Drawable loaded,
+            ScoreInfo expectedScore,
+            CancellationTokenSource cancellation)
+        {
+            if (IsDisposed
+                || Score.Value?.Equals(expectedScore) != true
+                || !ReferenceEquals(Volatile.Read(ref pendingStatisticsLoad), ownership)
+                || !ownership.TryTransfer(loaded, out Container<Drawable>? transferred))
+            {
+                Interlocked.CompareExchange(ref pendingStatisticsLoad, null, ownership);
+                ownership.Cancel();
+                return;
+            }
+
+            Interlocked.CompareExchange(ref pendingStatisticsLoad, null, ownership);
+
+            if (ReferenceEquals(Interlocked.CompareExchange(ref loadCancellation, null, cancellation), cancellation))
+                cancellation.Dispose();
+
+            spinner.Hide();
+            Container<Drawable> owned = transferred!;
+
+            try
+            {
+                content.Add(owned);
+                owned.FadeIn(250, Easing.OutQuint);
+            }
+            catch
+            {
+                if (owned.Parent == null)
+                    owned.Dispose();
+
+                throw;
+            }
+            finally
+            {
+                ownership.CompleteTransfer();
+            }
+        }
+
+        private PendingAsyncDrawableOwnership<Container<Drawable>>? cancelPendingStatisticsLoad()
+        {
+            PendingAsyncDrawableOwnership<Container<Drawable>>? ownership =
+                Interlocked.Exchange(ref pendingStatisticsLoad, null);
+            ownership?.Cancel();
+            CancellationTokenSource? cancellation = Interlocked.Exchange(ref loadCancellation, null);
+
+            if (cancellation != null)
+            {
+                try
+                {
+                    cancellation.Cancel();
+                }
+                finally
+                {
+                    cancellation.Dispose();
+                }
+            }
+
+            return ownership;
+        }
+
+        /// <summary>
+        /// Cancels work whose completion callback depends on this panel's scheduler. A containing screen must call
+        /// this before suspension, because a suspended scheduler cannot run either the framework callback or its
+        /// ownership-reclamation sentinel.
+        /// </summary>
+        internal void CancelPendingLoad() => cancelPendingStatisticsLoad();
 
         /// <summary>
         /// Creates the <see cref="StatisticItem"/>s to be displayed in this panel for a given <paramref name="newScore"/>.
@@ -331,9 +448,10 @@ namespace osu.Game.Screens.Ranking.Statistics
 
         protected override void Dispose(bool isDisposing)
         {
-            loadCancellation?.Cancel();
+            PendingAsyncDrawableOwnership<Container<Drawable>>? pendingOwnership = cancelPendingStatisticsLoad();
 
             base.Dispose(isDisposing);
+            pendingOwnership?.JoinAfterParentDisposal();
         }
     }
 }

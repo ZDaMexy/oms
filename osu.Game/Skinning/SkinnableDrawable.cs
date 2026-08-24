@@ -76,27 +76,55 @@ namespace osu.Game.Skinning
         protected override void SkinChanged(ISkinSource skin)
         {
             var retrieved = skin.GetDrawableComponent(ComponentLookup);
+            Drawable replacement;
+            bool replacementIsDefault;
 
             if (retrieved == null)
             {
-                Drawable = CreateDefault(ComponentLookup);
-                isDefault = true;
+                replacement = CreateDefault(ComponentLookup);
+                replacementIsDefault = true;
             }
             else
             {
-                Drawable = retrieved;
-                isDefault = false;
+                replacement = retrieved;
+                replacementIsDefault = false;
             }
-
-            scaling.Invalidate();
 
             if (CentreComponent)
             {
-                Drawable.Origin = Anchor.Centre;
-                Drawable.Anchor = Anchor.Centre;
+                replacement.Origin = Anchor.Centre;
+                replacement.Anchor = Anchor.Centre;
             }
 
-            InternalChild = Drawable;
+            Drawable? previous = Drawable;
+
+            if (!ReferenceEquals(previous, replacement))
+            {
+                bool replacementAttached = false;
+
+                try
+                {
+                    AddInternal(replacement);
+                    replacementAttached = true;
+
+                    // InternalChild replacement asynchronously queues old-child disposal. This synchronous boundary
+                    // must complete before SkinReloadableDrawable adopts B and can release the final A revision lease.
+                    if (previous != null && !RemoveInternal(previous, disposeImmediately: true))
+                        throw new InvalidOperationException("The previous skinnable drawable could not be detached.");
+                }
+                catch
+                {
+                    if (replacementAttached && replacement.Parent != null)
+                        RemoveInternal(replacement, disposeImmediately: true);
+
+                    throw;
+                }
+
+                Drawable = replacement;
+            }
+
+            isDefault = replacementIsDefault;
+            scaling.Invalidate();
         }
 
         protected override void Update()

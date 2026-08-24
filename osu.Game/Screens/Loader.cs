@@ -5,18 +5,21 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Development;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shaders;
-using osu.Framework.Utils;
-using osu.Game.Screens.Menu;
 using osu.Framework.Screens;
 using osu.Framework.Threading;
+using osu.Framework.Utils;
 using osu.Game.Configuration;
+using osu.Game.Graphics;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Screens.Menu;
 using osu.Game.Seasonal;
+using osu.Game.Skinning;
 using IntroSequence = osu.Game.Configuration.IntroSequence;
 
 namespace osu.Game.Screens
@@ -29,11 +32,18 @@ namespace osu.Game.Screens
         }
 
         private OsuScreen loadableScreen;
+        private PendingAsyncDrawableOwnership<OsuScreen> pendingLoadableScreenOwnership;
+        private CancellationTokenSource loadableScreenCancellation;
+        private bool loadableScreenReady;
+        private bool loadableScreenConsumed;
         private ShaderPrecompiler precompiler;
 
         private IntroSequence introSequence;
         private LoadingSpinner spinner;
         private ScheduledDelegate spinnerShow;
+
+        [Resolved]
+        private SkinManager skinManager { get; set; }
 
         protected virtual OsuScreen CreateLoadableScreen() => getIntroSequence();
 
@@ -59,7 +69,7 @@ namespace osu.Game.Screens
                     return new IntroTriangles(createMainMenu);
             }
 
-            MainMenu createMainMenu() => new MainMenu();
+            static MainMenu createMainMenu() => new MainMenu();
         }
 
         protected virtual ShaderPrecompiler CreateShaderPrecompiler() => new ShaderPrecompiler();
@@ -70,7 +80,7 @@ namespace osu.Game.Screens
 
             LoadComponentAsync(precompiler = CreateShaderPrecompiler(), AddInternal);
 
-            LoadComponentAsync(loadableScreen = CreateLoadableScreen());
+            beginLoadableScreenLoad();
 
             LoadComponentAsync(spinner = new LoadingSpinner(true, true)
             {
@@ -88,7 +98,7 @@ namespace osu.Game.Screens
 
         private void checkIfLoaded()
         {
-            if (loadableScreen?.LoadState != LoadState.Ready || !precompiler.FinishedCompiling)
+            if (!loadableScreenReady || !precompiler.FinishedCompiling)
             {
                 Schedule(checkIfLoaded);
                 return;
@@ -99,16 +109,122 @@ namespace osu.Game.Screens
             if (spinner.State.Value == Visibility.Visible)
             {
                 spinner.Hide();
-                Scheduler.AddDelayed(() => this.Push(loadableScreen), LoadingSpinner.TRANSITION_DURATION);
+                Scheduler.AddDelayed(pushLoadableScreen, LoadingSpinner.TRANSITION_DURATION);
             }
             else
-                this.Push(loadableScreen);
+                pushLoadableScreen();
+        }
+
+        private void beginLoadableScreenLoad()
+        {
+            OsuScreen candidate = CreateLoadableScreen();
+            loadableScreen = candidate;
+
+            SkinRevisionParticipantRegistration initialParticipant;
+
+            try
+            {
+                initialParticipant = skinManager.RegisterRevisionParticipant(
+                    SkinRevisionParticipantKind.CoherentVisualConsumer,
+                    $"{nameof(Loader)} intro (initial load)",
+                    blocksRevisionPublication: true);
+            }
+            catch
+            {
+                loadableScreen = null;
+                candidate.Dispose();
+                throw;
+            }
+
+            var ownership = new PendingAsyncDrawableOwnership<OsuScreen>(candidate, initialParticipant.Dispose);
+            var cancellation = new CancellationTokenSource();
+            pendingLoadableScreenOwnership = ownership;
+            loadableScreenCancellation = cancellation;
+
+            try
+            {
+                var loadTask = LoadComponentAsync(ownership.Loadable, loaded =>
+                {
+                    if (!ReferenceEquals(pendingLoadableScreenOwnership, ownership)
+                        || !ownership.TryTransfer(loaded, out OsuScreen transferred))
+                    {
+                        return;
+                    }
+
+                    pendingLoadableScreenOwnership = null;
+                    loadableScreenCancellation?.Dispose();
+                    loadableScreenCancellation = null;
+                    loadableScreen = transferred;
+                    loadableScreenReady = true;
+                    ownership.CompleteTransfer();
+                }, cancellation.Token);
+                ownership.Attach(loadTask, Scheduler);
+            }
+            catch
+            {
+                if (ReferenceEquals(pendingLoadableScreenOwnership, ownership))
+                    pendingLoadableScreenOwnership = null;
+
+                loadableScreen = null;
+                loadableScreenCancellation = null;
+                cancellation.Dispose();
+                ownership.ReclaimUnstarted();
+                throw;
+            }
+        }
+
+        private void pushLoadableScreen()
+        {
+            if (loadableScreenConsumed || !loadableScreenReady)
+                return;
+
+            OsuScreen screen = loadableScreen;
+
+            try
+            {
+                this.Push(screen);
+                loadableScreenConsumed = true;
+            }
+            catch
+            {
+                if (screen.Parent == null)
+                {
+                    loadableScreen = null;
+                    screen.Dispose();
+                }
+                else
+                    loadableScreenConsumed = true;
+
+                throw;
+            }
         }
 
         [BackgroundDependencyLoader]
         private void load(OsuConfigManager config)
         {
             introSequence = config.Get<IntroSequence>(OsuSetting.IntroSequence);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<OsuScreen> ownership =
+                Interlocked.Exchange(ref pendingLoadableScreenOwnership, null);
+            ownership?.Cancel();
+
+            CancellationTokenSource cancellation = Interlocked.Exchange(ref loadableScreenCancellation, null);
+            cancellation?.Cancel();
+            cancellation?.Dispose();
+
+            base.Dispose(isDisposing);
+            ownership?.JoinAfterParentDisposal();
+
+            if (isDisposing && !loadableScreenConsumed)
+            {
+                if (ownership == null)
+                    loadableScreen?.Dispose();
+
+                loadableScreen = null;
+            }
         }
 
         /// <summary>

@@ -222,6 +222,14 @@ namespace osu.Game.Skinning
             string managedRelativePath,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Captures an immutable package revision from the already-held existing source while retaining the same
+        /// mutation authority and full-tree handle set.
+        /// </summary>
+        SkinPackageRevisionCapsule CaptureCapturedExistingSourceRevision(
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         string GetCapturedDeleteSourceNodeManifest(CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
@@ -695,6 +703,41 @@ namespace osu.Game.Skinning
 
         internal bool HasCoordinatorAuthority(SkinManagedFolderOperationCoordinator coordinator)
             => coordinatorLease?.IsMutationReservationHeldBy(coordinator) == true;
+
+        /// <summary>
+        /// Captures the exact immutable revision of the already-qualified delete source without releasing the native
+        /// authority which protects that source through a later publication/detach barrier.
+        /// </summary>
+        internal SkinPackageRevisionCapsule CaptureExistingSourceRevision(
+            CancellationToken cancellationToken = default)
+        {
+            lock (sessionGate)
+            {
+                if (Kind != SkinManagedFolderMutationKind.Delete
+                    || ExistingRecord == null
+                    || nativeSession == null
+                    || !Validate(cancellationToken))
+                {
+                    throw new InvalidOperationException("The held managed-folder delete authority is no longer valid.");
+                }
+
+                SkinPackageRevisionCapsule capsule =
+                    nativeSession.CaptureCapturedExistingSourceRevision(cancellationToken);
+
+                try
+                {
+                    if (!Validate(cancellationToken))
+                        throw new InvalidOperationException("The held managed-folder delete source changed during revision capture.");
+
+                    return capsule;
+                }
+                catch
+                {
+                    capsule.Dispose();
+                    throw;
+                }
+            }
+        }
 
         public SkinManagedFolderMutationJournal CreatePreparedJournal(CancellationToken cancellationToken = default)
         {

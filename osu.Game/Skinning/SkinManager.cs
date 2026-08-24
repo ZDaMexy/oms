@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -20,11 +21,13 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Framework.Utils;
 using osu.Game.Audio;
 using osu.Game.Database;
+using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Models;
 using osu.Game.Overlays.Notifications;
@@ -46,6 +49,7 @@ namespace osu.Game.Skinning
         MutationRecoveryPending,
         ManagedFolderOperationInProgress,
         FactoryRejected,
+        LiveGameplayActive,
         PreparationCancelled,
         PreparationFailed,
     }
@@ -62,6 +66,22 @@ namespace osu.Game.Skinning
         PairNotCommitted,
     }
 
+    internal enum SkinCurrentRevisionReloadResult
+    {
+        Success,
+        NoChange,
+        LiveGameplayActive,
+        ParticipantRejected,
+        SourceUnsupported,
+        SourceUnavailable,
+        SourceChanged,
+        Superseded,
+        Cancelled,
+        SchedulerFailed,
+        Shutdown,
+        Failed,
+    }
+
     /// <summary>
     /// Handles the storage and retrieval of <see cref="Skin"/>s.
     /// </summary>
@@ -71,6 +91,12 @@ namespace osu.Game.Skinning
     /// </remarks>
     public class SkinManager : ModelManager<SkinInfo>, ISkinSource, IStorageResourceProvider, IModelImporter<SkinInfo>
     {
+        internal const string CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC =
+            "The current Realm skin package can only change through revision preparation and publication.";
+
+        internal const string REALM_PACKAGE_MUTATION_BUSY_DIAGNOSTIC =
+            "Realm skin package mutation is unavailable while another skin package operation is in progress.";
+
         /// <summary>
         /// The OMS built-in candidate skin host.
         /// </summary>
@@ -91,7 +117,7 @@ namespace osu.Game.Skinning
 
         private readonly Storage storage;
 
-        public readonly Bindable<Skin> CurrentSkin = new Bindable<Skin>();
+        public readonly Bindable<Skin> CurrentSkin = new SkinInstanceBindable();
 
         public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new SkinSelectionBindable(OmsSkin.CreateInfo().ToLiveUnmanaged());
 
@@ -106,6 +132,18 @@ namespace osu.Game.Skinning
         internal Action<Action> ManagedFolderCompletionSchedule { get; set; }
 
         internal Action<Action> ManagedFolderDeleteFallbackSchedule { get; set; }
+
+        internal Action<Action> CurrentRevisionCompletionSchedule { get; set; }
+
+        internal Action CurrentRevisionPrepareStarted { get; set; } = () => { };
+
+        internal Action CurrentRevisionBeforeCommitSchedule { get; set; } = () => { };
+
+        internal Action CurrentExternalUnregisterBeforeRealmCommit { get; set; } = () => { };
+
+        internal Action CurrentRealmPackageDeleteBeforeRealmCommit { get; set; } = () => { };
+
+        internal Action RealmPackageMutationBoundaryEntered { get; set; } = () => { };
 
         internal Action ManagedFolderBeforeCommit { get; set; } = () => { };
 
@@ -154,6 +192,22 @@ namespace osu.Game.Skinning
         private readonly HashSet<Task> managedFolderSelectionWorkerTasks = new HashSet<Task>();
         private readonly HashSet<PendingManagedFolderSelectionCompletion> pendingManagedFolderSelectionCompletions = new HashSet<PendingManagedFolderSelectionCompletion>();
         private readonly HashSet<PendingExternalFolderSelectionCompletion> pendingExternalFolderSelectionCompletions = new HashSet<PendingExternalFolderSelectionCompletion>();
+        private readonly object currentRevisionRetireGate = new object();
+        private readonly Queue<SkinCurrentRevision> currentRevisionRetireQueue = new Queue<SkinCurrentRevision>();
+        private readonly SkinCurrentRevisionPublication currentRevisionPublication;
+        private PublishedCurrentSkinPair publishedCurrentSkinPair;
+        private readonly object currentRevisionReloadGate = new object();
+        private readonly HashSet<PendingCurrentRevisionCallback> pendingCurrentRevisionCallbacks = new HashSet<PendingCurrentRevisionCallback>();
+        private readonly HashSet<Task<SkinCurrentRevisionReloadResult>> currentRevisionReloadWorkerTasks = new HashSet<Task<SkinCurrentRevisionReloadResult>>();
+        private readonly HashSet<CancellationTokenSource> currentRevisionReloadWorkerCancellations = new HashSet<CancellationTokenSource>();
+        private CancellationTokenSource activeCurrentRevisionReloadCancellation;
+        private Task<SkinCurrentRevisionReloadResult> activeCurrentRevisionReloadTask;
+        private long currentRevisionReloadGeneration;
+        private int currentRevisionRetireScheduled;
+        private int currentRevisionPublicationShutdown;
+        private int currentRevisionManagerLeaseReleased;
+        private int currentRevisionPublicationBroadcast;
+        private int currentSkinProjectionInProgress;
         private CancellationTokenSource activeManagedFolderRenameCancellation;
         private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
         private CancellationTokenSource activeManagedFolderStagedImportCancellation;
@@ -169,6 +223,11 @@ namespace osu.Game.Skinning
         private SkinManagedFolderStagedImportOperationResult lastManagedFolderStagedImportResult;
         private SkinManagedFolderDeleteOperationResult lastManagedFolderDeleteResult;
         private bool managedFolderMutationShutdown;
+        private bool currentRevisionMutationAdmissionHeld;
+        private bool currentRevisionReloadAdmissionHeld;
+        private int currentRevisionReloadAdmissionCount;
+        private int realmPackageMutationOwnerManagedThreadId;
+        private int realmPackageMutationAdmissionDepth;
         private int managedFolderSelectionShutdown;
         private int managedFolderDeleteFallbackSourceChangeDeferral;
         private int managedFolderDeleteFallbackSourceChangePending;
@@ -214,7 +273,6 @@ namespace osu.Game.Skinning
 
         private long selectionGeneration;
         private CancellationTokenSource pendingSelectionCancellation;
-        private PreparedManagedFolderSelection preparedManagedFolderSelection;
 
         private readonly SkinImporter skinImporter;
 
@@ -269,6 +327,7 @@ namespace osu.Game.Skinning
             this.resources = resources;
             ManagedFolderCompletionSchedule = completion => scheduler.Add(completion);
             ManagedFolderDeleteFallbackSchedule = completion => scheduler.Add(completion);
+            CurrentRevisionCompletionSchedule = completion => scheduler.Add(completion);
             OpenFolderExternally = path => host.OpenFileExternally(path);
 
             managedFolderMutationJournalStore = new SkinManagedFolderMutationJournalStore(storage);
@@ -332,7 +391,11 @@ namespace osu.Game.Skinning
 
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
 
-            skinImporter = new SkinImporter(storage, realm, this, info => !isFilesystemBacked(info))
+            skinImporter = new SkinImporter(
+                storage,
+                realm,
+                this,
+                info => !isFilesystemBacked(info) && !isCurrentRevisionRecord(info.ID))
             {
                 PostNotification = obj => PostNotification?.Invoke(obj),
             };
@@ -365,43 +428,1556 @@ namespace osu.Game.Skinning
                 }
             });
 
-            CurrentSkinInfo.ValueChanged += skin =>
-            {
-                Skin instance;
-
-                if (preparedManagedFolderSelection is { } prepared
-                    && ReferenceEquals(prepared.Target, skin.NewValue))
-                {
-                    preparedManagedFolderSelection = null;
-                    instance = prepared.Skin;
-                }
-                else
-                    instance = skin.NewValue.PerformRead(GetSkin);
-
-                CurrentSkin.Value = instance;
-            };
-
-            CurrentSkin.Value = DefaultOmsSkin;
-            CurrentSkin.ValueChanged += skin =>
-            {
-                if (!skin.NewValue.SkinInfo.Equals(CurrentSkinInfo.Value))
-                    throw new InvalidOperationException($"Setting {nameof(CurrentSkin)}'s value directly is not supported. Use {nameof(CurrentSkinInfo)} instead.");
-
-                if (Volatile.Read(ref managedFolderDeleteFallbackSourceChangeDeferral) != 0)
-                {
-                    Volatile.Write(ref managedFolderDeleteFallbackSourceChangePending, 1);
-                    return;
-                }
-
-                SourceChanged?.Invoke();
-            };
-
+            ((SkinInstanceBindable)CurrentSkin).CommitPrepared(DefaultOmsSkin);
+            currentRevisionPublication = new SkinCurrentRevisionPublication(
+                DefaultOmsSkin,
+                getCurrentRevisionContentIdentity(DefaultOmsSkin),
+                SkinCurrentRevisionSourceKind.ProtectedFallback,
+                keepsReusableOwner: true,
+                queueCurrentRevisionRetirement);
+            publishedCurrentSkinPair = new PublishedCurrentSkinPair(
+                CurrentSkinInfo.Value,
+                DefaultOmsSkin,
+                currentRevisionPublication.Current);
+            ((SkinInstanceBindable)CurrentSkin).AuthoritativeValueProvider =
+                () => Volatile.Read(ref publishedCurrentSkinPair).Owner;
+            ((SkinInstanceBindable)CurrentSkin).IsAuthoritativeRoot = true;
+            ((SkinSelectionBindable)CurrentSkinInfo).AuthoritativeValueProvider =
+                () => Volatile.Read(ref publishedCurrentSkinPair).Selection;
+            ((SkinSelectionBindable)CurrentSkinInfo).IsAuthoritativeRoot = true;
             ((SkinSelectionBindable)CurrentSkinInfo).SelectionRequested = requestSelection;
 
             skinExporter = new LegacySkinExporter(storage)
             {
                 PostNotification = obj => PostNotification?.Invoke(obj)
             };
+        }
+
+        /// <summary>
+        /// The exact immutable revision currently exposed by this manager. This is intentionally path-free.
+        /// </summary>
+        internal SkinCurrentRevision CurrentRevision
+            => Volatile.Read(ref publishedCurrentSkinPair).Revision;
+
+        internal bool CanReloadCurrentRevision
+        {
+            get
+            {
+                PublishedCurrentSkinPair pair = Volatile.Read(ref publishedCurrentSkinPair);
+
+                if (CurrentSkinInfo.Disabled
+                    || CurrentSkin.Disabled
+                    || pair.Selection.ID != pair.Owner.SkinInfo.ID
+                    || !ReferenceEquals(pair.Owner, pair.Revision.Owner))
+                {
+                    return false;
+                }
+
+                return pair.Revision.SourceKind is SkinCurrentRevisionSourceKind.RealmPackage
+                    or SkinCurrentRevisionSourceKind.ManagedFolder
+                    or SkinCurrentRevisionSourceKind.ExternalFolder;
+            }
+        }
+
+        internal event Action<SkinCurrentRevision> CurrentRevisionRetired;
+
+        internal SkinRevisionParticipantRegistration RegisterRevisionParticipant(
+            SkinRevisionParticipantKind kind,
+            string diagnosticName,
+            Func<CancellationToken, Task<bool>> prepare = null,
+            Func<SkinCurrentRevision, CancellationToken, Task<SkinRevisionParticipantCommit>> prepareCommit = null,
+            bool blocksRevisionPublication = false,
+            Action shutdownWork = null)
+            => currentRevisionPublication.Register(
+                kind,
+                diagnosticName,
+                prepare,
+                prepareCommit,
+                blocksRevisionPublication,
+                shutdownWork);
+
+        internal bool IsCurrentRevisionPublicationBroadcast
+            => Volatile.Read(ref currentRevisionPublicationBroadcast) != 0;
+
+        internal SkinRevisionParticipantRegistration RegisterRevisionHolderForOwner(
+            Skin owner,
+            string diagnosticName)
+            => currentRevisionPublication.RegisterExactOwner(
+                owner,
+                SkinRevisionParticipantKind.LifecycleHolder,
+                diagnosticName);
+
+        /// <summary>
+        /// Retains the exact current owner for a resource tail which can outlive the participant that created it.
+        /// Examples include an already-playing sample channel and a cross-revision background fade.
+        /// </summary>
+        internal SkinCurrentRevisionLease AcquireCurrentRevisionHolderLease()
+            => currentRevisionPublication.AcquireCurrentHolderLease();
+
+        /// <summary>
+        /// Retains the exact current owner for hidden asynchronous work. Unlike a visual/tail holder, this lease is
+        /// explicitly joined during manager shutdown and also participates in current-delete detach gating.
+        /// </summary>
+        internal SkinCurrentRevisionLease AcquireCurrentRevisionWorkLease()
+            => currentRevisionPublication.AcquireCurrentWorkLease();
+
+        internal SkinRevisionParticipantSnapshot CaptureRevisionParticipantSnapshot(
+            out SkinRevisionBarrierRejectionReason rejectionReason)
+            => currentRevisionPublication.CaptureSnapshot(out rejectionReason);
+
+        internal Task<SkinRevisionBarrierRejectionReason> PrepareRevisionParticipantsAsync(
+            SkinRevisionParticipantSnapshot snapshot,
+            CancellationToken cancellationToken)
+            => currentRevisionPublication.PrepareParticipantsAsync(snapshot, cancellationToken);
+
+        internal Task<SkinRevisionParticipantPrepareResult> PrepareRevisionParticipantsForRevisionAsync(
+            SkinRevisionParticipantSnapshot snapshot,
+            SkinCurrentRevision nextRevision,
+            CancellationToken cancellationToken)
+            => currentRevisionPublication.PrepareParticipantsForRevisionAsync(snapshot, nextRevision, cancellationToken);
+
+        internal SkinCurrentRevision CreateProvisionalCurrentRevision(
+            Skin owner,
+            string contentRevision,
+            SkinCurrentRevisionSourceKind sourceKind)
+            => currentRevisionPublication.CreateProvisional(
+                owner.SkinInfo.ID,
+                contentRevision,
+                sourceKind,
+                owner,
+                keepsReusableOwner: sourceKind == SkinCurrentRevisionSourceKind.ProtectedFallback);
+
+        /// <summary>
+        /// Performs the allocation- and I/O-free update-thread publication barrier for an already prepared owner.
+        /// </summary>
+        internal bool TryPublishPreparedCurrentRevision(
+            SkinRevisionPreparedBarrier participantBarrier,
+            SkinCurrentRevision preparedRevision,
+            Live<SkinInfo> authoritativeSelection,
+            out SkinRevisionBarrierRejectionReason rejectionReason)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                throw new InvalidOperationException("Current skin revision publication must run on the update thread.");
+
+            ArgumentNullException.ThrowIfNull(participantBarrier);
+            ArgumentNullException.ThrowIfNull(preparedRevision);
+            ArgumentNullException.ThrowIfNull(authoritativeSelection);
+
+            if (CurrentSkinInfo.Disabled
+                || CurrentSkin.Disabled
+                || CurrentSkinInfo.Value.ID != authoritativeSelection.ID
+                || preparedRevision.RecordId != authoritativeSelection.ID
+                || preparedRevision.Owner.SkinInfo.ID != authoritativeSelection.ID)
+            {
+                rejectionReason = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
+                return false;
+            }
+
+            if (!ReferenceEquals(participantBarrier.NextRevision, preparedRevision))
+            {
+                rejectionReason = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
+                return false;
+            }
+
+            var preparedPair = new PublishedCurrentSkinPair(
+                authoritativeSelection,
+                preparedRevision.Owner,
+                preparedRevision);
+
+            if (!currentRevisionPublication.TryCommitPair(
+                    participantBarrier,
+                    () => publishAuthoritativeManagerPair(preparedPair),
+                    out SkinCurrentRevision previousRevision,
+                    out rejectionReason))
+            {
+                return false;
+            }
+
+            completePublishedCurrentRevision(preparedPair, previousRevision, usesCoherentBarrier: true);
+
+            return ReferenceEquals(currentRevisionPublication.Current, preparedRevision)
+                   && ReferenceEquals(CurrentSkin.Value, preparedRevision.Owner);
+        }
+
+        private bool tryPublishPreparedCurrentSelection(
+            SkinRevisionPreparedBarrier participantBarrier,
+            SkinCurrentRevision preparedRevision,
+            Live<SkinInfo> authoritativeSelection,
+            Live<SkinInfo> expectedSelection,
+            Skin expectedOwner,
+            SkinCurrentRevision expectedRevision,
+            out SkinRevisionBarrierRejectionReason rejectionReason)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                throw new InvalidOperationException("Current skin selection publication must run on the update thread.");
+
+            if (CurrentSkinInfo.Disabled
+                || CurrentSkin.Disabled
+                || !ReferenceEquals(CurrentSkinInfo.Value, expectedSelection)
+                || !ReferenceEquals(CurrentSkin.Value, expectedOwner)
+                || !ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
+                || preparedRevision.RecordId != authoritativeSelection.ID
+                || preparedRevision.Owner.SkinInfo.ID != authoritativeSelection.ID)
+            {
+                rejectionReason = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
+                return false;
+            }
+
+            if (!ReferenceEquals(participantBarrier.NextRevision, preparedRevision))
+            {
+                rejectionReason = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
+                return false;
+            }
+
+            var preparedPair = new PublishedCurrentSkinPair(
+                authoritativeSelection,
+                preparedRevision.Owner,
+                preparedRevision);
+
+            if (!currentRevisionPublication.TryCommitPair(
+                    participantBarrier,
+                    () => publishAuthoritativeManagerPair(preparedPair),
+                    out SkinCurrentRevision previousRevision,
+                    out rejectionReason))
+            {
+                return false;
+            }
+
+            completePublishedCurrentRevision(preparedPair, previousRevision, usesCoherentBarrier: true);
+
+            return ReferenceEquals(currentRevisionPublication.Current, preparedRevision)
+                   && ReferenceEquals(CurrentSkin.Value, preparedRevision.Owner)
+                   && ReferenceEquals(CurrentSkinInfo.Value, authoritativeSelection);
+        }
+
+        /// <summary>
+        /// Publishes a different selection while every already attached consumer deliberately retains its exact old
+        /// revision. This is the safe compatibility path for consumers without a candidate-specific staged receipt;
+        /// late instances attach to the committed owner and no existing consumer re-queries it during the barrier.
+        /// </summary>
+        private bool tryPublishPreparedCurrentSelectionRetainingParticipants(
+            SkinRevisionParticipantSnapshot participantSnapshot,
+            SkinCurrentRevision preparedRevision,
+            Live<SkinInfo> authoritativeSelection,
+            Live<SkinInfo> expectedSelection,
+            Skin expectedOwner,
+            SkinCurrentRevision expectedRevision,
+            out SkinRevisionBarrierRejectionReason rejectionReason)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                throw new InvalidOperationException("Current skin selection publication must run on the update thread.");
+
+            if (CurrentSkinInfo.Disabled
+                || CurrentSkin.Disabled
+                || !ReferenceEquals(CurrentSkinInfo.Value, expectedSelection)
+                || !ReferenceEquals(CurrentSkin.Value, expectedOwner)
+                || !ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
+                || preparedRevision.RecordId != authoritativeSelection.ID
+                || preparedRevision.Owner.SkinInfo.ID != authoritativeSelection.ID)
+            {
+                rejectionReason = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
+                return false;
+            }
+
+            var preparedPair = new PublishedCurrentSkinPair(
+                authoritativeSelection,
+                preparedRevision.Owner,
+                preparedRevision);
+
+            if (!currentRevisionPublication.TryCommitPair(
+                    participantSnapshot,
+                    preparedRevision,
+                    () => publishAuthoritativeManagerPair(preparedPair),
+                    out SkinCurrentRevision previousRevision,
+                    out rejectionReason))
+            {
+                return false;
+            }
+
+            completePublishedCurrentRevision(preparedPair, previousRevision, usesCoherentBarrier: false);
+
+            return ReferenceEquals(currentRevisionPublication.Current, preparedRevision)
+                   && ReferenceEquals(CurrentSkin.Value, preparedRevision.Owner)
+                   && ReferenceEquals(CurrentSkinInfo.Value, authoritativeSelection);
+        }
+
+        /// <summary>
+        /// Pure authoritative reference publication executed under the registry lock. The projection flag closes the
+        /// lock-release-to-bindable-notification gap against nested selection, reload and mutation admission.
+        /// </summary>
+        private void publishAuthoritativeManagerPair(PublishedCurrentSkinPair pair)
+        {
+            Volatile.Write(ref currentSkinProjectionInProgress, 1);
+            Volatile.Write(ref publishedCurrentSkinPair, pair);
+        }
+
+        /// <summary>
+        /// Updates the event projections after the immutable authoritative pair is already committed. This runs after
+        /// the publication lock has been released, so arbitrary bindable observers cannot add fallible work to the
+        /// commit barrier. Manager getters and resource lookup continue to read the authoritative pair throughout.
+        /// </summary>
+        private void projectPreparedManagerPair(PublishedCurrentSkinPair pair)
+        {
+            commitPreparedOwnerWithoutObserverFailure(pair.Owner);
+            commitPreparedSelectionWithoutObserverFailure(pair.Selection);
+
+            if (!ReferenceEquals(((SkinInstanceBindable)CurrentSkin).ProjectedValue, pair.Owner)
+                || !ReferenceEquals(((SkinSelectionBindable)CurrentSkinInfo).ProjectedValue, pair.Selection))
+            {
+                throw new InvalidOperationException("The prepared current skin projections could not be committed.");
+            }
+        }
+
+        private void commitPreparedOwnerWithoutObserverFailure(Skin owner)
+        {
+            try
+            {
+                ((SkinInstanceBindable)CurrentSkin).CommitPrepared(owner);
+            }
+            catch (Exception exception)
+            {
+                if (!ReferenceEquals(((SkinInstanceBindable)CurrentSkin).ProjectedValue, owner))
+                    throw;
+
+                Logger.Log($"A current skin owner observer failed ({exception.GetType().Name}).");
+            }
+        }
+
+        private void commitPreparedSelectionWithoutObserverFailure(Live<SkinInfo> selection)
+        {
+            try
+            {
+                ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(selection);
+            }
+            catch (Exception exception)
+            {
+                if (!ReferenceEquals(((SkinSelectionBindable)CurrentSkinInfo).ProjectedValue, selection))
+                    throw;
+
+                Logger.Log($"A current skin selection observer failed ({exception.GetType().Name}).");
+            }
+        }
+
+        private void completePublishedCurrentRevision(
+            PublishedCurrentSkinPair pair,
+            SkinCurrentRevision previousRevision,
+            bool usesCoherentBarrier)
+        {
+            try
+            {
+                if (usesCoherentBarrier)
+                    Volatile.Write(ref currentRevisionPublicationBroadcast, 1);
+
+                projectPreparedManagerPair(pair);
+                Volatile.Write(ref currentSkinProjectionInProgress, 0);
+
+                if (Volatile.Read(ref managedFolderDeleteFallbackSourceChangeDeferral) != 0)
+                    Volatile.Write(ref managedFolderDeleteFallbackSourceChangePending, 1);
+                else
+                    notifySourceChanged();
+            }
+            finally
+            {
+                if (usesCoherentBarrier)
+                    Volatile.Write(ref currentRevisionPublicationBroadcast, 0);
+
+                Volatile.Write(ref currentSkinProjectionInProgress, 0);
+
+                previousRevision.ReleaseManagerLease();
+            }
+        }
+
+        internal void DiscardProvisionalCurrentRevision(SkinCurrentRevision provisionalRevision)
+        {
+            if (provisionalRevision == null
+                || ReferenceEquals(currentRevisionPublication.Current, provisionalRevision))
+            {
+                return;
+            }
+
+            provisionalRevision.ReleaseManagerLease();
+        }
+
+        private SkinCurrentRevision createCurrentRevision(Skin owner)
+        {
+            SkinCurrentRevisionSourceKind sourceKind = getCurrentRevisionSourceKind(owner);
+            return CreateProvisionalCurrentRevision(owner, getCurrentRevisionContentIdentity(owner), sourceKind);
+        }
+
+        private static SkinCurrentRevisionSourceKind getCurrentRevisionSourceKind(Skin owner)
+        {
+            return owner.SkinInfo.PerformRead(info =>
+            {
+                if (info.Protected)
+                    return SkinCurrentRevisionSourceKind.ProtectedFallback;
+
+                if (info.IsExternalFilesystemStorage)
+                    return SkinCurrentRevisionSourceKind.ExternalFolder;
+
+                if (!string.IsNullOrEmpty(info.FilesystemStoragePath))
+                    return SkinCurrentRevisionSourceKind.ManagedFolder;
+
+                if (!string.IsNullOrEmpty(owner.PackageContentRevision))
+                    return SkinCurrentRevisionSourceKind.RealmPackage;
+
+                return info.IsManaged
+                    ? SkinCurrentRevisionSourceKind.RealmPackage
+                    : SkinCurrentRevisionSourceKind.Compatibility;
+            });
+        }
+
+        private static string getCurrentRevisionContentIdentity(Skin owner)
+        {
+            if (!string.IsNullOrEmpty(owner.PackageContentRevision))
+                return owner.PackageContentRevision;
+
+            return owner.SkinInfo.PerformRead(info =>
+                !string.IsNullOrEmpty(info.Hash)
+                    ? info.Hash
+                    : $"record:{info.ID:D}");
+        }
+
+        private void notifySourceChanged()
+        {
+            Delegate[] handlers = SourceChanged?.GetInvocationList() ?? Array.Empty<Delegate>();
+
+            foreach (Delegate handler in handlers)
+            {
+                try
+                {
+                    ((Action)handler)();
+                }
+                catch
+                {
+                    // A participant callback is never allowed to split an already committed pair. Diagnostics expose
+                    // only the callback type; source paths and package labels are deliberately absent.
+                    Logger.Log($"A skin revision consumer callback failed ({handler.Method.DeclaringType?.Name ?? "unknown"}).");
+                }
+            }
+        }
+
+        private void queueCurrentRevisionRetirement(SkinCurrentRevision revision)
+        {
+            lock (currentRevisionRetireGate)
+                currentRevisionRetireQueue.Enqueue(revision);
+
+            if (ThreadSafety.IsUpdateThread || Volatile.Read(ref currentRevisionPublicationShutdown) != 0)
+            {
+                // Once shutdown has claimed publication, the framework scheduler may still accept callbacks which it
+                // will never execute. Late async/work leases therefore reap their exact owner inline after their real
+                // task/tail completes; idempotent owner retirement makes this safe against the final shutdown drain.
+                drainCurrentRevisionRetireQueue();
+                return;
+            }
+
+            if (Interlocked.Exchange(ref currentRevisionRetireScheduled, 1) != 0)
+                return;
+
+            try
+            {
+                scheduler.Add(drainCurrentRevisionRetireQueue);
+            }
+            catch
+            {
+                // Scheduler shutdown/fault must not leak a captured package owner. Disposal is idempotent and this is
+                // the final fallback after the revision has no remaining consumer lease.
+                drainCurrentRevisionRetireQueue();
+            }
+        }
+
+        private void drainCurrentRevisionRetireQueue()
+        {
+            while (true)
+            {
+                SkinCurrentRevision revision;
+
+                lock (currentRevisionRetireGate)
+                {
+                    if (currentRevisionRetireQueue.Count == 0)
+                    {
+                        Volatile.Write(ref currentRevisionRetireScheduled, 0);
+                        return;
+                    }
+
+                    revision = currentRevisionRetireQueue.Dequeue();
+                }
+
+                revision.RetireOwner();
+
+                try
+                {
+                    CurrentRevisionRetired?.Invoke(revision);
+                }
+                catch
+                {
+                    Logger.Log("A skin revision retirement observer failed.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Explicit safe-navigation command for rebuilding the current same-record package revision.
+        /// </summary>
+        internal Task<SkinCurrentRevisionReloadResult> ReloadCurrentRevisionAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                throw new InvalidOperationException("Current skin reload must be requested on the update thread.");
+
+            if (cancellationToken.IsCancellationRequested)
+                return Task.FromResult(SkinCurrentRevisionReloadResult.Cancelled);
+
+            if (Volatile.Read(ref currentRevisionPublicationShutdown) != 0)
+                return Task.FromResult(SkinCurrentRevisionReloadResult.Shutdown);
+
+            SkinRevisionParticipantSnapshot initialParticipants =
+                currentRevisionPublication.CaptureSnapshot(
+                    out SkinRevisionBarrierRejectionReason participantRejection,
+                    requiresPreparedCoherentReceipts: true);
+
+            if (initialParticipants == null)
+                return Task.FromResult(mapBarrierRejection(participantRejection));
+
+            CurrentRevisionReloadRequest request;
+
+            try
+            {
+                if (CurrentSkinInfo.Disabled
+                    || CurrentSkinInfo.Value.ID != CurrentSkin.Value.SkinInfo.ID
+                    || !ReferenceEquals(currentRevisionPublication.Current.Owner, CurrentSkin.Value))
+                {
+                    return Task.FromResult(SkinCurrentRevisionReloadResult.SourceChanged);
+                }
+
+                request = CurrentSkinInfo.Value.PerformRead(info =>
+                    new CurrentRevisionReloadRequest(
+                        CurrentSkinInfo.Value,
+                        CurrentSkin.Value,
+                        currentRevisionPublication.Current,
+                        Interlocked.Read(ref selectionGeneration),
+                        createSelectionRequest(info),
+                        createRealmPackageSnapshot(info)));
+            }
+            catch
+            {
+                return Task.FromResult(SkinCurrentRevisionReloadResult.SourceUnavailable);
+            }
+
+            if (request.SourceRequest.Resolution.Authority == SkinFilesystemStorageAuthority.Invalid
+                || request.ExpectedRevision.SourceKind == SkinCurrentRevisionSourceKind.ProtectedFallback
+                || request.ExpectedRevision.SourceKind == SkinCurrentRevisionSourceKind.Compatibility)
+            {
+                return Task.FromResult(SkinCurrentRevisionReloadResult.SourceUnsupported);
+            }
+
+            if (!tryAdmitCurrentRevisionReload())
+                return Task.FromResult(SkinCurrentRevisionReloadResult.ParticipantRejected);
+
+            lock (currentRevisionReloadGate)
+            {
+                if (Volatile.Read(ref currentRevisionPublicationShutdown) == 0)
+                {
+                    long generation = Interlocked.Increment(ref currentRevisionReloadGeneration);
+
+                    try
+                    {
+                        activeCurrentRevisionReloadCancellation?.Cancel();
+                    }
+                    catch
+                    {
+                        // Cancellation observers belong to the superseded worker. They cannot consume the newly
+                        // admitted latest request or strand its admission count.
+                    }
+
+                    var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    activeCurrentRevisionReloadCancellation = operationCancellation;
+                    Task<SkinCurrentRevisionReloadResult> operationTask = Task.Run(
+                        () => executeCurrentRevisionReloadSafelyAsync(
+                            generation,
+                            request,
+                            initialParticipants,
+                            operationCancellation.Token),
+                        CancellationToken.None);
+                    activeCurrentRevisionReloadTask = operationTask;
+                    currentRevisionReloadWorkerTasks.Add(operationTask);
+                    currentRevisionReloadWorkerCancellations.Add(operationCancellation);
+
+                    _ = operationTask.ContinueWith(
+                        _ => completeCurrentRevisionReload(generation, operationTask, operationCancellation),
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+
+                    return operationTask;
+                }
+            }
+
+            releaseCurrentRevisionReloadAdmission();
+            return Task.FromResult(SkinCurrentRevisionReloadResult.Shutdown);
+        }
+
+        private async Task<SkinCurrentRevisionReloadResult> executeCurrentRevisionReloadSafelyAsync(
+            long generation,
+            CurrentRevisionReloadRequest request,
+            SkinRevisionParticipantSnapshot initialParticipants,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await executeCurrentRevisionReloadAsync(
+                    generation,
+                    request,
+                    initialParticipants,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return generation == Interlocked.Read(ref currentRevisionReloadGeneration)
+                    ? SkinCurrentRevisionReloadResult.Cancelled
+                    : SkinCurrentRevisionReloadResult.Superseded;
+            }
+            catch
+            {
+                return SkinCurrentRevisionReloadResult.Failed;
+            }
+        }
+
+        private async Task<SkinCurrentRevisionReloadResult> executeCurrentRevisionReloadAsync(
+            long generation,
+            CurrentRevisionReloadRequest request,
+            SkinRevisionParticipantSnapshot initialParticipants,
+            CancellationToken cancellationToken)
+        {
+            SkinRevisionParticipantSnapshot participants = initialParticipants;
+
+            for (int participantRetry = 0; participantRetry < 8; participantRetry++)
+            {
+                if (generation != Interlocked.Read(ref currentRevisionReloadGeneration))
+                    return SkinCurrentRevisionReloadResult.Superseded;
+
+                if (!isCurrentRevisionReloadRequestCurrent(request))
+                    return SkinCurrentRevisionReloadResult.SourceChanged;
+
+                cancellationToken.ThrowIfCancellationRequested();
+                CurrentRevisionPrepareStarted();
+
+                using CurrentRevisionReloadPreparation preparation = prepareCurrentRevisionReload(request, cancellationToken);
+
+                if (generation != Interlocked.Read(ref currentRevisionReloadGeneration))
+                    return SkinCurrentRevisionReloadResult.Superseded;
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!preparation.IsSuccess)
+                    return preparation.FailureResult;
+
+                preparation.Validate(cancellationToken);
+
+                SkinRevisionBarrierRejectionReason ready = await currentRevisionPublication
+                                                                 .PrepareParticipantsAsync(participants, cancellationToken)
+                                                                 .ConfigureAwait(false);
+
+                // Every await boundary re-establishes latest-wins before interpreting participant or source state.
+                // An uncooperative superseded participant may complete after the next generation has already
+                // published; that stale worker must never surface SourceChanged/Failed or proceed to NoChange.
+                if (generation != Interlocked.Read(ref currentRevisionReloadGeneration))
+                    return SkinCurrentRevisionReloadResult.Superseded;
+
+                cancellationToken.ThrowIfCancellationRequested();
+                preparation.Validate(cancellationToken);
+
+                if (!isCurrentRevisionReloadRequestCurrent(request)
+                    || !validateCurrentRevisionRealmAuthority(request))
+                {
+                    return SkinCurrentRevisionReloadResult.SourceChanged;
+                }
+
+                if (ready == SkinRevisionBarrierRejectionReason.ParticipantSetChanged)
+                {
+                    participants = currentRevisionPublication.CaptureSnapshot(
+                        out ready,
+                        requiresPreparedCoherentReceipts: true);
+
+                    if (participants != null)
+                        continue;
+                }
+
+                if (ready != SkinRevisionBarrierRejectionReason.None)
+                    return mapBarrierRejection(ready);
+
+                if (string.Equals(
+                        preparation.ContentRevision,
+                        request.ExpectedRevision.ContentRevision,
+                        StringComparison.Ordinal))
+                {
+                    return SkinCurrentRevisionReloadResult.NoChange;
+                }
+
+                Skin owner = preparation.TransferSkin();
+                SkinCurrentRevision provisional;
+
+                try
+                {
+                    provisional = CreateProvisionalCurrentRevision(
+                        owner,
+                        preparation.ContentRevision,
+                        preparation.SourceKind);
+                }
+                catch
+                {
+                    owner.Dispose();
+                    return SkinCurrentRevisionReloadResult.Shutdown;
+                }
+
+                try
+                {
+                    SkinRevisionParticipantPrepareResult staged = await currentRevisionPublication
+                                                                    .PrepareParticipantsForRevisionAsync(
+                                                                        participants,
+                                                                        provisional,
+                                                                        cancellationToken)
+                                                                    .ConfigureAwait(false);
+
+                    if (generation != Interlocked.Read(ref currentRevisionReloadGeneration))
+                        return SkinCurrentRevisionReloadResult.Superseded;
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    preparation.Validate(cancellationToken);
+
+                    if (!isCurrentRevisionReloadRequestCurrent(request)
+                        || !validateCurrentRevisionRealmAuthority(request))
+                    {
+                        return SkinCurrentRevisionReloadResult.SourceChanged;
+                    }
+
+                    if (!staged.IsSuccess)
+                    {
+                        if (staged.RejectionReason == SkinRevisionBarrierRejectionReason.ParticipantSetChanged)
+                        {
+                            participants = currentRevisionPublication.CaptureSnapshot(
+                                out SkinRevisionBarrierRejectionReason recaptureRejection,
+                                requiresPreparedCoherentReceipts: true);
+
+                            if (participants != null)
+                                continue;
+
+                            return mapBarrierRejection(recaptureRejection);
+                        }
+
+                        return mapBarrierRejection(staged.RejectionReason);
+                    }
+
+                    using SkinRevisionPreparedBarrier participantBarrier = staged.Barrier;
+
+                    // Test/user-controlled delays happen before the final exact authority validation. From the validation
+                    // return through the barrier, production mutation entry points are excluded by the reload admission;
+                    // the update-thread callback below therefore performs only in-memory generation/reference checks.
+                    CurrentRevisionBeforeCommitSchedule();
+
+                    if (generation != Interlocked.Read(ref currentRevisionReloadGeneration))
+                        return SkinCurrentRevisionReloadResult.Superseded;
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    preparation.Validate(cancellationToken);
+
+                    if (!isCurrentRevisionReloadRequestCurrent(request)
+                        || !validateCurrentRevisionRealmAuthority(request))
+                    {
+                        return SkinCurrentRevisionReloadResult.SourceChanged;
+                    }
+
+                    CurrentRevisionCommitAttempt commit = await scheduleCurrentRevisionCommit(
+                        generation,
+                        request,
+                        participantBarrier,
+                        provisional,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (commit == CurrentRevisionCommitAttempt.Success)
+                        return SkinCurrentRevisionReloadResult.Success;
+
+                    if (commit == CurrentRevisionCommitAttempt.ParticipantSetChanged)
+                    {
+                        participants = currentRevisionPublication.CaptureSnapshot(
+                            out SkinRevisionBarrierRejectionReason recaptureRejection,
+                            requiresPreparedCoherentReceipts: true);
+
+                        if (participants != null)
+                            continue;
+
+                        return mapBarrierRejection(recaptureRejection);
+                    }
+
+                    return commit switch
+                    {
+                        CurrentRevisionCommitAttempt.Superseded => SkinCurrentRevisionReloadResult.Superseded,
+                        CurrentRevisionCommitAttempt.Cancelled => SkinCurrentRevisionReloadResult.Cancelled,
+                        CurrentRevisionCommitAttempt.SchedulerFailed => SkinCurrentRevisionReloadResult.SchedulerFailed,
+                        CurrentRevisionCommitAttempt.Shutdown => SkinCurrentRevisionReloadResult.Shutdown,
+                        _ => SkinCurrentRevisionReloadResult.SourceChanged,
+                    };
+                }
+                finally
+                {
+                    // Once created, the provisional owner remains manager-owned until the barrier makes it current.
+                    // Cancellation, final validation, participant and scheduler faults all converge through this claim.
+                    DiscardProvisionalCurrentRevision(provisional);
+                }
+            }
+
+            return SkinCurrentRevisionReloadResult.ParticipantRejected;
+        }
+
+        private bool isCurrentRevisionReloadRequestCurrent(CurrentRevisionReloadRequest request)
+            => Interlocked.Read(ref selectionGeneration) == request.SelectionGeneration
+               && !CurrentSkinInfo.Disabled
+               && CurrentSkinInfo.Value.ID == request.ExpectedSelection.ID
+               && ReferenceEquals(CurrentSkin.Value, request.ExpectedOwner)
+               && ReferenceEquals(currentRevisionPublication.Current, request.ExpectedRevision);
+
+        private bool validateCurrentRevisionRealmAuthority(CurrentRevisionReloadRequest request)
+        {
+            try
+            {
+                return Realm.Run(realm =>
+                {
+                    realm.Refresh();
+                    SkinInfo current = realm.Find<SkinInfo>(request.ExpectedSelection.ID);
+
+                    if (current == null)
+                        return false;
+
+                    switch (request.SourceRequest.Resolution.Authority)
+                    {
+                        case SkinFilesystemStorageAuthority.RealmPackage:
+                            return request.RealmSnapshot != null
+                                   && request.RealmSnapshot.Matches(createRealmPackageSnapshot(current));
+
+                        case SkinFilesystemStorageAuthority.ManagedFolder:
+                            return request.SourceRequest.Matches(current, storage)
+                                   && !current.IsExternalFilesystemStorage
+                                   && string.Equals(
+                                       current.FilesystemStorageAuthorityOwner,
+                                       SkinManagedFolderScanner.AUTHORITY_OWNER,
+                                       StringComparison.Ordinal);
+
+                        case SkinFilesystemStorageAuthority.ExternalFolder:
+                            return request.SourceRequest.Matches(current, storage)
+                                   && externalFolderRegistry.TryReadAndValidateDeclarations(
+                                       out SkinExternalFolderRegistryDeclaration[] declarations,
+                                       out _,
+                                       out _,
+                                       out _)
+                                   && exactlyMatchesExternalDeclarations(realm.All<SkinInfo>(), declarations);
+
+                        default:
+                            return false;
+                    }
+                });
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private Task<CurrentRevisionCommitAttempt> scheduleCurrentRevisionCommit(
+            long generation,
+            CurrentRevisionReloadRequest request,
+            SkinRevisionPreparedBarrier participantBarrier,
+            SkinCurrentRevision provisional,
+            CancellationToken cancellationToken)
+        {
+            var completion = new TaskCompletionSource<CurrentRevisionCommitAttempt>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            CurrentRevisionCallbackScheduleResult scheduleResult = scheduleCurrentRevisionCallback(
+                () =>
+                {
+                    if (generation != Interlocked.Read(ref currentRevisionReloadGeneration))
+                    {
+                        completion.TrySetResult(CurrentRevisionCommitAttempt.Superseded);
+                        return;
+                    }
+
+                    if (Volatile.Read(ref currentRevisionPublicationShutdown) != 0)
+                    {
+                        completion.TrySetResult(CurrentRevisionCommitAttempt.Shutdown);
+                        return;
+                    }
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        completion.TrySetResult(CurrentRevisionCommitAttempt.Cancelled);
+                        return;
+                    }
+
+                    if (Interlocked.Read(ref selectionGeneration) != request.SelectionGeneration
+                        || CurrentSkinInfo.Disabled
+                        || CurrentSkinInfo.Value.ID != request.ExpectedSelection.ID
+                        || !ReferenceEquals(CurrentSkin.Value, request.ExpectedOwner)
+                        || !ReferenceEquals(currentRevisionPublication.Current, request.ExpectedRevision))
+                    {
+                        completion.TrySetResult(CurrentRevisionCommitAttempt.SourceChanged);
+                        return;
+                    }
+
+                    bool published = TryPublishPreparedCurrentRevision(
+                        participantBarrier,
+                        provisional,
+                        request.ExpectedSelection,
+                        out SkinRevisionBarrierRejectionReason rejection);
+
+                    completion.TrySetResult(published
+                        ? CurrentRevisionCommitAttempt.Success
+                        : rejection switch
+                        {
+                            SkinRevisionBarrierRejectionReason.ParticipantSetChanged => CurrentRevisionCommitAttempt.ParticipantSetChanged,
+                            SkinRevisionBarrierRejectionReason.Shutdown => CurrentRevisionCommitAttempt.Shutdown,
+                            _ => CurrentRevisionCommitAttempt.SourceChanged,
+                        });
+                },
+                () => completion.TrySetResult(CurrentRevisionCommitAttempt.Shutdown));
+
+            if (scheduleResult == CurrentRevisionCallbackScheduleResult.Faulted)
+                completion.TrySetResult(CurrentRevisionCommitAttempt.SchedulerFailed);
+
+            return completion.Task;
+        }
+
+        private CurrentRevisionReloadPreparation prepareCurrentRevisionReload(
+            CurrentRevisionReloadRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (!validateCurrentRevisionRealmAuthority(request))
+                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceChanged);
+
+                return request.SourceRequest.Resolution.Authority switch
+                {
+                    SkinFilesystemStorageAuthority.RealmPackage => prepareRealmPackageRevision(request, cancellationToken),
+                    SkinFilesystemStorageAuthority.ManagedFolder => prepareManagedFolderRevision(request, cancellationToken),
+                    SkinFilesystemStorageAuthority.ExternalFolder => prepareExternalFolderRevision(request, cancellationToken),
+                    _ => CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnsupported),
+                };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+            }
+        }
+
+        private CurrentRevisionReloadPreparation prepareRealmPackageRevision(
+            CurrentRevisionReloadRequest request,
+            CancellationToken cancellationToken)
+        {
+            RealmPackageRevisionSnapshot fresh = readRealmPackageRevisionSnapshot(request.ExpectedSelection.ID);
+
+            if (fresh == null || !request.RealmSnapshot.MatchesMetadata(fresh))
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceChanged);
+
+            var entries = new List<SkinPackageCapturedEntry>(fresh.Files.Count);
+
+            foreach (RealmPackageFileDeclaration file in fresh.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                byte[] content = userFiles.Get(new RealmFile { Hash = file.Hash }.GetStoragePath());
+
+                if (content == null)
+                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+
+                string actualHash = Convert.ToHexString(SHA256.HashData(content));
+
+                if (!string.Equals(actualHash, file.Hash, StringComparison.OrdinalIgnoreCase))
+                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceChanged);
+
+                entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, content));
+            }
+
+            SkinPackageRevisionCapsuleCreationResult capsule =
+                SkinPackageRevisionCapsuleFactory.Create(entries, cancellationToken: cancellationToken);
+
+            if (!capsule.IsSuccess)
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+
+            SkinInfo exactInfo = createFilesystemSkinSnapshot(fresh.Metadata);
+            exactInfo.Hash = capsule.Capsule!.ContentRevision;
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule.Capsule);
+
+            if (!factory.IsSuccess)
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnsupported);
+
+            RealmPackageRevisionSnapshot post = readRealmPackageRevisionSnapshot(request.ExpectedSelection.ID);
+
+            if (!fresh.Matches(post))
+            {
+                factory.Skin!.Dispose();
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceChanged);
+            }
+
+            return CurrentRevisionReloadPreparation.Success(
+                factory.Skin!,
+                exactInfo.Hash,
+                SkinCurrentRevisionSourceKind.RealmPackage,
+                validate: _ =>
+                {
+                    RealmPackageRevisionSnapshot current = readRealmPackageRevisionSnapshot(request.ExpectedSelection.ID);
+                    if (!fresh.Matches(current))
+                        throw new InvalidOperationException("The Realm package revision changed during preparation.");
+                });
+        }
+
+        private CurrentRevisionReloadPreparation prepareManagedFolderRevision(
+            CurrentRevisionReloadRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request.SourceRequest.Resolution.ManagedCaptureRequest == null
+                || request.SourceRequest.Snapshot == null
+                || !request.SourceRequest.IsRealmManaged
+                || !request.SourceRequest.HasExactScannerOwner)
+            {
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnsupported);
+            }
+
+            SkinManagedPackageHeldCaptureResult capture = SkinManagedPackageCapture.CaptureHeld(
+                request.SourceRequest.Resolution.ManagedCaptureRequest,
+                cancellationToken: cancellationToken);
+
+            if (!capture.IsSuccess)
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+
+            ISkinManagedPackageCaptureSession session = capture.Session!;
+            Skin preparedSkin = null;
+            bool authorityTransferred = false;
+
+            try
+            {
+                SkinPackageRevisionCapsule capsule = session.TakeCapsule();
+
+                if (!SkinManagedFolderPackageMetadataReader.TryRead(capsule, out SkinManagedFolderPackageMetadata metadata))
+                {
+                    capsule.Dispose();
+                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+                }
+
+                SkinInfo freshInfo = createFilesystemSkinSnapshot(request.SourceRequest.Snapshot);
+                freshInfo.Name = metadata!.Name;
+                freshInfo.Creator = metadata.Creator;
+                freshInfo.Hash = metadata.ContentRevision;
+                SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(freshInfo, this, capsule);
+
+                if (!factory.IsSuccess)
+                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnsupported);
+
+                preparedSkin = factory.Skin!;
+                session.Validate(cancellationToken);
+                CurrentRevisionReloadPreparation result = CurrentRevisionReloadPreparation.Success(
+                    preparedSkin,
+                    metadata.ContentRevision,
+                    SkinCurrentRevisionSourceKind.ManagedFolder,
+                    validate: token => session.Validate(token),
+                    authority: session);
+                preparedSkin = null;
+                authorityTransferred = true;
+                return result;
+            }
+            finally
+            {
+                preparedSkin?.Dispose();
+
+                if (!authorityTransferred)
+                    session.Dispose();
+            }
+        }
+
+        private CurrentRevisionReloadPreparation prepareExternalFolderRevision(
+            CurrentRevisionReloadRequest request,
+            CancellationToken cancellationToken)
+        {
+            ExternalFolderSelectionPreparationResult prepared =
+                prepareExternalFolderSelection(request.SourceRequest, cancellationToken);
+
+            if (!prepared.IsSuccess)
+                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+
+            try
+            {
+                prepared.PackageSession.Validate(cancellationToken);
+                prepared.ManagedAuthority.ValidateCompleteAndStable(cancellationToken);
+                return CurrentRevisionReloadPreparation.Success(
+                    prepared.TransferSkin(),
+                    prepared.Metadata.ContentRevision,
+                    SkinCurrentRevisionSourceKind.ExternalFolder,
+                    validate: token =>
+                    {
+                        prepared.PackageSession.Validate(token);
+                        prepared.ManagedAuthority.ValidateCompleteAndStable(token);
+                    },
+                    authority: prepared);
+            }
+            catch
+            {
+                prepared.Dispose();
+                throw;
+            }
+        }
+
+        private RealmPackageRevisionSnapshot createRealmPackageSnapshot(SkinInfo info)
+        {
+            if (!info.IsManaged
+                || info.Protected
+                || !string.IsNullOrEmpty(info.FilesystemStoragePath)
+                || info.IsExternalFilesystemStorage)
+            {
+                return null;
+            }
+
+            return RealmPackageRevisionSnapshot.Create(info);
+        }
+
+        private RealmPackageRevisionSnapshot readRealmPackageRevisionSnapshot(Guid recordId)
+            => Realm.Run(realm =>
+            {
+                realm.Refresh();
+                SkinInfo current = realm.Find<SkinInfo>(recordId);
+                return current == null ? null : createRealmPackageSnapshot(current);
+            });
+
+        private static SkinCurrentRevisionReloadResult mapBarrierRejection(
+            SkinRevisionBarrierRejectionReason rejection)
+            => rejection switch
+            {
+                SkinRevisionBarrierRejectionReason.LiveGameplayActive => SkinCurrentRevisionReloadResult.LiveGameplayActive,
+                SkinRevisionBarrierRejectionReason.ParticipantRejected => SkinCurrentRevisionReloadResult.ParticipantRejected,
+                SkinRevisionBarrierRejectionReason.Shutdown => SkinCurrentRevisionReloadResult.Shutdown,
+                SkinRevisionBarrierRejectionReason.CurrentRevisionChanged => SkinCurrentRevisionReloadResult.SourceChanged,
+                _ => SkinCurrentRevisionReloadResult.ParticipantRejected,
+            };
+
+        private void completeCurrentRevisionReload(
+            long generation,
+            Task<SkinCurrentRevisionReloadResult> operationTask,
+            CancellationTokenSource operationCancellation)
+        {
+            if (operationTask.IsFaulted)
+                _ = operationTask.Exception;
+
+            lock (currentRevisionReloadGate)
+            {
+                currentRevisionReloadWorkerTasks.Remove(operationTask);
+                currentRevisionReloadWorkerCancellations.Remove(operationCancellation);
+
+                if (generation == Interlocked.Read(ref currentRevisionReloadGeneration)
+                    && ReferenceEquals(activeCurrentRevisionReloadTask, operationTask))
+                {
+                    activeCurrentRevisionReloadTask = null;
+                    activeCurrentRevisionReloadCancellation = null;
+                }
+            }
+
+            releaseCurrentRevisionReloadAdmission();
+            operationCancellation.Dispose();
+        }
+
+        private CurrentRevisionCallbackScheduleResult scheduleCurrentRevisionCallback(
+            Action callback,
+            Action shutdown)
+            => scheduleCurrentRevisionCallbackUsing(
+                CurrentRevisionCompletionSchedule,
+                callback,
+                shutdown);
+
+        /// <summary>
+        /// Rollback is a convergence obligation after the fallback barrier. A fault injected into the ordinary
+        /// completion hook may fail a new publication, but cannot strand the manager on fallback after an unchanged
+        /// source mutation. Retry once through the owned framework scheduler before declaring shutdown.
+        /// </summary>
+        private CurrentRevisionCallbackScheduleResult scheduleCriticalCurrentRevisionCallback(
+            Action callback,
+            Action shutdown)
+        {
+            CurrentRevisionCallbackScheduleResult result = scheduleCurrentRevisionCallback(callback, shutdown);
+
+            return result == CurrentRevisionCallbackScheduleResult.Faulted
+                ? scheduleCurrentRevisionCallbackUsing(action => scheduler.Add(action), callback, shutdown)
+                : result;
+        }
+
+        private CurrentRevisionCallbackScheduleResult scheduleCurrentRevisionCallbackUsing(
+            Action<Action> completionSchedule,
+            Action callback,
+            Action shutdown)
+        {
+            ArgumentNullException.ThrowIfNull(completionSchedule);
+            ArgumentNullException.ThrowIfNull(callback);
+            ArgumentNullException.ThrowIfNull(shutdown);
+
+            var pending = new PendingCurrentRevisionCallback(callback, shutdown);
+
+            lock (currentRevisionReloadGate)
+            {
+                if (Volatile.Read(ref currentRevisionPublicationShutdown) != 0)
+                {
+                    pending.Shutdown();
+                    return CurrentRevisionCallbackScheduleResult.Shutdown;
+                }
+
+                pendingCurrentRevisionCallbacks.Add(pending);
+            }
+
+            try
+            {
+                completionSchedule(() =>
+                {
+                    lock (currentRevisionReloadGate)
+                    {
+                        if (!pendingCurrentRevisionCallbacks.Remove(pending))
+                            return;
+                    }
+
+                    pending.Run();
+                });
+
+                return CurrentRevisionCallbackScheduleResult.Scheduled;
+            }
+            catch
+            {
+                bool claimed;
+
+                lock (currentRevisionReloadGate)
+                    claimed = pendingCurrentRevisionCallbacks.Remove(pending);
+
+                if (claimed)
+                    pending.Abandon();
+
+                return CurrentRevisionCallbackScheduleResult.Faulted;
+            }
+        }
+
+        private async Task<ProtectedFallbackPublicationTransaction> publishProtectedFallbackAndWaitForDetachAsync(
+            Guid expectedRecordId,
+            CancellationToken cancellationToken,
+            Func<CancellationToken, bool> validatePreparedAuthority = null,
+            Func<bool> validateCommitReceipt = null)
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                throw new InvalidOperationException("Protected fallback publication must start on the update thread.");
+
+            if (cancellationToken.IsCancellationRequested
+                || CurrentSkinInfo.Disabled
+                || CurrentSkinInfo.Value.ID != expectedRecordId
+                || CurrentSkin.Value.SkinInfo.ID != expectedRecordId
+                || currentRevisionPublication.Current.RecordId != expectedRecordId
+                || !ReferenceEquals(currentRevisionPublication.Current.Owner, CurrentSkin.Value))
+            {
+                return null;
+            }
+
+            if (!isExactProtectedFallbackAuthority())
+                return null;
+
+            Live<SkinInfo> expectedSelection = CurrentSkinInfo.Value;
+            Skin expectedOwner = CurrentSkin.Value;
+            SkinCurrentRevision expectedRevision = currentRevisionPublication.Current;
+            SkinCurrentRevisionLease rollbackLease = expectedRevision.AcquireOperationLease();
+            bool committed = false;
+
+            try
+            {
+                for (int retry = 0; retry < 8; retry++)
+                {
+                    if (validatePreparedAuthority != null
+                        && !validatePreparedAuthority(cancellationToken))
+                    {
+                        return null;
+                    }
+
+                    SkinRevisionParticipantSnapshot participants =
+                        currentRevisionPublication.CaptureSnapshot(
+                            out SkinRevisionBarrierRejectionReason captureRejection,
+                            requiresPreparedCoherentReceipts: true);
+
+                    if (participants == null)
+                        return null;
+
+                    SkinCurrentRevision fallback = CreateProvisionalCurrentRevision(
+                        DefaultOmsSkin,
+                        getCurrentRevisionContentIdentity(DefaultOmsSkin),
+                        SkinCurrentRevisionSourceKind.ProtectedFallback);
+                    SkinRevisionParticipantPrepareResult staged = await currentRevisionPublication
+                                                                        .PrepareParticipantsForRevisionAsync(
+                                                                            participants,
+                                                                            fallback,
+                                                                            cancellationToken)
+                                                                        .ConfigureAwait(false);
+
+                    if (!staged.IsSuccess)
+                    {
+                        DiscardProvisionalCurrentRevision(fallback);
+
+                        if (staged.RejectionReason == SkinRevisionBarrierRejectionReason.ParticipantSetChanged)
+                            continue;
+
+                        return null;
+                    }
+
+                    using SkinRevisionPreparedBarrier participantBarrier = staged.Barrier;
+
+                    if ((validatePreparedAuthority != null
+                         && !validatePreparedAuthority(cancellationToken))
+                        || !isExactProtectedFallbackAuthority())
+                    {
+                        DiscardProvisionalCurrentRevision(fallback);
+                        return null;
+                    }
+
+                    var completion = new TaskCompletionSource<(bool success, SkinRevisionBarrierRejectionReason rejection)>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+
+                    CurrentRevisionCallbackScheduleResult scheduleResult = scheduleCurrentRevisionCallback(
+                        () =>
+                        {
+                            if (cancellationToken.IsCancellationRequested
+                                || CurrentSkinInfo.Disabled
+                                || !ReferenceEquals(CurrentSkinInfo.Value, expectedSelection)
+                                || !ReferenceEquals(CurrentSkin.Value, expectedOwner)
+                                || !ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
+                                || (validateCommitReceipt != null && !validateCommitReceipt()))
+                            {
+                                completion.TrySetResult((false, SkinRevisionBarrierRejectionReason.CurrentRevisionChanged));
+                                return;
+                            }
+
+                            bool published = tryPublishPreparedCurrentSelection(
+                                participantBarrier,
+                                fallback,
+                                DefaultOmsSkin.SkinInfo,
+                                expectedSelection,
+                                expectedOwner,
+                                expectedRevision,
+                                out SkinRevisionBarrierRejectionReason rejection);
+                            completion.TrySetResult((published, rejection));
+                        },
+                        () => completion.TrySetResult((false, SkinRevisionBarrierRejectionReason.Shutdown)));
+
+                    if (scheduleResult == CurrentRevisionCallbackScheduleResult.Faulted)
+                    {
+                        DiscardProvisionalCurrentRevision(fallback);
+                        return null;
+                    }
+
+                    (bool success, SkinRevisionBarrierRejectionReason rejection) result =
+                        await completion.Task.ConfigureAwait(false);
+
+                    if (!result.success)
+                    {
+                        DiscardProvisionalCurrentRevision(fallback);
+
+                        if (result.rejection == SkinRevisionBarrierRejectionReason.ParticipantSetChanged)
+                            continue;
+
+                        return null;
+                    }
+
+                    committed = true;
+
+                    // Cancellation after the barrier cannot split the pair. From this point the operation always
+                    // converges to either its protected fallback or an exact rollback of the old revision.
+                    var transaction = new ProtectedFallbackPublicationTransaction(
+                        expectedSelection,
+                        expectedOwner,
+                        expectedRevision,
+                        fallback,
+                        rollbackLease);
+
+                    try
+                    {
+                        await expectedRevision.ConsumersDetached.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        return transaction;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        await rollbackProtectedFallbackAsync(transaction).ConfigureAwait(false);
+                        return null;
+                    }
+                }
+
+                return null;
+            }
+            finally
+            {
+                if (!committed)
+                    rollbackLease.Dispose();
+            }
+        }
+
+        private bool isExactProtectedFallbackAuthority()
+        {
+            try
+            {
+                return DefaultOmsSkin.GetType() == typeof(OmsSkin)
+                       && DefaultOmsSkin.SkinInfo.PerformRead(
+                           SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord)
+                       && Realm.Run(realm =>
+                       {
+                           realm.Refresh();
+                           return SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(
+                               realm.Find<SkinInfo>(SkinInfo.OMS_SKIN));
+                       });
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> rollbackProtectedFallbackAsync(ProtectedFallbackPublicationTransaction transaction)
+        {
+            while (true)
+            {
+                if (ReferenceEquals(currentRevisionPublication.Current, transaction.PreviousRevision)
+                    && ReferenceEquals(CurrentSkin.Value, transaction.PreviousOwner)
+                    && ReferenceEquals(CurrentSkinInfo.Value, transaction.PreviousSelection))
+                {
+                    transaction.Complete();
+                    return true;
+                }
+
+                SkinRevisionParticipantSnapshot retainingParticipants =
+                    currentRevisionPublication.CaptureRetainingSnapshot(out SkinRevisionBarrierRejectionReason captureRejection);
+
+                if (retainingParticipants == null)
+                {
+                    transaction.Complete();
+                    return false;
+                }
+
+                SkinRevisionParticipantRegistration[] liveBlockers = retainingParticipants.Participants
+                                                                                          .Where(participant =>
+                                                                                              !participant.IsDisposed
+                                                                                              && (participant.Kind == SkinRevisionParticipantKind.LiveGameplayHost
+                                                                                                  || participant.BlocksRevisionPublication))
+                                                                                          .ToArray();
+
+                if (liveBlockers.Length > 0)
+                {
+                    // A live host or half-loaded coherent consumer which attached to the committed fallback cannot be
+                    // split or rebuilt. The latter may transition to a formal staged participant before detaching;
+                    // always recapture after the temporary registration leaves and then prepare that formal consumer.
+                    await Task.WhenAll(liveBlockers.Select(participant => participant.Detached)).ConfigureAwait(false);
+                    continue;
+                }
+
+                SkinRevisionParticipantSnapshot participants =
+                    currentRevisionPublication.CaptureSnapshot(out captureRejection);
+
+                if (participants == null)
+                {
+                    // A live/temp blocker may attach between the retaining inventory above and this publication
+                    // snapshot. Recapture so the next iteration waits its exact Detached receipt; treating that race
+                    // as terminal would strand the protected fallback after an otherwise failed mutation.
+                    if (captureRejection is SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                        or SkinRevisionBarrierRejectionReason.ParticipantRejected)
+                    {
+                        continue;
+                    }
+
+                    transaction.Complete();
+                    return false;
+                }
+
+                SkinRevisionParticipantPrepareResult staged = await currentRevisionPublication
+                                                                    .PrepareParticipantsForRevisionAsync(
+                                                                        participants,
+                                                                        transaction.PreviousRevision,
+                                                                        CancellationToken.None)
+                                                                    .ConfigureAwait(false);
+
+                if (!staged.IsSuccess)
+                {
+                    if (staged.RejectionReason is SkinRevisionBarrierRejectionReason.ParticipantSetChanged
+                        or SkinRevisionBarrierRejectionReason.LiveGameplayActive)
+                    {
+                        continue;
+                    }
+
+                    if (staged.BlockingParticipant != null && !staged.BlockingParticipant.IsDisposed)
+                    {
+                        // An unsupported visual which attached after fallback must leave before the exact old pair can
+                        // be restored. No consumer is changed while this deterministic defer is outstanding.
+                        await staged.BlockingParticipant.Detached.ConfigureAwait(false);
+                        continue;
+                    }
+
+                    transaction.Complete();
+                    return false;
+                }
+
+                using SkinRevisionPreparedBarrier participantBarrier = staged.Barrier;
+
+                var completion = new TaskCompletionSource<(bool restored, SkinRevisionBarrierRejectionReason rejection)>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+                CurrentRevisionCallbackScheduleResult scheduleResult = scheduleCriticalCurrentRevisionCallback(
+                    () =>
+                    {
+                        if (!ReferenceEquals(currentRevisionPublication.Current, transaction.FallbackRevision)
+                            || CurrentSkinInfo.Value.ID != SkinInfo.OMS_SKIN
+                            || !ReferenceEquals(CurrentSkin.Value, DefaultOmsSkin))
+                        {
+                            completion.TrySetResult((false, SkinRevisionBarrierRejectionReason.CurrentRevisionChanged));
+                            return;
+                        }
+
+                        transaction.PreviousRevision.AddManagerLease();
+
+                        bool restored = tryPublishPreparedCurrentSelection(
+                            participantBarrier,
+                            transaction.PreviousRevision,
+                            transaction.PreviousSelection,
+                            DefaultOmsSkin.SkinInfo,
+                            DefaultOmsSkin,
+                            transaction.FallbackRevision,
+                            out SkinRevisionBarrierRejectionReason rejection);
+
+                        if (!restored)
+                        {
+                            transaction.PreviousRevision.ReleaseManagerLease();
+                            completion.TrySetResult((false, rejection));
+                            return;
+                        }
+
+                        if (restored)
+                            transaction.Complete();
+
+                        completion.TrySetResult((restored, restored
+                            ? SkinRevisionBarrierRejectionReason.None
+                            : SkinRevisionBarrierRejectionReason.CurrentRevisionChanged));
+                    },
+                    () => completion.TrySetResult((false, SkinRevisionBarrierRejectionReason.Shutdown)));
+
+                if (scheduleResult == CurrentRevisionCallbackScheduleResult.Faulted)
+                {
+                    transaction.Complete();
+                    return false;
+                }
+
+                (bool restored, SkinRevisionBarrierRejectionReason rejection) result =
+                    await completion.Task.ConfigureAwait(false);
+
+                if (result.restored)
+                    return true;
+
+                if (result.rejection != SkinRevisionBarrierRejectionReason.ParticipantSetChanged)
+                {
+                    transaction.Complete();
+                    return false;
+                }
+            }
         }
 
         internal SkinManagedFolderMutationRecoveryResult RecoverManagedFolderMutations(CancellationToken cancellationToken = default)
@@ -443,7 +2019,10 @@ namespace osu.Game.Skinning
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
                     || activeManagedFolderDeleteTask is { IsCompleted: false }
                     || activeManagedFolderRecoveryTask is { IsCompleted: false }
-                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                    || activeFolderWorkspaceTask is { IsCompleted: false }
+                    || currentRevisionMutationAdmissionHeld
+                    || currentRevisionReloadAdmissionHeld
+                    || realmPackageMutationAdmissionDepth > 0)
                 {
                     return Task.FromResult(false);
                 }
@@ -530,9 +2109,7 @@ namespace osu.Game.Skinning
                                     canOpenFolder: sourceUsable,
                                     canImportManagedCopy: sourceUsable,
                                     canUnregister: !ManagedFolderOperationCoordinator.IsMutationBlocked
-                                                   && currentPairCoherent
-                                                   && currentInfoId != record.ID
-                                                   && currentSkinId != record.ID,
+                                                   && currentPairCoherent,
                                     canRename: false,
                                     canDelete: false));
                                 continue;
@@ -680,6 +2257,25 @@ namespace osu.Game.Skinning
                     return Task.FromResult(false);
                 }
 
+                bool isCurrentTarget = CurrentSkinInfo.Value.ID == recordId
+                                       || CurrentSkin.Value.SkinInfo.ID == recordId;
+
+                if (isCurrentTarget)
+                {
+                    if (CurrentSkinInfo.Value.ID != recordId
+                        || CurrentSkin.Value.SkinInfo.ID != recordId)
+                    {
+                        return Task.FromResult(false);
+                    }
+
+                    if (!tryAdmitCurrentRevisionMutation())
+                        return Task.FromResult(false);
+
+                    return trackAdmittedCurrentRevisionMutation(
+                        token => unregisterCurrentExternalFolderAdmittedAsync(recordId, token),
+                        cancellationToken);
+                }
+
                 if (!ManagedFolderOperationCoordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease operationLease))
                     return Task.FromResult(false);
 
@@ -738,7 +2334,11 @@ namespace osu.Game.Skinning
                || activeManagedFolderStagedImportTask is { IsCompleted: false }
                || activeManagedFolderDeleteTask is { IsCompleted: false }
                || activeManagedFolderRecoveryTask is { IsCompleted: false }
-               || activeFolderWorkspaceTask is { IsCompleted: false };
+               || activeFolderWorkspaceTask is { IsCompleted: false }
+               || currentRevisionMutationAdmissionHeld
+               || currentRevisionReloadAdmissionHeld
+               || realmPackageMutationAdmissionDepth > 0
+               || Volatile.Read(ref currentSkinProjectionInProgress) != 0;
 
         private static bool executeFolderWorkspaceOperation(
             Func<CancellationToken, bool> operation,
@@ -1912,7 +3512,10 @@ namespace osu.Game.Skinning
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
                     || activeManagedFolderDeleteTask is { IsCompleted: false }
                     || activeManagedFolderRecoveryTask is { IsCompleted: false }
-                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                    || activeFolderWorkspaceTask is { IsCompleted: false }
+                    || currentRevisionMutationAdmissionHeld
+                    || currentRevisionReloadAdmissionHeld
+                    || realmPackageMutationAdmissionDepth > 0)
                     return completedRenameResult(SkinManagedFolderRenameOperationStatus.Busy);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -1957,7 +3560,10 @@ namespace osu.Game.Skinning
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
                     || activeManagedFolderDeleteTask is { IsCompleted: false }
                     || activeManagedFolderRecoveryTask is { IsCompleted: false }
-                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                    || activeFolderWorkspaceTask is { IsCompleted: false }
+                    || currentRevisionMutationAdmissionHeld
+                    || currentRevisionReloadAdmissionHeld
+                    || realmPackageMutationAdmissionDepth > 0)
                 {
                     return completedStagedImportResult(
                         SkinManagedFolderStagedImportOperationStatus.Busy);
@@ -2016,7 +3622,10 @@ namespace osu.Game.Skinning
                     || activeManagedFolderStagedImportTask is { IsCompleted: false }
                     || activeManagedFolderDeleteTask is { IsCompleted: false }
                     || activeManagedFolderRecoveryTask is { IsCompleted: false }
-                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                    || activeFolderWorkspaceTask is { IsCompleted: false }
+                    || currentRevisionMutationAdmissionHeld
+                    || currentRevisionReloadAdmissionHeld
+                    || realmPackageMutationAdmissionDepth > 0)
                 {
                     return completedDeleteResult(SkinManagedFolderDeleteOperationStatus.Busy);
                 }
@@ -2048,12 +3657,14 @@ namespace osu.Game.Skinning
         internal void ShutdownManagedFolderMutations()
         {
             shutdownManagedFolderSelections();
+            Task currentRevisionReloadTask = null;
 
             CancellationTokenSource renameCancellation;
             CancellationTokenSource importCancellation;
             CancellationTokenSource deleteCancellation;
             CancellationTokenSource recoveryCancellation;
             CancellationTokenSource workspaceCancellation;
+            CancellationTokenSource[] currentReloadCancellations;
             FolderWorkspaceReadOperation[] workspaceReadOperations;
             Task<SkinManagedFolderRenameOperationResult> renameTask;
             Task<SkinManagedFolderStagedImportOperationResult> importTask;
@@ -2078,6 +3689,9 @@ namespace osu.Game.Skinning
                 workspaceTask = activeFolderWorkspaceTask;
                 pendingDeleteFallback = pendingManagedFolderDeleteFallback;
             }
+
+            lock (currentRevisionReloadGate)
+                currentReloadCancellations = currentRevisionReloadWorkerCancellations.ToArray();
 
             try
             {
@@ -2124,6 +3738,18 @@ namespace osu.Game.Skinning
                 // Cancellation callback failures must not bypass the workspace join below.
             }
 
+            foreach (CancellationTokenSource currentReloadCancellation in currentReloadCancellations)
+            {
+                try
+                {
+                    currentReloadCancellation.Cancel();
+                }
+                catch
+                {
+                    // The publication shutdown join below still claims every tracked worker exactly once.
+                }
+            }
+
             foreach (FolderWorkspaceReadOperation operation in workspaceReadOperations)
             {
                 try
@@ -2138,9 +3764,27 @@ namespace osu.Game.Skinning
 
             cancelManagedFolderDeleteFallback(pendingDeleteFallback);
 
+            if (!ThreadSafety.IsUpdateThread && workspaceTask is { IsCompleted: false })
+            {
+                // A SourceChanged observer can request shutdown from a background task while synchronously waiting on
+                // the update thread. Returning that outer call and handing the exact join back to the update scheduler
+                // breaks the otherwise unavoidable callback -> join -> callback cycle. Production disposal already
+                // enters on the update thread and therefore remains a synchronous exact join.
+                try
+                {
+                    scheduler.Add(ShutdownManagedFolderMutations);
+                }
+                catch
+                {
+                    // A later owner/test teardown call can repeat the idempotent join if the scheduler is already gone.
+                }
+
+                return;
+            }
+
             try
             {
-                renameTask?.GetAwaiter().GetResult();
+                joinTaskPumpingCurrentRevisionCallbacks(renameTask);
             }
             catch
             {
@@ -2149,7 +3793,7 @@ namespace osu.Game.Skinning
 
             try
             {
-                importTask?.GetAwaiter().GetResult();
+                joinTaskPumpingCurrentRevisionCallbacks(importTask);
             }
             catch
             {
@@ -2158,7 +3802,7 @@ namespace osu.Game.Skinning
 
             try
             {
-                deleteTask?.GetAwaiter().GetResult();
+                joinTaskPumpingCurrentRevisionCallbacks(deleteTask);
             }
             catch
             {
@@ -2167,7 +3811,7 @@ namespace osu.Game.Skinning
 
             try
             {
-                recoveryTask?.GetAwaiter().GetResult();
+                joinTaskPumpingCurrentRevisionCallbacks(recoveryTask);
             }
             catch
             {
@@ -2176,7 +3820,7 @@ namespace osu.Game.Skinning
 
             try
             {
-                workspaceTask?.GetAwaiter().GetResult();
+                joinTaskPumpingCurrentRevisionCallbacks(workspaceTask);
             }
             catch
             {
@@ -2194,6 +3838,159 @@ namespace osu.Game.Skinning
                     // Observe cancellation and unexpected failures before Realm can be released.
                 }
             }
+
+            // Current mutations may need the publication scheduler to restore their exact pre-fallback pair after
+            // cancellation. Claim publication only after every mutation/read worker has converged and joined.
+            currentRevisionReloadTask = beginCurrentRevisionPublicationShutdown();
+
+            try
+            {
+                currentRevisionReloadTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Publication preparation failures are reduced to a stable typed outcome.
+            }
+
+            try
+            {
+                Task.WhenAll(currentRevisionPublication.CaptureRevisionWorkDetachments()).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // Work leases release in task completion continuations. Observe unexpected failures without allowing
+                // Realm teardown to overtake exact owner-touching work.
+            }
+
+            if (Interlocked.Exchange(ref currentRevisionManagerLeaseReleased, 1) == 0)
+                currentRevisionPublication.Current.ReleaseManagerLease();
+
+            drainCurrentRevisionRetireQueue();
+        }
+
+        private Task<bool> trackAdmittedCurrentRevisionMutation(
+            Func<CancellationToken, Task<bool>> operation,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(operation);
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown)
+                {
+                    currentRevisionMutationAdmissionHeld = false;
+                    return Task.FromResult(false);
+                }
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<bool> operationTask;
+
+                try
+                {
+                    // The exact preflight and first fallback publication boundary must begin on the update thread.
+                    // The async operation yields before any detach wait or Realm/source mutation.
+                    operationTask = operation(operationCancellation.Token);
+                }
+                catch
+                {
+                    currentRevisionMutationAdmissionHeld = false;
+                    operationCancellation.Dispose();
+                    return Task.FromResult(false);
+                }
+
+                activeFolderWorkspaceCancellation = operationCancellation;
+                activeFolderWorkspaceTask = operationTask;
+
+                _ = operationTask.ContinueWith(
+                    _ => completeFolderWorkspaceTask(operationTask, operationCancellation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return operationTask;
+            }
+        }
+
+        private void joinTaskPumpingCurrentRevisionCallbacks(Task task)
+        {
+            if (task == null)
+                return;
+
+            while (!task.IsCompleted)
+            {
+                pumpCurrentRevisionCallbacksForShutdown();
+
+                if (task.IsCompleted)
+                    break;
+
+                try
+                {
+                    task.Wait(10);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+
+            pumpCurrentRevisionCallbacksForShutdown();
+            task.GetAwaiter().GetResult();
+        }
+
+        private void pumpCurrentRevisionCallbacksForShutdown()
+        {
+            if (!ThreadSafety.IsUpdateThread)
+                return;
+
+            PendingCurrentRevisionCallback[] pendingCallbacks;
+
+            lock (currentRevisionReloadGate)
+            {
+                pendingCallbacks = pendingCurrentRevisionCallbacks.ToArray();
+                pendingCurrentRevisionCallbacks.Clear();
+            }
+
+            foreach (PendingCurrentRevisionCallback pending in pendingCallbacks)
+                pending.Run();
+        }
+
+        private Task beginCurrentRevisionPublicationShutdown()
+        {
+            PendingCurrentRevisionCallback[] pendingCallbacks;
+            Task<SkinCurrentRevisionReloadResult>[] reloadTasks;
+            CancellationTokenSource[] reloadCancellations;
+
+            lock (currentRevisionReloadGate)
+            {
+                if (Interlocked.Exchange(ref currentRevisionPublicationShutdown, 1) == 0)
+                    Interlocked.Increment(ref currentRevisionReloadGeneration);
+
+                reloadTasks = currentRevisionReloadWorkerTasks.ToArray();
+                reloadCancellations = currentRevisionReloadWorkerCancellations.ToArray();
+                pendingCallbacks = pendingCurrentRevisionCallbacks.ToArray();
+                pendingCurrentRevisionCallbacks.Clear();
+            }
+
+            foreach (CancellationTokenSource reloadCancellation in reloadCancellations)
+            {
+                try
+                {
+                    reloadCancellation.Cancel();
+                }
+                catch
+                {
+                }
+            }
+
+            foreach (PendingCurrentRevisionCallback pending in pendingCallbacks)
+                pending.Shutdown();
+
+            // Stop new registrations and request each claimed real owner to cancel/reap hidden work. The publication
+            // never impersonates visual detach or releases a work lease: the owner completion path does both, and the
+            // WorkDetached join below remains the exact fence before Realm teardown.
+            currentRevisionPublication.ShutdownAndClaimParticipants();
+
+            return reloadTasks.Length == 0 ? Task.CompletedTask : Task.WhenAll(reloadTasks);
         }
 
         private void shutdownManagedFolderSelections()
@@ -2584,7 +4381,7 @@ namespace osu.Game.Skinning
                 return;
             }
 
-            SourceChanged?.Invoke();
+            notifySourceChanged();
         }
 
         private void cancelManagedFolderDeleteFallback(PendingManagedFolderDeleteFallback pending)
@@ -2672,46 +4469,10 @@ namespace osu.Game.Skinning
             if (CurrentSkinInfo.Disabled)
                 return SkinManagedFolderProtectedFallbackCommitResult.SelectionDisabled;
 
-            bool fallbackIsValid = Realm.Run(r =>
-            {
-                r.Refresh();
-                return SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(
-                    r.Find<SkinInfo>(SkinInfo.OMS_SKIN));
-            });
-
-            if (!fallbackIsValid
-                || DefaultOmsSkin.GetType() != typeof(OmsSkin)
-                || !DefaultOmsSkin.SkinInfo.PerformRead(
-                    SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord))
-            {
-                return SkinManagedFolderProtectedFallbackCommitResult.FallbackInvalid;
-            }
-
-            try
-            {
-                Interlocked.Increment(ref selectionGeneration);
-                cancelPendingSelection();
-                ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(DefaultOmsSkin.SkinInfo);
-            }
-            catch
-            {
-                return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
-            }
-
-            bool pairCommitted = CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
-                                 && CurrentSkin.Value.GetType() == typeof(OmsSkin)
-                                 && CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN
-                                 && CurrentSkinInfo.Value.PerformRead(
-                                     SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord)
-                                 && CurrentSkin.Value.SkinInfo.PerformRead(
-                                     SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord);
-
-            if (!pairCommitted)
-                return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
-
-            return authority.Validate(cancellationToken)
-                ? SkinManagedFolderProtectedFallbackCommitResult.Committed
-                : SkinManagedFolderProtectedFallbackCommitResult.AuthorityRejected;
+            // C1's synchronous callback may only observe that C2 already moved the pair away from the record. It must
+            // never create a new owner -> CurrentSkin -> immediate-dispose transition of its own. The public current
+            // delete path first publishes the protected revision, waits exact detach, then re-enters C1 as NotRequired.
+            return SkinManagedFolderProtectedFallbackCommitResult.PairNotCommitted;
         }
 
         /// <summary>
@@ -2839,7 +4600,19 @@ namespace osu.Game.Skinning
             SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
 
             if (resolution.Authority == SkinFilesystemStorageAuthority.RealmPackage)
+            {
+                // Imported BMS packages are fixed hash-backed sets. Once selected, their owner must not follow a
+                // later Realm notification to a different set before explicit revision publication. Legacy empty/core
+                // fixtures remain on their compatibility constructor until their package type has an exact factory.
+                if (skinInfo.IsManaged
+                    && SkinManagedFolderFactory.IsInstantiationInfoAllowed(skinInfo.InstantiationInfo)
+                    && skinInfo.Files.Any(file => string.Equals(file.Filename, "skin.ini", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return createExactRealmPackageSkin(skinInfo);
+                }
+
                 return skinInfo.CreateInstance(this);
+            }
 
             if (resolution.Authority != SkinFilesystemStorageAuthority.ManagedFolder
                 || resolution.ManagedCaptureRequest == null
@@ -2862,8 +4635,50 @@ namespace osu.Game.Skinning
             return factory.Skin ?? throw new InvalidOperationException("The captured managed skin folder could not be instantiated safely.");
         }
 
+        private Skin createExactRealmPackageSkin(SkinInfo skinInfo)
+        {
+            RealmPackageRevisionSnapshot snapshot = RealmPackageRevisionSnapshot.Create(skinInfo);
+            var entries = new List<SkinPackageCapturedEntry>(snapshot.Files.Count);
+
+            foreach (RealmPackageFileDeclaration file in snapshot.Files)
+            {
+                byte[] content = userFiles.Get(new RealmFile { Hash = file.Hash }.GetStoragePath())
+                                 ?? throw new InvalidOperationException("The exact Realm skin package is unavailable.");
+                string actualHash = Convert.ToHexString(SHA256.HashData(content));
+
+                if (!string.Equals(actualHash, file.Hash, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("The exact Realm skin package changed during selection.");
+
+                entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, content));
+            }
+
+            SkinPackageRevisionCapsuleCreationResult capsule = SkinPackageRevisionCapsuleFactory.Create(entries);
+
+            if (!capsule.IsSuccess)
+                throw new InvalidOperationException("The exact Realm skin package could not be captured.");
+
+            SkinInfo exactInfo = createFilesystemSkinSnapshot(snapshot.Metadata);
+            exactInfo.Hash = capsule.Capsule!.ContentRevision;
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule.Capsule);
+
+            if (!factory.IsSuccess)
+                throw new InvalidOperationException("The exact Realm skin package type is unsupported.");
+
+            return factory.Skin!;
+        }
+
         private bool requestSelection(Live<SkinInfo> target)
         {
+            // Clear at request admission only. A successful publication notifies arbitrary observers; one of those may
+            // issue and reject a newer reentrant request whose diagnostic must not be erased by the outer completion.
+            LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+
+            if (isCurrentRevisionMutationAdmitted())
+            {
+                rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                return false;
+            }
+
             if (ThreadSafety.IsUpdateThread)
             {
                 if (ManagedFolderOperationCoordinator.TryEnterForSelection(
@@ -2911,6 +4726,17 @@ namespace osu.Game.Skinning
 
             SelectionRequestBeforeCommitLock(target);
 
+            SkinRevisionParticipantSnapshot publicationParticipants =
+                currentRevisionPublication.CaptureSnapshot(out SkinRevisionBarrierRejectionReason publicationRejection);
+
+            if (publicationParticipants == null)
+            {
+                rejectSelection(publicationRejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                    ? SkinSelectionRejectionReason.LiveGameplayActive
+                    : SkinSelectionRejectionReason.PreparationFailed);
+                return false;
+            }
+
             if (!tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease initialLease))
             {
                 rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
@@ -2925,8 +4751,47 @@ namespace osu.Game.Skinning
                 switch (request.Resolution.Authority)
                 {
                     case SkinFilesystemStorageAuthority.RealmPackage:
-                        LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
-                        ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(target);
+                        Live<SkinInfo> expectedSelection = CurrentSkinInfo.Value;
+                        Skin expectedOwner = CurrentSkin.Value;
+                        SkinCurrentRevision expectedRevision = currentRevisionPublication.Current;
+                        Skin preparedOwner;
+                        SkinCurrentRevision preparedRevision;
+
+                        try
+                        {
+                            preparedOwner = target.PerformRead(GetSkin);
+                            preparedRevision = createCurrentRevision(preparedOwner);
+                        }
+                        catch
+                        {
+                            rejectSelection(SkinSelectionRejectionReason.PreparationFailed);
+                            return false;
+                        }
+
+                        bool published = tryPublishPreparedCurrentSelectionRetainingParticipants(
+                            publicationParticipants,
+                            preparedRevision,
+                            target,
+                            expectedSelection,
+                            expectedOwner,
+                            expectedRevision,
+                            out SkinRevisionBarrierRejectionReason rejection);
+
+                        if (!published)
+                        {
+                            DiscardProvisionalCurrentRevision(preparedRevision);
+
+                            if (generation == Interlocked.Read(ref selectionGeneration))
+                            {
+                                rejectSelection(rejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                                    ? SkinSelectionRejectionReason.LiveGameplayActive
+                                    : SkinSelectionRejectionReason.CapturedCandidateChanged);
+                            }
+                        }
+
+                        else if (generation == Interlocked.Read(ref selectionGeneration))
+                            LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+
                         return false;
 
                     case SkinFilesystemStorageAuthority.ExternalFolder:
@@ -3221,13 +5086,19 @@ namespace osu.Game.Skinning
             {
                 using (finalLease)
                 {
+                    SkinRevisionParticipantSnapshot publicationParticipants =
+                        currentRevisionPublication.CaptureSnapshot(out SkinRevisionBarrierRejectionReason publicationRejection);
+
                     if (pendingCompletion.Generation != Interlocked.Read(ref selectionGeneration)
                         || CurrentSkinInfo.Disabled
+                        || publicationParticipants == null
                         || !ManagedFolderOperationCoordinator.IsMutationReservationEpochCurrent(
                             pendingCompletion.PreparationObservation)
                         || ManagedFolderOperationCoordinator.IsMutationBlocked)
                     {
-                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                        rejectSelection(publicationRejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                            ? SkinSelectionRejectionReason.LiveGameplayActive
+                            : SkinSelectionRejectionReason.CapturedCandidateChanged);
                         return;
                     }
 
@@ -3293,28 +5164,45 @@ namespace osu.Game.Skinning
                     }
 
                     Skin preparedSkin = prepared.TransferSkin();
-                    var preparedCommit = new PreparedManagedFolderSelection(authoritativeTarget, preparedSkin);
-                    preparedManagedFolderSelection = preparedCommit;
+                    SkinCurrentRevision preparedRevision;
 
                     try
                     {
-                        ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(authoritativeTarget);
+                        preparedRevision = CreateProvisionalCurrentRevision(
+                            preparedSkin,
+                            prepared.Metadata!.ContentRevision,
+                            SkinCurrentRevisionSourceKind.ExternalFolder);
                     }
-                    finally
+                    catch
                     {
-                        if (ReferenceEquals(preparedManagedFolderSelection, preparedCommit))
+                        preparedSkin.Dispose();
+                        rejectSelection(SkinSelectionRejectionReason.PreparationFailed);
+                        return;
+                    }
+
+                    bool published = tryPublishPreparedCurrentSelectionRetainingParticipants(
+                        publicationParticipants,
+                        preparedRevision,
+                        authoritativeTarget,
+                        CurrentSkinInfo.Value,
+                        CurrentSkin.Value,
+                        publicationParticipants.CurrentRevision,
+                        out SkinRevisionBarrierRejectionReason rejection);
+
+                    if (!published)
+                    {
+                        DiscardProvisionalCurrentRevision(preparedRevision);
+
+                        if (pendingCompletion.Generation == Interlocked.Read(ref selectionGeneration))
                         {
-                            preparedManagedFolderSelection = null;
-                            preparedCommit.Skin.Dispose();
+                            rejectSelection(rejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                                ? SkinSelectionRejectionReason.LiveGameplayActive
+                                : SkinSelectionRejectionReason.CapturedCandidateChanged);
                         }
                     }
 
-                    if (pendingCompletion.Generation == Interlocked.Read(ref selectionGeneration)
-                        && CurrentSkinInfo.Value.ID == authoritativeTarget.ID
-                        && ReferenceEquals(CurrentSkin.Value, preparedSkin))
-                    {
+                    else if (pendingCompletion.Generation == Interlocked.Read(ref selectionGeneration))
                         LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
-                    }
                 }
             }
             finally
@@ -3639,6 +5527,22 @@ namespace osu.Game.Skinning
                     return;
                 }
 
+                SkinRevisionParticipantSnapshot publicationParticipants =
+                    currentRevisionPublication.CaptureSnapshot(out SkinRevisionBarrierRejectionReason publicationRejection);
+
+                if (publicationParticipants == null)
+                {
+                    factory.Skin!.Dispose();
+                    rejectSelection(publicationRejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                        ? SkinSelectionRejectionReason.LiveGameplayActive
+                        : SkinSelectionRejectionReason.PreparationFailed);
+                    return;
+                }
+
+                Live<SkinInfo> expectedSelection = CurrentSkinInfo.Value;
+                Skin expectedOwner = CurrentSkin.Value;
+                SkinCurrentRevision expectedRevision = publicationParticipants.CurrentRevision;
+
                 Live<SkinInfo> authoritativeTarget = null;
 
                 try
@@ -3698,28 +5602,41 @@ namespace osu.Game.Skinning
                     return;
                 }
 
-                var prepared = new PreparedManagedFolderSelection(authoritativeTarget, factory.Skin!);
-                preparedManagedFolderSelection = prepared;
+                SkinCurrentRevision preparedRevision;
 
                 try
                 {
-                    ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(authoritativeTarget);
+                    preparedRevision = createCurrentRevision(factory.Skin!);
                 }
-                finally
+                catch
                 {
-                    if (ReferenceEquals(preparedManagedFolderSelection, prepared))
-                    {
-                        preparedManagedFolderSelection = null;
-                        prepared.Skin.Dispose();
-                    }
+                    factory.Skin!.Dispose();
+                    rejectSelection(SkinSelectionRejectionReason.PreparationFailed);
+                    return;
                 }
 
-                if (generation == Interlocked.Read(ref selectionGeneration)
-                    && CurrentSkinInfo.Value.ID == authoritativeTarget.ID
-                    && ReferenceEquals(CurrentSkin.Value, factory.Skin))
+                SkinRevisionBarrierRejectionReason rejection = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
+                bool published = generation == Interlocked.Read(ref selectionGeneration)
+                                 && tryPublishPreparedCurrentSelectionRetainingParticipants(
+                                     publicationParticipants,
+                                     preparedRevision,
+                                     authoritativeTarget,
+                                     expectedSelection,
+                                     expectedOwner,
+                                     expectedRevision,
+                                     out rejection);
+
+                if (!published)
                 {
-                    LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                    DiscardProvisionalCurrentRevision(preparedRevision);
+                    rejectSelection(generation,
+                        rejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                            ? SkinSelectionRejectionReason.LiveGameplayActive
+                            : SkinSelectionRejectionReason.CapturedCandidateChanged);
                 }
+
+                else if (generation == Interlocked.Read(ref selectionGeneration))
+                    LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
             }
         }
 
@@ -4074,6 +5991,9 @@ namespace osu.Game.Skinning
             if (skin.SkinInfo.PerformRead(isFilesystemBacked))
                 throw new InvalidOperationException("Filesystem-backed skins cannot be saved through the Realm package editor.");
 
+            using RealmPackageMutationBoundaryLease operationLease =
+                acquireRealmPackageMutationBoundary(skin.SkinInfo.ID);
+
             if (!skin.SkinInfo.IsManaged)
                 throw new InvalidOperationException($"Attempting to save a skin which is not yet tracked. Call {nameof(EnsureMutableSkin)} first.");
 
@@ -4115,10 +6035,11 @@ namespace osu.Game.Skinning
         {
             get
             {
-                yield return CurrentSkin.Value;
+                PublishedCurrentSkinPair pair = Volatile.Read(ref publishedCurrentSkinPair);
+                yield return pair.Owner;
 
                 // OMS is the only built-in fallback surfaced by the product.
-                if (CurrentSkin.Value.SkinInfo.ID != DefaultOmsSkin.SkinInfo.ID)
+                if (pair.Owner.SkinInfo.ID != DefaultOmsSkin.SkinInfo.ID)
                     yield return DefaultOmsSkin;
             }
         }
@@ -4173,24 +6094,12 @@ namespace osu.Game.Skinning
 
         public Task<Live<SkinInfo>> ImportAsUpdate(ProgressNotification notification, ImportTask task, SkinInfo original)
         {
-            if (isFilesystemBacked(original))
-                throw new InvalidOperationException("Filesystem-backed skins cannot be replaced through the Realm package importer.");
-
-            return skinImporter.ImportAsUpdate(notification, task, original);
+            throw new InvalidOperationException(SkinAuthoringAvailability.UPDATE_IMPORT_DISABLED_DIAGNOSTIC);
         }
 
         public Task<ExternalEditOperation<SkinInfo>> BeginExternalEditing(SkinInfo model)
         {
-            SkinInfo authoritative = Realm.Run(realm =>
-            {
-                SkinInfo record = realm.Find<SkinInfo>(model.ID) ?? throw new InvalidOperationException("The skin is not registered in this Realm.");
-                if (isFilesystemBacked(record))
-                    throw new InvalidOperationException("Filesystem-backed skins cannot enter the Realm external-edit workflow.");
-
-                return record.Detach();
-            });
-
-            return skinImporter.BeginExternalEditing(authoritative);
+            throw new InvalidOperationException(SkinAuthoringAvailability.EXTERNAL_EDITING_DISABLED_DIAGNOSTIC);
         }
 
         public Task<Live<SkinInfo>> Import(ImportTask task, ImportParameters parameters = default, CancellationToken cancellationToken = default) =>
@@ -4220,11 +6129,14 @@ namespace osu.Game.Skinning
                 if (filter != null)
                     items = items.Where(filter);
 
-                // check the removed skin is not the current user choice. if it is, switch back to default.
-                Guid currentUserSkin = CurrentSkinInfo.Value.ID;
-
-                if (items.Any(s => s.ID == currentUserSkin))
-                    scheduler.Add(() => CurrentSkinInfo.Value = DefaultOmsSkin.SkinInfo);
+                // Bulk maintenance never owns the current revision publication/detach protocol. Keep the exact current
+                // record out of this legacy route; the settings delete command is the sole current-delete caller.
+                Guid currentSelectionId = CurrentSkinInfo.Value.ID;
+                Guid currentOwnerId = CurrentSkin.Value.SkinInfo.ID;
+                Guid currentRevisionId = currentRevisionPublication.Current.RecordId;
+                items = items.Where(s => s.ID != currentSelectionId
+                                         && s.ID != currentOwnerId
+                                         && s.ID != currentRevisionId);
 
                 Delete(items.ToList(), silent);
             });
@@ -4235,6 +6147,8 @@ namespace osu.Game.Skinning
             if (skin.PerformRead(isFilesystemBacked))
                 throw new InvalidOperationException("Filesystem-backed skins cannot be renamed through the Realm package workflow.");
 
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(skin.ID);
+
             skin.PerformWrite(s =>
             {
                 s.Name = newName;
@@ -4244,22 +6158,39 @@ namespace osu.Game.Skinning
 
         public override bool Delete(SkinInfo item)
         {
-            return Realm.Write(realm =>
+            if (!tryAcquireRealmPackageMutationBoundary(item.ID, out RealmPackageMutationBoundaryLease operationLease))
+                return false;
+
+            using (operationLease)
             {
-                SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
-
-                if (authoritative == null
-                    || authoritative.Protected
-                    || SkinFilesystemStorageResolver.IsFixedSkinId(authoritative.ID)
-                    || isFilesystemBacked(authoritative)
-                    || authoritative.DeletePending)
-                {
+                if (isCurrentRevisionRecord(item.ID))
                     return false;
-                }
 
-                authoritative.DeletePending = true;
-                return true;
-            });
+                return Realm.Write(realm =>
+                {
+                    SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
+
+                    if (authoritative == null
+                        || authoritative.Protected
+                        || SkinFilesystemStorageResolver.IsFixedSkinId(authoritative.ID)
+                        || isFilesystemBacked(authoritative)
+                        || authoritative.DeletePending
+                        || isCurrentRevisionRecord(authoritative.ID))
+                    {
+                        return false;
+                    }
+
+                    authoritative.DeletePending = true;
+
+                    if (isCurrentRevisionRecord(authoritative.ID))
+                    {
+                        authoritative.DeletePending = false;
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
         }
 
         public override void Delete(List<SkinInfo> items, bool silent = false)
@@ -4267,19 +6198,25 @@ namespace osu.Game.Skinning
 
         public override void Undelete(SkinInfo item)
         {
-            Realm.Write(realm =>
+            if (!tryAcquireRealmPackageMutationBoundary(item.ID, out RealmPackageMutationBoundaryLease operationLease))
+                return;
+
+            using (operationLease)
             {
-                SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
-
-                if (authoritative == null
-                    || isFilesystemBacked(authoritative)
-                    || !authoritative.DeletePending)
+                Realm.Write(realm =>
                 {
-                    return;
-                }
+                    SkinInfo authoritative = realm.Find<SkinInfo>(item.ID);
 
-                authoritative.DeletePending = false;
-            });
+                    if (authoritative == null
+                        || isFilesystemBacked(authoritative)
+                        || !authoritative.DeletePending)
+                    {
+                        return;
+                    }
+
+                    authoritative.DeletePending = false;
+                });
+            }
         }
 
         public override void Undelete(List<SkinInfo> items, bool silent = false)
@@ -4290,6 +6227,8 @@ namespace osu.Game.Skinning
             if (isFilesystemBacked(item))
                 throw new InvalidOperationException("Filesystem-backed skins cannot receive Realm package files.");
 
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(item.ID);
+
             base.AddFile(item, contents, filename);
         }
 
@@ -4297,6 +6236,8 @@ namespace osu.Game.Skinning
         {
             if (isFilesystemBacked(item))
                 throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
+
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(item.ID);
 
             base.DeleteFile(item, file);
         }
@@ -4306,6 +6247,8 @@ namespace osu.Game.Skinning
             if (isFilesystemBacked(item))
                 throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
 
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(item.ID);
+
             base.ReplaceFile(item, file, contents);
         }
 
@@ -4313,6 +6256,8 @@ namespace osu.Game.Skinning
         {
             if (isFilesystemBacked(item, realm))
                 throw new InvalidOperationException("Filesystem-backed skins cannot receive Realm package files.");
+
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(item.ID);
 
             base.AddFile(item, contents, filename, realm);
         }
@@ -4322,6 +6267,8 @@ namespace osu.Game.Skinning
             if (isFilesystemBacked(item, realm))
                 throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
 
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(item.ID);
+
             base.DeleteFile(item, file, realm);
         }
 
@@ -4330,10 +6277,186 @@ namespace osu.Game.Skinning
             if (isFilesystemBacked(item, realm))
                 throw new InvalidOperationException("Filesystem-backed skins cannot mutate Realm package files.");
 
+            using RealmPackageMutationBoundaryLease operationLease = acquireRealmPackageMutationBoundary(item.ID);
+
             base.ReplaceFile(item, file, contents, realm);
         }
 
+        private RealmPackageMutationBoundaryLease acquireRealmPackageMutationBoundary(Guid recordId)
+        {
+            // The first check preserves the specific stable current-package diagnostic even when another operation is
+            // active. Admission then linearises the full synchronous mutation (including SkinImporter callbacks) against
+            // current revision reload/delete/unregister before the shared coordinator is entered.
+            rejectCurrentRealmPackageMutation(recordId);
+
+            if (!tryEnterRealmPackageMutationAdmission())
+                throw new InvalidOperationException(REALM_PACKAGE_MUTATION_BUSY_DIAGNOSTIC);
+
+            SkinManagedFolderOperationCoordinator.Lease operationLease = null;
+
+            try
+            {
+                if (!ManagedFolderOperationCoordinator.TryEnter(out operationLease))
+                    throw new InvalidOperationException(REALM_PACKAGE_MUTATION_BUSY_DIAGNOSTIC);
+
+                rejectCurrentRealmPackageMutation(recordId);
+                RealmPackageMutationBoundaryEntered();
+                return new RealmPackageMutationBoundaryLease(this, operationLease);
+            }
+            catch
+            {
+                try
+                {
+                    operationLease?.Dispose();
+                }
+                finally
+                {
+                    exitRealmPackageMutationAdmission();
+                }
+
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Shares the exact Realm-package mutation admission with the importer public surface. This prevents a second
+        /// importer instance from writing the current record without current revision publication.
+        /// </summary>
+        internal IDisposable AcquireSkinImporterMutationBoundary(Guid recordId)
+            => acquireRealmPackageMutationBoundary(recordId);
+
+        private bool tryAcquireRealmPackageMutationBoundary(
+            Guid recordId,
+            out RealmPackageMutationBoundaryLease operationLease)
+        {
+            try
+            {
+                operationLease = acquireRealmPackageMutationBoundary(recordId);
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                operationLease = null;
+                return false;
+            }
+        }
+
+        private bool tryEnterRealmPackageMutationAdmission()
+        {
+            int currentThreadId = Environment.CurrentManagedThreadId;
+
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (realmPackageMutationAdmissionDepth > 0)
+                {
+                    if (realmPackageMutationOwnerManagedThreadId != currentThreadId)
+                        return false;
+
+                    realmPackageMutationAdmissionDepth++;
+                    return true;
+                }
+
+                if (managedFolderMutationShutdown
+                    || currentRevisionMutationAdmissionHeld
+                    || currentRevisionReloadAdmissionHeld
+                    || Volatile.Read(ref currentSkinProjectionInProgress) != 0
+                    || activeManagedFolderRenameTask is { IsCompleted: false }
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false }
+                    || activeManagedFolderDeleteTask is { IsCompleted: false }
+                    || activeManagedFolderRecoveryTask is { IsCompleted: false }
+                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                {
+                    return false;
+                }
+
+                realmPackageMutationOwnerManagedThreadId = currentThreadId;
+                realmPackageMutationAdmissionDepth = 1;
+                return true;
+            }
+        }
+
+        private void exitRealmPackageMutationAdmission()
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (realmPackageMutationAdmissionDepth <= 0
+                    || realmPackageMutationOwnerManagedThreadId != Environment.CurrentManagedThreadId)
+                {
+                    throw new SynchronizationLockException("The Realm skin package mutation admission is not held by this thread.");
+                }
+
+                realmPackageMutationAdmissionDepth--;
+
+                if (realmPackageMutationAdmissionDepth == 0)
+                    realmPackageMutationOwnerManagedThreadId = 0;
+            }
+        }
+
+        private sealed class RealmPackageMutationBoundaryLease : IDisposable
+        {
+            private SkinManager owner;
+            private SkinManagedFolderOperationCoordinator.Lease operationLease;
+
+            public RealmPackageMutationBoundaryLease(
+                SkinManager owner,
+                SkinManagedFolderOperationCoordinator.Lease operationLease)
+            {
+                this.owner = owner;
+                this.operationLease = operationLease;
+            }
+
+            public void Dispose()
+            {
+                SkinManager heldOwner = Interlocked.Exchange(ref owner, null);
+
+                if (heldOwner == null)
+                    return;
+
+                try
+                {
+                    Interlocked.Exchange(ref operationLease, null)?.Dispose();
+                }
+                finally
+                {
+                    heldOwner.exitRealmPackageMutationAdmission();
+                }
+            }
+        }
+
+        private void rejectCurrentRealmPackageMutation(Guid recordId)
+        {
+            if (isCurrentRevisionRecord(recordId))
+                throw new InvalidOperationException(CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC);
+        }
+
+        private bool isCurrentRevisionRecord(Guid recordId)
+        {
+            PublishedCurrentSkinPair pair = Volatile.Read(ref publishedCurrentSkinPair);
+            return pair.Revision.RecordId == recordId
+                   || pair.Selection.ID == recordId
+                   || pair.Owner.SkinInfo.ID == recordId;
+        }
+
+        private async Task<bool> unregisterCurrentExternalFolderAdmittedAsync(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await unregisterCurrentExternalFolderAsync(recordId, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseCurrentRevisionMutationAdmission();
+            }
+        }
+
         public bool CanModify(Live<SkinInfo> skin)
+            => skin.PerformRead(info => !info.Protected
+                                        && !isFilesystemBacked(info)
+                                        && !isCurrentRevisionRecord(info.ID));
+
+        public bool CanExport(Live<SkinInfo> skin)
             => skin.PerformRead(info => !info.Protected && !isFilesystemBacked(info));
 
         /// <summary>
@@ -4406,18 +6529,494 @@ namespace osu.Game.Skinning
 
             if (candidateKind == DeleteCandidateKind.RealmPackage)
             {
-                bool deleted = ordinarySnapshot != null && Delete(ordinarySnapshot);
+                bool isCurrent = CurrentSkinInfo.Value.ID == recordId
+                                 || CurrentSkin.Value.SkinInfo.ID == recordId;
 
-                if (deleted)
-                    CurrentSkinInfo.SetDefault();
+                if (isCurrent)
+                {
+                    if (CurrentSkinInfo.Value.ID != recordId
+                        || CurrentSkin.Value.SkinInfo.ID != recordId)
+                    {
+                        return Task.FromResult(false);
+                    }
 
-                return Task.FromResult(deleted);
+                    if (!tryAdmitCurrentRevisionMutation())
+                        return Task.FromResult(false);
+
+                    return trackAdmittedCurrentRevisionMutation(
+                        token => deleteCurrentRealmPackageAsync(recordId, token),
+                        cancellationToken);
+                }
+
+                return Task.FromResult(ordinarySnapshot != null && Delete(ordinarySnapshot));
             }
 
             if (candidateKind != DeleteCandidateKind.ManagedFolder)
                 return Task.FromResult(false);
 
+            if (CurrentSkinInfo.Value.ID == recordId || CurrentSkin.Value.SkinInfo.ID == recordId)
+            {
+                if (CurrentSkinInfo.Value.ID != recordId
+                    || CurrentSkin.Value.SkinInfo.ID != recordId)
+                {
+                    return Task.FromResult(false);
+                }
+
+                if (!tryAdmitCurrentRevisionMutation())
+                    return Task.FromResult(false);
+
+                return trackAdmittedCurrentRevisionMutation(
+                    token => deleteCurrentManagedFolderAsync(recordId, token),
+                    cancellationToken);
+            }
+
             return reduceManagedFolderDeleteResult(DeleteManagedFolderAsync(recordId, cancellationToken));
+        }
+
+        private async Task<bool> deleteCurrentRealmPackageAsync(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await deleteCurrentRealmPackageHeldAsync(recordId, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseCurrentRevisionMutationAdmission();
+            }
+        }
+
+        private async Task<bool> deleteCurrentRealmPackageHeldAsync(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            SkinCurrentRevision activeRevision = currentRevisionPublication.Current;
+
+            if (activeRevision.RecordId != recordId
+                || activeRevision.SourceKind != SkinCurrentRevisionSourceKind.RealmPackage
+                || !ReferenceEquals(activeRevision.Owner, CurrentSkin.Value)
+                || !string.Equals(
+                    activeRevision.Owner.PackageContentRevision,
+                    activeRevision.ContentRevision,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            RealmPackageRevisionSnapshot snapshot;
+
+            try
+            {
+                snapshot = readRealmPackageRevisionSnapshot(recordId);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (snapshot == null
+                || !tryCaptureRealmPackageContentRevision(snapshot, cancellationToken, out string contentRevision)
+                || !string.Equals(contentRevision, activeRevision.ContentRevision, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (!snapshot.Matches(readRealmPackageRevisionSnapshot(recordId)))
+                    return false;
+            }
+            catch
+            {
+                return false;
+            }
+
+            ProtectedFallbackPublicationTransaction fallback =
+                await publishProtectedFallbackAndWaitForDetachAsync(recordId, cancellationToken).ConfigureAwait(false);
+
+            if (fallback == null)
+                return false;
+
+            bool deleted;
+
+            try
+            {
+                CurrentRealmPackageDeleteBeforeRealmCommit();
+
+                deleted = Realm.Write(realm =>
+                {
+                    realm.Refresh();
+
+                    if (!ReferenceEquals(currentRevisionPublication.Current, fallback.FallbackRevision)
+                        || CurrentSkinInfo.Value.ID != SkinInfo.OMS_SKIN
+                        || !ReferenceEquals(CurrentSkin.Value, DefaultOmsSkin))
+                    {
+                        return false;
+                    }
+
+                    SkinInfo current = realm.Find<SkinInfo>(recordId);
+                    RealmPackageRevisionSnapshot fresh = current == null ? null : createRealmPackageSnapshot(current);
+
+                    if (!snapshot.Matches(fresh))
+                        return false;
+
+                    current.DeletePending = true;
+                    return true;
+                });
+            }
+            catch
+            {
+                deleted = false;
+            }
+
+            if (deleted)
+            {
+                fallback.Complete();
+                Interlocked.Increment(ref selectionGeneration);
+                cancelPendingSelection();
+                return true;
+            }
+
+            await rollbackProtectedFallbackAsync(fallback).ConfigureAwait(false);
+            return false;
+        }
+
+        private bool tryCaptureRealmPackageContentRevision(
+            RealmPackageRevisionSnapshot snapshot,
+            CancellationToken cancellationToken,
+            out string contentRevision)
+        {
+            contentRevision = string.Empty;
+
+            try
+            {
+                var entries = new List<SkinPackageCapturedEntry>(snapshot.Files.Count);
+
+                foreach (RealmPackageFileDeclaration file in snapshot.Files)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    byte[] content = userFiles.Get(new RealmFile { Hash = file.Hash }.GetStoragePath());
+
+                    if (content == null
+                        || !string.Equals(
+                            Convert.ToHexString(SHA256.HashData(content)),
+                            file.Hash,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, content));
+                }
+
+                SkinPackageRevisionCapsuleCreationResult result =
+                    SkinPackageRevisionCapsuleFactory.Create(entries, cancellationToken: cancellationToken);
+
+                if (!result.IsSuccess)
+                    return false;
+
+                using SkinPackageRevisionCapsule capsule = result.Capsule;
+                contentRevision = capsule.ContentRevision;
+                return true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task<bool> deleteCurrentManagedFolderAsync(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await deleteCurrentManagedFolderHeldAsync(recordId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            finally
+            {
+                releaseCurrentRevisionMutationAdmission();
+            }
+        }
+
+        private async Task<bool> deleteCurrentManagedFolderHeldAsync(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            if (!isExactCurrentManagedRevision(recordId))
+                return false;
+
+            if (!isExactProtectedFallbackAuthority())
+            {
+                Volatile.Write(
+                    ref lastManagedFolderDeleteResult,
+                    SkinManagedFolderDeleteOperationResult.FallbackRejected(
+                        SkinManagedFolderProtectedFallbackCommitResult.FallbackInvalid));
+                return false;
+            }
+
+            SkinCurrentRevision expectedRevision = currentRevisionPublication.Current;
+            Skin expectedOwner = CurrentSkin.Value;
+            Live<SkinInfo> expectedSelection = CurrentSkinInfo.Value;
+            long expectedSelectionGeneration = Interlocked.Read(ref selectionGeneration);
+            SkinManagedFolderPreparedDelete prepared;
+
+            try
+            {
+                prepared = await Task.Run(
+                    () => managedFolderDeleteOperation.Prepare(
+                        Guid.NewGuid(),
+                        recordId,
+                        captureSourceRevision: true,
+                        cancellationToken),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                return false;
+            }
+
+            using (prepared)
+            {
+                if (!prepared.IsSuccess)
+                {
+                    Volatile.Write(ref lastManagedFolderDeleteResult, prepared.FailureResult);
+                    return false;
+                }
+
+                if (!prepared.HoldsContentRevision(expectedRevision.ContentRevision)
+                    || !string.Equals(
+                        expectedOwner.PackageContentRevision,
+                        expectedRevision.ContentRevision,
+                        StringComparison.Ordinal)
+                    || !prepared.ValidateHeldSource(cancellationToken))
+                {
+                    return false;
+                }
+
+                ProtectedFallbackPublicationTransaction fallback =
+                    await publishProtectedFallbackForPreparedManagedDeleteAsync(
+                        recordId,
+                        expectedSelection,
+                        expectedOwner,
+                        expectedRevision,
+                        expectedSelectionGeneration,
+                        prepared,
+                        cancellationToken).ConfigureAwait(false);
+
+                if (fallback == null)
+                    return false;
+
+                SkinManagedFolderDeleteOperationResult result;
+
+                try
+                {
+                    result = await Task.Run(
+                        () => managedFolderDeleteOperation.ExecutePrepared(
+                            prepared,
+                            cancellationToken,
+                            requireProtectedFallback: true),
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    result = SkinManagedFolderDeleteOperationResult.Failure(
+                        SkinManagedFolderDeleteOperationStatus.PreparedJournalOutcomeUncertain);
+                }
+
+                Volatile.Write(ref lastManagedFolderDeleteResult, result);
+
+                if (result.IsSuccess)
+                {
+                    fallback.Complete();
+                    return true;
+                }
+
+                if (result.Status is SkinManagedFolderDeleteOperationStatus.AuthorityRejected
+                    or SkinManagedFolderDeleteOperationStatus.Busy
+                    or SkinManagedFolderDeleteOperationStatus.WrongThread
+                    or SkinManagedFolderDeleteOperationStatus.Cancelled
+                    or SkinManagedFolderDeleteOperationStatus.FallbackRejected)
+                {
+                    await rollbackProtectedFallbackAsync(fallback).ConfigureAwait(false);
+                }
+                else
+                {
+                    // Outcome-uncertain C1 states are owned by recovery. The protected fallback must remain
+                    // authoritative because the exact source may already be in its operation tombstone.
+                    fallback.Complete();
+                }
+
+                return false;
+            }
+        }
+
+        private async Task<ProtectedFallbackPublicationTransaction>
+            publishProtectedFallbackForPreparedManagedDeleteAsync(
+                Guid recordId,
+                Live<SkinInfo> expectedSelection,
+                Skin expectedOwner,
+                SkinCurrentRevision expectedRevision,
+                long expectedSelectionGeneration,
+                SkinManagedFolderPreparedDelete prepared,
+                CancellationToken cancellationToken)
+        {
+            var admitted = new TaskCompletionSource<Task<ProtectedFallbackPublicationTransaction>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            CurrentRevisionCallbackScheduleResult scheduleResult = scheduleCurrentRevisionCallback(
+                () =>
+                {
+                    if (!ReferenceEquals(CurrentSkinInfo.Value, expectedSelection)
+                        || !ReferenceEquals(CurrentSkin.Value, expectedOwner)
+                        || !ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
+                        || Interlocked.Read(ref selectionGeneration) != expectedSelectionGeneration
+                        || !prepared.HoldsContentRevision(expectedRevision.ContentRevision))
+                    {
+                        admitted.TrySetResult(Task.FromResult<ProtectedFallbackPublicationTransaction>(null));
+                        return;
+                    }
+
+                    admitted.TrySetResult(
+                        publishProtectedFallbackAndWaitForDetachAsync(
+                            recordId,
+                            cancellationToken,
+                            token => prepared.HoldsContentRevision(expectedRevision.ContentRevision)
+                                     && Interlocked.Read(ref selectionGeneration) == expectedSelectionGeneration
+                                     && prepared.ValidateHeldSource(token),
+                            () => prepared.HoldsContentRevision(expectedRevision.ContentRevision)
+                                  && Interlocked.Read(ref selectionGeneration) == expectedSelectionGeneration
+                                  && ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
+                                  && ReferenceEquals(CurrentSkinInfo.Value, expectedSelection)
+                                  && ReferenceEquals(CurrentSkin.Value, expectedOwner)));
+                },
+                () => admitted.TrySetResult(Task.FromResult<ProtectedFallbackPublicationTransaction>(null)));
+
+            if (scheduleResult == CurrentRevisionCallbackScheduleResult.Faulted)
+                return null;
+
+            try
+            {
+                Task<ProtectedFallbackPublicationTransaction> publication = await admitted.Task.ConfigureAwait(false);
+                return await publication.ConfigureAwait(false);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private bool isExactCurrentManagedRevision(Guid recordId)
+        {
+            SkinCurrentRevision revision = currentRevisionPublication.Current;
+
+            if (revision.RecordId != recordId
+                || revision.SourceKind != SkinCurrentRevisionSourceKind.ManagedFolder
+                || !ReferenceEquals(revision.Owner, CurrentSkin.Value)
+                || !string.Equals(revision.Owner.PackageContentRevision, revision.ContentRevision, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            try
+            {
+                return Realm.Run(realm =>
+                {
+                    realm.Refresh();
+                    SkinInfo current = realm.Find<SkinInfo>(recordId);
+                    return current != null
+                           && !current.IsExternalFilesystemStorage
+                           && current.IsManaged
+                           && !current.Protected
+                           && !current.DeletePending
+                           && current.Files.Count == 0
+                           && !string.IsNullOrEmpty(current.Hash)
+                           && string.Equals(
+                               current.FilesystemStorageAuthorityOwner,
+                               SkinManagedFolderScanner.AUTHORITY_OWNER,
+                               StringComparison.Ordinal)
+                           && SkinManagedFolderFactory.IsInstantiationInfoAllowed(current.InstantiationInfo);
+                });
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool tryAdmitCurrentRevisionReload()
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown
+                    || currentRevisionMutationAdmissionHeld
+                    || Volatile.Read(ref currentSkinProjectionInProgress) != 0
+                    || realmPackageMutationAdmissionDepth > 0
+                    || activeManagedFolderRenameTask is { IsCompleted: false }
+                    || activeManagedFolderStagedImportTask is { IsCompleted: false }
+                    || activeManagedFolderDeleteTask is { IsCompleted: false }
+                    || activeManagedFolderRecoveryTask is { IsCompleted: false }
+                    || activeFolderWorkspaceTask is { IsCompleted: false })
+                {
+                    return false;
+                }
+
+                checked
+                {
+                    currentRevisionReloadAdmissionCount++;
+                }
+
+                currentRevisionReloadAdmissionHeld = true;
+                return true;
+            }
+        }
+
+        private void releaseCurrentRevisionReloadAdmission()
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (currentRevisionReloadAdmissionCount <= 0)
+                    return;
+
+                currentRevisionReloadAdmissionCount--;
+                currentRevisionReloadAdmissionHeld = currentRevisionReloadAdmissionCount > 0;
+            }
+        }
+
+        private bool tryAdmitCurrentRevisionMutation()
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown || hasActiveFolderMutationHeld())
+                    return false;
+
+                currentRevisionMutationAdmissionHeld = true;
+                return true;
+            }
+        }
+
+        private bool isCurrentRevisionMutationAdmitted()
+        {
+            lock (managedFolderRenameLifecycleGate)
+                return currentRevisionMutationAdmissionHeld
+                       || currentRevisionReloadAdmissionHeld
+                       || realmPackageMutationAdmissionDepth > 0
+                       || Volatile.Read(ref currentSkinProjectionInProgress) != 0;
+        }
+
+        private void releaseCurrentRevisionMutationAdmission()
+        {
+            lock (managedFolderRenameLifecycleGate)
+                currentRevisionMutationAdmissionHeld = false;
         }
 
         private async Task<bool> reduceManagedFolderDeleteResult(
@@ -4504,6 +7103,451 @@ namespace osu.Game.Skinning
             }
 
             CurrentSkinInfo.Value = skinInfo ?? DefaultOmsSkin.SkinInfo;
+        }
+
+        private enum CurrentRevisionCommitAttempt
+        {
+            Success,
+            ParticipantSetChanged,
+            SourceChanged,
+            Superseded,
+            Cancelled,
+            SchedulerFailed,
+            Shutdown,
+        }
+
+        private enum CurrentRevisionCallbackScheduleResult
+        {
+            Scheduled,
+            Faulted,
+            Shutdown,
+        }
+
+        private sealed class PendingCurrentRevisionCallback
+        {
+            private Action callback;
+            private Action shutdown;
+
+            public PendingCurrentRevisionCallback(Action callback, Action shutdown)
+            {
+                this.callback = callback;
+                this.shutdown = shutdown;
+            }
+
+            public void Run()
+            {
+                Action claimed = Interlocked.Exchange(ref callback, null);
+                Interlocked.Exchange(ref shutdown, null);
+                claimed?.Invoke();
+            }
+
+            public void Shutdown()
+            {
+                Action claimed = Interlocked.Exchange(ref shutdown, null);
+                Interlocked.Exchange(ref callback, null);
+                claimed?.Invoke();
+            }
+
+            public void Abandon()
+            {
+                Interlocked.Exchange(ref shutdown, null);
+                Interlocked.Exchange(ref callback, null);
+            }
+        }
+
+        private sealed class ProtectedFallbackPublicationTransaction
+        {
+            private SkinCurrentRevisionLease rollbackLease;
+
+            public Live<SkinInfo> PreviousSelection { get; }
+            public Skin PreviousOwner { get; }
+            public SkinCurrentRevision PreviousRevision { get; }
+            public SkinCurrentRevision FallbackRevision { get; }
+
+            public ProtectedFallbackPublicationTransaction(
+                Live<SkinInfo> previousSelection,
+                Skin previousOwner,
+                SkinCurrentRevision previousRevision,
+                SkinCurrentRevision fallbackRevision,
+                SkinCurrentRevisionLease rollbackLease)
+            {
+                PreviousSelection = previousSelection;
+                PreviousOwner = previousOwner;
+                PreviousRevision = previousRevision;
+                FallbackRevision = fallbackRevision;
+                this.rollbackLease = rollbackLease;
+            }
+
+            public void Complete()
+                => Interlocked.Exchange(ref rollbackLease, null)?.Dispose();
+        }
+
+        private sealed class CurrentExternalUnregisterSnapshot
+        {
+            private readonly SkinInfo record;
+            private readonly SkinExternalFolderRegistryDeclaration[] declarations;
+
+            public Live<SkinInfo> Selection { get; }
+            public Skin Owner { get; }
+            public SkinCurrentRevision Revision { get; }
+            public long SelectionGeneration { get; }
+
+            public CurrentExternalUnregisterSnapshot(
+                SkinInfo record,
+                SkinExternalFolderRegistryDeclaration[] declarations,
+                Live<SkinInfo> selection,
+                Skin owner,
+                SkinCurrentRevision revision,
+                long selectionGeneration)
+            {
+                this.record = record;
+                this.declarations = declarations;
+                Selection = selection;
+                Owner = owner;
+                Revision = revision;
+                SelectionGeneration = selectionGeneration;
+            }
+
+            public bool MatchesDeclarations(IReadOnlyList<SkinExternalFolderRegistryDeclaration> current)
+            {
+                if (current.Count != declarations.Length)
+                    return false;
+
+                for (int i = 0; i < declarations.Length; i++)
+                {
+                    if (!declarations[i].ExactlyMatches(current[i]))
+                        return false;
+                }
+
+                return true;
+            }
+
+            public bool MatchesRecord(SkinInfo current)
+                => current != null
+                   && current.ID == record.ID
+                   && string.Equals(current.Name, record.Name, StringComparison.Ordinal)
+                   && string.Equals(current.Creator, record.Creator, StringComparison.Ordinal)
+                   && string.Equals(current.InstantiationInfo, record.InstantiationInfo, StringComparison.Ordinal)
+                   && string.Equals(current.Hash, record.Hash, StringComparison.Ordinal)
+                   && current.Protected == record.Protected
+                   && string.Equals(current.FilesystemStoragePath, record.FilesystemStoragePath, StringComparison.Ordinal)
+                   && current.IsExternalFilesystemStorage == record.IsExternalFilesystemStorage
+                   && string.Equals(current.FilesystemStorageAuthorityOwner, record.FilesystemStorageAuthorityOwner, StringComparison.Ordinal)
+                   && current.DeletePending == record.DeletePending
+                   && current.Files.Count == record.Files.Count;
+        }
+
+        private sealed class CurrentRevisionReloadRequest
+        {
+            public Live<SkinInfo> ExpectedSelection { get; }
+            public Skin ExpectedOwner { get; }
+            public SkinCurrentRevision ExpectedRevision { get; }
+            public long SelectionGeneration { get; }
+            public SelectionRequest SourceRequest { get; }
+            public RealmPackageRevisionSnapshot RealmSnapshot { get; }
+
+            public CurrentRevisionReloadRequest(
+                Live<SkinInfo> expectedSelection,
+                Skin expectedOwner,
+                SkinCurrentRevision expectedRevision,
+                long selectionGeneration,
+                SelectionRequest sourceRequest,
+                RealmPackageRevisionSnapshot realmSnapshot)
+            {
+                ExpectedSelection = expectedSelection ?? throw new ArgumentNullException(nameof(expectedSelection));
+                ExpectedOwner = expectedOwner ?? throw new ArgumentNullException(nameof(expectedOwner));
+                ExpectedRevision = expectedRevision ?? throw new ArgumentNullException(nameof(expectedRevision));
+                SelectionGeneration = selectionGeneration;
+                SourceRequest = sourceRequest ?? throw new ArgumentNullException(nameof(sourceRequest));
+                RealmSnapshot = realmSnapshot;
+            }
+        }
+
+        private async Task<bool> unregisterCurrentExternalFolderAsync(
+            Guid recordId,
+            CancellationToken cancellationToken)
+        {
+            CurrentExternalUnregisterSnapshot snapshot;
+
+            try
+            {
+                snapshot = captureCurrentExternalUnregisterSnapshot(recordId);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (snapshot == null)
+                return false;
+
+            ProtectedFallbackPublicationTransaction fallback =
+                await publishProtectedFallbackAndWaitForDetachAsync(recordId, cancellationToken).ConfigureAwait(false);
+
+            if (fallback == null)
+                return false;
+
+            bool removed = false;
+
+            try
+            {
+                CurrentExternalUnregisterBeforeRealmCommit();
+
+                if (!ReferenceEquals(fallback.PreviousRevision, snapshot.Revision)
+                    || !ReferenceEquals(fallback.PreviousSelection, snapshot.Selection)
+                    || !ReferenceEquals(fallback.PreviousOwner, snapshot.Owner)
+                    || Interlocked.Read(ref selectionGeneration) != snapshot.SelectionGeneration
+                    || !ReferenceEquals(currentRevisionPublication.Current, fallback.FallbackRevision)
+                    || CurrentSkinInfo.Value.ID != SkinInfo.OMS_SKIN
+                    || !ReferenceEquals(CurrentSkin.Value, DefaultOmsSkin)
+                    || !externalFolderRegistry.TryReadAndValidateDeclarations(
+                        out SkinExternalFolderRegistryDeclaration[] freshDeclarations,
+                        out _,
+                        out _,
+                        out _)
+                    || !snapshot.MatchesDeclarations(freshDeclarations))
+                {
+                    removed = false;
+                }
+                else
+                {
+                    removed = Realm.Write(realm =>
+                    {
+                        realm.Refresh();
+
+                        if (Interlocked.Read(ref selectionGeneration) != snapshot.SelectionGeneration
+                            || !ReferenceEquals(currentRevisionPublication.Current, fallback.FallbackRevision)
+                            || CurrentSkinInfo.Value.ID != SkinInfo.OMS_SKIN
+                            || !ReferenceEquals(CurrentSkin.Value, DefaultOmsSkin)
+                            || !exactlyMatchesExternalDeclarations(realm.All<SkinInfo>(), freshDeclarations))
+                        {
+                            return false;
+                        }
+
+                        SkinInfo current = realm.Find<SkinInfo>(recordId);
+
+                        if (!snapshot.MatchesRecord(current) || !isExactExternalRegistryRecord(current))
+                            return false;
+
+                        realm.Remove(current);
+                        return realm.Find<SkinInfo>(recordId) == null;
+                    });
+                }
+            }
+            catch
+            {
+                removed = false;
+            }
+
+            if (removed)
+            {
+                fallback.Complete();
+                Interlocked.Increment(ref selectionGeneration);
+                cancelPendingSelection();
+                return true;
+            }
+
+            await rollbackProtectedFallbackAsync(fallback).ConfigureAwait(false);
+            return false;
+        }
+
+        private CurrentExternalUnregisterSnapshot captureCurrentExternalUnregisterSnapshot(Guid recordId)
+        {
+            Live<SkinInfo> selection = CurrentSkinInfo.Value;
+            Skin owner = CurrentSkin.Value;
+            SkinCurrentRevision revision = currentRevisionPublication.Current;
+            long generation = Interlocked.Read(ref selectionGeneration);
+
+            if (selection.ID != recordId
+                || owner.SkinInfo.ID != recordId
+                || revision.RecordId != recordId
+                || revision.SourceKind != SkinCurrentRevisionSourceKind.ExternalFolder
+                || !ReferenceEquals(revision.Owner, owner)
+                || !string.Equals(revision.Owner.PackageContentRevision, revision.ContentRevision, StringComparison.Ordinal)
+                || !externalFolderRegistry.TryReadAndValidateDeclarations(
+                    out SkinExternalFolderRegistryDeclaration[] declarations,
+                    out _,
+                    out _,
+                    out _))
+            {
+                return null;
+            }
+
+            SkinInfo record = Realm.Run(realm =>
+            {
+                realm.Refresh();
+                SkinInfo current = realm.Find<SkinInfo>(recordId);
+                return current != null
+                       && isExactExternalRegistryRecord(current)
+                       && exactlyMatchesExternalDeclarations(realm.All<SkinInfo>(), declarations)
+                    ? current.Detach()
+                    : null;
+            });
+
+            return record == null
+                   || Interlocked.Read(ref selectionGeneration) != generation
+                   || !ReferenceEquals(CurrentSkinInfo.Value, selection)
+                   || !ReferenceEquals(CurrentSkin.Value, owner)
+                   || !ReferenceEquals(currentRevisionPublication.Current, revision)
+                ? null
+                : new CurrentExternalUnregisterSnapshot(
+                    record,
+                    declarations,
+                    selection,
+                    owner,
+                    revision,
+                    generation);
+        }
+
+        private sealed class CurrentRevisionReloadPreparation : IDisposable
+        {
+            private Skin skin;
+            private IDisposable authority;
+            private readonly Action<CancellationToken> validate;
+
+            public static CurrentRevisionReloadPreparation Reject(SkinCurrentRevisionReloadResult result)
+                => new CurrentRevisionReloadPreparation(null, string.Empty, default, result, null, null);
+
+            public bool IsSuccess => skin != null;
+            public SkinCurrentRevisionReloadResult FailureResult { get; }
+            public string ContentRevision { get; }
+            public SkinCurrentRevisionSourceKind SourceKind { get; }
+
+            private CurrentRevisionReloadPreparation(
+                Skin skin,
+                string contentRevision,
+                SkinCurrentRevisionSourceKind sourceKind,
+                SkinCurrentRevisionReloadResult failureResult,
+                Action<CancellationToken> validate,
+                IDisposable authority)
+            {
+                this.skin = skin;
+                ContentRevision = contentRevision;
+                SourceKind = sourceKind;
+                FailureResult = failureResult;
+                this.validate = validate;
+                this.authority = authority;
+            }
+
+            public static CurrentRevisionReloadPreparation Success(
+                Skin skin,
+                string contentRevision,
+                SkinCurrentRevisionSourceKind sourceKind,
+                Action<CancellationToken> validate,
+                IDisposable authority = null)
+                => new CurrentRevisionReloadPreparation(
+                    skin ?? throw new ArgumentNullException(nameof(skin)),
+                    contentRevision ?? throw new ArgumentNullException(nameof(contentRevision)),
+                    sourceKind,
+                    SkinCurrentRevisionReloadResult.Success,
+                    validate ?? throw new ArgumentNullException(nameof(validate)),
+                    authority);
+
+            public void Validate(CancellationToken cancellationToken) => validate(cancellationToken);
+
+            public Skin TransferSkin()
+                => Interlocked.Exchange(ref skin, null)
+                   ?? throw new InvalidOperationException("The prepared revision owner was already transferred.");
+
+            public void Dispose()
+            {
+                Skin ownedSkin = Interlocked.Exchange(ref skin, null);
+                IDisposable ownedAuthority = Interlocked.Exchange(ref authority, null);
+
+                try
+                {
+                    ownedSkin?.Dispose();
+                }
+                finally
+                {
+                    ownedAuthority?.Dispose();
+                }
+            }
+        }
+
+        private sealed class RealmPackageFileDeclaration : IEquatable<RealmPackageFileDeclaration>
+        {
+            public string Filename { get; }
+            public string Hash { get; }
+
+            public RealmPackageFileDeclaration(string filename, string hash)
+            {
+                Filename = filename;
+                Hash = hash;
+            }
+
+            public bool Equals(RealmPackageFileDeclaration other)
+                => other != null
+                   && string.Equals(Filename, other.Filename, StringComparison.Ordinal)
+                   && string.Equals(Hash, other.Hash, StringComparison.Ordinal);
+
+            public override bool Equals(object obj) => Equals(obj as RealmPackageFileDeclaration);
+
+            public override int GetHashCode() => HashCode.Combine(Filename, Hash);
+        }
+
+        private sealed class RealmPackageRevisionSnapshot
+        {
+            public SkinInfo Metadata { get; }
+            public IReadOnlyList<RealmPackageFileDeclaration> Files { get; }
+
+            private RealmPackageRevisionSnapshot(SkinInfo metadata, RealmPackageFileDeclaration[] files)
+            {
+                Metadata = metadata;
+                Files = files;
+            }
+
+            public static RealmPackageRevisionSnapshot Create(SkinInfo source)
+            {
+                var metadata = new SkinInfo
+                {
+                    ID = source.ID,
+                    Name = source.Name,
+                    Creator = source.Creator,
+                    InstantiationInfo = source.InstantiationInfo,
+                    Hash = source.Hash,
+                    Protected = source.Protected,
+                    FilesystemStoragePath = source.FilesystemStoragePath,
+                    IsExternalFilesystemStorage = source.IsExternalFilesystemStorage,
+                    FilesystemStorageAuthorityOwner = source.FilesystemStorageAuthorityOwner,
+                    DeletePending = source.DeletePending,
+                };
+                RealmPackageFileDeclaration[] files = source.Files
+                                                                  .Select(file => new RealmPackageFileDeclaration(file.Filename, file.File.Hash))
+                                                                  .OrderBy(file => file.Filename, StringComparer.Ordinal)
+                                                                  .ThenBy(file => file.Hash, StringComparer.Ordinal)
+                                                                  .ToArray();
+                return new RealmPackageRevisionSnapshot(metadata, files);
+            }
+
+            public bool MatchesMetadata(RealmPackageRevisionSnapshot other) => Matches(other);
+
+            public bool Matches(RealmPackageRevisionSnapshot other)
+            {
+                if (other == null
+                    || Metadata.ID != other.Metadata.ID
+                    || !string.Equals(Metadata.Name, other.Metadata.Name, StringComparison.Ordinal)
+                    || !string.Equals(Metadata.Creator, other.Metadata.Creator, StringComparison.Ordinal)
+                    || !string.Equals(Metadata.InstantiationInfo, other.Metadata.InstantiationInfo, StringComparison.Ordinal)
+                    || !string.Equals(Metadata.Hash, other.Metadata.Hash, StringComparison.Ordinal)
+                    || Metadata.Protected != other.Metadata.Protected
+                    || !string.Equals(Metadata.FilesystemStoragePath, other.Metadata.FilesystemStoragePath, StringComparison.Ordinal)
+                    || Metadata.IsExternalFilesystemStorage != other.Metadata.IsExternalFilesystemStorage
+                    || !string.Equals(Metadata.FilesystemStorageAuthorityOwner, other.Metadata.FilesystemStorageAuthorityOwner, StringComparison.Ordinal)
+                    || Metadata.DeletePending != other.Metadata.DeletePending
+                    || Files.Count != other.Files.Count)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < Files.Count; i++)
+                {
+                    if (!Files[i].Equals(other.Files[i]))
+                        return false;
+                }
+
+                return true;
+            }
         }
 
         private sealed class ExternalFolderSelectionPreparationResult : IDisposable
@@ -4772,16 +7816,27 @@ namespace osu.Game.Skinning
             ManagedFolder,
         }
 
-        private sealed class PreparedManagedFolderSelection
+        /// <summary>
+        /// The single authoritative manager publication. Bindables are notification projections; all manager getters
+        /// and resource lookup resolve through this immutable reference so owner, selection and revision cannot be
+        /// split by arbitrary post-barrier observers.
+        /// </summary>
+        private sealed class PublishedCurrentSkinPair
         {
-            public Live<SkinInfo> Target { get; }
-            public Skin Skin { get; }
+            public Live<SkinInfo> Selection { get; }
+            public Skin Owner { get; }
+            public SkinCurrentRevision Revision { get; }
 
-            public PreparedManagedFolderSelection(Live<SkinInfo> target, Skin skin)
+            public PublishedCurrentSkinPair(
+                Live<SkinInfo> selection,
+                Skin owner,
+                SkinCurrentRevision revision)
             {
-                Target = target;
-                Skin = skin;
+                Selection = selection ?? throw new ArgumentNullException(nameof(selection));
+                Owner = owner ?? throw new ArgumentNullException(nameof(owner));
+                Revision = revision ?? throw new ArgumentNullException(nameof(revision));
             }
         }
+
     }
 }

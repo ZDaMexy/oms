@@ -15,6 +15,7 @@ using osu.Framework.Threading;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Graphics;
 using osu.Game.Graphics.Backgrounds;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
@@ -32,6 +33,7 @@ namespace osu.Game.Screens.Backgrounds
         private Bindable<Skin> skin;
         private Bindable<BackgroundSource> source;
         private Bindable<IntroSequence> introSequence;
+        private SkinManager skinManager;
         private readonly SeasonalBackgroundLoader seasonalBackgroundLoader = new SeasonalBackgroundLoader();
 
         [Resolved]
@@ -45,6 +47,7 @@ namespace osu.Game.Screens.Backgrounds
         [BackgroundDependencyLoader]
         private void load(IAPIProvider api, SkinManager skinManager, OsuConfigManager config)
         {
+            this.skinManager = skinManager;
             user = api.LocalUser.GetBoundCopy();
             skin = skinManager.CurrentSkin.GetBoundCopy();
             source = config.GetBindable<BackgroundSource>(OsuSetting.MenuBackgroundSource);
@@ -101,6 +104,16 @@ namespace osu.Game.Screens.Backgrounds
 
         private ScheduledDelegate nextTask;
         private CancellationTokenSource cancellationTokenSource;
+        private Background delayedBackground;
+        private PendingAsyncDrawableOwnership<Background> pendingBackgroundLoad;
+
+        internal System.Func<Skin, string, SkinRevisionParticipantRegistration, SkinBackground> SkinBackgroundFactory { get; set; }
+            = (owner, fallbackTextureName, holder) => new SkinBackground(owner, fallbackTextureName, holder);
+
+        internal Scheduler BackgroundLoadCallbackScheduler { get; set; }
+
+        internal System.Threading.Tasks.Task PendingBackgroundLoadTask
+            => Volatile.Read(ref pendingBackgroundLoad)?.LoadTask;
 
         /// <summary>
         /// Request loading the next background.
@@ -118,15 +131,71 @@ namespace osu.Game.Screens.Backgrounds
 
             cancellationTokenSource?.Cancel();
             cancellationTokenSource = new CancellationTokenSource();
+            Interlocked.Exchange(ref pendingBackgroundLoad, null)?.Cancel();
 
             nextTask?.Cancel();
+            delayedBackground?.Dispose();
+            delayedBackground = nextBackground;
+            CancellationToken loadCancellation = cancellationTokenSource.Token;
             nextTask = Scheduler.AddDelayed(() =>
             {
+                nextTask = null;
+                delayedBackground = null;
                 Logger.Log(@"🌅 Global background loading");
-                LoadComponentAsync(nextBackground, displayNext, cancellationTokenSource.Token);
+                var ownership = new PendingAsyncDrawableOwnership<Background>(nextBackground);
+                PendingAsyncDrawableOwnership<Background> superseded =
+                    Interlocked.Exchange(ref pendingBackgroundLoad, ownership);
+                superseded?.Cancel();
+
+                try
+                {
+                    Scheduler callbackScheduler = BackgroundLoadCallbackScheduler ?? Scheduler;
+                    var loadTask = LoadComponentAsync(
+                        ownership.Loadable,
+                        loaded => displayNext(ownership, loaded),
+                        loadCancellation,
+                        callbackScheduler);
+                    ownership.Attach(loadTask, callbackScheduler);
+                }
+                catch
+                {
+                    Interlocked.CompareExchange(ref pendingBackgroundLoad, null, ownership);
+                    ownership.ReclaimUnstarted();
+                    throw;
+                }
             }, 500);
 
             return true;
+        }
+
+        private void displayNext(
+            PendingAsyncDrawableOwnership<Background> ownership,
+            Drawable loaded)
+        {
+            if (!ReferenceEquals(Volatile.Read(ref pendingBackgroundLoad), ownership)
+                || !ownership.TryTransfer(loaded, out Background transferred))
+            {
+                ownership.Cancel();
+                return;
+            }
+
+            Interlocked.CompareExchange(ref pendingBackgroundLoad, null, ownership);
+
+            try
+            {
+                displayNext(transferred);
+            }
+            catch
+            {
+                if (transferred.Parent == null)
+                    transferred.Dispose();
+
+                throw;
+            }
+            finally
+            {
+                ownership.CompleteTransfer();
+            }
         }
 
         private void displayNext(Background newBackground)
@@ -168,7 +237,17 @@ namespace osu.Game.Screens.Backgrounds
                                 break;
 
                             default:
-                                newBackground = new SkinBackground(skin.Value, getBackgroundTextureName());
+                                Skin exactOwner = skin.Value;
+                                SkinRevisionParticipantRegistration holder =
+                                    skinManager.RegisterRevisionHolderForOwner(exactOwner, nameof(BackgroundScreenDefault));
+
+                                if (holder != null)
+                                {
+                                    newBackground = SkinBackgroundFactory(
+                                        exactOwner,
+                                        getBackgroundTextureName(),
+                                        holder);
+                                }
                                 break;
                         }
 
@@ -179,12 +258,32 @@ namespace osu.Game.Screens.Backgrounds
             // this method is called in many cases where the background might not necessarily need to change.
             // if an equivalent background is currently being shown, we don't want to load it again.
             if (newBackground?.Equals(background) == true)
+            {
+                if (!ReferenceEquals(newBackground, background))
+                    newBackground.Dispose();
+
                 return background;
+            }
 
             newBackground ??= new Background(getBackgroundTextureName());
             newBackground.Depth = currentDisplay;
 
             return newBackground;
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            cancellationTokenSource?.Cancel();
+            nextTask?.Cancel();
+            delayedBackground?.Dispose();
+            delayedBackground = null;
+            PendingAsyncDrawableOwnership<Background> pendingOwnership =
+                Interlocked.Exchange(ref pendingBackgroundLoad, null);
+            pendingOwnership?.Cancel();
+            cancellationTokenSource?.Dispose();
+            cancellationTokenSource = null;
+            base.Dispose(isDisposing);
+            pendingOwnership?.JoinAfterParentDisposal();
         }
 
         private string getBackgroundTextureName()

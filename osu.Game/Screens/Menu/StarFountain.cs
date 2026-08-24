@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Threading;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Threading;
@@ -17,6 +19,24 @@ namespace osu.Game.Screens.Menu
 
         [Resolved]
         private TextureStore textures { get; set; } = null!;
+
+        private protected override SkinRevisionParticipantKind RevisionParticipantKind
+            => SkinRevisionParticipantKind.CoherentVisualConsumer;
+
+        private protected override Task<SkinRevisionParticipantCommit?> PrepareCurrentRevisionAsync(
+            SkinCurrentRevision nextRevision,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Texture texture = nextRevision.Owner.GetTexture("Menu/fountain-star") ?? textures.Get("Menu/fountain-star");
+            Texture previousTexture = spewer.Texture;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult<SkinRevisionParticipantCommit?>(
+                new SkinRevisionParticipantCommit(
+                    () => spewer.Texture = texture,
+                    () => spewer.Texture = previousTexture));
+        }
 
         [BackgroundDependencyLoader]
         private void load()

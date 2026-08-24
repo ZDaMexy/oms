@@ -5,6 +5,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Animations;
@@ -113,11 +114,23 @@ namespace osu.Game.Storyboards.Drawables
         [Resolved]
         private TextureStore textureStore { get; set; }
 
+        [Resolved(CanBeNull = true)]
+        private SkinManager skinManager { get; set; }
+
+        private SkinRevisionParticipantRegistration revisionParticipant;
+        private SkinRevisionParticipantRegistration initialLoadRevisionParticipant;
+        private bool usesSkinSprites;
+
         [BackgroundDependencyLoader]
         private void load(Storyboard storyboard)
         {
             if (storyboard.UseSkinSprites)
             {
+                usesSkinSprites = true;
+                initialLoadRevisionParticipant = skinManager?.RegisterRevisionParticipant(
+                    SkinRevisionParticipantKind.CoherentVisualConsumer,
+                    $"{nameof(DrawableStoryboardAnimation)} (initial load)",
+                    blocksRevisionPublication: true);
                 skin.SourceChanged += skinSourceChanged;
                 skinSourceChanged();
             }
@@ -129,7 +142,25 @@ namespace osu.Game.Storyboards.Drawables
 
         protected override void LoadComplete()
         {
-            base.LoadComplete();
+            try
+            {
+                base.LoadComplete();
+
+                if (usesSkinSprites)
+                {
+                    // ClearFrames/AddFrame and texture lookup are fallible collection/resource work. Background
+                    // storyboards are lifecycle-audited only in C2, so same-ID publication is deterministically
+                    // rejected while one is attached instead of running this work after the barrier.
+                    revisionParticipant = skinManager?.RegisterRevisionParticipant(
+                        SkinRevisionParticipantKind.CoherentVisualConsumer,
+                        nameof(DrawableStoryboardAnimation));
+                    skinSourceChanged();
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref initialLoadRevisionParticipant, null)?.Dispose();
+            }
 
             // Framework animation class tries its best to synchronise the animation at LoadComplete,
             // but in some cases (such as fast forward) this results in an incorrect start offset.
@@ -141,20 +172,32 @@ namespace osu.Game.Storyboards.Drawables
 
         private void skinSourceChanged()
         {
-            ClearFrames();
+            bool rebuilt = false;
 
-            // When reading from a skin, we match stables weird behaviour where `FrameCount` is ignored
-            // and resources are retrieved until the end of the animation.
-            var skinTextures = skin.GetTextures(Path.ChangeExtension(Animation.Path, null), default, default, true, string.Empty, null, out _);
-
-            if (skinTextures.Length > 0)
+            try
             {
-                foreach (var texture in skinTextures)
-                    AddFrame(texture, Animation.FrameDelay);
+                ClearFrames();
+
+                // When reading from a skin, we match stables weird behaviour where `FrameCount` is ignored
+                // and resources are retrieved until the end of the animation.
+                var skinTextures = skin.GetTextures(Path.ChangeExtension(Animation.Path, null), default, default, true, string.Empty, null, out _);
+
+                if (skinTextures.Length > 0)
+                {
+                    foreach (var texture in skinTextures)
+                        AddFrame(texture, Animation.FrameDelay);
+                }
+                else
+                {
+                    addFramesFromStoryboardSource();
+                }
+
+                rebuilt = true;
             }
-            else
+            finally
             {
-                addFramesFromStoryboardSource();
+                if (rebuilt)
+                    revisionParticipant?.AdoptCurrentRevision();
             }
         }
 
@@ -174,6 +217,10 @@ namespace osu.Game.Storyboards.Drawables
 
             if (skin != null)
                 skin.SourceChanged -= skinSourceChanged;
+
+            revisionParticipant?.Dispose();
+            revisionParticipant = null;
+            Interlocked.Exchange(ref initialLoadRevisionParticipant, null)?.Dispose();
         }
     }
 }

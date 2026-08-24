@@ -17,6 +17,7 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Models;
+using osu.Game.Overlays.Notifications;
 using osu.Game.Skinning;
 using osu.Game.Skinning.IO;
 using osu.Game.Tests.Resources;
@@ -41,7 +42,7 @@ namespace osu.Game.Tests.Skins.IO
 
                 var skinManager = osu.Dependencies.Get<SkinManager>();
 
-                skinManager.CurrentSkinInfo.Value = imported;
+                await selectSkinOnUpdateThread(osu, skinManager, imported);
 
                 Assert.That(skinManager.CurrentSkin.Value.LayoutInfos.Count, Is.EqualTo(2));
             }
@@ -239,7 +240,7 @@ namespace osu.Game.Tests.Skins.IO
         {
             var skinManager = osu.Dependencies.Get<SkinManager>();
 
-            skinManager.EnsureMutableSkin();
+            Assert.That(await ensureMutableSkinOnUpdateThread(osu, skinManager), Is.True);
 
             MemoryStream exportStream = new MemoryStream();
 
@@ -270,9 +271,9 @@ namespace osu.Game.Tests.Skins.IO
         {
             var skinManager = osu.Dependencies.Get<SkinManager>();
 
-            skinManager.CurrentSkinInfo.Value = skinManager.DefaultClassicSkin.SkinInfo;
+            await selectSkinOnUpdateThread(osu, skinManager, skinManager.DefaultClassicSkin.SkinInfo);
 
-            skinManager.EnsureMutableSkin();
+            Assert.That(await ensureMutableSkinOnUpdateThread(osu, skinManager), Is.True);
 
             MemoryStream exportStream = new MemoryStream();
 
@@ -547,13 +548,31 @@ namespace osu.Game.Tests.Skins.IO
                 string.Join('|', blobs));
         }
 
+        private static string captureSkinRecord(RealmAccess realmAccess, Guid recordId)
+        {
+            return realmAccess.Run(realm =>
+            {
+                realm.Refresh();
+                SkinInfo skin = realm.Find<SkinInfo>(recordId)!;
+                string files = string.Join(
+                    '\u001e',
+                    skin.Files
+                        .Select(file => $"{file.Filename}\u001f{file.File.Hash}")
+                        .OrderBy(value => value, StringComparer.Ordinal));
+
+                return $"{skin.ID:N}\u001f{skin.Name}\u001f{skin.Creator}\u001f{skin.InstantiationInfo}\u001f{skin.Hash}"
+                       + $"\u001f{skin.Protected}\u001f{skin.DeletePending}\u001f{skin.FilesystemStoragePath}"
+                       + $"\u001f{skin.IsExternalFilesystemStorage}\u001f{skin.FilesystemStorageAuthorityOwner}\u001f{files}";
+            });
+        }
+
         private readonly record struct StoreInventory(
             string RealmFiles,
             string SkinIds,
             string Blobs);
 
         [Test]
-        public async Task TestExternallyMountingWithSubDirectory()
+        public async Task TestSkinExternalEditingBackendIsFailClosedBeforeMount()
         {
             using (HeadlessGameHost host = new CleanRunHeadlessGameHost())
             {
@@ -569,27 +588,12 @@ namespace osu.Game.Tests.Skins.IO
                     var import = await loadSkinIntoOsu(osu, new ImportTask(zipStream, "test skin.osk"));
 
                     var skinManager = osu.Dependencies.Get<SkinManager>();
-                    var externalEdit = await skinManager.BeginExternalEditing(import.PerformRead(s => s.Detach())); // should not fail
+                    InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await skinManager.BeginExternalEditing(import.PerformRead(s => s.Detach())))!;
 
-                    Assert.That(Directory.Exists(externalEdit.MountedPath));
-
-                    var directoryInfo = new DirectoryInfo(externalEdit.MountedPath);
-
-                    Assert.That(directoryInfo.GetFiles().Select(f => f.Name), Is.EquivalentTo(new[]
-                    {
-                        "skin.ini",
-                    }));
-
-                    var subDirectory = directoryInfo.GetDirectories().Single();
-                    Assert.That(subDirectory.Name, Is.EqualTo("folder"));
-                    Assert.That(subDirectory.GetFiles().Select(f => f.Name), Is.EquivalentTo(new[]
-                    {
-                        "test.png",
-                    }));
-
-                    Task finishTask = Task.CompletedTask;
-                    host.UpdateThread.Scheduler.Add(() => finishTask = externalEdit.Finish());
-                    await finishTask;
+                    Assert.That(
+                        exception.Message,
+                        Is.EqualTo("Skin external editing is disabled until update-import can publish through the current revision protocol."));
                 }
                 finally
                 {
@@ -597,6 +601,342 @@ namespace osu.Game.Tests.Skins.IO
                 }
             }
         }
+
+        [Test]
+        public Task TestDirectSkinImporterExternalEditingBackendIsFailClosedBeforeMount() => runSkinTest(async osu =>
+        {
+            using Stream archive = createOskWithIni("direct external backend", "OMS tests");
+            Live<SkinInfo> current = await loadSkinIntoOsu(
+                osu,
+                new ImportTask(archive, "direct-external-backend.osk"));
+            SkinManager skinManager = osu.Dependencies.Get<SkinManager>();
+            RealmAccess realmAccess = osu.Dependencies.Get<RealmAccess>();
+            Storage storage = osu.Dependencies.Get<Storage>();
+            var fileStore = new RealmFileStore(realmAccess, storage);
+            var backend = new SkinImporter(storage, realmAccess, skinManager);
+
+            await selectSkinOnUpdateThread(osu, skinManager, current);
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+            {
+                while (skinManager.CurrentSkinInfo.Value.ID != current.ID
+                       || skinManager.CurrentSkin.Value.SkinInfo.ID != current.ID
+                       || !ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value))
+                {
+                    await Task.Delay(10, timeout.Token);
+                }
+            }
+
+            Live<SkinInfo> selectionA = skinManager.CurrentSkinInfo.Value;
+            Skin ownerA = skinManager.CurrentSkin.Value;
+            SkinCurrentRevision revisionA = skinManager.CurrentRevision;
+            string recordA = captureSkinRecord(realmAccess, current.ID);
+            StoreInventory storeA = captureStoreInventory(realmAccess, fileStore);
+            SkinInfo detachedCurrent = current.PerformRead(info => info.Detach());
+            detachedCurrent.Hash = $"direct-external-{Guid.NewGuid():N}";
+            string forbiddenMount = Path.Join(Path.GetTempPath(), detachedCurrent.Hash);
+            Assert.That(Directory.Exists(forbiddenMount), Is.False);
+
+            var callers = new Func<Task<ExternalEditOperation<SkinInfo>>>[]
+            {
+                () => backend.BeginExternalEditing(detachedCurrent),
+                () => ((RealmArchiveModelImporter<SkinInfo>)backend).BeginExternalEditing(detachedCurrent),
+                () => ((IModelImporter<SkinInfo>)backend).BeginExternalEditing(detachedCurrent),
+            };
+
+            foreach (Func<Task<ExternalEditOperation<SkinInfo>>> begin in callers)
+            {
+                InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => begin())!;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(exception.Message, Is.EqualTo(SkinAuthoringAvailability.EXTERNAL_EDITING_DISABLED_DIAGNOSTIC));
+                    Assert.That(Directory.Exists(forbiddenMount), Is.False);
+                    Assert.That(captureSkinRecord(realmAccess, current.ID), Is.EqualTo(recordA));
+                    Assert.That(captureStoreInventory(realmAccess, fileStore), Is.EqualTo(storeA));
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
+                });
+            }
+        });
+
+        [Test]
+        public Task TestDirectSkinImporterUpdateBackendIsFailClosedBeforeRealmOrBlobMutation() => runSkinTest(async osu =>
+        {
+            using Stream archive = createOskWithIni("direct backend immutable", "OMS tests");
+            Live<SkinInfo> current = await loadSkinIntoOsu(osu, new ImportTask(archive, "direct-backend-immutable.osk"));
+            SkinManager skinManager = osu.Dependencies.Get<SkinManager>();
+            RealmAccess realmAccess = osu.Dependencies.Get<RealmAccess>();
+            Storage storage = osu.Dependencies.Get<Storage>();
+            var fileStore = new RealmFileStore(realmAccess, storage);
+
+            await selectSkinOnUpdateThread(osu, skinManager, current);
+
+            Live<SkinInfo> selectionA = skinManager.CurrentSkinInfo.Value;
+            Skin ownerA = skinManager.CurrentSkin.Value;
+            SkinCurrentRevision revisionA = skinManager.CurrentRevision;
+            SkinInfo original = current.PerformRead(info => info.Detach());
+            StoreInventory storeA = captureStoreInventory(realmAccess, fileStore);
+            string recordA = captureSkinRecord(realmAccess, current.ID);
+            string updateRoot = storage.GetFullPath($"direct-skin-update-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(updateRoot);
+            File.WriteAllText(Path.Combine(updateRoot, "skin.ini"),
+                "[General]\nName: forbidden update\nAuthor: bypass\n");
+            File.WriteAllBytes(Path.Combine(updateRoot, "replacement.bin"), new byte[] { 0xBA, 0xD0, 0x0D });
+
+            int customPredicateCalls = 0;
+            var backends = new[]
+            {
+                new SkinImporter(storage, realmAccess, skinManager),
+                new SkinImporter(storage, realmAccess, skinManager, _ =>
+                {
+                    customPredicateCalls++;
+                    return true;
+                }),
+            };
+
+            foreach (SkinImporter backend in backends)
+            {
+                InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+                    backend.ImportAsUpdate(
+                        new ProgressNotification(),
+                        new ImportTask(updateRoot),
+                        original))!;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(exception.Message, Is.EqualTo(SkinAuthoringAvailability.UPDATE_IMPORT_DISABLED_DIAGNOSTIC));
+                    Assert.That(captureSkinRecord(realmAccess, current.ID), Is.EqualTo(recordA));
+                    Assert.That(captureStoreInventory(realmAccess, fileStore), Is.EqualTo(storeA));
+                    Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+                    Assert.That(revisionA.Retired.IsCompleted, Is.False);
+                });
+            }
+
+            Assert.That(customPredicateCalls, Is.Zero,
+                "The disabled backend must reject before consulting any legacy update predicate.");
+        });
+
+        [Test]
+        public Task TestDirectSkinImporterExistingRecordMutationHonoursCurrentBoundary() => runSkinTest(async osu =>
+        {
+            using Stream currentArchive = createOskWithIni("direct current mutation", "OMS tests");
+            using Stream nonCurrentArchive = createOskWithIni("direct non-current mutation", "OMS tests");
+            Live<SkinInfo> current = await loadSkinIntoOsu(
+                osu,
+                new ImportTask(currentArchive, "direct-current-mutation.osk"));
+            Live<SkinInfo> nonCurrent = await loadSkinIntoOsu(
+                osu,
+                new ImportTask(nonCurrentArchive, "direct-non-current-mutation.osk"));
+            SkinManager skinManager = osu.Dependencies.Get<SkinManager>();
+            RealmAccess realmAccess = osu.Dependencies.Get<RealmAccess>();
+            Storage storage = osu.Dependencies.Get<Storage>();
+            var fileStore = new RealmFileStore(realmAccess, storage);
+            var backend = new SkinImporter(storage, realmAccess, skinManager);
+
+            await selectSkinOnUpdateThread(osu, skinManager, current);
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+            {
+                while (skinManager.CurrentSkinInfo.Value.ID != current.ID
+                       || skinManager.CurrentSkin.Value.SkinInfo.ID != current.ID
+                       || !ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value))
+                {
+                    await Task.Delay(10, timeout.Token);
+                }
+            }
+
+            Live<SkinInfo> selectionA = skinManager.CurrentSkinInfo.Value;
+            Skin ownerA = skinManager.CurrentSkin.Value;
+            SkinCurrentRevision revisionA = skinManager.CurrentRevision;
+            string currentRecordA = captureSkinRecord(realmAccess, current.ID);
+            StoreInventory storeA = captureStoreInventory(realmAccess, fileStore);
+
+            InvalidOperationException save = Assert.Throws<InvalidOperationException>(() => backend.Save(ownerA))!;
+            InvalidOperationException metadata = Assert.Throws<InvalidOperationException>(() =>
+                realmAccess.Write(realm =>
+                {
+                    SkinInfo authoritative = realm.Find<SkinInfo>(current.ID)!;
+                    authoritative.Name = "forbidden direct metadata";
+                    backend.UpdateSkinIniMetadata(authoritative, realm);
+                }))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(save.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                Assert.That(metadata.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                Assert.That(captureSkinRecord(realmAccess, current.ID), Is.EqualTo(currentRecordA));
+                Assert.That(captureStoreInventory(realmAccess, fileStore), Is.EqualTo(storeA));
+                Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+                Assert.That(revisionA.Retired.IsCompleted, Is.False);
+            });
+
+            string nonCurrentRecordBefore = captureSkinRecord(realmAccess, nonCurrent.ID);
+            using Skin nonCurrentOwner = nonCurrent.PerformRead(info => info.CreateInstance(skinManager));
+            Assert.That(backend.Save(nonCurrentOwner), Is.True,
+                "The revision-aware importer boundary must preserve ordinary non-current Save behaviour.");
+            string nonCurrentRecordAfterSave = captureSkinRecord(realmAccess, nonCurrent.ID);
+
+            realmAccess.Write(realm =>
+            {
+                SkinInfo authoritative = realm.Find<SkinInfo>(nonCurrent.ID)!;
+                authoritative.Name = "direct non-current renamed";
+                backend.UpdateSkinIniMetadata(authoritative, realm);
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nonCurrentRecordAfterSave, Is.Not.EqualTo(nonCurrentRecordBefore));
+                Assert.That(nonCurrent.PerformRead(info => info.Name), Is.EqualTo("direct non-current renamed"));
+                Assert.That(captureSkinRecord(realmAccess, nonCurrent.ID), Is.Not.EqualTo(nonCurrentRecordAfterSave));
+                Assert.That(captureSkinRecord(realmAccess, current.ID), Is.EqualTo(currentRecordA));
+                Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+            });
+        });
+
+        [Test]
+        public Task TestCurrentRealmPackageMutationAndOwnerAssignmentAreFailClosed() => runSkinTest(async osu =>
+        {
+            using Stream currentArchive = createOskWithIni("current immutable skin", "OMS tests");
+            using Stream otherArchive = createOskWithIni("non-current deletable skin", "OMS tests");
+            Live<SkinInfo> current = await loadSkinIntoOsu(osu, new ImportTask(currentArchive, "current-immutable.osk"));
+            Live<SkinInfo> other = await loadSkinIntoOsu(osu, new ImportTask(otherArchive, "non-current-deletable.osk"));
+            SkinManager skinManager = osu.Dependencies.Get<SkinManager>();
+            GameHost host = osu.Dependencies.Get<GameHost>();
+            var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            host.UpdateThread.Scheduler.Add(() =>
+            {
+                try
+                {
+                    skinManager.CurrentSkinInfo.Value = current;
+
+                    Skin ownerA = skinManager.CurrentSkin.Value;
+                    SkinCurrentRevision revisionA = skinManager.CurrentRevision;
+                    SkinInfo currentSnapshot = current.PerformRead(info => info.Detach());
+                    string originalName = currentSnapshot.Name;
+                    string originalHash = currentSnapshot.Hash;
+                    int originalFileCount = currentSnapshot.Files.Count;
+
+                    using Skin sameRecordOwner = current.PerformRead(info => info.CreateInstance(skinManager));
+
+                    InvalidOperationException directAssignment = Assert.Throws<InvalidOperationException>(() =>
+                        skinManager.CurrentSkin.Value = sameRecordOwner)!;
+                    var boundOwner = skinManager.CurrentSkin.GetBoundCopy();
+                    InvalidOperationException boundAssignment = Assert.Throws<InvalidOperationException>(() =>
+                        boundOwner.Value = sameRecordOwner)!;
+                    InvalidOperationException save = Assert.Throws<InvalidOperationException>(() => skinManager.Save(ownerA))!;
+                    InvalidOperationException rename = Assert.Throws<InvalidOperationException>(() =>
+                        skinManager.Rename(current, "must not be committed"))!;
+                    RealmNamedFileUsage currentFile = currentSnapshot.Files.Single();
+                    using var addContents = new MemoryStream(new byte[] { 0x01 });
+                    using var replaceContents = new MemoryStream(new byte[] { 0x02 });
+                    InvalidOperationException addFile = Assert.Throws<InvalidOperationException>(() =>
+                        skinManager.AddFile(currentSnapshot, addContents, "bypass.bin"))!;
+                    InvalidOperationException deleteFile = Assert.Throws<InvalidOperationException>(() =>
+                        skinManager.DeleteFile(currentSnapshot, currentFile))!;
+                    InvalidOperationException replaceFile = Assert.Throws<InvalidOperationException>(() =>
+                        skinManager.ReplaceFile(currentSnapshot, currentFile, replaceContents))!;
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(directAssignment.Message, Is.EqualTo(SkinInstanceBindable.DIRECT_ASSIGNMENT_DISABLED_DIAGNOSTIC));
+                        Assert.That(boundAssignment.Message, Is.EqualTo(SkinInstanceBindable.DIRECT_ASSIGNMENT_DISABLED_DIAGNOSTIC));
+                        Assert.That(save.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                        Assert.That(rename.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                        Assert.That(addFile.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                        Assert.That(deleteFile.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                        Assert.That(replaceFile.Message, Is.EqualTo(SkinManager.CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC));
+                        Assert.That(skinManager.CanModify(current), Is.False);
+                        Assert.That(skinManager.CanExport(current), Is.True);
+                        Assert.That(skinManager.Delete(currentSnapshot), Is.False);
+                        Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(current));
+                        Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                        Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+                    });
+
+                    skinManager.Delete(s => s.ID == current.ID || s.ID == other.ID, silent: true);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(current.PerformRead(info => info.Name), Is.EqualTo(originalName));
+                        Assert.That(current.PerformRead(info => info.Hash), Is.EqualTo(originalHash));
+                        Assert.That(current.PerformRead(info => info.Files.Count), Is.EqualTo(originalFileCount));
+                        Assert.That(current.PerformRead(info => info.DeletePending), Is.False);
+                        Assert.That(other.PerformRead(info => info.DeletePending), Is.True);
+                        Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(current));
+                        Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                        Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+                    });
+
+                    completed.TrySetResult();
+                }
+                catch (Exception exception)
+                {
+                    completed.TrySetException(exception);
+                }
+            });
+
+            await completed.Task;
+        });
+
+        [Test]
+        public Task TestArchiveHashCollisionCannotSoftDeleteCurrentRealmRevision() => runSkinTest(async osu =>
+        {
+            SkinManager skinManager = osu.Dependencies.Get<SkinManager>();
+            RealmAccess realmAccess = osu.Dependencies.Get<RealmAccess>();
+            var fileStore = new RealmFileStore(realmAccess, osu.Dependencies.Get<Storage>());
+            byte[] skinIni = generateSkinIniBytes("current collision", "OMS tests");
+            byte[] resourceA = Encoding.UTF8.GetBytes("resource-A");
+            byte[] resourceB = Encoding.UTF8.GetBytes("resource-B");
+
+            using MemoryStream archiveA = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", skinIni),
+                new SkinArchiveReaderTest.ZipEntry("resource.bin", resourceA));
+            Live<SkinInfo> current = await loadSkinIntoOsu(
+                osu,
+                new ImportTask(archiveA, "current collision.osk"));
+
+            await selectSkinOnUpdateThread(osu, skinManager, current);
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+            {
+                while (skinManager.CurrentSkinInfo.Value.ID != current.ID
+                       || skinManager.CurrentSkin.Value.SkinInfo.ID != current.ID
+                       || !ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value))
+                {
+                    await Task.Delay(10, timeout.Token);
+                }
+            }
+
+            Live<SkinInfo> selectionA = skinManager.CurrentSkinInfo.Value;
+            Skin ownerA = skinManager.CurrentSkin.Value;
+            SkinCurrentRevision revisionA = skinManager.CurrentRevision;
+            StoreInventory baseline = captureStoreInventory(realmAccess, fileStore);
+
+            using MemoryStream archiveB = SkinArchiveReaderTest.BuildZip(
+                new SkinArchiveReaderTest.ZipEntry("skin.ini", skinIni),
+                new SkinArchiveReaderTest.ZipEntry("resource.bin", resourceB));
+            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await skinManager.Import(new ImportTask(archiveB, "current collision.osk")))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.Message, Is.EqualTo(SkinImporter.EXISTING_REPLACEMENT_DISABLED_DIAGNOSTIC));
+                Assert.That(captureStoreInventory(realmAccess, fileStore), Is.EqualTo(baseline),
+                    "Rejected replacement ingress must roll back every provisional Realm/file-store receipt.");
+                Assert.That(current.PerformRead(info => info.DeletePending), Is.False);
+                Assert.That(skinManager.CurrentSkinInfo.Value, Is.SameAs(selectionA));
+                Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(ownerA));
+                Assert.That(skinManager.CurrentRevision, Is.SameAs(revisionA));
+                Assert.That(revisionA.Retired.IsCompleted, Is.False);
+            });
+        });
 
         /// <remarks>
         /// Invalid Windows path semantics are rejected at archive ingress, before any external-edit mount can occur.
@@ -646,6 +986,50 @@ namespace osu.Game.Tests.Skins.IO
                 Assert.That(instance.Configuration.SkinInfo.Creator, Is.EqualTo(creator));
                 Assert.That(instance.Configuration.LegacyVersion, Is.EqualTo(version));
             });
+        }
+
+        private static Task selectSkinOnUpdateThread(
+            OsuGameBase osu,
+            SkinManager skinManager,
+            Live<SkinInfo> selection)
+        {
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            GameHost host = osu.Dependencies.Get<GameHost>();
+
+            host.UpdateThread.Scheduler.Add(() =>
+            {
+                try
+                {
+                    skinManager.CurrentSkinInfo.Value = selection;
+                    completion.TrySetResult();
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            });
+
+            return completion.Task;
+        }
+
+        private static Task<bool> ensureMutableSkinOnUpdateThread(OsuGameBase osu, SkinManager skinManager)
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            GameHost host = osu.Dependencies.Get<GameHost>();
+
+            host.UpdateThread.Scheduler.Add(() =>
+            {
+                try
+                {
+                    completion.TrySetResult(skinManager.EnsureMutableSkin());
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            });
+
+            return completion.Task;
         }
 
         private void assertImportedBoth(Live<SkinInfo> import1, Live<SkinInfo> import2)

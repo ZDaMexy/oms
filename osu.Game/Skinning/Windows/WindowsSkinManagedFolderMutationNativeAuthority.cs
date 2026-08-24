@@ -114,6 +114,23 @@ namespace osu.Game.Skinning.Windows
                 }
             }
 
+            public SkinPackageRevisionCapsule CaptureCapturedExistingSourceRevision(
+                CancellationToken cancellationToken)
+            {
+                try
+                {
+                    return getSession().CaptureCapturedMutationSourceRevision(cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    throw new SkinManagedFolderMutationNativeAuthorityException();
+                }
+            }
+
             public SkinManagedFolderTargetNameSlot CaptureAbsentTargetNameSlot(
                 string managedRelativePath,
                 CancellationToken cancellationToken)

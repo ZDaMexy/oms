@@ -33,6 +33,7 @@ using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Extensions;
+using osu.Game.Graphics;
 using osu.Game.Graphics.Cursor;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Input.Bindings;
@@ -172,6 +173,7 @@ namespace osu.Game.Screens.Edit
         private readonly EditorLoader loader;
 
         private EditorScreen currentScreen;
+        private PendingAsyncDrawableOwnership<EditorScreen> pendingScreenOwnership;
 
         private readonly BindableBeatDivisor beatDivisor = new BindableBeatDivisor();
         private EditorClock clock;
@@ -499,7 +501,12 @@ namespace osu.Game.Screens.Edit
 
         protected override void Dispose(bool isDisposing)
         {
+            PendingAsyncDrawableOwnership<EditorScreen> ownership = pendingScreenOwnership;
+            pendingScreenOwnership = null;
+            ownership?.Cancel();
+
             base.Dispose(isDisposing);
+            ownership?.JoinAfterParentDisposal();
 
             // redundant (should have happened via a `resetTrack()` call in `OnExiting()`), but done for safety
             musicController.TrackChanged -= onTrackChanged;
@@ -1072,6 +1079,10 @@ namespace osu.Game.Screens.Edit
 
         private void onModeChanged(ValueChangedEvent<EditorScreenMode> e)
         {
+            PendingAsyncDrawableOwnership<EditorScreen> previousPendingOwnership = pendingScreenOwnership;
+            pendingScreenOwnership = null;
+            previousPendingOwnership?.Cancel();
+
             var lastScreen = currentScreen;
 
             lastScreen?.Hide();
@@ -1112,14 +1123,50 @@ namespace osu.Game.Screens.Edit
                         throw new InvalidOperationException("Editor menu bar switched to an unsupported mode");
                 }
 
-                screenContainer.LoadComponentAsync(currentScreen, newScreen =>
+                EditorScreen screenToLoad = currentScreen;
+                var ownership = new PendingAsyncDrawableOwnership<EditorScreen>(screenToLoad);
+                pendingScreenOwnership = ownership;
+
+                try
                 {
-                    if (newScreen == currentScreen)
+                    Scheduler callbackScheduler = screenContainer.CallbackScheduler;
+                    ownership.Attach(screenContainer.LoadComponentAsync(ownership.Loadable, loaded =>
                     {
-                        screenContainer.Add(newScreen);
-                        newScreen.Show();
-                    }
-                });
+                        if (!ReferenceEquals(pendingScreenOwnership, ownership)
+                            || screenToLoad != currentScreen
+                            || !ownership.TryTransfer(loaded, out EditorScreen owned))
+                        {
+                            return;
+                        }
+
+                        pendingScreenOwnership = null;
+
+                        try
+                        {
+                            screenContainer.Add(owned);
+                            owned.Show();
+                        }
+                        catch
+                        {
+                            if (owned.Parent == null)
+                                owned.Dispose();
+
+                            throw;
+                        }
+                        finally
+                        {
+                            ownership.CompleteTransfer();
+                        }
+                    }, scheduler: callbackScheduler), callbackScheduler);
+                }
+                catch
+                {
+                    if (ReferenceEquals(pendingScreenOwnership, ownership))
+                        pendingScreenOwnership = null;
+
+                    ownership.ReclaimUnstarted();
+                    throw;
+                }
             }
             finally
             {
@@ -1636,6 +1683,8 @@ namespace osu.Game.Screens.Edit
 
         private partial class ScreenContainer : Container<EditorScreen>
         {
+            public Scheduler CallbackScheduler => Scheduler;
+
             public new Task LoadComponentAsync<TLoadable>([NotNull] TLoadable component, Action<TLoadable> onLoaded = null, CancellationToken cancellation = default, Scheduler scheduler = null)
                 where TLoadable : Drawable
                 => base.LoadComponentAsync(component, onLoaded, cancellation, scheduler);

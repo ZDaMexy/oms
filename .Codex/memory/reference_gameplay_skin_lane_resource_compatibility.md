@@ -49,7 +49,7 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - 缺 bucket/field 直接 `Inherit` 且不得调用 materializer；显式空字符串仍是 declaration，必须交给 materializer 做基础验证。ini declaration 永不产生 `Suppress`，取消异常必须传播。
 - source-aware reference 至少区分 source、Keys、stable lane ID、field 与 raw resource name。同一 raw name 在 BMS/mania 或不同 bucket 下可以有不同结果，不能只按字符串名跨 authority 共用；resource name 不得进入稳定诊断、JSON 或安全字符串。
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
-- active/provisional owner 不能交叉：失败 reload 只 dispose 新 provisional owner，旧 active owner 继续存活；成功原子替换先 detach superseded consumer，再 dispose 旧 owner；teardown 同样先 detach 后 dispose。这里冻结的是 internal interface/fake owner 合同，不证明 concrete production owner、Drawable parenting/thread affinity、缓存或 atomic reload 已完成。
+- active/provisional owner不能交叉：失败reload只dispose新provisional owner，旧active owner继续存活；成功原子替换先detach superseded consumer，再dispose旧owner；teardown同样先detach后dispose。该规则已由C2 `SkinCurrentRevision` participant/work lease落到production并签发，覆盖BMS async note/materializer与真实owner retirement；C3～C6新增consumer必须继续加入。
 
 ## production source-bound note/LN 纵切地雷
 
@@ -57,9 +57,9 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - body 还要求 resolved `LongNoteBodyWidth` 与素材帧处于同一 source-bound material/revision；解析后 `skin.ini` identity 必须参与 revision authority，发布后 renderer 不得再读 aggregate width。缺失或非法宽度只在该 material 内用 typed reason 回到 `0.5775`，不得从低层裸 width 拼接。
 - `GetTexture()` 之后才检查输入大小、尺寸/像素或累计预算已经太晚；先读受限元数据并做 pre-decode gate，解码后再核对实际值。runtime cap 也不等于 importer 的总解压字节、解压比或 zip-bomb gate。
 - Realm 的 hash-backed package 要先冻结不可变文件名→内容身份快照，再由该 revision 独占 private resource cache；大小写重复、路径越界、身份冲突或缺 blob 均只让对应 slot `Inherit`，不能从另一 package 补齐。
-- generic 同步 reload 会把文件 IO/图片解码带回 update thread。专用异步 note host 应在新视觉完整就绪前保留旧 visual 或 critical fallback，用 generation/cancellation 阻止过期结果发布，并释放所有未采用结果。
-- 当前保证是 per-component publication，不是 package atomic reload；ini/scene/script/所有素材共同验证后一次切换仍属 `SV1-2`。
-- 成功 preparation cache 当前按 `BmsLegacySkin` 实例复用而非 revision-aware；同一实例原地改变来源时不会混合发布，但可能安全回退或继续使用旧 preparation，需重建 skin 实例。这个限制归 `SV1-2`，不能用选择 A→B 的逐组件测试替代整包热重载 gate。
+- current reload的Realm/blob/held filesystem I/O、parser、texture decode与materialization都必须止于background prepare；update thread只做已准备且可逆的引用交换。BMS async note/materializer还须把generation、cancel、callback ownership与work lease保持到真实worker退出，不能只释放未采用Drawable。`BmsAsyncNoteDrawable`可能位于ancestor `!IsAlive`的hitobject下，首次Ready admission及source invalidation rebuild都要经GameHost scheduler；source event先同步进入work admission gate，推进generation并exact claim旧owner/CTS，再调度fresh rebuild。prepare install与finish publish比较captured generation；participant shutdown/dispose也先terminal并在同一gate推进generation/claim work，从合同上消除CTS double-dispose窄窗。Dispose不能退回不推进的local scheduler或留下晚到publication。
+- 当前production consumer已受C2 package revision barrier覆盖；未来layout/catalog/scene/script/剩余素材仍须在C3～C6逐批加入，只有C6才关闭ini/manifest/scene/script/全部素材的最终整包门。
+- preparation cache仍按exact `BmsLegacySkin` instance/revision使用；active instance不观察原位来源变化，Settings manual Reload构造new instance/revision。same-instance refresh或逐组件A→B不得绕过统一barrier。
 - `Box` 继承 `Sprite`；测试若只用 `drawable is Sprite` 会把程序化 fallback 误判为用户贴图，必须验证 source-bound 类型/纹理身份或明确的宿主状态。
 
 ## production source-bound 边界

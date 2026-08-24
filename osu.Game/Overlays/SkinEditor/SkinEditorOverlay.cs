@@ -21,20 +21,21 @@ using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Graphics.Containers;
+using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
 using osu.Game.Overlays.OSD;
-using osu.Game.Input.Bindings;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens;
-using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Components;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
+using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Select;
+using osu.Game.Skinning;
 using osu.Game.Users;
 using osu.Game.Utils;
 
@@ -46,6 +47,8 @@ namespace osu.Game.Overlays.SkinEditor
     /// </summary>
     public partial class SkinEditorOverlay : OverlayContainer, IKeyBindingHandler<GlobalAction>
     {
+        internal static bool IsLegacyAuthoringAvailable => SkinAuthoringAvailability.LegacyEditorAvailable;
+
         private readonly ScalingContainer scalingContainer;
 
         protected override bool BlockNonPositionalInput => true;
@@ -62,6 +65,8 @@ namespace osu.Game.Overlays.SkinEditor
         public readonly EditorClipboard Clipboard = new EditorClipboard();
 
         [Cached]
+        // Retained as a fail-closed UI boundary for indirect/legacy callers. The SkinEditor menu is disabled and the
+        // authoritative SkinManager backend rejects new operations until external edits join revision publication.
         private readonly ExternalEditOverlay externalEditOverlay = new ExternalEditOverlay();
 
         [Resolved]
@@ -84,6 +89,9 @@ namespace osu.Game.Overlays.SkinEditor
 
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
+
+        [Resolved]
+        private SkinManager skinManager { get; set; } = null!;
 
         [Resolved]
         private OnScreenDisplay? onScreenDisplay { get; set; }
@@ -133,6 +141,15 @@ namespace osu.Game.Overlays.SkinEditor
 
         protected override void PopIn()
         {
+            // Show() remains reachable through global shortcuts and legacy callers. Refuse before constructing or
+            // exposing an editor when the current package cannot be mutated through revision publication.
+            if (!SkinAuthoringAvailability.LegacyEditorAvailable
+                || !skinManager.CanModify(skinManager.CurrentSkinInfo.Value))
+            {
+                Hide();
+                return;
+            }
+
             overrideSkinEditorRelevantSettings();
 
             if (skinEditor != null)
@@ -257,7 +274,7 @@ namespace osu.Game.Overlays.SkinEditor
         private ScoreInfo? getResultsPreviewScore()
         {
             var currentRuleset = ruleset.Value;
-            var scoreDisplayBucket = currentRuleset.CreateInstance().GetScoreDisplayBucket(mods.Value);
+            string? scoreDisplayBucket = currentRuleset.CreateInstance().GetScoreDisplayBucket(mods.Value);
             var currentBeatmapInfo = beatmap.Value is DummyWorkingBeatmap ? null : beatmap.Value.BeatmapInfo;
 
             return queryPreviewScore(currentBeatmapInfo, scoreDisplayBucket, localUserOnly: true)

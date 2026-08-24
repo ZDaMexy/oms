@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Threading;
+using osu.Game.Graphics;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
 
@@ -18,14 +20,31 @@ namespace osu.Game.Rulesets.Bms.UI
     /// Initial and live resolution never perform package IO on the update thread. A dynamically-added host keeps a
     /// protected component-specific migration fallback, while later skin changes keep the previous visual, until a new selected-package
     /// component or its final fallback has fully loaded; the prepared result is then replaced once on update.
-    /// This is per-host publication; package/playfield-wide atomic reload remains an SV1-2 responsibility.
+    /// Materialisation remains per-host; cross-consumer publication is coordinated by the SkinManager current-revision barrier.
     /// </remarks>
     internal sealed partial class BmsAsyncNoteDrawable : SkinReloadableDrawable
     {
+        private protected override bool AdoptRevisionAfterSynchronousSkinChanged => false;
+
+        private protected override Scheduler SkinChangeScheduler => RevisionPublicationScheduler;
+
         private readonly BmsNoteSkinLookup lookup;
+        private readonly object revisionWorkAdmissionGate = new object();
         private CancellationTokenSource? loadCancellation;
+        private PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? pendingLoad;
+        private Drawable? publishedChild;
         private int generation;
-        private bool sourceInvalidationSubscribed;
+        private int revisionWorkShutdownRequested;
+
+        internal Func<ISkinSource, BmsNoteSkinLookup, Drawable?> DrawableResolver { get; set; }
+            = (source, requestedLookup) => source.GetDrawableComponent(requestedLookup);
+
+        internal Scheduler? LoadCallbackScheduler { get; set; }
+
+        internal Action? RevisionWorkAdmissionTestHook { get; set; }
+
+        internal Task? PendingLoadTask
+            => Volatile.Read(ref pendingLoad)?.LoadTask;
 
         public Drawable? Drawable { get; private set; }
 
@@ -47,110 +66,343 @@ namespace osu.Game.Rulesets.Bms.UI
             // A dynamically-added host (notably the pre-start speed preview) may begin loading on the update thread.
             // Keep the component-specific protected fallback while its exact source is prepared asynchronously.
             Drawable = createProtectedFallback(lookup);
-            InternalChild = Drawable;
+            InternalChild = publishedChild = Drawable;
         }
 
         protected override void SkinChanged(ISkinSource skin)
         {
-            int requestedGeneration = Interlocked.Increment(ref generation);
-            var provisional = new BmsPreparedNoteDrawable(skin, lookup);
+            if (Volatile.Read(ref revisionWorkShutdownRequested) != 0)
+                return;
 
-            loadCancellation?.Cancel();
-            loadCancellation?.Dispose();
-            loadCancellation = new CancellationTokenSource();
-            CancellationToken loadToken = loadCancellation.Token;
-            int ownershipClaimed = 0;
+            if (DeferRevisionWorkUntilReady(() => startSkinChange(skin)))
+                return;
 
-            Task loadTask = LoadComponentAsync(
-                provisional,
-                loaded =>
+            startSkinChange(skin);
+        }
+
+        private void startSkinChange(ISkinSource skin)
+        {
+            if (Volatile.Read(ref revisionWorkShutdownRequested) != 0)
+                return;
+
+            int requestedGeneration;
+
+            lock (revisionWorkAdmissionGate)
+            {
+                if (Volatile.Read(ref revisionWorkShutdownRequested) != 0)
+                    return;
+
+                requestedGeneration = ++generation;
+            }
+
+            cancelPendingLoad();
+
+            var provisional = new BmsPreparedNoteDrawable(skin, lookup, DrawableResolver);
+            SkinCurrentRevisionLease? revisionLease = null;
+            SkinCurrentRevisionLeaseTransfer? revisionLeaseTransfer = null;
+            CancellationTokenSource? localCancellation = null;
+            CancellationToken loadToken = default;
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? ownership = null;
+            int leaseReleased = 0;
+
+            try
+            {
+                lock (revisionWorkAdmissionGate)
                 {
-                    // The cancellation path may already have reclaimed this unparented provisional after background
-                    // loading completed but before the framework's scheduled callback reached the update thread.
-                    if (Interlocked.CompareExchange(ref ownershipClaimed, 1, 0) != 0)
-                        return;
-
-                    if (requestedGeneration != Volatile.Read(ref generation) || IsDisposed)
+                    if (Volatile.Read(ref revisionWorkShutdownRequested) != 0
+                        || requestedGeneration != Volatile.Read(ref generation))
                     {
-                        loaded.Dispose();
+                        provisional.Dispose();
                         return;
                     }
 
-                    publish(loaded);
-                },
-                loadToken);
+                    revisionLease = AcquireCommittedRevisionWorkLease();
 
-            _ = loadToken.Register(() =>
-            {
-                _ = loadTask.ContinueWith(
-                    task =>
+                    if (revisionLease == null)
                     {
-                        _ = task.Exception;
+                        provisional.Dispose();
+                        return;
+                    }
 
-                        // LoadComponentAsync intentionally skips its callback after cancellation. Once its background
-                        // task has stopped touching the provisional, reclaim it if the callback never took ownership.
-                        if (Interlocked.CompareExchange(ref ownershipClaimed, 2, 0) == 0)
-                            provisional.Dispose();
-                    },
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
-            });
+                    // This hook exists only to deterministically hold the formerly-racy acquire-to-install window.
+                    RevisionWorkAdmissionTestHook?.Invoke();
+
+                    // The outer drawable load continues to compare/materialise/publish after the shared package
+                    // materializer Task completes. Keep this lease until that outer callback/cancellation really ends,
+                    // and transfer a second lease from the same immutable revision to owner-internal work.
+                    revisionLeaseTransfer = new SkinCurrentRevisionLeaseTransfer(revisionLease.Revision.AcquireWorkLease());
+                    provisional.SetRevisionLeaseTransfer(revisionLeaseTransfer);
+
+                    localCancellation = new CancellationTokenSource();
+                    loadToken = localCancellation.Token;
+
+                    void releaseRevisionLease()
+                    {
+                        if (Interlocked.Exchange(ref leaseReleased, 1) == 0)
+                        {
+                            revisionLeaseTransfer.Dispose();
+                            revisionLease.Dispose();
+                        }
+                    }
+
+                    ownership = new PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>(provisional, releaseRevisionLease);
+                    loadCancellation = localCancellation;
+                    pendingLoad = ownership;
+                }
+
+                // A future hitobject may finish loading while it is still outside the active lifetime window. Its
+                // instance scheduler is not pumped in that state, but revision work must still publish or reject on
+                // the update thread. Use the host scheduler as the visibility-independent publication boundary.
+                Scheduler callbackScheduler = LoadCallbackScheduler ?? RevisionPublicationScheduler;
+                Task loadTask = LoadComponentAsync(
+                    ownership.Loadable,
+                    loaded => finishLoad(ownership, loaded, requestedGeneration, localCancellation),
+                    loadToken,
+                    callbackScheduler);
+                ownership.Attach(loadTask, callbackScheduler);
+            }
+            catch
+            {
+                if (ownership != null)
+                {
+                    Interlocked.CompareExchange(ref pendingLoad, null, ownership);
+
+                    if (ReferenceEquals(Interlocked.CompareExchange(ref loadCancellation, null, localCancellation), localCancellation))
+                        localCancellation?.Dispose();
+
+                    ownership.ReclaimUnstarted();
+                }
+                else
+                {
+                    localCancellation?.Dispose();
+                    revisionLeaseTransfer?.Dispose();
+                    revisionLease?.Dispose();
+                    provisional.Dispose();
+                }
+
+                throw;
+            }
         }
 
-        protected override void LoadAsyncComplete()
+        private void finishLoad(
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable> ownership,
+            Drawable loaded,
+            int requestedGeneration,
+            CancellationTokenSource localCancellation)
         {
-            if (!sourceInvalidationSubscribed)
+            if (!ReferenceEquals(Volatile.Read(ref pendingLoad), ownership)
+                || !ownership.TryTransfer(loaded, out BmsPreparedNoteDrawable? transferred))
             {
-                CurrentSkin.SourceChanged += invalidatePendingResult;
-                sourceInvalidationSubscribed = true;
+                ownership.Cancel();
+                return;
             }
 
-            base.LoadAsyncComplete();
+            Interlocked.CompareExchange(ref pendingLoad, null, ownership);
+
+            if (ReferenceEquals(Interlocked.CompareExchange(ref loadCancellation, null, localCancellation), localCancellation))
+                localCancellation.Dispose();
+
+            BmsPreparedNoteDrawable owned = transferred!;
+
+            try
+            {
+                bool shouldReject;
+
+                lock (revisionWorkAdmissionGate)
+                {
+                    shouldReject = Volatile.Read(ref revisionWorkShutdownRequested) != 0
+                                   || requestedGeneration != Volatile.Read(ref generation)
+                                   || IsDisposed;
+
+                    if (!shouldReject)
+                        publish(owned);
+                }
+
+                if (shouldReject)
+                {
+                    owned.Dispose();
+                    return;
+                }
+            }
+            catch
+            {
+                if (owned.Parent == null)
+                    owned.Dispose();
+
+                throw;
+            }
+            finally
+            {
+                ownership.CompleteTransfer();
+            }
         }
 
-        private void invalidatePendingResult()
+        private PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? cancelPendingLoad()
         {
-            // SkinReloadableDrawable schedules SkinChanged. Invalidate synchronously at event arrival so an already
-            // queued completion from the previous source cannot publish before that scheduled callback runs.
-            Interlocked.Increment(ref generation);
-            loadCancellation?.Cancel();
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? ownership =
+                Interlocked.Exchange(ref pendingLoad, null);
+            ownership?.Cancel();
+
+            CancellationTokenSource? cancellation = Interlocked.Exchange(ref loadCancellation, null);
+
+            if (cancellation != null)
+            {
+                try
+                {
+                    cancellation.Cancel();
+                }
+                finally
+                {
+                    cancellation.Dispose();
+                }
+            }
+
+            return ownership;
+        }
+
+        private protected override Action? RevisionWorkShutdown => cancelPendingLoadForShutdown;
+
+        private void cancelPendingLoadForShutdown()
+        {
+            // The publication has claimed shutdown admission but deliberately leaves both the participant and work
+            // leases to this real owner. Cancelling the exact pending framework task lets its completion continuation
+            // reclaim the provisional drawable and release outer/materializer transfers without a scheduler callback.
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? ownership;
+            CancellationTokenSource? cancellation;
+
+            lock (revisionWorkAdmissionGate)
+            {
+                Volatile.Write(ref revisionWorkShutdownRequested, 1);
+                Interlocked.Increment(ref generation);
+                ownership = Interlocked.Exchange(ref pendingLoad, null);
+                cancellation = Interlocked.Exchange(ref loadCancellation, null);
+            }
+
+            CancelDeferredRevisionWorkAdmission();
+            cancelPendingLoad(ownership, cancellation);
+        }
+
+        private protected override void InvalidateSkinChange()
+        {
+            // Invalidate synchronously in the base source event before its replacement callback is scheduled. A second
+            // event handler could otherwise race the host update scheduler and cancel the only fresh generation.
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? ownership;
+            CancellationTokenSource? cancellation;
+
+            lock (revisionWorkAdmissionGate)
+            {
+                if (Volatile.Read(ref revisionWorkShutdownRequested) != 0)
+                    return;
+
+                generation++;
+                ownership = Interlocked.Exchange(ref pendingLoad, null);
+                cancellation = Interlocked.Exchange(ref loadCancellation, null);
+            }
+
+            try
+            {
+                cancelPendingLoad(ownership, cancellation);
+            }
+            catch (AggregateException)
+            {
+                // Cancellation callbacks cannot be allowed to suppress the fresh scheduled generation. The exact old
+                // ownership was already claimed and generation rejection still prevents its completion from publishing.
+            }
         }
 
         private void publish(BmsPreparedNoteDrawable prepared)
         {
+            Drawable? previous = publishedChild;
+            bool preparedAttached = false;
+
+            try
+            {
+                AddInternal(prepared);
+                preparedAttached = true;
+
+                // CompositeDrawable.InternalChild/Children replacement uses the framework async disposal queue. The
+                // old revision participant may be the final lease, so synchronously destroy its exact wrapper before
+                // adopting B and making A eligible for retirement.
+                if (previous != null && !RemoveInternal(previous, disposeImmediately: true))
+                    throw new InvalidOperationException("The previous BMS note revision child could not be detached.");
+            }
+            catch
+            {
+                if (preparedAttached && prepared.Parent != null)
+                    RemoveInternal(prepared, disposeImmediately: true);
+
+                throw;
+            }
+
+            publishedChild = prepared;
             Drawable = prepared.Visual;
-            InternalChild = prepared;
+            AdoptCommittedCurrentRevision();
         }
 
         protected override void Dispose(bool isDisposing)
         {
-            Interlocked.Increment(ref generation);
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? pendingOwnership;
+            CancellationTokenSource? cancellation;
 
-            if (sourceInvalidationSubscribed)
+            lock (revisionWorkAdmissionGate)
             {
-                CurrentSkin.SourceChanged -= invalidatePendingResult;
-                sourceInvalidationSubscribed = false;
+                Volatile.Write(ref revisionWorkShutdownRequested, 1);
+                Interlocked.Increment(ref generation);
+                pendingOwnership = Interlocked.Exchange(ref pendingLoad, null);
+                cancellation = Interlocked.Exchange(ref loadCancellation, null);
             }
 
-            loadCancellation?.Cancel();
-            loadCancellation?.Dispose();
-            loadCancellation = null;
+            CancelDeferredRevisionWorkAdmission();
+            cancelPendingLoad(pendingOwnership, cancellation);
             base.Dispose(isDisposing);
+            pendingOwnership?.JoinAfterParentDisposal();
+        }
+
+        private static void cancelPendingLoad(
+            PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? ownership,
+            CancellationTokenSource? cancellation)
+        {
+            ownership?.Cancel();
+
+            if (cancellation == null)
+                return;
+
+            try
+            {
+                cancellation.Cancel();
+            }
+            finally
+            {
+                cancellation.Dispose();
+            }
         }
 
         private sealed partial class BmsPreparedNoteDrawable : CompositeDrawable
         {
             private readonly ISkinSource source;
             private readonly BmsNoteSkinLookup lookup;
+            private readonly Func<ISkinSource, BmsNoteSkinLookup, Drawable?> drawableResolver;
+            private SkinCurrentRevisionLeaseTransfer? revisionLeaseTransfer;
 
             public Drawable Visual { get; private set; } = null!;
 
-            public BmsPreparedNoteDrawable(ISkinSource source, BmsNoteSkinLookup lookup)
+            public BmsPreparedNoteDrawable(
+                ISkinSource source,
+                BmsNoteSkinLookup lookup,
+                Func<ISkinSource, BmsNoteSkinLookup, Drawable?> drawableResolver)
             {
                 this.source = source ?? throw new ArgumentNullException(nameof(source));
                 this.lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
+                this.drawableResolver = drawableResolver ?? throw new ArgumentNullException(nameof(drawableResolver));
                 RelativeSizeAxes = Axes.Both;
+            }
+
+            internal void SetRevisionLeaseTransfer(SkinCurrentRevisionLeaseTransfer transfer)
+            {
+                ArgumentNullException.ThrowIfNull(transfer);
+
+                if (Interlocked.CompareExchange(ref revisionLeaseTransfer, transfer, null) != null)
+                    throw new InvalidOperationException("A BMS prepared note already owns a revision lease transfer.");
             }
 
             [BackgroundDependencyLoader]
@@ -166,8 +418,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     try
                     {
-                        using (BmsManagedPackageNoteLoadContext.Enter(cancellationToken ?? CancellationToken.None))
-                            resolved = source.GetDrawableComponent(lookup);
+                        using (BmsManagedPackageNoteLoadContext.Enter(
+                                   cancellationToken ?? CancellationToken.None,
+                                   Volatile.Read(ref revisionLeaseTransfer)))
+                            resolved = drawableResolver(source, lookup);
                     }
                     catch (OperationCanceledException)
                     {

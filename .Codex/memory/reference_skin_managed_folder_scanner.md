@@ -35,9 +35,9 @@ metadata:
 
 ## 启动与当前产品边界
 
-- `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以typed `StartupSequence`外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须在`OsuGameBase.Dispose()`释放Realm前统一cancel + synchronous join startup scanner、rename/staged-import/managed-delete worker及selection capture-scheduling/contention worker。pending selection/delete-fallback completion由shutdown或scheduler callback恰好一方claim/reap，晚到callback只no-op；queued completion本身不是可join worker，也不得为它等待update scheduler。细节见[[reference_skin_managed_folder_selection]]。
+- `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以typed `StartupSequence`外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须在`OsuGameBase.Dispose()`释放Realm前统一cancel + synchronous join startup scanner、rename/staged-import/managed-delete、selection/reload capture-scheduling/contention、materializer/work fence与retire worker。pending callback由shutdown或scheduler callback恰好一方claim/reap，晚到callback只no-op；queued completion本身不是可join worker，也不得为它等待update scheduler。细节见[[reference_skin_managed_folder_selection]]。
 - 设置页已有 Realm `SkinInfo` notification → `GetAllUsableSkinsAsync()` → dropdown 刷新链；scanner 不需要第二套 UI refresh，也不会自动切换当前皮肤。
-- 这是一次启动扫描，不是watcher或热重载。directory-only rename、manager-owned ManagedCopy/fixed-source staged import与managed delete已有Folder Skin Workspace真实caller；scanner本身不执行move/import/delete，也不消费`SkinManagedFolderNewRecordPublicationPlan`。external registration/capture由独立exact registry链负责，不由scanner claim。启动后原位编辑、新revision publication与全consumer detach仍归C2独立gate。
+- 这是一次启动扫描，不是watcher或热重载。directory-only rename、manager-owned ManagedCopy/fixed-source staged import与managed delete已有Folder Skin Workspace真实caller；scanner本身不执行move/import/delete，也不消费`SkinManagedFolderNewRecordPublicationPlan`。external registration/capture由独立exact registry链负责，不由scanner claim。启动后新增direct child仍需重启发现；已登记current记录的原位编辑不会由scanner发布，用户须在安全screen使用唯一Settings manual Reload，由C2 candidate完成fresh capture/publication/detach。
 - 测试只用 fake、隔离 Realm/临时 Windows 根和 headless lifecycle；不要为验证 scanner 启动可见 GUI，也不要触碰生产 `chartskin/`。
 
 ## 与 mutation foundation 的协调地雷

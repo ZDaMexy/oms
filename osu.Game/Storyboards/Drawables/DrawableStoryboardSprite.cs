@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
@@ -95,6 +96,13 @@ namespace osu.Game.Storyboards.Drawables
         [Resolved]
         private TextureStore textureStore { get; set; } = null!;
 
+        [Resolved(CanBeNull = true)]
+        private SkinManager? skinManager { get; set; }
+
+        private SkinRevisionParticipantRegistration? revisionParticipant;
+        private SkinRevisionParticipantRegistration? initialLoadRevisionParticipant;
+        private bool usesSkinSprites;
+
         public DrawableStoryboardSprite(StoryboardSprite sprite)
         {
             Sprite = sprite;
@@ -111,6 +119,11 @@ namespace osu.Game.Storyboards.Drawables
         {
             if (storyboard.UseSkinSprites)
             {
+                usesSkinSprites = true;
+                initialLoadRevisionParticipant = skinManager?.RegisterRevisionParticipant(
+                    SkinRevisionParticipantKind.CoherentVisualConsumer,
+                    $"{nameof(DrawableStoryboardSprite)} (initial load)",
+                    blocksRevisionPublication: true);
                 skin.SourceChanged += skinSourceChanged;
                 skinSourceChanged();
             }
@@ -120,14 +133,51 @@ namespace osu.Game.Storyboards.Drawables
             Sprite.ApplyTransforms(this);
         }
 
+        protected override void LoadComplete()
+        {
+            try
+            {
+                base.LoadComplete();
+
+                if (!usesSkinSprites)
+                    return;
+
+                // Menu/background storyboards are outside the live-gameplay root, but a skin-sprite storyboard performs
+                // fallible texture lookup directly from the global source. C2 deliberately does not expose this surface to
+                // author reload: keep it as a coherent fail-closed blocker until a future staged storyboard swap exists.
+                revisionParticipant = skinManager?.RegisterRevisionParticipant(
+                    SkinRevisionParticipantKind.CoherentVisualConsumer,
+                    nameof(DrawableStoryboardSprite));
+
+                // The formal exact lease is now attached. Rebuild once while the temporary fail-closed participant is
+                // still present, then release that temporary registration in the finally block below.
+                skinSourceChanged();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref initialLoadRevisionParticipant, null)?.Dispose();
+            }
+        }
+
         private void skinSourceChanged()
         {
-            Texture = skin.GetTexture(Sprite.Path, WrapMode.ClampToEdge, WrapMode.ClampToEdge) ??
-                      textureStore.Get(Sprite.Path, WrapMode.ClampToEdge, WrapMode.ClampToEdge);
+            bool rebuilt = false;
 
-            // Setting texture will only update the size if it's zero.
-            // So let's force an explicit update.
-            Size = new Vector2(Texture?.DisplayWidth ?? 0, Texture?.DisplayHeight ?? 0);
+            try
+            {
+                Texture = skin.GetTexture(Sprite.Path, WrapMode.ClampToEdge, WrapMode.ClampToEdge) ??
+                          textureStore.Get(Sprite.Path, WrapMode.ClampToEdge, WrapMode.ClampToEdge);
+
+                // Setting texture will only update the size if it's zero.
+                // So let's force an explicit update.
+                Size = new Vector2(Texture?.DisplayWidth ?? 0, Texture?.DisplayHeight ?? 0);
+                rebuilt = true;
+            }
+            finally
+            {
+                if (rebuilt)
+                    revisionParticipant?.AdoptCurrentRevision();
+            }
         }
 
         protected override void Dispose(bool isDisposing)
@@ -136,6 +186,10 @@ namespace osu.Game.Storyboards.Drawables
 
             if (skin.IsNotNull())
                 skin.SourceChanged -= skinSourceChanged;
+
+            revisionParticipant?.Dispose();
+            revisionParticipant = null;
+            Interlocked.Exchange(ref initialLoadRevisionParticipant, null)?.Dispose();
         }
     }
 }

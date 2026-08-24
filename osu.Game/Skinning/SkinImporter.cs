@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,13 +22,14 @@ namespace osu.Game.Skinning
 {
     public class SkinImporter : RealmArchiveModelImporter<SkinInfo>
     {
+        internal const string EXISTING_REPLACEMENT_DISABLED_DIAGNOSTIC =
+            "A matching skin with different package files cannot be replaced through archive import; use an explicit revision workflow.";
+
         private const string skin_info_file = "skininfo.json";
 
         private readonly IStorageResourceProvider skinResources;
 
         private readonly ModelManager<SkinInfo> modelManager;
-
-        private readonly Func<SkinInfo, bool> canUpdateExisting;
 
         public SkinImporter(
             Storage storage,
@@ -39,7 +39,6 @@ namespace osu.Game.Skinning
             : base(storage, realm)
         {
             this.skinResources = skinResources;
-            this.canUpdateExisting = canUpdateExisting ?? (_ => true);
 
             modelManager = new ModelManager<SkinInfo>(storage, realm);
         }
@@ -51,6 +50,19 @@ namespace osu.Game.Skinning
         protected override bool UseFastImportPrecheck => false;
 
         protected override bool UseTransactionalFileImportScope => true;
+
+        protected override bool CanReuseExisting(SkinInfo existing, SkinInfo import)
+        {
+            bool canReuse = base.CanReuseExisting(existing, import);
+
+            // A worker cannot linearise a current-record predicate with the later Realm soft-delete commit: the same
+            // record could become current between those two instructions. Update-import is disabled for C2, so every
+            // same-hash/different-file replacement is fail-closed before the legacy existing.DeletePending path.
+            if (!canReuse)
+                throw new InvalidOperationException(EXISTING_REPLACEMENT_DISABLED_DIAGNOSTIC);
+
+            return canReuse;
+        }
 
         protected override ValueTask<ArchiveReader> OpenArchiveReaderAsync(ImportTask task, CancellationToken cancellationToken)
             => SkinArchiveReader.OpenAsync(task, cancellationToken);
@@ -76,46 +88,11 @@ namespace osu.Game.Skinning
         /// <param name="task">The <see cref="ImportTask"/> to update the <paramref name="original"/> with</param>
         /// <param name="original">The <see cref="SkinInfo"/> to update</param>
         /// <returns></returns>
-        public override async Task<Live<SkinInfo>?> ImportAsUpdate(ProgressNotification notification, ImportTask task, SkinInfo original)
-        {
-            return await Realm.WriteAsync<Live<SkinInfo>?>(r =>
-            {
-                var skinInfo = r.Find<SkinInfo>(original.ID)!;
+        public override Task<Live<SkinInfo>?> ImportAsUpdate(ProgressNotification notification, ImportTask task, SkinInfo original)
+            => throw new InvalidOperationException(SkinAuthoringAvailability.UPDATE_IMPORT_DISABLED_DIAGNOSTIC);
 
-                if (!canUpdateExisting(skinInfo))
-                    throw new InvalidOperationException("This skin cannot be updated through the Realm package importer.");
-
-                skinInfo.Files.Clear();
-
-                string[] filesInMountedDirectory = Directory.EnumerateFiles(task.Path, "*.*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(task.Path, f)).ToArray();
-
-                foreach (string file in filesInMountedDirectory)
-                {
-                    using var stream = File.OpenRead(Path.Combine(task.Path, file));
-
-                    modelManager.AddFile(skinInfo, stream, file, r);
-                }
-
-                string skinIniPath = Path.Combine(task.Path, "skin.ini");
-
-                if (File.Exists(skinIniPath))
-                {
-                    using (var stream = File.OpenRead(skinIniPath))
-                    using (var lineReader = new LineBufferedReader(stream))
-                    {
-                        var decodedSkinIni = new LegacySkinDecoder().Decode(lineReader);
-
-                        if (!string.IsNullOrEmpty(decodedSkinIni.SkinInfo.Name))
-                            skinInfo.Name = decodedSkinIni.SkinInfo.Name;
-
-                        if (!string.IsNullOrEmpty(decodedSkinIni.SkinInfo.Creator))
-                            skinInfo.Creator = decodedSkinIni.SkinInfo.Creator;
-                    }
-                }
-
-                return skinInfo.ToLive(Realm);
-            }).ConfigureAwait(false);
-        }
+        public override Task<ExternalEditOperation<SkinInfo>> BeginExternalEditing(SkinInfo model)
+            => throw new InvalidOperationException(SkinAuthoringAvailability.EXTERNAL_EDITING_DISABLED_DIAGNOSTIC);
 
         protected override void Populate(SkinInfo model, ArchiveReader? archive, Realm realm, CancellationToken cancellationToken = default)
         {
@@ -167,10 +144,22 @@ namespace osu.Game.Skinning
             // Regardless of whether this is an import or not, let's write the skin.ini if non-existing or non-matching.
             // This is (weirdly) done inside ComputeHash to avoid adding a new method to handle this case. After switching to realm it can be moved into another place.
             if (skinIniSourcedName != item.Name)
-                UpdateSkinIniMetadata(item, realm, cancellationToken);
+                updateSkinIniMetadata(item, realm, cancellationToken);
         }
 
         public void UpdateSkinIniMetadata(
+            SkinInfo item,
+            Realm realm,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            ArgumentNullException.ThrowIfNull(realm);
+
+            using IDisposable mutationBoundary = acquireExistingRecordMutationBoundary(item.ID);
+            updateSkinIniMetadata(item, realm, cancellationToken);
+        }
+
+        private void updateSkinIniMetadata(
             SkinInfo item,
             Realm realm,
             CancellationToken cancellationToken = default)
@@ -289,6 +278,14 @@ namespace osu.Game.Skinning
         /// <returns>Whether any change actually occurred.</returns>
         public bool Save(Skin skin)
         {
+            ArgumentNullException.ThrowIfNull(skin);
+
+            using IDisposable mutationBoundary = acquireExistingRecordMutationBoundary(skin.SkinInfo.ID);
+            return save(skin);
+        }
+
+        private bool save(Skin skin)
+        {
             bool hadChanges = false;
 
             skin.SkinInfo.PerformWrite(s =>
@@ -330,6 +327,20 @@ namespace osu.Game.Skinning
             });
 
             return hadChanges;
+        }
+
+        private IDisposable acquireExistingRecordMutationBoundary(Guid recordId)
+        {
+            // Import population operates on a provisional model through the private helpers above. Public mutation of
+            // an existing record must instead share SkinManager's exact current-record admission and cannot trust a
+            // caller-provided predicate or a second, independently constructed importer.
+            if (skinResources is not SkinManager manager)
+            {
+                throw new InvalidOperationException(
+                    "Existing skin records can only be mutated through SkinManager's revision-aware authority.");
+            }
+
+            return manager.AcquireSkinImporterMutationBoundary(recordId);
         }
     }
 }

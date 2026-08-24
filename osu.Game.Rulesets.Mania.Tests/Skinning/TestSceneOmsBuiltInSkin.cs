@@ -1,7 +1,11 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
@@ -14,13 +18,14 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
-using osu.Game.Beatmaps;
 using osu.Game.Audio;
-using osu.Game.Rulesets.Judgements;
+using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Database;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
@@ -38,7 +43,6 @@ using osu.Game.Screens.Play.HUD.ClicksPerSecond;
 using osu.Game.Screens.Play.HUD.HitErrorMeters;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Components;
-using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Tests.Beatmaps;
 using osu.Game.Tests.Visual;
 using osuTK;
@@ -272,16 +276,32 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         [Test]
         public void TestDeletingCurrentUserSkinFallsBackToOms()
         {
-            SkinInfo userSkin = null!;
+            MemoryStream archive = null!;
+            Task<Live<SkinInfo>>? importTask = null;
+            Live<SkinInfo> userSkin = null!;
+            Task<bool>? deleteTask = null;
 
-            AddStep("add user skin", () => Realm.Write(r => userSkin = r.Add(createUserSkinInfo("Delete Current User Skin"))));
-            AddStep("set current skin from user config", () => skinManager.SetSkinFromConfiguration(userSkin.ID.ToString()));
+            AddStep("import ordinary Realm skin", () =>
+            {
+                archive = createOrdinaryRealmSkinArchive();
+                importTask = skinManager.Import(new ImportTask(archive, $"mania-current-delete-{Guid.NewGuid():N}.osk"));
+            });
+            AddUntilStep("wait for ordinary Realm import", () => importTask?.IsCompleted == true);
+            AddStep("select imported current skin", () =>
+            {
+                userSkin = importTask!.GetAwaiter().GetResult();
+                skinManager.CurrentSkinInfo.Value = userSkin;
+            });
             AddAssert("user skin selected first", () => skinManager.CurrentSkinInfo.Value.ID == userSkin.ID);
 
-            AddStep("delete current user skin", () => skinManager.Delete(s => s.ID == userSkin.ID, silent: true));
+            AddStep("delete current user skin through current mutation protocol", () =>
+                deleteTask = skinManager.DeleteSkinAsync(userSkin.ID));
+            AddUntilStep("wait for current delete", () => deleteTask?.IsCompleted == true);
+            AddAssert("current delete succeeded", () => deleteTask!.GetAwaiter().GetResult());
             AddUntilStep("current skin falls back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
             AddAssert("runtime skin falls back to OMS", () => skinManager.CurrentSkin.Value is OmsSkin);
             AddAssert("deleted skin leaves usable list", () => skinManager.GetAllUsableSkins().All(s => s.ID != userSkin.ID));
+            AddStep("dispose import archive", () => archive.Dispose());
         }
 
         [Test]
@@ -328,6 +348,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         [Test]
         public void TestLegacyBeatmapCompatibilityFallbackUsesOmsSkin()
         {
+            Drawable host = null!;
             BeatmapSkinProvidingContainer provider = null!;
 
             AddStep("set current skin to triangles", () => skinManager.CurrentSkinInfo.Value = TrianglesSkin.CreateInfo().ToLiveUnmanaged());
@@ -340,16 +361,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
                 };
 
-                Child = new RulesetSkinProvidingContainer(ruleset, beatmap, new LegacyResourceBeatmapSkin(renderer))
+                Add(host = new RulesetSkinProvidingContainer(ruleset, beatmap, new LegacyResourceBeatmapSkin(renderer))
                 {
                     Child = new Container(),
-                };
+                });
 
                 provider = this.ChildrenOfType<BeatmapSkinProvidingContainer>().Single();
             });
 
             AddUntilStep("compatibility fallback available", () => provider.AllSources.Skip(1).FirstOrDefault() != null);
             AddAssert("compatibility fallback wraps OMS skin", () => unwrapSkin(provider.AllSources.ElementAt(1)) is OmsSkin);
+            AddStep("detach compatibility provider", () => host.Expire());
+            AddUntilStep("wait for compatibility provider detach", () => host.Parent == null);
         }
 
         [Test]
@@ -1878,20 +1901,20 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 && Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.RightColumnSpacing, 2)) < 0.01f);
         }
 
-            [Test]
-            public void TestOmsSkinProvidesNoteHeightConfig()
-            {
-                ISkin transformedSkin = null!;
+        [Test]
+        public void TestOmsSkinProvidesNoteHeightConfig()
+        {
+            ISkin transformedSkin = null!;
 
-                AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
-                AddAssert("4K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0) - 60f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
+            AddStep("create OMS 4K transformer", () => transformedSkin = createTransformedSkin(4));
+            AddAssert("4K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 0) - 60f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
 
-                AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
-                AddAssert("5K note height falls back to stage min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 2) - scaleLegacyDimension(40f)) < 0.01f);
+            AddStep("create OMS 5K transformer", () => transformedSkin = createTransformedSkin(5));
+            AddAssert("5K note height falls back to stage min width", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 2) - scaleLegacyDimension(40f)) < 0.01f);
 
-                AddStep("create OMS 7K transformer", () => transformedSkin = createTransformedSkin(7));
-                AddAssert("7K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 3) - 35f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
-            }
+            AddStep("create OMS 7K transformer", () => transformedSkin = createTransformedSkin(7));
+            AddAssert("7K note height keeps candidate override", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale, 3) - 35f * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR) < 0.01f);
+        }
 
         [Test]
         public void TestOmsSkinRepeatsStagePresetForDualStages()
@@ -2288,6 +2311,26 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 foreach (var skin in r.All<SkinInfo>().Where(s => !s.Protected).ToArray())
                     r.Remove(skin);
             });
+        }
+
+        private static MemoryStream createOrdinaryRealmSkinArchive()
+        {
+            var output = new MemoryStream();
+
+            using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+            using (var writer = new StreamWriter(
+                       archive.CreateEntry("skin.ini").Open(),
+                       new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+            {
+                writer.Write(
+                    "[General]\n" +
+                    "Name: Mania current delete fixture\n" +
+                    "Author: OMS tests\n" +
+                    "Version: 2.7\n");
+            }
+
+            output.Position = 0;
+            return output;
         }
 
         private static SkinInfo createUserSkinInfo(string name)

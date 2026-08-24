@@ -62,6 +62,9 @@ namespace osu.Game.Overlays.Settings.Sections
         [Resolved]
         private RealmAccess realm { get; set; }
 
+        [Resolved(CanBeNull = true)]
+        private INotificationOverlay notificationOverlay { get; set; }
+
         private IDisposable realmSubscription;
 
         [BackgroundDependencyLoader(permitNulls: true)]
@@ -77,6 +80,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     Current = dropdownSelection = new Bindable<Live<SkinInfo>>(skins.CurrentSkinInfo.Value),
                     Items = new[] { skins.CurrentSkinInfo.Value },
                 }),
+                new ReloadCurrentSkinButton(),
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
@@ -94,6 +98,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 layoutEditorButton = new SettingsButtonV2
                 {
                     Text = SkinSettingsStrings.SkinLayoutEditor,
+                    TooltipText = SkinSettingsStrings.SkinAuthoringUnavailable,
                     Action = () => skinEditor?.ToggleVisibility(),
                 },
                 new FolderSkinWorkspace(),
@@ -128,6 +133,14 @@ namespace osu.Game.Overlays.Settings.Sections
                 }
 
                 skins.CurrentSkinInfo.Value = selection.NewValue;
+
+                if (skins.LastSelectionRejectionReason == SkinSelectionRejectionReason.LiveGameplayActive)
+                {
+                    notificationOverlay?.Post(new SimpleErrorNotification
+                    {
+                        Text = SkinSettingsStrings.CurrentSkinReloadGameplayActive,
+                    });
+                }
 
                 // Filesystem-backed requests prepare asynchronously and rejected requests never commit. Keep the
                 // control on the last committed value until SkinManager publishes a coherent pair.
@@ -171,7 +184,9 @@ namespace osu.Game.Overlays.Settings.Sections
             => skinDropdown.Current.Disabled = dropdownItemsLoading || committedSelectionDisabled;
 
         private void updateLayoutEditorState()
-            => layoutEditorButton.Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
+            => layoutEditorButton.Enabled.Value = SkinAuthoringAvailability.LegacyEditorAvailable
+                                                  && !currentSkin.Disabled
+                                                  && skins.CanModify(currentSkin.Value.SkinInfo);
 
         private void skinsChanged(IRealmCollection<SkinInfo> sender, ChangeSet changes)
         {
@@ -241,6 +256,99 @@ namespace osu.Game.Overlays.Settings.Sections
             protected override LocalisableString GenerateItemText(Live<SkinInfo> item) => item.ToString();
         }
 
+        public partial class ReloadCurrentSkinButton : SettingsButtonV2
+        {
+            [Resolved]
+            private SkinManager skins { get; set; }
+
+            [Resolved(CanBeNull = true)]
+            private INotificationOverlay notificationOverlay { get; set; }
+
+            private Bindable<Skin> currentSkin;
+            private System.Threading.Tasks.Task activeReload;
+
+            [BackgroundDependencyLoader]
+            private void load()
+            {
+                Text = SkinSettingsStrings.ReloadCurrentSkin;
+                Action = reload;
+            }
+
+            protected override void LoadComplete()
+            {
+                base.LoadComplete();
+
+                currentSkin = skins.CurrentSkin.GetBoundCopy();
+                currentSkin.BindValueChanged(_ => updateState());
+                currentSkin.BindDisabledChanged(_ => updateState(), true);
+            }
+
+            private void updateState()
+                => Enabled.Value = activeReload == null
+                                   && !currentSkin.Disabled
+                                   && skins.CanReloadCurrentRevision;
+
+            private void reload()
+            {
+                if (activeReload != null)
+                    return;
+
+                Enabled.Value = false;
+                activeReload = observeReloadAsync();
+            }
+
+            private async System.Threading.Tasks.Task observeReloadAsync()
+            {
+                SkinCurrentRevisionReloadResult result;
+
+                try
+                {
+                    result = await skins.ReloadCurrentRevisionAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    Logger.Log("Failed to reload the current skin revision.");
+                    result = SkinCurrentRevisionReloadResult.Failed;
+                }
+
+                Schedule(() =>
+                {
+                    switch (result)
+                    {
+                        case SkinCurrentRevisionReloadResult.Success:
+                            notificationOverlay?.Post(new SimpleNotification { Text = SkinSettingsStrings.CurrentSkinReloaded });
+                            break;
+
+                        case SkinCurrentRevisionReloadResult.NoChange:
+                            notificationOverlay?.Post(new SimpleNotification { Text = SkinSettingsStrings.CurrentSkinReloadNoChanges });
+                            break;
+
+                        case SkinCurrentRevisionReloadResult.LiveGameplayActive:
+                            notificationOverlay?.Post(new SimpleErrorNotification { Text = SkinSettingsStrings.CurrentSkinReloadGameplayActive });
+                            break;
+
+                        case SkinCurrentRevisionReloadResult.Superseded:
+                        case SkinCurrentRevisionReloadResult.Cancelled:
+                            break;
+
+                        case SkinCurrentRevisionReloadResult.ParticipantRejected:
+                        case SkinCurrentRevisionReloadResult.SourceChanged:
+                            notificationOverlay?.Post(new SimpleErrorNotification { Text = SkinSettingsStrings.CurrentSkinReloadRejected });
+                            break;
+
+                        default:
+                            notificationOverlay?.Post(new SimpleErrorNotification { Text = SkinSettingsStrings.CurrentSkinReloadFailed });
+                            break;
+                    }
+
+                    activeReload = null;
+
+                    if (!IsDisposed)
+                        updateState();
+                });
+            }
+        }
+
         public partial class RenameSkinButton : SettingsButtonV2, IHasPopover
         {
             [Resolved]
@@ -295,7 +403,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
             }
 
-            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
+            private void updateState() => Enabled.Value = !currentSkin.Disabled && skins.CanExport(currentSkin.Value.SkinInfo);
 
             private void export()
             {

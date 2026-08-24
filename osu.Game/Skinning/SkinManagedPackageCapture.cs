@@ -64,6 +64,118 @@ namespace osu.Game.Skinning
     }
 
     /// <summary>
+    /// Hard native-handle budgets for a held managed-package capture, in addition to the immutable capsule budgets.
+    /// </summary>
+    internal sealed class SkinManagedPackageHeldCaptureLimits
+    {
+        public const int DEFAULT_MAX_AUTHORITY_DEPTH = 64;
+        public const int DEFAULT_MAX_HELD_HANDLE_COUNT = 8257;
+
+        public static SkinManagedPackageHeldCaptureLimits Default { get; } = new SkinManagedPackageHeldCaptureLimits(
+            SkinPackageRevisionCapsuleLimits.Default,
+            DEFAULT_MAX_AUTHORITY_DEPTH,
+            DEFAULT_MAX_HELD_HANDLE_COUNT);
+
+        public SkinPackageRevisionCapsuleLimits CapsuleLimits { get; }
+
+        /// <summary>
+        /// Maximum segment depth from the local-volume root through the managed package root.
+        /// </summary>
+        public int MaxAuthorityDepth { get; }
+
+        public int MaxHeldHandleCount { get; }
+
+        public SkinManagedPackageHeldCaptureLimits(
+            SkinPackageRevisionCapsuleLimits capsuleLimits,
+            int maxAuthorityDepth,
+            int maxHeldHandleCount)
+        {
+            CapsuleLimits = capsuleLimits ?? throw new ArgumentNullException(nameof(capsuleLimits));
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAuthorityDepth);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxHeldHandleCount);
+
+            MaxAuthorityDepth = maxAuthorityDepth;
+            MaxHeldHandleCount = maxHeldHandleCount;
+        }
+
+        public override string ToString() => nameof(SkinManagedPackageHeldCaptureLimits);
+    }
+
+    /// <summary>
+    /// Owns a captured managed-package revision and the complete no-follow authority/tree handle set which proved it.
+    /// </summary>
+    internal interface ISkinManagedPackageCaptureSession : IDisposable
+    {
+        string PhysicalTreeFingerprint { get; }
+
+        int HeldHandleCount { get; }
+
+        /// <summary>
+        /// Transfers the immutable capsule exactly once. The session remains valid and continues to hold and validate
+        /// the physical source proof until disposed.
+        /// </summary>
+        SkinPackageRevisionCapsule TakeCapsule();
+
+        void Validate(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// The all-or-nothing result of opening a held managed-package capture session.
+    /// </summary>
+    internal sealed class SkinManagedPackageHeldCaptureResult
+    {
+        public SkinManagedPackageCaptureRejectionReason RejectionReason { get; }
+
+        public SkinPackageRevisionCapsuleRejectionReason CapsuleRejectionReason { get; }
+
+        public ISkinManagedPackageCaptureSession? Session { get; }
+
+        public bool IsSuccess => Session != null;
+
+        private SkinManagedPackageHeldCaptureResult(
+            SkinManagedPackageCaptureRejectionReason rejectionReason,
+            SkinPackageRevisionCapsuleRejectionReason capsuleRejectionReason,
+            ISkinManagedPackageCaptureSession? session)
+        {
+            RejectionReason = rejectionReason;
+            CapsuleRejectionReason = capsuleRejectionReason;
+            Session = session;
+        }
+
+        internal static SkinManagedPackageHeldCaptureResult Success(ISkinManagedPackageCaptureSession session)
+            => new SkinManagedPackageHeldCaptureResult(
+                SkinManagedPackageCaptureRejectionReason.None,
+                SkinPackageRevisionCapsuleRejectionReason.None,
+                session ?? throw new ArgumentNullException(nameof(session)));
+
+        internal static SkinManagedPackageHeldCaptureResult Reject(SkinManagedPackageCaptureRejectionReason reason)
+        {
+            if (!Enum.IsDefined(reason)
+                || reason is SkinManagedPackageCaptureRejectionReason.None or SkinManagedPackageCaptureRejectionReason.CapsuleRejected)
+                throw new ArgumentOutOfRangeException(nameof(reason));
+
+            return new SkinManagedPackageHeldCaptureResult(
+                reason,
+                SkinPackageRevisionCapsuleRejectionReason.None,
+                null);
+        }
+
+        internal static SkinManagedPackageHeldCaptureResult RejectCapsule(SkinPackageRevisionCapsuleRejectionReason reason)
+        {
+            if (!Enum.IsDefined(reason) || reason == SkinPackageRevisionCapsuleRejectionReason.None)
+                throw new ArgumentOutOfRangeException(nameof(reason));
+
+            return new SkinManagedPackageHeldCaptureResult(
+                SkinManagedPackageCaptureRejectionReason.CapsuleRejected,
+                reason,
+                null);
+        }
+
+        public override string ToString()
+            => $"{nameof(SkinManagedPackageHeldCaptureResult)}:{RejectionReason}:{CapsuleRejectionReason}";
+    }
+
+    /// <summary>
     /// The all-or-nothing result of capturing one managed package into an immutable revision capsule.
     /// </summary>
     internal sealed class SkinManagedPackageCaptureResult
@@ -169,6 +281,26 @@ namespace osu.Game.Skinning
                 return SkinManagedPackageCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
 
             return new WindowsSkinManagedPackageCapture().Capture(request, limits, cancellationToken);
+        }
+
+        public static SkinManagedPackageHeldCaptureResult CaptureHeld(
+            SkinManagedPackageCaptureRequest? request,
+            SkinManagedPackageHeldCaptureLimits? limits = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (request == null)
+                return SkinManagedPackageHeldCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+
+            // NtQueryDirectoryFileEx is available from Windows 10 1709. OMS supports Windows 10 22H2 and newer.
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 16299))
+                return SkinManagedPackageHeldCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.UnsupportedPlatform);
+
+            if (!NativeMethods.HasExpectedLayouts)
+                return SkinManagedPackageHeldCaptureResult.Reject(SkinManagedPackageCaptureRejectionReason.NativeIoFailure);
+
+            return new WindowsSkinManagedPackageCapture().CaptureManagedHeld(request, limits, cancellationToken);
         }
     }
 }

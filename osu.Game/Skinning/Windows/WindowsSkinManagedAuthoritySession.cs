@@ -269,6 +269,61 @@ namespace osu.Game.Skinning.Windows
             return createMutationDeleteNodeManifest(mutationSourceTree);
         }
 
+        /// <summary>
+        /// Captures the immutable logical package from the exact source already pinned for mutation. The mutation
+        /// tree remains held after this method returns and is revalidated around reads through those exact handles.
+        /// </summary>
+        internal SkinPackageRevisionCapsule CaptureCapturedMutationSourceRevision(
+            CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (mutationRenameState != MutationRenameState.Prepared
+                || mutationSourceBaselineEntry == null
+                || mutationSourceTree == null
+                || mutationSourceTree.DescendantsReleased)
+            {
+                throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+            }
+
+            ValidateCompleteAndStable(cancellationToken);
+            validateHeldMutationTree(fileSystem, mutationSourceTree, cancellationToken);
+
+            SkinPackageCapturedEntry[] entries = mutationSourceTree.Nodes
+                                                                   .Skip(1)
+                                                                   .Select(node =>
+                                                                       node.Baseline.Kind == WindowsSkinPackageEntryKind.Directory
+                                                                           ? SkinPackageCapturedEntry.CreateDirectory(node.RelativePath)
+                                                                           : SkinPackageCapturedEntry.CreateFile(
+                                                                               node.RelativePath,
+                                                                               node.Baseline.Length,
+                                                                               () => fileSystem.CreateNonOwningReadStream(node.Handle)))
+                                                                   .ToArray();
+            SkinPackageRevisionCapsuleCreationResult captured =
+                SkinPackageRevisionCapsuleFactory.Create(
+                    entries,
+                    SkinPackageRevisionCapsuleLimits.Default,
+                    cancellationToken);
+
+            if (!captured.IsSuccess)
+                throw reject(SkinManagedPackageCaptureRejectionReason.EntryChangedDuringCapture);
+
+            SkinPackageRevisionCapsule capsule = captured.Capsule!;
+
+            try
+            {
+                ValidateCompleteAndStable(cancellationToken);
+                validateHeldMutationTree(fileSystem, mutationSourceTree, cancellationToken);
+                return capsule;
+            }
+            catch
+            {
+                capsule.Dispose();
+                throw;
+            }
+        }
+
         internal SkinManagedFolderTargetNameSlot CaptureAbsentMutationTargetNameSlot(
             string managedRelativePath,
             CancellationToken cancellationToken = default)

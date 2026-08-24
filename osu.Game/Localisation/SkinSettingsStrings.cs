@@ -30,6 +30,13 @@ namespace osu.Game.Localisation
         public static LocalisableString SkinLayoutEditor => new TranslatableString(getKey(@"skin_layout_editor"), @"Skin layout editor");
 
         /// <summary>
+        /// "Skin authoring is unavailable until edited skins can be activated through the protected revision protocol."
+        /// </summary>
+        public static LocalisableString SkinAuthoringUnavailable => new TranslatableString(
+            getKey(@"skin_authoring_unavailable"),
+            @"Skin authoring is unavailable until edited skins can be activated through the protected revision protocol.");
+
+        /// <summary>
         /// "Folder skin workspace"
         /// </summary>
         public static LocalisableString FolderSkinWorkspaceHeader => new TranslatableString(getKey(@"folder_skin_workspace_header"), @"Folder skin workspace");
@@ -134,6 +141,40 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString FolderSkinOperationRejected => new TranslatableString(getKey(@"folder_skin_operation_rejected"),
             @"The skin operation could not be completed. The target may have changed or another operation may be in progress.");
+
+        /// <summary>
+        /// "Reload current skin"
+        /// </summary>
+        public static LocalisableString ReloadCurrentSkin => new TranslatableString(getKey(@"reload_current_skin"), @"Reload current skin");
+
+        /// <summary>
+        /// "The current skin was reloaded."
+        /// </summary>
+        public static LocalisableString CurrentSkinReloaded => new TranslatableString(getKey(@"current_skin_reloaded"), @"The current skin was reloaded.");
+
+        /// <summary>
+        /// "No skin file changes were found."
+        /// </summary>
+        public static LocalisableString CurrentSkinReloadNoChanges => new TranslatableString(getKey(@"current_skin_reload_no_changes"), @"No skin file changes were found.");
+
+        /// <summary>
+        /// "Exit gameplay or gameplay preview, then try reloading the skin again."
+        /// </summary>
+        public static LocalisableString CurrentSkinReloadGameplayActive => new TranslatableString(
+            getKey(@"current_skin_reload_gameplay_active"), @"Exit gameplay or gameplay preview, then try reloading the skin again.");
+
+        /// <summary>
+        /// "The current screen or skin source cannot reload safely right now. Return to the main menu and try again; the previous revision is still active."
+        /// </summary>
+        public static LocalisableString CurrentSkinReloadRejected => new TranslatableString(
+            getKey(@"current_skin_reload_rejected"),
+            @"The current screen or skin source cannot reload safely right now. Return to the main menu and try again; the previous revision is still active.");
+
+        /// <summary>
+        /// "The skin could not be reloaded. The previous revision is still active."
+        /// </summary>
+        public static LocalisableString CurrentSkinReloadFailed => new TranslatableString(
+            getKey(@"current_skin_reload_failed"), @"The skin could not be reloaded. The previous revision is still active.");
 
         /// <summary>
         /// "Gameplay cursor size"

@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-08-13
+> 最后更新：2026-08-24
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐切历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -24,7 +24,7 @@
 | 1 | 文档与 memory 健康治理 | 已完成 | 当前事实、未来步骤、稳定合同和历史重新归位；无代码/gate 变化 |
 | 2 | 已实现纵切的集中视觉验收 | **`V-001`～`V-004` 待用户签收** | Skin V1/release 完成声明前确认真实已导入 `.osk` 的普通短键与长条 head/body/tail、选择切换及 selected 坏包回落；另行决定是否扩入真实 beatmap-local 格式 |
 | 3 | `SV1-1` 首个 Note/LN 产品纵切自动门 | **已闭合，视觉待验收** | ordinary note 与 critical head/body、optional tail 的静态图/60 FPS 连续编号帧已通过自动、合同、安全与回退 gate；只算首个产品纵切自动闭环，不计作 `SV1-1` 完成或产品交付 |
-| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中，`1/7 closed，C2 active`** | C1已闭合external/Workspace/ManagedCopy/journal/archive产品链及退出门。C2须从真实可达触发到当前全production consumer同切实现coherent revision publication、detach receipt与owner retire |
+| 4 | `SV1-2` G1 安全存储与原子重载 | **进行中，`2/7 closed，C3 active`** | C1作者工作区/archive与C2当前consumer revision publication/detach均已闭合；C3先处理P1-K前置并交付唯一layout |
 | 5 | `SV1-3`～`SV1-7` | 未完成 | 按以下依赖顺序分别过门，不并行宣称完成 |
 
 视觉验收采用[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不再作为逐组件串行开工门。自动、合同、安全与回退 gate 通过即可按依赖继续；待签收项只能称“实现／自动 gate 通过，视觉待验收”，不得称产品交付、`SV1` 阶段完成或 release gate 通过。仅当视觉结论实际决定后续设计或自动证据无法裁决异常时暂停请求反馈。首个 Note/LN 产品纵切已满足进入 `SV1-2` 的工程依赖，但 `SV1-1` 本身仍未完成；G1、layout、shared codec、scene/script 与 canonical fallback authority 仍只按各自切片修改。
@@ -33,15 +33,15 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 
 ## 七个持久 Campaign 预算
 
-`C1` 已于2026-08-13闭合，当前`C2 active`。C1完成边界和C2完整执行prompt见[完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；不得从中断checkpoint重做C1，也不得用C1的per-component准备或selection pair冒充C2。
+`C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合，当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；C2实现事实、完整inventory与已签发C3 prompt见[C2完成交接](../../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
 
 `SV1-0`～`SV1-7`继续表示能力与依赖层，不再暗示协作轮数。自2026-08-09的campaign启动prompt起，已知Skin V1/P1-A剩余范围——包括必须在对应campaign内取得产品终态并立即实现的路线决定——必须在最多七个持久campaign内收口；第七个campaign退出时只允许保留集中视觉、真实设备、长时间体验等人工签收。该承诺是**campaign prompt预算**，不是日历或单提交工期：一个campaign允许在同一对话内经历多次交互、上下文压缩、多个有意义提交和多组测试；未过退出门不得生成后续campaign prompt。
 
 | Campaign | 映射 | 必须闭合的非人工产品结果 | 硬退出门 |
 | --- | --- | --- | --- |
 | `C1` 作者文件工作区与G1 UX | `SV1-2`前半 | **已闭合**：external只读注册/选择/configured restart/Open/pure-Realm noncurrent Unregister，Folder Skin Workspace的managed Open/Rename/Delete、single-v3 full ManagedCopy/exact-set recovery，以及ordinary `.osk` bounded ingress/zero-residue receipt均进入真实caller；selection/import/ManagedCopy包生效旅程进入BMS/mania consumer，其余动作形成直接用户结果 | Windows/archive/crash/cancel/restart/concurrency宽回归、Release、文档与独立终审已过；保留external永久只读、held proof到final Realm线性化、v1/v2 strict frozen、thin/arbitrary-path stager冻结等合同 |
-| `C2` 现有consumer revision publication / reload / detach | `SV1-2`后半产品门 | 同一campaign先用真实host证据冻结并取得所需产品确认，再立即实现唯一可达的V1触发方式与允许场景；候选至少比较safe author-preview host与安全导航点same-ID manual reload，不能把路线审计单独交接。建立ruleset-neutral package-revision prepare/commit barrier、attached consumer registry、revision lease/detach receipt与retire queue，覆盖当前存在的managed/external BMS geometry/Note/LN/preview、core/mania，并清点所有跨帧持有Skin/resources的shell/menu/background/transition等生命周期holder；后者只需正确lease/detach，不扩张为作者可皮肤化surface。冻结prepare/commit期间动态attach/detach语义，并把普通Realm`.osk` selection的旧owner生命周期纳入同一协议；`ExternalEditOverlay`/update-import要么迁移到新协议和替代caller，要么稳定禁用，禁止保留new-instance后即时dispose旁路。完成current external fallback+unregister | 选定caller可真实触达当前完整participant/holder集合；same-ID新revision全consumer coherent publication，prepare中attach不漏barrier、commit后late attach只取已提交revision、commit前detach不悬挂retire，任一失败保留exact旧pair/revision，最后detach后旧owner dispose once；普通`.osk`、managed、external不存在即时dispose/永久泄漏旁路，latest-wins/reentrant/cancel/shutdown/诊断通过。此门只关闭当前production consumer，C3～C6新增consumer必须同切加入协议，最终ini/manifest/scene/script整包reload gate到`C6`才关闭 |
-| `C3` P1-K前置与唯一layout | P1-K Skin前置 + `SV1-3` | 修正lane-count/timeline上界，冻结sparse keymode source/override/diagnostic；交付唯一immutable layout context/snapshot/solver，5K/7K四style、9K BMS/PMS、14K DP全覆盖；playfield/lane/judgement/cover/BGA/gauge/combo/HUD及mania adapter只消费该snapshot。layout revision publication和所有新consumer同切加入C2 barrier/lease/detach协议 | 全矩阵lane identity/order/bounds/scratch/deck/BGA/HUD自动证明，非法geometry逐字段回落，生产路径无第二套几何推导或mixed revision；新增layout consumer均参与owner retirement，不得停在DTO/topology或把P1-K、BGA/HUD consumer推后 |
+| `C2` 现有consumer revision publication / reload / detach | `SV1-2`后半产品门 | **已闭合**：唯一入口为Settings current manual Reload；live gameplay/preview在source prepare前拒绝，不实现watcher。ruleset-neutral immutable revision、background prepare、update-thread rollback barrier、participant registry、lease/detach receipt与retire queue覆盖ordinary `.osk`、managed、external及现有BMS/core/mania与shell生命周期holder；无staged receipt的attached consumer fail-closed。current external/managed/ordinary mutation先fallback+detach；legacy editor/external-edit/update-import稳定禁用 | 真实caller/renderer三源A→B、participant/prepare失败保A、动态attach/detach/late attach、跨fade/sample/materializer holder、latest-wins/reentrant/cancel/scheduler/shutdown、最后detach exactly-once retire与current mutation失败原子性已通过focused/full/Release、文档门与独立终审。C3～C6新增consumer继续同切加入；最终ini/manifest/scene/script整包门仍到C6 |
+| `C3` P1-K前置与唯一layout | P1-K Skin前置 + `SV1-3` | **active**：修正lane-count/timeline上界，冻结sparse keymode source/override/diagnostic；交付唯一immutable layout context/snapshot/solver，5K/7K四style、9K BMS/PMS、14K DP全覆盖；playfield/lane/judgement/cover/BGA/gauge/combo/HUD及mania adapter只消费该snapshot。layout revision publication和所有新consumer同切加入C2 barrier/lease/detach协议 | 全矩阵lane identity/order/bounds/scratch/deck/BGA/HUD自动证明，非法geometry逐字段回落，生产路径无第二套几何推导或mixed revision；新增layout consumer均参与owner retirement，不得停在DTO/topology或把P1-K、BGA/HUD consumer推后 |
 | `C4` shared codec、三态与mania compatibility | `SV1-4`并补`SV1-1`合同 | 冻结完整V1 public field/slot catalog与三态resolver；mania/BMS common ini迁至同一codec/resolver，BMS extension版本化；现有真实Note/LN及其它production consumer使用显式`Provide/Inherit/Suppress`、stable lane ID、结构化诊断、统一fallback/revision，并保持C2/C3 revision lease/detach协议。beatmap-local作者格式在同一campaign取得终态产品决定；若纳入V1就同切交付真实sidecar/producer/adapter，若不纳入则同步移出V1缺口，决策不能作为campaign终态 | `.osk`、managed、external三路径解析一致，mania/BMS common fixture parity，public catalog/resolver完整且现有真实consumer全部迁移；不得偷跑剩余optional slot的私有C# consumer、保留重复tokenizer/resolver、破坏owner协议或让beatmap-local范围继续悬空 |
 | `C5` 声明式scene / animation / event runtime | `SV1-5`并关闭`SV1-1`自动门 | 交付versioned manifest/schema、allowlisted scene graph、sprite/container/text/mask/clip、animation/tween/state machine/property binding/template；完整只读事件family与Snapshot/Reset；BMS+mania production host覆盖global/lane/pooled Note/LN/HUD/judgement/gauge/BGA/effect，并让C4 catalog中剩余optional slots经scene hosts真正进入production；实施资源/节点/effect pool/每帧预算。每个scene host必须同切注册进C2 revision barrier、持有revision lease并在detach时ack，重跑publication/owner retirement矩阵 | 普通package无需C#即可驱动全部advertised V1 scene surface和全部public optional slot；seek/retry/reload可确定重建，dense/14K预算通过，异常只回落scene；scene consumer加入统一revision协议，此时才关闭`SV1-1`自动门。不得以manifest/DTO/fixture、单个host或未消费slot作为终态 |
 | `C6` 可选脚本与隔离及最终整包reload门 | `SV1-6`并最终复核`SV1-2` | 同一campaign完成VM选型spike、所需产品确认与production实现，spike/决策不能作为终态。若选择in-tree bounded bytecode VM，必须同切交付无需DLL的package作者入口、版本化source/bytecode格式、compiler/verifier、malformed/untrusted bytecode验证、version reject/compat策略、source-mapped诊断与deterministic fixtures。无论选型均须闭合只读snapshot/event、授权scene node、四方capability协商、per-skin identity授权持久化/撤销/重协商、compiler/runtime版本失效与cache规则、永久hard-deny、instruction/heap/node/resource预算、deterministic clock/seed、seek/retry/reload、异步compile、熔断、profiler与授权UI；script host同切加入C2 revision lease/detach协议 | 真实BMS/mania host运行complex候选脚本；无限循环、超限、异常、取消/shutdown不阻塞update thread且只熔断脚本/scene；ini/manifest/scene/script/素材全部参与同一publication/detach/owner矩阵，至此关闭最终整包reload与G1自动门。不得只交选型文档、catalog、mock consumer，也不得把语言ABI/工具链、授权持久化、profiler或异常回落推给`C7` |
@@ -64,11 +64,11 @@ Campaign执行规则固定如下：
 
 ### SV1-2：G1 安全存储与原子重载
 
-依赖：保持 `SV1-0` 数据处置结论与现有 `.osk` 路径稳定；不得从异常期存档整包恢复。受管目录active实例绑定immutable capsule，磁盘原地变化不会混入该实例，也不会自动reload。
+依赖：保持 `SV1-0` 数据处置结论与现有 `.osk` 路径稳定；不得从异常期存档整包恢复。active实例绑定immutable revision，磁盘原地变化不会混入；只允许Settings显式manual Reload准备并发布新revision，不开放watcher。
 
 当前已闭合链为：schema 56-origin preflight → managed/external held-root Windows no-follow capture → pure immutable capsule与external paired manifest → exact-capsule `BmsLegacySkin` factory/guarded selection → schema 57 scanner/exact external registry → shared coordinator/single-v3 journal/recovery → Folder Skin Workspace的external Open/Import/Unregister与managed Open/Rename/Delete → ordinary `.osk` bounded ingress/transactional receipt。C2以该链为输入，但path/token/digest/DTO/receipt本身仍不是authority，也不能代替consumer publication/detach/retire证明。
 
-C2开工基线仍是：settings/config/hotkey当前只选择，scanner只做一次启动reconcile，现有manager只提交selection pair并广播`SourceChanged`；`BmsPlayfield`缓存geometry，BMS Note/LN、core/mania drawable与menu/background/transition分散在不同host与调度生命周期，仍无共同participant barrier、detach receipt或owner retire机制。C2须以代码与真实host证据冻结触发方式后立即闭合这些缺口；审计或foundation不能作为C2终态。
+C2已以真实host证据冻结为：Settings `Reload current skin`是三源唯一触发，Folder Skin Workspace无第二入口，same-value selection仍短路，live gameplay/preview在source prepare前拒绝。manager以immutable revision、background prepare、update-thread rollback barrier、participant/work lease与retire queue覆盖完整inventory；无staged receipt的attached host阻断reload，旧owner等待最后detach。C3～C6新增consumer必须复用并扩展该协议，不能另造publication旁路。
 
 各切片按以下顺序独立过门：
 
@@ -80,8 +80,8 @@ C2开工基线仍是：settings/config/hotkey当前只选择，scanner只做一�
 6. **thin staged-import stager/caller（永久冻结旧入口）**：C1已由manager-owned full ManagedCopy闭合external source→fixed provisional，因此不再存在独立thin stager产品门。禁止任意path直传、普通递归copy或无production consumer的stager抽象；后续只回归已闭合的full ManagedCopy authority、budget、cancel/recovery与脱敏诊断。
 7. **external registration/capture（C1已闭合）**：继续保持external永久只读、settings record-ID管理、held no-follow capture、service-owner Realm、显式选择/configured restart、BMS+mania artifact、fresh Open与pure-Realm noncurrent Unregister。service-owner不授权path/source；active实例只读capsule，原位变化不reload。
 8. **`C1`作者文件工作区（已闭合）**：external Open/Import/Unregister、managed Open/Rename/Delete、single-v3 ManagedCopy、动态journal支持和ordinary `.osk` early gate/receipt已通过产品旅程、宽回归、Release与独立终审；保持旧通用folder mutation与thin stager冻结。
-9. **当前consumer revision publication / reload / detach（`C2 active`）**：同一campaign内冻结真实可达触发方式与live gameplay等允许场景，并实现BMS playfield/Note/LN/pre-start preview、core/mania drawable、menu/shell/background/transition的共同revision prepare/publication barrier、lease/detach acknowledgement与owner retirement。fresh Realm/path/owner/freeze/capture/factory后完整准备immutable capsule+新skin instance；任一失败保留exact旧pair/revision，全consumer detach后才dispose旧owner exactly once。ordinary Realm `.osk` 立即dispose旁路同切迁移/禁用，current external unregister在coherent fallback/新revision与全detach后才执行。禁止manager-only API、强制同ID selection、逐组件`SourceChanged`或预建无consumer foundation；`C3`～`C6`新consumer仍须同切加入。
-10. **产品 UI/实机**：安全后端与真实caller闭合后才开放最小入口；明确区分受管目录物理删除与external解除注册，选择、重启、切换、rename/import/delete、缺件和原子替换统一进入最终人工清单。
+9. **当前consumer revision publication / reload / detach（C2已闭合）**：Settings唯一manual Reload经manager覆盖ordinary Realm `.osk`、managed、external同ID新revision；所有可失败I/O/解析/资源准备止于background，全部participant ready后才在update thread一次交换。prepare中attach触发fresh barrier、commit前detach移出待确认、late attach只取已提交revision；失败保A，最后consumer/work lease detach后旧owner exactly-once retire。current external/managed/ordinary mutation先fallback+detach；无统一协议的legacy authoring/update旁路已稳定禁用。
+10. **产品 UI/实机（C2已闭合，G1最终门仍到C6）**：入口已明确区分manual Reload、受管目录物理删除与external解除注册，并为success/no-change/live reject/unsafe reject/failure给出反馈；真实选择、重启、切换、rename/import/delete、三源原子替换、缺件与holder生命周期已纳入自动宽门。C3～C6新增layout/codec/scene/script consumer继续同切加入revision协议。
 
 验收：真实选择链、重启、切换、rename/import/delete、缺件、原子替换和备份数据根均通过自动与人工验证。
 

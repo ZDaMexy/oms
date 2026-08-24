@@ -9,6 +9,7 @@ using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics.Containers;
+using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Storyboards;
@@ -42,6 +43,7 @@ namespace osu.Game.Screens.Play
         private readonly Lazy<bool> storyboardMustAlwaysBePresent;
 
         private DrawableStoryboard drawableStoryboard;
+        private PendingAsyncDrawableOwnership<DrawableStoryboard> pendingStoryboardOwnership;
 
         /// <summary>
         /// Whether the storyboard is considered finished.
@@ -92,25 +94,83 @@ namespace osu.Game.Screens.Play
 
         private void initializeStoryboard(bool async)
         {
-            if (drawableStoryboard != null)
+            if (drawableStoryboard != null || pendingStoryboardOwnership != null)
                 return;
 
             if (!ShowStoryboard.Value && !IgnoreUserSettings.Value)
                 return;
 
-            drawableStoryboard = storyboard.CreateDrawable(mods);
-            HasStoryboardEnded.BindTo(drawableStoryboard.HasStoryboardEnded);
+            DrawableStoryboard candidate = storyboard.CreateDrawable(mods);
 
             if (async)
-                LoadComponentAsync(drawableStoryboard, onStoryboardCreated);
+            {
+                var ownership = new PendingAsyncDrawableOwnership<DrawableStoryboard>(candidate);
+                pendingStoryboardOwnership = ownership;
+
+                try
+                {
+                    ownership.Attach(LoadComponentAsync(ownership.Loadable, loaded =>
+                    {
+                        if (!ReferenceEquals(pendingStoryboardOwnership, ownership)
+                            || !ownership.TryTransfer(loaded, out DrawableStoryboard owned))
+                        {
+                            return;
+                        }
+
+                        pendingStoryboardOwnership = null;
+                        drawableStoryboard = owned;
+
+                        try
+                        {
+                            HasStoryboardEnded.BindTo(owned.HasStoryboardEnded);
+                            onStoryboardCreated(owned);
+                        }
+                        catch
+                        {
+                            drawableStoryboard = null;
+
+                            if (owned.Parent == null)
+                                owned.Dispose();
+
+                            throw;
+                        }
+                        finally
+                        {
+                            ownership.CompleteTransfer();
+                        }
+                    }), Scheduler);
+                }
+                catch
+                {
+                    if (ReferenceEquals(pendingStoryboardOwnership, ownership))
+                        pendingStoryboardOwnership = null;
+
+                    ownership.ReclaimUnstarted();
+                    throw;
+                }
+            }
             else
-                onStoryboardCreated(drawableStoryboard);
+            {
+                drawableStoryboard = candidate;
+                HasStoryboardEnded.BindTo(candidate.HasStoryboardEnded);
+                onStoryboardCreated(candidate);
+            }
         }
 
         private void onStoryboardCreated(DrawableStoryboard storyboard)
         {
             Add(storyboard);
             OverlayLayerContainer.Add(storyboard.OverlayLayer.CreateProxy());
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<DrawableStoryboard> ownership = pendingStoryboardOwnership;
+            pendingStoryboardOwnership = null;
+            ownership?.Cancel();
+
+            base.Dispose(isDisposing);
+            ownership?.JoinAfterParentDisposal();
         }
     }
 }

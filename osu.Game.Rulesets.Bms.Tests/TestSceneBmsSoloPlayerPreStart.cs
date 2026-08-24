@@ -6,15 +6,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using oms.Input;
-using osu.Framework.Graphics;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Screens;
-using osu.Framework.Threading;
 using osu.Framework.Testing;
-using osu.Game.Beatmaps;
+using osu.Framework.Threading;
 using osu.Game.Graphics.Sprites;
-using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
@@ -23,6 +21,7 @@ using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
+using osu.Game.Skinning;
 using osu.Game.Tests.Visual;
 using osuTK.Input;
 
@@ -39,6 +38,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private TestBmsSoloPlayer player = null!;
         private Mod[] selectedMods = null!;
+
+        [Resolved]
+        private SkinManager skinManager { get; set; } = null!;
 
         public TestSceneBmsSoloPlayerPreStart()
         {
@@ -66,6 +68,35 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("set lane cover mods", () => SelectedMods.Value = selectedMods);
             AddStep("load BMS solo player", () => LoadScreen(player = new TestBmsSoloPlayer()));
             AddUntilStep("wait for BMS solo player", () => player.IsCurrentScreen() && player.IsLoaded && player.DrawableBmsRuleset?.IsLoaded == true && player.GameplayInputManager != null);
+        }
+
+        [Test]
+        public void TestRealPreStartPlayerRejectsCurrentRevisionPublicationBeforePrepare()
+        {
+            SkinCurrentRevision revision = null!;
+            Skin owner = null!;
+            Task<SkinCurrentRevisionReloadResult>? reload = null;
+            int prepareCalls = 0;
+
+            AddStep("capture real pre-start player revision", () =>
+            {
+                revision = skinManager.CurrentRevision;
+                owner = skinManager.CurrentSkin.Value;
+                skinManager.CurrentRevisionPrepareStarted = () => prepareCalls++;
+            });
+            AddStep("request reload while real pre-start player is attached", () =>
+                reload = skinManager.ReloadCurrentRevisionAsync());
+            AddStep("assert publication rejected before source prepare", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reload!.IsCompleted, Is.True);
+                    Assert.That(reload.GetAwaiter().GetResult(), Is.EqualTo(SkinCurrentRevisionReloadResult.LiveGameplayActive));
+                    Assert.That(prepareCalls, Is.Zero);
+                    Assert.That(skinManager.CurrentRevision, Is.SameAs(revision));
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(owner));
+                });
+            });
         }
 
         [Test]
@@ -623,15 +654,15 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             private readonly List<(ScheduledDelegate Delegate, Action Callback)> scheduledPreStartDelays = new List<(ScheduledDelegate Delegate, Action Callback)>();
 
-            public DrawableBmsRuleset? DrawableBmsRuleset => base.DrawableRuleset as DrawableBmsRuleset;
+            public DrawableBmsRuleset? DrawableBmsRuleset => DrawableRuleset as DrawableBmsRuleset;
 
             public new GameplayClockContainer GameplayClockContainer => base.GameplayClockContainer;
 
             public BmsInputManager? GameplayInputManager => DrawableBmsRuleset?.GameplayInputManager;
 
-            public BmsPreStartHiSpeedOverlay? PreStartOverlay => base.PreStartHiSpeedOverlay;
+            public BmsPreStartHiSpeedOverlay? PreStartOverlay => PreStartHiSpeedOverlay;
 
-            public Visibility PauseOverlayState => base.PauseOverlay.State.Value;
+            public Visibility PauseOverlayState => PauseOverlay.State.Value;
 
             public int ScheduledPreStartDelayCount => scheduledPreStartDelays.Count;
 

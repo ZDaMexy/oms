@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-08-24
+
+### Skin V1 C2 current revision publication / detach 闭门
+
+P1-A七个campaign的`C2`已闭合。Settings → Skin的`Reload current skin`是ordinary Realm `.osk`、managed与external三源唯一same-ID manual reload入口；Folder Skin Workspace无第二Reload、same-value selection仍no-op、scanner不成为watcher，live gameplay/preview在source prepare前确定拒绝。ruleset-neutral immutable revision、background prepare、update-thread reversible barrier、participant registry、manager/participant/work/operation lease、detach fence与retire queue已覆盖当前core/mania/BMS visual consumer及fade/sample/materializer/callback holder；失败保留exact A，旧owner在最后lease detach后exactly-once retire。
+
+current external Unregister、current managed Delete与ordinary current`.osk` Delete均先发布protected fallback并等待旧revision detach；external fresh compare后只pure-Realm remove且source零I/O，managed随后才进入C1 journal/physical边界。legacy Skin Editor、external-edit、update-import及new-instance→CurrentSkin→immediate-dispose旁路均统一禁用或纳入协议。完整participant/holder/non-owner inventory、动态attach/detach、generation/shutdown/CTS ownership合同与C3入口见[C2完成交接](../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+
+最终验证：core focused **204/204**、PendingAsync visual/host **11/11**、core canonical `~Skin` **1137/1143**且六项为精确既有基线、mania `~Skin` **182/182**、BMS `~Skin` **796/796**、BMS full **1670/1670**且无hang sequence。Release含restore **0 error / 20 known warnings**，formatter后`--no-restore`复验 **0 error / 11 known warnings**；targeted formatter均exit 0。participant/holder、reachable bypass、concurrency/owner、tests/product-contract四项独立终审均为blocker/major/moderate **0/0/0**。文档门 **137 Markdown / 1071 relative links / 80 memory wiki links**与`git diff --check`均通过。燃尽推进为 **`2/7 closed，C3 active`**；G1最终整包门、`SV1-2`整体、Skin V1、release与`V-001`～`V-004`仍未完成。
+
 ## 2026-08-13
 
 ### Skin V1 C1作者文件工作区闭门
@@ -13,7 +23,7 @@ P1-A七个campaign的`C1`已闭合。Folder Skin Workspace现以record-ID fresh 
 
 终审收口将Workspace records/support只读worker纳入manager shutdown cancel+同步join，并让managed Open在held capture前后都fresh复核normalized path唯一；因此UI关闭、应用退出及旧row同路径重复声明均fail-closed。
 
-最终验证：`osu.Game` Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；`osu.Desktop.slnf` Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt独立最终复审均为blocker/major/moderate **0/0/0**。燃尽更新为`1/7 closed，C2 active`；current consumer revision publication/reload/detach/retire、G1、`SV1-2`、Skin V1、release与`V-001`～`V-004`仍未完成。完成边界与C2执行prompt见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
+最终验证：`osu.Game` Debug build **0 error**/仅9个既有MessagePack `NU1902`；core C1 focused **490/490**，archive/receipt **84/84**，BMS产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin **679/683**，4项均为已移除Osu ruleset mode 0 fixture基线；`osu.Desktop.slnf` Release **0 error**/仅9个既有MessagePack `NU1902`。external与receipt独立最终复审均为blocker/major/moderate **0/0/0**。当日燃尽关闭首项并转入C2；current consumer revision publication/reload/detach/retire、G1、`SV1-2`、Skin V1、release与`V-001`～`V-004`仍未完成。完成边界与C2执行prompt见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
 
 同日最终产品价值复核确认：C1新增并列入完成态的作者工作区、external/managed动作、journal支持与ordinary `.osk`安全导入均已接到真实caller；selection/import/ManagedCopy有BMS/mania consumer证据，Open/Rename/Delete/Unregister/support形成直接用户结果。大体量authority/recovery/receipt代码直接保护用户目录和共享资源。仓库中C1前已有的internal fixed-staging surface没有独立非测试caller；其StagedImport operation/handler不被ManagedCopy直接调用，但共同fixed-slot authority/native move+inspection与journal/coordinator/recovery框架已复用，故不另计用户功能也不把共同底层判成死代码。最终进度不再用单一百分比表示：`1/7`是非等权硬campaign计数，数据/导入安全与作者工作区已过门，但表现力、统一revision生命周期与canonical发行仍在C2～C7。C2 prompt已补全真实触发、holder inventory、same-ID三源、即时dispose旁路、current external与managed delete fallback失败原子性及真实owner终审。
 

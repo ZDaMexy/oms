@@ -66,6 +66,11 @@ namespace osu.Game.Skinning
         protected IResourceStore<byte[]>? FallbackStore { get; }
 
         /// <summary>
+        /// The immutable content identity advertised by an exact package store, when this instance owns one.
+        /// </summary>
+        internal string? PackageContentRevision { get; }
+
+        /// <summary>
         /// Construct a new skin.
         /// </summary>
         /// <param name="skin">The skin's metadata. Usually a live realm object.</param>
@@ -97,6 +102,8 @@ namespace osu.Game.Skinning
 
             if (useExactPackageStore && fallbackStore is not ISkinPackageRevisionResourceStore)
                 throw new InvalidOperationException("An exact package skin requires an immutable revision resource store.");
+
+            PackageContentRevision = (fallbackStore as ISkinPackageRevisionResourceStore)?.ContentRevision;
 
             if (resources != null)
             {

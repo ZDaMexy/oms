@@ -90,6 +90,89 @@ namespace osu.Game.Skinning
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// A delete source qualified by one still-held C1 logical/native authority. No journal or filesystem mutation has
+    /// occurred while this object is merely prepared.
+    /// </summary>
+    internal sealed class SkinManagedFolderPreparedDelete : IDisposable
+    {
+        private readonly SkinManagedFolderDeleteOperation owner;
+        private SkinManagedFolderMutationAuthoritySession? authority;
+        private int executionClaimed;
+
+        public SkinManagedFolderDeleteOperationResult? FailureResult { get; }
+
+        public string? SourceContentRevision { get; }
+
+        public bool IsSuccess => authority != null && FailureResult == null;
+
+        internal SkinManagedFolderPreparedDelete(
+            SkinManagedFolderDeleteOperation owner,
+            SkinManagedFolderMutationAuthoritySession authority,
+            string? sourceContentRevision)
+        {
+            this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            this.authority = authority ?? throw new ArgumentNullException(nameof(authority));
+            SourceContentRevision = sourceContentRevision;
+        }
+
+        internal SkinManagedFolderPreparedDelete(
+            SkinManagedFolderDeleteOperation owner,
+            SkinManagedFolderDeleteOperationResult failureResult)
+        {
+            this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            FailureResult = failureResult ?? throw new ArgumentNullException(nameof(failureResult));
+        }
+
+        /// <summary>
+        /// Performs the potentially failing held-authority validation outside the update-thread publication commit.
+        /// </summary>
+        internal bool ValidateHeldSource(CancellationToken cancellationToken = default)
+        {
+            SkinManagedFolderMutationAuthoritySession? held = Volatile.Read(ref authority);
+
+            try
+            {
+                return held != null && held.Validate(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// No-I/O commit receipt check. The exact source tree is still protected by the authority retained here.
+        /// </summary>
+        internal bool HoldsContentRevision(string contentRevision)
+            => Volatile.Read(ref authority) != null
+               && !string.IsNullOrEmpty(SourceContentRevision)
+               && string.Equals(SourceContentRevision, contentRevision, StringComparison.Ordinal);
+
+        internal bool TryClaimExecution(
+            SkinManagedFolderDeleteOperation candidateOwner,
+            out SkinManagedFolderMutationAuthoritySession session)
+        {
+            session = null!;
+
+            if (!ReferenceEquals(owner, candidateOwner)
+                || Interlocked.CompareExchange(ref executionClaimed, 1, 0) != 0)
+            {
+                return false;
+            }
+
+            session = Volatile.Read(ref authority)!;
+            return session != null;
+        }
+
+        public void Dispose()
+            => Interlocked.Exchange(ref authority, null)?.Dispose();
+    }
+
+    /// <summary>
     /// Executes one managed-folder delete through an operation-derived tombstone, exact no-follow cleanup and Realm
     /// convergence. The fallback callback must publish a coherent protected pair before the first physical move.
     /// </summary>
@@ -114,6 +197,27 @@ namespace osu.Game.Skinning
             Guid recordId,
             CancellationToken cancellationToken = default)
         {
+            using SkinManagedFolderPreparedDelete prepared = Prepare(
+                operationId,
+                recordId,
+                captureSourceRevision: false,
+                cancellationToken);
+
+            return prepared.IsSuccess
+                ? ExecutePrepared(prepared, cancellationToken)
+                : prepared.FailureResult!;
+        }
+
+        /// <summary>
+        /// Opens and holds the exact C1 delete authority. Optional source revision capture is used by C2 current
+        /// deletion to prove the live owner before any participant publication or durable intent.
+        /// </summary>
+        internal SkinManagedFolderPreparedDelete Prepare(
+            Guid operationId,
+            Guid recordId,
+            bool captureSourceRevision,
+            CancellationToken cancellationToken = default)
+        {
             SkinManagedFolderMutationAuthorityResult opened;
 
             try
@@ -122,14 +226,67 @@ namespace osu.Game.Skinning
             }
             catch (OperationCanceledException)
             {
-                return SkinManagedFolderDeleteOperationResult.Failure(
-                    SkinManagedFolderDeleteOperationStatus.Cancelled);
+                return new SkinManagedFolderPreparedDelete(
+                    this,
+                    SkinManagedFolderDeleteOperationResult.Failure(
+                        SkinManagedFolderDeleteOperationStatus.Cancelled));
             }
 
             if (!opened.IsSuccess)
-                return SkinManagedFolderDeleteOperationResult.Reject(opened.RejectionReason);
+            {
+                return new SkinManagedFolderPreparedDelete(
+                    this,
+                    SkinManagedFolderDeleteOperationResult.Reject(opened.RejectionReason));
+            }
 
-            using SkinManagedFolderMutationAuthoritySession session = opened.Session!;
+            SkinManagedFolderMutationAuthoritySession session = opened.Session!;
+            string? sourceContentRevision = null;
+
+            try
+            {
+                if (captureSourceRevision)
+                {
+                    using SkinPackageRevisionCapsule capsule =
+                        session.CaptureExistingSourceRevision(cancellationToken);
+                    sourceContentRevision = capsule.ContentRevision;
+                }
+
+                return new SkinManagedFolderPreparedDelete(this, session, sourceContentRevision);
+            }
+            catch (OperationCanceledException)
+            {
+                session.Dispose();
+                return new SkinManagedFolderPreparedDelete(
+                    this,
+                    SkinManagedFolderDeleteOperationResult.Failure(
+                        SkinManagedFolderDeleteOperationStatus.Cancelled));
+            }
+            catch
+            {
+                session.Dispose();
+                return new SkinManagedFolderPreparedDelete(
+                    this,
+                    SkinManagedFolderDeleteOperationResult.Reject(
+                        SkinManagedFolderMutationAuthorityRejectionReason.NativeAuthorityRejected));
+            }
+        }
+
+        /// <summary>
+        /// Persists and executes a delete using the same authority returned by <see cref="Prepare"/>. This is the
+        /// first method in the current-delete path which may create a journal or mutate the source.
+        /// </summary>
+        internal SkinManagedFolderDeleteOperationResult ExecutePrepared(
+            SkinManagedFolderPreparedDelete prepared,
+            CancellationToken cancellationToken = default,
+            bool requireProtectedFallback = false)
+        {
+            if (prepared == null
+                || !prepared.TryClaimExecution(this, out SkinManagedFolderMutationAuthoritySession session))
+            {
+                return SkinManagedFolderDeleteOperationResult.Reject(
+                    SkinManagedFolderMutationAuthorityRejectionReason.NativeAuthorityRejected);
+            }
+
             SkinManagedFolderDurableMutationReceipt receipt;
 
             try
@@ -221,8 +378,8 @@ namespace osu.Game.Skinning
             {
                 bool applied = session.ApplyCapturedDeleteWithDurableReceipt(
                     confirmedReceipt,
-                    () => fallbackResult
-                              != SkinManagedFolderProtectedFallbackCommitResult.Committed
+                    () => (!requireProtectedFallback
+                           && fallbackResult != SkinManagedFolderProtectedFallbackCommitResult.Committed)
                           || isProtectedFallbackValid(),
                     cancellationToken);
 
@@ -261,7 +418,8 @@ namespace osu.Game.Skinning
             if (!session.TryApplyDeleteRealm(
                     () => applyRealmDelete(
                         session,
-                        fallbackResult == SkinManagedFolderProtectedFallbackCommitResult.Committed),
+                        requireProtectedFallback
+                        || fallbackResult == SkinManagedFolderProtectedFallbackCommitResult.Committed),
                     CancellationToken.None))
             {
                 return SkinManagedFolderDeleteOperationResult.Failure(

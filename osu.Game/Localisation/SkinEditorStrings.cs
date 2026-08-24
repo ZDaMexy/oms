@@ -45,6 +45,33 @@ namespace osu.Game.Localisation
         public static LocalisableString ResultsPreviewUnavailable => new TranslatableString(getKey(@"results_preview_unavailable"), @"No score available for results preview");
 
         /// <summary>
+        /// "Edit externally (unavailable)"
+        /// </summary>
+        public static LocalisableString EditExternallyUnavailable => new TranslatableString(getKey(@"edit_externally_unavailable"), @"Edit externally (unavailable)");
+
+        /// <summary>
+        /// "External skin editing is unavailable"
+        /// </summary>
+        public static LocalisableString ExternalEditingUnavailable => new TranslatableString(getKey(@"external_editing_unavailable"), @"External skin editing is unavailable");
+
+        /// <summary>
+        /// "External skin editing is disabled until edited skins can be activated safely."
+        /// </summary>
+        public static LocalisableString ExternalEditingUnavailableDescription => new TranslatableString(getKey(@"external_editing_unavailable_description"),
+            @"External skin editing is disabled until edited skins can be activated safely.");
+
+        /// <summary>
+        /// "External changes were not activated"
+        /// </summary>
+        public static LocalisableString ExternalChangesNotActivated => new TranslatableString(getKey(@"external_changes_not_activated"), @"External changes were not activated");
+
+        /// <summary>
+        /// "The active skin was kept unchanged because external skin editing is unavailable."
+        /// </summary>
+        public static LocalisableString ExternalChangesNotActivatedDescription => new TranslatableString(getKey(@"external_changes_not_activated_description"),
+            @"The active skin was kept unchanged because external skin editing is unavailable.");
+
+        /// <summary>
         /// "Settings ({0})"
         /// </summary>
         public static LocalisableString Settings(string arg0) => new TranslatableString(getKey(@"settings"), @"Settings ({0})", arg0);

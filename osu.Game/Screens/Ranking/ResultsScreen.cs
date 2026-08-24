@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -261,6 +262,11 @@ namespace osu.Game.Screens.Ranking
         #region Applause
 
         private PoolableSkinnableSample? rankApplauseSound;
+        private PendingAsyncDrawableOwnership<PoolableSkinnableSample>? pendingRankApplauseLoad;
+        private CancellationTokenSource? rankApplauseLoadCancellation;
+
+        internal Func<ISampleInfo, PoolableSkinnableSample> RankApplauseSampleFactory { get; set; }
+            = sampleInfo => new PoolableSkinnableSample(sampleInfo);
 
         public void PlayApplause(ScoreRank rank)
         {
@@ -269,7 +275,9 @@ namespace osu.Game.Screens.Ranking
             if (!this.IsCurrentScreen())
                 return;
 
+            cancelPendingRankApplauseLoad();
             rankApplauseSound?.Dispose();
+            rankApplauseSound = null;
 
             var applauseSamples = new List<string>();
 
@@ -304,16 +312,98 @@ namespace osu.Game.Screens.Ranking
                     break;
             }
 
-            LoadComponentAsync(rankApplauseSound = new PoolableSkinnableSample(new SampleInfo(applauseSamples.ToArray())), s =>
+            PoolableSkinnableSample provisional = RankApplauseSampleFactory(new SampleInfo(applauseSamples.ToArray()));
+            var ownership = new PendingAsyncDrawableOwnership<PoolableSkinnableSample>(provisional);
+            var cancellation = new CancellationTokenSource();
+            Interlocked.Exchange(ref pendingRankApplauseLoad, ownership)?.Cancel();
+            Interlocked.Exchange(ref rankApplauseLoadCancellation, cancellation)?.Dispose();
+
+            try
             {
-                if (!this.IsCurrentScreen() || s != rankApplauseSound)
-                    return;
+                Task loadTask = LoadComponentAsync(
+                    ownership.Loadable,
+                    loaded => finishRankApplauseLoad(ownership, loaded, applause_volume, cancellation),
+                    cancellation.Token);
+                ownership.Attach(loadTask, Scheduler);
+            }
+            catch
+            {
+                Interlocked.CompareExchange(ref pendingRankApplauseLoad, null, ownership);
+                Interlocked.CompareExchange(ref rankApplauseLoadCancellation, null, cancellation);
+                cancellation.Dispose();
+                ownership.ReclaimUnstarted();
+                throw;
+            }
+        }
 
-                AddInternal(rankApplauseSound);
+        private void finishRankApplauseLoad(
+            PendingAsyncDrawableOwnership<PoolableSkinnableSample> ownership,
+            Drawable loaded,
+            double volume,
+            CancellationTokenSource cancellation)
+        {
+            if (!this.IsCurrentScreen()
+                || !ReferenceEquals(Volatile.Read(ref pendingRankApplauseLoad), ownership)
+                || !ownership.TryTransfer(loaded, out PoolableSkinnableSample? transferred))
+            {
+                ownership.Cancel();
+                return;
+            }
 
-                rankApplauseSound.VolumeTo(applause_volume);
-                rankApplauseSound.Play();
-            });
+            Interlocked.CompareExchange(ref pendingRankApplauseLoad, null, ownership);
+            if (ReferenceEquals(Interlocked.CompareExchange(ref rankApplauseLoadCancellation, null, cancellation), cancellation))
+                cancellation.Dispose();
+
+            PoolableSkinnableSample owned = transferred!;
+
+            try
+            {
+                rankApplauseSound = owned;
+                AddInternal(owned);
+
+                owned.VolumeTo(volume);
+                owned.Play();
+            }
+            catch
+            {
+                if (owned.Parent == null)
+                    owned.Dispose();
+
+                throw;
+            }
+            finally
+            {
+                ownership.CompleteTransfer();
+            }
+        }
+
+        private PendingAsyncDrawableOwnership<PoolableSkinnableSample>? cancelPendingRankApplauseLoad()
+        {
+            PendingAsyncDrawableOwnership<PoolableSkinnableSample>? ownership =
+                Interlocked.Exchange(ref pendingRankApplauseLoad, null);
+            ownership?.Cancel();
+            CancellationTokenSource? cancellation = Interlocked.Exchange(ref rankApplauseLoadCancellation, null);
+
+            if (cancellation != null)
+            {
+                try
+                {
+                    cancellation.Cancel();
+                }
+                finally
+                {
+                    cancellation.Dispose();
+                }
+            }
+
+            return ownership;
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<PoolableSkinnableSample>? pendingOwnership = cancelPendingRankApplauseLoad();
+            base.Dispose(isDisposing);
+            pendingOwnership?.JoinAfterParentDisposal();
         }
 
         #endregion
@@ -411,10 +501,22 @@ namespace osu.Game.Screens.Ranking
             popInSample?.Play();
         }
 
+        public override void OnSuspending(ScreenTransitionEvent e)
+        {
+            // A suspended screen no longer runs its callback scheduler. Cancel while the async load is still owned so
+            // the exact load-task continuation can reclaim it without waiting for this screen to resume or dispose.
+            cancelPendingRankApplauseLoad();
+            StatisticsPanel.CancelPendingLoad();
+            base.OnSuspending(e);
+        }
+
         public override bool OnExiting(ScreenExitEvent e)
         {
             if (base.OnExiting(e))
                 return true;
+
+            cancelPendingRankApplauseLoad();
+            StatisticsPanel.CancelPendingLoad();
 
             // This is a stop-gap safety against components holding references to gameplay after exiting the gameplay flow.
             // Right now, HitEvents are only used up to the results screen. If this changes in the future we need to remove

@@ -22,7 +22,7 @@ namespace osu.Game.Tests.Skins
     [TestFixture]
     [Platform("Win")]
     [SupportedOSPlatform("windows10.0.16299")]
-    public class WindowsSkinManagedPackageCaptureTest
+    public partial class WindowsSkinManagedPackageCaptureTest
     {
         private string dataRoot = null!;
         private string packageRoot = null!;

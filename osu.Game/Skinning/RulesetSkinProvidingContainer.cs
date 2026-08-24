@@ -5,7 +5,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -36,6 +35,14 @@ namespace osu.Game.Skinning
         /// Therefore disallow falling back to any parent <see cref="ISkinSource"/> any further.
         /// </remarks>
         protected override bool AllowFallingBackToParent => false;
+
+        /// <remarks>
+        /// BMS playfield geometry and several core/mania gameplay consumers are load-time structures. Keeping this
+        /// root attached therefore establishes the deterministic product boundary: current revision publication is
+        /// rejected until gameplay (including pre-start and embedded author-preview players) has detached.
+        /// </remarks>
+        private protected override SkinRevisionParticipantKind RevisionParticipantKind
+            => SkinRevisionParticipantKind.LiveGameplayHost;
 
         protected override Container<Drawable> Content { get; } = new Container
         {

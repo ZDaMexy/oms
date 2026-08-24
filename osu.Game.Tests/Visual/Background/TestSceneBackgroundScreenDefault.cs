@@ -206,6 +206,40 @@ namespace osu.Game.Tests.Visual.Background
         }
 
         [Test]
+        public void TestBeatmapBackgroundPendingSkinStoryboardIsReclaimedBeforeCallback()
+        {
+            BeatmapBackgroundWithStoryboard storyboardBackground = null;
+            int participantBaseline = 0;
+
+            setSupporter(true);
+            setSourceMode(BackgroundSource.BeatmapWithStoryboard);
+
+            AddStep("change beatmap to skin-sprite storyboard", () =>
+                Beatmap.Value = new TestWorkingBeatmapWithSkinStoryboard(Audio));
+            AddUntilStep("wait for skin storyboard background", () =>
+                (storyboardBackground = getCurrentBackground() as BeatmapBackgroundWithStoryboard) != null
+                && storyboardBackground.ChildrenOfType<DrawableStoryboard>().SingleOrDefault()?.IsLoaded == true);
+            AddStep("capture formal skin storyboard participant", () =>
+            {
+                participantBaseline = skins.CurrentRevision.ParticipantLeaseCount;
+                Assert.That(participantBaseline, Is.GreaterThan(0));
+            });
+            AddStep("cancel async storyboard before callback can claim it", () =>
+            {
+                storyboardBackground.UnloadStoryboard();
+                storyboardBackground.LoadStoryboard();
+                storyboardBackground.UnloadStoryboard();
+            });
+            AddUntilStep("pending and displayed storyboard participants detach", () =>
+                !storyboardBackground.ChildrenOfType<DrawableStoryboard>().Any()
+                && skins.CurrentRevision.ParticipantLeaseCount == participantBaseline - 1);
+            AddStep("reload storyboard after exact reclaim", () => storyboardBackground.LoadStoryboard());
+            AddUntilStep("fresh storyboard and participant attach", () =>
+                storyboardBackground.ChildrenOfType<DrawableStoryboard>().SingleOrDefault()?.IsLoaded == true
+                && skins.CurrentRevision.ParticipantLeaseCount == participantBaseline);
+        }
+
+        [Test]
         public void TestBeatmapBackgroundWithStoryboardButBeatmapHasNone()
         {
             BackgroundScreenBeatmap nestedScreen = null;
@@ -375,6 +409,25 @@ namespace osu.Game.Tests.Visual.Background
                     base.Update();
                     Text = Time.Current.ToString("N2");
                 }
+            }
+        }
+
+        private partial class TestWorkingBeatmapWithSkinStoryboard : TestWorkingBeatmap
+        {
+            public TestWorkingBeatmapWithSkinStoryboard(AudioManager audioManager)
+                : base(new Beatmap(), createStoryboard(), audioManager)
+            {
+            }
+
+            protected override Track GetBeatmapTrack() => new TrackVirtual(100000);
+
+            private static Storyboard createStoryboard()
+            {
+                var storyboard = new Storyboard { UseSkinSprites = true };
+                var sprite = new StoryboardSprite("Menu/fountain-star", Anchor.Centre, osuTK.Vector2.Zero);
+                sprite.Commands.AddAlpha(Easing.None, 0, 60_000, 1, 1);
+                storyboard.Layers.Last().Add(sprite);
+                return storyboard;
             }
         }
 

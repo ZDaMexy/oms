@@ -6,6 +6,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -21,6 +22,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Extensions;
+using osu.Game.Graphics;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
 using osu.Game.Overlays;
@@ -73,6 +75,10 @@ namespace osu.Game.Screens.Menu
         private LeasedBindable<WorkingBeatmap> beatmap;
 
         private OsuScreen nextScreen;
+        private PendingAsyncDrawableOwnership<OsuScreen> pendingNextScreenOwnership;
+        private CancellationTokenSource nextScreenLoadCancellation;
+        private bool nextScreenConsumed;
+        private bool menuLoadRequested;
 
         [Resolved]
         private AudioManager audio { get; set; }
@@ -85,6 +91,9 @@ namespace osu.Game.Screens.Menu
 
         [Resolved]
         private RulesetStore rulesets { get; set; }
+
+        [Resolved]
+        private SkinManager skinManager { get; set; }
 
         /// <summary>
         /// Whether the <see cref="Track"/> is provided by osu! resources, rather than a user beatmap.
@@ -359,13 +368,80 @@ namespace osu.Game.Screens.Menu
 
         protected void PrepareMenuLoad()
         {
-            if (nextScreen != null)
+            if (nextScreen != null || pendingNextScreenOwnership != null)
                 return;
 
-            nextScreen = createNextScreen?.Invoke();
+            OsuScreen candidate = createNextScreen?.Invoke();
 
-            if (nextScreen != null)
-                LoadComponentAsync(nextScreen);
+            if (candidate == null)
+                return;
+
+            SkinRevisionParticipantRegistration initialParticipant;
+
+            try
+            {
+                initialParticipant = skinManager.RegisterRevisionParticipant(
+                    SkinRevisionParticipantKind.CoherentVisualConsumer,
+                    $"{nameof(IntroScreen)} menu (initial load)",
+                    blocksRevisionPublication: true);
+            }
+            catch
+            {
+                candidate.Dispose();
+                throw;
+            }
+
+            var ownership = new PendingAsyncDrawableOwnership<OsuScreen>(candidate, initialParticipant.Dispose);
+            var cancellation = new CancellationTokenSource();
+            pendingNextScreenOwnership = ownership;
+            nextScreenLoadCancellation = cancellation;
+
+            try
+            {
+                ownership.Attach(LoadComponentAsync(ownership.Loadable, loaded =>
+                {
+                    if (!ReferenceEquals(pendingNextScreenOwnership, ownership)
+                        || !ownership.TryTransfer(loaded, out OsuScreen transferred))
+                    {
+                        return;
+                    }
+
+                    pendingNextScreenOwnership = null;
+                    nextScreenLoadCancellation?.Dispose();
+                    nextScreenLoadCancellation = null;
+                    nextScreen = transferred;
+
+                    try
+                    {
+                        if (menuLoadRequested)
+                            LoadMenu();
+                    }
+                    catch
+                    {
+                        if (!nextScreenConsumed && ReferenceEquals(nextScreen, transferred))
+                        {
+                            nextScreen = null;
+                            transferred.Dispose();
+                        }
+
+                        throw;
+                    }
+                    finally
+                    {
+                        ownership.CompleteTransfer();
+                    }
+                }, cancellation.Token), Scheduler);
+            }
+            catch
+            {
+                if (ReferenceEquals(pendingNextScreenOwnership, ownership))
+                    pendingNextScreenOwnership = null;
+
+                nextScreenLoadCancellation = null;
+                cancellation.Dispose();
+                ownership.ReclaimUnstarted();
+                throw;
+            }
         }
 
         protected void LoadMenu()
@@ -373,11 +449,59 @@ namespace osu.Game.Screens.Menu
             if (DidLoadMenu)
                 return;
 
+            if (pendingNextScreenOwnership != null)
+            {
+                menuLoadRequested = true;
+                return;
+            }
+
             beatmap.Return();
 
             DidLoadMenu = true;
             if (nextScreen != null)
-                this.Push(nextScreen);
+            {
+                OsuScreen screen = nextScreen;
+
+                try
+                {
+                    this.Push(screen);
+                    nextScreenConsumed = true;
+                }
+                catch
+                {
+                    if (screen.Parent == null)
+                    {
+                        nextScreen = null;
+                        screen.Dispose();
+                    }
+                    else
+                        nextScreenConsumed = true;
+
+                    throw;
+                }
+            }
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<OsuScreen> ownership =
+                Interlocked.Exchange(ref pendingNextScreenOwnership, null);
+            ownership?.Cancel();
+
+            CancellationTokenSource cancellation = Interlocked.Exchange(ref nextScreenLoadCancellation, null);
+            cancellation?.Cancel();
+            cancellation?.Dispose();
+
+            base.Dispose(isDisposing);
+            ownership?.JoinAfterParentDisposal();
+
+            if (isDisposing && !nextScreenConsumed)
+            {
+                if (ownership == null)
+                    nextScreen?.Dispose();
+
+                nextScreen = null;
+            }
         }
     }
 }

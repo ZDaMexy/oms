@@ -4,6 +4,7 @@
 #nullable disable
 
 using System;
+using System.Threading;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -13,7 +14,9 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Screens;
 using osu.Game.Audio;
+using osu.Game.Graphics;
 using osu.Game.Online.API;
 using osu.Game.Skinning;
 using osuTK;
@@ -31,7 +34,12 @@ namespace osu.Game.Screens.Menu
         private ISample welcome;
 
         private ISample pianoReverb;
+        private PendingAsyncDrawableOwnership<WelcomeIntroSequence> pendingIntroOwnership;
+        private CancellationTokenSource introLoadCancellation;
         protected override string SeeyaSampleName => "Intro/Welcome/seeya";
+
+        [Resolved]
+        private SkinManager skinManager { get; set; }
 
         public IntroWelcome([CanBeNull] Func<MainMenu> createNextScreen = null)
             : base(createNextScreen)
@@ -60,50 +68,142 @@ namespace osu.Game.Screens.Menu
             {
                 Track.Looping = true;
 
-                LoadComponentAsync(new WelcomeIntroSequence
+                WelcomeIntroSequence candidate = CreateWelcomeIntroSequence();
+
+                SkinRevisionParticipantRegistration initialParticipant;
+
+                try
                 {
-                    RelativeSizeAxes = Axes.Both
-                }, intro =>
+                    initialParticipant = skinManager.RegisterRevisionParticipant(
+                        SkinRevisionParticipantKind.CoherentVisualConsumer,
+                        $"{nameof(IntroWelcome)} sequence (initial load)",
+                        blocksRevisionPublication: true);
+                }
+                catch
                 {
-                    PrepareMenuLoad();
+                    candidate.Dispose();
+                    throw;
+                }
 
-                    AddInternal(intro);
+                var ownership = new PendingAsyncDrawableOwnership<WelcomeIntroSequence>(candidate, initialParticipant.Dispose);
+                var cancellation = new CancellationTokenSource();
+                pendingIntroOwnership = ownership;
+                introLoadCancellation = cancellation;
 
-                    if (skinnableWelcome != null)
-                        skinnableWelcome.Play();
-                    else
-                        welcome?.Play();
-
-                    var reverbChannel = pianoReverb?.Play();
-                    if (reverbChannel != null)
-                        intro.LogoVisualisation.AddAmplitudeSource(reverbChannel);
-
-                    if (!UsingThemedIntro)
-                        StartTrack();
-
-                    Scheduler.AddDelayed(() =>
+                try
+                {
+                    ownership.Attach(LoadComponentAsync(ownership.Loadable, loaded =>
                     {
-                        if (UsingThemedIntro)
+                        if (!ReferenceEquals(pendingIntroOwnership, ownership)
+                            || !ownership.TryTransfer(loaded, out WelcomeIntroSequence intro))
                         {
-                            StartTrack();
-                            // this classic intro loops forever.
-                            Track.Looping = true;
+                            return;
                         }
 
-                        const float fade_in_time = 200;
+                        pendingIntroOwnership = null;
+                        introLoadCancellation?.Dispose();
+                        introLoadCancellation = null;
 
-                        logo.ScaleTo(1);
-                        logo.FadeIn(fade_in_time);
+                        try
+                        {
+                            PrepareMenuLoad();
 
-                        FadeInBackground(fade_in_time);
+                            AddInternal(intro);
 
-                        LoadMenu();
-                    }, delay_step_two);
-                });
+                            if (skinnableWelcome != null)
+                                skinnableWelcome.Play();
+                            else
+                                welcome?.Play();
+
+                            var reverbChannel = pianoReverb?.Play();
+                            if (reverbChannel != null)
+                                intro.LogoVisualisation.AddAmplitudeSource(reverbChannel);
+
+                            if (!UsingThemedIntro)
+                                StartTrack();
+
+                            Scheduler.AddDelayed(() =>
+                            {
+                                if (UsingThemedIntro)
+                                {
+                                    StartTrack();
+                                    // this classic intro loops forever.
+                                    Track.Looping = true;
+                                }
+
+                                const float fade_in_time = 200;
+
+                                logo.ScaleTo(1);
+                                logo.FadeIn(fade_in_time);
+
+                                FadeInBackground(fade_in_time);
+
+                                LoadMenu();
+                            }, delay_step_two);
+                        }
+                        catch
+                        {
+                            if (intro.Parent == null)
+                                intro.Dispose();
+
+                            throw;
+                        }
+                        finally
+                        {
+                            ownership.CompleteTransfer();
+                        }
+                    }, cancellation.Token), Scheduler);
+                }
+                catch
+                {
+                    if (ReferenceEquals(pendingIntroOwnership, ownership))
+                        pendingIntroOwnership = null;
+
+                    introLoadCancellation = null;
+                    cancellation.Dispose();
+                    ownership.ReclaimUnstarted();
+                    throw;
+                }
             }
         }
 
-        private partial class WelcomeIntroSequence : Container
+        /// <summary>
+        /// Creates the visual sequence loaded before the main menu. Kept virtual so production-host tests can hold the
+        /// real sequence at its background-load boundary while exercising screen-stack suspension ownership.
+        /// </summary>
+        protected virtual WelcomeIntroSequence CreateWelcomeIntroSequence() => new WelcomeIntroSequence
+        {
+            RelativeSizeAxes = Axes.Both
+        };
+
+        public override void OnSuspending(ScreenTransitionEvent e)
+        {
+            // Once suspended, this screen's callback scheduler can no longer transfer or reclaim a completed async
+            // sequence. Cancel before base changes screen state; the exact ownership is retained for the disposal join.
+            pendingIntroOwnership?.Cancel();
+
+            CancellationTokenSource cancellation = Interlocked.Exchange(ref introLoadCancellation, null);
+            cancellation?.Cancel();
+            cancellation?.Dispose();
+
+            base.OnSuspending(e);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            PendingAsyncDrawableOwnership<WelcomeIntroSequence> ownership =
+                Interlocked.Exchange(ref pendingIntroOwnership, null);
+            ownership?.Cancel();
+
+            CancellationTokenSource cancellation = Interlocked.Exchange(ref introLoadCancellation, null);
+            cancellation?.Cancel();
+            cancellation?.Dispose();
+
+            base.Dispose(isDisposing);
+            ownership?.JoinAfterParentDisposal();
+        }
+
+        protected internal partial class WelcomeIntroSequence : Container
         {
             private Drawable welcomeText;
             private Container scaleContainer;

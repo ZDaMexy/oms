@@ -30,6 +30,16 @@ namespace osu.Game.Skinning
 
         protected ISkinSource? ParentSource { get; private set; }
 
+        private SkinRevisionParticipantRegistration? revisionParticipant;
+        private SkinManager? skinManager;
+
+        /// <summary>
+        /// The revision lifetime represented by this production consumer. Gameplay roots override this to block live
+        /// publication because their geometry is constructed once and cannot be coherently rebuilt in place.
+        /// </summary>
+        private protected virtual SkinRevisionParticipantKind RevisionParticipantKind
+            => SkinRevisionParticipantKind.CoherentVisualConsumer;
+
         /// <summary>
         /// Whether falling back to parent <see cref="ISkinSource"/>s is allowed in this container.
         /// </summary>
@@ -77,6 +87,17 @@ namespace osu.Game.Skinning
             ParentSource = dependencies.Get<ISkinSource>();
             if (ParentSource != null)
                 ParentSource.SourceChanged += TriggerSourceChanged;
+
+            skinManager = dependencies.Get<SkinManager>();
+            if (skinManager != null)
+            {
+                revisionParticipant = skinManager.RegisterRevisionParticipant(
+                    RevisionParticipantKind,
+                    GetType().Name,
+                    prepareCommit: RevisionParticipantKind == SkinRevisionParticipantKind.CoherentVisualConsumer
+                        ? PrepareCurrentRevisionAsync
+                        : null);
+            }
 
             dependencies.CacheAs<ISkinSource>(this);
 
@@ -221,12 +242,52 @@ namespace osu.Game.Skinning
         /// </summary>
         protected virtual void RefreshSources() { }
 
+        /// <summary>
+        /// Provider trees cannot be changed by a post-commit source event. A subtype may opt in only by preparing an
+        /// immutable source array and an infallible swap receipt for the complete subtree.
+        /// </summary>
+        private protected virtual System.Threading.Tasks.Task<SkinRevisionParticipantCommit?> PrepareCurrentRevisionAsync(
+            SkinCurrentRevision nextRevision,
+            System.Threading.CancellationToken cancellationToken)
+            => System.Threading.Tasks.Task.FromResult<SkinRevisionParticipantCommit?>(null);
+
         protected void TriggerSourceChanged()
         {
-            // Expose to implementations, giving them a chance to react before notifying external consumers.
-            RefreshSources();
+            // Ordinary provider trees are lifecycle holders for C2. They keep their exact source array and revision
+            // lease until natural detach; late provider instances are constructed against the committed revision.
+            if (skinManager?.IsCurrentRevisionPublicationBroadcast == true)
+                return;
 
-            SourceChanged?.Invoke();
+            bool refreshed = false;
+
+            try
+            {
+                // Expose to implementations, giving them a chance to react before notifying external consumers.
+                RefreshSources();
+                refreshed = true;
+
+                Delegate[] handlers = SourceChanged?.GetInvocationList() ?? Array.Empty<Delegate>();
+
+                foreach (Delegate handler in handlers)
+                {
+                    try
+                    {
+                        ((Action)handler)();
+                    }
+                    catch
+                    {
+                        // The manager owns path-free diagnostics. One broken descendant must not prevent the remaining
+                        // participant tree from observing an already committed revision.
+                    }
+                }
+            }
+            finally
+            {
+                // Acquire the committed revision before detaching the previous one, and only after this entire
+                // synchronous subtree has refreshed.
+                if (refreshed)
+                    revisionParticipant?.AdoptCurrentRevision();
+            }
         }
 
         protected override void Dispose(bool isDisposing)
@@ -244,6 +305,9 @@ namespace osu.Game.Skinning
                 if (i.skin is ISkinSource source)
                     source.SourceChanged -= TriggerSourceChanged;
             }
+
+            revisionParticipant?.Dispose();
+            revisionParticipant = null;
         }
 
         private class DisableableSkinSource : ISkin
