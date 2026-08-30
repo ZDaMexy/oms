@@ -5,6 +5,7 @@ using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.Skinning
 {
@@ -54,7 +55,22 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public bool IsMajorBarLine { get; }
 
-        public BmsLaneSkinLookup(BmsLaneSkinElements element, int laneIndex, int laneCount, bool isScratch, BmsKeymode keymode, bool isMajorBarLine = true)
+        public GameplaySkinLaneId? LaneId { get; }
+
+        internal BmsPlayfieldLayoutProfile? LayoutProfile { get; }
+
+        internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        public BmsLaneSkinLookup(
+            BmsLaneSkinElements element,
+            int laneIndex,
+            int laneCount,
+            bool isScratch,
+            BmsKeymode keymode,
+            bool isMajorBarLine = true,
+            GameplaySkinLaneId? laneId = null,
+            BmsPlayfieldLayoutProfile? layoutProfile = null,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null)
         {
             Element = element;
             LaneIndex = laneIndex;
@@ -62,6 +78,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             IsScratch = isScratch;
             Keymode = keymode;
             IsMajorBarLine = isMajorBarLine;
+            LaneId = laneId;
+            LayoutProfile = layoutProfile;
+            LayoutSnapshot = layoutSnapshot;
         }
 
         public override string ToString() => $"[{nameof(BmsLaneSkinLookup)} element:{Element} lane:{LaneIndex}/{LaneCount} scratch:{IsScratch} keymode:{Keymode} major:{IsMajorBarLine}]";
@@ -85,12 +104,20 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public BmsKeymode Keymode { get; }
 
-        public BmsNoteSkinLookup(BmsNoteSkinElements element, int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
+        public GameplaySkinLaneId? LaneId { get; }
+
+        public BmsNoteSkinLookup(
+            BmsNoteSkinElements element,
+            int laneIndex,
+            bool isScratch,
+            BmsKeymode keymode,
+            GameplaySkinLaneId? laneId = null)
         {
             Element = element;
             LaneIndex = laneIndex;
             IsScratch = isScratch;
             Keymode = keymode;
+            LaneId = laneId;
         }
 
         public override string ToString() => $"[{nameof(BmsNoteSkinLookup)} element:{Element} lane:{LaneIndex} scratch:{IsScratch} keymode:{Keymode}]";

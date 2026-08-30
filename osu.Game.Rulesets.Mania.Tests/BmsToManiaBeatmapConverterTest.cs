@@ -6,10 +6,9 @@ using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Mania.Beatmaps;
@@ -41,7 +40,7 @@ namespace osu.Game.Rulesets.Mania.Tests
 #00115:CC00
 ";
 
-            var convertedBeatmap = convertToMania(text, "fivekey.bms");
+            var convertedBeatmap = convertToMania(text, "fivekey.bms", keymodeOverride: BmsKeymode.Key5K);
             var key1 = convertedBeatmap.HitObjects.OfType<Note>().Single(note => getSampleFilename(note) == "key1.wav");
             var key5 = convertedBeatmap.HitObjects.OfType<Note>().Single(note => getSampleFilename(note) == "key5.wav");
             var scratch = convertedBeatmap.HitObjects.OfType<BmsConvertedScratchSampleHitObject>().Single();
@@ -320,7 +319,7 @@ namespace osu.Game.Rulesets.Mania.Tests
 #00201:ZZZZZZZZZZZZZZZZ
 ";
 
-            var convertedBeatmap = convertToMania(text, "bgm-difficulty.bms");
+            var convertedBeatmap = convertToMania(text, "bgm-difficulty.bms", keymodeOverride: BmsKeymode.Key5K);
             var scorableBeatmap = createScorableBeatmap(convertedBeatmap);
 
             Assert.That(convertedBeatmap.HitObjects.OfType<BmsConvertedBgmSampleHitObject>().Any(), Is.True);
@@ -515,7 +514,7 @@ namespace osu.Game.Rulesets.Mania.Tests
 #00101:BB00CC00
 ";
 
-            var convertedBeatmap = convertToMania(text, "bgm.bms");
+            var convertedBeatmap = convertToMania(text, "bgm.bms", keymodeOverride: BmsKeymode.Key5K);
             var notes = convertedBeatmap.HitObjects.OfType<Note>().ToArray();
             var bgmSamples = convertedBeatmap.HitObjects.OfType<BmsConvertedBgmSampleHitObject>().OrderBy(hitObject => hitObject.StartTime).ToArray();
 
@@ -568,9 +567,16 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
         }
 
-        private ManiaBeatmap convertToMania(string text, string filename, Action<BmsDecodedBeatmap>? mutateSource = null)
+        private ManiaBeatmap convertToMania(
+            string text,
+            string filename,
+            Action<BmsDecodedBeatmap>? mutateSource = null,
+            BmsKeymode? keymodeOverride = null)
         {
-            var decodedChart = decoder.DecodeText(text, filename);
+            BmsBeatmapDecoderOptions? options = keymodeOverride.HasValue
+                ? new BmsBeatmapDecoderOptions(keymodeOverride.Value)
+                : null;
+            var decodedChart = decoder.DecodeText(text, filename, options);
             var sourceBeatmap = new BmsDecodedBeatmap(decodedChart);
 
             mutateSource?.Invoke(sourceBeatmap);

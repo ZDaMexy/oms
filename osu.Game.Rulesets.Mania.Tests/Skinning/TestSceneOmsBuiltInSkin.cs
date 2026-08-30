@@ -43,6 +43,7 @@ using osu.Game.Screens.Play.HUD.ClicksPerSecond;
 using osu.Game.Screens.Play.HUD.HitErrorMeters;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Components;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Beatmaps;
 using osu.Game.Tests.Visual;
 using osuTK;
@@ -54,6 +55,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
     [HeadlessTest]
     public partial class TestSceneOmsBuiltInSkin : OsuTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         [Cached(Type = typeof(IScrollingInfo))]
         private readonly TestScrollingInfo scrollingInfo = new TestScrollingInfo();
 
@@ -665,7 +669,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     RelativeSizeAxes = Axes.Both,
                     Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
                     {
-                        Child = judgement,
+                        Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 5, useSkinGeometry: true)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Child = judgement,
+                        },
                     },
                 });
             });
@@ -750,7 +758,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 foreach (var drawable in hudComponents.Children.Where(drawable => drawable is not OmsManiaComboCounter && drawable is not LegacyManiaComboCounter).ToArray())
                     hudComponents.Remove(drawable, false);
 
-                provider.Child = hudComponents;
+                provider.Child = new CompatibilityLayoutHost
+                {
+                    Child = hudComponents,
+                };
             });
 
             AddUntilStep("OMS combo counter loaded through legacy partial override", () => this.ChildrenOfType<OmsManiaComboCounter>().Any(drawable => drawable.IsLoaded));
@@ -778,12 +789,16 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     RelativeSizeAxes = Axes.Both,
                     Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
                     {
-                        Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                        Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 5, useSkinGeometry: true)
                         {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
                             RelativeSizeAxes = Axes.X,
-                            Width = 1f,
+                            Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                            {
+                                Anchor = Anchor.Centre,
+                                Origin = Anchor.Centre,
+                                RelativeSizeAxes = Axes.X,
+                                Width = 1f,
+                            },
                         },
                     },
                 });
@@ -1032,12 +1047,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         AutoSizeAxes = Axes.Both,
                         Children = new Drawable[]
                         {
-                            firstColumnHost = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 7)
+                            firstColumnHost = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 7, layoutStageColumns: new[] { 7, 6 })
                             {
                                 Width = 80,
                                 Height = 200,
                             },
-                            secondColumnHost = new ColumnTestContainer(7, ManiaAction.Key1, stageColumns: 6)
+                            secondColumnHost = new ColumnTestContainer(7, ManiaAction.Key1, stageColumns: 6, layoutStageColumns: new[] { 7, 6 }, layoutStageIndex: 1)
                             {
                                 Width = 80,
                                 Height = 200,
@@ -1483,7 +1498,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(5))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = judgement,
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 5, useSkinGeometry: true)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = judgement,
+                    },
                 });
             });
 
@@ -1501,12 +1520,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(9))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 9, useSkinGeometry: true)
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        RelativeSizeAxes = Axes.X,
-                        Width = 1f,
+                        Child = new DrawableBarLine(new BarLine { StartTime = Time.Current })
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.X,
+                            Width = 1f,
+                        },
                     },
                 });
             });
@@ -1563,7 +1585,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(5, 5))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = judgement,
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 5, layoutStageColumns: new[] { 5, 5 }, useSkinGeometry: true)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = judgement,
+                    },
                 });
             });
 
@@ -1578,8 +1604,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 return true;
             });
 
-            AddAssert("dual-stage judgement keeps OMS anchor", () => judgementPiece.Anchor == Anchor.BottomCentre);
-            AddAssert("dual-stage judgement reuses OMS score position", () => Math.Abs(judgementPiece.Y + 107.2f) < 0.01f);
+            AddAssert("dual-stage judgement uses exact snapshot placement", () => judgementUsesExactSnapshotPlacement(judgementPiece));
             AddStep("clear dual-stage judgement host", () => host.Expire());
         }
 
@@ -1605,7 +1630,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(7, 6))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = judgement,
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 7, layoutStageColumns: new[] { 7, 6 }, useSkinGeometry: true)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = judgement,
+                    },
                 });
             });
 
@@ -1620,8 +1649,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 return true;
             });
 
-            AddAssert("mixed-stage judgement uses first-stage OMS anchor", () => judgementPiece.Anchor == Anchor.TopCentre);
-            AddAssert("mixed-stage judgement uses first-stage OMS score position", () => Math.Abs(judgementPiece.Y - 160f) < 0.01f);
+            AddAssert("mixed-stage judgement uses exact first-stage snapshot placement", () => judgementUsesExactSnapshotPlacement(judgementPiece));
             AddStep("clear mixed-stage judgement host", () => host.Expire());
         }
 
@@ -1669,11 +1697,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         {
             Drawable host = null!;
             OmsManiaComboCounter comboCounter = null!;
+            ManiaGameplayHudComponentsContainer hudComponents = null!;
 
             AddStep("load dual-stage OMS HUD combo", () =>
             {
                 var transformedSkin = createTransformedSkin(5, 5);
-                var hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+                hudComponents = (ManiaGameplayHudComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
 
                 comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
 
@@ -1687,8 +1716,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
             });
 
-            AddUntilStep("dual-stage combo counter positioned", () => comboCounter.IsLoaded && Math.Abs(comboCounter.Y - 136f) < 0.01f);
-            AddAssert("dual-stage combo counter keeps top anchor", () => comboCounter.Anchor == Anchor.TopCentre);
+            AddUntilStep("dual-stage combo counter positioned", () => comboCounter.IsLoaded && hudComponents.IsLoaded);
+            AddAssert("dual-stage combo uses exact compatibility surface", () =>
+            {
+                GameplaySkinLayoutRect surface = hudComponents.LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
+                return hudComponents.LayoutSnapshot.Context.NativeContextId == "stages-5-5"
+                       && comboCounter.RelativePositionAxes == Axes.Both
+                       && Math.Abs(comboCounter.X - (surface.Left + surface.Width / 2)) < 0.001f
+                       && Math.Abs(comboCounter.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+            });
             AddStep("clear dual-stage HUD combo host", () => host.Expire());
         }
 
@@ -1697,11 +1733,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         {
             Drawable host = null!;
             OmsManiaComboCounter comboCounter = null!;
+            ManiaGameplayHudComponentsContainer hudComponents = null!;
 
             AddStep("load mixed-stage OMS HUD combo", () =>
             {
                 var transformedSkin = createTransformedSkin(7, 6);
-                var hudComponents = (DefaultSkinComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
+                hudComponents = (ManiaGameplayHudComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
 
                 comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
 
@@ -1715,8 +1752,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
             });
 
-            AddUntilStep("mixed-stage combo counter positioned", () => comboCounter.IsLoaded && Math.Abs(comboCounter.Y - 144f) < 0.01f);
-            AddAssert("mixed-stage combo counter keeps top anchor", () => comboCounter.Anchor == Anchor.TopCentre);
+            AddUntilStep("mixed-stage combo counter positioned", () => comboCounter.IsLoaded && hudComponents.IsLoaded);
+            AddAssert("mixed-stage combo uses exact compatibility surface", () =>
+            {
+                GameplaySkinLayoutRect surface = hudComponents.LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
+                return hudComponents.LayoutSnapshot.Context.NativeContextId == "stages-7-6"
+                       && comboCounter.RelativePositionAxes == Axes.Both
+                       && Math.Abs(comboCounter.X - (surface.Left + surface.Width / 2)) < 0.001f
+                       && Math.Abs(comboCounter.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+            });
             AddStep("clear mixed-stage HUD combo host", () => host.Expire());
         }
 
@@ -1772,12 +1816,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(9, 9))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current, Major = true })
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 9, layoutStageColumns: new[] { 9, 9 }, useSkinGeometry: true)
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        RelativeSizeAxes = Axes.X,
-                        Width = 1f,
+                        Child = new DrawableBarLine(new BarLine { StartTime = Time.Current, Major = true })
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.X,
+                            Width = 1f,
+                        },
                     },
                 });
             });
@@ -1808,12 +1855,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(9, 8))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new DrawableBarLine(new BarLine { StartTime = Time.Current, Major = true })
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 9, layoutStageColumns: new[] { 9, 8 }, useSkinGeometry: true)
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        RelativeSizeAxes = Axes.X,
-                        Width = 1f,
+                        Child = new DrawableBarLine(new BarLine { StartTime = Time.Current, Major = true })
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.X,
+                            Width = 1f,
+                        },
                     },
                 });
             });
@@ -1847,12 +1897,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(9))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new DrawableBarLine(barLineObject)
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 9, useSkinGeometry: true)
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        RelativeSizeAxes = Axes.X,
-                        Width = 1f,
+                        Child = new DrawableBarLine(barLineObject)
+                        {
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.X,
+                            Width = 1f,
+                        },
                     },
                 });
             });
@@ -2180,16 +2233,16 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(5))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new ScrollingTestContainer(ScrollingDirection.Down)
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 5, useSkinGeometry: true)
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        RelativeSizeAxes = Axes.Y,
-                        AutoSizeAxes = Axes.X,
-                        TimeRange = 2000,
-                        Child = new ManiaInputManager(new ManiaRuleset().RulesetInfo, 5)
+                        RelativeSizeAxes = Axes.Both,
+                        Child = new ScrollingTestContainer(ScrollingDirection.Down)
                         {
-                            RelativeSizeAxes = Axes.Both,
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.Y,
+                            AutoSizeAxes = Axes.X,
+                            TimeRange = 2000,
                             Child = stage,
                         },
                     },
@@ -2197,15 +2250,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
 
             AddUntilStep("stage loaded", () => stage.IsLoaded && stage.Columns.All(column => column.IsLoaded));
-            AddAssert("stage columns use OMS widths", () =>
-            {
-                float[] expectedWidths = scaleLegacyWidths(46f, 40f, 46f, 40f, 46f);
-
-                return stage.Columns.Select(column => column.DrawWidth)
-                            .Zip(expectedWidths, (actualWidth, expectedWidth) => Math.Abs(actualWidth - expectedWidth) < 0.01f)
-                            .All(matches => matches);
-            });
-            AddAssert("stage hit position uses OMS preset", () => Math.Abs(stage.Columns[0].HitObjectArea.Padding.Bottom - 140.8f) < 0.01f);
+            AddAssert("stage columns project exact OMS snapshot widths", () => stageColumnsMatchSnapshot(stage));
+            AddAssert("stage hit target projects exact OMS snapshot", () => stageHitTargetMatchesSnapshot(stage));
             AddStep("clear stage host", () => host.Expire());
         }
 
@@ -2238,16 +2284,16 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(host = new SkinProvidingContainer(createTransformedSkin(5, 5))
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new ScrollingTestContainer(ScrollingDirection.Down)
+                    Child = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 5, layoutStageColumns: new[] { 5, 5 }, useSkinGeometry: true)
                     {
-                        Anchor = Anchor.Centre,
-                        Origin = Anchor.Centre,
-                        RelativeSizeAxes = Axes.Y,
-                        AutoSizeAxes = Axes.X,
-                        TimeRange = 2000,
-                        Child = new ManiaInputManager(new ManiaRuleset().RulesetInfo, 10)
+                        RelativeSizeAxes = Axes.Both,
+                        Child = new ScrollingTestContainer(ScrollingDirection.Down)
                         {
-                            RelativeSizeAxes = Axes.Both,
+                            Anchor = Anchor.Centre,
+                            Origin = Anchor.Centre,
+                            RelativeSizeAxes = Axes.Y,
+                            AutoSizeAxes = Axes.X,
+                            TimeRange = 2000,
                             Child = new FillFlowContainer
                             {
                                 Direction = FillDirection.Horizontal,
@@ -2258,26 +2304,50 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                     firstStage,
                                     secondStage,
                                 },
-                            },
+                            }
                         },
                     },
                 });
             });
 
             AddUntilStep("second stage loaded", () => secondStage.IsLoaded && secondStage.Columns.All(column => column.IsLoaded));
-            AddAssert("second stage uses repeated OMS widths", () =>
-            {
-                float[] expectedWidths = scaleLegacyWidths(46f, 40f, 46f, 40f, 46f);
-
-                return secondStage.Columns.Select(column => column.DrawWidth)
-                                  .Zip(expectedWidths, (actualWidth, expectedWidth) => Math.Abs(actualWidth - expectedWidth) < 0.01f)
-                                  .All(matches => matches);
-            });
+            AddAssert("second stage projects repeated exact OMS snapshot widths", () => stageColumnsMatchSnapshot(secondStage));
             AddStep("clear dual stage host", () => host.Expire());
         }
 
         private static float scaleLegacyDimension(float value)
             => value * LegacyManiaSkinConfiguration.POSITION_SCALE_FACTOR;
+
+        private static bool judgementUsesExactSnapshotPlacement(OmsManiaJudgementPiece judgementPiece)
+        {
+            GameplaySkinLayoutSnapshot snapshot = judgementPiece.LayoutSnapshot;
+            GameplaySkinLayoutRect group = snapshot.GroupsInLogicalOrder[0].Rect;
+            GameplaySkinLayoutRect judgement = snapshot.GetSurface(ManiaGameplaySkinLayout.JUDGEMENT_SURFACE).Rect;
+            float expectedY = (judgement.Top + judgement.Height / 2 - group.Top) / group.Height;
+            return judgementPiece.Anchor == Anchor.TopLeft
+                   && judgementPiece.Origin == Anchor.Centre
+                   && Math.Abs(judgementPiece.X - 0.5f) < 0.001f
+                   && Math.Abs(judgementPiece.Y - expectedY) < 0.001f;
+        }
+
+        private static bool stageColumnsMatchSnapshot(Stage stage)
+        {
+            GameplaySkinLayoutGroup group = stage.LayoutSnapshot.GetGroup(stage.LayoutGroupId);
+            return group.TopologyGroup.LanesInLogicalOrder.All(lane =>
+            {
+                float expectedWidth = stage.LayoutSnapshot.GetLane(lane.Identity.Id).Rect.Width / group.Rect.Width;
+                float actualWidth = stage.Columns[lane.GroupLocalLogicalIndex].DrawWidth / stage.DrawWidth;
+                return Math.Abs(actualWidth - expectedWidth) < 0.001f;
+            });
+        }
+
+        private static bool stageHitTargetMatchesSnapshot(Stage stage)
+        {
+            GameplaySkinLayoutGroup group = stage.LayoutSnapshot.GetGroup(stage.LayoutGroupId);
+            float expectedInset = ManiaGameplaySkinLayoutProjection.GetHitTargetInsetFraction(
+                new ManiaGameplaySkinStageContext(stage.LayoutSnapshot, group.TopologyGroup)) * stage.DrawHeight;
+            return Math.Abs(stage.Columns[0].HitObjectArea.Padding.Bottom - expectedInset) < 0.01f;
+        }
 
         private static float[] scaleLegacyWidths(params float[] widths)
             => widths.Select(scaleLegacyDimension).ToArray();
@@ -2482,6 +2552,21 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             protected override void CheckForResult(bool userTriggered, double timeOffset)
             {
+            }
+        }
+
+        /// <summary>
+        /// Explicitly marks component-only test trees which do not mount a gameplay renderer as compatibility layout
+        /// consumers. A managed ruleset provider without gameplay intent still carries an exact package lease, but it
+        /// deliberately has no exact gameplay layout publication for HUD components to consume.
+        /// </summary>
+        private partial class CompatibilityLayoutHost : Container
+        {
+            protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+            {
+                var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+                dependencies.Cache(GameplaySkinLayoutRevisionOwner.CreateCompatibility());
+                return dependencies;
             }
         }
 

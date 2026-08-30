@@ -13,8 +13,8 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -47,6 +47,11 @@ namespace osu.Game.Rulesets.Bms.UI
         void NotifyMiss();
     }
 
+    public interface IBmsBgaPanelLayoutDisplay
+    {
+        void InitialiseLayoutSnapshot(BmsGameplayLayoutSnapshot snapshot);
+    }
+
     /// <summary>
     /// Skinnable floating BGA panel (P1-L Phase 5). Mounted in <c>DrawableBmsRuleset.Overlays</c> (above the playfield,
     /// never occluded by lanes). The default implementation plays the BGA timeline through a <see cref="BmsBgaPlayer"/>
@@ -57,13 +62,17 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private readonly IReadOnlyList<BmsBgaTimelineEntry> timeline;
         private readonly BmsPoorBgaMode poorMode;
+        private readonly BmsGameplayLayoutProvider layoutProvider;
         private BmsBgaPlacement placement = BmsBgaPlacement.TopRight;
 
-        public BmsBgaPanel(IReadOnlyList<BmsBgaTimelineEntry> timeline, BmsPoorBgaMode poorMode)
-            : base(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel), _ => new DefaultBmsBgaPanelDisplay())
+        public BmsGameplayLayoutSnapshot LayoutSnapshot => layoutProvider.Current;
+
+        public BmsBgaPanel(IReadOnlyList<BmsBgaTimelineEntry> timeline, BmsPoorBgaMode poorMode, BmsGameplayLayoutProvider layoutProvider)
+            : base(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel), _ => new DefaultBmsBgaPanelDisplay(layoutProvider))
         {
             this.timeline = timeline;
             this.poorMode = poorMode;
+            this.layoutProvider = layoutProvider ?? throw new ArgumentNullException(nameof(layoutProvider));
 
             RelativeSizeAxes = Axes.Both;
             CentreComponent = false;
@@ -75,6 +84,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (Drawable is IBmsBgaPanelDisplay display)
             {
+                if (Drawable is not IBmsBgaPanelLayoutDisplay layoutDisplay)
+                    throw new InvalidOperationException("bms.layout.bga-display-missing-snapshot-carrier");
+
+                layoutDisplay.InitialiseLayoutSnapshot(layoutProvider.Current);
                 display.SetBgaSource(timeline, poorMode);
                 display.SetLayout(placement);
             }
@@ -109,14 +122,8 @@ namespace osu.Game.Rulesets.Bms.UI
         }
     }
 
-    public partial class DefaultBmsBgaPanelDisplay : CompositeDrawable, IBmsBgaPanelDisplay
+    public partial class DefaultBmsBgaPanelDisplay : CompositeDrawable, IBmsBgaPanelDisplay, IBmsBgaPanelLayoutDisplay
     {
-        // 14K (double play) mirrors the BGA into all four corners; everything else uses a single corner.
-        private static readonly BmsBgaPlacement[] all_corners =
-        {
-            BmsBgaPlacement.TopLeft, BmsBgaPlacement.TopRight, BmsBgaPlacement.BottomLeft, BmsBgaPlacement.BottomRight,
-        };
-
         private Container framesContainer = null!;
         private readonly List<BmsBgaPlayer> players = new List<BmsBgaPlayer>();
 
@@ -124,24 +131,28 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsPoorBgaMode poorMode = BmsPoorBgaMode.Default;
         private BmsBgaPlacement placement = BmsBgaPlacement.TopRight;
         private bool loaded;
-        private bool is14K;
+        private readonly BmsGameplayLayoutProvider? layoutProvider;
 
-        [Resolved(CanBeNull = true)]
-        private GameplayState? gameplayState { get; set; }
+        internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
 
         [Resolved(CanBeNull = true)]
         private IBindable<WorkingBeatmap>? workingBeatmap { get; set; }
 
-        public DefaultBmsBgaPanelDisplay()
+        public DefaultBmsBgaPanelDisplay(BmsGameplayLayoutProvider? layoutProvider = null)
         {
+            this.layoutProvider = layoutProvider;
             RelativeSizeAxes = Axes.Both;
         }
 
         [BackgroundDependencyLoader]
         private void load()
         {
-            // Resolve the keymode from the (reliable) playable beatmap so 14K renders the four-corner compact layout.
-            is14K = gameplayState != null && BmsLaneLayout.CreateFor(gameplayState.Beatmap).Keymode == BmsKeymode.Key14K;
+            BmsGameplayLayoutSnapshot? resolvedSnapshot = layoutProvider?.Current;
+
+            if (LayoutSnapshot != null && resolvedSnapshot != null && !ReferenceEquals(LayoutSnapshot, resolvedSnapshot))
+                throw new InvalidOperationException("A BMS BGA display cannot change its immutable layout snapshot.");
+
+            LayoutSnapshot ??= resolvedSnapshot;
 
             InternalChild = framesContainer = new Container { RelativeSizeAxes = Axes.Both };
 
@@ -161,6 +172,16 @@ namespace osu.Game.Rulesets.Bms.UI
         public void SetLayout(BmsBgaPlacement newPlacement)
         {
             placement = newPlacement;
+        }
+
+        public void InitialiseLayoutSnapshot(BmsGameplayLayoutSnapshot snapshot)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+
+            if (LayoutSnapshot != null && !ReferenceEquals(LayoutSnapshot, snapshot))
+                throw new InvalidOperationException("A BMS BGA display cannot change its immutable layout snapshot.");
+
+            LayoutSnapshot = snapshot;
 
             if (loaded)
                 rebuild();
@@ -177,14 +198,16 @@ namespace osu.Game.Rulesets.Bms.UI
             framesContainer.Clear();
             players.Clear();
 
-            var background = timeline.Count == 0 ? workingBeatmap?.Value?.GetBackground() : null;
-            var placements = is14K ? all_corners : new[] { placement };
+            if (LayoutSnapshot == null)
+                return;
 
-            foreach (var framePlacement in placements)
-                framesContainer.Add(createFrame(framePlacement, background));
+            var background = timeline.Count == 0 ? workingBeatmap?.Value?.GetBackground() : null;
+
+            foreach (GameplaySkinLayoutRect viewport in LayoutSnapshot.BgaViewports)
+                framesContainer.Add(createFrame(viewport, background));
         }
 
-        private Container createFrame(BmsBgaPlacement framePlacement, Texture? background)
+        private Container createFrame(GameplaySkinLayoutRect viewport, Texture? background)
         {
             var content = new Container { RelativeSizeAxes = Axes.Both };
             bool hasContent = false;
@@ -209,16 +232,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 hasContent = true;
             }
 
-            (Anchor anchor, osuTK.Vector2 position, osuTK.Vector2 size) = resolveLayout(framePlacement);
-
             return new Container
             {
-                Anchor = anchor,
-                Origin = anchor,
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
                 RelativePositionAxes = Axes.Both,
                 RelativeSizeAxes = Axes.Both,
-                Size = size,
-                Position = position,
+                Size = new osuTK.Vector2(viewport.Width, viewport.Height),
+                Position = new osuTK.Vector2(viewport.X, viewport.Y),
                 Masking = true,
                 CornerRadius = 6,
                 BorderThickness = 2,
@@ -232,30 +253,5 @@ namespace osu.Game.Rulesets.Bms.UI
             };
         }
 
-        private (Anchor anchor, osuTK.Vector2 position, osuTK.Vector2 size) resolveLayout(BmsBgaPlacement framePlacement)
-        {
-            if (framePlacement == BmsBgaPlacement.Center)
-                return (Anchor.TopCentre, new osuTK.Vector2(0, top_inset), center_size);
-
-            // 14K corners use the smallest size so all four fit the narrow double-play side margins without covering lanes.
-            var size = is14K ? corner_14k_size : side_size;
-
-            return framePlacement switch
-            {
-                BmsBgaPlacement.TopLeft => (Anchor.TopLeft, new osuTK.Vector2(side_inset, top_inset), size),
-                BmsBgaPlacement.BottomLeft => (Anchor.BottomLeft, new osuTK.Vector2(side_inset, -bottom_inset), size),
-                BmsBgaPlacement.BottomRight => (Anchor.BottomRight, new osuTK.Vector2(-side_inset, -bottom_inset), size),
-                _ => (Anchor.TopRight, new osuTK.Vector2(-side_inset, top_inset), size),
-            };
-        }
-
-        // Relative (to the full overlay) default box geometry; skins may override entirely. 5/7/9K use one side corner;
-        // 14K mirrors a compact BGA into all four corners (small enough to fit the narrow double-play side margins).
-        private static readonly osuTK.Vector2 side_size = new osuTK.Vector2(0.225f, 0.30f);
-        private static readonly osuTK.Vector2 center_size = new osuTK.Vector2(0.15f, 0.225f);
-        private static readonly osuTK.Vector2 corner_14k_size = new osuTK.Vector2(0.13f, 0.16f);
-        private const float side_inset = 0.012f;
-        private const float top_inset = 0.04f;
-        private const float bottom_inset = 0.06f;
     }
 }

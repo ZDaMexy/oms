@@ -64,18 +64,13 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var ruleset = new BmsRuleset();
             var transformer = ruleset.CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
-            var drawable = transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo));
-            var skinnableChildren = ((Container)drawable!).Children.OfType<Drawable>().ToArray();
-            var gaugeBars = skinnableChildren.OfType<BmsGaugeBar>().ToArray();
-            var comboCounters = skinnableChildren.OfType<ComboCounter>().ToArray();
+            var drawable = (BmsHudLayoutSnapshotCarrier)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(drawable, Is.TypeOf<DefaultBmsHudLayoutDisplay>());
-                Assert.That(skinnableChildren.Length, Is.GreaterThanOrEqualTo(2));
-                Assert.That(gaugeBars, Has.Length.EqualTo(1));
-                Assert.That(comboCounters, Has.Length.EqualTo(1));
-                Assert.That(comboCounters.Single(), Is.TypeOf<BmsComboCounter>());
+                Assert.That(drawable.Display, Is.TypeOf<DefaultBmsHudLayoutDisplay>());
+                Assert.That(drawable.GaugeBar, Is.TypeOf<BmsGaugeBar>());
+                Assert.That(drawable.ComboCounter, Is.TypeOf<BmsComboCounter>());
             });
         }
 
@@ -85,16 +80,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             var ruleset = new BmsRuleset();
             var skin = new TestSkin(rulesetHudComponent: new Container());
             var transformer = ruleset.CreateSkinTransformer(skin, new BmsBeatmap());
-            var drawable = (Container)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
-            var gaugeBars = drawable.Children.OfType<BmsGaugeBar>().ToArray();
-            var comboCounters = drawable.Children.OfType<ComboCounter>().ToArray();
+            var carrier = (BmsHudLayoutSnapshotCarrier)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(drawable.Children, Has.Some.SameAs(skin.RulesetHudComponent));
-                Assert.That(gaugeBars, Has.Length.EqualTo(1));
-                Assert.That(comboCounters, Has.Length.EqualTo(1));
-                Assert.That(comboCounters.Single(), Is.TypeOf<BmsComboCounter>());
+                Assert.That(carrier.WrappedHud, Is.SameAs(skin.RulesetHudComponent));
+                Assert.That(carrier.GaugeBar, Is.TypeOf<BmsGaugeBar>());
+                Assert.That(carrier.ComboCounter, Is.TypeOf<BmsComboCounter>());
             });
         }
 
@@ -112,7 +104,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 }
             };
             var transformer = ruleset.CreateSkinTransformer(new TestSkin(rulesetHudComponent: wrappedHud), new BmsBeatmap());
-            var drawable = (Container)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
+            var carrier = (BmsHudLayoutSnapshotCarrier)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
 
             Assert.Multiple(() =>
             {
@@ -121,7 +113,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(wrappedHud.Children.OfType<LegacyDefaultComboCounter>(), Is.Empty);
                 Assert.That(wrappedHud.Children.OfType<DrawableGameplayLeaderboard>(), Is.Empty);
                 // The BMS combo stays in the assembled HUD.
-                Assert.That(drawable.Children.OfType<BmsComboCounter>().Count(), Is.EqualTo(1));
+                Assert.That(carrier.ComboCounter, Is.TypeOf<BmsComboCounter>());
             });
         }
 
@@ -175,15 +167,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             var ruleset = new BmsRuleset();
             var skin = new TestSkin(hudLayoutComponent: new TestHudLayoutDisplay());
             var transformer = ruleset.CreateSkinTransformer(skin, new BmsBeatmap());
-            var drawable = (Container)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
-            var gaugeBars = drawable.Children.OfType<BmsGaugeBar>().ToArray();
-            var comboCounters = drawable.Children.OfType<ComboCounter>().ToArray();
+            var carrier = (BmsHudLayoutSnapshotCarrier)transformer!.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(drawable, Is.SameAs(skin.HudLayoutComponent));
-                Assert.That(gaugeBars, Has.Length.EqualTo(1));
-                Assert.That(comboCounters, Has.Length.EqualTo(1));
+                Assert.That(carrier.Display, Is.SameAs(skin.HudLayoutComponent));
+                Assert.That(carrier.GaugeBar, Is.TypeOf<BmsGaugeBar>());
+                Assert.That(carrier.ComboCounter, Is.TypeOf<BmsComboCounter>());
             });
         }
 
@@ -193,6 +183,18 @@ namespace osu.Game.Rulesets.Bms.Tests
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
             Assert.That(transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel)), Is.AssignableTo<IBmsBgaPanelDisplay>());
+        }
+
+        [Test]
+        public void TestCustomBgaWithoutLayoutCarrierFailsClosed()
+        {
+            var transformer = new BmsRuleset().CreateSkinTransformer(
+                new TestSkin(bgaPanelComponent: new TestBgaDisplayWithoutLayoutCarrier()),
+                new BmsBeatmap());
+
+            Assert.That(
+                () => transformer!.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel)),
+                Throws.InvalidOperationException.With.Message.EqualTo("bms.layout.bga-display-missing-snapshot-carrier"));
         }
 
         [Test]
@@ -611,7 +613,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var noteComponent = new Container();
             var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(noteComponent: noteComponent), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false)), Is.SameAs(noteComponent));
+            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false, BmsKeymode.Key7K)), Is.SameAs(noteComponent));
         }
 
         [Test]
@@ -620,7 +622,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var noteComponent = new Container();
             var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(noteComponent: noteComponent), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, false)), Is.SameAs(noteComponent));
+            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, 0, false, BmsKeymode.Key7K)), Is.SameAs(noteComponent));
         }
 
         [Test]
@@ -629,7 +631,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var noteComponent = new Container();
             var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(noteComponent: noteComponent), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, false)), Is.SameAs(noteComponent));
+            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, 0, false, BmsKeymode.Key7K)), Is.SameAs(noteComponent));
         }
 
         [Test]
@@ -637,15 +639,15 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(new TestSkin(), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false)), Is.Null);
+            Assert.That(transformer!.GetDrawableComponent(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, 0, false, BmsKeymode.Key7K)), Is.Null);
         }
 
         [Test]
-        public void TestHitTargetFallsBackToDefaultDisplay()
+        public void TestDetachedHitTargetWithoutExactProfileStaysInert()
         {
             var transformer = new BmsRuleset().CreateSkinTransformer(createOmsSkin(), new BmsBeatmap());
 
-            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.HitTarget, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<DefaultBmsHitTargetDisplay>());
+            Assert.That(transformer!.GetDrawableComponent(new BmsLaneSkinLookup(BmsLaneSkinElements.HitTarget, 0, 8, false, BmsKeymode.Key7K)), Is.TypeOf<Box>());
         }
 
         [Test]
@@ -895,8 +897,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             public readonly Drawable? NoteComponent;
             public readonly Drawable? LaneCoverComponent;
             public readonly Drawable? StaticBackgroundComponent;
+            public readonly Drawable? BgaPanelComponent;
 
-            public TestSkin(Drawable? rulesetHudComponent = null, Drawable? hudLayoutComponent = null, Drawable? gaugeBarComponent = null, Drawable? comboCounterComponent = null, Drawable? clearLampComponent = null, Drawable? gaugeHistoryPanelComponent = null, Drawable? gaugeHistoryComponent = null, Drawable? resultsSummaryPanelComponent = null, Drawable? resultsSummaryComponent = null, Drawable? noteDistributionComponent = null, Drawable? noteDistributionPanelComponent = null, Drawable? playfieldBackdropComponent = null, Drawable? playfieldBaseplateComponent = null, Drawable? laneBackgroundComponent = null, Drawable? laneDividerComponent = null, Drawable? judgementComponent = null, Drawable? noteComponent = null, Drawable? laneCoverComponent = null, Drawable? staticBackgroundComponent = null)
+            public TestSkin(Drawable? rulesetHudComponent = null, Drawable? hudLayoutComponent = null, Drawable? gaugeBarComponent = null, Drawable? comboCounterComponent = null, Drawable? clearLampComponent = null, Drawable? gaugeHistoryPanelComponent = null, Drawable? gaugeHistoryComponent = null, Drawable? resultsSummaryPanelComponent = null, Drawable? resultsSummaryComponent = null, Drawable? noteDistributionComponent = null, Drawable? noteDistributionPanelComponent = null, Drawable? playfieldBackdropComponent = null, Drawable? playfieldBaseplateComponent = null, Drawable? laneBackgroundComponent = null, Drawable? laneDividerComponent = null, Drawable? judgementComponent = null, Drawable? noteComponent = null, Drawable? laneCoverComponent = null, Drawable? staticBackgroundComponent = null, Drawable? bgaPanelComponent = null)
             {
                 RulesetHudComponent = rulesetHudComponent;
                 HudLayoutComponent = hudLayoutComponent;
@@ -917,6 +920,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 NoteComponent = noteComponent;
                 LaneCoverComponent = laneCoverComponent;
                 StaticBackgroundComponent = staticBackgroundComponent;
+                BgaPanelComponent = bgaPanelComponent;
             }
 
             public Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -943,6 +947,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     BmsSkinComponentLookup { Component: BmsSkinComponents.NoteDistributionPanel } => NoteDistributionPanelComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.NoteDistribution } => NoteDistributionComponent,
                     BmsSkinComponentLookup { Component: BmsSkinComponents.StaticBackgroundLayer } => StaticBackgroundComponent,
+                    BmsSkinComponentLookup { Component: BmsSkinComponents.BgaPanel } => BgaPanelComponent,
                     _ => null,
                 };
 
@@ -965,6 +970,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private sealed partial class TestHudLayoutDisplay : Container, IBmsHudLayoutDisplay
         {
+            public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
+
             public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
             {
                 Clear();
@@ -974,6 +981,24 @@ namespace osu.Game.Rulesets.Bms.Tests
 
                 Add(gaugeBar);
                 Add(comboCounter);
+            }
+
+            public void InitialiseLayoutSnapshot(BmsGameplayLayoutSnapshot snapshot)
+                => LayoutSnapshot = snapshot;
+        }
+
+        private sealed partial class TestBgaDisplayWithoutLayoutCarrier : CompositeDrawable, IBmsBgaPanelDisplay
+        {
+            public void SetBgaSource(System.Collections.Generic.IReadOnlyList<BmsBgaTimelineEntry> timeline, BmsPoorBgaMode poorMode)
+            {
+            }
+
+            public void SetLayout(BmsBgaPlacement placement)
+            {
+            }
+
+            public void NotifyMiss()
+            {
             }
         }
 

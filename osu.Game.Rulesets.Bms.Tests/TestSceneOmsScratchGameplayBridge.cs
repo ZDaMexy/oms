@@ -14,9 +14,7 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
-using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
-using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Tests.Visual;
 
@@ -282,7 +280,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestSecondScratchXInputGameplayBridgeResolvesScratchStreamNotes()
         {
-            setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
+            setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)Framework.Input.JoystickButton.GamePadRightShoulder);
 
             AddAssert("second scratch XInput notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
 
@@ -304,7 +302,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestSecondScratchXInputGameplayBridgeLateHitForcesEarlierScratchMiss()
         {
-            setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
+            setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)Framework.Input.JoystickButton.GamePadRightShoulder);
 
             AddAssert("second scratch late-hit XInput notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
             AddAssert("second scratch XInput note stays inside earlier poor window", () => scratchNotes[1].StartTime - scratchNotes[0].StartTime < scratchNotes[0].HitWindows.WindowFor(HitResult.Miss));
@@ -321,7 +319,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createScratchStreamBeatmap("DDDD00000000000000000000"));
 
-            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("keyboard scratch held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -330,7 +328,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held keyboard suppresses extra gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("HID pulse does not release keyboard-held scratch", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
-            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after final source releases", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -339,7 +337,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createScratchStreamBeatmap("DDDD00000000000000000000"));
 
-            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("keyboard scratch held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -348,7 +346,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held keyboard suppresses extra mouse gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("mouse pulse does not release keyboard-held scratch", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
-            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after mouse and keyboard final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -357,19 +355,19 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createScratchStreamBeatmap());
 
-            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("keyboard scratch held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
-            AddStep("press XInput scratch while keyboard held", () => Assert.That(drawableRuleset.InputManager.TriggerXInputButtonPressed((int)osu.Framework.Input.JoystickButton.GamePadLeftShoulder), Is.True));
+            AddStep("press XInput scratch while keyboard held", () => Assert.That(drawableRuleset.InputManager.TriggerXInputButtonPressed((int)Framework.Input.JoystickButton.GamePadLeftShoulder), Is.True));
 
             AddAssert("held keyboard suppresses extra XInput gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("XInput press keeps single scratch action", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
-            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("XInput still holds scratch after keyboard release", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
 
-            AddStep("release XInput scratch", () => Assert.That(drawableRuleset.InputManager.TriggerXInputButtonReleased((int)osu.Framework.Input.JoystickButton.GamePadLeftShoulder), Is.True));
+            AddStep("release XInput scratch", () => Assert.That(drawableRuleset.InputManager.TriggerXInputButtonReleased((int)Framework.Input.JoystickButton.GamePadLeftShoulder), Is.True));
             AddAssert("scratch released after keyboard and XInput final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -378,7 +376,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createScratchStreamBeatmap("DDDD00000000000000000000"), hidTrigger: createInvertedHidScratchTrigger());
 
-            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("keyboard scratch held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -387,7 +385,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held keyboard suppresses extra inverted HID gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("inverted HID pulse does not release keyboard-held scratch", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
-            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after inverted HID and keyboard final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -396,7 +394,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             setupScene(createScratchStreamBeatmap("DDDD00000000000000000000"), mouseTrigger: createInvertedMouseScratchTrigger());
 
-            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("keyboard scratch held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -405,7 +403,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held keyboard suppresses extra inverted mouse gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("inverted mouse pulse does not release keyboard-held scratch", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
-            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after inverted mouse and keyboard final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -415,7 +413,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch);
 
             AddAssert("second scratch suppression notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
-            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -424,7 +422,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held second scratch keyboard suppresses extra HID gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("second scratch HID pulse does not release keyboard-held action", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
-            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after final source releases", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -434,7 +432,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), scratchAction: OmsAction.Key2P_Scratch);
 
             AddAssert("second scratch mouse suppression notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
-            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -443,17 +441,17 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held second scratch keyboard suppresses extra mouse gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("second scratch mouse pulse does not release keyboard-held action", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
-            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after mouse and keyboard final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
         [Test]
         public void TestKeyboardHeldSecondScratchSuppressesXInputGameplayEdgeUntilFinalRelease()
         {
-            setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
+            setupScene(createSecondScratchStreamBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)Framework.Input.JoystickButton.GamePadRightShoulder);
 
             AddAssert("second scratch XInput suppression notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
-            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -462,7 +460,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held second scratch keyboard suppresses extra XInput gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("second scratch XInput press keeps single action", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
-            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch XInput still holds action after keyboard release", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
 
             releaseXInputScratch("release second scratch XInput");
@@ -475,7 +473,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), hidTrigger: createInvertedHidScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
             AddAssert("inverted second scratch HID suppression notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
-            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -484,7 +482,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held second scratch keyboard suppresses extra inverted HID gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("inverted second scratch HID pulse does not release keyboard-held action", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
-            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after inverted HID and keyboard final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -494,7 +492,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScene(createSecondScratchStreamBeatmap("DDDD00000000000000000000"), mouseTrigger: createInvertedMouseScratchTrigger(), scratchAction: OmsAction.Key2P_Scratch);
 
             AddAssert("inverted second scratch mouse suppression notes land on Scratch2 lane", () => scratchNotes.All(note => note.LaneIndex == secondScratchLaneIndex));
-            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch keyboard held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
             seekTo(() => scratchNotes[0].StartTime);
@@ -503,7 +501,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("held second scratch keyboard suppresses extra inverted mouse gameplay hit edge", () => !scratchDrawables[0].Judged);
             AddAssert("inverted second scratch mouse pulse does not release keyboard-held action", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
-            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after inverted mouse and keyboard final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -563,7 +561,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestSecondScratchXInputScratchHoldResolvesTail()
         {
-            setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
+            setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)Framework.Input.JoystickButton.GamePadRightShoulder);
 
             AddAssert("second scratch XInput hold lands on Scratch2 lane", () => scratchHold.LaneIndex == secondScratchLaneIndex);
 
@@ -587,7 +585,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScratchHoldScene(createScratchHoldBeatmap());
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("keyboard scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
@@ -595,7 +593,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             pressXInputScratch("press XInput scratch during held hold");
             AddAssert("XInput press keeps single scratch action during hold", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
-            AddStep("release keyboard scratch during XInput hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch during XInput hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("XInput still holds scratch after keyboard release", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
             AddAssert("scratch hold tail still pending after XInput takeover", () => !getScratchHoldTailDrawable().Judged);
 
@@ -614,7 +612,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScratchHoldScene(createScratchHoldBeatmap());
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
@@ -629,7 +627,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("scratch hold tail resolved via held path after mouse pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("scratch hold fully judged after mouse pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release keyboard scratch after mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch after mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after mouse hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -639,7 +637,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScratchHoldScene(createScratchHoldBeatmap(), mouseTrigger: createInvertedMouseScratchTrigger());
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
@@ -654,7 +652,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("scratch hold tail resolved via held path after inverted mouse pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("scratch hold fully judged after inverted mouse pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release keyboard scratch after inverted mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch after inverted mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after inverted mouse hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -664,7 +662,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScratchHoldScene(createScratchHoldBeatmap());
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
@@ -679,7 +677,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("scratch hold tail resolved via held path after HID pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("scratch hold fully judged after HID pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release keyboard scratch after HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch after HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after HID hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
@@ -689,7 +687,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             setupScratchHoldScene(createScratchHoldBeatmap(), hidTrigger: createInvertedHidScratchTrigger());
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("press keyboard scratch at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch1) == 1);
 
@@ -704,19 +702,19 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("scratch hold tail resolved via held path after inverted HID pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("scratch hold fully judged after inverted HID pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release keyboard scratch after inverted HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.LShift), Is.True));
+            AddStep("release keyboard scratch after inverted HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.LShift), Is.True));
             AddAssert("scratch released after inverted HID hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1));
         }
 
         [Test]
         public void TestKeyboardHeldSecondScratchHoldTransfersToXInputAndResolvesTail()
         {
-            setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)osu.Framework.Input.JoystickButton.GamePadRightShoulder);
+            setupScratchHoldScene(createSecondScratchHoldBeatmap(), scratchAction: OmsAction.Key2P_Scratch, xInputButtonIndex: (int)Framework.Input.JoystickButton.GamePadRightShoulder);
 
             AddAssert("second scratch hold lands on Scratch2 lane", () => scratchHold.LaneIndex == secondScratchLaneIndex);
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press second scratch keyboard at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard at hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("second scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -724,7 +722,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             pressXInputScratch("press second scratch XInput during held hold");
             AddAssert("second scratch XInput keeps single action during hold", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
-            AddStep("release second scratch keyboard during XInput hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard during XInput hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch XInput still holds after keyboard release", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
             AddAssert("second scratch hold tail still pending after XInput takeover", () => !getScratchHoldTailDrawable().Judged);
 
@@ -745,7 +743,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("second scratch mouse hold lands on Scratch2 lane", () => scratchHold.LaneIndex == secondScratchLaneIndex);
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press second scratch keyboard at mouse hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard at mouse hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("second scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -760,7 +758,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("second scratch hold tail resolved via held path after mouse pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("second scratch hold fully judged after mouse pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release second scratch keyboard after mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard after mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after mouse hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -772,7 +770,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("second scratch HID hold lands on Scratch2 lane", () => scratchHold.LaneIndex == secondScratchLaneIndex);
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press second scratch keyboard at HID hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard at HID hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("second scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -787,7 +785,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("second scratch hold tail resolved via held path after HID pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("second scratch hold fully judged after HID pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release second scratch keyboard after HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard after HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after HID hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -799,7 +797,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("inverted second scratch mouse hold lands on Scratch2 lane", () => scratchHold.LaneIndex == secondScratchLaneIndex);
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press second scratch keyboard at inverted mouse hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard at inverted mouse hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("second scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -814,7 +812,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("second scratch hold tail resolved via held path after inverted mouse pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("second scratch hold fully judged after inverted mouse pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release second scratch keyboard after inverted mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard after inverted mouse hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after inverted mouse hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -826,7 +824,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("inverted second scratch HID hold lands on Scratch2 lane", () => scratchHold.LaneIndex == secondScratchLaneIndex);
 
             seekTo(() => scratchHold.StartTime);
-            AddStep("press second scratch keyboard at inverted HID hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("press second scratch keyboard at inverted HID hold head", () => Assert.That(drawableRuleset.InputManager.TriggerKeyPressed(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch hold head judged perfect", () => getScratchHoldHeadDrawable().Result.Type == HitResult.Perfect);
             AddAssert("second scratch hold action held once", () => drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Count(action => action == BmsAction.Scratch2) == 1);
 
@@ -841,7 +839,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("second scratch hold tail resolved via held path after inverted HID pulse", () => getScratchHoldTailDrawable().Result.Type == HitResult.IgnoreHit);
             AddAssert("second scratch hold fully judged after inverted HID pulse", () => scratchHoldDrawable.AllJudged);
 
-            AddStep("release second scratch keyboard after inverted HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(osu.Framework.Input.Bindings.InputKey.P), Is.True));
+            AddStep("release second scratch keyboard after inverted HID hold", () => Assert.That(drawableRuleset.InputManager.TriggerKeyReleased(Framework.Input.Bindings.InputKey.P), Is.True));
             AddAssert("second scratch released after inverted HID hold final release", () => !drawableRuleset.InputManager.KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2));
         }
 
@@ -969,7 +967,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 bool changed = customXInputButtonHandler != null
                     ? customXInputButtonHandler.TriggerPressed(customXInputButtonIndex)
-                    : drawableRuleset.InputManager.TriggerXInputButtonPressed((int)osu.Framework.Input.JoystickButton.GamePadLeftShoulder);
+                    : drawableRuleset.InputManager.TriggerXInputButtonPressed((int)Framework.Input.JoystickButton.GamePadLeftShoulder);
 
                 Assert.That(changed, Is.True);
             });
@@ -979,7 +977,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 bool changed = customXInputButtonHandler != null
                     ? customXInputButtonHandler.TriggerReleased(customXInputButtonIndex)
-                    : drawableRuleset.InputManager.TriggerXInputButtonReleased((int)osu.Framework.Input.JoystickButton.GamePadLeftShoulder);
+                    : drawableRuleset.InputManager.TriggerXInputButtonReleased((int)Framework.Input.JoystickButton.GamePadLeftShoulder);
 
                 Assert.That(changed, Is.True);
             });
@@ -1073,6 +1071,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             public TestableDrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap)
                 : base(ruleset, beatmap)
             {
+                InitialiseCompatibilityLayoutForTesting();
             }
         }
     }

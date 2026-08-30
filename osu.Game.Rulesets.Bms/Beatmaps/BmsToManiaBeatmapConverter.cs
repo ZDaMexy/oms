@@ -10,7 +10,6 @@ using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
-using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mania;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
@@ -24,7 +23,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private const double control_point_epsilon = 0.0001;
 
         private readonly BmsDecodedBeatmap sourceBeatmap;
-        private readonly BmsLaneLayout sourceLaneLayout;
+        private readonly int sourceLaneCount;
+        private readonly HashSet<int> scratchLanes;
         private readonly int totalColumns;
         private readonly int stageColumns;
         private readonly bool dualStage;
@@ -39,11 +39,19 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (ruleset is not ManiaRuleset)
                 throw new ArgumentException($"{nameof(BmsToManiaBeatmapConverter)} requires a {nameof(ManiaRuleset)} target.", nameof(ruleset));
 
-            sourceLaneLayout = BmsLaneLayout.CreateForKeymode(sourceBeatmap.DecodedChart.BeatmapInfo.Keymode);
-            judgementColumnsByLane = new int?[sourceLaneLayout.Lanes.Count];
-            scratchSampleColumnsByLane = new int[sourceLaneLayout.Lanes.Count];
-            totalColumns = sourceLaneLayout.Lanes.Count(lane => !lane.IsScratch);
-            dualStage = sourceBeatmap.DecodedChart.BeatmapInfo.Keymode == BmsKeymode.Key14K;
+            BmsKeymode sourceKeymode = sourceBeatmap.DecodedChart.BeatmapInfo.Keymode;
+            sourceLaneCount = BmsRuleset.GetLaneCount(sourceKeymode);
+            scratchLanes = sourceKeymode switch
+            {
+                BmsKeymode.Key5K or BmsKeymode.Key7K => new HashSet<int> { 0 },
+                BmsKeymode.Key14K => new HashSet<int> { 0, sourceLaneCount - 1 },
+                BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms => new HashSet<int>(),
+                _ => throw new ArgumentOutOfRangeException(nameof(sourceKeymode)),
+            };
+            judgementColumnsByLane = new int?[sourceLaneCount];
+            scratchSampleColumnsByLane = new int[sourceLaneCount];
+            totalColumns = sourceLaneCount - scratchLanes.Count;
+            dualStage = sourceKeymode == BmsKeymode.Key14K;
             stageColumns = dualStage ? totalColumns / 2 : totalColumns;
 
             initialiseLaneColumnMaps();
@@ -277,9 +285,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         {
             int currentColumn = 0;
 
-            for (int laneIndex = 0; laneIndex < sourceLaneLayout.Lanes.Count; laneIndex++)
+            for (int laneIndex = 0; laneIndex < sourceLaneCount; laneIndex++)
             {
-                bool isScratch = sourceLaneLayout.Lanes[laneIndex].IsScratch;
+                bool isScratch = scratchLanes.Contains(laneIndex);
 
                 if (!isScratch)
                 {
@@ -313,7 +321,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private void validateLaneIndex(int laneIndex)
         {
-            if (laneIndex < 0 || laneIndex >= sourceLaneLayout.Lanes.Count)
+            if (laneIndex < 0 || laneIndex >= sourceLaneCount)
                 throw new InvalidOperationException($"BMS lane {laneIndex} is outside the supported {sourceBeatmap.DecodedChart.BeatmapInfo.Keymode} layout.");
         }
 

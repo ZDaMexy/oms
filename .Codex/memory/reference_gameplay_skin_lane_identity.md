@@ -21,6 +21,13 @@ metadata:
 - public process-local `GameplaySkinLaneTopologyTransitionValidator` 只校验调用方已声明为 topology-preserving 的两个 neutral snapshot：GroupId/LaneId set、group logical index、lane membership/role/global 与 group-local logical index 稳定；side 和全部 visual index/order 可变。不要比较完整 identity equality。
 - validator 本身不含 native context，9K BMS/PMS neutral shape 相同仍会通过；外层 internal owner 以 BMS exact keymode、mania exact ordered stage-column vector 补上 process-local continuity/revision。不能据此把 helper 或 owner 写成完整 layout transition ABI；详见 [topology publication/revision](reference_gameplay_skin_topology_revision.md)。
 
+## C3 production integration
+
+- C3没有替换或复制上述ID；唯一`GameplaySkinLayoutContext`把exact native context/keymode、同一topology、presentation style、safe bounds/aspect/DPI与package/layout revision绑定，唯一neutral snapshot和typed adapter再作为一个`GameplaySkinLayoutPublication`发布。identity/topology仍只是solver输入，不是另一份layout publication。
+- BMS keymode只来自parser-owned `BmsKeymodeResolution`，layout/skin/runtime不得按最高channel、对象lane或geometry猜测。BMS唯一solver与mania真实single/dual stage adapter都复用既有GroupId/LaneId；mania special key继续按stage-local column判断。
+- Mirror/Random/S-Random只改变对象的post-mod目标lane，不改变固定topology或稳定ID集合。具有exact permutation的mod同时搬移armed timeline；S-Random无单一permutation时禁用受影响timeline。对象、shared keysound store和skin lookup最终解析到目标lane的同一LaneId。
+- 完整C3层次与production consumer见[[reference_gameplay_skin_layout_snapshot]]和[C3完成交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
+
 ## internal projection 地雷
 
 - identity 故意不含 index；snapshot 虽已显式携带四类 index，仍故意没有 keymode/style、action/source channel、geometry/bounds、revision/native context。它不是 full `GameplaySkinLayoutContext` 或 wire/manifest ABI，不能把这些字段继续塞进 stable ID/equality。
@@ -30,4 +37,4 @@ metadata:
 - mania projection 只接受 1–2 stage、每 stage 1–10 keys，并先复制可变 stage 列表；single side=Neutral，dual stage 0/1=Primary/Secondary。`StageDefinition.IsSpecialColumn()` 接受 stage-local index；双 5+5 special 的 global index 是 2/7，mixed 4+5 是 6。global index 用 stage count 前缀和，不能对 total columns 求一次中心，也不能把 `ManiaAction` enum ordinal 当 group-local identity。
 - mirror/random/rearrangement 改 hit object 的目标 lane，而不改变固定 playfield topology；对象事件应发布 mod 后目标 LaneId，不能从原始 source channel 反推。
 
-identity/topology/neutral validator 与 topology-only publication/ruleset-native continuity 是不同层；它们都不等于 full `GameplaySkinLayoutContext`、geometry/layout solver、production attachment/event `layoutRevision`/wire ABI 或 `SkinManager` 接线。当前完成度只看 P1-A STATUS。
+identity/topology/neutral validator 与 topology-only publication/ruleset-native continuity 仍是不同层，单独都不等于 full `GameplaySkinLayoutContext`、geometry solver或package+layout lifecycle。C3已在其上建立唯一production publication；不能倒过来把layout字段塞进stable ID、把topology-only revision冒充layout revision，或把process-local对象写成wire/manifest ABI。当前完成度只看 P1-A STATUS。

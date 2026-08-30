@@ -1,9 +1,11 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
 using osuTK.Graphics;
@@ -40,6 +42,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         {
                             c.Add(CreateHitObject().With(h =>
                             {
+                                setColumn(h, 0);
                                 h.HitObject.StartTime = Time.Current + 5000;
                                 h.AccentColour.Value = Color4.Orange;
                             }));
@@ -58,6 +61,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         {
                             c.Add(CreateHitObject().With(h =>
                             {
+                                setColumn(h, 1);
                                 h.HitObject.StartTime = Time.Current + 5000;
                             }));
                         })
@@ -65,6 +69,14 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 }
             });
         });
+
+        private static void setColumn(DrawableManiaHitObject drawable, int column)
+        {
+            drawable.HitObject.Column = column;
+
+            foreach (ManiaHitObject nested in drawable.HitObject.NestedHitObjects.OfType<ManiaHitObject>())
+                nested.Column = column;
+        }
 
         protected abstract DrawableManiaHitObject CreateHitObject();
     }

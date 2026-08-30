@@ -148,7 +148,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Throws.ArgumentException);
                 Assert.That(() => BmsGameplaySkinLaneColourSnapshotFactory.CreateFullVisual(
                     BmsLaneLayout.CreateForKeymode((BmsKeymode)99), Array.Empty<LegacyManiaSkinConfiguration>()),
-                    Throws.ArgumentException);
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
             });
         }
 

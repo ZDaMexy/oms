@@ -4,7 +4,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 {
     /// <summary>
     /// Logical configuration keys a BMS skin (the <c>[Bms]</c> sections of <c>skin.ini</c>, bucketed per keymode)
-    /// can override, mirroring the role of <see cref="osu.Game.Skinning.LegacyManiaSkinConfigurationLookups"/> for mania.
+    /// can override, mirroring the role of <see cref="Game.Skinning.LegacyManiaSkinConfigurationLookups"/> for mania.
     /// </summary>
     /// <remarks>
     /// The key set is derived from what the built-in programmatic default actually exposes — the geometry on
@@ -16,7 +16,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </remarks>
     public enum BmsSkinConfigurationLookups
     {
-        // ---- Geometry — maps to BmsPlayfieldLayoutProfile.CreateDefault(...) parameters ----
+        // ---- Geometry — raw authoring inputs captured once by BmsGameplayLayoutSolver ----
         PlayfieldWidth,
         PlayfieldHeight,
         NormalLaneWidth,

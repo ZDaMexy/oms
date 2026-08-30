@@ -1,27 +1,27 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Graphics;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.UI.Scrolling;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
     internal static class BmsGameplayFeedbackLayout
     {
-        public const float JudgementDistanceFromEdge = 140f;
-
-        public static Anchor GetJudgementAnchor(ScrollingDirection direction)
-            => direction == ScrollingDirection.Up ? Anchor.TopCentre : Anchor.BottomCentre;
-
-        public static float GetJudgementOffset(ScrollingDirection direction)
-            => direction == ScrollingDirection.Up ? JudgementDistanceFromEdge : -JudgementDistanceFromEdge;
-
-        public static void ApplyJudgementDefaults(Drawable judgementBody, ScrollingDirection direction)
+        public static void ApplyJudgementSnapshot(Drawable judgementBody, ScrollingDirection direction, BmsGameplayLayoutSnapshot snapshot)
         {
-            Anchor anchor = GetJudgementAnchor(direction);
+            var playfield = snapshot.PlayfieldRect;
+            var judgement = snapshot.JudgementRect;
+            float centreX = (judgement.X + judgement.Width / 2 - playfield.X) / playfield.Width;
+            float centreY = (judgement.Y + judgement.Height / 2 - playfield.Y) / playfield.Height;
 
-            judgementBody.Anchor = anchor;
-            judgementBody.Origin = anchor;
-            judgementBody.Y = GetJudgementOffset(direction);
+            if (direction == ScrollingDirection.Up)
+                centreY = 1 - centreY;
+
+            judgementBody.Anchor = judgementBody.Origin = Anchor.Centre;
+            judgementBody.RelativePositionAxes = Axes.Both;
+            judgementBody.X = centreX;
+            judgementBody.Y = centreY;
         }
     }
 }

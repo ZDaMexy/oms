@@ -1,14 +1,15 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.UI.Scrolling;
 
@@ -18,6 +19,7 @@ namespace osu.Game.Rulesets.Bms.Tests
     public class BmsBeatmapConverterTest
     {
         private readonly BmsBeatmapDecoder decoder = new BmsBeatmapDecoder();
+        private static readonly BmsBeatmapDecoderOptions five_key_contract = new BmsBeatmapDecoderOptions(BmsKeymode.Key5K);
 
         [Test]
         public void TestConvertsMetadataAndHitObjectTypes()
@@ -129,7 +131,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00251:ZZ00
 ";
 
-            var decodedChart = decoder.DecodeText(text, "lntype2.bms");
+            var decodedChart = decoder.DecodeText(text, "lntype2.bms", five_key_contract);
             var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
             var holdNote = convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Single();
 
@@ -157,7 +159,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00111:AA00
 ";
 
-            var decodedChart = decoder.DecodeText(text, "example.bms");
+            var decodedChart = decoder.DecodeText(text, "example.bms", five_key_contract);
             var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
 
             Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("stage.png"));
@@ -174,7 +176,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00111:AA00
 ";
 
-            var decodedChart = decoder.DecodeText(text, "projected-background.bms");
+            var decodedChart = decoder.DecodeText(text, "projected-background.bms", five_key_contract);
             var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
 
             Assert.That(convertedBeatmap.Metadata.BackgroundFile, Is.EqualTo("projected.png"));
@@ -493,6 +495,46 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [TestCase("boundary-5k.bms", BmsKeymode.Key5K, new[] { 0x15 }, new[] { 5 })]
+        [TestCase("boundary-7k.bme", BmsKeymode.Key7K, new[] { 0x19 }, new[] { 7 })]
+        [TestCase("all-lanes-9k.bms", BmsKeymode.Key9K_Bms, new[] { 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19 }, new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 })]
+        [TestCase("all-lanes-9k.pms", BmsKeymode.Key9K_Pms, new[] { 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19 }, new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 })]
+        [TestCase("boundary-14k.bme", BmsKeymode.Key14K, new[] { 0x29, 0x26 }, new[] { 14, 15 })]
+        public void TestLaneKeysoundTimelineCoversEveryLogicalBoundaryObjectFamily(string fileName, BmsKeymode expectedKeymode, int[] visibleChannels, int[] expectedLaneIndices)
+        {
+            string text = createBoundaryLaneTimelineChart(visibleChannels);
+            var options = expectedKeymode == BmsKeymode.Key5K ? new BmsBeatmapDecoderOptions(expectedKeymode) : null;
+            var decodedChart = decoder.DecodeText(text, fileName, options);
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            Assert.That(convertedBeatmap.BmsInfo.Keymode, Is.EqualTo(expectedKeymode));
+            Assert.That(visibleChannels, Has.Length.EqualTo(expectedLaneIndices.Length));
+
+            for (int i = 0; i < expectedLaneIndices.Length; i++)
+            {
+                int laneIndex = expectedLaneIndices[i];
+                var timeline = convertedBeatmap.GetLaneKeysoundTimeline(laneIndex);
+                string lanePrefix = $"lane-{i}";
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(convertedBeatmap.HitObjects.OfType<BmsHitObject>().Any(note => note is not BmsHoldNote && note.LaneIndex == laneIndex),
+                        Is.True, $"{lanePrefix}: visible note must survive decode/conversion.");
+                    Assert.That(convertedBeatmap.HitObjects.OfType<BmsHoldNote>().Any(hold => hold.LaneIndex == laneIndex),
+                        Is.True, $"{lanePrefix}: long note must survive decode/conversion.");
+                    Assert.That(timeline.Select(entry => entry.Sample.Filename), Is.EqualTo(new[]
+                    {
+                        $"{lanePrefix}-visible.wav",
+                        $"{lanePrefix}-ln-head.wav",
+                        $"{lanePrefix}-ln-tail.wav",
+                        $"{lanePrefix}-invisible.wav",
+                    }), $"{lanePrefix}: visible, LN head/tail armed entries, and invisible assignment must share the same lane timeline.");
+                    Assert.That(convertedBeatmap.Mines.Any(mine => mine.LaneIndex == laneIndex),
+                        Is.True, $"{lanePrefix}: adjacent mine placement must use the same logical lane without erasing its armed timeline.");
+                });
+            }
+        }
+
         [Test]
         public void TestSubUnitBpmUsesMagnitudeWithoutClampingToOne()
         {
@@ -690,6 +732,39 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(frozenMidStop, Is.EqualTo(frozenAtStopStart).Within(1e-6)); // frozen across the STOP
                 Assert.That(beforeStop, Is.GreaterThan(frozenAtStopStart)); // farther away before the freeze
             });
+        }
+
+        private static string createBoundaryLaneTimelineChart(IReadOnlyList<int> visibleChannels)
+        {
+            var text = new StringBuilder("#TITLE Lane timeline boundary coverage\n#BPM 120\n#LNTYPE 1\n");
+            int nextWavId = 36;
+
+            for (int i = 0; i < visibleChannels.Count; i++)
+            {
+                int visibleChannel = visibleChannels[i];
+                string visibleToken = toBase36Token(nextWavId++);
+                string headToken = toBase36Token(nextWavId++);
+                string tailToken = toBase36Token(nextWavId++);
+                string invisibleToken = toBase36Token(nextWavId++);
+                string lanePrefix = $"lane-{i}";
+
+                text.AppendLine($"#WAV{visibleToken} {lanePrefix}-visible.wav");
+                text.AppendLine($"#WAV{headToken} {lanePrefix}-ln-head.wav");
+                text.AppendLine($"#WAV{tailToken} {lanePrefix}-ln-tail.wav");
+                text.AppendLine($"#WAV{invisibleToken} {lanePrefix}-invisible.wav");
+                text.AppendLine($"#001{visibleChannel:X2}:{visibleToken}00");
+                text.AppendLine($"#002{visibleChannel + 0x40:X2}:{headToken}{tailToken}");
+                text.AppendLine($"#003{visibleChannel + 0x20:X2}:{invisibleToken}00");
+                text.AppendLine($"#003{visibleChannel + 0xC0:X2}:00010000");
+            }
+
+            return text.ToString();
+        }
+
+        private static string toBase36Token(int value)
+        {
+            const string digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            return string.Concat(digits[value / 36], digits[value % 36]);
         }
     }
 }

@@ -7,13 +7,14 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -53,9 +54,17 @@ namespace osu.Game.Rulesets.Bms.UI
         [Resolved(CanBeNull = true)]
         private HUDOverlay? gaugeHudOverlay { get; set; }
 
+        [Resolved(CanBeNull = true)]
+        private BmsGameplayLayoutProvider? layoutProvider { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private GameplaySkinLayoutRevisionOwner? layoutOwner { get; set; }
+
+        internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
+
         public BmsGaugeBar()
         {
-            AutoSizeAxes = Axes.Y;
+            Height = bar_height;
 
             // The gauge is a single flush band (no surrounding border, no separate header row) so it merges into the
             // playfield strip above it instead of reading as a bolt-on widget.
@@ -175,7 +184,13 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [BackgroundDependencyLoader]
         private void load()
-            => updateGaugeStyling();
+        {
+            LayoutSnapshot = BmsGameplayLayoutProvider.ResolveOwnerPublication(
+                layoutOwner,
+                layoutProvider,
+                "bms.layout.missing-gauge-publication");
+            updateGaugeStyling();
+        }
 
         protected override void LoadComplete()
         {
@@ -185,14 +200,11 @@ namespace osu.Game.Rulesets.Bms.UI
             // is hidden (ShowHealthBar=false via NoFail etc.). HealthDisplay fades `this` to 0 in that case; re-assert
             // full visibility. This binding fires AFTER the base's (bound-copy subscribers run before own subscribers),
             // so it wins. The HUD-wide ShowHud fade still applies via the parent and is unaffected.
-            if (gaugeHudOverlay != null)
-            {
-                gaugeHudOverlay.ShowHealthBar.BindValueChanged(_ =>
+            gaugeHudOverlay?.ShowHealthBar.BindValueChanged(_ =>
                 {
                     FinishTransforms();
                     Alpha = 1;
                 }, true);
-            }
 
             if (HealthProcessor is BmsGaugeProcessor gaugeProcessor)
             {

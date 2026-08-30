@@ -1,10 +1,9 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Graphics;
-using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
-using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Skinning;
 
@@ -16,28 +15,41 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override double InitialLifetimeOffset => 2000;
 
-        public DrawableBmsBarLine(BmsBarLine hitObject, BmsLaneLayout.Lane lane, int laneCount, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile)
+        internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        public DrawableBmsBarLine(
+            BmsBarLine hitObject,
+            BmsLaneLayout.Lane lane,
+            int laneCount,
+            BmsKeymode keymode,
+            BmsPlayfieldLayoutProfile layoutProfile,
+            BmsGameplayLayoutLane? layoutSnapshotLane = null,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null)
             : base(hitObject)
         {
+            LayoutSnapshot = layoutSnapshot;
             HandleUserInput = false;
 
             Anchor = Anchor.BottomLeft;
             Origin = Anchor.BottomLeft;
-            RelativeSizeAxes = Axes.X;
+            RelativeSizeAxes = layoutSnapshot == null ? Axes.X : Axes.Both;
             Width = 1;
-            Height = layoutProfile.BarLineHeight;
+            Height = layoutSnapshot?.ProjectVerticalProfileMetric(layoutProfile.BarLineHeight)
+                     ?? layoutProfile.BarLineHeight;
 
-            AddInternal(new SkinnableDrawable(new BmsLaneSkinLookup(BmsLaneSkinElements.BarLine, lane.LaneIndex, laneCount, lane.IsScratch, keymode, hitObject.Major),
+            AddInternal(new SkinnableDrawable(new BmsLaneSkinLookup(
+                    BmsLaneSkinElements.BarLine,
+                    lane.LaneIndex,
+                    laneCount,
+                    lane.IsScratch,
+                    keymode,
+                    hitObject.Major,
+                    layoutSnapshotLane?.LaneId),
                 _ => new DefaultBmsBarLineDisplay(hitObject.Major, keymode))
             {
                 RelativeSizeAxes = Axes.Both,
                 CentreComponent = false,
             });
-        }
-
-        public void ApplyLayoutProfile(BmsPlayfieldLayoutProfile layoutProfile)
-        {
-            Height = layoutProfile.BarLineHeight;
         }
 
         protected override void CheckForResult(bool userTriggered, double timeOffset)

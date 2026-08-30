@@ -6,14 +6,10 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
-using osu.Framework.Extensions;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.Formats;
-using osu.Game.IO;
-using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Tests.Visual;
 
@@ -168,7 +164,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Directory.CreateDirectory(fullPath);
 
-            const string beatmapFilename = "filesystem-storyboard-test.bms";
+            // .bme supplies explicit parser-owned 7K authority; this fixture only exercises filesystem/storyboard behaviour.
+            const string beatmapFilename = "filesystem-storyboard-test.bme";
             string beatmapPath = Path.Combine(fullPath, beatmapFilename);
 
             File.WriteAllText(beatmapPath, @"
@@ -195,7 +192,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Directory.CreateDirectory(fullPath);
 
-            string beatmapPath = Path.Combine(fullPath, "chart.bms");
+            // .bme supplies explicit parser-owned 7K authority; this fixture only exercises managed-filesystem deletion.
+            string beatmapPath = Path.Combine(fullPath, "chart.bme");
 
             File.WriteAllText(beatmapPath, @"
 #TITLE Internal Delete Test
@@ -224,7 +222,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Directory.CreateDirectory(fullPath);
 
-            string beatmapPath = Path.Combine(fullPath, "chart.bms");
+            // .bme supplies explicit parser-owned 7K authority; this fixture only exercises external-filesystem mutation guards.
+            string beatmapPath = Path.Combine(fullPath, "chart.bme");
 
             File.WriteAllText(beatmapPath, @"
 #TITLE Filesystem Test

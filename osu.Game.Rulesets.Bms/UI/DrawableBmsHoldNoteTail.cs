@@ -2,6 +2,7 @@
 
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
 
@@ -13,8 +14,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override bool DisplayResult => tailJudgement.CountsForScore;
 
-        public DrawableBmsHoldNoteTail(BmsHoldNoteTailEvent hitObject)
-            : base(hitObject)
+        public DrawableBmsHoldNoteTail(BmsHoldNoteTailEvent hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null)
+            : base(hitObject, gameplayLayoutSnapshot)
         {
             HandleUserInput = false;
         }

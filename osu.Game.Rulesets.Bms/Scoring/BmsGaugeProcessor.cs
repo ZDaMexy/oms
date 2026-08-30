@@ -45,7 +45,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         private readonly Bindable<BmsGaugeRulesFamily> gaugeRulesFamily = new Bindable<BmsGaugeRulesFamily>();
 
         private GaugeSpecification currentGaugeSpecification;
-        private BmsKeymode currentKeymode = BmsKeymode.Key7K;
+        private BmsKeymode? currentKeymode;
 
         public IBindable<BmsGaugeType> GaugeTypeBindable => gaugeType;
         public IBindable<BmsGaugeRulesFamily> GaugeRulesFamilyBindable => gaugeRulesFamily;
@@ -85,9 +85,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         public int TotalHittableObjects { get; private set; }
 
-        public BmsKeymode Keymode => currentKeymode;
+        public BmsKeymode Keymode => currentKeymode ?? throw new InvalidOperationException("bms.keymode.missing-gauge-authority");
 
-        public bool IsClear => MeetsClearCondition(GaugeType, GaugeRulesFamily, currentKeymode, Health.Value, HasFailed);
+        public bool IsClear => MeetsClearCondition(GaugeType, GaugeRulesFamily, Keymode, Health.Value, HasFailed);
 
         public BmsGaugeProcessor(double drainStartTime, BmsGaugeType gaugeType = BmsGaugeType.Normal, BmsGaugeRulesFamily gaugeRulesFamily = BmsGaugeRulesFamily.Legacy)
         {
@@ -127,24 +127,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             if (beatmap is BmsBeatmap bmsBeatmap)
                 return bmsBeatmap.BmsInfo.Keymode;
 
-            int storedKeyCount = (int)Math.Round(beatmap.Difficulty.CircleSize);
-
-            if (storedKeyCount > 0)
-                return keyCountToKeymode(storedKeyCount);
-
-            int laneCount = beatmap.HitObjects.OfType<BmsHitObject>()
-                                  .Select(hitObject => hitObject.LaneIndex)
-                                  .DefaultIfEmpty(-1)
-                                  .Max() + 1;
-
-            return keyCountToKeymode(laneCount switch
-            {
-                6 => 5,
-                8 => 7,
-                9 => 9,
-                16 => 14,
-                _ => 7,
-            });
+            throw new ArgumentException("BMS gauge processing requires parser-owned BmsBeatmapInfo keymode authority.", nameof(beatmap));
         }
 
         public static double CalculateBaseRate(double total, int totalHittableObjects)
@@ -242,22 +225,27 @@ namespace osu.Game.Rulesets.Bms.Scoring
             };
 
         public static double GetStartingGauge(BmsGaugeType gaugeType)
-            => GetStartingGauge(gaugeType, BmsGaugeRulesFamily.Legacy);
+            => getGaugeSettings(BmsGaugeRulesFamily.Legacy, null, gaugeType).Initial / 100.0;
 
-        public static double GetStartingGauge(BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode = BmsKeymode.Key7K)
+        public static double GetStartingGauge(BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode)
             => getGaugeSettings(gaugeRulesFamily, keymode, gaugeType).Initial / 100.0;
 
         public static double GetFloorGauge(BmsGaugeType gaugeType)
-            => GetFloorGauge(gaugeType, BmsGaugeRulesFamily.Legacy);
+            => getGaugeSettings(BmsGaugeRulesFamily.Legacy, null, gaugeType).Minimum / 100.0;
 
-        public static double GetFloorGauge(BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode = BmsKeymode.Key7K)
+        public static double GetFloorGauge(BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode)
             => getGaugeSettings(gaugeRulesFamily, keymode, gaugeType).Minimum / 100.0;
 
         public static bool UsesSurvivalClear(BmsGaugeType gaugeType)
             => gaugeType is BmsGaugeType.Hard or BmsGaugeType.ExHard or BmsGaugeType.Hazard;
 
         public static bool MeetsClearCondition(BmsGaugeType gaugeType, double finalGauge, bool hasFailed)
-            => MeetsClearCondition(gaugeType, BmsGaugeRulesFamily.Legacy, BmsKeymode.Key7K, finalGauge, hasFailed);
+        {
+            if (UsesSurvivalClear(gaugeType))
+                return !hasFailed && finalGauge > 0;
+
+            return finalGauge >= getGaugeSettings(BmsGaugeRulesFamily.Legacy, null, gaugeType).Border / 100.0;
+        }
 
         public static bool MeetsClearCondition(BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode, double finalGauge, bool hasFailed)
         {
@@ -302,7 +290,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             => result.HitObject is not BmsEmptyPoorHitObject
                && result.HitObject is not BmsBgmEvent;
 
-        protected override int GetJudgedHitCountFromReplayFrame(osu.Game.Rulesets.Replays.ReplayFrame frame)
+        protected override int GetJudgedHitCountFromReplayFrame(Rulesets.Replays.ReplayFrame frame)
         {
             if (frame.Header == null)
                 return 0;
@@ -330,15 +318,6 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         private static BmsModGaugeAutoShift? GetGaugeAutoShift(IEnumerable<Mod>? mods)
             => mods?.OfType<BmsModGaugeAutoShift>().LastOrDefault();
-
-        private static BmsKeymode keyCountToKeymode(int keyCount)
-            => keyCount switch
-            {
-                5 => BmsKeymode.Key5K,
-                9 => BmsKeymode.Key9K_Bms,
-                14 => BmsKeymode.Key14K,
-                _ => BmsKeymode.Key7K,
-            };
 
         private double applyGaugeDelta(double rawPercent)
         {
@@ -373,7 +352,12 @@ namespace osu.Game.Rulesets.Bms.Scoring
         }
 
         private void updateGaugeSpecification()
-            => currentGaugeSpecification = createGaugeSpecification(GaugeRulesFamily, currentKeymode, GaugeType, ChartTotal, TotalHittableObjects);
+        {
+            if (!currentKeymode.HasValue)
+                return;
+
+            currentGaugeSpecification = createGaugeSpecification(GaugeRulesFamily, currentKeymode.Value, GaugeType, ChartTotal, TotalHittableObjects);
+        }
 
         private void updateGaugeBounds()
         {
@@ -492,7 +476,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 applyModifier(modifier, emptyPoor, total, totalHittableObjects),
                 guts ?? no_guts);
 
-        private static GaugeSettings getGaugeSettings(BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode, BmsGaugeType gaugeType)
+        private static GaugeSettings getGaugeSettings(BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode? keymode, BmsGaugeType gaugeType)
         {
             if (gaugeRulesFamily == BmsGaugeRulesFamily.IIDX)
             {
@@ -518,7 +502,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             if (gaugeRulesFamily == BmsGaugeRulesFamily.Beatoraja)
             {
-                switch (resolveGaugeProfile(keymode))
+                if (!keymode.HasValue)
+                    throw new ArgumentException("bms.keymode.missing-beatoraja-gauge-authority", nameof(keymode));
+
+                switch (resolveGaugeProfile(keymode.Value))
                 {
                     case GaugeProfile.FiveKeys:
                         return gaugeType switch

@@ -1,9 +1,10 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using osu.Game.Rulesets.Judgements;
+using System;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
 using osu.Game.Rulesets.Scoring;
@@ -49,7 +50,7 @@ namespace osu.Game.Rulesets.Bms.Objects
 
         public virtual BmsKeymode Keymode
         {
-            get => keymode.Value ?? BmsKeymode.Key7K;
+            get => keymode.Value ?? throw new InvalidOperationException("bms.keymode.missing-hitobject-authority");
             set => keymode.Value = value;
         }
 

@@ -3,6 +3,7 @@
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI.Scrolling;
@@ -13,6 +14,11 @@ namespace osu.Game.Rulesets.Bms.UI
     internal partial class DrawableBmsJudgement : DrawableJudgement
     {
         private IBindable<ScrollingDirection> direction = null!;
+
+        [Resolved]
+        private BmsGameplayLayoutProvider layoutProvider { get; set; } = null!;
+
+        internal BmsGameplayLayoutSnapshot LayoutSnapshot => layoutProvider.Current;
 
         public DrawableBmsJudgement()
         {
@@ -42,7 +48,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (JudgementBody == null)
                 return;
 
-            BmsGameplayFeedbackLayout.ApplyJudgementDefaults(JudgementBody, direction.Value);
+            BmsGameplayFeedbackLayout.ApplyJudgementSnapshot(JudgementBody, direction.Value, layoutProvider.Current);
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Mods;
@@ -119,8 +120,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             mod.ApplyToBeatmap(beatmap);
 
-            var actualPattern = Enumerable.Range(1, 7).Select(index => getLane(beatmap, index)).ToArray();
-            var allowedPatterns = createAllowedRotationPatterns(Enumerable.Range(1, 7).ToArray()).ToArray();
+            int[] actualPattern = Enumerable.Range(1, 7).Select(index => getLane(beatmap, index)).ToArray();
+            int[][] allowedPatterns = createAllowedRotationPatterns(Enumerable.Range(1, 7).ToArray()).ToArray();
 
             Assert.Multiple(() =>
             {
@@ -146,7 +147,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             mod.ApplyToBeatmap(beatmap);
 
-            var lanes = new[]
+            int[] lanes = new[]
             {
                 getLane(beatmap, 1),
                 getLane(beatmap, 2),
@@ -177,7 +178,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             mod.ApplyToBeatmap(beatmap);
 
             int holdLane = getLane(beatmap, 10);
-            var noteLanes = new[]
+            int[] noteLanes = new[]
             {
                 getLane(beatmap, 11),
                 getLane(beatmap, 12),
@@ -243,6 +244,78 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestMirrorMovesArmedTimelineWithTheSameExactPermutation()
+        {
+            var beatmap = createBeatmap(
+                BmsKeymode.Key14K,
+                createNote(1, 1),
+                createNote(7, 7),
+                createNote(8, 8),
+                createNote(14, 14));
+            addLaneTimelines(beatmap, 16);
+
+            new BmsModMirror().ApplyToBeatmap(beatmap);
+
+            Assert.Multiple(() =>
+            {
+                assertObjectAndTimelineMovedTogether(beatmap, 1, 7);
+                assertObjectAndTimelineMovedTogether(beatmap, 7, 1);
+                assertObjectAndTimelineMovedTogether(beatmap, 8, 14);
+                assertObjectAndTimelineMovedTogether(beatmap, 14, 8);
+                Assert.That(beatmap.GetLaneKeysoundTimeline(0).Single().Sample.Filename, Is.EqualTo("lane-0.wav"));
+                Assert.That(beatmap.GetLaneKeysoundTimeline(15).Single().Sample.Filename, Is.EqualTo("lane-15.wav"));
+            });
+        }
+
+        [TestCase(BmsRandomMode.Random, null)]
+        [TestCase(BmsRandomMode.RRandom, null)]
+        [TestCase(BmsRandomMode.Random, "7654321")]
+        public void TestRandomFamilyMovesArmedTimelineWithTheSameExactPermutation(BmsRandomMode mode, string? customPattern)
+        {
+            var beatmap = createBeatmap(
+                BmsKeymode.Key7K,
+                Enumerable.Range(1, 7).Select(index => createNote(index, index)).ToArray());
+            addLaneTimelines(beatmap, 8);
+            var mod = new BmsModRandom();
+            mod.RandomMode.Value = mode;
+            mod.Seed.Value = 20260417;
+            mod.CustomPattern.Value = customPattern ?? string.Empty;
+
+            mod.ApplyToBeatmap(beatmap);
+
+            Assert.Multiple(() =>
+            {
+                for (int sourceLane = 1; sourceLane <= 7; sourceLane++)
+                    assertObjectAndTimelineMovedTogether(beatmap, sourceLane, getLane(beatmap, sourceLane));
+
+                Assert.That(beatmap.GetLaneKeysoundTimeline(0).Single().Sample.Filename, Is.EqualTo("lane-0.wav"));
+                Assert.That(beatmap.LaneKeysoundTimelineDiagnostic, Is.Null);
+            });
+        }
+
+        [Test]
+        public void TestSRandomDisablesOnlyNonPermutableArmedTimelines()
+        {
+            var beatmap = createBeatmap(
+                BmsKeymode.Key7K,
+                Enumerable.Range(1, 7).Select(index => createNote(index, index, index * 100)).ToArray());
+            addLaneTimelines(beatmap, 8);
+            var mod = new BmsModRandom();
+            mod.RandomMode.Value = BmsRandomMode.SRandom;
+            mod.Seed.Value = 20260417;
+
+            mod.ApplyToBeatmap(beatmap);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(beatmap.LaneKeysoundTimelines.Keys, Is.EqualTo(new[] { 0 }));
+                Assert.That(beatmap.GetLaneKeysoundTimeline(0).Single().Sample.Filename, Is.EqualTo("lane-0.wav"));
+                Assert.That(beatmap.LaneKeysoundTimelineDiagnostic, Is.EqualTo("bms.keysound.timeline.disabled-s-random"));
+                Assert.That(beatmap.HitObjects.OfType<BmsHitObject>().All(note => note.LaneIndex is >= 1 and <= 7), Is.True);
+            });
+        }
+
+        [Test]
         public void TestBeatmapModApplicatorDoesNotReapplyRearrangement()
         {
             var beatmap = createBeatmap(
@@ -255,14 +328,14 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             // Simulates WorkingBeatmap.GetPlayableBeatmap applying the IApplicableToBeatmap mod once.
             mod.ApplyToBeatmap(beatmap);
-            var afterSingleApplication = Enumerable.Range(1, 7).Select(index => getLane(beatmap, index)).ToArray();
+            int[] afterSingleApplication = Enumerable.Range(1, 7).Select(index => getLane(beatmap, index)).ToArray();
 
             // Simulates the two further runs on the same playable beatmap instance during gameplay
             // (DrawableBmsRuleset ctor + BmsScoreProcessor.ApplyBeatmap). These must NOT re-permute lanes.
             BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, new Mod[] { mod });
             BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, new Mod[] { mod });
 
-            var afterApplicator = Enumerable.Range(1, 7).Select(index => getLane(beatmap, index)).ToArray();
+            int[] afterApplicator = Enumerable.Range(1, 7).Select(index => getLane(beatmap, index)).ToArray();
 
             Assert.That(afterApplicator, Is.EqualTo(afterSingleApplication));
         }
@@ -291,7 +364,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             mod.RandomMode.Value = BmsRandomMode.RRandom;
             mod.Seed.Value = 20260417;
 
-            var values = mod.SettingDescription.Select(setting => setting.value.ToString()).ToArray();
+            string[] values = mod.SettingDescription.Select(setting => setting.value.ToString()).ToArray();
 
             Assert.Multiple(() =>
             {
@@ -378,7 +451,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             for (int rotation = 1; rotation < basePattern.Count; rotation++)
             {
-                var rotated = basePattern.Skip(rotation).Concat(basePattern.Take(rotation)).ToArray();
+                int[] rotated = basePattern.Skip(rotation).Concat(basePattern.Take(rotation)).ToArray();
                 yield return rotated;
                 yield return rotated.Reverse().ToArray();
             }
@@ -431,5 +504,21 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static int getLane(BmsBeatmap beatmap, int id)
             => getObject(beatmap, id).LaneIndex;
+
+        private static void addLaneTimelines(BmsBeatmap beatmap, int laneCount)
+        {
+            beatmap.LaneKeysoundTimelines = Enumerable.Range(0, laneCount).ToDictionary(
+                lane => lane,
+                lane => (IReadOnlyList<BmsLaneKeysoundEntry>)new[]
+                {
+                    new BmsLaneKeysoundEntry(lane * 100, lane, new BmsKeysoundSampleInfo($"lane-{lane}.wav")),
+                });
+        }
+
+        private static void assertObjectAndTimelineMovedTogether(BmsBeatmap beatmap, int sourceLane, int targetLane)
+        {
+            Assert.That(getLane(beatmap, sourceLane), Is.EqualTo(targetLane));
+            Assert.That(beatmap.GetLaneKeysoundTimeline(targetLane).Single().Sample.Filename, Is.EqualTo($"lane-{sourceLane}.wav"));
+        }
     }
 }

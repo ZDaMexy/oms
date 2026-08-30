@@ -1,7 +1,6 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -9,6 +8,8 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Events;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Mania.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.UI
@@ -40,7 +41,7 @@ namespace osu.Game.Rulesets.Mania.UI
             MaxValue = 1
         };
 
-        private GridContainer gridContainer = null!;
+        private Container gridContainer = null!;
 
         public ManiaTouchInputArea(DrawableManiaRuleset drawableRuleset)
         {
@@ -54,41 +55,36 @@ namespace osu.Game.Rulesets.Mania.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(GameplaySkinLayoutSnapshot snapshot, GameplaySkinLayoutRevisionOwner owner)
         {
-            List<Drawable> receptorGridContent = new List<Drawable>();
-            List<Dimension> receptorGridDimensions = new List<Dimension>();
+            ManiaGameplaySkinLayout.ValidateConsumerCarrier(snapshot, owner, "touch overlay");
 
-            bool first = true;
+            if (!ReferenceEquals(snapshot, drawableRuleset.LayoutSnapshot))
+                throw new System.InvalidOperationException("The mania touch overlay must retain the exact production layout snapshot.");
 
-            foreach (var stage in drawableRuleset.Playfield.Stages)
-            {
-                foreach (var column in stage.Columns)
-                {
-                    if (!first)
-                    {
-                        receptorGridContent.Add(new Gutter { Spacing = { BindTarget = Spacing } });
-                        receptorGridDimensions.Add(new Dimension(GridSizeMode.AutoSize));
-                    }
-
-                    receptorGridContent.Add(new ColumnInputReceptor
-                    {
-                        Action = { BindTarget = column.Action },
-                        Spacing = { BindTarget = Spacing },
-                    });
-                    receptorGridDimensions.Add(new Dimension());
-
-                    first = false;
-                }
-            }
-
-            InternalChild = gridContainer = new GridContainer
+            InternalChild = gridContainer = new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 AlwaysPresent = true,
-                Content = new[] { receptorGridContent.ToArray() },
-                ColumnDimensions = receptorGridDimensions.ToArray()
             };
+
+            GameplaySkinLayoutRect screen = snapshot.Context.ScreenBounds;
+
+            foreach (GameplaySkinLayoutLane lane in snapshot.LanesInLogicalOrder)
+            {
+                Column column = drawableRuleset.Playfield.GetColumn(lane.TopologyEntry.GlobalLogicalIndex);
+                gridContainer.Add(new ColumnInputReceptor
+                {
+                    Anchor = Anchor.TopLeft,
+                    Origin = Anchor.TopLeft,
+                    RelativePositionAxes = Axes.Both,
+                    RelativeSizeAxes = Axes.Both,
+                    Position = new Vector2((lane.Rect.X - screen.X) / screen.Width, 0),
+                    Size = new Vector2(lane.Rect.Width / screen.Width, 1),
+                    Action = { BindTarget = column.Action },
+                    Spacing = { BindTarget = Spacing },
+                });
+            }
         }
 
         protected override void LoadComplete()
@@ -193,16 +189,6 @@ namespace osu.Game.Rulesets.Mania.UI
                     inputManager?.KeyBindingContainer.TriggerReleased(Action.Value);
                     highlightOverlay.FadeTo(0, 400, Easing.OutQuint);
                 }
-            }
-        }
-
-        private partial class Gutter : Drawable
-        {
-            public readonly IBindable<float> Spacing = new Bindable<float>();
-
-            public Gutter()
-            {
-                Spacing.BindValueChanged(s => Size = new Vector2(s.NewValue));
             }
         }
     }

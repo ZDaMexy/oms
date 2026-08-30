@@ -64,7 +64,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Origin = Anchor.Centre,
                     RelativePositionAxes = Axes.Y,
                     Y = -0.25f,
-                    Size = new Vector2(Column.COLUMN_WIDTH, DefaultNotePiece.NOTE_HEIGHT),
+                    Size = new Vector2(80, DefaultNotePiece.NOTE_HEIGHT),
                     Child = pool
                 };
             });

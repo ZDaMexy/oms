@@ -3,50 +3,46 @@
 
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.UI.Scrolling;
-using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.UI.Components
 {
     public partial class HitPositionPaddedContainer : Container
     {
-        protected readonly IBindable<ScrollingDirection> Direction = new Bindable<ScrollingDirection>();
+        protected readonly Bindable<ScrollingDirection> Direction = new Bindable<ScrollingDirection>();
 
-        [Resolved]
-        private ISkinSource skin { get; set; } = null!;
+        private float hitPositionFraction;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         [BackgroundDependencyLoader]
-        private void load(IScrollingInfo scrollingInfo)
+        private void load(ManiaGameplaySkinStageContext stageContext)
         {
-            Direction.BindTo(scrollingInfo.Direction);
-            Direction.BindValueChanged(_ => UpdateHitPosition(), true);
-
-            skin.SourceChanged += onSkinChanged;
+            LayoutSnapshot = stageContext.Snapshot;
+            Direction.Value = stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down;
+            hitPositionFraction = ManiaGameplaySkinLayoutProjection.GetHitTargetInsetFraction(stageContext);
+            UpdateHitPosition();
         }
-
-        private void onSkinChanged() => UpdateHitPosition();
 
         protected virtual void UpdateHitPosition()
         {
-            float hitPosition = skin.GetConfig<ManiaSkinConfigurationLookup, float>(
-                                    new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.HitPosition))?.Value
-                                ?? Stage.HIT_TARGET_POSITION;
+            float hitPosition = DrawHeight * hitPositionFraction;
 
             Padding = Direction.Value == ScrollingDirection.Up
                 ? new MarginPadding { Top = hitPosition }
                 : new MarginPadding { Bottom = hitPosition };
         }
 
-        protected override void Dispose(bool isDisposing)
+        protected override void Update()
         {
-            base.Dispose(isDisposing);
-
-            if (skin.IsNotNull())
-                skin.SourceChanged -= onSkinChanged;
+            base.Update();
+            UpdateHitPosition();
         }
     }
 }

@@ -1,11 +1,14 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using NUnit.Framework;
-using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Testing;
+using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Tests.Visual;
 
@@ -21,19 +24,31 @@ namespace osu.Game.Rulesets.Bms.Tests
         [SetUp]
         public void Setup() => Schedule(() =>
         {
-            Child = new Container
+            var beatmap = new BmsBeatmap { BmsInfo = new BmsBeatmapInfo { Keymode = BmsKeymode.Key7K } };
+            var layoutProvider = new BmsGameplayLayoutProvider(beatmap);
+            layoutProvider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration());
+
+            Child = new DependencyProvidingContainer
             {
                 RelativeSizeAxes = Axes.Both,
-                Children = new Drawable[]
+                CachedDependencies = new (Type, object)[]
                 {
-                    new Box
+                    (typeof(BmsGameplayLayoutProvider), layoutProvider),
+                },
+                Child = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Children = new Drawable[]
                     {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = Colour4.DarkGray,
-                    },
-                    suddenCover = new TestBmsLaneCover(BmsLaneCoverPosition.Sudden),
-                    hiddenCover = new TestBmsLaneCover(BmsLaneCoverPosition.Hidden),
-                }
+                        new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = Colour4.DarkGray,
+                        },
+                        suddenCover = new TestBmsLaneCover(BmsLaneCoverPosition.Sudden),
+                        hiddenCover = new TestBmsLaneCover(BmsLaneCoverPosition.Hidden),
+                    }
+                },
             };
         });
 

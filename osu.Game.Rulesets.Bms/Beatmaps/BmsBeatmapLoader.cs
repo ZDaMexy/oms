@@ -14,6 +14,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             => beatmapInfo.Ruleset.ShortName == BmsRuleset.SHORT_NAME && BmsImportExtensions.IsBeatmapFile(filename);
 
         public IBeatmap Load(Stream stream, string filename, BeatmapInfo beatmapInfo)
-            => BmsImportedBeatmapFactory.Create(stream, filename);
+            => Load(stream, filename, beatmapInfo, null);
+
+        /// <summary>
+        /// Production correction seam for an importer/host which has explicit keymode authority. The ordinary
+        /// <see cref="ICustomBeatmapLoader"/> entry point remains source-compatible and uses parser evidence only.
+        /// </summary>
+        public IBeatmap Load(Stream stream, string filename, BeatmapInfo beatmapInfo, BmsBeatmapDecoderOptions? options)
+            => BmsImportedBeatmapFactory.Create(stream, filename, options);
     }
 }

@@ -5,7 +5,6 @@ using System;
 using System.Linq;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
-using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Rulesets.Judgements;
@@ -21,6 +20,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.UI
@@ -33,17 +33,11 @@ namespace osu.Game.Rulesets.Mania.UI
         [Cached]
         public readonly StageDefinition Definition;
 
-        public const float COLUMN_SPACING = 1;
-
-        public const float HIT_TARGET_POSITION = 110;
-
         public Column[] Columns => columnFlow.Content;
         private readonly ColumnFlow<Column> columnFlow;
 
         private readonly JudgementContainer<DrawableManiaJudgement> judgements;
         private readonly JudgementPooler<DrawableManiaJudgement> judgementPooler;
-
-        private readonly Drawable barLineContainer;
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos)
         {
@@ -58,7 +52,11 @@ namespace osu.Game.Rulesets.Mania.UI
 
         private readonly int firstColumnIndex;
 
-        private ISkinSource currentSkin = null!;
+        private ManiaGameplaySkinStageContext layoutStageContext = null!;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutStageContext.Snapshot;
+
+        public GameplaySkinLaneGroupId LayoutGroupId => layoutStageContext.Group.GroupId;
 
         public Stage(int firstColumnIndex, StageDefinition definition, ref ManiaAction columnStartAction)
         {
@@ -67,10 +65,9 @@ namespace osu.Game.Rulesets.Mania.UI
 
             Name = "Stage";
 
-            Anchor = Anchor.Centre;
-            Origin = Anchor.Centre;
-            RelativeSizeAxes = Axes.Y;
-            AutoSizeAxes = Axes.X;
+            Anchor = Anchor.TopLeft;
+            Origin = Anchor.TopLeft;
+            RelativeSizeAxes = Axes.Both;
 
             Container columnBackgrounds;
             Container topLevelContainer;
@@ -81,8 +78,7 @@ namespace osu.Game.Rulesets.Mania.UI
                 {
                     Anchor = Anchor.TopCentre,
                     Origin = Anchor.TopCentre,
-                    RelativeSizeAxes = Axes.Y,
-                    AutoSizeAxes = Axes.X,
+                    RelativeSizeAxes = Axes.Both,
                     Children = new Drawable[]
                     {
                         new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.StageBackground), _ => new DefaultStageBackground())
@@ -99,28 +95,26 @@ namespace osu.Game.Rulesets.Mania.UI
                             Name = "Barlines mask",
                             Anchor = Anchor.TopCentre,
                             Origin = Anchor.TopCentre,
-                            RelativeSizeAxes = Axes.Y,
-                            Width = 1366, // Bar lines should only be masked on the vertical axis
-                            BypassAutoSizeAxes = Axes.Both,
+                            RelativeSizeAxes = Axes.Both,
                             Masking = true,
-                            Child = barLineContainer = new HitPositionPaddedContainer
+                            Child = new HitPositionPaddedContainer
                             {
                                 Name = "Bar lines",
                                 Anchor = Anchor.TopCentre,
                                 Origin = Anchor.TopCentre,
-                                RelativeSizeAxes = Axes.Y,
+                                RelativeSizeAxes = Axes.Both,
                                 Child = HitObjectContainer,
                             }
                         },
                         columnFlow = new ColumnFlow<Column>(definition)
                         {
-                            RelativeSizeAxes = Axes.Y,
+                            RelativeSizeAxes = Axes.Both,
                         },
                         new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.StageForeground))
                         {
                             RelativeSizeAxes = Axes.Both
                         },
-                        new HitPositionPaddedContainer
+                        new Container
                         {
                             RelativeSizeAxes = Axes.Both,
                             Child = judgements = new JudgementContainer<DrawableManiaJudgement>
@@ -142,7 +136,6 @@ namespace osu.Game.Rulesets.Mania.UI
                 var column = CreateColumn(firstColumnIndex + i, isSpecial).With(c =>
                 {
                     c.RelativeSizeAxes = Axes.Both;
-                    c.Width = 1;
                     c.Action.Value = action;
                 });
 
@@ -162,36 +155,60 @@ namespace osu.Game.Rulesets.Mania.UI
         [Pure]
         protected virtual Column CreateColumn(int index, bool isSpecial) => new Column(index, isSpecial);
 
-        [BackgroundDependencyLoader]
-        private void load(ISkinSource skin)
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
-            currentSkin = skin;
+            IReadOnlyDependencyContainer effectiveParent = parent;
+            parent.TryGet(out GameplaySkinLayoutRevisionOwner layoutOwner);
 
-            skin.SourceChanged += onSkinChanged;
-            onSkinChanged();
-        }
-
-        private void onSkinChanged()
-        {
-            float paddingTop = currentSkin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.StagePaddingTop))?.Value ?? 0;
-            float paddingBottom = currentSkin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.StagePaddingBottom))?.Value ?? 0;
-
-            Padding = new MarginPadding
+            if (!parent.TryGet(out             GameplaySkinLayoutSnapshot snapshot))
             {
-                Top = paddingTop,
-                Bottom = paddingBottom,
-            };
-        }
+                if (layoutOwner == null || layoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                {
+                    throw new InvalidOperationException(
+                        "A standalone mania stage requires an explicitly cached compatibility layout owner.");
+                }
 
-        protected override void Dispose(bool isDisposing)
-        {
-            // must happen before children are disposed in base call to prevent illegal accesses to the judgement pool.
-            NewResult -= OnNewResult;
+                GameplaySkinScrollDirection direction = parent.TryGet(out IScrollingInfo scrollingInfo)
+                    && scrollingInfo.Direction.Value == ScrollingDirection.Up
+                        ? GameplaySkinScrollDirection.Up
+                        : GameplaySkinScrollDirection.Down;
+                ManiaGameplaySkinLayout compatibility = ManiaGameplaySkinLayout.CreateCompatibility(
+                    new[] { Definition }, parent.Get<ISkinSource>(), direction, useSkinGeometry: false);
+                var compatibilityDependencies = new DependencyContainer(parent);
+                compatibilityDependencies.Cache(compatibility);
+                compatibilityDependencies.Cache(compatibility.Snapshot);
+                effectiveParent = compatibilityDependencies;
+                snapshot = compatibility.Snapshot;
+            }
 
-            base.Dispose(isDisposing);
+            ManiaGameplaySkinLayout.ValidateConsumerCarrier(snapshot, layoutOwner, "stage");
 
-            if (currentSkin.IsNotNull())
-                currentSkin.SourceChanged -= onSkinChanged;
+            GameplaySkinLaneTopologyGroup topologyGroup = snapshot.Context.Topology.GroupsInLogicalOrder.FirstOrDefault(group =>
+                group.LanesInLogicalOrder[0].GlobalLogicalIndex == firstColumnIndex)
+                                                        ?? throw new InvalidOperationException("The mania stage could not resolve its explicit topology group.");
+
+            if (topologyGroup.LogicalIndex >= snapshot.Context.Topology.GroupsInLogicalOrder.Count
+                || !ReferenceEquals(snapshot.Context.Topology.GroupsInLogicalOrder[topologyGroup.LogicalIndex], topologyGroup)
+                || topologyGroup.LanesInLogicalOrder.Count != Definition.Columns)
+            {
+                throw new InvalidOperationException("The mania stage topology group is not coherent with its native stage definition.");
+            }
+
+            for (int localIndex = 0; localIndex < Definition.Columns; localIndex++)
+            {
+                GameplaySkinLaneTopologyEntry lane = topologyGroup.LanesInLogicalOrder[localIndex];
+
+                if (lane.GroupLocalLogicalIndex != localIndex
+                    || lane.GlobalLogicalIndex != firstColumnIndex + localIndex)
+                {
+                    throw new InvalidOperationException("The mania stage lane mapping lost its explicit global or group-local logical index.");
+                }
+            }
+
+            var dependencies = new DependencyContainer(base.CreateChildDependencies(effectiveParent));
+            layoutStageContext = new ManiaGameplaySkinStageContext(snapshot, topologyGroup);
+            dependencies.Cache(layoutStageContext);
+            return dependencies;
         }
 
         protected override void LoadComplete()
@@ -219,11 +236,11 @@ namespace osu.Game.Rulesets.Mania.UI
             judgements.Add(judgementPooler.Get(result.Type, j => j.Apply(result, judgedObject))!);
         }
 
-        protected override void Update()
+        protected override void Dispose(bool isDisposing)
         {
-            // Due to masking differences, it is not possible to get the width of the columns container automatically
-            // While masking on effectively only the Y-axis, so we need to set the width of the bar line container manually
-            barLineContainer.Width = columnFlow.Width;
+            // must happen before children are disposed in base call to prevent illegal accesses to the judgement pool.
+            NewResult -= OnNewResult;
+            base.Dispose(isDisposing);
         }
     }
 }

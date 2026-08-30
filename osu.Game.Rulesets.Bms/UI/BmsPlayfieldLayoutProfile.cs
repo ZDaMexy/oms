@@ -83,7 +83,41 @@ namespace osu.Game.Rulesets.Bms.UI
             BarLineHeight = barLineHeight;
         }
 
-        public static BmsPlayfieldLayoutProfile CreateDefault(
+        /// <summary>
+        /// Creates the validated compatibility view emitted by <see cref="Skinning.BmsGameplayLayoutSolver"/>.
+        /// Production code must never call this as an independent geometry solver.
+        /// </summary>
+        internal static BmsPlayfieldLayoutProfile CreateValidated(
+            BmsKeymode keymode,
+            int laneCount,
+            float normalLaneRelativeWidth,
+            float scratchLaneRelativeWidth,
+            float normalLaneRelativeSpacing,
+            float scratchLaneRelativeSpacing,
+            float playfieldWidth,
+            float playfieldHeight,
+            float hitTargetHeight,
+            float hitTargetBarHeight,
+            float hitTargetLineHeight,
+            float hitTargetGlowRadius,
+            float barLineHeight)
+            => new BmsPlayfieldLayoutProfile(
+                keymode,
+                laneCount,
+                normalLaneRelativeWidth,
+                scratchLaneRelativeWidth,
+                normalLaneRelativeSpacing,
+                scratchLaneRelativeSpacing,
+                playfieldWidth,
+                playfieldHeight,
+                hitTargetHeight,
+                0,
+                hitTargetBarHeight,
+                hitTargetLineHeight,
+                hitTargetGlowRadius,
+                barLineHeight);
+
+        internal static BmsPlayfieldLayoutProfile CreateDefault(
             BmsKeymode keymode,
             int laneCount,
             float? normalLaneRelativeWidth = null,
@@ -98,7 +132,7 @@ namespace osu.Game.Rulesets.Bms.UI
             float? hitTargetGlowRadius = null,
             float? hitTargetVerticalOffset = null,
             float? barLineHeight = null)
-            => new BmsPlayfieldLayoutProfile(
+            => CreateValidated(
                 keymode,
                 laneCount,
                 normalLaneRelativeWidth: normalLaneRelativeWidth ?? 1f,
@@ -114,7 +148,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 // leaving the band below it for the gauge bar mounted just under the judgement line.
                 playfieldHeight: playfieldHeight ?? DEFAULT_PLAYFIELD_HEIGHT,
                 hitTargetHeight: hitTargetHeight ?? 16f,
-                hitTargetVerticalOffset: hitTargetVerticalOffset ?? 0f,
                 hitTargetBarHeight: hitTargetBarHeight ?? 12f,
                 hitTargetLineHeight: hitTargetLineHeight ?? 3f,
                 hitTargetGlowRadius: hitTargetGlowRadius ?? 6f,

@@ -9,11 +9,9 @@ using osu.Framework.Allocation;
 using osu.Framework.Audio.Track;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.IEnumerableExtensions;
-using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Input;
 using osu.Framework.Platform;
-using osu.Framework.Threading;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
@@ -32,6 +30,7 @@ using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.UI
 {
@@ -62,7 +61,6 @@ namespace osu.Game.Rulesets.Mania.UI
 
         protected new ManiaRulesetConfigManager Config => (ManiaRulesetConfigManager)base.Config;
 
-        private readonly Bindable<ManiaScrollingDirection> configDirection = new Bindable<ManiaScrollingDirection>();
         private readonly BindableDouble configScrollSpeed = new BindableDouble();
         private readonly Bindable<ManiaMobileLayout> mobileLayout = new Bindable<ManiaMobileLayout>();
         private readonly Bindable<bool> touchOverlay = new Bindable<bool>();
@@ -101,15 +99,71 @@ namespace osu.Game.Rulesets.Mania.UI
         // keysounds, so normal mania play is unaffected; the BMS assembly being absent is a clean no-op.
         private Drawable? sharedKeysoundStore;
 
+        private GameplaySkinLayoutPublication layoutPublication = null!;
+
+        internal GameplaySkinLayoutRevisionOwner LayoutRevisionOwner { get; private set; } = null!;
+
+        internal ManiaGameplaySkinLayout LayoutAdapter => layoutPublication.GetAdapter<ManiaGameplaySkinLayout>();
+
+        /// <summary>
+        /// The exact immutable layout snapshot shared by the complete mania gameplay tree.
+        /// </summary>
+        public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutPublication.Snapshot;
+
+        public ScrollingDirection PublishedDirection => Direction.Value;
+
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
-            var dependencies = base.CreateChildDependencies(parent);
+            IReadOnlyDependencyContainer dependencies = base.CreateChildDependencies(parent);
+            var wrapped = new DependencyContainer(dependencies);
+
+            if (!dependencies.TryGet(out GameplaySkinLayoutRevisionOwner exactOwner))
+            {
+                throw new InvalidOperationException(
+                    "A mania gameplay root requires an exact provider owner or an explicitly cached compatibility owner.");
+            }
+
+            LayoutRevisionOwner = exactOwner;
+            layoutPublication = LayoutRevisionOwner.CurrentPublication!;
+
+            if (layoutPublication == null)
+            {
+                if (LayoutRevisionOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                    throw new InvalidOperationException("An exact mania gameplay root must complete background layout preparation before child loading.");
+
+                // Explicit isolation-only compatibility path for visual/unit hosts which do not mount a managed
+                // RulesetSkinProvidingContainer. Exact production roots are prepared by the stateless ruleset hook.
+                GameplaySkinScrollDirection layoutDirection = Config.Get<ManiaScrollingDirection>(ManiaRulesetSetting.ScrollDirection) == ManiaScrollingDirection.Up
+                    ? GameplaySkinScrollDirection.Up
+                    : GameplaySkinScrollDirection.Down;
+                layoutPublication = ManiaGameplaySkinLayout.PrepareAndPublish(
+                    Beatmap,
+                    dependencies.Get<ISkinSource>(),
+                    LayoutRevisionOwner,
+                    dependencies.Get<GameHost>(),
+                    layoutDirection);
+            }
+
+            ManiaGameplaySkinLayout adapter = layoutPublication.GetAdapter<ManiaGameplaySkinLayout>();
+            string expectedNativeContext = $"stages-{string.Join("-", Beatmap.Stages.Select(stage => stage.Columns))}";
+
+            if (!ReferenceEquals(layoutPublication, LayoutRevisionOwner.CurrentPublication)
+                || !ReferenceEquals(adapter.Snapshot, layoutPublication.Snapshot)
+                || !ReferenceEquals(layoutPublication.Snapshot.Context.PackageRevision, LayoutRevisionOwner.PackageRevision)
+                || layoutPublication.Snapshot.Context.RulesetId != "mania"
+                || layoutPublication.Snapshot.Context.NativeContextId != expectedNativeContext)
+            {
+                throw new InvalidOperationException("The mania gameplay layout does not retain this root's exact package revision.");
+            }
+
+            wrapped.Cache(adapter);
+            wrapped.Cache(layoutPublication.Snapshot);
+            wrapped.Cache(LayoutRevisionOwner);
 
             if (bmsShouldHostKeysoundStore?.Invoke(Beatmap) == true && bmsCreateKeysoundStore?.Invoke(dependencies.Get<IRulesetConfigCache>()) is Drawable store)
             {
                 sharedKeysoundStore = store;
 
-                var wrapped = new DependencyContainer(dependencies);
                 // Cache under the store's runtime type (BmsKeysoundStore) so the BMS-assembly sample-only drawables
                 // (BGM / scratch) resolve it; mania cannot name that type at compile time.
                 wrapped.Cache(store);
@@ -119,17 +173,13 @@ namespace osu.Game.Rulesets.Mania.UI
                 // lets converted KEY notes stay pooled instead of each becoming a non-pooled drawable (J6 / P1-J #10).
                 if (store is IManiaKeysoundStore keysoundStore)
                     wrapped.CacheAs(keysoundStore);
-
-                return wrapped;
             }
 
-            return dependencies;
+            return wrapped;
         }
 
         // Stores the current speed adjustment active in gameplay.
         private readonly Track speedAdjustmentTrack = new TrackVirtual(0);
-
-        private ISkinSource currentSkin = null!;
 
         [Resolved]
         private GameHost gameHost { get; set; } = null!;
@@ -144,12 +194,8 @@ namespace osu.Game.Rulesets.Mania.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load(ISkinSource source)
+        private void load()
         {
-            currentSkin = source;
-            currentSkin.SourceChanged += onSkinChange;
-            skinChanged();
-
             foreach (var mod in Mods.OfType<IApplicableToTrack>())
                 mod.ApplyToTrack(speedAdjustmentTrack);
 
@@ -168,8 +214,11 @@ namespace osu.Game.Rulesets.Mania.UI
 
             BarLines.ForEach(Playfield.Add);
 
-            Config.BindWith(ManiaRulesetSetting.ScrollDirection, configDirection);
-            configDirection.BindValueChanged(direction => Direction.Value = (ScrollingDirection)direction.NewValue, true);
+            // Geometry and scrolling direction form one immutable publication. A configuration change is therefore
+            // deliberately applied only to the next gameplay root rather than splitting this root across revisions.
+            Direction.Value = LayoutSnapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down;
 
             Config.BindWith(ManiaRulesetSetting.ScrollSpeed, configScrollSpeed);
             configScrollSpeed.BindValueChanged(speed =>
@@ -226,8 +275,8 @@ namespace osu.Game.Rulesets.Mania.UI
                 if (hitObject is HoldNote hold && hold.NodeSamples != null)
                 {
                     foreach (var nodeSamples in hold.NodeSamples)
-                    foreach (var sample in nodeSamples)
-                        Playfield.PrepareSamplePool(sample);
+                        foreach (var sample in nodeSamples)
+                            Playfield.PrepareSamplePool(sample);
                 }
 
                 // BGM / scratch carry their keysound only here (empty Samples; see above); KEY notes expose theirs too.
@@ -260,33 +309,17 @@ namespace osu.Game.Rulesets.Mania.UI
             updateTimeRange();
         }
 
-        private ScheduledDelegate? pendingSkinChange;
-        private float hitPosition;
-
-        private void onSkinChange()
-        {
-            // schedule required to avoid calls after disposed.
-            // note that this has the side-effect of components only performing a skin change when they are alive.
-            pendingSkinChange?.Cancel();
-            pendingSkinChange = Scheduler.Add(skinChanged);
-        }
-
-        private void skinChanged()
-        {
-            hitPosition = currentSkin.GetConfig<ManiaSkinConfigurationLookup, float>(
-                              new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.HitPosition))?.Value
-                          ?? Stage.HIT_TARGET_POSITION;
-
-            pendingSkinChange = null;
-        }
-
         private void updateTimeRange()
         {
-            const float length_to_default_hit_position = 768 - LegacyManiaSkinConfiguration.DEFAULT_HIT_POSITION;
-            float lengthToHitPosition = 768 - hitPosition;
+            GameplaySkinLayoutSurface playfieldSurface = LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.PLAYFIELD_SURFACE);
+            GameplaySkinLayoutSurface hitTargetSurface = LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.HIT_TARGET_SURFACE);
+            float resolvedScrollLength = LayoutSnapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Down
+                ? hitTargetSurface.Rect.Top - playfieldSurface.Rect.Top
+                : playfieldSurface.Rect.Bottom - hitTargetSurface.Rect.Bottom;
+            float defaultScrollLength = 1 - LegacyManiaSkinConfiguration.DEFAULT_HIT_POSITION / 768f;
 
             // This scaling factor preserves the scroll speed as the scroll length varies from changes to the hit position.
-            float scale = lengthToHitPosition / length_to_default_hit_position;
+            float scale = resolvedScrollLength / defaultScrollLength;
 
             // we're intentionally using the game host's update clock here to decouple the time range tween from the gameplay clock (which can be arbitrarily paused, or even rewinding)
             currentTimeRange = Interpolation.DampContinuously(currentTimeRange, TargetTimeRange, 50, gameHost.UpdateThread.Clock.ElapsedFrameTime);
@@ -300,7 +333,7 @@ namespace osu.Game.Rulesets.Mania.UI
         /// <returns>The scroll time.</returns>
         public static double ComputeScrollTime(double scrollSpeed) => MAX_TIME_RANGE / scrollSpeed;
 
-        public override PlayfieldAdjustmentContainer CreatePlayfieldAdjustmentContainer() => new ManiaPlayfieldAdjustmentContainer(this);
+        public override PlayfieldAdjustmentContainer CreatePlayfieldAdjustmentContainer() => new ManiaPlayfieldAdjustmentContainer();
 
         protected override Playfield CreatePlayfield() => new ManiaPlayfield(Beatmap.Stages);
 
@@ -336,12 +369,5 @@ namespace osu.Game.Rulesets.Mania.UI
 
         protected override ResumeOverlay CreateResumeOverlay() => new DelayedResumeOverlay();
 
-        protected override void Dispose(bool isDisposing)
-        {
-            base.Dispose(isDisposing);
-
-            if (currentSkin.IsNotNull())
-                currentSkin.SourceChanged -= onSkinChange;
-        }
     }
 }

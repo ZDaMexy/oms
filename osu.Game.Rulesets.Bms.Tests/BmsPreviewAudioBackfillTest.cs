@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
-using osu.Game;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Beatmaps;
@@ -24,6 +23,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #PLAYLEVEL 12
 #PREVIEW preview.ogg
 #00111:AA00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 ";
 
         private const string chart_without_preview = @"
@@ -32,6 +35,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #BPM 150
 #PLAYLEVEL 12
 #00111:AA00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 ";
 
         [Test]

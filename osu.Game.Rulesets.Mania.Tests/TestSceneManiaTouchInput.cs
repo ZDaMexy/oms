@@ -79,6 +79,14 @@ namespace osu.Game.Rulesets.Mania.Tests
         [Test]
         public void TestBetweenTwoColumns()
         {
+            AddStep("left column exact gap coverage", () =>
+            {
+                Column column = getColumn(0);
+                Vector2 position = getBoundaryTouchPosition(0, preferLeftColumn: true);
+                Assert.That(column.ReceivePositionalInputAt(position), Is.True,
+                    $"position={position}, local={column.ToLocalSpace(position)}, draw={column.DrawRectangle}, quad={column.ScreenSpaceDrawQuad}, lane={column.LayoutSnapshot.GetLane(column.LayoutLaneId).Rect}");
+            });
+            AddAssert("right column exact gap coverage", () => getColumn(1).ReceivePositionalInputAt(getBoundaryTouchPosition(0, preferLeftColumn: false)));
             AddStep("touch left side of boundary", () => InputManager.BeginTouch(new Touch(TouchSource.Touch1, getBoundaryTouchPosition(0, preferLeftColumn: true))));
             AddAssert("column 0 pressed",
                 () => this.ChildrenOfType<ManiaInputManager>().SelectMany(m => m.KeyBindingContainer.PressedActions),

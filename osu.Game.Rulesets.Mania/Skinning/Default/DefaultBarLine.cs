@@ -20,10 +20,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Default
         private Drawable mainLine = null!;
         private Drawable leftAnchor = null!;
         private Drawable rightAnchor = null!;
+        private float baseHeight;
 
         [BackgroundDependencyLoader]
-        private void load(DrawableHitObject drawableHitObject)
+        private void load(DrawableHitObject drawableHitObject, ManiaGameplaySkinStageContext stageContext)
         {
+            baseHeight = ManiaGameplaySkinLayoutProjection.GetBarLineBaseHeight(stageContext);
             RelativeSizeAxes = Axes.X;
 
             // Avoid flickering due to no anti-aliasing of boxes by default.
@@ -70,12 +72,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Default
         protected override void LoadComplete()
         {
             base.LoadComplete();
-            major.BindValueChanged(updateMajor, true);
+            major.BindValueChanged(value => updateMajor(value, baseHeight), true);
         }
 
-        private void updateMajor(ValueChangedEvent<bool> major)
+        private void updateMajor(ValueChangedEvent<bool> major, float baseHeight)
         {
-            Height = major.NewValue ? 1.7f : 1.2f;
+            Height = baseHeight * (major.NewValue ? 1.7f : 1.2f);
 
             mainLine.Alpha = major.NewValue ? 0.5f : 0.2f;
             leftAnchor.Alpha = rightAnchor.Alpha = major.NewValue ? mainLine.Alpha * 0.3f : 0;

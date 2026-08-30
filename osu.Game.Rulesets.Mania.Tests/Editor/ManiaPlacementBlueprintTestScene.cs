@@ -15,6 +15,7 @@ using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Graphics;
 
@@ -22,6 +23,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Editor
 {
     public abstract partial class ManiaPlacementBlueprintTestScene : PlacementBlueprintTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         protected sealed override Ruleset CreateRuleset() => new ManiaRuleset();
 
         private readonly Column column;

@@ -21,10 +21,10 @@
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule/guarded选择、typed startup双epoch、explicit current Reload、current Delete pre-physical fallback/detach与shutdown地雷。
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、NTFS handoff、`(version,kind,phase)`闭集、terminal compare-delete与Workspace managed动作地雷。
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — service owner不等于capability、held-to-final proof、manual Reload、current/noncurrent pure-Realm unregister与single-v3 copy/recovery地雷。
-- [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源C2完成态、Settings唯一manual Reload、live fail-closed、participant/work lease、generation诊断、current mutation与owner retire；C3～C6新增consumer继续接入。
+- [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源C2完成态与C3 package+layout不可分割pair、Settings唯一manual Reload、live fail-closed、fresh barrier、participant/work lease、generation复核、current mutation与owner retire；C4～C6新增consumer继续接入。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — skin-scoped pre-open/CEN gate、same-hash receipt、record/blob asymmetric rollback，以及current reload/delete不放宽importer的边界。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、legacy editor禁用、三源reload完成边界、真实beatmap-local缺口与不可误推边界；实时能力只看P1-A。
-- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer核算价值；当前`2/7 closed，C3 active`，C1/C2冻结，C3须闭合P1-K前置与唯一layout。
+- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer核算价值；当前`3/7 closed，C4 active`，C1～C3冻结，下一门为shared codec/public catalog/三态resolver与mania compatibility。
 
 ## 构建、存储与产品面参考
 
@@ -43,7 +43,7 @@
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md)
-- [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — `GetKeyCount` 会漏 scratch/末端 lane，修复与验证边界。
+- [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — C3已统一`GetLaneCount`，覆盖5K/7K末键、9K全lane、14K K14/S2及各对象族；parser-owned keymode与真实发声边界。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md)
 - [lane 重排](reference_bms_lane_rearrangement.md)
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)
@@ -57,6 +57,7 @@
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、neutral transition validator 与 internal BMS/mania projection。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision、BMS keymode/mania ordered-stage continuity、失败原子性与非 production `layoutRevision` 边界。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — C3唯一neutral immutable context/publication、BMS solver与mania adapter、全consumer、字段fallback及C2 package+layout pair/lease地雷。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket/legacy mania scalar/indexed-array/global/per-column-colour/native `[Bms]` exact 22 colour / 12 geometry/bucket-global/`NoteBodyStyle` accepted presence、semantic mapping、per-index mask、synthetic default与decoder authority地雷。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — 六类逐lane资源provenance/候选矩阵、production current revision participant/work owner、background materialization与未来consumer逐campaign纳入地雷。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — process-local envelope、canonical stream ordering、producer authority 与 mutable callback 地雷。

@@ -287,7 +287,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 ownerA = manager.CurrentSkin.Value;
                 selectionA = manager.CurrentSkinInfo.Value;
                 manager.CurrentRevisionPrepareStarted = () => prepareCount++;
-                Add(gameplay = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+                Add(gameplay = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 60_000));
             });
             AddUntilStep("wait for live host load", () => gameplay.IsLoaded);
             AddStep("attach live BMS provider", () => gameplay.ShowBms());

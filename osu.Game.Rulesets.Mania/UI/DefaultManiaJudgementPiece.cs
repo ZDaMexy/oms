@@ -5,17 +5,19 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Game.Rulesets.Judgements;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.UI
 {
     public partial class DefaultManiaJudgementPiece : DefaultJudgementPiece
     {
-        private const float judgement_y_position = -180f;
-
         private IBindable<ScrollingDirection> direction = null!;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         public DefaultManiaJudgementPiece(HitResult result)
             : base(result)
@@ -23,16 +25,13 @@ namespace osu.Game.Rulesets.Mania.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load(IScrollingInfo scrollingInfo)
+        private void load(ManiaGameplaySkinStageContext stageContext)
         {
-            direction = scrollingInfo.Direction.GetBoundCopy();
-            direction.BindValueChanged(_ => onDirectionChanged(), true);
-        }
-
-        private void onDirectionChanged()
-        {
-            Anchor = direction.Value == ScrollingDirection.Up ? Anchor.TopCentre : Anchor.BottomCentre;
-            Y = direction.Value == ScrollingDirection.Up ? -judgement_y_position : judgement_y_position;
+            LayoutSnapshot = stageContext.Snapshot;
+            direction = new Bindable<ScrollingDirection>(stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down);
+            ManiaGameplaySkinLayoutProjection.ApplyJudgementPlacement(this, stageContext);
         }
 
         protected override void LoadComplete()
@@ -54,8 +53,7 @@ namespace osu.Game.Rulesets.Mania.UI
                     this.ScaleTo(1.6f);
                     this.ScaleTo(1, 100, Easing.In);
 
-                    this.MoveToY(direction.Value == ScrollingDirection.Up ? -judgement_y_position : judgement_y_position);
-                    this.MoveToOffset(new Vector2(0, 100), 800, Easing.InQuint);
+                    this.MoveToOffset(new Vector2(0, direction.Value == ScrollingDirection.Up ? -100 : 100), 800, Easing.InQuint);
 
                     this.RotateTo(0);
                     this.RotateTo(40, 800, Easing.InQuint);

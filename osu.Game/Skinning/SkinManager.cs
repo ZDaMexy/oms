@@ -487,6 +487,7 @@ namespace osu.Game.Skinning
             Func<CancellationToken, Task<bool>> prepare = null,
             Func<SkinCurrentRevision, CancellationToken, Task<SkinRevisionParticipantCommit>> prepareCommit = null,
             bool blocksRevisionPublication = false,
+            bool affectsGameplayLayoutPublication = false,
             Action shutdownWork = null)
             => currentRevisionPublication.Register(
                 kind,
@@ -494,6 +495,7 @@ namespace osu.Game.Skinning
                 prepare,
                 prepareCommit,
                 blocksRevisionPublication,
+                affectsGameplayLayoutPublication,
                 shutdownWork);
 
         internal bool IsCurrentRevisionPublicationBroadcast

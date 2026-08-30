@@ -24,13 +24,21 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
         private readonly Container content;
 
-        private BmsPlayfieldLayoutProfile layoutProfile;
+        private readonly BmsPlayfieldLayoutProfile layoutProfile;
         private float appliedOffset = float.NaN;
         private bool? appliedReverse;
 
-        public BmsHitObjectArea(BmsHitTarget hitTarget, BmsPlayfieldLayoutProfile layoutProfile, Drawable hitObjectContainer, BindableFloat? liftUnits = null)
+        internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        public BmsHitObjectArea(
+            BmsHitTarget hitTarget,
+            BmsPlayfieldLayoutProfile layoutProfile,
+            Drawable hitObjectContainer,
+            BindableFloat? liftUnits = null,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null)
         {
             this.layoutProfile = layoutProfile;
+            LayoutSnapshot = layoutSnapshot;
 
             if (liftUnits != null)
                 this.liftUnits.BindTo(liftUnits);
@@ -74,13 +82,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (Math.Abs(scrollLengthRatio.Value - newRatio) > 0.0001)
                 scrollLengthRatio.Value = newRatio;
-        }
-
-        public void ApplyLayoutProfile(BmsPlayfieldLayoutProfile layoutProfile)
-        {
-            this.layoutProfile = layoutProfile;
-            HitTarget.ApplyLayoutProfile(layoutProfile);
-            updateLayoutState();
         }
 
         private void updateLayoutState()

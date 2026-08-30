@@ -199,7 +199,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 finishStage("copied managed selection", TimeSpan.FromSeconds(20));
                 startStage("copied renderer");
-                Add(firstRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+                Add(firstRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 60_000));
             });
             AddUntilStep("wait for copied renderer host", () => firstRenderer.IsLoaded);
             AddStep("show copied BMS renderer", () => firstRenderer.ShowBms());
@@ -251,7 +251,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
                 restartedManagedSkin = manager.CurrentSkin.Value;
                 startStage("copied restart renderer");
-                Add(restartedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+                Add(restartedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 60_000));
             });
             AddUntilStep("wait for copied restart renderer host", () => restartedRenderer.IsLoaded);
             AddStep("show copied restart BMS renderer", () => restartedRenderer.ShowBms());
@@ -358,7 +358,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(captureFolderInventory(externalRoot), Is.EqualTo(externalSnapshot));
                 });
                 startStage("renamed restart renderer");
-                Add(renamedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+                Add(renamedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 60_000));
             });
             AddUntilStep("wait for renamed renderer host", () => renamedRenderer.IsLoaded);
             AddStep("show renamed BMS renderer", () => renamedRenderer.ShowBms());

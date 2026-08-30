@@ -25,6 +25,7 @@ using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -65,16 +66,21 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("profile hit target glow stays default", () => drawableRuleset.Playfield.LayoutProfile.HitTargetGlowRadius, () => Is.EqualTo(6f).Within(0.0001f));
             AddAssert("profile hit target offset stays default", () => drawableRuleset.Playfield.LayoutProfile.HitTargetVerticalOffset, () => Is.EqualTo(0f).Within(0.0001f));
             AddAssert("profile bar line height stays default", () => drawableRuleset.Playfield.LayoutProfile.BarLineHeight, () => Is.EqualTo(2f).Within(0.0001f));
-            AddAssert("lane hit target heights stay default", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.HitTarget.Height - 16f) <= 0.0001f));
+            AddAssert("lane hit target surfaces stay at exact default", () => drawableRuleset.Playfield.Lanes.All(lane =>
+                Math.Abs(lane.HitTarget.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height
+                         - drawableRuleset.LayoutSnapshot.HitTargetRect.Height) <= 0.001f));
             AddAssert("lane hit target bottoms stay at playfield edge", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.BottomLeft.Y - lane.HitTarget.ScreenSpaceDrawQuad.BottomLeft.Y) <= 1f));
             AddAssert("scrolling container edge matches receptor", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.HitObjectContainer.ScreenSpaceDrawQuad.BottomLeft.Y - lane.HitTarget.ScreenSpaceDrawQuad.BottomLeft.Y) <= 1f));
-            AddAssert("bar line heights stay default", () => drawableRuleset.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>()).All(barLine => Math.Abs(barLine.Height - 2f) <= 0.0001f));
+            AddAssert("bar line surfaces stay at exact default", () => drawableRuleset.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>()).All(barLine =>
+                Math.Abs(barLine.Height - drawableRuleset.LayoutSnapshot.ProjectVerticalProfileMetric(2f)) <= 0.0001f));
         }
 
         [Test]
-        public void TestSkinGeometryOverridesStrictProfile()
+        public void TestSkinGeometryUsesExactFieldsAndFallsBackInvalidInterfieldValue()
         {
-            // Unlike the ruleset-config sliders (ignored above), a skin's per-keymode geometry keys DO drive the profile.
+            // Unlike the ruleset-config sliders (ignored above), valid skin fields drive the snapshot. The bar height is
+            // deliberately larger than the receptor height and must independently fall back instead of contaminating
+            // the other valid fields.
             var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nPlayfieldWidth: 0.5\nPlayfieldHeight: 0.8\nScratchLaneWidth: 2.0\nHitTargetBarHeight: 20\nBarLineHeight: 5\n");
 
             setupScene(skin: skin);
@@ -82,7 +88,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("profile playfield width from skin", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldWidth, () => Is.EqualTo(0.5f).Within(0.0001f));
             AddAssert("profile playfield height from skin", () => drawableRuleset.Playfield.LayoutProfile.PlayfieldHeight, () => Is.EqualTo(0.8f).Within(0.0001f));
             AddAssert("profile scratch width from skin", () => drawableRuleset.Playfield.LayoutProfile.ScratchLaneRelativeWidth, () => Is.EqualTo(2.0f).Within(0.0001f));
-            AddAssert("profile hit target bar height from skin", () => drawableRuleset.Playfield.LayoutProfile.HitTargetBarHeight, () => Is.EqualTo(20f).Within(0.0001f));
+            AddAssert("invalid hit target bar height falls back", () => drawableRuleset.Playfield.LayoutProfile.HitTargetBarHeight, () => Is.EqualTo(12f).Within(0.0001f));
+            AddAssert("invalid field emits stable diagnostic", () => drawableRuleset.LayoutSnapshot.Neutral.Diagnostics.Any(diagnostic => diagnostic.Code == "bms.layout.invalid-hit-target-bar-height"));
             AddAssert("profile bar line height from skin", () => drawableRuleset.Playfield.LayoutProfile.BarLineHeight, () => Is.EqualTo(5f).Within(0.0001f));
             // Unset keys keep their defaults (lane width 1, glow 6, vertical offset locked at 0 for timing).
             AddAssert("unset lane width stays default", () => drawableRuleset.Playfield.LayoutProfile.NormalLaneRelativeWidth, () => Is.EqualTo(1f).Within(0.0001f));
@@ -148,7 +155,48 @@ namespace osu.Game.Rulesets.Bms.Tests
             }, () => Is.LessThanOrEqualTo(2f));
         }
 
-        private void setupScene(BmsPlayfieldStyle? playfieldStyle = null, double? playfieldWidth = null, double? playfieldHeight = null, double? laneSpacing = null, double? laneWidth = null, double? scratchLaneSpacing = null, double? scratchLaneWidthRatio = null, double? hitTargetHeight = null, double? hitTargetBarHeight = null, double? hitTargetLineHeight = null, double? hitTargetGlowRadius = null, double? hitTargetVerticalOffset = null, double? barLineHeight = null, IReadOnlyList<Mod>? mods = null, ISkin? skin = null)
+        [TestCase(1f)]
+        [TestCase(2f)]
+        public void TestHitTargetAndJudgementLineDrawQuadsMatchExactDpiSurface(float dpiScale)
+        {
+            var environment = new BmsGameplayLayoutEnvironment(
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1),
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1),
+                16f / 9f,
+                dpiScale);
+
+            setupScene(environment: environment);
+
+            AddUntilStep("pre-start exact renderer loaded", () => drawableRuleset.PreStartSpeedPreviewLayoutSnapshot != null);
+
+            AddAssert($"DPI {dpiScale} target draw quads use exact surface", () => drawableRuleset.Playfield.Lanes.All(lane =>
+            {
+                float rootHeight = drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height;
+                float targetHeight = lane.HitTarget.ScreenSpaceDrawQuad.Height / rootHeight;
+                float targetTop = (lane.HitTarget.ScreenSpaceDrawQuad.TopLeft.Y - drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopLeft.Y) / rootHeight;
+                return Math.Abs(targetHeight - drawableRuleset.LayoutSnapshot.HitTargetRect.Height) <= 0.001f
+                       && Math.Abs(targetTop - drawableRuleset.LayoutSnapshot.HitTargetRect.Top) <= 0.001f;
+            }));
+            AddAssert($"DPI {dpiScale} judgement-line draw quads use exact surface", () => drawableRuleset.Playfield.Lanes.All(lane =>
+            {
+                DefaultBmsHitTargetDisplay display = lane.HitTarget.ChildrenOfType<DefaultBmsHitTargetDisplay>().Single();
+                float rootHeight = drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height;
+                float lineHeight = display.LineScreenSpaceHeight / rootHeight;
+                float lineTop = (display.LineScreenSpaceTop - drawableRuleset.Playfield.ScreenSpaceDrawQuad.TopLeft.Y) / rootHeight;
+                return Math.Abs(lineHeight - drawableRuleset.LayoutSnapshot.JudgementLineRect.Height) <= 0.001f
+                       && Math.Abs(lineTop - drawableRuleset.LayoutSnapshot.JudgementLineRect.Top) <= 0.001f;
+            }));
+            AddAssert($"DPI {dpiScale} bar-line draw quads use snapshot projection", () => drawableRuleset.Playfield.Lanes
+                .SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>())
+                .All(barLine => Math.Abs(barLine.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height
+                                         - drawableRuleset.LayoutSnapshot.ProjectVerticalProfileMetric(drawableRuleset.LayoutSnapshot.Profile.BarLineHeight)
+                                           * drawableRuleset.LayoutSnapshot.PlayfieldRect.Height) <= 0.001f));
+            AddAssert($"DPI {dpiScale} pre-start note draw quad matches target surface", () =>
+                Math.Abs(drawableRuleset.PreStartSpeedPreviewNoteScreenSpaceHeight / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height
+                         - drawableRuleset.LayoutSnapshot.HitTargetRect.Height) <= 0.001f);
+        }
+
+        private void setupScene(BmsPlayfieldStyle? playfieldStyle = null, double? playfieldWidth = null, double? playfieldHeight = null, double? laneSpacing = null, double? laneWidth = null, double? scratchLaneSpacing = null, double? scratchLaneWidthRatio = null, double? hitTargetHeight = null, double? hitTargetBarHeight = null, double? hitTargetLineHeight = null, double? hitTargetGlowRadius = null, double? hitTargetVerticalOffset = null, double? barLineHeight = null, IReadOnlyList<Mod>? mods = null, ISkin? skin = null, BmsGameplayLayoutEnvironment? environment = null)
         {
             AddStep($"configure layout bridge", () =>
             {
@@ -172,6 +220,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 {
                     RelativeSizeAxes = Axes.Both,
                 };
+                drawableRuleset.InitialiseCompatibilityLayoutForTesting(playfieldStyle ?? BmsPlayfieldStyle.Center, skin, environment);
 
                 // Wrap in the supplied skin so the playfield resolves its per-keymode geometry overrides; with no skin the
                 // ruleset is mounted directly (the default-skin path the rest of the fixture exercises).
@@ -220,12 +269,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private class TestResourceProvider : IStorageResourceProvider
         {
-            private readonly IResourceStore<byte[]> empty = new ResourceStore<byte[]>();
-
             public IRenderer Renderer { get; } = new DummyRenderer();
             public AudioManager? AudioManager => null;
-            public IResourceStore<byte[]> Files => empty;
-            public IResourceStore<byte[]> Resources => empty;
+            public IResourceStore<byte[]> Files { get; } = new ResourceStore<byte[]>();
+            public IResourceStore<byte[]> Resources => Files;
             public RealmAccess RealmAccess => null!;
             public IResourceStore<TextureUpload>? CreateTextureLoaderStore(IResourceStore<byte[]> underlyingStore) => null;
         }

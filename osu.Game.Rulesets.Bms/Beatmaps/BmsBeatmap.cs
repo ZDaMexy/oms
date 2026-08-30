@@ -32,6 +32,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         public IReadOnlyDictionary<int, IReadOnlyList<BmsLaneKeysoundEntry>> LaneKeysoundTimelines { get; set; }
             = new Dictionary<int, IReadOnlyList<BmsLaneKeysoundEntry>>();
 
+        /// <summary>
+        /// Stable, path-free diagnostic explaining why armed empty-press timelines are unavailable after a lane mod.
+        /// Object keysounds remain authoritative and continue to play from their post-mod target lane.
+        /// </summary>
+        public string? LaneKeysoundTimelineDiagnostic { get; internal set; }
+
         public IReadOnlyList<BmsLaneKeysoundEntry> GetLaneKeysoundTimeline(int laneIndex)
             => LaneKeysoundTimelines.TryGetValue(laneIndex, out var timeline) ? timeline : Array.Empty<BmsLaneKeysoundEntry>();
 
@@ -88,7 +94,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             };
         }
 
-        private static BeatmapStatistic createStatistic(osu.Framework.Localisation.LocalisableString name, BeatmapStatisticsIconType iconType, int count, int total)
+        private static BeatmapStatistic createStatistic(Framework.Localisation.LocalisableString name, BeatmapStatisticsIconType iconType, int count, int total)
             => new BeatmapStatistic
             {
                 Name = name,

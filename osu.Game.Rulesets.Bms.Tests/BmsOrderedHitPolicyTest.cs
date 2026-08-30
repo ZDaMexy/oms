@@ -2,16 +2,13 @@
 
 using System.Linq;
 using NUnit.Framework;
+using osu.Framework.Input.Events;
 using osu.Framework.Timing;
-using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.UI;
-using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
-using osu.Framework.Input.Bindings;
-using osu.Framework.Input.Events;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -111,10 +108,8 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var testClock = new FramedClock(manualClock);
 
-            var playfield = new BmsPlayfield(beatmap)
-            {
-                Clock = testClock,
-            };
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
+            playfield.Clock = testClock;
 
             var firstDrawable = new DrawableBmsHitObject(scratchNotes[0])
             {
@@ -136,6 +131,6 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         private static KeyBindingPressEvent<BmsAction> createPressEvent()
-            => new KeyBindingPressEvent<BmsAction>(new osu.Framework.Input.States.InputState(), BmsAction.Scratch1);
+            => new KeyBindingPressEvent<BmsAction>(new Framework.Input.States.InputState(), BmsAction.Scratch1);
     }
 }

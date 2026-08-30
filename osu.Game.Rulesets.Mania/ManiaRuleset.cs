@@ -5,15 +5,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using osu.Framework.Allocation;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Configuration;
-using osu.Game.Extensions;
 using osu.Game.Graphics;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
@@ -29,6 +30,7 @@ using osu.Game.Rulesets.Mania.Edit.Setup;
 using osu.Game.Rulesets.Mania.Mods;
 using osu.Game.Rulesets.Mania.Replays;
 using osu.Game.Rulesets.Mania.Scoring;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Argon;
 using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.Mania.Skinning.Legacy;
@@ -45,10 +47,11 @@ using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania
 {
-    public class ManiaRuleset : Ruleset, ILegacyRuleset
+    public class ManiaRuleset : Ruleset, ILegacyRuleset, IGameplaySkinLayoutPreparer
     {
         private const string bms_decoded_beatmap_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsDecodedBeatmap";
         private const string bms_to_mania_converter_factory_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsToManiaBeatmapConverterFactory";
@@ -60,6 +63,50 @@ namespace osu.Game.Rulesets.Mania
         public const int MAX_STAGE_KEYS = 10;
 
         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod>? mods = null) => new DrawableManiaRuleset(this, beatmap, mods);
+
+        public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+        {
+            ArgumentNullException.ThrowIfNull(beatmap);
+            ArgumentNullException.ThrowIfNull(dependencies);
+
+            if (beatmap is not ManiaBeatmap maniaBeatmap)
+                throw new ArgumentException("Mania gameplay layout preparation requires the actual mania beatmap.", nameof(beatmap));
+
+            GameplaySkinLayoutRevisionOwner owner = dependencies.Get<GameplaySkinLayoutRevisionOwner>();
+
+            if (owner.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
+                throw new InvalidOperationException("A managed mania gameplay root requires an exact package revision.");
+
+            if (owner.CurrentPublication != null)
+                throw new InvalidOperationException("A mania gameplay root may publish exactly one immutable layout.");
+
+            ManiaRulesetConfigManager config = dependencies.Get<IRulesetConfigCache>().GetConfigFor(this) as ManiaRulesetConfigManager
+                                                ?? throw new InvalidOperationException("Mania gameplay layout preparation requires the final ruleset configuration.");
+            GameplaySkinScrollDirection direction = config.Get<ManiaScrollingDirection>(ManiaRulesetSetting.ScrollDirection) == ManiaScrollingDirection.Up
+                ? GameplaySkinScrollDirection.Up
+                : GameplaySkinScrollDirection.Down;
+            if (!ManiaGameplaySkinLayout.TryPrepareAndPublish(
+                    maniaBeatmap,
+                    dependencies.Get<ISkinSource>(),
+                    owner,
+                    dependencies.Get<GameHost>(),
+                    direction,
+                    out GameplaySkinLayoutPublication? publication))
+            {
+                return GameplaySkinLayoutPreparationResult.Retry;
+            }
+
+            GameplaySkinLayoutPublication exactPublication = publication
+                                                             ?? throw new InvalidOperationException("The mania ruleset received no committed layout publication.");
+
+            if (!ReferenceEquals(exactPublication, owner.CurrentPublication)
+                || !ReferenceEquals(exactPublication.Snapshot.Context.PackageRevision, owner.PackageRevision))
+            {
+                throw new InvalidOperationException("The mania ruleset did not retain the exact committed layout publication.");
+            }
+
+            return GameplaySkinLayoutPreparationResult.Prepared;
+        }
 
         public override ScoreProcessor CreateScoreProcessor() => new ManiaScoreProcessor();
 

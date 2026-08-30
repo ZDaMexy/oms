@@ -405,7 +405,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("load lane cover overriding LaneCoverFillColour", () =>
             {
                 var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nLaneCoverFillColour: 11,22,33\n");
-                Child = new SkinProvidingContainer(skin) { Child = cover = new DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition.Sudden) };
+                Child = new SkinProvidingContainer(skin) { Child = cover = new DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition.Sudden, BmsKeymode.Key7K) };
             });
 
             AddUntilStep("loaded", () => cover.IsLoaded);
@@ -421,7 +421,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("load Sudden lane cover with LaneCoverTopImage texture", () =>
             {
                 var skin = new TexturedTestSkin("[Bms]\nKeymode: 7K\nLaneCoverTopImage: covers/sudden\n", renderer.WhitePixel);
-                Child = new SkinProvidingContainer(skin) { Child = cover = new DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition.Sudden) };
+                Child = new SkinProvidingContainer(skin) { Child = cover = new DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition.Sudden, BmsKeymode.Key7K) };
             });
 
             AddUntilStep("loaded", () => cover.IsLoaded);

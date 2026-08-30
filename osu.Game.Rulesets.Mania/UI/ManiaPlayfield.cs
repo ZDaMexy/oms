@@ -3,18 +3,21 @@
 
 #nullable disable
 
-using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
 using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.UI
@@ -25,6 +28,12 @@ namespace osu.Game.Rulesets.Mania.UI
         public IReadOnlyList<Stage> Stages => stages;
 
         private readonly List<Stage> stages = new List<Stage>();
+
+        private readonly Container stageContainer;
+
+        private readonly StageDefinition[] stageDefinitions;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         public override Quad SkinnableComponentScreenSpaceDrawQuad
         {
@@ -57,29 +66,89 @@ namespace osu.Game.Rulesets.Mania.UI
         {
             ArgumentNullException.ThrowIfNull(stageDefinitions);
 
-            if (stageDefinitions.Count <= 0)
+            StageDefinition[] copiedStageDefinitions = stageDefinitions.ToArray();
+            this.stageDefinitions = copiedStageDefinitions;
+
+            if (copiedStageDefinitions.Length <= 0)
                 throw new ArgumentException("Can't have zero or fewer stages.");
 
-            GridContainer playfieldGrid;
-            AddInternal(playfieldGrid = new GridContainer
+            AddInternal(stageContainer = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Content = new[] { new Drawable[stageDefinitions.Count] }
             });
 
             var columnAction = ManiaAction.Key1;
             int firstColumnIndex = 0;
 
-            for (int i = 0; i < stageDefinitions.Count; i++)
+            for (int i = 0; i < copiedStageDefinitions.Length; i++)
             {
-                var newStage = CreateStage(firstColumnIndex, stageDefinitions[i], ref columnAction);
+                var newStage = CreateStage(firstColumnIndex, copiedStageDefinitions[i], ref columnAction);
 
-                playfieldGrid.Content[0][i] = newStage;
+                stageContainer.Add(newStage);
 
                 stages.Add(newStage);
                 AddNested(newStage);
 
                 firstColumnIndex += newStage.Columns.Length;
+            }
+        }
+
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+        {
+            parent.TryGet(out GameplaySkinLayoutRevisionOwner layoutOwner);
+
+            if (parent.TryGet(out GameplaySkinLayoutSnapshot existingSnapshot))
+            {
+                ManiaGameplaySkinLayout.ValidateConsumerCarrier(existingSnapshot, layoutOwner, "playfield");
+                applyLayout(existingSnapshot);
+                return base.CreateChildDependencies(parent);
+            }
+
+            if (layoutOwner == null || layoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+            {
+                throw new InvalidOperationException(
+                    "A standalone mania playfield requires an explicitly cached compatibility layout owner.");
+            }
+
+            ISkinSource skin = parent.Get<ISkinSource>();
+            GameplaySkinScrollDirection direction = parent.TryGet(out IScrollingInfo scrollingInfo)
+                && scrollingInfo.Direction.Value == ScrollingDirection.Up
+                    ? GameplaySkinScrollDirection.Up
+                    : GameplaySkinScrollDirection.Down;
+            ManiaGameplaySkinLayout compatibility = ManiaGameplaySkinLayout.CreateCompatibility(stageDefinitions, skin, direction, useSkinGeometry: false);
+            ManiaGameplaySkinLayout.ValidateConsumerCarrier(compatibility.Snapshot, layoutOwner, "playfield");
+            applyLayout(compatibility.Snapshot);
+            var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+            dependencies.Cache(compatibility);
+            dependencies.Cache(compatibility.Snapshot);
+            return dependencies;
+        }
+
+        private void applyLayout(GameplaySkinLayoutSnapshot layoutSnapshot)
+        {
+            LayoutSnapshot = layoutSnapshot;
+            GameplaySkinLayoutRect screen = layoutSnapshot.Context.ScreenBounds;
+
+            if (layoutSnapshot.GroupsInLogicalOrder.Count != stages.Count)
+                throw new InvalidOperationException("The exact mania layout stage vector does not match the production playfield.");
+
+            for (int i = 0; i < stages.Count; i++)
+            {
+                GameplaySkinLayoutGroup group = layoutSnapshot.GroupsInLogicalOrder[i];
+
+                if (group.TopologyGroup.LogicalIndex != i
+                    || group.TopologyGroup.LanesInLogicalOrder.Count != stageDefinitions[i].Columns)
+                {
+                    throw new InvalidOperationException("The exact mania layout group is not coherent with the ordered native stage vector.");
+                }
+
+                GameplaySkinLayoutRect rect = group.Rect;
+                Stage stage = stages[i];
+                stage.Anchor = stage.Origin = Anchor.TopLeft;
+                stage.RelativePositionAxes = Axes.Both;
+                stage.RelativeSizeAxes = Axes.Both;
+                stage.Position = new Vector2((rect.X - screen.X) / screen.Width, (rect.Y - screen.Y) / screen.Height);
+                stage.Size = new Vector2(rect.Width / screen.Width, rect.Height / screen.Height);
             }
         }
 

@@ -96,7 +96,15 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     return skinnedComponent is IBmsBackgroundLayerDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsBackgroundLayerDisplay() : null;
 
                 case BmsSkinComponentLookup { Component: BmsSkinComponents.BgaPanel }:
-                    return skinnedComponent is IBmsBgaPanelDisplay ? skinnedComponent : providesBuiltInFallbacks ? new DefaultBmsBgaPanelDisplay() : null;
+                    if (skinnedComponent is IBmsBgaPanelDisplay)
+                    {
+                        if (skinnedComponent is not IBmsBgaPanelLayoutDisplay)
+                            throw new System.InvalidOperationException("bms.layout.bga-display-missing-snapshot-carrier");
+
+                        return skinnedComponent;
+                    }
+
+                    return providesBuiltInFallbacks ? new DefaultBmsBgaPanelDisplay() : null;
 
                 case BmsPlayfieldSkinLookup playfieldLookup:
                     return skinnedComponent ?? createBuiltInFallback(() => createDefaultPlayfieldComponent(playfieldLookup));
@@ -178,10 +186,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     ComboCounter comboCounter = (ComboCounter)(GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)) ?? new BmsComboCounter());
                     Drawable hudLayout = GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)) ?? new DefaultBmsHudLayoutDisplay();
 
-                    if (hudLayout is IBmsHudLayoutDisplay hudLayoutDisplay)
-                        hudLayoutDisplay.SetComponents(skinnedComponent, gaugeBar, comboCounter);
+                    if (hudLayout is not IBmsHudLayoutDisplay hudLayoutDisplay)
+                        throw new System.InvalidOperationException("bms.layout.hud-display-missing-snapshot-carrier");
 
-                    return hudLayout;
+                    // The carrier resolves the one committed publication from gameplay dependencies in its own BDL.
+                    // The transformer remains stateless and cannot become a second snapshot exchange.
+                    var carrier = new BmsHudLayoutSnapshotCarrier(hudLayout, hudLayoutDisplay);
+                    carrier.SetComponents(skinnedComponent, gaugeBar, comboCounter);
+                    return carrier;
             }
 
             return skinnedComponent;
@@ -243,7 +255,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 BmsLaneSkinElements.Background => new DefaultBmsLaneBackgroundDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
                 BmsLaneSkinElements.Divider => new DefaultBmsLaneDividerDisplay(lookup.LaneIndex, lookup.IsScratch, lookup.Keymode),
-                BmsLaneSkinElements.HitTarget => new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, BmsPlayfieldLayoutProfile.CreateDefault(lookup.Keymode, lookup.LaneCount)),
+                BmsLaneSkinElements.HitTarget when lookup.LayoutProfile != null => new DefaultBmsHitTargetDisplay(
+                    lookup.IsScratch,
+                    lookup.Keymode,
+                    lookup.LayoutProfile,
+                    lookup.LayoutSnapshot),
+                // A detached component lookup has no exact gameplay snapshot. Disable the layout-bearing fallback
+                // instead of inventing a default profile; the owning BmsHitTarget supplies its protected exact fallback.
+                BmsLaneSkinElements.HitTarget => new Box { RelativeSizeAxes = Axes.Both },
                 BmsLaneSkinElements.BarLine => new DefaultBmsBarLineDisplay(lookup.IsMajorBarLine, lookup.Keymode),
                 _ => new Box
                 {

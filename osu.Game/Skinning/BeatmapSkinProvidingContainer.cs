@@ -4,8 +4,10 @@
 using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Game.Audio;
 using osu.Game.Configuration;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Storyboards;
 
 namespace osu.Game.Skinning
@@ -67,15 +69,29 @@ namespace osu.Game.Skinning
 
         private readonly ISkin skin;
         private readonly ISkin? compatibilityFallback;
+        private readonly Func<IReadOnlyDependencyContainer, GameplaySkinLayoutPreparationResult>? prepareGameplayLayout;
+        private readonly Drawable? delayedChild;
+        private readonly bool affectsGameplayLayoutPublication;
+        private IReadOnlyDependencyContainer? childDependencies;
 
         private Bindable<Skin> currentSkin = null!;
 
-        public BeatmapSkinProvidingContainer(ISkin skin, ISkin? compatibilityFallback = null)
+        public BeatmapSkinProvidingContainer(
+            ISkin skin,
+            ISkin? compatibilityFallback = null,
+            Func<IReadOnlyDependencyContainer, GameplaySkinLayoutPreparationResult>? prepareGameplayLayout = null,
+            Drawable? delayedChild = null,
+            bool affectsGameplayLayoutPublication = false)
             : base(skin)
         {
             this.skin = skin;
             this.compatibilityFallback = compatibilityFallback;
+            this.prepareGameplayLayout = prepareGameplayLayout;
+            this.delayedChild = delayedChild;
+            this.affectsGameplayLayoutPublication = affectsGameplayLayoutPublication;
         }
+
+        private protected override bool AffectsGameplayLayoutPublication => affectsGameplayLayoutPublication;
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
@@ -85,7 +101,7 @@ namespace osu.Game.Skinning
             beatmapColours = config.GetBindable<bool>(OsuSetting.BeatmapColours);
             beatmapHitsounds = config.GetBindable<bool>(OsuSetting.BeatmapHitsounds);
 
-            return base.CreateChildDependencies(parent);
+            return childDependencies = base.CreateChildDependencies(parent);
         }
 
         [BackgroundDependencyLoader]
@@ -116,6 +132,46 @@ namespace osu.Game.Skinning
                 else
                     SetSources(new[] { skin });
             }, true);
+
+            // The gameplay child is deliberately not attached by the parent container's object initializer. This
+            // background-loader boundary first establishes the exact beatmap/ruleset source chain, then prepares and
+            // commits the package/layout pair, and only afterwards attaches the renderer subtree. This ordering also
+            // handles gameplay renderers which were constructed before the provider itself was loaded.
+            if (prepareGameplayLayout != null)
+            {
+                if (childDependencies == null)
+                    throw new InvalidOperationException("Gameplay layout preparation requires the exact child dependency scope.");
+
+                const int maximum_fresh_barrier_attempts = 8;
+                bool prepared = false;
+
+                for (int attempt = 0; attempt < maximum_fresh_barrier_attempts; attempt++)
+                {
+                    switch (prepareGameplayLayout(childDependencies))
+                    {
+                        case GameplaySkinLayoutPreparationResult.Prepared:
+                            prepared = true;
+                            break;
+
+                        case GameplaySkinLayoutPreparationResult.Rejected:
+                            return;
+
+                        case GameplaySkinLayoutPreparationResult.Retry:
+                            continue;
+
+                        default:
+                            throw new InvalidOperationException("Unknown gameplay layout preparation result.");
+                    }
+
+                    break;
+                }
+
+                if (!prepared)
+                    return;
+            }
+
+            if (delayedChild != null)
+                Child = delayedChild;
         }
     }
 }

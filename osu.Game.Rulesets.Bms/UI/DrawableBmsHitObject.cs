@@ -20,6 +20,7 @@ using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -41,6 +42,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsKeysoundStore? keysoundStore { get; set; }
 
         private readonly Drawable? mainVisual;
+        protected BmsGameplayLayoutSnapshot? GameplayLayoutSnapshot { get; }
+
+        internal BmsGameplayLayoutSnapshot? ExactLayoutSnapshot => GameplayLayoutSnapshot;
         private Container? nestedHitObjectContainer;
         private bool autoAssistVisualsApplied;
         private bool autoAssistVisible = true;
@@ -58,9 +62,10 @@ namespace osu.Game.Rulesets.Bms.UI
             return samples;
         }
 
-        public DrawableBmsHitObject(HitObject hitObject)
+        public DrawableBmsHitObject(HitObject hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null)
             : base(hitObject)
         {
+            GameplayLayoutSnapshot = gameplayLayoutSnapshot;
             HandleUserInput = SupportsPlayerInput(hitObject);
 
             if (hitObject is BmsHitObject bmsHitObject)
@@ -81,7 +86,7 @@ namespace osu.Game.Rulesets.Bms.UI
             // to the hold length, so it is not a visible note thickness and is left unchanged.
             Height = hitObject is BmsHoldNote ? 28 : 22.5f;
 
-            AddInternal(mainVisual = createMainVisual(hitObject));
+            AddInternal(mainVisual = createMainVisual(hitObject, gameplayLayoutSnapshot));
 
             AddInternal(nestedHitObjectContainer = new Container
             {
@@ -210,9 +215,9 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        private static Drawable createMainVisual(HitObject hitObject)
+        private static Drawable createMainVisual(HitObject hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot)
         {
-            if (createLookup(hitObject) is BmsNoteSkinLookup lookup)
+            if (createLookup(hitObject, gameplayLayoutSnapshot) is BmsNoteSkinLookup lookup)
             {
                 if (lookup.Element is BmsNoteSkinElements.Note
                     or BmsNoteSkinElements.LongNoteHead
@@ -238,15 +243,26 @@ namespace osu.Game.Rulesets.Bms.UI
             };
         }
 
-        private static BmsNoteSkinLookup? createLookup(HitObject hitObject)
+        private static BmsNoteSkinLookup? createLookup(HitObject hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot)
             => hitObject switch
             {
-                BmsHoldNote holdNote => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteBody, holdNote.LaneIndex, holdNote.IsScratch, holdNote.Keymode),
-                BmsHoldNoteHead head => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, head.LaneIndex, head.IsScratch, head.Keymode),
-                BmsHoldNoteTailEvent tail => new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteTail, tail.LaneIndex, tail.IsScratch, tail.Keymode),
-                BmsHitObject note => new BmsNoteSkinLookup(BmsNoteSkinElements.Note, note.LaneIndex, note.IsScratch, note.Keymode),
+                BmsHoldNote holdNote => createLookup(BmsNoteSkinElements.LongNoteBody, holdNote, gameplayLayoutSnapshot),
+                BmsHoldNoteHead head => createLookup(BmsNoteSkinElements.LongNoteHead, head, gameplayLayoutSnapshot),
+                BmsHoldNoteTailEvent tail => createLookup(BmsNoteSkinElements.LongNoteTail, tail, gameplayLayoutSnapshot),
+                BmsHitObject note => createLookup(BmsNoteSkinElements.Note, note, gameplayLayoutSnapshot),
                 _ => null,
             };
+
+        private static BmsNoteSkinLookup createLookup(BmsNoteSkinElements element, BmsHitObject hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot)
+            => new BmsNoteSkinLookup(
+                element,
+                hitObject.LaneIndex,
+                hitObject.IsScratch,
+                gameplayLayoutSnapshot?.Keymode ?? hitObject.Keymode,
+                laneId(gameplayLayoutSnapshot, hitObject));
+
+        private static GameplaySkinLaneId? laneId(BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot, BmsHitObject hitObject)
+            => gameplayLayoutSnapshot?.GetLaneByLogicalIndex(hitObject.LaneIndex).LaneId;
 
         internal static bool ShouldAutoApplyMaxResult(HitObject hitObject) => hitObject switch
         {
@@ -391,7 +407,7 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
         {
             if (hitObject is BmsHoldNoteTailEvent tailEvent)
-                return new DrawableBmsHitObject(tailEvent);
+                return new DrawableBmsHitObject(tailEvent, GameplayLayoutSnapshot);
 
             return base.CreateNestedHitObject(hitObject);
         }

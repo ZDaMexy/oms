@@ -4,17 +4,16 @@
 using System;
 using System.Linq;
 using osu.Framework.Allocation;
-using osu.Framework.Localisation;
-using osu.Game.Rulesets.Mania.UI;
 using osu.Framework.Bindables;
-using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
+using osu.Framework.Localisation;
 using osu.Game.Rulesets.Mania.Skinning;
+using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play;
-using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.Mods
 {
@@ -70,9 +69,9 @@ namespace osu.Game.Rulesets.Mania.Mods
         private partial class LegacyPlayfieldCover : PlayfieldCoveringWrapper
         {
             [Resolved]
-            private ISkinSource skin { get; set; } = null!;
+            private GameplaySkinLayoutSnapshot layoutSnapshot { get; set; } = null!;
 
-            private IBindable<float>? hitPosition;
+            private float referenceLayoutHeight;
 
             public LegacyPlayfieldCover(Drawable content)
                 : base(content)
@@ -81,34 +80,24 @@ namespace osu.Game.Rulesets.Mania.Mods
 
             protected override void LoadComplete()
             {
+                // Capture the local projection once. A later parent resize scales both the wrapper and the cover by
+                // the same ratio; this is effect-local projection, not a second playfield geometry solve.
+                referenceLayoutHeight = LayoutSize.Y;
                 base.LoadComplete();
-
-                skin.SourceChanged += onSkinChanged;
-                onSkinChanged();
-            }
-
-            private void onSkinChanged()
-            {
-                hitPosition = skin.GetManiaSkinConfig<float>(LegacyManiaSkinConfigurationLookups.HitPosition);
             }
 
             protected override float GetHeight(float coverage)
             {
-                // In osu!stable, the cover is applied in absolute (x768) coordinates from the hit position.
-                float availablePlayfieldHeight = Math.Abs(reference_playfield_height - (hitPosition?.Value ?? Stage.HIT_TARGET_POSITION));
+                GameplaySkinLayoutRect playfield = layoutSnapshot.GetSurface(ManiaGameplaySkinLayout.PLAYFIELD_SURFACE).Rect;
+                if (!layoutSnapshot.Context.SafeBounds.Contains(playfield))
+                    throw new InvalidOperationException("The hidden cover received a playfield outside the exact safe layout bounds.");
 
-                if (availablePlayfieldHeight == 0)
+                if (!float.IsFinite(referenceLayoutHeight) || referenceLayoutHeight <= 0)
                     return base.GetHeight(coverage);
 
-                return base.GetHeight(coverage) * reference_playfield_height / availablePlayfieldHeight;
-            }
-
-            protected override void Dispose(bool isDisposing)
-            {
-                base.Dispose(isDisposing);
-
-                if (skin.IsNotNull())
-                    skin.SourceChanged -= onSkinChanged;
+                // Coverage is expressed in stable x768 coordinates. Convert it once through this snapshot consumer's
+                // local projection; no skin field is re-read and no per-frame drawable geometry is re-solved.
+                return base.GetHeight(coverage) * reference_playfield_height / referenceLayoutHeight;
             }
         }
     }

@@ -11,11 +11,11 @@ using NUnit.Framework;
 using osu.Framework.Extensions;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
-using osu.Game;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -25,6 +25,7 @@ namespace osu.Game.Rulesets.Bms.Tests
     {
         private readonly BmsBeatmapLoader loader = new BmsBeatmapLoader();
         private readonly BmsArchiveReader archiveReader = new BmsArchiveReader();
+        private static readonly BmsBeatmapDecoderOptions five_key_contract = new BmsBeatmapDecoderOptions(BmsKeymode.Key5K);
 
         [Test]
         public void TestLoaderBuildsDecodedBeatmapWithPopulatedMetadata()
@@ -46,7 +47,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.That(loader.CanLoad(placeholderBeatmap, "chart.bms"), Is.True);
 
-            var beatmap = loader.Load(stream, "chart.bms", placeholderBeatmap);
+            var beatmap = loader.Load(stream, "chart.bms", placeholderBeatmap, five_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -84,7 +85,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
 
-            var beatmap = loader.Load(stream, "chart.bms", new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()));
+            var beatmap = loader.Load(stream, "chart.bms", new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()), five_key_contract);
 
             Assert.That(beatmap.BeatmapInfo.StarRating, Is.Zero);
         }
@@ -101,7 +102,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
 
-            var beatmap = loader.Load(stream, "chart.bms", new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()));
+            var beatmap = loader.Load(stream, "chart.bms", new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()), five_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -113,17 +114,18 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase("#00112:AA00\n#00116:BB00\n", "chart.bms", 5)]
-        [TestCase("#00111:AA00\n", "chart.bms", 5)]
-        [TestCase("#00119:AA00\n", "chart.bme", 7)]
-        [TestCase("#00111:AA00\n#00112:BB00\n#00113:CC00\n#00114:DD00\n#00115:EE00\n#00116:FF00\n#00117:GG00\n#00118:HH00\n#00119:II00\n", "chart.bms", 9)]
-        [TestCase("#00122:AA00\n", "chart.bme", 14)]
-        [TestCase("#00111:AA00\n", "chart.pms", 9)]
-        public void TestLoaderPersistsDetectedKeyCountForSongSelect(string text, string fileName, float expectedKeyCount)
+        [TestCase("#00112:AA00\n#00116:BB00\n", "chart.bms", 5, BmsKeymode.Key5K)]
+        [TestCase("#00111:AA00\n", "chart.bms", 5, BmsKeymode.Key5K)]
+        [TestCase("#00119:AA00\n", "chart.bme", 7, null)]
+        [TestCase("#00111:AA00\n#00112:BB00\n#00113:CC00\n#00114:DD00\n#00115:EE00\n#00116:FF00\n#00117:GG00\n#00118:HH00\n#00119:II00\n", "chart.bms", 9, null)]
+        [TestCase("#00122:AA00\n", "chart.bme", 14, null)]
+        [TestCase("#00111:AA00\n", "chart.pms", 9, null)]
+        public void TestLoaderPersistsResolvedKeyCountForSongSelect(string text, string fileName, float expectedKeyCount, BmsKeymode? keymodeOverride)
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
 
-            var beatmap = loader.Load(stream, fileName, new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()));
+            var options = keymodeOverride.HasValue ? new BmsBeatmapDecoderOptions(keymodeOverride.Value) : null;
+            var beatmap = loader.Load(stream, fileName, new BeatmapInfo(new BmsRuleset().RulesetInfo.Clone()), options);
 
             Assert.That(beatmap.BeatmapInfo.Difficulty.CircleSize, Is.EqualTo(expectedKeyCount));
         }
@@ -143,7 +145,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
                 using var prepared = archiveReader.Prepare(new ImportTask(tempRoot));
 
-                var importPaths = prepared.FolderTasks.Select(t => Path.GetFullPath(t.Path)).OrderBy(path => path).ToArray();
+                string[] importPaths = prepared.FolderTasks.Select(t => Path.GetFullPath(t.Path)).OrderBy(path => path).ToArray();
 
                 Assert.That(importPaths, Is.EqualTo(new[]
                 {
@@ -182,7 +184,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 cleanupPath = prepared.CleanupPath;
 
-                var importPaths = prepared.FolderTasks.Select(t => Path.GetFileName(Path.GetFullPath(t.Path))).OrderBy(path => path).ToArray();
+                string[] importPaths = prepared.FolderTasks.Select(t => Path.GetFileName(Path.GetFullPath(t.Path))).OrderBy(path => path).ToArray();
 
                 Assert.Multiple(() =>
                 {
@@ -237,6 +239,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ARTIST OMS
 #BPM 150
 #00111:AA00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 "));
 
             var importer = new BmsBeatmapImporter(storage, realm);
@@ -321,6 +327,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #PLAYLEVEL 12
 #STAGEFILE stage.bmp
 #00111:AA00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 ");
             File.WriteAllText(Path.Combine(importRoot, "stage.png"), "placeholder");
 
@@ -353,6 +363,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #BMP01 stage.bmp
 #BGA01 01 0 0 255 255 0 0
 #00111:AA00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 ");
             File.WriteAllText(Path.Combine(importRoot, "stage.png"), "placeholder");
 
@@ -486,8 +500,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             using var fullStream = new MemoryStream(Encoding.UTF8.GetBytes(text));
             using var lightStream = new MemoryStream(Encoding.UTF8.GetBytes(text));
 
-            var full = BmsChartFilterStats.FromBeatmap(BmsImportedBeatmapFactory.Create(fullStream, "equivalence.bms"));
-            var light = BmsChartFilterStatsBackfill.ComputeFromDecodedChart(BmsImportedBeatmapFactory.DecodeChart(lightStream, "equivalence.bms"));
+            var full = BmsChartFilterStats.FromBeatmap(BmsImportedBeatmapFactory.Create(fullStream, "equivalence.bms", five_key_contract));
+            var light = BmsChartFilterStatsBackfill.ComputeFromDecodedChart(BmsImportedBeatmapFactory.DecodeChart(lightStream, "equivalence.bms", five_key_contract));
 
             Assert.Multiple(() =>
             {
@@ -660,7 +674,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             using var storage = new TemporaryNativeStorage($"bms-importer-duplicate-archive-{Guid.NewGuid():N}");
             using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
             using var rulesets = new RealmRulesetStore(realm, storage);
-            using var archiveStream = createArchiveStream(("Pack/song/a.bms", "#TITLE A\n#00111:AA00\n"), ("Pack/song/b.bms", "#TITLE A\n#00111:AA00\n"));
+            const string completeFiveKeyChart = "#TITLE A\n#00111:AA00\n#00132:AA00\n#00133:AA00\n#00134:AA00\n#00135:AA00\n";
+            using var archiveStream = createArchiveStream(("Pack/song/a.bms", completeFiveKeyChart), ("Pack/song/b.bms", completeFiveKeyChart));
 
             var importer = new BmsBeatmapImporter(storage, realm);
             var notifications = new List<Notification>();
@@ -695,6 +710,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ENDIF
 #ENDRANDOM
 #00111:BB00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 "));
 
             var importer = new BmsBeatmapImporter(storage, realm);
@@ -800,6 +819,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #PLAYLEVEL 12
 #STAGEFILE stage.png
 #00111:AA00
+#00132:AA00
+#00133:AA00
+#00134:AA00
+#00135:AA00
 ";
 
         private static MemoryStream createArchiveStream(params (string path, string content)[] entries)

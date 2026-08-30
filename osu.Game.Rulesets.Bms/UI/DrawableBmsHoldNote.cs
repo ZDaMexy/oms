@@ -1,14 +1,13 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using System;
 using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
@@ -22,7 +21,6 @@ namespace osu.Game.Rulesets.Bms.UI
         private DrawableBmsHoldNoteHead? headDrawable;
         private DrawableBmsHoldNoteTail? tailDrawable;
         private readonly List<DrawableBmsHoldNoteBodyTick> bodyTickDrawables = new List<DrawableBmsHoldNoteBodyTick>();
-        private bool isHolding;
         private BmsLongNoteMode? longNoteModeOverrideForTesting;
 
         private readonly Bindable<BmsLongNoteBodyState> bodyState = new Bindable<BmsLongNoteBodyState>();
@@ -41,8 +39,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private BmsLongNoteMode longNoteMode => longNoteModeOverrideForTesting ?? drawableRuleset?.LongNoteMode ?? BmsScoreProcessor.DEFAULT_LONG_NOTE_MODE;
 
-        public DrawableBmsHoldNote(BmsHoldNote hitObject)
-            : base(hitObject)
+        public DrawableBmsHoldNote(BmsHoldNote hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null)
+            : base(hitObject, gameplayLayoutSnapshot)
         {
         }
 
@@ -55,7 +53,7 @@ namespace osu.Game.Rulesets.Bms.UI
             base.OnApply();
 
             // Reset transient hold state so a pooled reuse never inherits the previous note's broken/holding look.
-            isHolding = false;
+            IsHoldingForTesting = false;
             bodyState.Value = BmsLongNoteBodyState.Idle;
         }
 
@@ -67,7 +65,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private BmsLongNoteBodyState computeBodyState()
         {
-            if (isHolding)
+            if (IsHoldingForTesting)
                 return BmsLongNoteBodyState.Holding;
 
             // Head still in flight (or not yet created) — the note is approaching and has not been activated.
@@ -91,7 +89,7 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 if (!headDrawable.Judged && Time.Current >= holdNote.StartTime)
                 {
-                    isHolding = true;
+                    IsHoldingForTesting = true;
                     headDrawable.HitForcefully();
                 }
 
@@ -119,11 +117,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (!tailDrawable.Judged)
             {
-                if (isHolding && HasReachedHoldTail(holdNote, Time.Current))
+                if (IsHoldingForTesting && HasReachedHoldTail(holdNote, Time.Current))
                     resolveTail(HitResult.Perfect);
                 else if (HasMissedTailReleaseWindow(holdNote, Time.Current))
                     resolveTail(HitResult.Miss);
-                else if (!isHolding && HasReachedHoldTail(holdNote, Time.Current))
+                else if (!IsHoldingForTesting && HasReachedHoldTail(holdNote, Time.Current))
                     resolveTail(HitResult.Miss);
             }
 
@@ -157,7 +155,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override void OnReleased(KeyBindingReleaseEvent<BmsAction> e)
         {
-            if (e.Action != Action.Value || headDrawable == null || tailDrawable == null || !isHolding || tailDrawable.Judged)
+            if (e.Action != Action.Value || headDrawable == null || tailDrawable == null || !IsHoldingForTesting || tailDrawable.Judged)
                 return;
 
             if (!headDrawable.IsHit && !longNoteMode.RequiresTailJudgement())
@@ -167,7 +165,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             var releaseResult = ResultForTailRelease(holdNote, Time.Current);
 
-            isHolding = false;
+            IsHoldingForTesting = false;
 
             // HCN is the only mode that may be re-grabbed: a non-hit early release leaves the tail unjudged so a
             // later press can resume the hold. LN and CN treat any premature release as terminal — resolve the tail
@@ -192,7 +190,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (headResult.IsHit())
             {
-                isHolding = true;
+                IsHoldingForTesting = true;
                 OnUserPressedSuccessfully?.Invoke(this);
             }
             else
@@ -214,11 +212,11 @@ namespace osu.Game.Rulesets.Bms.UI
             if (!headDrawable.Judged)
                 headDrawable.MissForcefully();
 
-            isHolding = true;
+            IsHoldingForTesting = true;
             return true;
         }
 
-        internal bool IsHoldingForTesting => isHolding;
+        internal bool IsHoldingForTesting { get; private set; }
 
         internal BmsLongNoteBodyState ComputeBodyStateForTesting() => computeBodyState();
 
@@ -272,10 +270,10 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
         {
             if (hitObject is BmsHoldNoteHead head)
-                return headDrawable = new DrawableBmsHoldNoteHead(head);
+                return headDrawable = new DrawableBmsHoldNoteHead(head, GameplayLayoutSnapshot);
 
             if (hitObject is BmsHoldNoteTailEvent tailEvent)
-                return tailDrawable = new DrawableBmsHoldNoteTail(tailEvent);
+                return tailDrawable = new DrawableBmsHoldNoteTail(tailEvent, GameplayLayoutSnapshot);
 
             if (hitObject is BmsHoldNoteBodyTick bodyTick)
                 return registerBodyTick(new DrawableBmsHoldNoteBodyTick(bodyTick));
@@ -297,7 +295,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             resolveAllBodyTicks();
-            isHolding = false;
+            IsHoldingForTesting = false;
 
             tailDrawable?.ApplyTailResult(tailResult);
             finaliseHold();
@@ -334,7 +332,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void resolveBodyTicksUpToCurrentTime()
         {
-            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && isHolding;
+            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && IsHoldingForTesting;
             double currentTime = Time.Current;
 
             foreach (var bodyTick in bodyTickDrawables)
@@ -351,7 +349,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void resolveAllBodyTicks()
         {
-            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && isHolding;
+            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && IsHoldingForTesting;
 
             foreach (var bodyTick in bodyTickDrawables)
             {

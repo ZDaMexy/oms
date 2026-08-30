@@ -13,7 +13,9 @@ using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -24,13 +26,15 @@ namespace osu.Game.Rulesets.Mania.UI.Components
         private const float key_icon_size = 10;
         private const float key_icon_corner_radius = 3;
 
-        private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
+        private readonly Bindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         private Container directionContainer;
         private Container keyIcon;
         private Drawable gradient;
 
         private Bindable<Color4> accentColour;
+
+        private float hitTargetInsetFraction;
 
         [Resolved]
         private Column column { get; set; }
@@ -41,12 +45,12 @@ namespace osu.Game.Rulesets.Mania.UI.Components
         }
 
         [BackgroundDependencyLoader]
-        private void load(IScrollingInfo scrollingInfo)
+        private void load(ManiaGameplaySkinStageContext stageContext)
         {
+            hitTargetInsetFraction = ManiaGameplaySkinLayoutProjection.GetHitTargetInsetFraction(stageContext);
             InternalChild = directionContainer = new Container
             {
                 RelativeSizeAxes = Axes.X,
-                Height = Stage.HIT_TARGET_POSITION,
                 Children = new[]
                 {
                     gradient = new Box
@@ -77,7 +81,9 @@ namespace osu.Game.Rulesets.Mania.UI.Components
                 }
             };
 
-            direction.BindTo(scrollingInfo.Direction);
+            direction.Value = stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down;
             direction.BindValueChanged(onDirectionChanged, true);
 
             accentColour = column.AccentColour.GetBoundCopy();
@@ -90,6 +96,12 @@ namespace osu.Game.Rulesets.Mania.UI.Components
                     Colour = colour.NewValue.Opacity(0.5f),
                 };
             }, true);
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            directionContainer.Height = DrawHeight * hitTargetInsetFraction;
         }
 
         private void onDirectionChanged(ValueChangedEvent<ScrollingDirection> direction)

@@ -13,6 +13,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Textures;
 using osu.Game.Audio;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Skinning
 {
@@ -30,8 +31,19 @@ namespace osu.Game.Skinning
 
         protected ISkinSource? ParentSource { get; private set; }
 
-        private SkinRevisionParticipantRegistration? revisionParticipant;
         private SkinManager? skinManager;
+
+        /// <summary>
+        /// The exact immutable package revision retained by this provider root. Gameplay layout adapters cache this
+        /// descriptor into their child dependency tree and bind every solved snapshot to it.
+        /// </summary>
+        protected GameplaySkinPackageRevision? GameplayPackageRevision { get; private set; }
+
+        /// <summary>
+        /// The C2 registration which owns <see cref="GameplayPackageRevision"/>. Exposed only inside osu.Game so the
+        /// gameplay root can bind layout preparation to the existing participant/work lease protocol.
+        /// </summary>
+        private protected SkinRevisionParticipantRegistration? GameplayRevisionParticipant { get; private set; }
 
         /// <summary>
         /// The revision lifetime represented by this production consumer. Gameplay roots override this to block live
@@ -39,6 +51,13 @@ namespace osu.Game.Skinning
         /// </summary>
         private protected virtual SkinRevisionParticipantKind RevisionParticipantKind
             => SkinRevisionParticipantKind.CoherentVisualConsumer;
+
+        /// <summary>
+        /// Whether this participant can consume a gameplay-layout publication being prepared by a sibling root.
+        /// Non-layout resource/sample providers retain the ordinary C2 lease and reload barrier contract, but cannot
+        /// invalidate a layout carrier which their subtree is explicitly unable to observe.
+        /// </summary>
+        private protected virtual bool AffectsGameplayLayoutPublication => false;
 
         /// <summary>
         /// Whether falling back to parent <see cref="ISkinSource"/>s is allowed in this container.
@@ -91,12 +110,14 @@ namespace osu.Game.Skinning
             skinManager = dependencies.Get<SkinManager>();
             if (skinManager != null)
             {
-                revisionParticipant = skinManager.RegisterRevisionParticipant(
+                GameplayRevisionParticipant = skinManager.RegisterRevisionParticipant(
                     RevisionParticipantKind,
                     GetType().Name,
                     prepareCommit: RevisionParticipantKind == SkinRevisionParticipantKind.CoherentVisualConsumer
                         ? PrepareCurrentRevisionAsync
-                        : null);
+                        : null,
+                    affectsGameplayLayoutPublication: AffectsGameplayLayoutPublication);
+                GameplayPackageRevision = GameplaySkinPackageRevision.Create(GameplayRevisionParticipant.CurrentRevision);
             }
 
             dependencies.CacheAs<ISkinSource>(this);
@@ -286,7 +307,7 @@ namespace osu.Game.Skinning
                 // Acquire the committed revision before detaching the previous one, and only after this entire
                 // synchronous subtree has refreshed.
                 if (refreshed)
-                    revisionParticipant?.AdoptCurrentRevision();
+                    GameplayRevisionParticipant?.AdoptCurrentRevision();
             }
         }
 
@@ -306,8 +327,9 @@ namespace osu.Game.Skinning
                     source.SourceChanged -= TriggerSourceChanged;
             }
 
-            revisionParticipant?.Dispose();
-            revisionParticipant = null;
+            GameplayRevisionParticipant?.Dispose();
+            GameplayRevisionParticipant = null;
+            GameplayPackageRevision = null;
         }
 
         private class DisableableSkinSource : ISkin

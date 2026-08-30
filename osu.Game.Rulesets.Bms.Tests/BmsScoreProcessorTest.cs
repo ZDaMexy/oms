@@ -6,13 +6,12 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Timing;
 using osu.Game.Beatmaps;
-using osu.Game.Rulesets.Bms;
+using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Online.Spectator;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
-using osu.Game.Beatmaps.ControlPoints;
-using osu.Game.Online.Spectator;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Replays;
@@ -742,6 +741,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 {
                     StartTime = i,
                     LaneIndex = 1,
+                    Keymode = beatmap.BmsInfo.Keymode,
                 });
             }
 
@@ -760,6 +760,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = beatmap.BmsInfo.Keymode,
             };
 
             holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -781,6 +782,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 EndTime = 1500,
                 LaneIndex = 0,
                 IsScratch = true,
+                Keymode = beatmap.BmsInfo.Keymode,
             };
 
             holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -792,7 +794,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             return beatmap;
         }
 
-        private static JudgementResult createResult(osu.Game.Rulesets.Objects.HitObject hitObject, HitResult hitResult)
+        private static JudgementResult createResult(Rulesets.Objects.HitObject hitObject, HitResult hitResult)
             => new JudgementResult(hitObject, hitObject.CreateJudgement())
             {
                 Type = hitResult,

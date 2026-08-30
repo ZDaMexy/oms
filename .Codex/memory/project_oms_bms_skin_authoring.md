@@ -59,4 +59,4 @@ metadata:
 
 ## 当前工程入口
 
-视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响后续实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。C2三源publication/detach/retire与current mutation已签发；燃尽为`2/7 closed，C3 active`。layout/BGA snapshot、shared ini compatibility、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback不得提前计为完成。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响后续实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。C2三源publication/detach/retire与current mutation已签发，C3唯一layout/BGA最终viewport也已作为同一package+layout pair加入；燃尽为`3/7 closed，C4 active`。shared ini compatibility、完整三态、scene/event、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback不得提前计为完成。

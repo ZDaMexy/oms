@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.ObjectExtensions;
@@ -12,6 +14,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Platform;
 using osu.Game.Extensions;
 using osu.Game.Rulesets.Judgements;
+using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Configuration;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
@@ -21,6 +24,7 @@ using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -29,9 +33,6 @@ namespace osu.Game.Rulesets.Mania.UI
     [Cached]
     public partial class Column : ScrollingPlayfield, IKeyBindingHandler<ManiaAction>
     {
-        public const float COLUMN_WIDTH = 80;
-        public const float SPECIAL_COLUMN_WIDTH = 70;
-
         /// <summary>
         /// The index of this column as part of the whole playfield.
         /// </summary>
@@ -60,16 +61,21 @@ namespace osu.Game.Rulesets.Mania.UI
 
         private IBindable<bool> touchOverlay = null!;
 
-        private float leftColumnSpacing;
-        private float rightColumnSpacing;
+        private float leftInputInflationRatio;
+        private float rightInputInflationRatio;
+
+        private ManiaGameplaySkinLaneContext layoutLaneContext = null!;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutLaneContext.Snapshot;
+
+        public GameplaySkinLaneId LayoutLaneId => layoutLaneContext.Lane.LaneId;
 
         public Column(int index, bool isSpecial)
         {
             Index = index;
             IsSpecial = isSpecial;
 
-            RelativeSizeAxes = Axes.Y;
-            Width = COLUMN_WIDTH;
+            RelativeSizeAxes = Axes.Both;
 
             hitPolicy = new OrderedHitPolicy(HitObjectContainer);
             HitObjectArea = new ColumnHitObjectArea
@@ -129,14 +135,6 @@ namespace osu.Game.Rulesets.Mania.UI
         private void onSourceChanged()
         {
             AccentColour.Value = skin.GetManiaSkinConfig<Color4>(LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour, Index)?.Value ?? Color4.Black;
-
-            leftColumnSpacing = skin.GetConfig<ManiaSkinConfigurationLookup, float>(
-                                        new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.LeftColumnSpacing, Index))
-                                    ?.Value ?? Stage.COLUMN_SPACING;
-
-            rightColumnSpacing = skin.GetConfig<ManiaSkinConfigurationLookup, float>(
-                                         new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.RightColumnSpacing, Index))
-                                     ?.Value ?? Stage.COLUMN_SPACING;
         }
 
         protected override void LoadComplete()
@@ -158,8 +156,58 @@ namespace osu.Game.Rulesets.Mania.UI
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
-            var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+            IReadOnlyDependencyContainer effectiveParent = parent;
+            parent.TryGet(out GameplaySkinLayoutRevisionOwner layoutOwner);
+
+            if (!parent.TryGet(out             GameplaySkinLayoutSnapshot snapshot))
+            {
+                if (layoutOwner == null || layoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                {
+                    throw new InvalidOperationException(
+                        "A standalone mania column requires an explicitly cached compatibility layout owner.");
+                }
+
+                int stageColumns = parent.TryGet(out StageDefinition definition)
+                    ? Math.Max(definition.Columns, Index + 1)
+                    : Index + 1;
+                GameplaySkinScrollDirection direction = parent.TryGet(out IScrollingInfo scrollingInfo)
+                    && scrollingInfo.Direction.Value == ScrollingDirection.Up
+                        ? GameplaySkinScrollDirection.Up
+                        : GameplaySkinScrollDirection.Down;
+                ManiaGameplaySkinLayout compatibility = ManiaGameplaySkinLayout.CreateCompatibility(
+                    new[] { new StageDefinition(stageColumns) }, parent.Get<ISkinSource>(), direction, useSkinGeometry: false);
+                var compatibilityDependencies = new DependencyContainer(parent);
+                compatibilityDependencies.Cache(compatibility);
+                compatibilityDependencies.Cache(compatibility.Snapshot);
+                effectiveParent = compatibilityDependencies;
+                snapshot = compatibility.Snapshot;
+            }
+
+            ManiaGameplaySkinLayout.ValidateConsumerCarrier(snapshot, layoutOwner, "column");
+
+            var dependencies = new DependencyContainer(base.CreateChildDependencies(effectiveParent));
             dependencies.CacheAs<IBindable<ManiaAction>>(Action);
+            layoutLaneContext = new ManiaGameplaySkinLaneContext(snapshot, Index);
+            dependencies.Cache(layoutLaneContext);
+
+            GameplaySkinLayoutLane lane = layoutLaneContext.Lane;
+            GameplaySkinLaneTopologyGroup group = snapshot.GetGroup(lane.TopologyEntry.Identity.Group.Id).TopologyGroup;
+            dependencies.Cache(new ManiaGameplaySkinStageContext(snapshot, group));
+            GameplaySkinLaneTopologyEntry[] stageLanes = group.LanesInLogicalOrder.ToArray();
+            int localIndex = lane.TopologyEntry.GroupLocalLogicalIndex;
+
+            if (localIndex > 0)
+            {
+                GameplaySkinLayoutRect previous = snapshot.GetLane(stageLanes[localIndex - 1].Identity.Id).Rect;
+                leftInputInflationRatio = Math.Max(0, lane.Rect.Left - previous.Right) / lane.Rect.Width / 2;
+            }
+
+            if (localIndex < stageLanes.Length - 1)
+            {
+                GameplaySkinLayoutRect next = snapshot.GetLane(stageLanes[localIndex + 1].Identity.Id).Rect;
+                rightInputInflationRatio = Math.Max(0, next.Left - lane.Rect.Right) / lane.Rect.Width / 2;
+            }
+
             return dependencies;
         }
 
@@ -199,8 +247,12 @@ namespace osu.Game.Rulesets.Mania.UI
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos)
         {
-            // Extend input coverage to the gaps close to this column.
-            var spacingInflation = new MarginPadding { Left = leftColumnSpacing, Right = rightColumnSpacing };
+            // Extend input coverage to half of the exact solved gaps close to this lane.
+            var spacingInflation = new MarginPadding
+            {
+                Left = DrawWidth * leftInputInflationRatio,
+                Right = DrawWidth * rightInputInflationRatio,
+            };
             return DrawRectangle.Inflate(spacingInflation).Contains(ToLocalSpace(screenSpacePos));
         }
 

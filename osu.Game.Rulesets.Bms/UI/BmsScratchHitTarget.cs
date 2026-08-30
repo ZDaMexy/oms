@@ -6,8 +6,8 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class BmsScratchHitTarget : BmsHitTarget
     {
-        public BmsScratchHitTarget(BmsLaneSkinLookup lookup, BmsPlayfieldLayoutProfile layoutProfile)
-            : base(lookup, layoutProfile)
+        public BmsScratchHitTarget(BmsLaneSkinLookup lookup, BmsPlayfieldLayoutProfile layoutProfile, BmsGameplayLayoutSnapshot? layoutSnapshot = null)
+            : base(lookup, layoutProfile, layoutSnapshot)
         {
         }
     }

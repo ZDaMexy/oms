@@ -4,8 +4,10 @@
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.Objects.Drawables
 {
@@ -16,6 +18,11 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
     public partial class DrawableBarLine : DrawableManiaHitObject<BarLine>
     {
         public readonly Bindable<bool> Major = new Bindable<bool>();
+
+        [Resolved]
+        private ManiaGameplaySkinStageContext layoutStageContext { get; set; } = null!;
+
+        public GameplaySkinLayoutSnapshot StageLayoutSnapshot => layoutStageContext.Snapshot;
 
         public DrawableBarLine()
             : this(null!)

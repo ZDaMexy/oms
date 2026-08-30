@@ -5,7 +5,10 @@ using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
+using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
@@ -22,23 +25,39 @@ namespace osu.Game.Rulesets.Bms.Tests
         private TestDrawableBmsJudgement perfectJudgement = null!;
         private TestDrawableBmsJudgement poorJudgement = null!;
         private TestDrawableBmsJudgement emptyPoorJudgement = null!;
+        private BmsGameplayLayoutSnapshot layoutSnapshot = null!;
 
         [SetUp]
         public void SetUp() => Schedule(() =>
         {
-            Child = scrollingContainer = new ScrollingTestContainer(ScrollingDirection.Up)
+            var beatmap = new BmsBeatmap
+            {
+                BmsInfo = new BmsBeatmapInfo { Keymode = BmsKeymode.Key7K },
+            };
+            var layoutProvider = new BmsGameplayLayoutProvider(beatmap);
+            layoutSnapshot = layoutProvider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration());
+
+            Child = new DependencyProvidingContainer
             {
                 RelativeSizeAxes = Axes.Both,
-                Child = new Container
+                CachedDependencies = new (Type, object)[]
+                {
+                    (typeof(BmsGameplayLayoutProvider), layoutProvider),
+                },
+                Child = scrollingContainer = new ScrollingTestContainer(ScrollingDirection.Up)
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Children = new Drawable[]
+                    Child = new Container
                     {
-                        perfectJudgement = createJudgement(HitResult.Perfect, 0.3f),
-                        poorJudgement = createJudgement(HitResult.Miss, 0.5f),
-                        emptyPoorJudgement = createJudgement(HitResult.Ok, 0.7f),
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            perfectJudgement = createJudgement(HitResult.Perfect, 0.3f),
+                            poorJudgement = createJudgement(HitResult.Miss, 0.5f),
+                            emptyPoorJudgement = createJudgement(HitResult.Ok, 0.7f),
+                        }
                     }
-                }
+                },
             };
         });
 
@@ -72,10 +91,14 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private void assertAligned(string label, ScrollingDirection direction)
         {
-            Anchor expectedAnchor = BmsGameplayFeedbackLayout.GetJudgementAnchor(direction);
-            float expectedOffset = BmsGameplayFeedbackLayout.GetJudgementOffset(direction);
+            var playfield = layoutSnapshot.PlayfieldRect;
+            var judgement = layoutSnapshot.JudgementRect;
+            float expectedOffset = (judgement.Y + judgement.Height / 2 - playfield.Y) / playfield.Height;
 
-            AddAssert($"perfect matches the shared judgement anchor ({label})", () => perfectJudgement.BodyAnchor == expectedAnchor && perfectJudgement.BodyOrigin == expectedAnchor);
+            if (direction == ScrollingDirection.Up)
+                expectedOffset = 1 - expectedOffset;
+
+            AddAssert($"perfect uses the immutable snapshot centre anchor ({label})", () => perfectJudgement.BodyAnchor == Anchor.Centre && perfectJudgement.BodyOrigin == Anchor.Centre);
             AddAssert($"perfect uses the shared judgement offset ({label})", () => Math.Abs(perfectJudgement.BodyY - expectedOffset) <= 0.1f);
             AddAssert($"poor stays on the shared judgement baseline ({label})", () => Math.Abs(perfectJudgement.BodyY - poorJudgement.BodyY) <= 0.1f);
             AddAssert($"empty poor stays on the shared judgement baseline ({label})", () => Math.Abs(perfectJudgement.BodyY - emptyPoorJudgement.BodyY) <= 0.1f);

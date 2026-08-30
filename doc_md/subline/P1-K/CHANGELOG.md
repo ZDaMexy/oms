@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-30
+
+### C3 / Skin 前置闭合：parser-owned keymode、全 lane armed timeline 与 post-mod keysound/LaneId 同源
+
+- **keymode authority**：新增 immutable `BmsKeymodeResolution`，把选中的 keymode 与 `Source / Evidence / DiagnosticCode / StableDiagnostic` 绑定成 parser 单一事实，并原样流经 `BmsBeatmapConverter`、production loader、Skin manager/layout owner 与完整 renderer。precedence 冻结为：兼容性校验后的显式 override → P2 channel（强于 `.bme`，与 `.pms` 冲突则拒绝）→ `.pms` → `.bme` → complete 9K set → distinctive 9K high channel → complete 7K set → complete 5K set；evidence 同时保留已观察到的扩展名/channel-set 标志。显式纠正只经 `BmsBeatmapDecoderOptions.KeymodeOverride` 进入，和 lane evidence 矛盾时 fail-closed。
+- **sparse 与脱敏诊断**：`.pms/.bme`、P2/high channel，以及 visible、LN、invisible、mine 等 lane object family 都会贡献可追溯 evidence。普通 `.bms/.bml` 只有不完整、非 distinctive lane evidence，或完全无 lane evidence 时，分别以 `bms.keymode.sparse-bms-requires-explicit-override` / `bms.keymode.no-lane-evidence-requires-explicit-override` 拒绝；extension/override 冲突也有稳定 token。诊断不含原始路径、文件名、channel payload。layout/skin/runtime 不得通过最高出现 channel、hit object、总 lane 数或 layout 宽度继续猜测。
+- **timeline 上界修复**：`BmsBeatmapConverter.buildLaneKeysoundTimelines()` 从 `GetKeyCount()` 改为 canonical `BmsRuleset.GetLaneCount()`。矩阵逐类锁住 5K/7K 最右键、9K 全部 lane、14K K14 与 Scratch2 的 visible note、LN head/tail armed entry、invisible object；相邻 mine 使用同一 lane-count 边界，末端 lane 不再静默丢失。本条正式 supersede 2026-07-10 “已发现、代码未修”的开放状态。
+- **真实发声与 mod 后同源**：native BMS 玩家/autoplay 与 converted Mania 在 production host 中均进入同一 shared `BmsKeysoundStore` 并实际请求对应 source WAV。Mirror/RANDOM/R-RANDOM/custom 让对象、mine 与 armed timeline 复用同一 exact permutation；S-RANDOM 没有单一 column permutation，因此只稳定禁用受影响 armed timeline（`bms.keysound.timeline.disabled-s-random`），对象自身 WAV 仍随 post-mod target lane 发声。固定 playfield topology/LaneId 集合不因 mod 改写；对象 target、keysound lane 与 skin lookup 最终汇合到同一 post-mod `LaneId`。
+- **边界**：parser/converter 继续是唯一 truth；layout、skin 与 runtime 只消费 projection，不重读 BMS、不二次推导 keymode/lane count。本切片没有改 sample pool、判定或 binding，也不把 P1-A C3 的唯一 layout/全 consumer/revision protocol ownership 改归 P1-K。
+- **验证**：decoder/converter **176/176**、projection **24/24**、BMS sound **14/14**、converted Mania **2/2**；targeted formatter 后关键 BMS **235/235**、BMS Skin **802/802**、BMS full **1763/1763**，Release **0 error**。C3 的全局 layout/protocol 证据统一路由 [P1-A STATUS](../P1-A/DEVELOPMENT_STATUS.md)。
+
 ## 2026-07-16
 
 ### 文档健康治理：STATUS 不再复制旧共同 full 数字，CONSTRAINTS 头部回归路由

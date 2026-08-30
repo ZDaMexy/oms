@@ -14,6 +14,7 @@ using osu.Framework.Utils;
 using osu.Game.Graphics;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -21,7 +22,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
 {
     public partial class ArgonKeyArea : CompositeDrawable, IKeyBindingHandler<ManiaAction>
     {
-        private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
+        private readonly Bindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         private Container directionContainer = null!;
         private Drawable background = null!;
@@ -33,6 +34,8 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
 
         private Bindable<Color4> accentColour = null!;
 
+        private float hitTargetInsetFraction;
+
         [Resolved]
         private Column column { get; set; } = null!;
 
@@ -42,8 +45,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
         }
 
         [BackgroundDependencyLoader]
-        private void load(IScrollingInfo scrollingInfo)
+        private void load(ManiaGameplaySkinStageContext stageContext)
         {
+            hitTargetInsetFraction = ManiaGameplaySkinLayoutProjection.GetHitTargetInsetFraction(stageContext);
             const float icon_circle_size = 8;
             const float icon_spacing = 7;
             const float icon_vertical_offset = -30;
@@ -51,10 +55,6 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
             InternalChild = directionContainer = new Container
             {
                 RelativeSizeAxes = Axes.X,
-                // Ensure the area is tall enough to put the target line in the correct location.
-                // This is to also allow the main background component to overlap the target line
-                // and avoid an inner corner radius being shown below the target line.
-                Height = Stage.HIT_TARGET_POSITION + ArgonNotePiece.CORNER_RADIUS * 2,
                 Children = new[]
                 {
                     new Container
@@ -148,7 +148,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                 }
             };
 
-            direction.BindTo(scrollingInfo.Direction);
+            direction.Value = stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down;
             direction.BindValueChanged(onDirectionChanged, true);
 
             accentColour = column.AccentColour.GetBoundCopy();
@@ -161,6 +163,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
 
             // Yes, proxy everything.
             column.TopLevelContainer.Add(CreateProxy());
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            // The corner-radius extension is a component effect. The target position itself comes exclusively from
+            // the exact snapshot shared by the stage and its lanes.
+            directionContainer.Height = DrawHeight * hitTargetInsetFraction + ArgonNotePiece.CORNER_RADIUS * 2;
         }
 
         private void onDirectionChanged(ValueChangedEvent<ScrollingDirection> direction)

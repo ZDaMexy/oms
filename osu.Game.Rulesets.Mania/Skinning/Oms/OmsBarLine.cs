@@ -7,7 +7,6 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Objects.Drawables;
-using osu.Game.Rulesets.Mania.Skinning.Legacy;
 using osu.Game.Skinning;
 using osuTK;
 using osuTK.Graphics;
@@ -25,9 +24,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         private float configuredHeight;
 
         [BackgroundDependencyLoader]
-        private void load(ISkinSource skin, DrawableHitObject drawableHitObject)
+        private void load(ISkinSource skin, DrawableHitObject drawableHitObject, ManiaGameplaySkinStageContext stageContext)
         {
-            configuredHeight = skin.GetManiaSkinConfig<float>(LegacyManiaSkinConfigurationLookups.BarLineHeight)?.Value ?? 1;
+            configuredHeight = ManiaGameplaySkinLayoutProjection.GetBarLineBaseHeight(stageContext);
 
             RelativeSizeAxes = Axes.X;
             Colour = skin.GetManiaSkinConfig<Color4>(LegacyManiaSkinConfigurationLookups.BarLineColour)?.Value ?? Color4.White;

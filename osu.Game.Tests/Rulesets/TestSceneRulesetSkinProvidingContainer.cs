@@ -15,8 +15,10 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
 using osu.Game.Audio;
+using osu.Game.Beatmaps;
 using osu.Game.Rulesets;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Testing;
 using osu.Game.Tests.Visual;
 
@@ -87,6 +89,63 @@ namespace osu.Game.Tests.Rulesets
             });
         }
 
+        [Test]
+        public void TestGameplayLayoutOwnerUsesExactProviderPackageRevision()
+        {
+            setupProviderStep();
+
+            AddAssert("exact package token cached once", () =>
+                requester.PackageRevision != null
+                && requester.LayoutOwner != null
+                && ReferenceEquals(requester.PackageRevision, requester.LayoutOwner.PackageRevision)
+                && requester.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility);
+        }
+
+        [Test]
+        public void TestRejectedGameplayLayoutDoesNotAttachDelayedRenderer()
+        {
+            RejectingLayoutRuleset ruleset = null;
+            LoadProbe delayedRenderer = null;
+
+            AddStep("mount rejecting gameplay layout provider", () =>
+            {
+                ruleset = new RejectingLayoutRuleset();
+                Child = new RulesetSkinProvidingContainer(
+                    ruleset,
+                    Beatmap.Value.Beatmap,
+                    Beatmap.Value.Skin,
+                    prepareGameplaySkinLayout: true)
+                {
+                    Child = delayedRenderer = new LoadProbe(),
+                };
+            });
+            AddWaitStep("allow provider background load", 5);
+            AddAssert("preparer called once", () => ruleset.PrepareCount == 1);
+            AddAssert("delayed renderer never loaded", () => !delayedRenderer.IsLoaded);
+        }
+
+        [Test]
+        public void TestTransientGameplayLayoutAdmissionRetriesBeforeAttachingRenderer()
+        {
+            RetryingLayoutRuleset ruleset = null;
+            LoadProbe delayedRenderer = null;
+
+            AddStep("mount transient gameplay layout provider", () =>
+            {
+                ruleset = new RetryingLayoutRuleset();
+                Child = new RulesetSkinProvidingContainer(
+                    ruleset,
+                    Beatmap.Value.Beatmap,
+                    Beatmap.Value.Skin,
+                    prepareGameplaySkinLayout: true)
+                {
+                    Child = delayedRenderer = new LoadProbe(),
+                };
+            });
+            AddUntilStep("renderer attached after fresh barrier", () => delayedRenderer.IsLoaded);
+            AddAssert("each retry was a full preparer call", () => ruleset.PrepareCount == 3);
+        }
+
         private void setupProviderStep()
         {
             AddStep("setup provider", () =>
@@ -100,12 +159,21 @@ namespace osu.Game.Tests.Rulesets
         {
             private ISkinSource skin;
 
+            public GameplaySkinPackageRevision PackageRevision { get; private set; }
+
+            public GameplaySkinLayoutRevisionOwner LayoutOwner { get; private set; }
+
             public event Action OnLoadAsync;
 
             [BackgroundDependencyLoader]
-            private void load(ISkinSource skin)
+            private void load(
+                ISkinSource skin,
+                GameplaySkinPackageRevision packageRevision,
+                GameplaySkinLayoutRevisionOwner layoutOwner)
             {
                 this.skin = skin;
+                PackageRevision = packageRevision;
+                LayoutOwner = layoutOwner;
 
                 OnLoadAsync?.Invoke();
             }
@@ -119,6 +187,31 @@ namespace osu.Game.Tests.Rulesets
             public IBindable<TValue> GetConfig<TLookup, TValue>(TLookup lookup) => skin.GetConfig<TLookup, TValue>(lookup);
 
             public IEnumerable<ISkin> AllSources => skin.AllSources;
+        }
+
+        private sealed class RejectingLayoutRuleset : TestSceneRulesetDependencies.TestRuleset, IGameplaySkinLayoutPreparer
+        {
+            public int PrepareCount { get; private set; }
+
+            public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+            {
+                PrepareCount++;
+                return GameplaySkinLayoutPreparationResult.Rejected;
+            }
+        }
+
+        private sealed class RetryingLayoutRuleset : TestSceneRulesetDependencies.TestRuleset, IGameplaySkinLayoutPreparer
+        {
+            public int PrepareCount { get; private set; }
+
+            public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+                => ++PrepareCount < 3
+                    ? GameplaySkinLayoutPreparationResult.Retry
+                    : GameplaySkinLayoutPreparationResult.Prepared;
+        }
+
+        private sealed partial class LoadProbe : Drawable
+        {
         }
 
         private partial class IsolatedSkinProvidingContainer : SkinProvidingContainer

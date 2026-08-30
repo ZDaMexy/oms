@@ -64,7 +64,7 @@ namespace osu.Game.Screens.Edit.Compose
             if (ruleset == null || composer == null)
                 return new ScreenWhiteBox.UnderConstructionMessage(ruleset == null ? "This beatmap" : $"{ruleset.Description}'s composer");
 
-            return wrapSkinnableContent(composer);
+            return wrapSkinnableContent(composer, prepareGameplaySkinLayout: true);
         }
 
         protected override Drawable CreateTimelineContent()
@@ -94,11 +94,11 @@ namespace osu.Game.Screens.Edit.Compose
             });
         }
 
-        private Drawable wrapSkinnableContent(Drawable content)
+        private Drawable wrapSkinnableContent(Drawable content, bool prepareGameplaySkinLayout = false)
         {
             Debug.Assert(ruleset != null);
 
-            return new EditorSkinProvidingContainer(EditorBeatmap).WithChild(content);
+            return new EditorSkinProvidingContainer(EditorBeatmap, prepareGameplaySkinLayout).WithChild(content);
         }
 
         [BackgroundDependencyLoader]

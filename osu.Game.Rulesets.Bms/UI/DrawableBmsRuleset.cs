@@ -15,23 +15,23 @@ using osu.Game.Overlays.OSD;
 using osu.Game.Replays;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.Difficulty;
-using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Replays;
 using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
-using osu.Game.Rulesets.Replays;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Scoring;
-using osu.Game.Screens.Play;
+using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Input;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -50,7 +50,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsJudgeMode JudgeMode => BmsJudgeModeExtensions.GetJudgeMode(Mods);
 
-        public override int Variant => BmsLaneLayout.CreateFor(Beatmap).Lanes.Count;
+        public override int Variant => Beatmap is BmsBeatmap bmsBeatmap
+            ? BmsRuleset.GetLaneCount(bmsBeatmap.BmsInfo.Keymode)
+            : throw new InvalidOperationException("BMS variant requires parser-owned keymode authority.");
 
         protected override bool RelativeScaleBeatLengths => true;
 
@@ -70,10 +72,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BindableBool adjustmentTargetTemporarilyOverridden = new BindableBool();
         private readonly BindableBool allowAdjustmentWhilePaused = new BindableBool();
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
-        private ulong speedMetricsToastDisplayCount;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
         private BmsBgaPanel? bgaPanel;
-        private readonly Bindable<BmsPlayfieldStyle> bgaPlayfieldStyle = new Bindable<BmsPlayfieldStyle>();
+        private BmsHudLayoutPanel? hudLayoutPanel;
         private readonly BindableBool showBga = new BindableBool(true);
 
         public IBindable<BmsScrollSpeedMetrics> SpeedMetrics => speedMetrics;
@@ -98,9 +99,27 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public float PreStartSpeedPreviewProgress => preStartSpeedPreview?.PrimaryNoteProgress ?? -1;
 
-        internal ulong SpeedMetricsToastDisplayCount => speedMetricsToastDisplayCount;
+        internal ulong SpeedMetricsToastDisplayCount { get; private set; }
 
         public BmsInputManager? GameplayInputManager => KeyBindingInputManager as BmsInputManager;
+
+        public BmsGameplayLayoutSnapshot LayoutSnapshot => LayoutProvider.Current;
+
+        internal BmsGameplayLayoutProvider LayoutProvider { get; }
+
+        internal void InitialiseCompatibilityLayoutForTesting(
+            BmsPlayfieldStyle style = BmsPlayfieldStyle.Center,
+            ISkin? skin = null,
+            BmsGameplayLayoutEnvironment? environment = null)
+            => Playfield.InitialiseCompatibilityForTesting(style, skin, environment);
+
+        internal BmsGameplayLayoutSnapshot? PreStartSpeedPreviewLayoutSnapshot => preStartSpeedPreview?.LayoutSnapshot;
+
+        internal float PreStartSpeedPreviewNoteScreenSpaceHeight => preStartSpeedPreview?.PrimaryNoteScreenSpaceHeight ?? 0;
+
+        internal BmsGameplayLayoutSnapshot? BgaLayoutSnapshot => bgaPanel?.LayoutSnapshot;
+
+        internal BmsGameplayLayoutSnapshot? HudLayoutSnapshot => hudLayoutPanel?.LayoutSnapshot;
 
         [Resolved(CanBeNull = true)]
         private OnScreenDisplay? bmsOnScreenDisplay { get; set; }
@@ -111,11 +130,22 @@ namespace osu.Game.Rulesets.Bms.UI
         public DrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
         {
+            if (beatmap is not BmsBeatmap)
+                throw new ArgumentException("Drawable BMS gameplay requires a converted BmsBeatmap.", nameof(beatmap));
+
             BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, mods);
+            LayoutProvider = Playfield.LayoutProvider;
             Direction.Value = ScrollingDirection.Down;
 
             TimeRange.MinValue = MIN_TIME_RANGE;
             TimeRange.MaxValue = MAX_TIME_RANGE;
+        }
+
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+        {
+            var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+            dependencies.Cache(LayoutProvider);
+            return dependencies;
         }
 
         [BackgroundDependencyLoader]
@@ -150,6 +180,19 @@ namespace osu.Game.Rulesets.Bms.UI
             getLiftMod()?.LiftUnits.BindValueChanged(_ => refreshSpeedMetrics(), true);
 
             setupBgaPanel();
+            setupHudLayout();
+        }
+
+        private void setupHudLayout()
+        {
+            // Detached compatibility drawables do not own the Player health/score dependency graph. HUD layout is
+            // exercised there through its explicit carrier fixture; the production root always has a non-compat exact
+            // package and mounts the complete gauge/combo graph below that dependency scope.
+            if (LayoutProvider.Current.Context.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
+                return;
+
+            hudLayoutPanel = new BmsHudLayoutPanel(LayoutProvider);
+            Overlays.Add(hudLayoutPanel);
         }
 
         // Mounts the skinnable BGA panel above the playfield (in Overlays, so lanes never occlude it) and keeps its
@@ -159,7 +202,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (Beatmap is not BmsBeatmap bmsBeatmap)
                 return;
 
-            bgaPanel = new BmsBgaPanel(bmsBeatmap.BgaTimeline, bmsBeatmap.PoorBgaMode);
+            bgaPanel = new BmsBgaPanel(bmsBeatmap.BgaTimeline, bmsBeatmap.PoorBgaMode, LayoutProvider);
             Overlays.Add(bgaPanel);
 
             // Transcode legacy BGA videos during loading so the BGA plays from the first frame (P1-L Phase 5.2 R1).
@@ -167,8 +210,7 @@ namespace osu.Game.Rulesets.Bms.UI
             // tree the player push awaits; it self-gates (no-op without legacy video / with transcoding disabled).
             Overlays.Add(new BmsBgaVideoPreloader(bmsBeatmap.BgaTimeline));
 
-            Config.BindWith(BmsRulesetSetting.PlayfieldStyle, bgaPlayfieldStyle);
-            bgaPlayfieldStyle.BindValueChanged(_ => updateBgaPlacement(), true);
+            updateBgaPlacement();
 
             Config.BindWith(BmsRulesetSetting.ShowBga, showBga);
             showBga.BindValueChanged(visible => bgaPanel.Alpha = visible.NewValue ? 1 : 0, true);
@@ -179,7 +221,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (bgaPanel == null)
                 return;
 
-            bgaPanel.SetLayout(BmsBgaPanel.ResolveDefaultPlacement(Playfield.LaneLayout.Keymode, bgaPlayfieldStyle.Value));
+            bgaPanel.SetLayout(BmsBgaPanel.ResolveDefaultPlacement(Playfield.LayoutSnapshot.Keymode, Playfield.LayoutSnapshot.Style));
         }
 
         public override PlayfieldAdjustmentContainer CreatePlayfieldAdjustmentContainer() => new BmsPlayfieldAdjustmentContainer();
@@ -191,7 +233,9 @@ namespace osu.Game.Rulesets.Bms.UI
             if (Mods.OfType<BmsModAutoplay>().Any() && h is BmsHitObject bmsHitObject)
                 bmsHitObject.AutoPlay = true;
 
-            return h is BmsHoldNote holdNote ? new DrawableBmsHoldNote(holdNote) : new DrawableBmsHitObject(h);
+            return h is BmsHoldNote holdNote
+                ? new DrawableBmsHoldNote(holdNote, Playfield.LayoutSnapshot)
+                : new DrawableBmsHitObject(h, Playfield.LayoutSnapshot);
         }
 
         protected override ReplayInputHandler CreateReplayInputHandler(Replay replay)
@@ -403,10 +447,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             previewLane.PreviewContainer.Add(preStartSpeedPreview = new BmsPreStartSpeedPreview(
-                previewLane.LayoutLane,
-                Playfield.LaneLayout.Keymode,
+                previewLane.LayoutSnapshotLane ?? throw new InvalidOperationException("Pre-start preview requires the exact gameplay layout lane."),
+                Playfield.LayoutSnapshot.Keymode,
                 SpeedMetrics,
-                Playfield.LayoutProfile.HitTargetHeight));
+                Playfield.LayoutSnapshot));
         }
 
         private void updateTimeRange() => TimeRange.Value = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value, Beatmap.GetMostCommonBeatLength(), getInitialBeatLength(), Beatmap.Difficulty.SliderMultiplier) * (playfieldScrollLengthRatio?.Value ?? 1);
@@ -535,7 +579,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void showSpeedMetricsToast(BmsGameplayAdjustmentTarget? target = null)
         {
-            speedMetricsToastDisplayCount++;
+            SpeedMetricsToastDisplayCount++;
             bmsOnScreenDisplay?.Display(new BmsSpeedMetricsToast(GetScrollSpeedMetrics(), target ?? getPersistentGameplayAdjustmentTarget()));
         }
 

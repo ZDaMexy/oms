@@ -6,7 +6,6 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
-using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
@@ -166,7 +165,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             applyBeatmapMods(beatmap, new Mod[] { new BmsModMirror() });
 
-            var mirroredLanes = getLaneSequence(beatmap);
+            int[] mirroredLanes = getLaneSequence(beatmap);
             var score = new ScoreInfo
             {
                 Mods = new Mod[] { new BmsModMirror() },
@@ -279,7 +278,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 }
             };
 
-            var available = BmsClearLampProcessor.TryCalculate(score, beatmap, out BmsClearLamp clearLamp, out double finalGauge);
+            bool available = BmsClearLampProcessor.TryCalculate(score, beatmap, out BmsClearLamp clearLamp, out double finalGauge);
 
             Assert.Multiple(() =>
             {
@@ -345,11 +344,11 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             applyBeatmapMods(beatmap, new Mod[] { new BmsModMirror() });
 
-            var mirroredLanes = getLaneSequence(beatmap);
+            int[] mirroredLanes = getLaneSequence(beatmap);
             var score = createScore(beatmap, HitResult.Perfect, HitResult.Perfect);
             score.Mods = new Mod[] { new BmsModMirror() };
 
-            var finalGauge = BmsClearLampProcessor.CalculateFinalGauge(score, beatmap);
+            double finalGauge = BmsClearLampProcessor.CalculateFinalGauge(score, beatmap);
 
             Assert.Multiple(() =>
             {
@@ -367,7 +366,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             new BmsRuleset().PrepareScoreInfoForResults(score, beatmap);
             score.HitEvents.Clear();
 
-            var available = BmsClearLampProcessor.TryCalculate(score, beatmap, out BmsClearLamp clearLamp, out double finalGauge);
+            bool available = BmsClearLampProcessor.TryCalculate(score, beatmap, out BmsClearLamp clearLamp, out double finalGauge);
 
             Assert.Multiple(() =>
             {
@@ -483,6 +482,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 {
                     StartTime = i,
                     LaneIndex = 1,
+                    Keymode = beatmap.BmsInfo.Keymode,
                 });
             }
 
@@ -499,6 +499,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 EndTime = baselineNoteCount + 1000 + holdDuration,
                 LaneIndex = laneIndex,
                 IsScratch = isScratch,
+                Keymode = beatmap.BmsInfo.Keymode,
             };
 
             holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());

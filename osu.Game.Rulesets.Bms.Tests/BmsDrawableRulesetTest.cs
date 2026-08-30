@@ -3,23 +3,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Input.Bindings;
-using osu.Framework.Input.Events;
 using NUnit.Framework;
+using osu.Framework.Input.Events;
 using osu.Framework.Timing;
 using osu.Game.Audio;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.Bms.UI;
-using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -34,7 +33,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var beatmap = createPlayableBeatmap();
             var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap);
-            var expectedVariant = BmsLaneLayout.CreateFor(beatmap).Lanes.Count;
+            int expectedVariant = BmsLaneLayout.CreateCompatibilityForTesting(beatmap).Lanes.Count;
 
             Assert.Multiple(() =>
             {
@@ -319,26 +318,28 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var beatmap = createPlayableBeatmap();
             var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap);
+            drawableRuleset.InitialiseCompatibilityLayoutForTesting();
 
             foreach (var hitObject in beatmap.HitObjects)
                 Assert.That(drawableRuleset.CreateDrawableRepresentation(hitObject), Is.Not.Null);
         }
 
-            [Test]
-            public void TestCreatesDedicatedDrawableForHoldNotes()
-            {
-                var beatmap = createPlayableBeatmap();
-                var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap);
-                var hold = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
+        [Test]
+        public void TestCreatesDedicatedDrawableForHoldNotes()
+        {
+            var beatmap = createPlayableBeatmap();
+            var drawableRuleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(beatmap);
+            drawableRuleset.InitialiseCompatibilityLayoutForTesting();
+            var hold = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
 
-                Assert.That(drawableRuleset.CreateDrawableRepresentation(hold), Is.TypeOf<DrawableBmsHoldNote>());
-            }
+            Assert.That(drawableRuleset.CreateDrawableRepresentation(hold), Is.TypeOf<DrawableBmsHoldNote>());
+        }
 
         [Test]
         public void TestPlayfieldRoutesDrawablesToMatchingLanes()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             var scratch = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject.IsScratch && hitObject is not BmsHoldNote);
             var regular = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => !hitObject.IsScratch && hitObject is not BmsHoldNote && hitObject.LaneIndex == 1);
@@ -363,7 +364,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestPlayfieldAddsMeasureBarLinesToEachLane()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             foreach (var lane in playfield.Lanes)
                 Assert.That(lane.AllHitObjects.Count(hitObject => hitObject is DrawableBmsBarLine), Is.EqualTo(beatmap.MeasureStartTimes.Count));
@@ -373,7 +374,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestPlayfieldCreatesLaneHitTargets()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             Assert.Multiple(() =>
             {
@@ -387,15 +388,17 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestPlayfieldUsesLayoutProfileForLaneDecorations()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
             var barLines = playfield.Lanes.SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>()).ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(playfield.LayoutProfile, Is.SameAs(playfield.LaneLayout.Profile));
-                Assert.That(playfield.Lanes.All(lane => Math.Abs(lane.HitTarget.Height - playfield.LayoutProfile.HitTargetHeight) <= 0.0001f), Is.True);
+                Assert.That(playfield.Lanes.All(lane => Math.Abs(lane.HitTarget.Height
+                                                                  - playfield.LayoutSnapshot.ProjectVerticalProfileMetric(playfield.LayoutProfile.HitTargetHeight)) <= 0.0001f), Is.True);
                 Assert.That(barLines, Is.Not.Empty);
-                Assert.That(barLines.All(barLine => Math.Abs(barLine.Height - playfield.LayoutProfile.BarLineHeight) <= 0.0001f), Is.True);
+                Assert.That(barLines.All(barLine => Math.Abs(barLine.Height
+                                                             - playfield.LayoutSnapshot.ProjectVerticalProfileMetric(playfield.LayoutProfile.BarLineHeight)) <= 0.0001f), Is.True);
             });
         }
 
@@ -403,8 +406,8 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestPlayfieldAppliesLaneLayoutPositions()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
-            var layout = BmsLaneLayout.CreateFor(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
+            var layout = BmsLaneLayout.CreateCompatibilityForTesting(beatmap);
 
             Assert.That(playfield.Lanes, Has.Count.EqualTo(layout.Lanes.Count));
 
@@ -432,7 +435,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestPlayfieldCreatesBackgroundLayerUsingStageFileMetadata()
         {
             var beatmap = createPlayableBeatmap(stageFile: "stage.png", backgroundFile: "fallback.png");
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             Assert.Multiple(() =>
             {
@@ -463,7 +466,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #LNTYPE 1
 #00152:EE00FF00
 ", "drawable-background-projection.bme");
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             Assert.Multiple(() =>
             {
@@ -477,7 +480,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestPlayfieldCreatesSharedKeysoundStore()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             Assert.Multiple(() =>
             {
@@ -490,7 +493,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreChannelCountCanBeReconfigured()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 24;
 
@@ -505,7 +508,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreShrinkDoesNotCutActiveChannelsImmediately()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 2;
             playfield.KeysoundStore.Play(new SampleInfo("keys/left"), 0);
@@ -534,7 +537,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreShrinkRemovesStoppedDeferredChannels()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 2;
             playfield.KeysoundStore.Play(new SampleInfo("keys/left"), 0);
@@ -558,7 +561,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreSingleSamplePathRotatesBuffers()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 1;
             playfield.KeysoundStore.Play(new SampleInfo("keys/left"), 0);
@@ -585,7 +588,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreGrowsUnderSaturationInsteadOfStealing()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 2;
 
@@ -616,7 +619,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStorePrefersIdleChannelOverBusyOne()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 4;
 
@@ -650,7 +653,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreCutsSameSlotRetrigger()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 4;
 
@@ -668,7 +671,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestSharedKeysoundStoreDoesNotCutDifferentSlotsSharingAFile()
         {
             var beatmap = createPlayableBeatmap();
-            var playfield = new BmsPlayfield(beatmap);
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
             playfield.KeysoundStore.ConcurrentChannels = 4;
 
@@ -692,7 +695,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var regular = beatmap.HitObjects.OfType<BmsHitObject>().Single(hitObject => hitObject is not BmsHoldNote && hitObject.LaneIndex == 2);
             var hold = beatmap.HitObjects.OfType<BmsHoldNote>().Single();
 
-            var bgmSamples = new DrawableBmsHitObject(bgm).GetSamples().OfType<BmsKeysoundSampleInfo>().Select(sample => sample.Filename).ToArray();
+            string[] bgmSamples = new DrawableBmsHitObject(bgm).GetSamples().OfType<BmsKeysoundSampleInfo>().Select(sample => sample.Filename).ToArray();
             var regularSample = new DrawableBmsHitObject(regular).GetSamples().OfType<BmsKeysoundSampleInfo>().Single();
             var holdSample = new DrawableBmsHitObject(hold).GetSamples().OfType<BmsKeysoundSampleInfo>().Single();
 
@@ -780,6 +783,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 StartTime = 1000,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             note.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -813,6 +817,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 StartTime = 1000,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             note.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -860,10 +865,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             };
 
             var testClock = new FramedClock(manualClock);
-            var playfield = new BmsPlayfield(beatmap)
-            {
-                Clock = testClock,
-            };
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
+            playfield.Clock = testClock;
 
             var firstDrawable = new DrawableBmsHitObject(scratchNotes[0])
             {
@@ -921,10 +924,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             };
 
             var testClock = new FramedClock(manualClock);
-            var playfield = new BmsPlayfield(beatmap)
-            {
-                Clock = testClock,
-            };
+            var playfield = BmsPlayfield.CreateCompatibility(beatmap);
+            playfield.Clock = testClock;
 
             var firstDrawable = new DrawableBmsHitObject(scratchNotes[0])
             {
@@ -961,6 +962,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1005,6 +1007,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1051,6 +1054,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1005,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1064,8 +1068,10 @@ namespace osu.Game.Rulesets.Bms.Tests
                 IsRunning = true,
             });
 
-            var drawable = new DrawableBmsHoldNote(hold);
-            drawable.Clock = testClock;
+            var drawable = new DrawableBmsHoldNote(hold)
+            {
+                Clock = testClock
+            };
             drawable.Apply(hold);
 
             foreach (var nested in drawable.NestedHitObjects)
@@ -1087,6 +1093,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1131,6 +1138,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1198,6 +1206,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1264,6 +1273,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1330,6 +1340,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1383,6 +1394,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1407,6 +1419,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 EndTime = 1500,
                 LaneIndex = 1,
+                Keymode = BmsKeymode.Key7K,
             };
 
             hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -1440,6 +1453,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = 1000,
                 LaneIndex = 0,
                 AutoPlay = true,
+                Keymode = BmsKeymode.Key7K,
             };
 
             Assert.Multiple(() =>
@@ -1516,14 +1530,14 @@ namespace osu.Game.Rulesets.Bms.Tests
             };
 
         private static KeyBindingPressEvent<BmsAction> createPressEvent(BmsAction action = BmsAction.Key1)
-            => new KeyBindingPressEvent<BmsAction>(new osu.Framework.Input.States.InputState(), action);
+            => new KeyBindingPressEvent<BmsAction>(new Framework.Input.States.InputState(), action);
 
         private static KeyBindingReleaseEvent<BmsAction> createReleaseEvent(BmsAction action = BmsAction.Key1)
-            => new KeyBindingReleaseEvent<BmsAction>(new osu.Framework.Input.States.InputState(), action);
+            => new KeyBindingReleaseEvent<BmsAction>(new Framework.Input.States.InputState(), action);
 
         private static (BmsLane Lane, DrawableBmsHitObject Drawable, ManualClock ManualClock, FramedClock TestClock) createLaneWithDrawable(BmsBeatmap beatmap, BmsHitObject hitObject)
         {
-            var layout = BmsLaneLayout.CreateFor(beatmap);
+            var layout = BmsLaneLayout.CreateCompatibilityForTesting(beatmap);
             var laneDefinition = layout.Lanes.Single(lane => lane.LaneIndex == hitObject.LaneIndex && lane.IsScratch == hitObject.IsScratch);
             var manualClock = new ManualClock
             {

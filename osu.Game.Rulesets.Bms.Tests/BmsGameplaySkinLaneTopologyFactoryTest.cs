@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using System.Linq;
 using NUnit.Framework;
 using osu.Game.Rulesets.Bms.Difficulty;
@@ -83,6 +84,47 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(primary.LanesInLogicalOrder.Select(lane => lane.GlobalVisualIndex),
                     Is.Not.EqualTo(secondary.LanesInLogicalOrder.Select(lane => lane.GlobalVisualIndex)));
                 Assert.That(() => GameplaySkinLaneTopologyTransitionValidator.Validate(primary, secondary), Throws.Nothing);
+            });
+        }
+
+        [Test]
+        public void TestDirectTopologyIsIndependentFromEveryLaneGeometryMetric()
+        {
+            const BmsKeymode keymode = BmsKeymode.Key7K;
+            const BmsPlayfieldStyle style = BmsPlayfieldStyle.P2;
+            int laneCount = BmsRuleset.GetLaneCount(keymode);
+            var compactProfile = BmsPlayfieldLayoutProfile.CreateDefault(
+                keymode, laneCount,
+                normalLaneRelativeWidth: 0.5f,
+                scratchLaneRelativeWidth: 0.75f,
+                normalLaneRelativeSpacing: 0.05f,
+                scratchLaneRelativeSpacing: 0.1f,
+                playfieldWidth: 0.3f);
+            var expandedProfile = BmsPlayfieldLayoutProfile.CreateDefault(
+                keymode, laneCount,
+                normalLaneRelativeWidth: 2.5f,
+                scratchLaneRelativeWidth: 3.75f,
+                normalLaneRelativeSpacing: 0.4f,
+                scratchLaneRelativeSpacing: 0.8f,
+                playfieldWidth: 0.85f);
+            BmsGameplaySkinLaneTopologyProjection direct = BmsGameplaySkinLaneTopologyFactory.Create(keymode, style);
+            BmsLaneLayout compactLayout = BmsLaneLayout.CreateForKeymode(keymode, profile: compactProfile, style: style);
+            BmsLaneLayout expandedLayout = BmsLaneLayout.CreateForKeymode(keymode, profile: expandedProfile, style: style);
+            BmsGameplaySkinLaneTopologyProjection compact = BmsGameplaySkinLaneTopologyFactory.Create(compactLayout);
+            BmsGameplaySkinLaneTopologyProjection expanded = BmsGameplaySkinLaneTopologyFactory.Create(expandedLayout);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(compactLayout.Lanes.Select(lane => lane.RelativeStart), Is.Not.EqualTo(expandedLayout.Lanes.Select(lane => lane.RelativeStart)));
+                Assert.That(compactLayout.TotalRelativeWidth, Is.Not.EqualTo(expandedLayout.TotalRelativeWidth));
+                Assert.That(compact.Topology.LanesInLogicalOrder.Select(lane => lane.Identity.Id),
+                    Is.EqualTo(direct.Topology.LanesInLogicalOrder.Select(lane => lane.Identity.Id)));
+                Assert.That(expanded.Topology.LanesInLogicalOrder.Select(lane => lane.Identity.Id),
+                    Is.EqualTo(direct.Topology.LanesInLogicalOrder.Select(lane => lane.Identity.Id)));
+                Assert.That(compact.Topology.LanesInLogicalOrder.Select(lane => (lane.GlobalLogicalIndex, lane.GlobalVisualIndex, lane.GroupLocalLogicalIndex, lane.GroupLocalVisualIndex)),
+                    Is.EqualTo(direct.Topology.LanesInLogicalOrder.Select(lane => (lane.GlobalLogicalIndex, lane.GlobalVisualIndex, lane.GroupLocalLogicalIndex, lane.GroupLocalVisualIndex))));
+                Assert.That(expanded.Topology.LanesInLogicalOrder.Select(lane => (lane.GlobalLogicalIndex, lane.GlobalVisualIndex, lane.GroupLocalLogicalIndex, lane.GroupLocalVisualIndex)),
+                    Is.EqualTo(direct.Topology.LanesInLogicalOrder.Select(lane => (lane.GlobalLogicalIndex, lane.GlobalVisualIndex, lane.GroupLocalLogicalIndex, lane.GroupLocalVisualIndex))));
             });
         }
 
@@ -206,13 +248,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(() => BmsGameplaySkinLaneTopologyFactory.Create(
                     BmsLaneLayout.CreateForKeymode(BmsKeymode.Key7K, style: (BmsPlayfieldStyle)99)), Throws.ArgumentException);
                 Assert.That(() => BmsGameplaySkinLaneTopologyFactory.Create(
-                    BmsLaneLayout.CreateForKeymode((BmsKeymode)99)), Throws.ArgumentException);
+                    BmsLaneLayout.CreateForKeymode((BmsKeymode)99)), Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(() => BmsGameplaySkinLaneTopologyFactory.Create(
                     BmsLaneLayout.CreateForKeymode(BmsKeymode.Key7K, minimumLaneCount: 9)), Throws.ArgumentException);
                 Assert.That(() => BmsGameplaySkinLaneTopologyFactory.Create(
                     BmsLaneLayout.CreateForKeymode(BmsKeymode.Key7K, scratchLaneIndices: new[] { 7 }.ToHashSet())), Throws.ArgumentException);
                 Assert.That(() => BmsGameplaySkinLaneTopologyFactory.Create(
                     BmsLaneLayout.CreateForKeymode(BmsKeymode.Key9K_Bms, scratchLaneIndices: new[] { 0 }.ToHashSet())), Throws.ArgumentException);
+                Assert.That(() => BmsRuleset.GetKeyCount((BmsKeymode)99), Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(() => BmsRuleset.GetLaneCount((BmsKeymode)99), Throws.TypeOf<ArgumentOutOfRangeException>());
             });
         }
 

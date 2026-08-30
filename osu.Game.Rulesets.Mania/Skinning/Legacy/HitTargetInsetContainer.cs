@@ -5,20 +5,21 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.UI.Scrolling;
-using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
     public partial class HitTargetInsetContainer : Container
     {
-        private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
+        private readonly Bindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         protected override Container<Drawable> Content => content;
         private readonly Container content;
 
-        private float hitPosition;
+        private float hitPositionFraction;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         public HitTargetInsetContainer()
         {
@@ -28,19 +29,28 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
         }
 
         [BackgroundDependencyLoader]
-        private void load(ISkinSource skin, IScrollingInfo scrollingInfo)
+        private void load(ManiaGameplaySkinStageContext stageContext)
         {
-            hitPosition = skin.GetManiaSkinConfig<float>(LegacyManiaSkinConfigurationLookups.HitPosition)?.Value ?? Stage.HIT_TARGET_POSITION;
-
-            direction.BindTo(scrollingInfo.Direction);
-            direction.BindValueChanged(onDirectionChanged, true);
+            LayoutSnapshot = stageContext.Snapshot;
+            hitPositionFraction = ManiaGameplaySkinLayoutProjection.GetHitTargetInsetFraction(stageContext);
+            direction.Value = stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down;
+            updatePosition();
         }
 
-        private void onDirectionChanged(ValueChangedEvent<ScrollingDirection> direction)
+        private void updatePosition()
         {
-            content.Padding = direction.NewValue == ScrollingDirection.Up
+            float hitPosition = DrawHeight * hitPositionFraction;
+            content.Padding = direction.Value == ScrollingDirection.Up
                 ? new MarginPadding { Top = hitPosition }
                 : new MarginPadding { Bottom = hitPosition };
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            updatePosition();
         }
     }
 }

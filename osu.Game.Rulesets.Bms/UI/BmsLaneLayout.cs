@@ -7,7 +7,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
-using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Skinning;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -21,11 +21,11 @@ namespace osu.Game.Rulesets.Bms.UI
         /// <summary>
         /// Lanes indexed by logical <see cref="Lane.LaneIndex"/>. Use <see cref="Lane.VisualIndex"/> for resolved left-to-right order.
         /// </summary>
-        public IReadOnlyList<Lane> Lanes => lanes;
+        public IReadOnlyList<Lane> Lanes { get; }
 
         public BmsKeymode Keymode { get; }
 
-        public BmsPlayfieldLayoutProfile Profile { get; }
+        internal BmsPlayfieldLayoutProfile Profile { get; }
 
         public BmsPlayfieldStyle Style { get; }
 
@@ -36,44 +36,29 @@ namespace osu.Game.Rulesets.Bms.UI
             if (lanes.Length == 0)
                 throw new ArgumentException("Lane layout must contain at least one lane.", nameof(lanes));
 
-            this.lanes = lanes;
+            this.lanes = (Lane[])lanes.Clone();
+            Lanes = Array.AsReadOnly(this.lanes);
             Keymode = keymode;
             Profile = profile;
             Style = style;
-            TotalRelativeWidth = lanes.Max(lane => lane.RelativeStart + lane.RelativeWidth);
+            TotalRelativeWidth = this.lanes.Max(lane => lane.RelativeStart + lane.RelativeWidth);
         }
 
-        public static BmsLaneLayout CreateFor(IBeatmap beatmap, BmsPlayfieldLayoutProfile? profile = null, BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
+        internal static BmsLaneLayout CreateCanonical(BmsKeymode keymode, BmsPlayfieldLayoutProfile profile, BmsPlayfieldStyle style)
         {
-            ArgumentNullException.ThrowIfNull(beatmap);
+            ArgumentNullException.ThrowIfNull(profile);
 
-            int detectedLaneCount = beatmap.HitObjects.OfType<BmsHitObject>().Select(hitObject => hitObject.LaneIndex + 1).DefaultIfEmpty(0).Max();
-            var detectedScratchLanes = beatmap.HitObjects.OfType<BmsHitObject>().Where(hitObject => hitObject.IsScratch).Select(hitObject => hitObject.LaneIndex).ToHashSet();
-            var keymode = beatmap is BmsBeatmap bmsBeatmap ? bmsBeatmap.BmsInfo.Keymode : BmsKeymode.Key7K;
-
-            return CreateForKeymode(keymode, detectedLaneCount, detectedScratchLanes, profile, style);
-        }
-
-        public static BmsLaneLayout CreateForKeymode(BmsKeymode keymode, int minimumLaneCount = 0, ISet<int>? scratchLaneIndices = null, BmsPlayfieldLayoutProfile? profile = null, BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
-        {
-            int laneCount = Math.Max(getExpectedLaneCount(keymode), minimumLaneCount);
+            int laneCount = getExpectedLaneCount(keymode);
             var appliedStyle = style.GetAppliedStyle(keymode);
-            profile ??= BmsPlayfieldLayoutProfile.CreateDefault(keymode, laneCount);
 
             if (profile.Keymode != keymode || profile.LaneCount != laneCount)
                 throw new ArgumentException("Provided layout profile must match the resolved keymode and lane count.", nameof(profile));
 
             var allScratchLaneIndices = getExpectedScratchLaneIndices(keymode, laneCount);
 
-            if (scratchLaneIndices != null)
-            {
-                foreach (int laneIndex in scratchLaneIndices.Where(laneIndex => laneIndex >= 0 && laneIndex < laneCount))
-                    allScratchLaneIndices.Add(laneIndex);
-            }
-
-            var laneWidths = new float[laneCount];
+            float[] laneWidths = new float[laneCount];
             var laneActions = new BmsAction[laneCount];
-            var laneIsScratch = new bool[laneCount];
+            bool[] laneIsScratch = new bool[laneCount];
 
             int scratchOrdinal = 0;
             int keyOrdinal = 0;
@@ -110,9 +95,67 @@ namespace osu.Game.Rulesets.Bms.UI
             return new BmsLaneLayout(lanes, keymode, profile, appliedStyle);
         }
 
+        /// <summary>
+        /// Non-rendering compatibility projection used only by topology-focused tests. Production gameplay and the
+        /// BMS-to-mania adapter use parser-owned keymode authority directly and never consume this geometry.
+        /// </summary>
+        internal static BmsLaneLayout CreateForKeymode(
+            BmsKeymode keymode,
+            int minimumLaneCount = 0,
+            ISet<int>? scratchLaneIndices = null,
+            BmsPlayfieldLayoutProfile? profile = null,
+            BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
+        {
+            int canonicalCount = getExpectedLaneCount(keymode);
+
+            if (minimumLaneCount > canonicalCount)
+                throw new ArgumentException("A BMS projection cannot extend the parser-owned canonical lane count.", nameof(minimumLaneCount));
+
+            if (scratchLaneIndices != null && !scratchLaneIndices.SetEquals(getExpectedScratchLaneIndices(keymode, canonicalCount)))
+                throw new ArgumentException("A BMS projection cannot override canonical scratch semantics.", nameof(scratchLaneIndices));
+
+            profile ??= BmsPlayfieldLayoutProfile.CreateDefault(keymode, canonicalCount);
+            return CreateCanonical(keymode, profile, style);
+        }
+
+        /// <summary>
+        /// Explicit isolated-test compatibility view which delegates to the one immutable gameplay layout solver. Production
+        /// renderers retain the gameplay-root <see cref="BmsGameplayLayoutProvider"/> instead.
+        /// </summary>
+        internal static BmsLaneLayout CreateCompatibilityForTesting(
+            IBeatmap beatmap,
+            BmsPlayfieldLayoutProfile? profile = null,
+            BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
+        {
+            if (beatmap is not BmsBeatmap bmsBeatmap)
+                throw new ArgumentException("BMS layout requires parser-owned keymode authority.", nameof(beatmap));
+
+            var provider = new BmsGameplayLayoutProvider(bmsBeatmap);
+
+            var configuration = profile == null
+                ? new BmsGameplayLayoutConfiguration()
+                : new BmsGameplayLayoutConfiguration
+                {
+                    NormalLaneRelativeWidth = profile.NormalLaneRelativeWidth,
+                    ScratchLaneRelativeWidth = profile.ScratchLaneRelativeWidth,
+                    NormalLaneRelativeSpacing = profile.NormalLaneRelativeSpacing,
+                    ScratchLaneRelativeSpacing = profile.ScratchLaneRelativeSpacing,
+                    PlayfieldWidth = profile.PlayfieldWidth,
+                    PlayfieldHeight = profile.PlayfieldHeight,
+                    HitTargetHeight = profile.HitTargetHeight,
+                    HitTargetBarHeight = profile.HitTargetBarHeight,
+                    HitTargetLineHeight = profile.HitTargetLineHeight,
+                    HitTargetGlowRadius = profile.HitTargetGlowRadius,
+                    BarLineHeight = profile.BarLineHeight,
+                };
+            return provider.PublishForTesting(style, configuration).LaneLayout;
+        }
+
         public Lane GetLane(int laneIndex)
         {
-            laneIndex = Math.Clamp(laneIndex, 0, lanes.Length - 1);
+            if ((uint)laneIndex >= (uint)lanes.Length)
+                throw new ArgumentOutOfRangeException(nameof(laneIndex), laneIndex, "Lane is not part of the canonical BMS layout.");
+
             return lanes[laneIndex];
         }
 

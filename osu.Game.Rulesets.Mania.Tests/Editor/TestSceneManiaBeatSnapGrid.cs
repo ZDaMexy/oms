@@ -19,12 +19,16 @@ using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Compose.Components;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Mania.Tests.Editor
 {
     public partial class TestSceneManiaBeatSnapGrid : EditorClockTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         [Cached(typeof(IScrollingInfo))]
         private ScrollingTestContainer.TestScrollingInfo scrollingInfo = new ScrollingTestContainer.TestScrollingInfo();
 

@@ -7,6 +7,7 @@ using osu.Framework.Localisation;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Localisation;
+using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
@@ -89,17 +90,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (beatmap is BmsBeatmap bmsBeatmap)
                 return bmsBeatmap.BmsInfo.Keymode;
 
-            int laneCount = beatmap.HitObjects.OfType<BmsHitObject>().Select(hitObject => hitObject.LaneIndex + 1).DefaultIfEmpty(0).Max();
-            int scratchCount = beatmap.HitObjects.OfType<BmsHitObject>().Count(hitObject => hitObject.IsScratch);
-
-            return laneCount switch
-            {
-                6 when scratchCount > 0 => BmsKeymode.Key5K,
-                8 when scratchCount > 0 => BmsKeymode.Key7K,
-                9 => BmsKeymode.Key9K_Bms,
-                16 when scratchCount > 1 => BmsKeymode.Key14K,
-                _ => BmsKeymode.Key7K,
-            };
+            throw new ArgumentException("BMS lane rearrangement requires parser-owned BmsBeatmapInfo keymode authority.", nameof(beatmap));
         }
 
         private static void applyPermutation(IBeatmap beatmap, LaneGroup laneGroup, IReadOnlyList<int> targetLanes)
@@ -125,13 +116,20 @@ namespace osu.Game.Rulesets.Bms.Mods
                     if (laneMapping.TryGetValue(mine.LaneIndex, out int targetLane))
                         mine.LaneIndex = targetLane;
                 }
+
+                remapArmedKeysoundTimelines(bmsBeatmap, laneMapping);
             }
         }
 
         private static void applyScatterRandom(IBeatmap beatmap, LaneGroup laneGroup, Random random)
         {
             // S-RANDOM reassigns each note's lane per timestamp and so has no single column permutation;
-            // mines (BmsBeatmap.Mines) are therefore left on their original lanes under this mode.
+            // mines are therefore left on their original lanes and armed empty-press timelines are explicitly disabled
+            // for the scattered key group. Keeping the converter's fixed-lane timeline here would play a confidently
+            // wrong keysound after an object moves; object/head keysounds themselves remain attached and authoritative.
+            if (beatmap is BmsBeatmap bmsBeatmap)
+                disableScatterArmedKeysoundTimelines(bmsBeatmap, laneGroup);
+
             var playableObjects = beatmap.HitObjects.OfType<BmsHitObject>()
                                        .Where(hitObject => laneGroup.Contains(hitObject.LaneIndex))
                                        .OrderBy(hitObject => hitObject.StartTime)
@@ -149,8 +147,8 @@ namespace osu.Game.Rulesets.Bms.Mods
                 activeHolds.RemoveAll(active => active.EndTime <= currentTime);
 
                 var groupedObjects = timeGroup.OrderBy(hitObject => hitObject.LaneIndex).ToList();
-                var preferredLanes = laneGroup.Lanes.Where(lane => activeHolds.All(active => active.LaneIndex != lane)).ToArray();
-                var assignedLanes = createScatterAssignments(groupedObjects.Count, preferredLanes, laneGroup.Lanes, random);
+                int[] preferredLanes = laneGroup.Lanes.Where(lane => activeHolds.All(active => active.LaneIndex != lane)).ToArray();
+                int[] assignedLanes = createScatterAssignments(groupedObjects.Count, preferredLanes, laneGroup.Lanes, random);
 
                 for (int i = 0; i < groupedObjects.Count; i++)
                 {
@@ -165,11 +163,37 @@ namespace osu.Game.Rulesets.Bms.Mods
             }
         }
 
+        private static void remapArmedKeysoundTimelines(BmsBeatmap beatmap, IReadOnlyDictionary<int, int> laneMapping)
+        {
+            if (beatmap.LaneKeysoundTimelines.Count == 0)
+                return;
+
+            var remapped = new Dictionary<int, IReadOnlyList<BmsLaneKeysoundEntry>>(beatmap.LaneKeysoundTimelines.Count);
+
+            foreach (var pair in beatmap.LaneKeysoundTimelines)
+            {
+                int targetLane = laneMapping.TryGetValue(pair.Key, out int mappedLane) ? mappedLane : pair.Key;
+
+                if (!remapped.TryAdd(targetLane, pair.Value))
+                    throw new InvalidOperationException("bms.keysound.timeline.non-bijective-lane-permutation");
+            }
+
+            beatmap.LaneKeysoundTimelines = remapped;
+        }
+
+        private static void disableScatterArmedKeysoundTimelines(BmsBeatmap beatmap, LaneGroup laneGroup)
+        {
+            beatmap.LaneKeysoundTimelines = beatmap.LaneKeysoundTimelines
+                                                     .Where(pair => !laneGroup.Contains(pair.Key))
+                                                     .ToDictionary(pair => pair.Key, pair => pair.Value);
+            beatmap.LaneKeysoundTimelineDiagnostic = "bms.keysound.timeline.disabled-s-random";
+        }
+
         private static int[] createScatterAssignments(int objectCount, IReadOnlyList<int> preferredLanes, IReadOnlyList<int> allLanes, Random random)
         {
             var chosenLanes = new List<int>(objectCount);
             var shuffledPreferred = shuffle(preferredLanes, random).ToList();
-            var shuffledAll = shuffle(allLanes, random);
+            int[] shuffledAll = shuffle(allLanes, random);
 
             while (chosenLanes.Count < objectCount && shuffledPreferred.Count > 0)
             {
@@ -199,7 +223,7 @@ namespace osu.Game.Rulesets.Bms.Mods
 
             int rotation = random.Next(1, lanes.Count);
             bool mirror = random.Next(2) == 1;
-            var rotated = new int[lanes.Count];
+            int[] rotated = new int[lanes.Count];
 
             for (int i = 0; i < lanes.Count; i++)
                 rotated[i] = lanes[(i + rotation) % lanes.Count];
@@ -212,7 +236,7 @@ namespace osu.Game.Rulesets.Bms.Mods
 
         private static int[] shuffle(IReadOnlyList<int> lanes, Random random)
         {
-            var shuffled = lanes.ToArray();
+            int[] shuffled = lanes.ToArray();
 
             for (int i = shuffled.Length - 1; i > 0; i--)
             {
@@ -267,7 +291,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (cleaned.Length != groupSizes.Sum())
                 return false;
 
-            var parts = new string[groupSizes.Length];
+            string[] parts = new string[groupSizes.Length];
             int offset = 0;
 
             for (int i = 0; i < groupSizes.Length; i++)
@@ -295,12 +319,12 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (string.IsNullOrWhiteSpace(customPattern))
                 return false;
 
-            var cleanedPattern = new string(customPattern.Where(character => !isStrippablePatternCharacter(character)).ToArray());
+            string cleanedPattern = new string(customPattern.Where(character => !isStrippablePatternCharacter(character)).ToArray());
 
             if (string.IsNullOrEmpty(cleanedPattern) || cleanedPattern.Any(character => !char.IsDigit(character)))
                 return false;
 
-            var groupSizes = laneGroups.Select(group => group.Lanes.Length).ToArray();
+            int[] groupSizes = laneGroups.Select(group => group.Lanes.Length).ToArray();
             int totalRequiredLength = groupSizes.Sum();
 
             if (laneGroups.Count > 1 && cleanedPattern.Length == groupSizes[0] && groupSizes.All(size => size == groupSizes[0]))
@@ -331,8 +355,8 @@ namespace osu.Game.Rulesets.Bms.Mods
         private static bool tryCreateCustomPermutation(LaneGroup laneGroup, string groupPattern, out IReadOnlyList<int> permutation)
         {
             permutation = Array.Empty<int>();
-            var expectedDigits = Enumerable.Range(1, laneGroup.Lanes.Length).Select(index => (char)('0' + index)).OrderBy(character => character).ToArray();
-            var actualDigits = groupPattern.OrderBy(character => character).ToArray();
+            char[] expectedDigits = Enumerable.Range(1, laneGroup.Lanes.Length).Select(index => (char)('0' + index)).OrderBy(character => character).ToArray();
+            char[] actualDigits = groupPattern.OrderBy(character => character).ToArray();
 
             if (!actualDigits.SequenceEqual(expectedDigits))
                 return false;

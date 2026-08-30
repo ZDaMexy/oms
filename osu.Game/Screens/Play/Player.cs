@@ -288,7 +288,11 @@ namespace osu.Game.Screens.Play
 
             dependencies.CacheAs(GameplayState = new GameplayState(playableBeatmap, ruleset, gameplayMods, Score, ScoreProcessor, HealthProcessor, Beatmap.Value.Storyboard, PlayingState));
 
-            var rulesetSkinProvider = new RulesetSkinProvidingContainer(ruleset, playableBeatmap, Beatmap.Value.Skin);
+            var rulesetSkinProvider = new RulesetSkinProvidingContainer(
+                ruleset,
+                playableBeatmap,
+                Beatmap.Value.Skin,
+                prepareGameplaySkinLayout: true);
             GameplayClockContainer.Add(new GameplayScrollWheelHandling());
 
             // needs to exist in frame stable content, but is used by underlay layers so make sure assigned early.
@@ -585,11 +589,7 @@ namespace osu.Game.Screens.Play
                     throw new InvalidOperationException("Beatmap was not loaded");
 
                 var rulesetInfo = Ruleset.Value ?? Beatmap.Value.BeatmapInfo.Ruleset;
-                ruleset = rulesetInfo.CreateInstance();
-
-                if (ruleset == null)
-                    throw new RulesetLoadException("Instantiation failure");
-
+                ruleset = rulesetInfo.CreateInstance() ?? throw new RulesetLoadException("Instantiation failure");
                 try
                 {
                     playable = Beatmap.Value.GetPlayableBeatmap(ruleset.RulesetInfo, gameplayMods, cancellationToken);

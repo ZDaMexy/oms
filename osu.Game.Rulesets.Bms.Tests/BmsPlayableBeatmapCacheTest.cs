@@ -9,11 +9,11 @@ using osu.Framework.Audio.Track;
 using osu.Framework.Graphics.Textures;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Skinning;
 
@@ -24,6 +24,7 @@ namespace osu.Game.Rulesets.Bms.Tests
     {
         private readonly BmsBeatmapDecoder decoder = new BmsBeatmapDecoder();
         private readonly BmsRuleset ruleset = new BmsRuleset();
+        private static readonly BmsBeatmapDecoderOptions five_key_contract = new BmsBeatmapDecoderOptions(BmsKeymode.Key5K);
 
         [Test]
         public void TestWorkingBeatmapReusesModlessPlayableProjectionPerSourceBeatmap()
@@ -80,7 +81,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             var sourceBeatmap = (BmsDecodedBeatmap)new BmsBeatmapLoader().Load(
                 stream,
                 "cache-hold.bms",
-                new BeatmapInfo(ruleset.RulesetInfo.Clone(), new BeatmapDifficulty(), new BeatmapMetadata()));
+                new BeatmapInfo(ruleset.RulesetInfo.Clone(), new BeatmapDifficulty(), new BeatmapMetadata()),
+                five_key_contract);
 
             var playable = (BmsBeatmap)new TestWorkingBeatmap(sourceBeatmap).GetPlayableBeatmap(ruleset.RulesetInfo);
             var holdNote = playable.HitObjects.OfType<BmsHoldNote>().Single();
@@ -100,8 +102,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             var modlessPlayable = (BmsBeatmap)workingBeatmap.GetPlayableBeatmap(ruleset.RulesetInfo);
             var mirroredPlayable = (BmsBeatmap)workingBeatmap.GetPlayableBeatmap(ruleset.RulesetInfo, new Mod[] { new BmsModMirror() });
-            var modlessLanes = getLaneSequence(modlessPlayable);
-            var mirroredLanes = getLaneSequence(mirroredPlayable);
+            int[] modlessLanes = getLaneSequence(modlessPlayable);
+            int[] mirroredLanes = getLaneSequence(mirroredPlayable);
 
             Assert.That(mirroredLanes, Is.Not.EqualTo(modlessLanes));
 
@@ -129,7 +131,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00111:AA00
 ";
 
-            return new BmsDecodedBeatmap(decoder.DecodeText(text, "cache-test.bms"));
+            return new BmsDecodedBeatmap(decoder.DecodeText(text, "cache-test.bms", five_key_contract));
         }
 
         private BmsDecodedBeatmap createMirrorSourceBeatmap()
@@ -143,7 +145,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00213:AA00
 ";
 
-            return new BmsDecodedBeatmap(decoder.DecodeText(text, "cache-mirror-test.bms"));
+            return new BmsDecodedBeatmap(decoder.DecodeText(text, "cache-mirror-test.bms", five_key_contract));
         }
 
         private static int[] getLaneSequence(BmsBeatmap beatmap)

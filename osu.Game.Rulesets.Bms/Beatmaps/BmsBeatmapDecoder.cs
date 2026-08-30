@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using osu.Game.Rulesets.Bms.Difficulty;
 using Ude;
@@ -36,29 +37,38 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         }
 
         public BmsDecodedChart Decode(Stream stream, string? filePath = null)
+            => Decode(stream, filePath, null);
+
+        public BmsDecodedChart Decode(Stream stream, string? filePath, BmsBeatmapDecoderOptions? options)
         {
             ArgumentNullException.ThrowIfNull(stream);
 
             using var memoryStream = new MemoryStream();
             stream.CopyTo(memoryStream);
 
-            return Decode(memoryStream.ToArray(), filePath);
+            return Decode(memoryStream.ToArray(), filePath, options);
         }
 
         public BmsDecodedChart Decode(byte[] data, string? filePath = null)
+            => Decode(data, filePath, null);
+
+        public BmsDecodedChart Decode(byte[] data, string? filePath, BmsBeatmapDecoderOptions? options)
         {
             ArgumentNullException.ThrowIfNull(data);
 
-            return DecodeText(decodeText(data), filePath);
+            return DecodeText(decodeText(data), filePath, options);
         }
 
         public BmsDecodedChart DecodeText(string content, string? filePath = null)
+            => DecodeText(content, filePath, null);
+
+        public BmsDecodedChart DecodeText(string content, string? filePath, BmsBeatmapDecoderOptions? options)
         {
             ArgumentNullException.ThrowIfNull(content);
 
             var decodedChart = new BmsDecodedChart();
             var measureLengthControlPoints = new List<BmsMeasureLengthControlPoint>();
-            var playableChannels = new HashSet<int>();
+            var laneEvidenceChannels = new HashSet<int>();
             int sourceLineOrder = 0;
 
             foreach (string rawLine in preprocessConditionalDirectives(content, decodedChart))
@@ -73,7 +83,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 if (tryParseChannelLine(line, out int measureIndex, out int channel, out string rawChannelToken, out string payload))
                 {
-                    handleChannelLine(decodedChart, measureLengthControlPoints, playableChannels, measureIndex, channel, rawChannelToken, payload, sourceLineOrder++);
+                    handleChannelLine(decodedChart, measureLengthControlPoints, laneEvidenceChannels, measureIndex, channel, rawChannelToken, payload, sourceLineOrder++);
                     continue;
                 }
 
@@ -81,7 +91,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
 
             decodedChart.BeatmapInfo.SetMeasureLengthControlPoints(measureLengthControlPoints);
-            decodedChart.BeatmapInfo.Keymode = detectKeymode(filePath, playableChannels);
+            decodedChart.BeatmapInfo.SetKeymodeResolution(resolveKeymode(filePath, laneEvidenceChannels, options?.KeymodeOverride));
             postProcessChannelEvents(decodedChart);
 
             return decodedChart;
@@ -1136,7 +1146,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, @"Unsupported BGA channel."),
             };
 
-        private static void handleChannelLine(BmsDecodedChart decodedChart, List<BmsMeasureLengthControlPoint> measureLengthControlPoints, ISet<int> playableChannels, int measureIndex, int channel, string rawChannelToken, string payload, int sourceLineOrder)
+        private static void handleChannelLine(BmsDecodedChart decodedChart, List<BmsMeasureLengthControlPoint> measureLengthControlPoints, ISet<int> laneEvidenceChannels, int measureIndex, int channel, string rawChannelToken, string payload, int sourceLineOrder)
         {
             if (channel == 0x02)
             {
@@ -1169,42 +1179,155 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 decodedChart.RawChannelEvents.Add(new BmsChannelEvent(measureIndex, channel, rawChannelToken, (double)i / sliceCount, token, sourceLineOrder));
 
-                if (!isExplicitRest && TryNormalizePlayableChannel(channel, out int normalizedChannel))
-                    playableChannels.Add(normalizedChannel);
+                // Authority evidence must be a decodable BMS object, not merely a non-zero byte pair. Otherwise a
+                // malformed token such as "@@" on channel 21/17 could forge 14K/9K authority before post-processing
+                // rejects the object itself.
+                if (!isExplicitRest
+                    && TryParseBase36(token, out _)
+                    && TryNormalizeLaneEvidenceChannel(channel, out int normalizedChannel))
+                {
+                    laneEvidenceChannels.Add(normalizedChannel);
+                }
             }
         }
 
         private static bool shouldPreserveExplicitRestToken(int channel)
             => channel is >= 0x51 and <= 0x8C;
 
-        private static BmsKeymode detectKeymode(string? filePath, ISet<int> playableChannels)
+        private static BmsKeymodeResolution resolveKeymode(string? filePath, ISet<int> laneEvidenceChannels, BmsKeymode? explicitOverride)
         {
             string extension = Path.GetExtension(filePath ?? string.Empty);
+            bool isPms = extension.Equals(".pms", StringComparison.OrdinalIgnoreCase);
+            bool isBme = extension.Equals(".bme", StringComparison.OrdinalIgnoreCase);
+            bool hasPlayer2Channels = containsAny(laneEvidenceChannels, 0x21, 0x29);
+            bool hasDistinctiveNineKeyChannel = laneEvidenceChannels.Contains(0x17);
+            bool hasCompleteFiveKeySet = containsAll(laneEvidenceChannels, 0x11, 0x15);
+            bool hasCompleteSevenKeySet = hasCompleteFiveKeySet && laneEvidenceChannels.Contains(0x18) && laneEvidenceChannels.Contains(0x19);
+            bool hasCompleteNineKeySet = containsAll(laneEvidenceChannels, 0x11, 0x19);
 
-            if (extension.Equals(".pms", StringComparison.OrdinalIgnoreCase))
-                return BmsKeymode.Key9K_Pms;
+            BmsKeymodeEvidence evidence = BmsKeymodeEvidence.None;
 
-            if (containsAny(playableChannels, 0x21, 0x29))
-                return BmsKeymode.Key14K;
+            if (isPms)
+                evidence |= BmsKeymodeEvidence.PmsFileExtension;
+
+            if (isBme)
+                evidence |= BmsKeymodeEvidence.BmeFileExtension;
+
+            if (hasPlayer2Channels)
+                evidence |= BmsKeymodeEvidence.Player2Channel;
+
+            if (hasDistinctiveNineKeyChannel)
+                evidence |= BmsKeymodeEvidence.DistinctiveNineKeyChannel;
+
+            if (hasCompleteFiveKeySet)
+                evidence |= BmsKeymodeEvidence.CompleteFiveKeyChannelSet;
+
+            if (hasCompleteSevenKeySet)
+                evidence |= BmsKeymodeEvidence.CompleteSevenKeyChannelSet;
+
+            if (hasCompleteNineKeySet)
+                evidence |= BmsKeymodeEvidence.CompleteNineKeyChannelSet;
+
+            if (explicitOverride.HasValue)
+            {
+                if (!laneEvidenceChannels.All(channel => isLaneEvidenceCompatible(explicitOverride.Value, channel)))
+                    throw new BmsKeymodeResolutionException(BmsKeymodeDiagnosticCode.OverrideConflictsWithChannelEvidence);
+
+                return new BmsKeymodeResolution(
+                    explicitOverride.Value,
+                    BmsKeymodeResolutionSource.ExplicitOverride,
+                    evidence | BmsKeymodeEvidence.ExplicitOverride,
+                    BmsKeymodeDiagnosticCode.ExplicitOverrideApplied);
+            }
+
+            // P2 channel evidence is stronger than .bme because .bme is also used by real double-play charts. PMS has
+            // no second stage, so accepting P2 there would silently discard objects and must fail closed.
+            if (hasPlayer2Channels)
+            {
+                if (isPms)
+                    throw new BmsKeymodeResolutionException(BmsKeymodeDiagnosticCode.ExtensionConflictsWithChannelEvidence);
+
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key14K,
+                    BmsKeymodeResolutionSource.Player2ChannelEvidence,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.Player2ChannelEvidenceApplied);
+            }
+
+            if (isPms)
+            {
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key9K_Pms,
+                    BmsKeymodeResolutionSource.FileExtension,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.PmsExtensionApplied);
+            }
+
+            if (isBme)
+            {
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key7K,
+                    BmsKeymodeResolutionSource.FileExtension,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.BmeExtensionApplied);
+            }
 
             // Channel 0x17 only exists on the 9-key BMS layout, so a sparse chart that touches this lane
-            // must stay on the 9K path even when not all nine lanes appear in the file.
-            if (playableChannels.Contains(0x17) && !extension.Equals(".bme", StringComparison.OrdinalIgnoreCase))
-                return BmsKeymode.Key9K_Bms;
+            // must stay on the 9K path even when not all nine lanes appear in the file. Check a complete set first so
+            // diagnostics can distinguish complete parser evidence from this deliberately narrow sparse exception.
+            if (hasCompleteNineKeySet)
+            {
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key9K_Bms,
+                    BmsKeymodeResolutionSource.CompleteChannelSet,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.CompleteNineKeyChannelSetApplied);
+            }
 
-            bool hasAllNineButtons = containsAll(playableChannels, 0x11, 0x19);
+            if (hasDistinctiveNineKeyChannel)
+            {
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key9K_Bms,
+                    BmsKeymodeResolutionSource.DistinctiveNineKeyChannelEvidence,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.NineKeyChannelEvidenceApplied);
+            }
 
-            if (hasAllNineButtons && !extension.Equals(".bme", StringComparison.OrdinalIgnoreCase))
-                return BmsKeymode.Key9K_Bms;
+            if (hasCompleteSevenKeySet)
+            {
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key7K,
+                    BmsKeymodeResolutionSource.CompleteChannelSet,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.CompleteSevenKeyChannelSetApplied);
+            }
 
-            if (playableChannels.Contains(0x18) || playableChannels.Contains(0x19) || extension.Equals(".bme", StringComparison.OrdinalIgnoreCase))
-                return BmsKeymode.Key7K;
+            if (hasCompleteFiveKeySet)
+            {
+                return new BmsKeymodeResolution(
+                    BmsKeymode.Key5K,
+                    BmsKeymodeResolutionSource.CompleteChannelSet,
+                    evidence,
+                    BmsKeymodeDiagnosticCode.CompleteFiveKeyChannelSetApplied);
+            }
 
-            if (containsAny(playableChannels, 0x11, 0x16))
-                return BmsKeymode.Key5K;
-
-            return BmsKeymode.Key7K;
+            throw new BmsKeymodeResolutionException(
+                laneEvidenceChannels.Count == 0
+                    ? BmsKeymodeDiagnosticCode.NoLaneEvidenceRequiresExplicitOverride
+                    : BmsKeymodeDiagnosticCode.SparseBmsRequiresExplicitOverride);
         }
+
+        private static bool isLaneEvidenceCompatible(BmsKeymode keymode, int channel)
+            => keymode switch
+            {
+                // 17/27 are legacy free-zone channels. They are retained as raw evidence, but do not force a wider
+                // layout when an extension/override has already established classic 5K/7K/14K semantics.
+                BmsKeymode.Key5K => channel is >= 0x11 and <= 0x17,
+                BmsKeymode.Key7K => channel is >= 0x11 and <= 0x19,
+                BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms => channel is >= 0x11 and <= 0x19,
+                BmsKeymode.Key14K => channel is >= 0x11 and <= 0x29,
+                _ => false,
+            };
 
         private static bool containsAll(ISet<int> values, int startInclusive, int endInclusive)
         {
@@ -1366,7 +1489,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             return false;
         }
 
-        private static bool TryNormalizePlayableChannel(int channel, out int normalizedChannel)
+        private static bool TryNormalizeLaneEvidenceChannel(int channel, out int normalizedChannel)
         {
             if (channel is >= 0x11 and <= 0x19)
             {
@@ -1389,6 +1512,18 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (channel is >= 0x61 and <= 0x69)
             {
                 normalizedChannel = channel - 0x40;
+                return true;
+            }
+
+            if (channel is >= 0x31 and <= 0x39 || channel is >= 0x41 and <= 0x49)
+            {
+                normalizedChannel = channel - 0x20;
+                return true;
+            }
+
+            if (channel is >= 0xD1 and <= 0xD9 || channel is >= 0xE1 and <= 0xE9)
+            {
+                normalizedChannel = channel - 0xC0;
                 return true;
             }
 

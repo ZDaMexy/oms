@@ -26,26 +26,25 @@ Skin V1剩余工作不再用`SV1-*`阶段编号暗示协作轮数。P1-A采用�
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-> `C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合；当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；C2当前事实见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，稳定inventory/owner合同见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，C3工作门直接以[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。
+> `C1`已于2026-08-13闭合，`C2`已于2026-08-24闭合，`C3`已于2026-08-30闭合；当前为`3/7 closed，C4 active`。C1冻结边界见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C3闭门证据见[C3完成交接](../other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)；当前事实、稳定合同与C4工作门以[P1-A四件套](../subline/P1-A/DEVELOPMENT_STATUS.md)为准。
 
-authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`已从真实Settings caller到当前production participant接通revision publication/detach/retire；C3～C6新增consumer继续同切加入，最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
+authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`已从真实Settings caller到当前production participant接通revision publication/detach/retire；`C3`已把P1-K authority、唯一gameplay layout与全部现有layout consumer作为同一package+layout pair加入协议。C4～C6新增consumer继续同切加入，最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
 
 1. **保全C1边界**：Workspace动作继续只按record ID fresh重读；external永久只读，service-owner不授权source bytes；exact registry physical proof须持有至final Realm线性化。v1/v2 schema保持strict frozen，v3 `(version, kind, phase)`按白名单验证，terminal journal只在exact compare-delete后确认Missing。
 2. **保全C2边界**：Settings唯一manual Reload、live gameplay/preview source prepare前拒绝与no-watcher边界继续冻结；三源current revision、participant registry、lease/detach/retire与current mutation不得退回逐component `SourceChanged`或即时dispose。
-3. **先闭合P1-K Skin前置**：修正lane timeline上界到`GetLaneCount()`，覆盖末端lane/Scratch2与真实发声；冻结sparse keymode source/override/diagnostic，不由layout猜keymode。
-4. **交付唯一layout**：唯一ruleset-neutral context与immutable BMS snapshot/mania adapter覆盖全部style/deck/scratch/BGA/HUD；playfield、Note/LN、pre-start、BGA、gauge/combo及HUD只消费同一snapshot，并同切加入C2 revision协议。
-5. **C3 exit gate**：真实decode→layout owner→BMS/mania/core renderer红测、三源same-ID package+layout A→B、失败保A、动态participant/retire、宽测试、Release、文档与独立终审全部闭合后才推进C4。
+3. **保持C3冻结输入**：parser/converter继续是keymode/lane timeline唯一truth；layout consumer只读同一immutable publication，不以profile、drawable尺寸、固定rect或枚举位置创建旁路。
+4. **当前C4**：冻结完整V1 public field/slot catalog、shared codec与`Provide/Inherit/Suppress` resolver，迁移mania/BMS现有真实consumer并保持C2/C3 pair/lease；beatmap-local作者格式在同campaign取得终态产品决定。
+5. **C4 exit gate**：三源解析一致、mania/BMS common fixture parity、完整catalog/resolver与全部既有真实consumer迁移、失败保旧pair、宽测试/Release/文档/独立终审全部闭合后才推进C5。
 
 G1 必须按独立切片推进，不得从异常期存档整批恢复。
 
 ### R4：补齐 Skin V1 共同合同、layout、兼容层与外部运行时
 
-1. **共同合同**：补齐 `SV1-1` 剩余生产 slot 的 `Provide/Inherit/Suppress`、ruleset-neutral shared codec 与 mania compatibility；最小可玩组件不可 suppress，缺件逐组件回落，beatmap-local authority 不被无意穿透；保持 shared runtime 与 mania/BMS adapter 分界，禁止 BMS 继承 mania 具体 Drawable/transformer。
-2. **layout descriptor**：完成 `SV1-3` 的唯一 resolved layout，统一求解 5K/7K 四 style、9K BMS/PMS、14K DP 的 playfield group/lane/BGA viewport/HUD safe slot，并负责 finite/range/screen-space validation；BGA 播放 authority 留在引擎。
-3. **scene/event ABI**：按 `SV1-4`～`SV1-6` 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序、capability/manifest/activation 与 fail-closed runtime gate；外部 package 可声明 scene、动画和状态机，不为每种视觉新增固定 BMS C# 实现。
-4. **sandbox script**：先通过权限、确定性和预算 spike，再作为可选作者层接入；不兼容或移植 LR2/beatoraja runtime。
-5. **双极限证明**：`oms-simple.osk` 同包覆盖 mania/BMS、承担最终 fallback；`oms-complex.osk` 同包覆盖 mania/BMS、只用公开 API 证明表达上限。
-6. **社区作者面**：完成 `SV1-7`，交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明，同时保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
+1. **共同合同（C4）**：补齐现有生产 slot 的 `Provide/Inherit/Suppress`、ruleset-neutral shared codec 与 mania compatibility；最小可玩组件不可 suppress，缺件逐组件回落，beatmap-local authority 不被无意穿透；保持 shared runtime 与 mania/BMS adapter 分界，禁止 BMS 继承 mania 具体 Drawable/transformer。
+2. **scene/event ABI（C5）**：按 `SV1-4`～`SV1-6` 冻结只读 lifecycle/layout/input/object/judgement/score/timing/BGA event family、版本、排序、capability/manifest/activation 与 fail-closed runtime gate；外部 package 可声明 scene、动画和状态机，不为每种视觉新增固定 BMS C# 实现。
+3. **sandbox script（C6）**：先通过权限、确定性和预算 spike，再作为可选作者层接入并关闭最终整包reload门；不兼容或移植 LR2/beatoraja runtime。
+4. **双极限证明（C7）**：`oms-simple.osk` 同包覆盖 mania/BMS、承担最终 fallback；`oms-complex.osk` 同包覆盖 mania/BMS、只用公开 API 证明表达上限。
+5. **社区作者面（C7）**：交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明，同时保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
 
 R4 的shared contract、topology、event/capability与candidate类型只有在同一切片或紧随切片存在production host/renderer/authoring consumer时才继续扩展；现有无production consumer的合同地基可以保留，但不能以新增DTO/fixture替代玩家能力进度。
 
@@ -53,7 +52,7 @@ R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的
 
 ### R5：Phase 1 玩法与硬件收尾
 
-1. `P1-K/P1-J`：先修 lane timeline 上界、sparse keymode authority 与末端 lane keysound，再进入相关皮肤、音频和真实谱验收。
+1. `P1-K/P1-J`：保持C3已冻结的lane timeline/keymode/shared-store authority，再补剩余真实谱、转谱LN、极端dense与人工音频验收。
 2. `P1-B`：闭合 analog scratch 跨设备 edge/hold 合同与真实 HID 控制器。
 3. `P1-D`：补齐 deadzone、sensitivity、scratch 模式说明与 live diagnostics。
 4. `P1-E`：验收真实 LN/CN/HCN、长 BGM、键音密集谱和 5K/7K/9K/14K 游玩组合。
@@ -77,7 +76,7 @@ R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的
 | P1-F | 离线发行 | R6 portable/custom-root/覆盖更新复核 |
 | P1-H | 存储拓扑 | 为 G1 提供经验，但皮肤 authority 必须独立建模 |
 | P1-I | 选歌筛选 | 补 focused/visual 与大库体验 gate |
-| P1-J / P1-K | 音频性能、解析与转换 | 先闭合末端 lane 与 keymode authority，再供 R4/R5 消费 |
+| P1-J / P1-K | 音频性能、解析与转换 | C3所需末端lane/keymode/shared-store authority已闭合；继续供R4/R5消费并补剩余真实谱验收 |
 | P1-L | Gimmick/BGA | 保留内容播放 authority，与 P1-A 解耦 skin viewport |
 | P1-M | 音乐播放器 | Phase 1 release gate 前不抢占 R3–R6 |
 
@@ -87,10 +86,10 @@ R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的
 
 | 面 | 未闭合 gate |
 | --- | --- |
-| BMS 解析/转换 | 特殊谱尾项、lane/keymode authority 与真实谱组合证明 |
+| BMS 解析/转换 | 特殊谱尾项与剩余真实谱组合证明；C3 lane/keymode authority保持冻结 |
 | gameplay/判定 | 真实设备和真实 LN/CN/HCN 谱验收 |
 | 音频/BGA | 转谱 LN、极端 dense、逐谱视觉与暂停/恢复体验 |
-| 皮肤 | 新动画实机、其它 slot 三态、G1、安全 layout、shared ini、scene/event/script、双包、Authoring Kit、移除程序化产品视觉 |
+| 皮肤 | 新动画实机、shared codec/其它slot三态、scene/event/script、双包、Authoring Kit、移除程序化产品视觉；C3唯一layout保持冻结 |
 | Song Select | 拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | 删除/失效/去重策略与最终覆盖更新复核 |
 | 输入 | analog scratch、一致校准、真实硬件 |

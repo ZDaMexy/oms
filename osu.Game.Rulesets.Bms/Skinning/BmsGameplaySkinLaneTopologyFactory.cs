@@ -38,57 +38,58 @@ namespace osu.Game.Rulesets.Bms.Skinning
     }
 
     /// <summary>
-    /// Projects the existing BMS lane-layout authority into the neutral gameplay skin topology contract.
+    /// Projects parser-owned BMS keymode plus presentation style into the neutral gameplay skin topology contract.
+    /// Topology is deliberately constructed without a playfield profile, lane width, spacing or any other geometry.
     /// </summary>
     internal static class BmsGameplaySkinLaneTopologyFactory
     {
-        public static BmsGameplaySkinLaneTopologyProjection Create(BmsLaneLayout layout)
+        public static BmsGameplaySkinLaneTopologyProjection Create(BmsKeymode keymode, BmsPlayfieldStyle requestedStyle)
         {
-            ArgumentNullException.ThrowIfNull(layout);
+            validateContext(keymode, requestedStyle);
 
-            validateContext(layout);
-
-            IGrouping<int, BmsLaneLayout.Lane>[] sourceGroups = layout.Lanes
-                .GroupBy(lane => getGroupLogicalIndex(layout.Keymode, lane.Action))
-                .OrderBy(group => group.Key)
-                .ToArray();
+            BmsPlayfieldStyle appliedStyle = requestedStyle.GetAppliedStyle(keymode);
+            BmsAction[] actions = getCanonicalActions(keymode);
+            int[] visualIndices = getCanonicalVisualIndices(keymode, appliedStyle, actions.Length);
+            var sourceLanes = actions
+                              .Select((action, logicalIndex) => new CanonicalLane(logicalIndex, visualIndices[logicalIndex], action))
+                              .ToArray();
+            IGrouping<int, CanonicalLane>[] sourceGroups = sourceLanes
+                                                           .GroupBy(lane => getGroupLogicalIndex(keymode, lane.Action))
+                                                           .OrderBy(group => group.Key)
+                                                           .ToArray();
             Dictionary<int, int> groupVisualIndices = sourceGroups
-                .OrderBy(group => group.Min(lane => lane.VisualIndex))
-                .Select((group, visualIndex) => (group.Key, visualIndex))
-                .ToDictionary(pair => pair.Key, pair => pair.visualIndex);
+                                                      .OrderBy(group => group.Min(lane => lane.VisualIndex))
+                                                      .Select((group, visualIndex) => (group.Key, visualIndex))
+                                                      .ToDictionary(pair => pair.Key, pair => pair.visualIndex);
             var groups = new List<GameplaySkinLaneTopologyGroup>(sourceGroups.Length);
 
-            foreach (IGrouping<int, BmsLaneLayout.Lane> sourceGroup in sourceGroups)
+            foreach (IGrouping<int, CanonicalLane> sourceGroup in sourceGroups)
             {
                 int groupLogicalIndex = sourceGroup.Key;
                 GameplaySkinLaneGroupIdentity groupIdentity = GameplaySkinLaneGroupIdentity.Create(
                     GameplaySkinLaneGroupId.Create($"bms.group.deck-{groupLogicalIndex + 1}"),
-                    getSide(layout.Keymode, layout.Style, groupLogicalIndex));
+                    getSide(keymode, appliedStyle, groupLogicalIndex));
                 Dictionary<int, int> groupLogicalIndices = sourceGroup
-                    .OrderBy(lane => lane.LaneIndex)
-                    .Select((lane, index) => (lane.LaneIndex, index))
-                    .ToDictionary(pair => pair.LaneIndex, pair => pair.index);
+                                                           .OrderBy(lane => lane.LogicalIndex)
+                                                           .Select((lane, index) => (lane.LogicalIndex, index))
+                                                           .ToDictionary(pair => pair.LogicalIndex, pair => pair.index);
                 Dictionary<int, int> groupLocalVisualIndices = sourceGroup
-                    .OrderBy(lane => lane.VisualIndex)
-                    .Select((lane, index) => (lane.LaneIndex, index))
-                    .ToDictionary(pair => pair.LaneIndex, pair => pair.index);
+                                                               .OrderBy(lane => lane.VisualIndex)
+                                                               .Select((lane, index) => (lane.LogicalIndex, index))
+                                                               .ToDictionary(pair => pair.LogicalIndex, pair => pair.index);
                 var lanes = new List<GameplaySkinLaneTopologyEntry>();
 
-                foreach (BmsLaneLayout.Lane sourceLane in sourceGroup)
+                foreach (CanonicalLane sourceLane in sourceGroup)
                 {
                     GameplaySkinLaneRole role = getRole(sourceLane.Action);
-
-                    if (sourceLane.IsScratch != (role == GameplaySkinLaneRole.Scratch))
-                        throw new ArgumentException("BMS lane scratch metadata does not agree with its action.", nameof(layout));
-
                     GameplaySkinLaneIdentity laneIdentity = GameplaySkinLaneIdentity.Create(
                         GameplaySkinLaneId.Create(getLaneId(sourceLane.Action)), groupIdentity, role);
                     lanes.Add(GameplaySkinLaneTopologyEntry.Create(
                         laneIdentity,
-                        sourceLane.LaneIndex,
-                        groupLogicalIndices[sourceLane.LaneIndex],
+                        sourceLane.LogicalIndex,
+                        groupLogicalIndices[sourceLane.LogicalIndex],
                         sourceLane.VisualIndex,
-                        groupLocalVisualIndices[sourceLane.LaneIndex]));
+                        groupLocalVisualIndices[sourceLane.LogicalIndex]));
                 }
 
                 groups.Add(GameplaySkinLaneTopologyGroup.Create(
@@ -99,29 +100,54 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
 
             return new BmsGameplaySkinLaneTopologyProjection(
-                layout.Keymode,
-                layout.Style,
+                keymode,
+                appliedStyle,
                 GameplaySkinLaneTopologySnapshot.Create(groups));
         }
 
-        private static void validateContext(BmsLaneLayout layout)
+        /// <summary>
+        /// Compatibility validation for topology-focused tests and legacy BMS authoring projections. Production layout
+        /// preparation uses <see cref="Create(BmsKeymode, BmsPlayfieldStyle)"/> and never constructs provisional geometry.
+        /// </summary>
+        public static BmsGameplaySkinLaneTopologyProjection Create(BmsLaneLayout layout)
         {
-            if (layout.Keymode is not BmsKeymode.Key5K
+            ArgumentNullException.ThrowIfNull(layout);
+
+            validateContext(layout);
+            BmsGameplaySkinLaneTopologyProjection projection = Create(layout.Keymode, layout.Style);
+
+            for (int i = 0; i < layout.Lanes.Count; i++)
+            {
+                if (layout.Lanes[i].VisualIndex != projection.Topology.LanesInLogicalOrder[i].GlobalVisualIndex)
+                    throw new ArgumentException("BMS lane visual order does not match the canonical topology for its keymode and style.", nameof(layout));
+            }
+
+            return projection;
+        }
+
+        private static void validateContext(BmsKeymode keymode, BmsPlayfieldStyle style)
+        {
+            if (keymode is not BmsKeymode.Key5K
                 and not BmsKeymode.Key7K
                 and not BmsKeymode.Key9K_Bms
                 and not BmsKeymode.Key9K_Pms
                 and not BmsKeymode.Key14K)
             {
-                throw new ArgumentException("Unsupported BMS keymode for gameplay skin topology projection.", nameof(layout));
+                throw new ArgumentException("Unsupported BMS keymode for gameplay skin topology projection.", nameof(keymode));
             }
 
-            if (layout.Style is not BmsPlayfieldStyle.P1
+            if (style is not BmsPlayfieldStyle.P1
                 and not BmsPlayfieldStyle.P2
                 and not BmsPlayfieldStyle.Center
                 and not BmsPlayfieldStyle.CenterRightScratch)
             {
-                throw new ArgumentException("Unsupported BMS playfield style for gameplay skin topology projection.", nameof(layout));
+                throw new ArgumentException("Unsupported BMS playfield style for gameplay skin topology projection.", nameof(style));
             }
+        }
+
+        private static void validateContext(BmsLaneLayout layout)
+        {
+            validateContext(layout.Keymode, layout.Style);
 
             if (layout.Lanes.Count != BmsRuleset.GetLaneCount(layout.Keymode))
                 throw new ArgumentException("Only canonical BMS lane counts can be projected into a stable gameplay skin topology.", nameof(layout));
@@ -140,6 +166,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 if (lane.LaneIndex != i || lane.Action != expectedAction || lane.IsScratch != expectedScratch)
                     throw new ArgumentException("BMS lane composition does not match the canonical topology for its keymode.", nameof(layout));
             }
+        }
+
+        private static int[] getCanonicalVisualIndices(BmsKeymode keymode, BmsPlayfieldStyle style, int laneCount)
+        {
+            int[] visualIndices = Enumerable.Range(0, laneCount).ToArray();
+
+            if ((keymode is BmsKeymode.Key5K or BmsKeymode.Key7K) && style.UsesScratchVisualRight())
+            {
+                visualIndices[0] = laneCount - 1;
+
+                for (int logicalIndex = 1; logicalIndex < laneCount; logicalIndex++)
+                    visualIndices[logicalIndex] = logicalIndex - 1;
+            }
+
+            return visualIndices;
         }
 
         private static BmsAction[] getCanonicalActions(BmsKeymode keymode)
@@ -273,5 +314,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unsupported BMS lane action."),
             };
         }
+
+        private readonly record struct CanonicalLane(int LogicalIndex, int VisualIndex, BmsAction Action);
     }
 }

@@ -30,5 +30,5 @@ metadata:
 
 ## 不可误推的完成度
 
-- C1已经闭合factory/selection、Workspace rename/ManagedCopy/delete及external registration/capture；C2同ID revision/consumer detach也已通过宽测、Release、文档门与独立终审。燃尽为`2/7 closed，C3 active`；实时状态只看P1-A STATUS/PLAN。
+- C1已经闭合factory/selection、Workspace rename/ManagedCopy/delete及external registration/capture；C2同ID revision/consumer detach与C3 package+layout pair也已通过宽测、Release、文档门与独立终审。燃尽为`3/7 closed，C4 active`；实时状态只看P1-A STATUS/PLAN。
 - 前置安全边界见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]与[[reference_skin_package_revision_capsule]]；整包生命周期边界见[[reference_skin_atomic_reload_detach]]。

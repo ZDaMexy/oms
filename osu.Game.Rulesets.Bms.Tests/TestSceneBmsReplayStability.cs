@@ -2,9 +2,7 @@
 
 using System.Linq;
 using NUnit.Framework;
-using osu.Game.Beatmaps;
 using osu.Game.Replays;
-using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
@@ -20,6 +18,10 @@ namespace osu.Game.Rulesets.Bms.Tests
         private static readonly RulesetInfo bms_ruleset_info = new BmsRuleset().RulesetInfo;
 
         private readonly BmsBeatmapDecoder decoder = new BmsBeatmapDecoder();
+
+        // ScreenTestScene creates and caches the final ruleset configuration for this initial ruleset. Replay tests
+        // switch Ruleset.Value later, so select BMS up front to exercise the real gameplay layout preparer.
+        protected override Ruleset CreateRuleset() => new BmsRuleset();
 
         [Test]
         public void TestRegularLaneReplayRoundTripsThroughLegacyEncoding()
@@ -91,7 +93,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static HitResult[] getExpectedResults(BmsBeatmap playableBeatmap, HitResult expectedNoteResult)
         {
-            int laneCount = BmsLaneLayout.CreateFor(playableBeatmap).Lanes.Count;
+            int laneCount = BmsLaneLayout.CreateCompatibilityForTesting(playableBeatmap).Lanes.Count;
             int barLineJudgements = playableBeatmap.MeasureStartTimes.Count * laneCount;
             int backgroundJudgements = playableBeatmap.HitObjects.Count(hitObject => hitObject is not BmsHitObject);
 

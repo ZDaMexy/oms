@@ -534,12 +534,29 @@ namespace osu.Game.Skinning
         internal Func<CancellationToken, Task<bool>>? Prepare { get; }
         internal Func<SkinCurrentRevision, CancellationToken, Task<SkinRevisionParticipantCommit?>>? PrepareCommit { get; }
         internal bool BlocksRevisionPublication { get; }
+        internal bool AffectsGameplayLayoutPublication { get; }
 
         internal bool IsDisposed => Volatile.Read(ref disposed) != 0;
 
         internal Task Detached => detachedCompletion.Task;
 
         internal SkinCurrentRevision CurrentRevision => lease!.Revision;
+
+        internal bool TryGetCurrentRevision(
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SkinCurrentRevision? currentRevision)
+        {
+            lock (leaseGate)
+            {
+                if (IsDisposed || lease == null)
+                {
+                    currentRevision = null;
+                    return false;
+                }
+
+                currentRevision = lease.Revision;
+                return true;
+            }
+        }
 
         internal SkinRevisionParticipantRegistration(
             SkinCurrentRevisionPublication publication,
@@ -549,6 +566,7 @@ namespace osu.Game.Skinning
             Func<CancellationToken, Task<bool>>? prepare,
             Func<SkinCurrentRevision, CancellationToken, Task<SkinRevisionParticipantCommit?>>? prepareCommit,
             bool blocksRevisionPublication,
+            bool affectsGameplayLayoutPublication,
             Action? shutdownWork,
             SkinCurrentRevisionLease lease)
         {
@@ -559,6 +577,7 @@ namespace osu.Game.Skinning
             Prepare = prepare;
             PrepareCommit = prepareCommit;
             BlocksRevisionPublication = blocksRevisionPublication;
+            AffectsGameplayLayoutPublication = affectsGameplayLayoutPublication;
             this.shutdownWork = shutdownWork;
             this.lease = lease;
         }
@@ -630,6 +649,19 @@ namespace osu.Game.Skinning
         internal SkinCurrentRevisionLease? AcquireWorkLease()
             => publication.AcquireWorkLease(this);
 
+        internal bool TryCapturePublicationGeneration(out long generation)
+            => publication.TryCaptureParticipantGeneration(this, out generation);
+
+        internal bool IsPublicationGenerationCurrent(long generation)
+            => publication.IsParticipantGenerationCurrent(this, generation);
+
+        /// <summary>
+        /// Executes one already-prepared reference exchange under the same publication lock which protects participant
+        /// membership and its generation. This closes the check-to-commit window for gameplay layout publication.
+        /// </summary>
+        internal bool TryCommitAtPublicationGeneration(long generation, Action commit)
+            => publication.TryExecuteAtParticipantGeneration(this, generation, commit);
+
         internal SkinCurrentRevisionLease? AcquireWorkLeaseUnderPublicationLock()
         {
             lock (leaseGate)
@@ -683,6 +715,7 @@ namespace osu.Game.Skinning
         private readonly Action<SkinCurrentRevision> queueRetirement;
         private SkinCurrentRevision current;
         private long participantGeneration;
+        private long gameplayLayoutParticipantGeneration;
         private long registrationId;
         private long revisionGeneration;
         private bool shutdown;
@@ -763,6 +796,7 @@ namespace osu.Game.Skinning
             Func<CancellationToken, Task<bool>>? prepare = null,
             Func<SkinCurrentRevision, CancellationToken, Task<SkinRevisionParticipantCommit?>>? prepareCommit = null,
             bool blocksRevisionPublication = false,
+            bool affectsGameplayLayoutPublication = true,
             Action? shutdownWork = null)
         {
             ArgumentException.ThrowIfNullOrEmpty(diagnosticName);
@@ -779,10 +813,15 @@ namespace osu.Game.Skinning
                     prepare,
                     prepareCommit,
                     blocksRevisionPublication,
+                    affectsGameplayLayoutPublication,
                     shutdownWork,
                     current.AcquireParticipantLease());
                 participants.Add(registration);
                 participantGeneration++;
+
+                if (affectsGameplayLayoutPublication)
+                    gameplayLayoutParticipantGeneration++;
+
                 return registration;
             }
         }
@@ -808,6 +847,7 @@ namespace osu.Game.Skinning
                     prepare: null,
                     prepareCommit: null,
                     blocksRevisionPublication: false,
+                    affectsGameplayLayoutPublication: false,
                     shutdownWork: null,
                     lease: current.AcquireParticipantLease());
                 participants.Add(registration);
@@ -1270,6 +1310,65 @@ namespace osu.Game.Skinning
             }
         }
 
+        internal bool TryCaptureParticipantGeneration(
+            SkinRevisionParticipantRegistration registration,
+            out long generation)
+        {
+            ArgumentNullException.ThrowIfNull(registration);
+
+            lock (sync)
+            {
+                if (shutdown || registration.IsDisposed || !participants.Contains(registration))
+                {
+                    generation = default;
+                    return false;
+                }
+
+                generation = gameplayLayoutParticipantGeneration;
+                return true;
+            }
+        }
+
+        internal bool IsParticipantGenerationCurrent(
+            SkinRevisionParticipantRegistration registration,
+            long generation)
+        {
+            ArgumentNullException.ThrowIfNull(registration);
+
+            lock (sync)
+            {
+                return !shutdown
+                       && !registration.IsDisposed
+                       && participants.Contains(registration)
+                       && gameplayLayoutParticipantGeneration == generation;
+            }
+        }
+
+        internal bool TryExecuteAtParticipantGeneration(
+            SkinRevisionParticipantRegistration registration,
+            long generation,
+            Action commit)
+        {
+            ArgumentNullException.ThrowIfNull(registration);
+            ArgumentNullException.ThrowIfNull(commit);
+
+            lock (sync)
+            {
+                if (shutdown
+                    || registration.IsDisposed
+                    || !participants.Contains(registration)
+                    || gameplayLayoutParticipantGeneration != generation)
+                {
+                    return false;
+                }
+
+                // The callback is restricted to one infallible, already-prepared reference exchange. Register,
+                // detach and shutdown cannot change the participant generation between this check and that exchange.
+                commit();
+                return true;
+            }
+        }
+
         internal Task[] CaptureRevisionWorkDetachments()
         {
             lock (sync)
@@ -1290,7 +1389,12 @@ namespace osu.Game.Skinning
                     return null;
 
                 if (participants.Remove(registration))
+                {
                     participantGeneration++;
+
+                    if (registration.AffectsGameplayLayoutPublication)
+                        gameplayLayoutParticipantGeneration++;
+                }
 
                 return detached;
             }
@@ -1307,6 +1411,7 @@ namespace osu.Game.Skinning
 
                 shutdown = true;
                 participantGeneration++;
+                gameplayLayoutParticipantGeneration++;
                 claimed = participants.ToArray();
                 participants.Clear();
             }

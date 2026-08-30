@@ -11,6 +11,7 @@ using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -19,11 +20,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
     public class ManiaArgonSkinTransformer : SkinTransformer
     {
         private readonly ManiaBeatmap beatmap;
+        private readonly GameplaySkinLaneTopologySnapshot topology;
 
         public ManiaArgonSkinTransformer(ISkin skin, IBeatmap beatmap)
             : base(skin)
         {
             this.beatmap = (ManiaBeatmap)beatmap;
+            topology = ManiaGameplaySkinLaneTopologyFactory.Create(this.beatmap);
         }
 
         public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -38,7 +41,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                     switch (containerLookup.Lookup)
                     {
                         case GlobalSkinnableContainers.MainHUDComponents:
-                            return new DefaultSkinComponentsContainer(container =>
+                            return new ManiaGameplayHudComponentsContainer(beatmap.Stages, this, container =>
                             {
                                 var leaderboard = container.OfType<DrawableGameplayLeaderboard>().FirstOrDefault();
                                 var combo = container.ChildrenOfType<ArgonManiaComboCounter>().FirstOrDefault();
@@ -50,9 +53,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                                 if (combo != null)
                                 {
                                     combo.ShowLabel.Value = false;
-                                    combo.Anchor = Anchor.TopCentre;
-                                    combo.Origin = Anchor.Centre;
-                                    combo.Y = 200;
+                                    container.ApplyComboPlacement(combo);
                                 }
 
                                 if (spectatorList != null)
@@ -135,7 +136,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
             if (lookup is ManiaSkinConfigurationLookup maniaLookup)
             {
                 int columnIndex = maniaLookup.ColumnIndex ?? 0;
-                var stage = beatmap.GetStageForColumnIndex(columnIndex);
+                GameplaySkinLaneTopologyEntry lane = topology.LanesInLogicalOrder[columnIndex];
+                GameplaySkinLaneTopologyGroup group = topology.GroupsInLogicalOrder.Single(candidate => candidate.Identity.Id.Equals(lane.Identity.Group.Id));
+                StageDefinition stage = beatmap.Stages[group.LogicalIndex];
+                int localColumnIndex = lane.GroupLocalLogicalIndex;
 
                 switch (maniaLookup.Lookup)
                 {
@@ -148,14 +152,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                         return SkinUtils.As<TValue>(new Bindable<float>(30));
 
                     case LegacyManiaSkinConfigurationLookups.ColumnWidth:
-                        bool isSpecialColumn = stage.IsSpecialColumn(columnIndex);
+                        bool isSpecialColumn = lane.Identity.Role == GameplaySkinLaneRole.SpecialKey;
 
                         float width = 60 * (isSpecialColumn ? 2 : 1);
 
                         return SkinUtils.As<TValue>(new Bindable<float>(width));
 
                     case LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour:
-                        var colour = getColourForLayout(columnIndex, stage);
+                        var colour = getColourForLayout(localColumnIndex, stage, lane.Identity.Role);
 
                         return SkinUtils.As<TValue>(new Bindable<Color4>(colour));
                 }
@@ -164,11 +168,8 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
             return base.GetConfig<TLookup, TValue>(lookup);
         }
 
-        private Color4 getColourForLayout(int columnIndex, StageDefinition stage)
+        private Color4 getColourForLayout(int columnIndex, StageDefinition stage, GameplaySkinLaneRole laneRole)
         {
-            // Account for cases like dual-stage (assume that all stages have the same column count for now).
-            columnIndex %= stage.Columns;
-
             // For now, these are defined per column count as per https://user-images.githubusercontent.com/50823728/218038463-b450f46c-ef21-4551-b133-f866be59970c.png
             // See https://github.com/ppy/osu/discussions/21996 for discussion.
             switch (stage.Columns)
@@ -341,7 +342,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
 
             // fallback for unhandled scenarios
 
-            if (stage.IsSpecialColumn(columnIndex))
+            if (laneRole == GameplaySkinLaneRole.SpecialKey)
                 return colour_special_column;
 
             switch (columnIndex % total_colours)

@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -10,6 +11,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -19,11 +21,6 @@ namespace osu.Game.Rulesets.Bms.UI
         void SetPressed(bool isPressed);
 
         void SetFocused(bool isFocused);
-    }
-
-    public interface IBmsHitTargetLayoutDisplay
-    {
-        void ApplyLayoutProfile(BmsPlayfieldLayoutProfile layoutProfile);
     }
 
     public partial class BmsHitTarget : CompositeDrawable
@@ -36,16 +33,31 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected float FocusEdgeAlpha => (display.CurrentDisplay as DefaultBmsHitTargetDisplay)?.FocusEdgeAlpha ?? 0;
 
-        private BmsPlayfieldLayoutProfile currentLayoutProfile;
+        private readonly BmsPlayfieldLayoutProfile layoutProfile;
         private readonly SkinnableHitTargetDisplay display;
 
-        public BmsHitTarget(BmsLaneSkinLookup lookup, BmsPlayfieldLayoutProfile layoutProfile)
+        public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        public BmsHitTarget(BmsLaneSkinLookup lookup, BmsPlayfieldLayoutProfile layoutProfile, BmsGameplayLayoutSnapshot? layoutSnapshot = null)
         {
-            currentLayoutProfile = layoutProfile;
+            this.layoutProfile = layoutProfile;
+            LayoutSnapshot = layoutSnapshot;
             Anchor = Anchor.BottomLeft;
             Origin = Anchor.BottomLeft;
-            RelativeSizeAxes = Axes.X;
-            Height = layoutProfile.HitTargetHeight;
+
+            if (layoutSnapshot == null)
+            {
+                // Explicit compatibility-only construction retains the historical local pixel metric.
+                RelativeSizeAxes = Axes.X;
+                Height = layoutProfile.HitTargetHeight;
+            }
+            else
+            {
+                // Production geometry is projected exclusively from the exact immutable snapshot. In particular this
+                // keeps the renderer and the neutral surface identical when DPI scaling changes the solved height.
+                RelativeSizeAxes = Axes.Both;
+                Height = layoutSnapshot.HitTargetRect.Height / layoutSnapshot.PlayfieldRect.Height;
+            }
 
             InternalChild = display = new SkinnableHitTargetDisplay(this, lookup)
             {
@@ -66,17 +78,6 @@ namespace osu.Game.Rulesets.Bms.UI
             hitTargetDisplay.SetFocused(IsFocused.Value);
         }
 
-        public void ApplyLayoutProfile(BmsPlayfieldLayoutProfile layoutProfile)
-        {
-            currentLayoutProfile = layoutProfile;
-            Height = layoutProfile.HitTargetHeight;
-
-            if (display.CurrentDisplay is IBmsHitTargetLayoutDisplay layoutDisplay)
-                layoutDisplay.ApplyLayoutProfile(layoutProfile);
-
-            updateState();
-        }
-
         private sealed partial class SkinnableHitTargetDisplay : SkinnableDrawable
         {
             private readonly BmsHitTarget owner;
@@ -84,7 +85,7 @@ namespace osu.Game.Rulesets.Bms.UI
             public Drawable? CurrentDisplay => Drawable;
 
             public SkinnableHitTargetDisplay(BmsHitTarget owner, BmsLaneSkinLookup lookup)
-                : base(lookup, _ => new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, owner.currentLayoutProfile))
+                : base(lookup, _ => new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, owner.layoutProfile, owner.LayoutSnapshot))
             {
                 this.owner = owner;
             }
@@ -93,15 +94,12 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 base.SkinChanged(skin);
 
-                if (Drawable is IBmsHitTargetLayoutDisplay layoutDisplay)
-                    layoutDisplay.ApplyLayoutProfile(owner.currentLayoutProfile);
-
                 owner.updateState();
             }
         }
     }
 
-    internal partial class DefaultBmsHitTargetDisplay : CompositeDrawable, IBmsHitTargetDisplay, IBmsHitTargetLayoutDisplay
+    internal partial class DefaultBmsHitTargetDisplay : CompositeDrawable, IBmsHitTargetDisplay
     {
         private readonly bool isScratch;
         private readonly BmsKeymode keymode;
@@ -114,7 +112,6 @@ namespace osu.Game.Rulesets.Bms.UI
         private Sprite? textureBase;
         private bool isPressed;
         private bool isFocused;
-        private float glowRadius;
         private Color4 glowColour;
 
         public float PressedOverlayAlpha => pressedOverlay?.Alpha ?? 0;
@@ -125,11 +122,21 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal float LineHeight => line?.Height ?? 0;
 
+        internal float LineDrawHeight => line?.DrawHeight ?? 0;
+
+        internal float LineScreenSpaceHeight => line?.ScreenSpaceDrawQuad.Height ?? 0;
+
+        internal float LineScreenSpaceTop => line?.ScreenSpaceDrawQuad.TopLeft.Y ?? 0;
+
         internal float FocusEdgeHeight => focusEdge?.Height ?? 0;
 
-        internal float GlowRadius => glowRadius;
+        internal float GlowRadius { get; private set; }
 
-        public DefaultBmsHitTargetDisplay(bool isScratch, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile)
+        public DefaultBmsHitTargetDisplay(
+            bool isScratch,
+            BmsKeymode keymode,
+            BmsPlayfieldLayoutProfile layoutProfile,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null)
         {
             this.isScratch = isScratch;
             this.keymode = keymode;
@@ -177,7 +184,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
             };
 
-            ApplyLayoutProfile(layoutProfile);
+            initialiseLayout(layoutProfile, layoutSnapshot);
             updateState();
         }
 
@@ -214,13 +221,40 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        public void ApplyLayoutProfile(BmsPlayfieldLayoutProfile layoutProfile)
+        private void initialiseLayout(BmsPlayfieldLayoutProfile layoutProfile, BmsGameplayLayoutSnapshot? layoutSnapshot)
         {
-            glowRadius = layoutProfile.HitTargetGlowRadius;
-            bar.Height = layoutProfile.HitTargetBarHeight;
-            line.Height = layoutProfile.HitTargetLineHeight;
+            GlowRadius = layoutProfile.HitTargetGlowRadius;
+
+            if (layoutSnapshot == null)
+            {
+                // Explicit isolated compatibility displays retain their historical pixel-sized metrics.
+                bar.Height = layoutProfile.HitTargetBarHeight;
+                line.Height = layoutProfile.HitTargetLineHeight;
+                focusEdge.Height = layoutProfile.HitTargetLineHeight;
+            }
+            else
+            {
+                GameplaySkinLayoutRect targetRect = layoutSnapshot.HitTargetRect;
+                GameplaySkinLayoutRect lineRect = layoutSnapshot.JudgementLineRect;
+                bool reverse = layoutSnapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up;
+                Anchor lineAnchor = reverse ? Anchor.TopLeft : Anchor.BottomLeft;
+
+                // The outer target owns the exact target surface. Its children use ratios of that same surface so no
+                // profile pixel metric can diverge from the neutral publication at DPI 1/2 (or any later scale).
+                bar.RelativeSizeAxes = Axes.Both;
+                bar.Height = Math.Clamp(layoutProfile.HitTargetBarHeight / layoutProfile.HitTargetHeight, 0, 1);
+                bar.Anchor = bar.Origin = lineAnchor;
+
+                line.RelativeSizeAxes = Axes.Both;
+                line.Height = Math.Clamp(lineRect.Height / targetRect.Height, 0, 1);
+                line.Anchor = line.Origin = lineAnchor;
+
+                focusEdge.RelativeSizeAxes = Axes.Both;
+                focusEdge.Height = line.Height;
+                focusEdge.Anchor = focusEdge.Origin = lineAnchor;
+            }
+
             applyGlow();
-            focusEdge.Height = layoutProfile.HitTargetLineHeight;
         }
 
         // Rebuilds the line's glow edge effect from the current radius + (possibly skin-overridden) glow colour. Called
@@ -229,7 +263,7 @@ namespace osu.Game.Rulesets.Bms.UI
             => line.EdgeEffect = new EdgeEffectParameters
             {
                 Type = EdgeEffectType.Glow,
-                Radius = glowRadius,
+                Radius = GlowRadius,
                 Colour = glowColour,
             };
 

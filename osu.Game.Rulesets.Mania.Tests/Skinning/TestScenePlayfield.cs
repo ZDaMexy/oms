@@ -2,15 +2,18 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Objects;
+using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Scoring;
-using osuTK;
 
 namespace osu.Game.Rulesets.Mania.Tests.Skinning
 {
@@ -20,6 +23,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private ScoreProcessor scoreProcessor = new ScoreProcessor(new ManiaRuleset());
 
         private List<StageDefinition> stageDefinitions = new List<StageDefinition>();
+
+        private ManiaPlayfield playfield = null!;
+
+        private DrawableNote note = null!;
+        private DrawableHoldNote hold = null!;
 
         [Test]
         public void TestSingleStage()
@@ -33,9 +41,28 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                 SetContents(_ => new ManiaInputManager(new ManiaRuleset().RulesetInfo, 2)
                 {
-                    Child = new ManiaPlayfield(stageDefinitions)
+                    Child = playfield = new ManiaPlayfield(stageDefinitions)
                 });
             });
+
+            AddAssert("all consumers retain exact snapshot", () => playfield.Stages.All(stage =>
+                ReferenceEquals(stage.LayoutSnapshot, playfield.LayoutSnapshot)
+                && stage.Columns.All(column => ReferenceEquals(column.LayoutSnapshot, playfield.LayoutSnapshot))));
+            AddStep("add note and hold", () =>
+            {
+                var noteObject = new Note { Column = 0, StartTime = Time.Current + 5000 };
+                noteObject.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                playfield.Add(note = new DrawableNote(noteObject));
+
+                var holdObject = new HoldNote { Column = 1, StartTime = Time.Current + 5000, Duration = 1000 };
+                holdObject.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                playfield.Add(hold = new DrawableHoldNote(holdObject));
+            });
+            AddAssert("note and hold retain exact snapshot and lane", () =>
+                ReferenceEquals(note.LayoutSnapshot, playfield.LayoutSnapshot)
+                && ReferenceEquals(hold.LayoutSnapshot, playfield.LayoutSnapshot)
+                && note.LayoutLaneId == playfield.GetColumn(0).LayoutLaneId
+                && hold.LayoutLaneId == playfield.GetColumn(1).LayoutLaneId);
 
             AddRepeatStep("perform hit", () => scoreProcessor.ApplyResult(new JudgementResult(new HitObject(), new Judgement()) { Type = HitResult.Perfect }), 20);
             AddStep("perform miss", () => scoreProcessor.ApplyResult(new JudgementResult(new HitObject(), new Judgement()) { Type = HitResult.Miss }));
@@ -56,14 +83,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                 SetContents(_ => new ManiaInputManager(new ManiaRuleset().RulesetInfo, (int)PlayfieldType.Dual + 2 * columnCount)
                 {
-                    Child = new ManiaPlayfield(stageDefinitions)
-                    {
-                        // bit of a hack to make sure the dual stages fit on screen without overlapping each other.
-                        Size = new Vector2(1.5f),
-                        Scale = new Vector2(1 / 1.5f)
-                    }
+                    Child = playfield = new ManiaPlayfield(stageDefinitions)
                 });
             });
+
+            AddAssert("dual consumers retain exact snapshot", () => playfield.Stages.All(stage =>
+                ReferenceEquals(stage.LayoutSnapshot, playfield.LayoutSnapshot)
+                && stage.Columns.All(column => ReferenceEquals(column.LayoutSnapshot, playfield.LayoutSnapshot))));
+            AddAssert("dual stages do not overlap", () => !playfield.LayoutSnapshot.GroupsInLogicalOrder[0].Rect
+                                                                      .Intersects(playfield.LayoutSnapshot.GroupsInLogicalOrder[1].Rect));
 
             AddRepeatStep("perform hit", () => scoreProcessor.ApplyResult(new JudgementResult(new HitObject(), new Judgement()) { Type = HitResult.Perfect }), 20);
             AddStep("perform miss", () => scoreProcessor.ApplyResult(new JudgementResult(new HitObject(), new Judgement()) { Type = HitResult.Miss }));

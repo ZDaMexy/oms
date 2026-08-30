@@ -139,11 +139,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             var owner = new BmsGameplaySkinLaneTopologyRevisionOwner();
             BmsGameplaySkinLaneTopologyPublication accepted = owner.Publish(BmsLaneLayout.CreateForKeymode(BmsKeymode.Key7K));
-            BmsLaneLayout invalid = BmsLaneLayout.CreateForKeymode(
-                BmsKeymode.Key7K,
-                scratchLaneIndices: new[] { 7 }.ToHashSet());
 
-            Assert.That(() => owner.Publish(invalid), Throws.ArgumentException);
+            // Invalid scratch composition is rejected by the compatibility projection before a topology publication can
+            // exist. Production uses the direct parser-keymode topology path and has no provisional geometry object.
+            Assert.That(() => BmsLaneLayout.CreateForKeymode(
+                BmsKeymode.Key7K,
+                scratchLaneIndices: new[] { 7 }.ToHashSet()), Throws.ArgumentException);
 
             Assert.Multiple(() =>
             {

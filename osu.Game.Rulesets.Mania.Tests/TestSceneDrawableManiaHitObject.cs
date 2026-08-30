@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Graphics;
 
@@ -24,6 +25,9 @@ namespace osu.Game.Rulesets.Mania.Tests
 {
     public partial class TestSceneDrawableManiaHitObject : OsuTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         private readonly ManualClock clock = new ManualClock();
 
         private Column column;

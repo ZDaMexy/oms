@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Bms.UI
         [Resolved(CanBeNull = true)]
         private IBindable<WorkingBeatmap>? workingBeatmap { get; set; }
 
-        public DefaultBmsPlayfieldBackdropDisplay(BmsKeymode keymode = BmsKeymode.Key7K)
+        public DefaultBmsPlayfieldBackdropDisplay(BmsKeymode keymode)
         {
             this.keymode = keymode;
             RelativeSizeAxes = Axes.Both;
@@ -101,7 +101,7 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private readonly BmsKeymode keymode;
 
-        public DefaultBmsPlayfieldBaseplateDisplay(BmsKeymode keymode = BmsKeymode.Key7K)
+        public DefaultBmsPlayfieldBaseplateDisplay(BmsKeymode keymode)
         {
             this.keymode = keymode;
             RelativeSizeAxes = Axes.Both;
@@ -129,7 +129,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsKeymode Keymode { get; }
 
-        public DefaultBmsLaneBackgroundDisplay(int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
+        public DefaultBmsLaneBackgroundDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
         {
             LaneIndex = laneIndex;
             IsScratch = isScratch;
@@ -158,7 +158,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsKeymode Keymode { get; }
 
-        public DefaultBmsLaneDividerDisplay(int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
+        public DefaultBmsLaneDividerDisplay(int laneIndex, bool isScratch, BmsKeymode keymode)
         {
             LaneIndex = laneIndex;
             IsScratch = isScratch;
@@ -187,7 +187,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsKeymode Keymode { get; }
 
-        public DefaultBmsBarLineDisplay(bool isMajor, BmsKeymode keymode = BmsKeymode.Key7K)
+        public DefaultBmsBarLineDisplay(bool isMajor, BmsKeymode keymode)
         {
             IsMajor = isMajor;
             Keymode = keymode;

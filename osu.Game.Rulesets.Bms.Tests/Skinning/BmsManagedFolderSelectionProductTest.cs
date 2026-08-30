@@ -33,6 +33,7 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
@@ -5904,7 +5905,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("mount first selected-skin renderer host", () =>
             {
                 firstSelectedSkin = manager.CurrentSkin.Value;
-                Add(firstRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+                // Keep both rulesets safely in the future while the complete renderer graph and skin artifacts materialise.
+                Add(firstRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 60_000));
             });
             AddUntilStep("wait for first renderer host load", () => firstRenderer.IsLoaded);
             AddStep("mount first BMS production provider", () => firstRenderer.ShowBms());
@@ -5942,7 +5944,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 restartedSelectedSkin = manager.CurrentSkin.Value;
                 Assert.That(restartedSelectedSkin, Is.Not.SameAs(firstSelectedSkin));
-                Add(restartedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 5_000));
+                Add(restartedRenderer = new JourneyRendererHost(manager, Clock.CurrentTime + 60_000, Clock.CurrentTime + 60_000));
             });
             AddUntilStep("wait for restarted renderer host load", () => restartedRenderer.IsLoaded);
             AddStep("mount restarted BMS production provider", () => restartedRenderer.ShowBms());
@@ -6530,8 +6532,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(renderer.ChildrenOfType<RulesetSkinProvidingContainer>().Single(), Is.SameAs(renderer.ManiaProvider));
+                Assert.That(renderer.ManiaDrawable.Playfield.LayoutSnapshot, Is.SameAs(renderer.ManiaDrawable.LayoutSnapshot));
+                Assert.That(renderer.ManiaColumn.LayoutSnapshot, Is.SameAs(renderer.ManiaDrawable.LayoutSnapshot));
                 Assert.That(renderer.ManiaNote, Is.TypeOf<ManiaDrawableNote>());
                 Assert.That(renderer.ManiaHold, Is.TypeOf<ManiaDrawableHoldNote>());
+                Assert.That(renderer.ManiaNote.LayoutSnapshot, Is.SameAs(renderer.ManiaDrawable.LayoutSnapshot));
+                Assert.That(renderer.ManiaHold.LayoutSnapshot, Is.SameAs(renderer.ManiaDrawable.LayoutSnapshot));
                 Assert.That(renderer.ManiaNoteArtifact, Is.TypeOf<LegacyNotePiece>());
                 Assert.That(renderer.ManiaHeadArtifact, Is.TypeOf<LegacyHoldNoteHeadPiece>());
                 Assert.That(renderer.ManiaBodyArtifact, Is.TypeOf<LegacyBodyPiece>());
@@ -6595,12 +6601,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             [Cached]
             private readonly ScoreProcessor scoreProcessor = new ScoreProcessor(new ManiaRuleset());
 
+            [Cached]
+            private readonly BmsRulesetConfigManager bmsRulesetConfig;
+
             public DrawableBmsHitObject BmsOrdinary { get; }
             public DrawableBmsHoldNote BmsHold { get; }
             public ManiaDrawableNote ManiaNote { get; }
             public ManiaDrawableHoldNote ManiaHold { get; }
+            public DrawableManiaRuleset ManiaDrawable { get; }
             public RulesetSkinProvidingContainer BmsProvider { get; }
             public RulesetSkinProvidingContainer ManiaProvider { get; }
+            public Column ManiaColumn => ManiaDrawable.Playfield.Stages.Single().Columns.Single(column => column.Index == 0);
 
             private readonly Container providerHost;
 
@@ -6625,9 +6636,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             public Drawable ManiaNoteArtifact => ManiaNote.ChildrenOfType<LegacyNotePiece>()
                                                          .Single(piece => piece.GetType() == typeof(LegacyNotePiece));
 
-            public Drawable ManiaHeadArtifact => ManiaProvider.ChildrenOfType<LegacyHoldNoteHeadPiece>().Single();
-            public Drawable ManiaBodyArtifact => ManiaProvider.ChildrenOfType<LegacyBodyPiece>().Single();
-            public Drawable ManiaTailArtifact => ManiaProvider.ChildrenOfType<LegacyHoldNoteTailPiece>().Single();
+            public Drawable ManiaHeadArtifact => ManiaHold.Head.ChildrenOfType<LegacyHoldNoteHeadPiece>().Single();
+            public Drawable ManiaBodyArtifact => ManiaHold.ChildrenOfType<LegacyBodyPiece>().Single();
+            public Drawable ManiaTailArtifact => ManiaHold.Tail.ChildrenOfType<LegacyHoldNoteTailPiece>().Single();
 
             public bool BmsArtifactsLoaded =>
                 BmsOrdinary.ChildrenOfType<BmsAsyncNoteDrawable>()
@@ -6646,11 +6657,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                                                         && artifact.LoadState >= LoadState.Ready));
 
             public bool ManiaArtifactsLoaded =>
-                ManiaNote.ChildrenOfType<LegacyNotePiece>()
+                ManiaDrawable.IsLoaded
+                && ManiaNote.ChildrenOfType<LegacyNotePiece>()
                             .Any(piece => piece.GetType() == typeof(LegacyNotePiece) && piece.IsLoaded)
-                && ManiaProvider.ChildrenOfType<LegacyHoldNoteHeadPiece>().Any(piece => piece.IsLoaded)
-                && ManiaProvider.ChildrenOfType<LegacyBodyPiece>().Any(piece => piece.IsLoaded)
-                && ManiaProvider.ChildrenOfType<LegacyHoldNoteTailPiece>().Any(piece => piece.IsLoaded);
+                && ManiaHold.IsLoaded
+                && ManiaHold.Head.ChildrenOfType<LegacyHoldNoteHeadPiece>().Any(piece => piece.IsLoaded)
+                && ManiaHold.ChildrenOfType<LegacyBodyPiece>().Any(piece => piece.IsLoaded)
+                && ManiaHold.Tail.ChildrenOfType<LegacyHoldNoteTailPiece>().Any(piece => piece.IsLoaded);
 
             public JourneyRendererHost(SkinManager skinManager, double bmsStartTime, double maniaStartTime)
                 : base(skinManager.CurrentSkin.Value)
@@ -6662,6 +6675,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 var difficulty = new BeatmapDifficulty();
 
                 var bmsRuleset = new BmsRuleset();
+                bmsRulesetConfig = new BmsRulesetConfigManager(null, bmsRuleset.RulesetInfo);
                 var bmsBeatmap = new BmsBeatmap
                 {
                     BeatmapInfo = { Ruleset = bmsRuleset.RulesetInfo },
@@ -6694,14 +6708,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 var maniaBeatmap = new ManiaBeatmap(stageDefinition)
                 {
                     BeatmapInfo = { Ruleset = maniaRuleset.RulesetInfo },
+                    ControlPointInfo = controlPoints,
                 };
                 var maniaNote = new ManiaNote
                 {
                     Column = 0,
                     StartTime = maniaStartTime,
                 };
+                maniaBeatmap.HitObjects.Add(maniaNote);
                 maniaNote.ApplyDefaults(controlPoints, difficulty);
-                ManiaNote = new ManiaDrawableNote(maniaNote);
 
                 var maniaHold = new ManiaHoldNote
                 {
@@ -6709,16 +6724,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     StartTime = maniaStartTime,
                     Duration = 2_000,
                 };
+                maniaBeatmap.HitObjects.Add(maniaHold);
                 maniaHold.ApplyDefaults(controlPoints, difficulty);
-                ManiaHold = new ManiaDrawableHoldNote(maniaHold);
+                ManiaDrawable = (DrawableManiaRuleset)maniaRuleset.CreateDrawableRulesetWith(maniaBeatmap);
+                ManiaDrawable.Playfield.Add(ManiaNote = new ManiaDrawableNote(maniaNote));
+                ManiaDrawable.Playfield.Add(ManiaHold = new ManiaDrawableHoldNote(maniaHold));
 
-                var maniaColumnHost = new JourneyManiaColumnContainer(0, ManiaAction.Key1, stageDefinition)
-                {
-                    ManiaNote,
-                    ManiaHold
-                };
-
-                BmsProvider = new RulesetSkinProvidingContainer(bmsRuleset, bmsBeatmap, null)
+                // This path intentionally exercises isolated BMS note resources, not a complete gameplay layout root.
+                BmsProvider = new RulesetSkinProvidingContainer(bmsRuleset, bmsBeatmap, null, prepareGameplaySkinLayout: false)
                 {
                     Child = new Container
                     {
@@ -6731,9 +6744,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     },
                 };
 
-                ManiaProvider = new RulesetSkinProvidingContainer(maniaRuleset, maniaBeatmap, null)
+                ManiaProvider = new RulesetSkinProvidingContainer(
+                    maniaRuleset,
+                    maniaBeatmap,
+                    null,
+                    prepareGameplaySkinLayout: true)
                 {
-                    Child = maniaColumnHost,
+                    Child = ManiaDrawable,
                 };
 
                 InternalChild = providerHost = new Container
@@ -6745,38 +6762,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             public void ShowBms() => providerHost.Child = BmsProvider;
 
             public void ShowMania() => providerHost.Child = ManiaProvider;
-        }
-
-        private sealed partial class JourneyManiaColumnContainer : Container
-        {
-            protected override Container<Drawable> Content => content;
-
-            private readonly Container content;
-
-            [Cached]
-            private readonly Column column;
-
-            [Cached]
-            private readonly StageDefinition stageDefinition;
-
-            public JourneyManiaColumnContainer(int columnIndex, ManiaAction action, StageDefinition stageDefinition)
-            {
-                this.stageDefinition = stageDefinition;
-                RelativeSizeAxes = Axes.Both;
-
-                InternalChildren = new Drawable[]
-                {
-                    column = new Column(columnIndex, false)
-                    {
-                        Action = { Value = action },
-                        Alpha = 0,
-                    },
-                    content = new ManiaInputManager(new ManiaRuleset().RulesetInfo, stageDefinition.Columns)
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                    },
-                };
-            }
         }
 
         private sealed class JourneyScrollingInfo : IScrollingInfo

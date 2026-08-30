@@ -7,8 +7,10 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -17,11 +19,23 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         private TextComponent textComponent = null!;
 
+        [Resolved(CanBeNull = true)]
+        private BmsGameplayLayoutProvider? layoutProvider { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private GameplaySkinLayoutRevisionOwner? layoutOwner { get; set; }
+
+        internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
+
         protected override double RollingDuration => 80;
 
         [BackgroundDependencyLoader]
         private void load(ScoreProcessor scoreProcessor)
         {
+            LayoutSnapshot = BmsGameplayLayoutProvider.ResolveOwnerPublication(
+                layoutOwner,
+                layoutProvider,
+                "bms.layout.missing-combo-publication");
             Current.BindTo(scoreProcessor.Combo);
             Current.BindValueChanged(combo =>
             {

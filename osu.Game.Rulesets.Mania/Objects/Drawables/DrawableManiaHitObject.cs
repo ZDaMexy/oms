@@ -8,9 +8,10 @@ using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
-using osu.Game.Rulesets.Mania.UI;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.Objects.Drawables
 {
@@ -24,16 +25,22 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         protected readonly IBindable<ScrollingDirection> Direction = new Bindable<ScrollingDirection>();
 
         [Resolved(canBeNull: true)]
-        private ManiaPlayfield playfield { get; set; }
+        private ManiaGameplaySkinLaneContext layoutLaneContext { get; set; }
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutLaneContext?.Snapshot;
+
+        public GameplaySkinLaneId LayoutLaneId => layoutLaneContext?.Lane.LaneId;
 
         protected override float SamplePlaybackPosition
         {
             get
             {
-                if (playfield == null)
+                if (layoutLaneContext == null)
                     return base.SamplePlaybackPosition;
 
-                return (float)HitObject.Column / playfield.TotalColumns;
+                GameplaySkinLayoutRect safe = layoutLaneContext.Snapshot.Context.SafeBounds;
+                GameplaySkinLayoutRect lane = layoutLaneContext.Lane.Rect;
+                return (lane.Left + lane.Width / 2 - safe.Left) / safe.Width;
             }
         }
 
@@ -68,6 +75,17 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         protected virtual void OnDirectionChanged(ValueChangedEvent<ScrollingDirection> e)
         {
             Anchor = Origin = e.NewValue == ScrollingDirection.Up ? Anchor.TopCentre : Anchor.BottomCentre;
+        }
+
+        protected override void OnApply()
+        {
+            base.OnApply();
+
+            if (layoutLaneContext != null
+                && layoutLaneContext.Lane.TopologyEntry.GlobalLogicalIndex != HitObject.Column)
+            {
+                throw new InvalidOperationException("A mania object must resolve the same modded target LaneId as its production column.");
+            }
         }
 
         protected override void UpdateHitStateTransforms(ArmedState state)

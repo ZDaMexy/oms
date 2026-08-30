@@ -1,63 +1,66 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.UI;
-using osuTK;
+using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.UI
 {
+    /// <summary>
+    /// Hosts the already-solved mania layout without deriving a second geometry from drawable size.
+    /// </summary>
     public partial class ManiaPlayfieldAdjustmentContainer : PlayfieldAdjustmentContainer
     {
         protected override Container<Drawable> Content { get; }
 
-        private readonly DrawSizePreservingFillContainer scalingContainer;
+        public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
-        private readonly DrawableManiaRuleset drawableManiaRuleset;
-
-        public ManiaPlayfieldAdjustmentContainer(DrawableManiaRuleset drawableManiaRuleset)
+        public ManiaPlayfieldAdjustmentContainer()
         {
-            this.drawableManiaRuleset = drawableManiaRuleset;
-            InternalChild = scalingContainer = new DrawSizePreservingFillContainer
+            InternalChild = Content = new Container
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
                 RelativeSizeAxes = Axes.Both,
-                Child = Content = new Container
-                {
-                    RelativeSizeAxes = Axes.Both,
-                }
             };
         }
 
-        protected override void Update()
+        [BackgroundDependencyLoader(true)]
+        private void load(GameplaySkinLayoutRevisionOwner? owner, ISkinSource skin)
         {
-            base.Update();
+            GameplaySkinLayoutPublication? publication = owner?.CurrentPublication;
 
-            float aspectRatio = DrawWidth / DrawHeight;
-            bool isPortrait = aspectRatio < 1f;
-
-            if (isPortrait && drawableManiaRuleset.Beatmap.Stages.Count == 1)
+            if (publication == null)
             {
-                // Scale playfield up by 25% to become playable on mobile devices,
-                // and leave a 10% horizontal gap if the playfield is scaled down due to being too wide.
-                const float base_scale = 1.25f;
-                const float base_width = 768f / base_scale;
-                const float side_gap = 0.9f;
+                if (owner == null || owner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                {
+                    throw new InvalidOperationException(
+                        "A standalone mania core adjustment requires an explicitly cached compatibility layout owner.");
+                }
 
-                scalingContainer.Strategy = DrawSizePreservationStrategy.Maximum;
-                float stageWidth = drawableManiaRuleset.Playfield.Stages[0].DrawWidth;
-                scalingContainer.TargetDrawSize = new Vector2(1024, base_width * Math.Max(stageWidth / aspectRatio / (base_width * side_gap), 1f));
+                // Component/editor tests can construct this adjustment shell without a gameplay provider. It does
+                // not solve or apply geometry; retain an explicitly-labelled compatibility snapshot for auditing.
+                LayoutSnapshot = ManiaGameplaySkinLayout.CreateCompatibility(
+                    new[] { new StageDefinition(4) }, skin, useSkinGeometry: false).Snapshot;
+                ManiaGameplaySkinLayout.ValidateConsumerCarrier(LayoutSnapshot, owner, "core adjustment");
+                return;
             }
-            else
+
+            ManiaGameplaySkinLayout adapter = publication.GetAdapter<ManiaGameplaySkinLayout>();
+
+            if (!ReferenceEquals(adapter.Snapshot, publication.Snapshot)
+                || !ReferenceEquals(publication.Snapshot.Context.PackageRevision, owner!.PackageRevision))
             {
-                scalingContainer.Strategy = DrawSizePreservationStrategy.Minimum;
-                scalingContainer.Scale = new Vector2(1f);
-                scalingContainer.Size = new Vector2(1f);
-                scalingContainer.TargetDrawSize = new Vector2(1024, 768);
+                throw new InvalidOperationException("The mania core adjustment did not retain the exact layout publication.");
             }
+
+            LayoutSnapshot = publication.Snapshot;
+            ManiaGameplaySkinLayout.ValidateConsumerCarrier(LayoutSnapshot, owner, "core adjustment");
         }
     }
 }

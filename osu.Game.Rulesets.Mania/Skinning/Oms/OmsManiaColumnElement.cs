@@ -4,9 +4,9 @@ using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics.Containers;
-using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Oms
 {
@@ -16,19 +16,28 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         protected Column Column { get; private set; } = null!;
 
         [Resolved]
-        private StageDefinition stageDefinition { get; set; } = null!;
+        private ManiaGameplaySkinLaneContext layoutLaneContext { get; set; } = null!;
+
+        protected GameplaySkinLaneTopologyEntry TopologyLane => layoutLaneContext.Lane.TopologyEntry;
+
+        protected GameplaySkinLaneTopologyGroup TopologyGroup => layoutLaneContext.Snapshot.GetGroup(TopologyLane.Identity.Group.Id).TopologyGroup;
 
         protected string FallbackColumnIndex { get; private set; } = null!;
+
+        internal string ResolvedFallbackColumnIndex => FallbackColumnIndex;
 
         [BackgroundDependencyLoader]
         private void load()
         {
-            if (Column.IsSpecial)
+            GameplaySkinLaneTopologyEntry lane = TopologyLane;
+            GameplaySkinLaneTopologyGroup group = TopologyGroup;
+
+            if (lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)
                 FallbackColumnIndex = "S";
             else
             {
-                int columnInStage = Column.Index % stageDefinition.Columns;
-                int distanceToEdge = Math.Min(columnInStage, (stageDefinition.Columns - 1) - columnInStage);
+                int columnInStage = lane.GroupLocalLogicalIndex;
+                int distanceToEdge = Math.Min(columnInStage, (group.LanesInLogicalOrder.Count - 1) - columnInStage);
 
                 FallbackColumnIndex = distanceToEdge % 2 == 0 ? "1" : "2";
             }

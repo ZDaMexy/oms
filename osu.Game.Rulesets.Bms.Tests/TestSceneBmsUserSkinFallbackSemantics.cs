@@ -1,6 +1,5 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
@@ -11,7 +10,6 @@ using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
 using osu.Game.Audio;
-using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
@@ -91,8 +89,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("provider loaded", () => provider.IsLoaded);
             AddStep("resolve ruleset HUD", () => resolvedHud = provider.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!);
 
-            AddAssert("later source HUD layout used", () => resolvedHud, () => Is.SameAs(fallbackSkin.HudLayoutComponent));
-            AddAssert("later source combo counter kept inside HUD", () => ((Container)resolvedHud).Children.OfType<TestComboCounter>().Any());
+            AddAssert("later source HUD layout used", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).Display, () => Is.SameAs(fallbackSkin.HudLayoutComponent));
+            AddAssert("later source combo counter retained by HUD carrier", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).ComboCounter, () => Is.TypeOf<TestComboCounter>());
         }
 
         [Test]
@@ -127,8 +125,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("provider loaded", () => provider.IsLoaded);
             AddAssert("OMS BMS combo counter used", () => provider.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)), () => Is.TypeOf<BmsComboCounter>());
             AddStep("resolve ruleset HUD", () => resolvedHud = provider.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!);
-            AddAssert("OMS BMS hud layout used", () => resolvedHud, () => Is.TypeOf<DefaultBmsHudLayoutDisplay>());
-            AddAssert("OMS BMS combo kept inside HUD", () => ((Container)resolvedHud).Children.OfType<BmsComboCounter>().Any());
+            AddAssert("OMS BMS hud layout used", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).Display, () => Is.TypeOf<DefaultBmsHudLayoutDisplay>());
+            AddAssert("OMS BMS combo retained by HUD carrier", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).ComboCounter, () => Is.TypeOf<BmsComboCounter>());
             AddStep("clear provider chain", () => host.Expire());
         }
 
@@ -166,8 +164,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("mixed-layer combo counter used", () => provider.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)), () => Is.SameAs(userSkin.ComboCounterComponent));
             AddAssert("mixed-layer HUD layout used", () => provider.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.HudLayout)), () => Is.SameAs(userSkin.HudLayoutComponent));
             AddStep("resolve ruleset HUD", () => resolvedHud = provider.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!);
-            AddAssert("ruleset HUD resolves from mixed-layer skin", () => resolvedHud, () => Is.SameAs(userSkin.HudLayoutComponent));
-            AddAssert("mixed-layer combo counter kept inside HUD", () => ((Container)resolvedHud).Children.OfType<TestComboCounter>().Any(drawable => ReferenceEquals(drawable, userSkin.ComboCounterComponent)));
+            AddAssert("ruleset HUD resolves from mixed-layer skin", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).Display, () => Is.SameAs(userSkin.HudLayoutComponent));
+            AddAssert("mixed-layer combo retained by HUD carrier", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).ComboCounter, () => Is.SameAs(userSkin.ComboCounterComponent));
             AddStep("clear provider chain", () => host.Expire());
         }
 
@@ -264,6 +262,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private sealed partial class TestHudLayoutDisplay : Container, IBmsHudLayoutDisplay
         {
+            public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
+
             public void SetComponents(Drawable? wrappedHud, Drawable gaugeBar, ComboCounter comboCounter)
             {
                 Clear();
@@ -274,6 +274,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Add(gaugeBar);
                 Add(comboCounter);
             }
+
+            public void InitialiseLayoutSnapshot(BmsGameplayLayoutSnapshot snapshot)
+                => LayoutSnapshot = snapshot;
         }
 
         private sealed partial class TestComboCounter : DefaultComboCounter

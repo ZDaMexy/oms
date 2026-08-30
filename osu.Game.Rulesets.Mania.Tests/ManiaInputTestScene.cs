@@ -2,16 +2,21 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Bindings;
 using osu.Game.Input.Bindings;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Mania.Tests
 {
     public abstract partial class ManiaInputTestScene : OsuTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         private readonly Container<Drawable>? content;
 
         protected override Container<Drawable> Content => content ?? base.Content;

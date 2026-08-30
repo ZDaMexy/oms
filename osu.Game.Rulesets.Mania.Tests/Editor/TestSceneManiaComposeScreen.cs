@@ -28,9 +28,13 @@ namespace osu.Game.Rulesets.Mania.Tests.Editor
         [Cached]
         private EditorClipboard clipboard = new EditorClipboard();
 
+        private Drawable? composeHost;
+
         [SetUpSteps]
         public void SetUpSteps()
         {
+            AddStep("detach previous compose screen", () => composeHost?.Expire());
+            AddUntilStep("previous compose screen detached", () => composeHost?.Parent == null);
             AddStep("setup compose screen", () =>
             {
                 var beatmap = new ManiaBeatmap(new StageDefinition(4))
@@ -44,7 +48,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Editor
 
                 Beatmap.Value = CreateWorkingBeatmap(editorBeatmap.PlayableBeatmap);
 
-                Child = new DependencyProvidingContainer
+                Child = composeHost = new DependencyProvidingContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     CachedDependencies = new (Type, object)[]

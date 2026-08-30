@@ -1,9 +1,11 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
+using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 
@@ -13,6 +15,7 @@ namespace osu.Game.Rulesets.Bms.Tests
     public class BmsBeatmapDecoderTest
     {
         private readonly BmsBeatmapDecoder decoder = new BmsBeatmapDecoder();
+        private static readonly BmsBeatmapDecoderOptions seven_key_contract = new BmsBeatmapDecoderOptions(BmsKeymode.Key7K);
 
         [Test]
         public void TestParsesHeadersAndIndexedTables()
@@ -83,7 +86,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #WAVAA hit.wav
 ";
 
-            var result = decoder.DecodeText(text, "preview.bms");
+            var result = decoder.DecodeText(text, "preview.bms", seven_key_contract);
 
             Assert.That(result.BeatmapInfo.PreviewFile, Is.EqualTo("preview.ogg"));
         }
@@ -98,7 +101,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #WAVAA hit.wav
 ";
 
-            var result = decoder.DecodeText(text, "no-preview.bms");
+            var result = decoder.DecodeText(text, "no-preview.bms", seven_key_contract);
 
             Assert.That(result.BeatmapInfo.PreviewFile, Is.Null);
         }
@@ -111,7 +114,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00211:AA00BB00
 ";
 
-            var result = decoder.DecodeText(text, "measure.bms");
+            var result = decoder.DecodeText(text, "measure.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -135,7 +138,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00113:CC00DD00
 ";
 
-            var result = decoder.DecodeText(text, "raw-carrier.bms");
+            var result = decoder.DecodeText(text, "raw-carrier.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -160,7 +163,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #001SC:AA00
 ";
 
-            var result = decoder.DecodeText(text, "scroll-placeholder.bms");
+            var result = decoder.DecodeText(text, "scroll-placeholder.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -187,7 +190,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #001SC:AAAB
 ";
 
-            var result = decoder.DecodeText(text, "scroll-typed-surface.bms");
+            var result = decoder.DecodeText(text, "scroll-typed-surface.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -215,7 +218,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #001ZZ:BB00
 ";
 
-            var result = decoder.DecodeText(text, "scroll-unknown-collision.bms");
+            var result = decoder.DecodeText(text, "scroll-unknown-collision.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -241,7 +244,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #0010A:0004
 ";
 
-            var result = decoder.DecodeText(text, "bga-typed-surface.bms");
+            var result = decoder.DecodeText(text, "bga-typed-surface.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -413,7 +416,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             const string title = "\u30c6\u30b9\u30c8";
             byte[] data = Encoding.GetEncoding("shift_jis").GetBytes($"#TITLE {title}\n#BPM 120\n#WAVAA kick.wav\n#00111:AA00\n");
 
-            var result = decoder.Decode(data, "shiftjis.bms");
+            var result = decoder.Decode(data, "shiftjis.bms", seven_key_contract);
 
             Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
         }
@@ -424,7 +427,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             const string title = "\u6d4b\u8bd5\u66f2"; // 测试曲
             byte[] data = Encoding.UTF8.GetBytes($"#TITLE {title}\n#BPM 120\n#WAVAA kick.wav\n#00111:AA00\n");
 
-            var result = decoder.Decode(data, "utf8.bms");
+            var result = decoder.Decode(data, "utf8.bms", seven_key_contract);
 
             Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
         }
@@ -439,7 +442,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             bom.CopyTo(data, 0);
             body.CopyTo(data, bom.Length);
 
-            var result = decoder.Decode(data, "bom.bms");
+            var result = decoder.Decode(data, "bom.bms", seven_key_contract);
 
             Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
         }
@@ -450,7 +453,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             const string title = "\ud14c\uc2a4\ud2b8"; // 테스트
             byte[] data = Encoding.GetEncoding("euc-kr").GetBytes($"#TITLE {title}\n#ARTIST {title}\n#BPM 120\n#WAVAA kick.wav\n#00111:AA00\n");
 
-            var result = decoder.Decode(data, "euckr.bms");
+            var result = decoder.Decode(data, "euckr.bms", seven_key_contract);
 
             Assert.That(result.BeatmapInfo.Title, Is.EqualTo(title));
         }
@@ -463,7 +466,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00111:AA00ZZ00
 ";
 
-            var result = decoder.DecodeText(text, "lnobj.bms");
+            var result = decoder.DecodeText(text, "lnobj.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -490,7 +493,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00111:AABBZZZZ
 ";
 
-            var result = decoder.DecodeText(text, "lnobj-consecutive-tails.bms");
+            var result = decoder.DecodeText(text, "lnobj-consecutive-tails.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -520,7 +523,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00151:AA00BB00
 ";
 
-            var result = decoder.DecodeText(text, "lntype1.bms");
+            var result = decoder.DecodeText(text, "lntype1.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -544,7 +547,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00156:CC00CC00
 ";
 
-            var result = decoder.DecodeText(text, "ln-no-lntype.bms");
+            var result = decoder.DecodeText(text, "ln-no-lntype.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -566,7 +569,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00251:ZZ00
 ";
 
-            var result = decoder.DecodeText(text, "lntype2.bms");
+            var result = decoder.DecodeText(text, "lntype2.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -593,7 +596,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00151:0000
 ";
 
-            var result = decoder.DecodeText(text, "lntype2-duplicate-zero.bms");
+            var result = decoder.DecodeText(text, "lntype2-duplicate-zero.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -646,7 +649,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00108:AA00
 ";
 
-            var result = decoder.DecodeText(text, "signed-bpm.bms");
+            var result = decoder.DecodeText(text, "signed-bpm.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -666,7 +669,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00111:BB00
 ";
 
-            var result = decoder.DecodeText(text, "duplicate-channel-lines.bms");
+            var result = decoder.DecodeText(text, "duplicate-channel-lines.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -687,7 +690,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00101:BB00
 ";
 
-            var result = decoder.DecodeText(text, "bgm-layers.bms");
+            var result = decoder.DecodeText(text, "bgm-layers.bms", seven_key_contract);
             var bgmEvents = result.ObjectEvents.Where(objectEvent => objectEvent.AutoPlay).ToList();
 
             Assert.Multiple(() =>
@@ -711,7 +714,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00112:BB00ZZ00
 ";
 
-            var result = decoder.DecodeText(text, "multi-lnobj.bms");
+            var result = decoder.DecodeText(text, "multi-lnobj.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -743,7 +746,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00113:CC00
 ";
 
-            var result = decoder.DecodeText(text, "random-branch.bms");
+            var result = decoder.DecodeText(text, "random-branch.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -769,7 +772,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #00112:BB00
 ";
 
-            var result = decoder.DecodeText(text, "random-skip.bms");
+            var result = decoder.DecodeText(text, "random-skip.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -794,7 +797,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ENDIF
 ";
 
-            var result = decoder.DecodeText(text, "random-else.bms");
+            var result = decoder.DecodeText(text, "random-else.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -817,7 +820,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ENDIF
 ";
 
-            var result = decoder.DecodeText(text, "random-else-skipped.bms");
+            var result = decoder.DecodeText(text, "random-else-skipped.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -840,7 +843,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ENDIF
 ";
 
-            var result = decoder.DecodeText(text, "setrandom.bms");
+            var result = decoder.DecodeText(text, "setrandom.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -865,7 +868,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ENDSW
 ";
 
-            var result = decoder.DecodeText(text, "switch-case.bms");
+            var result = decoder.DecodeText(text, "switch-case.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -891,7 +894,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #ENDSW
 ";
 
-            var result = decoder.DecodeText(text, "setswitch-default.bms");
+            var result = decoder.DecodeText(text, "setswitch-default.bms", seven_key_contract);
 
             Assert.Multiple(() =>
             {
@@ -902,7 +905,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase("#00112:AA00\n#00116:BB00", "chart.bms", BmsKeymode.Key5K)]
+        [TestCase("#00111:AA00\n#00112:BB00\n#00113:CC00\n#00114:DD00\n#00115:EE00\n", "chart.bms", BmsKeymode.Key5K)]
         [TestCase("#00111:AA00\n#00112:BB00\n#00113:CC00\n#00114:DD00\n#00115:EE00\n#00116:FF00\n#00118:HH00\n", "chart.bme", BmsKeymode.Key7K)]
         [TestCase("#00119:II00\n", "chart.bme", BmsKeymode.Key7K)]
         [TestCase("#00117:GG00\n", "chart.bms", BmsKeymode.Key9K_Bms)]
@@ -914,6 +917,166 @@ namespace osu.Game.Rulesets.Bms.Tests
             var result = decoder.DecodeText(text, fileName);
 
             Assert.That(result.BeatmapInfo.Keymode, Is.EqualTo(expected));
+        }
+
+        [TestCase("#00111:AA00\n", "sparse.pms", BmsKeymode.Key9K_Pms, BmsKeymodeResolutionSource.FileExtension, BmsKeymodeDiagnosticCode.PmsExtensionApplied)]
+        [TestCase("#00111:AA00\n", "sparse.bme", BmsKeymode.Key7K, BmsKeymodeResolutionSource.FileExtension, BmsKeymodeDiagnosticCode.BmeExtensionApplied)]
+        [TestCase("#00121:AA00\n", "sparse.bms", BmsKeymode.Key14K, BmsKeymodeResolutionSource.Player2ChannelEvidence, BmsKeymodeDiagnosticCode.Player2ChannelEvidenceApplied)]
+        [TestCase("#00129:AA00\n", "double.bme", BmsKeymode.Key14K, BmsKeymodeResolutionSource.Player2ChannelEvidence, BmsKeymodeDiagnosticCode.Player2ChannelEvidenceApplied)]
+        [TestCase("#00117:AA00\n", "sparse.bms", BmsKeymode.Key9K_Bms, BmsKeymodeResolutionSource.DistinctiveNineKeyChannelEvidence, BmsKeymodeDiagnosticCode.NineKeyChannelEvidenceApplied)]
+        [TestCase("#00111:AA00\n#00112:AA00\n#00113:AA00\n#00114:AA00\n#00115:AA00\n", "complete.bms", BmsKeymode.Key5K, BmsKeymodeResolutionSource.CompleteChannelSet, BmsKeymodeDiagnosticCode.CompleteFiveKeyChannelSetApplied)]
+        [TestCase("#00111:AA00\n#00112:AA00\n#00113:AA00\n#00114:AA00\n#00115:AA00\n#00118:AA00\n#00119:AA00\n", "complete.bms", BmsKeymode.Key7K, BmsKeymodeResolutionSource.CompleteChannelSet, BmsKeymodeDiagnosticCode.CompleteSevenKeyChannelSetApplied)]
+        [TestCase("#00111:AA00\n#00112:AA00\n#00113:AA00\n#00114:AA00\n#00115:AA00\n#00116:AA00\n#00117:AA00\n#00118:AA00\n#00119:AA00\n", "complete.bms", BmsKeymode.Key9K_Bms, BmsKeymodeResolutionSource.CompleteChannelSet, BmsKeymodeDiagnosticCode.CompleteNineKeyChannelSetApplied)]
+        public void TestKeymodeResolutionCarriesTraceableAuthority(string text, string fileName, BmsKeymode expectedKeymode, BmsKeymodeResolutionSource expectedSource, BmsKeymodeDiagnosticCode expectedDiagnostic)
+        {
+            var result = decoder.DecodeText(text, fileName);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BeatmapInfo.Keymode, Is.EqualTo(expectedKeymode));
+                Assert.That(result.BeatmapInfo.KeymodeResolution.Source, Is.EqualTo(expectedSource));
+                Assert.That(result.BeatmapInfo.KeymodeResolution.DiagnosticCode, Is.EqualTo(expectedDiagnostic));
+                Assert.That(result.BeatmapInfo.KeymodeResolution.StableDiagnostic, Does.StartWith("bms.keymode."));
+            });
+        }
+
+        [TestCase("#00121:AA00\n", BmsKeymode.Key14K, BmsKeymodeResolutionSource.Player2ChannelEvidence)]
+        [TestCase("#00161:AAZZ\n", BmsKeymode.Key14K, BmsKeymodeResolutionSource.Player2ChannelEvidence)]
+        [TestCase("#00141:AA00\n", BmsKeymode.Key14K, BmsKeymodeResolutionSource.Player2ChannelEvidence)]
+        [TestCase("#001E1:00010000\n", BmsKeymode.Key14K, BmsKeymodeResolutionSource.Player2ChannelEvidence)]
+        [TestCase("#00117:AA00\n", BmsKeymode.Key9K_Bms, BmsKeymodeResolutionSource.DistinctiveNineKeyChannelEvidence)]
+        [TestCase("#00157:AAZZ\n", BmsKeymode.Key9K_Bms, BmsKeymodeResolutionSource.DistinctiveNineKeyChannelEvidence)]
+        [TestCase("#00137:AA00\n", BmsKeymode.Key9K_Bms, BmsKeymodeResolutionSource.DistinctiveNineKeyChannelEvidence)]
+        [TestCase("#001D7:00010000\n", BmsKeymode.Key9K_Bms, BmsKeymodeResolutionSource.DistinctiveNineKeyChannelEvidence)]
+        public void TestEveryLaneObjectFamilyContributesParserKeymodeEvidence(string text, BmsKeymode expectedKeymode, BmsKeymodeResolutionSource expectedSource)
+        {
+            var result = decoder.DecodeText("#LNTYPE 1\n" + text, "evidence.bms");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BeatmapInfo.Keymode, Is.EqualTo(expectedKeymode));
+                Assert.That(result.BeatmapInfo.KeymodeResolution.Source, Is.EqualTo(expectedSource));
+            });
+        }
+
+        [Test]
+        public void TestSparseBmsWithoutAuthorityFailsClosedWithStableRedactedDiagnostic()
+        {
+            var exception = Assert.Throws<BmsKeymodeResolutionException>(() => decoder.DecodeText("#00111:AA00\n", @"sensitive\folder\sparse-chart.bms"));
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes("#00111:AA00\n"));
+            var loaderException = Assert.Throws<BmsKeymodeResolutionException>(() => new BmsBeatmapLoader().Load(stream, @"sensitive\folder\sparse-chart.bms", new BeatmapInfo()));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.SparseBmsRequiresExplicitOverride));
+                Assert.That(exception.StableDiagnostic, Is.EqualTo("bms.keymode.sparse-bms-requires-explicit-override"));
+                Assert.That(exception.Message, Is.EqualTo(exception.StableDiagnostic));
+                Assert.That(exception.Message, Does.Not.Contain("sensitive"));
+                Assert.That(exception.Message, Does.Not.Contain("sparse-chart"));
+                Assert.That(loaderException!.DiagnosticCode, Is.EqualTo(exception.DiagnosticCode));
+                Assert.That(loaderException.Message, Is.EqualTo(exception.StableDiagnostic));
+            });
+        }
+
+        [Test]
+        public void TestMissingLaneEvidenceFailsClosedWithDistinctStableDiagnostic()
+        {
+            var exception = Assert.Throws<BmsKeymodeResolutionException>(() => decoder.DecodeText("#00101:AA00\n", "bgm-only.bml"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.NoLaneEvidenceRequiresExplicitOverride));
+                Assert.That(exception.StableDiagnostic, Is.EqualTo("bms.keymode.no-lane-evidence-requires-explicit-override"));
+                Assert.That(exception.Message, Does.Not.Contain("bgm-only"));
+            });
+        }
+
+        [Test]
+        public void TestExplicitOverridePrecedesFileExtensionAndRetainsBothEvidenceFlags()
+        {
+            var result = decoder.DecodeText("#00111:AA00\n", "mislabeled.pms", new BmsBeatmapDecoderOptions(BmsKeymode.Key5K));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.BeatmapInfo.Keymode, Is.EqualTo(BmsKeymode.Key5K));
+                Assert.That(result.BeatmapInfo.KeymodeResolution.Source, Is.EqualTo(BmsKeymodeResolutionSource.ExplicitOverride));
+                Assert.That(result.BeatmapInfo.KeymodeResolution.Evidence.HasFlag(BmsKeymodeEvidence.ExplicitOverride), Is.True);
+                Assert.That(result.BeatmapInfo.KeymodeResolution.Evidence.HasFlag(BmsKeymodeEvidence.PmsFileExtension), Is.True);
+            });
+        }
+
+        [TestCase(BmsKeymode.Key5K, 5)]
+        [TestCase(BmsKeymode.Key7K, 7)]
+        [TestCase(BmsKeymode.Key9K_Bms, 9)]
+        [TestCase(BmsKeymode.Key9K_Pms, 9)]
+        public void TestExplicitOverrideFlowsThroughDecoderConverterAndProductionLoader(BmsKeymode keymode, float expectedKeyCount)
+        {
+            const string text = "#BPM 120\n#WAVAA hit.wav\n#00111:AA00\n";
+            var options = new BmsBeatmapDecoderOptions(keymode);
+            var decodedChart = decoder.DecodeText(text, "sparse.bms", options);
+            var convertedBeatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decodedChart), new BmsRuleset()).Convert();
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+            var loader = new BmsBeatmapLoader();
+            var loadedBeatmap = (BmsDecodedBeatmap)loader.Load(stream, "sparse.bms", new BeatmapInfo(), options);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decodedChart.BeatmapInfo.Keymode, Is.EqualTo(keymode));
+                Assert.That(decodedChart.BeatmapInfo.KeymodeResolution.Source, Is.EqualTo(BmsKeymodeResolutionSource.ExplicitOverride));
+                Assert.That(decodedChart.BeatmapInfo.KeymodeResolution.Evidence.HasFlag(BmsKeymodeEvidence.ExplicitOverride), Is.True);
+                Assert.That(decodedChart.BeatmapInfo.KeymodeResolution.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.ExplicitOverrideApplied));
+                Assert.That(decodedChart.BeatmapInfo.KeymodeResolution.StableDiagnostic, Is.EqualTo("bms.keymode.explicit-override-applied"));
+                Assert.That(convertedBeatmap.BmsInfo.Keymode, Is.EqualTo(keymode));
+                Assert.That(convertedBeatmap.BmsInfo.KeymodeResolution, Is.SameAs(decodedChart.BeatmapInfo.KeymodeResolution));
+                Assert.That(convertedBeatmap.BeatmapInfo.Difficulty.CircleSize, Is.EqualTo(expectedKeyCount));
+                Assert.That(loadedBeatmap.DecodedChart.BeatmapInfo.Keymode, Is.EqualTo(keymode));
+                Assert.That(loadedBeatmap.DecodedChart.BeatmapInfo.KeymodeResolution.Source, Is.EqualTo(BmsKeymodeResolutionSource.ExplicitOverride));
+                Assert.That(loadedBeatmap.DecodedChart.BeatmapInfo.KeymodeResolution.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.ExplicitOverrideApplied));
+                Assert.That(loadedBeatmap.BeatmapInfo.Difficulty.CircleSize, Is.EqualTo(expectedKeyCount));
+            });
+        }
+
+        [Test]
+        public void TestExplicitOverrideRejectsContradictoryLaneEvidence()
+        {
+            var options = new BmsBeatmapDecoderOptions(BmsKeymode.Key7K);
+            var exception = Assert.Throws<BmsKeymodeResolutionException>(() => decoder.DecodeText("#00121:AA00\n", "contradiction.bms", options));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.OverrideConflictsWithChannelEvidence));
+                Assert.That(exception.StableDiagnostic, Is.EqualTo("bms.keymode.override-conflicts-with-channel-evidence"));
+                Assert.That(exception.Message, Does.Not.Contain("contradiction"));
+            });
+        }
+
+        [Test]
+        public void TestPmsExtensionRejectsContradictoryPlayerTwoEvidenceWithStableRedactedDiagnostic()
+        {
+            var exception = Assert.Throws<BmsKeymodeResolutionException>(() => decoder.DecodeText("#00121:AA00\n", "contradiction.pms"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.ExtensionConflictsWithChannelEvidence));
+                Assert.That(exception.StableDiagnostic, Is.EqualTo("bms.keymode.extension-conflicts-with-channel-evidence"));
+                Assert.That(exception.Message, Is.EqualTo(exception.StableDiagnostic));
+                Assert.That(exception.Message, Does.Not.Contain("contradiction"));
+            });
+        }
+
+        [TestCase("#00121:@@00\n")]
+        [TestCase("#00117:@@00\n")]
+        public void TestMalformedLaneObjectCannotForgeKeymodeAuthority(string text)
+        {
+            var exception = Assert.Throws<BmsKeymodeResolutionException>(() => decoder.DecodeText(text, "malformed-authority.bms"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.DiagnosticCode, Is.EqualTo(BmsKeymodeDiagnosticCode.NoLaneEvidenceRequiresExplicitOverride));
+                Assert.That(exception.StableDiagnostic, Is.EqualTo("bms.keymode.no-lane-evidence-requires-explicit-override"));
+                Assert.That(exception.Message, Does.Not.Contain("malformed-authority"));
+            });
         }
     }
 }

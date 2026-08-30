@@ -113,18 +113,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                     switch (containerLookup.Lookup)
                     {
                         case GlobalSkinnableContainers.MainHUDComponents:
-                            return new DefaultSkinComponentsContainer(container =>
+                            return new ManiaGameplayHudComponentsContainer(beatmap.Stages, this, container =>
                             {
                                 var combo = container.ChildrenOfType<LegacyManiaComboCounter>().FirstOrDefault();
                                 var spectatorList = container.OfType<SpectatorList>().FirstOrDefault();
                                 var leaderboard = container.OfType<DrawableGameplayLeaderboard>().FirstOrDefault();
 
                                 if (combo != null)
-                                {
-                                    combo.Anchor = Anchor.TopCentre;
-                                    combo.Origin = Anchor.Centre;
-                                    combo.Y = this.GetManiaSkinConfig<float>(LegacyManiaSkinConfigurationLookups.ComboPosition)?.Value ?? 0;
-                                }
+                                    container.ApplyComboPlacement(combo);
 
                                 if (spectatorList != null)
                                 {

@@ -3,46 +3,48 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using oms.Input;
+using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Localisation;
+using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
-using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
-using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Replays;
+using osu.Game.Rulesets.Bms.Scoring;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.SongSelect;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Rulesets.Filter;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Replays.Types;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
-using osu.Game.Rulesets.Replays.Types;
-using osu.Game.Rulesets.Bms.Scoring;
-using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Overlays;
 using osu.Game.Scoring;
+using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
-using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Skinning;
-using osu.Framework.Bindables;
-using osu.Framework.Platform;
-using oms.Input;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms
 {
-    public class BmsRuleset : Ruleset
+    public class BmsRuleset : Ruleset, IGameplaySkinLayoutPreparer
     {
         private static readonly OmsBindingStore defaultBindingStore = new OmsBindingStore();
 
@@ -63,6 +65,42 @@ namespace osu.Game.Rulesets.Bms
 
         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod>? mods = null) =>
             new DrawableBmsRuleset(this, beatmap, mods);
+
+        public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+        {
+            ArgumentNullException.ThrowIfNull(dependencies);
+
+            var bmsBeatmap = beatmap as BmsBeatmap
+                             ?? throw new ArgumentException("BMS gameplay layout requires parser-owned BmsBeatmapInfo authority.", nameof(beatmap));
+            GameplaySkinLayoutRevisionOwner owner = dependencies.Get<GameplaySkinLayoutRevisionOwner>()
+                                                          ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the exact root revision owner.");
+
+            if (owner.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
+                throw new InvalidOperationException("A managed BMS gameplay root requires an exact package revision.");
+
+            BmsRulesetConfigManager config = dependencies.Get<BmsRulesetConfigManager>()
+                                                   ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the final ruleset configuration.");
+            ISkinSource skinSource = dependencies.Get<ISkinSource>()
+                                         ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the exact package skin source.");
+
+            if (owner.CurrentPublication != null)
+                throw new InvalidOperationException("A BMS gameplay root may publish exactly one immutable layout.");
+
+            BmsPlayfieldStyle style = config.GetBindable<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle).Value;
+            if (!BmsGameplayLayoutProvider.TryPrepareExact(
+                    owner,
+                    bmsBeatmap,
+                    style,
+                    skinSource,
+                    dependencies.Get<GameHost>(),
+                    dependencies.Get<ISafeArea>(),
+                    out _))
+            {
+                return GameplaySkinLayoutPreparationResult.Retry;
+            }
+
+            return GameplaySkinLayoutPreparationResult.Prepared;
+        }
 
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new BmsBeatmapConverter(beatmap, this);
 
@@ -188,7 +226,7 @@ namespace osu.Game.Rulesets.Bms
             var judgeRankOverride = judgeMode.SupportsJudgeDifficulty() ? BmsJudgeRankExtensions.GetJudgeRankOverride(mods) : null;
             var appliedJudgeRank = judgeRankOverride ?? chartJudgeRank;
             double appliedOverallDifficulty = judgeMode.SupportsJudgeDifficulty() ? appliedJudgeRank.ToOverallDifficulty() : 0;
-            var colours = new osu.Game.Graphics.OsuColour();
+            var colours = new Graphics.OsuColour();
 
             yield return new RulesetBeatmapAttribute(SongSelectStrings.Accuracy, @"RANK", 4 - chartJudgeRank.ToHeaderValue(), 4 - appliedJudgeRank.ToHeaderValue(), 4)
             {
@@ -398,7 +436,7 @@ namespace osu.Game.Rulesets.Bms
                 BmsKeymode.Key9K_Bms => 9,
                 BmsKeymode.Key9K_Pms => 9,
                 BmsKeymode.Key14K => 14,
-                _ => 7,
+                _ => throw new ArgumentOutOfRangeException(nameof(keymode), keymode, "Unsupported BMS keymode authority."),
             };
 
         /// <summary>
@@ -414,7 +452,7 @@ namespace osu.Game.Rulesets.Bms
                 BmsKeymode.Key9K_Bms => 9,
                 BmsKeymode.Key9K_Pms => 9,
                 BmsKeymode.Key14K => 16,
-                _ => 8,
+                _ => throw new ArgumentOutOfRangeException(nameof(keymode), keymode, "Unsupported BMS keymode authority."),
             };
 
         private static string getScoreDisplayBucket(BmsJudgeMode judgeMode, BmsLongNoteMode longNoteMode)
@@ -446,7 +484,7 @@ namespace osu.Game.Rulesets.Bms
             return description;
         }
 
-        private static IEnumerable<RulesetBeatmapAttribute.AdditionalMetric> createJudgeAttributeMetrics(BmsJudgeMode judgeMode, BmsJudgeRank chartJudgeRank, BmsJudgeRank appliedJudgeRank, BmsJudgeRank? judgeRankOverride, double overallDifficulty, osu.Game.Graphics.OsuColour colours)
+        private static IEnumerable<RulesetBeatmapAttribute.AdditionalMetric> createJudgeAttributeMetrics(BmsJudgeMode judgeMode, BmsJudgeRank chartJudgeRank, BmsJudgeRank appliedJudgeRank, BmsJudgeRank? judgeRankOverride, double overallDifficulty, Graphics.OsuColour colours)
         {
             yield return new RulesetBeatmapAttribute.AdditionalMetric("Judge system", judgeMode.GetDisplayName());
 

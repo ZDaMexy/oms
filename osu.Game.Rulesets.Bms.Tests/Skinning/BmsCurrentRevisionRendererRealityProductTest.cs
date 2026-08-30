@@ -70,7 +70,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Add(renderer = new JourneyRendererHost(
                     manager,
                     Clock.CurrentTime + 60_000,
-                    Clock.CurrentTime + 5_000)));
+                    Clock.CurrentTime + 60_000)));
             AddUntilStep("wait for late renderer host", () => renderer.IsLoaded);
             AddStep("mount late production BMS provider", () => renderer.ShowBms());
             AddUntilStep("wait for late BMS async note artifacts", () => renderer.BmsArtifactsLoaded);

@@ -7,8 +7,8 @@ using System.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Bms.Audio;
-using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Objects;
@@ -259,12 +259,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private static void buildLaneKeysoundTimelines(BmsBeatmap beatmap, BmsDecodedChart decodedChart, IReadOnlyDictionary<BmsEventTimeKey, double> eventTimes, Dictionary<int, BmsKeysoundSampleInfo?> keysoundCache)
         {
             var keymode = decodedChart.BeatmapInfo.Keymode;
-            int keyCount = BmsRuleset.GetKeyCount(keymode);
+            // Lane indices include scratch. In 5K/7K scratch shifts the rightmost key to index == key count, while
+            // 14K additionally places K14/S2 at indices 14/15. Bounding by key count silently drops their armed
+            // visible/LN/invisible keysounds; the canonical topology authority is the full lane count.
+            int laneCount = BmsRuleset.GetLaneCount(keymode);
             var laneKeysounds = new Dictionary<int, List<BmsLaneKeysoundEntry>>();
 
             void add(int laneIndex, double time, int? keysoundId, BmsKeysoundSampleInfo? sample)
             {
-                if (sample == null || !keysoundId.HasValue || laneIndex < 0 || laneIndex >= keyCount)
+                if (sample == null || !keysoundId.HasValue || laneIndex < 0 || laneIndex >= laneCount)
                     return;
 
                 if (!laneKeysounds.TryGetValue(laneIndex, out var list))
@@ -507,7 +510,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         /// <summary>
         /// Picks the BMS scroll profile base BPM: the raw BPM with the most accumulated (non-stop) playing time. This is
-        /// the unclamped analogue of <see cref="osu.Game.Beatmaps.IBeatmap.GetMostCommonBeatLength"/>; extreme-BPM
+        /// the unclamped analogue of <see cref="IBeatmap.GetMostCommonBeatLength"/>; extreme-BPM
         /// snap regions occupy near-zero time so they never become the base.
         /// </summary>
         private static double computeBaseBpm(IReadOnlyDictionary<double, double> bpmDurations, double fallbackBpm)

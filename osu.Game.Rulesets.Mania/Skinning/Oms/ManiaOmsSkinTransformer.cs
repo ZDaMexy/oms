@@ -1,15 +1,15 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System.Linq;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Mania.Beatmaps;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.Mania.Skinning.Legacy;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
-using System.Linq;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Oms
@@ -40,18 +40,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                 switch (containerLookup.Lookup)
                 {
                     case GlobalSkinnableContainers.MainHUDComponents:
-                        return new DefaultSkinComponentsContainer(container =>
+                        return new ManiaGameplayHudComponentsContainer(beatmap.Stages, this, container =>
                         {
                             var combo = container.ChildrenOfType<OmsManiaComboCounter>().FirstOrDefault();
                             var spectatorList = container.OfType<SpectatorList>().FirstOrDefault();
                             var leaderboard = container.OfType<DrawableGameplayLeaderboard>().FirstOrDefault();
 
                             if (combo != null)
-                            {
-                                combo.Anchor = Anchor.TopCentre;
-                                combo.Origin = Anchor.Centre;
-                                combo.Y = this.GetManiaSkinConfig<float>(LegacyManiaSkinConfigurationLookups.ComboPosition)?.Value ?? 0;
-                            }
+                                container.ApplyComboPlacement(combo);
 
                             if (spectatorList != null)
                             {

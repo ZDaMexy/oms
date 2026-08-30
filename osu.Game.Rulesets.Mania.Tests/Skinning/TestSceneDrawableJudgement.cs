@@ -40,7 +40,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                 Type = result
                             }, null);
 
-                            return drawableManiaJudgement;
+                            return new ColumnTestContainer(0, ManiaAction.Key1)
+                            {
+                                RelativeSizeAxes = Axes.Both,
+                                Child = drawableManiaJudgement,
+                            };
                         });
 
                         // for test purposes, undo the Y adjustment related to the `ScorePosition` legacy positioning config value

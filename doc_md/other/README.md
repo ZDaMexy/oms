@@ -17,6 +17,7 @@
 - [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：Skin V1 的架构证据与设计解释；执行顺序和硬约束仍以 P1-A 四件套为准。
 - [SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md](SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md)：基于`c53f1e0`的历史阶段快照；其中启动选择竞态已在2026-08-01闭合，不得当作当前状态。
 - [SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md](SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)：C1闭门边界与产品价值复核；其中进度只作为交付时快照，当前状态与后续工作门以P1-A四件套为准。
+- [SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md](SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)：C3的P1-K keymode/lane前置、唯一immutable gameplay layout、全production consumer与C2 revision pair扩展的完成边界和最终验证；当前燃尽仍以P1-A四件套为准。
 - [SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md](SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)：已导入 `.osk` 的 BMS 普通短键编号帧动画、选择切换与 selected 坏包回落的确定性手工素材及验收边界。
 - [SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)：Skin V1 自动 gate 后集中等待用户签收的视觉清单、状态定义与反馈记录。
 

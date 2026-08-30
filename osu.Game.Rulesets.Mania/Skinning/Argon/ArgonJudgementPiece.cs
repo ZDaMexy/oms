@@ -3,7 +3,6 @@
 
 using System;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -13,7 +12,7 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
-using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -21,14 +20,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
 {
     public partial class ArgonJudgementPiece : TextJudgementPiece, IAnimatableJudgement
     {
-        private const float judgement_y_position = -180f;
-
         private RingExplosion? ringExplosion;
 
         [Resolved]
         private OsuColour colours { get; set; } = null!;
 
-        private IBindable<ScrollingDirection> direction = null!;
+        private GameplaySkinScrollDirection direction;
+
+        public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         public ArgonJudgementPiece(HitResult result)
             : base(result)
@@ -39,10 +38,11 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
         }
 
         [BackgroundDependencyLoader]
-        private void load(IScrollingInfo scrollingInfo)
+        private void load(ManiaGameplaySkinStageContext stageContext)
         {
-            direction = scrollingInfo.Direction.GetBoundCopy();
-            direction.BindValueChanged(_ => onDirectionChanged(), true);
+            LayoutSnapshot = stageContext.Snapshot;
+            direction = stageContext.Snapshot.Context.ScrollDirection;
+            ManiaGameplaySkinLayoutProjection.ApplyJudgementPlacement(this, stageContext);
 
             if (Result.IsHit())
             {
@@ -51,12 +51,6 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                     Colour = colours.ForHitResult(Result),
                 });
             }
-        }
-
-        private void onDirectionChanged()
-        {
-            Anchor = direction.Value == ScrollingDirection.Up ? Anchor.TopCentre : Anchor.BottomCentre;
-            Y = direction.Value == ScrollingDirection.Up ? -judgement_y_position : judgement_y_position;
         }
 
         protected override SpriteText CreateJudgementText() =>
@@ -90,8 +84,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                     this.ScaleTo(1.6f);
                     this.ScaleTo(1, 100, Easing.In);
 
-                    this.MoveToY(direction.Value == ScrollingDirection.Up ? -judgement_y_position : judgement_y_position);
-                    this.MoveToOffset(new Vector2(0, 100), 800, Easing.InQuint);
+                    this.MoveToOffset(new Vector2(0, direction == GameplaySkinScrollDirection.Up ? -100 : 100), 800, Easing.InQuint);
 
                     this.RotateTo(0);
                     this.RotateTo(40, 800, Easing.InQuint);

@@ -11,8 +11,8 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
-using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI.Scrolling;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
@@ -21,43 +21,37 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
-using osuTK.Graphics;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
     [Cached]
     public partial class BmsPlayfield : ScrollingPlayfield
     {
-        /// <summary>
-        /// Horizontal screen-edge inset kept when the playfield is side-anchored (P1/P2). Exposed so the gauge bar can
-        /// mirror the exact same side anchoring directly under the lanes (see <see cref="DefaultBmsHudLayoutDisplay"/>).
-        /// </summary>
-        public const float SIDE_ANCHORED_HORIZONTAL_INSET = 0.05f;
-
         private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
-        private readonly BindableFloat liftUnits = new BindableFloat();
-        private readonly Bindable<BmsPlayfieldStyle> playfieldStyle = new Bindable<BmsPlayfieldStyle>();
         private readonly Bindable<BmsGimmickScrollMode> gimmickScrollMode = new Bindable<BmsGimmickScrollMode>();
-        private readonly IBindable<double>? laneScrollLengthRatio;
+        private IBindable<double>? laneScrollLengthRatio;
 
         // BMS-side scrolling info re-cached to lanes so the stop-motion bypass can be injected without touching shared
         // core types (P1-L Phase 2). Follows the base algorithm exactly until engaged for a gimmick chart.
         private BmsScrollingInfo bmsScrollingInfo = null!;
 
-        [Cached]
-        private readonly BmsKeysoundStore keysoundStore = new BmsKeysoundStore();
+        public BmsLaneLayout LaneLayout { get; private set; } = null!;
 
-        public BmsLaneLayout LaneLayout { get; private set; }
+        public BmsGameplayLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         public BmsBackgroundLayer BackgroundLayer { get; }
 
-        public BmsPlayfieldLayoutProfile LayoutProfile => LaneLayout.Profile;
+        internal BmsPlayfieldLayoutProfile LayoutProfile => LayoutSnapshot.Profile;
+
+        [Cached]
+        private readonly BmsKeysoundStore keysoundStore = new BmsKeysoundStore();
 
         public BmsKeysoundStore KeysoundStore => keysoundStore;
 
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
-        public BindableFloat LiftUnits => liftUnits;
+        public BindableFloat LiftUnits { get; } = new BindableFloat();
 
         public Container CoverContainer { get; } = new Container
         {
@@ -68,10 +62,16 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public IReadOnlyList<BmsLane> Lanes => lanes;
 
+        public IReadOnlyList<BmsGameplayLayoutGroupContainer> GroupContainers => groupContainers;
+
         public int DisplayColumnCount => LaneLayout.Lanes.Count;
 
-        private readonly BmsLane[] lanes;
-        private readonly IBeatmap beatmap;
+        private BmsLane[] lanes = Array.Empty<BmsLane>();
+        private BmsGameplayLayoutGroupContainer[] groupContainers = Array.Empty<BmsGameplayLayoutGroupContainer>();
+        private readonly BmsBeatmap beatmap;
+        private bool layoutGraphInitialised;
+
+        internal BmsGameplayLayoutProvider LayoutProvider { get; }
         private readonly HitResult[] gameplay_judgements =
         {
             HitResult.Perfect,
@@ -88,31 +88,49 @@ namespace osu.Game.Rulesets.Bms.UI
         private Container playfieldContainer = null!;
 
         [Resolved(CanBeNull = true)]
-        private ISkinSource? skinSource { get; set; }
+        private GameplaySkinLayoutRevisionOwner? sharedLayoutOwner { get; set; }
 
-        public BmsPlayfield(IBeatmap beatmap, BmsPlayfieldLayoutProfile? layoutProfile = null)
+        public BmsPlayfield(IBeatmap beatmap)
+            : this(beatmap, new BmsGameplayLayoutProvider(
+                beatmap as BmsBeatmap
+                ?? throw new ArgumentException("BMS gameplay layout requires parser-owned BmsBeatmapInfo keymode authority.", nameof(beatmap))))
         {
-            this.beatmap = beatmap;
-            var bmsBeatmap = beatmap as BmsBeatmap;
+        }
 
-            LaneLayout = BmsLaneLayout.CreateFor(beatmap, layoutProfile);
-            BackgroundLayer = new BmsBackgroundLayer(bmsBeatmap?.BmsInfo);
-            lanes = LaneLayout.Lanes.Select(createLane).ToArray();
+        private BmsPlayfield(IBeatmap beatmap, BmsGameplayLayoutProvider layoutProvider)
+        {
+            this.beatmap = beatmap as BmsBeatmap
+                           ?? throw new ArgumentException("BMS gameplay layout requires parser-owned BmsBeatmapInfo keymode authority.", nameof(beatmap));
+            LayoutProvider = layoutProvider ?? throw new ArgumentNullException(nameof(layoutProvider));
+            BackgroundLayer = new BmsBackgroundLayer(this.beatmap.BmsInfo);
+        }
 
-            if (lanes.Length > 0)
-            {
-                laneScrollLengthRatio = lanes[0].ScrollLengthRatio.GetBoundCopy();
-                laneScrollLengthRatio.BindValueChanged(ratio => scrollLengthRatio.Value = ratio.NewValue, true);
-            }
+        /// <summary>
+        /// Explicit isolated-test entry. Production gameplay obtains its publication from the enclosing exact skin root.
+        /// </summary>
+        internal static BmsPlayfield CreateCompatibility(BmsBeatmap beatmap, BmsPlayfieldStyle style = BmsPlayfieldStyle.Center)
+        {
+            ArgumentNullException.ThrowIfNull(beatmap);
+            var provider = new BmsGameplayLayoutProvider(beatmap);
+            BmsGameplayLayoutSnapshot snapshot = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration());
+            var playfield = new BmsPlayfield(beatmap, provider);
+            playfield.initialiseLayoutGraph(snapshot);
+            return playfield;
+        }
 
-            foreach (var lane in lanes)
-                AddNested(lane);
+        internal void InitialiseCompatibilityForTesting(
+            BmsPlayfieldStyle style = BmsPlayfieldStyle.Center,
+            ISkin? skin = null,
+            BmsGameplayLayoutEnvironment? environment = null)
+        {
+            if (layoutGraphInitialised)
+                throw new InvalidOperationException("The BMS playfield layout graph has already been constructed.");
 
-            if (bmsBeatmap != null)
-            {
-                addMeasureBarLines(bmsBeatmap);
-                addMines(bmsBeatmap);
-            }
+            BmsGameplayLayoutSnapshot snapshot = LayoutProvider.PublishForTesting(
+                style,
+                BmsGameplayLayoutConfiguration.FromSkin(skin, beatmap.BmsInfo.Keymode),
+                environment);
+            initialiseLayoutGraph(snapshot);
         }
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
@@ -121,6 +139,7 @@ namespace osu.Game.Rulesets.Bms.UI
             // through; only the scroll algorithm can later diverge (and only for gimmick charts under the gate). Guarded
             // so an isolated (parent-less) playfield keeps the base behaviour instead of throwing.
             var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+            dependencies.Cache(LayoutProvider);
             var baseScrollingInfo = parent.Get<IScrollingInfo>();
 
             if (baseScrollingInfo != null)
@@ -135,17 +154,29 @@ namespace osu.Game.Rulesets.Bms.UI
         [BackgroundDependencyLoader]
         private void load(BmsRulesetConfigManager config)
         {
-            // Apply any per-keymode skin geometry before mounting, so the playfield strip + lanes pick up the overridden
-            // profile. Done here (not the constructor) because the skin is only resolvable once the drawable tree exists.
-            if (skinSource != null)
-                applySkinGeometry(skinSource);
+            if (!layoutGraphInitialised)
+            {
+                if (sharedLayoutOwner == null)
+                    throw new InvalidOperationException("bms.layout.explicit-compatibility-required");
+
+                LayoutProvider.AttachCommittedPublication(sharedLayoutOwner);
+                initialiseLayoutGraph(LayoutProvider.Current);
+            }
+            else
+            {
+                if (LayoutSnapshot.Context.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                    throw new InvalidOperationException("A preconstructed BMS playfield is restricted to explicit compatibility tests.");
+
+                if (sharedLayoutOwner != null && sharedLayoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                    throw new InvalidOperationException("A compatibility BMS playfield cannot enter an exact production root.");
+            }
 
             AddInternal(new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
-                    keysoundStore,
+                    KeysoundStore,
                     new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Backdrop, LaneLayout.Keymode, DisplayColumnCount))
                     {
                         RelativeSizeAxes = Axes.Both,
@@ -157,12 +188,12 @@ namespace osu.Game.Rulesets.Bms.UI
                         // green-number "full visible field" semantics). Vertical extent is controlled by PlayfieldHeight;
                         // applyPlayfieldStyle keeps the top anchor and only varies the horizontal side anchoring. The gauge
                         // (DefaultBmsHudLayoutDisplay) sits just below the judgement line at PlayfieldHeight.
-                        Anchor = Anchor.TopCentre,
-                        Origin = Anchor.TopCentre,
-                        RelativePositionAxes = Axes.X,
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.TopLeft,
+                        RelativePositionAxes = Axes.Both,
                         RelativeSizeAxes = Axes.Both,
-                        Width = LayoutProfile.PlayfieldWidth,
-                        Height = LayoutProfile.PlayfieldHeight,
+                        Position = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.X, LayoutSnapshot.PlayfieldRect.Y),
+                        Size = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.Width, LayoutSnapshot.PlayfieldRect.Height),
                         Masking = true,
                         Children = new Drawable[]
                         {
@@ -178,7 +209,7 @@ namespace osu.Game.Rulesets.Bms.UI
                             new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
-                                Children = lanes,
+                                Children = groupContainers,
                             },
                             new Container
                             {
@@ -196,9 +227,6 @@ namespace osu.Game.Rulesets.Bms.UI
                     }
                 }
             });
-
-            config.BindWith(BmsRulesetSetting.PlayfieldStyle, playfieldStyle);
-            playfieldStyle.BindValueChanged(_ => applyPlayfieldStyle(), true);
 
             config.BindWith(BmsRulesetSetting.GimmickScrollMode, gimmickScrollMode);
             gimmickScrollMode.BindValueChanged(_ => updateGimmickScroll(), true);
@@ -302,114 +330,86 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private BmsLane createLane(BmsLaneLayout.Lane lane)
         {
+            BmsGameplayLayoutLane snapshotLane = LayoutSnapshot.GetLaneByLogicalIndex(lane.LaneIndex);
             BmsLane drawableLane = lane.IsScratch
-                ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, liftUnits)
-                : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, liftUnits);
+                ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, LiftUnits, snapshotLane, LayoutSnapshot)
+                : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, LiftUnits, snapshotLane, LayoutSnapshot);
 
-            drawableLane.SetKeysoundTimeline((beatmap as BmsBeatmap)?.GetLaneKeysoundTimeline(lane.LaneIndex));
+            drawableLane.SetKeysoundTimeline(beatmap.GetLaneKeysoundTimeline(lane.LaneIndex));
 
-            applyLaneBounds(drawableLane, lane, LaneLayout.TotalRelativeWidth);
+            GameplaySkinLayoutGroup group = LayoutSnapshot.Neutral.GetGroup(snapshotLane.NeutralLane.TopologyEntry.Identity.Group.Id);
+            applyLaneBounds(drawableLane, snapshotLane, group.Rect);
 
             return drawableLane;
         }
 
-        // Rebuilds the layout profile with the active skin's per-keymode geometry overrides. With no override present the
-        // default profile is left untouched, so non-skin (and non-OMS) play stays byte-identical. HitTargetVerticalOffset
-        // is deliberately not skinnable (it must stay 0 to keep scrollLengthRatio == 1, preserving GN / judgement timing).
-        // The replaced profile flows to the already-built lanes via the playfield-style bind that fires right after load.
-        private void applySkinGeometry(ISkin skin)
+        private BmsGameplayLayoutGroupContainer createGroupContainer(GameplaySkinLayoutGroup group)
         {
-            var keymode = LaneLayout.Keymode;
-
-            float? normalLaneWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneWidth, keymode)?.Value;
-            float? scratchLaneWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneWidth, keymode)?.Value;
-            float? normalLaneSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneSpacing, keymode)?.Value;
-            float? scratchLaneSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneSpacing, keymode)?.Value;
-            float? playfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value;
-            float? playfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value;
-            float? hitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value;
-            float? hitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value;
-            float? hitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value;
-            float? hitTargetGlowRadius = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetGlowRadius, keymode)?.Value;
-            float? barLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.BarLineHeight, keymode)?.Value;
-
-            bool anyOverride = normalLaneWidth != null || scratchLaneWidth != null || normalLaneSpacing != null || scratchLaneSpacing != null
-                               || playfieldWidth != null || playfieldHeight != null || hitTargetHeight != null || hitTargetBarHeight != null
-                               || hitTargetLineHeight != null || hitTargetGlowRadius != null || barLineHeight != null;
-
-            if (!anyOverride)
-                return;
-
-            var profile = BmsPlayfieldLayoutProfile.CreateDefault(
-                keymode,
-                LaneLayout.Profile.LaneCount,
-                normalLaneRelativeWidth: normalLaneWidth,
-                scratchLaneRelativeWidth: scratchLaneWidth,
-                normalLaneRelativeSpacing: normalLaneSpacing,
-                scratchLaneRelativeSpacing: scratchLaneSpacing,
-                playfieldWidth: playfieldWidth,
-                playfieldHeight: playfieldHeight,
-                hitTargetHeight: hitTargetHeight,
-                hitTargetBarHeight: hitTargetBarHeight,
-                hitTargetLineHeight: hitTargetLineHeight,
-                hitTargetGlowRadius: hitTargetGlowRadius,
-                barLineHeight: barLineHeight);
-
-            LaneLayout = BmsLaneLayout.CreateFor(beatmap, profile);
-        }
-
-        private void applyLaneLayout(BmsLaneLayout laneLayout)
-        {
-            if (laneLayout.Lanes.Count != lanes.Length)
-                throw new InvalidOperationException("Configured lane layout must match the existing lane count.");
-
-            LaneLayout = laneLayout;
-
-            for (int i = 0; i < lanes.Length; i++)
+            var groupLanes = lanes.Where(lane => lane.LayoutSnapshotLane?.NeutralLane.TopologyEntry.Identity.Group.Id == group.GroupId).ToArray();
+            var container = new BmsGameplayLayoutGroupContainer(group.GroupId, LayoutSnapshot)
             {
-                lanes[i].ApplyLayoutProfile(laneLayout.Lanes[i], laneLayout.Profile);
-                applyLaneBounds(lanes[i], laneLayout.Lanes[i], laneLayout.TotalRelativeWidth);
-            }
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                RelativePositionAxes = Axes.X,
+                RelativeSizeAxes = Axes.Both,
+                Height = 1,
+                Children = groupLanes,
+            };
+
+            applyGroupBounds(container, group.Rect, LayoutSnapshot.PlayfieldRect);
+
+            foreach (BmsLane lane in groupLanes)
+                applyLaneBounds(lane, lane.LayoutSnapshotLane!, group.Rect);
+
+            return container;
         }
 
-        private void applyPlayfieldStyle()
+        private void initialiseLayoutGraph(BmsGameplayLayoutSnapshot snapshot)
         {
-            var updatedLayout = BmsLaneLayout.CreateFor(beatmap, LayoutProfile, playfieldStyle.Value);
+            ArgumentNullException.ThrowIfNull(snapshot);
 
-            applyLaneLayout(updatedLayout);
+            if (layoutGraphInitialised)
+                throw new InvalidOperationException("The immutable BMS playfield layout graph has already been constructed.");
 
-            switch (updatedLayout.Style)
+            if (snapshot.Keymode != beatmap.BmsInfo.Keymode)
+                throw new InvalidOperationException("The BMS playfield snapshot does not match the parser-owned keymode.");
+
+            LayoutSnapshot = snapshot;
+            LaneLayout = snapshot.LaneLayout;
+            lanes = LaneLayout.Lanes.Select(createLane).ToArray();
+            groupContainers = LayoutSnapshot.Neutral.GroupsInLogicalOrder.Select(createGroupContainer).ToArray();
+
+            if (lanes.Length > 0)
             {
-                case BmsPlayfieldStyle.P1:
-                    playfieldContainer.Anchor = Anchor.TopLeft;
-                    playfieldContainer.Origin = Anchor.TopLeft;
-                    playfieldContainer.X = SIDE_ANCHORED_HORIZONTAL_INSET;
-                    break;
-
-                case BmsPlayfieldStyle.P2:
-                    playfieldContainer.Anchor = Anchor.TopRight;
-                    playfieldContainer.Origin = Anchor.TopRight;
-                    playfieldContainer.X = -SIDE_ANCHORED_HORIZONTAL_INSET;
-                    break;
-
-                default:
-                    playfieldContainer.Anchor = Anchor.TopCentre;
-                    playfieldContainer.Origin = Anchor.TopCentre;
-                    playfieldContainer.X = 0;
-                    break;
+                laneScrollLengthRatio = lanes[0].ScrollLengthRatio.GetBoundCopy();
+                laneScrollLengthRatio.BindValueChanged(ratio => scrollLengthRatio.Value = ratio.NewValue, true);
             }
+
+            foreach (BmsLane lane in lanes)
+                AddNested(lane);
+
+            addMeasureBarLines(beatmap);
+            addMines(beatmap);
+            layoutGraphInitialised = true;
         }
 
-        private static void applyLaneBounds(BmsLane drawableLane, BmsLaneLayout.Lane lane, float totalRelativeWidth)
+        private static void applyLaneBounds(BmsLane drawableLane, BmsGameplayLayoutLane lane, GameplaySkinLayoutRect group)
         {
             drawableLane.RelativePositionAxes = Axes.X;
-            drawableLane.X = lane.RelativeStart / totalRelativeWidth;
-            drawableLane.Width = lane.RelativeWidth / totalRelativeWidth;
+            drawableLane.X = (lane.NeutralLane.Rect.X - group.X) / group.Width;
+            drawableLane.Width = lane.NeutralLane.Rect.Width / group.Width;
             drawableLane.Height = 1;
         }
 
+        private static void applyGroupBounds(BmsGameplayLayoutGroupContainer container, GameplaySkinLayoutRect group, GameplaySkinLayoutRect playfield)
+        {
+            container.X = (group.X - playfield.X) / playfield.Width;
+            container.Width = group.Width / playfield.Width;
+            container.Height = 1;
+        }
+
         private BmsLane getLane(BmsHitObject hitObject)
-            => lanes[Math.Clamp(hitObject.LaneIndex, 0, lanes.Length - 1)];
+            => lanes[LayoutProvider.GetLaneForObject(hitObject).LogicalIndex];
 
         private void addMeasureBarLines(BmsBeatmap beatmap)
         {
@@ -421,7 +421,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     {
                         StartTime = startTime,
                         Major = true,
-                    }, lane.LayoutLane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile));
+                    }, lane.LayoutLane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, lane.LayoutSnapshotLane, LayoutSnapshot));
                 }
             }
         }
@@ -435,7 +435,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             foreach (var mine in beatmap.Mines)
             {
-                int laneIndex = Math.Clamp(mine.LaneIndex, 0, lanes.Length - 1);
+                int laneIndex = LayoutSnapshot.GetLaneByLogicalIndex(mine.LaneIndex).LogicalIndex;
                 lanes[laneIndex].Add(new DrawableBmsMine(mine));
             }
         }

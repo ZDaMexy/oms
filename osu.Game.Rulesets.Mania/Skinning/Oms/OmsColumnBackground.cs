@@ -4,9 +4,9 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.UI.Components;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -14,8 +14,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 {
     public partial class OmsColumnBackground : OmsManiaColumnElement
     {
-        [Resolved]
-        private StageDefinition stageDefinition { get; set; } = null!;
+        internal bool IsStageLastColumn { get; private set; }
 
         public OmsColumnBackground()
         {
@@ -29,7 +28,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
             float rightLineWidth = GetColumnSkinConfig<float>(skin, LegacyManiaSkinConfigurationLookups.RightLineWidth)?.Value ?? 1;
 
             bool hasLeftLine = leftLineWidth > 0;
-            bool isLastColumn = Column.Index % stageDefinition.Columns == stageDefinition.Columns - 1;
+            GameplaySkinLaneTopologyEntry lane = TopologyLane;
+            GameplaySkinLaneTopologyGroup group = TopologyGroup;
+            bool isLastColumn = lane.GroupLocalLogicalIndex == group.LanesInLogicalOrder.Count - 1;
+            IsStageLastColumn = isLastColumn;
             bool hasRightLine = (rightLineWidth > 0 && skin.GetConfig<SkinConfiguration.LegacySetting, decimal>(SkinConfiguration.LegacySetting.Version)?.Value >= 2.4m) || isLastColumn;
 
             Color4 lineColour = GetColumnSkinConfig<Color4>(skin, LegacyManiaSkinConfigurationLookups.ColumnLineColour)?.Value ?? Color4.White;

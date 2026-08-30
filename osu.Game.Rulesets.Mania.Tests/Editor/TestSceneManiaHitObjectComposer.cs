@@ -21,6 +21,7 @@ using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Screens.Edit;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK;
 using osuTK.Input;
@@ -29,6 +30,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Editor
 {
     public partial class TestSceneManiaHitObjectComposer : EditorClockTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         private TestComposer composer;
 
         [SetUp]

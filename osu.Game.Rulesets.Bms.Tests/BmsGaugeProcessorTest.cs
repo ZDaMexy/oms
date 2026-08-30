@@ -4,7 +4,6 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
-using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Mods;
@@ -21,6 +20,16 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestRulesetCreatesBmsGaugeProcessor()
             => Assert.That(new BmsRuleset().CreateHealthProcessor(0), Is.TypeOf<BmsGaugeProcessor>());
+
+        [Test]
+        public void TestGaugeKeymodeFailsClosedUntilParserOwnedBeatmapIsApplied()
+        {
+            var processor = new BmsGaugeProcessor(0);
+
+            Assert.That(
+                () => _ = processor.Keymode,
+                Throws.InvalidOperationException.With.Message.EqualTo("bms.keymode.missing-gauge-authority"));
+        }
 
         [TestCase(BmsGaugeType.AssistEasy, 0.2)]
         [TestCase(BmsGaugeType.Easy, 0.2)]
@@ -439,6 +448,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 {
                     StartTime = i,
                     LaneIndex = 1,
+                    Keymode = keymode,
                 });
             }
 
@@ -457,6 +467,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     StartTime = noteCount + 2,
                     LaneIndex = 0,
                     AutoPlay = true,
+                    Keymode = keymode,
                 });
             }
 
@@ -472,6 +483,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 StartTime = baselineNoteCount + 1000,
                 EndTime = baselineNoteCount + 1500,
                 LaneIndex = 1,
+                Keymode = beatmap.BmsInfo.Keymode,
             };
 
             holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -493,6 +505,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 EndTime = baselineNoteCount + 1500,
                 LaneIndex = 0,
                 IsScratch = true,
+                Keymode = beatmap.BmsInfo.Keymode,
             };
 
             holdNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty
@@ -504,7 +517,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             return beatmap;
         }
 
-        private static JudgementResult createResult(osu.Game.Rulesets.Objects.HitObject hitObject, HitResult hitResult)
+        private static JudgementResult createResult(Rulesets.Objects.HitObject hitObject, HitResult hitResult)
             => new JudgementResult(hitObject, hitObject.CreateJudgement())
             {
                 Type = hitResult,

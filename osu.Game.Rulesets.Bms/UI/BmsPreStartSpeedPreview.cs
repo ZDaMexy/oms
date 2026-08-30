@@ -31,10 +31,19 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public float PrimaryNoteProgress => previewNotes[0].Progress;
 
-        public BmsPreStartSpeedPreview(BmsLaneLayout.Lane lane, BmsKeymode keymode, IBindable<BmsScrollSpeedMetrics> speedMetrics, float noteHeight)
+        internal float PrimaryNoteScreenSpaceHeight => previewNotes[0].ScreenSpaceDrawQuad.Height;
+
+        public BmsGameplayLayoutSnapshot LayoutSnapshot { get; }
+
+        public BmsPreStartSpeedPreview(
+            BmsGameplayLayoutLane lane,
+            BmsKeymode keymode,
+            IBindable<BmsScrollSpeedMetrics> speedMetrics,
+            BmsGameplayLayoutSnapshot layoutSnapshot)
         {
-            LaneIndex = lane.LaneIndex;
-            this.noteHeight = Math.Max(1, noteHeight);
+            LaneIndex = lane.LogicalIndex;
+            LayoutSnapshot = layoutSnapshot ?? throw new ArgumentNullException(nameof(layoutSnapshot));
+            noteHeight = LayoutSnapshot.ProjectVerticalProfileMetric(LayoutSnapshot.Profile.HitTargetHeight);
 
             this.speedMetrics = speedMetrics.GetBoundCopy();
 
@@ -111,15 +120,20 @@ namespace osu.Game.Rulesets.Bms.UI
 
             public float Progress { get; private set; }
 
-            public PreviewNote(double phaseOffset, BmsLaneLayout.Lane lane, BmsKeymode keymode)
+            public PreviewNote(double phaseOffset, BmsGameplayLayoutLane lane, BmsKeymode keymode)
             {
                 PhaseOffset = phaseOffset;
 
-                RelativeSizeAxes = Axes.X;
+                RelativeSizeAxes = Axes.Both;
                 Width = 1;
                 Masking = true;
 
-                InternalChild = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(BmsNoteSkinElements.Note, lane.LaneIndex, lane.IsScratch, keymode))
+                InternalChild = new BmsAsyncNoteDrawable(new BmsNoteSkinLookup(
+                    BmsNoteSkinElements.Note,
+                    lane.LogicalIndex,
+                    lane.IsScratch,
+                    keymode,
+                    lane.LaneId))
                 {
                     RelativeSizeAxes = Axes.Both,
                 };
@@ -130,9 +144,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 Progress = progress;
                 Height = noteHeight;
 
-                float clampedHeight = Math.Max(noteHeight, 1);
-                float endY = Math.Max(availableHeight - clampedHeight, 0);
-                Y = -clampedHeight + (endY + clampedHeight) * progress;
+                float drawHeight = Math.Clamp(noteHeight * availableHeight, 0, availableHeight);
+                float endY = Math.Max(availableHeight - drawHeight, 0);
+                Y = -drawHeight + (endY + drawHeight) * progress;
             }
         }
     }

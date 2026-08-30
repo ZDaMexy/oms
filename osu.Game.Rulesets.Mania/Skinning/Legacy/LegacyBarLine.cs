@@ -14,12 +14,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
     public partial class LegacyBarLine : CompositeDrawable
     {
         [BackgroundDependencyLoader]
-        private void load(ISkinSource skin)
+        private void load(ISkinSource skin, ManiaGameplaySkinStageContext stageContext)
         {
-            float skinHeight = skin.GetManiaSkinConfig<float>(LegacyManiaSkinConfigurationLookups.BarLineHeight)?.Value ?? 1;
-
             RelativeSizeAxes = Axes.X;
-            Height = 1.2f * skinHeight;
+            Height = 1.2f * ManiaGameplaySkinLayoutProjection.GetBarLineBaseHeight(stageContext);
             Colour = skin.GetManiaSkinConfig<Color4>(LegacyManiaSkinConfigurationLookups.BarLineColour)?.Value ?? Color4.White;
 
             // Avoid flickering due to no anti-aliasing of boxes by default.

@@ -157,6 +157,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             public TestableDrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap)
                 : base(ruleset, beatmap)
             {
+                InitialiseCompatibilityLayoutForTesting();
             }
         }
     }

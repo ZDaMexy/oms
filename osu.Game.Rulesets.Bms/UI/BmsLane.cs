@@ -9,11 +9,9 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
-using osu.Game.Audio;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
-using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Objects.Drawables;
@@ -31,7 +29,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public bool IsScratch { get; }
 
-        public BmsLaneLayout.Lane LayoutLane { get; private set; }
+        public BmsLaneLayout.Lane LayoutLane { get; }
+
+        public BmsGameplayLayoutLane? LayoutSnapshotLane { get; }
+
+        public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
 
         public BmsHitTarget HitTarget { get; }
 
@@ -39,7 +41,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public IBindable<double> ScrollLengthRatio => hitObjectArea.ScrollLengthRatio;
 
-        protected BmsPlayfieldLayoutProfile LayoutProfile { get; private set; }
+        protected BmsPlayfieldLayoutProfile LayoutProfile { get; }
 
         private readonly BmsOrderedHitPolicy hitPolicy;
         private readonly int laneCount;
@@ -62,9 +64,18 @@ namespace osu.Game.Rulesets.Bms.UI
         internal void SetKeysoundTimeline(IReadOnlyList<BmsLaneKeysoundEntry>? timeline)
             => keysoundTimeline = timeline ?? Array.Empty<BmsLaneKeysoundEntry>();
 
-        public BmsLane(BmsLaneLayout.Lane lane, int laneCount, BmsKeymode keymode, BmsPlayfieldLayoutProfile layoutProfile, BindableFloat? liftUnits = null)
+        public BmsLane(
+            BmsLaneLayout.Lane lane,
+            int laneCount,
+            BmsKeymode keymode,
+            BmsPlayfieldLayoutProfile layoutProfile,
+            BindableFloat? liftUnits = null,
+            BmsGameplayLayoutLane? layoutSnapshotLane = null,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null)
         {
             LayoutLane = lane;
+            LayoutSnapshotLane = layoutSnapshotLane;
+            LayoutSnapshot = layoutSnapshot;
             LaneIndex = lane.LaneIndex;
             IsScratch = lane.IsScratch;
             this.laneCount = laneCount;
@@ -97,12 +108,21 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         protected BmsLaneSkinLookup createLookup(BmsLaneSkinElements element, bool isMajorBarLine = true)
-            => new BmsLaneSkinLookup(element, LaneIndex, laneCount, IsScratch, keymode, isMajorBarLine);
+            => new BmsLaneSkinLookup(
+                element,
+                LaneIndex,
+                laneCount,
+                IsScratch,
+                keymode,
+                isMajorBarLine,
+                LayoutSnapshotLane?.LaneId,
+                element == BmsLaneSkinElements.HitTarget ? LayoutProfile : null,
+                element == BmsLaneSkinElements.HitTarget ? LayoutSnapshot : null);
 
-        protected virtual BmsHitTarget createHitTarget() => new BmsHitTarget(createLookup(BmsLaneSkinElements.HitTarget), LayoutProfile);
+        protected virtual BmsHitTarget createHitTarget() => new BmsHitTarget(createLookup(BmsLaneSkinElements.HitTarget), LayoutProfile, LayoutSnapshot);
 
         protected virtual BmsHitObjectArea createHitObjectArea()
-            => new BmsHitObjectArea(createHitTarget(), LayoutProfile, HitObjectContainer, liftUnits)
+            => new BmsHitObjectArea(createHitTarget(), LayoutProfile, HitObjectContainer, liftUnits, LayoutSnapshot)
             {
                 RelativeSizeAxes = Axes.Both,
             };
@@ -154,16 +174,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public virtual void OnReleased(KeyBindingReleaseEvent<BmsAction> e)
         {
-        }
-
-        public void ApplyLayoutProfile(BmsLaneLayout.Lane lane, BmsPlayfieldLayoutProfile layoutProfile)
-        {
-            LayoutLane = lane;
-            LayoutProfile = layoutProfile;
-            hitObjectArea.ApplyLayoutProfile(layoutProfile);
-
-            foreach (var barLine in AllHitObjects.OfType<DrawableBmsBarLine>())
-                barLine.ApplyLayoutProfile(layoutProfile);
         }
 
         private void triggerEmptyPoor()
@@ -311,7 +321,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 base.UpdateHitStateTransforms(state);
 
                 if (state != ArmedState.Idle)
-                    this.Expire();
+                    Expire();
             }
         }
     }

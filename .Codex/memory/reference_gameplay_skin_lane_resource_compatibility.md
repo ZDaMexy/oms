@@ -29,6 +29,7 @@ metadata:
 - P2/CenterRightScratch full bucket 使用 global visual index，stable lane ID/action 不变。
 - 14K deck bucket 使用 group-local visual index；同一个真实 Keys8 bucket 投影两次，因为 legacy decoder 不保留第二个 duplicate Keys8 section。Keys8 必须先于 Keys14，才能优先保留 scratch/deck-local presentation。
 - marker 是 `Absent` 的未来 canonical authority 终点，不是已装载 `oms-simple` snapshot；candidate plan 自身不验证资源、不做 first-value resolution，另由 internal provider adapter 消费。不能把两层混写成 production loader；native BMS 普通短键与长条头/身/尾的真实文件窄路径也没有把整套 candidate plan 或 `oms-simple` marker 生产化。
+- candidate lookup可读取exact snapshot中已经显式存储的logical/visual、global/group-local index，但不得从bucket序号、legacy token或候选顺序重建topology/geometry。stable identity与最终rect只能来自同一C3 layout publication；资源层不能形成第二solver。
 
 ## 9K raw token 地雷
 
@@ -49,7 +50,8 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - 缺 bucket/field 直接 `Inherit` 且不得调用 materializer；显式空字符串仍是 declaration，必须交给 materializer 做基础验证。ini declaration 永不产生 `Suppress`，取消异常必须传播。
 - source-aware reference 至少区分 source、Keys、stable lane ID、field 与 raw resource name。同一 raw name 在 BMS/mania 或不同 bucket 下可以有不同结果，不能只按字符串名跨 authority 共用；resource name 不得进入稳定诊断、JSON 或安全字符串。
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
-- active/provisional owner不能交叉：失败reload只dispose新provisional owner，旧active owner继续存活；成功原子替换先detach superseded consumer，再dispose旧owner；teardown同样先detach后dispose。该规则已由C2 `SkinCurrentRevision` participant/work lease落到production并签发，覆盖BMS async note/materializer与真实owner retirement；C3～C6新增consumer必须继续加入。
+- active/provisional owner不能交叉：失败reload只dispose新provisional owner，旧active owner继续存活；成功原子替换先detach superseded consumer，再dispose旧owner；teardown同样先detach后dispose。该规则已由C2 `SkinCurrentRevision` participant/work lease落到production并签发，覆盖BMS async note/materializer与真实owner retirement；C3又把package revision与唯一layout publication作为不可分pair加入同一barrier。C4～C6新增consumer必须继续加入。
+- production resource consumer若需要layout，只能从enclosing exact owner的`CurrentPublication`取得neutral/typed同一引用；注入另一owner的carrier、建立第二provider、把isolated compatibility snapshot升级为exact或在transformer/consumer另存可替换snapshot都必须fail-closed。详见[[reference_gameplay_skin_layout_snapshot]]。
 
 ## production source-bound note/LN 纵切地雷
 
@@ -58,11 +60,11 @@ V1 canonical 作者目标 `1..9` 必须经显式格式版本、迁移和冲突�
 - `GetTexture()` 之后才检查输入大小、尺寸/像素或累计预算已经太晚；先读受限元数据并做 pre-decode gate，解码后再核对实际值。runtime cap 也不等于 importer 的总解压字节、解压比或 zip-bomb gate。
 - Realm 的 hash-backed package 要先冻结不可变文件名→内容身份快照，再由该 revision 独占 private resource cache；大小写重复、路径越界、身份冲突或缺 blob 均只让对应 slot `Inherit`，不能从另一 package 补齐。
 - current reload的Realm/blob/held filesystem I/O、parser、texture decode与materialization都必须止于background prepare；update thread只做已准备且可逆的引用交换。BMS async note/materializer还须把generation、cancel、callback ownership与work lease保持到真实worker退出，不能只释放未采用Drawable。`BmsAsyncNoteDrawable`可能位于ancestor `!IsAlive`的hitobject下，首次Ready admission及source invalidation rebuild都要经GameHost scheduler；source event先同步进入work admission gate，推进generation并exact claim旧owner/CTS，再调度fresh rebuild。prepare install与finish publish比较captured generation；participant shutdown/dispose也先terminal并在同一gate推进generation/claim work，从合同上消除CTS double-dispose窄窗。Dispose不能退回不推进的local scheduler或留下晚到publication。
-- 当前production consumer已受C2 package revision barrier覆盖；未来layout/catalog/scene/script/剩余素材仍须在C3～C6逐批加入，只有C6才关闭ini/manifest/scene/script/全部素材的最终整包门。
+- 当前production consumer已受C2 package revision barrier覆盖，gameplay layout及BMS/mania/core/BGA viewport/HUD consumer已于C3加入同一package+layout pair。shared codec/catalog/三态resolver、scene/script/剩余素材仍须在C4～C6逐批加入，只有C6才关闭ini/manifest/scene/script/全部素材的最终整包门。
 - preparation cache仍按exact `BmsLegacySkin` instance/revision使用；active instance不观察原位来源变化，Settings manual Reload构造new instance/revision。same-instance refresh或逐组件A→B不得绕过统一barrier。
 - `Box` 继承 `Sprite`；测试若只用 `drawable is Sprite` 会把程序化 fallback 误判为用户贴图，必须验证 source-bound 类型/纹理身份或明确的宿主状态。
 
 ## production source-bound 边界
 
 - native BMS 普通短键是首个 package-scoped production 窄纵切，随后已扩到长条头/身/尾；当前自动/实机 gate 和精确测试数字只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。
-- 完整 candidate plan、其它 lane-resource、`oms-simple` authority 与 nullable `ISkin` ABI 未因该窄路径自动成立；该纵切的测试不得访问或写入生产数据。
+- C3只统一layout与其revision pair，没有实现shared codec、完整public catalog/`Provide-Inherit-Suppress` resolver、其它optional slot或mania资源parity。完整 candidate plan、`oms-simple` authority 与nullable `ISkin` ABI也未因C3自动成立；该纵切的测试不得访问或写入生产数据。

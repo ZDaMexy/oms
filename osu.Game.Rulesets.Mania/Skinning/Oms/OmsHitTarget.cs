@@ -8,8 +8,10 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
+using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
@@ -17,7 +19,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 {
     public partial class OmsHitTarget : OmsManiaColumnElement, IKeyBindingHandler<ManiaAction>
     {
-        private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
+        private readonly Bindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         private Container directionContainer = null!;
         private Container lightContainer = null!;
@@ -29,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
         }
 
         [BackgroundDependencyLoader]
-        private void load(ISkinSource skin, IScrollingInfo scrollingInfo)
+        private void load(ISkinSource skin, ManiaGameplaySkinStageContext stageContext)
         {
             string targetImage = skin.GetManiaSkinConfig<string>(LegacyManiaSkinConfigurationLookups.HitTargetImage)?.Value
                                  ?? "mania-stage-hint";
@@ -94,11 +96,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     Origin = Anchor.BottomCentre,
                     RelativeSizeAxes = Axes.Both,
                     Padding = new MarginPadding { Bottom = lightPosition },
-                    Child = light = lightAnimation ?? Drawable.Empty(),
+                    Child = light = lightAnimation ?? Empty(),
                 },
             };
 
-            direction.BindTo(scrollingInfo.Direction);
+            direction.Value = stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
+                ? ScrollingDirection.Up
+                : ScrollingDirection.Down;
             direction.BindValueChanged(onDirectionChanged, true);
         }
 

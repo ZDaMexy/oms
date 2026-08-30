@@ -18,11 +18,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         /// chart-filter-stats backfill, which only needs note counts and must not pay the full <see cref="Create"/> cost
         /// across a large library.
         /// </summary>
-        internal static BmsDecodedChart DecodeChart(Stream stream, string filename) => decoder.Decode(stream, filename);
+        internal static BmsDecodedChart DecodeChart(Stream stream, string filename, BmsBeatmapDecoderOptions? options = null)
+            => decoder.Decode(stream, filename, options);
 
-        public static BmsDecodedBeatmap Create(Stream stream, string filename)
+        public static BmsDecodedBeatmap Create(Stream stream, string filename, BmsBeatmapDecoderOptions? options = null)
         {
-            var decodedChart = decoder.Decode(stream, filename);
+            var decodedChart = decoder.Decode(stream, filename, options);
 
             var decodedBeatmap = new BmsDecodedBeatmap(decodedChart);
             var convertedBeatmap = (BmsBeatmap)ruleset.CreateBeatmapConverter(decodedBeatmap).Convert();

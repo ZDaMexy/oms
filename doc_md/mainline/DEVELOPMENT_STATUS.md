@@ -5,13 +5,13 @@
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。P1-A / Skin V1 的 `C1`作者工作区/archive与`C2`当前consumer revision publication/detach均已闭合；当前为 **`2/7 closed，C3 active`**，转入P1-K lane/keymode前置与唯一gameplay layout。`V-001`～`V-004`签收仍为 **0/4**，G1最终整包门、`SV1-2`整体、Skin V1、`SV1-1`和release均未完成。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。P1-A / Skin V1 的 `C1`作者工作区/archive、`C2`当前consumer revision publication/detach与`C3` P1-K前置+唯一gameplay layout均已闭合；当前为 **`3/7 closed，C4 active`**，转入shared codec/public catalog/三态resolver与mania compatibility。`V-001`～`V-004`签收仍为 **0/4**，G1最终整包门、Skin V1、`SV1-1`和release均未完成。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
-Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEVELOPMENT_PLAN.md)报告。`C1`与`C2`均已通过退出门，当前是`2/7 closed，C3 active`；C3必须同时闭合P1-K前置、唯一layout、全部production consumer、C2协议扩展与宽门，不能用DTO/solver或局部绿测代替campaign签发。
+Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEVELOPMENT_PLAN.md)报告。`C1`～`C3`均已通过退出门，当前是`3/7 closed，C4 active`；C3的P1-K前置、唯一immutable layout、全部production consumer、C2 package+layout pair扩展与宽门已共同签发，完成边界见[C3交接](../other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
 
-`2/7`是非等权硬退出门计数，不换算线性工期。产品核算确认C1/C2主要交付均有真实caller与production consumer或直接用户结果；底层复杂度直接保护用户目录、共享资源与跨revision owner生命周期。但最终用户可见Skin V1仍处早期，唯一layout、shared codec/三态、scene/event、sandbox、canonical双包与发行闭环均未交付。
+`3/7`是非等权硬退出门计数，不换算线性工期。C1～C3均由真实caller、production consumer或直接用户结果闭合；底层复杂度直接保护用户目录、共享资源、lane/keymode authority、统一geometry与跨revision owner生命周期。但最终用户可见Skin V1仍处早期，shared codec/三态、scene/event、sandbox、canonical双包与发行闭环均未交付。
 
 - Windows-only，保留 osu!mania + 第一类 BMS；Osu/Taiko/Catch 已删除。
 - 离线优先；Phase 3 前 OMS 私有服务与默认 endpoint 保持为空。用户主动添加公共 BMS 难度表 URL 是既有窄例外，不代表 OMS 在线产品能力已开放。
@@ -25,8 +25,8 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 
 | 顺序 | 工作面 | 当前状态 | 下一检查点 |
 | --- | --- | --- | --- |
-| 1 | R3/R4 / Skin V1 storage + layout | `C1`/`C2`已闭合；`C3 active` | 先闭合P1-K lane timeline/keymode authority，再交付唯一immutable layout及全部production consumer；新增consumer同切加入C2协议 |
-| 2 | R4 / Skin V1 后续合同 | `SV1-1` 整体仍未完成，`SV1-3`～`SV1-7` 未实现 | 补齐完整 layout/shared codec、所需 slot 三态与 scene/event/script runtime；这些不是进入 `SV1-2` 的前置 |
+| 1 | R3/R4 / Skin V1 storage + layout | `C1`～`C3`已闭合 | 保持P1-K authority、唯一immutable layout与C2 package+layout pair合同，不重开或旁路 |
+| 2 | R4 / Skin V1 后续合同 | `C4 active`；`SV1-1`整体仍未完成 | 冻结shared codec/public catalog/`Provide/Inherit/Suppress` resolver与mania compatibility；beatmap-local作者格式同campaign取得终态决定 |
 | 3 | 集中视觉签收 | R2 首个 Note/LN 纵切的四组件自动门已闭合；`V-001`～`V-004` 签收 0/4 | 继续登记到[集中视觉清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，在 Skin V1/release 完成声明前统一签收 |
 | 4 | P1-B/P1-D 输入 | 软件基线可用 | analog scratch、校准、真实 HID |
 | 5 | P1-E/P1-G 人工验收 | 待闭合 | LN/CN/HCN、BGA、Song Select、发行 checklist |
@@ -36,7 +36,7 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 - 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；选中的用户 BMS 包可为普通短键与长条 head/body/tail 提供静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，用户包/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享 neutral ini/asset/animation/event runtime、三态解析与 sandbox，ruleset topology/layout adapter 分离；当前窄纵切不代表这些能力已经完成。
-- G1 的managed scanner/selection/mutation基线与C1 Folder Skin Workspace已成为C2冻结输入：external永久只读，copy bytes只来自immutable capsule，目录来自同次manifest；ordinary `.osk`继续是hash-backed Realm package。C2已用explicit manual Reload统一三源current revision并稳定关闭legacy update/editor旁路；C3～C6新增consumer仍须加入同一participant/lease协议，最终整包门到C6。完整layout/shared codec、其它slot三态、scene/event/script、canonical双包/Authoring Kit与移除程序化产品视觉均未完成。
+- G1 的managed scanner/selection/mutation基线与C1 Folder Skin Workspace已成为C2冻结输入：external永久只读，copy bytes只来自immutable capsule，目录来自同次manifest；ordinary `.osk`继续是hash-backed Realm package。C2已用explicit manual Reload统一三源current revision并稳定关闭legacy update/editor旁路；C3又把唯一layout作为同一package+layout publication及participant/lease加入协议。C4～C6新增codec/scene/script consumer仍须同切加入，最终整包门到C6。shared codec、其它slot三态、scene/event/script、canonical双包/Authoring Kit与移除程序化产品视觉均未完成。
 
 恢复边界见 [2026-07-10 恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，当前实现与未完成 gate 见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，V1 完成定义见 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
@@ -44,7 +44,7 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 
 | 子线 | 当前状态 |
 | --- | --- |
-| P1-A | `SV1-0` 全过；Note/LN四组件自动 gate 通过、`V-001`～`V-004`待验收；C1作者工作区/archive与C2 current revision均已闭合，当前`2/7 closed，C3 active` |
+| P1-A | `SV1-0` 全过；Note/LN四组件自动 gate 通过、`V-001`～`V-004`待验收；C1～C3已闭合，当前`3/7 closed，C4 active` |
 | P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
 | P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
 | P1-D | deadzone/sensitivity/live diagnostics 未完成 |
@@ -54,13 +54,17 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 | P1-H | 文件系统谱库与多根扫描基线已落；删除/失效/去重仍是 backlog |
 | P1-I | 选歌分组/筛选/搜索主功能已落；拖拽 headless 与 shared visual 待补 |
 | P1-J | 普通密度音频/性能主故障已收口；转谱 LN/50k/人工清单待做 |
-| P1-K | K1–K12 主体阶段性收口；lane timeline 上界与 sparse keymode authority 待修 |
+| P1-K | K1–K12主体阶段性收口；C3所需lane timeline上界、sparse keymode authority与真实末端lane发声已闭合，其余状态见子线 |
 | P1-L | BGA 播放主链已落；内容/viewport 解耦、逐谱视觉与反向滚动待做 |
 | P1-M | 规划完成，未开工 |
 
 入口和下一道门见 [子线路由](../subline/README.md)。
 
 ## 最近一次验证
+
+### R3/R4 / Skin V1 C3完成：2026-08-30
+
+P1-K decoder/converter authority **176/176**、BMS→mania projection **24/24**、BMS/converted-mania shared keysound实际发声 **14/14 + 2/2**；BMS C3 relevant **316/316**、mania C3 **27/27**、core focused **56/56**、产品并发/原子性 **17/17**。formatter后宽关键集core/BMS/mania **47/47、235/235、51/51**；最终owner审计红绿硬化后critical复验为core/mania/BMS **48/48、51/51、37/37**。core canonical `~Skin` **1164/1170**（六项精确既有基线），mania `~Skin` **209/209**、mania full **854/858**（四项既有AutoGeneration基线），BMS `~Skin` **802/802**、BMS full **1763/1763**且无hang sequence；Release **0 error / 9 known warnings**。唯一publication、reachable bypass、P1-K authority、participant/owner与并发独立终审为blocker/major/moderate/minor **0/0/0/0**。燃尽推进至 **`3/7 closed，C4 active`**；详见[C3完成交接](../other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
 
 ### R3 / `SV1-2` C2完成：2026-08-24
 
@@ -85,16 +89,15 @@ core focused **204/204**，PendingAsync ownership visual/host **11/11**，完整
 ## 当前风险
 
 - 四个无 authority orphan blob 暂留并已保全；schema 57迁移保持owner=null，当前scanner也不会claim、去重或清理它们。
-- 当前可见纵切只覆盖 BMS 普通短键与 LN head/body/tail，不含 key、mania、完整 layout/三态或 scene/script；Skin V1 不能据此宣称可用。
-- 旧逐组件异步替换与runtime资源预算仍不等于C6最终ini/manifest/scene/script/素材整包门或importer zip-bomb gate；C2只关闭当前production consumer的package revision生命周期，C3～C6新增consumer仍须加入。
+- 当前作者可见素材纵切只覆盖BMS普通短键与LN head/body/tail；mania公共素材、完整三态、scene/script仍未进入公共作者合同，Skin V1不能据此宣称完成。
+- C3的package+layout pair仍不等于C6最终ini/manifest/scene/script/素材整包门；C4～C6新增consumer必须继续加入同一revision/lease协议。
 - active实例固定到immutable owner，磁盘变化不会混入。已登记且current的managed/external内容可在安全screen显式点击`Reload current skin`准备新revision；ordinary Realm `.osk`也走同一协议，但没有作者update-import入口。gameplay/preview在source prepare前拒绝，不实现watcher。
 - managed自动发现只在`OsuGame.LoadComplete`后执行一次；启动后新增direct child仍需重启发现，已有record的manual Reload不由scanner触发。
 - configured selection仍只对typed startup/staged-import contention异步重试，generic mutation epoch跨越即fail-closed；manual Reload另有participant/source revision复核，不得把两条链或watcher混写。
 - C1的Workspace Rename/Delete与full ManagedCopy已过退出门，但held-root mutation与journal/recovery仍不是filesystem transaction。C2冻结的current external/managed/ordinary mutation均先fallback+detach；external只pure-Realm remove且source零I/O，managed首个physical后的uncertain failure保持fallback并由durable recovery收口。
 - 当前链底仍是程序化 `OmsSkin`，不是最终只读 `oms-simple.osk`。
 - BMS 单套测试全绿不证明 mania 默认资源、真实选择链或视觉事件正确。
-- `LongNoteBodyWidth` 已有首个安全合法域；完整几何 descriptor 仍归 R4，统一前 playfield 与 gauge/combo/BGA 仍可能脱节。
-- lane keysound timeline 仍有 5K/7K 边缘轨及 14K 第二皿丢失风险，另立 P1-K/P1-J 切片修复。
+- C3唯一layout已关闭playfield、gauge/combo、HUD与BGA viewport的第二套几何；后续风险是C4～C6新增codec/scene/script consumer是否继续消费同一publication，不能另建布局。
 - abnormal-period 归档只能定点取证；50k dense、真实硬件和特殊 Gimmick 仍必须以 profiler/实机证据推进。
 
 ## 更新规则

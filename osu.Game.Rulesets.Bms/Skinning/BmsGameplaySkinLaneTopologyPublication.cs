@@ -56,11 +56,18 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public BmsGameplaySkinLaneTopologyPublication? Current { get; private set; }
 
+        public BmsGameplaySkinLaneTopologyPublication Publish(BmsKeymode keymode, BmsPlayfieldStyle style)
+            => publish(BmsGameplaySkinLaneTopologyFactory.Create(keymode, style));
+
         public BmsGameplaySkinLaneTopologyPublication Publish(BmsLaneLayout layout)
         {
             ArgumentNullException.ThrowIfNull(layout);
 
-            BmsGameplaySkinLaneTopologyProjection projection = BmsGameplaySkinLaneTopologyFactory.Create(layout);
+            return publish(BmsGameplaySkinLaneTopologyFactory.Create(layout));
+        }
+
+        private BmsGameplaySkinLaneTopologyPublication publish(BmsGameplaySkinLaneTopologyProjection projection)
+        {
             GameplaySkinLaneTopologyPublication publication = revisionOwner.Publish(projection.Keymode, projection.Topology);
             var result = new BmsGameplaySkinLaneTopologyPublication(projection, publication);
 

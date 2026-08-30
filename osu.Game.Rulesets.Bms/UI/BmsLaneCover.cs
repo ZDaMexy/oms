@@ -11,7 +11,6 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using osuTK.Graphics;
 
@@ -40,6 +39,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private readonly Container cover;
         private readonly SkinnableLaneCoverDisplay display;
+
+        [Resolved]
+        private BmsGameplayLayoutProvider layoutProvider { get; set; } = null!;
+
+        internal BmsGameplayLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
         protected float CoverContainerHeight => cover.Height;
 
@@ -71,6 +75,12 @@ namespace osu.Game.Rulesets.Bms.UI
             CoverPercent.BindValueChanged(_ => updateCoverage(), true);
             CoverOpacity.BindValueChanged(_ => updateOpacity(), true);
             IsFocused.BindValueChanged(_ => updateFocusState(), true);
+        }
+
+        [BackgroundDependencyLoader]
+        private void load()
+        {
+            LayoutSnapshot = layoutProvider.Current;
         }
 
         private void updateCoverage()
@@ -116,6 +126,7 @@ namespace osu.Game.Rulesets.Bms.UI
     internal partial class DefaultBmsLaneCoverDisplay : CompositeDrawable, IBmsLaneCoverDisplay
     {
         private readonly BmsLaneCoverPosition position;
+        private readonly BmsKeymode? isolatedKeymode;
         private Box focusEdge = null!;
         private Box focusWash = null!;
         private bool isFocused;
@@ -123,7 +134,7 @@ namespace osu.Game.Rulesets.Bms.UI
         public float FocusEdgeAlpha => focusEdge?.Alpha ?? 0;
 
         [Resolved(CanBeNull = true)]
-        private GameplayState? gameplayState { get; set; }
+        private BmsGameplayLayoutProvider? layoutProvider { get; set; }
 
         public DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition position)
         {
@@ -131,11 +142,29 @@ namespace osu.Game.Rulesets.Bms.UI
             RelativeSizeAxes = Axes.Both;
         }
 
+        /// <summary>
+        /// Creates an isolated skin-component preview with an explicit keymode authority. Production gameplay uses the
+        /// gameplay-root <see cref="BmsGameplayLayoutProvider"/> resolved by the parameterless overload.
+        /// </summary>
+        internal DefaultBmsLaneCoverDisplay(BmsLaneCoverPosition position, BmsKeymode isolatedKeymode)
+            : this(position)
+        {
+            this.isolatedKeymode = isolatedKeymode;
+        }
+
         [BackgroundDependencyLoader]
         private void load(ISkinSource skin)
         {
-            // Resolve the keymode from the playable beatmap so a skin can bucket cover config per keymode (matches BgaPanel).
-            var keymode = gameplayState != null ? BmsLaneLayout.CreateFor(gameplayState.Beatmap).Keymode : BmsKeymode.Key7K;
+            BmsKeymode? keymodeAuthority = layoutProvider?.Current.Keymode ?? isolatedKeymode;
+
+            // A detached component has no parser-owned authority. Keep it inert rather than inventing a 7K surface.
+            if (!keymodeAuthority.HasValue)
+            {
+                InternalChild = new Box { RelativeSizeAxes = Axes.Both, Alpha = 0 };
+                return;
+            }
+
+            BmsKeymode keymode = keymodeAuthority.Value;
 
             var fillColour = skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.LaneCoverFillColour, keymode)?.Value ?? BmsDefaultPlayfieldPalette.LaneCoverFill;
             var shadeColour = skin.GetBmsSkinConfig<Color4>(BmsSkinConfigurationLookups.LaneCoverShadeColour, keymode)?.Value ?? BmsDefaultPlayfieldPalette.LaneCoverShade;

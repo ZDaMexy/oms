@@ -51,7 +51,17 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         /// </summary>
         public string? PreviewFile { get; set; }
 
-        public BmsKeymode Keymode { get; set; } = BmsKeymode.Key7K;
+        public BmsKeymode Keymode
+        {
+            get => KeymodeResolution.Keymode;
+            set => KeymodeResolution = BmsKeymodeResolution.CreateProgrammatic(value);
+        }
+
+        /// <summary>
+        /// The exact parser authority which selected <see cref="Keymode"/>. Programmatically constructed beatmaps
+        /// retain a distinct source rather than impersonating a decoded chart.
+        /// </summary>
+        public BmsKeymodeResolution KeymodeResolution { get; private set; } = BmsKeymodeResolution.CreateProgrammatic(BmsKeymode.Key7K);
 
         public IReadOnlyList<BmsMeasureLengthControlPoint> MeasureLengthControlPoints => measureLengthControlPoints;
 
@@ -208,6 +218,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             return 1.0;
         }
 
+        internal void SetKeymodeResolution(BmsKeymodeResolution resolution)
+        {
+            ArgumentNullException.ThrowIfNull(resolution);
+            KeymodeResolution = resolution;
+        }
+
         public BmsBeatmapInfo Clone()
         {
             var clone = new BmsBeatmapInfo
@@ -229,9 +245,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 LongNoteObjectId = LongNoteObjectId,
                 LongNoteType = LongNoteType,
                 PreviewFile = PreviewFile,
-                Keymode = Keymode,
                 PoorBgaMode = PoorBgaMode,
             };
+
+            // The resolution is immutable. Reusing the exact instance prevents clone/projection boundaries from
+            // degrading decoded source/evidence back to a generic programmatic keymode assignment.
+            clone.SetKeymodeResolution(KeymodeResolution);
 
             clone.SetMeasureLengthControlPoints(measureLengthControlPoints);
 

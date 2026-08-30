@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Rulesets.UI.Scrolling.Algorithms;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Graphics;
 
@@ -20,6 +21,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
     /// </summary>
     public abstract partial class ManiaSkinnableTestScene : SkinnableTestScene
     {
+        [Cached]
+        private readonly GameplaySkinLayoutRevisionOwner compatibilityLayoutOwner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
+
         [Cached(Type = typeof(IScrollingInfo))]
         protected readonly TestScrollingInfo ScrollingInfo = new TestScrollingInfo();
 

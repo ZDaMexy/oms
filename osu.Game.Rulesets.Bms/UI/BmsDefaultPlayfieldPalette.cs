@@ -47,7 +47,7 @@ namespace osu.Game.Rulesets.Bms.UI
         public static readonly Color4 MinorBarLine = new Color4(138, 152, 182, 102);
         public static readonly Color4 MajorBarLine = new Color4(214, 224, 243, 182);
 
-        public static Color4 GetLaneBackground(int laneIndex, bool isScratch, BmsKeymode keymode = BmsKeymode.Key7K)
+        public static Color4 GetLaneBackground(int laneIndex, bool isScratch, BmsKeymode keymode)
         {
             if (isScratch)
                 return ScratchLaneBackground;

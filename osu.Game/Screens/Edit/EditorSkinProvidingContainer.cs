@@ -13,8 +13,12 @@ namespace osu.Game.Screens.Edit
     {
         private readonly EditorBeatmapSkin? beatmapSkin;
 
-        public EditorSkinProvidingContainer(EditorBeatmap editorBeatmap)
-            : base(editorBeatmap.PlayableBeatmap.BeatmapInfo.Ruleset.CreateInstance(), editorBeatmap.PlayableBeatmap, editorBeatmap.BeatmapSkin?.Skin)
+        public EditorSkinProvidingContainer(EditorBeatmap editorBeatmap, bool prepareGameplaySkinLayout = false)
+            : base(
+                editorBeatmap.PlayableBeatmap.BeatmapInfo.Ruleset.CreateInstance(),
+                editorBeatmap.PlayableBeatmap,
+                editorBeatmap.BeatmapSkin?.Skin,
+                prepareGameplaySkinLayout)
         {
             beatmapSkin = editorBeatmap.BeatmapSkin;
         }

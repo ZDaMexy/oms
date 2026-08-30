@@ -25,6 +25,8 @@ autoplay 必须等价于 100% 完美游玩。自动音符存在时 lane armed �
 - BGM/scratch sample-only 的 `Samples` 必须为空，键音只放 `KeysoundSample`，否则会被 mania `GameplaySampleTriggerSource` 按键反馈误播。详见 [[reference_bms_bgm1_pause_keytrigger_bug]]。
 - 转谱 store floor 128；玩家模式预热全部 keysound；同样本重触发走 channel fast path。
 - 已闭合：pause 边界停播、长 BGM 被 32 通道偷断、tap per-WAV cut、bgm1 按键误触发、普通密度帧抖动与冷解码 gen2 冻结。
+- C3 Skin 前置已闭合：parser 的 immutable `BmsKeymodeResolution` 是 keymode 唯一 truth；`LaneKeysoundTimelines` 以 `GetLaneCount()` 覆盖 5K/7K 末键、9K 全 lane、14K K14/S2 的 visible、LN head/tail armed 与 invisible，layout/runtime 不得二次读谱或猜 lane 数。
+- native BMS 玩家/autoplay 与 converted Mania 已在 production host 证明实际请求同一 shared store。Mirror/RANDOM/R-RANDOM/custom 的对象、mine、armed timeline 共用 exact permutation；S-RANDOM 无单一 permutation 时以 `bms.keysound.timeline.disabled-s-random` 禁用受影响 armed timeline，但对象自身 WAV 仍随 post-mod target lane 发声，keysound 与 skin lookup 使用同一 `LaneId`。
 - 仍开放：转谱 LN 池化嵌套头、长 one-shot BGM 真 pause/resume、50k 极端 dense profile。
 
 ## 地雷与诊断
@@ -32,8 +34,9 @@ autoplay 必须等价于 100% 完美游玩。自动音符存在时 lane armed �
 - 转谱 HoldNote 不能用非池化自定义嵌套 head；mania `DrawableHoldNote.Update()` 假设池化 head/tail 已建立。
 - mania pool 有 base-type fallback，但前提是 `CreateDrawableRepresentation` 返回 null；返回专用 drawable 就绕过池。
 - “人声截断/少键”先检查 parser，尤其缺省 `#LNTYPE` 应按 1；不要先改通道池。
+- “末端 lane/改键后静音”先同时检查 `BmsKeymodeResolution`、`LaneKeysoundTimelines` 与 post-mod `LaneId`；不得靠扩大 sample pool、改判定/binding 或在 renderer 猜 keymode 掩盖 authority 错位。
 - 隐藏发声不经过 store/hit-object 时，在最底层 `PoolableSkinnableSample.Play()` 用文件名过滤 + stack trace 定位。
 - 虚拟轨测试看不见真实发声/静音，音频改动必须真机。
 - GC 性能看 gen0:gen1、pause duration 和对象存活；少量中寿命分配也可造成晋升风暴。普通密度问题已收口，50k 先用 `BmsGameplayStallDiagnostics` 取证。
 
-历史误判、旧测试数字和逐日回退只查 P1-J/P1-K CHANGELOG。
+历史误判、旧测试数字和逐日回退只查 P1-J/P1-K CHANGELOG。2026-08-30 C3 前置的最终 focused/full/Release 数字见 [P1-K CHANGELOG](../../doc_md/subline/P1-K/CHANGELOG.md#2026-08-30)。

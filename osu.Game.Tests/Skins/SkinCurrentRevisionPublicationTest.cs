@@ -11,6 +11,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics.Textures;
 using osu.Game.Audio;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Tests.Skins
 {
@@ -741,6 +742,413 @@ namespace osu.Game.Tests.Skins
             live.Dispose();
             initial.ReleaseManagerLease();
             await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutPrepareRetainsExactWorkLeaseAndLateCommitFailsAfterRootDetach()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "live layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            GameplaySkinPreparedLayout prepared = layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(initial.LeaseCount, Is.EqualTo(3));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
+                Assert.That(initial.WorkDetached.IsCompleted, Is.False);
+                Assert.That(layoutOwner.Current, Is.Null);
+            });
+
+            live.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(initial.LeaseCount, Is.EqualTo(2));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(1));
+                Assert.That(initial.WorkDetached.IsCompleted, Is.False);
+                Assert.That(layoutOwner.TryCommit(prepared), Is.False);
+                Assert.That(layoutOwner.Current, Is.Null);
+            });
+
+            await initial.WorkDetached.WaitAsync(test_timeout);
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutSolveFailureReleasesWorkLeaseWithoutPublication()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "live layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            Assert.That(() => layoutOwner.Prepare(_ => throw new InvalidOperationException("geometry failed")), Throws.InvalidOperationException);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.Current, Is.Null);
+                Assert.That(initial.LeaseCount, Is.EqualTo(2));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(1));
+                Assert.That(initial.WorkDetached.IsCompleted, Is.True);
+            });
+
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutExactOwnerRejectsDirectSecondPublication()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "single-publication layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+
+            GameplaySkinPreparedLayout first = layoutOwner.Prepare(
+                revision => createLayoutSnapshot(package, revision));
+            Assert.That(layoutOwner.TryCommit(first), Is.True);
+            GameplaySkinLayoutPublication published = layoutOwner.CurrentPublication!;
+
+            Assert.That(
+                () => layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision)),
+                Throws.InvalidOperationException.With.Message.EqualTo(
+                    "An exact gameplay layout root may publish only one immutable layout."));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.CurrentPublication, Is.SameAs(published));
+                Assert.That(initial.LeaseCount, Is.EqualTo(2));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(1));
+                Assert.That(initial.WorkDetached.IsCompleted, Is.True);
+            });
+
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutExactOwnerRejectsPreparationWithoutFreshWorkLease()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => true,
+                acquireWorkLease: () => null,
+                captureParticipantGeneration: () => 0,
+                validateParticipantGeneration: _ => true,
+                commitAtParticipantGeneration: (_, commit) =>
+                {
+                    commit();
+                    return true;
+                },
+                dispatchCommit: runLayoutCommitImmediately);
+
+            Assert.That(
+                () => layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision)),
+                Throws.InvalidOperationException.With.Message.EqualTo(
+                    "An exact gameplay layout preparation requires a fresh package work lease."));
+            Assert.That(layoutOwner.Current, Is.Null);
+
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutParticipantAttachInvalidatesPrepareAndFreshBarrierCanCommit()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "live layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            SkinRevisionParticipantRegistration? attached = null;
+
+            Assert.That(
+                () => layoutOwner.Prepare(revision =>
+                {
+                    attached = harness.Publication.Register(
+                        SkinRevisionParticipantKind.LifecycleHolder,
+                        "attached during layout prepare");
+                    return createLayoutSnapshot(package, revision);
+                }),
+                Throws.TypeOf<GameplaySkinLayoutParticipantBarrierChangedException>().With.Message.EqualTo(
+                    "The gameplay layout participant barrier changed during background preparation."));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.Current, Is.Null);
+                Assert.That(initial.LeaseCount, Is.EqualTo(3));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
+            });
+
+            GameplaySkinPreparedLayout fresh = layoutOwner.Prepare(
+                revision => createLayoutSnapshot(package, revision));
+            Assert.That(layoutOwner.TryCommit(fresh), Is.True);
+            Assert.That(layoutOwner.Current, Is.SameAs(fresh.Snapshot));
+
+            attached!.Dispose();
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestNonLayoutParticipantAttachDoesNotInvalidateGameplayLayoutCarrier()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "live layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            SkinRevisionParticipantRegistration? nonLayout = null;
+
+            GameplaySkinPreparedLayout prepared = layoutOwner.Prepare(revision =>
+            {
+                nonLayout = harness.Publication.Register(
+                    SkinRevisionParticipantKind.LiveGameplayHost,
+                    "sample-only ruleset provider",
+                    affectsGameplayLayoutPublication: false);
+                return createLayoutSnapshot(package, revision);
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.TryCommit(prepared), Is.True);
+                Assert.That(layoutOwner.Current, Is.SameAs(prepared.Snapshot));
+                Assert.That(live.IsPublicationGenerationCurrent(prepared.ParticipantGeneration), Is.True);
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
+            });
+
+            nonLayout!.Dispose();
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutParticipantAttachBeforeCommitRejectsStaleCarrier()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "live layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            GameplaySkinPreparedLayout stale = layoutOwner.Prepare(
+                revision => createLayoutSnapshot(package, revision));
+            using SkinRevisionParticipantRegistration attached = harness.Publication.Register(
+                SkinRevisionParticipantKind.LifecycleHolder,
+                "attached before layout commit");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.TryCommit(stale), Is.False);
+                Assert.That(layoutOwner.Current, Is.Null);
+                Assert.That(initial.LeaseCount, Is.EqualTo(3));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
+            });
+
+            GameplaySkinPreparedLayout fresh = layoutOwner.Prepare(
+                revision => createLayoutSnapshot(package, revision));
+            Assert.That(layoutOwner.TryCommit(fresh), Is.True);
+
+            attached.Dispose();
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutCommitAdmissionAndLateParticipantAttachHaveOneAtomicOrder()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "atomic layout root");
+            Assert.That(live.TryCapturePublicationGeneration(out long generation), Is.True);
+            using var commitAdmitted = new ManualResetEventSlim();
+            using var releaseCommit = new ManualResetEventSlim();
+            using var attachStarted = new ManualResetEventSlim();
+            bool exchanged = false;
+
+            Task<bool> commit = Task.Run(() => live.TryCommitAtPublicationGeneration(generation, () =>
+            {
+                commitAdmitted.Set();
+
+                while (!releaseCommit.Wait(TimeSpan.FromMilliseconds(100)))
+                {
+                }
+
+                exchanged = true;
+            }));
+            Assert.That(commitAdmitted.Wait(test_timeout), Is.True);
+
+            Task<SkinRevisionParticipantRegistration> lateAttach = Task.Run(() =>
+            {
+                attachStarted.Set();
+                return harness.Publication.Register(
+                    SkinRevisionParticipantKind.LifecycleHolder,
+                    "late layout observer");
+            });
+            Assert.That(attachStarted.Wait(test_timeout), Is.True);
+            Assert.That(lateAttach.Wait(TimeSpan.FromMilliseconds(100)), Is.False,
+                "Participant registration must not enter between generation admission and the reference exchange.");
+
+            releaseCommit.Set();
+            Assert.That(await commit.WaitAsync(test_timeout), Is.True);
+            using SkinRevisionParticipantRegistration attached = await lateAttach.WaitAsync(test_timeout);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exchanged, Is.True);
+                Assert.That(attached.CurrentRevision, Is.SameAs(initial));
+                Assert.That(live.IsPublicationGenerationCurrent(generation), Is.False,
+                    "The participant which attached after the exchange must advance the next barrier generation.");
+            });
+
+            attached.Dispose();
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestParticipantAttachWinningBeforeGameplayLayoutAdmissionRejectsStaleExchange()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "stale layout root");
+            Assert.That(live.TryCapturePublicationGeneration(out long generation), Is.True);
+            using SkinRevisionParticipantRegistration attached = harness.Publication.Register(
+                SkinRevisionParticipantKind.LifecycleHolder,
+                "attachment which wins admission");
+            bool exchanged = false;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(live.TryCommitAtPublicationGeneration(generation, () => exchanged = true), Is.False);
+                Assert.That(exchanged, Is.False);
+            });
+
+            attached.Dispose();
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        private static GameplaySkinLayoutSnapshot createLayoutSnapshot(GameplaySkinPackageRevision package, long layoutRevision)
+        {
+            GameplaySkinLaneGroupIdentity groupIdentity = GameplaySkinLaneGroupIdentity.Create(
+                GameplaySkinLaneGroupId.Create("test.group"), GameplaySkinLaneSide.Neutral);
+            GameplaySkinLaneTopologySnapshot topology = GameplaySkinLaneTopologySnapshot.Create(new[]
+            {
+                GameplaySkinLaneTopologyGroup.Create(groupIdentity, 0, 0, new[]
+                {
+                    GameplaySkinLaneTopologyEntry.Create(
+                        GameplaySkinLaneIdentity.Create(
+                            GameplaySkinLaneId.Create("test.lane"), groupIdentity, GameplaySkinLaneRole.Key),
+                        0, 0, 0, 0),
+                }),
+            });
+            GameplaySkinLayoutRect screen = GameplaySkinLayoutRect.Create(0, 0, 1, 1);
+            GameplaySkinLayoutRect playfield = GameplaySkinLayoutRect.Create(0.25f, 0, 0.5f, 0.9f);
+            GameplaySkinLayoutContext context = GameplaySkinLayoutContext.Create(
+                "test",
+                "test.native",
+                "test.one-key",
+                "test.center",
+                topology,
+                screen,
+                screen,
+                16f / 9f,
+                1,
+                GameplaySkinScrollDirection.Down,
+                package,
+                topologyRevision: 0,
+                layoutRevision);
+
+            return GameplaySkinLayoutSnapshot.Create(
+                context,
+                new[] { new GameplaySkinLayoutGroup(topology.GroupsInLogicalOrder[0], playfield) },
+                new[] { new GameplaySkinLayoutLane(topology.LanesInLogicalOrder[0], playfield) },
+                new[] { new GameplaySkinLayoutSurface("playfield", playfield, 0, true, true) });
+        }
+
+        private static bool runLayoutCommitImmediately(Action commit)
+        {
+            commit();
+            return true;
         }
 
         private sealed class PublicationHarness : IDisposable

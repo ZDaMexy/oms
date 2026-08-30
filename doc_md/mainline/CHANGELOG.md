@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-08-30
+
+### Skin V1 C3 P1-K前置与唯一gameplay layout闭门
+
+P1-A七个campaign的`C3`已闭合。P1-K parser/converter现以可追溯的`BmsKeymodeResolution`冻结sparse keymode source/precedence、显式override/纠正入口与稳定脱敏diagnostic，证据不足fail-closed；lane keysound timeline上界统一为`GetLaneCount()`，覆盖5K/7K末键、9K全lane、14K右deck末键与Scratch2的visible/LN armed/invisible/mine，并由BMS玩家/autoplay及converted mania shared store实际发声证明。layout/skin/runtime不再二次读取BMS或猜lane数。
+
+core新增唯一ruleset-neutral immutable `GameplaySkinLayoutContext/Snapshot/Publication/RevisionOwner`，package与layout成为一个不可分割publication；BMS唯一solver覆盖5K/7K四style、9K BMS/PMS、14K双deck/双scratch/centre gap，mania adapter覆盖真实single/dual stage及stage-local special。BMS与mania的playfield/stage/lane/column、Note/LN/hold、barline、target/judgement、cover/pre-start、BGA最终viewport、gauge/combo/HUD全部只读同一exact snapshot；invalid geometry逐字段确定fallback但仍只发布完整snapshot。新consumer同切进入C2 background prepare、fresh barrier、update-thread commit、generation/lease/detach/retire，live gameplay/preview继续prepare前拒绝且无watcher。
+
+最终验证：P1-K decoder/converter **176/176**、projection **24/24**、真实发声 **14/14 + 2/2**、BMS relevant **316/316**、mania C3 **27/27**、core focused **56/56**、并发/原子性 **17/17**；formatter后宽关键集core/BMS/mania **47/47、235/235、51/51**。最终owner审计新增红测后，将exact one-shot guard下沉到shared owner、把mania topology捕获移入fresh leased solve，并让BMS managed入口提前拒绝compatibility；修正后critical复验core/mania/BMS **48/48、51/51、37/37**。core `~Skin` **1164/1170**、mania full **854/858**的失败均与精确既有基线相同；mania `~Skin` **209/209**、BMS `~Skin` **802/802**、BMS full **1763/1763**且无hang sequence，Release **0 error / 9 known warnings**。独立终审blocker/major/moderate/minor **0/0/0/0**。燃尽推进为 **`3/7 closed，C4 active`**；完整边界见[C3完成交接](../other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
+
 ## 2026-08-24
 
 ### Skin V1 C2 current revision publication / detach 闭门

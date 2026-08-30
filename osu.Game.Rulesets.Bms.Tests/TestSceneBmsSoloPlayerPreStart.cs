@@ -17,11 +17,14 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
+using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Input;
 
@@ -50,6 +53,10 @@ namespace osu.Game.Rulesets.Bms.Tests
 #RANK 2
 #00311:AA00
 #WAVAA key1.wav
+#WAVBB hold-head.wav
+#WAVCC hold-tail.wav
+#LNTYPE 1
+#00352:BB00CC00
 ", "pre-start-hi-speed-stub.bme");
         }
 
@@ -110,6 +117,67 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("hide generic health bar", () => player.ChildrenOfType<HUDOverlay>().Single().ShowHealthBar.Value = false);
             AddWaitStep("let fade settle", 30);
             AddAssert("BMS gauge stays visible", () => player.ChildrenOfType<BmsGaugeBar>().Single().Alpha > 0);
+        }
+
+        [Test]
+        public void TestProductionRootPublishesOneExactLayoutSnapshotToEveryBmsConsumer()
+        {
+            AddUntilStep("root, preview and BGA layout consumers loaded", () =>
+                player.DrawableBmsRuleset?.PreStartSpeedPreviewLayoutSnapshot != null
+                && player.DrawableBmsRuleset.BgaLayoutSnapshot != null);
+            AddUntilStep("HUD snapshot carrier loaded", () =>
+                player.ChildrenOfType<BmsHudLayoutSnapshotCarrier>().Any(carrier => carrier.LayoutSnapshot != null));
+            AddUntilStep("HUD display and components loaded", () =>
+                player.ChildrenOfType<DefaultBmsHudLayoutDisplay>().Any()
+                && player.ChildrenOfType<BmsGaugeBar>().Any()
+                && player.ChildrenOfType<BmsComboCounter>().Any());
+            AddUntilStep("note and hold layout consumers loaded", () =>
+                player.ChildrenOfType<DrawableBmsHitObject>().Any(drawable => drawable.HitObject.GetType() == typeof(BmsHitObject))
+                && player.ChildrenOfType<DrawableBmsHoldNote>().Any());
+
+            AddAssert("all production consumers retain exact root snapshot", () =>
+            {
+                DrawableBmsRuleset ruleset = player.DrawableBmsRuleset!;
+                BmsGameplayLayoutSnapshot snapshot = ruleset.LayoutSnapshot;
+                DrawableBmsHitObject note = player.ChildrenOfType<DrawableBmsHitObject>().Single(drawable => drawable.HitObject.GetType() == typeof(BmsHitObject));
+                DrawableBmsHoldNote hold = player.ChildrenOfType<DrawableBmsHoldNote>().Single();
+                DefaultBmsHudLayoutDisplay hud = player.ChildrenOfType<DefaultBmsHudLayoutDisplay>().Single();
+                BmsHudLayoutSnapshotCarrier hudCarrier = player.ChildrenOfType<BmsHudLayoutSnapshotCarrier>().Single(carrier => ReferenceEquals(carrier.LayoutSnapshot, snapshot));
+                BmsGaugeBar gauge = player.ChildrenOfType<BmsGaugeBar>().Single();
+                BmsComboCounter combo = player.ChildrenOfType<BmsComboCounter>().Single();
+                GameplaySkinLayoutRevisionOwner owner = ruleset.LayoutProvider.RevisionOwner!;
+                GameplaySkinLayoutPublication publication = owner.CurrentPublication!;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(snapshot.Context.PackageRevision.SourceKind, Is.Not.EqualTo(GameplaySkinPackageSourceKind.Compatibility));
+                    Assert.That(snapshot.Context.PackageRevision, Is.SameAs(owner.PackageRevision));
+                    Assert.That(publication.GetAdapter<BmsGameplayLayoutSnapshot>(), Is.SameAs(snapshot));
+                    Assert.That(publication.Snapshot, Is.SameAs(snapshot.Neutral));
+                    Assert.That(snapshot.Neutral, Is.SameAs(owner.Current));
+                    Assert.That(ruleset.LayoutProvider.LastPrepareWasUpdateThread, Is.False, "Geometry preparation must stay off the update thread.");
+                    Assert.That(ruleset.LayoutProvider.LastCommitWasUpdateThread, Is.True, "The prepared immutable reference must commit on the update thread.");
+                    Assert.That(ruleset.Playfield.LayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(ruleset.Playfield.GroupContainers.All(group => ReferenceEquals(group.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(ruleset.Playfield.Lanes.All(lane => ReferenceEquals(lane.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(ruleset.Playfield.Lanes.All(lane => ReferenceEquals(lane.HitTarget.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(ruleset.Playfield.LaneCovers.All(cover => ReferenceEquals(cover.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(ruleset.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects).OfType<DrawableBmsBarLine>().All(barLine => ReferenceEquals(barLine.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(note.ExactLayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(hold.ExactLayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(hold.ChildrenOfType<DrawableBmsHoldNoteHead>().All(head => ReferenceEquals(head.ExactLayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(hold.ChildrenOfType<DrawableBmsHoldNoteTail>().All(tail => ReferenceEquals(tail.ExactLayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(ruleset.PreStartSpeedPreviewLayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(ruleset.BgaLayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(ruleset.HudLayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(hudCarrier.LayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(hud.LayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(gauge.LayoutSnapshot, Is.SameAs(snapshot));
+                    Assert.That(combo.LayoutSnapshot, Is.SameAs(snapshot));
+                });
+
+                return true;
+            });
         }
 
         [Test]
