@@ -118,21 +118,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
             return Current.GetLaneByLogicalIndex(hitObject.LaneIndex);
         }
 
-        internal static BmsGameplayLayoutSnapshot PrepareExact(
-            GameplaySkinLayoutRevisionOwner owner,
-            BmsBeatmap beatmap,
-            BmsPlayfieldStyle style,
-            ISkin skin,
-            GameHost? host,
-            ISafeArea? safeArea)
-            => tryPrepareAndCommit(
-                   owner,
-                   beatmap,
-                   style,
-                   keymode => BmsGameplayLayoutConfiguration.FromSkin(skin, keymode),
-                   () => CreateProductionEnvironment(host, safeArea))
-               ?? throw new InvalidOperationException("The exact BMS gameplay layout publication lost its C2 commit admission.");
-
         internal static bool TryPrepareExact(
             GameplaySkinLayoutRevisionOwner owner,
             BmsBeatmap beatmap,

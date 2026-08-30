@@ -37,10 +37,12 @@ P1-K 拥有 decoder、normalized chart model、converter、projection reuse 与 
 ### 0. Skin V1 topology 前置修正（已闭合，2026-08-30）
 
 1. `buildLaneKeysoundTimelines()` 已以 canonical `GetLaneCount()` 为唯一上界；5K/7K 最右键、9K 全 lane、14K K14/S2 的 visible、LN head/tail armed、invisible 与相邻 mine fixture 已锁住末端不丢失。
-2. `BmsKeymodeResolution` 已冻结 parser-owned precedence、source/evidence、显式 override/纠正入口与稳定脱敏 diagnostic；`.pms/.bme`、P2/high channel 与 sparse chart 可追溯，无充分证据或冲突时 fail-closed。converter、manager/layout owner 只携带同一 resolution，不按对象最高 lane 或 layout 宽度二次猜测。
+2. `BmsKeymodeResolution` 已冻结 parser-owned precedence、source/evidence、authoritative host/importer显式 override seam与稳定脱敏 diagnostic；`.pms/.bme`、P2/high channel 与 sparse chart 可追溯，无充分证据或冲突时 fail-closed。converter、manager/layout owner 只携带同一 resolution，不按对象最高 lane 或 layout 宽度二次猜测。
 3. production keysound proof 已覆盖 native BMS 玩家/autoplay 与 converted Mania 的同一 shared store；Mirror/RANDOM/R-RANDOM/custom 搬移同一 exact permutation，S-RANDOM 稳定禁用不可搬移的 armed timeline，post-mod 对象、keysound 与 skin lookup 使用同一 `LaneId`。本切片未改 sample pool、判定或 binding。
 
 本节仅标记 P1-A C3 的 P1-K Skin 前置 gate 闭合；后续 public surface、特殊谱与 projection/cache 治理仍开放，不能据此把整条 P1-K 标成完成。验证数字见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 与 [CHANGELOG.md](CHANGELOG.md)。
+
+该闭门不宣称终端用户已能在UI中纠正模糊sparse谱：普通`ICustomBeatmapLoader`仍不提供override，证据不足时继续fail-closed。若最终产品要接受这类谱，P1-K后续必须为现有decoder seam补authoritative importer/UI caller及真实导入回归，不能把layout猜测当替代。
 
 ### 1. Public surface 收尾
 

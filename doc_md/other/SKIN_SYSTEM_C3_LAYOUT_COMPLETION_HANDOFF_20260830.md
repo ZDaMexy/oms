@@ -7,7 +7,7 @@
 `C3` 已关闭以下同一纵切，不能拆成相互独立的“基础设施完成”：
 
 1. P1-K 的 Skin 前置由 parser/converter truth 闭合。lane keysound timeline 的逻辑上界统一为 `BmsRuleset.GetLaneCount()`；5K/7K 最右键、9K 全部 lane、14K 右 deck 末键与 `Scratch2` 不再因 key count 边界静默丢失。
-2. sparse keymode 由 `BmsKeymodeResolution` 按可追溯 source/precedence、显式 override/纠正入口和稳定脱敏 diagnostic 决定；证据不足时 fail-closed。layout、skin 与 runtime 不重新读取 BMS，也不从最高出现 channel、枚举序号、总 lane 数或布局宽度猜 keymode。
+2. sparse keymode 由 `BmsKeymodeResolution` 按可追溯 source/precedence、authoritative host/importer显式 override seam和稳定脱敏 diagnostic 决定；证据不足时 fail-closed。该seam不包含终端用户UI，普通导入入口当前仍传`null`；layout、skin 与 runtime 不重新读取 BMS，也不从最高出现 channel、枚举序号、总 lane 数或布局宽度猜 keymode。
 3. core 只发布一个 ruleset-neutral、构造后防御性不可变的 `GameplaySkinLayoutSnapshot`；它与同 revision 的 adapter 组成一个 `GameplaySkinLayoutPublication`，由唯一 `GameplaySkinLayoutRevisionOwner` 持有。
 4. BMS 只经 `BmsGameplayLayoutSolver` 产生最终 snapshot；mania 只经 `ManiaGameplaySkinLayoutPreparer` 适配真实 single/dual stage vector。production consumer 不再各自创建 profile、默认 geometry、固定 rect 或按 drawable 尺寸二次求解。
 5. package/current revision 与 layout revision 作为不可分割 pair 进入 C2 background prepare、fresh barrier、update-thread commit、participant generation、lease/detach/retire 协议。失败保留 exact 旧 package+layout pair；成功 publication 才允许 late attach。
@@ -81,6 +81,8 @@ targeted formatter 覆盖六个归属工程的实际变更文件。formatter 曾
 最终owner审计先以真实shared owner测试复现并跑红cached descendant可绕过ruleset helper直接二次发布的问题；one-shot约束随后下沉到`GameplaySkinLayoutRevisionOwner`的同一锁内。Mania stage vector/topology/environment也移入fresh work lease与participant generation之后的solve callback；BMS managed入口在任何config/skin/solve前对称拒绝compatibility token。explicit compatibility仍只是detached solver/visual fixture opt-in，不能进入exact production tree。
 
 独立终审结论为 blocker/major/moderate/minor **0/0/0/0**：唯一 publication、production bypass、P1-K authority、participant/owner、并发和真实 consumer 均无未闭合问题。
+
+闭门后的产品价值复核另区分出一项不属于C3安全/layout缺陷的P1-K后续可用性风险：目前没有终端用户可操作的keymode correction caller，模糊sparse `.bms/.bml`只能fail-closed。C3证明的是override authority可由host/importer显式传入且会贯穿真实converter/renderer，不宣称普通用户已经能在UI中设置它。
 
 ## 未在 C3 实现
 

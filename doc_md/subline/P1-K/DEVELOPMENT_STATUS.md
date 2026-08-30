@@ -17,7 +17,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 - dedicated BMS→mania converter：sample-only BGM/scratch、LN tail 静音、converted star 持久化和展示 read-model。
 - LNOBJ 只与同 lane 紧邻前一普通音符配对，禁止 LIFO 回抓制造重叠 LN。
 - converted-star 难度入口过滤 sample-only BGM/scratch，并以 conversion version 失效旧结果。
-- immutable `BmsKeymodeResolution` 由 parser 单点产出并原样流经 converter、production loader 与 gameplay layout owner：显式 override、`.pms/.bme`、P2/high channel 与完整 channel-set 的 precedence、evidence、纠正入口及稳定脱敏 diagnostic 已冻结；无充分证据或证据冲突时 fail-closed，不再按最高出现 channel、hit object 或 layout 宽度猜测。
+- immutable `BmsKeymodeResolution` 由 parser 单点产出并原样流经 converter、production loader 与 gameplay layout owner：authoritative host/importer显式 override、`.pms/.bme`、P2/high channel 与完整 channel-set 的 precedence、evidence、纠正入口及稳定脱敏 diagnostic 已冻结；无充分证据或证据冲突时 fail-closed，不再按最高出现 channel、hit object 或 layout 宽度猜测。
 - `LaneKeysoundTimelines` 的 canonical 上界已改为 `GetLaneCount()`，覆盖 5K/7K 最右键、9K 全 lane、14K K14/Scratch2，以及 visible note、LN head/tail armed entry、invisible object 与相邻 mine；layout/skin/runtime 只消费 parser/converter 投影，不重读 BMS 或二次推导 lane 数。
 - Mirror/RANDOM/R-RANDOM/custom 的对象、mine 与 armed timeline 共用同一 exact permutation；S-RANDOM 因无单一列置换而稳定禁用受影响 armed timeline、保留对象自身 WAV。玩家/autoplay、native BMS 与 converted Mania 已在 production host 证明进入同一 shared keysound store 并实际请求发声，post-mod 对象、keysound 与 skin lookup 汇合到同一 `LaneId`；未改 sample pool、判定或 binding。
 
@@ -37,7 +37,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 ## 当前风险
 
 - 特殊 long-note、极端控制流和少见 header family 仍可能暴露 typed consumer 缺口。
-- 新出现的稀有扩展名/channel family 若无法由现有 evidence 无歧义归类，仍会按合同 fail-closed，需要显式 override 或新的 parser 证据；不得在 layout/runtime 增补猜测兜底。
+- 新出现的稀有扩展名/channel family 若无法由现有 evidence 无歧义归类，仍会按合同 fail-closed，需要显式 override 或新的 parser 证据；不得在 layout/runtime 增补猜测兜底。当前override仅是production host/importer API seam，普通导入入口传`null`且没有终端用户纠正UI；真实模糊sparse谱的用户可用纠正流程仍是P1-K后续产品缺口。
 - public wording/展示证明不完整不等于 parser 错误；先区分存储、projection 与 presentation owner。
 - 任何 parser 改动都可能同时影响 native BMS、转谱 mania、统计、筛选、BGA 与缓存失效，必须跑全量。
 

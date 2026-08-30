@@ -34,11 +34,18 @@ metadata:
 
 ## 2026-08-30 C3 完成态
 
-- P1-K Skin前置已闭合：parser/converter是keymode、lane count与keysound timeline唯一truth；sparse authority/override/fail-closed diagnostic、`GetLaneCount()`末端lane和native/converted shared-store实际发声均已进入production proof。该结论不等于整条P1-K完成。
+- P1-K Skin前置已闭合：parser/converter是keymode、lane count与keysound timeline唯一truth；sparse authority、host/importer override seam、fail-closed diagnostic、`GetLaneCount()`末端lane和native/converted shared-store实际发声均已进入production proof。该结论不等于整条P1-K完成，也不代表普通导入已有终端用户纠正UI。
 - core只发布一个ruleset-neutral immutable context/snapshot；neutral snapshot与ruleset typed adapter是同一个`GameplaySkinLayoutPublication`，由exact `GameplaySkinLayoutRevisionOwner`持有。BMS只有一个solver，mania adapter使用真实single/dual stage vector并保持stage-local special-key语义。
 - BMS/mania/core完整gameplay renderer、BGA最终viewport及HUD/gauge/combo只读同一snapshot；stable LaneId/GroupId与显式四类index继续复用既有topology。逐字段geometry失败产生稳定诊断并回到一个完整fallback snapshot，不会拼出部分新/部分旧geometry。
 - package/current revision与layout revision作为不可分pair进入C2 background prepare、fresh barrier、update-thread commit、复核、late attach、lease/detach/最后retire。失败保exact A；live gameplay/preview仍在source prepare前拒绝，无watcher。注入carrier、第二provider、compatibility升级或consumer二次交换均fail-closed。
 - C3闭门后燃尽为`3/7 closed，C4 active`。shared codec/public catalog/`Provide-Inherit-Suppress`、mania资源parity、beatmap-local作者格式终态、scene/event、sandbox/script、canonical双包与Authoring Kit均未实现；BGA内容/timeline/seek仍归P1-L，程序化`OmsSkin`继续保留。
+
+## C3最终产品价值核算
+
+- C3不是DTO/solver-only投入：`Player/RulesetSkinProvidingContainer → BmsRuleset/ManiaRuleset preparer → exact layout owner → BMS/mania/core renderer`是可达production链，Note/LN、barline、target/judgement、pre-start、BGA viewport、gauge/combo/HUD均消费同一snapshot。末端lane shared-store发声也在真实native/converted host发生，直接消除漏声、错lane与geometry撕裂。
+- 这些交付主要提升“谱面不误判、末端键不静音、换包不混revision、所有playfield件不各算一套”，不是新增大量视觉花样；因此属于必要产品正确性与后续作者表达力的脊柱，但不能冒充完整Skin V1表现力。
+- 最终审计删除了零caller的`BmsGameplayLayoutProvider.PrepareExact()` convenience wrapper，production只保留真实`TryPrepareExact()`入口。另保留并如实标注`BmsBeatmapDecoderOptions.KeymodeOverride`：它是authoritative host/importer seam，普通loader当前传`null`且没有用户UI；模糊sparse谱安全拒绝。该用户纠正流程属于P1-K后续产品缺口，不重开C3安全/layout gate。
+- `BmsGameplaySkinConfigurationCandidateFactory`、lane resource/colour candidate/snapshot、`GameplaySkinEventStreamCursor`与capability negotiator等仍有test-only的C4～C6 foundation；它们未计入C1～C3产品完成。后续campaign必须接真实authoring/runtime consumer或删除，不得用fixture数量冒充表现力。
 
 ## C1最终产品价值核算
 

@@ -30,4 +30,4 @@ metadata:
 
 ## 相邻风险
 
-sparse 7K/9K 与 timeline 上界是两个问题：前者现由 parser-owned source/evidence/稳定诊断与显式 override 纠正入口治理；证据不足或冲突时 fail-closed，不能靠扩大数组上界或 layout 猜测掩盖。
+sparse 7K/9K 与 timeline 上界是两个问题：前者现由 parser-owned source/evidence/稳定诊断与host/importer显式 override seam治理；证据不足或冲突时 fail-closed，不能靠扩大数组上界或 layout 猜测掩盖。普通loader尚无终端用户纠正UI，不能把API seam误报为已交付用户能力。
