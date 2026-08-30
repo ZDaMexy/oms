@@ -8,7 +8,7 @@ metadata:
 
 # external Workspace 与 ManagedCopy 地雷
 
-权威状态与退出门只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；C1冻结边界见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C2冻结边界见[2026-08-24完成交接](../../doc_md/other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。本页只保存最容易误改的稳定合同。
+权威状态、退出门与C2冻结边界只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；C1冻结边界见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。本页只保存最容易误改的稳定合同。
 
 ## authority与选择
 

@@ -46,6 +46,7 @@
 - `CHANGELOG` 可以增长，但只通过 `rg -n "日期|P1-X|关键词"` 定点读取，不作为每次会话上下文。
 - 测试数字只在对应 `STATUS` 的最新验证和本次 `CHANGELOG` 各出现一次；旧数字不反复同步。
 - 带日期的结论只要不再影响当前决策，就从 `STATUS/PLAN` 删除，历史由 Git 与 `CHANGELOG` 保存。
+- 单次执行 prompt、会话 handoff 话术和“下一轮入口”只在聊天交付，不单独落库，也不得成为 `STATUS/PLAN/README/memory` 的权威依赖；可持续复用的事实分别归入四件套，诊断地雷才进入 memory。
 - Agent 适配文件不得复制 `AGENTS.md`；memory 单行建议不超过 800 字符，发现状态叙事时改为链接权威 STATUS。
 - 仓库内 Markdown 链接必须按文件所在目录使用标准相对路径；不依赖“从仓库根再猜一次”的非标准回退。
 - 生产/用户数据精确 hash、mtime、byte size、会话 ID 与可识别个人/机器的 home 路径不得进入文档；通用路径示例和公开制品 checksum 可以保留但须明确语境，其它本机取证路径改用脱敏占位符或仓库外 authority。

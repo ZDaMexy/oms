@@ -16,12 +16,7 @@
 - [SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)：schema 56 只读取证、定点迁移与 `SV1-0` 闭门证据；不授权重复操作生产数据。
 - [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：Skin V1 的架构证据与设计解释；执行顺序和硬约束仍以 P1-A 四件套为准。
 - [SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md](SKIN_SYSTEM_PROGRESS_AUDIT_20260731.md)：基于`c53f1e0`的历史阶段快照；其中启动选择竞态已在2026-08-01闭合，不得当作当前状态。
-- [SKIN_SYSTEM_PROGRESS_HANDOFF_20260801.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260801.md)：基于`551a64a`的产品价值复核、最终Skin V1差距、下一纵切go/no-go与跨会话边界；不替代P1-A当前状态。
-- [SKIN_SYSTEM_PROGRESS_HANDOFF_20260802.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260802.md)：managed delete玩家纵切闭合后的产品行为、安全/恢复合同、验证基线与下一会话边界；不替代P1-A当前状态。
-- [SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md](SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)：current managed atomic reload/detach NO-GO、既有Skin投入的产品价值分层、`SV1-0`～`SV1-7`最终差距、约三成release-ready完成度，以及`C1`～`C7`持久campaign燃尽与完整`C1`作者文件工作区入口；不替代P1-A当前状态。
-- [SKIN_SYSTEM_C1_INTERRUPTED_HANDOFF_20260812.md](SKIN_SYSTEM_C1_INTERRUPTED_HANDOFF_20260812.md)：C1意外中断时的历史checkpoint；已被2026-08-13完成交接取代，不再作当前执行入口。
-- [SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md](SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)：C1闭门边界、产品价值复核与C2历史执行prompt；其“仅关闭首项并转入C2”是交付时快照，已由C2完成交接取代。
-- [SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md](SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)：C2完成边界、唯一Reload触发、live拒绝边界、participant/holder/bypass inventory、三源publication与current mutation合同，以及已签发C3执行prompt；当前为`2/7 closed，C3 active`。
+- [SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md](SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)：C1闭门边界与产品价值复核；其中进度只作为交付时快照，当前状态与后续工作门以P1-A四件套为准。
 - [SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md](SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)：已导入 `.osk` 的 BMS 普通短键编号帧动画、选择切换与 selected 坏包回落的确定性手工素材及验收边界。
 - [SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)：Skin V1 自动 gate 后集中等待用户签收的视觉清单、状态定义与反馈记录。
 

@@ -8,7 +8,7 @@ metadata:
 
 # OMS Skin V1 产品进度召回
 
-权威当前态只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)与[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)；C1完成边界见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C2完成事实、inventory与已签发C3入口见[2026-08-24完成交接](../../doc_md/other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)，此前价值核算见[2026-08-09产品交接](../../doc_md/other/SKIN_SYSTEM_PROGRESS_HANDOFF_20260809.md)。本页保存如何计算产品价值和选择后续工作，不用旧百分比或focused测试冒充campaign完成。
+权威当前态与C3工作门只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)与[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)，C2稳定inventory/owner合同见[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；C1完成边界见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，此前价值核算史见[P1-A CHANGELOG](../../doc_md/subline/P1-A/CHANGELOG.md)。本页保存如何计算产品价值和选择后续工作，不用旧百分比或focused测试冒充campaign完成。
 
 ## 进度核算规则
 

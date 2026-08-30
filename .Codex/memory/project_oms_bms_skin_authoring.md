@@ -13,7 +13,7 @@ metadata:
 ## 权威路由与不可误推
 
 - 用户当前能选择哪种包、哪些slot已经进入production、哪些视觉待签收，只看P1-A STATUS与`SKINNING.md`页首；本memory不复制逐刀完成度、测试数字或“下一刀”。
-- source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同；reload实时能力只看P1-A与[C2完成交接](../../doc_md/other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。C2已签发，当前campaign是否推进仍只看P1-A，不得据memory跳过C3退出门。
+- source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同；reload实时能力只看[P1-A约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)与[[reference_skin_atomic_reload_detach]]。C2已签发，当前campaign是否推进仍只看P1-A，不得据memory跳过C3退出门。
 - 程序化`OmsSkin`是恢复期迁移保障；在P1-A明确记录canonical `oms-simple.osk`完成parity、完整性、恢复与实机gate并接管前不得删除，接管后必须退出产品渲染链。
 - G1任务先查P1-A当前门；发现/选择/rename/staged-import/managed-delete专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明；产品价值核算与后续完整纵切准入见[[project_oms_skin_product_progress]]。
 - 产品可达性必须按caller追到真实入口：production程序集内的internal operation/recovery不等于玩家功能；shared topology/config/event/capability/candidate合同没有production host/renderer/authoring consumer时也不计进度。后续不得横向扩张无同切或紧随切片consumer的抽象。

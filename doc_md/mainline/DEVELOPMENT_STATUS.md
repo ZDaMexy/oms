@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-08-24
+> 最后更新：2026-08-30
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。P1-A / Skin V1 的 `C1`作者工作区/archive与`C2`当前consumer revision publication/detach均已闭合；当前为 **`2/7 closed，C3 active`**，转入P1-K lane/keymode前置与唯一gameplay layout。`V-001`～`V-004`签收仍为 **0/4**，G1最终整包门、`SV1-2`整体、Skin V1、`SV1-1`和release均未完成。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)与[C2完成交接](../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。P1-A / Skin V1 的 `C1`作者工作区/archive与`C2`当前consumer revision publication/detach均已闭合；当前为 **`2/7 closed，C3 active`**，转入P1-K lane/keymode前置与唯一gameplay layout。`V-001`～`V-004`签收仍为 **0/4**，G1最终整包门、`SV1-2`整体、Skin V1、`SV1-1`和release均未完成。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -64,7 +64,7 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 
 ### R3 / `SV1-2` C2完成：2026-08-24
 
-core focused **204/204**，PendingAsync ownership visual/host **11/11**，完整真实C2产品路径 **314/314**；core canonical `~Skin` **1137/1143**的六项失败与精确既有基线相同，mania `~Skin` **182/182**，BMS `~Skin` **796/796**，BMS full **1670/1670**且`--blame-hang 5m`无hang sequence。Release含restore首跑 **0 error / 20 known warnings（41.88s）**，formatter后`--no-restore`复验 **0 error / 11 known warnings（36.58s）**；targeted formatter均exit 0。participant/holder、reachable bypass、concurrency/owner、tests/product-contract四项独立终审均为blocker/major/moderate **0/0/0**。完成边界见[C2完成交接](../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+core focused **204/204**，PendingAsync ownership visual/host **11/11**，完整真实C2产品路径 **314/314**；core canonical `~Skin` **1137/1143**的六项失败与精确既有基线相同，mania `~Skin` **182/182**，BMS `~Skin` **796/796**，BMS full **1670/1670**且`--blame-hang 5m`无hang sequence。Release含restore首跑 **0 error / 20 known warnings（41.88s）**，formatter后`--no-restore`复验 **0 error / 11 known warnings（36.58s）**；targeted formatter均exit 0。participant/holder、reachable bypass、concurrency/owner、tests/product-contract四项独立终审均为blocker/major/moderate **0/0/0**。完成事实见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，稳定合同见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，历史验证见[P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
 
 ### R3 / `SV1-2` C1完成：2026-08-13
 

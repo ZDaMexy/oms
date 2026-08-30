@@ -6,5 +6,4 @@ P1-A 负责 Skin V1、共享皮肤产品面与 release gate。`C1` 已闭合Fold
 - 准备实施时再读 [当前计划](DEVELOPMENT_PLAN.md) 与任务相关的 [技术约束](TECHNICAL_CONSTRAINTS.md)。
 - 历史只按日期或 `SV1-*` 定点查 [CHANGELOG](CHANGELOG.md)。
 - 恢复和架构证据按需查 [恢复审计](../../other/SKIN_SYSTEM_RECOVERY_20260710.md) 与 [V1 架构审计](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
-- C1闭门边界与C2执行prompt见 [2026-08-13完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
-- C2技术事实、inventory、最终验证与已签发C3 prompt见 [2026-08-24完成交接](../../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+- C1闭门历史证据见 [2026-08-13完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；当前C2事实、C3工作门和稳定合同只按本线四件套读取。

@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-08-24
+> 最后更新：2026-08-30
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@
 - **C1安全边界**：external source bytes只来自fresh held capture的immutable capsule，目录/空目录来自同次manifest；service-owner只授权Realm记录管理。所有managed mutation持有exact external registry物理证明至final Realm线性化，single v3 journal与recovery保护crash/cancel/partial copy。
 - **ordinary `.osk` 安全导入**：仍是hash-backed Realm package；skin-scoped reader在内容消费前完成raw/central-directory/name/type/size有界准入，actual stream持续验证CRC/比率/总量/取消。fault/cancel的exact receipt只回滚本次新增的零引用record/blob，不会删共享hash。
 - **C2产品触发已冻结**：Settings → Skin 的 `Reload current skin` 是唯一手动触发；Folder Skin Workspace不新增行级Reload，same-value selection不冒充reload，也不实现watcher。按钮覆盖ordinary Realm `.osk`、managed与external current source；live gameplay/gameplay preview在任何source prepare前确定性拒绝并反馈退出后重试。
-- **C2生命周期已闭合**：immutable current revision先在后台完成全部I/O/capture/解析/资源和participant staged prepare，再由update-thread可回滚引用barrier一次发布；失败保留exact旧pair/revision，成功后旧owner只在consumer/work lease最后detach后exactly-once retire。完整participant/holder/bypass inventory见[C2完成交接](../../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+- **C2生命周期已闭合**：immutable current revision先在后台完成全部I/O/capture/解析/资源和participant staged prepare，再由update-thread可回滚引用barrier一次发布；失败保留exact旧pair/revision，成功后旧owner只在consumer/work lease最后detach后exactly-once retire。完整participant/holder/bypass稳定分类见[技术约束](TECHNICAL_CONSTRAINTS.md)，诊断召回见[atomic reload/detach memory](../../../.Codex/memory/reference_skin_atomic_reload_detach.md)。
 - **C2 mutation已闭合**：current external Unregister、current managed Delete与ordinary current `.osk` Delete都先发布受保护fallback并等待旧revision detach；external只做fresh exact Realm remove且source零I/O，managed只在此后进入C1 journal/physical边界。legacy Skin Editor、external-edit与update-import UI/backend均稳定禁用。
 - **C2最终验证**：core focused **204/204**、PendingAsync ownership visual/host **11/11**、core canonical `~Skin` **1137/1143**（六项精确既有基线）、mania `~Skin` **182/182**、BMS `~Skin` **796/796**、BMS full **1670/1670**；full的`--blame-hang 5m`明确全数完成且无hang sequence。完整真实产品路径集 **314/314**，final drift/half-loaded/Ready sentinel **6/6**。participant/holder、reachable bypass、concurrency/owner及tests/product-contract独立终审均为 **0/0/0**；Release **0 error**。
 - **未交付**：C3的P1-K前置与唯一layout，以及shared codec、剩余slot三态、scene/event、sandbox、canonical双包与Authoring Kit；程序化`OmsSkin`仍是迁移链底。
@@ -44,7 +44,7 @@
 
 `C1` 作者文件工作区/G1 UX ✓ → `C2` 当前consumer revision reload/detach ✓ → **`C3` P1-K+唯一layout（active）** → `C4` shared codec/catalog/resolver/mania compatibility → `C5` scene/event与剩余slot production → `C6` sandbox并关闭最终整包reload门 → `C7` canonical双包/Authoring Kit/自动release。
 
-C2冻结边界不得退化成manager-only reload API、same-ID selection或per-host reloadable：Settings唯一manual Reload、live gameplay/preview prepare前拒绝、三源same-ID publication、BMS/core/mania与shell生命周期participant、ordinary Realm `.osk` owner、current external/managed/ordinary mutation及legacy旁路均已进入统一协议。完整inventory与C3入口见[C2完成交接](../../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+C2冻结边界不得退化成manager-only reload API、same-ID selection或per-host reloadable：Settings唯一manual Reload、live gameplay/preview prepare前拒绝、三源same-ID publication、BMS/core/mania与shell生命周期participant、ordinary Realm `.osk` owner、current external/managed/ordinary mutation及legacy旁路均已进入统一协议。完整inventory见[技术约束](TECHNICAL_CONSTRAINTS.md)，C3工作门见[当前计划](DEVELOPMENT_PLAN.md)。
 
 ## 当前 gate
 
@@ -54,17 +54,17 @@ C2冻结边界不得退化成manager-only reload API、same-ID selection或per-h
 | `SV1-1` Note/LN首个产品纵切 | **自动门已闭合，视觉待签收**；`V-001`～`V-004` 为0/4，不等于`SV1-1`完成 |
 | `SV1-2` / `C1` 作者工作区 | **通过**；真实caller/renderer、恢复、宽回归、Release、文档和独立终审已闭合 |
 | `SV1-2` / `C2` current revision reload/detach | **通过**；只允许Settings显式manual Reload，磁盘变化仍不自动reload，live gameplay/preview明确拒绝 |
-| `SV1-3` / `C3` P1-K前置与唯一layout | **active**；执行入口见C2完成交接 |
+| `SV1-3` / `C3` P1-K前置与唯一layout | **active**；执行门见[当前计划](DEVELOPMENT_PLAN.md) |
 | `SV1-4`～`SV1-7` / G1最终门 / Skin V1 / release | **未完成** |
 
-## 最新验证：2026-08-24
+## 最新验证：2026-08-30文档 / 2026-08-24代码
 
 - core C2 focused **204/204**，PendingAsync ownership visual/host **11/11**，完整真实C2产品路径 **314/314**，final drift/half-loaded/Ready sentinel **6/6**。
 - core canonical `~Skin` **1137/1143**；六项与既有精确基线相同：4项removed-Osu `TestSceneBeatmapSkinResources`、1项default background cycling、1项Argon sample。mania `~Skin` **182/182**。
 - BMS `~Skin` **796/796（8m53s）**；BMS full **1670/1670（10m09s）**，`--blame-hang 5m`全数完成且无hang sequence。
 - Release含restore首跑 **0 error / 20 known warnings（41.88s）**；formatter后`--no-restore`复验 **0 error / 11 known warnings（36.58s）**。20项为18次MessagePack `NU1902`输出加既有`CS8600`/`CA2007`；11项为9次`NU1902`加同两项。
 - core、core-tests、BMS、BMS-tests、mania-tests owning-project targeted formatter均exit 0，仅`IDE1006`不可自动修复提示。participant/holder、reachable bypass、concurrency/owner、tests/product-contract四项独立终审均为blocker/major/moderate **0/0/0**。
-- `CheckDocumentation.ps1`通过 **137 Markdown / 1071 relative links / 80 memory wiki links**，仅两份PLAN数字比值提醒；`git diff --check -- doc_md .Codex/memory`通过。
+- 2026-08-30删除一次性C2 handoff及四份已取代的跨会话续接文档、把长期事实归回四件套/CHANGELOG/atomic memory后，`CheckDocumentation.ps1`通过 **132 Markdown / 1051 relative links / 81 memory wiki links**，仅两份PLAN数字比值提醒；`git diff --check`通过。该轮无代码改动，未重跑.NET/Release，代码基线仍为以上2026-08-24结果。
 
 ## 当前风险
 

@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-08-24
+> 最后更新：2026-08-30
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐切历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -33,7 +33,7 @@ beatmap-local 的相对 provider 顺序是已有自动合同，但当前真实 `
 
 ## 七个持久 Campaign 预算
 
-`C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合，当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；C2实现事实、完整inventory与已签发C3 prompt见[C2完成交接](../../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+`C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合，当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；C2实现事实与最终验证见[当前状态](DEVELOPMENT_STATUS.md)和[变动日志](CHANGELOG.md)，完整inventory与owner合同见[技术约束](TECHNICAL_CONSTRAINTS.md)，C3执行门直接由本计划维护。
 
 `SV1-0`～`SV1-7`继续表示能力与依赖层，不再暗示协作轮数。自2026-08-09的campaign启动prompt起，已知Skin V1/P1-A剩余范围——包括必须在对应campaign内取得产品终态并立即实现的路线决定——必须在最多七个持久campaign内收口；第七个campaign退出时只允许保留集中视觉、真实设备、长时间体验等人工签收。该承诺是**campaign prompt预算**，不是日历或单提交工期：一个campaign允许在同一对话内经历多次交互、上下文压缩、多个有意义提交和多组测试；未过退出门不得生成后续campaign prompt。
 

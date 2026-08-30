@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-08-24
+> 最后更新：2026-08-30
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -26,7 +26,7 @@ Skin V1剩余工作不再用`SV1-*`阶段编号暗示协作轮数。P1-A采用�
 
 ### R3：`SV1-2` G1 可视文件夹存储重设计
 
-> `C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合；当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C2事实、inventory与已签发C3入口见[C2完成交接](../other/SKIN_SYSTEM_C2_COMPLETION_HANDOFF_20260824.md)。
+> `C1` 已于2026-08-13闭合，`C2` 已于2026-08-24闭合；当前为`2/7 closed，C3 active`。C1冻结边界见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)；C2当前事实见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，稳定inventory/owner合同见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，C3工作门直接以[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。
 
 authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`已从真实Settings caller到当前production participant接通revision publication/detach/retire；C3～C6新增consumer继续同切加入，最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
 
