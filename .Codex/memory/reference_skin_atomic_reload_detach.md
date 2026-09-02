@@ -43,7 +43,7 @@ metadata:
 - `SkinnableSound`/`PausableSkinnableSound`只聚合descendant且`ParticipatesInCurrentRevision=false`；实际sample/tail由各`PoolableSkinnableSample`登记。
 - guarded selection/instance bindable、Settings/Workspace row与notification只投影committed value或持record ID/immutable label，不拥有texture/sample/capsule。
 - 不含direct skin/resource字段的menu/shell wrapper由其`StarFountain`、background、storyboard及skinnable descendant分别登记；排除wrapper不等于排除child。
-- beatmap-local `WorkingBeatmap.Skin`与ruleset built-in resource source是独立authority，其组合生命周期由live/ordinary provider participant覆盖。
+- beatmap-local `WorkingBeatmap.Skin`只作为既有只读legacy direct visual compatibility authority，与ruleset built-in resource source的组合生命周期由live/ordinary provider participant覆盖；它不是public authoring authority，其public section不得进入C4 resolver。
 - legacy editor、external-edit、update-import UI/backend均稳定禁用，不能创建新current owner、mount临时store或走immediate-dispose替换。
 
 ## revision、participant 与 owner

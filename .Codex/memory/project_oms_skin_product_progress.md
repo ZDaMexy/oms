@@ -49,7 +49,7 @@ metadata:
 - dead foundation结论：BMS candidate/resource/capability接入production；被resolved material取代的lane-colour/bucket snapshot删除；event cursor明确归C5、capability negotiator归C6且不计C4。`Create(BmsLaneLayout,...)`、raw requirement resolver overload与`PublishForTesting`只保留isolation/compat seam，不是production能力。
 - C4闭门后燃尽为`4/7 closed，C5 active`。scene/event、剩余optional slot production、sandbox/script、canonical双包/Authoring Kit与最终release仍未完成；BGA内容/timeline/seek仍归P1-L，程序化`OmsSkin`继续保留。
 
-## C4最终产品价值核算
+## C3/C4最终产品价值核算
 
 - C3不是DTO/solver-only投入：`Player/RulesetSkinProvidingContainer → BmsRuleset/ManiaRuleset preparer → exact layout owner → BMS/mania/core renderer`是可达production链，Note/LN、barline、target/judgement、pre-start、BGA viewport、gauge/combo/HUD均消费同一snapshot。末端lane shared-store发声也在真实native/converted host发生，直接消除漏声、错lane与geometry撕裂。
 - 这些交付主要提升“谱面不误判、末端键不静音、换包不混revision、所有playfield件不各算一套”，不是新增大量视觉花样；因此属于必要产品正确性与后续作者表达力的脊柱，但不能冒充完整Skin V1表现力。
