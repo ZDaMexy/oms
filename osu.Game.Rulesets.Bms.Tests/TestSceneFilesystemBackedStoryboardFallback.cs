@@ -11,6 +11,8 @@ using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -50,6 +52,31 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("storyboard loaded", () => working.Storyboard != null);
             AddAssert("no missing storyboard error logged", () => storyboardError == null);
             AddStep("unsubscribe logger", () => Logger.NewEntry -= handleLog);
+        }
+
+        [Test]
+        public void TestProductionWorkingBeatmapSkinIsNotC4AuthoringAuthority()
+        {
+            WorkingBeatmap working = null!;
+
+            AddStep("create filesystem-backed BMS working beatmap", () =>
+            {
+                BeatmapSetInfo filesystemBackedSet = createFilesystemBackedBeatmapSetWithoutStoryboard();
+                working = beatmaps.GetWorkingBeatmap(filesystemBackedSet.Beatmaps.Single());
+            });
+            AddStep("resolve skin through production working beatmap", () =>
+            {
+                ISkin skin = working.Skin;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skin, Is.TypeOf<LegacyBeatmapSkin>());
+                    Assert.That(working.Skin, Is.SameAs(skin), "The working beatmap must retain ownership of its lazily-created skin.");
+                    Assert.That(skin, Is.AssignableTo<IGameplaySkinDocumentSource>());
+                    Assert.That(((IGameplaySkinDocumentSource)skin).AllowsGameplaySkinDocumentAuthoring, Is.False);
+                    Assert.That(((IGameplaySkinDocumentSource)skin).GameplaySkinDocument.Sections, Is.Empty);
+                });
+            });
         }
 
         [Test]
@@ -165,8 +192,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             Directory.CreateDirectory(fullPath);
 
             // .bme supplies explicit parser-owned 7K authority; this fixture only exercises filesystem/storyboard behaviour.
-            const string beatmapFilename = "filesystem-storyboard-test.bme";
-            string beatmapPath = Path.Combine(fullPath, beatmapFilename);
+            const string beatmap_filename = "filesystem-storyboard-test.bme";
+            string beatmapPath = Path.Combine(fullPath, beatmap_filename);
 
             File.WriteAllText(beatmapPath, @"
     #TITLE Filesystem Storyboard

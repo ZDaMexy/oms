@@ -44,6 +44,9 @@ namespace osu.Game.Tests.Beatmaps
         [Resolved]
         private GameHost host { get; set; }
 
+        [Resolved]
+        private SkinManager skinManager { get; set; }
+
         private readonly SkinInfo userSkinInfo = new SkinInfo();
 
         private readonly BeatmapInfo beatmapInfo = new BeatmapInfo
@@ -111,7 +114,11 @@ namespace osu.Game.Tests.Beatmaps
                     beatmapInfo.BeatmapSet.Files.Add(new RealmNamedFileUsage(new RealmFile { Hash = beatmapFile }, beatmapFile));
 
                 // Need to refresh the cached skin source to refresh the skin resource store.
-                dependencies.SkinSource = new SkinProvidingContainer(Skin = new LegacySkin(userSkinInfo, this));
+                // Keep the synthetic lookup layer first, but retain the SkinManager's exact current owner so an
+                // otherwise production-shaped gameplay publication can bind its package/material revision.
+                dependencies.SkinSource = new FixedSkinSource(
+                    Skin = new LegacySkin(userSkinInfo, this),
+                    skinManager.CurrentSkin.Value);
             });
         }
 
@@ -165,6 +172,14 @@ namespace osu.Game.Tests.Beatmaps
             public void Inject<T>(T instance) where T : class, IDependencyInjectionCandidate
             {
                 // Never used directly
+            }
+        }
+
+        private sealed partial class FixedSkinSource : SkinProvidingContainer
+        {
+            public FixedSkinSource(params ISkin[] sources)
+            {
+                SetSources(sources);
             }
         }
 

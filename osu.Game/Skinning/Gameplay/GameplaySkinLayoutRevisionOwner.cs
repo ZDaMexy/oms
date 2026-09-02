@@ -2,9 +2,11 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Development;
+using osu.Framework.Logging;
 
 namespace osu.Game.Skinning.Gameplay
 {
@@ -14,6 +16,7 @@ namespace osu.Game.Skinning.Gameplay
     public sealed class GameplaySkinPreparedLayout : IDisposable
     {
         private SkinCurrentRevisionLease? workLease;
+        private IDisposable? retirement;
         private int disposed;
 
         internal GameplaySkinLayoutRevisionOwner Owner { get; }
@@ -24,15 +27,19 @@ namespace osu.Game.Skinning.Gameplay
 
         internal long ParticipantGeneration { get; }
 
-        internal bool TryConsume(out SkinCurrentRevisionLease? retainedWorkLease)
+        internal bool TryConsume(
+            out SkinCurrentRevisionLease? retainedWorkLease,
+            out IDisposable? retainedRetirement)
         {
             if (Interlocked.Exchange(ref disposed, 1) != 0)
             {
                 retainedWorkLease = null;
+                retainedRetirement = null;
                 return false;
             }
 
             retainedWorkLease = Interlocked.Exchange(ref workLease, null);
+            retainedRetirement = Interlocked.Exchange(ref retirement, null);
             return true;
         }
 
@@ -54,12 +61,22 @@ namespace osu.Game.Skinning.Gameplay
             AdmissionGeneration = admissionGeneration;
             ParticipantGeneration = participantGeneration;
             this.workLease = workLease;
+            retirement = publication.TakeRetirement();
         }
 
         public void Dispose()
         {
-            Interlocked.Exchange(ref disposed, 1);
-            Interlocked.Exchange(ref workLease, null)?.Dispose();
+            if (Interlocked.Exchange(ref disposed, 1) != 0)
+                return;
+
+            try
+            {
+                Interlocked.Exchange(ref retirement, null)?.Dispose();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref workLease, null)?.Dispose();
+            }
         }
     }
 
@@ -72,7 +89,7 @@ namespace osu.Game.Skinning.Gameplay
     /// root. Detached compatibility owners may issue checked consecutive revisions for isolated tests. Solving may run
     /// on a background thread, while <see cref="TryCommit"/> is a reference-only commit suitable for the update thread.
     /// </remarks>
-    public sealed class GameplaySkinLayoutRevisionOwner
+    public sealed class GameplaySkinLayoutRevisionOwner : IDisposable
     {
         private readonly object sync = new object();
         private readonly Func<bool> validateRoot;
@@ -81,12 +98,19 @@ namespace osu.Game.Skinning.Gameplay
         private readonly Func<long, bool> validateParticipantGeneration;
         private readonly Func<long, Action, bool> commitAtParticipantGeneration;
         private readonly Func<Action, bool> dispatchCommit;
+        private readonly ConcurrentDictionary<string, byte> emittedMaterialDiagnosticBatches = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+        private readonly MaterialDiagnosticsObserverReceipt materialDiagnosticsReceipt = new MaterialDiagnosticsObserverReceipt();
+        private Task materialDiagnosticsObserver = Task.CompletedTask;
         private GameplaySkinLayoutPublication? current;
+        private IDisposable? currentRetirement;
         private long admissionGeneration;
+        private int disposed;
 
         public GameplaySkinPackageRevision PackageRevision { get; }
 
         public GameplaySkinLayoutPublication? CurrentPublication => Volatile.Read(ref current);
+
+        internal bool IsDisposed => Volatile.Read(ref disposed) != 0;
 
         /// <summary>
         /// The neutral view of <see cref="CurrentPublication"/>. This is derived from the same committed reference and
@@ -103,6 +127,30 @@ namespace osu.Game.Skinning.Gameplay
         /// Test/audit evidence for the execution context in which the prepared reference was actually committed.
         /// </summary>
         public bool? LastCommitWasUpdateThread { get; private set; }
+
+        /// <summary>
+        /// Completion receipt for the latest isolated post-commit diagnostic observer.
+        /// </summary>
+        /// <remarks>
+        /// Publication never waits for this task and observer failure can never change commit success. The receipt
+        /// allows deterministic audit of an already-queued observer without replacing the production publisher or
+        /// relying on an arbitrary wall-clock delay.
+        /// </remarks>
+        internal Task MaterialDiagnosticsObserver => Volatile.Read(ref materialDiagnosticsObserver);
+
+        /// <summary>
+        /// The exact persistence-safe payload most recently handed to the product logger by the observer.
+        /// </summary>
+        internal string? LastMaterialDiagnosticsBatch => materialDiagnosticsReceipt.LastBatch;
+
+        /// <summary>
+        /// Number of persistence-safe product log calls completed by this owner's isolated observer.
+        /// </summary>
+        /// <remarks>
+        /// This owner-local receipt is independent of process-wide logger enablement and listeners, which may be
+        /// changed by unrelated tests or host configuration. It is not a second diagnostic publication surface.
+        /// </remarks>
+        internal int MaterialDiagnosticsLogOperations => materialDiagnosticsReceipt.LogOperations;
 
         internal GameplaySkinLayoutRevisionOwner(GameplaySkinPackageRevision packageRevision)
             : this(packageRevision, () => true, () => null, () => 0, _ => true, commitCompatibility, runImmediately)
@@ -141,6 +189,13 @@ namespace osu.Game.Skinning.Gameplay
         public GameplaySkinPreparedLayout Prepare(Func<long, GameplaySkinLayoutSnapshot> solve)
         {
             ArgumentNullException.ThrowIfNull(solve);
+
+            if (PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+            {
+                throw new InvalidOperationException(
+                    "An exact gameplay layout preparation must publish a resolved material set through PreparePublication.");
+            }
+
             return PreparePublication(revision => GameplaySkinLayoutPublication.CreateNeutral(solve(revision)));
         }
 
@@ -159,7 +214,7 @@ namespace osu.Game.Skinning.Gameplay
 
             lock (sync)
             {
-                if (!validateRoot())
+                if (IsDisposed || !validateRoot())
                     throw new InvalidOperationException("The gameplay layout root no longer retains its exact package revision.");
 
                 // An exact gameplay root owns one immutable package/layout pair for its entire lifetime. Keep this
@@ -180,10 +235,10 @@ namespace osu.Game.Skinning.Gameplay
                     throw new InvalidOperationException("An exact gameplay layout preparation requires a fresh package work lease.");
             }
 
+            GameplaySkinLayoutPublication? prepared = null;
+
             try
             {
-                GameplaySkinLayoutPublication prepared;
-
                 if (ThreadSafety.IsUpdateThread)
                 {
                     // A provider can be attached to an already-loaded parent, in which case its background loader is
@@ -200,7 +255,7 @@ namespace osu.Game.Skinning.Gameplay
                 if (prepared.Snapshot.Context.LayoutRevision != revision)
                     throw new ArgumentException("A prepared gameplay layout must use the owner-issued layout revision.", nameof(solve));
 
-                if (!validateRoot())
+                if (IsDisposed || !validateRoot())
                     throw new InvalidOperationException("The gameplay layout root changed during background preparation.");
 
                 if (!validateParticipantGeneration(participantGeneration))
@@ -210,7 +265,43 @@ namespace osu.Game.Skinning.Gameplay
             }
             catch
             {
-                workLease?.Dispose();
+                try
+                {
+                    prepared?.DisposeRetirement();
+                }
+                finally
+                {
+                    workLease?.Dispose();
+                }
+
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Solves one candidate while keeping cancellation inside the prepared carrier ownership boundary.
+        /// </summary>
+        /// <remarks>
+        /// Cancellation may become observable after <paramref name="solve"/> has returned and the carrier has taken
+        /// both its fresh package work lease and publication retirement. This overload guarantees that such a carrier
+        /// is disposed before cancellation escapes to the caller.
+        /// </remarks>
+        public GameplaySkinPreparedLayout PreparePublication(
+            Func<long, GameplaySkinLayoutPublication> solve,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            GameplaySkinPreparedLayout? prepared = null;
+
+            try
+            {
+                prepared = PreparePublication(solve);
+                cancellationToken.ThrowIfCancellationRequested();
+                return prepared;
+            }
+            catch
+            {
+                prepared?.Dispose();
                 throw;
             }
         }
@@ -294,21 +385,33 @@ namespace osu.Game.Skinning.Gameplay
                 // late-commit race this fence exists to close.
             }
 
-            return Volatile.Read(ref committed) != 0;
+            bool succeeded = Volatile.Read(ref committed) != 0;
+
+            if (succeeded)
+                queueMaterialDiagnostics(prepared.Publication.MaterialSet);
+
+            return succeeded;
         }
 
         private bool tryCommitCore(GameplaySkinPreparedLayout prepared)
         {
             ArgumentNullException.ThrowIfNull(prepared);
 
-            if (!prepared.TryConsume(out SkinCurrentRevisionLease? retainedWorkLease))
+            if (!prepared.TryConsume(
+                    out SkinCurrentRevisionLease? retainedWorkLease,
+                    out IDisposable? retainedRetirement))
                 return false;
+
+            IDisposable? previousRetirement = null;
 
             try
             {
+                bool committed;
+
                 lock (sync)
                 {
-                    if (!validateRoot()
+                    if (IsDisposed
+                        || !validateRoot()
                         || !validateParticipantGeneration(prepared.ParticipantGeneration)
                         || prepared.AdmissionGeneration != admissionGeneration
                         || !ReferenceEquals(current, prepared.Expected))
@@ -328,15 +431,106 @@ namespace osu.Game.Skinning.Gameplay
                         if (!validateRoot())
                             return;
 
+                        previousRetirement = currentRetirement;
+                        currentRetirement = retainedRetirement;
+                        retainedRetirement = null;
                         Volatile.Write(ref current, prepared.Publication);
                         exchanged = true;
                     });
-                    return admitted && exchanged;
+                    committed = admitted && exchanged;
                 }
+
+                return committed;
             }
             finally
             {
-                retainedWorkLease?.Dispose();
+                try
+                {
+                    retainedRetirement?.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        previousRetirement?.Dispose();
+                    }
+                    finally
+                    {
+                        retainedWorkLease?.Dispose();
+                    }
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            IDisposable? retirement;
+
+            lock (sync)
+            {
+                if (Interlocked.Exchange(ref disposed, 1) != 0)
+                    return;
+
+                admissionGeneration = checked(admissionGeneration + 1);
+                Volatile.Write(ref current, null);
+                retirement = currentRetirement;
+                currentRetirement = null;
+            }
+
+            retirement?.Dispose();
+        }
+
+        private void queueMaterialDiagnostics(GameplaySkinResolvedMaterialSet materialSet)
+        {
+            Task observer;
+
+            try
+            {
+                string? productBatch = materialSet.PersistenceSafeDiagnosticBatch;
+
+                if (productBatch == null || !emittedMaterialDiagnosticBatches.TryAdd(productBatch, 0))
+                    return;
+
+                MaterialDiagnosticsObserverReceipt receipt = materialDiagnosticsReceipt;
+                // The closure intentionally contains only immutable persistence-safe text and a lightweight receipt.
+                // It cannot retain the material set, its snapshot, package leases or texture-backed entries.
+                observer = Task.Run(() => logMaterialDiagnostics(productBatch, receipt));
+            }
+            catch
+            {
+                // Task scheduling is an isolated observer too: a scheduler failure cannot change commit success.
+                observer = Task.CompletedTask;
+            }
+
+            Volatile.Write(ref materialDiagnosticsObserver, observer);
+        }
+
+        private static void logMaterialDiagnostics(string productBatch, MaterialDiagnosticsObserverReceipt receipt)
+        {
+            try
+            {
+                Logger.Log(productBatch, LoggingTarget.Runtime, LogLevel.Important);
+                receipt.Complete(productBatch);
+            }
+            catch
+            {
+                // Listener, persistence and scheduler failures are isolated from the committed reference contract.
+            }
+        }
+
+        private sealed class MaterialDiagnosticsObserverReceipt
+        {
+            private string? lastBatch;
+            private int logOperations;
+
+            public string? LastBatch => Volatile.Read(ref lastBatch);
+
+            public int LogOperations => Volatile.Read(ref logOperations);
+
+            public void Complete(string productBatch)
+            {
+                Volatile.Write(ref lastBatch, productBatch);
+                Interlocked.Increment(ref logOperations);
             }
         }
 

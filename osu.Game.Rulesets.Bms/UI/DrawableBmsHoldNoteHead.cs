@@ -3,13 +3,17 @@
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class DrawableBmsHoldNoteHead : DrawableBmsHitObject
     {
-        public DrawableBmsHoldNoteHead(BmsHoldNoteHead hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null)
-            : base(hitObject, gameplayLayoutSnapshot)
+        public DrawableBmsHoldNoteHead(
+            BmsHoldNoteHead hitObject,
+            BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null,
+            GameplaySkinResolvedMaterialSet? gameplayMaterialSet = null)
+            : base(hitObject, gameplayLayoutSnapshot, gameplayMaterialSet)
         {
             HandleUserInput = false;
         }

@@ -11,6 +11,7 @@ using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -39,8 +40,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private BmsLongNoteMode longNoteMode => longNoteModeOverrideForTesting ?? drawableRuleset?.LongNoteMode ?? BmsScoreProcessor.DEFAULT_LONG_NOTE_MODE;
 
-        public DrawableBmsHoldNote(BmsHoldNote hitObject, BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null)
-            : base(hitObject, gameplayLayoutSnapshot)
+        public DrawableBmsHoldNote(
+            BmsHoldNote hitObject,
+            BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null,
+            GameplaySkinResolvedMaterialSet? gameplayMaterialSet = null)
+            : base(hitObject, gameplayLayoutSnapshot, gameplayMaterialSet)
         {
         }
 
@@ -270,10 +274,10 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override DrawableHitObject CreateNestedHitObject(HitObject hitObject)
         {
             if (hitObject is BmsHoldNoteHead head)
-                return headDrawable = new DrawableBmsHoldNoteHead(head, GameplayLayoutSnapshot);
+                return headDrawable = new DrawableBmsHoldNoteHead(head, GameplayLayoutSnapshot, GameplayMaterialSet);
 
             if (hitObject is BmsHoldNoteTailEvent tailEvent)
-                return tailDrawable = new DrawableBmsHoldNoteTail(tailEvent, GameplayLayoutSnapshot);
+                return tailDrawable = new DrawableBmsHoldNoteTail(tailEvent, GameplayLayoutSnapshot, GameplayMaterialSet);
 
             if (hitObject is BmsHoldNoteBodyTick bodyTick)
                 return registerBodyTick(new DrawableBmsHoldNoteBodyTick(bodyTick));

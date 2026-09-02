@@ -210,7 +210,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(captureFolderInventory(externalRoot), Is.EqualTo(externalSnapshot));
             });
             AddStep("show copied mania renderer", () => firstRenderer.ShowMania());
-            AddUntilStep("wait for copied mania artifacts", () => firstRenderer.ManiaArtifactsLoaded);
+            addBoundedJourneyManiaArtifactWait("copied mania artifacts", () => firstRenderer);
             AddStep("assert copied mania artifacts", () =>
             {
                 assertJourneyManiaRendererArtifacts(firstRenderer);
@@ -258,7 +258,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for copied restart BMS artifacts", () => restartedRenderer.BmsArtifactsLoaded);
             AddStep("assert copied restart BMS artifacts", () => assertJourneyBmsRendererArtifacts(restartedRenderer));
             AddStep("show copied restart mania renderer", () => restartedRenderer.ShowMania());
-            AddUntilStep("wait for copied restart mania artifacts", () => restartedRenderer.ManiaArtifactsLoaded);
+            addBoundedJourneyManiaArtifactWait("copied restart mania artifacts", () => restartedRenderer);
             AddStep("assert copied restart mania artifacts", () =>
             {
                 assertJourneyManiaRendererArtifacts(restartedRenderer);
@@ -365,7 +365,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for renamed BMS artifacts", () => renamedRenderer.BmsArtifactsLoaded);
             AddStep("assert renamed BMS artifacts", () => assertJourneyBmsRendererArtifacts(renamedRenderer));
             AddStep("show renamed mania renderer", () => renamedRenderer.ShowMania());
-            AddUntilStep("wait for renamed mania artifacts", () => renamedRenderer.ManiaArtifactsLoaded);
+            addBoundedJourneyManiaArtifactWait("renamed mania artifacts", () => renamedRenderer);
             AddStep("assert renamed mania artifacts", () =>
             {
                 assertJourneyManiaRendererArtifacts(renamedRenderer);

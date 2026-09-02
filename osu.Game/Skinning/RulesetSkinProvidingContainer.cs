@@ -82,15 +82,18 @@ namespace osu.Game.Skinning
                 affectsGameplayLayoutPublication: prepareGameplaySkinLayout);
         }
 
-        private GameplaySkinLayoutPreparationResult prepareGameplayLayout(IReadOnlyDependencyContainer dependencies)
+        private GameplaySkinLayoutPreparationResult prepareGameplayLayout(
+            IReadOnlyDependencyContainer dependencies,
+            CancellationToken cancellationToken)
         {
             if (Ruleset is IGameplaySkinLayoutPreparer preparer)
-                return preparer.PrepareGameplaySkinLayout(Beatmap, dependencies);
+                return preparer.PrepareGameplaySkinLayout(Beatmap, dependencies, cancellationToken);
 
             return GameplaySkinLayoutPreparationResult.Rejected;
         }
 
         private ResourceStoreBackedSkin rulesetResourcesSkin;
+        private GameplaySkinLayoutRevisionOwner gameplaySkinLayoutRevisionOwner;
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
@@ -106,7 +109,7 @@ namespace osu.Game.Skinning
             dependencies.Cache(packageRevision);
             SkinRevisionParticipantRegistration revisionParticipant = GameplayRevisionParticipant;
             GameHost gameHost = parent.Get<GameHost>();
-            dependencies.Cache(new GameplaySkinLayoutRevisionOwner(
+            gameplaySkinLayoutRevisionOwner = new GameplaySkinLayoutRevisionOwner(
                 packageRevision,
                 validateRoot: () => revisionParticipant == null
                                     ? packageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility
@@ -130,7 +133,8 @@ namespace osu.Game.Skinning
                     gameHost,
                     revisionParticipant,
                     packageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility,
-                    commit)));
+                    commit));
+            dependencies.Cache(gameplaySkinLayoutRevisionOwner);
 
             return dependencies;
         }
@@ -321,9 +325,23 @@ namespace osu.Game.Skinning
 
         protected override void Dispose(bool isDisposing)
         {
-            base.Dispose(isDisposing);
-
-            rulesetResourcesSkin?.Dispose();
+            try
+            {
+                base.Dispose(isDisposing);
+            }
+            finally
+            {
+                try
+                {
+                    // The publication may own texture-backed package resources. Retire it only after the renderer
+                    // subtree has completed disposal through the base container lifecycle.
+                    gameplaySkinLayoutRevisionOwner?.Dispose();
+                }
+                finally
+                {
+                    rulesetResourcesSkin?.Dispose();
+                }
+            }
         }
     }
 }

@@ -1,7 +1,12 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -11,6 +16,7 @@ using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
 using osu.Framework.Platform;
@@ -19,7 +25,10 @@ using osu.Game.Audio;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Database;
+using osu.Game.Extensions;
 using osu.Game.IO;
+using osu.Game.Models;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Configuration;
@@ -29,6 +38,7 @@ using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Argon;
+using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.Mania.Skinning.Legacy;
 using osu.Game.Rulesets.Mania.Skinning.Oms;
 using osu.Game.Rulesets.Mania.UI;
@@ -39,6 +49,8 @@ using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace osu.Game.Rulesets.Mania.Tests.Skinning
 {
@@ -59,6 +71,212 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private ScoreProcessor scoreProcessor = null!;
         private DrawableNote productionNote = null!;
         private DrawableHoldNote productionHold = null!;
+        private SkinManager? publicMaterialSkinManager;
+        private readonly HashSet<string> publicMaterialExternalRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        protected override bool UseFreshStoragePerRun => true;
+
+        [TearDownSteps]
+        public void TearDownPublicMaterialFixture()
+        {
+            AddStep("shutdown public-material skin manager", () =>
+            {
+                publicMaterialSkinManager?.ShutdownManagedFolderMutations();
+                publicMaterialSkinManager = null;
+                deletePublicMaterialExternalRoots();
+            });
+        }
+
+        [TearDown]
+        public void CleanUpPublicMaterialExternalRoots() => deletePublicMaterialExternalRoots();
+
+        [TestCase(ManiaPublicMaterialPackageSource.OrdinaryRealm)]
+        [TestCase(ManiaPublicMaterialPackageSource.ManagedFolder)]
+        [TestCase(ManiaPublicMaterialPackageSource.ExternalFolder)]
+        public void TestPublicCommonMaterialDrivesExactProductionNoteHoldAndKeyFromCurrentRevision(ManiaPublicMaterialPackageSource source)
+        {
+            Live<SkinInfo> candidate = null!;
+            CurrentRevisionManiaMaterialHost renderer = null!;
+            string packageRoot = string.Empty;
+            Task<bool>? registrationTask = null;
+            Task<IList<Live<SkinInfo>>>? dropdownTask = null;
+            SkinCurrentRevision revision = null!;
+            SkinCurrentRevisionSourceKind expectedRevisionSource = source switch
+            {
+                ManiaPublicMaterialPackageSource.OrdinaryRealm => SkinCurrentRevisionSourceKind.RealmPackage,
+                ManiaPublicMaterialPackageSource.ManagedFolder => SkinCurrentRevisionSourceKind.ManagedFolder,
+                ManiaPublicMaterialPackageSource.ExternalFolder => SkinCurrentRevisionSourceKind.ExternalFolder,
+                _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
+            };
+            GameplaySkinPackageSourceKind expectedPackageSource = source switch
+            {
+                ManiaPublicMaterialPackageSource.OrdinaryRealm => GameplaySkinPackageSourceKind.RealmPackage,
+                ManiaPublicMaterialPackageSource.ManagedFolder => GameplaySkinPackageSourceKind.ManagedFolder,
+                ManiaPublicMaterialPackageSource.ExternalFolder => GameplaySkinPackageSourceKind.ExternalFolder,
+                _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
+            };
+
+            AddStep("create isolated public-material skin manager", () =>
+            {
+                Directory.CreateDirectory(LocalStorage.GetFullPath(SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY));
+                publicMaterialSkinManager = new SkinManager(LocalStorage, Realm, gameHost, Resources, Audio, Scheduler);
+            });
+
+            switch (source)
+            {
+                case ManiaPublicMaterialPackageSource.OrdinaryRealm:
+                    AddStep("create and select ordinary public-material package", () =>
+                    {
+                        packageRoot = LocalStorage.GetFullPath($"realm-mania-public-material-{Guid.NewGuid():N}");
+                        writePublicManiaMaterialPackage(packageRoot);
+                        candidate = createPublicMaterialRealmCandidate(packageRoot);
+                        publicMaterialSkinManager!.CurrentSkinInfo.Value = candidate;
+                    });
+                    break;
+
+                case ManiaPublicMaterialPackageSource.ManagedFolder:
+                    AddStep("create and select managed public-material package", () =>
+                    {
+                        (packageRoot, candidate) = createPublicMaterialManagedCandidate();
+                        publicMaterialSkinManager!.CurrentSkinInfo.Value = candidate;
+                    });
+                    break;
+
+                case ManiaPublicMaterialPackageSource.ExternalFolder:
+                    AddStep("create and register external public-material package", () =>
+                    {
+                        packageRoot = createPublicMaterialExternalPackage();
+                        registrationTask = publicMaterialSkinManager!.RegisterExternalFolderAsync(packageRoot);
+                    });
+                    AddUntilStep("wait for external public-material registration", () => registrationTask?.IsCompleted == true);
+                    AddStep("query external public-material package", () =>
+                    {
+                        Assert.That(registrationTask!.GetAwaiter().GetResult(), Is.True);
+                        dropdownTask = publicMaterialSkinManager!.GetAllUsableSkinsAsync();
+                    });
+                    AddUntilStep("wait for external public-material candidate", () => dropdownTask?.IsCompleted == true);
+                    AddStep("select external public-material package", () =>
+                    {
+                        candidate = dropdownTask!.GetAwaiter().GetResult()
+                                                 .Single(record => record.PerformRead(info =>
+                                                     info.IsExternalFilesystemStorage
+                                                     && string.Equals(info.FilesystemStoragePath, packageRoot, StringComparison.OrdinalIgnoreCase)));
+                        publicMaterialSkinManager!.CurrentSkinInfo.Value = candidate;
+                    });
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(source), source, null);
+            }
+
+            AddUntilStep("wait for exact public-material current revision", () =>
+                candidate != null
+                && publicMaterialSkinManager!.CurrentSkinInfo.Value.ID == candidate.ID
+                && publicMaterialSkinManager.CurrentSkin.Value.SkinInfo.ID == candidate.ID
+                && publicMaterialSkinManager.CurrentSkin.Value is BmsLegacySkin
+                && publicMaterialSkinManager.CurrentRevision.SourceKind == expectedRevisionSource
+                && ReferenceEquals(publicMaterialSkinManager.CurrentRevision.Owner, publicMaterialSkinManager.CurrentSkin.Value));
+            AddStep("mount exact mania production renderer", () =>
+            {
+                revision = publicMaterialSkinManager!.CurrentRevision;
+                Add(renderer = new CurrentRevisionManiaMaterialHost(publicMaterialSkinManager));
+            });
+            AddUntilStep("wait for exact mania production surface", () => renderer.SurfaceReady);
+            AddStep("add real mania note and hold", () => renderer.AddProductionObjects(Time.Current + 5_000));
+            AddUntilStep("wait for exact mania note hold and key", () => renderer.Ready);
+            AddStep("assert shared document declarations reached one exact production material set", () =>
+            {
+                GameplaySkinDocument document = revision.Owner.GameplaySkinDocument;
+                GameplaySkinDocumentEntry[] declarations = document.Sections
+                                                                     .Where(section => section.Family == GameplaySkinSlotCatalogFamily.Common
+                                                                                       && section.Version == GameplaySkinSlotCatalog.COMMON_VERSION)
+                                                                     .SelectMany(section => section.Entries)
+                                                                     .ToArray();
+                GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
+                GameplaySkinResolvedMaterialSet materialSet = publication.MaterialSet;
+                GameplaySkinLaneTopologyGroup group = publication.Snapshot.Context.Topology.GroupsInLogicalOrder.Single();
+                GameplaySkinLaneTopologyEntry lane = group.LanesInLogicalOrder[0];
+                GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+                GameplaySkinSlotDescriptor[] slots =
+                {
+                    GameplaySkinSlotCatalog.Note,
+                    GameplaySkinSlotCatalog.LongNoteHead,
+                    GameplaySkinSlotCatalog.LongNoteBody,
+                    GameplaySkinSlotCatalog.LongNoteTail,
+                    GameplaySkinSlotCatalog.KeyVisual,
+                };
+                GameplaySkinResolvedMaterialEntry[] entries = slots.Select(slot =>
+                {
+                    Assert.That(materialSet.TryGet(new GameplaySkinResolvedMaterialKey(slot, target), out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                    return entry!;
+                }).ToArray();
+                DrawableNote note = renderer.NoteDrawable!;
+                DrawableHoldNote hold = renderer.HoldDrawable!;
+                Column column = renderer.FirstColumn;
+                LegacyNotePiece notePiece = note.ChildrenOfType<LegacyNotePiece>().Single(piece => piece.GetType() == typeof(LegacyNotePiece));
+                LegacyHoldNoteHeadPiece headPiece = hold.Head.ChildrenOfType<LegacyHoldNoteHeadPiece>().Single();
+                LegacyBodyPiece bodyPiece = hold.ChildrenOfType<LegacyBodyPiece>().Single();
+                LegacyHoldNoteTailPiece tailPiece = hold.Tail.ChildrenOfType<LegacyHoldNoteTailPiece>().Single();
+                LegacyKeyArea keyArea = column.ChildrenOfType<LegacyKeyArea>().Single(key => key.UsesPreparedMaterial);
+                ManiaGameplaySkinNoteMaterial noteMaterial = entries[0].GetMaterial<ManiaGameplaySkinNoteMaterial>();
+                ManiaGameplaySkinNoteMaterial headMaterial = entries[1].GetMaterial<ManiaGameplaySkinNoteMaterial>();
+                ManiaGameplaySkinBodyMaterial bodyMaterial = entries[2].GetMaterial<ManiaGameplaySkinBodyMaterial>();
+                ManiaGameplaySkinNoteMaterial tailMaterial = entries[3].GetMaterial<ManiaGameplaySkinNoteMaterial>();
+                ManiaGameplaySkinKeyMaterial keyMaterial = entries[4].GetMaterial<ManiaGameplaySkinKeyMaterial>();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(document.HasFatalDiagnostics, Is.False);
+                    Assert.That(declarations, Has.Length.EqualTo(5));
+                    Assert.That(declarations.Select(entry => entry.Descriptor), Is.EquivalentTo(slots));
+                    Assert.That(declarations.All(entry => entry.Presence == GameplaySkinDocumentDeclarationPresence.Declared
+                                                          && entry.Validity == GameplaySkinDocumentValueValidity.Valid
+                                                          && entry.Operation == GameplaySkinDocumentOperation.Provide), Is.True);
+                    Assert.That(declarations.All(entry => entry.Target.LaneId?.Value == "mania.lane.column-1"
+                                                          && entry.Target.GroupId?.Value == "mania.group.stage-1"), Is.True);
+                    Assert.That(publication.Snapshot, Is.SameAs(renderer.Drawable.LayoutSnapshot));
+                    Assert.That(materialSet.Snapshot, Is.SameAs(publication.Snapshot));
+                    Assert.That(materialSet.PackageRevision.SourceKind, Is.EqualTo(expectedPackageSource));
+                    Assert.That(materialSet.PackageRevision.RecordId, Is.EqualTo(revision.RecordId));
+                    Assert.That(materialSet.PackageRevision.ContentRevision, Is.EqualTo(revision.ContentRevision));
+                    Assert.That(materialSet.PackageRevision.Generation, Is.EqualTo(revision.Generation));
+                    Assert.That(entries.All(entry => entry.State == GameplaySkinResolvedMaterialState.Provide
+                                                     && entry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage
+                                                     && entry.Source.StableId == "selected-common"
+                                                     && entry.Source.ContentRevision == document.Identity.ContentRevision), Is.True,
+                        "Every declared component must resolve from the shared selected-common authority, not legacy or fallback lookup.");
+                    Assert.That(renderer.Drawable.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(renderer.Drawable.Playfield.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(renderer.Drawable.Playfield.Stages.Single().ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(column.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(note.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(hold.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(hold.Head.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(hold.Tail.ResolvedMaterialSet, Is.SameAs(materialSet));
+                    Assert.That(note.ResolvedMaterialKey, Is.EqualTo(entries[0].Key));
+                    Assert.That(hold.Head.ResolvedMaterialKey, Is.EqualTo(entries[1].Key));
+                    Assert.That(hold.ResolvedMaterialKey, Is.EqualTo(entries[2].Key));
+                    Assert.That(hold.Tail.ResolvedMaterialKey, Is.EqualTo(entries[3].Key));
+                    Assert.That(column.ResolvedMaterialKey, Is.EqualTo(entries[4].Key));
+                    Assert.That(notePiece.UsesPreparedMaterial, Is.True);
+                    Assert.That(headPiece.UsesPreparedMaterial, Is.True);
+                    Assert.That(bodyPiece.UsesPreparedMaterial, Is.True);
+                    Assert.That(tailPiece.UsesPreparedMaterial, Is.True);
+                    Assert.That(keyArea.UsesPreparedMaterial, Is.True);
+                    Assert.That(containsTexture(notePiece, noteMaterial.Animation.Frames[0]), Is.True);
+                    Assert.That(containsTexture(headPiece, headMaterial.Animation.Frames[0]), Is.True);
+                    Assert.That(containsTexture(bodyPiece, bodyMaterial.Body.Frames[0]), Is.True);
+                    Assert.That(containsTexture(tailPiece, tailMaterial.Animation.Frames[0]), Is.True);
+                    Assert.That(containsTexture(keyArea, keyMaterial.UpTexture), Is.True);
+                    Assert.That(note.ChildrenOfType<DefaultNotePiece>(), Is.Empty);
+                    Assert.That(hold.ChildrenOfType<DefaultNotePiece>(), Is.Empty);
+                    Assert.That(hold.ChildrenOfType<DefaultBodyPiece>(), Is.Empty);
+                    Assert.That(column.ChildrenOfType<DefaultKeyArea>(), Is.Empty);
+                });
+            });
+            AddStep("detach public-material renderer", () => renderer.Expire());
+            AddUntilStep("wait for public-material renderer detach", () => renderer.Parent == null);
+        }
 
         [Test]
         public void TestExactRulesetProviderPublishesOneSnapshotForProductionTree()
@@ -112,7 +330,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 && ReferenceEquals(
                     drawableRuleset.LayoutRevisionOwner.CurrentPublication?.GetAdapter<ManiaGameplaySkinLayout>(),
                     drawableRuleset.LayoutAdapter)
-                && ReferenceEquals(drawableRuleset.LayoutAdapter.Snapshot, drawableRuleset.LayoutSnapshot));
+                && ReferenceEquals(drawableRuleset.LayoutAdapter.Snapshot, drawableRuleset.LayoutSnapshot)
+                && ReferenceEquals(drawableRuleset.LayoutRevisionOwner.CurrentPublication?.MaterialSet.Snapshot, drawableRuleset.LayoutSnapshot)
+                && drawableRuleset.LayoutRevisionOwner.CurrentPublication?.MaterialSet.IsEmpty == false
+                && drawableRuleset.LayoutRevisionOwner.CurrentPublication?.MaterialSet.Entries.Count == productionBeatmap.TotalColumns * 5);
             AddStep("prepare is background", () => Assert.That(drawableRuleset.LayoutRevisionOwner.LastPrepareWasUpdateThread, Is.False));
             AddStep("commit is update thread", () => Assert.That(drawableRuleset.LayoutRevisionOwner.LastCommitWasUpdateThread, Is.True));
             GameplaySkinLayoutPublication firstPublication = null!;
@@ -120,7 +341,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             {
                 firstPublication = drawableRuleset.LayoutRevisionOwner.CurrentPublication!;
                 Assert.That(
-                    () => productionRuleset.PrepareGameplaySkinLayout(productionBeatmap, productionContent.CapturedDependencies),
+                    () => productionRuleset.PrepareGameplaySkinLayout(
+                        productionBeatmap,
+                        productionContent.CapturedDependencies,
+                        CancellationToken.None),
                     Throws.InvalidOperationException.With.Message.Contains("exactly one immutable layout"));
             });
             AddAssert("failed double prepare retains exact publication", () =>
@@ -129,8 +353,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("native dual vector retained", () => drawableRuleset.LayoutSnapshot.Context.NativeContextId == "stages-4-5");
             AddAssert("root playfield stages and columns share exact snapshot", () =>
                 ReferenceEquals(drawableRuleset.LayoutSnapshot, drawableRuleset.Playfield.LayoutSnapshot)
+                && ReferenceEquals(drawableRuleset.ResolvedMaterialSet, drawableRuleset.Playfield.ResolvedMaterialSet)
                 && drawableRuleset.Playfield.Stages.All(stage =>
                     ReferenceEquals(stage.LayoutSnapshot, drawableRuleset.LayoutSnapshot)
+                    && ReferenceEquals(stage.ResolvedMaterialSet, drawableRuleset.ResolvedMaterialSet)
                     && stage.ChildrenOfType<ColumnFlow<Column>>().Any()
                     && stage.ChildrenOfType<ColumnFlow<Column>>().All(flow => ReferenceEquals(flow.LayoutSnapshot, drawableRuleset.LayoutSnapshot))
                     && stage.Columns.All(column => ReferenceEquals(column.LayoutSnapshot, drawableRuleset.LayoutSnapshot))));
@@ -150,8 +376,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     float expectedStageWidth = group.Rect.Width / screen.Width * playfieldBounds.Width;
 
                     if (stageBounds.Width <= 1
-                        || System.Math.Abs(stageBounds.Left - expectedStageLeft) > tolerance
-                        || System.Math.Abs(stageBounds.Width - expectedStageWidth) > tolerance)
+                        || Math.Abs(stageBounds.Left - expectedStageLeft) > tolerance
+                        || Math.Abs(stageBounds.Width - expectedStageWidth) > tolerance)
                     {
                         return false;
                     }
@@ -165,8 +391,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         float expectedColumnWidth = lane.Width / group.Rect.Width * stageBounds.Width;
 
                         if (columnBounds.Width <= 1
-                            || System.Math.Abs(columnBounds.Left - expectedColumnLeft) > tolerance
-                            || System.Math.Abs(columnBounds.Width - expectedColumnWidth) > tolerance)
+                            || Math.Abs(columnBounds.Left - expectedColumnLeft) > tolerance
+                            || Math.Abs(columnBounds.Width - expectedColumnWidth) > tolerance)
                         {
                             return false;
                         }
@@ -191,13 +417,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
             AddUntilStep("production mania HUD loaded", () => productionHud.IsLoaded);
             AddAssert("HUD wrapper shares exact snapshot", () => ReferenceEquals(productionHud.LayoutSnapshot, drawableRuleset.LayoutSnapshot));
+            AddAssert("HUD wrapper shares exact material publication", () =>
+                ReferenceEquals(productionHud.ResolvedMaterialSet, drawableRuleset.ResolvedMaterialSet));
             AddAssert("combo geometry comes from exact snapshot surface", () =>
             {
                 Drawable combo = productionHud.Children.Single(child => child is OmsManiaComboCounter or LegacyManiaComboCounter);
                 GameplaySkinLayoutRect surface = drawableRuleset.LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
                 return combo.RelativePositionAxes == Axes.Both
-                       && System.Math.Abs(combo.X - (surface.Left + surface.Width / 2)) < 0.001f
-                       && System.Math.Abs(combo.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+                       && Math.Abs(combo.X - (surface.Left + surface.Width / 2)) < 0.001f
+                       && Math.Abs(combo.Y - (surface.Top + surface.Height / 2)) < 0.001f;
             });
             AddStep("add production note hold and barline", () =>
             {
@@ -217,10 +445,22 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 this.ChildrenOfType<DrawableNote>().All(note => ReferenceEquals(note.LayoutSnapshot, drawableRuleset.LayoutSnapshot))
                 && this.ChildrenOfType<DrawableHoldNote>().All(hold => ReferenceEquals(hold.LayoutSnapshot, drawableRuleset.LayoutSnapshot))
                 && this.ChildrenOfType<DrawableBarLine>().All(line => ReferenceEquals(line.StageLayoutSnapshot, drawableRuleset.LayoutSnapshot)));
+            AddAssert("real note and hold consume exact prepared material set", () =>
+                ReferenceEquals(productionNote.ResolvedMaterialSet, firstPublication.MaterialSet)
+                && productionNote.ResolvedMaterialKey?.Target.LaneId?.Equals(drawableRuleset.Playfield.GetColumn(productionNote.HitObject.Column).LayoutLaneId) == true
+                && ReferenceEquals(productionHold.ResolvedMaterialSet, firstPublication.MaterialSet)
+                && productionHold.ResolvedMaterialKey?.Slot == GameplaySkinSlotCatalog.LongNoteBody
+                && productionHold.ResolvedMaterialKey?.Target.LaneId?.Equals(drawableRuleset.Playfield.GetColumn(productionHold.HitObject.Column).LayoutLaneId) == true
+                && ReferenceEquals(productionHold.Head.ResolvedMaterialSet, firstPublication.MaterialSet)
+                && productionHold.Head.ResolvedMaterialKey?.Slot == GameplaySkinSlotCatalog.LongNoteHead
+                && ReferenceEquals(productionHold.Tail.ResolvedMaterialSet, firstPublication.MaterialSet)
+                && productionHold.Tail.ResolvedMaterialKey?.Slot == GameplaySkinSlotCatalog.LongNoteTail);
             AddAssert("hit targets and core adjustment share exact snapshot", () =>
                 this.ChildrenOfType<HitPositionPaddedContainer>().Any()
                 && this.ChildrenOfType<HitPositionPaddedContainer>().All(target => ReferenceEquals(target.LayoutSnapshot, drawableRuleset.LayoutSnapshot))
-                && this.ChildrenOfType<ManiaPlayfieldAdjustmentContainer>().All(core => ReferenceEquals(core.LayoutSnapshot, drawableRuleset.LayoutSnapshot)));
+                && this.ChildrenOfType<ManiaPlayfieldAdjustmentContainer>().All(core =>
+                    ReferenceEquals(core.LayoutSnapshot, drawableRuleset.LayoutSnapshot)
+                    && ReferenceEquals(core.ResolvedMaterialSet, drawableRuleset.ResolvedMaterialSet)));
 
             AddStep("publish real stage judgement", () =>
             {
@@ -290,8 +530,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 return argonRuleset.LayoutSnapshot.Context.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility
                        && ReferenceEquals(piece.LayoutSnapshot, argonRuleset.LayoutSnapshot)
                        && piece.RelativePositionAxes == Axes.Both
-                       && System.Math.Abs(piece.X - 0.5f) < 0.001f
-                       && System.Math.Abs(piece.Y - expectedY) < 0.001f;
+                       && Math.Abs(piece.X - 0.5f) < 0.001f
+                       && Math.Abs(piece.Y - expectedY) < 0.001f;
             });
             AddStep("detach Argon gameplay root", () => argonHost.Expire());
             AddUntilStep("Argon gameplay root detached", () => argonHost.Parent == null);
@@ -341,7 +581,25 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                        && snapshot.LanesInLogicalOrder.All(lane => isFinitePositiveAndContained(snapshot.Context.SafeBounds, lane.Rect))
                        && snapshot.Surfaces.All(surface => isFinitePositiveAndContained(snapshot.Context.SafeBounds, surface.Rect))
                        && invalidRuleset.Playfield.Stages.All(stage => ReferenceEquals(stage.LayoutSnapshot, snapshot)
-                                                                        && stage.Columns.All(column => ReferenceEquals(column.LayoutSnapshot, snapshot)));
+                                                                       && stage.Columns.All(column => ReferenceEquals(column.LayoutSnapshot, snapshot)));
+            });
+            AddAssert("single-stage special key uses its exact stable material target", () =>
+            {
+                GameplaySkinLaneTopologyGroup group = invalidRuleset.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder.Single();
+                GameplaySkinLaneTopologyEntry specialLane = group.LanesInLogicalOrder.Single(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey);
+                Column specialColumn = invalidRuleset.Playfield.Stages.Single().Columns[specialLane.GroupLocalLogicalIndex];
+                GameplaySkinResolvedMaterialTarget? target = specialColumn.ResolvedMaterialKey?.Target;
+
+                return ReferenceEquals(specialColumn.ResolvedMaterialSet, invalidRuleset.LayoutRevisionOwner.CurrentPublication!.MaterialSet)
+                       && target != null
+                       && target.LaneId?.Equals(specialLane.Identity.Id) == true
+                       && target.GroupId?.Equals(group.Identity.Id) == true
+                       && target.GroupLogicalIndex == group.LogicalIndex
+                       && target.GroupVisualIndex == group.VisualIndex
+                       && target.GlobalLogicalIndex == specialLane.GlobalLogicalIndex
+                       && target.GlobalVisualIndex == specialLane.GlobalVisualIndex
+                       && target.GroupLocalLogicalIndex == specialLane.GroupLocalLogicalIndex
+                       && target.GroupLocalVisualIndex == specialLane.GroupLocalVisualIndex;
             });
             AddStep("detach invalid-geometry gameplay root", () => invalidHost.Expire());
             AddUntilStep("invalid-geometry gameplay root detached", () => invalidHost.Parent == null);
@@ -388,8 +646,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                     if (!ReferenceEquals(flow.LayoutSnapshot, legacyRuleset.LayoutSnapshot)
                         || flowBounds.Width <= 1
-                        || System.Math.Abs(flowBounds.Left - stageBounds.Left) > 1
-                        || System.Math.Abs(flowBounds.Width - stageBounds.Width) > 1
+                        || Math.Abs(flowBounds.Left - stageBounds.Left) > 1
+                        || Math.Abs(flowBounds.Width - stageBounds.Width) > 1
                         || flow.Content.Any(column => column.ScreenSpaceDrawQuad.AABBFloat.Width <= 1))
                     {
                         return false;
@@ -463,8 +721,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                     if (!ReferenceEquals(piece.LayoutSnapshot, argonRuleset.LayoutSnapshot)
                         || piece.RelativePositionAxes != Axes.Both
-                        || System.Math.Abs(piece.X - 0.5f) > 0.001f
-                        || System.Math.Abs(pieceCentreX - stageBounds.Centre.X) > 0.5f
+                        || Math.Abs(piece.X - 0.5f) > 0.001f
+                        || Math.Abs(pieceCentreX - stageBounds.Centre.X) > 0.5f
                         || pieceCentreX < stageBounds.Left
                         || pieceCentreX > stageBounds.Right)
                         return false;
@@ -535,7 +793,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                             || topologyLane.Identity.Role != (expectedSpecial ? GameplaySkinLaneRole.SpecialKey : GameplaySkinLaneRole.Key)
                             || column.IsSpecial != expectedSpecial
                             || !column.LayoutLaneId.Equals(topologyLane.Identity.Id)
-                            || System.Math.Abs(layoutLane.Rect.Width - expectedWidth) > 0.001f)
+                            || Math.Abs(layoutLane.Rect.Width - expectedWidth) > 0.001f)
                             return false;
                     }
                 }
@@ -578,7 +836,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddUntilStep("all OMS column surfaces loaded", () => omsRuleset.IsLoaded
                                                                        && omsRuleset.Playfield.Stages.All(stage => stage.Columns.All(column =>
-                                                                           column.ChildrenOfType<OmsKeyArea>().Any(key => key.IsLoaded)
+                                                                           column.ChildrenOfType<LegacyKeyArea>().Any(key => key.IsLoaded && key.UsesPreparedMaterial)
                                                                            && column.ChildrenOfType<OmsColumnBackground>().Any(background => background.IsLoaded))));
             AddAssert("OMS fallback and edge identity are stage local", () =>
             {
@@ -591,16 +849,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     {
                         Column column = stage.Columns[localIndex];
                         GameplaySkinLaneTopologyEntry topologyLane = topologyGroup.LanesInLogicalOrder[localIndex];
-                        OmsKeyArea keyArea = column.ChildrenOfType<OmsKeyArea>().Single();
+                        LegacyKeyArea keyArea = column.ChildrenOfType<LegacyKeyArea>().Single(key => key.UsesPreparedMaterial);
                         OmsColumnBackground background = column.ChildrenOfType<OmsColumnBackground>().Single();
                         string expectedFallback = topologyLane.Identity.Role == GameplaySkinLaneRole.SpecialKey
                             ? "S"
-                            : System.Math.Min(localIndex, stage.Columns.Length - 1 - localIndex) % 2 == 0 ? "1" : "2";
+                            : Math.Min(localIndex, stage.Columns.Length - 1 - localIndex) % 2 == 0 ? "1" : "2";
 
                         if (!ReferenceEquals(column.LayoutSnapshot, omsRuleset.LayoutSnapshot)
                             || topologyLane.GroupLocalLogicalIndex != localIndex
                             || !column.LayoutLaneId.Equals(topologyLane.Identity.Id)
-                            || keyArea.ResolvedFallbackColumnIndex != expectedFallback
+                             || keyArea.ResolvedFallbackColumnIndex != expectedFallback
+                            || !ReferenceEquals(column.ResolvedMaterialSet, omsRuleset.LayoutRevisionOwner.CurrentPublication!.MaterialSet)
+                            || column.ResolvedMaterialKey?.Target.LaneId?.Equals(topologyLane.Identity.Id) != true
                             || background.ResolvedFallbackColumnIndex != expectedFallback
                             || background.IsStageLastColumn != (localIndex == stage.Columns.Length - 1))
                             return false;
@@ -690,10 +950,205 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         return ReferenceEquals(note.LayoutSnapshot, drawableRuleset.LayoutSnapshot)
                                && ReferenceEquals(targetColumn.LayoutSnapshot, drawableRuleset.LayoutSnapshot)
                                && note.LayoutLaneId.Equals(targetColumn.LayoutLaneId)
+                               && ReferenceEquals(note.ResolvedMaterialSet, drawableRuleset.LayoutRevisionOwner.CurrentPublication!.MaterialSet)
+                               && note.ResolvedMaterialKey?.Target.LaneId?.Equals(targetColumn.LayoutLaneId) == true
                                && drawableRuleset.LayoutSnapshot.GetLane(note.LayoutLaneId).TopologyEntry.GlobalLogicalIndex == note.HitObject.Column;
                     }));
             AddStep("detach modded gameplay root", () => host.Expire());
             AddUntilStep("modded gameplay root detached", () => host.Parent == null);
+        }
+
+        private Live<SkinInfo> createPublicMaterialRealmCandidate(string sourceRoot)
+        {
+            var info = new SkinInfo("mania public material Realm package", "OMS tests", typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+            var fileStore = new RealmFileStore(Realm, LocalStorage);
+
+            Realm.Write(realm =>
+            {
+                realm.Add(info);
+
+                foreach (string path in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
+                {
+                    using Stream stream = File.OpenRead(path);
+                    RealmFile file = fileStore.Add(stream, realm);
+                    info.Files.Add(new RealmNamedFileUsage(file, Path.GetRelativePath(sourceRoot, path)));
+                }
+            });
+
+            return publicMaterialSkinManager!.Query(skin => skin.ID == info.ID);
+        }
+
+        private (string PackageRoot, Live<SkinInfo> Candidate) createPublicMaterialManagedCandidate()
+        {
+            string relativePath = $"chartskin/mania-public-material-{Guid.NewGuid():N}";
+            string packageRoot = LocalStorage.GetFullPath(relativePath);
+            writePublicManiaMaterialPackage(packageRoot);
+            var info = new SkinInfo("mania public material managed folder", "OMS tests", typeof(BmsLegacySkin).GetInvariantInstantiationInfo())
+            {
+                FilesystemStoragePath = relativePath,
+                FilesystemStorageAuthorityOwner = SkinManagedFolderScanner.AUTHORITY_OWNER,
+            };
+
+            Realm.Write(realm => realm.Add(info));
+            return (packageRoot, publicMaterialSkinManager!.Query(skin => skin.ID == info.ID));
+        }
+
+        private string createPublicMaterialExternalPackage()
+        {
+            string packageRoot = Path.Combine(Path.GetTempPath(), $"oms-mania-public-material-{Guid.NewGuid():N}");
+            publicMaterialExternalRoots.Add(packageRoot);
+            writePublicManiaMaterialPackage(packageRoot);
+            return packageRoot;
+        }
+
+        private void deletePublicMaterialExternalRoots()
+        {
+            foreach (string packageRoot in publicMaterialExternalRoots.ToArray())
+            {
+                if (Directory.Exists(packageRoot))
+                    Directory.Delete(packageRoot, recursive: true);
+            }
+
+            publicMaterialExternalRoots.Clear();
+        }
+
+        private static void writePublicManiaMaterialPackage(string packageRoot)
+        {
+            string publicResources = Path.Combine(packageRoot, "public");
+            Directory.CreateDirectory(publicResources);
+            File.WriteAllText(
+                Path.Combine(packageRoot, "skin.ini"),
+                "[General]\n" +
+                "Name: mania public common production material\n" +
+                "Author: OMS tests\n" +
+                "Version: 2.7\n" +
+                "\n" +
+                "[Mania]\n" +
+                "Keys: 4\n" +
+                "\n" +
+                "[GameplaySkin.Common:1]\n" +
+                "Target: Lane ruleset=mania keymode=4k stage-mode=single group=mania.group.stage-1 lane=mania.lane.column-1 group-logical=0 group-visual=0 global-logical=0 global-visual=0 group-local-logical=0 group-local-visual=0\n" +
+                "object.note: resource Provide \"public/note\"\n" +
+                "object.long-note.head: resource Provide \"public/head\"\n" +
+                "object.long-note.body: resource Provide \"public/body\"\n" +
+                "object.long-note.tail: resource Provide \"public/tail\"\n" +
+                "playfield.key: resource Provide \"public/key\"\n");
+
+            File.WriteAllBytes(Path.Combine(publicResources, "note.png"), createPublicMaterialPng(11, 13, new Rgba32(230, 40, 90, 255)));
+            File.WriteAllBytes(Path.Combine(publicResources, "head.png"), createPublicMaterialPng(12, 14, new Rgba32(40, 190, 235, 255)));
+            File.WriteAllBytes(Path.Combine(publicResources, "body.png"), createPublicMaterialPng(13, 15, new Rgba32(245, 205, 40, 255)));
+            File.WriteAllBytes(Path.Combine(publicResources, "tail.png"), createPublicMaterialPng(14, 16, new Rgba32(105, 225, 80, 255)));
+            File.WriteAllBytes(Path.Combine(publicResources, "key.png"), createPublicMaterialPng(15, 17, new Rgba32(170, 85, 230, 255)));
+        }
+
+        private static byte[] createPublicMaterialPng(int width, int height, Rgba32 colour)
+        {
+            using var image = new Image<Rgba32>(width, height, colour);
+            using var output = new MemoryStream();
+            image.SaveAsPng(output);
+            return output.ToArray();
+        }
+
+        private static bool containsTexture(Drawable root, Texture texture)
+            => root.ChildrenOfType<Sprite>().Any(sprite => ReferenceEquals(sprite.Texture, texture));
+
+        private sealed partial class CurrentRevisionManiaMaterialHost : SkinProvidingContainer
+        {
+            [Cached]
+            private readonly SkinManager skinManager;
+
+            public Note Note { get; private set; } = null!;
+
+            public HoldNote Hold { get; private set; } = null!;
+
+            public DrawableManiaRuleset Drawable { get; }
+
+            public RulesetSkinProvidingContainer Provider { get; }
+
+            public DrawableNote? NoteDrawable { get; private set; }
+
+            public DrawableHoldNote? HoldDrawable { get; private set; }
+
+            public Column FirstColumn => Drawable.Playfield.Stages.Single().Columns[0];
+
+            public bool SurfaceReady
+                => Provider.IsLoaded
+                   && Drawable.IsLoaded
+                   && Drawable.LayoutRevisionOwner.CurrentPublication != null
+                   && Drawable.Playfield.Stages.Single().IsLoaded
+                   && FirstColumn.IsLoaded
+                   && FirstColumn.ChildrenOfType<LegacyKeyArea>().Any(key => key.IsLoaded && key.UsesPreparedMaterial);
+
+            public bool Ready
+            {
+                get
+                {
+                    DrawableNote? note = NoteDrawable;
+                    DrawableHoldNote? hold = HoldDrawable;
+
+                    return SurfaceReady
+                           && note?.IsLoaded == true
+                           && hold?.IsLoaded == true
+                           && hold.Head.IsLoaded
+                           && hold.Tail.IsLoaded
+                           && note.ChildrenOfType<LegacyNotePiece>().Any(piece => piece.GetType() == typeof(LegacyNotePiece) && piece.UsesPreparedMaterial)
+                           && hold.Head.ChildrenOfType<LegacyHoldNoteHeadPiece>().Any(piece => piece.UsesPreparedMaterial)
+                           && hold.ChildrenOfType<LegacyBodyPiece>().Any(piece => piece.UsesPreparedMaterial)
+                           && hold.Tail.ChildrenOfType<LegacyHoldNoteTailPiece>().Any(piece => piece.UsesPreparedMaterial)
+                           && FirstColumn.ChildrenOfType<LegacyKeyArea>().Any(key => key.IsLoaded && key.UsesPreparedMaterial);
+                }
+            }
+
+            public CurrentRevisionManiaMaterialHost(SkinManager skinManager)
+                : base(skinManager.CurrentSkin.Value)
+            {
+                this.skinManager = skinManager;
+                RelativeSizeAxes = Axes.Both;
+
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                    ControlPointInfo = new ControlPointInfo(),
+                };
+
+                Drawable = (DrawableManiaRuleset)ruleset.CreateDrawableRulesetWith(beatmap);
+                InternalChild = Provider = new RulesetSkinProvidingContainer(
+                    ruleset,
+                    beatmap,
+                    null,
+                    prepareGameplaySkinLayout: true)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = Drawable,
+                };
+            }
+
+            public void AddProductionObjects(double startTime)
+            {
+                Note = new Note
+                {
+                    Column = 0,
+                    StartTime = startTime,
+                };
+                Hold = new HoldNote
+                {
+                    Column = 0,
+                    StartTime = startTime + 1_000,
+                    Duration = 2_000,
+                };
+                Note.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                Hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                Drawable.Playfield.Add(NoteDrawable = new DrawableNote(Note));
+                Drawable.Playfield.Add(HoldDrawable = new DrawableHoldNote(Hold));
+            }
+        }
+
+        public enum ManiaPublicMaterialPackageSource
+        {
+            OrdinaryRealm,
+            ManagedFolder,
+            ExternalFolder,
         }
 
         private partial class HudDependenciesContainer : Container

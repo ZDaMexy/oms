@@ -49,7 +49,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 string laneToken = getLegacyLaneToken(projection, lane);
 
-                foreach (GameplaySkinLaneResourceField field in GameplaySkinLaneResourceFieldCatalog.All)
+                foreach (GameplaySkinLaneResourceField field in BmsGameplaySkinNoteResourceFields.All)
                 {
                     GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedLaneResource(field, laneToken);
 
@@ -70,10 +70,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             if (lane.Identity.Role != GameplaySkinLaneRole.Scratch)
             {
-                // Preserve the current unversioned [Bms] compatibility input exactly. BmsLegacySkin resolves non-scratch
-                // resources from raw LaneIndex, which is the topology's global logical index: 5K/7K/14K therefore use
-                // K1..K14 while scratch occupies index zero, but scratch-less 9K currently uses numeric tokens 0..8.
-                // A canonical 1..9 migration requires a versioned format/diagnostic and cannot be guessed here.
+                if (projection.Keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms)
+                {
+                    int canonicalIndex = lane.GlobalLogicalIndex + 1;
+                    int legacyRawIndex = BmsGameplaySkinNineKeyLaneIndexContract.ToLegacyRaw(
+                        BmsGameplaySkinNineKeyLaneIndexVersion.LegacyRawV1,
+                        canonicalIndex);
+                    return legacyRawIndex.ToString(CultureInfo.InvariantCulture);
+                }
+
+                // Preserve the current unversioned [Bms] compatibility input exactly. 5K/7K/14K non-scratch
+                // resources use the topology's global logical index while scratch occupies index zero.
                 return lane.GlobalLogicalIndex.ToString(CultureInfo.InvariantCulture);
             }
 

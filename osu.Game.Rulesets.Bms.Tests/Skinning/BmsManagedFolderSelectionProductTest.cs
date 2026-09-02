@@ -560,12 +560,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("delete current target", () =>
                 deleteTask = manager.DeleteSkinAsync(deleted.ID));
+            // Keep the durable prepare/fallback phase and the post-fallback physical/Realm convergence as separate
+            // deterministic gates. A broad visual-test process can legitimately spend most of one default step budget
+            // capturing the exact Windows directory before SourceChanged is published; one combined wall-clock gate
+            // would then time out despite both bounded production phases making forward progress.
+            AddUntilStep("wait for reentrant fallback publication", () => reentrantAttempted);
+            AddUntilStep("wait for reentrant selection linearisation", () =>
+                reentrantRejection == SkinSelectionRejectionReason.ManagedFolderOperationInProgress
+                || Volatile.Read(ref captureCalls) > 0);
             AddUntilStep("wait for reentrant delete convergence", () =>
                 deleteTask?.IsCompleted == true);
-            AddUntilStep("wait for reentrant selection linearisation", () =>
-                reentrantAttempted
-                && (reentrantRejection == SkinSelectionRejectionReason.ManagedFolderOperationInProgress
-                    || Volatile.Read(ref captureCalls) > 0));
             AddStep("assert reentrant request could not split fallback pair", () =>
             {
                 bool rejectedDuringDelete = reentrantRejection
@@ -5918,7 +5922,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 firstBmsBodyArtifact = firstRenderer.BmsBodyArtifact;
             });
             AddStep("mount first mania production provider", () => firstRenderer.ShowMania());
-            AddUntilStep("wait for first mania renderer artifacts", () => firstRenderer.ManiaArtifactsLoaded);
+            addBoundedJourneyManiaArtifactWait("first mania renderer artifacts", () => firstRenderer);
             AddStep("assert first mania production renderer artifacts", () =>
             {
                 assertJourneyManiaRendererArtifacts(firstRenderer);
@@ -5962,7 +5966,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
             });
             AddStep("mount restarted mania production provider", () => restartedRenderer.ShowMania());
-            AddUntilStep("wait for restarted mania renderer artifacts", () => restartedRenderer.ManiaArtifactsLoaded);
+            addBoundedJourneyManiaArtifactWait("restarted mania renderer artifacts", () => restartedRenderer);
             AddStep("assert fresh configured mania artifacts", () =>
             {
                 assertJourneyManiaRendererArtifacts(restartedRenderer);
@@ -6556,6 +6560,27 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
         }
 
+        private void addBoundedJourneyManiaArtifactWait(string label, Func<JourneyRendererHost> renderer)
+        {
+            Stopwatch? wait = null;
+
+            AddStep($"start {label} wait", () => wait = Stopwatch.StartNew());
+            AddUntilStep($"wait for {label} first bounded slice", () =>
+                renderer().ManiaArtifactsLoaded || wait!.Elapsed >= TimeSpan.FromSeconds(8));
+            AddUntilStep($"wait for {label} second bounded slice", () =>
+                renderer().ManiaArtifactsLoaded || wait!.Elapsed >= TimeSpan.FromSeconds(16));
+            AddUntilStep($"wait for {label} third bounded slice", () =>
+                renderer().ManiaArtifactsLoaded || wait!.Elapsed >= TimeSpan.FromSeconds(24));
+            AddStep($"assert {label} loaded within budget", () =>
+            {
+                wait!.Stop();
+                Assert.That(
+                    renderer().ManiaArtifactsLoaded,
+                    Is.True,
+                    $"{label} exceeded its explicit three-slice load budget.");
+            });
+        }
+
         private static void assertLoadedTexturedArtifact(Drawable artifact)
         {
             Assert.Multiple(() =>
@@ -6727,8 +6752,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 maniaBeatmap.HitObjects.Add(maniaHold);
                 maniaHold.ApplyDefaults(controlPoints, difficulty);
                 ManiaDrawable = (DrawableManiaRuleset)maniaRuleset.CreateDrawableRulesetWith(maniaBeatmap);
-                ManiaDrawable.Playfield.Add(ManiaNote = new ManiaDrawableNote(maniaNote));
-                ManiaDrawable.Playfield.Add(ManiaHold = new ManiaDrawableHoldNote(maniaHold));
+                ManiaNote = new ManiaDrawableNote(maniaNote);
+                ManiaHold = new ManiaDrawableHoldNote(maniaHold);
+
+                // These manually-mounted drawables prove provider/material publication, not gameplay lifetime timing.
+                // Keep their synthetic entries alive while retaining future hit times; nested hold entries are created during load.
+                ManiaNote.Entry!.KeepAlive = true;
+                ManiaHold.Entry!.KeepAlive = true;
+                ManiaHold.OnNestedDrawableCreated += nested => nested.Entry!.KeepAlive = true;
+
+                ManiaDrawable.Playfield.Add(ManiaNote);
+                ManiaDrawable.Playfield.Add(ManiaHold);
 
                 // This path intentionally exercises isolated BMS note resources, not a complete gameplay layout root.
                 BmsProvider = new RulesetSkinProvidingContainer(bmsRuleset, bmsBeatmap, null, prepareGameplaySkinLayout: false)

@@ -35,6 +35,8 @@ namespace osu.Game.Rulesets.Mania.UI
 
         public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; } = null!;
+
         public override Quad SkinnableComponentScreenSpaceDrawQuad
         {
             get
@@ -100,6 +102,13 @@ namespace osu.Game.Rulesets.Mania.UI
             if (parent.TryGet(out GameplaySkinLayoutSnapshot existingSnapshot))
             {
                 ManiaGameplaySkinLayout.ValidateConsumerCarrier(existingSnapshot, layoutOwner, "playfield");
+                if (!parent.TryGet(out GameplaySkinResolvedMaterialSet materialSet)
+                    || !ReferenceEquals(materialSet.Snapshot, existingSnapshot))
+                {
+                    throw new InvalidOperationException("The exact mania playfield requires its matching material publication.");
+                }
+
+                ResolvedMaterialSet = materialSet;
                 applyLayout(existingSnapshot);
                 return base.CreateChildDependencies(parent);
             }
@@ -121,6 +130,8 @@ namespace osu.Game.Rulesets.Mania.UI
             var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
             dependencies.Cache(compatibility);
             dependencies.Cache(compatibility.Snapshot);
+            ResolvedMaterialSet = GameplaySkinResolvedMaterialSet.CreateEmpty(compatibility.Snapshot);
+            dependencies.Cache(ResolvedMaterialSet);
             return dependencies;
         }
 

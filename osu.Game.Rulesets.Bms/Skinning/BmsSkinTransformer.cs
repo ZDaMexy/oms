@@ -22,7 +22,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     public class BmsSkinTransformer : SkinTransformer
     {
         private readonly bool providesBuiltInFallbacks;
-        private readonly BmsManagedPackageNoteProvider? managedPackageNoteProvider;
+        private readonly BmsManagedPackageNoteCompatibilityProvider? managedPackageNoteCompatibilityProvider;
         private readonly ConcurrentDictionary<string, byte> emittedGameplaySkinDiagnostics = new ConcurrentDictionary<string, byte>();
 
         public BmsSkinTransformer(ISkin skin)
@@ -31,11 +31,25 @@ namespace osu.Game.Rulesets.Bms.Skinning
             providesBuiltInFallbacks = skin is OmsSkin;
 
             if (skin is BmsLegacySkin bmsLegacySkin)
-                managedPackageNoteProvider = new BmsManagedPackageNoteProvider(bmsLegacySkin);
+                managedPackageNoteCompatibilityProvider = new BmsManagedPackageNoteCompatibilityProvider(bmsLegacySkin);
         }
 
         public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
         {
+            // A committed C4 Note/LN lookup is already final. Do not even ask the wrapped legacy source for a
+            // component: doing so would repeat resource lookup and fallback selection after the atomic publication.
+            if (lookup is BmsNoteSkinLookup
+                {
+                    UsesResolvedMaterial: true,
+                    Element: BmsNoteSkinElements.Note
+                    or BmsNoteSkinElements.LongNoteHead
+                    or BmsNoteSkinElements.LongNoteBody
+                    or BmsNoteSkinElements.LongNoteTail
+                } publishedLookup)
+            {
+                return createPublishedNoteComponent(publishedLookup);
+            }
+
             Drawable? skinnedComponent = base.GetDrawableComponent(lookup);
 
             switch (lookup)
@@ -119,24 +133,27 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     or BmsNoteSkinElements.LongNoteBody
                     or BmsNoteSkinElements.LongNoteTail
                 } noteLookup:
-                    if (skinnedComponent != null)
-                        return skinnedComponent;
-
-                    if (managedPackageNoteProvider != null)
+                    if (managedPackageNoteCompatibilityProvider != null
+                        && noteLookup.LayoutSnapshot == null
+                        && noteLookup.MaterialSet == null)
                     {
-                        if (managedPackageNoteProvider.ClaimsDeclaration(noteLookup))
+                        if (managedPackageNoteCompatibilityProvider.ClaimsCompatibilityDeclaration(noteLookup))
                         {
-                            GameplaySkinSlotResolution<BmsSourceBoundNoteMaterial> resolution = managedPackageNoteProvider.Resolve(noteLookup);
+                            GameplaySkinSlotResolution<IBmsResolvedNoteMaterial> resolution = managedPackageNoteCompatibilityProvider.ResolveCompatibility(noteLookup);
                             emitDiagnosticsOnce(resolution.Diagnostics, noteLookup);
 
                             if (resolution.Result.Kind == SkinSlotResultKind.Provide)
                                 return resolution.Result.Value.CreateDrawable();
 
-                            // This exact source declared the native slot and has now failed the strict package gate.
-                            // Do not retry through its mutable legacy config view or a lower same-named texture.
+                            // This detached compatibility declaration has already exhausted the selected package's
+                            // BMS/mania candidate chain. Do not run a second direct lookup inside the same source;
+                            // returning null advances the legacy aggregate without mixing two resolution results.
                             return null;
                         }
                     }
+
+                    if (skinnedComponent != null)
+                        return skinnedComponent;
 
                     BmsSkinConfigurationLookups exactSourceImageLookup = noteLookup.Element switch
                     {
@@ -197,6 +214,31 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
 
             return skinnedComponent;
+        }
+
+        private static Drawable? createPublishedNoteComponent(BmsNoteSkinLookup lookup)
+        {
+            GameplaySkinResolvedMaterialSet materialSet = lookup.MaterialSet!;
+
+            if (!BmsManagedPackageNoteCompatibilityProvider.TryGetDescriptor(lookup.Element, out GameplaySkinSlotDescriptor descriptor))
+                throw new System.InvalidOperationException("The published BMS Note/LN lookup uses an unknown catalog slot.");
+
+            BmsGameplayLayoutLane lane = BmsGameplayNoteMaterialTarget.ValidateLookup(lookup);
+            GameplaySkinResolvedMaterialTarget target = BmsGameplayNoteMaterialTarget.Create(lookup.LayoutSnapshot!, lane);
+            var key = new GameplaySkinResolvedMaterialKey(descriptor, target);
+
+            if (!materialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry))
+                throw new System.InvalidOperationException("The committed BMS Note/LN material set is incomplete for its exact layout.");
+
+            if (entry.State == GameplaySkinResolvedMaterialState.Suppress)
+                return new BmsSuppressedNoteDrawable(lookup.Element);
+
+            IBmsResolvedNoteMaterial material = entry.GetMaterial<IBmsResolvedNoteMaterial>();
+
+            if (material.Element != lookup.Element || material.FrameCount <= 0)
+                throw new System.InvalidOperationException("The committed BMS Note/LN material payload does not match its catalog slot.");
+
+            return material.CreateDrawable();
         }
 
         // Strips the wrapped global HUD's default combo counter (duplicates the BMS combo) and gameplay leaderboard

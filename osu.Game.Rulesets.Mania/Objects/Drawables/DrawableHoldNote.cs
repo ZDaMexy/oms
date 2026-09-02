@@ -13,6 +13,7 @@ using osu.Framework.Input.Events;
 using osu.Game.Audio;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Judgements;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
@@ -20,6 +21,7 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.Objects.Drawables
@@ -57,6 +59,10 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         private SkinnableDrawable bodyPiece;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; }
+
+        public GameplaySkinResolvedMaterialKey ResolvedMaterialKey { get; private set; }
+
         public DrawableHoldNote()
             : this(null)
         {
@@ -67,10 +73,20 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         {
         }
 
-        [BackgroundDependencyLoader]
-        private void load()
+        [BackgroundDependencyLoader(true)]
+        private void load(ManiaGameplaySkinMaterialContext materialContext)
         {
             Container maskedContents;
+            ManiaSkinComponentLookup bodyLookup;
+
+            if (materialContext?.UsesResolvedMaterial == true)
+            {
+                bodyLookup = new ManiaSkinComponentLookup(ManiaSkinComponents.HoldNoteBody, materialContext);
+                ResolvedMaterialSet = materialContext.MaterialSet;
+                ResolvedMaterialKey = materialContext.GetKey(ManiaSkinComponents.HoldNoteBody);
+            }
+            else
+                bodyLookup = new ManiaSkinComponentLookup(ManiaSkinComponents.HoldNoteBody);
 
             AddRangeInternal(new Drawable[]
             {
@@ -92,7 +108,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                     }
                 },
                 bodyContainer = new Container<DrawableHoldNoteBody> { RelativeSizeAxes = Axes.Both },
-                bodyPiece = new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.HoldNoteBody), _ => new DefaultBodyPiece
+                bodyPiece = new SkinnableDrawable(bodyLookup, _ => new DefaultBodyPiece
                 {
                     RelativeSizeAxes = Axes.Both,
                 })
@@ -290,7 +306,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                 return false;
 
             // do not run any of this logic when rewinding, as it inverts order of presses/releases.
-            if ((Clock as IGameplayClock)?.IsRewinding == true)
+            if (Clock is IGameplayClock { IsRewinding: true })
                 return false;
 
             if (CheckHittable?.Invoke(this, Time.Current) == false)
@@ -324,7 +340,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                 return;
 
             // do not run any of this logic when rewinding, as it inverts order of presses/releases.
-            if ((Clock as IGameplayClock)?.IsRewinding == true)
+            if (Clock is IGameplayClock { IsRewinding: true })
                 return;
 
             // When our action is released and we are in the middle of a hold, there's a chance that

@@ -78,16 +78,19 @@ namespace osu.Game.Skinning
         {
             base.ParseConfigurationStream(stream);
 
-            stream.Seek(0, SeekOrigin.Begin);
+            var maniaList = new LegacyManiaSkinDecoder().Decode(GameplaySkinDocument);
 
-            using (LineBufferedReader reader = new LineBufferedReader(stream))
-            {
-                var maniaList = new LegacyManiaSkinDecoder().Decode(reader);
-
-                foreach (var config in maniaList)
-                    maniaConfigurations[config.Keys] = config;
-            }
+            foreach (var config in maniaList)
+                maniaConfigurations[config.Keys] = config;
         }
+
+        /// <summary>
+        /// Returns the parser-produced mania buckets for a ruleset adapter which immediately projects them into its own
+        /// defensive immutable snapshot. This never invokes <see cref="GetConfig{TLookup,TValue}"/>, which may synthesize
+        /// a missing bucket and therefore cannot be used as declaration-presence authority.
+        /// </summary>
+        internal IReadOnlyList<LegacyManiaSkinConfiguration> GetParsedManiaConfigurationsForGameplaySkinCompatibility()
+            => Array.AsReadOnly(maniaConfigurations.Values.OrderBy(configuration => configuration.Keys).ToArray());
 
         [SuppressMessage("ReSharper", "RedundantAssignment")] // for `wasHit` assignments used in `finally` debug logic
         public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)

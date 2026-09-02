@@ -106,18 +106,51 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public GameplaySkinLaneId? LaneId { get; }
 
+        /// <summary>
+        /// The exact committed C3 layout publication which supplied <see cref="LaneId"/> and every lane index carried by
+        /// this lookup. Production resource compatibility must retain this reference rather than reconstructing an
+        /// equivalent topology from keymode or drawable order.
+        /// </summary>
+        public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        /// <summary>
+        /// The fully prepared material result paired with <see cref="LayoutSnapshot"/> by the same C2/C3 publication.
+        /// Production consumers use this exact reference and never repeat candidate resolution after commit.
+        /// </summary>
+        public GameplaySkinResolvedMaterialSet? MaterialSet { get; }
+
+        /// <summary>
+        /// Whether <see cref="MaterialSet"/> is the final C4 catalog/codec/resolver publication rather than the
+        /// explicitly empty compatibility carrier used by isolated legacy-layout hosts.
+        /// </summary>
+        public bool UsesResolvedMaterial
+            => MaterialSet != null
+               && !MaterialSet.ContractIdentity.Equals(GameplaySkinMaterialContractIdentity.CompatibilityEmpty);
+
         public BmsNoteSkinLookup(
             BmsNoteSkinElements element,
             int laneIndex,
             bool isScratch,
             BmsKeymode keymode,
-            GameplaySkinLaneId? laneId = null)
+            GameplaySkinLaneId? laneId = null,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null,
+            GameplaySkinResolvedMaterialSet? materialSet = null)
         {
+            if (materialSet != null
+                && (layoutSnapshot == null || !ReferenceEquals(materialSet.Snapshot, layoutSnapshot.Neutral)))
+            {
+                throw new System.ArgumentException(
+                    "A BMS note lookup material set must retain the exact supplied layout snapshot.",
+                    nameof(materialSet));
+            }
+
             Element = element;
             LaneIndex = laneIndex;
             IsScratch = isScratch;
             Keymode = keymode;
             LaneId = laneId;
+            LayoutSnapshot = layoutSnapshot;
+            MaterialSet = materialSet;
         }
 
         public override string ToString() => $"[{nameof(BmsNoteSkinLookup)} element:{Element} lane:{LaneIndex} scratch:{IsScratch} keymode:{Keymode}]";

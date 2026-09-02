@@ -56,6 +56,8 @@ namespace osu.Game.Rulesets.Mania.UI
 
         public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutStageContext.Snapshot;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; } = null!;
+
         public GameplaySkinLaneGroupId LayoutGroupId => layoutStageContext.Group.GroupId;
 
         public Stage(int firstColumnIndex, StageDefinition definition, ref ManiaAction columnStartAction)
@@ -160,7 +162,7 @@ namespace osu.Game.Rulesets.Mania.UI
             IReadOnlyDependencyContainer effectiveParent = parent;
             parent.TryGet(out GameplaySkinLayoutRevisionOwner layoutOwner);
 
-            if (!parent.TryGet(out             GameplaySkinLayoutSnapshot snapshot))
+            if (!parent.TryGet(out GameplaySkinLayoutSnapshot snapshot))
             {
                 if (layoutOwner == null || layoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
                 {
@@ -177,6 +179,7 @@ namespace osu.Game.Rulesets.Mania.UI
                 var compatibilityDependencies = new DependencyContainer(parent);
                 compatibilityDependencies.Cache(compatibility);
                 compatibilityDependencies.Cache(compatibility.Snapshot);
+                compatibilityDependencies.Cache(GameplaySkinResolvedMaterialSet.CreateEmpty(compatibility.Snapshot));
                 effectiveParent = compatibilityDependencies;
                 snapshot = compatibility.Snapshot;
             }
@@ -208,6 +211,14 @@ namespace osu.Game.Rulesets.Mania.UI
             var dependencies = new DependencyContainer(base.CreateChildDependencies(effectiveParent));
             layoutStageContext = new ManiaGameplaySkinStageContext(snapshot, topologyGroup);
             dependencies.Cache(layoutStageContext);
+
+            if (!effectiveParent.TryGet(out GameplaySkinResolvedMaterialSet materialSet)
+                || !ReferenceEquals(materialSet.Snapshot, snapshot))
+            {
+                throw new InvalidOperationException("The mania stage cannot mix layout and material revisions.");
+            }
+
+            ResolvedMaterialSet = materialSet;
             return dependencies;
         }
 

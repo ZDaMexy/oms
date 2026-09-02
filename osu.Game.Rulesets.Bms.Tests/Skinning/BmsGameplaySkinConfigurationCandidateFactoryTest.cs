@@ -41,12 +41,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride,
                     BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
                     BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly,
-                    BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                 }));
-                Assert.That(plan.Candidates.Select(candidate => candidate.ManiaKeys), Is.EqualTo(new int?[] { null, fullKeys, keyOnlyKeys, null }));
+                Assert.That(plan.Candidates.Select(candidate => candidate.ManiaKeys), Is.EqualTo(new int?[] { null, fullKeys, keyOnlyKeys }));
                 Assert.That(plan.Keymode, Is.EqualTo(keymode));
                 Assert.That(plan.AppliedStyle, Is.EqualTo(style));
-                Assert.That(plan.Candidates[^1].Snapshot.IsDeclared, Is.False);
             });
         }
 
@@ -62,7 +60,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride,
                     BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
-                    BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                 }));
                 Assert.That(plan.Candidates[1].ManiaKeys, Is.EqualTo(9));
                 Assert.That(plan.Keymode, Is.EqualTo(keymode));
@@ -83,9 +80,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
                     BmsGameplaySkinConfigurationCandidateSource.ManiaEightColumnDeck,
                     BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly,
-                    BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                 }));
-                Assert.That(plan.Candidates.Select(candidate => candidate.ManiaKeys), Is.EqualTo(new int?[] { null, 16, 8, 14, null }));
+                Assert.That(plan.Candidates.Select(candidate => candidate.ManiaKeys), Is.EqualTo(new int?[] { null, 16, 8, 14 }));
                 Assert.That(plan.Topology.GroupsInLogicalOrder, Has.Count.EqualTo(2));
                 Assert.That(plan.Topology.LanesInLogicalOrder, Has.Count.EqualTo(16));
             });
@@ -165,7 +161,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBmsRoleOverrideProjectsAllSixFieldsAndScratchTokens()
+        public void TestBmsRoleOverrideProjectsHostedNoteFieldsAndLeavesKeyVisualCompatibilityOutOfPlan()
         {
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(
                 BmsKeymode.Key14K,
@@ -194,8 +190,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.LongNoteHead).Value, Is.EqualTo("head"));
                 Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.LongNoteBody).Value, Is.EqualTo("body"));
                 Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.LongNoteTail).Value, Is.EqualTo("tail"));
-                Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.Key).Value, Is.EqualTo("key"));
-                Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.KeyPressed).Value, Is.EqualTo("key-down"));
+                Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.Key).IsDeclared, Is.False);
+                Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.KeyPressed).IsDeclared, Is.False);
             });
         }
 
@@ -227,6 +223,35 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestNineKeyLegacyRawV1RoundTripsEveryCanonicalLaneAndRejectsUnknownVersion()
+        {
+            for (int canonical = 1; canonical <= 9; canonical++)
+            {
+                int raw = BmsGameplaySkinNineKeyLaneIndexContract.ToLegacyRaw(
+                    BmsGameplaySkinNineKeyLaneIndexVersion.LegacyRawV1,
+                    canonical);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(raw, Is.EqualTo(canonical - 1));
+                    Assert.That(BmsGameplaySkinNineKeyLaneIndexContract.ToCanonical(
+                        BmsGameplaySkinNineKeyLaneIndexVersion.LegacyRawV1,
+                        raw), Is.EqualTo(canonical));
+                });
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => BmsGameplaySkinNineKeyLaneIndexContract.ToLegacyRaw(
+                    (BmsGameplaySkinNineKeyLaneIndexVersion)99,
+                    1), Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(() => BmsGameplaySkinNineKeyLaneIndexContract.ToCanonical(
+                    (BmsGameplaySkinNineKeyLaneIndexVersion)99,
+                    0), Throws.TypeOf<ArgumentOutOfRangeException>());
+            });
+        }
+
+        [Test]
         public void TestDeclaredEmptyBucketsAndFieldsDoNotEraseLaterCandidates()
         {
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(
@@ -239,7 +264,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 maniaIni:
                     "[Mania]\n" +
                     "Keys: 8\n" +
-                    "KeyImage1: full-key\n");
+                    "NoteImage1: full-note\n");
             BmsGameplaySkinConfigurationCandidate bms = candidate(plan, BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride);
             BmsGameplaySkinConfigurationCandidate full = candidate(plan, BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane);
             BmsGameplaySkinConfigurationCandidate keyOnly = candidate(plan, BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly);
@@ -250,11 +275,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(bms.Snapshot.IsDeclared, Is.True);
                 Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.Note).IsDeclared, Is.True);
                 Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.Note).Value, Is.Empty);
-                Assert.That(resource(bms, key1, GameplaySkinLaneResourceFieldCatalog.Key).IsDeclared, Is.False);
                 Assert.That(full.Snapshot.IsDeclared, Is.True);
-                Assert.That(resource(full, key1, GameplaySkinLaneResourceFieldCatalog.Key).Value, Is.EqualTo("full-key"));
+                Assert.That(resource(full, key1, GameplaySkinLaneResourceFieldCatalog.Note).Value, Is.EqualTo("full-note"));
+                Assert.That(resource(full, key1, GameplaySkinLaneResourceFieldCatalog.Key).IsDeclared, Is.False);
                 Assert.That(keyOnly.Snapshot.IsDeclared, Is.False);
-                Assert.That(plan.Candidates[^1].Source, Is.EqualTo(BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback));
+                Assert.That(plan.Candidates[^1].Source, Is.EqualTo(BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly));
             });
         }
 
@@ -274,7 +299,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(candidate(plan, BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane).Snapshot.IsDeclared, Is.True);
                 Assert.That(candidate(plan, BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane).Snapshot.Value.Declarations, Is.Empty);
                 Assert.That(candidate(plan, BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly).Snapshot.IsDeclared, Is.False);
-                Assert.That(candidate(plan, BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback).Snapshot.IsDeclared, Is.False);
             });
         }
 
@@ -340,7 +364,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsKeymode.Key7K, BmsPlayfieldStyle.P1, bmsIni: "[Bms]\nKeymode: 7K\n");
             BmsGameplaySkinConfigurationCandidatePlan alternateTopology = createPlan(BmsKeymode.Key7K, BmsPlayfieldStyle.P2);
             BmsGameplaySkinConfigurationCandidatePlan nineKey = createPlan(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center);
-            BmsGameplaySkinConfigurationCandidate canonical = valid.Candidates[^1];
             BmsGameplaySkinConfigurationCandidate bms = valid.Candidates[0];
 
             Assert.Multiple(() =>
@@ -358,7 +381,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     (BmsGameplaySkinConfigurationCandidateSource)99, null,
                     GameplaySkinConfigurationDeclaration<GameplaySkinLaneResourceSnapshot>.Absent), Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(() => new BmsGameplaySkinConfigurationCandidatePlan(
-                    valid.Keymode, valid.AppliedStyle, valid.Topology, new[] { canonical, bms, canonical }), Throws.ArgumentException);
+                    valid.Keymode, valid.AppliedStyle, valid.Topology, new[] { bms, bms, bms }), Throws.ArgumentException);
                 Assert.That(() => new BmsGameplaySkinConfigurationCandidatePlan(
                     declared.Keymode, declared.AppliedStyle, alternateTopology.Topology, declared.Candidates.ToArray()), Throws.ArgumentException);
                 Assert.That(() => new BmsGameplaySkinConfigurationCandidatePlan(
@@ -386,7 +409,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(typeof(BmsGameplaySkinConfigurationCandidateSource).IsNotPublic, Is.True);
                 Assert.That(bms.ToString(), Does.Not.Contain(private_value));
                 Assert.That(bms.ToString(), Does.Contain("BmsRoleOverride").And.Contain("Declared"));
-                Assert.That(plan.Candidates[^1].ToString(), Does.Contain("CanonicalFallback").And.Contain("Absent"));
+                Assert.That(plan.Candidates.Select(candidate => candidate.Source),
+                    Is.EqualTo(new[]
+                    {
+                        BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride,
+                        BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
+                        BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly,
+                    }));
             });
         }
 

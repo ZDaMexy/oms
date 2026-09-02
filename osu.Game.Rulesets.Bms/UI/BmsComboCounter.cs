@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -27,6 +28,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
 
+        internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
+
         protected override double RollingDuration => 80;
 
         [BackgroundDependencyLoader]
@@ -36,6 +39,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 layoutOwner,
                 layoutProvider,
                 "bms.layout.missing-combo-publication");
+            ResolvedMaterialSet = BmsGameplayLayoutProvider.ResolveOwnerMaterialSet(
+                layoutOwner,
+                layoutProvider,
+                "bms.material.missing-combo-publication");
+
+            if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, LayoutSnapshot.Neutral))
+                throw new InvalidOperationException("The BMS combo counter does not retain the material set from its exact publication.");
+
             Current.BindTo(scoreProcessor.Combo);
             Current.BindValueChanged(combo =>
             {

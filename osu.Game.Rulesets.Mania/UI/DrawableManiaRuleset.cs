@@ -69,26 +69,26 @@ namespace osu.Game.Rulesets.Mania.UI
 
         private double currentTimeRange;
 
-        private static readonly Type? bmsDrawableFactoryType = Type.GetType($"{bms_to_mania_drawable_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
-        private static readonly Func<ManiaHitObject, bool>? bmsCanCreateDrawable = createFactoryDelegate<Func<ManiaHitObject, bool>>("CanCreate");
-        private static readonly Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>? bmsCreateDrawable = createFactoryDelegate<Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>>("Create");
+        private static readonly Type? bms_drawable_factory_type = Type.GetType($"{bms_to_mania_drawable_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
+        private static readonly Func<ManiaHitObject, bool>? bms_can_create_drawable = createFactoryDelegate<Func<ManiaHitObject, bool>>("CanCreate");
+        private static readonly Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>? bms_create_drawable = createFactoryDelegate<Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>>("Create");
 
         private static TDelegate? createFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
         {
-            MethodInfo? method = bmsDrawableFactoryType?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+            MethodInfo? method = bms_drawable_factory_type?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
 
             return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
         }
 
         private const string bms_to_mania_keysound_store_factory_type = "osu.Game.Rulesets.Bms.Beatmaps.BmsToManiaKeysoundStoreFactory";
 
-        private static readonly Type? bmsKeysoundStoreFactoryType = Type.GetType($"{bms_to_mania_keysound_store_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
-        private static readonly Func<IBeatmap, bool>? bmsShouldHostKeysoundStore = createKeysoundStoreFactoryDelegate<Func<IBeatmap, bool>>("ShouldHost");
-        private static readonly Func<IRulesetConfigCache, Drawable>? bmsCreateKeysoundStore = createKeysoundStoreFactoryDelegate<Func<IRulesetConfigCache, Drawable>>("Create");
+        private static readonly Type? bms_keysound_store_factory_type = Type.GetType($"{bms_to_mania_keysound_store_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
+        private static readonly Func<IBeatmap, bool>? bms_should_host_keysound_store = createKeysoundStoreFactoryDelegate<Func<IBeatmap, bool>>("ShouldHost");
+        private static readonly Func<IRulesetConfigCache, Drawable>? bms_create_keysound_store = createKeysoundStoreFactoryDelegate<Func<IRulesetConfigCache, Drawable>>("Create");
 
         private static TDelegate? createKeysoundStoreFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
         {
-            MethodInfo? method = bmsKeysoundStoreFactoryType?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+            MethodInfo? method = bms_keysound_store_factory_type?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
 
             return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
         }
@@ -109,6 +109,8 @@ namespace osu.Game.Rulesets.Mania.UI
         /// The exact immutable layout snapshot shared by the complete mania gameplay tree.
         /// </summary>
         public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutPublication.Snapshot;
+
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet => layoutPublication.MaterialSet;
 
         public ScrollingDirection PublishedDirection => Direction.Value;
 
@@ -149,6 +151,8 @@ namespace osu.Game.Rulesets.Mania.UI
 
             if (!ReferenceEquals(layoutPublication, LayoutRevisionOwner.CurrentPublication)
                 || !ReferenceEquals(adapter.Snapshot, layoutPublication.Snapshot)
+                || !ReferenceEquals(layoutPublication.MaterialSet.Snapshot, layoutPublication.Snapshot)
+                || !ReferenceEquals(layoutPublication.MaterialSet.PackageRevision, LayoutRevisionOwner.PackageRevision)
                 || !ReferenceEquals(layoutPublication.Snapshot.Context.PackageRevision, LayoutRevisionOwner.PackageRevision)
                 || layoutPublication.Snapshot.Context.RulesetId != "mania"
                 || layoutPublication.Snapshot.Context.NativeContextId != expectedNativeContext)
@@ -158,9 +162,10 @@ namespace osu.Game.Rulesets.Mania.UI
 
             wrapped.Cache(adapter);
             wrapped.Cache(layoutPublication.Snapshot);
+            wrapped.Cache(layoutPublication.MaterialSet);
             wrapped.Cache(LayoutRevisionOwner);
 
-            if (bmsShouldHostKeysoundStore?.Invoke(Beatmap) == true && bmsCreateKeysoundStore?.Invoke(dependencies.Get<IRulesetConfigCache>()) is Drawable store)
+            if (bms_should_host_keysound_store?.Invoke(Beatmap) == true && bms_create_keysound_store?.Invoke(dependencies.Get<IRulesetConfigCache>()) is Drawable store)
             {
                 sharedKeysoundStore = store;
 
@@ -353,10 +358,10 @@ namespace osu.Game.Rulesets.Mania.UI
         {
             drawableRepresentation = null;
 
-            if (bmsCanCreateDrawable?.Invoke(hitObject) is not true)
+            if (bms_can_create_drawable?.Invoke(hitObject) is not true)
                 return false;
 
-            if (bmsCreateDrawable?.Invoke(hitObject) is not DrawableHitObject<ManiaHitObject> createdDrawableRepresentation)
+            if (bms_create_drawable?.Invoke(hitObject) is not DrawableHitObject<ManiaHitObject> createdDrawableRepresentation)
                 return false;
 
             drawableRepresentation = createdDrawableRepresentation;

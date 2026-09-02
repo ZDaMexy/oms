@@ -106,9 +106,9 @@ namespace osu.Game.Rulesets.Bms.UI
     /// </summary>
     internal sealed partial class BmsSourceBoundLongNoteBodyDrawable : BmsLongNoteBodyVisualHost
     {
-        public BmsSourceBoundLongNoteBodyDrawable(Drawable visual, float width)
+        public BmsSourceBoundLongNoteBodyDrawable(Drawable visual, float width, Color4? activeColour = null)
         {
-            ApplyMaterial(visual, width, Color4.White);
+            ApplyMaterial(visual, width, activeColour ?? Color4.White);
         }
     }
 }

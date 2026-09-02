@@ -29,6 +29,8 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
         public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; } = null!;
+
         public ManiaGameplayHudComponentsContainer(
             IEnumerable<StageDefinition> stageDefinitions,
             ISkin compatibilitySkin,
@@ -61,6 +63,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 }
 
                 LayoutSnapshot = publication.Snapshot;
+                ResolvedMaterialSet = publication.MaterialSet;
                 ManiaGameplaySkinLayout.ValidateConsumerCarrier(LayoutSnapshot, owner, "HUD");
                 return;
             }
@@ -73,6 +76,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
             // Explicit isolation-only path for component test hosts which do not mount a managed gameplay provider.
             LayoutSnapshot = ManiaGameplaySkinLayout.CreateCompatibility(compatibilityStages, compatibilitySkin).Snapshot;
+            ResolvedMaterialSet = GameplaySkinResolvedMaterialSet.CreateEmpty(LayoutSnapshot);
             ManiaGameplaySkinLayout.ValidateConsumerCarrier(LayoutSnapshot, owner, "HUD");
         }
 

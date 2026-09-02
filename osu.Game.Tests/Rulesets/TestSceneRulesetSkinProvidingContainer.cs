@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
@@ -102,6 +103,23 @@ namespace osu.Game.Tests.Rulesets
         }
 
         [Test]
+        public void TestGameplayLayoutOwnerDisposedAfterRendererSubtree()
+        {
+            GameplaySkinLayoutRevisionOwner owner = null;
+
+            setupProviderStep();
+            AddUntilStep("requester loaded", () => requester?.LayoutOwner != null);
+            AddStep("detach gameplay root", () =>
+            {
+                owner = requester.LayoutOwner;
+                Clear();
+            });
+            AddUntilStep("renderer subtree disposed", () => requester.HasDisposed);
+            AddUntilStep("layout owner disposed", () => owner.IsDisposed);
+            AddAssert("renderer disposed before owner", () => requester.LayoutOwnerDisposedWhenDisposed == false);
+        }
+
+        [Test]
         public void TestRejectedGameplayLayoutDoesNotAttachDelayedRenderer()
         {
             RejectingLayoutRuleset ruleset = null;
@@ -163,6 +181,10 @@ namespace osu.Game.Tests.Rulesets
 
             public GameplaySkinLayoutRevisionOwner LayoutOwner { get; private set; }
 
+            public bool? LayoutOwnerDisposedWhenDisposed { get; private set; }
+
+            public bool HasDisposed { get; private set; }
+
             public event Action OnLoadAsync;
 
             [BackgroundDependencyLoader]
@@ -187,13 +209,30 @@ namespace osu.Game.Tests.Rulesets
             public IBindable<TValue> GetConfig<TLookup, TValue>(TLookup lookup) => skin.GetConfig<TLookup, TValue>(lookup);
 
             public IEnumerable<ISkin> AllSources => skin.AllSources;
+
+            protected override void Dispose(bool isDisposing)
+            {
+                LayoutOwnerDisposedWhenDisposed = LayoutOwner?.IsDisposed;
+
+                try
+                {
+                    base.Dispose(isDisposing);
+                }
+                finally
+                {
+                    HasDisposed = true;
+                }
+            }
         }
 
         private sealed class RejectingLayoutRuleset : TestSceneRulesetDependencies.TestRuleset, IGameplaySkinLayoutPreparer
         {
             public int PrepareCount { get; private set; }
 
-            public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+            public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(
+                IBeatmap beatmap,
+                IReadOnlyDependencyContainer dependencies,
+                CancellationToken cancellationToken)
             {
                 PrepareCount++;
                 return GameplaySkinLayoutPreparationResult.Rejected;
@@ -204,7 +243,10 @@ namespace osu.Game.Tests.Rulesets
         {
             public int PrepareCount { get; private set; }
 
-            public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+            public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(
+                IBeatmap beatmap,
+                IReadOnlyDependencyContainer dependencies,
+                CancellationToken cancellationToken)
                 => ++PrepareCount < 3
                     ? GameplaySkinLayoutPreparationResult.Retry
                     : GameplaySkinLayoutPreparationResult.Prepared;

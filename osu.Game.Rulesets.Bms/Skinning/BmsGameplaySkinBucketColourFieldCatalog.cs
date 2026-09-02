@@ -42,32 +42,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     [nameof(BmsSkinConfigurationLookups.PlayfieldBaseplateColour)] = BmsSkinConfigurationLookups.PlayfieldBaseplateColour,
                 });
 
-        public static IReadOnlyList<BmsSkinConfigurationLookups> All { get; } = Array.AsReadOnly(new[]
-        {
-            BmsSkinConfigurationLookups.NoteColourWhite,
-            BmsSkinConfigurationLookups.NoteColourCyan,
-            BmsSkinConfigurationLookups.NoteColourYellow,
-            BmsSkinConfigurationLookups.NoteColourScratch,
-            BmsSkinConfigurationLookups.LaneBackgroundEvenColour,
-            BmsSkinConfigurationLookups.LaneBackgroundOddColour,
-            BmsSkinConfigurationLookups.ScratchLaneBackgroundColour,
-            BmsSkinConfigurationLookups.LaneDividerColour,
-            BmsSkinConfigurationLookups.ScratchLaneDividerColour,
-            BmsSkinConfigurationLookups.HitTargetBarColour,
-            BmsSkinConfigurationLookups.HitTargetLineColour,
-            BmsSkinConfigurationLookups.HitTargetGlowColour,
-            BmsSkinConfigurationLookups.ScratchHitTargetBarColour,
-            BmsSkinConfigurationLookups.ScratchHitTargetLineColour,
-            BmsSkinConfigurationLookups.ScratchHitTargetGlowColour,
-            BmsSkinConfigurationLookups.MajorBarLineColour,
-            BmsSkinConfigurationLookups.MinorBarLineColour,
-            BmsSkinConfigurationLookups.LaneCoverFillColour,
-            BmsSkinConfigurationLookups.LaneCoverShadeColour,
-            BmsSkinConfigurationLookups.LaneCoverFocusColour,
-            BmsSkinConfigurationLookups.PlayfieldBackdropColour,
-            BmsSkinConfigurationLookups.PlayfieldBaseplateColour,
-        });
-
         public static bool IsCanonical(BmsSkinConfigurationLookups field)
             => field is BmsSkinConfigurationLookups.NoteColourWhite
                 or BmsSkinConfigurationLookups.NoteColourCyan

@@ -18,7 +18,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         ManiaFullVisualLane = 1,
         ManiaEightColumnDeck = 2,
         ManiaKeyOnly = 3,
-        CanonicalFallback = 4,
+        SelectedDocument = 4,
     }
 
     /// <summary>
@@ -47,9 +47,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     throw new ArgumentException("Only mania compatibility candidates must identify a positive Keys bucket.", nameof(maniaKeys));
             }
 
-            if (source == BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback && snapshot.IsDeclared)
-                throw new ArgumentException("The compatibility fixture cannot fabricate a canonical fallback package snapshot.", nameof(snapshot));
-
             if (!Enum.IsDefined(source))
                 throw new ArgumentOutOfRangeException(nameof(source), source, "Unknown BMS gameplay skin compatibility source.");
 
@@ -71,8 +68,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </summary>
     /// <remarks>
     /// Candidate order is provider precedence. A declared snapshot still does not mean any particular field is present,
-    /// valid or a slot <c>Provide</c>. The terminal candidate is only the future canonical fallback marker; this plan does
-    /// not create, validate or connect an <c>oms-simple.osk</c> package.
+    /// valid or a slot <c>Provide</c>. Ruleset, canonical-package and programmatic fallback authorities are real
+    /// providers in the final material resolver and are deliberately not represented by synthetic candidates here.
     /// </remarks>
     internal sealed class BmsGameplaySkinConfigurationCandidatePlan
     {
@@ -141,9 +138,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly,
-                        BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                     },
-                    new int?[] { null, 6, 5, null },
+                    new int?[] { null, 6, 5 },
                     6),
                 BmsKeymode.Key7K => (
                     new[]
@@ -151,18 +147,16 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly,
-                        BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                     },
-                    new int?[] { null, 8, 7, null },
+                    new int?[] { null, 8, 7 },
                     8),
                 BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms => (
                     new[]
                     {
                         BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
-                        BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                     },
-                    new int?[] { null, 9, null },
+                    new int?[] { null, 9 },
                     9),
                 BmsKeymode.Key14K => (
                     new[]
@@ -171,9 +165,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaEightColumnDeck,
                         BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly,
-                        BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
                     },
-                    new int?[] { null, 16, 8, 14, null },
+                    new int?[] { null, 16, 8, 14 },
                     16),
                 _ => throw new ArgumentOutOfRangeException(nameof(keymode), keymode, "Unsupported BMS keymode for a gameplay skin compatibility plan."),
             };

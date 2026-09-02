@@ -16,6 +16,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
     public partial class LegacyNotePiece : LegacyManiaColumnElement
     {
+        private readonly ManiaGameplaySkinNoteMaterial? preparedMaterial;
+
+        internal bool UsesPreparedMaterial => preparedMaterial != null;
+
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         private Container directionContainer = null!;
@@ -30,17 +34,28 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
             AutoSizeAxes = Axes.Y;
         }
 
+        internal LegacyNotePiece(ManiaGameplaySkinNoteMaterial preparedMaterial)
+            : this()
+        {
+            this.preparedMaterial = preparedMaterial ?? throw new System.ArgumentNullException(nameof(preparedMaterial));
+        }
+
         [BackgroundDependencyLoader]
         private void load(ISkinSource skin, IScrollingInfo scrollingInfo)
         {
-            widthForNoteHeightScale = skin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale))?.Value;
+            // An exact C4 material has already captured the complete legacy compatibility decision during background
+            // prepare. A captured null deliberately means the stable DrawWidth fallback; it must not reopen the live
+            // skin source after commit.
+            widthForNoteHeightScale = preparedMaterial != null
+                ? preparedMaterial.WidthForNoteHeightScale
+                : skin.GetConfig<ManiaSkinConfigurationLookup, float>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.WidthForNoteHeightScale))?.Value;
 
             InternalChild = directionContainer = new Container
             {
                 Origin = Anchor.BottomCentre,
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
-                Child = noteAnimation = GetAnimation(skin) ?? Empty()
+                Child = noteAnimation = preparedMaterial?.Animation.CreateDrawable() ?? GetAnimation(skin) ?? Empty()
             };
 
             direction.BindTo(scrollingInfo.Direction);

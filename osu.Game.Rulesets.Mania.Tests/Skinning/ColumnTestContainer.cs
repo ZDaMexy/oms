@@ -73,6 +73,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             dependencies.Cache(GameplaySkinLayoutRevisionOwner.CreateCompatibility());
             dependencies.Cache(compatibility);
             dependencies.Cache(compatibility.Snapshot);
+            dependencies.Cache(GameplaySkinResolvedMaterialSet.CreateEmpty(compatibility.Snapshot));
             dependencies.Cache(new ManiaGameplaySkinStageContext(
                 compatibility.Snapshot,
                 compatibility.Snapshot.GroupsInLogicalOrder[layoutStageIndex].TopologyGroup));

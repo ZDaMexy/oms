@@ -12,11 +12,13 @@ using osu.Framework.Input.Events;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics;
 using osu.Game.Rulesets.Mania.Configuration;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Screens.Edit;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Objects.Drawables
@@ -45,6 +47,10 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         private Drawable headPiece;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; }
+
+        public GameplaySkinResolvedMaterialKey ResolvedMaterialKey { get; private set; }
+
         public DrawableNote()
             : this(null)
         {
@@ -57,11 +63,22 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         }
 
         [BackgroundDependencyLoader(true)]
-        private void load(ManiaRulesetConfigManager rulesetConfig)
+        private void load(ManiaRulesetConfigManager rulesetConfig, ManiaGameplaySkinMaterialContext materialContext)
         {
             rulesetConfig?.BindWith(ManiaRulesetSetting.TimingBasedNoteColouring, configTimingBasedNoteColouring);
 
-            AddInternal(headPiece = new SkinnableDrawable(new ManiaSkinComponentLookup(Component), _ => new DefaultNotePiece())
+            ManiaSkinComponentLookup lookup;
+
+            if (materialContext?.UsesResolvedMaterial == true)
+            {
+                lookup = new ManiaSkinComponentLookup(Component, materialContext);
+                ResolvedMaterialSet = materialContext.MaterialSet;
+                ResolvedMaterialKey = materialContext.GetKey(Component);
+            }
+            else
+                lookup = new ManiaSkinComponentLookup(Component);
+
+            AddInternal(headPiece = new SkinnableDrawable(lookup, _ => new DefaultNotePiece())
             {
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y

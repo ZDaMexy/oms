@@ -10,6 +10,15 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
     public partial class LegacyHoldNoteTailPiece : LegacyNotePiece
     {
+        public LegacyHoldNoteTailPiece()
+        {
+        }
+
+        internal LegacyHoldNoteTailPiece(ManiaGameplaySkinNoteMaterial preparedMaterial)
+            : base(preparedMaterial)
+        {
+        }
+
         protected override void OnDirectionChanged(ValueChangedEvent<ScrollingDirection> direction)
         {
             // Invert the direction

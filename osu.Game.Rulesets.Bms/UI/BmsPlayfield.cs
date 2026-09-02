@@ -40,14 +40,18 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsGameplayLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; } = null!;
+
         public BmsBackgroundLayer BackgroundLayer { get; }
 
         internal BmsPlayfieldLayoutProfile LayoutProfile => LayoutSnapshot.Profile;
 
+#pragma warning disable IDE0032 // [Cached] must remain on a field for the dependency source generator.
         [Cached]
         private readonly BmsKeysoundStore keysoundStore = new BmsKeysoundStore();
 
         public BmsKeysoundStore KeysoundStore => keysoundStore;
+#pragma warning restore IDE0032
 
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
@@ -375,6 +379,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new InvalidOperationException("The BMS playfield snapshot does not match the parser-owned keymode.");
 
             LayoutSnapshot = snapshot;
+            ResolvedMaterialSet = LayoutProvider.CurrentMaterialSet;
+
+            if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, snapshot.Neutral))
+                throw new InvalidOperationException("The BMS playfield material set does not retain its exact layout publication.");
+
             LaneLayout = snapshot.LaneLayout;
             lanes = LaneLayout.Lanes.Select(createLane).ToArray();
             groupContainers = LayoutSnapshot.Neutral.GroupsInLogicalOrder.Select(createGroupContainer).ToArray();

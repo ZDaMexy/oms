@@ -105,6 +105,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsGameplayLayoutSnapshot LayoutSnapshot => LayoutProvider.Current;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet => LayoutProvider.CurrentMaterialSet;
+
         internal BmsGameplayLayoutProvider LayoutProvider { get; }
 
         internal void InitialiseCompatibilityLayoutForTesting(
@@ -115,11 +117,21 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal BmsGameplayLayoutSnapshot? PreStartSpeedPreviewLayoutSnapshot => preStartSpeedPreview?.LayoutSnapshot;
 
+        internal GameplaySkinResolvedMaterialSet? PreStartSpeedPreviewMaterialSet => preStartSpeedPreview?.ResolvedMaterialSet;
+
         internal float PreStartSpeedPreviewNoteScreenSpaceHeight => preStartSpeedPreview?.PrimaryNoteScreenSpaceHeight ?? 0;
 
         internal BmsGameplayLayoutSnapshot? BgaLayoutSnapshot => bgaPanel?.LayoutSnapshot;
 
+        internal GameplaySkinResolvedMaterialSet? BgaMaterialSet => bgaPanel?.ResolvedMaterialSet;
+
         internal BmsGameplayLayoutSnapshot? HudLayoutSnapshot => hudLayoutPanel?.LayoutSnapshot;
+
+        internal GameplaySkinResolvedMaterialSet? HudMaterialSet => hudLayoutPanel?.Carrier?.ResolvedMaterialSet;
+
+        internal GameplaySkinResolvedMaterialSet? GaugeMaterialSet => (hudLayoutPanel?.Carrier?.GaugeBar as BmsGaugeBar)?.ResolvedMaterialSet;
+
+        internal GameplaySkinResolvedMaterialSet? ComboMaterialSet => (hudLayoutPanel?.Carrier?.ComboCounter as BmsComboCounter)?.ResolvedMaterialSet;
 
         [Resolved(CanBeNull = true)]
         private OnScreenDisplay? bmsOnScreenDisplay { get; set; }
@@ -145,6 +157,25 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
             dependencies.Cache(LayoutProvider);
+
+            if (parent.TryGet(out GameplaySkinLayoutRevisionOwner owner)
+                && owner.CurrentPublication is GameplaySkinLayoutPublication publication)
+            {
+                LayoutProvider.AttachRevisionOwner(owner);
+                BmsGameplayLayoutSnapshot adapter = publication.GetAdapter<BmsGameplayLayoutSnapshot>();
+
+                if (!ReferenceEquals(adapter.Neutral, publication.Snapshot)
+                    || !ReferenceEquals(publication.MaterialSet.Snapshot, publication.Snapshot)
+                    || !ReferenceEquals(publication.MaterialSet.PackageRevision, owner.PackageRevision)
+                    || !ReferenceEquals(publication.Snapshot.Context.PackageRevision, owner.PackageRevision)
+                    || publication.Snapshot.Context.RulesetId != "bms")
+                {
+                    throw new InvalidOperationException("The BMS gameplay root does not retain its exact layout/material publication.");
+                }
+
+                dependencies.Cache(publication.MaterialSet);
+            }
+
             return dependencies;
         }
 
@@ -234,8 +265,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 bmsHitObject.AutoPlay = true;
 
             return h is BmsHoldNote holdNote
-                ? new DrawableBmsHoldNote(holdNote, Playfield.LayoutSnapshot)
-                : new DrawableBmsHitObject(h, Playfield.LayoutSnapshot);
+                ? new DrawableBmsHoldNote(holdNote, Playfield.LayoutSnapshot, LayoutProvider.CurrentMaterialSet)
+                : new DrawableBmsHitObject(h, Playfield.LayoutSnapshot, LayoutProvider.CurrentMaterialSet);
         }
 
         protected override ReplayInputHandler CreateReplayInputHandler(Replay replay)
@@ -450,7 +481,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 previewLane.LayoutSnapshotLane ?? throw new InvalidOperationException("Pre-start preview requires the exact gameplay layout lane."),
                 Playfield.LayoutSnapshot.Keymode,
                 SpeedMetrics,
-                Playfield.LayoutSnapshot));
+                Playfield.LayoutSnapshot,
+                LayoutProvider.CurrentMaterialSet));
         }
 
         private void updateTimeRange() => TimeRange.Value = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value, Beatmap.GetMostCommonBeatLength(), getInitialBeatLength(), Beatmap.Difficulty.SliderMultiplier) * (playfieldScrollLengthRatio?.Value ?? 1);

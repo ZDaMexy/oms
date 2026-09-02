@@ -169,8 +169,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TestCase("object.long-note.head.resource", "NoteImage1H")]
         [TestCase("object.long-note.body.resource", "NoteImage1L")]
         [TestCase("object.long-note.tail.resource", "NoteImage1T")]
-        [TestCase("playfield.key.resource", "KeyImage1")]
-        [TestCase("playfield.key.pressed-resource", "KeyImage1D")]
         public void TestEveryDeclaredFieldFallsThroughFromBrokenBmsToFullMania(string fieldId, string lookup)
         {
             Assert.That(GameplaySkinLaneResourceFieldCatalog.TryGet(fieldId, out GameplaySkinLaneResourceField? field), Is.True);
@@ -413,19 +411,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestFourteenKeyResolvesEachFieldIndependently()
+        public void TestFourteenKeyResolvesEachHostedNoteFieldIndependently()
         {
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(
                 BmsKeymode.Key14K,
                 maniaIni:
                     "[Mania]\nKeys: 8\nNoteImage0: deck-note\n" +
-                    "[Mania]\nKeys: 14\nKeyImage7: key-only-key\n");
+                    "[Mania]\nKeys: 14\nNoteImage7T: key-only-tail\n");
             GameplaySkinLaneId key8 = lane("bms.lane.key-8");
 
             GameplaySkinSlotResolution<TestComponent> note = resolve(
                 plan, key8, GameplaySkinLaneResourceFieldCatalog.Note, materialize);
-            GameplaySkinSlotResolution<TestComponent> key = resolve(
-                plan, key8, GameplaySkinLaneResourceFieldCatalog.Key, materialize);
+            GameplaySkinSlotResolution<TestComponent> tail = resolve(
+                plan, key8, GameplaySkinLaneResourceFieldCatalog.LongNoteTail, materialize);
 
             Assert.Multiple(() =>
             {
@@ -434,10 +432,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(note.Result.Value.Reference.ManiaKeys, Is.EqualTo(8));
                 Assert.That(note.ProviderName, Is.EqualTo("selected.mania-deck-keys-8"));
 
-                Assert.That(key.Result.Value.Name, Is.EqualTo("key-only-key"));
-                Assert.That(key.Result.Value.Reference!.Source, Is.EqualTo(BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly));
-                Assert.That(key.Result.Value.Reference.ManiaKeys, Is.EqualTo(14));
-                Assert.That(key.ProviderName, Is.EqualTo("selected.mania-key-only-keys-14"));
+                Assert.That(tail.Result.Value.Name, Is.EqualTo("key-only-tail"));
+                Assert.That(tail.Result.Value.Reference!.Source, Is.EqualTo(BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly));
+                Assert.That(tail.Result.Value.Reference.ManiaKeys, Is.EqualTo(14));
+                Assert.That(tail.ProviderName, Is.EqualTo("selected.mania-key-only-keys-14"));
             });
         }
 
@@ -470,8 +468,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TestCase("object.long-note.head.resource", "NoteImage0H", "NoteImage7H")]
         [TestCase("object.long-note.body.resource", "NoteImage0L", "NoteImage7L")]
         [TestCase("object.long-note.tail.resource", "NoteImage0T", "NoteImage7T")]
-        [TestCase("playfield.key.resource", "KeyImage0", "KeyImage7")]
-        [TestCase("playfield.key.pressed-resource", "KeyImage0D", "KeyImage7D")]
         public void TestFourteenKeyInvalidDeckFallsThroughToKeyOnlyPerField(
             string fieldId,
             string deckLookup,
@@ -623,13 +619,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBeatmapProvideStopsSelectedRulesetAndCanonicalLayers()
+        public void TestLegacyBeatmapCompatibilityProvideStopsSelectedRulesetAndCanonicalLayers()
         {
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(
                 BmsKeymode.Key7K,
                 bmsIni: "[Bms]\nKeymode: 7K\nNoteImage1: selected\n");
             int materializeCount = 0;
-            var beatmap = new TestProvider("beatmap-local", _ => SkinSlotResult<TestComponent>.Provide(new TestComponent("beatmap")));
+            var beatmap = new TestProvider("legacy-beatmap-compatibility", _ => SkinSlotResult<TestComponent>.Provide(new TestComponent("beatmap")));
             var ruleset = new TestProvider("ruleset-resources", _ => SkinSlotResult<TestComponent>.Provide(new TestComponent("ruleset")));
             var canonical = new TestProvider("oms-simple", _ => SkinSlotResult<TestComponent>.Provide(new TestComponent("canonical")));
 
@@ -649,7 +645,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(resolution.Result.Value.Name, Is.EqualTo("beatmap"));
-                Assert.That(resolution.ProviderName, Is.EqualTo("beatmap-local"));
+                Assert.That(resolution.ProviderName, Is.EqualTo("legacy-beatmap-compatibility"));
                 Assert.That(beatmap.QueryCount, Is.EqualTo(1));
                 Assert.That(materializeCount, Is.Zero);
                 Assert.That(ruleset.QueryCount, Is.Zero);
@@ -658,18 +654,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBeatmapOptionalSuppressionStopsDeclaredSelectedResource()
+        public void TestLegacyBeatmapCompatibilityOptionalTailSuppressionStopsDeclaredSelectedResource()
         {
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(
                 BmsKeymode.Key7K,
-                bmsIni: "[Bms]\nKeymode: 7K\nKeyImage1D: selected-pressed-key\n");
+                bmsIni: "[Bms]\nKeymode: 7K\nNoteImage1T: selected-tail\n");
             int materializeCount = 0;
-            var beatmap = new TestProvider("beatmap-local", _ => SkinSlotResult<TestComponent>.Suppress);
+            var beatmap = new TestProvider("legacy-beatmap-compatibility", _ => SkinSlotResult<TestComponent>.Suppress);
 
             GameplaySkinSlotResolution<TestComponent> resolution = resolve(
                 plan,
                 lane("bms.lane.key-1"),
-                GameplaySkinLaneResourceFieldCatalog.KeyPressed,
+                GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
                 reference =>
                 {
                     materializeCount++;
@@ -680,7 +676,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(resolution.Result.Kind, Is.EqualTo(SkinSlotResultKind.Suppress));
-                Assert.That(resolution.ProviderName, Is.EqualTo("beatmap-local"));
+                Assert.That(resolution.ProviderName, Is.EqualTo("legacy-beatmap-compatibility"));
                 Assert.That(beatmap.QueryCount, Is.EqualTo(1));
                 Assert.That(materializeCount, Is.Zero);
             });
@@ -719,7 +715,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(
                 BmsKeymode.Key7K,
                 bmsIni: "[Bms]\nKeymode: 7K\nNoteImage1: selected-note\n");
-            var beatmap = new TestProvider("beatmap-local", _ => SkinSlotResult<TestComponent>.Suppress);
+            var beatmap = new TestProvider("legacy-beatmap-compatibility", _ => SkinSlotResult<TestComponent>.Suppress);
 
             GameplaySkinSlotResolution<TestComponent> resolution = resolve(
                 plan,
@@ -737,7 +733,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestOptionalSuppressionStopsBeforeCanonicalFallback()
+        public void TestOptionalTailSuppressionStopsBeforeCanonicalFallback()
         {
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(BmsKeymode.Key7K);
             var ruleset = new TestProvider("ruleset-resources", _ => SkinSlotResult<TestComponent>.Suppress);
@@ -746,7 +742,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinSlotResolution<TestComponent> resolution = resolve(
                 plan,
                 lane("bms.lane.key-1"),
-                GameplaySkinLaneResourceFieldCatalog.KeyPressed,
+                GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
                 materialize,
                 ruleset: new[] { ruleset },
                 canonical: canonical);
@@ -763,14 +759,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TestCase("object.long-note.head.resource", SkinSlotRequirement.Critical)]
         [TestCase("object.long-note.body.resource", SkinSlotRequirement.Critical)]
         [TestCase("object.long-note.tail.resource", SkinSlotRequirement.Optional)]
-        [TestCase("playfield.key.resource", SkinSlotRequirement.Optional)]
-        [TestCase("playfield.key.pressed-resource", SkinSlotRequirement.Optional)]
         public void TestEveryFieldUsesItsCataloguedRequirement(string fieldId, SkinSlotRequirement requirement)
         {
             Assert.That(GameplaySkinLaneResourceFieldCatalog.TryGet(fieldId, out GameplaySkinLaneResourceField? field), Is.True);
 
             BmsGameplaySkinConfigurationCandidatePlan plan = createPlan(BmsKeymode.Key7K);
-            var beatmap = new TestProvider("beatmap-local", _ => SkinSlotResult<TestComponent>.Suppress);
+            var beatmap = new TestProvider("legacy-beatmap-compatibility", _ => SkinSlotResult<TestComponent>.Suppress);
             var canonical = new TestProvider("oms-simple", _ => SkinSlotResult<TestComponent>.Provide(new TestComponent("canonical")));
 
             GameplaySkinSlotResolution<TestComponent> resolution = resolve(
@@ -957,10 +951,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(() => new BmsGameplaySkinLaneResourceContext(plan.Topology, null!, GameplaySkinLaneResourceFieldCatalog.Note), Throws.ArgumentNullException);
                 Assert.That(() => new BmsGameplaySkinLaneResourceContext(plan.Topology, key1, null!), Throws.ArgumentNullException);
                 Assert.That(() => new BmsGameplaySkinLaneResourceContext(plan.Topology, key1, unknownField), Throws.ArgumentException);
+                Assert.That(() => new BmsGameplaySkinLaneResourceContext(plan.Topology, key1, GameplaySkinLaneResourceFieldCatalog.Key), Throws.ArgumentException);
+                Assert.That(() => new BmsGameplaySkinLaneResourceContext(plan.Topology, key1, GameplaySkinLaneResourceFieldCatalog.KeyPressed), Throws.ArgumentException);
                 Assert.That(() => new BmsGameplaySkinLaneResourceContext(plan.Topology, lane("bms.lane.outside"), GameplaySkinLaneResourceFieldCatalog.Note), Throws.ArgumentException);
                 Assert.That(() => providers[0].GetSlot(new GameplaySkinSlotLookup<BmsGameplaySkinLaneResourceContext>(GameplaySkinSlotCatalog.LongNoteHead, context)), Throws.ArgumentException);
                 Assert.That(() => providers[0].GetSlot(new GameplaySkinSlotLookup<BmsGameplaySkinLaneResourceContext>(GameplaySkinSlotCatalog.Note, otherContext)), Throws.ArgumentException);
-                Assert.That(() => new BmsGameplaySkinLaneResourceReference(plan.Candidates[^1], context, "resource"), Throws.ArgumentException);
             });
         }
 

@@ -18,6 +18,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
     public partial class LegacyKeyArea : LegacyManiaColumnElement, IKeyBindingHandler<ManiaAction>
     {
+        private readonly ManiaGameplaySkinKeyMaterial? preparedMaterial;
+
+        internal bool UsesPreparedMaterial => preparedMaterial != null;
+
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         private Container directionContainer = null!;
@@ -32,14 +36,21 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
             RelativeSizeAxes = Axes.Both;
         }
 
+        internal LegacyKeyArea(ManiaGameplaySkinKeyMaterial preparedMaterial)
+            : this()
+        {
+            this.preparedMaterial = preparedMaterial ?? throw new System.ArgumentNullException(nameof(preparedMaterial));
+        }
+
         [BackgroundDependencyLoader]
         private void load(ISkinSource skin, IScrollingInfo scrollingInfo)
         {
-            string upImage = GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.KeyImage)?.Value
-                             ?? $"mania-key{FallbackColumnIndex}";
-
-            string downImage = GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.KeyImageDown)?.Value
-                               ?? $"mania-key{FallbackColumnIndex}D";
+            string? upImage = preparedMaterial == null
+                ? GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.KeyImage)?.Value ?? $"mania-key{FallbackColumnIndex}"
+                : null;
+            string? downImage = preparedMaterial == null
+                ? GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.KeyImageDown)?.Value ?? $"mania-key{FallbackColumnIndex}D"
+                : null;
 
             InternalChild = directionContainer = new Container
             {
@@ -51,14 +62,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                     upSprite = new Sprite
                     {
                         Origin = Anchor.BottomCentre,
-                        Texture = skin.GetTexture(upImage, WrapMode.ClampToEdge, default),
+                        Texture = preparedMaterial?.UpTexture ?? skin.GetTexture(upImage!, WrapMode.ClampToEdge, default),
                         RelativeSizeAxes = Axes.X,
                         Width = 1
                     },
                     downSprite = new Sprite
                     {
                         Origin = Anchor.BottomCentre,
-                        Texture = skin.GetTexture(downImage, WrapMode.ClampToEdge, default),
+                        Texture = preparedMaterial?.DownTexture ?? skin.GetTexture(downImage!, WrapMode.ClampToEdge, default),
                         RelativeSizeAxes = Axes.X,
                         Width = 1,
                         Alpha = 0
@@ -69,7 +80,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
             direction.BindTo(scrollingInfo.Direction);
             direction.BindValueChanged(onDirectionChanged, true);
 
-            if (GetColumnSkinConfig<bool>(skin, LegacyManiaSkinConfigurationLookups.KeysUnderNotes)?.Value ?? false)
+            if (preparedMaterial?.KeysUnderNotes
+                ?? GetColumnSkinConfig<bool>(skin, LegacyManiaSkinConfigurationLookups.KeysUnderNotes)?.Value
+                ?? false)
                 Column.UnderlayElements.Add(CreateProxy());
         }
 

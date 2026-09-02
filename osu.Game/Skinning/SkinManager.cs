@@ -431,7 +431,7 @@ namespace osu.Game.Skinning
             ((SkinInstanceBindable)CurrentSkin).CommitPrepared(DefaultOmsSkin);
             currentRevisionPublication = new SkinCurrentRevisionPublication(
                 DefaultOmsSkin,
-                getCurrentRevisionContentIdentity(DefaultOmsSkin),
+                DefaultOmsSkin.GetCurrentRevisionContentIdentity(),
                 SkinCurrentRevisionSourceKind.ProtectedFallback,
                 keepsReusableOwner: true,
                 queueCurrentRevisionRetirement);
@@ -803,7 +803,7 @@ namespace osu.Game.Skinning
         private SkinCurrentRevision createCurrentRevision(Skin owner)
         {
             SkinCurrentRevisionSourceKind sourceKind = getCurrentRevisionSourceKind(owner);
-            return CreateProvisionalCurrentRevision(owner, getCurrentRevisionContentIdentity(owner), sourceKind);
+            return CreateProvisionalCurrentRevision(owner, owner.GetCurrentRevisionContentIdentity(), sourceKind);
         }
 
         private static SkinCurrentRevisionSourceKind getCurrentRevisionSourceKind(Skin owner)
@@ -826,17 +826,6 @@ namespace osu.Game.Skinning
                     ? SkinCurrentRevisionSourceKind.RealmPackage
                     : SkinCurrentRevisionSourceKind.Compatibility;
             });
-        }
-
-        private static string getCurrentRevisionContentIdentity(Skin owner)
-        {
-            if (!string.IsNullOrEmpty(owner.PackageContentRevision))
-                return owner.PackageContentRevision;
-
-            return owner.SkinInfo.PerformRead(info =>
-                !string.IsNullOrEmpty(info.Hash)
-                    ? info.Hash
-                    : $"record:{info.ID:D}");
         }
 
         private void notifySourceChanged()
@@ -1708,7 +1697,7 @@ namespace osu.Game.Skinning
 
                     SkinCurrentRevision fallback = CreateProvisionalCurrentRevision(
                         DefaultOmsSkin,
-                        getCurrentRevisionContentIdentity(DefaultOmsSkin),
+                        DefaultOmsSkin.GetCurrentRevisionContentIdentity(),
                         SkinCurrentRevisionSourceKind.ProtectedFallback);
                     SkinRevisionParticipantPrepareResult staged = await currentRevisionPublication
                                                                         .PrepareParticipantsForRevisionAsync(

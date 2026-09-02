@@ -8,6 +8,15 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
     public partial class LegacyHoldNoteHeadPiece : LegacyNotePiece
     {
+        public LegacyHoldNoteHeadPiece()
+        {
+        }
+
+        internal LegacyHoldNoteHeadPiece(ManiaGameplaySkinNoteMaterial preparedMaterial)
+            : base(preparedMaterial)
+        {
+        }
+
         protected override Drawable? GetAnimation(ISkinSource skin)
         {
             // TODO: Should fallback to the head from default legacy skin instead of note.

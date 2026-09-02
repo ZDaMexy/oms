@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using osu.Game.Beatmaps.Formats;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Skinning
 {
@@ -19,7 +20,7 @@ namespace osu.Game.Skinning
         {
         }
 
-        private readonly List<string> pendingLines = new List<string>();
+        private readonly List<KeyValuePair<string, string>> pendingLines = new List<KeyValuePair<string, string>>();
         private LegacyManiaSkinConfiguration currentConfig;
 
         protected override void OnBeginNewSection(Section section)
@@ -32,12 +33,25 @@ namespace osu.Game.Skinning
         }
 
         protected override void ParseLine(List<LegacyManiaSkinConfiguration> output, Section section, string line)
+            => parsePair(output, section, SplitKeyVal(line));
+
+        protected override void ParseLine(
+            List<LegacyManiaSkinConfiguration> output,
+            Section section,
+            GameplaySkinLegacyLine line)
+        {
+            if (TryGetRetainedKeyValue(line, out KeyValuePair<string, string> pair))
+                parsePair(output, section, pair);
+        }
+
+        private void parsePair(
+            List<LegacyManiaSkinConfiguration> output,
+            Section section,
+            KeyValuePair<string, string> pair)
         {
             switch (section)
             {
                 case Section.Mania:
-                    var pair = SplitKeyVal(line);
-
                     switch (pair.Key)
                     {
                         case "Keys":
@@ -52,7 +66,7 @@ namespace osu.Game.Skinning
                             break;
 
                         default:
-                            pendingLines.Add(line);
+                            pendingLines.Add(pair);
 
                             // Hold all lines until a "Keys" item is found.
                             if (currentConfig != null)
@@ -68,10 +82,8 @@ namespace osu.Game.Skinning
         {
             Debug.Assert(currentConfig != null);
 
-            foreach (string line in pendingLines)
+            foreach (KeyValuePair<string, string> pair in pendingLines)
             {
-                var pair = SplitKeyVal(line);
-
                 switch (pair.Key)
                 {
                     case "ColumnLineWidth":
@@ -146,7 +158,7 @@ namespace osu.Game.Skinning
                         break;
 
                     case string when pair.Key.StartsWith("Colour", StringComparison.Ordinal):
-                        HandleColours(currentConfig, line, true);
+                        HandleColours(currentConfig, pair, true);
 
                         var acceptedColour = currentConfig.CustomColours[pair.Key];
 

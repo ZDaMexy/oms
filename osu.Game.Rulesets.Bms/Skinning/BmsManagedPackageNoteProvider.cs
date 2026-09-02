@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
@@ -17,49 +18,55 @@ using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osuTK;
+using osuTK.Graphics;
 using SixLabors.ImageSharp;
 
 namespace osu.Game.Rulesets.Bms.Skinning
 {
     /// <summary>
-    /// Resolves the first production Skin V1 note components from one exact managed package source.
+    /// Retains the pre-C4 nullable managed-package note lookup for detached compatibility callers.
     /// </summary>
     /// <remarks>
-    /// Only the native BMS ordinary-note and long-note declarations are in scope. Eligible sources are either one
-    /// validated Realm <c>.osk</c> revision or one immutable managed-folder capsule; mania compatibility candidates and
-    /// the future <c>oms-simple</c> provider remain outside this adapter.
+    /// Eligible sources are either one validated Realm <c>.osk</c> revision or one immutable managed-folder capsule.
+    /// Exact C3 lookups are prohibited here: production consumes only the committed material set. This provider exists
+    /// solely for callers which have no exact layout/material publication and is not part of C4 completion authority.
     /// </remarks>
-    internal sealed class BmsManagedPackageNoteProvider :
-        IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, BmsSourceBoundNoteMaterial>
+    internal sealed class BmsManagedPackageNoteCompatibilityProvider :
+        IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, IBmsResolvedNoteMaterial>
     {
         private readonly BmsLegacySkin source;
 
-        public string Name => "selected.managed-package.bms-note";
+        public string Name => "legacy.compatibility.managed-package-bms-note";
 
-        public BmsManagedPackageNoteProvider(BmsLegacySkin source)
+        public BmsManagedPackageNoteCompatibilityProvider(BmsLegacySkin source)
         {
             ArgumentNullException.ThrowIfNull(source);
             this.source = source;
         }
 
-        public bool ClaimsDeclaration(BmsNoteSkinLookup lookup)
+        public bool ClaimsCompatibilityDeclaration(BmsNoteSkinLookup lookup)
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            return tryGetDescriptor(lookup.Element, out _)
+            return lookup.LayoutSnapshot == null
+                   && lookup.MaterialSet == null
+                   && TryGetDescriptor(lookup.Element, out _)
                    && source.GetAcceptedBmsNoteResource(lookup.Element, lookup.Keymode, lookup.LaneIndex, lookup.IsScratch).IsDeclared;
         }
 
-        public GameplaySkinSlotResolution<BmsSourceBoundNoteMaterial> Resolve(BmsNoteSkinLookup lookup)
+        public GameplaySkinSlotResolution<IBmsResolvedNoteMaterial> ResolveCompatibility(BmsNoteSkinLookup lookup)
         {
             ArgumentNullException.ThrowIfNull(lookup);
 
-            if (!tryGetDescriptor(lookup.Element, out GameplaySkinSlotDescriptor descriptor))
+            if (lookup.LayoutSnapshot != null || lookup.MaterialSet != null)
+                throw new ArgumentException("The legacy managed-package compatibility resolver cannot consume an exact publication lookup.", nameof(lookup));
+
+            if (!TryGetDescriptor(lookup.Element, out GameplaySkinSlotDescriptor descriptor))
             {
                 return GameplaySkinSlotResolver.Resolve(
                     GameplaySkinSlotCatalog.Note,
                     lookup,
-                    Array.Empty<IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, BmsSourceBoundNoteMaterial>>());
+                    Array.Empty<IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsNoteSkinLookup>, IBmsResolvedNoteMaterial>>());
             }
 
             return GameplaySkinSlotResolver.Resolve(
@@ -69,15 +76,23 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 material => material.FrameCount > 0);
         }
 
-        public SkinSlotResult<BmsSourceBoundNoteMaterial> GetSlot(GameplaySkinSlotLookup<BmsNoteSkinLookup> slot)
+        public SkinSlotResult<IBmsResolvedNoteMaterial> GetSlot(GameplaySkinSlotLookup<BmsNoteSkinLookup> slot)
         {
             ArgumentNullException.ThrowIfNull(slot);
 
-            if (!tryGetDescriptor(slot.Context.Element, out GameplaySkinSlotDescriptor descriptor)
+            if (slot.Context.LayoutSnapshot != null || slot.Context.MaterialSet != null)
+                throw new ArgumentException("The legacy managed-package compatibility provider cannot consume an exact publication lookup.", nameof(slot));
+
+            if (!TryGetDescriptor(slot.Context.Element, out GameplaySkinSlotDescriptor descriptor)
                 || !ReferenceEquals(slot.Descriptor, descriptor))
             {
-                return SkinSlotResult<BmsSourceBoundNoteMaterial>.Inherit;
+                return SkinSlotResult<IBmsResolvedNoteMaterial>.Inherit;
             }
+
+            BmsManagedPackageSourceRevision currentRevision = source.CaptureManagedPackageSourceRevision();
+
+            if (!currentRevision.HasGameplayAuthority)
+                throw new InvalidOperationException("The selected gameplay skin source is not an eligible managed package.");
 
             GameplaySkinConfigurationDeclaration<string> declaration = source.GetAcceptedBmsNoteResource(
                 slot.Context.Element,
@@ -86,27 +101,25 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 slot.Context.IsScratch);
 
             if (!declaration.IsDeclared)
-                return SkinSlotResult<BmsSourceBoundNoteMaterial>.Inherit;
+                return SkinSlotResult<IBmsResolvedNoteMaterial>.Inherit;
 
-            BmsManagedPackageSourceRevision currentRevision = source.CaptureManagedPackageSourceRevision();
-
-            if (!currentRevision.HasGameplayAuthority)
-                throw new InvalidOperationException("The selected gameplay skin source is not an eligible managed package.");
-
+            var materialSlot = new BmsManagedPackageNoteSlotKey(
+                slot.Context.Element,
+                slot.Context.Keymode,
+                slot.Context.LaneIndex,
+                slot.Context.IsScratch);
             BmsManagedPackageNoteRevision prepared = source.GetOrPrepareManagedPackageNotes(BmsManagedPackageNoteLoadContext.CurrentCancellationToken);
 
             if (!prepared.SourceRevision.Equals(currentRevision))
                 throw new InvalidOperationException("The selected gameplay skin package changed while its note resources were being prepared.");
 
-            if (!prepared.TryGetMaterial(
-                    new BmsManagedPackageNoteSlotKey(slot.Context.Element, slot.Context.Keymode, slot.Context.LaneIndex, slot.Context.IsScratch),
-                    out BmsSourceBoundNoteMaterial? material))
-                throw new InvalidDataException("The selected gameplay note component could not be prepared safely.");
+            if (!prepared.TryGetMaterial(materialSlot, out IBmsResolvedNoteMaterial? material))
+                return SkinSlotResult<IBmsResolvedNoteMaterial>.Inherit;
 
-            return SkinSlotResult<BmsSourceBoundNoteMaterial>.Provide(material!);
+            return SkinSlotResult<IBmsResolvedNoteMaterial>.Provide(material!);
         }
 
-        private static bool tryGetDescriptor(BmsNoteSkinElements element, out GameplaySkinSlotDescriptor descriptor)
+        internal static bool TryGetDescriptor(BmsNoteSkinElements element, out GameplaySkinSlotDescriptor descriptor)
         {
             GameplaySkinSlotDescriptor? candidate = element switch
             {
@@ -178,6 +191,132 @@ namespace osu.Game.Rulesets.Bms.Skinning
         int LaneIndex,
         bool IsScratch);
 
+    /// <summary>
+    /// Final authority retained for each exact Note/LN result. Compatibility buckets are still part of the selected
+    /// package; the programmatic fallback is a separate terminal authority.
+    /// </summary>
+    internal enum BmsPreparedNoteMaterialAuthority
+    {
+        SelectedDocument = 0,
+        SelectedLegacyBms = 1,
+        SelectedLegacyMania = 2,
+        ProgrammaticFallback = 3,
+    }
+
+    /// <summary>
+    /// Owns the stable source identity and precedence contract for every selected-package BMS Note/LN authority.
+    /// Callers must use this factory rather than matching stable-id strings independently.
+    /// </summary>
+    internal static class BmsPreparedNoteMaterialAuthorityIdentity
+    {
+        public static IReadOnlyList<BmsPreparedNoteMaterialAuthority> SelectedInPrecedenceOrder { get; } =
+            Array.AsReadOnly(new[]
+            {
+                BmsPreparedNoteMaterialAuthority.SelectedDocument,
+                BmsPreparedNoteMaterialAuthority.SelectedLegacyBms,
+                BmsPreparedNoteMaterialAuthority.SelectedLegacyMania,
+            });
+
+        public static GameplaySkinResolvedMaterialSourceIdentity CreateSelected(
+            BmsPreparedNoteMaterialAuthority authority,
+            string configurationRevision)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(configurationRevision);
+
+            string stableId = authority switch
+            {
+                BmsPreparedNoteMaterialAuthority.SelectedDocument => "selected-document",
+                BmsPreparedNoteMaterialAuthority.SelectedLegacyBms => "selected-legacy-bms",
+                BmsPreparedNoteMaterialAuthority.SelectedLegacyMania => "selected-legacy-mania",
+                _ => throw new ArgumentOutOfRangeException(nameof(authority), authority, "Only a selected-package authority has a selected identity."),
+            };
+
+            return GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                stableId,
+                configurationRevision);
+        }
+
+        public static GameplaySkinResolvedMaterialSourceIdentity Programmatic { get; } =
+            GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback,
+                "bms-programmatic",
+                "v1");
+
+        public static bool TryGetSelectedAuthority(
+            GameplaySkinResolvedMaterialSourceIdentity source,
+            out BmsPreparedNoteMaterialAuthority authority)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+
+            foreach (BmsPreparedNoteMaterialAuthority candidate in SelectedInPrecedenceOrder)
+            {
+                if (source.Equals(CreateSelected(candidate, source.ContentRevision)))
+                {
+                    authority = candidate;
+                    return true;
+                }
+            }
+
+            authority = default;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Validates and projects one exact BMS lane to the shared material target without deriving any identity or index.
+    /// </summary>
+    internal static class BmsGameplayNoteMaterialTarget
+    {
+        public static BmsGameplayLayoutLane ValidateLookup(BmsNoteSkinLookup lookup)
+        {
+            ArgumentNullException.ThrowIfNull(lookup);
+
+            BmsGameplayLayoutSnapshot layout = lookup.LayoutSnapshot
+                                               ?? throw new ArgumentException("An exact BMS material lookup requires its committed layout.", nameof(lookup));
+
+            if (layout.Keymode != lookup.Keymode)
+                throw new ArgumentException("A BMS material lookup keymode must match its exact layout.", nameof(lookup));
+
+            BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(lookup.LaneIndex);
+
+            if (lookup.LaneId == null
+                || !lane.LaneId.Equals(lookup.LaneId)
+                || lane.IsScratch != lookup.IsScratch)
+            {
+                throw new ArgumentException("A BMS material lookup must retain the exact stable lane identity and role.", nameof(lookup));
+            }
+
+            return lane;
+        }
+
+        public static GameplaySkinResolvedMaterialTarget Create(
+            BmsGameplayLayoutSnapshot layout,
+            BmsGameplayLayoutLane lane)
+        {
+            ArgumentNullException.ThrowIfNull(layout);
+            ArgumentNullException.ThrowIfNull(lane);
+
+            GameplaySkinLaneTopologySnapshot topology = layout.Neutral.Context.Topology;
+
+            if (!topology.TryGetLane(lane.LaneId, out GameplaySkinLaneTopologyEntry? topologyLane)
+                || topologyLane == null
+                || !ReferenceEquals(lane.NeutralLane.TopologyEntry, topologyLane)
+                || topologyLane.GlobalLogicalIndex != lane.LogicalIndex
+                || topologyLane.GlobalVisualIndex != lane.VisualIndex
+                || topologyLane.GroupLocalLogicalIndex != lane.GroupLocalLogicalIndex
+                || topologyLane.GroupLocalVisualIndex != lane.GroupLocalVisualIndex
+                || !topology.TryGetGroup(topologyLane.Identity.Group.Id, out GameplaySkinLaneTopologyGroup? group)
+                || group == null
+                || group.LogicalIndex != lane.GroupLogicalIndex)
+            {
+                throw new ArgumentException("A BMS material target must retain every exact C3 lane coordinate.", nameof(lane));
+            }
+
+            return GameplaySkinResolvedMaterialTarget.ForLane(group, topologyLane);
+        }
+    }
+
     internal sealed record BmsManagedPackageFileRevision(string PackageName, string ContentHash, string StorageKey);
 
     /// <summary>
@@ -202,7 +341,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             bool isExternalFilesystemStorage,
             bool deletePending,
             string? parsedConfigurationContentHash,
-            IEnumerable<BmsManagedPackageFileRevision> files)
+            IEnumerable<BmsManagedPackageFileRevision> files,
+            string? packageContentRevision = null)
             : this(
                 skinId,
                 isRealmManaged,
@@ -210,7 +350,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 isExternalFilesystemStorage,
                 deletePending,
                 parsedConfigurationContentHash,
-                packageContentRevision: null,
+                packageContentRevision,
                 files)
         {
         }
@@ -390,34 +530,150 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </summary>
     internal sealed class BmsManagedPackageNoteRevision : IDisposable
     {
-        private readonly IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, BmsSourceBoundNoteMaterial> materials;
+        private readonly IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, IBmsResolvedNoteMaterial> materials;
+        private readonly IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority> materialAuthorities;
+        private readonly IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority> suppressedSlots;
+        private readonly IReadOnlyList<BmsPreparedNoteDiagnostic> diagnostics;
         private readonly TextureStore? textures;
-        private bool disposed;
-
         public BmsManagedPackageSourceRevision SourceRevision { get; }
+
+        public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        internal bool IsDisposed { get; private set; }
 
         public BmsManagedPackageNoteRevision(
             BmsManagedPackageSourceRevision sourceRevision,
-            IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, BmsSourceBoundNoteMaterial>? materials = null,
-            TextureStore? textures = null)
+            IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, IBmsResolvedNoteMaterial>? materials = null,
+            TextureStore? textures = null,
+            BmsGameplayLayoutSnapshot? layoutSnapshot = null,
+            IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority>? materialAuthorities = null,
+            IReadOnlyDictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority>? suppressedSlots = null,
+            IReadOnlyList<BmsPreparedNoteDiagnostic>? diagnostics = null)
         {
             SourceRevision = sourceRevision ?? throw new ArgumentNullException(nameof(sourceRevision));
-            this.materials = materials ?? new Dictionary<BmsManagedPackageNoteSlotKey, BmsSourceBoundNoteMaterial>();
+            this.materials = materials ?? new Dictionary<BmsManagedPackageNoteSlotKey, IBmsResolvedNoteMaterial>();
             this.textures = textures;
+            LayoutSnapshot = layoutSnapshot;
+            this.materialAuthorities = materialAuthorities ?? new Dictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority>();
+            this.suppressedSlots = suppressedSlots ?? new Dictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority>();
+            this.diagnostics = diagnostics ?? Array.Empty<BmsPreparedNoteDiagnostic>();
+
+            if (layoutSnapshot == null && (this.materialAuthorities.Count != 0 || this.suppressedSlots.Count != 0 || this.diagnostics.Count != 0))
+                throw new ArgumentException("Only an exact-layout note revision may carry resolved provenance or diagnostics.", nameof(layoutSnapshot));
+
+            if (layoutSnapshot != null && this.materials.Keys.Any(slot => slot.Keymode != layoutSnapshot.Keymode))
+                throw new ArgumentException("An exact-layout note revision can contain only its parser-owned keymode.", nameof(materials));
+
+            if (this.materialAuthorities.Keys.Any(slot => !this.materials.ContainsKey(slot)))
+                throw new ArgumentException("Every exact note material provenance must identify a prepared material.", nameof(materialAuthorities));
+
+            if (layoutSnapshot != null && this.materials.Keys.Any(slot => !this.materialAuthorities.ContainsKey(slot)))
+                throw new ArgumentException("Every exact note material must retain its final authority.", nameof(materialAuthorities));
+
+            if (this.suppressedSlots.Keys.Any(slot => this.materials.ContainsKey(slot)))
+                throw new ArgumentException("A resolved BMS note slot cannot be both provided and suppressed.", nameof(suppressedSlots));
+
+            if (this.suppressedSlots.Any(pair => getDescriptor(pair.Key.Element).SuppressEligibility != GameplaySkinSlotSuppressEligibility.Allowed
+                                                 || pair.Value != BmsPreparedNoteMaterialAuthority.SelectedDocument))
+            {
+                throw new ArgumentException("Only a selected-document declaration may suppress a catalog-eligible BMS note slot.", nameof(suppressedSlots));
+            }
         }
 
-        public bool TryGetMaterial(BmsManagedPackageNoteSlotKey slot, out BmsSourceBoundNoteMaterial? material)
+        public bool TryGetMaterial(BmsManagedPackageNoteSlotKey slot, out IBmsResolvedNoteMaterial? material)
             => materials.TryGetValue(slot, out material);
+
+        public GameplaySkinResolvedMaterialSet CreateMaterialSet(
+            BmsGameplayLayoutSnapshot layout,
+            GameplaySkinMaterialContractIdentity contractIdentity)
+        {
+            ArgumentNullException.ThrowIfNull(layout);
+            ArgumentNullException.ThrowIfNull(contractIdentity);
+
+            if (!ReferenceEquals(LayoutSnapshot, layout))
+                throw new ArgumentException("A BMS resolved material set must use the exact layout prepared by this revision.", nameof(layout));
+
+            GameplaySkinPackageRevision packageRevision = layout.Neutral.Context.PackageRevision;
+
+            if (SourceRevision.SkinId != packageRevision.RecordId
+                || !StringComparer.Ordinal.Equals(SourceRevision.PackageContentRevision, packageRevision.ContentRevision))
+            {
+                throw new ArgumentException("A BMS resolved material set must use the exact selected package identity and content revision.", nameof(layout));
+            }
+
+            string configurationRevision = SourceRevision.ParsedConfigurationContentHash
+                                           ?? throw new InvalidOperationException("An exact selected-package material must retain its configuration content revision.");
+            var entries = new List<GameplaySkinResolvedMaterialEntry>(materials.Count + suppressedSlots.Count);
+
+            foreach ((BmsManagedPackageNoteSlotKey slot, IBmsResolvedNoteMaterial material) in materials)
+            {
+                BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(slot.LaneIndex);
+
+                if (slot.Keymode != layout.Keymode || lane.IsScratch != slot.IsScratch)
+                    throw new InvalidOperationException("A prepared BMS material no longer matches its exact layout lane.");
+
+                GameplaySkinSlotDescriptor descriptor = getDescriptor(slot.Element);
+                GameplaySkinResolvedMaterialTarget target = BmsGameplayNoteMaterialTarget.Create(layout, lane);
+                BmsPreparedNoteMaterialAuthority authority = materialAuthorities[slot];
+                GameplaySkinResolvedMaterialSourceIdentity sourceIdentity = authority == BmsPreparedNoteMaterialAuthority.ProgrammaticFallback
+                    ? BmsPreparedNoteMaterialAuthorityIdentity.Programmatic
+                    : BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(authority, configurationRevision);
+                entries.Add(GameplaySkinResolvedMaterialEntry.Provide(descriptor, target, sourceIdentity, material));
+            }
+
+            foreach ((BmsManagedPackageNoteSlotKey slot, _) in suppressedSlots)
+            {
+                BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(slot.LaneIndex);
+
+                if (slot.Keymode != layout.Keymode || lane.IsScratch != slot.IsScratch)
+                    throw new InvalidOperationException("A suppressed BMS material no longer matches its exact layout lane.");
+
+                entries.Add(GameplaySkinResolvedMaterialEntry.Suppress(
+                    getDescriptor(slot.Element),
+                    BmsGameplayNoteMaterialTarget.Create(layout, lane),
+                    BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(
+                        BmsPreparedNoteMaterialAuthority.SelectedDocument,
+                        configurationRevision)));
+            }
+
+            GameplaySkinResolvedMaterialDiagnostic[] resolvedDiagnostics = diagnostics
+                .Select(diagnostic =>
+                {
+                    GameplaySkinResolvedMaterialSourceIdentity source = diagnostic.Authority == BmsPreparedNoteMaterialAuthority.ProgrammaticFallback
+                        ? BmsPreparedNoteMaterialAuthorityIdentity.Programmatic
+                        : BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(diagnostic.Authority, configurationRevision);
+                    return diagnostic.Key != null
+                        ? new GameplaySkinResolvedMaterialDiagnostic(diagnostic.Code, diagnostic.Key, source)
+                        : GameplaySkinResolvedMaterialDiagnostic.ForDocument(diagnostic.Code, source, diagnostic.CatalogSlot);
+                })
+                .ToArray();
+
+            return GameplaySkinResolvedMaterialSet.Create(layout.Neutral, contractIdentity, entries, resolvedDiagnostics);
+        }
+
+        private static GameplaySkinSlotDescriptor getDescriptor(BmsNoteSkinElements element)
+        {
+            if (!BmsManagedPackageNoteCompatibilityProvider.TryGetDescriptor(element, out GameplaySkinSlotDescriptor descriptor))
+                throw new ArgumentOutOfRangeException(nameof(element), element, "Unsupported prepared BMS note element.");
+
+            return descriptor;
+        }
 
         public void Dispose()
         {
-            if (disposed)
+            if (IsDisposed)
                 return;
 
-            disposed = true;
+            IsDisposed = true;
             textures?.Dispose();
         }
     }
+
+    internal sealed record BmsPreparedNoteDiagnostic(
+        GameplaySkinResolvedMaterialKey? Key,
+        GameplaySkinSlotDescriptor? CatalogSlot,
+        string Code,
+        BmsPreparedNoteMaterialAuthority Authority);
 
     /// <summary>
     /// Preflights and decodes all supported native note declarations for one immutable managed package revision.
@@ -437,6 +693,218 @@ namespace osu.Game.Rulesets.Bms.Skinning
         internal const int MAX_PACKAGE_DECLARED_FRAMES = 4096;
         internal const int MAX_RESOURCE_NAME_LENGTH = 256;
         internal const int MAX_FRAME_DIMENSION = 8192;
+
+        /// <summary>
+        /// Exact C4 surface hosted by the BMS Note/LN material prepare. Catalog authoring eligibility remains separate.
+        /// </summary>
+        internal static GameplaySkinRuntimeCapabilitySet RuntimeCapabilities { get; } = GameplaySkinRuntimeCapabilitySet.Create(new[]
+        {
+            GameplaySkinRuntimeSlotSupport.Create(GameplaySkinSlotCatalog.Note, GameplaySkinRuntimeSlotCapability.Provide),
+            GameplaySkinRuntimeSlotSupport.Create(GameplaySkinSlotCatalog.LongNoteHead, GameplaySkinRuntimeSlotCapability.Provide),
+            GameplaySkinRuntimeSlotSupport.Create(GameplaySkinSlotCatalog.LongNoteBody, GameplaySkinRuntimeSlotCapability.Provide),
+            GameplaySkinRuntimeSlotSupport.Create(
+                GameplaySkinSlotCatalog.LongNoteTail,
+                GameplaySkinRuntimeSlotCapability.Provide | GameplaySkinRuntimeSlotCapability.Suppress),
+        });
+
+        /// <summary>
+        /// Resolves and prepares every Note/LN component for one exact C3 layout in a single package-wide pass.
+        /// </summary>
+        public static BmsManagedPackageNoteRevision PrepareExact(
+            BmsLegacySkin source,
+            BmsManagedPackageSourceRevision sourceRevision,
+            BmsGameplayLayoutSnapshot layout,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            ArgumentNullException.ThrowIfNull(sourceRevision);
+            ArgumentNullException.ThrowIfNull(layout);
+
+            if (!sourceRevision.HasGameplayAuthority)
+                throw new InvalidOperationException("An exact BMS material prepare requires an eligible immutable package revision.");
+
+            TextureStore? textureStore = null;
+            var diagnostics = new List<BmsPreparedNoteDiagnostic>();
+
+            try
+            {
+                IStorageResourceProvider resources = source.GetManagedPackageResourceProvider();
+                validatePackageInventory(resources.Files, sourceRevision, cancellationToken);
+
+                GameplaySkinDocument? document = null;
+
+                if (layout.Neutral.Context.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                {
+                    if (!source.AllowsGameplaySkinDocumentAuthoring)
+                        throw new InvalidOperationException("This selected source is not eligible for package-author gameplay skin declarations.");
+
+                    document = source.GameplaySkinDocument.BindToPublication(layout.Neutral);
+
+                    if (!string.Equals(document.Identity.ContentRevision, sourceRevision.ParsedConfigurationContentHash, StringComparison.Ordinal)
+                        || document.Identity.SourceId != sourceRevision.SkinId)
+                    {
+                        throw new InvalidOperationException("The retained gameplay skin document does not match the exact selected package revision.");
+                    }
+
+                    addDocumentDiagnostics(document, layout, diagnostics);
+                    addUnsupportedCapabilityDiagnostics(document, layout, diagnostics);
+                }
+
+                BmsGameplaySkinConfigurationCandidatePlan candidatePlan = BmsGameplaySkinConfigurationCandidateFactory.CreateExact(
+                    layout,
+                    source.GetParsedBmsConfigurationsForGameplaySkinCompatibility(),
+                    source.GetParsedManiaConfigurationsForGameplaySkinCompatibility());
+                var pendingPlans = new Dictionary<BmsManagedPackageNoteSlotKey, PlannedNoteSelection>();
+                var attemptedPlans = new List<NotePlan>();
+                var suppressedSlots = new Dictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority>();
+                var materials = new Dictionary<BmsManagedPackageNoteSlotKey, IBmsResolvedNoteMaterial>();
+                var materialAuthorities = new Dictionary<BmsManagedPackageNoteSlotKey, BmsPreparedNoteMaterialAuthority>();
+
+                using (var owner = new NotePlanOwner(source, resources.Files, sourceRevision, layout.Keymode, cancellationToken))
+                {
+                    var providers = new List<IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsGameplaySkinLaneResourceContext>, PlannedNoteComponent>>();
+
+                    if (document != null)
+                    {
+                        providers.Add(new GameplaySkinDocumentSlotProvider<BmsGameplaySkinLaneResourceContext, PlannedNoteComponent>(
+                            document,
+                            RuntimeCapabilities,
+                            "selected.document",
+                            context => createMaterialTarget(layout, context),
+                            (entry, context) => owner.Materialize(new BmsGameplaySkinLaneResourceReference(context, entry.Value!))));
+                    }
+
+                    providers.AddRange(BmsGameplaySkinLaneResourceCandidateProviderFactory.Create(candidatePlan, owner));
+
+                    if (providers.Select(provider => provider.Name).Distinct(StringComparer.Ordinal).Count() != providers.Count)
+                        throw new InvalidOperationException("Selected-package material provider names must be unique within one exact candidate plan.");
+
+                    foreach (BmsManagedPackageNoteSlotKey slot in enumerateExactSlots(layout))
+                        resolveSlot(slot, 0);
+
+                    var decodedFrames = new Dictionary<string, Texture?>(StringComparer.OrdinalIgnoreCase);
+
+                    while (pendingPlans.Count > 0)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        // Failed higher-authority plans remain in this cumulative budget. Retrying a lower authority
+                        // must not let one package evade the decoded-byte/frame limits by rotating provider winners.
+                        Dictionary<string, FrameDescriptor> uniqueFrames = validatePackageRuntimeBudget(attemptedPlans);
+                        textureStore ??= createTextureStore(resources, sourceRevision);
+                        decodeFrames(textureStore, uniqueFrames, decodedFrames, cancellationToken);
+                        var retries = new List<(BmsManagedPackageNoteSlotKey Slot, int ProviderIndex)>();
+
+                        foreach ((BmsManagedPackageNoteSlotKey slot, PlannedNoteSelection selection) in pendingPlans.ToArray())
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            pendingPlans.Remove(slot);
+                            NotePlan plan = selection.Component.Plan;
+                            var frames = new Texture[plan.Frames.Length];
+                            bool valid = true;
+
+                            for (int i = 0; i < plan.Frames.Length; i++)
+                            {
+                                if (!decodedFrames.TryGetValue(plan.Frames[i].File.PackageName, out Texture? texture) || texture == null)
+                                {
+                                    valid = false;
+                                    break;
+                                }
+
+                                frames[i] = texture;
+                            }
+
+                            if (!valid)
+                            {
+                                diagnostics.Add(createDiagnostic(
+                                    layout,
+                                    slot,
+                                    "bms.material.decode-failed",
+                                    getAuthority(selection.Component.Source)));
+                                retries.Add((slot, selection.ProviderIndex + 1));
+                                continue;
+                            }
+
+                            materials.Add(slot, new BmsSourceBoundNoteMaterial(slot.Element, frames, plan.LongNoteBodyWidth));
+                            materialAuthorities.Add(slot, getAuthority(selection.Component.Source));
+                        }
+
+                        foreach ((BmsManagedPackageNoteSlotKey slot, int providerIndex) in retries)
+                            resolveSlot(slot, providerIndex);
+                    }
+
+                    void resolveSlot(BmsManagedPackageNoteSlotKey slot, int providerIndex)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (providerIndex < 0 || providerIndex > providers.Count)
+                            throw new ArgumentOutOfRangeException(nameof(providerIndex));
+
+                        BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(slot.LaneIndex);
+                        GameplaySkinLaneResourceField field = getField(slot.Element);
+                        var context = new BmsGameplaySkinLaneResourceContext(
+                            layout.Neutral.Context.Topology,
+                            lane.LaneId,
+                            field);
+                        GameplaySkinSlotResolution<PlannedNoteComponent> resolution = GameplaySkinSlotResolver.Resolve(
+                            field.Slot,
+                            context,
+                            providers.Skip(providerIndex),
+                            component => component.Plan.Frames.Length > 0);
+
+                        foreach (GameplaySkinSlotDiagnostic diagnostic in resolution.Diagnostics)
+                            diagnostics.Add(createDiagnostic(
+                                layout,
+                                slot,
+                                GetDiagnosticCode(diagnostic),
+                                getDiagnosticAuthority(diagnostic)));
+
+                        if (resolution.Result.Kind == SkinSlotResultKind.Provide)
+                        {
+                            int resolvedProviderIndex = providers.FindIndex(
+                                providerIndex,
+                                provider => string.Equals(provider.Name, resolution.ProviderName, StringComparison.Ordinal));
+
+                            if (resolvedProviderIndex < 0)
+                                throw new InvalidOperationException("The selected-package resolver did not retain its winning provider authority.");
+
+                            PlannedNoteComponent component = resolution.Result.Value;
+                            pendingPlans.Add(slot, new PlannedNoteSelection(component, resolvedProviderIndex));
+                            attemptedPlans.Add(component.Plan);
+                        }
+                        else if (resolution.Result.Kind == SkinSlotResultKind.Suppress)
+                        {
+                            suppressedSlots.Add(slot, BmsPreparedNoteMaterialAuthority.SelectedDocument);
+                        }
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!sourceRevision.Equals(source.CaptureManagedPackageSourceRevision()))
+                    throw new InvalidOperationException("The selected gameplay skin package changed during exact material preparation.");
+
+                TextureStore? publishedTextureStore = textureStore;
+                textureStore = null;
+                return new BmsManagedPackageNoteRevision(
+                    sourceRevision,
+                    materials,
+                    publishedTextureStore,
+                    layout,
+                    materialAuthorities,
+                    suppressedSlots,
+                    diagnostics);
+            }
+            catch (OperationCanceledException)
+            {
+                textureStore?.Dispose();
+                throw;
+            }
+            catch
+            {
+                textureStore?.Dispose();
+                throw;
+            }
+        }
 
         public static BmsManagedPackageNoteRevision Prepare(
             BmsLegacySkin source,
@@ -504,8 +972,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 Dictionary<string, FrameDescriptor> uniqueFrames = validatePackageRuntimeBudget(plans.Values);
                 textureStore = createTextureStore(resources, sourceRevision);
-                Dictionary<string, Texture?> decodedFrames = decodeFrames(textureStore, uniqueFrames, cancellationToken);
-                var materials = new Dictionary<BmsManagedPackageNoteSlotKey, BmsSourceBoundNoteMaterial>();
+                var decodedFrames = new Dictionary<string, Texture?>(StringComparer.OrdinalIgnoreCase);
+                decodeFrames(textureStore, uniqueFrames, decodedFrames, cancellationToken);
+                var materials = new Dictionary<BmsManagedPackageNoteSlotKey, IBmsResolvedNoteMaterial>();
 
                 foreach ((BmsManagedPackageNoteSlotKey slot, NotePlan plan) in plans)
                 {
@@ -753,16 +1222,18 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 new LegacyTextureLoaderStore(new MaxDimensionLimitedTextureLoaderStore(loader)));
         }
 
-        private static Dictionary<string, Texture?> decodeFrames(
+        private static void decodeFrames(
             TextureStore textureStore,
             IReadOnlyDictionary<string, FrameDescriptor> frames,
+            IDictionary<string, Texture?> decoded,
             CancellationToken cancellationToken)
         {
-            var decoded = new Dictionary<string, Texture?>(StringComparer.OrdinalIgnoreCase);
-
             foreach ((string name, FrameDescriptor frame) in frames)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                if (decoded.ContainsKey(name))
+                    continue;
 
                 try
                 {
@@ -788,8 +1259,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     decoded[name] = null;
                 }
             }
-
-            return decoded;
         }
 
         private static IEnumerable<BmsManagedPackageNoteSlotKey> enumerateCanonicalSlots()
@@ -823,6 +1292,263 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
         }
 
+        private static IEnumerable<BmsManagedPackageNoteSlotKey> enumerateExactSlots(BmsGameplayLayoutSnapshot layout)
+        {
+            foreach (BmsNoteSkinElements element in new[]
+                     {
+                         BmsNoteSkinElements.Note,
+                         BmsNoteSkinElements.LongNoteHead,
+                         BmsNoteSkinElements.LongNoteBody,
+                         BmsNoteSkinElements.LongNoteTail,
+                     })
+            {
+                foreach (BmsGameplayLayoutLane lane in layout.LanesInLogicalOrder)
+                    yield return new BmsManagedPackageNoteSlotKey(element, layout.Keymode, lane.LogicalIndex, lane.IsScratch);
+            }
+        }
+
+        private static GameplaySkinLaneResourceField getField(BmsNoteSkinElements element)
+            => element switch
+            {
+                BmsNoteSkinElements.Note => GameplaySkinLaneResourceFieldCatalog.Note,
+                BmsNoteSkinElements.LongNoteHead => GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+                BmsNoteSkinElements.LongNoteBody => GameplaySkinLaneResourceFieldCatalog.LongNoteBody,
+                BmsNoteSkinElements.LongNoteTail => GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
+                _ => throw new ArgumentOutOfRangeException(nameof(element), element, "Unsupported exact BMS note element."),
+            };
+
+        private static GameplaySkinSlotDescriptor getSlotDescriptor(BmsNoteSkinElements element)
+        {
+            if (!BmsManagedPackageNoteCompatibilityProvider.TryGetDescriptor(element, out GameplaySkinSlotDescriptor descriptor))
+                throw new ArgumentOutOfRangeException(nameof(element), element, "Unsupported exact BMS note element.");
+
+            return descriptor;
+        }
+
+        internal static string GetDiagnosticCode(GameplaySkinSlotDiagnostic diagnostic)
+        {
+            if (diagnostic.Exception is GameplaySkinDocumentSlotRejectedException rejection)
+                return $"bms.material.{rejection.Code}";
+
+            return diagnostic.Code switch
+            {
+                GameplaySkinSlotDiagnosticCode.ProviderFailed => "bms.material.provider-failed",
+                GameplaySkinSlotDiagnosticCode.ProvidedValueRejected => "bms.material.value-rejected",
+                GameplaySkinSlotDiagnosticCode.ProvidedValueValidationFailed => "bms.material.validation-failed",
+                GameplaySkinSlotDiagnosticCode.CriticalSuppressionRejected => "bms.material.suppress-rejected",
+                GameplaySkinSlotDiagnosticCode.InvalidResult => "bms.material.result-invalid",
+                _ => "bms.material.resolution-failed",
+            };
+        }
+
+        private static GameplaySkinResolvedMaterialTarget createMaterialTarget(
+            BmsGameplayLayoutSnapshot layout,
+            BmsGameplaySkinLaneResourceContext context)
+        {
+            if (!ReferenceEquals(context.Topology, layout.Neutral.Context.Topology))
+                throw new ArgumentException("A document material lookup must retain the exact publication topology.", nameof(context));
+
+            return BmsGameplayNoteMaterialTarget.Create(layout, layout.GetLane(context.LaneId));
+        }
+
+        private static BmsPreparedNoteMaterialAuthority getAuthority(BmsGameplaySkinConfigurationCandidateSource source)
+            => source switch
+            {
+                BmsGameplaySkinConfigurationCandidateSource.SelectedDocument => BmsPreparedNoteMaterialAuthority.SelectedDocument,
+                BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride => BmsPreparedNoteMaterialAuthority.SelectedLegacyBms,
+                BmsGameplaySkinConfigurationCandidateSource.ManiaFullVisualLane
+                    or BmsGameplaySkinConfigurationCandidateSource.ManiaEightColumnDeck
+                    or BmsGameplaySkinConfigurationCandidateSource.ManiaKeyOnly => BmsPreparedNoteMaterialAuthority.SelectedLegacyMania,
+                _ => throw new ArgumentOutOfRangeException(nameof(source), source, "A resolved selected-package component has no material authority."),
+            };
+
+        private static BmsPreparedNoteMaterialAuthority getDiagnosticAuthority(GameplaySkinSlotDiagnostic diagnostic)
+        {
+            if (diagnostic.ProviderName == "selected.document")
+                return BmsPreparedNoteMaterialAuthority.SelectedDocument;
+
+            if (diagnostic.ProviderName == "selected.bms-role-override")
+                return BmsPreparedNoteMaterialAuthority.SelectedLegacyBms;
+
+            if (diagnostic.ProviderName.StartsWith("selected.mania-", StringComparison.Ordinal))
+                return BmsPreparedNoteMaterialAuthority.SelectedLegacyMania;
+
+            // Redacted/invalid provider identity is still a selected-package resolution failure. It cannot claim the
+            // programmatic terminal authority and carries no author-controlled token into the persisted diagnostic.
+            return BmsPreparedNoteMaterialAuthority.SelectedDocument;
+        }
+
+        private static BmsPreparedNoteDiagnostic createDiagnostic(
+            BmsGameplayLayoutSnapshot layout,
+            BmsManagedPackageNoteSlotKey slot,
+            string code,
+            BmsPreparedNoteMaterialAuthority authority)
+        {
+            BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(slot.LaneIndex);
+            return new BmsPreparedNoteDiagnostic(
+                new GameplaySkinResolvedMaterialKey(
+                    getSlotDescriptor(slot.Element),
+                    BmsGameplayNoteMaterialTarget.Create(layout, lane)),
+                getSlotDescriptor(slot.Element),
+                code,
+                authority);
+        }
+
+        private static void addDocumentDiagnostics(
+            GameplaySkinDocument document,
+            BmsGameplayLayoutSnapshot layout,
+            ICollection<BmsPreparedNoteDiagnostic> diagnostics)
+        {
+            foreach (GameplaySkinCodecDiagnostic diagnostic in document.Diagnostics)
+            {
+                GameplaySkinDocumentEntry? entry = document.Sections
+                    .SelectMany(section => section.Entries)
+                    .LastOrDefault(candidate => candidate.LineNumber == diagnostic.LineNumber);
+
+                if (entry != null
+                    && !GameplaySkinSlotApplicabilityValidator.IsSelectorApplicable(entry.Target, layout.Neutral))
+                {
+                    continue;
+                }
+
+                GameplaySkinSlotDescriptor? descriptor = entry?.Descriptor;
+
+                if (diagnostic.SlotId != null
+                    && GameplaySkinSlotCatalog.TryGet(diagnostic.SlotId, out GameplaySkinSlotDescriptor? catalogDescriptor))
+                {
+                    descriptor = catalogDescriptor;
+                }
+
+                string code = diagnostic.Id;
+
+                if (entry != null
+                    && descriptor != null
+                    && GameplaySkinSlotApplicabilityValidator.ValidatePublicationTarget(entry.Target, layout.Neutral)
+                    == GameplaySkinDocumentPublicationTargetValidationResult.Valid
+                    && tryCreateMaterialTarget(layout, entry.Target, out GameplaySkinResolvedMaterialTarget? target))
+                {
+                    try
+                    {
+                        diagnostics.Add(new BmsPreparedNoteDiagnostic(
+                            new GameplaySkinResolvedMaterialKey(descriptor, target!),
+                            descriptor,
+                            code,
+                            BmsPreparedNoteMaterialAuthority.SelectedDocument));
+                        continue;
+                    }
+                    catch (ArgumentException)
+                    {
+                        // A known slot with invalid scope/applicability remains a document-level diagnostic carrying
+                        // the catalog ID. It must never borrow an unrelated first-lane material key.
+                    }
+                }
+
+                diagnostics.Add(new BmsPreparedNoteDiagnostic(
+                    null,
+                    descriptor,
+                    code,
+                    BmsPreparedNoteMaterialAuthority.SelectedDocument));
+            }
+        }
+
+        private static void addUnsupportedCapabilityDiagnostics(
+            GameplaySkinDocument document,
+            BmsGameplayLayoutSnapshot layout,
+            ICollection<BmsPreparedNoteDiagnostic> diagnostics)
+        {
+            foreach (GameplaySkinDocumentEntry entry in document.Sections.SelectMany(section => section.Entries))
+            {
+                if (entry.Presence != GameplaySkinDocumentDeclarationPresence.Declared
+                    || entry.Descriptor == null
+                    || RuntimeCapabilities.TryGet(entry.Descriptor, out _)
+                    || GameplaySkinSlotApplicabilityValidator.ValidatePublicationTarget(entry.Target, layout.Neutral)
+                    != GameplaySkinDocumentPublicationTargetValidationResult.Valid
+                    || !tryCreateMaterialTarget(layout, entry.Target, out GameplaySkinResolvedMaterialTarget? target))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    diagnostics.Add(new BmsPreparedNoteDiagnostic(
+                        new GameplaySkinResolvedMaterialKey(entry.Descriptor, target!),
+                        entry.Descriptor,
+                        "bms.capability.unsupported-slot",
+                        BmsPreparedNoteMaterialAuthority.SelectedDocument));
+                }
+                catch (ArgumentException)
+                {
+                    // Scope/index invalidity is already retained by the shared codec diagnostic.
+                }
+            }
+        }
+
+        private static bool tryCreateMaterialTarget(
+            BmsGameplayLayoutSnapshot layout,
+            GameplaySkinDocumentTarget documentTarget,
+            out GameplaySkinResolvedMaterialTarget? target)
+        {
+            GameplaySkinLaneTopologySnapshot topology = layout.Neutral.Context.Topology;
+
+            switch (documentTarget.Kind)
+            {
+                case GameplaySkinDocumentTargetKind.Global:
+                    target = GameplaySkinResolvedMaterialTarget.Global;
+                    break;
+
+                case GameplaySkinDocumentTargetKind.Stage:
+                case GameplaySkinDocumentTargetKind.Group:
+                    if (documentTarget.GroupId == null
+                        || !topology.TryGetGroup(documentTarget.GroupId, out GameplaySkinLaneTopologyGroup? group)
+                        || group == null)
+                    {
+                        target = null;
+                        return false;
+                    }
+
+                    target = documentTarget.Kind == GameplaySkinDocumentTargetKind.Stage
+                        ? GameplaySkinResolvedMaterialTarget.ForStage(group)
+                        : GameplaySkinResolvedMaterialTarget.ForGroup(group);
+                    break;
+
+                case GameplaySkinDocumentTargetKind.Lane:
+                    if (documentTarget.GroupId == null
+                        || documentTarget.LaneId == null
+                        || !topology.TryGetGroup(documentTarget.GroupId, out GameplaySkinLaneTopologyGroup? laneGroup)
+                        || laneGroup == null
+                        || !topology.TryGetLane(documentTarget.LaneId, out GameplaySkinLaneTopologyEntry? topologyLane)
+                        || topologyLane == null)
+                    {
+                        target = null;
+                        return false;
+                    }
+
+                    target = GameplaySkinResolvedMaterialTarget.ForLane(laneGroup, topologyLane);
+                    break;
+
+                default:
+                    target = null;
+                    return false;
+            }
+
+            if (!documentTarget.Matches(layout.Neutral, target))
+            {
+                target = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void addDiagnosticForEverySlot(
+            BmsGameplayLayoutSnapshot layout,
+            ICollection<BmsPreparedNoteDiagnostic> diagnostics,
+            string code)
+        {
+            foreach (BmsManagedPackageNoteSlotKey slot in enumerateExactSlots(layout))
+                diagnostics.Add(createDiagnostic(layout, slot, code, BmsPreparedNoteMaterialAuthority.SelectedDocument));
+        }
+
         private static void validateResourceName(string resourceName)
         {
             ArgumentNullException.ThrowIfNull(resourceName);
@@ -847,6 +1573,71 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private sealed record NotePlan(
             FrameDescriptor[] Frames,
             BmsGameplaySkinScalarGeometryResolution? LongNoteBodyWidth = null);
+
+        private sealed record PlannedNoteComponent(
+            NotePlan Plan,
+            BmsGameplaySkinConfigurationCandidateSource Source);
+
+        private sealed record PlannedNoteSelection(
+            PlannedNoteComponent Component,
+            int ProviderIndex);
+
+        private sealed class NotePlanOwner : IBmsGameplaySkinLaneResourceComponentOwner<PlannedNoteComponent>
+        {
+            private readonly BmsLegacySkin source;
+            private readonly IResourceStore<byte[]> files;
+            private readonly BmsManagedPackageSourceRevision sourceRevision;
+            private readonly BmsKeymode keymode;
+            private readonly CancellationToken cancellationToken;
+            private readonly List<PlannedNoteComponent> components = new List<PlannedNoteComponent>();
+            private bool disposed;
+
+            public NotePlanOwner(
+                BmsLegacySkin source,
+                IResourceStore<byte[]> files,
+                BmsManagedPackageSourceRevision sourceRevision,
+                BmsKeymode keymode,
+                CancellationToken cancellationToken)
+            {
+                this.source = source;
+                this.files = files;
+                this.sourceRevision = sourceRevision;
+                this.keymode = keymode;
+                this.cancellationToken = cancellationToken;
+            }
+
+            public PlannedNoteComponent Materialize(BmsGameplaySkinLaneResourceReference reference)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                NotePlan plan = createPlan(files, sourceRevision, reference.ResourceName, cancellationToken);
+
+                if (ReferenceEquals(reference.Field, GameplaySkinLaneResourceFieldCatalog.LongNoteBody))
+                {
+                    GameplaySkinConfigurationDeclaration<float> widthDeclaration =
+                        reference.Source == BmsGameplaySkinConfigurationCandidateSource.BmsRoleOverride
+                            ? source.GetAcceptedBmsGeometry(BmsSkinConfigurationLookups.LongNoteBodyWidth, keymode)
+                            : GameplaySkinConfigurationDeclaration<float>.Absent;
+                    plan = plan with
+                    {
+                        LongNoteBodyWidth = BmsGameplaySkinScalarGeometryResolver.Resolve(
+                            BmsSkinConfigurationLookups.LongNoteBodyWidth,
+                            widthDeclaration),
+                    };
+                }
+
+                var component = new PlannedNoteComponent(plan, reference.Source);
+                components.Add(component);
+                return component;
+            }
+
+            public void Dispose()
+            {
+                disposed = true;
+                components.Clear();
+            }
+        }
 
         private sealed record FrameDescriptor(
             BmsManagedPackageFileRevision File,
@@ -893,9 +1684,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
     }
 
     /// <summary>
+    /// One final immutable Note/LN material. A committed renderer never re-runs source lookup or fallback selection.
+    /// </summary>
+    internal interface IBmsResolvedNoteMaterial
+    {
+        BmsNoteSkinElements Element { get; }
+
+        int FrameCount { get; }
+
+        Drawable CreateDrawable();
+    }
+
+    /// <summary>
     /// Immutable decoded note material and its component-local scalar geometry owned by one prepared package revision.
     /// </summary>
-    internal sealed class BmsSourceBoundNoteMaterial
+    internal sealed class BmsSourceBoundNoteMaterial : IBmsResolvedNoteMaterial
     {
         private readonly Texture[] frames;
 
@@ -960,6 +1763,72 @@ namespace osu.Game.Rulesets.Bms.Skinning
             return Element == BmsNoteSkinElements.LongNoteBody
                 ? new BmsSourceBoundLongNoteBodyDrawable(visual, LongNoteBodyWidth!.Value.Value)
                 : new BmsSourceBoundNoteDrawable(visual);
+        }
+    }
+
+    /// <summary>
+    /// Final programmatic fallback captured during prepare rather than chosen by a renderer after commit.
+    /// </summary>
+    internal sealed class BmsProgrammaticNoteMaterial : IBmsResolvedNoteMaterial
+    {
+        private readonly int laneIndex;
+        private readonly bool isScratch;
+        private readonly BmsKeymode keymode;
+
+        public BmsNoteSkinElements Element { get; }
+
+        public int FrameCount => 1;
+
+        public BmsProgrammaticNoteMaterial(
+            BmsNoteSkinElements element,
+            int laneIndex,
+            bool isScratch,
+            BmsKeymode keymode)
+        {
+            if (element is not (BmsNoteSkinElements.Note
+                or BmsNoteSkinElements.LongNoteHead
+                or BmsNoteSkinElements.LongNoteBody
+                or BmsNoteSkinElements.LongNoteTail))
+            {
+                throw new ArgumentOutOfRangeException(nameof(element), element, "Unsupported BMS programmatic note element.");
+            }
+
+            Element = element;
+            this.laneIndex = laneIndex;
+            this.isScratch = isScratch;
+            this.keymode = keymode;
+        }
+
+        public Drawable CreateDrawable()
+        {
+            Color4 colour = Element switch
+            {
+                BmsNoteSkinElements.Note => BmsDefaultPlayfieldPalette.GetNote(laneIndex, isScratch, keymode),
+                BmsNoteSkinElements.LongNoteHead or BmsNoteSkinElements.LongNoteBody =>
+                    BmsDefaultPlayfieldPalette.GetLongNoteHead(laneIndex, isScratch, keymode),
+                BmsNoteSkinElements.LongNoteTail => BmsDefaultPlayfieldPalette.GetLongNoteTail(laneIndex, isScratch, keymode),
+                _ => throw new InvalidOperationException("Unknown prepared BMS programmatic note element."),
+            };
+            var visual = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = colour,
+            };
+
+            if (Element == BmsNoteSkinElements.LongNoteBody)
+            {
+                return new BmsSourceBoundLongNoteBodyDrawable(
+                    visual,
+                    BmsGameplaySkinScalarGeometryResolver.DEFAULT_LONG_NOTE_BODY_WIDTH,
+                    colour);
+            }
+
+            var drawable = new BmsSourceBoundNoteDrawable(visual);
+
+            if (Element == BmsNoteSkinElements.LongNoteTail)
+                drawable.Alpha = 0;
+
+            return drawable;
         }
     }
 

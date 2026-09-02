@@ -21,6 +21,10 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
     public partial class LegacyBodyPiece : LegacyManiaColumnElement
     {
+        private readonly ManiaGameplaySkinBodyMaterial? preparedMaterial;
+
+        internal bool UsesPreparedMaterial => preparedMaterial != null;
+
         private DrawableHoldNote holdNote = null!;
 
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
@@ -44,33 +48,50 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
             RelativeSizeAxes = Axes.Both;
         }
 
+        internal LegacyBodyPiece(ManiaGameplaySkinBodyMaterial preparedMaterial)
+            : this()
+        {
+            this.preparedMaterial = preparedMaterial ?? throw new ArgumentNullException(nameof(preparedMaterial));
+        }
+
         [BackgroundDependencyLoader]
         private void load(ISkinSource skin, IScrollingInfo scrollingInfo, DrawableHitObject drawableObject)
         {
             holdNote = (DrawableHoldNote)drawableObject;
 
-            string imageName = GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage)?.Value
-                               ?? $"mania-note{FallbackColumnIndex}L";
-
-            string lightImage = GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.HoldNoteLightImage)?.Value
-                                ?? "lightingL";
-
-            float lightScale = GetColumnSkinConfig<float>(skin, LegacyManiaSkinConfigurationLookups.HoldNoteLightScale)?.Value
-                               ?? 1;
-
-            // Create a temporary animation to retrieve the number of frames, in an effort to calculate the intended frame length.
-            // This animation is discarded and re-queried with the appropriate frame length afterwards.
-            var tmp = skin.GetAnimation(lightImage, true, false);
-            double frameLength = 0;
-            if (tmp is IFramedAnimation tmpAnimation && tmpAnimation.FrameCount > 0)
-                frameLength = Math.Max(1000 / 60.0, 170.0 / tmpAnimation.FrameCount);
-
-            light = skin.GetAnimation(lightImage, true, true, frameLength: frameLength)?.With(d =>
+            if (preparedMaterial != null)
             {
-                d.Origin = Anchor.Centre;
-                d.Blending = BlendingParameters.Additive;
-                d.Scale = new Vector2(lightScale);
-            });
+                bodyStyle = preparedMaterial.BodyStyle;
+                light = preparedMaterial.Light?.CreateDrawable().With(d =>
+                {
+                    d.Origin = Anchor.Centre;
+                    d.Blending = BlendingParameters.Additive;
+                    d.Scale = new Vector2(preparedMaterial.LightScale);
+                });
+            }
+            else
+            {
+                string lightImage = GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.HoldNoteLightImage)?.Value
+                                    ?? "lightingL";
+                float lightScale = GetColumnSkinConfig<float>(skin, LegacyManiaSkinConfigurationLookups.HoldNoteLightScale)?.Value
+                                   ?? 1;
+
+                // Create a temporary animation to retrieve the number of frames, in an effort to calculate the intended frame length.
+                // This animation is discarded and re-queried with the appropriate frame length afterwards.
+                var tmp = skin.GetAnimation(lightImage, true, false);
+                double frameLength = 0;
+                if (tmp is IFramedAnimation tmpAnimation && tmpAnimation.FrameCount > 0)
+                    frameLength = Math.Max(1000 / 60.0, 170.0 / tmpAnimation.FrameCount);
+
+                light = skin.GetAnimation(lightImage, true, true, frameLength: frameLength)?.With(d =>
+                {
+                    d.Origin = Anchor.Centre;
+                    d.Blending = BlendingParameters.Additive;
+                    d.Scale = new Vector2(lightScale);
+                });
+
+                bodyStyle = skin.GetConfig<ManiaSkinConfigurationLookup, LegacyNoteBodyStyle>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.NoteBodyStyle))?.Value;
+            }
 
             if (light != null)
             {
@@ -81,14 +102,20 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                 };
             }
 
-            bodyStyle = skin.GetConfig<ManiaSkinConfigurationLookup, LegacyNoteBodyStyle>(new ManiaSkinConfigurationLookup(LegacyManiaSkinConfigurationLookups.NoteBodyStyle))?.Value;
-
             var wrapMode = bodyStyle == LegacyNoteBodyStyle.Stretch ? WrapMode.ClampToEdge : WrapMode.Repeat;
 
             direction.BindTo(scrollingInfo.Direction);
             isHitting.BindTo(holdNote.IsHolding);
 
-            bodySprite = skin.GetAnimation(imageName, wrapMode, wrapMode, true, true, frameLength: 30)?.With(d =>
+            bodySprite = (preparedMaterial?.Body.CreateDrawable()
+                          ?? skin.GetAnimation(
+                              GetColumnSkinConfig<string>(skin, LegacyManiaSkinConfigurationLookups.HoldNoteBodyImage)?.Value
+                              ?? $"mania-note{FallbackColumnIndex}L",
+                              wrapMode,
+                              wrapMode,
+                              true,
+                              true,
+                              frameLength: 30))?.With(d =>
             {
                 if (d is TextureAnimation animation)
                     animation.IsPlaying = false;

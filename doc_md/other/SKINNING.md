@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-08-30）**：选中的用户 BMS 包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录；三者可用 native `[Bms]` 静态字段，`NoteImage{lane}` 与 `NoteImage{lane}H/L/T`（含 `S`/`S2`）支持静态图或固定 60 FPS 的连续编号帧。Workspace 可 fresh-authoritative Open external/managed；external 可显式选择、复制为新 managed direct child或解除注册，绝不写改删原目录；managed 行可重命名或经确认物理删除。Settings → Skin 的 `Reload current skin` 是三种current source唯一手动reload入口；gameplay/gameplay preview中会在读取来源前明确拒绝，须退出后重试，不存在watcher。C3已通过最终gate：BMS与mania gameplay的全部production几何只消费同一immutable package+layout revision publication，P1-K keymode/lane timeline前置也已闭合。权威状态为`3/7 closed，C4 active`；这仍不等于G1最终整包门、Skin V1或release完成。shared codec/完整三态、其它gameplay slot、最终scene/script整包门、canonical双包和Authoring Kit仍未开放，程序化`OmsSkin`仍是迁移链底。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)、[C3完成交接](SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
+> **当前作者能力（2026-09-02）**：选中的用户包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录。三源共享一个版本化public gameplay-skin catalog、tokenizer/codec与`Provide/Inherit/Suppress` resolver；当前真实public renderer纵切是BMS Note/LN与mania Note/Hold/KeyVisual，native `[Bms] NoteImage*`静态图及固定60 FPS连续编号帧兼容保持可用。所有consumer只读同一immutable package+layout+material publication；失败保留exact旧画面，成功诊断使用稳定脱敏code。Settings → Skin 的 `Reload current skin`仍是三源唯一手动reload，gameplay/preview在读取来源前拒绝，不存在watcher。C4已闭合，权威状态为`4/7 closed，C5 active`；其余optional slot的scene/event host、最终scene/script整包门、canonical双包和Authoring Kit仍未开放，程序化`OmsSkin`仍是迁移链底。新beatmap-local作者格式不在C4/V1当前authoring面，既有只读谱面视觉兼容不受影响。详见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)、[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)、[C4完成交接](SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
 >
 > **受管目录删除边界**：current目标先发布fallback并等待旧revision detach；该阶段失败会恢复或保持原皮肤，且尚未创建journal或触碰目录。进入C1 journal/首个物理步骤后才只由durable recovery收口。Windows目录handle不锁住namespace，final preflight后的竞态新增不会被删除，但可能在部分目标节点已经清理后令操作冻结；这不是all-or-nothing全树删除。
 
@@ -79,7 +79,7 @@ MyBmsSkin/
 - external 行的 Unregister 对noncurrent记录直接做exact pure-Realm移除；对current记录先发布受保护fallback、等待旧revision detach，再fresh compare exact service-owner/record/current revision后移除。任一步失败都保留注册并恢复或保持原皮肤；即使源目录缺失或漂移也不会解析、打开、写入或删除source。Open Folder 由 manager fresh 重读并证明精确目录后再导航，UI 不缓存绝对路径。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
-- 手动reload：安全screen上的`Reload current skin`会为ordinary `.osk`、managed或external current记录重新验证并准备fresh immutable revision；全部现有participant ready后才一次发布，失败保留exact旧皮肤，旧owner等最后consumer/work detach才释放。作者对managed/external工作目录的原位修改可用此入口；ordinary `.osk`没有作者update-import或内部file-store编辑入口，内容修改仍须编辑源目录、重新打包并导入，按钮只提供统一same-ID revision协议。gameplay/preview或其它无法staged swap的attached screen会先拒绝并提示退出；这不是watcher。C3已把package与layout作为同一publication加入该协议；C4～C6新增codec/scene/script consumer仍须同切加入，C6前也不能把当前范围称为ini/manifest/scene/script/全部素材的最终整包reload。
+- 手动reload：安全screen上的`Reload current skin`会为ordinary `.osk`、managed或external current记录重新验证并准备fresh immutable revision；全部现有participant ready后才一次发布，失败保留exact旧皮肤，旧owner等最后consumer/work detach才释放。作者对managed/external工作目录的原位修改可用此入口；ordinary `.osk`没有作者update-import或内部file-store编辑入口，内容修改仍须编辑源目录、重新打包并导入，按钮只提供统一same-ID revision协议。gameplay/preview或其它无法staged swap的attached screen会先拒绝并提示退出；这不是watcher。C4已把public document、layout与resolved material合成同一publication；BMS已提交的Note/LN贴图会一直由该publication保活到renderer子树detach，失败/取消的新候选则只释放自己的prepared资源，不会让旧画面引用失效。C5～C6新增scene/script consumer仍须同切加入，C6前也不能把当前范围称为ini/manifest/scene/script/全部素材的最终整包reload。
 
 ---
 
@@ -111,25 +111,38 @@ Keymode:  14K              // DP 单独一段
   | --- | --- | --- |
   | 5K | `S` | `1`..`5` |
   | 7K | `S` | `1`..`7` |
-  | 9K（BMS/PMS，当前未版本化） | 无 | `0`..`8` |
+  | 9K（BMS/PMS legacy `[Bms]`） | 无 | raw `0`..`8`；public target用canonical `1`..`9` |
   | 14K（DP） | `S`(P1) `S2`(P2) | `1`..`7`(P1) `8`..`14`(P2) |
 
   形如 `NoteImageS`、`NoteImage1`（逐道纹理键内嵌 lane token）。
 
-  > **9K 兼容债务**：当前 `BmsLegacySkin` 对非 scratch 直接使用 raw logical lane index，因此无 scratch 的 9K BMS/PMS 实际查询 `0..8`。V1 canonical 作者格式目标仍是 `1..9`，但必须通过显式格式版本、迁移和冲突诊断切换；`1..8` 在两套编号中含义重叠，不能把 `0..8` 与 `1..9` 同时静默当作别名。internal stable lane ID 仍为 `K1..K9`，不等同该 raw token。
+  > **9K 版本边界**：legacy `[Bms]`仍按raw `0..8`查询；public `GameplaySkin.*:1` target只接受canonical `1..9`，两者仅经`bms-gameplay-skin-nine-key-index.v1`双向映射。未知版本fail-closed，绝不同时把重叠的`1..8`静默当作两套别名；stable LaneId仍由C3 topology提供。
 - **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色)）。
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
 - **动画**：帧序列沿用 `name-0`、`name-1`… 命名；当前 BMS 普通短键与长条头/身/尾纵切固定按 60 FPS 循环，`LightFramePerSecond` 不控制这些动画。其它 V1 animation 速度 ABI 尚未冻结；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
-- **当前容错**：未知键通常被忽略、非法值回落；当前 decoder 没有完整、可查询的结构化诊断，不能承诺每个坏行都有告警。V1 才冻结未知键、非法值、缺资源、不支持 capability 与 fallback 来源的诊断合同。详见 [§7](#7-必备--推荐--可选与三态解析)。
+- **当前容错**：public section对未知版本/字段、非法scope/type/index/selector、duplicate与escape使用稳定`OMS-SKIN-CODEC-NNN`，catalog slot使用`OMS-SKIN-SLOT-NNN`；resolver/resource/capability使用稳定小写code。成功commit后产品日志只输出catalog ID、stable target/index、source kind与合同版本，不含路径或作者值。legacy section继续保持既有兼容容错，不把其所有宽松键反向升级成public ABI。详见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[§7](#7-必备--推荐--可选与三态解析)。
 
 > **schema 来源说明**：键集 / 语义的**真实依据是代码实现**（`BmsSkinDecoder` / `BmsSkinConfigurationLookups` + `BmsGameplayLayoutSolver` / `BmsDefaultPlayfieldPalette` 暴露的可参数化量）；[P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与本文都是**据代码派生的视图**，**不反向约束实现**。**与 mania 同义的键尽量沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义。`F1` 解析层（`[General]` / `[Bms]` 段、几何 / 颜色 / 纹理键）已落地，本文相关字段已据生产代码更新。
 
-### 3.1 `[Mania]` 共同逻辑的 V1 兼容映射
+### 3.1 Public Common/BMS v1 声明
 
-当前 `BmsLegacySkin` 会保留 `[Mania]` 数据，但完整 BMS 生产查询尚未把它作为共同件 fallback。V1 采用 **adapter-first**：现已先把六类逐 lane 资源从现有 mania/BMS decoder 适配到保留“是否显式声明”的 neutral snapshot，并建立未接生产的候选计划；后续再扩齐配置并逐步共用 codec，不在这一刀重写成熟 mania 生产解析器。当前生产例外是用户选中的 BMS 包对 exact native `[Bms] NoteImage*` 普通短键与 `NoteImage*H/L/T` 长条头身尾的查询；它们不消费 mania candidate，也尚未接真实 `oms-simple`。
+公共作者格式位于同一个`skin.ini`的`[GameplaySkin.Common:1]`或唯一BMS扩展`[GameplaySkin.Bms:1]`。每个`Target`显式写ruleset/keymode/stage-mode、scope、stable LaneId/GroupId及适用的logical/visual/global/group-local index；下面是5K lane示例：
 
-gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的 `[Mania]` bucket → 必要的 deck/key-only bucket → `oms-simple`。完整候选计划当前仍只在合同 fixture 中保留顺序和末端 canonical marker，不验证全部资源、不选择首值，也没有装载真实 `oms-simple` package；上段 note/head/body/tail 例外只解析精确 native `[Bms]` 声明。
+```ini
+[GameplaySkin.Common:1]
+Target: Lane ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=0 group-local-visual=0
+object.note: resource Provide "notes/key-1"
+object.long-note.tail: resource Suppress
+```
+
+public section区分大小写，注释为引号外的`#`或`;`；resource值必须双引号并只接受文档列出的转义。完整28项ID、scope/type、Required/Recommended/Optional、Suppress资格、selector语法与诊断见[Gameplay Skin V1公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)。目录是代码生成并由digest锁定的唯一作者authority，不要从下面的legacy字段表推导另一套public ID。
+
+### 3.2 `[Mania]` 共同逻辑的 V1 兼容映射
+
+`BmsLegacySkin`保留`[Mania]`与`[Bms]`兼容数据；两种legacy adapter现在消费public codec保留的同一immutable token stream，不重开`skin.ini`或复制tokenizer。BMS Note/LN与mania Note/Hold/KeyVisual的production material resolver会在public Common层之后按下表消费legacy候选；真实`oms-simple`仍未装载，当前末端仍是受保护程序化fallback。
+
+gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的`[Mania]` bucket → 必要的deck/key-only bucket → ruleset/canonical层。该candidate、lane resource provenance与capability验证已进入BMS production material resolver；不存在第二张slot ID表或renderer内的二次lookup。真实`oms-simple`package仍到C7接管。
 
 | BMS 模式 | 全视觉列兼容桶 | 普通键兼容桶 | 备注 |
 | --- | --- | --- | --- |
@@ -138,7 +151,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 | 9K / PMS | `Keys: 9` | — | BMS/PMS role 仍由 adapter 区分；同一 `Keys:9` 不重复加入 key-only candidate |
 | 14K + 双 scratch | `Keys: 16` | 同一 `Keys:8` bucket 分别投影两个 deck，再接 `Keys:14` 普通键 | 固定顺序为 16→8-deck→14；legacy decoder 不保留第二个重复 `Keys:8` section |
 
-这只描述 gameplay package slot，不改写 lazer 现有的谱面内皮肤与 ruleset resource provider authority。当前 fixture 已固定 P2/CenterRightScratch 按 visual index 取 compatibility column，而 stable lane ID/action 不变；完整 compatibility 查询链尚未接生产。普通短键/长条头身尾窄纵切保留 beatmap-local 直接视觉优先级；selected 坏声明不会从低层仅同名纹理或 body 宽度拼件，只有下层自己的完整组件或 protected 程序化 fallback 可以接管。
+这只描述gameplay package slot，不改写lazer既有谱面内皮肤与ruleset resource authority。P2/CenterRightScratch按global visual index、14K deck按group-local visual index取compatibility column，stable LaneId/action不变。既有谱面直接视觉兼容继续优先，但C4没有新增beatmap-local public作者格式；selected坏声明不会借本package较宽声明或从低层只取同名纹理/body宽度拼件，只有下一完整authority或protected fallback接管。
 
 ---
 
@@ -257,11 +270,11 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 7. 必备 / 推荐 / 可选与三态解析
 
-现有 `ISkin` ABI 仍是 nullable；当前只有 BMS 普通短键与长条头/身/尾通过平行结果实际消费 `Provide/Inherit`，作者 `Suppress` 尚未生产化。完整 V1 三态目标如下：
+旧`ISkin` ABI仍是nullable，但public authoring/runtime使用独立显式三态；BMS Note/LN与mania Note/Hold/KeyVisual已从同一resolved material set消费结果：
 
-- `Provide`：验证成功后使用；资源坏掉则降为 `Inherit` 并诊断。
-- `Inherit`：按组件继续后续链；当前普通短键/长条头/长条身最终落到程序化可见 rescue，tail 最终落到程序化透明 fallback；V1 完成后才统一落到只读 `oms-simple.osk`。tail 透明不能解释成 `Suppress`。
-- `Suppress`：V1 作者明确不显示的目标语义，只允许可选视觉；当前作者包尚不能使用，缺文件绝不等于 suppress。
+- `Provide`：在background prepare完成资源验证/构造后使用；坏资源产生诊断并进入下一完整authority。
+- `Inherit`：显式继续下一authority；absent、empty与invalid仍各自保留，不能把invalid偷当absent，也不能跨revision拼件。当前末端是程序化rescue，C7才由只读`oms-simple.osk`接管。
+- `Suppress`：只允许catalog标为Optional且runtime capability支持的slot；Required/Recommended suppress会稳定诊断并继续确定fallback。缺字段、空字符串、坏资源、`null`与`Drawable.Empty()`都不等于Suppress。
 
 ### 7.1 三档定义
 - **必备 (Required)**：只指可玩核心。lane/scratch 可辨识、note/LN/mine、判定位置，以及启用 lane cover 时的实际遮挡几何必须有 rescue，不能 suppress。清单见 [附录 B](#附录-b必备元素清单)。
@@ -274,7 +287,7 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 3. **完备性**：必备件必须能解析（皮肤提供，或由当前 `OmsSkin`／最终 `oms-simple` 兜底）。
 
 ### 7.3 行为契约（关键分工）
-- **加载期 = fail-open + 可查询诊断**：错误 package 不阻断游玩；当前manual Reload候选会先为三种source建立新instance与package+layout revision，并让全部现有participant准备成功，再一次替换，失败保留exact旧pair。普通短键/长条头身尾仍只有当前已公开slot语义；未来codec/manifest/scene/script/剩余素材须在C4～C6逐批加入同一协议，C6前不称最终整包门关闭。
+- **加载期 = fail-open + 可查询诊断**：错误package不阻断游玩；manual Reload为三种source在background建立package+layout+resolved-material revision，全部participant ready后一次替换，失败保留exact旧triple。BMS成功publication持有其prepared Note/LN resource直到renderer子树detach；Skin owner开始退出不会提前释放仍被画面借用的资源，失败/取消/commit拒绝的provisional publication则exactly-once清理自身。C5/C6的scene/script/剩余素材仍须逐批加入同一协议，C6前不称最终整包门关闭。
 - **编辑期 = 比加载期更严**：这是后续工具目标；当前没有完整可视皮肤编辑器。
 - **keymode 覆盖**：实际覆盖由对应 `[Bms] Keymode:` bucket 及具体 slot 声明决定；`[General] Keymodes:` 当前仅是 informational/editor hint，不参与加载期 gating。缺失 slot 沿当前 `OmsSkin`／最终 `oms-simple` 链回落。
 
@@ -315,10 +328,10 @@ gameplay package 的目标候选顺序为：`[Bms]` role-aware override → 按�
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}`、长条头身尾可让 `NoteImage{lane}H/L/T` 指向资源基名并提供 `name-0`、`name-1`…；body 宽度可用 `LongNoteBodyWidth`，只接受 finite 且 `0 < width <= 1`。支持范围以页首能力块为准，帧率目前固定 60 FPS。
 3. **重新载入和重选**：作者修改`.osk`时仍编辑源目录、重新打包并导入，不能原位改OMS内部Realm/file store，也不能使用已禁用的update-import。已登记且当前选中的managed/external工作目录内容变更，可在退出gameplay/preview并回到安全screen后点击Settings → Skin → `Reload current skin`。ordinary Realm current也使用同一按钮做same-ID重新验证/重建，但这不是作者编辑面。新增`chartskin/` direct child仍需重启让一次性scanner发现；不要等待自动检测，也不要重复选择同一项冒充reload。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
-5. **看运行结果与日志**：当前诊断并不完整；遇到静默回退时以实际渲染与 focused test 为准。
+5. **看运行结果与日志**：public codec/catalog分别使用稳定`OMS-SKIN-CODEC-NNN`/`OMS-SKIN-SLOT-NNN`，resolver/resource/capability使用稳定小写code；全部产品日志均脱敏。不支持的C5+ slot会明确记录capability diagnostic，不代表该slot已经有renderer。legacy宽松字段的诊断仍不等于完整public合同。
 6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
 
-C3自动矩阵已经逐一覆盖5K/7K的P1、P2、CenterP1、CenterP2，9K BMS/PMS与14K DP，并验证playfield、gauge/combo、BGA safe viewport、safe-area及不同宽高比/DPI。V1发布前仍须用`oms-simple/oms-complex`两个最终包复核相同矩阵和人工视觉。manual Reload必须持续满足“新revision任一步失败仍保持exact旧package+layout pair”；C4～C6新增codec/scene/script consumer也必须进入相同participant/retire gate。
+C3/C4自动矩阵逐一覆盖5K/7K的P1、P2、CenterP1、CenterP2，9K BMS/PMS、14K DP与mania single/dual，并验证public material、playfield、gauge/combo、BGA safe viewport、safe-area及不同宽高比/DPI。V1发布前仍须用`oms-simple/oms-complex`两个最终包复核相同矩阵和人工视觉。manual Reload必须持续满足“新revision任一步失败仍保持exact旧package+layout+material”；C5～C6新增scene/script consumer也必须进入相同participant/retire gate。
 
 ---
 
@@ -368,13 +381,13 @@ V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉
 - 判定位置；
 - 当 lane cover 玩法启用时，真实遮挡范围与可调状态。
 
-在完整三态生产接线完成后，按键动画、判定**显示**、combo、gauge **视觉**、数值 HUD、BGA frame、stage/角色/爆炸等均为可选。它们可 `Inherit` 获得 `oms-simple` 表现，也可由作者显式 `Suppress`；这正是“只有色块下落与按键游玩”的合法 `oms-simple` 下限。
+public catalog已冻结按键动画、判定**显示**、combo、gauge **视觉**、数值HUD、BGA frame、stage/角色/爆炸等可选slot及其`Suppress`资格；但这些C5 scene host尚未全部进入production。C5接通后它们可`Inherit`获得末端表现或由作者显式`Suppress`；C7才由真实`oms-simple`承担canonical结果。
 
 ---
 
 ## 附录 C：`skin.ini` 字段全表
 
-> 当前真实键以 `BmsSkinDecoder` / lookups 和 reference test 为准；§6 是 V1 候选槽，不等于已实现 ini schema。V1 在 neutral codec fixture 冻结后再发布机器可读 schema。单位 / 语义约定：
+> legacy字段仍以`BmsSkinDecoder`/lookups和reference test为准；public author ABI只以[Gameplay Skin V1公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)和`GameplaySkinSlotCatalog`为准。§6中未被C4 capability支持的项只是C5候选，不等于已有renderer。单位 / 语义约定：
 > - 颜色 = `r,g,b` 或 `r,g,b,a`（0–255）。
 > - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth` / `LongNoteBodyWidth`）。
 > - 像素 = 整数（如 `HitTargetHeight` / `BarLineHeight`）。

@@ -22,6 +22,8 @@ namespace osu.Game.Rulesets.Mania.UI
 
         public GameplaySkinLayoutSnapshot LayoutSnapshot { get; private set; } = null!;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; } = null!;
+
         public ManiaPlayfieldAdjustmentContainer()
         {
             InternalChild = Content = new Container
@@ -47,6 +49,7 @@ namespace osu.Game.Rulesets.Mania.UI
                 // not solve or apply geometry; retain an explicitly-labelled compatibility snapshot for auditing.
                 LayoutSnapshot = ManiaGameplaySkinLayout.CreateCompatibility(
                     new[] { new StageDefinition(4) }, skin, useSkinGeometry: false).Snapshot;
+                ResolvedMaterialSet = GameplaySkinResolvedMaterialSet.CreateEmpty(LayoutSnapshot);
                 ManiaGameplaySkinLayout.ValidateConsumerCarrier(LayoutSnapshot, owner, "core adjustment");
                 return;
             }
@@ -60,6 +63,7 @@ namespace osu.Game.Rulesets.Mania.UI
             }
 
             LayoutSnapshot = publication.Snapshot;
+            ResolvedMaterialSet = publication.MaterialSet;
             ManiaGameplaySkinLayout.ValidateConsumerCarrier(LayoutSnapshot, owner, "core adjustment");
         }
     }

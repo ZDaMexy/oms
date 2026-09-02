@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
@@ -61,6 +62,8 @@ namespace osu.Game.Rulesets.Bms.UI
         private GameplaySkinLayoutRevisionOwner? layoutOwner { get; set; }
 
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
+
+        internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
 
         public BmsGaugeBar()
         {
@@ -189,6 +192,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 layoutOwner,
                 layoutProvider,
                 "bms.layout.missing-gauge-publication");
+            ResolvedMaterialSet = BmsGameplayLayoutProvider.ResolveOwnerMaterialSet(
+                layoutOwner,
+                layoutProvider,
+                "bms.material.missing-gauge-publication");
+
+            if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, LayoutSnapshot.Neutral))
+                throw new InvalidOperationException("The BMS gauge does not retain the material set from its exact publication.");
+
             updateGaugeStyling();
         }
 

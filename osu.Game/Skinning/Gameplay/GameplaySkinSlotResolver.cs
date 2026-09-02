@@ -11,6 +11,12 @@ namespace osu.Game.Skinning.Gameplay
     /// </summary>
     public static class GameplaySkinSlotResolver
     {
+        private const string redacted_provider_name = "redacted-provider";
+
+        public const int VERSION = 1;
+
+        public const string CONTRACT_ID = "oms-gameplay-skin-resolver.v1";
+
         /// <summary>
         /// Resolves a slot from <paramref name="providers"/> in enumeration order.
         /// </summary>
@@ -21,7 +27,7 @@ namespace osu.Game.Skinning.Gameplay
         /// This overload remains for uncatalogued compatibility lookups. New catalogued gameplay resolution must use the descriptor overload;
         /// wrapping a catalog ID in an unrelated lookup type does not make this compatibility entry point a slot-authority validator.
         /// </remarks>
-        public static GameplaySkinSlotResolution<TComponent> Resolve<TSlot, TComponent>(
+        internal static GameplaySkinSlotResolution<TComponent> Resolve<TSlot, TComponent>(
             TSlot slot,
             SkinSlotRequirement requirement,
             IEnumerable<IGameplaySkinSlotProvider<TSlot, TComponent>> providers,
@@ -41,8 +47,17 @@ namespace osu.Game.Skinning.Gameplay
                 _ => null,
             };
 
-            if (descriptor != null && requirement != descriptor.Requirement)
-                throw new ArgumentException("A catalogued gameplay skin slot must use its descriptor requirement.", nameof(requirement));
+            if (descriptor != null)
+            {
+                if (requirement != descriptor.Requirement)
+                    throw new ArgumentException("A catalogued gameplay skin slot must use its descriptor requirement.", nameof(requirement));
+
+                // Requirement is a pre-C4 compatibility projection and deliberately keeps recommended presentation
+                // slots classified as Optional. Suppression authority comes only from the versioned public catalog.
+                requirement = descriptor.SuppressEligibility == GameplaySkinSlotSuppressEligibility.Allowed
+                    ? SkinSlotRequirement.Optional
+                    : SkinSlotRequirement.Critical;
+            }
 
             return resolve(slot, requirement, providers, validator, descriptor?.Id);
         }
@@ -66,7 +81,11 @@ namespace osu.Game.Skinning.Gameplay
 
             var lookup = new GameplaySkinSlotLookup<TLookup>(descriptor, context);
 
-            return resolve(lookup, descriptor.Requirement, providers, validator, descriptor.Id);
+            SkinSlotRequirement suppressionRequirement = descriptor.SuppressEligibility == GameplaySkinSlotSuppressEligibility.Allowed
+                ? SkinSlotRequirement.Optional
+                : SkinSlotRequirement.Critical;
+
+            return resolve(lookup, suppressionRequirement, providers, validator, descriptor.Id);
         }
 
         private static GameplaySkinSlotResolution<TComponent> resolve<TSlot, TComponent>(
@@ -93,21 +112,18 @@ namespace osu.Game.Skinning.Gameplay
                     diagnostics.Add(createDiagnostic(
                         GameplaySkinSlotDiagnosticCode.ProviderFailed,
                         slot,
-                        "<null>",
+                        redacted_provider_name,
                         new InvalidOperationException("The gameplay skin slot provider chain contained a null provider."),
                         slotId));
                     continue;
                 }
 
-                string providerName = provider.GetType().Name;
+                string providerName = redacted_provider_name;
                 SkinSlotResult<TComponent> result;
 
                 try
                 {
-                    string suppliedName = provider.Name;
-
-                    if (!string.IsNullOrWhiteSpace(suppliedName))
-                        providerName = suppliedName;
+                    providerName = sanitiseProviderName(provider.Name);
 
                     result = provider.GetSlot(slot);
                 }
@@ -172,7 +188,10 @@ namespace osu.Game.Skinning.Gameplay
 
         private static GameplaySkinSlotResolution<T> complete<T>(SkinSlotResult<T> result, string? providerName, List<GameplaySkinSlotDiagnostic> diagnostics)
             where T : notnull
-            => new GameplaySkinSlotResolution<T>(result, providerName, diagnostics.Count == 0 ? Array.Empty<GameplaySkinSlotDiagnostic>() : diagnostics.ToArray());
+            => new GameplaySkinSlotResolution<T>(
+                result,
+                providerName == null ? null : sanitiseProviderName(providerName),
+                diagnostics.Count == 0 ? Array.Empty<GameplaySkinSlotDiagnostic>() : diagnostics.ToArray());
 
         private static GameplaySkinSlotDiagnostic createDiagnostic(
             GameplaySkinSlotDiagnosticCode code,
@@ -180,9 +199,36 @@ namespace osu.Game.Skinning.Gameplay
             string providerName,
             Exception? exception,
             string? slotId)
-            => new GameplaySkinSlotDiagnostic(code, slot, providerName, exception)
+            => new GameplaySkinSlotDiagnostic(code, slot, sanitiseProviderName(providerName), exception)
             {
                 SlotId = slotId,
             };
+
+        /// <summary>
+        /// Restricts the persistence-visible provider identity to a stable, path-free ASCII token.
+        /// Author-controlled display names, paths and runtime type names are deliberately not used as fallbacks.
+        /// </summary>
+        private static string sanitiseProviderName(string? providerName)
+        {
+            if (string.IsNullOrEmpty(providerName) || providerName.Length > 128 || !isLowerAsciiLetter(providerName[0]))
+                return redacted_provider_name;
+
+            char previous = '\0';
+
+            foreach (char character in providerName)
+            {
+                if (!isLowerAsciiLetter(character) && !char.IsAsciiDigit(character) && character is not '-' and not '.')
+                    return redacted_provider_name;
+
+                if (character == '.' && previous == '.')
+                    return redacted_provider_name;
+
+                previous = character;
+            }
+
+            return previous is '.' or '-' ? redacted_provider_name : providerName;
+        }
+
+        private static bool isLowerAsciiLetter(char character) => character is >= 'a' and <= 'z';
     }
 }

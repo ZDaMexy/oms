@@ -76,6 +76,25 @@ namespace osu.Game.Skinning.Gameplay
 
         internal bool RetainsExact(SkinCurrentRevision revision) => ReferenceEquals(exactRevision, revision);
 
+        /// <summary>
+        /// Whether <paramref name="source"/> is the exact immutable owner retained by this package revision.
+        /// </summary>
+        /// <remarks>
+        /// A record ID is not sufficient because an old and a current same-ID owner may coexist while leases drain.
+        /// The retained <see cref="SkinCurrentRevision"/> is the C2 authority which binds the owner reference to
+        /// <see cref="ContentRevision"/> and <see cref="Generation"/> before this C3 token is published.
+        /// </remarks>
+        public bool RetainsExactSource(Skin source)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+
+            return exactRevision != null
+                   && ReferenceEquals(exactRevision.Owner, source)
+                   && exactRevision.Generation == Generation
+                   && exactRevision.RecordId == RecordId
+                   && string.Equals(exactRevision.ContentRevision, ContentRevision, StringComparison.Ordinal);
+        }
+
         public override string ToString()
             => $"{nameof(GameplaySkinPackageRevision)}:{SourceKind}:Generation{Generation}";
     }

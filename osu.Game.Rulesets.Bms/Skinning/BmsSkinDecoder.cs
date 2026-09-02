@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Skinning.Gameplay;
@@ -57,66 +59,91 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public void Parse(string skinIni)
         {
-            using var reader = new StringReader(skinIni);
-            Parse(reader);
+            ArgumentNullException.ThrowIfNull(skinIni);
+            byte[] content = Encoding.UTF8.GetBytes(skinIni);
+            string contentRevision = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+            Parse(GameplaySkinDocumentCodec.Decode(
+                content,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse(contentRevision)));
         }
 
         public void Parse(TextReader reader)
         {
-            string? section = null;
-            BmsSkinConfiguration? current = null;
-            var pending = new List<KeyValuePair<string, string>>();
+            ArgumentNullException.ThrowIfNull(reader);
+            Parse(reader.ReadToEnd());
+        }
 
-            string? line;
+        /// <summary>
+        /// Applies BMS legacy semantics to the one immutable token stream retained by the shared gameplay-skin codec.
+        /// No package stream is reopened and no second ruleset tokenizer exists on the production path.
+        /// </summary>
+        public void Parse(GameplaySkinDocument document)
+        {
+            ArgumentNullException.ThrowIfNull(document);
 
-            while ((line = reader.ReadLine()) != null)
+            foreach (GameplaySkinLegacySection section in document.LegacySections)
             {
-                line = stripComment(line).Trim();
-
-                if (line.Length == 0)
-                    continue;
-
-                if (line[0] == '[' && line[^1] == ']')
-                {
-                    section = line.Substring(1, line.Length - 2).Trim();
-                    current = null;
-                    pending.Clear();
-                    continue;
-                }
-
-                if (!trySplit(line, out string key, out string value))
-                    continue;
-
-                switch (section)
+                switch (section.Name)
                 {
                     case "General":
-                        if (key.Equals("Keymodes", StringComparison.OrdinalIgnoreCase))
-                            parseDeclaredKeymodes(value);
+                        foreach (GameplaySkinLegacyLine line in section.Lines)
+                        {
+                            if (!tryGetField(line, out string key, out string value))
+                                continue;
+
+                            if (key.Equals("Keymodes", StringComparison.OrdinalIgnoreCase))
+                                parseDeclaredKeymodes(value);
+                        }
 
                         break;
 
                     case "Bms":
-                        if (key.Equals("Keymode", StringComparison.OrdinalIgnoreCase))
+                        BmsSkinConfiguration? current = null;
+                        var pending = new List<KeyValuePair<string, string>>();
+
+                        foreach (GameplaySkinLegacyLine line in section.Lines)
                         {
-                            current = tryParseKeymode(value, out var keymode) ? getOrAddConfiguration(keymode) : null;
+                            if (!tryGetField(line, out string key, out string value))
+                                continue;
 
-                            // Any keys seen before the Keymode line can now be flushed into the resolved bucket.
-                            if (current != null)
+                            if (key.Equals("Keymode", StringComparison.OrdinalIgnoreCase))
                             {
-                                foreach (var pair in pending)
-                                    applyKey(current, pair.Key, pair.Value);
-                            }
+                                current = tryParseKeymode(value, out var keymode) ? getOrAddConfiguration(keymode) : null;
 
-                            pending.Clear();
+                                // Any keys seen before the Keymode line can now be flushed into the resolved bucket.
+                                if (current != null)
+                                {
+                                    foreach (var pair in pending)
+                                        applyKey(current, pair.Key, pair.Value);
+                                }
+
+                                pending.Clear();
+                            }
+                            else if (current != null)
+                                applyKey(current, key, value);
+                            else
+                                pending.Add(new KeyValuePair<string, string>(key, value));
                         }
-                        else if (current != null)
-                            applyKey(current, key, value);
-                        else
-                            pending.Add(new KeyValuePair<string, string>(key, value)); // hold until a Keymode line appears
 
                         break;
                 }
             }
+        }
+
+        private static bool tryGetField(GameplaySkinLegacyLine line, out string key, out string value)
+        {
+            if (line.Kind != GameplaySkinLegacyLineKind.Field
+                || line.Separator != ':'
+                || string.IsNullOrEmpty(line.Key))
+            {
+                key = string.Empty;
+                value = string.Empty;
+                return false;
+            }
+
+            key = line.Key;
+            value = line.Value ?? string.Empty;
+            return true;
         }
 
         private BmsSkinConfiguration getOrAddConfiguration(BmsKeymode keymode)
@@ -171,8 +198,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 if (tryParseColour(value, out var colour))
                 {
-                    // Preserve the current Enum.TryParse compatibility view, including accidental comma-composite aliases,
-                    // but only exact closed source keys become V1 declaration provenance.
+                    // Preserve the current Enum.TryParse compatibility view, including accidental comma-composite aliases.
+                    // Exact keys pass through the closed legacy field catalog, but C4 intentionally retains no separate
+                    // process-local colour snapshot or accepted-provenance sidecar.
                     if (BmsGameplaySkinBucketColourFieldCatalog.TryGetExact(key, out BmsSkinConfigurationLookups exactField)
                         && exactField == lookup)
                     {
@@ -250,28 +278,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     keymode = default;
                     return false;
             }
-        }
-
-        private static bool trySplit(string line, out string key, out string value)
-        {
-            int separator = line.IndexOf(':');
-
-            if (separator < 0)
-            {
-                key = string.Empty;
-                value = string.Empty;
-                return false;
-            }
-
-            key = line.Substring(0, separator).Trim();
-            value = line.Substring(separator + 1).Trim();
-            return key.Length > 0;
-        }
-
-        private static string stripComment(string line)
-        {
-            int index = line.IndexOf("//", StringComparison.Ordinal);
-            return index >= 0 ? line.Substring(0, index) : line;
         }
 
         private static bool tryParseFloat(string value, out float number)

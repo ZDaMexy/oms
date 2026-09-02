@@ -1,9 +1,11 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Tests.Skins
 {
@@ -45,6 +47,19 @@ namespace osu.Game.Tests.Skins
             var skin = new LegacyBeatmapSkin(beatmap, null);
 
             Assert.That(skin.SkinInfo.Value.Creator, Is.EqualTo("Visible Creator"));
+        }
+
+        [Test]
+        public void TestBeatmapLocalSkinCannotBecomeC4AuthoringAuthority()
+        {
+            using var skin = new LegacyBeatmapSkin(new BeatmapInfo(), null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(skin.AllowsGameplaySkinDocumentAuthoring, Is.False);
+                Assert.That(skin.GameplaySkinDocument.Sections, Is.Empty);
+                Assert.That(Enum.GetNames<GameplaySkinDocumentSourceKind>(), Does.Not.Contain("BeatmapLocal"));
+            });
         }
     }
 }

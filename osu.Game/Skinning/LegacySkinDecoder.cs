@@ -1,8 +1,10 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Collections.Generic;
 using System.Globalization;
 using osu.Game.Beatmaps.Formats;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Skinning
 {
@@ -14,11 +16,18 @@ namespace osu.Game.Skinning
         }
 
         protected override void ParseLine(SkinConfiguration skin, Section section, string line)
+            => parsePair(skin, section, SplitKeyVal(line));
+
+        protected override void ParseLine(SkinConfiguration skin, Section section, GameplaySkinLegacyLine line)
+        {
+            if (TryGetRetainedKeyValue(line, out KeyValuePair<string, string> pair))
+                parsePair(skin, section, pair);
+        }
+
+        private void parsePair(SkinConfiguration skin, Section section, KeyValuePair<string, string> pair)
         {
             if (section != Section.Colours)
             {
-                var pair = SplitKeyVal(line);
-
                 switch (section)
                 {
                     case Section.General:
@@ -46,15 +55,17 @@ namespace osu.Game.Skinning
                     // osu!catch section only has colour settings
                     // so no harm in handling the entire section
                     case Section.CatchTheBeat:
-                        HandleColours(skin, line, true);
+                        HandleColours(skin, pair, true);
                         return;
                 }
 
                 if (!string.IsNullOrEmpty(pair.Key))
                     skin.ConfigDictionary[pair.Key] = pair.Value;
+
+                return;
             }
 
-            base.ParseLine(skin, section, line);
+            HandleColours(skin, pair, false);
         }
 
         protected override SkinConfiguration CreateTemplateObject()

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
@@ -64,7 +65,10 @@ namespace osu.Game.Rulesets.Mania
 
         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod>? mods = null) => new DrawableManiaRuleset(this, beatmap, mods);
 
-        public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+        public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(
+            IBeatmap beatmap,
+            IReadOnlyDependencyContainer dependencies,
+            CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(beatmap);
             ArgumentNullException.ThrowIfNull(dependencies);
@@ -91,6 +95,7 @@ namespace osu.Game.Rulesets.Mania
                     owner,
                     dependencies.Get<GameHost>(),
                     direction,
+                    cancellationToken,
                     out GameplaySkinLayoutPublication? publication))
             {
                 return GameplaySkinLayoutPreparationResult.Retry;
@@ -122,13 +127,13 @@ namespace osu.Game.Rulesets.Mania
 
         // Reflection cached at class init so each carousel filter pass over a large BMS library doesn't pay
         // Type.GetType + GetMethod + Invoke per beatmap (mirrors the pattern already used in DrawableManiaRuleset).
-        private static readonly Type? bmsConverterFactoryType = Type.GetType($"{bms_to_mania_converter_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
-        private static readonly Func<IBeatmap, bool>? bmsCanCreateConverter = createConverterFactoryDelegate<Func<IBeatmap, bool>>("CanCreate");
-        private static readonly Func<IBeatmap, Ruleset, IBeatmapConverter>? bmsCreateConverter = createConverterFactoryDelegate<Func<IBeatmap, Ruleset, IBeatmapConverter>>("Create");
+        private static readonly Type? bms_converter_factory_type = Type.GetType($"{bms_to_mania_converter_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
+        private static readonly Func<IBeatmap, bool>? bms_can_create_converter = createConverterFactoryDelegate<Func<IBeatmap, bool>>("CanCreate");
+        private static readonly Func<IBeatmap, Ruleset, IBeatmapConverter>? bms_create_converter = createConverterFactoryDelegate<Func<IBeatmap, Ruleset, IBeatmapConverter>>("Create");
 
         private static TDelegate? createConverterFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
         {
-            MethodInfo? method = bmsConverterFactoryType?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+            MethodInfo? method = bms_converter_factory_type?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
 
             return method == null ? null : (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), method);
         }
@@ -137,10 +142,10 @@ namespace osu.Game.Rulesets.Mania
         {
             converter = null!;
 
-            if (bmsCanCreateConverter?.Invoke(beatmap) is not true)
+            if (bms_can_create_converter?.Invoke(beatmap) is not true)
                 return false;
 
-            if (bmsCreateConverter?.Invoke(beatmap, this) is not IBeatmapConverter createdConverter)
+            if (bms_create_converter?.Invoke(beatmap, this) is not IBeatmapConverter createdConverter)
                 return false;
 
             converter = createdConverter;

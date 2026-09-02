@@ -14,7 +14,10 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
 using osu.Game.Database;
 using osu.Game.IO;
+using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
@@ -22,6 +25,112 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
     [TestFixture]
     public class BmsManagedPackageNoteMaterializerLifecycleTest
     {
+        [Test]
+        public void TestExactRevisionRetiresOnlyAfterEveryBorrowReleases()
+        {
+            (BmsLegacySkin skin, GatedExactPackageStore store, SkinPackageRevisionCapsule capsule) = createOwner(
+                requiredGates: 0,
+                includeNoteDeclaration: false);
+            BmsManagedPackageNoteRevisionBorrow? first = null;
+            BmsManagedPackageNoteRevisionBorrow? second = null;
+
+            try
+            {
+                BmsGameplayLayoutSnapshot layout = createCompatibilityLayout();
+                first = skin.GetOrPrepareManagedPackageNotes(layout, CancellationToken.None);
+                second = skin.GetOrPrepareManagedPackageNotes(layout, CancellationToken.None);
+                BmsManagedPackageNoteRevision revision = first.Revision;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(second.Revision, Is.SameAs(revision));
+                    Assert.That(skin.ActiveExactManagedPackageNotePreparationCount, Is.EqualTo(1));
+                    Assert.That(skin.ActiveExactManagedPackageNoteBorrowCount, Is.EqualTo(2));
+                    Assert.That(revision.IsDisposed, Is.False);
+                });
+
+                first.Dispose();
+                first = null;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skin.ActiveExactManagedPackageNotePreparationCount, Is.EqualTo(1));
+                    Assert.That(skin.ActiveExactManagedPackageNoteBorrowCount, Is.EqualTo(1));
+                    Assert.That(revision.IsDisposed, Is.False);
+                });
+
+                second.Dispose();
+                second = null;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skin.ActiveExactManagedPackageNotePreparationCount, Is.Zero);
+                    Assert.That(skin.ActiveExactManagedPackageNoteBorrowCount, Is.Zero);
+                    Assert.That(revision.IsDisposed, Is.True);
+                });
+            }
+            finally
+            {
+                first?.Dispose();
+                second?.Dispose();
+                skin.Dispose();
+                store.Dispose();
+                store.DisposeEvents();
+                capsule.Dispose();
+            }
+        }
+
+        [Test]
+        public void TestSkinDisposeDefersCompletedExactRevisionUntilLastBorrowReleases()
+        {
+            (BmsLegacySkin skin, GatedExactPackageStore store, SkinPackageRevisionCapsule capsule) = createOwner(
+                requiredGates: 0,
+                includeNoteDeclaration: false);
+            BmsManagedPackageNoteRevisionBorrow? borrow = null;
+
+            try
+            {
+                BmsGameplayLayoutSnapshot layout = createCompatibilityLayout();
+
+                borrow = skin.GetOrPrepareManagedPackageNotes(layout, CancellationToken.None);
+                BmsManagedPackageNoteRevision revision = borrow.Revision;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skin.ActiveExactManagedPackageNotePreparationCount, Is.EqualTo(1));
+                    Assert.That(skin.ActiveExactManagedPackageNoteBorrowCount, Is.EqualTo(1));
+                    Assert.That(revision.IsDisposed, Is.False);
+                });
+
+                skin.Dispose();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skin.ActiveExactManagedPackageNotePreparationCount, Is.Zero);
+                    Assert.That(skin.ActiveExactManagedPackageNoteBorrowCount, Is.EqualTo(1));
+                    Assert.That(revision.IsDisposed, Is.False,
+                        "Skin retirement must not dispose a successful exact revision still owned by a publication borrow.");
+                });
+
+                borrow.Dispose();
+                borrow = null;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(skin.ActiveExactManagedPackageNoteBorrowCount, Is.Zero);
+                    Assert.That(revision.IsDisposed, Is.True);
+                });
+            }
+            finally
+            {
+                borrow?.Dispose();
+                skin.Dispose();
+                store.Dispose();
+                store.DisposeEvents();
+                capsule.Dispose();
+            }
+        }
+
         [Test]
         public void TestProductionLeaseTransferKeepsRevisionAttachedUntilCancelledMaterializerActuallyStops()
         {
@@ -299,7 +408,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 }
             });
 
-        private static (BmsLegacySkin Skin, GatedExactPackageStore Store, SkinPackageRevisionCapsule Capsule) createOwner(int requiredGates)
+        private static (BmsLegacySkin Skin, GatedExactPackageStore Store, SkinPackageRevisionCapsule Capsule) createOwner(
+            int requiredGates,
+            bool includeNoteDeclaration = true)
         {
             byte[] configuration = Encoding.UTF8.GetBytes(
                 "[General]\n" +
@@ -307,7 +418,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 "Version: 2.7\n" +
                 "[Bms]\n" +
                 "Keymode: 7K\n" +
-                "NoteImage1: notes/note\n");
+                (includeNoteDeclaration ? "NoteImage1: notes/note\n" : string.Empty));
             SkinPackageRevisionCapsuleCreationResult creation = SkinPackageRevisionCapsuleFactory.Create(new[]
             {
                 SkinPackageCapturedEntry.CreateFile("skin.ini", configuration),
@@ -339,6 +450,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 store.DisposeEvents();
                 throw;
             }
+        }
+
+        private static BmsGameplayLayoutSnapshot createCompatibilityLayout()
+        {
+            var beatmap = new BmsBeatmap
+            {
+                BmsInfo = new BmsBeatmapInfo { Keymode = BmsKeymode.Key7K },
+            };
+
+            return new BmsGameplayLayoutProvider(beatmap).PublishForTesting(
+                BmsPlayfieldStyle.Center,
+                new BmsGameplayLayoutConfiguration());
         }
 
         private sealed class TestResourceProvider : IStorageResourceProvider

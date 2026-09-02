@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-09-02
+
+### Skin V1 C4 shared codec / public catalog / resolved material闭门
+
+P1-A七个campaign的`C4`已闭合。core冻结Common v1+BMS v1 extension共28项stable public slot及唯一shared document codec，显式`Provide/Inherit/Suppress` resolver按固定specificity/authority生成一个immutable material set；invalid/empty/非法Suppress不再冒充Absent或跨来源拼件。ordinary Realm`.osk`、managed与registered external三源public声明经真实`SkinManager` current revision和ruleset prepare驱动actual BMS Note/LN及mania Note/Hold/KeyVisual；BMS 5K/7K/9K/14K候选、14K双deck、右scratch与版本化9K raw/canonical映射均进入production。package、C3 layout与C4 material作为一个prepared publication原子提交，失败保exact A，C2 attach/detach/lease/retire、live reject与三源same-ID边界保持。
+
+C4明确不新增beatmap-local public authoring；`LegacyBeatmapSkin`只保留direct visual compatibility且不能把其public section绑定到author resolver。被catalog/exact material取代的dead snapshot/factory已删除，C5/C6 foundation不计C4进度。燃尽推进为 **`4/7 closed，C5 active`**；scene/event与剩余optional slot、sandbox、canonical双包/Authoring Kit、程序化`OmsSkin`退出、最终整包reload与release仍未完成。完整合同与验证见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)及[C4完成交接](../other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)。
+
+最终验证：core focused **141/141**、core Skin **1110/1116**且六项失败名称/消息逐字符匹配精确既有基线；mania C4 relevant/Skin/full **172/172、193/193、838/842**，full四项HoldNote失败同样逐字符匹配既有基线；BMS C4 relevant/current-revision/managed-candidate **315/315、197/197、115/115**，Skin/full **726/726、1687/1687**且无hang artifact；P1-K/projection/真实发声 **102/102、24/24、14/14 + 2/2**。formatter后重新build的core/BMS/mania C4 production focused仍为 **141/141、315/315、172/172**。Release **0 error / 20 emitted known warnings**，均为既有MessagePack advisory重复输出与既有BMS test `CS8600`/`CA2007`；六工程97个C#文件的默认formatter、文档门、diff检查及四类独立终审均通过，终审blocker/major **0/0**。
+
 ## 2026-08-30
 
 ### Skin V1 C3 P1-K前置与唯一gameplay layout闭门

@@ -9,6 +9,7 @@ using osu.Game.Audio;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.IO;
 using osu.Game.Rulesets.Objects.Legacy;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Beatmaps.Formats
@@ -74,6 +75,47 @@ namespace osu.Game.Beatmaps.Formats
             }
         }
 
+        /// <summary>
+        /// Decodes the legacy compatibility sections retained by the shared gameplay-skin tokenizer.
+        /// </summary>
+        /// <remarks>
+        /// This is deliberately an overload of the legacy decoder rather than a second text reader. Skin consumers
+        /// receive the exact immutable token stream produced by <see cref="GameplaySkinDocumentCodec"/> and never
+        /// reopen or retokenize the package configuration.
+        /// </remarks>
+        internal T Decode(GameplaySkinDocument document)
+        {
+            ArgumentNullException.ThrowIfNull(document);
+
+            T output = CreateTemplateObject();
+            Section section = Section.General;
+
+            foreach (GameplaySkinLegacySection retainedSection in document.LegacySections)
+            {
+                if (retainedSection.Name.Length > 0)
+                {
+                    if (!Enum.TryParse(retainedSection.Name, out section))
+                        Logger.Log($"Unknown legacy skin section at line {retainedSection.HeaderLineNumber} in \"{output}\"");
+
+                    OnBeginNewSection(section);
+                }
+
+                foreach (GameplaySkinLegacyLine retainedLine in retainedSection.Lines)
+                {
+                    try
+                    {
+                        ParseLine(output, section, retainedLine);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Log($"Failed to process legacy skin line {retainedLine.LineNumber} into \"{output}\": {e.Message}");
+                    }
+                }
+            }
+
+            return output;
+        }
+
         protected virtual bool ShouldSkipLine(string line) => string.IsNullOrWhiteSpace(line) || line.AsSpan().TrimStart().StartsWith("//".AsSpan(), StringComparison.Ordinal);
 
         /// <summary>
@@ -92,6 +134,32 @@ namespace osu.Game.Beatmaps.Formats
                     HandleColours(output, line, false);
                     return;
             }
+        }
+
+        /// <summary>
+        /// Applies legacy compatibility semantics to one immutable token produced by the shared gameplay-skin codec.
+        /// Skin decoders override this entry point to consume <see cref="GameplaySkinLegacyLine.Key"/> and
+        /// <see cref="GameplaySkinLegacyLine.Value"/> directly, without splitting source text a second time.
+        /// </summary>
+        protected virtual void ParseLine(T output, Section section, GameplaySkinLegacyLine line)
+            => ParseLine(output, section, line.NormalizedText);
+
+        protected static bool TryGetRetainedKeyValue(
+            GameplaySkinLegacyLine line,
+            out KeyValuePair<string, string> pair)
+        {
+            ArgumentNullException.ThrowIfNull(line);
+
+            if (line.Kind is GameplaySkinLegacyLineKind.Field or GameplaySkinLegacyLineKind.Unparsed
+                && line.Key != null
+                && line.Value != null)
+            {
+                pair = new KeyValuePair<string, string>(line.Key, line.Value);
+                return true;
+            }
+
+            pair = default;
+            return false;
         }
 
         protected string StripComments(string line)
@@ -125,7 +193,11 @@ namespace osu.Game.Beatmaps.Formats
 
         protected void HandleColours<TModel>(TModel output, string line, bool allowAlpha)
         {
-            var pair = SplitKeyVal(line);
+            HandleColours(output, SplitKeyVal(line), allowAlpha);
+        }
+
+        protected void HandleColours<TModel>(TModel output, KeyValuePair<string, string> pair, bool allowAlpha)
+        {
 
             string[] split = pair.Value.Split(',');
             Color4 colour = convertSettingStringToColor4(split, allowAlpha, pair);

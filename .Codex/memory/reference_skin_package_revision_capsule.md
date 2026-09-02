@@ -22,7 +22,7 @@ metadata:
 - content revision 不是 `InstantiationInfo`、选择资格、generation、scanner owner、mutation token 或 active publication revision；这些 gate 不能由 hash 替代。
 - staged import必须分别保留held source capture与move后target recapture的完整package fingerprint；只有physical identity、规范inventory、capsule content revision和最终`skin.ini` metadata均exact，one-shot publisher才可从最终target capsule生成Realm `Name`/`Creator`/hash。publication plan或目录名不能替代该fingerprint，也不得推导作者展示字段。
 - production managed/external factory走exact-capsule marker/owning store构造路径，不让live `RealmBackedResourceStore`排在capsule前面。ordinary Realm `.osk` current reload从fresh declaration set与逐blob hash构造规范capsule/new owner；发布后即使Realm record的file-declaration path、external或DeletePending projection漂移，active owner/revision与late renderer仍只读该immutable capsule；fresh reload/mutation重读到path改变造成的declaration mismatch时拒绝。这不是registry file drift。legacy editor、update-import与external-edit已稳定禁用；三源都不得以live refresh修改active instance。
-- active capsule 的单一 owner 必须先 detach 全部 participant/work/operation lease 再 dispose。directory-only rename不销毁当前active capsule；fixed-source staged import也不自动选择或替换active capsule，且不会取消无关pending selection。C2已签发统一barrier与retire queue，C3已把layout作为同一package+layout pair接入；具体见[[reference_skin_atomic_reload_detach]]，C4～C6新增owner继续接入。
+- active capsule的单一owner必须先detach全部participant/work/operation lease再dispose。directory-only rename不销毁当前active capsule；fixed-source staged import也不自动选择或替换active capsule，且不会取消无关pending selection。C2已签发统一barrier与retire queue，C3/C4已把layout/material作为同一package+layout+material publication接入；具体见[[reference_skin_atomic_reload_detach]]，C5～C6新增owner继续接入。
 
 ## 入口
 

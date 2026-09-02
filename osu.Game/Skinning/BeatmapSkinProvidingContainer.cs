@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -69,7 +70,7 @@ namespace osu.Game.Skinning
 
         private readonly ISkin skin;
         private readonly ISkin? compatibilityFallback;
-        private readonly Func<IReadOnlyDependencyContainer, GameplaySkinLayoutPreparationResult>? prepareGameplayLayout;
+        private readonly Func<IReadOnlyDependencyContainer, CancellationToken, GameplaySkinLayoutPreparationResult>? prepareGameplayLayout;
         private readonly Drawable? delayedChild;
         private readonly bool affectsGameplayLayoutPublication;
         private IReadOnlyDependencyContainer? childDependencies;
@@ -79,7 +80,7 @@ namespace osu.Game.Skinning
         public BeatmapSkinProvidingContainer(
             ISkin skin,
             ISkin? compatibilityFallback = null,
-            Func<IReadOnlyDependencyContainer, GameplaySkinLayoutPreparationResult>? prepareGameplayLayout = null,
+            Func<IReadOnlyDependencyContainer, CancellationToken, GameplaySkinLayoutPreparationResult>? prepareGameplayLayout = null,
             Drawable? delayedChild = null,
             bool affectsGameplayLayoutPublication = false)
             : base(skin)
@@ -105,8 +106,10 @@ namespace osu.Game.Skinning
         }
 
         [BackgroundDependencyLoader]
-        private void load(SkinManager skins)
+        private void load(SkinManager skins, CancellationToken? cancellationToken)
         {
+            CancellationToken loadCancellationToken = cancellationToken ?? CancellationToken.None;
+
             beatmapSkins.BindValueChanged(_ => TriggerSourceChanged());
             beatmapColours.BindValueChanged(_ => TriggerSourceChanged());
             beatmapHitsounds.BindValueChanged(_ => TriggerSourceChanged());
@@ -147,7 +150,9 @@ namespace osu.Game.Skinning
 
                 for (int attempt = 0; attempt < maximum_fresh_barrier_attempts; attempt++)
                 {
-                    switch (prepareGameplayLayout(childDependencies))
+                    loadCancellationToken.ThrowIfCancellationRequested();
+
+                    switch (prepareGameplayLayout(childDependencies, loadCancellationToken))
                     {
                         case GameplaySkinLayoutPreparationResult.Prepared:
                             prepared = true;

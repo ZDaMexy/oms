@@ -67,6 +67,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsGameplayLayoutSnapshot LayoutSnapshot => layoutProvider.Current;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet => layoutProvider.CurrentMaterialSet;
+
         public BmsBgaPanel(IReadOnlyList<BmsBgaTimelineEntry> timeline, BmsPoorBgaMode poorMode, BmsGameplayLayoutProvider layoutProvider)
             : base(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel), _ => new DefaultBmsBgaPanelDisplay(layoutProvider))
         {
@@ -135,6 +137,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
 
+        internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
+
         [Resolved(CanBeNull = true)]
         private IBindable<WorkingBeatmap>? workingBeatmap { get; set; }
 
@@ -153,6 +157,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new InvalidOperationException("A BMS BGA display cannot change its immutable layout snapshot.");
 
             LayoutSnapshot ??= resolvedSnapshot;
+
+            if (layoutProvider != null)
+            {
+                ResolvedMaterialSet = layoutProvider.CurrentMaterialSet;
+
+                if (LayoutSnapshot != null && !ReferenceEquals(ResolvedMaterialSet.Snapshot, LayoutSnapshot.Neutral))
+                    throw new InvalidOperationException("A BMS BGA display requires the material set from its exact layout publication.");
+            }
 
             InternalChild = framesContainer = new Container { RelativeSizeAxes = Axes.Both };
 
@@ -182,6 +194,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new InvalidOperationException("A BMS BGA display cannot change its immutable layout snapshot.");
 
             LayoutSnapshot = snapshot;
+
+            if (layoutProvider != null)
+            {
+                ResolvedMaterialSet = layoutProvider.CurrentMaterialSet;
+
+                if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, snapshot.Neutral))
+                    throw new InvalidOperationException("A BMS BGA display requires the material set from its exact layout publication.");
+            }
 
             if (loaded)
                 rebuild();

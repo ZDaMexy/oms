@@ -3,14 +3,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.IO.Stores;
 using osu.Game.Audio;
+using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.UI;
@@ -102,6 +109,177 @@ namespace osu.Game.Rulesets.Mania.Tests
                     Is.GreaterThan(snapshot.GetLane(secondStageLast.Identity.Id).Rect.Width * 4));
                 Assert.That(snapshot.GetLane(secondStageFirst.Identity.Id).Rect.Width,
                     Is.GreaterThan(snapshot.LanesInLogicalOrder[3].Rect.Width * 4));
+            });
+        }
+
+        [TestCase((int)SkinCurrentRevisionSourceKind.RealmPackage)]
+        [TestCase((int)SkinCurrentRevisionSourceKind.ManagedFolder)]
+        [TestCase((int)SkinCurrentRevisionSourceKind.ExternalFolder)]
+        public void TestExactCommonMaterialResolutionAndLegacyBeatmapPriority(int sourceKindValue)
+        {
+            var sourceKind = (SkinCurrentRevisionSourceKind)sourceKindValue;
+            Guid selectedId = Guid.NewGuid();
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            const string configuration = """
+                                         [GameplaySkin.Common:1]
+                                         Target: Lane ruleset=mania keymode=5k stage-mode=single group=mania.group.stage-1 lane=mania.lane.column-1 group-logical=0 group-visual=0 global-logical=0 global-visual=0 group-local-logical=0 group-local-visual=0
+                                         object.note: resource Provide "selected-note"
+                                         object.long-note.body: colour Provide "invalid-body"
+                                         object.long-note.tail: resource Suppress
+                                         playfield.key: resource Suppress
+                                         effect.key-flash: resource Provide "unsupported-flash"
+                                         author.private-slot: resource Provide "private-value"
+                                         """;
+            const string stale_configuration = """
+                                              [GameplaySkin.Common:1]
+                                              Target: Lane ruleset=mania keymode=5k stage-mode=single group=mania.group.stage-1 lane=mania.lane.column-1 group-logical=0 group-visual=0 global-logical=0 global-visual=0 group-local-logical=0 group-local-visual=0
+                                              object.note: resource Provide "stale-note"
+                                              """;
+
+            using var selected = new DocumentTestSkin(selectedId, configuration, texture);
+            using var staleSameId = new DocumentTestSkin(selectedId, stale_configuration, texture);
+            using var legacyBeatmap = new ResourceTestLegacyBeatmapSkin(texture, "[General]\nName: legacy-a\n");
+            using var alternateLegacyBeatmap = new ResourceTestLegacyBeatmapSkin(texture, "[General]\nName: legacy-b\n");
+            // The stale same-ID source deliberately precedes the current owner. C4 must select by the retained
+            // C2 package owner/content revision, never by record ID or source-vector order.
+            var source = new OrderedTestSkinSource(legacyBeatmap, staleSameId, selected);
+            var revision = new SkinCurrentRevision(
+                17,
+                selectedId,
+                "package-content-a",
+                sourceKind,
+                selected,
+                false,
+                _ => { });
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(revision);
+            var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
+            GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
+                topologyOwner.Publish(createBeatmap(5)),
+                source,
+                package,
+                3,
+                ManiaGameplaySkinLayoutEnvironment.CreateCompatibility(),
+                GameplaySkinScrollDirection.Down);
+            GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source);
+            GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+            GameplaySkinLaneTopologyEntry lane = group.LanesInLogicalOrder[0];
+            GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(materials.Snapshot, Is.SameAs(snapshot));
+                Assert.That(materials.PackageRevision, Is.SameAs(package));
+                Assert.That(materials.ContractIdentity, Is.EqualTo(GameplaySkinMaterialContractIdentity.Current));
+                Assert.That(materials.Entries, Has.Count.EqualTo(25));
+
+                Assert.That(materials.TryGet(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.Note, target), out GameplaySkinResolvedMaterialEntry? note), Is.True);
+                Assert.That(note!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                Assert.That(note.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                Assert.That(note.Source.StableId, Is.EqualTo("selected-common"));
+                Assert.That(note.TryGetMaterial<IManiaGameplaySkinMaterial>(out _), Is.True);
+
+                Assert.That(materials.TryGet(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteBody, target), out GameplaySkinResolvedMaterialEntry? body), Is.True);
+                Assert.That(body!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
+                Assert.That(materials.Diagnostics.Any(diagnostic => diagnostic.Code == "mania.document.invalid"
+                                                                    && ReferenceEquals(diagnostic.Key?.Slot, GameplaySkinSlotCatalog.LongNoteBody)), Is.True);
+
+                Assert.That(materials.TryGet(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteTail, target), out GameplaySkinResolvedMaterialEntry? tail), Is.True);
+                Assert.That(tail!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                Assert.That(tail.Source.StableId, Is.EqualTo("selected-common"));
+
+                Assert.That(materials.TryGet(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, target), out GameplaySkinResolvedMaterialEntry? key), Is.True);
+                Assert.That(key!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                Assert.That(key.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.LegacyBeatmapCompatibility));
+                Assert.That(key.Source.StableId, Is.EqualTo("legacy-beatmap-compatibility"));
+                Assert.That(key.Source.ContentRevision, Is.EqualTo(legacyBeatmap.GameplaySkinDocument.Identity.ContentRevision));
+                Assert.That(key.Source.ContentRevision, Is.Not.EqualTo(alternateLegacyBeatmap.GameplaySkinDocument.Identity.ContentRevision));
+
+                Assert.That(materials.Diagnostics.Any(diagnostic => diagnostic.Code == "OMS-SKIN-CODEC-009"), Is.True);
+                Assert.That(materials.Diagnostics.Any(diagnostic => diagnostic.Code == "mania.capability.unsupported-slot"
+                                                                    && ReferenceEquals(diagnostic.Key?.Slot, GameplaySkinSlotCatalog.KeyFlash)), Is.True);
+                GameplaySkinResolvedMaterialDiagnostic beatmapDiagnostic = materials.Diagnostics.First(diagnostic =>
+                    diagnostic.Source?.Kind == GameplaySkinResolvedMaterialSourceKind.LegacyBeatmapCompatibility);
+                Assert.That(beatmapDiagnostic.Source!.ContentRevision, Is.EqualTo(legacyBeatmap.GameplaySkinDocument.Identity.ContentRevision));
+                Assert.That(beatmapDiagnostic.ToString(), Does.Not.Contain(beatmapDiagnostic.Source.ContentRevision));
+                Assert.That(beatmapDiagnostic.Source.ToString(), Does.Not.Contain(beatmapDiagnostic.Source.ContentRevision));
+            });
+        }
+
+        [Test]
+        public void TestExactSelectedPackageRejectsNonAuthoringDocumentSource()
+        {
+            Guid selectedId = Guid.NewGuid();
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            using var selected = new DocumentTestSkin(
+                selectedId,
+                "[GameplaySkin.Common:1]\nobject.note: resource Provide \"selected-note\"\n",
+                texture,
+                allowsAuthoring: false);
+            var source = new OrderedTestSkinSource(selected);
+            var revision = new SkinCurrentRevision(
+                18,
+                selectedId,
+                "package-content-b",
+                SkinCurrentRevisionSourceKind.RealmPackage,
+                selected,
+                false,
+                _ => { });
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(revision);
+            var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
+            GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
+                topologyOwner.Publish(createBeatmap(4)),
+                source,
+                package,
+                4,
+                ManiaGameplaySkinLayoutEnvironment.CreateCompatibility(),
+                GameplaySkinScrollDirection.Down);
+
+            Assert.That(
+                () => ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source),
+                Throws.InvalidOperationException.With.Message.Contains("not eligible"));
+        }
+
+        [Test]
+        public void TestExactMaterialResourcePreparationHonoursCancellationWithoutProducingSnapshot()
+        {
+            Guid selectedId = Guid.NewGuid();
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            using var cancellation = new CancellationTokenSource();
+            const string configuration = """
+                                         [GameplaySkin.Common:1]
+                                         Target: Lane ruleset=mania keymode=4k stage-mode=single group=mania.group.stage-1 lane=mania.lane.column-1 group-logical=0 group-visual=0 global-logical=0 global-visual=0 group-local-logical=0 group-local-visual=0
+                                         object.note: resource Provide "selected-note"
+                                         """;
+            using var selected = new DocumentTestSkin(
+                selectedId,
+                configuration,
+                texture,
+                onTextureLookup: cancellation.Cancel);
+            var source = new OrderedTestSkinSource(selected);
+            var revision = new SkinCurrentRevision(
+                19,
+                selectedId,
+                "package-content-c",
+                SkinCurrentRevisionSourceKind.ManagedFolder,
+                selected,
+                false,
+                _ => { });
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(revision);
+            var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
+            GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
+                topologyOwner.Publish(createBeatmap(4)),
+                source,
+                package,
+                5,
+                ManiaGameplaySkinLayoutEnvironment.CreateCompatibility(),
+                GameplaySkinScrollDirection.Down);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source, cancellation.Token),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(cancellation.IsCancellationRequested, Is.True);
             });
         }
 
@@ -369,6 +547,115 @@ namespace osu.Game.Rulesets.Mania.Tests
             public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => null;
 
             public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup) => null;
+        }
+
+        private sealed class DocumentTestSkin : Skin
+        {
+            private readonly Texture texture;
+            private readonly bool allowsAuthoring;
+            private readonly Action? onTextureLookup;
+
+            public override bool AllowsGameplaySkinDocumentAuthoring => allowsAuthoring;
+
+            public DocumentTestSkin(
+                Guid id,
+                string configuration,
+                Texture texture,
+                bool allowsAuthoring = true,
+                Action? onTextureLookup = null)
+                : base(
+                    new SkinInfo("C4 document test") { ID = id },
+                    null,
+                    new ConfigurationResourceStore(Encoding.UTF8.GetBytes(configuration)))
+            {
+                this.texture = texture;
+                this.allowsAuthoring = allowsAuthoring;
+                this.onTextureLookup = onTextureLookup;
+            }
+
+            public override ISample? GetSample(ISampleInfo sampleInfo) => null;
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+            {
+                onTextureLookup?.Invoke();
+                return componentName == "selected-note" ? texture : null;
+            }
+
+            public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup) => null;
+        }
+
+        private sealed class ResourceTestLegacyBeatmapSkin : LegacyBeatmapSkin
+        {
+            private readonly Texture texture;
+
+            public ResourceTestLegacyBeatmapSkin(Texture texture, string configuration)
+                : base(new BeatmapInfo(), null)
+            {
+                this.texture = texture;
+
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(configuration), writable: false);
+                ParseConfigurationStream(stream);
+            }
+
+            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+                => componentName.StartsWith("mania-key", StringComparison.Ordinal) ? texture : null;
+        }
+
+        private sealed class OrderedTestSkinSource : ISkinSource
+        {
+            private readonly ISkin[] sources;
+
+            public event Action? SourceChanged;
+
+            public IEnumerable<ISkin> AllSources => sources;
+
+            public OrderedTestSkinSource(params ISkin[] sources)
+            {
+                this.sources = sources;
+            }
+
+            public ISkin? FindProvider(Func<ISkin, bool> lookupFunction)
+                => sources.FirstOrDefault(lookupFunction);
+
+            public Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
+                => sources.Select(source => source.GetDrawableComponent(lookup)).FirstOrDefault(drawable => drawable != null);
+
+            public Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
+                => sources.Select(source => source.GetTexture(componentName, wrapModeS, wrapModeT)).FirstOrDefault(texture => texture != null);
+
+            public ISample? GetSample(ISampleInfo sampleInfo)
+                => sources.Select(source => source.GetSample(sampleInfo)).FirstOrDefault(sample => sample != null);
+
+            public IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
+                where TLookup : notnull
+                where TValue : notnull
+                => sources.Select(source => source.GetConfig<TLookup, TValue>(lookup)).FirstOrDefault(value => value != null);
+
+            public void NotifyChanged() => SourceChanged?.Invoke();
+        }
+
+        private sealed class ConfigurationResourceStore : IResourceStore<byte[]>
+        {
+            private readonly byte[] configuration;
+
+            public ConfigurationResourceStore(byte[] configuration)
+            {
+                this.configuration = configuration;
+            }
+
+            public byte[] Get(string name) => name == "skin.ini" ? configuration.ToArray() : null!;
+
+            public Task<byte[]> GetAsync(string name, CancellationToken cancellationToken = default)
+                => Task.FromResult(Get(name));
+
+            public Stream? GetStream(string name)
+                => name == "skin.ini" ? new MemoryStream(configuration, writable: false) : null;
+
+            public IEnumerable<string> GetAvailableResources() => new[] { "skin.ini" };
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

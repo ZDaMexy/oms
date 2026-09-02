@@ -31,6 +31,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsGameplayLayoutSnapshot LayoutSnapshot => layoutProvider.Current;
 
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet => layoutProvider.CurrentMaterialSet;
+
         internal BmsHudLayoutSnapshotCarrier? Carrier { get; private set; }
 
         public BmsHudLayoutPanel(BmsGameplayLayoutProvider layoutProvider)
@@ -82,6 +84,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
 
+        internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
+
         [Resolved(CanBeNull = true)]
         private BmsGameplayLayoutProvider? layoutProvider { get; set; }
 
@@ -114,6 +118,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 InitialiseLayoutSnapshot(resolvedSnapshot);
             else if (!ReferenceEquals(LayoutSnapshot, resolvedSnapshot))
                 throw new InvalidOperationException("The BMS HUD carrier does not retain the exact root publication.");
+
+            ResolvedMaterialSet = BmsGameplayLayoutProvider.ResolveOwnerMaterialSet(
+                layoutOwner,
+                layoutProvider,
+                "bms.material.missing-hud-carrier-publication");
+
+            if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, resolvedSnapshot.Neutral))
+                throw new InvalidOperationException("The BMS HUD carrier does not retain the material set from its exact root publication.");
 
             // Do not attach (and therefore do not load) a custom display until it has received the exact owner adapter
             // and its component tuple. This prevents the display's first BDL/callback from observing an uninitialised
@@ -171,6 +183,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
 
+        internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
+
         public DefaultBmsHudLayoutDisplay()
             : base(_ => { })
         {
@@ -179,10 +193,18 @@ namespace osu.Game.Rulesets.Bms.UI
         [BackgroundDependencyLoader]
         private void load()
         {
-            InitialiseLayoutSnapshot(BmsGameplayLayoutProvider.ResolveOwnerPublication(
+            BmsGameplayLayoutSnapshot snapshot = BmsGameplayLayoutProvider.ResolveOwnerPublication(
                 layoutOwner,
                 layoutProvider,
-                "bms.layout.missing-hud-publication"));
+                "bms.layout.missing-hud-publication");
+            InitialiseLayoutSnapshot(snapshot);
+            ResolvedMaterialSet = BmsGameplayLayoutProvider.ResolveOwnerMaterialSet(
+                layoutOwner,
+                layoutProvider,
+                "bms.material.missing-hud-publication");
+
+            if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, snapshot.Neutral))
+                throw new InvalidOperationException("The BMS HUD display does not retain the material set from its exact publication.");
         }
 
         public void InitialiseLayoutSnapshot(BmsGameplayLayoutSnapshot snapshot)

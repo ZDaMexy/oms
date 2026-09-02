@@ -65,10 +65,16 @@ namespace osu.Game.Rulesets.Mania.UI
         private float rightInputInflationRatio;
 
         private ManiaGameplaySkinLaneContext layoutLaneContext = null!;
+        private ManiaGameplaySkinMaterialContext materialContext = null!;
 
         public GameplaySkinLayoutSnapshot LayoutSnapshot => layoutLaneContext.Snapshot;
 
         public GameplaySkinLaneId LayoutLaneId => layoutLaneContext.Lane.LaneId;
+
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet => materialContext.MaterialSet;
+
+        public GameplaySkinResolvedMaterialKey? ResolvedMaterialKey
+            => materialContext.UsesResolvedMaterial ? materialContext.GetKey(ManiaSkinComponents.KeyArea) : null;
 
         public Column(int index, bool isSpecial)
         {
@@ -101,7 +107,11 @@ namespace osu.Game.Rulesets.Mania.UI
                 hitExplosionPool = new DrawablePool<PoolableHitExplosion>(5),
                 sampleTriggerSource = new GameplaySampleTriggerSource(HitObjectContainer),
                 HitObjectArea,
-                keyArea = new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.KeyArea), _ => new DefaultKeyArea())
+                keyArea = new SkinnableDrawable(
+                    materialContext.UsesResolvedMaterial
+                        ? new ManiaSkinComponentLookup(ManiaSkinComponents.KeyArea, materialContext)
+                        : new ManiaSkinComponentLookup(ManiaSkinComponents.KeyArea),
+                    _ => new DefaultKeyArea())
                 {
                     RelativeSizeAxes = Axes.Both,
                 },
@@ -159,7 +169,7 @@ namespace osu.Game.Rulesets.Mania.UI
             IReadOnlyDependencyContainer effectiveParent = parent;
             parent.TryGet(out GameplaySkinLayoutRevisionOwner layoutOwner);
 
-            if (!parent.TryGet(out             GameplaySkinLayoutSnapshot snapshot))
+            if (!parent.TryGet(out GameplaySkinLayoutSnapshot snapshot))
             {
                 if (layoutOwner == null || layoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
                 {
@@ -192,6 +202,22 @@ namespace osu.Game.Rulesets.Mania.UI
 
             GameplaySkinLayoutLane lane = layoutLaneContext.Lane;
             GameplaySkinLaneTopologyGroup group = snapshot.GetGroup(lane.TopologyEntry.Identity.Group.Id).TopologyGroup;
+            if (!effectiveParent.TryGet(out GameplaySkinResolvedMaterialSet materialSet))
+            {
+                if (layoutOwner == null || layoutOwner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility)
+                    throw new InvalidOperationException("An exact mania column requires its committed material publication.");
+
+                materialSet = GameplaySkinResolvedMaterialSet.CreateEmpty(snapshot);
+                dependencies.Cache(materialSet);
+            }
+
+            if (!ReferenceEquals(materialSet.Snapshot, snapshot))
+                throw new InvalidOperationException("A mania column cannot mix layout and material revisions.");
+
+            materialContext = new ManiaGameplaySkinMaterialContext(
+                materialSet,
+                GameplaySkinResolvedMaterialTarget.ForLane(group, lane.TopologyEntry));
+            dependencies.Cache(materialContext);
             dependencies.Cache(new ManiaGameplaySkinStageContext(snapshot, group));
             GameplaySkinLaneTopologyEntry[] stageLanes = group.LanesInLogicalOrder.ToArray();
             int localIndex = lane.TopologyEntry.GroupLocalLogicalIndex;

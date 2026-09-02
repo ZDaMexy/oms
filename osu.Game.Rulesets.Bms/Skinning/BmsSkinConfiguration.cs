@@ -18,7 +18,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
     {
         private readonly Dictionary<(GameplaySkinLaneResourceField Field, string LaneToken), string> acceptedLaneResources = new();
         private readonly Dictionary<BmsSkinConfigurationLookups, float> acceptedGeometry = new();
-        private readonly Dictionary<BmsSkinConfigurationLookups, Color4> acceptedColours = new();
 
         public readonly BmsKeymode Keymode;
 
@@ -64,23 +63,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         /// <summary>
         /// Captures one exact native BMS colour declaration immediately after successful RGB/RGBA parsing.
-        /// The public dictionary remains the production compatibility view; the private copy is decoder provenance.
+        /// The public dictionary is the production legacy compatibility view; C4 has no separate process-local colour snapshot.
         /// </summary>
         internal void AcceptColour(BmsSkinConfigurationLookups field, Color4 value)
         {
             BmsGameplaySkinBucketColourFieldCatalog.Validate(field, nameof(field));
 
             Colours[field] = value;
-            acceptedColours[field] = value;
-        }
-
-        internal GameplaySkinConfigurationDeclaration<Color4> GetAcceptedColour(BmsSkinConfigurationLookups field)
-        {
-            BmsGameplaySkinBucketColourFieldCatalog.Validate(field, nameof(field));
-
-            return acceptedColours.TryGetValue(field, out Color4 value)
-                ? GameplaySkinConfigurationDeclaration<Color4>.Declared(value)
-                : GameplaySkinConfigurationDeclaration<Color4>.Absent;
         }
 
         /// <summary>

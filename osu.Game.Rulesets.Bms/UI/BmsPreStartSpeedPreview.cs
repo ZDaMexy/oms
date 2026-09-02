@@ -7,6 +7,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Timing;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -35,14 +36,23 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public BmsGameplayLayoutSnapshot LayoutSnapshot { get; }
 
+        public GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; }
+
         public BmsPreStartSpeedPreview(
             BmsGameplayLayoutLane lane,
             BmsKeymode keymode,
             IBindable<BmsScrollSpeedMetrics> speedMetrics,
-            BmsGameplayLayoutSnapshot layoutSnapshot)
+            BmsGameplayLayoutSnapshot layoutSnapshot,
+            GameplaySkinResolvedMaterialSet? materialSet = null)
         {
             LaneIndex = lane.LogicalIndex;
             LayoutSnapshot = layoutSnapshot ?? throw new ArgumentNullException(nameof(layoutSnapshot));
+
+            if (materialSet != null && !ReferenceEquals(materialSet.Snapshot, LayoutSnapshot.Neutral))
+                throw new ArgumentException("A BMS pre-start material set must retain its exact layout.", nameof(materialSet));
+
+            ResolvedMaterialSet = materialSet;
+
             noteHeight = LayoutSnapshot.ProjectVerticalProfileMetric(LayoutSnapshot.Profile.HitTargetHeight);
 
             this.speedMetrics = speedMetrics.GetBoundCopy();
@@ -53,8 +63,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
             InternalChildren = previewNotes = new[]
             {
-                new PreviewNote(0, lane, keymode),
-                new PreviewNote(0.5, lane, keymode),
+                new PreviewNote(0, lane, keymode, LayoutSnapshot, materialSet),
+                new PreviewNote(0.5, lane, keymode, LayoutSnapshot, materialSet),
             };
 
             this.speedMetrics.BindValueChanged(_ => updatePreviewTransforms(), true);
@@ -120,7 +130,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
             public float Progress { get; private set; }
 
-            public PreviewNote(double phaseOffset, BmsGameplayLayoutLane lane, BmsKeymode keymode)
+            public PreviewNote(
+                double phaseOffset,
+                BmsGameplayLayoutLane lane,
+                BmsKeymode keymode,
+                BmsGameplayLayoutSnapshot layoutSnapshot,
+                GameplaySkinResolvedMaterialSet? materialSet)
             {
                 PhaseOffset = phaseOffset;
 
@@ -133,7 +148,9 @@ namespace osu.Game.Rulesets.Bms.UI
                     lane.LogicalIndex,
                     lane.IsScratch,
                     keymode,
-                    lane.LaneId))
+                    lane.LaneId,
+                    layoutSnapshot,
+                    materialSet))
                 {
                     RelativeSizeAxes = Axes.Both,
                 };

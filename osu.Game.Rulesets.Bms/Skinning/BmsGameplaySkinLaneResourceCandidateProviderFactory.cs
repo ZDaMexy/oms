@@ -29,8 +29,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             ArgumentNullException.ThrowIfNull(field);
 
             if (!GameplaySkinLaneResourceFieldCatalog.TryGet(field.Id, out GameplaySkinLaneResourceField? canonical)
-                || !ReferenceEquals(field, canonical))
-                throw new ArgumentException("The lane-resource context must use a canonical field descriptor.", nameof(field));
+                || !ReferenceEquals(field, canonical)
+                || !BmsGameplaySkinNoteResourceFields.Contains(field))
+                throw new ArgumentException("The BMS lane-resource context must use one hosted Note/LN field descriptor.", nameof(field));
 
             if (!topology.TryGetLane(laneId, out _))
                 throw new ArgumentException("The lane-resource context must target the supplied topology.", nameof(laneId));
@@ -70,11 +71,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
             ArgumentNullException.ThrowIfNull(context);
             ArgumentNullException.ThrowIfNull(resourceName);
 
-            if (candidate.Source == BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback)
-                throw new ArgumentException("The canonical fallback marker is not a materializable selected-package declaration.", nameof(candidate));
-
             Source = candidate.Source;
             ManiaKeys = candidate.ManiaKeys;
+            LaneId = context.LaneId;
+            Field = context.Field;
+            ResourceName = resourceName;
+        }
+
+        internal BmsGameplaySkinLaneResourceReference(
+            BmsGameplaySkinLaneResourceContext context,
+            string resourceName)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            ArgumentNullException.ThrowIfNull(resourceName);
+
+            Source = BmsGameplaySkinConfigurationCandidateSource.SelectedDocument;
             LaneId = context.LaneId;
             Field = context.Field;
             ResourceName = resourceName;
@@ -110,9 +121,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// Adapts the selected package's BMS-to-mania declaration plan into ordered gameplay slot providers.
     /// </summary>
     /// <remarks>
-    /// Only candidates before the canonical marker are emitted. The caller retains ownership of the complete provider
-    /// hierarchy and must compose beatmap-local providers, these selected-package providers, ruleset resources, and an
-    /// explicit <c>oms-simple</c> provider in that order. A declaration never becomes <c>Provide</c> until the supplied
+    /// Production C4 composes the bound selected-package document first, then these selected-package BMS/mania
+    /// compatibility buckets and the real lower-authority providers in one final resolver chain.
+    /// Legacy beatmap direct-drawable compatibility remains outside this authoring authority and is never inserted into
+    /// this candidate plan. A declaration never becomes <c>Provide</c> until the supplied
     /// owner has constructed, retained, and performed basic validation of a component. Missing declarations inherit
     /// without invoking the owner, and ini declarations can never manufacture <c>Suppress</c>. The caller owns the
     /// revision-scoped owner supplied to <see cref="Create{TComponent}"/>; it must outlive every borrowed resolved value.
@@ -131,12 +143,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             var providers = new List<IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsGameplaySkinLaneResourceContext>, TComponent>>();
 
             foreach (BmsGameplaySkinConfigurationCandidate candidate in plan.Candidates)
-            {
-                if (candidate.Source == BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback)
-                    continue;
-
                 providers.Add(new CandidateProvider<TComponent>(plan.Topology, candidate, componentOwner));
-            }
 
             return providers.AsReadOnly();
         }
@@ -158,9 +165,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 ArgumentNullException.ThrowIfNull(topology);
                 ArgumentNullException.ThrowIfNull(candidate);
                 ArgumentNullException.ThrowIfNull(componentOwner);
-
-                if (candidate.Source == BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback)
-                    throw new ArgumentException("The canonical marker must be replaced by an explicit fallback provider.", nameof(candidate));
 
                 if (candidate.Snapshot.IsDeclared && !ReferenceEquals(candidate.Snapshot.Value.Topology, topology))
                     throw new ArgumentException("A candidate provider must use the plan's exact immutable topology.", nameof(candidate));

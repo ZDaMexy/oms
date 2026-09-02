@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `C1`作者工作区/archive、`C2`三源publication/participant/detach/retire与`C3` P1-K+唯一immutable gameplay layout均已闭合；当前`3/7 closed，C4 active`，`V-001`～`V-004`签收0/4 | 闭合shared codec/public catalog/三态resolver与mania parity；G1最终整包门、`SV1-1`、`SV1-2`/Skin V1仍未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | `C1`作者工作区/archive、`C2`三源revision、`C3`唯一layout与`C4` public catalog/shared codec/三态resolved material均已闭合；当前`4/7 closed，C5 active`，`V-001`～`V-004`签收0/4 | 闭合声明式scene/animation/event与剩余optional slot production；G1最终整包门、`SV1-1`、`SV1-2`/Skin V1仍未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity 主体已落；常驻反馈卡已按产品决定删除 | 保持 parity gate，补剩余人工/展示面 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |

@@ -26,7 +26,10 @@ namespace osu.Game.Tests.Visual
         private void load(SkinManager skins)
         {
             LegacySkin = new DefaultLegacySkin(skins);
-            legacySkinSource = new SkinProvidingContainer(LegacySkin);
+            // Keep the deliberately injected legacy layer first, while retaining the SkinManager's exact selected
+            // owner behind it. Production gameplay publication is bound to that current owner; omitting it would
+            // create an impossible source vector which no real RulesetSkinProvidingContainer can publish.
+            legacySkinSource = new FixedSkinSource(LegacySkin, skins.CurrentSkin.Value);
         }
 
         [SetUpSteps]
@@ -62,6 +65,14 @@ namespace osu.Game.Tests.Visual
             public SkinProvidingPlayer(ISkinSource skinSource)
             {
                 this.skinSource = skinSource;
+            }
+        }
+
+        private sealed partial class FixedSkinSource : SkinProvidingContainer
+        {
+            public FixedSkinSource(params ISkin[] sources)
+            {
+                SetSources(sources);
             }
         }
     }

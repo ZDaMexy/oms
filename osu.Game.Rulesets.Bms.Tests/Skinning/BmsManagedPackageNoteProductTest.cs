@@ -31,6 +31,7 @@ using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Models;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
@@ -38,7 +39,10 @@ using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.Tests.Skinning.ManualGate;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Graphics;
 using SharpCompress.Archives.Zip;
@@ -110,6 +114,164 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(resolved, Is.TypeOf<BmsSourceBoundNoteDrawable>());
                     Assert.That(resolved!.ChildrenOfType<TextureAnimation>(), Is.Empty);
                     Assert.That(resolved.ChildrenOfType<Sprite>().Single().Texture, Is.Not.Null);
+                });
+            });
+        }
+
+        [TestCase(BmsKeymode.Key5K, 1, 6, 1, 5, 0)]
+        [TestCase(BmsKeymode.Key7K, 1, 8, 1, 7, 0)]
+        [TestCase(BmsKeymode.Key9K_Bms, 0, 9, 0, 0, -1)]
+        [TestCase(BmsKeymode.Key14K, 1, 16, 1, 8, 1)]
+        public void TestSelectedManiaNoteUsesExactProductionCandidateOrder(
+            BmsKeymode keymode,
+            int logicalLaneIndex,
+            int fullKeys,
+            int fullSourceIndex,
+            int lowerKeys,
+            int lowerSourceIndex)
+        {
+            string lowerSection = lowerSourceIndex < 0
+                ? string.Empty
+                : $"\n[Mania]\nKeys: {lowerKeys}\nNoteImage{lowerSourceIndex}: notes/lower\n";
+
+            importAndSelect(
+                $"{keymode} selected mania candidate order",
+                () => createOskWithIni(
+                    createSkinHeader() +
+                    $"\n[Mania]\nKeys: {fullKeys}\nNoteImage{fullSourceIndex}: notes/full\n" +
+                    lowerSection,
+                    ("notes/full.png", createPng(3, 5, new Rgba32(40, 210, 120, 255))),
+                    ("notes/lower.png", createPng(7, 9, new Rgba32(220, 80, 50, 255)))));
+
+            ExactManagedPackageRenderer renderer = null!;
+            BmsAsyncNoteDrawable host = null!;
+
+            AddStep("mount exact-layout production renderer", () =>
+                renderer = mountExactProductionRenderer(keymode, BmsPlayfieldStyle.Center));
+            AddUntilStep("wait for full visual candidate", () =>
+            {
+                if (!renderer.HasExactPublication)
+                    return false;
+
+                host = findExactNoteHost(renderer, logicalLaneIndex)!;
+                Sprite? sprite = host?.Drawable?.ChildrenOfType<Sprite>().SingleOrDefault();
+                return host?.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                       && sprite?.Texture?.Width == 3
+                       && sprite.Texture.Height == 5;
+            });
+            AddStep("assert full visual candidate wins exact material publication", () =>
+                assertExactSelectedManiaMaterial(renderer, host, logicalLaneIndex, 3, 5));
+        }
+
+        [Test]
+        public void TestSelectedNativeBmsNoteRemainsAboveExactManiaCompatibility()
+        {
+            importAndSelect(
+                "native BMS above selected mania compatibility",
+                () => createOskWithIni(
+                    createSkinHeader() +
+                    "\n[Bms]\nKeymode: 7K\nNoteImage1: notes/native\n" +
+                    "\n[Mania]\nKeys: 8\nNoteImage1: notes/mania\n",
+                    ("notes/native.png", createPng(3, 5, new Rgba32(40, 210, 120, 255))),
+                    ("notes/mania.png", createPng(7, 9, new Rgba32(220, 80, 50, 255)))));
+
+            Drawable? resolved = null;
+
+            AddStep("resolve competing exact-layout sources", () =>
+            {
+                BmsGameplayLayoutSnapshot layout = createExactLayout(BmsKeymode.Key7K, BmsPlayfieldStyle.Center);
+                resolved = resolveExactNoteComponent(BmsNoteSkinElements.Note, layout, layout.GetLaneByLogicalIndex(1));
+            });
+            AddAssert("native BMS resource wins", () => resolved!.ChildrenOfType<Sprite>().Single().Texture.Width, () => Is.EqualTo(3));
+        }
+
+        [Test]
+        public void TestFourteenKeyExactLayoutFallsFromFullToBothDeckLocalKeysEightMappings()
+        {
+            importAndSelect(
+                "14K exact two-deck mania compatibility",
+                () => createOskWithIni(
+                    createSkinHeader() +
+                    "\n[Mania]\nKeys: 16\nNoteImage1: missing/full-one\nNoteImage8: missing/full-two\n" +
+                    "\n[Mania]\nKeys: 8\nNoteImage1: notes/deck-one\nNoteImage0: notes/deck-two\n",
+                    ("notes/deck-one.png", createPng(3, 5, new Rgba32(40, 210, 120, 255))),
+                    ("notes/deck-two.png", createPng(7, 9, new Rgba32(220, 80, 50, 255)))));
+
+            ExactManagedPackageRenderer renderer = null!;
+            BmsAsyncNoteDrawable firstDeck = null!;
+            BmsAsyncNoteDrawable secondDeck = null!;
+
+            AddStep("mount exact 14K production renderer", () =>
+                renderer = mountExactProductionRenderer(BmsKeymode.Key14K, BmsPlayfieldStyle.Center));
+            AddUntilStep("wait for both exact 14K deck materials", () =>
+            {
+                if (!renderer.HasExactPublication)
+                    return false;
+
+                firstDeck = findExactNoteHost(renderer, 1)!;
+                secondDeck = findExactNoteHost(renderer, 8)!;
+                Sprite? firstSprite = firstDeck?.Drawable?.ChildrenOfType<Sprite>().SingleOrDefault();
+                Sprite? secondSprite = secondDeck?.Drawable?.ChildrenOfType<Sprite>().SingleOrDefault();
+                return firstDeck?.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                       && secondDeck?.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                       && firstSprite?.Texture?.Width == 3
+                       && firstSprite.Texture.Height == 5
+                       && secondSprite?.Texture?.Width == 7
+                       && secondSprite.Texture.Height == 9;
+            });
+            AddStep("assert one Keys8 bucket projects independently over two decks", () =>
+            {
+                assertExactSelectedManiaMaterial(renderer, firstDeck, 1, 3, 5);
+                assertExactSelectedManiaMaterial(renderer, secondDeck, 8, 7, 9);
+
+                Assert.That(
+                    renderer.Drawable.LayoutSnapshot.GetLaneByLogicalIndex(1).GroupLogicalIndex,
+                    Is.Not.EqualTo(renderer.Drawable.LayoutSnapshot.GetLaneByLogicalIndex(8).GroupLogicalIndex));
+            });
+        }
+
+        [Test]
+        public void TestExactRightScratchUsesStableLaneAndFullVisualIndex()
+        {
+            importAndSelect(
+                "7K exact right-scratch mania compatibility",
+                () => createOskWithIni(
+                    createSkinHeader() +
+                    "\n[Mania]\nKeys: 8\nNoteImage7: notes/right-scratch\n",
+                    ("notes/right-scratch.png", createPng(3, 5, new Rgba32(40, 210, 120, 255)))));
+
+            ExactManagedPackageRenderer renderer = null!;
+            BmsAsyncNoteDrawable scratchHost = null!;
+
+            AddStep("mount exact right-scratch production renderer", () =>
+                renderer = mountExactProductionRenderer(BmsKeymode.Key7K, BmsPlayfieldStyle.CenterRightScratch));
+            AddUntilStep("wait for exact right-scratch material publication", () => renderer.HasExactPublication);
+            AddStep("assert right-scratch candidate prepared before rendering", () =>
+                assertExactSelectedManiaMaterialEntry(renderer, 0, 3, 5));
+            AddUntilStep("wait for exact right-scratch full visual candidate", () =>
+            {
+                if (!renderer.HasExactPublication)
+                    return false;
+
+                BmsGameplayLayoutSnapshot layout = renderer.Drawable.LayoutSnapshot;
+                BmsGameplayLayoutLane scratch = layout.GetLaneByLogicalIndex(0);
+                scratchHost = findExactNoteHost(renderer, scratch.LogicalIndex)!;
+                Sprite? sprite = scratchHost?.Drawable?.ChildrenOfType<Sprite>().SingleOrDefault();
+                return scratchHost?.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                       && sprite?.Texture?.Width == 3
+                       && sprite.Texture.Height == 5;
+            });
+            AddStep("assert right scratch consumes stable-lane full visual material", () =>
+            {
+                BmsGameplayLayoutLane scratch = renderer.Drawable.LayoutSnapshot.GetLaneByLogicalIndex(0);
+                assertExactSelectedManiaMaterial(renderer, scratchHost, scratch.LogicalIndex, 3, 5);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(scratch.IsScratch, Is.True);
+                    Assert.That(scratch.LogicalIndex, Is.Zero);
+                    Assert.That(scratch.VisualIndex, Is.EqualTo(7));
+                    Assert.That(scratchHost.Lookup.LaneId, Is.EqualTo(scratch.LaneId));
                 });
             });
         }
@@ -1023,7 +1185,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBeatmapLocalDrawableKeepsPriorityOverSelectedManagedPackage()
+        public void TestLegacyBeatmapCompatibilityDrawableKeepsPriorityOverSelectedManagedPackage()
         {
             importAndSelect(
                 "selected package below beatmap provider",
@@ -1039,7 +1201,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBrokenBeatmapLocalComponentFallsThroughToSelectedManagedPackage()
+        public void TestBrokenLegacyBeatmapCompatibilityComponentFallsThroughToSelectedManagedPackage()
         {
             importAndSelect(
                 "selected package below broken beatmap provider",
@@ -1055,7 +1217,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBeatmapLocalLongNoteHeadProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
+        public void TestLegacyBeatmapCompatibilityLongNoteHeadProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
         {
             importAndSelect(
                 "selected long-note heads below beatmap provider",
@@ -1089,7 +1251,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBeatmapLocalLongNoteTailProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
+        public void TestLegacyBeatmapCompatibilityLongNoteTailProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
         {
             importAndSelect(
                 "selected long-note tails below injected beatmap provider",
@@ -1124,7 +1286,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestBeatmapLocalLongNoteBodyProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
+        public void TestLegacyBeatmapCompatibilityLongNoteBodyProviderOrderKeepsDirectDrawableAndFallsThroughBrokenTexture()
         {
             importAndSelect(
                 "selected long-note bodies below injected beatmap provider",
@@ -1422,6 +1584,76 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(hosts[0].Drawable!.ChildrenOfType<Box>(), Is.Not.Empty);
                     Assert.That(hosts[1].Drawable, Is.TypeOf(getSourceBoundDrawableType(element)));
                 });
+            });
+        }
+
+        [Test]
+        public void TestPublicLateDecodeFailureFallsThroughToSamePackageLegacyCandidate()
+        {
+            byte[] publicCorrupt = createLateDecodeFailurePng();
+
+            AddStep("verify public fixture identifies but cannot fully decode", () =>
+            {
+                using var identifyStream = new MemoryStream(publicCorrupt, writable: false);
+                Assert.That(Image.Identify(identifyStream), Is.Not.Null);
+
+                using var decodeStream = new MemoryStream(publicCorrupt, writable: false);
+                Assert.That(() =>
+                {
+                    using Image _ = Image.Load(decodeStream);
+                }, Throws.Exception);
+            });
+            importAndSelect(
+                "public late-decode failure above valid native BMS note",
+                () => createOskWithIni(
+                    createSkinHeader() +
+                    "\n[Bms]\n" +
+                    "Keymode: 7K\n" +
+                    "NoteImage1: notes/legacy\n" +
+                    "\n[GameplaySkin.Common:1]\n" +
+                    "Target: Lane ruleset=bms keymode=7k stage-mode=single group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=1 group-local-visual=1\n" +
+                    "object.note: resource Provide \"notes/public-corrupt.png\"\n",
+                    ("notes/public-corrupt.png", publicCorrupt),
+                    ("notes/legacy.png", createPng(7, 9, new Rgba32(40, 200, 90, 255)))));
+
+            ExactManagedPackageRenderer renderer = null!;
+            BmsAsyncNoteDrawable noteHost = null!;
+
+            AddStep("mount exact renderer with public above legacy", () =>
+                renderer = mountExactProductionRenderer(BmsKeymode.Key7K, BmsPlayfieldStyle.Center));
+            AddUntilStep("wait for exact fallback publication", () => renderer.HasExactPublication);
+            AddStep("assert selected legacy wins after public late decode failure", () =>
+            {
+                BmsGameplayLayoutSnapshot layout = renderer.Drawable.LayoutSnapshot;
+                BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(1);
+                GameplaySkinDocumentEntry publicEntry = skinManager.CurrentSkin.Value.GameplaySkinDocument.Sections
+                    .SelectMany(section => section.Entries)
+                    .Single(entry => ReferenceEquals(entry.Descriptor, GameplaySkinSlotCatalog.Note));
+                var key = new GameplaySkinResolvedMaterialKey(
+                    GameplaySkinSlotCatalog.Note,
+                    BmsGameplayNoteMaterialTarget.Create(layout, lane));
+
+                Assert.That(renderer.Drawable.ResolvedMaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(publicEntry.Validity, Is.EqualTo(GameplaySkinDocumentValueValidity.Valid));
+                    Assert.That(publicEntry.Value, Is.EqualTo("notes/public-corrupt.png"));
+                    Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                    Assert.That(entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                    Assert.That(entry.Source.StableId, Is.EqualTo("selected-legacy-bms"));
+                    Assert.That(
+                        renderer.Drawable.ResolvedMaterialSet.Diagnostics.Select(diagnostic => diagnostic.Code),
+                        Does.Contain("bms.material.decode-failed"),
+                        string.Join(", ", renderer.Drawable.ResolvedMaterialSet.Diagnostics.Select(diagnostic => $"{diagnostic.Code}:{diagnostic.SourceKind}")));
+                });
+            });
+            AddUntilStep("wait for selected legacy note visual", () =>
+            {
+                noteHost = findExactNoteHost(renderer, 1)!;
+                Sprite? sprite = noteHost?.Drawable?.ChildrenOfType<Sprite>().SingleOrDefault();
+                return noteHost?.Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
+                       && sprite?.Texture.Width == 7
+                       && sprite.Texture.Height == 9;
             });
         }
 
@@ -2047,6 +2279,142 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private Drawable? resolveNoteComponent(BmsNoteSkinElements element, int laneIndex = 1, bool isScratch = false, BmsKeymode keymode = BmsKeymode.Key7K)
             => new BmsSkinTransformer(skinManager.CurrentSkin.Value).GetDrawableComponent(new BmsNoteSkinLookup(element, laneIndex, isScratch, keymode));
 
+        private Drawable? resolveExactNoteComponent(
+            BmsNoteSkinElements element,
+            BmsGameplayLayoutSnapshot layout,
+            BmsGameplayLayoutLane lane)
+            => new BmsSkinTransformer(skinManager.CurrentSkin.Value).GetDrawableComponent(new BmsNoteSkinLookup(
+                element,
+                lane.LogicalIndex,
+                lane.IsScratch,
+                layout.Keymode,
+                lane.LaneId,
+                layout));
+
+        private ExactManagedPackageRenderer mountExactProductionRenderer(BmsKeymode keymode, BmsPlayfieldStyle style)
+        {
+            var ruleset = new BmsRuleset();
+            BmsBeatmap beatmap = createExactProductionBeatmap(ruleset, keymode);
+            var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset)!;
+            config.SetValue(BmsRulesetSetting.PlayfieldStyle, style);
+
+            Child = new ExactManagedPackageRenderer(ruleset, beatmap, config);
+            return (ExactManagedPackageRenderer)Child;
+        }
+
+        private static BmsAsyncNoteDrawable? findExactNoteHost(ExactManagedPackageRenderer renderer, int logicalLaneIndex)
+            => renderer.Drawable.ChildrenOfType<DrawableBmsHitObject>()
+                       .FirstOrDefault(candidate => candidate.HitObject is BmsHitObject hitObject
+                                                    && hitObject.GetType() == typeof(BmsHitObject)
+                                                    && hitObject.LaneIndex == logicalLaneIndex)?
+                       .ChildrenOfType<BmsAsyncNoteDrawable>()
+                       .SingleOrDefault(host => host.Lookup.Element == BmsNoteSkinElements.Note);
+
+        private static void assertExactSelectedManiaMaterial(
+            ExactManagedPackageRenderer renderer,
+            BmsAsyncNoteDrawable host,
+            int logicalLaneIndex,
+            int expectedWidth,
+            int expectedHeight)
+        {
+            BmsGameplayLayoutSnapshot layout = renderer.Drawable.LayoutSnapshot;
+            GameplaySkinResolvedMaterialSet materialSet = renderer.Drawable.ResolvedMaterialSet;
+            BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(logicalLaneIndex);
+            var key = new GameplaySkinResolvedMaterialKey(
+                GameplaySkinSlotCatalog.Note,
+                BmsGameplayNoteMaterialTarget.Create(layout, lane));
+
+            Assert.That(materialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+            Sprite sprite = host.Drawable!.ChildrenOfType<Sprite>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(host.Lookup.LayoutSnapshot, Is.SameAs(layout));
+                Assert.That(host.Lookup.MaterialSet, Is.SameAs(materialSet));
+                Assert.That(host.Lookup.LaneId, Is.EqualTo(lane.LaneId));
+                Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                Assert.That(entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                Assert.That(entry.Source.StableId, Is.EqualTo("selected-legacy-mania"));
+                Assert.That(entry.RuntimeValueType, Is.EqualTo(typeof(BmsSourceBoundNoteMaterial)));
+                Assert.That(host.Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
+                Assert.That(sprite.Texture.Width, Is.EqualTo(expectedWidth));
+                Assert.That(sprite.Texture.Height, Is.EqualTo(expectedHeight));
+                Assert.That(host.ChildrenOfType<DefaultBmsNoteDisplay>(), Is.Empty);
+            });
+        }
+
+        private static void assertExactSelectedManiaMaterialEntry(
+            ExactManagedPackageRenderer renderer,
+            int logicalLaneIndex,
+            int expectedWidth,
+            int expectedHeight)
+        {
+            BmsGameplayLayoutSnapshot layout = renderer.Drawable.LayoutSnapshot;
+            GameplaySkinResolvedMaterialSet materialSet = renderer.Drawable.ResolvedMaterialSet;
+            BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(logicalLaneIndex);
+            var key = new GameplaySkinResolvedMaterialKey(
+                GameplaySkinSlotCatalog.Note,
+                BmsGameplayNoteMaterialTarget.Create(layout, lane));
+
+            Assert.That(materialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+            IBmsResolvedNoteMaterial material = entry!.GetMaterial<IBmsResolvedNoteMaterial>();
+            using Drawable visual = material.CreateDrawable();
+            Sprite sprite = visual.ChildrenOfType<Sprite>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                Assert.That(entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                Assert.That(entry.Source.StableId, Is.EqualTo("selected-legacy-mania"));
+                Assert.That(entry.RuntimeValueType, Is.EqualTo(typeof(BmsSourceBoundNoteMaterial)));
+                Assert.That(sprite.Texture.Width, Is.EqualTo(expectedWidth));
+                Assert.That(sprite.Texture.Height, Is.EqualTo(expectedHeight));
+            });
+        }
+
+        private BmsBeatmap createExactProductionBeatmap(BmsRuleset ruleset, BmsKeymode keymode)
+        {
+            (string filename, int[] channels) = keymode switch
+            {
+                BmsKeymode.Key5K => ("managed-candidate-5k.bms", new[] { 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 }),
+                BmsKeymode.Key7K => ("managed-candidate-7k.bme", new[] { 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x18, 0x19 }),
+                BmsKeymode.Key9K_Bms => ("managed-candidate-9k.bms", Enumerable.Range(0x11, 9).ToArray()),
+                BmsKeymode.Key14K => ("managed-candidate-14k.bms", new[]
+                {
+                    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x18, 0x19,
+                    0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x28, 0x29,
+                }),
+                _ => throw new ArgumentOutOfRangeException(nameof(keymode), keymode, "No exact candidate fixture exists for this keymode."),
+            };
+
+            string channelData = string.Join("\n", channels.Select(channel => $"#001{channel:X2}:0100"));
+            string text = $"#TITLE Exact managed candidate\n#BPM 120\n#WAV01 note.wav\n{channelData}\n";
+            var decoded = new BmsBeatmapDecoder().DecodeText(text, filename);
+            var beatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decoded), ruleset).Convert();
+
+            // The visual test clock is shared across parameterised cases, while decoded BMS times start at zero.
+            // Move this test-owned chart as one immutable timeline so its real pooled drawables enter their normal
+            // production lifetime after the exact material publication has loaded.
+            double earliestStart = beatmap.HitObjects.OfType<BmsHitObject>().Min(hitObject => hitObject.StartTime);
+            double timelineOffset = Clock.CurrentTime + 4_000 - earliestStart;
+
+            foreach (BmsHitObject hitObject in beatmap.HitObjects.OfType<BmsHitObject>())
+                hitObject.StartTime += timelineOffset;
+
+            Assert.That(beatmap.BmsInfo.Keymode, Is.EqualTo(keymode));
+            return beatmap;
+        }
+
+        private static BmsGameplayLayoutSnapshot createExactLayout(BmsKeymode keymode, BmsPlayfieldStyle style)
+        {
+            var beatmap = new BmsBeatmap
+            {
+                BmsInfo = new BmsBeatmapInfo { Keymode = keymode },
+            };
+
+            return new BmsGameplayLayoutProvider(beatmap).PublishForTesting(style, new BmsGameplayLayoutConfiguration());
+        }
+
         private static Task<Drawable?> resolveWithCancellation(BmsLegacySkin skin, BmsNoteSkinElements element, CancellationToken cancellationToken)
             => Task.Run(() =>
             {
@@ -2220,16 +2588,26 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             IReadOnlyList<(string Key, string Resource)> declarations,
             params (string Name, byte[] Content)[] entries)
         {
-            string skinName = $"BMS managed note product {Guid.NewGuid():N}";
-            string skinIni =
-                "[General]\n" +
-                $"Name: {skinName}\n" +
-                "Author: OMS tests\n" +
-                "Version: 2.7\n" +
+            string skinIni = createSkinHeader() +
                 "\n" +
                 "[Bms]\n" +
                 $"Keymode: {keymode}\n" +
                 string.Concat(declarations.Select(declaration => $"{declaration.Key}: {declaration.Resource}\n"));
+
+            return createOskWithIni(skinIni, entries);
+        }
+
+        private static string createSkinHeader()
+            => "[General]\n" +
+               $"Name: BMS managed note product {Guid.NewGuid():N}\n" +
+               "Author: OMS tests\n" +
+               "Version: 2.7\n";
+
+        private static MemoryStream createOskWithIni(
+            string skinIni,
+            params (string Name, byte[] Content)[] entries)
+        {
+            ArgumentNullException.ThrowIfNull(skinIni);
 
             var output = new MemoryStream();
             var entryStreams = new List<MemoryStream>();
@@ -2272,9 +2650,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             byte[] valid = createPng(4, 3, new Rgba32(230, 40, 80, 255));
 
-            // PNG identification only needs the signature and IHDR. Truncating the following image data preserves
-            // dimensions for the preflight while guaranteeing that full pixel decode cannot complete.
-            return valid.Take(40).ToArray();
+            // The 8-byte signature plus complete 25-byte IHDR chunk are sufficient for Image.Identify(). Omitting all
+            // pixel chunks preserves metadata identification while guaranteeing that full decode cannot complete.
+            return valid.Take(33).ToArray();
         }
 
         private sealed class ImportedSkin
@@ -2376,6 +2754,67 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 SetSources(sources);
                 TriggerSourceChanged();
+            }
+        }
+
+        /// <summary>
+        /// Minimal real gameplay root for legacy-candidate product assertions. The selected package is still supplied by
+        /// the scene's <see cref="SkinManager"/>; this fixture only supplies the same score/config dependencies as Player.
+        /// </summary>
+        private sealed partial class ExactManagedPackageRenderer : CompositeDrawable
+        {
+            public DrawableBmsRuleset Drawable { get; }
+
+            public bool HasExactPublication
+                => Drawable.LayoutProvider.RevisionOwner?.CurrentPublication != null;
+
+            public ExactManagedPackageRenderer(
+                BmsRuleset ruleset,
+                BmsBeatmap beatmap,
+                BmsRulesetConfigManager config)
+            {
+                ArgumentNullException.ThrowIfNull(ruleset);
+                ArgumentNullException.ThrowIfNull(beatmap);
+                ArgumentNullException.ThrowIfNull(config);
+
+                RelativeSizeAxes = Axes.Both;
+
+                HealthProcessor healthProcessor = ruleset.CreateHealthProcessor(0);
+                healthProcessor.ApplyBeatmap(beatmap);
+                ScoreProcessor scoreProcessor = ruleset.CreateScoreProcessor();
+                scoreProcessor.ApplyBeatmap(beatmap);
+                Drawable = (DrawableBmsRuleset)ruleset.CreateDrawableRulesetWith(beatmap);
+
+                var dependencyHost = new DependencyProvidingContainer
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CachedDependencies = new (Type, object)[]
+                    {
+                        (typeof(GameplayState), new GameplayState(beatmap, ruleset)),
+                        (typeof(HealthProcessor), healthProcessor),
+                        (typeof(ScoreProcessor), scoreProcessor),
+                    },
+                    Child = Drawable,
+                };
+                var provider = new RulesetSkinProvidingContainer(
+                    ruleset,
+                    beatmap,
+                    null,
+                    prepareGameplaySkinLayout: true)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = dependencyHost,
+                };
+
+                InternalChild = new DependencyProvidingContainer
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CachedDependencies = new (Type, object)[]
+                    {
+                        (typeof(BmsRulesetConfigManager), config),
+                    },
+                    Child = provider,
+                };
             }
         }
 

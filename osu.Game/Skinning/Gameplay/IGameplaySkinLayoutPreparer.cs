@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Game.Beatmaps;
 
@@ -37,6 +38,9 @@ namespace osu.Game.Skinning.Gameplay
     /// </remarks>
     public interface IGameplaySkinLayoutPreparer
     {
-        GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies);
+        GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(
+            IBeatmap beatmap,
+            IReadOnlyDependencyContainer dependencies,
+            CancellationToken cancellationToken);
     }
 }

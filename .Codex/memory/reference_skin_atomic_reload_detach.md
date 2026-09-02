@@ -1,6 +1,6 @@
 ---
 name: reference_skin_atomic_reload_detach
-description: C2三源current revision与C3 package+layout不可分publication、lease/detach/retire、manual Reload和live fail-closed边界
+description: C2三源current revision与C3/C4 package+layout+material不可分publication、lease/detach/retire、manual Reload和live fail-closed边界
 metadata:
   node_type: memory
   type: reference
@@ -8,12 +8,12 @@ metadata:
 
 # Skin current revision atomic reload/detach 地雷
 
-## 当前结论（2026-08-30，C2+C3已签发）
+## 当前结论（2026-09-02，C2+C3+C4已签发）
 
-- C2已由真实Settings caller接通ordinary Realm `.osk`、managed与external三源same-record-ID/content-revision纵切；C3又把唯一immutable gameplay layout作为同一package+layout pair加入publication、participant与owner协议。两者均已通过宽测试、Release与独立终审；权威燃尽是`3/7 closed，C4 active`。当前状态只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，完整participant/holder/bypass inventory与稳定合同见[P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，C3边界见[C3完成交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
+- C2已由真实Settings caller接通ordinary Realm`.osk`、managed与external三源same-record-ID/content-revision纵切；C3把唯一immutable gameplay layout加入，C4又把shared document与resolved material作为同一package+layout+material引用加入publication、participant与owner协议。三项均已通过宽测试、Release与独立终审；权威燃尽是`4/7 closed，C5 active`。当前状态只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，完整participant/holder/bypass inventory与稳定合同见[P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，C4边界见[C4完成交接](../../doc_md/other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)。
 - 唯一产品入口是Settings → Skin → `Reload current skin`。Folder Skin Workspace无行级Reload，same-value selection仍no-op，startup scanner仍只做一次reconcile，不实现watcher；legacy Skin Editor、external-edit与update-import的UI/backend均稳定fail-closed。
 - live gameplay/gameplay preview由`RulesetSkinProvidingContainer`和`PlayerLoader`登记`LiveGameplayHost`，manager在任何source capture/parse/provisional prepare前确定拒绝并给出退出后重试反馈。其它attached且无staged receipt的visual consumer也fail-closed；禁止先改变active pair再延后。
-- C3已把BMS/mania/core gameplay layout、BGA最终viewport与HUD consumer同切加入协议。C4～C6新增codec/catalog/scene/script/剩余素材consumer仍必须同切加入；`ini/manifest/scene/script/素材`最终整包reload与G1自动门仍到C6关闭。
+- C3已把BMS/mania/core gameplay layout、BGA最终viewport与HUD consumer加入协议；C4又加入public codec/catalog/resolver及BMS Note/LN、mania Note/Hold/KeyVisual material consumer。C5～C6新增scene/script/剩余素材consumer仍必须同切加入；`ini/manifest/scene/script/素材`最终整包reload与G1自动门仍到C6关闭。
 
 ## production object graph inventory
 
@@ -22,7 +22,7 @@ metadata:
 ### 必须coherent处理的视觉consumer
 
 - `RulesetSkinProvidingContainer → BeatmapSkinProvidingContainer → core/mania/BMS provider tree`整体登记`LiveGameplayHost`，持有transformed current、beatmap-local与fallback source；gameplay/preview只允许prepare前拒绝，不开放在线逐件重建。
-- BMS playfield/stage/group/lane、Note/LN、barline、hit/judgement line/target、lane cover、pre-start、BGA最终viewport、gauge/combo/HUD都从同一个exact layout publication取geometry；`BmsAsyncNoteDrawable`/materializer另持exact work lease，late attach只取得已提交package+layout pair。
+- BMS playfield/stage/group/lane、Note/LN、barline、hit/judgement line/target、lane cover、pre-start、BGA最终viewport、gauge/combo/HUD与mania migrated consumer都从同一个exact publication取geometry/material；`BmsAsyncNoteDrawable`/materializer另持exact work lease，late attach只取得已提交package+layout+material triple。
 - mania playfield/stage/column/flow、Note/Hold、barline/hidden、hit target、judgement/adjustment/touch input和gameplay HUD，以及core ruleset/provider root都消费同一publication的neutral snapshot或typed adapter；逐件`SourceChanged`、transformer snapshot hand-off或consumer-local `Apply`不能冒充coherent commit。
 - generic `SkinReloadableDrawable` family（`SkinnableDrawable`、`SkinnableContainer`、`SkinnableSprite/Text`及song-select/results/HUD/BMS/mania实例）在load前登记temporary blocker，load后登记exact participant lease；只有可提供staged receipt者能过barrier，否则fail-closed。
 - ordinary非live `SkinProvidingContainer`/`BeatmapSkinProvidingContainer`会跨frame持有source array与fallback lookup；未提供staged source-array swap时attached即拒绝，自然detach后重试，late instance绑定已提交revision。
@@ -48,8 +48,8 @@ metadata:
 
 ## revision、participant 与 owner
 
-- `GameplaySkinLayoutRevisionOwner`由live root的exact `GameplaySkinPackageRevision`创建，只能发布一个`GameplaySkinLayoutPublication`；one-shot guard必须由shared owner在自己的锁内执行，不能只靠ruleset helper，否则cached descendant可二次prepare。publication把ruleset-neutral snapshot与exact typed adapter绑定为同一引用。package/current revision和layout revision是不可分割pair，不允许先发package再补layout，或让consumer各自缓存可替换snapshot。
-- 可失败的native stage vector/topology、environment读取、skin geometry解析、solve与资源准备都在fresh work lease内的background prepare完成；BMS/mania不能在进入owner callback前预发布topology。update thread只交换prepared immutable publication引用。prepare前后及commit锁内同时复核root、participant generation、selection/source/content/package/layout revision；attach触发fresh barrier重试，commit前detach拒绝carrier，成功后late attach只看已提交pair。
+- `GameplaySkinLayoutRevisionOwner`由live root的exact`GameplaySkinPackageRevision`创建，只能发布一个`GameplaySkinLayoutPublication`；one-shot guard必须由shared owner在自己的锁内执行，不能只靠ruleset helper。publication把ruleset-neutral snapshot、exact typed adapter与`GameplaySkinResolvedMaterialSet`绑定为同一引用；exact source只接受current catalog/codec/resolver合同，`CompatibilityEmpty`仅允许detached compatibility owner。package/current、layout与material不可分割，不允许先发package/layout再补material或让consumer各自merge lookup。
+- 可失败的native stage vector/topology、environment读取、skin geometry解析/solve、shared codec/catalog validate、resource decode与resolved material构造都在fresh work lease内的background prepare完成；BMS/mania不能在进入owner callback前预发布topology/material。production只使用shared cancellation-aware `PreparePublication`：carrier取得fresh work lease/publication retirement后立即进入可Dispose scope，BMS/mania caller还要在`using`内、`TryCommit`前复核token，关闭solver最后检查后的取消窄窗。update thread只交换prepared immutable publication引用。prepare前后及commit锁内同时复核root、participant generation、selection/source/content/package/layout/material合同；attach触发fresh barrier重试，commit前detach拒绝carrier，成功后late attach只看已提交triple。
 - production consumer只能从exact owner的`CurrentPublication`取得neutral/typed同一引用。外部注入carrier、另一owner的prepared carrier、同root第二provider、compatibility→exact mutation、无publication或二次prepare都fail-closed；BMS/mania managed preparer在任何config/skin/solve前拒绝compatibility token。isolated compatibility只是detached测试dependency scope的显式opt-in，不承担production lifetime authority，也不能进入真实provider树。
 - `SkinCurrentRevision`绑定generation、record ID、content revision、source kind和exact owning `Skin`；manager、participant、work与operation lease分别表示current authority、visible attach、隐藏异步work与rollback存活，不能用record ID或`SourceChanged`猜owner。
 - participant inventory分三类：必须coherent处理的core/mania/BMS provider/renderer、generic skinnable、ordinary provider、fountain/sample/storyboard与pending screen/player graph；跨fade/sample/materializer/callback的lease-only holder；以及只聚合descendant的sound wrapper、guarded UI projection、独立beatmap/ruleset authority和已禁用authoring路径。完整稳定分类固化在[P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)的C2合同，本memory只保留诊断召回。
@@ -76,7 +76,7 @@ metadata:
 
 ## 关联入口
 
-- 唯一layout publication：[[reference_gameplay_skin_layout_snapshot]]；完成边界见[C3交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
+- 唯一layout publication：[[reference_gameplay_skin_layout_snapshot]]；shared codec/material：[[reference_gameplay_skin_codec_material]]；完成边界见[C4交接](../../doc_md/other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)。
 - exact capsule/owner：[[reference_skin_package_revision_capsule]]。
 - managed/external authority：[[reference_skin_managed_folder_selection]]、[[reference_skin_managed_folder_scanner]]、[[reference_skin_external_workspace_managed_copy]]。
 - mutation recovery：[[reference_skin_managed_folder_mutation_foundation]]、[[reference_skin_osk_archive_import_safety]]。

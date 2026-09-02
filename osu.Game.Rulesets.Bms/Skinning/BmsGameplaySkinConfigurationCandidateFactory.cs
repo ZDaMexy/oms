@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
@@ -20,10 +21,56 @@ namespace osu.Game.Rulesets.Bms.Skinning
             IReadOnlyList<LegacyManiaSkinConfiguration> maniaConfigurations)
         {
             ArgumentNullException.ThrowIfNull(layout);
+            BmsGameplaySkinLaneTopologyProjection projection = BmsGameplaySkinLaneTopologyFactory.Create(layout);
+
+            return create(projection, bmsConfigurations, maniaConfigurations);
+        }
+
+        /// <summary>
+        /// Builds a production compatibility plan over the exact topology reference retained by the committed C3 layout
+        /// publication. This entry point must never reconstruct an equivalent topology from keymode or presentation style.
+        /// </summary>
+        public static BmsGameplaySkinConfigurationCandidatePlan CreateExact(
+            BmsGameplayLayoutSnapshot layout,
+            IReadOnlyList<BmsSkinConfiguration> bmsConfigurations,
+            IReadOnlyList<LegacyManiaSkinConfiguration> maniaConfigurations)
+        {
+            ArgumentNullException.ThrowIfNull(layout);
+
+            GameplaySkinLaneTopologySnapshot topology = layout.Neutral.Context.Topology;
+
+            if (layout.LanesInLogicalOrder.Count != topology.LanesInLogicalOrder.Count)
+                throw new ArgumentException("The exact BMS layout and topology lane counts differ.", nameof(layout));
+
+            for (int logicalIndex = 0; logicalIndex < layout.LanesInLogicalOrder.Count; logicalIndex++)
+            {
+                BmsGameplayLayoutLane lane = layout.LanesInLogicalOrder[logicalIndex];
+                GameplaySkinLaneTopologyEntry topologyLane = topology.LanesInLogicalOrder[logicalIndex];
+
+                if (!ReferenceEquals(lane.NeutralLane.TopologyEntry, topologyLane)
+                    || lane.LogicalIndex != topologyLane.GlobalLogicalIndex
+                    || lane.VisualIndex != topologyLane.GlobalVisualIndex
+                    || lane.GroupLocalLogicalIndex != topologyLane.GroupLocalLogicalIndex
+                    || lane.GroupLocalVisualIndex != topologyLane.GroupLocalVisualIndex
+                    || !lane.LaneId.Equals(topologyLane.Identity.Id))
+                {
+                    throw new ArgumentException("The BMS compatibility plan must retain every exact C3 lane identity and explicit index.", nameof(layout));
+                }
+            }
+
+            var projection = new BmsGameplaySkinLaneTopologyProjection(layout.Keymode, layout.Style, topology);
+            return create(projection, bmsConfigurations, maniaConfigurations);
+        }
+
+        private static BmsGameplaySkinConfigurationCandidatePlan create(
+            BmsGameplaySkinLaneTopologyProjection projection,
+            IReadOnlyList<BmsSkinConfiguration> bmsConfigurations,
+            IReadOnlyList<LegacyManiaSkinConfiguration> maniaConfigurations)
+        {
+            ArgumentNullException.ThrowIfNull(projection);
             ArgumentNullException.ThrowIfNull(bmsConfigurations);
             ArgumentNullException.ThrowIfNull(maniaConfigurations);
 
-            BmsGameplaySkinLaneTopologyProjection projection = BmsGameplaySkinLaneTopologyFactory.Create(layout);
             var candidates = new List<BmsGameplaySkinConfigurationCandidate>
             {
                 new BmsGameplaySkinConfigurationCandidate(
@@ -73,11 +120,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     maniaConfigurations));
             }
 
-            candidates.Add(new BmsGameplaySkinConfigurationCandidate(
-                BmsGameplaySkinConfigurationCandidateSource.CanonicalFallback,
-                null,
-                GameplaySkinConfigurationDeclaration<GameplaySkinLaneResourceSnapshot>.Absent));
-
             return new BmsGameplaySkinConfigurationCandidatePlan(
                 projection.Keymode,
                 projection.AppliedStyle,
@@ -95,11 +137,24 @@ namespace osu.Game.Rulesets.Bms.Skinning
             return new BmsGameplaySkinConfigurationCandidate(
                 source,
                 keys,
-                LegacyManiaGameplaySkinLaneResourceSnapshotFactory.Create(
+                retainBmsHostedFields(LegacyManiaGameplaySkinLaneResourceSnapshotFactory.Create(
                     maniaConfigurations,
                     keys,
                     topology,
-                    mapping));
+                    mapping)));
+        }
+
+        private static GameplaySkinConfigurationDeclaration<GameplaySkinLaneResourceSnapshot> retainBmsHostedFields(
+            GameplaySkinConfigurationDeclaration<GameplaySkinLaneResourceSnapshot> declaration)
+        {
+            if (!declaration.IsDeclared)
+                return declaration;
+
+            GameplaySkinLaneResourceSnapshot snapshot = declaration.Value;
+            return GameplaySkinConfigurationDeclaration<GameplaySkinLaneResourceSnapshot>.Declared(
+                GameplaySkinLaneResourceSnapshot.Create(
+                    snapshot.Topology,
+                    snapshot.Declarations.Where(candidate => BmsGameplaySkinNoteResourceFields.Contains(candidate.Field))));
         }
     }
 }

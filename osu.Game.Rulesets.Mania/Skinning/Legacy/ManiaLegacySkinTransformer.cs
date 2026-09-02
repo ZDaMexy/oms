@@ -152,6 +152,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                     return getResult(resultComponent.Component);
 
                 case ManiaSkinComponentLookup maniaComponent:
+                    if (ManiaGameplaySkinResolvedDrawableFactory.TryCreate(maniaComponent, out Drawable preparedDrawable))
+                        return preparedDrawable;
+
                     if (!isLegacySkin.Value || !hasKeyTexture.Value)
                         return null;
 
@@ -163,7 +166,7 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                         case ManiaSkinComponents.HitTarget:
                             // Legacy skins sandwich the hit target between the column background and the column light.
                             // To preserve this ordering, it's created manually inside LegacyStageBackground.
-                            return Drawable.Empty();
+                            return new ManiaLegacyHitTargetOrderingMarker();
 
                         case ManiaSkinComponents.KeyArea:
                             return new LegacyKeyArea();

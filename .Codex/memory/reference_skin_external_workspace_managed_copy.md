@@ -36,4 +36,4 @@ metadata:
 
 ## C1关闭后的边界
 
-- external Workspace、ManagedCopy与ordinary noncurrent Unregister已随C1关闭；C2 same-ID reload、current external unregister与全consumer publication/detach/retire也已签发，C3又把layout纳入不可分割publication pair，燃尽为`3/7 closed，C4 active`。watcher始终不属于该能力。
+- external Workspace、ManagedCopy与ordinary noncurrent Unregister已随C1关闭；C2 same-ID reload、current external unregister与全consumer publication/detach/retire也已签发，C3/C4又把layout/material纳入不可分割publication，燃尽为`4/7 closed，C5 active`。watcher始终不属于该能力。

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
@@ -23,10 +24,11 @@ using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Rulesets;
 using osu.Game.Screens.Play.HUD;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Skinning
 {
-    public abstract class Skin : IDisposable, ISkin
+    public abstract class Skin : IDisposable, ISkin, IGameplaySkinDocumentSource
     {
         private readonly IStorageResourceProvider? resources;
 
@@ -71,6 +73,33 @@ namespace osu.Game.Skinning
         internal string? PackageContentRevision { get; }
 
         /// <summary>
+        /// The sole C2 whole-package identity projection used when publishing or preparing this exact skin owner.
+        /// </summary>
+        internal string GetCurrentRevisionContentIdentity()
+        {
+            if (!string.IsNullOrEmpty(PackageContentRevision))
+                return PackageContentRevision;
+
+            return SkinInfo.PerformRead(info =>
+                !string.IsNullOrEmpty(info.Hash)
+                    ? info.Hash
+                    : $"record:{info.ID:D}");
+        }
+
+        /// <summary>
+        /// The one immutable shared-codec result produced from this instance's exact configuration bytes.
+        /// Ruleset adapters may rebind only its revision identity; they must never reopen or retokenize skin.ini.
+        /// </summary>
+        public GameplaySkinDocument GameplaySkinDocument { get; private set; } = null!;
+
+        /// <summary>
+        /// Whether this source may contribute C4 package-author declarations. Legacy beatmap skins deliberately opt out:
+        /// their existing colours, samples and direct resource compatibility remain, but C4 defines no beatmap-local
+        /// sidecar, capture or reload authority.
+        /// </summary>
+        public virtual bool AllowsGameplaySkinDocumentAuthoring => true;
+
+        /// <summary>
         /// Construct a new skin.
         /// </summary>
         /// <param name="skin">The skin's metadata. Usually a live realm object.</param>
@@ -97,6 +126,8 @@ namespace osu.Game.Skinning
             bool useExactPackageStore)
         {
             this.resources = resources;
+
+            GameplaySkinDocument = decodeGameplaySkinDocument(ReadOnlyMemory<byte>.Empty);
 
             Name = skin.Name;
 
@@ -127,11 +158,11 @@ namespace osu.Game.Skinning
             if (fallbackStore != null)
                 store.AddStore(fallbackStore);
 
-            var configurationStream = store.GetStream(configurationFilename);
+            using var configurationStream = store.GetStream(configurationFilename);
 
             if (configurationStream != null)
             {
-                // stream will be closed after use by LineBufferedReader.
+                // The exact bytes are captured once; all semantic decoders consume the retained shared-codec tokens.
                 ParseConfigurationStream(configurationStream);
                 Debug.Assert(Configuration != null);
             }
@@ -216,8 +247,30 @@ namespace osu.Game.Skinning
 
         protected virtual void ParseConfigurationStream(Stream stream)
         {
-            using (LineBufferedReader reader = new LineBufferedReader(stream, true))
-                Configuration = new LegacySkinDecoder().Decode(reader);
+            ArgumentNullException.ThrowIfNull(stream);
+
+            if (stream.CanSeek)
+                stream.Seek(0, SeekOrigin.Begin);
+
+            using var snapshot = new MemoryStream();
+            stream.CopyTo(snapshot);
+            byte[] exactBytes = snapshot.ToArray();
+            GameplaySkinDocument = decodeGameplaySkinDocument(exactBytes);
+
+            Configuration = new LegacySkinDecoder().Decode(GameplaySkinDocument);
+
+            // Legacy subclass adapters still consume the same captured configuration during construction. Leaving the
+            // caller stream at the beginning preserves that compatibility without reopening the package resource.
+            if (stream.CanSeek)
+                stream.Seek(0, SeekOrigin.Begin);
+        }
+
+        private static GameplaySkinDocument decodeGameplaySkinDocument(ReadOnlyMemory<byte> exactBytes)
+        {
+            string contentRevision = Convert.ToHexString(SHA256.HashData(exactBytes.Span)).ToLowerInvariant();
+            return GameplaySkinDocumentCodec.Decode(
+                exactBytes,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse(contentRevision));
         }
 
         /// <summary>

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -55,11 +56,22 @@ namespace osu.Game.Rulesets.Mania.Skinning
             GameHost host,
             GameplaySkinScrollDirection direction,
             [NotNullWhen(true)] out GameplaySkinLayoutPublication? publication)
+            => TryPrepareAndPublish(beatmap, skin, owner, host, direction, CancellationToken.None, out publication);
+
+        public static bool TryPrepareAndPublish(
+            ManiaBeatmap beatmap,
+            ISkinSource skin,
+            GameplaySkinLayoutRevisionOwner owner,
+            GameHost host,
+            GameplaySkinScrollDirection direction,
+            CancellationToken cancellationToken,
+            [NotNullWhen(true)] out GameplaySkinLayoutPublication? publication)
         {
             ArgumentNullException.ThrowIfNull(beatmap);
             ArgumentNullException.ThrowIfNull(skin);
             ArgumentNullException.ThrowIfNull(owner);
             ArgumentNullException.ThrowIfNull(host);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (owner.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility
                 && owner.CurrentPublication != null)
@@ -71,22 +83,30 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
             try
             {
-                prepared = owner.PreparePublication(layoutRevision =>
-                {
-                    // Stage vector, topology, environment and skin geometry are captured and solved only after the
-                    // exact owner has acquired its fresh work lease and participant-generation barrier.
-                    var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
-                    ManiaGameplaySkinLaneTopologyPublication topologyPublication = topologyOwner.Publish(beatmap);
-                    ManiaGameplaySkinLayoutEnvironment environment = ManiaGameplaySkinLayoutEnvironment.FromHost(host);
-                    return GameplaySkinLayoutPublication.Create(new ManiaGameplaySkinLayout(
-                        ManiaGameplaySkinLayoutSolver.Solve(
+                prepared = owner.PreparePublication(
+                    layoutRevision =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        // Stage vector, topology, environment and skin geometry are captured and solved only after the
+                        // exact owner has acquired its fresh work lease and participant-generation barrier.
+                        var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
+                        ManiaGameplaySkinLaneTopologyPublication topologyPublication = topologyOwner.Publish(beatmap);
+                        ManiaGameplaySkinLayoutEnvironment environment = ManiaGameplaySkinLayoutEnvironment.FromHost(host);
+                        GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
                             topologyPublication,
                             skin,
                             owner.PackageRevision,
                             layoutRevision,
                             environment,
-                            direction)));
-                });
+                            direction);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var adapter = new ManiaGameplaySkinLayout(snapshot);
+                        GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, skin, cancellationToken);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        return GameplaySkinLayoutPublication.Create(adapter, materials);
+                    },
+                    cancellationToken);
             }
             catch (GameplaySkinLayoutParticipantBarrierChangedException)
             {
@@ -96,6 +116,8 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
             using (prepared)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (!owner.TryCommit(prepared) || owner.CurrentPublication == null)
                 {
                     publication = null;
@@ -126,7 +148,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 beatmap.Stages.Add(new StageDefinition(stage.Columns));
 
             if (!useSkinGeometry)
-                skin = GeometrySuppressedSkinSource.Instance;
+                skin = GeometrySuppressedSkinSource.INSTANCE;
 
             GameplaySkinLayoutRevisionOwner owner = GameplaySkinLayoutRevisionOwner.CreateCompatibility();
 
@@ -186,7 +208,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
         private sealed class GeometrySuppressedSkinSource : ISkinSource
         {
-            public static readonly GeometrySuppressedSkinSource Instance = new GeometrySuppressedSkinSource();
+            public static readonly GeometrySuppressedSkinSource INSTANCE = new GeometrySuppressedSkinSource();
 
             public event Action SourceChanged
             {

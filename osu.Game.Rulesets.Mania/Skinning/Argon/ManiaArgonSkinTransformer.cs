@@ -83,6 +83,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                     return new ArgonJudgementPiece(resultComponent.Component);
 
                 case ManiaSkinComponentLookup maniaComponent:
+                    if (ManiaGameplaySkinResolvedDrawableFactory.TryCreate(maniaComponent, out Drawable? preparedDrawable))
+                        return preparedDrawable;
+
                     // TODO: Once everything is finalised, consider throwing UnsupportedSkinComponentException on missing entries.
                     switch (maniaComponent.Component)
                     {

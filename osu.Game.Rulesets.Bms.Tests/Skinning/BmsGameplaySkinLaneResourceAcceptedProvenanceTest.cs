@@ -15,7 +15,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
     [TestFixture]
     public sealed class BmsGameplaySkinLaneResourceAcceptedProvenanceTest
     {
-        private static readonly (GameplaySkinLaneResourceField Field, string Prefix, string Suffix)[] exact_fields =
+        private static readonly (GameplaySkinLaneResourceField Field, string Prefix, string Suffix)[] compatibility_fields =
         {
             (GameplaySkinLaneResourceFieldCatalog.Note, "NoteImage", string.Empty),
             (GameplaySkinLaneResourceFieldCatalog.LongNoteHead, "NoteImage", "H"),
@@ -25,8 +25,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             (GameplaySkinLaneResourceFieldCatalog.KeyPressed, "KeyImage", "D"),
         };
 
+        private static readonly GameplaySkinLaneResourceField[] hosted_fields =
+        {
+            GameplaySkinLaneResourceFieldCatalog.Note,
+            GameplaySkinLaneResourceFieldCatalog.LongNoteHead,
+            GameplaySkinLaneResourceFieldCatalog.LongNoteBody,
+            GameplaySkinLaneResourceFieldCatalog.LongNoteTail,
+        };
+
         [Test]
-        public void TestAllSixExactFieldsPreserveNumericAndScratchTokensWithCompatibilityLookups()
+        public void TestAllSixDecoderFieldsRemainCompatibleButOnlyFourHostedNoteFieldsEnterSnapshot()
         {
             var builder = new StringBuilder();
             builder.AppendLine("[Bms]");
@@ -37,7 +45,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             foreach (string laneToken in laneTokens)
             {
-                foreach ((GameplaySkinLaneResourceField field, string prefix, string suffix) in exact_fields)
+                foreach ((GameplaySkinLaneResourceField field, string prefix, string suffix) in compatibility_fields)
                 {
                     string resourceName = $"resource-{laneToken}-{field.Id}";
                     builder.AppendLine($"{sourceKey(prefix, suffix, laneToken)}: {resourceName}");
@@ -51,7 +59,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(configuration.ImageLookups, Has.Count.EqualTo(expected.Count));
-                Assert.That(snapshot.Declarations, Has.Count.EqualTo(expected.Count));
+                Assert.That(snapshot.Declarations, Has.Count.EqualTo(laneTokens.Length * hosted_fields.Length));
 
                 foreach (string laneToken in laneTokens)
                 {
@@ -63,14 +71,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         _ => throw new InvalidOperationException(),
                     };
 
-                    foreach ((GameplaySkinLaneResourceField field, string prefix, string suffix) in exact_fields)
+                    foreach ((GameplaySkinLaneResourceField field, string prefix, string suffix) in compatibility_fields)
                     {
                         string resourceName = expected[(laneToken, field)];
                         string lookupKey = sourceKey(prefix, suffix, laneToken);
 
                         Assert.That(configuration.ImageLookups[lookupKey], Is.EqualTo(resourceName), lookupKey);
                         assertDeclared(configuration.GetAcceptedLaneResource(field, laneToken), resourceName, $"accepted {lookupKey}");
-                        assertDeclared(snapshot.GetDeclaration(laneId, field), resourceName, $"projected {lookupKey}");
+
+                        if (hosted_fields.Contains(field))
+                            assertDeclared(snapshot.GetDeclaration(laneId, field), resourceName, $"projected {lookupKey}");
+                        else
+                            Assert.That(snapshot.GetDeclaration(laneId, field).IsDeclared, Is.False, $"unhosted {lookupKey}");
                     }
                 }
             });
@@ -105,8 +117,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(configuration.ImageLookups["KeyImage1D"], Is.EqualTo("pending-key-down"));
                 assertDeclared(snapshot.GetDeclaration(key1, GameplaySkinLaneResourceFieldCatalog.Note), string.Empty, "explicit empty note");
                 assertDeclared(snapshot.GetDeclaration(key1, GameplaySkinLaneResourceFieldCatalog.LongNoteHead), "pending-head", "pending head");
-                assertDeclared(snapshot.GetDeclaration(key1, GameplaySkinLaneResourceFieldCatalog.Key), "merged-final-key", "duplicate bucket last key");
-                assertDeclared(snapshot.GetDeclaration(key1, GameplaySkinLaneResourceFieldCatalog.KeyPressed), "pending-key-down", "pending key-down");
+                assertDeclared(configuration.GetAcceptedLaneResource(GameplaySkinLaneResourceFieldCatalog.Key, "1"), "merged-final-key", "decoder compatibility key");
+                assertDeclared(configuration.GetAcceptedLaneResource(GameplaySkinLaneResourceFieldCatalog.KeyPressed, "1"), "pending-key-down", "decoder compatibility pressed key");
+                Assert.That(snapshot.GetDeclaration(key1, GameplaySkinLaneResourceFieldCatalog.Key).IsDeclared, Is.False);
+                Assert.That(snapshot.GetDeclaration(key1, GameplaySkinLaneResourceFieldCatalog.KeyPressed).IsDeclared, Is.False);
             });
         }
 
@@ -143,7 +157,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 foreach (string laneToken in new[] { "1", "S", "S2" })
                 {
-                    foreach ((GameplaySkinLaneResourceField field, _, _) in exact_fields)
+                    foreach ((GameplaySkinLaneResourceField field, _, _) in compatibility_fields)
                         Assert.That(configuration.GetAcceptedLaneResource(field, laneToken).IsDeclared, Is.False, $"{field.Id} at {laneToken}");
                 }
             });
@@ -188,17 +202,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             var configuration = new BmsSkinConfiguration(BmsKeymode.Key7K);
 
-            foreach ((_, string prefix, string suffix) in exact_fields)
+            foreach ((_, string prefix, string suffix) in compatibility_fields)
                 configuration.ImageLookups[sourceKey(prefix, suffix, "1")] = $"manual-{prefix}-{suffix}";
 
             GameplaySkinLaneResourceSnapshot snapshot = createSnapshot(BmsKeymode.Key7K, configuration);
 
             Assert.Multiple(() =>
             {
-                Assert.That(configuration.ImageLookups, Has.Count.EqualTo(exact_fields.Length));
+                Assert.That(configuration.ImageLookups, Has.Count.EqualTo(compatibility_fields.Length));
                 Assert.That(snapshot.Declarations, Is.Empty);
 
-                foreach ((GameplaySkinLaneResourceField field, _, _) in exact_fields)
+                foreach ((GameplaySkinLaneResourceField field, _, _) in compatibility_fields)
                     Assert.That(configuration.GetAcceptedLaneResource(field, "1").IsDeclared, Is.False, field.Id);
             });
         }
@@ -211,7 +225,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             var builder = new StringBuilder("[Bms]\nKeymode: 7K\n");
 
-            foreach ((GameplaySkinLaneResourceField field, string prefix, string suffix) in exact_fields)
+            foreach ((GameplaySkinLaneResourceField field, string prefix, string suffix) in compatibility_fields)
                 builder.AppendLine($"{sourceKey(prefix, suffix, "1")}: original-{field.Id}");
 
             BmsSkinConfiguration configuration = decode(builder.ToString()).Single();
@@ -244,10 +258,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             Assert.Multiple(() =>
             {
-                foreach ((GameplaySkinLaneResourceField field, _, _) in exact_fields)
+                foreach ((GameplaySkinLaneResourceField field, _, _) in compatibility_fields)
                 {
                     assertDeclared(configuration.GetAcceptedLaneResource(field, "1"), $"original-{field.Id}", $"accepted {field.Id}");
-                    assertDeclared(snapshot.GetDeclaration(key1, field), $"original-{field.Id}", $"projected {field.Id}");
+
+                    if (hosted_fields.Contains(field))
+                        assertDeclared(snapshot.GetDeclaration(key1, field), $"original-{field.Id}", $"projected {field.Id}");
+                    else
+                        Assert.That(snapshot.GetDeclaration(key1, field).IsDeclared, Is.False, $"unhosted {field.Id}");
                 }
 
                 Assert.That(snapshot.GetDeclaration(key2, GameplaySkinLaneResourceFieldCatalog.Key).IsDeclared, Is.False);

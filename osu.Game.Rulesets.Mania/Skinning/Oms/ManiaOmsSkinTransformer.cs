@@ -81,6 +81,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
             if (lookup is ManiaSkinComponentLookup maniaComponent)
             {
+                if (ManiaGameplaySkinResolvedDrawableFactory.TryCreate(maniaComponent, out Drawable? preparedDrawable))
+                    return preparedDrawable!;
+
                 switch (maniaComponent.Component)
                 {
                     case ManiaSkinComponents.StageBackground:

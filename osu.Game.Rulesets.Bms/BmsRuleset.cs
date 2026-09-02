@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using oms.Input;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -46,7 +47,7 @@ namespace osu.Game.Rulesets.Bms
 {
     public class BmsRuleset : Ruleset, IGameplaySkinLayoutPreparer
     {
-        private static readonly OmsBindingStore defaultBindingStore = new OmsBindingStore();
+        private static readonly OmsBindingStore default_binding_store = new OmsBindingStore();
 
         public const string SHORT_NAME = "bms";
 
@@ -66,9 +67,13 @@ namespace osu.Game.Rulesets.Bms
         public override DrawableRuleset CreateDrawableRulesetWith(IBeatmap beatmap, IReadOnlyList<Mod>? mods = null) =>
             new DrawableBmsRuleset(this, beatmap, mods);
 
-        public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(IBeatmap beatmap, IReadOnlyDependencyContainer dependencies)
+        public GameplaySkinLayoutPreparationResult PrepareGameplaySkinLayout(
+            IBeatmap beatmap,
+            IReadOnlyDependencyContainer dependencies,
+            CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(dependencies);
+            cancellationToken.ThrowIfCancellationRequested();
 
             var bmsBeatmap = beatmap as BmsBeatmap
                              ?? throw new ArgumentException("BMS gameplay layout requires parser-owned BmsBeatmapInfo authority.", nameof(beatmap));
@@ -94,6 +99,7 @@ namespace osu.Game.Rulesets.Bms
                     skinSource,
                     dependencies.Get<GameHost>(),
                     dependencies.Get<ISafeArea>(),
+                    cancellationToken,
                     out _))
             {
                 return GameplaySkinLayoutPreparationResult.Retry;
@@ -185,7 +191,7 @@ namespace osu.Game.Rulesets.Bms
         {
             variant = OmsBmsActionMap.NormalizeVariant(variant);
 
-            foreach (var binding in defaultBindingStore.GetDefaultBindings(variant))
+            foreach (var binding in default_binding_store.GetDefaultBindings(variant))
             {
                 if (!OmsBmsActionMap.TryMapToBmsAction(variant, binding.Action, out var action))
                     continue;

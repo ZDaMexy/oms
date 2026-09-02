@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using osu.Framework.Audio;
 using osu.Framework.Bindables;
-using osu.Framework.Extensions;
 using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
@@ -48,6 +47,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
         // caller may stop waiting before synchronous package IO observes cancellation, so the revision owner must keep
         // every such generation claimable for final detach/shutdown join.
         private readonly HashSet<ManagedPackageNotePreparationGeneration> managedPackageNotePreparations = new HashSet<ManagedPackageNotePreparationGeneration>();
+        private readonly Dictionary<BmsGameplayLayoutSnapshot, ManagedPackageNotePreparationGeneration> exactManagedPackageNotePreparations =
+            new Dictionary<BmsGameplayLayoutSnapshot, ManagedPackageNotePreparationGeneration>(ReferenceEqualityComparer.Instance);
         private ManagedPackageNotePreparationGeneration? managedPackageNotePreparation;
         private string? parsedConfigurationContentHash;
         private bool disposed;
@@ -124,25 +125,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         protected override void ParseConfigurationStream(Stream stream)
         {
-            // Snapshot the stream first: the base (mania) parse consumes its own reader, so BMS parsing reads a copy.
-            // Field initialisers run before the base constructor, so bmsConfigurations is already set when the base
-            // constructor calls this virtual during construction (same pattern as core mania parsing).
-            using var copy = new MemoryStream();
-            stream.Position = 0;
-            stream.CopyTo(copy);
-
-            copy.Position = 0;
-            parsedConfigurationContentHash = copy.ComputeSHA2Hash();
-
-            // CopyTo() leaves the original stream at EOF. The base legacy parser still needs to read
-            // [General], [Colours], and [Mania] from the beginning of the same stream.
-            stream.Position = 0;
             base.ParseConfigurationStream(stream);
 
-            copy.Position = 0;
-            using var reader = new StreamReader(copy);
+            // The core shared codec captured these exact bytes once. BMS applies only its legacy semantic state
+            // machine to retained tokens; it never reopens or retokenizes the source stream.
+            parsedConfigurationContentHash = GameplaySkinDocument.Identity.ContentRevision;
             var decoder = new BmsSkinDecoder();
-            decoder.Parse(reader);
+            decoder.Parse(GameplaySkinDocument);
 
             foreach (var config in decoder.Configurations)
                 bmsConfigurations[config.Keymode] = config;
@@ -189,12 +178,31 @@ namespace osu.Game.Rulesets.Bms.Skinning
         /// </remarks>
         internal bool HasManagedPackageGameplayAuthority => CaptureManagedPackageSourceRevision().HasGameplayAuthority;
 
+        internal int ActiveExactManagedPackageNotePreparationCount
+        {
+            get
+            {
+                lock (managedPackageNotePreparationLock)
+                    return exactManagedPackageNotePreparations.Count;
+            }
+        }
+
+        internal int ActiveExactManagedPackageNoteBorrowCount
+        {
+            get
+            {
+                lock (managedPackageNotePreparationLock)
+                    return managedPackageNotePreparations.Sum(preparation => preparation.Borrowers);
+            }
+        }
+
         internal BmsManagedPackageSourceRevision CaptureManagedPackageSourceRevision()
         {
             if (immutablePackageSourceRevision != null)
                 return immutablePackageSourceRevision;
 
             bool isManaged = SkinInfo.IsManaged;
+            string packageContentRevision = GetCurrentRevisionContentIdentity();
 
             return SkinInfo.PerformRead(info =>
             {
@@ -214,12 +222,16 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     info.IsExternalFilesystemStorage,
                     info.DeletePending,
                     parsedConfigurationContentHash,
-                    files);
+                    files,
+                    packageContentRevision);
             });
         }
 
         internal IStorageResourceProvider GetManagedPackageResourceProvider()
             => resourceProvider ?? throw new InvalidOperationException("The gameplay skin package has no managed resource provider.");
+
+        internal IReadOnlyList<BmsSkinConfiguration> GetParsedBmsConfigurationsForGameplaySkinCompatibility()
+            => Array.AsReadOnly(bmsConfigurations.Values.OrderBy(configuration => configuration.Keymode).ToArray());
 
         internal BmsManagedPackageNoteRevision GetOrPrepareManagedPackageNotes(CancellationToken requestCancellationToken)
         {
@@ -280,31 +292,194 @@ namespace osu.Game.Rulesets.Bms.Skinning
             }
             finally
             {
-                bool cancelAbandonedPreparation = false;
+                bool retirePreparation = false;
+                bool cancelPreparation = false;
 
                 lock (managedPackageNotePreparationLock)
                 {
                     preparation.Waiters--;
 
                     if (preparation.Waiters == 0
-                        && !preparation.Task.IsCompleted
-                        && requestCancellationToken.IsCancellationRequested)
+                        && Volatile.Read(ref preparation.CleanupRegistered) == 0
+                        && (disposed
+                            || preparation.Abandoned
+                            || !preparation.Task.IsCompleted && requestCancellationToken.IsCancellationRequested))
                     {
                         preparation.Abandoned = true;
 
                         if (ReferenceEquals(preparation, managedPackageNotePreparation))
                             managedPackageNotePreparation = null;
 
-                        cancelAbandonedPreparation = true;
+                        retirePreparation = true;
+                        cancelPreparation = !preparation.Task.IsCompleted;
                     }
                 }
 
-                if (cancelAbandonedPreparation)
+                if (retirePreparation)
                 {
-                    tryCancelPreparation(preparation);
+                    if (cancelPreparation)
+                        tryCancelPreparation(preparation);
+
                     disposePreparationWhenComplete(preparation);
                 }
             }
+        }
+
+        internal BmsManagedPackageNoteRevisionBorrow GetOrPrepareManagedPackageNotes(
+            BmsGameplayLayoutSnapshot layout,
+            CancellationToken requestCancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(layout);
+            requestCancellationToken.ThrowIfCancellationRequested();
+
+            ManagedPackageNotePreparationGeneration preparation;
+            ManagedPackageNotePreparationGeneration? stalePreparation = null;
+
+            lock (managedPackageNotePreparationLock)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                exactManagedPackageNotePreparations.TryGetValue(layout, out ManagedPackageNotePreparationGeneration? existing);
+
+                if (existing == null
+                    || existing.Abandoned
+                    || existing.Task.IsCanceled
+                    || existing.Task.IsFaulted)
+                {
+                    stalePreparation = existing;
+
+                    if (stalePreparation != null)
+                        stalePreparation.Abandoned = true;
+
+                    BmsManagedPackageSourceRevision sourceRevision = CaptureManagedPackageSourceRevision();
+                    var workCancellation = CancellationTokenSource.CreateLinkedTokenSource(managedPackageNotePreparationCancellation.Token);
+                    CancellationToken cancellationToken = workCancellation.Token;
+                    SkinCurrentRevisionLease? revisionWorkLease = BmsManagedPackageNoteLoadContext.TryTakeRevisionWorkLease();
+                    Task<BmsManagedPackageNoteRevision> task;
+
+                    try
+                    {
+                        task = Task.Run(
+                            () => BmsManagedPackageNoteMaterializer.PrepareExact(this, sourceRevision, layout, cancellationToken),
+                            cancellationToken);
+                    }
+                    catch
+                    {
+                        revisionWorkLease?.Dispose();
+                        workCancellation.Dispose();
+                        throw;
+                    }
+
+                    existing = new ManagedPackageNotePreparationGeneration(task, workCancellation, revisionWorkLease);
+                    exactManagedPackageNotePreparations[layout] = existing;
+                    managedPackageNotePreparations.Add(existing);
+                }
+
+                preparation = existing;
+                preparation.Waiters++;
+            }
+
+            if (stalePreparation != null)
+                disposePreparationWhenComplete(stalePreparation);
+
+            try
+            {
+                BmsManagedPackageNoteRevision revision = requestCancellationToken.CanBeCanceled
+                    ? preparation.Task.WaitAsync(requestCancellationToken).GetAwaiter().GetResult()
+                    : preparation.Task.GetAwaiter().GetResult();
+
+                lock (managedPackageNotePreparationLock)
+                {
+                    ObjectDisposedException.ThrowIf(disposed, this);
+
+                    if (preparation.Abandoned
+                        || Volatile.Read(ref preparation.CleanupRegistered) != 0
+                        || !exactManagedPackageNotePreparations.TryGetValue(layout, out ManagedPackageNotePreparationGeneration? current)
+                        || !ReferenceEquals(current, preparation))
+                    {
+                        throw new InvalidOperationException("The exact managed-package note preparation retired before it could be borrowed.");
+                    }
+
+                    preparation.Borrowers++;
+                }
+
+                return new BmsManagedPackageNoteRevisionBorrow(
+                    revision,
+                    () => releaseExactManagedPackageNotePreparation(layout, preparation));
+            }
+            finally
+            {
+                bool retirePreparation = false;
+                bool cancelPreparation = false;
+
+                lock (managedPackageNotePreparationLock)
+                {
+                    preparation.Waiters--;
+
+                    if (preparation.Waiters == 0
+                        && preparation.Borrowers == 0
+                        && Volatile.Read(ref preparation.CleanupRegistered) == 0)
+                    {
+                        preparation.Abandoned = true;
+
+                        if (exactManagedPackageNotePreparations.TryGetValue(layout, out ManagedPackageNotePreparationGeneration? current)
+                            && ReferenceEquals(current, preparation))
+                        {
+                            exactManagedPackageNotePreparations.Remove(layout);
+                        }
+
+                        retirePreparation = true;
+                        cancelPreparation = !preparation.Task.IsCompleted;
+                    }
+                }
+
+                if (retirePreparation)
+                {
+                    if (cancelPreparation)
+                        tryCancelPreparation(preparation);
+
+                    disposePreparationWhenComplete(preparation);
+                }
+            }
+        }
+
+        private void releaseExactManagedPackageNotePreparation(
+            BmsGameplayLayoutSnapshot layout,
+            ManagedPackageNotePreparationGeneration preparation)
+        {
+            bool retirePreparation = false;
+            bool cancelPreparation = false;
+
+            lock (managedPackageNotePreparationLock)
+            {
+                if (preparation.Borrowers <= 0)
+                    throw new InvalidOperationException("An exact managed-package note preparation borrow was released without ownership.");
+
+                preparation.Borrowers--;
+
+                if (preparation.Waiters == 0
+                    && preparation.Borrowers == 0
+                    && Volatile.Read(ref preparation.CleanupRegistered) == 0)
+                {
+                    preparation.Abandoned = true;
+
+                    if (exactManagedPackageNotePreparations.TryGetValue(layout, out ManagedPackageNotePreparationGeneration? current)
+                        && ReferenceEquals(current, preparation))
+                    {
+                        exactManagedPackageNotePreparations.Remove(layout);
+                    }
+
+                    retirePreparation = true;
+                    cancelPreparation = !preparation.Task.IsCompleted;
+                }
+            }
+
+            if (!retirePreparation)
+                return;
+
+            if (cancelPreparation)
+                tryCancelPreparation(preparation);
+
+            disposePreparationWhenComplete(preparation);
         }
 
         private static void tryCancelPreparation(ManagedPackageNotePreparationGeneration preparation)
@@ -366,7 +541,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 }
 
                 lock (managedPackageNotePreparationLock)
+                {
                     managedPackageNotePreparations.Remove(preparation);
+
+                    foreach (BmsGameplayLayoutSnapshot layout in exactManagedPackageNotePreparations
+                                                               .Where(pair => ReferenceEquals(pair.Value, preparation))
+                                                               .Select(pair => pair.Key)
+                                                               .ToArray())
+                    {
+                        exactManagedPackageNotePreparations.Remove(layout);
+                    }
+                }
             }
             finally
             {
@@ -457,7 +642,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     if (laneIndex is < 0 or > 8 || isScratch)
                         return false;
 
-                    break;
+                    laneToken = BmsGameplaySkinNineKeyLaneIndexContract.ToLegacyRaw(
+                                    BmsGameplaySkinNineKeyLaneIndexVersion.LegacyRawV1,
+                                    BmsGameplaySkinNineKeyLaneIndexContract.ToCanonical(
+                                        BmsGameplaySkinNineKeyLaneIndexVersion.LegacyRawV1,
+                                        laneIndex))
+                                .ToString(CultureInfo.InvariantCulture);
+                    return true;
 
                 case BmsKeymode.Key14K:
                     if (laneIndex is < 0 or > 15 || isScratch != (laneIndex is 0 or 15))
@@ -569,6 +760,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             private SkinCurrentRevisionLease? revisionWorkLease;
 
             public int Waiters;
+            public int Borrowers;
             public int CleanupRegistered;
             public int CleanupClaimed;
             public bool Abandoned;
@@ -602,6 +794,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 disposed = true;
                 managedPackageNotePreparation = null;
+                exactManagedPackageNotePreparations.Clear();
                 preparations = managedPackageNotePreparations.ToArray();
 
                 foreach (ManagedPackageNotePreparationGeneration preparation in preparations)
@@ -629,11 +822,39 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     // join and reap every generation before the exact package store is released.
                 }
 
-                cleanupPreparation(preparation);
+                bool mayCleanup;
+
+                lock (managedPackageNotePreparationLock)
+                    mayCleanup = preparation.Waiters == 0 && preparation.Borrowers == 0;
+
+                // A completed exact revision may already back the committed renderer subtree. Skin shutdown marks
+                // the generation retired and joins all package IO, but the revision/TextureStore remains owned by
+                // its publication borrow until that subtree releases it.
+                if (mayCleanup)
+                    cleanupPreparation(preparation);
             }
 
             base.Dispose(isDisposing);
             managedPackageNotePreparationCancellation.Dispose();
         }
+    }
+
+    /// <summary>
+    /// One idempotent publication borrow of a completed exact managed-package note revision.
+    /// </summary>
+    internal sealed class BmsManagedPackageNoteRevisionBorrow : IDisposable
+    {
+        private Action? release;
+
+        public BmsManagedPackageNoteRevision Revision { get; }
+
+        public BmsManagedPackageNoteRevisionBorrow(BmsManagedPackageNoteRevision revision, Action release)
+        {
+            Revision = revision ?? throw new ArgumentNullException(nameof(revision));
+            this.release = release ?? throw new ArgumentNullException(nameof(release));
+        }
+
+        public void Dispose()
+            => Interlocked.Exchange(ref release, null)?.Invoke();
     }
 }

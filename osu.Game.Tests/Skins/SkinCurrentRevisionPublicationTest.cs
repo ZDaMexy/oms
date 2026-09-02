@@ -762,7 +762,9 @@ namespace osu.Game.Tests.Skins
                 validateParticipantGeneration: live.IsPublicationGenerationCurrent,
                 commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
                 dispatchCommit: runLayoutCommitImmediately);
-            GameplaySkinPreparedLayout prepared = layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision));
+            GameplaySkinLayoutPublication? preparedPublication = null;
+            GameplaySkinPreparedLayout prepared = layoutOwner.PreparePublication(revision =>
+                preparedPublication = createMaterialPublication(package, revision, "material-a"));
 
             Assert.Multiple(() =>
             {
@@ -770,6 +772,9 @@ namespace osu.Game.Tests.Skins
                 Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
                 Assert.That(initial.WorkDetached.IsCompleted, Is.False);
                 Assert.That(layoutOwner.Current, Is.Null);
+                Assert.That(prepared.Publication, Is.SameAs(preparedPublication));
+                Assert.That(prepared.Publication.MaterialSet.Snapshot, Is.SameAs(prepared.Snapshot));
+                Assert.That(prepared.Publication.MaterialSet.PackageRevision, Is.SameAs(package));
             });
 
             live.Dispose();
@@ -781,6 +786,7 @@ namespace osu.Game.Tests.Skins
                 Assert.That(initial.WorkDetached.IsCompleted, Is.False);
                 Assert.That(layoutOwner.TryCommit(prepared), Is.False);
                 Assert.That(layoutOwner.Current, Is.Null);
+                Assert.That(layoutOwner.CurrentPublication, Is.Null);
             });
 
             await initial.WorkDetached.WaitAsync(test_timeout);
@@ -806,7 +812,9 @@ namespace osu.Game.Tests.Skins
                 validateParticipantGeneration: live.IsPublicationGenerationCurrent,
                 commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
                 dispatchCommit: runLayoutCommitImmediately);
-            Assert.That(() => layoutOwner.Prepare(_ => throw new InvalidOperationException("geometry failed")), Throws.InvalidOperationException);
+            Assert.That(
+                () => layoutOwner.PreparePublication(_ => throw new InvalidOperationException("geometry failed")),
+                Throws.InvalidOperationException.With.Message.EqualTo("geometry failed"));
 
             Assert.Multiple(() =>
             {
@@ -814,6 +822,95 @@ namespace osu.Game.Tests.Skins
                 Assert.That(initial.LeaseCount, Is.EqualTo(2));
                 Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(1));
                 Assert.That(initial.WorkDetached.IsCompleted, Is.True);
+            });
+
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutCancellationAfterCarrierCreationReleasesWorkLeaseAndRetirement()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "cancelled layout root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            using var cancellation = new CancellationTokenSource();
+            var retirement = new CountingDisposable();
+
+            Assert.That(
+                () => layoutOwner.PreparePublication(
+                    revision =>
+                    {
+                        GameplaySkinLayoutPublication publication = createMaterialPublication(
+                            package,
+                            revision,
+                            "cancelled-material",
+                            retirement);
+                        cancellation.Cancel();
+                        return publication;
+                    },
+                    cancellation.Token),
+                Throws.TypeOf<OperationCanceledException>());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.CurrentPublication, Is.Null);
+                Assert.That(retirement.DisposeCount, Is.EqualTo(1));
+                Assert.That(initial.LeaseCount, Is.EqualTo(2));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(1));
+                Assert.That(initial.WorkDetached.IsCompleted, Is.True);
+            });
+
+            live.Dispose();
+            initial.ReleaseManagerLease();
+            await harness.AssertRetiredExactlyOnce(initial);
+        }
+
+        [Test]
+        public async Task TestGameplayLayoutExactOwnerRejectsEmptyCompatibilityMaterialContract()
+        {
+            using var harness = new PublicationHarness();
+            SkinCurrentRevision initial = harness.Publication.Current;
+            using SkinRevisionParticipantRegistration live = harness.Publication.Register(
+                SkinRevisionParticipantKind.LiveGameplayHost,
+                "exact material contract root");
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(initial);
+            var layoutOwner = new GameplaySkinLayoutRevisionOwner(
+                package,
+                validateRoot: () => live.TryGetCurrentRevision(out SkinCurrentRevision? revision)
+                                    && package.RetainsExact(revision!),
+                acquireWorkLease: live.AcquireWorkLease,
+                captureParticipantGeneration: () => live.TryCapturePublicationGeneration(out long generation) ? generation : null,
+                validateParticipantGeneration: live.IsPublicationGenerationCurrent,
+                commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
+                dispatchCommit: runLayoutCommitImmediately);
+            GameplaySkinLayoutSnapshot snapshot = createLayoutSnapshot(package, 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => GameplaySkinLayoutPublication.Create(new TestLayoutAdapter(snapshot)),
+                    Throws.ArgumentException.With.Message.Contains("exact gameplay layout publication"));
+                Assert.That(
+                    () => layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision)),
+                    Throws.InvalidOperationException.With.Message.EqualTo(
+                        "An exact gameplay layout preparation must publish a resolved material set through PreparePublication."));
+                Assert.That(layoutOwner.CurrentPublication, Is.Null);
+                Assert.That(initial.LeaseCount, Is.EqualTo(2));
+                Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(1));
             });
 
             live.Dispose();
@@ -840,13 +937,13 @@ namespace osu.Game.Tests.Skins
                 commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
                 dispatchCommit: runLayoutCommitImmediately);
 
-            GameplaySkinPreparedLayout first = layoutOwner.Prepare(
-                revision => createLayoutSnapshot(package, revision));
+            GameplaySkinPreparedLayout first = layoutOwner.PreparePublication(
+                revision => createMaterialPublication(package, revision, "material-a"));
             Assert.That(layoutOwner.TryCommit(first), Is.True);
             GameplaySkinLayoutPublication published = layoutOwner.CurrentPublication!;
 
             Assert.That(
-                () => layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision)),
+                () => layoutOwner.PreparePublication(revision => createMaterialPublication(package, revision, "material-b")),
                 Throws.InvalidOperationException.With.Message.EqualTo(
                     "An exact gameplay layout root may publish only one immutable layout."));
 
@@ -883,7 +980,7 @@ namespace osu.Game.Tests.Skins
                 dispatchCommit: runLayoutCommitImmediately);
 
             Assert.That(
-                () => layoutOwner.Prepare(revision => createLayoutSnapshot(package, revision)),
+                () => layoutOwner.PreparePublication(revision => createMaterialPublication(package, revision, "material-a")),
                 Throws.InvalidOperationException.With.Message.EqualTo(
                     "An exact gameplay layout preparation requires a fresh package work lease."));
             Assert.That(layoutOwner.Current, Is.Null);
@@ -913,12 +1010,12 @@ namespace osu.Game.Tests.Skins
             SkinRevisionParticipantRegistration? attached = null;
 
             Assert.That(
-                () => layoutOwner.Prepare(revision =>
+                () => layoutOwner.PreparePublication(revision =>
                 {
                     attached = harness.Publication.Register(
                         SkinRevisionParticipantKind.LifecycleHolder,
                         "attached during layout prepare");
-                    return createLayoutSnapshot(package, revision);
+                    return createMaterialPublication(package, revision, "stale-material");
                 }),
                 Throws.TypeOf<GameplaySkinLayoutParticipantBarrierChangedException>().With.Message.EqualTo(
                     "The gameplay layout participant barrier changed during background preparation."));
@@ -930,10 +1027,15 @@ namespace osu.Game.Tests.Skins
                 Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
             });
 
-            GameplaySkinPreparedLayout fresh = layoutOwner.Prepare(
-                revision => createLayoutSnapshot(package, revision));
+            GameplaySkinPreparedLayout fresh = layoutOwner.PreparePublication(
+                revision => createMaterialPublication(package, revision, "fresh-material"));
             Assert.That(layoutOwner.TryCommit(fresh), Is.True);
-            Assert.That(layoutOwner.Current, Is.SameAs(fresh.Snapshot));
+            Assert.Multiple(() =>
+            {
+                Assert.That(layoutOwner.Current, Is.SameAs(fresh.Snapshot));
+                Assert.That(layoutOwner.CurrentPublication, Is.SameAs(fresh.Publication));
+                Assert.That(layoutOwner.CurrentPublication!.MaterialSet, Is.SameAs(fresh.Publication.MaterialSet));
+            });
 
             attached!.Dispose();
             live.Dispose();
@@ -961,13 +1063,13 @@ namespace osu.Game.Tests.Skins
                 dispatchCommit: runLayoutCommitImmediately);
             SkinRevisionParticipantRegistration? nonLayout = null;
 
-            GameplaySkinPreparedLayout prepared = layoutOwner.Prepare(revision =>
+            GameplaySkinPreparedLayout prepared = layoutOwner.PreparePublication(revision =>
             {
                 nonLayout = harness.Publication.Register(
                     SkinRevisionParticipantKind.LiveGameplayHost,
                     "sample-only ruleset provider",
                     affectsGameplayLayoutPublication: false);
-                return createLayoutSnapshot(package, revision);
+                return createMaterialPublication(package, revision, "material-a");
             });
 
             Assert.Multiple(() =>
@@ -1002,8 +1104,8 @@ namespace osu.Game.Tests.Skins
                 validateParticipantGeneration: live.IsPublicationGenerationCurrent,
                 commitAtParticipantGeneration: live.TryCommitAtPublicationGeneration,
                 dispatchCommit: runLayoutCommitImmediately);
-            GameplaySkinPreparedLayout stale = layoutOwner.Prepare(
-                revision => createLayoutSnapshot(package, revision));
+            GameplaySkinPreparedLayout stale = layoutOwner.PreparePublication(
+                revision => createMaterialPublication(package, revision, "stale-material"));
             using SkinRevisionParticipantRegistration attached = harness.Publication.Register(
                 SkinRevisionParticipantKind.LifecycleHolder,
                 "attached before layout commit");
@@ -1016,8 +1118,8 @@ namespace osu.Game.Tests.Skins
                 Assert.That(initial.ParticipantLeaseCount, Is.EqualTo(2));
             });
 
-            GameplaySkinPreparedLayout fresh = layoutOwner.Prepare(
-                revision => createLayoutSnapshot(package, revision));
+            GameplaySkinPreparedLayout fresh = layoutOwner.PreparePublication(
+                revision => createMaterialPublication(package, revision, "fresh-material"));
             Assert.That(layoutOwner.TryCommit(fresh), Is.True);
 
             attached.Dispose();
@@ -1124,10 +1226,10 @@ namespace osu.Game.Tests.Skins
             GameplaySkinLayoutRect screen = GameplaySkinLayoutRect.Create(0, 0, 1, 1);
             GameplaySkinLayoutRect playfield = GameplaySkinLayoutRect.Create(0.25f, 0, 0.5f, 0.9f);
             GameplaySkinLayoutContext context = GameplaySkinLayoutContext.Create(
-                "test",
-                "test.native",
-                "test.one-key",
-                "test.center",
+                "mania",
+                "stages-1",
+                "1k",
+                "mania-single",
                 topology,
                 screen,
                 screen,
@@ -1145,10 +1247,54 @@ namespace osu.Game.Tests.Skins
                 new[] { new GameplaySkinLayoutSurface("playfield", playfield, 0, true, true) });
         }
 
+        private static GameplaySkinLayoutPublication createMaterialPublication(
+            GameplaySkinPackageRevision package,
+            long layoutRevision,
+            string contentRevision,
+            IDisposable? retirement = null)
+        {
+            GameplaySkinLayoutSnapshot snapshot = createLayoutSnapshot(package, layoutRevision);
+            GameplaySkinLaneTopologySnapshot topology = snapshot.Context.Topology;
+            GameplaySkinResolvedMaterialEntry note = GameplaySkinResolvedMaterialEntry.Provide(
+                GameplaySkinSlotCatalog.Note,
+                GameplaySkinResolvedMaterialTarget.ForLane(topology.GroupsInLogicalOrder[0], topology.LanesInLogicalOrder[0]),
+                GameplaySkinResolvedMaterialSourceIdentity.Create(
+                    GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                    "selected.current",
+                    contentRevision),
+                contentRevision);
+            GameplaySkinResolvedMaterialSet materialSet = GameplaySkinResolvedMaterialSet.Create(
+                snapshot,
+                GameplaySkinMaterialContractIdentity.Current,
+                new[] { note });
+            return retirement == null
+                ? GameplaySkinLayoutPublication.Create(new TestLayoutAdapter(snapshot), materialSet)
+                : GameplaySkinLayoutPublication.Create(new TestLayoutAdapter(snapshot), materialSet, retirement);
+        }
+
         private static bool runLayoutCommitImmediately(Action commit)
         {
             commit();
             return true;
+        }
+
+        private sealed class TestLayoutAdapter : IGameplaySkinLayoutAdapter
+        {
+            public GameplaySkinLayoutSnapshot Snapshot { get; }
+
+            public TestLayoutAdapter(GameplaySkinLayoutSnapshot snapshot)
+            {
+                Snapshot = snapshot;
+            }
+        }
+
+        private sealed class CountingDisposable : IDisposable
+        {
+            private int disposeCount;
+
+            public int DisposeCount => Volatile.Read(ref disposeCount);
+
+            public void Dispose() => Interlocked.Increment(ref disposeCount);
         }
 
         private sealed class PublicationHarness : IDisposable

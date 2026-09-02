@@ -28,7 +28,6 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private protected override Scheduler SkinChangeScheduler => RevisionPublicationScheduler;
 
-        private readonly BmsNoteSkinLookup lookup;
         private readonly object revisionWorkAdmissionGate = new object();
         private CancellationTokenSource? loadCancellation;
         private PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? pendingLoad;
@@ -48,6 +47,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public Drawable? Drawable { get; private set; }
 
+        internal BmsNoteSkinLookup Lookup { get; }
+
         public BmsAsyncNoteDrawable(BmsNoteSkinLookup lookup)
         {
             ArgumentNullException.ThrowIfNull(lookup);
@@ -60,12 +61,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new ArgumentException("The asynchronous BMS note host only accepts ordinary notes and supported long-note components.", nameof(lookup));
             }
 
-            this.lookup = lookup;
+            Lookup = lookup;
             RelativeSizeAxes = Axes.Both;
 
-            // A dynamically-added host (notably the pre-start speed preview) may begin loading on the update thread.
-            // Keep the component-specific protected fallback while its exact source is prepared asynchronously.
-            Drawable = createProtectedFallback(lookup);
+            // A C4 lookup already names one final immutable material entry. It must not briefly re-run the protected
+            // legacy fallback while the framework builds that committed payload's drawable.
+            Drawable = Lookup.UsesResolvedMaterial
+                ? new BmsPublishedNotePendingDrawable()
+                : createProtectedFallback(Lookup);
             InternalChild = publishedChild = Drawable;
         }
 
@@ -97,7 +100,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             cancelPendingLoad();
 
-            var provisional = new BmsPreparedNoteDrawable(skin, lookup, DrawableResolver);
+            var provisional = new BmsPreparedNoteDrawable(skin, Lookup, DrawableResolver);
             SkinCurrentRevisionLease? revisionLease = null;
             SkinCurrentRevisionLeaseTransfer? revisionLeaseTransfer = null;
             CancellationTokenSource? localCancellation = null;
@@ -429,6 +432,9 @@ namespace osu.Game.Rulesets.Bms.UI
                     }
                     catch
                     {
+                        if (lookup.UsesResolvedMaterial)
+                            throw;
+
                         // A source exception must not bypass the component-specific protected fallback. The final migration
                         // fallback is intentionally generic here and does not preserve source-controlled exception text.
                         resolved = null;
@@ -437,7 +443,13 @@ namespace osu.Game.Rulesets.Bms.UI
                     candidate = resolved;
                     cancellationToken?.ThrowIfCancellationRequested();
 
-                    candidate ??= createProtectedFallback(lookup);
+                    if (candidate == null)
+                    {
+                        if (lookup.UsesResolvedMaterial)
+                            throw new InvalidOperationException("A committed BMS material lookup did not produce an explicit visual result.");
+
+                        candidate = createProtectedFallback(lookup);
+                    }
                     Visual = candidate;
                     InternalChild = Visual;
                     adopted = true;

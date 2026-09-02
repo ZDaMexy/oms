@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Platform;
@@ -32,6 +33,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
             => RevisionOwner?.CurrentPublication?.GetAdapter<BmsGameplayLayoutSnapshot>()
                ?? throw new InvalidOperationException("bms.layout.missing-exact-publication");
 
+        public GameplaySkinResolvedMaterialSet CurrentMaterialSet
+            => RevisionOwner?.CurrentPublication?.MaterialSet
+               ?? throw new InvalidOperationException("bms.material.missing-exact-publication");
+
         public BmsKeymode Keymode => beatmap.BmsInfo.Keymode;
 
         internal GameplaySkinLayoutRevisionOwner? RevisionOwner { get; private set; }
@@ -60,6 +65,22 @@ namespace osu.Game.Rulesets.Bms.Skinning
             // An exact production provider is never accepted as a substitute for the enclosing owner publication.
             if (explicitCompatibilityProvider?.RevisionOwner?.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
                 return explicitCompatibilityProvider.Current;
+
+            throw new InvalidOperationException(missingDiagnostic);
+        }
+
+        internal static GameplaySkinResolvedMaterialSet ResolveOwnerMaterialSet(
+            GameplaySkinLayoutRevisionOwner? owner,
+            BmsGameplayLayoutProvider? explicitCompatibilityProvider,
+            string missingDiagnostic)
+        {
+            if (owner?.CurrentPublication is GameplaySkinLayoutPublication publication)
+                return publication.MaterialSet;
+
+            // Keep the isolation-only rule identical to the layout adapter gate. A production consumer may never
+            // manufacture an empty material set after commit or borrow a material set from a different owner.
+            if (explicitCompatibilityProvider?.RevisionOwner?.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
+                return explicitCompatibilityProvider.CurrentMaterialSet;
 
             throw new InvalidOperationException(missingDiagnostic);
         }
@@ -105,7 +126,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                        beatmap,
                        style,
                        _ => configuration,
-                       () => environmentOverride ?? BmsGameplayLayoutEnvironment.Default)
+                       () => environmentOverride ?? BmsGameplayLayoutEnvironment.Default,
+                       CancellationToken.None)
                    ?? throw new InvalidOperationException("The compatibility BMS gameplay layout publication lost its commit admission.");
         }
 
@@ -125,14 +147,18 @@ namespace osu.Game.Rulesets.Bms.Skinning
             ISkin skin,
             GameHost? host,
             ISafeArea? safeArea,
+            CancellationToken cancellationToken,
             [NotNullWhen(true)] out BmsGameplayLayoutSnapshot? snapshot)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             snapshot = tryPrepareAndCommit(
                 owner,
                 beatmap,
                 style,
                 keymode => BmsGameplayLayoutConfiguration.FromSkin(skin, keymode),
-                () => CreateProductionEnvironment(host, safeArea));
+                () => CreateProductionEnvironment(host, safeArea),
+                cancellationToken,
+                layout => BmsGameplayResolvedNoteMaterialPreparer.Prepare(skin, layout, cancellationToken));
             return snapshot != null;
         }
 
@@ -141,8 +167,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsBeatmap beatmap,
             BmsPlayfieldStyle style,
             Func<BmsKeymode, BmsGameplayLayoutConfiguration> configurationFactory,
-            Func<BmsGameplayLayoutEnvironment> environmentFactory)
+            Func<BmsGameplayLayoutEnvironment> environmentFactory,
+            CancellationToken cancellationToken,
+            Func<BmsGameplayLayoutSnapshot, GameplaySkinLayoutPublication>? publicationFactory = null)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             BmsKeymode keymode = beatmap.BmsInfo.Keymode;
 
             BmsGameplayLayoutSnapshot? candidate = null;
@@ -150,35 +179,62 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             try
             {
-                prepared = owner.PreparePublication(layoutRevision =>
-                {
-                    // Both package geometry reads and topology/geometry solving happen after the owner has acquired the
-                    // fresh prepare lease. Nothing outside this callback can observe or cache a partial candidate.
-                    BmsGameplayLayoutConfiguration configuration = configurationFactory(keymode);
-                    BmsGameplayLayoutEnvironment environment = environmentFactory();
-                    var topologyOwner = new BmsGameplaySkinLaneTopologyRevisionOwner();
-                    // Topology is parser keymode + presentation order only. Geometry is solved exactly once below; no
-                    // provisional profile/lane geometry is allowed on this production prepare path.
-                    BmsGameplaySkinLaneTopologyPublication topology = topologyOwner.Publish(keymode, style);
+                prepared = owner.PreparePublication(
+                    layoutRevision =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    candidate = BmsGameplayLayoutSolver.Solve(
-                        beatmap.BmsInfo.KeymodeResolution,
-                        style,
-                        configuration,
-                        environment,
-                        owner.PackageRevision,
-                        topology,
-                        layoutRevision);
-                    return GameplaySkinLayoutPublication.Create(candidate);
-                });
+                        // Both package geometry reads and topology/geometry solving happen after the owner has acquired the
+                        // fresh prepare lease. Nothing outside this callback can observe or cache a partial candidate.
+                        BmsGameplayLayoutConfiguration configuration = configurationFactory(keymode);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        BmsGameplayLayoutEnvironment environment = environmentFactory();
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var topologyOwner = new BmsGameplaySkinLaneTopologyRevisionOwner();
+                        // Topology is parser keymode + presentation order only. Geometry is solved exactly once below; no
+                        // provisional profile/lane geometry is allowed on this production prepare path.
+                        BmsGameplaySkinLaneTopologyPublication topology = topologyOwner.Publish(keymode, style);
+
+                        candidate = BmsGameplayLayoutSolver.Solve(
+                            beatmap.BmsInfo.KeymodeResolution,
+                            style,
+                            configuration,
+                            environment,
+                            owner.PackageRevision,
+                            topology,
+                            layoutRevision);
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        GameplaySkinLayoutPublication publication = publicationFactory?.Invoke(candidate)
+                                                                       ?? GameplaySkinLayoutPublication.Create(
+                                                                           candidate,
+                                                                           GameplaySkinResolvedMaterialSet.CreateEmpty(candidate.Neutral));
+
+                        try
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            return publication;
+                        }
+                        catch
+                        {
+                            publication.Dispose();
+                            throw;
+                        }
+                    },
+                    cancellationToken);
             }
             catch (GameplaySkinLayoutParticipantBarrierChangedException)
             {
                 return null;
             }
 
-            if (!owner.TryCommit(prepared))
-                return null;
+            using (prepared)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!owner.TryCommit(prepared))
+                    return null;
+            }
 
             if (candidate == null
                 || !ReferenceEquals(candidate, owner.CurrentPublication?.GetAdapter<BmsGameplayLayoutSnapshot>())

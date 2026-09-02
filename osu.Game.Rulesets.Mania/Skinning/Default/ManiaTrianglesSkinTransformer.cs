@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Skinning;
@@ -27,6 +28,17 @@ namespace osu.Game.Rulesets.Mania.Skinning.Default
         private readonly Color4 colourEven = new Color4(6, 84, 0, 255);
         private readonly Color4 colourOdd = new Color4(94, 0, 57, 255);
         private readonly Color4 colourSpecial = new Color4(0, 48, 63, 255);
+
+        public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
+        {
+            if (lookup is ManiaSkinComponentLookup maniaLookup
+                && ManiaGameplaySkinResolvedDrawableFactory.TryCreate(maniaLookup, out Drawable? preparedDrawable))
+            {
+                return preparedDrawable;
+            }
+
+            return base.GetDrawableComponent(lookup);
+        }
 
         public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
         {
