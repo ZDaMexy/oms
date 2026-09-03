@@ -1,5 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -17,13 +19,22 @@ using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Oms
 {
-    public partial class OmsHitTarget : OmsManiaColumnElement, IKeyBindingHandler<ManiaAction>
+    public partial class OmsHitTarget : OmsManiaColumnElement, IKeyBindingHandler<ManiaAction>, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                       IManiaGameplaySkinProgrammaticVisualPartReadinessSource
     {
         private readonly Bindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
         private Container directionContainer = null!;
         private Container lightContainer = null!;
         private Drawable light = null!;
+
+        private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> gameplaySkinProgrammaticVisualParts
+            = Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+        IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+            => gameplaySkinProgrammaticVisualParts;
+
+        public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
         public OmsHitTarget()
         {
@@ -65,6 +76,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                 lightAnimation.Alpha = 0;
             }
 
+            Sprite hitTarget;
+            Box judgementLine;
+
             InternalChildren = new Drawable[]
             {
                 directionContainer = new Container
@@ -74,14 +88,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     AutoSizeAxes = Axes.Y,
                     Children = new Drawable[]
                     {
-                        new Sprite
+                        hitTarget = new Sprite
                         {
                             Texture = skin.GetTexture(targetImage),
                             Scale = new Vector2(1, 0.9f * 1.6025f),
                             RelativeSizeAxes = Axes.X,
                             Width = 1,
                         },
-                        new Box
+                        judgementLine = new Box
                         {
                             Anchor = Anchor.CentreLeft,
                             RelativeSizeAxes = Axes.X,
@@ -99,6 +113,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     Child = light = lightAnimation ?? Empty(),
                 },
             };
+
+            gameplaySkinProgrammaticVisualParts = Array.AsReadOnly(new[]
+            {
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.HitTarget, hitTarget),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.JudgementLine, judgementLine),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.KeyFlash, lightContainer),
+            });
+            GameplaySkinProgrammaticVisualPartsReady();
 
             direction.Value = stageContext.Snapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Up
                 ? ScrollingDirection.Up

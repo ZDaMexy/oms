@@ -71,7 +71,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                          - drawableRuleset.LayoutSnapshot.HitTargetRect.Height) <= 0.001f));
             AddAssert("lane hit target bottoms stay at playfield edge", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.BottomLeft.Y - lane.HitTarget.ScreenSpaceDrawQuad.BottomLeft.Y) <= 1f));
             AddAssert("scrolling container edge matches receptor", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.HitObjectContainer.ScreenSpaceDrawQuad.BottomLeft.Y - lane.HitTarget.ScreenSpaceDrawQuad.BottomLeft.Y) <= 1f));
-            AddAssert("bar line surfaces stay at exact default", () => drawableRuleset.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>()).All(barLine =>
+            AddAssert("bar line surfaces stay at exact default", () => drawableRuleset.Playfield.BarLinePlayfields.SelectMany(owner => owner.AllHitObjects.OfType<DrawableBmsBarLine>()).All(barLine =>
                 Math.Abs(barLine.Height - drawableRuleset.LayoutSnapshot.ProjectVerticalProfileMetric(2f)) <= 0.0001f));
         }
 
@@ -186,8 +186,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 return Math.Abs(lineHeight - drawableRuleset.LayoutSnapshot.JudgementLineRect.Height) <= 0.001f
                        && Math.Abs(lineTop - drawableRuleset.LayoutSnapshot.JudgementLineRect.Top) <= 0.001f;
             }));
-            AddAssert($"DPI {dpiScale} bar-line draw quads use snapshot projection", () => drawableRuleset.Playfield.Lanes
-                .SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>())
+            AddAssert($"DPI {dpiScale} bar-line draw quads use snapshot projection", () => drawableRuleset.Playfield.BarLinePlayfields
+                .SelectMany(owner => owner.AllHitObjects.OfType<DrawableBmsBarLine>())
                 .All(barLine => Math.Abs(barLine.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height
                                          - drawableRuleset.LayoutSnapshot.ProjectVerticalProfileMetric(drawableRuleset.LayoutSnapshot.Profile.BarLineHeight)
                                            * drawableRuleset.LayoutSnapshot.PlayfieldRect.Height) <= 0.001f));

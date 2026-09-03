@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -474,7 +475,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
                 "selected.current",
                 "content-a");
-            GameplaySkinMaterialContractIdentity contract = GameplaySkinMaterialContractIdentity.Current;
+            GameplaySkinMaterialContractIdentity contract = GameplaySkinMaterialContractIdentity.CurrentFor(snapshot);
             GameplaySkinResolvedMaterialEntry[] entries =
             {
                 GameplaySkinResolvedMaterialEntry.Provide(GameplaySkinSlotCatalog.Note, target, source, new TestMaterial("note-a")),
@@ -530,7 +531,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinLayoutSnapshot other = createSnapshot(topology, package, 0, 0.25f);
             GameplaySkinResolvedMaterialSet materialSet = GameplaySkinResolvedMaterialSet.Create(
                 first,
-                GameplaySkinMaterialContractIdentity.Current,
+                GameplaySkinMaterialContractIdentity.CurrentFor(first),
                 Array.Empty<GameplaySkinResolvedMaterialEntry>());
 
             Assert.That(
@@ -594,6 +595,168 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         [Test]
+        public void TestGenericPublicMaterialResolutionCoversEveryBmsCatalogTargetAndPreservesThreeStates()
+        {
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, includeScratch: true);
+            const string configuration = """
+                                         [GameplaySkin.Common:1]
+                                         Target: Lane ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=1 group-local-visual=1
+                                         playfield.lane-surface: resource Provide "surfaces/key-1"
+                                         effect.key-flash: resource Suppress
+                                         effect.hit-explosion: resource Provide "effects/missing"
+                                         Target: Stage ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 group-logical=0 group-visual=0
+                                         playfield.judgement-line: resource Suppress
+                                         """;
+            GameplaySkinDocument document = GameplaySkinDocumentCodec.Decode(
+                configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("public-slot-test"))
+                                                                  .BindToPublication(snapshot);
+            GameplaySkinRuntimeCapabilitySet capabilities = GameplaySkinPublicSlotMaterialCapabilities.Create(GameplaySkinSlotCatalog.All);
+            GameplaySkinResolvedMaterialSourceIdentity selected = GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                "selected.public-test",
+                "content-a");
+            GameplaySkinResolvedMaterialSourceIdentity programmatic = GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback,
+                "programmatic.public-test",
+                "v1");
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            GameplaySkinPublicSlotMaterialResolution resolution = GameplaySkinPublicSlotMaterialResolver.Resolve(
+                snapshot,
+                document,
+                capabilities,
+                GameplaySkinSlotCatalog.All,
+                selected,
+                programmatic,
+                resource => resource == "surfaces/key-1" ? texture : null);
+            GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+            GameplaySkinLaneTopologyEntry lane = snapshot.Context.Topology.LanesInLogicalOrder
+                                                           .Single(candidate => candidate.Identity.Id.Value == "bms.lane.key-1");
+            GameplaySkinResolvedMaterialTarget laneTarget = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+            GameplaySkinResolvedMaterialTarget stageTarget = GameplaySkinResolvedMaterialTarget.ForStage(group);
+            GameplaySkinResolvedMaterialSet materials = GameplaySkinResolvedMaterialSet.Create(
+                snapshot,
+                GameplaySkinMaterialContractIdentity.CurrentFor(snapshot),
+                resolution.Entries,
+                resolution.Diagnostics);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(capabilities.Support, Has.Count.EqualTo(28));
+                Assert.That(resolution.Entries, Has.Count.EqualTo(92));
+                Assert.That(resolution.Entries.Select(entry => entry.Key), Is.Unique);
+                Assert.That(resolution.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All));
+
+                GameplaySkinResolvedMaterialEntry surface = materials.Entries.Single(entry =>
+                    ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.LaneSurface) && entry.Target.Equals(laneTarget));
+                GameplaySkinPublicSlotMaterial surfaceMaterial = surface.GetMaterial<GameplaySkinPublicSlotMaterial>();
+                Assert.That(surface.Source, Is.EqualTo(selected));
+                Assert.That(surfaceMaterial.ResourceName, Is.EqualTo("surfaces/key-1"));
+                Assert.That(surfaceMaterial.Texture, Is.SameAs(texture));
+
+                GameplaySkinResolvedMaterialEntry flash = materials.Entries.Single(entry =>
+                    ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.KeyFlash) && entry.Target.Equals(laneTarget));
+                Assert.That(flash.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                Assert.That(flash.Source, Is.EqualTo(selected));
+
+                GameplaySkinResolvedMaterialEntry missing = materials.Entries.Single(entry =>
+                    ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.HitExplosion) && entry.Target.Equals(laneTarget));
+                Assert.That(missing.Source, Is.EqualTo(programmatic));
+                Assert.That(missing.GetMaterial<GameplaySkinPublicSlotMaterial>().IsProgrammaticFallback, Is.True);
+                Assert.That(materials.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == "gameplay-skin.public-resource.missing" && diagnostic.Key!.Equals(missing.Key)), Is.True);
+
+                GameplaySkinResolvedMaterialEntry required = materials.Entries.Single(entry =>
+                    ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.JudgementLine) && entry.Target.Equals(stageTarget));
+                Assert.That(required.Source, Is.EqualTo(programmatic));
+                Assert.That(materials.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == "gameplay-skin.entry-invalid" && diagnostic.Key!.Equals(required.Key)), Is.True);
+                Assert.That(document.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == GameplaySkinCodecDiagnosticCode.SuppressionForbidden
+                    && diagnostic.SlotId == GameplaySkinSlotCatalog.JudgementLine.Id), Is.True);
+
+                Assert.That(materials.Entries.Where(entry => entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Lane)
+                                     .All(entry => entry.Target.GroupId != null
+                                                   && entry.Target.LaneId != null
+                                                   && entry.Target.GroupLogicalIndex.HasValue
+                                                   && entry.Target.GroupVisualIndex.HasValue
+                                                   && entry.Target.GlobalLogicalIndex.HasValue
+                                                   && entry.Target.GlobalVisualIndex.HasValue
+                                                   && entry.Target.GroupLocalLogicalIndex.HasValue
+                                                   && entry.Target.GroupLocalVisualIndex.HasValue), Is.True);
+            });
+        }
+
+        [Test]
+        public void TestGenericPublicMaterialPreparationCancellationReturnsNoPartialResult()
+        {
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, includeScratch: true);
+            const string configuration = """
+                                         [GameplaySkin.Common:1]
+                                         Target: Lane ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=1 group-local-visual=1
+                                         playfield.lane-surface: resource Provide "surfaces/key-1"
+                                         """;
+            GameplaySkinDocument document = GameplaySkinDocumentCodec.Decode(
+                configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("public-slot-cancel"))
+                                                                  .BindToPublication(snapshot);
+            GameplaySkinResolvedMaterialSourceIdentity selected = GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                "selected.public-test",
+                "content-a");
+            GameplaySkinResolvedMaterialSourceIdentity programmatic = GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback,
+                "programmatic.public-test",
+                "v1");
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            using var cancellation = new CancellationTokenSource();
+
+            Assert.That(
+                () => GameplaySkinPublicSlotMaterialResolver.Resolve(
+                    snapshot,
+                    document,
+                    GameplaySkinPublicSlotMaterialCapabilities.Create(new[] { GameplaySkinSlotCatalog.LaneSurface }),
+                    new[] { GameplaySkinSlotCatalog.LaneSurface },
+                    selected,
+                    programmatic,
+                    _ =>
+                    {
+                        cancellation.Cancel();
+                        return texture;
+                    },
+                    cancellation.Token),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public void TestGenericPublicMaterialRejectsExternalOrAmbiguousResourceNames()
+        {
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => GameplaySkinPublicSlotMaterial.FromPreparedResource(GameplaySkinSlotCatalog.LaneSurface, "../outside", texture),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => GameplaySkinPublicSlotMaterial.FromPreparedResource(GameplaySkinSlotCatalog.LaneSurface, @"C:\outside", texture),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => GameplaySkinPublicSlotMaterial.FromPreparedResource(GameplaySkinSlotCatalog.LaneSurface, @"folder\resource", texture),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => GameplaySkinPublicSlotMaterial.FromPreparedResource(GameplaySkinSlotCatalog.LaneSurface, "folder/resource?alias", texture),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => GameplaySkinPublicSlotMaterial.FromPreparedResource(GameplaySkinSlotCatalog.LaneSurface, "folder/CON.png", texture),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => GameplaySkinPublicSlotMaterial.FromPreparedResource(GameplaySkinSlotCatalog.LaneSurface, "folder/e\u0301.png", texture),
+                    Throws.ArgumentException);
+            });
+        }
+
+        [Test]
         public void TestStaleMaterialContractCannotReplaceCommittedPublication()
         {
             GameplaySkinLaneTopologySnapshot topology = createTopology();
@@ -627,6 +790,77 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Throws.ArgumentException.With.Message.Contains("current catalog/codec/resolver"));
 
             Assert.That(owner.CurrentPublication, Is.SameAs(committed));
+        }
+
+        [Test]
+        public void TestVersionedRuntimeSupportProfilesDecideEveryFrozenCatalogSlot()
+        {
+            GameplaySkinRuntimeSupportProfile bms = GameplaySkinRuntimeSupportProfile.Bms;
+            GameplaySkinRuntimeSupportProfile mania = GameplaySkinRuntimeSupportProfile.Mania;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bms.ContractVersion, Is.EqualTo(GameplaySkinRuntimeSupportProfile.CONTRACT_ID));
+                Assert.That(mania.ContractVersion, Is.EqualTo(GameplaySkinRuntimeSupportProfile.CONTRACT_ID));
+                Assert.That(bms.Decisions.Select(decision => decision.Descriptor), Is.EqualTo(GameplaySkinSlotCatalog.All));
+                Assert.That(mania.Decisions.Select(decision => decision.Descriptor), Is.EqualTo(GameplaySkinSlotCatalog.All));
+                Assert.That(bms.Decisions.Select(decision => decision.Descriptor.Id), Is.Unique);
+                Assert.That(mania.Decisions.Select(decision => decision.Descriptor.Id), Is.Unique);
+                Assert.That(bms.Capabilities.Support, Has.Count.EqualTo(28));
+                Assert.That(mania.Capabilities.Support, Has.Count.EqualTo(23));
+                Assert.That(mania.Decisions
+                                 .Where(decision => decision.Kind == GameplaySkinRuntimeSupportDecisionKind.NotApplicable)
+                                 .Select(decision => decision.Descriptor),
+                    Is.EquivalentTo(new[]
+                    {
+                        GameplaySkinSlotCatalog.Mine,
+                        GameplaySkinSlotCatalog.Turntable,
+                        GameplaySkinSlotCatalog.Laser,
+                        GameplaySkinSlotCatalog.BgaViewport,
+                        GameplaySkinSlotCatalog.BgaFrame,
+                    }));
+            });
+        }
+
+        [Test]
+        public void TestExactPublicationRejectsWrongRulesetRuntimeSupportProfile()
+        {
+            GameplaySkinLaneTopologySnapshot topology = createTopology();
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.CreateCompatibility();
+            GameplaySkinLayoutSnapshot snapshot = createSnapshot(topology, package, 0, 0.2f);
+            GameplaySkinResolvedMaterialSet wrongProfile = GameplaySkinResolvedMaterialSet.Create(
+                snapshot,
+                GameplaySkinMaterialContractIdentity.CurrentFor(GameplaySkinRuntimeSupportProfile.Bms),
+                Array.Empty<GameplaySkinResolvedMaterialEntry>());
+
+            Assert.That(
+                () => GameplaySkinLayoutPublication.Create(new TestLayoutAdapter(snapshot), wrongProfile),
+                Throws.ArgumentException.With.Message.Contains("exact ruleset profile"));
+        }
+
+        [Test]
+        public void TestNotApplicableSlotCannotEnterResolvedMaterialSet()
+        {
+            GameplaySkinLaneTopologySnapshot topology = createTopology();
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.CreateCompatibility();
+            GameplaySkinLayoutSnapshot snapshot = createSnapshot(topology, package, 0, 0.2f);
+            GameplaySkinLaneTopologyGroup group = topology.GroupsInLogicalOrder[0];
+            GameplaySkinLaneTopologyEntry lane = topology.LanesInLogicalOrder[0];
+            GameplaySkinResolvedMaterialEntry mine = GameplaySkinResolvedMaterialEntry.Provide(
+                GameplaySkinSlotCatalog.Mine,
+                GameplaySkinResolvedMaterialTarget.ForLane(group, lane),
+                GameplaySkinResolvedMaterialSourceIdentity.Create(
+                    GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback,
+                    "programmatic",
+                    "v1"),
+                new TestMaterial("mine"));
+
+            Assert.That(
+                () => GameplaySkinResolvedMaterialSet.Create(
+                    snapshot,
+                    GameplaySkinMaterialContractIdentity.CurrentFor(snapshot),
+                    new[] { mine }),
+                Throws.ArgumentException.With.Message.Contains("versioned runtime profile"));
         }
 
         [Test]
@@ -687,7 +921,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(
                     () => GameplaySkinResolvedMaterialSet.Create(
                         bms5,
-                        GameplaySkinMaterialContractIdentity.Current,
+                        GameplaySkinMaterialContractIdentity.CurrentFor(bms5),
                         new[] { invalidEntry }),
                     Throws.ArgumentException);
                 Assert.That(
@@ -774,7 +1008,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                     source);
                 GameplaySkinResolvedMaterialSet set = GameplaySkinResolvedMaterialSet.Create(
                     snapshot,
-                    GameplaySkinMaterialContractIdentity.Current,
+                    GameplaySkinMaterialContractIdentity.CurrentFor(snapshot),
                     Array.Empty<GameplaySkinResolvedMaterialEntry>(),
                     new[] { diagnostic, diagnostic });
                 return GameplaySkinLayoutPublication.Create(new TestLayoutAdapter(snapshot), set);
@@ -857,9 +1091,21 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinPackageRevision package = GameplaySkinPackageRevision.CreateCompatibility();
             var owner = new GameplaySkinLayoutRevisionOwner(package);
             var retirement = new CountingDisposable();
-            GameplaySkinPreparedLayout prepared = prepareMaterialPublication(owner, topology, package, "material", 0.2f, retirement);
+            var sceneRetirement = new CountingDisposable();
+            GameplaySkinPreparedLayout prepared = prepareMaterialPublication(
+                owner,
+                topology,
+                package,
+                "material",
+                0.2f,
+                retirement,
+                sceneRetirement);
 
-            Assert.That(retirement.DisposeCount, Is.Zero);
+            Assert.Multiple(() =>
+            {
+                Assert.That(retirement.DisposeCount, Is.Zero);
+                Assert.That(sceneRetirement.DisposeCount, Is.Zero);
+            });
             Assert.That(owner.TryCommit(prepared), Is.True);
 
             prepared.Dispose();
@@ -867,6 +1113,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(retirement.DisposeCount, Is.Zero, "A committed carrier must transfer retirement to the root owner.");
+                Assert.That(sceneRetirement.DisposeCount, Is.Zero, "Prepared scene resources must share the exact committed root lifetime.");
                 Assert.That(owner.CurrentPublication, Is.SameAs(prepared.Publication));
             });
 
@@ -876,6 +1123,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(retirement.DisposeCount, Is.EqualTo(1));
+                Assert.That(sceneRetirement.DisposeCount, Is.EqualTo(1));
                 Assert.That(owner.CurrentPublication, Is.Null);
             });
         }
@@ -886,18 +1134,77 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinLaneTopologySnapshot topology = createTopology();
             GameplaySkinPackageRevision package = GameplaySkinPackageRevision.CreateCompatibility();
             var retirement = new CountingDisposable();
+            var sceneRetirement = new CountingDisposable();
             GameplaySkinLayoutPublication publication = createMaterialPublication(
                 topology,
                 package,
                 0,
                 "material",
                 0.2f,
-                retirement);
+                retirement,
+                sceneRetirement);
 
             publication.Dispose();
             publication.Dispose();
 
-            Assert.That(retirement.DisposeCount, Is.EqualTo(1));
+            Assert.Multiple(() =>
+            {
+                Assert.That(retirement.DisposeCount, Is.EqualTo(1));
+                Assert.That(sceneRetirement.DisposeCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void TestPublicationValidationFailureRetiresSceneAndPackageResourcesExactlyOnce()
+        {
+            GameplaySkinLaneTopologySnapshot topology = createTopology();
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.CreateCompatibility();
+            GameplaySkinLayoutSnapshot exactSnapshot = createSnapshot(topology, package, 0, 0.2f);
+            GameplaySkinLayoutSnapshot foreignSnapshot = createSnapshot(topology, package, 0, 0.3f);
+            GameplaySkinLaneTopologyGroup group = topology.GroupsInLogicalOrder[0];
+            GameplaySkinLaneTopologyEntry lane = topology.LanesInLogicalOrder[0];
+            GameplaySkinResolvedMaterialEntry entry = GameplaySkinResolvedMaterialEntry.Provide(
+                GameplaySkinSlotCatalog.Note,
+                GameplaySkinResolvedMaterialTarget.ForLane(group, lane),
+                GameplaySkinResolvedMaterialSourceIdentity.Create(
+                    GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                    "selected.current",
+                    "material"),
+                new TestMaterial("material"));
+            GameplaySkinResolvedMaterialSet materialSet = GameplaySkinResolvedMaterialSet.Create(
+                exactSnapshot,
+                GameplaySkinMaterialContractIdentity.CurrentFor(exactSnapshot),
+                new[] { entry });
+            var sceneRetirement = new CountingDisposable();
+            var packageRetirement = new CountingDisposable();
+            var scene = new GameplaySkinPreparedScene(
+                exactSnapshot,
+                materialSet,
+                "scene-test",
+                null,
+                null,
+                Array.Empty<GameplaySkinPreparedSceneResource>(),
+                Array.Empty<GameplaySkinPreparedSceneNode>(),
+                sceneRetirement);
+
+            Assert.That(
+                () => GameplaySkinLayoutPublication.Create(
+                    new TestLayoutAdapter(foreignSnapshot),
+                    materialSet,
+                    scene,
+                    packageRetirement),
+                Throws.ArgumentException.With.Message.StartsWith(
+                    "A resolved gameplay skin material set must retain the exact package and layout snapshot being published."));
+
+            scene.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sceneRetirement.DisposeCount, Is.EqualTo(1),
+                    "A scene retirement taken before publication validation must never be stranded.");
+                Assert.That(packageRetirement.DisposeCount, Is.EqualTo(1),
+                    "The exact-package borrow must retire together with a rejected scene publication.");
+            });
         }
 
         [Test]
@@ -955,7 +1262,15 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 }
             });
             var retirement = new CountingDisposable();
-            GameplaySkinPreparedLayout prepared = prepareMaterialPublication(owner, topology, package, "material", 0.2f, retirement);
+            var sceneRetirement = new CountingDisposable();
+            GameplaySkinPreparedLayout prepared = prepareMaterialPublication(
+                owner,
+                topology,
+                package,
+                "material",
+                0.2f,
+                retirement,
+                sceneRetirement);
 
             Assert.That(owner.TryCommit(prepared), Is.False);
 
@@ -966,6 +1281,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(retirement.DisposeCount, Is.EqualTo(1));
+                Assert.That(sceneRetirement.DisposeCount, Is.EqualTo(1));
                 Assert.That(owner.CurrentPublication, Is.Null);
             });
         }
@@ -1335,14 +1651,16 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinPackageRevision package,
             string materialName,
             float left,
-            IDisposable? retirement = null)
+            IDisposable? retirement = null,
+            IDisposable? sceneRetirement = null)
             => owner.PreparePublication(revision => createMaterialPublication(
                 topology,
                 package,
                 revision,
                 materialName,
                 left,
-                retirement));
+                retirement,
+                sceneRetirement));
 
         private static GameplaySkinLayoutPublication createMaterialPublication(
             GameplaySkinLaneTopologySnapshot topology,
@@ -1350,7 +1668,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
             long revision,
             string materialName,
             float left,
-            IDisposable? retirement = null)
+            IDisposable? retirement = null,
+            IDisposable? sceneRetirement = null)
         {
             GameplaySkinLayoutSnapshot snapshot = createSnapshot(topology, package, revision, left);
             GameplaySkinLaneTopologyGroup group = topology.GroupsInLogicalOrder[0];
@@ -1366,9 +1685,26 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new TestMaterial(materialName));
             GameplaySkinResolvedMaterialSet set = GameplaySkinResolvedMaterialSet.Create(
                 snapshot,
-                GameplaySkinMaterialContractIdentity.Current,
+                GameplaySkinMaterialContractIdentity.CurrentFor(snapshot),
                 new[] { entry });
             var adapter = new TestLayoutAdapter(snapshot);
+
+            if (sceneRetirement != null)
+            {
+                var scene = new GameplaySkinPreparedScene(
+                    snapshot,
+                    set,
+                    "scene-test",
+                    null,
+                    null,
+                    Array.Empty<GameplaySkinPreparedSceneResource>(),
+                    Array.Empty<GameplaySkinPreparedSceneNode>(),
+                    sceneRetirement);
+
+                return retirement == null
+                    ? GameplaySkinLayoutPublication.Create(adapter, set, scene)
+                    : GameplaySkinLayoutPublication.Create(adapter, set, scene, retirement);
+            }
 
             return retirement == null
                 ? GameplaySkinLayoutPublication.Create(adapter, set)

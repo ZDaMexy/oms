@@ -76,19 +76,21 @@ namespace osu.Game.Skinning
         protected override void SkinChanged(ISkinSource skin)
         {
             var retrieved = skin.GetDrawableComponent(ComponentLookup);
-            Drawable replacement;
-            bool replacementIsDefault;
 
             if (retrieved == null)
-            {
-                replacement = CreateDefault(ComponentLookup);
-                replacementIsDefault = true;
-            }
+                SetDrawable(CreateDefault(ComponentLookup), true);
             else
-            {
-                replacement = retrieved;
-                replacementIsDefault = false;
-            }
+                SetDrawable(retrieved, false);
+        }
+
+        /// <summary>
+        /// Replaces the resolved component while preserving the atomic attach/detach semantics of a normal skin
+        /// lookup. Specialised owners may use this only to fail closed from an incompatible component to their
+        /// protected default; it does not perform another skin or resource lookup.
+        /// </summary>
+        protected void SetDrawable(Drawable replacement, bool replacementIsDefault)
+        {
+            ArgumentNullException.ThrowIfNull(replacement);
 
             if (CentreComponent)
             {

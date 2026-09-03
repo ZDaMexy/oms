@@ -2,7 +2,6 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Linq;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -32,20 +31,34 @@ namespace osu.Game.Rulesets.Mania.Mods
         {
             ManiaPlayfield maniaPlayfield = (ManiaPlayfield)drawableRuleset.Playfield;
 
-            foreach (Column column in maniaPlayfield.Stages.SelectMany(stage => stage.Columns))
+            foreach (Stage stage in maniaPlayfield.Stages)
             {
-                HitObjectContainer hoc = column.HitObjectContainer;
-                Container hocParent = (Container)hoc.Parent!;
-
-                hocParent.Remove(hoc, false);
-                hocParent.Add(CreateCover(hoc).With(c =>
+                foreach (Column column in stage.Columns)
                 {
-                    c.RelativeSizeAxes = Axes.Both;
-                    c.Direction = ExpandDirection;
-                    c.Coverage.BindTo(Coverage);
-                }));
+                    HitObjectContainer hoc = column.HitObjectContainer;
+                    Container hocParent = (Container)hoc.Parent!;
+
+                    hocParent.Remove(hoc, false);
+                    hocParent.Add(createConfiguredCover(hoc));
+                }
+
+                // Public LaneCover slots are stage-scoped. Mount exactly one authored visual per native stage while
+                // retaining the existing per-column alpha masks as the sole authority over note visibility.
+                var authorCover = createConfiguredCover(new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                });
+                stage.AddGameplaySkinLaneCoverHost(new ManiaGameplaySkinLaneCoverHost(authorCover));
             }
         }
+
+        private PlayfieldCoveringWrapper createConfiguredCover(Drawable content)
+            => CreateCover(content).With(cover =>
+            {
+                cover.RelativeSizeAxes = Axes.Both;
+                cover.Direction = ExpandDirection;
+                cover.Coverage.BindTo(Coverage);
+            });
 
         protected virtual PlayfieldCoveringWrapper CreateCover(Drawable content) => new PlayfieldCoveringWrapper(content);
 

@@ -1,18 +1,32 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Oms
 {
-    public partial class OmsStageBackground : CompositeDrawable
+    public partial class OmsStageBackground : CompositeDrawable, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                              IManiaGameplaySkinProgrammaticVisualPartReadinessSource
     {
         private Drawable? leftSprite;
         private Drawable? rightSprite;
+        private Drawable? playfieldBackdrop;
+        private Drawable? baseplate;
+
+        private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> gameplaySkinProgrammaticVisualParts
+            = Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+        IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+            => gameplaySkinProgrammaticVisualParts;
+
+        public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
         public OmsStageBackground()
         {
@@ -30,6 +44,16 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
 
             InternalChildren = new Drawable[]
             {
+                baseplate = new Container
+                {
+                    Name = "Playfield baseplate compatibility owner",
+                    RelativeSizeAxes = Axes.Both,
+                },
+                playfieldBackdrop = new Container
+                {
+                    Name = "Playfield backdrop compatibility owner",
+                    RelativeSizeAxes = Axes.Both,
+                },
                 leftSprite = new Sprite
                 {
                     Anchor = Anchor.TopLeft,
@@ -45,6 +69,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     Texture = skin.GetTexture(rightImage),
                 },
             };
+            gameplaySkinProgrammaticVisualParts = Array.AsReadOnly(new[]
+            {
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.StageBackground, leftSprite),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.StageBackground, rightSprite),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.PlayfieldBackdrop, playfieldBackdrop),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.PlayfieldBaseplate, baseplate),
+            });
+            GameplaySkinProgrammaticVisualPartsReady();
         }
 
         protected override void Update()

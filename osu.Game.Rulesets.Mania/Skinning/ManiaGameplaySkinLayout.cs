@@ -104,7 +104,13 @@ namespace osu.Game.Rulesets.Mania.Skinning
                         var adapter = new ManiaGameplaySkinLayout(snapshot);
                         GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, skin, cancellationToken);
                         cancellationToken.ThrowIfCancellationRequested();
-                        return GameplaySkinLayoutPublication.Create(adapter, materials);
+                        GameplaySkinPreparedScene scene = GameplaySkinScenePreparer.Prepare(snapshot, materials, skin, cancellationToken);
+
+                        // Transfer the scene's provisional resource retirement immediately. The outer
+                        // PreparePublication(cancellationToken) fence owns the post-solve cancellation check and
+                        // retires the completed publication/carrier exactly once. Throwing in this ownership gap
+                        // would otherwise leave prepared scene textures unattached to either owner.
+                        return GameplaySkinLayoutPublication.Create(adapter, materials, scene);
                     },
                     cancellationToken);
             }
@@ -243,6 +249,10 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
         public float DpiScale { get; }
 
+        public int RenderPixelWidth { get; }
+
+        public int RenderPixelHeight { get; }
+
         public bool UsedFallback { get; }
 
         public ManiaGameplaySkinLayoutEnvironment(
@@ -250,7 +260,9 @@ namespace osu.Game.Rulesets.Mania.Skinning
             GameplaySkinLayoutRect safeBounds,
             float aspectRatio,
             float dpiScale,
-            bool usedFallback = false)
+            bool usedFallback = false,
+            int renderPixelWidth = 0,
+            int renderPixelHeight = 0)
         {
             if (!screenBounds.Contains(safeBounds))
                 throw new ArgumentException("Mania safe bounds must be contained by screen bounds.", nameof(safeBounds));
@@ -261,10 +273,21 @@ namespace osu.Game.Rulesets.Mania.Skinning
             if (!float.IsFinite(dpiScale) || dpiScale <= 0)
                 throw new ArgumentOutOfRangeException(nameof(dpiScale));
 
+            if (renderPixelWidth == 0 && renderPixelHeight == 0)
+            {
+                renderPixelHeight = checked((int)Math.Ceiling(1080 * Math.Max(1, dpiScale)));
+                renderPixelWidth = checked((int)Math.Ceiling(renderPixelHeight * aspectRatio));
+            }
+
+            if (renderPixelWidth <= 0 || renderPixelHeight <= 0)
+                throw new ArgumentOutOfRangeException(nameof(renderPixelWidth));
+
             ScreenBounds = screenBounds;
             SafeBounds = safeBounds;
             AspectRatio = aspectRatio;
             DpiScale = dpiScale;
+            RenderPixelWidth = renderPixelWidth;
+            RenderPixelHeight = renderPixelHeight;
             UsedFallback = usedFallback;
         }
 
@@ -297,7 +320,9 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 GameplaySkinLayoutRect.Create(0, 0, 1, 1),
                 GameplaySkinLayoutRect.Create(left, top, safeWidth, safeHeight),
                 width / height,
-                dpiScale);
+                dpiScale,
+                renderPixelWidth: checked((int)Math.Ceiling(width * Math.Max(1, dpiScale))),
+                renderPixelHeight: checked((int)Math.Ceiling(height * Math.Max(1, dpiScale))));
 
             static ManiaGameplaySkinLayoutEnvironment fallback()
                 => new ManiaGameplaySkinLayoutEnvironment(
@@ -541,7 +566,9 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 direction,
                 packageRevision,
                 topologyRevision: topologyPublication.Publication.Revision,
-                layoutRevision);
+                layoutRevision,
+                environment.RenderPixelWidth,
+                environment.RenderPixelHeight);
 
             return GameplaySkinLayoutSnapshot.Create(
                 context,

@@ -55,6 +55,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         public BmsScrollProfile? ScrollProfile { get; set; }
 
         /// <summary>
+        /// Converter-owned musical timing projection used by read-only gameplay consumers. Unlike the compatibility
+        /// timing control-point surface, this never represents a STOP marker as a real BPM change.
+        /// </summary>
+        internal BmsTimingProfile? TimingProfile { get; set; }
+
+        /// <summary>
         /// Time-ordered BGA switches (background image / animation) resolved from the base / poor / layer channels
         /// (P1-L Phase 5). Like <see cref="Mines"/> / <see cref="ScrollProfile"/> this is rendering-only: it is kept OUT
         /// of <see cref="Beatmap{T}.HitObjects"/> and never feeds judgement / scoring / statistics. Empty until built by

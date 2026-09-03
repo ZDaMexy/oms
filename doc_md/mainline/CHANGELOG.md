@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-09-03
+
+### Skin V1 C5 declarative scene / read-only event / public slot production闭门
+
+P1-A七个持久campaign的`C5`已闭合，燃尽推进为 **`5/7 closed，C6 active`**。在C4唯一catalog/codec/resolver与package+layout+material publication之上，OMS现以`oms-gameplay-skin-manifest.v1`、`oms-gameplay-skin-scene.v1`、`oms-gameplay-skin-event.v1`冻结manifest/scene/event合同；Sprite/Container/Text/Mask/Clip、allowlisted blend/effect、frame/tween/state-machine、只读binding、template/instance在background prepare形成单一immutable graph。真实BMS/mania/core producer发布带epoch/sequence/revision/gameplay-time/LaneId/GroupId的bounded read-only event stream，并以Snapshot/Reset支持late attach、retry、seek、rewind与旧epoch隔离。`GameplayResumed`可作为engine envelope事实，但scene ABI不接受`gameplay.resume`，因为完整Snapshot已能重建Running状态。
+
+BMS runtime profile对28项catalog均提供版本化production route（9K按适用性为26格，Turntable/Laser不适用）；mania对28项逐项决策，23项Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`明确NotApplicable。global/stage/group/lane、lane surface/divider、judgement/hit target、cover、barline、stage/backdrop/baseplate、key/keyflash/mine、hit explosion、judgement/combo/gauge/text HUD、turntable/laser、BGA frame/viewport与decoration均由固定host或scene route消费同一exact publication；Note/LN/Hold继续池化，update thread不做I/O/解码/模板展开。
+
+最终验证：core `~GameplaySkin` **429/429**、mania `~GameplaySkin` **69/69**、BMS `~GameplaySkin` **146/146**；BMS full（`--blame-hang --blame-hang-timeout 5m`）**1721/1721**、current-revision production **215/215**；mania full **860/864**仅冻结既有四项HoldNote frame-count失败；core `~Skin` **1218/1224**仅冻结既有六项失败；P1-K decoder/converter/timing/keysound **126/126、24/24、17/17、68/68**；Release **0 error / 20 emitted known warnings**。文档门、diff检查与targeted formatter均通过，四类独立终审GO且blocker/major **0/0**。完整范围、排除项与证据见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)及[C5完成交接](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)。C6仍负责sandbox、最终ini/manifest/scene/script/素材整包reload；C7负责canonical双包/Authoring Kit、程序化`OmsSkin`退出与自动release。
+
+---
+
 ## 2026-09-02
 
 ### Skin V1 C4 shared codec / public catalog / resolved material闭门

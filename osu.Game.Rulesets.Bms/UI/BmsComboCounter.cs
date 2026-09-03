@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -18,8 +19,7 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class BmsComboCounter : ComboCounter
     {
-        private TextComponent textComponent = null!;
-
+        private TextComponentHost textComponent = null!;
         [Resolved(CanBeNull = true)]
         private BmsGameplayLayoutProvider? layoutProvider { get; set; }
 
@@ -29,6 +29,10 @@ namespace osu.Game.Rulesets.Bms.UI
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; private set; }
 
         internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
+
+        internal Drawable GameplaySkinFallbackVisual => textComponent.StageVisuals[0];
+
+        internal IReadOnlyList<Drawable> GameplaySkinStageFallbackVisuals => textComponent.StageVisuals;
 
         protected override double RollingDuration => 80;
 
@@ -47,6 +51,9 @@ namespace osu.Game.Rulesets.Bms.UI
             if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, LayoutSnapshot.Neutral))
                 throw new InvalidOperationException("The BMS combo counter does not retain the material set from its exact publication.");
 
+            textComponent.Initialise(LayoutSnapshot);
+            ApplyStageLocalLayout();
+
             Current.BindTo(scoreProcessor.Combo);
             Current.BindValueChanged(combo =>
             {
@@ -61,10 +68,91 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override LocalisableString FormatCount(int count) => $@"{count}x";
 
-        protected override IHasText CreateText() => textComponent = new TextComponent();
+        protected override IHasText CreateText() => textComponent = new TextComponentHost();
+
+        internal void ApplyStageLocalLayout()
+        {
+            AutoSizeAxes = Axes.None;
+            Anchor = Anchor.TopLeft;
+            Origin = Anchor.TopLeft;
+            RelativePositionAxes = Axes.None;
+            RelativeSizeAxes = Axes.Both;
+            Position = Vector2.Zero;
+            Size = Vector2.One;
+        }
 
         // Bare combo readout: just the COMBO label + count, centred, with no background colour block / border so the
         // counter sits cleanly over the playfield centre.
+        private partial class TextComponentHost : CompositeDrawable, IHasText
+        {
+            private readonly List<TextComponent> stageVisuals = new List<TextComponent>();
+            private LocalisableString text;
+
+            public LocalisableString Text
+            {
+                get => text;
+                set
+                {
+                    text = value;
+
+                    foreach (TextComponent stage in stageVisuals)
+                        stage.Text = value;
+                }
+            }
+
+            public IReadOnlyList<TextComponent> StageVisuals => stageVisuals;
+
+            public TextComponentHost()
+            {
+                RelativeSizeAxes = Axes.Both;
+            }
+
+            public void Initialise(BmsGameplayLayoutSnapshot snapshot)
+            {
+                ArgumentNullException.ThrowIfNull(snapshot);
+
+                if (stageVisuals.Count != 0)
+                    throw new InvalidOperationException("The BMS combo stage-local visual graph is immutable after load.");
+
+                GameplaySkinLayoutRect combo = snapshot.ComboRect;
+
+                foreach (GameplaySkinLaneTopologyGroup group in snapshot.Neutral.Context.Topology.GroupsInLogicalOrder)
+                {
+                    GameplaySkinLayoutRect groupRect = snapshot.Neutral.GetGroup(group.Identity.Id).Rect;
+                    var stage = new TextComponent(GameplaySkinResolvedMaterialTarget.ForStage(group))
+                    {
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.Centre,
+                        RelativePositionAxes = Axes.Both,
+                        X = groupRect.X + groupRect.Width / 2,
+                        Y = combo.Y + combo.Height / 2,
+                        Text = text,
+                    };
+                    stageVisuals.Add(stage);
+                }
+
+                InternalChildren = stageVisuals.ToArray();
+            }
+
+            public void UpdateState(int combo)
+            {
+                foreach (TextComponent stage in stageVisuals)
+                    stage.UpdateState(combo);
+            }
+
+            public void Pulse()
+            {
+                foreach (TextComponent stage in stageVisuals)
+                    stage.Pulse();
+            }
+
+            public void FlashMiss()
+            {
+                foreach (TextComponent stage in stageVisuals)
+                    stage.FlashMiss();
+            }
+        }
+
         private partial class TextComponent : CompositeDrawable, IHasText
         {
             private readonly OsuSpriteText labelText;
@@ -76,8 +164,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 set => countText.Text = value;
             }
 
-            public TextComponent()
+            public GameplaySkinResolvedMaterialTarget Target { get; }
+
+            public TextComponent(GameplaySkinResolvedMaterialTarget target)
             {
+                Target = target ?? throw new ArgumentNullException(nameof(target));
                 AutoSizeAxes = Axes.Both;
 
                 InternalChild = new FillFlowContainer

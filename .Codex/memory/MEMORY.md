@@ -21,10 +21,10 @@
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — exact-capsule/guarded选择、typed startup双epoch、explicit current Reload、current Delete pre-physical fallback/detach与shutdown地雷。
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — 专用资格/held identity、typed coordinator、NTFS handoff、`(version,kind,phase)`闭集、terminal compare-delete与Workspace managed动作地雷。
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — service owner不等于capability、held-to-final proof、manual Reload、current/noncurrent pure-Realm unregister与single-v3 copy/recovery地雷。
-- [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源C2与C3/C4 package+layout+material不可分割publication、Settings唯一manual Reload、live fail-closed、fresh barrier、participant/work lease、generation复核、current mutation与owner retire；C5～C6新增consumer继续接入。
+- [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源C2与C3/C4/C5 package+layout+material+scene不可分割publication、Settings唯一manual Reload、live fail-closed、fresh barrier、participant/work lease、generation复核、current mutation与owner retire；C6新增consumer继续接入。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — skin-scoped pre-open/CEN gate、same-hash receipt、record/blob asymmetric rollback，以及current reload/delete不放宽importer的边界。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、legacy editor禁用、三源reload完成边界、真实beatmap-local缺口与不可误推边界；实时能力只看P1-A。
-- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer核算价值；当前`4/7 closed，C5 active`，C1～C4冻结，下一门为scene/animation/event与剩余optional slot production。
+- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer核算价值；当前`5/7 closed，C6 active`，C1～C5冻结，下一门为sandbox与最终整包reload。
 
 ## 构建、存储与产品面参考
 
@@ -55,11 +55,11 @@
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — legacy UI/backend稳定不可用，非Workspace/manual Reload或Skin V1 ABI；Activator只在未来重开时相关。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — fail-open、semantic taxonomy、descriptor/context、provider precedence、诊断隐私与候选生命周期地雷。
-- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — C4 public catalog/shared tokenizer、三态resolver、exact target/material publication、diagnostic、beatmap-local排除与foundation分类地雷。
+- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — C4 public catalog/shared tokenizer、三态resolver、C5 exact scene/event publication、diagnostic、beatmap-local排除与foundation分类地雷。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — 强类型 stable ID、immutable topology snapshot、neutral transition validator 与 internal BMS/mania projection。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision、BMS keymode/mania ordered-stage continuity、失败原子性与非 production `layoutRevision` 边界。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — C3唯一neutral immutable context/publication、BMS solver与mania adapter、全consumer、字段fallback及C2 package+layout+material triple/lease地雷。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — C3唯一neutral immutable context/publication、BMS solver与mania adapter、C5 scene/event全consumer、字段fallback及C2 package+layout+material+scene lease地雷。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — bucket/legacy mania scalar/indexed-array/global/per-column-colour/native `[Bms]` exact 22 colour / 12 geometry/bucket-global/`NoteBodyStyle` accepted presence、semantic mapping、per-index mask、synthetic default与decoder authority地雷。
-- [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — BMS/mania逐lane provenance/candidate矩阵、production resolved material、exact preparation ref-counted borrow/retirement、9K/14K映射与future consumer纳入地雷。
+- [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — BMS/mania逐lane provenance/candidate矩阵、production resolved material、C5 scene/resource exact preparation与ref-counted retirement、9K/14K映射地雷。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — process-local envelope、canonical stream ordering、producer authority 与 mutable callback 地雷。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、hard-deny classifier、只读 event token 与 authority-handle 地雷。

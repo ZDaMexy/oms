@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Input.Events;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
@@ -17,12 +18,20 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class DrawableBmsHoldNote : DrawableBmsHitObject
     {
+        // Required only by the framework pool type constraint. Production pools override CreateNewDrawable() and
+        // always construct with the exact committed layout/material publication.
+        public DrawableBmsHoldNote()
+            : this(new BmsHoldNote { Keymode = BmsKeymode.Key7K })
+        {
+        }
+
         public override bool DisplayResult => false;
 
         private DrawableBmsHoldNoteHead? headDrawable;
         private DrawableBmsHoldNoteTail? tailDrawable;
         private readonly List<DrawableBmsHoldNoteBodyTick> bodyTickDrawables = new List<DrawableBmsHoldNoteBodyTick>();
         private BmsLongNoteMode? longNoteModeOverrideForTesting;
+        private BmsLongNoteBodyState lastPublishedBodyState;
 
         private readonly Bindable<BmsLongNoteBodyState> bodyState = new Bindable<BmsLongNoteBodyState>();
 
@@ -56,15 +65,34 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.OnApply();
 
+            // DrawableHitObject resolves nested hitobjects from the lane's exact pools before it calls
+            // CreateNestedHitObject(). In that production path the factory assignments below are deliberately
+            // skipped, so bind the fields from the children that were actually applied. This keeps the LN scoring
+            // owner on the parent while allowing head/tail/tick visuals to remain independently pooled.
+            bindAppliedNestedDrawables();
+
             // Reset transient hold state so a pooled reuse never inherits the previous note's broken/holding look.
             IsHoldingForTesting = false;
             bodyState.Value = BmsLongNoteBodyState.Idle;
+            lastPublishedBodyState = BmsLongNoteBodyState.Idle;
         }
 
         protected override void Update()
         {
             base.Update();
-            bodyState.Value = computeBodyState();
+            BmsLongNoteBodyState next = computeBodyState();
+            bodyState.Value = next;
+
+            if (next != lastPublishedBodyState)
+            {
+                lastPublishedBodyState = next;
+                drawableRuleset?.PublishGameplaySkinObjectState(HitObject, next switch
+                {
+                    BmsLongNoteBodyState.Holding => GameplaySkinObjectState.Holding,
+                    BmsLongNoteBodyState.Broken => GameplaySkinObjectState.Missed,
+                    _ => GameplaySkinObjectState.Visible,
+                });
+            }
         }
 
         private BmsLongNoteBodyState computeBodyState()
@@ -291,6 +319,31 @@ namespace osu.Game.Rulesets.Bms.UI
             headDrawable = null;
             tailDrawable = null;
             bodyTickDrawables.Clear();
+        }
+
+        private void bindAppliedNestedDrawables()
+        {
+            headDrawable = null;
+            tailDrawable = null;
+            bodyTickDrawables.Clear();
+
+            foreach (DrawableHitObject nested in NestedHitObjects)
+            {
+                switch (nested)
+                {
+                    case DrawableBmsHoldNoteHead head:
+                        headDrawable = head;
+                        break;
+
+                    case DrawableBmsHoldNoteTail tail:
+                        tailDrawable = tail;
+                        break;
+
+                    case DrawableBmsHoldNoteBodyTick bodyTick:
+                        bodyTickDrawables.Add(bodyTick);
+                        break;
+                }
+            }
         }
 
         private void resolveTail(HitResult tailResult)

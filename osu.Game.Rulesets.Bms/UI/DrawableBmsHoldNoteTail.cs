@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Judgements;
@@ -11,6 +12,11 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class DrawableBmsHoldNoteTail : DrawableBmsHitObject
     {
+        public DrawableBmsHoldNoteTail()
+            : this(new BmsHoldNoteTailEvent { Keymode = BmsKeymode.Key7K })
+        {
+        }
+
         private BmsHoldNoteTailJudgement tailJudgement => (BmsHoldNoteTailJudgement)HitObject.Judgement;
 
         public override bool DisplayResult => tailJudgement.CountsForScore;

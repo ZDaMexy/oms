@@ -115,12 +115,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                         case GlobalSkinnableContainers.MainHUDComponents:
                             return new ManiaGameplayHudComponentsContainer(beatmap.Stages, this, container =>
                             {
-                                var combo = container.ChildrenOfType<LegacyManiaComboCounter>().FirstOrDefault();
+                                LegacyManiaComboCounter[] combos = container.ChildrenOfType<LegacyManiaComboCounter>().ToArray();
                                 var spectatorList = container.OfType<SpectatorList>().FirstOrDefault();
                                 var leaderboard = container.OfType<DrawableGameplayLeaderboard>().FirstOrDefault();
 
-                                if (combo != null)
-                                    container.ApplyComboPlacement(combo);
+                                for (int stageIndex = 0; stageIndex < combos.Length; stageIndex++)
+                                    container.ApplyComboPlacement(combos[stageIndex], stageIndex);
 
                                 if (spectatorList != null)
                                 {
@@ -140,9 +140,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                                     d.UsesFixedAnchor = true;
                             })
                             {
-                                new LegacyManiaComboCounter(),
-                                new SpectatorList(),
-                                new DrawableGameplayLeaderboard(),
+                                Children = Enumerable.Range(0, beatmap.Stages.Count)
+                                                     .Select(_ => (Drawable)new LegacyManiaComboCounter())
+                                                     .Concat(new Drawable[]
+                                                     {
+                                                         new SpectatorList(),
+                                                         new DrawableGameplayLeaderboard(),
+                                                     }).ToArray(),
                             };
                     }
 

@@ -361,13 +361,23 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestPlayfieldAddsMeasureBarLinesToEachLane()
+        public void TestPlayfieldAddsOneMeasureBarLineToEachExactGroup()
         {
             var beatmap = createPlayableBeatmap();
             var playfield = BmsPlayfield.CreateCompatibility(beatmap);
 
-            foreach (var lane in playfield.Lanes)
-                Assert.That(lane.AllHitObjects.Count(hitObject => hitObject is DrawableBmsBarLine), Is.EqualTo(beatmap.MeasureStartTimes.Count));
+            Assert.Multiple(() =>
+            {
+                Assert.That(playfield.BarLinePlayfields, Has.Count.EqualTo(playfield.LayoutSnapshot.Neutral.GroupsInLogicalOrder.Count));
+                Assert.That(playfield.Lanes.SelectMany(lane => lane.AllHitObjects).OfType<DrawableBmsBarLine>(), Is.Empty);
+
+                foreach (BmsBarLinePlayfield owner in playfield.BarLinePlayfields)
+                {
+                    Assert.That(owner.MeasureBarLines, Has.Count.EqualTo(beatmap.MeasureStartTimes.Count));
+                    Assert.That(owner.MeasureBarLines.All(barLine => barLine.GroupLogicalIndex == owner.GroupLogicalIndex
+                                                                    && barLine.GroupId?.Equals(owner.GroupId) == true), Is.True);
+                }
+            });
         }
 
         [Test]
@@ -389,16 +399,15 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var beatmap = createPlayableBeatmap();
             var playfield = BmsPlayfield.CreateCompatibility(beatmap);
-            var barLines = playfield.Lanes.SelectMany(lane => lane.AllHitObjects.OfType<DrawableBmsBarLine>()).ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(playfield.LayoutProfile, Is.SameAs(playfield.LaneLayout.Profile));
                 Assert.That(playfield.Lanes.All(lane => Math.Abs(lane.HitTarget.Height
                                                                   - playfield.LayoutSnapshot.ProjectVerticalProfileMetric(playfield.LayoutProfile.HitTargetHeight)) <= 0.0001f), Is.True);
-                Assert.That(barLines, Is.Not.Empty);
-                Assert.That(barLines.All(barLine => Math.Abs(barLine.Height
-                                                             - playfield.LayoutSnapshot.ProjectVerticalProfileMetric(playfield.LayoutProfile.BarLineHeight)) <= 0.0001f), Is.True);
+                Assert.That(playfield.BarLinePlayfields, Is.Not.Empty);
+                Assert.That(playfield.BarLinePlayfields.All(owner => Math.Abs(owner.ProjectedBarLineHeight
+                                                                              - playfield.LayoutSnapshot.ProjectVerticalProfileMetric(playfield.LayoutProfile.BarLineHeight)) <= 0.0001f), Is.True);
             });
         }
 

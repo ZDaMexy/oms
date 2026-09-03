@@ -130,6 +130,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             beatmap.SetMeasureStartTimes(timeline.MeasureStartTimes);
             beatmap.ScrollProfile = timeline.ScrollProfile;
+            beatmap.TimingProfile = timeline.TimingProfile;
 
             foreach (var objectEvent in decodedChart.ObjectEvents)
             {
@@ -354,6 +355,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             double currentTime = 0;
             double currentBpm = getInitialBpm(decodedChart);
+            double currentBeat = 0;
 
             // Parallel accumulation of the BMS stop-motion scroll profile D(t) (P1-L Phase 2), built from the same
             // unclamped walk that produces note times. Distance is accumulated in scroll-weighted beats here and scaled
@@ -365,6 +367,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var knotTimes = new List<double> { 0 };
             var knotDistances = new List<double> { 0 };
             var bpmDurations = new Dictionary<double, double>();
+            var timingSegments = new List<BmsTimingSegment>
+            {
+                new BmsTimingSegment(0, 0, currentBpm, false),
+            };
 
             addTimingControlPoint(controlPointInfo, 0, currentBpm);
 
@@ -394,6 +400,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                             {
                                 currentBpm = bpmEvent.Bpm;
                                 addTimingControlPoint(controlPointInfo, currentTime, currentBpm);
+                                addTimingSegment(false);
                             }
                         }
 
@@ -406,6 +413,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                                 if (stopDuration <= 0)
                                     continue;
 
+                                addTimingSegment(true);
                                 controlPointInfo.Add(currentTime, new BmsStopFreezeTimingControlPoint { BeatLength = stop_freeze_beat_length });
                                 currentTime += stopDuration;
 
@@ -414,6 +422,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                                 knotDistances.Add(currentDistance);
 
                                 addTimingControlPoint(controlPointInfo, currentTime, currentBpm);
+                                addTimingSegment(false);
                             }
                         }
 
@@ -443,7 +452,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             for (int i = 0; i < knotDistances.Count; i++)
                 knotDistances[i] *= baseBeatLength;
 
-            return new TimelineBuildResult(eventTimes, measureStartTimes, new BmsScrollProfile(knotTimes, knotDistances, baseBeatLength));
+            return new TimelineBuildResult(
+                eventTimes,
+                measureStartTimes,
+                new BmsScrollProfile(knotTimes, knotDistances, baseBeatLength),
+                new BmsTimingProfile(timingSegments, measureStartTimes));
 
             // Advances the timeline by the given number of beats at the current BPM, accumulating the scroll profile
             // distance and a per-BPM playing-time histogram, and recording a knot. Beats <= 0 are no-ops.
@@ -454,10 +467,21 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 double dt = beats * getBeatLength(currentBpm);
                 currentTime += dt;
+                currentBeat += beats;
                 currentDistance += currentScroll * beats;
                 bpmDurations[currentBpm] = bpmDurations.GetValueOrDefault(currentBpm) + dt;
                 knotTimes.Add(currentTime);
                 knotDistances.Add(currentDistance);
+            }
+
+            void addTimingSegment(bool isStopped)
+            {
+                var segment = new BmsTimingSegment(currentTime, currentBeat, currentBpm, isStopped);
+
+                if (timingSegments[^1].StartTime == currentTime)
+                    timingSegments[^1] = segment;
+                else
+                    timingSegments.Add(segment);
             }
 
             void register(IEnumerable<BmsEventTimeKey> keys)
@@ -610,11 +634,18 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             public BmsScrollProfile ScrollProfile { get; }
 
-            public TimelineBuildResult(Dictionary<BmsEventTimeKey, double> eventTimes, IReadOnlyList<double> measureStartTimes, BmsScrollProfile scrollProfile)
+            public BmsTimingProfile TimingProfile { get; }
+
+            public TimelineBuildResult(
+                Dictionary<BmsEventTimeKey, double> eventTimes,
+                IReadOnlyList<double> measureStartTimes,
+                BmsScrollProfile scrollProfile,
+                BmsTimingProfile timingProfile)
             {
                 EventTimes = eventTimes;
                 MeasureStartTimes = measureStartTimes;
                 ScrollProfile = scrollProfile;
+                TimingProfile = timingProfile;
             }
         }
 

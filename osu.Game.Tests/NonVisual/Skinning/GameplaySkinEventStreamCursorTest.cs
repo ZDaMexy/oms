@@ -83,50 +83,72 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(valid));
         }
 
-        [Test]
-        public void TestSameEpochSnapshotCanKeepOrAdvanceLayoutRevision()
+        [TestCase(3)]
+        [TestCase(8)]
+        public void TestSameEpochSnapshotIsRejectedAtomically(long snapshotLayoutRevision)
         {
             var cursor = attach(epoch: 4, sequence: 20, gameplayTime: 75, layoutRevision: 3);
-            GameplaySkinEventEnvelope sameLayoutReload = envelope(GameplaySkinEventDeliveryKind.Snapshot, 4, 21, 75, 3);
-            GameplaySkinEventEnvelope changedLayoutReload = envelope(GameplaySkinEventDeliveryKind.Snapshot, 4, 22, 75, 8);
-            GameplaySkinEventEnvelope nextEdge = envelope(GameplaySkinEventDeliveryKind.Edge, 4, 23, 75, 8);
-
-            cursor.ValidateAndAdvance(sameLayoutReload);
-            cursor.ValidateAndAdvance(changedLayoutReload);
-            cursor.ValidateAndAdvance(nextEdge);
-
-            Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(nextEdge));
-        }
-
-        [Test]
-        public void TestEdgeCannotIntroduceOrUseStaleLayoutRevision()
-        {
-            var cursor = attach(epoch: 4, sequence: 0, gameplayTime: 75, layoutRevision: 3);
+            GameplaySkinEventEnvelope previous = cursor.LastAcceptedEnvelope!;
 
             Assert.That(
-                () => cursor.ValidateAndAdvance(envelope(GameplaySkinEventDeliveryKind.Edge, 4, 1, 75, 4)),
+                () => cursor.ValidateAndAdvance(envelope(GameplaySkinEventDeliveryKind.Snapshot, 4, 21, 75, snapshotLayoutRevision)),
                 Throws.InvalidOperationException);
+            Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(previous));
 
-            GameplaySkinEventEnvelope changedLayout = envelope(GameplaySkinEventDeliveryKind.Snapshot, 4, 1, 75, 4);
-            cursor.ValidateAndAdvance(changedLayout);
-
-            Assert.That(
-                () => cursor.ValidateAndAdvance(envelope(GameplaySkinEventDeliveryKind.Edge, 4, 2, 75, 3)),
-                Throws.InvalidOperationException);
-
-            GameplaySkinEventEnvelope valid = envelope(GameplaySkinEventDeliveryKind.Edge, 4, 2, 75, 4);
+            GameplaySkinEventEnvelope valid = envelope(GameplaySkinEventDeliveryKind.Edge, 4, 21, 75, 3);
             cursor.ValidateAndAdvance(valid);
             Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(valid));
         }
 
         [Test]
-        public void TestSnapshotCannotRegressLayoutRevisionWithinEpoch()
+        public void TestSameEpochProductionRecordSnapshotIsRejectedAtomically()
+        {
+            var cursor = new GameplaySkinEventStreamCursor(GameplaySkinEventApiVersions.V1);
+            GameplaySkinEventRevision revision = GameplaySkinEventRevision.Create(1, 3, 3, 3);
+            GameplaySkinEventStateSnapshot state = recordState();
+            GameplaySkinEventRecord initial = GameplaySkinEventRecord.Create(
+                4,
+                20,
+                75,
+                revision,
+                state.Timing,
+                null,
+                null,
+                GameplaySkinEventValue.Snapshot(state));
+            cursor.ValidateAndAdvance(initial);
+
+            GameplaySkinEventRecord invalid = GameplaySkinEventRecord.Create(
+                4,
+                21,
+                75,
+                GameplaySkinEventRevision.Create(1, 8, 3, 3),
+                state.Timing,
+                null,
+                null,
+                GameplaySkinEventValue.Snapshot(state));
+            Assert.That(() => cursor.ValidateAndAdvance(invalid), Throws.InvalidOperationException);
+
+            GameplaySkinEventRecord valid = GameplaySkinEventRecord.Create(
+                4,
+                21,
+                75,
+                revision,
+                state.Timing,
+                null,
+                null,
+                GameplaySkinEventValue.Lifecycle(GameplaySkinEventKind.GameplayLoaded, GameplaySkinLifecycleState.Loaded));
+            Assert.That(() => cursor.ValidateAndAdvance(valid), Throws.Nothing);
+            Assert.That(cursor.LastAcceptedEpoch, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void TestEdgeCannotIntroduceRevisionWithoutNewEpochReset()
         {
             var cursor = attach(epoch: 4, sequence: 0, gameplayTime: 75, layoutRevision: 3);
             GameplaySkinEventEnvelope previous = cursor.LastAcceptedEnvelope!;
 
             Assert.That(
-                () => cursor.ValidateAndAdvance(envelope(GameplaySkinEventDeliveryKind.Snapshot, 4, 1, 75, 2)),
+                () => cursor.ValidateAndAdvance(envelope(GameplaySkinEventDeliveryKind.Edge, 4, 1, 75, 4)),
                 Throws.InvalidOperationException);
             Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(previous));
 
@@ -189,6 +211,54 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinEventEnvelope valid = envelope(GameplaySkinEventDeliveryKind.Edge, 0, 1, 0, 0);
             cursor.ValidateAndAdvance(valid);
             Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(valid));
+        }
+
+        [Test]
+        public void TestContractIdCannotChangeAndRejectionIsAtomic()
+        {
+            var cursor = attach(epoch: 0, sequence: 0, gameplayTime: 0, layoutRevision: 0);
+            GameplaySkinEventEnvelope previous = cursor.LastAcceptedEnvelope!;
+
+            GameplaySkinEventEnvelope invalid = GameplaySkinEventEnvelope.Create(
+                "oms-gameplay-skin-event.v2",
+                GameplaySkinEventApiVersions.V1,
+                0,
+                1,
+                0,
+                GameplaySkinEventRevision.Create(0, 0, 0, 0),
+                null,
+                null,
+                new TestPayload(GameplaySkinEventDeliveryKind.Edge));
+
+            Assert.That(() => cursor.ValidateAndAdvance(invalid), Throws.InvalidOperationException);
+            Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(previous));
+        }
+
+        [Test]
+        public void TestEdgeCannotMixAnyExactRevision()
+        {
+            var cursor = new GameplaySkinEventStreamCursor(GameplaySkinEventApiVersions.V1);
+            cursor.ValidateAndAdvance(fullEnvelope(
+                GameplaySkinEventDeliveryKind.Snapshot,
+                0,
+                0,
+                0,
+                GameplaySkinEventRevision.Create(1, 2, 3, 4)));
+            GameplaySkinEventEnvelope previous = cursor.LastAcceptedEnvelope!;
+
+            foreach (GameplaySkinEventRevision revision in new[]
+                     {
+                         GameplaySkinEventRevision.Create(2, 2, 3, 4),
+                         GameplaySkinEventRevision.Create(1, 3, 3, 4),
+                         GameplaySkinEventRevision.Create(1, 2, 4, 4),
+                         GameplaySkinEventRevision.Create(1, 2, 3, 5),
+                     })
+            {
+                Assert.That(
+                    () => cursor.ValidateAndAdvance(fullEnvelope(GameplaySkinEventDeliveryKind.Edge, 0, 1, 0, revision)),
+                    Throws.InvalidOperationException);
+                Assert.That(cursor.LastAcceptedEnvelope, Is.SameAs(previous));
+            }
         }
 
         [Test]
@@ -275,5 +345,32 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 gameplayTime,
                 layoutRevision,
                 new TestPayload(deliveryKind));
+
+        private static GameplaySkinEventEnvelope fullEnvelope(
+            GameplaySkinEventDeliveryKind deliveryKind,
+            long epoch,
+            long sequence,
+            double gameplayTime,
+            GameplaySkinEventRevision revision)
+            => GameplaySkinEventEnvelope.Create(
+                GameplaySkinEventApiVersions.ContractId,
+                GameplaySkinEventApiVersions.V1,
+                epoch,
+                sequence,
+                gameplayTime,
+                revision,
+                null,
+                null,
+                new TestPayload(deliveryKind));
+
+        private static GameplaySkinEventStateSnapshot recordState()
+            => new GameplaySkinEventStateSnapshot(
+                GameplaySkinLifecycleState.Loaded,
+                Array.Empty<GameplaySkinInputStateSnapshot>(),
+                Array.Empty<GameplaySkinObjectStateSnapshot>(),
+                Array.Empty<GameplaySkinCurrentJudgementStateSnapshot>(),
+                new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, 1),
+                new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1),
+                Array.Empty<GameplaySkinBgaStateSnapshot>());
     }
 }

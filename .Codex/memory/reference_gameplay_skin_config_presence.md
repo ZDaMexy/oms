@@ -46,7 +46,7 @@ metadata:
 - 该 snapshot 只覆盖 `BmsSkinConfigurationLookups` 中已有 production consumer 的 22 项 colour：4 项 note colour group、3 项 lane background、2 项 divider、6 项 hit-target、2 项 barline、3 项 lane-cover，以及 backdrop/baseplate。catalog/snapshot/factory 都是 BMS assembly 内部 source-specific process-local carrier，不是 neutral slot、作者 manifest/wire ABI，也没有新增主题色或 renderer default。
 - 只有 ordinal、区分大小写的 exact source key 在 RGB/RGBA byte parse 成功后进入 private accepted sidecar。既有 `Enum.TryParse` 可把逗号组合名折叠到某个 defined enum value；这种 composite alias 仍只更新 public compatibility `Colours` 字典，不能升格为 exact provenance。valid exact duplicate 取 last accepted，malformed 不声明、也不抹除上一个 accepted 值。
 - decoder-time `acceptedColours` 与 public `Colours` 分离；decode 后对 public dictionary 的 overwrite/remove/clear/late-add，以及手工构造 configuration 后填表，都不能伪造、擦除或改写 factory 结果。factory/snapshot 组合拒绝 invalid keymode、null/duplicate bucket、unknown/non-colour field、`Absent` stored entry 与 duplicate entry，snapshot 另做一次防御性复制；安全 `ToString()` 不展开 field、keymode 或颜色。
-- 这是legacy accepted provenance，不是public author ABI。C3已闭合finite/range/screen/non-overlap与唯一layout，C4已为migrated Note/Hold/Key资源建立package-scoped resolved material；未迁移的C5 slot仍需各自resource/scene validation与owner/thread-affinity。
+- 这是legacy accepted provenance，不是public author ABI。C3已闭合finite/range/screen/non-overlap与唯一layout，C4已为migrated Note/Hold/Key资源建立package-scoped resolved material，C5已为全部适用slot完成resource/scene validation与owner/thread-affinity；后续只允许在同一quadruple上扩展C6 sandbox。
 
 ## 历史：native BMS exact geometry accepted snapshot（factory已删除；accepted scalar仍供compatibility/material使用）
 
@@ -89,3 +89,7 @@ metadata:
 - resource declaration 只证明来源事实，不等于文件有效、slot `Provide`、`Suppress` 或 fallback winner。显式空字符串仍必须进入后续 materializer/diagnostic，而不能在 provenance 层折叠成 `Absent`/`Inherit`；该 snapshot 本身不证明 production lookup、renderer、`SkinManager` 或 fallback 已接线。
 
 lane-resource的production candidate、resolved material、revision-owner、decoder-time accepted sidecar与mutable-window地雷统一见[lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md)，public codec/material见[shared codec/material](reference_gameplay_skin_codec_material.md)。本文件只保存configuration presence的反直觉legacy parser/provenance合同；当前生产接线状态以P1-A为准。
+
+## C5 连接边界
+
+上述 legacy presence 仍只记录 decoder source fact，不提升为 scene/animation/event author authority。C5 的 manifest/scene 使用独立 v1 codec，并在 exact captured package、C4 material 与 C3 layout publication 上完成路径、资源、node、effect、track/keyframe 与 Snapshot 初始状态预算；不能从 mutable `Colours`/`ImageLookups` dictionary 临时拼出 scene。slot capability 由版本化 runtime profile另行决定，Mania 的 Mine/BGA viewport/BGA frame 是显式 NotApplicable。

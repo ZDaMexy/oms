@@ -164,13 +164,26 @@ namespace osu.Game.Rulesets.Mania.Tests
             GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
             GameplaySkinLaneTopologyEntry lane = group.LanesInLogicalOrder[0];
             GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+            GameplaySkinSlotDescriptor[] supportedSlots = GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
+                .Select(support => support.Descriptor)
+                .ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(materials.Snapshot, Is.SameAs(snapshot));
                 Assert.That(materials.PackageRevision, Is.SameAs(package));
-                Assert.That(materials.ContractIdentity, Is.EqualTo(GameplaySkinMaterialContractIdentity.Current));
-                Assert.That(materials.Entries, Has.Count.EqualTo(25));
+                Assert.That(materials.ContractIdentity, Is.EqualTo(GameplaySkinMaterialContractIdentity.CurrentFor(materials.Snapshot)));
+                Assert.That(materials.RuntimeSupportProfile, Is.SameAs(GameplaySkinRuntimeSupportProfile.Mania));
+                Assert.That(materials.Entries, Has.Count.EqualTo(supportedSlots.Sum(descriptor =>
+                    GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot).Count)));
+                Assert.That(materials.Entries.Select(entry => entry.Key), Is.Unique);
+                Assert.That(materials.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(supportedSlots));
+                Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(28));
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(23));
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.Mine, out _), Is.False);
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.BgaViewport, out _), Is.False);
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.BgaFrame, out _), Is.False);
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.Turntable, out _), Is.False);
 
                 Assert.That(materials.TryGet(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.Note, target), out GameplaySkinResolvedMaterialEntry? note), Is.True);
                 Assert.That(note!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
@@ -195,13 +208,137 @@ namespace osu.Game.Rulesets.Mania.Tests
                 Assert.That(key.Source.ContentRevision, Is.Not.EqualTo(alternateLegacyBeatmap.GameplaySkinDocument.Identity.ContentRevision));
 
                 Assert.That(materials.Diagnostics.Any(diagnostic => diagnostic.Code == "OMS-SKIN-CODEC-009"), Is.True);
-                Assert.That(materials.Diagnostics.Any(diagnostic => diagnostic.Code == "mania.capability.unsupported-slot"
+                Assert.That(materials.Diagnostics.Any(diagnostic => diagnostic.Code == "gameplay-skin.public-resource.missing"
                                                                     && ReferenceEquals(diagnostic.Key?.Slot, GameplaySkinSlotCatalog.KeyFlash)), Is.True);
                 GameplaySkinResolvedMaterialDiagnostic beatmapDiagnostic = materials.Diagnostics.First(diagnostic =>
                     diagnostic.Source?.Kind == GameplaySkinResolvedMaterialSourceKind.LegacyBeatmapCompatibility);
                 Assert.That(beatmapDiagnostic.Source!.ContentRevision, Is.EqualTo(legacyBeatmap.GameplaySkinDocument.Identity.ContentRevision));
                 Assert.That(beatmapDiagnostic.ToString(), Does.Not.Contain(beatmapDiagnostic.Source.ContentRevision));
                 Assert.That(beatmapDiagnostic.Source.ToString(), Does.Not.Contain(beatmapDiagnostic.Source.ContentRevision));
+            });
+        }
+
+        [Test]
+        public void TestDualStageResolvesEveryCommonPublicSlotAgainstExactTargets()
+        {
+            Guid selectedId = Guid.NewGuid();
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            using var selected = new DocumentTestSkin(selectedId, "[GameplaySkin.Common:1]\n", texture);
+            var source = new OrderedTestSkinSource(selected);
+            var revision = new SkinCurrentRevision(
+                18,
+                selectedId,
+                "package-content-dual",
+                SkinCurrentRevisionSourceKind.ManagedFolder,
+                selected,
+                false,
+                _ => { });
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(revision);
+            var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
+            GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
+                topologyOwner.Publish(createBeatmap(5, 5)),
+                source,
+                package,
+                8,
+                ManiaGameplaySkinLayoutEnvironment.CreateCompatibility(),
+                GameplaySkinScrollDirection.Down);
+            GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source);
+            GameplaySkinLaneTopologyGroup[] groups = snapshot.Context.Topology.GroupsInLogicalOrder.ToArray();
+            GameplaySkinLaneTopologyEntry[] specialLanes = snapshot.Context.Topology.LanesInLogicalOrder
+                                                                     .Where(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)
+                                                                     .ToArray();
+            GameplaySkinSlotDescriptor[] supportedSlots = GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
+                .Select(support => support.Descriptor)
+                .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.Context.KeymodeId, Is.EqualTo("5k-5k"));
+                Assert.That(groups, Has.Length.EqualTo(2));
+                Assert.That(specialLanes, Has.Length.EqualTo(2));
+                Assert.That(materials.Entries, Has.Count.EqualTo(supportedSlots.Sum(descriptor =>
+                    GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot).Count)));
+                Assert.That(materials.Entries.Select(entry => entry.Key), Is.Unique);
+                Assert.That(materials.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(supportedSlots));
+                Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.Mine)), Is.False);
+                Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.BgaViewport)), Is.False);
+                Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.BgaFrame)), Is.False);
+                Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.Turntable)), Is.False);
+                Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.Laser)), Is.False);
+
+                Assert.That(groups.All(group => materials.TryGet(
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.StageBackground, GameplaySkinResolvedMaterialTarget.ForStage(group)),
+                    out _)), Is.True);
+                Assert.That(groups.All(group => materials.TryGet(
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.BarLine, GameplaySkinResolvedMaterialTarget.ForGroup(group)),
+                    out _)), Is.True);
+
+                foreach (GameplaySkinLaneTopologyEntry special in specialLanes)
+                {
+                    GameplaySkinLaneTopologyGroup group = groups.Single(candidate => candidate.Identity.Id.Equals(special.Identity.Group.Id));
+                    GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, special);
+                    Assert.That(materials.TryGet(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.Mine, target), out _), Is.False);
+                    Assert.That(target.GlobalLogicalIndex, Is.EqualTo(special.GlobalLogicalIndex));
+                    Assert.That(target.GlobalVisualIndex, Is.EqualTo(special.GlobalVisualIndex));
+                    Assert.That(target.GroupLocalLogicalIndex, Is.EqualTo(special.GroupLocalLogicalIndex));
+                    Assert.That(target.GroupLocalVisualIndex, Is.EqualTo(special.GroupLocalVisualIndex));
+                }
+
+            });
+        }
+
+        [Test]
+        public void TestVersionedRuntimeProfileRejectsCataloguedButNotApplicableManiaDeclarations()
+        {
+            Guid selectedId = Guid.NewGuid();
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            const string configuration = """
+                                         [GameplaySkin.Common:1]
+                                         Target: Lane ruleset=mania keymode=5k stage-mode=single group=mania.group.stage-1 lane=mania.lane.column-1 group-logical=0 group-visual=0 global-logical=0 global-visual=0 group-local-logical=0 group-local-visual=0
+                                         object.mine: resource Provide "mine"
+                                         Target: Global ruleset=mania keymode=5k stage-mode=single
+                                         bga.viewport: resource Provide "viewport"
+                                         bga.frame: resource Suppress
+                                         """;
+            using var selected = new DocumentTestSkin(selectedId, configuration, texture);
+            var source = new OrderedTestSkinSource(selected);
+            var revision = new SkinCurrentRevision(
+                19,
+                selectedId,
+                "package-content-runtime-profile",
+                SkinCurrentRevisionSourceKind.ManagedFolder,
+                selected,
+                false,
+                _ => { });
+            GameplaySkinPackageRevision package = GameplaySkinPackageRevision.Create(revision);
+            var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
+            GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
+                topologyOwner.Publish(createBeatmap(5)),
+                source,
+                package,
+                9,
+                ManiaGameplaySkinLayoutEnvironment.CreateCompatibility(),
+                GameplaySkinScrollDirection.Down);
+
+            GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source);
+            string[] notApplicable = materials.Diagnostics
+                                              .Where(diagnostic => diagnostic.Code == "mania.runtime-support.not-applicable.v1")
+                                              .Select(diagnostic => diagnostic.Key!.Slot.Id)
+                                              .OrderBy(id => id, StringComparer.Ordinal)
+                                              .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(materials.RuntimeSupportProfile.ProfileId, Is.EqualTo(GameplaySkinRuntimeSupportProfile.MANIA_PROFILE_ID));
+                Assert.That(materials.ContractIdentity.RuntimeSupportVersion, Is.EqualTo(GameplaySkinRuntimeSupportProfile.CONTRACT_ID));
+                Assert.That(materials.ContractIdentity.RuntimeSupportProfileId, Is.EqualTo(GameplaySkinRuntimeSupportProfile.MANIA_PROFILE_ID));
+                Assert.That(notApplicable, Is.EqualTo(new[]
+                {
+                    GameplaySkinSlotCatalog.BgaFrame.Id,
+                    GameplaySkinSlotCatalog.BgaViewport.Id,
+                    GameplaySkinSlotCatalog.Mine.Id,
+                }.OrderBy(id => id, StringComparer.Ordinal)));
+                Assert.That(materials.Entries.Any(entry => notApplicable.Contains(entry.Slot.Id, StringComparer.Ordinal)), Is.False);
             });
         }
 

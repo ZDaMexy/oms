@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using oms.Input;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Input;
@@ -37,7 +38,7 @@ using osuTK.Input;
 namespace osu.Game.Rulesets.Bms.UI
 {
     [Cached]
-    public partial class DrawableBmsRuleset : DrawableScrollingRuleset<HitObject>
+    public partial class DrawableBmsRuleset : DrawableScrollingRuleset<HitObject>, IGameplaySkinSceneRuntimeSource, IGameplaySkinEventObjectSnapshotSource
     {
         public const double MIN_TIME_RANGE = 290;
 
@@ -76,6 +77,22 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsBgaPanel? bgaPanel;
         private BmsHudLayoutPanel? hudLayoutPanel;
         private readonly BindableBool showBga = new BindableBool(true);
+        private GameplaySkinLayoutPublication? gameplaySkinPublication;
+        private readonly Dictionary<HitObject, long> gameplaySkinObjectIds = new Dictionary<HitObject, long>();
+        private readonly Dictionary<HitObject, HitObject> gameplaySkinObjectIdentityOwners = new Dictionary<HitObject, HitObject>();
+        private readonly HashSet<long> gameplaySkinActiveObjectIds = new HashSet<long>();
+        private readonly Dictionary<GameplaySkinLaneId, bool> gameplaySkinPressedInputs = new Dictionary<GameplaySkinLaneId, bool>();
+        private BmsInputManager? gameplaySkinInputManager;
+        // Direct lane-local objects (mines and bar lines) can be applied by the playfield while this ruleset is
+        // still loading, before the beatmap-root identity table is installed. Keep that provisional namespace above
+        // the deterministic [0, Beatmap.HitObjects.Count) root range so early allocations can never alias a later
+        // root object ID. The value is stable for the lifetime of this production root and remains read-only to
+        // consumers.
+        private long nextGameplaySkinObjectId = 1L << 32;
+        private readonly Dictionary<int, (GameplaySkinBgaContentState State, long Revision)> gameplaySkinBgaStates =
+            new Dictionary<int, (GameplaySkinBgaContentState, long)>();
+        private bool gameplaySkinLifecycleStarted;
+        private double lastGameplaySkinSnapshotTime = double.NaN;
 
         public IBindable<BmsScrollSpeedMetrics> SpeedMetrics => speedMetrics;
 
@@ -107,6 +124,22 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public GameplaySkinResolvedMaterialSet ResolvedMaterialSet => LayoutProvider.CurrentMaterialSet;
 
+        /// <summary>
+        /// The sole read-only C5 event stream for this exact production gameplay root.
+        /// </summary>
+        public GameplaySkinEventStream GameplaySkinEventStream
+            => GameplaySkinEventRuntime?.EventStream
+               ?? throw new InvalidOperationException("A compatibility BMS root does not own a production gameplay-skin event stream.");
+
+        internal GameplaySkinEventRuntimeHost? GameplaySkinEventRuntime { get; private set; }
+
+        /// <summary>
+        /// The sole shared declarative scene controller for this exact production publication.
+        /// </summary>
+        internal GameplaySkinSceneRuntimeHost? GameplaySkinSceneRuntime { get; private set; }
+
+        GameplaySkinSceneRuntimeHost? IGameplaySkinSceneRuntimeSource.GameplaySkinSceneRuntime => GameplaySkinSceneRuntime;
+
         internal BmsGameplayLayoutProvider LayoutProvider { get; }
 
         internal void InitialiseCompatibilityLayoutForTesting(
@@ -129,9 +162,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal GameplaySkinResolvedMaterialSet? HudMaterialSet => hudLayoutPanel?.Carrier?.ResolvedMaterialSet;
 
-        internal GameplaySkinResolvedMaterialSet? GaugeMaterialSet => (hudLayoutPanel?.Carrier?.GaugeBar as BmsGaugeBar)?.ResolvedMaterialSet;
+        internal GameplaySkinResolvedMaterialSet? GaugeMaterialSet => hudLayoutPanel?.Carrier?.ResolvedMaterialSet;
 
-        internal GameplaySkinResolvedMaterialSet? ComboMaterialSet => (hudLayoutPanel?.Carrier?.ComboCounter as BmsComboCounter)?.ResolvedMaterialSet;
+        internal GameplaySkinResolvedMaterialSet? ComboMaterialSet => hudLayoutPanel?.Carrier?.ResolvedMaterialSet;
 
         [Resolved(CanBeNull = true)]
         private OnScreenDisplay? bmsOnScreenDisplay { get; set; }
@@ -161,11 +194,14 @@ namespace osu.Game.Rulesets.Bms.UI
             if (parent.TryGet(out GameplaySkinLayoutRevisionOwner owner)
                 && owner.CurrentPublication is GameplaySkinLayoutPublication publication)
             {
+                gameplaySkinPublication = publication;
                 LayoutProvider.AttachRevisionOwner(owner);
                 BmsGameplayLayoutSnapshot adapter = publication.GetAdapter<BmsGameplayLayoutSnapshot>();
 
                 if (!ReferenceEquals(adapter.Neutral, publication.Snapshot)
                     || !ReferenceEquals(publication.MaterialSet.Snapshot, publication.Snapshot)
+                    || !ReferenceEquals(publication.PreparedScene.Snapshot, publication.Snapshot)
+                    || !ReferenceEquals(publication.PreparedScene.MaterialSet, publication.MaterialSet)
                     || !ReferenceEquals(publication.MaterialSet.PackageRevision, owner.PackageRevision)
                     || !ReferenceEquals(publication.Snapshot.Context.PackageRevision, owner.PackageRevision)
                     || publication.Snapshot.Context.RulesetId != "bms")
@@ -174,6 +210,17 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
 
                 dependencies.Cache(publication.MaterialSet);
+                dependencies.Cache(publication.PreparedScene);
+
+                IGameplaySkinTimingProjection? timingProjection = Beatmap is BmsBeatmap { TimingProfile: not null, ScrollProfile: not null } bmsBeatmap
+                    ? new BmsGameplaySkinTimingProjection(bmsBeatmap)
+                    : null;
+                GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this);
+                dependencies.Cache(GameplaySkinEventRuntime);
+                dependencies.Cache(GameplaySkinEventRuntime.EventStream);
+
+                GameplaySkinSceneRuntime = new GameplaySkinSceneRuntimeHost(publication, GameplaySkinEventRuntime.EventStream);
+                dependencies.Cache(GameplaySkinSceneRuntime);
             }
 
             return dependencies;
@@ -182,6 +229,11 @@ namespace osu.Game.Rulesets.Bms.UI
         [BackgroundDependencyLoader]
         private void load()
         {
+            // Subscribe before the playfield adds its direct lane-local bar-line/mine drawables. Their engine usage
+            // begins during child loading, so LoadComplete is too late to construct the initial complete snapshot.
+            if (GameplaySkinEventRuntime != null)
+                initialiseGameplaySkinEventBridge();
+
             if (KeyBindingInputManager is BmsInputManager inputManager)
                 laneCoverFocusPressed.BindTo(inputManager.LaneCoverFocusPressed);
 
@@ -212,6 +264,40 @@ namespace osu.Game.Rulesets.Bms.UI
 
             setupBgaPanel();
             setupHudLayout();
+
+            if (GameplaySkinEventRuntime != null)
+                FrameStableComponents.Add(GameplaySkinEventRuntime);
+
+            if (GameplaySkinSceneRuntime != null)
+            {
+                mountGameplaySkinSceneLayers(GameplaySkinSceneRuntime);
+                FrameStableComponents.Add(GameplaySkinSceneRuntime);
+            }
+        }
+
+        private void mountGameplaySkinSceneLayers(GameplaySkinSceneRuntimeHost sceneRuntime)
+        {
+            GameplaySkinSceneRuntimeLayers layers = sceneRuntime.Layers;
+
+            // Positive depth renders behind the native playfield; negative depth renders above it. The immutable C5
+            // strata therefore preserve background/object/effect ordering without flattening everything into a HUD
+            // overlay or changing the C3 playfield transform.
+            layers.Background.Depth = 3;
+            layers.Underlay.Depth = 2;
+            layers.Object.Depth = -1;
+            layers.GameplayEffects.Depth = -2;
+            PlayfieldAdjustmentContainer.Add(layers.Background);
+            PlayfieldAdjustmentContainer.Add(layers.Underlay);
+            PlayfieldAdjustmentContainer.Add(layers.Object);
+            PlayfieldAdjustmentContainer.Add(layers.GameplayEffects);
+
+            // The BGA player and native HUD already live in Overlays at the default depth. Author foreground,
+            // BGA-frame and decoration slots must render above that engine-owned content without gaining control of it.
+            layers.Overlay.Depth = -1;
+            layers.HudForeground.Depth = -2;
+            Overlays.Add(layers.Overlay);
+            Overlays.Add(layers.HudForeground);
+            sceneRuntime.MarkLayersMounted();
         }
 
         private void setupHudLayout()
@@ -233,7 +319,11 @@ namespace osu.Game.Rulesets.Bms.UI
             if (Beatmap is not BmsBeatmap bmsBeatmap)
                 return;
 
-            bgaPanel = new BmsBgaPanel(bmsBeatmap.BgaTimeline, bmsBeatmap.PoorBgaMode, LayoutProvider);
+            bgaPanel = new BmsBgaPanel(
+                bmsBeatmap.BgaTimeline,
+                bmsBeatmap.PoorBgaMode,
+                LayoutProvider,
+                GameplaySkinSceneRuntime);
             Overlays.Add(bgaPanel);
 
             // Transcode legacy BGA videos during loading so the BGA plays from the first frame (P1-L Phase 5.2 R1).
@@ -259,13 +349,24 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override Playfield CreatePlayfield() => new BmsPlayfield(Beatmap);
 
-        public override DrawableHitObject<HitObject> CreateDrawableRepresentation(HitObject h)
+        public override DrawableHitObject<HitObject>? CreateDrawableRepresentation(HitObject h)
         {
             if (Mods.OfType<BmsModAutoplay>().Any() && h is BmsHitObject bmsHitObject)
                 bmsHitObject.AutoPlay = true;
 
-            return h is BmsHoldNote holdNote
-                ? new DrawableBmsHoldNote(holdNote, Playfield.LayoutSnapshot, LayoutProvider.CurrentMaterialSet)
+            // An exact C5 publication gives playable Note/LN ownership to the lane-local pools. Compatibility roots
+            // have no publication (and therefore no prepared scene or pool carrier), so retain the programmatic
+            // migration chain rather than making their playable objects disappear. BGM events remain direct in both
+            // modes because they are non-visual, short-lived scheduling carriers and have no lane target.
+            if (gameplaySkinPublication == null)
+            {
+                return h is BmsHoldNote holdNote
+                    ? new DrawableBmsHoldNote(holdNote, Playfield.LayoutSnapshot, LayoutProvider.CurrentMaterialSet)
+                    : new DrawableBmsHitObject(h, Playfield.LayoutSnapshot, LayoutProvider.CurrentMaterialSet);
+            }
+
+            return h is BmsHitObject
+                ? null
                 : new DrawableBmsHitObject(h, Playfield.LayoutSnapshot, LayoutProvider.CurrentMaterialSet);
         }
 
@@ -287,6 +388,15 @@ namespace osu.Game.Rulesets.Bms.UI
             Playfield.PrewarmKeysounds(getBeatmapKeysoundSamples());
 
             NewResult += HandleGameplayJudgementResult;
+
+            // Lane construction can precede the parent bridge even though the bridge is attached in load(). Seed the
+            // complete state from the real registered drawables once loading commits; later usage edges are de-duped.
+            if (gameplaySkinLifecycleStarted)
+            {
+                synchroniseExistingGameplaySkinObjectUsages();
+                updateGameplaySkinInputEvents();
+                updateGameplaySkinBgaState();
+            }
 
             RefreshLaneCoverFocus();
             refreshSpeedMetrics();
@@ -321,9 +431,495 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override void Dispose(bool isDisposing)
         {
-            base.Dispose(isDisposing);
-
             NewResult -= HandleGameplayJudgementResult;
+
+            if (gameplaySkinLifecycleStarted)
+            {
+                Playfield.HitObjectUsageBegan -= onGameplaySkinObjectBegan;
+                Playfield.HitObjectUsageFinished -= onGameplaySkinObjectFinished;
+                NewResult -= onGameplaySkinJudgement;
+                if (gameplaySkinInputManager != null)
+                {
+                    gameplaySkinInputManager.Router.ActionPressed -= onGameplaySkinInputPressed;
+                    gameplaySkinInputManager.Router.ActionReleased -= onGameplaySkinInputReleased;
+                    gameplaySkinInputManager = null;
+                }
+                gameplaySkinLifecycleStarted = false;
+            }
+
+            base.Dispose(isDisposing);
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            if (!gameplaySkinLifecycleStarted)
+                return;
+
+            updateGameplaySkinInputEvents();
+            updateGameplaySkinBgaState();
+        }
+
+        private void initialiseGameplaySkinEventBridge()
+        {
+            for (int i = 0; i < Beatmap.HitObjects.Count; i++)
+            {
+                HitObject identityOwner = Beatmap.HitObjects[i];
+                registerGameplaySkinObjectIdentityTree(identityOwner, identityOwner);
+                gameplaySkinObjectIds.TryAdd(identityOwner, i);
+            }
+
+            nextGameplaySkinObjectId = Math.Max(nextGameplaySkinObjectId, (long)Beatmap.HitObjects.Count);
+            Playfield.HitObjectUsageBegan += onGameplaySkinObjectBegan;
+            Playfield.HitObjectUsageFinished += onGameplaySkinObjectFinished;
+            NewResult += onGameplaySkinJudgement;
+
+            // Polling remains the frame-stable reconciliation path, but a real input press/release can begin and
+            // end between two frames (HID pulses and deterministic test inputs do this routinely). Subscribe to the
+            // engine-owned router as well so the read-only event stream records every transition without granting
+            // skin code any input authority. The polling pass then observes the same state and emits no duplicate.
+            gameplaySkinInputManager = KeyBindingInputManager as BmsInputManager;
+            if (gameplaySkinInputManager != null)
+            {
+                gameplaySkinInputManager.Router.ActionPressed += onGameplaySkinInputPressed;
+                gameplaySkinInputManager.Router.ActionReleased += onGameplaySkinInputReleased;
+            }
+
+            gameplaySkinLifecycleStarted = true;
+        }
+
+        private void onGameplaySkinInputPressed(OmsAction action)
+            => publishGameplaySkinInputTransition(action, pressed: true);
+
+        private void onGameplaySkinInputReleased(OmsAction action)
+            => publishGameplaySkinInputTransition(action, pressed: false);
+
+        private void publishGameplaySkinInputTransition(OmsAction action, bool pressed)
+        {
+            if (GameplaySkinEventRuntime == null
+                || !OmsBmsActionMap.TryMapToBmsAction(Variant, action, out BmsAction bmsAction)
+                || !bmsAction.IsLaneAction())
+                return;
+
+            BmsLane? lane = Playfield.Lanes.FirstOrDefault(candidate => candidate.Action.Value == bmsAction);
+            BmsGameplayLayoutLane exactLane = lane?.LayoutSnapshotLane
+                                              ?? throw new InvalidOperationException("A production BMS input event requires its exact C3 lane target.");
+            GameplaySkinLaneId laneId = exactLane.LaneId;
+
+            if (gameplaySkinPressedInputs.TryGetValue(laneId, out bool previous) && previous == pressed)
+                return;
+
+            gameplaySkinPressedInputs[laneId] = pressed;
+            GameplaySkinEventRuntime.PublishInput(exactLane.NeutralLane.TopologyEntry.Identity.Group.Id, laneId, pressed);
+        }
+
+        private void updateGameplaySkinInputEvents()
+        {
+            if (KeyBindingInputManager is not BmsInputManager inputManager)
+                return;
+
+            foreach (BmsLane lane in Playfield.Lanes)
+            {
+                BmsGameplayLayoutLane exactLane = lane.LayoutSnapshotLane
+                                                  ?? throw new InvalidOperationException("A production BMS input event requires its exact C3 lane target.");
+                GameplaySkinLaneTopologyEntry topologyLane = exactLane.NeutralLane.TopologyEntry;
+                bool pressed = inputManager.KeyBindingContainer.PressedActions.Contains(lane.Action.Value);
+
+                if (gameplaySkinPressedInputs.TryGetValue(exactLane.LaneId, out bool previous) && previous == pressed)
+                    continue;
+
+                gameplaySkinPressedInputs[exactLane.LaneId] = pressed;
+                GameplaySkinEventRuntime!.PublishInput(topologyLane.Identity.Group.Id, exactLane.LaneId, pressed);
+            }
+        }
+
+        private void updateGameplaySkinBgaState()
+        {
+            if (bgaPanel == null)
+                return;
+
+            int viewportCount = Math.Max(1, LayoutSnapshot.BgaViewports.Count);
+
+            for (int viewportIndex = 0; viewportIndex < viewportCount; viewportIndex++)
+            {
+                // P1-L remains the only owner of BGA selection, playback, seek and POOR behaviour. C5 observes the
+                // state produced by the mounted engine display; it never replays or interprets the timeline itself.
+                if (!bgaPanel.TryGetContentStateAt(
+                        viewportIndex,
+                        GameplaySkinEventRuntime!.AuthoritativeGameplayTime,
+                        out GameplaySkinBgaContentState state,
+                        out long revision))
+                    continue;
+
+                if (gameplaySkinBgaStates.TryGetValue(viewportIndex, out var previous)
+                    && previous.Revision == revision
+                    && previous.State == state)
+                    continue;
+
+                gameplaySkinBgaStates[viewportIndex] = (state, revision);
+                GameplaySkinEventRuntime.PublishBga(viewportIndex, state, revision);
+            }
+        }
+
+        private void onGameplaySkinObjectBegan(HitObject hitObject)
+        {
+            hitObject = getGameplaySkinObjectIdentityOwner(hitObject);
+
+            if (!tryGetGameplaySkinObjectTarget(hitObject, out GameplaySkinLaneGroupId? groupId, out GameplaySkinLaneId? laneId, out GameplaySkinObjectKind kind))
+                return;
+
+            long objectId = getGameplaySkinObjectId(hitObject);
+
+            if (!gameplaySkinActiveObjectIds.Add(objectId))
+                return;
+
+            GameplaySkinEventRuntime!.PublishObject(
+                objectId,
+                GameplaySkinEventKind.ObjectSpawned,
+                kind,
+                GameplaySkinObjectState.Visible,
+                groupId!,
+                laneId,
+                hitObject.StartTime,
+                hitObject.GetEndTime(),
+                getGameplaySkinObjectProgress(hitObject));
+        }
+
+        private void synchroniseExistingGameplaySkinObjectUsages()
+        {
+            foreach (BmsLane lane in Playfield.Lanes)
+            {
+                foreach (DrawableHitObject drawable in lane.AllHitObjects)
+                    onGameplaySkinObjectBegan(drawable.HitObject);
+            }
+        }
+
+        IEnumerable<GameplaySkinObjectStateSnapshot> IGameplaySkinEventObjectSnapshotSource.CreateGameplaySkinActiveObjectSnapshot(double gameplayTime)
+        {
+            var snapshots = new Dictionary<long, GameplaySkinObjectStateSnapshot>();
+            var snapshotPriorities = new Dictionary<long, int>();
+            bool rewound = double.IsFinite(lastGameplaySkinSnapshotTime) && gameplayTime < lastGameplaySkinSnapshotTime;
+            lastGameplaySkinSnapshotTime = gameplayTime;
+
+            // AllHitObjects is the engine-owned active usage graph, including the exact lane and group-scoped
+            // nested playfields. It is intentionally sampled here rather than reconstructing activity from the
+            // beatmap or retaining terminal event-stream state across a seek.
+            foreach (DrawableHitObject drawable in Playfield.AllHitObjects)
+            {
+                HitObject hitObject = getGameplaySkinObjectIdentityOwner(drawable.HitObject);
+
+                if (!tryGetGameplaySkinObjectTarget(hitObject, out GameplaySkinLaneGroupId? groupId, out GameplaySkinLaneId? laneId, out GameplaySkinObjectKind kind))
+                    continue;
+
+                long objectId = getGameplaySkinObjectId(hitObject);
+                GameplaySkinObjectState state = getGameplaySkinSnapshotState(drawable, gameplayTime, rewound);
+                var snapshot = new GameplaySkinObjectStateSnapshot(
+                    objectId,
+                    kind,
+                    state,
+                    groupId!,
+                    laneId,
+                    hitObject.StartTime,
+                    hitObject.GetEndTime(),
+                    0);
+
+                // A seek can briefly leave the retiring and rebuilt pooled drawables for one logical hit object in
+                // the engine-owned usage graph together. They intentionally retain the same stable object ID; the
+                // Reset contract represents that logical object once. Prefer the usage whose real state agrees with
+                // the authoritative seek time (the rebuilt non-terminal usage before its end, the judged usage after
+                // its end), while preserving deterministic graph order for equal candidates.
+                int priority = getGameplaySkinSnapshotPriority(drawable, gameplayTime, state);
+
+                if (!snapshotPriorities.TryGetValue(objectId, out int currentPriority) || priority > currentPriority)
+                {
+                    snapshots[objectId] = snapshot;
+                    snapshotPriorities[objectId] = priority;
+                }
+            }
+
+            // Keep the edge producer's admission set aligned with the same real usage graph which atomically
+            // replaced the Reset snapshot. Subsequent drawable state changes can then perform their one allowed
+            // post-reset resynchronisation without synthesising a second spawn authority.
+            gameplaySkinActiveObjectIds.Clear();
+            gameplaySkinActiveObjectIds.UnionWith(snapshots.Keys);
+            return snapshots.OrderBy(pair => pair.Key).Select(pair => pair.Value).ToArray();
+        }
+
+        private static int getGameplaySkinSnapshotPriority(
+            DrawableHitObject drawable,
+            double gameplayTime,
+            GameplaySkinObjectState state)
+        {
+            if (gameplayTime < drawable.HitObject.GetEndTime())
+            {
+                return state switch
+                {
+                    GameplaySkinObjectState.Holding => 4,
+                    GameplaySkinObjectState.Visible => 3,
+                    GameplaySkinObjectState.Scheduled => 2,
+                    _ => 1,
+                };
+            }
+
+            return drawable.Judged ? 2 : 1;
+        }
+
+        private static GameplaySkinObjectState getGameplaySkinSnapshotState(DrawableHitObject drawable, double gameplayTime, bool rewound)
+        {
+            if (drawable is DrawableBmsHoldNote hold)
+            {
+                // A seek/rewind is an epoch barrier. The engine may deliver its result-revert callbacks one
+                // traversal after the clock destination, so a pooled hold can briefly retain a pre-seek broken or
+                // terminal result. Do not carry that history into the complete Reset snapshot; the next normal
+                // frame will publish any real post-seek state transition through the existing drawable callback.
+                if (rewound && gameplayTime < hold.HitObject.GetEndTime())
+                    return hold.IsHoldingForTesting ? GameplaySkinObjectState.Holding : GameplaySkinObjectState.Visible;
+
+                return hold.BodyState.Value switch
+                {
+                    BmsLongNoteBodyState.Holding => GameplaySkinObjectState.Holding,
+                    BmsLongNoteBodyState.Broken => GameplaySkinObjectState.Missed,
+                    _ when hold.Judged => hold.IsHit ? GameplaySkinObjectState.Hit : GameplaySkinObjectState.Missed,
+                    _ => gameplayTime < hold.HitObject.StartTime ? GameplaySkinObjectState.Scheduled : GameplaySkinObjectState.Visible,
+                };
+            }
+
+            if (drawable.Judged)
+                return drawable.IsHit ? GameplaySkinObjectState.Hit : GameplaySkinObjectState.Missed;
+
+            return gameplayTime < drawable.HitObject.StartTime
+                ? GameplaySkinObjectState.Scheduled
+                : GameplaySkinObjectState.Visible;
+        }
+
+        private void onGameplaySkinObjectFinished(HitObject hitObject)
+        {
+            hitObject = getGameplaySkinObjectIdentityOwner(hitObject);
+
+            if (!tryGetGameplaySkinObjectTarget(hitObject, out GameplaySkinLaneGroupId? groupId, out GameplaySkinLaneId? laneId, out GameplaySkinObjectKind kind))
+                return;
+
+            long objectId = getGameplaySkinObjectId(hitObject);
+
+            if (!gameplaySkinActiveObjectIds.Remove(objectId))
+                return;
+
+            GameplaySkinEventRuntime!.PublishObject(
+                objectId,
+                GameplaySkinEventKind.ObjectStateChanged,
+                kind,
+                GameplaySkinObjectState.Completed,
+                groupId!,
+                laneId,
+                hitObject.StartTime,
+                hitObject.GetEndTime(),
+                1);
+
+            GameplaySkinEventRuntime!.PublishObject(
+                objectId,
+                GameplaySkinEventKind.ObjectDespawned,
+                kind,
+                GameplaySkinObjectState.Despawned,
+                groupId!,
+                laneId,
+                hitObject.StartTime,
+                hitObject.GetEndTime(),
+                1);
+        }
+
+        private void onGameplaySkinJudgement(JudgementResult result)
+        {
+            HitObject identityOwner = getGameplaySkinObjectIdentityOwner(result.HitObject);
+
+            if (!tryGetGameplaySkinObjectTarget(identityOwner, out GameplaySkinLaneGroupId? groupId, out GameplaySkinLaneId? laneId, out GameplaySkinObjectKind kind))
+                return;
+
+            long objectId = getGameplaySkinObjectId(identityOwner);
+
+            // The BMS hold parent deliberately resolves to IgnoreHit because its head/tail own score judgement.
+            // That still is a real terminal object-state edge, but must not invent a second public judgement grade.
+            // A pre-roll/late-added or just-retired drawable can also report its real lane/group judgement after its
+            // bounded usage left the event snapshot. Preserve that judgement without resurrecting a stale object ID;
+            // object-targeted judgements remain valid only while that exact engine usage is active in this epoch.
+            long? activeObjectId = gameplaySkinActiveObjectIds.Contains(objectId) ? objectId : null;
+
+            if (tryMapJudgementGrade(result.Type, out GameplaySkinJudgementGrade grade))
+                GameplaySkinEventRuntime!.PublishJudgement(activeObjectId, groupId, laneId, grade, result.TimeOffset, result.HealthIncrease);
+
+            // Head, body-tick and tail judgements all retain the one long-note parent identity. The real pooled
+            // hold owner publishes its continuous Visible/Holding/Missed state, so a nested judgement must not
+            // overwrite that state with a terminal Hit/Missed edge. The parent hold's own IgnoreHit/IgnoreMiss
+            // result is different: it is the authoritative terminal lifecycle edge even though it does not score.
+            bool nestedLongNoteJudgement = identityOwner is BmsHoldNote
+                                           && !ReferenceEquals(result.HitObject, identityOwner);
+
+            if (nestedLongNoteJudgement || activeObjectId == null)
+                return;
+
+            GameplaySkinEventRuntime!.PublishObject(
+                objectId,
+                GameplaySkinEventKind.ObjectStateChanged,
+                kind,
+                result.IsHit ? GameplaySkinObjectState.Hit : GameplaySkinObjectState.Missed,
+                groupId!,
+                laneId,
+                identityOwner.StartTime,
+                identityOwner.GetEndTime(),
+                1);
+        }
+
+        private bool tryGetGameplaySkinObjectTarget(
+            HitObject hitObject,
+            out GameplaySkinLaneGroupId? groupId,
+            out GameplaySkinLaneId? laneId,
+            out GameplaySkinObjectKind kind)
+        {
+            groupId = null;
+            laneId = null;
+            kind = GameplaySkinObjectKind.Unspecified;
+
+            if (hitObject is BmsBarLine barLine)
+            {
+                if ((uint)barLine.GroupLogicalIndex >= (uint)LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.Count)
+                    return false;
+
+                GameplaySkinLaneTopologyGroup group = LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder[barLine.GroupLogicalIndex];
+
+                if (barLine.GroupId == null || !barLine.GroupId.Equals(group.Identity.Id))
+                    return false;
+
+                groupId = group.Identity.Id;
+                kind = GameplaySkinObjectKind.BarLine;
+                return true;
+            }
+
+            int logicalIndex;
+
+            switch (hitObject)
+            {
+                case BmsHoldNote hold:
+                    logicalIndex = hold.LaneIndex;
+                    kind = GameplaySkinObjectKind.LongNote;
+                    break;
+
+                case BmsHitObject note:
+                    logicalIndex = note.LaneIndex;
+                    kind = GameplaySkinObjectKind.Note;
+                    break;
+
+                case BmsMine mine:
+                    logicalIndex = mine.LaneIndex;
+                    kind = GameplaySkinObjectKind.Mine;
+                    break;
+
+                default:
+                    return false;
+            }
+
+            if (logicalIndex < 0 || logicalIndex >= LayoutSnapshot.LanesInLogicalOrder.Count)
+                return false;
+
+            BmsGameplayLayoutLane lane = LayoutSnapshot.GetLaneByLogicalIndex(logicalIndex);
+            groupId = lane.NeutralLane.TopologyEntry.Identity.Group.Id;
+            laneId = lane.LaneId;
+
+            return true;
+        }
+
+        private long getGameplaySkinObjectId(HitObject hitObject)
+        {
+            HitObject identityOwner = getGameplaySkinObjectIdentityOwner(hitObject);
+
+            if (gameplaySkinObjectIds.TryGetValue(identityOwner, out long id))
+                return id;
+
+            id = nextGameplaySkinObjectId++;
+            gameplaySkinObjectIds.Add(identityOwner, id);
+            return id;
+        }
+
+        private HitObject getGameplaySkinObjectIdentityOwner(HitObject hitObject)
+            => gameplaySkinObjectIdentityOwners.TryGetValue(hitObject, out HitObject? owner) ? owner : hitObject;
+
+        private void registerGameplaySkinObjectIdentityTree(HitObject hitObject, HitObject identityOwner)
+        {
+            if (gameplaySkinObjectIdentityOwners.TryGetValue(hitObject, out HitObject? existingOwner))
+            {
+                if (!ReferenceEquals(existingOwner, identityOwner))
+                    throw new InvalidOperationException("A BMS nested hit object cannot change its stable gameplay-skin identity owner.");
+
+                return;
+            }
+
+            gameplaySkinObjectIdentityOwners.Add(hitObject, identityOwner);
+
+            foreach (HitObject nested in hitObject.NestedHitObjects)
+                registerGameplaySkinObjectIdentityTree(nested, identityOwner);
+        }
+
+        internal void RegisterGameplaySkinNestedObjectIdentity(HitObject nestedHitObject, HitObject identityOwner)
+        {
+            ArgumentNullException.ThrowIfNull(nestedHitObject);
+            ArgumentNullException.ThrowIfNull(identityOwner);
+
+            if (identityOwner is not BmsHoldNote || !identityOwner.NestedHitObjects.Contains(nestedHitObject))
+                throw new InvalidOperationException("Only a real nested BMS long-note drawable may inherit its parent object's stable identity.");
+
+            registerGameplaySkinObjectIdentityTree(nestedHitObject, identityOwner);
+        }
+
+        /// <summary>
+        /// Returns the exact stable ID used by this root's sole read-only gameplay event producer.
+        /// Native pooled scene owners may bind to it but cannot allocate or publish another identity.
+        /// </summary>
+        internal long GetGameplaySkinObjectId(HitObject hitObject)
+        {
+            ArgumentNullException.ThrowIfNull(hitObject);
+            return getGameplaySkinObjectId(hitObject);
+        }
+
+        internal void PublishGameplaySkinObjectState(HitObject hitObject, GameplaySkinObjectState state)
+        {
+            ArgumentNullException.ThrowIfNull(hitObject);
+            hitObject = getGameplaySkinObjectIdentityOwner(hitObject);
+
+            if (!tryGetGameplaySkinObjectTarget(hitObject, out GameplaySkinLaneGroupId? groupId, out GameplaySkinLaneId? laneId, out GameplaySkinObjectKind kind))
+                return;
+
+            long objectId = getGameplaySkinObjectId(hitObject);
+
+            if (!gameplaySkinActiveObjectIds.Contains(objectId) || GameplaySkinEventRuntime == null)
+                return;
+
+            GameplaySkinEventRuntime.PublishObject(
+                objectId,
+                GameplaySkinEventKind.ObjectStateChanged,
+                kind,
+                state,
+                groupId!,
+                laneId,
+                hitObject.StartTime,
+                hitObject.GetEndTime(),
+                getGameplaySkinObjectProgress(hitObject));
+        }
+
+        private double getGameplaySkinObjectProgress(HitObject hitObject)
+            => GameplaySkinEventRuntime?.GetObjectProgress(hitObject.StartTime, hitObject.GetEndTime()) ?? 0;
+
+        private static bool tryMapJudgementGrade(HitResult result, out GameplaySkinJudgementGrade grade)
+        {
+            grade = result switch
+            {
+                HitResult.Miss or HitResult.SmallTickMiss or HitResult.LargeTickMiss or HitResult.ComboBreak => GameplaySkinJudgementGrade.Miss,
+                HitResult.Meh => GameplaySkinJudgementGrade.Meh,
+                HitResult.Ok => GameplaySkinJudgementGrade.Ok,
+                HitResult.Good => GameplaySkinJudgementGrade.Good,
+                HitResult.Great => GameplaySkinJudgementGrade.Great,
+                HitResult.Perfect or HitResult.SmallTickHit or HitResult.LargeTickHit => GameplaySkinJudgementGrade.Perfect,
+                _ => GameplaySkinJudgementGrade.Unspecified,
+            };
+            return grade != GameplaySkinJudgementGrade.Unspecified;
         }
 
         public bool AdjustLaneCover(float scrollDelta, bool preferBottom = false)

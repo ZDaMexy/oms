@@ -3,16 +3,23 @@
 using osu.Framework.Graphics;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
     internal static class BmsGameplayFeedbackLayout
     {
-        public static void ApplyJudgementSnapshot(Drawable judgementBody, ScrollingDirection direction, BmsGameplayLayoutSnapshot snapshot)
+        public static void ApplyJudgementSnapshot(
+            Drawable judgementBody,
+            ScrollingDirection direction,
+            BmsGameplayLayoutSnapshot snapshot,
+            GameplaySkinLaneGroupId? stageGroupId = null)
         {
             var playfield = snapshot.PlayfieldRect;
             var judgement = snapshot.JudgementRect;
-            float centreX = (judgement.X + judgement.Width / 2 - playfield.X) / playfield.Width;
+            float centreX = stageGroupId == null
+                ? (judgement.X + judgement.Width / 2 - playfield.X) / playfield.Width
+                : 0.5f;
             float centreY = (judgement.Y + judgement.Height / 2 - playfield.Y) / playfield.Height;
 
             if (direction == ScrollingDirection.Up)

@@ -231,10 +231,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 _ => throw new ArgumentOutOfRangeException(nameof(authority), authority, "Only a selected-package authority has a selected identity."),
             };
 
-            return GameplaySkinResolvedMaterialSourceIdentity.Create(
-                GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
-                stableId,
-                configurationRevision);
+            return authority == BmsPreparedNoteMaterialAuthority.SelectedDocument
+                ? GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument(stableId, configurationRevision)
+                : GameplaySkinResolvedMaterialSourceIdentity.Create(
+                    GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                    stableId,
+                    configurationRevision);
         }
 
         public static GameplaySkinResolvedMaterialSourceIdentity Programmatic { get; } =

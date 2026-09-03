@@ -69,7 +69,7 @@ namespace osu.Game.Rulesets.Mania.Mods
         private partial class LegacyPlayfieldCover : PlayfieldCoveringWrapper
         {
             [Resolved]
-            private GameplaySkinLayoutSnapshot layoutSnapshot { get; set; } = null!;
+            private GameplaySkinLayoutSnapshot? layoutSnapshot { get; set; }
 
             private float referenceLayoutHeight;
 
@@ -88,6 +88,12 @@ namespace osu.Game.Rulesets.Mania.Mods
 
             protected override float GetHeight(float coverage)
             {
+                // The base wrapper establishes a non-visible provisional geometry during dependency activation,
+                // before derived resolved members are populated. LoadComplete immediately reprojects the same
+                // bound coverage through the exact snapshot before the cover can become visible.
+                if (layoutSnapshot == null)
+                    return base.GetHeight(coverage);
+
                 GameplaySkinLayoutRect playfield = layoutSnapshot.GetSurface(ManiaGameplaySkinLayout.PLAYFIELD_SURFACE).Rect;
                 if (!layoutSnapshot.Context.SafeBounds.Contains(playfield))
                     throw new InvalidOperationException("The hidden cover received a playfield outside the exact safe layout bounds.");

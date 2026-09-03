@@ -11,25 +11,15 @@ using osu.Game.Skinning.Gameplay;
 namespace osu.Game.Rulesets.Mania.Skinning
 {
     /// <summary>
-    /// Prepares the complete C4 note/hold/key material surface for one exact C2/C3 publication.
+    /// Prepares the complete public material surface for one exact C2/C3 publication.
     /// All configuration and texture lookup ends here on the background prepare path.
     /// </summary>
     internal static class ManiaGameplaySkinMaterialResolver
     {
         private const double fixed_frame_length = 1000d / 60;
 
-        internal static GameplaySkinRuntimeCapabilitySet RuntimeCapabilities { get; } = GameplaySkinRuntimeCapabilitySet.Create(new[]
-        {
-            GameplaySkinRuntimeSlotSupport.Create(GameplaySkinSlotCatalog.Note, GameplaySkinRuntimeSlotCapability.Provide),
-            GameplaySkinRuntimeSlotSupport.Create(GameplaySkinSlotCatalog.LongNoteHead, GameplaySkinRuntimeSlotCapability.Provide),
-            GameplaySkinRuntimeSlotSupport.Create(GameplaySkinSlotCatalog.LongNoteBody, GameplaySkinRuntimeSlotCapability.Provide),
-            GameplaySkinRuntimeSlotSupport.Create(
-                GameplaySkinSlotCatalog.LongNoteTail,
-                GameplaySkinRuntimeSlotCapability.Provide | GameplaySkinRuntimeSlotCapability.Suppress),
-            GameplaySkinRuntimeSlotSupport.Create(
-                GameplaySkinSlotCatalog.KeyVisual,
-                GameplaySkinRuntimeSlotCapability.Provide | GameplaySkinRuntimeSlotCapability.Suppress),
-        });
+        internal static GameplaySkinRuntimeCapabilitySet RuntimeCapabilities { get; } =
+            GameplaySkinRuntimeSupportProfile.Mania.Capabilities;
 
         public static GameplaySkinResolvedMaterialSet Resolve(
             GameplaySkinLayoutSnapshot snapshot,
@@ -55,8 +45,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 throw new InvalidOperationException("The selected mania package is not eligible for gameplay-skin document authoring.");
 
             GameplaySkinDocument selectedDocument = selected.Raw.GameplaySkinDocument.BindToPublication(snapshot);
-            GameplaySkinResolvedMaterialSourceIdentity selectedIdentity = GameplaySkinResolvedMaterialSourceIdentity.Create(
-                GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+            GameplaySkinResolvedMaterialSourceIdentity selectedIdentity = GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument(
                 "selected-common",
                 selectedDocument.Identity.ContentRevision);
             GameplaySkinResolvedMaterialSourceIdentity selectedLegacyIdentity = GameplaySkinResolvedMaterialSourceIdentity.Create(
@@ -251,10 +240,24 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 }
             }
 
+            GameplaySkinPublicSlotMaterialResolution publicSlots = GameplaySkinPublicSlotMaterialResolver.Resolve(
+                snapshot,
+                selectedDocument,
+                RuntimeCapabilities,
+                GameplaySkinSlotCatalog.Common.Where(descriptor =>
+                    GameplaySkinRuntimeSupportProfile.Mania.IsSupported(descriptor)
+                    && !specialised_descriptors.Contains(descriptor)),
+                selectedIdentity,
+                programmaticIdentity,
+                resourceName => selected.Transformed.GetTexture(resourceName, WrapMode.ClampToEdge, WrapMode.ClampToEdge),
+                cancellationToken);
+            entries.AddRange(publicSlots.Entries);
+            diagnostics.AddRange(publicSlots.Diagnostics);
+
             cancellationToken.ThrowIfCancellationRequested();
             return GameplaySkinResolvedMaterialSet.Create(
                 snapshot,
-                GameplaySkinMaterialContractIdentity.Current,
+                GameplaySkinMaterialContractIdentity.CurrentFor(GameplaySkinRuntimeSupportProfile.Mania),
                 entries,
                 diagnostics);
         }
@@ -267,6 +270,15 @@ namespace osu.Game.Rulesets.Mania.Skinning
             ManiaSkinComponents.HoldNoteTail,
             ManiaSkinComponents.KeyArea,
         };
+
+        private static readonly IReadOnlySet<GameplaySkinSlotDescriptor> specialised_descriptors =
+            new HashSet<GameplaySkinSlotDescriptor>(supported_components.Select(component =>
+            {
+                if (!ManiaGameplaySkinMaterialMapping.TryGetDescriptor(component, out GameplaySkinSlotDescriptor? descriptor))
+                    throw new InvalidOperationException("The mania specialised material mapping is incomplete.");
+
+                return descriptor!;
+            }));
 
         private static string mapDiagnostic(GameplaySkinSlotDiagnostic diagnostic)
         {
@@ -373,7 +385,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 try
                 {
                     diagnostics.Add(new GameplaySkinResolvedMaterialDiagnostic(
-                        "mania.capability.unsupported-slot",
+                        "mania.runtime-support.not-applicable.v1",
                         new GameplaySkinResolvedMaterialKey(entry.Descriptor, target!),
                         source));
                 }

@@ -3,10 +3,14 @@
 
 #nullable disable
 
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Beatmaps;
@@ -26,7 +30,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
     /// <summary>
     /// Visualises a <see cref="Note"/> hit object.
     /// </summary>
-    public partial class DrawableNote : DrawableManiaHitObject<Note>, IKeyBindingHandler<ManiaAction>
+    public partial class DrawableNote : DrawableManiaHitObject<Note>, IKeyBindingHandler<ManiaAction>, IGameplaySkinSpecialisedSceneConsumer
     {
         [Resolved]
         private OsuColour colours { get; set; }
@@ -46,10 +50,23 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         protected virtual ManiaSkinComponents Component => ManiaSkinComponents.Note;
 
         private Drawable headPiece;
+        private Container specialisedSceneOwner;
+        private GameplaySkinSpecialisedSceneVisual specialisedSceneVisual;
+        private IDisposable programmaticVisualRegistration;
 
         public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; }
 
         public GameplaySkinResolvedMaterialKey ResolvedMaterialKey { get; private set; }
+
+        public GameplaySkinSceneHostedSlot SceneVisualGate { get; private set; }
+
+        public IReadOnlyList<string> AppliedSceneNodeIds { get; private set; } = Array.Empty<string>();
+
+        [Resolved(canBeNull: true)]
+        private GameplaySkinSceneRuntimeHost sceneRuntime { get; set; }
+
+        [Resolved(canBeNull: true)]
+        private IManiaGameplaySkinObjectIdentityProvider gameplaySkinObjectIdentityProvider { get; set; }
 
         public DrawableNote()
             : this(null)
@@ -78,11 +95,38 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             else
                 lookup = new ManiaSkinComponentLookup(Component);
 
-            AddInternal(headPiece = new SkinnableDrawable(lookup, _ => new DefaultNotePiece())
+            AddRangeInternal(new Drawable[]
             {
-                RelativeSizeAxes = Axes.X,
-                AutoSizeAxes = Axes.Y
+                headPiece = new SkinnableDrawable(lookup, _ => new DefaultNotePiece())
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y
+                },
+                specialisedSceneOwner = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                },
             });
+
+            if (sceneRuntime != null && materialContext?.UsesResolvedMaterial == true)
+            {
+                if (!sceneRuntime.TryGetVisualGate(ResolvedMaterialKey, out GameplaySkinSceneHostedSlot gate))
+                    throw new InvalidOperationException("The exact mania note scene gate is missing from its committed publication.");
+
+                SceneVisualGate = gate;
+
+                if (gate.Route == GameplaySkinSceneHostRoute.Specialised)
+                    specialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(ResolvedMaterialKey, specialisedSceneOwner);
+
+                if (gate.Route == GameplaySkinSceneHostRoute.Suppressed || specialisedSceneVisual != null)
+                    programmaticVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(ResolvedMaterialKey, headPiece);
+
+                if (specialisedSceneVisual != null)
+                {
+                    AppliedSceneNodeIds = Array.AsReadOnly(
+                        gate.RoutedNodes.Select(node => node.InstanceId).ToArray());
+                }
+            }
         }
 
         protected override void LoadComplete()
@@ -96,7 +140,24 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         protected override void OnApply()
         {
             base.OnApply();
+
+            if (specialisedSceneVisual != null)
+            {
+                if (gameplaySkinObjectIdentityProvider == null)
+                    throw new InvalidOperationException("A specialised mania note scene requires the engine-owned object identity provider.");
+
+                // A pooled hold head/tail is a visual part of the parent hold and must bind the parent's sole event ID.
+                specialisedSceneVisual.OnApply(gameplaySkinObjectIdentityProvider.GetObjectId(
+                    ParentHitObject is DrawableHoldNote parentHold ? parentHold.HitObject : HitObject));
+            }
+
             updateSnapColour();
+        }
+
+        protected override void OnFree()
+        {
+            specialisedSceneVisual?.OnFree();
+            base.OnFree();
         }
 
         protected override void OnDirectionChanged(ValueChangedEvent<ScrollingDirection> e)
@@ -170,6 +231,14 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             int snapDivisor = beatmap.ControlPointInfo.GetClosestBeatDivisor(HitObject.StartTime);
 
             Colour = configTimingBasedNoteColouring.Value ? BindableBeatDivisor.GetColourFor(snapDivisor, colours) : Color4.White;
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+                programmaticVisualRegistration?.Dispose();
+
+            base.Dispose(isDisposing);
         }
     }
 }

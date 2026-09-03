@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
@@ -98,6 +99,102 @@ namespace osu.Game.Skinning
         /// sidecar, capture or reload authority.
         /// </summary>
         public virtual bool AllowsGameplaySkinDocumentAuthoring => true;
+
+        /// <summary>
+        /// Captures one validated package resource for the C5 background scene preparer.
+        /// </summary>
+        /// <remarks>
+        /// This is deliberately internal and returns a defensive copy. The scene renderer never receives this store
+        /// and therefore cannot perform a post-publication filesystem or package lookup. Exact managed/external skins
+        /// are backed by their immutable revision store; ordinary imported skins remain protected by the C2
+        /// participant/work-lease and current-revision revalidation surrounding preparation.
+        /// </remarks>
+        internal bool TryCaptureGameplaySkinResource(string resourceName, int maximumBytes, out byte[] bytes)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
+
+            if (!SkinPackageResourceNameValidator.TryNormalise(resourceName, out string normalisedName, out _)
+                || !string.Equals(resourceName, normalisedName, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A gameplay scene resource name must be one canonical package-relative path.", nameof(resourceName));
+            }
+
+            byte[]? captured = store.Get(normalisedName);
+
+            if (captured == null)
+            {
+                bytes = Array.Empty<byte>();
+                return false;
+            }
+
+            if (captured.Length > maximumBytes)
+                throw new InvalidDataException("A gameplay scene resource exceeds its prepared byte budget.");
+
+            bytes = captured.ToArray();
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves a validated texture while the exact C5 publication is still being prepared.
+        /// </summary>
+        /// <remarks>
+        /// The returned texture is retained by the prepared publication. Calling this method from a renderer is a
+        /// contract violation; only the background preparer owns package-resource resolution.
+        /// </remarks>
+        internal Texture? PrepareGameplaySkinTexture(string resourceName, ReadOnlyMemory<byte> capturedBytes)
+        {
+            if (!SkinPackageResourceNameValidator.TryNormalise(resourceName, out string normalisedName, out _)
+                || !string.Equals(resourceName, normalisedName, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A gameplay scene texture name must be one canonical package-relative path.", nameof(resourceName));
+            }
+
+            if (capturedBytes.IsEmpty || resources == null)
+                return null;
+
+            using var capturedStore = new CapturedGameplaySkinResourceStore(normalisedName, capturedBytes.ToArray());
+            using IResourceStore<TextureUpload> loader = CreateTextureLoaderStore(resources, capturedStore);
+            using TextureUpload? upload = loader.Get(normalisedName);
+
+            if (upload == null)
+                return null;
+
+            Texture texture = resources.Renderer.CreateTexture(upload.Width, upload.Height);
+            texture.SetData(upload);
+            return texture;
+        }
+
+        private sealed class CapturedGameplaySkinResourceStore : IResourceStore<byte[]>
+        {
+            private readonly string name;
+            private byte[]? bytes;
+
+            public CapturedGameplaySkinResourceStore(string name, byte[] bytes)
+            {
+                this.name = name;
+                this.bytes = bytes;
+            }
+
+            public byte[] Get(string resourceName)
+                => bytes != null && string.Equals(resourceName, name, StringComparison.Ordinal) ? bytes.ToArray() : null!;
+
+            public Task<byte[]> GetAsync(string resourceName, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return Task.FromResult(Get(resourceName));
+            }
+
+            public Stream? GetStream(string resourceName)
+            {
+                byte[]? value = Get(resourceName);
+                return value == null ? null : new MemoryStream(value, writable: false);
+            }
+
+            public IEnumerable<string> GetAvailableResources()
+                => bytes == null ? Array.Empty<string>() : new[] { name };
+
+            public void Dispose() => bytes = null;
+        }
 
         /// <summary>
         /// Construct a new skin.

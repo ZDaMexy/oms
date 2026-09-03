@@ -2,7 +2,7 @@
 
 本文是 `GameplaySkinSlotCatalog` 的可读投影，不是第二份 ID 表。下表由 `GameplaySkinSlotCatalogDocumentation.GenerateMarkdownTable()` 生成，并由固定 contract digest 与文档一致性测试锁定；修改目录必须同时变更代码版本、生成块和测试。
 
-公共目录冻结稳定名称、scope、值类型、Required/Recommended/Optional、继承、是否允许 `Suppress` 以及 ruleset/keymode/stage/lane-role 适用性。它**不等于当前 renderer 已实现全部 slot**：真实可达能力由独立的 `GameplaySkinRuntimeCapabilitySet` 声明，runtime capability 不能改变目录语义，也不能为 Required/Recommended slot 扩张 `Suppress` 权限。
+公共目录冻结稳定名称、scope、值类型、Required/Recommended/Optional、继承、是否允许 `Suppress` 以及 ruleset/keymode/stage/lane-role 适用性。它仍**不改变目录语义**；C5 已由独立的 `GameplaySkinRuntimeCapabilitySet` 对每个 slot 给出版本化 runtime 决策并接入真实 host。BMS 对 28 项均有 production route（9K 按 catalog applicability 为 26 格），Mania 对 28 项逐项决策，其中 23 项 Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为明确 `NotApplicable`。runtime capability 不能改变目录分类，也不能为 Required/Recommended slot 扩张 `Suppress` 权限。
 
 当前合同版本：catalog `oms-gameplay-skin-catalog.v1`、codec `oms-gameplay-skin-codec.v1`、resolver `oms-gameplay-skin-resolver.v1`。BMS 扩展只有 `[GameplaySkin.Bms:1]`，与 common 共用同一个 tokenizer/codec，不存在第二套 BMS parser。
 
@@ -87,11 +87,13 @@ BMS group ID 为 `bms.group.deck-1` / `bms.group.deck-2`，lane ID 为 `bms.lane
 
 resolver 对每个已支持 target 产出一个最终 immutable `Provide` 或 `Suppress` entry；`Inherit` 只用于继续 provider chain，不以缺 dictionary entry、`null`、异常或 `Drawable.Empty` 表示。Required/Recommended 的非法 `Suppress` 会产生稳定诊断并继续到确定 fallback；只有目录标记为 Optional + Allowed 且 runtime capability 同时支持时才可终止为 `Suppress`。
 
-## 当前 C4 runtime 边界
+## 当前 C5 runtime 边界
 
-C4 以 BMS Note/LN 与 mania Note/Hold/KeyVisual 的真实渲染纵切证明公共 codec/catalog/resolver；它没有提前实现 C5 的 scene/event 或全部 optional slot host。每个 ruleset 的 capability set 是唯一运行时清单，未支持的公共声明会产生 capability diagnostic，不会静默解释成 `Inherit`。BMS 的 `KeyVisual` 与 HUD/BGA/gauge/combo视觉 slot 仍由 C5 scene host 承接；这些对象在 C4 只携带同一 exact layout/material revision，不得宣传成已消费对应 slot。BMS legacy Note/LN 的静态图和固定 60 FPS `name-0`、`name-1`…连续帧合同保持不变。
+C5 在 C4 BMS Note/LN 与 mania Note/Hold/KeyVisual 纵切之上，已将 versioned manifest/scene/event 与全部适用 public slot 接入真实 renderer。`GameplaySkinRuntimeCapabilitySet` 是唯一运行时清单：BMS profile 对 28 项均有 route（9K 的 Turntable/Laser 因 catalog applicability 不适用）；Mania profile 对 28 项逐项给出 decision，23 项 Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。NotApplicable 是明确的 ruleset/runtime 产品决定，不会静默解释成 `Inherit`，也不代表目录 ID 被删除。BMS/mania 的 global/stage/group/lane、lane/target/cover、barline/stage/backdrop/baseplate、key/keyflash/mine、hit explosion、judgement/combo/gauge/text HUD、turntable/laser、BGA frame/viewport 与 decoration 由固定 host 或 shared scene route 消费同一 exact publication；BMS legacy Note/LN 与 mania Hold 的静态图和固定 60 FPS 编号帧合同保持不变。
 
-prepared material、layout adapter 与 neutral snapshot 是同一个 publication 引用。所有可失败 parse、validate、resource decode 与 material 构造都在 background prepare 完成；update thread 只交换已经完成的 package + layout + material 引用。任一步失败保留 exact A；成功后 late attach 只能取得已提交 revision 与 lease，旧 owner 在最后 lease detach 后 exactly-once retire。Settings → Skin 的 `Reload current skin` 仍是唯一手动 reload，live gameplay/preview 在任何 source prepare 前拒绝；没有 watcher、same-value reload 或行级 reload。
+scene 文件只允许 `gameplay-skin.json` 与 `gameplay-skin.scene.json` 的 v1 合同。prepare 阶段完成严格路径、类型、target、资源、模板、节点/effect/track/keyframe/text 与纹理预算；renderer 只读取单一 immutable prepared graph。事件来自真实 BMS/mania/core producer，以 v1 envelope、bounded queue 与 Snapshot/Reset 提供 late attach、retry、seek、rewind 和旧 epoch 隔离。`GameplayResumed` 是 engine envelope 事实，但 scene state-machine ABI 不接受 `gameplay.resume`，因为完整 Snapshot 已能重建 Running 状态；这不是遗漏的第二事件 authority。
+
+prepared material、layout adapter、prepared scene 与 event runtime state 是同一个 exact package + layout + material + scene publication 引用。所有可失败 parse、validate、resource decode、template expansion、graph build 与 initial Snapshot 构造都在 background prepare 完成；update thread 只交换已经完成的 immutable quadruple。任一步失败保留 exact A；成功后 late attach 只能取得已提交 revision 与 lease，旧 owner 在最后 lease detach 后 exactly-once retire。Settings → Skin 的 `Reload current skin` 仍是唯一手动 reload，live gameplay/preview 在任何 source prepare 前拒绝；没有 watcher、same-value reload 或行级 reload。
 
 ## Beatmap-local 终态
 
@@ -103,4 +105,4 @@ C4 **不纳入新的 beatmap-local gameplay-skin authoring**。OMS 没有定义 
 
 codec、resolver 与 material diagnostic 使用稳定 code、catalog ID、target stable ID/index、source kind 以及 exact revision 关联。任意绝对路径、作者资源值、display name、record GUID、content hash 和异常正文都不得进入持久化文本或 `ToString()`；精确 source/content identity 只保留在进程内对象用于相等性与 revision correlation。
 
-只有 exact package+layout+material publication 成功提交后，产品 diagnostic sink 才异步输出该 revision 的去重、确定排序、安全摘要；失败或失去commit admission的候选不会留下“已生效”日志。日志只含公开诊断码、catalog ID、stable target/index、source kind与catalog/codec/resolver版本，不阻塞update thread，也不让日志故障改变已提交引用。
+只有 exact package+layout+material+scene publication 成功提交后，产品 diagnostic sink 才异步输出该 revision 的去重、确定排序、安全摘要；失败或失去commit admission的候选不会留下“已生效”日志。日志只含公开诊断码、catalog ID、stable target/index、source kind与catalog/codec/resolver/scene/event版本，不阻塞update thread，也不让日志故障改变已提交引用。

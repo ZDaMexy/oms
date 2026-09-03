@@ -3,6 +3,8 @@
 
 #nullable disable
 
+using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -11,16 +13,26 @@ using osu.Framework.Graphics.Sprites;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
-    public partial class LegacyStageBackground : CompositeDrawable
+    public partial class LegacyStageBackground : CompositeDrawable, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                                 IManiaGameplaySkinProgrammaticVisualPartReadinessSource
     {
         private Drawable leftSprite;
         private Drawable rightSprite;
+        private Drawable playfieldBackdrop;
+        private Drawable baseplate;
         private ColumnFlow<Drawable> columnBackgrounds;
+        private ColumnFlow<LegacyHitTarget> hitTargets;
+
+        IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+            => getGameplaySkinProgrammaticVisualParts();
+
+        public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
         public LegacyStageBackground()
         {
@@ -38,6 +50,16 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 
             InternalChildren = new[]
             {
+                baseplate = new Container
+                {
+                    Name = "Playfield baseplate compatibility owner",
+                    RelativeSizeAxes = Axes.Both,
+                },
+                playfieldBackdrop = new Container
+                {
+                    Name = "Playfield backdrop compatibility owner",
+                    RelativeSizeAxes = Axes.Both,
+                },
                 leftSprite = new Sprite
                 {
                     Anchor = Anchor.TopLeft,
@@ -59,12 +81,55 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                 },
                 new HitTargetInsetContainer
                 {
-                    Child = new LegacyHitTarget { RelativeSizeAxes = Axes.Both }
+                    Child = hitTargets = new ColumnFlow<LegacyHitTarget>(stageDefinition)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Masking = false,
+                    },
                 }
             };
 
             for (int i = 0; i < stageDefinition.Columns; i++)
-                columnBackgrounds.SetContentForColumn(i, new ColumnBackground(i, i == stageDefinition.Columns - 1));
+            {
+                var columnBackground = new ColumnBackground(i, i == stageDefinition.Columns - 1);
+                var hitTarget = new LegacyHitTarget(i) { RelativeSizeAxes = Axes.Both };
+                columnBackground.GameplaySkinProgrammaticVisualPartsReady += forwardProgrammaticVisualPartsReady;
+                hitTarget.GameplaySkinProgrammaticVisualPartsReady += forwardProgrammaticVisualPartsReady;
+                columnBackgrounds.SetContentForColumn(i, columnBackground);
+                hitTargets.SetContentForColumn(i, hitTarget);
+            }
+
+            GameplaySkinProgrammaticVisualPartsReady();
+        }
+
+        private void forwardProgrammaticVisualPartsReady() => GameplaySkinProgrammaticVisualPartsReady();
+
+        private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> getGameplaySkinProgrammaticVisualParts()
+        {
+            if (leftSprite == null || rightSprite == null || playfieldBackdrop == null || columnBackgrounds == null || hitTargets == null)
+                return Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+            var parts = new List<ManiaGameplaySkinProgrammaticVisualPart>
+            {
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.StageBackground, leftSprite),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.StageBackground, rightSprite),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.PlayfieldBackdrop, playfieldBackdrop),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.PlayfieldBaseplate, baseplate),
+            };
+
+            foreach (Drawable columnBackground in columnBackgrounds.Content)
+            {
+                if (columnBackground is IManiaGameplaySkinProgrammaticVisualPartProvider provider)
+                    parts.AddRange(provider.GameplaySkinProgrammaticVisualParts);
+            }
+
+            foreach (LegacyHitTarget hitTarget in hitTargets.Content)
+            {
+                parts.AddRange(((IManiaGameplaySkinProgrammaticVisualPartProvider)hitTarget)
+                               .GameplaySkinProgrammaticVisualParts);
+            }
+
+            return parts.AsReadOnly();
         }
 
         protected override void Update()
@@ -78,10 +143,19 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                 rightSprite.Scale = new Vector2(1, DrawHeight / rightSprite.Height);
         }
 
-        private partial class ColumnBackground : CompositeDrawable
+        private partial class ColumnBackground : CompositeDrawable, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                                 IManiaGameplaySkinProgrammaticVisualPartReadinessSource
         {
             private readonly int columnIndex;
             private readonly bool isLastColumn;
+
+            private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> gameplaySkinProgrammaticVisualParts
+                = Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+            IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+                => gameplaySkinProgrammaticVisualParts;
+
+            public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
             public ColumnBackground(int columnIndex, bool isLastColumn)
             {
@@ -103,13 +177,16 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                 Color4 lineColour = skin.GetManiaSkinConfig<Color4>(LegacyManiaSkinConfigurationLookups.ColumnLineColour, columnIndex)?.Value ?? Color4.White;
                 Color4 backgroundColour = skin.GetManiaSkinConfig<Color4>(LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour, columnIndex)?.Value ?? Color4.Black;
 
+                Box laneSurface;
+                HitTargetInsetContainer laneDividers;
+
                 InternalChildren = new Drawable[]
                 {
-                    LegacyColourCompatibility.ApplyWithDoubledAlpha(new Box
+                    laneSurface = LegacyColourCompatibility.ApplyWithDoubledAlpha(new Box
                     {
                         RelativeSizeAxes = Axes.Both
                     }, backgroundColour),
-                    new HitTargetInsetContainer
+                    laneDividers = new HitTargetInsetContainer
                     {
                         RelativeSizeAxes = Axes.Both,
                         Children = new[]
@@ -141,6 +218,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
                         }
                     }
                 };
+
+                gameplaySkinProgrammaticVisualParts = Array.AsReadOnly(new[]
+                {
+                    new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.LaneSurface, laneSurface, columnIndex),
+                    new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.LaneDivider, laneDividers, columnIndex),
+                });
+                GameplaySkinProgrammaticVisualPartsReady();
             }
         }
     }

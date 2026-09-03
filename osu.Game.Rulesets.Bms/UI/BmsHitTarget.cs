@@ -1,6 +1,8 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -23,7 +25,7 @@ namespace osu.Game.Rulesets.Bms.UI
         void SetFocused(bool isFocused);
     }
 
-    public partial class BmsHitTarget : CompositeDrawable
+    public partial class BmsHitTarget : CompositeDrawable, IGameplaySkinSpecialisedSceneConsumer
     {
         public readonly BindableBool IsPressed = new BindableBool();
 
@@ -34,13 +36,51 @@ namespace osu.Game.Rulesets.Bms.UI
         protected float FocusEdgeAlpha => (display.CurrentDisplay as DefaultBmsHitTargetDisplay)?.FocusEdgeAlpha ?? 0;
 
         private readonly BmsPlayfieldLayoutProfile layoutProfile;
+        private readonly BmsLaneSkinLookup lookup;
+        private readonly Container programmaticVisualOwner;
         private readonly SkinnableHitTargetDisplay display;
+        private readonly Container sceneVisualContainer;
+        private GameplaySkinSceneRuntimeHost? sceneRuntime;
+        private GameplaySkinSpecialisedSceneVisual? sceneVisual;
+        private IDisposable? hitTargetVisualRegistration;
+        private IDisposable? judgementLineVisualRegistration;
+        private IDisposable? keyFlashVisualRegistration;
+        private GameplaySkinResolvedMaterialKey? keyVisualMaterialKey;
+        private GameplaySkinSceneHostedSlot? keyVisualGate;
+
+        internal Container HitExplosions { get; }
 
         public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet
+            => sceneRuntime?.MaterialSet
+               ?? throw new InvalidOperationException("A compatibility BMS hit target has no exact C4 material publication.");
+
+        public GameplaySkinResolvedMaterialKey ResolvedMaterialKey
+            => keyVisualMaterialKey
+               ?? throw new InvalidOperationException("A compatibility BMS hit target has no specialised C5 KeyVisual key.");
+
+        public GameplaySkinSceneHostedSlot SceneVisualGate
+            => keyVisualGate
+               ?? throw new InvalidOperationException("A compatibility BMS hit target has no specialised C5 KeyVisual gate.");
+
+        public IReadOnlyList<string> AppliedSceneNodeIds { get; private set; } = Array.Empty<string>();
+
+        internal Drawable? GameplaySkinHitTargetFallbackVisual
+            => (display.CurrentDisplay as DefaultBmsHitTargetDisplay)?.HitTargetVisual;
+
+        internal Drawable? GameplaySkinJudgementLineFallbackVisual
+            => (display.CurrentDisplay as DefaultBmsHitTargetDisplay)?.JudgementLineVisual;
+
+        internal Drawable? GameplaySkinKeyFlashFallbackVisual
+            => (display.CurrentDisplay as DefaultBmsHitTargetDisplay)?.KeyFlashVisual;
+
+        internal Drawable GameplaySkinCustomFallbackGateOwner => programmaticVisualOwner;
 
         public BmsHitTarget(BmsLaneSkinLookup lookup, BmsPlayfieldLayoutProfile layoutProfile, BmsGameplayLayoutSnapshot? layoutSnapshot = null)
         {
             this.layoutProfile = layoutProfile;
+            this.lookup = lookup ?? throw new ArgumentNullException(nameof(lookup));
             LayoutSnapshot = layoutSnapshot;
             Anchor = Anchor.BottomLeft;
             Origin = Anchor.BottomLeft;
@@ -59,14 +99,68 @@ namespace osu.Game.Rulesets.Bms.UI
                 Height = layoutSnapshot.HitTargetRect.Height / layoutSnapshot.PlayfieldRect.Height;
             }
 
-            InternalChild = display = new SkinnableHitTargetDisplay(this, lookup)
+            InternalChildren = new Drawable[]
             {
-                RelativeSizeAxes = Axes.Both,
-                CentreComponent = false,
+                programmaticVisualOwner = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = display = new SkinnableHitTargetDisplay(this, lookup)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        CentreComponent = false,
+                    },
+                },
+                sceneVisualContainer = new Container { RelativeSizeAxes = Axes.Both },
+                HitExplosions = new Container { RelativeSizeAxes = Axes.Both },
             };
 
             IsPressed.BindValueChanged(_ => updateState(), true);
             IsFocused.BindValueChanged(_ => updateState(), true);
+        }
+
+        [BackgroundDependencyLoader(true)]
+        private void loadGameplaySkinScene(GameplaySkinSceneRuntimeHost? runtime)
+        {
+            if (runtime == null || LayoutSnapshot == null || lookup.LaneId == null)
+                return;
+
+            BmsGameplayLayoutLane exactLane = LayoutSnapshot.GetLane(lookup.LaneId);
+
+            if (exactLane.LogicalIndex != lookup.LaneIndex || exactLane.IsScratch != lookup.IsScratch)
+                throw new InvalidOperationException("The BMS hit-target scene consumer requires the exact C3 lane identity carried by its lookup.");
+
+            GameplaySkinLaneTopologyEntry lane = exactLane.NeutralLane.TopologyEntry;
+            GameplaySkinLaneTopologyGroup group = LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.Single(candidate =>
+                candidate.Identity.Id.Equals(lane.Identity.Group.Id));
+            GameplaySkinResolvedMaterialTarget laneTarget = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+            GameplaySkinResolvedMaterialTarget stageTarget = GameplaySkinResolvedMaterialTarget.ForStage(group);
+            var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, laneTarget);
+
+            if (!runtime.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate) || gate == null)
+                throw new InvalidOperationException("The exact BMS KeyVisual scene gate is missing from the committed publication.");
+
+            sceneRuntime = runtime;
+            keyVisualMaterialKey = key;
+            keyVisualGate = gate;
+
+            // An opaque legacy/custom target cannot expose the independently authored HitTarget,
+            // JudgementLine and KeyFlash parts. Exact C5 gameplay therefore fails closed to the
+            // protected typed host instead of allowing one part to hide the others (or another deck).
+            display.EnsureExactPublicationDisplay();
+
+            if (gate.Route == GameplaySkinSceneHostRoute.Specialised)
+            {
+                sceneVisual = runtime.PrepareSpecialisedVisual(key, sceneVisualContainer);
+
+                if (sceneVisual != null)
+                {
+                    AppliedSceneNodeIds = Array.AsReadOnly(
+                        sceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
+                    sceneVisual.OnApply();
+                }
+            }
+
+            registerProgrammaticVisuals(laneTarget, stageTarget);
         }
 
         private void updateState()
@@ -78,9 +172,100 @@ namespace osu.Game.Rulesets.Bms.UI
             hitTargetDisplay.SetFocused(IsFocused.Value);
         }
 
+        private bool requiresIndependentlyGatedDefault()
+        {
+            GameplaySkinSceneRuntimeHost? runtime = sceneRuntime;
+
+            if (runtime == null || LayoutSnapshot == null || lookup.LaneId == null)
+                return false;
+
+            BmsGameplayLayoutLane exactLane = LayoutSnapshot.GetLane(lookup.LaneId);
+            GameplaySkinLaneTopologyEntry lane = exactLane.NeutralLane.TopologyEntry;
+            GameplaySkinLaneTopologyGroup group = LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.Single(candidate =>
+                candidate.Identity.Id.Equals(lane.Identity.Group.Id));
+            GameplaySkinResolvedMaterialTarget laneTarget = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+            GameplaySkinResolvedMaterialTarget stageTarget = GameplaySkinResolvedMaterialTarget.ForStage(group);
+
+            return requiresPart(GameplaySkinSlotCatalog.HitTarget, laneTarget)
+                   || requiresPart(GameplaySkinSlotCatalog.JudgementLine, stageTarget)
+                   || requiresPart(GameplaySkinSlotCatalog.KeyFlash, laneTarget);
+
+            bool requiresPart(GameplaySkinSlotDescriptor descriptor, GameplaySkinResolvedMaterialTarget target)
+            {
+                var key = new GameplaySkinResolvedMaterialKey(descriptor, target);
+
+                if (!runtime.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate) || gate == null)
+                    throw new InvalidOperationException("The exact BMS hit-target scene gate is missing from its committed publication.");
+
+                if (gate.RoutedNodes.Count != 0)
+                    return true;
+
+                if (!runtime.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry) || entry == null)
+                    throw new InvalidOperationException("The exact BMS hit-target material entry is missing from its committed publication.");
+
+                return entry.State == GameplaySkinResolvedMaterialState.Suppress
+                       || entry.Material is GameplaySkinPublicSlotMaterial { IsProgrammaticFallback: false };
+            }
+        }
+
+        private void registerProgrammaticVisuals(
+            GameplaySkinResolvedMaterialTarget laneTarget,
+            GameplaySkinResolvedMaterialTarget stageTarget)
+        {
+            hitTargetVisualRegistration?.Dispose();
+            judgementLineVisualRegistration?.Dispose();
+            keyFlashVisualRegistration?.Dispose();
+            hitTargetVisualRegistration = null;
+            judgementLineVisualRegistration = null;
+            keyFlashVisualRegistration = null;
+
+            if (sceneRuntime == null || display.CurrentDisplay == null)
+                return;
+
+            var hitTargetKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, laneTarget);
+            var judgementLineKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementLine, stageTarget);
+            var keyFlashKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyFlash, laneTarget);
+
+            if (display.CurrentDisplay is not DefaultBmsHitTargetDisplay defaultDisplay)
+            {
+                if (requiresIndependentlyGatedDefault())
+                    throw new InvalidOperationException("An authored exact BMS hit-target publication requires the closed, independently gated default part host.");
+
+                // With no public replacement/suppression, retain the user's indivisible legacy target unchanged.
+                return;
+            }
+
+            hitTargetVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(
+                hitTargetKey,
+                defaultDisplay.HitTargetVisual);
+            judgementLineVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(
+                judgementLineKey,
+                defaultDisplay.JudgementLineVisual);
+            // The default BMS target has no separate static key/receptor visual: its only key-like child is the
+            // pressed glow and therefore belongs exclusively to KeyFlash. KeyVisual author scenes are mounted in
+            // sceneVisualContainer above and must never swallow this independent fallback.
+            keyFlashVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(
+                keyFlashKey,
+                defaultDisplay.KeyFlashVisual);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {
+                sceneVisual?.OnFree();
+                hitTargetVisualRegistration?.Dispose();
+                judgementLineVisualRegistration?.Dispose();
+                keyFlashVisualRegistration?.Dispose();
+            }
+
+            base.Dispose(isDisposing);
+        }
+
         private sealed partial class SkinnableHitTargetDisplay : SkinnableDrawable
         {
             private readonly BmsHitTarget owner;
+            private readonly BmsLaneSkinLookup lookup;
 
             public Drawable? CurrentDisplay => Drawable;
 
@@ -88,13 +273,55 @@ namespace osu.Game.Rulesets.Bms.UI
                 : base(lookup, _ => new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, owner.layoutProfile, owner.LayoutSnapshot))
             {
                 this.owner = owner;
+                this.lookup = lookup;
+            }
+
+            public void EnsureExactPublicationDisplay()
+            {
+                if (owner.requiresIndependentlyGatedDefault() && CurrentDisplay is not DefaultBmsHitTargetDisplay)
+                {
+                    SetDrawable(
+                        new DefaultBmsHitTargetDisplay(lookup.IsScratch, lookup.Keymode, owner.layoutProfile, owner.LayoutSnapshot),
+                        replacementIsDefault: true);
+                }
             }
 
             protected override void SkinChanged(ISkinSource skin)
             {
                 base.SkinChanged(skin);
 
+                EnsureExactPublicationDisplay();
+
                 owner.updateState();
+
+                if (owner.LayoutSnapshot != null && owner.lookup.LaneId != null)
+                {
+                    BmsGameplayLayoutLane exactLane = owner.LayoutSnapshot.GetLane(owner.lookup.LaneId);
+                    GameplaySkinLaneTopologyEntry lane = exactLane.NeutralLane.TopologyEntry;
+                    GameplaySkinLaneTopologyGroup group = owner.LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.Single(candidate =>
+                        candidate.Identity.Id.Equals(lane.Identity.Group.Id));
+                    owner.registerProgrammaticVisuals(
+                        GameplaySkinResolvedMaterialTarget.ForLane(group, lane),
+                        GameplaySkinResolvedMaterialTarget.ForStage(group));
+                }
+            }
+
+            protected override void LoadComplete()
+            {
+                base.LoadComplete();
+                EnsureExactPublicationDisplay();
+                owner.updateState();
+
+                if (owner.LayoutSnapshot != null && owner.lookup.LaneId != null)
+                {
+                    BmsGameplayLayoutLane exactLane = owner.LayoutSnapshot.GetLane(owner.lookup.LaneId);
+                    GameplaySkinLaneTopologyEntry lane = exactLane.NeutralLane.TopologyEntry;
+                    GameplaySkinLaneTopologyGroup group = owner.LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.Single(candidate =>
+                        candidate.Identity.Id.Equals(lane.Identity.Group.Id));
+                    owner.registerProgrammaticVisuals(
+                        GameplaySkinResolvedMaterialTarget.ForLane(group, lane),
+                        GameplaySkinResolvedMaterialTarget.ForStage(group));
+                }
             }
         }
     }
@@ -104,9 +331,11 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly bool isScratch;
         private readonly BmsKeymode keymode;
 
+        private Container hitTargetVisual = null!;
         private Box bar = null!;
         private Container line = null!;
         private Box lineFill = null!;
+        private Container keyFlashVisual = null!;
         private Box pressedOverlay = null!;
         private Box focusEdge = null!;
         private Sprite? textureBase;
@@ -117,6 +346,12 @@ namespace osu.Game.Rulesets.Bms.UI
         public float PressedOverlayAlpha => pressedOverlay?.Alpha ?? 0;
 
         public float FocusEdgeAlpha => focusEdge?.Alpha ?? 0;
+
+        internal Drawable HitTargetVisual => hitTargetVisual;
+
+        internal Drawable JudgementLineVisual => line;
+
+        internal Drawable KeyFlashVisual => keyFlashVisual;
 
         internal float BarHeight => bar?.Height ?? 0;
 
@@ -148,12 +383,27 @@ namespace osu.Game.Rulesets.Bms.UI
 
             InternalChildren = new Drawable[]
             {
-                bar = new Box
+                hitTargetVisual = new Container
                 {
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    RelativeSizeAxes = Axes.X,
-                    Colour = barColour,
+                    RelativeSizeAxes = Axes.Both,
+                    Children = new Drawable[]
+                    {
+                        bar = new Box
+                        {
+                            Anchor = Anchor.BottomLeft,
+                            Origin = Anchor.BottomLeft,
+                            RelativeSizeAxes = Axes.X,
+                            Colour = barColour,
+                        },
+                        focusEdge = new Box
+                        {
+                            Anchor = Anchor.TopLeft,
+                            Origin = Anchor.TopLeft,
+                            RelativeSizeAxes = Axes.X,
+                            Alpha = 0,
+                            Colour = BmsDefaultPlayfieldPalette.FocusAccent,
+                        }
+                    }
                 },
                 line = new Container
                 {
@@ -167,20 +417,16 @@ namespace osu.Game.Rulesets.Bms.UI
                         Colour = lineColour,
                     }
                 },
-                pressedOverlay = new Box
+                keyFlashVisual = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Alpha = 0,
-                    Blending = BlendingParameters.Additive,
-                    Colour = glowColour,
-                },
-                focusEdge = new Box
-                {
-                    Anchor = Anchor.TopLeft,
-                    Origin = Anchor.TopLeft,
-                    RelativeSizeAxes = Axes.X,
-                    Alpha = 0,
-                    Colour = BmsDefaultPlayfieldPalette.FocusAccent,
+                    Child = pressedOverlay = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
+                        Blending = BlendingParameters.Additive,
+                        Colour = glowColour,
+                    }
                 }
             };
 
@@ -217,7 +463,7 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 bar.Alpha = 0;
                 line.Alpha = 0;
-                AddInternal(textureBase = new Sprite { RelativeSizeAxes = Axes.Both, Texture = texture, Depth = 1 });
+                hitTargetVisual.Add(textureBase = new Sprite { RelativeSizeAxes = Axes.Both, Texture = texture, Depth = 1 });
             }
         }
 

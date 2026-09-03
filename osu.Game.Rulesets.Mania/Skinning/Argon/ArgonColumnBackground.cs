@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
@@ -12,11 +14,13 @@ using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Argon
 {
-    public partial class ArgonColumnBackground : CompositeDrawable, IKeyBindingHandler<ManiaAction>
+    public partial class ArgonColumnBackground : CompositeDrawable, IKeyBindingHandler<ManiaAction>, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                                 IManiaGameplaySkinProgrammaticVisualPartReadinessSource
     {
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
 
@@ -25,6 +29,15 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
 
         private Box background = null!;
         private Box backgroundOverlay = null!;
+        private Container keyFlashOwner = null!;
+
+        private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> gameplaySkinProgrammaticVisualParts
+            = Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+        IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+            => gameplaySkinProgrammaticVisualParts;
+
+        public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
         [Resolved]
         private Column column { get; set; } = null!;
@@ -42,22 +55,33 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
         [BackgroundDependencyLoader]
         private void load(IScrollingInfo scrollingInfo)
         {
-            InternalChildren = new[]
+            InternalChildren = new Drawable[]
             {
                 background = new Box
                 {
                     Name = "Background",
                     RelativeSizeAxes = Axes.Both,
                 },
-                backgroundOverlay = new Box
+                keyFlashOwner = new Container
                 {
-                    Name = "Background Gradient Overlay",
                     RelativeSizeAxes = Axes.Both,
-                    Height = 0.5f,
-                    Blending = BlendingParameters.Additive,
-                    Alpha = 0
+                    Child = backgroundOverlay = new Box
+                    {
+                        Name = "Background Gradient Overlay",
+                        RelativeSizeAxes = Axes.Both,
+                        Height = 0.5f,
+                        Blending = BlendingParameters.Additive,
+                        Alpha = 0
+                    }
                 }
             };
+
+            gameplaySkinProgrammaticVisualParts = Array.AsReadOnly(new[]
+            {
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.LaneSurface, background),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.KeyFlash, keyFlashOwner),
+            });
+            GameplaySkinProgrammaticVisualPartsReady();
 
             accentColour = column.AccentColour.GetBoundCopy();
             accentColour.BindValueChanged(colour =>

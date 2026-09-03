@@ -14,13 +14,13 @@ namespace osu.Game.Skinning.Gameplay
     /// </summary>
     public sealed class GameplaySkinMaterialContractIdentity : IEquatable<GameplaySkinMaterialContractIdentity>
     {
-        public static GameplaySkinMaterialContractIdentity Current { get; } = new GameplaySkinMaterialContractIdentity(
-            GameplaySkinSlotCatalog.CONTRACT_ID,
-            GameplaySkinDocumentCodec.CONTRACT_ID,
-            GameplaySkinSlotResolver.CONTRACT_ID);
-
         public static GameplaySkinMaterialContractIdentity CompatibilityEmpty { get; } =
-            new GameplaySkinMaterialContractIdentity("compatibility.empty", "compatibility.empty", "compatibility.empty");
+            new GameplaySkinMaterialContractIdentity(
+                "compatibility.empty",
+                "compatibility.empty",
+                "compatibility.empty",
+                GameplaySkinRuntimeSupportProfile.COMPATIBILITY_PROFILE_ID,
+                GameplaySkinRuntimeSupportProfile.COMPATIBILITY_PROFILE_ID);
 
         public string CatalogVersion { get; }
 
@@ -28,27 +28,88 @@ namespace osu.Game.Skinning.Gameplay
 
         public string ResolverVersion { get; }
 
+        public string RuntimeSupportVersion { get; }
+
+        public string RuntimeSupportProfileId { get; }
+
         public GameplaySkinMaterialContractIdentity(
             string catalogVersion,
             string codecVersion,
             string resolverVersion)
+            : this(
+                catalogVersion,
+                codecVersion,
+                resolverVersion,
+                GameplaySkinRuntimeSupportProfile.CONTRACT_ID,
+                "runtime-support.unspecified")
+        {
+        }
+
+        public GameplaySkinMaterialContractIdentity(
+            string catalogVersion,
+            string codecVersion,
+            string resolverVersion,
+            string runtimeSupportVersion,
+            string runtimeSupportProfileId)
         {
             CatalogVersion = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(catalogVersion, nameof(catalogVersion));
             CodecVersion = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(codecVersion, nameof(codecVersion));
             ResolverVersion = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(resolverVersion, nameof(resolverVersion));
+            RuntimeSupportVersion = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(runtimeSupportVersion, nameof(runtimeSupportVersion));
+            RuntimeSupportProfileId = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(runtimeSupportProfileId, nameof(runtimeSupportProfileId));
+        }
+
+        public static GameplaySkinMaterialContractIdentity CurrentFor(GameplaySkinLayoutSnapshot snapshot)
+        {
+            ArgumentNullException.ThrowIfNull(snapshot);
+            return CurrentFor(GameplaySkinRuntimeSupportProfile.ForRuleset(snapshot.Context.RulesetId));
+        }
+
+        public static GameplaySkinMaterialContractIdentity CurrentFor(GameplaySkinRuntimeSupportProfile runtimeSupportProfile)
+        {
+            ArgumentNullException.ThrowIfNull(runtimeSupportProfile);
+
+            if (ReferenceEquals(runtimeSupportProfile, GameplaySkinRuntimeSupportProfile.CompatibilityEmpty))
+                throw new ArgumentException("The empty compatibility support profile is not a current authoring contract.", nameof(runtimeSupportProfile));
+
+            return new GameplaySkinMaterialContractIdentity(
+                GameplaySkinSlotCatalog.CONTRACT_ID,
+                GameplaySkinDocumentCodec.CONTRACT_ID,
+                GameplaySkinSlotResolver.CONTRACT_ID,
+                runtimeSupportProfile.ContractVersion,
+                runtimeSupportProfile.ProfileId);
+        }
+
+        public bool IsCurrentFor(GameplaySkinRuntimeSupportProfile runtimeSupportProfile)
+        {
+            ArgumentNullException.ThrowIfNull(runtimeSupportProfile);
+
+            return string.Equals(CatalogVersion, GameplaySkinSlotCatalog.CONTRACT_ID, StringComparison.Ordinal)
+                   && string.Equals(CodecVersion, GameplaySkinDocumentCodec.CONTRACT_ID, StringComparison.Ordinal)
+                   && string.Equals(ResolverVersion, GameplaySkinSlotResolver.CONTRACT_ID, StringComparison.Ordinal)
+                   && string.Equals(RuntimeSupportVersion, runtimeSupportProfile.ContractVersion, StringComparison.Ordinal)
+                   && string.Equals(RuntimeSupportProfileId, runtimeSupportProfile.ProfileId, StringComparison.Ordinal);
         }
 
         public bool Equals(GameplaySkinMaterialContractIdentity? other)
             => other != null
                && string.Equals(CatalogVersion, other.CatalogVersion, StringComparison.Ordinal)
                && string.Equals(CodecVersion, other.CodecVersion, StringComparison.Ordinal)
-               && string.Equals(ResolverVersion, other.ResolverVersion, StringComparison.Ordinal);
+               && string.Equals(ResolverVersion, other.ResolverVersion, StringComparison.Ordinal)
+               && string.Equals(RuntimeSupportVersion, other.RuntimeSupportVersion, StringComparison.Ordinal)
+               && string.Equals(RuntimeSupportProfileId, other.RuntimeSupportProfileId, StringComparison.Ordinal);
 
         public override bool Equals(object? obj) => obj is GameplaySkinMaterialContractIdentity other && Equals(other);
 
-        public override int GetHashCode() => HashCode.Combine(CatalogVersion, CodecVersion, ResolverVersion);
+        public override int GetHashCode() => HashCode.Combine(
+            CatalogVersion,
+            CodecVersion,
+            ResolverVersion,
+            RuntimeSupportVersion,
+            RuntimeSupportProfileId);
 
-        public override string ToString() => $"{CatalogVersion}:{CodecVersion}:{ResolverVersion}";
+        public override string ToString()
+            => $"{CatalogVersion}:{CodecVersion}:{ResolverVersion}:{RuntimeSupportVersion}:{RuntimeSupportProfileId}";
     }
 
     /// <summary>
@@ -83,10 +144,17 @@ namespace osu.Game.Skinning.Gameplay
 
         public string ContentRevision { get; }
 
+        /// <summary>
+        /// Whether this result came from an explicit valid public GameplaySkin Provide declaration in the selected
+        /// package. Selected-package legacy compatibility resources deliberately remain false.
+        /// </summary>
+        internal bool IsSelectedDocumentDeclaration { get; }
+
         private GameplaySkinResolvedMaterialSourceIdentity(
             GameplaySkinResolvedMaterialSourceKind kind,
             string stableId,
-            string contentRevision)
+            string contentRevision,
+            bool isSelectedDocumentDeclaration)
         {
             if (!Enum.IsDefined(kind))
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown gameplay skin material source authority.");
@@ -94,23 +162,37 @@ namespace osu.Game.Skinning.Gameplay
             Kind = kind;
             StableId = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(stableId, nameof(stableId));
             ContentRevision = GameplaySkinMaterialTokenValidation.ValidateOpaqueToken(contentRevision, nameof(contentRevision));
+            IsSelectedDocumentDeclaration = isSelectedDocumentDeclaration;
+
+            if (isSelectedDocumentDeclaration && kind != GameplaySkinResolvedMaterialSourceKind.SelectedPackage)
+                throw new ArgumentException("Only the selected package can own a public document declaration.", nameof(isSelectedDocumentDeclaration));
         }
 
         public static GameplaySkinResolvedMaterialSourceIdentity Create(
             GameplaySkinResolvedMaterialSourceKind kind,
             string stableId,
             string contentRevision)
-            => new GameplaySkinResolvedMaterialSourceIdentity(kind, stableId, contentRevision);
+            => new GameplaySkinResolvedMaterialSourceIdentity(kind, stableId, contentRevision, false);
+
+        internal static GameplaySkinResolvedMaterialSourceIdentity CreateSelectedDocument(
+            string stableId,
+            string contentRevision)
+            => new GameplaySkinResolvedMaterialSourceIdentity(
+                GameplaySkinResolvedMaterialSourceKind.SelectedPackage,
+                stableId,
+                contentRevision,
+                true);
 
         public bool Equals(GameplaySkinResolvedMaterialSourceIdentity? other)
             => other != null
                && Kind == other.Kind
                && string.Equals(StableId, other.StableId, StringComparison.Ordinal)
-               && string.Equals(ContentRevision, other.ContentRevision, StringComparison.Ordinal);
+               && string.Equals(ContentRevision, other.ContentRevision, StringComparison.Ordinal)
+               && IsSelectedDocumentDeclaration == other.IsSelectedDocumentDeclaration;
 
         public override bool Equals(object? obj) => obj is GameplaySkinResolvedMaterialSourceIdentity other && Equals(other);
 
-        public override int GetHashCode() => HashCode.Combine(Kind, StableId, ContentRevision);
+        public override int GetHashCode() => HashCode.Combine(Kind, StableId, ContentRevision, IsSelectedDocumentDeclaration);
 
         /// <summary>
         /// Deliberately omits stable source and content-revision tokens. Exact values remain available for in-memory
@@ -586,6 +668,12 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinMaterialContractIdentity ContractIdentity { get; }
 
+        /// <summary>
+        /// Exact versioned ruleset support decision paired with this material result. This remains separate from
+        /// catalog authoring applicability and is part of the material/publication identity.
+        /// </summary>
+        public GameplaySkinRuntimeSupportProfile RuntimeSupportProfile { get; }
+
         public IReadOnlyList<GameplaySkinResolvedMaterialEntry> Entries { get; }
 
         public IReadOnlyList<GameplaySkinResolvedMaterialDiagnostic> Diagnostics { get; }
@@ -614,6 +702,9 @@ namespace osu.Game.Skinning.Gameplay
         {
             Snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             ContractIdentity = contractIdentity ?? throw new ArgumentNullException(nameof(contractIdentity));
+            RuntimeSupportProfile = contractIdentity.Equals(GameplaySkinMaterialContractIdentity.CompatibilityEmpty)
+                ? GameplaySkinRuntimeSupportProfile.CompatibilityEmpty
+                : GameplaySkinRuntimeSupportProfile.ForRuleset(snapshot.Context.RulesetId);
             ArgumentNullException.ThrowIfNull(entries);
             ArgumentNullException.ThrowIfNull(diagnostics);
 
@@ -637,6 +728,13 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinResolvedMaterialEntry entry in copiedEntries)
             {
                 validateTarget(entry.Target, nameof(entries));
+
+                if (!RuntimeSupportProfile.IsSupported(entry.Slot))
+                {
+                    throw new ArgumentException(
+                        "A resolved gameplay skin material entry must be supported by its exact versioned runtime profile.",
+                        nameof(entries));
+                }
 
                 if (GameplaySkinSlotApplicabilityValidator.Validate(entry.Slot, Snapshot, entry.Target)
                     != GameplaySkinSlotApplicabilityResult.Applicable)

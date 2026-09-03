@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using oms.Input;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -11,10 +12,12 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
+using osu.Framework.Timing;
 using osu.Game.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
@@ -92,6 +95,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                        && ReferenceEquals(provider.RevisionOwner.PackageRevision, snapshot.Context.PackageRevision);
             });
             AddAssert("complete renderer graph retains the exact typed adapter", allConsumersRetainExactSnapshot);
+            AddAssert("each measure has exactly one bounded owner per exact C3 group", () => barLineOwnersMatchSnapshot(beatmap));
             AddAssert("drawable lanes project exact solved rects", drawableLaneRectsMatchSnapshot);
             AddAssert("style, lane IDs and explicit indices match parser topology", () => assertTopology(expectedKeymode, requestedStyle));
         }
@@ -124,26 +128,31 @@ namespace osu.Game.Rulesets.Bms.Tests
                        && snapshot.Context.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility;
             });
             AddAssert("override renderer graph retains one exact typed adapter", allConsumersRetainExactSnapshot);
+            AddAssert("override bar lines retain exact group owners", () => barLineOwnersMatchSnapshot(beatmap));
             AddAssert("override lane rects use exact solved surfaces", drawableLaneRectsMatchSnapshot);
             AddAssert("override topology uses selected keymode", () => assertTopology(expectedKeymode, requestedStyle));
         }
 
         [Test]
-        public void TestCustomBgaAndHudReceiveExactSnapshotBeforeFirstProductionCallback()
+        public void TestOpaqueCustomBgaFailsClosedWhileCustomHudReceivesExactSnapshot()
         {
             BmsBeatmap beatmap = null!;
             var skin = new ExactCarrierSkin();
 
             AddStep("decode and convert custom-carrier chart", () => beatmap = createDecodedBeatmap(BmsKeymode.Key7K));
             AddStep("mount custom skin in exact production root", () => mountProductionRoot(beatmap, BmsPlayfieldStyle.Center, skin));
-            AddUntilStep("custom BGA and HUD loaded", () => customGraphLoaded()
-                                                               && skin.Bga.SourceObservedSnapshot
-                                                               && skin.Bga.LayoutObservedSnapshot
-                                                               && skin.Hud.ComponentsObservedSnapshot);
-            AddAssert("custom BGA callbacks retain exact snapshot and viewport", () =>
-                ReferenceEquals(skin.Bga.LayoutSnapshot, harness.Drawable.LayoutSnapshot)
-                && skin.Bga.InitialisationCount == 1
-                && skin.Bga.ViewportRect == harness.Drawable.LayoutSnapshot.BgaViewports[0]);
+            AddUntilStep("protected BGA and custom HUD loaded", () => customGraphLoaded()
+                                                                  && skin.Hud.ComponentsObservedSnapshot
+                                                                  && harness.Drawable.ChildrenOfType<BmsBgaPanel>().Single().Drawable is DefaultBmsBgaPanelDisplay);
+            AddAssert("opaque custom BGA receives no P1-L authority", () =>
+                skin.Bga.LayoutSnapshot == null
+                && skin.Bga.InitialisationCount == 0
+                && !skin.Bga.SourceObservedSnapshot
+                && !skin.Bga.LayoutObservedSnapshot);
+            AddAssert("protected BGA retains exact snapshot and viewport", () =>
+                harness.Drawable.ChildrenOfType<BmsBgaPanel>().Single().Drawable is DefaultBmsBgaPanelDisplay display
+                && ReferenceEquals(display.LayoutSnapshot, harness.Drawable.LayoutSnapshot)
+                && harness.Drawable.LayoutSnapshot.BgaViewports.Count > 0);
             AddAssert("custom HUD callback retains exact snapshot and solved rects", () =>
                 ReferenceEquals(skin.Hud.LayoutSnapshot, harness.Drawable.LayoutSnapshot)
                 && skin.Hud.InitialisationCount == 1
@@ -151,13 +160,146 @@ namespace osu.Game.Rulesets.Bms.Tests
                 && skin.Hud.ComboRect == harness.Drawable.LayoutSnapshot.ComboRect);
         }
 
-        private void mountProductionRoot(BmsBeatmap beatmap, BmsPlayfieldStyle style, ISkin? skin = null)
+        [Test]
+        public void TestFourteenKeyProductionEventsUseFinalLaneAndLaneLocalVisualTargets()
+        {
+            BmsBeatmap beatmap = null!;
+            BmsHitObject mirroredNote = null!;
+            BmsMine mirroredMine = null!;
+            GameplaySkinEventSubscription subscription = null!;
+            var observedEvents = new List<GameplaySkinEventEnvelope>();
+
+            AddStep("decode and mirror event-rich 14K chart", () =>
+            {
+                beatmap = createEventBeatmap();
+                mirroredNote = beatmap.HitObjects.OfType<BmsHitObject>()
+                                      .Single(hitObject => hitObject.GetType() == typeof(BmsHitObject) && hitObject.LaneIndex == 1);
+                mirroredMine = beatmap.Mines.Single();
+                new BmsModMirror().ApplyToBeatmap(beatmap);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(mirroredNote.LaneIndex, Is.EqualTo(7));
+                    Assert.That(mirroredMine.LaneIndex, Is.EqualTo(7));
+                });
+            });
+            AddStep("mount exact mirrored 14K production root", () =>
+                mountProductionRoot(beatmap, BmsPlayfieldStyle.Center, initialGameplayTime: 1_500));
+            AddUntilStep("14K event producer loaded", () => harness?.Drawable?.IsLoaded == true
+                                                               && harness.Drawable.GameplaySkinEventRuntime?.IsLoaded == true
+                                                               && harness.Drawable.Playfield.Lanes.Count == 16);
+            AddStep("attach read-only production event consumer", () =>
+            {
+                subscription = harness.Drawable.GameplaySkinEventStream.Subscribe();
+                subscription.DrainFrame(observedEvents.Add);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observedEvents, Has.Count.EqualTo(1));
+                    Assert.That(observedEvents[0].DeliveryKind, Is.EqualTo(GameplaySkinEventDeliveryKind.Snapshot));
+                    Assert.That(observedEvents[0].Revision,
+                        Is.EqualTo(harness.Drawable.LayoutProvider.RevisionOwner!.CurrentPublication!.EventRevision));
+                    Assert.That(harness.Drawable.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key2P_1), Is.True);
+                });
+            });
+            AddUntilStep("second deck input has exact stable target", () =>
+            {
+                subscription.DrainFrame(observedEvents.Add);
+                return observedEvents.Any(envelope => envelope.EventKind == GameplaySkinEventKind.InputPressed
+                                                      && envelope.GroupId?.Value == "bms.group.deck-2"
+                                                      && envelope.LaneId?.Value == "bms.lane.key-8");
+            });
+            AddStep("release second deck input", () =>
+                Assert.That(harness.Drawable.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key2P_1), Is.True));
+            AddStep("advance event clock to bar and note window", () => harness.AdvanceTo(3_500));
+            AddUntilStep("group-local bar reaches production stream", () =>
+            {
+                subscription.DrainFrame(observedEvents.Add);
+                return getObservedObjectStates(observedEvents)
+                       .Where(state => state.Kind == GameplaySkinObjectKind.BarLine
+                                       && state.GroupId != null
+                                       && state.LaneId == null)
+                       .Select(state => state.GroupId)
+                       .Distinct()
+                       .Count() == 2;
+            });
+            AddUntilStep("mirrored note reaches production stream", () =>
+            {
+                subscription.DrainFrame(observedEvents.Add);
+                return getObservedObjectStates(observedEvents).Any(state => state.Kind == GameplaySkinObjectKind.Note
+                                                                            && state.LaneId?.Equals(
+                                                                                harness.Drawable.LayoutSnapshot.GetLaneByLogicalIndex(mirroredNote.LaneIndex).LaneId) == true);
+            });
+            AddStep("advance event clock to mine window", () => harness.AdvanceTo(4_500));
+            AddUntilStep("mirrored mine reaches production stream", () =>
+            {
+                subscription.DrainFrame(observedEvents.Add);
+                return getObservedObjectStates(observedEvents).Any(state => state.Kind == GameplaySkinObjectKind.Mine
+                                                                            && state.LaneId?.Equals(
+                                                                                harness.Drawable.LayoutSnapshot.GetLaneByLogicalIndex(mirroredMine.LaneIndex).LaneId) == true);
+            });
+            AddStep("advance event clock to BGA content window", () => harness.AdvanceTo(5_500));
+            AddUntilStep("BGA content summary reaches production stream", () =>
+            {
+                subscription.DrainFrame(observedEvents.Add);
+                return observedEvents.Any(envelope => envelope.EventKind == GameplaySkinEventKind.BgaContentStateChanged
+                                                      && ((GameplaySkinBgaEventPayload)envelope.Payload).State.ContentRevision > 0);
+            });
+            AddStep("assert exact 14K object event identities", () =>
+            {
+                GameplaySkinLayoutPublication publication = harness.Drawable.LayoutProvider.RevisionOwner!.CurrentPublication!;
+                GameplaySkinObjectStateSnapshot[] objects = getObservedObjectStates(observedEvents).ToArray();
+                GameplaySkinLaneId finalLane = harness.Drawable.LayoutSnapshot.GetLaneByLogicalIndex(7).LaneId;
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(objects.Any(state => state.Kind == GameplaySkinObjectKind.Note
+                                                     && state.LaneId == finalLane
+                                                     && state.GroupId.Value == "bms.group.deck-1"), Is.True);
+                    Assert.That(objects.Any(state => state.Kind == GameplaySkinObjectKind.Mine
+                                                     && state.LaneId == finalLane
+                                                     && state.GroupId.Value == "bms.group.deck-1"), Is.True,
+                        "Mirror must move note and mine event targets with the same final C3 LaneId.");
+                    Assert.That(objects.Where(state => state.Kind == GameplaySkinObjectKind.BarLine),
+                        Has.All.Property(nameof(GameplaySkinObjectStateSnapshot.LaneId)).Null,
+                        "BMS bar lines are exact group-scoped production usages and never acquire lane identity.");
+                    Assert.That(objects.Where(state => state.Kind == GameplaySkinObjectKind.BarLine)
+                                               .Select(state => state.GroupId.Value)
+                                               .Distinct(),
+                        Is.EquivalentTo(new[] { "bms.group.deck-1", "bms.group.deck-2" }),
+                        "A 14K measure must produce exactly one independently-targeted bar-line usage per deck.");
+                    Assert.That(observedEvents.Where(envelope => envelope.DeliveryKind == GameplaySkinEventDeliveryKind.Edge),
+                        Has.All.Property(nameof(GameplaySkinEventEnvelope.Revision)).EqualTo(publication.EventRevision));
+                });
+            });
+            AddStep("detach event consumer", () => subscription.Dispose());
+        }
+
+        private static IEnumerable<GameplaySkinObjectStateSnapshot> getObservedObjectStates(IEnumerable<GameplaySkinEventEnvelope> envelopes)
+        {
+            foreach (GameplaySkinEventEnvelope envelope in envelopes)
+            {
+                if (envelope.Payload is GameplaySkinObjectEventPayload objectPayload)
+                    yield return objectPayload.State;
+                else if (envelope.Payload is GameplaySkinStateEventPayload statePayload)
+                {
+                    foreach (GameplaySkinObjectStateSnapshot activeObject in statePayload.State.ActiveObjects)
+                        yield return activeObject;
+                }
+            }
+        }
+
+        private void mountProductionRoot(
+            BmsBeatmap beatmap,
+            BmsPlayfieldStyle style,
+            ISkin? skin = null,
+            double initialGameplayTime = 3_500)
         {
             var ruleset = new BmsRuleset();
             var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset)!;
             config.SetValue(BmsRulesetSetting.PlayfieldStyle, style);
 
-            Child = harness = new ProductionHarness(ruleset, beatmap, config, skin);
+            Child = harness = new ProductionHarness(ruleset, beatmap, config, skin, initialGameplayTime);
         }
 
         private bool completeGraphLoaded()
@@ -190,6 +332,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                    && drawable.ChildrenOfType<DrawableBmsHoldNote>().Any();
         }
 
+        private bool skinObservedForDebug()
+            => false;
+
         private bool allConsumersRetainExactSnapshot()
         {
             DrawableBmsRuleset drawable = harness.Drawable;
@@ -202,7 +347,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                    && drawable.Playfield.GroupContainers.All(group => ReferenceEquals(group.LayoutSnapshot, snapshot))
                    && drawable.Playfield.Lanes.All(lane => ReferenceEquals(lane.LayoutSnapshot, snapshot)
                                                           && ReferenceEquals(lane.HitTarget.LayoutSnapshot, snapshot))
-                   && drawable.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects).OfType<DrawableBmsBarLine>()
+                   && drawable.Playfield.BarLinePlayfields.SelectMany(owner => owner.AllHitObjects).OfType<DrawableBmsBarLine>()
                               .All(barLine => ReferenceEquals(barLine.LayoutSnapshot, snapshot))
                    && ReferenceEquals(note.ExactLayoutSnapshot, snapshot)
                    && ReferenceEquals(hold.ExactLayoutSnapshot, snapshot)
@@ -216,6 +361,41 @@ namespace osu.Game.Rulesets.Bms.Tests
                               .All(gauge => ReferenceEquals(gauge.LayoutSnapshot, snapshot))
                    && drawable.ChildrenOfType<BmsComboCounter>().Where(combo => combo.LayoutSnapshot != null)
                               .All(combo => ReferenceEquals(combo.LayoutSnapshot, snapshot));
+        }
+
+        private bool barLineOwnersMatchSnapshot(BmsBeatmap beatmap)
+        {
+            BmsPlayfield playfield = harness.Drawable.Playfield;
+            IReadOnlyList<GameplaySkinLayoutGroup> groups = playfield.LayoutSnapshot.Neutral.GroupsInLogicalOrder;
+
+            if (playfield.BarLinePlayfields.Count != groups.Count
+                || playfield.Lanes.SelectMany(lane => lane.AllHitObjects).OfType<DrawableBmsBarLine>().Any())
+            {
+                return false;
+            }
+
+            for (int groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+            {
+                GameplaySkinLayoutGroup group = groups[groupIndex];
+                BmsBarLinePlayfield owner = playfield.BarLinePlayfields[groupIndex];
+
+                if (!ReferenceEquals(owner.LayoutGroup, group)
+                    || owner.GroupLogicalIndex != group.TopologyGroup.LogicalIndex
+                    || !owner.GroupId.Equals(group.GroupId)
+                    || !playfield.NestedPlayfields.Contains(owner)
+                    || !playfield.GroupContainers.Single(container => container.GroupId.Equals(group.GroupId)).Children.Contains(owner)
+                    || owner.MeasureBarLines.Count != beatmap.MeasureStartTimes.Count
+                    || owner.PoolCapacity != GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(GameplaySkinSlotCatalog.BarLine)
+                    || owner.PoolSize > owner.PoolCapacity
+                    || owner.MeasureBarLines.Any(barLine => barLine.GroupLogicalIndex != group.TopologyGroup.LogicalIndex
+                                                           || barLine.GroupId?.Equals(group.GroupId) != true))
+                {
+                    return false;
+                }
+            }
+
+            return playfield.BarLinePlayfields.Sum(owner => owner.MeasureBarLines.Count)
+                   == beatmap.MeasureStartTimes.Count * groups.Count;
         }
 
         private bool drawableLaneRectsMatchSnapshot()
@@ -297,6 +477,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #WAV03 hold-tail.wav
 #LNTYPE 1
 {evidence}
+#00213:0100
 #00252:02000300
 ";
             var chart = decoder.DecodeText(text, fileName);
@@ -315,9 +496,33 @@ namespace osu.Game.Rulesets.Bms.Tests
 #WAV03 hold-tail.wav
 #LNTYPE 1
 #00111:0100
+#00213:0100
 #00252:02000300
 ";
             BmsDecodedChart chart = decoder.DecodeText(text, "sparse-production.bms", new BmsBeatmapDecoderOptions(keymode));
+            var ruleset = new BmsRuleset();
+            return (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(chart), ruleset).Convert();
+        }
+
+        private BmsBeatmap createEventBeatmap()
+        {
+            const string text = @"
+#TITLE Production Event 14K
+#BPM 120
+#RANK 2
+#WAV01 note.wav
+#WAV02 hold-head.wav
+#WAV03 hold-tail.wav
+#WAVAA mine.wav
+#BMP01 base.png
+#LNTYPE 1
+#00211:0100
+#00221:0100
+#002D1:0000AA00
+#00204:00000100
+#00352:02000300
+";
+            var chart = decoder.DecodeText(text, "production-event-14k.bms");
             var ruleset = new BmsRuleset();
             return (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(chart), ruleset).Convert();
         }
@@ -335,11 +540,19 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private sealed partial class ProductionHarness : CompositeDrawable
         {
+            private readonly ManualClock sourceClock;
+            private readonly FramedClock frameClock;
+
             public RulesetSkinProvidingContainer Provider { get; }
 
             public DrawableBmsRuleset Drawable { get; }
 
-            public ProductionHarness(BmsRuleset ruleset, BmsBeatmap beatmap, BmsRulesetConfigManager config, ISkin? skin)
+            public ProductionHarness(
+                BmsRuleset ruleset,
+                BmsBeatmap beatmap,
+                BmsRulesetConfigManager config,
+                ISkin? skin,
+                double initialGameplayTime)
             {
                 RelativeSizeAxes = Axes.Both;
 
@@ -349,6 +562,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                 scoreProcessor.ApplyBeatmap(beatmap);
 
                 Drawable = (DrawableBmsRuleset)ruleset.CreateDrawableRulesetWith(beatmap);
+                sourceClock = new ManualClock
+                {
+                    CurrentTime = initialGameplayTime,
+                    IsRunning = false,
+                };
+                frameClock = new FramedClock(sourceClock);
+                frameClock.ProcessFrame();
+                Drawable.Clock = frameClock;
+
                 var dependencyHost = new DependencyProvidingContainer
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -378,6 +600,12 @@ namespace osu.Game.Rulesets.Bms.Tests
                 InternalChild = skin == null
                     ? configHost
                     : new SkinProvidingContainer(skin) { Child = configHost };
+            }
+
+            public void AdvanceTo(double gameplayTime)
+            {
+                sourceClock.CurrentTime = gameplayTime;
+                frameClock.ProcessFrame();
             }
         }
 

@@ -16,6 +16,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         public void TestV1ApiVersionIsStable()
         {
             Assert.That(GameplaySkinEventApiVersions.V1, Is.EqualTo(1));
+            Assert.That(GameplaySkinEventApiVersions.ContractId, Is.EqualTo(GameplaySkinSceneContracts.EVENT_CONTRACT_ID));
         }
 
         [Test]
@@ -33,10 +34,17 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(envelope.ApiVersion, Is.EqualTo(GameplaySkinEventApiVersions.V1));
+                Assert.That(envelope.ContractId, Is.EqualTo(GameplaySkinSceneContracts.EVENT_CONTRACT_ID));
                 Assert.That(envelope.Epoch, Is.EqualTo(7));
                 Assert.That(envelope.Sequence, Is.EqualTo(12));
                 Assert.That(envelope.GameplayTime, Is.EqualTo(-125.5));
                 Assert.That(envelope.LayoutRevision, Is.EqualTo(4));
+                Assert.That(envelope.GameplayRevision, Is.Zero);
+                Assert.That(envelope.MaterialRevision, Is.Zero);
+                Assert.That(envelope.SceneRevision, Is.Zero);
+                Assert.That(envelope.EventKind, Is.EqualTo(GameplaySkinEventKind.StateSnapshot));
+                Assert.That(envelope.GroupId, Is.Null);
+                Assert.That(envelope.LaneId, Is.Null);
                 Assert.That(envelope.DeliveryKind, Is.EqualTo(GameplaySkinEventDeliveryKind.Snapshot));
                 Assert.That(envelope.Payload, Is.SameAs(payload));
             });
@@ -114,7 +122,12 @@ namespace osu.Game.Tests.NonVisual.Skinning
         internal sealed class TestPayload : GameplaySkinEventPayload
         {
             public TestPayload(GameplaySkinEventDeliveryKind deliveryKind)
-                : base(deliveryKind)
+                : base(deliveryKind, deliveryKind switch
+                {
+                    GameplaySkinEventDeliveryKind.Snapshot => GameplaySkinEventKind.StateSnapshot,
+                    GameplaySkinEventDeliveryKind.Reset => GameplaySkinEventKind.StateReset,
+                    _ => GameplaySkinEventKind.GameplayStarted,
+                })
             {
             }
         }

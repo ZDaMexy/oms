@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Rulesets.UI.Scrolling;
@@ -14,7 +15,7 @@ namespace osu.Game.Rulesets.Mania.UI.Components
 
         public readonly Container UnderlayElements;
 
-        private readonly Drawable hitTarget;
+        internal readonly ManiaGameplaySkinFailClosedSkinnableDrawable HitTarget;
 
         protected override Container<Drawable> Content => content;
 
@@ -22,13 +23,15 @@ namespace osu.Game.Rulesets.Mania.UI.Components
 
         public ColumnHitObjectArea()
         {
-            AddRangeInternal(new[]
+            AddRangeInternal(new Drawable[]
             {
                 UnderlayElements = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                 },
-                hitTarget = new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.HitTarget), _ => new DefaultHitTarget())
+                HitTarget = new ManiaGameplaySkinFailClosedSkinnableDrawable(
+                    new ManiaSkinComponentLookup(ManiaSkinComponents.HitTarget),
+                    _ => new DefaultHitTarget())
                 {
                     RelativeSizeAxes = Axes.X,
                 },
@@ -48,9 +51,30 @@ namespace osu.Game.Rulesets.Mania.UI.Components
             base.UpdateHitPosition();
 
             if (Direction.Value == ScrollingDirection.Up)
-                hitTarget.Anchor = hitTarget.Origin = Anchor.TopLeft;
+                HitTarget.Anchor = HitTarget.Origin = Anchor.TopLeft;
             else
-                hitTarget.Anchor = hitTarget.Origin = Anchor.BottomLeft;
+                HitTarget.Anchor = HitTarget.Origin = Anchor.BottomLeft;
         }
+    }
+
+    /// <summary>
+    /// Keeps an arbitrary custom component only while the selected package has no valid public declaration for that
+    /// component. Once public ownership exists, the host switches atomically to its known independently gateable
+    /// fallback instead of hiding an indivisible custom subtree across unrelated public slots.
+    /// </summary>
+    internal partial class ManiaGameplaySkinFailClosedSkinnableDrawable : SkinnableDrawable
+    {
+        private readonly Func<ISkinComponentLookup, Drawable> closedFallback;
+
+        public ManiaGameplaySkinFailClosedSkinnableDrawable(
+            ISkinComponentLookup lookup,
+            Func<ISkinComponentLookup, Drawable> closedFallback)
+            : base(lookup, closedFallback)
+        {
+            this.closedFallback = closedFallback ?? throw new ArgumentNullException(nameof(closedFallback));
+        }
+
+        public void UseClosedFallback()
+            => SetDrawable(closedFallback(ComponentLookup), true);
     }
 }

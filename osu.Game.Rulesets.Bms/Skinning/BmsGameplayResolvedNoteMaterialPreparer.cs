@@ -12,10 +12,13 @@ using osu.Game.Skinning.Gameplay;
 namespace osu.Game.Rulesets.Bms.Skinning
 {
     /// <summary>
-    /// Resolves every hosted BMS Note/LN slot against one exact C3 layout in a single final provider chain.
+    /// Resolves every BMS public material slot against one exact C3 layout in a single final provider chain.
     /// </summary>
     internal static class BmsGameplayResolvedNoteMaterialPreparer
     {
+        internal static GameplaySkinRuntimeCapabilitySet RuntimeCapabilities { get; } =
+            GameplaySkinRuntimeSupportProfile.Bms.Capabilities;
+
         public static GameplaySkinLayoutPublication Prepare(
             ISkin skin,
             BmsGameplayLayoutSnapshot layout,
@@ -28,6 +31,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             GameplaySkinPackageRevision packageRevision = layout.Neutral.Context.PackageRevision;
             BmsLegacySkin? selectedSource = findExactSelectedSource(skin, packageRevision);
             GameplaySkinResolvedMaterialSet? selectedMaterials = null;
+            GameplaySkinDocument? selectedDocument = null;
+            GameplaySkinResolvedMaterialSourceIdentity? selectedPublicIdentity = null;
             BmsManagedPackageNoteRevisionBorrow? selectedBorrow = null;
 
             try
@@ -41,6 +46,20 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     {
                         throw new InvalidOperationException("The selected BMS package content revision does not match its exact layout publication.");
                     }
+
+                    selectedDocument = selectedSource.GameplaySkinDocument.BindToPublication(layout.Neutral);
+
+                    if (selectedDocument.Identity.SourceId != sourceBeforePrepare.SkinId
+                        || !StringComparer.Ordinal.Equals(
+                            selectedDocument.Identity.ContentRevision,
+                            sourceBeforePrepare.ParsedConfigurationContentHash))
+                    {
+                        throw new InvalidOperationException("The selected BMS public material document does not match its exact package revision.");
+                    }
+
+                    selectedPublicIdentity = GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument(
+                        "selected-public-slots",
+                        selectedDocument.Identity.ContentRevision);
 
                     selectedBorrow = selectedSource.GetOrPrepareManagedPackageNotes(layout, cancellationToken);
                     BmsManagedPackageNoteRevision prepared = selectedBorrow.Revision;
@@ -56,7 +75,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                     // This is deliberately a selected-authority partial set. The final resolver below owns every fallback
                     // decision and is the only place which may produce a complete committed set.
-                    selectedMaterials = prepared.CreateMaterialSet(layout, GameplaySkinMaterialContractIdentity.Current);
+                    selectedMaterials = prepared.CreateMaterialSet(
+                        layout,
+                        GameplaySkinMaterialContractIdentity.CurrentFor(GameplaySkinRuntimeSupportProfile.Bms));
                 }
 
                 IReadOnlyList<ISkin> aggregateSources = skin is ISkinSource aggregate
@@ -158,7 +179,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 var diagnostics = new List<GameplaySkinResolvedMaterialDiagnostic>();
 
                 if (selectedMaterials != null)
-                    diagnostics.AddRange(selectedMaterials.Diagnostics);
+                {
+                    diagnostics.AddRange(selectedMaterials.Diagnostics.Where(diagnostic =>
+                        !string.Equals(diagnostic.Code, "bms.capability.unsupported-slot", StringComparison.Ordinal)));
+                }
 
                 foreach (BmsGameplayLayoutLane lane in layout.LanesInLogicalOrder)
                 {
@@ -217,18 +241,45 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     }
                 }
 
+                GameplaySkinPublicSlotMaterialResolution publicSlots = GameplaySkinPublicSlotMaterialResolver.Resolve(
+                    layout.Neutral,
+                    selectedDocument,
+                    RuntimeCapabilities,
+                    GameplaySkinSlotCatalog.All.Where(descriptor => !specialised_descriptors.Contains(descriptor)),
+                    selectedPublicIdentity,
+                    programmaticIdentity,
+                    resourceName => selectedSource?.GetTexture(resourceName, WrapMode.ClampToEdge, WrapMode.ClampToEdge),
+                    cancellationToken);
+                entries.AddRange(publicSlots.Entries);
+                diagnostics.AddRange(publicSlots.Diagnostics);
+
                 GameplaySkinResolvedMaterialSet resolved = GameplaySkinResolvedMaterialSet.Create(
                     layout.Neutral,
-                    GameplaySkinMaterialContractIdentity.Current,
+                    GameplaySkinMaterialContractIdentity.CurrentFor(GameplaySkinRuntimeSupportProfile.Bms),
                     entries,
                     diagnostics);
 
+                if (skin is not ISkinSource exactSource)
+                    throw new InvalidOperationException("BMS scene preparation requires the exact aggregate package source.");
+
+                cancellationToken.ThrowIfCancellationRequested();
+                GameplaySkinPreparedScene scene = GameplaySkinScenePreparer.Prepare(
+                    layout.Neutral,
+                    resolved,
+                    exactSource,
+                    cancellationToken);
+
+                // Transfer the scene's provisional resource retirement immediately. The owning
+                // PreparePublication(cancellationToken) fence performs the post-solve cancellation check and
+                // disposes the completed publication/carrier exactly once. Throwing between Prepare() and Create()
+                // would leave the scene outside either owner and leak its prepared textures.
+
                 if (selectedBorrow == null)
-                    return GameplaySkinLayoutPublication.Create(layout, resolved);
+                    return GameplaySkinLayoutPublication.Create(layout, resolved, scene);
 
                 BmsManagedPackageNoteRevisionBorrow retirement = selectedBorrow;
                 selectedBorrow = null;
-                return GameplaySkinLayoutPublication.Create(layout, resolved, retirement);
+                return GameplaySkinLayoutPublication.Create(layout, resolved, scene, retirement);
             }
             catch
             {
@@ -373,6 +424,15 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsNoteSkinElements.LongNoteBody,
             BmsNoteSkinElements.LongNoteTail,
         };
+
+        private static readonly IReadOnlySet<GameplaySkinSlotDescriptor> specialised_descriptors =
+            new HashSet<GameplaySkinSlotDescriptor>(note_elements.Select(element =>
+            {
+                if (!BmsManagedPackageNoteCompatibilityProvider.TryGetDescriptor(element, out GameplaySkinSlotDescriptor descriptor))
+                    throw new InvalidOperationException("The BMS specialised material mapping is incomplete.");
+
+                return descriptor;
+            }));
 
         private sealed record FinalProviderRegistration(
             IGameplaySkinSlotProvider<GameplaySkinSlotLookup<BmsGameplaySkinLaneResourceContext>, IBmsResolvedNoteMaterial> Provider,

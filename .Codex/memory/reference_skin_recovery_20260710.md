@@ -40,4 +40,4 @@ metadata:
 2. schema 56 清点与定点迁移、`SV1-0` 自动/数据/2026-07-14 实机 gate 均已完成；不要重复打开或清理生产数据。
 3. directory-only rename、fixed-source staged import与managed delete曾按独立切片过门；external Workspace/ManagedCopy随后随C1闭合，C2 atomic revision publication/detach与current mutation也已签发。staged import只接受operationId固定slot下由OMS持有、外部原来源已保留的provisional副本，按kind复用同一journal/recovery并合法交接scanner owner；完整NTFS/selection/delete/shutdown地雷只看[[reference_skin_managed_folder_mutation_foundation]]，不要倒写本恢复历史。不要从本恢复memory推断任一门的实时完成度，只看P1-A。
 4. 2026-07-14只闭合恢复静态基线；其后新增的普通短键与长条head/body/tail视觉都必须按集中清单单独签收，不能复用该结论。
-5. 后续Folder Skin Workspace已补齐rename/ManagedCopy/delete及external行级真实入口；C2 manual Reload、atomic detach/retire与current external/managed/ordinary mutation、C3唯一layout及C4 resolved material publication均已签发，状态为`4/7 closed，C5 active`。程序化`OmsSkin`继续是protected fallback authority直到C7；视觉签收仍只看P1-A集中清单。
+5. 后续Folder Skin Workspace已补齐rename/ManagedCopy/delete及external行级真实入口；C2 manual Reload、atomic detach/retire与current external/managed/ordinary mutation、C3唯一layout、C4 resolved material及C5 scene/event与全部适用slot production均已签发，当前状态为`5/7 closed，C6 active`。程序化`OmsSkin`继续是protected fallback authority直到C7；视觉签收仍只看P1-A集中清单。

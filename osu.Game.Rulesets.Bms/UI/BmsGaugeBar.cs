@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
@@ -30,24 +31,14 @@ namespace osu.Game.Rulesets.Bms.UI
         // Number of faint vertical dividers slicing the track into even cells (groove-gauge read; not IIDX per-cell detail).
         private const int segment_count = 10;
 
-        private readonly OsuSpriteText gaugeLabel;
-        private readonly OsuSpriteText gaugeValue;
         private readonly Container track;
-        private readonly Box trackBackground;
-        private readonly Container fill;
-        private readonly Box fillBox;
-        private readonly Box floorBand;
-        private readonly Box floorMarker;
-        private readonly Box clearMarker;
-        private readonly Box highlight;
-        private readonly Box topAccent;
+        private readonly List<GaugeStageVisual> stageVisuals = new List<GaugeStageVisual>();
         private IBindable<BmsGaugeType>? currentGaugeType;
         private IBindable<BmsGaugeRulesFamily>? currentGaugeRulesFamily;
         private double currentDisplayMaxGauge = 1;
 
         private Color4 barColour = BmsDefaultHudPalette.SurfaceText;
         private Color4 accentColour = BmsDefaultHudPalette.SurfaceText;
-
         public bool UsesFixedAnchor { get; set; }
 
         protected override bool PlayInitialIncreaseAnimation => false;
@@ -65,6 +56,10 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal GameplaySkinResolvedMaterialSet? ResolvedMaterialSet { get; private set; }
 
+        internal Drawable GameplaySkinFallbackVisual => stageVisuals[0];
+
+        internal IReadOnlyList<Drawable> GameplaySkinStageFallbackVisuals => stageVisuals;
+
         public BmsGaugeBar()
         {
             Height = bar_height;
@@ -77,87 +72,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 Height = bar_height,
                 Masking = true,
                 CornerRadius = 0,
-                Children = new Drawable[]
-                {
-                    trackBackground = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                    },
-                    floorBand = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Alpha = 0,
-                    },
-                    fill = new Container
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Width = 0,
-                        Children = new Drawable[]
-                        {
-                            fillBox = new Box
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                            },
-                            new Box
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                Height = 2,
-                                Colour = BmsDefaultHudPalette.SurfaceText.Opacity(0.12f),
-                            }
-                        }
-                    },
-                    createSegmentTicks(),
-                    highlight = new Box
-                    {
-                        RelativeSizeAxes = Axes.X,
-                        Height = 2,
-                        Alpha = 0.16f,
-                    },
-                    floorMarker = new Box
-                    {
-                        RelativePositionAxes = Axes.X,
-                        RelativeSizeAxes = Axes.Y,
-                        Width = 2,
-                        Height = 1,
-                        Alpha = 0,
-                    },
-                    clearMarker = new Box
-                    {
-                        RelativePositionAxes = Axes.X,
-                        RelativeSizeAxes = Axes.Y,
-                        Width = 2,
-                        Height = 1,
-                        Alpha = 0,
-                    },
-                    // Thin gauge-coloured hairline at the top edge — a deliberate "meter starts here" cue under the
-                    // judgement line, in place of a full surrounding border.
-                    topAccent = new Box
-                    {
-                        Anchor = Anchor.TopLeft,
-                        Origin = Anchor.TopLeft,
-                        RelativeSizeAxes = Axes.X,
-                        Height = 1,
-                    },
-                    // Label + value overlaid on the bar (IIDX groove-gauge), shadowed for readability over the fill.
-                    gaugeLabel = new OsuSpriteText
-                    {
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.CentreLeft,
-                        Margin = new MarginPadding { Left = 8 },
-                        Font = OsuFont.Default.With(size: 13, weight: FontWeight.Bold),
-                        Colour = BmsDefaultHudPalette.SurfaceText,
-                        Shadow = true,
-                    },
-                    gaugeValue = new OsuSpriteText
-                    {
-                        Anchor = Anchor.CentreRight,
-                        Origin = Anchor.CentreRight,
-                        Margin = new MarginPadding { Right = 8 },
-                        Font = OsuFont.Numeric.With(size: 20, fixedWidth: true),
-                        Colour = BmsDefaultHudPalette.SurfaceText,
-                        Shadow = true,
-                    },
-                }
             };
         }
 
@@ -200,7 +114,27 @@ namespace osu.Game.Rulesets.Bms.UI
             if (!ReferenceEquals(ResolvedMaterialSet.Snapshot, LayoutSnapshot.Neutral))
                 throw new InvalidOperationException("The BMS gauge does not retain the material set from its exact publication.");
 
+            createStageVisuals();
             updateGaugeStyling();
+        }
+
+        private void createStageVisuals()
+        {
+            if (stageVisuals.Count != 0)
+                throw new InvalidOperationException("The BMS gauge stage-local visual graph is immutable after load.");
+
+            GameplaySkinLayoutRect playfield = LayoutSnapshot!.PlayfieldRect;
+
+            foreach (GameplaySkinLaneTopologyGroup group in LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder)
+            {
+                GameplaySkinLayoutRect groupRect = LayoutSnapshot.Neutral.GetGroup(group.Identity.Id).Rect;
+                var visual = new GaugeStageVisual(
+                    GameplaySkinResolvedMaterialTarget.ForStage(group),
+                    (groupRect.X - playfield.X) / playfield.Width,
+                    groupRect.Width / playfield.Width);
+                stageVisuals.Add(visual);
+                track.Add(visual);
+            }
         }
 
         protected override void LoadComplete()
@@ -234,21 +168,16 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
-            fill.Width = (float)(currentDisplayMaxGauge <= 0 ? 0 : Current.Value / currentDisplayMaxGauge);
-            gaugeValue.Text = $"{Current.Value:P0}";
+            float fillWidth = (float)(currentDisplayMaxGauge <= 0 ? 0 : Current.Value / currentDisplayMaxGauge);
+
+            foreach (GaugeStageVisual stage in stageVisuals)
+                stage.UpdateValue(fillWidth, $"{Current.Value:P0}");
         }
 
         protected override void Flash()
         {
-            fill.ClearTransforms();
-            fill.ScaleTo(new Vector2(1.01f, 1), 60, Easing.OutQuint)
-                .Then()
-                .ScaleTo(1, 180, Easing.OutQuint);
-
-            highlight.ClearTransforms();
-            highlight.FadeTo(0.45f, 50, Easing.OutQuint)
-                     .Then()
-                     .FadeTo(0.2f, 220, Easing.OutQuint);
+            foreach (GaugeStageVisual stage in stageVisuals)
+                stage.Flash();
         }
 
         private void updateGaugeStyling()
@@ -260,31 +189,13 @@ namespace osu.Game.Rulesets.Bms.UI
 
             currentDisplayMaxGauge = gaugeProcessor?.CurrentMaximumGauge ?? 1;
 
-            gaugeLabel.Text = getGaugeLabel(gaugeProcessor, gaugeType, gaugeRulesFamily);
-
-            // Background matches the playfield strip navy so the band reads as the playfield's bottom; the gauge type is
-            // conveyed by the fill colour + the top hairline, keeping the overlaid text white for readability.
-            trackBackground.Colour = ColourInfo.GradientVertical(BmsDefaultHudPalette.GaugeTrackTop, BmsDefaultHudPalette.GaugeTrackBottom);
-            topAccent.Colour = accentColour.Opacity(0.55f);
-
-            fillBox.Colour = barColour;
-
-            highlight.Colour = accentColour;
-
             float floorGauge = (float)((gaugeProcessor?.CurrentFloorGauge ?? BmsGaugeProcessor.GetFloorGauge(gaugeType)) / currentDisplayMaxGauge);
             bool survivalGauge = BmsGaugeProcessor.UsesSurvivalClear(gaugeType);
+            float clearGauge = (float)((gaugeProcessor?.CurrentClearThreshold ?? BmsGaugeProcessor.CLEAR_THRESHOLD) / currentDisplayMaxGauge);
+            string label = getGaugeLabel(gaugeProcessor, gaugeType, gaugeRulesFamily);
 
-            floorBand.Width = floorGauge;
-            floorBand.Colour = accentColour.Opacity(0.16f);
-            floorBand.Alpha = survivalGauge || floorGauge <= 0 ? 0 : 1;
-
-            floorMarker.X = floorGauge;
-            floorMarker.Colour = accentColour.Opacity(0.7f);
-            floorMarker.Alpha = survivalGauge || floorGauge <= 0 ? 0 : 1;
-
-            clearMarker.X = (float)((gaugeProcessor?.CurrentClearThreshold ?? BmsGaugeProcessor.CLEAR_THRESHOLD) / currentDisplayMaxGauge);
-            clearMarker.Colour = BmsDefaultHudPalette.ThresholdMarker;
-            clearMarker.Alpha = survivalGauge ? 0 : 1;
+            foreach (GaugeStageVisual stage in stageVisuals)
+                stage.UpdateStyle(label, barColour, accentColour, floorGauge, clearGauge, survivalGauge);
         }
 
         private static string getGaugeLabel(BmsGaugeProcessor? gaugeProcessor, BmsGaugeType gaugeType, BmsGaugeRulesFamily gaugeRulesFamily)
@@ -308,6 +219,147 @@ namespace osu.Game.Rulesets.Bms.UI
                 BmsGaugeType.Hazard => (BmsDefaultHudPalette.GaugeHazardBar, BmsDefaultHudPalette.GaugeHazardAccent),
                 _ => (BmsDefaultHudPalette.SurfaceText, BmsDefaultHudPalette.SurfaceSubtext),
             };
+
+        private sealed partial class GaugeStageVisual : Container
+        {
+            private readonly OsuSpriteText gaugeLabel;
+            private readonly OsuSpriteText gaugeValue;
+            private readonly Box trackBackground;
+            private readonly Container fill;
+            private readonly Box fillBox;
+            private readonly Box floorBand;
+            private readonly Box floorMarker;
+            private readonly Box clearMarker;
+            private readonly Box highlight;
+            private readonly Box topAccent;
+
+            public GameplaySkinResolvedMaterialTarget Target { get; }
+
+            public GaugeStageVisual(GameplaySkinResolvedMaterialTarget target, float x, float width)
+            {
+                Target = target ?? throw new ArgumentNullException(nameof(target));
+                RelativePositionAxes = Axes.X;
+                RelativeSizeAxes = Axes.Both;
+                X = x;
+                Width = width;
+                Masking = true;
+                Children = new Drawable[]
+                {
+                    trackBackground = new Box { RelativeSizeAxes = Axes.Both },
+                    floorBand = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Alpha = 0,
+                    },
+                    fill = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Width = 0,
+                        Children = new Drawable[]
+                        {
+                            fillBox = new Box { RelativeSizeAxes = Axes.Both },
+                            new Box
+                            {
+                                RelativeSizeAxes = Axes.X,
+                                Height = 2,
+                                Colour = BmsDefaultHudPalette.SurfaceText.Opacity(0.12f),
+                            },
+                        },
+                    },
+                    createSegmentTicks(),
+                    highlight = new Box
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Height = 2,
+                        Alpha = 0.16f,
+                    },
+                    floorMarker = new Box
+                    {
+                        RelativePositionAxes = Axes.X,
+                        RelativeSizeAxes = Axes.Y,
+                        Width = 2,
+                        Height = 1,
+                        Alpha = 0,
+                    },
+                    clearMarker = new Box
+                    {
+                        RelativePositionAxes = Axes.X,
+                        RelativeSizeAxes = Axes.Y,
+                        Width = 2,
+                        Height = 1,
+                        Alpha = 0,
+                    },
+                    topAccent = new Box
+                    {
+                        Anchor = Anchor.TopLeft,
+                        Origin = Anchor.TopLeft,
+                        RelativeSizeAxes = Axes.X,
+                        Height = 1,
+                    },
+                    gaugeLabel = new OsuSpriteText
+                    {
+                        Anchor = Anchor.CentreLeft,
+                        Origin = Anchor.CentreLeft,
+                        Margin = new MarginPadding { Left = 8 },
+                        Font = OsuFont.Default.With(size: 13, weight: FontWeight.Bold),
+                        Colour = BmsDefaultHudPalette.SurfaceText,
+                        Shadow = true,
+                    },
+                    gaugeValue = new OsuSpriteText
+                    {
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        Margin = new MarginPadding { Right = 8 },
+                        Font = OsuFont.Numeric.With(size: 20, fixedWidth: true),
+                        Colour = BmsDefaultHudPalette.SurfaceText,
+                        Shadow = true,
+                    },
+                };
+            }
+
+            public void UpdateValue(float width, string value)
+            {
+                fill.Width = width;
+                gaugeValue.Text = value;
+            }
+
+            public void Flash()
+            {
+                fill.ClearTransforms();
+                fill.ScaleTo(new Vector2(1.01f, 1), 60, Easing.OutQuint)
+                    .Then()
+                    .ScaleTo(1, 180, Easing.OutQuint);
+
+                highlight.ClearTransforms();
+                highlight.FadeTo(0.45f, 50, Easing.OutQuint)
+                         .Then()
+                         .FadeTo(0.2f, 220, Easing.OutQuint);
+            }
+
+            public void UpdateStyle(
+                string label,
+                Color4 barColour,
+                Color4 accentColour,
+                float floorGauge,
+                float clearGauge,
+                bool survivalGauge)
+            {
+                gaugeLabel.Text = label;
+                trackBackground.Colour = ColourInfo.GradientVertical(BmsDefaultHudPalette.GaugeTrackTop, BmsDefaultHudPalette.GaugeTrackBottom);
+                topAccent.Colour = accentColour.Opacity(0.55f);
+                fillBox.Colour = barColour;
+                highlight.Colour = accentColour;
+                floorBand.Width = floorGauge;
+                floorBand.Colour = accentColour.Opacity(0.16f);
+                floorBand.Alpha = survivalGauge || floorGauge <= 0 ? 0 : 1;
+                floorMarker.X = floorGauge;
+                floorMarker.Colour = accentColour.Opacity(0.7f);
+                floorMarker.Alpha = survivalGauge || floorGauge <= 0 ? 0 : 1;
+                clearMarker.X = clearGauge;
+                clearMarker.Colour = BmsDefaultHudPalette.ThresholdMarker;
+                clearMarker.Alpha = survivalGauge ? 0 : 1;
+            }
+        }
 
         protected override void Dispose(bool isDisposing)
         {

@@ -12,6 +12,7 @@ using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Audio;
 using osu.Game.Rulesets.Bms.Audio;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
@@ -27,6 +28,13 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class DrawableBmsHitObject : DrawableHitObject<HitObject>, IKeyBindingHandler<BmsAction>
     {
+        // Required only by the framework pool type constraint. Production pools override CreateNewDrawable() and
+        // always construct with the exact committed layout/material publication.
+        public DrawableBmsHitObject()
+            : this(new BmsHitObject { Keymode = BmsKeymode.Key7K })
+        {
+        }
+
         public override bool DisplayResult => AcceptsPlayerInput;
 
         protected override double InitialLifetimeOffset => 2000;
@@ -41,6 +49,9 @@ namespace osu.Game.Rulesets.Bms.UI
         [Resolved(CanBeNull = true)]
         private BmsKeysoundStore? keysoundStore { get; set; }
 
+        [Resolved(CanBeNull = true)]
+        private DrawableBmsRuleset? drawableRuleset { get; set; }
+
         private readonly Drawable? mainVisual;
         protected BmsGameplayLayoutSnapshot? GameplayLayoutSnapshot { get; }
         protected GameplaySkinResolvedMaterialSet? GameplayMaterialSet { get; }
@@ -52,6 +63,8 @@ namespace osu.Game.Rulesets.Bms.UI
         private bool autoAssistVisible = true;
         private bool autoAssistTintEnabled;
         private Color4 autoAssistTintColour = Color4.White;
+        private long? gameplaySkinObjectId;
+        private bool inheritsGameplaySkinObjectId;
 
         public override IEnumerable<HitSampleInfo> GetSamples()
         {
@@ -117,8 +130,42 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override void OnApply()
         {
+            // DrawablePool reuses the same visual for unrelated hit objects. Nested long-note children inherit
+            // their parent's stable event identity, so clear that transient binding before the framework applies
+            // the next object; otherwise a child retired from one hold can publish the next note under the old
+            // parent's object ID and violate the runtime's exact lane/group contract.
+            gameplaySkinObjectId = null;
+            inheritsGameplaySkinObjectId = false;
+
             base.OnApply();
             HandleUserInput = SupportsPlayerInput(HitObject);
+
+            if (mainVisual is BmsAsyncNoteDrawable sceneConsumer)
+            {
+                if (!inheritsGameplaySkinObjectId && drawableRuleset != null)
+                {
+                    if (ParentHitObject is DrawableBmsHoldNote parentHold)
+                        drawableRuleset.RegisterGameplaySkinNestedObjectIdentity(HitObject, parentHold.HitObject);
+
+                    gameplaySkinObjectId = drawableRuleset.GetGameplaySkinObjectId(HitObject);
+                }
+
+                sceneConsumer.SetPooledUsageActive(true, gameplaySkinObjectId);
+            }
+
+            if (gameplaySkinObjectId.HasValue && nestedHitObjectContainer != null)
+            {
+                foreach (DrawableBmsHitObject child in nestedHitObjectContainer.Children.OfType<DrawableBmsHitObject>())
+                    child.SetGameplaySkinObjectIdentity(gameplaySkinObjectId.Value);
+            }
+        }
+
+        protected override void OnFree()
+        {
+            if (mainVisual is BmsAsyncNoteDrawable sceneConsumer)
+                sceneConsumer.SetPooledUsageActive(false);
+
+            base.OnFree();
         }
 
         protected override void LoadSamples()
@@ -422,6 +469,25 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.AddNestedHitObject(hitObject);
             nestedHitObjectContainer?.Add(hitObject);
+
+            if (gameplaySkinObjectId.HasValue && hitObject is DrawableBmsHitObject bmsChild)
+                bmsChild.SetGameplaySkinObjectIdentity(gameplaySkinObjectId.Value);
+        }
+
+        internal void SetGameplaySkinObjectIdentity(long objectId)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(objectId);
+            inheritsGameplaySkinObjectId = true;
+            gameplaySkinObjectId = objectId;
+
+            if (mainVisual is BmsAsyncNoteDrawable sceneConsumer)
+                sceneConsumer.SetPooledUsageActive(true, objectId);
+
+            if (nestedHitObjectContainer == null)
+                return;
+
+            foreach (DrawableBmsHitObject child in nestedHitObjectContainer.Children.OfType<DrawableBmsHitObject>())
+                child.SetGameplaySkinObjectIdentity(objectId);
         }
 
         protected override void ClearNestedHitObjects()

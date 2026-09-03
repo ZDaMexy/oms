@@ -74,6 +74,73 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 92)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 116)]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 126)]
+        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 126)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 228)]
+        public void TestEveryPublicSlotExpandsToExactApplicableBmsTargets(
+            BmsKeymode keymode,
+            BmsPlayfieldStyle style,
+            int expectedEntryCount)
+        {
+            BmsGameplayLayoutSnapshot layout = new BmsGameplayLayoutProvider(createBeatmap(keymode))
+                                                       .PublishForTesting(style, new BmsGameplayLayoutConfiguration());
+            GameplaySkinResolvedMaterialKey[] keys = GameplaySkinSlotCatalog.All
+                                                                          .SelectMany(descriptor =>
+                                                                              GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, layout.Neutral)
+                                                                                                                   .Select(target => new GameplaySkinResolvedMaterialKey(descriptor, target)))
+                                                                          .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(28));
+                Assert.That(keys, Has.Length.EqualTo(expectedEntryCount));
+                Assert.That(keys, Is.Unique);
+                Assert.That(keys.Select(key => key.Slot).Distinct(), Is.EquivalentTo(
+                    keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms
+                        ? GameplaySkinSlotCatalog.Common
+                        : GameplaySkinSlotCatalog.All));
+                Assert.That(keys.Where(key => key.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Lane)
+                                .All(key => key.Target.GroupId != null
+                                            && key.Target.LaneId != null
+                                            && key.Target.GroupLogicalIndex.HasValue
+                                            && key.Target.GroupVisualIndex.HasValue
+                                            && key.Target.GlobalLogicalIndex.HasValue
+                                            && key.Target.GlobalVisualIndex.HasValue
+                                            && key.Target.GroupLocalLogicalIndex.HasValue
+                                            && key.Target.GroupLocalVisualIndex.HasValue), Is.True);
+            });
+
+            GameplaySkinResolvedMaterialKey[] scratchExtension = keys.Where(key =>
+                ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.Turntable)
+                || ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.Laser)).ToArray();
+            int expectedScratchExtensionCount = keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms
+                ? 0
+                : keymode == BmsKeymode.Key14K ? 4 : 2;
+            Assert.That(scratchExtension, Has.Length.EqualTo(expectedScratchExtensionCount));
+
+            if (keymode == BmsKeymode.Key14K)
+            {
+                GameplaySkinLaneTopologyGroup[] groups = layout.Neutral.Context.Topology.GroupsInLogicalOrder.ToArray();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(groups, Has.Length.EqualTo(2));
+                    Assert.That(keys.Count(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.StageBackground)), Is.EqualTo(2));
+                    Assert.That(keys.Count(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.BarLine)), Is.EqualTo(2));
+                    Assert.That(scratchExtension.Select(key => key.Target.LaneId!.Value),
+                        Is.EquivalentTo(new[]
+                        {
+                            "bms.lane.scratch-1", "bms.lane.scratch-1",
+                            "bms.lane.scratch-2", "bms.lane.scratch-2",
+                        }));
+                    Assert.That(groups.Select(group => group.Identity.Id.Value),
+                        Is.EqualTo(new[] { "bms.group.deck-1", "bms.group.deck-2" }));
+                });
+            }
+        }
+
         [Test]
         public void TestStableIdsSurviveStyleGeometryAndLayoutRevision()
         {

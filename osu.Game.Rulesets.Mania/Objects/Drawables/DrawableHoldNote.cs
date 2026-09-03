@@ -3,6 +3,8 @@
 
 #nullable disable
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -29,7 +31,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
     /// <summary>
     /// Visualises a <see cref="HoldNote"/> hit object.
     /// </summary>
-    public partial class DrawableHoldNote : DrawableManiaHitObject<HoldNote>, IKeyBindingHandler<ManiaAction>
+    public partial class DrawableHoldNote : DrawableManiaHitObject<HoldNote>, IKeyBindingHandler<ManiaAction>, IGameplaySkinSpecialisedSceneConsumer
     {
         public override bool DisplayResult => false;
 
@@ -58,10 +60,27 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         private Container maskingContainer;
 
         private SkinnableDrawable bodyPiece;
+        private Container specialisedSceneOwner;
+        private GameplaySkinSpecialisedSceneVisual specialisedSceneVisual;
+        private IDisposable programmaticVisualRegistration;
 
         public GameplaySkinResolvedMaterialSet ResolvedMaterialSet { get; private set; }
 
         public GameplaySkinResolvedMaterialKey ResolvedMaterialKey { get; private set; }
+
+        public GameplaySkinSceneHostedSlot SceneVisualGate { get; private set; }
+
+        public IReadOnlyList<string> AppliedSceneNodeIds { get; private set; } = Array.Empty<string>();
+
+        [Resolved(canBeNull: true)]
+        private GameplaySkinSceneRuntimeHost sceneRuntime { get; set; }
+
+        [Resolved(canBeNull: true)]
+        private IManiaGameplaySkinObjectIdentityProvider gameplaySkinObjectIdentityProvider { get; set; }
+
+        private long? gameplaySkinObjectId;
+        private bool lastPublishedHolding;
+        private bool completedPublished;
 
         public DrawableHoldNote()
             : this(null)
@@ -115,6 +134,10 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                 {
                     RelativeSizeAxes = Axes.X
                 },
+                specialisedSceneOwner = new Container
+                {
+                    RelativeSizeAxes = Axes.X,
+                },
                 tailContainer = new Container<DrawableHoldNoteTail> { RelativeSizeAxes = Axes.Both },
                 slidingSample = new PausableSkinnableSound
                 {
@@ -126,8 +149,29 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             maskedContents.AddRange(new[]
             {
                 bodyPiece.CreateProxy(),
+                specialisedSceneOwner.CreateProxy(),
                 tailContainer.CreateProxy(),
             });
+
+            if (sceneRuntime != null && materialContext?.UsesResolvedMaterial == true)
+            {
+                if (!sceneRuntime.TryGetVisualGate(ResolvedMaterialKey, out GameplaySkinSceneHostedSlot gate))
+                    throw new InvalidOperationException("The exact mania long-note body scene gate is missing from its committed publication.");
+
+                SceneVisualGate = gate;
+
+                if (gate.Route == GameplaySkinSceneHostRoute.Specialised)
+                    specialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(ResolvedMaterialKey, specialisedSceneOwner);
+
+                if (gate.Route == GameplaySkinSceneHostRoute.Suppressed || specialisedSceneVisual != null)
+                    programmaticVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(ResolvedMaterialKey, bodyPiece);
+
+                if (specialisedSceneVisual != null)
+                {
+                    AppliedSceneNodeIds = Array.AsReadOnly(
+                        gate.RoutedNodes.Select(node => node.InstanceId).ToArray());
+                }
+            }
         }
 
         protected override void LoadComplete()
@@ -142,6 +186,17 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             base.OnApply();
 
             sizingContainer.Size = Vector2.One;
+            gameplaySkinObjectId = gameplaySkinObjectIdentityProvider?.GetObjectId(HitObject);
+            lastPublishedHolding = false;
+            completedPublished = false;
+
+            if (specialisedSceneVisual != null)
+            {
+                if (gameplaySkinObjectId == null)
+                    throw new InvalidOperationException("A specialised mania long-note scene requires the engine-owned object identity provider.");
+
+                specialisedSceneVisual.OnApply(gameplaySkinObjectId.Value);
+            }
         }
 
         protected override void AddNestedHitObject(DrawableHitObject hitObject)
@@ -227,6 +282,27 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
             isHolding.Value = Result.IsHolding(Time.Current);
 
+            if (gameplaySkinObjectId.HasValue)
+            {
+                if (AllJudged)
+                {
+                    if (!completedPublished)
+                    {
+                        completedPublished = true;
+                        gameplaySkinObjectIdentityProvider.PublishLongNoteState(
+                            gameplaySkinObjectId.Value,
+                            GameplaySkinObjectState.Completed);
+                    }
+                }
+                else if (lastPublishedHolding != isHolding.Value)
+                {
+                    lastPublishedHolding = isHolding.Value;
+                    gameplaySkinObjectIdentityProvider.PublishLongNoteState(
+                        gameplaySkinObjectId.Value,
+                        isHolding.Value ? GameplaySkinObjectState.Holding : GameplaySkinObjectState.Visible);
+                }
+            }
+
             // Pad the full size container so its contents (i.e. the masking container) reach under the tail.
             // This is required for the tail to not be masked away, since it lies outside the bounds of the hold note.
             sizingContainer.Padding = new MarginPadding
@@ -247,6 +323,8 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             // The rationale for this is account for heads/tails with corner radius.
             bodyPiece.Y = (Direction.Value == ScrollingDirection.Up ? 1 : -1) * Head.Height / 2;
             bodyPiece.Height = DrawHeight - Head.Height / 2 + Tail.Height / 2;
+            specialisedSceneOwner.Y = bodyPiece.Y;
+            specialisedSceneOwner.Height = bodyPiece.Height;
 
             if (Time.Current >= HitObject.StartTime)
             {
@@ -267,9 +345,17 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                 sizingContainer.Height = 1;
         }
 
-        protected override JudgementResult CreateResult(Judgement judgement) => new HoldNoteJudgementResult(HitObject, judgement);
+        protected internal override JudgementResult CreateResult(Judgement judgement) => new HoldNoteJudgementResult(HitObject, judgement);
 
         public new HoldNoteJudgementResult Result => (HoldNoteJudgementResult)base.Result;
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+                programmaticVisualRegistration?.Dispose();
+
+            base.Dispose(isDisposing);
+        }
 
         protected override void CheckForResult(bool userTriggered, double timeOffset)
         {
@@ -379,6 +465,10 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         protected override void OnFree()
         {
+            specialisedSceneVisual?.OnFree();
+            gameplaySkinObjectId = null;
+            lastPublishedHolding = false;
+            completedPublished = false;
             slidingSample.ClearSamples();
             base.OnFree();
         }

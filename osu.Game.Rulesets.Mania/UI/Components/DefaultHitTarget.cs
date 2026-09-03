@@ -3,6 +3,8 @@
 
 #nullable disable
 
+using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
@@ -10,13 +12,16 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Shapes;
+using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Default;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.UI.Components
 {
-    public partial class DefaultHitTarget : CompositeDrawable
+    public partial class DefaultHitTarget : CompositeDrawable, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                            IManiaGameplaySkinProgrammaticVisualPartReadinessSource
     {
         private const float hit_target_bar_height = 2;
 
@@ -24,6 +29,14 @@ namespace osu.Game.Rulesets.Mania.UI.Components
 
         private Container hitTargetLine;
         private Drawable hitTargetBar;
+
+        private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> gameplaySkinProgrammaticVisualParts
+            = Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+        IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+            => gameplaySkinProgrammaticVisualParts;
+
+        public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
         private Bindable<Color4> accentColour;
 
@@ -55,6 +68,13 @@ namespace osu.Game.Rulesets.Mania.UI.Components
                     Child = new Box { RelativeSizeAxes = Axes.Both }
                 },
             };
+
+            gameplaySkinProgrammaticVisualParts = Array.AsReadOnly(new[]
+            {
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.HitTarget, hitTargetBar),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.JudgementLine, hitTargetLine),
+            });
+            GameplaySkinProgrammaticVisualPartsReady();
 
             accentColour = column.AccentColour.GetBoundCopy();
             accentColour.BindValueChanged(colour =>

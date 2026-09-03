@@ -44,16 +44,18 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                             return new ManiaGameplayHudComponentsContainer(beatmap.Stages, this, container =>
                             {
                                 var leaderboard = container.OfType<DrawableGameplayLeaderboard>().FirstOrDefault();
-                                var combo = container.ChildrenOfType<ArgonManiaComboCounter>().FirstOrDefault();
+                                ArgonManiaComboCounter[] combos = container.ChildrenOfType<ArgonManiaComboCounter>().ToArray();
                                 var spectatorList = container.OfType<SpectatorList>().FirstOrDefault();
 
                                 if (leaderboard != null)
                                     leaderboard.Position = new Vector2(36, 115);
 
-                                if (combo != null)
-                                {
+                                foreach (ArgonManiaComboCounter combo in combos)
                                     combo.ShowLabel.Value = false;
-                                    container.ApplyComboPlacement(combo);
+
+                                for (int stageIndex = 0; stageIndex < combos.Length; stageIndex++)
+                                {
+                                    container.ApplyComboPlacement(combos[stageIndex], stageIndex);
                                 }
 
                                 if (spectatorList != null)
@@ -63,13 +65,16 @@ namespace osu.Game.Rulesets.Mania.Skinning.Argon
                                     d.UsesFixedAnchor = true;
                             })
                             {
-                                new DrawableGameplayLeaderboard(),
-                                new ArgonManiaComboCounter(),
-                                new SpectatorList
+                                Children = new Drawable[]
                                 {
-                                    Anchor = Anchor.BottomLeft,
-                                    Origin = Anchor.BottomLeft,
-                                }
+                                    new DrawableGameplayLeaderboard(),
+                                }.Concat(Enumerable.Range(0, beatmap.Stages.Count)
+                                                   .Select(_ => (Drawable)new ArgonManiaComboCounter()))
+                                 .Append(new SpectatorList
+                                 {
+                                     Anchor = Anchor.BottomLeft,
+                                     Origin = Anchor.BottomLeft,
+                                 }).ToArray(),
                             };
                     }
 

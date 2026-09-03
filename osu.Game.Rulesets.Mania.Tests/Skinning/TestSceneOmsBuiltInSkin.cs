@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -30,9 +31,11 @@ using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Mania.Skinning;
+using osu.Game.Rulesets.Mania.Skinning.Argon;
 using osu.Game.Rulesets.Mania.Skinning.Legacy;
 using osu.Game.Rulesets.Mania.Skinning.Oms;
 using osu.Game.Rulesets.Mania.UI;
+using osu.Game.Rulesets.Mania.UI.Components;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
@@ -1692,11 +1695,167 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("9K+8K bar line height uses first-stage OMS preset", () => Math.Abs(getFloatConfig(transformedSkin, LegacyManiaSkinConfigurationLookups.BarLineHeight) - 1.2f) < 0.01f);
         }
 
-        [Test]
-        public void TestOmsHudComboCounterUsesSharedComboPositionForDualStages()
+        [TestCase(ManiaProgrammaticPartImplementation.Default)]
+        [TestCase(ManiaProgrammaticPartImplementation.Argon)]
+        [TestCase(ManiaProgrammaticPartImplementation.Oms)]
+        [TestCase(ManiaProgrammaticPartImplementation.Legacy)]
+        public void TestProgrammaticVisualPartsAreIndependentAndInputCannotBypassKeyFlashGate(ManiaProgrammaticPartImplementation implementation)
         {
             Drawable host = null!;
-            OmsManiaComboCounter comboCounter = null!;
+            ColumnTestContainer columnHost = null!;
+            Drawable[] components = null!;
+            ManiaGameplaySkinProgrammaticVisualPart keyFlashPart = default;
+            Drawable animatedFlash = null!;
+
+            AddStep($"load {implementation} programmatic visual parts", () =>
+            {
+                var ruleset = new ManiaRuleset();
+                var beatmap = new ManiaBeatmap(new StageDefinition(4))
+                {
+                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                };
+
+                ISkin source = implementation switch
+                {
+                    ManiaProgrammaticPartImplementation.Argon => new ArgonSkin(skinManager),
+                    ManiaProgrammaticPartImplementation.Legacy => new KeyOnlyLegacyUserSkin(renderer),
+                    _ => skinManager.DefaultOmsSkin,
+                };
+                ISkin transformedSkin = ruleset.CreateSkinTransformer(source, beatmap) ?? source;
+
+                components = implementation switch
+                {
+                    ManiaProgrammaticPartImplementation.Default => new Drawable[]
+                    {
+                        new DefaultColumnBackground(),
+                        new DefaultHitTarget(),
+                    },
+                    ManiaProgrammaticPartImplementation.Argon => new Drawable[]
+                    {
+                        new ArgonColumnBackground(),
+                        new ArgonHitTarget(),
+                    },
+                    ManiaProgrammaticPartImplementation.Oms => new Drawable[]
+                    {
+                        new OmsColumnBackground(),
+                        new OmsHitTarget(),
+                    },
+                    ManiaProgrammaticPartImplementation.Legacy => new Drawable[]
+                    {
+                        new LegacyColumnBackground(),
+                        new LegacyStageBackground(),
+                    },
+                    _ => throw new ArgumentOutOfRangeException(nameof(implementation), implementation, null),
+                };
+
+                Add(host = new SkinProvidingContainer(transformedSkin)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = columnHost = new ColumnTestContainer(0, ManiaAction.Key1, stageColumns: 4)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = new Container
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Children = components,
+                        },
+                    },
+                });
+            });
+            AddUntilStep($"{implementation} visual parts loaded", () => components.All(component => component.IsLoaded));
+            AddStep($"assert {implementation} one-key owner contract", () =>
+            {
+                ManiaGameplaySkinProgrammaticVisualPart[] parts = components
+                    .OfType<IManiaGameplaySkinProgrammaticVisualPartProvider>()
+                    .SelectMany(provider => provider.GameplaySkinProgrammaticVisualParts)
+                    .ToArray();
+                GameplaySkinSlotDescriptor[] expectedSlots = implementation switch
+                {
+                    ManiaProgrammaticPartImplementation.Default => new[]
+                    {
+                        GameplaySkinSlotCatalog.LaneSurface,
+                        GameplaySkinSlotCatalog.KeyFlash,
+                        GameplaySkinSlotCatalog.HitTarget,
+                        GameplaySkinSlotCatalog.JudgementLine,
+                    },
+                    ManiaProgrammaticPartImplementation.Argon => new[]
+                    {
+                        GameplaySkinSlotCatalog.LaneSurface,
+                        GameplaySkinSlotCatalog.KeyFlash,
+                        GameplaySkinSlotCatalog.HitTarget,
+                    },
+                    ManiaProgrammaticPartImplementation.Oms => new[]
+                    {
+                        GameplaySkinSlotCatalog.LaneSurface,
+                        GameplaySkinSlotCatalog.LaneDivider,
+                        GameplaySkinSlotCatalog.HitTarget,
+                        GameplaySkinSlotCatalog.JudgementLine,
+                        GameplaySkinSlotCatalog.KeyFlash,
+                    },
+                    ManiaProgrammaticPartImplementation.Legacy => new[]
+                    {
+                        GameplaySkinSlotCatalog.StageBackground,
+                        GameplaySkinSlotCatalog.PlayfieldBackdrop,
+                        GameplaySkinSlotCatalog.PlayfieldBaseplate,
+                        GameplaySkinSlotCatalog.LaneSurface,
+                        GameplaySkinSlotCatalog.LaneDivider,
+                        GameplaySkinSlotCatalog.HitTarget,
+                        GameplaySkinSlotCatalog.JudgementLine,
+                        GameplaySkinSlotCatalog.KeyFlash,
+                    },
+                    _ => throw new ArgumentOutOfRangeException(nameof(implementation), implementation, null),
+                };
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(parts.Select(part => part.Slot).Distinct(), Is.EquivalentTo(expectedSlots));
+                    Assert.That(parts.Select(part => part.Owner).Distinct(ReferenceEqualityComparer.Instance).Count(), Is.EqualTo(parts.Length),
+                        "One native wrapper must never be registered against multiple exact public-slot keys.");
+                    Assert.That(parts.All(part => part.Owner.Parent != null), Is.True);
+                    if (implementation == ManiaProgrammaticPartImplementation.Legacy)
+                    {
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground)), Is.EqualTo(2));
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop)), Is.EqualTo(1));
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBaseplate)), Is.EqualTo(1));
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface)), Is.EqualTo(4));
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider)), Is.EqualTo(4));
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget)), Is.EqualTo(4));
+                        Assert.That(parts.Count(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.JudgementLine)), Is.EqualTo(4));
+                    }
+                });
+
+                keyFlashPart = parts.Single(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.KeyFlash));
+                animatedFlash = ((Container)keyFlashPart.Owner).Children.Single();
+                animatedFlash.Alpha = 0;
+            });
+            AddStep($"probe real {implementation} native flash input", () =>
+                columnHost.ChildrenOfType<ManiaInputManager>().Single().KeyBindingContainer.TriggerPressed(ManiaAction.Key1));
+            AddUntilStep($"{implementation} native flash animation ran", () => animatedFlash.Alpha > 0);
+            AddStep($"release real {implementation} native flash probe", () =>
+                columnHost.ChildrenOfType<ManiaInputManager>().Single().KeyBindingContainer.TriggerReleased(ManiaAction.Key1));
+            AddStep($"arm {implementation} independent key-flash gate", () =>
+            {
+                animatedFlash.Alpha = 0;
+                keyFlashPart.Owner.Alpha = 0;
+            });
+            AddStep($"press real gated {implementation} lane", () =>
+                columnHost.ChildrenOfType<ManiaInputManager>().Single().KeyBindingContainer.TriggerPressed(ManiaAction.Key1));
+            AddWaitStep($"allow {implementation} gated native animation", 5);
+            AddAssert($"{implementation} key-flash gate survives press", () => keyFlashPart.Owner.Alpha == 0);
+            AddStep($"release real {implementation} lane", () =>
+                columnHost.ChildrenOfType<ManiaInputManager>().Single().KeyBindingContainer.TriggerReleased(ManiaAction.Key1));
+            AddWaitStep($"allow {implementation} gated release animation", 5);
+            AddAssert($"{implementation} key-flash gate survives release", () => keyFlashPart.Owner.Alpha == 0);
+            AddStep($"restore {implementation} programmatic fallback after gate release", () => keyFlashPart.Owner.Alpha = 1);
+            AddAssert($"{implementation} programmatic fallback restored", () => keyFlashPart.Owner.Alpha == 1);
+            AddStep($"clear {implementation} programmatic visual parts", () => host.Expire());
+        }
+
+        [Test]
+        public void TestOmsHudComboCountersUseStageLocalPositionsForDualStages()
+        {
+            Drawable host = null!;
+            OmsManiaComboCounter[] comboCounters = null!;
             ManiaGameplayHudComponentsContainer hudComponents = null!;
 
             AddStep("load dual-stage OMS HUD combo", () =>
@@ -1704,9 +1863,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 var transformedSkin = createTransformedSkin(5, 5);
                 hudComponents = (ManiaGameplayHudComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
 
-                comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
+                comboCounters = hudComponents.ChildrenOfType<OmsManiaComboCounter>().ToArray();
 
-                foreach (var drawable in hudComponents.Children.Where(drawable => drawable != comboCounter).ToArray())
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable is not OmsManiaComboCounter).ToArray())
                     hudComponents.Remove(drawable, false);
 
                 Add(host = new SkinProvidingContainer(transformedSkin)
@@ -1716,23 +1875,30 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
             });
 
-            AddUntilStep("dual-stage combo counter positioned", () => comboCounter.IsLoaded && hudComponents.IsLoaded);
-            AddAssert("dual-stage combo uses exact compatibility surface", () =>
+            AddUntilStep("dual-stage combo counters positioned", () => comboCounters.All(combo => combo.IsLoaded) && hudComponents.IsLoaded);
+            AddAssert("dual-stage combos use exact stage-local compatibility surfaces", () =>
             {
+                GameplaySkinLayoutSnapshot snapshot = hudComponents.LayoutSnapshot;
                 GameplaySkinLayoutRect surface = hudComponents.LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
-                return hudComponents.LayoutSnapshot.Context.NativeContextId == "stages-5-5"
-                       && comboCounter.RelativePositionAxes == Axes.Both
-                       && Math.Abs(comboCounter.X - (surface.Left + surface.Width / 2)) < 0.001f
-                       && Math.Abs(comboCounter.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+                return snapshot.Context.NativeContextId == "stages-5-5"
+                       && comboCounters.Length == snapshot.Context.Topology.GroupsInLogicalOrder.Count
+                       && comboCounters.Select((combo, stageIndex) => (combo, stageIndex)).All(pair =>
+                       {
+                           GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[pair.stageIndex];
+                           GameplaySkinLayoutRect groupRect = snapshot.GetGroup(group.Identity.Id).Rect;
+                           return pair.combo.RelativePositionAxes == Axes.Both
+                                  && Math.Abs(pair.combo.X - (groupRect.Left + groupRect.Width / 2)) < 0.001f
+                                  && Math.Abs(pair.combo.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+                       });
             });
             AddStep("clear dual-stage HUD combo host", () => host.Expire());
         }
 
         [Test]
-        public void TestOmsHudComboCounterUsesFirstStageComboPositionForMixedStages()
+        public void TestOmsHudComboCountersUseStageLocalPositionsForMixedStages()
         {
             Drawable host = null!;
-            OmsManiaComboCounter comboCounter = null!;
+            OmsManiaComboCounter[] comboCounters = null!;
             ManiaGameplayHudComponentsContainer hudComponents = null!;
 
             AddStep("load mixed-stage OMS HUD combo", () =>
@@ -1740,9 +1906,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 var transformedSkin = createTransformedSkin(7, 6);
                 hudComponents = (ManiaGameplayHudComponentsContainer)transformedSkin.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
 
-                comboCounter = hudComponents.ChildrenOfType<OmsManiaComboCounter>().Single();
+                comboCounters = hudComponents.ChildrenOfType<OmsManiaComboCounter>().ToArray();
 
-                foreach (var drawable in hudComponents.Children.Where(drawable => drawable != comboCounter).ToArray())
+                foreach (var drawable in hudComponents.Children.Where(drawable => drawable is not OmsManiaComboCounter).ToArray())
                     hudComponents.Remove(drawable, false);
 
                 Add(host = new SkinProvidingContainer(transformedSkin)
@@ -1752,14 +1918,21 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
             });
 
-            AddUntilStep("mixed-stage combo counter positioned", () => comboCounter.IsLoaded && hudComponents.IsLoaded);
-            AddAssert("mixed-stage combo uses exact compatibility surface", () =>
+            AddUntilStep("mixed-stage combo counters positioned", () => comboCounters.All(combo => combo.IsLoaded) && hudComponents.IsLoaded);
+            AddAssert("mixed-stage combos use exact stage-local compatibility surfaces", () =>
             {
+                GameplaySkinLayoutSnapshot snapshot = hudComponents.LayoutSnapshot;
                 GameplaySkinLayoutRect surface = hudComponents.LayoutSnapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
-                return hudComponents.LayoutSnapshot.Context.NativeContextId == "stages-7-6"
-                       && comboCounter.RelativePositionAxes == Axes.Both
-                       && Math.Abs(comboCounter.X - (surface.Left + surface.Width / 2)) < 0.001f
-                       && Math.Abs(comboCounter.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+                return snapshot.Context.NativeContextId == "stages-7-6"
+                       && comboCounters.Length == snapshot.Context.Topology.GroupsInLogicalOrder.Count
+                       && comboCounters.Select((combo, stageIndex) => (combo, stageIndex)).All(pair =>
+                       {
+                           GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[pair.stageIndex];
+                           GameplaySkinLayoutRect groupRect = snapshot.GetGroup(group.Identity.Id).Rect;
+                           return pair.combo.RelativePositionAxes == Axes.Both
+                                  && Math.Abs(pair.combo.X - (groupRect.Left + groupRect.Width / 2)) < 0.001f
+                                  && Math.Abs(pair.combo.Y - (surface.Top + surface.Height / 2)) < 0.001f;
+                       });
             });
             AddStep("clear mixed-stage HUD combo host", () => host.Expire());
         }
@@ -2373,6 +2546,14 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             new object[] { "Classic", DefaultLegacySkin.CreateInfo().ID },
             new object[] { "Retro", RetroSkin.CreateInfo().ID },
         };
+
+        public enum ManiaProgrammaticPartImplementation
+        {
+            Default,
+            Argon,
+            Oms,
+            Legacy,
+        }
 
         private void removeAllUserSkins()
         {

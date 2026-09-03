@@ -257,7 +257,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     GameplaySkinLayoutRect.Create(0, 0, 1, 1),
                     16f / 9f,
                     1,
-                    diagnostics: diagnostics);
+                    diagnostics: diagnostics,
+                    renderPixelWidth: 1920,
+                    renderPixelHeight: 1080);
             }
 
             float width = window.Size.Width;
@@ -291,7 +293,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 GameplaySkinLayoutRect.Create(left, top, 1 - left - right, 1 - top - bottom),
                 width / height,
                 dpiScale,
-                diagnostics: diagnostics);
+                diagnostics: diagnostics,
+                renderPixelWidth: checked((int)Math.Ceiling(width * Math.Max(1, dpiScale))),
+                renderPixelHeight: checked((int)Math.Ceiling(height * Math.Max(1, dpiScale))));
         }
     }
 }

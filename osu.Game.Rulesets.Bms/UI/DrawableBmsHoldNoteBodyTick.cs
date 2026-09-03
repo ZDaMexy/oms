@@ -7,6 +7,11 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class DrawableBmsHoldNoteBodyTick : DrawableHitObject<BmsHoldNoteBodyTick>
     {
+        public DrawableBmsHoldNoteBodyTick()
+            : this(new BmsHoldNoteBodyTick())
+        {
+        }
+
         public override bool DisplayResult => false;
 
         public DrawableBmsHoldNoteBodyTick(BmsHoldNoteBodyTick hitObject)

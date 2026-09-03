@@ -51,7 +51,7 @@ legacy`BmsLegacySkin`对无scratch 9K继续使用raw`0..8`；public target只接
 - source-aware reference 至少区分 source、Keys、stable lane ID、field 与 raw resource name。同一 raw name 在 BMS/mania 或不同 bucket 下可以有不同结果，不能只按字符串名跨 authority 共用；resource name 不得进入稳定诊断、JSON 或安全字符串。
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
 - BMS exact selected preparation按layout snapshot/generation复用，但资源寿命不等于cache/task寿命：`BmsLegacySkin`维护waiter/borrower计数，完成revision只经幂等`BmsManagedPackageNoteRevisionBorrow`进入material publication。borrow沿material preparer→publication→prepared carrier→layout owner移动，前任每次转移后必须清空持有；构造/prepare异常、取消、dispatch拒绝、commit guard失败与owner teardown都exactly-once退役。
-- active/provisional owner不能交叉：失败reload只dispose新provisional owner，旧active owner继续存活；成功原子替换先detach superseded consumer，再dispose旧owner；teardown同样先detach后dispose。该规则已由C2`SkinCurrentRevision` participant/work lease落到production并签发，覆盖BMS async note/materializer与真实owner retirement；C3/C4又把package、唯一layout与resolved material作为不可分triple加入同一barrier。C5～C6新增consumer必须继续加入。
+- active/provisional owner不能交叉：失败reload只dispose新provisional owner，旧active owner继续存活；成功原子替换先detach superseded consumer，再dispose旧owner；teardown同样先detach后dispose。该规则已由C2`SkinCurrentRevision` participant/work lease落到production并签发，覆盖BMS async note/materializer与真实owner retirement；C3/C4/C5又把package、唯一layout、resolved material与prepared scene作为不可分quadruple加入同一barrier。C6新增consumer必须继续加入。
 - 成功publication的borrow由`GameplaySkinLayoutRevisionOwner`持有；`RulesetSkinProvidingContainer.Dispose`必须先让base container完成renderer子树detach/dispose，之后才释放owner。`BmsLegacySkin.Dispose`可以封门、取消并joinworker，但有active borrower时只把generation标为退役，waiter/borrower未同时归零不得清理prepared revision/TextureStore。
 - production resource consumer若需要layout，只能从enclosing exact owner的`CurrentPublication`取得neutral/typed同一引用；注入另一owner的carrier、建立第二provider、把isolated compatibility snapshot升级为exact或在transformer/consumer另存可替换snapshot都必须fail-closed。详见[[reference_gameplay_skin_layout_snapshot]]。
 
@@ -62,11 +62,11 @@ legacy`BmsLegacySkin`对无scratch 9K继续使用raw`0..8`；public target只接
 - `GetTexture()` 之后才检查输入大小、尺寸/像素或累计预算已经太晚；先读受限元数据并做 pre-decode gate，解码后再核对实际值。runtime cap 也不等于 importer 的总解压字节、解压比或 zip-bomb gate。
 - Realm 的 hash-backed package 要先冻结不可变文件名→内容身份快照，再由该 revision 独占 private resource cache；大小写重复、路径越界、身份冲突或缺 blob 均只让对应 slot `Inherit`，不能从另一 package 补齐。
 - current reload的Realm/blob/held filesystem I/O、parser、texture decode与materialization都必须止于background prepare；update thread只做已准备且可逆的引用交换。BMS async note/materializer还须把generation、cancel、callback ownership与work lease保持到真实worker退出，不能只释放未采用Drawable。`BmsAsyncNoteDrawable`可能位于ancestor `!IsAlive`的hitobject下，首次Ready admission及source invalidation rebuild都要经GameHost scheduler；source event先同步进入work admission gate，推进generation并exact claim旧owner/CTS，再调度fresh rebuild。prepare install与finish publish比较captured generation；participant shutdown/dispose也先terminal并在同一gate推进generation/claim work，从合同上消除CTS double-dispose窄窗。Dispose不能退回不推进的local scheduler或留下晚到publication。
-- C4已把shared document、catalog/resolver结果和BMS/mania migrated consumer加入C2/C3同一package+layout+material publication。C5 scene/剩余素材与C6 script仍须逐批加入，只有C6才关闭ini/manifest/scene/script/全部素材最终整包门。
+- C5已把shared document、catalog/resolver结果、prepared scene/read-only event与BMS/mania migrated consumer加入C2/C3同一package+layout+material+scene publication；C6 script与最终ini/manifest/scene/script/全部素材整包门仍须逐批加入，只有C6才关闭。
 - preparation cache仍按exact `BmsLegacySkin` instance/revision使用；active instance不观察原位来源变化，Settings manual Reload构造new instance/revision。same-instance refresh或逐组件A→B不得绕过统一barrier。
 - `Box` 继承 `Sprite`；测试若只用 `drawable is Sprite` 会把程序化 fallback 误判为用户贴图，必须验证 source-bound 类型/纹理身份或明确的宿主状态。
 
 ## production source-bound 边界
 
 - native BMS 普通短键是首个 package-scoped production 窄纵切，随后已扩到长条头/身/尾；当前自动/实机 gate 和精确测试数字只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。
-- C4已实现shared codec、28项public catalog、显式三态与BMS/mania migrated resource parity；真实capability仍只覆盖BMS Note/LN和mania Note/Hold/KeyVisual。其余optional slot、scene/script与`oms-simple` authority未成立；测试不得访问或写入生产数据。
+- C5已实现shared codec、28项public catalog、显式三态、BMS/mania migrated resource parity、prepared scene/read-only event与逐slot capability；BMS 28项均有route，Mania 23项Supported + `object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` NotApplicable。C6 script/final package gate与`oms-simple` authority仍未成立；测试不得访问或写入生产数据。

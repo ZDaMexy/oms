@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
@@ -35,9 +36,18 @@ namespace osu.Game.Rulesets.Mania.UI
 
         public Column[] Columns => columnFlow.Content;
         private readonly ColumnFlow<Column> columnFlow;
+        private readonly Container gameplaySkinLaneCoverLayer;
 
         private readonly JudgementContainer<DrawableManiaJudgement> judgements;
         private readonly JudgementPooler<DrawableManiaJudgement> judgementPooler;
+        private readonly SkinnableDrawable stageBackground;
+        private readonly SkinnableDrawable stageForeground;
+        private IDisposable? stageForegroundProgrammaticRegistration;
+        private IDisposable? judgementProgrammaticRegistration;
+        private readonly List<IDisposable> programmaticVisualPartRegistrations = new List<IDisposable>();
+        private readonly HashSet<Drawable> registeredProgrammaticVisualPartOwners = new HashSet<Drawable>();
+        private GameplaySkinSceneRuntimeHost? sceneRuntime;
+        private IManiaGameplaySkinProgrammaticVisualPartReadinessSource? stageBackgroundReadinessSource;
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos)
         {
@@ -83,7 +93,7 @@ namespace osu.Game.Rulesets.Mania.UI
                     RelativeSizeAxes = Axes.Both,
                     Children = new Drawable[]
                     {
-                        new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.StageBackground), _ => new DefaultStageBackground())
+                        stageBackground = new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.StageBackground), _ => new DefaultStageBackground())
                         {
                             RelativeSizeAxes = Axes.Both
                         },
@@ -112,7 +122,12 @@ namespace osu.Game.Rulesets.Mania.UI
                         {
                             RelativeSizeAxes = Axes.Both,
                         },
-                        new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.StageForeground))
+                        gameplaySkinLaneCoverLayer = new Container
+                        {
+                            Name = "Gameplay skin lane-cover layer",
+                            RelativeSizeAxes = Axes.Both,
+                        },
+                        stageForeground = new SkinnableDrawable(new ManiaSkinComponentLookup(ManiaSkinComponents.StageForeground))
                         {
                             RelativeSizeAxes = Axes.Both
                         },
@@ -152,6 +167,45 @@ namespace osu.Game.Rulesets.Mania.UI
             AddInternal(judgementPooler = new JudgementPooler<DrawableManiaJudgement>(Enum.GetValues<HitResult>().Where(hitWindows.IsHitResultAllowed)));
 
             RegisterPool<BarLine, DrawableBarLine>(50, 200);
+        }
+
+        internal void AddGameplaySkinLaneCoverHost(ManiaGameplaySkinLaneCoverHost host)
+        {
+            ArgumentNullException.ThrowIfNull(host);
+
+            if (gameplaySkinLaneCoverLayer.Count != 0)
+                throw new InvalidOperationException("A mania stage cannot own more than one active playfield-cover scene host.");
+
+            gameplaySkinLaneCoverLayer.Add(host);
+        }
+
+        [BackgroundDependencyLoader(true)]
+        private void load(GameplaySkinSceneRuntimeHost? sceneRuntime)
+        {
+            if (sceneRuntime == null
+                || ResolvedMaterialSet.ContractIdentity.Equals(GameplaySkinMaterialContractIdentity.CompatibilityEmpty))
+                return;
+
+            this.sceneRuntime = sceneRuntime;
+
+            if (stageBackground.Drawable is IManiaGameplaySkinProgrammaticVisualPartReadinessSource readinessSource)
+            {
+                stageBackgroundReadinessSource = readinessSource;
+                readinessSource.GameplaySkinProgrammaticVisualPartsReady += onProgrammaticVisualPartsReady;
+            }
+
+            registerStageBackgroundProgrammaticVisuals();
+
+            if (!stageBackground.Drawable.IsLoaded)
+                stageBackground.Drawable.OnLoadComplete += onStageBackgroundLoaded;
+
+            GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForStage(layoutStageContext.Group.TopologyGroup);
+            stageForegroundProgrammaticRegistration = sceneRuntime.RegisterProgrammaticVisual(
+                new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.StageForeground, target),
+                stageForeground);
+            judgementProgrammaticRegistration = sceneRuntime.RegisterProgrammaticVisual(
+                new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, target),
+                judgements);
         }
 
         [Pure]
@@ -225,7 +279,76 @@ namespace osu.Game.Rulesets.Mania.UI
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
             NewResult += OnNewResult;
+        }
+
+        private void onStageBackgroundLoaded(Drawable _)
+        {
+            stageBackground.Drawable.OnLoadComplete -= onStageBackgroundLoaded;
+            registerStageBackgroundProgrammaticVisuals();
+        }
+
+        private void onProgrammaticVisualPartsReady() => registerStageBackgroundProgrammaticVisuals();
+
+        private void registerStageBackgroundProgrammaticVisuals()
+        {
+            if (sceneRuntime == null)
+                return;
+
+            GameplaySkinLaneTopologyGroup group = layoutStageContext.Group.TopologyGroup;
+            GameplaySkinResolvedMaterialTarget stageTarget = GameplaySkinResolvedMaterialTarget.ForStage(group);
+
+            if (stageBackground.Drawable is IManiaGameplaySkinProgrammaticVisualPartProvider provider)
+            {
+                if (provider.GameplaySkinProgrammaticVisualParts.Count == 0)
+                    return;
+
+                foreach (ManiaGameplaySkinProgrammaticVisualPart part in provider.GameplaySkinProgrammaticVisualParts)
+                {
+                    if (!registeredProgrammaticVisualPartOwners.Add(part.Owner))
+                        continue;
+
+                    if (ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground)
+                        || ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop))
+                    {
+                        // The two stage-sized public surfaces have distinct native owners. A partial declaration must
+                        // never hide its un-authored sibling or any lane/target child of a legacy composite parent.
+                        programmaticVisualPartRegistrations.Add(sceneRuntime.RegisterProgrammaticVisual(
+                            new GameplaySkinResolvedMaterialKey(part.Slot, stageTarget),
+                            part.Owner));
+                        continue;
+                    }
+
+                    if (ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBaseplate))
+                    {
+                        // The baseplate has a distinct native owner. Replacing it must not suppress the stage-side
+                        // shell or backdrop compatibility owner which occupies another public slot.
+                        programmaticVisualPartRegistrations.Add(sceneRuntime.RegisterProgrammaticVisual(
+                            new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.PlayfieldBaseplate, stageTarget),
+                            part.Owner));
+                        continue;
+                    }
+
+                    GameplaySkinResolvedMaterialTarget target = ManiaGameplaySkinProgrammaticVisualPartTargetResolver.Resolve(part, group);
+                    programmaticVisualPartRegistrations.Add(sceneRuntime.RegisterProgrammaticVisual(
+                        new GameplaySkinResolvedMaterialKey(part.Slot, target),
+                        part.Owner));
+                }
+
+                if (!provider.GameplaySkinProgrammaticVisualParts.Any(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground)))
+                    throw new InvalidOperationException("A mania stage background provider did not publish an independently gateable native shell.");
+
+                if (!provider.GameplaySkinProgrammaticVisualParts.Any(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop)))
+                    throw new InvalidOperationException("A mania stage background provider did not publish an independently gateable playfield backdrop.");
+
+                if (!provider.GameplaySkinProgrammaticVisualParts.Any(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBaseplate)))
+                    throw new InvalidOperationException("A mania stage background provider did not publish an independently gateable native baseplate.");
+
+                return;
+            }
+
+            throw new InvalidOperationException("A mania stage background must expose an independently gateable native shell.");
         }
 
         public override void Add(HitObject hitObject) => Columns[((ManiaHitObject)hitObject).Column - firstColumnIndex].Add(hitObject);
@@ -249,8 +372,22 @@ namespace osu.Game.Rulesets.Mania.UI
 
         protected override void Dispose(bool isDisposing)
         {
-            // must happen before children are disposed in base call to prevent illegal accesses to the judgement pool.
-            NewResult -= OnNewResult;
+            if (isDisposing)
+            {
+                // must happen before children are disposed in base call to prevent illegal accesses to the judgement pool.
+                NewResult -= OnNewResult;
+                stageBackground.Drawable.OnLoadComplete -= onStageBackgroundLoaded;
+                if (stageBackgroundReadinessSource != null)
+                    stageBackgroundReadinessSource.GameplaySkinProgrammaticVisualPartsReady -= onProgrammaticVisualPartsReady;
+                stageForegroundProgrammaticRegistration?.Dispose();
+                judgementProgrammaticRegistration?.Dispose();
+
+                foreach (IDisposable registration in programmaticVisualPartRegistrations)
+                    registration.Dispose();
+
+                programmaticVisualPartRegistrations.Clear();
+            }
+
             base.Dispose(isDisposing);
         }
     }

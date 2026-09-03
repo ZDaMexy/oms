@@ -20,6 +20,7 @@ using osu.Framework.Platform;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
+using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -48,6 +49,18 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private double? poorTriggeredAt;
 
+        /// <summary>
+        /// Read-only summary of the P1-L-owned content selected by this player. C5 consumers may observe this value,
+        /// but never receive the timeline, media handles or an API capable of changing playback.
+        /// </summary>
+        internal GameplaySkinBgaContentState ContentState { get; private set; }
+
+        /// <summary>
+        /// Stable source-order revision of the latest P1-L timeline entry active at the gameplay clock position.
+        /// A seek may move this value backwards only together with the event runtime's complete epoch reset.
+        /// </summary>
+        internal long ContentRevision { get; private set; }
+
         private TextureStore textureStore = null!;
         private WorkingBeatmapFileStore? fileStore;
         private BmsBgaVideoCache? videoCache;
@@ -74,6 +87,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             normalLayers = new[] { baseLayer, overlayLayer, overlay2Layer };
             hasPoorLayer = poorMode != BmsPoorBgaMode.Undisplayed && entriesFor(BmsBgaLayer.Poor).Length > 0;
+            ContentState = timeline.Count == 0 ? GameplaySkinBgaContentState.Empty : GameplaySkinBgaContentState.Ready;
 
             InternalChildren = new Drawable[]
             {
@@ -147,6 +161,12 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
+            // This is the sole timeline projection used by the BGA renderer itself. The gameplay-skin event bridge
+            // reads only the resulting immutable summary rather than walking the BGA timeline a second time.
+            GetContentStateAt(Time.Current, out GameplaySkinBgaContentState contentState, out long contentRevision);
+            ContentState = contentState;
+            ContentRevision = contentRevision;
+
             bool poorActive = hasPoorLayer
                               && poorTriggeredAt is double triggered
                               && Time.Current >= triggered
@@ -159,6 +179,27 @@ namespace osu.Game.Rulesets.Bms.UI
 
             foreach (var layer in normalLayers)
                 layer.Alpha = normalAlpha;
+        }
+
+        /// <summary>
+        /// Samples this same P1-L-owned timeline at the event host's authoritative discontinuity time. The player
+        /// remains the only timeline authority; this seam only avoids exposing a frame-stabilised pre-seek summary
+        /// to the read-only C5 epoch while its visual clock catches up.
+        /// </summary>
+        internal void GetContentStateAt(
+            double gameplayTime,
+            out GameplaySkinBgaContentState contentState,
+            out long contentRevision)
+        {
+            int activeTimelineIndex = GetActiveIndex(timeline, gameplayTime);
+            contentRevision = activeTimelineIndex + 1L;
+            contentState = timeline.Count == 0
+                ? GameplaySkinBgaContentState.Empty
+                : activeTimelineIndex < 0
+                    ? GameplaySkinBgaContentState.Ready
+                    : Clock.IsRunning
+                        ? GameplaySkinBgaContentState.Playing
+                        : GameplaySkinBgaContentState.Paused;
         }
 
         private Texture? getTexture(string assetFile)
@@ -189,6 +230,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     var resolved = videoCache.Resolve(path);
 
+                    // Unavailable: fall through to a direct open below.
                     switch (resolved.State)
                     {
                         case BmsBgaVideoCache.VideoSourceState.Ready:
@@ -197,7 +239,6 @@ namespace osu.Game.Rulesets.Bms.UI
                         case BmsBgaVideoCache.VideoSourceState.Pending:
                             return (null, true);
 
-                        // Unavailable: fall through to a direct open below.
                     }
                 }
 

@@ -30,6 +30,18 @@ namespace osu.Game.Screens.Play
         public event Action? OnSeek;
 
         /// <summary>
+        /// Invoked after a full gameplay reset/retry. <see cref="OnSeek"/> remains raised as before, allowing
+        /// consumers to distinguish an ordinary seek from the stronger reset without changing existing callers.
+        /// </summary>
+        public event Action? OnReset;
+
+        /// <summary>
+        /// Exact destination supplied to the latest engine seek. Consumers which construct an atomic discontinuity
+        /// snapshot may use this before the framed clock exposes the destination on its next update.
+        /// </summary>
+        internal double? LastSeekTarget { get; private set; }
+
+        /// <summary>
         /// The time from which the clock should start. Will be seeked to on calling <see cref="Reset"/>.
         /// Can be adjusted by calling <see cref="Reset"/> with a time value.
         /// </summary>
@@ -107,6 +119,7 @@ namespace osu.Game.Screens.Play
         {
             Logger.Log($"{nameof(GameplayClockContainer)} seeking to {time}");
 
+            LastSeekTarget = time;
             GameplayClock.Seek(time);
 
             OnSeek?.Invoke();
@@ -166,6 +179,7 @@ namespace osu.Game.Screens.Play
                 StartTime = time.Value;
 
             Seek(StartTime);
+            OnReset?.Invoke();
 
             if (!wasPaused || startClock)
                 Start();

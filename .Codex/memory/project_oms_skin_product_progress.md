@@ -1,6 +1,6 @@
 ---
 name: project_oms_skin_product_progress
-description: Skin V1产品价值核算、C1作者工作区、C2 revision、C3唯一layout与C4 public material完成态及C5准入
+description: Skin V1产品价值核算、C1作者工作区、C2 revision、C3唯一layout、C4 public material与C5 scene/event完成态
 metadata:
   node_type: memory
   type: project
@@ -8,7 +8,7 @@ metadata:
 
 # OMS Skin V1 产品进度召回
 
-权威当前态与C5工作门只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)与[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)，稳定inventory/owner/layout/material合同见[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；C1边界见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C3见[2026-08-30完成交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)，C4见[C4完成交接](../../doc_md/other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)，此前价值核算史见[P1-A CHANGELOG](../../doc_md/subline/P1-A/CHANGELOG.md)。本页保存如何计算产品价值和选择后续工作，不用旧百分比或focused测试冒充campaign完成。
+权威当前态与 C5/C6 工作门只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)与[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)，稳定inventory/owner/layout/material/scene/event合同见[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；C1边界见[2026-08-13完成交接](../../doc_md/other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C3见[2026-08-30完成交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)，C4见[C4完成交接](../../doc_md/other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)，C5见[C5完成交接](../../doc_md/other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)，此前价值核算史见[P1-A CHANGELOG](../../doc_md/subline/P1-A/CHANGELOG.md)。本页保存如何计算产品价值和选择后续工作，不用旧百分比或focused测试冒充campaign完成。
 
 ## 进度核算规则
 
@@ -44,10 +44,10 @@ metadata:
 
 - 28项`GameplaySkinSlotCatalog`成为codec/validator/resolver/BMS+mania consumer/文档唯一public ID authority；Common v1与唯一BMS v1 extension共用exact-bytes shared tokenizer/codec，legacy adapter只消费同一immutable token stream。
 - 显式`Provide/Inherit/Suppress` resolver以C3 stable LaneId/GroupId和全部显式index解析；required/recommended suppress拒绝，invalid/empty不能冒充absent或回头借同package较宽声明。BMS 5K/7K/9K/14K candidate与版本化9K raw/canonical mapping进入production。
-- ordinary Realm `.osk`、managed、external三源从真实`SkinManager` current revision经ruleset prepare到actual BMS Note/LN与mania Note/Hold/KeyVisual consumer；所有consumer只读同一package+layout+material publication，失败保A，late attach/lease/detach/retire沿C2/C3协议。
+- ordinary Realm `.osk`、managed、external三源从真实`SkinManager` current revision经ruleset prepare到actual BMS Note/LN与mania Note/Hold/KeyVisual、scene/event consumer；所有consumer只读同一package+layout+material+scene publication，失败保A，late attach/lease/detach/retire沿C2/C3协议。
 - public diagnostic的完整persistence-safe payload在material prepare时预构造，成功commit后的observer只持immutable字符串与轻量receipt并异步输出稳定、去重、脱敏摘要；listener故障不改变commit或延长material生命周期。新beatmap-local作者格式明确排除，公共source/candidate不可达；既有legacy direct visual compatibility保留且不消费public section。
 - dead foundation结论：BMS candidate/resource/capability接入production；被resolved material取代的lane-colour/bucket snapshot删除；event cursor明确归C5、capability negotiator归C6且不计C4。`Create(BmsLaneLayout,...)`、raw requirement resolver overload与`PublishForTesting`只保留isolation/compat seam，不是production能力。
-- C4闭门后燃尽为`4/7 closed，C5 active`。scene/event、剩余optional slot production、sandbox/script、canonical双包/Authoring Kit与最终release仍未完成；BGA内容/timeline/seek仍归P1-L，程序化`OmsSkin`继续保留。
+- C4闭门时燃尽为`4/7 closed，C5 active`，这是历史快照。C5已于2026-09-03闭合 scene/event、全部适用 slot production、预算/池化与真实 BMS/mania host；当前燃尽为`5/7 closed，C6 active`。sandbox/script、最终整包reload、canonical双包/Authoring Kit与最终release仍未完成；BGA内容/timeline/seek仍归P1-L，程序化`OmsSkin`继续保留。
 
 ## C3/C4最终产品价值核算
 
@@ -55,15 +55,15 @@ metadata:
 - 这些交付主要提升“谱面不误判、末端键不静音、换包不混revision、所有playfield件不各算一套”，不是新增大量视觉花样；因此属于必要产品正确性与后续作者表达力的脊柱，但不能冒充完整Skin V1表现力。
 - 最终审计删除了零caller的`BmsGameplayLayoutProvider.PrepareExact()` convenience wrapper，production只保留真实`TryPrepareExact()`入口。另保留并如实标注`BmsBeatmapDecoderOptions.KeymodeOverride`：它是authoritative host/importer seam，普通loader当前传`null`且没有用户UI；模糊sparse谱安全拒绝。该用户纠正流程属于P1-K后续产品缺口，不重开C3安全/layout gate。
 - C4价值来自作者public声明经唯一codec/catalog/resolver和exact current revision真正改变BMS/mania drawable，并在坏声明/取消/reload失败时保持旧画面；不是28个descriptor、DTO或fixture数量。
-- 当前保留的event cursor/capability negotiator只分别属于C5/C6；compat/isolation seam也不计产品能力。C5必须让剩余optional slot经真实scene/event host可达，否则不能按public目录总数宣传表现力。
+- 当前保留的event cursor已进入C5 production，通用capability negotiator/authorization归C6；compat/isolation seam也不计产品能力。C5已让全部适用optional slot经真实scene/event host可达，不能再按public目录总数掩盖ruleset的NotApplicable决定。
 
 ## C1最终产品价值核算
 
 - 真实链以settings/import caller为起点：Folder Skin Workspace的注册、选择、Open、ManagedCopy、Rename、Delete、noncurrent Unregister与support面进入manager；external/managed selection再进入BMS Note/LN与legacy mania note/hold consumer。ordinary `.osk`从真实拖入导入进入selection/renderer，bounded ingress与receipt直接保护该路径。
 - C1的大部分代码量属于Windows held authority、exact-set、journal/recovery、并发receipt与产品测试。它不增加scene/script表现力，但直接防止external源被写、错目标删改、partial copy、半提交Realm与共享blob误删，属于用户数据安全价值。
 - 仓库仍有一个C1前已有、没有独立非测试caller的internal fixed-staging import surface；StagedImport operation/handler仍无production caller，但共同的fixed-slot authority/native move+inspection及journal/coordinator/recovery框架已被ManagedCopy复用，因此不计作额外用户功能，也不能把全部共同底层当死代码。C1新增完成清单中的主要交付均有production caller；selection/import/ManagedCopy另有production consumer证据，Open/Rename/Delete/Unregister/support形成直接用户结果。不得因底层复杂就误判为无意义，也不得把这项结论用于继续扩张无caller foundation。
-- 进度只报`4/7 closed`硬退出门，不换算线性工期。恢复/导入安全、作者目录工作区、current revision生命周期、唯一layout与shared material已过门；scene/event、剩余slot、sandbox、canonical双包/Authoring Kit、视觉与release仍未完成。最终用户可见Skin V1仍在早期，工程安全基础明显先行。
-- C1～C4实现密度已经是维护风险；代码量不算产品进度。C5必须把scene/event与全部advertised optional slot真实host同切闭合，不得重做C1/C2、建立第二layout/material publication或先造无caller foundation。
+- 进度只报`5/7 closed`硬退出门，不换算线性工期。恢复/导入安全、作者目录工作区、current revision生命周期、唯一layout、shared material、scene/event与全部适用 slot production已过门；sandbox、最终整包reload、canonical双包/Authoring Kit、视觉与release仍未完成。最终用户可见Skin V1仍在收口期，工程安全基础不得被误报为release完成。
+- C1～C5实现密度已经是维护风险；代码量不算产品进度。C6只能在同一publication上接入sandbox/script并关闭最终整包门，C7再交付canonical双包/Authoring Kit；不得重做C1/C2、建立第二layout/material/scene/event publication或先造无caller foundation。
 
 ## C1已关闭合同（后续不可降级）
 
@@ -88,11 +88,11 @@ P1-A/`SV1-2`的`C1`作者文件工作区已关闭；下列链是C2及后续必�
 | `C2` | 冻结真实可达reload路线；当前全部production consumer与普通`.osk`统一revision publication/detach/owner retirement，并完成current external unregister |
 | `C3` | **已闭合**：P1-K keymode/lane前置 + 唯一layout snapshot/publication及全部BMS/mania/core/BGA viewport/HUD consumer + C2 package/layout pair扩展 |
 | `C4` | **已闭合**：shared codec、28项public catalog/三态resolver、现有BMS/mania consumer迁移、结构化诊断与beatmap-local排除终态 |
-| `C5` | **active**：manifest/scene/animation/state/event完整production runtime与BMS/mania hosts，让剩余optional slot进入production并关闭`SV1-1`自动门；所有scene host加入revision lease/detach协议 |
+| `C5` | **已闭合（2026-09-03）**：versioned manifest/scene/animation/state、read-only event Snapshot/Reset、BMS/mania全部适用public slot host、预算/池化与同一revision publication/lease/detach协议进入真实production |
 | `C6` | 可抢占sandbox VM、公开语言/编译验证工具链、授权持久化、预算、determinism、熔断与profiler；script host加入revision协议并关闭ini/manifest/scene/script最终reload/G1自动门 |
 | `C7` | canonical双包、Authoring Kit、validator、证据完整的supported pre-C1 v2与C1后journal迁移、invalid旧Delete安装修复、canonical损坏修复、`OmsSkin`产品authority退出及全部自动release收敛 |
 
-- 当前为`4/7 closed，C5 active`。一个campaign可跨多轮、compaction与多个提交；只有完整退出门闭合才推进编号。
+- 当前为`5/7 closed，C6 active`。一个campaign可跨多轮、compaction与多个提交；只有完整退出门闭合才推进编号。
 - audit、NO-GO、路线冻结、红测、foundation/DTO、单个caller/consumer、单个提交或文档不能推进编号；需用户产品决策也在原对话等待。
 - `C7`退出时，2026-08-09已知P1-A范围（含各campaign内须取得终态并实现的产品路线）的非人工代码/测试/工具/release任务必须为零，只允许集中视觉、真实设备、长时间体验等人工签收；人工反馈产生的新缺陷按新证据修复，不能预先伪称不存在。
 - 若campaign提前闭合，可在同一对话直接进入下一campaign，因此七个新对话prompt是上限，不是必须耗尽的配额。
@@ -102,8 +102,14 @@ P1-A/`SV1-2`的`C1`作者文件工作区已关闭；下列链是C2及后续必�
 1. `C2`已冻结Settings唯一manual Reload与live gameplay/preview prepare前拒绝；participant/holder/bypass inventory、三源纵切、current mutation、宽测试、Release与独立终审均已闭合。稳定地雷见[[reference_skin_atomic_reload_detach]]。
 2. 当前协议把holder分成coherent consumer、lease-only holder和已证明无旧owner者；三源same-ID、background prepare、reversible update-thread barrier、dynamic attach/detach/late attach及最后lease detach retire已有production证明。成功诊断清理仍须由请求generation守卫，不能覆盖observer推进generation后的新拒绝reason。
 3. `ExternalEditOverlay`、update-import和immediate-dispose旁路已连UI/backend禁用或纳入协议；current external/managed/ordinary mutation均先fallback+detach。C3不得重开或放宽C1/C2。
-4. `C3`已闭合P1-K keymode/lane timeline前置与唯一layout；`C4`已闭合shared codec/catalog/resolver与BMS/mania material consumer。package+layout+material、fail-closed入口与revision协议是C5以后不可降级的输入。稳定地雷见[[reference_gameplay_skin_layout_snapshot]]与[[reference_gameplay_skin_codec_material]]。
-5. 当前`C5` scene/event → `C6` sandbox；每个新consumer同切加入revision协议，`C6`才关闭最终整包reload/G1自动门。
+4. `C3`已闭合P1-K keymode/lane timeline前置与唯一layout；`C4`已闭合shared codec/catalog/resolver与BMS/mania material consumer；`C5`再闭合prepared scene/event与全部适用slot host。package+layout+material+scene、fail-closed入口与revision协议是C6以后不可降级的输入。稳定地雷见[[reference_gameplay_skin_layout_snapshot]]与[[reference_gameplay_skin_codec_material]]。
+5. `C5` scene/event已闭合：每个新consumer同切加入revision协议，BMS profile 28项均有route（9K按适用性26格），mania 23项Supported + `object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`五个NotApplicable；当前进入`C6` sandbox，且C6才关闭最终整包reload/G1自动门。
 6. `C7` canonical `oms-simple/oms-complex`、Authoring Kit与自动release；退出后只保留集中视觉、真实设备和长时间体验签收。
 
 thin/arbitrary-path/foundation-only staged-import stager、逐件optional slot私有C#、提前canonical包及无consumer shared foundation继续NO-GO；现有full ManagedCopy必须保持“已注册external fresh physical proof + paired capsule/manifest + single v3 intent + UI/recovery/tests”整体，不能退化为普通递归copy。作者面整体决议见[[project_oms_bms_skin_authoring]]。
+
+## C5 召回（2026-09-03）
+
+C5 的产品结果不是新增 DTO 或单一 drawable，而是 exact package+layout+material+scene publication 的真实纵切：scene manifest/graph、animation/state/binding/template、只读 event stream 与 Snapshot/Reset 都由 background prepare 产出，BMS/mania/core renderer 只读取 immutable prepared output。BMS/mania producer 不把 scene 提升为判定、输入、分数、clock、BGA 内容或 resource authority；scene 故障只隔离 slot/scene。
+
+runtime profile `oms-gameplay-skin-runtime-support.v1` 对每个 catalog ID 做显式决策。BMS 28 项均有 route（9K 适用矩阵只含 26 格）；Mania 23 项 Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 是明确 NotApplicable。C5 的自动证据与当前失败基线见 P1-A STATUS，不在 memory 复制旧 C4 数字。`GameplayResumed` 可以由 engine envelope 发布，但 scene ABI 不接受 `gameplay.resume`，因为 Snapshot 已重建 Running 状态。

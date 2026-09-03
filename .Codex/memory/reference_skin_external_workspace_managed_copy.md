@@ -36,4 +36,4 @@ metadata:
 
 ## C1关闭后的边界
 
-- external Workspace、ManagedCopy与ordinary noncurrent Unregister已随C1关闭；C2 same-ID reload、current external unregister与全consumer publication/detach/retire也已签发，C3/C4又把layout/material纳入不可分割publication，燃尽为`4/7 closed，C5 active`。watcher始终不属于该能力。
+- external Workspace、ManagedCopy与ordinary noncurrent Unregister已随C1关闭；C2 same-ID reload、current external unregister与全consumer publication/detach/retire也已签发，C3/C4又把layout/material纳入不可分割publication，C5再接入scene/event与全部适用slot host；当前燃尽为`5/7 closed，C6 active`。watcher始终不属于该能力。

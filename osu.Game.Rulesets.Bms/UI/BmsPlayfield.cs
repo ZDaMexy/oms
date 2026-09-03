@@ -11,6 +11,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI.Scrolling;
@@ -68,9 +69,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public IReadOnlyList<BmsGameplayLayoutGroupContainer> GroupContainers => groupContainers;
 
+        internal IReadOnlyList<BmsBarLinePlayfield> BarLinePlayfields => barLinePlayfields;
+
         public int DisplayColumnCount => LaneLayout.Lanes.Count;
 
         private BmsLane[] lanes = Array.Empty<BmsLane>();
+        private BmsBarLinePlayfield[] barLinePlayfields = Array.Empty<BmsBarLinePlayfield>();
         private BmsGameplayLayoutGroupContainer[] groupContainers = Array.Empty<BmsGameplayLayoutGroupContainer>();
         private readonly BmsBeatmap beatmap;
         private bool layoutGraphInitialised;
@@ -87,9 +91,23 @@ namespace osu.Game.Rulesets.Bms.UI
         };
         private readonly HashSet<BmsKeysoundSampleInfo> prewarmedKeysounds = new HashSet<BmsKeysoundSampleInfo>();
 
-        private JudgementContainer<DrawableBmsJudgement> judgements = null!;
-        private JudgementPooler<DrawableBmsJudgement> judgementPooler = null!;
         private Container playfieldContainer = null!;
+        private BmsPlayfieldStageFallbackVisual[] gameplaySkinStageFallbackVisuals = Array.Empty<BmsPlayfieldStageFallbackVisual>();
+        private readonly List<IDisposable> gameplaySkinSceneVisualRegistrations = new List<IDisposable>();
+
+        [Resolved(CanBeNull = true)]
+        private GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private DrawableBmsRuleset? drawableRuleset { get; set; }
+
+        internal IReadOnlyList<BmsPlayfieldStageFallbackVisual> GameplaySkinStageFallbackVisuals => gameplaySkinStageFallbackVisuals;
+
+        internal Drawable PlayfieldBackdropVisual => gameplaySkinStageFallbackVisuals[0].BackdropVisual;
+
+        internal Drawable PlayfieldBaseplateVisual => gameplaySkinStageFallbackVisuals[0].BaseplateVisual;
+
+        internal Drawable JudgementVisual => gameplaySkinStageFallbackVisuals[0].JudgementVisual;
 
         [Resolved(CanBeNull = true)]
         private GameplaySkinLayoutRevisionOwner? sharedLayoutOwner { get; set; }
@@ -175,62 +193,58 @@ namespace osu.Game.Rulesets.Bms.UI
                     throw new InvalidOperationException("A compatibility BMS playfield cannot enter an exact production root.");
             }
 
+            gameplaySkinStageFallbackVisuals = LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder
+                                                        .Select(group => new BmsPlayfieldStageFallbackVisual(
+                                                            group,
+                                                            LayoutSnapshot,
+                                                            LaneLayout.Keymode,
+                                                            DisplayColumnCount,
+                                                            gameplay_judgements))
+                                                        .ToArray();
+
+            var playfieldChildren = new List<Drawable>();
+            playfieldChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.BaseplateVisual));
+            playfieldChildren.Add(new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Children = groupContainers,
+            });
+            playfieldChildren.Add(new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Masking = true,
+                Child = HitObjectContainer,
+            });
+            playfieldChildren.Add(CoverContainer);
+            playfieldChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.JudgementVisual));
+            playfieldChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.JudgementPooler));
+
+            var rootChildren = new List<Drawable> { KeysoundStore };
+            rootChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.StageBackgroundVisual));
+            rootChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.BackdropVisual));
+            rootChildren.Add(playfieldContainer = new Container
+            {
+                // Top-anchored at the screen edge so the first visible notes appear at the very top (matching the
+                // green-number "full visible field" semantics). Vertical extent is controlled by PlayfieldHeight;
+                // applyPlayfieldStyle keeps the top anchor and only varies the horizontal side anchoring. The gauge
+                // (DefaultBmsHudLayoutDisplay) sits just below the judgement line at PlayfieldHeight.
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                RelativePositionAxes = Axes.Both,
+                RelativeSizeAxes = Axes.Both,
+                Position = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.X, LayoutSnapshot.PlayfieldRect.Y),
+                Size = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.Width, LayoutSnapshot.PlayfieldRect.Height),
+                Masking = true,
+                Children = playfieldChildren,
+            });
+
             AddInternal(new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Children = new Drawable[]
-                {
-                    KeysoundStore,
-                    new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Backdrop, LaneLayout.Keymode, DisplayColumnCount))
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        CentreComponent = false,
-                    },
-                    playfieldContainer = new Container
-                    {
-                        // Top-anchored at the screen edge so the first visible notes appear at the very top (matching the
-                        // green-number "full visible field" semantics). Vertical extent is controlled by PlayfieldHeight;
-                        // applyPlayfieldStyle keeps the top anchor and only varies the horizontal side anchoring. The gauge
-                        // (DefaultBmsHudLayoutDisplay) sits just below the judgement line at PlayfieldHeight.
-                        Anchor = Anchor.TopLeft,
-                        Origin = Anchor.TopLeft,
-                        RelativePositionAxes = Axes.Both,
-                        RelativeSizeAxes = Axes.Both,
-                        Position = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.X, LayoutSnapshot.PlayfieldRect.Y),
-                        Size = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.Width, LayoutSnapshot.PlayfieldRect.Height),
-                        Masking = true,
-                        Children = new Drawable[]
-                        {
-                            new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Baseplate, LaneLayout.Keymode, DisplayColumnCount))
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                CentreComponent = false,
-                            },
-                            // NOTE: the in-playfield BackgroundLayer is intentionally NOT mounted here — inside the
-                            // masked playfield strip it sat under the opaque lane backgrounds and was fully occluded.
-                            // The visible BGA now renders in the skinnable BmsBgaPanel mounted in DrawableBmsRuleset.Overlays
-                            // (above the playfield). BackgroundLayer is kept as a property for skin/metadata compatibility.
-                            new Container
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                Children = groupContainers,
-                            },
-                            new Container
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                                Masking = true,
-                                Child = HitObjectContainer,
-                            },
-                            CoverContainer,
-                            judgements = new JudgementContainer<DrawableBmsJudgement>
-                            {
-                                RelativeSizeAxes = Axes.Both,
-                            },
-                            judgementPooler = new JudgementPooler<DrawableBmsJudgement>(gameplay_judgements),
-                        }
-                    }
-                }
+                Children = rootChildren,
             });
+
+            registerGameplaySkinSceneVisuals();
 
             config.BindWith(BmsRulesetSetting.GimmickScrollMode, gimmickScrollMode);
             gimmickScrollMode.BindValueChanged(_ => updateGimmickScroll(), true);
@@ -261,17 +275,65 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void LoadComplete()
         {
             base.LoadComplete();
-            NewResult += onNewResult;
+            NewResult += OnNewResult;
         }
 
         protected override void Dispose(bool isDisposing)
         {
-            NewResult -= onNewResult;
+            NewResult -= OnNewResult;
+
+            if (isDisposing)
+            {
+                foreach (IDisposable registration in gameplaySkinSceneVisualRegistrations)
+                    registration.Dispose();
+
+                gameplaySkinSceneVisualRegistrations.Clear();
+            }
+
             base.Dispose(isDisposing);
+        }
+
+        private void registerGameplaySkinSceneVisuals()
+        {
+            foreach (IDisposable registration in gameplaySkinSceneVisualRegistrations)
+                registration.Dispose();
+
+            gameplaySkinSceneVisualRegistrations.Clear();
+
+            if (gameplaySkinSceneRuntime == null)
+                return;
+
+            if (!ReferenceEquals(gameplaySkinSceneRuntime.Publication.Snapshot, LayoutSnapshot.Neutral)
+                || !ReferenceEquals(gameplaySkinSceneRuntime.MaterialSet, ResolvedMaterialSet))
+            {
+                throw new InvalidOperationException("The BMS playfield scene gates require its exact committed layout/material publication.");
+            }
+
+            foreach (BmsPlayfieldStageFallbackVisual stage in gameplaySkinStageFallbackVisuals)
+            {
+                gameplaySkinSceneVisualRegistrations.Add(gameplaySkinSceneRuntime.RegisterProgrammaticVisual(
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.StageBackground, stage.Target),
+                    stage.StageBackgroundVisual));
+                gameplaySkinSceneVisualRegistrations.Add(gameplaySkinSceneRuntime.RegisterProgrammaticVisual(
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.PlayfieldBackdrop, stage.Target),
+                    stage.BackdropVisual));
+                gameplaySkinSceneVisualRegistrations.Add(gameplaySkinSceneRuntime.RegisterProgrammaticVisual(
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.PlayfieldBaseplate, stage.Target),
+                    stage.BaseplateVisual));
+                gameplaySkinSceneVisualRegistrations.Add(gameplaySkinSceneRuntime.RegisterProgrammaticVisual(
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, stage.Target),
+                    stage.JudgementVisual));
+            }
         }
 
         public override void Add(HitObject hitObject)
         {
+            if (hitObject is BmsBarLine barLine)
+            {
+                getBarLinePlayfield(barLine).Add(hitObject);
+                return;
+            }
+
             if (hitObject is BmsHitObject bmsHitObject)
             {
                 getLane(bmsHitObject).Add(hitObject);
@@ -283,6 +345,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override bool Remove(HitObject hitObject)
         {
+            if (hitObject is BmsBarLine barLine)
+                return getBarLinePlayfield(barLine).Remove(hitObject);
+
             if (hitObject is BmsHitObject bmsHitObject)
                 return getLane(bmsHitObject).Remove(hitObject);
 
@@ -291,6 +356,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override void Add(DrawableHitObject h)
         {
+            if (h.HitObject is BmsBarLine barLine)
+            {
+                getBarLinePlayfield(barLine).Add(h);
+                return;
+            }
+
             if (h.HitObject is BmsHitObject bmsHitObject)
             {
                 getLane(bmsHitObject).Add(h);
@@ -302,6 +373,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override bool Remove(DrawableHitObject h)
         {
+            if (h.HitObject is BmsBarLine barLine)
+                return getBarLinePlayfield(barLine).Remove(h);
+
             if (h.HitObject is BmsHitObject bmsHitObject)
                 return getLane(bmsHitObject).Remove(h);
 
@@ -319,25 +393,44 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        private void onNewResult(DrawableHitObject judgedObject, JudgementResult result)
+        internal void OnNewResult(DrawableHitObject judgedObject, JudgementResult result)
         {
             if (!judgedObject.DisplayResult || !DisplayJudgements.Value)
                 return;
 
-            judgements.Clear(false);
+            if (result.IsHit && result.HitObject is BmsHitObject hitExplosionObject)
+            {
+                if (drawableRuleset == null && gameplaySkinSceneRuntime != null)
+                    throw new InvalidOperationException("A production BMS hit explosion requires the engine-owned object identity provider.");
 
-            var judgement = judgementPooler.Get(result.Type, j => j.Apply(result, judgedObject));
+                getLane(hitExplosionObject).ShowHitExplosion(
+                    result,
+                    drawableRuleset?.GetGameplaySkinObjectId(result.HitObject) ?? 0);
+            }
+
+            foreach (BmsPlayfieldStageFallbackVisual stage in gameplaySkinStageFallbackVisuals)
+                stage.JudgementVisual.Clear(false);
+
+            BmsPlayfieldStageFallbackVisual targetStage = gameplaySkinStageFallbackVisuals[0];
+
+            if (judgedObject.HitObject is BmsHitObject bmsHitObject)
+            {
+                GameplaySkinLaneGroupId groupId = LayoutProvider.GetLaneForObject(bmsHitObject).NeutralLane.TopologyEntry.Identity.Group.Id;
+                targetStage = gameplaySkinStageFallbackVisuals.Single(stage => stage.Target.GroupId!.Equals(groupId));
+            }
+
+            var judgement = targetStage.JudgementPooler.Get(result.Type, j => j.Apply(result, judgedObject));
 
             if (judgement != null)
-                judgements.Add(judgement);
+                targetStage.JudgementVisual.Add(judgement);
         }
 
         private BmsLane createLane(BmsLaneLayout.Lane lane)
         {
             BmsGameplayLayoutLane snapshotLane = LayoutSnapshot.GetLaneByLogicalIndex(lane.LaneIndex);
             BmsLane drawableLane = lane.IsScratch
-                ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, LiftUnits, snapshotLane, LayoutSnapshot)
-                : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, LiftUnits, snapshotLane, LayoutSnapshot);
+                ? new BmsScratchLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, LiftUnits, snapshotLane, LayoutSnapshot, ResolvedMaterialSet)
+                : new BmsLane(lane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, LiftUnits, snapshotLane, LayoutSnapshot, ResolvedMaterialSet);
 
             drawableLane.SetKeysoundTimeline(beatmap.GetLaneKeysoundTimeline(lane.LaneIndex));
 
@@ -350,6 +443,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsGameplayLayoutGroupContainer createGroupContainer(GameplaySkinLayoutGroup group)
         {
             var groupLanes = lanes.Where(lane => lane.LayoutSnapshotLane?.NeutralLane.TopologyEntry.Identity.Group.Id == group.GroupId).ToArray();
+            BmsBarLinePlayfield barLinePlayfield = barLinePlayfields.Single(owner => owner.GroupId.Equals(group.GroupId));
             var container = new BmsGameplayLayoutGroupContainer(group.GroupId, LayoutSnapshot)
             {
                 Anchor = Anchor.TopLeft,
@@ -357,7 +451,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 RelativePositionAxes = Axes.X,
                 RelativeSizeAxes = Axes.Both,
                 Height = 1,
-                Children = groupLanes,
+                Children = groupLanes.Cast<Drawable>().Append(barLinePlayfield).ToArray(),
             };
 
             applyGroupBounds(container, group.Rect, LayoutSnapshot.PlayfieldRect);
@@ -386,6 +480,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             LaneLayout = snapshot.LaneLayout;
             lanes = LaneLayout.Lanes.Select(createLane).ToArray();
+            barLinePlayfields = LayoutSnapshot.Neutral.GroupsInLogicalOrder
+                                                  .Select(group => new BmsBarLinePlayfield(group, LayoutSnapshot, ResolvedMaterialSet, LiftUnits))
+                                                  .ToArray();
             groupContainers = LayoutSnapshot.Neutral.GroupsInLogicalOrder.Select(createGroupContainer).ToArray();
 
             if (lanes.Length > 0)
@@ -396,6 +493,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             foreach (BmsLane lane in lanes)
                 AddNested(lane);
+
+            foreach (BmsBarLinePlayfield barLinePlayfield in barLinePlayfields)
+                AddNested(barLinePlayfield);
 
             addMeasureBarLines(beatmap);
             addMines(beatmap);
@@ -420,18 +520,25 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsLane getLane(BmsHitObject hitObject)
             => lanes[LayoutProvider.GetLaneForObject(hitObject).LogicalIndex];
 
+        private BmsBarLinePlayfield getBarLinePlayfield(BmsBarLine barLine)
+        {
+            if ((uint)barLine.GroupLogicalIndex >= (uint)barLinePlayfields.Length)
+                throw new InvalidOperationException("A BMS bar line targets a group outside the exact C3 topology.");
+
+            BmsBarLinePlayfield playfield = barLinePlayfields[barLine.GroupLogicalIndex];
+
+            if (barLine.GroupId == null || !barLine.GroupId.Equals(playfield.GroupId))
+                throw new InvalidOperationException("A BMS bar line's stable GroupId does not match its exact logical group.");
+
+            return playfield;
+        }
+
         private void addMeasureBarLines(BmsBeatmap beatmap)
         {
             foreach (double startTime in beatmap.MeasureStartTimes)
             {
-                foreach (var lane in lanes)
-                {
-                    lane.Add(new DrawableBmsBarLine(new BmsBarLine
-                    {
-                        StartTime = startTime,
-                        Major = true,
-                    }, lane.LayoutLane, DisplayColumnCount, LaneLayout.Keymode, LayoutProfile, lane.LayoutSnapshotLane, LayoutSnapshot));
-                }
+                foreach (BmsBarLinePlayfield playfield in barLinePlayfields)
+                    playfield.AddMeasureBarLine(startTime);
             }
         }
 
@@ -445,8 +552,98 @@ namespace osu.Game.Rulesets.Bms.UI
             foreach (var mine in beatmap.Mines)
             {
                 int laneIndex = LayoutSnapshot.GetLaneByLogicalIndex(mine.LaneIndex).LogicalIndex;
-                lanes[laneIndex].Add(new DrawableBmsMine(mine));
+                lanes[laneIndex].Add(mine);
             }
         }
+    }
+
+    /// <summary>
+    /// One deck-local owner for the legacy/programmatic visuals represented by stage-scoped public slots.
+    /// The wrappers use only rectangles from the exact C3 snapshot; they do not solve geometry.
+    /// </summary>
+    internal sealed class BmsPlayfieldStageFallbackVisual
+    {
+        public GameplaySkinResolvedMaterialTarget Target { get; }
+
+        public Container StageBackgroundVisual { get; }
+
+        public Container BackdropVisual { get; }
+
+        public Container BaseplateVisual { get; }
+
+        public JudgementContainer<DrawableBmsJudgement> JudgementVisual { get; }
+
+        public JudgementPooler<DrawableBmsJudgement> JudgementPooler { get; }
+
+        public BmsPlayfieldStageFallbackVisual(
+            GameplaySkinLaneTopologyGroup group,
+            BmsGameplayLayoutSnapshot snapshot,
+            BmsKeymode keymode,
+            int laneCount,
+            IEnumerable<HitResult> gameplayJudgements)
+        {
+            ArgumentNullException.ThrowIfNull(group);
+            ArgumentNullException.ThrowIfNull(snapshot);
+            ArgumentNullException.ThrowIfNull(gameplayJudgements);
+
+            Target = GameplaySkinResolvedMaterialTarget.ForStage(group);
+            GameplaySkinLayoutRect groupRect = snapshot.Neutral.GetGroup(group.Identity.Id).Rect;
+            // The legacy BMS renderer has one textured playfield backdrop but no separate outer stage art. Keep a
+            // real, independently gateable stage owner with an empty compatibility fallback so authoring one public
+            // surface can never hide the other. This owner is geometry-only and performs no second skin lookup.
+            StageBackgroundVisual = createStageOwner(
+                groupRect,
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1),
+                new Container
+                {
+                    Name = "Stage background compatibility owner",
+                    RelativeSizeAxes = Axes.Both,
+                });
+            BackdropVisual = createStageOwner(
+                groupRect,
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1),
+                new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Backdrop, keymode, laneCount))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CentreComponent = false,
+                });
+            BaseplateVisual = createStageOwner(
+                groupRect,
+                snapshot.PlayfieldRect,
+                new SkinnableDrawable(new BmsPlayfieldSkinLookup(BmsPlayfieldSkinElements.Baseplate, keymode, laneCount))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CentreComponent = false,
+                });
+            JudgementVisual = new JudgementContainer<DrawableBmsJudgement>
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                RelativePositionAxes = Axes.X,
+                RelativeSizeAxes = Axes.Both,
+                X = (groupRect.X - snapshot.PlayfieldRect.X) / snapshot.PlayfieldRect.Width,
+                Width = groupRect.Width / snapshot.PlayfieldRect.Width,
+                Height = 1,
+            };
+            JudgementPooler = new JudgementPooler<DrawableBmsJudgement>(
+                gameplayJudgements,
+                judgement => judgement.InitialiseStage(group.Identity.Id));
+        }
+
+        private static Container createStageOwner(
+            GameplaySkinLayoutRect rect,
+            GameplaySkinLayoutRect parent,
+            Drawable child)
+            => new Container
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                RelativePositionAxes = Axes.Both,
+                RelativeSizeAxes = Axes.Both,
+                Position = new osuTK.Vector2((rect.X - parent.X) / parent.Width, (rect.Y - parent.Y) / parent.Height),
+                Size = new osuTK.Vector2(rect.Width / parent.Width, rect.Height / parent.Height),
+                Masking = true,
+                Child = child,
+            };
     }
 }

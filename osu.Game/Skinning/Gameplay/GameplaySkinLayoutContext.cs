@@ -228,6 +228,14 @@ namespace osu.Game.Skinning.Gameplay
 
         public float DpiScale { get; }
 
+        /// <summary>
+        /// Exact production render-surface extent captured with the layout. Scene framebuffer and glyph budgets use
+        /// these pixels rather than guessing from aspect ratio or DPI.
+        /// </summary>
+        public int RenderPixelWidth { get; }
+
+        public int RenderPixelHeight { get; }
+
         public GameplaySkinScrollDirection ScrollDirection { get; }
 
         public GameplaySkinPackageRevision PackageRevision { get; }
@@ -246,6 +254,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLayoutRect safeBounds,
             float aspectRatio,
             float dpiScale,
+            int renderPixelWidth,
+            int renderPixelHeight,
             GameplaySkinScrollDirection scrollDirection,
             GameplaySkinPackageRevision packageRevision,
             long topologyRevision,
@@ -260,6 +270,8 @@ namespace osu.Game.Skinning.Gameplay
             SafeBounds = safeBounds;
             AspectRatio = aspectRatio;
             DpiScale = dpiScale;
+            RenderPixelWidth = renderPixelWidth;
+            RenderPixelHeight = renderPixelHeight;
             ScrollDirection = scrollDirection;
             PackageRevision = packageRevision;
             TopologyRevision = topologyRevision;
@@ -279,7 +291,9 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScrollDirection scrollDirection,
             GameplaySkinPackageRevision packageRevision,
             long topologyRevision,
-            long layoutRevision)
+            long layoutRevision,
+            int renderPixelWidth = 0,
+            int renderPixelHeight = 0)
         {
             validateToken(rulesetId, nameof(rulesetId));
             validateToken(nativeContextId, nameof(nativeContextId));
@@ -297,6 +311,20 @@ namespace osu.Game.Skinning.Gameplay
             if (!float.IsFinite(dpiScale) || dpiScale <= 0)
                 throw new ArgumentOutOfRangeException(nameof(dpiScale), dpiScale, "DPI scale must be finite and positive.");
 
+            if (renderPixelWidth == 0 && renderPixelHeight == 0)
+            {
+                // Compatibility/test callers which do not own a window receive one deterministic conservative
+                // reference surface. Production adapters always supply the exact host extent.
+                renderPixelHeight = checked((int)Math.Ceiling(1080 * Math.Max(1, dpiScale)));
+                renderPixelWidth = checked((int)Math.Ceiling(renderPixelHeight * aspectRatio));
+            }
+
+            if (renderPixelWidth is <= 0 or > 16384)
+                throw new ArgumentOutOfRangeException(nameof(renderPixelWidth), renderPixelWidth, "Render width must be within the supported hard surface budget.");
+
+            if (renderPixelHeight is <= 0 or > 16384)
+                throw new ArgumentOutOfRangeException(nameof(renderPixelHeight), renderPixelHeight, "Render height must be within the supported hard surface budget.");
+
             if (!Enum.IsDefined(scrollDirection))
                 throw new ArgumentOutOfRangeException(nameof(scrollDirection), scrollDirection, "Scroll direction must be a defined value.");
 
@@ -313,6 +341,8 @@ namespace osu.Game.Skinning.Gameplay
                 safeBounds,
                 aspectRatio,
                 dpiScale,
+                renderPixelWidth,
+                renderPixelHeight,
                 scrollDirection,
                 packageRevision,
                 topologyRevision,

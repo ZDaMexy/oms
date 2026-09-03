@@ -28,6 +28,8 @@ metadata:
 - `SkinReloadableDrawable` / `ISkinSource.SourceChanged` 会被 scheduler 延后或合并，也没有 package validation/layout revision authority，不能直接当原子 reload producer。
 - canonical cursor 的 sequence 连续规则适用于过滤前内部流；未来 capability/family filtering 若保留原 sequence，外部 filtered view 可以看到 gap，不能把该 cursor 错接到过滤后流。
 
-## 尚未闭合
+## C5 已接 production（2026-09-03）
 
-现有 envelope/category/order foundation 的空 fixture payload 不能证明具体 Snapshot/Reset 携带完整 state，也不能证明 attach/reload/seek/retry 的真实 producer 会正确投递。concrete payload、sampling、fault isolation、dispatcher/scene/script consumer 与生产接线的当前状态只看 P1-A；本文件只保留不能由 foundation 推导出的边界。
+`GameplaySkinEventRuntimeHost`、`GameplaySkinEventStream` 与 `GameplaySkinEventStreamCursor` 已由真实 BMS/mania/core gameplay state 驱动并进入 scene renderer。lifecycle、layout/publication、input、object spawn/despawn/state、judgement、score/combo/gauge、timing/beat/bar/BPM/stop/scroll 与 BGA viewport/content-state 只读摘要都带 v1 envelope 的 epoch、连续 sequence、revision、gameplay time、LaneId/GroupId 与 immutable payload；subscription queue 有界且 overflow 通过 Reset/Snapshot 重建，不静默丢事件。
+
+attach/reload/retry/seek/rewind/late attach 的完整 Snapshot/Reset与旧epoch隔离已在生产路径验证。engine envelope 可发布 `GameplayResumed`，但 scene state-machine ABI 明确拒绝 `gameplay.resume`，因为 Snapshot 可直接投影 Running 状态；这不是缺失 producer，也不是允许第二状态 authority。脚本、capability negotiation与最终整包 reload仍留 C6。

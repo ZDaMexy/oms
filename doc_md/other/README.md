@@ -7,7 +7,7 @@
 ## 文档清单
 
 - [SKINNING.md](SKINNING.md)：皮肤制作手册、当前 fallback 粒度与未冻结边界。
-- [GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)：C4冻结的28项Gameplay Skin V1公共目录、Common/BMS v1作者语法、target/三态/precedence、runtime边界与beatmap-local终态。
+- [GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)：C4冻结的28项Gameplay Skin V1公共目录、Common/BMS v1作者语法、target/三态/precedence、C5 runtime capability边界与beatmap-local终态。
 - [RELEASE.md](RELEASE.md)：发行方式、打包约束与公开 release gate。
 - [IIDX_REFERENCE_AUDIT.md](IIDX_REFERENCE_AUDIT.md)：外部 IIDX / LR2 / beatoraja 方向校准与训练反馈基线。
 - [BMS_FORMAT_REFERENCE.md](BMS_FORMAT_REFERENCE.md)：BMS / bmson 格式权威参考（channel 编码陷阱、时序、长条、复合规则、控制流与解析审查对照清单），主要服务 [P1-K 状态](../subline/P1-K/DEVELOPMENT_STATUS.md) 所属解析链路审查。
@@ -20,6 +20,7 @@
 - [SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md](SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)：C1闭门边界与产品价值复核；其中进度只作为交付时快照，当前状态与后续工作门以P1-A四件套为准。
 - [SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md](SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)：C3的P1-K keymode/lane前置、唯一immutable gameplay layout、全production consumer与C2 revision pair扩展的完成边界和最终验证；当前燃尽仍以P1-A四件套为准。
 - [SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md](SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)：C4的public catalog/shared codec/三态resolver、BMS+mania production resolved material、beatmap-local排除、revision triple与最终验证；当前燃尽仍以P1-A四件套为准。
+- [SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md](SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)：C5的versioned scene/animation、只读event Snapshot/Reset、全部适用public slot host、预算/池化、publication并发、验证与四类终审；当前燃尽与C6边界仍以P1-A四件套为准。
 - [SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md](SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)：已导入 `.osk` 的 BMS 普通短键编号帧动画、选择切换与 selected 坏包回落的确定性手工素材及验收边界。
 - [SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)：Skin V1 自动 gate 后集中等待用户签收的视觉清单、状态定义与反馈记录。
 

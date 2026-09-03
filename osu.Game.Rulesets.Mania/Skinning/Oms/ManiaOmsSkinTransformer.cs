@@ -42,12 +42,12 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     case GlobalSkinnableContainers.MainHUDComponents:
                         return new ManiaGameplayHudComponentsContainer(beatmap.Stages, this, container =>
                         {
-                            var combo = container.ChildrenOfType<OmsManiaComboCounter>().FirstOrDefault();
+                            OmsManiaComboCounter[] combos = container.ChildrenOfType<OmsManiaComboCounter>().ToArray();
                             var spectatorList = container.OfType<SpectatorList>().FirstOrDefault();
                             var leaderboard = container.OfType<DrawableGameplayLeaderboard>().FirstOrDefault();
 
-                            if (combo != null)
-                                container.ApplyComboPlacement(combo);
+                            for (int stageIndex = 0; stageIndex < combos.Length; stageIndex++)
+                                container.ApplyComboPlacement(combos[stageIndex], stageIndex);
 
                             if (spectatorList != null)
                             {
@@ -67,9 +67,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                                 drawable.UsesFixedAnchor = true;
                         })
                         {
-                            new OmsManiaComboCounter(),
-                            new SpectatorList(),
-                            new DrawableGameplayLeaderboard(),
+                            Children = Enumerable.Range(0, beatmap.Stages.Count)
+                                                 .Select(_ => (Drawable)new OmsManiaComboCounter())
+                                                 .Concat(new Drawable[]
+                                                 {
+                                                     new SpectatorList(),
+                                                     new DrawableGameplayLeaderboard(),
+                                                 }).ToArray(),
                         };
                 }
 

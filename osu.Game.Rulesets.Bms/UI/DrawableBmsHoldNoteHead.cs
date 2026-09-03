@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning.Gameplay;
@@ -9,6 +10,11 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class DrawableBmsHoldNoteHead : DrawableBmsHitObject
     {
+        public DrawableBmsHoldNoteHead()
+            : this(new BmsHoldNoteHead { Keymode = BmsKeymode.Key7K })
+        {
+        }
+
         public DrawableBmsHoldNoteHead(
             BmsHoldNoteHead hitObject,
             BmsGameplayLayoutSnapshot? gameplayLayoutSnapshot = null,

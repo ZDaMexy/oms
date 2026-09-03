@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -27,6 +28,7 @@ using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Play.HUD.ClicksPerSecond;
 using osu.Game.Screens.Play.HUD.JudgementCounter;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Screens.Play
@@ -104,10 +106,38 @@ namespace osu.Game.Screens.Play
 
         private readonly SkinnableContainer mainComponents;
 
+        private readonly Container gameplaySkinHudPartitions;
+
         [CanBeNull]
         private readonly SkinnableContainer rulesetComponents;
 
         private readonly List<Drawable> hideTargets;
+
+        private GameplaySkinHudProgrammaticVisualAdapter gameplaySkinHudAdapter;
+
+        internal IReadOnlyList<Drawable> GameplaySkinGaugeOwners
+            => gameplaySkinHudAdapter?.GaugePartitions.Select(partition => (Drawable)partition.Owner).ToArray() ?? Array.Empty<Drawable>();
+
+        internal IReadOnlyList<Drawable> GameplaySkinTextOwners
+            => gameplaySkinHudAdapter?.TextPartitions.Select(partition => (Drawable)partition.Owner).ToArray() ?? Array.Empty<Drawable>();
+
+        internal IReadOnlyList<GameplaySkinHudProgrammaticVisualPartition> GameplaySkinGaugePartitions
+            => gameplaySkinHudAdapter?.GaugePartitions ?? Array.Empty<GameplaySkinHudProgrammaticVisualPartition>();
+
+        internal IReadOnlyList<GameplaySkinHudProgrammaticVisualPartition> GameplaySkinTextPartitions
+            => gameplaySkinHudAdapter?.TextPartitions ?? Array.Empty<GameplaySkinHudProgrammaticVisualPartition>();
+
+        internal IReadOnlyList<GameplaySkinHudProgrammaticVisualPartition> GameplaySkinComboPartitions
+            => gameplaySkinHudAdapter?.ComboPartitions ?? Array.Empty<GameplaySkinHudProgrammaticVisualPartition>();
+
+        internal IReadOnlyList<GameplaySkinHudProgrammaticVisualPartition> GameplaySkinJudgementPartitions
+            => gameplaySkinHudAdapter?.JudgementPartitions ?? Array.Empty<GameplaySkinHudProgrammaticVisualPartition>();
+
+        internal IReadOnlyList<GameplaySkinHudProgrammaticVisualPartition> GameplaySkinDecorationPartitions
+            => gameplaySkinHudAdapter?.DecorationPartitions ?? Array.Empty<GameplaySkinHudProgrammaticVisualPartition>();
+
+        internal IReadOnlyList<GameplaySkinHudProgrammaticVisualResidual> GameplaySkinHudResidualPartitions
+            => gameplaySkinHudAdapter?.ResidualPartitions ?? Array.Empty<GameplaySkinHudProgrammaticVisualResidual>();
 
         /// <summary>
         /// The container for skin components attached to <see cref="GlobalSkinnableContainers.Playfield"/>
@@ -132,6 +162,11 @@ namespace osu.Game.Screens.Play
                 clicksPerSecondController = new ClicksPerSecondController(),
                 InputCountController = new InputCountController(),
                 mainComponents = new HUDComponentsContainer { AlwaysPresent = true, },
+                gameplaySkinHudPartitions = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    AlwaysPresent = true,
+                },
                 drawableRuleset != null
                     ? (rulesetComponents = new HUDComponentsContainer(drawableRuleset.Ruleset.RulesetInfo) { AlwaysPresent = true, })
                     : Empty(),
@@ -190,7 +225,7 @@ namespace osu.Game.Screens.Play
                 },
             };
 
-            hideTargets = new List<Drawable> { mainComponents, TopRightElements, rightSettings };
+            hideTargets = new List<Drawable> { mainComponents, gameplaySkinHudPartitions, TopRightElements, rightSettings };
 
             if (rulesetComponents != null)
                 hideTargets.Add(rulesetComponents);
@@ -233,6 +268,14 @@ namespace osu.Game.Screens.Play
         {
             base.LoadComplete();
 
+            if (drawableRuleset is IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { } sceneRuntime })
+            {
+                gameplaySkinHudAdapter = new GameplaySkinHudProgrammaticVisualAdapter(
+                    sceneRuntime,
+                    rulesetComponents == null ? new[] { mainComponents } : new[] { mainComponents, rulesetComponents },
+                    gameplaySkinHudPartitions);
+            }
+
             ShowHud.BindValueChanged(visible => hideTargets.ForEach(d => d.FadeTo(visible.NewValue ? 1 : 0, FADE_DURATION, FADE_EASING)));
 
             holdingForHUD.BindValueChanged(_ => updateVisibility());
@@ -258,6 +301,14 @@ namespace osu.Game.Screens.Play
 
             ModDisplay.ExpansionMode = ExpansionMode.AlwaysExpanded;
             Scheduler.AddDelayed(() => ModDisplay.ExpansionMode = ExpansionMode.ExpandOnHover, 1200);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+                gameplaySkinHudAdapter?.Dispose();
+
+            base.Dispose(isDisposing);
         }
 
         protected override void Update()

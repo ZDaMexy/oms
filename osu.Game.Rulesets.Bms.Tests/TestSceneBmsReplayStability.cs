@@ -7,6 +7,7 @@ using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Replays;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Tests.Visual;
@@ -93,8 +94,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static HitResult[] getExpectedResults(BmsBeatmap playableBeatmap, HitResult expectedNoteResult)
         {
-            int laneCount = BmsLaneLayout.CreateCompatibilityForTesting(playableBeatmap).Lanes.Count;
-            int barLineJudgements = playableBeatmap.MeasureStartTimes.Count * laneCount;
+            int groupCount = BmsGameplaySkinLaneTopologyFactory.Create(playableBeatmap.BmsInfo.Keymode, BmsPlayfieldStyle.Center)
+                                                                   .Topology.GroupsInLogicalOrder.Count;
+            int barLineJudgements = playableBeatmap.MeasureStartTimes.Count * groupCount;
             int backgroundJudgements = playableBeatmap.HitObjects.Count(hitObject => hitObject is not BmsHitObject);
 
             return Enumerable.Repeat(HitResult.IgnoreHit, barLineJudgements + backgroundJudgements)

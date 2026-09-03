@@ -2,6 +2,8 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 
 namespace osu.Game.Skinning.Gameplay
@@ -35,19 +37,49 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinResolvedMaterialSet MaterialSet { get; }
 
+        /// <summary>
+        /// The exact immutable C5 scene graph/resources prepared with this package/layout/material publication.
+        /// </summary>
+        public GameplaySkinPreparedScene PreparedScene { get; }
+
+        /// <summary>
+        /// Exact initial revision vector used by the read-only event stream for this committed root.
+        /// </summary>
+        public GameplaySkinEventRevision EventRevision => GameplaySkinEventRevision.Create(
+            Snapshot.Context.PackageRevision.Generation,
+            Snapshot.Context.LayoutRevision,
+            MaterialSet.LayoutRevision,
+            PreparedScene.SceneRevision);
+
         private GameplaySkinLayoutPublication(
             GameplaySkinLayoutSnapshot snapshot,
             IGameplaySkinLayoutAdapter adapter,
             GameplaySkinResolvedMaterialSet materialSet,
+            GameplaySkinPreparedScene? preparedScene = null,
             IDisposable? retirement = null)
         {
-            this.retirement = retirement == null ? null : new PublicationRetirement(retirement);
+            IDisposable? sceneRetirement = null;
 
             try
             {
+                sceneRetirement = preparedScene?.TakeRetirement();
+                this.retirement = sceneRetirement == null && retirement == null
+                    ? null
+                    : new PublicationRetirement(sceneRetirement, retirement);
+
+                // The aggregate owns both handles only after its construction and field assignment completed. Keep
+                // the locals live until then so even an allocation failure while creating the aggregate cannot strand
+                // a prepared scene texture or an exact-package borrow outside every owner.
+                if (this.retirement != null)
+                {
+                    sceneRetirement = null;
+                    retirement = null;
+                }
+
                 Snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
                 Adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
                 MaterialSet = materialSet ?? throw new ArgumentNullException(nameof(materialSet));
+                PreparedScene = preparedScene ?? GameplaySkinPreparedScene.CreateEmpty(snapshot, materialSet);
 
                 if (!ReferenceEquals(adapter.Snapshot, snapshot))
                     throw new ArgumentException("A gameplay layout adapter must retain the exact neutral snapshot being published.", nameof(adapter));
@@ -61,21 +93,52 @@ namespace osu.Game.Skinning.Gameplay
                         nameof(materialSet));
                 }
 
-                bool supportedContract = materialSet.ContractIdentity.Equals(GameplaySkinMaterialContractIdentity.Current)
+                bool supportedContract = materialSet.ContractIdentity.IsCurrentFor(materialSet.RuntimeSupportProfile)
+                                         && ReferenceEquals(
+                                             materialSet.RuntimeSupportProfile,
+                                             GameplaySkinRuntimeSupportProfile.ForRuleset(snapshot.Context.RulesetId))
                                          || snapshot.Context.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility
                                          && materialSet.IsEmpty
+                                         && ReferenceEquals(materialSet.RuntimeSupportProfile, GameplaySkinRuntimeSupportProfile.CompatibilityEmpty)
                                          && materialSet.ContractIdentity.Equals(GameplaySkinMaterialContractIdentity.CompatibilityEmpty);
 
                 if (!supportedContract)
                 {
                     throw new ArgumentException(
-                        "An exact gameplay layout publication must carry the current catalog/codec/resolver contract; only a detached compatibility package may carry the empty compatibility contract.",
+                        "An exact gameplay layout publication must carry the current catalog/codec/resolver/runtime-support contract and exact ruleset profile; only a detached compatibility package may carry the empty compatibility contract.",
                         nameof(materialSet));
+                }
+
+                if (!ReferenceEquals(PreparedScene.Snapshot, snapshot)
+                    || !ReferenceEquals(PreparedScene.PackageRevision, snapshot.Context.PackageRevision)
+                    || !ReferenceEquals(PreparedScene.MaterialSet, materialSet)
+                    || PreparedScene.LayoutRevision != snapshot.Context.LayoutRevision
+                    || PreparedScene.MaterialRevision != materialSet.LayoutRevision
+                    || PreparedScene.SceneRevision != snapshot.Context.LayoutRevision)
+                {
+                    throw new ArgumentException(
+                        "A prepared gameplay skin scene must retain the exact package/layout/material publication.",
+                        nameof(preparedScene));
                 }
             }
             catch
             {
-                DisposeRetirement();
+                if (this.retirement != null)
+                    DisposeRetirement();
+                else
+                {
+                    // Aggregate construction itself may fail before the field can take ownership. Retire both
+                    // provisional handles independently and exactly once in that case.
+                    try
+                    {
+                        retirement?.Dispose();
+                    }
+                    finally
+                    {
+                        sceneRetirement?.Dispose();
+                    }
+                }
+
                 throw;
             }
         }
@@ -101,6 +164,21 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         /// <summary>
+        /// Creates the indivisible C5 package/layout/material/scene publication.
+        /// </summary>
+        public static GameplaySkinLayoutPublication Create<TAdapter>(
+            TAdapter adapter,
+            GameplaySkinResolvedMaterialSet materialSet,
+            GameplaySkinPreparedScene preparedScene)
+            where TAdapter : class, IGameplaySkinLayoutAdapter
+        {
+            ArgumentNullException.ThrowIfNull(adapter);
+            ArgumentNullException.ThrowIfNull(materialSet);
+            ArgumentNullException.ThrowIfNull(preparedScene);
+            return new GameplaySkinLayoutPublication(adapter.Snapshot, adapter, materialSet, preparedScene);
+        }
+
+        /// <summary>
         /// Creates a publication carrying resources which must remain alive for exactly the committed root lifetime.
         /// </summary>
         /// <remarks>
@@ -117,7 +195,24 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentNullException.ThrowIfNull(adapter);
             ArgumentNullException.ThrowIfNull(materialSet);
             ArgumentNullException.ThrowIfNull(retirement);
-            return new GameplaySkinLayoutPublication(adapter.Snapshot, adapter, materialSet, retirement);
+            return new GameplaySkinLayoutPublication(adapter.Snapshot, adapter, materialSet, retirement: retirement);
+        }
+
+        /// <summary>
+        /// Creates the indivisible C5 publication and transfers its aggregate provisional retirement.
+        /// </summary>
+        public static GameplaySkinLayoutPublication Create<TAdapter>(
+            TAdapter adapter,
+            GameplaySkinResolvedMaterialSet materialSet,
+            GameplaySkinPreparedScene preparedScene,
+            IDisposable retirement)
+            where TAdapter : class, IGameplaySkinLayoutAdapter
+        {
+            ArgumentNullException.ThrowIfNull(adapter);
+            ArgumentNullException.ThrowIfNull(materialSet);
+            ArgumentNullException.ThrowIfNull(preparedScene);
+            ArgumentNullException.ThrowIfNull(retirement);
+            return new GameplaySkinLayoutPublication(adapter.Snapshot, adapter, materialSet, preparedScene, retirement);
         }
 
         public TAdapter GetAdapter<TAdapter>()
@@ -146,14 +241,37 @@ namespace osu.Game.Skinning.Gameplay
 
         private sealed class PublicationRetirement : IDisposable
         {
-            private IDisposable? target;
+            private IDisposable[]? targets;
 
-            public PublicationRetirement(IDisposable target)
+            public PublicationRetirement(params IDisposable?[] targets)
             {
-                this.target = target;
+                this.targets = targets.Where(target => target != null).Cast<IDisposable>().ToArray();
             }
 
-            public void Dispose() => Interlocked.Exchange(ref target, null)?.Dispose();
+            public void Dispose()
+            {
+                IDisposable[]? current = Interlocked.Exchange(ref targets, null);
+
+                if (current == null)
+                    return;
+
+                Exception? firstFailure = null;
+
+                for (int i = current.Length - 1; i >= 0; i--)
+                {
+                    try
+                    {
+                        current[i].Dispose();
+                    }
+                    catch (Exception exception)
+                    {
+                        firstFailure ??= exception;
+                    }
+                }
+
+                if (firstFailure != null)
+                    ExceptionDispatchInfo.Capture(firstFailure).Throw();
+            }
         }
 
         private sealed class NeutralAdapter : IGameplaySkinLayoutAdapter

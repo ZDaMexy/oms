@@ -59,4 +59,10 @@ metadata:
 
 ## 当前工程入口
 
-视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响后续实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。C2三源publication/detach/retire、C3唯一layout/BGA viewport与C4 shared codec/三态material已作为同一package+layout+material引用签发；燃尽为`4/7 closed，C5 active`。scene/event、剩余optional slot、sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback不得提前计为完成；新beatmap-local作者格式已明确排除，既有direct visual compatibility保留。
+视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响后续实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。C2三源publication/detach/retire、C3唯一layout/BGA viewport、C4 shared codec/三态material与C5 prepared scene/read-only event/slot host已作为同一package+layout+material+scene引用签发；燃尽为`5/7 closed，C6 active`。sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback不得提前计为完成；新beatmap-local作者格式已明确排除，既有direct visual compatibility保留。
+
+## C5 BMS authoring/runtime 召回
+
+BMS 作者包现在可在 exact captured package 中附带 v1 manifest/scene，通过 shared prepared graph 驱动全部适用 global/stage/group/lane、Note/LN、lane cover、barline、judgement/combo/gauge/HUD、key/effect、turntable/laser、BGA frame/viewport 与 decoration。5K/7K/9K/14K、14K 双 deck、Scratch/Special 的 target/index 仍完全由 C3 topology 与 stable LaneId/GroupId决定；Mirror/Random 只改变对象最终 LaneId，keysound/resource/scene/event 一起随 lane 走。
+
+真实 BMS lifecycle/input/object/judgement/timing/BGA state 进入 bounded read-only event stream；scene 不得改变判定、score、input、clock、BGA timeline 或 P1-K keysound。BMS profile 对 catalog 28 项均有 route，9K 的 Turntable/Laser 只因 catalog applicability 不适用；所有新 host 服从 C2 participant/lease/detach/retire，C6 才加入 script/sandbox 和最终整包 reload。

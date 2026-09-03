@@ -26,6 +26,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public float DpiScale { get; }
 
+        public int RenderPixelWidth { get; }
+
+        public int RenderPixelHeight { get; }
+
         public GameplaySkinScrollDirection ScrollDirection { get; }
 
         public IReadOnlyList<GameplaySkinLayoutDiagnostic> Diagnostics
@@ -37,7 +41,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             float aspectRatio,
             float dpiScale,
             GameplaySkinScrollDirection scrollDirection = GameplaySkinScrollDirection.Down,
-            IEnumerable<GameplaySkinLayoutDiagnostic>? diagnostics = null)
+            IEnumerable<GameplaySkinLayoutDiagnostic>? diagnostics = null,
+            int renderPixelWidth = 0,
+            int renderPixelHeight = 0)
         {
             if (!screenBounds.Contains(safeBounds))
                 throw new ArgumentException("BMS safe bounds must remain within the exact screen bounds.", nameof(safeBounds));
@@ -48,10 +54,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (!float.IsFinite(dpiScale) || dpiScale <= 0)
                 throw new ArgumentOutOfRangeException(nameof(dpiScale));
 
+            if (renderPixelWidth == 0 && renderPixelHeight == 0)
+            {
+                renderPixelHeight = checked((int)Math.Ceiling(1080 * Math.Max(1, dpiScale)));
+                renderPixelWidth = checked((int)Math.Ceiling(renderPixelHeight * aspectRatio));
+            }
+
+            if (renderPixelWidth <= 0 || renderPixelHeight <= 0)
+                throw new ArgumentOutOfRangeException(nameof(renderPixelWidth));
+
             ScreenBounds = screenBounds;
             SafeBounds = safeBounds;
             AspectRatio = aspectRatio;
             DpiScale = dpiScale;
+            RenderPixelWidth = renderPixelWidth;
+            RenderPixelHeight = renderPixelHeight;
             ScrollDirection = scrollDirection;
             this.diagnostics = diagnostics?.ToArray() ?? Array.Empty<GameplaySkinLayoutDiagnostic>();
         }
@@ -265,7 +282,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 environment.ScrollDirection,
                 packageRevision,
                 topologyPublication.Publication.Revision,
-                layoutRevision);
+                layoutRevision,
+                environment.RenderPixelWidth,
+                environment.RenderPixelHeight);
 
             var surfaces = new List<GameplaySkinLayoutSurface>
             {

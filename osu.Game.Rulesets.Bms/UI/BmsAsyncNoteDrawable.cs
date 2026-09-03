@@ -1,6 +1,8 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
@@ -10,6 +12,7 @@ using osu.Framework.Threading;
 using osu.Game.Graphics;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -22,16 +25,24 @@ namespace osu.Game.Rulesets.Bms.UI
     /// component or its final fallback has fully loaded; the prepared result is then replaced once on update.
     /// Materialisation remains per-host; cross-consumer publication is coordinated by the SkinManager current-revision barrier.
     /// </remarks>
-    internal sealed partial class BmsAsyncNoteDrawable : SkinReloadableDrawable
+    internal sealed partial class BmsAsyncNoteDrawable : SkinReloadableDrawable, IGameplaySkinSpecialisedSceneConsumer
     {
         private protected override bool AdoptRevisionAfterSynchronousSkinChanged => false;
 
         private protected override Scheduler SkinChangeScheduler => RevisionPublicationScheduler;
 
         private readonly object revisionWorkAdmissionGate = new object();
+        private readonly Container sceneVisualContainer;
         private CancellationTokenSource? loadCancellation;
         private PendingAsyncDrawableOwnership<BmsPreparedNoteDrawable>? pendingLoad;
         private Drawable? publishedChild;
+        private GameplaySkinSceneRuntimeHost? sceneRuntime;
+        private GameplaySkinSpecialisedSceneVisual? sceneVisual;
+        private IDisposable? programmaticVisualRegistration;
+        private GameplaySkinResolvedMaterialKey? resolvedMaterialKey;
+        private GameplaySkinSceneHostedSlot? sceneVisualGate;
+        private IReadOnlyList<string> appliedSceneNodeIds = Array.Empty<string>();
+        private bool pooledUsageActive;
         private int generation;
         private int revisionWorkShutdownRequested;
 
@@ -48,6 +59,22 @@ namespace osu.Game.Rulesets.Bms.UI
         public Drawable? Drawable { get; private set; }
 
         internal BmsNoteSkinLookup Lookup { get; }
+
+        public GameplaySkinResolvedMaterialSet ResolvedMaterialSet
+            => Lookup.MaterialSet
+               ?? throw new InvalidOperationException("A compatibility BMS note host has no exact C4 material publication.");
+
+        public GameplaySkinResolvedMaterialKey ResolvedMaterialKey
+            => resolvedMaterialKey
+               ?? throw new InvalidOperationException("A compatibility BMS note host has no specialised C5 material key.");
+
+        public GameplaySkinSceneHostedSlot SceneVisualGate
+            => sceneVisualGate
+               ?? throw new InvalidOperationException("A compatibility BMS note host has no specialised C5 visual gate.");
+
+        public IReadOnlyList<string> AppliedSceneNodeIds => appliedSceneNodeIds;
+
+        internal GameplaySkinSpecialisedSceneVisual? SpecialisedSceneVisual => sceneVisual;
 
         public BmsAsyncNoteDrawable(BmsNoteSkinLookup lookup)
         {
@@ -69,7 +96,73 @@ namespace osu.Game.Rulesets.Bms.UI
             Drawable = Lookup.UsesResolvedMaterial
                 ? new BmsPublishedNotePendingDrawable()
                 : createProtectedFallback(Lookup);
-            InternalChild = publishedChild = Drawable;
+            publishedChild = Drawable;
+            InternalChildren = new[]
+            {
+                publishedChild,
+                sceneVisualContainer = new Container { RelativeSizeAxes = Axes.Both },
+            };
+        }
+
+        [BackgroundDependencyLoader(true)]
+        private void loadGameplaySkinScene(GameplaySkinSceneRuntimeHost? runtime)
+        {
+            if (runtime == null || !Lookup.UsesResolvedMaterial || Lookup.LayoutSnapshot == null || Lookup.MaterialSet == null)
+                return;
+
+            if (!BmsManagedPackageNoteCompatibilityProvider.TryGetDescriptor(Lookup.Element, out GameplaySkinSlotDescriptor descriptor))
+                throw new InvalidOperationException("The BMS note scene consumer requires a public C4 slot descriptor.");
+
+            BmsGameplayLayoutLane lane = Lookup.LayoutSnapshot.GetLaneByLogicalIndex(Lookup.LaneIndex);
+
+            if (Lookup.LaneId == null || !Lookup.LaneId.Equals(lane.LaneId))
+                throw new InvalidOperationException("The BMS note scene consumer requires the exact C3 LaneId carried by its lookup.");
+
+            var key = new GameplaySkinResolvedMaterialKey(descriptor, BmsGameplayNoteMaterialTarget.Create(Lookup.LayoutSnapshot, lane));
+
+            if (!runtime.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate) || gate == null)
+                throw new InvalidOperationException("The exact BMS note scene gate is missing from the committed publication.");
+
+            sceneRuntime = runtime;
+            resolvedMaterialKey = key;
+            sceneVisualGate = gate;
+
+            if (gate.Route == GameplaySkinSceneHostRoute.Specialised)
+            {
+                sceneVisual = runtime.PrepareSpecialisedVisual(key, sceneVisualContainer);
+
+                if (sceneVisual != null)
+                {
+                    appliedSceneNodeIds = Array.AsReadOnly(
+                        sceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
+
+                    if (pooledUsageActive)
+                        sceneVisual.OnApply();
+                }
+            }
+
+            // Suppression is key-wide by contract. A specialised replacement is instance-local: if the bounded
+            // scene pool cannot supply this particular drawable, keep its native/material fallback visible.
+            if (gate.Route == GameplaySkinSceneHostRoute.Suppressed || sceneVisual != null)
+                registerProgrammaticVisual(publishedChild);
+        }
+
+        internal void SetPooledUsageActive(bool active, long? objectId = null)
+        {
+            pooledUsageActive = active;
+
+            if (sceneVisual == null)
+                return;
+
+            if (active)
+            {
+                if (objectId.HasValue)
+                    sceneVisual.OnApply(objectId.Value);
+                else
+                    sceneVisual.OnApply();
+            }
+            else
+                sceneVisual.OnFree();
         }
 
         protected override void SkinChanged(ISkinSource skin)
@@ -317,21 +410,31 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             Drawable? previous = publishedChild;
             bool preparedAttached = false;
+            IDisposable? preparedRegistration = null;
 
             try
             {
                 AddInternal(prepared);
                 preparedAttached = true;
+                preparedRegistration = createProgrammaticVisualRegistration(prepared);
 
                 // CompositeDrawable.InternalChild/Children replacement uses the framework async disposal queue. The
                 // old revision participant may be the final lease, so synchronously destroy its exact wrapper before
                 // adopting B and making A eligible for retirement.
                 if (previous != null && !RemoveInternal(previous, disposeImmediately: true))
                     throw new InvalidOperationException("The previous BMS note revision child could not be detached.");
+
+                programmaticVisualRegistration?.Dispose();
+                programmaticVisualRegistration = preparedRegistration;
+                preparedRegistration = null;
             }
             catch
             {
-                if (preparedAttached && prepared.Parent != null)
+                preparedRegistration?.Dispose();
+
+                if (preparedAttached && prepared.Parent == null)
+                    prepared.Dispose();
+                else if (preparedAttached)
                     RemoveInternal(prepared, disposeImmediately: true);
 
                 throw;
@@ -341,6 +444,17 @@ namespace osu.Game.Rulesets.Bms.UI
             Drawable = prepared.Visual;
             AdoptCommittedCurrentRevision();
         }
+
+        private void registerProgrammaticVisual(Drawable? drawable)
+        {
+            programmaticVisualRegistration?.Dispose();
+            programmaticVisualRegistration = drawable == null ? null : createProgrammaticVisualRegistration(drawable);
+        }
+
+        private IDisposable? createProgrammaticVisualRegistration(Drawable drawable)
+            => sceneRuntime != null && resolvedMaterialKey != null
+                ? sceneRuntime.RegisterProgrammaticVisual(resolvedMaterialKey, drawable)
+                : null;
 
         protected override void Dispose(bool isDisposing)
         {
@@ -357,6 +471,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
             CancelDeferredRevisionWorkAdmission();
             cancelPendingLoad(pendingOwnership, cancellation);
+            programmaticVisualRegistration?.Dispose();
+            programmaticVisualRegistration = null;
             base.Dispose(isDisposing);
             pendingOwnership?.JoinAfterParentDisposal();
         }

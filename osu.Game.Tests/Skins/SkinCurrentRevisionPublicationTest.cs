@@ -1265,7 +1265,7 @@ namespace osu.Game.Tests.Skins
                 contentRevision);
             GameplaySkinResolvedMaterialSet materialSet = GameplaySkinResolvedMaterialSet.Create(
                 snapshot,
-                GameplaySkinMaterialContractIdentity.Current,
+                GameplaySkinMaterialContractIdentity.CurrentFor(snapshot),
                 new[] { note });
             return retirement == null
                 ? GameplaySkinLayoutPublication.Create(new TestLayoutAdapter(snapshot), materialSet)

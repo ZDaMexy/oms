@@ -131,6 +131,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                 player.ChildrenOfType<DefaultBmsHudLayoutDisplay>().Any()
                 && player.ChildrenOfType<BmsGaugeBar>().Any()
                 && player.ChildrenOfType<BmsComboCounter>().Any());
+            AddStep("seek into the real pooled object lifetime window", () =>
+            {
+                // C5 Note/LN hosts are lifetime-pooled and are intentionally absent from the hierarchy while all
+                // chart objects are still in the future. Seek the real gameplay clock to the first chart object so
+                // this production assertion inspects the drawable instances that the engine actually activates,
+                // rather than requiring a duplicate always-mounted compatibility visual.
+                double firstObjectTime = player.DrawableBmsRuleset!.Objects.Min(hitObject => hitObject.StartTime);
+                player.GameplayClockContainer.Seek(firstObjectTime);
+            });
             AddUntilStep("note and hold layout consumers loaded", () =>
                 player.ChildrenOfType<DrawableBmsHitObject>().Any(drawable => drawable.HitObject.GetType() == typeof(BmsHitObject))
                 && player.ChildrenOfType<DrawableBmsHoldNote>().Any());
@@ -162,7 +171,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Assert.That(ruleset.Playfield.Lanes.All(lane => ReferenceEquals(lane.LayoutSnapshot, snapshot)), Is.True);
                     Assert.That(ruleset.Playfield.Lanes.All(lane => ReferenceEquals(lane.HitTarget.LayoutSnapshot, snapshot)), Is.True);
                     Assert.That(ruleset.Playfield.LaneCovers.All(cover => ReferenceEquals(cover.LayoutSnapshot, snapshot)), Is.True);
-                    Assert.That(ruleset.Playfield.Lanes.SelectMany(lane => lane.AllHitObjects).OfType<DrawableBmsBarLine>().All(barLine => ReferenceEquals(barLine.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(ruleset.Playfield.BarLinePlayfields.SelectMany(owner => owner.AllHitObjects).OfType<DrawableBmsBarLine>().All(barLine => ReferenceEquals(barLine.LayoutSnapshot, snapshot)), Is.True);
                     Assert.That(note.ExactLayoutSnapshot, Is.SameAs(snapshot));
                     Assert.That(hold.ExactLayoutSnapshot, Is.SameAs(snapshot));
                     Assert.That(hold.ChildrenOfType<DrawableBmsHoldNoteHead>().All(head => ReferenceEquals(head.ExactLayoutSnapshot, snapshot)), Is.True);

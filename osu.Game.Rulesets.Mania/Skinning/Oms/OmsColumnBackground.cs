@@ -1,5 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
+using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -12,9 +14,18 @@ using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Oms
 {
-    public partial class OmsColumnBackground : OmsManiaColumnElement
+    public partial class OmsColumnBackground : OmsManiaColumnElement, IManiaGameplaySkinProgrammaticVisualPartProvider,
+                                               IManiaGameplaySkinProgrammaticVisualPartReadinessSource
     {
         internal bool IsStageLastColumn { get; private set; }
+
+        private IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> gameplaySkinProgrammaticVisualParts
+            = Array.Empty<ManiaGameplaySkinProgrammaticVisualPart>();
+
+        IReadOnlyList<ManiaGameplaySkinProgrammaticVisualPart> IManiaGameplaySkinProgrammaticVisualPartProvider.GameplaySkinProgrammaticVisualParts
+            => gameplaySkinProgrammaticVisualParts;
+
+        public event Action GameplaySkinProgrammaticVisualPartsReady = delegate { };
 
         public OmsColumnBackground()
         {
@@ -37,13 +48,16 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
             Color4 lineColour = GetColumnSkinConfig<Color4>(skin, LegacyManiaSkinConfigurationLookups.ColumnLineColour)?.Value ?? Color4.White;
             Color4 backgroundColour = GetColumnSkinConfig<Color4>(skin, LegacyManiaSkinConfigurationLookups.ColumnBackgroundColour)?.Value ?? Color4.Black;
 
+            Box laneSurface;
+            HitPositionPaddedContainer laneDividers;
+
             InternalChildren = new Drawable[]
             {
-                LegacyColourCompatibility.ApplyWithDoubledAlpha(new Box
+                laneSurface = LegacyColourCompatibility.ApplyWithDoubledAlpha(new Box
                 {
                     RelativeSizeAxes = Axes.Both,
                 }, backgroundColour),
-                new HitPositionPaddedContainer
+                laneDividers = new HitPositionPaddedContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     Child = new Container
@@ -79,6 +93,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Oms
                     },
                 },
             };
+
+            gameplaySkinProgrammaticVisualParts = Array.AsReadOnly(new[]
+            {
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.LaneSurface, laneSurface),
+                new ManiaGameplaySkinProgrammaticVisualPart(GameplaySkinSlotCatalog.LaneDivider, laneDividers),
+            });
+            GameplaySkinProgrammaticVisualPartsReady();
         }
     }
 }
