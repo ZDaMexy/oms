@@ -47,7 +47,7 @@ legacy`BmsLegacySkin`对无scratch 9K继续使用raw`0..8`；public target只接
 ## resolution / revision-owner 地雷
 
 - selected-package candidate factory保持冻结顺序并由唯一production resolver组合selected public/legacy → ruleset resources → protected/canonical → programmatic。legacy beatmap direct visual在resolver外预准备为更高compatibility authority；新beatmap-local public source不存在。factory绝不能制造名为`oms-simple`的provider。
-- 缺 bucket/field 直接 `Inherit` 且不得调用 materializer；显式空字符串仍是 declaration，必须交给 materializer 做基础验证。ini declaration 永不产生 `Suppress`，取消异常必须传播。
+- 缺bucket/field直接`Inherit`且不得调用materializer；显式空字符串仍是declaration，须交给materializer做基础验证。legacy `[Mania]/[Bms]` declaration不产生`Suppress`；C4 public `GameplaySkin.*:1` section可以显式声明合法Suppress。取消异常必须传播。
 - source-aware reference 至少区分 source、Keys、stable lane ID、field 与 raw resource name。同一 raw name 在 BMS/mania 或不同 bucket 下可以有不同结果，不能只按字符串名跨 authority 共用；resource name 不得进入稳定诊断、JSON 或安全字符串。
 - materializer 返回前必须由一个 revision-scoped owner 取得 component 所有权并完成基础验证。winner 与被 outer validator reject/throw 的 component 都只是 resolver/consumer 借用，延迟到 owner dispose 回收；resolver/provider 不单独 dispose。
 - BMS exact selected preparation按layout snapshot/generation复用，但资源寿命不等于cache/task寿命：`BmsLegacySkin`维护waiter/borrower计数，完成revision只经幂等`BmsManagedPackageNoteRevisionBorrow`进入material publication。borrow沿material preparer→publication→prepared carrier→layout owner移动，前任每次转移后必须清空持有；构造/prepare异常、取消、dispatch拒绝、commit guard失败与owner teardown都exactly-once退役。

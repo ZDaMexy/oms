@@ -1,11 +1,11 @@
 # P1-J 当前状态：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
+> 最后更新：2026-09-09（代码与跨线证据同步；产品验证未刷新）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
 
-普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已收口。当前只保留四个活动缺口：P1-K 修正后的末端 lane keysound runtime proof、转谱 LN 键音池化、50k 极端 dense 谱 profile、真实谱音频人工清单。
+普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已有修复基线。末端 lane timeline 与 shared-store production proof 已随 P1-A C3/P1-K 闭合；仍开放转谱 LN head 的 shared-store 接入、长 one-shot 保位续播、50k 极端 dense 谱 profile 和真实谱音频人工清单。
 
 ## 当前有效合同
 
@@ -17,6 +17,7 @@
 - pause/seek 会统一停止 one-shot store 播放，避免样本穿透；这不等价于长 BGM 真正保位恢复。
 - full autoplay 走对象级 autoplay + direct-time replay 分流；普通 replay 保留 framed 边界推进。
 - 玩家模式已预热 keysound；同样本重触发走 channel fast path，避免 sample-drawable 重建 churn。
+- `LaneKeysoundTimelines` 已使用完整 lane count；末端 lane、post-mod 对象/armed timeline/skin `LaneId` 与 shared-store 请求已有 production 回归，不再等待 converter 修复。
 
 ## BMS→mania 音频当前态
 
@@ -24,6 +25,7 @@
 - BGM/scratch sample-only 对象的 `Samples` 为空，避免 mania 按键反馈再次触发；实际键音走 `KeysoundSample`。
 - tap note 已池化并具备 per-WAV cut；暂停停 BGM、长 BGM 被 32 通道偷断、bgm1 按 key1 重播均已修复并有历史实机证明。
 - gameplay 主 Track 对 BMS 静音但保留时钟 authority；选歌试听只接受 `#PREVIEW`，存量由 backfill 回写。
+- 转谱 LN 仍产出普通 mania `HoldNote`，头音经 `NodeSamples[0]` 播放；没有 `IHasManiaKeysound`/cut-group 的 pooled nested head，不能把 tap-note store proof 扩大成 LN 已接入。
 
 ## 进度
 
@@ -43,8 +45,12 @@
 
 ## 当前风险与下一步
 
-1. lane timeline 边界：P1-K 当前用 key count 过滤，可能丢 5K/7K 最右键及 14K 右侧末键/Scratch2；converter 修复后，本线补每轨空击/不可见 keysound 实机 smoke。
+1. lane timeline：converter 与 production shared-store 自动证据已闭合，继续保留每轨空击/不可见 keysound 的真实谱 smoke；闭门依据见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md#2026-08-30)。
 2. 转谱 LN：先用现有 player-level harness 取证，再尝试池化嵌套 head；禁止重走曾导致空 Head 容器崩溃的非池化方案。
 3. 50k dense：只有真机重现时才用 `BmsGameplayStallDiagnostics` 区分 gen2、晋升风暴或 render/present；不把普通密度旧问题重新打开。
 4. 人工清单：dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek，结果回交 P1-G。
 5. 长 one-shot 真 pause/resume 仍缺底层能力；当前“边界即停”只能防逃逸，不能宣称保位续播。
+
+## 文档治理验证
+
+2026-09-09：对照 [converter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs)、[真实 shared-store 测试源码](../../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSharedKeysoundTiming.cs)及 [BMS→mania converter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs)，移除已完成的 lane 修复待办，保留 LN 与人工/性能边界。本节仅记录源码审查，既有数字仍按原日期引用；全局实测见主线最新验证。

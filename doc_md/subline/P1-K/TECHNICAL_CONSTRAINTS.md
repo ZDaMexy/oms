@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-08-30（P1-A C3 的 P1-K Skin 前置合同闭合）
+> 最后更新：2026-09-09（按 production parser/converter 同步现行合同）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -28,6 +28,7 @@
 6. signed BPM 必须能进入 typed model；即使当前时间推进只使用绝对值，方向信息也必须可恢复。
 7. `LNTYPE 2`、future long-note encoding 与未实现视觉事件必须至少能通过 typed placeholder 或 raw snapshot 被可靠回收；“只 warning、不建模”不能成为长期状态。
 8. BGA base / layer / poor、mine、invisible note 与类似视觉事件，必须至少拥有最薄 typed descriptor 或明确的 projection slot；不得长期只停留在 consumer 自行猜 channel 的状态。
+9. 已识别 channel token 以十六进制映射内部 channel 值；非十六进制 token 仍须保留原始 `RawChannelToken`/payload，不能因未知而丢行。`WAV/BMP` 等 indexed definition 和对象 ID 使用 base36；channel `03` 的直接 BPM payload 使用十六进制，不能把两种编码混为一谈。
 
 ## 切片边界约束
 
@@ -48,11 +49,12 @@
 ## 时间轴与 converter 约束
 
 1. 同拍位 control-event 顺序必须由 converter 单独拥有并显式冻结；至少要保证 `BPM -> STOP -> object` 的顺序是单一 authority。
-2. `STOP`、measure length、default BPM 与 long-note timeline 边界不得由不同 consumer 各自重新推导。
+2. `STOP`、measure length、default BPM 与 long-note timeline 边界不得由不同 consumer 各自重新推导。`#mmm02` 倍率仅作用于该小节，未指定时为 1；converter 按 `4 × 倍率` 推进同一时间轴并产出 `MeasureStartTimes`，小节线直接消费它。renderer 不累计倍率乘积、不另算按小节的音符时间或距离。
 3. 任何对 BPM 的时间推进计算都不得 silently 抹去原始 sign 信息；若 runtime 当前只支持正向推进，也必须把 sign 单独保留在模型里。
 4. `BmsBeatmapConverter` 只消费 normalized chart model；Song Select、gameplay、背景层或未来特效层不得绕过它自行从 raw text 再算一次 timing。
 5. 从 BPM 推导 beat length 不得把合法的亚 1 BPM（规范允许低至约 0.014）钳成 1；下界只用于避免零/近零 BPM 产生非有限值。`TimingControlPoint.BeatLength` 受框架 bindable `[6,60000]` 钳制只影响显示滚动，不得反过来用作对象时序的钳制依据。
 6. keymode 必须由 parser 单点产出的 immutable `BmsKeymodeResolution` 携带 selected keymode、source、evidence、diagnostic code 与稳定脱敏 token。precedence 固定为：兼容性校验后的 explicit override → P2 channel evidence（强于 `.bme`；`.pms` + P2 冲突必须拒绝）→ `.pms` → `.bme` → complete 9K set → distinctive 9K high channel → complete 7K set → complete 5K set。visible、LN、invisible、mine 等 lane object family 都须贡献相同的 normalized channel evidence；不得只看 visible note。普通 `.bms/.bml` 的不完整且非 distinctive evidence、无 lane evidence、override/extension 与 channel evidence 冲突都必须 fail-closed，并只输出不含路径、文件名或 raw payload 的稳定 diagnostic。显式纠正只经 production decoder options 进入；该API是host/importer authority seam，不自动构成终端用户UI，普通`ICustomBeatmapLoader`在没有新产品caller前继续传`null`并拒绝模糊谱。converter、manager、layout/skin/runtime 必须携带同一 resolution，不得按最高出现 channel、hit object、enum ordinal、总 lane count 或 layout 宽度二次猜测。
+7. canonical lane 映射由 `BmsBeatmapConverter.mapLaneIndex/IsScratchLane` 维护：5K keys=`11–15`、scratch=`16`；7K 再含 `18/19`；14K 的第二侧 keys=`21–25/28/29`、scratch=`26`；9K 的 `11–19` 全为按钮且无 scratch。5K/7K 的 scratch 目标 lane 为 0，14K 的两皿为 0/15；视觉侧别与 mod 不改源 channel 解释。
 
 ## 键音呈现与控制流约束（2026-05-29 链路审查后冻结）
 
@@ -62,7 +64,7 @@
 3a. per-lane keysound timeline 的 lane 上界必须使用 `BmsRuleset.GetLaneCount`（键 + scratch），不得使用 `GetKeyCount`。scratch 占 lane 0，5K/7K 最右键和 14K K14/Scratch2 的索引会大于等于 key count；用 key count 会静默丢其 armed keysound。回归必须覆盖 5K/7K 最右键、9K 全 lane、14K K14/S2 的 visible note、LN head/tail armed entry、invisible object，并与相邻 mine 的 lane-count 边界保持一致。
 3b. Mirror/RANDOM/R-RANDOM/custom 等具有单一 bijective lane permutation 的 mod，必须把 playable object、mine 与 `LaneKeysoundTimelines` 用同一 exact mapping 一次性搬移；不得只改对象而留下 armed timeline。S-RANDOM 按对象/时间散列、没有单一 column permutation时，必须只删除受影响 group 的 armed timeline并记录稳定 `bms.keysound.timeline.disabled-s-random`，不得伪造搬移；对象自身 keysound sample 继续随 post-mod target lane 进入 shared store。mod 不得改固定 playfield topology 或创建第二套 LaneId；post-mod object、keysound 与 skin lookup 必须解析为同一 snapshot `LaneId`。
 3c. native BMS 玩家/autoplay 与 converted Mania 必须复用同一 shared keysound store 并以 production host 证明实际 source WAV 请求；不得用 DTO-only timeline test 代替发声链 proof。上述修复不得顺带改变 sample-pool 容量/轮转、判定、input binding 或 LN tail 静音合同。
-4. `#RANDOM` 的确定性合同冻结为“仅执行 `#IF 1` 分支”并保留既有告警；`#SETRANDOM n` 必须按作者固定值选支。`#IF`/`#ELSEIF`/`#ELSE` 必须按 chain 语义求值（命中后续分支短路），不得让 `#ELSE` 内容在 `#IF` 已命中时泄漏。
+4. `#RANDOM/#SWITCH` 当前固定选择值 1 并保留未完整支持随机分支的告警，尚无真正随机选支；`#SETRANDOM n/#SETSWITCH n` 按作者固定值选支。`#IF/#ELSEIF/#ELSE` 必须按 chain 求值，未命中 IF 时允许 ELSE，已命中则后续短路；switch 保持 `CASE/SKIP/DEF` 语义。不能把旧告警“仅 IF 1”解读为跳过已实现的 ELSE，也不能把固定选支描述成随机化已完成。
 5. `#SWITCH`/`#SETSWITCH` 必须做确定性单段选择（默认 `#CASE 1` 或 `#SETSWITCH` 固定值，C 风格 fall-through 至 `#SKIP`，无匹配走 `#DEF`，支持嵌套）；不得退回“把所有 `#CASE` 内容无条件并入”导致错谱。
 6. 解析期对 LNOBJ 头的回收不得使用每条长条一次的 O(n) 线性扫描（全 LNOBJ 谱会退化为 O(n²)）；必须用索引标记 + 单次重建等 O(n) 路径。
 7. **LNOBJ 尾必须只与它紧邻的前一个普通音符配对**：每条轨在解析期只保留**单个**待配对长条头（最近一个普通音符），普通音符覆盖该候选（前一候选即提交为单点），LNOBJ 尾消费后立即清空该轨的待配对头。**禁止用栈（`List<int>` / LIFO）保留多个待配对头**——否则连续两个 LNOBJ 尾（`音符 音符 01 01` 这类，规范上第 2 个无紧邻头应作孤儿丢弃 + 告警）的第 2 个尾会**回头抓更早、本应已提交为单点的音符**，凭空造出第二条与第一条**时间重叠的长条**（同轨两条同时按住，物理不可能；渲染成"长条里的单点/短块"，bms 与转谱 mania 两模式同现）。回归守卫 `BmsBeatmapDecoderTest.TestConsecutiveLnObjTailsDoNotFabricateOverlappingLongNote`。与 #6 共存：#6 管"头回收用 O(n) 索引标记不用 O(n²) 扫描"，#7 管"头配对用单头不用栈"；两者都在 `pendingLnObjHeads` 上，改其一须复核另一。
@@ -110,10 +112,10 @@
 14. `K9` 与公开产品表面拆刀：在同一实现中若已经触及顶层入口、按钮文案、ruleset switch 或 generic convert visibility，则停止并拆到 `P1-A`；`P1-K` 只拥有 conversion semantics、validity 与 focused proof。
 15. BMS `SCROLLxx/SC` 经 `BmsBeatmapConverter` 写入的 `EffectControlPoint.ScrollSpeed` 是 BMS 引擎专属视觉滚动语义，不得在 `BmsToManiaBeatmapConverter` 中沿用为 mania 的 `EffectControlPoint`/SV 语义；mania 转谱后的 `ControlPointInfo` 只保留 timing 边界（`TimingControlPoint`），不传递 `EffectControlPoint`。若未来需要把 BMS scroll 语义映射到 mania 视图，必须另起后续切片，并在 K9 约束中显式更新本条。
 16. BMS `STOP` 在 `BmsBeatmapConverter` 中以"冻结滚动"形式写入 `ControlPointInfo` 的 timing 边界时，必须用 dedicated `TimingControlPoint` 子类（如 `BmsStopFreezeTimingControlPoint`）做类型级标记，并由 `BmsToManiaBeatmapConverter.createConvertedControlPointInfo` 按类型剥离；不得用 sentinel `BeatLength` 值做标记，因为 mania `TimingControlPoint.BeatLengthBindable` 的合法范围下界（`MinValue = 6`）与极端高 BPM 真实谱面存在不可分辨碰撞。
-17. `BmsToManiaBeatmapConverter.ConvertBeatmap` **不得自行计算 mania 星级**（不得在转换里跑 `ManiaDifficultyCalculator` 写 `convertedBeatmap.BeatmapInfo.StarRating`）。转换星级的唯一计算 authority 是 `ManiaDifficultyCalculator`/`BeatmapDifficultyCache`：所有消费面（`BeatmapDifficultyCache.computeDifficulty`、`BackgroundDataStoreProcessor`、导入期同步持久化）都在 `GetPlayableBeatmap` 之后再用 `ManiaDifficultyCalculator.Calculate()` 从同一份 playable 重算并持久化，转换器自算的结果从不被读取。在转换里再算一遍会让持久化路径**双重** strain 计算、并给 gameplay 加载期凭空加一遍无人消费的计算（与上游 `ManiaBeatmapConverter`「转谱不设星级」一致，亦受本文件「解析侧性能约束 #4：无 consumer 不预生成投影」约束）。与 #10 互补：#10 管「转换星级持久化到 `RulesetDataJson`、不得覆盖 `BeatmapInfo.StarRating`」，#17 管「在哪算」。回归守卫：`BmsToManiaBeatmapConverterTest`（转谱器不再断言自算星级）。**❗更正（2026-06-23，见 #19 与 K12）**：原文此处曾称 `TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts` 的 `TotalObjectCount == scorableBeatmap.HitObjects.Count` 断言能「守 scratch 不进难度输入」——**此为失真**。`TotalObjectCount` 只是写进 `BeatmapInfo` 的元数据计数，`ManiaDifficultyCalculator` **从不读它**，而是直接遍历 `beatmap.HitObjects`（仍含 sample-only 对象）。该计数断言只证明「计数字段排除了 sample-only」，**不**证明难度计算排除了它们。真实的难度输入剔除合同见新增 K12 节。
+17. `BmsToManiaBeatmapConverter.ConvertBeatmap` 不自行计算 mania 星级。`ManiaDifficultyCalculator`/`BeatmapDifficultyCache` 在 `GetPlayableBeatmap` 之后计算并按 #10 持久化；转换器再算会增加无人消费的重复 strain 工作。`TotalObjectCount` 只证明计数元数据，不证明 sample-only 已退出难度输入；真正的难度过滤与执行计算回归见 K12，旧误判历史见 [CHANGELOG](CHANGELOG.md) 2026-06-23。
 18. current-ruleset 的 **converted-mania 键数 display surface**（Song Select carousel panel 的 `[NK]` badge、wedge / details 的 `KC` 难度属性条）在 `BMS -> mania` 场景下必须以 source BMS 的 **权威 keymode**（持久化在 `BeatmapInfo.Difficulty.CircleSize`，由 `BmsBeatmapConverter.populateMetadata` 写为 `5/7/9/14`）为准；不得让其落入 `ManiaBeatmapConverter.GetColumnCount` 的 osu!stable convert 列数启发式（按 long-note 占比 + OD 推断）。根因：`LegacyBeatmapConversionDifficultyInfo.FromBeatmapInfo` 的 `SourceRuleset` 取自持久化的 `bms` ruleset，`getColumnCount` 仅对 `SourceRuleset.ShortName == "mania"` 直接采信 `CircleSize`；其余分支是为 osu!/taiko/catch→mania convert 设计的启发式，OMS 删掉这三个 ruleset 后该分支**只会被 BMS 命中且必然算错**——把每个 keymode 坍缩成 6/7（`<0.2 special -> 7`，否则 `CS>=5` 命中 `OD>5?7:6`），即用户实测的「键数显示错误、错的五花八门」。修复点固定在 `ManiaBeatmapConverter.getColumnCount`：对 `bms` source 与 `mania` source 一视同仁直接采信 `CircleSize`（单点修复同时覆盖 badge、KC 属性条与 `ManiaFilterCriteria` 键数过滤，全部经由 `GetColumnCount`）。与 #11 同源：#11 管「转换星级 display 走 resolved lookup」、#18 管「转换键数 display 走权威 keymode」。`14K` 在此 path（`IsForCurrentRuleset == false`，不触发 dual-split）返回 `14`，与 native BMS surface 一致。回归守卫：`BmsToManiaBeatmapConverterTest.TestSongSelectKeyCountUsesStoredBmsKeymodeNotConvertHeuristic`（5K/7K/9K_Bms/9K_Pms/14K 矩阵断言 `ManiaRuleset.GetKeyCount` == 真实 keymode）。
 
-## K10：转谱星导入期就绪与读取加固约束（规划中）
+## K10：转谱星导入期就绪与读取加固约束（已落地）
 
 1. 导入期持久化只允许写 `BeatmapMetadata.RulesetDataJson` 的 converted-star payload；继续禁止覆盖 `BeatmapInfo.StarRating`（仍是 source BMS playlevel authority）。
 2. 导入期计算必须复用现有 `BMS -> mania` 转换链与 `BmsPersistedMetadataResolver` 持久化合同及已统一的失败语义（确定不可转 -> 固化 Failed；瞬时异常 -> 不持久化待重试）；不得为导入期再造第二套转换或星数计算路径。
@@ -126,19 +128,19 @@
 
 ## K11：BMS -> mania 转谱 BGM / autoplay 音频补全约束（2026-06-01 落地，converter 侧）
 
-> 背景：`K9` 的 `BmsToManiaBeatmapConverter` 当前只把玩家可击打对象（note / LN / scratch sample-only）的键音搬到 mania；BGM（autoplay channel `0x01`）经 `BmsBeatmapConverter` 落成 `BmsBgmEvent` 后进入 `BmsBeatmap.HitObjects`，但 `ConvertHitObject` 的 switch 无 `BmsBgmEvent` 分支，base `BeatmapConverter.convertHitObjects` 将其作为非 `ManiaHitObject` 丢给 `ConvertHitObject` 后得空枚举 → 整层 BGM 被静默丢弃。对纯键音 BMS（无完整 master 音轨，`AudioFile` 仅 preview/空），这等于 mania 转谱丢掉歌曲主体（鼓/贝斯/铺底/人声等非可击打层）。详见 [CHANGELOG](CHANGELOG.md) 2026-06-01 与 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) K11 节。
+旧 BGM 丢失故障已经修复；历史见 [CHANGELOG](CHANGELOG.md) 2026-06-01。当前 converter 已生成 BGM sample-only 对象，runtime 发声与剩余 LN head 接入由 [P1-J](../P1-J/DEVELOPMENT_STATUS.md) 维护。
 
 1. BGM（`BmsBgmEvent`）在 `BMS -> mania` 转谱中不得继续被静默丢弃；必须作为 sample-only、`IgnoreJudgement` / empty-hitwindow 的 converted mania object 保留 autoplay 键音时间线，与 scratch sample-only（K9 #6）同族对待——不进 combo、statistics、star-rating、autoplay key 生成与 note-lock。
 2. BGM sample-only 对象只承载 keysound 播放，不得映射到任何 judged column 语义；其 `Column` 只能作为 drawable/sample anchor（默认锚到 column 0），不得因 column 选择改变判定列或 stereo 语义。
-3. converted BGM 对象不得撑大 mania 转谱的判定物数量与星数：它必须经 `isScorableHitObject` 一并排除出 `TotalObjectCount` / `EndTimeObjectCount`（口径与现有 scratch sample-only 排除规则一致，新类型一并排除）。**❗更正（2026-06-23，见 K12）**：本条原文把「难度计算输入」也列为由 `isScorableHitObject` 兜住——**此为失真且与代码不符**。`isScorableHitObject` 只服务上述两个**计数元数据字段**；`ManiaDifficultyCalculator` 不读这些计数，而是直接遍历 `beatmap.HitObjects`（仍含 BGM/scratch sample-only 对象）。因此「BGM/scratch 不得进入星数输入」这一**要求是对的，但当时并未被实现**——sample-only 对象事实上被计入了转谱难度，系统性灌高转谱星数。真实剔除合同见 K12 节（在 `ManiaDifficultyCalculator` 难度入口按 nested-aware combo 谓词过滤）。
-4. converted BGM 的样本解析不得新建第二套 sample 源：它与 note keysound 同走 `BmsKeysoundSampleInfo`（`useBeatmapSamples`）→ 经 `WorkingBeatmapCache` 的 `FilesystemBackedBeatmapResourceProvider`（按 `BeatmapSet.FilesystemStoragePath` 建、与游玩 ruleset 无关）解析 `chartbms/` 内 WAV。因此 BGM 补全是 piggyback；不得借此引入 mania 专用 keysound store 或预解码 player（dense-BGM 播放期性能归 `P1-J` J6，见其 TECHNICAL_CONSTRAINTS 第 10 条）。
+3. converted BGM/scratch 对象经 `isScorableHitObject` 排除出 `TotalObjectCount/EndTimeObjectCount`；两项只管计数元数据。难度输入另由 K12 的 nested-aware combo 谓词过滤，不能把计数断言当作真实星数回归。
+4. converted BGM 的样本解析不得新建第二套 sample 源：它与 note keysound 同走 `BmsKeysoundSampleInfo`（`useBeatmapSamples`）→ 经 `WorkingBeatmapCache` 的 `FilesystemBackedBeatmapResourceProvider`（按 `BeatmapSet.FilesystemStoragePath` 建、与游玩 ruleset 无关）解析 `chartbms/` 内 WAV。实际 shared-store owner 与 dense-BGM 播放期合同见 [P1-J BMS→mania 音频合同](../P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)，不得新建独立的转谱 sample authority。
 5. LN 尾键音 mania 对齐：`BmsToManiaBeatmapConverter` 不得把 LN 尾 keysound 放进 mania `HoldNote.NodeSamples[1]`（mania `TailNote` 会在 release 播放该 node sample，与 BMS 侧「LN tail 一律不发声」即 `P1-J` 约束 3a 冲突，对 LNTYPE1 尾复用头 WAV 的谱会复现 double）。尾 node sample 必须为空列表；头 keysound 仍走 `NodeSamples[0]`。**scratch 长条尾同理**：`createScratchSampleHitObjects` 只发 head sample 对象，不得再为尾单独发 sample-only 对象——scratch 长条尾对象常复用头 WAV，发出即 double（实测 GOODBOUNCE 人声 scratch 长条 "stomp your fee feet"）。
 6. 本切片只补音频保真，不得顺手改 K9 已冻结的 lane flatten / stage definition / scratch sample-only / converted-star / control-point 剥离语义；若发现这些需要联动改动，先停下拆刀。
 7. 验证顺序固定为「converter focused（BGM 计数 / 不 scorable / 尾 node sample 为空）-> 难度/统计不回归 focused -> mania player-level BGM 出声 / seek 语义（可选）-> Release build」；在 converter focused proof 可用时不得只靠 generic convert UI 手测代替。
 
 ## K12：转谱难度输入必须剔除 sample-only 对象（修复 BGM/scratch 灌水转谱星数；2026-06-23 落地）
 
-> 背景（审查确诊）：`BmsToManiaBeatmapConverter` 产出的 converted mania beatmap 的 `HitObjects` 里**始终包含** `BmsConvertedBgmSampleHitObject`（`Column = 0`）与 `BmsConvertedScratchSampleHitObject`（锚列 0 或 N-1）这些 sample-only 对象——`isScorableHitObject` 的过滤**只用于改写 `TotalObjectCount`/`EndTimeObjectCount`，从不从 `HitObjects` 移除它们**。而 `ManiaDifficultyCalculator.CreateDifficultyHitObjects` / `CreateDifficultyAttributes(maxComboForObject)` 直接遍历 `beatmap.HitObjects`、**零过滤**，且 mania 无 `CreateBeatmapProcessor` 覆写、`GetPlayableBeatmap` 前后均不剥离 ignore 对象。结果：所有 BGM 事件（全砸进 0 列）与 scratch 样本被当成真实音符喂进 mania Strain 与 MaxCombo → **转谱星数被系统性灌高，灌多少取决于该谱 BGM 密度**（键音型 BMS 的 BGM 事件常 ≥ 可玩音符数，灌水可观）。此前 K9 #17 / K11 #3 / 测试 `TestScratchSamplesDoNotAffectConvertedDifficultyOrStoredCounts` 注释均误以为 `TotalObjectCount` 计数排除≡难度输入排除，是该缺陷长期未被发现的根因。仅影响**星数计算**（展示/排序/分组的源数据）；**不**影响游玩内计分（IgnoreHit 对象本就不计分）。详见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) K12 节与 [CHANGELOG.md](CHANGELOG.md) 2026-06-23。
+sample-only 对象保留在 `HitObjects` 参与键音播放，但必须退出 difficulty 的 Strain/MaxCombo 输入；当前过滤已落地。旧星数灌高故障及误把计数字段当难度证据的过程见 [CHANGELOG](CHANGELOG.md) 2026-06-23，不作为当前缺陷重开。
 
 1. converted mania 难度计算**必须只消费 scorable 对象**；BGM/scratch 等 sample-only、ignore-only 对象不得进入 `ManiaDifficultyCalculator` 的 Strain 与 MaxCombo 输入。剔除必须落在**难度计算入口**（`CreateDifficultyHitObjects` 与 `CreateDifficultyAttributes` 的 `maxComboForObject` 求和），**不得**指望 `isScorableHitObject` / `TotalObjectCount`（它们只服务计数元数据，难度器根本不读）。**已落地**：`ManiaDifficultyCalculator.isDifficultyRelevant` 谓词在上述两处过滤。
 2. 过滤谓词**必须 nested-aware**：保留「自身**或任一嵌套对象**的 `MaxResult.AffectsCombo()` 为真」的对象——与 K9 #12 `ManiaAutoGenerator.canParticipateInAutoplay` / `OrderedHitPolicy.canParticipateInLocking` **同源语义**，不得只看顶层 `MaxResult`。因为 mania `HoldNote` 顶层是 `IgnoreJudgement`、combo 落在嵌套 `HeadNote`/`TailNote`——只看顶层会把**所有长条**误剔除；sample-only 对象因**无嵌套**才被正确剔除。谓词为通用 `HitObject` 谓词，**不得**引用任何 BMS 类型（`ManiaDifficultyCalculator` 不依赖 BMS 程序集）。

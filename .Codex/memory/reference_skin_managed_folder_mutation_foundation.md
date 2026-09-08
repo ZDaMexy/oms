@@ -86,7 +86,7 @@ metadata:
 
 ## 不可误推
 
-- rename、fixed-source staged import、managed delete与full ManagedCopy由Folder Skin Workspace/manager surface组成已关闭的C1产品链；C2 current revision/mutation也已签发，但仍不表示G1最终整包门、`SV1-2`整体、Skin V1或release已交付。所有旧通用rename/import/delete入口继续冻结。
+- rename、managed delete与full ManagedCopy由Folder Skin Workspace/manager surface组成已关闭的C1产品链；fixed-source staged import仍是没有独立非测试caller的internal operation，其fixed-slot move/inspection与journal/recovery公共底层被ManagedCopy复用，不能单独计作玩家功能。C2 current revision/mutation也已签发，但仍不表示G1最终整包门、`SV1-2`整体、Skin V1或release已交付。所有旧通用rename/import/delete入口继续冻结。
 - rename不联动展示名/`skin.ini`；staged import只move受控provisional副本、不会修改包字节或自动选择；managed delete只适用于eligible managed direct-child并会物理删除，不得类推为external删除、任意path cleanup或通用Realm hard-delete。
 - journal、identity、relative path、operation/record ID与native异常都可能敏感；安全`ToString()`/日志只能输出类型、phase、kind、status或计数。
 

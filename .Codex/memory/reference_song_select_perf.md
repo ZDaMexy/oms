@@ -6,7 +6,7 @@ metadata:
   type: reference
 ---
 
-Hard-won lessons from getting OMS song select usable with a 58k+ BMS + 28k mania library (K10 second slice, 2026-05-28). Concrete bottlenecks and the patterns that fixed them — keep these in mind when touching anything carousel/filter/difficulty-cache adjacent.
+权威当前态见 [P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)，converted-star合同见 [[reference_converted_star_persistence]]。下列是历史大库诊断方法，不是当前版本的新benchmark或尚未实现清单。
 
 ## Carousel filter pipeline at a glance
 
@@ -27,7 +27,7 @@ Hard-won lessons from getting OMS song select usable with a 58k+ BMS + 28k mania
 `Task.WhenAll(beatmaps.Select(async b => await GetDifficultyAsync(b)))` allocates 57k async state machines + Tasks **even when every call returns `Task.FromResult` synchronously**. Use **sync-first**: iterate with `TryGetCachedDifficulty` (sync) collecting misses into a side list, then `Task.WhenAll` only the misses. For a fully persisted library, zero Task allocations.
 
 ### 2. JSON deserialization per lookup
-`BmsPersistedMetadataResolver.getPersistedData` calls `JsonConvert.DeserializeObject<BmsPersistedMetadataData>(metadata.RulesetDataJson)` on each access. For 57k BMS lookups per filter op, deserialization dominates. Mitigation explored but not implemented in K10 — the sync-first refactor + immediate-path optimisation made it tolerable. If a future regression points here, a `ConcurrentDictionary<string, BmsPersistedMetadataData>` keyed on the JSON content is the obvious cache.
+`BmsPersistedMetadataResolver.getPersistedData`已有按完整JSON内容键缓存的 `parsedDataCache`；converted-star写入会驱逐旧JSON键，不能再次以“尚无解析缓存”为由重复实现。缓存是静态dictionary，来自其它metadata写方的新JSON仍可能留下旧键；若现场确有增长，再按分配/存活证据确定有界策略。BmsTableGroupMode另有自身分组定义缓存，两者不是同一个owner。
 
 ### 3. DifficultyCalculator's hidden 10-second internal timeout
 `DifficultyCalculator.Calculate(IEnumerable<Mod>, CancellationToken)` does:
@@ -43,17 +43,17 @@ If you pass `default`/`None`, you silently get a 10s cap. BMS charts with pathol
 
 ## Realm landmines
 
-- **Link-traversal predicate translation is unreliable in Realm 20.1.0**. `r.All<BeatmapInfo>().Where(b => b.Ruleset.ShortName == "bms")` silently returned zero matches against a real 58k-beatmap library. Filter `b.BeatmapSet != null` server-side, then call the helper (`BmsStarRatingResolver.IsBmsBeatmap(b)`) client-side. This DID work the same way in `BmsChartFilterStatsBackfill.cs` and `BmsDifficultyTableManager.cs` but those use `.ToList()` which may force materialisation early — risk profile differs.
+- Realm link-traversal predicate可能报错或静默零结果；先materialize，再用ruleset helper做客户端过滤。当前 `BmsChartFilterStatsBackfill.EnumerateBmsBeatmaps`明确先 `.AsEnumerable()`，不要按旧记忆误写成仍依赖Realm link predicate。
 - **Always log `Found N` BEFORE the early-return on zero**. Otherwise "notification didn't appear" debugging requires correlating absence-of-log with logic flow.
 
 ## Carousel UI follow-ups (panel layer, not data layer)
 
 These were observed in 58k testing but are independent UI concerns:
-- High-difficulty star numbers display via an incrementing sprite-text animation on panels. Expected: instant display. Fix would live in `PanelBeatmapStandalone` / star-counter component, not in any data path.
+- BMS当前显示作者等级/难度胶囊，converted-mania另走mania星数；先确认实际ruleset和显示分支，再判断数字动画是否仍是当前产品问题，不凭旧星级panel截图安排修复。
 - Extreme charts (huge keysound count, stress-test maps) trigger noticeable stutter when scrolling to them — correlates with `TextureAtlas size exceeded` messages in performance log. Independent of star/difficulty resolution.
 
 ## How to verify perf after touching this area
 
-- `BeatmapDifficultyCache: i:X h:Y m:Z N%` performance log line: for a fully-persisted BMS library, expect `i < 20, h+m < 30`. Most BMS lookups should NOT touch this cache (they hit the sync immediate path).
-- `Carousel[op X] N ms: Items ready for display`: every filter op should reach this line, not "Cancelled". N should be <1000ms for an 86k library on modern hardware.
+- 对比同一库/版本/操作的difficulty-cache命中与miss；已persisted BMS应主要走同步读取，具体次数不作为跨设备固定门槛。
+- `Carousel[op X] ... Items ready for display`用于确认最终未被取代的过滤请求完成；被新请求取消的旧op可以正常取消。记录实际库量、时延/GC与线程，不复用历史毫秒数当当前性能结论。
 - Filter ops in log should reach `Performing FilterMatching → FilterSorting → FilterGrouping` in sequence, not stall between phases.

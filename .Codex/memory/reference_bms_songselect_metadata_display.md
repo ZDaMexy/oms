@@ -10,6 +10,8 @@ BMS song-select info display (曲名/难度名/曲师/谱师) is centralized in 
 
 **Both modes show identically.** The carousel item's `beatmap.Ruleset` stays `bms` even under the mania ruleset (converted-mania), and the resolver keys on that — so bms-mode and converted-mania-mode display the same title/difficulty/artist/creator. The only per-mode differences are star rating and the key badge. Carousel panels (`PanelBeatmapStandalone` single-diff, `PanelBeatmapSet` + `PanelBeatmap` multi-diff) and `BeatmapTitleWedge` are shared between modes.
 
+区分三种量：native BMS难度值来自作者 `#PLAYLEVEL`（BmsStarRatingResolver，缺失为0）；converted-mania星数来自ManiaDifficultyCalculator；右侧 `BmsNoteDistributionGraph` 的density仅是分布图分析。BMS详情入口是 `BmsRuleset.CreateBeatmapDetailsComponent`，没有density Skill驱动的BMS star模型。难度表分组只消费persisted table/level，不从图表推导。
+
 **Field sources:**
 - 曲师 (artist): `GetDisplayArtist`/`GetDisplayArtistUnicode` — strips the BMS creator suffix (e.g. `/obj:NAME`) from `#ARTIST`.
 - 谱师 (creator): `GetDisplayCreator` → `Metadata.Author.Username` (set at import from `#SUBARTIST`/`#COMMENT`/`#ARTIST` extraction); `"-"` if none.

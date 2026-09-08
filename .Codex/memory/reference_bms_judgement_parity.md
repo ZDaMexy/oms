@@ -17,6 +17,8 @@ metadata:
 - beatoraja BAD 是早宽晚窄；不要因 `WindowFor(Meh)=max` 的显示怪象反向改错。
 - IIDX empty/excessive poor `500/150` 与 CN release 属 OMS documented heuristic，不宣称闭源 parity。
 - 边界统一 `<= window + BoundaryEpsilon`。
+- Empty Poor 使用 `HitResult.Ok` 独立计数，不计 EX-SCORE/accuracy、不断 combo；BAD/Miss 才断连。Empty Poor 仍影响 gauge 与 FC/PERFECT 资格，不能从旧表或 `BmsPoorJudgement` 名字推断它等同 Miss。
+- gauge rules family 与 judge family/gauge type 分离；Legacy 数表不代表全部 family。GAS 只按实际 active gauge 顺序推进，最终 lamp 看最终 active gauge，不在 results 重跑全部 mods 或并行取所有 gauge 的最高灯。
 
 ## LN 模式地雷
 

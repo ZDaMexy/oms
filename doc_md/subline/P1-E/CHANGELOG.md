@@ -1,5 +1,12 @@
 # P1-E 变动日志
 
+## 2026-09-09
+
+### LN/CN/HCN production 与人工门复核
+
+- 对照 `DrawableBmsHoldNote`、`BmsGaugeProcessor`、`BmsDrawableRulesetTest`、`BmsGaugeProcessorTest` 源码，确认 LN/CN 早松不可接回、HCN-only regrab、CN/HCN 尾判分母与 HCN gauge-only body 的三轴分离。
+- 软件合同保持；真实谱 checklist/人工签收未因源码审查关闭。本节仅记录源码审查；全局实测见主线最新验证。
+
 ## 2026-07-16
 
 ### 文档健康治理：长条当前态与稳定门控分层

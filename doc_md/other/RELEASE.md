@@ -17,7 +17,7 @@
 
 `build-release.ps1` 内部仍执行 single-file self-contained `dotnet publish`，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini`，清理非运行时杂项后再打包到 `release-repo/oms_YYYYMMDD(.zip)`。
 当前 single-file 发行参数必须同时保留 `IncludeNativeLibrariesForSelfExtract=true` 与 `IncludeAllContentForSelfExtract=true`；若回退成只抽原生库，fresh extract 的便携发行物可能会出现“首次运行先创建 `data/`，随后无窗退出”的冷启动失败。
-同时会在发行根目录额外生成一份中英双语的 `how to update.txt`，说明手动覆盖更新的正确步骤与注意事项。
+同时会在发行根目录生成中英双语 `how to update.txt`；当前文本仍缺非便携模式和自定义数据根的保留步骤，补齐前以本页更新流程为准。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
 
@@ -59,7 +59,7 @@
 
 ### 便携模式（推荐用于首发 release）
 
-当 `portable.ini` 标记文件存在于 `osu!.exe` 同级目录时，所有用户数据存储在同级的 `data/` 子目录：
+当 `portable.ini` 标记文件存在于 `osu!.exe` 同级目录时，默认从同级 `data/` 启动存储；若其中的 `storage.ini` 已指定自定义根，运行时数据位于该目标目录：
 
 | 路径 | 说明 |
 | --- | --- |
@@ -71,7 +71,7 @@
 | `data/bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |
 | `data/storage.ini` | 可选的自定义数据根重定向配置（便携模式下一般不需要） |
 
-便携模式下，整个安装目录（包含程序文件和 `data/`）可直接拷贝到 U 盘或其他位置使用。
+未重定向数据根时，整个安装目录（包含程序文件和 `data/`）可直接复制使用。已重定向时还须保全目标数据目录，并保证指针在新位置有效。
 
 ### 非便携模式（传统布局）
 
@@ -88,7 +88,7 @@
 | `bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |
 | `storage.ini` | 可选的单一自定义数据根重定向配置 |
 
-- `OsuStorage` 支持通过游戏内迁移流程写入 `storage.ini`，把全部运行时数据迁移到单一自定义数据根
+- `OsuStorage` 通过游戏内迁移流程写入 `storage.ini`，切换到单一自定义数据根。该指针始终保留在启动存储：便携模式是程序旁 `data/storage.ini`，非便携 Release 是 `%APPDATA%/oms/storage.ini`；它不会随数据迁移，也不是放在 exe 同级。
 
 ### 游戏内更改数据目录位置
 
@@ -115,24 +115,26 @@
 3. 解压覆盖到当前程序文件夹（覆盖 `osu!.exe`、`portable.ini` 与图标等发行物文件，保留 `data/` 目录不动）
 4. 启动 `osu!.exe`
 
-**无需重新导入** BMS/Mania 目录——用户数据保存在 `data/` 子目录中，不受程序文件覆盖影响。
+**无需重新导入** BMS/Mania 目录——保留 `data/`；若已重定向，同时保留 `data/storage.ini` 与目标目录。程序文件更新不会主动迁移这些数据。
 
 ### 非便携模式
 
 1. 完全退出 OMS
 2. 下载新版本 `oms_YYYYMMDD(.zip)`
-3. 解压覆盖到当前程序文件夹（覆盖所有发行物文件；若根目录使用 `storage.ini` 指向自定义数据根，则一并保留该文件）
+3. 解压更新程序文件。当前新包自带 `portable.ini`，必须在启动前移走这次解压出的标记，保持原有非便携模式；保留 `%APPDATA%/oms/` 及其中的 `storage.ini`。
 4. 启动 `osu!.exe`
 
 **无需重新导入**——用户数据保存在 `%APPDATA%/oms/`；若已迁移，则继续保存在 `storage.ini` 指向的数据根中。
 
 ### 覆盖更新注意事项
 
-1. 当前发行物不是“严格只有一个 exe” 的布局；除了 `osu!.exe`，同级还需要保留 `portable.ini`、`lazer.ico` 与 `beatmap.ico`。
+1. 当前发行物除 `osu!.exe` 还包含图标与便携标记；`portable.ini` 是否存在决定启动存储，更新必须保持原模式。
 2. 必须在程序完全退出后再覆盖文件；运行中替换可执行文件会遇到 Windows 文件锁。
 3. 便携模式下如果误删 `portable.ini`，下次启动将不再继续使用同级 `data/` 作为数据根。
-4. 若你正在使用 `storage.ini` 指向自定义数据根，覆盖更新时不要删除该文件；否则下次启动会改变数据根位置。
+4. 若使用自定义数据根，保留启动存储中的 `storage.ini` 和目标数据。非便携安装新增 `portable.ini` 会让程序改读 `data/`，从而绕过原 `%APPDATA%/oms/storage.ini`；这可能表现为曲库消失，不能据此重建或删除旧数据。
 5. 覆盖新包后不会触发 Velopack 或安装器自更新链；当前仅保留手工覆盖这一离线更新路径。
+
+随包 `how to update.txt` 尚未包含完整的非便携标记和 `storage.ini` 保留说明，待 P1-F 同步打包脚本；目前以本页为准。
 
 ## 冒烟测试
 

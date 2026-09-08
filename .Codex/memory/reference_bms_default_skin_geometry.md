@@ -13,9 +13,9 @@ metadata:
 ## 车道与音符
 
 - 物理 lane 宽 = `RelativeWidth / TotalRelativeWidth × PlayfieldWidth`。同比缩放所有 relative width 会被归一化抵消。
-- 总物理宽只改 `BmsPlayfieldLayoutProfile.CreateDefault().PlayfieldWidth`；scratch:key 比例改 `ScratchLaneRelativeWidth/NormalLaneRelativeWidth`。
+- production总物理宽由唯一`BmsGameplayLayoutSolver`读取`BmsGameplayLayoutConfiguration`后结合safe bounds、aspect/DPI求解；scratch:key比例来自该配置的`ScratchLaneRelativeWidth/NormalLaneRelativeWidth`。`BmsPlayfieldLayoutProfile`只是同一solver产出的兼容view，不能另调`CreateDefault()`形成第二几何authority。
 - `BmsRulesetSetting.PlayfieldWidth` 不覆盖 strict profile；不要把已删除的 scale/offset config 接回来。
-- 当前关键值：scratch:key `1.5:1`，playfield height `0.92`，LN body width 默认 `0.5775`；具体断言以测试/代码为准。`LongNoteBodyWidth` 是当前唯一已有字段级安全域的 geometry：只接受 finite 且 `0 < width <= 1`，缺失/非法按 typed 原因回到默认；其余 geometry 与 screen-space/cross-field 仍未统一验证。
+- 当前关键值：scratch:key `1.5:1`，playfield height默认`0.92`，LN body width默认`0.5775`；最终像素尺寸服从solver的safe-area/aspect/DPI与BGA/HUD留位。C3已统一geometry字段的finite/range及screen-space/cross-field验证；`LongNoteBodyWidth`保留独立标量规则：finite且`0 < width <= 1`，缺失/非法按typed原因回到默认。
 - playfield 顶边贴屏，`HitTargetVerticalOffset=0`。改变高度只改像素路程，不改 GN/TimeRange；不要重加整体向下 offset。
 
 ## LN 视觉
@@ -33,6 +33,7 @@ metadata:
 ## 皮肤读取
 
 - 有贴图时贴图主导，不再叠程序化 colour；无贴图才走 ini colour/palette。
-- 几何由 `BmsPlayfield` 读取配置后重建 profile；无 override 时必须保持原 profile 字节/行为一致。
-- `LongNoteBody` 是 source-bound 窄例外：素材帧与 resolved `LongNoteBodyWidth` 同 package revision 发布，renderer 不再从 aggregate skin 重读宽度；selected 坏 body 不能与下层裸同名纹理/裸宽度拼件。这个例外不等于已建立完整 `BmsGameplayLayoutSnapshot`。
+- `BmsGameplayLayoutProvider.TryPrepareExact()`在background owner lease内读取配置、调用唯一solver并准备material/scene；`BmsPlayfield`只消费同一publication的`BmsGameplayLayoutSnapshot`，不重建profile或重读aggregate geometry。
+- `LongNoteBody`素材帧与resolved width和其余geometry/material/scene共同绑定exact publication；selected坏body不能与下层裸同名纹理/裸宽度拼件。完整layout已由C3闭合，C4/C5在其上扩展material与scene/event，不能把早期body纵切的局限当作当前状态。
+- 代码证据：`BmsGameplayLayoutSolver.Solve()`、`BmsGameplayLayoutProvider.TryPrepareExact()`、`BmsPlayfield.initialiseLayoutGraph()`；实际renderer矩阵见`BmsGameplayLayoutCurrentRevisionProductTest`和`BmsAllKeymodeSceneProductionMatrixProductTest`。2026-09-09核对生产链与测试源码；本轮实际测试范围和结果见[项目审查记录](../../doc_md/other/PROJECT_PROGRESS_AUDIT_20260909.md)。
 - 相关测试：lane layout、skin geometry、LN state、gauge placement/visibility、HUD strip。旧精确数字和演进过程查 P1-A CHANGELOG。

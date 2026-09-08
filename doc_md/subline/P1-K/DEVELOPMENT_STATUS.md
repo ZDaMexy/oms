@@ -1,6 +1,6 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后更新：2026-08-30（P1-A C3 的 P1-K Skin 前置闭合）
+> 最后更新：2026-09-09（本地代码/测试源码审查；产品验证仍引用 C3）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
@@ -11,6 +11,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 - raw carrier + typed model 双层保留：未知 header/channel 不因 typed consumer 缺席而静默丢失。
 - signed BPM、duplicate channel compound、同拍位 `BPM → STOP → object`、LNTYPE 2 最小表达。
+- `RANDOM/SWITCH` 已有固定选择值 1 的分支链，`SETRANDOM/SETSWITCH` 使用作者指定值；IF/ELSEIF/ELSE 与 CASE/SKIP/DEF 已消费，真正随机选支未实现。
 - BGA/invisible/mine/scroll 等 visual/control typed surface 与 consumer projection。
 - parse-once/project-many：metadata、background、Song Select、statistics、results 等复用 parse authority。
 - source-bound modless playable cache 与 invalidation；results/score consumer 使用 already-modded playable contract。
@@ -47,3 +48,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 2. 仅由真实谱证据驱动 special LN/control-event follow-up，并同步格式参考与约束。
 3. 新 keymode evidence 只允许在 parser authority 内 additive 扩展，并保持无证据/冲突 fail-closed。
 4. 继续保持 parser/converter focused + BMS full gate；涉及转谱或键音链时加 mania relevant 与真实 shared-store focused。
+
+## 文档治理验证
+
+2026-09-09：核对 [decoder](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs)、[production loader](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapLoader.cs)、converter/mod 投影及 [keymode 测试源码](../../../osu.Game.Rulesets.Bms.Tests/BmsBeatmapDecoderTest.cs)。C3 authority/lane 前置与现状一致；普通 loader 仍传空 override，终端用户纠正入口未交付。同步 P1-J 的旧 lane 待办，并移除约束内失效的“规划中”与旧章节指向；本节仅记录源码审查，全局实测见主线最新验证。

@@ -1,6 +1,6 @@
 # P1-E 开发进度：gameplay 与长条真实谱面验校
 
-> 最后更新：2026-07-16（文档健康治理；功能状态未改变）
+> 最后更新：2026-09-09（本地代码/测试源码审查；产品验证未刷新）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -21,3 +21,7 @@
 
 - 当前仅完成基于代码结构的状态同步，并沿用主线对 long-note / release-window 的既有已验证结论，尚无新增构建或测试执行。
 - 后续若出现按日期展开的实现或验证，统一写入 [CHANGELOG.md](CHANGELOG.md)。
+
+## 文档治理验证
+
+2026-09-09：核对 [DrawableBmsHoldNote](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsHoldNote.cs) 的 release/regrab、[BmsGaugeProcessor](../../../osu.Game.Rulesets.Bms/Scoring/BmsGaugeProcessor.cs) 的尾判分母/HCN body，以及 [runtime 测试源码](../../../osu.Game.Rulesets.Bms.Tests/BmsDrawableRulesetTest.cs)。软件实现与 LN/CN/HCN 三轴合同一致；真实谱 checklist 与人工签收仍未闭合，本节仅记录源码审查，全局实测见主线最新验证。

@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-09-09
+
+### parser/converter 实际合同与跨线文档复核
+
+- 对照 decoder/production loader、converter/lane permutation、production shared-store 测试源码：C3 keymode authority 与全 lane timeline 已闭合；普通 loader 仍不提供用户 override，模糊 sparse 谱没有终端用户纠正 UI。
+- 修正文档中的旧“仅 IF 1”表述：`RANDOM/SWITCH` 固定选择值 1，`SETRANDOM/SETSWITCH` 使用作者指定值，IF/ELSEIF/ELSE 与 CASE/SKIP/DEF 分支已有实现；真正随机选支仍未实现，既有警告未修改。
+- 明确已识别 channel 的 hex 内部值与未知 raw token 保留、对象 ID 的 base36、canonical scratch channel 和每小节独立 measure multiplier；renderer 直接消费 converter 的 `MeasureStartTimes`，不重新计算累计倍率。
+- K10 改为已落地；删除 K11/K12 中以当前时态描述旧 BGM/星数缺陷及失效章节指向，保留 sample-only 计数/难度分别守门合同；同步 P1-J 的旧 lane 待办。本节仅记录源码审查，不刷新 C3 产品验证数字；全局实测见主线最新验证。
+
 ## 2026-08-30
 
 ### C3 / Skin 前置闭合：parser-owned keymode、全 lane armed timeline 与 post-mod keysound/LaneId 同源

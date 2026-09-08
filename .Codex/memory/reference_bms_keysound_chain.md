@@ -27,7 +27,7 @@ autoplay 必须等价于 100% 完美游玩。自动音符存在时 lane armed �
 - 已闭合：pause 边界停播、长 BGM 被 32 通道偷断、tap per-WAV cut、bgm1 按键误触发、普通密度帧抖动与冷解码 gen2 冻结。
 - C3 Skin 前置已闭合：parser 的 immutable `BmsKeymodeResolution` 是 keymode 唯一 truth；`LaneKeysoundTimelines` 以 `GetLaneCount()` 覆盖 5K/7K 末键、9K 全 lane、14K K14/S2 的 visible、LN head/tail armed 与 invisible，layout/runtime 不得二次读谱或猜 lane 数。
 - native BMS 玩家/autoplay 与 converted Mania 已在 production host 证明实际请求同一 shared store。Mirror/RANDOM/R-RANDOM/custom 的对象、mine、armed timeline 共用 exact permutation；S-RANDOM 无单一 permutation 时以 `bms.keysound.timeline.disabled-s-random` 禁用受影响 armed timeline，但对象自身 WAV 仍随 post-mod target lane 发声，keysound 与 skin lookup 使用同一 `LaneId`。
-- 仍开放：转谱 LN 池化嵌套头、长 one-shot BGM 真 pause/resume、50k 极端 dense profile。
+- 仍开放：转谱 LN 池化嵌套头、长 one-shot BGM 真 pause/resume、50k 极端 dense profile。当前 converter 对 LN 仍生成普通 mania `HoldNote`，头音在 `NodeSamples[0]`，不带 `IHasManiaKeysound`/cut-group；tap-note production store proof 不能用于宣称 LN 已接入。
 
 ## 地雷与诊断
 

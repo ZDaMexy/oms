@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-09
+
+### 同步已闭合 lane 证据与真实音频缺口
+
+- `buildLaneKeysoundTimelines()` 已使用 `GetLaneCount()`；`TestSceneBmsSharedKeysoundTiming` 的 decoded boundary lane、Mirror 和 S-RANDOM production source-WAV/store proof 已存在。STATUS/PLAN 删除“等待 P1-K 改 key count”的过时待办，自动闭门继续引用 [P1-K 2026-08-30 证据](../P1-K/CHANGELOG.md#2026-08-30)，不把审查日期当新测试日期。
+- 对照 `BmsToManiaBeatmapConverter`、mania `DrawableNote`/`HoldNote` 与 player-level store harness，转谱 tap/BGM/scratch 已接 shared store，但 LN 仍是普通 `HoldNote` + `NodeSamples[0]`，不能据 tap proof 宣称 pooled LN head/cut-group 已交付。
+- 长 one-shot 保位续播、末端 lane 真实谱听感、50k profile 与人工音频清单继续开放；同步相关 memory。本节仅记录源码审查，人工验收未推进；全局实测见主线最新验证。
+
 ## 2026-07-16
 
 ### 文档健康治理：PLAN 收敛到四个未完 gate，音频约束去除事故流水账

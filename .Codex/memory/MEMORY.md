@@ -4,7 +4,7 @@
 
 ## 项目与协作
 
-- [项目总览](project_oms_overview.md) — OMS 范围、架构、阶段与红线。
+- [项目总览](project_oms_overview.md) — OMS 范围、架构、数据根/便携标记与红线。
 - [文档治理](project_oms_docs_governance.md) — Git 基线、唯一验证快照、合同就地更新、篇幅预算与代码块标题误判。
 - [反馈工作流](feedback_workflow.md) — 中文、简洁实现与反过度防御偏好、Git 基线、真机证据及交付闭环。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — P1-I 展示层级、返回条、分组与转谱展示。
@@ -24,22 +24,22 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源C2与C3/C4/C5 package+layout+material+scene不可分割publication、Settings唯一manual Reload、live fail-closed、fresh barrier、participant/work lease、generation复核、current mutation与owner retire；C6新增consumer继续接入。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — skin-scoped pre-open/CEN gate、same-hash receipt、record/blob asymmetric rollback，以及current reload/delete不放宽importer的边界。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者面稳定决议、legacy editor禁用、三源reload完成边界、真实beatmap-local缺口与不可误推边界；实时能力只看P1-A。
-- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer核算价值；当前`5/7 closed，C6 active`，C1～C5冻结，下一门为sandbox与最终整包reload。
+- [Skin V1 产品进度与后续工作包](project_oms_skin_product_progress.md) — 按真实caller→consumer核算价值，区分合同、生产接入和人工签收；当前燃尽只读P1-A STATUS。
 
 ## 构建、存储与产品面参考
 
 - [构建与测试](reference_build_and_test.md) — 按风险验证、当前编译产物、失败身份、targeted formatter、并发协调与 C# Dev Kit 误判地雷。
 - [大曲库选歌性能](reference_song_select_perf.md)
-- [谱面构成过滤](reference_bms_composition_filter.md)
+- [谱面构成过滤](reference_bms_composition_filter.md) — read-model、query与真实UI分开核对；单轨产品决定不等于当前三行原型。
 - [难度表](reference_bms_difficulty_table.md)
 - [选歌元数据显示](reference_bms_songselect_metadata_display.md)
 - [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md)
-- [转谱星数持久化](reference_converted_star_persistence.md)
+- [转谱星数持久化](reference_converted_star_persistence.md) — 转谱rating、原生BMS作者等级和密度预览的三种authority。
 - [转谱键数显示](reference_converted_mania_keycount_display.md)
 
 ## BMS 解析、音频与游玩参考
 
-- [BGA 链](reference_bms_bga_chain.md)
+- [BGA 链](reference_bms_bga_chain.md) — viewport/event统一不等于单content/decoder迁移。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md)

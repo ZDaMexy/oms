@@ -40,4 +40,6 @@ solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能�
 
 ## 告警纪律
 
-不要恢复全局 `NoWarn` 隐藏依赖告警；安全升级单独治理。当前验证数字只看 mainline STATUS，恢复期历史数字查 [恢复审计](../../doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md) 或对应 CHANGELOG，不在 memory 重抄。
+不要恢复全局 `NoWarn` 隐藏依赖告警；安全升级单独治理。当前验证范围从 mainline STATUS 路由到所属子线 STATUS 或本轮审计证据，恢复期历史数字查 [恢复审计](../../doc_md/other/SKIN_SYSTEM_RECOVERY_20260710.md) 或对应 CHANGELOG，不在 memory 重抄。
+
+SDK 诊断与产品构建分开判断：2026-09-09 `dotnet --info` 在 SDK workload 的 `InstallerBase` 初始化报错，但同一环境的实际 Release build/test 能运行。该诊断命令失败不能替代构建结果，也不是修改 `global.json`、安装 workload 或补 runtime fallback 的依据。

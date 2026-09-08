@@ -1,6 +1,6 @@
 # P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（移除已闭合的 C3 lane 前置待办）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -17,23 +17,13 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 - BGM/scratch/tap note 已走 shared `BmsKeysoundStore`；转谱 LN 仍是开放缺口。
 - lane/order 热路径、通道自动增长、per-WAV cut、prewarm、pause/seek stop 与 diagnostics seam 已有稳定合同。
 - BMS gameplay beatmap track 保持静音但仍是时钟源；选歌试听只接受 `#PREVIEW`。
+- 完整 lane timeline、末端 lane 与 mod 后 shared-store production proof 已随 C3/P1-K 闭合；后续只保留回归和真实谱 smoke，证据见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md#2026-08-30)。
 
 完成阶段和误判/回退过程不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
 
 ## 当前执行顺序
 
-### 1. 末端 lane keysound runtime proof
-
-依赖：P1-K 先把 `buildLaneKeysoundTimelines()` 上界从 key count 修为 lane count，并以 converter focused 证明 timeline 完整。
-
-1. 共用 P1-A `SV1-3` topology fixture，覆盖 5K K5、7K K7、14K K14/S2。
-2. 证明末端 lane 进入同一个 shared store，并在玩家、autoplay、空击/不可见 keysound 路径按现有语义发声。
-3. 不只断言 converter DTO 数量；必须有 runtime/playback record 或等价 owner-level proof。
-4. 不借本切改变 pool、cut、判定、lane action 或 skin/layout authority。
-
-验收：converter focused 与 runtime proof 同时通过，且每轨 smoke 可交 P1-A/P1-G 复用。
-
-### 2. 转谱 LN keysound 进入 shared store
+### 1. 转谱 LN keysound 进入 shared store
 
 依赖：现有 tap-note store 路由、player-level playback log/harness 与 mania hold pooling 行为保持可验证。
 
@@ -45,7 +35,7 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 验收：真实转谱 LN 不重复、不静音，pause/seek 不逃逸，tap/BGM/scratch 与原生 mania hold pooling 不回归。
 
-### 3. 50k 极端 dense 谱只按证据治理
+### 2. 50k 极端 dense 谱只按证据治理
 
 触发条件：用户在当前版本真机复现，并提供 `BmsGameplayStallDiagnostics` 日志、谱面范围和可重复操作。
 
@@ -56,11 +46,11 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 验收：改动与单一已证实瓶颈对应，自动 proof 和相同真机场景均改善，普通密度无回归。
 
-### 4. 人工音频清单交 P1-G
+### 3. 人工音频清单交 P1-G
 
 1. dense fully-keysounded。
 2. layered/long BGM。
-3. rapid empty-strike 与 lane armed keysound。
+3. rapid empty-strike 与 lane armed keysound，覆盖 5K/7K 末键、9K 全 lane、14K K14/S2 及 mod 后目标 lane；复用已完成的 production proof，补真实谱听感。
 4. pause/seek/retry；明确当前 one-shot 只保证边界停止，不保证长样本保位续播。
 5. 原生 BMS 与转谱-mania 的代表谱对照。
 

@@ -1,5 +1,13 @@
 # P1-I 变动日志
 
+## 2026-09-09
+
+### 修正单轨产品面完成状态
+
+- 当前FilterControl实际仍创建三个vertical双端range slider，visual query输出上下限；现存headless tests也覆盖三行范围与min/max拖拽。更正“单轨已落、只缺自动证明”的STATUS/PLAN，既有单轨上限段/尾段容差产品决定保留为待实现，历史记录不作为当前完成证据。
+- 确认criteria/backfill、展示层级、分组、converted-mania、元数据/文件定位主链仍存在；修正performance memory中“JSON解析缓存未实现”等过时召回，区分PLAYLEVEL、converted-mania star与density graph。未改产品代码；实际全仓测试结果见主线本次记录。
+- 主线使用本轮 fresh core Release 产物定点运行 `ExternalLibraryScanner|BmsStarRatingResolver|TestSceneBeatmapFilterControl`，合计22/23通过：`BmsStarRatingResolverTest` 14/14、`ExternalLibraryScannerTest` 7/7、shared `TestSceneBeatmapFilterControl` 1/2。其中 `TestSearch` 因 fixture 未注册 `INotificationOverlay` 而失败，尚未验证到搜索断言。STATUS/PLAN 增加修复 fixture、重跑通用搜索并补 BMS/mania 切换矩阵；21条非视觉和另1条 shared scene 通过不关闭 I3/I4。精确筛选命令与结果证据由主线本次审查记录保存。
+
 ## 2026-07-16
 
 ### 文档健康治理：I0～I3/I5～I7 归档，I4 未完 proof 成为唯一活动计划

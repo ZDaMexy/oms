@@ -1,5 +1,12 @@
 # P1-B 变动日志
 
+## 2026-09-09
+
+### 输入 production 与文档边界复核
+
+- 核对 `BmsInputManager`、`OmsInputRouter`、DirectInput provider、desktop settings host 与 `TestSceneOmsScratchGameplayBridge` 源码；软件输入与 first-press/final-release 主链已接线，loaded scene 不能替代真实 HID/控制器覆盖。
+- STATUS 删除最新验证外重复的测试数字，保留 cross-device 终态与硬件签收门。本条只记录源码和文档审查，人工验收未推进；全局实测见主线最新验证。
+
 ## 2026-07-16
 
 ### 文档健康治理：移除已完成建档/B0 噪声

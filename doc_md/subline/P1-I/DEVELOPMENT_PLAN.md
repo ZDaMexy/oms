@@ -1,6 +1,6 @@
 # P1-I 当前计划：BMS 选歌筛选与搜索
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（实际实现对照；保留单轨产品决定）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定筛选/read-model 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，I0～I3/I5～I7 的实现史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,29 +14,30 @@ P1-I 拥有 BMS Song Select 的分组、搜索、筛选、展示层级和其同�
 | I0 | 归线与 RC/LN/SCR 互斥语义冻结 |
 | I1 | persisted 构成 read-model、import/reuse/backfill 主链 |
 | I2 | BMS criteria 与完整文本搜索语法 |
-| I3 | BMS-only composition/key-count visual filter |
+| I3 基础 | BMS-only key-count 与三行双端 composition 原型；单轨目标未落 |
 | I5 | 歌曲↔谱面展示层级与 BMS-local 持久化 |
 | I6 | 层级返回条、Back 优先级与 scope 解耦 |
 | I7 | 难度表分组解析缓存与大库基线 |
 
-当前只收口 I4 自动/视觉证明与现场性能证据，不扩张新 filter family。
+当前先补齐 I3 已承诺的单轨产品面，再收口 I4 自动/视觉证明；不扩张新 filter family。
 
 ## 当前执行顺序
 
-### 1. 共享边界拖拽 headless proof
+### 1. 单轨产品面与共享边界 proof
 
-1. 覆盖 `BmsCompositionHandle` 三段共享边界拖拽，保证 RC/LN/SCR 独立启停与最大占比语义不漂移。
+1. 将当前三个 `BmsCompositionRangeSlider` 替换为既有决定的单行单轨：RC/LN/SCR 三个上限段、独立启停、尾段空白容差；visual query 只输出启用段的上限，文本仍保留完整范围语法。现存 min/max 测试反映旧原型，随产品变更更新，不能把它们当作最终合同。
 2. 覆盖总和达到 100% 时尾段优先压缩，以及跨边界、零宽、禁用段和重新启用。
 3. visual control 与文本 criteria 必须对同一集合给出一致结果；控件不能反向削弱完整范围语法。
 4. 缺失 stats 继续 fail-open，不因 headless fixture 变成静默隐藏。
 
-验收：纯 headless 断言覆盖拖拽状态、criteria 输出和 bindable 往返，不依赖人工像素观察。
+验收：真实 UI 已是单轨；headless 断言覆盖共享边界、criteria 输出和 bindable 往返，再经 shared visual 与人工交互核对。不得只补 fixture 后声称 I3 完成。
 
 ### 2. shared visual gate
 
-1. 在 `TestSceneBeatmapFilterControl` 覆盖 BMS branch：composition/key-count 行显示，mania 保持原 star surface。
-2. 切换 ruleset 后 visual state、criteria、persisted BMS setting 不串线。
-3. 展示层级锁定、返回条、scope 与 Back 优先级只补当前缺口，不重写 carousel host。
+1. 修复2026-09-09实际运行暴露的 fixture `INotificationOverlay` 注入缺口，先让既有 `TestSearch` 执行到搜索断言。
+2. 在 `TestSceneBeatmapFilterControl` 覆盖 BMS branch：composition/key-count 行显示，mania 保持原 star surface。
+3. 切换 ruleset 后 visual state、criteria、persisted BMS setting 不串线。
+4. 展示层级锁定、返回条、scope 与 Back 优先级只补当前缺口，不重写 carousel host。
 
 验收：共享 visual test 可重复通过；BMS-only 行不占用 mania/其它 ruleset 布局 authority。
 

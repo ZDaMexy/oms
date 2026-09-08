@@ -12,7 +12,7 @@ metadata:
 
 ## 当前稳定合同
 
-- `GameplaySkinEventEnvelope` 是 process-local、非 generic、只读的 engine contract，固定 `apiVersion/epoch/sequence/gameplayTime/layoutRevision` 与 `Snapshot/Reset/Edge` delivery category；不是 serialisation、script 或 author manifest ABI。envelope 只有内部 dispatcher 能盖 header，ruleset adapter 不拥有 epoch/sequence authority。
+- `GameplaySkinEventEnvelope`是引擎构造的只读CLR载体，固定contract/version、epoch/sequence、gameplayTime、gameplay/layout/material/scene revision及`Snapshot/Reset/Edge`。C5公开只读事件合同ID为`oms-gameplay-skin-event.v1`，由manifest声明并被scene runtime消费；CLR构造/继承本身不是package、序列化或脚本API。只有内部dispatcher盖header，ruleset adapter不拥有epoch/sequence authority。
 - payload hierarchy 由 shared engine 定义。第三方 package 不能派生；ruleset adapter 只提交 neutral primitives 或调用 shared concrete payload factory。BMS 是 friend assembly 也不获得直接 subclass/publish 的架构权限。
 - `gameplayTime` 是 gameplay clock 毫秒域，必须 finite；lead-in/storyboard 允许负值，同时间事件由 sequence 决定顺序，绝不能换成 wall/update clock。
 - internal cursor 校验 capability/family filtering 前的完整 canonical stream。新 consumer（包括 reload 后新实例）先以完整 Snapshot 从任意非负 mid-session epoch/sequence high-water attach；之后 epoch 严格 `+1`，同 epoch sequence 严格 `+1`，time 非递减。
@@ -23,7 +23,7 @@ metadata:
 ## producer 与 mutable state 地雷
 
 - `GameplayClockContainer.OnSeek` 没有 reason/time，且 `Reset()` 也会调用 `Seek()`；无法单靠该 callback 区分普通 seek、retry、initial reset 或其它 discontinuity。生产 lifecycle bridge 必须显式拥有 reason/epoch。
-- `JudgementResult` 是可变对象；`Playfield.revertResult()` 在回调后会继续通知 lifetime entry，随后调用 `result.Reset()`。未来 adapter 必须在 New/Revert 回调栈内立即复制 primitive/neutral ID，不能排队保存引用后读取。
+- `JudgementResult`是可变对象；`Playfield.revertResult()`在回调后继续通知lifetime entry，随后调用`result.Reset()`。C5 production adapter已在New/Revert回调栈内复制primitive/neutral ID；后续consumer也不能排队保存引用再读取。
 - `HitEvent` 虽是 readonly struct，仍含 `HitObject`/`LastHitObject` 引用，不是安全 payload。`Drawable`、`HitObject`、`Bindable`、clock、Realm object 与 ruleset-native mutable configuration 都不能越过 event 边界。
 - `SkinReloadableDrawable` / `ISkinSource.SourceChanged` 会被 scheduler 延后或合并，也没有 package validation/layout revision authority，不能直接当原子 reload producer。
 - canonical cursor 的 sequence 连续规则适用于过滤前内部流；未来 capability/family filtering 若保留原 sequence，外部 filtered view 可以看到 gap，不能把该 cursor 错接到过滤后流。

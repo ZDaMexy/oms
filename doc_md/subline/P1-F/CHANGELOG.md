@@ -1,5 +1,12 @@
 # P1-F 变动日志
 
+## 2026-09-09
+
+### 发行实现与证据时效复核
+
+- 核对打包脚本、portable marker、OsuStorage重定向及禁用updater；将最近明确的publish/fresh extract/smoke证据标为2026-05-09，不把近期代码build当作新包验收。
+- 记录随包中英更新说明缺storage.ini提醒、非便携覆盖全包引入portable.ini会切换基础数据根两项实际缺口；PLAN补对应动作，约束明确storage.ini位于基础数据根。代码未改，本线未publish或启动用户发行物；全仓运行结果由主线本次审查记录汇总。
+
 ## 2026-07-16
 
 ### 文档健康治理：发行 ownership 收敛为包体、数据根与覆盖更新

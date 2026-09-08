@@ -2,6 +2,13 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-09-09
+
+### 实际生产进度与文档记忆同步
+
+- 以本地`2f8aedd`的Settings/Workspace→SkinManager三源→exact publication→BMS/mania/core renderer、scene/event及真实production矩阵测试源码复核C1～C5可达性，确认通用script capability尚无production caller、C6/C7未交付及beatmap-local/legacy/canonical边界。internal fixed-source staged import不单独计玩家功能；ManagedCopy复用其公共底层。
+- 修正SKINNING/README与相关memory中的旧geometry验证、scene动画/事件ABI、editor可用性、capability进度和publication组成；G1技术合同明确一次性Capture返回前释放handle，C2 CaptureHeld由caller持有session到final validation。未改代码、产品行为或PLAN退出门；2026-09-03完整C5闭门数字保留，本轮实际构建/测试/文档门见[项目审查记录](../../other/PROJECT_PROGRESS_AUDIT_20260909.md)。
+
 ## 2026-09-08
 
 ### 现行合同与工作流文档归并

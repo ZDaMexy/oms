@@ -1,6 +1,6 @@
 # P1-H 当前计划：存储拓扑
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（明确已有基本删除与剩余一致性门）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定路径/扫描合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成难度表与扫描治理按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -24,6 +24,8 @@ P1-H 维护 `chartbms/`、`chartmania/`、portable/custom data root、managed/ex
 
 ### 1. 删除、失效与重扫语义
 
+当前已有managed基本删除、external目录排除及启动DeletePending清理；scanner遇缺失root只跳过，移除注册只改root配置，同hash新注册可能使旧记录DeletePending。以下工作须从这些真实行为出发，不另起一套“假定全无实现”的删除服务。
+
 1. 明确源目录消失、单谱删除、set 变空、重命名和重新出现时 Realm record、目录与选择状态的行为。
 2. external root 永远只读；“删除”只能解除注册或标记失效，不能删用户目录。
 3. managed 删除必须通过 owning scanner/command、resolved-root containment 与冲突检查；不得让增量扫描顺手清理未知记录。
@@ -32,6 +34,8 @@ P1-H 维护 `chartbms/`、`chartmania/`、portable/custom data root、managed/ex
 验收：备份数据根上覆盖存在→缺失→重命名→恢复→重扫矩阵，确认 Realm、磁盘和 UI 结果一致且可恢复。
 
 ### 2. path identity 与重复 root
+
+已有 `FullPath`/大小写不敏感比较和 importer path 复用不等于完整physical identity；尤其须验证同hash跨root替换与尾分隔符/父子root/reparse重复的组合。
 
 1. 冻结规范化路径、大小写、尾分隔符、相对/绝对和 managed/external root 的 identity 规则。
 2. 同一物理目录被重复注册、父子 root 重叠、portable/custom root 切换时必须给出确定结果，不能重复导入或跨 authority 接管。

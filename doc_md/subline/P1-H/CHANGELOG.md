@@ -1,5 +1,12 @@
 # P1-H 变动日志
 
+## 2026-09-09
+
+### 对照真实扫描与删除行为
+
+- STATUS补充已存在的managed基本删除、external物理只读排除、启动DeletePending清理和同hash复用；同时明确缺失root只跳过、RemoveRoot只改配置、跨root同hash新注册可使旧记录DeletePending，尚无完整失效/重命名/去重恢复矩阵。
+- PLAN从真实基本行为继续闭合path/physical identity和Realm/磁盘/UI组合，未将string path检查当作held no-follow authority；保留难度表/converted-star共享JSON与全局RealmAccess合同。本线未改代码或执行用户库扫描/删除；本轮core scanner 7/7、BMS importer所在full通过，精确范围见主线审查记录，失效/去重矩阵仍未闭合。
+
 ## 2026-07-16
 
 ### 文档健康治理：完成专题压为基线，PLAN 回到删除/path identity/诊断

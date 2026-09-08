@@ -1,11 +1,11 @@
 # P1-M 技术约束：内置音乐播放器
 
-> 最后更新：2026-06-15
+> 最后更新：2026-09-09（更正BMS试听输入基线；播放器仍未实现）
 > 本文件记录 `P1-M` 的硬约束。若实现与本文冲突，先修正其一再继续开发。规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，现状见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)。
 
 ## 红线（最高优先级，贯穿全线）
 
-1. **不得改坏 song-select 试听链路**：选歌时仍须从 `Metadata.PreviewTime`（缺省 `0.4*Length`）起点 looping 试听、跟随选中谱面换轨。PlayQueue 在 song-select 接管全局音轨（`ControlGlobalMusic`）时必须「跟随」而非「驱动」。
+1. **不得改坏song-select试听链路**：仍从 `Metadata.PreviewTime` 起点looping并跟随选谱；一般音轨缺省为 `0.4*Length`，BMS有效显式 `#PREVIEW` 当前固定0且不探测整曲。PlayQueue在Song Select接管全局音轨（`ControlGlobalMusic`）时只跟随，不驱动。
 2. **不得破坏 gameplay 全局音轨控制闸 `AllowTrackControl`**：所有播放器控制入口必须先查它；gameplay 中禁用用户控制的语义不变。
 3. **离线优先 / 只用本地音轨**：播放器绝不接在线试听；`PreviewTrackManager` 保持失活并明确标注为离线无关分支，不得借本线复活。
 4. **每阶段独立可落地、可回退**：均需 focused 回归 + Release 门槛 + 「song-select 试听 + `AllowTrackControl` 无回归」证明。
@@ -28,7 +28,7 @@
 ## 播放源（mania/bms/both）约束
 
 1. 过滤谓词按 `BeatmapSetInfo.Beatmaps` 的 `Ruleset.ShortName` 判定（bms = `BmsRuleset.SHORT_NAME` 常量，非硬编码字符串字面量散落）。
-2. bms 源池天然受「有 `AudioFile`」既有过滤约束（纯键音谱无音频被排除）——这是预期行为，不得为「让 bms 谱都出现在播放器」而绕过音频过滤去播静音虚拟轨刷屏。
+2. bms源池受现有AudioFile过滤约束：有效显式 `#PREVIEW` 才入池，无preview的纯键音谱排除；不因文件大小、BGM或目录里有其它音频而自动认作完整音乐。不得绕过过滤播放静音虚拟轨，也不把本线预留当作已实现keysound整曲混音。
 3. 播放源是持久化设置；切换源须即时重建可播放池且不打断当前正在播放的曲（除非当前曲已不在新池内）。
 
 ## UI 约束（展开视图复用 FullscreenOverlay）

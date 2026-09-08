@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（与已闭合的 C3 lane 证据对齐）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与 authority
@@ -13,7 +13,7 @@
 
 1. 玩家 key-down 必须发声：clean hit 由 note `PlaySamples` 发声；被判为 pressed-poor/miss 且消费按键时，由 press path 补播该 note keysound；没有 key-down 的自然漏过 miss 静音。clean hit 不得 double。
 2. LN tail 一律不自动发声；tail keysound 只可保留在对象/timeline 中用于 armed empty-strike 语义。LN head 与普通 note 遵守同一 shared store/cut 合同。
-3. `BmsBeatmap.LaneKeysoundTimelines` 必须覆盖 lane count 全范围。P1-K 构建 timeline，P1-J 证明 5K/7K 最右键、14K 右侧末键与 S2 的 runtime 可达；lane runtime 不得另加补偿 timeline。
+3. `BmsBeatmap.LaneKeysoundTimelines` 必须覆盖 lane count 全范围。P1-K 构建 timeline，P1-J 守住 5K/7K 最右键、9K 全 lane、14K 右侧末键与 S2 的 runtime 可达及 mod 后 source WAV/target `LaneId` 一致性；现有 converter 与 production proof 一并保留，lane runtime 不得另加补偿 timeline。
 4. autoplay 发声必须与 100% 完美游玩逐次等价：自动音符自己发声时，同 lane 的 armed keysound 必须被抑制；玩家空击语义不受影响。守卫包括 `TestAutoPlayNoteSuppressesRedundantLaneKeysound` 与 lane replay 对照。
 5. full autoplay 的 BMS owner-side 分流不得破坏 core `FramedReplayInputHandler` 的 one-boundary-per-call 合同，也不得让 replay HUD/key counter 失去输入活动。
 

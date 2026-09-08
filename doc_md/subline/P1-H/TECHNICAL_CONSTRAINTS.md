@@ -1,5 +1,7 @@
 # P1-H 技术约束：存储拓扑支撑线
 
+以下为行为合同；当前实现与未闭合的缺失/移除root/跨root去重矩阵见 [STATUS](DEVELOPMENT_STATUS.md)。现有字符串路径检查和基本删除不构成皮肤G1的held identity或原子恢复证明。
+
 1. 不得破坏 `chartbms/`、`chartmania/`、`portable.ini -> data/` 与本地优先的数据根约束。
 2. 任何改变导入路径、数据根、外部谱库扫描或重扫策略的改动，都必须同步更新本目录四件套、`../../mainline/` 与 `../../other/RELEASE.md`。
 3. `扫描外部谱库` 与 `扫描内部谱库` 必须保持职责分离：前者只处理已注册外部根，后者只重建当前数据根下 `chartbms/` / `chartmania/` 的 managed roots。

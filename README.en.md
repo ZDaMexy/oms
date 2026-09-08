@@ -33,7 +33,7 @@ OMS starts from [osu!lazer](https://github.com/ppy/osu), removes osu!, Taiko and
 - **Multiple gauges** — ASSIST EASY / EASY / NORMAL / HARD / EX-HARD / HAZARD / GAS, switchable across the OMS LEGACY, beatoraja, LR2 and IIDX rule families so the clear feel matches the platform you know.
 - **BGA playback** — static backgrounds, image and video BGA, POOR layer, shown in a floating panel docked by layout; legacy video formats can also play with ffmpeg (see [Usage](#bga-playback)).
 - **Training & assist mods** — Mirror / Random (including R-RANDOM / S-RANDOM and custom patterns), Auto Scratch / Auto Note and other practice-oriented mods.
-- **Broad input support** — keyboard, XInput gamepads, Raw Input, HID / DirectInput controllers.
+- **Input integration** — keyboard, XInput, Raw Input and DirectInput/HID software paths are connected; real-device coverage, analog scratch and calibration still require validation.
 - **BMS difficulty tables** — import from local directories and public URL sources, MD5 matching, browse grouped by table.
 - **Portable distribution** — installation-free full package with a relocatable data root.
 
@@ -60,14 +60,14 @@ The only exception is **BMS difficulty tables**: import / refresh from local pat
 
 ### BGA playback
 
-During BMS play, the BGA is shown in floating panels beside the playfield, docked by layout (1P right, 2P left, centre right; 14K currently uses the four corners). Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the panels off.
+During BMS play, the BGA is shown in floating panels beside the playfield, docked by layout (1P right, 2P left, centre right; the default 14K skin currently uses the four corners). Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the panels off.
 
 Legacy video formats (`.mpg`, `.wmv`, `.avi`, `.flv`) cannot be decoded by the built-in player and show a static image by default. To play them you need an ffmpeg binary:
 
 - Install it on the system PATH: `winget install ffmpeg` (restart OMS once if it is already running), or
 - Download [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) and place `bin\ffmpeg.exe` in the OMS program directory (next to `osu!.exe`) or the data directory (default `%APPDATA%\oms`).
 
-Then keep "Transcode undecodable BGA video" enabled in the BMS settings. On first entry, loading waits for up to about eight seconds: a timely transcode starts the video from the beginning, while a timeout keeps the static image until the video is ready. `bga-video-cache\` is reused only within the current process session; restarting OMS clears it and retranscodes on demand.
+Then keep "ffmpeg完整BGA支持" (full BGA support via ffmpeg) enabled in the BMS settings. On first entry, loading waits for up to about eight seconds: a timely transcode starts the video from the beginning, while a timeout keeps the static image until the video is ready. `bga-video-cache\` is reused only within the current process session; restarting OMS clears it and retranscodes on demand.
 
 ## Building from source
 

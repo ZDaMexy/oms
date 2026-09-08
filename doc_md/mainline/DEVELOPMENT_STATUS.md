@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-08（文档治理；产品验证仍为 2026-09-03）
+> 最后更新：2026-09-09（全线代码对照与自动复验；无新增人工签收）
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
@@ -42,7 +42,7 @@ OMS 处于 Phase 1.x 后段，Skin V1 为 **`5/7 closed，C6 active`**。C1～C5
 
 ## 最近一次验证
 
-2026-09-03：C5 scene/event、全部适用 public slot production、预算/池化与 exact publication 通过约定自动门和独立终审；Release 构建通过，core/mania 的失败保持精确既有基线。完整测试矩阵、失败归因和命令见 [P1-A 最新验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及 [C5 完成证据](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)。本次文档治理没有重新运行这些产品测试。
+2026-09-09：Release 构建与 BMS 全量通过；mania full/core Skin 的失败名称及故障与既有基线对应。额外选歌/谱库子集仍有 shared TestSearch 的 fixture 依赖缺失。范围、精确失败、命令与远端 TLS 限制见[本轮审查证据](../other/PROJECT_PROGRESS_AUDIT_20260909.md#本轮实际验证)。未跑全 core、publish 或实机；C5 完整闭门证据仍为 [2026-09-03](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)，不据此重签 campaign。
 
 ## 待人工验收
 
@@ -67,14 +67,14 @@ OMS 处于 Phase 1.x 后段，Skin V1 为 **`5/7 closed，C6 active`**。C1～C5
 - C1的Workspace Rename/Delete与full ManagedCopy已过退出门，但held-root mutation与journal/recovery仍不是filesystem transaction。C2冻结的current external/managed/ordinary mutation均先fallback+detach；external只pure-Realm remove且source零I/O，managed首个physical后的uncertain failure保持fallback并由durable recovery收口。
 - 当前链底仍是程序化 `OmsSkin`，不是最终只读 `oms-simple.osk`。
 - BMS 单套测试全绿不证明 mania 默认资源、真实选择链或视觉事件正确。
-- C3/C4/C5已关闭playfield、gauge/combo、HUD、BGA viewport、resolved material、prepared scene与read-only event的第二套authority；后续风险仅剩C6 sandbox/final package gate，不能另建布局、lookup、material或event merge。
+- C3/C4/C5已统一layout/material/scene/event authority；C6 sandbox继续加入同一协议。P1-L当前仍逐viewport创建BGA player，单content/decoder迁移未完成。
 - abnormal-period 归档只能定点取证；50k dense、真实硬件和特殊 Gimmick 仍必须以 profiler/实机证据推进。
 
 ## 文档治理验证
 
-2026-09-08：协作入口统一 Git 基线、按文件分工与验证调度、按风险测试及简洁实现规则；STATUS/PLAN 去重并统一验证章节，P1-A 合同就地合并，检查脚本补齐结构检测与篇幅告警。治理验证见 [CHANGELOG](CHANGELOG.md)，不推进产品或人工 gate。
+2026-09-09：全量核对 P1-A～M、主约束、派生说明与 memory。P1-I 单轨仍待实现；P1-J 已完成的 lane 前置移出待办；纠正密度星、BGA 单内容源、播放器及皮肤作者能力漂移。非便携覆盖 marker 会切根，已修发行说明并登记 P1-F 包内说明欠账。覆盖表与同步范围见[审查报告](../other/PROJECT_PROGRESS_AUDIT_20260909.md)，校验结果见 [CHANGELOG](CHANGELOG.md)。
 
 ## 更新规则
 
-- 本页只保留一个产品/runtime 验证快照和一个不冒充产品验证的文档治理边界；旧记录进入 [CHANGELOG.md](CHANGELOG.md)。
+- 本页只保留一个自动验证快照及治理边界；未重跑范围不得刷新验证日期，旧记录进入 [CHANGELOG.md](CHANGELOG.md)。
 - 只记录仍影响决策的风险和未完成 gate；子线实现过程与旧数字留在对应子线。

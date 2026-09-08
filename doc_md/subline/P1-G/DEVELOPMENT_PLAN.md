@@ -1,6 +1,6 @@
 # P1-G 当前计划：Phase 1.x 人工验收汇总
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（对齐集中视觉门；不新增人工结论）
 > 全局 gate 见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)，当前分项见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，历史结论见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -24,8 +24,8 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 ### 1. 皮肤
 
 - 保留已通过的静态恢复矩阵，不无理由重跑。
-- 单独确认 managed `.osk` BMS 普通短键编号帧动画的播放、切肤、beatmap-local 优先与坏件回落。
-- 后续每个 P1-A 玩家可见纵切独立加矩阵格，不能复用前一组件结论。
+- 按[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)确认已导入 `.osk` 普通短键与 LN head/body/tail 的 `V-001`～`V-004`、切肤与坏件回落。现有 legacy beatmap direct visual compatibility 不等于新增 beatmap-local public authoring。
+- 后续 P1-A 玩家可见变化更新受影响矩阵格，不复用前一组件结论；待签收不作为逐组件串行开工门，只有视觉决定设计或自动证据无法裁决时才暂停取反馈。
 
 ### 2. 输入与控制器
 
@@ -43,13 +43,14 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 - 大库分组、筛选、搜索、展示层级、返回导航与无结果条件。
 - shared visual/ruleset 切换不串线。
+- P1-I 当前仍为三行双端构成原型；单轨三段目标须先实现，不能由人工体验提前豁免产品合同。
 - 桌面拖放导入、首次启动/重扫后的可见结果和基本 UI smoke。
 
 ### 5. Gimmick 与 BGA
 
 - 代表图序列、POOR、seek、老视频转码和重进缓存。
 - DEAD SOUL 等代表 Gimmick 谱的 freeze/snap/Auto/Off。
-- 5K/7K/9K/14K 当前布局；Skin V1 单 content/viewport 落地后再验证最终矩阵。
+- 5K/7K/9K/14K 当前布局：C3唯一layout/viewport已落；P1-L内容播放与后续C6/C7新增consumer分别按实际改动复核，不把viewport闭合等同于单内容源已闭合。
 
 ### 6. 候选发行物
 

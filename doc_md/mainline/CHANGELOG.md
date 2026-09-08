@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-09-09
+
+### 全量实际项目进度、文档与记忆审查同步
+
+- 以本地 master `2f8aedd` 对照 P1-A～M 的 production caller/consumer、测试源码、当前四件套和相关 memory。fetch 因 TLS 失败，未宣称已核对在线远端；未修改 runtime、测试或用户数据。逐线覆盖与证据见[本轮审查报告](../other/PROJECT_PROGRESS_AUDIT_20260909.md)。
+- 更正 P1-I 单轨产品面未落、P1-J C3 lane/shared-store 前置已完成、P1-L 单内容源未交付、P1-M 显式 PREVIEW 与播放器未开工边界。保留 Skin V1 `5/7 closed，C6 active`、C6/C7 和 V-001～004 签收 0/4，不改 campaign 预算或提前关闭 release。
+- 主约束清除过期文件树/伪算法与重复错误数表，按真实实现校准 channel/keymode/measure/STOP、LN 音频、Empty Poor、GAS、判定/gauge family、星级/密度图和分组排序；皮肤 C3～C5 与脚本/canonical 目标分开。README、SKINNING、RELEASE 与 memory 同步，新增非便携覆盖 marker 会切根的说明和 P1-F 包内文案待办。
+- 实际验证：Release **0 errors / 11 既有 warnings**；BMS full **1721/1721**；mania full **860/864**（四项既有 HoldNote 帧数失败）；core `~Skin` **1218/1224**（六项既有 archive/default-skin 失败）；core library/filter **22/23**（shared `TestSearch` 缺 `INotificationOverlay`，已回写 P1-I）。精确身份、比较依据、命令与未重跑范围见报告，不用失败数量单独认定基线。
+- 三组交叉复审发现的残留合同冲突已按真实代码修正。Windows PowerShell 5.1 文档检查通过；唯一既有 64 位指纹提示为 C4 公开 catalog checksum，保留原值。最终 diff 检查通过。没有 publish、冷启动、真实控制器或新增人工签收。
+
 ## 2026-09-08
 
 ### 协作工作流、简洁实现与文档检查优化

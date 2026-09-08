@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-08（治理整理；执行顺序与退出门不变）
+> 最后更新：2026-09-09（实际进度校正；campaign 顺序不变）
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -44,12 +44,13 @@ C1～C5 已闭合；目录安全、三源 revision 生命周期、P1-K authority
 2. `P1-B`：闭合 analog scratch 跨设备 edge/hold 合同与真实 HID 控制器。
 3. `P1-D`：补齐 deadzone、sensitivity、scratch 模式说明与 live diagnostics。
 4. `P1-E`：验收真实 LN/CN/HCN、长 BGM、键音密集谱和 5K/7K/9K/14K 游玩组合。
-5. `P1-G`：把皮肤、输入、长条、Song Select、BGA 的人工结果汇总为 release checklist。
+5. `P1-I`：先将三行双端筛选原型落实为既定单轨上限段产品面，再关闭 shared/headless、视觉与大库 gate。
+6. `P1-L/P1-G`：BGA 单内容源迁移仍未完成；复核逐谱演出，并把皮肤、输入、长条、Song Select、BGA 的人工结果汇总为 release checklist。
 
 ### R6：公开发行门
 
 1. 复核公开皮肤选择面、双包、三态 fallback、canonical `oms-simple` 完整性/原子恢复，以及程序化主题渲染已退出产品链。
-2. 复核 `portable.ini → data/`、`storage.ini` 自定义根和覆盖更新。
+2. 复核 `portable.ini → data/`、启动存储中的 `storage.ini` 与自定义根；更新须保持原便携模式，修正随包说明，验证非便携覆盖不因新包 marker 切根。
 3. Release 构建、BMS 全量、mania/core relevant focused tests 通过，或已知失败有稳定归因。
 4. 发布说明区分 code-provider/ini/scene/script 四层能力；不得宣称未通过 gate 的 G1、script、格式兼容或在线能力。
 
@@ -63,9 +64,9 @@ C1～C5 已闭合；目录安全、三源 revision 生命周期、P1-K authority
 | P1-E / P1-G | 真实谱面与人工验收 | R5 组合证明与 release checklist |
 | P1-F | 离线发行 | R6 portable/custom-root/覆盖更新复核 |
 | P1-H | 存储拓扑 | 为 G1 提供经验，但皮肤 authority 必须独立建模 |
-| P1-I | 选歌筛选 | 补 focused/visual 与大库体验 gate |
+| P1-I | 选歌筛选 | 单轨产品面待实现，再补 focused/visual 与大库体验 gate |
 | P1-J / P1-K | 音频性能、解析与转换 | C3所需末端lane/keymode/shared-store authority已闭合；继续供R4/R5消费并补剩余真实谱验收 |
-| P1-L | Gimmick/BGA | 保留内容播放 authority，与 P1-A 解耦 skin viewport |
+| P1-L | Gimmick/BGA | viewport 已统一；逐 viewport player 迁移为单内容源仍待完成 |
 | P1-M | 音乐播放器 | Phase 1 release gate 前不抢占 R3–R6 |
 
 具体状态和入口统一从 [子线路由](../subline/README.md) 进入。
@@ -78,7 +79,7 @@ C1～C5 已闭合；目录安全、三源 revision 生命周期、P1-K authority
 | gameplay/判定 | 真实设备和真实 LN/CN/HCN 谱验收 |
 | 音频/BGA | 转谱 LN、极端 dense、逐谱视觉与暂停/恢复体验 |
 | 皮肤 | C5 scene/animation/event与全部适用optional slot自动/production gate已闭合；仍待C6 sandbox/最终整包reload、C7双包/Authoring Kit、移除程序化产品视觉及人工实机签收；C3唯一layout与C4 codec/catalog/resolver/material保持冻结 |
-| Song Select | 拖拽 headless、shared visual、人工大库体验 |
+| Song Select | 单轨筛选实现、拖拽 headless、shared visual、人工大库体验 |
 | 存储/发行 | 删除/失效/去重策略与最终覆盖更新复核 |
 | 输入 | analog scratch、一致校准、真实硬件 |
 

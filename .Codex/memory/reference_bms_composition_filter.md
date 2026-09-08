@@ -17,6 +17,7 @@ metadata:
 - 分类互斥：SCR 优先，LN 为非 scratch long note，RC 为剩余。
 - 缺 stats 时 fail-open，不隐藏谱；匹配循环不做 working-beatmap I/O。
 - `ApplyVisualFilters` 不是生产入口，visual UI 编译为 query 字符串。
+- 不凭历史“单轨已落”判断 UI：当前控件形态与未完成产品门只看 [P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)。`TestRangeFilterAppliesBothBounds` 和 min/max 拖拽用例只证明三行双端原型，不能证明单轨共享边界合同。
 
 ## Backfill 合同
 

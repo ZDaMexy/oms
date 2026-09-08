@@ -3,6 +3,13 @@
 > 本文件记录 `P1-M` 相关的验证通过变更，按时间倒序排列。
 > 当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
+## 2026-09-09
+
+### 更正现行音频输入与未开工边界
+
+- 核对MusicController/mini/playlist/SongSelect和测试源，未发现PlayQueue、repeat/source状态或SMTC实现，继续规划未开工且不抢占release门。
+- BMS输入更正为有效显式PREVIEW从0播放、无preview不进候选池；≥1MB非键音整曲探测已不存在。PreviewTrackManager在线能力禁用但仍有production引用，删除“仅测试引用”的错误描述；STATUS/PLAN/CONSTRAINTS和memory同次同步，未新增整曲keysound混音承诺或运行播放器验收。
+
 ---
 
 ## 2026-07-16

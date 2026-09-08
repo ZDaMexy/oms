@@ -33,7 +33,7 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 - **多种 Gauge** —— ASSIST EASY / EASY / NORMAL / HARD / EX-HARD / HAZARD / GAS，并可在 OMS LEGACY、beatoraja、LR2、IIDX 等规则族之间切换，让 clear 手感贴近你熟悉的平台。
 - **BGA 背景演出** —— 静态背景、图片与视频 BGA、POOR 层，独立浮窗按布局靠边；老式视频格式配 ffmpeg 也能播（见[使用](#bga-背景演出)）。
 - **训练与辅助 Mod** —— Mirror / Random（含 R-RANDOM / S-RANDOM 与自定义 pattern）、Auto Scratch / Auto Note 等面向练习的 mod。
-- **广泛输入支持** —— 键盘、XInput 手柄、Raw Input、HID / DirectInput 控制器。
+- **输入接入** —— 已接入键盘、XInput、Raw Input 与 DirectInput/HID 软件路径；真实控制器覆盖、模拟皿与校准仍待验收。
 - **BMS 难度表** —— 本地目录与公共 URL 在线源导入、MD5 匹配、按表分组浏览。
 - **便携发布** —— 免安装全量包，数据根目录可迁移。
 
@@ -60,14 +60,14 @@ OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前�
 
 ### BGA 背景演出
 
-BMS 游玩时，BGA 显示在 playfield 旁的浮窗里，按布局靠边（1P 右、2P 左、居中右；14K 当前为四角布局）。静态背景、图片 BGA、POOR 层和 `.mp4` 视频都直接可用，全屏背景为谱面背景图的模糊版。BMS 设置里的「显示 BGA」可关闭整个浮窗。
+BMS 游玩时，BGA 显示在 playfield 旁的浮窗里，按布局靠边（1P 右、2P 左、居中右；14K 默认皮肤当前为四角布局）。静态背景、图片 BGA、POOR 层和 `.mp4` 视频都直接可用，全屏背景为谱面背景图的模糊版。BMS 设置里的「显示 BGA」可关闭整个浮窗。
 
 老式视频格式（`.mpg`、`.wmv`、`.avi`、`.flv`）内置播放器无法解码，默认显示静态图。要播放它们需配一份 ffmpeg：
 
 - 装到系统 PATH：`winget install ffmpeg`（OMS 已开着则重开一次），或
 - 下载 [ffmpeg](https://www.gyan.dev/ffmpeg/builds/)，把 `bin\ffmpeg.exe` 放到 OMS 程序目录（`osu!.exe` 旁）或数据目录（默认 `%APPDATA%\oms`）。
 
-随后保持 BMS 设置里「转码无法解码的 BGA 视频」开启。首次进入这类谱面时，加载流程最多等待约 8 秒；及时完成即可从头播放视频，超时则先显示静态图、转好后再切换。`bga-video-cache\` 只在当前进程会话内复用，重启 OMS 后会清理并按需重新转码。
+随后保持 BMS 设置里「ffmpeg完整BGA支持」开启。首次进入这类谱面时，加载流程最多等待约 8 秒；及时完成即可从头播放视频，超时则先显示静态图、转好后再切换。`bga-video-cache\` 只在当前进程会话内复用，重启 OMS 后会清理并按需重新转码。
 
 ## 从源码构建
 
@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段，当前重点是皮肤系统与输入硬件的剩余验收；联网相关的 Phase 3 功能在此之前保持冻结。具体进度与 gate 只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准，本页不复制易过期的实现快照。
+OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段，当前重点是皮肤脚本隔离、canonical 双包等剩余实现，以及视觉与输入硬件验收；联网相关的 Phase 3 功能在此之前保持冻结。具体进度与 gate 只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准，本页不复制易过期的实现快照。
 
 ## 贡献
 

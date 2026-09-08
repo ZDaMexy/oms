@@ -54,7 +54,7 @@ C5 的作者文件是 package 内固定的 `gameplay-skin.json`（manifest）与
 - `skin.ini` compatibility：mania/BMS 共同素材、颜色和有限参数；
 - declarative scene/animation：稳定 node type、template、binding、variant、tween/state-machine；
 - optional sandbox script：只读事件驱动的复杂组合逻辑；
-- lazer 布局编辑器只继续管理既有通用 HUD，不作为新 scene 文件格式。
+- legacy lazer布局编辑器当前已禁用；其历史HUD layout JSON不是Skin V1 scene格式。
 
 **osu 社区对齐**：OMS 延续官方描述的社区工作流——皮肤以 `.osk` 分享、打开或拖入导入，解包后是根含 `skin.ini` 的普通目录；mania 的素材命名、`[Mania] Keys:` 分桶和 `name-{n}` 动画序列保持兼容。[osu! 官方 Skin 页面](https://osu.ppy.sh/wiki/en/Skin)说明了 `.osk`/文件夹导入方式，[osu!mania skinning](https://osu.ppy.sh/wiki/en/Skinning/osu%21mania)与 [`skin.ini`](https://osu.ppy.sh/wiki/en/Skinning/skin.ini)是共同语义基线。`[Bms]`、scene 和 script 是 OMS 对第一类 BMS ruleset 的版本化扩展，不要求编译 DLL，也不冒充上游 osu! 已原生支持。
 
@@ -133,7 +133,7 @@ Keymode:  14K              // DP 单独一段
 - **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色)）。
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
-- **动画**：帧序列沿用 `name-0`、`name-1`… 命名；当前 BMS 普通短键与长条头/身/尾纵切固定按 60 FPS 循环，`LightFramePerSecond` 不控制这些动画。其它 V1 animation 速度 ABI 尚未冻结；不引入 LR2 的 `div_x/div_y` 雪碧图分割。
+- **动画**：legacy帧序列沿用`name-0`、`name-1`…命名；BMS普通短键与长条头/身/尾固定按60 FPS循环，`LightFramePerSecond`不控制这些动画。C5 scene v1另以gameplay-clock毫秒域的keyframe `time`、frame/tween track、`loop`与easing定义动画；这套已生效的scene合同不改变legacy帧率。不引入LR2的`div_x/div_y`雪碧图分割。
 - **当前容错**：public section对未知版本/字段、非法scope/type/index/selector、duplicate与escape使用稳定`OMS-SKIN-CODEC-NNN`，catalog slot使用`OMS-SKIN-SLOT-NNN`；resolver/resource/capability使用稳定小写code。成功commit后产品日志只输出catalog ID、stable target/index、source kind与合同版本，不含路径或作者值。legacy section继续保持既有兼容容错，不把其所有宽松键反向升级成public ABI。详见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[§7](#7-必备--推荐--可选与三态解析)。
 
 > **schema 来源说明**：键集 / 语义的**真实依据是代码实现**（`BmsSkinDecoder` / `BmsSkinConfigurationLookups` + `BmsGameplayLayoutSolver` / `BmsDefaultPlayfieldPalette` 暴露的可参数化量）；[P1-A 技术约束 ·「皮肤创作生态」](../subline/P1-A/TECHNICAL_CONSTRAINTS.md) 与本文都是**据代码派生的视图**，**不反向约束实现**。**与 mania 同义的键尽量沿用 mania 原名**（降低迁移成本）；BMS 独有键为 OMS 新定义。`F1` 解析层（`[General]` / `[Bms]` 段、几何 / 颜色 / 纹理键）已落地，本文相关字段已据生产代码更新。
@@ -314,9 +314,9 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 - **declarative scene/animation**：稳定 node ID、named layout slot、template、binding、variant 与动画；这是 V1 的主要创作面。
 - **optional sandbox script**：只读事件驱动的复杂组合逻辑，不负责逐帧搬动每个 note。
 
-**布局编辑器能摆什么（已知边界）**：它只识别 `ISerialisableDrawable` 的全局 HUD 件——被 `MainHUDComponents` 包裹的通用件（key counter、song progress、计分、准确率、判定计数）。它**看不见 BMS 程序化件**（车道/音符/gauge/combo），其素材选择器也只列已导入文件、无内置资产浏览器。
+**legacy布局编辑器的历史边界（当前禁用）**：它识别`SkinnableContainer` target内的`ISerialisableDrawable`组件，例如`MainHUDComponents`中的key counter、song progress、计分、准确率和判定计数。它不编辑车道、音符等ruleset内部视觉，也不消费C5 prepared scene graph；素材选择器只列已导入文件，没有内置资产浏览器。
 
-现有 Skin Layout Editor JSON 会序列化 CLR `Type` 并反射构造，只能继续服务既有通用 HUD，**不能**成为外部分发 scene ABI。V1 manifest 使用 allowlist 的稳定 node ID；BMS gauge/combo/clear lamp 等锚定到引擎给出的 named slot，由外部 scene 决定具体表现，不把当前 `DefaultBmsHudLayoutDisplay` 固定编排冻结成上限。
+历史Skin Layout Editor JSON会序列化CLR `Type`并反射构造，当前editor已禁用，该JSON**不能**成为外部分发scene ABI。V1 manifest使用allowlist的稳定node ID；BMS gauge/combo/clear lamp等锚定到引擎给出的named slot，由外部scene决定具体表现，不把当前`DefaultBmsHudLayoutDisplay`固定编排冻结成上限。
 
 截至当前，legacy Skin Editor菜单、hotkey、overlay以及external-edit/update-import backend均稳定不可用，不能作为author-preview或reload旁路。作者目录只使用Folder Skin Workspace；reload只使用Settings的current manual Reload。未来若重启编辑器，必须另行冻结安全格式与统一revision协议。
 
@@ -341,7 +341,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}`、长条头身尾可让 `NoteImage{lane}H/L/T` 指向资源基名并提供 `name-0`、`name-1`…；body 宽度可用 `LongNoteBodyWidth`，只接受 finite 且 `0 < width <= 1`。支持范围以页首能力块为准，帧率目前固定 60 FPS。
 3. **重新载入和重选**：作者修改`.osk`时仍编辑源目录、重新打包并导入，不能原位改OMS内部Realm/file store，也不能使用已禁用的update-import。已登记且当前选中的managed/external工作目录内容变更，可在退出gameplay/preview并回到安全screen后点击Settings → Skin → `Reload current skin`。ordinary Realm current也使用同一按钮做same-ID重新验证/重建，但这不是作者编辑面。新增`chartskin/` direct child仍需重启让一次性scanner发现；不要等待自动检测，也不要重复选择同一项冒充reload。
 4. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
-5. **看运行结果与日志**：public codec/catalog分别使用稳定`OMS-SKIN-CODEC-NNN`/`OMS-SKIN-SLOT-NNN`，resolver/resource/capability使用稳定小写code；全部产品日志均脱敏。C5 runtime profile会明确区分Supported、NotApplicable与Unsupported；NotApplicable不是`Inherit`，也不代表缺少host。legacy宽松字段的诊断仍不等于完整public合同。
+5. **看运行结果与日志**：public codec/catalog分别使用稳定`OMS-SKIN-CODEC-NNN`/`OMS-SKIN-SLOT-NNN`，resolver/resource/capability使用稳定小写code；全部产品日志均脱敏。C5 runtime profile逐项列出Supported或NotApplicable；NotApplicable不是`Inherit`，也不代表缺少host。legacy宽松字段的诊断仍不等于完整public合同。
 6. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
 
 C3/C4/C5自动矩阵逐一覆盖5K/7K的P1、P2、CenterP1、CenterP2，9K BMS/PMS、14K DP与mania single/dual，并验证public material、prepared scene/event、playfield、gauge/combo、BGA safe viewport、safe-area及不同宽高比/DPI。V1发布前仍须用`oms-simple/oms-complex`两个最终包复核相同矩阵和人工视觉。manual Reload必须持续满足“新revision任一步失败仍保持exact旧package+layout+material+scene”；C6新增script consumer也必须进入相同participant/retire gate。
@@ -400,7 +400,7 @@ public catalog已冻结按键动画、判定**显示**、combo、gauge **视觉*
 
 ## 附录 C：`skin.ini` 字段全表
 
-> legacy字段仍以`BmsSkinDecoder`/lookups和reference test为准；public author ABI只以[Gameplay Skin V1公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)和`GameplaySkinSlotCatalog`为准。runtime profile中的NotApplicable/Unsupported是版本化能力决定，不改变catalog语义。单位 / 语义约定：
+> legacy字段仍以`BmsSkinDecoder`/lookups和reference test为准；public author ABI只以[Gameplay Skin V1公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)和`GameplaySkinSlotCatalog`为准。runtime profile中的Supported/NotApplicable是版本化能力决定，不改变catalog语义。单位 / 语义约定：
 > - 颜色 = `r,g,b` 或 `r,g,b,a`（0–255）。
 > - 比例 = `0`–`1` 浮点（如 `PlayfieldWidth` / `LongNoteBodyWidth`）。
 > - 像素 = 整数（如 `HitTargetHeight` / `BarLineHeight`）。

@@ -6,6 +6,8 @@
 
 ## 文档清单
 
+- [PROJECT_PROGRESS_AUDIT_20260909.md](PROJECT_PROGRESS_AUDIT_20260909.md)：基于本地 2f8aedd 的 P1-A～M 生产链、文档与 memory 审查及实际测试证据；远端 fetch 未成功，未新增人工签收。
+
 - [SKINNING.md](SKINNING.md)：皮肤制作手册、当前 fallback 粒度与未冻结边界。
 - [GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)：C4冻结的28项Gameplay Skin V1公共目录、Common/BMS v1作者语法、target/三态/precedence、C5 runtime capability边界与beatmap-local终态。
 - [RELEASE.md](RELEASE.md)：发行方式、打包约束与公开 release gate。

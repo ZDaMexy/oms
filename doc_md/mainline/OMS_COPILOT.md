@@ -28,10 +28,10 @@ Until Phase 3 begins, OMS follows these product constraints:
 - Windows releases are portable full packages only. Prefer `build-release.ps1` 产出的 `oms_YYYYMMDD(.zip)`；do not treat `Setup.exe`, MSI, or delta packages as the primary user path for current OMS releases.
 - In-game online update is disabled for early OMS releases. Do not ship automatic check, download, or apply-update flows to end users yet.
 - Hide or remove release-stream switching and manual "Check for updates" UI while update delivery is intentionally disabled.
-- Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content, and current release guidance must explicitly preserve `portable.ini`, portable-mode `data/`, and any `storage.ini` custom-root pointer.
-- Current official builds still keep mutable user data under a separate data root (default `%APPDATA%/oms/` for release, `%APPDATA%/oms-development/` for debug). `storage.ini` may redirect everything to one custom root, but do not describe OMS as already shipping an out-of-box program+data single-package layout.
+- Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content, and current release guidance must preserve the existing portable/non-portable mode, portable-mode `data/`, and the `storage.ini` pointer in the bootstrap storage. New packages contain `portable.ini`; non-portable updates must leave that marker absent before launch.
+- Official ZIPs include `portable.ini`, so bootstrap storage is the program-adjacent `data/` directory. Without that marker, host defaults are `%APPDATA%/oms/` (Release) and `%APPDATA%/oms-development/` (Debug). The bootstrap `storage.ini` can redirect runtime data to one custom root.
 - Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
-- Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings -> Maintenance add/remove/scan UI is already landed; deletion/invalidation semantics remain future work.
+- Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings -> Maintenance add/remove/scan and basic managed-set deletion are implemented; missing-root invalidation, root removal effects and cross-root duplicate/recovery semantics remain P1-H work.
 - All OMS-owned networked product features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and automatic update, remain disabled or hidden until Phase 3. A user explicitly adding a public BMS difficulty-table URL is an existing narrow exception independent of OMS private/default endpoints; it must not expand into an OMS online product surface.
 - Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
 
@@ -39,97 +39,22 @@ Until Phase 3 begins, OMS follows these product constraints:
 
 ## 2. Repository Structure
 
-```
-oms/
-├── osu.Game/                        # Core game framework (upstream, minimal modification)
-├── osu.Game.Rulesets.Mania/         # Retained mania ruleset (upstream, minimal modification)
-├── osu.Game.Rulesets.Bms/           # NEW — BMS ruleset (primary development target)
-│   ├── Audio/
-│   │   ├── BmsKeysoundSampleInfo.cs   # Beatmap-relative keysound sample lookup wrapper
-│   │   └── BmsKeysoundStore.cs        # Shared keysound channel pool for BGM/note/LN playback
-│   ├── Beatmaps/
-│   │   ├── BmsBeatmapDecoder.cs         # BMS file parser (.bms/.bme/.bml/.pms)
-│   │   ├── BmsBeatmapConverter.cs       # Converts parsed BMS → IBeatmap
-│   │   ├── BmsBeatmapInfo.cs            # BMS-specific beatmap metadata (Keymode, MeasureLengthControlPoints, etc.)
-│   │   ├── BmsArchiveReader.cs          # Handles .zip/.rar/.7z BMS package import
-│   │   ├── BmsBeatmapLoader.cs          # Runtime reloader for imported BMS charts
-│   │   ├── BmsBeatmapImporter.cs        # Ruleset importer entry for managed/external BMS registration
-│   │   └── BmsFolderImporter.cs         # Folder registration authority for FilesystemStoragePath + ExternalLibraryRootPath
-│   ├── Judgements/
-│   │   ├── BmsJudgementSystem.cs        # Pluggable judgment engine
-│   │   ├── BmsTimingWindows.cs          # Timing window definitions per system
-│   │   └── BmsPoorJudgement.cs          # Empty-poor (ghost note penalty) logic
-│   ├── Scoring/
-│   │   ├── BmsScoreProcessor.cs         # EX-SCORE calculation
-│   │   ├── BmsGaugeProcessor.cs         # All six gauge types (ASSIST EASY/EASY/NORMAL/HARD/EX-HARD/HAZARD)
-│   │   ├── BmsClearLampProcessor.cs     # Clear lamp tracking
-│   │   └── BmsDjLevelCalculator.cs      # DJ LEVEL (AAA/AA/A/B/C/D/E/F) from EX-SCORE%
-│   ├── Difficulty/
-│   │   ├── BmsNoteDensityAnalyzer.cs    # Shared sliding-window note density utility (used by calculator + graph)
-│   │   ├── BmsDifficultyCalculator.cs   # Density-based star rating calculator (uses BmsNoteDensityAnalyzer)
-│   │   ├── BmsDifficultyAttributes.cs   # Stores calculated difficulty attributes
-│   │   └── BmsKeymode.cs                # Enum: Key5K, Key7K, Key9K_Bms, Key9K_Pms, Key14K
-│   ├── DifficultyTable/
-│   │   ├── BmsDifficultyTableManager.cs # Subscription list, fetch, refresh
-│   │   ├── BmsDifficultyTableEntry.cs   # Single table entry (MD5 → level label)
-│   │   └── BmsTableMd5Index.cs          # Local MD5 → table level lookup index
-│   ├── SongSelect/
-│   │   ├── BmsTableGroupMode.cs         # Custom SongSelect grouping: table → level → set
-│   │   ├── BmsLibraryGroupMode.cs       # BMS library grouping: external root / internal managed hierarchy
-│   │   └── BmsNoteDistributionGraph.cs  # Note distribution preview panel
-│   ├── Layout/
-│   │   ├── BmsPlayfield.cs              # Playfield rendering
-│   │   ├── BmsLaneLayout.cs             # Lane config for 5K/7K/9K/14K, 1P/2P
-│   │   ├── BmsLaneCover.cs              # Sudden/Hidden lane cover + focus visuals (Mod-controlled)
-│   │   └── BmsScratchLane.cs            # Scratch lane rendering and input handling
-│   ├── Mods/
-│   │   ├── BmsModJudgeBeatoraja.cs      # Switches to beatoraja timing windows
-│   │   ├── BmsModJudgeLr2.cs            # Switches to LR2 timing windows
-│   │   ├── BmsModLongNoteMode.cs        # Switches runtime long-note mode (CN/HCN; default LN uses no Mod)
-│   │   ├── BmsModGaugeAssistEasy.cs     # Assist Easy gauge
-│   │   ├── BmsModGaugeEasy.cs           # Easy gauge
-│   │   ├── BmsModGaugeHard.cs           # Hard gauge
-│   │   ├── BmsModGaugeExHard.cs         # EX-Hard gauge
-│   │   ├── BmsModGaugeHazard.cs         # Hazard gauge
-│   │   ├── BmsModGaugeAutoShift.cs      # GAS — Gauge Auto Shift
-│   │   ├── BmsModSudden.cs              # Sudden cover
-│   │   ├── BmsModHidden.cs              # Hidden cover
-│   │   ├── BmsModLift.cs                # Lift (judgement-line raise)
-│   │   ├── BmsModAutoScratch.cs         # A-SCR — Auto Scratch
-│   │   ├── BmsModAutoNote.cs            # A-NOT — Auto Note
-│   │   ├── BmsModAutoplay.cs            # BMS-specific autoplay
-│   │   ├── BmsModMirror.cs              # Button-lane mirror (scratch stays fixed)
-│   │   ├── BmsModRandom.cs              # RANDOM / R-RANDOM / S-RANDOM + custom pattern
-│   │   └── Planned Phase 2 mod not yet in tree: 1P/2P flip
-│   ├── Input/
-│   │   └── BmsInputManager.cs           # BMS-specific input routing + pre-start hold / hi-speed lane mapping
-│   ├── Background/
-│   │   └── BmsBackgroundLayer.cs        # Static BG placeholder (superseded by BgaPanel — P1-L Phase 5)
-│   ├── UI/
-│   │   ├── BmsGameplayAdjustmentTarget.cs # Shared Sudden/Hidden/Lift gameplay adjustment target enum
-│   │   └── BmsPreStartHiSpeedOverlay.cs   # Pre-start hold overlay for tri-mode mode/value feedback
-│   ├── Configuration/
-│   │   ├── BmsModStatePersistence.cs    # Ruleset-local selected-mod/settings persistence for BMS startup and ruleset switches
-│   │   └── BmsRulesetConfigManager.cs   # Persistent BMS mode settings (layout, keysound, mod-state snapshot, later feature flags)
-│   ├── Resources/
-│   │   └── bms_table_presets.json       # Bundled preset identities (source/display/symbol; no download URLs)
-│   ├── BmsMod.cs                        # Abstract base class for all BMS mods (extends Mod)
-│   └── BmsRuleset.cs                    # Ruleset entry point
-├── oms.Input/                        # NEW — Unified Input Abstraction Layer
-│   ├── OmsInputRouter.cs                # Routes all signal types to game actions
-│   ├── OmsBindingStore.cs               # Default per-profile bindings + trigger helpers
-│   └── Devices/
-│       ├── OmsKeyboardInputHandler.cs   # Keyboard combinations -> OmsAction
-│       ├── OmsHidButtonInputHandler.cs  # HID digital buttons -> OmsAction
-│       ├── OmsHidAxisInputHandler.cs    # HID axis delta -> OmsAction
-│       ├── OmsHidDeviceHandler.cs       # HID provider polling + auto-release
-│       ├── OmsXInputButtonInputHandler.cs # Joystick/gamepad buttons -> OmsAction
-│       └── OmsMouseAxisInputHandler.cs  # Mouse movement delta -> scratch axis
-└── osu.Desktop/                      # Windows entry point
-    └── Program.cs
-```
+Use the current project and production entry points below; implementation inventories belong to the owning subline and source, rather than a second file tree in this document.
 
-Phase 2 / Phase 3 design targets such as 1P/2P flip and a dedicated private-server client project are documented later in this file. `Random` is already present; future refinements do not make it an absent workspace target.
+| Area | Production entry / responsibility | Governance |
+| --- | --- | --- |
+| Core | `osu.Game/OsuGameBase.cs`, `OsuGame.cs`: application composition, offline API, Realm and shared UI | mainline |
+| Shared gameplay skin | `osu.Game/Skinning/Gameplay/`: document, material, layout publication, scene and read-only events | P1-A |
+| Mania | `osu.Game.Rulesets.Mania/ManiaRuleset.cs`, `UI/`, `Skinning/`: mania gameplay and neutral runtime adapters | P1-A / P1-K |
+| BMS parse/import | `osu.Game.Rulesets.Bms/Beatmaps/`: decoder, converter, folder/archive import and timing profile | P1-H / P1-K |
+| BMS gameplay | `osu.Game.Rulesets.Bms/Objects/`, `Scoring/`, `Mods/`, `Replays/`, `UI/` | P1-C / P1-E |
+| BMS audio/BGA | `osu.Game.Rulesets.Bms/Audio/`, `UI/BmsBgaPlayer.cs`, `UI/BmsBgaPanel.cs` | P1-J / P1-L |
+| BMS skin/layout | `osu.Game.Rulesets.Bms/Skinning/`: sole layout solver, material and scene adapters | P1-A |
+| Song Select / difficulty | `osu.Game.Rulesets.Bms/SongSelect/`, `Difficulty/`, `DifficultyTable/`; shared `osu.Game/Screens/Select/` | P1-I / P1-K |
+| Input | `oms.Input/OmsInputRouter.cs`, `Devices/`; BMS input bridge | P1-B / P1-D |
+| Desktop/release | `osu.Desktop/Program.cs`, `OsuGameDesktop.cs`, `build-release.ps1` | P1-F / P1-G |
+
+The build entry is `osu.Desktop.slnf`; core tests live in the separate `osu.Game.Tests` project. All projects target .NET 8; `global.json` permits a newer stable SDK via `latestMajor`. No dedicated `oms.Server` project or P1-M player implementation is implied by the planned contracts below.
 
 ---
 
@@ -165,14 +90,15 @@ The BMS decoder must handle:
 #STOP## (stop duration table)
 #LNOBJ (long note end marker object)
 #LNTYPE 1 | 2 (long note encoding style)
-#RANDOM / #IF / #ENDIF (Future Scope — parse all branches; execute the `#IF 1` block if present; if no `#IF 1` branch exists in a `#RANDOM` block, skip the entire block and log a warning; always log a warning that random branching is unsupported regardless of which branch is selected)
+#RANDOM / #SETRANDOM / #IF / #ELSEIF / #ELSE / #ENDIF / #ENDRANDOM
+#SWITCH / #SETSWITCH / #CASE / #SKIP / #DEF / #ENDSW
 ```
 
 **Additional header field notes:**
 - `#SUBTITLE`: secondary title line; store separately, do not concatenate with `#TITLE`. Display below the primary title in the song select carousel card and the chart detail panel. Omit from the result screen title line to keep it compact. If `#SUBTITLE` is an empty string or absent, do not render a subtitle element.
 - `#SUBARTIST`: chart-level secondary artist / arranger credit. Store separately rather than merging into `Artist`, and surface it in the chart detail panel / Song Select summary when present.
 - `#COMMENT`: chart-level freeform note. Persist it in BMS-specific metadata for detail views, but do not force it into compact carousel labels.
-- `#PLAYLEVEL`: preserve the raw internal level string in BMS chart metadata even when the main difficulty display uses a table rating or density star.
+- `#PLAYLEVEL`: preserve the raw author level in chart metadata; native BMS numeric difficulty resolves from this value or persisted metadata, not the preview density graph (Section 9).
 - `#DIFFICULTY`: integer 1–5 mapping to Beginner / Normal / Hyper / Another / Insane; used for intra-set difficulty labelling and sort order when no table entry exists
 
 **Channel parsing (measure/channel/data blocks):**
@@ -181,8 +107,8 @@ The BMS decoder must handle:
 #MMMCC:data
 ```
 - `MMM` = measure number (3-digit, 0-padded, `000`–`999`)
-- `CC` = channel code (hex)
-- `data` = base-36 object sequence, split into equal-length 2-character segments
+- `CC` = raw two-character channel token. Recognised channels use hexadecimal parsing; preserve `RawChannelToken` and diagnose unsupported/non-hex tokens as `unknown_channel` rather than losing the source token.
+- `data` = normally a base-36 object sequence in two-character segments; direct BPM channel `03` is hexadecimal and channel `02` is decimal. Keep these numeric domains separate.
 
 > **Channel `02` exception:** Channel `02` data is a **decimal floating-point number** (e.g. `0.75`), not a base-36 object sequence. Parse it as `double` directly.
 
@@ -203,42 +129,20 @@ The BMS decoder must handle:
 | `51`–`59` | 1P long note lanes |
 | `61`–`69` | 2P long note lanes |
 
-Channel `02` affects the duration of the measure in beats. A value of `0.75` makes the measure 3/4 as long.
-
-> **⚠ Implementation Warning:** osu!'s `TimeSignature` uses integer numerator/denominator and cannot represent arbitrary float multipliers (e.g. `0.6`, `0.333…`) without precision loss. **Do not force channel `02` values into `TimeSignature`**. Instead, store measure length multipliers in a BMS-specific `BmsMeasureLengthControlPoint` list maintained alongside `ControlPointInfo`. The note placement and scroll rendering layers must read from this list to correctly position notes. Only values that reduce cleanly to simple fractions (e.g. `0.75 → 3/4`, `0.5 → 1/2`) may optionally populate `TimeSignature` for bar-line rendering.
->
-> **`BmsMeasureLengthControlPoint` integration contract:**
->
-> ```csharp
-> public record BmsMeasureLengthControlPoint(int MeasureIndex, double Multiplier);
-> ```
->
-> Stored in `BmsBeatmapInfo.MeasureLengthControlPoints` as a sorted `IReadOnlyList<BmsMeasureLengthControlPoint>`. A missing entry for a measure implies `Multiplier = 1.0`.
->
-> **Reading in the note placement layer:** When computing the absolute pixel position of a note, look up `BmsMeasureLengthControlPoints` by `MeasureIndex` to obtain that measure's multiplier before calculating beat offsets. The scroll renderer must query this list once per visible measure — do not cache per-note.
->
-> **Reading in the bar-line renderer (`BmsPlayfield`):** Iterate measures in visible scroll range; for each measure, compute bar-line position using the accumulated `Multiplier` product from measure 0 to that measure. Only draw a bar line if `Multiplier` reduces to a simple fraction (denominator ≤ 16) to avoid sub-pixel artifacts on irrational values.
+Channel `02` is a measure-local multiplier: `beatsPerMeasure = 4 * multiplier`, with `1.0` for an omitted measure. Multipliers never accumulate as a product. `BmsBeatmapConverter` resolves one event-time map including BPM/STOP and measure lengths; notes, BGA, mines and `MeasureStartTimes` consume it. `BmsPlayfield` builds bar lines from `MeasureStartTimes`, including fractional measures. Do not introduce a second renderer-side timing calculation or force arbitrary multipliers into integer `TimeSignature`.
 
 **Key layout by mode:**
 
 | Mode | Play channels | Scratch |
 |---|---|---|
-| 5K (5+1) | `12`–`16` | `11` |
-| 7K (7+1) | `12`–`18` | `11` |
+| 5K (5+1) | `11`–`15` | `16` |
+| 7K (7+1) | `11`–`15` + `18`/`19` | `16` |
 | 9K (BMS) | `11`–`19` | — |
-| 14K DP | `12`–`18` + `22`–`28` | `11` + `21` |
+| 14K DP | `11`–`15` + `18`/`19`; `21`–`25` + `28`/`29` | `16` + `26` |
 
-**Keymode auto-detection:** `BmsBeatmapDecoder` infers keymode after channel parse using this ordered rule set:
+**Keymode authority:** `BmsBeatmapDecoder` resolves keymode once from the override and chart evidence, in this order: explicit override → P2 evidence → `.pms` → `.bme` → complete 9K coverage → distinctive 9K evidence → complete 7K coverage → complete 5K coverage. Sparse/ambiguous or conflicting evidence is rejected with diagnostics; there is no silent 7K default and no current user correction UI. The converter, lane timeline and layout consume the resolved mode; rendering must not re-detect it. Detailed evidence families and rejection tests belong to [P1-K CONSTRAINTS](../subline/P1-K/TECHNICAL_CONSTRAINTS.md).
 
-1. **`.pms` extension** → `Key9K_Pms`. No further analysis needed. PMS uses channels `11`–`19` mapped to 9 buttons in Pop'n Music order: `11`=Button1, `12`=Button2, …, `19`=Button9. In `BmsLaneLayout`, the `Key9K_Pms` lane order matches Pop'n convention (symmetrical button spread), distinct from `Key9K_Bms` which uses BMS channel order.
-2. **Any note in channels `22`–`28`** → `Key14K` (DP). This rule must be checked early — 14K charts always have 1P-side notes that would otherwise trigger a 5K or 7K match. If both 1P and 2P channels are present, treat as 14K regardless of which 2P channels are used.
-3. **Any non-`.bme` chart with channel `17` present** → `Key9K_Bms`. OMS treats this lane as the earliest unambiguous sparse-9K signal, so a legal 9K_Bms chart does not need to touch all nine lanes before entering the 9-key path.
-4. **Any non-`.bme` chart with notes in all of `11`–`19`** → `Key9K_Bms`.
-5. **Any chart with channel `18` or `19`, or any `.bme` chart without a 14K match** → `Key7K` (7+1 scratch on `11`). `.bme` remains the compatibility-biased 7-key path even if sparse data touches channel `17`.
-6. **Any chart with notes in `11`–`16` after the checks above** → `Key5K` (5+1 scratch on `11`).
-7. **Fallback** → `Key7K`.
-
-Store the resolved `BmsKeymode` in `BmsBeatmapInfo` immediately after decode. `BmsLaneLayout` and `BmsDifficultyCalculator` read from this field; they must never re-derive keymode independently.
+**Branch compatibility:** `#RANDOM` currently selects the fixed value `1`; `#SETRANDOM n` selects `n`. `#IF/#ELSEIF/#ELSE` execute the matching branch, so an `#ELSE` body can run when `#IF 1` is absent. `#SWITCH` defaults to `1`, while `#SETSWITCH n` fixes `n`; `#CASE/#SKIP/#DEF` are implemented. Preserve diagnostics for this deterministic compatibility path. True random selection remains future work.
 
 **`#RANK` field mapping (default judge when no Mod active):**
 
@@ -250,28 +154,23 @@ Store the resolved `BmsKeymode` in `BmsBeatmapInfo` immediately after decode. `B
 | 3 | EASY |
 | 4 | VERY EASY |
 
-### 4.2 BMS Package Import (`BmsArchiveReader`)
+### 4.2 BMS Package Import
 
 BMS beatmaps arrive as `.zip`, `.rar`, or `.7z` archives, not `.osz`.
 
 Import pipeline:
 1. User drops archive onto OMS window or uses Import dialog
-2. `BmsArchiveReader` extracts to a temp directory
+2. `BmsArchiveReader` prepares/extracts the archive; `BmsBeatmapImporter` delegates chart folders to `BmsFolderImporter`.
 3. Scan extracted folder for any `.bms`/`.bme`/`.bml`/`.pms` file — each file is one **difficulty**
 4. Group all difficulties sharing the same folder into one **BeatmapSet**, regardless of keymode differences. Files with different keymodes (e.g. a 5K chart and a 7K chart in the same folder) are not split into separate sets — keymode is stored as per-difficulty metadata and used for lane layout selection at play time. In the difficulty selector, the keymode is shown as a label on each difficulty entry (e.g. "7K", "5K").
 5. Register keysound and static-art asset paths relative to the extracted folder root. Keysound, preview, and static background references are normalised against the actual extracted filenames; extension-substitution mismatches such as `stage.bmp` → `stage.png` should be resolved during import instead of left to fail silently at play time.
-6. Move extracted folder to OMS chartbms directory, clean up temp
+6. Internal import copies the chart folder into `chartbms/` and registers Realm metadata. External library registration keeps the source in place without copying. Temporary archive preparation is cleaned up by its owner.
 
 Do **not** convert to `.osz`. OMS reads BMS files directly from disk at runtime.
 
 Do **not** route imported BMS charts or their dependent assets through the generic `files/` hash-backed store. The extracted folder inside OMS chartbms is the source of truth; the database only persists metadata and path/location references needed for lookup and reload.
 
-**Parse failure handling:** If `BmsBeatmapDecoder` throws or produces a critically incomplete result (no playable notes after channel parse, unrecognisable encoding after detection attempt), `BmsArchiveReader` must:
-1. Log the error with the file path and exception message.
-2. Skip the failed file — do not add it to the BeatmapSet.
-3. If all `.bms`/`.bme`/`.bml`/`.pms` files in the archive fail, abort the import entirely and surface an error notification to the user: "Import failed: no valid BMS files found in archive."
-4. If at least one file succeeds, complete the import and surface a warning notification that lists the skipped filenames.
-5. If a file decodes successfully but the decoder emitted non-fatal warnings (for example unsupported `#RANDOM` branching or degraded header parsing), keep the chart importable, log the detailed warnings, and surface a separate summary notification listing the affected chart filenames and warning counts.
+**Parse failure handling:** The folder importer reports failed charts and decoder warnings while retaining successful siblings. Do not infer failure solely from an empty `HitObjects` list: empty/no-stats charts have an explicit resolved metadata path. Encoding, keymode and malformed-input failures follow decoder diagnostics. Ownership and data-path constraints live in [P1-H CONSTRAINTS](../subline/P1-H/TECHNICAL_CONSTRAINTS.md); parser acceptance belongs to P1-K.
 
 ### 4.3 Keysound System
 
@@ -280,19 +179,19 @@ BMS is fully keysounded — every note triggers a specific audio sample.
 Runtime contract:
 - Decode `#WAV##` entries into beatmap-relative lookup metadata during `BmsBeatmapConverter`
 - Carry that lookup metadata on `BmsBgmEvent`, `BmsHitObject`, and `BmsHoldNote` runtime objects so gameplay drawables do not need a back-reference to decoder output
-- Create nested `BmsHoldNoteTailEvent` objects when a long note defines a distinct tail keysound
+- Every `BmsHoldNote` creates a nested `BmsHoldNoteTailEvent`; LN/CN/HCN determines whether it scores. Tail creation is not conditional on a distinct sample.
 - Route BGM / note / LN keysounds through a shared `BmsKeysoundStore` instead of letting each drawable own an independent keysound player
 
 Requirements:
 - Index up to 1295 (`ZZ` in base-36) keysound slots per chart
 - **Supported audio formats:** `.wav` (primary — required), `.ogg` and `.mp3` (secondary — support if ManagedBass can load without additional plugins). Format resolution: attempt the exact filename referenced by `#WAV##` first; if not found, retry with extension substituted in order (`.wav` → `.ogg` → `.mp3`). Log a warning on any substitution. Do not silently succeed without logging.
-- Load samples lazily (on first play), cache in memory during session
+- Player/autoplay preloads referenced samples into the shared store; remaining on-demand loads use the same session cache. Preload and pool behaviour are owned by P1-J.
 - Route playback through the shared `BmsKeysoundStore` pool. Native BMS keeps an internal baseline and grows automatically when demand exceeds it; converted-mania uses its own safe floor. The removed `KeysoundConcurrentChannels` user setting must not be described or reintroduced as current configuration without a new product decision and runtime proof.
 - BGM channel (`01`) samples play regardless of player input
 - Missing keysound files: log warning, play silence, do not crash
 - On note hit: trigger the note's assigned keysound immediately
-- On note miss/poor: BGM channel continues; note keysound is skipped
-- **LN tail behaviour:** If a player releases an LN early or fails to release before the tail deadline, the tail is judged as POOR. If the tail has a distinct keysound slot assigned (some charts define separate `#WAV` entries for LN heads and tails), that tail keysound is skipped on miss. If no separate tail keysound is defined, no additional audio event is fired at the tail timing.
+- Natural unpressed misses are silent; a consumed key-down pressed-poor/miss still plays the note WAV, and an empty press may play the armed lane timeline sample. Audio dispatch is not determined solely by judgement name; BGM remains independent.
+- **LN tail audio:** Native and converted LN tails remain silent, including successful releases. Head/press audio and mode-specific tail judgement are separate; keep the [P1-J contract](../subline/P1-J/TECHNICAL_CONSTRAINTS.md) and regression tests authoritative.
 
 ### 4.4 Long Note Handling
 
@@ -328,44 +227,16 @@ Support both LN encoding styles:
 |---|---|---|
 | Single note (channels `1x`/`2x`) | `BmsHitObject` (extends `HitObject`) | Carries `LaneIndex`, `KeysoundId`, `KeysoundSample`, `IsScratch`, `AutoPlay` fields |
 | LN head (LNOBJ or LNTYPE `5x`/`6x` start) | `BmsHoldNote` (extends `HitObject`) | `StartTime` = head timing; `Duration` = tail time − head time; carries `HeadKeysoundId` / `TailKeysoundId` and matching `HeadKeysoundSample` / `TailKeysoundSample` |
-| LN tail | nested `BmsHoldNoteTailEvent` when a distinct tail keysound exists | Not a top-level HitObject in the beatmap list; runtime tail time remains `StartTime + Duration` and is materialised as a nested conditional event that only fires when the current minimal hold path reaches the tail or resolves a successful lenient tail release |
+| LN tail | nested `BmsHoldNoteTailEvent` on every hold | Not top-level; time is `StartTime + Duration`, scoring follows LN/CN/HCN, and tail audio is silent |
 | BGM note (channel `01`) | `BmsBgmEvent` (non-hittable) | Carries beatmap-relative keysound sample metadata and plays through the shared `BmsKeysoundStore`; excluded from judgment and scoring |
 
 `BmsHitObject` and `BmsHoldNote` must carry all keysound and lane metadata needed at runtime, including beatmap-relative sample lookup metadata. They must not require a back-reference to the raw decoder output after conversion.
 
 `BmsBeatmapConverter` should continue to materialise one `BmsHoldNote` timing object per parsed long note. Whether that object's tail becomes a scored judgement point is decided later by `BmsLongNoteMode`: `LN` counts head only, `CN` / `HCN` count head + tail, and `HCN` additionally feeds body gauge ticks without changing beatmap conversion.
 
-**ControlPointInfo population:**
+**Timing and output authority:** The converter integrates header BPM, channel `03` direct BPM, channel `08` indexed BPM, channel `09` STOP and per-measure channel `02` multipliers into one ordered event-time calculation. STOP advances absolute time by `stop_value / 192 * 4 * 60000 / current_bpm`; its scroll-freeze interval uses the typed `BmsStopFreezeTimingControlPoint` and zero-distance `BmsScrollProfile` segment, not an untyped high-BPM heuristic. Conversion to mania strips only that BMS-specific marker, preserving genuine high BPM values.
 
-All timing data is written into `IBeatmap.ControlPointInfo` in time-ascending order before any HitObjects are added.
-
-1. **Initial BPM** — insert a `TimingControlPoint` at `t = 0` with the `#BPM` header value.
-2. **Channel `03` BPM changes** — for each event: parse hex value → decimal BPM, insert `TimingControlPoint` at the computed absolute time.
-3. **Channel `08` BPM table references** — resolve `#BPM##` entry, insert `TimingControlPoint` at computed time.
-4. **Channel `09` STOP events** — resolve `#STOP##` table value. Each unit = 1/192 of a 4/4 measure. Convert to ms: `stop_ms = stop_value / 192.0 × 4.0 × (60000.0 / current_bpm)`. Insert a synthetic `TimingControlPoint` that sets BPM to an arbitrarily large value (effectively freezing scroll) for the stop duration, followed by a `TimingControlPoint` that restores the pre-stop BPM. **⚠ Risk note:** the extremely large BPM approach is fragile — if any note timing falls within the STOP window, spacing calculations may produce sub-pixel results. Validate during implementation that no HitObjects exist in the STOP interval.
-5. **Channel `02` measure length multipliers** — store in a parallel `List<BmsMeasureLengthControlPoint>` on `BmsBeatmapInfo` (not in `ControlPointInfo`). See §4.1 implementation warning.
-
-**Absolute time computation:**
-
-All BMS timing is beat-based. Convert to absolute milliseconds using:
-
-```
-absolute_ms = measure_start_ms + (beat_fraction × beat_duration_ms)
-beat_duration_ms = 60000.0 / current_bpm
-measure_duration_ms = beats_per_measure × beat_duration_ms
-beats_per_measure = 4.0 × measure_length_multiplier  // default multiplier = 1.0
-```
-
-Accumulate `measure_start_ms` by iterating through measures 0 → N in order, applying any Channel `02` multiplier and BPM changes encountered within each measure. All BPM changes within a measure are processed in beat-fraction order before the measure's notes.
-
-**Output contract:**
-
-After conversion, the `IBeatmap` must satisfy:
-- `HitObjects` sorted ascending by `StartTime`
-- `ControlPointInfo` sorted ascending by time with no overlapping entries at the same timestamp
-- `BeatmapInfo.BeatmapSet` populated (set by `BmsArchiveReader` before converter runs)
-- `BmsBeatmapInfo.Keymode` populated (set by `BmsBeatmapDecoder`)
-- `BmsBeatmapInfo.MeasureLengthControlPoints` populated and sorted ascending
+`BmsMeasureLengthControlPoint` retains measure metadata while notes, BGA, mines and `MeasureStartTimes` share the resolved time map. Runtime consumers use those resolved outputs; no per-note multiplier reconstruction or renderer-side timing authority is permitted. The imported beatmap/set metadata belongs to the importer and keymode belongs to the decoder. Full timing/tie-order/STOP and keymode contracts are maintained in [P1-K CONSTRAINTS](../subline/P1-K/TECHNICAL_CONSTRAINTS.md).
 
 ---
 
@@ -376,7 +247,7 @@ After conversion, the `IBeatmap` must satisfy:
 - Channel `08` = BPM table lookup via `#BPM##` header
 - Channel `09` = STOP (value references `#STOP##` table; each unit = 1/192 of a **4/4 measure** at the current BPM; conversion: `stop_ms = stop_value / 192.0 × 4.0 × (60000.0 / current_bpm)`)
 
-All timing changes must be integrated into the `ControlPointInfo` of the converted `IBeatmap`. The underlying scroll-time model must use these timing points for note rendering; BMS now layers its own Hi-Speed surface on top rather than inheriting osu!mania scroll speed verbatim.
+The resolved event times, typed control points and `BmsScrollProfile` carry timing and scroll authority together. BMS Hi-Speed consumes this model; it does not inherit mania scroll speed verbatim or identify STOP through a generic BPM threshold.
 
 For osu!mania, settings-page milliseconds are only a reference under standard lane geometry. User skins may change lane size, hit position, and scaling, so mania fall-time readouts are not a cross-skin or cross-ruleset contract and must not be compared directly with BMS Hi-Speed milliseconds.
 
@@ -386,64 +257,9 @@ For osu!mania, settings-page milliseconds are only a reference under standard la
 
 ### 5.1 Architecture
 
-`BmsJudgementSystem` is a pluggable class selected at game start based on active Mods.
+`BmsJudgementSystem` selects the `OD`, `BEATORAJA`, `LR2` or `IIDX` family through the active mod. `Evaluate(offset, isLongNoteRelease, isScratch)` and the family-specific early/late, scratch and release windows determine the result. Default OD reads the chart rank; alternative families preserve their own rank scaling and asymmetry rather than sharing one generic strictness multiplier.
 
-```csharp
-public abstract class BmsJudgementSystem
-{
-    public abstract HitResult Evaluate(double offsetMs, bool isLongNoteRelease);
-    public abstract double[] Windows { get; } // [PGREAT, GREAT, GOOD, BAD, POOR] in ms
-}
-```
-
-Three concrete implementations:
-
-**`OsuOdJudgementSystem`** (default, no Mod active):  
-Uses osu!mania OD timing windows. OD value sourced from `#RANK` field mapping:
-
-| #RANK | OD |
-|---|---|
-| VERY HARD | OD 9 |
-| HARD | OD 8 |
-| NORMAL | OD 7 |
-| EASY | OD 5 |
-| VERY EASY | OD 3 |
-
-**`BeatorajaJudgementSystem`** (Mod: `BmsModJudgeBeatoraja`):
-
-Target parity is not a symmetric EASY-base scalar. The rule family must preserve judge-rank tiers, early/late asymmetry, and note-class special cases.
-
-| Tier | PGREAT | GREAT | GOOD | BAD (early / late) |
-|---|---|---|---|---|
-| VERY EASY (125%) | ±25 | ±75 | ±187 | 275 / 350 |
-| EASY (100%) | ±20 | ±60 | ±150 | 220 / 280 |
-| NORMAL (75%) | ±15 | ±45 | ±112 | 165 / 210 |
-| HARD (50%) | ±10 | ±30 | ±75 | 110 / 140 |
-| VERY HARD (25%) | ±5 | ±15 | ±37 | 55 / 70 |
-
-Additional constraints:
-- Excessive poor uses its own early / late family rather than simply reusing BAD edges.
-- Judge-rank scaling uses integer truncation semantics, not arbitrary rounding.
-- Scratch notes extend both timing edges by an additional 10ms.
-- Long-note release windows are significantly wider than normal note windows; long scratch release extends again on top of that.
-- Active judgerank tier is still determined by `#RANK`.
-
-**`Lr2JudgementSystem`** (Mod: `BmsModJudgeLr2`):
-
-LR2 parity is also judge-rank-aware rather than a single fixed NORMAL window.
-
-| Tier | PGREAT | GREAT | GOOD | BAD |
-|---|---|---|---|---|
-| EASY | ±21 | ±60 | ±120 | ±200 |
-| NORMAL | ±18 | ±40 | ±100 | ±200 |
-| HARD | ±15 | ±30 | ±60 | ±200 |
-| VERY HARD | ±8 | ±24 | ±40 | ±200 |
-
-Additional constraints:
-- Excessive poor is only valid before the note, not after it.
-- A fixed NORMAL-like window is an acceptable bootstrap, but not the final LR2 parity contract.
-
-Judge mode is an explicit rule-family switch, not a generic "strictness" slider. UI, score tags, leaderboard filters, and any future table/course messaging must continue to surface `OD`, `BEATORAJA`, and `LR2` as separate semantics rather than implying direct equivalence.
+Numeric windows, truncation rules and excessive-poor semantics are maintained in [P1-C CONSTRAINTS](../subline/P1-C/TECHNICAL_CONSTRAINTS.md) and the judgement-system tests. UI and persisted score semantics must keep these families distinct. This section does not duplicate window tables that can drift from the production implementation.
 
 ### 5.2 Poor Judgment (Empty Poor)
 
@@ -454,9 +270,9 @@ Implementation:
 - `LR2` mode must treat excessive poor as pre-note-only semantics
 - `BEATORAJA` mode must use its own early / late excessive-poor family rather than reusing generic BAD edges
 - Scratch notes and long-note release may require specialized windows when the active judge family defines them
-- `BmsPoorJudgement` triggers gauge damage equivalent to a BAD hit
+- `BmsPoorJudgement` (inside `BmsEmptyPoorHitObject`) uses `HitResult.Ok`; gauge damage is determined by the active gauge family, not universally equal to BAD.
 - Empty Poor does **not** affect EX-SCORE
-- Empty Poor **breaks Combo** (resets the current combo counter to 0)
+- Empty Poor does **not** break combo or affect accuracy/EX-SCORE, but it affects gauge and FULL COMBO/PERFECT eligibility. `TestEmptyPoorDoesNotBreakComboWithoutAffectingExScoreOrAccuracy` protects this distinction.
 - Empty Poor is only active in BMS mode, not osu!mania mode
 
 ### 5.3 Long Note Judge Modes
@@ -484,20 +300,13 @@ Rules:
 | GOOD | +1 (continues combo) |
 | BAD | reset to 0 (breaks combo) |
 | POOR (miss) | reset to 0 (breaks combo) |
-| Empty POOR | reset to 0 (breaks combo) |
+| Empty POOR | unchanged; neither increment nor reset |
 
 Note: GOOD **does not break combo**, but having any GOOD in a run **disqualifies FULL COMBO** (§6.3). FULL COMBO requires PGREAT + GREAT only; PERFECT requires PGREAT only.
 
-### 5.5 Keysound Trigger by Judgment
+### 5.5 Keysound Dispatch
 
-| Judgment | Keysound plays? |
-|---|---|
-| PGREAT | Yes — immediately on input |
-| GREAT | Yes — immediately on input |
-| GOOD | Yes — immediately on input |
-| BAD | Yes — immediately on input (offset audible) |
-| POOR (miss) | No — keysound is skipped; BGM channel continues normally |
-| Empty POOR | No — no note keysound to trigger |
+Keysound ownership follows the consumed input and armed lane timeline, not a yes/no lookup on judgement result. Natural misses and LN tails are silent; consumed key-down poor/miss and empty presses may sound according to §4.3 and P1-J. Judgement, scoring and BGM timing remain independent.
 
 ---
 
@@ -505,7 +314,7 @@ Note: GOOD **does not break combo**, but having any GOOD in a run **disqualifies
 
 ### 6.1 EX-SCORE
 
-BMS mode uses EX-SCORE exclusively. Do not use osu's `ScoreProcessor`.
+BMS uses EX-SCORE as its score value. `BmsScoreProcessor` extends the existing `ScoreProcessor` and overrides BMS scoring semantics; retain the shared processor lifecycle.
 
 ```
 EX-SCORE = (PGREAT count × 2) + (GREAT count × 1)
@@ -523,70 +332,11 @@ MAX EX-SCORE = hittable_note_count × 2
 
 ### 6.2 Gauge System (`BmsGaugeProcessor`)
 
-Six gauge types, selectable via Mod. Default = NORMAL.
+Gauge type and gauge rule family are separate. `BmsGaugeProcessor` supports Assist Easy, Easy, Normal, Hard, ExHard and Hazard, with Legacy / Beatoraja / LR2 / IIDX family implementations. Recovery, damage, start values, clear thresholds and `#TOTAL` treatment are family-specific; the Legacy formula is not a universal rule and IIDX does not derive its rates from `#TOTAL`.
 
-**Gauge Rate Derivation (`#TOTAL`)**
+Score/gauge pools must agree with LN/CN/HCN and A-SCR/A-NOT: BGM and assisted notes stay out of the manual pool; HCN body ticks move gauge without adding EX-SCORE or combo. Hazard's GOOD behaviour and survival/groove failure behaviour follow the active tested family. See [P1-C CONSTRAINTS](../subline/P1-C/TECHNICAL_CONSTRAINTS.md) and the gauge-family tests for numeric rules.
 
-All recovery and damage rates are derived from the chart's `#TOTAL` header value and total hittable note count. Do not use fixed constants.
-
-```
-base_rate (% per note) = #TOTAL ÷ (total_hittable_notes × 100)
-```
-
-`total_hittable_notes` = all scored per-note judgement points that participate in gauge scaling under the active runtime long-note mode:
-- Single notes always count once
-- `LN` mode counts each long note head once
-- `CN` / `HCN` modes count long note head + tail
-- `HCN` body ticks are processed as time-based gauge events and do **not** change `total_hittable_notes`
-- BGM channel (`01`) notes are excluded
-- If `#TOTAL` is absent from the chart header, default to `200`
-- **When A-SCR Mod is active, scratch lane notes are also excluded from `total_hittable_notes`** — consistent with their exclusion from `hittable_note_count` in §6.1
-
-This keeps EX-SCORE, gauge scaling, and DJ LEVEL denominator aligned per long-note mode while still allowing `HCN` to add body-only gauge movement.
-
-Each gauge applies multipliers to `base_rate` for recovery and damage. The `~%` values in the table below are **reference approximations** for a standard chart (`#TOTAL 200`, ~1000 hittable notes → `base_rate ≈ 0.2%`). Actual in-game values vary with chart parameters.
-
-**Recovery multipliers per judgment (relative to PGREAT):**
-
-| Judgment | Recovery multiplier |
-|---|---|
-| PGREAT | 1.0× (full recovery as listed in gauge table) |
-| GREAT | 1.0× (same as PGREAT) |
-| GOOD | 0.5× (half of PGREAT recovery) |
-
-**Damage multipliers per judgment (relative to BAD):**
-
-| Judgment | Damage multiplier | Notes |
-|---|---|---|
-| GOOD | 0.0× (no gauge damage) | Except HAZARD: GOOD deals 0% and does not trigger fail |
-| BAD | 1.0× (as listed in gauge table) | |
-| POOR (miss) | 1.5× of BAD damage | Note passed without any input |
-| Empty POOR | 1.0× of BAD damage | Key pressed with no hittable note in window |
-
-**Gauge parameters per type:**
-
-| Gauge | Start | Recovery per PGREAT | Damage per BAD | Clear condition | Fail condition | Clear lamp awarded |
-|---|---|---|---|---|---|---|
-| ASSIST EASY | 20% | base_rate × 1.6 (~0.32%) | base_rate × 4.0 (~0.8%) | ≥80% at end | — | ASSIST EASY CLEAR |
-| EASY | 20% | base_rate × 1.2 (~0.24%) | base_rate × 6.0 (~1.2%) | ≥80% at end | — | EASY CLEAR |
-| NORMAL | 20% | base_rate × 0.8 (~0.16%) | base_rate × 8.0 (~1.6%) | ≥80% at end | — | NORMAL CLEAR |
-| HARD | 100% | base_rate × 0.8 (~0.16%) | base_rate × 25.0 (~5%) | >0% at end | hits 0% mid-song | HARD CLEAR |
-| EX-HARD | 100% | base_rate × 0.8 (~0.16%) | base_rate × 50.0 (~10%) | >0% at end | hits 0% mid-song | EX-HARD CLEAR |
-| HAZARD | 100% | base_rate × 0.8 (~0.16%) | instant 0% | >0% at end | any BAD/POOR mid-song | HAZARD CLEAR (if no BAD/POOR) |
-
-> **HAZARD gauge and GOOD:** GOOD judgements deal **0% gauge damage** in HAZARD mode and do not trigger the fail condition. Only BAD and POOR collapse the gauge to 0% immediately. This must be enforced explicitly — do not apply any damage formula on GOOD when HAZARD is active.
-
-ASSIST EASY, EASY, and NORMAL gauges cannot drop below 2% mid-song (survival floor).
-
-**Ranking:** Current local score bucketing must continue distinguishing gauge, judge, and long-note semantics where those rules are already implemented. Full online leaderboard filtering remains a Phase 3 contract, and any dedicated `A-SCR` filter is additionally blocked on leaderboard/config support landing.
-
-**Phase 3 target leaderboard filters:** Once private server integration is intentionally enabled, chart leaderboards should accept independent `gauge`, `judge`, and `lnmode` filters, for example:
-
-```
-GET /scores/chart/{hash}?gauge=HARD&judge=OD&lnmode=CN
-```
-
-If `A-SCR` leaderboard segregation is added later, an additional `ascr` filter may be added at the same time. Do not document these filters as current `BmsRulesetConfigManager` settings until the corresponding code is present in the workspace.
+Current local score bucketing distinguishes implemented gauge/judge/long-note semantics. Private-server submission and online leaderboard filters remain Phase 3 work; no endpoint or new persisted filter setting is implied here.
 
 ### 6.3 Clear Lamp (`BmsClearLampProcessor`)
 
@@ -602,9 +352,9 @@ NO PLAY → FAILED → ASSIST EASY CLEAR → EASY CLEAR → NORMAL CLEAR
 - NORMAL/HARD/EX-HARD CLEAR = passed with corresponding gauge
 - HAZARD CLEAR = survived HAZARD gauge to end (no BAD/POOR, but GOOD is permitted — GOOD does not trigger HAZARD fail). Note: HAZARD CLEAR requires no BAD or POOR but allows GOOD, so it is strictly below FULL COMBO.
 - FULL COMBO = no GOOD/BAD/POOR throughout the chart
-- PERFECT = EX-SCORE == MAX EX-SCORE
+- PERFECT requires positive MAX EX-SCORE, EX-SCORE == MAX EX-SCORE and Empty Poor count == 0, subject to the clear condition
 - FULL COMBO / PERFECT use the active runtime long-note mode's scored points. `LN` only checks heads; `CN` / `HCN` require both head and tail to remain eligible. `HCN` body ticks can still fail gauge without adding separate combo points, so result persistence must confirm the run still satisfies the clear condition before awarding `FULL COMBO` or `PERFECT`.
-- Result-side clear-lamp / final-gauge / gauge-history reconstruction must reapply the full BMS beatmap-mod chain, not only `BmsLongNoteMode`. Assist mods such as `A-SCR` / `A-NOT` also remove objects from score/gauge pools, and results must remain gameplay-identical.
+- Result-side clear-lamp / final-gauge / gauge-history reconstruction consumes the already-modded playable beatmap. Configure the gauge from that beatmap; do not reapply the beatmap-mod chain, which would repeat lane rearrangement or assist transformations.
 
 Only upgrade lamp, never downgrade.
 
@@ -612,47 +362,9 @@ Only upgrade lamp, never downgrade.
 
 ### 6.4 Gauge Auto Shift — GAS (`BmsModGaugeAutoShift`)
 
-GAS is a Mod that starts the player on the highest configured gauge and automatically downgrades when that gauge fails, continuing play on the next lower gauge. At the end of the song, the best clear result across all gauges played is awarded.
+`BmsModGaugeAutoShift : Mod` exposes persisted `StartingGauge` (default ExHard) and `FloorGauge` (default Easy), mutually exclusive with individual gauge mods. Gauge rank order is Hazard → ExHard → Hard → Normal → Easy → Assist Easy, but automatic downgrading applies only to failed survival gauges and is bounded by the configured floor. Entering Normal stops downgrading; a floor of Easy does not cause a later Normal → Easy transition. Groove gauges finish at song end instead of causing mid-song failure.
 
-**Mechanism (matching beatoraja `GAUGEAUTOSHIFT_BESTCLEAR` behavior):**
-
-1. Player selects a starting gauge (default: EX-HARD) and a floor gauge (default: EASY).
-2. At song start, the active gauge is set to the starting gauge.
-3. If a survival gauge (HAZARD, EX-HARD, HARD) reaches 0%, the gauge **downgrades** to the next lower tier in this sequence. In HAZARD mode, any single BAD or POOR collapses the gauge to 0% and triggers an immediate downgrade — GOOD does not trigger downgrade.
-   ```
-   HAZARD → EX-HARD → HARD → NORMAL → EASY → ASSIST EASY
-   ```
-   Downgrade stops at the configured floor gauge.
-4. When downgrading, the new gauge initializes at its default start value (not carried over).
-5. Play continues without interruption — no fail screen is shown on downgrade.
-6. **NORMAL, EASY, and ASSIST EASY gauges do not trigger further downgrade.** Once the active gauge has shifted to one of these non-survival tiers, it plays to song end regardless of final gauge value — there is no mid-song fail condition on these gauges.
-7. At the end of the song, `BmsClearLampProcessor` evaluates each gauge independently and awards the highest lamp achieved.
-8. The result screen displays a gauge graph for each tier that was active during the run (matching beatoraja result screen behavior).
-
-**GAS settings (exposed as Mod configuration):**
-
-```csharp
-// BmsMod is the abstract base class for all BMS-specific mods.
-// It extends osu!'s Mod class and may add BMS-specific validation hooks.
-public class BmsModGaugeAutoShift : BmsMod
-{
-    // Highest gauge to start on
-    public Bindable<BmsGaugeType> StartingGauge { get; } = new(BmsGaugeType.ExHard);
-
-    // Lowest gauge allowed to downgrade to (floor)
-    public Bindable<BmsGaugeType> FloorGauge { get; } = new(BmsGaugeType.Easy);
-}
-```
-
-`StartingGauge` and `FloorGauge` are persisted via osu!'s standard Mod configuration serialization — their values survive across sessions without manual re-selection. The defaults (`ExHard` / `Easy`) apply only on first launch before any user configuration has been saved.
-
-`BmsGaugeType` enum order must match downgrade sequence: `AssistEasy = 0, Easy = 1, Normal = 2, Hard = 3, ExHard = 4, Hazard = 5`. HAZARD is the highest tier. It fails on BAD or POOR only — GOOD is permitted and does not trigger a downgrade.
-
-**Interaction with other gauge Mods:**  
-`BmsModGaugeAutoShift` is mutually exclusive with all individual gauge Mods (`BmsModGaugeHard`, `BmsModGaugeExHard`, etc.). When GAS is active, those Mods are disabled.
-
-**Score submission with GAS:**  
-Scores set with GAS active are tagged with `gauge_mode = GAS` on the private server. The lamp submitted is the best lamp achieved during the run.
+On downgrade, the new active gauge starts at its family/type default value. Result history displays each activated segment of this one evolving gauge run. The result lamp follows the final active gauge and the playable run, not the best of independently simulated gauges. Keep downgrade and history semantics aligned between gameplay and `BmsClearLampProcessor`; the regression `TestGaugeAutoShiftDowngradesAndAwardsFinalActiveGaugeLamp` locks this distinction. Private-server GAS submission remains unimplemented Phase 3 work.
 
 ### 6.5 Auto Assist Mods — A-SCR / A-NOT
 
@@ -672,15 +384,7 @@ Current repository status: `BmsModAutoScratch` and `BmsModAutoNote` now exist in
 - Disabling a configurable BMS mod is not treated as a request to reset it; if the mod opts into preserved settings, re-enabling it must restore the last remembered configuration.
 - This contract is currently BMS-only and must not be generalized to mania or to a global cross-ruleset `SelectedMods` persistence layer without a separate design and product contract.
 
-**Planned `BmsRulesetConfigManager` additions when A-SCR / leaderboard filters land:**
-
-```csharp
-AutoScratchNoteVisibility  : AscScratchVisibility  = Visible
-LeaderboardGaugeFilter     : string?               = null
-LeaderboardAscrFilter      : bool?                 = null
-LeaderboardJudgeFilter     : string?               = null
-LeaderboardLnModeFilter    : string?               = null
-```
+Online leaderboard filters remain Phase 3 scope. Add persistent configuration only when the actual consumer and compatibility contract are implemented.
 
 `BmsKeysoundStore` capacity is an internal runtime policy with automatic growth, not a persistent user-tunable ceiling. The removed `KeysoundConcurrentChannels` setting must not be used as replay/config authority; add new persistent state only when a consuming feature and its compatibility contract land together.
 
@@ -703,7 +407,7 @@ This intentionally follows the 27-step beatoraja / IIDX rank ladder: `AAA = 24/2
 
 ### 6.7 Timing Feedback and Offset
 
-- Gameplay-facing BMS feedback should prioritize judgement name, `FAST/SLOW`, and EX-SCORE-relevant deltas during play. Do not frame BMS performance primarily around osu!-style accuracy messaging.
+- BMS judgement and EX-SCORE remain the gameplay semantics. The always-on speed/FAST-SLOW/pacemaker card was removed by product decision; current speed feedback uses the pre-start preview and held-adjustment toast. Do not infer a task to restore a permanent card from this section.
 - For key-sounded BMS play, the primary user-facing timing correction path is a visual draw offset / note presentation adjustment. Do not make audio playback offset the default or sole timing-fix control for BMS mode.
 - Timing feedback and adjustment should be low-friction from gameplay and result flow so future retry / pacemaker / target-practice features can reuse the same loop.
 
@@ -713,14 +417,9 @@ This intentionally follows the 27-step beatoraja / IIDX rank ladder: `AAA = 24/2
 
 ### 7.1 Lane Configuration (`BmsLaneLayout`)
 
-BMS mode does not use osu!mania's `ManiaStage` directly. Define a `BmsLaneLayout` that specifies:
+`BmsLaneLayout` describes keymode/lane topology. C3 resolves geometry through the single immutable layout snapshot; playfield, gauge/combo, HUD and BGA viewports consume that result. Lane widths, scratch position and receptor coordinates must not gain a second per-component authority.
 
-- Number of lanes
-- Lane widths (scratch lane is wider than key lanes)
-- Lane colors (alternating key colors per BMS convention)
-- Scratch lane position (leftmost for 1P, rightmost for 2P)
-
-Current Phase 1 surface: settings now expose a basic single-play `Playfield Style` with four options for 5K / 7K only: `1P (left anchored with intentional screen-side inset)`, `2P (right anchored with intentional screen-side inset)`, `Center (left scratch)`, and `Center (right scratch)`. This adjusts playfield anchoring and scratch visual side without flipping bindings or introducing a full side-aware skin contract. 9K remains centered and 14K remains fixed DP.
+Current Phase 1 surface: settings now expose a basic single-play `Playfield Style` with four options for 5K / 7K only: `1P (left anchored with intentional screen-side inset)`, `2P (right anchored with intentional screen-side inset)`, `Center (left scratch)`, and `Center (right scratch)`. This adjusts playfield anchoring and scratch visual side without flipping bindings; the skin runtime consumes the resolved side-aware layout. 9K remains centered and 14K remains fixed DP.
 
 **Phase 2 target — 1P/2P flip (`BmsModMirror1P2P`):**
 - Current repository status: the workspace now has `BmsModMirror` and `BmsModRandom` for button-lane rearrangement, but it still does not have a dedicated full-side `1P/2P flip` mod.
@@ -734,8 +433,8 @@ Current Phase 1 surface: settings now expose a basic single-play `Playfield Styl
 Sudden and Hidden are rendered as opaque overlay panels on the playfield, while Lift independently raises the judgement line by shortening the lane from the bottom.
 
 Controlled by Mods:
-- `BmsModSudden` — enables upper masking, exposes a `CoverPercent` setting (0–100%)
-- `BmsModHidden` — enables lower masking, exposes a `CoverPercent` setting (0–100%)
+- `BmsModSudden` — enables upper masking, exposes the legacy-named `CoverPercent` setting on the 0–1000 cover-unit scale
+- `BmsModHidden` — enables lower masking, exposes the legacy-named `CoverPercent` setting on the 0–1000 cover-unit scale
 - `BmsModLift` — raises the judgement line with an independent `LiftUnits` setting (0–1000)
 
 Sudden and Hidden can be active simultaneously. In gameplay, the scroll wheel adjusts the current persistent range target without pausing: default target order prefers Sudden, and clicking `UI_LaneCoverFocus` (or mouse middle-click) cycles across enabled `Sudden / Hidden / Lift` targets. Lift remains a separate geometry control and must not be conflated with Hidden.
@@ -768,7 +467,7 @@ If OMS later extends Floating Hi-Speed semantics, ship it as a complete contract
 
 All input hardware — keyboard, IIDX controller, arcade controller, gamepad — must map to the same abstract `OmsAction` enum. The game layer never reads hardware signals directly.
 
-Current implementation note: `osu.Game.Rulesets.Bms` is now partially wired to `oms.Input`. The current playable prototype still relies on a ruleset-local `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus` + `PreStartHold`) as temporary scaffolding, but `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, the Windows Raw Input keyboard path, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, HID-trigger persistence/editor live capture, and the provider-backed HID code path are all present. Windows now uses a DirectInput-backed HID provider by default, while `HidSharp` remains available as a diagnostic backend behind `OMS_ENABLE_HIDSHARP=1` to avoid the historical `HidSharp.DeviceList.Local` `RegisterClass failed` crash path. Desktop Settings -> Input now intentionally hides the upstream generic `MouseSettings` / `TouchSettings` / `TabletSettings` subsections via `OsuGameDesktop.CreateSettingsSubsectionFor()`; this is a product-surface trim only, not a runtime input deletion. Do not move that suppression into `OsuGameBase` unless the intention is to also change test-scene and non-desktop host behaviour. Remaining input work is mainly richer cross-device semantics and real-hardware validation. Treat the current bridge as temporary scaffolding, not the final input contract.
+Current implementation: the production `BmsAction` bridge (`Key1`-`Key16` + `LaneCoverFocus` + `PreStartHold`) connects `oms.Input` to BMS gameplay; `OmsAction <-> BmsAction` routing, complete keyboard-combination semantics, the Windows Raw Input keyboard path, mouse delta parsing, the XInput button path via `OnJoystickPress()` / `OnJoystickRelease()`, 5K/7K default XInput bindings, ruleset default keybinding export for joystick buttons, joystick-only persisted binding round-tripping, the generic keybinding UI path for joystick button display/capture, HID-trigger persistence/editor live capture, and the provider-backed HID code path are all present. Windows now uses a DirectInput-backed HID provider by default, while `HidSharp` remains available as a diagnostic backend behind `OMS_ENABLE_HIDSHARP=1` to avoid the historical `HidSharp.DeviceList.Local` `RegisterClass failed` crash path. Desktop Settings -> Input now intentionally hides the upstream generic `MouseSettings` / `TouchSettings` / `TabletSettings` subsections via `OsuGameDesktop.CreateSettingsSubsectionFor()`; this is a product-surface trim only, not a runtime input deletion. Do not move that suppression into `OsuGameBase` unless the intention is to also change test-scene and non-desktop host behaviour. Remaining input work is mainly richer cross-device semantics and real-hardware validation. Keep the production bridge as the current consumer; future changes require a concrete input-semantic gap rather than a parallel routing architecture.
 
 ```csharp
 public enum OmsAction
@@ -804,7 +503,7 @@ Current implementation uses a provider-backed polling path for HID buttons and a
 For Xbox-compatible controllers / framework joystick buttons. Maps button indices to `OmsAction`, supports shared-action reference counting, and now participates in both default binding export and joystick-only persisted keybinding round-trips.
 
 **`OmsMouseAxisInputHandler`:**  
-Reads raw mouse delta (X or Y axis) and converts to scratch input. Define a threshold and direction: positive delta = CW, negative delta = CCW. Expose sensitivity setting.
+Reads raw mouse delta (X or Y axis) and dispatches directional press/release pulses. Binding inversion is implemented; user-facing sensitivity/deadzone calibration remains P1-D work.
 
 **Axis inversion:** All analog axis handlers (`OmsHidAxisInputHandler` for rotary encoders, `OmsMouseAxisInputHandler`) must expose an `AxisInverted` boolean flag per binding in `OmsBindingStore`. DIY controller encoder wiring varies in polarity; inverting the axis direction in software avoids hardware rewiring. When `AxisInverted = true`, the CW/CCW mapping is swapped before delivering the signal to `OmsInputRouter`. The flag is stored per-binding entry in `OmsBindingStore` — each bound action carries its own independent inversion state. This applies equally to HID rotary encoders and mouse axis bindings; it is not a global mouse preference.
 
@@ -813,7 +512,7 @@ Reads raw mouse delta (X or Y axis) and converts to scratch input. Define a thre
 The scratch lane accepts three signal types simultaneously:
 
 1. **Digital key** (keyboard or HID button): binary on/off, treated as a constant scratch input while held
-2. **Analog axis** (HID rotary encoder, e.g. AS5600 on DIY controller): continuous value, converted to delta → scratch direction + velocity
+2. **Analog axis** (HID rotary encoder, e.g. AS5600 on DIY controller): sampled value converted to directional press/release pulses per poll; no velocity-valued gameplay contract is implemented
 3. **Mouse delta**: same as analog but sourced from mouse movement
 
 All three can be bound at once. The scratch lane renders activation whenever any active signal exceeds its threshold.
@@ -825,7 +524,7 @@ The binding screen must support:
 - Displaying bound signal type with icon (keyboard key / HID button / axis / mouse)
 - Separate binding profiles per keymode (5K / 7K / 9K / 14K DP)
 - In 14K DP mode, a single **DP profile** contains both 1P-side and 2P-side bindings simultaneously — the binding UI presents both sides in a unified layout. There are no separate "14K 1P" and "14K 2P" profiles.
-- For single-side modes (5K / 7K / 9K), per-profile 1P/2P binding sets distinguish which physical side is active
+- Single-play modes use their keymode variant bindings (6/8/9 actions; DP has 16). The 5K/7K Playfield Style changes visual side without selecting a separate 1P/2P binding set; 9K has no side profile.
 
 ### 8.5 Calibration and Diagnostics
 
@@ -835,94 +534,23 @@ Bindings alone are not sufficient for BMS controller support. The BMS input/sett
 
 ## 9. Difficulty System
 
-### 9.1 Design Principle
+### 9.1 Native BMS level authority
 
-osu!lazer's built-in star rating algorithm is designed for osu!mania key patterns and is not applicable to BMS. BMS mode uses an independent difficulty calculator (`BmsDifficultyCalculator`) based on **weighted note density**, producing a star value used as a fallback when no difficulty table entry exists for a chart.
+Native BMS uses the chart author's `#PLAYLEVEL`, not a computed density-star model. `BmsDifficultyCalculator` returns ordinary `DifficultyAttributes` and creates no difficulty skills. It first parses the decoded chart's level, then uses persisted BMS metadata through `BmsStarRatingResolver`; a missing usable level resolves to zero. An already persisted non-negative `BeatmapInfo.StarRating` remains the resolver's first source.
 
-The difficulty table community ratings (Satellite, Stella, 発狂BMS, etc.) are the authoritative source of difficulty for charts that have been rated. The density star is a supplementary metric only.
+`BmsStarRatingResolver.TryParsePlayLevel()` extracts the first positive numeric token from the author's text. Community difficulty-table labels remain separate persisted metadata and are displayed alongside the author level; they are not a replacement density calculation.
 
-### 9.2 Density Star Calculation (`BmsDifficultyCalculator`)
+### 9.2 Converted mania stars
 
-The calculator operates on the converted `IBeatmap` after `BmsBeatmapConverter` has run.
+BMS projected to mania uses the mania difficulty pipeline and persists the converted result for the target ruleset/version. It must not reuse the native BMS author level as a mania star rating. Import/recompute readiness and exclusion of sample-only objects follow [P1-K CONSTRAINTS](../subline/P1-K/TECHNICAL_CONSTRAINTS.md).
 
-**Input:** note timing list with per-note metadata (lane index, is-scratch, is-LN-head, is-LN-tail, is-chord).
+### 9.3 Note-distribution analysis
 
-**Algorithm — sliding window density:**
+`BmsNoteDistributionAnalyzer` belongs to the Song Select preview, producing weighted time windows, normal/scratch/LN counts, peak NPS and a percentile statistic. These values describe chart shape; they do not feed native BMS `StarRating`. The graph uses the same analysis result for its bars and summary, as described in section 11.
 
-1. Divide the chart into overlapping windows of fixed duration (1000ms, step 500ms)
-2. For each window, compute a **weighted note count**:
-   ```
-   base weight per note  = 1.0
-   chord bonus           = +0.3 per additional simultaneous note in the same tick (same `StartTime` within ≤1ms tolerance)
-   scratch bonus         = +0.5 (scratch notes require split attention)
-   LN body               = +0.1 per 100ms of hold duration
-   ```
-3. Take the 95th percentile window density across the chart (ignores outlier bursts)
-4. Normalize against a per-keymode reference density to produce a 0–20 star scale
-5. Store results in `BmsDifficultyAttributes`
+### 9.4 Display and filtering
 
-**`BmsDifficultyAttributes` fields:**
-
-```csharp
-public class BmsDifficultyAttributes : DifficultyAttributes
-{
-    public double StarRating       { get; set; }  // density-based star rating (0–20 scale)
-    public int    TotalNoteCount   { get; set; }  // all hittable notes including LN heads
-    public int    ScratchNoteCount { get; set; }  // notes in scratch lane (channels 11/21)
-    public int    LnNoteCount      { get; set; }  // LN head count (not tails)
-    public double PeakDensityNps   { get; set; }  // highest weighted notes-per-second across all windows
-    public double PeakDensityMs    { get; set; }  // chart position (ms) of the peak density window start
-}
-```
-
-`BmsNoteDistributionGraph` reads `TotalNoteCount`, `ScratchNoteCount`, `LnNoteCount`, and `PeakDensityNps`/`PeakDensityMs` directly from the cached attributes — do not recompute these statistics in the graph layer.
-
-**BPM normalization:** density is computed in notes-per-second space, not notes-per-beat, so BPM changes are naturally accounted for.
-
-**Per-keymode calibration:** normalization reference constants are stored in a static lookup per `BmsKeymode` enum value (5K, 7K, 9K, 14K). These constants are expected to be tuned over time as playtest data accumulates — do not over-engineer the first implementation.
-
-`BmsDifficultyCalculator` delegates all sliding-window computation to `BmsNoteDensityAnalyzer` (see Section 9.3). Do not duplicate the density logic here.
-
----
-
-### 9.3 Shared Density Utility (`BmsNoteDensityAnalyzer`)
-
-The sliding-window density computation is shared between `BmsDifficultyCalculator` and `BmsNoteDistributionGraph`. Extract this logic into a dedicated utility class to avoid parallel implementations diverging:
-
-```csharp
-public class BmsNoteDensityAnalyzer
-{
-    // Returns density buckets across the chart timeline
-    public IReadOnlyList<DensityBucket> Analyze(
-        IBeatmap beatmap,
-        int windowMs = 1000,
-        int stepMs   = 500);
-
-    // Returns the Nth-percentile density value across all buckets
-    public double GetPercentileDensity(
-        IReadOnlyList<DensityBucket> buckets,
-        double percentile);
-}
-
-public record DensityBucket(double StartMs, double WeightedNoteCount, int NormalCount, int ScratchCount, int LnCount);
-```
-
-- `BmsDifficultyCalculator` calls `Analyze()` then `GetPercentileDensity(buckets, 0.95)` for star rating
-- `BmsNoteDistributionGraph` calls `Analyze(windowMs: 1000, stepMs: 1000)` explicitly — do not rely on default parameter values. Reuses cached output if available for the selected chart.
-
-### 9.4 Difficulty Display Priority
-
-```
-1. Difficulty table match found  →  table label (e.g. "Satellite ★5") as primary
-                                     density star as secondary
-2. No table match                →  density star only
-```
-
-`BeatmapInfo.StarRating` is always populated with the density star. Table match data is stored as a serialized list of `BmsDifficultyTableEntry` records on the beatmap metadata (not a single string field — a chart may appear in multiple tables). Song Select / details / note distribution consumers read the persisted metadata; `BmsTableMd5Index` is now only an importer-time and in-memory lookup helper, not the display-layer authority.
-
-Chart-level metadata (`Subtitle`, `SubArtist`, `Comment`, `PlayLevel`, `HeaderDifficulty`) is stored on `BmsBeatmapMetadataData.ChartMetadata`. When a clear creator credit can be inferred from chart metadata, mirroring it to `BeatmapMetadata.Author.Username` is allowed so generic UI can show a creator without BMS-specific plumbing.
-
-If future BMS-only Song Select filter data is added, store it as typed data on `BmsBeatmapMetadataData` with helper methods rather than parsing `BeatmapMetadata.RulesetDataJson` ad hoc from the filter chain. Ruleset-specific song select keywords must continue to flow through `IRulesetFilterCriteria`; do not add BMS-only switch cases to the shared `FilterQueryParser`.
+Consumers use the persisted author level and difficulty-table entries through the current resolvers; selection must not reopen a BMS file solely to obtain labels. Native BMS, converted mania stars and the note-distribution preview are separate authorities. Current grouping/filtering behavior and the still-unimplemented single-track composition UI are tracked in [P1-I STATUS](../subline/P1-I/DEVELOPMENT_STATUS.md).
 
 ---
 
@@ -1031,38 +659,16 @@ public record BmsDifficultyTableEntry(
     string Symbol,         // e.g. "★"
     int    Level,          // numeric level for sorting
     string LevelLabel,     // display string e.g. "★5"
-    string Md5             // lowercase hex
+    string Md5,            // lowercase hex
+    int TableSortOrder = 0 // persisted parent-table order
 );
 ```
 
 ### 10.5 Song Select Integration (`BmsTableGroupMode`)
 
-`BmsTableGroupMode` is a custom `GroupDefinition` registered only when the active ruleset is BMS. It appears as an option in the native osu!lazer sort/group dropdown.
+The BMS table grouping consumes persisted table entries. `TableSortOrder` / table name form the parent group and numeric `Level` / display label form its child; charts with no table entries appear in `Unrated` at the end. A chart may appear in several table groups. Hierarchical display flattens sets to individual charts below table/level; it does not insert another BeatmapSet navigation layer. Group construction does not fetch or re-parse a table or chart.
 
-**Grouping hierarchy:**
-
-```
-Group level 1 — Table name
-  e.g. "Satellite", "Stella", "発狂BMS", "Unrated"
-  ordered by source sort order (seeded preset order first, then user import order)
-
-Group level 2 — Level within table
-  e.g. "★1", "★2", "▲18"
-  sorted by numeric Level field ascending
-
-Group level 3 — BeatmapSet (native carousel node)
-  = one BMS folder
-  sorted by density star ascending within the level group
-
-Difficulty — individual .bms file
-  sorted by density star ascending
-```
-
-**"Unrated" group:** charts with no match in any enabled table, sorted by density star ascending. Always appears last.
-
-**Multi-table charts:** a chart appearing in multiple enabled tables appears under each table's group independently.
-
-**Sort interaction:** when `BmsTableGroupMode` is active, the sort dropdown is disabled — within-group sort is fixed to density star ascending. Search and collections continue to work normally.
+Grouping and sorting are separate. The sort dropdown remains enabled; difficulty sorting uses the resolved native author/persisted rating from Section 9, not note-distribution density. Search and collections continue to use the normal Song Select filter pipeline. Display flattening and navigation are owned by [P1-I CONSTRAINTS](../subline/P1-I/TECHNICAL_CONSTRAINTS.md).
 
 ### 10.6 Library Grouping (`InternalLibrary` / `ExternalLibrary`)
 
@@ -1079,7 +685,7 @@ This is not a shared osu! song-select feature. The dropdown remains ruleset-driv
 - Applies only to BMS sets where `BeatmapSetInfo.IsExternalFilesystemStorage == false`
 - Applies only when `BeatmapSetInfo.FilesystemStoragePath` is under the managed BMS root `chartbms/`
 - Group hierarchy comes from the parent-directory segments under `chartbms/`
-- The final beatmap-set directory remains the native `BeatmapSet` carousel node; do not duplicate that folder as an extra artificial grouping layer
+- Under hierarchical grouping, charts are standalone leaves. Do not repeat the final set directory as an artificial folder group or insert a BeatmapSet navigation layer.
 - A set stored directly under `chartbms/` appears at the root of this grouping mode rather than under a fake "uncategorised folder" node
 
 **`ExternalLibrary` grouping authority:**
@@ -1087,7 +693,7 @@ This is not a shared osu! song-select feature. The dropdown remains ruleset-driv
 - Applies only to BMS sets where `BeatmapSetInfo.IsExternalFilesystemStorage == true`
 - The first grouping level must represent the external library root that the set belongs to
 - Lower grouping levels come from the parent-directory segments relative to that external root
-- The final beatmap-set directory remains the native `BeatmapSet` carousel node
+- Charts appear as standalone leaves below the directory groups; do not insert a BeatmapSet navigation layer.
 
 **Critical persistence rule:** the selected external root for each imported/scanned external set must be persisted as stable beatmap-set data. OMS now stores this as a normalised `BeatmapSetInfo.ExternalLibraryRootPath` snapshot; `ExternalLibraryConfig` alone is not sufficient authority because users can reorder, remove, rename, or overlap roots after import.
 
@@ -1121,10 +727,10 @@ The graph uses time as the horizontal axis and renders colored blocks representi
 | Element | Color | Meaning |
 |---|---|---|
 | Normal notes | White | Standard single notes (non-scratch, non-LN) |
-| Scratch notes | Red | Notes in the scratch lane (channel 11/21) |
+| Scratch notes | Red | Notes classified as scratch by the converter (standard BMS channel 16/26) |
 | LN heads/bodies | Blue | Long note heads and hold bodies |
 
-The graph is divided into fixed-width time buckets (e.g. 1 bucket per 1000ms). Each bucket's height or fill density represents the note count within that window, independently stacked per note type.
+The graph calls `BmsNoteDistributionAnalyzer.Analyze(..., 1000, 1000)` for one-second buckets. Its displayed density uses weighted counts, including chord, scratch and LN contributions; it is not a raw note-count or star-rating axis. Bucket categories are exclusive, while whole-chart SCR/LN summaries may overlap.
 
 **Summary statistics displayed alongside the graph:**
 
@@ -1145,12 +751,12 @@ When available, the same panel may also show compact chart metadata lines for:
 ### 11.3 Implementation Notes
 
 - `BmsNoteDistributionGraph` reads from the already-converted `IBeatmap` — no BMS re-parse needed
-- Uses `BmsNoteDensityAnalyzer` (see Section 9.3) for bucket computation — do not reimplement the sliding-window logic
+- Uses `BmsNoteDistributionAnalyzer` (see Section 9.3) for bucket computation — do not reimplement the sliding-window logic
 - Read chart metadata from persisted beatmap metadata / ruleset data; do not re-open the source `.bms` file on selection just to populate summary lines
 - Computed once on chart selection, cached for the session
 - Rendered as a `Drawable` using osu-framework's immediate-mode drawing primitives (no external chart library)
 - Bucket computation runs on a background task; results are pushed to the drawable via `Schedule()`. The song select UI thread is never blocked — the frame budget applies only to the final `Schedule()` callback and drawable update, not to the computation itself.
-- Add `BmsNoteDistribution` to the skin lookup table so the graph panel can be skinned
+- Existing `NoteDistribution` and `NoteDistributionPanel` lookups provide the graph and panel skin surface
 - The note distribution graph is preview authority only. Its scratch / LN summary counts may overlap and must not be reused directly as the source for any future mutually-exclusive Song Select filter taxonomy such as `RC / LN / SCR`.
 
 ---
@@ -1170,7 +776,7 @@ Current progress and manual gates belong to [P1-L STATUS](../subline/P1-L/DEVELO
 
 - `BmsDecodedChart.BgaEvents` carries channels `04` base / `06` poor / `07` layer / `0A` layer2 plus typed `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` definitions. Conversion produces a time-ordered `BmsBeatmap.BgaTimeline`, kept outside `HitObjects` like `Mines` and `ScrollProfile`.
 - BGA renders in a skinnable `BgaPanel` above the playfield. Image frames use the beatmap `TextureStore`; video uses the framework playback clock; the POOR layer follows `#POORBGA`.
-- Image sequence and video share one engine-owned content clock. Layout may frame, clip or mirror that surface, but skins must not create independent BGA players; `FillMode.Fit` remains the safe default and converted-mania BGA stays outside this native path until separately gated.
+- Target: layout frames, clips or mirrors a single engine-owned BGA content surface. Current code creates a `BmsBgaPlayer` for each resolved viewport; the default 14K layout therefore has four players. C3 unified viewport geometry and C5 exposed read-only events; neither delivered a shared content/decoder instance. That migration remains P1-L work. Skins must not take playback authority; `FillMode.Fit` remains the default and converted-mania BGA stays outside this native path until separately gated.
 - BGA is visual-only: it never enters `HitObjects` or judgement/scoring. Assets read directly from `chartbms/`, never the hash-backed `files/` store, and missing/decode-failed assets degrade without crashing.
 - Legacy video transcode is opt-in and depends on a user-provided external ffmpeg; OMS does not ship ffmpeg. Without it, when disabled, or on failure, the runtime must retain the static-image fallback.
 - Transcode publication must be concurrency-safe and atomic. Preload is bounded, cache lifetime is session-scoped, and timeout/failure falls back without turning a load optimisation into a gameplay blocker.
@@ -1199,7 +805,7 @@ OMS continues to use osu!lazer's `ISkin` / `ISkinSource` / `SkinnableDrawable` a
 - `SKIN/SimpleTou-Lazer` remains a mania-side compatibility/reference source, not the architecture or private resource source for the BMS runtime.
 - Current execution order and gates are not repeated here; read [mainline PLAN](DEVELOPMENT_PLAN.md) and [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md).
 - Do not build mania and BMS twice. Share codecs, scene/animation primitives, event envelopes, diagnostics, reload and sandbox; keep mania stage/column and BMS scratch/DP/BGA/gauge adapters separate.
-- Do not resume post-cutoff G1/F2/Lua/reference-default code in bulk. The old F/G labels remain historical indexes only; current execution authority is P1-A `SV1-0` through `SV1-7`.
+- Do not resume post-cutoff G1/F2/Lua/reference-default code in bulk. The old F/G labels remain historical indexes only; current execution authority is the P1-A campaign plan and its exit gates.
 
 ### 13.2 Fallback Hierarchy
 
@@ -1209,7 +815,7 @@ OMS Skin V1 lookup is tri-state:
 - `Inherit`: continue per-component through the fallback chain.
 - `Suppress`: intentionally omit an optional visual; do not re-inject the OMS visual behind it.
 
-Inside the gameplay-package resolution slot, `Inherit` order is:
+The final Skin V1 gameplay-package `Inherit` order is shown below. The current runtime still terminates at programmatic `OmsSkin`; canonical-package takeover remains gated by parity, integrity, atomic recovery and real-device acceptance.
 
 1. User-selected external package.
 2. Ruleset adapter / compatibility layer.
@@ -1217,7 +823,7 @@ Inside the gameplay-package resolution slot, `Inherit` order is:
 
 Additional rules:
 
-- This three-step order is not the complete lazer provider hierarchy. Existing beatmap-local skin semantics from `BeatmapSkinProvidingContainer` and ruleset resource insertion from `RulesetSkinProvidingContainer` retain their current relative authority until an explicit migration; `Suppress` does not, by default, pierce a higher-priority beatmap-local provider.
+- This target order is not the complete provider hierarchy. Existing beatmap-local direct-visual compatibility and ruleset resource insertion retain their relative authority; `Suppress` does not pierce a higher-priority legacy provider by default. This does not expose beatmap-local ini/scene/script authoring: no public sidecar format is implemented.
 - Missing components fall back **per component**, not by abandoning the entire OMS skin chain. Missing files never implicitly mean `Suppress`.
 - Lane/scratch readability, note/LN/mine, judgement position and active lane-cover geometry cannot be fully suppressed. Key animation, judgement display, combo, gauge visual, HUD, BGA frame and decorative effects may be explicitly suppressed.
 - BMS imported song folders are not treated as ad-hoc skin packages.
@@ -1226,7 +832,7 @@ Additional rules:
 
 ### 13.3 Shared OMS Skin Architecture
 
-OMS should converge on an integrated package architecture with the following layers:
+The shared gameplay runtime and thin ruleset adapters are already implemented; canonical packages remain the C7 target. The product layers are:
 
 - **OMS global layer**: package host, shared infrastructure, layout metadata, global HUD shells, common typography/icon resources, and fallback discipline.
 - **OMS mania layer**: stage, column, key area, note, hold, hit target, bar line, hitburst, judgement/combo/HUD adapted to mania variants.
@@ -1234,23 +840,23 @@ OMS should converge on an integrated package architecture with the following lay
 
 Shared means package structure, fallback infrastructure, and optional global UI language. It does **not** mean mania and BMS gameplay assets must be interchangeable or visually identical.
 
-Recommended implementation structure:
+Existing implementation and remaining package boundaries:
 
-- A shared `OmsSkinTransformer` or equivalent base used by both rulesets.
-- A ruleset-neutral gameplay-skin runtime for ini values, scene/animation nodes, versioned state/events, tri-state resolution, diagnostics, hot reload and sandbox limits. It must not contain `BmsKeymode`, `ManiaAction` or concrete ruleset drawables.
-- Thin mania and BMS adapters which map actual gameplay state to neutral lane groups/roles/stable IDs and immutable event DTOs.
+- Both rulesets use the shared `OmsSkinTransformer` base.
+- C3～C5 already supply the neutral layout/ini/material/scene/event runtime and diagnostics inside the current revision protocol. C6 adds the script sandbox and final package reload gate. The shared runtime must not depend on `BmsKeymode`, `ManiaAction` or concrete ruleset drawables.
+- Existing mania and BMS adapters map gameplay state to neutral lane groups/roles/stable IDs and immutable events. Keep these production routes as the single authority.
 - A protected preview `OmsSkin`-style selection entry may exist only as a migration host while `oms-simple` is incomplete. It counts as skeleton progress and must not survive as theme-specific rendering below the final file fallback.
-- `ManiaRuleset.CreateSkinTransformer()` should continue migrating away from switching on osu!lazer-native built-in skin types as the final OMS product behavior. An explicit `OmsSkin` -> `ManiaOmsSkinTransformer` route can land earlier as a transitional slice, but that still does not mean mania defaults are fully OMS-owned.
+- `ManiaRuleset.CreateSkinTransformer()` should continue migrating away from switching on osu!lazer-native built-in skin types as the final OMS product behavior. The explicit `OmsSkin` -> `ManiaOmsSkinTransformer` route already exists; it is transitional and does not establish canonical file fallback.
 - `BmsRuleset.CreateSkinTransformer()` should keep returning a ruleset-specific transformer, but fallback visuals must resolve from `oms-simple`, not private themed C# drawables.
 
 ### 13.4 Shared Visual Contract
 
-Both `oms-simple` and `oms-complex` must provide coherent product shells while still allowing mania and BMS gameplay layers to remain independent:
+Both canonical packages must provide readable gameplay while allowing mania/BMS visuals to differ. Shared application UI and legacy lookups may follow the same visual language, but Song Select/results skinning and `ISerialisableDrawable` editing/serialization are not new public gameplay-author ABI. Non-gameplay hosts participate in revision lifecycle without expanding the author surface.
 
-- Shared typography scale for global UI, shared HUD shells, Song Select details, and results containers.
+- Shared typography/colour language may guide application UI; gameplay HUD uses the versioned public slot contract.
 - Shared colour-token system for package-level surfaces, separators, neutral text, focus/highlight states, and non-ruleset-specific UI.
 - Shared animation-duration buckets for instant feedback, HUD transitions, and overlay entrances.
-- Shared serialization rules for `ISerialisableDrawable`: fixed anchors, stable sizes, no skin-dependent layout drift that breaks replay/UI restoration.
+- Legacy serialisable components retain their existing restoration compatibility; the legacy editor remains disabled.
 - Shared contrast policy: gameplay-critical information must remain readable on both bright and dark user skins.
 
 Ruleset-specific gameplay semantics remain independent:
@@ -1290,7 +896,7 @@ Requirements:
 - The mania layer lives inside the same default skin package as BMS, but its assets/config bridge remain mania-specific.
 - Timing-based recolour or configuration-based note recolour remains a ruleset behavior, but the default asset/fallback source must be OMS-owned.
 - Mania defaults must remain readable even when no external skin is installed.
-- Existing legacy mania is a compatibility input, not the dynamic authoring ceiling: key press, hold light, hit explosion, judgement and combo behaviour are currently fixed in C# components. Skin V1 must expose equivalent behaviour through the shared scene/event runtime rather than making BMS inherit mania drawables.
+- Legacy mania remains a compatibility input. C5 connected key/hold/hit effects, judgement, combo and the other applicable public slots to the shared prepared scene and read-only event runtime. Gameplay truth stays in engine producers; authors control supported visual scenes. This does not include the unimplemented C6 script sandbox.
 - The shared resolver must preserve whether a legacy value was explicitly declared. Legacy mania may synthesize a default configuration for a missing `Keys:` bucket; that synthetic value must not be mistaken for `Provide` in the new tri-state runtime.
 
 ### 13.6 BMS Skin Contract
@@ -1313,9 +919,8 @@ The BMS skin contract must cover at least:
 - Gauge bar
 - Gauge history panel
 - Clear lamp display
-- Results summary panel
 - Note distribution panel
-- Song Select metadata accents for BMS-only information when needed
+- Existing legacy/application UI lookups may cover results, note distribution and Song Select accents; these are outside the public gameplay author surface.
 
 Simple enum-only lookup is insufficient for all BMS use cases. Where component rendering depends on lane metadata, use dedicated lookup types carrying:
 
@@ -1326,11 +931,11 @@ Simple enum-only lookup is insufficient for all BMS use cases. Where component r
 - `Keymode`
 - Optional `CoverPosition` / `Focused` / `LongNotePart`
 
-Drawable replacement alone is also insufficient for a release-ready BMS default path. The BMS contract must grow an OMS-owned playfield abstraction layer for layout-critical parameters, including lane width / scratch-width ratio and spacing, playfield sizing, hit target / receptor geometry, bar line emphasis rules, and pressed / focused states. The current runtime strict surface may freeze user-facing geometry overrides, but that freeze must sit on top of this abstraction rather than bypass it.
+C3 established the single immutable layout authority for lane/scratch widths, spacing, playfield sizing and receptor geometry. Preserve this resolved authority through renderer and skin consumers; do not rebuild a default profile in individual components or add a parallel layout abstraction. Geometry overrides remain subject to the accepted layout contract.
 
-The abstraction must produce an immutable layout descriptor covering 5K/7K P1/P2/centred-left-scratch/centred-right-scratch, 9K BMS/PMS and 14K dual-deck. Gauge/combo/BGA placement must consume the same resolved descriptor as the playfield; recomputing a default profile in each component is not valid.
+The existing solver and adapters produce an immutable layout descriptor covering 5K/7K P1/P2/centred-left-scratch/centred-right-scratch, 9K BMS/PMS and 14K dual-deck. Gauge/combo/BGA placement must consume the same resolved descriptor as the playfield; recomputing a default profile in each component is not valid.
 
-BGA decoding, timeline, seek, POOR state and the single content clock remain engine-owned. A skin may frame, clip, mask, mirror and decorate a read-only BGA surface in descriptor-provided viewports, but must not create independent BGA players or clocks. The current 14K four-player/four-corner default is transitional, not a V1 contract.
+BGA decoding, timeline, seek and POOR state remain engine-owned; a single shared content instance is the pending P1-L target. A skin may frame, clip, mask, mirror and decorate a read-only BGA surface in descriptor-provided viewports, but must not create independent BGA players or clocks. The current 14K four-player/four-corner default is transitional, not a V1 contract.
 
 > BMS 默认层与 mania 侧组件的当前迁移进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；面向皮肤制作者的详细 lookup / preset 表见 [../other/SKINNING.md](../other/SKINNING.md)。
 >
@@ -1374,12 +979,12 @@ Not permitted after Phase 1.1 completion:
 
 - All shipping mania/BMS gameplay elements must be backed by skin lookup + `oms-simple` file fallback, not by theme-specific direct-drawn primitives.
 - New OMS gameplay UI should prefer `SkinnableDrawable` / `GlobalSkinnableContainerLookup` / dedicated lookup types over ruleset-local hard-coded layout.
-- Do not attempt final BMS visual parity by baking geometry into temporary hard-coded defaults before the BMS playfield abstraction gate exists; once that gate exists, the current strict runtime surface may intentionally freeze user-facing geometry overrides.
+- C3 layout is already the geometry authority. Final parity and C6/C7 work consume it without restoring hard-coded per-component geometry or creating another abstraction gate.
 - Component defaults must be stable under serialization, replay, and skin reload.
 - Layout-critical components such as lane covers, gauge bars, clear lamps, and note distribution panels must have predictable default sizes in the OMS built-in skin.
 - Do not make BMS gameplay visuals depend on upstream mania component names or upstream built-in texture contracts.
 - Reuse mania-compatible key names through a shared neutral codec; do not reuse `ManiaLegacySkinTransformer`, `Column`, `ManiaAction` or the legacy 480-coordinate renderer as BMS base classes.
-- New dynamic visuals should be expressed through declarative scene/state-machine and versioned read-only events. Add a fixed ruleset C# visual host only after a fixture demonstrates that the neutral ABI cannot express the requirement.
+- Extend dynamic visuals through the shared versioned scene/event contract and C6/C7 gates, with a real author caller, production consumer, publication/lease participation and budget proof. A fixture alone does not authorise private per-component provider/display expansion.
 - User-distributed scripts are untrusted: no network, arbitrary filesystem, reflection, process/thread/native library, Realm/config writes or gameplay mutation. Enforce deterministic gameplay-clock time, seeded randomness, node/memory/time budgets and per-layer fault isolation.
 
 ### 13.9 Test Requirements
@@ -1465,7 +1070,7 @@ public class OmsScore
 ### 14.3 Offline Mode
 
 If the server is unreachable, OMS runs fully offline:
-- Local scores saved to SQLite via EF Core (same as osu!lazer)
+- Local score metadata saved through `ScoreManager` / Realm; replay data uses the existing score file store
 - No leaderboard data shown (replaced by "Offline" indicator)
 - Beatmap download unavailable
 - Difficulty table data uses last cached fetch
@@ -1480,11 +1085,11 @@ If the server is unreachable, OMS runs fully offline:
 
 ### Phase 1 — Core BMS
 
-上游裁剪、BMS 解析 / 导入 / 键音 / 7K+1 playfield / 判定 / gauge / EX-SCORE / 结算 / 密度星级 / 难度表 / MD5 匹配 / Song Select 表分组 / 音符分布图 / 静态 BG / Lane Cover / 输入绑定。
+上游裁剪、BMS 解析 / 导入 / 键音 / 7K+1 playfield / 判定 / gauge / EX-SCORE / 结算 / 作者等级与星级展示 / 难度表 / MD5 匹配 / Song Select 表分组 / 音符分布图 / 静态 BG / Lane Cover / 输入绑定。
 
 ### Phase 1.1 — OMS Skin System
 
-集成默认皮肤包（Global + Mania + BMS 三层独立 ruleset 皮肤）、组件 lookup / fallback / OMS 默认层迁移、partial override 语义、上游原生默认皮肤退出、release gate。
+mania/BMS 共享外部 ini/asset/scene/event/script runtime、唯一 layout、三态组件解析、安全存储/reload、canonical 双包与 Authoring Kit、程序化主题渲染退出及 release gate。完成定义见 §13.10，当前未完成项见 P1-A PLAN。
 
 ### Phase 2 — BMS Feature Complete
 
@@ -1496,7 +1101,7 @@ If the server is unreachable, OMS runs fully offline:
 
 ### Future Scope
 
-`#RANDOM` 分支、LR2IR 排行兼容、SHA256 + sabun linkage、macOS / Linux（不计划，不阻断）。
+真正随机分支选择、LR2IR 排行兼容、SHA256 + sabun linkage。现有固定分支兼容行为以 P1-K 为准；macOS / Linux 不在 OMS 产品计划内。
 
 ---
 
@@ -1504,15 +1109,15 @@ If the server is unreachable, OMS runs fully offline:
 
 Follow osu!lazer's existing conventions throughout:
 
-- All new classes in `osu.Game.Rulesets.Bms` namespace mirror the structure of `osu.Game.Rulesets.Mania`
+- Follow existing ruleset directory and naming conventions. Reuse shared runtime contracts; do not duplicate mania implementations or introduce abstractions without a current consumer.
 - Use `Bindable<T>` for all configurable values
 - Use `DependencyContainer` / `[Resolved]` attribute for dependency injection — no static singletons
 - Async I/O for all file and network operations (`async`/`await`, never `.Result`)
 - `IResourceStore<byte[]>` for asset loading
 - All timing values in **milliseconds (double)** unless explicitly noted as beats
 - Write XML doc comments on all public API surface in future private-server integration code and `oms.Input`
-- Unit test coverage required for: `BmsBeatmapDecoder`, `BmsTimingWindows`, `BmsScoreProcessor`, `BmsGaugeProcessor`, `BmsDifficultyCalculator`, `BmsNoteDensityAnalyzer`, `BmsTableMd5Index`, `BmsDifficultyTableManager`
-- Any development, research, bug fix, validation pass, or release-gate adjustment that changes plan, status, constraints, or verified conclusions must update the corresponding `doc_md/mainline`, `doc_md/subline`, `doc_md/other`, or `doc_md/mini` documents in the same change. Do not leave code and documentation drifting.
+- Unit test coverage required for: `BmsBeatmapDecoder`, `BmsTimingWindows`, `BmsScoreProcessor`, `BmsGaugeProcessor`, `BmsDifficultyCalculator`, `BmsNoteDistributionAnalyzer`, `BmsTableMd5Index`, `BmsDifficultyTableManager`
+- Any development, research, bug fix, validation pass, or release-gate adjustment that changes plan, status, constraints, or verified conclusions must update the corresponding `doc_md/mainline`, `doc_md/subline`, `doc_md/other`, documents in the same change. Do not leave code and documentation drifting.
 
 ---
 
@@ -1525,7 +1130,8 @@ Follow osu!lazer's existing conventions throughout:
 | `SharpCompress` | BMS archive extraction (zip/rar/7z) |
 | `HidSharp` | Non-Windows / diagnostic HID enumeration and reading |
 | `Vortice.DirectInput` | Windows default HID/gamepad enumeration and polling |
-| `Microsoft.EntityFrameworkCore.Sqlite` | Local score storage + table cache |
+| `Realm` | Local beatmap, skin and score metadata |
+| `Microsoft.Data.Sqlite` | BMS difficulty-table `tables.db` |
 | `Ude.NetStandard` | Charset detection (Shift-JIS / UTF-8) |
 
 ---

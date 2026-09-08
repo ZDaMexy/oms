@@ -110,6 +110,6 @@ thin/arbitrary-path/foundation-only staged-import stager、逐件optional slot�
 
 ## C5 召回（2026-09-03）
 
-C5 的产品结果不是新增 DTO 或单一 drawable，而是 exact package+layout+material+scene publication 的真实纵切：scene manifest/graph、animation/state/binding/template、只读 event stream 与 Snapshot/Reset 都由 background prepare 产出，BMS/mania/core renderer 只读取 immutable prepared output。BMS/mania producer 不把 scene 提升为判定、输入、分数、clock、BGA 内容或 resource authority；scene 故障只隔离 slot/scene。
+C5 的产品结果是 exact package+layout+material+scene publication 的真实纵切：scene manifest/graph、animation/state/binding/template和初始事件状态在background prepare生成，renderer消费immutable prepared output；真实`GameplaySkinEventRuntimeHost`绑定同一publication，在运行时从engine state生产只读event stream与Snapshot/Reset。不能把运行中事件或seek/retry后的Snapshot误写成整包prepare预产物。BMS/mania producer不把scene提升为判定、输入、分数、clock、BGA内容或resource authority；scene故障只隔离slot/scene。
 
 runtime profile `oms-gameplay-skin-runtime-support.v1` 对每个 catalog ID 做显式决策。BMS 28 项均有 route（9K 适用矩阵只含 26 格）；Mania 23 项 Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 是明确 NotApplicable。C5 的自动证据与当前失败基线见 P1-A STATUS，不在 memory 复制旧 C4 数字。`GameplayResumed` 可以由 engine envelope 发布，但 scene ABI 不接受 `gameplay.resume`，因为 Snapshot 已重建 Running 状态。

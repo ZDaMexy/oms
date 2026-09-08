@@ -1,6 +1,6 @@
 # P1-G 当前状态：Phase 1.x 人工验收汇总
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（对齐现行待签收范围；未新增人工结论）
 > 全局状态与待人工项见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行清单见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -19,10 +19,10 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 
 | 面 | 当前待人工项 | owning 子线 |
 | --- | --- | --- |
-| 皮肤 | managed `.osk` BMS 普通短键编号帧动画；后续真实新增组件 | P1-A |
+| 皮肤 | 已导入 `.osk` 普通短键及 LN head/body/tail 的 `V-001`～`V-004`，仍为0/4；C5 scene/material/layout新增视觉与最终包 | P1-A |
 | 输入/控制器 | analog scratch、跨设备 edge/hold、deadzone/sensitivity、真实 HID | P1-B/P1-D |
 | gameplay/长条/音频 | LN/CN/HCN、长 BGM、dense keysound、empty-strike、pause/seek | P1-C/P1-E/P1-J |
-| Song Select/导入 | 大库分组/筛选/搜索、shared visual、桌面拖放 | P1-H/P1-I |
+| Song Select/导入 | 大库分组/筛选/搜索、shared visual、桌面拖放；单轨构成目标须先由P1-I实现 | P1-H/P1-I |
 | Gimmick/BGA | 图序列、POOR、seek、老视频转码、代表 Gimmick 谱与 14K 布局 | P1-L/P1-A |
 | 发行 | fresh extract、portable/custom root、覆盖更新与公开口径 | P1-F |
 
@@ -35,10 +35,10 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 
 ## 下一检查点
 
-1. 先按[确定性手工门说明](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)记录 P1-A managed `.osk` 普通短键编号帧动画、选择切换与 selected 坏包回落的单独用户确认；该素材不声称 beatmap-local `WorkingBeatmap` 集成。
+1. 按[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)汇总 P1-A `V-001`～`V-004`，保留[确定性短键素材说明](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)作为其中一格的步骤参考；不把它扩张成 beatmap-local public authoring 证明，也不恢复逐组件串行开工门。
 2. 按 [当前计划](DEVELOPMENT_PLAN.md) 逐项吸收 P1-B/D/E/I/J/L/F 的可验收切片，不等待所有代码线同时结束才建账。
 3. 所有 release gate 就绪后执行一次候选发行物总清单；阻塞项归线修复后只重测受影响矩阵格。
 
 ## 文档治理验证
 
-2026-07-16 仅重建人工验收 ownership 与矩阵，未改代码、未运行产品测试或 Release，现有产品结论不变。
+2026-09-09按当前 P1-A 集中清单与源码审查修正验收范围。保留2026-07-14恢复分项及既有portable/音频证据；本次没有新增用户签收，C5自动闭门不替代最终视觉或发行结论。

@@ -8,7 +8,7 @@ metadata:
 
 # BMS lane keysound timeline 上界地雷（已闭合）
 
-权威状态/计划：[P1-K STATUS](../../doc_md/subline/P1-K/DEVELOPMENT_STATUS.md)、[P1-K PLAN](../../doc_md/subline/P1-K/DEVELOPMENT_PLAN.md)；运行时验证归 [P1-J PLAN](../../doc_md/subline/P1-J/DEVELOPMENT_PLAN.md)。
+权威状态/计划：[P1-K STATUS](../../doc_md/subline/P1-K/DEVELOPMENT_STATUS.md)、[P1-K PLAN](../../doc_md/subline/P1-K/DEVELOPMENT_PLAN.md)；runtime 自动证明已闭合，回归与真实谱 smoke 归 [P1-J](../../doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 ## 历史诊断
 
@@ -23,7 +23,7 @@ metadata:
 
 ## 修复纪律
 
-1. converter 上界改为 lane count，但不要顺带改 lane identity、binding、判定或 sample-pool 语义。
+1. converter 已改为 lane count，后续保持该上界，不顺带改 lane identity、binding、判定或 sample-pool 语义。
 2. focused fixture 必须覆盖 5K K5、7K K7、9K 全 lane、14K K14/S2，不能只用 7K 中间 lane 或只断言总数。
 3. P1-K 先证明 DTO/timeline 完整，production sound test 再证明玩家与 auto 路径进入同一 shared keysound store 并实际请求 source WAV；两层证据缺一不可。
 4. P1-A `SV1-3` 的全 keymode topology smoke 复用这些边界样本，避免“画出了 lane 但 lane 没有 armed keysound”。

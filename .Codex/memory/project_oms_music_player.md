@@ -6,13 +6,13 @@ metadata:
   type: project
 ---
 
-P1-M「内置音乐播放器」子线 2026-06-15 建线（四件套 `doc_md/subline/P1-M/`）。把「全局音轨 + 右上角 mini 浮窗 `NowPlayingOverlay` + song-select 试听」升级为真音乐播放器。**规划已与用户对齐，未开工**。
+权威进度与未完成门见 [P1-M STATUS](../../doc_md/subline/P1-M/DEVELOPMENT_STATUS.md)，产品决定见 [PLAN](../../doc_md/subline/P1-M/DEVELOPMENT_PLAN.md)。本页只召回把全局音轨/mini/试听升级为播放器时的协调地雷，不替代实施状态。
 
 **架构审查的关键真相（开工前基线）**：
 - 唯一播放引擎 = `MusicController`（osu.Game/Overlays）；`NowPlayingOverlay` 只是视图+遥控，不播放。
-- song-select 试听 = **同一个 `MusicController`** + `WorkingBeatmap.PrepareTrackForPreview`（RestartPoint=PreviewTime, looping），**不走** `PreviewTrackManager`（后者因 `OnlineFeaturesEnabled=>false` 在 OMS 实质失活，仅测试引用 → 本线不接它）。`ControlGlobalMusic` 是 song-select 接管/释放全局轨的总闸。
+- song-select试听使用同一MusicController与 `WorkingBeatmap.PrepareTrackForPreview`；`ControlGlobalMusic`控制接管/释放。PreviewTrackManager仍被共享overlay/在线遗留surface引用，但OMS以 `OnlineFeaturesEnabled=false` 构造、返回DisabledPreviewTrack；不能把它当本地试听入口或写成“仅测试引用”。
 - 双角色张力 = 真播放器要的「持久队列+单曲循环+歌单」与 song-select 要的「preview 点 looping 试听」语义冲突 → 这是整个设计的命门。
-- BMS 音频来源：importer `detectFullMusicFile`(≥1MB 非键音)→`#PREVIEW` 回退；纯键音谱=静音虚拟轨。`EnsurePlayingSomething` 的 `MAX_ENSURE_PLAYING_SKIP_COUNT=50` 是现存 OMS 防死循环补丁。
+- BMS importer只接受有效显式 `#PREVIEW` 为AudioFile并从0播放；≥1MB非键音整曲探测已删除。无preview的纯键音谱被controller的AudioFile候选过滤排除。preview候选不代表完整keysound/BGM混音，不能据旧规划把整曲当现行输入。`EnsurePlayingSomething` 的 `MAX_ENSURE_PLAYING_SKIP_COUNT=50`仍保护无可播轨场景。
 
 **已对齐决策（用户 2026-06-15 拍板）**：全功能 M1–M4+；**播放源可选 mania/bms/both**（硬需求，按 `Ruleset.ShortName`=`BmsRuleset.SHORT_NAME` 过滤）；mini 浮窗+可展开全屏；展开视图**复用 `FullscreenOverlay<T>` 壳体**（那批离线隐藏的在线 overlay 共享的展开壳，与联网无耦合；`ToolbarMusicButton` 没被隐藏、它 toggle mini 浮窗）；**分层 PlayQueue 服务**（song-select preview 路径独立保留）。
 

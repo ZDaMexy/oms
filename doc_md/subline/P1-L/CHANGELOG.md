@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-09
+
+### 区分 BGA descriptor/scene 接线与单 content 会话
+
+- 对照 `DrawableBmsRuleset`、`BmsBgaPanel` 与 layout/timing-epoch 测试源码：C3 immutable layout/viewports、C5 material/scene 与只读 BGA 状态事件已交付，文档不再把这些列为待建前置。
+- `DefaultBmsBgaPanelDisplay.createFrame()` 仍逐 viewport 创建 `BmsBgaPlayer`；默认 14K 四 player 被现有测试明确断言，单一 content/decoder 会话尚未完成。shared transcode task 不等于共享 runtime 解码器，迁移时需配套 seek/POOR/clock 与多视图回归。
+- 登记实际文案缺口：「显示 BGA」仍写 `14K→中缝`，当前默认为四角。此次未修改 runtime；逐谱视觉、负向滚动、绝对刻度与极端谱 profile 仍开放，同步 BGA memory；本条仅记录源码审查，人工验收未推进，全局实测见主线最新验证。
+
 ## 2026-07-16
 
 ### 文档健康治理：完成阶段压为基线，PLAN 只保留内容/视图解耦与未完验收

@@ -1,6 +1,6 @@
 # P1-M 开发进度：内置音乐播放器
 
-> 最后更新：2026-07-17（主线优先级同步；尚未开工）
+> 最后更新：2026-09-09（production/测试源复核；尚未开工）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 
 ## 当前阶段
@@ -8,16 +8,16 @@
 - **阶段定位**：规划已与用户对齐，尚未开工；Phase 1 release gate 前不抢占主线 R3–R6。未来获准启动时，第一步仍是 Phase 0（PlayQueue 服务层、协调契约与测试网）的详细设计和最小落地。
 - **范围**：全功能（M1 队列与播放模式 / M2 曲库组织 / M3 播放体验 / M4+ 沉浸展示与进阶）+ 播放源（mania/bms/both）可选 + mini 浮窗可展开全屏 + 分层 PlayQueue。
 
-## 架构审查已确认事实（开工前基线，2026-06-15）
+## 架构审查已确认事实（2026-09-09源码复核）
 
-> 这些是规划所依据的当前链路真相，落地时若发现与代码不符须先更正本节。
+代码检索未发现PlayQueue、播放器repeat/source状态或SMTC实现；现存mini/playlist和MusicController导航不是P1-M完整播放器交付。以下是后续实现的真实输入。
 
 - **唯一播放引擎 = [MusicController](../../../osu.Game/Overlays/MusicController.cs)**：持有 `CurrentTrack`(`DrawableTrack`)，负责 Play/Stop/Next/Prev/Seek/Shuffle/随机历史/Ducking/mod 音轨调整。
 - **[NowPlayingOverlay](../../../osu.Game/Overlays/NowPlayingOverlay.cs) 只是视图 + 遥控器**，本身不播放；按钮调 controller，进度条 `SeekTo`，`TrackChanged` 事件换标题/封面。固定 400×130 浮窗。封面是静态 `beatmap.GetBackground()`。
 - **song-select 试听 = 同一个 `MusicController` 实例**，不走 `PreviewTrackManager`（[Screens/Select 下零引用](../../../osu.Game/Screens/Select)）。机制：选谱 → 全局 `Beatmap.Value` 变 → `changeBeatmap` 换轨；[SongSelect.beginLooping](../../../osu.Game/Screens/Select/SongSelect.cs) 每次 `TrackChanged` 调 [WorkingBeatmap.PrepareTrackForPreview](../../../osu.Game/Beatmaps/WorkingBeatmap.cs)（`RestartPoint = Metadata.PreviewTime`、looping），`ensurePlayingSelected` 决定是否 `Play`。`ControlGlobalMusic` 是接管/释放全局音轨的总闸。
-- **[PreviewTrackManager](../../../osu.Game/Audio/PreviewTrackManager.cs) 在 OMS 实质失活**：[OsuGameBase.cs](../../../osu.Game/OsuGameBase.cs) 用 `onlinePreviewEnabled = OnlineFeaturesEnabled`（`=> false`）实例化 → `trackStore` 从不创建 → `Get()` 永远返回 `DisabledPreviewTrack`（`GetTrack()=null`）。仅测试引用。**本线不接它**；保持失活并标注为离线无关分支。
+- **[PreviewTrackManager](../../../osu.Game/Audio/PreviewTrackManager.cs) 的在线播放在OMS禁用**：[OsuGameBase.cs](../../../osu.Game/OsuGameBase.cs) 以 `OnlineFeaturesEnabled => false` 构造，`Get()`返回DisabledPreviewTrack。共享overlay和在线遗留surface仍有生产引用，不能说“仅测试引用”；它不参与Song Select本地试听，P1-M也不接它。
 - **[PlaylistOverlay.ItemSelected](../../../osu.Game/Overlays/Music/PlaylistOverlay.cs)** 直接改全局 `Beatmap.Value` + `Track.Restart()`，**绕过** controller 的 next/prev 语义（不进随机历史）。M1 需决定是否收口到 PlayQueue。
-- **BMS 音频来源**（决定 bms 谱在播放器有没有声）：[BmsFolderImporter.detectFullMusicFile](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)（≥1MB 非键音音频）→ `#PREVIEW` 回退；都没有则该谱在播放器是静音虚拟轨。BMS 谱多缺省 `PreviewTime` → 落到 `0.4 * Length`。
+- **BMS音频来源**：[BmsFolderImporter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs) 只认有效显式 `#PREVIEW`，写入 `AudioFile` 和 `PreviewTime=0`；不再探测≥1MB非键音整曲。[BmsPreviewAudioBackfillTest](../../../osu.Game.Rulesets.Bms.Tests/BmsPreviewAudioBackfillTest.cs) 有导入/旧库纠正用例。没有preview的谱不进入controller的有AudioFile候选池；因此现有BMS播放器候选是preview音频，不是完整keysound/BGM混音，是否扩展完整听曲仍须独立产品定义。
 - **空音轨防死循环已是 OMS 现存补丁**：[MusicController](../../../osu.Game/Overlays/MusicController.cs) 的 `MAX_ENSURE_PLAYING_SKIP_COUNT=50`，防纯键音 BMS 库下 `EnsurePlayingSomething` 无限 next。上提导航策略时须保留此语义。
 
 ## 复用基础设施（已核实存在）
@@ -38,4 +38,8 @@
 
 ## 红线状态
 
-- 规划阶段，无代码改动 → 三条红线（song-select 试听、`AllowTrackControl`、离线只用本地轨）当前无风险。Phase 0 起每阶段须以回归测试证明。
+- P1-M尚未修改运行链；三条红线（song-select试听、`AllowTrackControl`、离线本地轨）继续作为Phase 0起的回归门。不能从“未开工”推出未来接入无风险。
+
+## 文档治理验证
+
+2026-09-09核对MusicController、mini/playlist、SongSelect preview-loop、BMS importer/backfill及现存音乐scene测试源；未运行播放器测试、实机试听或新增P1-M实现。最新全仓运行结果由主线统一记录。

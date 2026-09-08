@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-08（文档治理；产品验证仍为2026-09-03）
+> 最后更新：2026-09-09（实际生产链与文档记忆审查；完整C5闭门证据仍为2026-09-03）
 > 全局状态见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续动作见[当前计划](DEVELOPMENT_PLAN.md)，实现与安全合同见[技术约束](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -27,7 +27,7 @@ C2～C5共同发布一个exact package+layout+material+scene immutable publicati
 
 ## 最近一次验证
 
-产品证据日期：**2026-09-03，C5闭门**；本次文档治理未重跑runtime或改写该结论。
+完整产品门证据日期：**2026-09-03，C5闭门**。以下保留该次全矩阵与终审结果；2026-09-09项目审查的实际复验范围和结果另见[本轮审查记录](../../other/PROJECT_PROGRESS_AUDIT_20260909.md)，不重发campaign闭门结论。
 
 - core `FullyQualifiedName~GameplaySkin` **429/429**；mania `~GameplaySkin` **69/69**；BMS `~GameplaySkin` **146/146**。新增scene codec/runtime/event、publication、全部slot host与BMS/mania production矩阵均从真实SkinManager current revision进入实际consumer，不使用测试publisher注入最终snapshot。
 - BMS full（`--blame-hang --blame-hang-timeout 5m`）**1721/1721**，无hang artifact；BMS current-revision production **215/215**。BMS C5 all-keymode/双deck、custom-fallback/opaque-shell/partial-stage、hit-explosion与timing-epoch矩阵均通过；9K中Turntable/Laser按catalog applicability不计入适用格。
@@ -48,4 +48,6 @@ C2～C5共同发布一个exact package+layout+material+scene immutable publicati
 
 ## 文档治理验证
 
-2026-09-08仅整理现行合同、状态与计划：C5稳定约束合并到所属章节，STATUS保留唯一产品验证，PLAN只保留未完成动作和冻结输入。按当前decoder、event/schema与runtime profile定点核对语义；未改runtime，未运行BMS/mania/core测试或Release。文档检查结果由本次主线治理记录统一汇总；不推进campaign或视觉/release gate。
+2026-09-09以本地`2f8aedd`为代码基线，从Settings/Workspace真实caller追到SkinManager三源capture/reload、exact publication及BMS/mania/core layout/material/scene/event consumer，并审查对应production矩阵测试源码。C1～C5已接入、C6脚本权限/VM和C7双包未交付、beatmap-local仅legacy direct visual兼容及程序化fallback边界均与当前状态一致；PLAN退出门无需改动。
+
+已同步SKINNING、README与关联memory中残留的geometry验证、scene动画/事件ABI、禁用editor、脚本capability和internal staged-import表述；技术约束区分一次性Capture与C2 CaptureHeld的handle生命周期。未改runtime或推进campaign、视觉/release gate；本轮构建、测试与文档检查由[项目审查记录](../../other/PROJECT_PROGRESS_AUDIT_20260909.md)统一汇总，测试源码检查不算实跑。

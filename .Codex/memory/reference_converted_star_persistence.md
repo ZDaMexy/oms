@@ -22,6 +22,7 @@ metadata:
 - mania difficulty 输入只保留自身或 nested judgement `AffectsCombo` 的对象；sample-only BGM/scratch 不进 strain/max combo。
 - regression 必须运行真实 `ManiaDifficultyCalculator`；只断言 `TotalObjectCount` 不能证明 difficulty input 干净。
 - converter 不计算 star；唯一 authority 是 `ManiaDifficultyCalculator` + difficulty cache。
+- 这里指BMS→mania的计算星数。native BMS的 `BmsDifficultyCalculator` 没有Skill，使用作者PLAYLEVEL；`BmsNoteDistributionAnalyzer`只生成详情分布图，不能充当native或converted星数authority。
 - 零 scorable 对象的转谱抛 `BeatmapInvalidForRulesetException`，作为版本内 sticky Failed；瞬时 IO 等错误不持久化 Failed。
 
 ## 写入/读取路径

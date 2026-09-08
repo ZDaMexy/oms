@@ -1,6 +1,6 @@
 # P1-M 开发计划：内置音乐播放器
 
-> 最后更新：2026-07-17（主线优先级同步；产品规划未改变）
+> 最后更新：2026-09-09（更正现行BMS音频输入；产品规划未开工）
 > 全局计划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。架构审查结论见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 > **红线：① 不得改坏 song-select 试听链路；② 不得破坏 gameplay 全局音轨控制闸 `AllowTrackControl`；③ 离线优先——播放器只用本地音轨，绝不接在线试听。**
 
@@ -42,7 +42,7 @@
 - 选歌 / playlist 点选改了全局 `Beatmap` 时，PlayQueue 走「**跟随**」：只同步自己的 current index，不重建队列、不抢轨。只有自己 `Next/Prev` 时才「**驱动**」。
 - 红线回归测试：进选歌仍在 preview 点循环、队列不劫持全局轨。
 
-**播放源过滤**：[MusicController.getBeatmapSets](../../../osu.Game/Overlays/MusicController.cs)（待上提到 PlayQueue）的谓词加一档，按 `BeatmapSetInfo.Beatmaps` 的 `Ruleset.ShortName`（bms 常量 `BmsRuleset.SHORT_NAME` / 非 bms）过滤。注意 BMS 纯键音谱已被既有「有 `AudioFile`」过滤掉（[BmsFolderImporter.detectFullMusicFile](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs)：≥1MB 非键音音频 → `#PREVIEW` 回退）→ bms 源池 = 检出了音乐文件的 bms 谱。
+**播放源过滤**：[MusicController.getBeatmapSets](../../../osu.Game/Overlays/MusicController.cs)（待上提到PlayQueue）的谓词按 `Ruleset.ShortName` 增加mania/bms/both。现有BMS候选仅来自 [BmsFolderImporter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsFolderImporter.cs) 的有效显式 `#PREVIEW`，从0播放；无preview的纯键音谱被已有AudioFile过滤排除。不得把源过滤写成已经支持BMS完整keysound/BGM整曲混音；扩展完整听曲需另行明确产品与音频ownership。
 
 ## 已对齐产品决策（用户拍板 2026-06-15）
 

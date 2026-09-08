@@ -10,11 +10,11 @@ metadata:
 
 权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只保存实现地雷。
 
-## C3 当前层次（2026-08-30）
+## C3层次及C4/C5 publication扩展
 
 - 下文`GameplaySkinLaneTopologyPublication`及其owner仍是topology-only continuity primitive，只给solver提供exact identity/order/native-context输入；它不是当前production geometry publication。
-- C3最终交换点只有`GameplaySkinLayoutRevisionOwner.CurrentPublication`。一个`GameplaySkinLayoutPublication`同时持有ruleset-neutral immutable `GameplaySkinLayoutSnapshot`与引用同一neutral snapshot的`IGameplaySkinLayoutAdapter`；`Current`只是从该publication派生的neutral view，不是第二publication。
-- layout context将exact native context/keymode、topology、style、safe bounds/aspect/DPI、package/current revision、topology revision与layout revision绑定。live root的package revision和layout publication形成不可分割pair，失败保持exact旧pair；完整合同见[[reference_gameplay_skin_layout_snapshot]]。
+- 最终交换点仍是`GameplaySkinLayoutRevisionOwner.CurrentPublication`。publication包含ruleset-neutral immutable snapshot及引用它的typed adapter，C4/C5又加入resolved material与prepared scene/event revision；`Current`只是该publication派生的neutral view，不是第二publication。
+- layout context绑定exact native context/keymode、topology、style、safe bounds/aspect/DPI、package/current revision、topology revision与layout revision。当前production一次发布package+layout+material+scene，失败保持exact旧quadruple；完整合同见[[reference_gameplay_skin_layout_snapshot]]。
 
 ## topology-only shared owner
 

@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-07-16（文档健康治理；稳定合同未改变）
+> 最后更新：2026-09-09（区分当前原型与待兑现产品合同）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -9,6 +9,8 @@
 2. `P1-A` 只承接 BMS-only UI 分支、切 ruleset 回退与共享产品面从属影响；`P1-H` 只承接 persisted read-model / backfill authority。二者都不得再各自长出第二套筛选语义。
 
 ## 产品面与语义约束
+
+2026-09-09代码审查确认当前仍为三行独立双端 slider；以下单轨/上限段/尾段要求是既有产品决定，**尚待实现**，不是本次审查撤销的目标。当前实现与剩余动作见 [STATUS](DEVELOPMENT_STATUS.md) 和 [PLAN](DEVELOPMENT_PLAN.md)。
 
 1. BMS-only UI 改动必须严格跟随当前 ruleset；切回 mania 或其他 ruleset 时，筛选区必须恢复现有 shared star slider 与原有 dropdown/product surface。
 2. 共享 `DisplayStarsMinimum` / `DisplayStarsMaximum` 继续只服务非 BMS 的 star slider 语义；BMS 分支启用时，不得让隐藏 slider 的旧 state 继续影响 `criteria.UserStarDifficulty`。

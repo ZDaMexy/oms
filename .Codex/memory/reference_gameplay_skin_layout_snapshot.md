@@ -13,7 +13,7 @@ metadata:
 ## 唯一 publication
 
 - `GameplaySkinLayoutContext`是唯一ruleset-neutral输入帧：绑定exact ruleset/native context与keymode、既有lane topology、presentation style、screen/safe bounds、aspect/DPI、scroll direction、exact `GameplaySkinPackageRevision`、topology revision和layout revision。tokens与diagnostic均为稳定脱敏值；构造后不可变。
-- `GameplaySkinLayoutSnapshot`是唯一neutral geometry结果，防御性复制并只读暴露group、lane、surface、BGA viewport和diagnostic。`GameplaySkinLayoutPublication`把该exact neutral snapshot、一个引用同一snapshot的typed adapter与C4`GameplaySkinResolvedMaterialSet`绑定；`Current`只是派生view，不是第二交换点。
+- `GameplaySkinLayoutSnapshot`是唯一neutral geometry结果，防御性复制并只读暴露group、lane、surface、BGA viewport和diagnostic。`GameplaySkinLayoutPublication`绑定该exact neutral snapshot、同一snapshot的typed adapter、C4`GameplaySkinResolvedMaterialSet`与C5`GameplaySkinPreparedScene`，并派生一致的event revision；`Current`只是view，不是第二交换点。
 - package/current revision、layout revision、material contract/result与prepared scene/event是不可分割quadruple。production root只允许一个exact owner/current publication；consumer不得自行new profile/default geometry/fixed rect、按drawable size重算、缓存可替换snapshot、重跑resource/scene lookup或从topology-only revision拼装第二结果。
 - exact one-shot必须由shared `GameplaySkinLayoutRevisionOwner`在自己的publication锁内执行，不能只放在BMS/mania helper；否则cached descendant可直接调用`Prepare/PreparePublication`造成旧child持A、late child读B。并发首次prepare仍由admission generation保持latest-wins，但一旦exact current存在，后续prepare必须在任何work lease/solve前拒绝。
 

@@ -2,6 +2,14 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-09-09
+
+### 判定与反馈实际消费复核
+
+- 对照 ruleset 的 judge/score-bucket、parity、hold/release 与 counter consumer 源码，确认判定 family 与 HCN-only regrab 合同保持；未发现需要改写现有判定或计分的文档证据。
+- C5 只读判定事件与 scene host 不等于已恢复 FAST/SLOW/pacemaker 常驻产品面；真实谱验收继续归 P1-E/P1-G。本节仅记录源码审查；全局实测见主线最新验证。
+- 补齐被主线旧表掩盖的现行合同：Empty Poor 不断 combo、与真实 ComboBreak 分开；gauge family 不等于 judge/type；GAS 按实际 active gauge 顺序运行并以最终 gauge 判灯。源码与既有测试共同支持这些事实，此次未修改 runtime。
+
 ## 2026-07-16
 
 ### 文档健康治理：以当前判定合同与已删除反馈边界为唯一入口

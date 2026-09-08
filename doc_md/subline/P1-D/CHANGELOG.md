@@ -1,5 +1,12 @@
 # P1-D 变动日志
 
+## 2026-09-09
+
+### 校准产品入口复核
+
+- 对照 `BmsSettingsSubsection` 实际挂载的 supplemental editor 与测试源码：HID/button/axis/mouse live capture、反转和保存已有入口，deadzone/sensitivity 校准与持续 diagnostics 面板仍无正式产品面。
+- 更新 STATUS 的审查边界，不推进校准/硬件 gate。本节仅记录源码审查；全局实测见主线最新验证。
+
 ## 2026-07-16
 
 ### 文档健康复核

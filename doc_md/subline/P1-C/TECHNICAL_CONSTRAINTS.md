@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义与反馈边界
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-09（同步已实现的 Empty Poor/gauge/results 边界）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与产品边界
@@ -22,6 +22,7 @@
 5. judge mode/rank 必须进入 runtime 与 score bucket；显示层不得反向决定判定 family。
 6. HCN 允许 release 后 regrab；普通 CN 中途松开后不可接回。具体 long-note authority 见 [P1-E 约束](../P1-E/TECHNICAL_CONSTRAINTS.md)，P1-C 只消费结论。
 7. 判定、计分和 replay 始终使用时间链；visual scroll、lane cover、skin/layout 或 P1-L 位置旁路不得改变结果。
+8. Empty Poor 使用 `HitResult.Ok` 与真实 combo break 分开统计，不计 EX-SCORE/accuracy、不断当前 combo，但影响 gauge 与 FC/PERFECT 资格；`BmsScoreProcessorTest.TestEmptyPoorDoesNotBreakComboWithoutAffectingExScoreOrAccuracy` 是该边界的回归入口。不能从旧表或 `BmsPoorJudgement` 类型名推断它等同 Miss。
 
 ## 当前反馈与 HUD 边界
 
@@ -36,3 +37,4 @@
 1. results 重建必须消费 Ruleset contract 传入的 already-modded playable beatmap，不得重复应用 beatmap mods；gauge history 与 clear lamp 必须由 owning processor 计算，panel/UI 不得重建 timeline 或灯级。
 2. `PERFECT`/`FULL COMBO` 持久化必须先过 clear condition；HCN body tick 可独立影响 gauge，禁止只看聚合 judgement counts 推导灯级。
 3. 判定 family、poor/release、反馈术语或当前 HUD surface 改动，必须同步本目录四件套；影响全局 gate 时再向 mainline 回写摘要。
+4. `BmsGaugeRulesFamily` 与 gauge type、judge family 各有自己的选择和消费链；默认 Legacy 的 TOTAL 倍数/阈值不代表 Beatoraja/LR2/IIDX。GAS 只运行当前 active gauge，降级初始化为新 gauge 的起始值，历史按实际激活段绘制；最终 lamp 由最终 active gauge 与 clear 条件决定，不能在 results 再并行模拟各 gauge 取最高灯。
