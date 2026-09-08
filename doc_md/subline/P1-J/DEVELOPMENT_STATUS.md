@@ -36,7 +36,7 @@
 | J5 focused/dense validation | 自动化具备，人工清单待闭合 |
 | J6 转谱音频 | tap/BGM/scratch 主链完成；LN 与长 BGM resume 仍开放 |
 
-## 当前验证
+## 最近一次验证
 
 - 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
 - store/audio/runtime 的本线历史 focused/full 数字与逐日取证统一查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。

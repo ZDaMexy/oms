@@ -8,9 +8,11 @@ metadata:
 
 # 构建与测试召回
 
-- build 入口：`osu.Desktop.slnf`；CLI `dotnet test <csproj> --no-build -c Release|Debug` 最可靠。
+- build 入口：`osu.Desktop.slnf`；测试使用真实测试工程的 CLI。`dotnet test <csproj> --no-build -c Release|Debug` 只在相同项目、配置和当前改动已成功编译后使用；不确定产物时先编译，不靠旧 DLL 的绿测作证。
 - 第三方程序集通过 deps/runtimeconfig 从 NuGet cache 解析，输出目录没有单独 DLL 不一定是错误。
 - 真实测试工程：`osu.Game.Tests`、BMS.Tests、Mania.Tests。
+- focused/full/Release 按[主线验收矩阵](../../doc_md/mainline/DEVELOPMENT_PLAN.md#改动验收矩阵)与所属子线合同选择。通过后仅在新改动、失败或未解疑点需要时重跑；文档治理验证不冒充产品验证。
+- 既有失败须核对具体测试名称、错误与归因，不能只比较总数；最新命令和结果进入所属 CHANGELOG/STATUS。
 
 ## C# Dev Kit 地雷
 
@@ -28,7 +30,7 @@ solution-level `dotnet format osu.sln ... --include <untracked-test>` 还可能�
 
 ## 并发构建地雷
 
-多个 agent/命令同时 build/test 引用同一工程时会竞争共享 `obj`/输出，出现 `CS2012` 或 `MSB3026` 文件锁；这不是产品回归，但该次结果也不是有效 gate。最终验证必须串行（或使用真正隔离的输出目录）重跑，记录最初锁冲突和权威串行结果，不能靠重试成功掩盖。
+多个 agent/命令同时 build/test 引用同一工程时会竞争共享 `obj`/输出，出现 `CS2012` 或 `MSB3026` 文件锁；这不是产品回归，但该次结果也不是有效 gate。按 [AGENTS](../../AGENTS.md#并行与验证协调)统一调度，并在验证期间暂停相关源文件写入。发生冲突后以串行或真正隔离输出的结果为准，保留最初冲突的归因，不靠反复重试掩盖。
 
 ## 内联检查脚本转义地雷
 

@@ -1,17 +1,15 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-03
+> 最后更新：2026-09-08（文档治理；产品验证仍为 2026-09-03）
 > 这里只保留当前事实、风险和最新验证。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段与收口准备期，关键 release gate 尚未完成。P1-A / Skin V1 的`C1`作者工作区/archive、`C2`当前consumer revision、`C3` P1-K前置+唯一gameplay layout、`C4` public catalog/shared codec/三态resolved material与`C5` versioned scene/animation/read-only event及全部适用public slot production均已闭合；当前为 **`5/7 closed，C6 active`**。`V-001`～`V-004`签收仍为 **0/4**，G1最终整包门、Skin V1和release均未完成；C6 sandbox/final package reload与C7 canonical双包/Authoring Kit仍在后续。详见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)与[C5完成交接](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)。
+OMS 处于 Phase 1.x 后段，Skin V1 为 **`5/7 closed，C6 active`**。C1～C5 的作者工作区、revision 生命周期、唯一 layout、shared codec/material 与 scene/event 已闭合；C6 sandbox/最终整包 reload、C7 canonical 双包/Authoring Kit 仍未交付。`V-001`～`V-004` 签收 **0/4**，Skin V1 与 release 均未完成。详情见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
-Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEVELOPMENT_PLAN.md)报告。`C1`～`C5`均已通过退出门，当前是`5/7 closed，C6 active`；C4冻结28项public catalog、唯一shared codec、显式`Provide/Inherit/Suppress`、BMS/mania真实material consumer及package+layout+material publication，C5在其上扩为package+layout+material+scene的versioned prepared publication、read-only event Snapshot/Reset、池化预算与全适用slot host；完成边界见[C5交接](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)。
-
-`5/7`是非等权硬退出门计数，不换算线性工期。C1～C5均由真实caller、production consumer或直接用户结果闭合；底层复杂度直接保护用户目录、共享资源、lane/keymode authority、统一geometry/material/scene/event与跨revision owner生命周期。但最终用户可见Skin V1仍未完成，sandbox、最终整包reload、canonical双包与发行闭环均未交付。
+进度按 [P1-A 持久 campaign](../subline/P1-A/DEVELOPMENT_PLAN.md)的真实 caller/consumer 与硬退出门核算；campaign 非等权，不换算线性工期或产品完成百分比。已关闭合同作为后续输入，完整边界见 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
 
 - Windows-only，保留 osu!mania + 第一类 BMS；Osu/Taiko/Catch 已删除。
 - 离线优先；Phase 3 前 OMS 私有服务与默认 endpoint 保持为空。用户主动添加公共 BMS 难度表 URL 是既有窄例外，不代表 OMS 在线产品能力已开放。
@@ -19,7 +17,7 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 - 主要入口：`osu.Desktop.slnf`；BMS 主开发目标：`osu.Game.Rulesets.Bms`；统一输入：`oms.Input`。
 - 当前协作分支为 `master`；可信恢复锚点是 `ef56507`，后续皮肤工作只能按小切片前进。
 
-已关闭前置：P1-A `SV1-0` 的自动、schema 56 数据与用户恢复实机 gate 已全部通过；异常 copy 已定点移除，OMS fixed-ID 已修正，迁移归档与四个无 authority orphan blob 继续保全。2026-07-16 文档与 memory 健康治理也已完成；它只归位事实、历史和路由，不改变产品行为或 gate 结论。
+已关闭前置：P1-A `SV1-0` 的自动、schema 56 数据与用户恢复实机 gate 已全部通过；异常 copy 已定点移除，OMS fixed-ID 已修正，迁移归档与四个无 authority orphan blob 继续保全。
 
 ## 当前执行门
 
@@ -33,54 +31,18 @@ Skin V1后续进度以[P1-A `C1`～`C7`持久campaign燃尽](../subline/P1-A/DEV
 
 ## 皮肤系统主线摘要
 
-- 当前保留独立 `[Bms]` 解析、`BmsLegacySkin`、`.osk` 导入、F1 静态配置与逐组件 fallback；选中的用户 BMS 包可为普通短键与长条 head/body/tail 提供静态图/编号帧动画。body 宽度只接受 finite 且 `0 < width <= 1`，否则逐字段回到 `0.5775`；素材与宽度绑定同一精确 package revision，用户包/default body 共用真实 Idle/Holding/Broken 状态宿主及 80ms 过渡。
+- `.osk`、legacy `[Mania]`/`[Bms]` compatibility 与显式 `Provide/Inherit/Suppress` 共用 shared codec；BMS/mania 的适用 public slot 已接入真实 material/scene host，具体作者能力见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 - 程序化 `OmsSkin` 仍是实际链底，只作为迁移保障保留到 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate；最终产品渲染链由只读 canonical 包接管。
 - Skin V1 的稳定方向是 mania/BMS 共享neutral ini/asset/animation/event runtime、三态解析与sandbox，ruleset topology/layout adapter分离；C5已交付versioned prepared scene、只读event Snapshot/Reset、全部适用public slot host与预算/池化证明，C6仍负责sandbox和最终整包reload。
 - G1 的managed scanner/selection/mutation基线与C1 Folder Skin Workspace已成为C2冻结输入：external永久只读，copy bytes只来自immutable capsule，目录来自同次manifest；ordinary `.osk`继续是hash-backed Realm package。C2已用explicit manual Reload统一三源current revision并稳定关闭legacy update/editor旁路；C3/C4/C5又把唯一layout、resolved material、prepared scene与read-only event作为同一exact publication及participant/lease加入协议。C6仍需纳入sandbox与最终整包门，C7才处理canonical双包/Authoring Kit与移除程序化产品视觉。
 
 恢复边界见 [2026-07-10 恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)，当前实现与未完成 gate 见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，V1 完成定义见 [架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
 
-## 子线快照
-
-| 子线 | 当前状态 |
-| --- | --- |
-| P1-A | `SV1-0` 全过；Note/LN四组件自动 gate 通过、`V-001`～`V-004`待验收；C1～C5已闭合，当前`5/7 closed，C6 active` |
-| P1-B | 输入基础链可用；analog scratch/真实硬件未闭合 |
-| P1-C | 判定 parity 主体已落；常驻速度反馈卡已删除，不作为当前能力 |
-| P1-D | deadzone/sensitivity/live diagnostics 未完成 |
-| P1-E | gameplay 主链具备；真实 LN/CN/HCN 组合验收待做 |
-| P1-F | portable 离线发行基线已验证，最终 release 复核待做 |
-| P1-G | 人工验收汇总待做 |
-| P1-H | 文件系统谱库与多根扫描基线已落；删除/失效/去重仍是 backlog |
-| P1-I | 选歌分组/筛选/搜索主功能已落；拖拽 headless 与 shared visual 待补 |
-| P1-J | 普通密度音频/性能主故障已收口；转谱 LN/50k/人工清单待做 |
-| P1-K | K1–K12主体阶段性收口；C3所需lane timeline上界、sparse keymode authority与真实末端lane发声已闭合，其余状态见子线 |
-| P1-L | BGA 播放主链已落；内容/viewport 解耦、逐谱视觉与反向滚动待做 |
-| P1-M | 规划完成，未开工 |
-
-入口和下一道门见 [子线路由](../subline/README.md)。
+各子线当前状态与下一道门统一见[子线路由](../subline/README.md)。
 
 ## 最近一次验证
 
-### R3/R4 / Skin V1 C5完成：2026-09-03
-
-core `~GameplaySkin` **429/429**、mania `~GameplaySkin` **69/69**、BMS `~GameplaySkin` **146/146**；BMS full（`--blame-hang --blame-hang-timeout 5m`）**1721/1721**且无hang，current-revision production **215/215**。mania full **860/864**仅冻结既有四项HoldNote frame-count失败；core `~Skin` **1218/1224**仅冻结既有六项失败。P1-K decoder/converter/timing/keysound **126/126、24/24、17/17、68/68**；Release **0 error / 20 emitted known warnings**。C5 versioned scene/animation、read-only event Snapshot/Reset、BMS/mania全部适用public slot host、预算/池化与exact publication已闭合；四类终审GO，blocker/major **0/0**。燃尽推进为 **`5/7 closed，C6 active`**；详见[C5完成交接](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)与[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-
-### R3/R4 / Skin V1 C4完成：2026-09-02
-
-core public catalog/codec/resolver/revision/beatmap-local focused **141/141**；mania C4 relevant **172/172**；BMS C4 relevant/current-revision/managed-candidate product **315/315、197/197、115/115**，其中real WorkingBeatmap不可达与carrier取消所有权均走production fixture；P1-K decoder/converter/cache、projection、真实shared keysound与converted store **102/102、24/24、14/14、2/2**。core Skin **1110/1116**，六项失败名称/消息逐字符匹配精确既有基线；mania Skin **193/193**，mania full **838/842**，四项HoldNote失败同样逐字符匹配既有基线；BMS Skin **726/726**，BMS full **1687/1687**且无hang artifact。formatter后重新build的core/BMS/mania C4 production focused仍为 **141/141、315/315、172/172**。Release **0 error / 20 emitted known warnings**（9项既有MessagePack `NU1902`在restore/build重复为18次，另有既有BMS tests `CS8600`/`CA2007`）；六工程97个C#文件的默认targeted formatter、文档门与diff检查通过。public authority、production bypass、revision/concurrency、产品价值/dead foundation四类独立终审均GO，blocker/major **0/0**。燃尽只推进至 **`4/7 closed，C5 active`**；详见[C4完成交接](../other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)。
-
-### R3/R4 / Skin V1 C3完成：2026-08-30
-
-P1-K decoder/converter authority **176/176**、BMS→mania projection **24/24**、BMS/converted-mania shared keysound实际发声 **14/14 + 2/2**；BMS C3 relevant **316/316**、mania C3 **27/27**、core focused **56/56**、产品并发/原子性 **17/17**。formatter后宽关键集core/BMS/mania **47/47、235/235、51/51**；最终owner审计红绿硬化后critical复验为core/mania/BMS **48/48、51/51、37/37**。core canonical `~Skin` **1164/1170**（六项精确既有基线），mania `~Skin` **209/209**、mania full **854/858**（四项既有AutoGeneration基线），BMS `~Skin` **802/802**、BMS full **1763/1763**且无hang sequence；Release **0 error / 9 known warnings**。唯一publication、reachable bypass、P1-K authority、participant/owner与并发独立终审为blocker/major/moderate/minor **0/0/0/0**。燃尽推进至 **`3/7 closed，C4 active`**；详见[C3完成交接](../other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
-
-### R3 / `SV1-2` C2完成：2026-08-24
-
-core focused **204/204**，PendingAsync ownership visual/host **11/11**，完整真实C2产品路径 **314/314**；core canonical `~Skin` **1137/1143**的六项失败与精确既有基线相同，mania `~Skin` **182/182**，BMS `~Skin` **796/796**，BMS full **1670/1670**且`--blame-hang 5m`无hang sequence。Release含restore首跑 **0 error / 20 known warnings（41.88s）**，formatter后`--no-restore`复验 **0 error / 11 known warnings（36.58s）**；targeted formatter均exit 0。participant/holder、reachable bypass、concurrency/owner、tests/product-contract四项独立终审均为blocker/major/moderate **0/0/0**。完成事实见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，稳定合同见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，历史验证见[P1-A CHANGELOG](../subline/P1-A/CHANGELOG.md)。
-
-### R3 / `SV1-2` C1完成：2026-08-13
-
-`osu.Game` Debug build为**0 error**（仅9个既有MessagePack `NU1902`）；core C1 focused **490/490**，archive/receipt 合并门 **84/84**，BMS 产品组合 **118/118**，mania Skin **182/182**，BMS full **1586/1586**。core Skin 为 **679/683**，4项失败均是依赖已移除 Osu ruleset mode 0 fixture 的已知OMS基线，与C1无关。`osu.Desktop.slnf` Release **0 error**，仅9个既有MessagePack `NU1902`。external与receipt最终独立复审均为blocker/major/moderate **0/0/0**；完成边界见[C1 完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)。
+2026-09-03：C5 scene/event、全部适用 public slot production、预算/池化与 exact publication 通过约定自动门和独立终审；Release 构建通过，core/mania 的失败保持精确既有基线。完整测试矩阵、失败归因和命令见 [P1-A 最新验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及 [C5 完成证据](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)。本次文档治理没有重新运行这些产品测试。
 
 ## 待人工验收
 
@@ -107,6 +69,10 @@ core focused **204/204**，PendingAsync ownership visual/host **11/11**，完整
 - BMS 单套测试全绿不证明 mania 默认资源、真实选择链或视觉事件正确。
 - C3/C4/C5已关闭playfield、gauge/combo、HUD、BGA viewport、resolved material、prepared scene与read-only event的第二套authority；后续风险仅剩C6 sandbox/final package gate，不能另建布局、lookup、material或event merge。
 - abnormal-period 归档只能定点取证；50k dense、真实硬件和特殊 Gimmick 仍必须以 profiler/实机证据推进。
+
+## 文档治理验证
+
+2026-09-08：协作入口统一 Git 基线、按文件分工与验证调度、按风险测试及简洁实现规则；STATUS/PLAN 去重并统一验证章节，P1-A 合同就地合并，检查脚本补齐结构检测与篇幅告警。治理验证见 [CHANGELOG](CHANGELOG.md)，不推进产品或人工 gate。
 
 ## 更新规则
 

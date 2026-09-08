@@ -27,7 +27,7 @@
 - 14K 四 player/潜在四视频解码器既未 profile，也与 Skin V1 单一 BGA content authority 冲突；设置提示仍写“14K→中缝”，与当前四角实现不一致。
 - Floating/Classic 绝对刻度、负向/反向滚动未实现。
 
-## 当前验证
+## 最近一次验证
 
 - 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
 - 滚动、地雷、BGA/cache 的本线历史 focused/full 数字与逐刀实现只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。

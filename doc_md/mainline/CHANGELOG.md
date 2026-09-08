@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-08
+
+### 协作工作流、简洁实现与文档检查优化
+
+- 协作入口增加开工 Git 基线核对、按文件分工、共享构建/formatter 统一调度和当前编译产物要求；测试按风险及子线合同执行，明确失败身份与停止重复验证的条件，保留当前分支提交及 push 需确认的规则。
+- 落实用户反过度防御性编程偏好：边界验证集中、内部信任已验证合同，避免假想异常驱动的 guard/catch/默认值/fallback、重试和抽象；不把旧实现形状或补出的 fixture 当作必要复杂度证据。外部输入、用户数据、权限与 sandbox 的真实安全语义继续保留。
+- 主线 STATUS 移除旧轮次测试数字，最新产品验证摘要链接 P1-A；PLAN 去重已完成过程；所有子线与 mini 模板统一验证章节。P1-A 将 C5 补充就地合入现行合同，代码定点复核及完整边界见 [P1-A 治理记录](../subline/P1-A/CHANGELOG.md)。C6/C7 退出门及整个 G1 存储/current lifecycle 合同保留，产品门未改变。
+- `CheckDocumentation.ps1` 增加两个保留验证章节的唯一性及层级检查，mini 同纳入，全文/长行仅告警；移除泛数字比值告警。独立复审发现并修复 fenced code 内 PowerShell 注释的标题误报，检查保留原始行号，不推断任意正文语义。
+- 验证：Windows PowerShell 5.1 临时正反 fixture **27/27**，覆盖多轮快照拒绝、合法数字/独立文档门、篇幅阈值、mini、断链/PLAN 污染及 fence 字符/长度/缩进/关闭后的真实标题；标准 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check` 通过。仅保留一条已复核的 C4 公开 catalog digest 告警，与 `GameplaySkinSlotCatalogTest` 固定合同一致。协作规则/checker及 P1-A 合同独立终审通过。
+- 本次无 runtime 变更，未运行 BMS/mania/core 产品测试或 Release；产品证据仍为 2026-09-03 C5，当前仍为 `5/7 closed，C6 active`，视觉签收与 release 状态不变。
+
 ## 2026-09-03
 
 ### Skin V1 C5 declarative scene / read-only event / public slot production闭门

@@ -24,7 +24,7 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 - `UI_PreStartHold` 负责前 5 秒阻止开始和全程调速修饰；视觉流速 preview 不得接入判定链。
 - 被删除的 `GameplayFeedbackState`、常驻 feedback card、FAST/SLOW/pacemaker 管线不是当前能力；如重建必须另立专题。
 
-## 当前验证
+## 最近一次验证
 
 - 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
 - 本线最后一次 parity/BMS 验证、历史细分数字和窗口溯源记录只保留在 [CHANGELOG.md](CHANGELOG.md) 与 [判定记忆](../../../.Codex/memory/reference_bms_judgement_parity.md)，不冒充当前全局 gate。

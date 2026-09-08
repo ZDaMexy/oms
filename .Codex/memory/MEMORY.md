@@ -5,8 +5,8 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — OMS 范围、架构、阶段与红线。
-- [文档治理](project_oms_docs_governance.md) — 低噪声读取路径、一个事实一个落点、STATUS/PLAN 预算、同次联动与持续防回潮规则。
-- [反馈工作流](feedback_workflow.md) — 中文协作、真机反馈权威、修复→验证→文档/记忆→提交。
+- [文档治理](project_oms_docs_governance.md) — Git 基线、唯一验证快照、合同就地更新、篇幅预算与代码块标题误判。
+- [反馈工作流](feedback_workflow.md) — 中文、简洁实现与反过度防御偏好、Git 基线、真机证据及交付闭环。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — P1-I 展示层级、返回条、分组与转谱展示。
 - [内置音乐播放器](project_oms_music_player.md) — P1-M 规划与边界。
 
@@ -28,7 +28,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — CLI gate、targeted formatter、并发构建、hidden-aware link checker 与 C# Dev Kit 误判地雷。
+- [构建与测试](reference_build_and_test.md) — 按风险验证、当前编译产物、失败身份、targeted formatter、并发协调与 C# Dev Kit 误判地雷。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md)
 - [难度表](reference_bms_difficulty_table.md)

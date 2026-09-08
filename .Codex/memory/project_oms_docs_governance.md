@@ -8,7 +8,7 @@ metadata:
 
 # 文档治理召回
 
-默认读取：mainline STATUS → mainline PLAN → 子线 STATUS/相关 CONSTRAINTS；OMS_COPILOT/CHANGELOG 只定点搜索。
+默认先核对 Git 基线，再读 mainline STATUS → mainline PLAN → 子线 STATUS/相关 CONSTRAINTS；OMS_COPILOT/CHANGELOG 只定点搜索。HEAD、本地跟踪分支与在线远端查询的时效要分清，未同步的旧文档不能用于宣称最新活动门。
 
 协作入口只有 `AGENTS.md`；`CLAUDE.md` 等适配文件只跳转，不复制规则。memory 通过 `MEMORY.md` 定点选择，禁止整库加载。
 
@@ -20,7 +20,7 @@ metadata:
 - CHANGELOG＝日期化实现、命令、旧数字和调查史。
 - memory＝踩坑与诊断，不证明当前实现。
 
-易忘规则：STATUS 建议 ≤120 行；mainline 不复制子线长段；测试数字只在当前 STATUS 和当次 CHANGELOG 各一份；子线只有影响全局优先级/release gate/硬约束才回写 mainline。
+易忘规则：STATUS 的产品快照只在唯一“最近一次验证”，纯文档结果另列“文档治理验证”；两章不设轮次子标题。mainline 只摘要并链接子线证据，测试数字只在所属 STATUS 和当次 CHANGELOG 各一份；篇幅预算以 [文档入口](../../doc_md/README.md#低噪声预算)为准。
 
 memory 模板：权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项。逐日实现史、回退过程和旧数字进入 CHANGELOG/Git；文件名尽量稳定以保护 wiki 链接，单行建议 ≤800 字符。
 
@@ -29,6 +29,8 @@ memory 模板：权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项
 ## 持续防回潮
 
 - 文档/记忆同步只改变治理事实，不得冒充runtime、产品测试或人工gate；产品代码基线和最新验证只由STATUS指向，旧数字留在CHANGELOG。
-- 每次文档改动结束运行`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`；它兼容Windows PowerShell 5.1，检查链接、四件套/索引完整性、STATUS/README预算、memory wiki链、明确隐私残片与PLAN会话污染，再配合`git diff --check`。
+- 每次文档改动结束运行`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`并配合`git diff --check`；脚本检查范围见[文档入口](../../doc_md/README.md#联动规则)。行数通过不证明低噪声或语义一致；把五轮测试压进长行仍违反唯一快照约定。
 - 若STATUS/PLAN再次混入逐切历史，直接归回CHANGELOG；若memory重复当前进度或另一memory的详细合同，改成权威链接/交叉路由，不新建第二份当前状态。
-- 通用路径、公开checksum或合法数字矩阵只能告警复核，不能靠模糊regex强迫删除；精确生产取证值只保存在仓库外脱敏恢复归档。
+- 合同直接就地更新，失效说法归历史，不用末尾“以本节为准”覆盖前文。清理时同步引用，保留具体安全边界和失败归因。
+- 标题结构检查须跳过 fenced code 并保留原始行号；PowerShell 代码块中的 `###` 注释曾被误当成验证子章节，不能要求作者改掉合法代码来迁就检查器。
+- 通用路径、公开checksum或合法数字矩阵不能靠模糊regex强迫删除；checker不再泛报数字比值。精确生产取证值只保存在仓库外脱敏恢复归档。

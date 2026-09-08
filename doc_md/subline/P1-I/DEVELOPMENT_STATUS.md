@@ -24,7 +24,7 @@ I1–I3 与 I5–I7 主功能已落地；I4 focused regression 仍未完全闭�
 - 匹配 fail-open：缺 stats 不静默隐藏谱面。
 - 公开文本搜索继续支持完整范围语法；visual 控件不能反向削弱文本能力。
 
-## 当前验证
+## 最近一次验证
 
 - 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
 - importer/statistics/criteria/UI 的本线历史 focused/full 数字只保留在 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。

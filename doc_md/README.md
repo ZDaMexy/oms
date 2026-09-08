@@ -4,6 +4,8 @@
 
 ## 三分钟阅读路径
 
+先按 [AGENTS.md](../AGENTS.md#开始工作)核对 Git 基线，再沿以下路径判断当前工作；本地旧文档与远端跟踪内容须区分。
+
 1. [mainline/DEVELOPMENT_STATUS.md](mainline/DEVELOPMENT_STATUS.md)：当前阶段、活动主线、最新验证和阻塞。
 2. [mainline/DEVELOPMENT_PLAN.md](mainline/DEVELOPMENT_PLAN.md)：只确认当前活动 gate、退出条件与后续依赖。
 3. 从 [subline/README.md](subline/README.md) 进入所属子线，只读该线 `STATUS` 与任务相关的 `CONSTRAINTS` 小节。
@@ -33,7 +35,7 @@
 | --- | --- | --- |
 | `DEVELOPMENT_STATUS.md` | 当前事实、当前风险、下一检查点、唯一一条最新验证 | 调查流水账、逐日实现史、多轮旧测试数字 |
 | `DEVELOPMENT_PLAN.md` | 未完成工作、依赖顺序、验收条件、冻结项 | 已完成实现细节、提交日志、重复的当前测试数字 |
-| `TECHNICAL_CONSTRAINTS.md` | 稳定合同、红线、必须重跑的验证面 | 临时进度、一次性命令输出 |
+| `TECHNICAL_CONSTRAINTS.md` | 稳定合同、红线、必须重跑的验证面 | 临时进度、一次性命令输出、靠末尾补充覆盖的失效合同 |
 | `CHANGELOG.md` | 按日期倒序的已确认变化、验证命令与结果 | 当前优先级、仍会变化的状态叙事 |
 
 同一事实只保留一个权威落点：当前状态进 `STATUS`，未来动作进 `PLAN`，不可破坏的语义进 `CONSTRAINTS`，过程与旧数字进 `CHANGELOG`。其它文件只链接，不复制长段落。
@@ -41,10 +43,13 @@
 ## 低噪声预算
 
 - `STATUS` 建议不超过 120 行；开头只允许“最后更新 + 上级入口”，禁止把 changelog 塞进引用块。
+- 产品验证统一写在唯一 `## 最近一次验证` 下；多项测试用列表或表格，不设轮次子标题。纯文档/流程结果单独用至多一个 `## 文档治理验证`，不能刷新产品测试日期；没有产品验证的状态页可省略产品验证章节。以上章节内均不设下级标题，历史结果归 CHANGELOG。
+- `STATUS` 超过 6000 字符、`PLAN` 超过 10000 字符或两者单行超过 800 字符时告警复核。字符数按 .NET 字符串长度计算，全文含 Markdown 与换行、单行不含换行；优先归位重复内容，不靠合并长行或任意断行凑预算。
 - `README` 只做路由和一句话结论，不承载实现详情。
 - `PLAN` 的已完成事项只保留一行结果或移出；实现日记必须进入 `CHANGELOG`。
 - `CHANGELOG` 可以增长，但只通过 `rg -n "日期|P1-X|关键词"` 定点读取，不作为每次会话上下文。
-- 测试数字只在对应 `STATUS` 的最新验证和本次 `CHANGELOG` 各出现一次；旧数字不反复同步。
+- 测试数字只在所属子线 `STATUS` 的最新验证和本次 `CHANGELOG` 各出现一次；主线保留结果摘要和链接，旧数字不反复同步。
+- 合同更新直接修改相应现行章节，旧决策归 CHANGELOG/Git；引用的章节/文件同时校正，不叠加“前文保留历史、以后文为准”的覆盖条款。
 - 带日期的结论只要不再影响当前决策，就从 `STATUS/PLAN` 删除，历史由 Git 与 `CHANGELOG` 保存。
 - 单次执行 prompt、会话 handoff 话术和“下一轮入口”只在聊天交付，不单独落库，也不得成为 `STATUS/PLAN/README/memory` 的权威依赖；可持续复用的事实分别归入四件套，诊断地雷才进入 memory。
 - Agent 适配文件不得复制 `AGENTS.md`；memory 单行建议不超过 800 字符，发现状态叙事时改为链接权威 STATUS。
@@ -58,7 +63,7 @@
 3. 子线变化影响全局优先级、release gate 或产品红线时，只向 mainline 回写一条摘要和链接。
 4. `other/` 的结论升级为正式决策时，必须进入对应 `PLAN/STATUS/CONSTRAINTS`。
 5. 新踩坑同步到 `.Codex/memory/`；memory 与文档冲突时以当前代码、测试和 `doc_md` 为准。
-6. 完成前运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check`；脚本兼容 Windows PowerShell 5.1，会检查标准相对链接、四件套/索引完整性、STATUS/README 预算、memory wiki 链、隐私残片和会话级 PLAN 污染；模糊数字/路径只告警复核，不强迫删除合法技术信息。
+6. 完成前运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check`；脚本兼容 Windows PowerShell 5.1，检查标准相对链接、四件套/索引、STATUS 验证章节结构、行数预算、memory wiki 链、隐私残片和会话级 PLAN 污染，篇幅仅告警。主线、子线和 mini 采用同一规则；通过表示这些结构检查通过，不证明文档语义、代码行为或人工 gate 已正确。
 
 ## 当前特殊入口
 

@@ -18,7 +18,7 @@
 | 公开发行物产品面验收 | 进行中 | 依赖 `P1-A` 的默认皮肤与 release gate 收尾 |
 | 发布口径同步 | 进行中 | 需持续联动 `../../other/RELEASE.md` |
 
-## 当前验证基线
+## 最近一次验证
 
 - `build-release.ps1` 当前可稳定通过 PowerShell 语法解析并实际产出 `release-repo/oms_YYYYMMDD(.zip)`；最近一次实机打包已确认 `publish/` 与 zip 根目录都包含 `osu!.exe`、`portable.ini`、图标资源与中英双语 `how to update.txt`。
 - `IncludeAllContentForSelfExtract=true` 已锁定 fresh extract 的 single-file 冷启动与 8 秒 smoke 基线；手工覆盖更新继续遵循“退出程序 -> 解压覆盖 -> 再启动”，并保留 `portable.ini`、便携模式下的 `data/` 与任何自定义数据根使用的 `storage.ini`。

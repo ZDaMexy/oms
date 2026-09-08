@@ -21,7 +21,7 @@
 | 真实 HID 验收 | 未开始 | 仍缺真实 IIDX/BMS 控制器覆盖 |
 | 对外硬件行为口径 | 进行中 | “Windows 默认 DirectInput + HidSharp 诊断后端”已可写入文档 |
 
-## 当前验证基线
+## 最近一次验证
 
 - desktop Release 构建当前可通过；数位板 / 触屏点击 / 鼠标 subsection 的桌面端安全隐藏已确认不改写 runtime config / handler 消费链。
 - `TestSceneOmsScratchGameplayBridge` 当前基线保持 **43/43**；keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 主链在主线快照中仍视为稳定。

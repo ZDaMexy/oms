@@ -16,7 +16,7 @@
 | calibration UI | 未开始 | 当前尚无 BMS 专属 deadzone / sensitivity / diagnostics UI |
 | 对外说明文案 | 未开始 | scratch 模式说明与设备诊断口径仍缺正式入口 |
 
-## 当前验证基线
+## 最近一次验证
 
 - 当前仅完成基于代码结构的状态同步，尚无新增构建或测试执行。
 - 后续若出现按日期展开的实现或验证，统一写入 [CHANGELOG.md](CHANGELOG.md)。

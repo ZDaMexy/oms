@@ -29,7 +29,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 - display-only 标题/难度清理不改存库原值和源文件 MD5。
 - 转谱器不自行计算 mania 星级；星级归 `ManiaDifficultyCalculator`/difficulty cache。
 
-## 当前验证
+## 最近一次验证
 
 - 2026-08-30 C3 P1-K 前置最终证据：decoder/converter **176/176**、projection **24/24**、BMS sound **14/14**、converted Mania **2/2**；格式化后关键 BMS 路径 **235/235**、BMS Skin **802/802**、BMS full **1763/1763**，Release **0 error**。
 - 上述数字只证明 P1-K parser/converter/keysound 前置及其回归；C3 的唯一 layout、全 production consumer 与 revision protocol 总证据由 [P1-A STATUS](../P1-A/DEVELOPMENT_STATUS.md) 统一承载。逐项测试与边界见 [CHANGELOG.md](CHANGELOG.md)。

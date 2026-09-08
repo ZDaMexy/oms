@@ -2,6 +2,13 @@
 
 > 本文件只记录 `P1-A` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-09-08
+
+### 现行合同与工作流文档归并
+
+- 将C5 package/scene、prepared graph、event Snapshot/Reset与runtime support/budget合并回对应现行章节，区分已实现slot capability与未实现脚本授权；定点核对decoder/provenance、event/schema和profile代码，移除已删factory的历史API要求，保留现存兼容解析与安全语义。测试数字归STATUS/CHANGELOG，精确既有失败比较合同继续保留。
+- STATUS只保留2026-09-03 C5产品验证及独立文档治理边界；PLAN移除C1～C5重复完成细节和SV1-5旧“未完成”状态，保留冻结输入、C6/C7全部硬退出门与集中人工签收。无runtime/产品行为变更，未运行BMS/mania/core或Release；文档门由本次主线治理统一汇总。燃尽仍为`5/7 closed，C6 active`，视觉0/4及Skin V1/release未完成边界不变。
+
 ## 2026-09-03
 
 ### C5 versioned scene / animation / read-only event与全部适用slot production闭门

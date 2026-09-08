@@ -24,7 +24,7 @@
 - external 用户目录只读；managed 目录才允许由 OMS 管理。
 - 谱面 authority 与皮肤 authority 不可混用。G1 必须单独定义扫描、删除、重命名和 external root 合同。
 
-## 当前验证
+## 最近一次验证
 
 - 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
 - scanner/难度表/raw-wrapper 的本线历史 focused/full 数字和命令只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。

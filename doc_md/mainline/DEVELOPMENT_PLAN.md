@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-03
+> 最后更新：2026-09-08（治理整理；执行顺序与退出门不变）
 > 本页只保留未完成工作的全局顺序、依赖和验收门。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，子线实现细节进入对应 `P1-*`，历史进入 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 当前目标
@@ -24,32 +24,19 @@ Phase 1.x 只有在以下 gate 同时成立时才算完成：
 
 Skin V1剩余工作不再用`SV1-*`阶段编号暗示协作轮数。P1-A采用最多七个持久campaign的硬预算：作者文件工作区/G1 UX与archive安全、当前consumer reload/detach、P1-K+唯一layout、shared codec/catalog/resolver、scene/event及剩余slot production、sandbox并关闭最终整包reload门、canonical双包/Authoring Kit/自动release。每个campaign必须在同一对话持续到真实caller/consumer、失败回退、宽测试、文档与终审闭合；审计、产品路线决定或foundation不能单独消耗一次handoff。第七个campaign退出时只留人工视觉/实机签收，完整燃尽表见[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)。
 
-### R3：`SV1-2` G1 可视文件夹存储重设计
+### R3：`SV1-2` G1 存储与 revision 冻结输入
 
-> `C1`已于2026-08-13闭合，`C2`已于2026-08-24闭合，`C3`已于2026-08-30闭合，`C4`已于2026-09-02闭合，`C5`已于2026-09-03闭合；当前为`5/7 closed，C6 active`。C1冻结边界见[C1完成交接](../other/SKIN_SYSTEM_C1_COMPLETION_HANDOFF_20260813.md)，C3见[C3完成交接](../other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)，C4见[C4完成交接](../other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)，C5见[C5完成交接](../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)；当前事实、稳定合同与C6工作门以[P1-A四件套](../subline/P1-A/DEVELOPMENT_STATUS.md)为准。
+C1～C5 已闭合；目录安全、三源 revision 生命周期、P1-K authority、唯一 layout/shared codec/material/scene/event 作为 C6/C7 的冻结输入，完整合同只维护于 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。external 永久只读、Settings 唯一 manual Reload、live gameplay/preview 在 source prepare 前拒绝、no-watcher、失败保留旧 publication 与最后 lease detach 后退役的边界继续生效。G1 最终整包门由 C6 关闭；异常期归档仍只能定点取证。
 
-authority/path preflight、managed/external Windows handle-relative no-follow capture、pure immutable capsule、schema 57 scanner/selection、exact-set mutation/journal/recovery、Folder Skin Workspace、single-v3 ManagedCopy及ordinary `.osk` bounded ingress/rollback receipt已由`C1`闭合。thin/arbitrary-path stager仍NO-GO。`C2`已从真实Settings caller到当前production participant接通revision publication/detach/retire；`C3`把P1-K authority与唯一gameplay layout加入协议，`C4`又把shared document/resolved material及全部现有C4 consumer作为同一package+layout+material引用加入，`C5`再加入prepared scene/event与全部适用slot。C6新增consumer继续同切加入，最终ini/manifest/scene/script/素材整包reload门仍到`C6`关闭。
+### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
-1. **保全C1边界**：Workspace动作继续只按record ID fresh重读；external永久只读，service-owner不授权source bytes；exact registry physical proof须持有至final Realm线性化。v1/v2 schema保持strict frozen，v3 `(version, kind, phase)`按白名单验证，terminal journal只在exact compare-delete后确认Missing。
-2. **保全C2边界**：Settings唯一manual Reload、live gameplay/preview source prepare前拒绝与no-watcher边界继续冻结；三源current revision、participant registry、lease/detach/retire与current mutation不得退回逐component `SourceChanged`或即时dispose。
-3. **保持C3冻结输入**：parser/converter继续是keymode/lane timeline唯一truth；layout consumer只读同一immutable publication，不以profile、drawable尺寸、固定rect或枚举位置创建旁路。
-4. **保持C4冻结输入**：28项public catalog、shared codec、三态resolver、BMS/mania production material、稳定脱敏diagnostic及beatmap-local排除决定不得被scene私有表、第二tokenizer/lookup或测试注入旁路。
-5. **C5已闭合**：versioned declarative scene/animation、read-only event Snapshot/Reset、全部适用public slot的BMS/mania production host、预算/池化与exact publication/lease/detach/retire已进入真实caller；manifest/DTO、event cursor、单一mock consumer不得被倒退为替代能力。
-6. **当前C6**：只处理sandbox/script权限与最终ini/manifest/scene/script/素材整包reload门；不得把C6能力回写成C5已交付，也不改变P1-L BGA内容authority。
+1. **C6 sandbox/script**：在同一 campaign 内完成权限、确定性和预算 spike，接入真实作者层与 production consumer，再关闭 ini/manifest/scene/script/全部素材的最终整包 reload 门。新增 consumer 消费同一 publication/lease，不改变 P1-L BGA 内容 authority；不移植 LR2/beatoraja runtime。
+2. **C7 双包与 fallback**：`oms-simple.osk` 同包覆盖 mania/BMS，经过 parity、完整性、原子恢复与实机 gate 后接管最终 fallback；`oms-complex.osk` 同包仅用公开 API 证明表达上限。按约定退出程序化 `OmsSkin` 产品渲染。
+3. **C7 作者与发行工具**：交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics、打包说明与自动 release；保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
 
-G1 必须按独立切片推进，不得从异常期存档整批恢复。
+新增合同、类型或抽象须在同一切片或紧随切片有真实 host/renderer/authoring consumer，不以 DTO/fixture 代替用户能力。完整 C6/C7 退出门以 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)为准，不拆成新的 campaign。
 
-### R4：补齐 Skin V1 共同合同、layout、兼容层与外部运行时
-
-1. **共同合同（C4已闭合）**：现有生产slot的`Provide/Inherit/Suppress`、ruleset-neutral shared codec、mania compatibility与exact resolved material已通过三源真实consumer；最小可玩组件不可suppress，beatmap-local新作者格式已排除，shared runtime与mania/BMS adapter分界保持冻结。
-2. **scene/event ABI（C5已闭合）**：`oms-gameplay-skin-manifest.v1`、`oms-gameplay-skin-scene.v1`、`oms-gameplay-skin-event.v1`、allowlist、Snapshot/Reset、预算、逐slot capability与fail-closed host已通过真实BMS/mania consumer；外部package可声明scene、动画和状态机，不为每种视觉新增固定BMS C#实现。
-3. **sandbox script（C6）**：先通过权限、确定性和预算 spike，再作为可选作者层接入并关闭最终整包reload门；不兼容或移植 LR2/beatoraja runtime。
-4. **双极限证明（C7）**：`oms-simple.osk` 同包覆盖 mania/BMS、承担最终 fallback；`oms-complex.osk` 同包覆盖 mania/BMS、只用公开 API 证明表达上限。
-5. **社区作者面（C7）**：交付两包可编辑源、模板、schema/event/layout 参考、validator/diagnostics 与打包说明，同时保持 `.osk`、根 `skin.ini`、mania 素材命名和拖入导入心智。
-
-R4 的shared contract、topology、event/capability与candidate类型只有在同一切片或紧随切片存在production host/renderer/authoring consumer时才继续扩展；C4已删除被resolved material取代的lane-colour/bucket snapshot foundation，保留的event cursor归C5、capability negotiator归C6且不计C4进度。不得以新增DTO/fixture替代玩家能力进度。
-
-R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的前置。视觉验收继续使用[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不作为逐组件串行开工门；只有视觉结论实际决定后续设计或自动证据无法裁决异常时才暂停请求反馈。`V-001`～`V-004` 必须在 Skin V1/release 完成声明前统一签收；C4已明确不新增beatmap-local作者格式，既有注入式fixture与legacy direct visual compatibility不得冒充public sidecar能力。详细完成定义只从[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)进入，架构证据见[Skin V1架构审计](../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。
+视觉验收统一登记到[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)；待签收不阻塞可自动证明的后续切片，只有视觉结论决定设计或自动证据无法裁决异常时才暂停请求反馈。`V-001`～`V-004` 必须在 Skin V1/release 完成声明前签收。beatmap-local 新作者格式继续排除，legacy direct visual compatibility 和注入式 fixture 不代表 public sidecar 能力。
 
 ### R5：Phase 1 玩法与硬件收尾
 
@@ -107,11 +94,15 @@ R4 事项仍是 Skin V1/release 的完成条件，但不是启动 R3/`SV1-2` 的
 | --- | --- | --- |
 | BMS parser/gameplay | BMS focused + BMS full | 命中特殊谱时逐谱验收 |
 | 仅 BMS ruleset 内皮肤组件且不改 shared/mania/fallback authority | BMS skin focused + BMS relevant/full + Release | 对应 keymode、选择/回落与新增视觉实机 |
-| shared skin、mania compatibility 或 fallback authority | core skin focused + mania relevant + BMS relevant + Release | 受影响 keymode/style/选择/fallback；C5 slot/scene/event已闭合，双包与 canonical 恢复留到对应 C7 gate |
+| shared skin、mania compatibility、scene/event 或 fallback authority | core skin focused + mania/BMS relevant + 所属子线要求的 full + Release | 受影响 keymode/style/选择/fallback；双包与 canonical 恢复留到 C7 |
 | 输入 | `oms.Input`/bridge focused + BMS relevant | 真实控制器 edge/hold/轴 |
 | 存储/Realm | importer/scanner focused + Release | 备份数据根上的升级/重扫/恢复 |
 | 音频/BGA | 对应 player/store/cache focused + BMS full | pause/seek、长样本、逐谱视听 |
 | 发行 | Release build/publish | 冷启动、portable/custom root、覆盖更新 |
+| 仅文档/协作规则 | 文档检查 + diff 检查；审阅状态、合同与引用一致性 | 不复用或刷新产品/实机验证日期 |
+| 开发检查脚本 | 对应 runtime 的真实正反 fixture + 文档/diff 检查 | 涉及产品打包/启动时追加对应发行门 |
+
+`--no-build` 的当前产物前提、并发协调及重复验证条件见 [AGENTS](../../AGENTS.md#并行与验证协调)。新失败按具体测试身份和错误归因；通过所需门后，不因习惯扩大测试。
 
 ## 规划维护规则
 

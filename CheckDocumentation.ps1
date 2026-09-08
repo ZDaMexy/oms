@@ -262,27 +262,92 @@ try
     $statusFiles = @(
         (Join-Path $root 'doc_md\mainline\DEVELOPMENT_STATUS.md')
         Get-ChildItem (Join-Path $root 'doc_md\subline') -Recurse -File -Filter 'DEVELOPMENT_STATUS.md' | ForEach-Object FullName
+        Get-ChildItem (Join-Path $root 'doc_md\mini') -Recurse -File -Filter 'DEVELOPMENT_STATUS.md' | ForEach-Object FullName
     )
 
     foreach ($statusFile in $statusFiles)
     {
-        $lineCount = [System.IO.File]::ReadAllLines($statusFile).Count
+        $statusLines = [System.IO.File]::ReadAllLines($statusFile)
+        $lineCount = $statusLines.Count
 
         if ($lineCount -gt 120)
         {
             $failures.Add("$(get-relative-path $statusFile) 有 $lineCount 行，超过 STATUS 120 行预算")
+        }
+
+        # 只检查约定的快照结构，不从日期、测试数字或其它标题猜测验证语义。
+        $validationSectionCounts = @{ '最近一次验证' = 0; '文档治理验证' = 0 }
+        $validationSection = $null
+        $fenceCharacter = $null
+        $fenceLength = 0
+        $lineNumber = 0
+
+        foreach ($line in $statusLines)
+        {
+            $lineNumber++
+            $fence = [regex]::Match($line, '^ {0,3}(?<fence>`{3,}|~{3,})(?<info>.*)$')
+
+            if ($null -ne $fenceCharacter)
+            {
+                # 关闭 fence 必须同字符、长度不少于 opening fence，且后面只有空白。
+                if ($fence.Success -and $fence.Groups['fence'].Value[0] -eq $fenceCharacter -and
+                    $fence.Groups['fence'].Value.Length -ge $fenceLength -and
+                    [string]::IsNullOrWhiteSpace($fence.Groups['info'].Value))
+                {
+                    $fenceCharacter = $null
+                }
+
+                continue
+            }
+
+            if ($fence.Success -and ($fence.Groups['fence'].Value[0] -ne '`' -or -not $fence.Groups['info'].Value.Contains('`')))
+            {
+                $fenceCharacter = $fence.Groups['fence'].Value[0]
+                $fenceLength = $fence.Groups['fence'].Value.Length
+                continue
+            }
+
+            $heading = [regex]::Match($line, '^(?<level>#{1,6})[ \t]+(?<title>.+)')
+
+            if (-not $heading.Success)
+            {
+                continue
+            }
+
+            $level = $heading.Groups['level'].Value.Length
+            $title = $heading.Groups['title'].Value.Trim()
+
+            if ($level -le 2)
+            {
+                $validationSection = $null
+
+                if ($level -eq 2 -and $validationSectionCounts.ContainsKey($title))
+                {
+                    $validationSectionCounts[$title]++
+                    $validationSection = $title
+
+                    if ($validationSectionCounts[$title] -gt 1)
+                    {
+                        $failures.Add("$(get-relative-path $statusFile):$lineNumber 重复的「$title」章节；每种验证快照最多保留一个")
+                    }
+                }
+            }
+            elseif ($null -ne $validationSection)
+            {
+                $failures.Add("$(get-relative-path $statusFile):$lineNumber 「$validationSection」内不设下级标题；同次测试面用列表或表格，旧轮次移入 CHANGELOG")
+            }
         }
     }
 
     $planFiles = @(
         (Join-Path $root 'doc_md\mainline\DEVELOPMENT_PLAN.md')
         Get-ChildItem (Join-Path $root 'doc_md\subline') -Recurse -File -Filter 'DEVELOPMENT_PLAN.md' | ForEach-Object FullName
+        Get-ChildItem (Join-Path $root 'doc_md\mini') -Recurse -File -Filter 'DEVELOPMENT_PLAN.md' | ForEach-Object FullName
     )
 
     foreach ($planFile in $planFiles)
     {
         $planText = [System.IO.File]::ReadAllText($planFile)
-        $planTextForActivityScan = [regex]::Replace($planText, 'Phase\s+\d+/\d+', 'Phase')
         $lineCount = [System.IO.File]::ReadAllLines($planFile).Count
 
         if ($lineCount -gt 180)
@@ -290,15 +355,35 @@ try
             $warnings.Add("$(get-relative-path $planFile) 有 $lineCount 行；建议继续把完成史归回 CHANGELOG")
         }
 
-        if ($planTextForActivityScan -match '下一新对话|下一轮|本轮|暂停于|next conversation|next session|implementation (?:is )?paused|paused at' -or
-            $planTextForActivityScan -match '(?:commit|提交|实现停在|暂停于|锚点)\s*(?:[:=：]|at|is)?\s*[0-9a-f]{7,40}\b')
+        if ($planText -match '下一新对话|下一轮|本轮|暂停于|next conversation|next session|implementation (?:is )?paused|paused at' -or
+            $planText -match '(?:commit|提交|实现停在|暂停于|锚点)\s*(?:[:=：]|at|is)?\s*[0-9a-f]{7,40}\b')
         {
             $failures.Add("$(get-relative-path $planFile) 含提交锚点或会话级交接语；PLAN 只应保留未来动作/依赖/验收")
         }
+    }
 
-        if ($planTextForActivityScan -match '\b\d{1,5}/\d{1,5}\b')
+    foreach ($documentFile in @($statusFiles) + @($planFiles))
+    {
+        $documentText = [System.IO.File]::ReadAllText($documentFile)
+        $isStatus = [System.IO.Path]::GetFileName($documentFile) -eq 'DEVELOPMENT_STATUS.md'
+        $documentKind = if ($isStatus) { 'STATUS' } else { 'PLAN' }
+        $characterBudget = if ($isStatus) { 6000 } else { 10000 }
+
+        if ($documentText.Length -gt $characterBudget)
         {
-            $warnings.Add("$(get-relative-path $planFile) 含数字比值；请确认它是必要格式/矩阵，而不是已完成测试数字")
+            $warnings.Add("$(get-relative-path $documentFile) 有 $($documentText.Length) 字符，超过 $documentKind $characterBudget 字符建议预算；请检查是否有历史或重复合同")
+        }
+
+        $lineNumber = 0
+
+        foreach ($line in [System.IO.File]::ReadAllLines($documentFile))
+        {
+            $lineNumber++
+
+            if ($line.Length -gt 800)
+            {
+                $warnings.Add("$(get-relative-path $documentFile):$lineNumber 有 $($line.Length) 字符，超过 $documentKind 单行 800 字符建议预算；请检查段落或表格是否需要精简")
+            }
         }
     }
 
