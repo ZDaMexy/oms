@@ -1,35 +1,35 @@
 ---
 name: reference_gameplay_skin_event_envelope
-description: Skin V1 gameplay event envelope、canonical stream ordering、producer authority 与 mutable callback 地雷
+description: canonical event stream 与 filtered view、mutable callback 拷贝、Snapshot/Reset 和时钟域地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# gameplay skin event envelope 召回
+# Event envelope 地雷
 
-权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只保存实现地雷。
+envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，公开声明见 [catalog](../../doc_md/other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)，接线状态只读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
-## 当前稳定合同
+## CLR 载体不等于作者能力
 
-- `GameplaySkinEventEnvelope`是引擎构造的只读CLR载体，固定contract/version、epoch/sequence、gameplayTime、gameplay/layout/material/scene revision及`Snapshot/Reset/Edge`。C5公开只读事件合同ID为`oms-gameplay-skin-event.v1`，由manifest声明并被scene runtime消费；CLR构造/继承本身不是package、序列化或脚本API。只有内部dispatcher盖header，ruleset adapter不拥有epoch/sequence authority。
-- payload hierarchy 由 shared engine 定义。第三方 package 不能派生；ruleset adapter 只提交 neutral primitives 或调用 shared concrete payload factory。BMS 是 friend assembly 也不获得直接 subclass/publish 的架构权限。
-- `gameplayTime` 是 gameplay clock 毫秒域，必须 finite；lead-in/storyboard 允许负值，同时间事件由 sequence 决定顺序，绝不能换成 wall/update clock。
-- internal cursor 校验 capability/family filtering 前的完整 canonical stream。新 consumer（包括 reload 后新实例）先以完整 Snapshot 从任意非负 mid-session epoch/sequence high-water attach；之后 epoch 严格 `+1`，同 epoch sequence 严格 `+1`，time 非递减。
-- Reset 是下一 epoch、sequence 0 的完整原子 baseline，可把 gameplay time 向前或向后重锚；不是“先清空、稍后 Snapshot”。layout revision 在一个 attachment 内不回退，Snapshot/Reset 可保持或推进，Edge 必须等于当前 revision。
-- cursor 只 validate-and-advance；任何拒绝不改变 last accepted envelope，不排序、不补洞、不重放、不自动修复。sequence/epoch 到达 `long.MaxValue` 后 fail-closed，不能 wrap。
-- envelope header 可表示正数 future version，让 V1 consumer 明确拒绝；当前 canonical cursor 只支持 V1，attachment 内不得换版本。
+- GameplaySkinEventEnvelope是engine构造的只读CLR载体；dispatcher盖epoch/sequence/revision header，ruleset只提交shared neutral payload。friend assembly不授予subclass/publish架构权限。
+- manifest声明的oms-gameplay-skin-event.v1是公开只读合同；CLR构造/继承本身不是package、序列化或script API。正future version可以表达为header输入，但V1 consumer明确拒绝，attachment内不换版。
+- gameplayTime是finite gameplay-clock毫秒；lead-in可负值，同time靠sequence排序，不换wall/update clock。
 
-## producer 与 mutable state 地雷
+## Cursor / Reset 的诊断顺序
 
-- `GameplayClockContainer.OnSeek` 没有 reason/time，且 `Reset()` 也会调用 `Seek()`；无法单靠该 callback 区分普通 seek、retry、initial reset 或其它 discontinuity。生产 lifecycle bridge 必须显式拥有 reason/epoch。
-- `JudgementResult`是可变对象；`Playfield.revertResult()`在回调后继续通知lifetime entry，随后调用`result.Reset()`。C5 production adapter已在New/Revert回调栈内复制primitive/neutral ID；后续consumer也不能排队保存引用再读取。
-- `HitEvent` 虽是 readonly struct，仍含 `HitObject`/`LastHitObject` 引用，不是安全 payload。`Drawable`、`HitObject`、`Bindable`、clock、Realm object 与 ruleset-native mutable configuration 都不能越过 event 边界。
-- `SkinReloadableDrawable` / `ISkinSource.SourceChanged` 会被 scheduler 延后或合并，也没有 package validation/layout revision authority，不能直接当原子 reload producer。
-- canonical cursor 的 sequence 连续规则适用于过滤前内部流；未来 capability/family filtering 若保留原 sequence，外部 filtered view 可以看到 gap，不能把该 cursor 错接到过滤后流。
+- canonical cursor检查过滤前完整流。初次attach先完整Snapshot，可从mid-session非负epoch/sequence high-water进入；同epoch sequence严格+1/time不递减，换epoch严格+1。
+- Reset是下一epoch、sequence0的完整原子baseline，可前后重锚时间，不是先清空稍后再Snapshot。layout revision在attachment内不回退；Edge匹配当前revision。
+- 拒绝不改变last accepted，不排序/补洞/自动修复；long.MaxValue不能wrap。bounded queue溢出通过明确Reset/Snapshot重建，不静默丢事件。
+- filtered view若保留原sequence可有gap，不能把过滤前连续性cursor直接接到它后面。
+- engine可发GameplayResumed；scene state-machine不接受gameplay.resume，因为Snapshot重建Running。这不是漏producer，也不授权另一套状态。
 
-## C5 已接 production（2026-09-03）
+## Callback 内必须拷贝
 
-`GameplaySkinEventRuntimeHost`、`GameplaySkinEventStream` 与 `GameplaySkinEventStreamCursor` 已由真实 BMS/mania/core gameplay state 驱动并进入 scene renderer。lifecycle、layout/publication、input、object spawn/despawn/state、judgement、score/combo/gauge、timing/beat/bar/BPM/stop/scroll 与 BGA viewport/content-state 只读摘要都带 v1 envelope 的 epoch、连续 sequence、revision、gameplay time、LaneId/GroupId 与 immutable payload；subscription queue 有界且 overflow 通过 Reset/Snapshot 重建，不静默丢事件。
+- GameplayClockContainer.OnSeek没有reason/time，Reset也调用Seek；单callback不能区分seek/retry/initial reset，lifecycle bridge必须显式掌握reason/epoch。
+- JudgementResult会在revert callback后继续通知lifetime entry，随后Reset。必须在New/Revert调用栈复制primitive/neutral ID，不能排队保存引用。
+- HitEvent虽readonly struct仍含HitObject/LastHitObject引用；Drawable、Bindable、clock、Realm、native configuration都不能跨payload边界。
+- SourceChanged会延后/合并且无package/layout authority，不能当原子reload producer。
+- Snapshot/运行事件由engine state生产，不是整包prepare预先产好全部事件。scene只读，不获得判定/input/score/clock/BGA内容权。
 
-attach/reload/retry/seek/rewind/late attach 的完整 Snapshot/Reset与旧epoch隔离已在生产路径验证。engine envelope 可发布 `GameplayResumed`，但 scene state-machine ABI 明确拒绝 `gameplay.resume`，因为 Snapshot 可直接投影 Running 状态；这不是缺失 producer，也不是允许第二状态 authority。脚本、capability negotiation与最终整包 reload仍留 C6。
+publication与late attach见 [[reference_skin_atomic_reload_detach]]；capability/family filtering见 [[reference_gameplay_skin_capability_negotiation]]。

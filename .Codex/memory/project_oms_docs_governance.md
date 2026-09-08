@@ -1,6 +1,6 @@
 ---
 name: project-oms-docs-governance
-description: OMS 低噪声文档治理与易忘的防失真规则
+description: OMS 文档失真与检查器误判的诊断召回
 metadata:
   node_type: memory
   type: project
@@ -8,29 +8,11 @@ metadata:
 
 # 文档治理召回
 
-默认先核对 Git 基线，再读 mainline STATUS → mainline PLAN → 子线 STATUS/相关 CONSTRAINTS；OMS_COPILOT/CHANGELOG 只定点搜索。HEAD、本地跟踪分支与在线远端查询的时效要分清，未同步的旧文档不能用于宣称最新活动门。
+权威：[AGENTS](../../AGENTS.md) 管协作，[文档入口](../../doc_md/README.md) 管职责、预算和同步；当前状态只从 owning STATUS 读取。
 
-协作入口只有 `AGENTS.md`；`CLAUDE.md` 等适配文件只跳转，不复制规则。memory 通过 `MEMORY.md` 定点选择，禁止整库加载。
+- **绿检查不代表语义正确**：行数和链接通过仍可能把五轮测试塞进长行，或把已批准目标当作已实现。分别核对当前事实、合同、历史证据；不要让 memory 成为第二套进度表。
+- **压缩不能丢失原因**：memory 保留反直觉条件、复现线索和处理依据；重复字段/合同、旧数字和逐切过程回到源码/CONSTRAINTS/CHANGELOG。不能只把长行拆开冒充精简。
+- **标题不是纯排版**：已有片段链接依赖标题。标题改名后必须检查同页、跨文件链接；fenced code 中的 `###` 曾被误判为验证子章节，合法代码不应迁就错误检查器。旧检查曾只确认文件存在，漏掉 SKINNING 章节改名后的死锚；现在本地片段检查与独立正反 fixture 覆盖该问题。
+- **公开示例不等于私有证据**：公开 checksum、通用路径和合法数字矩阵不能靠模糊 regex 强迫删除；生产数据库的精确取证值只保存在仓库外。
 
-一个事实一个落点：
-
-- STATUS＝当前事实/风险/下一门/唯一最新验证。
-- PLAN＝未完成工作/依赖/验收/冻结项。
-- CONSTRAINTS＝稳定合同与红线。
-- CHANGELOG＝日期化实现、命令、旧数字和调查史。
-- memory＝踩坑与诊断，不证明当前实现。
-
-易忘规则：STATUS 的产品快照只在唯一“最近一次验证”，纯文档结果另列“文档治理验证”；两章不设轮次子标题。mainline 只摘要并链接子线证据，测试数字只在所属 STATUS 和当次 CHANGELOG 各一份；篇幅预算以 [文档入口](../../doc_md/README.md#低噪声预算)为准。
-
-memory 模板：权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项。逐日实现史、回退过程和旧数字进入 CHANGELOG/Git；文件名尽量稳定以保护 wiki 链接，单行建议 ≤800 字符。
-
-完整规则以 [AGENTS.md](../../AGENTS.md) 和 [doc_md/README.md](../../doc_md/README.md) 为准；本文件不保存某轮治理前的临时交接状态。
-
-## 持续防回潮
-
-- 文档/记忆同步只改变治理事实，不得冒充runtime、产品测试或人工gate；产品代码基线和最新验证只由STATUS指向，旧数字留在CHANGELOG。
-- 每次文档改动结束运行`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`并配合`git diff --check`；脚本检查范围见[文档入口](../../doc_md/README.md#联动规则)。行数通过不证明低噪声或语义一致；把五轮测试压进长行仍违反唯一快照约定。
-- 若STATUS/PLAN再次混入逐切历史，直接归回CHANGELOG；若memory重复当前进度或另一memory的详细合同，改成权威链接/交叉路由，不新建第二份当前状态。
-- 合同直接就地更新，失效说法归历史，不用末尾“以本节为准”覆盖前文。清理时同步引用，保留具体安全边界和失败归因。
-- 标题结构检查须跳过 fenced code 并保留原始行号；PowerShell 代码块中的 `###` 注释曾被误当成验证子章节，不能要求作者改掉合法代码来迁就检查器。
-- 通用路径、公开checksum或合法数字矩阵不能靠模糊regex强迫删除；checker不再泛报数字比值。精确生产取证值只保存在仓库外脱敏恢复归档。
+检查命令和规则不在此重复；新问题只有具备真实漏检/误报证据时才扩展检查器，避免把文档维护变成审批流程。

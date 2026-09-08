@@ -1,40 +1,34 @@
 ---
 name: reference_gameplay_skin_lane_identity
-description: Skin V1 neutral lane/group stable identity、topology snapshot、internal adapter 与 logical/visual index 地雷
+description: stable LaneId 与四类 index 的区别、mania stage-local special key 和 BMS visual 投影地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# gameplay skin lane identity 召回
+# Lane identity / index 地雷
 
-权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只保存实现地雷。
+ID/topology 完整合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md) 的“共享与分离约束”；public target 见 [catalog](../../doc_md/other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)。本页不复述 production 完成态。
 
-## 已冻结 identity 与 topology
+## 相等不是同一个问题
 
-- `GameplaySkinLaneGroupId` / `GameplaySkinLaneId`是不同强类型，使用非敏感小写ASCII点分opaque topology token与ordinal equality；不得嵌入用户、包、资源名或路径信息。CLR对象与进程内hash不作为wire表示；稳定ID token已被C4 public target和C5 scene/event使用，不能把早期“非manifest ABI”误读成作者不能引用LaneId/GroupId。
-- 同一 ID 不得分配给两个不同 semantic group/lane；同一语义实体跨不改变 topology 的 revision 重建 identity 时必须复用 ID。ID 跨 presentation style、视觉重排、geometry、skin reload/topology-preserving layout revision 稳定；同 LaneId 的 group membership 与 role 不漂移。
-- 跨上述 topology-preserving revision 关联只比较 `.Id`；完整 `GameplaySkinLaneGroupIdentity` / `GameplaySkinLaneIdentity` equality 还包含当前 metadata，因此 side 改变时整体 identity 不相等。
-- role 是 `Key/SpecialKey/Scratch`。mania internal projection 将 odd-stage 的 stage-local centre 映为 `SpecialKey`；它仍是 key input，绝不能因为 legacy fallback token `S` 而赋予 scratch gameplay truth。note/LN/mine 是对象类型，不是 lane role。
-- side 是 `Neutral/Primary/Secondary` 的逻辑 player/deck presentation side，不是屏幕 Left/Right、BGA side 或 binding owner。5K/7K P1/CenterP1 为 Primary、P2/CenterP2 为 Secondary；9K 为 Neutral；14K 两 deck 分别 Primary/Secondary。
-- `GameplaySkinLaneTopologyEntry` 保存 global/group-local logical/visual 四类零基 index；group/snapshot 提供 defensive immutable logical/visual order 与强类型 lookup。单 snapshot 拒绝 null/empty、重复 ID、membership conflict、非 permutation、local/global order 不一致与 group 非连续块。
-- public process-local `GameplaySkinLaneTopologyTransitionValidator` 只校验调用方已声明为 topology-preserving 的两个 neutral snapshot：GroupId/LaneId set、group logical index、lane membership/role/global 与 group-local logical index 稳定；side 和全部 visual index/order 可变。不要比较完整 identity equality。
-- validator 本身不含 native context，9K BMS/PMS neutral shape 相同仍会通过；外层 internal owner 以 BMS exact keymode、mania exact ordered stage-column vector 补上 process-local continuity/revision。不能据此把 helper 或 owner 写成完整 layout transition ABI；详见 [topology publication/revision](reference_gameplay_skin_topology_revision.md)。
+- LaneId / GroupId 是不同强类型的非敏感 opaque token，ordinal 比较，不嵌用户/包/资源/path。公开 target/scene/event 可引用稳定 token；CLR 对象、进程内 hash 不是 wire 表示。
+- topology-preserving 的 style、视觉重排、geometry/reload 跨 revision 关联比 Id；完整 identity equality 还含 side 等 metadata，因此 presentation 改变时可能不等。membership/role 仍不能漂移。
+- role 是 Key/SpecialKey/Scratch，note/LN/mine 是对象类型。Mania special key 仍是按键，不因 legacy fallback token S 变成 scratch gameplay。
+- side 是 Neutral/Primary/Secondary 逻辑 player/deck presentation，不是屏幕 Left/Right、BGA side 或 binding owner。
 
-## C3 production integration
+## 四类 index 的复现例
 
-- C3没有替换或复制上述ID；唯一`GameplaySkinLayoutContext`把exact native context/keymode、同一topology、presentation style、safe bounds/aspect/DPI与package/layout revision绑定，唯一neutral snapshot和typed adapter再作为一个`GameplaySkinLayoutPublication`发布。identity/topology仍只是solver输入，不是另一份layout publication。
-- BMS keymode只来自parser-owned `BmsKeymodeResolution`，layout/skin/runtime不得按最高channel、对象lane或geometry猜测。BMS唯一solver与mania真实single/dual stage adapter都复用既有GroupId/LaneId；mania special key继续按stage-local column判断。
-- Mirror/Random/S-Random只改变对象的post-mod目标lane，不改变固定topology或稳定ID集合。具有exact permutation的mod同时搬移armed timeline；S-Random无单一permutation时禁用受影响timeline。对象、shared keysound store和skin lookup最终解析到目标lane的同一LaneId。
-- 完整C3层次与production consumer见[[reference_gameplay_skin_layout_snapshot]]和[C3完成交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)。
+- GlobalLogical、GroupLocalLogical、GlobalVisual、GroupLocalVisual 是当次 order。stable ID 不携 index；snapshot 保存显式 permutation/连续 group blocks，拒绝重复 ID、membership/order 冲突。
+- BmsLaneLayout.Lanes 按 logical LaneIndex 存放；P2/CenterRightScratch 把 S1 画右边也不改变枚举意义。视觉序读显式 VisualIndex，不能按 RelativeStart 或枚举位置猜。
+- 总 lane count 一样不代表 composition 一样：假 S1,K1..K6,S2 也有 8 lane。BMS adapter 要验证 LaneIndex/Action/IsScratch，不只数数量。
+- 14K logical 顺序是 S1,K1..K7,K8..K14,S2，两个 group 为 logical 0..7、8..15；global 与 group-local 不能丢一个。
+- Mania 先复制真实 1～2 stage、每 stage 1～10 keys。special 按 stage-local column；双 5+5 的 global special 是 2/7，mixed 4+5 是 6。global index 用前缀和，不对 total columns 求一个中心或用 ManiaAction enum ordinal。
+- Mirror/Random 改对象 post-mod 目标 lane，keysound/resource/event 同走目标 LaneId，固定 topology 不变。有 exact permutation 的 mod 同步搬 timeline；S-Random 没有单一 permutation 时禁用受影响 timeline，不伪造映射。
 
-## internal projection 地雷
+## Neutral 验证缺少什么
 
-- identity 故意不含 index；snapshot 虽已显式携带四类 index，仍故意没有 keymode/style、action/source channel、geometry/bounds、revision/native context。它不是 full `GameplaySkinLayoutContext` 或 wire/manifest ABI，不能把这些字段继续塞进 stable ID/equality。
-- `BmsLaneLayout.Lanes` 按 logical `LaneIndex` 存储，即使 P2/CenterRightScratch 把 S1 画到最右，枚举位置也没有变成 visual index；只能读取 solver 显式产出的 `Lane.VisualIndex`，不得按 `RelativeStart` 或枚举位置反推。
-- canonical lane count 不等于 canonical composition：额外 scratch 可在总数不变时把 7K 变成 `S1,K1..K6,S2`、把 9K 变成假 scratch。projection 必须逐 lane 校验 `(LaneIndex, Action, IsScratch)`，不能只看 count。
-- 14K logical lanes 是 `S1,K1..K7,K8..K14,S2`；两个 skin group 分别覆盖 logical `[0..7]` 与 `[8..15]`、各 8 lane。group-local 与 global index 必须同时保存。
-- mania projection 只接受 1–2 stage、每 stage 1–10 keys，并先复制可变 stage 列表；single side=Neutral，dual stage 0/1=Primary/Secondary。`StageDefinition.IsSpecialColumn()` 接受 stage-local index；双 5+5 special 的 global index 是 2/7，mixed 4+5 是 6。global index 用 stage count 前缀和，不能对 total columns 求一次中心，也不能把 `ManiaAction` enum ordinal 当 group-local identity。
-- mirror/random/rearrangement 改 hit object 的目标 lane，而不改变固定 playfield topology；对象事件应发布 mod 后目标 LaneId，不能从原始 source channel 反推。
-
-identity/topology/neutral validator 与 topology-only publication/ruleset-native continuity 仍是不同层，单独都不等于 full `GameplaySkinLayoutContext`、geometry solver或package+layout lifecycle。C3已在其上建立唯一production publication；不能倒过来把layout字段塞进stable ID、把topology-only revision冒充layout revision，或把process-local对象写成wire/manifest ABI。当前完成度只看 P1-A STATUS。
+- neutral transition validator 只验证调用方声明为 topology-preserving 的输入：ID set、logical index、membership/role 稳定；side/visual order 可变。
+- 9K BMS/PMS 的 neutral shape 相同仍能通过；native continuity 必须额外比较 exact keymode。Mania 比 exact ordered stage vector，不能仅比总列。
+- topology snapshot 故意没有 keymode/style、action/channel、geometry、revision/native context；不能往 ID/equality 塞这些字段修补上层缺失。
+- topology-only revision 不等于 layout 或 package revision；native continuity 见 [[reference_gameplay_skin_topology_revision]]，最终唯一 publication 见 [[reference_gameplay_skin_layout_snapshot]]。

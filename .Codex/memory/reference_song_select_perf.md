@@ -1,59 +1,39 @@
 ---
 name: reference-song-select-perf
-description: "Song-select carousel performance lessons for 50k+ beatmap libraries — what's actually slow, what the upstream landmines are, and the patterns that fix it"
-metadata: 
+description: 大库选歌定位：受限星级触发查表、同步命中、失败负缓存、Realm与最终filter请求
+metadata:
   node_type: memory
   type: reference
 ---
 
-权威当前态见 [P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)，converted-star合同见 [[reference_converted_star_persistence]]。下列是历史大库诊断方法，不是当前版本的新benchmark或尚未实现清单。
+# 大库 Song Select 性能诊断
 
-## Carousel filter pipeline at a glance
+现行read-model/筛选合同见 [P1-I CONSTRAINTS](../../doc_md/subline/P1-I/TECHNICAL_CONSTRAINTS.md)，进度读 [STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)。以下来自历史5万级谱库诊断，不是当前benchmark或新增优化清单。
 
-`Carousel.performFilter` (osu.Game/Graphics/Carousel/Carousel.cs) runs filters serially:
-1. Debounce (`DebounceDelay` ~100ms)
-2. Snapshot items on update thread
-3. `Task.Run` → for each filter (`BeatmapCarouselFilterMatching`, `Sorting`, `Grouping`) → log "Performing X" then `await filter.Run()`
-4. `updateYPositions` → "Items ready for display"
+## 先定位卡在哪一段
 
-`BeatmapCarouselFilterMatching.Run` (osu.Game/Screens/Select/BeatmapCarouselFilterMatching.cs):
-1. `requiresStarRatingLookup(criteria)` decides whether to call `getStarRatings` — true when `criteria.AllowConvertedBeatmaps && (StarDifficulty.HasFilter || UserStarDifficulty.HasFilter)`. False → uses `empty_star_ratings` and skips lookup entirely. **Critical**: an unrestricted star slider (full range) leaves `HasFilter` false and bypasses lookup; ANY restricted range engages the lookup path. This is why "infinite loading" only appears with restricted slider values when the lookup is slow.
-2. `await getStarRatings(...)` builds the per-beatmap dict.
-3. `Task.Run` → `matchItems` iterates all items synchronously calling `CheckCriteriaMatch` per beatmap. No cancellation token threaded into the iteration — once started it runs to completion.
+Carousel.performFilter依次debounce→update线程snapshot→Matching/Sorting/Grouping→updateYPositions→Items ready for display。日志按op ID看最终未被取代请求；旧op被新请求取消是正常情况。
 
-## The four landmines at 57k BMS scale
+- 全范围star slider使HasFilter=false，可跳过converted difficulty lookup；收紧任意范围才触发。因此“仅受限slider无限加载”先查getStarRatings，不直接归因UI拖拽。
+- matchItems本身是同步遍历；区分等待star lookup、匹配遍历、分组和最终draw/layout，不把总耗时都算到同一阶段。
+- 记录实际库量、版本、操作、cache hit/miss、时延/GC与线程；不把历史毫秒数或设备上限变成永久门槛。
 
-### 1. Per-beatmap async Task allocation in getStarRatings
-`Task.WhenAll(beatmaps.Select(async b => await GetDifficultyAsync(b)))` allocates 57k async state machines + Tasks **even when every call returns `Task.FromResult` synchronously**. Use **sync-first**: iterate with `TryGetCachedDifficulty` (sync) collecting misses into a side list, then `Task.WhenAll` only the misses. For a fully persisted library, zero Task allocations.
+## 已踩过的成本与缓存坑
 
-### 2. JSON deserialization per lookup
-`BmsPersistedMetadataResolver.getPersistedData`已有按完整JSON内容键缓存的 `parsedDataCache`；converted-star写入会驱逐旧JSON键，不能再次以“尚无解析缓存”为由重复实现。缓存是静态dictionary，来自其它metadata写方的新JSON仍可能留下旧键；若现场确有增长，再按分配/存活证据确定有界策略。BmsTableGroupMode另有自身分组定义缓存，两者不是同一个owner。
+| 症状 | 原因与诊断 |
+| --- | --- |
+| 全部已persisted仍创建大量Task | Task.WhenAll(Select(async ...))即使内部同步返回也分配每谱state machine；现有sync-first路径用TryGetCachedDifficulty，仅miss进入异步，先确认是否真正走到该路径。 |
+| JSON反序列化看起来很重 | BmsPersistedMetadataResolver已有按完整JSON键的parsedDataCache，converted-star写会驱逐旧键；不能再当无缓存重做。其它writer的新JSON可能留旧键，只有分配/存活证据成立才考虑有界策略。 |
+| 固定某谱反复约10s取消 | DifficultyCalculator在caller传None/default时会用自身10s timeout；病态谱可能稳定超时，批量/导入无caller取消的失败要写persisted Failed，不能盲目重试。 |
+| 失败谱每次又算 | MemoryCachingComponent默认不cache null。read层对已有persisted失败同步fallback，避免反复排异步；fallback显示是既有容错，不等于成功算出mania星数。 |
 
-### 3. DifficultyCalculator's hidden 10-second internal timeout
-`DifficultyCalculator.Calculate(IEnumerable<Mod>, CancellationToken)` does:
-```csharp
-using var timedCancellationSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-if (!cancellationToken.CanBeCanceled)
-    cancellationToken = timedCancellationSource.Token;
-```
-If you pass `default`/`None`, you silently get a 10s cap. BMS charts with pathological event timelines genuinely exceed this. The `OperationCanceledException` is deterministic per beatmap, not transient — in batch and import-time paths that don't pass a token, persist it as `Failed` (`BmsPersistedMetadataResolver.SetConvertedStarRatingFailure`) so consumers can short-circuit.
+不要把caller请求取消也持久成计算失败；timeout、真正失败与用户取消必须按该路径合同区分。converted状态见 [[reference_converted_star_persistence]]。
 
-### 4. MemoryCachingComponent doesn't cache null
-`BeatmapDifficultyCache` (and `MemoryCachingComponent` upstream default behaviour here) has `CacheNullValues => false`. Failed computes return null and are NOT cached. Every subsequent lookup re-runs the slow compute. **Workaround at the read layer**: `tryGetImmediateDifficulty` synchronously returns a fallback whenever persisted state exists (even if Failed), so the carousel never queues async compute for known-failing beatmaps. For BMS→mania, the fallback is `beatmapInfo.StarRating` (the BMS playlevel) — acceptable cosmetic compromise for the handful of charts that fail.
+## Realm 与 UI 分开查
 
-## Realm landmines
+- link-traversal predicate可能抛错或静默零结果；BmsChartFilterStatsBackfill先AsEnumerable，再用ruleset helper客户端过滤。Found N应在zero early-return前记，避免只能用缺日志猜流程。
+- BmsTableGroupMode有独立分组缓存，不是parsedDataCache的owner；不要跨缓存误归因。
+- 滚到极端keysound谱时的stutter曾与TextureAtlas size exceeded相关，独立于star resolution；需现场线程/日志确认。
+- native BMS现在显示作者等级/胶囊，converted-mania另走星数；先确认ruleset/实际panel，再用旧“星级动画”截图安排修复。
 
-- Realm link-traversal predicate可能报错或静默零结果；先materialize，再用ruleset helper做客户端过滤。当前 `BmsChartFilterStatsBackfill.EnumerateBmsBeatmaps`明确先 `.AsEnumerable()`，不要按旧记忆误写成仍依赖Realm link predicate。
-- **Always log `Found N` BEFORE the early-return on zero**. Otherwise "notification didn't appear" debugging requires correlating absence-of-log with logic flow.
-
-## Carousel UI follow-ups (panel layer, not data layer)
-
-These were observed in 58k testing but are independent UI concerns:
-- BMS当前显示作者等级/难度胶囊，converted-mania另走mania星数；先确认实际ruleset和显示分支，再判断数字动画是否仍是当前产品问题，不凭旧星级panel截图安排修复。
-- Extreme charts (huge keysound count, stress-test maps) trigger noticeable stutter when scrolling to them — correlates with `TextureAtlas size exceeded` messages in performance log. Independent of star/difficulty resolution.
-
-## How to verify perf after touching this area
-
-- 对比同一库/版本/操作的difficulty-cache命中与miss；已persisted BMS应主要走同步读取，具体次数不作为跨设备固定门槛。
-- `Carousel[op X] ... Items ready for display`用于确认最终未被取代的过滤请求完成；被新请求取消的旧op可以正常取消。记录实际库量、时延/GC与线程，不复用历史毫秒数当当前性能结论。
-- Filter ops in log should reach `Performing FilterMatching → FilterSorting → FilterGrouping` in sequence, not stall between phases.
+没有现场复现就保持现状；本节点不要求重复全量benchmark。

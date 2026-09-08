@@ -7,6 +7,14 @@
 
 ## 2026-09-09
 
+### 文档与记忆健康度专项优化
+
+- 以 `2deda47` 为基线整理阅读入口、现行合同和诊断记忆；本次 fetch 成功，`origin/master` 仍为 `163d38a`，不改写此前审查报告的历史取证结果。主线 STATUS/PLAN 合计从 12017 减至 5783 字符（减少 51.9%）；主线只保留全局编排与风险，七 campaign 预算和 C6/C7 完整退出门集中于 P1-A PLAN。
+- 48 份 memory（含索引）从 198755 减至 106606 字符（减少 46.4%），文件名与引用稳定。删除重复合同、逐日实现史和过期状态，保留恢复证据、NTFS 窄窗、取消/回滚时序、lease 竞态及 legacy 解析差异；纠正旧伪 canonical marker 和 internal staged import 产品入口误述。四份核心记忆交叉复审未发现独有诊断丢失。
+- [文档入口](../README.md)明确唯一职责与同步范围，参考索引区分现行说明和日期化证据，小修不再机械新建报告或 mini 四件套；P1-A 大合同增加任务索引与 G1 操作小节，具体物理/journal 条款和产品硬门保留。已有合同作为链接目标，不在 memory 维护第二份规格。
+- 修复 SKINNING 章节改名留下的死锚；`CheckDocumentation.ps1` 增加同页及跨文件本地片段检查，支持普通 ATX、行内 code、重复标题和显式 HTML 锚点，复杂标题明确提示人工核对。新增 `TestCheckDocumentation.ps1`，Windows PowerShell 5.1 正反样例 **35/35**；全树文档检查及 `git diff --check` 通过，保留已核实的公开 catalog checksum 提示。
+- 本次只改文档、记忆与检查脚本，未重跑产品测试或 Release。产品验证继续引用既有实际进度审查；Skin V1、C6/C7、人工签收与 release 状态未推进。
+
 ### 全量实际项目进度、文档与记忆审查同步
 
 - 以本地 master `2f8aedd` 对照 P1-A～M 的 production caller/consumer、测试源码、当前四件套和相关 memory。fetch 因 TLS 失败，未宣称已核对在线远端；未修改 runtime、测试或用户数据。逐线覆盖与证据见[本轮审查报告](../other/PROJECT_PROGRESS_AUDIT_20260909.md)。

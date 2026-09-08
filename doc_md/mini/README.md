@@ -1,13 +1,12 @@
 # mini 文档索引
 
-这里收口与主线无关的独立事项，例如局部 bug 修复、一次性治理事项或不应挂到 `P1-*` 的独立记录。
+mini 用于没有现成主线/子线归属、需要独立跟踪的事项。已有归属的小修或一次性治理更新 owning 文档即可，不为每次操作复制一套文件。
 
 ## 固定规则
 
-1. 每个 mini 事项都必须建立独立目录。
-2. 每个 mini 目录都必须固定维护：`DEVELOPMENT_PLAN.md`、`DEVELOPMENT_STATUS.md`、`CHANGELOG.md`、`TECHNICAL_CONSTRAINTS.md`。
-3. mini 事项若最终影响主线优先级、主线状态、发行口径或硬约束，必须反向同步 `../mainline/` 与相关 `../subline/`、`../other/` 文档。
-4. 不允许把未归线的真实工作丢在根目录或聊天记录里不建档。
+1. 确需独立跟踪时新建事项目录，维护 PLAN / STATUS / CHANGELOG / TECHNICAL_CONSTRAINTS 四件套，并加入本页索引。
+2. 文件职责、预算和验证规则统一见[文档入口](../README.md)，不另造治理规则。
+3. 事项影响全局优先级、release gate 或硬约束时，同步相应主线/子线摘要；关闭后保留结果与历史，不继续充当当前入口。
 
 ## 起步模板
 

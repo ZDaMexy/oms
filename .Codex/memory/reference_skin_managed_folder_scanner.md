@@ -1,48 +1,41 @@
 ---
 name: reference_skin_managed_folder_scanner
-description: schema 57 exact-owner受管目录启动发现、Observed/Valid、Realm reconcile及mutation/recovery协调地雷
+description: schema 57 exact owner、Observed/Valid 分离与完整扫描才可负向 reconcile 的地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# managed skin folder scanner（schema 57）
+# Managed skin scanner 地雷
 
-> 快速召回 `chartskin/` 自动发现、Realm 归属与启动生命周期的安全边界。当前产品事实以 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) 为准；前后authority链见[[reference_skin_filesystem_authority_preflight]]、[[reference_skin_windows_handle_capture]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]。
+现行扫描/owner/启动合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md) 的 G1 章节；能力边界读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。测试只用隔离 Realm/临时 Windows 根，不扫描生产 chartskin。
 
-## 归属与 Realm reconcile
+## 数据保护先看 record owner
 
-- schema 57 新增 nullable `SkinInfo.FilesystemStorageAuthorityOwner`。它只是 opaque record ownership metadata，不是文件系统读取、删除或改名 capability。
-- 旧记录迁移后 owner 必须保持 `null`；scanner 不得 claim、改写、去重或清理 null、未知 token、另一 authority、普通 `.osk`、external 或 orphan blob。
-- managed scanner 的 exact token 是 `oms.skin.managed-folder.scanner.v1`。只维护owner为该exact token、结构仍合法、路径位于`chartskin/<one direct child>`，且由scanner创建或由staged-import one-shot publisher通过scanner同等级注册/capsule/Realm冲突门合法交接的记录；直接写token不构成合法来源。
-- reconcile 必须在单一 Realm 事务中完成。有效新包可新增；exact-own 同路径记录可更新 metadata/content revision 或 revive；同路径出现null/foreign/多记录/混合 storage/protected/fixed-ID时整组冲突且零mutation。staged-import publisher完成exact handoff后，scanner必须把该单一record视为自己的既有记录而不是再发布第二条。
-- negative reconcile 只能发生在**完整且稳定**的扫描：exact-own、唯一、结构合法的记录若不在 `ObservedPaths` 才 soft-delete。只改 `DeletePending`，绝不删除磁盘目录。
-- 取消在事务 apply/commit 线性化点前被观察时必须让 Realm 回滚全部新增、更新与 soft-delete；退出会等待已进入的原子事务结束/回滚后再释放 Realm。
+- schema 57 的 FilesystemStorageAuthorityOwner 是 opaque record metadata，不是文件能力。旧记录迁移后保持 null；null/unknown/foreign、普通 .osk、external、orphan blob 都不 claim、去重或清理。
+- exact scanner token 只管理由 scanner 创建或 one-shot publisher 经同等级注册/capsule/Realm 冲突门交接的合法 direct child。直接写 token 不能制造该来源。
+- 同 path 有 foreign/null/多记录/混合 storage/protected/fixed-ID 时整组零 mutation。合法 handed-off record 是既有记录，scanner 不能再发第二条。
 
-## Observed 与 Valid 必须分离
+## Observed 与 Valid 不能合表
 
-- `ObservedPaths` 是稳定 direct-child inventory 中所有可表达为合法 managed 相对路径的名字，即使实体是普通文件、reparse、忙写目录、坏包、缺 `skin.ini` 或 metadata 无效。
-- `ValidDiscoveries` 只能包含 native no-follow capture 成功、immutable capsule 完整且根 `skin.ini` metadata 可安全读取的包；每个 valid path 必须也在 observed。
-- observed-but-invalid 的意义是“此路径仍存在，不能据未见删除旧记录”，不是“可以导入”。把 Observed 与 Valid 合成一张表会重现异常期 scanner 误清理风险。
-- duplicate/case-collision、valid-not-observed、非法 direct-child path 或不完整 snapshot 都 fail-closed，Realm 零写入。
+| 集合 | 含义 |
+| --- | --- |
+| ObservedPaths | stable direct-child inventory 中所有可表达为合法 managed path 的名字，含文件、reparse、忙写、坏包、缺 ini/metadata 的目录 |
+| ValidDiscoveries | no-follow capture、capsule 与 metadata gate 均成功的包；必须也是 observed |
 
-## Windows authority 与稳定性
+- observed-invalid 只表示“还存在，不能负向删除”，不授予导入；它只保护 exact path。root inventory 完整稳定时仍可清理别处真正 absent 的 exact-own record。
+- duplicate/case collision、valid-not-observed、非法 path、不完整 snapshot 必须拒绝，不发布 partial 结果。
+- 只有完整稳定 scan 可在单 Realm 事务 add/update/revive，以及对唯一合法 exact-own 且不在 Observed 的记录 soft-delete；仅改 DeletePending，不删目录。
+- 取消在 apply/commit 线性化点前出现则整笔回滚；退出需等事务结束/回滚再释放 Realm。
 
-- discovery session 从物理本地 volume handle 经 data-root segments 固定到同一个 held `chartskin` handle；候选枚举、相对 no-follow capture 和最终 inventory/authority-link 复验必须共享该根。
-- 每个有效包由 `CaptureObservedChild()` 独立完成包内 identity/metadata/inventory、hardlink/reparse/alias、预算和 immutable capsule gate；最终 root inventory 负责 direct-child membership/metadata 稳定，不替代包内 capture。
-- NTFS 在刚创建包后可能延迟落稳目录 `LastWriteTime/ChangeTime`。生产 discovery 对 retryable identity/inventory race 只做有界、可取消的完整 session 重试；不得无限重试，也不得在失败轮次发布 partial snapshot。
-- source/result/exception 的安全字符串只允许 reason 与计数；data root、目录名、skin metadata、content revision 和 native exception 正文不得进入日志或 `ToString()`。
+## Capture 与协调的诊断点
 
-## 启动与当前产品边界
+- root inventory 与每包 capture 共用同一 held chartskin authority。前者证明 direct-child membership 稳定，后者证明包内 tree/capsule，两者不能互替。
+- 新建包后 NTFS LastWriteTime/ChangeTime 可能延迟落稳；只对已定义 retryable identity/inventory race 做有界、可取消完整 session 重试，不无限重试或提交失败轮的部分数据。
+- scanGate 只防同实例重入；跨 scanner/selection/mutation/recovery 用共享 coordinator，从 discovery 持到 Realm commit。snapshot→commit 之间不能让 mutation 插入。
+- startup 在同一 typed sequence 先幂等 recovery、后一次 scanner。有效未决 journal 冻结相关 path；invalid/unknown/IO 冻结 namespace。add/update/revive 与 negative cleanup 都查冻结，不能将半成品当新包或缺失。
+- Realm notification 已能刷新 dropdown，不加第二 UI refresh，也不自动选择。scanner 不消费 publication plan，不执行 physical move/delete。
+- 启动后新增 direct child 需重启发现；已登记 current 的原位编辑走 Settings manual Reload，不能称 scanner 为 watcher。
+- shutdown/callback 与 configured selection retry 见 [[reference_skin_managed_folder_selection]]、[[reference_skin_atomic_reload_detach]]。
 
-- `SkinManager`构造期先做durable mutation recovery；`OsuGame.LoadComplete()`最后在线程池以typed `StartupSequence`外层lease连续执行幂等recovery→一次扫描，不得绑定update scheduler。`OsuGame.Dispose()`必须在`OsuGameBase.Dispose()`释放Realm前统一cancel + synchronous join startup scanner、rename/staged-import/managed-delete、selection/reload capture-scheduling/contention、materializer/work fence与retire worker。pending callback由shutdown或scheduler callback恰好一方claim/reap，晚到callback只no-op；queued completion本身不是可join worker，也不得为它等待update scheduler。细节见[[reference_skin_managed_folder_selection]]。
-- 设置页已有 Realm `SkinInfo` notification → `GetAllUsableSkinsAsync()` → dropdown 刷新链；scanner 不需要第二套 UI refresh，也不会自动切换当前皮肤。
-- 这是一次启动扫描，不是watcher或热重载。directory-only rename、manager-owned ManagedCopy/fixed-source staged import与managed delete已有Folder Skin Workspace真实caller；scanner本身不执行move/import/delete，也不消费`SkinManagedFolderNewRecordPublicationPlan`。external registration/capture由独立exact registry链负责，不由scanner claim。启动后新增direct child仍需重启发现；已登记current记录的原位编辑不会由scanner发布，用户须在安全screen使用唯一Settings manual Reload，由C2 candidate完成fresh capture/publication/detach。
-- 测试只用 fake、隔离 Realm/临时 Windows 根和 headless lifecycle；不要为验证 scanner 启动可见 GUI，也不要触碰生产 `chartskin/`。
-
-## 与 mutation foundation 的协调地雷
-
-- `scanGate`仍只负责同一scanner实例去重；真正跨scanner/selection/mutation/recovery的authority是共享`SkinManagedFolderOperationCoordinator`。独立scanner从discovery开始持有short scope直到Realm事务返回；startup lifecycle则在typed `StartupSequence`外层嵌套该short scope，因此snapshot→Realm reconcile不再允许进程内mutation插入，并可让已先开始的configured selection辨识exact startup completion后异步fresh retry。
-- 启动先恢复后scanner；有效未决journal冻结其source/target，invalid/unknown/IO冻结整个namespace。reconcile在规划valid add/update/revive和negative soft-delete时都必须查询冻结状态，不能把半成品解释成普通新增或缺失。
-- 公共线性化与按kind恢复已被directory-only rename、fixed-source staged import及managed delete直接消费；scanner从native snapshot到Realm commit全程串在同一coordinator内，不能与one-shot publisher/delete recovery竞争或把half-applied source/tombstone/target解释成普通新增。scanner lease绝不能被当作任何物理写能力；专用delete仍是generic mutation且不得取得startup retry authority。
-- staged import/ManagedCopy不自动选择；Realm notification可以刷新选择列表，但不能替换current pair或取消无关pending selection。Workspace虽已有真实caller，scanner record可见性本身仍不是玩家完成gate或视觉签收。
+安全诊断只含 reason/计数，不输出 root/name/skin metadata/revision 或 native 异常正文。native 捕获见 [[reference_skin_windows_handle_capture]]，物理恢复见 [[reference_skin_managed_folder_mutation_foundation]]。

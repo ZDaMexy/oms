@@ -31,6 +31,149 @@ function get-line-number([string] $text, [int] $index)
     return ([regex]::Matches($text.Substring(0, $index), "`n").Count + 1)
 }
 
+function hide-markdown-code-blocks([string] $text)
+{
+    # 保持字符偏移和原始行号，供链接检查及 STATUS 结构检查共用。
+    $result = New-Object System.Text.StringBuilder
+    $fenceCharacter = $null
+    $fenceLength = 0
+
+    foreach ($line in [regex]::Split($text, '(?<=\n)'))
+    {
+        $fence = [regex]::Match($line.TrimEnd([char[]]"`r`n"), '^ {0,3}(?<fence>`{3,}|~{3,})(?<info>.*)$')
+        $hideLine = $null -ne $fenceCharacter
+
+        if ($hideLine)
+        {
+            if ($fence.Success -and $fence.Groups['fence'].Value[0] -eq $fenceCharacter -and
+                $fence.Groups['fence'].Value.Length -ge $fenceLength -and
+                [string]::IsNullOrWhiteSpace($fence.Groups['info'].Value))
+            {
+                $fenceCharacter = $null
+            }
+        }
+        elseif ($fence.Success -and ($fence.Groups['fence'].Value[0] -ne '`' -or -not $fence.Groups['info'].Value.Contains('`')))
+        {
+            $fenceCharacter = $fence.Groups['fence'].Value[0]
+            $fenceLength = $fence.Groups['fence'].Value.Length
+            $hideLine = $true
+        }
+
+        if ($hideLine)
+        {
+            [void]$result.Append([regex]::Replace($line, '[^\r\n]', ' '))
+        }
+        else
+        {
+            [void]$result.Append($line)
+        }
+    }
+
+    return $result.ToString()
+}
+
+$inlineCodePattern = [regex]'(?<!`)(?<ticks>`+)(?!`)(?<code>.*?)(?<!`)\k<ticks>(?!`)'
+$anchorCache = @{}
+
+function get-heading-slug([string] $title)
+{
+    $title = [regex]::Replace($title, '[ \t]+#+[ \t]*$', '').Trim()
+    $outsideCode = $inlineCodePattern.Replace($title, '')
+
+    # 只覆盖仓库实际标题：ASCII/CJK、标点及行内 code。复杂 inline Markdown
+    # 或其它字符不猜 slug；缺失锚点时由 caller 提示改用显式 <a name="...">。
+    if ($outsideCode -match '`|_|\\|<|&|\[[^\]]*\]\s*[\[(]')
+    {
+        return $null
+    }
+
+    $plainTitle = $inlineCodePattern.Replace($title, {
+        param($match)
+        $code = $match.Groups['code'].Value
+        if ($code.StartsWith(' ') -and $code.EndsWith(' ') -and -not [string]::IsNullOrWhiteSpace($code))
+        {
+            $code = $code.Substring(1, $code.Length - 2)
+        }
+        return $code
+    })
+
+    if ($plainTitle -match '[^\x00-\x7F\u2000-\u206F\u2190-\u21FF\u3000-\u303F\u3040-\u30FF\u3400-\u9FFF\uFF00-\uFFEF]')
+    {
+        return $null
+    }
+
+    # GitHub section-link 规则：小写、空格变 -、移除标点；保留 -、_ 和 CJK。
+    # https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links
+    return [regex]::Replace($plainTitle.ToLowerInvariant(), '[^\p{L}\p{M}\p{N}\p{Pc} -]', '').Replace(' ', '-')
+}
+
+function get-markdown-anchors([string] $file)
+{
+    if ($anchorCache.ContainsKey($file))
+    {
+        return $anchorCache[$file]
+    }
+
+    $prose = hide-markdown-code-blocks ([System.IO.File]::ReadAllText($file))
+    $prose = [regex]::Replace($prose, '(?s)<!--.*?-->', { param($match) [regex]::Replace($match.Value, '[^\r\n]', ' ') })
+    $anchors = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    $headingSlugs = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    $unsupportedLines = New-Object 'System.Collections.Generic.List[int]'
+    $lineNumber = 0
+    $previousLine = ''
+
+    foreach ($line in [regex]::Split($prose, '\r?\n'))
+    {
+        $lineNumber++
+        $heading = [regex]::Match($line, '^ {0,3}#{1,6}(?:[ \t]+(?<title>.*)|$)')
+
+        if ($heading.Success)
+        {
+            $slug = get-heading-slug $heading.Groups['title'].Value
+
+            if ($null -eq $slug)
+            {
+                $unsupportedLines.Add($lineNumber)
+            }
+            else
+            {
+                $uniqueSlug = $slug
+                $suffix = 0
+
+                while (-not $headingSlugs.Add($uniqueSlug))
+                {
+                    $suffix++
+                    $uniqueSlug = "$slug-$suffix"
+                }
+
+                [void]$anchors.Add($uniqueSlug)
+            }
+        }
+        elseif (($line -match '^ {0,3}(?:=+|-+)[ \t]*$' -and -not [string]::IsNullOrWhiteSpace($previousLine)) -or
+                $line -match '^\s*(?:>\s*|[-+*]\s+|\d+[.)]\s+)#{1,6}\s|<h[1-6]\b')
+        {
+            # Setext、容器内标题和 HTML heading 不在本地 ATX 检查范围。
+            $unsupportedLines.Add($lineNumber)
+        }
+
+        $anchorLine = $inlineCodePattern.Replace($line, '')
+
+        foreach ($tag in [regex]::Matches($anchorLine, '<a\b[^>]*>', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase))
+        {
+            foreach ($attribute in [regex]::Matches($tag.Value, '\b(?:name|id)\s*=\s*(?:"(?<value>[^"]*)"|''(?<value>[^'']*)''|(?<value>[^\s>]+))', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase))
+            {
+                [void]$anchors.Add([System.Net.WebUtility]::HtmlDecode($attribute.Groups['value'].Value))
+            }
+        }
+
+        $previousLine = $line
+    }
+
+    $result = @{ Anchors = $anchors; UnsupportedLines = $unsupportedLines }
+    $anchorCache[$file] = $result
+    return $result
+}
+
 Push-Location $root
 
 try
@@ -47,12 +190,16 @@ try
     $wikiPattern = [regex]'\[\[(?<target>[^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]'
     $relativeLinkCount = 0
     $wikiLinkCount = 0
+    $fragmentLinkCount = 0
 
     foreach ($file in $markdownFiles)
     {
         $text = [System.IO.File]::ReadAllText($file)
         $fileRelative = get-relative-path $file
         $parent = Split-Path -Parent $file
+        $fragmentProse = hide-markdown-code-blocks $text
+        $fragmentProse = [regex]::Replace($fragmentProse, '(?s)<!--.*?-->', { param($match) [regex]::Replace($match.Value, '[^\r\n]', ' ') })
+        $fragmentProse = $inlineCodePattern.Replace($fragmentProse, { param($match) [regex]::Replace($match.Value, '[^\r\n]', ' ') })
 
         foreach ($match in $linkPattern.Matches($text))
         {
@@ -77,7 +224,6 @@ try
             }
 
             if ([string]::IsNullOrWhiteSpace($target) -or
-                $target.StartsWith('#') -or
                 $target.StartsWith('//') -or
                 $target -match '^[a-zA-Z][a-zA-Z0-9+.-]*:')
             {
@@ -85,36 +231,66 @@ try
             }
 
             $pathPart = ($target -split '[#?]', 2)[0]
+            $fragmentIndex = $target.IndexOf('#')
 
             if ([string]::IsNullOrWhiteSpace($pathPart))
             {
-                continue
-            }
-
-            try
-            {
-                $pathPart = [Uri]::UnescapeDataString($pathPart).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
-                if ($pathPart.StartsWith([System.IO.Path]::DirectorySeparatorChar))
+                if ($fragmentIndex -lt 0)
                 {
-                    $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 使用仓库根链接：$target；请改为相对当前文件的标准链接")
                     continue
                 }
 
-                $candidate = Join-Path $parent $pathPart
-
-                $candidate = [System.IO.Path]::GetFullPath($candidate)
+                $candidate = $file
             }
-            catch
+            else
             {
-                $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 无法解析链接：$target")
-                continue
+                try
+                {
+                    $pathPart = [Uri]::UnescapeDataString($pathPart).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+                    if ($pathPart.StartsWith([System.IO.Path]::DirectorySeparatorChar))
+                    {
+                        $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 使用仓库根链接：$target；请改为相对当前文件的标准链接")
+                        continue
+                    }
+
+                    $candidate = Join-Path $parent $pathPart
+                    $candidate = [System.IO.Path]::GetFullPath($candidate)
+                }
+                catch
+                {
+                    $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 无法解析链接：$target")
+                    continue
+                }
+
+                $relativeLinkCount++
+
+                if (-not (Test-Path -LiteralPath $candidate))
+                {
+                    $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 断链：$target")
+                    continue
+                }
             }
 
-            $relativeLinkCount++
-
-            if (-not (Test-Path -LiteralPath $candidate))
+            if ($fragmentIndex -ge 0 -and $fragmentIndex -lt $target.Length - 1 -and
+                [System.IO.Path]::GetExtension($candidate) -eq '.md' -and
+                -not $match.Value.StartsWith('!') -and
+                -not [string]::IsNullOrWhiteSpace($fragmentProse.Substring($match.Index, $match.Length)))
             {
-                $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 断链：$target")
+                $fragmentLinkCount++
+                $fragment = [Uri]::UnescapeDataString($target.Substring($fragmentIndex + 1))
+                $anchorInfo = get-markdown-anchors $candidate
+
+                if (-not $anchorInfo.Anchors.Contains($fragment))
+                {
+                    if ($anchorInfo.UnsupportedLines.Count -gt 0)
+                    {
+                        $warnings.Add("$($fileRelative):$((get-line-number $text $match.Index)) 无法确认锚点：$target；目标第 $($anchorInfo.UnsupportedLines -join ', ') 行含未支持的标题语法/字符，请人工核对或使用显式 <a name> 锚点")
+                    }
+                    else
+                    {
+                        $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 断开的 Markdown 锚点：$target")
+                    }
+                }
             }
         }
 
@@ -278,35 +454,11 @@ try
         # 只检查约定的快照结构，不从日期、测试数字或其它标题猜测验证语义。
         $validationSectionCounts = @{ '最近一次验证' = 0; '文档治理验证' = 0 }
         $validationSection = $null
-        $fenceCharacter = $null
-        $fenceLength = 0
         $lineNumber = 0
 
-        foreach ($line in $statusLines)
+        foreach ($line in [regex]::Split((hide-markdown-code-blocks ([System.IO.File]::ReadAllText($statusFile))), '\r?\n'))
         {
             $lineNumber++
-            $fence = [regex]::Match($line, '^ {0,3}(?<fence>`{3,}|~{3,})(?<info>.*)$')
-
-            if ($null -ne $fenceCharacter)
-            {
-                # 关闭 fence 必须同字符、长度不少于 opening fence，且后面只有空白。
-                if ($fence.Success -and $fence.Groups['fence'].Value[0] -eq $fenceCharacter -and
-                    $fence.Groups['fence'].Value.Length -ge $fenceLength -and
-                    [string]::IsNullOrWhiteSpace($fence.Groups['info'].Value))
-                {
-                    $fenceCharacter = $null
-                }
-
-                continue
-            }
-
-            if ($fence.Success -and ($fence.Groups['fence'].Value[0] -ne '`' -or -not $fence.Groups['info'].Value.Contains('`')))
-            {
-                $fenceCharacter = $fence.Groups['fence'].Value[0]
-                $fenceLength = $fence.Groups['fence'].Value.Length
-                continue
-            }
-
             $heading = [regex]::Match($line, '^(?<level>#{1,6})[ \t]+(?<title>.+)')
 
             if (-not $heading.Success)
@@ -424,7 +576,7 @@ try
         exit 1
     }
 
-    Write-Host "文档健康检查通过：$($markdownFiles.Count) 个 Markdown，$relativeLinkCount 个相对链接，$wikiLinkCount 个 memory wiki 链。" -ForegroundColor Green
+    Write-Host "文档健康检查通过：$($markdownFiles.Count) 个 Markdown，$relativeLinkCount 个相对链接，$fragmentLinkCount 个本地 Markdown 锚点，$wikiLinkCount 个 memory wiki 链。" -ForegroundColor Green
 }
 finally
 {

@@ -1,36 +1,20 @@
 ---
 name: reference_gameplay_skin_topology_revision
-description: Skin V1 topology-only primitive与C3唯一layout publication、BMS/mania native continuity及revision原子边界
+description: topology-only revision 计数与 exact native continuity，避免冒充最终 layout publication
 metadata:
   node_type: memory
   type: reference
 ---
 
-# gameplay skin topology与layout publication/revision召回
+# Topology revision 地雷
 
-权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只保存实现地雷。
+稳定合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，最终生产交换点见 [[reference_gameplay_skin_layout_snapshot]]；这里仅说明 topology-only primitive 的诊断边界。
 
-## C3层次及C4/C5 publication扩展
-
-- 下文`GameplaySkinLaneTopologyPublication`及其owner仍是topology-only continuity primitive，只给solver提供exact identity/order/native-context输入；它不是当前production geometry publication。
-- 最终交换点仍是`GameplaySkinLayoutRevisionOwner.CurrentPublication`。publication包含ruleset-neutral immutable snapshot及引用它的typed adapter，C4/C5又加入resolved material与prepared scene/event revision；`Current`只是该publication派生的neutral view，不是第二publication。
-- layout context绑定exact native context/keymode、topology、style、safe bounds/aspect/DPI、package/current revision、topology revision与layout revision。当前production一次发布package+layout+material+scene，失败保持exact旧quadruple；完整合同见[[reference_gameplay_skin_layout_snapshot]]。
-
-## topology-only shared owner
-
-- `GameplaySkinLaneTopologyPublication` 只绑定 exact immutable `Topology` reference 与 process-local `Revision`。一个新 owner 首次成功 publication 为 0；之后每次成功 publication checked `+1`，即使内容等价或只是独立重建也递增，所以 revision 不是内容 hash。
-- generic owner 先执行 ruleset 提供的 exact native-context comparator，再跑 neutral transition validator 与 overflow 检查；native mismatch、comparator exception、neutral rejection、invalid input 与 overflow 都保持上一成功 `Current` 且不消耗 revision。
-- `TNativeContext` 必须 immutable、非敏感；owner 保存 context 本身，不会替调用方冻结可变对象。新进程/新 owner 可重新从 0 开始，owner 也不保证 thread safety。
-- 这是 topology-only process-local contract，不是 package/component revision、manifest/serialization ABI、security boundary、event envelope 的 `layoutRevision`、wire producer 或完整 `GameplaySkinLayoutContext`。
-
-## ruleset continuity
-
-- BMS continuity authority 只有 exact `BmsKeymode`；`AppliedStyle` 是 presentation metadata，可在 neutral transition 允许时变化。9K BMS/PMS 的 neutral ID/role shape 相同，validator 会接受，所以 internal owner 必须在它之前按 keymode 拒绝。
-- mania continuity authority 是防御性复制的 exact ordered stage-column vector；`[4,5]`、`[5,4]` 与 `[9]` 即使总列数相同也不是同一 native context。不能只比较 total columns，也不能长期持有可变 beatmap stage collection。
-- mania projection 不接受调用方传入的任意 topology；它只从已校验/复制的 stage vector 生成 canonical group/lane token、side、role 与 index。
-- ruleset topology wrapper必须绑定topology owner发出的exact topology reference；这层只保证comparator/validation/overflow等预期拒绝路径的owner-state原子性。不能从它单独推导package/layout热重载已经实现；C3的原子切换由独立`GameplaySkinLayoutRevisionOwner`与C2 participant/lease协议完成，也不能反过来让topology owner形成第二个production exchange。
-
-## topology primitive 边界与 C3 补充
-
-- topology-only carrier/owner、internal BMS/mania wrapper与fixture本身仍不证明production attachment、playfield/renderer、`SkinManager`或资源生命周期；这些已由C3上层唯一layout publication和真实renderer另行闭合。不要把两层证明混写，或把process-local publication描述成event/wire ABI。
-- 验证必须覆盖 shared owner/transition、BMS 与 mania publication/topology；精确数字和 wider gate 只看 P1-A STATUS/CHANGELOG。
+- GameplaySkinLaneTopologyPublication 只绑定 exact Topology reference 与 process-local Revision。新 owner 首次成功为0，之后每次成功 checked +1，内容等价/独立重建也递增，因此不是 content hash。
+- 先做 ruleset native-context comparator，再 neutral transition、overflow 检查；native mismatch、comparator exception、neutral reject/invalid/overflow 都保留上一 Current，不消耗 revision。
+- owner 保存 TNativeContext 本身，不替调用者冻结 mutable 对象；输入须 immutable/非敏感。新进程/owner可从0开始，该 primitive不承诺线程安全。
+- BMS continuity 比 exact keymode，style只是 presentation。9K BMS/PMS neutral shape相同会通过通用 validator，不能省 native比较。
+- Mania 比防御性复制的 exact ordered stage vector；[4,5]、[5,4]、[9]总列相同但不同 context。不要保留 mutable beatmap stage collection，projection不接任意调用方 topology。
+- wrapper须持 topology owner签发的 exact reference；同值重建不能代替。上述拒绝原子性不等于 package/material/renderer 热重载已安全。
+- 最终 exchange 是 GameplaySkinLayoutRevisionOwner.CurrentPublication；neutral Current只是view，package/layout/material/scene一起发布。topology owner不能成为第二个production交换点，也不是event envelope的layoutRevision或wire ABI。
+- identity/index差异见 [[reference_gameplay_skin_lane_identity]]，完整 participant/lease lifecycle见 [[reference_skin_atomic_reload_detach]]。

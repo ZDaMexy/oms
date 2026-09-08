@@ -1,40 +1,46 @@
 ---
 name: reference_skin_osk_archive_import_safety
-description: ordinary .osk导入在archive枚举/读取/hash/Files.Add前的恶意归档门、流式预算与失败零残留地雷
+description: .osk 早期 archive 准入、实际字节预算与 same-hash/asymmetric baseline 零残留回滚地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# Ordinary `.osk` archive import safety 地雷
+# Ordinary .osk import safety 地雷
 
-> 实时范围、数值预算与完成状态只看[P1-A PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)、[STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)和[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。本页的skin-scoped安全链已随C1关闭；C2 current revision完成边界见[[reference_skin_atomic_reload_detach]]。
+完整预算、类型与格式准入见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md) 的 ordinary .osk ingress；当前证据读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。ordinary .osk 仍是 hash-backed Realm package，不接 managed-copy stager。
 
-## pre-C1失败链（禁止重新引入）
+## 为什么 Populate / texture 阶段检查太晚
 
-- `RealmArchiveModelImporter.Import()`先由`ImportTask.GetReader()`构造`ZipArchiveReader`，随后`CreateModel`、batch `computeHashFast()`、`getShortenedFilenames()`与`Files.Add()`都会消费archive；只在`SkinImporter.Populate()`或runtime纹理加载处检查已经太晚。
-- `ZipArchiveReader.GetStream()`在declared `entry.Size > 0`时把`long`强转为`int`后一次分配并`ReadExactly`；size为0时为规避SharpCompress历史bug使用`ReadAllRemainingBytesToArray()`，对unknown/data-descriptor/欺骗header没有流式硬上限。
-- `RealmArchiveModelImporter`会先枚举/缩短公共前缀、fast-hash内容，再逐entry写`RealmFileStore`，最后才进入模型Realm事务。恶意name冲突或中途失败若只在后段发现，可能已经消耗大量内存/IO或留下本次file-store副作用；必须用产品级零残留测试证明收口，不能从transaction rollback推断。
+历史失败链：ImportTask.GetReader 构造 reader → 枚举/缩短 common prefix → fast hash → Files.Add → model Realm 事务。后段拒绝时前段可能已分配大内存、写 blob；Realm rollback 不能撤销全部文件副作用。
 
-## 当前实现合同
+- 通用 reader 曾在 entry.Size>0 时 long→int 一次分配，size=0 则 ReadAllRemainingBytesToArray。unknown/data-descriptor/欺骗 header 不能靠 declared size 获得无限读取。
+- skin-scoped pre-open 先限 compressed length，nonseekable 用 bounded/cancellable/delete-on-close spool；自己的 bounded metadata parser 在通用 reader 无界物化前冻结 EOCD/CEN/local metadata。
+- entry/name/type/declared budget gate 完成前不暴露 Filenames，不 GetStream/hash/Files.Add/model；实际 copy/hash/CRC 流继续硬计 actual bytes、aggregate ratio 与 cancellation。
+- name 同时查 raw 与 common-prefix-shortened 后的 slash/NFC/Windows case-fold、file-directory conflict、traversal/ADS/device/trailing-dot-space。只查原名会漏掉缩短后的碰撞。
+- skininfo.json 只读最小 DTO、经 closed compatibility map；不能 Type.GetType(raw) 激活不可信 CLR 类型。archive 预算与 runtime texture 预算是两层，不能替代。
+- 失败/取消保留原 archive、无新增 model/reference/本次孤儿；共享 blob 不误删。成功才沿原 ShouldDeleteArchive 语义。Shift-JIS、公共顶层目录、Skin.InI 和历史合法包保留回归。
 
-- ordinary `.osk`使用两层skin-scoped preflight：在`ImportTask.GetReader`/`ZipArchive.Open`前只限制compressed source length并把非seekable stream写入bounded spool；随后由自身受compressed-input、central-directory bytes、entry count与内存预算约束的metadata parser/open立即枚举central-directory，不能先让通用reader无界物化metadata再后置检查。完整entry/name/type/declared-size gate后才允许`Filenames`向后续暴露；任何`GetStream`、fast hash、`Files.Add`、model construction或`SkinInfo` publication都在准入之后，实际copy/hash流再次硬计数并观察cancellation，不信任declared size。
-- name gate同时检查raw与common-prefix-shortened结果：slash/NFC/Windows case-fold重复、file-directory conflict、空名、traversal、ADS/device/trailing-dot-space及路径/层级上限；encrypted、overflow、truncated/CRC、symlink/special entry和zero/unknown/data-descriptor必须bounded accept或typed reject。
-- `skininfo.json`中的untrusted `InstantiationInfo`必须经过closed compatibility allowlist或稳定legacy fallback，禁止任意CLR type activation；archive ingress预算与runtime texture/decode预算是两层不同合同，不得互相冒充。
-- 拒绝、取消或失败不产生`SkinInfo`、Realm file reference、仅由本次创建的orphan blob/temp，也不能误删共享content-addressed blob；原`.osk`保留，只有成功继续既有`ShouldDeleteArchive`语义。cancellation须穿过source spool、entry copy/CRC、metadata rewrite、hash、`Files.Add`与model population，并在最终Realm publication事务前再次检查。Shift-JIS、公共顶层目录、`Skin.InI`及历史有效包必须回归。
-- 当前通过`RealmArchiveModelImporter`的protected virtual reader/scope hook仅让`SkinImporter`选择专用reader、关闭fast precheck并启用exact receipt；beatmap/score等默认仍走原reader。共享基类与`RealmFileStore`的默认路径回归已纳入C1退出门。普通`.osk`继续是hash-backed Realm package，不得转为external/managed或接入managed-copy stager。
-- bounded ingress/receipt只负责导入安全，不授予reload或mutation authority。ordinary current `.osk`的same-ID Reload使用fresh Realm declaration set与逐blob hash准备新revision；已发布owner不受Realm record的file-declaration path、external或DeletePending projection漂移污染，late renderer仍消费active immutable capsule；fresh reload/mutation重读到path改变造成的declaration mismatch时拒绝，不得误称registry file drift。current Delete先发布protected fallback并等待old detach，再做Realm soft-delete，Realm失败恢复exact旧pair/revision、record与blob。两者都不得放宽importer、update-import或direct current file mutation。
+## Receipt 与 same-hash 并发
 
-## 2026-08-13 C1关闭合同
+- opt-in receipt 按 RealmAccess + storage identity + hash 组成 participant group；并发 same-hash scope共同参与。active scope/add 没结束不能 finalize，有成功/unscoped writer、usage/backlink 或新 generation 就保留共享资产。
+- baseline Realm record 与 physical blob 独立记账，不能只用同 hash 或单一 created flag：
 
-- `Skinning/IO/SkinArchiveReader`在任何`ZipArchive`消费前限制path/seekable/nonseekable raw输入；nonseekable使用bounded、可取消、delete-on-close spool，自行解析并冻结EOCD/CEN/local metadata，再只允许Store/Deflate普通文件进入后续reader。
-- entry/name/type/压缩与展开预算、CRC、actual bytes、aggregate ratio及cancellation由frozen metadata和实际流双重检查；`skininfo.json`只解析最小DTO并按closed compatibility map canonicalize，未知CLR类型稳定回落，不调用`Type.GetType(raw)`。
-- opt-in `RealmFileStore` receipt按`RealmAccess + storage identity + hash`建立进程内participant group；并发same-hash scopes必须共同参与，只有全部participants/adds结束、没有成功或unscoped writer且仍持有rollback资产时才可finalize。任一成功participant、已有usage/backlink或finalization generation被fresh add取代都保留共享资产；每个hash的rollback异常隔离，不能阻止其它hash收口，失败group可由后续同hash scope安全重试。
-- Realm record与physical blob的baseline必须独立记账：baseline record存在但blob缺失时只删除本group写出的blob；baseline blob存在但record缺失时只删除本group创建且仍零引用的record；二者都不存在时才分别按各自ownership删除，二者都存在时都保留。不得以“同hash”或单一created flag把两侧捆绑回滚，也不调用全局`Cleanup()`。
-- rollback lock order须保持`Realm transaction → import group lock`；scope参与清单在锁内摘取后于锁外逐group finalization，cleanup只能在无active scope/add时进入。storage删除在Realm阶段完成且generation仍exact后执行；任何新add/finalizer竞态都由active计数、generation与group identity复验阻止误删。
-- C1已闭合专用reader、receipt、shared importer回归与Release门；这些验证不允许删掉上述恶意archive、取消、same-hash并发与asymmetric baseline地雷。
+| 导入前 | 本 group 回滚最多可处理 |
+| --- | --- |
+| record 有、blob 缺 | 仅本 group 写出的 blob |
+| blob 有、record 缺 | 仅本 group 创建且仍零引用的 record |
+| 两者都缺 | 分别按各自 ownership 处理 |
+| 两者都有 | 两者都保留 |
 
-## 测试地雷
+- 不调用全局 Cleanup。每 hash rollback 异常隔离，不能阻止其它 group 收口；失败 group 可由后续同 hash scope按证据重试。
+- 锁顺序 Realm transaction→import group lock；参与清单锁内摘取、锁外逐 group finalize。物理删除在 Realm 阶段完成且 generation仍 exact 后执行；新 add/finalizer 竞态要复核 active计数、generation、group identity。
 
-- 不能只生成declared-size正常的小zip；必须覆盖size为0却有内容、unknown/data-descriptor、超高ratio、声明/实际不一致、并发取消、fast-hash阶段失败、N次`Files.Add`后失败、same-hash多participant及record/blob两种asymmetric baseline。
-- 自动断言除typed reason外还要检查：原archive存在、Realm模型/引用集合未增、file store没有本次孤儿、import queue继续可用、后续合法包可成功导入；异常与诊断不得输出用户路径或entry原始敏感文本。
+## 有意义的回归面
+
+- size=0 但有内容、unknown/data-descriptor、高 ratio、declared/actual 不一致、CRC/truncated、取消、fast-hash失败、N次 Files.Add 后失败。
+- same-hash多 participant 与上表两种 asymmetric baseline；不能只生成小正常 zip。
+- 除 typed reason，还查原 archive 保留、Realm模型/引用未增、无本次孤儿、队列与后续合法导入仍可用。日志不能泄露路径/entry 原文。
+- 共享 reader/importer/file-store hook 的修改必须查 beatmap/score 默认路径；skin opt-in 不等于全局换 reader。
+
+导入 receipt 不授予 reload/mutation authority；current .osk 的 fresh declaration/blob capture、fallback+detach 后 soft-delete 见 [[reference_skin_atomic_reload_detach]]。

@@ -1,6 +1,6 @@
 ---
 name: project_oms_bms_skin_authoring
-description: BMS 素材+ini 皮肤的稳定产品决议、不可误推边界与实现地雷
+description: BMS 皮肤用户决定、作者能力边界与常见错误入口的召回
 metadata:
   node_type: memory
   type: project
@@ -8,61 +8,37 @@ metadata:
 
 # BMS 皮肤创作召回
 
-权威当前态：[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)；计划/约束：[P1-A PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)、[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；V1 审计：[SKIN_SYSTEM_V1_ARCHITECTURE_20260710](../../doc_md/other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)；恢复证据：[[reference_skin_recovery_20260710]]。
+当前可选包、public slot、视觉签收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)；产品目标/硬约束读 [PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，作者说明读 [SKINNING](../../doc_md/other/SKINNING.md)。皮肤异常任务先进入 [[reference_skin_recovery_20260710]]。
 
-## 权威路由与不可误推
+## 必须召回的用户决定
 
-- 用户当前能选择哪种包、哪些slot已经进入production、哪些视觉待签收，只看P1-A STATUS与`SKINNING.md`页首；本memory不复制逐刀完成度、测试数字或“下一刀”。
-- source-bound material、逐组件fallback、exact revision和状态宿主等实现地雷只说明对应能力存在时应满足的合同；reload实时能力只看[P1-A约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)与[[reference_skin_atomic_reload_detach]]。C1～C5已签发，当前campaign是否推进仍只看P1-A，不得据memory跳过C6/C7退出门。
-- 程序化`OmsSkin`是恢复期迁移保障；在P1-A明确记录canonical `oms-simple.osk`完成parity、完整性、恢复与实机gate并接管前不得删除，接管后必须退出产品渲染链。
-- G1任务先查P1-A当前门；发现/选择/rename/staged-import/managed-delete专项地雷从[[reference_skin_managed_folder_scanner]]、[[reference_skin_managed_folder_selection]]与[[reference_skin_managed_folder_mutation_foundation]]进入。技术节点记录窄合同，不等于G1完成证明；产品价值核算与后续完整纵切准入见[[project_oms_skin_product_progress]]。
-- 产品可达性必须按caller追到真实入口：production程序集内的internal operation/recovery不等于玩家功能；shared topology/config/event/capability/candidate合同没有production host/renderer/authoring consumer时也不计进度。后续不得横向扩张无同切或紧随切片consumer的抽象。
-- F2/F3/G2、Lua、mania fallback adapter与reference-default是恢复期撤回/未恢复面的历史名称；不要把旧编号写成当前状态，现行等价范围只从`SV1-*`计划映射。
-- 恢复期保留的稳定修正是base parser前重置配置流，以及14K第二皿使用`S2`/P2素材；若代码改变仍须以当前fixture复核。
+- 范围是 gameplay；不移植 LR2/beatoraja runtime，只对齐元素族与表达力。保持 .osk 分发、根 skin.ini、mania 素材/动画命名、目录编辑和拖入导入心智；BMS/scene/script 为版本化扩展，不要求 DLL。
+- mania 普通 .osk 是固定行为宿主 + legacy 素材/参数，不能当作通用作者脚本上限。共享 neutral codec/scene/event/reload/sandbox，ruleset topology adapter 各自保留。
+- 引擎掌握 gameplay truth、layout、滚动/LN 裁剪、池、BGA 内容时钟与安全；作者控制 scene/动画/只读响应。三态按 catalog 的 requirement/applicability 决定，不另列会漂移的 suppress 清单。
+- canonical oms-simple 和公开 API 展示包 oms-complex 同时覆盖 mania/BMS；Authoring Kit 是可编辑源、模板、schema/事件/layout/预算说明、validator/diagnostics 与打包文档，不是第二套 SDK/runtime。
+- 程序化 OmsSkin 在 canonical parity、完整性、原子恢复与实机 gate 前保留，接管后退出产品渲染；canonical 损坏走明确安装修复，不暗落另一套程序化主题。
+- 视觉采用集中签收；自动可证切片可继续，但不得把“实现/自动通过，视觉待验收”写成产品/release 完成，或复用 2026-07-14 静态恢复签收。
 
-## 稳定产品决议
+## 常见误入口
 
-1. 皮肤范围以 gameplay 为主；不移植 LR2/beatoraja runtime，只对齐元素族。
-2. OMS 方言为 mania-aligned 静态项 + `[Bms]` 扩展；按 keymode 分桶。
-3. mania 普通 `.osk` 是固定 C# 行为宿主 + legacy 素材/参数，不是通用作者脚本上限。V1 共享 neutral codec/scene/event/reload/sandbox，mania 与 BMS 保留各自 topology adapter；采用 adapter-first 迁移。
-4. 引擎拥有 gameplay truth、playfield/BGA layout、滚动/LN 裁剪、对象池、BGA 内容时钟和安全边界；外部 package 拥有具体 scene、动画与只读事件响应。
-5. 三态为 `Provide/Inherit/Suppress`；仅 lane/scratch 可辨识、note/LN/mine、判定位置和启用中的 cover 几何不可 suppress。judgement display、combo、gauge visual、HUD、BGA frame、按键/命中特效均可关闭。
-6. 发布交付同时含 mania/BMS 的 `oms-simple.osk` 与 `oms-complex.osk`。前者是只读 canonical fallback，后者证明 IIDX 级公开 API 上限；程序化 `OmsSkin` 在文件 fallback parity/完整性/恢复 gate 后退出产品渲染链。
-7. 5K/7K 覆盖 P1/P2/CenterP1/CenterP2，9K BMS/PMS 居中，14K 双 deck/双皿/centre gap；所有 playfield/HUD/BGA/scene 消费一个 layout snapshot。
-8. lazer layout editor 只管理既有 `ISerialisableDrawable` HUD；新 scene manifest 使用稳定 allowlisted node ID，不能复用序列化 CLR `Type` 的 editor JSON。
-9. 对齐 osu 社区工作流：`.osk` 分发、根 `skin.ini`、mania 共同素材/动画命名、普通目录编辑与拖入导入；BMS/scene/script 是版本化扩展，不要求 DLL。
-10. Skin Authoring Kit 是两包可编辑源 + 注释模板 + 字段/事件/layout/预算规范 + validator/diagnostics + `.osk` 打包说明，不是另一套 SDK/runtime。
+- F2/F3/G2、Lua、reference-default 等是恢复期历史名称，不据此恢复代码或判断当前门。异常归档只定点取证，不整包恢复。
+- core LegacySkin 不编译依赖 BMS；精确反射类型匹配必须排除 LegacyBeatmapSkin 等其它子类。
+- 注入式 BeatmapNoteSkin fixture 不证明真实 public sidecar。WorkingBeatmap.Skin 的只读 legacy direct visual compatibility 可继续存在，但 public sections 不进入作者 resolver；重开新作者格式需独立完整产品 gate。
+- lazer editor 的 ISerialisableDrawable/CLR Type JSON 不能复用为外部 scene manifest；scene 只接受版本化 allowlisted node ID。
+- callback 返回后量 stopwatch 无法阻止 while true；sandbox 必须可抢占并有 instruction/heap/node/resource quota。
+- schema 来自生产组件与合同，SKINNING 是派生说明，不反向把旧说明当实现需求。
 
-## 实现地雷
+## 诊断导航
 
-- core `LegacySkin` 不得编译依赖 BMS ruleset；BMS 配置留在 ruleset，通过精确反射类型接入。类型匹配必须排除 `LegacyBeatmapSkin` 等其它子类。
-- 不得把注入测试的 `BeatmapNoteSkin` 写成真实 BMS beatmap-local 作者能力。C4已从public source/candidate排除BeatmapLocal；真实importer/manager的`WorkingBeatmap.Skin`仍惰性返回同一只读`LegacyBeatmapSkin`实例，只保留高优先级direct visual compatibility，且其public section不得进入author resolver。未来若重开，必须以独立产品gate一次性交付安全sidecar、producer/importer、`WorkingBeatmap` public document/revision authoring ownership、C1/C2 lifecycle与两ruleset consumer。
-- schema 由代码/真实组件确立，`SKINNING.md` 是派生说明，不能反向驱动实现。
-- 贴图优先；无贴图才使用 ini colour/palette。composite 化后测试要读内层 visual，不读容器自身 colour。
-- lane 宽经总相对宽归一化；同比缩放所有 lane relative width 无效。几何细节见 [[reference_bms_default_skin_geometry]]。
-- `HitTargetVerticalOffset` 保持 0 以守住时间/滚动合同。
-- C3已签发唯一ruleset-neutral immutable layout与BMS唯一solver：finite/正值/range/safe-area/screen-space/non-overlap逐字段验证，playfield、gauge/combo、HUD与BGA最终viewport均消费同一exact snapshot。`LongNoteBodyWidth`仍只接受finite且`0 < width <= 1`，否则以稳定typed原因回到`0.5775`，并与素材一起进入C4 exact material publication；不得恢复第二套profile或固定rect authority。
-- legacy mania 缺 `Keys:` bucket 时会合成默认 configuration；neutral model 必须保留 explicit presence，不能把合成默认误判为 `Provide`。
-- 六类 lane-resource 的production候选顺序已由C4接入唯一resolved material：5K `[Bms]→Keys:6→Keys:5`、7K `[Bms]→Keys:8→Keys:7`、9K `[Bms]→Keys:9`且不重复、14K `[Bms]→Keys:16→同一Keys:8 bucket分投两deck→Keys:14`；scratch与stage-local索引均来自C3 stable topology。candidate/snapshot只投影legacy source，最终authority仍由shared resolver决定。
-- `LongNoteBody` 的 resource frames、resolved width 与解析后 `skin.ini` identity 必须进入同一个 source-bound material；发布后 renderer 不得再向 aggregate skin 查询宽度。selected body 坏声明不得与下层裸同名纹理或裸宽度拼件，只有下层自己的完整组件或 protected rescue 能接管。
-- selected-package/default body共用一个状态宿主，由真实`DrawableBmsHoldNote`驱动Idle/Holding/Broken；active alpha `0.8`、broken alpha `0.32`，约`80ms` tint/fade，HCN才允许regrab回Holding。异步body在状态已改变后到达时要立即投影当前状态，不得另造gameplay state authority。
-- active `BmsLegacySkin`绑定exact immutable revision，磁盘变化不会自行混入。C2已签发Settings唯一manual Reload：ordinary `.osk`、managed、external准备same-ID new instance/revision，经participant barrier发布并等待旧owner最后lease detach；live gameplay/preview在source prepare前拒绝，无watcher。`C3`～`C6`新增consumer逐次加入，最终ini/manifest/scene/script/素材整包门到`C6`关闭；稳定地雷见[[reference_skin_atomic_reload_detach]]。
-- configured managed selection与startup scanner的竞态已用typed `StartupSequence`/staged-import completion和fresh retry闭合：update thread不等待，retry跨startup与generic mutation双epoch观察，并重做generation、authoritative Realm、path/owner/freeze、factory/capsule及latest-wins/reentrant复核；generic mutation任一边界跨越仍fail-closed，不得为rename/import/delete复用startup特例。
-- 9K legacy raw `0..8` 与public canonical `1..9`只经`bms-gameplay-skin-nine-key-index.v1`双向映射并round-trip；未知版本fail-closed，禁止静默双alias或按猜测兼容。
-- 当前 BGA skin display 接 raw timeline 并在 14K 建四个 player。V1 改成单一 engine-owned content session + 只读 viewport/proxy，多视图不得复制 decoder/clock authority。
-- 三态使用平行 gameplay provider result，不直接改 nullable `ISkin` ABI；ruleset resource authority继续保留。C4明确不提供beatmap-local public authoring，仅保留legacy beatmap direct visual compatibility且其precedence高于selected package Suppress。
-- canonical `oms-simple` 自身失败是安装完整性故障，必须走明确修复路径；禁止偷偷落到另一套程序化颜色/节点。
-- 脚本 VM 必须可抢占并有 instruction/heap/node/resource quota；回调返回后再看 stopwatch 无法阻止 `while true`。
-- G1 external Workspace与ordinary `.osk` ingress安全门已随C1关闭；`NativeStorage`只作为只读capture adapter，service-owned record不是capability，selection/Open/ManagedCopy仍须fresh held identity。C2签发的current external Unregister先protected fallback publication+old detach，再fresh compare exact service-owner/record/current revision后pure-Realm remove；任一步失败恢复A、保record且source零变化。current managed/ordinary delete也先fallback+detach，managed之后才进入C1 journal/physical边界。细节见[[reference_skin_external_workspace_managed_copy]]与P1-A CONSTRAINTS。
-- 异常期代码只可定点参考，禁止整批恢复。
-- lane keysound timeline 上界地雷见 [[reference_bms_lane_keysound_timeline_bounds]]。
+| 现象 | 优先进入 |
+| --- | --- |
+| ordinary .osk stream、14K 第二皿素材 | 恢复期保留修正是 base parser 前 rewind stream、S2/P2 素材；先查当前回归，见 [[reference_skin_recovery_20260710]] |
+| lane 相对宽修改无效、hit position/裁剪漂移 | [[reference_bms_default_skin_geometry]]、[[reference_gameplay_skin_layout_snapshot]]；同比缩放全部 relative width 会被归一化抵消，HitTargetVerticalOffset 保持时序合同 |
+| 缺 Keys 被当成声明、同名贴图/width 跨包拼接 | [[reference_gameplay_skin_config_presence]]、[[reference_gameplay_skin_lane_resource_compatibility]] |
+| LN body 异步到达后颜色/状态不对 | 真实 DrawableBmsHoldNote 是 Idle/Holding/Broken authority；新 visual 立即投影当前态，不自建 gameplay state；常数只查 P1-A 的 LN 视觉合同 |
+| 原位文件修改未生效、旧资源释放过早 | [[reference_skin_atomic_reload_detach]]；active immutable instance 不观察磁盘，manual Reload 是统一入口 |
+| Workspace copy/rename/delete 或源丢失 | [[reference_skin_external_workspace_managed_copy]]、[[reference_skin_managed_folder_mutation_foundation]]；external 永久只读 |
+| 多 BGA viewport 占用多 decoder | [[reference_bms_bga_chain]] 与 P1-L；统一 viewport 不等于单内容源 |
+| 窄 foundation 被写成整轮交付 | [[project_oms_skin_product_progress]] |
 
-## 当前工程入口
-
-视觉验收采用集中签收：切片通过自动、合同、安全与回退gate后即可按依赖继续，待签收只能记为“实现／自动gate通过，视觉待验收”，不得计作交付、`SV1`完成或release gate通过；只有视觉结论确实影响后续实现才暂停。普通短键与长条head/body/tail的具体ID、当前签收状态和输入只看集中视觉清单，且不得复用2026-07-14静态恢复验收。C2三源publication/detach/retire、C3唯一layout/BGA viewport、C4 shared codec/三态material与C5 prepared scene/read-only event/slot host已作为同一package+layout+material+scene引用签发；燃尽为`5/7 closed，C6 active`。sandbox、`oms-simple/oms-complex`/Authoring Kit/file fallback不得提前计为完成；新beatmap-local作者格式已明确排除，既有direct visual compatibility保留。
-
-## C5 BMS authoring/runtime 召回
-
-BMS 作者包现在可在 exact captured package 中附带 v1 manifest/scene，通过 shared prepared graph 驱动全部适用 global/stage/group/lane、Note/LN、lane cover、barline、judgement/combo/gauge/HUD、key/effect、turntable/laser、BGA frame/viewport 与 decoration。5K/7K/9K/14K、14K 双 deck、Scratch/Special 的 target/index 仍完全由 C3 topology 与 stable LaneId/GroupId决定；Mirror/Random 只改变对象最终 LaneId，keysound/resource/scene/event 一起随 lane 走。
-
-真实 BMS lifecycle/input/object/judgement/timing/BGA state 进入 bounded read-only event stream；scene 不得改变判定、score、input、clock、BGA timeline 或 P1-K keysound。BMS profile 对 catalog 28 项均有 route，9K 的 Turntable/Laser 只因 catalog applicability 不适用；所有新 host 服从 C2 participant/lease/detach/retire，C6 才加入 script/sandbox 和最终整包 reload。
+不在此页重复 campaign 燃尽、slot 数量、candidate 表或测试数字。

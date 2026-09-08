@@ -4,6 +4,11 @@
 
 ## 2026-09-09
 
+### 文档与记忆健康度专项优化
+
+- STATUS 保留当前事实与最新实际复验，旧 C5 数字回链既有历史；PLAN 集中七 campaign 预算、C6/C7 完整退出门并合入重复实施补充。TECH 增加任务索引和 G1 操作小节，重复 publication 与 LN 状态合同回链唯一章节，保留原编号及具体物理/journal 边界。
+- 皮肤记忆精简重复规格和过程史，保留 NTFS、取消、恢复、lease 与 legacy 解析的独有诊断；修正伪 canonical marker 与 staged import 入口旧表述。无产品行为或验收门变更，脚本回归、文档门及整体度量见[主线治理记录](../../mainline/CHANGELOG.md#文档与记忆健康度专项优化)。
+
 ### 实际生产进度与文档记忆同步
 
 - 以本地`2f8aedd`的Settings/Workspace→SkinManager三源→exact publication→BMS/mania/core renderer、scene/event及真实production矩阵测试源码复核C1～C5可达性，确认通用script capability尚无production caller、C6/C7未交付及beatmap-local/legacy/canonical边界。internal fixed-source staged import不单独计玩家功能；ManagedCopy复用其公共底层。

@@ -1,72 +1,55 @@
 # OMS 文档入口
 
-`doc_md/` 是项目治理权威；`.Codex/memory/` 只负责经验召回。目标是让协作者在几分钟内找到“现在做什么、为什么、受什么约束”，而不是通读历史。
+`doc_md/` 保存项目状态与合同，`.Codex/memory/` 保存诊断经验。日常只读当前入口和所属子线，历史按需查找。
 
 ## 三分钟阅读路径
 
-先按 [AGENTS.md](../AGENTS.md#开始工作)核对 Git 基线，再沿以下路径判断当前工作；本地旧文档与远端跟踪内容须区分。
+先按 [AGENTS.md](../AGENTS.md#开始工作)核对 Git 基线，再读：
 
-1. [mainline/DEVELOPMENT_STATUS.md](mainline/DEVELOPMENT_STATUS.md)：当前阶段、活动主线、最新验证和阻塞。
-2. [mainline/DEVELOPMENT_PLAN.md](mainline/DEVELOPMENT_PLAN.md)：只确认当前活动 gate、退出条件与后续依赖。
-3. 从 [subline/README.md](subline/README.md) 进入所属子线，只读该线 `STATUS` 与任务相关的 `CONSTRAINTS` 小节。
-4. 需要产品红线时，在 [mainline/OMS_COPILOT.md](mainline/OMS_COPILOT.md) 按关键词定位；需要历史时，在对应 `CHANGELOG.md` 按日期或子线编号搜索。
+1. [主线 STATUS](mainline/DEVELOPMENT_STATUS.md)：当前阶段、阻塞和最新验证。
+2. [主线 PLAN](mainline/DEVELOPMENT_PLAN.md)：当前 gate、顺序与验收条件。
+3. [子线路由](subline/README.md)：进入所属 STATUS 和相关 CONSTRAINTS。
+4. 按需检索 [OMS_COPILOT](mainline/OMS_COPILOT.md) 的产品红线、所属 CHANGELOG 的日期/关键词，或 [memory 索引](../.Codex/memory/MEMORY.md) 的诊断主题。
 
-默认不要整篇加载 `OMS_COPILOT.md`、mainline `DEVELOPMENT_PLAN.md` 的历史版本或任何大型 `CHANGELOG.md`。
-
-## Agent 与记忆入口
-
-- [AGENTS.md](../AGENTS.md) 是唯一跨 Agent 协作规则源。
-- [CLAUDE.md](../CLAUDE.md) 只是 Claude 兼容跳转，不复制规则和状态。
-- [.Codex/memory/MEMORY.md](../.Codex/memory/MEMORY.md) 只路由到特定地雷/诊断；单次任务按需读少量文件，不整库加载。
-- memory 采用“权威链接 → 稳定合同 → 地雷/诊断 → 未闭合项”，不保存可从 CHANGELOG 查询的逐日实现史或旧测试数字。
+[AGENTS](../AGENTS.md) 是唯一协作规则源，[CLAUDE](../CLAUDE.md) 只作兼容跳转。不要默认加载整篇大合同、历史版本或 CHANGELOG。
 
 ## 分层与唯一职责
 
-| 层 | 内容 | 入口 | 是否权威 |
-| --- | --- | --- | --- |
-| `mainline/` | 全局状态、编排、产品硬约束、全局历史 | [mainline/README.md](mainline/README.md) | 是 |
-| `subline/P1-*` | 单一专项的计划、状态、约束和历史 | [subline/README.md](subline/README.md) | 是，限该专项 |
-| `other/` | 格式资料、外部审计、制作者/发行说明、恢复证据 | [other/README.md](other/README.md) | 参考；正式结论须回写主线/子线 |
-| `mini/` | 与主线无关、可独立关闭的小事项 | [mini/README.md](mini/README.md) | 是，限该事项 |
-
-## 四类文件的边界
-
-| 文件 | 只写什么 | 禁止写什么 |
+| 层 | 保存内容 | 入口 |
 | --- | --- | --- |
-| `DEVELOPMENT_STATUS.md` | 当前事实、当前风险、下一检查点、唯一一条最新验证 | 调查流水账、逐日实现史、多轮旧测试数字 |
-| `DEVELOPMENT_PLAN.md` | 未完成工作、依赖顺序、验收条件、冻结项 | 已完成实现细节、提交日志、重复的当前测试数字 |
-| `TECHNICAL_CONSTRAINTS.md` | 稳定合同、红线、必须重跑的验证面 | 临时进度、一次性命令输出、靠末尾补充覆盖的失效合同 |
-| `CHANGELOG.md` | 按日期倒序的已确认变化、验证命令与结果 | 当前优先级、仍会变化的状态叙事 |
+| mainline | 全局编排、跨线风险、产品硬约束及历史 | [主线入口](mainline/README.md) |
+| subline | 一个专项的事实、计划、合同与历史 | [P1-A～M](subline/README.md) |
+| other | 作者/发行说明、格式参考、带日期的审查和恢复证据 | [参考索引](other/README.md) |
+| mini | 没有现成归属、需独立跟踪的事项 | [mini 入口](mini/README.md) |
+| memory | 难以从代码直接看出的踩坑、复现条件和诊断方法 | [记忆索引](../.Codex/memory/MEMORY.md) |
 
-同一事实只保留一个权威落点：当前状态进 `STATUS`，未来动作进 `PLAN`，不可破坏的语义进 `CONSTRAINTS`，过程与旧数字进 `CHANGELOG`。其它文件只链接，不复制长段落。
+| 文件 | 唯一落点 | 不保存 |
+| --- | --- | --- |
+| STATUS | 当前事实、风险、下一门、最新验证 | 调查流水账和多轮测试数字 |
+| PLAN | 未完成工作、依赖、验收、冻结项 | 已完成实现细节、提交日志 |
+| CONSTRAINTS | 稳定行为合同和不可破坏的边界 | 临时进度、末尾覆盖前文的补丁条款 |
+| CHANGELOG | 按日期倒序的已确认变化、命令与结果 | 活动优先级 |
+| memory | 权威链接 + 独有地雷/诊断 | 合同全文、字段大全、当前燃尽和逐日实现史 |
+
+同一事实只维护一个权威落点，其它层摘要并链接。当前状态以 owning STATUS 为准；带日期的报告说明当时验证了什么，不自动变成最新状态。外部参考形成正式决定时，回写 owning PLAN/CONSTRAINTS。
 
 ## 低噪声预算
 
-- `STATUS` 建议不超过 120 行；开头只允许“最后更新 + 上级入口”，禁止把 changelog 塞进引用块。
-- 产品验证统一写在唯一 `## 最近一次验证` 下；多项测试用列表或表格，不设轮次子标题。纯文档/流程结果单独用至多一个 `## 文档治理验证`，不能刷新产品测试日期；没有产品验证的状态页可省略产品验证章节。以上章节内均不设下级标题，历史结果归 CHANGELOG。
-- `STATUS` 超过 6000 字符、`PLAN` 超过 10000 字符或两者单行超过 800 字符时告警复核。字符数按 .NET 字符串长度计算，全文含 Markdown 与换行、单行不含换行；优先归位重复内容，不靠合并长行或任意断行凑预算。
-- `README` 只做路由和一句话结论，不承载实现详情。
-- `PLAN` 的已完成事项只保留一行结果或移出；实现日记必须进入 `CHANGELOG`。
-- `CHANGELOG` 可以增长，但只通过 `rg -n "日期|P1-X|关键词"` 定点读取，不作为每次会话上下文。
-- 测试数字只在所属子线 `STATUS` 的最新验证和本次 `CHANGELOG` 各出现一次；主线保留结果摘要和链接，旧数字不反复同步。
-- 合同更新直接修改相应现行章节，旧决策归 CHANGELOG/Git；引用的章节/文件同时校正，不叠加“前文保留历史、以后文为准”的覆盖条款。
-- 带日期的结论只要不再影响当前决策，就从 `STATUS/PLAN` 删除，历史由 Git 与 `CHANGELOG` 保存。
-- 单次执行 prompt、会话 handoff 话术和“下一轮入口”只在聊天交付，不单独落库，也不得成为 `STATUS/PLAN/README/memory` 的权威依赖；可持续复用的事实分别归入四件套，诊断地雷才进入 memory。
-- Agent 适配文件不得复制 `AGENTS.md`；memory 单行建议不超过 800 字符，发现状态叙事时改为链接权威 STATUS。
-- 仓库内 Markdown 链接必须按文件所在目录使用标准相对路径；不依赖“从仓库根再猜一次”的非标准回退。
-- 生产/用户数据精确 hash、mtime、byte size、会话 ID 与可识别个人/机器的 home 路径不得进入文档；通用路径示例和公开制品 checksum 可以保留但须明确语境，其它本机取证路径改用脱敏占位符或仓库外 authority。
+- STATUS 最多 120 行，建议不超过 6000 字符；PLAN 建议不超过 180 行、10000 字符。两者单行超过 800 字符时复核是否塞入重复段落；不靠断行或合并长行凑预算。
+- 产品验证只写在唯一 `## 最近一次验证`；纯文档结果可另设一个 `## 文档治理验证`。两章不设轮次子标题；没有产品验证时可省略产品章，治理不得刷新产品/实机日期。
+- 测试数字集中于 owning STATUS 最新验证和当次 CHANGELOG；主线只摘要、链接。跨线审查报告可保存本次矩阵，避免向每条子线再复制整表。
+- 治理 README 最多 80 行，只做路由；memory 单行最多 800 字符。记忆增长时先检查是否重复合同/其它叶子，不凭体积拆成更多文件。
+- CHANGELOG 允许增长，通过 `rg -n "日期|P1-X|关键词"` 查找。旧决定和不再影响当前工作的日期化事实退出 STATUS/PLAN，不为减少体积抹除恢复证据。
+- 合同就地更新，保留具体输入边界、失败条件和理由；不叠加“以后文为准”。标题改名或拆分时同步修正链接及片段锚点。
+- 任务 prompt、会话话术和临时交接不入库。已有主线/子线归属的小修只更新相应文件，不另外生成审计报告或 mini 四件套。
+- 仓库内 Markdown 链接使用相对当前文件的标准路径；含空格路径用 `<...>`。当前入口与记忆保留稳定文件名，合并节点须同步全部引用。
+- 生产/用户数据精确 hash、mtime、byte size、会话 ID、个人 home 路径不入文档；保留脱敏结论和仓库外证据位置。通用路径示例和明确的公开制品 checksum 可保留。
 
 ## 联动规则
 
-1. 开工前先归属到一个主线、子线或 mini；跨线时指定一个主归属，其余只链接。
-2. 改动改变状态、计划、约束或验证结论时，同次更新对应文件。
-3. 子线变化影响全局优先级、release gate 或产品红线时，只向 mainline 回写一条摘要和链接。
-4. `other/` 的结论升级为正式决策时，必须进入对应 `PLAN/STATUS/CONSTRAINTS`。
-5. 新踩坑同步到 `.Codex/memory/`；memory 与文档冲突时以当前代码、测试和 `doc_md` 为准。
-6. 完成前运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check`；脚本兼容 Windows PowerShell 5.1，检查标准相对链接、四件套/索引、STATUS 验证章节结构、行数预算、memory wiki 链、隐私残片和会话级 PLAN 污染，篇幅仅告警。主线、子线和 mini 采用同一规则；通过表示这些结构检查通过，不证明文档语义、代码行为或人工 gate 已正确。
+1. 先归属主线、子线或 mini；跨线指定一个主归属。只同步本次实际改变的状态、计划、合同和验证结论，不机械刷新全部文件日期。
+2. 子线影响全局优先级、release gate 或产品红线时，向 mainline 回写一句摘要和链接；新增地雷写 owning memory，并更新索引描述。
+3. 完成前运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 和 `git diff --check`。脚本检查结构、文件/片段链接、索引和约定的隐私残片；本地锚点覆盖普通 ATX 标题、行内 code、重复标题和显式 `<a name/id>`，复杂标题只提示人工核对，不猜结果。通过不证明代码、文档语义或人工验收正确。
+4. 修改检查脚本时另运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\TestCheckDocumentation.ps1`，用临时小仓库验证正反案例；只改文档无需重复跑该脚本或产品测试。
 
-## 当前特殊入口
-
-- 皮肤恢复权威：[other/SKIN_SYSTEM_RECOVERY_20260710.md](other/SKIN_SYSTEM_RECOVERY_20260710.md)
-- 皮肤专项当前态：[subline/P1-A/DEVELOPMENT_STATUS.md](subline/P1-A/DEVELOPMENT_STATUS.md)
-- 跨会话记忆索引：[../.Codex/memory/MEMORY.md](../.Codex/memory/MEMORY.md)
+当前入口：[皮肤恢复边界](other/SKIN_SYSTEM_RECOVERY_20260710.md) · [P1-A 状态](subline/P1-A/DEVELOPMENT_STATUS.md) · [构建与验证地雷](../.Codex/memory/reference_build_and_test.md)。

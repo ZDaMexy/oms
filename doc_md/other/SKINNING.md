@@ -130,7 +130,7 @@ Keymode:  14K              // DP 单独一段
   形如 `NoteImageS`、`NoteImage1`（逐道纹理键内嵌 lane token）。
 
   > **9K 版本边界**：legacy `[Bms]`仍按raw `0..8`查询；public `GameplaySkin.*:1` target只接受canonical `1..9`，两者仅经`bms-gameplay-skin-nine-key-index.v1`双向映射。未知版本fail-closed，绝不同时把重叠的`1..8`静默当作两套别名；stable LaneId仍由C3 topology提供。
-- **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色)）。
+- **颜色**：`r,g,b` 或 `r,g,b,a`（0–255），如 `MinorBarLineColour: 138,152,182,102`；**音符颜色不是逐道键**，而是 IIDX 键色组（见 [§5.4](#54-小节线--颜色-部分)）。
 - **资源名**：写**不带扩展名**的相对路径，如 `NoteImage1: notes/white`。
 - **数值几何**：像素或相对值，逐键在 [附录 C](#附录-cskinini-字段全表) 注明单位。
 - **动画**：legacy帧序列沿用`name-0`、`name-1`…命名；BMS普通短键与长条头/身/尾固定按60 FPS循环，`LightFramePerSecond`不控制这些动画。C5 scene v1另以gameplay-clock毫秒域的keyframe `time`、frame/tween track、`loop`与easing定义动画；这套已生效的scene合同不改变legacy帧率。不引入LR2的`div_x/div_y`雪碧图分割。

@@ -1,33 +1,35 @@
 ---
 name: reference_skin_windows_handle_capture
-description: Managed/external skin folder 的 Windows fixed-handle/handle-relative no-follow capture、identity/TOCTOU 与非 transaction 边界
+description: Windows fixed-handle/no-follow capture、8.3 alias、inventory 与非 transaction 边界
 metadata:
   node_type: memory
   type: reference
 ---
 
-# Skin folder Windows handle capture 地雷
+# Windows handle capture 地雷
 
-## 当前可信合同
+native capture 资格/预算与完整 proof 合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，当前能力读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。声明前置见 [[reference_skin_filesystem_authority_preflight]]。
 
-- `SkinManagedPackageCapture`只接受resolver为合法`chartskin/<direct-child>`发出的managed opaque request；external由独立external capture request/session承载。两类request都校验private issuer，但都不是security/filesystem/mutation capability；Realm `.osk`与invalid declaration不产生request，敏感process-local path不得由`ToString()`展开。
-- managed/external native adapter只接受`QueryDosDevice`的exact`\Device\HarddiskVolume<uint>` target，直接开NT volume后逐段handle-relative `NtOpenFile`；SUBST、mapped/remote drive、shadow/device alias fail-closed。external session额外保留root/ancestry physical proof与logical manifest，用于registry、selection与ManagedCopy复验。
-- authority/package/子目录/文件都以`OBJ_DONT_REPARSE` + `FILE_OPEN_REPARSE_POINT`打开；enumeration用`FileIdExtdDirectoryInformation`，在native循环里先检查取消与entry budget再增长managed集合。名称双侧NFC后按Windows ordinal-ignore-case匹配，并拒绝未由resolver展开成长名、missing-long-name却可alias-open的8.3/alternate alias。
-- 每个节点校验volume serial + 128-bit file ID、kind、attributes/reparse tag、时间、length、link count与delete-pending；文件要求单link，所有物理identity全包唯一。文件handle只共享read，因此既有writer使capture fail，capture期间的新write/rename打不开。
-- 所有目录和文件在read前pin住；pure capsule从non-owning held-handle stream读取，单次最多1 MiB以保留取消响应。capsule完成后复验全部pinned metadata、directory inventory、authority link与package root。一次性`Capture()`关完handle后返回capsule；`CaptureHeld()`返回由caller拥有的session，继续持有proof到final validation。
-- cleanup在typed失败、取消、意外异常或单个handle Dispose失败时仍须释放其余handle并清理provisional capsule。managed一次性capture结果不携带live handle/stream/deferred callback；C2 managed Reload使用`SkinManagedPackageCapture.CaptureHeld()`，external使用自己的held session，两者都把proof与handle保持到caller final复验，并在取消、stale、shutdown或提交后完整释放。不得把一次性Capture的提前关handle要求套到held-session路径。
-- fixed-source staged import在既存held `skin-mutation-staging` authority root上复用同等级full package capture，而不是伪造resolver request或退回absolute path。operation source固定为`{operationId:N}` direct child，source handle需要`DELETE | SYNCHRONIZE`且允许share delete；staging root、source与既存managed root必须同volume，首个move/cleanup前仍须durable Prepared exact reload。
-- staged move最终preflight后只释放NTFS要求释放的descendant handles，继续持有staging parent/source和managed root identity；move attempted后不再观察caller cancellation。target以no-follow完整重捕并比较source→target physical identity、pinned descendants、inventory和capsule fingerprint，任何差异都交journal/recovery冻结。
+## 名字通过不等于物理身份固定
 
-## 不能误推的能力
+- managed/external request 校验 private issuer，但 request 不是文件或 mutation capability。native adapter 将 QueryDosDevice 限为 exact \Device\HarddiskVolume<uint>，从 NT volume 逐段 handle-relative 打开；SUBST、remote/mapped drive、shadow/device alias 不进入该路径。
+- OBJ_DONT_REPARSE + FILE_OPEN_REPARSE_POINT；FileIdExtdDirectoryInformation 枚举在 native 循环内先检查取消/entry budget，再增长 managed集合。
+- 名称两侧 NFC 后按 Windows ordinal-ignore-case 匹配；拒绝未展开的8.3/alternate alias。resolver 可能已把存在的短 data-root 展开成长名，不能因此让 native层接受未展开 alias。
+- 每节点 proof 含 volume serial + 128-bit file ID、kind、attributes/reparse、time/length/link/delete状态；文件单link，identity全包唯一。文件只 share read，writer/busy handle 触发拒绝。
+- 只读 share能阻止冲突 write/file rename，不能封住目录 namespace。新 child 仍可能出现，须由 final inventory 拒绝；不能称为目录树冻结。
 
-- 这不是filesystem transaction。保证仅为：发布bytes来自held identity，且final validation前观察到的变化会拒绝；final check之后的外部变化不影响已复制capsule，但也不存在跨文件系统的事务快照声明。
-- resolver对真实存在的8.3 data-root path可能先经`Path.GetFullPath`展开成长名；native层仍必须拒绝任何未展开alias。真实SUBST命令级integration未跑，当前证据是exact volume-target classifier和fake alias合同。
-- capture已有pure capsule及production `SkinManager` exact-capsule factory/guarded managed/external selection消费方，但capture本身不验证`InstantiationInfo`/选择资格，也不拥有scanner/registry record、mutation token或reload publication。factory只能消费完整成功的exact capsule，不能回到normalised path或live `NativeStorage`；选择地雷见[[reference_skin_managed_folder_selection]]与[[reference_skin_external_workspace_managed_copy]]。
-- 测试中的反向share gate证明write/file rename受阻，新建child仍可能发生但会被final inventory拒绝；不能把共享模式描述成冻结整个目录树。
-- NTFS的DELETE access可以合法推进provisional父目录项相关metadata；held source node的pinned metadata仍须exact，但provisional parent inventory应比较name/identity/kind，不能把该时间推进当作foreign mutation。移动后package root的rename-related时间只可在明确target recapture合同内前进，不得放宽descendant metadata、content revision或安全gate。
+## Capture 与 CaptureHeld 的差别
 
-## 入口
+- 读前 pin 全目录/文件，通过 non-owning handle stream拷 bytes，分块维持取消响应；完成后复核 pinned metadata、inventory、authority link/package root。
+- Capture 关闭 handles后只返回 immutable capsule；CaptureHeld 返回 caller-owned session，proof必须持到 final validation/commit。不能把一次性Capture的提前关handle要求套到Reload/selection。
+- typed失败、取消、意外异常乃至单handle Dispose失败，都要继续释放其余handle与provisional capsule；不返回半成品或隐藏live callback。
+- final check后的源变化不影响已复制bytes，但这不是跨文件系统transaction snapshot；同长度读取是否稳定由native proof而非capsule长度保证。
 
-- 声明/路径前置见 [[reference_skin_filesystem_authority_preflight]]，capsule ownership见 [[reference_skin_package_revision_capsule]]。
-- 当前测试数字、production接线与当前门只看P1-A STATUS/PLAN；held mutation authority另见[[reference_skin_managed_folder_mutation_foundation]]，不得把capture producer本身写成最终G1 reload、folder skin整包生命周期或Skin V1产品完成。
+## Move 不是 capture 的普通延长
+
+- fixed staging 只来自既存held staging root下operation固定direct child；source需要DELETE|SYNCHRONIZE与share delete，两侧root/source同卷，首move前durable receipt。
+- NTFS要求preflight后释放descendant handles，保留source/parent/root，再move并以CancellationToken.None完整target recapture；不能靠放宽share或path reopen绕过。
+- DELETE access可合法推进provisional父目录项时间；父inventory比name/identity/kind，source pinned metadata仍exact。只放行明确rename-related root时间，不放宽descendant/content。
+- move尝试后的取消、tree差异和恢复歧义统一去 [[reference_skin_managed_folder_mutation_foundation]]。
+
+SUBST的历史证据只覆盖volume-target classifier/fake alias，不能宣称已跑真实SUBST命令integration。capture成功也不验证InstantiationInfo、选择资格或publication；后续走 [[reference_skin_package_revision_capsule]]、[[reference_skin_managed_folder_selection]]。

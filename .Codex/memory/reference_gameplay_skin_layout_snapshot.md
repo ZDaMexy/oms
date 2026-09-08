@@ -1,56 +1,36 @@
 ---
 name: reference_gameplay_skin_layout_snapshot
-description: C3唯一immutable gameplay layout、C4 exact material与C5 scene/event publication、BMS solver、mania adapter、全consumer及C2 lifecycle地雷
+description: 唯一 layout publication、mania stage-local 映射与 exact owner 重入/注入地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# gameplay skin layout snapshot 召回
+# Gameplay layout snapshot 地雷
 
-权威当前态见[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，稳定合同见[P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，C3 layout边界见[C3交接](../../doc_md/other/SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)，C4 material扩展见[C4交接](../../doc_md/other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)。本页只保存长期实现地雷。
+完整 context/snapshot、consumer 矩阵与验证面见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；当前门读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。这里保存为什么不能恢复第二套 geometry 权威。
 
-## 唯一 publication
+## 判断是否同一结果
 
-- `GameplaySkinLayoutContext`是唯一ruleset-neutral输入帧：绑定exact ruleset/native context与keymode、既有lane topology、presentation style、screen/safe bounds、aspect/DPI、scroll direction、exact `GameplaySkinPackageRevision`、topology revision和layout revision。tokens与diagnostic均为稳定脱敏值；构造后不可变。
-- `GameplaySkinLayoutSnapshot`是唯一neutral geometry结果，防御性复制并只读暴露group、lane、surface、BGA viewport和diagnostic。`GameplaySkinLayoutPublication`绑定该exact neutral snapshot、同一snapshot的typed adapter、C4`GameplaySkinResolvedMaterialSet`与C5`GameplaySkinPreparedScene`，并派生一致的event revision；`Current`只是view，不是第二交换点。
-- package/current revision、layout revision、material contract/result与prepared scene/event是不可分割quadruple。production root只允许一个exact owner/current publication；consumer不得自行new profile/default geometry/fixed rect、按drawable size重算、缓存可替换snapshot、重跑resource/scene lookup或从topology-only revision拼装第二结果。
-- exact one-shot必须由shared `GameplaySkinLayoutRevisionOwner`在自己的publication锁内执行，不能只放在BMS/mania helper；否则cached descendant可直接调用`Prepare/PreparePublication`造成旧child持A、late child读B。并发首次prepare仍由admission generation保持latest-wins，但一旦exact current存在，后续prepare必须在任何work lease/solve前拒绝。
+- GameplaySkinLayoutContext 绑定 native/ruleset context、既有 topology、presentation/environment 与 exact package/revision；Snapshot 是一次 solve 的完整 immutable 结果。
+- GameplaySkinLayoutPublication 绑定 neutral snapshot、引用它的 typed adapter、resolved material 与 prepared scene。Current 是 view，不是第二交换点；event target/revision 也从同一 publication 取得。
+- 同值 snapshot 不等于同一 authority。consumer 不能从 drawable size、raw profile、默认 fixed rect、event payload 或 topology-only revision 再算一份，也不能重跑 source/material lookup。
+- exact one-shot 必须在 shared GameplaySkinLayoutRevisionOwner 的锁内。若只在 BMS/mania helper 防二次 prepare，cached descendant 可直接重入 shared API，造成旧 child 持 A、late child 读 B。已有 exact current 后在 work lease/solve 前拒绝第二次 prepare。
 
-## ruleset adapter 与 identity
+## Adapter 容易错在哪里
 
-- BMS keymode只来自parser-owned `BmsKeymodeResolution`；唯一`BmsGameplayLayoutSolver`覆盖5K/7K P1/P2/CenterP1/CenterP2、9K BMS/PMS、14K双deck/S1/S2/centre gap。`BmsPlayfieldLayoutProfile`只可作为solver内部已验证配置/isolated compatibility输入，不能成为第二production geometry authority。
-- mania adapter只接受真实、防御性复制的single/dual stage-column vector。stage与column的global/group-local logical/visual index显式保存；special key按stage-local column判断，不能用total columns、global modulo或enum ordinal反推。
-- `GameplaySkinLaneId`/`GameplaySkinLaneGroupId`继续来自既有topology，没有第二组stable ID。ID跨style、视觉重排、geometry和topology-preserving revision稳定；Mirror/Random/S-Random只改变对象post-mod目标lane，不改固定topology。对象、shared keysound store与skin lookup最终使用目标lane的同一LaneId。
+- BMS keymode 来自 parser-owned resolution；BmsPlayfieldLayoutProfile 只是唯一 solver 内部配置或 isolated compatibility 输入，不是另一生产 geometry。
+- Mania 必须使用真实 single/dual stage-column vector；special key 按 stage-local column 判，不用 total columns、global modulo 或 enum ordinal。
+- logical/visual、global/group-local index 都是显式 order，不是 stable ID。Mirror/Random/S-Random 改对象最终目标 lane，不改固定 topology；object、keysound 与 skin lookup 使用同一目标 LaneId。
+- BGA 的最终 viewport/rect 属于该 layout；内容/timeline/seek 仍属 P1-L。统一 viewport 不能证明统一 decoder/clock。
+- menu/shell/background 不因使用 skin texture 就成为作者 gameplay layout surface。
 
-## production consumer
+## Geometry fallback 与构造边界
 
-- BMS playfield/stage/group/lane、Note/LN head/body/tail、barline、hit/judgement line/target/display、lane cover、pre-start preview、BGA最终viewport、gauge/combo/HUD与scene/event host都只读同一typed/neutral/material/scene publication。
-- mania playfield/stage/column/flow、note/hold、barline/hidden、hit target、judgement/adjustment/touch input、gameplay HUD与core ruleset/provider root只读同一publication；C4 Note/Hold/KeyVisual及C5 scene/event消费同一material/scene set。transformer hand-off、逐consumer`Apply`、local offset、raw profile或post-commit lookup不能形成第二authority。
-- BGA在C3只统一最终viewport/rect；内容、timeline、seek和gimmick播放仍归P1-L。menu/shell/background不是作者gameplay layout surface。
+- 每字段分别验证 finite、正值、range、safe screen 与 non-overlap，并给稳定诊断；fallback 也一次产出完整 snapshot，不拼部分新/旧 geometry。
+- 测试复现要包括窄/宽 aspect、DPI、safe-area 与 14K 双 field/scratch/gap/BGA/HUD；普通 7K 正常不证明这些关系。
+- 完整 host 在 child load 前通过 enclosing exact dependency scope 完成 publication。无 publication/material 不临时借 compatibility/default geometry 或 post-commit fallback。
+- prepared carrier 只属于签发 owner；另一 owner carrier、同 root 第二 provider、compatibility→exact 升级、adapter 未引用 exact neutral snapshot 都属于 authority 违约。
+- isolated compatibility 是显式 detached test seam，也应一次构造完整 graph；不能先让真实 provider 可见，再升级。
 
-## geometry 与 fallback
-
-- 每个可配置字段独立验证finite、正值、合法range、安全screen bounds与字段间non-overlap。单字段非法只对该字段使用确定程序化fallback并产生稳定脱敏diagnostic。
-- solve无论正常或fallback都一次产生一个完整snapshot；禁止NaN/Infinity/负尺寸传播，也禁止部分新/部分旧geometry拼接。常见/极窄/极宽aspect、DPI与safe-area必须同时守住14K双field/scratch/gap、BGA及HUD。
-
-## C2 lifecycle 扩展
-
-- 可失败的native stage vector/topology、environment读取、skin geometry解析/solve、shared codec/catalog validation、resource decode与resolved material构造都在fresh work lease内的background prepare完成；update thread只提交prepared immutable publication引用。不要在进入owner callback前预先发布mania/BMS topology/material。
-- prepare前后与commit锁内复核root、participant generation、current selection、exact source/content/package/layout/material/scene revision及catalog/codec/resolver/scene/event version。attach触发fresh barrier，commit前detach使carrier失效；成功后late attach只取得已提交quadruple与lease。失败保持exact旧package+layout+material+scene。
-- old owner必须等最后consumer/work/operation lease detach后在update thread exactly-once retire；跨revision holder不得提前释放。same-ID latest-wins、reentrant/cancel/scheduler fault/shutdown及current mutation继续沿C2失败原子性。
-- live gameplay/gameplay preview仍在source prepare前拒绝；没有watcher，也不为layout测试开放live reload。
-
-## fail-closed construction
-
-- 完整gameplay host必须以显式layout intent创建provider，由enclosing exact dependency scope提供唯一owner，并在renderer child load前完成current-contract publication。没有publication/material的production construction不得退回compatibility、默认geometry或post-commit fallback。
-- prepared carrier只属于签发它的exact owner；注入另一owner carrier、同root第二provider/二次prepare、compatibility→exact升级、consumer/transformer第二snapshot hand-off或adapter不引用neutral exact snapshot都必须fail-closed。
-- compatibility入口仅用于明确isolated solver/visual test，并且同样一次构造完整graph；它不能在真实provider attach前可见，也不能在生产树中后补/变更为exact。
-
-## C5后的未实现面
-
-C5已实现shared codec/public catalog、完整三态resolver、BMS/mania migrated resource parity、versioned scene/animation/read-only event、Snapshot/Reset与全部适用slot host，并保持beatmap-local排除终态；仍未实现C6 sandbox/script VM与最终ini/manifest/scene/script/全部素材整包门、C7 canonical双包或Authoring Kit。程序化`OmsSkin`继续保留。
-
-## C5 scene/event 与 layout 的连接
-
-prepared scene 只能引用同一 publication 的 C3 neutral snapshot、typed adapter 与 C4 material；node target 的 stage/group/lane/global/index 不得从 drawable 顺序、geometry 或 event payload 重新推导。scene runtime 只消费 immutable prepared graph 与 bounded read-only stream，layout revision、material revision、scene revision 必须在 attach/Reset 时一致。BMS/mania host 的全部适用 public slot、DPI/safe-area、clip/mask 与 pool 生命周期均沿现有 participant/lease/detach/retire协议。
+Prepare/commit、取消窄窗、late attach、lease/detach/retire 统一去 [[reference_skin_atomic_reload_detach]]；不要在 layout consumer 再做一套可交换状态。素材解析见 [[reference_gameplay_skin_codec_material]]，stable identity 见 [[reference_gameplay_skin_lane_identity]]。

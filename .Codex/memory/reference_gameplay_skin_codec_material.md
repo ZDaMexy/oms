@@ -1,48 +1,39 @@
 ---
 name: reference_gameplay_skin_codec_material
-description: C4 public catalog/shared codec/三态resolver、C5 exact material+scene/event publication、diagnostic与beatmap-local终态地雷
+description: 唯一 shared codec、specificity 遮蔽、诊断 observer 与 beatmap-local 边界地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# gameplay skin codec/material召回
+# Gameplay codec/material 地雷
 
-权威状态与硬约束只看[P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[PLAN](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)与[CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；公共作者合同见[Gameplay Skin V1目录](../../doc_md/other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)，C4历史边界见[C4交接](../../doc_md/other/SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)，C5当前边界见[C5交接](../../doc_md/other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)。本页只保存实现地雷。
+public ID/字段/适用性只读 [public catalog](../../doc_md/other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)，稳定 pipeline 读 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，当前能力读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。本页不复制 slot 数量、完成史或候选矩阵。
 
-## 单一authority
+## 输入与 resolver 的反直觉处
 
-- `GameplaySkinSlotCatalog`是Common v1 + BMS v1共28项public ID的唯一authority；codec、applicability validator、resolver、BMS/mania consumer与文档生成都引用同一descriptor。runtime capability与catalog requirement/suppress eligibility分层，renderer支持不能改作者ABI。
-- `Skin`只捕获一次exact `skin.ini` bytes并构造防御性immutable `GameplaySkinDocument`；public Common/BMS与legacy `[Mania]`/`[Bms]` adapter消费同一token stream。禁止consumer重开ini、二次tokenize或ruleset复制parser。
-- document必须保留Absent/DeclaredEmpty/Invalid/Valid/Suppress、legacy token及exact source/configuration-content/package/current identity。malformed第一声明仍占duplicate target；后行不能借“第一行没完整tokenize”篡夺winner。
+- package 的根 skin.ini 只捕获/tokenize 一次，public 与 legacy adapter 消费同一 immutable token stream；consumer 不重开文件，ruleset 不另写 tokenizer。
+- Absent、DeclaredEmpty、Invalid、Valid、Suppress 必须区分。malformed 第一声明仍占 duplicate target；后行不能借“第一行没完整 tokenize”夺 winner。
+- package 内 specificity 为 ruleset→keymode→stage-mode→scope。最高项遮蔽该 package 更宽声明：它 Inherit/empty/invalid 时转下一 authority，不回头聚合同 package。
+- legacy beatmap direct visual compatibility 优先于 selected public；但它不读取 public section。selected public/legacy、ruleset resource、protected/canonical、programmatic 的顺序以合同为准，不构造伪 canonical candidate。
+- Required/Recommended 不可 Suppress；Optional 仍受 applicability/runtime capability。null、缺 entry、异常、Drawable.Empty 都不是三态声明。
+- Target 的 ruleset/keymode/stage/scope、LaneId/GroupId 与四类 index 须对应 exact topology；不要从 lane count、geometry、RelativeStart 或 drawable 顺序推导。
 
-## target与resolver
+Legacy raw index、source-bound frame/width 与 borrow 地雷见 [[reference_gameplay_skin_lane_resource_compatibility]]；accepted provenance 见 [[reference_gameplay_skin_config_presence]]。
 
-- public `Target`显式携带ruleset、keymode、stage-mode、scope、stable LaneId/GroupId及全部适用logical/visual/global/group-local index；每项都必须与C3 exact topology一致。禁止从enum ordinal、lane count、geometry、`RelativeStart`或drawable顺序反推。
-- package内specificity固定为ruleset → keymode → stage-mode → scope，最高specificity会遮蔽本package较宽声明；其`Inherit`、empty或invalid直接进入下一authority，不回头聚合本package。
-- relative authority为legacy beatmap direct visual compatibility → selected public → selected legacy candidates → ruleset resources → protected/canonical → programmatic末端。新beatmap-local public source不存在。
-- Required/Recommended不能Suppress；Optional还必须有runtime capability。非法Suppress和invalid产生稳定诊断后进入确定fallback；null、缺entry、异常、`Drawable.Empty()`都不是状态。
+## Diagnostic observer 也可能拖住旧 owner
 
-## BMS/mania兼容
+- parse、catalog validate、resource/scene prepare、graph/material 构造止于 background prepare；publication/lease 的统一边界见 [[reference_skin_atomic_reload_detach]]。
+- 稳定诊断去重、排序、完整 persistence-safe payload 在 immutable material 构造时预生成。成功 commit 后 observer 只捕获 immutable 字符串和轻量 receipt，不能捕获 material/snapshot/package/texture/lease。
+- 文本只含 public code、catalog ID、stable target/index、source kind、contract version；作者值、路径、display name、record ID/hash、exception text 不持久化。
+- queue/listener/observer 失败不得从成功 commit 逸出、改变结果或延长旧 material 生命周期。诊断故障不应触发第二次材料发布。
 
-- BMS legacy候选固定：5K `[Bms]→Keys6→Keys5`；7K `[Bms]→Keys8→Keys7`；9K `[Bms]→Keys9`且不重复；14K `[Bms]→Keys16→同一Keys8两个deck→Keys14`。
-- 9K legacy raw `0..8`与public canonical `1..9`只经`bms-gameplay-skin-nine-key-index.v1`映射，未知版本fail-closed。Mirror/Random只改变对象最终LaneId；resource、keysound与skin lookup跟随同一LaneId，不改变topology。
-- C5真实capability已扩展为逐slot runtime profile：BMS 28项均有production route（9K按catalog applicability为26格），Mania 23项Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`为明确NotApplicable；catalog、applicability与runtime decision仍分层。
+## Scene 与未开放作者面
 
-## publication与诊断
+- manifest/scene 的唯一 codec 在 background prepare 做 UTF-8、duplicate/unknown/path/type/target/resource/canonical 与预算检查；renderer 只读 prepared graph，不重读来源或二次 resolve。
+- Snapshot/Reset 与运行事件来自 engine-owned bounded stream；engine 可发 GameplayResumed，scene ABI 不接受 gameplay.resume，因为 Snapshot 重建 Running。CLR envelope 构造能力不等于 scene author ABI。
+- scene/slot 故障只隔离其自身表现，不能获得判定、input、score、clock、BGA 内容 authority。
+- 新 beatmap-local public authoring 不在已开放面；真实 WorkingBeatmap.Skin 仍可惰性返回同一只读 LegacyBeatmapSkin direct compatibility。没有 sidecar/producer/revision authoring ownership 时，测试注入不能当用户能力。
+- 被 resolved material 取代的旧 lane-colour/bucket snapshot factory 不应恢复。Create(BmsLaneLayout,...)、raw requirement overload、PublishForTesting 等 isolated seam 不计产品进度；是否已有 sandbox/通用 authorization 只看 P1-A 当前门。
 
-- 所有codec parse、catalog validate、resource/scene prepare、graph build与resolved material构造止于background prepare。update thread只commit一个已完成的package+layout+material+scene引用；exact source只接受current contract，`CompatibilityEmpty`仅供显式detached compatibility host。
-- prepare前后与commit锁内复核participant generation、current selection、exact source/content/package/layout/material/scene revision及catalog/codec/resolver/scene/event version。失败保exact A；late attach只取得已提交quadruple与lease；最后detach exactly-once retire。
-- `GameplaySkinLayoutRevisionOwner.PreparePublication(..., CancellationToken)`是production carrier ownership门：carrier一旦取得fresh work lease与publication retirement，随后可见的取消必须先Dispose。BMS/mania caller都要使用该入口，并在`using (prepared)`内、`TryCommit`前再查token；否则solver最后检查后的取消会泄漏BMS borrow/work lease，或让mania提交已取消material。
-- product diagnostic的去重、确定排序与完整persistence-safe payload在immutable material set构造时预生成；成功commit后的observer只捕获immutable字符串与轻量receipt，不捕获material、snapshot、package、texture或lease。文本只含public code、catalog ID、stable target/index、source kind与合同版本；绝对路径、作者值、display name、record ID/hash和exception text禁止持久化。queue、listener或observer故障不得改变commit或延长旧material生命周期。
-
-## beatmap-local与foundation
-
-- C4明确不新增beatmap-local gameplay-skin authoring：没有sidecar、producer/importer、`WorkingBeatmap` public document/revision authoring ownership或C1/C2 revision闭环；public source kind/candidate必须保持不可达。真实importer/manager的`WorkingBeatmap.Skin`仍惰性返回同一只读`LegacyBeatmapSkin`实例，只保留direct visual compatibility且不消费public section。
-- BMS candidate/resource/capability已接production；被resolved material取代的lane-colour/bucket snapshots已删除。event cursor归C5、capability negotiator归C6；`Create(BmsLaneLayout,...)`、raw requirement resolver overload与`PublishForTesting`只是isolation/compat seam，均不计C4产品进度。
-
-## C5 scene/event 接线召回
-
-- C5 的 `GameplaySkinSceneCodec` 是 manifest/scene 唯一 parser；固定 `gameplay-skin.json` / `gameplay-skin.scene.json` 与 v1 contract，严格 UTF-8、duplicate/unknown/path/type/index/target/resource/canonical 校验及硬预算均在 background prepare完成。prepared graph、compiled animation/state/binding program、资源与初始 event state 是 immutable，renderer 不重读 source 或二次 resolver。
-- `GameplaySkinEventStream`/`GameplaySkinEventStreamCursor` 已进入真实 BMS/mania/core caller。envelope 带 epoch、连续 sequence、gameplay/layout/material/scene revision、gameplay time、LaneId/GroupId 与 immutable payload；bounded stream 以 Snapshot/Reset支持 late attach、retry、seek、rewind与旧epoch隔离。engine 可发 `GameplayResumed`，scene ABI 不接受 `gameplay.resume`，因 Snapshot 可重建 Running。
-- C5 的 exact publication 是 package+layout+material+scene；slot/scene 故障只能回退自身。通用 capability negotiator、sandbox/script 与最终整包 reload 仍归 C6，canonical 双包/Authoring Kit归C7。
+事件与版本导航：[[reference_gameplay_skin_event_envelope]]、[[reference_gameplay_skin_capability_negotiation]]。

@@ -1,45 +1,34 @@
 ---
 name: reference_gameplay_skin_slot_contract
-description: Skin V1 public catalog、显式三态resolver、provider precedence、诊断与候选生命周期地雷
+description: 三态 Value/ToString、候选 ownership、Drawable.Empty 与 generic test ruleset 误判地雷
 metadata:
   node_type: memory
   type: reference
 ---
 
-# gameplay skin slot 三态合同
+# Skin slot 三态地雷
 
-权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只做实现地雷召回。
+public slot、requirement/applicability/runtime 支持只读 [catalog](../../doc_md/other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md) 与 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；当前 gate 读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
-## 稳定合同
+## 返回值不替代 resolver 合同
 
-- public runtime使用平行`SkinSlotResult<T>`/resolved material entry，不改变nullable `ISkin`兼容ABI。`default(SkinSlotResult<T>) == Inherit`，但production consumer只能读取一次准备完成的显式material winner，不能靠null/缺字典项重跑决策。
-- 三态结果使用普通 `readonly struct`；不要改成会自动枚举属性的 `record struct`，否则生成的 `ToString()` 可能读取非 `Provide` 状态下会抛异常的 `Value`。
-- `Provide`只表示已完成provider自身构造/基础验证的值；`Inherit`继续下一authority；`Suppress`只在catalog Optional且runtime capability允许时终止。Required/Recommended `Suppress`必须稳定诊断后继续。
-- resolver 严格使用调用方提供的 provider 顺序。provider/GetSlot/构造异常、validator=false 或 validator 异常都诊断后逐组件继续；取消异常必须传播，不能伪装成损坏皮肤。
-- `Drawable.Empty()` 是普通值，不具有 `Suppress` 魔法语义。测试中的 fake `oms-simple` 只证明末端回落语义，不代表文件型 canonical fallback 已接入。
+- 平行 SkinSlotResult/resolved entry 不改 nullable ISkin 兼容 ABI。default=Inherit；production 只读准备完成的显式 winner，不能靠 null/缺字典项现场重跑决策。
+- 三态是普通 readonly struct；改成 record struct 后生成 ToString 可能枚举 Value，而非 Provide 下 Value 会抛异常。这是选择类型形状的实际故障依据。
+- Provide 表示 provider 已构造并做基础验证，Inherit 转下一 authority；Suppress 受 catalog eligibility/runtime 决定。Drawable.Empty 是普通值，没有 Suppress 魔法。
+- resolver 按传入 provider 顺序处理可恢复 provider/validator 失败；取消必须传播，不能伪装坏包。programming violation 与该层已定义可恢复失败不可混成宽泛吞异常。
+- catalog 顺序不表示 z-order/layout/provider precedence；renderer 支持也不能反改 author ABI。NotApplicable、Optional 和 Suppress permission 是不同层。
 
-## semantic taxonomy 地雷
+## Candidate 生命周期
 
-- `GameplaySkinSlotCatalog`从C4起是版本化作者ABI与codec/validator/resolver/consumer/doc唯一ID authority；Common v1 + BMS v1共28项，digest由文档一致性测试锁定。稳定ID只用小写ASCII点分段并ordinal精确查询；catalog顺序没有provider precedence、z-order、绘制或布局含义。
-- catalog requirement/suppress eligibility与`GameplaySkinRuntimeCapabilitySet`分层；renderer支持不能改目录语义。descriptor与exact lane/keymode/stage/target context分离，新接线只能使用catalog descriptor；旧raw resolver只保留兼容入口，不能形成第二张ID表。
-- critical 是 lane surface、judgement line、note、LN head/body、mine、active lane-cover fill；LN tail cap 和其它表现件 optional。lane-cover fill 只能挂在引擎强制 geometry/clip host 内，BGA viewport 只呈现引擎拥有的 content surface。
-- shared codec已对未知版本/字段/ID、scope/type/index/selector、duplicate/escaping/case产生稳定`OMS-SKIN-CODEC-NNN`；C5 scene/manifest与逐slot runtime profile已进入production，仍不能把catalog applicability误写成跨ruleset renderer。
+- resolver 不自动 dispose 被 validator 拒绝的 Drawable/IDisposable；它可能是 provider cache/shared 值，擅自释放会双重释放。
+- materializer 返回前 revision owner 接管，winner/rejected 都只借用；一个已挂 parent 的 Drawable 不能直接给多个 consumer，共享资源不等于共享 Drawable。
+- failed reload 仅回收 provisional；旧 consumer detach 后再退役 owner。完整 lease/scheduler 见 [[reference_skin_atomic_reload_detach]]，BMS borrow 见 [[reference_gameplay_skin_lane_resource_compatibility]]。
+- LN body 的 source-bound/default visual 共用真实 DrawableBmsHoldNote 状态宿主；异步挂载先投影当下 Idle/Holding/Broken，再做后续 transition，不自建玩法状态。
+- 日志 observer 不能持 material/package/lease 或改变已成功 commit，见 [[reference_gameplay_skin_codec_material]]。
 
-## 生命周期地雷
+## 测试误判
 
-- resolver 不自动 dispose 被 validator 拒绝的 `Drawable`/`IDisposable`：候选可能是 provider 缓存或共享值，擅自释放会造成双重释放/悬空引用。
-- BMS lane-resource candidate与revision-scoped owner已进入C4 production material resolver：materializer返回前owner取得所有权并完成基础验证，winner/rejected都只借用；失败provisional只释放自身，成功替换先detach旧consumer再释放superseded owner。独立fixture仍不能替代SkinManager/ruleset/actual drawable产品证据。
-- C5 production纵切覆盖BMS/mania全部适用public slot：BMS 28项均有route（9K按适用性26格），Mania 23项Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`为版本化NotApplicable。scene/resource host仍须逐项冻结缓存、Drawable parenting/thread affinity和真实回收；一个已挂parent的`Drawable`不能被多个消费方直接复用。provider应在返回`Provide`前完成会分配资源的验证。
-- critical `LongNoteBody` 的 source-bound visual 和程序化默认 visual 共用一个状态宿主；它只投影真实 `DrawableBmsHoldNote` 的 Idle/Holding/Broken，不创建第二套 gameplay state authority。异步候选发布时必须立即应用当时状态，之后才按约 `80ms` 过渡；素材与 resolved width 则由同一 revision-scoped material 一起拥有。
-- catalogued诊断使用public code/SlotId；process-local exception、path、resource value、record ID/hash不进入持久文本。成功publication后product sink才异步输出去重、确定排序的safe摘要，日志故障不能影响commit；失败候选不得留下已生效日志。
-
-## precedence 与测试夹具
-
-- 现有相对authority固定为legacy beatmap direct visual compatibility → selected public document → selected legacy ruleset candidates → ruleset resources → protected/canonical → programmatic末端。新beatmap-local public作者格式已排除；legacy direct visual不能消费public section，也不能被后层Suppress穿透。
-- mania-only OMS 测试环境里，`Ruleset.Value.CreateInstance()` 可能取得 mania ruleset，却配到通用 `Beatmap`，触发 `ManiaBeatmap` 强转失败。测试 generic provider container 时使用夹具自己声明的 `CreateRuleset()`，不要据此修改生产 transformer。
-
-C5已经以ordinary/managed/external真实`SkinManager` current revision、ruleset prepare与actual BMS/mania drawable证明public codec/catalog/resolver、prepared scene、read-only event与全部适用slot；package+layout+material+scene由同一owner提交。它仍不代表C6 script/final package gate或C7 `oms-simple`已接入，程序化`OmsSkin`尚未退出。
-
-## C5 slot/runtime 召回
-
-`GameplaySkinRuntimeSupportProfile` 是版本化逐slot truth，不与 author catalog、ruleset applicability 或 Suppress eligibility 混为一层。BMS 的 28 项均有 production route；Mania 明确列出 23 个 Supported 与 `object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 五个 NotApplicable。scene host 只能在 C3 exact layout 与 C4 exact material publication 上运行，故坏 scene 不会拼接旧 material/新 layout。
+- fake oms-simple 只证明末端回落语义，不证明文件型 canonical 已接入。
+- beatmap legacy direct visual 优先权不等于开放 public beatmap-local authoring；后层 Suppress 不能穿透该高层 compatibility。
+- mania-only 测试环境可能 Ruleset.Value.CreateInstance() 得到 mania，却配 generic Beatmap，触发 ManiaBeatmap 强转失败。测 generic provider container 时使用 fixture 声明的 CreateRuleset，不据此修改生产 transformer。
+- fixture/DTO/cursor 独立通过不证明 manager→source→ruleset prepare→actual host 链，也不刷新人工签收。
