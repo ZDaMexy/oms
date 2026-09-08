@@ -190,6 +190,8 @@ namespace osu.Game.Skinning.Gameplay
 
         internal GameplaySkinPreparedSceneNode PreparedNode { get; }
 
+        internal GameplaySkinSceneScriptBaseline? ScriptBaseline { get; set; }
+
         internal GameplaySkinSceneRuntimeNode(
             GameplaySkinPreparedSceneNode preparedNode,
             Drawable rootDrawable,
@@ -361,6 +363,8 @@ namespace osu.Game.Skinning.Gameplay
                         ? GameplaySkinRuntimeSlotCapability.Suppress
                         : GameplaySkinRuntimeSlotCapability.None))));
 
+            initialiseScript();
+
             // Accept the already background-prepared attach snapshot before the production event host announces the
             // exact committed publication in LoadComplete. This preserves a contiguous Snapshot -> publication Reset
             // sequence even when both hosts are constructed before either is mounted into the gameplay tree.
@@ -379,6 +383,7 @@ namespace osu.Game.Skinning.Gameplay
             if (disposed)
                 return;
 
+            beginScriptFrame();
             subscription.DrainProductionFrame(consumeEventAction);
             EventStream.ReadConsumerTimingHighWater(
                 subscription,
@@ -434,6 +439,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneStateFamily semanticFamilies = semanticStateFamiliesDirty;
             semanticStateFamiliesDirty = GameplaySkinSceneStateFamily.None;
             updateSemanticState(gameplayTime, semanticFamilies);
+
+            runScriptFrame(gameplayTime);
 
             // Keep a judged object's exact result through the frame which consumes its despawn edge so pooled
             // scene variants/bindings and state machines observe the same terminal state. Retire only after all
@@ -601,6 +608,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 if (isDisposing)
                 {
+                    detachScript();
                     for (int index = registeredProgrammaticVisuals.Count - 1; index >= 0; index--)
                         registeredProgrammaticVisuals[index].Dispose();
 
@@ -1153,6 +1161,7 @@ namespace osu.Game.Skinning.Gameplay
                 return;
             }
 
+            beforeScriptEvent(envelope);
             CurrentEpoch = envelope.Epoch;
             LastSequence = envelope.Sequence;
             LastGameplayTime = envelope.GameplayTime;
@@ -1278,6 +1287,7 @@ namespace osu.Game.Skinning.Gameplay
             // initial state after every accepted edge makes live delivery, late attach and every epoch Reset
             // isomorphic; an author machine can never retain incremental history which Snapshot cannot express.
             stateMachinesDirty = true;
+            consumeScriptEvent(envelope);
         }
 
         private void applyCompleteState(GameplaySkinEventStateSnapshot state)

@@ -843,7 +843,7 @@ Shared means package structure, fallback infrastructure, and optional global UI 
 Existing implementation and remaining package boundaries:
 
 - Both rulesets use the shared `OmsSkinTransformer` base.
-- C3～C5 already supply the neutral layout/ini/material/scene/event runtime and diagnostics inside the current revision protocol. C6 adds the script sandbox and final package reload gate. The shared runtime must not depend on `BmsKeymode`, `ManiaAction` or concrete ruleset drawables.
+- C3～C6 supply the neutral layout/ini/material/scene/event runtime, optional bounded script sandbox and whole-package preparation inside one current revision protocol. Script authorization and revocation must gate real callbacks and node writes, including paused hosts; no second publication or gameplay authority is introduced. The shared runtime must not depend on `BmsKeymode`, `ManiaAction` or concrete ruleset drawables. Current validation and campaign completion remain in [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md).
 - Existing mania and BMS adapters map gameplay state to neutral lane groups/roles/stable IDs and immutable events. Keep these production routes as the single authority.
 - A protected preview `OmsSkin`-style selection entry may exist only as a migration host while `oms-simple` is incomplete. It counts as skeleton progress and must not survive as theme-specific rendering below the final file fallback.
 - `ManiaRuleset.CreateSkinTransformer()` should continue migrating away from switching on osu!lazer-native built-in skin types as the final OMS product behavior. The explicit `OmsSkin` -> `ManiaOmsSkinTransformer` route already exists; it is transitional and does not establish canonical file fallback.
@@ -896,7 +896,7 @@ Requirements:
 - The mania layer lives inside the same default skin package as BMS, but its assets/config bridge remain mania-specific.
 - Timing-based recolour or configuration-based note recolour remains a ruleset behavior, but the default asset/fallback source must be OMS-owned.
 - Mania defaults must remain readable even when no external skin is installed.
-- Legacy mania remains a compatibility input. C5 connected key/hold/hit effects, judgement, combo and the other applicable public slots to the shared prepared scene and read-only event runtime. Gameplay truth stays in engine producers; authors control supported visual scenes. This does not include the unimplemented C6 script sandbox.
+- Legacy mania remains a compatibility input. C5 connected key/hold/hit effects, judgement, combo and the other applicable public slots to the shared prepared scene and read-only event runtime; C6 optional scripts use the same prepared publication and real producers. Gameplay truth stays in the engine. Ordinary note/key/judgement visuals must remain usable when script authorization is absent or revoked.
 - The shared resolver must preserve whether a legacy value was explicitly declared. Legacy mania may synthesize a default configuration for a missing `Keys:` bucket; that synthetic value must not be mistaken for `Provide` in the new tri-state runtime.
 
 ### 13.6 BMS Skin Contract

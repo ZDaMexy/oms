@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（文档健康度治理；既有产品验证与签收不变）
+> 最后更新：2026-09-09（C6 非人工产品、最终整包 reload 与 G1 自动门闭合）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，实现合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-Skin V1为 **`5/7 closed，C6 active`**：C1～C5已闭合，C6 sandbox/最终整包reload与C7 canonical双包/Authoring Kit未交付。程序化`OmsSkin`仍是迁移链底，`V-001`～`V-004`签收 **0/4**；`SV1-1`、`SV1-2`整体、Skin V1与release未完成。campaign非等权，不换算线性百分比。
+Skin V1为 **`6/7 closed，C7 active`**：原 C6 已完成可选脚本产品链、VM/作者工具、授权与安全隔离，并关闭最终整包 reload 及 G1 自动门；C7 canonical 双包/完整 Authoring Kit 与接管保留后续。程序化`OmsSkin`仍是迁移链底，`V-001`～`V-004`签收 **0/4**，新增 `V-005` 未签收；`SV1-1`、Skin V1与release未完成。campaign非等权，不换算线性百分比。
 
 ## 当前产品能力与剩余门
 
@@ -17,32 +17,32 @@ Skin V1为 **`5/7 closed，C6 active`**：C1～C5已闭合，C6 sandbox/最终�
 | C3 keymode/layout | P1-K提供唯一keymode/lane/timeline；BMS/mania/core/HUD/BGA viewport消费同一immutable layout | stable LaneId/GroupId与显式index，不在consumer重建几何 |
 | C4作者合同/material | 28项public catalog、exact skin.ini唯一shared codec、Provide/Inherit/Suppress与实际material consumer | critical不可Suppress；不新增beatmap-local public作者格式，legacy direct visual兼容保留 |
 | C5 scene/animation/event | versioned manifest/prepared scene、frame/tween/state/binding/template、只读Snapshot/Reset及预算/池化进入真实host | BMS 28项有route（9K适用26项）；mania 23 Supported，Mine/Turntable/Laser/BGA viewport/BGA frame五项NotApplicable |
-| C6、C7 | 均未实现，当前执行C6 | 完整非人工结果、权限/VM、整包reload、canonical/Authoring Kit与退出条件只见[PLAN](DEVELOPMENT_PLAN.md) |
-| 集中视觉/实机 | V-001～V-004签收0/4 | 已导入.osk短键与LN head/body/tail及最终包签收见[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md) |
+| C6脚本与最终整包 | 无需DLL的source/bytecode V1、同源CLI compiler/verifier；Settings授权/拒绝/撤销，双ruleset真实host、预算/熔断/确定性/profiler；三源最终publication/G1自动门通过 | 可选表现，基础note/key/judgement无需授权；external只读、live Reload仍拒绝。作者产物见[Momentum候选](../../other/skin-c6-candidate/README.md)，完整证据见[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md) |
+| C7 canonical/发行 | 下一campaign，本次未实施 | 双包/完整Authoring Kit、canonical parity/完整性/原子恢复与fallback接管仍按[PLAN](DEVELOPMENT_PLAN.md) |
+| 集中视觉/实机 | V-001～V-004签收0/4，V-005新增待验收 | 已导入.osk短键、LN head/body/tail、双ruleset脚本候选及最终包见[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md) |
 
-C2～C5共用exact package+layout+material+scene publication；C6新增consumer继续加入同一生命周期。完整consumer inventory、borrow/lease、失败保A、detach/retire和脱敏诊断只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护；campaign如何闭合只在[PLAN](DEVELOPMENT_PLAN.md)维护。
+C2～C6共用exact package+layout+material+scene publication，script及编译工作已加入同一owner/participant/lease/detach/retire。无gameplay host的菜单也先验证ini/manifest/scene/script/素材；授权撤销独立使旧host失权，不扩大Reload准入。完整合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-**2026-09-09已记录的项目复验**：
+**2026-09-09 C6最终实际验证**（Release当前源码，共享构建/测试串行）：
 
 | 测试面 | 结果 |
 | --- | --- |
-| Windows Release | 0 error / 11 warnings：既有NU1902九次、CS8600/CA2007各一次 |
-| BMS full | 1721/1721，无跳过或hang artifact |
+| core GameplaySkin focused | 486/486 |
+| BMS / mania relevant | 414/414及复审新增atomic-save 2/2；mania 69/69 |
+| 三源备份根 G1 | source/实际CLI bytecode × 三源 6/6；用户原根与baseline保持一致 |
+| BMS full | 1776/1776，无跳过或hang artifact |
 | mania full | 860/864，四项既有HoldNote frame-count失败 |
-| core ~Skin | 1218/1224，四项既有archive fixture与两项默认皮肤假设失败 |
+| core ~Skin / FileStoreTests | 1275/1281，六项既有archive/default-skin失败；存储11/11 |
+| Windows Release | 0 error / 18条NU1902输出，九条既有MessagePack告警在restore/build重复；BMS重新编译仍仅有既有CS8600/CA2007 |
 
-命令、TRX范围、逐项名称/消息和远端时效见[9月9日项目审查](../../other/PROJECT_PROGRESS_AUDIT_20260909.md#本轮实际验证)。本轮文档治理没有重跑产品测试、全core、publish或实机。完整C5闭门仍为[2026-09-03交接](../../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)，C5该次focused/并发/slot矩阵、精确失败与独立终审记录不被9月9日项目复验替代，不重签campaign。
+十项既有失败的名称、错误分类及精确消息与[项目审查](../../other/PROJECT_PROGRESS_AUDIT_20260909.md)实际TRX逐项全等。命令、红转绿、source/consumer矩阵、性能环境、独立终审和检查结论集中于[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)。未跑全core、publish、低端实机或GPU/字体视觉门；C5既有完成证据仍见[2026-09-03交接](../../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)，不重签C1～C5。
 
 ## 当前风险与未完成项
 
 - `BmsBeatmapDecoderOptions.KeymodeOverride`只是host/importer seam；普通loader传null，无用户纠正UI。证据不足的sparse .bms/.bml仍安全拒绝；可用性缺口归P1-K，不重开C3。
 - scanner只在启动后对账一次；新增managed direct child须重启发现，已登记current内容只能手动Reload。没有watcher或live gameplay replacement。
 - C1 held-root/journal不是filesystem transaction；foreign addition/replacement可导致冻结。current mutation的具体失败阶段与external零写入合同继续生效。
-- 程序化OmsSkin在canonical parity、完整性、原子恢复与实机gate前不得删除；C5 slot完成不能提前核算C6/C7或人工签收，NotApplicable也不能写成普遍unsupported。
+- 程序化OmsSkin在canonical parity、完整性、原子恢复与实机gate前不得删除；C6完成不能提前核算C7或人工签收，NotApplicable也不能写成普遍unsupported。
 - BGA内容/timeline/seek/gimmick仍归P1-L；在线服务、sample pool、判定、binding不属C5。既有core六项/mania四项失败须按[精确失败合同](TECHNICAL_CONSTRAINTS.md#测试与发布约束)比较，不能按数量掩盖回归。
-
-## 文档治理验证
-
-2026-09-09生产链与测试源码审查见[项目审查记录](../../other/PROJECT_PROGRESS_AUDIT_20260909.md)。本次仅压缩入口、归位C6/C7补充条件及合并重复合同，未改runtime、campaign或视觉/release门；文档检查由本次主线CHANGELOG统一记录。

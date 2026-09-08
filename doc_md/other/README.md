@@ -6,6 +6,7 @@
 
 - [SKINNING.md](SKINNING.md)：皮肤作者手册，区分公开 ABI、legacy 兼容与未交付能力。
 - [GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)：公共 slot、语法、三态和适用性。
+- [可选脚本作者说明](SKIN_SCRIPT_V1_AUTHORING.md)：C6 数值语言、权限、工具链与可导入候选。
 - [RELEASE.md](RELEASE.md)：打包、便携模式、数据根与覆盖更新。
 - [BMS_FORMAT_REFERENCE.md](BMS_FORMAT_REFERENCE.md)：格式、channel、时序、长条与控制流，供 P1-K 定点查阅。
 - [BMS_GIMMICK_CHART_RENDERING.md](BMS_GIMMICK_CHART_RENDERING.md)：演出谱视觉机理与方案，当前门归 P1-L。
@@ -25,6 +26,7 @@
 这些文件保存当时的基线、验证范围和限制；不因后续代码或网络状态变化改写原始结论。
 
 - [2026-09-09 全项目进度审查](PROJECT_PROGRESS_AUDIT_20260909.md)：P1-A～M 生产链对照及本次实测矩阵。
+- [2026-09-09 C6 验证](SKIN_SYSTEM_C6_VALIDATION_20260909.md)：可选脚本、作者工具、授权隔离与最终整包/G1 证据。
 - [2026-09-03 C5](SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)：scene/event、slot hosts、预算与 publication 验证。
 - [2026-08-31 C4](SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)：codec/catalog/resolver/material 完成证据。
 - [2026-08-30 C3](SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)：keymode/lane 前置、唯一 layout 与消费矩阵。

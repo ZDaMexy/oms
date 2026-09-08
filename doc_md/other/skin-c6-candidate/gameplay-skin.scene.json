@@ -1,0 +1,49 @@
+{
+  "contract": "oms-gameplay-skin-scene.v1",
+  "root": {
+    "id": "momentum.root",
+    "type": "container",
+    "target": { "kind": "global" },
+    "slot": "decoration",
+    "blend": "alpha",
+    "properties": {},
+    "effects": [],
+    "children": [
+      {
+        "id": "momentum.label",
+        "type": "text",
+        "blend": "alpha",
+        "target": { "kind": "global" },
+        "properties": { "x": 0.80, "y": 0.12, "text": "MOMENTUM", "font-size": 18, "colour": "#5be3d6ff" },
+        "effects": [],
+        "children": []
+      },
+      {
+        "id": "momentum.pulse",
+        "type": "sprite",
+        "target": { "kind": "global" },
+        "resource": "texture.tile",
+        "blend": "additive",
+        "properties": { "x": 0.86, "y": 0.24, "width": 0.032, "height": 0.056, "origin": "centre", "rotation": 45, "opacity": 0.25, "colour": "#5be3d6ff" },
+        "effects": [],
+        "children": []
+      },
+      {
+        "id": "momentum.bar",
+        "type": "sprite",
+        "blend": "alpha",
+        "target": { "kind": "global" },
+        "resource": "texture.tile",
+        "properties": { "x": 0.80, "y": 0.33, "width": 0.12, "height": 0.008, "scale-x": 0.1, "opacity": 0.8, "colour": "#f4bf75ff" },
+        "effects": [],
+        "children": []
+      }
+    ]
+  },
+  "tracks": [],
+  "stateMachines": [],
+  "bindings": [],
+  "variants": [],
+  "templates": [],
+  "instances": []
+}

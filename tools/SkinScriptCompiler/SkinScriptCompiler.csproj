@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../osu.Game/Skinning/Gameplay/Scripting/GameplaySkinScriptProgram.cs" Link="Compiler/GameplaySkinScriptProgram.cs" />
+    <Compile Include="../../osu.Game/Skinning/Gameplay/Scripting/GameplaySkinScriptCompiler.cs" Link="Compiler/GameplaySkinScriptCompiler.cs" />
+    <Compile Include="../../osu.Game/Skinning/Gameplay/GameplaySkinCapabilityId.cs" Link="Compiler/GameplaySkinCapabilityId.cs" />
+  </ItemGroup>
+</Project>

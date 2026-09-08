@@ -28,7 +28,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 测试宿主、formatter、输出锁与环境误判。
+- [构建与测试](reference_build_and_test.md) — 测试宿主、formatter include 路径、输出锁与环境误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md) — read-model/query/实际控件与产品目标分离。
 - [难度表](reference_bms_difficulty_table.md)
@@ -63,3 +63,4 @@
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、producer authority 与 mutable callback。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
+- [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 菜单整包验证、撤销残留、固定 tick、持久化中断与 queued texture ownership。

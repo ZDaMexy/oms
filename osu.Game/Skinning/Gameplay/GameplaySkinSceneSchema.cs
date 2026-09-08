@@ -17,6 +17,8 @@ namespace osu.Game.Skinning.Gameplay
         public const string EVENT_CONTRACT_ID = "oms-gameplay-skin-event.v1";
         public const string MANIFEST_FILE_NAME = "gameplay-skin.json";
         public const string SCENE_FILE_NAME = "gameplay-skin.scene.json";
+        public const string SCRIPT_FILE_NAME = "gameplay-skin.script";
+        public const string BYTECODE_FILE_NAME = "gameplay-skin.bytecode";
     }
 
     /// <summary>
@@ -270,11 +272,13 @@ namespace osu.Game.Skinning.Gameplay
 
         public string EventContract { get; }
 
+        public string? ScriptFile { get; }
+
         public IReadOnlyList<GameplaySkinSceneResource> Resources { get; }
 
         private readonly IReadOnlyDictionary<string, GameplaySkinSceneResource> resourcesById;
 
-        internal GameplaySkinSceneManifest(IEnumerable<GameplaySkinSceneResource> resources)
+        internal GameplaySkinSceneManifest(IEnumerable<GameplaySkinSceneResource> resources, string? scriptFile = null)
         {
             ArgumentNullException.ThrowIfNull(resources);
 
@@ -283,6 +287,7 @@ namespace osu.Game.Skinning.Gameplay
             SceneFile = GameplaySkinSceneContracts.SCENE_FILE_NAME;
             SceneContract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID;
             EventContract = GameplaySkinSceneContracts.EVENT_CONTRACT_ID;
+            ScriptFile = scriptFile;
             Resources = Array.AsReadOnly(copiedResources);
             resourcesById = new ReadOnlyDictionary<string, GameplaySkinSceneResource>(copiedResources.ToDictionary(resource => resource.Id, StringComparer.Ordinal));
         }

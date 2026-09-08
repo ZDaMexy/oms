@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-09（文档健康度治理；执行顺序与产品门不变）
+> 最后更新：2026-09-09（C6闭合，下一门C7；原七campaign预算不变）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -15,17 +15,17 @@
 
 ## 强制执行顺序
 
-恢复与数据安全`SV1-0`、Skin C1～C5已关闭，作为后续输入，不重复开工。P1-A的**最多七个持久campaign预算、共同执行规则和完整退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；文档整理不消耗或推进campaign，第七个退出时仍只允许保留约定的人工签收。
+恢复与数据安全`SV1-0`、Skin C1～C6已关闭，作为后续输入，不重复开工。P1-A的**最多七个持久campaign预算、共同执行规则和完整退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；预算不重计，第七个退出时仍只允许保留约定的人工签收。
 
 ### R3：`SV1-2` G1 存储与 revision 冻结输入
 
-保持C1～C5的既有行为和安全门，完整合同见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。不另建layout、event、material或publication authority，不整包恢复异常期代码。
+保持C1～C6的既有行为和安全门，完整合同见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。不另建layout、event、material或publication authority，不整包恢复异常期代码。
 
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
-1. **C6**：同一campaign交付脚本选型、真实作者入口/consumer与隔离能力，关闭最终整包reload；spike或foundation不是终态。
-2. **C7**：交付同含mania/BMS的canonical双包、Authoring Kit与自动release，完成fallback接管和程序化主题视觉退出。
-3. 按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-004及最终包；自动可证工作可继续，只有视觉结论决定设计或自动证据无法裁决异常时才等待反馈。未签收不得称Skin V1/release完成。
+1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+2. **C7为下一门**：交付同含mania/BMS的canonical双包、完整Authoring Kit与自动release，完成fallback接管和程序化主题视觉退出；本次没有提前实施。
+3. 按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及最终包；自动可证工作可继续，只有视觉结论决定设计或自动证据无法裁决异常时才等待反馈。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。
 

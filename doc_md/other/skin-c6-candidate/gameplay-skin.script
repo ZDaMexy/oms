@@ -1,0 +1,99 @@
+oms-script 1
+# A rolling history of eight real judgement intervals drives a momentum meter.
+# Geometry, judgement, score, gauge and the gameplay clock remain engine-owned.
+required gameplay.snapshot.read
+required gameplay.events.read
+required scene.numeric.write
+optional math.random.read
+deny network.read
+state kind 0
+state hit 0
+state now 0
+state previous 0
+state interval 0
+state old 0
+state sum 8000
+state index 0
+state full 0
+state count 0
+state energy 0
+state gauge 0
+state scale 1
+state opacity 0.25
+state rotation 45
+state random-granted 0
+state random-value 0
+state decay 0
+state visible-energy 0
+heap 8
+target momentum.pulse rotation
+target momentum.pulse scale-x
+target momentum.pulse scale-y
+target momentum.pulse alpha
+target momentum.bar scale-x
+
+read now time
+read kind event-kind
+eq hit kind 40
+when hit judgement
+eq hit kind -1
+when hit render
+halt
+
+judgement:
+sub interval now previous
+clamp interval interval 30 1000
+mov previous now
+load old index
+lt full count 8
+when full warming
+sub sum sum old
+jump insert
+warming:
+sub sum sum 1000
+add count count 1
+insert:
+add sum sum interval
+store index interval
+add index index 1
+eq full index 8
+when full wrap
+jump charge
+wrap:
+mov index 0
+charge:
+div energy 1800 sum
+clamp energy energy 0 1
+granted random-granted math.random.read
+when random-granted jitter
+add rotation rotation 17
+jump wrap-angle
+jitter:
+random random-value
+mul random-value random-value 20
+add rotation rotation random-value
+wrap-angle:
+lt full rotation 360
+when full done
+sub rotation rotation 360
+done:
+halt
+
+render:
+sub decay now previous
+div decay decay 6000
+sub visible-energy energy decay
+clamp visible-energy visible-energy 0 1
+read gauge gauge
+mul scale visible-energy 1.4
+add scale scale 1
+mul opacity gauge 0.3
+add opacity opacity visible-energy
+clamp opacity opacity 0.25 1
+set momentum.pulse rotation rotation
+set momentum.pulse scale-x scale
+set momentum.pulse scale-y scale
+set momentum.pulse alpha opacity
+max scale visible-energy 0.1
+set momentum.bar scale-x scale
+halt

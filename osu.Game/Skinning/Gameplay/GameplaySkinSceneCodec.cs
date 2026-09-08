@@ -122,6 +122,9 @@ namespace osu.Game.Skinning.Gameplay
                 })),
             };
 
+            if (manifest.ScriptFile != null)
+                root["script"] = manifest.ScriptFile;
+
             return root.ToString(Formatting.None);
         }
 
@@ -190,11 +193,19 @@ namespace osu.Game.Skinning.Gameplay
             if (root == null)
                 return context.Invalid<GameplaySkinSceneManifest>();
 
-            validateFields(root, context, new[] { "contract", "scene", "sceneContract", "eventContract", "resources" });
+            validateFields(root, context, new[] { "contract", "scene", "sceneContract", "eventContract", "resources" }, new[] { "script" });
             validateExactContract(root, "contract", GameplaySkinSceneContracts.MANIFEST_CONTRACT_ID, context);
             validateExactContract(root, "scene", GameplaySkinSceneContracts.SCENE_FILE_NAME, context);
             validateExactContract(root, "sceneContract", GameplaySkinSceneContracts.SCENE_CONTRACT_ID, context);
             validateExactContract(root, "eventContract", GameplaySkinSceneContracts.EVENT_CONTRACT_ID, context);
+
+            string? scriptFile = null;
+            if (root.ContainsKey("script"))
+            {
+                scriptFile = getString(root, "script", context);
+                if (scriptFile is not GameplaySkinSceneContracts.SCRIPT_FILE_NAME and not GameplaySkinSceneContracts.BYTECODE_FILE_NAME)
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+            }
 
             var resources = new List<GameplaySkinSceneResource>();
             var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -242,7 +253,7 @@ namespace osu.Game.Skinning.Gameplay
             if (context.HasDiagnostics)
                 return context.Invalid<GameplaySkinSceneManifest>();
 
-            return valid(new GameplaySkinSceneManifest(resources));
+            return valid(new GameplaySkinSceneManifest(resources, scriptFile));
         }
 
         private static GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decodeScene(ReadOnlyMemory<byte> content, GameplaySkinSceneManifest? manifest)

@@ -10,12 +10,12 @@ metadata:
 
 权威状态与硬约束见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) / [CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；本文件只保存实现地雷。
 
-## 当前通用脚本权限合同（C6尚未接入production）
+## 决策载体与真实权限的区别
 
 - grant 必须同时满足 explicit request、closed allowlist、host feature available、当前 skin policy authorization（若需要）且未命中 hard deny。request/support/authorization 任一单项都不产生权限；unknown 不动态注册。
-- `GameplaySkinCapabilityNegotiation` 只是 immutable decision snapshot，不是 service/delegate/authority handle。future host API 仍须逐调用 gate；重新协商表达 authorization revocation/feature removal，但不证明旧 scene/script 已原子停用。
-- hard-deny表和reserved classifier是closed allowlist后的第二屏障，不穷举任意同义词。通用脚本权限仍无production request/authorization、per-skin授权identity/持久化/UI、required/optional/explicit-deny、activation/version或sandbox runtime。C5已生效的`GameplaySkinRuntimeSupportProfile`、package identity与manifest/scene/event版本是不同合同，不在此未实现范围。
-- ID只能是非敏感lowercase ASCII opaque token。此处通用脚本权限carrier/diagnostic/JSON不是manifest、持久化或script ABI；future parser须做ID length、request count与package budget，不能把包名、用户值或路径塞进ID。
+- `GameplaySkinCapabilityNegotiation` 只是 immutable decision snapshot，不是 service/delegate/authority handle。检查 runtime 是否每次调用真实复核 live token，不能仅凭新 snapshot 断言旧脚本失权；具体撤销/存储踩坑见[脚本诊断](reference_gameplay_skin_scripts.md)。
+- hard-deny表和reserved classifier是closed allowlist后的第二屏障，不穷举任意同义词。逐 slot `GameplaySkinRuntimeSupportProfile` 和脚本能力的四方授权是两层合同；不能由 slot Supported 推导脚本默认获准。
+- ID只能是非敏感lowercase ASCII opaque token。内部通用权限 carrier/diagnostic JSON 不是作者语言或持久化协议；公开 source/bytecode 与授权文件各有版本，不能把包名、用户值或路径塞进 ID。
 
 ## classifier 地雷
 

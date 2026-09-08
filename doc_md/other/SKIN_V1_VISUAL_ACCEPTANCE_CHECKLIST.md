@@ -18,6 +18,9 @@
 | `V-002` | 已导入 `.osk` 的 BMS 长条头静态图/编号帧动画、scratch/S2、选择切换与坏 head 回落 | 产品自动 gate 已通过；集中验收输入待统一打包 | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
 | `V-003` | 已导入 `.osk` 的 BMS 长条尾静态图/编号帧动画、透明回落与下层完整组件接管 | 产品自动 gate 已通过；集中验收输入待统一打包 | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
 | `V-004` | 已导入 `.osk` 的 BMS 长条身静态图/编号帧动画、同 revision 宽度、状态与隔离回落 | 产品自动 gate 已通过 | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
+| `V-005` | C6 可选脚本、授权 UI、双规则集 Momentum 候选与整包 Reload | 双 host 产品自动验证已通过；完整证据见[C6 报告](SKIN_SYSTEM_C6_VALIDATION_20260909.md) | 待统一反馈 | 否；但阻塞 Skin V1/release 完成声明 |
+
+原 `V-001`～`V-004` 签收仍为 **0/4**；新增 `V-005` 同样未签收，不替代任何原有项目。
 
 ## V-001：BMS 普通短键编号帧动画
 
@@ -89,6 +92,24 @@
 
 - Windows、显示分辨率/DPI、build/commit：待填写。
 - `V-004` 结论：待通过／失败。
+- 若失败：注明矩阵项、实际观感、截图或日志，以及是否会改变后续实现语义。
+
+## V-005：C6 可选脚本与双规则集 Momentum 候选
+
+构建锚点：验收时填写实际 commit/build。[作者源文件与可复现构建步骤](skin-c6-candidate/README.md)提供 `oms-complex-c6.osk`；它是普通可导入候选，C7 canonical 双包仍待交付。自动测试使用真实 source、SkinManager、引擎 producer 与 scene host，但 headless runner 未加载字体，不证明字形、GPU 观感或低端实机性能。
+
+视觉与操作矩阵：
+
+1. **未授权与拒绝**：普通导入后选择 `OMS Momentum C6 [oms-complex-c6]`，分别进入 BMS/mania，note/key/judgement 与长条必要信息持续可读，Momentum 保持静态；Settings 列出三个 required 与一个 optional request，拒绝不得隐式激活脚本。
+2. **授权与组合效果**：授权三个 required，先拒绝 random，再授权 random；两规则集实际命中后，右侧最近八次判定间隔与 gauge 组合出的脉冲、旋转、能量条可见且不遮挡玩法。检查 Momentum 文字、DPI/宽高比、字体可读性及必要视觉回退。
+3. **撤销与恢复**：运行时及暂停时撤销 scene 写入，旧脚本效果均撤去，继续可玩；快速撤销再授权不复用旧历史。暂停停止效果时间，retry/seek 重建历史；profiler/诊断可查看，不出现持续刷屏或卡住。
+4. **三源与最终整包**：在测试数据根分别使用 ordinary、managed、registered external；退出 gameplay 后由 Settings 唯一 Reload 生效，live/preview 内操作仍拒绝。相同内容重启保留授权，改内容后重授权；损坏 scene/script/素材保留旧包，修复后可恢复。选择切换和适用的 rename/delete/unregister 不残留旧效果，external 原文件保持不变。
+5. **低端与长时**：记录低端 Windows 设备、谱面/keymode、帧率和 profiler，观察高密度事件、长谱、反复暂停/重试及包切换。自动 instruction/heap/node/resource 限额已另行验证；本项确认真实 GPU、字体、输入设备和长期体验。
+
+反馈记录：
+
+- Windows、设备、显示分辨率/DPI、谱面/keymode、build/commit：待填写。
+- `V-005` 结论：待通过／失败。
 - 若失败：注明矩阵项、实际观感、截图或日志，以及是否会改变后续实现语义。
 
 后续每个新增可见切片在自动 gate 通过后追加新 ID；P1-G 最终 release checklist 只汇总这里已经签收的结论，不用自动测试替代视觉反馈。

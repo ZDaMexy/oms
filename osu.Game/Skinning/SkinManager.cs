@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -31,6 +30,8 @@ using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Models;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Skinning.Gameplay;
+using osu.Game.Skinning.Gameplay.Scripting;
 using osu.Game.Skinning.Windows;
 using osu.Game.Utils;
 using Realms;
@@ -116,6 +117,10 @@ namespace osu.Game.Skinning
         private readonly IResourceStore<byte[]> resources;
 
         private readonly Storage storage;
+
+        internal GameplaySkinScriptAuthorizationStore ScriptAuthorizations { get; }
+
+        internal string LastScriptPreparationDiagnostic { get; private set; }
 
         public readonly Bindable<Skin> CurrentSkin = new SkinInstanceBindable();
 
@@ -321,6 +326,7 @@ namespace osu.Game.Skinning
             : base(storage, realm)
         {
             this.storage = storage;
+            ScriptAuthorizations = new GameplaySkinScriptAuthorizationStore(storage);
             this.audio = audio;
             this.scheduler = scheduler;
             this.host = host;
@@ -1027,6 +1033,13 @@ namespace osu.Game.Skinning
                     ? SkinCurrentRevisionReloadResult.Cancelled
                     : SkinCurrentRevisionReloadResult.Superseded;
             }
+            catch (GameplaySkinScriptException error)
+            {
+                if (generation == Interlocked.Read(ref currentRevisionReloadGeneration)
+                    && request.SelectionGeneration == Interlocked.Read(ref selectionGeneration))
+                    LastScriptPreparationDiagnostic = error.Message;
+                return SkinCurrentRevisionReloadResult.Failed;
+            }
             catch
             {
                 return SkinCurrentRevisionReloadResult.Failed;
@@ -1062,6 +1075,7 @@ namespace osu.Game.Skinning
                 if (!preparation.IsSuccess)
                     return preparation.FailureResult;
 
+                preparation.PrepareGameplayPackage(cancellationToken);
                 preparation.Validate(cancellationToken);
 
                 SkinRevisionBarrierRejectionReason ready = await currentRevisionPublication
@@ -1185,7 +1199,12 @@ namespace osu.Game.Skinning
                         cancellationToken).ConfigureAwait(false);
 
                     if (commit == CurrentRevisionCommitAttempt.Success)
+                    {
+                        if (generation == Interlocked.Read(ref currentRevisionReloadGeneration)
+                            && request.SelectionGeneration == Interlocked.Read(ref selectionGeneration))
+                            LastScriptPreparationDiagnostic = null;
                         return SkinCurrentRevisionReloadResult.Success;
+                    }
 
                     if (commit == CurrentRevisionCommitAttempt.ParticipantSetChanged)
                     {
@@ -1356,6 +1375,10 @@ namespace osu.Game.Skinning
             {
                 throw;
             }
+            catch (GameplaySkinScriptException)
+            {
+                throw;
+            }
             catch
             {
                 return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
@@ -1371,33 +1394,13 @@ namespace osu.Game.Skinning
             if (fresh == null || !request.RealmSnapshot.MatchesMetadata(fresh))
                 return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceChanged);
 
-            var entries = new List<SkinPackageCapturedEntry>(fresh.Files.Count);
-
-            foreach (RealmPackageFileDeclaration file in fresh.Files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                byte[] content = userFiles.Get(new RealmFile { Hash = file.Hash }.GetStoragePath());
-
-                if (content == null)
-                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
-
-                string actualHash = Convert.ToHexString(SHA256.HashData(content));
-
-                if (!string.Equals(actualHash, file.Hash, StringComparison.OrdinalIgnoreCase))
-                    return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceChanged);
-
-                entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, content));
-            }
-
-            SkinPackageRevisionCapsuleCreationResult capsule =
-                SkinPackageRevisionCapsuleFactory.Create(entries, cancellationToken: cancellationToken);
-
-            if (!capsule.IsSuccess)
-                return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnavailable);
+            SkinPackageRevisionCapsule capsule = captureExactRealmPackage(fresh, cancellationToken, out SkinCurrentRevisionReloadResult captureResult);
+            if (capsule == null)
+                return CurrentRevisionReloadPreparation.Reject(captureResult);
 
             SkinInfo exactInfo = createFilesystemSkinSnapshot(fresh.Metadata);
-            exactInfo.Hash = capsule.Capsule!.ContentRevision;
-            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule.Capsule);
+            exactInfo.Hash = capsule.ContentRevision;
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule);
 
             if (!factory.IsSuccess)
                 return CurrentRevisionReloadPreparation.Reject(SkinCurrentRevisionReloadResult.SourceUnsupported);
@@ -3647,6 +3650,7 @@ namespace osu.Game.Skinning
         /// </summary>
         internal void ShutdownManagedFolderMutations()
         {
+            ScriptAuthorizations.Shutdown();
             shutdownManagedFolderSelections();
             Task currentRevisionReloadTask = null;
 
@@ -4586,8 +4590,11 @@ namespace osu.Game.Skinning
         /// </summary>
         /// <param name="skinInfo">The skin to lookup.</param>
         /// <returns>A <see cref="Skin"/> instance correlating to the provided <see cref="SkinInfo"/>.</returns>
-        public Skin GetSkin(SkinInfo skinInfo)
+        public Skin GetSkin(SkinInfo skinInfo) => getSkin(skinInfo, CancellationToken.None);
+
+        private Skin getSkin(SkinInfo skinInfo, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
 
             if (resolution.Authority == SkinFilesystemStorageAuthority.RealmPackage)
@@ -4599,7 +4606,7 @@ namespace osu.Game.Skinning
                     && SkinManagedFolderFactory.IsInstantiationInfoAllowed(skinInfo.InstantiationInfo)
                     && skinInfo.Files.Any(file => string.Equals(file.Filename, "skin.ini", StringComparison.OrdinalIgnoreCase)))
                 {
-                    return createExactRealmPackageSkin(skinInfo);
+                    return createExactRealmPackageSkin(skinInfo, cancellationToken);
                 }
 
                 return skinInfo.CreateInstance(this);
@@ -4616,7 +4623,7 @@ namespace osu.Game.Skinning
             }
 
             SkinInfo snapshot = createFilesystemSkinSnapshot(skinInfo);
-            SkinManagedPackageCaptureResult capture = ManagedFolderCapture(resolution.ManagedCaptureRequest, CancellationToken.None);
+            SkinManagedPackageCaptureResult capture = ManagedFolderCapture(resolution.ManagedCaptureRequest, cancellationToken);
 
             if (!capture.IsSuccess)
                 throw new InvalidOperationException("The managed skin folder could not be captured safely.");
@@ -4626,36 +4633,78 @@ namespace osu.Game.Skinning
             return factory.Skin ?? throw new InvalidOperationException("The captured managed skin folder could not be instantiated safely.");
         }
 
-        private Skin createExactRealmPackageSkin(SkinInfo skinInfo)
+        private Skin createExactRealmPackageSkin(SkinInfo skinInfo, CancellationToken cancellationToken)
         {
             RealmPackageRevisionSnapshot snapshot = RealmPackageRevisionSnapshot.Create(skinInfo);
-            var entries = new List<SkinPackageCapturedEntry>(snapshot.Files.Count);
-
-            foreach (RealmPackageFileDeclaration file in snapshot.Files)
-            {
-                byte[] content = userFiles.Get(new RealmFile { Hash = file.Hash }.GetStoragePath())
-                                 ?? throw new InvalidOperationException("The exact Realm skin package is unavailable.");
-                string actualHash = Convert.ToHexString(SHA256.HashData(content));
-
-                if (!string.Equals(actualHash, file.Hash, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("The exact Realm skin package changed during selection.");
-
-                entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, content));
-            }
-
-            SkinPackageRevisionCapsuleCreationResult capsule = SkinPackageRevisionCapsuleFactory.Create(entries);
-
-            if (!capsule.IsSuccess)
-                throw new InvalidOperationException("The exact Realm skin package could not be captured.");
+            SkinPackageRevisionCapsule capsule = captureExactRealmPackage(snapshot, cancellationToken, out _)
+                                                  ?? throw new InvalidDataException("The exact Realm skin package could not be captured.");
 
             SkinInfo exactInfo = createFilesystemSkinSnapshot(snapshot.Metadata);
-            exactInfo.Hash = capsule.Capsule!.ContentRevision;
-            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule.Capsule);
+            exactInfo.Hash = capsule.ContentRevision;
+            SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule);
 
             if (!factory.IsSuccess)
-                throw new InvalidOperationException("The exact Realm skin package type is unsupported.");
+                throw new InvalidDataException("The exact Realm skin package type is unsupported.");
 
             return factory.Skin!;
+        }
+
+        private SkinPackageRevisionCapsule captureExactRealmPackage(
+            RealmPackageRevisionSnapshot snapshot,
+            CancellationToken cancellationToken,
+            out SkinCurrentRevisionReloadResult captureResult)
+        {
+            captureResult = SkinCurrentRevisionReloadResult.SourceUnavailable;
+            var entries = new List<SkinPackageCapturedEntry>(snapshot.Files.Count);
+            foreach (RealmPackageFileDeclaration file in snapshot.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string storagePath = new RealmFile { Hash = file.Hash }.GetStoragePath();
+                using Stream stream = userFiles.GetStream(storagePath);
+                if (stream == null)
+                    return null;
+
+                // Metadata reaches the existing capsule byte gate before any file-sized allocation. The capsule
+                // reopens and counts every actual byte with cancellation; its hash is then checked against Realm.
+                entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, stream.Length, () => userFiles.GetStream(storagePath)));
+            }
+
+            SkinPackageRevisionCapsuleCreationResult captured =
+                SkinPackageRevisionCapsuleFactory.Create(entries, cancellationToken: cancellationToken);
+            if (!captured.IsSuccess)
+            {
+                if (captured.RejectionReason is SkinPackageRevisionCapsuleRejectionReason.FileByteBudgetExceeded
+                    or SkinPackageRevisionCapsuleRejectionReason.PackageByteBudgetExceeded
+                    or SkinPackageRevisionCapsuleRejectionReason.SourceLengthMismatch)
+                    captureResult = SkinCurrentRevisionReloadResult.SourceChanged;
+                return null;
+            }
+
+            SkinPackageRevisionCapsule capsule = captured.Capsule;
+            try
+            {
+                var actualHashes = capsule.Files.ToDictionary(file => file.ResourceName, file => file.ContentHash, StringComparer.OrdinalIgnoreCase);
+                foreach (RealmPackageFileDeclaration file in snapshot.Files)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    // Successful capsule validation already established these canonical names and their uniqueness.
+                    SkinPackageResourceNameValidator.TryNormalise(file.Filename, out string canonicalName, out _);
+                    if (!string.Equals(actualHashes[canonicalName], file.Hash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        captureResult = SkinCurrentRevisionReloadResult.SourceChanged;
+                        return null;
+                    }
+                }
+
+                SkinPackageRevisionCapsule result = capsule;
+                capsule = null;
+                captureResult = SkinCurrentRevisionReloadResult.Success;
+                return result;
+            }
+            finally
+            {
+                capsule?.Dispose();
+            }
         }
 
         private bool requestSelection(Live<SkinInfo> target)
@@ -4742,6 +4791,13 @@ namespace osu.Game.Skinning
                 switch (request.Resolution.Authority)
                 {
                     case SkinFilesystemStorageAuthority.RealmPackage:
+                        if (target.PerformRead(info => info.Files.Any(file => string.Equals(
+                                file.Filename, GameplaySkinSceneContracts.MANIFEST_FILE_NAME, StringComparison.OrdinalIgnoreCase))))
+                        {
+                            beginRealmAuthorPackageSelection(generation, target);
+                            return false;
+                        }
+
                         Live<SkinInfo> expectedSelection = CurrentSkinInfo.Value;
                         Skin expectedOwner = CurrentSkin.Value;
                         SkinCurrentRevision expectedRevision = currentRevisionPublication.Current;
@@ -4781,7 +4837,10 @@ namespace osu.Game.Skinning
                         }
 
                         else if (generation == Interlocked.Read(ref selectionGeneration))
+                        {
                             LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                            LastScriptPreparationDiagnostic = null;
+                        }
 
                         return false;
 
@@ -4807,6 +4866,132 @@ namespace osu.Game.Skinning
                     beginManagedFolderSelectionPreparation(generation, target, request);
 
                 return false;
+            }
+        }
+
+        private void beginRealmAuthorPackageSelection(long generation, Live<SkinInfo> target)
+        {
+            SkinCurrentRevision expectedRevision = currentRevisionPublication.Current;
+            Skin expectedOwner = CurrentSkin.Value;
+            Live<SkinInfo> expectedSelection = CurrentSkinInfo.Value;
+
+            lock (managedFolderSelectionLifecycleGate)
+            {
+                if (Volatile.Read(ref managedFolderSelectionShutdown) != 0)
+                {
+                    rejectSelection(SkinSelectionRejectionReason.PreparationCancelled);
+                    return;
+                }
+
+                var cancellation = new CancellationTokenSource();
+                pendingSelectionCancellation = cancellation;
+                Task worker = Task.Run(() =>
+                {
+                    Skin preparedOwner = null;
+                    bool handedToCallback = false;
+                    void release()
+                    {
+                        Interlocked.Exchange(ref preparedOwner, null)?.Dispose();
+                        Interlocked.CompareExchange(ref pendingSelectionCancellation, null, cancellation);
+                        cancellation.Dispose();
+                    }
+
+                    try
+                    {
+                        cancellation.Token.ThrowIfCancellationRequested();
+                        RealmPackageRevisionSnapshot declaration = readRealmPackageRevisionSnapshot(target.ID)
+                            ?? throw new InvalidDataException("The requested package declaration is unavailable.");
+                        preparedOwner = target.PerformRead(info => getSkin(info, cancellation.Token));
+                        preparedOwner.PrepareGameplaySkinPackage(cancellation.Token);
+                        cancellation.Token.ThrowIfCancellationRequested();
+
+                        CurrentRevisionCallbackScheduleResult scheduled = scheduleCurrentRevisionCallback(() =>
+                        {
+                            try
+                            {
+                                SelectionRequestBeforeCommitLock(target);
+
+                                if (!tryEnterSelectionBoundary(out SkinManagedFolderOperationCoordinator.Lease finalLease))
+                                {
+                                    rejectSelection(SkinSelectionRejectionReason.ManagedFolderOperationInProgress);
+                                    return;
+                                }
+
+                                using (finalLease)
+                                {
+                                    if (generation != Interlocked.Read(ref selectionGeneration)
+                                        || cancellation.IsCancellationRequested
+                                        || CurrentSkinInfo.Disabled
+                                        || !ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
+                                        || !ReferenceEquals(CurrentSkin.Value, expectedOwner)
+                                        || !ReferenceEquals(CurrentSkinInfo.Value, expectedSelection))
+                                        return;
+
+                                    RealmPackageRevisionSnapshot fresh = readRealmPackageRevisionSnapshot(target.ID);
+                                    if (!declaration.Matches(fresh))
+                                    {
+                                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                                        return;
+                                    }
+
+                                    SkinRevisionParticipantSnapshot participants = currentRevisionPublication.CaptureSnapshot(
+                                        out SkinRevisionBarrierRejectionReason barrierRejection);
+                                    if (participants == null)
+                                    {
+                                        rejectSelection(barrierRejection == SkinRevisionBarrierRejectionReason.LiveGameplayActive
+                                            ? SkinSelectionRejectionReason.LiveGameplayActive : SkinSelectionRejectionReason.PreparationFailed);
+                                        return;
+                                    }
+
+                                    Live<SkinInfo> authoritative = Realm.Run(realm => realm.Find<SkinInfo>(target.ID).ToLive(Realm));
+                                    SkinCurrentRevision provisional = createCurrentRevision(preparedOwner);
+                                    preparedOwner = null;
+                                    if (!tryPublishPreparedCurrentSelectionRetainingParticipants(participants, provisional, authoritative,
+                                            expectedSelection, expectedOwner, expectedRevision, out barrierRejection))
+                                    {
+                                        DiscardProvisionalCurrentRevision(provisional);
+                                        rejectSelection(SkinSelectionRejectionReason.CapturedCandidateChanged);
+                                    }
+                                    else if (generation == Interlocked.Read(ref selectionGeneration))
+                                    {
+                                        LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                                        LastScriptPreparationDiagnostic = null;
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                release();
+                            }
+                        }, release);
+                        handedToCallback = scheduled != CurrentRevisionCallbackScheduleResult.Faulted;
+                        if (!handedToCallback)
+                            tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationFailed);
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                        tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationCancelled);
+                    }
+                    catch (GameplaySkinScriptException error)
+                    {
+                        if (generation == Interlocked.Read(ref selectionGeneration))
+                            LastScriptPreparationDiagnostic = error.Message;
+                        tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationFailed);
+                    }
+                    catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException
+                                                  or GameplaySkinScenePreparationException or Realms.Exceptions.RealmInvalidObjectException)
+                    {
+                        // A missing/changed hash-backed source, deleted Realm record, or rejected author document
+                        // retains A. Programming failures remain faulted on the tracked worker instead of being hidden.
+                        tryRejectSelectionWithoutBlocking(generation, SkinSelectionRejectionReason.PreparationFailed);
+                    }
+                    finally
+                    {
+                        if (!handedToCallback)
+                            release();
+                    }
+                }, CancellationToken.None);
+                trackManagedFolderSelectionWorkerHeld(worker);
             }
         }
 
@@ -4932,6 +5117,7 @@ namespace osu.Game.Skinning
                     return ExternalFolderSelectionPreparationResult.Reject;
 
                 preparedSkin = factory.Skin!;
+                preparedSkin.PrepareGameplaySkinPackage(cancellationToken);
                 packageSession.Validate(cancellationToken);
                 managedAuthority.ValidateCompleteAndStable(cancellationToken);
 
@@ -5024,8 +5210,9 @@ namespace osu.Game.Skinning
 
             if (pendingCompletion.PreparationTask.Status != TaskStatus.RanToCompletion)
             {
-                if (pendingCompletion.PreparationTask.IsFaulted)
-                    _ = pendingCompletion.PreparationTask.Exception;
+                if (pendingCompletion.PreparationTask.Exception?.InnerException is GameplaySkinScriptException error
+                    && pendingCompletion.Generation == Interlocked.Read(ref selectionGeneration))
+                    LastScriptPreparationDiagnostic = error.Message;
 
                 rejectSelection(
                     pendingCompletion.Generation,
@@ -5193,7 +5380,10 @@ namespace osu.Game.Skinning
                     }
 
                     else if (pendingCompletion.Generation == Interlocked.Read(ref selectionGeneration))
+                    {
                         LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                        LastScriptPreparationDiagnostic = null;
+                    }
                 }
             }
             finally
@@ -5265,8 +5455,8 @@ namespace osu.Game.Skinning
                 pendingSelectionCancellation = cancellation;
                 SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation =
                     ManagedFolderOperationCoordinator.CaptureSelectionPreparationObservation();
-                Task<SkinManagedPackageCaptureResult> captureTask = Task.Run(
-                    () => ManagedFolderCapture(captureRequest, cancellation.Token),
+                Task<PreparedManagedSelectionCapture> captureTask = Task.Run(
+                    () => prepareManagedSelectionCapture(request, captureRequest, cancellation.Token),
                     cancellation.Token);
                 Task completionSchedulingTask = captureTask.ContinueWith(
                     task => scheduleManagedFolderSelectionCompletion(
@@ -5284,6 +5474,37 @@ namespace osu.Game.Skinning
             }
         }
 
+        private PreparedManagedSelectionCapture prepareManagedSelectionCapture(
+            SelectionRequest request,
+            SkinManagedPackageCaptureRequest captureRequest,
+            CancellationToken cancellationToken)
+        {
+            SkinManagedPackageCaptureResult capture = ManagedFolderCapture(captureRequest, cancellationToken);
+            if (!capture.IsSuccess)
+                return new PreparedManagedSelectionCapture(capture, null);
+
+            try
+            {
+                using IResourceStore<byte[]> view = capture.Capsule!.CreateResourceView();
+                GameplaySkinPreparedPackage package = GameplaySkinPreparedPackage.Prepare((name, maximumBytes) =>
+                {
+                    SkinPackageFileRevision file = capture.Capsule.Files.FirstOrDefault(file =>
+                        string.Equals(file.ResourceName, name, StringComparison.OrdinalIgnoreCase));
+                    if (file == null)
+                        return null;
+                    if (file.Length > maximumBytes)
+                        throw new GameplaySkinScenePreparationException(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+                    return view.Get(name);
+                }, capture.Capsule.ContentRevision, request.Snapshot.ID, ScriptAuthorizations, cancellationToken);
+                return new PreparedManagedSelectionCapture(capture, package);
+            }
+            catch
+            {
+                capture.Capsule!.Dispose();
+                throw;
+            }
+        }
+
         private void trackManagedFolderSelectionWorkerHeld(Task workerTask)
         {
             managedFolderSelectionWorkerTasks.Add(workerTask);
@@ -5293,6 +5514,12 @@ namespace osu.Game.Skinning
                 {
                     lock (managedFolderSelectionLifecycleGate)
                         managedFolderSelectionWorkerTasks.Remove(completed);
+
+                    if (completed.Exception is AggregateException unexpected)
+                    {
+                        Logger.Log($"Internal skin selection worker fault ({unexpected.GetBaseException().GetType().Name}).",
+                            level: LogLevel.Error);
+                    }
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
@@ -5305,7 +5532,7 @@ namespace osu.Game.Skinning
             SelectionRequest request,
             SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
             CancellationTokenSource cancellation,
-            Task<SkinManagedPackageCaptureResult> captureTask)
+            Task<PreparedManagedSelectionCapture> captureTask)
         {
             var pendingCompletion = new PendingManagedFolderSelectionCompletion(
                 generation,
@@ -5382,7 +5609,7 @@ namespace osu.Game.Skinning
             SelectionRequest request,
             SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
             CancellationTokenSource cancellation,
-            Task<SkinManagedPackageCaptureResult> captureTask)
+            Task<PreparedManagedSelectionCapture> captureTask)
         {
             Interlocked.CompareExchange(ref pendingSelectionCancellation, null, cancellation);
 
@@ -5400,8 +5627,9 @@ namespace osu.Game.Skinning
 
             if (captureTask.Status != TaskStatus.RanToCompletion)
             {
-                if (captureTask.IsFaulted)
-                    _ = captureTask.Exception;
+                if (captureTask.Exception?.InnerException is GameplaySkinScriptException error
+                    && generation == Interlocked.Read(ref selectionGeneration))
+                    LastScriptPreparationDiagnostic = error.Message;
 
                 rejectSelection(
                     generation,
@@ -5412,7 +5640,7 @@ namespace osu.Game.Skinning
                 return;
             }
 
-            SkinManagedPackageCaptureResult capture = captureTask.GetAwaiter().GetResult();
+            PreparedManagedSelectionCapture capture = captureTask.GetAwaiter().GetResult();
 
             if (generation != Interlocked.Read(ref selectionGeneration))
             {
@@ -5454,6 +5682,8 @@ namespace osu.Game.Skinning
             }
 
             SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(request.Snapshot!, this, capture.Capsule!);
+            if (factory.IsSuccess)
+                factory.Skin!.InstallPreparedGameplaySkinPackage(capture.Package);
 
             if (!factory.IsSuccess)
             {
@@ -5627,7 +5857,10 @@ namespace osu.Game.Skinning
                 }
 
                 else if (generation == Interlocked.Read(ref selectionGeneration))
+                {
                     LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
+                    LastScriptPreparationDiagnostic = null;
+                }
             }
         }
 
@@ -6682,32 +6915,10 @@ namespace osu.Game.Skinning
 
             try
             {
-                var entries = new List<SkinPackageCapturedEntry>(snapshot.Files.Count);
-
-                foreach (RealmPackageFileDeclaration file in snapshot.Files)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    byte[] content = userFiles.Get(new RealmFile { Hash = file.Hash }.GetStoragePath());
-
-                    if (content == null
-                        || !string.Equals(
-                            Convert.ToHexString(SHA256.HashData(content)),
-                            file.Hash,
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        return false;
-                    }
-
-                    entries.Add(SkinPackageCapturedEntry.CreateFile(file.Filename, content));
-                }
-
-                SkinPackageRevisionCapsuleCreationResult result =
-                    SkinPackageRevisionCapsuleFactory.Create(entries, cancellationToken: cancellationToken);
-
-                if (!result.IsSuccess)
+                using SkinPackageRevisionCapsule capsule = captureExactRealmPackage(snapshot, cancellationToken, out _);
+                if (capsule == null)
                     return false;
 
-                using SkinPackageRevisionCapsule capsule = result.Capsule;
                 contentRevision = capsule.ContentRevision;
                 return true;
             }
@@ -7436,6 +7647,8 @@ namespace osu.Game.Skinning
 
             public void Validate(CancellationToken cancellationToken) => validate(cancellationToken);
 
+            public void PrepareGameplayPackage(CancellationToken cancellationToken) => skin.PrepareGameplaySkinPackage(cancellationToken);
+
             public Skin TransferSkin()
                 => Interlocked.Exchange(ref skin, null)
                    ?? throw new InvalidOperationException("The prepared revision owner was already transferred.");
@@ -7647,6 +7860,20 @@ namespace osu.Game.Skinning
             }
         }
 
+        private sealed class PreparedManagedSelectionCapture
+        {
+            private readonly SkinManagedPackageCaptureResult capture;
+            public SkinPackageRevisionCapsule Capsule => capture.Capsule;
+            public bool IsSuccess => capture.IsSuccess;
+            public GameplaySkinPreparedPackage Package { get; }
+
+            public PreparedManagedSelectionCapture(SkinManagedPackageCaptureResult capture, GameplaySkinPreparedPackage package)
+            {
+                this.capture = capture;
+                Package = package;
+            }
+        }
+
         private sealed class PendingManagedFolderSelectionCompletion
         {
             public long Generation { get; }
@@ -7654,7 +7881,7 @@ namespace osu.Game.Skinning
             public SelectionRequest Request { get; }
             public SkinManagedFolderOperationCoordinator.SelectionPreparationObservation PreparationObservation { get; }
             public CancellationTokenSource Cancellation { get; }
-            public Task<SkinManagedPackageCaptureResult> CaptureTask { get; }
+            public Task<PreparedManagedSelectionCapture> CaptureTask { get; }
 
             public PendingManagedFolderSelectionCompletion(
                 long generation,
@@ -7662,7 +7889,7 @@ namespace osu.Game.Skinning
                 SelectionRequest request,
                 SkinManagedFolderOperationCoordinator.SelectionPreparationObservation preparationObservation,
                 CancellationTokenSource cancellation,
-                Task<SkinManagedPackageCaptureResult> captureTask)
+                Task<PreparedManagedSelectionCapture> captureTask)
             {
                 Generation = generation;
                 Target = target;

@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（合同按任务定位与publication去重；不改变runtime或产品门）
+> 最后更新：2026-09-09（C6 公开数值脚本、授权撤销及最终整包 publication 合同）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -109,7 +109,7 @@
 12. codec/catalog/resource/material/scene的prepare、取消窄窗、exact source/version复验及单引用commit统一遵守[C2 publication](#c2-current-revision与publication)的3m4～3m5，不能在renderer重做。
 12a. BMS Note/LN的exact layout/generation ref-counted borrow与publication转移、失败释放、renderer detach后retire统一按[C2 publication](#c2-current-revision与publication)的3m4a执行。
 13. C4不定义新的beatmap-local gameplay-skin作者格式：无sidecar名、producer/importer、`WorkingBeatmap` public document/revision authoring ownership、capture/archive/reload或public source kind。现有`WorkingBeatmap.Skin`仍可惰性持有同一只读`LegacyBeatmapSkin`实例，其direct visual compatibility继续生效但绝不成为公共document producer；未来重开必须用独立产品gate一次性交付路径安全、可携带性、两ruleset consumer与C1/C2 lifecycle。
-14. C5后保留且已接production的foundation为BMS lane-resource candidate/snapshot、configuration candidate、legacy field catalog、shared catalog/codec/resolver、scene/event runtime、timing projection与slot host；旧lane-colour/config-declaration/bucket colour/geometry snapshot factory、无reader colour sidecar、伪canonical candidate及production Key/KeyPressed candidate已删除。通用capability negotiator/authorization与sandbox明确留给C6且不计C5。
+14. C5后保留且已接production的foundation为BMS lane-resource candidate/snapshot、configuration candidate、legacy field catalog、shared catalog/codec/resolver、scene/event runtime、timing projection与slot host；旧lane-colour/config-declaration/bucket colour/geometry snapshot factory、无reader colour sidecar、伪canonical candidate及production Key/KeyPressed candidate已删除。通用capability negotiator现由C6 package/token/真实host调用；脚本作者协议与持久化不是旧process-local carrier的序列化。
 
 ### Legacy compatibility输入事实
 
@@ -159,7 +159,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 1n. Realm登记的外部package materialization必须使用不可变的文件名→内容身份快照并绑定package revision；路径越界、大小写冲突、重复名或authority冲突均fail-open为对应slot的`Inherit`，不得从另一package补齐。
 1o. 文件素材必须在解码前检查输入字节、图片尺寸/像素、帧数与累计预算，并在解码后再次核对实际资源；先无界解码、再检查预算不算防护。当前普通短键/长条 head/body/tail runtime 限值只是安全上限，不是最终 author ABI。
 1p. 初次装载与manual Reload的IO/解码、失败保A、取消/过期拒绝及live host准入统一见[C2 publication](#c2-current-revision与publication)；不得另建组件级reload。
-1q. C5 publication不等于C6最终ini/manifest/scene/script/全部素材整包门；当前完成边界只见[STATUS](DEVELOPMENT_STATUS.md)。
+1q. 最终整包prepare须覆盖ini/manifest/scene/script/全部素材，即使菜单没有gameplay participant也不得推迟验证；脚本编译结果属于同一prepared package，不能由host另读live源。当前完成边界与证据只见[STATUS](DEVELOPMENT_STATUS.md)。
 1r. runtime 的 raw/decoded/frame/texture cap 不等于 `.osk` importer 的总压缩/解压字节、解压比或 zip-bomb 防护；两道 gate 必须分别实现和验收。
 1s. BMS C4 production material覆盖ordinary note、LongNoteHead/Body/Tail，mania覆盖Note/Hold head/body/tail/KeyVisual；均按public catalog slot + exact keymode + stable LaneId/scratch/stage target解析同一package revision。BMS静态与连续`name-0`、`name-1`…固定60 FPS合同无损保持；Required slot不可Suppress，声明失败进入确定可见fallback，不能由低层裸同名texture拼件。
 1t. `LongNoteTail`保持Optional：未声明为Inherit，有效静态/连续编号帧为Provide，public document可显式Suppress；empty/invalid/坏资源不得解释为Suppress。legacy beatmap direct visual仍优先；tail host、判定和LN/CN/HCN规则不变。
@@ -178,7 +178,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 ## scene、事件与脚本约束
 
-C5声明式scene/animation、只读event及全部适用slot host已进入production；C6的脚本VM、权限授权与最终整包reload仍未实现，C7才交付canonical双包与Authoring Kit。以下各节直接描述现行合同，不保留由末尾补充覆盖前文的旧状态。
+C5声明式scene/animation、只读event及全部适用slot host与C6可选脚本共用production publication；C7才交付canonical双包与完整Authoring Kit。以下各节描述现行行为合同，实际自动验证和campaign完成状态只见[STATUS](DEVELOPMENT_STATUS.md)。
 
 ### 声明式作者面
 
@@ -189,14 +189,14 @@ C5声明式scene/animation、只读event及全部适用slot host已进入product
 
 ### 唯一versioned package / scene contract
 
-1. package 内固定文件名为 `gameplay-skin.json`（manifest）与 `gameplay-skin.scene.json`（scene），合同分别为 `oms-gameplay-skin-manifest.v1`、`oms-gameplay-skin-scene.v1`；事件 envelope 为 `oms-gameplay-skin-event.v1`。版本、stable ID、字段顺序、默认值、canonical UTF-8 encode/round-trip 与 unknown-version 行为由 `GameplaySkinSceneCodec`/schema 唯一维护，不得新增第二 parser、tokenizer 或 resolver。
+1. package 内固定文件名为 `gameplay-skin.json`（manifest）与 `gameplay-skin.scene.json`（scene），合同分别为 `oms-gameplay-skin-manifest.v1`、`oms-gameplay-skin-scene.v1`；事件 envelope 为 `oms-gameplay-skin-event.v1`。manifest 可选 `script` 只接受 `gameplay-skin.script` 或 `gameplay-skin.bytecode`，不探测 DLL、自定义路径或多个 runtime。版本、stable ID、字段顺序、默认值、canonical UTF-8 encode/round-trip 与 unknown-version 行为由 `GameplaySkinSceneCodec`/schema 唯一维护，不得新增第二 parser、tokenizer 或 resolver。
 2. scene 只能来自 C1/C2 捕获的 exact package content。capture 后所有 manifest/scene/resource bytes 在 background prepare 完成；commit 后 consumer/renderer 不得重读 manifest、scene、`SkinInfo`、NativeStorage、filesystem 或网络，也不得二次 decode/resolve/prepare。missing manifest 是稳定 absent/empty；损坏或 invalid manifest/scene 是稳定失败并保留 exact A，不得把 invalid 当 absent、把 unsupported 当 inherit、或跨 revision 拼接新旧字段。
 3. 相对资源路径必须拒绝绝对路径、盘符、UNC、父目录逃逸、reparse/symlink 逃逸、大小写/NFC歧义、重复归一化目标与外部读取；canonical validator、entry kind、content revision 与 package identity 必须同时匹配。duplicate、unknown field/node/property/effect/event、非法 type/index/target/resource、UTF-8/BOM、canonical mismatch 与预算超限只产生稳定脱敏诊断（public code、stable ID/index、source kind、contract version），不得输出路径、作者值、record/hash 或 exception 正文。
 4. decode 结果与 prepared graph 防御性 immutable，并保留 exact source/content/package/current/layout/material/scene contract identity。node、property、resource、track、keyframe、template、instance、effect、binding 都有 stable ID、确定顺序、严格类型与默认值；节点仅允许 Sprite、Container、Text、Mask、Clip，blend/effect 仅 allowlist preset，不允许任意 shader、反射、动态类型加载、脚本表达式、文件系统或网络。
 
 ### Shared prepared graph与runtime
 
-1. `GameplaySkinPreparedScene` 是唯一 background output，包含 immutable graph、compiled animation/state/binding program、resource metadata/decoded texture、template expansion 与初始 event state；renderer 只实例化/读取该 output。固定层级为 Background/Underlay/Object/GameplayEffects/Overlay/HudForeground，z-order、anchor/origin、size/scale、clip/mask、blend、DPI/safe-area、stage/group/lane/HUD/BGA target 与 layout-relative 坐标必须显式且只来自 C3 exact layout。
+1. `GameplaySkinPreparedPackage` 在三源初次选择/Reload 的后台阶段完成 layout-independent manifest/scene/script/全部资源验证及有界解码，exact Skin 缓存同一 immutable 结果；没有 gameplay participant 的 Settings 路径也不得跳过验证。`GameplaySkinPreparedScene` 在同一 C2 work lease 内结合 C3 layout，包含 immutable graph、compiled animation/state/binding/script program、resource metadata/decoded texture、template expansion、初始 event state及 exact authorization token；renderer 只消费此 output，不重复 IO/parse。固定层级为 Background/Underlay/Object/GameplayEffects/Overlay/HudForeground，z-order、anchor/origin、size/scale、clip/mask、blend、DPI/safe-area、stage/group/lane/HUD/BGA target 与 layout-relative 坐标必须显式且只来自 C3 exact layout。
 2. runtime 支持 frame animation、tween/track（Step/Linear/In/Out/InOut）、state machine、只读 property binding 与受预算 template/instance。binding 只读 engine event/state，不能改变判定、分数、对象、input、clock、BGA timeline 或 gameplay binding authority。scene/slot 单节点故障只回退该 scene/slot；不得破坏 gameplay、layout、material 或跨 revision publication。
 3. scene/event host与prepared resource必须接入[C2 publication](#c2-current-revision与publication)的3m～3m5完整participant/lease、attach/detach、取消/故障/shutdown协议，不新增scene专用提交或回收authority。
 
@@ -224,20 +224,23 @@ C5声明式scene/animation、只读event及全部适用slot host已进入product
 3. manifest/scene bytes、文件/资源数、compressed/decompressed/decoded bytes、texture pixels、node/depth、template expansion、effect、track/keyframe、text/glyph、event subscription/queue/frame consumption、pool capacity/concurrent instance/per-frame create-recycle 都有硬预算并在 prepare 或 bounded runtime 检查。update thread 不做 I/O、图片解码、模板展开、大对象分配或字符串解析；Note/LN/Hold、HUD、effect 与 lane host 使用有界 pool。相同输入/revision 必须产生相同 resource selection、event order、animation sample、state transition 与 Snapshot/Reset。
 4. package/runtime 限制总压缩/解压字节、单资源解码像素、总 decoded bytes/纹理/atlas/动画帧、global/lane/note/effect 节点和每帧预算；超限/异常只熔断脚本/scene/对应组件，不能中断 gameplay。
 
-### C6脚本权限与隔离门（未实现）
+### C6脚本权限与隔离门
 
-本节约束未来通用脚本能力协商与授权，和C5已生效的逐slot runtime support profile分开。当前只有process-local negotiator/decision fixture；尚无script VM、package脚本入口或授权持久化/UI，不能作为现行作者能力。
+同包脚本经 `GameplaySkinPreparedPackage` 后台编译/验证进入既有 publication，真实 BMS/mania 共用 scene host 消费 C5 stream；逐 slot support profile 继续独立约束适用性。作者格式、操作码、诊断、固定预算和可导入候选见[脚本作者说明](../../other/SKIN_SCRIPT_V1_AUTHORING.md)；当前验证及 campaign 状态只见[STATUS](DEVELOPMENT_STATUS.md)。
 1. 脚本 VM 必须支持可抢占 instruction quota 与 heap quota；只在回调返回后检查 stopwatch 无法防无限循环，不可作为安全预算。
 2. 脚本 capability 必须声明；允许的可选能力须 per-skin 显式授权、可查询、可撤销。网络/任意文件/反射/进程/线程/原生库/gameplay writes 永不授权。
 2a. capability grant 必须同时满足：package 显式 request、ID 存在于 engine closed allowlist、required host feature 当前可用、需要 per-skin authorization 的项已由当前 skin 获准，并且未命中 hard deny。任一单独的 request/support/grant snapshot 都不能制造权限；unknown 不动态注册，hard deny 永远优先。
-2b. capability ID 是非敏感小写 ASCII opaque token，不得嵌入包名、用户数据、资源名或路径。当前通用脚本权限 CLR carrier/diagnostic/JSON 仅为 process-local decision 与隐私 fixture，不是 manifest、持久化或 script ABI；未来 parser 必须先实施 ID 长度、request 数量与 package budget。
+2b. capability ID 是非敏感小写 ASCII opaque token，不得嵌入包名、用户数据、资源名或路径。内部 negotiator 的 CLR carrier/diagnostic JSON 不是作者 ABI；C6 的 source/bytecode compiler/verifier 在输入边界实施 token、request、target 和 package budget。closed allowlist 仅含 `gameplay.snapshot.read`、`gameplay.events.read`、`scene.numeric.write`、`math.random.read`，全部要求 per-skin authorization。
 2c. hard-deny catalog/classifier 是 closed allowlist 后的第二道 fail-closed 屏障，不是对任意同义词的穷举。明确禁止 gameplay input/lane/action/layout/judgement-line/cover/scroll/timing/clock/judgement/score/combo/gauge/chart/beatmap/BGA mutation、Realm/config authority，以及 network/arbitrary filesystem/reflection/process/thread/native family。禁止 `gameplay.layout.write` 不等于禁止经 schema 校验的声明式 geometry；package-scoped resource read 也不等于 arbitrary filesystem。
-2d. 当前内部 classifier 对明确 deny root 及 descendant、以及 terminal mutation action 生效；只读 event fixture 以 terminal `.read` 区分，因此 `reset/seek/create/update` 等事件名可出现在前序 segment。该命名规则尚不是 author ABI，未来 catalog/manifest 定稿不得把只读 event family 误分类成写 authority。
-2e. negotiation result 只能携带 immutable granted ID 与结构化 denial，不得携带 delegate/service/object/authority handle；同一 ID 不得同时 grant/deny，hard-denied ID 不得进入 grant。撤销通过重新协商产生新 snapshot，但每个 future host API 仍须实际 runtime gate；本合同不证明旧 scene/script 已原子停用。
-2f. 当前没有通用脚本权限的production request/authorization、per-skin授权identity/存储/UI、required/optional/explicit-deny状态、授权layer activation/fallback、script protocol或sandbox runtime；C5的exact package identity、scene/event版本与slot support不在此未实现范围。`NoAdditionalAuthorization`只可用于经产品策略确认的低风险baseline；允许的可选package能力仍必须per-skin authorization。
+2d. 内部 classifier 对明确 deny root/descendant 和 terminal mutation action 生效；只读 event fixture 以 terminal `.read` 区分，`reset/seek/create/update` 可出现在前序 segment。classifier 不动态扩张公开 allowlist，也不把只读 event family 当作写 authority。
+2e. negotiation result 只携带 immutable granted ID 与结构化 denial，不携带 delegate/service/object/authority handle；hard deny 优先且同一 ID 不得同时 grant/deny。每次实际 read/set/random、clone 投影及 frame 收尾复核当前 token；真实 event 回调与固定 clock tick 分别受 events/snapshot 权限约束。撤销立即更新有效权限，GameHost update 通知即使在 paused scene tree 中也须撤去旧 overlay、停用或重建实例，恢复当前 C5 state/track/binding 与必要视觉，不能清空状态机历史。快速撤销/再授权不能沿用旧 VM，无关 skin 保存不能重置当前 VM；detach 退订并取消晚到通知。live reload 禁止不阻碍授权撤销；授权变化不触发 source capture。
+2f. source 明确声明 required/optional/deny；required 缺失停用脚本，optional 默认未授权且须由作者检查，deny 永不授权。Settings 的查询/授权/拒绝/撤销针对 exact token。`NoAdditionalAuthorization` 不用于这四项能力。stable identity 为引擎 record ID 加整包内容及含 compiler/runtime 版本的 program 指纹；同内容重启/reload、managed 目录 rename 可保留，重新导入新 record、任何内容或协议变化均重新协商。持久化只接受 versioned `oms-skin-script-authorizations.v1`，后台串行原子替换；grant 仅在 durable 成功后生效，revoke 先失权。未知/损坏存储及未完成 `.pending` 文件或目录拒绝旧授权，失败 grant 不得被后续无关写入激活。
 3. 脚本编译和文件 IO 不在 update thread 执行；不得在事件回调做阻塞操作。
 4. 任何脚本引擎选型先通过 preemption/capability isolation、license、Windows 打包、性能/GC 和调试诊断 spike。采用 Lua 不等于兼容 `.luaskin` 或 beatoraja runtime。
 5. 受信任 C# `ISkin` provider 可留作开发/高级扩展，但用户可分发 V1 皮肤不得依赖编译 DLL。
+6. V1 使用 in-tree bounded numeric VM；source/bytecode/compiler/runtime 当前均为 V1，不支持的 source 头、bytecode 魔数与 runtime wire version 严格拒绝。compiler version 是引擎实现版本，不是输入字段；编译/验证语义变化必须递增它以失效授权指纹，不按生成工具年代拒绝仍符合现行格式/语义的字节码。source UTF-8、定点字节码 verifier、source-map 行号、确定 fixtures 与同生产源码的 CLI 同切维护；source digest 不构成字节码信任。没有磁盘可信编译 cache，immutable package 内复用已验证 program，新 revision 必须重新 prepare。
+7. 每 callback 4096 / 每 update 16384 instruction、固定 state/heap、每 frame 256 set 和 16384 实际 clone 属性应用分别限额；每 instruction 检查取消。仅允许六个数值 scene 属性，不暴露 CLR/对象/任意 IO/玩法写 API。超限、越权或数值异常只熔断脚本，保持同一 scene 的基础表现；普通 note/key/judgement 不依赖用户授权。
+8. presentation tick 固定 60 Hz gameplay time，先处理 tick 前的旧 baseline，再按 canonical sequence 折叠同时间事件；必须等引擎 time 严格越过 tick 时间才封闭该 tick，不能由同帧暂时空的 queue 推断后续 playfield 已停止生产等时事件。render FPS 不改变结果。pause 不推进 tick；seek/retry/reload 的完整 Snapshot/Reset 重建 state/heap/seed。seed 来自 immutable program 指纹；profiler wall clock 只用于测量。故障不能由普通 Reset 隐式解除。Settings 提供稳定诊断、源行、callback/instruction/heap 与 VM elapsed，性能报告须分别说明 VM 和实际 scene host 测量及机器环境。
 
 ## playfield 与 BGA 布局约束
 
@@ -289,7 +292,7 @@ C5声明式scene/animation、只读event及全部适用slot host已进入product
 3m4. reload prepare前后及commit时都必须复核participant generation、target generation、current selection/owner/revision和exact source/content/layout revision。所有可失败Realm/blob/held filesystem I/O、capture、解析、native stage vector/topology、geometry solve、纹理/sample/materializer准备止于background prepare；commit只做已准备且可逆的内存引用交换。C3的`GameplaySkinLayoutRevisionOwner.PreparePublication`必须在fresh work lease内准备neutral+typed adapter单引用，最终只经publication lock下的exact participant-generation guard执行一次reference exchange；exact owner已有current后，shared owner自身必须在同一锁内、任何新work lease或solve前拒绝二次prepare，不能只依赖BMS/mania caller guard，首次并发prepare继续按admission generation latest-wins。BMS/mania topology与environment必须在该leased solve callback内捕获，managed ruleset入口必须在任何config/skin/solve前拒绝compatibility token；compatibility只作为detached solver/visual fixture的显式opt-in，不是production lifetime authority。`RulesetSkinProvidingContainer`只有显式layout prepare intent的exact production root可发布，base/false wrapper/inner beatmap provider不得建立第二publication或推进layout generation。全部participant ready前B不可见；commit fault逆序rollback已交换引用并保A。prepare中attach或commit前detach使snapshot失效并有界fresh retry；delayed child只有prepare成功才可attach，late attach只取得已提交package/layout revision与lease。commit前取消保A，commit开始后的取消不得制造split；neutral commit后不得由ruleset wrapper二次可见交换。异步graph的framework callback与ownership sentinel必须使用同一scheduler保持FIFO；当前Editor mode graph固定到`ScreenContainer.Scheduler`，不能一半local、一半global。旧revision只有manager、participant、work与operation lease全部满足detach fence后才可在update thread exactly-once retire；shutdown须先claim participant immutable set并触发其terminal/shutdown hook，再由真实owner cancel/reap pending callback并join真实worker，最后同步detach/reap，manager不得替consumer释放work lease。
 3m4a. BMS exact material prepare取得的`BmsManagedPackageNoteRevisionBorrow`必须沿单一所有权链移动：material preparer → `GameplaySkinLayoutPublication` → `GameplaySkinPreparedLayout`/prepared scene → commit后的`GameplaySkinLayoutRevisionOwner`。每次移动须清空前任持有者；publication/prepare异常、carrier Dispose、dispatch取消/拒绝、commit guard失败及owner Dispose都以幂等退役收口，禁止double release或无人释放。成功owner由`RulesetSkinProvidingContainer.Dispose`在`base.Dispose`完成renderer子树detach/dispose之后再释放；`BmsLegacySkin.Dispose`只标记generation abandoned、取消/join未完成work，并且仅在waiter/borrower同时归零后清理prepared revision。 该borrow按exact layout snapshot/generation签发且为幂等ref-counted；material entry、resolver和renderer不获得独立dispose权。
 3m4b. parse、catalog/applicability validate、resource/scene decode、resolver、material与prepared graph构造全部止于background prepare并贯穿host cancellation。prepared publication在prepare前后及commit时复核participant generation、current selection、exact source/content/package/layout/material/scene与全部contract version；exact owner只接受`RetainsExactSource`。carrier取得fresh work lease/publication retirement后必须立即进入可Dispose ownership scope；若token在solver最后检查后、carrier返回或commit前变为cancelled，shared owner与ruleset caller都必须先释放carrier再逸出，BMS/mania均不得提交取消后的publication。失败或取消保留exact A package+layout+material+scene，update thread只交换prepared引用。
-3m5. latest-wins允许新request在旧uncooperative worker退出前完成prepare/commit，但旧worker永不commit且其operation admission直到真实退出才释放；dispatcher与layout owner callback都必须以`Pending/CallbackOwned/Cancelled/Completed`等价CAS终态确保queued cancel不晚跑、已claim callback由真实完成/throw/return-false决定终态并可join。reentrant observer、throwing observer、scheduler fault、retry与cancel都不得拆分guarded package+layout+material+scene。成功publication清理诊断必须以该请求generation精确守卫；outer completion不得覆盖重入产生的新诊断。所有诊断只输出稳定reason，禁止path、record/operation ID、physical identity或native异常正文。最终ini/manifest/scene/script/素材整包门仍到C6；C6新增consumer必须同切登记participant/lease并保持单publication。
+3m5. latest-wins允许新request在旧uncooperative worker退出前完成prepare/commit，但旧worker永不commit且其operation admission直到真实退出才释放；dispatcher与layout owner callback都必须以`Pending/CallbackOwned/Cancelled/Completed`等价CAS终态确保queued cancel不晚跑、已claim callback由真实完成/throw/return-false决定终态并可join。reentrant observer、throwing observer、scheduler fault、retry与cancel都不得拆分guarded package+layout+material+scene。成功publication清理诊断必须以该请求generation精确守卫；outer completion不得覆盖重入产生的新诊断。所有诊断只输出稳定reason，禁止path、record/operation ID、physical identity或native异常正文。ini/manifest/scene/script/素材采用同一prepared publication；C6的VM实例、编译worker与脚本scene输出分别受既有host participant、operation/work lease和exact owner管理，不建立第二publication authority。
 
 ### External注册与集合一致性
 
@@ -353,7 +356,7 @@ C5声明式scene/animation、只读event及全部适用slot host已进入product
 
 ### Current mutation与恢复边界
 
-7. 三源与所有layout/material/scene consumer的publication、失败保A、lease和retire唯一遵守[C2 publication](#c2-current-revision与publication)。C6新增script consumer必须同切加入该协议，最终整包门按[PLAN](DEVELOPMENT_PLAN.md)闭合。
+7. 三源与所有layout/material/scene/script consumer的publication、失败保A、lease和retire唯一遵守[C2 publication](#c2-current-revision与publication)。脚本授权撤销必须使旧host实际失权，暂停时也须恢复必要视觉；它不是Reload准入，不允许绕过live host拒绝规则。
 8. 删除current skin前必须通过与manual Reload相同的revision transaction发布已验证protected fallback并等待旧revision detach，不能只向scheduler排队selection pair后立即mutation。canonical接管前fallback authority为程序化`OmsSkin`，C7后改为只读`oms-simple.osk`。current managed Delete随后才进入C1 journal/physical/hard-remove与recovery；首个physical后的uncertain failure保持fallback并由durable recovery收口，不承诺恢复旧source。current external Unregister随后只fresh compare exact service-owner/record/current revision并pure-Realm remove，任何失败恢复旧revision且source零I/O。current ordinary `.osk`随后只Realm soft-delete，Realm失败恢复旧pair/revision、record/blob。非current目标可按既有各自mutation合同不改变protected pair；external永远不能被写、改名或物理删除。
 9. schema 56只读清点已经发现的失效`InstantiationInfo`不得依赖`SkinInfo.CreateInstance()`的历史`TrianglesSkin` fallback静默吞掉，也不得靠普通启动只修fixed-ID protected记录后宣称迁移完成。Realm/hash-backed已导入包必须先保全内容，再按用户批准的定点方案重导入、保留或移除；scanner不得代办该清理。Realm写事务可能不更新文件mtime，迁移证据必须同时验证SHA-256与动态schema状态。
 
@@ -375,7 +378,7 @@ C5声明式scene/animation、只读event及全部适用slot host已进入product
 
 ## 测试与发布约束
 
-1. 验证按实际改动面分层：仅改BMS ruleset组件且未触碰shared skin、mania compatibility或fallback authority时，至少覆盖用户package、Provide/Inherit/Suppress、BMS relevant/full与Release；修改shared skin、mania compatibility、scene/event或fallback authority时，必须追加core skin focused、mania relevant/full、BMS relevant/full与Release。C4还必须覆盖shared codec/catalog/resolver、三源exact material，C5还必须覆盖scene codec/runtime、event Snapshot/Reset、全部适用slot与revision并发矩阵。真实`oms-simple`、canonical恢复与双包只在C7存在后作为gate；迁移期间保留`OmsSkin`对照。
+1. 验证按实际改动面分层：仅改BMS ruleset组件且未触碰shared skin、mania compatibility或fallback authority时，至少覆盖用户package、Provide/Inherit/Suppress、BMS relevant/full与Release；修改shared skin、mania compatibility、scene/event或fallback authority时，必须追加core skin focused、mania relevant/full、BMS relevant/full与Release。C4还必须覆盖shared codec/catalog/resolver、三源exact material，C5还必须覆盖scene codec/runtime、event Snapshot/Reset、全部适用slot与revision并发矩阵；C6追加真实source/CLI bytecode作者包、Settings授权/拒绝/撤销/重启、版本失效、暂停及并发授权、预算熔断、三源无host整包验证与备份数据根G1。真实`oms-simple`、canonical恢复与双包只在C7存在后作为gate；迁移期间保留`OmsSkin`对照。
 2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。
 3. layout最低矩阵：P1-K decode/override→converter→manager/layout owner→真实renderer；5K/7K × P1/P2/CenterP1/CenterP2、9K BMS、9K PMS、14K及mania single/dual。每格覆盖stable identity、explicit logical/visual/global/group-local index、lane order/bounds/scratch/deck/centre gap、BGA viewport、gauge/combo/HUD safe slot、aspect/DPI/safe-area、逐字段fallback、mod后LaneId与时序不变，并证明全部production consumer持同一snapshot reference。
 4. sandbox 最低矩阵：权限拒绝、无限循环、内存/节点超限、异常熔断、replay determinism、seek/retry/pause/reload 和 profiler。

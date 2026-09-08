@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
@@ -73,6 +72,56 @@ namespace osu.Game.Skinning
         /// </summary>
         internal string? PackageContentRevision { get; }
 
+        private readonly object gameplayPackagePrepareGate = new object();
+
+        internal GameplaySkinPreparedPackage? PreparedGameplaySkinPackage { get; private set; }
+
+        internal GameplaySkinPreparedPackage PrepareGameplaySkinPackage(CancellationToken cancellationToken)
+        {
+            lock (gameplayPackagePrepareGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return PreparedGameplaySkinPackage ??= GameplaySkinPreparedPackage.Prepare(
+                    (name, limit) => TryCaptureGameplaySkinResource(name, limit, out byte[] bytes) ? bytes : null,
+                    GetCurrentRevisionContentIdentity(), SkinInfo.ID,
+                    (resources as SkinManager)?.ScriptAuthorizations, cancellationToken);
+            }
+        }
+
+        internal void InstallPreparedGameplaySkinPackage(GameplaySkinPreparedPackage package)
+        {
+            if (!string.Equals(package.ContentRevision, GetCurrentRevisionContentIdentity(), StringComparison.Ordinal))
+                throw new InvalidOperationException("A prepared author package must retain the exact skin content revision.");
+            lock (gameplayPackagePrepareGate)
+            {
+                if (PreparedGameplaySkinPackage != null)
+                    throw new InvalidOperationException("The immutable author package has already been prepared.");
+                PreparedGameplaySkinPackage = package;
+            }
+        }
+
+        internal Texture PrepareGameplaySkinTexture(GameplaySkinCapturedSceneResource captured)
+        {
+            if (resources == null)
+                throw new InvalidOperationException("Preparing an author texture requires the owning renderer.");
+            var upload = new TextureUpload(captured.CreateImage());
+            Texture? texture = null;
+            try
+            {
+                texture = resources.Renderer.CreateTexture(upload.Width, upload.Height);
+                // Texture.SetData transfers this upload to the draw-thread queue. Its pixel buffer must remain
+                // alive until the native texture completes the upload and disposes it.
+                texture.SetData(upload);
+                return texture;
+            }
+            catch
+            {
+                upload.Dispose();
+                texture?.Dispose();
+                throw;
+            }
+        }
+
         /// <summary>
         /// The sole C2 whole-package identity projection used when publishing or preparing this exact skin owner.
         /// </summary>
@@ -119,6 +168,16 @@ namespace osu.Game.Skinning
                 throw new ArgumentException("A gameplay scene resource name must be one canonical package-relative path.", nameof(resourceName));
             }
 
+            // Exact capsule metadata is trusted and lets the boundary reject an oversized source before the
+            // resource view allocates its defensive copy.
+            if (FallbackStore is ISkinPackageRevisionResourceStore exactStore)
+            {
+                SkinPackageFileRevision? file = exactStore.Files.FirstOrDefault(file =>
+                    string.Equals(file.ResourceName, normalisedName, StringComparison.OrdinalIgnoreCase));
+                if (file != null && file.Length > maximumBytes)
+                    throw new InvalidDataException("A gameplay scene resource exceeds its prepared byte budget.");
+            }
+
             byte[]? captured = store.Get(normalisedName);
 
             if (captured == null)
@@ -132,68 +191,6 @@ namespace osu.Game.Skinning
 
             bytes = captured.ToArray();
             return true;
-        }
-
-        /// <summary>
-        /// Resolves a validated texture while the exact C5 publication is still being prepared.
-        /// </summary>
-        /// <remarks>
-        /// The returned texture is retained by the prepared publication. Calling this method from a renderer is a
-        /// contract violation; only the background preparer owns package-resource resolution.
-        /// </remarks>
-        internal Texture? PrepareGameplaySkinTexture(string resourceName, ReadOnlyMemory<byte> capturedBytes)
-        {
-            if (!SkinPackageResourceNameValidator.TryNormalise(resourceName, out string normalisedName, out _)
-                || !string.Equals(resourceName, normalisedName, StringComparison.Ordinal))
-            {
-                throw new ArgumentException("A gameplay scene texture name must be one canonical package-relative path.", nameof(resourceName));
-            }
-
-            if (capturedBytes.IsEmpty || resources == null)
-                return null;
-
-            using var capturedStore = new CapturedGameplaySkinResourceStore(normalisedName, capturedBytes.ToArray());
-            using IResourceStore<TextureUpload> loader = CreateTextureLoaderStore(resources, capturedStore);
-            using TextureUpload? upload = loader.Get(normalisedName);
-
-            if (upload == null)
-                return null;
-
-            Texture texture = resources.Renderer.CreateTexture(upload.Width, upload.Height);
-            texture.SetData(upload);
-            return texture;
-        }
-
-        private sealed class CapturedGameplaySkinResourceStore : IResourceStore<byte[]>
-        {
-            private readonly string name;
-            private byte[]? bytes;
-
-            public CapturedGameplaySkinResourceStore(string name, byte[] bytes)
-            {
-                this.name = name;
-                this.bytes = bytes;
-            }
-
-            public byte[] Get(string resourceName)
-                => bytes != null && string.Equals(resourceName, name, StringComparison.Ordinal) ? bytes.ToArray() : null!;
-
-            public Task<byte[]> GetAsync(string resourceName, CancellationToken cancellationToken = default)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return Task.FromResult(Get(resourceName));
-            }
-
-            public Stream? GetStream(string resourceName)
-            {
-                byte[]? value = Get(resourceName);
-                return value == null ? null : new MemoryStream(value, writable: false);
-            }
-
-            public IEnumerable<string> GetAvailableResources()
-                => bytes == null ? Array.Empty<string>() : new[] { name };
-
-            public void Dispose() => bytes = null;
         }
 
         /// <summary>
@@ -547,6 +544,8 @@ namespace osu.Game.Skinning
                 return;
 
             isDisposed = true;
+
+            PreparedGameplaySkinPackage = null;
 
             Textures?.Dispose();
             Samples?.Dispose();

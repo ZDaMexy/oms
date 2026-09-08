@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（文档健康度治理；campaign与退出门不变）
+> 最后更新：2026-09-09（原C6闭合，C7保留后续；七campaign预算不重计）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实/验证见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -9,15 +9,17 @@
 
 ## 当前执行门与冻结输入
 
-当前 **`5/7 closed，C6 active`**。C1工作区/archive、C2三源revision、C3唯一layout、C4 codec/catalog/material、C5 scene/event均为冻结输入；不重开或复制它们的实现史，完整合同见[TECH](TECHNICAL_CONSTRAINTS.md)，完成证据见[CHANGELOG](CHANGELOG.md)。SV1-0恢复/数据处置继续生效，归档和无authority orphan blob保全，异常期代码不得整包恢复。
+当前 **`6/7 closed，C7 active`**。C1工作区/archive、C2三源revision、C3唯一layout、C4 codec/catalog/material、C5 scene/event继续保持既有合同；C6公开脚本及最终整包/G1自动门已闭合。不重开campaign或重计预算，完整合同见[TECH](TECHNICAL_CONSTRAINTS.md)，完成证据见[CHANGELOG](CHANGELOG.md)。SV1-0恢复/数据处置继续生效，归档和无authority orphan blob保全，异常期代码不得整包恢复。
 
-先完成C6 sandbox与SV1-2最终整包门，再完成C7双包/作者工具/自动release。`V-001`～`V-004`仍0/4，已导入.osk短键与LN head/body/tail、选择切换、坏包回落及新增视觉统一到[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。待签收不阻塞自动可证工作；只有视觉结论决定设计或自动证据无法裁决异常时等待反馈。人工未签收只能称“自动gate通过，视觉待验收”，不能称SV1-1、Skin V1或release完成，也不能复用2026-07-14静态恢复验收。
+C6实现与验收见[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)；下一campaign为C7双包/完整作者工具/自动release，本次未提前接管canonical或删除OmsSkin。`V-001`～`V-004`仍0/4，C6新增`V-005`未签收，全部可见结果统一到[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。待签收不阻塞自动可证工作；只有视觉结论决定设计或自动证据无法裁决异常时等待反馈。人工未签收只能称“自动gate通过，视觉待验收”，不能称SV1-1、Skin V1或release完成，也不能复用2026-07-14静态恢复验收。
 
 ## 七个持久Campaign预算与剩余退出门
 
-`SV1-0`～`SV1-7`表示能力与依赖层，不暗示协作轮数。自2026-08-09的campaign启动prompt起，已知Skin V1/P1-A范围及各campaign必须取得终态的产品路线、P1-K layout前置，在最多七个持久campaign内收口；第七个campaign退出时只允许保留集中视觉、真实设备、长时间体验等人工签收。该承诺是campaign prompt预算，不是日历或单提交工期：同一对话可有多次交互、上下文压缩、有意义提交与测试，未过退出门不得生成后续campaign prompt。当前文档治理不占用或推进campaign。
+`SV1-0`～`SV1-7`表示能力与依赖层，不暗示协作轮数。自2026-08-09的campaign启动prompt起，已知Skin V1/P1-A范围及各campaign必须取得终态的产品路线、P1-K layout前置，在最多七个持久campaign内收口；第七个campaign退出时只允许保留集中视觉、真实设备、长时间体验等人工签收。该承诺是campaign prompt预算，不是日历或单提交工期：同一对话可有多次交互、上下文压缩、有意义提交与测试，未过退出门不得生成后续campaign prompt。不通过拆分子campaign或重新计数扩张该预算。
 
 ### `C6` 可选脚本与隔离及最终整包reload门
+
+**已闭合。** 以下为本campaign已满足的退出合同；公开工具链、真实候选/授权UI、完整三源与双host、安全隔离、宽测和独立复审见[C6证据](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)。没有向C7转移VM、权限、cache、profiler或最终整包门欠账。
 
 映射：`SV1-6`并最终复核`SV1-2`。
 

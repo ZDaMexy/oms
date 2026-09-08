@@ -81,6 +81,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     Items = new[] { skins.CurrentSkinInfo.Value },
                 }),
                 new ReloadCurrentSkinButton(),
+                new SkinScriptSettings(),
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,

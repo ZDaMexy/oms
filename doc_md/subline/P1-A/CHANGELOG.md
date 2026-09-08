@@ -4,6 +4,14 @@
 
 ## 2026-09-09
 
+### C6 可选脚本产品链、授权隔离与最终整包 reload 闭门
+
+- 继续原C6并闭合全部非人工产品、自动、合同与安全退出门，状态推进为`6/7 closed，C7 active`，不拆分campaign、不重计七个预算。C7 canonical双包/完整Authoring Kit与接管保留后续，程序化`OmsSkin`未删除；原V-001～004仍0/4，新增[V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选)未签收，Skin V1/release未完成。
+- 完成in-tree有界数值VM及无需DLL的source/bytecode V1、production compiler/verifier、版本策略、source-map诊断和同源CLI；[Momentum候选](../../other/skin-c6-candidate/README.md)以真实judgement滚动历史、gauge、gameplay time与可选PRNG驱动同包BMS/mania效果。普通导入/三源选择→实际Settings授权→真实双producer/scene host→查询/拒绝/撤销/故障恢复均可达，普通note/key/judgement不依赖脚本。
+- 四方权限协商落实到实际API和callback/tick派发；record+整包/VM指纹绑定持久授权，durable grant、即时revoke、并发失败与pending恢复均fail-closed。逐指令/固定heap/实际clone预算可抢占；确定性tick、pause/seek/retry、profiler、熔断与paused撤销沿同C5 stream和C2生命周期。独立复审发现的排队grant复活、回调计数泄露、暂停不退效果、迟到通知重置等均通过真实红测修复。
+- 三源菜单也先完成ini/manifest/scene/script/资源的同一prepared package；编译与host加入既有participant/work lease/detach/retire，不增publication authority。修复ordinary blob先分配再限额、final coordinator内旧generation提交与texture upload提前释放；补真实作者逐文件`File.Replace`、失败保A、取消/shutdown、双host detach后mutation及source/CLI bytecode×三源备份根六格。
+- 最终验证、精确旧失败比较、性能环境、数据根保全、formatter/文档检查与独立复审统一见[C6验证报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)。同步STATUS/PLAN/TECH、作者说明、SKINNING和集中清单；memory只增加ownership/时钟/授权/格式检查的独有诊断。未push、publish或取得新增人工签收。
+
 ### 文档与记忆健康度专项优化
 
 - STATUS 保留当前事实与最新实际复验，旧 C5 数字回链既有历史；PLAN 集中七 campaign 预算、C6/C7 完整退出门并合入重复实施补充。TECH 增加任务索引和 G1 操作小节，重复 publication 与 LN 状态合同回链唯一章节，保留原编号及具体物理/journal 边界。

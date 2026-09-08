@@ -18,6 +18,8 @@ metadata:
 
 ## formatter 与并发误判
 
+- 本机 `dotnet format --include` 传绝对路径曾成功退出但 report 为 0，漏掉实际 `ENDOFLINE`；从仓库根传 `git diff/ls-files` 的相对路径后才真正命中。检查 report 与已知改动，不以退出码单独证明 include 范围已执行。
+- 正常 format 修复过一次也不等于最终 `--verify-no-changes` 通过；C6 最终检查仍检出内部 static readonly 字段与新增 private overload 的 IDE1006。按实际符号修正并重新编译，保留 public overload 名称；不要加 suppression 或把首次 exit 0 当作最终格式证据。
 - `dotnet format --include` 曾对新/未跟踪测试误报 `IDE0005`，删去实际使用的 `System.Collections.Generic` / `System.Reflection` 后，`HashSet<>` / `BindingFlags` 编译失败。先核对符号，再以 owning csproj 编译裁决，不能以 formatter 摘要替代编译器。
 - solution-level whitespace verify 曾对新测试漏报 `ENDOFLINE`，也曾出现聚合噪声。新/未跟踪文件按 owning csproj 定点校验，修改后重新编译和暂存；`git diff --cached --check` 核对最终字节。
 - 共享工程并发 build/test 会争用 `obj`/输出，触发 `CS2012`、`MSB3026`。统一调度或真正隔离输出；冲突那次不算 gate，不靠循环重试掩盖。

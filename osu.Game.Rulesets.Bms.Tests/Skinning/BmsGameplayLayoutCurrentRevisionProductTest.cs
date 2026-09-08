@@ -228,11 +228,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 caller.ReloadCurrentButton.TriggerClick();
             });
             AddUntilStep("wait for invalid B scene prepare failure", () =>
-                prepareCount == 1 && scenePrepareCount == 1 && caller.ReloadCurrentButton.Enabled.Value);
+                prepareCount == 1 && caller.ReloadCurrentButton.Enabled.Value);
             AddStep("assert manager retained exact A revision", () =>
             {
                 Assert.Multiple(() =>
                 {
+                    // C6 validates the whole captured author package before any participant prepares B. This
+                    // failure no longer depends on the test's additional layout-specific validation participant.
+                    Assert.That(scenePrepareCount, Is.Zero);
                     Assert.That(manager.CurrentRevision, Is.SameAs(revisionA));
                     Assert.That(manager.CurrentRevision.Owner, Is.SameAs(revisionA.Owner));
                     Assert.That(revisionA.Retired.IsCompleted, Is.False);
@@ -276,15 +279,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddUntilStep("wait for absent-scene B prepare completion", () =>
                 prepareCount >= 2
-                && scenePrepareCount >= 2
+                && scenePrepareCount >= 1
                 && caller.ReloadCurrentButton.Enabled.Value);
             AddStep("assert absent-scene B committed", () =>
             {
                 Assert.Multiple(() =>
                 {
                     Assert.That(prepareCount, Is.EqualTo(2));
-                    Assert.That(scenePrepareCount, Is.EqualTo(2));
-                    Assert.That(scenePrepareFailures, Has.Count.EqualTo(1),
+                    Assert.That(scenePrepareCount, Is.EqualTo(1));
+                    Assert.That(scenePrepareFailures, Is.Empty,
                         string.Join(Environment.NewLine, scenePrepareFailures.Select(failure => failure.ToString())));
                     Assert.That(manager.CurrentRevision, Is.Not.SameAs(revisionA));
                 });

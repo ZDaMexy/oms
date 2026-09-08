@@ -23,3 +23,8 @@ App.config text eol=crlf
 .gitattributes text eol=lf
 *.md text eol=lf
 .travis.yml text eol=lf
+
+# Stable author bytes for the reproducible C6 candidate archive and source digest.
+doc_md/other/skin-c6-candidate/*.ini text eol=lf
+doc_md/other/skin-c6-candidate/*.json text eol=lf
+doc_md/other/skin-c6-candidate/*.script text eol=lf

@@ -258,6 +258,9 @@ __pycache__/
 
 # Cake #
 /tools/**
+!/tools/SkinScriptCompiler/
+!/tools/SkinScriptCompiler/SkinScriptCompiler.csproj
+!/tools/SkinScriptCompiler/Program.cs
 /build/tools/**
 /build/temp/**
 

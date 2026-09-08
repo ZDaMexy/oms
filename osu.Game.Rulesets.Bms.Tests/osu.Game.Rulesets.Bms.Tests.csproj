@@ -15,4 +15,11 @@
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\osu.Game.Rulesets.Bms\osu.Game.Rulesets.Bms.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\doc_md\other\skin-c6-candidate\skin.ini;..\doc_md\other\skin-c6-candidate\gameplay-skin.json;..\doc_md\other\skin-c6-candidate\gameplay-skin.scene.json;..\doc_md\other\skin-c6-candidate\gameplay-skin.script;..\doc_md\other\skin-c6-candidate\tile.png">
+      <Link>SkinC6Candidate\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
