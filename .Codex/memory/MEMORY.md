@@ -6,7 +6,7 @@
 
 - [项目总览](project_oms_overview.md) — 范围、数据根与便携标记。
 - [文档治理](project_oms_docs_governance.md) — 文档失真、标题与检查器误判。
-- [反馈工作流](feedback_workflow.md) — 中文、反过度防御、真机证据与自主闭环。
+- [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 展示层级、返回条与转谱显示。
 - [内置音乐播放器](project_oms_music_player.md) — 播放器产品决定与预览音频边界。
 
@@ -24,7 +24,7 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者产品决定、legacy/editor/beatmap-local 边界。
-- [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 用户价值核算与 campaign 预算，实时燃尽读 P1-A。
+- [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；预算和实时进度读 P1-A。
 
 ## 构建、存储与产品面参考
 

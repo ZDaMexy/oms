@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（C6 非人工产品、最终整包 reload 与 G1 自动门闭合）
+> 最后更新：2026-09-09（C6 闭合后的产品成果复核；本轮结束，C7 留待新对话）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，实现合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,17 +9,17 @@ Skin V1为 **`6/7 closed，C7 active`**：原 C6 已完成可选脚本产品链�
 
 ## 当前产品能力与剩余门
 
-| 产品面 | 当前可用结果 | 必须保持的边界 |
+| 产品面 | 当前可用结果 | 尚未完成或必须保持的边界 |
 | --- | --- | --- |
-| 恢复与数据 | SV1-0自动、schema 56数据及用户恢复实机门通过 | 迁移归档与无authority orphan blob保全，不做全局cleanup |
-| C1作者工作区/archive | external注册/选择/重启/Open/Managed Copy/Unregister；managed Open/Rename/Delete；ordinary .osk有界导入/rollback receipt | external永久只读；held proof、exact-set、single-v3 journal/recovery及共享blob所有权 |
-| C2 current revision | Settings唯一Reload current skin覆盖ordinary Realm .osk、managed、external；后台prepare与update-thread原子提交 | gameplay/preview在source prepare前拒绝；current mutation先fallback+detach，legacy editor/update-import关闭 |
-| C3 keymode/layout | P1-K提供唯一keymode/lane/timeline；BMS/mania/core/HUD/BGA viewport消费同一immutable layout | stable LaneId/GroupId与显式index，不在consumer重建几何 |
-| C4作者合同/material | 28项public catalog、exact skin.ini唯一shared codec、Provide/Inherit/Suppress与实际material consumer | critical不可Suppress；不新增beatmap-local public作者格式，legacy direct visual兼容保留 |
-| C5 scene/animation/event | versioned manifest/prepared scene、frame/tween/state/binding/template、只读Snapshot/Reset及预算/池化进入真实host | BMS 28项有route（9K适用26项）；mania 23 Supported，Mine/Turntable/Laser/BGA viewport/BGA frame五项NotApplicable |
-| C6脚本与最终整包 | 无需DLL的source/bytecode V1、同源CLI compiler/verifier；Settings授权/拒绝/撤销，双ruleset真实host、预算/熔断/确定性/profiler；三源最终publication/G1自动门通过 | 可选表现，基础note/key/judgement无需授权；external只读、live Reload仍拒绝。作者产物见[Momentum候选](../../other/skin-c6-candidate/README.md)，完整证据见[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md) |
-| C7 canonical/发行 | 下一campaign，本次未实施 | 双包/完整Authoring Kit、canonical parity/完整性/原子恢复与fallback接管仍按[PLAN](DEVELOPMENT_PLAN.md) |
-| 集中视觉/实机 | V-001～V-004签收0/4，V-005新增待验收 | 已导入.osk短键、LN head/body/tail、双ruleset脚本候选及最终包见[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md) |
+| 导入、选择与管理 | 可导入普通皮肤包，管理游戏内皮肤目录，或登记作者自己的目录；选择可在重启后保留 | 作者外部目录始终只读；已有用户数据恢复要求继续生效 |
+| 修改后更新与失败保护 | 三种来源均可从设置手动重新载入整个皮肤；更新失败保留原来可用的外观 | 游玩和预览期间不能重新载入；不提供自动监听更新 |
+| 游玩外观与动画 | BMS、mania 已接通适用的音符、长条、按键、判定、布局及动画，可响应实际游玩情况 | 两种玩法的专属组件不同；这不等于两款正式成品已完成，也未扩展选歌、结算等页面的皮肤制作范围 |
+| 可选组合效果 | [Momentum 候选](../../other/skin-c6-candidate/README.md)可普通导入，在两种玩法中根据近期击打和能量变化产生右侧组合效果；玩家可以授权、拒绝、查询和撤销 | 拒绝或撤销不影响基本游玩；候选仍借用现有基础外观，不是完整复杂皮肤。真实链路与安全检查见[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md) |
+| 作者独立制作 | 已能编辑包内文件、检查并打包组合效果，不需要修改客户端程序 | 仍需手写文件和执行打包步骤；完整模板、制作说明和工具套件待 C7，没有可视化编辑器 |
+| 两款正式皮肤与安装恢复 | 下一阶段交付完整简洁皮肤和复杂展示皮肤，每款同时支持 BMS、mania | 正式默认外观替代、安装损坏修复与完整创作套件按[PLAN](DEVELOPMENT_PLAN.md)完成；本轮未开始 C7 开发 |
+| 实际观感与设备体验 | 集中清单已包含已有外观和新组合效果 | V-001～V-004 签收 0/4，V-005 未签收；清晰度、整体美术、低端设备与长时间体验不能用自动检查代签，见[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md) |
+
+产品复核确认上述工作已进入真实导入、选择和游玩流程，并非只有内部准备；更新失败与数据保护也有独立价值，但不算新增视觉成果。C7 应以完整双包和作者能独立走完制作流程来证明交付，不能继续用局部效果示例或内部建设代替成品。
 
 C2～C6共用exact package+layout+material+scene publication，script及编译工作已加入同一owner/participant/lease/detach/retire。无gameplay host的菜单也先验证ini/manifest/scene/script/素材；授权撤销独立使旧host失权，不扩大Reload准入。完整合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 

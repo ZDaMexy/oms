@@ -5,7 +5,7 @@
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。Skin V1为 **`6/7 closed，C7 active`**；C6可选脚本、最终整包reload与G1自动门已闭合，C7 canonical双包/完整Authoring Kit及接管保留后续。`V-001`～`V-004`签收 **0/4**，新增`V-005`未签收，Skin V1与release均未完成。能力、验证与剩余门见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段。Skin V1为 **`6/7 closed，C7 active`**；C6已让作者制作可选组合效果、玩家控制授权，并完成整包更新与安全检查。完整简洁/复杂皮肤、完整制作工具及正式默认外观替代留待C7新对话；现有候选不是完整复杂成品，不按阶段比例换算产品完成度。`V-001`～`V-004`签收 **0/4**，新增`V-005`未签收，Skin V1与release均未完成。能力、验证与剩余门见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 

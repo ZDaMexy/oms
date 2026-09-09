@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（原C6闭合，C7保留后续；七campaign预算不重计）
+> 最后更新：2026-09-09（原C6闭合，明确C7成品与创作流程重点；预算不重计）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实/验证见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -37,6 +37,8 @@ C6实现与验收见[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md
 
 映射：`SV1-7`并汇总`SV1-1`～`SV1-7`。
 
+**面向产品的实施重点：** 尽早形成可完整游玩的简洁皮肤与复杂展示皮肤，并让作者走通“修改 → 检查 → 打包 → 导入 → 验证”；围绕这两款成品完成默认外观替代和安装恢复。C6 Momentum 只证明组合效果可用，不算最终复杂皮肤。`oms-simple`是最终保底外观，`oms-complex`仍为展示包/默认候选，不擅自锁定首次默认选择。
+
 **必须闭合的非人工产品结果：**
 
 交付可编辑、可复现构建的`oms-simple.osk`/`oms-complex.osk`、模板、完整schema/event/layout/capability/budget文档、validator/diagnostics与打包导入说明；发行物只读携带、完整性验证/原子恢复。canonical fallback接管必须覆盖`SkinManager`初始/current/config失败pair、ruleset providing containers、selection/reload失败回落、current managed delete/current external unregister、protected Realm record。升级时仍存在且具备完整现行证据的supported pre-C1 v2及C1以后journal，可由旧`OmsSkin`证据继续恢复或显式版本迁移；缺tombstone/fingerprint/manifest/disposition的pre-product legacy-v1/old-v2 Delete继续strict Invalid并进入安装修复，绝不猜测迁移。之后才让程序化`OmsSkin`退出产品authority；canonical缺失/损坏必须阻止进入gameplay并进入明确安装修复，不能重新生成程序化视觉。第三方包、portable/custom-root/update、性能及全套自动门收敛。
@@ -51,7 +53,7 @@ C6实现与验收见[C6报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md
 
 1. 只读审计、GO/NO-GO、路线冻结、红测、foundation、DTO、单个consumer、单个提交或文档同步都不能独占一个campaign，也不能推进编号；它们只能是当前campaign的前段或组成部分。
 2. 每个campaign最低终态为`产品红测 → runtime/backend → 真实UI caller → 全部声明涉及的production consumer → 失败回退/owner边界 → focused/full/Release → docs/memory → 独立终审 → 有意义提交`。
-3. 当前campaign未闭合就留在同一对话继续；若必须由用户改变产品语义，则在同一对话等待，不生成新的handoff prompt来消耗预算。若提前闭合，直接在同一对话进入下一个campaign也允许，因此七个prompt是上限而非配额。
+3. 当前campaign未闭合就留在同一对话继续；若必须由用户改变产品语义，则在同一对话等待，不生成新的handoff prompt来消耗预算。若提前闭合，在用户授权范围内直接进入下一个campaign也允许；七个prompt是上限而非配额，停止边界遵循[协作规则](../../../AGENTS.md#工作流)。
 4. 人工签收发现的新缺陷形成新证据后仍须修复，但不能预先虚构其不存在；七个campaign承诺覆盖2026-08-09已知P1-A范围、各campaign内须取得终态的产品路线及明确的P1-K layout前置，不把P1-B/D/E/G其它产品子线偷塞进Skin预算。
 
 ## 跨线依赖
