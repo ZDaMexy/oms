@@ -522,11 +522,13 @@ namespace osu.Game.Skinning
                                           StringComparison.OrdinalIgnoreCase));
 
         internal static bool IsExactProtectedFallbackRecord(SkinInfo? record)
+            => IsExactProtectedRecord(record, OmsSkin.CreateInfo())
+               || IsExactProtectedRecord(record, CanonicalSkinPackage.CreateInfo());
+
+        internal static bool IsExactProtectedRecord(SkinInfo? record, SkinInfo expected)
         {
             if (record == null)
                 return false;
-
-            SkinInfo expected = OmsSkin.CreateInfo();
 
             return record.ID == expected.ID
                    && string.Equals(record.Name, expected.Name, StringComparison.Ordinal)

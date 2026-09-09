@@ -51,7 +51,7 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly HashSet<string> binding_source_ids = new HashSet<string>(StringComparer.Ordinal)
         {
             "layout.stage", "layout.group", "layout.lane", "input.pressed", "object.state", "judgement.result", "judgement.offset",
-            "score.value", "combo.value", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "bga.content-state",
+            "score.value", "score.accuracy", "combo.value", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
         };
 
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
@@ -1289,8 +1289,8 @@ namespace osu.Game.Skinning.Gameplay
             if (property == "text")
                 return true;
 
-            bool sourceIsNumber = source is "judgement.offset" or "score.value" or "combo.value" or "gauge.value"
-                or "timing.beat" or "timing.measure" or "timing.bpm";
+            bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "gauge.value"
+                or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress";
             bool sourceIsBoolean = source == "input.pressed";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);

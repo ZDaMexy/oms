@@ -67,7 +67,23 @@ namespace osu.Game.Skinning
         protected override ValueTask<ArchiveReader> OpenArchiveReaderAsync(ImportTask task, CancellationToken cancellationToken)
             => SkinArchiveReader.OpenAsync(task, cancellationToken);
 
-        protected override bool ShouldDeleteArchive(string path) => string.Equals(Path.GetExtension(path), @".osk", StringComparison.OrdinalIgnoreCase);
+        protected override bool ShouldDeleteArchive(string path)
+        {
+            if (!string.Equals(Path.GetExtension(path), @".osk", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string filename = Path.GetFileName(path);
+            if ((string.Equals(filename, "oms-simple.osk", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(filename, "oms-complex.osk", StringComparison.OrdinalIgnoreCase))
+                && string.Equals(Path.GetFullPath(path), Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", filename), StringComparison.OrdinalIgnoreCase))
+            {
+                // Import the exact same ordinary author bytes, but never remove the game's installation originals.
+                // A similarly named community archive in any other directory retains normal import semantics.
+                return false;
+            }
+
+            return true;
+        }
 
         protected override SkinInfo CreateModel(ArchiveReader archive, ImportParameters parameters)
         {
@@ -268,7 +284,8 @@ namespace osu.Game.Skinning
             SkinArchiveInstantiationKind.Argon => typeof(ArgonSkin).GetInvariantInstantiationInfo(),
             SkinArchiveInstantiationKind.ArgonPro => typeof(ArgonProSkin).GetInvariantInstantiationInfo(),
             SkinArchiveInstantiationKind.Retro => typeof(RetroSkin).GetInvariantInstantiationInfo(),
-            SkinArchiveInstantiationKind.Oms => typeof(OmsSkin).GetInvariantInstantiationInfo(),
+            // Old exports keep their authored files, but cannot re-enable the retired embedded OMS theme.
+            SkinArchiveInstantiationKind.Oms => bms_legacy_skin_instantiation_info ?? typeof(LegacySkin).GetInvariantInstantiationInfo(),
             _ => bms_legacy_skin_instantiation_info ?? typeof(LegacySkin).GetInvariantInstantiationInfo(),
         };
 

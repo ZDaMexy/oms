@@ -1,0 +1,7 @@
+{
+  "contract": "oms-gameplay-skin-manifest.v1",
+  "scene": "gameplay-skin.scene.json",
+  "sceneContract": "oms-gameplay-skin-scene.v1",
+  "eventContract": "oms-gameplay-skin-event.v1",
+  "resources": []
+}

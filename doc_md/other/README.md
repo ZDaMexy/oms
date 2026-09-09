@@ -27,6 +27,8 @@
 
 - [2026-09-09 全项目进度审查](PROJECT_PROGRESS_AUDIT_20260909.md)：P1-A～M 生产链对照及本次实测矩阵。
 - [2026-09-09 C6 验证](SKIN_SYSTEM_C6_VALIDATION_20260909.md)：可选脚本、作者工具、授权隔离与最终整包/G1 证据。
+- [2026-09-09 C7 验证](SKIN_SYSTEM_C7_VALIDATION_20260909.md)：完整双包、制作体验、安装恢复与最终自动检查；人工事实独立保留。
+- [2026-09-09 C7 暂停检查点](SKIN_SYSTEM_C7_RESUME_20260909.md)：当前成果、未验修改、配方与旧成品差异，以及收到“继续”后的直接执行顺序。
 - [2026-09-03 C5](SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)：scene/event、slot hosts、预算与 publication 验证。
 - [2026-08-31 C4](SKIN_SYSTEM_C4_CODEC_MATERIAL_COMPLETION_HANDOFF_20260831.md)：codec/catalog/resolver/material 完成证据。
 - [2026-08-30 C3](SKIN_SYSTEM_C3_LAYOUT_COMPLETION_HANDOFF_20260830.md)：keymode/lane 前置、唯一 layout 与消费矩阵。

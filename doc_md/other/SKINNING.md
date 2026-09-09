@@ -10,7 +10,7 @@
 >
 > **可选脚本与整包准备**：C6 已实现无需 DLL 的 V1 数值脚本、compiler/verifier、CLI、Settings 授权/拒绝/撤销与 profiler。真实 BMS/mania host 读取引擎 snapshot/event，并驱动获准的 scene 节点；没有脚本或拒绝授权时，普通 note/key/judgement 仍正常显示。ini、manifest、scene、script 和全部素材沿用同一 C2 prepared publication 与 owner/lease/detach/retire。Settings → Skin 的 `Reload current skin` 仍是三源唯一手动 reload，gameplay/preview 在读取来源前拒绝；授权撤销不触发 reload，暂停时也会停用旧脚本。作者入口见[脚本说明与工具链](SKIN_SCRIPT_V1_AUTHORING.md)及[Momentum 候选源目录](skin-c6-candidate/README.md)。
 >
-> **状态与验收**：campaign 状态只以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准，自动证据见 [C6 验证报告](SKIN_SYSTEM_C6_VALIDATION_20260909.md)。C7 canonical 双包与完整 Authoring Kit 仍属后续计划；程序化 `OmsSkin` 继续作为迁移 fallback。`V-001`～`V-004` 仍为 **0/4 未签收**，新增可见结果见[集中验收清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不能据脚本可用宣称 Skin V1 或 release 完成。新 beatmap-local 作者格式继续不可达，既有只读谱面视觉兼容不受影响。其他合同见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
+> **状态与验收**：campaign 状态只以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准，本轮证据见 [C7 验证报告](SKIN_SYSTEM_C7_VALIDATION_20260909.md)。完整双包、可编辑源文件和独立制作工具见[作者套件](../../skin-authoring/README.md)。正式保底外观来自经过安装校验的普通简洁包；旧 `OmsSkin` 源码仅保留旧恢复证据与人工对照。`V-001`～`V-004` 仍为 **0/4 未签收**，新增可见结果见[集中验收清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不能据脚本可用宣称 Skin V1 或 release 完成。新 beatmap-local 作者格式继续不可达，既有只读谱面视觉兼容不受影响。其他合同见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
 >
 > **受管目录删除边界**：current目标先发布fallback并等待旧revision detach；该阶段失败会恢复或保持原皮肤，且尚未创建journal或触碰目录。进入C1 journal/首个物理步骤后才只由durable recovery收口。Windows目录handle不锁住namespace，final preflight后的竞态新增不会被删除，但可能在部分目标节点已经清理后令操作冻结；这不是all-or-nothing全树删除。
 
@@ -46,7 +46,7 @@ C5 的作者文件是 package 内固定的 `gameplay-skin.json`（manifest）与
 
 引擎从真实 BMS/mania/core gameplay state 发布 `oms-gameplay-skin-event.v1` 只读 envelope，包含 epoch、sequence、gameplay/layout/material/scene revision、gameplay time、LaneId/GroupId、kind 与 immutable payload。bounded stream 的初始 Snapshot/Reset 支持 late attach、reload、retry、seek、rewind 与旧 epoch 隔离；`GameplayResumed` 可以出现在 engine envelope，但 scene 状态机不接受 `gameplay.resume`，因为 Snapshot 已能重建 Running 状态。作者不会获得事件生产、判定或资源选择 authority。
 
-当前 runtime capability 是逐 slot 的版本化决定：BMS profile 对 catalog 28 项全部提供 route（9K 的 Turntable/Laser 按适用性排除）；Mania profile 对28项逐项列出23项 Supported 与五个 NotApplicable（`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`）。Note/LN/Hold、lane、HUD、effect 与 hit explosion 使用固定 pool；manifest/scene/resource/node/effect/text/event queue 等预算在 prepare/runtime 执行，update thread 不做 I/O、图片解码或模板展开。C6 脚本复用这些 scene/event 与预算边界，随整包进入同一 prepared publication；没有另一套 layout、event、material 或 publication authority。C7 才交付 canonical 双包/完整 Authoring Kit；当前仍保留程序化 `OmsSkin` 迁移链底。
+当前 runtime capability 是逐 slot 的版本化决定：BMS profile 对 catalog 28 项全部提供 route（9K 的 Turntable/Laser 按适用性排除）；Mania profile 对28项逐项列出23项 Supported 与五个 NotApplicable（`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`）。Note/LN/Hold、lane、HUD、effect 与 hit explosion 使用固定 pool；manifest/scene/resource/node/effect/text/event queue 等预算在 prepare/runtime 执行，update thread 不做 I/O、图片解码或模板展开。C6 脚本复用这些 scene/event 与预算边界，随整包进入同一 prepared publication；没有另一套 layout、event、material 或 publication authority。完整双包与 Authoring Kit 见[制作入口](../../skin-authoring/README.md)；安装故障不能重新启用程序化主题回退。
 
 ## 当前 C6 可选脚本
 
@@ -171,7 +171,7 @@ public section区分大小写，注释为引号外的`#`或`;`；resource值必�
 
 `BmsLegacySkin`保留`[Mania]`与`[Bms]`兼容数据；两种legacy adapter现在消费public codec保留的同一immutable token stream，不重开`skin.ini`或复制tokenizer。BMS Note/LN与mania Note/Hold/KeyVisual的production material resolver会在public Common层之后按下表消费legacy候选；真实`oms-simple`仍未装载，当前末端仍是受保护程序化fallback。
 
-gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的`[Mania]` bucket → 必要的deck/key-only bucket → ruleset/canonical层。该candidate、lane resource provenance与capability验证已进入BMS production material resolver；不存在第二张slot ID表或renderer内的二次lookup。真实`oms-simple`package仍到C7接管。
+gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的`[Mania]` bucket → 必要的deck/key-only bucket → ruleset/canonical层。该candidate、lane resource provenance与capability验证已进入BMS production material resolver；不存在第二张slot ID表或renderer内的二次lookup。最后的必要部件由经过安装校验的普通`oms-simple`包补齐。
 
 | BMS 模式 | 全视觉列兼容桶 | 普通键兼容桶 | 备注 |
 | --- | --- | --- | --- |
@@ -223,7 +223,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 ### 5.2 Note / Long note
 | 键 | 作用 | 必备档 |
 | --- | --- | --- |
-| `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（当前缺失/损坏时继续外层链并最终落到程序化 `OmsSkin`；V1 目标为 `oms-simple`） |
+| `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（缺失/损坏时沿正常层次由经过校验的 `oms-simple` 补齐） |
 | `NoteImage{lane}H` | 长条头 | **必备**（当前选中的用户 BMS 包支持静态图/连续编号帧；坏声明回落到可见 rescue） |
 | `NoteImage{lane}L` | 长条身 | **必备**（当前选中的用户 BMS 包支持静态图/连续编号帧；素材与安全解析后的 `LongNoteBodyWidth` 同 revision 发布，坏声明回落到可见 rescue） |
 | `NoteImage{lane}T` | 长条尾 | 推荐（当前选中的用户 BMS 包支持静态图/连续编号帧；未声明/坏声明最终为透明迁移 fallback，但不是 `Suppress`） |
@@ -302,23 +302,23 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 旧`ISkin` ABI仍是nullable，但public authoring/runtime使用独立显式三态；BMS Note/LN与mania Note/Hold/KeyVisual已从同一resolved material set消费结果：
 
 - `Provide`：在background prepare完成资源验证/构造后使用；坏资源产生诊断并进入下一完整authority。
-- `Inherit`：显式继续下一authority；absent、empty与invalid仍各自保留，不能把invalid偷当absent，也不能跨revision拼件。当前末端是程序化rescue，C7才由只读`oms-simple.osk`接管。
+- `Inherit`：显式继续下一authority；absent、empty与invalid仍各自保留，不能把invalid偷当absent，也不能跨revision拼件。当前末端是经安装校验的只读`oms-simple.osk`普通作者包。
 - `Suppress`：只允许catalog标为Optional且runtime capability支持的slot；Required/Recommended suppress会稳定诊断并继续确定fallback。缺字段、空字符串、坏资源、`null`与`Drawable.Empty()`都不等于Suppress。
 
 ### 7.1 三档定义
 - **必备 (Required)**：只指可玩核心。lane/scratch 可辨识、note/LN/mine、判定位置，以及启用 lane cover 时的实际遮挡几何必须有 rescue，不能 suppress。清单见 [附录 B](#附录-b必备元素清单)。
-- **推荐 (Recommended)**：标准预期，回退到当前 `OmsSkin`／最终 `oms-simple` 可接受。
+- **推荐 (Recommended)**：标准预期，回退到经校验的 `oms-simple` 可接受。
 - **可选 (Optional)**：纯表现。按键动画、判定图、combo、gauge 视觉、HUD、BGA frame 和装饰效果均可显式 suppress；`oms-simple` 不得被 fallback 强行补回来。
 
 ### 7.2 校验三层（加载期）
 1. **语法合法性**：未知键、非法值与不支持 capability 结构化记录；非法值逐字段回退。
 2. **资源引用**：路径 containment、文件存在、解码像素/字节/纹理/帧数预算均先验证；失败只熔断对应外部层。
-3. **完备性**：必备件必须能解析（皮肤提供，或由当前 `OmsSkin`／最终 `oms-simple` 兜底）。
+3. **完备性**：必备件必须能解析（皮肤提供，或由经校验的 `oms-simple` 兜底）。
 
 ### 7.3 行为契约（关键分工）
 - **加载期 = fail-open + 可查询诊断**：错误package不阻断游玩；manual Reload为三种source在background建立包含layout、resolved material、scene与script的整包revision，全部participant ready后一次替换，失败保留exact旧整包。BMS成功publication持有其prepared Note/LN/scene resource直到renderer子树detach；Skin owner开始退出不会提前释放仍被画面借用的资源，失败/取消/commit拒绝的provisional publication则exactly-once清理自身。C5 scene/event、全部适用 slot 与 C6 script/编译工作均进入同一协议；运行时脚本故障只停用脚本并恢复基础表现。
-- **编辑期 = 比加载期更严**：这是后续工具目标；当前没有完整可视皮肤编辑器。
-- **keymode 覆盖**：实际覆盖由对应 `[Bms] Keymode:` bucket 及具体 slot 声明决定；`[General] Keymodes:` 当前仅是 informational/editor hint，不参与加载期 gating。缺失 slot 沿当前 `OmsSkin`／最终 `oms-simple` 链回落。
+- **制作检查**：[作者套件](../../skin-authoring/README.md)检查公开语法、素材、场景、脚本以及普通包和目录准入，定位错误后再打包；没有可视化编辑器。
+- **keymode 覆盖**：实际覆盖由对应 `[Bms] Keymode:` bucket 及具体 slot 声明决定；`[General] Keymodes:` 当前仅是 informational/editor hint，不参与加载期 gating。缺失 slot 沿经校验的 `oms-simple` 链回落。
 
 ---
 
@@ -340,13 +340,12 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 9. `oms-simple`、`oms-complex` 与最终 fallback
 
-当前默认视觉仍由程序化 `OmsSkin` 提供；reference ini 与 C6 Momentum 候选用于作者制作和验证。C7 的最终 canonical 双包尚未接管，V1 最终由文件皮肤承担具体产品视觉：
+两款作品都通过普通作者路径制作，同时支持 BMS 与 mania，作者文件和可重复打包方法见[完整套件](../../skin-authoring/README.md)。
 
-- **`oms-simple.osk`** `[未实现]`：同包提供 mania/BMS，只显示最小可玩件；canonical copy 随发行物只读携带并校验。用户所选皮肤缺失/损坏关键件时逐组件回落到它。
-- **`oms-complex.osk`** `[未实现]`：同包提供 mania/BMS，覆盖完整 slot/event，证明只靠公共素材、scene、事件和可选脚本可达到 IIDX 级完整界面。
-- **当前 C6 Momentum 候选** `[可构建导入]`：从[作者源目录](skin-c6-candidate/README.md)生成 `oms-complex-c6.osk`，同包演示 BMS/mania 的真实 judgement 历史组合效果；它是脚本候选示例，不承担 canonical fallback，也不替代 C7 的最终双包验收。
-- **当前 reference ini** `[已实现但仅迁移参考]`：位于 [oms-bms-reference-skin/skin.ini](oms-bms-reference-skin/skin.ini)，用于锁住当前 F1 palette/profile；它不是最终 `oms-simple`，也不能证明双 ruleset 或 scene/event 能力。
-- **当前程序化 `OmsSkin`** `[迁移期]`：在 `oms-simple` 达到 mania/BMS parity、完整性验证、原子恢复和实机 gate 前暂留；之后退出产品渲染链。引擎仍保留通用 renderer、对象池、layout/event bridge，但不再硬编码任何主题颜色、素材、节点或动画。
+- **`oms-simple.osk`（静线）**：清楚克制的完整游玩外观，也是无自选皮肤、设置失效、当前皮肤删除或外部登记取消后的保底；必要件可以补齐，作者明确关闭的可选件不恢复。
+- **`oms-complex.osk`（星轨）**：两种玩法使用不同配色，完整舞台、分层音符与长条、信息控制台和组合演出均来自公开文件；额外脚本可拒绝或撤销。它仍是展示包和默认候选，未决定首次默认选择。
+- **C6 Momentum**：保留为脚本历史示例和原 V-005 输入，不替代最终复杂作品。
+- **旧 `OmsSkin`**：保留旧恢复证据与历史组件对照，物理删除仍等待规定的人工门；默认选择、普通导入和安装故障都不再通过它生成主题外观。
 
 若只读 canonical `oms-simple` 自身校验失败，这是安装完整性故障：应提示修复/恢复包并阻止进入 gameplay，不能静默生成另一套程序化视觉。
 
@@ -354,7 +353,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 10. 制作流程与 V1 验收
 
-1. **选择作者起点**：静态兼容皮肤可复制 reference ini；scene/script 示例可复制 [Momentum 候选源目录](skin-c6-candidate/README.md)，按 README 构建可导入 `.osk`。C7 的最终 `oms-simple` 模板仍见[§9](#9-oms-simpleoms-complex-与最终-fallback)。
+1. **选择作者起点**：从[完整模板与双包源文件](../../skin-authoring/README.md)开始，按[极光习作演练](../../skin-authoring/docs/WORKSHOP.md)完成修改、检查、打包、普通导入和验证。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}`、长条头身尾可让 `NoteImage{lane}H/L/T` 指向资源基名并提供 `name-0`、`name-1`…；body 宽度可用 `LongNoteBodyWidth`，只接受 finite 且 `0 < width <= 1`。支持范围以页首能力块为准，帧率目前固定 60 FPS。
 3. **重新载入和重选**：作者修改`.osk`时仍编辑源目录、重新打包并导入，不能原位改OMS内部Realm/file store，也不能使用已禁用的update-import。已登记且当前选中的managed/external工作目录内容变更，可在退出gameplay/preview并回到安全screen后点击Settings → Skin → `Reload current skin`。ordinary Realm current也使用同一按钮做same-ID重新验证/重建，但这不是作者编辑面。新增`chartskin/` direct child仍需重启让一次性scanner发现；不要等待自动检测，也不要重复选择同一项冒充reload。
 4. **查看并控制脚本授权**：选包后在 Settings → Skin → 可选皮肤脚本中查看请求，按需授予允许能力；拒绝或撤销仍应保留基础显示。可用 CLI 先定位源码/字节码错误，再观察真实 host 效果、profiler 和故障行号。完整步骤见[脚本作者说明](SKIN_SCRIPT_V1_AUTHORING.md)。
@@ -368,7 +367,7 @@ C3/C4/C5自动矩阵逐一覆盖5K/7K的P1、P2、CenterP1、CenterP2，9K BMS/P
 
 ## 11. Skin Authoring Kit 是什么
 
-完整 Authoring Kit 仍由 C7 交付；当前 C6 已提供脚本语言、CLI、候选源目录与构建步骤。Kit 不是第三种皮肤格式，而是汇集以下内容的“皮肤作者开工包”：
+[完整 Authoring Kit](../../skin-authoring/README.md)随验收与发行候选提供独立可执行工具，作者无需安装开发环境或阅读游戏源码。它使用普通皮肤格式，汇集以下内容：
 
 - `oms-simple` 与 `oms-complex` 的可编辑源目录；
 - 带注释的 `skin.ini`、scene/animation manifest 和 optional script 模板；

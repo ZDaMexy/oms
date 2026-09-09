@@ -83,6 +83,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 IReadOnlyList<ISkin> aggregateSources = skin is ISkinSource aggregate
                     ? aggregate.AllSources.ToArray()
                     : new[] { skin };
+                Skin? validatedCanonical = aggregateSources.Select(unwrap).OfType<Skin>()
+                    .FirstOrDefault(CanonicalSkinPackage.IsCanonicalSkin);
                 var providers = new List<FinalProviderRegistration>();
                 int beatmapIndex = 0;
                 int rulesetIndex = 0;
@@ -159,6 +161,25 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         GameplaySkinResolvedMaterialSourceKind.CanonicalPackage,
                         "canonical-package",
                         candidate.PackageContentRevision ?? "builtin-v1");
+                    if (CanonicalSkinPackage.IsCanonicalSkin(candidate))
+                    {
+                        providers.Add(new FinalProviderRegistration(
+                            new GameplaySkinDocumentSlotProvider<BmsGameplaySkinLaneResourceContext, IBmsResolvedNoteMaterial>(
+                                candidate.GameplaySkinDocument.BindToPublication(layout.Neutral),
+                                RuntimeCapabilities,
+                                "canonical.public-note",
+                                context => BmsGameplayNoteMaterialTarget.Create(layout, layout.GetLane(context.LaneId)),
+                                (entry, context) =>
+                                {
+                                    cancellationToken.ThrowIfCancellationRequested();
+                                    if (string.IsNullOrWhiteSpace(entry.Value)
+                                        || !tryCreateConventionalMaterial(transformed, layout, layout.GetLane(context.LaneId),
+                                            getElement(context.Field), out IBmsResolvedNoteMaterial? material, entry.Value))
+                                        throw new InvalidOperationException("canonical.note.resource-missing");
+                                    return material!;
+                                }),
+                            identity));
+                    }
                     providers.Add(new FinalProviderRegistration(
                         new ConventionalMaterialProvider(
                             $"canonical.package-{canonicalIndex++.ToString(CultureInfo.InvariantCulture)}",
@@ -171,9 +192,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback,
                     "bms-programmatic",
                     "v1");
-                providers.Add(new FinalProviderRegistration(
-                    new ProgrammaticMaterialProvider(layout),
-                    programmaticIdentity));
+                if (validatedCanonical == null)
+                    providers.Add(new FinalProviderRegistration(new ProgrammaticMaterialProvider(layout), programmaticIdentity));
 
                 var entries = new List<GameplaySkinResolvedMaterialEntry>();
                 var diagnostics = new List<GameplaySkinResolvedMaterialDiagnostic>();
@@ -249,7 +269,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     selectedPublicIdentity,
                     programmaticIdentity,
                     resourceName => selectedSource?.GetTexture(resourceName, WrapMode.ClampToEdge, WrapMode.ClampToEdge),
-                    cancellationToken);
+                    cancellationToken,
+                    validatedCanonical);
                 entries.AddRange(publicSlots.Entries);
                 diagnostics.AddRange(publicSlots.Diagnostics);
 
@@ -293,11 +314,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsGameplayLayoutSnapshot layout,
             BmsGameplayLayoutLane lane,
             BmsNoteSkinElements element,
-            out IBmsResolvedNoteMaterial? material)
+            out IBmsResolvedNoteMaterial? material,
+            string? declaredResource = null)
         {
             string column = getFallbackColumn(layout, lane);
             string note = $"mania-note{column}";
-            string[] candidates = element switch
+            string[] candidates = declaredResource != null ? new[] { declaredResource } : element switch
             {
                 BmsNoteSkinElements.Note => new[] { note },
                 BmsNoteSkinElements.LongNoteHead => new[] { $"{note}H", note },

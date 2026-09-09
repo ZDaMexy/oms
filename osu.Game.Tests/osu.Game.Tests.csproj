@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\osu.Game.Rulesets.Mania\osu.Game.Rulesets.Mania.csproj" />
+    <ProjectReference Include="..\osu.Game.Rulesets.Bms\osu.Game.Rulesets.Bms.csproj" />
   </ItemGroup>
   <ItemGroup Label="OMS Removed Ruleset Test Exclusions">
     <!-- OMS 运行时已移除 Osu/Taiko/Catch，先排除仍强依赖这些规则集的上游测试，保留当前皮肤发布闸门链路。 -->

@@ -1,6 +1,6 @@
 # OMS 发行说明
 
-> 当前阶段（Phase 1–2）以 **`oms_YYYYMMDD(.zip)` 便携全量包 + 手工文件覆盖** 为唯一正式发行方式。
+> 当前阶段（Phase 1–2）以 **`oms_YYYYMMDD(.zip)` 便携全量包 + 本地工具覆盖** 为唯一正式发行方式。
 > 游戏内在线更新默认禁用，不依赖 `Setup.exe`、MSI 或增量包。
 
 当前正式打包入口为仓库根目录的 `build-release.ps1`，输出位于 `release-repo/`，压缩包命名为 `oms_YYYYMMDD.zip`；同日多次构建会自动追加 `_2`、`_3` 等序号。
@@ -17,7 +17,7 @@
 
 `build-release.ps1` 内部仍执行 single-file self-contained `dotnet publish`，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini`，清理非运行时杂项后再打包到 `release-repo/oms_YYYYMMDD(.zip)`。
 当前 single-file 发行参数必须同时保留 `IncludeNativeLibrariesForSelfExtract=true` 与 `IncludeAllContentForSelfExtract=true`；若回退成只抽原生库，fresh extract 的便携发行物可能会出现“首次运行先创建 `data/`，随后无窗退出”的冷启动失败。
-同时会在发行根目录生成中英双语 `how to update.txt`；当前文本仍缺非便携模式和自定义数据根的保留步骤，补齐前以本页更新流程为准。
+同时发布无需 SDK 的作者工具、双包源文件与验收工具；发行根的中英双语 `how to update.txt` 和 `Update-OMS.ps1` 已提供保留原便携模式与基础目录 `storage.ini` 的实际更新入口。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
 
@@ -32,8 +32,12 @@
 | `portable.ini` | 便携模式标记（空文件） |
 | `lazer.ico` / `beatmap.ico` | Windows 文件关联图标 |
 | `how to update.txt` | 中英双语手动覆盖更新说明 |
+| `Update-OMS.ps1` / `release-files.json` | 保留原运行模式的离线更新工具与逐文件完整性清单 |
+| `Skins/Canonical/oms-simple.osk` / `oms-complex.osk` | 随安装携带的原件；简洁款承担正式保底，复杂款仍为展示和默认候选 |
+| `skin-authoring/` | 两款普通可导入包、完整源文件、模板、说明和无需 SDK 的制作工具 |
+| `skin-c7-acceptance/` | 集中人工验收说明、记录表、输入生成及隔离副本工具 |
 
-不应包含：松散的 `*.dll` / `*.deps.json` / `*.runtimeconfig.json` / `*.xml` / `*.lib`、`publish/` 目录名本身。
+游戏入口继续为 single-file，不应把游戏构建目录或 `publish/` 目录名本身打入包。作者工具目录保留其实际需要的全部运行文件，不按游戏入口的 single-file 假设误删。
 
 ## 内置皮肤发行约束
 
@@ -112,8 +116,8 @@
 
 1. 完全退出 OMS
 2. 下载新版本 `oms_YYYYMMDD(.zip)`
-3. 解压覆盖到当前程序文件夹（覆盖 `osu!.exe`、`portable.ini` 与图标等发行物文件，保留 `data/` 目录不动）
-4. 启动 `osu!.exe`
+3. 完整解压到另一个普通本地目录，在新目录执行下方 `Update-OMS.ps1` 命令，目标指定原安装目录。
+4. 工具完成后启动原安装中的 `osu!.exe`。
 
 **无需重新导入** BMS/Mania 目录——保留 `data/`；若已重定向，同时保留 `data/storage.ini` 与目标目录。程序文件更新不会主动迁移这些数据。
 
@@ -121,10 +125,18 @@
 
 1. 完全退出 OMS
 2. 下载新版本 `oms_YYYYMMDD(.zip)`
-3. 解压更新程序文件。当前新包自带 `portable.ini`，必须在启动前移走这次解压出的标记，保持原有非便携模式；保留 `%APPDATA%/oms/` 及其中的 `storage.ini`。
-4. 启动 `osu!.exe`
+3. 完整解压到另一目录并运行同一更新工具。它保持原目标没有 `portable.ini`，保留 `%APPDATA%/oms/` 及其中的 `storage.ini`；不要直接用新包 marker 覆盖目标。
+4. 工具完成后启动原安装中的 `osu!.exe`。
 
 **无需重新导入**——用户数据保存在 `%APPDATA%/oms/`；若已迁移，则继续保存在 `storage.ini` 指向的数据根中。
+
+在已解压的新包目录中执行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -UpdateSourceDirectory . -TargetDirectory "D:\OMS-current"
+```
+
+工具先校验整个新包，拒绝链接、路径冲突和运行中覆盖，按文件备份旧程序；不会写入用户保存目录或作者外部目录。更新前文件及中断修复说明保留在目标 `.oms-update-backup-*`。发生中断时保留备份，用完整新包再次执行完成更新；不能猜测删除旧数据。
 
 ### 覆盖更新注意事项
 
@@ -134,7 +146,7 @@
 4. 若使用自定义数据根，保留启动存储中的 `storage.ini` 和目标数据。非便携安装新增 `portable.ini` 会让程序改读 `data/`，从而绕过原 `%APPDATA%/oms/storage.ini`；这可能表现为曲库消失，不能据此重建或删除旧数据。
 5. 覆盖新包后不会触发 Velopack 或安装器自更新链；当前仅保留手工覆盖这一离线更新路径。
 
-随包 `how to update.txt` 尚未包含完整的非便携标记和 `storage.ini` 保留说明，待 P1-F 同步打包脚本；目前以本页为准。
+随包中英 `how to update.txt` 与本页一致。完整性清单校验文件内容，ReadOnly 属性只用于减少误改；两款安装原件在发行、验收启动和更新后设置只读，实际包完整性仍由程序检查。
 
 ## 冒烟测试
 

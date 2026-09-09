@@ -2,6 +2,13 @@
 
 ## 2026-09-09
 
+### C7 随包制作工具与保模式覆盖更新
+
+- `build-release.ps1` 串行发布自包含作者工具，随包加入双 canonical 原件、普通双包、源文件、完整作者套件、验收脚本及 `release-files.json`；递归清理前核对 publish 的绝对父目录、固定子名及整树无 reparse。
+- 新 `Update-OMS.ps1` 按完整性清单在第一笔目标写前校验，保留原 portable marker、data/bootstrap storage.ini 与外部数据；同卷 replace 保留旧程序及 durable 中断说明，无法确认的旧内容不猜测删除。canonical ReadOnly 只在已验证的安装路径更新时暂时解除并恢复。
+- 中英随包说明与 RELEASE 已补齐真实自定义保存位置和非便携模式流程；提供实际可执行更新命令，不只留下操作提醒。
+- `Test-UpdateProtection.ps1` 已实际通过 portable/nonportable/custom、原件只读更新与坏新包拒绝；合成文件验证不代替真实发行物冷启动。证据见 [C7 验证记录](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。
+
 ### 发行实现与证据时效复核
 
 - 核对打包脚本、portable marker、OsuStorage重定向及禁用updater；将最近明确的publish/fresh extract/smoke证据标为2026-05-09，不把近期代码build当作新包验收。

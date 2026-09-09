@@ -18,6 +18,53 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneRuntimeHostTest
     {
+        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene)
+        {
+            LayoutFixture layout = createLayout();
+            GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
+            GameplaySkinResolvedMaterialSet materials = materialSetFor(layout.Snapshot, new[]
+            {
+                provide(GameplaySkinSlotCatalog.TextHud, global, texture, source()),
+            });
+            if (!authorScene)
+            {
+                GameplaySkinPreparedScene semantic = GameplaySkinPreparedScene.CreateEmpty(layout.Snapshot, materials);
+                return GameplaySkinLayoutPublication.Create(new Adapter(layout.Snapshot), materials, semantic);
+            }
+
+            const string json = """
+                                {
+                                  "contract":"oms-gameplay-skin-scene.v1",
+                                  "root":{"id":"hud","type":"container","target":{"kind":"global"},"slot":"hud.text","blend":"alpha","properties":{},"effects":[],"children":[
+                                    {"id":"accuracy","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":"","font-size":24},"effects":[],"children":[]},
+                                    {"id":"progress","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":"","font-size":24},"effects":[],"children":[]},
+                                    {"id":"accuracy-bar","type":"container","target":{"kind":"global"},"blend":"alpha","properties":{},"effects":[],"children":[]},
+                                    {"id":"progress-bar","type":"container","target":{"kind":"global"},"blend":"alpha","properties":{},"effects":[],"children":[]}
+                                  ]},
+                                  "tracks":[],"stateMachines":[],"templates":[],"instances":[],
+                                  "bindings":[
+                                    {"id":"accuracy.text","target":"accuracy","property":"text","source":"score.accuracy"},
+                                    {"id":"progress.text","target":"progress","property":"text","source":"timing.progress"},
+                                    {"id":"accuracy.scale","target":"accuracy-bar","property":"scale-x","source":"score.accuracy"},
+                                    {"id":"progress.scale","target":"progress-bar","property":"scale-x","source":"timing.progress"}
+                                  ]
+                                }
+                                """;
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json, manifest);
+            Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(", ", decoded.Diagnostics.Select(d => d.Code)));
+            GameplaySkinSceneDocument document = decoded.Value!;
+            GameplaySkinSceneNode root = document.Root;
+            GameplaySkinLayoutRect rect = layout.Snapshot.GetSurface("mania.hud").Rect;
+            var scene = new GameplaySkinPreparedScene(layout.Snapshot, materials, "essential-public-fields", manifest, document,
+                Array.Empty<GameplaySkinPreparedSceneResource>(), new[]
+                {
+                    prepared(root, rect, global, GameplaySkinSlotCatalog.TextHud, null,
+                        root.Children.Select(child => prepared(child, rect, global, null, null)).ToArray()),
+                });
+            return GameplaySkinLayoutPublication.Create(new Adapter(layout.Snapshot), materials, scene);
+        }
+
         [Test]
         public void TestAuthorGraphUsesPreparedDrawableTypesTextureGeometryEffectsAnimationBindingAndTemplate()
         {

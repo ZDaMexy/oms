@@ -1,0 +1,73 @@
+# Skin V1 C7 集中体验包
+
+本包让玩家直接选择两款完整皮肤，让作者从源文件完成一次修改、检查、打包和导入。它使用独立便携副本；已有游戏与保存目录不会被打开。两款外观以及原 V-001～V-005 均等待实际观察，不预填通过。
+
+## 开始游玩
+
+1. 将整个验收包解压到一个新的普通本地目录，在此目录打开 PowerShell，运行下方启动命令；第一次向导选择本地游玩即可。命令只对本次运行允许脚本，不更改系统策略。
+2. 将 `import-copies/oms-simple.osk` 与 `oms-complex.osk` 拖入窗口。进入设置的皮肤选择，分别选择简洁款和复杂款。复杂款只是展示包和默认候选；本次不决定首次默认选择。
+3. 在选歌中搜索 `OMS C7`，分别选择 BMS 与 mania 的观察谱。输入谱已放到本副本 `app/data/chartbms/` 和 `app/data/chartmania/`。这些是约四十秒的原创静音观察谱；音频、真实输入、长谱体验仍使用自己的真实谱面另验。
+4. 先保持复杂款额外效果未授权游玩，再在设置中允许请求的必要能力，比较组合演出。拒绝或撤销后，音符、长条和必要信息应仍清楚可用。
+5. 导入成功会消费 `import-copies/` 中的副本。需要重新导入时运行 `Reset-ImportCopies.ps1`；不要直接拖入 `packages/` 或程序携带的保底原件。
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-Acceptance.ps1
+# 补齐已经消费的导入副本：
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Reset-ImportCopies.ps1
+```
+
+## 集中观察
+
+`CHECKLIST.csv` 是本轮集中记录表，可用表格软件打开。逐行填写实际版本、环境、通过或失败及证据；未做的项目保持“待验”。`V001-V005-原验收清单.md` 保留原来的精确验收语义，不被新作品替换或代签。
+
+- BMS：设置内找到 BMS 的“游玩区域样式”，5K、7K 各试“1P（居左）”“2P（居右）”“居中（左皿）”“居中（右皿）”；另试 9K BMS、9K PMS、14K 双舞台。此设置只作用于 5K/7K。观察谱每轨均有短键与长条，两皿也分别出现。
+- mania：原生 1～10K 单舞台，以及 12/14/16/18K 双舞台。每轨都有短键与长条；不要把原生 mania 的 DS 按钮当成任意双舞台生成器。当前谱面读取上限为 18K，20K 文件会按 18K 读取，不能把它作为原生 20K 体验签收。内部支持的其它双舞台组合由自动使用验证覆盖，真实公开入口可达性按当前规则保留。
+- 每款至少观察 4:3、16:9、21:9，100%/150%/200% 系统缩放与游戏界面缩放。确认音符边缘、文字、判定、计分、能量、组合数、按键提示与视频区域无缺失、重叠或越界。
+- 视频观察谱用白边与移动蓝带检查背景视频区域；随包为直接可播放的 MP4，无需配置 ffmpeg。暂停、恢复、重试后继续观察。它只验证本阶段的摆放边界，不代替已有视频播放及真实 BGA 门。原创视频、制作配方和实际格式记录保留在程序附带的 `skin-c7-acceptance/fixtures/` 与 `Generate-ViewportVideo.ps1`。
+- `v001-v004-static.osk` 使用蓝色短键、青色头、黄色身、品红尾；`animation-a` 为连续白色亮带，较窄长条身；`animation-b` 为三帧和较宽长条身。`v002-v004-broken` 缺少必要第零帧，短键仍有效；`v001-broken` 短键也缺第零帧。它们刻意是第三方局部输入，用来观察从正式简洁款补齐必要部分，不是新的成品皮肤。
+- 原 V-001 的 60 帧深蓝、白/品红原包与坏包已放入 `import-copies/`，原观察谱搜索 `OMS BMS Note Animation Manual Gate`。原 V-005 使用同目录的 `oms-complex-c6.osk`。新输入补充 V-001～V-004 集中观察，不改变原项目预期。
+- 听音单独记录：mania 观察谱的静音是伴奏，短键、长条按住和释放仍应使用所选皮肤声音；分别听两款与 Aurora，暂停后持续音应停止，恢复和重试无遗留声。BMS 观察谱自身键音也是静音，不能据此签收 BMS 音频体验，应另用真实有声谱面。
+
+## 完成一次作者练习
+
+打开随包 `skin-authoring/README.md`，使用 `Author.ps1` 和可编辑的 `sources/`。复制模板为自己的名字，先改变配色或其中一组音符，再按套件入口检查、打包；把生成包的副本拖入本验收窗口，选择后游玩两种玩法。故意写错一个资源名并运行检查，确认错误能指到具体文件和位置，修复后再导入。目录作者可以登记自己的目录：游戏只读该目录，修改后退出游玩和预览，再在设置中重新载入。游玩或预览期间重新载入仍应被拒绝。
+
+`import-copies/aurora-study.osk` 是从模板实际制作的作者练习成品，源文件和过程见 `skin-authoring/sources/aurora-study/` 与 `docs/WORKSHOP.md`。可先直接导入它，再照完整过程制作自己的版本。
+
+## 保存位置和覆盖更新
+
+先退出游戏，再运行 `Create-CustomRootCopy.ps1`。它在本包旁生成 `app-custom/` 与 `custom-data/`，复制刚才的皮肤、谱面和设置。运行 `app-custom/osu!.exe`，确认仍能选择和游玩。自定义位置配置位于 **基础目录** `app-custom/data/storage.ini`，并不在程序旁，也不在 `custom-data/`。
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Create-CustomRootCopy.ps1
+```
+
+新发行包解压到另一个目录后，使用随包更新工具：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-Installation.ps1 -UpdateSourceDirectory "D:\OMS-new" -TargetDirectory "D:\OMS-current"
+```
+
+工具先检查新包，要求目标游戏已退出，保留目标原有便携标记，不改 `data/`、基础目录中的 `storage.ini` 或外部保存位置。每个被替换的程序文件保留在目标 `.oms-update-backup-*`。操作中断时保留此目录，按其中 `修复说明.txt` 用完整新包重新完成更新，不猜测删除旧数据。
+
+非便携模式需在专用 Windows 账户或虚拟机进行冷启动体验，避免触及正在使用的默认保存目录。更新工具的非便携文件保护另有自动验证；人工体验时目标程序旁必须继续没有 `portable.ini`，基础目录原有 `storage.ini` 必须保留。不要把便携验收结果填写成非便携通过。
+
+完整发行副本的启动、日志、实际保存位置与正常退出步骤见 [启动核对](STARTUP-CHECK.md)。运行前检查已有游戏，使用零参数启动，并只关闭本轮副本。
+
+## 安装故障与反馈
+
+仅在验收副本中操作，先关闭游戏并复制要改动的文件留存。便携工作副本是 `app/data/skin-canonical/oms-simple.osk`；让它损坏后重新启动，应从随游戏携带的原件完整恢复，并保全坏副本。自定义保存副本中的对应位置是 `custom-data/skin-canonical/oms-simple.osk`。
+
+随游戏携带的只读原件是 `app/Skins/Canonical/oms-simple.osk`。在另一个专用验收副本中将原件改名留存，重新启动应清楚提示修复安装并阻止进入谱面。按上面的 `Update-Installation.ps1` 命令，从另一份完整、未修改的新发行目录修复此 `app`，之后应重新可玩。原件不能由坏工作副本或未知用户文件代替。不要在真实作者目录上演练删除或损坏，也不要删除无法确认归属的旧皮肤、遗留文件或中断记录。
+
+反馈请包含 `build-evidence.json`、Windows/显卡/输入设备、分辨率与缩放、玩法/键数、所选皮肤、对应表格行、实际体验和截图或日志。低端设备、真实谱面、长时间游玩与整体美术只能由实际观察签收；自动检查、截屏预检或本包生成成功均不替代这些结论。
+
+## 从仓库重建本包
+
+先生成完整发行物及作者套件，再运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\skin-c7-acceptance\Build-Acceptance.ps1 -ReleaseDirectory "F:\oms\publish"
+```
+
+输出目录每次独立创建，不覆盖之前的验收记录。版本、发行程序校验与未签收状态写在 `build-evidence.json`；观察谱、素材和第三方输入的校验写在 `inputs/SHA256SUMS.txt`。

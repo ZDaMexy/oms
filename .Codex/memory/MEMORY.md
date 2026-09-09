@@ -23,6 +23,7 @@
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — external 只读、注册与 ManagedCopy 复核。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
+- [canonical 安装与用户数据保护](reference_skin_canonical_installation.md) — 安装原件、副本保全、旧记录恢复与普通导出边界。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者产品决定、legacy/editor/beatmap-local 边界。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；预算和实时进度读 P1-A。
 

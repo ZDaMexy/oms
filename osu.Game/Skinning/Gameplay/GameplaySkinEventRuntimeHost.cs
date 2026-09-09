@@ -46,6 +46,8 @@ namespace osu.Game.Skinning.Gameplay
     public partial class GameplaySkinEventRuntimeHost : CompositeDrawable
     {
         private readonly IGameplaySkinTimingProjection timingProjection;
+        private readonly double firstHitTime;
+        private readonly double lastHitTime;
         private readonly IGameplaySkinEventObjectSnapshotSource? objectSnapshotSource;
         private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs;
         private readonly Dictionary<long, GameplaySkinObjectStateSnapshot> activeObjects;
@@ -103,6 +105,7 @@ namespace osu.Game.Skinning.Gameplay
             Publication = publication ?? throw new ArgumentNullException(nameof(publication));
             ArgumentNullException.ThrowIfNull(beatmap);
             this.timingProjection = timingProjection ?? new GameplaySkinBeatmapTimingProjection(beatmap);
+            (firstHitTime, lastHitTime) = beatmap.CalculatePlayableBounds();
             this.objectSnapshotSource = objectSnapshotSource;
 
             GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
@@ -550,7 +553,12 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private GameplaySkinTimingStateSnapshot createTimingState(double time)
-            => timingProjection.Sample(time);
+        {
+            GameplaySkinTimingStateSnapshot sample = timingProjection.Sample(time);
+            double duration = lastHitTime - firstHitTime;
+            double progress = duration == 0 ? 0 : Math.Clamp((time - firstHitTime) / duration, 0, 1);
+            return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress);
+        }
 
         private void synchroniseActiveObjectsFromEngine(double gameplayTime)
         {

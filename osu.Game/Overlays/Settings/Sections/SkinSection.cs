@@ -72,6 +72,7 @@ namespace osu.Game.Overlays.Settings.Sections
         {
             Children = new Drawable[]
             {
+                new SkinInstallationStatus(),
                 new SettingsItemV2(skinDropdown = new SkinDropdown
                 {
                     AlwaysShowSearchBar = true,

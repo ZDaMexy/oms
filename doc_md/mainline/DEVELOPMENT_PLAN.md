@@ -24,7 +24,7 @@
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7为下一门**：交付同含mania/BMS的canonical双包、完整Authoring Kit与自动release，完成fallback接管和程序化主题视觉退出；本次没有提前实施。
+2. **C7为当前门**：同含mania/BMS的双包、完整制作套件与canonical接管已实施，继续完成成品重生成、完整使用验证与自动发行；具体待办见 [P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md)与 [续接检查点](../other/SKIN_SYSTEM_C7_RESUME_20260909.md)。
 3. 按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及最终包；自动可证工作可继续，只有视觉结论决定设计或自动证据无法裁决异常时才等待反馈。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。

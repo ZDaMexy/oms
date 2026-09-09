@@ -378,6 +378,23 @@ namespace osu.Game.Skinning.Gameplay
             ProcessFrame();
         }
 
+        protected override void UpdateAfterChildren()
+        {
+            base.UpdateAfterChildren();
+            foreach (SemanticVisual semantic in semanticVisuals.Values)
+            {
+                if (!ReferenceEquals(semantic.Entry.Slot, GameplaySkinSlotCatalog.TextHud) || semantic.Text == null)
+                    continue;
+
+                Vector2 naturalSize = semantic.Text.DrawSize;
+                if (naturalSize.X > 0 && naturalSize.Y > 0)
+                {
+                    float scale = Math.Min(1, Math.Min(semantic.Drawable.DrawWidth / naturalSize.X, semantic.Drawable.DrawHeight / naturalSize.Y));
+                    semantic.Text.Scale = new Vector2(scale);
+                }
+            }
+        }
+
         internal void ProcessFrame()
         {
             if (disposed)
@@ -1139,12 +1156,12 @@ namespace osu.Game.Skinning.Gameplay
                 && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.JudgementDisplay))
                 return null;
 
-            const int reserved_glyphs = 32;
+            int reservedGlyphs = ReferenceEquals(descriptor, GameplaySkinSlotCatalog.TextHud) ? 64 : 32;
 
-            if (runtimeTextGlyphs + reserved_glyphs > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_TEXT_GLYPHS)
+            if (runtimeTextGlyphs + reservedGlyphs > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_TEXT_GLYPHS)
                 throw new InvalidOperationException();
 
-            runtimeTextGlyphs += reserved_glyphs;
+            runtimeTextGlyphs += reservedGlyphs;
             return new OsuSpriteText
             {
                 Anchor = Anchor.Centre,
@@ -2037,8 +2054,10 @@ namespace osu.Game.Skinning.Gameplay
                 || ReferenceEquals(slot, GameplaySkinSlotCatalog.JudgementDisplay))
                 return GameplaySkinSceneStateFamily.Judgement;
 
+            if (ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud))
+                return GameplaySkinSceneStateFamily.Score | GameplaySkinSceneStateFamily.Timing;
+
             if (ReferenceEquals(slot, GameplaySkinSlotCatalog.ComboDisplay)
-                || ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud)
                 || ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual))
                 return GameplaySkinSceneStateFamily.Score;
 
@@ -2095,7 +2114,7 @@ namespace osu.Game.Skinning.Gameplay
                 else if (ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud))
                 {
                     if (semantic.Text != null)
-                        semantic.Text.Text = $"{scoreState.Score.ToString(CultureInfo.InvariantCulture)}  {scoreState.Combo.ToString(CultureInfo.InvariantCulture)}x";
+                        semantic.Text.Text = $"{scoreState.Score.ToString(CultureInfo.InvariantCulture)} | {formatAccuracy(scoreState.Accuracy)} | {scoreState.Combo.ToString(CultureInfo.InvariantCulture)}x | {formatProgress(timingState.Progress)}";
                 }
                 else if (ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual))
                 {
@@ -2163,6 +2182,13 @@ namespace osu.Game.Skinning.Gameplay
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Score);
                     return;
 
+                case GameplaySkinSceneBindingSource.ScoreAccuracy:
+                    if (binding.Property == GameplaySkinSceneProperty.Text)
+                        applyRuntimeStringProperty(target, binding.Property, formatAccuracy(scoreState.Accuracy));
+                    else
+                        applyRuntimeNumberProperty(target, binding.Property, scoreState.Accuracy);
+                    return;
+
                 case GameplaySkinSceneBindingSource.ComboValue:
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Combo);
                     return;
@@ -2181,6 +2207,13 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinSceneBindingSource.TimingBpm:
                     applyRuntimeNumberProperty(target, binding.Property, timingState.Bpm);
+                    return;
+
+                case GameplaySkinSceneBindingSource.TimingProgress:
+                    if (binding.Property == GameplaySkinSceneProperty.Text)
+                        applyRuntimeStringProperty(target, binding.Property, formatProgress(timingState.Progress));
+                    else
+                        applyRuntimeNumberProperty(target, binding.Property, timingState.Progress);
                     return;
 
                 case GameplaySkinSceneBindingSource.BgaContentState:
@@ -2758,12 +2791,17 @@ namespace osu.Game.Skinning.Gameplay
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.HitExplosion)
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.JudgementDisplay);
 
+        private static string formatAccuracy(double accuracy) => (accuracy * 100).ToString("0.00", CultureInfo.InvariantCulture) + "%";
+
+        private static string formatProgress(double progress) => (progress * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+
         private static bool timingEquals(GameplaySkinTimingStateSnapshot first, GameplaySkinTimingStateSnapshot second)
             => first.Beat.Equals(second.Beat)
                && first.BarIndex == second.BarIndex
                && first.Bpm.Equals(second.Bpm)
                && first.IsStopped == second.IsStopped
-               && first.ScrollMultiplier.Equals(second.ScrollMultiplier);
+               && first.ScrollMultiplier.Equals(second.ScrollMultiplier)
+               && first.Progress.Equals(second.Progress);
 
         internal static GameplaySkinSceneLayer LayerFor(GameplaySkinSlotDescriptor descriptor)
             => GameplaySkinSceneHostPolicy.LayerFor(descriptor);

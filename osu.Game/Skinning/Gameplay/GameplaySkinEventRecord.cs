@@ -35,6 +35,7 @@ namespace osu.Game.Skinning.Gameplay
         private readonly double number0;
         private readonly double number1;
         private readonly double number2;
+        private readonly double number3;
         private readonly GameplaySkinLayoutRect rect;
 
         internal GameplaySkinEventPayloadFamily Family { get; }
@@ -61,6 +62,7 @@ namespace osu.Game.Skinning.Gameplay
             double number0 = 0,
             double number1 = 0,
             double number2 = 0,
+            double number3 = 0,
             GameplaySkinLayoutRect rect = default)
         {
             Family = family;
@@ -75,6 +77,7 @@ namespace osu.Game.Skinning.Gameplay
             this.number0 = number0;
             this.number1 = number1;
             this.number2 = number2;
+            this.number3 = number3;
             this.rect = rect;
         }
 
@@ -149,7 +152,7 @@ namespace osu.Game.Skinning.Gameplay
         internal GameplaySkinTimingStateSnapshot GetTiming()
         {
             requireFamily(GameplaySkinEventPayloadFamily.Timing);
-            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, scalar0 != 0, number2);
+            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, scalar0 != 0, number2, number3);
         }
 
         internal GameplaySkinBgaStateSnapshot GetBga()
@@ -382,7 +385,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier);
+            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress);
 
             if (eventKind is not GameplaySkinEventKind.TimingBeat
                 and not GameplaySkinEventKind.TimingBar
@@ -405,7 +408,8 @@ namespace osu.Game.Skinning.Gameplay
                 scalar0: state.IsStopped ? 1 : 0,
                 number0: state.Beat,
                 number1: state.Bpm,
-                number2: state.ScrollMultiplier);
+                number2: state.ScrollMultiplier,
+                number3: state.Progress);
         }
 
         private static GameplaySkinEventValue bgaValue(
@@ -520,7 +524,8 @@ namespace osu.Game.Skinning.Gameplay
                 authoritativeTiming.BarIndex,
                 authoritativeTiming.Bpm,
                 authoritativeTiming.IsStopped,
-                authoritativeTiming.ScrollMultiplier);
+                authoritativeTiming.ScrollMultiplier,
+                authoritativeTiming.Progress);
 
             if (laneId != null && groupId == null)
                 throw new ArgumentException("A lane-targeted gameplay skin event must also carry its stable group ID.", nameof(groupId));

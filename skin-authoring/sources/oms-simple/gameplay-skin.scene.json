@@ -1,0 +1,20 @@
+{
+  "contract": "oms-gameplay-skin-scene.v1",
+  "root": {
+    "id": "skin.root",
+    "type": "container",
+    "target": {
+      "kind": "global"
+    },
+    "blend": "inherit",
+    "properties": {},
+    "effects": [],
+    "children": []
+  },
+  "tracks": [],
+  "stateMachines": [],
+  "bindings": [],
+  "variants": [],
+  "templates": [],
+  "instances": []
+}

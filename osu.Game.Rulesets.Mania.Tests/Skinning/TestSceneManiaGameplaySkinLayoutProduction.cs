@@ -2430,6 +2430,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         {
             Drawable omsHost = null!;
             DrawableManiaRuleset omsRuleset = null!;
+            GameplaySkinSceneRuntimeHost scene = null!;
 
             AddStep($"create exact OMS {firstStageColumns}+{secondStageColumns} root", () =>
             {
@@ -2449,41 +2450,78 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
             });
 
-            AddUntilStep("all OMS column surfaces loaded", () => omsRuleset.IsLoaded
-                                                                       && omsRuleset.Playfield.Stages.All(stage => stage.Columns.All(column =>
-                                                                           column.ChildrenOfType<LegacyKeyArea>().Any(key => key.IsLoaded && key.UsesPreparedMaterial)
-                                                                           && column.ChildrenOfType<OmsColumnBackground>().Any(background => background.IsLoaded))));
-            AddAssert("OMS fallback and edge identity are stage local", () =>
+            AddUntilStep("all canonical column surfaces loaded", () =>
             {
+                if (!omsRuleset.IsLoaded || !omsRuleset.Playfield.Stages.All(stage => stage.Columns.All(column =>
+                        column.ChildrenOfType<LegacyKeyArea>().Any(key => key.IsLoaded && key.UsesPreparedMaterial))))
+                    return false;
+                scene ??= omsRuleset.ChildrenOfType<GameplaySkinSceneRuntimeHost>().SingleOrDefault()!;
+                return scene?.IsSceneReady == true;
+            });
+            AddStep("canonical package surfaces and edge identity are stage local", () =>
+            {
+                Skin canonical = Dependencies.Get<SkinManager>().CurrentSkin.Value;
+                Assert.That(CanonicalSkinPackage.IsCanonicalSkin(canonical), Is.True);
+                GameplaySkinLayoutPublication publication = omsRuleset.LayoutRevisionOwner.CurrentPublication!;
+                Assert.That(scene.RuntimeFaults, Is.Empty);
+                Assert.That(omsRuleset.Playfield.Stages, Has.Count.EqualTo(2));
+                Assert.That(publication.MaterialSet.Entries.Any(entry => entry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback), Is.False);
                 for (int stageIndex = 0; stageIndex < omsRuleset.Playfield.Stages.Count; stageIndex++)
                 {
                     Stage stage = omsRuleset.Playfield.Stages[stageIndex];
                     GameplaySkinLaneTopologyGroup topologyGroup = omsRuleset.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder[stageIndex];
+                    Assert.That(stage.Columns, Has.Length.EqualTo(stageIndex == 0 ? firstStageColumns : secondStageColumns));
 
                     for (int localIndex = 0; localIndex < stage.Columns.Length; localIndex++)
                     {
                         Column column = stage.Columns[localIndex];
                         GameplaySkinLaneTopologyEntry topologyLane = topologyGroup.LanesInLogicalOrder[localIndex];
                         LegacyKeyArea keyArea = column.ChildrenOfType<LegacyKeyArea>().Single(key => key.UsesPreparedMaterial);
-                        OmsColumnBackground background = column.ChildrenOfType<OmsColumnBackground>().Single();
                         string expectedFallback = topologyLane.Identity.Role == GameplaySkinLaneRole.SpecialKey
                             ? "S"
                             : Math.Min(localIndex, stage.Columns.Length - 1 - localIndex) % 2 == 0 ? "1" : "2";
 
-                        if (!ReferenceEquals(column.LayoutSnapshot, omsRuleset.LayoutSnapshot)
-                            || topologyLane.GroupLocalLogicalIndex != localIndex
-                            || !column.LayoutLaneId.Equals(topologyLane.Identity.Id)
-                             || keyArea.ResolvedFallbackColumnIndex != expectedFallback
-                            || !ReferenceEquals(column.ResolvedMaterialSet, omsRuleset.LayoutRevisionOwner.CurrentPublication!.MaterialSet)
-                            || column.ResolvedMaterialKey?.Target.LaneId?.Equals(topologyLane.Identity.Id) != true
-                            || background.ResolvedFallbackColumnIndex != expectedFallback
-                            || background.IsStageLastColumn != (localIndex == stage.Columns.Length - 1))
-                            return false;
+                        Assert.That(column.LayoutSnapshot, Is.SameAs(omsRuleset.LayoutSnapshot));
+                        Assert.That(topologyLane.GroupLocalLogicalIndex, Is.EqualTo(localIndex));
+                        Assert.That(column.LayoutLaneId, Is.EqualTo(topologyLane.Identity.Id));
+                        Assert.That(keyArea.ResolvedFallbackColumnIndex, Is.EqualTo(expectedFallback));
+                        Assert.That(column.ResolvedMaterialSet, Is.SameAs(publication.MaterialSet));
+                        Assert.That(column.ResolvedMaterialKey!.Target.LaneId, Is.EqualTo(topologyLane.Identity.Id));
+                        Assert.That(topologyLane.GlobalLogicalIndex, Is.EqualTo((stageIndex == 0 ? 0 : firstStageColumns) + localIndex));
+
+                        GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(topologyGroup, topologyLane);
+                        var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, target);
+                        Assert.That(publication.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? keyEntry), Is.True);
+                        Assert.That(keyEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                        Assert.That(keyEntry.Source.ContentRevision, Is.EqualTo(canonical.GameplaySkinDocument.Identity.ContentRevision));
+                        Assert.That(containsTexture(keyArea, keyEntry.GetMaterial<ManiaGameplaySkinKeyMaterial>().UpTexture), Is.True);
+
+                        foreach (GameplaySkinSlotDescriptor slot in new[] { GameplaySkinSlotCatalog.LaneSurface, GameplaySkinSlotCatalog.LaneDivider })
+                        {
+                            var surfaceKey = new GameplaySkinResolvedMaterialKey(slot, target);
+                            Assert.That(publication.MaterialSet.TryGet(surfaceKey, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                            Assert.That(entry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                            Assert.That(entry.Source.ContentRevision, Is.EqualTo(canonical.GameplaySkinDocument.Identity.ContentRevision));
+                            Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                            GameplaySkinPublicSlotMaterial material = entry.GetMaterial<GameplaySkinPublicSlotMaterial>();
+                            Assert.That(material.ResourceName, Is.EqualTo(slot == GameplaySkinSlotCatalog.LaneSurface ? "mania/lane" : "mania/divider"));
+                            Assert.That(scene.TryGetHostedDrawable(surfaceKey, out Drawable? surface), Is.True);
+                            Assert.That(containsTexture(surface!, material.Texture!), Is.True);
+                            Assert.That(scene.TryGetVisualGate(surfaceKey, out GameplaySkinSceneHostedSlot? gate), Is.True);
+                            Assert.That(gate!.AllowsProgrammaticVisual, Is.False);
+                            Assert.That(gate.PreparedRect, Is.EqualTo(omsRuleset.LayoutSnapshot.GetLane(topologyLane.Identity.Id).Rect));
+
+                            // The final column remains the edge of its own stage, including the second stage.
+                            bool isLastColumn = localIndex == stage.Columns.Length - 1;
+                            Assert.That(topologyLane.Identity.Id.Equals(topologyGroup.LanesInLogicalOrder[^1].Identity.Id), Is.EqualTo(isLastColumn));
+                            if (isLastColumn)
+                                Assert.That(gate.PreparedRect.Right, Is.EqualTo(omsRuleset.LayoutSnapshot.GetLane(topologyGroup.LanesInLogicalOrder[^1].Identity.Id).Rect.Right));
+                        }
                     }
                 }
 
-                return omsRuleset.LayoutSnapshot.Context.NativeContextId == $"stages-{firstStageColumns}-{secondStageColumns}"
-                       && omsRuleset.LayoutSnapshot.Context.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility;
+                Assert.That(omsRuleset.LayoutSnapshot.Context.NativeContextId, Is.EqualTo($"stages-{firstStageColumns}-{secondStageColumns}"));
+                Assert.That(omsRuleset.LayoutSnapshot.Context.PackageRevision.SourceKind, Is.Not.EqualTo(GameplaySkinPackageSourceKind.Compatibility));
             });
             AddStep("detach OMS dual-stage root", () => omsHost.Expire());
             AddUntilStep("OMS dual-stage root detached", () => omsHost.Parent == null);

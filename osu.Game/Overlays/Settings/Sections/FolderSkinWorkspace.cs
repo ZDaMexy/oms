@@ -285,7 +285,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 {
                     Schedule(() => notificationOverlay?.Post(new SimpleErrorNotification
                     {
-                        Text = SkinSettingsStrings.FolderSkinOperationRejected,
+                        Text = skins.LastFolderWorkspaceRepairMessage ?? SkinSettingsStrings.FolderSkinOperationRejected,
                     }));
                 }
             }

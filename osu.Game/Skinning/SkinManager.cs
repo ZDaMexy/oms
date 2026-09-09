@@ -32,6 +32,7 @@ using osu.Game.Models;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Skinning.Gameplay;
 using osu.Game.Skinning.Gameplay.Scripting;
+using osu.Game.Skinning.IO;
 using osu.Game.Skinning.Windows;
 using osu.Game.Utils;
 using Realms;
@@ -99,9 +100,29 @@ namespace osu.Game.Skinning
             "Realm skin package mutation is unavailable while another skin package operation is in progress.";
 
         /// <summary>
-        /// The OMS built-in candidate skin host.
+        /// The verified ordinary oms-simple package which supplies the required fallback parts.
         /// </summary>
         public Skin DefaultOmsSkin { get; }
+
+        private CanonicalSkinInstallationFailure canonicalInstallationFailure;
+
+        public bool IsGameplaySkinInstallationAvailable => canonicalInstallationFailure == CanonicalSkinInstallationFailure.None
+                                                          && !ManagedFolderOperationCoordinator.IsMutationBlocked;
+
+        public string GameplaySkinInstallationRepairMessage => canonicalInstallationFailure switch
+        {
+            CanonicalSkinInstallationFailure.ProtectedRecordUnrecognised =>
+                "发现无法安全辨认的旧皮肤信息，现有数据已原样保留。请保留当前数据目录，并携带皮肤诊断信息获取修复指引；覆盖安装不会猜测删除这些数据。修复前不能进入游玩或预览。",
+            CanonicalSkinInstallationFailure.None when ManagedFolderOperationCoordinator.IsMutationBlocked =>
+                "先前的皮肤操作尚未安全恢复。现有皮肤文件和记录已保留；请在皮肤设置查看恢复说明并重试可安全恢复的操作，或携带诊断信息获取修复指引。修复前不能进入游玩或预览。",
+            _ => CanonicalSkinPackage.REPAIR_MESSAGE,
+        };
+
+        public void EnsureGameplaySkinInstallationAvailable()
+        {
+            if (!IsGameplaySkinInstallationAvailable)
+                throw new InvalidOperationException(GameplaySkinInstallationRepairMessage);
+        }
 
         /// <summary>
         /// The default "classic" skin.
@@ -124,7 +145,7 @@ namespace osu.Game.Skinning
 
         public readonly Bindable<Skin> CurrentSkin = new SkinInstanceBindable();
 
-        public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new SkinSelectionBindable(OmsSkin.CreateInfo().ToLiveUnmanaged());
+        public readonly Bindable<Live<SkinInfo>> CurrentSkinInfo = new SkinSelectionBindable(CanonicalSkinPackage.CreateInfo().ToLiveUnmanaged());
 
         internal SkinSelectionRejectionReason LastSelectionRejectionReason { get; private set; }
 
@@ -166,6 +187,8 @@ namespace osu.Game.Skinning
 
         internal Action ExternalFolderSelectionCaptureAuthorityOpened { get; set; } = () => { };
 
+        internal string LastFolderWorkspaceRepairMessage { get; private set; }
+
         internal Action<CancellationToken> FolderWorkspaceRecordsReadStarted { get; set; } = _ => { };
 
         internal Action<CancellationToken> FolderWorkspaceJournalSupportReadStarted { get; set; } = _ => { };
@@ -184,7 +207,7 @@ namespace osu.Game.Skinning
 
         private readonly SkinManagedFolderMutationRecovery managedFolderMutationRecovery;
         private readonly ISkinManagedFolderMutationJournalStore managedFolderMutationJournalStore;
-        private readonly ISkinManagedFolderMutationNativeAuthority managedFolderMutationNativeAuthority;
+        private readonly WindowsSkinManagedFolderMutationNativeAuthority managedFolderMutationNativeAuthority;
         private readonly ISkinExternalFolderCaptureService externalFolderCaptureService;
         private readonly SkinExternalFolderRegistryService externalFolderRegistry;
         private readonly SkinManagedFolderRenameOperation managedFolderRenameOperation;
@@ -303,15 +326,6 @@ namespace osu.Game.Skinning
             Name = "<随机皮肤>",
         }.ToLiveUnmanaged();
 
-        private static readonly Guid[] retired_upstream_skin_ids =
-        {
-            SkinInfo.TRIANGLES_SKIN,
-            SkinInfo.ARGON_SKIN,
-            SkinInfo.ARGON_PRO_SKIN,
-            SkinInfo.CLASSIC_SKIN,
-            SkinInfo.RETRO_SKIN,
-        };
-
         public override bool PauseImports
         {
             get => base.PauseImports;
@@ -393,8 +407,6 @@ namespace osu.Game.Skinning
                     ManagedFolderOperationCoordinator,
                     managedFolderMutationNativeAuthority,
                     externalFolderRegistry));
-            InitialManagedFolderMutationRecoveryResult = managedFolderMutationRecovery.Recover();
-
             userFiles = new StorageBackedResourceStore(storage.GetStorageForDirectory("files"));
 
             skinImporter = new SkinImporter(
@@ -406,8 +418,14 @@ namespace osu.Game.Skinning
                 PostNotification = obj => PostNotification?.Invoke(obj),
             };
 
-            DefaultOmsSkin = new OmsSkin(this);
+            CanonicalSkinInstallationResult canonical = CanonicalSkinPackage.Load(storage, this);
+            canonicalInstallationFailure = canonical.Failure;
+            // This empty instance permits the settings/repair surface to initialise. It has no embedded theme,
+            // immutable package or gameplay authority; both player and preview admission reject this state.
+            DefaultOmsSkin = canonical.Skin ?? new LegacySkin(CanonicalSkinPackage.CreateInfo(), null);
             DefaultClassicSkin = new DefaultLegacySkin(this);
+
+            InitialManagedFolderMutationRecoveryResult = RecoverManagedFolderMutations();
 
             // Keep OMS as the only protected built-in product skin. Upstream built-ins remain
             // available as compatibility types, but are no longer registered as selectable entries.
@@ -415,25 +433,48 @@ namespace osu.Game.Skinning
             {
                 var existingOmsSkin = r.Find<SkinInfo>(DefaultOmsSkin.SkinInfo.ID);
 
-                if (existingOmsSkin == null)
-                    r.Add(DefaultOmsSkin.SkinInfo.Value);
-                else
+                if (canonicalInstallationFailure == CanonicalSkinInstallationFailure.None)
                 {
-                    existingOmsSkin.Name = DefaultOmsSkin.SkinInfo.Value.Name;
-                    existingOmsSkin.Creator = DefaultOmsSkin.SkinInfo.Value.Creator;
-                    existingOmsSkin.InstantiationInfo = DefaultOmsSkin.SkinInfo.Value.InstantiationInfo;
-                    existingOmsSkin.Protected = true;
+                    if (existingOmsSkin == null)
+                    {
+                        // Missing fallback evidence in an unresolved old operation must remain missing. Creating a
+                        // new record here would change the evidence seen by a later recovery Retry.
+                        if (InitialManagedFolderMutationRecoveryResult.IsResolved)
+                            r.Add(CanonicalSkinPackage.CreateInfo());
+                    }
+                    else if (SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(existingOmsSkin))
+                    {
+                        // Supported old journals were recovered against their exact old record before this explicit
+                        // metadata migration. Unknown fixed-ID records (including files) are never overwritten.
+                        if (InitialManagedFolderMutationRecoveryResult.IsResolved)
+                        {
+                            existingOmsSkin.Name = DefaultOmsSkin.SkinInfo.Value.Name;
+                            existingOmsSkin.Creator = DefaultOmsSkin.SkinInfo.Value.Creator;
+                            existingOmsSkin.InstantiationInfo = DefaultOmsSkin.SkinInfo.Value.InstantiationInfo;
+                            existingOmsSkin.Hash = DefaultOmsSkin.SkinInfo.Value.Hash;
+                        }
+                    }
+                    else
+                    {
+                        canonicalInstallationFailure = CanonicalSkinInstallationFailure.ProtectedRecordUnrecognised;
+                        ManagedFolderOperationCoordinator.FreezeAllPaths();
+                    }
                 }
 
-                foreach (var retiredSkinId in retired_upstream_skin_ids)
+                foreach (SkinInfo retiredInfo in new[]
+                         {
+                             TrianglesSkin.CreateInfo(), ArgonSkin.CreateInfo(), ArgonProSkin.CreateInfo(),
+                             DefaultLegacySkin.CreateInfo(), RetroSkin.CreateInfo(),
+                         })
                 {
-                    var retiredSkin = r.Find<SkinInfo>(retiredSkinId);
+                    var retiredSkin = r.Find<SkinInfo>(retiredInfo.ID);
 
-                    if (retiredSkin != null)
+                    if (SkinManagedFolderDeleteOperation.IsExactProtectedRecord(retiredSkin, retiredInfo))
                         r.Remove(retiredSkin);
                 }
             });
 
+            ((SkinSelectionBindable)CurrentSkinInfo).CommitPrepared(DefaultOmsSkin.SkinInfo);
             ((SkinInstanceBindable)CurrentSkin).CommitPrepared(DefaultOmsSkin);
             currentRevisionPublication = new SkinCurrentRevisionPublication(
                 DefaultOmsSkin,
@@ -453,7 +494,7 @@ namespace osu.Game.Skinning
             ((SkinSelectionBindable)CurrentSkinInfo).IsAuthoritativeRoot = true;
             ((SkinSelectionBindable)CurrentSkinInfo).SelectionRequested = requestSelection;
 
-            skinExporter = new LegacySkinExporter(storage)
+            skinExporter = new CanonicalSkinExporter(storage, DefaultOmsSkin)
             {
                 PostNotification = obj => PostNotification?.Invoke(obj)
             };
@@ -1399,6 +1440,7 @@ namespace osu.Game.Skinning
                 return CurrentRevisionReloadPreparation.Reject(captureResult);
 
             SkinInfo exactInfo = createFilesystemSkinSnapshot(fresh.Metadata);
+            reinterpretLegacyOmsPackageType(exactInfo);
             exactInfo.Hash = capsule.ContentRevision;
             SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule);
 
@@ -1813,7 +1855,7 @@ namespace osu.Game.Skinning
         {
             try
             {
-                return DefaultOmsSkin.GetType() == typeof(OmsSkin)
+                return IsGameplaySkinInstallationAvailable && CanonicalSkinPackage.IsCanonicalSkin(DefaultOmsSkin)
                        && DefaultOmsSkin.SkinInfo.PerformRead(
                            SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord)
                        && Realm.Run(realm =>
@@ -1976,6 +2018,11 @@ namespace osu.Game.Skinning
 
         internal SkinManagedFolderMutationRecoveryResult RecoverManagedFolderMutations(CancellationToken cancellationToken = default)
         {
+            if (canonicalInstallationFailure != CanonicalSkinInstallationFailure.None)
+            {
+                ManagedFolderOperationCoordinator.FreezeAllPaths();
+                return new SkinManagedFolderMutationRecoveryResult(SkinManagedFolderMutationRecoveryStatus.Ambiguous);
+            }
             SkinManagedFolderMutationRecoveryResult result = managedFolderMutationRecovery.Recover(cancellationToken);
             notifyManagedFolderJournalStateChanged();
             return result;
@@ -2305,6 +2352,7 @@ namespace osu.Game.Skinning
                 if (managedFolderMutationShutdown || hasActiveFolderMutationHeld())
                     return Task.FromResult(false);
 
+                LastFolderWorkspaceRepairMessage = null;
                 var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 Task<bool> operationTask = Task.Run(
                     () => executeFolderWorkspaceOperation(operation, operationCancellation.Token),
@@ -2395,8 +2443,37 @@ namespace osu.Game.Skinning
             if (ManagedFolderOperationCoordinator.IsMutationBlocked)
                 return false;
 
+            SkinExternalPackageCaptureResult packageCapture = externalFolderCaptureService.CaptureHeld(
+                resolution.ExternalCaptureRequest,
+                cancellationToken: cancellationToken);
+
+            if (!packageCapture.IsSuccess)
+                return false;
+
+            using ISkinExternalPackageCaptureSession packageSession = packageCapture.Session!;
+
             using ISkinManagedFolderMutationNativeSession managedAuthority =
-                managedFolderMutationNativeAuthority.Open(cancellationToken);
+                managedFolderMutationNativeAuthority.OpenForFirstWorkspace(dataRootProof =>
+                {
+                    // An absent directory is a fresh workspace only when no operation or filesystem record claims
+                    // older content. Do not manufacture a replacement root for missing/unknown historical data.
+                    if (ManagedFolderOperationCoordinator.IsMutationBlocked
+                        || managedFolderMutationJournalStore.Load().Status != SkinManagedFolderMutationJournalLoadStatus.Missing
+                        || dataRootProof.Nodes.Contains(packageSession.PhysicalProof.RootIdentity))
+                    {
+                        return false;
+                    }
+                    if (Realm.Run(realm => realm.All<SkinInfo>().AsEnumerable().Any(record =>
+                            record.IsExternalFilesystemStorage
+                            || !string.IsNullOrEmpty(record.FilesystemStoragePath)
+                            || !string.IsNullOrEmpty(record.FilesystemStorageAuthorityOwner))))
+                    {
+                        LastFolderWorkspaceRepairMessage = "发现已有皮肤目录记录，但游戏的皮肤目录已经缺失。现有记录和作者文件已保留；请先从备份恢复原皮肤目录，或保留当前数据目录并携带皮肤诊断信息获取修复指引，然后重试登记。";
+                        return false;
+                    }
+                    packageSession.Validate(cancellationToken);
+                    return true;
+                }, cancellationToken);
             SkinExternalFolderRegistryCaptureResult registryCapture = externalFolderRegistry.CaptureExactSet(
                 operationLease,
                 new[] { managedAuthority.ManagedRootAncestryProof },
@@ -2410,15 +2487,6 @@ namespace osu.Game.Skinning
             // A second registration of the same exact committed declaration converges idempotently.
             if (registrySnapshot.ContainsNormalisedPath(resolution.NormalisedAbsolutePath))
                 return registrySnapshot.Validate(operationLease, cancellationToken);
-
-            SkinExternalPackageCaptureResult packageCapture = externalFolderCaptureService.CaptureHeld(
-                resolution.ExternalCaptureRequest,
-                cancellationToken: cancellationToken);
-
-            if (!packageCapture.IsSuccess)
-                return false;
-
-            using ISkinExternalPackageCaptureSession packageSession = packageCapture.Session!;
 
             if (packageSession.PhysicalProof.Overlaps(managedAuthority.ManagedRootAncestryProof)
                 || registrySnapshot.Overlaps(packageSession.PhysicalProof)
@@ -4146,6 +4214,9 @@ namespace osu.Game.Skinning
 
         private bool executeManagedFolderRecoveryRetry(CancellationToken cancellationToken)
         {
+            if (canonicalInstallationFailure != CanonicalSkinInstallationFailure.None)
+                return false;
+
             try
             {
                 FolderSkinJournalSupportSnapshot before =
@@ -4402,12 +4473,11 @@ namespace osu.Game.Skinning
         }
 
         /// <summary>
-        /// Confirms the protected fallback pair while a future delete authority still owns the shared coordinator.
+        /// Confirms that the current pair no longer needs switching while the delete authority owns the coordinator.
         /// </summary>
         /// <remarks>
-        /// This method performs no Realm or filesystem deletion. Before canonical package takeover the only accepted
-        /// fallback is the exact programmatic <see cref="OmsSkin"/> type/record pair. The delete slice must replace this policy
-        /// only after <c>oms-simple.osk</c> becomes the validated protected authority.
+        /// This synchronous legacy callback performs no deletion or publication. Current deletion must first publish
+        /// the verified ordinary oms-simple revision and await exact consumer detach through the shared transaction.
         /// </remarks>
         internal SkinManagedFolderProtectedFallbackCommitResult CommitProtectedFallbackPairForDelete(
             SkinManagedFolderMutationAuthoritySession authority,
@@ -4595,19 +4665,27 @@ namespace osu.Game.Skinning
         private Skin getSkin(SkinInfo skinInfo, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (skinInfo.ID == SkinInfo.OMS_SKIN)
+                return DefaultOmsSkin;
+
             SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
 
             if (resolution.Authority == SkinFilesystemStorageAuthority.RealmPackage)
             {
+                bool legacyOmsPackage = !skinInfo.Protected
+                                        && SkinArchiveInstantiationPolicy.Resolve(skinInfo.InstantiationInfo) == SkinArchiveInstantiationKind.Oms;
                 // Imported BMS packages are fixed hash-backed sets. Once selected, their owner must not follow a
                 // later Realm notification to a different set before explicit revision publication. Legacy empty/core
                 // fixtures remain on their compatibility constructor until their package type has an exact factory.
                 if (skinInfo.IsManaged
-                    && SkinManagedFolderFactory.IsInstantiationInfoAllowed(skinInfo.InstantiationInfo)
+                    && (SkinManagedFolderFactory.IsInstantiationInfoAllowed(skinInfo.InstantiationInfo) || legacyOmsPackage)
                     && skinInfo.Files.Any(file => string.Equals(file.Filename, "skin.ini", StringComparison.OrdinalIgnoreCase)))
                 {
                     return createExactRealmPackageSkin(skinInfo, cancellationToken);
                 }
+
+                if (legacyOmsPackage)
+                    throw new InvalidDataException("The legacy OMS user package has no complete authored configuration. Its data has been preserved.");
 
                 return skinInfo.CreateInstance(this);
             }
@@ -4640,6 +4718,7 @@ namespace osu.Game.Skinning
                                                   ?? throw new InvalidDataException("The exact Realm skin package could not be captured.");
 
             SkinInfo exactInfo = createFilesystemSkinSnapshot(snapshot.Metadata);
+            reinterpretLegacyOmsPackageType(exactInfo);
             exactInfo.Hash = capsule.ContentRevision;
             SkinManagedFolderFactoryResult factory = ManagedFolderFactoryCreate(exactInfo, this, capsule);
 
@@ -4647,6 +4726,14 @@ namespace osu.Game.Skinning
                 throw new InvalidDataException("The exact Realm skin package type is unsupported.");
 
             return factory.Skin!;
+        }
+
+        private static void reinterpretLegacyOmsPackageType(SkinInfo snapshot)
+        {
+            // This is only an in-memory parser choice for the exact captured user files. Never migrate the Realm
+            // record or manufacture missing files from the retired embedded theme.
+            if (!snapshot.Protected && SkinArchiveInstantiationPolicy.Resolve(snapshot.InstantiationInfo) == SkinArchiveInstantiationKind.Oms)
+                snapshot.InstantiationInfo = SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO;
         }
 
         private SkinPackageRevisionCapsule captureExactRealmPackage(
@@ -6180,6 +6267,22 @@ namespace osu.Game.Skinning
                                                              .AsEnumerable()
                                                              .Select(skin => skin.Name).ToArray());
 
+                if (CanonicalSkinPackage.IsCanonicalSkin(CurrentSkin.Value))
+                {
+                    using var archive = new MemoryStream();
+                    CanonicalSkinPackage.Export(CurrentSkin.Value, archive, CancellationToken.None);
+                    archive.Position = 0;
+                    string copyName = NamingUtils.GetNextBestName(existingSkinNames, $@"{s.Name} (modified)");
+                    Live<SkinInfo> copied = skinImporter.Import(new ImportTask(archive, copyName + ".osk"),
+                        new ImportParameters { ImportImmediately = true }).GetAwaiter().GetResult();
+                    if (copied == null)
+                        return false;
+                    // Author packages publish asynchronously through the existing whole-package selection barrier.
+                    // The return value reports that the complete editable copy was created, not that publication ended.
+                    CurrentSkinInfo.Value = copied;
+                    return true;
+                }
+
                 // if the user is attempting to save one of the default skin implementations, create a copy first.
                 var skinInfo = new SkinInfo
                 {
@@ -6681,7 +6784,10 @@ namespace osu.Game.Skinning
                                         && !isCurrentRevisionRecord(info.ID));
 
         public bool CanExport(Live<SkinInfo> skin)
-            => skin.PerformRead(info => !info.Protected && !isFilesystemBacked(info));
+            => skin.PerformRead(info => !isFilesystemBacked(info)
+                                        && (!info.Protected
+                                            || CanonicalSkinPackage.IsCanonicalSkin(DefaultOmsSkin)
+                                            && SkinManagedFolderDeleteOperation.IsExactProtectedRecord(info, CanonicalSkinPackage.CreateInfo())));
 
         /// <summary>
         /// Returns the settings delete affordance from a fresh authoritative Realm read. This grants no mutation

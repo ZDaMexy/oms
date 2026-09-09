@@ -1,0 +1,29 @@
+{
+  "contract": "oms-gameplay-skin-manifest.v1",
+  "scene": "gameplay-skin.scene.json",
+  "sceneContract": "oms-gameplay-skin-scene.v1",
+  "eventContract": "oms-gameplay-skin-event.v1",
+  "resources": [
+    {
+      "id": "texture.white",
+      "type": "texture",
+      "path": "scene/white.png"
+    },
+    {
+      "id": "texture.orbit",
+      "type": "texture",
+      "path": "scene/orbit.png"
+    },
+    {
+      "id": "texture.prism",
+      "type": "texture",
+      "path": "scene/prism.png"
+    },
+    {
+      "id": "texture.console",
+      "type": "texture",
+      "path": "scene/console.png"
+    }
+  ],
+  "script": "gameplay-skin.script"
+}

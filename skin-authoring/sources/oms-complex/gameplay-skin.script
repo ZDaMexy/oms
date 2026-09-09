@@ -1,0 +1,101 @@
+oms-script 1
+# Eight real judgement intervals combine with gauge and recent activity.
+required gameplay.snapshot.read
+required gameplay.events.read
+required scene.numeric.write
+deny network.read
+state kind 0
+state test 0
+state now 0
+state previous 0
+state interval 0
+state old 0
+state sum 8000
+state index 0
+state count 0
+state energy 0
+state gauge 0
+state scale 1
+state alpha 0.25
+state age 0
+state level 0
+heap 8
+target astral.prism-0 scale-x
+target astral.prism-0 scale-y
+target astral.orbit-0 alpha
+target astral.meter-0-0 scale-y
+target astral.meter-0-1 scale-y
+target astral.meter-0-2 scale-y
+target astral.meter-0-3 scale-y
+target astral.prism-1 scale-x
+target astral.prism-1 scale-y
+target astral.orbit-1 alpha
+target astral.meter-1-0 scale-y
+target astral.meter-1-1 scale-y
+target astral.meter-1-2 scale-y
+target astral.meter-1-3 scale-y
+read now time
+read kind event-kind
+eq test kind 40
+when test judgement
+eq test kind -1
+when test render
+halt
+judgement:
+sub interval now previous
+clamp interval interval 30 1000
+mov previous now
+load old index
+lt test count 8
+when test warming
+sub sum sum old
+jump insert
+warming:
+sub sum sum 1000
+add count count 1
+insert:
+add sum sum interval
+store index interval
+add index index 1
+eq test index 8
+when test wrap
+jump charge
+wrap:
+mov index 0
+charge:
+div energy 1800 sum
+clamp energy energy 0 1
+halt
+render:
+sub age now previous
+div age age 5000
+sub level energy age
+clamp level level 0 1
+read gauge gauge
+mul scale level 0.7
+add scale scale 1
+mul alpha gauge 0.3
+add alpha alpha 0.25
+set astral.prism-0 scale-x scale
+set astral.prism-0 scale-y scale
+set astral.orbit-0 alpha alpha
+set astral.prism-1 scale-x scale
+set astral.prism-1 scale-y scale
+set astral.orbit-1 alpha alpha
+sub scale level 0
+clamp scale scale 0.12 1
+set astral.meter-0-0 scale-y scale
+set astral.meter-1-0 scale-y scale
+sub scale level 0.16
+clamp scale scale 0.12 1
+set astral.meter-0-1 scale-y scale
+set astral.meter-1-1 scale-y scale
+sub scale level 0.32
+clamp scale scale 0.12 1
+set astral.meter-0-2 scale-y scale
+set astral.meter-1-2 scale-y scale
+sub scale level 0.48
+clamp scale scale 0.12 1
+set astral.meter-0-3 scale-y scale
+set astral.meter-1-3 scale-y scale
+halt

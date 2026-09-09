@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-09（Skin C6非人工闭门，C7保留后续；人工签收不变）
+> 最后更新：2026-09-09（Skin C7 已实施，按用户要求暂停保全；最终验收未完成）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。Skin V1为 **`6/7 closed，C7 active`**；C6已让作者制作可选组合效果、玩家控制授权，并完成整包更新与安全检查。完整简洁/复杂皮肤、完整制作工具及正式默认外观替代留待C7新对话；现有候选不是完整复杂成品，不按阶段比例换算产品完成度。`V-001`～`V-004`签收 **0/4**，新增`V-005`未签收，Skin V1与release均未完成。能力、验证与剩余门见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段。Skin V1仍为 **`6/7 closed，C7 active`**；双包、完整制作工具与安装恢复已进入本轮实现，按用户要求暂停。最新作者配方尚未重生成成品，最终使用验证和发行检查未完成；直接续接见 [C7检查点](../other/SKIN_SYSTEM_C7_RESUME_20260909.md)。`V-001`～`V-004`签收仍 **0/4**，`V-005`未签收，Skin V1与release均未完成。能力与验收事实以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)为准。
 
 ## 产品与仓库基线
 
@@ -17,8 +17,8 @@ OMS处于Phase 1.x后段。Skin V1为 **`6/7 closed，C7 active`**；C6已让作
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | C1～C6已闭合，不重开campaign；下一门为C7双包、完整Authoring Kit与自动release | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
-| 2 | 程序化OmsSkin在canonical parity、完整性、原子恢复与实机门前继续保留，本次未提前接管 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
+| 1 | C1～C6已闭合；C7保全当前成果，继续完成双包、制作与自动发行退出门 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
+| 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |
 | 5 | V-001～V-005及候选发行包人工签收；2026-07-14恢复验收不能代替新增视觉与最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |

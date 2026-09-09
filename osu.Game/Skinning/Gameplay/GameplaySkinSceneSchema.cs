@@ -383,6 +383,8 @@ namespace osu.Game.Skinning.Gameplay
         TimingMeasure = 12,
         TimingBpm = 13,
         BgaContentState = 14,
+        ScoreAccuracy = 15,
+        TimingProgress = 16,
     }
 
     public enum GameplaySkinSceneEvent
@@ -844,11 +846,13 @@ namespace osu.Game.Skinning.Gameplay
             "judgement.result" => GameplaySkinSceneBindingSource.JudgementResult,
             "judgement.offset" => GameplaySkinSceneBindingSource.JudgementOffset,
             "score.value" => GameplaySkinSceneBindingSource.ScoreValue,
+            "score.accuracy" => GameplaySkinSceneBindingSource.ScoreAccuracy,
             "combo.value" => GameplaySkinSceneBindingSource.ComboValue,
             "gauge.value" => GameplaySkinSceneBindingSource.GaugeValue,
             "timing.beat" => GameplaySkinSceneBindingSource.TimingBeat,
             "timing.measure" => GameplaySkinSceneBindingSource.TimingMeasure,
             "timing.bpm" => GameplaySkinSceneBindingSource.TimingBpm,
+            "timing.progress" => GameplaySkinSceneBindingSource.TimingProgress,
             "bga.content-state" => GameplaySkinSceneBindingSource.BgaContentState,
             _ => GameplaySkinSceneBindingSource.Unspecified,
         };

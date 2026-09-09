@@ -1,0 +1,23 @@
+﻿{
+  "ExecutedUtc": "2026-09-09T05:20:34.4171041Z",
+  "OfficialDownloadPage": "https://ffmpeg.org/download.html",
+  "BuildPage": "https://www.gyan.dev/ffmpeg/builds/",
+  "ToolArchiveUrl": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+  "ToolArchiveSha256": "fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9",
+  "ToolVersion": "ffmpeg version 9.0.1-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+  "SourceAviSha256": "c2269dc80dbedb0b67a06e120e68870152b7f59378043ac1051048b0a098f8fc",
+  "Mp4Sha256": "c2654af16841a1f01bcbcd9f33ce70de7d7c46af256c8ad32ce22bb1aaebdaee",
+  "Mp4Bytes": 7698,
+  "VideoCodec": "h264",
+  "Profile": "Constrained Baseline",
+  "PixelFormat": "yuv420p",
+  "Width": 96,
+  "Height": 54,
+  "DurationSeconds": 6,
+  "FrameRate": 10,
+  "DecodedFrames": 60,
+  "DistinctDecodedFrames": 60,
+  "RepeatGenerationByteIdentical": true,
+  "RuntimeNeedsExternalFfmpeg": false,
+  "ActualGpuPlayback": "Not claimed; manual acceptance remains unsigned"
+}

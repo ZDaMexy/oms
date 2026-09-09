@@ -171,6 +171,7 @@ namespace osu.Game.Skinning.Gameplay
     public static class GameplaySkinPublicSlotMaterialResolver
     {
         private const string selected_provider_name = "selected.public-slots";
+        private const string canonical_provider_name = "canonical.public-slots";
         private const string programmatic_provider_name = "programmatic.public-slots";
 
         public static GameplaySkinPublicSlotMaterialResolution Resolve(
@@ -181,13 +182,17 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinResolvedMaterialSourceIdentity? selectedIdentity,
             GameplaySkinResolvedMaterialSourceIdentity programmaticIdentity,
             Func<string, Texture?> prepareTexture,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Skin? canonicalSkin = null)
         {
             ArgumentNullException.ThrowIfNull(snapshot);
             ArgumentNullException.ThrowIfNull(capabilities);
             ArgumentNullException.ThrowIfNull(descriptors);
             ArgumentNullException.ThrowIfNull(programmaticIdentity);
             ArgumentNullException.ThrowIfNull(prepareTexture);
+
+            if (canonicalSkin != null && !CanonicalSkinPackage.IsCanonicalSkin(canonicalSkin))
+                throw new ArgumentException("Canonical fallback requires a verified installation package.", nameof(canonicalSkin));
 
             if (selectedDocument != null)
             {
@@ -215,6 +220,13 @@ namespace osu.Game.Skinning.Gameplay
             var entries = new List<GameplaySkinResolvedMaterialEntry>();
             var diagnostics = new List<GameplaySkinResolvedMaterialDiagnostic>();
             var preparedTextures = new Dictionary<string, Texture?>(StringComparer.Ordinal);
+            var canonicalTextures = new Dictionary<string, Texture?>(StringComparer.Ordinal);
+            GameplaySkinDocument? canonicalDocument = canonicalSkin?.GameplaySkinDocument.BindToPublication(snapshot);
+            GameplaySkinResolvedMaterialSourceIdentity? canonicalIdentity = canonicalDocument == null ? null
+                : GameplaySkinResolvedMaterialSourceIdentity.Create(
+                    GameplaySkinResolvedMaterialSourceKind.CanonicalPackage,
+                    "canonical-public-slots",
+                    canonicalDocument.Identity.ContentRevision);
 
             foreach (GameplaySkinSlotDescriptor descriptor in copiedDescriptors)
             {
@@ -235,10 +247,24 @@ namespace osu.Game.Skinning.Gameplay
 
                     if (selectedDocument != null)
                     {
+                        addDocumentProvider(selectedDocument, selected_provider_name, prepareTexture, preparedTextures);
+                    }
+
+                    if (canonicalDocument != null)
+                        addDocumentProvider(canonicalDocument, canonical_provider_name, name => canonicalSkin!.GetTexture(name), canonicalTextures);
+                    else
+                        providers.Add(new ProgrammaticProvider());
+
+                    void addDocumentProvider(
+                        GameplaySkinDocument document,
+                        string providerName,
+                        Func<string, Texture?> textureFactory,
+                        Dictionary<string, Texture?> textureCache)
+                    {
                         providers.Add(new GameplaySkinDocumentSlotProvider<PublicSlotContext, GameplaySkinPublicSlotMaterial>(
-                            selectedDocument,
+                            document,
                             capabilities,
-                            selected_provider_name,
+                            providerName,
                             slot => slot.Target,
                             (entry, slot) =>
                             {
@@ -256,10 +282,10 @@ namespace osu.Game.Skinning.Gameplay
                                 {
                                     string resourceName = GameplaySkinPublicSlotMaterial.ValidateRelativeResourceName(entry.Value);
 
-                                    if (!preparedTextures.TryGetValue(resourceName, out Texture? texture))
+                                    if (!textureCache.TryGetValue(resourceName, out Texture? texture))
                                     {
-                                        texture = prepareTexture(resourceName);
-                                        preparedTextures.Add(resourceName, texture);
+                                        texture = textureFactory(resourceName);
+                                        textureCache.Add(resourceName, texture);
                                     }
 
                                     cancellationToken.ThrowIfCancellationRequested();
@@ -286,7 +312,6 @@ namespace osu.Game.Skinning.Gameplay
                             }));
                     }
 
-                    providers.Add(new ProgrammaticProvider());
                     GameplaySkinSlotResolution<GameplaySkinPublicSlotMaterial> resolution = GameplaySkinSlotResolver.Resolve(
                         descriptor,
                         context,
@@ -299,27 +324,21 @@ namespace osu.Game.Skinning.Gameplay
                         diagnostics.Add(new GameplaySkinResolvedMaterialDiagnostic(
                             mapDiagnostic(diagnostic),
                             key,
-                            string.Equals(diagnostic.ProviderName, selected_provider_name, StringComparison.Ordinal)
-                                ? selectedIdentity!
-                                : programmaticIdentity));
+                            sourceIdentity(diagnostic.ProviderName)));
                     }
 
                     switch (resolution.Result.Kind)
                     {
                         case SkinSlotResultKind.Provide:
-                            bool selected = string.Equals(resolution.ProviderName, selected_provider_name, StringComparison.Ordinal);
                             entries.Add(GameplaySkinResolvedMaterialEntry.Provide(
                                 descriptor,
                                 target,
-                                selected ? selectedIdentity! : programmaticIdentity,
+                                sourceIdentity(resolution.ProviderName),
                                 resolution.Result.Value));
                             break;
 
                         case SkinSlotResultKind.Suppress:
-                            if (!string.Equals(resolution.ProviderName, selected_provider_name, StringComparison.Ordinal))
-                                throw new InvalidOperationException("Only the exact selected document may suppress a generic public slot.");
-
-                            entries.Add(GameplaySkinResolvedMaterialEntry.Suppress(descriptor, target, selectedIdentity!));
+                            entries.Add(GameplaySkinResolvedMaterialEntry.Suppress(descriptor, target, sourceIdentity(resolution.ProviderName)));
                             break;
 
                         default:
@@ -327,6 +346,13 @@ namespace osu.Game.Skinning.Gameplay
                     }
                 }
             }
+
+            GameplaySkinResolvedMaterialSourceIdentity sourceIdentity(string? providerName) => providerName switch
+            {
+                selected_provider_name => selectedIdentity!,
+                canonical_provider_name => canonicalIdentity!,
+                _ => programmaticIdentity,
+            };
 
             cancellationToken.ThrowIfCancellationRequested();
             return new GameplaySkinPublicSlotMaterialResolution(entries, diagnostics);

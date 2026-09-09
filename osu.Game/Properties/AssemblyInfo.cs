@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("osu.Game.Rulesets.Mania")]
 [assembly: InternalsVisibleTo("osu.Game.Rulesets.Bms.Tests")]
 [assembly: InternalsVisibleTo("osu.Game.Rulesets.Mania.Tests")]
+[assembly: InternalsVisibleTo("SkinAuthoring")]
 [assembly: InternalsVisibleTo("osu.Game.Tournament.Tests")]
 
 // intended for Moq usage

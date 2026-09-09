@@ -46,7 +46,7 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 
 前往 [GitHub Releases](https://github.com/ZDaMexy/oms/releases) 下载最新的便携全量包 `oms_YYYYMMDD.zip`，解压后直接运行即可，无需安装。
 
-更新时下载新包覆盖旧目录，并保留 `portable.ini`、便携模式下的 `data/` 以及任何自定义数据根使用的 `storage.ini`。游戏内的在线自动更新默认关闭。
+更新时先关闭游戏，将完整新包解压到另一个目录，再运行新包内的 `Update-OMS.ps1`，按提示指定旧安装目录。更新工具保留原便携模式、用户数据和自定义保存位置，并保留替换前的程序文件；具体步骤见[发行说明](doc_md/other/RELEASE.md)。游戏内的在线自动更新默认关闭。
 
 ## 使用
 
@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段，当前重点是皮肤脚本隔离、canonical 双包等剩余实现，以及视觉与输入硬件验收；联网相关的 Phase 3 功能在此之前保持冻结。具体进度与 gate 只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准，本页不复制易过期的实现快照。
+OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段。两款完整皮肤“静线”和“星轨”均支持 BMS 与 mania；玩家可选择可选演出，作者可从完整模板修改、检查、打包并导入自己的作品，见[双皮肤制作套件](skin-authoring/README.md)。实际观感、输入设备与长时间体验仍需验收；联网相关的 Phase 3 功能在此之前保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
 
 ## 贡献
 

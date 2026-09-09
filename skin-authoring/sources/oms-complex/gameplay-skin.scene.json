@@ -1,0 +1,772 @@
+{
+  "contract": "oms-gameplay-skin-scene.v1",
+  "root": {
+    "id": "skin.root",
+    "type": "container",
+    "target": {
+      "kind": "global"
+    },
+    "blend": "inherit",
+    "properties": {},
+    "effects": [],
+    "children": [
+      {
+        "id": "astral.console",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "slot": "hud.text",
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "astral.console.panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.console",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.15,
+              "y": 0.012,
+              "width": 0.7,
+              "height": 0.058
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.brand",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "A S T R A L",
+              "x": 0.166,
+              "y": 0.022,
+              "font-size": 18,
+              "colour": "#ffd38aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.status",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "READY",
+              "x": 0.166,
+              "y": 0.049,
+              "font-size": 10,
+              "colour": "#a6b5c9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.score-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "SCORE",
+              "x": 0.34,
+              "y": 0.021,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.score",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.34,
+              "y": 0.037,
+              "font-size": 20,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.combo-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "COMBO",
+              "x": 0.525,
+              "y": 0.021,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.combo",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.525,
+              "y": 0.037,
+              "font-size": 20,
+              "colour": "#ffd38aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.bpm-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "BPM",
+              "x": 0.69,
+              "y": 0.021,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.bpm",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.69,
+              "y": 0.04,
+              "font-size": 16,
+              "colour": "#c0cee0ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.judgement",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "",
+              "x": 0.773,
+              "y": 0.043,
+              "font-size": 12,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.energy-track",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.15,
+              "y": 0.074,
+              "width": 0.7,
+              "height": 0.002,
+              "colour": "#18283aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.energy",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.15,
+              "y": 0.074,
+              "width": 0.7,
+              "height": 0.002,
+              "scale-x": 0,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "astral.decoration",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "slot": "decoration",
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "astral.rail.top",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.02,
+              "y": 0.025,
+              "width": 0.96,
+              "height": 0.002,
+              "opacity": 0.5,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.rail.bottom",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.02,
+              "y": 0.975,
+              "width": 0.96,
+              "height": 0.002,
+              "opacity": 0.5,
+              "colour": "#ffd38aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.orbit-0",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.orbit",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.035,
+              "y": 0.5,
+              "width": 0.058,
+              "height": 0.105,
+              "origin": "centre",
+              "opacity": 0.3,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.prism-0",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.prism",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.035,
+              "y": 0.5,
+              "width": 0.025,
+              "height": 0.045,
+              "origin": "centre",
+              "opacity": 0.4,
+              "colour": "#ffd38aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-0-0",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.021000000000000005,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-0-1",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.029000000000000005,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-0-2",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.037000000000000005,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-0-3",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.045000000000000005,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.orbit-1",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.orbit",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.965,
+              "y": 0.5,
+              "width": 0.058,
+              "height": 0.105,
+              "origin": "centre",
+              "opacity": 0.3,
+              "colour": "#bf9affff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.prism-1",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.prism",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.965,
+              "y": 0.5,
+              "width": 0.025,
+              "height": 0.045,
+              "origin": "centre",
+              "opacity": 0.4,
+              "colour": "#ffd38aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-1-0",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.951,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-1-1",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.959,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-1-2",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.967,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.meter-1-3",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.975,
+              "y": 0.66,
+              "width": 0.004,
+              "height": 0.13,
+              "origin": "bottom-centre",
+              "scale-y": 0.15,
+              "opacity": 0.4,
+              "colour": "#52dfdfff"
+            },
+            "effects": [],
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "tracks": [
+    {
+      "id": "astral.rotate-0",
+      "type": "tween",
+      "target": "astral.orbit-0",
+      "property": "rotation",
+      "easing": "linear",
+      "loop": true,
+      "keyframes": [
+        {
+          "id": "astral.rotate-0.start",
+          "time": 0,
+          "value": 0
+        },
+        {
+          "id": "astral.rotate-0.end",
+          "time": 12000,
+          "value": 360
+        }
+      ]
+    },
+    {
+      "id": "astral.rotate-1",
+      "type": "tween",
+      "target": "astral.orbit-1",
+      "property": "rotation",
+      "easing": "linear",
+      "loop": true,
+      "keyframes": [
+        {
+          "id": "astral.rotate-1.start",
+          "time": 0,
+          "value": 0
+        },
+        {
+          "id": "astral.rotate-1.end",
+          "time": 12000,
+          "value": -360
+        }
+      ]
+    }
+  ],
+  "stateMachines": [
+    {
+      "id": "astral.lifecycle",
+      "initial": "astral.state.ready",
+      "states": [
+        {
+          "id": "astral.state.ready",
+          "set": [
+            {
+              "id": "astral.state-set.ready",
+              "target": "astral.console.status",
+              "property": "text",
+              "value": "READY"
+            }
+          ]
+        },
+        {
+          "id": "astral.state.running",
+          "set": [
+            {
+              "id": "astral.state-set.running",
+              "target": "astral.console.status",
+              "property": "text",
+              "value": "RUNNING"
+            }
+          ]
+        },
+        {
+          "id": "astral.state.paused",
+          "set": [
+            {
+              "id": "astral.state-set.paused",
+              "target": "astral.console.status",
+              "property": "text",
+              "value": "PAUSED"
+            }
+          ]
+        },
+        {
+          "id": "astral.state.complete",
+          "set": [
+            {
+              "id": "astral.state-set.complete",
+              "target": "astral.console.status",
+              "property": "text",
+              "value": "COMPLETE"
+            }
+          ]
+        },
+        {
+          "id": "astral.state.failed",
+          "set": [
+            {
+              "id": "astral.state-set.failed",
+              "target": "astral.console.status",
+              "property": "text",
+              "value": "FAILED"
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "astral.transition.ready.running",
+          "from": "astral.state.ready",
+          "to": "astral.state.running",
+          "event": "gameplay.start"
+        },
+        {
+          "id": "astral.transition.ready.paused",
+          "from": "astral.state.ready",
+          "to": "astral.state.paused",
+          "event": "gameplay.pause"
+        },
+        {
+          "id": "astral.transition.ready.complete",
+          "from": "astral.state.ready",
+          "to": "astral.state.complete",
+          "event": "gameplay.complete"
+        },
+        {
+          "id": "astral.transition.ready.failed",
+          "from": "astral.state.ready",
+          "to": "astral.state.failed",
+          "event": "gameplay.fail"
+        },
+        {
+          "id": "astral.transition.running.paused",
+          "from": "astral.state.running",
+          "to": "astral.state.paused",
+          "event": "gameplay.pause"
+        },
+        {
+          "id": "astral.transition.running.complete",
+          "from": "astral.state.running",
+          "to": "astral.state.complete",
+          "event": "gameplay.complete"
+        },
+        {
+          "id": "astral.transition.running.failed",
+          "from": "astral.state.running",
+          "to": "astral.state.failed",
+          "event": "gameplay.fail"
+        },
+        {
+          "id": "astral.transition.paused.running",
+          "from": "astral.state.paused",
+          "to": "astral.state.running",
+          "event": "gameplay.start"
+        },
+        {
+          "id": "astral.transition.paused.complete",
+          "from": "astral.state.paused",
+          "to": "astral.state.complete",
+          "event": "gameplay.complete"
+        },
+        {
+          "id": "astral.transition.paused.failed",
+          "from": "astral.state.paused",
+          "to": "astral.state.failed",
+          "event": "gameplay.fail"
+        },
+        {
+          "id": "astral.transition.complete.running",
+          "from": "astral.state.complete",
+          "to": "astral.state.running",
+          "event": "gameplay.start"
+        },
+        {
+          "id": "astral.transition.complete.paused",
+          "from": "astral.state.complete",
+          "to": "astral.state.paused",
+          "event": "gameplay.pause"
+        },
+        {
+          "id": "astral.transition.complete.failed",
+          "from": "astral.state.complete",
+          "to": "astral.state.failed",
+          "event": "gameplay.fail"
+        },
+        {
+          "id": "astral.transition.failed.running",
+          "from": "astral.state.failed",
+          "to": "astral.state.running",
+          "event": "gameplay.start"
+        },
+        {
+          "id": "astral.transition.failed.paused",
+          "from": "astral.state.failed",
+          "to": "astral.state.paused",
+          "event": "gameplay.pause"
+        },
+        {
+          "id": "astral.transition.failed.complete",
+          "from": "astral.state.failed",
+          "to": "astral.state.complete",
+          "event": "gameplay.complete"
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "id": "astral.bind.score",
+      "target": "astral.console.score",
+      "property": "text",
+      "source": "score.value"
+    },
+    {
+      "id": "astral.bind.combo",
+      "target": "astral.console.combo",
+      "property": "text",
+      "source": "combo.value"
+    },
+    {
+      "id": "astral.bind.bpm",
+      "target": "astral.console.bpm",
+      "property": "text",
+      "source": "timing.bpm"
+    },
+    {
+      "id": "astral.bind.judgement",
+      "target": "astral.console.judgement",
+      "property": "text",
+      "source": "judgement.result"
+    },
+    {
+      "id": "astral.bind.energy",
+      "target": "astral.console.energy",
+      "property": "scale-x",
+      "source": "gauge.value"
+    }
+  ],
+  "variants": [],
+  "templates": [],
+  "instances": []
+}

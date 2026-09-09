@@ -35,6 +35,8 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
             GameplaySkinPackageRevision package = snapshot.Context.PackageRevision;
             ISkin[] sources = skinSource.AllSources.ToArray();
+            Skin? validatedCanonical = sources.Select(unwrapSkin).OfType<Skin>()
+                .FirstOrDefault(CanonicalSkinPackage.IsCanonicalSkin);
             cancellationToken.ThrowIfCancellationRequested();
             SelectedSkin selected = sources
                                     .Select(source => new SelectedSkin(source, unwrapSkin(source) as Skin))
@@ -181,12 +183,32 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
                     foreach (LegacySource fallback in fallbackSources)
                     {
+                        if (unwrapSkin(fallback.Skin) is Skin fallbackSkin && CanonicalSkinPackage.IsCanonicalSkin(fallbackSkin))
+                        {
+                            addProvider(
+                                new GameplaySkinDocumentSlotProvider<ManiaMaterialLookup, ManiaResolvedCandidate>(
+                                    fallbackSkin.GameplaySkinDocument.BindToPublication(snapshot),
+                                    RuntimeCapabilities,
+                                    "canonical-public-mania",
+                                    context => context.Target,
+                                    (entry, context) =>
+                                    {
+                                        cancellationToken.ThrowIfCancellationRequested();
+                                        if (string.IsNullOrWhiteSpace(entry.Value)
+                                            || !tryCreateMaterial(fallback.Skin, context, entry.Value, commonDeclaration: true,
+                                                out IManiaGameplaySkinMaterial? material))
+                                            throw new ManiaMaterialPreparationException("mania.canonical.resource-missing");
+                                        return new ManiaResolvedCandidate(material!, fallback.Identity);
+                                    }),
+                                fallback.Identity);
+                        }
                         addProvider(
                             new LegacyProvider(fallback.Name, fallback.Skin, fallback.Identity, diagnostics, cancellationToken),
                             fallback.Identity);
                     }
 
-                    addProvider(new ProgrammaticProvider(programmaticIdentity, cancellationToken), programmaticIdentity);
+                    if (validatedCanonical == null)
+                        addProvider(new ProgrammaticProvider(programmaticIdentity, cancellationToken), programmaticIdentity);
 
                     GameplaySkinSlotResolution<ManiaResolvedCandidate> resolution = GameplaySkinSlotResolver.Resolve(
                         descriptor!,
@@ -225,7 +247,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                             break;
 
                         default:
-                            // The final programmatic provider is total. Reaching inherit means prepare is incomplete;
+                            // A required slot must be provided by the validated package or a compatibility provider.
                             // aborting here keeps the previously committed package/layout/material triple unchanged.
                             throw new InvalidOperationException("The mania material provider chain did not produce a complete result.");
                     }
@@ -250,7 +272,8 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 selectedIdentity,
                 programmaticIdentity,
                 resourceName => selected.Transformed.GetTexture(resourceName, WrapMode.ClampToEdge, WrapMode.ClampToEdge),
-                cancellationToken);
+                cancellationToken,
+                validatedCanonical);
             entries.AddRange(publicSlots.Entries);
             diagnostics.AddRange(publicSlots.Diagnostics);
 

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -154,6 +155,9 @@ namespace osu.Game.Tests.Visual.Gameplay
             [Resolved]
             private ISkinSource source { get; set; } = null!;
 
+            [Resolved]
+            private AudioManager audio { get; set; } = null!;
+
             public event Action? SourceChanged;
 
             public Bindable<bool> SamplePlaybackDisabled { get; } = new Bindable<bool>();
@@ -164,7 +168,8 @@ namespace osu.Game.Tests.Visual.Gameplay
 
             public Drawable? GetDrawableComponent(ISkinComponentLookup lookup) => source.GetDrawableComponent(lookup);
             public Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => source.GetTexture(componentName, wrapModeS, wrapModeT);
-            public ISample? GetSample(ISampleInfo sampleInfo) => OverridingSample ?? source.GetSample(sampleInfo);
+            // Sound lifecycle has a fixed sample precondition, independent of the current product skin's assets.
+            public ISample? GetSample(ISampleInfo sampleInfo) => OverridingSample ?? audio.Samples.Get(sample_lookup);
 
             public IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
                 where TLookup : notnull
@@ -180,6 +185,7 @@ namespace osu.Game.Tests.Visual.Gameplay
             {
                 SourceChanged?.Invoke();
             }
+
         }
     }
 }

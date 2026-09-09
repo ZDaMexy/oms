@@ -245,11 +245,13 @@ namespace osu.Game.Tests.Skins.IO
             MemoryStream exportStream = new MemoryStream();
 
             Guid originalSkinId = skinManager.CurrentSkinInfo.Value.ID;
+            string[] originalFiles = skinManager.CurrentSkinInfo.Value.PerformRead(s => s.Files.Select(file => file.Filename).Order().ToArray());
 
             await skinManager.CurrentSkinInfo.Value.PerformRead(async s =>
             {
                 Assert.IsFalse(s.Protected);
-                Assert.AreEqual(typeof(OmsSkin), s.CreateInstance(skinManager).GetType());
+                Assert.That(s.InstantiationInfo, Is.EqualTo(SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO));
+                Assert.That(s.Files.Count, Is.GreaterThan(1), "The editable default copy must contain the complete ordinary author package.");
 
                 await new LegacySkinExporter(osu.Dependencies.Get<Storage>()).ExportToStreamAsync(skinManager.CurrentSkinInfo.Value, exportStream);
 
@@ -262,8 +264,125 @@ namespace osu.Game.Tests.Skins.IO
             {
                 Assert.IsFalse(s.Protected);
                 Assert.AreNotEqual(originalSkinId, s.ID);
-                Assert.AreEqual(typeof(OmsSkin), s.CreateInstance(skinManager).GetType());
+                Assert.That(s.InstantiationInfo, Is.EqualTo(SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO));
+                Assert.That(s.Files.Count, Is.GreaterThan(1));
+                Assert.That(s.Files.Select(file => file.Filename).Order(), Is.EqualTo(originalFiles));
             });
+        });
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public Task TestOldOmsUserPackageUsesOnlyAuthoredFilesAndPreservesStoredData(bool existingRecord) => runSkinTest(async osu =>
+        {
+            var skinManager = osu.Dependencies.Get<SkinManager>();
+            using var archive = new MemoryStream();
+            using (var zip = ZipArchive.Create())
+            {
+                zip.AddEntry("skin.ini", new MemoryStream(generateSkinIniBytes("Legacy OMS author", "author")));
+                zip.AddEntry("author-evidence.txt", new MemoryStream("unchanged user content"u8.ToArray()));
+                if (!existingRecord)
+                    zip.AddEntry("skininfo.json", new MemoryStream(Encoding.UTF8.GetBytes(
+                        "{\"InstantiationInfo\":\"osu.Game.Skinning.OmsSkin, osu.Game\"}")));
+                zip.SaveTo(archive);
+            }
+            var imported = await skinManager.Import(new ImportTask(archive, "legacy-oms.osk"));
+            if (existingRecord)
+                imported.PerformWrite(info => info.InstantiationInfo = typeof(OmsSkin).GetInvariantInstantiationInfo());
+
+            string storedType = imported.PerformRead(info => info.InstantiationInfo);
+            string storedHash = imported.PerformRead(info => info.Hash);
+            string[] storedFiles = imported.PerformRead(info => info.Files.Select(file => file.Filename + ":" + file.File.Hash).Order().ToArray());
+            imported.PerformRead(info =>
+            {
+                using Skin instance = skinManager.GetSkin(info);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(instance.GetType().GetInvariantInstantiationInfo(), Is.EqualTo(SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO));
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(instance), Is.False);
+                    Assert.That(instance.TryCaptureGameplaySkinResource("mania-note1.png", 1024 * 1024, out _), Is.False,
+                        "A user package cannot inherit the retired embedded theme as its own authored files.");
+                    Assert.That(instance.TryCaptureGameplaySkinResource("author-evidence.txt", 1024, out byte[] authored), Is.True);
+                    Assert.That(authored, Is.EqualTo("unchanged user content"u8.ToArray()));
+                });
+            });
+            imported.PerformRead(info =>
+            {
+                Assert.That(info.InstantiationInfo, Is.EqualTo(storedType));
+                Assert.That(info.Hash, Is.EqualTo(storedHash));
+                Assert.That(info.Files.Select(file => file.Filename + ":" + file.File.Hash).Order(), Is.EqualTo(storedFiles));
+                Assert.That(info.Protected, Is.False);
+                if (!existingRecord)
+                    Assert.That(info.InstantiationInfo, Is.EqualTo(SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO));
+            });
+        });
+
+        [Test]
+        public Task TestUnknownProtectedFixedIdExportsItsRealUserFilesWithoutReplacingThemWithCanonical() => runSkinTest(async osu =>
+        {
+            var skinManager = osu.Dependencies.Get<SkinManager>();
+            using var archive = new MemoryStream();
+            using (var zip = ZipArchive.Create())
+            {
+                zip.AddEntry("skin.ini", new MemoryStream(generateSkinIniBytes("Preserved author", "author")));
+                zip.AddEntry("author-evidence.txt", new MemoryStream("user data must survive"u8.ToArray()));
+                zip.SaveTo(archive);
+            }
+            var imported = await skinManager.Import(new ImportTask(archive, "preserved-author.osk"));
+            RealmAccess realmAccess = ((IStorageResourceProvider)skinManager).RealmAccess;
+            realmAccess.Write(realm =>
+            {
+                SkinInfo unknown = realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)!;
+                SkinInfo source = realm.Find<SkinInfo>(imported.ID)!;
+                unknown.Name = "Unknown historical skin data";
+                foreach (RealmNamedFileUsage file in source.Files)
+                    unknown.Files.Add(new RealmNamedFileUsage(file.File, file.Filename));
+            });
+            Live<SkinInfo> preserved = skinManager.Query(info => info.ID == SkinInfo.OMS_SKIN);
+            Assert.That(skinManager.CanExport(preserved), Is.False, "Unknown protected records cannot impersonate the normal canonical export button.");
+            string[] before = preserved.PerformRead(info => info.Files.Select(file => file.Filename + ":" + file.File.Hash).Order().ToArray());
+            using var output = new MemoryStream();
+            await new CanonicalSkinExporter(osu.Dependencies.Get<Storage>(), skinManager.DefaultOmsSkin).ExportToStreamAsync(preserved, output);
+            output.Position = 0;
+            using (var exported = new System.IO.Compression.ZipArchive(output, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: true))
+            {
+                Assert.That(exported.Entries, Has.Count.EqualTo(2));
+                using Stream evidence = exported.GetEntry("author-evidence.txt")!.Open();
+                Assert.That(evidence.ReadAllRemainingBytesToArray(), Is.EqualTo("user data must survive"u8.ToArray()));
+            }
+            Assert.That(preserved.PerformRead(info => info.Files.Select(file => file.Filename + ":" + file.File.Hash).Order().ToArray()), Is.EqualTo(before));
+        });
+
+        [TestCase("oms-simple.osk")]
+        [TestCase("oms-complex.osk")]
+        public Task TestImportingInstalledCanonicalArchivePreservesOriginalAndUsesOrdinaryUserRecords(string filename) => runSkinTest(async osu =>
+        {
+            var skinManager = osu.Dependencies.Get<SkinManager>();
+            string original = Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", filename);
+            byte[] bytes = File.ReadAllBytes(original);
+            DateTime lastWrite = File.GetLastWriteTimeUtc(original);
+            FileAttributes attributes = File.GetAttributes(original);
+            var imported = await skinManager.Import(new ImportTask(original));
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.Exists(original), Is.True);
+                Assert.That(File.ReadAllBytes(original), Is.EqualTo(bytes));
+                Assert.That(File.GetLastWriteTimeUtc(original), Is.EqualTo(lastWrite));
+                Assert.That(File.GetAttributes(original), Is.EqualTo(attributes));
+                Assert.That(imported.PerformRead(info => info.Protected), Is.False);
+                Assert.That(imported.ID, Is.Not.EqualTo(SkinInfo.OMS_SKIN));
+                Assert.That(imported.PerformRead(info => info.InstantiationInfo), Is.EqualTo(SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO));
+                Assert.That(imported.PerformRead(info => info.Files.Count), Is.GreaterThan(1));
+            });
+
+            string authorDirectory = osu.Dependencies.Get<Storage>().GetFullPath("ordinary-author-import");
+            Directory.CreateDirectory(authorDirectory);
+            string ordinaryCopy = Path.Combine(authorDirectory, filename);
+            File.WriteAllBytes(ordinaryCopy, bytes);
+            var copiedImport = await skinManager.Import(new ImportTask(ordinaryCopy));
+            Assert.That(copiedImport, Is.Not.Null);
+            Assert.That(File.Exists(ordinaryCopy), Is.False, "Identical filenames outside the installation keep ordinary successful-import cleanup.");
+            Assert.That(File.ReadAllBytes(original), Is.EqualTo(bytes));
+            Directory.Delete(authorDirectory);
         });
 
         [Test]
@@ -1012,16 +1131,25 @@ namespace osu.Game.Tests.Skins.IO
             return completion.Task;
         }
 
-        private static Task<bool> ensureMutableSkinOnUpdateThread(OsuGameBase osu, SkinManager skinManager)
+        private static async Task<bool> ensureMutableSkinOnUpdateThread(OsuGameBase osu, SkinManager skinManager)
         {
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             GameHost host = osu.Dependencies.Get<GameHost>();
+            void sourceChanged()
+            {
+                if (!skinManager.CurrentSkinInfo.Value.PerformRead(info => info.Protected))
+                    completion.TrySetResult(true);
+            }
 
             host.UpdateThread.Scheduler.Add(() =>
             {
                 try
                 {
-                    completion.TrySetResult(skinManager.EnsureMutableSkin());
+                    skinManager.SourceChanged += sourceChanged;
+                    if (!skinManager.EnsureMutableSkin())
+                        completion.TrySetResult(false);
+                    else
+                        sourceChanged();
                 }
                 catch (Exception exception)
                 {
@@ -1029,7 +1157,14 @@ namespace osu.Game.Tests.Skins.IO
                 }
             });
 
-            return completion.Task;
+            try
+            {
+                return await completion.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            }
+            finally
+            {
+                skinManager.SourceChanged -= sourceChanged;
+            }
         }
 
         private void assertImportedBoth(Live<SkinInfo> import1, Live<SkinInfo> import2)

@@ -99,6 +99,20 @@ namespace osu.Game.Skinning.Windows
             string dataRootAbsolutePath,
             IWindowsSkinPackageCaptureFileSystem fileSystem,
             CancellationToken cancellationToken = default)
+            => open(dataRootAbsolutePath, fileSystem, null, cancellationToken);
+
+        internal static WindowsSkinManagedAuthoritySession OpenForFirstWorkspace(
+            string dataRootAbsolutePath,
+            IWindowsSkinPackageCaptureFileSystem fileSystem,
+            Func<SkinFolderPhysicalAncestryProof, bool> authoriseCreation,
+            CancellationToken cancellationToken)
+            => open(dataRootAbsolutePath, fileSystem, authoriseCreation, cancellationToken);
+
+        private static WindowsSkinManagedAuthoritySession open(
+            string dataRootAbsolutePath,
+            IWindowsSkinPackageCaptureFileSystem fileSystem,
+            Func<SkinFolderPhysicalAncestryProof, bool>? authoriseCreation,
+            CancellationToken cancellationToken)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(dataRootAbsolutePath);
             ArgumentNullException.ThrowIfNull(fileSystem);
@@ -141,14 +155,47 @@ namespace osu.Game.Skinning.Windows
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
-                OpenedDirectory managed = openExpectedDirectory(
-                    fileSystem,
-                    current,
-                    SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY,
-                    WindowsSkinPackageOpenMode.AuthorityDirectory,
-                    SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
-                    cancellationToken,
-                    handles);
+                OpenedDirectory managed;
+                try
+                {
+                    managed = openExpectedDirectory(
+                        fileSystem,
+                        current,
+                        SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY,
+                        WindowsSkinPackageOpenMode.AuthorityDirectory,
+                        SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                        cancellationToken,
+                        handles);
+                }
+                catch (WindowsSkinPackageCaptureFileSystemException exception) when (
+                    exception.RejectionReason == SkinManagedPackageCaptureRejectionReason.PackageUnavailable && authoriseCreation != null)
+                {
+                    // Only the explicit first-workspace caller can create this directory. Recovery and scanner Open
+                    // retain their read-only, existing-evidence contract, including an absent managed root.
+                    validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
+                    validateAuthorityLinks(fileSystem, authorityLinks, cancellationToken);
+                    var dataRootProof = new SkinFolderPhysicalAncestryProof(authorityNodes.Select(node => toMutationIdentity(node.Baseline.Identity)));
+                    if (!authoriseCreation(dataRootProof))
+                        throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WindowsSkinPackageEntryMetadata createdMetadata;
+                    using (IWindowsSkinPackageCaptureHandle created = fileSystem.CreateChildNoFollowNoReplace(
+                               current, SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY, directory: true))
+                    {
+                        createdMetadata = fileSystem.QueryMetadata(created);
+                        validateCreatedNode(createdMetadata, WindowsSkinPackageEntryKind.Directory, 0);
+                    }
+                    managed = openExpectedDirectory(
+                        fileSystem,
+                        current,
+                        SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY,
+                        WindowsSkinPackageOpenMode.AuthorityDirectory,
+                        SkinManagedPackageCaptureRejectionReason.PackageUnavailable,
+                        cancellationToken,
+                        handles);
+                    if (managed.Metadata.Identity != createdMetadata.Identity)
+                        throw reject(SkinManagedPackageCaptureRejectionReason.PackageRootIdentityChanged);
+                }
                 authorityLinks.Add(new AuthorityLinkRecord(
                     current,
                     managed.CanonicalName,

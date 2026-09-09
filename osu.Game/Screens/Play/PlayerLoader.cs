@@ -548,6 +548,13 @@ namespace osu.Game.Screens.Play
             if (!this.IsCurrentScreen())
                 return;
 
+            if (!skinManager.IsGameplaySkinInstallationAvailable)
+            {
+                notificationOverlay?.Post(new SimpleErrorNotification { Text = skinManager.GameplaySkinInstallationRepairMessage });
+                this.Exit();
+                return;
+            }
+
             cancelPendingPlayerLoad();
             loadProgress.Reset();
 

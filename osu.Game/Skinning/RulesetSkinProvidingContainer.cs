@@ -74,6 +74,7 @@ namespace osu.Game.Skinning
         [BackgroundDependencyLoader]
         private void load(SkinManager skinManager)
         {
+            skinManager.EnsureGameplaySkinInstallationAvailable();
             InternalChild = new BeatmapSkinProvidingContainer(
                 GetRulesetTransformedSkin(beatmapSkin),
                 GetRulesetTransformedSkin(skinManager.DefaultOmsSkin),

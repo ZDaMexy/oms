@@ -35,6 +35,16 @@ namespace osu.Game.Skinning.Windows
         }
 
         public ISkinManagedFolderMutationNativeSession Open(CancellationToken cancellationToken)
+            => open(null, cancellationToken);
+
+        internal ISkinManagedFolderMutationNativeSession OpenForFirstWorkspace(
+            Func<SkinFolderPhysicalAncestryProof, bool> authoriseCreation,
+            CancellationToken cancellationToken)
+            => open(authoriseCreation, cancellationToken);
+
+        private ISkinManagedFolderMutationNativeSession open(
+            Func<SkinFolderPhysicalAncestryProof, bool>? authoriseCreation,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -58,7 +68,7 @@ namespace osu.Game.Skinning.Windows
 
             try
             {
-                return openWindows(dataRootAbsolutePath, cancellationToken);
+                return openWindows(dataRootAbsolutePath, authoriseCreation, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -73,11 +83,17 @@ namespace osu.Game.Skinning.Windows
         [SupportedOSPlatform("windows10.0.16299")]
         private ISkinManagedFolderMutationNativeSession openWindows(
             string dataRootAbsolutePath,
+            Func<SkinFolderPhysicalAncestryProof, bool>? authoriseCreation,
             CancellationToken cancellationToken)
-            => new Session(
-                WindowsSkinManagedAuthoritySession.Open(
+            => new Session(authoriseCreation == null
+                ? WindowsSkinManagedAuthoritySession.Open(
                     dataRootAbsolutePath,
                     fileSystem ?? new NativeWindowsSkinPackageCaptureFileSystem(),
+                    cancellationToken)
+                : WindowsSkinManagedAuthoritySession.OpenForFirstWorkspace(
+                    dataRootAbsolutePath,
+                    fileSystem ?? new NativeWindowsSkinPackageCaptureFileSystem(),
+                    authoriseCreation,
                     cancellationToken));
 
         [SupportedOSPlatform("windows10.0.16299")]

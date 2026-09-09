@@ -681,11 +681,13 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.JudgementResult => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementOffset => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.ScoreValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreAccuracy => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.TimingBeat => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingMeasure => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingBpm => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.TimingProgress => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.BgaContentState => GameplaySkinSceneStateFamily.Bga,
             _ => throw new InvalidOperationException(),
         };
@@ -1142,12 +1144,13 @@ namespace osu.Game.Skinning.Gameplay
                     bool isText = ReferenceEquals(plan.Key.Slot, GameplaySkinSlotCatalog.ComboDisplay)
                                   || ReferenceEquals(plan.Key.Slot, GameplaySkinSlotCatalog.TextHud)
                                   || ReferenceEquals(plan.Key.Slot, GameplaySkinSlotCatalog.JudgementDisplay);
+                    int glyphs = ReferenceEquals(plan.Key.Slot, GameplaySkinSlotCatalog.TextHud) ? 64 : isText ? 32 : 0;
                     result = result.Add(new RuntimeReservation(
                         1,
                         0,
                         0,
-                        isText ? 32 : 0,
-                        isText ? reserveGlyphPixels(32, 24, context) : 0));
+                        glyphs,
+                        isText ? reserveGlyphPixels(glyphs, 24, context) : 0));
                 }
 
                 if (plan.Route != GameplaySkinSceneHostRoute.Specialised)

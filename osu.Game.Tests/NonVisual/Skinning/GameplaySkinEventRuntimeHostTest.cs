@@ -14,6 +14,24 @@ namespace osu.Game.Tests.NonVisual.Skinning
     public sealed class GameplaySkinEventRuntimeHostTest
     {
         [Test]
+        public void TestTimingProgressSurvivesCompactEventAndPublicPayload()
+        {
+            var timing = new GameplaySkinTimingStateSnapshot(3.5, 0, 120, false, 1, 0.625);
+            GameplaySkinEventValue compact = GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingBeat, timing);
+            Assert.That(compact.GetTiming().Progress, Is.EqualTo(0.625));
+            Assert.That(((GameplaySkinTimingEventPayload)compact.Materialize(null, null)).State.Progress, Is.EqualTo(0.625));
+            Assert.That(new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1).Progress, Is.Zero,
+                "Existing engine callers keep their compatible zero-progress construction until the beatmap host samples them.");
+        }
+
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(-0.01)]
+        [TestCase(1.01)]
+        public void TestTimingRejectsInvalidProgress(double progress)
+            => Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, progress));
+
+        [Test]
         public void TestBgaViewportAlwaysComesFromExactLayout()
         {
             GameplaySkinLayoutRect first = GameplaySkinLayoutRect.Create(0.1f, 0.1f, 0.3f, 0.4f);

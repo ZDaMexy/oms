@@ -384,7 +384,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     Assert.That(result, Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired));
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(journal.IsLoaded, Is.True);
                     Assert.That(journal.Journal!.Phase, Is.EqualTo(SkinManagedFolderMutationPhase.Prepared));
                 });
@@ -498,7 +498,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         $"{manager.LastManagedFolderDeleteResult}; "
                         + $"fallback={manager.LastManagedFolderDeleteResult.FallbackCommitResult}");
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(
                         manager.LastManagedFolderDeleteResult.FallbackCommitResult,
                         Is.EqualTo(SkinManagedFolderProtectedFallbackCommitResult.NotRequired),
@@ -591,7 +591,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     {
                         Assert.That(captureCalls, Is.Zero);
                         Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                        Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     });
                 }
                 else
@@ -674,7 +674,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.Multiple(() =>
                     {
                         Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                        Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                         Assert.That(manager.CurrentRevision, Is.Not.SameAs(revisionA));
                         Assert.That(revisionA!.Retired.IsCompleted, Is.True);
                         Assert.That(Directory.Exists(packageRoot), Is.False);
@@ -1598,6 +1598,68 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestCanonicalSettingsExportButtonPublishesTheCompleteOrdinaryPackage()
+        {
+            FullSkinSettingsCallerHost callerHost = null!;
+            string exportRoot = LocalStorage.GetFullPath("exports");
+            AddStep("open real canonical skin settings", () =>
+            {
+                Directory.CreateDirectory(exportRoot);
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+            });
+            AddUntilStep("wait for canonical export control", () => callerHost.ExportButton.IsLoaded);
+            AddStep("export canonical through the settings button", () =>
+            {
+                Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
+                Assert.That(callerHost.ExportButton.Enabled.Value, Is.True);
+                callerHost.ExportButton.TriggerClick();
+            });
+            AddUntilStep("wait for complete ordinary export", () => Directory.GetFiles(exportRoot, "*.osk").Length == 1);
+            AddStep("verify the entire ordinary archive was exported", () =>
+            {
+                byte[] actual = File.ReadAllBytes(Directory.GetFiles(exportRoot, "*.osk").Single());
+                byte[] expected = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", "oms-simple.osk"));
+                Assert.That(actual, Is.EqualTo(expected));
+                Assert.That(manager.CurrentSkinInfo.Value.PerformRead(info => info.Protected), Is.True);
+                Assert.That(manager.CanDelete(manager.CurrentSkinInfo.Value), Is.False);
+                callerHost.Expire();
+            });
+        }
+
+        [Test]
+        public void TestUnresolvedJournalCannotManufactureMissingProtectedFallbackEvidence()
+        {
+            SkinManager? recovering = null;
+            string journalPath = LocalStorage.GetFullPath(SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME);
+            AddStep("preserve invalid old operation with missing fallback record", () =>
+            {
+                Realm.Write(realm => realm.Remove(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)!));
+                File.WriteAllText(journalPath, "{}");
+                recovering = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
+            });
+            AddStep("unresolved evidence remains unchanged and blocks gameplay", () =>
+            {
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(recovering!.InitialManagedFolderMutationRecoveryResult.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.InvalidJournal));
+                        Assert.That(recovering.IsGameplaySkinInstallationAvailable, Is.False);
+                        Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)), Is.Null);
+                        Assert.That(File.ReadAllText(journalPath), Is.EqualTo("{}"));
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(recovering.CurrentSkin.Value), Is.True);
+                    });
+                }
+                finally
+                {
+                    recovering!.ShutdownManagedFolderMutations();
+                    File.Delete(journalPath);
+                    Realm.Write(realm => realm.Add(CanonicalSkinPackage.CreateInfo()));
+                }
+            });
+        }
+
+        [Test]
         public void TestRealmPackageSettingsDeleteKeepsLegacySoftDeleteAndDefaultSemantics()
         {
             MemoryStream archive = null!;
@@ -1648,7 +1710,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Assert.That(realmPackage.PerformRead(info => info.DeletePending), Is.True);
                         Assert.That(Realm.Run(r => r.Find<SkinInfo>(realmPackage.ID) != null), Is.True);
                         Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                        Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                         Assert.That(
                             new SkinManagedFolderMutationJournalStore(LocalStorage).Load().Status,
                             Is.EqualTo(SkinManagedFolderMutationJournalLoadStatus.Missing));
@@ -1785,7 +1847,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(Realm.Run(r => r.Find<SkinInfo>(deleted.ID) == null), Is.True);
                     Assert.That(Realm.Run(r => r.Find<SkinInfo>(selectable.ID) != null), Is.True);
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(captureCalls, Is.Zero);
                 });
             });
@@ -1993,7 +2055,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         recoveringManager.LastSelectionRejectionReason,
                         Is.EqualTo(SkinSelectionRejectionReason.MutationRecoveryPending));
                     Assert.That(recoveringManager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(recoveringManager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(recoveringManager.CurrentSkin.Value), Is.True);
+                    Assert.That(recoveringManager.IsGameplaySkinInstallationAvailable, Is.False);
                 });
 
                 SkinManagedFolderMutationJournal rolledBack = journal!.WithRolledBack();
@@ -2191,7 +2254,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(manager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.ManagedFolderOperationInProgress));
                     Assert.That(captureCalls, Is.EqualTo(1));
                 });
@@ -3066,7 +3129,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     Assert.That(startupTask!.IsCompletedSuccessfully, Is.True);
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(captureCalls, Is.EqualTo(2));
                     Assert.That(completionScheduleCalls, Is.EqualTo(3));
                     Assert.That(sourceChangedCount, Is.Zero);
@@ -3183,7 +3246,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     Assert.That(startupTask.IsCompletedSuccessfully, Is.True);
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(captureCalls, Is.EqualTo(1));
                     Assert.That(sourceChangedCount, Is.Zero);
                     Assert.That(firstCapsule, Is.Not.Null);
@@ -3261,7 +3324,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(shutdownTask!.IsCompletedSuccessfully, Is.True);
                     Assert.That(mutationTask!.IsCompletedSuccessfully, Is.True);
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                    Assert.That(manager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                    Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                     Assert.That(sourceChangedCount, Is.Zero);
                     Assert.That(capsule, Is.Not.Null);
                     Assert.That(() => capsule!.CreateResourceView(), Throws.TypeOf<ObjectDisposedException>());
@@ -4157,7 +4220,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                             recoveringManager.LastSelectionRejectionReason,
                             Is.EqualTo(SkinSelectionRejectionReason.MutationRecoveryPending));
                         Assert.That(recoveringManager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
-                        Assert.That(recoveringManager.CurrentSkin.Value, Is.TypeOf<OmsSkin>());
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(recoveringManager.CurrentSkin.Value), Is.True);
+                        Assert.That(recoveringManager.IsGameplaySkinInstallationAvailable, Is.False);
                         Assert.That(recoveringManager.ManagedFolderOperationCoordinator.IsPathFrozen(sourceManagedPath), Is.True);
                         Assert.That(recoveringManager.ManagedFolderOperationCoordinator.IsPathFrozen(targetManagedPath), Is.True);
                         Assert.That(scanResult!.IsSuccess, Is.True);
@@ -4677,8 +4741,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                             recoveringManager.CurrentSkinInfo.Value.ID,
                             Is.EqualTo(SkinInfo.OMS_SKIN));
                         Assert.That(
-                            recoveringManager.CurrentSkin.Value,
-                            Is.TypeOf<OmsSkin>());
+                            CanonicalSkinPackage.IsCanonicalSkin(recoveringManager.CurrentSkin.Value),
+                            Is.True);
+                        Assert.That(recoveringManager.IsGameplaySkinInstallationAvailable, Is.False);
                         Assert.That(
                             recoveringManager
                                 .ManagedFolderOperationCoordinator

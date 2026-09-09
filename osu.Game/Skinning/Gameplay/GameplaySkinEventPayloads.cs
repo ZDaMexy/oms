@@ -330,7 +330,13 @@ namespace osu.Game.Skinning.Gameplay
 
         public double ScrollMultiplier { get; }
 
-        internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier)
+        /// <summary>
+        /// Progress through the beatmap's playable bounds, clamped to zero before its first object and one after its last.
+        /// A beatmap with no playable duration has zero progress. This uses the same gameplay time as the timing sample.
+        /// </summary>
+        public double Progress { get; }
+
+        internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0)
         {
             if (!double.IsFinite(beat))
                 throw new ArgumentOutOfRangeException(nameof(beat), beat, "Beat must be finite.");
@@ -344,11 +350,15 @@ namespace osu.Game.Skinning.Gameplay
             if (!double.IsFinite(scrollMultiplier) || scrollMultiplier == 0)
                 throw new ArgumentOutOfRangeException(nameof(scrollMultiplier), scrollMultiplier, "Scroll multiplier must be finite and non-zero.");
 
+            if (!double.IsFinite(progress) || progress < 0 || progress > 1)
+                throw new ArgumentOutOfRangeException(nameof(progress), progress, "Progress must be finite and between zero and one.");
+
             Beat = beat;
             BarIndex = barIndex;
             Bpm = bpm;
             IsStopped = isStopped;
             ScrollMultiplier = scrollMultiplier;
+            Progress = progress;
         }
     }
 
@@ -459,7 +469,7 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge);
-            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier);
+            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
                 _ = new GameplaySkinBgaStateSnapshot(viewport.ViewportIndex, viewport.Viewport, viewport.ContentState, viewport.ContentRevision);

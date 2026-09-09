@@ -32,6 +32,7 @@ using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.UI;
@@ -2413,6 +2414,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             private readonly HealthProcessor healthProcessor;
 
             private readonly BmsRuleset bmsRuleset;
+            private readonly ManiaRuleset maniaRuleset;
+            private readonly ManiaBeatmap maniaBeatmap;
+            private readonly ScoreProcessor maniaScoreProcessor;
+            private readonly HealthProcessor maniaHealthProcessor;
+            private readonly GameplayState bmsGameplayState;
+            private readonly GameplayState maniaGameplayState;
 
             private readonly Container providerHost;
             private readonly Container bmsAuxiliaryHost;
@@ -2459,7 +2466,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 bool includeBgaTimeline = false,
                 bool useChargeLongNotes = false,
                 bool useFixedBmsClock = false,
-                ExactBmsProductionFixture? exactBmsFixture = null)
+                ExactBmsProductionFixture? exactBmsFixture = null,
+                int[]? maniaStageColumns = null)
                 : base(skinManager.CurrentSkin.Value)
             {
                 if (useFiveKeyBeatmap && useFourteenKeyBeatmap)
@@ -2545,7 +2553,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 healthProcessor.ApplyBeatmap(bmsBeatmap);
                 scoreProcessor.ApplyBeatmap(bmsBeatmap);
+                bmsGameplayState = new GameplayState(bmsBeatmap, bmsRuleset,
+                    scoreProcessor: scoreProcessor, healthProcessor: healthProcessor);
                 BmsDrawable = (DrawableBmsRuleset)bmsRuleset.CreateDrawableRulesetWith(bmsBeatmap, bmsMods);
+                BmsDrawable.NewResult += applyBmsResult;
+                BmsDrawable.RevertResult += revertBmsResult;
 
                 if (useFiveKeyBeatmap || useFourteenKeyBeatmap || useFixedBmsClock || exactBmsFixture != null)
                 {
@@ -2585,8 +2597,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     },
                 };
 
-                var maniaRuleset = new ManiaRuleset();
-                var maniaBeatmap = new ManiaBeatmap(new StageDefinition(4))
+                maniaRuleset = new ManiaRuleset();
+                maniaBeatmap = new ManiaBeatmap(new StageDefinition(maniaStageColumns?[0] ?? 4))
                 {
                     BeatmapInfo = { Ruleset = maniaRuleset.RulesetInfo },
                     ControlPointInfo = new ControlPointInfo(),
@@ -2598,15 +2610,35 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
                 maniaBeatmap.HitObjects.Add(new ManiaHoldNote
                 {
-                    Column = 3,
+                    Column = maniaBeatmap.TotalColumns - 1,
                     StartTime = 1_001_000,
                     Duration = 2_000,
                 });
 
+                if (maniaStageColumns != null)
+                {
+                    foreach (int columns in maniaStageColumns.Skip(1))
+                        maniaBeatmap.Stages.Add(new StageDefinition(columns));
+                    maniaBeatmap.HitObjects.Clear();
+                    for (int column = 0; column < maniaBeatmap.TotalColumns; column++)
+                    {
+                        maniaBeatmap.HitObjects.Add(new ManiaNote { Column = column, StartTime = 2_000 });
+                        maniaBeatmap.HitObjects.Add(new ManiaHoldNote { Column = column, StartTime = 3_000, Duration = 2_000 });
+                    }
+                }
+
                 foreach (var hitObject in maniaBeatmap.HitObjects)
                     hitObject.ApplyDefaults(maniaBeatmap.ControlPointInfo, new BeatmapDifficulty());
 
+                maniaScoreProcessor = maniaRuleset.CreateScoreProcessor();
+                maniaHealthProcessor = maniaRuleset.CreateHealthProcessor(0);
+                maniaScoreProcessor.ApplyBeatmap(maniaBeatmap);
+                maniaHealthProcessor.ApplyBeatmap(maniaBeatmap);
+                maniaGameplayState = new GameplayState(maniaBeatmap, maniaRuleset,
+                    scoreProcessor: maniaScoreProcessor, healthProcessor: maniaHealthProcessor);
                 ManiaDrawable = (DrawableManiaRuleset)maniaRuleset.CreateDrawableRulesetWith(maniaBeatmap);
+                ManiaDrawable.NewResult += applyManiaResult;
+                ManiaDrawable.RevertResult += revertManiaResult;
                 ManiaLayoutProbe = new GameplayLayoutPublicationProbe();
                 ManiaProvider = new RulesetSkinProvidingContainer(
                     maniaRuleset,
@@ -2615,7 +2647,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     prepareGameplaySkinLayout: true)
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = new Container
+                    Child = new GameplayScoringDependenciesContainer(maniaGameplayState)
                     {
                         RelativeSizeAxes = Axes.Both,
                         Children = new Drawable[]
@@ -2656,12 +2688,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsDrawable.UpdateSubTree();
             }
 
-            public void AddProductionCoreHud()
+            public void AddProductionCoreHud(bool mania = false)
             {
                 if (CoreHud != null)
                     throw new InvalidOperationException("The production core HUD has already been mounted.");
 
-                CoreHud = new HUDOverlay(BmsDrawable, Array.Empty<Mod>(), new PlayerConfiguration())
+                CoreHud = new HUDOverlay(mania ? ManiaDrawable : BmsDrawable, Array.Empty<Mod>(), new PlayerConfiguration())
                 {
                     RelativeSizeAxes = Axes.Both,
                     AlwaysPresent = true,
@@ -2670,16 +2702,51 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     new TrackVirtual(60_000),
                     applyOffsets: false,
                     requireDecoupling: false);
-                var gameplayState = new GameplayState(
-                    BmsBeatmap,
-                    bmsRuleset,
-                    scoreProcessor: scoreProcessor,
-                    healthProcessor: healthProcessor);
-                BmsProvider.Add(new CoreHudDependenciesContainer(gameplayClock, gameplayState)
+                GameplayState gameplayState = mania ? maniaGameplayState : bmsGameplayState;
+                (mania ? ManiaProvider : BmsProvider).Add(new CoreHudDependenciesContainer(gameplayClock, gameplayState)
                 {
                     RelativeSizeAxes = Axes.Both,
                     Child = gameplayClock.WithChild(CoreHud),
                 });
+            }
+
+            private void applyBmsResult(JudgementResult result)
+            {
+                healthProcessor.ApplyResult(result);
+                scoreProcessor.ApplyResult(result);
+                bmsGameplayState.ApplyResult(result);
+            }
+
+            private void revertBmsResult(JudgementResult result)
+            {
+                healthProcessor.RevertResult(result);
+                scoreProcessor.RevertResult(result);
+            }
+
+            private void applyManiaResult(JudgementResult result)
+            {
+                maniaHealthProcessor.ApplyResult(result);
+                maniaScoreProcessor.ApplyResult(result);
+                maniaGameplayState.ApplyResult(result);
+            }
+
+            private void revertManiaResult(JudgementResult result)
+            {
+                maniaHealthProcessor.RevertResult(result);
+                maniaScoreProcessor.RevertResult(result);
+            }
+
+            protected override void Dispose(bool isDisposing)
+            {
+                if (isDisposing)
+                {
+                    BmsDrawable.NewResult -= applyBmsResult;
+                    BmsDrawable.RevertResult -= revertBmsResult;
+                    ManiaDrawable.NewResult -= applyManiaResult;
+                    ManiaDrawable.RevertResult -= revertManiaResult;
+                }
+
+                base.Dispose(isDisposing);
             }
 
             public bool RemoveBmsAuxiliary(Drawable drawable) => bmsAuxiliaryHost.Remove(drawable, disposeImmediately: true);
@@ -2699,22 +2766,39 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
         }
 
-        private partial class CoreHudDependenciesContainer : Container
+        private partial class GameplayScoringDependenciesContainer : Container
         {
-            private readonly IGameplayClock gameplayClock;
             private readonly GameplayState gameplayState;
 
-            public CoreHudDependenciesContainer(IGameplayClock gameplayClock, GameplayState gameplayState)
+            public GameplayScoringDependenciesContainer(GameplayState gameplayState)
             {
-                this.gameplayClock = gameplayClock;
                 this.gameplayState = gameplayState;
             }
 
             protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
             {
                 var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
-                dependencies.CacheAs(gameplayClock);
                 dependencies.Cache(gameplayState);
+                dependencies.CacheAs(gameplayState.ScoreProcessor);
+                dependencies.CacheAs(gameplayState.HealthProcessor);
+                return dependencies;
+            }
+        }
+
+        private partial class CoreHudDependenciesContainer : GameplayScoringDependenciesContainer
+        {
+            private readonly IGameplayClock gameplayClock;
+
+            public CoreHudDependenciesContainer(IGameplayClock gameplayClock, GameplayState gameplayState)
+                : base(gameplayState)
+            {
+                this.gameplayClock = gameplayClock;
+            }
+
+            protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+            {
+                var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+                dependencies.CacheAs(gameplayClock);
                 return dependencies;
             }
         }

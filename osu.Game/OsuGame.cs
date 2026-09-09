@@ -1154,6 +1154,8 @@ namespace osu.Game
 
             // todo: all archive managers should be able to be looped here.
             SkinManager.PostNotification = n => Notifications.Post(n);
+            if (!SkinManager.IsGameplaySkinInstallationAvailable)
+                Notifications.Post(new SimpleErrorNotification { Text = SkinManager.GameplaySkinInstallationRepairMessage });
             SkinManager.PresentImport = items => PresentSkin(items.First().Value);
 
             BeatmapManager.PostNotification = n => Notifications.Post(n);
