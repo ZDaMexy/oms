@@ -59,7 +59,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("load note under skin overriding NoteColourWhite", () =>
             {
                 var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nNoteColourWhite: 255,0,0\n");
-                Child = new SkinProvidingContainer(skin) { Child = note = new DefaultBmsNoteDisplay(1, false, BmsKeymode.Key7K) };
+                Child = new IsolatedCompatibilitySkinContainer(skin) { Child = note = new DefaultBmsNoteDisplay(1, false, BmsKeymode.Key7K) };
             });
 
             AddUntilStep("note loaded", () => note.IsLoaded);
@@ -74,7 +74,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("load note under skin with no note colour override", () =>
             {
                 var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\n");
-                Child = new SkinProvidingContainer(skin) { Child = note = new DefaultBmsNoteDisplay(1, false, BmsKeymode.Key7K) };
+                Child = new IsolatedCompatibilitySkinContainer(skin) { Child = note = new DefaultBmsNoteDisplay(1, false, BmsKeymode.Key7K) };
             });
 
             AddUntilStep("note loaded", () => note.IsLoaded);
@@ -89,7 +89,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("load LN head overriding NoteColourWhite", () =>
             {
                 var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nNoteColourWhite: 0,255,0\n");
-                Child = new SkinProvidingContainer(skin) { Child = head = new DefaultBmsLongNoteHeadDisplay(1, false, BmsKeymode.Key7K) };
+                Child = new IsolatedCompatibilitySkinContainer(skin) { Child = head = new DefaultBmsLongNoteHeadDisplay(1, false, BmsKeymode.Key7K) };
             });
 
             AddUntilStep("loaded", () => head.IsLoaded);
@@ -218,7 +218,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("load LN body overriding NoteColourWhite", () =>
             {
                 var skin = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nNoteColourWhite: 0,0,255\n");
-                Child = new SkinProvidingContainer(skin) { Child = body = new DefaultBmsLongNoteBodyDisplay(1, false, BmsKeymode.Key7K) };
+                Child = new IsolatedCompatibilitySkinContainer(skin) { Child = body = new DefaultBmsLongNoteBodyDisplay(1, false, BmsKeymode.Key7K) };
             });
 
             AddUntilStep("loaded", () => body.IsLoaded);
@@ -457,6 +457,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             AddUntilStep("loaded", () => backdrop.IsLoaded);
             AddAssert("backdrop shows skin sprite, not blur path", () => backdrop.ChildrenOfType<Sprite>().Any() && !backdrop.ChildrenOfType<BufferedContainer>().Any());
+        }
+
+        // These four cases preserve the no-texture compatibility component contract. The current product's
+        // missing required visuals come from oms-simple, whose textures must not enter this isolated colour test.
+        private sealed partial class IsolatedCompatibilitySkinContainer : SkinProvidingContainer
+        {
+            protected override bool AllowFallingBackToParent => false;
+
+            public IsolatedCompatibilitySkinContainer(ISkin skin)
+                : base(skin)
+            {
+            }
         }
 
         private class TestBmsLegacySkin : BmsLegacySkin

@@ -21,28 +21,29 @@ namespace SkinAuthoring
             rect(image, 54, 106, 1492, 2, new Rgba32(67, 90, 110));
             foreach ((string ruleset, int panel, int count) in new[] { ("bms", 65, 8), ("mania", 850, 7) })
             {
-                int top = 215, stageWidth = ruleset == "bms" ? 650 : 580, laneWidth = stageWidth / count;
+                int top = 235, stageWidth = ruleset == "bms" ? 650 : 580, laneWidth = stageWidth / count;
                 if (profile.Complex)
                 {
-                    blit(image, Path.Combine(root, "scene", "console.png"), panel, 159, stageWidth, 44);
+                    blit(image, Path.Combine(root, "scene", "console.png"), panel, 159, stageWidth, 62);
                     text(image, "ASTRAL", panel + 12, 170, 2, new Rgba32(255, 211, 138));
+                    text(image, "READY", panel + 12, 201, 1, new Rgba32(166, 181, 201));
                     text(image, "SCORE", panel + 145, 167, 1, new Rgba32(145, 161, 185));
-                    text(image, "0874200", panel + 145, 180, 2, new Rgba32(233, 243, 255));
+                    text(image, "0874200", panel + 145, 191, 2, new Rgba32(233, 243, 255));
                     text(image, "ACCURACY", panel + 255, 167, 1, new Rgba32(145, 161, 185));
-                    text(image, "99.50%", panel + 255, 181, 2, new Rgba32(233, 243, 255));
+                    text(image, "99.50%", panel + 255, 192, 2, new Rgba32(233, 243, 255));
                     text(image, "COMBO", panel + 355, 167, 1, new Rgba32(145, 161, 185));
-                    text(image, "128", panel + 355, 180, 2, new Rgba32(255, 211, 138));
-                    text(image, "BPM 150", panel + 445, 176, 2, new Rgba32(192, 206, 224));
-                    rect(image, panel, 204, stageWidth * 2 / 5, 2, new Rgba32(255, 211, 138));
-                    rect(image, panel, 209, stageWidth * 3 / 4, 2, new Rgba32(82, 223, 223));
+                    text(image, "128", panel + 355, 191, 2, new Rgba32(255, 211, 138));
+                    text(image, "BPM 150", panel + 445, 192, 2, new Rgba32(192, 206, 224));
+                    rect(image, panel, 224, stageWidth * 2 / 5, 2, new Rgba32(255, 211, 138));
+                    rect(image, panel, 229, stageWidth * 3 / 4, 2, new Rgba32(82, 223, 223));
                 }
-                blit(image, Path.Combine(root, ruleset, "plate.png"), panel, top, stageWidth, 680);
+                blit(image, Path.Combine(root, ruleset, "plate.png"), panel, top, stageWidth, 660);
                 for (int lane = 0; lane < count; lane++)
                 {
                     string role = ruleset == "bms" && lane == 0 ? "scratch" : ruleset == "mania" && lane == 3 ? "special" : lane % 2 == 0 ? "accent" : "white";
                     int x = panel + lane * laneWidth;
-                    blit(image, Path.Combine(root, ruleset, "lane.png"), x, top, laneWidth - 1, 610);
-                    blit(image, Path.Combine(root, ruleset, "divider.png"), x, top, laneWidth, 610);
+                    blit(image, Path.Combine(root, ruleset, "lane.png"), x, top, laneWidth - 1, 590);
+                    blit(image, Path.Combine(root, ruleset, "divider.png"), x, top, laneWidth, 590);
                     int noteY = top + 50 + lane * 61 % 420;
                     if (lane % 3 == 1)
                     {
@@ -55,19 +56,19 @@ namespace SkinAuthoring
                         blit(image, Path.Combine(root, ruleset, $"note-{role}.png"), x, noteY, laneWidth - 1, 19);
                         blit(image, Path.Combine(root, ruleset, $"note-{role}.png"), x, noteY + 170, laneWidth - 1, 19);
                     }
-                    blit(image, Path.Combine(root, ruleset, $"key-{role}.png"), x, top + 610, laneWidth - 1, 54);
+                    blit(image, Path.Combine(root, ruleset, $"key-{role}.png"), x, top + 590, laneWidth - 1, 54);
                 }
                 for (int bar = 0; bar < 4; bar++)
                     blit(image, Path.Combine(root, ruleset, "bar.png"), panel, top + 100 + bar * 140, stageWidth, 16);
-                blit(image, Path.Combine(root, ruleset, "target.png"), panel, top + 601, stageWidth, 26);
-                blit(image, Path.Combine(root, ruleset, "frame.png"), panel - 6, top, stageWidth + 12, 680);
+                blit(image, Path.Combine(root, ruleset, "target.png"), panel, top + 581, stageWidth, 26);
+                blit(image, Path.Combine(root, ruleset, "frame.png"), panel - 6, top, stageWidth + 12, 660);
                 blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, 922, stageWidth * 3 / 4, 12);
                 text(image, "PERFECT", panel + stageWidth / 2 - 70, 675, 3, new Rgba32(243, 247, 255));
                 text(image, "128", panel + stageWidth / 2 - 27, 720, 3, new Rgba32(243, 247, 255));
                 if (!profile.Complex)
                 {
                     // Public global children resolve the safe screen independently of the slot owner's band.
-                    rect(image, panel, 159, stageWidth, 44, new Rgba32(12, 18, 27));
+                    rect(image, panel, 159, stageWidth, 60, new Rgba32(12, 18, 27));
                     text(image, "SCORE", panel + 12, 167, 1, new Rgba32(145, 161, 185));
                     text(image, "0874200", panel + 12, 181, 2, new Rgba32(233, 243, 255));
                     text(image, "ACCURACY", panel + 205, 167, 1, new Rgba32(145, 161, 185));
@@ -75,7 +76,7 @@ namespace SkinAuthoring
                     text(image, "COMBO", panel + 370, 167, 1, new Rgba32(145, 161, 185));
                     text(image, "128", panel + 370, 181, 2, new Rgba32(233, 243, 255));
                     text(image, "BPM 150", panel + 455, 176, 2, new Rgba32(192, 206, 224));
-                    rect(image, panel, 209, stageWidth * 2 / 5, 2, new Rgba32(163, 183, 203));
+                    rect(image, panel, 225, stageWidth * 2 / 5, 2, new Rgba32(163, 183, 203));
                 }
                 if (profile.Complex)
                 {

@@ -1,7 +1,6 @@
 ﻿param(
     [Parameter(Mandatory = $true)][string]$ActualCoreTrx,
     [Parameter(Mandatory = $true)][string]$ActualManiaTrx,
-    [string]$BaselineDirectory = (Join-Path ([IO.Path]::GetTempPath()) 'oms-c6-tests'),
     [switch]$ResolvedCoreSampleFixture,
     [Parameter(Mandatory = $true)][string]$OutputFile
 )
@@ -15,9 +14,19 @@ function Read-Failures([string]$Path) {
     } | Sort-Object Name)
     return ,$failures
 }
+$baselinePath = Join-Path $PSScriptRoot 'baselines/c6-failures.json'
+$baselineDocument = Get-Content -LiteralPath $baselinePath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($baselineDocument.Format -cne 'oms-skin-c6-failure-baseline.v1' -or
+    $baselineDocument.SourceCommit -cne 'de9eb3e39e84c2d0dffe49f313a37eae61149b80') { throw '冻结基线格式或原始提交不符。' }
 $results = @()
-foreach ($case in @(@{ Name = 'core'; Actual = $ActualCoreTrx; Baseline = 'c6-core-final-format.trx'; Expected = 6 }, @{ Name = 'mania'; Actual = $ActualManiaTrx; Baseline = 'c6-mania-final-format.trx'; Expected = 4 })) {
-    $baseline = Read-Failures (Join-Path $BaselineDirectory $case.Baseline)
+foreach ($case in @(@{ Name = 'core'; Actual = $ActualCoreTrx; Expected = 6 }, @{ Name = 'mania'; Actual = $ActualManiaTrx; Expected = 4 })) {
+    $source = @($baselineDocument.Suites | Where-Object { $_.Suite -ceq $case.Name })
+    if ($source.Count -ne 1) { throw "冻结基线必须有唯一套件：$($case.Name)" }
+    $baseline = @($source[0].Failures | ForEach-Object {
+        $message = ([string]$_.Message).Replace("`r`n", "`n").Trim()
+        if (([string]$_.Category) -cne ($message -split "`n")[0]) { throw '冻结基线类别与原完整消息不符。' }
+        [pscustomobject]@{ Name = [string]$_.Name; Category = [string]$_.Category; Message = $message }
+    } | Sort-Object Name)
     $actual = Read-Failures $case.Actual
     if ($baseline.Count -ne $case.Expected) { throw "冻结基线不完整：$($case.Name)" }
     $comparedBaseline = $baseline
@@ -44,7 +53,14 @@ foreach ($case in @(@{ Name = 'core'; Actual = $ActualCoreTrx; Baseline = 'c6-co
         $matching = @($actual | Where-Object { $_.Name -ceq $failure.Name -and $_.Category -ceq $failure.Category -and $_.Message -ceq $failure.Message })
         if ($matching.Count -ne 1) { $matches = $false }
     }
-    $results += [pscustomobject]@{ Suite = $case.Name; ExactMatch = $matches; Actual = $actual; Baseline = $baseline; ComparedBaseline = $comparedBaseline; Resolved = $resolved }
+    $results += [pscustomobject]@{
+        Suite = $case.Name; ExactMatch = $matches; Actual = $actual; Baseline = $baseline; ComparedBaseline = $comparedBaseline; Resolved = $resolved
+        BaselineSource = [pscustomobject]@{
+            File = 'baselines/c6-failures.json'; SourceCommit = $baselineDocument.SourceCommit
+            SourceTrx = $source[0].SourceTrx; SourceTrxSha256 = $source[0].SourceTrxSha256
+            StartedUtc = $source[0].StartedUtc; FinishedUtc = $source[0].FinishedUtc; Command = $source[0].Command
+        }
+    }
 }
 [IO.File]::WriteAllText([IO.Path]::GetFullPath($OutputFile), ($results | ConvertTo-Json -Depth 7), [Text.UTF8Encoding]::new($true))
 if (@($results | Where-Object { -not $_.ExactMatch }).Count -ne 0) { throw '本轮失败与冻结基线不同，请逐项调查；不能按失败数量归因。' }

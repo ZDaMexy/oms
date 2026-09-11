@@ -194,7 +194,7 @@ namespace osu.Game.Skinning.Gameplay
                                                   && stages.Length == snapshot.Context.Topology.GroupsInLogicalOrder.Count;
                 bool requiresRouting = supported
                                        && hasCompleteProductionRoute
-                                       && (isAuthorOwned(global) || stages.Any(isAuthorOwned));
+                                       && (isPackageOwned(global) || stages.Any(isPackageOwned));
 
                 if (!requiresRouting)
                 {
@@ -289,9 +289,10 @@ namespace osu.Game.Skinning.Gameplay
                 reservedCaptureSurfacePixels);
         }
 
-        private static bool isAuthorOwned(GameplaySkinPreparedHostedSlot? route)
+        private static bool isPackageOwned(GameplaySkinPreparedHostedSlot? route)
             => route != null
                && (route.Route is GameplaySkinSceneHostRoute.Scene or GameplaySkinSceneHostRoute.Suppressed
-                   || route.Entry.Source.IsSelectedDocumentDeclaration);
+                   || route.Entry.Source.IsSelectedDocumentDeclaration
+                   || route.Entry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.CanonicalPackage);
     }
 }

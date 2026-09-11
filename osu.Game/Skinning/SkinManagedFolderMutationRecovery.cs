@@ -1,4 +1,4 @@
-// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+﻿// Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;
@@ -251,7 +251,7 @@ namespace osu.Game.Skinning
                 return coordinator.RunExclusive(() => recover(null, cancellationToken), cancellationToken);
 
             using SkinManagedFolderOperationCoordinator.Lease lease =
-                coordinator.EnterMutation(cancellationToken);
+                coordinator.EnterRecovery(cancellationToken);
             return recover(lease, cancellationToken);
         }
 

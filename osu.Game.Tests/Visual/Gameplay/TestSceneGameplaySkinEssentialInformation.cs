@@ -7,8 +7,8 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
 using osu.Framework.Timing;
 using osu.Game.Beatmaps;
@@ -33,7 +33,7 @@ namespace osu.Game.Tests.Visual.Gameplay
             GameplaySkinEventSubscription observer = null!;
             long epoch = 0;
             AddStep("mount real score and gameplay clock with ordinary HUD", () => Child = host = new EssentialHost(authorScene));
-            AddUntilStep("both ordinary public displays are ready", () => host.Scene.IsSceneReady);
+            AddUntilStep("ordinary HUD drawables are loaded in the real clock tree", () => host.DisplaysReady);
             AddStep("before the first note progress is zero", () => assertInformation(host, 1, 0));
             AddStep("judge first real note with the production score processor", () =>
             {
@@ -102,9 +102,10 @@ namespace osu.Game.Tests.Visual.Gameplay
                     assertInformation(host, 1, 1);
                     GameplaySkinResolvedMaterialKey key = host.Scene.MaterialSet.Entries.Single().Key;
                     host.Scene.TryGetHostedDrawable(key, out Drawable? drawable);
-                    SpriteText text = drawable!.ChildrenOfType<SpriteText>().Single();
-                    Assert.That(text.DrawWidth * text.Scale.X, Is.LessThanOrEqualTo(drawable.DrawWidth + 0.01));
-                    Assert.That(text.DrawHeight * text.Scale.Y, Is.LessThanOrEqualTo(drawable.DrawHeight + 0.01));
+                    Drawable hud = drawable ?? throw new AssertionException("The ordinary information HUD must be mounted before measuring its bounds.");
+                    SpriteText text = hud.ChildrenOfType<SpriteText>().Single();
+                    Assert.That(text.DrawWidth * text.Scale.X, Is.LessThanOrEqualTo(hud.DrawWidth + 0.01));
+                    Assert.That(text.DrawHeight * text.Scale.Y, Is.LessThanOrEqualTo(hud.DrawHeight + 0.01));
                 });
             }
         }
@@ -115,7 +116,7 @@ namespace osu.Game.Tests.Visual.Gameplay
         {
             EssentialHost host = null!;
             AddStep("mount beatmap without playable duration", () => Child = host = new EssentialHost(true, objectCount));
-            AddUntilStep("ordinary author display is ready", () => host.Scene.IsSceneReady);
+            AddUntilStep("ordinary author display is loaded in the real clock tree", () => host.DisplaysReady);
             AddStep("before its timestamp progress is zero", () => assertInformation(host, 1, 0));
             AddStep("seek beyond its timestamp", () => host.ClockHost.Seek(4000));
             AddUntilStep("destination is published", () => host.Scene.LastGameplayTime >= 4000);
@@ -124,6 +125,7 @@ namespace osu.Game.Tests.Visual.Gameplay
 
         private static void assertInformation(EssentialHost host, double accuracy, double progress)
         {
+            Assert.That(host.DisplaysReady, Is.True);
             Assert.That(host.Scene.RuntimeFaults, Is.Empty);
             string accuracyText = (accuracy * 100).ToString("0.00", CultureInfo.InvariantCulture) + "%";
             string progressText = (progress * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
@@ -165,6 +167,13 @@ namespace osu.Game.Tests.Visual.Gameplay
             public GameplaySkinSceneRuntimeHost Scene { get; private set; } = null!;
             public readonly EssentialClock ClockHost = new EssentialClock();
 
+            public bool DisplaysReady => Scene?.IsLoaded == true
+                                         && Scene.IsSceneReady
+                                         && Scene.Layers.HudForeground.IsLoaded
+                                         && Scene.Layers.HudForeground.DrawWidth > 0
+                                         && Scene.Layers.HudForeground.ChildrenOfType<SpriteText>()
+                                                 .Count(text => text.IsLoaded && text.DrawWidth > 0 && text.DrawHeight > 0) == (AuthorScene ? 2 : 1);
+
             public EssentialHost(bool authorScene, int objectCount = 3)
             {
                 AuthorScene = authorScene;
@@ -173,15 +182,27 @@ namespace osu.Game.Tests.Visual.Gameplay
             }
 
             [BackgroundDependencyLoader]
-            private void load()
+            private void load(IRenderer renderer)
             {
                 foreach (Note note in Beatmap.HitObjects)
                     note.ApplyDefaults(Beatmap.ControlPointInfo, Beatmap.Difficulty);
                 Score.ApplyBeatmap(Beatmap);
-                GameplaySkinLayoutPublication publication = GameplaySkinSceneRuntimeHostTest.CreateEssentialInformationPublication(Texture.WhitePixel, AuthorScene);
+                GameplaySkinLayoutPublication publication = GameplaySkinSceneRuntimeHostTest.CreateEssentialInformationPublication(renderer.WhitePixel, AuthorScene);
                 Events = new GameplaySkinEventRuntimeHost(publication, Beatmap);
                 Scene = new GameplaySkinSceneRuntimeHost(publication, Events.EventStream);
-                ClockHost.Children = new Drawable[] { Events, Scene };
+                GameplaySkinSceneRuntimeLayers layers = Scene.Layers;
+                ClockHost.Children = new Drawable[]
+                {
+                    Events,
+                    Scene,
+                    layers.Background,
+                    layers.Underlay,
+                    layers.Object,
+                    layers.GameplayEffects,
+                    layers.Overlay,
+                    layers.HudForeground,
+                };
+                Scene.MarkLayersMounted();
                 Child = ClockHost;
             }
         }

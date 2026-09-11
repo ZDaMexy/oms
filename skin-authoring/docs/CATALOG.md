@@ -28,3 +28,15 @@
 | `decoration` | `Decoration` | `Common:1` | Global/Stage/Group/Lane | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-026` |
 | `playfield.hit-target` | `HitTarget` | `Common:1` | Lane | Resource | Recommended | InheritToLowerAuthorityThenCanonicalFallback | Forbidden | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-027` |
 | `playfield.lane-divider` | `LaneDivider` | `Common:1` | Lane | Resource | Recommended | InheritToLowerAuthorityThenCanonicalFallback | Forbidden | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-028` |
+## 游玩信息绑定
+
+下列公开只读字段可在普通场景文件中绑定。数值绑定保持原值；绑定到 `text` 时使用表内显示方式。
+
+| 字段 | 数值范围 | 文字显示 |
+| --- | --- | --- |
+| `score.accuracy` | `0..1` | 两位小数百分比，如 `98.75%` |
+| `timing.progress` | `0..1` | 整数百分比，如 `42%` |
+
+准确率来自当前玩法的实际得分状态。进度沿当前谱面的可玩起止时间与统一游玩时钟：首个物件前为 0，最后物件后为 1，零时长为 0。暂停时保持不变；重试和跳转跟随同一游玩状态更新，新加入的观察者会收到当前完整状态。它们不会改动判定或计分规则。
+
+完整绑定写法与成品例子见 [制作说明](AUTHORING.md)。

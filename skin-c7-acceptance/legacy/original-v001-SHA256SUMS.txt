@@ -1,0 +1,3 @@
+32cae3404b0bcc0c65884f753c04fd0ab88e0883dd1756721d89fb524d71bec3  bms-note-animation-manual-gate-broken.osk
+888b98877422dee26ccadec4581de1d42315bfaac05a7d6c987f24fcbfee53db  bms-note-animation-manual-gate.osk
+4e4e1e177f34e0b56c69193362b1ab686d811b9fbb4fec4d1375e7769b958137  chartbms/bms-note-animation-manual-gate/bms-note-animation-manual-gate.bme

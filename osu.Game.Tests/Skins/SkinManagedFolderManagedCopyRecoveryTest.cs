@@ -1,6 +1,7 @@
-// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+﻿// Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
@@ -469,7 +470,8 @@ namespace osu.Game.Tests.Skins
         [TestCase("FilesystemApplied")]
         [TestCase("FilesystemAppliedPublished")]
         [TestCase("RealmApplied")]
-        public void TestProductionAuthorityClosesRestartedForwardPhases(string restartPhase)
+        [TestCase("ProvisionalReady", true)]
+        public void TestProductionAuthorityClosesRestartedForwardPhases(string restartPhase, bool withinStartup = false)
         {
             RunTestWithRealm((realm, storage) =>
             {
@@ -494,6 +496,7 @@ namespace osu.Game.Tests.Skins
                     restartPhase);
                 var store = new MemoryMutationJournalStore(restarted);
 
+                using SkinManagedFolderOperationCoordinator.Lease? startup = withinStartup ? coordinator.EnterStartupSequence() : null;
                 SkinManagedFolderMutationRecoveryResult result = recoverProduction(
                     realm,
                     coordinator,
@@ -590,15 +593,186 @@ namespace osu.Game.Tests.Skins
             });
         }
 
+        [Test]
+        public void TestProductionAuthorityCancellationDuringFinalRegistryValidationReleasesBothOwners()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                Directory.CreateDirectory(storage.GetFullPath(SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY));
+                string externalPath = createExternalSource(storage, $"cancel-validation-{Guid.NewGuid():N}");
+                addExternalRecord(realm, externalPath);
+                using var cancellation = new CancellationTokenSource();
+                using var fileSystem = new TrackingRecoveryFileSystem();
+                using var capture = new CancellingRegistryValidationCapture(cancellation);
+                var coordinator = new SkinManagedFolderOperationCoordinator();
+                var native = new WindowsSkinManagedFolderMutationNativeAuthority(storage.GetFullPath(string.Empty), fileSystem);
+                var registry = new SkinExternalFolderRegistryService(realm, storage, coordinator, capture);
+                var authority = new SkinManagedFolderMutationRecoveryAuthority(coordinator, native, registry);
+                using SkinManagedFolderOperationCoordinator.Lease lease = coordinator.EnterMutation();
+                capture.BeforeCancellation = () =>
+                {
+                    Assert.That(fileSystem.Handles, Is.Not.Empty);
+                    Assert.That(fileSystem.Handles.Any(handle => handle.DisposeCalls == 0), Is.True);
+                    foreach (TrackingRecoveryFileSystem.TrackedHandle handle in fileSystem.Handles.Where(handle => handle.DisposeCalls == 0))
+                        Assert.DoesNotThrow(() => fileSystem.QueryMetadata(handle));
+                };
+
+                OperationCanceledException? failure = Assert.Throws<OperationCanceledException>(() => authority.TryOpen(lease, cancellation.Token));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
+                    Assert.That(capture.ValidatedSession, Is.Not.Null, "cancellation must occur after capture transfers the complete real registry");
+                    Assert.That(capture.ValidatedSession!.DisposeCalls, Is.EqualTo(1), "the unreturned recovery session must release its external registry");
+                    Assert.That(fileSystem.Handles.All(handle => handle.DisposeCalls == 1), Is.True, "the unreturned recovery session must release every managed native handle once");
+                    Assert.That(File.ReadAllBytes(Path.Combine(externalPath, "skin.ini")), Is.EqualTo(skin_ini));
+                    foreach (TrackingRecoveryFileSystem.TrackedHandle handle in fileSystem.Handles)
+                    {
+                        WindowsSkinPackageCaptureFileSystemException? closed = Assert.Throws<WindowsSkinPackageCaptureFileSystemException>(
+                            () => fileSystem.QueryMetadata(handle));
+                        Assert.That(closed?.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.NativeIoFailure));
+                    }
+                });
+            });
+        }
+
+        private sealed class CancellingRegistryValidationCapture : ISkinExternalFolderCaptureService, IDisposable
+        {
+            private readonly SkinExternalFolderCaptureService inner = new SkinExternalFolderCaptureService();
+            private readonly CancellationTokenSource cancellation;
+            private CancellingSession? openedSession;
+
+            public CancellingSession? ValidatedSession { get; private set; }
+            public Action BeforeCancellation { get; set; } = () => { };
+
+            public CancellingRegistryValidationCapture(CancellationTokenSource cancellation)
+            {
+                this.cancellation = cancellation;
+            }
+
+            public SkinExternalFolderAuthorityCaptureResult OpenAuthority(
+                SkinExternalPackageCaptureRequest? request,
+                SkinExternalPackageCaptureLimits? limits = null,
+                CancellationToken cancellationToken = default)
+            {
+                SkinExternalFolderAuthorityCaptureResult capture = inner.OpenAuthority(request, limits, cancellationToken);
+                if (!capture.IsSuccess)
+                    return capture;
+                openedSession = new CancellingSession(this, capture.Session!);
+                return SkinExternalFolderAuthorityCaptureResult.Success(openedSession);
+            }
+
+            public SkinExternalPackageCaptureResult CaptureHeld(
+                SkinExternalPackageCaptureRequest? request,
+                SkinExternalPackageCaptureLimits? limits = null,
+                CancellationToken cancellationToken = default)
+                => inner.CaptureHeld(request, limits, cancellationToken);
+
+            public void Dispose()
+            {
+                // A failing red run must still release only this test's actual native resources.
+                if (openedSession?.DisposeCalls == 0)
+                    openedSession.Dispose();
+            }
+
+            public sealed class CancellingSession : ISkinExternalFolderAuthoritySession
+            {
+                private readonly CancellingRegistryValidationCapture owner;
+                private readonly ISkinExternalFolderAuthoritySession inner;
+                public int DisposeCalls { get; private set; }
+                public SkinFolderPhysicalAncestryProof PhysicalProof => inner.PhysicalProof;
+                public int HeldHandleCount => inner.HeldHandleCount;
+
+                public CancellingSession(CancellingRegistryValidationCapture owner, ISkinExternalFolderAuthoritySession inner)
+                {
+                    this.owner = owner;
+                    this.inner = inner;
+                }
+
+                public void Validate(CancellationToken cancellationToken = default)
+                {
+                    inner.Validate(cancellationToken);
+                    owner.ValidatedSession = this;
+                    owner.BeforeCancellation();
+                    owner.cancellation.Cancel();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                public void Dispose()
+                {
+                    DisposeCalls++;
+                    inner.Dispose();
+                }
+            }
+        }
+
+        private sealed class TrackingRecoveryFileSystem : IWindowsSkinPackageCaptureFileSystem, IDisposable
+        {
+            private readonly NativeWindowsSkinPackageCaptureFileSystem inner = new NativeWindowsSkinPackageCaptureFileSystem();
+            public List<TrackedHandle> Handles { get; } = new List<TrackedHandle>();
+
+            private TrackedHandle track(IWindowsSkinPackageCaptureHandle handle)
+            {
+                var tracked = new TrackedHandle(handle);
+                Handles.Add(tracked);
+                return tracked;
+            }
+
+            public IWindowsSkinPackageCaptureHandle OpenLocalVolumeRoot(char driveLetter)
+                => track(inner.OpenLocalVolumeRoot(driveLetter));
+
+            public IReadOnlyList<WindowsSkinPackageDirectoryEntry> Enumerate(
+                IWindowsSkinPackageCaptureHandle directory, int maxEntries, CancellationToken cancellationToken)
+                => inner.Enumerate(((TrackedHandle)directory).Inner, maxEntries, cancellationToken);
+
+            public IWindowsSkinPackageCaptureHandle OpenChildNoFollow(
+                IWindowsSkinPackageCaptureHandle parent, string name, WindowsSkinPackageOpenMode mode, SkinManagedPackageCaptureRejectionReason unavailableReason)
+                => track(inner.OpenChildNoFollow(((TrackedHandle)parent).Inner, name, mode, unavailableReason));
+
+            public WindowsSkinPackageEntryMetadata QueryMetadata(IWindowsSkinPackageCaptureHandle handle)
+                => inner.QueryMetadata(((TrackedHandle)handle).Inner);
+
+            public void RenameChildNoReplace(IWindowsSkinPackageCaptureHandle source, IWindowsSkinPackageCaptureHandle targetParent, string targetName)
+                => inner.RenameChildNoReplace(((TrackedHandle)source).Inner, ((TrackedHandle)targetParent).Inner, targetName);
+
+            public void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle)
+                => inner.DeleteNoFollow(((TrackedHandle)handle).Inner);
+
+            public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
+                => inner.CreateNonOwningReadStream(((TrackedHandle)file).Inner);
+
+            public void Dispose()
+            {
+                foreach (TrackedHandle handle in Handles.Where(handle => handle.DisposeCalls == 0))
+                    handle.Dispose();
+            }
+
+            public sealed class TrackedHandle : IWindowsSkinPackageCaptureHandle
+            {
+                public IWindowsSkinPackageCaptureHandle Inner { get; }
+                public int DisposeCalls { get; private set; }
+
+                public TrackedHandle(IWindowsSkinPackageCaptureHandle inner)
+                {
+                    Inner = inner;
+                }
+
+                public void Dispose()
+                {
+                    DisposeCalls++;
+                    Inner.Dispose();
+                }
+            }
+        }
+
         private static ISkinManagedFolderMutationNativeAuthority createNativeAuthority(
-            osu.Framework.Platform.Storage storage)
+            Framework.Platform.Storage storage)
             => new WindowsSkinManagedFolderMutationNativeAuthority(
                 storage.GetFullPath(string.Empty),
                 new NativeWindowsSkinPackageCaptureFileSystem());
 
         private static SkinExternalFolderRegistryService createProductionRegistry(
             RealmAccess realm,
-            osu.Framework.Platform.Storage storage,
+            Framework.Platform.Storage storage,
             SkinManagedFolderOperationCoordinator coordinator)
             => new SkinExternalFolderRegistryService(
                 realm,
@@ -709,7 +883,7 @@ namespace osu.Game.Tests.Skins
 
         private static ProductionIntent prepareProductionIntent(
             RealmAccess realm,
-            osu.Framework.Platform.Storage storage,
+            Framework.Platform.Storage storage,
             SkinManagedFolderOperationCoordinator coordinator,
             ISkinManagedFolderMutationNativeAuthority native,
             SkinExternalFolderRegistryService registry,
@@ -813,7 +987,7 @@ namespace osu.Game.Tests.Skins
         }
 
         private static string createExternalSource(
-            osu.Framework.Platform.Storage storage,
+            Framework.Platform.Storage storage,
             string childName)
         {
             string path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(
@@ -854,7 +1028,7 @@ namespace osu.Game.Tests.Skins
 
         private static SkinManagedFolderMutationRecoveryResult recover(
             RealmAccess realm,
-            osu.Framework.Platform.Storage storage,
+            Framework.Platform.Storage storage,
             MemoryMutationJournalStore store,
             out SkinManagedFolderOperationCoordinator coordinator)
         {
@@ -873,7 +1047,7 @@ namespace osu.Game.Tests.Skins
 
         private static TestIntent prepareIntent(
             RealmAccess realm,
-            osu.Framework.Platform.Storage storage,
+            Framework.Platform.Storage storage,
             TestPackage package,
             bool createProvisional,
             bool writeComplete = false)
@@ -1055,7 +1229,7 @@ namespace osu.Game.Tests.Skins
                     }
                 }
 
-                public bool ExactlyMatchesRealmDeclarations(System.Collections.Generic.IEnumerable<SkinInfo> records)
+                public bool ExactlyMatchesRealmDeclarations(IEnumerable<SkinInfo> records)
                     => native != null;
 
                 public void Dispose()

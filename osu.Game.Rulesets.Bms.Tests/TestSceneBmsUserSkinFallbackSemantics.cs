@@ -1,5 +1,11 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
@@ -7,15 +13,26 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
+using osu.Framework.Timing;
 using osu.Game.Audio;
+using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.Configuration;
+using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
+using osuTK;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -28,6 +45,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [Resolved]
         private IRenderer renderer { get; set; } = null!;
+
+        protected override bool UseFreshStoragePerRun => true;
 
         [Test]
         public void TestUserSkinWithoutBmsComboAllowsLaterSourceFallback()
@@ -96,38 +115,143 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestManiaOnlyLegacyUserSkinFallsBackToOmsBmsHudLayer()
         {
-            Drawable host = null!;
-            RulesetSkinProvidingContainer provider = null!;
-            Drawable resolvedHud = null!;
-            ManiaOnlyLegacyUserSkin userSkin = null!;
+            CanonicalFallbackHudHost host = null!;
+            GameplaySkinSceneRuntimeHost scene = null!;
+            Task<Live<SkinInfo>> import = null!;
+            Live<SkinInfo> imported = null!;
+            MemoryStream archive = null!;
             var ruleset = new BmsRuleset();
 
-            AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
-            AddStep("create mania-only legacy skin", () => userSkin = new ManiaOnlyLegacyUserSkin(renderer));
-            AddAssert("user skin exposes mania key texture", () => userSkin.GetTexture("mania-key1") != null);
-
-            AddStep("load provider chain", () =>
+            AddStep("import a real mania-only ordinary package", () =>
             {
-                var beatmap = new BmsBeatmap
+                archive = new MemoryStream();
+                using (var zip = new ZipArchive(archive, ZipArchiveMode.Create, leaveOpen: true))
                 {
-                    BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
-                };
-
-                Add(host = new SkinProvidingContainer(userSkin)
-                {
-                    Child = provider = new RulesetSkinProvidingContainer(ruleset, beatmap, null)
-                    {
-                        Child = new Container(),
-                    },
-                });
+                    using (var writer = new StreamWriter(zip.CreateEntry("skin.ini").Open(), new UTF8Encoding(false)))
+                        writer.Write("[General]\nName: Mania-only fallback fixture\nAuthor: Independent author\nVersion: 2.7\n[Mania]\nKeys: 8\nKeyImage0: mania-key1\n");
+                    using Stream imageStream = zip.CreateEntry("mania-key1.png").Open();
+                    using var image = new Image<Rgba32>(3, 5, new Rgba32(60, 180, 230, 255));
+                    image.SaveAsPng(imageStream);
+                }
+                archive.Position = 0;
+                import = skinManager.Import(new ImportTask(archive, "Mania-only fallback fixture.osk"));
             });
+            AddUntilStep("ordinary import completes", () => import.IsCompleted);
+            AddStep("select the imported author package", () =>
+            {
+                imported = import.GetAwaiter().GetResult();
+                archive.Dispose();
+                skinManager.CurrentSkinInfo.Value = imported;
+            });
+            AddUntilStep("the requested package is the actual current owner", () =>
+                skinManager.CurrentSkinInfo.Value.ID == imported.ID
+                && skinManager.CurrentSkin.Value.SkinInfo.ID == imported.ID
+                && ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value));
+            AddStep("mount real BMS gameplay over the mania-only package", () =>
+            {
+                Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skinManager.DefaultOmsSkin), Is.True);
+                Assert.That(skinManager.CurrentSkin.Value.GetTexture("mania-key1")!.Width, Is.EqualTo(3));
+                Assert.That(skinManager.CurrentSkin.Value.GetTexture("mania-key1")!.Height, Is.EqualTo(5));
+                var decoded = new BmsBeatmapDecoder().DecodeText(
+                    "#TITLE Mania-only skin BMS fallback\n#BPM 120\n#WAV01 note.wav\n#00111:0101\n#00119:0001\n",
+                    "mania-only-bms-fallback.bme");
+                var beatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decoded), ruleset).Convert();
+                Assert.That(beatmap.HitObjects, Is.Not.Empty);
+                Assert.That(beatmap.BmsInfo.Keymode, Is.EqualTo(BmsKeymode.Key7K));
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset)!;
+                Add(host = new CanonicalFallbackHudHost(ruleset, beatmap, config));
+            });
+            AddUntilStep("the actual fallback HUD is ready", () =>
+            {
+                scene ??= host.Drawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().SingleOrDefault()!;
+                return scene?.IsSceneReady == true && host.Drawable.HudMaterialSet != null;
+            });
+            AddUntilStep("the actual global information text has loaded and acquired visible dimensions", () =>
+            {
+                var globalText = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.TextHud, GameplaySkinResolvedMaterialTarget.Global);
+                if (!scene.TryGetHostedDrawable(globalText, out Drawable? visual))
+                    return false;
 
-            AddUntilStep("provider loaded", () => provider.IsLoaded);
-            AddAssert("OMS BMS combo counter used", () => provider.GetDrawableComponent(new BmsSkinComponentLookup(BmsSkinComponents.ComboCounter)), () => Is.TypeOf<BmsComboCounter>());
-            AddStep("resolve ruleset HUD", () => resolvedHud = provider.GetDrawableComponent(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, ruleset.RulesetInfo))!);
-            AddAssert("OMS BMS hud layout used", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).Display, () => Is.TypeOf<DefaultBmsHudLayoutDisplay>());
-            AddAssert("OMS BMS combo retained by HUD carrier", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).ComboCounter, () => Is.TypeOf<BmsComboCounter>());
-            AddStep("clear provider chain", () => host.Expire());
+                SpriteText? text = visual!.ChildrenOfType<SpriteText>().SingleOrDefault();
+                return visual!.IsLoaded && text?.IsLoaded == true && text.DrawWidth > 0 && text.DrawHeight > 0;
+            });
+            AddStep("canonical resources supply every actual missing HUD role", () =>
+            {
+                var carrier = host.Drawable.ChildrenOfType<BmsHudLayoutSnapshotCarrier>().Single();
+                Assert.That(carrier.Display, Is.TypeOf<DefaultBmsHudLayoutDisplay>());
+                Assert.That(carrier.GaugeBar, Is.TypeOf<BmsGaugeBar>());
+                Assert.That(carrier.ComboCounter, Is.TypeOf<BmsComboCounter>());
+                Assert.That(((BmsGaugeBar)carrier.GaugeBar!).GameplaySkinStageFallbackVisuals.Single().Alpha, Is.Zero);
+                Assert.That(((BmsComboCounter)carrier.ComboCounter!).GameplaySkinStageFallbackVisuals.Single().Alpha, Is.Zero);
+                Assert.That(carrier.ResolvedMaterialSet, Is.SameAs(scene.MaterialSet));
+                Assert.That(scene.RuntimeFaults, Is.Empty);
+                Assert.That(scene.PreparedScene.Roots, Is.Empty,
+                    "A package without a scene must not acquire another author's scene or private component tree.");
+                foreach (GameplaySkinSlotDescriptor slot in new[] { GameplaySkinSlotCatalog.ComboDisplay, GameplaySkinSlotCatalog.GaugeVisual, GameplaySkinSlotCatalog.TextHud })
+                {
+                    GameplaySkinResolvedMaterialEntry[] entries = scene.MaterialSet.Entries.Where(entry => ReferenceEquals(entry.Slot, slot)).ToArray();
+                    Assert.That(entries, Has.Length.EqualTo(ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud) ? 2 : 1), slot.Id);
+                    foreach (GameplaySkinResolvedMaterialEntry entry in entries)
+                    {
+                        Assert.That(entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage), slot.Id);
+                        Assert.That(scene.TryGetVisualGate(entry.Key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+                        Assert.That(gate!.IsReplacementReady, Is.True, slot.Id);
+                        Assert.That(gate.SuppressesProgrammaticVisual, Is.True);
+                        bool suppressedStageText = ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud)
+                                                   && entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage;
+                        if (suppressedStageText)
+                        {
+                            Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                            Assert.That(gate.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
+                            Assert.That(scene.TryGetHostedDrawable(entry.Key, out _), Is.False,
+                                "The canonical package explicitly omits duplicate narrow stage text.");
+                            continue;
+                        }
+
+                        Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                        Assert.That(gate.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
+                        Assert.That(entry.Material, Is.TypeOf<GameplaySkinPublicSlotMaterial>());
+                        var material = (GameplaySkinPublicSlotMaterial)entry.Material;
+                        Assert.That(material.IsProgrammaticFallback, Is.False);
+                        Assert.That(material.ResourceName, Is.EqualTo(ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual) ? "bms/gauge" : "bms/hud"));
+                        Assert.That(material.Texture, Is.Not.Null);
+                        Assert.That(scene.TryGetHostedDrawable(entry.Key, out Drawable? visual), Is.True);
+                        Assert.That(visual!.IsLoaded, Is.True);
+                        Assert.That(visual.Parent, Is.SameAs(scene.Layers.Get(gate.Layer)));
+                        Assert.That(visual.Parent!.Alpha, Is.GreaterThan(0));
+                        Assert.That(visual.Alpha, Is.GreaterThan(0));
+                        Assert.That(visual.Position, Is.EqualTo(new Vector2(gate.PreparedRect.X, gate.PreparedRect.Y)));
+                        Assert.That(visual.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
+                        Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Width, Is.GreaterThan(0));
+                        Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Height, Is.GreaterThan(0));
+                        Sprite sprite = visual.ChildrenOfType<Sprite>().Single();
+                        Assert.That(sprite.Texture, Is.SameAs(material.Texture));
+                        Assert.That(sprite.Alpha, Is.GreaterThan(0));
+                        Assert.That(sprite.DrawWidth, Is.GreaterThan(0));
+                        Assert.That(sprite.DrawHeight, Is.GreaterThan(0));
+
+                        if (ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual))
+                            continue;
+
+                        SpriteText text = visual.ChildrenOfType<SpriteText>().Single();
+                        Assert.That(text.IsLoaded, Is.True);
+                        Assert.That(text.Alpha, Is.GreaterThan(0));
+                        Assert.That(text.DrawWidth, Is.GreaterThan(0));
+                        Assert.That(text.DrawHeight, Is.GreaterThan(0));
+                        Assert.That(text.Text.ToString(), Is.EqualTo(ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud)
+                            ? "0 | 100.00% | 0x | 0%" : "0"));
+                        if (ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud))
+                        {
+                            Assert.That(entry.Target.Kind, Is.EqualTo(GameplaySkinResolvedMaterialTargetKind.Global));
+                            Assert.That(text.DrawWidth * text.Scale.X, Is.LessThanOrEqualTo(visual.DrawWidth + 0.01));
+                            Assert.That(text.DrawHeight * text.Scale.Y, Is.LessThanOrEqualTo(visual.DrawHeight + 0.01));
+                        }
+                    }
+                }
+            });
+            AddStep("detach gameplay before restoring the default", () => Remove(host, disposeImmediately: true));
+            AddStep("restore the verified default", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
+            AddUntilStep("default publication completes", () => ReferenceEquals(skinManager.CurrentSkin.Value, skinManager.DefaultOmsSkin));
         }
 
         [Test]
@@ -167,6 +291,45 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("ruleset HUD resolves from mixed-layer skin", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).Display, () => Is.SameAs(userSkin.HudLayoutComponent));
             AddAssert("mixed-layer combo retained by HUD carrier", () => ((BmsHudLayoutSnapshotCarrier)resolvedHud).ComboCounter, () => Is.SameAs(userSkin.ComboCounterComponent));
             AddStep("clear provider chain", () => host.Expire());
+        }
+
+        private sealed partial class CanonicalFallbackHudHost : CompositeDrawable
+        {
+            internal DrawableBmsRuleset Drawable { get; }
+
+            internal CanonicalFallbackHudHost(BmsRuleset ruleset, BmsBeatmap beatmap, BmsRulesetConfigManager config)
+            {
+                RelativeSizeAxes = Axes.Both;
+                HealthProcessor health = ruleset.CreateHealthProcessor(0);
+                health.ApplyBeatmap(beatmap);
+                ScoreProcessor score = ruleset.CreateScoreProcessor();
+                score.ApplyBeatmap(beatmap);
+                var gameplayState = new GameplayState(beatmap, ruleset, scoreProcessor: score, healthProcessor: health);
+                var clock = new FramedClock(new ManualClock { CurrentTime = 1_500, IsRunning = false });
+                clock.ProcessFrame();
+                Drawable = (DrawableBmsRuleset)ruleset.CreateDrawableRulesetWith(beatmap);
+                Drawable.Clock = clock;
+                InternalChild = new DependencyProvidingContainer
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    CachedDependencies = new (Type, object)[] { (typeof(BmsRulesetConfigManager), config) },
+                    Child = new RulesetSkinProvidingContainer(ruleset, beatmap, null, prepareGameplaySkinLayout: true)
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Child = new DependencyProvidingContainer
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            CachedDependencies = new (Type, object)[]
+                            {
+                                (typeof(GameplayState), gameplayState),
+                                (typeof(HealthProcessor), health),
+                                (typeof(ScoreProcessor), score),
+                            },
+                            Child = Drawable,
+                        },
+                    },
+                };
+            }
         }
 
         private sealed class NonBmsUserSkin : Skin
@@ -215,22 +378,6 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup)
                 => null;
-        }
-
-        private sealed class ManiaOnlyLegacyUserSkin : LegacySkin
-        {
-            private readonly IRenderer renderer;
-
-            public ManiaOnlyLegacyUserSkin(IRenderer renderer)
-                : base(new SkinInfo(), null, null, string.Empty)
-            {
-                this.renderer = renderer;
-            }
-
-            public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT)
-                => componentName is "mania-key1" or "mania-key1D"
-                    ? renderer.WhitePixel
-                    : base.GetTexture(componentName, wrapModeS, wrapModeT);
         }
 
         private sealed class MixedLayerLegacyUserSkin : LegacySkin

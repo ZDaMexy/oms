@@ -1,0 +1,24 @@
+{
+  "contract": "oms-gameplay-skin-manifest.v1",
+  "scene": "gameplay-skin.scene.json",
+  "sceneContract": "oms-gameplay-skin-scene.v1",
+  "eventContract": "oms-gameplay-skin-event.v1",
+  "script": "gameplay-skin.script",
+  "resources": [
+    {
+      "id": "ref.white",
+      "type": "texture",
+      "path": "scene/white.png"
+    },
+    {
+      "id": "ref.warm",
+      "type": "texture",
+      "path": "bms/note-accent.png"
+    },
+    {
+      "id": "ref.cool",
+      "type": "texture",
+      "path": "mania/note-accent.png"
+    }
+  ]
+}

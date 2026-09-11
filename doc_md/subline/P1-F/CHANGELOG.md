@@ -1,5 +1,41 @@
 # P1-F 变动日志
 
+## 2026-09-11
+
+### 最终真实多文件发行、四轮正常启动与无 SDK 验收组装
+
+- 完成当前完整自包含多文件发布，实际 ZIP 为 `oms_20260911_4.zip`，SHA256 `bcf6aa8da7700f822db6613734dfc4af20d4bf57c5ff6d29f25cf5c4b2ce9ac8`；发行清单 SHA256 `d7ccb5bc66abedef7bf4f25ffca93b9b25b3605ddc976b89d991669a07899d57`。Windows Shell 从该真实 ZIP 解压，完整文件摘要匹配，两款 canonical 原件保持 ReadOnly/Archive，未由检查补写属性。
+- `release-startup-final4/results.json`（UTC 09:08:41～09:10:58）实际通过首次便携、自定义位置、坏工作副本恢复和同包完整覆盖后启动。每轮均完成实际数据根和加载检查、八秒稳定运行、`Stopping/Stopped` 与退出码 0，无强制结束；原发行来源保持不变。坏工作副本按原字节保全，覆盖期间用户库、bootstrap 指针和原 portable 模式未变。本次是同一发行包覆盖，不冒充跨版本更新。
+- 四轮共享两处隔离保存根。结束后仅打开额外复制件，以 Realm SDK Dynamic/IsReadOnly 读取 `Ruleset.ShortName/Available`，首次便携根及最终覆盖后的自定义根都确认 BMS、mania 可用，源与副本摘要不变；不声称取得四份独立时点数据库快照。中间两轮仍以各自日志、恢复和正常退出记录为证。
+- 本次账户 bootstrap、事故根与原 G1 根的全文件字节和属性前后一致，未直接打开原数据库；该受保护复验不能追溯证明首次误入保存根事故无影响。首次事故、事后保全以及缺少事前快照的事实全部保留，不自动回滚或清理。
+- 最终发行中的作者程序摘要与独立制作演练版本一致。以真实完整包在 PS5、PATH 无 Git/SDK 的环境组装 `release-repo/oms-skin-c7-acceptance-20260911-final`，`acceptance-final4-assembly.json` 为 Passed，来源字节和属性不变；这次已替代早期占位程序组装的当前证据。
+- P1-F 状态与计划收敛到实际完成的发行/恢复能力，以及仍需独立环境、设备、画面和长期体验签收的事项；V-001～V-004 0/4、V-005 未签收，不宣布整个 Skin V1 或 release 完成。集中证据见 [C7 验证记录](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。以下本日小节保留故障定位时的历史状态，后续复验结果以上述最终包为准。
+
+### 真实启动误入旧保存根与发行方式纠正
+
+- 完整自解压候选包实际将 `AppContext.BaseDirectory` 指向 TEMP，忽略原安装旁的 `portable.ini`，进入当前账户既有自定义数据根并执行 Realm schema 57 迁移。本轮事后数据与指针已完整逐字节保全到私有 `startup-incident-preserved` 记录；没有事前该根快照，不能声称数据无损、恢复原状或完成回滚。公开文档不展开账户路径。
+- `build-release.ps1` 改为 `PublishSingleFile=false`、self-contained 的完整多文件 ZIP，入口仍为 `osu!.exe`。仅去掉 `IncludeAllContentForSelfExtract` 会让规则集 DLL 留在 bundle 内，无法满足现有 `RulesetStore` 物理 DLL 发现，因此不采用不完整的 single-file 修补。
+- `Program` 使用 `HostOptions.PortableInstallation = OsuGameDesktop.IsPortableMode`，令便携框架缓存位于程序旁 `cache/`，用户库仍为程序旁 `data/` 或其中 `storage.ini` 指向的自定义根。两处修正的真实发行启动、保存/缓存位置与正常退出尚待复验，不在此提前记录通过。
+- 2026-05-09 的完整自解压“冷启动通过”原记录保留；其观察仅覆盖窗口/进程和 smoke，没有证明实际保存根，不能继续作为便携隔离或用户数据保护证据。新的逐轮验收要求读取本轮实际 `client.realm`、日志、canonical 工作副本和缓存位置，非便携运行只用独立账户/虚拟机。
+- 作者工具已独立验证的自包含 single-file 发布与游戏路径问题无关，保持不变。当前仅同步发行合同与事故事实；完整发行退出门仍未闭合。
+
+### C7 只读来源覆盖、真实中断现场与 ZIP 属性
+
+- 独立合成复验先发现来源只读使 `File.Replace` 中途拒绝，随后真实 NTFS 硬链接揭示解除旧件只读后进程中断会改变作者原件属性。最终 canonical 只把旧件原样 move 到本次 old，再将已在私有暂存设只读的新件 move 到目标；旧件全程不写属性或内容，不增加无法保护新增链接窄窗的 link-count 包装。其它程序文件仍 Replace。真实硬链接、两次 move 间目标冲突及仅终止本次进程后的同包重试均实测，原中断现场、用户与作者数据保留；两次 move 间安装原件可暂缺，不声称单次原子替换。
+- 发行 ZIP 显式记录两款原件 DOS ReadOnly/Archive；PS5 `Compress-Archive` 生成反斜杠条目名，按规范化路径定位唯一原件后写属性。实际 Windows Shell 解包保留只读，而 .NET/Expand-Archive 忽略；最终启动检查改为核验来源和副本，不主动补位。
+- 移除交互验收入口对现有 canonical 原件补只读属性的遗留操作，防止经硬链接改到作者文件，也不掩盖解包差异；原件缺失或损坏仍可打开游戏修复界面，不增加额外启动门。
+- 导入副本补齐工具改为仅新建缺失项，已有普通文件原样保留；消除 Force 覆写用户修改或硬链接作者文件的边界。PS5 实际完成首次补齐、已消费项补齐、重复运行及真实硬链接保护，说明同步要求重做现有项先改名保全。
+- 作者工具改用每次唯一新发布目录，完整复制本次输出，既有作者 bin 不猜测清理或混入。合成检查和文件复核不代替最终发行启动、独立工具执行或人工验收，详见 [C7 验证记录](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。
+
+## 2026-09-10
+
+### C7 原验收输入固定与离开仓库后的组装
+
+- 将本机原 V-001 good/broken、原观察谱、V-005 Momentum、原清单与原 V-001 摘要按原字节固定到 `skin-c7-acceptance/legacy/`，六个原文件合计 780,237 B；没有重生成或改变未签收事实。
+- `build-release.ps1` 前置验证固定摘要，移除对未提交 `artifacts/` 的依赖。验收组装同样前置验证原输入、完整独立作者文件与安装原件/作者成品一致性，缺件在建立输出前报明。
+- 在独立 TEMP 发行夹具中使用 PS5，子进程 PATH 不含 Git/SDK，实际组装双包、Aurora、第三方与原 V 输入、MP4、完整作者文件；来源全部字节及属性保持。程序与工具使用明确占位文件，证明组装独立性，不代替真实工具、游戏启动或人工验收。证据见 [C7 验证记录](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。
+- 集中体验说明补入“维护 → 内部谱库 → 扫描内部谱库（增量）”，避免新副本有观察文件却没有选歌记录。
+
 ## 2026-09-09
 
 ### C7 随包制作工具与保模式覆盖更新

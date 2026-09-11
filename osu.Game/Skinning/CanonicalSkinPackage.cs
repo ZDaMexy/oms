@@ -47,6 +47,19 @@ namespace osu.Game.Skinning
             Hash = RECORD_HASH,
         };
 
+        internal static bool IsExactRetiredReferenceRecord(SkinInfo? record)
+            // The archived 2026-07-10 dirty-stash BmsOmsReferenceSkin.CreateInfo and its manager wrote this exact
+            // fileless row. This recognises metadata for an explicit startup migration only, never its retired
+            // implementation or the authority needed to recover an old folder-operation journal.
+            => SkinManagedFolderDeleteOperation.IsExactProtectedRecord(record, new SkinInfo
+            {
+                ID = SkinInfo.OMS_SKIN,
+                Name = "OMS Reference Skin",
+                Creator = "OMS Dev Team",
+                Protected = true,
+                InstantiationInfo = "osu.Game.Rulesets.Bms.Skinning.BmsOmsReferenceSkin, osu.Game.Rulesets.Bms",
+            });
+
         internal static CanonicalSkinInstallationResult Load(Storage storage, IStorageResourceProvider resources)
         {
             using Stream? hashStream = typeof(CanonicalSkinPackage).Assembly.GetManifestResourceStream(HASH_RESOURCE_NAME);
@@ -191,7 +204,7 @@ namespace osu.Game.Skinning
         {
             private readonly NativeWindowsSkinPackageCaptureFileSystem fileSystem = new NativeWindowsSkinPackageCaptureFileSystem();
             private readonly List<IWindowsSkinPackageCaptureHandle> handles = new List<IWindowsSkinPackageCaptureHandle>();
-            private IWindowsSkinPackageCaptureHandle Current => handles[^1];
+            private IWindowsSkinPackageCaptureHandle current => handles[^1];
 
             public static HeldDirectory Open(string path)
             {
@@ -204,12 +217,12 @@ namespace osu.Game.Skinning
                 try
                 {
                     result.handles.Add(result.fileSystem.OpenLocalVolumeRoot(root[0]));
-                    result.validateDirectory(result.Current);
+                    result.validateDirectory(result.current);
                     foreach (string segment in absolute[root.Length..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries))
                     {
-                        result.handles.Add(result.fileSystem.OpenChildNoFollow(result.Current, segment,
+                        result.handles.Add(result.fileSystem.OpenChildNoFollow(result.current, segment,
                             WindowsSkinPackageOpenMode.AuthorityDirectory, SkinManagedPackageCaptureRejectionReason.PackageUnavailable));
-                        result.validateDirectory(result.Current);
+                        result.validateDirectory(result.current);
                     }
                     return result;
                 }
@@ -229,7 +242,7 @@ namespace osu.Game.Skinning
                         throw new IOException("The canonical working directory is unavailable.");
                     return;
                 }
-                using IWindowsSkinPackageCaptureHandle created = fileSystem.CreateChildNoFollowNoReplace(Current, name, directory: true);
+                using IWindowsSkinPackageCaptureHandle created = fileSystem.CreateChildNoFollowNoReplace(current, name, directory: true);
                 validateDirectory(created);
             }
 
@@ -245,7 +258,7 @@ namespace osu.Game.Skinning
 
             private WindowsSkinPackageDirectoryEntry? findEntry(string name)
             {
-                WindowsSkinPackageDirectoryEntry[] matches = fileSystem.Enumerate(Current, 65536, CancellationToken.None)
+                WindowsSkinPackageDirectoryEntry[] matches = fileSystem.Enumerate(current, 65536, CancellationToken.None)
                     .Where(entry => string.Equals(entry.Name, name, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
                 if (matches.Length > 1)
                     throw new IOException("The canonical working directory contains conflicting names.");
@@ -254,17 +267,17 @@ namespace osu.Game.Skinning
 
             public void PreserveFile(string name)
             {
-                using IWindowsSkinPackageCaptureHandle file = fileSystem.OpenChildNoFollow(Current, name,
+                using IWindowsSkinPackageCaptureHandle file = fileSystem.OpenChildNoFollow(current, name,
                     WindowsSkinPackageOpenMode.DeleteExclusiveFile, SkinManagedPackageCaptureRejectionReason.PackageUnavailable);
                 WindowsSkinPackageEntryMetadata metadata = fileSystem.QueryMetadata(file);
                 if (metadata.IsReparsePoint || metadata.Kind != WindowsSkinPackageEntryKind.File)
                     throw new IOException("The canonical working copy is unavailable.");
-                fileSystem.RenameChildNoReplace(file, Current, $"{name}.preserved-{Guid.NewGuid():N}");
+                fileSystem.RenameChildNoReplace(file, current, $"{name}.preserved-{Guid.NewGuid():N}");
             }
 
             public byte[] ReadFile(string name, bool allowOversized = false)
             {
-                using IWindowsSkinPackageCaptureHandle file = fileSystem.OpenChildNoFollow(Current, name,
+                using IWindowsSkinPackageCaptureHandle file = fileSystem.OpenChildNoFollow(current, name,
                     WindowsSkinPackageOpenMode.CapturedFile, SkinManagedPackageCaptureRejectionReason.PackageUnavailable);
                 WindowsSkinPackageEntryMetadata metadata = fileSystem.QueryMetadata(file);
                 if (metadata.IsReparsePoint || metadata.Kind != WindowsSkinPackageEntryKind.File || metadata.Length < 0)

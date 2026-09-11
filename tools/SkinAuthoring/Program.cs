@@ -51,7 +51,7 @@ namespace SkinAuthoring
                         create(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]), args[3]);
                         break;
                     case "catalog":
-                        File.WriteAllText(args[1], GameplaySkinSlotCatalogDocumentation.GenerateMarkdownTable(), utf8);
+                        File.WriteAllText(args[1], GameplaySkinSlotCatalogDocumentation.GenerateMarkdownTable() + "\n" + information_bindings, utf8);
                         break;
                     case "preview" when args.Length == 3:
                         SkinPreview.Create(Path.GetFullPath(args[1]), Path.GetFullPath(args[2]));
@@ -69,6 +69,21 @@ namespace SkinAuthoring
                 return 1;
             }
         }
+
+        private const string information_bindings = """
+            ## 游玩信息绑定
+
+            下列公开只读字段可在普通场景文件中绑定。数值绑定保持原值；绑定到 `text` 时使用表内显示方式。
+
+            | 字段 | 数值范围 | 文字显示 |
+            | --- | --- | --- |
+            | `score.accuracy` | `0..1` | 两位小数百分比，如 `98.75%` |
+            | `timing.progress` | `0..1` | 整数百分比，如 `42%` |
+
+            准确率来自当前玩法的实际得分状态。进度沿当前谱面的可玩起止时间与统一游玩时钟：首个物件前为 0，最后物件后为 1，零时长为 0。暂停时保持不变；重试和跳转跟随同一游玩状态更新，新加入的观察者会收到当前完整状态。它们不会改动判定或计分规则。
+
+            完整绑定写法与成品例子见 [制作说明](AUTHORING.md)。
+            """;
 
         private static string[] captureFiles(string root)
         {
@@ -272,7 +287,7 @@ namespace SkinAuthoring
             string profilePath = Path.Combine(destination, "author.json");
             var profile = JsonSerializer.Deserialize<AuthorProfile>(File.ReadAllText(profilePath), json_options)!;
             profile.Name = name;
-            File.WriteAllText(profilePath, JsonSerializer.Serialize(profile, json_options) + "\n", utf8);
+            File.WriteAllText(profilePath, JsonSerializer.Serialize(profile, json_options).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n", utf8);
             SkinRecipe.Generate(destination, profile);
             check(destination);
             Console.WriteLine($"新作品已准备：{destination}");

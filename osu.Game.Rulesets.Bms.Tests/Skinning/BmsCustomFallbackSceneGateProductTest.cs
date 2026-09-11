@@ -35,6 +35,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             Live<SkinInfo> candidate = null!;
             ExactLayoutJourneyHost renderer = null!;
+            GameplaySkinSceneRuntimeHost sceneHost = null!;
             var compatibilitySkin = new CustomGameplayFallbackSkin();
 
             AddStep("create and select no-public 14K package", () =>
@@ -54,30 +55,67 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 renderer.ShowBms();
             });
             AddUntilStep("wait for no-public exact production tree", () => renderer.BmsReady);
-            AddStep("all-fallback publication preserves legacy components", () =>
+            AddStep("capture no-public scene and enable real covers", () =>
             {
+                sceneHost = renderer.BmsDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single();
+                foreach (BmsLaneCover cover in renderer.BmsDrawable.Playfield.LaneCovers)
+                    cover.CoverPercent.Value = 200;
+            });
+            AddUntilStep("wait for no-public canonical replacements", () => sceneHost.PendingCreationCount == 0);
+            AddStep("complete canonical surfaces replace the opaque compatibility contrast", () =>
+            {
+                BmsGameplayLayoutSnapshot layout = renderer.BmsDrawable.LayoutSnapshot;
+                GameplaySkinLaneTopologyGroup[] groups = layout.Neutral.Context.Topology.GroupsInLogicalOrder.ToArray();
                 BmsHudLayoutSnapshotCarrier carrier = renderer.BmsDrawable.ChildrenOfType<BmsHudLayoutSnapshotCarrier>().Single();
                 BmsBgaPanel bgaPanel = renderer.BmsDrawable.ChildrenOfType<BmsBgaPanel>().Single();
                 BmsLaneCover[] covers = renderer.BmsDrawable.Playfield.LaneCovers.ToArray();
                 BmsHitTarget[] targets = renderer.BmsDrawable.Playfield.Lanes.Select(lane => lane.HitTarget).ToArray();
 
+                // Keep the original opaque C# components as the historical contrast. An ordinary author package
+                // cannot construct those classes; C7 fills omissions with real canonical materials and typed hosts.
                 Assert.Multiple(() =>
                 {
-                    Assert.That(carrier.GaugeBar, Is.SameAs(compatibilitySkin.Gauge));
-                    Assert.That(carrier.ComboCounter, Is.SameAs(compatibilitySkin.Combo));
+                    Assert.That(groups, Has.Length.EqualTo(2));
+                    Assert.That(carrier.GaugeBar, Is.TypeOf<BmsGaugeBar>());
+                    Assert.That(carrier.ComboCounter, Is.TypeOf<BmsComboCounter>());
+                    Assert.That(compatibilitySkin.Gauge.Parent, Is.Null);
+                    Assert.That(compatibilitySkin.Combo.Parent, Is.Null);
+                    Assert.That(compatibilitySkin.Bga.Parent, Is.Null);
                     Assert.That(carrier.GaugeProgrammaticVisualOwner!.Alpha, Is.GreaterThan(0));
                     Assert.That(carrier.ComboProgrammaticVisualOwner!.Alpha, Is.GreaterThan(0));
-                    Assert.That(bgaPanel.Drawable, Is.SameAs(compatibilitySkin.Bga));
-                    Assert.That(compatibilitySkin.Bga.SourceSetCount, Is.EqualTo(1));
-                    Assert.That(bgaPanel.TryGetContentState(0, out GameplaySkinBgaContentState state, out long revision), Is.False);
-                    Assert.That(state, Is.EqualTo(GameplaySkinBgaContentState.Empty));
-                    Assert.That(revision, Is.Zero);
-                    Assert.That(covers.SelectMany(cover => cover.ChildrenOfType<CustomLaneCoverDisplay>()).Count(), Is.EqualTo(2));
+                    Assert.That(bgaPanel.Drawable, Is.TypeOf<DefaultBmsBgaPanelDisplay>());
+                    Assert.That(compatibilitySkin.Bga.SourceSetCount, Is.Zero);
+                    // This original chart has no BGA timeline: all four viewports use the static working-beatmap
+                    // background. The selected-slot case below supplies a timeline and verifies four real players.
+                    Assert.That(renderer.BmsBeatmap.BgaTimeline, Is.Empty);
+                    Assert.That(bgaPanel.Drawable!.ChildrenOfType<BmsBgaPlayer>(), Is.Empty);
+                    Assert.That(layout.BgaViewports, Has.Count.EqualTo(4));
+                    Assert.That(((DefaultBmsBgaPanelDisplay)bgaPanel.Drawable).NativeFrameVisuals, Has.Count.EqualTo(4));
+                    for (int index = 0; index < layout.BgaViewports.Count; index++)
+                    {
+                        Assert.That(bgaPanel.TryGetContentState(index, out GameplaySkinBgaContentState state, out long revision), Is.True);
+                        Assert.That(state, Is.EqualTo(GameplaySkinBgaContentState.Ready));
+                        Assert.That(revision, Is.Zero);
+                    }
+                    Assert.That(covers, Has.Length.EqualTo(2));
+                    Assert.That(covers.SelectMany(cover => cover.ChildrenOfType<CustomLaneCoverDisplay>()), Is.Empty);
                     Assert.That(covers.All(cover => cover.GameplaySkinCustomFallbackGateOwner.Alpha > 0), Is.True);
-                    Assert.That(targets.SelectMany(target => target.ChildrenOfType<CustomHitTargetDisplay>()).Count(),
-                        Is.EqualTo(renderer.BmsDrawable.LayoutSnapshot.LanesInLogicalOrder.Count));
+                    Assert.That(targets, Has.Length.EqualTo(layout.LanesInLogicalOrder.Count));
+                    Assert.That(targets.SelectMany(target => target.ChildrenOfType<CustomHitTargetDisplay>()), Is.Empty);
                     Assert.That(targets.All(target => target.GameplaySkinCustomFallbackGateOwner.Alpha > 0), Is.True);
                 });
+
+                assertHiddenCompatibilityDecks(((BmsGaugeBar)carrier.GaugeBar!).GameplaySkinStageFallbackVisuals, "gauge");
+                assertHiddenCompatibilityDecks(((BmsComboCounter)carrier.ComboCounter!).GameplaySkinStageFallbackVisuals, "combo");
+                foreach (GameplaySkinLaneTopologyGroup group in groups)
+                {
+                    GameplaySkinResolvedMaterialTarget deck = GameplaySkinResolvedMaterialTarget.ForStage(group);
+                    assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.GaugeVisual, deck), false, "bms/gauge");
+                    assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.ComboDisplay, deck), false, "bms/hud");
+                    assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementLine, deck), false, "bms/target");
+                }
+                assertCustomContrastCoverSurfaces(sceneHost, covers, groups, false);
+                assertCustomContrastLaneSurfaces(sceneHost, renderer, false);
             });
             AddStep("detach no-public custom fallback tree", () => renderer.Expire());
             AddUntilStep("wait for no-public custom detach", () => renderer.Parent == null);
@@ -119,6 +157,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("capture mounted scene host", () =>
                 sceneHost = renderer.BmsDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single());
             AddUntilStep("wait for selected custom gates", () => sceneHost.PendingCreationCount == 0);
+            AddStep("enable real cover geometry and focused input feedback", () =>
+            {
+                foreach (BmsLaneCover cover in renderer.BmsDrawable.Playfield.LaneCovers)
+                {
+                    cover.CoverPercent.Value = 200;
+                    cover.CoverOpacity.Value = 1000;
+                    cover.IsFocused.Value = true;
+                }
+                foreach (BmsLane lane in renderer.BmsDrawable.Playfield.Lanes)
+                {
+                    lane.HitTarget.IsPressed.Value = true;
+                    lane.HitTarget.IsFocused.Value = true;
+                }
+            });
             AddStep("assert actual custom instances cannot overlap author slots", () =>
             {
                 layout = renderer.BmsLayoutProbe.Publication!.GetAdapter<BmsGameplayLayoutSnapshot>();
@@ -203,18 +255,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     .SelectMany(target => target.ChildrenOfType<CustomHitTargetDisplay>())
                     .ToArray();
 
-                foreach (BmsLaneCover cover in coverHosts)
-                {
-                    cover.CoverOpacity.Value = 1000;
-                    cover.IsFocused.Value = true;
-                }
-
-                foreach (BmsHitTarget target in targetHosts)
-                {
-                    target.IsPressed.Value = true;
-                    target.IsFocused.Value = true;
-                }
-
                 Assert.Multiple(() =>
                 {
                     var gauge = (BmsGaugeBar)carrier.GaugeBar!;
@@ -222,18 +262,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(carrier.GaugeProgrammaticVisualOwner, Is.SameAs(gauge));
                     Assert.That(carrier.ComboProgrammaticVisualOwner, Is.SameAs(combo));
                     Assert.That(gauge.GameplaySkinStageFallbackVisuals[0].Alpha, Is.Zero);
-                    Assert.That(gauge.GameplaySkinStageFallbackVisuals[1].Alpha, Is.GreaterThan(0),
-                        "A deck-1 Gauge Provide must not aggregate-hide the inherited deck-2 gauge.");
+                    Assert.That(gauge.GameplaySkinStageFallbackVisuals[1].Alpha, Is.Zero,
+                        "The canonical deck-2 gauge must not overlap the obsolete native artwork.");
                     Assert.That(combo.GameplaySkinStageFallbackVisuals[0].Alpha, Is.Zero);
-                    Assert.That(combo.GameplaySkinStageFallbackVisuals[1].Alpha, Is.GreaterThan(0),
-                        "A deck-1 Combo Suppress must not aggregate-hide the inherited deck-2 combo.");
+                    Assert.That(combo.GameplaySkinStageFallbackVisuals[1].Alpha, Is.Zero,
+                        "The canonical deck-2 combo owns the omitted surface independently of deck-1 suppression.");
                     Assert.That(covers, Is.Empty,
                         "Opaque custom lane covers cannot participate in an exact independently partitioned publication.");
-                    Assert.That(targets, Has.Length.EqualTo(groups[1].LanesInLogicalOrder.Count),
-                        "Only deck 1 fails closed; the all-fallback sibling deck retains its custom lane targets.");
-                    Assert.That(targets.All(target => target.LaneId != null
-                                                      && layout.GetLane(target.LaneId).NeutralLane.TopologyEntry.Identity.Group.Id.Equals(groups[1].Identity.Id)),
-                        Is.True);
+                    Assert.That(targetHosts, Has.Length.EqualTo(layout.LanesInLogicalOrder.Count));
+                    Assert.That(targets, Is.Empty,
+                        "Canonical necessary surfaces require exact typed hosts on both decks; opaque C# targets must not leak through.");
+                    Assert.That(compatibilitySkin.Gauge.Parent, Is.Null);
+                    Assert.That(compatibilitySkin.Combo.Parent, Is.Null);
+                    Assert.That(compatibilitySkin.Bga.Parent, Is.Null);
                     Assert.That(coverHosts.All(cover => cover.GameplaySkinCustomFallbackGateOwner.Alpha > 0), Is.True,
                         "The typed part children, not an aggregate parent gate, own exact fallback visibility.");
                     Assert.That(targetHosts.All(target => target.GameplaySkinCustomFallbackGateOwner.Alpha > 0), Is.True,
@@ -245,51 +286,36 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         "Deck-1 Provide and Suppress independently hide the exact typed Fill and Decoration parts.");
                     Assert.That(coverHosts.All(cover => cover.GameplaySkinStageFallbackVisuals[1].Target!.Equals(
                                                        GameplaySkinResolvedMaterialTarget.ForStage(groups[1]))
-                                                   && cover.GameplaySkinStageFallbackVisuals[1].FillVisual.Alpha > 0
-                                                   && cover.GameplaySkinStageFallbackVisuals[1].DecorationVisual.Alpha > 0), Is.True,
-                        "Deck-2 inherited Fill and Decoration remain visible; no deck-1 aggregate gate may swallow them.");
+                                                   && cover.GameplaySkinStageFallbackVisuals[1].FillVisual.Alpha == 0
+                                                   && cover.GameplaySkinStageFallbackVisuals[1].DecorationVisual.Alpha == 0), Is.True,
+                        "The canonical deck-2 fill replaces its old artwork while its explicit absent decoration remains absent.");
                 });
 
-                BmsLane scratch1 = renderer.BmsDrawable.Playfield.Lanes.Single(lane =>
-                    lane.LayoutSnapshotLane!.NeutralLane.TopologyEntry.Identity.Id.Value == "bms.lane.scratch-1");
-                BmsLane scratch2 = renderer.BmsDrawable.Playfield.Lanes.Single(lane =>
-                    lane.LayoutSnapshotLane!.NeutralLane.TopologyEntry.Identity.Id.Value == "bms.lane.scratch-2");
-                BmsLane deck1Regular = renderer.BmsDrawable.Playfield.Lanes.First(lane =>
-                    lane.LayoutSnapshotLane!.NeutralLane.TopologyEntry.Identity.Group.Id.Equals(groups[0].Identity.Id)
-                    && !lane.LayoutSnapshotLane.IsScratch);
-                BmsLane deck2Regular = renderer.BmsDrawable.Playfield.Lanes.First(lane =>
-                    lane.LayoutSnapshotLane!.NeutralLane.TopologyEntry.Identity.Group.Id.Equals(groups[1].Identity.Id)
-                    && !lane.LayoutSnapshotLane.IsScratch);
-
-                Assert.Multiple(() =>
+                GameplaySkinResolvedMaterialTarget deck2 = GameplaySkinResolvedMaterialTarget.ForStage(groups[1]);
+                Drawable authorGauge = assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.GaugeVisual, deck1), true, "notes/author");
+                Drawable canonicalGauge = assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.GaugeVisual, deck2), false, "bms/gauge");
+                Assert.That(authorGauge, Is.Not.SameAs(canonicalGauge));
+                Assert.That(authorGauge.ScreenSpaceDrawQuad.AABBFloat.Right, Is.LessThanOrEqualTo(canonicalGauge.ScreenSpaceDrawQuad.AABBFloat.Left + 0.01f));
+                assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.ComboDisplay, deck2), false, "bms/hud");
+                var deck1ComboKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.ComboDisplay, deck1);
+                Assert.That(sceneHost.MaterialSet.TryGet(deck1ComboKey, out GameplaySkinResolvedMaterialEntry? comboEntry), Is.True);
+                Assert.That(comboEntry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                Assert.That(comboEntry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                Assert.That(sceneHost.TryGetHostedDrawable(deck1ComboKey, out _), Is.False,
+                    "An explicit deck-1 Combo Suppress must neither revive itself nor remove the visible canonical sibling.");
+                assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementLine, deck1), true, "notes/author");
+                assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementLine, deck2), false, "bms/target");
+                assertCustomContrastCoverSurfaces(sceneHost, coverHosts, groups, true);
+                assertCustomContrastLaneSurfaces(sceneHost, renderer, true);
+            });
+            AddStep("release both decks without reviving suppressed flashes", () =>
+            {
+                foreach (BmsLane lane in renderer.BmsDrawable.Playfield.Lanes)
                 {
-                    Assert.That(scratch1.GameplaySkinLaneSurfaceFallbackVisual.Alpha, Is.Zero,
-                        "The lane-owned SkinnableDrawable already gates the actual custom surface generically.");
-                    Assert.That(scratch1.GameplaySkinLaneDividerFallbackVisual.Alpha, Is.Zero,
-                        "The lane-owned SkinnableDrawable already gates the actual custom divider generically.");
-                    Assert.That(scratch2.GameplaySkinLaneSurfaceFallbackVisual.Alpha, Is.GreaterThan(0));
-                    Assert.That(scratch2.GameplaySkinLaneDividerFallbackVisual.Alpha, Is.GreaterThan(0));
-                    Assert.That(scratch1.GameplaySkinLaneSurfaceFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
-                        Is.EqualTo(BmsLaneSkinElements.Background));
-                    Assert.That(scratch1.GameplaySkinLaneDividerFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
-                        Is.EqualTo(BmsLaneSkinElements.Divider));
-                    Assert.That(scratch1.HitTarget.GameplaySkinHitTargetFallbackVisual!.Alpha, Is.Zero,
-                        "Only the exact scratch-1 HitTarget Provide hides its typed fallback part.");
-                    Assert.That(scratch1.HitTarget.GameplaySkinKeyFlashFallbackVisual!.Alpha, Is.Zero,
-                        "Only the exact scratch-1 KeyFlash Suppress hides its typed fallback part.");
-                    Assert.That(scratch1.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero,
-                        "Deck-1 JudgementLine Provide hides the stage part independently.");
-                    Assert.That(deck1Regular.HitTarget.GameplaySkinHitTargetFallbackVisual!.Alpha, Is.GreaterThan(0),
-                        "An inherited lane HitTarget remains visible even when its stage JudgementLine is authored.");
-                    Assert.That(deck1Regular.HitTarget.GameplaySkinKeyFlashFallbackVisual!.Alpha, Is.GreaterThan(0),
-                        "An inherited KeyFlash remains visible; scratch-1 suppression cannot aggregate-hide it.");
-                    Assert.That(deck1Regular.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero);
-                    Assert.That(scratch2.HitTarget.ChildrenOfType<CustomHitTargetDisplay>().Single().Alpha, Is.EqualTo(1));
-                    Assert.That(scratch2.HitTarget.ChildrenOfType<CustomHitTargetDisplay>().Single().Scale, Is.EqualTo(new Vector2(1.15f)));
-                    Assert.That(deck2Regular.HitTarget.ChildrenOfType<CustomHitTargetDisplay>().Single().Alpha, Is.EqualTo(1));
-                    Assert.That(deck2Regular.HitTarget.ChildrenOfType<CustomHitTargetDisplay>().Single().Scale, Is.EqualTo(new Vector2(1.15f)),
-                        "Deck-1 authoring cannot replace, aggregate-hide or freeze deck-2 custom target state.");
-                });
+                    lane.HitTarget.IsPressed.Value = false;
+                    lane.HitTarget.IsFocused.Value = false;
+                }
+                assertCustomContrastLaneSurfaces(sceneHost, renderer, true);
             });
             AddUntilStep("all four BGA indices consume their own read-only content state", () =>
                 sceneHost.StateMachineStates.Where(pair => pair.Key.Contains("machine.bga-")).Count() == 8
@@ -312,6 +338,91 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }));
             AddStep("detach custom fallback renderer", () => renderer.Expire());
             AddUntilStep("wait for custom fallback detach", () => renderer.Parent == null);
+        }
+
+        private static void assertCustomContrastCoverSurfaces(
+            GameplaySkinSceneRuntimeHost scene,
+            BmsLaneCover[] covers,
+            GameplaySkinLaneTopologyGroup[] groups,
+            bool authoredDeck1)
+        {
+            GameplaySkinResolvedMaterialTarget deck1 = GameplaySkinResolvedMaterialTarget.ForStage(groups[0]);
+            GameplaySkinResolvedMaterialTarget deck2 = GameplaySkinResolvedMaterialTarget.ForStage(groups[1]);
+            foreach (BmsLaneCover cover in covers)
+            {
+                GameplaySkinSpecialisedSceneVisual left = assertPackagedNativeSurface(scene, cover,
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneCoverFill, deck1), authoredDeck1, authoredDeck1 ? "notes/author" : "bms/cover");
+                GameplaySkinSpecialisedSceneVisual right = assertPackagedNativeSurface(scene, cover,
+                    new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneCoverFill, deck2), false, "bms/cover");
+                Assert.That(left, Is.Not.SameAs(right));
+                Assert.That(left.RootDrawables.Single().ScreenSpaceDrawQuad.AABBFloat.Right,
+                    Is.LessThanOrEqualTo(right.RootDrawables.Single().ScreenSpaceDrawQuad.AABBFloat.Left + 0.01f));
+                Assert.That(cover.GameplaySkinStageFallbackVisuals, Has.Count.EqualTo(2));
+                for (int index = 0; index < groups.Length; index++)
+                {
+                    GameplaySkinResolvedMaterialTarget deck = GameplaySkinResolvedMaterialTarget.ForStage(groups[index]);
+                    Assert.That(cover.GameplaySkinStageFallbackVisuals[index].Target, Is.EqualTo(deck));
+                    Assert.That(cover.GameplaySkinStageFallbackVisuals[index].FillVisual.Alpha, Is.Zero);
+                    Assert.That(cover.GameplaySkinStageFallbackVisuals[index].DecorationVisual.Alpha, Is.Zero);
+                    var decoration = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneCoverDecoration, deck);
+                    Assert.That(scene.MaterialSet.TryGet(decoration, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                    Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                    Assert.That(entry.Source.Kind, Is.EqualTo(authoredDeck1 && index == 0
+                        ? GameplaySkinResolvedMaterialSourceKind.SelectedPackage : GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    Assert.That(scene.TryGetVisualGate(decoration, out GameplaySkinSceneHostedSlot? gate), Is.True);
+                    Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
+                    Assert.That(gate.IsReplacementReady, Is.True);
+                }
+                Assert.That(cover.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
+                                 .Any(visual => ReferenceEquals(visual.Key.Slot, GameplaySkinSlotCatalog.LaneCoverDecoration)), Is.False,
+                    "Focusing a cover cannot revive an explicitly absent author or canonical decoration.");
+            }
+        }
+
+        private static void assertCustomContrastLaneSurfaces(GameplaySkinSceneRuntimeHost scene, ExactLayoutJourneyHost renderer, bool authoredScratch1)
+        {
+            BmsLane[] lanes = renderer.BmsDrawable.Playfield.Lanes.OrderBy(lane => lane.LayoutSnapshotLane!.VisualIndex).ToArray();
+            Drawable? previousKey = null;
+            foreach (BmsLane lane in lanes)
+            {
+                BmsGameplayLayoutLane exactLane = lane.LayoutSnapshotLane!;
+                GameplaySkinResolvedMaterialTarget target = lane.HitTarget.ResolvedMaterialKey.Target;
+                bool selected = authoredScratch1 && target.LaneId!.Value == "bms.lane.scratch-1";
+                Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.Alpha, Is.Zero);
+                Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.Alpha, Is.Zero);
+                Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
+                    Is.EqualTo(BmsLaneSkinElements.Background));
+                Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
+                    Is.EqualTo(BmsLaneSkinElements.Divider));
+                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target), selected, selected ? "notes/author" : "bms/lane");
+                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, target), selected, selected ? "notes/author" : "bms/divider");
+                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, target), selected, selected ? "notes/author" : "bms/target");
+                Assert.That(lane.HitTarget.GameplaySkinHitTargetFallbackVisual!.Alpha, Is.Zero);
+                Assert.That(lane.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero);
+                Assert.That(lane.HitTarget.GameplaySkinKeyFlashFallbackVisual!.Alpha, Is.Zero);
+                Assert.That(lane.HitTarget.ChildrenOfType<CustomHitTargetDisplay>(), Is.Empty);
+
+                var flash = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyFlash, target);
+                Assert.That(scene.MaterialSet.TryGet(flash, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                Assert.That(entry.Source.Kind, Is.EqualTo(selected ? GameplaySkinResolvedMaterialSourceKind.SelectedPackage : GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                Assert.That(scene.TryGetHostedDrawable(flash, out _), Is.False);
+
+                string role = exactLane.IsScratch ? "scratch" : exactLane.LogicalIndex % 2 == 0 ? "accent" : "white";
+                GameplaySkinSpecialisedSceneVisual visual = assertPackagedNativeSurface(scene, lane.HitTarget,
+                    lane.HitTarget.ResolvedMaterialKey, false, $"bms/key-{role}");
+                Drawable key = visual.RootDrawables.Single();
+                Assert.That(key.Alpha, Is.EqualTo(lane.HitTarget.IsPressed.Value ? 1 : 0.65f),
+                    "Both decks must retain actual pressed/released key feedback even while optional flashes are suppressed.");
+                if (previousKey != null)
+                {
+                    Assert.That(key, Is.Not.SameAs(previousKey));
+                    Assert.That(previousKey.ScreenSpaceDrawQuad.AABBFloat.Right,
+                        Is.LessThanOrEqualTo(key.ScreenSpaceDrawQuad.AABBFloat.Left + 0.01f),
+                        "Every authored or canonical lane must remain inside its independent visual column.");
+                }
+                previousKey = key;
+            }
         }
 
         private static void writeNoPublicCustomFallbackPackage(string root)

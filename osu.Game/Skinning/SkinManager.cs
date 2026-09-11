@@ -442,10 +442,12 @@ namespace osu.Game.Skinning
                         if (InitialManagedFolderMutationRecoveryResult.IsResolved)
                             r.Add(CanonicalSkinPackage.CreateInfo());
                     }
-                    else if (SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(existingOmsSkin))
+                    else if (SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(existingOmsSkin)
+                             || CanonicalSkinPackage.IsExactRetiredReferenceRecord(existingOmsSkin))
                     {
                         // Supported old journals were recovered against their exact old record before this explicit
-                        // metadata migration. Unknown fixed-ID records (including files) are never overwritten.
+                        // metadata migration. The separately evidenced retired reference metadata is not journal
+                        // recovery authority. Unknown fixed-ID records (including files) are never overwritten.
                         if (InitialManagedFolderMutationRecoveryResult.IsResolved)
                         {
                             existingOmsSkin.Name = DefaultOmsSkin.SkinInfo.Value.Name;
@@ -4551,7 +4553,9 @@ namespace osu.Game.Skinning
 
             Realm.Run(realm =>
             {
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
+                // Repair states deliberately leave missing protected evidence absent from Realm. Keep the settings
+                // surface usable through the existing in-memory item without manufacturing a persistent record.
+                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)?.ToLive(Realm) ?? DefaultOmsSkin.SkinInfo);
 
                 var userSkins = realm.All<SkinInfo>()
                                      .Where(s => !s.DeletePending && !s.Protected)
@@ -4629,7 +4633,7 @@ namespace osu.Game.Skinning
 
             Realm.Run(realm =>
             {
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN).ToLive(Realm));
+                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)?.ToLive(Realm) ?? DefaultOmsSkin.SkinInfo);
 
                 foreach (SkinInfo skin in realm.All<SkinInfo>()
                                               .Where(s => !s.DeletePending
@@ -6439,6 +6443,9 @@ namespace osu.Game.Skinning
             if (skin.PerformRead(isFilesystemBacked))
                 throw new InvalidOperationException("Filesystem-backed skins cannot be exported as Realm packages.");
 
+            if (!IsGameplaySkinInstallationAvailable && skin.PerformRead(SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord))
+                throw new InvalidOperationException(GameplaySkinInstallationRepairMessage);
+
             return skinExporter.ExportAsync(skin);
         }
 
@@ -6786,7 +6793,8 @@ namespace osu.Game.Skinning
         public bool CanExport(Live<SkinInfo> skin)
             => skin.PerformRead(info => !isFilesystemBacked(info)
                                         && (!info.Protected
-                                            || CanonicalSkinPackage.IsCanonicalSkin(DefaultOmsSkin)
+                                            || IsGameplaySkinInstallationAvailable
+                                            && CanonicalSkinPackage.IsCanonicalSkin(DefaultOmsSkin)
                                             && SkinManagedFolderDeleteOperation.IsExactProtectedRecord(info, CanonicalSkinPackage.CreateInfo())));
 
         /// <summary>

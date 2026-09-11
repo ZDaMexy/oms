@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-09（C6闭合，下一门C7；原七campaign预算不变）
+> 最后更新：2026-09-11（原 Skin 七阶段非人工工作闭合；继续约定人工与公开发行门）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -15,7 +15,7 @@
 
 ## 强制执行顺序
 
-恢复与数据安全`SV1-0`、Skin C1～C6已关闭，作为后续输入，不重复开工。P1-A的**最多七个持久campaign预算、共同执行规则和完整退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；预算不重计，第七个退出时仍只允许保留约定的人工签收。
+恢复与数据安全`SV1-0`、Skin C1～C7的非人工工作已关闭，作为后续输入，不重复开工。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
 
 ### R3：`SV1-2` G1 存储与 revision 冻结输入
 
@@ -24,7 +24,7 @@
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7为当前门**：同含mania/BMS的双包、完整制作套件与canonical接管已实施，继续完成成品重生成、完整使用验证与自动发行；具体待办见 [P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md)与 [续接检查点](../other/SKIN_SYSTEM_C7_RESUME_20260909.md)。
+2. **C7非人工门已闭合**：以同含mania/BMS的双包和最终集中体验包进行人工观察，不重复制作或重开已通过的自动工作；具体成品、证据及剩余签收见 [P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
 3. 按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及最终包；自动可证工作可继续，只有视觉结论决定设计或自动证据无法裁决异常时才等待反馈。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。
@@ -45,7 +45,7 @@
 P1-F结合P1-G统一复核：
 
 - P1-A全部Skin V1门、最终双包与第三方包、公开选择面、canonical完整性/原子恢复及无程序化主题fallback。
-- `portable.ini → data/`、bootstrap storage中的`storage.ini`与自定义根；修正随包说明，覆盖更新保持原便携模式，并验证候选包冷启动。
+- `portable.ini → data/`、bootstrap storage中的`storage.ini`与自定义根；保持已验证的完整包、覆盖工具与保存位置合同，补独立账户非便携及设备/长时发行体验。
 - Release build/publish、BMS full、mania/core relevant及各子线要求的测试；失败逐项稳定归因。
 - 发布说明区分code-provider/ini/scene/script能力，不宣称未通过门的G1、脚本、格式兼容或在线能力。
 

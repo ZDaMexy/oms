@@ -766,7 +766,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 laneId,
                 identityOwner.StartTime,
                 identityOwner.GetEndTime(),
-                1);
+                // An early long-note release resolves its parent before the authored duration ends. Its next
+                // real body-state update uses the same clock progress; reporting one here would manufacture a
+                // backwards object update and reset every skin consumer's otherwise valid performance history.
+                getGameplaySkinObjectProgress(identityOwner));
         }
 
         private bool tryGetGameplaySkinObjectTarget(

@@ -9,11 +9,261 @@
     "blend": "inherit",
     "properties": {},
     "effects": [],
-    "children": []
+    "children": [
+      {
+        "id": "still.hud",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "slot": "hud.text",
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "still.hud.panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.18,
+              "y": 0.006,
+              "width": 0.64,
+              "height": 0.08,
+              "colour": "#0b1019ee"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.score-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "SCORE",
+              "x": 0.195,
+              "y": 0.013,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.score",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.195,
+              "y": 0.035,
+              "font-size": 20,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.accuracy-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "ACCURACY",
+              "x": 0.4,
+              "y": 0.013,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.accuracy",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "100.00%",
+              "x": 0.4,
+              "y": 0.035,
+              "font-size": 20,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.combo-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "COMBO",
+              "x": 0.585,
+              "y": 0.013,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.combo",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.585,
+              "y": 0.035,
+              "font-size": 20,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.bpm-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "BPM",
+              "x": 0.715,
+              "y": 0.013,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.bpm",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.715,
+              "y": 0.035,
+              "font-size": 20,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.progress-track",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.18,
+              "y": 0.088,
+              "width": 0.64,
+              "height": 0.002,
+              "colour": "#263444ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.progress.bounds",
+            "type": "container",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.18,
+              "y": 0.088,
+              "width": 0.64,
+              "height": 0.002
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.hud.progress",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "resource": "texture.white",
+                "blend": "alpha",
+                "properties": {
+                  "width": 0,
+                  "height": 1,
+                  "colour": "#a6b5c9ff"
+                },
+                "effects": [],
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
   "tracks": [],
   "stateMachines": [],
-  "bindings": [],
+  "bindings": [
+    {
+      "id": "still.bind.score",
+      "target": "still.hud.score",
+      "property": "text",
+      "source": "score.value"
+    },
+    {
+      "id": "still.bind.accuracy",
+      "target": "still.hud.accuracy",
+      "property": "text",
+      "source": "score.accuracy"
+    },
+    {
+      "id": "still.bind.combo",
+      "target": "still.hud.combo",
+      "property": "text",
+      "source": "combo.value"
+    },
+    {
+      "id": "still.bind.bpm",
+      "target": "still.hud.bpm",
+      "property": "text",
+      "source": "timing.bpm"
+    },
+    {
+      "id": "still.bind.progress",
+      "target": "still.hud.progress",
+      "property": "width",
+      "source": "timing.progress"
+    }
+  ],
   "variants": [],
   "templates": [],
   "instances": []

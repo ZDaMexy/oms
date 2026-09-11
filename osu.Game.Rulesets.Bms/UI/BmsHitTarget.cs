@@ -42,6 +42,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Container sceneVisualContainer;
         private GameplaySkinSceneRuntimeHost? sceneRuntime;
         private GameplaySkinSpecialisedSceneVisual? sceneVisual;
+        private Sprite? textureKeyVisual;
         private IDisposable? hitTargetVisualRegistration;
         private IDisposable? judgementLineVisualRegistration;
         private IDisposable? keyFlashVisualRegistration;
@@ -156,7 +157,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     AppliedSceneNodeIds = Array.AsReadOnly(
                         sceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
+                    if (sceneVisual.RuntimeNodes.Count == 0)
+                        textureKeyVisual = (Sprite)sceneVisual.RootDrawables.Single();
                     sceneVisual.OnApply();
+                    updateState();
                 }
             }
 
@@ -165,6 +169,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void updateState()
         {
+            // A plain public key image retains input feedback even when the independent flash is suppressed.
+            // Authored scene nodes keep their own public input bindings and are not tinted by this adapter.
+            if (textureKeyVisual != null)
+                textureKeyVisual.Alpha = IsPressed.Value ? 1 : 0.65f;
+
             if (display.CurrentDisplay is not IBmsHitTargetDisplay hitTargetDisplay)
                 return;
 

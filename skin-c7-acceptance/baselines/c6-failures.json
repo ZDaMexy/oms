@@ -1,0 +1,80 @@
+﻿{
+  "Format": "oms-skin-c6-failure-baseline.v1",
+  "SourceCommit": "de9eb3e39e84c2d0dffe49f313a37eae61149b80",
+  "SourcePreparation": "git archive de9eb3e39e84c2d0dffe49f313a37eae61149b80 -o artifacts/skin-c7-evidence/c6-source.tar; extracted unchanged into artifacts/skin-c7-evidence/c6-source",
+  "WorkingDirectory": "artifacts/skin-c7-evidence/c6-source",
+  "SourceAssertionsUnchanged": true,
+  "MessageHandling": "Full original ErrorInfo.Message retained; comparisons normalize CRLF to LF and trim surrounding whitespace only.",
+  "Suites": [
+    {
+      "Suite": "core",
+      "SourceTrx": "c6-core-recovered.trx",
+      "SourceTrxSha256": "b424f7f6d4eef838f6bbf99d4b8839f9fe74014d8e6eb077410c67bad8e6dbcb",
+      "Command": "dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release --filter 'FullyQualifiedName~TestSceneBeatmapSkinResources|FullyQualifiedName~TestBackgroundCyclingOnDefaultSkin|FullyQualifiedName~TestSampleUpdatedBeforePlaybackWhenNotPresent' --logger 'trx;LogFileName=c6-core-recovered.trx' --results-directory 'F:\\oms\\artifacts\\skin-c7-evidence\\tests'",
+      "StartedUtc": "2026-09-11T04:43:53.9893562+00:00",
+      "FinishedUtc": "2026-09-11T04:44:18.7810263+00:00",
+      "Failures": [
+        {
+          "Name": "TestBackgroundCyclingOnDefaultSkin(True)",
+          "Category": "\"wait for beatmap background to be loaded\" timed out",
+          "Message": "\"wait for beatmap background to be loaded\" timed out"
+        },
+        {
+          "Name": "TestRetrievalWithConflictingFilenames",
+          "Category": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)",
+          "Message": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)\r\n  ----> System.ArgumentException : No valid beatmap files found in the beatmap archive."
+        },
+        {
+          "Name": "TestRetrieveAndLegacyExportJapaneseFilename",
+          "Category": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)",
+          "Message": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)\r\n  ----> System.ArgumentException : No valid beatmap files found in the beatmap archive."
+        },
+        {
+          "Name": "TestRetrieveAndNonLegacyExportJapaneseFilename",
+          "Category": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)",
+          "Message": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)\r\n  ----> System.ArgumentException : No valid beatmap files found in the beatmap archive."
+        },
+        {
+          "Name": "TestRetrieveOggAudio",
+          "Category": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)",
+          "Message": "System.AggregateException : One or more errors occurred. (No valid beatmap files found in the beatmap archive.)\r\n  ----> System.ArgumentException : No valid beatmap files found in the beatmap archive."
+        },
+        {
+          "Name": "TestSampleUpdatedBeforePlaybackWhenNotPresent",
+          "Category": "\"ensure sample loaded\" timed out: Expected string length 33 but was 18. Strings differ at index 0.",
+          "Message": "\"ensure sample loaded\" timed out: Expected string length 33 but was 18. Strings differ at index 0.\r\n  Expected: \"Gameplay/Argon/normal-sliderslide\"\r\n  But was:  \"normal-sliderslide\"\r\n  -----------^\r\n"
+        }
+      ]
+    },
+    {
+      "Suite": "mania",
+      "SourceTrx": "c6-mania-recovered.trx",
+      "SourceTrxSha256": "5659ff45526899719a16247e6ead89aaff58f0aaf288e7dfa5a5a812fc06b227",
+      "Command": "dotnet test osu.Game.Rulesets.Mania.Tests/osu.Game.Rulesets.Mania.Tests.csproj -c Release --filter 'FullyQualifiedName~TestHoldNoteWithReleasePress|FullyQualifiedName~TestHoldNoteChord|FullyQualifiedName~TestSingleHoldNote|FullyQualifiedName~TestHoldNoteStair' --logger 'trx;LogFileName=c6-mania-recovered.trx' --results-directory 'F:\\oms\\artifacts\\skin-c7-evidence\\tests'",
+      "StartedUtc": "2026-09-11T04:46:24.8783046+00:00",
+      "FinishedUtc": "2026-09-11T04:46:27.3097323+00:00",
+      "Failures": [
+        {
+          "Name": "TestHoldNoteChord",
+          "Category": "Incorrect number of frames",
+          "Message": "  Incorrect number of frames\r\n  Expected: 0\r\n  But was:  2\r\n"
+        },
+        {
+          "Name": "TestHoldNoteStair",
+          "Category": "Incorrect number of frames",
+          "Message": "  Incorrect number of frames\r\n  Expected: 0\r\n  But was:  4\r\n"
+        },
+        {
+          "Name": "TestHoldNoteWithReleasePress",
+          "Category": "Incorrect number of frames",
+          "Message": "  Incorrect number of frames\r\n  Expected: 2\r\n  But was:  3\r\n"
+        },
+        {
+          "Name": "TestSingleHoldNote",
+          "Category": "Incorrect number of frames",
+          "Message": "  Incorrect number of frames\r\n  Expected: 0\r\n  But was:  2\r\n"
+        }
+      ]
+    }
+  ]
+}

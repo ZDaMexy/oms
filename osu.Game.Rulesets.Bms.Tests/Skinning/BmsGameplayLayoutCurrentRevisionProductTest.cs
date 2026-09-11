@@ -39,6 +39,7 @@ using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Screens.Play;
+using osu.Game.Screens.Play.HUD.HitErrorMeters;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using SixLabors.ImageSharp;
@@ -853,12 +854,32 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(renderer.BmsDrawable.Playfield.JudgementVisual.Alpha, Is.Zero);
                     Assert.That(comboCounter.GameplaySkinFallbackVisual.Alpha, Is.Zero);
                     Assert.That(gaugeBar.GameplaySkinFallbackVisual.Alpha, Is.Zero);
-                    Assert.That(renderer.CoreHud!.GameplaySkinGaugePartitions, Is.Empty,
-                        "The core HUD must not create a second gauge authority beside the ruleset-owned BMS gauge carrier.");
+                    // Ordinary file skins expose legacy core HUD sources as well as the independently owned BMS HUD.
+                    // The prepared scene must retire those sources without registering the BMS carriers a second time.
+                    foreach (var expected in new[]
+                             {
+                                 (Partitions: renderer.CoreHud!.GameplaySkinGaugePartitions, Key: gaugeVisualKey, Type: typeof(LegacyHealthDisplay)),
+                                 (Partitions: renderer.CoreHud.GameplaySkinJudgementPartitions, Key: judgementDisplayKey, Type: typeof(BarHitErrorMeter)),
+                             })
+                    {
+                        Assert.That(expected.Partitions, Has.Count.EqualTo(1));
+                        GameplaySkinHudProgrammaticVisualPartition partition = expected.Partitions.Single();
+                        TestContext.WriteLine($"Retired core HUD: {partition.Visual.GetType().Name}, stage={partition.StageKey}, visible={partition.Owner.Alpha}, parent={partition.Visual.Parent?.Name}");
+                        Assert.That(partition.Visual.GetType(), Is.EqualTo(expected.Type));
+                        Assert.That(partition.StageKey, Is.EqualTo(expected.Key));
+                        Assert.That(partition.ControllingKeys, Does.Contain(expected.Key));
+                        Assert.That(partition.Owner.Alpha, Is.Zero);
+                        Assert.That(partition.Visual.Parent, Is.Not.Null);
+                        Assert.That(partition.Visual.Parent, Is.Not.InstanceOf<SkinnableContainer>(),
+                            "Retired legacy sources must leave the original HUD surface.");
+                    }
+                    Assert.That(renderer.CoreHud.GameplaySkinHudResidualPartitions
+                                        .Where(partition => ReferenceEquals(partition.Slot, GameplaySkinSlotCatalog.GaugeVisual)
+                                                            || ReferenceEquals(partition.Slot, GameplaySkinSlotCatalog.JudgementDisplay))
+                                        .All(partition => partition.Owner.Alpha == 0), Is.True,
+                        "Retired legacy health and hit-error sources must not remain visible beside the exact stage replacement.");
                     Assert.That(renderer.CoreHud.GameplaySkinComboPartitions, Is.Empty,
                         "The core HUD must not create a second combo authority beside the ruleset-owned BMS combo carrier.");
-                    Assert.That(renderer.CoreHud.GameplaySkinJudgementPartitions, Is.Empty,
-                        "The core HUD must not create a second judgement authority beside the BMS playfield owner.");
                     Assert.That(renderer.CoreHud.GameplaySkinTextOwners, Is.Not.Empty);
                     Assert.That(renderer.CoreHud.GameplaySkinTextOwners.All(owner => owner.Alpha == 0), Is.True,
                         "A ready BMS TextHud must hide the real shared score/stat/text owners through the production HUDOverlay.");

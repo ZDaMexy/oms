@@ -266,6 +266,7 @@ namespace osu.Game.Skinning.Gameplay
         private int runtimeTextGlyphs;
         private GameplaySkinSceneStateFamily bindingStateFamiliesDirty = GameplaySkinSceneStateFamily.All;
         private GameplaySkinSceneStateFamily semanticStateFamiliesDirty = GameplaySkinSceneStateFamily.All;
+        private int? semanticHudProgressPercent;
         private bool stateMachinesDirty;
         private bool layersMounted;
         private bool sceneReadyPublished;
@@ -2072,6 +2073,9 @@ namespace osu.Game.Skinning.Gameplay
 
         private void updateSemanticState(double gameplayTime, GameplaySkinSceneStateFamily stateFamilies)
         {
+            int progressPercent = displayedProgressPercent(timingState.Progress);
+            bool progressChanged = semanticHudProgressPercent != progressPercent;
+
             foreach (SemanticVisual semantic in semanticVisuals.Values)
             {
                 GameplaySkinSlotDescriptor slot = semantic.Entry.Slot;
@@ -2081,6 +2085,11 @@ namespace osu.Game.Skinning.Gameplay
                                     || ReferenceEquals(slot, GameplaySkinSlotCatalog.JudgementDisplay);
                 bool continuousTiming = ReferenceEquals(slot, GameplaySkinSlotCatalog.Turntable);
                 bool stateChanged = (stateFamilies & semanticStateFamily(slot)) != 0;
+
+                // The HUD displays whole percent. Timing still advances continuously for numeric bindings, but a
+                // beat or fractional progress change must not rebuild unchanged score/accuracy/combo/progress text.
+                if (ReferenceEquals(slot, GameplaySkinSlotCatalog.TextHud))
+                    stateChanged = (stateFamilies & GameplaySkinSceneStateFamily.Score) != 0 || progressChanged;
 
                 if (!stateChanged && !expiryDriven && !continuousTiming)
                     continue;
@@ -2139,6 +2148,8 @@ namespace osu.Game.Skinning.Gameplay
                 else if (ReferenceEquals(slot, GameplaySkinSlotCatalog.Laser))
                     semantic.Drawable.Alpha = inputFor(semantic.Entry.Target)?.IsPressed == true ? 1 : 0;
             }
+
+            semanticHudProgressPercent = progressPercent;
         }
 
         private void applyBinding(GameplaySkinPreparedSceneBinding binding, GameplaySkinSceneRuntimeNode target)
@@ -2793,7 +2804,9 @@ namespace osu.Game.Skinning.Gameplay
 
         private static string formatAccuracy(double accuracy) => (accuracy * 100).ToString("0.00", CultureInfo.InvariantCulture) + "%";
 
-        private static string formatProgress(double progress) => (progress * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+        private static int displayedProgressPercent(double progress) => (int)Math.Round(progress * 100, MidpointRounding.AwayFromZero);
+
+        private static string formatProgress(double progress) => displayedProgressPercent(progress).ToString(CultureInfo.InvariantCulture) + "%";
 
         private static bool timingEquals(GameplaySkinTimingStateSnapshot first, GameplaySkinTimingStateSnapshot second)
             => first.Beat.Equals(second.Beat)

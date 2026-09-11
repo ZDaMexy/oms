@@ -23,8 +23,8 @@
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — external 只读、注册与 ManagedCopy 复核。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
-- [canonical 安装与用户数据保护](reference_skin_canonical_installation.md) — 安装原件、副本保全、旧记录恢复与普通导出边界。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者产品决定、legacy/editor/beatmap-local 边界。
+- [canonical 安装与用户数据保护](reference_skin_canonical_installation.md) — 缺行修复、旧数据、只读原件与更新；便携误入、缓存隔离、真实启动恢复与取消资源移交。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者边界、可重复源文件换行、场景定位与零宽进度。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；预算和实时进度读 P1-A。
 
 ## 构建、存储与产品面参考
@@ -62,6 +62,6 @@
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、字段回退与共同 publication。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、producer authority 与 mutable callback。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、producer authority、准确率/进度、真实HUD挂层与池化音符/Seek错误取证。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 菜单整包验证、撤销残留、固定 tick、持久化中断与 queued texture ownership。

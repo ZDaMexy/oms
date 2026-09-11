@@ -91,6 +91,7 @@ namespace osu.Desktop
             {
                 IPCPipeName = OsuGame.IPC_PIPE_NAME,
                 FriendlyGameName = OsuGameBase.GAME_NAME,
+                PortableInstallation = OsuGameDesktop.IsPortableMode,
             };
 
             using (DesktopGameHost host = Host.GetSuitableDesktopHost(gameName, hostOptions))

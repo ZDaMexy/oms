@@ -27,6 +27,8 @@ metadata:
 - lazer editor 的 ISerialisableDrawable/CLR Type JSON 不能复用为外部 scene manifest；scene 只接受版本化 allowlisted node ID。
 - callback 返回后量 stopwatch 无法阻止 while true；sandbox 必须可抢占并有 instruction/heap/node/resource quota。
 - schema 来自生产组件与合同，SKINNING 是派生说明，不反向把旧说明当实现需求。
+- Windows上的JSON缩进序列化会写CRLF，即使最后只追加LF；配方中的多行文字还会受C#源码检出换行影响。保留源文件有`eol=lf`时，所有作者输出须主动规范LF，否则新检出后源文件打包不再等于随包成品。核对真实新建、生成、重复打包及源与成品字节，而不是仅检查当前工作目录内的两次打包相同。
+- 场景文字本身作为`hud.text`所有者时采用HUD区域，容器下的显式global子文字可沿安全屏幕定位；模板同理。仅通过离线schema检查不能证明最终位置，需真实挂载测量。零缩放会被绘图矩阵夹到极小值，进度条用固定容器下的子图宽度归零避免细线。
 
 ## 诊断导航
 

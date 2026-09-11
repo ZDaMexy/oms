@@ -33,6 +33,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestResultsApplauseSkippedCallbackReclaimsRevisionParticipantExactlyOnce()
         {
             string packageRoot = string.Empty;
+            Guid candidateId = Guid.Empty;
             ResultsOwnershipHost resultsHost = null!;
             FullSkinSettingsCallerHost caller = null!;
             BeatmapManager beatmapManager = null!;
@@ -51,9 +52,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 var candidate = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 packageRoot = candidate.PackageRoot;
+                candidateId = candidate.Candidate.ID;
                 manager.CurrentSkinInfo.Value = candidate.Candidate;
             });
-            AddUntilStep("wait for results revision A", () => manager.CurrentSkin.Value is BmsLegacySkin);
+            AddUntilStep("wait for results revision A", () =>
+                candidateId != Guid.Empty
+                && manager.CurrentSkinInfo.Value.ID == candidateId
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidateId
+                && manager.CurrentSkin.Value is BmsLegacySkin
+                && ReferenceEquals(manager.CurrentRevision.Owner, manager.CurrentSkin.Value));
             AddStep("mount real results caller", () =>
             {
                 revisionA = manager.CurrentRevision;
@@ -144,6 +151,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestBmsStatisticsScoreChangeAndDisposeReclaimProvisionalParticipantsExactlyOnce()
         {
             string packageRoot = string.Empty;
+            Guid candidateId = Guid.Empty;
             StatisticsOwnershipHost statisticsHost = null!;
             FullSkinSettingsCallerHost caller = null!;
             BeatmapManager beatmapManager = null!;
@@ -163,9 +171,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 var candidate = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 packageRoot = candidate.PackageRoot;
+                candidateId = candidate.Candidate.ID;
                 manager.CurrentSkinInfo.Value = candidate.Candidate;
             });
-            AddUntilStep("wait for statistics revision A", () => manager.CurrentSkin.Value is BmsLegacySkin);
+            AddUntilStep("wait for statistics revision A", () =>
+                candidateId != Guid.Empty
+                && manager.CurrentSkinInfo.Value.ID == candidateId
+                && manager.CurrentSkin.Value.SkinInfo.ID == candidateId
+                && manager.CurrentSkin.Value is BmsLegacySkin
+                && ReferenceEquals(manager.CurrentRevision.Owner, manager.CurrentSkin.Value));
             AddStep("mount real BMS statistics panel", () =>
             {
                 revisionA = manager.CurrentRevision;

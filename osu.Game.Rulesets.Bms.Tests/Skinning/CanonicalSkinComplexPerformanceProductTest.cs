@@ -31,8 +31,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinSceneRuntimeHost mania = null!;
             GameplaySkinEventSubscription bmsEvents = null!;
             GameplaySkinEventSubscription maniaEvents = null!;
+            GameplaySkinEventSubscription earlyReleaseEvents = null!;
             var bmsJudgements = new List<GameplaySkinJudgementStateSnapshot>();
             var maniaJudgements = new List<GameplaySkinJudgementStateSnapshot>();
+            var earlyReleaseStates = new List<GameplaySkinObjectStateSnapshot>();
+            long earlyReleasedObjectId = -1;
+            long earlyReleaseSequence = -1;
             Task<SkinCurrentRevisionReloadResult>? reload = null;
             float bmsPulse = 0, maniaPulse = 0, bmsRotation = 0, maniaRotation = 0;
             long epoch = 0;
@@ -78,7 +82,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(c6CandidateNode(scene, "astral.console.score").ContentDrawable, Is.InstanceOf<SpriteText>());
                     Assert.That(((SpriteText)c6CandidateNode(scene, "astral.console.bpm").ContentDrawable).Text.ToString(), Is.Not.Empty);
                     Assert.That(((SpriteText)c6CandidateNode(scene, "astral.console.accuracy").ContentDrawable).Text.ToString(), Does.EndWith("%"));
-                    Assert.That(c6CandidateNode(scene, "astral.console.progress").TransformDrawable.Scale.X, Is.InRange(0f, 1f));
+                    Assert.That(c6CandidateNode(scene, "astral.console.progress").TransformDrawable.Width, Is.InRange(0f, 1f));
                 }
                 bmsEvents = bms.EventStream.Subscribe();
                 maniaEvents = mania.EventStream.Subscribe();
@@ -112,7 +116,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && c6CandidateNode(mania, "astral.meter-0-0").TransformDrawable.Scale.Y > 0.12f);
             AddStep("confirm the authored scene consumed genuine successful note judgements", () =>
             {
-                c6Input(renderer, false);
                 drainCanonicalComplexJudgements(bmsEvents, bmsJudgements);
                 drainCanonicalComplexJudgements(maniaEvents, maniaJudgements);
                 Assert.That(bmsJudgements.Any(state => state.ObjectId.HasValue && state.Grade > GameplaySkinJudgementGrade.Miss), Is.True);
@@ -124,13 +127,51 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(scene.ScriptInstance.Profiler.Instructions, Is.GreaterThan(0));
                     assertCanonicalProductScene(scene, "oms-complex");
                 }
+                firstBmsScript = bms.ScriptInstance!;
+                firstManiaScript = mania.ScriptInstance!;
+                epoch = bms.CurrentEpoch;
+
+                GameplaySkinObjectStateSnapshot held = authoredInformationSnapshot(bms).ActiveObjects.Single(state => state.Kind == GameplaySkinObjectKind.LongNote);
+                Assert.That(held.State, Is.EqualTo(GameplaySkinObjectState.Holding));
+                Assert.That(held.StartTime, Is.EqualTo(2_000));
+                Assert.That(held.EndTime, Is.EqualTo(3_000));
+                Assert.That(held.Progress, Is.EqualTo(0.02).Within(0.000001));
+                earlyReleasedObjectId = held.ObjectId;
+                earlyReleaseEvents = bms.EventStream.Subscribe();
+                c6Input(renderer, false);
+            });
+            AddUntilStep("early LN release and its body update reach the authored scene in the same history", () =>
+            {
+                earlyReleaseEvents.DrainFrame(envelope =>
+                {
+                    if (envelope.Payload is GameplaySkinObjectEventPayload obj && obj.State.ObjectId == earlyReleasedObjectId)
+                    {
+                        earlyReleaseStates.Add(obj.State);
+                        earlyReleaseSequence = envelope.Sequence;
+                    }
+                });
+                Assert.That(bms.CurrentEpoch, Is.EqualTo(epoch), "An early LN release must not rebuild unrelated performance history.");
+                return earlyReleaseStates.Count(state => state.State == GameplaySkinObjectState.Missed) >= 2
+                       && bms.LastSequence >= earlyReleaseSequence;
+            });
+            AddStep("the genuine early release retains clock progress and the accumulated performance", () =>
+            {
+                GameplaySkinObjectStateSnapshot missed = authoredInformationSnapshot(bms).ActiveObjects.Single(state => state.ObjectId == earlyReleasedObjectId);
+                Assert.That(missed.State, Is.EqualTo(GameplaySkinObjectState.Missed));
+                Assert.That(missed.Progress, Is.EqualTo(0.02).Within(0.000001));
+                Assert.That(earlyReleaseStates.Where(state => state.State == GameplaySkinObjectState.Missed).All(state => Math.Abs(state.Progress - 0.02) < 0.000001), Is.True,
+                    "Both the terminal judgement and the following body state must use elapsed chart time, not an invented 100% progress.");
+                Assert.That(bms.CurrentEpoch, Is.EqualTo(epoch));
+                Assert.That(bms.ScriptInstance, Is.SameAs(firstBmsScript));
+                Assert.That(c6CandidateNode(bms, "astral.prism-0").TransformDrawable.Scale.X, Is.GreaterThan(1));
+                earlyReleaseEvents.Dispose();
+
+                // The real release can add a judgement to the composition. Take the pause baseline only after
+                // that edge and its subsequent body-state projection have reached the actual scene consumer.
                 bmsPulse = c6CandidateNode(bms, "astral.prism-0").TransformDrawable.Scale.X;
                 maniaPulse = c6CandidateNode(mania, "astral.prism-0").TransformDrawable.Scale.X;
                 bmsRotation = c6CandidateNode(bms, "astral.orbit-0").TransformDrawable.Rotation;
                 maniaRotation = c6CandidateNode(mania, "astral.orbit-0").TransformDrawable.Rotation;
-                firstBmsScript = bms.ScriptInstance!;
-                firstManiaScript = mania.ScriptInstance!;
-                epoch = bms.CurrentEpoch;
                 reload = manager.ReloadCurrentRevisionAsync();
             });
             AddUntilStep("reload is rejected during the actual performance", () => reload?.IsCompleted == true);
@@ -138,9 +179,22 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(reload!.GetAwaiter().GetResult(), Is.EqualTo(SkinCurrentRevisionReloadResult.LiveGameplayActive)));
             AddStep("pause the actual gameplay clock and render its frozen scene", () =>
             {
+                logPauseProjection("before Stop");
+                Assert.That(c6CandidateNode(bms, "astral.prism-0").TransformDrawable.Scale.X, Is.EqualTo(bmsPulse), "BMS changed before Stop; inspect the recorded epoch and reset reason.");
+                Assert.That(c6CandidateNode(mania, "astral.prism-0").TransformDrawable.Scale.X, Is.EqualTo(maniaPulse), "mania changed before Stop; inspect the recorded epoch and reset reason.");
+                long bmsEpochBeforePause = bms.CurrentEpoch;
+                long maniaEpochBeforePause = mania.CurrentEpoch;
                 clock.Stop();
                 for (int frame = 0; frame < 20; frame++)
+                {
                     clock.Sample(2_020);
+                    if (frame == 0 || bms.CurrentEpoch != bmsEpochBeforePause || mania.CurrentEpoch != maniaEpochBeforePause)
+                        logPauseProjection($"paused frame {frame}");
+                }
+                Assert.That(bms.ScriptInstance!.Fault, Is.Null);
+                Assert.That(mania.ScriptInstance!.Fault, Is.Null);
+                Assert.That(bms.CurrentEpoch, Is.EqualTo(bmsEpochBeforePause), "A pause at the unchanged gameplay time must not reset BMS history.");
+                Assert.That(mania.CurrentEpoch, Is.EqualTo(maniaEpochBeforePause), "A pause at the unchanged gameplay time must not reset mania history.");
                 Assert.That(c6CandidateNode(bms, "astral.prism-0").TransformDrawable.Scale.X, Is.EqualTo(bmsPulse));
                 Assert.That(c6CandidateNode(mania, "astral.prism-0").TransformDrawable.Scale.X, Is.EqualTo(maniaPulse));
                 Assert.That(c6CandidateNode(bms, "astral.orbit-0").TransformDrawable.Rotation, Is.EqualTo(bmsRotation));
@@ -254,6 +308,24 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 caller.Expire();
             });
             AddUntilStep("the actual performance and settings release their current skin", () => renderer.Parent == null && caller.Parent == null);
+
+            void logPauseProjection(string step)
+            {
+                TestContext.Progress.WriteLine($"C7 {step}: clock={clock.CurrentTime:R}; "
+                    + $"BMS epoch={bms.CurrentEpoch}, time={bms.LastGameplayTime:R}, scale={c6CandidateNode(bms, "astral.prism-0").TransformDrawable.Scale.X:R}, script={bms.ScriptStatus}, fault={bms.ScriptInstance?.Fault}; "
+                    + $"mania epoch={mania.CurrentEpoch}, time={mania.LastGameplayTime:R}, scale={c6CandidateNode(mania, "astral.prism-0").TransformDrawable.Scale.X:R}, script={mania.ScriptStatus}, fault={mania.ScriptInstance?.Fault}.");
+                trace(bmsEvents, "BMS");
+                trace(maniaEvents, "mania");
+
+                void trace(GameplaySkinEventSubscription events, string ruleset)
+                    => events.DrainFrame(envelope =>
+                    {
+                        if (envelope.Payload is GameplaySkinStateEventPayload state)
+                            TestContext.Progress.WriteLine($"C7 {ruleset} state: epoch={envelope.Epoch}, time={envelope.GameplayTime:R}, kind={envelope.EventKind}, reset={state.ResetReason}.");
+                        else if (envelope.Payload is GameplaySkinLifecycleEventPayload)
+                            TestContext.Progress.WriteLine($"C7 {ruleset} lifecycle: epoch={envelope.Epoch}, time={envelope.GameplayTime:R}, kind={envelope.EventKind}.");
+                    });
+            }
         }
 
         private static void drainCanonicalComplexJudgements(GameplaySkinEventSubscription events, List<GameplaySkinJudgementStateSnapshot> judgements)

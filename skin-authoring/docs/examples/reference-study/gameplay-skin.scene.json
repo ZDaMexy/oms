@@ -1,0 +1,343 @@
+{
+  "contract": "oms-gameplay-skin-scene.v1",
+  "root": {
+    "id": "ref.root",
+    "type": "container",
+    "target": {
+      "kind": "global"
+    },
+    "blend": "inherit",
+    "properties": {},
+    "effects": [],
+    "children": [
+      {
+        "id": "ref.hud",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "ref.panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.14,
+              "y": 0.012,
+              "width": 0.72,
+              "height": 0.085,
+              "colour": "#101827ee"
+            },
+            "effects": [],
+            "children": [],
+            "resource": "ref.white"
+          },
+          {
+            "id": "ref.score",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.17,
+              "y": 0.045,
+              "font-size": 16,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "ref.accuracy",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "100.00%",
+              "x": 0.38,
+              "y": 0.045,
+              "font-size": 16,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "ref.combo",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.6,
+              "y": 0.045,
+              "font-size": 16,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "ref.bpm",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.75,
+              "y": 0.045,
+              "font-size": 16,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "ref.progress.bounds",
+            "type": "container",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.17,
+              "y": 0.082,
+              "width": 0.66,
+              "height": 0.003
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "ref.progress",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "width": 0,
+                  "height": 1,
+                  "colour": "#a6b5c9ff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "ref.white"
+              }
+            ]
+          },
+          {
+            "id": "ref.icon",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.91,
+              "y": 0.15,
+              "width": 0.035,
+              "height": 0.025,
+              "origin": "centre"
+            },
+            "effects": [],
+            "children": [],
+            "resource": "ref.cool"
+          }
+        ],
+        "slot": "hud.text"
+      }
+    ]
+  },
+  "tracks": [
+    {
+      "id": "ref.rotate",
+      "type": "tween",
+      "target": "ref.icon",
+      "property": "rotation",
+      "easing": "linear",
+      "loop": true,
+      "keyframes": [
+        {
+          "id": "ref.rotate.start",
+          "time": 0,
+          "value": 0
+        },
+        {
+          "id": "ref.rotate.end",
+          "time": 2000,
+          "value": 360
+        }
+      ]
+    }
+  ],
+  "stateMachines": [
+    {
+      "id": "ref.lifecycle",
+      "initial": "ref.ready",
+      "states": [
+        {
+          "id": "ref.ready",
+          "set": [
+            {
+              "id": "ref.ready.text",
+              "target": "ref.status",
+              "property": "text",
+              "value": "READY"
+            }
+          ]
+        },
+        {
+          "id": "ref.running",
+          "set": [
+            {
+              "id": "ref.running.text",
+              "target": "ref.status",
+              "property": "text",
+              "value": "RUNNING"
+            }
+          ]
+        },
+        {
+          "id": "ref.paused",
+          "set": [
+            {
+              "id": "ref.pausing.text",
+              "target": "ref.status",
+              "property": "text",
+              "value": "PAUSED"
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "ref.start",
+          "from": "ref.ready",
+          "to": "ref.running",
+          "event": "gameplay.start"
+        },
+        {
+          "id": "ref.pause",
+          "from": "ref.running",
+          "to": "ref.paused",
+          "event": "gameplay.pause"
+        },
+        {
+          "id": "ref.start-again",
+          "from": "ref.paused",
+          "to": "ref.running",
+          "event": "gameplay.start"
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "id": "ref.bind.score",
+      "target": "ref.score",
+      "property": "text",
+      "source": "score.value"
+    },
+    {
+      "id": "ref.bind.accuracy",
+      "target": "ref.accuracy",
+      "property": "text",
+      "source": "score.accuracy"
+    },
+    {
+      "id": "ref.bind.combo",
+      "target": "ref.combo",
+      "property": "text",
+      "source": "combo.value"
+    },
+    {
+      "id": "ref.bind.bpm",
+      "target": "ref.bpm",
+      "property": "text",
+      "source": "timing.bpm"
+    },
+    {
+      "id": "ref.bind.progress",
+      "target": "ref.progress",
+      "property": "width",
+      "source": "timing.progress"
+    }
+  ],
+  "variants": [
+    {
+      "id": "ref.grade-image",
+      "target": "ref.icon",
+      "property": "resource",
+      "source": "judgement.result",
+      "default": "ref.cool",
+      "cases": [
+        {
+          "id": "ref.grade-perfect",
+          "key": "perfect",
+          "resource": "ref.warm"
+        },
+        {
+          "id": "ref.grade-great",
+          "key": "great",
+          "resource": "ref.warm"
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "ref.status-template",
+      "root": {
+        "id": "ref.status-owner",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "ref.status",
+            "type": "text",
+            "target": { "kind": "global" },
+            "blend": "alpha",
+            "properties": {
+              "text": "READY",
+              "x": 0.17,
+              "y": 0.02,
+              "font-size": 10,
+              "colour": "#a6b5c9ff"
+            },
+            "effects": [],
+            "children": []
+          }
+        ],
+        "slot": "hud.text"
+      }
+    }
+  ],
+  "instances": [
+    {
+      "id": "ref.status-instance",
+      "template": "ref.status-template",
+      "target": {
+        "kind": "global"
+      }
+    }
+  ]
+}

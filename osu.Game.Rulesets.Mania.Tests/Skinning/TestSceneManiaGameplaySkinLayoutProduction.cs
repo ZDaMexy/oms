@@ -24,6 +24,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Audio;
@@ -57,10 +58,12 @@ using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Play.HUD.ClicksPerSecond;
 using osu.Game.Screens.Play.HUD.JudgementCounter;
+using osu.Game.Screens.Play.Leaderboards;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osu.Game.Skinning.Triangles;
 using osu.Game.Tests.Visual;
+using osuTK;
 using osuTK.Graphics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -76,16 +79,16 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private Drawable host = null!;
         private RulesetSkinProvidingContainer skinProvider = null!;
         private ExactDependencyProbeContainer productionContent = null!;
-        private ManiaGameplayHudComponentsContainer productionHud = null!;
         private DrawableManiaRuleset drawableRuleset = null!;
         private ManiaRuleset productionRuleset = null!;
         private ManiaBeatmap productionBeatmap = null!;
         private ManiaRulesetConfigManager config = null!;
-        private ScoreProcessor scoreProcessor = null!;
         private DrawableNote productionNote = null!;
         private DrawableHoldNote productionHold = null!;
         private SkinManager? publicMaterialSkinManager;
+        private Action<LogEntry>? exactRootLogObserver;
         private readonly HashSet<string> publicMaterialExternalRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<CurrentRevisionManiaMaterialHost, int> hudReadinessAttempts = new Dictionary<CurrentRevisionManiaMaterialHost, int>();
 
         protected override bool UseFreshStoragePerRun => true;
 
@@ -96,12 +99,22 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             {
                 publicMaterialSkinManager?.ShutdownManagedFolderMutations();
                 publicMaterialSkinManager = null;
+                hudReadinessAttempts.Clear();
                 deletePublicMaterialExternalRoots();
             });
         }
 
         [TearDown]
-        public void CleanUpPublicMaterialExternalRoots() => deletePublicMaterialExternalRoots();
+        public void CleanUpPublicMaterialExternalRoots()
+        {
+            if (exactRootLogObserver != null)
+            {
+                Logger.NewEntry -= exactRootLogObserver;
+                exactRootLogObserver = null;
+            }
+
+            deletePublicMaterialExternalRoots();
+        }
 
         [TestCase(ManiaPublicMaterialPackageSource.OrdinaryRealm)]
         [TestCase(ManiaPublicMaterialPackageSource.ManagedFolder)]
@@ -213,9 +226,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("wait for real mania HUD owner", () => renderer.Hud?.IsLoaded == true);
             AddStep("mount real core gameplay HUD owners", () => renderer.AddProductionCoreHud());
             AddUntilStep("wait for exact core gameplay HUD registrations", () =>
-                renderer.CoreHud?.IsLoaded == true
+                observeCoreHud(renderer, renderer.CoreHud?.IsLoaded == true
                 && renderer.CoreHud.GameplaySkinGaugeOwners.Count > 0
-                && hasRequiredTextHudOwners(renderer.CoreHud));
+                && hasRequiredTextHudOwners(renderer.CoreHud)));
             AddStep("attach read-only mania event consumer", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
@@ -358,40 +371,34 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     (IManiaGameplaySkinProgrammaticVisualPartProvider)getPrivateField<SkinnableDrawable>(column, "columnBackground").Drawable;
                 IManiaGameplaySkinProgrammaticVisualPartProvider secondBackgroundParts =
                     (IManiaGameplaySkinProgrammaticVisualPartProvider)getPrivateField<SkinnableDrawable>(suppressedColumn, "columnBackground").Drawable;
-                IManiaGameplaySkinProgrammaticVisualPartProvider firstTargetParts =
-                    (IManiaGameplaySkinProgrammaticVisualPartProvider)column.HitObjectArea.HitTarget.Drawable;
-                IManiaGameplaySkinProgrammaticVisualPartProvider secondTargetParts =
-                    (IManiaGameplaySkinProgrammaticVisualPartProvider)suppressedColumn.HitObjectArea.HitTarget.Drawable;
-                Drawable[] stageShellOwners =
+                ManiaGameplaySkinProgrammaticVisualPart[] stageBackgroundParts =
                     ((IManiaGameplaySkinProgrammaticVisualPartProvider)stageBackgroundWrapper.Drawable)
-                    .GameplaySkinProgrammaticVisualParts
+                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                Drawable[] stageShellOwners = stageBackgroundParts
                     .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground))
                     .Select(part => part.Owner)
                     .ToArray();
-                Drawable[] playfieldBackdropOwners =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)stageBackgroundWrapper.Drawable)
-                    .GameplaySkinProgrammaticVisualParts
+                Drawable[] playfieldBackdropOwners = stageBackgroundParts
                     .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop))
                     .Select(part => part.Owner)
                     .ToArray();
-                Drawable firstLaneSurfaceOwner = firstBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
-                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface)).Owner;
-                Drawable secondLaneSurfaceOwner = secondBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
-                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface)).Owner;
-                Drawable firstLaneDividerOwner = firstBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
-                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider)).Owner;
-                Drawable secondLaneDividerOwner = secondBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
-                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider)).Owner;
-                Drawable firstHitTargetOwner = firstTargetParts.GameplaySkinProgrammaticVisualParts.Single(part =>
-                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget)).Owner;
-                Drawable secondHitTargetOwner = secondTargetParts.GameplaySkinProgrammaticVisualParts.Single(part =>
-                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget)).Owner;
-                Drawable[] judgementLineOwners = stage.Columns.Select(stageColumn =>
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)stageColumn.HitObjectArea.HitTarget.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.Single(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.JudgementLine)).Owner).ToArray();
-                Drawable firstKeyFlashOwner = firstTargetParts.GameplaySkinProgrammaticVisualParts.Single(part =>
+                Drawable firstLaneSurfaceOwner = stageBackgroundParts.Single(part =>
+                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface) && part.GroupLocalLaneIndex == 0).Owner;
+                Drawable secondLaneSurfaceOwner = stageBackgroundParts.Single(part =>
+                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface) && part.GroupLocalLaneIndex == 1).Owner;
+                Drawable firstLaneDividerOwner = stageBackgroundParts.Single(part =>
+                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider) && part.GroupLocalLaneIndex == 0).Owner;
+                Drawable secondLaneDividerOwner = stageBackgroundParts.Single(part =>
+                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider) && part.GroupLocalLaneIndex == 1).Owner;
+                Drawable firstHitTargetOwner = stageBackgroundParts.Single(part =>
+                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget) && part.GroupLocalLaneIndex == 0).Owner;
+                Drawable secondHitTargetOwner = stageBackgroundParts.Single(part =>
+                    ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget) && part.GroupLocalLaneIndex == 1).Owner;
+                Drawable[] judgementLineOwners = stageBackgroundParts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.JudgementLine))
+                                                                     .Select(part => part.Owner).ToArray();
+                Drawable firstKeyFlashOwner = firstBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.KeyFlash)).Owner;
-                Drawable secondKeyFlashOwner = secondTargetParts.GameplaySkinProgrammaticVisualParts.Single(part =>
+                Drawable secondKeyFlashOwner = secondBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.KeyFlash)).Owner;
                 Drawable[] comboWrappers = renderer.Hud!.Children
                                                    .Where(child => child is OmsManiaComboCounter or LegacyManiaComboCounter)
@@ -607,6 +614,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(sceneHost.TryGetRuntimeNode("node.lane-surface", out GameplaySkinSceneRuntimeNode? laneSurfaceNode), Is.True);
                     Assert.That(((Sprite)laneSurfaceNode!.ContentDrawable).Texture,
                         Is.SameAs(laneSurfaceEntry.GetMaterial<GameplaySkinPublicSlotMaterial>().Texture));
+                    Assert.That(laneSurfaceNode.ContentDrawable.Alpha, Is.GreaterThan(0));
                     Assert.That(column.BackgroundContainer.Alpha, Is.GreaterThan(0),
                         "The composite column wrapper must not be shared by multiple public-slot gates.");
                     Assert.That(firstLaneSurfaceOwner.Alpha, Is.Zero,
@@ -615,7 +623,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         "A selected exact LaneDivider must replace its native divider without owning the lane surface wrapper.");
                     Assert.That(firstHitTargetOwner.Alpha, Is.Zero,
                         "A selected exact HitTarget must replace only its exact legacy lane slice.");
-                    Assert.That(judgementLineOwners, Is.Not.Empty);
+                    Assert.That(judgementLineOwners, Has.Length.EqualTo(stage.Columns.Length));
+                    Assert.That(judgementLineOwners.Distinct().Count(), Is.EqualTo(stage.Columns.Length));
                     Assert.That(judgementLineOwners.All(owner => owner.Alpha == 0), Is.True,
                         "The stage JudgementLine gate must hide each independently owned native lane segment.");
                     Assert.That(firstKeyFlashOwner.Alpha, Is.Zero,
@@ -639,9 +648,19 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         "The bounded explosion pool stays mounted; each leased specialised explosion gates only its own native fallback.");
                     Assert.That(suppressedColumn.BackgroundContainer.Alpha, Is.GreaterThan(0));
                     Assert.That(suppressedColumn.HitObjectArea.HitTarget.Alpha, Is.GreaterThan(0));
-                    Assert.That(secondLaneSurfaceOwner.Alpha, Is.GreaterThan(0));
-                    Assert.That(secondLaneDividerOwner.Alpha, Is.GreaterThan(0));
-                    Assert.That(secondHitTargetOwner.Alpha, Is.GreaterThan(0));
+                    Assert.That(secondLaneSurfaceOwner, Is.Not.SameAs(firstLaneSurfaceOwner));
+                    Assert.That(secondLaneDividerOwner, Is.Not.SameAs(firstLaneDividerOwner));
+                    Assert.That(secondHitTargetOwner, Is.Not.SameAs(firstHitTargetOwner));
+                    Assert.That(secondLaneSurfaceOwner.Alpha, Is.Zero);
+                    Assert.That(secondLaneDividerOwner.Alpha, Is.Zero);
+                    Assert.That(secondHitTargetOwner.Alpha, Is.Zero);
+                    GameplaySkinResolvedMaterialTarget neighbourTarget = GameplaySkinResolvedMaterialTarget.ForLane(group, suppressedLane);
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, neighbourTarget), "mania/lane");
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, neighbourTarget), "mania/divider");
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, neighbourTarget), "mania/target");
                     Assert.That(secondKeyFlashOwner.Alpha, Is.Zero,
                         "A legal lane-local KeyFlash Suppress must hide only its exact native light.");
                     Assert.That(suppressedColumn.HitObjectArea.Explosions.Alpha, Is.GreaterThan(0),
@@ -896,6 +915,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             CurrentRevisionManiaMaterialHost renderer = null!;
             GameplaySkinSceneRuntimeHost sceneHost = null!;
             DrawableBarLine[] barLines = null!;
+            GameplaySkinEventSubscription judgementSubscription = null!;
+            var judgementEvents = new List<GameplaySkinEventEnvelope>();
+            long firstStageObjectId = -1;
 
             AddStep("create isolated dual-stage partial-author skin manager", () =>
             {
@@ -947,9 +969,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 && renderer.Hud.Children.Count(child => child is OmsManiaComboCounter or LegacyManiaComboCounter) == 2);
             AddStep("mount real dual-stage core HUD owners", () => renderer.AddProductionCoreHud());
             AddUntilStep("wait for dual-stage core HUD registrations", () =>
-                renderer.CoreHud?.IsLoaded == true
+                observeCoreHud(renderer, renderer.CoreHud?.IsLoaded == true
                 && renderer.CoreHud.GameplaySkinGaugeOwners.Count > 0
-                && renderer.CoreHud.GameplaySkinTextOwners.Count > 0);
+                && renderer.CoreHud.GameplaySkinTextOwners.Count > 0));
             AddStep("press suppressed lane on stage two", () =>
             {
                 ManiaAction action = renderer.Drawable.Playfield.Stages[1].Columns[0].Action.Value;
@@ -968,6 +990,33 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     inputManager.KeyBindingContainer.TriggerReleased(action);
             });
             AddWaitStep("allow suppressed native key-flash release", 5);
+            AddStep("hit the actual first-stage note for the visible judgement check", () =>
+            {
+                judgementSubscription = renderer.Drawable.GameplaySkinEventStream.Subscribe();
+                Column column = renderer.Drawable.Playfield.Stages[0].Columns[0];
+                DrawableNote note = column.HitObjectContainer.Objects.OfType<DrawableNote>().Single(candidateNote => candidateNote.HitObject.StartTime == 1_150);
+                firstStageObjectId = ((IManiaGameplaySkinObjectIdentityProvider)renderer.Drawable).GetObjectId(note.HitObject);
+                Assert.That(note.Judged, Is.False);
+                foreach (ManiaInputManager input in renderer.Drawable.ChildrenOfType<ManiaInputManager>())
+                    input.KeyBindingContainer.TriggerPressed(column.Action.Value);
+                Assert.That(note.IsHit, Is.True);
+            });
+            AddUntilStep("first-stage real judgement reaches the canonical display", () =>
+            {
+                judgementSubscription.DrainFrame(judgementEvents.Add);
+                GameplaySkinLaneTopologyGroup group = renderer.Drawable.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder[0];
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(group));
+                return judgementEvents.Any(envelope => envelope.Payload is GameplaySkinJudgementEventPayload payload
+                                                       && payload.State.ObjectId == firstStageObjectId
+                                                       && payload.State.GroupId!.Equals(group.Identity.Id))
+                       && sceneHost.TryGetHostedDrawable(key, out Drawable? visual) && visual!.Alpha > 0;
+            });
+            AddStep("release first-stage judgement input", () =>
+            {
+                ManiaAction action = renderer.Drawable.Playfield.Stages[0].Columns[0].Action.Value;
+                foreach (ManiaInputManager input in renderer.Drawable.ChildrenOfType<ManiaInputManager>())
+                    input.KeyBindingContainer.TriggerReleased(action);
+            });
             AddStep("assert partial authoring cannot cross stage gate ownership", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
@@ -1087,7 +1136,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     .Where(partition => partition.StageKey.Equals(secondStageTextKey)).ToArray();
                 Assert.Multiple(() =>
                 {
-                    Assert.That(firstEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
+                    Assert.That(firstEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    Assert.That(firstEntry.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("mania/bar"));
                     Assert.That(secondEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
                     Assert.That(firstKey.Target.GroupId?.Value, Is.EqualTo("mania.group.stage-1"));
                     Assert.That(firstKey.Target.GroupLogicalIndex, Is.EqualTo(0));
@@ -1110,19 +1160,26 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(secondStageLaneGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
                     Assert.That(secondStageLaneGate.IsReplacementReady, Is.True);
                     Assert.That(secondStageLaneSurfaceOwner.Alpha, Is.Zero);
-                    Assert.That(secondStageNeighbourLaneEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
-                    Assert.That(secondStageNeighbourSurfaceOwner.Alpha, Is.GreaterThan(0));
-                    Assert.That(secondStageLaneDividerOwner.Alpha, Is.GreaterThan(0),
-                        "A lane-surface Provide must not hide the same lane's independent divider owner.");
+                    Assert.That(secondStageNeighbourLaneEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    assertCanonicalPublicSlot(publication, sceneHost, secondStageNeighbourLaneKey, "mania/lane");
+                    Assert.That(secondStageNeighbourSurfaceOwner.Alpha, Is.Zero);
+                    var secondStageDividerKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, secondStageLaneKey.Target);
+                    assertCanonicalPublicSlot(publication, sceneHost, secondStageDividerKey, "mania/divider");
+                    Assert.That(secondStageLaneDividerOwner.Alpha, Is.Zero,
+                        "The independent divider remains visible through its own canonical resource, not a duplicate native owner.");
                     Assert.That(secondStageKeyFlashEntry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
                     Assert.That(secondStageKeyFlashGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
                     Assert.That(secondStageKeyFlashOwner.Alpha, Is.Zero);
-                    Assert.That(firstStageKeyFlashOwner.Alpha, Is.GreaterThan(0),
-                        "A stage-two lane Suppress must not affect the neighbouring stage's native flash owner.");
+                    var firstStageKeyFlashKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyFlash,
+                        GameplaySkinResolvedMaterialTarget.ForLane(firstGroup, firstGroup.LanesInLogicalOrder[0]));
+                    assertCanonicalPublicSlot(publication, sceneHost, firstStageKeyFlashKey, null);
+                    Assert.That(firstStageKeyFlashOwner.Alpha, Is.Zero,
+                        "The neighbouring stage retains the canonical package's independent optional-effect suppression.");
                     Assert.That(firstGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Specialised));
                     Assert.That(firstGate.RoutedNodes, Is.Empty);
-                    Assert.That(firstGate.IsReplacementReady, Is.False);
-                    Assert.That(firstWrapper.Alpha, Is.GreaterThan(0));
+                    Assert.That(firstGate.IsReplacementReady, Is.True);
+                    Assert.That(firstWrapper.Alpha, Is.Zero);
+                    assertTextureBarLine(firstLine, firstEntry, firstKey);
                     Assert.That(firstLine.AppliedSceneNodeIds, Is.Empty);
                     Assert.That(secondGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Specialised));
                     Assert.That(secondGate.RoutedNodes.Select(node => node.InstanceId),
@@ -1135,9 +1192,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(secondLine.ResolvedMaterialKey, Is.EqualTo(secondKey));
                     Assert.That(ReferenceEquals(firstWrapper, secondWrapper), Is.False,
                         "A shared BarLine gameplay object must retain one independent native wrapper and gate per stage usage.");
-                    Assert.That(firstStageJudgementEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
-                    Assert.That(firstStageJudgementGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Programmatic));
-                    Assert.That(firstStageJudgements.Alpha, Is.GreaterThan(0));
+                    Assert.That(firstStageJudgementEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    assertCanonicalPublicSlot(publication, sceneHost, firstStageJudgementKey, "mania/hud");
+                    Assert.That(firstStageJudgements.Alpha, Is.Zero);
                     Assert.That(secondStageJudgementEntry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
                     Assert.That(secondStageJudgementGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
                     Assert.That(secondStageJudgementGate.IsReplacementReady, Is.True);
@@ -1147,32 +1204,32 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(comboOwners, Has.Length.EqualTo(2));
                     Assert.That(renderer.CoreHud!.GameplaySkinComboPartitions, Is.Empty,
                         "Ruleset-owned stage combos must not be cloned or registered again by the shared HUD adapter.");
-                    Assert.That(firstStageComboEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
-                    Assert.That(firstStageComboGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Programmatic));
-                    Assert.That(comboOwners[0].Alpha, Is.GreaterThan(0));
+                    Assert.That(firstStageComboEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    assertCanonicalPublicSlot(publication, sceneHost, firstStageComboKey, "mania/hud");
+                    Assert.That(comboOwners[0].Alpha, Is.Zero);
                     Assert.That(secondStageComboEntry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
                     Assert.That(secondStageComboGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
                     Assert.That(secondStageComboGate.IsReplacementReady, Is.True);
                     Assert.That(comboOwners[1].Alpha, Is.Zero);
                     Assert.That(ReferenceEquals(comboOwners[0], comboOwners[1]), Is.False,
                         "A partial dual-stage combo gate must own independent native wrappers and never cross stages.");
-                    Assert.That(firstStageGaugeEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
-                    Assert.That(firstStageGaugeGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Programmatic));
+                    Assert.That(firstStageGaugeEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    assertCanonicalPublicSlot(publication, sceneHost, firstStageGaugeKey, "mania/gauge");
                     Assert.That(secondStageGaugeEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
                     Assert.That(secondStageGaugeGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
                     Assert.That(secondStageGaugeGate.IsReplacementReady, Is.True);
                     Assert.That(firstGaugePartitions, Is.Not.Empty);
                     Assert.That(secondGaugePartitions, Has.Length.EqualTo(firstGaugePartitions.Length));
-                    Assert.That(firstGaugePartitions.All(partition => partition.Owner.Alpha > 0), Is.True);
+                    Assert.That(firstGaugePartitions.All(partition => partition.Owner.Alpha == 0), Is.True);
                     Assert.That(secondGaugePartitions.All(partition => partition.Owner.Alpha == 0), Is.True,
                         "A stage-two gauge replacement must hide only its non-overlapping real health-display partitions.");
-                    Assert.That(globalTextEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
-                    Assert.That(globalTextGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Programmatic));
-                    Assert.That(firstStageTextGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Programmatic));
+                    Assert.That(globalTextEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                    assertCanonicalPublicSlot(publication, sceneHost, globalTextKey, "mania/hud");
+                    assertCanonicalPublicSlot(publication, sceneHost, firstStageTextKey, null);
                     Assert.That(secondStageTextGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
                     Assert.That(firstTextPartitions, Is.Not.Empty);
                     Assert.That(secondTextPartitions, Has.Length.EqualTo(firstTextPartitions.Length));
-                    Assert.That(firstTextPartitions.All(partition => partition.Owner.Alpha > 0), Is.True);
+                    Assert.That(firstTextPartitions.All(partition => partition.Owner.Alpha == 0), Is.True);
                     Assert.That(secondTextPartitions.All(partition => partition.Owner.Alpha == 0), Is.True,
                         "A stage-two TextHud suppression must not hide the neighbouring stage's real text partitions.");
                     assertExactHudPartitions(renderer.CoreHud, sceneHost, publication.Snapshot, GameplaySkinSlotCatalog.GaugeVisual,
@@ -1181,7 +1238,23 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         renderer.CoreHud.GameplaySkinTextPartitions);
                 });
             });
-            AddStep("detach dual-stage partial-author renderer", () => renderer.Expire());
+            AddStep("advance past the real first-stage judgement display window", () => renderer.SetRulesetTime(
+                judgementEvents.Last(envelope => envelope.Payload is GameplaySkinJudgementEventPayload payload && payload.State.ObjectId == firstStageObjectId).GameplayTime
+                + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION + 1));
+            AddUntilStep("first-stage judgement retires while second-stage author suppression remains", () =>
+            {
+                GameplaySkinLaneTopologyGroup[] groups = renderer.Drawable.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder.ToArray();
+                var firstKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(groups[0]));
+                var secondKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(groups[1]));
+                return sceneHost.TryGetHostedDrawable(firstKey, out Drawable? first) && first!.Alpha == 0
+                       && sceneHost.TryGetVisualGate(secondKey, out GameplaySkinSceneHostedSlot? second) && second!.Route == GameplaySkinSceneHostRoute.Suppressed
+                       && !sceneHost.TryGetHostedDrawable(secondKey, out _);
+            });
+            AddStep("detach dual-stage partial-author renderer", () =>
+            {
+                judgementSubscription.Dispose();
+                renderer.Expire();
+            });
             AddUntilStep("wait for dual-stage partial-author detach", () => renderer.Parent == null);
         }
 
@@ -1307,17 +1380,25 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(partOwner(secondFirstBackgroundParts, GameplaySkinSlotCatalog.LaneSurface).Alpha, Is.Zero);
                     Assert.That(secondFirstBackgroundParts.Any(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider)), Is.False,
                         "The author divider has no native default owner and must remain solely on the shared semantic layer.");
-                    Assert.That(partOwner(secondFirstBackgroundParts, GameplaySkinSlotCatalog.KeyFlash).Alpha, Is.GreaterThan(0),
-                        "LaneSurface/LaneDivider authoring must not hide the sibling KeyFlash fallback.");
-                    Assert.That(partOwner(secondSecondBackgroundParts, GameplaySkinSlotCatalog.LaneSurface).Alpha, Is.GreaterThan(0),
-                        "KeyFlash suppression must not hide the sibling LaneSurface fallback.");
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyFlash, GameplaySkinResolvedMaterialTarget.ForLane(secondGroup, secondFirstLane)), null);
+                    Assert.That(partOwner(secondFirstBackgroundParts, GameplaySkinSlotCatalog.KeyFlash).Alpha, Is.Zero,
+                        "The neighbouring optional flash keeps the canonical package's own suppression.");
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, GameplaySkinResolvedMaterialTarget.ForLane(secondGroup, secondSecondLane)), "mania/lane");
+                    Assert.That(partOwner(secondSecondBackgroundParts, GameplaySkinSlotCatalog.LaneSurface).Alpha, Is.Zero,
+                        "KeyFlash suppression keeps the neighbouring canonical lane visible without the duplicate native surface.");
                     Assert.That(partOwner(secondSecondBackgroundParts, GameplaySkinSlotCatalog.KeyFlash).Alpha, Is.Zero);
                     Assert.That(partOwner(secondFirstTargetParts, GameplaySkinSlotCatalog.HitTarget).Alpha, Is.Zero);
                     Assert.That(partOwner(secondFirstTargetParts, GameplaySkinSlotCatalog.JudgementLine).Alpha, Is.Zero);
-                    Assert.That(partOwner(secondSecondTargetParts, GameplaySkinSlotCatalog.HitTarget).Alpha, Is.GreaterThan(0),
-                        "Stage JudgementLine authoring must not hide the sibling lane HitTarget fallback.");
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, GameplaySkinResolvedMaterialTarget.ForLane(secondGroup, secondSecondLane)), "mania/target");
+                    Assert.That(partOwner(secondSecondTargetParts, GameplaySkinSlotCatalog.HitTarget).Alpha, Is.Zero,
+                        "Stage JudgementLine authoring keeps the independent canonical lane target visible.");
                     Assert.That(partOwner(secondSecondTargetParts, GameplaySkinSlotCatalog.JudgementLine).Alpha, Is.Zero);
-                    Assert.That(partOwner(secondUnauthoredTargetParts, GameplaySkinSlotCatalog.HitTarget).Alpha, Is.GreaterThan(0));
+                    assertCanonicalPublicSlot(publication, sceneHost,
+                        new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, GameplaySkinResolvedMaterialTarget.ForLane(secondGroup, secondGroup.LanesInLogicalOrder[2])), "mania/target");
+                    Assert.That(partOwner(secondUnauthoredTargetParts, GameplaySkinSlotCatalog.HitTarget).Alpha, Is.Zero);
                     Assert.That(partOwner(secondUnauthoredTargetParts, GameplaySkinSlotCatalog.JudgementLine).Alpha, Is.Zero);
                     Assert.That(renderer.Drawable.Playfield.Stages[1].ChildrenOfType<UnpartitionedCustomHitTarget>(), Is.Empty,
                         "No animated custom target child may remain mounted behind a selected stage declaration.");
@@ -1423,9 +1504,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("wait for dual-stage HUD suppress scene readiness", () => sceneHost.PendingCreationCount == 0);
             AddStep("mount real dual-stage core HUD owners", () => renderer.AddProductionCoreHud());
             AddUntilStep("wait for suppressed core HUD registrations", () =>
-                renderer.CoreHud?.IsLoaded == true
+                observeCoreHud(renderer, renderer.CoreHud?.IsLoaded == true
                 && renderer.CoreHud.GameplaySkinGaugeOwners.Count > 0
-                && renderer.CoreHud.GameplaySkinTextOwners.Count > 0);
+                && renderer.CoreHud.GameplaySkinTextOwners.Count > 0));
             AddStep("assert all-stage gauge and text suppression", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
@@ -1515,12 +1596,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("wait for dual-stage HUD partition scene readiness", () => sceneHost.PendingCreationCount == 0);
             AddStep("mount exact dual-stage core HUD partitions", () => renderer.AddProductionCoreHud());
             AddUntilStep("wait for exact dual-stage core HUD partitions", () =>
-                renderer.CoreHud?.IsLoaded == true
-                && (authoredStageIndex < 0
-                    ? renderer.CoreHud.ChildrenOfType<DefaultHealthDisplay>().Any()
-                      && renderer.CoreHud.ChildrenOfType<DefaultScoreCounter>().Any()
-                    : renderer.CoreHud.GameplaySkinGaugePartitions.Count > 0
-                      && renderer.CoreHud.GameplaySkinTextPartitions.Count > 0));
+                observeCoreHud(renderer, renderer.CoreHud?.IsLoaded == true
+                && sceneHost.IsSceneReady
+                && renderer.CoreHud.GameplaySkinGaugePartitions.Count > 0
+                && hasRequiredTextHudOwners(renderer.CoreHud)));
             AddStep("assert exact non-overlapping HUD partition authority", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
@@ -1532,23 +1611,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                 Assert.That(groups, Has.Length.EqualTo(2));
 
-                if (authoredStageIndex < 0)
-                {
-                    Assert.Multiple(() =>
-                    {
-                        Assert.That(coreHud.GameplaySkinGaugePartitions, Is.Empty);
-                        Assert.That(coreHud.GameplaySkinTextPartitions, Is.Empty);
-                        Assert.That(coreHud.GameplaySkinHudResidualPartitions, Is.Empty);
-                        Assert.That(coreHud.ChildrenOfType<DefaultHealthDisplay>().Single().Alpha, Is.GreaterThan(0));
-                        Assert.That(coreHud.ChildrenOfType<DefaultScoreCounter>().Single().Alpha, Is.GreaterThan(0));
-                    });
-                    return;
-                }
-
                 assertExactHudPartitions(coreHud, sceneHost, publication.Snapshot, GameplaySkinSlotCatalog.GaugeVisual,
                     coreHud.GameplaySkinGaugePartitions);
                 assertExactHudPartitions(coreHud, sceneHost, publication.Snapshot, GameplaySkinSlotCatalog.TextHud,
                     coreHud.GameplaySkinTextPartitions);
+                assertRequiredTextHudOwners(coreHud);
 
                 for (int stageIndex = 0; stageIndex < groups.Length; stageIndex++)
                 {
@@ -1568,14 +1635,32 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(sceneHost.TryGetVisualGate(textKey, out GameplaySkinSceneHostedSlot? textGate), Is.True);
                     Assert.That(gaugePartitions, Is.Not.Empty);
                     Assert.That(textPartitions, Is.Not.Empty);
-                    Assert.That(gaugeGate!.Route, Is.EqualTo(authored ? GameplaySkinSceneHostRoute.Suppressed : GameplaySkinSceneHostRoute.Programmatic));
-                    Assert.That(textGate!.Route, Is.EqualTo(authored ? GameplaySkinSceneHostRoute.Suppressed : GameplaySkinSceneHostRoute.Programmatic));
-                    Assert.That(gaugePartitions.All(partition => authored ? partition.Owner.Alpha == 0 : partition.Owner.Alpha > 0), Is.True);
-                    Assert.That(textPartitions.All(partition => authored ? partition.Owner.Alpha == 0 : partition.Owner.Alpha > 0), Is.True);
+                    Assert.That(gaugeGate!.Route, Is.EqualTo(authored ? GameplaySkinSceneHostRoute.Suppressed : GameplaySkinSceneHostRoute.Semantic));
+                    Assert.That(textGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
+                    Assert.That(gaugePartitions.All(partition => partition.Owner.Alpha == 0), Is.True);
+                    Assert.That(textPartitions.All(partition => partition.Owner.Alpha == 0), Is.True);
+                    if (authored)
+                    {
+                        foreach (GameplaySkinResolvedMaterialKey key in new[] { gaugeKey, textKey })
+                        {
+                            Assert.That(publication.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                            Assert.That(entry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                            Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                            Assert.That(sceneHost.TryGetHostedDrawable(key, out _), Is.False);
+                        }
+                    }
+                    else
+                    {
+                        assertCanonicalPublicSlot(publication, sceneHost, gaugeKey, "mania/gauge");
+                        assertCanonicalPublicSlot(publication, sceneHost, textKey, null);
+                    }
                 }
 
                 Assert.That(sceneHost.TryGetVisualGate(globalTextKey, out GameplaySkinSceneHostedSlot? globalTextGate), Is.True);
-                Assert.That(globalTextGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Programmatic));
+                Assert.That(globalTextGate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
+                assertCanonicalPublicSlot(publication, sceneHost, globalTextKey, "mania/hud");
+                Assert.That(coreHud.GameplaySkinHudResidualPartitions.All(partition => partition.Owner.Alpha == 0), Is.True,
+                    "The complete canonical HUD replaces the legacy screen/gap clips without duplicate readouts.");
 
             });
             AddStep("detach dual-stage HUD partition renderer", () => renderer.Expire());
@@ -1669,16 +1754,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(shellOwners, Is.Not.Empty);
                     Assert.That(backdropOwners, Is.Not.Empty);
                     Assert.That(baseplateOwners, Is.Not.Empty);
-                    Assert.That(shellOwners.All(owner => owner.Alpha == (ReferenceEquals(slot, GameplaySkinSlotCatalog.StageBackground) ? 0 : 1)), Is.True,
-                        "StageBackground must not share one native gate owner with PlayfieldBackdrop or Baseplate.");
-                    Assert.That(backdropOwners.All(owner => owner.Alpha == (ReferenceEquals(slot, GameplaySkinSlotCatalog.PlayfieldBackdrop) ? 0 : 1)), Is.True,
-                        "PlayfieldBackdrop must not share one native gate owner with StageBackground or Baseplate.");
-                    Assert.That(baseplateOwners.All(owner => owner.Alpha == (ReferenceEquals(slot, GameplaySkinSlotCatalog.PlayfieldBaseplate) ? 0 : 1)), Is.True,
-                        "A baseplate replacement must affect only the exact native baseplate owner.");
+                    Assert.That(shellOwners.All(owner => owner.Alpha == 0), Is.True);
+                    Assert.That(backdropOwners.All(owner => owner.Alpha == 0), Is.True);
+                    Assert.That(baseplateOwners.All(owner => owner.Alpha == 0), Is.True);
+                    Assert.That(shellOwners.Intersect(backdropOwners.Concat(baseplateOwners)), Is.Empty,
+                        "StageBackground must not share a native gate owner with PlayfieldBackdrop or Baseplate.");
+                    Assert.That(backdropOwners.Intersect(baseplateOwners), Is.Empty);
                     Assert.That(independentLaneAndTargetOwners, Is.Not.Empty);
-                    Assert.That(independentLaneAndTargetOwners.All(owner => owner.Alpha > 0), Is.True,
-                        "A stage-shell Provide must not suppress neighbouring lane/divider/hit-target/judgement-line fallback owners.");
+                    Assert.That(independentLaneAndTargetOwners.All(owner => owner.Alpha == 0), Is.True,
+                        "The remaining native parts are replaced by their own canonical resources, with no duplicate fallback visuals.");
                 });
+
+                assertCanonicalShellNeighbours(group, parts, slot);
 
                 if (dualStage)
                 {
@@ -1697,15 +1784,40 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                                      .Select(part => part.Owner).ToArray();
                     Assert.Multiple(() =>
                     {
-                        Assert.That(otherShellOwners.All(owner => owner.Alpha > 0), Is.True,
-                            "A stage-two shell replacement must not cross into the neighbouring native stage.");
+                        Assert.That(otherShellOwners, Is.Not.Empty);
+                        Assert.That(otherShellOwners.All(owner => owner.Alpha == 0), Is.True);
                         Assert.That(otherBackdropOwners, Is.Not.Empty);
-                        Assert.That(otherBackdropOwners.All(owner => owner.Alpha > 0), Is.True,
-                            "A stage-two backdrop replacement must not cross into the neighbouring native stage.");
+                        Assert.That(otherBackdropOwners.All(owner => owner.Alpha == 0), Is.True);
                         Assert.That(otherBaseplateOwners, Is.Not.Empty);
-                        Assert.That(otherBaseplateOwners.All(owner => owner.Alpha > 0), Is.True,
-                            "A stage-two baseplate replacement must not cross into the neighbouring native stage.");
+                        Assert.That(otherBaseplateOwners.All(owner => owner.Alpha == 0), Is.True);
                     });
+                    assertCanonicalShellNeighbours(publication.Snapshot.Context.Topology.GroupsInLogicalOrder[0],
+                        ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable).GameplaySkinProgrammaticVisualParts,
+                        null);
+                }
+
+                void assertCanonicalShellNeighbours(GameplaySkinLaneTopologyGroup exactGroup,
+                                                    IEnumerable<ManiaGameplaySkinProgrammaticVisualPart> nativeParts,
+                                                    GameplaySkinSlotDescriptor? selectedSlot)
+                {
+                    foreach (ManiaGameplaySkinProgrammaticVisualPart part in nativeParts.Where(part => part.Slot != selectedSlot))
+                    {
+                        GameplaySkinResolvedMaterialTarget partTarget = part.GroupLocalLaneIndex is int laneIndex
+                            ? GameplaySkinResolvedMaterialTarget.ForLane(exactGroup, exactGroup.LanesInLogicalOrder[laneIndex])
+                            : GameplaySkinResolvedMaterialTarget.ForStage(exactGroup);
+                        var partKey = new GameplaySkinResolvedMaterialKey(part.Slot, partTarget);
+                        string resource = part.Slot.Id switch
+                        {
+                            "stage.background" => "mania/stage",
+                            "playfield.backdrop" => "mania/backdrop",
+                            "playfield.baseplate" => "mania/plate",
+                            "playfield.lane-surface" => "mania/lane",
+                            "playfield.lane-divider" => "mania/divider",
+                            "playfield.hit-target" or "playfield.judgement-line" => "mania/target",
+                            _ => throw new InvalidOperationException($"Unexpected stage-shell neighbour {part.Slot.Id}."),
+                        };
+                        assertCanonicalPublicSlot(publication, sceneHost, partKey, resource);
+                    }
                 }
             });
             AddStep("detach stage-shell renderer", () => renderer.Expire());
@@ -1716,14 +1828,62 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         public void TestExactRulesetProviderPublishesOneSnapshotForProductionTree()
         {
             GameplaySkinEventSubscription eventSubscription = null!;
+            GameplayClockContainer exactClock = null!;
             var observedEvents = new List<GameplaySkinEventEnvelope>();
             BarLine sharedBarLine = null!;
             DrawableBarLine[] sharedBarLineDrawables = null!;
+            Note materialNote = null!;
+            HoldNote materialHold = null!;
+            Note judgementHitObject = null!;
+            DrawableNote judgementInput = null!;
+            long judgementObjectId = -1;
+            long epochBeforeJudgementSeek = -1;
+            int judgementSpawnAttempts = 0;
+            int judgementResetAttempts = 0;
+            int judgementDisplayAttempts = 0;
+            Drawable judgementVisual = null!;
+            double judgementAppliedTime = 0;
 
+            void diagnoseJudgement(string phase, int attempt, bool ready)
+            {
+                if (!ready && attempt != 50)
+                    return;
+
+                GameplaySkinSceneRuntimeHost scene = drawableRuleset.GameplaySkinSceneRuntime;
+                GameplaySkinLaneTopologyGroup group = drawableRuleset.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder[0];
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(group));
+                bool hosted = scene.TryGetHostedDrawable(key, out Drawable? visual);
+                string events = string.Join("; ", observedEvents.Where(envelope => envelope.Payload is GameplaySkinJudgementEventPayload
+                                                                                  || envelope.DeliveryKind == GameplaySkinEventDeliveryKind.Reset
+                                                                                  || envelope.EventKind == GameplaySkinEventKind.ObjectSpawned)
+                                                              .TakeLast(4).Select(envelope =>
+                    $"{envelope.EventKind}@{envelope.GameplayTime:F3}/epoch={envelope.Epoch}/group={envelope.GroupId}/lane={envelope.LaneId}/" + (envelope.Payload switch
+                    {
+                        GameplaySkinJudgementEventPayload judgement => $"object={judgement.State.ObjectId?.ToString() ?? "none"}/grade={judgement.State.Grade}",
+                        GameplaySkinObjectEventPayload obj => $"object={obj.State.ObjectId}",
+                        GameplaySkinStateEventPayload state => $"active=[{string.Join(",", state.State.ActiveObjects.Select(active => active.ObjectId))}]",
+                        _ => "",
+                    })));
+                TestContext.Out.WriteLine($"ExactRoot judgement {phase} attempt={attempt} ready={ready}: object={judgementObjectId}, "
+                                          + $"loaded={judgementInput?.IsLoaded}, hit={judgementInput?.IsHit}, judged={judgementInput?.Judged}, "
+                                          + $"clock={exactClock.CurrentTime:F3}, note-clock={judgementInput?.Clock?.CurrentTime:F3}, "
+                                          + $"stream-epoch={drawableRuleset.GameplaySkinEventStream.CurrentEpoch}, scene-epoch={scene.CurrentEpoch}, scene-time={scene.LastGameplayTime:F3}, "
+                                          + $"scene-ready={scene.IsSceneReady}, hosted={hosted}, alpha={visual?.Alpha}; events: {events}");
+            }
+
+            AddStep("capture actual ExactRoot runtime errors", () =>
+            {
+                TextWriter output = TextWriter.Synchronized(TestContext.Out);
+                exactRootLogObserver = entry =>
+                {
+                    if (entry.Level == LogLevel.Error)
+                        output.WriteLine($"ExactRoot runtime error (original message and exception stack):{Environment.NewLine}{entry.Message}{Environment.NewLine}{entry.Exception}");
+                };
+                Logger.NewEntry += exactRootLogObserver;
+            });
             AddStep("create exact dual-stage gameplay root", () =>
             {
                 var ruleset = productionRuleset = new ManiaRuleset();
-                scoreProcessor = ruleset.CreateScoreProcessor();
                 config = (ManiaRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset).AsNonNull();
                 config.SetValue(ManiaRulesetSetting.ScrollDirection, ManiaScrollingDirection.Down);
 
@@ -1750,15 +1910,19 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     hitObject.ApplyDefaults(beatmap.ControlPointInfo, new BeatmapDifficulty());
 
                 drawableRuleset = (DrawableManiaRuleset)ruleset.CreateDrawableRulesetWith(beatmap);
-                Add(host = skinProvider = new RulesetSkinProvidingContainer(ruleset, beatmap, null, prepareGameplaySkinLayout: true)
+                Add(host = exactClock = new GameplayClockContainer(new TrackVirtual(60_000), applyOffsets: false, requireDecoupling: false)
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Child = productionContent = new ExactDependencyProbeContainer
+                    Child = skinProvider = new RulesetSkinProvidingContainer(ruleset, beatmap, null, prepareGameplaySkinLayout: true)
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Child = drawableRuleset,
+                        Child = productionContent = new ExactDependencyProbeContainer
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Child = drawableRuleset,
+                        },
                     },
                 });
+                exactClock.Start();
             });
 
             AddUntilStep("production gameplay tree loaded", () => drawableRuleset.IsLoaded
@@ -1871,66 +2035,76 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                 return true;
             });
-            AddStep("attach production mania HUD", () =>
+            AddUntilStep("production package combo displays loaded", () => drawableRuleset.GameplaySkinSceneRuntime.IsSceneReady);
+            AddStep("package combo displays share the exact publication and stage geometry", () =>
             {
-                productionHud = (ManiaGameplayHudComponentsContainer)skinProvider.GetDrawableComponent(
-                    new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.MainHUDComponents, new ManiaRuleset().RulesetInfo))!;
-
-                foreach (Drawable child in productionHud.Children.Where(child => child is not OmsManiaComboCounter && child is not LegacyManiaComboCounter).ToArray())
-                    productionHud.Remove(child, false);
-
-                productionContent.Add(new HudDependenciesContainer(drawableRuleset.ScrollingInfo, scoreProcessor, drawableRuleset)
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Child = productionHud,
-                });
-            });
-            AddUntilStep("production mania HUD loaded", () => productionHud.IsLoaded);
-            AddAssert("HUD wrapper shares exact snapshot", () => ReferenceEquals(productionHud.LayoutSnapshot, drawableRuleset.LayoutSnapshot));
-            AddAssert("HUD wrapper shares exact material publication", () =>
-                ReferenceEquals(productionHud.ResolvedMaterialSet, drawableRuleset.ResolvedMaterialSet));
-            AddAssert("combo geometry comes from exact snapshot surface", () =>
-            {
-                Drawable[] combos = productionHud.Children
-                                                 .Where(child => child is OmsManiaComboCounter or LegacyManiaComboCounter)
-                                                 .ToArray();
+                GameplaySkinSceneRuntimeHost scene = drawableRuleset.GameplaySkinSceneRuntime;
                 GameplaySkinLayoutSnapshot snapshot = drawableRuleset.LayoutSnapshot;
-                GameplaySkinLayoutRect surface = snapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
+                Assert.That(scene.Publication, Is.SameAs(drawableRuleset.LayoutRevisionOwner.CurrentPublication));
+                Assert.That(scene.MaterialSet, Is.SameAs(drawableRuleset.ResolvedMaterialSet));
+                Assert.That(scene.PreparedScene.Snapshot, Is.SameAs(snapshot));
+                Assert.That(scene.RuntimeFaults, Is.Empty);
+                var comboVisuals = new List<Drawable>();
 
-                return combos.Length == snapshot.Context.Topology.GroupsInLogicalOrder.Count
-                       && combos.Select((combo, stageIndex) => (combo, stageIndex)).All(pair =>
-                       {
-                           GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[pair.stageIndex];
-                           return pair.combo.RelativePositionAxes == Axes.Both
-                                  && Math.Abs(pair.combo.X - (snapshot.GetGroup(group.Identity.Id).Rect.Left
-                                                               + snapshot.GetGroup(group.Identity.Id).Rect.Width / 2)) < 0.001f
-                                  && Math.Abs(pair.combo.Y - (surface.Top + surface.Height / 2)) < 0.001f;
-                       });
+                foreach (GameplaySkinLaneTopologyGroup group in snapshot.Context.Topology.GroupsInLogicalOrder)
+                {
+                    var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.ComboDisplay, GameplaySkinResolvedMaterialTarget.ForStage(group));
+                    Assert.That(scene.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                    Assert.That(entry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                    Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                    GameplaySkinPublicSlotMaterial material = entry.GetMaterial<GameplaySkinPublicSlotMaterial>();
+                    Assert.That(material.ResourceName, Is.EqualTo("mania/hud"));
+                    Assert.That(scene.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+                    Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
+                    Assert.That(gate.SuppressesProgrammaticVisual, Is.True);
+                    Assert.That(scene.TryGetHostedDrawable(key, out Drawable? combo), Is.True);
+                    comboVisuals.Add(combo!);
+                    Assert.That(containsTexture(combo!, material.Texture!), Is.True);
+                    Assert.That(combo!.Alpha, Is.GreaterThan(0));
+                    Assert.That(combo.RelativePositionAxes, Is.EqualTo(Axes.Both));
+                    Assert.That(combo.RelativeSizeAxes, Is.EqualTo(Axes.Both));
+                    Assert.That(combo.Position, Is.EqualTo(new Vector2(gate.PreparedRect.X, gate.PreparedRect.Y)));
+                    Assert.That(combo.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
+                    GameplaySkinLayoutRect groupRect = snapshot.GetGroup(group.Identity.Id).Rect;
+                    Assert.That(gate.PreparedRect.Left, Is.GreaterThanOrEqualTo(groupRect.Left));
+                    Assert.That(gate.PreparedRect.Right, Is.LessThanOrEqualTo(groupRect.Right));
+                    Assert.That(combo.X + combo.Width / 2, Is.EqualTo(groupRect.Left + groupRect.Width / 2).Within(0.001f));
+                    GameplaySkinLayoutRect comboSurface = snapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
+                    Assert.That(combo.Y + combo.Height / 2, Is.EqualTo(comboSurface.Top + comboSurface.Height / 2).Within(0.001f));
+                }
+                Assert.That(comboVisuals.Distinct().Count(), Is.EqualTo(snapshot.Context.Topology.GroupsInLogicalOrder.Count),
+                    "Each stage must retain one independent current-package combo display.");
             });
             AddStep("add production note hold and barline", () =>
             {
-                var note = new Note { Column = 0, StartTime = Time.Current + 1000 };
-                note.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
-                drawableRuleset.Playfield.Add(productionNote = new DrawableNote(note));
+                materialNote = new Note { Column = 0, StartTime = exactClock.CurrentTime + 1000 };
+                materialNote.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                drawableRuleset.Playfield.Add(materialNote);
 
-                var hold = new HoldNote { Column = 8, StartTime = Time.Current + 1200, Duration = 1000 };
-                hold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
-                drawableRuleset.Playfield.Add(productionHold = new DrawableHoldNote(hold));
-                drawableRuleset.Playfield.Add(sharedBarLine = new BarLine { StartTime = Time.Current + 500 });
+                materialHold = new HoldNote { Column = 8, StartTime = exactClock.CurrentTime + 1200, Duration = 1000 };
+                materialHold.ApplyDefaults(new ControlPointInfo(), new BeatmapDifficulty());
+                drawableRuleset.Playfield.Add(materialHold);
+                drawableRuleset.Playfield.Add(sharedBarLine = new BarLine { StartTime = exactClock.CurrentTime + 500 });
             });
             AddUntilStep("production note hold and barline loaded", () =>
             {
+                productionNote = drawableRuleset.Playfield.GetColumn(materialNote.Column).HitObjectContainer.Objects.OfType<DrawableNote>()
+                                               .SingleOrDefault(note => ReferenceEquals(note.HitObject, materialNote))!;
+                productionHold = drawableRuleset.Playfield.GetColumn(materialHold.Column).HitObjectContainer.Objects.OfType<DrawableHoldNote>()
+                                               .SingleOrDefault(hold => ReferenceEquals(hold.HitObject, materialHold))!;
                 sharedBarLineDrawables = this.ChildrenOfType<DrawableBarLine>()
                                              .Where(line => ReferenceEquals(line.HitObject, sharedBarLine))
                                              .ToArray();
 
-                return productionNote.IsLoaded
-                       && productionHold.IsLoaded
+                return productionNote?.IsLoaded == true
+                       && productionHold?.IsLoaded == true
                        && sharedBarLineDrawables.Length == 2
                        && sharedBarLineDrawables.All(line => line.IsLoaded);
             });
             AddStep("objects and barline share exact snapshot", () => Assert.Multiple(() =>
             {
+                Assert.That(((PoolableDrawable)productionNote).IsInPool, Is.True);
+                Assert.That(((PoolableDrawable)productionHold).IsInPool, Is.True);
                 Assert.That(productionNote.LayoutSnapshot, Is.SameAs(drawableRuleset.LayoutSnapshot), "production note");
                 Assert.That(productionHold.LayoutSnapshot, Is.SameAs(drawableRuleset.LayoutSnapshot), "production hold");
                 Assert.That(sharedBarLineDrawables.All(line => ReferenceEquals(line.StageLayoutSnapshot, drawableRuleset.LayoutSnapshot)),
@@ -1964,16 +2138,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.Multiple(() =>
                     {
                         Assert.That(entry!.Material, Is.TypeOf<GameplaySkinPublicSlotMaterial>());
+                        Assert.That(entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                        Assert.That(entry.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("mania/bar"));
                         Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Specialised));
                         Assert.That(gate.RoutedNodes, Is.Empty);
-                        Assert.That(gate.IsReplacementReady, Is.False);
+                        Assert.That(gate.IsReplacementReady, Is.True);
                         Assert.That(sceneHost.TryGetHostedDrawable(key, out _), Is.False,
                             "A shared root overlay must never replace either real stage-local BarLine usage.");
                         Assert.That(((PoolableDrawable)line).IsInPool, Is.True);
                         Assert.That(isDescendantOf(line, stage.HitObjectContainer), Is.True);
-                        Assert.That(line.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>(), Is.Empty);
-                        Assert.That(line.ChildrenOfType<SkinnableDrawable>().Single().Alpha, Is.GreaterThan(0),
-                            "A ProgrammaticFallback material must keep the real engine BarLine visible.");
+                        assertTextureBarLine(line, entry, key);
+                        Assert.That(line.ChildrenOfType<SkinnableDrawable>().Single().Alpha, Is.Zero,
+                            "The canonical texture replaces only the old visual inside the real stage-local bar-line owner.");
                     });
 
                     assertSpecialisedSceneConsumer(line, publication.MaterialSet, key, gate!);
@@ -2073,18 +2249,105 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
             });
 
-            AddStep("publish real stage judgement", () =>
+            AddStep("add a fresh real note for the package judgement display", () =>
             {
-                drawableRuleset.Playfield.Stages[0].OnNewResult(productionNote,
-                    new JudgementResult(productionNote.HitObject, new ManiaJudgement()) { Type = HitResult.Perfect });
+                exactClock.Stop();
+                exactClock.SoftUnpause();
+                judgementHitObject = new Note { Column = 0, StartTime = exactClock.CurrentTime + 1000 };
+                judgementHitObject.ApplyDefaults(productionBeatmap.ControlPointInfo, productionBeatmap.Difficulty);
+                drawableRuleset.Playfield.Add(judgementHitObject);
             });
-            AddUntilStep("production judgement loaded", () => drawableRuleset.ChildrenOfType<OmsManiaJudgementPiece>().Any()
-                                                                   || drawableRuleset.ChildrenOfType<LegacyManiaJudgementPiece>().Any()
-                                                                   || drawableRuleset.ChildrenOfType<DefaultManiaJudgementPiece>().Any());
-            AddAssert("judgement shares exact snapshot", () =>
-                drawableRuleset.ChildrenOfType<OmsManiaJudgementPiece>().All(piece => ReferenceEquals(piece.LayoutSnapshot, drawableRuleset.LayoutSnapshot))
-                && drawableRuleset.ChildrenOfType<LegacyManiaJudgementPiece>().All(piece => ReferenceEquals(piece.LayoutSnapshot, drawableRuleset.LayoutSnapshot))
-                && drawableRuleset.ChildrenOfType<DefaultManiaJudgementPiece>().All(piece => ReferenceEquals(piece.LayoutSnapshot, drawableRuleset.LayoutSnapshot)));
+            AddUntilStep("the real pooled note has loaded and entered the engine lifetime", () =>
+            {
+                eventSubscription.DrainFrame(observedEvents.Add);
+                judgementInput = drawableRuleset.Playfield.Stages[0].Columns[0].HitObjectContainer.Objects.OfType<DrawableNote>()
+                                               .SingleOrDefault(note => ReferenceEquals(note.HitObject, judgementHitObject))!;
+                if (judgementInput?.IsLoaded == true)
+                    judgementObjectId = ((IManiaGameplaySkinObjectIdentityProvider)drawableRuleset).GetObjectId(judgementHitObject);
+
+                bool ready = judgementInput?.IsLoaded == true
+                             && ((PoolableDrawable)judgementInput).IsInPool
+                             && observedEvents.Any(envelope => envelope.EventKind == GameplaySkinEventKind.ObjectSpawned
+                                                               && envelope.Payload is GameplaySkinObjectEventPayload obj && obj.State.ObjectId == judgementObjectId);
+                diagnoseJudgement("spawn", ++judgementSpawnAttempts, ready);
+                return ready;
+            });
+            AddStep("advance the real gameplay clock to the loaded note", () =>
+            {
+                Assert.That(judgementInput.Judged, Is.False);
+                Assert.That(exactClock.CurrentTime, Is.LessThan(judgementInput.HitObject.StartTime));
+                epochBeforeJudgementSeek = drawableRuleset.GameplaySkinEventStream.CurrentEpoch;
+                exactClock.Seek(judgementInput.HitObject.StartTime);
+            });
+            AddUntilStep("the current epoch retains the actual note before input", () =>
+            {
+                eventSubscription.DrainFrame(observedEvents.Add);
+                long epoch = drawableRuleset.GameplaySkinEventStream.CurrentEpoch;
+                bool ready = judgementInput.Clock.CurrentTime == judgementInput.HitObject.StartTime
+                             && epoch > epochBeforeJudgementSeek
+                             && drawableRuleset.GameplaySkinSceneRuntime.CurrentEpoch == epoch
+                             && observedEvents.Any(envelope => envelope.DeliveryKind == GameplaySkinEventDeliveryKind.Reset
+                                                               && envelope.Epoch == epoch && envelope.Payload is GameplaySkinStateEventPayload state
+                                                               && state.State.ActiveObjects.Any(obj => obj.ObjectId == judgementObjectId));
+                diagnoseJudgement("seek-reset", ++judgementResetAttempts, ready);
+                return ready;
+            });
+            AddStep("strike the real first-stage lane at the note time", () =>
+            {
+                Assert.That(judgementInput.Judged, Is.False, "The controlled input must precede the note's miss deadline.");
+                judgementObjectId = ((IManiaGameplaySkinObjectIdentityProvider)drawableRuleset).GetObjectId(judgementInput.HitObject);
+                ManiaAction action = drawableRuleset.Playfield.Stages[0].Columns[0].Action.Value;
+                foreach (ManiaInputManager input in drawableRuleset.ChildrenOfType<ManiaInputManager>())
+                    input.KeyBindingContainer.TriggerPressed(action);
+                Assert.That(judgementInput.IsHit, Is.True);
+            });
+            AddUntilStep("the real judgement event reaches the actual package display", () =>
+            {
+                eventSubscription.DrainFrame(observedEvents.Add);
+                GameplaySkinLaneTopologyGroup group = drawableRuleset.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder[0];
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(group));
+                long epoch = drawableRuleset.GameplaySkinEventStream.CurrentEpoch;
+                bool ready = observedEvents.Any(envelope => envelope.Epoch == epoch && envelope.Payload is GameplaySkinJudgementEventPayload payload
+                                                           && payload.State.ObjectId == judgementObjectId && payload.State.GroupId!.Equals(group.Identity.Id))
+                             && drawableRuleset.GameplaySkinSceneRuntime.CurrentEpoch == epoch
+                             && drawableRuleset.GameplaySkinSceneRuntime.TryGetHostedDrawable(key, out judgementVisual!) && judgementVisual.Alpha > 0;
+                diagnoseJudgement("visible", ++judgementDisplayAttempts, ready);
+                return ready;
+            });
+            AddStep("judgement retains the exact snapshot, material, stage and real object identity", () =>
+            {
+                GameplaySkinSceneRuntimeHost scene = drawableRuleset.GameplaySkinSceneRuntime;
+                GameplaySkinLayoutSnapshot snapshot = drawableRuleset.LayoutSnapshot;
+                GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(group));
+                GameplaySkinEventEnvelope edge = observedEvents.Last(envelope => envelope.Payload is GameplaySkinJudgementEventPayload payload && payload.State.ObjectId == judgementObjectId);
+                judgementAppliedTime = edge.GameplayTime;
+                Assert.That(edge.GroupId, Is.EqualTo(group.Identity.Id));
+                Assert.That(edge.LaneId, Is.EqualTo(group.LanesInLogicalOrder[0].Identity.Id));
+                Assert.That(edge.Revision, Is.EqualTo(firstPublication.EventRevision));
+                Assert.That(edge.Epoch, Is.EqualTo(drawableRuleset.GameplaySkinEventStream.CurrentEpoch));
+                Assert.That(scene.CurrentEpoch, Is.EqualTo(edge.Epoch));
+                Assert.That(getPrivateField<GameplayClockContainer>(drawableRuleset.GameplaySkinEventRuntime, "gameplayClockContainer"), Is.SameAs(exactClock));
+                Assert.That(scene.PreparedScene.Snapshot, Is.SameAs(snapshot));
+                Assert.That(scene.MaterialSet, Is.SameAs(firstPublication.MaterialSet));
+                Assert.That(scene.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                Assert.That(entry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                Assert.That(entry.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("mania/hud"));
+                Assert.That(containsTexture(judgementVisual, entry.GetMaterial<GameplaySkinPublicSlotMaterial>().Texture!), Is.True);
+                Assert.That(scene.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+                Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
+                Assert.That(gate.SuppressesProgrammaticVisual, Is.True);
+                Assert.That(judgementVisual.Position, Is.EqualTo(new Vector2(gate.PreparedRect.X, gate.PreparedRect.Y)));
+                Assert.That(judgementVisual.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
+                Assert.That(getPrivateField<Drawable>(drawableRuleset.Playfield.Stages[0], "judgements").Alpha, Is.Zero);
+                ManiaAction action = drawableRuleset.Playfield.Stages[0].Columns[0].Action.Value;
+                foreach (ManiaInputManager input in drawableRuleset.ChildrenOfType<ManiaInputManager>())
+                    input.KeyBindingContainer.TriggerReleased(action);
+                exactClock.Stop();
+                exactClock.Start();
+            });
+            AddUntilStep("the package judgement retires after its real display window", () =>
+                judgementInput.Clock.CurrentTime > judgementAppliedTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION && judgementVisual.Alpha == 0);
 
             AddStep("change direction setting after publication", () => config.SetValue(ManiaRulesetSetting.ScrollDirection, ManiaScrollingDirection.Up));
             AddAssert("root keeps published direction", () => drawableRuleset.LayoutSnapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Down
@@ -2126,15 +2389,19 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(argonHost = new RulesetSkinProvidingContainer(ruleset, beatmap, new ArgonSkin(this), prepareGameplaySkinLayout: true)
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = argonRuleset,
+                    Child = new HistoricalArgonProvider(this, beatmap) { Child = argonRuleset },
                 });
             });
 
             AddUntilStep("Argon production note loaded", () => argonRuleset.IsLoaded
                                                                 && (argonNote = this.ChildrenOfType<DrawableNote>()
                                                                                       .FirstOrDefault(drawable => ReferenceEquals(drawable.HitObject, note))!) != null);
-            AddStep("publish Argon judgement", () => argonRuleset.Playfield.Stages[0].OnNewResult(argonNote,
-                new JudgementResult(argonNote.HitObject, new ManiaJudgement()) { Type = HitResult.Perfect }));
+            AddStep("publish Argon judgement", () =>
+            {
+                prepareHistoricalJudgementProbe(argonRuleset.Playfield.Stages[0]);
+                argonRuleset.Playfield.Stages[0].OnNewResult(argonNote,
+                    new JudgementResult(argonNote.HitObject, new ManiaJudgement()) { Type = HitResult.Perfect });
+            });
             AddUntilStep("Argon judgement loaded", () => this.ChildrenOfType<ArgonJudgementPiece>().Any(piece => piece.IsLoaded));
             AddAssert("Argon judgement shares exact snapshot and surface centre", () =>
             {
@@ -2308,7 +2575,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(argonHost = new RulesetSkinProvidingContainer(ruleset, beatmap, new ArgonSkin(this), prepareGameplaySkinLayout: true)
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = argonRuleset,
+                    Child = new HistoricalArgonProvider(this, beatmap) { Child = argonRuleset },
                 });
             });
 
@@ -2319,6 +2586,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                                                                       .FirstOrDefault(drawable => ReferenceEquals(drawable.HitObject, secondStageNote))!) != null);
             AddStep("publish one judgement in each stage", () =>
             {
+                foreach (Stage stage in argonRuleset.Playfield.Stages)
+                    prepareHistoricalJudgementProbe(stage);
+
                 argonRuleset.Playfield.Stages[0].OnNewResult(firstStageDrawable,
                     new JudgementResult(firstStageDrawable.HitObject, new ManiaJudgement()) { Type = HitResult.Perfect });
                 argonRuleset.Playfield.Stages[1].OnNewResult(secondStageDrawable,
@@ -2370,7 +2640,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Add(argonHost = new RulesetSkinProvidingContainer(ruleset, beatmap, new ArgonSkin(this), prepareGameplaySkinLayout: true)
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Child = argonRuleset,
+                    Child = new HistoricalArgonProvider(this, beatmap) { Child = argonRuleset },
                 });
             });
 
@@ -3084,6 +3354,24 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             throw new InvalidOperationException($"{instance.GetType().Name} has no private field named {fieldName}.");
         }
 
+        private static void assertTextureBarLine(DrawableBarLine line, GameplaySkinResolvedMaterialEntry entry, GameplaySkinResolvedMaterialKey key)
+        {
+            GameplaySkinSpecialisedSceneVisual visual = line.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Single();
+            Assert.That(visual.Key, Is.EqualTo(key));
+            Assert.That(visual.IsApplied, Is.True);
+            Assert.That(visual.BoundObjectId, Is.Not.Null);
+            Assert.That(visual.Alpha, Is.GreaterThan(0));
+            Assert.That(containsTexture(visual, entry.GetMaterial<GameplaySkinPublicSlotMaterial>().Texture!), Is.True);
+            Assert.That(visual.RootDrawables, Has.Count.EqualTo(1));
+            Drawable texture = visual.RootDrawables.Single();
+            Assert.That(texture, Is.TypeOf<Sprite>());
+            Assert.That(texture.RelativeSizeAxes, Is.EqualTo(Axes.Both));
+            Assert.That(texture.Size, Is.EqualTo(Vector2.One));
+            Assert.That(texture.Position, Is.EqualTo(Vector2.Zero));
+            Assert.That(texture.ScreenSpaceDrawQuad.AABBFloat.Width, Is.EqualTo(line.ScreenSpaceDrawQuad.AABBFloat.Width).Within(0.001f));
+            Assert.That(texture.ScreenSpaceDrawQuad.AABBFloat.Height, Is.EqualTo(line.ScreenSpaceDrawQuad.AABBFloat.Height).Within(0.001f));
+        }
+
         private static void assertSpecialisedSceneConsumer(
             Drawable consumer,
             GameplaySkinResolvedMaterialSet materialSet,
@@ -3165,6 +3453,81 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 layers.Overlay,
                 layers.HudForeground,
             }.Any(layer => isDescendantOf(drawable, layer));
+        }
+
+        private static void prepareHistoricalJudgementProbe(Stage stage)
+        {
+            JudgementContainer<DrawableManiaJudgement> container = getPrivateField<JudgementContainer<DrawableManiaJudgement>>(stage, "judgements");
+            // The canonical scene still owns the visible judgement. Pump the hidden historical component only
+            // so this exact stage/snapshot regression can inspect its original geometry after LoadComplete.
+            container.AlwaysPresent = true;
+            TestContext.WriteLine($"Historical judgement probe: stage={stage.LayoutGroupId}, alpha={container.Alpha}, display={stage.DisplayJudgements.Value}, state={container.LoadState}");
+        }
+
+        private bool observeCoreHud(CurrentRevisionManiaMaterialHost renderer, bool ready)
+        {
+            int attempt = hudReadinessAttempts.GetValueOrDefault(renderer) + 1;
+            hudReadinessAttempts[renderer] = attempt;
+            if (ready || attempt is not (1 or 10 or 50))
+                return ready;
+
+            HUDOverlay hud = renderer.CoreHud!;
+            GameplaySkinSceneRuntimeHost scene = renderer.Drawable.GameplaySkinSceneRuntime;
+            TestContext.WriteLine($"HUD readiness {attempt}: scene={scene.IsSceneReady}, hud={hud.LoadState}, "
+                                  + $"gauge={hud.GameplaySkinGaugePartitions.Count}, text={hud.GameplaySkinTextPartitions.Count}, "
+                                  + $"gauge-route={scene.PreparedScene.HudPlan.GetRole(GameplaySkinPreparedHudRole.Gauge).RequiresRouting}, "
+                                  + $"text-route={scene.PreparedScene.HudPlan.GetRole(GameplaySkinPreparedHudRole.Text).RequiresRouting}");
+            foreach (SkinnableContainer component in hud.ChildrenOfType<SkinnableContainer>())
+            {
+                TestContext.WriteLine($"HUD source: {component.Lookup}, state={component.LoadState}, components-loaded={component.ComponentsLoaded}, "
+                                      + $"pending={component.PendingContentLoadTask?.Status}, "
+                                      + $"actual={string.Join(',', component.Components.Select(item => item.GetType().Name))}, "
+                                      + $"parent={component.Parent?.GetType().Name}/{component.Parent?.Parent?.GetType().Name}");
+                object? ownership = getPrivateField<object?>(component, "pendingContentLoad");
+                if (ownership != null)
+                {
+                    Drawable wrapper = getPrivateField<Drawable>(ownership, "loadable");
+                    Container? content = getPrivateField<Container?>(component, "content");
+                    CancellationTokenSource? cancellation = getPrivateField<CancellationTokenSource?>(component, "cancellationSource");
+                    TestContext.WriteLine($"HUD pending ownership: state={getPrivateField<int>(ownership, "state")}, stopped={getPrivateField<int>(ownership, "loadStopped")}, "
+                                          + $"wrapper={wrapper.LoadState}/disposed={typeof(Drawable).GetProperty("IsDisposed", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(wrapper)}, target={content?.GetType().Name}/{content?.LoadState}/disposed={(content == null ? null : typeof(Drawable).GetProperty("IsDisposed", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(content))}, "
+                                          + $"cancelled={cancellation?.IsCancellationRequested}, custom-callback={component.ContentLoadCallbackScheduler != null}, host-pending={gameHost.UpdateThread.Scheduler.HasPendingTasks}");
+                }
+            }
+            Skin selected = publicMaterialSkinManager!.CurrentSkin.Value;
+            TestContext.WriteLine($"Selected HUD layouts: {string.Join(',', selected.LayoutInfos.Keys)}; "
+                                  + $"global={string.Join(',', selected.LayoutInfos.TryGetValue(GlobalSkinnableContainers.MainHUDComponents, out SkinLayoutInfo? layout) ? layout.AllDrawables.Select(item => item.Type.Name) : Array.Empty<string>())}");
+            return ready;
+        }
+
+        private static void assertCanonicalPublicSlot(
+            GameplaySkinLayoutPublication publication,
+            GameplaySkinSceneRuntimeHost sceneHost,
+            GameplaySkinResolvedMaterialKey key,
+            string? resourceName)
+        {
+            Assert.That(publication.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+            Assert.That(entry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+            Assert.That(sceneHost.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+            Assert.That(gate!.IsReplacementReady, Is.True);
+            Assert.That(gate.SuppressesProgrammaticVisual, Is.True);
+
+            if (resourceName == null)
+            {
+                Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                Assert.That(gate.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Suppressed));
+                Assert.That(sceneHost.TryGetHostedDrawable(key, out _), Is.False);
+                return;
+            }
+
+            Assert.That(entry.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+            GameplaySkinPublicSlotMaterial material = entry.GetMaterial<GameplaySkinPublicSlotMaterial>();
+            Assert.That(material.ResourceName, Is.EqualTo(resourceName));
+            Assert.That(gate.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
+            Assert.That(sceneHost.TryGetHostedDrawable(key, out Drawable? visual), Is.True);
+            Assert.That(visual!.Alpha, Is.GreaterThan(0));
+            Assert.That(containsTexture(visual, material.Texture!), Is.True,
+                "Missing author content must be supplied by the real canonical resource in the exact stage/lane gate.");
         }
 
         private static void assertExactHudPartitions(
@@ -3606,7 +3969,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     RelativeSizeAxes = Axes.Both,
                     AlwaysPresent = true,
                 };
-                Provider.Add(CoreHud);
+                // Player exposes the actual ruleset's scrolling state and processors to both HUD trees.
+                Provider.Add(new HudDependenciesContainer(Drawable.ScrollingInfo, ScoreProcessor, Drawable)
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = CoreHud,
+                });
             }
 
             private void applyResultToProductionProcessors(JudgementResult result)
@@ -3631,6 +3999,20 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             ExternalFolder,
         }
 
+        // These three historical geometry/judgement regressions deliberately exercise Argon's component
+        // implementation. The real ruleset root still prepares its exact publication before attaching this scope;
+        // the product's current canonical selection is never changed to make historical pieces appear.
+        private partial class HistoricalArgonProvider : SkinProvidingContainer
+        {
+            protected override bool AllowFallingBackToParent => false;
+
+            public HistoricalArgonProvider(IStorageResourceProvider resources, ManiaBeatmap beatmap)
+                : base(new ManiaArgonSkinTransformer(new ArgonSkin(resources), beatmap))
+            {
+                RelativeSizeAxes = Axes.Both;
+            }
+        }
+
         private partial class HudDependenciesContainer : Container
         {
             private readonly IScrollingInfo scrollingInfo;
@@ -3650,6 +4032,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 dependencies.CacheAs(scrollingInfo);
                 dependencies.CacheAs(scoreProcessor);
                 dependencies.CacheAs(drawableRuleset);
+                dependencies.CacheAs<IGameplayLeaderboardProvider>(new EmptyGameplayLeaderboardProvider());
                 return dependencies;
             }
         }

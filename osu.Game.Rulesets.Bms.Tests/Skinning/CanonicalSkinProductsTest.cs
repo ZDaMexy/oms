@@ -17,7 +17,6 @@ using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Screens.Play;
-using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osuTK;
@@ -121,6 +120,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             addSelectCanonicalProduct(package);
             ExactLayoutJourneyHost renderer = null!;
             GameplaySkinSceneRuntimeHost scene = null!;
+            int readinessAttempts = 0;
             AddStep("mount full skin with notes and holds in every mania column", () =>
             {
                 renderer = new ExactLayoutJourneyHost(manager, maniaStageColumns: dual ? new[] { columns, columns } : new[] { columns });
@@ -133,6 +133,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("the complete mania skin is ready", () =>
             {
                 scene ??= renderer.ManiaDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().SingleOrDefault()!;
+                if (++readinessAttempts == 1 || readinessAttempts % 200 == 0)
+                {
+                    HUDOverlay? hud = renderer.CoreHud;
+                    string owners = hud == null ? "<none>" : string.Join(",", hud.ChildrenOfType<SkinnableContainer>()
+                        .Select(container => $"{container.ComponentsLoaded}:{string.Join('/', container.Components.Select(component => component.GetType().Name))}"));
+                    TestContext.WriteLine($"canonical-mania-ready {package}/{columns}/{dual}/{viewport}: scene={scene?.IsSceneReady}, hud={hud?.IsLoaded}, gauge={hud?.GameplaySkinGaugePartitions.Count}, text={hud?.GameplaySkinTextPartitions.Count}, gauge-route={scene?.PreparedScene.HudPlan.GetRole(GameplaySkinPreparedHudRole.Gauge).RequiresRouting}, text-route={scene?.PreparedScene.HudPlan.GetRole(GameplaySkinPreparedHudRole.Text).RequiresRouting}, owners={owners}");
+                }
                 return scene?.IsSceneReady == true
                        && renderer.CoreHud?.IsLoaded == true
                        && renderer.CoreHud.GameplaySkinGaugePartitions.Count > 0
@@ -186,10 +193,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private static void assertCanonicalManiaCoreHud(HUDOverlay hud, GameplaySkinSceneRuntimeHost scene, int stageCount)
         {
-            Assert.That(hud.GameplaySkinGaugePartitions.Any(partition => partition.Visual is DefaultHealthDisplay), Is.True);
-            Assert.That(hud.GameplaySkinTextPartitions.Any(partition => partition.Visual is DefaultScoreCounter), Is.True);
-            Assert.That(hud.GameplaySkinTextPartitions.Any(partition => partition.Visual is DefaultAccuracyCounter), Is.True);
-            Assert.That(hud.GameplaySkinTextPartitions.Any(partition => partition.Visual is DefaultSongProgress), Is.True);
+            // Ordinary file skins supply these real legacy HUD owners before the authored scene replaces them.
+            Assert.That(hud.GameplaySkinGaugePartitions.Any(partition => partition.Visual is LegacyHealthDisplay), Is.True);
+            Assert.That(hud.GameplaySkinTextPartitions.Any(partition => partition.Visual is LegacyScoreCounter), Is.True);
+            Assert.That(hud.GameplaySkinTextPartitions.Any(partition => partition.Visual is LegacyAccuracyCounter), Is.True);
+            Assert.That(hud.GameplaySkinTextPartitions.Any(partition => partition.Visual is LegacySongProgress), Is.True);
 
             foreach (var partitions in new[] { hud.GameplaySkinGaugePartitions, hud.GameplaySkinTextPartitions })
             {

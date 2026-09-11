@@ -5,6 +5,12 @@
 
 当前正式打包入口为仓库根目录的 `build-release.ps1`，输出位于 `release-repo/`，压缩包命名为 `oms_YYYYMMDD.zip`；同日多次构建会自动追加 `_2`、`_3` 等序号。
 
+## 当前人工验收包
+
+2026-09-11 的实际完整包为 `release-repo/oms_20260911_4.zip`，已组装成可直接运行的 `release-repo/oms-skin-c7-acceptance-20260911-final`。按其中 `README.md` 运行 `Start-Acceptance.ps1`，即可在独立副本中选择两款成品、导入观察输入和第三方皮肤，使用同一作者工具修改、检查、打包并更新导入副本；集中步骤见 [人工验收指南](../../skin-c7-acceptance/README.md)。本次真实包组装已在 PS5、无 Git/SDK 的环境完成。
+
+四轮实际启动与正常退出已通过；四轮结束后的首次便携根和共享自定义根额外只读副本确认 `bms`、`mania` 均为可用，未把两处最终状态写成四份时点快照。当前仍保留 V-001～V-004 0/4、V-005 未签收，以及画面、声音、设备和长期体验人工门。`oms-simple` 承担正式保底，`oms-complex` 是展示包和默认候选，未擅自设为首次默认选择。完整摘要和证据范围见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)与 [C7 验证记录](SKIN_SYSTEM_C7_VALIDATION_20260909.md)。
+
 ## 构建发行包
 
 ```powershell
@@ -15,8 +21,8 @@
 .\build-release.ps1 -KeepPdb
 ```
 
-`build-release.ps1` 内部仍执行 single-file self-contained `dotnet publish`，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini`，清理非运行时杂项后再打包到 `release-repo/oms_YYYYMMDD(.zip)`。
-当前 single-file 发行参数必须同时保留 `IncludeNativeLibrariesForSelfExtract=true` 与 `IncludeAllContentForSelfExtract=true`；若回退成只抽原生库，fresh extract 的便携发行物可能会出现“首次运行先创建 `data/`，随后无窗退出”的冷启动失败。
+`build-release.ps1` 当前执行 self-contained、多文件 `dotnet publish`（`PublishSingleFile=false`），保留完整运行文件与玩法 DLL，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini` 后打包到 `release-repo/oms_YYYYMMDD(.zip)`。解压完整 ZIP 后直接运行 `osu!.exe`，无需另装 .NET。
+2026-09-11 的实际启动揭示旧完整自解压方式会把程序基准目录移到 TEMP，未读到实际安装旁的便携标记并误入已有保存位置。因此游戏改为多文件发行；仅取消完整自解压、仍将玩法 DLL 留在 single-file 内也不能满足现有玩法发现方式。修正后的真实 `oms_20260911_4.zip` 已完成 Windows 标准解压、便携与自定义保存、坏工作副本恢复和同包完整覆盖后正常启动；两玩法可用及实际保存/缓存位置均另有证据。这些自动安装结果不代表 Skin V1 或公开发行的人工门已经签收。
 同时发布无需 SDK 的作者工具、双包源文件与验收工具；发行根的中英双语 `how to update.txt` 和 `Update-OMS.ps1` 已提供保留原便携模式与基础目录 `storage.ini` 的实际更新入口。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
@@ -28,7 +34,8 @@
 | 内容 | 说明 |
 | --- | --- |
 | `oms_YYYYMMDD(.zip)` | 外层发行压缩包命名；同日多次构建自动追加 `_2`、`_3` |
-| `osu!.exe` | 主入口（DesktopGL，自包含 single-file） |
+| `osu!.exe` | 主入口（DesktopGL，完整自包含多文件发行） |
+| 同级 DLL、运行文件及运行资源目录 | 游戏和 BMS/mania 必需内容；必须随完整 ZIP 一起解压与覆盖 |
 | `portable.ini` | 便携模式标记（空文件） |
 | `lazer.ico` / `beatmap.ico` | Windows 文件关联图标 |
 | `how to update.txt` | 中英双语手动覆盖更新说明 |
@@ -37,17 +44,19 @@
 | `skin-authoring/` | 两款普通可导入包、完整源文件、模板、说明和无需 SDK 的制作工具 |
 | `skin-c7-acceptance/` | 集中人工验收说明、记录表、输入生成及隔离副本工具 |
 
-游戏入口继续为 single-file，不应把游戏构建目录或 `publish/` 目录名本身打入包。作者工具目录保留其实际需要的全部运行文件，不按游戏入口的 single-file 假设误删。
+游戏入口仍是 `osu!.exe`，但不能只复制这个文件；同级完整运行文件与玩法 DLL 都是发行物的一部分。压缩包内直接放这些内容，不把游戏构建目录或 `publish/` 目录名本身打入包。作者工具保持已独立验证的 self-contained single-file 方式，完整复制其实际发布输出；游戏发行方式的修正不要求改动作者工具。
+
+作者工具每次发布到本次唯一新目录，再仅将此次完整输出复制为发行包的 `skin-authoring/bin/`。不把仓库旧 `bin/` 中的残留文件、手工内容或运行数据混入发行物，也不猜测清理旧目录。
 
 ## 内置皮肤发行约束
 
 从 **Phase 1.1 皮肤系统专项** 开始，OMS 的公开发行物需要逐步满足以下约束：
 
-1. 最终 gameplay 默认面由只读 canonical `oms-simple.osk` 覆盖 mania 与 BMS，并以 `oms-complex.osk` 证明公开作者 API 上限；程序化 `OmsSkin` 只保留到前者通过 parity、完整性、原子恢复与实机 gate。
+1. gameplay 正式保底由只读 canonical `oms-simple.osk` 覆盖 mania 与 BMS，`oms-complex.osk` 展示普通作者路径可制作的组合演出；程序化 `OmsSkin` 仅为历史对照保留到 parity、完整性、原子恢复与实机 gate 全满足后移除，不作为安装原件损坏时的替代外观。
 2. `Argon`、`Triangles`、`DefaultLegacy`、`Retro` 以及其他仅属于 osu!lazer 原生产品表面的内建默认皮肤，不再作为 OMS 的正式内建皮肤对外暴露。
 3. mania 与 BMS 的规则集默认 fallback 必须统一逐组件回落到 `oms-simple.osk`，而不是上游原生默认皮肤或长期程序化主题层。
-4. 用户自行安装的自定义皮肤仍可作为覆盖层存在，但缺失的组件必须按组件粒度回退到 canonical 包，而不是出现空白或重新落回上游默认资源。
-5. `SKIN/SimpleTou-Lazer` 或其后继候选包，在 mania 与 BMS 均完成 OMS-owned 默认路径前，只能被描述为“内置皮肤候选基线”，不得被对外宣称为“已完成的 OMS 默认皮肤”。
+4. 用户皮肤缺少必要组件时按组件粒度补齐 canonical 内容，作者明确关闭的可选装饰不恢复；安装只读原件缺失或损坏时明确提示修复安装并阻止进入谱面，不以临时外观掩盖问题。
+5. 当前交付名为 `oms-simple.osk` 与 `oms-complex.osk`；旧候选 `SKIN/SimpleTou-Lazer` 不作为当前成品身份或回退版本，复杂款也不因展示完成而自动成为首次默认选择。
 6. 在 Phase 1.1 完成前，仓库里即使仍保留上游默认皮肤实现或资源，也只视为过渡态，不构成公开发行标准。
 
 公开发行前的皮肤验收至少应覆盖：
@@ -74,8 +83,11 @@
 | `data/files/` | 通用哈希文件仓库（成绩附件 / replay 等） |
 | `data/bms-difficulty-tables/tables.db` | BMS 难度表 sqlite 缓存 |
 | `data/storage.ini` | 可选的自定义数据根重定向配置（便携模式下一般不需要） |
+| `cache/` | 程序旁的便携运行缓存；不属于用户库，也不随 `storage.ini` 改位置 |
 
 未重定向数据根时，整个安装目录（包含程序文件和 `data/`）可直接复制使用。已重定向时还须保全目标数据目录，并保证指针在新位置有效。
+
+桌面入口把便携模式同时传给底层宿主，避免用户资料已在程序旁、缓存却写入当前账户默认位置。本次真实发行的用户库与缓存位置已分别核对；后续候选包仍须复验，不能只凭 `portable.ini` 存在判断通过。
 
 ### 非便携模式（传统布局）
 
@@ -140,23 +152,27 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -Update
 
 ### 覆盖更新注意事项
 
-1. 当前发行物除 `osu!.exe` 还包含图标与便携标记；`portable.ini` 是否存在决定启动存储，更新必须保持原模式。
+1. 当前发行物除 `osu!.exe` 还包含完整运行文件、玩法 DLL、图标与便携标记；必须完整更新。`portable.ini` 是否存在决定启动存储，更新必须保持原模式。
 2. 必须在程序完全退出后再覆盖文件；运行中替换可执行文件会遇到 Windows 文件锁。
 3. 便携模式下如果误删 `portable.ini`，下次启动将不再继续使用同级 `data/` 作为数据根。
 4. 若使用自定义数据根，保留启动存储中的 `storage.ini` 和目标数据。非便携安装新增 `portable.ini` 会让程序改读 `data/`，从而绕过原 `%APPDATA%/oms/storage.ini`；这可能表现为曲库消失，不能据此重建或删除旧数据。
 5. 覆盖新包后不会触发 Velopack 或安装器自更新链；当前仅保留手工覆盖这一离线更新路径。
 
-随包中英 `how to update.txt` 与本页一致。完整性清单校验文件内容，ReadOnly 属性只用于减少误改；两款安装原件在发行、验收启动和更新后设置只读，实际包完整性仍由程序检查。
+随包中英 `how to update.txt` 与本页一致。完整性清单校验文件内容，ReadOnly 属性只用于减少误改。发行 ZIP 显式保存两款原件的 DOS 只读属性，本机 Windows 资源管理器的解包链实际保留；`Expand-Archive` / .NET 解包会忽略该属性，不能混称所有解包器都保留。发行验收使用 Windows 标准解包并核验原来源及副本属性，不在启动前补标来制造通过。游戏只读捕获并核对正式保底的固化摘要，保护不依赖 DOS 属性，游戏不为此增加原件属性写入。
+
+更新工具只对本次私有暂存的新 canonical 文件设 ReadOnly；旧原件通过不覆盖的 move 原样移入 `old/`，再将新件 move 到目标，全程不写旧原件的内容或属性，已有或更新期间增加的硬链接也不因此改到作者原件。其它程序文件继续使用 `File.Replace` 保存旧件。canonical 两次 move 之间可能暂缺安装原件，故必须完全退出游戏；中断时保留原 `Applying` 记录、旧文件与新暂存，再次运行同一完整包完成覆盖，旧现场仍不清理。这里不宣称 canonical 安装覆盖为单次原子替换；游戏工作副本的原子恢复合同保持不变。
 
 ## 冒烟测试
 
-构建后可使用仓库自带脚本验证启动：
+开发环境可使用仓库自带脚本作有限启动观察：
 
 ```powershell
-.\SmokeTestDesktop.ps1        # 8 秒非交互启动验证
+.\SmokeTestDesktop.ps1        # 有限的 8 秒启动观察，不证明实际保存位置
 ```
 
-冒烟结果只对生成它的发行包有效；每次候选包都应重新记录冷启动结果，并把日期、commit 与结果写入 P1-F `CHANGELOG`，不要复用本文中的历史通过结论。
+正式发行使用 [启动、保存位置与退出核对](../../skin-c7-acceptance/STARTUP-CHECK.md)，从完整新发行目录建立隔离副本，分别验证首次便携、自定义保存、工作副本恢复和完整覆盖后启动。每轮核对实际用户库、日志、安装原件与工作副本、缓存位置及正常退出；非便携真实运行应在独立 Windows 账户或虚拟机完成。
+
+2026-05-09 的 single-file 冷启动记录保留在 [P1-F 历史](../subline/P1-F/CHANGELOG.md)，但窗口/进程观察未证明实际保存根，不能再作便携隔离通过依据。2026-09-11 本轮误入当前账户既有自定义根并运行 Realm schema 57 迁移后，已私下完整保全事后数据与指针；没有该根事前快照，不能宣称无损或已回滚，本文不披露其路径。最终多文件包本次复验前后，账户 bootstrap、事故根与原 G1 根的全文件字节和属性保持相同；这不能倒推首次事故前后相同。以后每个候选包仍须重新记录实际结果，不能复用旧通过结论。
 
 ## 在线功能状态
 

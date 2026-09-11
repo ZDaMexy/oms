@@ -3,10 +3,13 @@
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using oms.Input;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Game.Database;
 using osu.Game.Extensions;
+using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
@@ -45,7 +48,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("capture mounted partial-stage scene host", () =>
                 sceneHost = renderer.BmsDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single());
             AddUntilStep("wait for bounded semantic replacements", () => sceneHost.PendingCreationCount == 0);
-            AddStep("assert only deck 1 programmatic visuals are hidden", () =>
+            AddStep("enable both real lane-cover geometries", () =>
+            {
+                foreach (BmsLaneCover cover in renderer.BmsDrawable.Playfield.LaneCovers)
+                    cover.CoverPercent.Value = 200;
+            });
+            AddStep("assert author and canonical parts retain independent deck owners", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.BmsLayoutProbe.Publication!;
                 BmsGameplayLayoutSnapshot layout = publication.GetAdapter<BmsGameplayLayoutSnapshot>();
@@ -88,14 +96,30 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Assert.That(deck1Entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
                         Assert.That(deck1Gate!.Route, Is.EqualTo(route), $"Unexpected deck-1 route for {slot.Id}.");
                         Assert.That(deck1Gate.SuppressesProgrammaticVisual, Is.True);
-                        Assert.That(deck2Entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
-                        Assert.That(deck2Entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback));
-                        Assert.That(deck2Gate!.Route, Is.EqualTo(GameplaySkinSceneHostPolicy.RequiresNativeGeometry(slot, "bms")
-                            ? GameplaySkinSceneHostRoute.Specialised
-                            : GameplaySkinSceneHostRoute.Programmatic));
-                        Assert.That(deck2Gate.AllowsProgrammaticVisual, Is.True);
-                        Assert.That(deck2Gate.SuppressesProgrammaticVisual, Is.False);
+                        bool canonicalSuppress = ReferenceEquals(slot, GameplaySkinSlotCatalog.LaneCoverDecoration);
+                        Assert.That(deck2Entry!.State, Is.EqualTo(canonicalSuppress ? GameplaySkinResolvedMaterialState.Suppress : GameplaySkinResolvedMaterialState.Provide));
+                        Assert.That(deck2Entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+                        Assert.That(deck2Gate!.Route, Is.EqualTo(canonicalSuppress ? GameplaySkinSceneHostRoute.Suppressed
+                            : ReferenceEquals(slot, GameplaySkinSlotCatalog.LaneCoverFill) ? GameplaySkinSceneHostRoute.Specialised
+                            : GameplaySkinSceneHostRoute.Semantic));
+                        Assert.That(deck2Gate.IsReplacementReady, Is.True);
+                        Assert.That(deck2Gate.AllowsProgrammaticVisual, Is.False);
+                        Assert.That(deck2Gate.SuppressesProgrammaticVisual, Is.True);
                     });
+
+                    if (!ReferenceEquals(slot, GameplaySkinSlotCatalog.LaneCoverFill)
+                        && !ReferenceEquals(slot, GameplaySkinSlotCatalog.LaneCoverDecoration))
+                    {
+                        string resource = ReferenceEquals(slot, GameplaySkinSlotCatalog.JudgementLine) ? "bms/target"
+                            : ReferenceEquals(slot, GameplaySkinSlotCatalog.PlayfieldBackdrop) ? "bms/backdrop"
+                            : ReferenceEquals(slot, GameplaySkinSlotCatalog.PlayfieldBaseplate) ? "bms/plate"
+                            : ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual) ? "bms/gauge" : "bms/hud";
+                        assertPackagedSemanticSurface(sceneHost, deck2Key, false, resource, !ReferenceEquals(slot, GameplaySkinSlotCatalog.JudgementDisplay));
+                        if (state == GameplaySkinResolvedMaterialState.Provide)
+                            assertPackagedSemanticSurface(sceneHost, deck1Key, true, "notes/deck-1");
+                        else
+                            Assert.That(sceneHost.TryGetHostedDrawable(deck1Key, out _), Is.False, "An author's explicit hidden information must not be revived by canonical fallback.");
+                    }
                 }
 
                 foreach (GameplaySkinResolvedMaterialTarget scratchTarget in new[] { scratch1Target, scratch2Target })
@@ -151,35 +175,75 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(playfieldStages[0].BackdropVisual, Is.Not.SameAs(playfieldStages[1].BackdropVisual));
                     Assert.That(playfieldStages[0].BaseplateVisual, Is.Not.SameAs(playfieldStages[1].BaseplateVisual));
                     Assert.That(playfieldStages[0].JudgementVisual, Is.Not.SameAs(playfieldStages[1].JudgementVisual));
-                    assertHiddenOnlyOnDeck1(playfieldStages.Select(stage => (Drawable)stage.BackdropVisual), "playfield backdrop");
-                    assertHiddenOnlyOnDeck1(playfieldStages.Select(stage => (Drawable)stage.BaseplateVisual), "playfield baseplate");
-                    assertHiddenOnlyOnDeck1(playfieldStages.Select(stage => (Drawable)stage.JudgementVisual), "judgement display");
-                    assertHiddenOnlyOnDeck1(gauge.GameplaySkinStageFallbackVisuals, "gauge");
-                    assertHiddenOnlyOnDeck1(combo.GameplaySkinStageFallbackVisuals, "combo");
+                    assertHiddenCompatibilityDecks(playfieldStages.Select(stage => (Drawable)stage.BackdropVisual), "playfield backdrop");
+                    assertHiddenCompatibilityDecks(playfieldStages.Select(stage => (Drawable)stage.BaseplateVisual), "playfield baseplate");
+                    assertHiddenCompatibilityDecks(playfieldStages.Select(stage => (Drawable)stage.JudgementVisual), "judgement display");
+                    assertHiddenCompatibilityDecks(gauge.GameplaySkinStageFallbackVisuals, "gauge");
+                    assertHiddenCompatibilityDecks(combo.GameplaySkinStageFallbackVisuals, "combo");
                     Assert.That(covers, Has.Length.EqualTo(2));
                     Assert.That(covers.All(cover => cover.GameplaySkinStageFallbackVisuals.Count == 2), Is.True);
                     Assert.That(covers.All(cover => cover.GameplaySkinStageFallbackVisuals[0].Target!.Equals(deck1)
                                                    && cover.GameplaySkinStageFallbackVisuals[0].FillVisual.Alpha == 0
                                                    && cover.GameplaySkinStageFallbackVisuals[0].DecorationVisual.Alpha == 0), Is.True);
                     Assert.That(covers.All(cover => cover.GameplaySkinStageFallbackVisuals[1].Target!.Equals(deck2)
-                                                   && cover.GameplaySkinStageFallbackVisuals[1].FillVisual.Alpha > 0
-                                                   && cover.GameplaySkinStageFallbackVisuals[1].DecorationVisual.Alpha > 0), Is.True,
-                        "Both Sudden and Hidden owners must preserve the unauthored deck-2 fill/decoration.");
+                                                   && cover.GameplaySkinStageFallbackVisuals[1].FillVisual.Alpha == 0
+                                                   && cover.GameplaySkinStageFallbackVisuals[1].DecorationVisual.Alpha == 0), Is.True,
+                        "Canonical fills replace old geometry artwork; its explicitly absent optional decoration stays absent.");
                     Assert.That(deck1Lane.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero);
-                    Assert.That(deck2Lane.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.GreaterThan(0),
-                        "A deck-1 judgement-line replacement must not hide deck 2.");
+                    Assert.That(deck2Lane.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero);
                 });
+                foreach (BmsLaneCover cover in covers)
+                {
+                    GameplaySkinSpecialisedSceneVisual left = assertPackagedNativeSurface(sceneHost, cover, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneCoverFill, deck1), true, "notes/deck-1");
+                    GameplaySkinSpecialisedSceneVisual right = assertPackagedNativeSurface(sceneHost, cover, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneCoverFill, deck2), false, "bms/cover");
+                    Assert.That(left, Is.Not.SameAs(right));
+                    Assert.That(left.RootDrawables.Single().ScreenSpaceDrawQuad.AABBFloat.Right,
+                        Is.LessThanOrEqualTo(right.RootDrawables.Single().ScreenSpaceDrawQuad.AABBFloat.Left + 0.01f));
+                    Assert.That(cover.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Any(visual => ReferenceEquals(visual.Key.Slot, GameplaySkinSlotCatalog.LaneCoverDecoration)), Is.False);
+                }
+            });
+            AddStep("advance towards the real deck-2 note", () => renderer.AdvanceBmsTo(1_950));
+            AddUntilStep("the real deck-2 ordinary note is ready for input", () =>
+                renderer.BmsDrawable.ChildrenOfType<DrawableBmsHitObject>().Any(note => note.IsLoaded && note.IsPresent && note.HandleUserInput
+                    && note.HitObject is BmsHitObject { StartTime: 2_000 } hit
+                    && !renderer.BmsDrawable.LayoutProvider.GetLaneForObject(hit).IsScratch
+                    && renderer.BmsDrawable.LayoutProvider.GetLaneForObject(hit).NeutralLane.TopologyEntry.Identity.Group.Id.Value == "bms.group.deck-2"));
+            AddStep("judge the real second-deck note", () =>
+            {
+                renderer.AdvanceBmsTo(2_000);
+                Assert.That(renderer.BmsDrawable.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key2P_1), Is.True);
+                renderer.AdvanceBmsTo(2_020);
+            });
+            AddUntilStep("canonical deck-2 judgement is visibly produced by that input", () =>
+            {
+                GameplaySkinLaneTopologyGroup group = renderer.BmsDrawable.LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder[1];
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(group));
+                return sceneHost.TryGetHostedDrawable(key, out Drawable? visual) && visual!.Alpha > 0;
+            });
+            AddStep("deck-1 suppression cannot consume the second-deck judgement and information", () =>
+            {
+                GameplaySkinLaneTopologyGroup[] groups = renderer.BmsDrawable.LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.ToArray();
+                GameplaySkinResolvedMaterialTarget deck1 = GameplaySkinResolvedMaterialTarget.ForStage(groups[0]);
+                GameplaySkinResolvedMaterialTarget deck2 = GameplaySkinResolvedMaterialTarget.ForStage(groups[1]);
+                Drawable judgement = assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, deck2), false, "bms/hud");
+                Assert.That(judgement.ChildrenOfType<SpriteText>().Single().Text.ToString(), Is.Not.Empty.And.Not.EqualTo("miss"));
+                Assert.That(sceneHost.TryGetHostedDrawable(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, deck1), out _), Is.False);
+                Drawable combo = assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.ComboDisplay, deck2), false, "bms/hud");
+                Assert.That(combo.ChildrenOfType<SpriteText>().Single().Text.ToString(), Is.Not.EqualTo("0"));
+                assertPackagedSemanticSurface(sceneHost, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.GaugeVisual, deck2), false, "bms/gauge");
+                Assert.That(renderer.BmsDrawable.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key2P_1), Is.True);
             });
             AddStep("detach 14K renderer", () => renderer.Expire());
             AddUntilStep("wait for 14K renderer detach", () => renderer.Parent == null);
         }
 
-        private static void assertHiddenOnlyOnDeck1(System.Collections.Generic.IEnumerable<Drawable> visuals, string slot)
+        private static void assertHiddenCompatibilityDecks(System.Collections.Generic.IEnumerable<Drawable> visuals, string slot)
         {
             Drawable[] exactStages = visuals.ToArray();
             Assert.That(exactStages, Has.Length.EqualTo(2), $"{slot} must expose one owner per exact 14K stage.");
             Assert.That(exactStages[0].Alpha, Is.Zero, $"The authored deck-1 {slot} fallback must be hidden.");
-            Assert.That(exactStages[1].Alpha, Is.GreaterThan(0), $"The unauthored deck-2 {slot} fallback must remain visible.");
+            Assert.That(exactStages[0], Is.Not.SameAs(exactStages[1]), $"{slot} must retain independent deck owners.");
+            Assert.That(exactStages[1].Alpha, Is.Zero, $"The canonical deck-2 {slot} must not overlap its legacy owner.");
         }
 
         private static void writeFourteenKeyPartialStagePackage(string root)

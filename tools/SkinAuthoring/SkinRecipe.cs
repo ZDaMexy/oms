@@ -473,7 +473,7 @@ namespace SkinAuthoring
             {
                 var information = new List<object>
                 {
-                    sprite("still.hud.panel", "white", new() { ["x"] = 0.18, ["y"] = 0.006, ["width"] = 0.64, ["height"] = 0.061, ["colour"] = "#" + profile.Background + "ee" }),
+                    sprite("still.hud.panel", "white", new() { ["x"] = 0.18, ["y"] = 0.006, ["width"] = 0.64, ["height"] = 0.080, ["colour"] = "#" + profile.Background + "ee" }),
                     label("still.hud.score-label", "SCORE", 0.195, 0.013, 10, "#91a1b9ff"),
                     label("still.hud.score", "0", 0.195, 0.035, 20, "#e9f3ffff"),
                     label("still.hud.accuracy-label", "ACCURACY", 0.40, 0.013, 10, "#91a1b9ff"),
@@ -482,14 +482,14 @@ namespace SkinAuthoring
                     label("still.hud.combo", "0", 0.585, 0.035, 20, "#e9f3ffff"),
                     label("still.hud.bpm-label", "BPM", 0.715, 0.013, 10, "#91a1b9ff"),
                     label("still.hud.bpm", "0", 0.715, 0.035, 20, "#e9f3ffff"),
-                    sprite("still.hud.progress-track", "white", new() { ["x"] = 0.18, ["y"] = 0.069, ["width"] = 0.64, ["height"] = 0.002, ["colour"] = "#263444ff" }),
-                    sprite("still.hud.progress", "white", new() { ["x"] = 0.18, ["y"] = 0.069, ["width"] = 0.64, ["height"] = 0.002, ["scale-x"] = 0, ["colour"] = "#a6b5c9ff" }),
+                    sprite("still.hud.progress-track", "white", new() { ["x"] = 0.18, ["y"] = 0.088, ["width"] = 0.64, ["height"] = 0.002, ["colour"] = "#263444ff" }),
+                    fillBar("still.hud.progress", 0.18, 0.088, 0.64, 0.002, "#a6b5c9ff"),
                 };
                 children.Add(new { id = "still.hud", type = "container", target = new { kind = "global" }, slot = "hud.text", blend = "alpha", properties = new { }, effects = Array.Empty<object>(), children = information });
                 foreach ((string target, string property, string source) in new[]
                          {
                              ("score", "text", "score.value"), ("accuracy", "text", "score.accuracy"), ("combo", "text", "combo.value"),
-                             ("bpm", "text", "timing.bpm"), ("progress", "scale-x", "timing.progress"),
+                             ("bpm", "text", "timing.bpm"), ("progress", "width", "timing.progress"),
                          })
                     bindings.Add(new { id = "still.bind." + target, target = "still.hud." + target, property, source });
             }
@@ -498,29 +498,29 @@ namespace SkinAuthoring
                 manifest["script"] = GameplaySkinSceneContracts.SCRIPT_FILE_NAME;
                 var console = new List<object>
                 {
-                    sprite("astral.console.panel", "console", new() { ["x"] = 0.15, ["y"] = 0.012, ["width"] = 0.70, ["height"] = 0.058 }),
+                    sprite("astral.console.panel", "console", new() { ["x"] = 0.15, ["y"] = 0.012, ["width"] = 0.70, ["height"] = 0.079 }),
                     label("astral.console.brand", "A S T R A L", 0.166, 0.022, 18, "#" + profile.Highlight + "ff"),
-                    label("astral.console.status", "READY", 0.166, 0.049, 10, "#a6b5c9ff"),
+                    label("astral.console.status", "READY", 0.166, 0.065, 10, "#a6b5c9ff"),
                     label("astral.console.score-label", "SCORE", 0.315, 0.021, 10, "#91a1b9ff"),
-                    label("astral.console.score", "0", 0.315, 0.037, 20, "#e9f3ffff"),
+                    label("astral.console.score", "0", 0.315, 0.046, 20, "#e9f3ffff"),
                     label("astral.console.accuracy-label", "ACCURACY", 0.475, 0.021, 10, "#91a1b9ff"),
-                    label("astral.console.accuracy", "100.00%", 0.475, 0.039, 16, "#e9f3ffff"),
+                    label("astral.console.accuracy", "100.00%", 0.475, 0.048, 16, "#e9f3ffff"),
                     label("astral.console.combo-label", "COMBO", 0.61, 0.021, 10, "#91a1b9ff"),
-                    label("astral.console.combo", "0", 0.61, 0.037, 20, "#" + profile.Highlight + "ff"),
+                    label("astral.console.combo", "0", 0.61, 0.046, 20, "#" + profile.Highlight + "ff"),
                     label("astral.console.bpm-label", "BPM", 0.705, 0.021, 10, "#91a1b9ff"),
-                    label("astral.console.bpm", "0", 0.705, 0.04, 16, "#c0cee0ff"),
-                    label("astral.console.judgement", "", 0.785, 0.043, 12, "#" + profile.BmsAccent + "ff"),
-                    sprite("astral.console.progress-track", "white", new() { ["x"] = 0.15, ["y"] = 0.071, ["width"] = 0.70, ["height"] = 0.0015, ["colour"] = "#18283aff" }),
-                    sprite("astral.console.progress", "white", new() { ["x"] = 0.15, ["y"] = 0.071, ["width"] = 0.70, ["height"] = 0.0015, ["scale-x"] = 0, ["colour"] = "#" + profile.Highlight + "ff" }),
-                    sprite("astral.console.energy-track", "white", new() { ["x"] = 0.15, ["y"] = 0.074, ["width"] = 0.70, ["height"] = 0.002, ["colour"] = "#18283aff" }),
-                    sprite("astral.console.energy", "white", new() { ["x"] = 0.15, ["y"] = 0.074, ["width"] = 0.70, ["height"] = 0.002, ["scale-x"] = 0, ["colour"] = "#" + profile.BmsAccent + "ff" }),
+                    label("astral.console.bpm", "0", 0.705, 0.049, 16, "#c0cee0ff"),
+                    label("astral.console.judgement", "", 0.785, 0.052, 12, "#" + profile.BmsAccent + "ff"),
+                    sprite("astral.console.progress-track", "white", new() { ["x"] = 0.15, ["y"] = 0.093, ["width"] = 0.70, ["height"] = 0.0015, ["colour"] = "#18283aff" }),
+                    fillBar("astral.console.progress", 0.15, 0.093, 0.70, 0.0015, "#" + profile.Highlight + "ff"),
+                    sprite("astral.console.energy-track", "white", new() { ["x"] = 0.15, ["y"] = 0.097, ["width"] = 0.70, ["height"] = 0.002, ["colour"] = "#18283aff" }),
+                    fillBar("astral.console.energy", 0.15, 0.097, 0.70, 0.002, "#" + profile.BmsAccent + "ff"),
                 };
                 children.Add(new { id = "astral.console", type = "container", target = new { kind = "global" }, slot = "hud.text", blend = "alpha", properties = new { }, effects = Array.Empty<object>(), children = console });
                 foreach ((string target, string property, string source) in new[]
                          {
                              ("score", "text", "score.value"), ("combo", "text", "combo.value"), ("bpm", "text", "timing.bpm"),
-                             ("accuracy", "text", "score.accuracy"), ("progress", "scale-x", "timing.progress"),
-                             ("judgement", "text", "judgement.result"), ("energy", "scale-x", "gauge.value"),
+                             ("accuracy", "text", "score.accuracy"), ("progress", "width", "timing.progress"),
+                             ("judgement", "text", "judgement.result"), ("energy", "width", "gauge.value"),
                          })
                     bindings.Add(new { id = "astral.bind." + target, target = "astral.console." + target, property, source });
                 string[] stateNames = { "ready", "running", "paused", "complete", "failed" };
@@ -528,6 +528,20 @@ namespace SkinAuthoring
                 var transitions = stateNames.SelectMany(from => new[] { ("running", "gameplay.start"), ("paused", "gameplay.pause"), ("complete", "gameplay.complete"), ("failed", "gameplay.fail") }
                     .Where(pair => pair.Item1 != from).Select(pair => new { id = "astral.transition." + from + "." + pair.Item1, from = "astral.state." + from, to = "astral.state." + pair.Item1, @event = pair.Item2 })).ToArray();
                 machines.Add(new { id = "astral.lifecycle", initial = "astral.state.ready", states, transitions });
+                machines.Add(new
+                {
+                    id = "astral.current-judgement",
+                    initial = "astral.judgement.empty",
+                    states = new[]
+                    {
+                        new { id = "astral.judgement.empty", set = new[] { new { id = "astral.judgement.hide", target = "astral.console.judgement", property = "opacity", value = 0 } } },
+                        new { id = "astral.judgement.active", set = new[] { new { id = "astral.judgement.show", target = "astral.console.judgement", property = "opacity", value = 1 } } },
+                    },
+                    transitions = new[]
+                    {
+                        new { id = "astral.judgement.arrive", from = "astral.judgement.empty", to = "astral.judgement.active", @event = "judgement.hit" },
+                    },
+                });
                 var decorations = new List<object>
                 {
                     sprite("astral.rail.top", "white", new() { ["x"] = 0.02, ["y"] = 0.025, ["width"] = 0.96, ["height"] = 0.002, ["opacity"] = 0.5, ["colour"] = "#" + profile.BmsAccent + "ff" }),
@@ -545,8 +559,8 @@ namespace SkinAuthoring
                 children.Add(new { id = "astral.decoration", type = "container", target = new { kind = "global" }, slot = "decoration", blend = "alpha", properties = new { }, effects = Array.Empty<object>(), children = decorations });
             }
             var scene = new { contract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID, root = new { id = "skin.root", type = "container", target = new { kind = "global" }, blend = "inherit", properties = new { }, effects = Array.Empty<object>(), children }, tracks, stateMachines = machines, bindings, variants = Array.Empty<object>(), templates = Array.Empty<object>(), instances = Array.Empty<object>() };
-            File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME), JsonSerializer.Serialize(manifest, json_options) + "\n", utf8);
-            File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCENE_FILE_NAME), JsonSerializer.Serialize(scene, json_options) + "\n", utf8);
+            File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME), JsonSerializer.Serialize(manifest, json_options).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n", utf8);
+            File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCENE_FILE_NAME), JsonSerializer.Serialize(scene, json_options).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n", utf8);
             if (profile.Complex)
                 File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCRIPT_FILE_NAME), script(), utf8);
         }
@@ -556,6 +570,19 @@ namespace SkinAuthoring
 
         private static object label(string id, string text, double x, double y, int fontSize, string colour)
             => new { id, type = "text", target = new { kind = "global" }, blend = "alpha", properties = new Dictionary<string, object> { ["text"] = text, ["x"] = x, ["y"] = y, ["font-size"] = fontSize, ["colour"] = colour }, effects = Array.Empty<object>(), children = Array.Empty<object>() };
+
+        private static object fillBar(string id, double x, double y, double width, double height, string colour)
+            => new
+            {
+                id = id + ".bounds",
+                type = "container",
+                target = new { kind = "global" },
+                blend = "alpha",
+                properties = new { x, y, width, height },
+                effects = Array.Empty<object>(),
+                // Width reaches a true empty bar. Zero scale is clamped by the framework's invertible draw matrix.
+                children = new[] { sprite(id, "white", new() { ["width"] = 0, ["height"] = 1, ["colour"] = colour }) },
+            };
 
         private static object track(string id, string target, string property, double from, double to, int duration)
             => new { id, type = "tween", target, property, easing = "linear", loop = true, keyframes = new[] { new { id = id + ".start", time = 0, value = from }, new { id = id + ".end", time = duration, value = to } } };

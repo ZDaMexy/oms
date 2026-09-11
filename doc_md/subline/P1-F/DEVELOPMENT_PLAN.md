@@ -1,38 +1,29 @@
-# P1-F 当前计划：离线发行物与覆盖更新
+﻿# P1-F 当前计划：离线发行物与覆盖更新
 
-> 最后更新：2026-09-09（C7 保模式更新工具与随包说明已实现）
+> 最后更新：2026-09-11（自动发行、恢复与覆盖验证已闭合；保留人工设备门和后续发行合同）
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定发行红线见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
 
-P1-F 只拥有离线发行物、portable/custom data root、覆盖更新与最终 publish/release 复核。桌面拖放、Song Select、玩法和跨功能 UI smoke 的人工结果由 P1-G 汇总；P1-F 只提供待验发行物与发行专属步骤。
+P1-F 负责离线完整发行物、便携与自定义保存位置、覆盖更新及最终发行复核。桌面拖放、选歌、玩法和跨功能界面的人工结果由 P1-G 汇总；P1-F 提供真实可运行包和发行专属步骤。
 
-## 已有基线
+## 当前剩余验收
 
-- `build-release.ps1 → release-repo/oms_YYYYMMDD(.zip)` 是当前正式打包入口。
-- 发行根包含 `osu!.exe`、`portable.ini`、图标与中英双语 `how to update.txt`；single-file 自解压内容已锁定。
-- `portable.ini → data/` 与 `storage.ini` 自定义数据根均受保护；游戏内在线更新保持关闭。
-- 手工覆盖流程为“退出程序 → 解压覆盖 → 再启动”，不得删除用户数据根标记。
+1. 使用已经组装的完整验收包完成 P1-A/P1-G 画面、声音、真实输入设备、不同 GPU/缩放及长期游玩的人工确认，保留 V-001～V-005 原未签收事实。C7 自动结果不得代替这些签名，也不得据此删除历史 `OmsSkin` 对照或宣布整个 Skin V1、发行版本完成。
+2. 在独立 Windows 账户或虚拟机实测非便携实际启动及用户预期的保存目录，避免借当前账户既有根取得新运行证据。当前非便携文件保护、模式保留与中断工具结果继续有效，但不冒充该独立环境中的实际启动。
+3. 将发行专属人工结果交 P1-G 汇总；真实阻塞问题回本线修复后复验。不得清理首次启动事故现场或猜测回滚；没有事前快照的事实保持不变。
 
-完成修复、旧 smoke 和测试数字按日期查 [CHANGELOG](CHANGELOG.md)。
+## 后续发行必须保持的合同
 
-## 当前执行顺序
-
-1. 保持打包脚本、文件名、根目录内容与 `IncludeAllContentForSelfExtract=true` 不回退；当前随包中英说明及 `Update-OMS.ps1` 已覆盖 bootstrap `storage.ini`、原 portable 模式、坏新包拒绝与更新前程序备份，候选包实际执行须继续覆盖这些行为。
-2. 在 P1-A 最终皮肤/release gate 就绪后产出候选发行物，不提前把迁移 fallback 描述为最终产品面。
-3. 对fresh extract、portable `data/`、custom root、覆盖更新和旧内部OMS版号迁移执行最终复核；非便携覆盖必须验证新包 `portable.ini`不会意外启用便携模式，保留原bootstrap数据根的 `storage.ini`，不能错误要求只保留exe旁配置。
-4. 将发行专属人工步骤与结果交 P1-G 汇总；阻塞缺陷仍回 P1-F 修复。
-5. 仅当公开口径变化时同步 `../../other/RELEASE.md`；Phase 3 前不恢复联网更新、endpoint 或安装器承诺。
-
-## 最终验收
-
-- Release publish/build 成功，压缩包可 fresh extract 冷启动。
-- portable/custom root 的已有用户数据、皮肤、谱面与配置在覆盖后保持可读，不发生数据根静默切换。
-- `Update-OMS.ps1` 按新包完整性清单覆盖，保留非便携 marker 缺席、只读 canonical 保护与中断备份；无法确认的旧内容不得自动删除。
-- 运行中覆盖被明确禁止；说明文件与实际包内容一致。
-- 发行物不暴露未过 gate 的 Skin V1、G1、script、在线或格式兼容能力。
+- 正式入口为 `build-release.ps1`，交付自包含多文件全量 ZIP，完整解压并保留玩法 DLL 和安装原件。游戏内在线更新关闭，Phase 3 前不恢复 endpoint、安装器或增量更新承诺。
+- 只要改变发行文件或保存/启动逻辑，就从新隔离目录复验首次便携、自定义根、坏工作副本恢复及完整覆盖后正常启动；逐项核对实际用户库、日志、缓存、canonical 原件和工作副本，不能仅凭 marker、窗口或进程存活填写通过。
+- `portable.ini` 决定基础保存模式；自定义 `storage.ini` 留在基础数据根。更新必须保留旧模式、用户文件与指针，不把新包 marker 加到非便携目标；程序旁便携 `cache/` 不随用户库重定向。
+- 更新前完全退出程序。随包 `Update-OMS.ps1` 验完整清单、备份旧件、保留中断收据和未知现场；旧 canonical 只移动，不改内容或属性。Windows 标准 ZIP 解包需实证保留原件只读标记，不能由启动检查先补属性。只有针对真实旧版另取的证据才可称跨版本升级通过，同包覆盖结果不能替代。
+- 作者工具和验收输入必须离开 Git/SDK 仍可实际运行，使用已固定原输入和摘要；组装、作者制作、游戏实际启动分别保留证据。不得混入旧 bin 残留或猜测清理用户文件。
+- 候选包验收前后保全已有保存根，核对字节及属性；原数据库只通过额外副本读取。四轮若共享保存根，结束后的只读数据库检查只能说明相应最终状态，不伪称每轮独立快照。
+- 正常退出必须有退出码与完整停止证据，自动工具只作用于自己启动的进程；强制结束永远记失败。人工画面、设备与长时间体验没有证据时继续待验。
 
 ## 明确不做
 
-- 不承接通用 drag-drop、Song Select、输入、长条、BGA 或 gameplay UI 验收 ownership。
-- 不恢复 Velopack/在线更新链，也不把离线包描述成严格“只有一个 exe”。
+- 不接管 P1-G 的通用拖放、选歌、输入、长条、BGA 或 gameplay UI 验收归属。
+- 不把多文件离线发行物描述成“只有一个 exe”，不恢复 Velopack/在线更新链。

@@ -33,7 +33,7 @@
               "x": 0.15,
               "y": 0.012,
               "width": 0.7,
-              "height": 0.058
+              "height": 0.079
             },
             "effects": [],
             "children": []
@@ -65,7 +65,7 @@
             "properties": {
               "text": "READY",
               "x": 0.166,
-              "y": 0.049,
+              "y": 0.065,
               "font-size": 10,
               "colour": "#a6b5c9ff"
             },
@@ -81,7 +81,7 @@
             "blend": "alpha",
             "properties": {
               "text": "SCORE",
-              "x": 0.34,
+              "x": 0.315,
               "y": 0.021,
               "font-size": 10,
               "colour": "#91a1b9ff"
@@ -98,9 +98,43 @@
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.34,
-              "y": 0.037,
+              "x": 0.315,
+              "y": 0.046,
               "font-size": 20,
+              "colour": "#e9f3ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.accuracy-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "ACCURACY",
+              "x": 0.475,
+              "y": 0.021,
+              "font-size": 10,
+              "colour": "#91a1b9ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.accuracy",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "100.00%",
+              "x": 0.475,
+              "y": 0.048,
+              "font-size": 16,
               "colour": "#e9f3ffff"
             },
             "effects": [],
@@ -115,7 +149,7 @@
             "blend": "alpha",
             "properties": {
               "text": "COMBO",
-              "x": 0.525,
+              "x": 0.61,
               "y": 0.021,
               "font-size": 10,
               "colour": "#91a1b9ff"
@@ -132,8 +166,8 @@
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.525,
-              "y": 0.037,
+              "x": 0.61,
+              "y": 0.046,
               "font-size": 20,
               "colour": "#ffd38aff"
             },
@@ -149,7 +183,7 @@
             "blend": "alpha",
             "properties": {
               "text": "BPM",
-              "x": 0.69,
+              "x": 0.705,
               "y": 0.021,
               "font-size": 10,
               "colour": "#91a1b9ff"
@@ -166,8 +200,8 @@
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.69,
-              "y": 0.04,
+              "x": 0.705,
+              "y": 0.049,
               "font-size": 16,
               "colour": "#c0cee0ff"
             },
@@ -183,13 +217,64 @@
             "blend": "alpha",
             "properties": {
               "text": "",
-              "x": 0.773,
-              "y": 0.043,
+              "x": 0.785,
+              "y": 0.052,
               "font-size": 12,
               "colour": "#52dfdfff"
             },
             "effects": [],
             "children": []
+          },
+          {
+            "id": "astral.console.progress-track",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "resource": "texture.white",
+            "blend": "alpha",
+            "properties": {
+              "x": 0.15,
+              "y": 0.093,
+              "width": 0.7,
+              "height": 0.0015,
+              "colour": "#18283aff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "astral.console.progress.bounds",
+            "type": "container",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.15,
+              "y": 0.093,
+              "width": 0.7,
+              "height": 0.0015
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "astral.console.progress",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "resource": "texture.white",
+                "blend": "alpha",
+                "properties": {
+                  "width": 0,
+                  "height": 1,
+                  "colour": "#ffd38aff"
+                },
+                "effects": [],
+                "children": []
+              }
+            ]
           },
           {
             "id": "astral.console.energy-track",
@@ -201,7 +286,7 @@
             "blend": "alpha",
             "properties": {
               "x": 0.15,
-              "y": 0.074,
+              "y": 0.097,
               "width": 0.7,
               "height": 0.002,
               "colour": "#18283aff"
@@ -210,23 +295,37 @@
             "children": []
           },
           {
-            "id": "astral.console.energy",
-            "type": "sprite",
+            "id": "astral.console.energy.bounds",
+            "type": "container",
             "target": {
               "kind": "global"
             },
-            "resource": "texture.white",
             "blend": "alpha",
             "properties": {
               "x": 0.15,
-              "y": 0.074,
+              "y": 0.097,
               "width": 0.7,
-              "height": 0.002,
-              "scale-x": 0,
-              "colour": "#52dfdfff"
+              "height": 0.002
             },
             "effects": [],
-            "children": []
+            "children": [
+              {
+                "id": "astral.console.energy",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "resource": "texture.white",
+                "blend": "alpha",
+                "properties": {
+                  "width": 0,
+                  "height": 1,
+                  "colour": "#52dfdfff"
+                },
+                "effects": [],
+                "children": []
+              }
+            ]
           }
         ]
       },
@@ -732,6 +831,42 @@
           "event": "gameplay.complete"
         }
       ]
+    },
+    {
+      "id": "astral.current-judgement",
+      "initial": "astral.judgement.empty",
+      "states": [
+        {
+          "id": "astral.judgement.empty",
+          "set": [
+            {
+              "id": "astral.judgement.hide",
+              "target": "astral.console.judgement",
+              "property": "opacity",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "astral.judgement.active",
+          "set": [
+            {
+              "id": "astral.judgement.show",
+              "target": "astral.console.judgement",
+              "property": "opacity",
+              "value": 1
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "astral.judgement.arrive",
+          "from": "astral.judgement.empty",
+          "to": "astral.judgement.active",
+          "event": "judgement.hit"
+        }
+      ]
     }
   ],
   "bindings": [
@@ -754,6 +889,18 @@
       "source": "timing.bpm"
     },
     {
+      "id": "astral.bind.accuracy",
+      "target": "astral.console.accuracy",
+      "property": "text",
+      "source": "score.accuracy"
+    },
+    {
+      "id": "astral.bind.progress",
+      "target": "astral.console.progress",
+      "property": "width",
+      "source": "timing.progress"
+    },
+    {
       "id": "astral.bind.judgement",
       "target": "astral.console.judgement",
       "property": "text",
@@ -762,7 +909,7 @@
     {
       "id": "astral.bind.energy",
       "target": "astral.console.energy",
-      "property": "scale-x",
+      "property": "width",
       "source": "gauge.value"
     }
   ],

@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Game.Database;
 using osu.Game.Extensions;
@@ -11,6 +13,7 @@ using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osuTK;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
@@ -75,26 +78,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     assertRoute(deck2BackdropKey, false);
                     assertRoute(deck2BaseplateKey, false);
 
-                    Assert.That(stages[0].StageBackgroundVisual.Alpha,
-                        provideStageBackground ? Is.Zero : Is.GreaterThan(0),
-                        "StageBackground must own an exact gate which cannot suppress PlayfieldBackdrop.");
-                    Assert.That(stages[0].BackdropVisual.Alpha,
-                        providePlayfieldBackdrop ? Is.Zero : Is.GreaterThan(0),
-                        "PlayfieldBackdrop must own an exact gate which cannot suppress StageBackground.");
-                    Assert.That(stages[1].StageBackgroundVisual.Alpha, Is.GreaterThan(0),
-                        "A deck-1 author stage background must not gate the deck-2 native stage owner.");
-                    Assert.That(stages[1].BackdropVisual.Alpha, Is.GreaterThan(0),
-                        "A deck-1 author backdrop must not gate the deck-2 native backdrop.");
-                    Assert.That(stages[0].BaseplateVisual.Alpha,
-                        provideBaseplate ? Is.Zero : Is.GreaterThan(0),
-                        "Background replacement must not consume the independent baseplate partition.");
-                    Assert.That(stages[1].BaseplateVisual.Alpha, Is.GreaterThan(0));
+                    // The independent native partitions are retained for the historical gate contract, but the
+                    // C7 product supplies every omitted surface from the complete canonical author package.
+                    Assert.That(stages[0].StageBackgroundVisual.Alpha, Is.Zero);
+                    Assert.That(stages[0].BackdropVisual.Alpha, Is.Zero);
+                    Assert.That(stages[1].StageBackgroundVisual.Alpha, Is.Zero);
+                    Assert.That(stages[1].BackdropVisual.Alpha, Is.Zero);
+                    Assert.That(stages[0].BaseplateVisual.Alpha, Is.Zero);
+                    Assert.That(stages[1].BaseplateVisual.Alpha, Is.Zero);
                 });
 
-                if (provideStageBackground && providePlayfieldBackdrop)
+                foreach (GameplaySkinResolvedMaterialTarget deck in new[] { deck1, deck2 })
                 {
-                    Assert.That(sceneHost.TryGetHostedDrawable(stageBackgroundKey, out Drawable? stageBackground), Is.True);
-                    Assert.That(sceneHost.TryGetHostedDrawable(backdropKey, out Drawable? backdrop), Is.True);
+                    Assert.That(sceneHost.TryGetHostedDrawable(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.StageBackground, deck), out Drawable? stageBackground), Is.True);
+                    Assert.That(sceneHost.TryGetHostedDrawable(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.PlayfieldBackdrop, deck), out Drawable? backdrop), Is.True);
                     Assert.Multiple(() =>
                     {
                         Assert.That(stageBackground, Is.Not.Null);
@@ -108,21 +105,89 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     });
                 }
 
+                foreach (GameplaySkinSlotDescriptor slot in new[] { GameplaySkinSlotCatalog.StageBackground, GameplaySkinSlotCatalog.PlayfieldBackdrop, GameplaySkinSlotCatalog.PlayfieldBaseplate })
+                {
+                    Assert.That(sceneHost.TryGetHostedDrawable(new GameplaySkinResolvedMaterialKey(slot, deck1), out Drawable? left), Is.True);
+                    Assert.That(sceneHost.TryGetHostedDrawable(new GameplaySkinResolvedMaterialKey(slot, deck2), out Drawable? right), Is.True);
+                    Assert.That(left, Is.Not.SameAs(right), "Each surface must retain independent per-deck ownership.");
+                    Assert.That(left!.ScreenSpaceDrawQuad.AABBFloat.Right, Is.LessThanOrEqualTo(right!.ScreenSpaceDrawQuad.AABBFloat.Left + 0.01f),
+                        "The deck-1 surface must not cover the canonical deck-2 surface.");
+                }
+
                 void assertRoute(GameplaySkinResolvedMaterialKey key, bool provided)
                 {
-                    Assert.That(sceneHost.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
-                    Assert.That(gate!.Route, Is.EqualTo(provided
-                        ? GameplaySkinSceneHostRoute.Semantic
-                        : GameplaySkinSceneHostRoute.Programmatic));
-                    Assert.That(gate.IsReplacementReady, Is.EqualTo(provided));
-                    Assert.That(sceneHost.TryGetHostedDrawable(key, out Drawable? authored), Is.EqualTo(provided));
-
-                    if (provided)
-                        Assert.That(authored!.Alpha, Is.GreaterThan(0));
+                    string resource = provided ? "notes/shell"
+                        : ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.StageBackground) ? "bms/stage"
+                        : ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop) ? "bms/backdrop" : "bms/plate";
+                    assertPackagedSemanticSurface(sceneHost, key, provided, resource);
                 }
             });
             AddStep("detach opaque-shell renderer", () => renderer.Expire());
             AddUntilStep("wait for opaque-shell renderer detach", () => renderer.Parent == null);
+        }
+
+        private static Drawable assertPackagedSemanticSurface(
+            GameplaySkinSceneRuntimeHost scene,
+            GameplaySkinResolvedMaterialKey key,
+            bool selected,
+            string resource,
+            bool visible = true)
+        {
+            GameplaySkinPublicSlotMaterial material = assertPackagedSurfaceMaterial(scene, key, selected, resource, GameplaySkinSceneHostRoute.Semantic);
+            Assert.That(scene.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+            Assert.That(scene.TryGetHostedDrawable(key, out Drawable? visual), Is.True);
+            Assert.That(visual, Is.Not.Null);
+            Assert.That(visual!.Parent, Is.SameAs(scene.Layers.Get(gate!.Layer)));
+            Assert.That(visual.Alpha, visible ? Is.GreaterThan(0) : Is.Zero);
+            Assert.That(visual.Position, Is.EqualTo(new Vector2(gate.PreparedRect.X, gate.PreparedRect.Y)));
+            Assert.That(visual.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
+            Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Width, Is.GreaterThan(0));
+            Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Height, Is.GreaterThan(0));
+            Assert.That(visual.ChildrenOfType<Sprite>().Single().Texture, Is.SameAs(material.Texture));
+            return visual;
+        }
+
+        private static GameplaySkinPublicSlotMaterial assertPackagedSurfaceMaterial(
+            GameplaySkinSceneRuntimeHost scene,
+            GameplaySkinResolvedMaterialKey key,
+            bool selected,
+            string resource,
+            GameplaySkinSceneHostRoute route)
+        {
+            Assert.That(scene.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+            Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+            Assert.That(entry.Source.Kind, Is.EqualTo(selected ? GameplaySkinResolvedMaterialSourceKind.SelectedPackage : GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
+            Assert.That(entry.Material, Is.TypeOf<GameplaySkinPublicSlotMaterial>());
+            var material = (GameplaySkinPublicSlotMaterial)entry.Material;
+            Assert.That(material.IsProgrammaticFallback, Is.False);
+            Assert.That(material.ResourceName, Is.EqualTo(resource));
+            Assert.That(material.Texture, Is.Not.Null);
+            Assert.That(scene.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+            Assert.That(gate!.Route, Is.EqualTo(route));
+            Assert.That(gate.IsReplacementReady, Is.True);
+            Assert.That(gate.AllowsProgrammaticVisual, Is.False);
+            Assert.That(gate.SuppressesProgrammaticVisual, Is.True);
+            return material;
+        }
+
+        private static GameplaySkinSpecialisedSceneVisual assertPackagedNativeSurface(
+            GameplaySkinSceneRuntimeHost scene,
+            CompositeDrawable owner,
+            GameplaySkinResolvedMaterialKey key,
+            bool selected,
+            string resource)
+        {
+            GameplaySkinPublicSlotMaterial material = assertPackagedSurfaceMaterial(scene, key, selected, resource, GameplaySkinSceneHostRoute.Specialised);
+            GameplaySkinSpecialisedSceneVisual visual = owner.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Single(candidate => candidate.Key.Equals(key));
+            Assert.That(visual.IsApplied, Is.True);
+            Assert.That(visual.Alpha, Is.GreaterThan(0));
+            Assert.That(visual.RuntimeNodes, Is.Empty);
+            var sprite = (Sprite)visual.RootDrawables.Single();
+            Assert.That(sprite.Texture, Is.SameAs(material.Texture));
+            Assert.That(sprite.Alpha, Is.GreaterThan(0));
+            Assert.That(sprite.ScreenSpaceDrawQuad.AABBFloat.Width, Is.GreaterThan(0));
+            Assert.That(sprite.ScreenSpaceDrawQuad.AABBFloat.Height, Is.GreaterThan(0));
+            return visual;
         }
 
         private static void writeOpaqueShellPackage(

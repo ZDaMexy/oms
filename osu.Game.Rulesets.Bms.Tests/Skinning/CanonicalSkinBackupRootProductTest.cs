@@ -54,7 +54,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Guid candidateId = Guid.Empty;
             Guid retainedUserId = Guid.Empty;
             Dictionary<string, string> retainedFiles = null!;
-            int originalUserRecords = 0;
+            Dictionary<Guid, string> originalUserRecords = null!;
             int preparations = 0;
             bool ordinaryRoundTrip = false;
             ExactLayoutJourneyHost renderer = null!;
@@ -72,15 +72,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 work!.GetAwaiter().GetResult();
                 c6Backup!.Realm = new RealmAccess(c6Backup.Storage, "client");
-                originalUserRecords = captureBackupRecords(c6Backup.Realm).Count;
+                originalUserRecords = captureBackupRecords(c6Backup.Realm);
                 manager = new SkinManager(c6Backup.Storage, c6Backup.Realm, host, Resources, Audio, Scheduler);
                 c6Backup.Manager = manager;
+                assertC7OriginalRecordsPreserved(originalUserRecords, captureBackupRecords(c6Backup.Realm), "initial manager startup");
+                manager.EnsureGameplaySkinInstallationAvailable();
                 c6Backup.PackageRoot = source == MaterialDiagnosticPackageSource.ManagedFolder
                     ? c6Backup.Storage.GetFullPath("chartskin/c7-author-product")
                     : Path.Combine(c6Backup.RunRoot, "external-c7-author-product");
                 work = Task.Run(async () =>
                 {
-                    string retained = Path.Combine(c6Backup.RunRoot, "existing-user.osk");
+                    // Match the authored name so this independent retained package does not request an unrelated
+                    // metadata rename. Otherwise import leaves its original, zero-reference ini for normal startup
+                    // cleanup, and a snapshot of all files would incorrectly classify that new temporary blob as old user data.
+                    string retained = Path.Combine(c6Backup.RunRoot, "Retained user skin before C7 install.osk");
                     using (var output = new FileStream(retained, FileMode.CreateNew, FileAccess.Write))
                     using (var zip = new ZipArchive(output, ZipArchiveMode.Create))
                     {
@@ -303,9 +308,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(operation!.GetAwaiter().GetResult(), Is.True);
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
                 Dictionary<Guid, string> after = captureBackupRecords(c6Backup!.Realm!);
+                assertC7OriginalRecordsPreserved(originalUserRecords, after, "completed source operations and restart");
                 Assert.That(after.ContainsKey(retainedUserId), Is.True);
                 Assert.That(c6Backup.ExistingRecords.All(entry => after.TryGetValue(entry.Key, out string? value) && value == entry.Value), Is.True);
                 Assert.That(retainedFiles.All(entry => hashBackupFile(Path.Combine(c6Backup.Storage.GetFullPath("files"), entry.Key)) == entry.Value), Is.True);
+                int preservedWorkingFiles = assertC7OriginalWorkingFilesPreserved(c6Backup);
                 Assert.That(equalBackupFiles(c6Backup.BaselineFiles, hashBackupFiles(c6Backup.BaselineRoot)), Is.True);
                 if (source == MaterialDiagnosticPackageSource.ExternalFolder)
                     Assert.That(equalBackupFiles(c6Backup.ExternalFiles!, hashBackupFiles(c6Backup.PackageRoot)), Is.True);
@@ -314,9 +321,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Contract = "oms-c7-backup-root-gate.v1",
                     Package = package,
                     Source = source.ToString(),
-                    OriginalUserRecords = originalUserRecords,
+                    OriginalUserRecords = originalUserRecords.Count,
                     SupplementalExistingUserRecords = 1,
                     BaselineBlobs = c6Backup.ExistingBlobs.Count,
+                    PreservedWorkingContentFiles = preservedWorkingFiles,
+                    MutableRealmRuntimeFiles = c6Backup.BaselineFiles.Count - preservedWorkingFiles,
                     OrdinaryExportReimport = ordinaryRoundTrip,
                     BothRulesetRenderers = true,
                     RestartAndSettingsReload = true,
@@ -325,6 +334,52 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BaselineAndUserFilesPreserved = true,
                 }, Formatting.Indented));
             });
+        }
+
+        private static void assertC7OriginalRecordsPreserved(Dictionary<Guid, string> before, Dictionary<Guid, string> after, string phase)
+            => Assert.That(before.All(entry => after.TryGetValue(entry.Key, out string? value) && value == entry.Value), Is.True,
+                "Every original non-protected user record must survive " + phase + "; a post-startup recapture is not the original baseline.");
+
+        private static int assertC7OriginalWorkingFilesPreserved(C6BackupContext backup)
+        {
+            string realmFilename = backup.Realm!.Filename.Replace('\\', '/');
+            int preserved = 0;
+            foreach ((string relative, string originalHash) in backup.BaselineFiles)
+            {
+                string normalised = relative.Replace('\\', '/');
+
+                // Opening the independent copy legitimately changes this exact Realm and its transient SDK
+                // coordination files. Its user records are compared separately, before manager startup and after
+                // all operations. Do not exempt other databases, recovery archives or unknown lookalike files.
+                if (normalised.Equals(realmFilename, StringComparison.OrdinalIgnoreCase)
+                    || normalised.Equals(realmFilename + ".lock", StringComparison.OrdinalIgnoreCase)
+                    || normalised.Equals(realmFilename + ".note", StringComparison.OrdinalIgnoreCase)
+                    || normalised.StartsWith(realmFilename + ".management/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string workingFile = backup.Storage.GetFullPath(relative);
+                if (normalised.Equals("skin-canonical/oms-simple.osk", StringComparison.OrdinalIgnoreCase)
+                    && (!File.Exists(workingFile) || hashBackupFile(workingFile) != originalHash))
+                {
+                    // An installation upgrade may replace the managed working package only after preserving the
+                    // previous exact bytes. The baseline's own unchanged hash cannot prove this preservation.
+                    string directory = Path.GetDirectoryName(workingFile)!;
+                    Assert.That(Directory.Exists(directory)
+                                && Directory.EnumerateFiles(directory, "oms-simple.osk.preserved-*")
+                                    .Any(path => hashBackupFile(path) == originalHash), Is.True,
+                        "The previous canonical working package must remain preserved after installation recovery.");
+                }
+                else
+                {
+                    Assert.That(File.Exists(workingFile), Is.True, "An original working-copy content file disappeared; content index " + preserved);
+                    Assert.That(hashBackupFile(workingFile) == originalHash, Is.True, "An original working-copy content file changed; content index " + preserved);
+                }
+
+                // This fixture does not point configuration writers or logging at the copied root, so their
+                // original files are preserved too. Skin/chart/export/author and unknown content get the same check.
+                preserved++;
+            }
+            return preserved;
         }
 
         private static string findC7AuthorPackage(string name)

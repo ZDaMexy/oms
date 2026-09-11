@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -498,15 +498,15 @@ namespace osu.Game.Tests.Skins.IO
                 File.Delete(invalidPath);
             }
 
-            const string rawType = "System.String, System.Private.CoreLib";
+            const string raw_type = "System.String, System.Private.CoreLib";
             using MemoryStream unknownTypeArchive = SkinArchiveReaderTest.BuildZip(
-                new SkinArchiveReaderTest.ZipEntry("skininfo.json", Encoding.UTF8.GetBytes($"{{\"InstantiationInfo\":\"{rawType}\"}}")),
+                new SkinArchiveReaderTest.ZipEntry("skininfo.json", Encoding.UTF8.GetBytes($"{{\"InstantiationInfo\":\"{raw_type}\"}}")),
                 new SkinArchiveReaderTest.ZipEntry("skin.ini", generateSkinIniBytes("safe type", "OMS")));
 
             var canonicalImported = await skinManager.Import(new ImportTask(unknownTypeArchive, "safe-type.osk"));
             canonicalImported.PerformRead(info =>
             {
-                Assert.That(info.InstantiationInfo, Is.Not.EqualTo(rawType));
+                Assert.That(info.InstantiationInfo, Is.Not.EqualTo(raw_type));
                 Assert.That(() => info.CreateInstance(skinManager), Throws.Nothing);
             });
         }, "osk-archive-safety");

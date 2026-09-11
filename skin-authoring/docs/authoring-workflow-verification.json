@@ -1,0 +1,78 @@
+{
+    "ExecutedUtc":  "2026-09-11T08:37:54.7568409Z",
+    "Entry":  "Published self-contained tool via Windows PowerShell 5 / Author.ps1",
+    "GitOrSdkOnPath":  false,
+    "ToolSha256":  "c478dac99f66fc2cfacd74b3f03d1617047885f24d0b43616047f71cff513aaf",
+    "BeforeProfile":  {
+                          "name":  "Aurora Study · 作者演练",
+                          "author":  "OMS contributors",
+                          "complex":  false,
+                          "bmsAccent":  "58d3ea",
+                          "maniaAccent":  "b7a3ff",
+                          "highlight":  "f3ca78",
+                          "background":  "0b1019"
+                      },
+    "EditedProfile":  {
+                          "name":  "Aurora Study · 作者演练",
+                          "author":  "Authoring Kit workshop",
+                          "complex":  false,
+                          "bmsAccent":  "86e0a8",
+                          "maniaAccent":  "f4af89",
+                          "highlight":  "edf19b",
+                          "background":  "0b1019"
+                      },
+    "PackageSha256":  "ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7",
+    "ActualGameLink":  "Byte-identical aurora-study.osk is exercised by CanonicalSkinBackupRootProductTest in the final current-build game results; this command exercise does not start the game.",
+    "Steps":  [
+                  {
+                      "Action":  "new",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\artifacts\\skin-c7-evidence\\standalone-author-final\\work\\standalone-aurora"
+                  },
+                  {
+                      "Action":  "edit author profile and README",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "Applied the published workshop name, author, colours and editable description to the new template copy."
+                  },
+                  {
+                      "Action":  "generate",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "素材、两种玩法设置与演出文件已重新生成。继续检查，再打包。"
+                  },
+                  {
+                      "Action":  "check",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。"
+                  },
+                  {
+                      "Action":  "check",
+                      "Expected":  1,
+                      "ExitCode":  1,
+                      "Output":  "powershell.exe : bms/note-white.png: 图片无法解码，请从图像编辑器重新保存有效 PNG。\r\nAt F:\\oms\\artifacts\\skin-c7-evidence\\Test-StandaloneAuthorWorkflow.ps1:24 char:19\r\n+ ...   $result = \u0026 (Join-Path $env:SystemRoot \u0027System32/WindowsPowerShell/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (bms/note-white....像编辑器重新保存有效 PNG。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。\r\nAt F:\\oms\\artifacts\\skin-c7-evidence\\standalone-author-final\\Author.ps1:50 char:28\r\n+ if ($LASTEXITCODE -ne 0) { throw \u0027作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。\u0027 }\r\n+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。:String) [], RuntimeException\r\n    + FullyQualifiedErrorId : 作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。"
+                  },
+                  {
+                      "Action":  "check",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。"
+                  },
+                  {
+                      "Action":  "import",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-c7-evidence\\standalone-author-final\\work\\standalone-aurora.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7\r\n导入副本已准备：F:\\oms\\artifacts\\skin-c7-evidence\\standalone-author-final\\work\\import-6bec9b2e9e3c4450b78e104ad82a9b30\\standalone-aurora.osk\r\n把该 .osk 拖入 OMS 窗口导入；更新包导入后在皮肤设置选中新版本。旧版本保留供对照。"
+                  },
+                  {
+                      "Action":  "update",
+                      "Expected":  0,
+                      "ExitCode":  0,
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-c7-evidence\\standalone-author-final\\work\\standalone-aurora.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7\r\n导入副本已准备：F:\\oms\\artifacts\\skin-c7-evidence\\standalone-author-final\\work\\import-ca4a3eac3e9b4c24b679e9b03f08752d\\standalone-aurora.osk\r\n把该 .osk 拖入 OMS 窗口导入；更新包导入后在皮肤设置选中新版本。旧版本保留供对照。"
+                  }
+              ],
+    "RetainedPackageAndPrevious":  true,
+    "DisposableImportCopies":  2
+}

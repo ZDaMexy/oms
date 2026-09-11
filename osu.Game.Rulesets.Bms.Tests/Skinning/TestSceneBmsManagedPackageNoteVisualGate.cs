@@ -433,9 +433,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep($"cycle {cycle}: select broken package", () => skinManager.CurrentSkinInfo.Value = brokenSkin);
             AddUntilStep($"cycle {cycle}: broken selection active", () => selectedSkinIs(brokenSkin));
             AddStep($"cycle {cycle}: remount live preview on broken revision", mountProductionNoteHost);
-            AddUntilStep($"cycle {cycle}: default fallback loaded", () => noteHost.Drawable is DefaultBmsNoteDisplay { IsLoaded: true });
+            AddUntilStep($"cycle {cycle}: canonical fallback loaded", () => CanonicalNoteFallbackAssertions.IsLoaded(noteHost.Drawable, BmsNoteSkinElements.Note));
+            AddStep($"cycle {cycle}: verify the complete fallback package resource", () =>
+                CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, noteHost.Drawable!, noteHost.Lookup));
             AddStep($"cycle {cycle}: begin broken dwell", () =>
-                beginDwell(cycle, "BROKEN 已安全回落 · DefaultBmsNoteDisplay", new Color4(156, 55, 24, 255)));
+                beginDwell(cycle, "缺件已补齐 · OMS 简洁音符", new Color4(156, 55, 24, 255)));
             AddUntilStep($"cycle {cycle}: broken dwell complete", () => Clock.CurrentTime >= phaseDwellEnd);
         }
 

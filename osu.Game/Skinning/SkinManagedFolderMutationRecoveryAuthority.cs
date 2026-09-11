@@ -1,4 +1,4 @@
-// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+﻿// Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;
@@ -84,15 +84,13 @@ namespace osu.Game.Skinning
                     coordinatorLease,
                     native,
                     registrySnapshot);
+                if (!session.Validate(cancellationToken))
+                    return null;
+
+                // The caller receives ownership only after validation succeeds. Cancellation or rejection before
+                // this point must still release both resources through the local finally block.
                 native = null;
                 registrySnapshot = null;
-
-                if (!session.Validate(cancellationToken))
-                {
-                    session.Dispose();
-                    return null;
-                }
-
                 return session;
             }
             catch (OperationCanceledException)

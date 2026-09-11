@@ -73,6 +73,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         protected override bool UseFreshStoragePerRun => true;
 
+        [SetUpSteps]
+        public void SetUpSteps()
+        {
+            // A failed visual step can skip the queued teardown. Release only this fixture's previous test graph
+            // before a new selection; production must continue to reject selection while real gameplay is attached.
+            AddStep("detach any previous test graph", () => Clear(disposeChildren: true));
+        }
+
         [TearDownSteps]
         public void TearDownSteps()
         {
@@ -432,8 +440,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             BmsAsyncNoteDrawable host = null!;
 
             AddStep("mount generated broken package", () => host = mountProductionHost(null));
-            AddUntilStep("generated broken slot falls back", () => host.Drawable is DefaultBmsNoteDisplay { IsLoaded: true });
-            AddAssert("generated broken package remains playable", () => host.Drawable, () => Is.TypeOf<DefaultBmsNoteDisplay>());
+            AddUntilStep("generated broken slot falls back", () => CanonicalNoteFallbackAssertions.IsLoaded(host.Drawable, BmsNoteSkinElements.Note));
+            AddStep("generated broken package uses the verified ordinary fallback", () =>
+                CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, host.Drawable!, host.Lookup));
         }
 
         [Test]
@@ -1573,16 +1582,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 new BmsNoteSkinLookup(element, laneIndex: 2, isScratch: false, keymode: BmsKeymode.Key7K)));
             AddUntilStep("both lane visuals loaded", () =>
                 hosts[0].Drawable is { IsLoaded: true } fallback
-                && fallback.GetType() == getProtectedFallbackDrawableType(element)
+                && fallback.GetType() == getSourceBoundDrawableType(element)
                 && hosts[1].Drawable is { IsLoaded: true } provided
                 && provided.GetType() == getSourceBoundDrawableType(element));
             AddStep("assert decode failure stays lane-local and playable", () =>
             {
                 Assert.Multiple(() =>
                 {
-                    assertProtectedFallback(hosts[0].Drawable, element);
-                    Assert.That(hosts[0].Drawable!.ChildrenOfType<Box>(), Is.Not.Empty);
+                    CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, hosts[0].Drawable!, hosts[0].Lookup);
                     Assert.That(hosts[1].Drawable, Is.TypeOf(getSourceBoundDrawableType(element)));
+                    Assert.That(hosts[1].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Width, Is.EqualTo(4));
+                    Assert.That(hosts[1].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Height, Is.EqualTo(3));
                 });
             });
         }
@@ -1712,7 +1722,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 new BmsNoteSkinLookup(BmsNoteSkinElements.LongNoteHead, laneIndex: 1, isScratch: false, keymode: BmsKeymode.Key7K)));
             AddUntilStep("valid ordinary note and head fallback loaded", () =>
                 hosts[0].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
-                && hosts[1].Drawable is DefaultBmsLongNoteHeadDisplay { IsLoaded: true });
+                && CanonicalNoteFallbackAssertions.IsLoaded(hosts[1].Drawable, BmsNoteSkinElements.LongNoteHead));
             AddStep("assert invalid heads are isolated from valid ordinary note", () =>
             {
                 var transformer = new BmsSkinTransformer(skinManager.CurrentSkin.Value);
@@ -1720,8 +1730,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(hosts[0].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
-                    Assert.That(hosts[1].Drawable, Is.TypeOf<DefaultBmsLongNoteHeadDisplay>());
-                    Assert.That(hosts[1].Drawable!.ChildrenOfType<Box>(), Is.Not.Empty);
+                    Assert.That(hosts[0].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Width, Is.EqualTo(4));
+                    Assert.That(hosts[0].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Height, Is.EqualTo(4));
+                    CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, hosts[1].Drawable!, hosts[1].Lookup);
 
                     for (int lane = 1; lane <= 5; lane++)
                     {
@@ -1737,7 +1748,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void TestInvalidLongNoteTailDeclarationsUseTransparentFallbackWithoutRejectingValidNoteAndHead()
+        public void TestInvalidLongNoteTailDeclarationsUseCanonicalFallbackWithoutRejectingValidNoteAndHead()
         {
             importAndSelect(
                 "valid note and head beside invalid long-note tails",
@@ -1769,8 +1780,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("valid components and protected tail fallback loaded", () =>
                 hosts[0].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
                 && hosts[1].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
-                && hosts[2].Drawable is DefaultBmsLongNoteTailDisplay { IsLoaded: true });
-            AddStep("assert invalid tails are isolated and fallback stays transparent", () =>
+                && CanonicalNoteFallbackAssertions.IsLoaded(hosts[2].Drawable, BmsNoteSkinElements.LongNoteTail));
+            AddStep("assert invalid tails inherit the canonical tail and preserve valid author parts", () =>
             {
                 var transformer = new BmsSkinTransformer(skinManager.CurrentSkin.Value);
 
@@ -1778,9 +1789,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     Assert.That(hosts[0].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
                     Assert.That(hosts[1].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
-                    assertProtectedFallback(hosts[2].Drawable, BmsNoteSkinElements.LongNoteTail);
-                    Assert.That(hosts[2].Drawable!.ChildrenOfType<TextureAnimation>(), Is.Empty);
-                    Assert.That(hosts[2].Drawable.ChildrenOfType<Sprite>().Where(sprite => sprite is not Box), Is.Empty);
+                    Assert.That(hosts[0].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Width, Is.EqualTo(4));
+                    Assert.That(hosts[1].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Height, Is.EqualTo(3));
+                    CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, hosts[2].Drawable!, hosts[2].Lookup);
 
                     for (int lane = 1; lane <= 5; lane++)
                     {
@@ -1833,7 +1844,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 hosts[0].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
                 && hosts[1].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
                 && hosts[2].Drawable is BmsSourceBoundNoteDrawable { IsLoaded: true }
-                && hosts[3].Drawable is DefaultBmsLongNoteBodyDisplay { IsLoaded: true });
+                && CanonicalNoteFallbackAssertions.IsLoaded(hosts[3].Drawable, BmsNoteSkinElements.LongNoteBody));
             AddStep("assert invalid bodies are isolated and fallback remains visible", () =>
             {
                 var transformer = new BmsSkinTransformer(skinManager.CurrentSkin.Value);
@@ -1843,7 +1854,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(hosts[0].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
                     Assert.That(hosts[1].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
                     Assert.That(hosts[2].Drawable, Is.TypeOf<BmsSourceBoundNoteDrawable>());
-                    assertProtectedFallback(hosts[3].Drawable, BmsNoteSkinElements.LongNoteBody);
+                    Assert.That(hosts[0].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Width, Is.EqualTo(4));
+                    Assert.That(hosts[1].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Height, Is.EqualTo(3));
+                    Assert.That(hosts[2].Drawable!.ChildrenOfType<Sprite>().Single().Texture.Width, Is.EqualTo(3));
+                    CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, hosts[3].Drawable!, hosts[3].Lookup);
 
                     for (int lane = 1; lane <= 5; lane++)
                     {
@@ -2076,15 +2090,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 };
             });
 
-            AddUntilStep("fallback note loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
+            AddUntilStep("fallback note loaded", () => host.IsLoaded && CanonicalNoteFallbackAssertions.IsLoaded(host.Drawable, element));
             AddStep("assert lower same-name texture did not bleed", () =>
             {
                 Assert.Multiple(() =>
                 {
-                    assertProtectedFallback(host.Drawable, element);
-                    Assert.That(host.Drawable.ChildrenOfType<Box>(), Is.Not.Empty);
-                    Assert.That(host.Drawable.ChildrenOfType<Sprite>().Where(sprite => sprite is not Box), Is.Empty);
-                    Assert.That(host.Drawable.ChildrenOfType<TextureAnimation>(), Is.Empty);
+                    Assert.That(selectedMissingPackage.Skin.SkinInfo.ID, Is.EqualTo(selectedMissingPackage.Info.ID));
+                    Assert.That(new BmsSkinTransformer(selectedMissingPackage.Skin).GetDrawableComponent(createLookup(element)), Is.Null);
+                    Assert.That(lowerSource.GetTexture("shared/component")!.Width, Is.EqualTo(7));
+                    Assert.That(lowerSource.GetTexture("shared/component")!.Height, Is.EqualTo(3));
+                    CanonicalNoteFallbackAssertions.AssertMatches(skinManager.DefaultOmsSkin, host.Drawable!, host.Lookup);
+                    Assert.That(host.Drawable!.ChildrenOfType<Sprite>().Single().Texture.Width, Is.Not.EqualTo(7));
                 });
             });
         }
@@ -2251,15 +2267,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep($"select {label}", () =>
             {
                 skinManager.CurrentSkinInfo.Value = imported.Info;
-                imported.Skin = skinManager.CurrentSkin.Value;
-                afterSelect?.Invoke();
             });
 
             AddUntilStep($"wait for {label} selection", () =>
                 imported.Info != null
                 && skinManager.CurrentSkinInfo.Value.ID == imported.Info.ID
                 && skinManager.CurrentSkin.Value.SkinInfo.ID == imported.Info.ID
-                && skinManager.CurrentSkin.Value is BmsLegacySkin);
+                && skinManager.CurrentSkin.Value is BmsLegacySkin
+                && ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value));
+            AddStep($"capture the published {label} owner", () =>
+            {
+                imported.Skin = skinManager.CurrentSkin.Value;
+                Assert.That(imported.Skin.SkinInfo.ID, Is.EqualTo(imported.Info.ID));
+                Assert.That(skinManager.CurrentRevision.Owner, Is.SameAs(imported.Skin));
+                afterSelect?.Invoke();
+            });
         }
 
         private void assertNoteComponentFailureReturnsNull(string label, BmsNoteSkinElements element)
@@ -3071,6 +3093,42 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 WasDisposed = true;
                 base.Dispose(isDisposing);
             }
+        }
+    }
+
+    internal static class CanonicalNoteFallbackAssertions
+    {
+        internal static bool IsLoaded(Drawable? drawable, BmsNoteSkinElements element)
+            => drawable is { IsLoaded: true }
+               && drawable.GetType() == (element == BmsNoteSkinElements.LongNoteBody
+                   ? typeof(BmsSourceBoundLongNoteBodyDrawable)
+                   : typeof(BmsSourceBoundNoteDrawable));
+
+        internal static void AssertMatches(Skin canonical, Drawable actual, BmsNoteSkinLookup lookup)
+        {
+            Assert.That(CanonicalSkinPackage.IsCanonicalSkin(canonical), Is.True);
+            Assert.That(IsLoaded(actual, lookup.Element), Is.True);
+            var package = (BmsLegacySkin)canonical;
+            BmsManagedPackageNoteRevision prepared = package.GetOrPrepareManagedPackageNotes(CancellationToken.None);
+            Assert.That(prepared.SourceRevision.Equals(package.CaptureManagedPackageSourceRevision()), Is.True);
+            Assert.That(prepared.TryGetMaterial(new BmsManagedPackageNoteSlotKey(
+                lookup.Element, lookup.Keymode, lookup.LaneIndex, lookup.IsScratch), out IBmsResolvedNoteMaterial? material), Is.True);
+            Assert.That(material, Is.TypeOf<BmsSourceBoundNoteMaterial>());
+            using Drawable expected = material!.CreateDrawable();
+            Sprite expectedSprite = expected.ChildrenOfType<Sprite>().Single();
+            Sprite actualSprite = actual.ChildrenOfType<Sprite>().Single();
+            Assert.Multiple(() =>
+            {
+                // The exact immutable package preparation supplies both visuals. Matching the retained texture
+                // object proves origin, rather than merely accepting any sprite or a same-sized lower-source file.
+                Assert.That(actualSprite.Texture, Is.SameAs(expectedSprite.Texture));
+                Assert.That(actual.ChildrenOfType<Box>(), Is.Empty);
+                Assert.That(actual.ChildrenOfType<TextureAnimation>(), Is.Empty);
+                Assert.That(actual.Alpha, Is.EqualTo(expected.Alpha).Within(0.0001f));
+                Assert.That(actual.Alpha, Is.GreaterThan(0));
+                if (lookup.Element == BmsNoteSkinElements.LongNoteBody)
+                    Assert.That(actual.Width, Is.EqualTo(expected.Width).Within(0.0001f), "Missing body geometry belongs to the same canonical package as its texture.");
+            });
         }
     }
 }

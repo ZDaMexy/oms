@@ -470,19 +470,24 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
             AddStep("capture terminal identity and immediately rewind", () =>
             {
-                GameplaySkinObjectStateSnapshot terminal = ((GameplaySkinObjectEventPayload)terminalEvents.Last(envelope =>
+                GameplaySkinEventEnvelope terminalEvent = terminalEvents.Last(envelope =>
                     envelope.EventKind == GameplaySkinEventKind.ObjectStateChanged
                     && envelope.Payload is GameplaySkinObjectEventPayload payload
                     && payload.State.ObjectId == objectId
-                    && payload.State.State is GameplaySkinObjectState.Hit or GameplaySkinObjectState.Completed).Payload).State;
+                    && payload.State.State is GameplaySkinObjectState.Hit or GameplaySkinObjectState.Completed);
+                GameplaySkinObjectStateSnapshot terminal = ((GameplaySkinObjectEventPayload)terminalEvent.Payload).State;
 
                 groupId = terminal.GroupId;
                 laneId = terminal.LaneId!;
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(terminal.State, Is.EqualTo(GameplaySkinObjectState.Hit).Or.EqualTo(GameplaySkinObjectState.Completed));
-                    Assert.That(terminal.Progress, Is.EqualTo(1));
+                    Assert.That(terminal.State, Is.EqualTo(GameplaySkinObjectState.Hit),
+                        "A forcefully judged hold is hit before its end time; it has not completed its duration.");
+                    double expectedProgress = (terminalEvent.GameplayTime - hold.StartTime) / (hold.EndTime - hold.StartTime);
+                    Assert.That(terminal.Progress, Is.EqualTo(System.Math.Clamp(expectedProgress, 0, 1)).Within(1e-9));
+                    Assert.That(terminal.Progress, Is.LessThan(1),
+                        "A terminal judgement must not invent end-time progress and reset the next real hold event.");
                 });
 
                 Player.GameplayClockContainer.Seek(2250);

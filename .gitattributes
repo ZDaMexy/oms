@@ -28,3 +28,14 @@ App.config text eol=crlf
 doc_md/other/skin-c6-candidate/*.ini text eol=lf
 doc_md/other/skin-c6-candidate/*.json text eol=lf
 doc_md/other/skin-c6-candidate/*.script text eol=lf
+
+# Author source files must reproduce the distributed archives after a fresh checkout.
+skin-authoring/sources/**/*.ini text eol=lf
+skin-authoring/sources/**/*.json text eol=lf
+skin-authoring/sources/**/*.script text eol=lf
+skin-authoring/dist/*.sha256 text eol=lf
+skin-authoring/docs/examples/**/*.json text eol=lf
+skin-authoring/docs/examples/**/*.script text eol=lf
+
+# Original unsigned acceptance inputs are preserved byte for byte.
+skin-c7-acceptance/legacy/** -text

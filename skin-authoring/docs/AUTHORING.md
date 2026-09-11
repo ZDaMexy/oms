@@ -2,6 +2,8 @@
 
 制作分成两个常用方式。改色和复现官方作品时，编辑 `author.json`，然后运行 `generate`。自己画素材、调整舞台或编写演出时，直接编辑 `bms/*.png`、`mania/*.png`、`scene/*.png`、`skin.ini`、`gameplay-skin.scene.json` 和可选 `gameplay-skin.script`，随后运行 `check`、`pack`；此时不要再运行 `generate` 覆盖手工修改。
 
+具体 JSON 字段、模板实例、状态机、图片变体、脚本指令和完整预算见 [普通作者参考与完整练习](REFERENCE.md)。先完成本页的完整作品流程，再按需要查表。
+
 所有文件相对于作品目录。图片名在 `skin.ini` 中不写扩展名，在场景清单中必须写完整 `.png` 路径。短键、长条头身尾支持 `名字-0.png`、`名字-1.png` 等从 0 连续编号的动画，固定每秒 60 帧。静态同名 PNG 保留可读的封面帧；普通作者同样可使用这条路径。
 
 ## 先做一个能完整游玩的版本
@@ -33,7 +35,7 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 
 `gameplay-skin.json` 固定使用 `oms-gameplay-skin-manifest.v1`，声明固定场景文件、`oms-gameplay-skin-scene.v1`、`oms-gameplay-skin-event.v1` 以及图片资源。资源路径只在本包内有效。
 
-场景根包含 `root`、`tracks`、`stateMachines`、`bindings`、`variants`、`templates`、`instances`。节点必填 `id/type/target/properties/effects/children`；可声明 `slot/resource/blend`。节点类型为 `sprite/container/text/mask/clip`。根若只分派不同资源槽，使用无资源、无动画、无属性、`blend: inherit` 的容器。一个可见分组必须属于自己显式 `Provide` 的公开资源槽。
+场景根包含 `root`、`tracks`、`stateMachines`、`bindings`、`variants`、`templates`、`instances`。节点必填 `id/type/target/blend/properties/effects/children`；可声明 `slot/resource`。节点类型为 `sprite/container/text/mask/clip`。根若只分派不同资源槽，使用无资源、无动画、无属性、`blend: inherit` 的容器。一个可见分组必须属于自己显式 `Provide` 的公开资源槽。
 
 | 面 | 公开内容 |
 | --- | --- |
@@ -50,6 +52,8 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 当前场景精确轨道目标不支持“目标不存在则忽略”。同一包跨玩法时用两种玩法都适用的共通目标演出，玩法专属外观使用公开设置中的选择条件与素材。星轨是完整的实际范例：普通核心部件由各自公开素材提供，`hud.text` 全局槽拥有包含分数/准确率/连击/速度/判定/能量与谱面进度的完整信息控制台；控台使用只读绑定与生命周期状态机，不需要额外授权。成组装饰使用另一个共同全局槽，脚本只改变这组获准节点。不要把 mania 不适用的地雷或 BGA 场景节点强塞进共同场景。
 
 `score.accuracy` 与 `timing.progress` 的数值都是 0～1；绑定文字时分别显示两位小数准确率百分数和整数进度百分数。进度来自真实谱面可玩起止与游玩时钟，首个物件前为零，末物件后为一，零时长谱为零；暂停不推进，重试或回跳使用新位置。星轨控制台下方的金色细条表示谱面进度，青色细条表示能量。它们只读取游戏状态，不需要组合脚本授权。
+
+两款的进度条使用定宽容器包住子图片，把数值绑定到子图片的 `width`。这样零进度时图片宽度真正为零；不要用 `scale-x = 0` 表达空进度，因为底层绘图会保留极小缩放，在宽屏上仍可能出现细线。顶栏也应给标签和实际数字分别留下足够高度，不能只在设计预览中看起来放得下。
 
 允许的效果类型为 `blur/glow/outline/shadow`，仅接受各类型的公开数值与颜色参数；节点最多 8 个效果，全图最多 512 个，仍受准备后的总实例与表面积预算约束。星轨直接使用有透明度的几何图片，避免把多层模糊变成基本显示的前置条件。
 

@@ -1,0 +1,39 @@
+oms-script 1
+# Only this small optional accent changes; the information bar remains declarative.
+required gameplay.snapshot.read
+required gameplay.events.read
+required scene.numeric.write
+deny network.read
+state kind 0
+state test 0
+state hits 0
+state gauge 0
+state size 1
+state part 0
+heap 1
+target ref.icon scale-x
+target ref.icon scale-y
+read kind event-kind
+eq test kind 40
+when test hit
+eq test kind -1
+when test draw
+halt
+hit:
+load hits 0
+add hits hits 1
+clamp hits hits 0 8
+store 0 hits
+halt
+draw:
+load hits 0
+mul size hits 0.05
+read gauge gauge
+mul part gauge 0.15
+add size size part
+add size size 1
+set ref.icon scale-x size
+set ref.icon scale-y size
+mul hits hits 0.9
+store 0 hits
+halt

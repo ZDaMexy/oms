@@ -1,4 +1,4 @@
-// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+﻿// Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
 using System.Threading;
@@ -142,6 +142,89 @@ namespace osu.Game.Tests.Skins
             Assert.That(contention!.Completion.Wait(coordination_timeout), Is.True);
             Assert.That(participant.Wait(coordination_timeout), Is.True);
             Assert.That(participant.IsCompletedSuccessfully, Is.True);
+        }
+
+        [Test]
+        public void TestStartupRecoveryRetainsOwnershipUntilDiscoveryReleasesStartup()
+        {
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            using SkinManagedFolderOperationCoordinator.Lease startup = coordinator.EnterStartupSequence();
+            SkinManagedFolderOperationCoordinator.SelectionPreparationObservation observation = coordinator.CaptureSelectionPreparationObservation();
+            SkinManagedFolderOperationCoordinator.SelectionContention? contention = null;
+
+            using (SkinManagedFolderOperationCoordinator.Lease recovery = coordinator.EnterRecovery())
+            {
+                Assert.That(recovery.IsMutationReservationHeldBy(coordinator), Is.True);
+                Assert.That(coordinator.IsStartupSequenceHeldByCurrentThread, Is.True);
+                Assert.That(coordinator.CaptureSelectionPreparationObservation(), Is.EqualTo(observation));
+                Assert.Throws<InvalidOperationException>(() => coordinator.EnterMutation());
+                Assert.Throws<InvalidOperationException>(() => coordinator.EnterRecovery());
+
+                Task<bool> participant = Task.Run(() =>
+                {
+                    bool entered = coordinator.TryEnterForSelection(
+                        out SkinManagedFolderOperationCoordinator.Lease? attempted,
+                        out contention);
+                    attempted?.Dispose();
+                    return entered;
+                });
+                Assert.That(participant.Wait(coordination_timeout), Is.True);
+                Assert.That(participant.GetAwaiter().GetResult(), Is.False);
+                Assert.That(contention, Is.Not.Null);
+                Assert.That(contention!.Kind, Is.EqualTo(SkinManagedFolderOperationCoordinator.SelectionContentionKind.StartupSequence));
+                Assert.That(contention.Completion.IsCompleted, Is.False);
+            }
+
+            using (SkinManagedFolderOperationCoordinator.Lease discovery = coordinator.Enter())
+            {
+                Assert.That(discovery.IsMutationReservationHeldBy(coordinator), Is.False);
+                Assert.That(contention!.Completion.IsCompleted, Is.False);
+                Assert.That(coordinator.IsStartupSequenceHeldByCurrentThread, Is.True);
+                Assert.Throws<InvalidOperationException>(() => coordinator.EnterRecovery());
+            }
+
+            Assert.That(contention!.Completion.IsCompleted, Is.False);
+            startup.Dispose();
+            Assert.That(contention.Completion.Wait(coordination_timeout), Is.True);
+        }
+
+        [Test]
+        public void TestCancelledStartupRecoveryDoesNotConsumeOrReleaseStartupOwnership()
+        {
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            using SkinManagedFolderOperationCoordinator.Lease startup = coordinator.EnterStartupSequence();
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.Throws<OperationCanceledException>(() => coordinator.EnterRecovery(cancellation.Token));
+            Assert.That(coordinator.IsStartupSequenceHeldByCurrentThread, Is.True);
+            using (SkinManagedFolderOperationCoordinator.Lease recovery = coordinator.EnterRecovery())
+                Assert.That(recovery.IsMutationReservationHeldBy(coordinator), Is.True);
+            startup.Dispose();
+
+            Task<bool> participant = Task.Run(() =>
+            {
+                bool entered = coordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease? attempted);
+                attempted?.Dispose();
+                return entered;
+            });
+            Assert.That(participant.Wait(coordination_timeout), Is.True);
+            Assert.That(participant.GetAwaiter().GetResult(), Is.True);
+        }
+
+        [Test]
+        public void TestRecoveryOutsideStartupRetainsMutationReservationRules()
+        {
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            using (SkinManagedFolderOperationCoordinator.Lease recovery = coordinator.EnterRecovery())
+            {
+                Assert.That(recovery.IsMutationReservationHeldBy(coordinator), Is.True);
+                Assert.That(coordinator.IsStartupSequenceHeldByCurrentThread, Is.False);
+                Assert.Throws<InvalidOperationException>(() => coordinator.EnterRecovery());
+                Assert.Throws<InvalidOperationException>(() => coordinator.EnterMutation());
+            }
+            using (coordinator.Enter())
+                Assert.Throws<InvalidOperationException>(() => coordinator.EnterRecovery());
         }
 
         [Test]

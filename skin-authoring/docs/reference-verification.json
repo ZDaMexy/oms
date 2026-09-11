@@ -1,0 +1,23 @@
+﻿{
+  "ExecutedUtc": "2026-09-11T09:05:36.8536270Z",
+  "Command": "F:\\oms\\artifacts\\skin-c7-evidence\\release-final-extracted\\skin-authoring\\bin\\SkinAuthoring.exe check F:\\oms\\artifacts\\skin-c7-evidence\\reference-final-normalized\\source",
+  "Source": "Complete oms-simple copied and the three documented example files replaced together; final examples have one terminal newline and stable LF checkout rules.",
+  "ExitCode": 0,
+  "Output": "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n",
+  "ToolSha256": "c478dac99f66fc2cfacd74b3f03d1617047885f24d0b43616047f71cff513aaf",
+  "Files": [
+    {
+      "File": "examples/reference-study/gameplay-skin.json",
+      "Sha256": "e8b8a034d296e450f8caf9734a8e59d0bef052a00d20084dd33fb93bf2716519"
+    },
+    {
+      "File": "examples/reference-study/gameplay-skin.scene.json",
+      "Sha256": "1a5a9c5603b9728a9886cf71341b1087e58081970bd9d2f78e4068655fc82ed7"
+    },
+    {
+      "File": "examples/reference-study/gameplay-skin.script",
+      "Sha256": "1a463d26012324b04ae4b5dd39a3e26ba6674db137d5f76b5af9f865c3c93bc2"
+    }
+  ],
+  "Limit": "Metadata/image/scene/script checks; actual gameplay rendering and device observation remain unsigned."
+}

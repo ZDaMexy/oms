@@ -4,11 +4,11 @@
 
 ## 开始游玩
 
-1. 将整个验收包解压到一个新的普通本地目录，在此目录打开 PowerShell，运行下方启动命令；第一次向导选择本地游玩即可。命令只对本次运行允许脚本，不更改系统策略。
+1. 使用 Windows 资源管理器将整个验收包解压到一个新的普通本地目录，保留安装原件的只读属性；在此目录打开 PowerShell，运行下方启动命令，第一次向导选择本地游玩即可。命令只对本次运行允许脚本，不更改系统策略。
 2. 将 `import-copies/oms-simple.osk` 与 `oms-complex.osk` 拖入窗口。进入设置的皮肤选择，分别选择简洁款和复杂款。复杂款只是展示包和默认候选；本次不决定首次默认选择。
-3. 在选歌中搜索 `OMS C7`，分别选择 BMS 与 mania 的观察谱。输入谱已放到本副本 `app/data/chartbms/` 和 `app/data/chartmania/`。这些是约四十秒的原创静音观察谱；音频、真实输入、长谱体验仍使用自己的真实谱面另验。
+3. 在设置中进入“维护 → 内部谱库”，执行“扫描内部谱库（增量）”，等待完成后在选歌中搜索 `OMS C7`，分别选择 BMS 与 mania 的观察谱。文件已放到本副本 `app/data/chartbms/` 和 `app/data/chartmania/`，首次仍需此步骤建立谱面列表。这些是约四十秒的原创静音观察谱；音频、真实输入、长谱体验仍使用自己的真实谱面另验。
 4. 先保持复杂款额外效果未授权游玩，再在设置中允许请求的必要能力，比较组合演出。拒绝或撤销后，音符、长条和必要信息应仍清楚可用。
-5. 导入成功会消费 `import-copies/` 中的副本。需要重新导入时运行 `Reset-ImportCopies.ps1`；不要直接拖入 `packages/` 或程序携带的保底原件。
+5. 导入成功会消费 `import-copies/` 中的副本。需要重新导入时运行 `Reset-ImportCopies.ps1`，只补齐缺失副本，已有副本原样保留；需要重做现有项时，先将它改名保全，再运行工具。不要直接拖入 `packages/` 或程序携带的保底原件。
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Start-Acceptance.ps1

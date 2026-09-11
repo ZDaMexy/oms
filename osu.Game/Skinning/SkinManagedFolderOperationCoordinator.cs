@@ -1,4 +1,4 @@
-// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+﻿// Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +36,31 @@ namespace osu.Game.Skinning
 
         internal Lease EnterMutation(CancellationToken cancellationToken = default)
             => enter(LeaseKind.MutationReservation, cancellationToken);
+
+        /// <summary>
+        /// Acquires recovery authority within the current startup sequence, or an ordinary exclusive reservation.
+        /// </summary>
+        internal Lease EnterRecovery(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            lock (ownershipGate)
+            {
+                if (leaseDepth == 1
+                    && ownerManagedThreadId == Environment.CurrentManagedThreadId
+                    && ownerKind == LeaseKind.StartupSequence)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    // Recovery needs mutation authority, but the outer startup owner must continue to exclude
+                    // selection until discovery finishes. Do not publish a new owner or advance its epochs here.
+                    leaseDepth++;
+                    return new Lease(this, LeaseKind.MutationReservation);
+                }
+            }
+
+            // Recovery inside a mutation, short scope or another recovery remains forbidden.
+            return EnterMutation(cancellationToken);
+        }
 
         internal Lease EnterStagedImport(CancellationToken cancellationToken = default)
             => enter(LeaseKind.StagedImportReservation, cancellationToken);

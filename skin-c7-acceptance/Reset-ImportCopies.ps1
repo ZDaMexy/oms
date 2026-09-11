@@ -17,8 +17,9 @@ foreach ($file in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'packages'
     if (Test-Path -LiteralPath $target) {
         $entry = Get-Item -LiteralPath $target -Force
         if ($entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw '导入副本目标与现有目录或链接冲突。' }
+        continue
     }
-    Copy-Item -LiteralPath $file.FullName -Destination $target -Force
+    [IO.File]::Copy($file.FullName, $target, $false)
     [IO.File]::SetAttributes($target, ([IO.File]::GetAttributes($target) -band (-bnot [IO.FileAttributes]::ReadOnly)))
 }
-Write-Host '导入副本已补齐；packages 中的原件始终保留。'
+Write-Host '缺失的导入副本已补齐；已有副本与 packages 原件原样保留。需要重做现有副本时，请先改名保全，再运行本工具。'

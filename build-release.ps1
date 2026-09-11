@@ -42,9 +42,30 @@ $publishDir = Join-Path $repoRoot 'publish'
 $releaseDir = Join-Path $repoRoot 'release-repo'
 $desktopDir = Join-Path $repoRoot 'osu.Desktop'
 $authoringDir = Join-Path $repoRoot 'skin-authoring'
-dotnet publish (Join-Path $repoRoot 'tools/SkinAuthoring') -c Release -r $Runtime --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o (Join-Path $authoringDir 'bin')
+$acceptanceDir = Join-Path $repoRoot 'skin-c7-acceptance'
+$legacyDir = Join-Path $acceptanceDir 'legacy'
+# Fixed original acceptance inputs are part of the source checkout; never depend on untracked artifacts.
+Assert-OrdinaryDeliveryEntry $legacyDir
+$legacyHashes = @{}
+foreach ($line in [IO.File]::ReadAllLines((Join-Path $legacyDir 'SHA256SUMS.txt'))) {
+    if ($line -notmatch '^([0-9a-f]{64})  (.+)$' -or $legacyHashes.ContainsKey($Matches[2])) { throw 'Original acceptance input manifest is invalid.' }
+    $legacyHashes.Add($Matches[2], $Matches[1])
+}
+foreach ($name in @('oms-complex-c6.osk', 'bms-note-animation-manual-gate.osk', 'bms-note-animation-manual-gate-broken.osk', 'bms-note-animation-manual-gate/bms-note-animation-manual-gate.bme', 'original-v001-SHA256SUMS.txt', 'SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md.snapshot')) {
+    $file = Join-Path $legacyDir $name
+    if (-not $legacyHashes.ContainsKey($name) -or -not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-FileSha256 $file) -ne $legacyHashes[$name]) { throw "Original acceptance input is missing or changed: $name" }
+}
+$authoringPublishDir = Join-Path $repoRoot ('artifacts/skin-authoring-release-' + [Guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $authoringPublishDir) { throw 'The new authoring publish directory already exists.' }
+$authoringAncestor = [IO.Path]::GetDirectoryName($authoringPublishDir)
+while ($authoringAncestor) {
+    if ((Test-Path -LiteralPath $authoringAncestor) -and (((Get-Item -LiteralPath $authoringAncestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { throw 'Authoring publish output cannot use a redirected ancestor.' }
+    $authoringAncestor = [IO.Path]::GetDirectoryName($authoringAncestor)
+}
+dotnet publish (Join-Path $repoRoot 'tools/SkinAuthoring') -c Release -r $Runtime --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $authoringPublishDir
 if ($LASTEXITCODE -ne 0) { throw 'The standalone authoring tool could not be published.' }
-foreach ($required in @('Author.ps1', 'bin/SkinAuthoring.exe', 'dist/oms-simple.osk', 'dist/oms-complex.osk', 'dist/aurora-study.osk')) {
+if (-not (Test-Path -LiteralPath (Join-Path $authoringPublishDir 'SkinAuthoring.exe') -PathType Leaf)) { throw 'The new standalone authoring publication is incomplete.' }
+foreach ($required in @('Author.ps1', 'dist/oms-simple.osk', 'dist/oms-complex.osk', 'dist/aurora-study.osk')) {
     if (-not (Test-Path -LiteralPath (Join-Path $authoringDir $required) -PathType Leaf)) {
         throw "Authoring Kit is incomplete: $required. Build the public authoring tool and both skins before release packaging."
     }
@@ -70,8 +91,8 @@ if (Test-Path -LiteralPath $resolvedPublish) {
     Remove-Item -LiteralPath $resolvedPublish -Recurse -Force
 }
 
-# ── 2. dotnet publish（single-file 便携发行）──────────────────
-Write-Host '[2/6] Building single-file Release...' -ForegroundColor Cyan
+# ── 2. dotnet publish（自包含便携发行）──────────────────────
+Write-Host '[2/6] Building self-contained Release...' -ForegroundColor Cyan
 
 $publishArgs = @(
     "$repoRoot/osu.Desktop",
@@ -80,9 +101,9 @@ $publishArgs = @(
     '--self-contained',
     '-o', $publishDir,
     '-p:OmsReleasePackaging=true',
-    '-p:PublishSingleFile=true',
-    '-p:IncludeAllContentForSelfExtract=true',
-    '-p:IncludeNativeLibrariesForSelfExtract=true',
+    # Complete extraction relocates AppContext.BaseDirectory and defeats portable.ini and canonical paths.
+    # Keep the managed ruleset assemblies beside the executable for the existing ruleset discovery path.
+    '-p:PublishSingleFile=false',
     '-p:GenerateDocumentationFile=false'
 )
 
@@ -98,7 +119,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# ── 3. 补齐 single-file 包需要保留在旁路的图标资源 ───────────
+# ── 3. 补齐图标、作者套件与验收入口 ───────────────────────
 Write-Host '[3/6] Copying required release-side assets...' -ForegroundColor Cyan
 Copy-Item (Join-Path $desktopDir 'lazer.ico') (Join-Path $publishDir 'lazer.ico') -Force
 Copy-Item (Join-Path $desktopDir 'beatmap.ico') (Join-Path $publishDir 'beatmap.ico') -Force
@@ -107,11 +128,13 @@ Assert-OrdinaryDeliveryEntry (Join-Path $repoRoot 'skin-c7-acceptance')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'skin-c7-acceptance') -Destination (Join-Path $publishDir 'skin-c7-acceptance') -Recurse
 $publishedAuthoring = Join-Path $publishDir 'skin-authoring'
 [IO.Directory]::CreateDirectory($publishedAuthoring) | Out-Null
-foreach ($name in @('sources', 'docs', 'bin', 'Author.ps1', 'Build-Skins.ps1', 'Test-Authoring.ps1', 'README.md')) {
+foreach ($name in @('sources', 'docs', 'Author.ps1', 'Build-Skins.ps1', 'Test-Authoring.ps1', 'README.md')) {
     $entry = Get-Item -LiteralPath (Join-Path $authoringDir $name) -Force
     Assert-OrdinaryDeliveryEntry $entry.FullName
     Copy-Item -LiteralPath $entry.FullName -Destination $publishedAuthoring -Recurse
 }
+Assert-OrdinaryDeliveryEntry $authoringPublishDir
+Copy-Item -LiteralPath $authoringPublishDir -Destination (Join-Path $publishedAuthoring 'bin') -Recurse
 $publishedDist = Join-Path $publishedAuthoring 'dist'
 [IO.Directory]::CreateDirectory($publishedDist) | Out-Null
 foreach ($name in @('oms-simple.osk', 'oms-complex.osk', 'aurora-study.osk', 'oms-simple.sha256', 'oms-complex.sha256', 'aurora-study.sha256', 'oms-simple-preview.png', 'oms-complex-preview.png')) {
@@ -127,16 +150,6 @@ foreach ($name in @('SkinAuthoring.csproj', 'Program.cs', 'SkinRecipe.cs', 'Skin
     Assert-OrdinaryDeliveryEntry $sourceFile
     Copy-Item -LiteralPath $sourceFile -Destination $toolSource
 }
-$legacyRoot = Join-Path $publishDir 'skin-c7-acceptance/legacy'
-[IO.Directory]::CreateDirectory($legacyRoot) | Out-Null
-foreach ($file in @('artifacts/skin-c6/oms-complex-c6.osk', 'artifacts/manual-gates/bms-note-animation/bms-note-animation-manual-gate.osk', 'artifacts/manual-gates/bms-note-animation/bms-note-animation-manual-gate-broken.osk', 'doc_md/other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md')) {
-    Assert-OrdinaryDeliveryEntry (Join-Path $repoRoot $file)
-    Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $legacyRoot
-}
-$legacyChart = Join-Path $repoRoot 'artifacts/manual-gates/bms-note-animation/chartbms/bms-note-animation-manual-gate'
-Assert-OrdinaryDeliveryEntry $legacyChart
-Copy-Item -LiteralPath $legacyChart -Destination $legacyRoot -Recurse
-
 # ── 4. 写入 portable.ini 标记 ─────────────────────────────────
 Write-Host '[4/6] Writing portable release markers...' -ForegroundColor Cyan
 New-Item -Path (Join-Path $publishDir 'portable.ini') -ItemType File -Force | Out-Null
@@ -150,7 +163,7 @@ OMS manual update guide / OMS 手动更新说明
 更新步骤：
 1. 完全退出 OMS。
 2. 下载新的 oms_YYYYMMDD(.zip)。
-3. 把新包解压到另一个普通本地目录，不直接覆盖旧安装。
+3. 用 Windows 资源管理器把新包解压到另一个普通本地目录，保留随包原件的只读保护，不直接覆盖旧安装。
 4. 在新包目录运行：
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -UpdateSourceDirectory . -TargetDirectory "原安装目录"
 5. 工具完成后，从原安装目录启动 osu!.exe。
@@ -170,7 +183,7 @@ English
 Steps:
 1. Exit OMS completely.
 2. Download the new oms_YYYYMMDD(.zip).
-3. Extract the complete new package into a separate ordinary local directory.
+3. Use Windows File Explorer to extract the complete package into a separate ordinary local directory, preserving the readonly installation originals.
 4. Run in that new directory:
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -UpdateSourceDirectory . -TargetDirectory "your existing install directory"
 5. After the tool finishes, launch osu!.exe from your existing directory.
@@ -240,6 +253,19 @@ if (Test-Path $zipPath) {
 }
 
 Compress-Archive -Path "$publishDir\*" -DestinationPath $zipPath -Force
+
+# Windows Explorer preserves these DOS archive attributes. Expand-Archive / .NET extraction may discard them;
+# startup evidence checks the actual extraction and must never add the flags to conceal that difference.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$releaseArchive = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Update)
+try {
+    foreach ($name in @('oms-simple.osk', 'oms-complex.osk')) {
+        $entries = @($releaseArchive.Entries | Where-Object { $_.FullName.Replace('\', '/') -ceq "Skins/Canonical/$name" })
+        if ($entries.Count -ne 1) { throw "The release archive is missing its unique canonical original: $name" }
+        $entry = $entries[0]
+        $entry.ExternalAttributes = $entry.ExternalAttributes -bor [int]([IO.FileAttributes]::ReadOnly -bor [IO.FileAttributes]::Archive)
+    }
+} finally { $releaseArchive.Dispose() }
 
 # ── 完成 ──────────────────────────────────────────────────────
 $sizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)

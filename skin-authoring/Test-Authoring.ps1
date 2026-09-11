@@ -37,10 +37,16 @@ foreach ($name in @('oms-simple', 'oms-complex', 'aurora-study')) {
     $regenerated = Join-Path $verificationRoot ($name + '-regenerated')
     Copy-Item -LiteralPath $source -Destination $regenerated -Recurse
     Invoke-Expected "$name regenerate artwork from author profile" 0 @('generate', $regenerated)
+    foreach ($generatedName in @('gameplay-skin.json', 'gameplay-skin.scene.json')) {
+        if ([IO.File]::ReadAllText((Join-Path $regenerated $generatedName)).Contains("`r")) { throw "$name 生成的 $generatedName 不是固定 LF 换行，无法保证新检出重打包一致。" }
+    }
     $regeneratedPackage = Join-Path $verificationRoot ($name + '-regenerated.osk')
     Invoke-Expected "$name pack regenerated artwork" 0 @('pack', $regenerated, $regeneratedPackage)
     if ((Get-ContentHash $first) -ne (Get-ContentHash $regeneratedPackage)) { throw "$name 重新绘制和打包后与保留成品不同。" }
 }
+$newAuthor = Join-Path $verificationRoot 'new-author-lf'
+Invoke-Expected 'new author profile uses reproducible LF text' 0 @('new', (Join-Path $PSScriptRoot 'sources/oms-simple'), $newAuthor, 'LF Author Exercise')
+if ([IO.File]::ReadAllText((Join-Path $newAuthor 'author.json')).Contains("`r")) { throw '新作者配置不是固定 LF 换行。' }
 $copy = Join-Path $verificationRoot 'damaged-author'
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'sources/aurora-study') -Destination $copy -Recurse
 $asset = Join-Path $copy 'bms/note-white.png'

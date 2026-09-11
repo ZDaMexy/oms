@@ -744,8 +744,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                       && Realm.Run(r => r.Find<SkinInfo>(candidate.ID) == null));
             AddAssert("protected pair is coherent", () =>
                 manager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
-                && manager.CurrentSkin.Value is OmsSkin
-                && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN);
+                && CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value)
+                && manager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_SKIN
+                && ReferenceEquals(manager.CurrentSkin.Value, manager.DefaultOmsSkin)
+                && ReferenceEquals(manager.CurrentRevision.Owner, manager.CurrentSkin.Value));
         }
 
         [Test]
@@ -1630,9 +1632,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestUnresolvedJournalCannotManufactureMissingProtectedFallbackEvidence()
         {
             SkinManager? recovering = null;
+            MemoryStream archive = null!;
+            Task<Live<SkinInfo>>? importTask = null;
+            Live<SkinInfo> existingUserSkin = null!;
             string journalPath = LocalStorage.GetFullPath(SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME);
+            AddStep("import an existing ordinary user skin before recovery", () =>
+            {
+                archive = createCurrentMutationOsk();
+                importTask = manager.Import(new ImportTask(archive, $"before-repair-{Guid.NewGuid():N}.osk"));
+            });
+            AddUntilStep("wait for the existing user package", () => importTask?.IsCompleted == true);
             AddStep("preserve invalid old operation with missing fallback record", () =>
             {
+                existingUserSkin = importTask!.GetAwaiter().GetResult();
                 Realm.Write(realm => realm.Remove(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)!));
                 File.WriteAllText(journalPath, "{}");
                 recovering = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
@@ -1641,21 +1653,181 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 try
                 {
+                    IList<Live<SkinInfo>> skins = recovering!.GetAllUsableSkins();
                     Assert.Multiple(() =>
                     {
-                        Assert.That(recovering!.InitialManagedFolderMutationRecoveryResult.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.InvalidJournal));
+                        Assert.That(skins.First(), Is.SameAs(recovering.DefaultOmsSkin.SkinInfo));
+                        Assert.That(skins.Any(skin => skin.ID == existingUserSkin.ID), Is.True);
+                        Assert.That(recovering.CanExport(skins.First()), Is.False);
+                        Assert.That(recovering.CanExport(existingUserSkin), Is.True);
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(recovering.CurrentSkin.Value), Is.True);
+                    });
+                    // Menus may select an existing ordinary package for inspection. That does not resolve the
+                    // old operation or admit gameplay; check the initial fallback before exercising these callers.
+                    Assert.DoesNotThrow(recovering.SelectNextSkin);
+                    Assert.DoesNotThrow(recovering.SelectPreviousSkin);
+                    Assert.Throws<InvalidOperationException>(() => recovering.ExportSkin(skins.First()));
+                    Assert.Throws<InvalidOperationException>(recovering.EnsureGameplaySkinInstallationAvailable);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(recovering.InitialManagedFolderMutationRecoveryResult.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.InvalidJournal));
                         Assert.That(recovering.IsGameplaySkinInstallationAvailable, Is.False);
                         Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)), Is.Null);
+                        Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(existingUserSkin.ID)!.Files.Count), Is.GreaterThan(0));
                         Assert.That(File.ReadAllText(journalPath), Is.EqualTo("{}"));
-                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(recovering.CurrentSkin.Value), Is.True);
+                        Assert.That(recovering.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(recovering.CurrentSkinInfo.Value.ID));
                     });
                 }
                 finally
                 {
                     recovering!.ShutdownManagedFolderMutations();
+                    archive.Dispose();
                     File.Delete(journalPath);
                     Realm.Write(realm => realm.Add(CanonicalSkinPackage.CreateInfo()));
                 }
+            });
+        }
+
+        [Test]
+        public void TestFreshFailedCanonicalInstallationKeepsSkinRepairListUsableWithoutCreatingProtectedEvidence()
+        {
+            AddStep("open a fresh installation whose working copy cannot safely be created", () =>
+            {
+                Storage storage = LocalStorage.GetStorageForDirectory($"failed canonical installation {Guid.NewGuid():N}");
+                using var realm = new RealmAccess(storage, "client");
+                string unknownPath = storage.GetFullPath(CanonicalSkinPackage.WORKING_DIRECTORY);
+                File.WriteAllText(unknownPath, "unknown existing user content");
+                var failed = new SkinManager(storage, realm, host, Resources, Audio, Scheduler);
+                try
+                {
+                    IList<Live<SkinInfo>> skins = failed.GetAllUsableSkins();
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(skins, Has.Count.EqualTo(1));
+                        Assert.That(skins.Single(), Is.SameAs(failed.DefaultOmsSkin.SkinInfo));
+                        Assert.That(failed.CanExport(skins.Single()), Is.False);
+                        Assert.That(failed.IsGameplaySkinInstallationAvailable, Is.False);
+                        Assert.That(failed.GameplaySkinInstallationRepairMessage, Is.EqualTo(CanonicalSkinPackage.REPAIR_MESSAGE));
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(failed.CurrentSkin.Value), Is.False);
+                    });
+                    Assert.DoesNotThrow(failed.SelectNextSkin);
+                    Assert.DoesNotThrow(failed.SelectPreviousSkin);
+                    Assert.Throws<InvalidOperationException>(() => failed.ExportSkin(skins.Single()));
+                    Assert.Throws<InvalidOperationException>(failed.EnsureGameplaySkinInstallationAvailable);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(realm.Run(r => r.Find<SkinInfo>(SkinInfo.OMS_SKIN)), Is.Null);
+                        Assert.That(File.ReadAllText(unknownPath), Is.EqualTo("unknown existing user content"));
+                        Assert.That(File.Exists(storage.GetFullPath(SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME)), Is.False);
+                        Assert.That(failed.CurrentSkin.Value, Is.SameAs(failed.DefaultOmsSkin));
+                    });
+                }
+                finally
+                {
+                    failed.ShutdownManagedFolderMutations();
+                }
+            });
+        }
+
+        [TestCase("exact")]
+        [TestCase("user-file")]
+        [TestCase("changed-name")]
+        [TestCase("unresolved-journal")]
+        public void TestEvidencedRetiredReferenceMetadataMigratesOnlyAfterSafeRecovery(string variation)
+        {
+            AddStep("open the exact retired protected record through normal startup", () =>
+            {
+                Storage storage = LocalStorage.GetStorageForDirectory($"retired reference record {Guid.NewGuid():N}");
+                using var realm = new RealmAccess(storage, "client");
+                var retired = new SkinInfo
+                {
+                    ID = SkinInfo.OMS_SKIN,
+                    Name = "OMS Reference Skin",
+                    Creator = "OMS Dev Team",
+                    Protected = true,
+                    InstantiationInfo = "osu.Game.Rulesets.Bms.Skinning.BmsOmsReferenceSkin, osu.Game.Rulesets.Bms",
+                };
+                byte[] userBytes = "An unknown user's original file must not be claimed as installation data."u8.ToArray();
+                string? userPath = null;
+                if (variation == "user-file")
+                {
+                    var file = new RealmFile { Hash = Convert.ToHexString(SHA256.HashData(userBytes)).ToLowerInvariant() };
+                    userPath = storage.GetFullPath("files/" + file.GetStoragePath());
+                    Directory.CreateDirectory(Path.GetDirectoryName(userPath)!);
+                    File.WriteAllBytes(userPath, userBytes);
+                    retired.Files.Add(new RealmNamedFileUsage(file, "retained-author-file.txt"));
+                }
+                if (variation == "changed-name")
+                    retired.Name += " changed";
+                realm.Write(r => r.Add(retired));
+                string journalPath = storage.GetFullPath(SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME);
+                if (variation == "unresolved-journal")
+                    File.WriteAllText(journalPath, "{}");
+
+                string before = captureRecord();
+                Assert.That(SkinManagedFolderDeleteOperation.IsExactProtectedFallbackRecord(retired), Is.False,
+                    "Recognising retired metadata must not grant it old operation-journal authority.");
+                var migrated = new SkinManager(storage, realm, host, Resources, Audio, Scheduler);
+                try
+                {
+                    if (variation == "exact")
+                    {
+                        Assert.That(migrated.IsGameplaySkinInstallationAvailable, Is.True);
+                        Assert.That(CanonicalSkinPackage.IsCanonicalSkin(migrated.CurrentSkin.Value), Is.True);
+                        Assert.That(realm.Run(r => SkinManagedFolderDeleteOperation.IsExactProtectedRecord(
+                            r.Find<SkinInfo>(SkinInfo.OMS_SKIN), CanonicalSkinPackage.CreateInfo())), Is.True);
+                    }
+                    else
+                    {
+                        Assert.That(migrated.IsGameplaySkinInstallationAvailable, Is.False);
+                        Assert.That(captureRecord(), Is.EqualTo(before), "Uncertain user or recovery evidence must remain byte-for-byte equivalent as metadata.");
+                        Assert.Throws<InvalidOperationException>(migrated.EnsureGameplaySkinInstallationAvailable);
+                        Assert.That(migrated.CanExport(migrated.GetAllUsableSkins().First()), Is.False);
+                        if (variation == "unresolved-journal")
+                        {
+                            Assert.That(migrated.InitialManagedFolderMutationRecoveryResult.Status, Is.EqualTo(SkinManagedFolderMutationRecoveryStatus.InvalidJournal));
+                            Assert.That(File.ReadAllText(journalPath), Is.EqualTo("{}"));
+                        }
+                        if (userPath != null)
+                        {
+                            Assert.That(File.ReadAllBytes(userPath), Is.EqualTo(userBytes));
+                            using var output = new MemoryStream();
+                            new CanonicalSkinExporter(storage, migrated.DefaultOmsSkin).ExportToStream(retired, output, null);
+                            output.Position = 0;
+                            using var exported = new System.IO.Compression.ZipArchive(output, System.IO.Compression.ZipArchiveMode.Read);
+                            Assert.That(exported.Entries, Has.Count.EqualTo(1));
+                            using Stream userEntry = exported.GetEntry("retained-author-file.txt")!.Open();
+                            using var captured = new MemoryStream();
+                            userEntry.CopyTo(captured);
+                            Assert.That(captured.ToArray(), Is.EqualTo(userBytes));
+                            Assert.That(captureRecord(), Is.EqualTo(before));
+                        }
+                    }
+                    Assert.That(realm.Run(r => r.All<SkinInfo>().Count()), Is.EqualTo(1), "Startup migrates an existing record; it does not replace it with another record.");
+                }
+                finally
+                {
+                    migrated.ShutdownManagedFolderMutations();
+                }
+
+                string captureRecord() => realm.Run(r =>
+                {
+                    SkinInfo record = r.Find<SkinInfo>(SkinInfo.OMS_SKIN)!;
+                    return Newtonsoft.Json.JsonConvert.SerializeObject(new
+                    {
+                        record.ID,
+                        record.Name,
+                        record.Creator,
+                        record.InstantiationInfo,
+                        record.Hash,
+                        record.Protected,
+                        record.DeletePending,
+                        record.FilesystemStoragePath,
+                        record.FilesystemStorageAuthorityOwner,
+                        record.IsExternalFilesystemStorage,
+                        Files = record.Files.Select(file => new { file.Filename, file.File.Hash }).ToArray(),
+                    });
+                });
             });
         }
 

@@ -56,11 +56,14 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinSceneDocument document = decoded.Value!;
             GameplaySkinSceneNode root = document.Root;
             GameplaySkinLayoutRect rect = layout.Snapshot.GetSurface("mania.hud").Rect;
+            var owner = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.TextHud, global);
             var scene = new GameplaySkinPreparedScene(layout.Snapshot, materials, "essential-public-fields", manifest, document,
                 Array.Empty<GameplaySkinPreparedSceneResource>(), new[]
                 {
                     prepared(root, rect, global, GameplaySkinSlotCatalog.TextHud, null,
-                        root.Children.Select(child => prepared(child, rect, global, null, null)).ToArray()),
+                        root.Children.Select(child => new GameplaySkinPreparedSceneNode(
+                            child.Id, child, child.Target, rect, global, null, null, null,
+                            Array.Empty<GameplaySkinPreparedSceneNode>(), GameplaySkinSceneLayer.HudForeground, owner, false)).ToArray()),
                 });
             return GameplaySkinLayoutPublication.Create(new Adapter(layout.Snapshot), materials, scene);
         }
@@ -554,8 +557,30 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(host.TryGetHostedDrawable(combo.Key, out Drawable? comboDrawable), Is.True);
                 Assert.That(((Container)comboDrawable!).Children.OfType<SpriteText>().Single().Text.ToString(), Is.EqualTo("12"));
                 Assert.That(host.TryGetHostedDrawable(hud.Key, out Drawable? hudDrawable), Is.True);
-                Assert.That(((Container)hudDrawable!).Children.OfType<SpriteText>().Single().Text.ToString(), Is.EqualTo("1000  12x"));
+                Assert.That(((Container)hudDrawable!).Children.OfType<SpriteText>().Single().Text.ToString(), Is.EqualTo("1000 | 100.00% | 12x | 0%"));
             });
+
+            producer.SynchroniseTiming(34, new GameplaySkinTimingStateSnapshot(8.5, 2, 120, false, 1, 0.244));
+            host.ProcessFrame();
+            Assert.That(host.SemanticStateApplicationCount - applicationsBeforeTiming, Is.EqualTo(3),
+                "Progress-only changes update the HUD, without reapplying the combo display.");
+            host.TryGetHostedDrawable(hud.Key, out Drawable? progressHud);
+            SpriteText progressText = ((Container)progressHud!).Children.OfType<SpriteText>().Single();
+            Assert.That(progressText.Text.ToString(), Is.EqualTo("1000 | 100.00% | 12x | 24%"));
+
+            producer.SynchroniseTiming(35, new GameplaySkinTimingStateSnapshot(8.75, 2, 120, false, 1, 0.2449));
+            host.ProcessFrame();
+            Assert.That(host.SemanticStateApplicationCount - applicationsBeforeTiming, Is.EqualTo(3),
+                "Fractional progress must not rebuild the text while its displayed whole percent is unchanged.");
+
+            producer.SynchroniseTiming(36, new GameplaySkinTimingStateSnapshot(9, 2, 120, false, 1, 0.245));
+            host.ProcessFrame();
+            Assert.That(host.SemanticStateApplicationCount - applicationsBeforeTiming, Is.EqualTo(4));
+            Assert.That(progressText.Text.ToString(), Is.EqualTo("1000 | 100.00% | 12x | 25%"));
+
+            producer.SynchroniseTiming(37, new GameplaySkinTimingStateSnapshot(9.25, 2, 120, false, 1, 0.246));
+            host.ProcessFrame();
+            Assert.That(host.SemanticStateApplicationCount - applicationsBeforeTiming, Is.EqualTo(4));
         }
 
         [Test]

@@ -17,6 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\skin-authoring\dist\aurora-study.osk">
+      <Link>SkinAuthoringSamples\aurora-study.osk</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\doc_md\other\skin-c6-candidate\skin.ini;..\doc_md\other\skin-c6-candidate\gameplay-skin.json;..\doc_md\other\skin-c6-candidate\gameplay-skin.scene.json;..\doc_md\other\skin-c6-candidate\gameplay-skin.script;..\doc_md\other\skin-c6-candidate\tile.png">
       <Link>SkinC6Candidate\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

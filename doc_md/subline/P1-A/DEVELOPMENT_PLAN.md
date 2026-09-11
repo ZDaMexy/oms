@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（原 C7 成品、制作与安装恢复收口；预算不重计）
+> 最后更新：2026-09-11（原 C7 非人工结果完成；最终真实发行与集中验收包已完成，剩余人工签收，预算不重计）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实/验证见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -9,9 +9,9 @@
 
 ## 当前执行门与冻结输入
 
-当前 **`6/7 closed，C7 active`**。C1工作区/archive、C2三源revision、C3唯一layout、C4 codec/catalog/material、C5 scene/event继续保持既有合同；C6公开脚本及最终整包/G1自动门已闭合。不重开campaign或重计预算，完整合同见[TECH](TECHNICAL_CONSTRAINTS.md)，完成证据见[CHANGELOG](CHANGELOG.md)。SV1-0恢复/数据处置继续生效，归档和无authority orphan blob保全，异常期代码不得整包恢复。
+原七阶段非人工关闭状态由 [STATUS](DEVELOPMENT_STATUS.md)维护。下一步只执行集中人工观察、真实设备与长时间体验签收，不重开campaign或重计预算；完整合同见[TECH](TECHNICAL_CONSTRAINTS.md)，完成证据见[CHANGELOG](CHANGELOG.md)。SV1-0恢复/数据处置继续生效，归档和无authority orphan blob保全，异常期代码不得整包恢复。
 
-C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)；当前 C7 的双包、完整作者工具、正式保底与安装恢复证据见 [C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。`V-001`～`V-004` 仍 0/4，`V-005` 未签收，全部可见结果统一到[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。待签收不阻塞自动可证工作；只有视觉结论决定设计或自动证据无法裁决异常时等待反馈。人工未签收只能称“自动门通过，视觉待验收”，不能称 SV1-1、Skin V1 或 release 完成，也不能复用 2026-07-14 静态恢复验收。旧 `OmsSkin` 源码只供迁移证据及人工对照，实际产品链由完整普通简洁包接管，物理移除须待原实机门。
+C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)；当前 C7 的双包、完整作者工具、正式保底与安装恢复证据见 [C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)，独立制作演练见 [WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)，发行纠错见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)。`V-001`～`V-004` 仍 0/4，`V-005` 未签收，全部可见结果统一到[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。待签收不阻塞自动可证工作；只有视觉结论决定设计或自动证据无法裁决异常时等待反馈。相应自动门确已通过后才可称“自动门通过，视觉待验收”，不能称 SV1-1、Skin V1 或 release 完成，也不能复用 2026-07-14 静态恢复验收。旧 `OmsSkin` 源码只供迁移证据及人工对照，实际产品链由完整普通简洁包接管，物理移除须待原实机门。
 
 ## 七个持久Campaign预算与剩余退出门
 
@@ -38,6 +38,10 @@ C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909
 映射：`SV1-7`并汇总`SV1-1`～`SV1-7`。
 
 **面向产品的实施重点：** 尽早形成可完整游玩的简洁皮肤与复杂展示皮肤，并让作者走通“修改 → 检查 → 打包 → 导入 → 验证”；围绕这两款成品完成默认外观替代和安装恢复。C6 Momentum 只证明组合效果可用，不算最终复杂皮肤。`oms-simple`是最终保底外观，`oms-complex`仍为展示包/默认候选，不擅自锁定首次默认选择。
+
+**已完成的非人工结果：** 双包、完整作者源、最终独立制作演练、当前完整自动复验及既有失败逐条精确比对均已完成。最终完整自包含多文件 ZIP 已走完首次便携、自定义保存、工作副本恢复、覆盖后启动和正常退出四轮，并分别验证保存位置与程序旁缓存；最终集中验收包也由随包入口在无 Git/SDK 的 PS5 环境实际组装。作者工具与独立演练版本逐字节一致，确切结果与交付身份见 [STATUS](DEVELOPMENT_STATUS.md#最近一次验证)、[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)及 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)。这些已完成工作不再列为后续开发，不用中间候选替代最终交付。
+
+**剩余人工执行：** 使用[集中验收包](../../../skin-c7-acceptance/README.md)安装、选择和游玩两款成品及第三方皮肤，观察完整键数/样式、双舞台、缩放与宽高比、BGA 区域、必要信息和组合演出；确认真实设备、低端显卡、音频与长时间稳定性。V-001～V-004 仍 0/4，V-005 与 C7 观感/设备/长时间体验未签收；星轨继续作为展示包和默认候选，不锁定首次默认选择。旧 OmsSkin 只作隔离历史与人工对照，物理删除等待原实机门，不能接回默认外观。不宣称 Skin V1 或 release 整体完成；推送仍另行取得用户同意。
 
 **必须闭合的非人工产品结果：**
 
@@ -71,4 +75,4 @@ C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909
 
 基础改动面验收按[主线矩阵](../../mainline/DEVELOPMENT_PLAN.md#改动验收矩阵)，皮肤专项宽测、真实caller/consumer矩阵及精确失败比较按[测试与发布约束](TECHNICAL_CONSTRAINTS.md#测试与发布约束)。G1另覆盖importer/scanner/containment/selection与备份根重启删改；layout另覆盖topology/BGA、keymode/style/宽高比/DPI/逐轨；scene/script与双包按上方完整C6/C7门验收，不能只用局部focused替代。
 
-.osk/[Mania]/[Bms]、nullable ISkin、选择链和程序化迁移fallback在对应替代门前保持；新切片失败只回退该切片，不恢复异常期整包。旧F/G术语只用于历史检索，当前执行只按本页C6/C7门，SV1编号仅表示能力依赖。
+.osk/[Mania]/[Bms]、nullable ISkin 与普通选择链继续保持；当前必要缺件由普通简洁包补齐，作者明确关闭的可选内容保持关闭。旧程序化实现仅作隔离历史合同与人工对照，不能因检查适配或发行故障重新接入默认外观。旧F/G术语只用于历史检索，当前执行只按本页C6/C7门，SV1编号仅表示能力依赖。
