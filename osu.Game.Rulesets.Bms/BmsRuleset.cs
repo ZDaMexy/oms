@@ -83,8 +83,8 @@ namespace osu.Game.Rulesets.Bms
             if (owner.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
                 throw new InvalidOperationException("A managed BMS gameplay root requires an exact package revision.");
 
-            BmsRulesetConfigManager config = dependencies.Get<BmsRulesetConfigManager>()
-                                                   ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the final ruleset configuration.");
+            BmsRulesetConfigManager config = dependencies.Get<IRulesetConfigCache>().GetConfigFor(this) as BmsRulesetConfigManager
+                                            ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the final ruleset configuration.");
             ISkinSource skinSource = dependencies.Get<ISkinSource>()
                                          ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the exact package skin source.");
 

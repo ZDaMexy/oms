@@ -1,6 +1,6 @@
 # C7 成品、作者体验与安装验证记录
 
-**C7 非人工产品、制作、安装与规定自动验证已完成。** 原七阶段不重计；Skin V1、公开发行及全部人工项目仍未签收。[此前暂停检查点](SKIN_SYSTEM_C7_RESUME_20260909.md)保留当时的历史状态。当前结论以本页末尾“最终源码与作者复验”及“最终实际发行与集中体验包”为准；前文保留的候选失败、待修正表述属于各次历史记录，不能代替最后成品的验证。
+**C7 交付后发现的 BMS 预览入口缺陷已修复，并补齐实际进入、成品样式及修复版安装验证，不建立新阶段。** 原七阶段不重计；Skin V1、公开发行及全部人工项目仍未签收。[此前暂停检查点](SKIN_SYSTEM_C7_RESUME_20260909.md)保留当时的历史状态。当前结论以本页末尾“交付后 BMS 预览入口修复”及 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)为准；先前完成声明、候选失败与检查记录均保留历史，不能代替当前问题的修复证据。
 
 本页属于原七阶段中的 C7，不建立新阶段。当前完成声明只由 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；本文记录可复查证据和仍须人工观察的边界。
 
@@ -276,3 +276,35 @@ ExactRoot 后续故障由真实错误确认。`c7-mania-repair9.trx` 实际 0/1�
 已通过但被 `_4` 取代的 `_3` 包与其未运行集中目录原样同卷移入 `artifacts/skin-c7-evidence/prior-verified-deliveries/`，保留映射及原包/构建身份摘要于 `prior-verified-delivery-preservation.json`，无删除。旧运行和解包证据仍在原位置。`release-repo/` 当前只保留 `_4` 与 `oms-skin-c7-acceptance-20260911-final/`，避免交付入口混淆。
 
 最后执行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`、`git diff --check` 及 `git diff --cached --check` 均通过；日志为 `documentation-final4.log`、`diff-final4-working.log`、`diff-final4-staged.log`。首次文档检查发现的 PLAN 会话交接语与 memory 重复状态长行已按归属精简，未修改检查器。公开制品摘要和通用路径例子保留其提示，私有用户资料未进入提交。最终收尾说明后再次运行同样文档/差异检查，当前分支提交保留产品、证据、状态、计划、约束与记忆；不创建新分支或 PR，不推送。
+
+## 交付后 BMS 预览入口修复
+
+用户提供的 `1789125771.runtime.log` 在两次 `SoloSongSelect.PlayerLoader` 进入时记录相同异常：`InvalidOperationException: BMS gameplay layout preparation requires the final ruleset configuration.` 堆栈为 `BmsRuleset.PrepareGameplaySkinLayout` → `RulesetSkinProvidingContainer` → `BeatmapSkinProvidingContainer.load` → `Player.load`。其它日志不支持将故障归因为设备初始化或联网。五份原日志仅按字节复制到 ignored 私有证据并核摘要，没有启动用户安装或打开原用户 Realm。
+
+实际原因是 Player 先加载皮肤布局根，之后才加载 DrawableRuleset 子树；BMS preparer 直接查具体配置，但此配置只被缓存于后者的子依赖容器。原 `PlayerTestScene` 经 `OsuTestScene.CreateRuleset()` 提前注入 `DrawableRulesetDependencies`，C7 布局宿主也显式缓存具体配置，故它们没有证明真实上层配置可用性。之前四轮发行启动只证明到达主菜单，不能替代进入谱面的证据；先前“非人工已收口”声明不覆盖这次已证实的新故障。
+
+修复仅将 BMS preparer 改为与 mania 一致的 `IRulesetConfigCache.GetConfigFor(this)`，取游戏保存的同一最终配置；缺少实际配置仍明确失败，没有临时默认值、额外配置实例或异常吞掉。新增 `TestSceneBmsPlayerSkinEntry` 使用真实 nested OsuGame、生产 RulesetConfigCache 和 PlayerLoader，明确断言父容器无具体配置。BMS P2、mania Up 分别经普通 Player 与 Ctrl+Enter 所用 ReplayPlayer 进入，核真实 renderer、必要信息与 BGA 的同一布局发布，真实重试形成新布局，退出回主菜单，游玩/演示时重新载入继续拒绝。该路径没有开启原本不可用的旧皮肤编辑器。
+
+修复前 Release 编译成功；`artifacts/skin-preview-entry-20260911/tests/entry-red.trx` 首次只记录 BMS 两格等待失败，mania 两格和基础测试通过。把诊断监听移到真实游戏到达菜单后的步骤后，`entry-red-diagnostic.trx` 与 `.log` 在同样两个失败中取得与用户完全相同的异常及真实调用栈；两次红测各 2 failed/3 passed/0 skipped。保留两次原始结果，不把最初未捕获异常的等待超时冒称精确故障证据。
+
+首次修复后实际入口为 **5/5 Passed**（四种实际进入场景及基础测试），见 `entry-green.trx`。随后独立复核发现旧 `ExactLayoutJourneyHost` 将 requested style 写进自建配置，renderer 却从正式 cache 读取另一份；旧 C7 部分样式格没有精确验证请求值，不能沿用其声明。将此宿主改为在 `CreateChildDependencies`、包括异步取消装载路径挂载 provider 前设置实际继承 cache，删除独立配置；正式成品矩阵增加 requested/applied style、父 cache 和 renderer 配置同一实例的检查，原场景、几何、素材及缺件断言全部保留。首次 full 尚未结束即为这项修正主动中止，`bms-full-first-cancelled.json` 明确为 Cancelled，不计作通过或既有失败。
+
+首轮格式检查分别发现生产改动两行的行尾与新增测试一个未使用引用，均修正后重新检查和编译，原失败日志保留；没有关闭诊断规则。自动证据来自新临时游戏根和原已保护的 G1 副本，不打开原用户数据库。此修改只涉及 BMS 配置获取和 BMS 测试；未改 shared skin、mania runtime、fallback authority 或两款作品，因此按 P1-A 测试与发布约束执行 BMS relevant/full 与 Release，另有真实 mania 进入对照。未重复运行 mania full、core Skin/full 或 FileStore，原因是相应生产面未改；此前 core 五项、mania 四项既有失败及原 sample 已解决事实继续按历史记录保持，未重新归因或宣称本次全通过。
+
+最终 `entry-and-matrix.trx` 为 **142/142 Passed**，包括真实进入对照、全部成品 BMS 键数/样式/屏幕格及组合效果实际组件；随后 `bms-full.trx` 为 **2220/2220 Passed**，0 skipped/error/aborted/timeout。完整 BMS 执行 UTC `11:46:25`～`11:59:18`，Release 桌面编译 UTC `11:59:18`～`11:59:39` 成功；命令、时间和退出码保留于 `checks.json`，没有用中止的首次 full 代替最终结果。
+
+用户进一步确认本次来自 VS Code 的“无调试运行”。实际 `.vscode/launch.json` 提供 Debug/Release 两个入口，均先执行对应 build；另按 Debug 入口构建成功，`vscode-debug-build.json` 记录 UTC `11:51:03`～`11:51:22` 和当前 BMS 源摘要。该 Debug 输出与正在只读运行的已编译 Release 测试目录隔离；作者独立发布同样不写 BMS 测试运行目录，其余共享输出的编译/格式工作串行。没有把日志中的数据根猜成程序位置，也没有覆盖另一份旧安装或启动用户原游戏。
+
+独立复核分开覆盖互未编写的源码：`entry-independent-review.json` 绑定生产修改与新增真实入口用例；`source-review.json` 绑定生产配置来源及另一复核者修正的旧宿主/成品矩阵。两者均无剩余可操作问题；后者原先发现的配置错配已经修复并纳入上述 full，没有只记问题不落实。
+
+修复版构建身份变化使随包独立作者工具重新生成，不能声称仍是旧 `c478...` 字节。工具以同一公开发布方法独立发布到 `author-published/`，当前 SHA256 为 `62e1f0527e4b48deb6f83917dde6fd5ad9e7f81fc830969b9babaab47b730862`；在全新 `standalone-author/`、PS5 且 PATH 无 Git/SDK 的环境，再次完成完整 Aurora 修改、错误定位、修复、打包和导入/更新副本流程（UTC `11:56:38.9246996Z`），以及三款作品重复生成/打包和中断保护检查（UTC `11:56:56.5965688Z`）。两款成品和 Aurora 字节未变。两份新记录逐字节同步公开作者说明，旧 WORKSHOP 与两份记录保全于 `author-docs-before-fix/`；完整发行物必须与此次实际演练工具逐字节一致。
+
+修复版实际交付为 **`release-repo/oms_20260911_preview-fix.zip`**（344,245,186 B，SHA256 `1c1e11f4f31b2c57308c75558fd403b2fa84aa4083698af02d6a126a82513fd3`）。`release-files.json` SHA256 为 `9df5370ac24b5fe8ddd4a368ae93f6d9675c4fdf39646202e03617c27eef3ed7`，游戏 EXE 为 `e5857b7142259f143f398c252025f5a32535fa86eff5dabe9d1f57c596c24cec`；构建来源如实为 `615872d60273f4823e5741415ac927778e8cff2a`、dirty=true、UTC `12:01:03.7136072Z`，不冒称来自尚未生成的后续修复提交。公开打包器先使用空闲原名，随后只改外层名称为 preview-fix，前后 SHA 相同。UTC `12:01:49`～`12:02:09` 通过真实 Windows Shell 解压，全部 1163 文件与清单相符，两款原件 ZIP DOS 属性 33、实际 ReadOnly/Archive，没有事后补标；新作者工具与刚完成的演练字节一致。
+
+`artifacts/skin-c7-evidence/release-startup-preview-fix/results.json` 记录 UTC `12:02:24`～`12:04:57` 四轮 Passed：首次便携、自定义保存、损坏工作副本保全/完整恢复、同一完整修复包覆盖后重启，均正常退出、ExitCode 0、无强制结束，来源字节/属性不变。两处最终测试根另用实际发行 SDK 打开新复制的只读数据库，`rulesets-portable.log` 与 `rulesets-custom.log` 分别确认 BMS/mania Available=true、源和检查副本字节不变；仍不冒称中间两轮有独立数据库快照。运行前后，三处既有根（包括此次反馈的数据根）的文件字节及属性一致，未打开原 Realm，私有 guard 结果 UTC `12:05:07.2096764Z` 为通过；该结果不回溯抹去此前事故的无事前快照事实。
+
+最终集中目录 **`release-repo/oms-skin-c7-acceptance-20260911-preview-fix/`** 由该修复包的公开入口于 UTC `12:05:10`～`12:05:19` 完成实际组装与来源复核，PS5、PATH 无 Git/SDK，`acceptance-assembly.json` 为 Passed/ExitCode 0/SourceUnchanged=true，并绑定本次 manifest。包中程序、三款作品、作者源、制作/更新入口和原验收输入均可直接使用，原 CSV 继续保留 27 项待验及原 V 对应 5 项未签收，没有代填人工结论。旧 `_4` 包、原集中目录及历史证据保留，当前修复入口以上述新目录为准。
+
+最终 `delivery-review.json` 为 Passed、Issues/Pending 均空：独立核对实际 ZIP/解压/集中包的完整清单、作者源与三包各 entry、当前工具和两份新演练、四轮正常启动日志及两根玩法证据、原输入和未签 CSV，未发现剩余阻塞。新集中目录尚无用户数据库或保存位置指针。原七阶段不重新计数，此缺陷在原 C7 内闭合；原 V-001～V-005、C7 观感/真实设备/长期体验继续未签，Skin V1 和公开发行整体仍未完成。
+
+所属状态/计划/约束/历史、发行交付指针及 layout 记忆同步完成，主线仅保留摘要和链接。文档检查、工作副本与 staged `git diff --check` 均通过，记录为 `documentation-ready.log` 及最终提交前核对；STATUS 中旧发行细节回链本页，避免重复历史超过预算。保留公开制品摘要提示，不提交用户原日志或私有数据路径。修复在当前分支提交，不新建分支、不开 PR、不推送。

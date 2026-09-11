@@ -8,12 +8,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Audio;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Game.Audio;
 using osu.Game.Database;
+using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Screens.Play;
@@ -88,6 +90,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 renderer.ShowBms();
             });
             AddUntilStep("the full skin reaches actual lanes and background viewport", () => renderer.BmsReady);
+            AddStep("the requested style reaches the shared configuration and actual playfield", () =>
+            {
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(renderer.BmsDrawable.Ruleset)!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(renderer.BmsProvider.Dependencies.Get<IRulesetConfigCache>(), Is.SameAs(RulesetConfigs));
+                    Assert.That(renderer.BmsDrawable.Dependencies.Get<BmsRulesetConfigManager>(), Is.SameAs(config));
+                    Assert.That(config.Get<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle), Is.EqualTo(style));
+                    Assert.That(renderer.BmsDrawable.LayoutSnapshot.Style, Is.EqualTo(style.GetAppliedStyle(keymode)));
+                    Assert.That(renderer.BmsDrawable.Playfield.LayoutSnapshot, Is.SameAs(renderer.BmsDrawable.LayoutSnapshot));
+                });
+            });
             AddStep("mount the actual gameplay information", () => renderer.AddProductionCoreHud());
             AddUntilStep("all bounded skin visuals are ready", () =>
             {

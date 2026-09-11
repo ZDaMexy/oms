@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-11（原七阶段非人工结果完成；双包、制作套件、真实发行四轮与集中验收包已交付，人工未签收）
+> 最后更新：2026-09-11（交付后 BMS 无法进入预览已修复，补齐实际进入与重试验证；仍属原 C7，人工未签收）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，实现合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -28,15 +28,19 @@ C2～C6共用exact package+layout+material+scene publication，script及编译�
 
 ## 最近一次验证
 
+**交付后 BMS 预览反馈：** 用户真实日志指出进入画面时取不到最终玩法设置；已修复配置读取所处的父子容器边界。新增真实游戏进入检查在修复前精确重现相同异常，修复后 BMS、mania 的普通进入、自动演示、重试与退出均通过，非默认样式/方向保持，游玩和演示中重新载入仍被拒绝。原宿主提前注入设置掩盖了此问题，之前启动四轮也只到主菜单；不能把旧证据当成已证明真实进入。精确复现、修复后检查及替代发行物见 [C7 入口修复](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后-bms-预览入口修复)。
+
+本次修复后的入口及成品样式检查 **142/142**、BMS full **2220/2220**，均无跳过；规定格式、Release 以及 VS Code 实际使用的 Debug 构建通过。独立复核发现的旧宿主配置错配已经修正，全部非默认样式现在逐格核请求值、实际应用样式和同一配置实例。记录为 `artifacts/skin-preview-entry-20260911/checks.json` 及同目录 TRX、两份独立源码复核；首次主动中止的 full 明确保留为 Cancelled。此次只改 BMS 配置读取和 BMS 测试，没有重复运行 mania full、core Skin/full 或 FileStore；实际 mania 进入对照通过，其余既有失败保持下方历史结论。
+
+当前修复交付为 `release-repo/oms_20260911_preview-fix.zip`，SHA256 `1c1e11f4f31b2c57308c75558fd403b2fa84aa4083698af02d6a126a82513fd3`，集中目录为 `release-repo/oms-skin-c7-acceptance-20260911-preview-fix/`。真实 Windows 解压、两只读原件、四轮首次便携/自定义位置/副本恢复/完整覆盖启动与正常退出均通过，两处测试根的 BMS/mania 均可用；最终组装在 PS5、无 Git/SDK 环境完成且来源不变。三处既有保存根（包含本次反馈的数据根）前后字节及属性一致，原数据库未打开。两款作品不变，新随包作者工具已按下方同一路径完整重做；原 V 和 C7 人工未签事实保持。
+
 **2026-09-11 当前 C7：** 两款成品和作者练习的普通导入、三种来源、备份根保护与导出再导入已有实际记录。必要信息、不同屏幕下的顶部布局、真实按下反馈和声音已复验；星轨在真实击打、长条早松、暂停、拒绝/撤销额外效果、重试与时间跳转后仍保持基本游玩。作品、操作、环境、失败身份与修复证据集中于 [C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)，独立发布工具的实际制作及逐字节重现见 [WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)。
 
-最终当前产物的完整自动复验已完成：BMS **2215/2215**、mania **863/867**、core `~Skin` **1314/1319**、FileStore **11/11**。mania 剩余原有四项、core 剩余原有五项的名称与完整消息均与独立既有基线精确一致；原 core sample 对照已按当前普通样本路径验证通过，其解决事实独立记录，未删除旧失败历史。`closure-failure-comparison.json` 为通过，规定格式检查及 Release 编译也已通过；原始记录在 `artifacts/skin-c7-evidence/tests/c7-closure-*.trx`。这些是最终当前产物结果，不以此前候选或局部检查代替。
+交付后反馈前的 C7 完整自动复验为：BMS **2215/2215**、mania **863/867**、core `~Skin` **1314/1319**、FileStore **11/11**。mania 剩余原有四项、core 剩余原有五项的名称与完整消息均与独立既有基线精确一致；原 core sample 对照已按当前普通样本路径验证通过，其解决事实独立记录，未删除旧失败历史。`closure-failure-comparison.json` 为通过，规定格式检查及 Release 编译也已通过；原始记录在 `artifacts/skin-c7-evidence/tests/c7-closure-*.trx`。该历史结果不替代上方真实入口问题的当前修复验证。
 
-最终制作工具已独立发布，在 PS5、PATH 无 Git/SDK 的独立套件中完成两组实际演练：从模板修改资料及 README、定位并修复图片错误、打包和准备导入/更新副本，以及三款作品检查、重复打包与重新生成后的逐字节一致性。工具 SHA-256 为 `c478dac99f66fc2cfacd74b3f03d1617047885f24d0b43616047f71cff513aaf`，工作流执行时间为 `2026-09-11T08:37:54.7568409Z`；对应新证据已同步 [WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)及其两份 JSON，旧记录保全。该工具先独立发布和演练，再逐字节进入最终发行物；本记录不混淆这两个执行来源。
+最终制作工具已独立发布，在 PS5、PATH 无 Git/SDK 的独立套件中完成两组实际演练：从模板修改资料及 README、定位并修复图片错误、打包和准备导入/更新副本，以及三款作品检查、重复打包与重新生成后的逐字节一致性。工具 SHA-256 为 `62e1f0527e4b48deb6f83917dde6fd5ad9e7f81fc830969b9babaab47b730862`，工作流执行时间为 `2026-09-11T11:56:38.9246996Z`；对应新证据已同步 [WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)及其两份 JSON，旧记录保全。该工具先独立发布和演练，再逐字节进入最终发行物；本记录不混淆这两个执行来源。
 
-最终发行 ZIP 为 `release-repo/oms_20260911_4.zip`，SHA-256 `bcf6aa8da7700f822db6613734dfc4af20d4bf57c5ff6d29f25cf5c4b2ce9ac8`，Windows Shell 解压后的只读原件与摘要检查通过。`2026-09-11T09:08:41.8937534Z`～`09:10:58.7608168Z` 完成首次便携、自定义保存、工作副本恢复、完整覆盖后启动四轮，全部 `Passed`、`NormalExit=true`、`ExitCode=0`、无强制终止，源发行目录保持原样。记录为 `artifacts/skin-c7-evidence/release-startup-final4/results.json`。对首次便携根和最后覆盖后的自定义根分别读取真实数据库，BMS、mania 均 `Available=true`；中间两轮没有另存数据库快照，不扩张此项证据范围。
-
-最终集中验收目录为 `release-repo/oms-skin-c7-acceptance-20260911-final/`，由最终发行物随包 `Build-Acceptance.ps1` 在 PS5、PATH 无 Git/SDK 环境实际生成，退出码 0、来源不变，记录为 `artifacts/skin-c7-evidence/acceptance-final4-assembly.json`。它携带双包、完整作者路径、第三方与原有验收输入，并保留全部未签收项。真实启动中发现的恢复重入和取消资源清理已修复并复验。此前错误自解压包曾误入已有自定义数据根并执行数据库迁移，只有事后保全；后续隔离运行前后的既有目录对照不能追溯证明该次事故无损，详见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)。
+反馈前的 `_4` 发行四轮、原集中目录和安装纠错记录保留于 [C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。旧自解压候选误入已有保存根的事故只有事后保全、缺少事前快照，不能追溯宣称无损，详见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)。
 
 2026-09-09 的 C6 完整验证、精确旧失败比较及独立终审保留于 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)和本线历史；它们不替代 C7 当前成品与最终发行门，也不重签 C1～C6。
 

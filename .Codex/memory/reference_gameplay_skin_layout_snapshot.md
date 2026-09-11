@@ -32,5 +32,6 @@ metadata:
 - 完整 host 在 child load 前通过 enclosing exact dependency scope 完成 publication。无 publication/material 不临时借 compatibility/default geometry 或 post-commit fallback。
 - prepared carrier 只属于签发 owner；另一 owner carrier、同 root 第二 provider、compatibility→exact 升级、adapter 未引用 exact neutral snapshot 都属于 authority 违约。
 - isolated compatibility 是显式 detached test seam，也应一次构造完整 graph；不能先让真实 provider 可见，再升级。
+- Player 先加载皮肤布局根，之后才装入 DrawableRuleset；具体 ruleset config 缓存在 drawable 子树，不能从父布局根直接 Get。布局准备通过游戏 IRulesetConfigCache.GetConfigFor(ruleset) 取得同一最终配置，不合成默认值或另建缓存。真实入口回归须用不 override CreateRuleset 的 OsuGameTestScene：OsuTestScene 的 CreateRuleset 非空时会预注入 DrawableRulesetDependencies，连 PlayerTestScene 也会因此掩盖缺失依赖。用非默认样式/方向核实际 PlayerLoader、自动演示及重试。
 
 Prepare/commit、取消窄窗、late attach、lease/detach/retire 统一去 [[reference_skin_atomic_reload_detach]]；不要在 layout consumer 再做一套可交换状态。素材解析见 [[reference_gameplay_skin_codec_material]]，stable identity 见 [[reference_gameplay_skin_lane_identity]]。

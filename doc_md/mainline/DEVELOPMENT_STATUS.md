@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-11（原 Skin 七阶段非人工工作完成；人工签收与公开发行仍待验）
+> 最后更新：2026-09-11（原 C7 内修复交付后的 BMS 预览入口问题；人工签收与公开发行仍待验）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -17,7 +17,7 @@ OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | C1～C7非人工结果已闭合；使用最终集中体验包签收双包、原V项目及真实设备/长时体验 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
+| 1 | 原C7交付后的BMS预览问题已修复；完成针对实际入口的复验，以修复包继续双包、原V项目及真实设备/长时体验签收 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |
@@ -31,4 +31,6 @@ C7 最终完整发行物已通过独立便携/自定义位置、工作副本恢�
 
 ## 最近一次验证
 
-**2026-09-11 C7**：最终双包/第三方完整使用、三来源真实备份保护、作者独立制作、规定自动复验、Release publish、真实安装四轮及集中包组装完成；既有失败逐项精确核对与独立复审见 [C7证据](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。没有运行全core或代签人工观感/设备，也没有改变其它子线的既有失败与验收结论。
+**2026-09-11 BMS预览反馈**：按用户日志修复实际进入画面时的设置读取，并补齐真实普通进入、自动演示、重试与退出；此前测试宿主提前注入设置的遗漏及修复后发行证据见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与 [C7入口修复](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后-bms-预览入口修复)。仍属原C7，不重新计数或代签人工项目。
+
+**2026-09-11 C7（反馈前）**：最终双包/第三方完整使用、三来源真实备份保护、作者独立制作、规定自动复验、Release publish、真实安装四轮及集中包组装完成；既有失败逐项精确核对与独立复审见 [C7证据](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。没有运行全core或代签人工观感/设备，也没有改变其它子线的既有失败与验收结论。

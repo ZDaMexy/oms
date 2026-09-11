@@ -9,7 +9,7 @@
 
 ## 当前执行门与冻结输入
 
-原七阶段非人工关闭状态由 [STATUS](DEVELOPMENT_STATUS.md)维护。下一步只执行集中人工观察、真实设备与长时间体验签收，不重开campaign或重计预算；完整合同见[TECH](TECHNICAL_CONSTRAINTS.md)，完成证据见[CHANGELOG](CHANGELOG.md)。SV1-0恢复/数据处置继续生效，归档和无authority orphan blob保全，异常期代码不得整包恢复。
+原七阶段非人工关闭状态由 [STATUS](DEVELOPMENT_STATUS.md)维护。BMS预览反馈已按真实入口修复并交付，继续集中人工观察、真实设备与长时间体验签收；后续实际缺陷仍据证据就地修复；不重开campaign或重计预算。BMS 预览反馈与真实进入检查的补充证据见 [C7 入口修复](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后-bms-预览入口修复)，完整合同见[TECH](TECHNICAL_CONSTRAINTS.md)，完成证据见[CHANGELOG](CHANGELOG.md)。SV1-0恢复/数据处置继续生效，归档和无authority orphan blob保全，异常期代码不得整包恢复。
 
 C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)；当前 C7 的双包、完整作者工具、正式保底与安装恢复证据见 [C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)，独立制作演练见 [WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)，发行纠错见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)。`V-001`～`V-004` 仍 0/4，`V-005` 未签收，全部可见结果统一到[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。待签收不阻塞自动可证工作；只有视觉结论决定设计或自动证据无法裁决异常时等待反馈。相应自动门确已通过后才可称“自动门通过，视觉待验收”，不能称 SV1-1、Skin V1 或 release 完成，也不能复用 2026-07-14 静态恢复验收。旧 `OmsSkin` 源码只供迁移证据及人工对照，实际产品链由完整普通简洁包接管，物理移除须待原实机门。
 

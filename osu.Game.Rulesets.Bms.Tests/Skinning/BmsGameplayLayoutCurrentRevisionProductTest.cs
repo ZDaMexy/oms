@@ -2425,8 +2425,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             [Cached]
             private readonly SkinManager skinManager;
 
-            [Cached]
-            private readonly BmsRulesetConfigManager bmsRulesetConfig;
+            private readonly BmsPlayfieldStyle requestedBmsStyle;
 
             [Cached(typeof(ScoreProcessor))]
             private readonly ScoreProcessor scoreProcessor;
@@ -2507,10 +2506,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 RelativeSizeAxes = Axes.Both;
 
                 bmsRuleset = bmsRulesetOverride ?? new BmsRuleset();
-                bmsRulesetConfig = new BmsRulesetConfigManager(null, bmsRuleset.RulesetInfo);
-
-                if (exactBmsFixture != null)
-                    bmsRulesetConfig.GetBindable<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle).Value = exactBmsFixture.PlayfieldStyle;
+                requestedBmsStyle = exactBmsFixture?.PlayfieldStyle ?? BmsPlayfieldStyle.Center;
 
                 scoreProcessor = bmsRuleset.CreateScoreProcessor();
                 healthProcessor = bmsRuleset.CreateHealthProcessor(0);
@@ -2683,6 +2679,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     RelativeSizeAxes = Axes.Both,
                 };
+            }
+
+            protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+            {
+                // Configure the same instance that the production preparer and drawable ruleset resolve.
+                // Do this before loading either provider, including hosts loaded asynchronously for cancellation tests.
+                var config = (BmsRulesetConfigManager)parent.Get<IRulesetConfigCache>().GetConfigFor(bmsRuleset)!;
+                config.SetValue(BmsRulesetSetting.PlayfieldStyle, requestedBmsStyle);
+                return base.CreateChildDependencies(parent);
             }
 
             public void ShowBms()

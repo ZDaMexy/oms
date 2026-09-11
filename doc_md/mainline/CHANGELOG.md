@@ -7,6 +7,10 @@
 
 ## 2026-09-11
 
+### C7 交付后 BMS 预览入口修复
+
+- 根据用户真实日志修复 BMS 进入预览及普通游玩时的设置读取，补齐实际游戏进入、重试与退出的证据，并纠正原检查宿主提前注入设置的遗漏；修复版交付与保留的人工未签事实见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及 [C7 入口修复](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后-bms-预览入口修复)。仍在原七阶段的 C7 内处理，不重计阶段，不推送。
+
 ### Skin 原七阶段非人工结果收尾
 
 - C7 交付双玩法静线/星轨、完整作者套件、正式保底与安装恢复、实际发行及可运行集中体验包，原七阶段非人工工作闭合；精确既有失败、独立复核和全部人工未签边界见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及 [C7证据](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。旧候选误入已有保存根的事故与事后保全如实保留于 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)；不宣称 Skin V1 或公开发行完成。

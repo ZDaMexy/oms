@@ -2,6 +2,10 @@
 
 ## 2026-09-11
 
+### BMS 预览修复版发行复验
+
+- P1-A 修复真实 BMS 进入失败后，重新发布 `oms_20260911_preview-fix.zip` 与集中体验包；完整解压、只读原件、四轮首次便携/自定义位置/工作副本恢复/同包覆盖后正常启动、两测试根 BMS/mania 可用及 PS5 无 Git/SDK 组装均通过。三处既有根字节和属性前后不变，未打开原数据库；最新制品身份与证据见 [STATUS](DEVELOPMENT_STATUS.md)及 [C7 入口修复](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后-bms-预览入口修复)。先前 `_4` 的记录继续保留，原事故的事前快照缺失与全部人工未签事实不变。
+
 ### 最终真实多文件发行、四轮正常启动与无 SDK 验收组装
 
 - 完成当前完整自包含多文件发布，实际 ZIP 为 `oms_20260911_4.zip`，SHA256 `bcf6aa8da7700f822db6613734dfc4af20d4bf57c5ff6d29f25cf5c4b2ce9ac8`；发行清单 SHA256 `d7ccb5bc66abedef7bf4f25ffca93b9b25b3605ddc976b89d991669a07899d57`。Windows Shell 从该真实 ZIP 解压，完整文件摘要匹配，两款 canonical 原件保持 ReadOnly/Archive，未由检查补写属性。
