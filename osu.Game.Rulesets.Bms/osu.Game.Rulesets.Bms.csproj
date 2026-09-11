@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup Label="NuGet Audit">
-    <!-- GHSA-6c8g-7p36-r338 affects SharpCompress IArchive.WriteToDirectory()/WriteToDirectoryAsync(). OMS runtime paths do not use those APIs, and no patched SharpCompress release exists yet. -->
+    <!-- GHSA-6c8g-7p36-r338 is fixed in SharpCompress 0.48.0. OMS remains on 0.39.0; runtime paths do not use the affected IArchive.WriteToDirectory()/WriteToDirectoryAsync() APIs. -->
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-6c8g-7p36-r338" />
   </ItemGroup>
 

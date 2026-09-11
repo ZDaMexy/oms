@@ -29,7 +29,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 测试宿主、formatter include 路径、输出锁与环境误判。
+- [构建与测试](reference_build_and_test.md) — 测试宿主、formatter owning 路径、输出锁、VS Code 配置与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md) — read-model/query/实际控件与产品目标分离。
 - [难度表](reference_bms_difficulty_table.md)
@@ -56,7 +56,7 @@
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — legacy editor 禁用与 CLR 反射格式风险。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
-- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — shared codec/resolver/material 与诊断边界。
+- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 样式选择、普通导入说明误报、shared material 与诊断边界。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、共同 publication、真实进入时配置读取与测试宿主遮蔽。

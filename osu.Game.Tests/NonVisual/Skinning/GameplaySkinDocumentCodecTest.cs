@@ -481,6 +481,69 @@ namespace osu.Game.Tests.NonVisual.Skinning
             });
         }
 
+        [Test]
+        public void TestImporterMetadataCommentAfterPublicSectionPreservesDocument()
+        {
+            const string source = """
+                                  [GameplaySkin.Common:1]
+                                  Target: Global ruleset=any keymode=any stage-mode=any
+                                  decoration: resource Provide "notes//authored.png"
+                                     // The following content was automatically added by osu! in order to use metadata that more closely matches user expectations.
+                                  [General]
+                                  Name: Imported author work
+                                  Author: Independent author
+                                  """;
+            GameplaySkinDocument parsed = decode(source);
+            GameplaySkinDocument roundTrip = decode(GameplaySkinDocumentCodec.Encode(parsed));
+            foreach (GameplaySkinDocument document in new[] { parsed, roundTrip })
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(document.Diagnostics, Is.Empty);
+                    Assert.That(document.Sections.Single().Entries.Single().Value, Is.EqualTo("notes//authored.png"),
+                        "Quoted text remains intact; resource path admission is a separate boundary.");
+                    Assert.That(document.LegacySections.Single(section => section.Name == "General").Lines
+                                        .Where(line => line.Key is "Name" or "Author").Select(line => line.Value),
+                        Is.EqualTo(new[] { "Imported author work", "Independent author" }));
+                });
+            }
+        }
+
+        [TestCase("decoration: resource Provide \"a.png\" // inline comments are not public syntax")]
+        [TestCase("UnknownField: resource Provide \"a.png\"")]
+        public void TestFullLineCommentCompatibilityDoesNotHideMalformedDeclarations(string declaration)
+        {
+            GameplaySkinDocument document = decode("[GameplaySkin.Common:1]\n"
+                                                   + "Target: Global ruleset=any keymode=any stage-mode=any\n"
+                                                   + declaration);
+            Assert.That(document.Diagnostics, Is.Not.Empty);
+            Assert.That(document.Sections.Single().Entries.Single().Validity, Is.EqualTo(GameplaySkinDocumentValueValidity.Invalid));
+        }
+
+        [TestCase("presentation=P1")]
+        [TestCase("presentation=")]
+        [TestCase("presentation=p1 presentation=p2")]
+        [TestCase("presentation=p1 unknown=p2")]
+        public void TestMalformedPresentationCannotReusePreviousTarget(string selector)
+        {
+            GameplaySkinDocument document = decode("[GameplaySkin.Common:1]\n"
+                                                   + "Target: Global ruleset=bms keymode=5k stage-mode=single\ndecoration: resource Inherit\n"
+                                                   + $"Target: Global ruleset=bms keymode=5k stage-mode=single {selector}\n"
+                                                   + "bga.frame: resource Provide \"invalid.png\"\n");
+            Assert.That(document.Diagnostics, Is.Not.Empty);
+            Assert.That(document.Sections.Single().Entries.Last().Validity, Is.EqualTo(GameplaySkinDocumentValueValidity.Invalid));
+        }
+
+        [Test]
+        public void TestOmittedPresentationAndExplicitAnyAreTheSameDeclaration()
+        {
+            GameplaySkinDocument document = decode("[GameplaySkin.Common:1]\n"
+                                                   + "Target: Global ruleset=bms keymode=5k stage-mode=single\ndecoration: resource Inherit\n"
+                                                   + "Target: Global ruleset=bms keymode=5k stage-mode=single presentation=any\ndecoration: resource Suppress\n");
+            Assert.That(document.Diagnostics.Select(diagnostic => diagnostic.Code),
+                Is.EqualTo(new[] { GameplaySkinCodecDiagnosticCode.DuplicateDeclaration }));
+        }
+
         private static GameplaySkinDocument decode(string source) => GameplaySkinDocumentCodec.Decode(source, unbound);
     }
 }

@@ -58,6 +58,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinDocumentStageModeSelector StageModeSelector { get; }
 
+        public string PresentationStyleSelector { get; }
+
         public GameplaySkinLaneGroupId? GroupId { get; }
 
         public GameplaySkinLaneId? LaneId { get; }
@@ -78,13 +80,15 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinDocumentTargetKind kind,
             GameplaySkinDocumentRulesetSelector rulesetSelector,
             string keymodeSelector,
-            GameplaySkinDocumentStageModeSelector stageModeSelector)
+            GameplaySkinDocumentStageModeSelector stageModeSelector,
+            string presentationStyleSelector)
         {
             Kind = kind;
-            validateSelectors(rulesetSelector, keymodeSelector, stageModeSelector);
+            validateSelectors(rulesetSelector, keymodeSelector, stageModeSelector, presentationStyleSelector);
             RulesetSelector = rulesetSelector;
             KeymodeSelector = keymodeSelector;
             StageModeSelector = stageModeSelector;
+            PresentationStyleSelector = presentationStyleSelector;
         }
 
         private GameplaySkinDocumentTarget(
@@ -99,7 +103,8 @@ namespace osu.Game.Skinning.Gameplay
             int? globalLogicalIndex,
             int? globalVisualIndex,
             int? groupLocalLogicalIndex,
-            int? groupLocalVisualIndex)
+            int? groupLocalVisualIndex,
+            string presentationStyleSelector)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(groupLogicalIndex);
             ArgumentOutOfRangeException.ThrowIfNegative(groupVisualIndex);
@@ -114,10 +119,11 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             Kind = kind;
-            validateSelectors(rulesetSelector, keymodeSelector, stageModeSelector);
+            validateSelectors(rulesetSelector, keymodeSelector, stageModeSelector, presentationStyleSelector);
             RulesetSelector = rulesetSelector;
             KeymodeSelector = keymodeSelector;
             StageModeSelector = stageModeSelector;
+            PresentationStyleSelector = presentationStyleSelector;
             GroupId = groupId;
             LaneId = laneId;
             GroupLogicalIndex = groupLogicalIndex;
@@ -132,17 +138,20 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinDocumentTargetKind.Global,
             GameplaySkinDocumentRulesetSelector.Any,
             ANY_KEYMODE,
-            GameplaySkinDocumentStageModeSelector.Any);
+            GameplaySkinDocumentStageModeSelector.Any,
+            "any");
 
         public static GameplaySkinDocumentTarget ForGlobal(
             GameplaySkinDocumentRulesetSelector rulesetSelector,
             string keymodeSelector,
-            GameplaySkinDocumentStageModeSelector stageModeSelector)
+            GameplaySkinDocumentStageModeSelector stageModeSelector,
+            string presentationStyleSelector = "any")
             => new GameplaySkinDocumentTarget(
                 GameplaySkinDocumentTargetKind.Global,
                 rulesetSelector,
                 keymodeSelector,
-                stageModeSelector);
+                stageModeSelector,
+                presentationStyleSelector);
 
         public static GameplaySkinDocumentTarget ForStage(GameplaySkinLaneGroupId groupId, int groupLogicalIndex, int groupVisualIndex)
             => ForStage(
@@ -159,7 +168,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinDocumentStageModeSelector stageModeSelector,
             GameplaySkinLaneGroupId groupId,
             int groupLogicalIndex,
-            int groupVisualIndex)
+            int groupVisualIndex,
+            string presentationStyleSelector = "any")
             => forGroupLike(
                 GameplaySkinDocumentTargetKind.Stage,
                 rulesetSelector,
@@ -167,7 +177,8 @@ namespace osu.Game.Skinning.Gameplay
                 stageModeSelector,
                 groupId,
                 groupLogicalIndex,
-                groupVisualIndex);
+                groupVisualIndex,
+                presentationStyleSelector);
 
         public static GameplaySkinDocumentTarget ForGroup(GameplaySkinLaneGroupId groupId, int groupLogicalIndex, int groupVisualIndex)
             => ForGroup(
@@ -184,7 +195,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinDocumentStageModeSelector stageModeSelector,
             GameplaySkinLaneGroupId groupId,
             int groupLogicalIndex,
-            int groupVisualIndex)
+            int groupVisualIndex,
+            string presentationStyleSelector = "any")
             => forGroupLike(
                 GameplaySkinDocumentTargetKind.Group,
                 rulesetSelector,
@@ -192,7 +204,8 @@ namespace osu.Game.Skinning.Gameplay
                 stageModeSelector,
                 groupId,
                 groupLogicalIndex,
-                groupVisualIndex);
+                groupVisualIndex,
+                presentationStyleSelector);
 
         public static GameplaySkinDocumentTarget ForLane(
             GameplaySkinLaneGroupId groupId,
@@ -227,7 +240,8 @@ namespace osu.Game.Skinning.Gameplay
             int globalLogicalIndex,
             int globalVisualIndex,
             int groupLocalLogicalIndex,
-            int groupLocalVisualIndex)
+            int groupLocalVisualIndex,
+            string presentationStyleSelector = "any")
         {
             ArgumentNullException.ThrowIfNull(groupId);
             ArgumentNullException.ThrowIfNull(laneId);
@@ -244,7 +258,8 @@ namespace osu.Game.Skinning.Gameplay
                 globalLogicalIndex,
                 globalVisualIndex,
                 groupLocalLogicalIndex,
-                groupLocalVisualIndex);
+                groupLocalVisualIndex,
+                presentationStyleSelector);
         }
 
         private static GameplaySkinDocumentTarget forGroupLike(
@@ -254,7 +269,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinDocumentStageModeSelector stageModeSelector,
             GameplaySkinLaneGroupId groupId,
             int groupLogicalIndex,
-            int groupVisualIndex)
+            int groupVisualIndex,
+            string presentationStyleSelector)
         {
             ArgumentNullException.ThrowIfNull(groupId);
             return new GameplaySkinDocumentTarget(
@@ -269,13 +285,15 @@ namespace osu.Game.Skinning.Gameplay
                 null,
                 null,
                 null,
-                null);
+                null,
+                presentationStyleSelector);
         }
 
         private static void validateSelectors(
             GameplaySkinDocumentRulesetSelector rulesetSelector,
             string keymodeSelector,
-            GameplaySkinDocumentStageModeSelector stageModeSelector)
+            GameplaySkinDocumentStageModeSelector stageModeSelector,
+            string presentationStyleSelector)
         {
             if (!Enum.IsDefined(rulesetSelector))
                 throw new ArgumentOutOfRangeException(nameof(rulesetSelector));
@@ -283,14 +301,20 @@ namespace osu.Game.Skinning.Gameplay
             if (!Enum.IsDefined(stageModeSelector))
                 throw new ArgumentOutOfRangeException(nameof(stageModeSelector));
 
-            ArgumentException.ThrowIfNullOrEmpty(keymodeSelector);
+            validateSelectorToken(keymodeSelector, nameof(keymodeSelector));
+            validateSelectorToken(presentationStyleSelector, nameof(presentationStyleSelector));
+        }
 
-            if (keymodeSelector.Length > 80
-                || keymodeSelector.Any(character => character is not (>= 'a' and <= 'z')
+        private static void validateSelectorToken(string token, string parameterName)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(token, parameterName);
+
+            if (token.Length > 80
+                || token.Any(character => character is not (>= 'a' and <= 'z')
                                                      and not (>= '0' and <= '9')
                                                      and not '.' and not '-'))
             {
-                throw new ArgumentException("A gameplay skin keymode selector must be a short lowercase ASCII token.", nameof(keymodeSelector));
+                throw new ArgumentException("A gameplay skin selector must be a short lowercase ASCII token.", parameterName);
             }
         }
 
@@ -300,6 +324,7 @@ namespace osu.Game.Skinning.Gameplay
                && RulesetSelector == other.RulesetSelector
                && string.Equals(KeymodeSelector, other.KeymodeSelector, StringComparison.Ordinal)
                && StageModeSelector == other.StageModeSelector
+               && string.Equals(PresentationStyleSelector, other.PresentationStyleSelector, StringComparison.Ordinal)
                && EqualityComparer<GameplaySkinLaneGroupId?>.Default.Equals(GroupId, other.GroupId)
                && EqualityComparer<GameplaySkinLaneId?>.Default.Equals(LaneId, other.LaneId)
                && GroupLogicalIndex == other.GroupLogicalIndex
@@ -318,6 +343,7 @@ namespace osu.Game.Skinning.Gameplay
             hash.Add(RulesetSelector);
             hash.Add(KeymodeSelector, StringComparer.Ordinal);
             hash.Add(StageModeSelector);
+            hash.Add(PresentationStyleSelector);
             hash.Add(GroupId);
             hash.Add(LaneId);
             hash.Add(GroupLogicalIndex);
@@ -761,6 +787,7 @@ namespace osu.Game.Skinning.Gameplay
                 .OrderByDescending(entry => entry.Target.RulesetSelector != GameplaySkinDocumentRulesetSelector.Any)
                 .ThenByDescending(entry => entry.Target.KeymodeSelector != GameplaySkinDocumentTarget.ANY_KEYMODE)
                 .ThenByDescending(entry => entry.Target.StageModeSelector != GameplaySkinDocumentStageModeSelector.Any)
+                .ThenByDescending(entry => entry.Target.PresentationStyleSelector != "any")
                 .ThenByDescending(entry => entry.Target.ScopeSpecificity)
                 .ThenByDescending(entry => entry.LineNumber)
                 .FirstOrDefault();

@@ -294,6 +294,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private static void assertCanonicalProductScene(GameplaySkinSceneRuntimeHost scene, string package)
         {
             Assert.That(scene.RuntimeFaults, Is.Empty);
+            // The third-party fixture intentionally omits parts; ordinary canonical supplementation is valid
+            // and must not hide a malformed document, wrong presentation target or failed material.
+            Assert.That(scene.MaterialSet.Diagnostics, Is.Empty,
+                string.Join(Environment.NewLine, scene.MaterialSet.PersistenceSafeDiagnostics));
             Assert.That(scene.MaterialSet.Entries, Is.Not.Empty);
             Assert.That(scene.MaterialSet.Entries.Any(entry => entry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback), Is.False,
                 "Complete skin and missing user parts must resolve to package content.");

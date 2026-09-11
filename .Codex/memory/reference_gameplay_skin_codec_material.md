@@ -13,11 +13,14 @@ public ID/字段/适用性只读 [public catalog](../../doc_md/other/GAMEPLAY_SK
 ## 输入与 resolver 的反直觉处
 
 - package 的根 skin.ini 只捕获/tokenize 一次，public 与 legacy adapter 消费同一 immutable token stream；consumer 不重开文件，ruleset 不另写 tokenizer。
+- canonical 原件无错而普通导入出现 `OMS-SKIN-CODEC-008` 时，先查末尾公共段与追加 `[General]` 之间的游戏说明：importer 使用整行 `//`。公共 parser 兼容 trim 后的整行注释即可读取既有导入内容，不迁移或重写用户文件；不可改成全局截断 `//`。复验应涵盖真实说明位置、General 元数据、quoted 值和 round-trip，并保留行内 `//`、未知字段、BOM/坏 header 的严格边界。
 - Absent、DeclaredEmpty、Invalid、Valid、Suppress 必须区分。malformed 第一声明仍占 duplicate target；后行不能借“第一行没完整 tokenize”夺 winner。
-- package 内 specificity 为 ruleset→keymode→stage-mode→scope。最高项遮蔽该 package 更宽声明：它 Inherit/empty/invalid 时转下一 authority，不回头聚合同 package。
+- package 内 specificity 为 ruleset→keymode→stage-mode→presentation→scope。最高项遮蔽该 package 更宽声明：它 Inherit/empty/invalid 时转下一 authority，不回头聚合同 package。
 - legacy beatmap direct visual compatibility 优先于 selected public；但它不读取 public section。selected public/legacy、ruleset resource、protected/canonical、programmatic 的顺序以合同为准，不构造伪 canonical candidate。
 - Required/Recommended 不可 Suppress；Optional 仍受 applicability/runtime capability。null、缺 entry、异常、Drawable.Empty 都不是三态声明。
-- Target 的 ruleset/keymode/stage/scope、LaneId/GroupId 与四类 index 须对应 exact topology；不要从 lane count、geometry、RelativeStart 或 drawable 顺序推导。
+- Target 的 ruleset/keymode/stage/presentation/scope、LaneId/GroupId 与四类 index 须对应 exact topology；不要从 lane count、geometry、RelativeStart 或 drawable 顺序推导。
+- BMS 5/7K 皮肤曾同时写左右皿两组 exact visual index，却没有区分适用样式；GetEntry 可选对当前素材，BindToPublication 仍会诊断另一组，因此“能进入游玩”不证明声明无错。必须用公开 presentation 选择实际样式，再严格验当前坐标；省略/any不获得推断许可，valid peer或合法排列不能掩盖wrong coordinates。旧包通过普通作者更新解决，不改用户源；版本与完整语法见public catalog。
+- 完整成品矩阵应同时核 requested style、实际同一配置/布局以及MaterialSet.Diagnostics全空。故意缺省可由canonical补齐，不能因此笼统豁免第三方diagnostic；另保留当前样式误坐标与非当前样式不应用的正反用例。
 
 Legacy raw index、source-bound frame/width 与 borrow 地雷见 [[reference_gameplay_skin_lane_resource_compatibility]]；accepted provenance 见 [[reference_gameplay_skin_config_presence]]。
 

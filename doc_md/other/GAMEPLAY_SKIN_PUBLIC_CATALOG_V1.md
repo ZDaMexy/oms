@@ -45,7 +45,7 @@
 
 ```ini
 [GameplaySkin.Common:1]
-Target: Lane ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=0 group-local-visual=0
+Target: Lane ruleset=bms keymode=5k stage-mode=single presentation=p1 group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=1 group-local-visual=1
 object.note: resource Provide "notes/key-1"
 object.long-note.tail: resource Suppress
 ```
@@ -53,13 +53,16 @@ object.long-note.tail: resource Suppress
 - section、字段、类型和操作均区分大小写；合法 section 只有 `GameplaySkin.Common:1` 与 `GameplaySkin.Bms:1`。
 - section header 必须是没有内部首尾空白、没有尾随字符的完整 `[...]`；版本与全部 index 只接受 canonical ASCII 十进制（`0` 或非零开头），拒绝正号、前导零、全角数字和溢出。文件开头至多允许一个 UTF-8 BOM，embedded/double BOM 是 document-fatal 诊断。
 - `#` 与 `;` 在引号外开始注释；资源值必须使用双引号。支持 `\\`、`\"`、`\n`、`\r`、`\t`，其它转义是稳定错误。
+- 公共 section 内，去除行首空白后以 `//` 开头的整行也作为注释跳过，并保留在往返 token stream 中。`//` 不开始行内注释；引号中的 `//` 原样保留，但不因此绕过资源路径准入。未知字段、坏 header 与 BOM 仍按原规则诊断。
 - `Provide "..."`、`Inherit`、`Suppress` 是显式状态。未出现、已声明空字符串、非法声明、有效声明和合法 `Suppress` 各自保留，不能互相静默折叠。
 - 同一 catalog ID + exact target 重复声明是错误；未知字段、未知 ID、错误 family、未知版本、错误 scope/type/index、selector 与 exact publication stable ID/index 漂移都会产生 `OMS-SKIN-CODEC-NNN` 诊断。字段错误只沿该 slot 的确定 fallback 继续，不把 invalid 当作 absent。
 - `Encode(Decode(x))` 输出规范化 UTF-8 token stream（换行归一、去除行尾空白），再次 decode 必须保留所有语义状态、section、legacy token 与诊断。
 
+整行 `//` 兼容覆盖普通导入在新 `[General]` 元数据前添加的说明，包括说明紧跟公共 section 的既有导入包。读取旧内容即可恢复，不要求重写作者文件、修改导入写入规则或授予额外权限；它不掩盖实际声明错误。
+
 ### Target
 
-每个 `Target` 都必须显式写出 `ruleset`、`keymode` 与 `stage-mode` 三个 selector；省略、重复、未知属性或错误大小写均为 invalid。`Target` 只能为下列四种完整形式：
+每个 `Target` 都必须显式写出 `ruleset`、`keymode` 与 `stage-mode` 三个 selector；省略这些必填项、重复属性、未知属性或非法 token 均为 invalid。四种 scope 均可另写可选 `presentation=<token>`；省略等同 `presentation=any`，保持旧声明的严格索引语义。下列基本形式与增加该可选属性的形式都有效：
 
 - `Global ruleset=<selector> keymode=<selector> stage-mode=<selector>`
 - `Stage ruleset=<selector> keymode=<selector> stage-mode=<selector> group=<GroupId> group-logical=<n> group-visual=<n>`
@@ -68,9 +71,15 @@ object.long-note.tail: resource Suppress
 
 `ruleset` 为 `any` / `mania` / `bms`，`stage-mode` 为 `any` / `single` / `dual`。`keymode=any` 可跨 keymode；BMS exact token 为 `5k`、`7k`、`9k-bms`、`9k-pms`、`14k`，mania single token 为 `<n>k`，dual-stage vector 为 `<left>k-<right>k`，且总 lane 数必须与 C3 topology 一致。portable 文档可同时声明多个 selector；不属于当前 publication 的 selector 不产生 runtime 故障，也不能命中当前 material。
 
-同一 package 内的 winner 顺序固定为：exact ruleset 优先于 `any`，再比较 exact keymode、exact stage-mode、scope（`Lane > Group > Stage > Global`），最后才是同 specificity 的后行。最高 specificity 声明会遮蔽同 package 的更宽声明：显式 `Inherit`、empty 或 invalid 都转向下一 authority，不回头拼接本 package 的较宽声明。这保证 invalid 不冒充 absent，也防止一个 package 内发生隐式聚合。
+同一 package 内的 winner 顺序固定为：exact ruleset 优先于 `any`，再比较 exact keymode、exact stage-mode、exact presentation、scope（`Lane > Group > Stage > Global`），最后才是同 specificity 的后行。最高 specificity 声明会遮蔽同 package 的更宽声明：显式 `Inherit`、empty 或 invalid 都转向下一 authority，不回头拼接本 package 的较宽声明。这保证 invalid 不冒充 absent，也防止一个 package 内发生隐式聚合。
 
-BMS group ID 为 `bms.group.deck-1` / `bms.group.deck-2`，lane ID 为 `bms.lane.scratch-1`、`bms.lane.key-1` … `bms.lane.key-14`、`bms.lane.scratch-2`。mania group ID 为 `mania.group.stage-1` / `mania.group.stage-2`，lane ID 为全局顺序的 `mania.lane.column-1` …。ID 与所有 logical/visual/global/group-local index 必须同时匹配 C3 exact topology；resolver 不从 enum ordinal、lane count、几何、`RelativeStart` 或 drawable 次序反推。P1/P2、居中右 scratch、dual-stage 等视觉顺序不同的目标须按其 explicit index 分别声明。
+BMS group ID 为 `bms.group.deck-1` / `bms.group.deck-2`，lane ID 为 `bms.lane.scratch-1`、`bms.lane.key-1` … `bms.lane.key-14`、`bms.lane.scratch-2`。mania group ID 为 `mania.group.stage-1` / `mania.group.stage-2`，lane ID 为全局顺序的 `mania.lane.column-1` …。ID 与所有 logical/visual/global/group-local index 必须同时匹配 C3 exact topology；resolver 不从 enum ordinal、lane count、几何、`RelativeStart` 或 drawable 次序反推。BMS 5K/7K 的四种样式须用 `presentation=p1`、`p2`、`center-p1`、`center-p2` 分别限定其完整 explicit index；P1 与 Center 使用同一左皿坐标，P2 与 CenterRightScratch 使用同一右皿坐标，不能只写两组未限定样式的目标。dual-stage 等其它布局也继续按其 explicit index 声明。
+
+`presentation` 使用 1–80 个小写 ASCII 字母、数字、`.` 或 `-`；除 `any` 外，与当前 `GameplaySkinLayoutContext.PresentationStyleId` 按 ordinal 精确匹配。合法但不匹配当前样式的 token 只是不适用，不命中 material，也不产生 `OMS-SKIN-CODEC-021`。语法合法的拼写错误因此可能没有适用声明，作者须使用实际样式 token 并逐样式验证。当前 BMS 的 P1/P2/Center/CenterRightScratch 分别发布上述四个 token；9K 两格式与 14K 的 applied style 为 Center，可保持 `any`。mania 及不区分样式的声明也可省略该属性。
+
+匹配当前 presentation 后，GroupId/LaneId、所属 group 和全部 logical/visual/global/group-local index 仍逐项匹配；错误坐标继续产生 `OMS-SKIN-CODEC-021`。其它正确声明、另一组合法排列或实际能进入游玩都不能掩盖当前声明的错误。省略与显式 `any` 在 target identity 中等价，重复声明规则不变。
+
+这是 codec v1 的可选增量，须使用支持 `presentation` 的皮肤样式提示修复版 OMS 与配套作者工具；较旧客户端会把该字段当未知属性拒绝。旧包同时携带未限定样式的左右两组坐标时仍可能得到严格诊断，应修改作者副本、检查并打包，再经普通导入或已登记目录的菜单重新载入更新；不得静默改写用户包或只读作者目录。
 
 9K 的公开 canonical lane index 为 `1..9`；legacy `[Mania] Keys:9` 的 raw index `0..8` 只经 `bms-gameplay-skin-nine-key-index.v1` 双向映射进入 compatibility candidate，未知版本 fail-closed。Mirror/Random 只改变对象最终目标 `LaneId`；resource、keysound 与 skin lookup 随同该 `LaneId`，不会改变 topology 或借 drawable 次序重算 lane。
 

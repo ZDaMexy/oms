@@ -129,7 +129,7 @@ BMS 不接受 mania 的 HitPosition、逐列 ColumnWidth 或自创 HitTargetVert
 
 mania 在对应 [Mania] Keys 块修改 ColumnWidth、ColumnSpacing、HitPosition 等既有设置，数组项数必须对应该块，双舞台和特殊键保持模板映射。KeyImageN/KeyImageND 分别提供松开/按下图片，模板对 playfield.key 保留 Inherit 才能使用同包这对素材。关闭可选闪光不会关闭按下图片；BMS普通按键图片也沿真实输入反馈。
 
-公共资源声明的四种完整 Target 形式：
+公共资源声明的四种基本 Target 形式如下。每种都可另加 `presentation=样式名`；省略等同 `presentation=any`：
 
 ```text
 Global ruleset=… keymode=… stage-mode=…
@@ -140,7 +140,30 @@ Lane ruleset=… keymode=… stage-mode=… group=… lane=… group-logical=…
 
 ruleset 为 any/mania/bms，stage-mode 为 any/single/dual。keymode 为 any、BMS的5k/7k/9k-bms/9k-pms/14k、mania单舞台Nk或双舞台Nk-Mk。不要混淆旧 [Bms] Keymode 的大小写。公共 section 为 [GameplaySkin.Common:1] 或 [GameplaySkin.Bms:1]，下一条 Target 前的资源行属于当前目标。
 
-资源行是 `槽位ID: resource Provide "图片基名"`、`槽位ID: resource Inherit` 或 `槽位ID: resource Suppress`。精确玩法优先，再比较键数、舞台模式、Lane/Group/Stage/Global和同等级后行；错误的精确声明不回头拼本包更宽声明。必备/推荐部分不能关闭，明确关闭的可选部分不会偷偷恢复。缺少必要部分由正式静线补齐。全部资源名和适用范围见 [CATALOG](CATALOG.md)。
+公共 INI 段可用 `#` 或 `;` 在引号外开始行内注释，也可单独写一行 `// 说明`，行首空白不影响。不要把 `// 说明` 接在资源声明或公共段标题后；这种行内写法仍会报错。资源双引号内的 `//` 不会被截断，但文件路径仍须通过正常检查。此版本也能读取普通导入时游戏在新 `[General]` 前添加的整行说明，已有导入作品无需为这条说明改文件；不增加权限，也不写入外部作者目录。
+
+BMS 5K/7K 的四种样式使用以下 `presentation` 值。配方会为四种样式分别生成声明；同一侧转盘可共用图片和完整轨道位置，但不能把不同位置写成两组未限定样式的声明。
+
+| 游戏内样式 | presentation | 轨道位置 |
+| --- | --- | --- |
+| 1P（居左） | `p1` | 左皿 |
+| 2P（居右） | `p2` | 右皿 |
+| 居中（左皿） | `center-p1` | 左皿 |
+| 居中（右皿） | `center-p2` | 右皿 |
+
+例如以下目标只用于 7K 的 2P 样式：转盘稳定名称与逻辑位置仍为 scratch-1/0，视觉位置为该布局的 7。
+
+```ini
+Target: Lane ruleset=bms keymode=7k stage-mode=single presentation=p2 group=bms.group.deck-1 lane=bms.lane.scratch-1 group-logical=0 group-visual=0 global-logical=0 global-visual=7 group-local-logical=0 group-local-visual=7
+```
+
+9K 两格式和 14K 使用其实际居中布局，可省略 presentation；mania 和共用文字、装饰也可保持省略。Global/Stage/Group 同样支持此属性；它只选择声明，不改变玩家的玩法设置。值须为不超过 80 个字符的小写 ASCII 字母、数字、点或连字符，`any` 匹配所有样式，其它值与实际样式名称精确匹配。语法正确但拼写不对应当前样式的值不会生效，因此应按表填写，并实际验证所有目标样式。
+
+非当前样式的声明不应用，也不会报告“轨道位置不匹配”。当前样式中的稳定轨道名称、所属舞台及全部位置仍须准确；写错仍会报告 `OMS-SKIN-CODEC-021`，不能靠另一条正确声明消除错误。省略或填写 any 保留旧的严格检查，不会自动判断两组坐标各属于哪种样式。
+
+使用该字段须配套支持 presentation 的皮肤样式提示修复版 OMS 与作者工具；较旧客户端会把它当未知字段拒绝。已有作品若包含未限定样式的左右两组声明，应在自己的作者副本中补齐四种样式，检查、打包后正常导入新版本；已登记的作者目录则在退出游玩与预览后重新载入。游戏不会替作者改写原包或外部目录。
+
+资源行是 `槽位ID: resource Provide "图片基名"`、`槽位ID: resource Inherit` 或 `槽位ID: resource Suppress`。精确玩法优先，再比较键数、舞台模式、精确 presentation、Lane/Group/Stage/Global和同等级后行；错误的精确声明不回头拼本包更宽声明。必备/推荐部分不能关闭，明确关闭的可选部分不会偷偷恢复。缺少必要部分由正式静线补齐。全部资源名和适用范围见 [CATALOG](CATALOG.md)。
 
 ## 动画、状态机、绑定、变体、模板
 

@@ -1,6 +1,6 @@
 # C7 成品、作者体验与安装验证记录
 
-**C7 交付后发现的 BMS 预览入口缺陷已修复，并补齐实际进入、成品样式及修复版安装验证，不建立新阶段。** 原七阶段不重计；Skin V1、公开发行及全部人工项目仍未签收。[此前暂停检查点](SKIN_SYSTEM_C7_RESUME_20260909.md)保留当时的历史状态。当前结论以本页末尾“交付后 BMS 预览入口修复”及 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)为准；先前完成声明、候选失败与检查记录均保留历史，不能代替当前问题的修复证据。
+**C7 交付后的预览入口、默认皮肤误报与构建警告已修复；两款成品、完整制作、实际安装及旧版更新已复验，不建立新阶段。** 原七阶段不重计；Skin V1、公开发行及全部人工项目仍未签收。[此前暂停检查点](SKIN_SYSTEM_C7_RESUME_20260909.md)保留当时的历史状态。当前结论以本页末尾“交付后默认皮肤提示与构建警告修复”及 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)为准；先前完成声明、候选失败与检查记录均保留历史，不能代替当前问题的修复证据。
 
 本页属于原七阶段中的 C7，不建立新阶段。当前完成声明只由 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；本文记录可复查证据和仍须人工观察的边界。
 
@@ -308,3 +308,62 @@ ExactRoot 后续故障由真实错误确认。`c7-mania-repair9.trx` 实际 0/1�
 最终 `delivery-review.json` 为 Passed、Issues/Pending 均空：独立核对实际 ZIP/解压/集中包的完整清单、作者源与三包各 entry、当前工具和两份新演练、四轮正常启动日志及两根玩法证据、原输入和未签 CSV，未发现剩余阻塞。新集中目录尚无用户数据库或保存位置指针。原七阶段不重新计数，此缺陷在原 C7 内闭合；原 V-001～V-005、C7 观感/真实设备/长期体验继续未签，Skin V1 和公开发行整体仍未完成。
 
 所属状态/计划/约束/历史、发行交付指针及 layout 记忆同步完成，主线仅保留摘要和链接。文档检查、工作副本与 staged `git diff --check` 均通过，记录为 `documentation-ready.log` 及最终提交前核对；STATUS 中旧发行细节回链本页，避免重复历史超过预算。保留公开制品摘要提示，不提交用户原日志或私有数据路径。修复在当前分支提交，不新建分支、不开 PR、不推送。
+
+## 交付后默认皮肤提示与构建警告修复
+
+本节接续 2026-09-11 的预览入口修复，于本地 2026-09-12 完成当前交付复验，仍属原 C7。用户提供的新日志确认实际从 VS Code 的 Release 入口构建，且 BMS ReplayPlayer 已正常进入、退出；旧入口异常未重现。此前另做的 Debug 构建只是一项补充检查，不能称为这次实际启动配置。日志中的保存位置仍不用于推断程序位置，未覆盖另一份旧安装，也未打开用户原数据库。
+
+新反馈包含两个独立问题：默认选中的静线产生 `count=13`、`OMS-SKIN-CODEC-021` 通知；Release 构建成功但重复显示 MessagePack 安全告警。原始五类日志和截图先复制保全，日志逐字节核对，原件只读；私有证据位于 `artifacts/skin-startup-warning-20260911/private/`，本页不记录个人路径或谱面信息。
+
+**外观声明根因与修复。** 旧成品为 5K/7K 同时声明左右转盘完整坐标，公共 Target 却没有样式选择条件。实际 resolver 选中当前坐标，所以画面能进入；另一侧未限定样式的声明也按当前坐标校验并报错，恰好产生用户日志里的 13 种 slot。`old-package-red.trx` 在真实默认皮肤及 BMS 5K/P1 宿主中复现全部相同诊断，1 项失败如实保留。
+
+新增普通作者均可使用的可选 `presentation` selector，省略或 `any` 保持原义。它先与实际 `PresentationStyleId` 精确匹配，再验证完整 stable ID 和全部 index；非当前样式不应用、不报坐标错误，当前错误仍报 021，不以同包另一有效声明掩盖。包内优先级为 ruleset → keymode → stage → presentation → scope → 同级后行。双包和 Aurora 通过原作者工具生成四种样式声明，既有资源、场景、声音和脚本字节不变；不是包名特判，也没有新增制作权限。语法、较旧客户端兼容边界和旧第三方作品普通更新方式见 [公开目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与 [作者参考](../../skin-authoring/docs/REFERENCE.md)。
+
+加强后的成品矩阵进一步发现：普通导入在末尾公共段与新 `[General]` 之间添加整行 `//` 元数据说明，旧 codec 把游戏自加说明当成未知字段 008。当前只接受独立整行的 `//` 注释，不改变行内注释、未知字段、BOM、坏段头或资源路径准入；既有已导入皮肤无需改写即可读取。mixed 公共段/元信息、quoted `//`、Encode/Decode 和非法 inline/未知字段分别回归。首次该成品矩阵在已确认失败后由根主动停止自己的测试宿主，`product-focused-cancelled.json` 与 TRX 明确为 Cancelled/Aborted，非通过、非游戏崩溃证据；已完成部分为 268 通过、39 个同类失败。
+
+真正出现材料诊断时，玩家通知改为中文的皮肤更新和日志导出指引，不承诺所有内容已补齐；Runtime/Important 完整安全原文、去重、observer 生命周期及普通异常通知保持。真实 OsuGame 通知回归同时核对完整原文留存及其它日志不误替换。样式优先级复核发现首版测试会被后行顺序掩盖，已补前行特定样式 Suppress、后行宽声明和 stage/presentation/scope 交叉用例。首版右转盘测试夹具还发现四个位置参数误序，改为命名参数后重编译通过，原失败记录保留；未修改生产 topology 或放宽预期。
+
+**依赖修补。** MessagePack 3.1.3 更新为同支 3.1.8，三个 SignalR 直接引用从 9.0.2 协调为 9.0.17。九条原始中危通告及相关高危修补依据已逐条查阅，官方 NuGet 包实际取得并解析版本；来源与使用面见 `dependency-review.json`。参考 [MessagePack 官方修复说明](https://github.com/MessagePack-CSharp/MessagePack-CSharp/releases/tag/v3.1.7)、[3.1.8 官方包](https://www.nuget.org/packages/MessagePack/3.1.8)、[微软协议通告](https://github.com/dotnet/aspnetcore/security/advisories/GHSA-f8h2-vmm9-qhj6)。保留离线冻结，无连接测试；现有序列化用例及新实际 MessagePackHubProtocol 内存帧往返验证 APIMod 设置和派生状态兼容。
+
+撤销历史遗留的全局 `NU1903` 屏蔽，未新增 NoWarn 或关闭审计。AutoMapper、SharpCompress 两条原具名例外保留实际调用边界，过时的“尚无修复版”注释纠正。`dependency-audit.json` 不再列出 MessagePack/SignalR，但仍列出这两个既有例外以及 `SQLitePCLRaw.lib.e_sqlite3 2.1.10` 的 `GHSA-2m69-gcr7-jv3q` 高危，不能称整个依赖审计清洁。SQLite 正常使用面为固定 schema/参数化查询，未发现外部任意 SQL 入口；仍会读取已有本地数据库，未验证恶意 schema 安全，不能以离线推定无风险。本次没有迁移该数据库库版本或打开用户数据库；原生问题与修复边界参考 [SQLite 3.50.2 官方说明](https://sqlite.org/releaselog/3_50_2.html)，调查见 `notification-dependency-review.json`。
+
+**本轮制品与检查。** 三份 skin.ini 为 968100 / 1005424 / 968114 字节，均在既有 1 MiB 准入内，未提高预算。当前重新生成成品 SHA256：
+
+| 成品 | SHA256 |
+| --- | --- |
+| `oms-simple.osk` | `532224fb0aa1cfe48d8cc4935580d089993349cf799aaf86fed634056d47d1d5` |
+| `oms-complex.osk` | `0f1bceb45feeff90423885d40e5a172933ce310a8a6ed754f8fcbcb781a8a762` |
+| `aurora-study.osk` | `41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215` |
+
+共享 codec、布局、真实通知与序列化 focused 为 **104/104 Passed**；真实默认/双包/第三方的两玩法定点与进入、重试、退出为 **21/21 Passed**。成品矩阵新增全部 Diagnostics.Empty，仍保留必要部分 Provide、第三方补齐、显式 Suppress、无程序化回退等旧断言；完整组合由后续 BMS full 覆盖。独立制品复核 `products-review.json` 逐 entry 核三包与源文件一致，确认资源/演出未无意变化；`selector-review.json` 和 `notification-dependency-review.json` 分别记录未由作者本人完成的源码复核，发现问题已修复。它们不冒称未运行的检查通过。
+
+完整检查中，mania 为 **863/867**、core `~Skin` 为 **1339/1344**、FileStore 为 **11/11**，均无跳过；`failure-comparison.json` 对原四项/五项失败的名称、类别和完整消息逐条相同，原 sample 对照继续 Passed。首轮 BMS full 为 **2215/2220**，五项作者目录选择失败不能归入既有基线；同一编译产物的精确定点为 **6/6 Passed**。首败、后续通过和只读调查保留在 `bms-first-failure-triage.json`，四次十秒等待解释了连续失败区间，不能据时段猜测外部清理；没有确定首败原因，也没有放宽预期或修改生产代码来掩盖它。随后完整复验与发行实际结果继续在下方记录。
+
+最终同一编译产物的 BMS 完整复验为 **2220/2220 Passed**，无跳过、无中止；五个首败身份在定点与完整复验中均 Passed。`bms-full-repeat-review.json` 独立绑定首败、后续 TRX、精确旧失败对照与冻结源码；不倒推缺失的首轮 DLL 摘要、不追认首败原因，也不把已经完整通过的路径虚留为持续回归。规定格式检查均通过，修正过的 codec 换行已由所属工程重新检查并编译；首次失败记录保留。用户贴出的 **同一条** `dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m` 实际成功、0 warnings/0 errors，记录为 `vscode-release.json/log`。这不代表全部依赖不存在通告；单文件作者工具发布仍有原 `OsuGameBase.cs:165` 的 IL3000 分析警告，不能将该配置也写成零警告。
+
+当前作者工具 SHA256 为 `be91924141e44c8b4422290430ba8a14998a2c345c1cb2daa242b1e22c8ef2fa`，先独立发布，再在新套件目录、PS5 且 PATH 不含 Git/SDK 的环境实际完成 Aurora 修改、图片错误定位与修复、打包及导入/更新副本准备（UTC `15:56:22.4589140Z`），以及三款作品检查、重新生成/打包字节一致和中断保护（UTC `15:56:37.8010969Z`）。新 Aurora 与上表成品逐字节一致，因而与同一成品的实际游戏路径相连；制作命令本身不冒称执行鼠标导入。新 [WORKSHOP](../../skin-authoring/docs/WORKSHOP.md)及两份公开 JSON 同步真实结果，旧文件保全在 `prior-author-assets/`。
+
+中文编码保全前的已验候选为 **`release-repo/oms_20260911_startup-fix.zip`**，344,240,105 B，SHA256 `e7c175f3636969ad71ab1883e4dee2724a8f5d2fe4fe40d90a80cba631c86161`；清单 SHA256 `44d637f280ec2d05207719f56585d2f05e1f499b6b2249cd3e11729d3a790af6`。清单如实记录源 HEAD `a55d8d33a722b3c7c417d54f734d69f2e1980f12`、dirty=true、UTC `2026-09-11T15:58:10.5043694Z`，不冒称来自后续尚未提交的 commit。公开打包器生成 ZIP 后仅改外层名，摘要不变；真实 Windows Shell 解压的 1162 个清单文件逐项相同，两款 canonical 原件的 ZIP 与实际文件均保留 ReadOnly/Archive，无事后补标，随包作者工具与刚执行的演练完全同字节。
+
+`artifacts/skin-c7-evidence/release-startup-startup-fix/results.json` 记录 UTC `15:59:19.7146131Z`～`16:01:49.5165073Z` 四轮 Passed：首次便携、自定义保存、损坏工作副本保全/恢复、同包覆盖后重启；均正常退出、ExitCode 0、无强制结束，实际保存和缓存位置正确，发行来源不变。`rulesets-portable.log`、`rulesets-custom.log` 关联两处最终测试根的额外只读副本，实际 BMS/mania Available=true，原测试库与检查副本字节均不变；不冒称四份时点数据库快照。受保护的三处真实保存根前后字节和属性相同，没有直接打开原 Realm。
+
+**实际跨版本更新另证。** `artifacts/skin-c7-evidence/release-startup-preview-upgrade-startup-fix/results.json` 记录 UTC `16:02:01.8094903Z`～`16:03:28.7584916Z` 从此前已真实启动的 preview-fix 便携安装额外复制新测试根，再使用新发行物携带的 Update-OMS 完整更新。更新器前后整个 data、Realm 与 portable marker 保持相同，旧只读 canonical 原件留在更新备份；工作副本此时仍为旧 `f32ae2b8…`。随后仅由游戏首次正常启动自动更新为新 `532224fb…`，正常退出码 0，无强杀；没有提前写入新工作副本伪造升级成功。旧安装源、旧发行源、新发行源及三个真实保存根字节/属性均不变。
+
+跨版本报告的 `RulesetAvailability` 仍保留“交给后续只读检查”的阶段事实，未反写报告破坏后续证据的 SHA 绑定。真实另步 `rulesets-upgrade.log` 关联 `evidence/rulesets-readonly-03cdf19b5b694079a31818f9f6cf4141/result.json`：只打开该轮新测试库的额外只读副本，恰有 BMS/mania 且 BothAvailable=true，原测试库和检查副本均保持字节/属性；该独立结果与跨版本原报告共同闭合当前玩法可用结论，不与四轮同包覆盖混淆。
+
+对应候选的集中目录 **`release-repo/oms-skin-c7-acceptance-20260911-startup-fix/`** 于 UTC `16:03:33.1670094Z`～`16:03:43.0989666Z` 通过该新发行物随包入口实际组装。`acceptance-assembly.json` 为 Passed、PS5、无 Git/SDK、ExitCode 0、SourceUnchanged=true，并绑定当前清单；`delivery.json` 汇总本轮实际退出结果。`Start-Acceptance.ps1`、两款成品的可消耗导入副本、第三方/原 V 输入、完整作者文件与集中清单可直接使用。原 preview-fix、旧 `_4` 及其它失败候选和证据保持，不覆盖用户另一份安装。
+
+最终独立 `delivery-review.json` 为 Passed：实际 ZIP/完整清单、双包和作者源、当前工具与公开演练、四轮及跨版本正常退出、三处只读证据、真实根保护与最终集中目录相互对应，未发现新增交付阻塞。原 V 对应五行仍为“未签收”，其余 27 行仍为“待验”，32 个唯一 ID 及空环境/证据栏保留；没有用户数据库或保存位置指针混入待用验收包。复核只读保存证据，没有另行启动产品、运行作者工具或打开 Realm。
+
+`vscode-output.json` 另核实际 `.vscode/launch.json` 指向的 Release 输出：两款 canonical 内容与本次新成品逐字节一致，运行依赖明确为 MessagePack 3.1.8 与 SignalR.Client 9.0.17；没有启动用户原游戏或打开其数据。该开发输出的文件属性记录与正式发行的只读原件检查分别保留，不混称为同一发行环境。
+
+所属状态、计划、公共合同、历史和两份相关记忆已同步，主线仅回写摘要和链接。最终文档检查（`documentation-final.log`）及 staged/worktree 差异检查均通过；只保留公开制品校验摘要等提示，不提交私有日志、数据库或个人路径。原七阶段不重计，本次交付后修复在原 C7 内完成；原 V-001～V-005、C7 画面/设备/长期体验和旧 OmsSkin 物理删除的实机门仍未签收，Skin V1 与整体发行未完成。当前分支提交，不另建分支、不开 PR、不推送。
+
+**最终发行的中文编码保全。** 根任务在提交前核对完整差异，发现文件规范化时误去掉 `CHECKLIST.csv` 与作者入口 README 原有 UTF-8 BOM，已恢复原标记，避免改变 Windows 中文文件识别；P1-F PLAN 的原标记也恢复。没有改变正文、签收状态、游戏源码、成品或作者工具。前述首包及其全部通过记录保留为历史，未覆盖或改写；当前最终交付以下述包为准。
+
+当前完整包为 **`release-repo/oms_20260911_startup-fix-final.zip`**，344,240,108 B，SHA256 `76f1e7d91581a8c4aad5f3f0da2e64a3e47930b6259ec9fdc3f8be9105035574`；清单 SHA256 `5bd05386bdb687774a6a8b295b00581ef3a27b343aaabd8300011649af4b8ac0`。再次从公开打包器生成并经真实 Windows Shell 解压。两份发行清单的 1162 项无增删，精确只有 `skin-authoring/README.md` 与 `skin-c7-acceptance/CHECKLIST.csv` 各增加 EF BB BF 三字节，正文完全相同；全部游戏程序、三款皮肤、工具、工具源码及其余文件摘要不变，因此无需重跑未改动的游戏组合和制作演练。两款安装原件继续实际只读，最终工具仍与上述真实制作演练为同一字节。
+
+仍按发行合同完整重做实际运行：`release-startup-startup-fix-final/results.json` 的四轮于 UTC `16:22:49.7816187Z`～`16:25:13.6147660Z` 全部 Passed；`release-startup-preview-upgrade-startup-fix-final/results.json` 的真实旧版更新于 `16:25:24.4203307Z`～`16:26:35.7586285Z` Passed。这两个根均位于 `artifacts/skin-c7-evidence/`。五次均正常退出码 0、无强杀，三处真实保存根及旧/新来源保持字节和属性，更新器前后用户文件与旧工作副本不变，再由游戏首启自动更新简洁工作副本。另以三处新测试根的额外只读副本再次确认 BMS/mania Available=true；各记录通过原报告 SHA 绑定，升级报告的阶段 Pending 字段仍由另步结果补齐，不反写原报告。
+
+当前集中目录为 **`release-repo/oms-skin-c7-acceptance-20260911-startup-fix-final/`**。本包的公开入口于 UTC `16:26:39.4018289Z`～`16:26:46.3448902Z` 再次完成 PS5、PATH 无 Git/SDK 的真实组装，来源不变。以上新退出记录、清单、三份只读结果及组装证据统一在 `artifacts/skin-startup-warning-20260911/final-delivery/`，不混用首包的身份。此编码保全没有修改任何人工结论、当前阶段或原事故边界。
+最终 `final-delivery/delivery-review.json` 独立复核为 Passed：确认与首包的差异严格限于上述两个文件的 BOM 和新清单，五次实际正常退出、三份新只读结果与本次清单/报告 SHA 均正确对应，旧来源和真实保存根保全；最终集中目录的中文标记、32 项未签状态及原输入保持。该报告保留对首包复核的摘要引用，未改写旧报告或伪造重新运行游戏。最终文档与暂存/工作副本差异检查记录为 `final-delivery/documentation-final.log` 及本次提交核对，均通过；所有源码仍与前述完整自动复验的冻结输入相同。本次原 C7 修复完成本地提交收尾，不推送，全部人工门继续保留。

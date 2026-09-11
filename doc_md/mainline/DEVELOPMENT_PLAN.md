@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-11（原 Skin 七阶段非人工工作闭合；继续约定人工与公开发行门）
+> 最后更新：2026-09-12（原 C7 交付后修复收尾；继续既定人工与公开发行门，不重计阶段）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -24,7 +24,7 @@
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7交付后修复已闭合**：BMS预览的真实入口缺陷已在原C7内修复并复验，继续以同含mania/BMS的双包和修复后集中体验包继续人工观察，不重新计数；具体成品、修复证据及剩余签收见 [P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
+2. **C7 交付后修复收尾**：当前修复产物的独立复核已通过，以同时支持 mania/BMS 的双包和当前集中体验包执行人工观察；首次默认保持静线，星轨保留展示包和默认候选身份，不重计阶段。具体交付门及剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
 3. 按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及最终包；自动可证工作可继续，只有视觉结论决定设计或自动证据无法裁决异常时才等待反馈。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。

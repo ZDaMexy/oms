@@ -192,6 +192,115 @@ namespace osu.Game.Tests.NonVisual.Skinning
             });
         }
 
+        [TestCase("p1")]
+        [TestCase("p2")]
+        [TestCase("center-p1")]
+        [TestCase("center-p2")]
+        public void TestBoundDocumentSelectsPresentationBeforeValidatingExactCoordinates(string presentation)
+        {
+            string configuration = "[GameplaySkin.Common:1]\n";
+            foreach (string style in new[] { "p1", "p2", "center-p1", "center-p2" })
+            {
+                int visual = style is "p2" or "center-p2" ? 0 : 1;
+                configuration += $"Target: Lane ruleset=bms keymode=5k stage-mode=single presentation={style} group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual={visual} group-local-logical=1 group-local-visual={visual}\n"
+                                 + $"object.note: resource Provide \"{style}.png\"\n";
+            }
+
+            GameplaySkinDocument parsed = GameplaySkinDocumentCodec.Decode(configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("presentation"));
+            GameplaySkinDocument roundTrip = GameplaySkinDocumentCodec.Decode(GameplaySkinDocumentCodec.Encode(parsed),
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("presentation"));
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, true, presentation);
+            GameplaySkinDocument bound = roundTrip.BindToPublication(snapshot);
+            GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+            GameplaySkinDocumentEntry note = bound.GetEntry(GameplaySkinSlotCatalog.Note,
+                GameplaySkinResolvedMaterialTarget.ForLane(group, group.LanesInLogicalOrder[1]));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parsed.Diagnostics, Is.Empty);
+                Assert.That(bound.Diagnostics, Is.Empty, "Other explicitly selected presentations are not malformed current coordinates.");
+                Assert.That(note.Value, Is.EqualTo(presentation + ".png"));
+            });
+        }
+
+        [TestCase("Global", "")]
+        [TestCase("Stage", "group=bms.group.deck-1 group-logical=0 group-visual=0")]
+        [TestCase("Group", "group=bms.group.deck-1 group-logical=0 group-visual=0")]
+        [TestCase("Lane", "group=bms.group.deck-1 group-logical=0 group-visual=0 lane=bms.lane.key-1 global-logical=1 global-visual=1 group-local-logical=1 group-local-visual=1")]
+        public void TestPresentationSpecificSuppressionShadowsPortableDecoration(string scope, string coordinates)
+        {
+            string configuration = $"""
+                                    [GameplaySkin.Common:1]
+                                    Target: {scope} ruleset=bms keymode=5k stage-mode=single presentation=p1 {coordinates}
+                                    decoration: resource Suppress
+                                    Target: {scope} ruleset=bms keymode=5k stage-mode=single {coordinates}
+                                    decoration: resource Provide "portable.png"
+                                    """;
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, true);
+            GameplaySkinDocument parsed = GameplaySkinDocumentCodec.Decode(configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("presentation-suppression"));
+            GameplaySkinDocument bound = parsed.BindToPublication(snapshot);
+            GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bound.Diagnostics, Is.Empty);
+                Assert.That(bound.GetEntry(GameplaySkinSlotCatalog.Decoration,
+                    GameplaySkinResolvedMaterialTarget.ForLane(group, group.LanesInLogicalOrder[1])).Operation,
+                    Is.EqualTo(GameplaySkinDocumentOperation.Suppress));
+            });
+        }
+
+        [TestCase("single", GameplaySkinDocumentOperation.Suppress)]
+        [TestCase("any", GameplaySkinDocumentOperation.Provide)]
+        public void TestPresentationSpecificityFollowsStageAndPrecedesScope(string presentationStage, GameplaySkinDocumentOperation expected)
+        {
+            string configuration = $"""
+                                    [GameplaySkin.Common:1]
+                                    Target: Global ruleset=bms keymode=5k stage-mode={presentationStage} presentation=p1
+                                    decoration: resource Suppress
+                                    Target: Lane ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=1 group-local-logical=1 group-local-visual=1
+                                    decoration: resource Provide "portable-lane.png"
+                                    """;
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, true);
+            GameplaySkinDocument bound = GameplaySkinDocumentCodec.Decode(configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("presentation-priority")).BindToPublication(snapshot);
+            GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bound.Diagnostics, Is.Empty);
+                Assert.That(bound.GetEntry(GameplaySkinSlotCatalog.Decoration,
+                    GameplaySkinResolvedMaterialTarget.ForLane(group, group.LanesInLogicalOrder[1])).Operation, Is.EqualTo(expected));
+            });
+        }
+
+        [Test]
+        public void TestPresentationSelectorDoesNotHideCurrentCoordinateErrors()
+        {
+            const string configuration = """
+                                         [GameplaySkin.Common:1]
+                                         Target: Lane ruleset=bms keymode=5k stage-mode=single presentation=p1 group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=4 group-local-logical=1 group-local-visual=4
+                                         object.note: resource Provide "invalid-current.png"
+                                         Target: Lane ruleset=bms keymode=5k stage-mode=single presentation=p2 group=bms.group.deck-1 lane=bms.lane.key-1 group-logical=0 group-visual=0 global-logical=1 global-visual=0 group-local-logical=1 group-local-visual=0
+                                         object.note: resource Provide "valid-other.png"
+                                         """;
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, true);
+            GameplaySkinDocument bound = GameplaySkinDocumentCodec.Decode(configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("presentation-invalid")).BindToPublication(snapshot);
+            GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bound.Diagnostics.Select(diagnostic => diagnostic.Code),
+                    Is.EqualTo(new[] { GameplaySkinCodecDiagnosticCode.InvalidPublicationTarget }));
+                Assert.That(bound.GetEntry(GameplaySkinSlotCatalog.Note,
+                    GameplaySkinResolvedMaterialTarget.ForLane(group, group.LanesInLogicalOrder[1])).Presence,
+                    Is.EqualTo(GameplaySkinDocumentDeclarationPresence.Absent));
+            });
+        }
+
         [Test]
         public void TestBoundDocumentUsesFrozenRulesetKeymodeStageAndScopeSpecificity()
         {
@@ -1751,10 +1860,11 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 topologyRevision: 0,
                 layoutRevision: revision);
 
-        private static GameplaySkinLayoutSnapshot createBmsSnapshot(string keymodeId, int keyCount, bool includeScratch)
+        private static GameplaySkinLayoutSnapshot createBmsSnapshot(string keymodeId, int keyCount, bool includeScratch, string presentation = "p1")
         {
+            bool rightScratch = presentation is "p2" or "center-p2";
             GameplaySkinLaneGroupIdentity groupIdentity = GameplaySkinLaneGroupIdentity.Create(
-                GameplaySkinLaneGroupId.Create("bms.group.deck-1"), GameplaySkinLaneSide.Primary);
+                GameplaySkinLaneGroupId.Create("bms.group.deck-1"), rightScratch ? GameplaySkinLaneSide.Secondary : GameplaySkinLaneSide.Primary);
             var lanes = new List<GameplaySkinLaneTopologyEntry>();
             int globalIndex = 0;
 
@@ -1763,7 +1873,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 lanes.Add(GameplaySkinLaneTopologyEntry.Create(
                     GameplaySkinLaneIdentity.Create(
                         GameplaySkinLaneId.Create("bms.lane.scratch-1"), groupIdentity, GameplaySkinLaneRole.Scratch),
-                    globalIndex, globalIndex, globalIndex, globalIndex));
+                    globalLogicalIndex: globalIndex,
+                    groupLocalLogicalIndex: globalIndex,
+                    globalVisualIndex: rightScratch ? keyCount : globalIndex,
+                    groupLocalVisualIndex: rightScratch ? keyCount : globalIndex));
                 globalIndex++;
             }
 
@@ -1772,7 +1885,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 lanes.Add(GameplaySkinLaneTopologyEntry.Create(
                     GameplaySkinLaneIdentity.Create(
                         GameplaySkinLaneId.Create($"bms.lane.key-{key}"), groupIdentity, GameplaySkinLaneRole.Key),
-                    globalIndex, globalIndex, globalIndex, globalIndex));
+                    globalLogicalIndex: globalIndex,
+                    groupLocalLogicalIndex: globalIndex,
+                    globalVisualIndex: rightScratch ? globalIndex - 1 : globalIndex,
+                    groupLocalVisualIndex: rightScratch ? globalIndex - 1 : globalIndex));
             }
 
             GameplaySkinLaneTopologySnapshot topology = GameplaySkinLaneTopologySnapshot.Create(new[]
@@ -1784,7 +1900,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 "bms",
                 $"bms.chart.{keymodeId}",
                 keymodeId,
-                "p1",
+                presentation,
                 topology,
                 rect(0, 0, 1, 1),
                 rect(0, 0, 1, 1),
@@ -1799,7 +1915,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinLayoutLane[] layoutLanes = topology.LanesInLogicalOrder
                                                                .Select(lane => new GameplaySkinLayoutLane(
                                                                    lane,
-                                                                   rect(groupRect.Left + lane.GlobalLogicalIndex * laneWidth, 0, laneWidth, 0.9f)))
+                                                                   rect(groupRect.Left + lane.GlobalVisualIndex * laneWidth, 0, laneWidth, 0.9f)))
                                                                .ToArray();
 
             return GameplaySkinLayoutSnapshot.Create(

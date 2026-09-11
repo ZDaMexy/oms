@@ -383,7 +383,7 @@ namespace SkinAuthoring
         };
 
         private sealed record Lane(int Group, int Logical, int Visual, int LocalLogical, int LocalVisual, string Id, string Role);
-        private sealed record Layout(string Ruleset, string Keymode, int Groups, IReadOnlyList<Lane> Lanes);
+        private sealed record Layout(string Ruleset, string Keymode, int Groups, IReadOnlyList<Lane> Lanes, string Presentation = "any");
 
         private static IEnumerable<Layout> layouts()
         {
@@ -403,7 +403,13 @@ namespace SkinAuthoring
                         lanes.Add(new Lane(group, index, visual, index - group * 8, visual - group * 8,
                             scratch ? $"bms.lane.scratch-{(index == 15 ? 2 : 1)}" : $"bms.lane.key-{key}", role));
                     }
-                    yield return new Layout("bms", mode, keys == 14 ? 2 : 1, lanes);
+                    // Each supported single-deck presentation declares its own applicability, while sharing
+                    // the already constructed exact left/right scratch coordinates and the same artwork.
+                    string[] presentations = keys is 5 or 7
+                        ? right ? new[] { "p2", "center-p2" } : new[] { "p1", "center-p1" }
+                        : new[] { "any" };
+                    foreach (string presentation in presentations)
+                        yield return new Layout("bms", mode, keys == 14 ? 2 : 1, lanes, presentation);
                 }
             }
 
@@ -429,6 +435,8 @@ namespace SkinAuthoring
         private static IEnumerable<(string Target, string Role)> targets(Layout layout, GameplaySkinSlotDescriptor slot)
         {
             string context = $"ruleset={layout.Ruleset} keymode={layout.Keymode} stage-mode={(layout.Groups == 1 ? "single" : "dual")}";
+            if (layout.Presentation != "any")
+                context += $" presentation={layout.Presentation}";
             if ((slot.AllowedScopes & GameplaySkinSlotScope.Global) != 0)
             {
                 // Shared free decoration is intentionally portable and declared once; per-ruleset textures remain in other slots.

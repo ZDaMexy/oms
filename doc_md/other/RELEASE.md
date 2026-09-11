@@ -7,9 +7,11 @@
 
 ## 当前人工验收包
 
-2026-09-11 的实际完整包为 `release-repo/oms_20260911_4.zip`，已组装成可直接运行的 `release-repo/oms-skin-c7-acceptance-20260911-final`。按其中 `README.md` 运行 `Start-Acceptance.ps1`，即可在独立副本中选择两款成品、导入观察输入和第三方皮肤，使用同一作者工具修改、检查、打包并更新导入副本；集中步骤见 [人工验收指南](../../skin-c7-acceptance/README.md)。本次真实包组装已在 PS5、无 Git/SDK 的环境完成。
+截至 2026-09-12，当前实际完整包为 `release-repo/oms_20260911_startup-fix-final.zip`，已组装成可直接运行的 `release-repo/oms-skin-c7-acceptance-20260911-startup-fix-final`。按其中 `README.md` 运行 `Start-Acceptance.ps1`，即可在独立副本中选择两款成品、导入观察输入和第三方皮肤，使用同一作者工具修改、检查、打包并更新导入副本；集中步骤见 [人工验收指南](../../skin-c7-acceptance/README.md)。本次真实包组装已在 PS5、无 Git/SDK 的环境完成，来源保持原样。先前 `_4`、`preview-fix` 包和验收结果保留为历史，当前使用入口以上述新包为准。
 
 四轮实际启动与正常退出已通过；四轮结束后的首次便携根和共享自定义根额外只读副本确认 `bms`、`mania` 均为可用，未把两处最终状态写成四份时点快照。当前仍保留 V-001～V-004 0/4、V-005 未签收，以及画面、声音、设备和长期体验人工门。`oms-simple` 承担正式保底，`oms-complex` 是展示包和默认候选，未擅自设为首次默认选择。完整摘要和证据范围见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)与 [C7 验证记录](SKIN_SYSTEM_C7_VALIDATION_20260909.md)。
+
+本轮还在旧 `preview-fix` 安装的独立副本上完成真实跨版本更新：更新工具保留用户文件、数据库和便携模式，两款旧只读原件留在备份；旧工作副本由游戏首次启动自动换成新版简洁款，随后正常退出，第三处测试根的额外只读副本确认两玩法可用。没有打开原用户数据库，也不把测试库在实际启动后的正常变化说成全程字节不变。最终制品独立复核已通过；上述结果不代替人工签收。
 
 ## 构建发行包
 
@@ -22,7 +24,7 @@
 ```
 
 `build-release.ps1` 当前执行 self-contained、多文件 `dotnet publish`（`PublishSingleFile=false`），保留完整运行文件与玩法 DLL，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini` 后打包到 `release-repo/oms_YYYYMMDD(.zip)`。解压完整 ZIP 后直接运行 `osu!.exe`，无需另装 .NET。
-2026-09-11 的实际启动揭示旧完整自解压方式会把程序基准目录移到 TEMP，未读到实际安装旁的便携标记并误入已有保存位置。因此游戏改为多文件发行；仅取消完整自解压、仍将玩法 DLL 留在 single-file 内也不能满足现有玩法发现方式。修正后的真实 `oms_20260911_4.zip` 已完成 Windows 标准解压、便携与自定义保存、坏工作副本恢复和同包完整覆盖后正常启动；两玩法可用及实际保存/缓存位置均另有证据。这些自动安装结果不代表 Skin V1 或公开发行的人工门已经签收。
+2026-09-11 的实际启动揭示旧完整自解压方式会把程序基准目录移到 TEMP，未读到实际安装旁的便携标记并误入已有保存位置。因此游戏改为多文件发行；仅取消完整自解压、仍将玩法 DLL 留在 single-file 内也不能满足现有玩法发现方式。修正后的 `_4` 与 `preview-fix` 历史包已有隔离启动记录；当前 `oms_20260911_startup-fix-final.zip` 重新完成 Windows 标准解压、便携与自定义保存、坏工作副本恢复、同包覆盖及上述跨版本更新后正常启动。两玩法可用及实际保存/缓存位置均有各自证据。这些自动安装结果不代表 Skin V1 或公开发行的人工门已经签收。
 同时发布无需 SDK 的作者工具、双包源文件与验收工具；发行根的中英双语 `how to update.txt` 和 `Update-OMS.ps1` 已提供保留原便携模式与基础目录 `storage.ini` 的实际更新入口。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。

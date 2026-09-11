@@ -254,7 +254,9 @@ namespace osu.Game.Skinning.Gameplay
         {
             string content = stripComment(line).Trim();
 
-            if (content.Length == 0)
+            // Ordinary import appends a full-line legacy comment before its new [General] metadata.
+            // It can follow a public section, including in packages imported by earlier versions.
+            if (content.Length == 0 || content.StartsWith("//", StringComparison.Ordinal))
                 return;
 
             int separator = findOutsideQuotes(content, ':');
@@ -338,7 +340,8 @@ namespace osu.Game.Skinning.Gameplay
                     properties,
                     out GameplaySkinDocumentRulesetSelector rulesetSelector,
                     out string keymodeSelector,
-                    out GameplaySkinDocumentStageModeSelector stageModeSelector))
+                    out GameplaySkinDocumentStageModeSelector stageModeSelector,
+                    out string presentationStyleSelector))
             {
                 diagnostics.Add(new GameplaySkinCodecDiagnostic(GameplaySkinCodecDiagnosticCode.InvalidTargetContext, lineNumber));
                 return null;
@@ -346,12 +349,13 @@ namespace osu.Game.Skinning.Gameplay
 
             try
             {
+                int selectorCount = properties.ContainsKey("presentation") ? 4 : 3;
                 if (kind == GameplaySkinDocumentTargetKind.Global)
                 {
-                    if (properties.Count != 3)
+                    if (properties.Count != selectorCount)
                         throw new InvalidDataException();
 
-                    return GameplaySkinDocumentTarget.ForGlobal(rulesetSelector, keymodeSelector, stageModeSelector);
+                    return GameplaySkinDocumentTarget.ForGlobal(rulesetSelector, keymodeSelector, stageModeSelector, presentationStyleSelector);
                 }
 
                 GameplaySkinLaneGroupId groupId = GameplaySkinLaneGroupId.Create(requireProperty(properties, "group"));
@@ -360,17 +364,17 @@ namespace osu.Game.Skinning.Gameplay
 
                 if (kind == GameplaySkinDocumentTargetKind.Stage || kind == GameplaySkinDocumentTargetKind.Group)
                 {
-                    if (properties.Count != 6)
+                    if (properties.Count != selectorCount + 3)
                         throw new InvalidDataException();
 
                     return kind == GameplaySkinDocumentTargetKind.Stage
                         ? GameplaySkinDocumentTarget.ForStage(
-                            rulesetSelector, keymodeSelector, stageModeSelector, groupId, groupLogical, groupVisual)
+                            rulesetSelector, keymodeSelector, stageModeSelector, groupId, groupLogical, groupVisual, presentationStyleSelector)
                         : GameplaySkinDocumentTarget.ForGroup(
-                            rulesetSelector, keymodeSelector, stageModeSelector, groupId, groupLogical, groupVisual);
+                            rulesetSelector, keymodeSelector, stageModeSelector, groupId, groupLogical, groupVisual, presentationStyleSelector);
                 }
 
-                if (properties.Count != 11)
+                if (properties.Count != selectorCount + 8)
                     throw new InvalidDataException();
 
                 return GameplaySkinDocumentTarget.ForLane(
@@ -384,7 +388,8 @@ namespace osu.Game.Skinning.Gameplay
                     parseIndex(properties, "global-logical"),
                     parseIndex(properties, "global-visual"),
                     parseIndex(properties, "group-local-logical"),
-                    parseIndex(properties, "group-local-visual"));
+                    parseIndex(properties, "group-local-visual"),
+                    presentationStyleSelector);
             }
             catch (ArgumentException)
             {
@@ -419,11 +424,13 @@ namespace osu.Game.Skinning.Gameplay
             IReadOnlyDictionary<string, string> properties,
             out GameplaySkinDocumentRulesetSelector rulesetSelector,
             out string keymodeSelector,
-            out GameplaySkinDocumentStageModeSelector stageModeSelector)
+            out GameplaySkinDocumentStageModeSelector stageModeSelector,
+            out string presentationStyleSelector)
         {
             rulesetSelector = default;
             keymodeSelector = string.Empty;
             stageModeSelector = default;
+            presentationStyleSelector = properties.TryGetValue("presentation", out string? presentation) ? presentation : "any";
 
             if (!properties.TryGetValue("ruleset", out string? ruleset)
                 || !properties.TryGetValue("keymode", out string? parsedKeymodeSelector)
@@ -458,7 +465,7 @@ namespace osu.Game.Skinning.Gameplay
 
             try
             {
-                _ = GameplaySkinDocumentTarget.ForGlobal(rulesetSelector, keymodeSelector, stageModeSelector);
+                _ = GameplaySkinDocumentTarget.ForGlobal(rulesetSelector, keymodeSelector, stageModeSelector, presentationStyleSelector);
                 return true;
             }
             catch (ArgumentException)

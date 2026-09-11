@@ -30,3 +30,5 @@ metadata:
 - `rg --files` 默认不包含 hidden memory；枚举要包括 `.Codex` 并排除 `.git`。根目录 Markdown 的 parent 也须正确解析。链接以文件所在目录为准，不从仓库根再猜一次。
 - `dotnet --info` 曾在 workload `InstallerBase` 初始化失败，但同环境实际 Release build/test 可运行。诊断命令失败不等于产品构建失败，不据此修改 SDK、安装 workload 或加 runtime fallback。
 - 不恢复全局 `NoWarn` 隐藏依赖告警；失败按具体测试身份、消息和原因归类，不只对比数量。
+- VS Code 的“无调试运行”不是构建配置名；以实际 launch/task 与用户构建输出区分 Debug/Release，不能由保存目录推断程序位置。NU1902 在 restore/build 重复显示不是多份独立漏洞；保留 advisory 身份，修补真实依赖，不屏蔽类别。
+- restore 成功或不再发告警不等于完整依赖审计清洁。还需按范围核 `dotnet list ... package --vulnerable --include-transitive`，保留具名例外和传递依赖实情；实际修复版本、边界与兼容检查见 [C7 启动反馈](../../doc_md/other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)。

@@ -241,6 +241,12 @@ namespace osu.Game.Skinning.Gameplay
         {
             GameplaySkinLayoutContext context = snapshot.Context;
 
+            if (target.PresentationStyleSelector != "any"
+                && !string.Equals(target.PresentationStyleSelector, context.PresentationStyleId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             if (!tryGetRuleset(context.RulesetId, out GameplaySkinRulesetApplicability ruleset))
                 return false;
 

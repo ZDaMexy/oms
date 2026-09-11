@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-11（原 C7 内修复交付后的 BMS 预览入口问题；人工签收与公开发行仍待验）
+> 最后更新：2026-09-12（原 C7 默认皮肤提示与构建警告修复已完成实际复验；最终产物独立复核通过，人工签收仍待完成）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7 closed`**）：双包、完整制作体验、正式保底、安装恢复与集中体验包已交付；`V-001`～`V-004`签收仍 **0/4**，`V-005`未签收，Skin V1与release均未完成。能力、实际证据与剩余人工门见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7 closed`**）：双包、完整制作体验、正式保底、安装恢复与集中体验包已交付；`V-001`～`V-004`签收仍 **0/4**，`V-005`未签收，Skin V1与release均未完成。交付后修复继续在原 C7 内收尾，当前默认保持静线、星轨仍为展示包和默认候选；本轮最终产物独立复核通过，实际证据与剩余门见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -17,7 +17,7 @@ OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | 原C7交付后的BMS预览问题已修复；完成针对实际入口的复验，以修复包继续双包、原V项目及真实设备/长时体验签收 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
+| 1 | 原 C7 默认皮肤提示与构建警告已修复并完成实际复验；最终产物独立复核已通过，以新集中包继续原 V、双包及设备/长时体验签收 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |
@@ -25,12 +25,10 @@ OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7
 
 P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared fixture/大库门；P1-J的C3末端lane前置已完成，剩余转谱LN、dense profile和听感验收。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。各项具体风险只在owning子线维护。
 
-C7 最终完整发行物已通过独立便携/自定义位置、工作副本恢复及覆盖后启动；此前旧候选误入已有保存根的事故已事后保全，但缺少该根事前快照，不能追溯宣称无损，详见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)。
+本轮 C7 完整包已完成实际安装恢复及从上一修复版跨版本覆盖，原保存根前后字节和属性一致；旧候选误入已有保存根的事故仍只有事后保全、没有该根事前快照，不能追溯宣称无损。发行和数据边界见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)。
 
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
 
-**2026-09-11 BMS预览反馈**：按用户日志修复实际进入画面时的设置读取，并补齐真实普通进入、自动演示、重试与退出；此前测试宿主提前注入设置的遗漏及修复后发行证据见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与 [C7入口修复](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后-bms-预览入口修复)。仍属原C7，不重新计数或代签人工项目。
-
-**2026-09-11 C7（反馈前）**：最终双包/第三方完整使用、三来源真实备份保护、作者独立制作、规定自动复验、Release publish、真实安装四轮及集中包组装完成；既有失败逐项精确核对与独立复审见 [C7证据](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。没有运行全core或代签人工观感/设备，也没有改变其它子线的既有失败与验收结论。
+**2026-09-12，原 C7 交付后修复：** 默认皮肤的样式提示与普通导入说明误报已修复，实际 Release 构建不再出现本次告警；完整复验、旧失败精确比较、独立制作、真实安装恢复和跨版本更新已有证据，最终产物独立复核通过。范围、仍保留的依赖风险、旧入口故障与原失败历史见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)及 [C7 当前修复](../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)。不重新计数，不代签人工，也不改写其它子线的验收结论。

@@ -1,9 +1,9 @@
 {
-    "ExecutedUtc":  "2026-09-11T11:56:56.5965688Z",
-    "ToolSha256":  "62e1f0527e4b48deb6f83917dde6fd5ad9e7f81fc830969b9babaab47b730862",
+    "ExecutedUtc":  "2026-09-11T15:56:37.8010969Z",
+    "ToolSha256":  "be91924141e44c8b4422290430ba8a14998a2c345c1cb2daa242b1e22c8ef2fa",
     "ToolAssemblySha256":  null,
     "EngineAssemblySha256":  null,
-    "EvidenceDirectory":  "F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609",
+    "EvidenceDirectory":  "F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef",
     "Results":  [
                     {
                         "Case":  "oms-simple valid",
@@ -13,12 +13,12 @@
                     {
                         "Case":  "oms-simple pack first",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\oms-simple-a.osk\r\nSHA256 f32ae2b89c9c5cb5f2f5c67721800db686483164cb6d96566ebb0ceb7e99a980"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\oms-simple-a.osk\r\nSHA256 532224fb0aa1cfe48d8cc4935580d089993349cf799aaf86fed634056d47d1d5"
                     },
                     {
                         "Case":  "oms-simple pack repeated",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\oms-simple-b.osk\r\nSHA256 f32ae2b89c9c5cb5f2f5c67721800db686483164cb6d96566ebb0ceb7e99a980"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\oms-simple-b.osk\r\nSHA256 532224fb0aa1cfe48d8cc4935580d089993349cf799aaf86fed634056d47d1d5"
                     },
                     {
                         "Case":  "oms-simple regenerate artwork from author profile",
@@ -28,7 +28,7 @@
                     {
                         "Case":  "oms-simple pack regenerated artwork",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\oms-simple-regenerated.osk\r\nSHA256 f32ae2b89c9c5cb5f2f5c67721800db686483164cb6d96566ebb0ceb7e99a980"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\oms-simple-regenerated.osk\r\nSHA256 532224fb0aa1cfe48d8cc4935580d089993349cf799aaf86fed634056d47d1d5"
                     },
                     {
                         "Case":  "oms-complex valid",
@@ -38,12 +38,12 @@
                     {
                         "Case":  "oms-complex pack first",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\oms-complex-a.osk\r\nSHA256 ca562158f3e1268e6f1ab640c9e207c3dc6a9183222da77363de109679ed2fbd"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\oms-complex-a.osk\r\nSHA256 0f1bceb45feeff90423885d40e5a172933ce310a8a6ed754f8fcbcb781a8a762"
                     },
                     {
                         "Case":  "oms-complex pack repeated",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\oms-complex-b.osk\r\nSHA256 ca562158f3e1268e6f1ab640c9e207c3dc6a9183222da77363de109679ed2fbd"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\oms-complex-b.osk\r\nSHA256 0f1bceb45feeff90423885d40e5a172933ce310a8a6ed754f8fcbcb781a8a762"
                     },
                     {
                         "Case":  "oms-complex regenerate artwork from author profile",
@@ -53,7 +53,7 @@
                     {
                         "Case":  "oms-complex pack regenerated artwork",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\oms-complex-regenerated.osk\r\nSHA256 ca562158f3e1268e6f1ab640c9e207c3dc6a9183222da77363de109679ed2fbd"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\oms-complex-regenerated.osk\r\nSHA256 0f1bceb45feeff90423885d40e5a172933ce310a8a6ed754f8fcbcb781a8a762"
                     },
                     {
                         "Case":  "aurora-study valid",
@@ -63,12 +63,12 @@
                     {
                         "Case":  "aurora-study pack first",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\aurora-study-a.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\aurora-study-a.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
                     },
                     {
                         "Case":  "aurora-study pack repeated",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\aurora-study-b.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\aurora-study-b.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
                     },
                     {
                         "Case":  "aurora-study regenerate artwork from author profile",
@@ -78,47 +78,47 @@
                     {
                         "Case":  "aurora-study pack regenerated artwork",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\aurora-study-regenerated.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\aurora-study-regenerated.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
                     },
                     {
                         "Case":  "new author profile uses reproducible LF text",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\new-author-lf"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\new-author-lf"
                     },
                     {
                         "Case":  "invalid PNG rejected",
                         "ExitCode":  1,
-                        "Output":  "SkinAuthoring.exe : bms/note-white.png: 图片无法解码，请从图像编辑器重新保存有效 PNG。\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (bms/note-white....像编辑器重新保存有效 PNG。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
+                        "Output":  "SkinAuthoring.exe : bms/note-white.png: 图片无法解码，请从图像编辑器重新保存有效 PNG。\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (bms/note-white....像编辑器重新保存有效 PNG。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
                     },
                     {
                         "Case":  "unknown public field rejected with source line",
                         "ExitCode":  1,
-                        "Output":  "SkinAuthoring.exe : skin.ini:15862: OMS-SKIN-CODEC-009\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (skin.ini:15862: OMS-SKIN-CODEC-009:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\nskin.ini:15862: 找不到素材 missing.png 或首帧 -0.png。"
+                        "Output":  "SkinAuthoring.exe : skin.ini:16210: OMS-SKIN-CODEC-009\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (skin.ini:16210: OMS-SKIN-CODEC-009:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\nskin.ini:16210: 找不到素材 missing.png 或首帧 -0.png。"
                     },
                     {
                         "Case":  "oversized folder metadata rejected before distribution",
                         "ExitCode":  1,
-                        "Output":  "SkinAuthoring.exe : skin.ini: 目录皮肤无法读取名称或作者，请保持文件不超过 1 MiB、名称与作者各不超过 256 字符，且不含控制字符。\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (skin.ini: 目录皮肤无...256 字符，且不含控制字符。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
+                        "Output":  "SkinAuthoring.exe : skin.ini: 目录皮肤无法读取名称或作者，请保持文件不超过 1 MiB、名称与作者各不超过 256 字符，且不含控制字符。\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (skin.ini: 目录皮肤无...256 字符，且不含控制字符。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
                     },
                     {
                         "Case":  "prepare previous package",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\verification-64ffe6fb690c4c8a9bec3ac6ba6fe609\\preserved.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\verification-df843cadc60c42b78836594d4de1d4ef\\preserved.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
                     },
                     {
                         "Case":  "unfinished output preserved",
                         "ExitCode":  1,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\nSkinAuthoring.exe : 上次打包留下 .pending，请先保留并检查它，再换输出文件名。\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (上次打包留下 .pending，请先保留并检查它，再换输出文件名。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\nSkinAuthoring.exe : 上次打包留下 .pending，请先保留并检查它，再换输出文件名。\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (上次打包留下 .pending，请先保留并检查它，再换输出文件名。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
                     },
                     {
                         "Case":  "source-contained package rejected",
                         "ExitCode":  1,
-                        "Output":  "SkinAuthoring.exe : 输出 .osk 必须放在作者目录外，避免把上次成品打进新包。\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (输出 .osk 必须放在作者目录外，避免把上次成品打进新包。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
+                        "Output":  "SkinAuthoring.exe : 输出 .osk 必须放在作者目录外，避免把上次成品打进新包。\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (输出 .osk 必须放在作者目录外，避免把上次成品打进新包。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
                     },
                     {
                         "Case":  "existing author destination preserved",
                         "ExitCode":  1,
-                        "Output":  "SkinAuthoring.exe : 新作品目录已存在；不会合并或覆盖已有作品。\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (新作品目录已存在；不会合并或覆盖已有作品。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
+                        "Output":  "SkinAuthoring.exe : 新作品目录已存在；不会合并或覆盖已有作品。\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Test-Authoring.ps1:23 char:22\r\n+     try { $output = (\u0026 $toolPath @ToolArguments 2\u003e\u00261 | Out-String); $ ...\r\n+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (新作品目录已存在；不会合并或覆盖已有作品。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError"
                     },
                     {
                         "Case":  "repaired source passes",

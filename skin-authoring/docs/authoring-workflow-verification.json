@@ -1,8 +1,8 @@
 {
-    "ExecutedUtc":  "2026-09-11T11:56:38.9246996Z",
+    "ExecutedUtc":  "2026-09-11T15:56:22.4589140Z",
     "Entry":  "Published self-contained tool via Windows PowerShell 5 / Author.ps1",
     "GitOrSdkOnPath":  false,
-    "ToolSha256":  "62e1f0527e4b48deb6f83917dde6fd5ad9e7f81fc830969b9babaab47b730862",
+    "ToolSha256":  "be91924141e44c8b4422290430ba8a14998a2c345c1cb2daa242b1e22c8ef2fa",
     "BeforeProfile":  {
                           "name":  "Aurora Study · 作者演练",
                           "author":  "OMS contributors",
@@ -21,14 +21,14 @@
                           "highlight":  "edf19b",
                           "background":  "0b1019"
                       },
-    "PackageSha256":  "ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7",
+    "PackageSha256":  "41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215",
     "ActualGameLink":  "Byte-identical aurora-study.osk is exercised by CanonicalSkinBackupRootProductTest in the final current-build game results; this command exercise does not start the game.",
     "Steps":  [
                   {
                       "Action":  "new",
                       "Expected":  0,
                       "ExitCode":  0,
-                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\standalone-aurora"
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\standalone-aurora"
                   },
                   {
                       "Action":  "edit author profile and README",
@@ -52,7 +52,7 @@
                       "Action":  "check",
                       "Expected":  1,
                       "ExitCode":  1,
-                      "Output":  "powershell.exe : bms/note-white.png: 图片无法解码，请从图像编辑器重新保存有效 PNG。\r\nAt F:\\oms\\artifacts\\skin-c7-evidence\\Test-StandaloneAuthorWorkflow.ps1:24 char:19\r\n+ ...   $result = \u0026 (Join-Path $env:SystemRoot \u0027System32/WindowsPowerShell/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (bms/note-white....像编辑器重新保存有效 PNG。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。\r\nAt F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\Author.ps1:50 char:28\r\n+ if ($LASTEXITCODE -ne 0) { throw \u0027作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。\u0027 }\r\n+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。:String) [], RuntimeException\r\n    + FullyQualifiedErrorId : 作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。"
+                      "Output":  "powershell.exe : bms/note-white.png: 图片无法解码，请从图像编辑器重新保存有效 PNG。\r\nAt F:\\oms\\artifacts\\skin-c7-evidence\\Test-StandaloneAuthorWorkflow.ps1:24 char:19\r\n+ ...   $result = \u0026 (Join-Path $env:SystemRoot \u0027System32/WindowsPowerShell/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (bms/note-white....像编辑器重新保存有效 PNG。:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。\r\nAt F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\Author.ps1:50 char:28\r\n+ if ($LASTEXITCODE -ne 0) { throw \u0027作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。\u0027 }\r\n+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。:String) [], RuntimeException\r\n    + FullyQualifiedErrorId : 作者工具检查未通过。请按上方文件名、行号或错误编号修正后再运行。"
                   },
                   {
                       "Action":  "check",
@@ -64,13 +64,13 @@
                       "Action":  "import",
                       "Expected":  0,
                       "ExitCode":  0,
-                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\standalone-aurora.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7\r\n导入副本已准备：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\import-c54bf44e2ea143f18c6c746ad70d7089\\standalone-aurora.osk\r\n把该 .osk 拖入 OMS 窗口导入；更新包导入后在皮肤设置选中新版本。旧版本保留供对照。"
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\standalone-aurora.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215\r\n导入副本已准备：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\import-10f6b8c5ab774f8984683deec1a645ba\\standalone-aurora.osk\r\n把该 .osk 拖入 OMS 窗口导入；更新包导入后在皮肤设置选中新版本。旧版本保留供对照。"
                   },
                   {
                       "Action":  "update",
                       "Expected":  0,
                       "ExitCode":  0,
-                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\standalone-aurora.osk\r\nSHA256 ac596ab952da9244e57cf72a5193278e6af3961ac61a1dc168ec0165eba324e7\r\n导入副本已准备：F:\\oms\\artifacts\\skin-preview-entry-20260911\\standalone-author\\work\\import-dca9dc9d05054da3ba8ad8a027b0fb07\\standalone-aurora.osk\r\n把该 .osk 拖入 OMS 窗口导入；更新包导入后在皮肤设置选中新版本。旧版本保留供对照。"
+                      "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\standalone-aurora.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215\r\n导入副本已准备：F:\\oms\\artifacts\\skin-startup-warning-20260911\\standalone-author\\work\\import-6cfc2aa3939540a18ca2a0175810c7e9\\standalone-aurora.osk\r\n把该 .osk 拖入 OMS 窗口导入；更新包导入后在皮肤设置选中新版本。旧版本保留供对照。"
                   }
               ],
     "RetainedPackageAndPrevious":  true,

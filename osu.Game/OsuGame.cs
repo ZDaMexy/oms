@@ -1558,7 +1558,14 @@ namespace osu.Game
             {
                 LocalisableString message;
 
-                if (entry.Exception != null && IsDeployedBuild)
+                if (entry.Target == LoggingTarget.Runtime
+                    && entry.Level == LogLevel.Important
+                    && entry.Exception == null
+                    && entry.Message.StartsWith("Gameplay skin material diagnostic: count=", StringComparison.Ordinal))
+                {
+                    message = NotificationsStrings.GameplaySkinContentUnavailable;
+                }
+                else if (entry.Exception != null && IsDeployedBuild)
                     message = LocalisableString.Interpolate($"{entry.Message.Truncate(256)}\n\n{NotificationsStrings.ErrorAutomaticallyReported}");
                 else
                     message = entry.Message.Truncate(256);

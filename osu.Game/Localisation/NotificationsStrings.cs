@@ -69,6 +69,13 @@ Please try changing your audio device to a working setting.");
         public static LocalisableString SubsequentMessagesLogged => new TranslatableString(getKey(@"subsequent_messages_logged"), @"Subsequent messages have been logged. Click to view log files.");
 
         /// <summary>
+        /// "当前皮肤的部分内容未能正常使用。请更新皮肤；如仍有问题，可在设置中“导出日志”并提供给作者。"
+        /// </summary>
+        public static LocalisableString GameplaySkinContentUnavailable => new TranslatableString(
+            getKey(@"gameplay_skin_content_unavailable"),
+            @"当前皮肤的部分内容未能正常使用。请更新皮肤；如仍有问题，可在设置中“导出日志”并提供给作者。");
+
+        /// <summary>
         /// "Disabling tablet support due to error: &quot;{0}&quot;"
         /// </summary>
         public static LocalisableString TabletSupportDisabledDueToError(string message) => new TranslatableString(getKey(@"tablet_support_disabled_due_to_error"), @"Disabling tablet support due to error: ""{0}""", message);
