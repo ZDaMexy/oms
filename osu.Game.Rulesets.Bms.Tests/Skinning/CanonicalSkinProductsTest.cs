@@ -265,7 +265,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private string createCanonicalImportCopy(string package)
         {
             string archive = LocalStorage.GetFullPath($"{package}-{Guid.NewGuid():N}.osk");
-            File.Copy(Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", package + ".osk"), archive);
+            string source = package == "oms-complex"
+                ? Path.Combine(AppContext.BaseDirectory, "SkinAuthoringSamples", "oms-complex.osk")
+                : Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", package + ".osk");
+            File.Copy(source, archive);
             File.SetAttributes(archive, FileAttributes.Normal);
             return archive;
         }

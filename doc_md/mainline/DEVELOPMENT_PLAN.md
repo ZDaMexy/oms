@@ -23,6 +23,8 @@
 
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
+当前静线质量目标及 Global 背景范围扩展见[机台结构记录](../other/SKIN_SIMPLE_CABINET_20260912.md)；LITONE仅作对照，后续以合格 beatmania style 的读谱、控制区与信息层级为准，不恢复complex。
+
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 2. **C7 作品迭代**：既有工程和安装证据保留，静线首轮 BMS 分区及受影响共同布局已自动复验，当前继续实机对照与必要微调；星轨已放弃。仅静线随安装内置、默认与保底，不重计阶段。具体当前迭代范围、待改内容及剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
 3. 修改验证后按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及修改后的静线；自动结果不得代签实际画面与设备体验。未签收不得称Skin V1/release完成。

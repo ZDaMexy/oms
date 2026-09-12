@@ -1,0 +1,11 @@
+# 静线机台底板与跨拓扑 scene（2026-09-12）
+
+用户图07显示控制键和BGA周围仍穿透歌曲背景。根因不是stage.png透明：原stage.background只有Stage，其矩形是轨道group union，键区和外侧不在其中。当前扩展Global/Stage独立声明；Global=SafeBounds，在Background层depth2，Stage仍depth1。BGA实际内容在它们前方。不得用全屏decoration（Overlay）盖住音符，也不扩大所有Stage矩形。
+
+普通scene的Stage/Group/Lane目标需要精确id+index；instances无条件准备，variant只换资源，隐藏节点仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标。分段血条不能只换分段PNG：纯texture语义缩放整个宽度，会使格距随血量变化。当前保留真实连续条，未加条件实例ABI。
+
+Global背景仍禁止Suppress；用透明PNG表达透明。旧声明未提供Global时继续Inherit到canonical，不能偷偷另加缺省规则。NonVisual未加载Container的Parent可为空，验证装配应看层Children；真实像素另用隔离desktop GameHost.TakeScreenshotAsync。
+
+simple新仪表各有独立边框，布局测试须逐字段检查对应面板，不能把所有字段都限定在第一块面板内。固定字大小必须覆盖640×480信息带，放大数字时检查标签/值/底框三者不相交。
+
+complex退役后历史ordinary import测试从SkinAuthoringSamples取归档，不再从Skins/Canonical取不存在的内置原件；不为测试重新发布complex。

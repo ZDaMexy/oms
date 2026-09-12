@@ -652,7 +652,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     envelope.EventKind == GameplaySkinEventKind.InputPressed
                     && envelope.LaneId?.Value == "bms.lane.key-1");
                 GameplaySkinResolvedMaterialEntry selectedStageBackground = materialSet.Entries.Single(candidateEntry =>
-                    ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.StageBackground));
+                    ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.StageBackground)
+                    && candidateEntry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage);
                 GameplaySkinResolvedMaterialEntry[] selectedEntries = materialSet.Entries.Where(candidateEntry =>
                     candidateEntry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage).ToArray();
                 GameplaySkinResolvedMaterialEntry bgaViewportEntry = selectedEntries.Single(candidateEntry =>

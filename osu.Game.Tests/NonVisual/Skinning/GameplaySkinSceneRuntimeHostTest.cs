@@ -624,6 +624,49 @@ namespace osu.Game.Tests.NonVisual.Skinning
             });
         }
 
+        [TestCase("bms")]
+        [TestCase("mania")]
+        public void TestGlobalStageBackgroundFillsSafeBoundsBehindIndependentStageAndGameplay(string ruleset)
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            LayoutFixture layout = createLayout(ruleset);
+            GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
+            GameplaySkinResolvedMaterialTarget stage = GameplaySkinResolvedMaterialTarget.ForStage(layout.Group);
+            GameplaySkinResolvedMaterialTarget lane = GameplaySkinResolvedMaterialTarget.ForLane(layout.Group, layout.Lane);
+            GameplaySkinResolvedMaterialEntry[] entries =
+            {
+                provide(GameplaySkinSlotCatalog.StageBackground, global, texture, source()),
+                provide(GameplaySkinSlotCatalog.StageBackground, stage, texture, source()),
+                provide(GameplaySkinSlotCatalog.LaneSurface, lane, texture, source()),
+            };
+            RuntimeFixture runtimeFixture = fixture(layout, entries);
+            using GameplaySkinEventStream stream = createStream(runtimeFixture.Publication);
+            using var host = new GameplaySkinSceneRuntimeHost(runtimeFixture.Publication, stream);
+            host.ProcessFrame();
+
+            Assert.That(host.TryGetHostedDrawable(entries[0].Key, out Drawable? cabinet), Is.True);
+            Assert.That(host.TryGetHostedDrawable(entries[1].Key, out Drawable? deck), Is.True);
+            Assert.That(host.TryGetHostedDrawable(entries[2].Key, out Drawable? laneSurface), Is.True);
+            Assert.Multiple(() =>
+            {
+                assertRect(cabinet!, layout.Snapshot.Context.SafeBounds);
+                assertRect(deck!, layout.StageRect);
+                Assert.That(host.Layers.Background.Children, Does.Contain(cabinet));
+                Assert.That(host.Layers.Background.Children, Does.Contain(deck));
+                Assert.That(host.Layers.Underlay.Children, Does.Contain(laneSurface));
+                Assert.That(cabinet, Is.Not.SameAs(deck));
+                Assert.That(cabinet!.Depth, Is.GreaterThan(deck!.Depth));
+            });
+
+            static void assertRect(Drawable drawable, GameplaySkinLayoutRect rect)
+            {
+                Assert.That(drawable.X, Is.EqualTo(rect.X).Within(0.0001f));
+                Assert.That(drawable.Y, Is.EqualTo(rect.Y).Within(0.0001f));
+                Assert.That(drawable.Width, Is.EqualTo(rect.Width).Within(0.0001f));
+                Assert.That(drawable.Height, Is.EqualTo(rect.Height).Within(0.0001f));
+            }
+        }
+
         [Test]
         public void TestSemanticSlotsConsumeExactC3SurfacesInsteadOfWholeStageOrLane()
         {

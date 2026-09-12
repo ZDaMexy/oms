@@ -66,6 +66,8 @@
 
 ### 外部皮肤可以拥有
 
+`stage.background` 支持 Global 与 Stage 两种独立声明：Global 使用当前 layout 的 SafeBounds，Stage 保持原 group 矩形；二者均在 Background 层，Global 位于 Stage 与 BGA 内容之后。缺省继续既有 Inherit→canonical，不新增私有默认图；透明背景须提供透明资源，既有 Forbidden Suppress 合同不变。BGA 内框继续使用 `bga.frame` 的真实 viewport 裁剪，不能以整屏 Overlay 遮挡玩法来代替底板。实际范围及排序须经过 shared 和双玩法产品测试。
+
 1. slot 内的 sprite/container/text/mask、素材、颜色、混合、裁剪和标准视觉效果。
 2. 帧动画、tween、timeline、状态机和对只读 gameplay event 的表现响应。
 3. 可选组件是否显示，以及在 descriptor slot 内的局部布局/装饰。

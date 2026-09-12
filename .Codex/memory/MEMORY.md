@@ -12,6 +12,8 @@
 
 ## 皮肤恢复与存储
 
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景范围、图07穿透根因、分段血条与条件实例限制、真实像素检查。
+
 - [内置包构建与冷启动](reference_skin_canonical_installation.md) — source→构建原件/摘要、发行副本同源、PowerShell 空路径，以及已保存星轨的顶层启动线程问题。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。

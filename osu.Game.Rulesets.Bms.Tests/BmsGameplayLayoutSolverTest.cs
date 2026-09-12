@@ -167,11 +167,11 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 92)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 116)]
-        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 126)]
-        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 126)]
-        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 228)]
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 93)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 117)]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 127)]
+        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 127)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 229)]
         public void TestEveryPublicSlotExpandsToExactApplicableBmsTargets(
             BmsKeymode keymode,
             BmsPlayfieldStyle style,
@@ -220,7 +220,10 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(groups, Has.Length.EqualTo(2));
-                    Assert.That(keys.Count(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.StageBackground)), Is.EqualTo(2));
+                    Assert.That(keys.Count(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.StageBackground)
+                                                  && key.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage), Is.EqualTo(2));
+                    Assert.That(keys.Count(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.StageBackground)
+                                                  && key.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Global), Is.EqualTo(1));
                     Assert.That(keys.Count(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.BarLine)), Is.EqualTo(2));
                     Assert.That(scratchExtension.Select(key => key.Target.LaneId!.Value),
                         Is.EquivalentTo(new[]

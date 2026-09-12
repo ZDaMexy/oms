@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Retired artwork remains an ordinary import fixture, never an installed canonical skin. -->
+    <Content Include="..\skin-authoring\dist\oms-complex.osk">
+      <Link>SkinAuthoringSamples\oms-complex.osk</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\skin-authoring\dist\aurora-study.osk">
       <Link>SkinAuthoringSamples\aurora-study.osk</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

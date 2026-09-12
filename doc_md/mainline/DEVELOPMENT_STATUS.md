@@ -9,6 +9,8 @@ OMS处于Phase 1.x后段。用户已明确放弃 complex，只继续打磨 simpl
 
 ## 产品与仓库基线
 
+静线按最新反馈继续向高质量 beatmania style 打磨；本轮补完整底板公共范围并保存实际渲染证据，整体视觉尚未签收，见[机台打磨记录](../other/SKIN_SIMPLE_CABINET_20260912.md)。
+
 后续正常开发启动、build/publish 仅同步静线源文件；此前双内置验证保留历史身份，见[构建更新记录](../other/SKIN_BUILTIN_BUILD_20260912.md)。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。

@@ -78,7 +78,7 @@ namespace osu.Game.Skinning.Gameplay
             "playfield.bar-line", "BarLine", GameplaySkinSlotScope.Group, commonNonLane(), "OMS-SKIN-SLOT-016");
 
         public static GameplaySkinSlotDescriptor StageBackground { get; } = recommended(
-            "stage.background", "StageBackground", GameplaySkinSlotScope.Stage, commonNonLane(), "OMS-SKIN-SLOT-017");
+            "stage.background", "StageBackground", GameplaySkinSlotScope.Global | GameplaySkinSlotScope.Stage, commonNonLane(), "OMS-SKIN-SLOT-017");
 
         public static GameplaySkinSlotDescriptor StageForeground { get; } = recommended(
             "stage.foreground", "StageForeground", GameplaySkinSlotScope.Stage, commonNonLane(), "OMS-SKIN-SLOT-018");

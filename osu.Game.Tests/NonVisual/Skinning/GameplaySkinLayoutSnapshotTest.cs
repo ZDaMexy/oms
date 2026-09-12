@@ -703,6 +703,40 @@ namespace osu.Game.Tests.NonVisual.Skinning
             });
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestGlobalStageBackgroundDeclarationPreservesIndependentStageAndLegacyInheritance(bool declareGlobal)
+        {
+            GameplaySkinLayoutSnapshot snapshot = createBmsSnapshot("5k", 5, includeScratch: true);
+            string configuration = "[GameplaySkin.Common:1]\n"
+                                   + (declareGlobal ? "Target: Global ruleset=bms keymode=any stage-mode=any\nstage.background: resource Provide \"surfaces/cabinet\"\n" : string.Empty)
+                                   + "Target: Stage ruleset=bms keymode=5k stage-mode=single group=bms.group.deck-1 group-logical=0 group-visual=0\n"
+                                   + "stage.background: resource Provide \"surfaces/deck\"\n";
+            GameplaySkinDocument document = GameplaySkinDocumentCodec.Decode(configuration,
+                GameplaySkinDocumentIdentity.CreateUnboundPackageParse("global-stage-test")).BindToPublication(snapshot);
+            GameplaySkinResolvedMaterialSourceIdentity selected = GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.SelectedPackage, "selected.global-stage", "a");
+            GameplaySkinResolvedMaterialSourceIdentity fallback = GameplaySkinResolvedMaterialSourceIdentity.Create(
+                GameplaySkinResolvedMaterialSourceKind.ProgrammaticFallback, "fallback.global-stage", "v1");
+            Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
+            GameplaySkinPublicSlotMaterialResolution result = GameplaySkinPublicSlotMaterialResolver.Resolve(
+                snapshot, document, GameplaySkinPublicSlotMaterialCapabilities.Create(new[] { GameplaySkinSlotCatalog.StageBackground }),
+                new[] { GameplaySkinSlotCatalog.StageBackground }, selected, fallback, _ => texture);
+            GameplaySkinResolvedMaterialEntry global = result.Entries.Single(entry => entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Global);
+            GameplaySkinResolvedMaterialEntry stage = result.Entries.Single(entry => entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage);
+            Assert.Multiple(() =>
+            {
+                Assert.That(document.HasFatalDiagnostics, Is.False);
+                Assert.That(result.Diagnostics, Is.Empty);
+                Assert.That(stage.Source, Is.EqualTo(selected));
+                Assert.That(stage.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("surfaces/deck"));
+                Assert.That(global.Source, Is.EqualTo(declareGlobal ? selected : fallback));
+                Assert.That(global.GetMaterial<GameplaySkinPublicSlotMaterial>().IsProgrammaticFallback, Is.EqualTo(!declareGlobal));
+                if (declareGlobal)
+                    Assert.That(global.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("surfaces/cabinet"));
+            });
+        }
+
         [Test]
         public void TestGenericPublicMaterialResolutionCoversEveryBmsCatalogTargetAndPreservesThreeStates()
         {
@@ -752,7 +786,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.Multiple(() =>
             {
                 Assert.That(capabilities.Support, Has.Count.EqualTo(28));
-                Assert.That(resolution.Entries, Has.Count.EqualTo(92));
+                Assert.That(resolution.Entries, Has.Count.EqualTo(93));
                 Assert.That(resolution.Entries.Select(entry => entry.Key), Is.Unique);
                 Assert.That(resolution.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All));
 

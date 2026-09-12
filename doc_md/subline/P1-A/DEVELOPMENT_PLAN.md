@@ -17,8 +17,10 @@
 
 ## 静线当前迭代验收与后续
 
+- 在已接入的完整底板、键面插槽、BGA 内边框和分立仪表上，继续对照图07及实际歌曲打磨判定文字、转盘比例和血条结构。Global `stage.background` 保持 BMS 完整底板与 mania 透明背景；不借此增加跨拓扑 scene 条件实例 ABI。原创 `scene/cabinet.png` 不使用参考图片输入。自动结果与隔离实机截图见[机台记录](../../other/SKIN_SIMPLE_CABINET_20260912.md)，整体质量和完整歌曲仍待签收。
+
 - 根据新增图 06 复验普通轨与转盘轨分隔线的可见度和粗细关系、黑白轨底色、底座遮蔽、转盘正圆与红判定线；先用当前作者素材和成品验证，再以真实游戏画面观察，不将作者板作为签收。当前保留连续血条，不为分段表现扩展公共 scene API。
-- 对照[原始参考与首轮实机反馈图](../../other/references/simple-1p-20260912/README.md)核验：信息不遮挡音符、黑白键与转盘可辨、血条和判定清楚，右侧 BGA 形成主画面；保留简洁装饰，不把高仿素材要求转给 simple。
+- 对照[原始参考与首轮实机反馈图](../../other/references/simple-1p-20260912/README.md)核验：信息不遮挡音符、黑白键与转盘可辨、血条和判定清楚，右侧 BGA 形成主画面；只保留 simple，并以高质量、合格的 beatmania style 成品为目标；LITONE 用于功能分区和完成度参考，不照抄外框、标识或素材。简洁不再作为降低素材质量的理由。
 - 保持已验证的作者源和成品同步；后续修改继续检查公共配置与唯一布局求解、真实 BMS/mania 加载及 Release，覆盖 P1/P2、其它键数、窄屏和旧包无独立按键区的行为。BGA 画面大小归皮肤布局，当前迭代不改变 P1-L 内容播放职责。
 - 公共底部信息区影响旧包的可用高度，后续微调须覆盖静线和受影响第三方包；实际观感仍须用户观察，不复用旧安装包或原人工签收。
 
@@ -46,7 +48,7 @@
 
 映射：`SV1-7`并汇总`SV1-1`～`SV1-7`。
 
-**面向产品的实施重点：** 尽早形成可完整游玩的简洁皮肤与复杂展示皮肤，并让作者走通“修改 → 检查 → 打包 → 导入 → 验证”；围绕这两款成品完成默认外观替代和安装恢复。C6 Momentum 只证明组合效果可用，不算最终复杂皮肤。`oms-simple`是当前首次默认与最终保底外观，`oms-complex`仍为展示包/默认候选，不擅自把首次选择改为复杂款。
+**面向产品的实施重点：** 只继续交付和打磨 `oms-simple`，形成高质量、可完整游玩的 beatmania style 外观，并让作者走通“修改 → 检查 → 打包 → 导入 → 验证”。静线是唯一内置、首次默认与最终保底；complex 与 C6 Momentum 仅保留历史验证身份，不再作为当前成品或默认候选。
 
 **执行输入与交付门：** 双包、作者源和独立制作路径、完整自动复验、安装恢复与跨版本更新均作为已有输入，不重复开发；保留旧包作为对照，不改写其摘要或历史结果。星轨已获总体否定反馈，自动及独立工程复核不等于成品质量通过；真实结果、精确失败比较与交付身份只在 [STATUS](DEVELOPMENT_STATUS.md#最近一次验证)、[C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)、[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)及 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)维护，不用中间候选替代最终交付。
 
@@ -54,13 +56,13 @@
 
 **必须闭合的非人工产品结果：**
 
-交付可编辑、可复现构建的`oms-simple.osk`/`oms-complex.osk`、模板、完整schema/event/layout/capability/budget文档、validator/diagnostics与打包导入说明；发行物只读携带、完整性验证/原子恢复。canonical fallback接管必须覆盖`SkinManager`初始/current/config失败pair、ruleset providing containers、selection/reload失败回落、current managed delete/current external unregister、protected Realm record。升级时仍存在且具备完整现行证据的supported pre-C1 v2及C1以后journal，可由旧`OmsSkin`证据继续恢复或显式版本迁移；缺tombstone/fingerprint/manifest/disposition的pre-product legacy-v1/old-v2 Delete继续strict Invalid并进入安装修复，绝不猜测迁移。之后才让程序化`OmsSkin`退出产品authority；canonical缺失/损坏必须阻止进入gameplay并进入明确安装修复，不能重新生成程序化视觉。第三方包、portable/custom-root/update、性能及全套自动门收敛。
+交付可编辑、可复现构建的唯一内置 `oms-simple.osk`、模板、完整schema/event/layout/capability/budget文档、validator/diagnostics与打包导入说明；发行物只读携带、完整性验证/原子恢复。canonical fallback接管必须覆盖`SkinManager`初始/current/config失败pair、ruleset providing containers、selection/reload失败回落、current managed delete/current external unregister、protected Realm record。升级时仍存在且具备完整现行证据的supported pre-C1 v2及C1以后journal，可由旧`OmsSkin`证据继续恢复或显式版本迁移；缺tombstone/fingerprint/manifest/disposition的pre-product legacy-v1/old-v2 Delete继续strict Invalid并进入安装修复，绝不猜测迁移。之后才让程序化`OmsSkin`退出产品authority；canonical缺失/损坏必须阻止进入gameplay并进入明确安装修复，不能重新生成程序化视觉。第三方包、portable/custom-root/update、性能及全套自动门收敛。
 
 **硬退出门：**
 
 工程状态达到`SV1-1`～`SV1-7`“自动/合同/安全/release gate通过，人工待签收”；canonical切换前后的全部受支持journal/recovery、delete/unregister receipt与失败回落均可证明收口，invalid旧intent也有不扩大authority的安装修复路径；无程序化主题fallback、私有canonical特权、TODO validator/Authoring Kit或未归因自动失败，同时生成一键人工验收包，用户只需执行视觉/实机清单。
 
-**专项验收补充：** 双包均走普通导入/导出链；simple只含最小可玩件并显式Suppress可选视觉，complex以公开slot/event/script证明上限，不用私有C# provider、隐藏资源或内置特权。最终矩阵包含第三方包、缺失/损坏用户包仍可玩、canonical安装故障修复、启动/切换/reload、全部keymode、BGA、脚本性能、portable/custom-root/覆盖更新及人工视觉与真实设备/谱面。
+**专项验收补充：** simple 走普通导入/导出链，以公开 slot/event/script 完成所需视觉，不用私有 C# provider、隐藏资源或内置特权；可选视觉按实际设计声明，不以“最小可玩”限制素材质量。complex 的双包验证只作为历史证据。最终矩阵包含第三方包、缺失/损坏用户包仍可玩、canonical安装故障修复、启动/切换/reload、全部keymode、BGA、脚本性能、portable/custom-root/覆盖更新及人工视觉与真实设备/谱面。
 
 ### 共同执行规则
 

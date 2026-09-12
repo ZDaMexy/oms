@@ -105,7 +105,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 if (package != "oms-complex")
                 {
                     Assert.That(bms.MaterialSet.Entries.Where(item => ReferenceEquals(item.Slot, GameplaySkinSlotCatalog.KeyFlash))
-                                   .All(item => item.State == GameplaySkinResolvedMaterialState.Suppress), Is.True);
+                                   .All(item => item.State == (package == "oms-simple"
+                                       ? GameplaySkinResolvedMaterialState.Provide : GameplaySkinResolvedMaterialState.Suppress)), Is.True);
                     Assert.That(mania.MaterialSet.Entries.Where(item => ReferenceEquals(item.Slot, GameplaySkinSlotCatalog.KeyFlash))
                                    .All(item => item.State == GameplaySkinResolvedMaterialState.Suppress), Is.True);
                 }

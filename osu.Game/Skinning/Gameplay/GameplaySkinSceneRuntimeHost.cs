@@ -736,7 +736,7 @@ namespace osu.Game.Skinning.Gameplay
                 {
                     RelativeSizeAxes = Axes.Both,
                     Child = effected,
-                    Depth = (prepared.Slot == null ? 0 : GameplaySkinSceneHostPolicy.BaseDepthFor(prepared.Slot))
+                    Depth = (prepared.Slot == null ? 0 : GameplaySkinSceneHostPolicy.BaseDepthFor(prepared.Slot, prepared.MaterialTarget))
                             + (float)getNumber(prepared.Source.Properties, "z", 0)
                 };
                 applyGeometryAndBlend(root, prepared.Rect, parentRect, prepared.Source.Blend);
@@ -1092,7 +1092,7 @@ namespace osu.Game.Skinning.Gameplay
                 visual = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Depth = GameplaySkinSceneHostPolicy.BaseDepthFor(entry.Slot),
+                    Depth = GameplaySkinSceneHostPolicy.BaseDepthFor(entry.Slot, entry.Target),
                 };
                 var sprite = new Sprite { RelativeSizeAxes = Axes.Both, Texture = pending.Material.Texture };
                 OsuSpriteText? text = createSemanticText(entry.Slot);

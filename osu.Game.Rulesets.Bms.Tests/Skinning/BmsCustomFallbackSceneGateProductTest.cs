@@ -405,15 +405,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 var flash = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyFlash, target);
                 Assert.That(scene.MaterialSet.TryGet(flash, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
-                Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Suppress));
+                Assert.That(entry!.State, Is.EqualTo(selected ? GameplaySkinResolvedMaterialState.Suppress : GameplaySkinResolvedMaterialState.Provide));
                 Assert.That(entry.Source.Kind, Is.EqualTo(selected ? GameplaySkinResolvedMaterialSourceKind.SelectedPackage : GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
-                Assert.That(scene.TryGetHostedDrawable(flash, out _), Is.False);
+                Assert.That(scene.TryGetHostedDrawable(flash, out _), Is.EqualTo(!selected));
 
                 GameplaySkinSpecialisedSceneVisual visual = assertPackagedNativeSurface(scene, lane.HitTarget.KeyVisual!,
                     lane.HitTarget.ResolvedMaterialKey, false, exactLane.IsScratch ? "bms/scratch-platter" : $"bms/key-{role}");
                 Drawable key = visual.RootDrawables.Single();
                 Assert.That(key.Alpha, Is.EqualTo(lane.HitTarget.IsPressed.Value ? 1 : 0.65f),
-                    "Both decks must retain actual pressed/released key feedback even while optional flashes are suppressed.");
+                    "Both decks must retain actual pressed/released key feedback independently of optional flashes.");
                 if (previousKey != null)
                 {
                     Assert.That(key, Is.Not.SameAs(previousKey));

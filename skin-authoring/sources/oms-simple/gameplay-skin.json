@@ -8,6 +8,11 @@
       "id": "texture.white",
       "type": "texture",
       "path": "scene/white.png"
+    },
+    {
+      "id": "texture.instrument",
+      "type": "texture",
+      "path": "scene/instrument.png"
     }
   ]
 }

@@ -76,10 +76,34 @@ namespace SkinAuthoring
                         x < 3 || x >= w - 3 ? new Rgba32(93, 104, 116) : default);
                     draw(Path.Combine(assets, "stage.png"), 256, 256, (_, y, _, h) =>
                         y < h * 0.70 ? new Rgba32(12, 15, 19) : new Rgba32(22, 27, 34));
+                    draw(Path.Combine(assets, "bga-frame.png"), 1024, 768, (x, y, w, h) =>
+                    {
+                        int edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
+                        if (edge > 13) return default;
+                        if (edge < 2) return new Rgba32(9, 12, 16);
+                        if (edge < 4) return new Rgba32(140, 153, 165);
+                        if (edge < 9) return new Rgba32(43, 52, 63);
+                        if (edge < 11) return new Rgba32(75, 88, 100);
+                        return new Rgba32(4, 6, 9);
+                    });
+                    draw(Path.Combine(assets, "gauge.png"), 512, 48, (_, y, _, h) =>
+                        y < 5 || y >= h - 5 ? new Rgba32(11, 19, 24)
+                        : y < 7 || y >= h - 7 ? new Rgba32(126, 168, 177)
+                        : tint(accent, y < 15 ? 1.2 : y < 29 ? 0.8 : 0.5));
                 }
             }
 
             Directory.CreateDirectory(Path.Combine(root, "scene"));
+            if (profile.CompactLayout)
+                draw(Path.Combine(root, "scene", "instrument.png"), 640, 128, (x, y, w, h) =>
+                {
+                    int edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
+                    if (edge < 2) return new Rgba32(6, 9, 13);
+                    if (edge < 4) return new Rgba32(104, 119, 133);
+                    if (edge < 9) return new Rgba32(36, 44, 54);
+                    if (edge < 11) return new Rgba32(11, 16, 22);
+                    return new Rgba32((byte)(18 - y * 6 / h), (byte)(25 - y * 8 / h), (byte)(34 - y * 10 / h));
+                });
             draw(Path.Combine(root, "scene", "white.png"), 1, 1, (_, _, _, _) => new Rgba32(255, 255, 255));
             draw(Path.Combine(root, "scene", "orbit.png"), 256, 256, (x, y, w, h) =>
             {
@@ -250,10 +274,15 @@ namespace SkinAuthoring
 
             bool dark = role == "accent";
             int bottom = dark ? h * 3 / 4 : h - 5;
-            if (x < 5 || x >= w - 5 || y < 5 || y >= bottom) return default;
-            if (x < 9 || x >= w - 9 || y < 9 || y >= bottom - 4) return new Rgba32(85, 99, 115);
-            if (Math.Abs(x - w / 2) < 5 && y > bottom - 20) return accent;
-            byte shade = (byte)(dark ? 48 - y * 20 / h : 230 - y * 52 / h);
+            // Opaque socket binds each key into a continuous controller deck, including below short black keys.
+            if (x < 4 || x >= w - 4 || y < 4 || y >= bottom)
+                return new Rgba32(16, 21, 28);
+            if (x < 8 || x >= w - 8 || y < 8 || y >= bottom - 4) return new Rgba32(128, 141, 153);
+            if (x < 12 || x >= w - 12 || y >= bottom - 11) return new Rgba32(42, 51, 63);
+            if (Math.Abs(x - w / 2) < 13 && y > bottom - 18) return accent;
+            if (y < 12) return new Rgba32(245, 250, 255);
+            double highlight = Math.Sin(Math.PI * (x - 12) / (w - 24));
+            byte shade = (byte)(dark ? 41 + highlight * 20 - y * 15 / h : 228 + highlight * 24 - y * 30 / h);
             return new Rgba32(shade, shade, (byte)Math.Min(255, shade + 6));
         }
 
@@ -360,12 +389,20 @@ namespace SkinAuthoring
                     var output = slot.CatalogFamily == GameplaySkinSlotCatalogFamily.Bms ? bmsOnly : common;
                     foreach ((string target, string role) in targets(layout, slot))
                     {
+                        if (!profile.CompactLayout && slot.Id == "stage.background" && target.StartsWith("Target: Global", StringComparison.Ordinal))
+                            continue;
                         if (!seen.Add(slot.Id + "\n" + target))
                             continue;
                         string operation = !profile.Complex && quiet_slots.Contains(slot.Id, StringComparer.Ordinal) ? "Suppress"
                             : $"Provide \"{layout.Ruleset}/{asset(slot.Id, role)}\"";
+                        if (profile.CompactLayout && slot.Id == "stage.background" && target.StartsWith("Target: Global", StringComparison.Ordinal))
+                            operation = layout.Ruleset == "bms" ? "Provide \"scene/cabinet\"" : "Provide \"mania/stage\"";
                         if (profile.CompactLayout && layout.Ruleset == "bms")
                         {
+                            if (slot.Id is "effect.key-flash" or "effect.hit-explosion")
+                                operation = $"Provide \"bms/{asset(slot.Id, role)}\"";
+                            if (slot.Id == "bga.frame")
+                                operation = "Provide \"bms/bga-frame\"";
                             if (slot.Id == "playfield.lane-surface")
                                 operation = $"Provide \"bms/lane-{role}\"";
                             if (slot.Id == "playfield.lane-divider" && role == "scratch")
@@ -501,7 +538,8 @@ namespace SkinAuthoring
             {
                 // Shared free decoration is intentionally portable and declared once; per-ruleset textures remain in other slots.
                 yield return (slot.Id == "decoration" ? "Target: Global ruleset=any keymode=any stage-mode=any" : $"Target: Global ruleset={layout.Ruleset} keymode=any stage-mode=any", "white");
-                yield break;
+                if (slot.Id != "stage.background")
+                    yield break;
             }
             for (int group = 0; group < layout.Groups; group++)
             {
@@ -530,7 +568,7 @@ namespace SkinAuthoring
                 ["scene"] = GameplaySkinSceneContracts.SCENE_FILE_NAME,
                 ["sceneContract"] = GameplaySkinSceneContracts.SCENE_CONTRACT_ID,
                 ["eventContract"] = GameplaySkinSceneContracts.EVENT_CONTRACT_ID,
-                ["resources"] = (profile.Complex ? new[] { "white", "orbit", "prism", "console" } : new[] { "white" })
+                ["resources"] = (profile.Complex ? new[] { "white", "orbit", "prism", "console" } : profile.CompactLayout ? new[] { "white", "instrument" } : new[] { "white" })
                     .Select(id => new { id = "texture." + id, type = "texture", path = "scene/" + id + ".png" }).ToArray(),
             };
             var children = new List<object>();
@@ -565,15 +603,17 @@ namespace SkinAuthoring
             {
                 var information = new List<object>
                 {
-                    hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.90, ["height"] = 0.95, ["colour"] = "#" + profile.Background + "ff" }),
-                    hudLabel("still.hud.score-label", "SCORE", 0.07, 0.06, 10, "#91a1b9ff"),
-                    hudLabel("still.hud.score", "0", 0.07, 0.38, 20, "#e9f3ffff"),
-                    hudLabel("still.hud.accuracy-label", "ACCURACY", 0.40, 0.06, 10, "#91a1b9ff"),
-                    hudLabel("still.hud.accuracy", "100.00%", 0.40, 0.38, 20, "#e9f3ffff"),
-                    hudLabel("still.hud.bpm-label", "BPM", 0.77, 0.06, 10, "#91a1b9ff"),
-                    hudLabel("still.hud.bpm", "0", 0.77, 0.38, 20, "#e9f3ffff"),
-                    hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.96, ["width"] = 1, ["height"] = 0.025, ["colour"] = "#263444ff" }),
-                    hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.96, ["width"] = 0, ["height"] = 0.025, ["colour"] = "#a6b5c9ff" }),
+                    hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.25, ["height"] = 0.94 }, "instrument"),
+                    hudElement("still.hud.accuracy-panel", "sprite", new() { ["x"] = 0.375, ["width"] = 0.25, ["height"] = 0.94 }, "instrument"),
+                    hudElement("still.hud.bpm-panel", "sprite", new() { ["x"] = 0.70, ["width"] = 0.25, ["height"] = 0.94 }, "instrument"),
+                    hudLabel("still.hud.score-label", "SCORE", 0.067, 0.03, 10, "#9eafbdff"),
+                    hudLabel("still.hud.score", "0", 0.067, 0.32, 24, "#f3f8ffff"),
+                    hudLabel("still.hud.accuracy-label", "ACCURACY", 0.392, 0.03, 10, "#9eafbdff"),
+                    hudLabel("still.hud.accuracy", "100.00%", 0.392, 0.32, 24, "#f3f8ffff"),
+                    hudLabel("still.hud.bpm-label", "BPM", 0.717, 0.03, 10, "#9eafbdff"),
+                    hudLabel("still.hud.bpm", "0", 0.717, 0.32, 24, "#86d9e7ff"),
+                    hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.94, ["width"] = 1, ["height"] = 0.025, ["colour"] = "#263444ff" }),
+                    hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.025, ["colour"] = "#86d9e7ff" }),
                 };
                 children.Add(new { id = "still.hud", type = "container", target = new { kind = "global" }, blend = "inherit", properties = new { }, effects = Array.Empty<object>(), children = information });
                 foreach ((string target, string property, string source) in new[]
@@ -660,7 +700,7 @@ namespace SkinAuthoring
 
         // Every element keeps the ruleset's published HUD surface: BMS uses its bottom information area,
         // while mania retains its top band. No full-screen child can drift back over the lanes.
-        private static object hudElement(string id, string type, Dictionary<string, object> properties)
+        private static object hudElement(string id, string type, Dictionary<string, object> properties, string resource = "white")
         {
             var node = new Dictionary<string, object>
             {
@@ -674,7 +714,7 @@ namespace SkinAuthoring
                 ["children"] = Array.Empty<object>(),
             };
             if (type == "sprite")
-                node["resource"] = "texture.white";
+                node["resource"] = "texture." + resource;
             return node;
         }
 

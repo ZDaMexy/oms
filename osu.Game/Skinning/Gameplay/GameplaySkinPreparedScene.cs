@@ -105,10 +105,10 @@ namespace osu.Game.Skinning.Gameplay
         /// <summary>
         /// Stable ordering within one shared scene layer. Higher osu! drawable depth renders behind lower depth.
         /// </summary>
-        public static float BaseDepthFor(GameplaySkinSlotDescriptor descriptor)
+        public static float BaseDepthFor(GameplaySkinSlotDescriptor descriptor, GameplaySkinResolvedMaterialTarget? target = null)
         {
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.StageBackground))
-                return 1;
+                return target?.Kind == GameplaySkinResolvedMaterialTargetKind.Global ? 2 : 1;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.PlayfieldBackdrop))
                 return 0;

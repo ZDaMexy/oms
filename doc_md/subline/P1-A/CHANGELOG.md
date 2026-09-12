@@ -1,5 +1,9 @@
 # P1-A 变动日志
 
+## 2026-09-12：静线完整底板与仪表打磨
+
+图07反馈推动静线向高质量 beatmania style 继续修改。公开stage.background支持Global/Stage独立背景，保留原Stage矩形和继承合同；新原创金属底板、BGA内框、键面插槽、连续血条边缘和独立仪表已进入作者包。保存真实desktop合成谱截图，未代签完整歌曲与视觉质量；逐项纠错和本轮验证见[记录](../../other/SKIN_SIMPLE_CABINET_20260912.md)。
+
 ## 2026-09-12：保存星轨后的冷启动崩溃
 
 用户提供 `Current skin selection publication must run on the update thread` 异常。将 OsuGame 的配置皮肤恢复从依赖加载移至 LoadComplete，保持发布线程约束。新增顶层宿主冷启动测试：旧代码简洁通过、星轨复现同异常；修复后双皮肤冷启动及既有相关检查 23/23 通过。详情见[验证记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。

@@ -16,7 +16,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSlotCatalogTest
     {
-        private const string canonical_contract_sha256 = "28f282d31eeb9097fa8184729b72f7b59d9635bab11c0dd459648325ec65b96d";
+        private const string canonical_contract_sha256 = "cecd9335e7666c98b4bdaa815c0e4bbf5ec5e6f87747a0f0ef9144c10ece81f7";
 
         private const string catalog_block_begin = "<!-- GAMEPLAY-SKIN-CATALOG:BEGIN -->";
         private const string catalog_block_end = "<!-- GAMEPLAY-SKIN-CATALOG:END -->";
@@ -128,7 +128,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(GameplaySkinSlotCatalog.LaneDivider.Classification, Is.EqualTo(GameplaySkinSlotClassification.Recommended));
                 Assert.That(GameplaySkinSlotCatalog.BarLine.AllowedScopes, Is.EqualTo(GameplaySkinSlotScope.Group));
                 Assert.That(GameplaySkinSlotCatalog.BgaViewport.AllowedScopes, Is.EqualTo(GameplaySkinSlotScope.Global));
-                Assert.That(GameplaySkinSlotCatalog.StageBackground.AllowedScopes, Is.EqualTo(GameplaySkinSlotScope.Stage));
+                Assert.That(GameplaySkinSlotCatalog.StageBackground.AllowedScopes, Is.EqualTo(GameplaySkinSlotScope.Global | GameplaySkinSlotScope.Stage));
                 Assert.That(GameplaySkinSlotCatalog.Decoration.AllowedScopes,
                     Is.EqualTo(GameplaySkinSlotScope.Global | GameplaySkinSlotScope.Stage | GameplaySkinSlotScope.Group | GameplaySkinSlotScope.Lane));
             });
