@@ -125,6 +125,7 @@ namespace osu.Game.Skinning
         private static readonly HashSet<Guid> fixed_skin_ids = new HashSet<Guid>
         {
             SkinInfo.OMS_SKIN,
+            SkinInfo.OMS_COMPLEX_SKIN,
             SkinInfo.TRIANGLES_SKIN,
             SkinInfo.ARGON_SKIN,
             SkinInfo.ARGON_PRO_SKIN,

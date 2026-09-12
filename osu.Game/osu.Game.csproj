@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup Label="OMS Skin Resources">
     <EmbeddedResource Include="..\skin-authoring\dist\oms-simple.sha256" LogicalName="osu.Game.Skins.Canonical.oms-simple.sha256" />
+    <EmbeddedResource Include="..\skin-authoring\dist\oms-complex.sha256" LogicalName="osu.Game.Skins.Canonical.oms-complex.sha256" />
     <Content Include="..\skin-authoring\dist\oms-simple.osk;..\skin-authoring\dist\oms-complex.osk">
       <Link>Skins\Canonical\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

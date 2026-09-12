@@ -15,6 +15,7 @@ namespace osu.Game.Skinning.Gameplay
         ManagedFolder = 3,
         ExternalFolder = 4,
         Compatibility = 5,
+        ProtectedBuiltIn = 6,
     }
 
     /// <summary>

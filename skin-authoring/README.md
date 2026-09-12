@@ -6,7 +6,7 @@
 
 ## 直接使用
 
-复制 [oms-simple.osk](dist/oms-simple.osk) 或 [oms-complex.osk](dist/oms-complex.osk)，把**副本**拖入 OMS；普通导入可能消耗输入文件，请保留 `dist/` 中的正式作品。在设置的皮肤列表选择 `OMS Simple · 静线` 或 `OMS Complex · 星轨`，先各玩一张 BMS 与 mania。也可运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action import -Source ./sources/oms-complex`，工具会准备可消耗的导入副本。星轨的可选组合效果可以授权、拒绝或撤销；拒绝后自有音符、长条、判定线和必要信息照常显示。退出游玩与预览后才可重新载入。
+安装支持本轮改动的 OMS 后，在设置的皮肤列表直接选择 `OMS 简洁`（simple／静线）或 `OMS 星轨`（complex）；两款长期内置，无需下载或拖入 `.osk`。首次默认静线，星轨可选但实际观感仍待打磨。可选组合效果可以授权、拒绝或撤销；拒绝后必要信息和演奏视觉继续显示。独立 [oms-simple.osk](dist/oms-simple.osk) 和 [oms-complex.osk](dist/oms-complex.osk) 保留给作者分发、导出对照及修改副本使用。
 
 整套目录可复制到任意普通可写目录。正式验收包附带 `bin/SkinAuthoring.exe` 与所需文件，无须安装 SDK 或阅读游戏源码。仓库开发者第一次准备工具可运行：
 
@@ -16,7 +16,7 @@ dotnet build tools/SkinAuthoring -c Release
 
 ## 完成第一款自己的皮肤
 
-首次启动默认选中静线。星轨使用上面的普通导入入口添加，导入后再选择，不会自动替换首次默认外观。更新已有作品时保留旧包与源文件，再用当前工具检查、打包并导入新版本；不同转盘样式的写法见 [作者参考](docs/REFERENCE.md)。
+内置原件受保护；制作自己的皮肤应复制作者目录或导出副本，修改副本后通过普通导入使用，不直接改安装原件。更新已有作品时保留旧包与源文件，再用当前工具检查、打包并导入新版本；不同转盘样式的写法见 [作者参考](docs/REFERENCE.md)。
 
 打开 PowerShell 并进入本套件目录，依次运行。下列入口只允许本次工具进程执行随包脚本，不修改 Windows 的永久设置，也不需要管理员权限：
 

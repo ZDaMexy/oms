@@ -17,6 +17,7 @@ namespace osu.Game.Skinning.Gameplay
         ManagedFolder,
         ExternalFolder,
         Compatibility,
+        ProtectedBuiltIn,
     }
 
     /// <summary>
@@ -63,6 +64,7 @@ namespace osu.Game.Skinning.Gameplay
                 revision.SourceKind switch
                 {
                     SkinCurrentRevisionSourceKind.ProtectedFallback => GameplaySkinPackageSourceKind.ProtectedFallback,
+                    SkinCurrentRevisionSourceKind.ProtectedBuiltIn => GameplaySkinPackageSourceKind.ProtectedBuiltIn,
                     SkinCurrentRevisionSourceKind.RealmPackage => GameplaySkinPackageSourceKind.RealmPackage,
                     SkinCurrentRevisionSourceKind.ManagedFolder => GameplaySkinPackageSourceKind.ManagedFolder,
                     SkinCurrentRevisionSourceKind.ExternalFolder => GameplaySkinPackageSourceKind.ExternalFolder,

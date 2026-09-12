@@ -1703,20 +1703,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     IList<Live<SkinInfo>> skins = failed.GetAllUsableSkins();
                     Assert.Multiple(() =>
                     {
-                        Assert.That(skins, Has.Count.EqualTo(1));
-                        Assert.That(skins.Single(), Is.SameAs(failed.DefaultOmsSkin.SkinInfo));
-                        Assert.That(failed.CanExport(skins.Single()), Is.False);
+                        Assert.That(skins, Has.Count.EqualTo(2));
+                        Assert.That(skins[0], Is.SameAs(failed.DefaultOmsSkin.SkinInfo));
+                        Assert.That(skins[1], Is.SameAs(failed.BuiltInComplexSkin.SkinInfo));
+                        Assert.That(skins.All(skin => !failed.CanExport(skin)), Is.True);
                         Assert.That(failed.IsGameplaySkinInstallationAvailable, Is.False);
                         Assert.That(failed.GameplaySkinInstallationRepairMessage, Is.EqualTo(CanonicalSkinPackage.REPAIR_MESSAGE));
                         Assert.That(CanonicalSkinPackage.IsCanonicalSkin(failed.CurrentSkin.Value), Is.False);
                     });
                     Assert.DoesNotThrow(failed.SelectNextSkin);
                     Assert.DoesNotThrow(failed.SelectPreviousSkin);
-                    Assert.Throws<InvalidOperationException>(() => failed.ExportSkin(skins.Single()));
+                    foreach (var skin in skins)
+                        Assert.Throws<InvalidOperationException>(() => failed.ExportSkin(skin));
                     Assert.Throws<InvalidOperationException>(failed.EnsureGameplaySkinInstallationAvailable);
                     Assert.Multiple(() =>
                     {
                         Assert.That(realm.Run(r => r.Find<SkinInfo>(SkinInfo.OMS_SKIN)), Is.Null);
+                        Assert.That(realm.Run(r => r.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN)), Is.Null);
                         Assert.That(File.ReadAllText(unknownPath), Is.EqualTo("unknown existing user content"));
                         Assert.That(File.Exists(storage.GetFullPath(SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME)), Is.False);
                         Assert.That(failed.CurrentSkin.Value, Is.SameAs(failed.DefaultOmsSkin));
@@ -1803,7 +1806,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                             Assert.That(captureRecord(), Is.EqualTo(before));
                         }
                     }
-                    Assert.That(realm.Run(r => r.All<SkinInfo>().Count()), Is.EqualTo(1), "Startup migrates an existing record; it does not replace it with another record.");
+                    Assert.That(realm.Run(r => r.All<SkinInfo>().AsEnumerable().Select(info => info.ID).ToArray()),
+                        Is.EquivalentTo(variation == "exact" ? new[] { SkinInfo.OMS_SKIN, SkinInfo.OMS_COMPLEX_SKIN } : new[] { SkinInfo.OMS_SKIN }),
+                        "Safe startup retains the migrated record and registers complex; uncertain recovery creates no new protected evidence.");
+                    if (variation == "exact")
+                        Assert.That(realm.Run(r => SkinManagedFolderDeleteOperation.IsExactProtectedRecord(
+                            r.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN), CanonicalSkinPackage.CreateComplexInfo())), Is.True);
                 }
                 finally
                 {

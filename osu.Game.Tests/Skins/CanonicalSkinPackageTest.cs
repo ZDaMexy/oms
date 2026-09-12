@@ -5,7 +5,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
+using Moq;
 using NUnit.Framework;
+using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Rendering.Dummy;
+using osu.Framework.Graphics.Textures;
+using osu.Framework.IO.Stores;
+using osu.Framework.Platform;
 using osu.Game.IO;
 using osu.Game.Skinning;
 
@@ -54,6 +61,90 @@ namespace osu.Game.Tests.Skins
                 Assert.That(File.GetLastWriteTimeUtc(working), Is.EqualTo(workingTime));
                 Assert.That(Directory.GetFiles(Path.GetDirectoryName(working)!), Has.Length.EqualTo(1));
             });
+        }
+
+        [Test]
+        public void TestBothBuiltInPackagesLoadIndependentlyAndExportTheirExactOriginalBytes()
+        {
+            byte[] simpleBytes = copyInstallationPackage(CanonicalSkinPackage.PACKAGE_FILENAME);
+            byte[] complexBytes = copyInstallationPackage(CanonicalSkinPackage.COMPLEX_PACKAGE_FILENAME);
+            var storage = new NativeStorage(data);
+            IStorageResourceProvider resources = createResources();
+            CanonicalSkinInstallationResult simpleResult = CanonicalSkinPackage.Load(storage, resources, original, hash(simpleBytes));
+            CanonicalSkinInstallationResult complexResult = CanonicalSkinPackage.LoadComplex(storage, resources, complexOriginal, hash(complexBytes));
+            using Skin? simple = simpleResult.Skin;
+            using Skin? complex = complexResult.Skin;
+            Assert.That(simple, Is.Not.Null, simpleResult.Failure.ToString());
+            Assert.That(complex, Is.Not.Null, complexResult.Failure.ToString());
+            Assert.Multiple(() =>
+            {
+                Assert.That(CanonicalSkinPackage.IsBuiltInSkin(simple!), Is.True);
+                Assert.That(CanonicalSkinPackage.IsBuiltInSkin(complex!), Is.True);
+                Assert.That(CanonicalSkinPackage.IsCanonicalSkin(simple!), Is.True);
+                Assert.That(CanonicalSkinPackage.IsCanonicalSkin(complex!), Is.False);
+                Assert.That(simple!.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                Assert.That(complex!.SkinInfo.ID, Is.EqualTo(SkinInfo.OMS_COMPLEX_SKIN));
+                Assert.That(File.ReadAllBytes(working), Is.EqualTo(simpleBytes));
+                Assert.That(File.ReadAllBytes(complexWorking), Is.EqualTo(complexBytes));
+                Assert.That(Directory.GetFiles(Path.GetDirectoryName(working)!), Has.Length.EqualTo(2));
+            });
+            using var simpleExport = new MemoryStream();
+            using var complexExport = new MemoryStream();
+            CanonicalSkinPackage.Export(simple!, simpleExport, CancellationToken.None);
+            CanonicalSkinPackage.Export(complex!, complexExport, CancellationToken.None);
+            Assert.That(simpleExport.ToArray(), Is.EqualTo(simpleBytes));
+            Assert.That(complexExport.ToArray(), Is.EqualTo(complexBytes));
+        }
+
+        [Test]
+        public void TestComplexWorkingCopyRepairPreservesUnknownContentsAndLeavesSimpleUntouched()
+        {
+            byte[] simpleBytes = copyInstallationPackage(CanonicalSkinPackage.PACKAGE_FILENAME);
+            byte[] complexBytes = copyInstallationPackage(CanonicalSkinPackage.COMPLEX_PACKAGE_FILENAME);
+            var storage = new NativeStorage(data);
+            IStorageResourceProvider resources = createResources();
+            using Skin? simple = CanonicalSkinPackage.Load(storage, resources, original, hash(simpleBytes)).Skin;
+            using Skin? initial = CanonicalSkinPackage.LoadComplex(storage, resources, complexOriginal, hash(complexBytes)).Skin;
+            Assert.That(simple, Is.Not.Null);
+            Assert.That(initial, Is.Not.Null);
+            DateTime simpleTime = File.GetLastWriteTimeUtc(working);
+            DateTime originalTime = File.GetLastWriteTimeUtc(complexOriginal);
+            byte[] damaged = "unrecognised complex working copy"u8.ToArray();
+            File.WriteAllBytes(complexWorking, damaged);
+            CanonicalSkinInstallationResult result = CanonicalSkinPackage.LoadComplex(storage, resources, complexOriginal, hash(complexBytes));
+            using Skin? repaired = result.Skin;
+            Assert.That(repaired, Is.Not.Null, result.Failure.ToString());
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.ReadAllBytes(complexWorking), Is.EqualTo(complexBytes));
+                Assert.That(File.ReadAllBytes(Directory.GetFiles(Path.GetDirectoryName(working)!, "oms-complex.osk.preserved-*").Single()), Is.EqualTo(damaged));
+                Assert.That(File.ReadAllBytes(complexOriginal), Is.EqualTo(complexBytes));
+                Assert.That(File.GetLastWriteTimeUtc(complexOriginal), Is.EqualTo(originalTime));
+                Assert.That(File.ReadAllBytes(working), Is.EqualTo(simpleBytes));
+                Assert.That(File.GetLastWriteTimeUtc(working), Is.EqualTo(simpleTime));
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestComplexDamagedOrMissingOriginalCannotReuseItsWorkingCopy(bool missing)
+        {
+            byte[] complexBytes = copyInstallationPackage(CanonicalSkinPackage.COMPLEX_PACKAGE_FILENAME);
+            var storage = new NativeStorage(data);
+            IStorageResourceProvider resources = createResources();
+            using Skin? initial = CanonicalSkinPackage.LoadComplex(storage, resources, complexOriginal, hash(complexBytes)).Skin;
+            Assert.That(initial, Is.Not.Null);
+            if (missing)
+                File.Delete(complexOriginal);
+            else
+                File.WriteAllText(complexOriginal, "broken complex installation");
+            CanonicalSkinInstallationResult result = CanonicalSkinPackage.LoadComplex(storage, resources, complexOriginal, hash(complexBytes));
+            using Skin? unexpected = result.Skin;
+            Assert.That(unexpected, Is.Null);
+            Assert.That(result.Failure, Is.EqualTo(missing
+                ? CanonicalSkinInstallationFailure.InstallationPackageUnavailable
+                : CanonicalSkinInstallationFailure.InstallationPackageInvalid));
+            Assert.That(File.ReadAllBytes(complexWorking), Is.EqualTo(complexBytes));
         }
 
         [Test]
@@ -252,6 +343,28 @@ namespace osu.Game.Tests.Skins
         }
 
         private CanonicalSkinArchiveResult prepare() => CanonicalSkinPackage.PrepareArchive(data, original, hash(package_bytes));
+
+        private string complexOriginal => Path.Combine(installation, CanonicalSkinPackage.COMPLEX_PACKAGE_FILENAME);
+        private string complexWorking => Path.Combine(data, CanonicalSkinPackage.WORKING_DIRECTORY, CanonicalSkinPackage.COMPLEX_PACKAGE_FILENAME);
+
+        private byte[] copyInstallationPackage(string filename)
+        {
+            byte[] bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", filename));
+            File.WriteAllBytes(Path.Combine(installation, filename), bytes);
+            return bytes;
+        }
+
+        private static IStorageResourceProvider createResources()
+        {
+            var resources = new Mock<IStorageResourceProvider>();
+            resources.SetupGet(provider => provider.Renderer).Returns(new DummyRenderer());
+            resources.SetupGet(provider => provider.Resources).Returns(new ResourceStore<byte[]>());
+            resources.SetupGet(provider => provider.Files).Throws(new AssertionException("Built-in packages must use their captured archive instead of user file storage."));
+            resources.Setup(provider => provider.CreateTextureLoaderStore(It.IsAny<IResourceStore<byte[]>>()))
+                     .Returns(() => new ResourceStore<TextureUpload>());
+            return resources.Object;
+        }
+
         private static string hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     }
 }

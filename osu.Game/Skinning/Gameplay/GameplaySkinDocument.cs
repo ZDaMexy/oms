@@ -721,6 +721,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinDocumentSourceKind sourceKind = package.SourceKind switch
             {
                 GameplaySkinPackageSourceKind.ProtectedFallback => GameplaySkinDocumentSourceKind.ProtectedFallback,
+                GameplaySkinPackageSourceKind.ProtectedBuiltIn => GameplaySkinDocumentSourceKind.ProtectedBuiltIn,
                 GameplaySkinPackageSourceKind.RealmPackage => GameplaySkinDocumentSourceKind.RealmPackage,
                 GameplaySkinPackageSourceKind.ManagedFolder => GameplaySkinDocumentSourceKind.ManagedFolder,
                 GameplaySkinPackageSourceKind.ExternalFolder => GameplaySkinDocumentSourceKind.ExternalFolder,

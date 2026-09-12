@@ -44,3 +44,7 @@ metadata:
 - 后续 consumer 复用同一 publication/lease；不重建第二套 layout、material、scene 或 event 权威。
 
 相关地雷：[[reference_skin_atomic_reload_detach]]、[[reference_gameplay_skin_layout_snapshot]]、[[reference_gameplay_skin_codec_material]]、[[reference_gameplay_skin_event_envelope]]。
+
+## 内置身份与作品质量不要混淆
+
+用户明确静线与星轨长期内置，不能把作者 `.osk` 导入流程当作玩家使用星轨的前提。星轨观感否定只产生作品修改要求，不取消内置身份；静线保持首次默认与唯一保底。当前验收读 P1-A，不把旧 C7 的单内置行为重新写成现行产品要求。

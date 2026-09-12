@@ -43,3 +43,9 @@ metadata:
 - 修改含中文的Windows PowerShell 5入口必须保留UTF-8 BOM；用UTF8Encoding(false)覆盖原文件可令PS5将UTF-8当本机ANSI，轻则随包中文说明乱码，重则引号误解导致ParseError。先用实际powershell.exe Parser.ParseFile核对，再跑完整入口；仅pwsh解析成功不算PS5证据。
 - 2026-09-11首次真正正常退出揭露启动扫描从未成功进入：`release-startup-portable-repair3` runtime在Stopping/Stopped后写“Managed skin folder scan ended unexpectedly.”，原隐私边界未记录异常message/stack，不能据退出时刻猜成取消。`c7-startup-recovery-red.trx`真实OsuGame worker（空根/已有普通作者目录）及有journal生产authority三格均给出同一`EnterMutation`重入异常：外层StartupSequence里再次申请mutation被拒绝，fault直到Dispose join才显露；旧lifecycle夹具覆写recovery/scan，未覆盖真实衔接。不能仅改为Enter短lease，因为恢复native/外部registry要求mutation authority，会把合法旧journal误判Ambiguous。专用EnterRecovery只在本线程StartupSequence depth=1时给予恢复子lease，保留外层owner、epoch、selection retry completion和后续扫描，其他路径继续使用不可重入mutation；补实际首启扫描/有journal恢复及取消、不提前释放检查。修复后结果应以当前focused和完整Release启动复验为准，不能把红测复现写成通过。
 - `SkinManagedFolderMutationRecoveryAuthority.TryOpen` 曾在 `Session.Validate` 前清空 native/registry 局部，真实验证中取消后 caller 尚未获得 Session，finally 也已无资源可释放。必须 Validate 成功后才清空局部并移交；拒绝或取消由原 finally 释放，false 分支不再提前 Dispose，避免重复释放。回归使用真实 Windows managed-root 与 external registry，在底层 Validate 后取消，核原 OCE token、外部文件字节、Session/句柄各释放一次及关闭后查询失败；包装器只计数和定点取消，不伪造物理证明，失败夹具也须释放自身资源。不要吞掉 OCE 或扩大 catch。
+
+## 第二内置包不等于第二保底
+
+两款均须随安装注册、直接选择并恢复重启前选择；protected 只代表原件受保护，不能据此把星轨分类为 ProtectedFallback。星轨用 ProtectedBuiltIn，经同一 revision publication 并复用内置实例；取消选择准备不能释放共享内置 owner。AllSources 的必要件补齐、删除/取消登记恢复继续只用静线。导出星轨须走完整普通包，不能退回无 Files 的 Realm 空壳导出。
+
+检查 Realm 中保留的固定身份时，不把 `Select(info => info.ID)` 投影交给 Realm provider（会抛 `NotSupportedException`）；在同一 `realm.Run` 内先 `AsEnumerable()` 再投影并物化，不能把 live 对象带出读取作用域。双内置迁移测试已覆盖该读取方式。

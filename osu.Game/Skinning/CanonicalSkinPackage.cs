@@ -25,15 +25,20 @@ namespace osu.Game.Skinning
     public static class CanonicalSkinPackage
     {
         internal const string PACKAGE_FILENAME = "oms-simple.osk";
+        internal const string COMPLEX_PACKAGE_FILENAME = "oms-complex.osk";
+        internal const string COMPLEX_HASH_RESOURCE_NAME = "osu.Game.Skins.Canonical.oms-complex.sha256";
+        internal const string COMPLEX_RECORD_HASH = "oms.skin.builtin.complex.v1";
         internal const string WORKING_DIRECTORY = "skin-canonical";
         internal const string HASH_RESOURCE_NAME = "osu.Game.Skins.Canonical.oms-simple.sha256";
         internal const string RECORD_HASH = "oms.skin.canonical.simple.v1";
-        internal const string REPAIR_MESSAGE = "游戏随附的简洁皮肤未能完整加载。请保留现有数据目录，使用完整发行包修复安装后重新启动；修复前不能进入游玩或预览。";
+        internal const string REPAIR_MESSAGE = "游戏随附的内置皮肤未能完整加载。请保留现有数据目录，使用完整发行包修复安装后重新启动；修复前不能进入游玩或预览。";
 
         private static readonly ConditionalWeakTable<Skin, VerifiedPackage> verified_packages = new ConditionalWeakTable<Skin, VerifiedPackage>();
 
         /// <summary>Only an instance created from the verified installation package can terminate gameplay fallback.</summary>
-        public static bool IsCanonicalSkin(Skin skin) => verified_packages.TryGetValue(skin, out _);
+        public static bool IsCanonicalSkin(Skin skin) => verified_packages.TryGetValue(skin, out VerifiedPackage? package) && package.IsCanonical;
+
+        public static bool IsBuiltInSkin(Skin skin) => verified_packages.TryGetValue(skin, out _);
 
         internal static SkinInfo CreateInfo() => new SkinInfo
         {
@@ -45,6 +50,16 @@ namespace osu.Game.Skinning
             // Stable installation metadata permits recovery across package upgrades. Runtime content identity is
             // always the independently verified immutable capsule revision, never this record marker.
             Hash = RECORD_HASH,
+        };
+
+        internal static SkinInfo CreateComplexInfo() => new SkinInfo
+        {
+            ID = SkinInfo.OMS_COMPLEX_SKIN,
+            Name = "OMS 星轨",
+            Creator = "OMS 开发组",
+            Protected = true,
+            InstantiationInfo = SkinManagedFolderFactory.ALLOWED_INSTANTIATION_INFO,
+            Hash = COMPLEX_RECORD_HASH,
         };
 
         internal static bool IsExactRetiredReferenceRecord(SkinInfo? record)
@@ -61,19 +76,33 @@ namespace osu.Game.Skinning
             });
 
         internal static CanonicalSkinInstallationResult Load(Storage storage, IStorageResourceProvider resources)
+            => loadInstalled(storage, resources, PACKAGE_FILENAME, HASH_RESOURCE_NAME, CreateInfo());
+
+        internal static CanonicalSkinInstallationResult LoadComplex(Storage storage, IStorageResourceProvider resources)
+            => loadInstalled(storage, resources, COMPLEX_PACKAGE_FILENAME, COMPLEX_HASH_RESOURCE_NAME, CreateComplexInfo());
+
+        private static CanonicalSkinInstallationResult loadInstalled(Storage storage, IStorageResourceProvider resources,
+            string packageFilename, string hashResourceName, SkinInfo info)
         {
-            using Stream? hashStream = typeof(CanonicalSkinPackage).Assembly.GetManifestResourceStream(HASH_RESOURCE_NAME);
+            using Stream? hashStream = typeof(CanonicalSkinPackage).Assembly.GetManifestResourceStream(hashResourceName);
             if (hashStream == null)
                 return CanonicalSkinInstallationResult.Failed(CanonicalSkinInstallationFailure.InstallationManifestMissing);
 
             using var reader = new StreamReader(hashStream);
             string hash = reader.ReadToEnd().Trim();
-            return Load(storage, resources, Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", PACKAGE_FILENAME), hash);
+            return load(storage, resources, Path.Combine(AppContext.BaseDirectory, "Skins", "Canonical", packageFilename), hash, packageFilename, info);
         }
 
         internal static CanonicalSkinInstallationResult Load(Storage storage, IStorageResourceProvider resources, string originalPath, string expectedHash)
+            => load(storage, resources, originalPath, expectedHash, PACKAGE_FILENAME, CreateInfo());
+
+        internal static CanonicalSkinInstallationResult LoadComplex(Storage storage, IStorageResourceProvider resources, string originalPath, string expectedHash)
+            => load(storage, resources, originalPath, expectedHash, COMPLEX_PACKAGE_FILENAME, CreateComplexInfo());
+
+        private static CanonicalSkinInstallationResult load(Storage storage, IStorageResourceProvider resources, string originalPath,
+            string expectedHash, string packageFilename, SkinInfo info)
         {
-            CanonicalSkinArchiveResult archive = PrepareArchive(storage.GetFullPath(string.Empty), originalPath, expectedHash);
+            CanonicalSkinArchiveResult archive = prepareArchive(storage.GetFullPath(string.Empty), originalPath, expectedHash, packageFilename);
             if (!archive.IsSuccess)
                 return CanonicalSkinInstallationResult.Failed(archive.Failure);
 
@@ -81,7 +110,7 @@ namespace osu.Game.Skinning
             try
             {
                 using var source = new MemoryStream(archive.Bytes!, writable: false);
-                using var reader = SkinArchiveReader.OpenAsync(new ImportTask(source, PACKAGE_FILENAME), CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                using var reader = SkinArchiveReader.OpenAsync(new ImportTask(source, packageFilename), CancellationToken.None).AsTask().GetAwaiter().GetResult();
                 var entries = new List<SkinPackageCapturedEntry?>();
                 foreach (string filename in reader.Filenames)
                 {
@@ -94,13 +123,13 @@ namespace osu.Game.Skinning
                 if (!captured.IsSuccess)
                     return CanonicalSkinInstallationResult.Failed(CanonicalSkinInstallationFailure.PackageInvalid);
 
-                SkinManagedFolderFactoryResult constructed = SkinManagedFolderFactory.Create(CreateInfo(), resources, captured.Capsule!);
+                SkinManagedFolderFactoryResult constructed = SkinManagedFolderFactory.Create(info, resources, captured.Capsule!);
                 if (!constructed.IsSuccess)
                     return CanonicalSkinInstallationResult.Failed(CanonicalSkinInstallationFailure.PackageInvalid);
 
                 skin = constructed.Skin!;
                 skin.PrepareGameplaySkinPackage(CancellationToken.None);
-                verified_packages.Add(skin, new VerifiedPackage(archive.Bytes!));
+                verified_packages.Add(skin, new VerifiedPackage(archive.Bytes!, info.ID == SkinInfo.OMS_SKIN));
                 Skin result = skin;
                 skin = null;
                 return CanonicalSkinInstallationResult.Success(result);
@@ -121,6 +150,9 @@ namespace osu.Game.Skinning
         /// Held native parent handles prohibit reparse traversal or parent replacement during all cache writes.
         /// </summary>
         internal static CanonicalSkinArchiveResult PrepareArchive(string dataRoot, string originalPath, string expectedHash)
+            => prepareArchive(dataRoot, originalPath, expectedHash, PACKAGE_FILENAME);
+
+        private static CanonicalSkinArchiveResult prepareArchive(string dataRoot, string originalPath, string expectedHash, string packageFilename)
         {
             if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 16299))
                 return CanonicalSkinArchiveResult.Failed(CanonicalSkinInstallationFailure.PlatformUnsupported);
@@ -147,19 +179,19 @@ namespace osu.Game.Skinning
                 string workingDirectory = Path.Combine(dataRoot, WORKING_DIRECTORY);
                 root.CreateDirectoryIfMissing(WORKING_DIRECTORY);
                 using var working = HeldDirectory.Open(workingDirectory);
-                string target = Path.Combine(workingDirectory, PACKAGE_FILENAME);
+                string target = Path.Combine(workingDirectory, packageFilename);
 
-                bool existingFile = working.ContainsRegularFile(PACKAGE_FILENAME);
+                bool existingFile = working.ContainsRegularFile(packageFilename);
                 if (existingFile)
                 {
-                    byte[] existing = working.ReadFile(PACKAGE_FILENAME, allowOversized: true);
+                    byte[] existing = working.ReadFile(packageFilename, allowOversized: true);
                     if (matchesHash(existing, expectedHash))
                         return CanonicalSkinArchiveResult.Success(existing);
                 }
 
                 // A random exclusive file belongs only to this invocation. A process interruption can leave it behind;
                 // later startups deliberately never infer ownership from this name and never sweep these siblings.
-                string temporary = Path.Combine(workingDirectory, $"{PACKAGE_FILENAME}.{Guid.NewGuid():N}.tmp");
+                string temporary = Path.Combine(workingDirectory, $"{packageFilename}.{Guid.NewGuid():N}.tmp");
                 using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.WriteThrough))
                 {
                     stream.Write(original);
@@ -170,9 +202,9 @@ namespace osu.Game.Skinning
                 // without replacement; an interruption leaves a complete old copy and/or complete staged archive.
                 // The final publication can never overwrite a foreign file which appeared in the target slot.
                 if (existingFile)
-                    working.PreserveFile(PACKAGE_FILENAME);
+                    working.PreserveFile(packageFilename);
                 File.Move(temporary, target, overwrite: false);
-                byte[] published = working.ReadFile(PACKAGE_FILENAME);
+                byte[] published = working.ReadFile(packageFilename);
                 return matchesHash(published, expectedHash)
                     ? CanonicalSkinArchiveResult.Success(published)
                     : CanonicalSkinArchiveResult.Failed(CanonicalSkinInstallationFailure.WorkingCopyUnavailable);
@@ -197,7 +229,7 @@ namespace osu.Game.Skinning
         private static bool isFilesystemFailure(Exception exception)
             => exception is IOException or UnauthorizedAccessException or WindowsSkinPackageCaptureFileSystemException;
 
-        private sealed record VerifiedPackage(byte[] Bytes);
+        private sealed record VerifiedPackage(byte[] Bytes, bool IsCanonical);
 
         [SupportedOSPlatform("windows10.0.16299")]
         private sealed class HeldDirectory : IDisposable

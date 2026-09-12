@@ -1,5 +1,7 @@
 ﻿# 从完整模板制作自己的皮肤
 
+静线与星轨随 OMS 安装内置，玩家直接在设置选择，无需运行本文制作或导入步骤。本文面向制作、修改自己的副本；内置原件受保护，静线保持默认与唯一保底，星轨观感仍待打磨。
+
 制作分成两个常用方式。改色和复现官方作品时，编辑 `author.json`，然后运行 `generate`。自己画素材、调整舞台或编写演出时，直接编辑 `bms/*.png`、`mania/*.png`、`scene/*.png`、`skin.ini`、`gameplay-skin.scene.json` 和可选 `gameplay-skin.script`，随后运行 `check`、`pack`；此时不要再运行 `generate` 覆盖手工修改。
 
 静线的 `author.json` 显式设置 `compactLayout: true`，生成独立 BMS 键区、较大 BGA 和精简信息区。未声明时保留原布局，旧 Aurora 演练作品可以原样重做。这是作者工具的生成选项；游戏只读取生成后的普通皮肤声明，不识别作品名称或这个选项。

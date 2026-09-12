@@ -258,6 +258,10 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 7. 每 callback 4096 / 每 update 16384 instruction、固定 state/heap、每 frame 256 set 和 16384 实际 clone 属性应用分别限额；每 instruction 检查取消。仅允许六个数值 scene 属性，不暴露 CLR/对象/任意 IO/玩法写 API。超限、越权或数值异常只熔断脚本，保持同一 scene 的基础表现；普通 note/key/judgement 不依赖用户授权。
 8. presentation tick 固定 60 Hz gameplay time，先处理 tick 前的旧 baseline，再按 canonical sequence 折叠同时间事件；必须等引擎 time 严格越过 tick 时间才封闭该 tick，不能由同帧暂时空的 queue 推断后续 playfield 已停止生产等时事件。render FPS 不改变结果。pause 不推进 tick；seek/retry/reload 的完整 Snapshot/Reset 重建 state/heap/seed。seed 来自 immutable program 指纹；profiler wall clock 只用于测量。故障不能由普通 Reset 隐式解除。Settings 提供稳定诊断、源行、callback/instruction/heap 与 VM elapsed，性能报告须分别说明 VM 和实际 scene host 测量及机器环境。
 
+## 两款长期内置身份
+
+静线与星轨必须随安装提供并注册为固定身份的 protected 内置选择，无需玩家先导入；星轨作品观感未通过不改变其内置身份。两者普通 `.osk` 保留完整作者与导出能力，导出或编辑副本不授予原件修改权限。静线独占首次默认、必要件 fallback 与删除/取消登记后的恢复 authority；星轨使用独立 `ProtectedBuiltIn` revision 身份，不能因 `Protected` 标记获得 fallback 权限。当前选择须经同一 publication/lease/detach 协议并在重启后恢复，内置实例可复用但不能在取消普通包准备时被误释放。固定 ID 不能登记为外部或受管工作区。
+
 ## playfield 与 BGA 布局约束
 
 1. P1-K parser单点产出的immutable `BmsKeymodeResolution`是BMS keymode唯一authority，并绑定selected keymode、source、evidence、diagnostic code与稳定脱敏token。precedence固定为：兼容性校验后的explicit override → P2 channel evidence（强于`.bme`；`.pms`+P2冲突必须拒绝）→ `.pms` → `.bme` → complete 9K set → distinctive 9K high channel → complete 7K set → complete 5K set。visible、LN、invisible、mine等lane object family贡献同一normalized evidence；普通`.bms/.bml`只有不完整非distinctive evidence、无lane evidence或extension/override/channel冲突时必须fail-closed。显式纠正只经production decoder options进入；converter、manager、layout owner与renderer只携带同一resolution，不得按最高出现channel、hit object、enum ordinal、总lane count或layout宽度二次猜测。
