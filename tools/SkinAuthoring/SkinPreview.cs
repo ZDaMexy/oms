@@ -74,9 +74,9 @@ namespace SkinAuthoring
                     }
                     if (compactBms && lane == 0)
                     {
-                        int diameter = Math.Min(laneWidth - 8, keyHeight - 8);
+                        int diameter = Math.Min(laneWidth * 2 - 8, keyHeight - 8);
                         blit(image, Path.Combine(root, ruleset, "scratch-platter.png"),
-                            x + (laneWidth - diameter) / 2, top + fieldHeight + (keyHeight - diameter) / 2, diameter, diameter);
+                            x + laneWidth - diameter - 4, top + fieldHeight + (keyHeight - diameter) / 2, diameter, diameter);
                     }
                     else
                         blit(image, Path.Combine(root, ruleset, $"key-{role}.png"), x, top + fieldHeight, laneWidth - 1, keyHeight);
@@ -90,7 +90,7 @@ namespace SkinAuthoring
                     const int gaugeTop = 896;
                     const int gaugeHeight = 34;
                     rect(image, panel, gaugeTop, stageWidth, gaugeHeight, new Rgba32(8, 11, 15));
-                    blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, gaugeTop, stageWidth * 3 / 4, gaugeHeight);
+                    blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, gaugeTop, stageWidth, gaugeHeight);
                 }
                 else
                     blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, 922, stageWidth * 3 / 4, 12);

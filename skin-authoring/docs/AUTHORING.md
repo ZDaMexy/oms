@@ -33,7 +33,7 @@ effect.key-flash: resource Suppress
 
 BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键旧字段 `NoteImage0`～`8` 对应公开轨道 `key-1`～`9`。5/7 键 `S` 是转盘，14 键含 `S`、`S2`。mania `[Mania] Keys:` 保留传统字段。mania 的 `KeyImage` 与 `KeyImageD` 分别提供松开和按下图片；模板的 `playfield.key` 显式 `Inherit` 到同包这些普通字段，避免单张公共图把按下态覆盖。关闭可选按键闪光仍保留按下图片。两种玩法可使用不同目录、颜色与布局；[General] 的覆盖文字不代替真正的素材设置。
 
-公开 BMS 布局字段：`PlayfieldWidth` 与 `PlayfieldHeight` 是屏幕比例，普通键/转盘宽度和间距是相对权重，`LongNoteBodyWidth` 是相对车道宽度。`KeyAreaHeight` 可给判定线下方预留独立键盘区；`BgaWidth`、`BgaHeight`、`BgaVerticalPosition` 控制 BGA 的最大显示框与竖直位置，范围和适配规则见 [参考](REFERENCE.md)。判定线相对滚动的时序关系不交给作者修改。mania 使用 `ColumnWidth`、`ColumnSpacing`、`HitPosition` 等现有兼容设置。布局必须留出双舞台、必要文字、背景视频区域和不同屏幕比例的空间；不重做视频播放器。
+公开 BMS 布局字段：`PlayfieldWidth` 与 `PlayfieldHeight` 是屏幕比例，普通键/转盘宽度和间距是相对权重，`LongNoteBodyWidth` 是相对车道宽度。`KeyAreaHeight` 可给判定线下方预留独立键盘区，`ScratchKeyWidth`可单独扩大该区转盘视觉而不加宽音轨；`BgaWidth`、`BgaHeight`、`BgaVerticalPosition` 控制 BGA 的最大显示框与竖直位置，范围和适配规则见 [参考](REFERENCE.md)。判定线相对滚动的时序关系不交给作者修改。mania 使用 `ColumnWidth`、`ColumnSpacing`、`HitPosition` 等现有兼容设置。布局必须留出双舞台、必要文字、背景视频区域和不同屏幕比例的空间；不重做视频播放器。
 
 ## 声明式演出
 

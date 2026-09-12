@@ -32,13 +32,16 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public BmsAction Action { get; }
 
+        public GameplaySkinLayoutRect KeyVisualRect { get; }
+
         public bool IsScratch => NeutralLane.TopologyEntry.Identity.Role == GameplaySkinLaneRole.Scratch;
 
-        internal BmsGameplayLayoutLane(GameplaySkinLayoutLane neutralLane, BmsAction action, int groupLogicalIndex)
+        internal BmsGameplayLayoutLane(GameplaySkinLayoutLane neutralLane, BmsAction action, int groupLogicalIndex, GameplaySkinLayoutRect keyVisualRect)
         {
             NeutralLane = neutralLane ?? throw new ArgumentNullException(nameof(neutralLane));
             Action = action;
             GroupLogicalIndex = groupLogicalIndex;
+            KeyVisualRect = keyVisualRect;
         }
     }
 
@@ -143,7 +146,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                            .Select((lane, index) => new BmsGameplayLayoutLane(
                                lane,
                                copiedActions[index],
-                               groupLogicalIndices[lane.TopologyEntry.Identity.Group.Id]))
+                               groupLogicalIndices[lane.TopologyEntry.Identity.Group.Id],
+                               neutral.GetSurface(BmsGameplayLayoutSurfaceIds.KeyVisualPrefix + lane.LaneId.Value).Rect))
                            .ToArray();
             LanesInLogicalOrder = Array.AsReadOnly(lanes);
             lanesById = lanes.ToDictionary(lane => lane.LaneId);
@@ -171,6 +175,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
     public static class BmsGameplayLayoutSurfaceIds
     {
+        public const string KeyVisualPrefix = "bms.key-visual.";
+
         public const string Playfield = "bms.playfield";
         public const string HitTarget = "bms.hit-target";
         public const string KEY_AREA = "bms.key-area";

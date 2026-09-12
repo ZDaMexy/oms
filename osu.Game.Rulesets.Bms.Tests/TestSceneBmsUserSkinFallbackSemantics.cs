@@ -224,11 +224,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                         Assert.That(visual.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
                         Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Width, Is.GreaterThan(0));
                         Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Height, Is.GreaterThan(0));
-                        Sprite sprite = visual.ChildrenOfType<Sprite>().Single();
-                        Assert.That(sprite.Texture, Is.SameAs(material.Texture));
-                        Assert.That(sprite.Alpha, Is.GreaterThan(0));
-                        Assert.That(sprite.DrawWidth, Is.GreaterThan(0));
-                        Assert.That(sprite.DrawHeight, Is.GreaterThan(0));
+                        Sprite[] sprites = visual.ChildrenOfType<Sprite>().ToArray();
+                        Assert.That(sprites, Has.Length.EqualTo(ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual) ? 2 : 1));
+                        foreach (Sprite sprite in sprites)
+                        {
+                            Assert.That(sprite.Texture, Is.SameAs(material.Texture));
+                            Assert.That(sprite.Alpha, Is.GreaterThan(0));
+                            Assert.That(sprite.DrawWidth, Is.GreaterThan(0));
+                            Assert.That(sprite.DrawHeight, Is.GreaterThan(0));
+                        }
 
                         if (ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual))
                             continue;

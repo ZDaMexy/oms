@@ -48,6 +48,28 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 mania ??= renderer.ManiaDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single();
                 return bms.IsSceneReady && mania.IsSceneReady;
             });
+            AddStep("scratch controller uses the solved visual bounds without widening its input lane", () =>
+            {
+                var playfield = renderer.BmsDrawable.Playfield;
+                var layout = playfield.LayoutSnapshot;
+                foreach (var lane in layout.LanesInLogicalOrder.Where(lane => lane.IsScratch))
+                {
+                    BmsKeyVisual host = playfield.ChildrenOfType<BmsKeyVisual>().Single(key => key.ResolvedMaterialKey.Target.LaneId!.Equals(lane.LaneId));
+                    Sprite platter = host.ChildrenOfType<Sprite>().Single();
+                    if (package == "oms-simple")
+                    {
+                        Assert.That(host.Width, Is.EqualTo(lane.KeyVisualRect.Width));
+                        Assert.That(host.X, Is.EqualTo(lane.KeyVisualRect.X));
+                        Assert.That(lane.KeyVisualRect.Width, Is.GreaterThan(lane.NeutralLane.Rect.Width));
+                        var drawn = platter.ScreenSpaceDrawQuad.AABBFloat;
+                        Assert.That(drawn.Width, Is.EqualTo(drawn.Height).Within(0.1f), "The circular platter must stay circular.");
+                        Assert.That(drawn.Height, Is.GreaterThanOrEqualTo(host.ScreenSpaceDrawQuad.AABBFloat.Height * 0.9f), "The scratch lane must no longer halve the controller diameter.");
+                        Assert.That(layout.Context.SafeBounds.Contains(lane.KeyVisualRect), Is.True);
+                    }
+                    else
+                        Assert.That(lane.KeyVisualRect.Width, Is.EqualTo(lane.NeutralLane.Rect.Width).Within(0.00001f));
+                }
+            });
             AddStep("released and pressed mania artwork both belong to the imported author package", () =>
             {
                 BmsKeyVisual target = renderer.BmsDrawable.ChildrenOfType<BmsKeyVisual>().Single(hit =>

@@ -18,6 +18,15 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneRuntimeHostTest
     {
+        internal static GameplaySkinLayoutPublication CreateGaugePublication(Texture texture)
+        {
+            LayoutFixture layout = createLayout();
+            return fixture(layout, new[]
+            {
+                provide(GameplaySkinSlotCatalog.GaugeVisual, GameplaySkinResolvedMaterialTarget.ForStage(layout.Group), texture, source()),
+            }).Publication;
+        }
+
         internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene)
         {
             LayoutFixture layout = createLayout();

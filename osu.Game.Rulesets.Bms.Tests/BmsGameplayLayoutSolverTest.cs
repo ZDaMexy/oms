@@ -52,6 +52,67 @@ namespace osu.Game.Rulesets.Bms.Tests
             assertCompleteAndBounded(snapshot);
         }
 
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 1.7777778f)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, 1.7777778f)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.Center, 1.3333333f)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 1.7777778f)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 1f)]
+        public void TestScratchKeyExpansionPreservesLanesAndStaysOutsideKeysAndBga(BmsKeymode keymode, BmsPlayfieldStyle style, float aspect)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(keymode));
+            var environment = new BmsGameplayLayoutEnvironment(
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1), GameplaySkinLayoutRect.Create(0.02f, 0.03f, 0.96f, 0.94f), aspect, 1);
+            BmsGameplayLayoutSnapshot baseline = provider.PublishForTesting(style, configuration(1), environment);
+            BmsGameplayLayoutSnapshot expanded = provider.PublishForTesting(style, configuration(4), environment);
+            Assert.That(expanded.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+            Assert.That(expanded.HitTargetRect, Is.EqualTo(baseline.HitTargetRect));
+            Assert.That(expanded.BgaViewports, Is.EqualTo(baseline.BgaViewports));
+            foreach (BmsGameplayLayoutLane lane in expanded.LanesInLogicalOrder)
+            {
+                BmsGameplayLayoutLane previous = baseline.GetLane(lane.LaneId);
+                Assert.That(lane.NeutralLane.Rect, Is.EqualTo(previous.NeutralLane.Rect));
+                Assert.That(lane.Action, Is.EqualTo(previous.Action));
+                Assert.That(environment.SafeBounds.Contains(lane.KeyVisualRect), Is.True);
+                Assert.That(expanded.BgaViewports.All(bga => !bga.Intersects(lane.KeyVisualRect)), Is.True);
+                if (!lane.IsScratch)
+                {
+                    Assert.That(lane.KeyVisualRect, Is.EqualTo(previous.KeyVisualRect));
+                    continue;
+                }
+                Assert.That(lane.KeyVisualRect.Width, Is.GreaterThan(previous.KeyVisualRect.Width));
+                Assert.That(lane.KeyVisualRect.Width, Is.LessThanOrEqualTo(previous.KeyVisualRect.Width * 4 + 0.00001f));
+                Assert.That(expanded.LanesInLogicalOrder.Where(other => !other.IsScratch).All(other => !other.KeyVisualRect.Intersects(lane.KeyVisualRect)), Is.True);
+                var group = expanded.Neutral.GetGroup(lane.NeutralLane.TopologyEntry.Identity.Group.Id).Rect;
+                bool left = lane.NeutralLane.Rect.Left < group.Left + group.Width / 2;
+                Assert.That(left ? lane.KeyVisualRect.Right : lane.KeyVisualRect.Left,
+                    Is.EqualTo(left ? previous.KeyVisualRect.Right : previous.KeyVisualRect.Left).Within(0.00001f));
+            }
+
+            BmsGameplayLayoutConfiguration configuration(float width) => new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldWidth = keymode == BmsKeymode.Key14K ? 0.5f : 0.25f,
+                PlayfieldHeight = 0.70f,
+                KeyAreaHeight = 0.12f,
+                ScratchKeyWidth = width,
+            };
+        }
+
+        [TestCase(null)]
+        [TestCase(0f)]
+        [TestCase(5f)]
+        [TestCase(float.NaN)]
+        public void TestMissingOrInvalidScratchKeyWidthRetainsExistingSize(float? width)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            BmsGameplayLayoutSnapshot snapshot = provider.PublishForTesting(BmsPlayfieldStyle.P1,
+                new BmsGameplayLayoutConfiguration { KeyAreaHeight = 0.12f, ScratchKeyWidth = width });
+            Assert.That(snapshot.LanesInLogicalOrder.All(lane => Math.Abs(lane.KeyVisualRect.Width - lane.NeutralLane.Rect.Width) < 0.00001f), Is.True);
+            BmsGameplayLayoutSnapshot legacy = provider.PublishForTesting(BmsPlayfieldStyle.P1,
+                new BmsGameplayLayoutConfiguration { ScratchKeyWidth = 4 });
+            Assert.That(legacy.KeyAreaRect, Is.EqualTo(legacy.HitTargetRect));
+            Assert.That(legacy.LanesInLogicalOrder.All(lane => Math.Abs(lane.KeyVisualRect.Width - lane.NeutralLane.Rect.Width) < 0.00001f), Is.True);
+        }
+
         [TestCase(BmsPlayfieldStyle.P1)]
         [TestCase(BmsPlayfieldStyle.P2)]
         public void TestSeparateKeysReserveSpaceWithoutMovingJudgementOrChangingLaneOrder(BmsPlayfieldStyle style)

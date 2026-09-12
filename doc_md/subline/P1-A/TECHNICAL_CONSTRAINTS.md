@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-12（保留现行皮肤与恢复合同；明确工程证据、总体体验否定与逐项签收的边界）
+> 最后更新：2026-09-13（独立转盘视觉宽度与纯纹理固定血槽；保留既有恢复和验收合同）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -279,6 +279,8 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 7. 所有既有`BmsPlayfieldLayoutProfile`/default profile/fixed rect/local offset与drawable-size求解点必须已经迁入唯一solver、被证明为颜色/时序/非layout数据，或在production稳定禁用。consumer不得重新读取skin geometry、重新创建profile/default geometry、逐consumer `Apply`，或在neutral commit后由ruleset wrapper做第二次可见交换。BMS兼容profile只可作为同一solver输出的typed view；mania core/provider不得保留第二套stage/column几何。
 8. geometry每字段必须验证finite、正值、合法range、安全screen bounds与字段间non-overlap；单字段非法只对该字段使用确定程序化fallback并产生稳定脱敏diagnostic。fallback必须重新产出一个完整immutable snapshot，禁止传播NaN/Infinity/负尺寸、进入`TotalRelativeWidth`除法，或拼出部分新/部分旧snapshot。14K双field/scratch/centre gap、BGA/HUD须覆盖常见、极窄、极宽aspect、DPI scaling与safe-area矩阵。
 8a. BMS 作者可声明 `KeyAreaHeight` 将按键视觉从落键区分离到判定线下方的独立区域，血条随后；缺省保留旧按键位置。不得扩大 `HitTargetHeight` 或改变判定线/滚动长度来模拟控制台，独立键区须进入同一 snapshot 并由对应视觉消费。`hud.text` 的 BMS 布局为安全区底部独立 `8%` 全宽信息区，playfield/key area/gauge/BGA 必须避让；mania 保持自身顶部 HUD 布局。
+
+8a1. 独立按键区可额外声明 `ScratchKeyWidth`（相对scratch轨道宽度，`1..4`，缺省`1`），仅扩展转盘视觉，不改音符、判定或输入轨道。solver从贴近普通键的边缘向外求解并限制在safe bounds及旁侧BGA之外；真实按键视觉消费同一snapshot中的矩形。缺声明不继承canonical倍率。纯纹理`hud.gauge`保持完整暗槽，亮层按真实gauge比例裁切揭露，不缩放格距；0值仍可见全槽。作者scene仍自行控制既有绑定，不追加该纯纹理表现。
 8b. BGA 画面位置与尺寸属于皮肤系统。公开 `BgaWidth/BgaHeight` 是安全区相对最大框尺寸（`0.01..1`），`BgaVerticalPosition` 为可用纵向空间插值（`0..1`，单侧窗缺省顶端；14K 在各半区对称内移，窄屏底部退让时位置固定）；仅由 BMS 唯一 solver 验证与求解。有效作者尺寸按 `4:3` 装入可用侧区，P2 镜像、14K 上下窗和窄屏底部退让均须守住安全区且不压住谱面、血条与 HUD。四个新增参数只从本次 package revision 的 exact selected BMS source 读取 accepted declaration，缺项使用 solver 旧默认，不继承 canonical 作者参数；其它既有字段的回退合同不变。旧式键图继续随真实 Lift 与滚动方向移动，独立键区的转盘纯纹理按比例居中。此兼容不免除公共 HUD 避让。scene 只消费最终 viewport，不以装饰矩形另造播放区域。
 9. playfield顶边默认贴屏幕顶边；`HitTargetVerticalOffset=0`时保持`scrollLengthRatio == 1`。皮肤改变视觉尺寸不得改变GN、判定窗口、scroll transform或input authority。BGA decode、content、timeline、seek、POOR/gimmick播放与唯一content authority继续归P1-L/引擎；C3只冻结最终只读viewport/rect，多个mirror viewport也只能引用同一content authority。
 10. package/current+layout+material+scene只作为一个immutable publication进入[C2 publication](#c2-current-revision与publication)的3m4～3m5；不得先发neutral后补adapter/material/scene，或先改provider再逐consumer Apply。

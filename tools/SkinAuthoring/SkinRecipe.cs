@@ -86,10 +86,22 @@ namespace SkinAuthoring
                         if (edge < 11) return new Rgba32(75, 88, 100);
                         return new Rgba32(4, 6, 9);
                     });
-                    draw(Path.Combine(assets, "gauge.png"), 512, 48, (_, y, _, h) =>
-                        y < 5 || y >= h - 5 ? new Rgba32(11, 19, 24)
-                        : y < 7 || y >= h - 7 ? new Rgba32(126, 168, 177)
-                        : tint(accent, y < 15 ? 1.2 : y < 29 ? 0.8 : 0.5));
+                    draw(Path.Combine(assets, "gauge.png"), 1024, 96, (x, y, w, h) =>
+                    {
+                        // A full, fixed-pitch instrument. Runtime reveals the lit cells instead of squeezing them.
+                        int edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
+                        if (edge < 2) return new Rgba32(6, 9, 13);
+                        if (edge < 5) return new Rgba32(174, 187, 197);
+                        if (edge < 10) return new Rgba32(65, 77, 89);
+                        if (edge < 13) return new Rgba32(24, 32, 40);
+                        if (x < 22 || x >= w - 22 || y < 21 || y >= h - 21)
+                            return new Rgba32(8, 12, 17);
+                        double cell = (x - 22) * 50d / (w - 44);
+                        double within = cell - Math.Floor(cell);
+                        if (within < 0.18 || within > 0.82) return new Rgba32(7, 12, 17);
+                        if (y < 25) return new Rgba32(194, 248, 251);
+                        return tint(accent, y < 38 ? 1.2 : y < 61 ? 0.85 : 0.48);
+                    });
                 }
             }
 
@@ -273,16 +285,24 @@ namespace SkinAuthoring
             }
 
             bool dark = role == "accent";
-            int bottom = dark ? h * 3 / 4 : h - 5;
-            // Opaque socket binds each key into a continuous controller deck, including below short black keys.
-            if (x < 4 || x >= w - 4 || y < 4 || y >= bottom)
-                return new Rgba32(16, 21, 28);
-            if (x < 8 || x >= w - 8 || y < 8 || y >= bottom - 4) return new Rgba32(128, 141, 153);
-            if (x < 12 || x >= w - 12 || y >= bottom - 11) return new Rgba32(42, 51, 63);
-            if (Math.Abs(x - w / 2) < 13 && y > bottom - 18) return accent;
-            if (y < 12) return new Rgba32(245, 250, 255);
-            double highlight = Math.Sin(Math.PI * (x - 12) / (w - 24));
-            byte shade = (byte)(dark ? 41 + highlight * 20 - y * 15 / h : 228 + highlight * 24 - y * 30 / h);
+            int bottom = dark ? h * 3 / 5 : h * 4 / 5;
+            // Matching rails meet across adjacent files; the short keys retain a complete socket and pedestal.
+            if (y < 3 || y >= h - 3) return new Rgba32(147, 162, 175);
+            if (y < 7 || y >= h - 8) return new Rgba32(47, 60, 72);
+            if (y >= h - 11) return new Rgba32(7, 11, 16);
+            if (y >= bottom)
+            {
+                if (Math.Abs(x - w / 2) < 23 && y < bottom + 5) return new Rgba32(101, 117, 128);
+                if (Math.Abs(x - w / 2) < 15 && y < bottom + 11) return tint(accent, 0.7);
+                if (x < 5 || x >= w - 5) return new Rgba32(57, 70, 82);
+                return new Rgba32(21, 29, 38);
+            }
+            if (x < 5 || x >= w - 5 || y < 9) return new Rgba32(7, 10, 14);
+            if (x < 10 || x >= w - 10 || y < 12 || y >= bottom - 4) return new Rgba32(121, 137, 150);
+            if (x < 15 || x >= w - 15 || y >= bottom - 10) return new Rgba32(40, 51, 64);
+            if (y < 16) return dark ? new Rgba32(116, 128, 140) : new Rgba32(246, 250, 255);
+            double highlight = Math.Sin(Math.PI * (x - 15) / (w - 30));
+            byte shade = (byte)(dark ? 32 + highlight * 27 - y * 12 / h : 209 + highlight * 35 - y * 25 / h);
             return new Rgba32(shade, shade, (byte)Math.Min(255, shade + 6));
         }
 
@@ -344,7 +364,7 @@ namespace SkinAuthoring
                     .AppendLine("NormalLaneWidth: 1").AppendLine("ScratchLaneWidth: 1.5").AppendLine("ScratchLaneSpacing: 0.12")
                     .AppendLine($"LongNoteBodyWidth: {(profile.Complex ? "0.65" : "0.60")}").AppendLine("BarLineHeight: 2");
                 if (profile.CompactLayout)
-                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45");
+                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)

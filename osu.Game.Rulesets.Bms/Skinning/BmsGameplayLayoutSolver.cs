@@ -92,6 +92,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? PlayfieldWidth { get; init; }
         public float? PlayfieldHeight { get; init; }
         public float? KeyAreaHeight { get; init; }
+        public float? ScratchKeyWidth { get; init; }
         public float? BgaWidth { get; init; }
         public float? BgaHeight { get; init; }
         public float? BgaVerticalPosition { get; init; }
@@ -115,6 +116,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 PlayfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value,
                 PlayfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value,
                 KeyAreaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.KeyAreaHeight),
+                ScratchKeyWidth = selectedLayoutValue(BmsSkinConfigurationLookups.ScratchKeyWidth),
                 BgaWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BgaWidth),
                 BgaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaHeight),
                 BgaVerticalPosition = selectedLayoutValue(BmsSkinConfigurationLookups.BgaVerticalPosition),
@@ -223,6 +225,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             float gaugeHeight = Math.Min(gauge_height * safe.Height * dpiScale, safe.Height * 0.08f);
             float keyAreaHeight = field(configuration.KeyAreaHeight, 0f, 0f, 0.18f, "key-area-height", diagnostics) * safe.Height;
+            float scratchKeyWidth = field(configuration.ScratchKeyWidth, 1f, 1f, 4f, "scratch-key-width", diagnostics);
             float requiredBottomBand = keyAreaHeight + gaugeHeight + (surface_gap + hud_height) * safe.Height;
 
             if (fieldHeight + requiredBottomBand > safe.Height)
@@ -335,6 +338,34 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Combo, comboRect, 710, false, false),
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Hud, hudRect, 690, false, false),
             };
+
+            foreach (GameplaySkinLayoutLane lane in neutralLanes)
+            {
+                GameplaySkinLayoutRect laneRect = lane.Rect;
+                float left = laneRect.Left;
+                float right = laneRect.Right;
+                if (keyAreaHeight > 0 && lane.TopologyEntry.Identity.Role == GameplaySkinLaneRole.Scratch)
+                {
+                    // Expand only away from the neighbouring keys. The note/input lane remains untouched.
+                    GameplaySkinLayoutRect groupRect = groups.Single(group => group.TopologyGroup.Identity.Id.Equals(lane.TopologyEntry.Identity.Group.Id)).Rect;
+                    bool outwardLeft = laneRect.Left < groupRect.Left + groupRect.Width / 2;
+                    float boundary = outwardLeft ? safe.Left : safe.Right;
+                    foreach (GameplaySkinLayoutRect bga in bgaRects.Where(rect => rect.Top < keyAreaRect.Bottom && rect.Bottom > keyAreaRect.Top))
+                    {
+                        if (outwardLeft && bga.Right <= laneRect.Left)
+                            boundary = Math.Max(boundary, bga.Right);
+                        else if (!outwardLeft && bga.Left >= laneRect.Right)
+                            boundary = Math.Min(boundary, bga.Left);
+                    }
+                    if (outwardLeft)
+                        left = Math.Max(boundary, right - laneRect.Width * scratchKeyWidth);
+                    else
+                        right = Math.Min(boundary, left + laneRect.Width * scratchKeyWidth);
+                }
+                surfaces.Add(new GameplaySkinLayoutSurface(
+                    BmsGameplayLayoutSurfaceIds.KeyVisualPrefix + lane.LaneId.Value,
+                    GameplaySkinLayoutRect.Create(left, keyAreaRect.Top, right - left, keyAreaRect.Height), 505, false, false));
+            }
 
             surfaces.AddRange(bgaRects.Select((rect, index) => new GameplaySkinLayoutSurface(
                 $"{BmsGameplayLayoutSurfaceIds.BgaPrefix}{index + 1}", rect, 300 + index, true, false)));

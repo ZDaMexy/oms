@@ -1096,14 +1096,34 @@ namespace osu.Game.Skinning.Gameplay
                 };
                 var sprite = new Sprite { RelativeSizeAxes = Axes.Both, Texture = pending.Material.Texture };
                 OsuSpriteText? text = createSemanticText(entry.Slot);
-                visual.Children = text == null ? new Drawable[] { sprite } : new Drawable[] { sprite, text };
+                Container? gaugeReveal = null;
+                if (ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.GaugeVisual))
+                {
+                    // A gauge resource depicts the complete filled track. Its inactive copy remains full size;
+                    // revealing the original through a mask preserves segment spacing and threshold colours.
+                    var track = new Sprite
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Texture = pending.Material.Texture,
+                        Colour = new Color4(0.25f, 0.25f, 0.25f, 1),
+                    };
+                    gaugeReveal = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Masking = true,
+                        Child = sprite,
+                    };
+                    visual.Children = new Drawable[] { track, gaugeReveal };
+                }
+                else
+                    visual.Children = text == null ? new Drawable[] { sprite } : new Drawable[] { sprite, text };
                 applyGeometryAndBlend(visual, rect, null, GameplaySkinSceneBlendMode.Alpha);
                 GameplaySkinSceneLayer layer = pending.PreparedRoute.Layer;
                 attachedParent = Layers.Get(layer);
                 attachedParent.Add(visual);
                 RuntimeInstanceCount++;
                 hostedDrawables[entry.Key] = visual;
-                semanticVisuals[entry.Key] = new SemanticVisual(entry, visual, sprite, text);
+                semanticVisuals[entry.Key] = new SemanticVisual(entry, visual, sprite, text, gaugeReveal);
                 semanticStateFamiliesDirty |= semanticStateFamily(entry.Slot);
 
                 if (hostedSlotsByKey.TryGetValue(entry.Key, out GameplaySkinSceneHostedSlot? gate))
@@ -2127,8 +2147,12 @@ namespace osu.Game.Skinning.Gameplay
                 }
                 else if (ReferenceEquals(slot, GameplaySkinSlotCatalog.GaugeVisual))
                 {
-                    semantic.Sprite.RelativeSizeAxes = Axes.Both;
-                    semantic.Sprite.Width = (float)scoreState.Gauge;
+                    float fraction = (float)scoreState.Gauge;
+                    Container reveal = semantic.GaugeReveal!;
+                    reveal.Width = fraction;
+                    // Child coordinates compensate for the shrinking mask, not the artwork. At zero the mask
+                    // has no visible width; retaining a unit child extent avoids a singular transform.
+                    reveal.RelativeChildSize = new Vector2(fraction > 0 ? fraction : 1, 1);
                 }
                 else if (ReferenceEquals(slot, GameplaySkinSlotCatalog.BgaViewport))
                 {
@@ -3003,7 +3027,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinResolvedMaterialEntry Entry,
             Container Drawable,
             Sprite Sprite,
-            OsuSpriteText? Text);
+            OsuSpriteText? Text,
+            Container? GaugeReveal);
 
         private static int countPreparedNodes(GameplaySkinPreparedSceneNode node)
             => checked(1 + node.Children.Sum(countPreparedNodes));

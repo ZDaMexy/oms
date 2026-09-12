@@ -18,6 +18,8 @@
 
 [图08隔离运行截图](08-simple-isolated-runtime.png)是后续由实际游戏 framebuffer 保存的 OMS 自身证据，不是用户上传的外部参考。它使用合成7K谱、无BGA媒体，带测试浏览器边栏；范围及限制见[机台打磨记录](../../SKIN_SIMPLE_CABINET_20260912.md)。
 
+[图09控制台继续打磨](09-simple-controls-runtime.png)沿用同一真实desktop捕获路径，显示放大的转盘、连续键座和部分点亮的完整分段血槽；合成谱与无BGA媒体的限制相同。保留图08供前后对照。
+
 ## 本轮对照重点
 
 最初反馈指出顶部 SCORE / ACCURACY / COMBO / BPM 横条不符合期望并遮挡落键区。后续用户明确放弃 complex，只保留 simple，并要求高质量、合格的 beatmania style 完成度；此前“不承担高仿”的划分不再作为降低素材质量的限制。

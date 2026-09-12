@@ -25,3 +25,9 @@ Create one production-ready ORIGINAL game UI texture asset, not a mockup or scre
 本轮同时完善 BMS 键面和插槽、BGA 独立内边框、连续血条金属边及分立 HUD 仪表，并启用作者文件提供的按键灯和命中光。完整底板使用 Global `stage.background` 公共最小扩展，mania 透明 Global 背景保持原样。不是通过私有皮肤接口加载，也不新增跨拓扑 scene 条件实例能力。
 
 源文件、生成包、Release和相关回归已验证，并保存实际desktop合成谱截图；整体视觉质量与完整歌曲下的画面仍未签收。命令、纠错及限制见[机台记录](../../doc_md/other/SKIN_SIMPLE_CABINET_20260912.md)。用户参考原图及图07见[参考凭据](../../doc_md/other/references/simple-1p-20260912/README.md)。
+
+## 按键区与固定血槽
+
+继续对照LITONE/IIDX的控制台比例：静线声明`ScratchKeyWidth: 2`，让既有原创转盘在独立按键区向外扩展，仍按比例显示。白键和短黑键重绘为带统一上下金属轨、凹槽与下方灯座的PNG，白键面占区域约80%、黑键约60%。这些精确拼接素材继续由离线配方制作，不修改转盘生成原图。
+
+`bms/gauge.png`为1024×96的完整50格血槽。纯纹理消费者保留同图暗化的全长底槽，再从左向右裁切亮层，低血量不会压缩边框和格距。各格使用统一青色，不把静态红色分区误称为所有gauge模式通用的过关线。尚未增加轨道下方的独立实时百分比读数。

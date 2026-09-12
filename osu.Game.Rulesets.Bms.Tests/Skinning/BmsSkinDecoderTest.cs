@@ -19,6 +19,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             "Keymode: 7K\n" +
             "PlayfieldWidth: 0.7\n" +
             "ScratchLaneWidth: 1.5\n" +
+            "ScratchKeyWidth: 2\n" +
             "LongNoteBodyWidth: 0.6\n" +
             "NoteColourWhite: 243,243,243\n" +
             "NoteColourScratch: 252,0,20\n" +
@@ -58,6 +59,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             Assert.That(c.Geometry[BmsSkinConfigurationLookups.PlayfieldWidth], Is.EqualTo(0.7f));
             Assert.That(c.Geometry[BmsSkinConfigurationLookups.ScratchLaneWidth], Is.EqualTo(1.5f));
+            Assert.That(c.Geometry[BmsSkinConfigurationLookups.ScratchKeyWidth], Is.EqualTo(2f));
             Assert.That(c.Geometry[BmsSkinConfigurationLookups.LongNoteBodyWidth], Is.EqualTo(0.6f));
         }
 
@@ -89,8 +91,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             var c = config(decode(sample_skin), BmsKeymode.Key7K);
 
             Assert.That(c.ImageLookups.ContainsKey("UnknownFutureKey"), Is.False);
-            // The 7K bucket only stored the recognised keys above (3 geometry, 3 colour, 5 image).
-            Assert.That(c.Geometry, Has.Count.EqualTo(3));
+            // The 7K bucket only stored the recognised keys above (4 geometry, 3 colour, 5 image).
+            Assert.That(c.Geometry, Has.Count.EqualTo(4));
             Assert.That(c.Colours, Has.Count.EqualTo(3));
             Assert.That(c.ImageLookups, Has.Count.EqualTo(5));
         }

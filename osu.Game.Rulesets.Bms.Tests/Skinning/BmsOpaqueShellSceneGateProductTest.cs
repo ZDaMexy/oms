@@ -143,7 +143,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(visual.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
             Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Width, Is.GreaterThan(0));
             Assert.That(visual.ScreenSpaceDrawQuad.AABBFloat.Height, Is.GreaterThan(0));
-            Assert.That(visual.ChildrenOfType<Sprite>().Single().Texture, Is.SameAs(material.Texture));
+            Sprite[] sprites = visual.ChildrenOfType<Sprite>().ToArray();
+            Assert.That(sprites, Has.Length.EqualTo(ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.GaugeVisual) ? 2 : 1));
+            foreach (Sprite sprite in sprites)
+                Assert.That(sprite.Texture, Is.SameAs(material.Texture));
             return visual;
         }
 

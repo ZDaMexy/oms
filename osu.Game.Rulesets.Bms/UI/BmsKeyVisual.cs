@@ -52,8 +52,8 @@ namespace osu.Game.Rulesets.Bms.UI
             UsesSeparateKeyArea = !layout.KeyAreaRect.Equals(layout.HitTargetRect);
             RelativePositionAxes = Axes.Both;
             RelativeSizeAxes = Axes.Both;
-            Position = UsesSeparateKeyArea ? new Vector2(lane.NeutralLane.Rect.X, layout.KeyAreaRect.Y) : Vector2.Zero;
-            Size = UsesSeparateKeyArea ? new Vector2(lane.NeutralLane.Rect.Width, layout.KeyAreaRect.Height) : Vector2.One;
+            Position = UsesSeparateKeyArea ? new Vector2(lane.KeyVisualRect.X, lane.KeyVisualRect.Y) : Vector2.Zero;
+            Size = UsesSeparateKeyArea ? new Vector2(lane.KeyVisualRect.Width, lane.KeyVisualRect.Height) : Vector2.One;
             isPressed.BindTo(pressed);
             isPressed.BindValueChanged(_ => updateState());
         }
