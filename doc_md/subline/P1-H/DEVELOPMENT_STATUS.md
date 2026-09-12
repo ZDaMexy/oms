@@ -1,6 +1,6 @@
 # P1-H 当前状态：存储拓扑
 
-> 最后更新：2026-09-09（production/测试源审查；未改存储实现）
+> 最后更新：2026-09-12（源码与文档/记忆复核，补明难度表界面刷新边界；未改存储实现）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -15,6 +15,7 @@
 - `ExternalLibraryConfig/Scanner` 管理注册外部根；`ManagedLibraryScanner` 管理当前数据根下内部谱库。
 - managed 子目录 trailing-separator 归一化已修复；首次启动导入页复用同一外部谱库入口。
 - 难度表 manager-owned metadata sync、真实 refresh 结果、wrapper/source identity fallback、分批写回和 reuse recovery 主链已收口。
+- 难度表变更后的持久化同步已实现，但当前选歌界面不即时更新深层 metadata；既有实机记录确认退出再进入选歌或重启后生效。不得把同步完成写成当前页面即时刷新，或恢复曾造成大库卡顿的逐 set revision bump。
 - converted star 与难度表共享 `RulesetData` 时通过 `[JsonExtensionData]` 保留彼此未知字段，避免互相覆盖。
 - raw wrapper 复用 timing/hitobject/break 数据，Song Select BPM 不再回退 60。
 

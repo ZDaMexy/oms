@@ -7,6 +7,29 @@
 
 ## 2026-09-12
 
+### 全项目实际内容、文档与记忆专项对齐
+
+- 基线为干净 `master@c477cda`；`git fetch origin` 成功，fetch 前后 `git rev-list --left-right --count 'HEAD...@{upstream}'` 均为 `0 0`。在线核对仅指本次 origin/master，不表示已重新审核上游或公共参考网站。
+- 同时检查两条关系：生产入口/消费路径/测试源码对照当前文档及记忆；主线、P1-A～M 四件套、路由、公开说明、日期证据与全部 memory 叶子的职责、状态及回链互相对照。mini 当前只有模板，未凭模板推断项目实现。历史按日期和相关主题检索，不把旧报告重写为最新验收。
+
+| 归属 | 本次源码/材料核对入口 | 对齐结论 |
+| --- | --- | --- |
+| 全局 | `OsuGameBase`、两套 EndpointConfiguration、`osu.Desktop.slnf`、`global.json`、项目清单 | 离线/空默认 endpoint、仅 mania/BMS 与现行工程一致；模板打包工程是 netstandard2.1，修正“所有工程 net8.0”的泛化 |
+| P1-A | `SkinManager`、`CanonicalSkinPackage`、两 ruleset transformer、公开作者/验收材料与测试源码 | 普通简洁包已接管，旧 OmsSkin 只留历史/人工对照；修正主约束、子线 README、作者说明及记忆的旧链底/C6-C7 待交付说法，明确星轨体验否定与暂停 |
+| P1-B/P1-D | `BmsInputManager`、`OmsInputRouter`、HID provider、补充绑定 editor | 软件输入/捕获已接线；持续轴语义、校准与真实设备仍缺验收，不把 provider 存在当完整硬件覆盖 |
+| P1-C/P1-E | `BmsScoreProcessor`、`BmsGaugeProcessor`、`BmsClearLampProcessor`、`DrawableBmsHoldNote` | parity/长条自动链与状态一致；补 FULL COMBO 排除 Empty Poor，纠正 IIDX 参考里的 OMS gauge 门槛，将已删除反馈卡的建议限定为历史输入 |
+| P1-F/P1-G | `build-release.ps1`、`Update-Installation.ps1`、C7 delivery 清单与当前 ZIP | 既有 ZIP 身份与 P1-F 相符；G 吸收当前安装/覆盖证据并保留人工未签，英日 README 改用实际更新工具、保持原保存模式；不追溯宣称旧事故无损 |
+| P1-H | `ExternalLibraryConfig/Scanner`、`BmsFolderImporter`、难度表 manager/共享 metadata | 直读/MD5 与剩余存储一致性门吻合；补明持久化刷新后需退出重进选歌或重启，不能把写回当当前页面即时刷新 |
+| P1-I | `FilterControl`、`TestSceneBmsFilterControl`、shared filter fixture、read-model/query | 仍是三行双端原型，既定单轨上限段与 shared fixture/大库门未完成；保留现状及产品目标 |
+| P1-J/P1-K | converter lane timeline、keysound shared store、decoder/keymode authority、LNOBJ/重排/mania HoldNote 测试源码 | C3 末端 lane 前置已完成；转谱 LN、特殊谱、dense/听感仍待验。格式参考不再把 5K/7K 的 scratch 解释泛化到 9K，三篇记忆补 owning 权威回链 |
+| P1-L | `BmsBgaPanel`、`BmsBgaPlayer`、`BmsBgaVideoCache` | 仍每 viewport 一个 player，单 decoder 未落；修正同份合同内缓存键漏 version、固定临时文件与现有 GUID 临时文件的冲突 |
+| P1-M | `MusicController`、`NowPlayingOverlay`、`FullscreenOverlay`、core BMS 识别 helper | PlayQueue/SMTC 仍未实现；计划/状态与已决定复用壳体一致，移除 core 反向依赖 BMS 常量的规划冲突 |
+
+- 主约束同步分布图实际 palette/skin 表现及 raw wrapper/必要转换边界。三语项目介绍、旧 C7 暂停报告索引与当前停止边界统一；旧报告正文、恢复证据和与成品身份绑定的源 README 保留原快照。
+- memory 保留独有诊断，当前进度回链 owning STATUS；修正旧交付门/旧 push 授权语境并补齐权威入口。治理记忆记录路由、多语说明漏同步及实现/成品/人工签收三者混淆的真实案例，更新 MEMORY 索引。
+- 只读身份核验：三款作者包摘要及逐文件内容与对应源目录一致，legacy SHA256SUMS 与原创 viewport 视频摘要相符；当前完整 ZIP 与 P1-F/C7 delivery 记录相符。这些只证明冻结制品身份，没有重新制作、安装或签收作品。文档健康检查及 `git diff --check` 通过；现有公开制品/工具摘要和通用路径示例提示经复核保留。
+- 本次只修改文档与记忆，未改产品代码、测试、制品或用户数据；未运行 build/test/publish、启动游戏、设备/视听验收或外部格式来源复验。源码接线及测试存在不等于本次执行通过，既有产品验证日期与失败归因保留；不推进 campaign、Skin V1 或 release。
+
 ### 皮肤系统暂时收尾，双包优化留待新对话
 
 - 用户否定星轨动画、美术安排及精细度，现版总体不可用；已明确区分保留的工程证据与未达标的产品体验。本轮仅同步文档/记忆、当前分支提交及获准推送，双包调整留待新对话，不重计七阶段；静线保持默认，原 V 未签及 Skin V1/release 未完成事实不变，详见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)。

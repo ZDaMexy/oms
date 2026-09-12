@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1**（本地 BMS / mania 主流程）收尾阶段。两款完整皮肤“静线”和“星轨”均支持 BMS 与 mania；玩家可选择可选演出，作者可从完整模板修改、检查、打包并导入自己的作品，见[双皮肤制作套件](skin-authoring/README.md)。实际观感、输入设备与长时间体验仍需验收；联网相关的 Phase 3 功能在此之前保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
+OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。“静线”和“星轨”均已有支持 BMS 与 mania 的可导入包；作者可从模板修改、检查、打包并导入作品，见[双皮肤制作套件](skin-authoring/README.md)。静线保持默认与保底，星轨总体体验已被用户否定，双包优化暂缓；视觉、输入设备与长时间体验尚未完成验收，Skin V1 与整体发行未完成。联网相关的 Phase 3 功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
 
 ## 贡献
 

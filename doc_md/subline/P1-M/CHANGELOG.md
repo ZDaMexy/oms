@@ -3,6 +3,13 @@
 > 本文件记录 `P1-M` 相关的验证通过变更，按时间倒序排列。
 > 当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
+## 2026-09-12
+
+### 规划与记忆对齐复核
+
+- 源码仍未发现 PlayQueue / SMTC，现有全局音轨、mini、playlist 和 BMS 显式 PREVIEW 输入与未开工状态一致；未运行播放器测试或实机试听。
+- STATUS/PLAN 移除已决定复用 `FullscreenOverlay<T>` 之外的壳体候选，待定项仅保留 header 与窗口协调细节。core 的播放源判定改为复用已有 `BmsStarRatingResolver` 常量/helper，消除要求 core 反向引用 BMS 工程常量的规划冲突；CONSTRAINTS 与 memory 同步。不改变产品范围或开工顺序。
+
 ## 2026-09-09
 
 ### 更正现行音频输入与未开工边界

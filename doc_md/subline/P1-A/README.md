@@ -1,6 +1,6 @@
 # P1-A 路由
 
-P1-A 负责 Skin V1、共享皮肤产品面与 release gate。当前为`6/7 closed，C7 active`：C1～C6已闭合，含公开可选脚本、双ruleset真实作者包/授权UI与最终整包reload/G1自动门。C7 canonical双包、完整Authoring Kit与fallback接管保留后续，程序化`OmsSkin`仍是迁移链底。原`V-001`～`V-004`签收0/4，新增V-005未签收，`SV1-1`、Skin V1及release未完成。完整能力和边界只在[STATUS](DEVELOPMENT_STATUS.md)维护。
+P1-A 负责 Skin V1、共享皮肤产品面与 release gate。原七阶段工程证据保留，普通 canonical 简洁包已接管默认与保底；星轨总体体验不通过，双包优化按用户要求暂停。人工签收及 Skin V1/release 仍未完成。完整能力、停止边界与剩余门只在[STATUS](DEVELOPMENT_STATUS.md)维护。
 
 - 开工先读 [当前状态](DEVELOPMENT_STATUS.md)。
 - 准备实施时再读 [当前计划](DEVELOPMENT_PLAN.md) 与任务相关的 [技术约束](TECHNICAL_CONSTRAINTS.md)。

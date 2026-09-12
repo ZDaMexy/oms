@@ -1,13 +1,14 @@
 # IIDX 外部参考审计
 
-> 最后更新：2026-04-20
+> 初始外部参考审计：2026-04-20；beatoraja 窗口校正见 2026-06-14 条目；历史边界与 OMS 映射澄清：2026-09-12（未重新验证外部来源）
 > 本文档沉淀对 iidx.org 及相关差异资料的整理结果，用于审核和校正 OMS 的产品方向。
 > 本文档不是进度日志，不替代 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)、[../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md) 或 [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)。
+> 下文仓库映射、体验缺口和推进顺序均为当次审计输入。常驻 FAST/SLOW/pacemaker/summary/GN 卡已于 2026-06-15 按产品决定删除；不得把历史建议重新解释为活动待办。当前判定/反馈以 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md) 为准，硬件校准以 [P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) 为准；GN 当前只在调速 toast 与 pre-start overlay 显示。
 
 ## 文档定位
 
 - 目的：把外部权威资料中的稳定结论收敛成 OMS 可执行的设计约束，避免后续重复调研。
-- 使用方式：当内部实现、命名、默认设置或训练路径存在分歧时，优先用本文件校验方向，再决定是否写入技术规范或开发计划。
+- 使用方式：当内部实现、命名、默认设置或训练路径存在分歧时，把本文件作为历史设计来源，与当前代码/测试及 owning 子线合同对照；不得覆盖后续产品决定。
 - 边界：本文件只总结对 OMS 有持续价值的玩法、体验和设定结论，不复制站点原文，不记录仓库短期进度。
 
 ## 参考来源
@@ -33,7 +34,7 @@
 | 判定与能量条 | IIDX、LR2、beatoraja 在 timing window、空 POOR、hard / dan gauge 细节上并不等价 | 必须继续显式区分模式，不可合并成模糊的“兼容判定” |
 | EX-SCORE 体系 | IIDX 的核心成绩表达仍是 EX-SCORE、DJ LEVEL、CLEAR LAMP | 结果页、筛选、训练目标优先围绕这三项表达，而不是泛化为 osu 风格 accuracy 叙事 |
 | 新手学习路径 | 新手先学完整打谱、稳定速度感、基础手型和 scratch，不鼓励依赖 auto scratch | 不应把 assist 作为主教学路径；默认引导要强调正常游玩闭环 |
-| FAST/SLOW 与偏移 | 早期开启 timing display、judge display、可调 offset 是训练核心组成 | 应优先补 BMS 专用 FAST/SLOW、judge 反馈和低摩擦 offset 交互 |
+| FAST/SLOW 与偏移 | 早期开启 timing display、judge display、可调 offset 是训练核心组成 | 原审计建议；常驻反馈后续已删除，重新引入须先有 P1-C 产品决议 |
 | FHS / green number / white number | 这是一整套速度、lane cover、LIFT 和 BPM 变化补偿语义，不是孤立数字 | 若未来实现，必须作为完整专题；在此之前不要只做术语表面化 |
 | Lane cover | SUDDEN+ / HIDDEN+ 是成熟的阅读工具，且需要游玩中快速调整 | 已有 lane cover 基础应保留，并继续优化交互和文案 |
 | 训练闭环 | Retry、pacemaker、class mode / dan、step-up 都服务于“重复训练且反馈明确” | 优先级应先补 retry / pacemaker / 目标练习，再考虑大型模式 |
@@ -49,7 +50,7 @@
 - 保留 EX-SCORE / DJ LEVEL / CLEAR LAMP / gauge history / note distribution 作为 BMS 主表达。
 - 保留 lane cover、scroll speed、多输入后端和 scratch 语义验证主线。
 
-### 应优先补强的方向
+### 当次建议优先补强的方向（历史输入）
 
 - 补“第一次游玩”和“基础设置建议”层，而不是默认让用户从大量 ruleset 设置里自行摸索。
 - 补 BMS 专用 FAST/SLOW、judge display、offset 调整入口、必要的减干扰选项。
@@ -65,7 +66,7 @@
 - 不要把 IIDX / LR2 / beatoraja 规则差异藏在文案后面；必须明确告诉用户当前使用的是哪一套语义。
 - 不要先追高阶 playstyle 教学，再补控制器校准；真实输入一致性是前提。
 
-## 与当前仓库的映射
+## 与审计时仓库的映射
 
 ### 已与外部参考基本一致
 
@@ -78,7 +79,7 @@
 - 训练向随机选项命名与第一轮实现：MIRROR / RANDOM / R-RANDOM / S-RANDOM
 - 多输入后端：键盘、Raw Input、XInput、MouseAxis、DirectInput HID
 
-### 当前最明显的体验缺口
+### 审计时最明显的体验缺口
 
 - BMS 专用 FAST/SLOW 与 judge display 反馈层
 - BMS 专用 offset / timing 调整体验
@@ -117,7 +118,7 @@
 
 ### Gauge 与课程体验
 
-- IIDX 的 EASY / NORMAL 从 22% 起始，终点分别按 80% / 60% 过关门槛处理；普通 groove gauge 依赖 a-value，而不是简单的 total / note count。
+- OMS 的 IIDX family 实现中，Assist Easy / Easy / Normal 均从 22% 起始，终点门槛分别是 60% / 80% / 80%；旧条目把 Normal 写成 60% 有误。此处按 [BmsGaugeProcessor.createIidxGaugeSpecification](../../osu.Game.Rulesets.Bms/Scoring/BmsGaugeProcessor.cs) 核对仓库映射，不把本轮代码审查当作外部机台复验。普通 groove gauge 依赖 a-value，不使用简单的 total / note count。
 - IIDX 的 HARD / DAN 在低血区有减伤补正；EX-HARD 没有同等保护。
 - LR2、beatoraja 的 easy / normal / hard / dan 算法都不同，且 beatoraja 的 survival gauge 在低血区往往比 LR2 更宽松。
 - BMS dan 在 beatoraja 里常通过 gauge_lr2 采用 LR2 DAN gauge；难度表也通常以 LR2 easy / normal 体验为基准评级。
@@ -127,14 +128,14 @@
 
 - IIDX 的 SUDDEN+ white number 与 LIFT 都是独立的 1000 制量，green number 本质是 60fps 下 note 可见帧数乘以 10。
 - beatoraja 在启用 LIFT 时 white number 的计算方式和 IIDX 不同；LR2 的 GN / HS 换算又依 skin 而变。
-- 对 OMS 的约束：若未来做 FHS，必须一次性定义 scroll speed、cover、LIFT、BPM 补偿和显示方式整套语义；在此之前不要半套引入 GN / WN 术语。
+- 对 OMS 的约束：若未来做完整 FHS，必须一次性定义 scroll speed、cover、LIFT、BPM 补偿和显示方式整套语义；既有 OMS tri-mode GN/WN 反馈不等于完整 FHS，不应因这条历史建议删除已经冻结的 toast / pre-start surface。
 
 ### EX-SCORE、反馈与训练
 
 - IIDX 的主成绩语言仍是 EX-SCORE、DJ LEVEL、CLEAR LAMP。AAA 阈值是 8/9，AA 是 7/9，A 是 6/9。
 - 空 POOR 可用 MISS_COUNT - COMBO_BREAK 反推；DJ POINT 存在，但不是主训练语言。
 - FAST/SLOW、JUDGE display、visual draw offset 是标准训练反馈，audio offset 语义并不适合 key-sounded 体系。
-- 对 OMS 的约束：结果页和训练目标应优先围绕 EX-SCORE；BMS 专用 FAST/SLOW、judge display、offset 交互仍是高优先级缺口。
+- 对 OMS 的方向输入：结果页和训练目标围绕 EX-SCORE；当次 FAST/SLOW、judge display、offset 建议不再单独定义活动优先级，后续反馈按 P1-C 当前产品边界决定。
 
 ### 段位、随机与输入硬件
 
@@ -143,7 +144,7 @@
 - LR2 只接受数字 turntable；beatoraja 可接受数字或模拟；Infinitas 更偏好模拟，且 120Hz 对 deadzone / sensitivity 更敏感。
 - 对 OMS 的约束：课程模式若落地，应把 clear rate 与通过结果拆开表达；输入设置不应只有绑定，还应暴露 deadzone、sensitivity、scratch 模式预期和诊断信息。
 
-## 推荐推进顺序
+## 当次推荐推进顺序（非当前计划）
 
 1. 先补反馈闭环：FAST/SLOW、judge display、offset 交互、controller calibration。
 2. 再补训练闭环：quick retry、result retry、EX pacemaker、target practice。

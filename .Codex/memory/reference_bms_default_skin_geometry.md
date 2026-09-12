@@ -21,7 +21,7 @@ metadata:
 ## LN 视觉
 
 - managed source-bound body 与程序化默认 body 共用同一个真实保持状态宿主：Idle/Holding 保留 active material 色彩、alpha `0.8`，Broken 灰暗、alpha `0.32`，约 `80ms` tint/fade。仅 HCN regrab 可从 Broken 回 Holding，CN/LN 不可；异步 material 在状态改变后到达时必须立即继承当前状态。
-- tail 默认 `Alpha=0` 只是视觉；tail judgement 仍存在，皮肤 lookup 仍保留。
+- 旧程序化 tail 的 `Alpha=0` 只是迁移期视觉对照；当前缺件由简洁包的公开完整素材补齐，不代表全局透明尾部。tail judgement 与皮肤 lookup 仍存在。
 
 ## HUD 合同
 

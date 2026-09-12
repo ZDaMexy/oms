@@ -389,7 +389,7 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 ## 既有 LN 视觉状态合同
 
 1. scene/event adapter 已接入后，长条 body 状态仍由 `DrawableBmsHoldNote.BodyState : IBindable<BmsLongNoteBodyState>` 暴露，状态 `Idle/Holding/Broken` 只由 hold gameplay truth 派生；managed/default body 共用的视觉宿主不得自行读取判定内部。
-2. 当前兼容默认值保持：body width `0.5775`；`Idle==Holding` 使用 head 色、alpha `0.8`；`Broken` 去色并使用 alpha `0.32`；状态改变的 tint/fade 为 `80ms`，异步首次挂载或material replacement立即投影当前态；tail 仍 `Alpha=0`。修改须同步 `BmsSkinTransformerTest` 与真实 hold 产品 fixture。
+2. 当前兼容默认值保持：body width `0.5775`；`Idle==Holding` 使用 head 色、alpha `0.8`；`Broken` 去色并使用 alpha `0.32`；状态改变的 tint/fade 为 `80ms`，异步首次挂载或material replacement立即投影当前态；旧程序化 tail 对照仍 `Alpha=0`，当前产品缺件由 canonical 普通包完整素材补齐，不将透明对照升级为全局尾部合同。修改须同步 `BmsSkinTransformerTest` 与真实 hold 产品 fixture。
 3. `Broken → recover` 只允许 HCN；CN 中途松开不可接回，语义 authority 见 [P1-E 约束](../P1-E/TECHNICAL_CONSTRAINTS.md)。Skin V1 event adapter 只能投影该状态，不得重新解释 LN/CN/HCN 规则。
 
 ## 测试与发布约束

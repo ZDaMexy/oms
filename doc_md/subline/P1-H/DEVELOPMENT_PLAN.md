@@ -1,6 +1,6 @@
 # P1-H 当前计划：存储拓扑
 
-> 最后更新：2026-09-09（明确已有基本删除与剩余一致性门）
+> 最后更新：2026-09-12（对齐难度表同步与界面刷新边界；执行优先级未变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定路径/扫描合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成难度表与扫描治理按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,7 +14,7 @@ P1-H 维护 `chartbms/`、`chartmania/`、portable/custom data root、managed/ex
 | 文件系统谱库 | BMS/mania 直读目录与 managed/external scanner 已落 |
 | 数据根 | `portable.ini → data/` 与 `storage.ini` custom root 已落 |
 | 扫描入口 | external/managed 各自支持重建与增量，职责分离 |
-| 难度表一致性 | manager-owned metadata sync、真实 refresh 结果、identity/fallback、批量写回与 reuse recovery 已收口 |
+| 难度表一致性 | manager-owned metadata sync、真实 refresh 结果、identity/fallback、批量写回与 reuse recovery 已收口；选歌界面仍需退出重进或重启取得变更，中途即时刷新未实现 |
 | persisted coexistence | 难度表、converted star 等共享 `RulesetData` 时保留未知 JSON 字段 |
 | raw wrapper | timing/hitobject/break authority 可复用，Song Select BPM 不回退默认值 |
 

@@ -6,6 +6,8 @@ metadata:
   type: reference
 ---
 
+Authority: [P1-K CONSTRAINTS](../../doc_md/subline/P1-K/TECHNICAL_CONSTRAINTS.md); current state: [P1-K STATUS](../../doc_md/subline/P1-K/DEVELOPMENT_STATUS.md).
+
 `#LNOBJ xx` long notes in `BmsBeatmapDecoder` (P1-K). The chart marks LN tails by placing the LNOBJ object value (e.g. `01`) in a key channel; the note **immediately before it in the same lane** is the LN head.
 
 **THE rule (don't regress)**: each lane keeps **one** pending head = the single most-recent normal note (`pendingLnObjHeads: Dictionary<int,int>`). A normal note OVERWRITES the candidate (the previous note is thereby committed as a plain tap). An LNOBJ tail consumes the head and CLEARS the lane. A second consecutive tail (`note note 01 01`) then finds no head → it's an **orphan** (dropped + warning), and the earlier note stays a tap. This matches the LNOBJ spec (hitkey) and beatoraja.

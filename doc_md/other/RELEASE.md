@@ -186,4 +186,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -Update
 - 在线排行榜 / 谱面下载 / 聊天 / 多人：**已隐藏**
 - 远程静态资源 fallback：**已被离线模式屏蔽**
 
-> 联网功能将在 Phase 3 统一启用。
+> OMS 私有服务与联网产品面属于 Phase 3 后续规划，当前没有启用日期或全量开放承诺。用户主动添加公共 BMS 难度表 URL 是现有窄例外，不代表 OMS 在线服务已经开放。

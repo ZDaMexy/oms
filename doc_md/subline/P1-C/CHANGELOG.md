@@ -2,6 +2,15 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-09-12
+
+### 实际判定/反馈与参考材料对齐
+
+- 对照当前判定/gauge/clear-lamp、长条与反馈消费链及测试源码，保留现有 parity 与人工门结论。
+- `IIDX_REFERENCE_AUDIT` 的仓库映射、体验缺口与推进顺序明确归为 2026-04-20 历史输入；2026-06-15 已删除的常驻 FAST/SLOW/pacemaker/summary/GN 卡不能被旧建议重新立为活动任务，当前反馈仍由本线 STATUS/CONSTRAINTS 决定。
+- 参考材料中 Normal 过关门槛被误写为 60%；按 `createIidxGaugeSpecification` 更正 OMS IIDX family 为 Assist Easy/Easy/Normal = 60/80/80，并明确该核对不属于外部机台复验。现有 tri-mode GN/WN 不宣称完整 FHS，也不被旧“不要引入术语”建议否定。
+- 本次未修改产品代码，未运行产品测试或重新核验外部参考来源；历史产品验证和人工日期保持。
+
 ## 2026-09-09
 
 ### 判定与反馈实际消费复核

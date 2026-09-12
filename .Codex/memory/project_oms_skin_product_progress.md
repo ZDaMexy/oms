@@ -33,11 +33,11 @@ metadata:
 
 - 2026-09-12 用户实际体验星轨后认为不可用，明确指出动画、美术安排和精细度不符合预期。已有自动验证、安装恢复和制作证明不能推翻该体验结论，也不能继续把问题写成“仅待观察”。后续 simple/complex 调整属于原 C7 的用户反馈迭代，不重计七阶段，不凭这次反馈猜测用户尚未确认的风格、动效或默认选择方案；准确状态见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)与 [C7 反馈原始结论](../../doc_md/other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#2026-09-12-用户体验结论与本轮暂停)。
 - 紧邻此前的“暂时没问题”只确认启动/预览问题的当时体验，不能扩张为 simple 美术签收、复杂款可用或任何原 V 项签收。原先的工程收口记录应保留为历史证据，但不能据此抹掉后续发现的产品问题。
-- 用户本轮明确将两款调整留给新对话，只授权核对、文档与记忆、提交和推送收尾；不得顺势继续制作或修改游戏。此轮 push 授权不沿用到后续迭代，后续仍遵循 [AGENTS](../../AGENTS.md#工作流)。
+- 用户在上述体验反馈的原收尾轮明确将两款调整留给新对话，仅授权该轮核对、文档与记忆、提交和推送收尾；不得顺势继续制作或修改游戏。该次 push 授权不沿用到后续审计或迭代，后续仍遵循 [AGENTS](../../AGENTS.md#工作流)。
 
 ## 容易混淆的边界
 
-- canonical 默认包接管须满足 parity、完整性、原子恢复与实机 gate；程序化 `OmsSkin` 的保留/退出由合同控制，不能只因材料体系已接线就删掉。
+- canonical 默认包已接管实际产品保底；parity、完整性与原子恢复的工程证据不替代实机签收。程序化 `OmsSkin` 源码仅保留历史证据与人工对照，物理删除仍须原实机 gate，不能只因材料体系已接线就删掉。
 - legacy beatmap-local direct visual compatibility 不等于开放新的 public sidecar authoring。
 - runtime profile 的 NotApplicable 是明确版本化决定；不能拿 catalog 总数掩盖 ruleset 差异。
 - scene 只控制表现；判定、输入、分数、clock、BGA 内容和资源 authority 仍在引擎。Snapshot/Reset 来自运行期 engine state，不能写成整包 prepare 已预产全部事件。

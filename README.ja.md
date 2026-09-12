@@ -46,7 +46,7 @@ OMS は [osu!lazer](https://github.com/ppy/osu) をベースに、osu!・Taiko�
 
 [GitHub Releases](https://github.com/ZDaMexy/oms/releases) から最新のポータブルフルパッケージ `oms_YYYYMMDD.zip` をダウンロードし、展開してそのまま実行してください。インストールは不要です。
 
-更新する際は新しいパッケージをダウンロードして古いディレクトリを上書きし、`portable.ini`、（ポータブルモードの）`data/` フォルダ、カスタムデータルートで使われる `storage.ini` を残してください。ゲーム内のオンライン自動更新は既定で無効です。
+更新時はゲームを終了し、新しいフルパッケージを別のディレクトリに展開して、その中の `Update-OMS.ps1` を実行し、既存のインストール先を指定してください。更新ツールは従来のポータブル／非ポータブル設定、ユーザーデータ、カスタム保存先を維持し、置き換える前のプログラムファイルも保存します。詳しくは[配布ガイド](doc_md/other/RELEASE.md)を参照してください。ゲーム内のオンライン自動更新は既定で無効です。
 
 ## 使い方
 
@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## プロジェクトの状況
 
-OMS は **Phase 1**（ローカルの BMS / mania コアフロー）の仕上げ段階にあり、現在はスキンシステムの専用作業と入力ハードウェアの受け入れを進めています。それまでオンライン関連の Phase 3 機能は凍結されたままです。最新の進捗は [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) を正とします。
+OMS は **Phase 1.x**（ローカルの BMS / mania とスキン）の仕上げ段階です。「静线」（oms-simple）と「星轨」（oms-complex）は BMS / mania 対応のインポート可能なパッケージとして用意され、[制作キット](skin-authoring/README.md)からテンプレートの編集・検証・梱包ができます。静线が既定とフォールバックを担います。星轨の全体的な見た目はユーザーに不合格と評価され、両パッケージの改善は一時停止中です。見た目・実機入力・長時間利用の受け入れは未完了で、Skin V1 と全体のリリースも完了していません。Phase 3 のオンライン機能は凍結したままです。最新の進捗と受け入れ状況は [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) を正とします。
 
 ## コントリビュート
 

@@ -1,6 +1,6 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-09-09（同步 C3/C5 已交付接线与剩余 content 边界）
+> 最后更新：2026-09-12（对齐转码缓存键与唯一临时文件合同；产品行为未改变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。若实现与本文冲突，先修正其一再继续开发。
 
 ## 红线（最高优先级，贯穿全线）
@@ -50,7 +50,7 @@
 
 1. **opt-in + 优雅降级**：转码是 `BgaVideoTranscode` 开关下的增强；**无外部 ffmpeg / 关闭 / 转码失败时必须等价于 Phase 5 的静态图回退**，绝不黑屏、绝不抛异常或刷错误日志、绝不拖垮正常游玩链路。OMS **不分发 ffmpeg**（用户自备：PATH 或放进数据目录），避免打包/授权负担。
 2. **仅转码框架打不开的格式**：老式集合 `{.mpg,.mpeg,.avi,.wmv,.flv,.m1v,.m2v,.mkv}`；框架友好集合 `{.mp4,.m4v,.mov,.webm}` 一律直开不转码（不得无谓转码已能播的视频）。
-3. **缓存正确性**：输出落 `<dataRoot>/bga-video-cache/`，文件名键 = `SHA1(源绝对路径|size|mtime)`（源变即重转）；**先写 `<dst>.tmp` 再原子改名**，`File.Exists(dst)` 必须只在文件完整时为真；转码失败必须清掉 .tmp、不得发布半成品。
+3. **缓存正确性**：输出落 `<dataRoot>/bga-video-cache/`，文件名键 = `SHA1(源绝对路径|size|mtime|transcode_version)`（源或转码版本变即重转）；**先写 `<dst>.<guid>.tmp` 再原子改名**，每次尝试使用唯一临时文件，不能恢复固定 `<dst>.tmp`。`File.Exists(dst)` 必须只在文件完整时为真；转码失败必须尽力清掉本次临时文件、不得发布半成品。跨实例任务去重与会话清理共同遵守 Phase 5.2。
 4. **不阻塞游玩**：转码走后台 `Task.Run` + 按目标去重；游玩线程只做 `File.Exists`/状态查询与节流（~1s）重试热替换，**不得**在 update 线程同步转码或每帧打盘。
 5. **视频-only**：转码命令必须 `-an`（BGA 不带音轨，音频是谱面键音）；编码到 H.264/yuv420p/mp4（框架确定能解）。**改任何转码参数（`BuildTranscodeArguments`）必须 bump `transcode_version`**——否则 `Resolve` 命中 `File.Exists` 会把旧参数产出的（可能不可解码）缓存当成功端出（2026-06-22 惨案的反复教训）。
 6. 缓存治理见 **Phase 5.2**（已由「无清理」升级为会话级清空）；缓存仍只落 `<dataRoot>/bga-video-cache/`，不得写进谱面文件夹或 hash-backed `files/` store。

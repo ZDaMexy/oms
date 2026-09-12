@@ -1,6 +1,6 @@
 # Skin V1 可选数值脚本
 
-这是 C6 的公开脚本语言与工具说明；当前完成状态和自动结果以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准。它不是 Lua、JavaScript、`.luaskin` 或 beatoraja runtime，也不需要作者编译 DLL。完整场景、布局和素材合同继续使用 C3～C5；C7 的 canonical 双包和完整 Authoring Kit 另行交付。
+这是 C6 的公开脚本语言与工具说明；当前完成状态和自动结果以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准。它不是 Lua、JavaScript、`.luaskin` 或 beatoraja runtime，也不需要作者编译 DLL。完整场景、布局和素材合同继续使用 C3～C5；canonical 双包与完整 Authoring Kit 已有[制作入口](../../skin-authoring/README.md)；工具可用和作品观感签收分别以 P1-A STATUS 为准。
 
 ## 从作者源文件到普通皮肤
 

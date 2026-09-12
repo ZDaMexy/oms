@@ -23,7 +23,7 @@ metadata:
 - G1当时只保留folder-backed ctor、FilesystemStoragePath/IsExternalFilesystemStorage和schema56，没有生产scanner/selection/安全删改/reload。后续恢复史查P1-A CHANGELOG，不往本页叠campaign完成态。
 - 两个独立修正保留：复制流后reset position再交base parser；14K右皿S2→P2素材。
 - F2/F3/G2、Lua、mania fallback adapter、reference-default是当时撤回/未入可信基线的历史名称；现行等价范围由PLAN判断，异常归档只定点取证。
-- 程序化OmsSkin是恢复迁移保障；canonical oms-simple通过parity/完整性/原子恢复/实机门前保留，最终接管后退出程序化主题视觉。
+- 程序化OmsSkin在当时是恢复迁移保障；当前canonical已接管产品保底，旧源码仅留历史证据与人工对照、物理删除仍待实机门。当前事实以页首P1-A STATUS/PLAN为准，不从恢复快照恢复旧产品链。
 
 ## 不要重演或重复执行
 

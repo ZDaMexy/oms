@@ -14,7 +14,7 @@ metadata:
 - 双角色张力 = 真播放器要的「持久队列+单曲循环+歌单」与 song-select 要的「preview 点 looping 试听」语义冲突 → 这是整个设计的命门。
 - BMS importer只接受有效显式 `#PREVIEW` 为AudioFile并从0播放；≥1MB非键音整曲探测已删除。无preview的纯键音谱被controller的AudioFile候选过滤排除。preview候选不代表完整keysound/BGM混音，不能据旧规划把整曲当现行输入。`EnsurePlayingSomething` 的 `MAX_ENSURE_PLAYING_SKIP_COUNT=50`仍保护无可播轨场景。
 
-**已对齐决策（用户 2026-06-15 拍板）**：全功能 M1–M4+；**播放源可选 mania/bms/both**（硬需求，按 `Ruleset.ShortName`=`BmsRuleset.SHORT_NAME` 过滤）；mini 浮窗+可展开全屏；展开视图**复用 `FullscreenOverlay<T>` 壳体**（那批离线隐藏的在线 overlay 共享的展开壳，与联网无耦合；`ToolbarMusicButton` 没被隐藏、它 toggle mini 浮窗）；**分层 PlayQueue 服务**（song-select preview 路径独立保留）。
+**已对齐决策（用户 2026-06-15 拍板）**：全功能 M1–M4+；**播放源可选 mania/bms/both**（硬需求，按 `Ruleset.ShortName` 判定；core 复用 `BmsStarRatingResolver.RulesetShortName` / `IsBmsBeatmap`，不能反向引用 BMS 工程的常量）；mini 浮窗+可展开全屏；展开视图**复用 `FullscreenOverlay<T>` 壳体**（那批离线隐藏的在线 overlay 共享的展开壳，与联网无耦合；`ToolbarMusicButton` 没被隐藏、它 toggle mini 浮窗）；**分层 PlayQueue 服务**（song-select preview 路径独立保留）。壳体复用已定，待定的是 header 细节与窗口互斥，不因离线 `IAPIProvider` 注入重新选型。
 
 **协调契约（命门）**：PlayQueue 自身 Next/Prev 时「驱动」全局 beatmap；外部换轨（选歌/playlist点选/快捷键）时只「跟随」同步 index。`onTrackCompleted` 的 `if(!Looping)→next` 守卫**不能动**（它让 song-select 试听不被队列自动推进劫持；repeat-one 经 PlayQueue 在 completed 时 restart）。
 

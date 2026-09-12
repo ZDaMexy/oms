@@ -54,7 +54,7 @@ Use the current project and production entry points below; implementation invent
 | Input | `oms.Input/OmsInputRouter.cs`, `Devices/`; BMS input bridge | P1-B / P1-D |
 | Desktop/release | `osu.Desktop/Program.cs`, `OsuGameDesktop.cs`, `build-release.ps1` | P1-F / P1-G |
 
-The build entry is `osu.Desktop.slnf`; core tests live in the separate `osu.Game.Tests` project. All projects target .NET 8; `global.json` permits a newer stable SDK via `latestMajor`. No dedicated `oms.Server` project or P1-M player implementation is implied by the planned contracts below.
+The build entry is `osu.Desktop.slnf`; core tests live in the separate `osu.Game.Tests` project. Product and test projects target .NET 8; the upstream template packaging project targets `netstandard2.1`. `global.json` permits a newer stable SDK via `latestMajor`. No dedicated `oms.Server` project or P1-M player implementation is implied by the planned contracts below.
 
 ---
 
@@ -351,7 +351,7 @@ NO PLAY → FAILED → ASSIST EASY CLEAR → EASY CLEAR → NORMAL CLEAR
 - EASY CLEAR = passed with EASY gauge
 - NORMAL/HARD/EX-HARD CLEAR = passed with corresponding gauge
 - HAZARD CLEAR = survived HAZARD gauge to end (no BAD/POOR, but GOOD is permitted — GOOD does not trigger HAZARD fail). Note: HAZARD CLEAR requires no BAD or POOR but allows GOOD, so it is strictly below FULL COMBO.
-- FULL COMBO = no GOOD/BAD/POOR throughout the chart
+- FULL COMBO = no GOOD/BAD/POOR/Empty Poor throughout the chart
 - PERFECT requires positive MAX EX-SCORE, EX-SCORE == MAX EX-SCORE and Empty Poor count == 0, subject to the clear condition
 - FULL COMBO / PERFECT use the active runtime long-note mode's scored points. `LN` only checks heads; `CN` / `HCN` require both head and tail to remain eligible. `HCN` body ticks can still fail gauge without adding separate combo points, so result persistence must confirm the run still satisfies the clear condition before awarding `FULL COMBO` or `PERFECT`.
 - Result-side clear-lamp / final-gauge / gauge-history reconstruction consumes the already-modded playable beatmap. Configure the gauge from that beatmap; do not reapply the beatmap-mod chain, which would repeat lane rearrangement or assist transformations.
@@ -624,14 +624,14 @@ Most community tables use a two-step fetch:
 - Restore seeded preset placeholders when removing an imported preset source
 - Expose `RefreshAllTables()` and `RefreshTable(id)` async methods
 - Share one manager instance between settings and first-run via `GetShared(storage, realmAccess)` — pass the injected game-wide `RealmAccess`; never construct a second `RealmAccess` for write-back (its ctor runs `cleanupPendingDeletions`, which would over-reach and race the global instance)
-- Rebuild persisted beatmap metadata after source mutations via the injected `RealmAccess`, then emit `TableDataChanged`. The write uses `BmsBeatmapMetadataData`, which **shares the single `BeatmapMetadata.RulesetData` column** with osu.Game's `BmsPersistedMetadataData` (converted star ratings) — both carry `[JsonExtensionData]` so neither write wipes the other's fields (prior bug: a star recompute wiped every chart's table entries → all Unrated; the reverse forced endless recompute). Carousel does NOT live-refresh on mutation (shallow `BeatmapSetInfo` subscription can't see deep `Metadata` writes) — mid-session table changes need a restart, startup is always correct. (A per-set `DifficultyTableRevision` bump to force re-detach was tried and reverted: multi-minute refresh storm at large library scale.)
+- Rebuild persisted beatmap metadata after source mutations via the injected `RealmAccess`, then emit `TableDataChanged`. The write uses `BmsBeatmapMetadataData`, which **shares the single `BeatmapMetadata.RulesetData` column** with osu.Game's `BmsPersistedMetadataData` (converted star ratings) — both carry `[JsonExtensionData]` so neither write wipes the other's fields (prior bug: a star recompute wiped every chart's table entries → all Unrated; the reverse forced endless recompute). Carousel does NOT live-refresh on mutation (shallow `BeatmapSetInfo` subscription can't see deep `Metadata` writes) — mid-session table changes require exiting/re-entering Song Select or restarting; startup reads the persisted metadata correctly. (A per-set `DifficultyTableRevision` bump to force re-detach was tried and reverted: multi-minute refresh storm at large library scale.)
 - `SetSourceEnabled` / `RemoveSource` expose async entry points so UI callers never run write-back on the update thread
 - Disabled tables are excluded from index rebuild and song select grouping
 
 ### 10.4 MD5 Matching And Persistence Pipeline
 
 **On beatmap import:**
-1. After `BmsArchiveReader` extracts the archive, compute MD5 of each `.bms` file
+1. `BmsFolderImporter` computes MD5 from the original bytes of each supported BMS chart file, for direct folder imports as well as archives extracted through `BmsArchiveReader`
 2. Store the lowercase MD5 in `BeatmapInfo.MD5Hash` (`BeatmapInfo.Hash` continues to hold the SHA-2 content hash used for duplicate detection)
 3. Query `BmsTableMd5Index` immediately — if a match exists, write `BmsDifficultyTableEntry` records to beatmap metadata and persist
 
@@ -639,7 +639,7 @@ Most community tables use a two-step fetch:
 1. Fetch new table JSON, parse into `List<BmsDifficultyTableEntry>`
 2. Build the current enabled MD5 lookup from cached source rows
 3. Diff the new lookup against the previous lookup to find affected MD5 values
-4. Batch-update persisted beatmap metadata for affected local BMS beatmaps (normalising `BeatmapInfo.MD5Hash` casing before matching) via the injected `RealmAccess`. The write preserves osu.Game's converted-star-rating fields in the shared `RulesetData` column via `[JsonExtensionData]`. Carousel reflects table changes on its next detach (i.e. on restart for mid-session changes; startup is always correct)
+4. Batch-update persisted beatmap metadata for affected local BMS beatmaps (normalising `BeatmapInfo.MD5Hash` casing before matching) via the injected `RealmAccess`. The write preserves osu.Game's converted-star-rating fields in the shared `RulesetData` column via `[JsonExtensionData]`. Mid-session carousel changes require exiting/re-entering Song Select or restarting; startup reads the persisted metadata correctly
 5. Rebuild the in-memory `BmsTableMd5Index`
 6. Emit `TableDataChanged` so consumers refresh from persisted metadata
 
@@ -724,11 +724,11 @@ The graph uses time as the horizontal axis and renders colored blocks representi
 
 **Visual encoding:**
 
-| Element | Color | Meaning |
+| Element | Presentation | Meaning |
 |---|---|---|
-| Normal notes | White | Standard single notes (non-scratch, non-LN) |
-| Scratch notes | Red | Notes classified as scratch by the converter (standard BMS channel 16/26) |
-| LN heads/bodies | Blue | Long note heads and hold bodies |
+| Normal notes | Normal-note palette / skin presentation | Standard single notes (non-scratch, non-LN) |
+| Scratch notes | Scratch palette / skin presentation | Notes classified as scratch by the converter (standard BMS channel 16/26) |
+| LN heads/bodies | Long-note palette / skin presentation | Long note heads and hold bodies |
 
 The graph calls `BmsNoteDistributionAnalyzer.Analyze(..., 1000, 1000)` for one-second buckets. Its displayed density uses weighted counts, including chord, scratch and LN contributions; it is not a raw note-count or star-rating axis. Bucket categories are exclusive, while whole-chart SCR/LN summaries may overlap.
 
@@ -750,7 +750,7 @@ When available, the same panel may also show compact chart metadata lines for:
 
 ### 11.3 Implementation Notes
 
-- `BmsNoteDistributionGraph` reads from the already-converted `IBeatmap` — no BMS re-parse needed
+- `BmsNoteDistributionGraph` reuses the working beatmap when it already contains `BmsHitObject`; otherwise `ResolveBeatmapForAnalysis` obtains the playable BMS conversion. A raw wrapper alone does not prove conversion has already happened
 - Uses `BmsNoteDistributionAnalyzer` (see Section 9.3) for bucket computation — do not reimplement the sliding-window logic
 - Read chart metadata from persisted beatmap metadata / ruleset data; do not re-open the source `.bms` file on selection just to populate summary lines
 - Computed once on chart selection, cached for the session
@@ -816,7 +816,7 @@ OMS Skin V1 lookup is tri-state:
 - `Inherit`: continue per-component through the fallback chain.
 - `Suppress`: intentionally omit an optional visual; do not re-inject the OMS visual behind it.
 
-The final Skin V1 gameplay-package `Inherit` order is shown below. The current runtime still terminates at programmatic `OmsSkin`; canonical-package takeover remains gated by parity, integrity, atomic recovery and real-device acceptance.
+The gameplay-package `Inherit` order is shown below. The runtime now terminates at the verified ordinary `oms-simple.osk` package. Installation failure requires explicit repair and blocks gameplay/preview; it must not silently restore programmatic `OmsSkin`. Retained legacy classes are historical/manual comparison material. Physical deletion and final product acceptance remain gated by [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md).
 
 1. User-selected external package.
 2. Ruleset adapter / compatibility layer.
@@ -824,7 +824,7 @@ The final Skin V1 gameplay-package `Inherit` order is shown below. The current r
 
 Additional rules:
 
-- This target order is not the complete provider hierarchy. Existing beatmap-local direct-visual compatibility and ruleset resource insertion retain their relative authority; `Suppress` does not pierce a higher-priority legacy provider by default. This does not expose beatmap-local ini/scene/script authoring: no public sidecar format is implemented.
+- This order is not the complete provider hierarchy. Existing beatmap-local direct-visual compatibility and ruleset resource insertion retain their relative authority; `Suppress` does not pierce a higher-priority legacy provider by default. This does not expose beatmap-local ini/scene/script authoring: no public sidecar format is implemented.
 - Missing components fall back **per component**, not by abandoning the entire OMS skin chain. Missing files never implicitly mean `Suppress`.
 - Lane/scratch readability, note/LN/mine, judgement position and active lane-cover geometry cannot be fully suppressed. Key animation, judgement display, combo, gauge visual, HUD, BGA frame and decorative effects may be explicitly suppressed.
 - BMS imported song folders are not treated as ad-hoc skin packages.
@@ -833,7 +833,7 @@ Additional rules:
 
 ### 13.3 Shared OMS Skin Architecture
 
-The shared gameplay runtime and thin ruleset adapters are already implemented; canonical packages remain the C7 target. The product layers are:
+The shared gameplay runtime, thin ruleset adapters and ordinary canonical package path are implemented. Package delivery does not establish visual acceptance; current product feedback and remaining gates belong to [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md). The product layers are:
 
 - **OMS global layer**: package host, shared infrastructure, layout metadata, global HUD shells, common typography/icon resources, and fallback discipline.
 - **OMS mania layer**: stage, column, key area, note, hold, hit target, bar line, hitburst, judgement/combo/HUD adapted to mania variants.
@@ -843,11 +843,11 @@ Shared means package structure, fallback infrastructure, and optional global UI 
 
 Existing implementation and remaining package boundaries:
 
-- Both rulesets use the shared `OmsSkinTransformer` base.
+- Both rulesets share the gameplay runtime through their package preparers and ruleset adapters. Ordinary packages use `BmsSkinTransformer` / `ManiaLegacySkinTransformer`; `OmsSkinTransformer` wraps retained programmatic `OmsSkin` instances only.
 - C3～C6 supply the neutral layout/ini/material/scene/event runtime, optional bounded script sandbox and whole-package preparation inside one current revision protocol. Script authorization and revocation must gate real callbacks and node writes, including paused hosts; no second publication or gameplay authority is introduced. The shared runtime must not depend on `BmsKeymode`, `ManiaAction` or concrete ruleset drawables. Current validation and campaign completion remain in [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md).
 - Existing mania and BMS adapters map gameplay state to neutral lane groups/roles/stable IDs and immutable events. Keep these production routes as the single authority.
-- A protected preview `OmsSkin`-style selection entry may exist only as a migration host while `oms-simple` is incomplete. It counts as skeleton progress and must not survive as theme-specific rendering below the final file fallback.
-- `ManiaRuleset.CreateSkinTransformer()` should continue migrating away from switching on osu!lazer-native built-in skin types as the final OMS product behavior. The explicit `OmsSkin` -> `ManiaOmsSkinTransformer` route already exists; it is transitional and does not establish canonical file fallback.
+- The protected default selection entry represents the verified ordinary `oms-simple` package. No theme-specific programmatic rendering may sit beneath that package; retained `OmsSkin` classes do not make a second product fallback.
+- `ManiaRuleset.CreateSkinTransformer()` routes ordinary canonical/user packages through `LegacySkin` compatibility. Its retained `OmsSkin` and upstream built-in type branches support legacy comparison/compatibility, not the installed default selection surface.
 - `BmsRuleset.CreateSkinTransformer()` should keep returning a ruleset-specific transformer, but fallback visuals must resolve from `oms-simple`, not private themed C# drawables.
 
 ### 13.4 Shared Visual Contract
@@ -968,7 +968,7 @@ Permitted during transition:
 - Minimal fake skins in tests
 - Temporary internal compatibility shims while mania and BMS migrate
 - Non-user-facing development references needed to keep the repo compiling during migration
-- The current programmatic `OmsSkin` only until `oms-simple` has parity, integrity verification, atomic recovery and real-device gates
+- Retained programmatic `OmsSkin` classes for historical/manual comparison until the remaining real-device gates permit physical deletion; they are no longer the installed product fallback
 
 Not permitted after Phase 1.1 completion:
 

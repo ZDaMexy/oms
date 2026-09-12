@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-12
+
+### 实际内容、文档与记忆对齐
+
+- 对照 `BmsBgaVideoCache.runTranscodeTask`/`cacheKey`、预加载、BGA viewport/player、滚动旁路及相关测试源码，确认单 content/decoder、负向滚动和逐谱人工门仍未闭合。
+- 就地更正 Phase 5.1 漏写 `transcode_version`、使用固定 `<dst>.tmp` 的旧合同；与当前唯一 GUID 临时文件、跨实例任务去重及 BGA 记忆保持一致，避免同份合同前后矛盾。
+- `BMS_GIMMICK_CHART_RENDERING` 已明确属于 2026-05-29 历史快照，旧“地雷未渲染/14K 中缝”等不改写成当前验收结果。本次只审查源码与文档，未运行产品测试/Release，未刷新人工日期。
+
 ## 2026-09-09
 
 ### 区分 BGA descriptor/scene 接线与单 content 会话

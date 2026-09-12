@@ -1,6 +1,6 @@
 # P1-M 技术约束：内置音乐播放器
 
-> 最后更新：2026-09-09（更正BMS试听输入基线；播放器仍未实现）
+> 最后更新：2026-09-12（对齐 core 播放源识别边界；播放器仍未实现）
 > 本文件记录 `P1-M` 的硬约束。若实现与本文冲突，先修正其一再继续开发。规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，现状见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)。
 
 ## 红线（最高优先级，贯穿全线）
@@ -27,7 +27,7 @@
 
 ## 播放源（mania/bms/both）约束
 
-1. 过滤谓词按 `BeatmapSetInfo.Beatmaps` 的 `Ruleset.ShortName` 判定（bms = `BmsRuleset.SHORT_NAME` 常量，非硬编码字符串字面量散落）。
+1. 过滤谓词按 `BeatmapSetInfo.Beatmaps` 的 `Ruleset.ShortName` 判定；core 复用 `BmsStarRatingResolver.RulesetShortName` / `IsBmsBeatmap`，BMS 工程内部才用 `BmsRuleset.SHORT_NAME`。不得为使用常量让 `osu.Game` 反向引用 BMS 工程，也不散落另一套字符串识别。
 2. bms源池受现有AudioFile过滤约束：有效显式 `#PREVIEW` 才入池，无preview的纯键音谱排除；不因文件大小、BGM或目录里有其它音频而自动认作完整音乐。不得绕过过滤播放静音虚拟轨，也不把本线预留当作已实现keysound整曲混音。
 3. 播放源是持久化设置；切换源须即时重建可播放池且不打断当前正在播放的曲（除非当前曲已不在新池内）。
 

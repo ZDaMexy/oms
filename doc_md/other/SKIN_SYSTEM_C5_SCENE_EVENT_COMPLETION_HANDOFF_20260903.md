@@ -1,6 +1,6 @@
 # Skin V1 C5 scene/event 完成交接（2026-09-03）
 
-> 本交接只记录 C5 已完成的真实代码、production caller、验证与终审。当前权威燃尽为 **`5/7 closed，C6 active`**；不是线性百分比。全局事实见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，执行门见 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)，稳定合同见 [P1-A TECHNICAL_CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
+> 本交接只记录 C5 已完成的真实代码、production caller、验证与终审。交接当时的燃尽为 **`5/7 closed，C6 active`**；不是线性百分比。全局事实见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，执行门见 [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md)，稳定合同见 [P1-A TECHNICAL_CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
 
 ## 1. 退出结论
 

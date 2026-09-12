@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-12
+
+### parser/converter、格式参考与诊断记忆对齐
+
+- 审查 keymode authority、raw/typed/control-flow、LNOBJ/LNTYPE、lane timeline/mod 投影、转谱对象与 mania nested-aware autoplay/difficulty 消费及测试源码，未发现需要改写当前已完成/未完成判定的证据。
+- 格式参考澄清 5K/7K/14K 的 scratch channel 约定不能套到 9K；典型 channel 家族表不充当 OMS sparse 检测算法或 10K 支持承诺。现行 parser-owned resolution 与终端用户 override 入口缺口仍以本线 STATUS 为准。
+- LNOBJ、重排及 mania autoplay 记忆补 owning 合同/状态链接，保留历史诊断；本次仅源码与文档审查，未运行产品测试/Release、未更新外部格式来源或人工验收日期。
+
 ## 2026-09-09
 
 ### parser/converter 实际合同与跨线文档复核

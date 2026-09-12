@@ -1,6 +1,6 @@
 # P1-M 开发计划：内置音乐播放器
 
-> 最后更新：2026-09-09（更正现行BMS音频输入；产品规划未开工）
+> 最后更新：2026-09-12（对齐既定展开壳体与 core 依赖边界；产品规划未开工）
 > 全局计划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。架构审查结论见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 > **红线：① 不得改坏 song-select 试听链路；② 不得破坏 gameplay 全局音轨控制闸 `AllowTrackControl`；③ 离线优先——播放器只用本地音轨，绝不接在线试听。**
 
@@ -68,7 +68,7 @@
 - 持久化：scalar（模式 / 源 / shuffle）走 [OsuConfigManager](../../../osu.Game/Configuration/OsuConfigManager.cs) 新增 `OsuSetting`；队列 / 位置走新 realm 状态模型。
 
 ### Phase 2 — 展开视图（M4 展示）+ 体验（M3）
-- 展开视图 = 新建 `FullscreenOverlay<MusicPlayerHeader>` 子类（或同款式自建 `WaveOverlayContainer`）；mini [NowPlayingOverlay](../../../osu.Game/Overlays/NowPlayingOverlay.cs) 加「展开」按钮 toggle 之，两者共享 PlayQueue / MusicController 状态。决定是否纳入 `OsuGame.informationalOverlays` 单窗互斥。
+- 展开视图 = 按已定方案新建 `FullscreenOverlay<MusicPlayerHeader>` 子类；mini [NowPlayingOverlay](../../../osu.Game/Overlays/NowPlayingOverlay.cs) 加「展开」按钮 toggle 之，两者共享 PlayQueue / MusicController 状态。决定 music header 细节及是否纳入 `OsuGame.informationalOverlays` 单窗互斥。
 - 大封面 + 完整元数据（BPM / 时长 / 谱师 / star / key count，复用 `BeatmapLocalMetadataDisplayResolver`）。
 - M3：内联音量、可视化（复用 [LogoVisualisation](../../../osu.Game/Screens/Menu/LogoVisualisation.cs) 频谱）、倍速（track tempo 调整）、A-B 循环、淡入淡出。
 - 队列面板 / 搜索排序 / 源选择器都进展开视图。

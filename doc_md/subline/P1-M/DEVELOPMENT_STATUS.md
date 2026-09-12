@@ -1,6 +1,6 @@
 # P1-M 开发进度：内置音乐播放器
 
-> 最后更新：2026-09-09（production/测试源复核；尚未开工）
+> 最后更新：2026-09-12（源码与规划/记忆对齐；尚未开工，未新增运行验收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 
 ## 当前阶段
@@ -25,13 +25,13 @@
 - ✅ [BeatmapCollection](../../../osu.Game/Collections/BeatmapCollection.cs)（realm）→ M2 收藏/自建歌单可复用。
 - ✅ [LogoVisualisation](../../../osu.Game/Screens/Menu/LogoVisualisation.cs)（amplitude 频谱）→ M3 可视化可复用。
 - ✅ [FullscreenOverlay](../../../osu.Game/Overlays/FullscreenOverlay.cs) + [ToolbarOverlayToggleButton](../../../osu.Game/Overlays/Toolbar/ToolbarOverlayToggleButton.cs)（`StateContainer` 一键接管 `ToggleVisibility`/`State`/`INamedOverlayComponent`）→ 展开视图壳体 + 顶栏 toggle 可复用。
-- ✅ BMS `ShortName` 常量（`BmsRuleset.SHORT_NAME`）→ 播放源过滤谓词可行。
+- ✅ core 已有 `BmsStarRatingResolver.RulesetShortName` / `IsBmsBeatmap` → 播放源过滤可在 core 内复用，不需要反向引用 BMS 工程的 `BmsRuleset.SHORT_NAME`。
 - ⚠️ 无任何 SMTC / 媒体键集成 → M6 是纯净新增（仅 `osu.Desktop`）。
 - ⚠️ BGA 在播放器（M4）跨项目：osu.Game 不能引用 Bms 项目，需核心接口 + BMS 侧注册（Phase 4 spike）。
 
 ## 待决点
 
-1. `FullscreenOverlay<T>` 子类化（带极简 music header）vs 同款式自建 `WaveOverlayContainer`（避开在线味 header / `IAPIProvider` 依赖）。
+1. 展开视图复用 `FullscreenOverlay<T>` 壳体已由用户决定；待定的是 music header 的具体内容与排布。现有 `IAPIProvider` 可在离线宿主注入，不据此重新打开壳体选型。
 2. 展开播放器是否纳入 `OsuGame.informationalOverlays` 单窗互斥。
 3. 持久化落点：scalar→config，队列/历史→新 realm 模型；歌单复用 collection 的边界。
 4. playlist 点选是否收口到 PlayQueue（统一 next/prev 语义 vs 保留快捷直跳）。

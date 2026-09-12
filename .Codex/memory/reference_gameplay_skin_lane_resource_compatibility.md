@@ -13,7 +13,7 @@ metadata:
 ## 查错贴图先看 source 与 index
 
 - legacy closed field 是 note、LN head/body/tail、key up/down；它是 compatibility 输入，不是第二张 public slot 表。Declared 不等于已验证 Provide，CLR bridge 也不是作者/plugin/script ABI。
-- BMS 顺序为 5K：Bms→Keys6→Keys5；7K：Bms→Keys8→Keys7；9K：Bms→Keys9 且不重复；14K：Bms→Keys16→同一 Keys8 分投两 deck→Keys14。真实 ruleset/protected/canonical/programmatic 层由 resolver 提供，旧伪 canonical marker/provider 已删除。
+- BMS 顺序为 5K：Bms→Keys6→Keys5；7K：Bms→Keys8→Keys7；9K：Bms→Keys9 且不重复；14K：Bms→Keys16→同一 Keys8 分投两 deck→Keys14。当前 ruleset/canonical 层由 resolver 提供，旧伪 canonical marker/provider 已删除；programmatic 仅作历史/隔离对照，不回到产品缺件链。
 - P2/CenterRightScratch 的 full bucket 用 GlobalVisualIndex；14K deck 用 GroupLocalVisualIndex。同一个 Keys8 投影两次，因为 legacy decoder 不保留第二个 duplicate Keys8；不能拿候选序号重建 topology。
 - 9K legacy raw 0..8 与 public canonical 1..9 只经 `bms-gameplay-skin-nine-key-index.v1` 双向映射。未知版本拒绝，不能同时静默接受两套 alias：重叠的 1..8 指向不同 lane。
 - source-aware reference 要区分 source、Keys、stable lane、field 与 raw name。同名资源在不同 bucket/provider 可不同，不能跨 authority 仅按字符串缓存。

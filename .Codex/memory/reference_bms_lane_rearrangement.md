@@ -8,6 +8,8 @@ metadata:
 
 # BMS lane 重排召回
 
+权威合同：[P1-K CONSTRAINTS](../../doc_md/subline/P1-K/TECHNICAL_CONSTRAINTS.md)；当前解析/转换状态见 [P1-K STATUS](../../doc_md/subline/P1-K/DEVELOPMENT_STATUS.md)，发声与人工门见 [P1-J STATUS](../../doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)。
+
 ## 单次应用合同
 
 Mirror/Random 实现 `IApplicableToBeatmap`，由 `GetPlayableBeatmap` 应用一次。`BmsBeatmapModApplicator` 不得再次应用；playable 会被 DrawableRuleset/ScoreProcessor 复用，重复调用会组合成 P³。Mirror 因 reverse³=reverse 会掩盖 bug，custom 3-cycle 才能暴露。

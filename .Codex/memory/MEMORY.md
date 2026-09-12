@@ -5,10 +5,10 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — 范围、数据根与便携标记。
-- [文档治理](project_oms_docs_governance.md) — 文档失真、标题与检查器误判。
+- [文档治理](project_oms_docs_governance.md) — 文档失真、旧路由/多语说明漏同步、历史授权误用与检查器误判。
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 展示层级、返回条与转谱显示。
-- [内置音乐播放器](project_oms_music_player.md) — 播放器产品决定与预览音频边界。
+- [内置音乐播放器](project_oms_music_player.md) — 已定展开壳体、core 依赖方向与预览音频边界。
 
 ## 皮肤恢复与存储
 
@@ -45,11 +45,11 @@
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md)
 - [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — lane-count 上界、parser keymode 与末端发声。
-- [LNOBJ 解码](reference_bms_lnobj_decoding.md)
-- [lane 重排](reference_bms_lane_rearrangement.md)
+- [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
+- [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)
 - [判定 parity](reference_bms_judgement_parity.md)
-- [mania autoplay HoldNote 地雷](reference_mania_autoplay_holdnote.md)
+- [mania autoplay HoldNote 地雷](reference_mania_autoplay_holdnote.md) — nested judgement 过滤与 P1-K 修复历史。
 
 ## 皮肤与视觉参考
 

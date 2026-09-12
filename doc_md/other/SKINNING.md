@@ -6,11 +6,11 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-09-09）**：选中的用户包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录。三源共享版本化 public gameplay-skin catalog、tokenizer/codec、`Provide/Inherit/Suppress` resolver，以及同一 package/layout/material/scene/script publication。C5 declarative scene、只读 Snapshot/Reset 和全部适用 slot host 继续生效：BMS 28 项均有 production route，Mania 23 项可用，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。native `[Bms] NoteImage*` 静态图与固定 60 FPS 连续编号帧兼容保持可用。
+> **当前作者能力（2026-09-12 核对）**：选中的用户包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录。三源共享版本化 public gameplay-skin catalog、tokenizer/codec、`Provide/Inherit/Suppress` resolver，以及同一 package/layout/material/scene/script publication。C5 declarative scene、只读 Snapshot/Reset 和全部适用 slot host 继续生效：BMS 28 项均有 production route，Mania 23 项可用，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。native `[Bms] NoteImage*` 静态图与固定 60 FPS 连续编号帧兼容保持可用。
 >
 > **可选脚本与整包准备**：C6 已实现无需 DLL 的 V1 数值脚本、compiler/verifier、CLI、Settings 授权/拒绝/撤销与 profiler。真实 BMS/mania host 读取引擎 snapshot/event，并驱动获准的 scene 节点；没有脚本或拒绝授权时，普通 note/key/judgement 仍正常显示。ini、manifest、scene、script 和全部素材沿用同一 C2 prepared publication 与 owner/lease/detach/retire。Settings → Skin 的 `Reload current skin` 仍是三源唯一手动 reload，gameplay/preview 在读取来源前拒绝；授权撤销不触发 reload，暂停时也会停用旧脚本。作者入口见[脚本说明与工具链](SKIN_SCRIPT_V1_AUTHORING.md)及[Momentum 候选源目录](skin-c6-candidate/README.md)。
 >
-> **状态与验收**：campaign 状态只以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准，本轮证据见 [C7 验证报告](SKIN_SYSTEM_C7_VALIDATION_20260909.md)。完整双包、可编辑源文件和独立制作工具见[作者套件](../../skin-authoring/README.md)。正式保底外观来自经过安装校验的普通简洁包；旧 `OmsSkin` 源码仅保留旧恢复证据与人工对照。`V-001`～`V-004` 仍为 **0/4 未签收**，新增可见结果见[集中验收清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不能据脚本可用宣称 Skin V1 或 release 完成。新 beatmap-local 作者格式继续不可达，既有只读谱面视觉兼容不受影响。其他合同见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
+> **状态与验收**：campaign 状态只以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准，本轮证据见 [C7 验证报告](SKIN_SYSTEM_C7_VALIDATION_20260909.md)。完整双包、可编辑源文件和独立制作工具见[作者套件](../../skin-authoring/README.md)。正式保底外观来自经过安装校验的普通简洁包；旧 `OmsSkin` 源码仅保留旧恢复证据与人工对照。星轨的动画、美术安排与精细度已获用户总体否定，当前保留为待改对照，不能作为已通过的成品范例；静线也未获整体观感签收。两款迭代按用户要求暂停，准确反馈与恢复条件见 P1-A STATUS。`V-001`～`V-004` 仍为 **0/4 未签收**，新增可见结果见[集中验收清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不能据脚本可用宣称 Skin V1 或 release 完成。新 beatmap-local 作者格式继续不可达，既有只读谱面视觉兼容不受影响。其他合同见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
 >
 > **受管目录删除边界**：current目标先发布fallback并等待旧revision detach；该阶段失败会恢复或保持原皮肤，且尚未创建journal或触碰目录。进入C1 journal/首个物理步骤后才只由durable recovery收口。Windows目录handle不锁住namespace，final preflight后的竞态新增不会被删除，但可能在部分目标节点已经清理后令操作冻结；这不是all-or-nothing全树删除。
 
@@ -169,7 +169,7 @@ public section区分大小写，注释为引号外的`#`或`;`；resource值必�
 
 ### 3.2 `[Mania]` 共同逻辑的 V1 兼容映射
 
-`BmsLegacySkin`保留`[Mania]`与`[Bms]`兼容数据；两种legacy adapter现在消费public codec保留的同一immutable token stream，不重开`skin.ini`或复制tokenizer。BMS Note/LN与mania Note/Hold/KeyVisual的production material resolver会在public Common层之后按下表消费legacy候选；真实`oms-simple`仍未装载，当前末端仍是受保护程序化fallback。
+`BmsLegacySkin`保留`[Mania]`与`[Bms]`兼容数据；两种legacy adapter现在消费public codec保留的同一immutable token stream，不重开`skin.ini`或复制tokenizer。BMS Note/LN与mania Note/Hold/KeyVisual的production material resolver会在public Common层之后按下表消费legacy候选；当前末端为经安装校验的普通`oms-simple.osk`；程序化`OmsSkin`不再承担产品回退。
 
 gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按全部视觉列数的`[Mania]` bucket → 必要的deck/key-only bucket → ruleset/canonical层。该candidate、lane resource provenance与capability验证已进入BMS production material resolver；不存在第二张slot ID表或renderer内的二次lookup。最后的必要部件由经过安装校验的普通`oms-simple`包补齐。
 
@@ -226,7 +226,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 | `NoteImage{lane}` | 逐道普通音符（如 `NoteImageS` / `NoteImage1`） | **必备**（缺失/损坏时沿正常层次由经过校验的 `oms-simple` 补齐） |
 | `NoteImage{lane}H` | 长条头 | **必备**（当前选中的用户 BMS 包支持静态图/连续编号帧；坏声明回落到可见 rescue） |
 | `NoteImage{lane}L` | 长条身 | **必备**（当前选中的用户 BMS 包支持静态图/连续编号帧；素材与安全解析后的 `LongNoteBodyWidth` 同 revision 发布，坏声明回落到可见 rescue） |
-| `NoteImage{lane}T` | 长条尾 | 推荐（当前选中的用户 BMS 包支持静态图/连续编号帧；未声明/坏声明最终为透明迁移 fallback，但不是 `Suppress`） |
+| `NoteImage{lane}T` | 长条尾 | 推荐（当前选中的用户 BMS 包支持静态图/连续编号帧；未声明/坏声明沿下层完整组件回落，当前末端为简洁包的公开素材；透明尾部仅属旧迁移对照，不是 `Suppress`） |
 | `NoteBodyStyle` | 长条身样式（stretch/repeat） | 可选 |
 | `WidthForNoteHeightScale` | 音符高度按宽缩放 | 可选 |
 
@@ -393,7 +393,7 @@ mania 的上限审查给出的结论不是“它已有通用脚本”，而是�
 | Judgement | legacy 图片/帧，播放逻辑固定 C# | BMS/mania judgement display 由typed HUD host与scene binding消费 | optional result variant/animation；neutral result key |
 | Combo / gauge / HUD | combo/HUD 走既有固定组件 | BMS/mania typed HUD host支持combo/gauge/text与只读binding | optional typed binding；可完整 suppress |
 | Lane cover | mania 兼容面有限 | F1 颜色/纹理/几何子集 | engine-owned cover geometry + scene skin |
-| Scratch / DP | 无 BMS role | 有 S/S2 lane topology；无完整转盘演出作者面 | stable lane role、方向/值/速度 capability |
+| Scratch / DP | 无 BMS role | 有 S/S2 lane topology 与适用的 turntable/laser scene host；不等于完整 IIDX 转盘玩法或文件格式兼容 | stable lane role、方向/值/速度 capability |
 | BGA | 无 | engine timeline 已可播；当前 display 接 raw timeline、14K 会建多 player | 单一 engine content authority + 只读 viewport/proxy |
 | Barline / timing | legacy barline | F1 barline；STOP/scroll 为 ruleset truth | timing event + pooled visual，不得改 timing |
 | 任意装饰 | 同包声明式 scene 与获准数值脚本 | 同包声明式 scene 与获准数值脚本 | global scene、template、binding、state-machine；有状态组合可使用 C6 脚本 |
@@ -404,14 +404,14 @@ V1 不预先禁止 character、立绘或风味 HUD；只要它们是可选视觉
 
 ## 附录 B：必备元素清单
 
-下列才是不可 suppress 的最小可玩核心；运行链必须始终有可玩 rescue。当前由程序化 `OmsSkin` 暂代，V1 最终必须由文件型 canonical `oms-simple.osk` 提供：
+下列才是不可 suppress 的最小可玩核心；运行链必须始终有可玩 rescue。当前由经安装校验的文件型 canonical `oms-simple.osk` 提供；旧程序化 `OmsSkin` 仅保留历史证据与人工对照：
 
 - lane/scratch 的边界和角色可辨识；
 - 普通音符、长条的必要可读部分与 mine；
 - 判定位置；
 - 当 lane cover 玩法启用时，真实遮挡范围与可调状态。
 
-public catalog已冻结按键动画、判定**显示**、combo、gauge **视觉**、数值HUD、BGA frame、stage/角色/爆炸等可选slot及其`Suppress`资格；C5已将全部适用slot接入production scene/event host，Mania的五个版本化NotApplicable仍按ruleset能力明确排除。它们可`Inherit`获得末端表现或由作者显式`Suppress`；C7才由真实`oms-simple`承担canonical结果。
+public catalog已冻结按键动画、判定**显示**、combo、gauge **视觉**、数值HUD、BGA frame、stage/角色/爆炸等可选slot及其`Suppress`资格；C5已将全部适用slot接入production scene/event host，Mania的五个版本化NotApplicable仍按ruleset能力明确排除。符合catalog资格的可选slot可`Inherit`获得末端表现或由作者显式`Suppress`；当前由真实`oms-simple`承担canonical结果；安装原件损坏必须修复安装，不能改用程序化主题。
 
 ---
 

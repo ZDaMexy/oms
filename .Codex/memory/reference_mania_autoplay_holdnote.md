@@ -8,6 +8,8 @@ metadata:
 
 # Mania HoldNote nested judgement 地雷
 
+权威合同：[P1-K CONSTRAINTS 的 K9/K12](../../doc_md/subline/P1-K/TECHNICAL_CONSTRAINTS.md)；当前状态见 [P1-K STATUS](../../doc_md/subline/P1-K/DEVELOPMENT_STATUS.md)，修复历史查 [P1-K CHANGELOG](../../doc_md/subline/P1-K/CHANGELOG.md) 2026-06-01/2026-06-23。
+
 top-level `HoldNote.CreateJudgement()` 是 `IgnoreJudgement`，combo 位于 nested head/tail。任何只按 top-level `MaxResult.AffectsCombo()` 过滤的逻辑都会删除全部 HoldNote，同时原生 mania 与 BMS→mania 都受影响。
 
 正确判据：对象自身 affects combo，或任一 nested judgement affects combo。sample-only BGM/scratch 自身 ignore 且无 nested，仍会被排除。

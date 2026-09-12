@@ -46,7 +46,7 @@ OMS starts from [osu!lazer](https://github.com/ppy/osu), removes osu!, Taiko and
 
 Download the latest portable full package `oms_YYYYMMDD.zip` from [GitHub Releases](https://github.com/ZDaMexy/oms/releases), extract it, and run directly — no installation required.
 
-To update, download the new package and overwrite the old directory, keeping `portable.ini`, the `data/` folder (in portable mode) and the `storage.ini` of any custom data root. In-game online auto-update is disabled by default.
+To update, close the game, extract the full new package into a separate directory, then run its `Update-OMS.ps1` and specify the existing installation directory. The updater preserves the existing portable/non-portable mode, user data and custom storage location, and retains the replaced program files. See the [release guide](doc_md/other/RELEASE.md) for details. In-game online auto-update is disabled by default.
 
 ## Usage
 
@@ -101,7 +101,7 @@ Repository navigation and the "code changes must update the docs" discipline are
 
 ## Project status
 
-OMS is wrapping up **Phase 1** (the local BMS / mania core flow), currently working through the skinning-system effort and input-hardware acceptance. The online-related Phase 3 features stay frozen until then. The latest progress is authoritative in [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md).
+OMS is in the closing work of **Phase 1.x** (local BMS / mania and skinning). Both “静线” (oms-simple) and “星轨” (oms-complex) have importable BMS / mania packages, with editable templates and validation/packaging tools in the [authoring kit](skin-authoring/README.md). 静线 remains the default and fallback. The user has rejected 星轨's overall visual experience, and revisions to both packages are paused. Visual, hardware and long-session acceptance remain incomplete; Skin V1 and the overall release are not complete. Phase 3 online features remain frozen. See [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) for authoritative progress and acceptance status.
 
 ## Contributing
 
