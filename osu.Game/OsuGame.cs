@@ -1122,6 +1122,8 @@ namespace osu.Game
 
             // Host bootstrap loads dependencies before the update thread starts. Restore the saved selection
             // here so publication runs on that thread, before constructing the initial screen graph.
+            if (Guid.TryParse(configSkin.Value, out Guid configuredSkin) && configuredSkin == SkinInfo.OMS_COMPLEX_SKIN)
+                configSkin.Value = SkinInfo.OMS_SKIN.ToString();
             SkinManager.SetSkinFromConfiguration(configSkin.Value);
 
             var languages = Enum.GetValues<Language>();

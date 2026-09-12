@@ -102,7 +102,6 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         public void TestOmsBuiltInSkinIsRegisteredAndProvidesResources()
         {
             Skin skin = null!;
-            Skin complex = null!;
             int selectableProtectedSkinCount = 0;
 
             AddStep("load OMS skin", () =>
@@ -114,17 +113,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
                 var skinInfo = skins.Single(s => s.ID == SkinInfo.OMS_SKIN);
                 skin = skinInfo.PerformRead(skinManager.GetSkin);
-                complex = skins.Single(s => s.ID == SkinInfo.OMS_COMPLEX_SKIN).PerformRead(skinManager.GetSkin);
             });
 
             AddAssert("is OMS skin", () => CanonicalSkinPackage.IsCanonicalSkin(skin) && ReferenceEquals(skin, skinManager.DefaultOmsSkin));
             AddAssert("is protected", () => skin.SkinInfo.PerformRead(s => s.Protected));
-            AddAssert("both installation skins are selectable without import", () => selectableProtectedSkinCount == 2);
-            AddAssert("complex is a protected installation skin without fallback authority", () =>
-                CanonicalSkinPackage.IsBuiltInSkin(complex) && !CanonicalSkinPackage.IsCanonicalSkin(complex)
-                && complex.SkinInfo.PerformRead(info => info.Protected));
-            AddAssert("complex contains ordinary authored notes", () => complex.GameplaySkinDocument.Sections.SelectMany(section => section.Entries).Any(entry =>
-                entry.Descriptor == GameplaySkinSlotCatalog.Note && entry.Operation == GameplaySkinDocumentOperation.Provide));
+            AddAssert("simple is the only installation skin selectable without import", () => selectableProtectedSkinCount == 1);
             AddAssert("has the actual package stage texture", () => canonicalLegacyTexture(LegacyManiaSkinConfigurationLookups.LeftStageImage, null, 4) != null);
             AddAssert("has the actual package key texture", () => canonicalLegacyTexture(LegacyManiaSkinConfigurationLookups.KeyImage, 0, 4) != null);
             AddAssert("has ordinary authored gameplay declarations", () => skin.GameplaySkinDocument.Sections.SelectMany(section => section.Entries).Any(entry =>
@@ -152,36 +145,37 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("query usable skins", () => skins = skinManager.GetAllUsableSkins().ToArray());
 
             AddAssert("OMS stays first in usable list", () => skins.First().ID == SkinInfo.OMS_SKIN);
-            AddAssert("both built-ins precede user skins in name order", () => skins.Select(s => s.ID).SequenceEqual(new[] { SkinInfo.OMS_SKIN, SkinInfo.OMS_COMPLEX_SKIN, alphaSkin.ID, zuluSkin.ID }));
+            AddAssert("simple precedes user skins in name order", () => skins.Select(s => s.ID).SequenceEqual(new[] { SkinInfo.OMS_SKIN, alphaSkin.ID, zuluSkin.ID }));
             AddAssert("upstream protected triangles skin is not exposed", () => skins.All(s => s.ID != TrianglesSkin.CreateInfo().ID));
-            AddAssert("both built-ins remain protected in usable list", () => skins.Count(s => s.PerformRead(info => info.Protected)) == 2);
+            AddAssert("simple is the only protected skin in usable list", () => skins.Count(s => s.PerformRead(info => info.Protected)) == 1);
 
             AddStep("clear user skins", removeAllUserSkins);
         }
 
         [Test]
-        public void TestRandomSkinAlternatesBuiltInsWithoutUserSkins()
+        public void TestRandomSkinKeepsSimpleWithoutUserSkins()
         {
             AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
-            AddStep("select random skin", () => skinManager.SelectRandomSkin());
-            AddUntilStep("random chooses the other installed skin without import", () => skinManager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_COMPLEX_SKIN);
-            AddAssert("complex is built-in but not fallback", () => CanonicalSkinPackage.IsBuiltInSkin(skinManager.CurrentSkin.Value)
-                && !CanonicalSkinPackage.IsCanonicalSkin(skinManager.CurrentSkin.Value));
-            AddStep("select random skin again", () => skinManager.SelectRandomSkin());
-            AddUntilStep("random returns to the other installed skin", () => ReferenceEquals(skinManager.CurrentSkin.Value, skinManager.DefaultOmsSkin));
+            for (int index = 0; index < 2; index++)
+            {
+                AddStep($"select random skin {index}", () => skinManager.SelectRandomSkin());
+                AddAssert($"random retains simple {index}", () => ReferenceEquals(skinManager.CurrentSkin.Value, skinManager.DefaultOmsSkin)
+                    && skinManager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                    && CanonicalSkinPackage.IsCanonicalSkin(skinManager.CurrentSkin.Value));
+            }
         }
 
         [Test]
-        public void TestRandomSkinChoosesAnotherBuiltInOrUserSkin()
+        public void TestRandomSkinAlternatesSimpleAndUserSkin()
         {
             Live<SkinInfo> userSkin = null!;
             Guid previous = Guid.Empty;
             Guid[] eligible = Array.Empty<Guid>();
 
             addImportUserSkin("Only User Skin", imported => userSkin = imported);
-            AddStep("capture selectable skins", () => eligible = new[] { SkinInfo.OMS_SKIN, SkinInfo.OMS_COMPLEX_SKIN, userSkin.ID });
+            AddStep("capture selectable skins", () => eligible = new[] { SkinInfo.OMS_SKIN, userSkin.ID });
 
-            for (int index = 0; index < 3; index++)
+            for (int index = 0; index < 2; index++)
             {
                 int selectionIndex = index;
                 AddStep($"select starting skin {index}", () => skinManager.SetSkinFromConfiguration(eligible[selectionIndex].ToString()));
@@ -192,7 +186,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     skinManager.SelectRandomSkin();
                 });
                 AddUntilStep($"random selection excludes current skin {index}", () => skinManager.CurrentSkin.Value.SkinInfo.ID != previous);
-                AddAssert($"random stays within built-ins and user skin {index}", () => eligible.Contains(skinManager.CurrentSkin.Value.SkinInfo.ID)
+                AddAssert($"random stays within simple and user skin {index}", () => eligible.Contains(skinManager.CurrentSkin.Value.SkinInfo.ID)
                     && skinManager.CurrentSkinInfo.Value.ID == skinManager.CurrentSkin.Value.SkinInfo.ID);
             }
 
@@ -246,15 +240,14 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
             AddStep("set current skin to OMS", () => skinManager.CurrentSkinInfo.Value = skinManager.DefaultOmsSkin.SkinInfo);
             AddStep("select next skin", () => skinManager.SelectNextSkin());
-            AddUntilStep("next selects installed complex without import", () => skinManager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_COMPLEX_SKIN);
-            AddStep("select next after complex", () => skinManager.SelectNextSkin());
             AddUntilStep("next selects first user skin", () => skinManager.CurrentSkin.Value.SkinInfo.ID == alphaSkin.ID);
 
             AddStep("select next skin again", () => skinManager.SelectNextSkin());
             AddUntilStep("next selects second user skin", () => skinManager.CurrentSkin.Value.SkinInfo.ID == zuluSkin.ID);
 
             AddStep("select next skin third time", () => skinManager.SelectNextSkin());
-            AddAssert("next wraps back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN);
+            AddUntilStep("next wraps back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && ReferenceEquals(skinManager.CurrentSkin.Value, skinManager.DefaultOmsSkin));
 
             AddStep("clear user skins", removeAllUserSkins);
         }
@@ -276,9 +269,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddUntilStep("previous selects first user skin", () => skinManager.CurrentSkin.Value.SkinInfo.ID == alphaSkin.ID);
 
             AddStep("select previous skin third time", () => skinManager.SelectPreviousSkin());
-            AddUntilStep("previous selects installed complex without import", () => skinManager.CurrentSkin.Value.SkinInfo.ID == SkinInfo.OMS_COMPLEX_SKIN);
-            AddStep("select previous after complex", () => skinManager.SelectPreviousSkin());
-            AddAssert("previous wraps back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN);
+            AddUntilStep("previous wraps back to OMS", () => skinManager.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && ReferenceEquals(skinManager.CurrentSkin.Value, skinManager.DefaultOmsSkin));
 
             AddStep("clear user skins", removeAllUserSkins);
         }

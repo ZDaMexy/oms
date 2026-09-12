@@ -16,11 +16,11 @@ namespace osu.Game.Tests.Skins
     {
         [TestCase(false)]
         [TestCase(true)]
-        public async Task TestConfiguredBuiltInSkinDuringHostBootstrap(bool complex)
+        public async Task TestSimpleOrRetiredComplexConfigurationBootstrapsIntoSimple(bool retiredComplex)
         {
-            Guid selected = complex ? SkinInfo.OMS_COMPLEX_SKIN : SkinInfo.OMS_SKIN;
+            Guid selected = retiredComplex ? SkinInfo.OMS_COMPLEX_SKIN : SkinInfo.OMS_SKIN;
             using var host = new ConfiguredHost(selected);
-            using var game = new ColdStartGame(selected);
+            using var game = new ColdStartGame();
             await Task.Factory.StartNew(() => host.Run(game), TaskCreationOptions.LongRunning)
                       .WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
             Assert.That(game.SelectionRestored, Is.True);
@@ -46,14 +46,11 @@ namespace osu.Game.Tests.Skins
 
         private partial class ColdStartGame : OsuGameTestScene.TestOsuGame
         {
-            private readonly Guid selected;
-
             public bool SelectionRestored { get; private set; }
 
-            public ColdStartGame(Guid selected)
+            public ColdStartGame()
                 : base(null!, new DummyAPIAccess())
             {
-                this.selected = selected;
             }
 
             protected override void LoadComplete()
@@ -62,9 +59,9 @@ namespace osu.Game.Tests.Skins
                 Schedule(() =>
                 {
                     var manager = Dependencies.Get<SkinManager>();
-                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(selected));
-                    Assert.That(manager.CurrentRevision.RecordId, Is.EqualTo(selected));
-                    Assert.That(LocalConfig.Get<string>(OsuSetting.Skin), Is.EqualTo(selected.ToString()));
+                    Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(manager.CurrentRevision.RecordId, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(LocalConfig.Get<string>(OsuSetting.Skin), Is.EqualTo(SkinInfo.OMS_SKIN.ToString()));
                     SelectionRestored = true;
                     Host.Exit();
                 });

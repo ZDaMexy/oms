@@ -104,8 +104,6 @@ namespace osu.Game.Skinning
         /// </summary>
         public Skin DefaultOmsSkin { get; }
 
-        public Skin BuiltInComplexSkin { get; }
-
         private CanonicalSkinInstallationFailure canonicalInstallationFailure;
 
         public bool IsGameplaySkinInstallationAvailable => canonicalInstallationFailure == CanonicalSkinInstallationFailure.None
@@ -425,15 +423,11 @@ namespace osu.Game.Skinning
             // This empty instance permits the settings/repair surface to initialise. It has no embedded theme,
             // immutable package or gameplay authority; both player and preview admission reject this state.
             DefaultOmsSkin = canonical.Skin ?? new LegacySkin(CanonicalSkinPackage.CreateInfo(), null);
-            CanonicalSkinInstallationResult complex = CanonicalSkinPackage.LoadComplex(storage, this);
-            BuiltInComplexSkin = complex.Skin ?? new LegacySkin(CanonicalSkinPackage.CreateComplexInfo(), null);
-            if (canonicalInstallationFailure == CanonicalSkinInstallationFailure.None)
-                canonicalInstallationFailure = complex.Failure;
             DefaultClassicSkin = new DefaultLegacySkin(this);
 
             InitialManagedFolderMutationRecoveryResult = RecoverManagedFolderMutations();
 
-            // Both OMS products are permanent protected installation skins. Upstream built-ins remain
+            // Simple is the only protected installation skin. Retired built-ins remain
             // available as compatibility types, but are no longer registered as selectable entries.
             realm.Write(r =>
             {
@@ -469,25 +463,10 @@ namespace osu.Game.Skinning
                     }
                 }
 
-                if (canonicalInstallationFailure == CanonicalSkinInstallationFailure.None)
-                {
-                    SkinInfo complexInfo = CanonicalSkinPackage.CreateComplexInfo();
-                    var existingComplexSkin = r.Find<SkinInfo>(complexInfo.ID);
-                    if (existingComplexSkin == null)
-                    {
-                        if (InitialManagedFolderMutationRecoveryResult.IsResolved)
-                            r.Add(complexInfo);
-                    }
-                    else if (!SkinManagedFolderDeleteOperation.IsExactProtectedRecord(existingComplexSkin, complexInfo))
-                    {
-                        canonicalInstallationFailure = CanonicalSkinInstallationFailure.ProtectedRecordUnrecognised;
-                        ManagedFolderOperationCoordinator.FreezeAllPaths();
-                    }
-                }
                 foreach (SkinInfo retiredInfo in new[]
                          {
                              TrianglesSkin.CreateInfo(), ArgonSkin.CreateInfo(), ArgonProSkin.CreateInfo(),
-                             DefaultLegacySkin.CreateInfo(), RetroSkin.CreateInfo(),
+                             DefaultLegacySkin.CreateInfo(), RetroSkin.CreateInfo(), CanonicalSkinPackage.CreateComplexInfo(),
                          })
                 {
                     var retiredSkin = r.Find<SkinInfo>(retiredInfo.ID);
@@ -517,7 +496,7 @@ namespace osu.Game.Skinning
             ((SkinSelectionBindable)CurrentSkinInfo).IsAuthoritativeRoot = true;
             ((SkinSelectionBindable)CurrentSkinInfo).SelectionRequested = requestSelection;
 
-            skinExporter = new CanonicalSkinExporter(storage, DefaultOmsSkin, BuiltInComplexSkin)
+            skinExporter = new CanonicalSkinExporter(storage, DefaultOmsSkin)
             {
                 PostNotification = obj => PostNotification?.Invoke(obj)
             };
@@ -881,9 +860,7 @@ namespace osu.Game.Skinning
             return owner.SkinInfo.PerformRead(info =>
             {
                 if (info.Protected)
-                    return info.ID == SkinInfo.OMS_COMPLEX_SKIN
-                        ? SkinCurrentRevisionSourceKind.ProtectedBuiltIn
-                        : SkinCurrentRevisionSourceKind.ProtectedFallback;
+                    return SkinCurrentRevisionSourceKind.ProtectedFallback;
 
                 if (info.IsExternalFilesystemStorage)
                     return SkinCurrentRevisionSourceKind.ExternalFolder;
@@ -4567,7 +4544,7 @@ namespace osu.Game.Skinning
 
         /// <summary>
         /// Returns the dropdown ordering for use mainly by the skin selection UI.
-        /// Inserts both OMS built-in skins first, then user skins.
+        /// Inserts OMS Simple first, then user skins.
         /// Returns a list of <see cref="Live{SkinInfo}"/> items.
         /// </summary>
         public IList<Live<SkinInfo>> GetAllUsableSkins()
@@ -4579,7 +4556,6 @@ namespace osu.Game.Skinning
                 // Repair states deliberately leave missing protected evidence absent from Realm. Keep the settings
                 // surface usable through the existing in-memory item without manufacturing a persistent record.
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)?.ToLive(Realm) ?? DefaultOmsSkin.SkinInfo);
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN)?.ToLive(Realm) ?? BuiltInComplexSkin.SkinInfo);
 
                 var userSkins = realm.All<SkinInfo>()
                                      .Where(s => !s.DeletePending && !s.Protected)
@@ -4639,7 +4615,6 @@ namespace osu.Game.Skinning
             Realm.Run(realm =>
             {
                 skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_SKIN)?.ToLive(Realm) ?? DefaultOmsSkin.SkinInfo);
-                skins.Add(realm.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN)?.ToLive(Realm) ?? BuiltInComplexSkin.SkinInfo);
 
                 foreach (SkinInfo skin in realm.All<SkinInfo>()
                                               .Where(s => !s.DeletePending
@@ -4677,13 +4652,6 @@ namespace osu.Game.Skinning
             cancellationToken.ThrowIfCancellationRequested();
             if (skinInfo.ID == SkinInfo.OMS_SKIN)
                 return DefaultOmsSkin;
-
-            if (skinInfo.ID == SkinInfo.OMS_COMPLEX_SKIN)
-            {
-                if (!SkinManagedFolderDeleteOperation.IsExactProtectedRecord(skinInfo, CanonicalSkinPackage.CreateComplexInfo()))
-                    throw new InvalidOperationException("The built-in complex skin record is not recognised.");
-                return BuiltInComplexSkin;
-            }
 
             SkinFilesystemStorageResolution resolution = SkinFilesystemStorageResolver.ResolveExisting(skinInfo, storage);
 
@@ -6456,7 +6424,7 @@ namespace osu.Game.Skinning
             if (skin.PerformRead(isFilesystemBacked))
                 throw new InvalidOperationException("Filesystem-backed skins cannot be exported as Realm packages.");
 
-            if (!IsGameplaySkinInstallationAvailable && skin.PerformRead(info => info.ID == SkinInfo.OMS_SKIN || info.ID == SkinInfo.OMS_COMPLEX_SKIN))
+            if (!IsGameplaySkinInstallationAvailable && skin.PerformRead(info => info.ID == SkinInfo.OMS_SKIN))
                 throw new InvalidOperationException(GameplaySkinInstallationRepairMessage);
 
             return skinExporter.ExportAsync(skin);
@@ -6807,10 +6775,8 @@ namespace osu.Game.Skinning
             => skin.PerformRead(info => !isFilesystemBacked(info)
                                         && (!info.Protected
                                             || IsGameplaySkinInstallationAvailable
-                                            && ((CanonicalSkinPackage.IsCanonicalSkin(DefaultOmsSkin)
-                                                 && SkinManagedFolderDeleteOperation.IsExactProtectedRecord(info, CanonicalSkinPackage.CreateInfo()))
-                                                || (CanonicalSkinPackage.IsBuiltInSkin(BuiltInComplexSkin)
-                                                    && SkinManagedFolderDeleteOperation.IsExactProtectedRecord(info, CanonicalSkinPackage.CreateComplexInfo())))));
+                                            && CanonicalSkinPackage.IsCanonicalSkin(DefaultOmsSkin)
+                                            && SkinManagedFolderDeleteOperation.IsExactProtectedRecord(info, CanonicalSkinPackage.CreateInfo())));
 
         /// <summary>
         /// Returns the settings delete affordance from a fresh authoritative Realm read. This grants no mutation
@@ -7429,8 +7395,6 @@ namespace osu.Game.Skinning
             {
                 if (guid == SkinInfo.OMS_SKIN)
                     skinInfo = DefaultOmsSkin.SkinInfo;
-                else if (guid == SkinInfo.OMS_COMPLEX_SKIN)
-                    skinInfo = BuiltInComplexSkin.SkinInfo;
                 else
                     skinInfo = Query(s => s.ID == guid && !s.Protected);
             }

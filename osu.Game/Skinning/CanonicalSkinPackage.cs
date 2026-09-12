@@ -25,8 +25,6 @@ namespace osu.Game.Skinning
     public static class CanonicalSkinPackage
     {
         internal const string PACKAGE_FILENAME = "oms-simple.osk";
-        internal const string COMPLEX_PACKAGE_FILENAME = "oms-complex.osk";
-        internal const string COMPLEX_HASH_RESOURCE_NAME = "osu.Game.Skins.Canonical.oms-complex.sha256";
         internal const string COMPLEX_RECORD_HASH = "oms.skin.builtin.complex.v1";
         internal const string WORKING_DIRECTORY = "skin-canonical";
         internal const string HASH_RESOURCE_NAME = "osu.Game.Skins.Canonical.oms-simple.sha256";
@@ -52,6 +50,7 @@ namespace osu.Game.Skinning
             Hash = RECORD_HASH,
         };
 
+        // Exact retired installation metadata, used only to remove its fileless protected Realm record.
         internal static SkinInfo CreateComplexInfo() => new SkinInfo
         {
             ID = SkinInfo.OMS_COMPLEX_SKIN,
@@ -78,9 +77,6 @@ namespace osu.Game.Skinning
         internal static CanonicalSkinInstallationResult Load(Storage storage, IStorageResourceProvider resources)
             => loadInstalled(storage, resources, PACKAGE_FILENAME, HASH_RESOURCE_NAME, CreateInfo());
 
-        internal static CanonicalSkinInstallationResult LoadComplex(Storage storage, IStorageResourceProvider resources)
-            => loadInstalled(storage, resources, COMPLEX_PACKAGE_FILENAME, COMPLEX_HASH_RESOURCE_NAME, CreateComplexInfo());
-
         private static CanonicalSkinInstallationResult loadInstalled(Storage storage, IStorageResourceProvider resources,
             string packageFilename, string hashResourceName, SkinInfo info)
         {
@@ -95,9 +91,6 @@ namespace osu.Game.Skinning
 
         internal static CanonicalSkinInstallationResult Load(Storage storage, IStorageResourceProvider resources, string originalPath, string expectedHash)
             => load(storage, resources, originalPath, expectedHash, PACKAGE_FILENAME, CreateInfo());
-
-        internal static CanonicalSkinInstallationResult LoadComplex(Storage storage, IStorageResourceProvider resources, string originalPath, string expectedHash)
-            => load(storage, resources, originalPath, expectedHash, COMPLEX_PACKAGE_FILENAME, CreateComplexInfo());
 
         private static CanonicalSkinInstallationResult load(Storage storage, IStorageResourceProvider resources, string originalPath,
             string expectedHash, string packageFilename, SkinInfo info)

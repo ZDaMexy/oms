@@ -46,11 +46,13 @@ metadata:
 - 2026-09-11首次真正正常退出揭露启动扫描从未成功进入：`release-startup-portable-repair3` runtime在Stopping/Stopped后写“Managed skin folder scan ended unexpectedly.”，原隐私边界未记录异常message/stack，不能据退出时刻猜成取消。`c7-startup-recovery-red.trx`真实OsuGame worker（空根/已有普通作者目录）及有journal生产authority三格均给出同一`EnterMutation`重入异常：外层StartupSequence里再次申请mutation被拒绝，fault直到Dispose join才显露；旧lifecycle夹具覆写recovery/scan，未覆盖真实衔接。不能仅改为Enter短lease，因为恢复native/外部registry要求mutation authority，会把合法旧journal误判Ambiguous。专用EnterRecovery只在本线程StartupSequence depth=1时给予恢复子lease，保留外层owner、epoch、selection retry completion和后续扫描，其他路径继续使用不可重入mutation；补实际首启扫描/有journal恢复及取消、不提前释放检查。修复后结果应以当前focused和完整Release启动复验为准，不能把红测复现写成通过。
 - `SkinManagedFolderMutationRecoveryAuthority.TryOpen` 曾在 `Session.Validate` 前清空 native/registry 局部，真实验证中取消后 caller 尚未获得 Session，finally 也已无资源可释放。必须 Validate 成功后才清空局部并移交；拒绝或取消由原 finally 释放，false 分支不再提前 Dispose，避免重复释放。回归使用真实 Windows managed-root 与 external registry，在底层 Validate 后取消，核原 OCE token、外部文件字节、Session/句柄各释放一次及关闭后查询失败；包装器只计数和定点取消，不伪造物理证明，失败夹具也须释放自身资源。不要吞掉 OCE 或扩大 catch。
 
-## 第二内置包不等于第二保底
+## 星轨退役与当前边界
 
-两款均须随安装注册、直接选择并恢复重启前选择；protected 只代表原件受保护，不能据此把星轨分类为 ProtectedFallback。星轨用 ProtectedBuiltIn，经同一 revision publication 并复用内置实例；取消选择准备不能释放共享内置 owner。AllSources 的必要件补齐、删除/取消登记恢复继续只用静线。导出星轨须走完整普通包，不能退回无 Files 的 Realm 空壳导出。
-
-检查 Realm 中保留的固定身份时，不把 `Select(info => info.ID)` 投影交给 Realm provider（会抛 `NotSupportedException`）；在同一 `realm.Run` 内先 `AsEnumerable()` 再投影并物化，不能把 live 对象带出读取作用域。双内置迁移测试已覆盖该读取方式。
+用户已放弃 complex，仅继续打磨 simple。静线为唯一内置、默认与保底；星轨不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。此前双内置授权已被最新决定取代，不继续要求其构建或签收。只迁移旧固定内置身份，不按名字删除普通用户包；旧报告只保留历史证据。
 # 2026-09-12 构建同步补充
 
 内置 simple/complex 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。
+
+跨构建器重打包不要用整个 ZIP hash 要求作品相同：PowerShell 5 构建与 .NET 8 作者工具可能产生不同压缩字节，核完整条目集合与逐文件摘要；安装原件自身仍须匹配本次程序集嵌入摘要，两种校验目的不同。
+
+Windows PowerShell 5.1 随包脚本含中文时保存为 UTF-8 BOM；ReadAllText 后默认 WriteAllText 会去掉 BOM，可能使中文被按系统代码页解释而触发引号解析错误。2026-09-12 单内置收敛的作者脚本曾命中，补 BOM 后在独立套件副本完成真实制作/错误拒绝验证。不要直接在用于 SourceUnchanged 检查的发行源运行会产生 work/ 的作者检查，应复制到独立验证目录。

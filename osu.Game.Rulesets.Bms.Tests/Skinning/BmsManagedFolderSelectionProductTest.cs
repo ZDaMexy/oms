@@ -1703,9 +1703,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     IList<Live<SkinInfo>> skins = failed.GetAllUsableSkins();
                     Assert.Multiple(() =>
                     {
-                        Assert.That(skins, Has.Count.EqualTo(2));
+                        Assert.That(skins, Has.Count.EqualTo(1));
                         Assert.That(skins[0], Is.SameAs(failed.DefaultOmsSkin.SkinInfo));
-                        Assert.That(skins[1], Is.SameAs(failed.BuiltInComplexSkin.SkinInfo));
                         Assert.That(skins.All(skin => !failed.CanExport(skin)), Is.True);
                         Assert.That(failed.IsGameplaySkinInstallationAvailable, Is.False);
                         Assert.That(failed.GameplaySkinInstallationRepairMessage, Is.EqualTo(CanonicalSkinPackage.REPAIR_MESSAGE));
@@ -1729,6 +1728,87 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     failed.ShutdownManagedFolderMutations();
                 }
+            });
+        }
+
+        [TestCase("exact")]
+        [TestCase("changed-name")]
+        [TestCase("user-file")]
+        public void TestRetiringBuiltInComplexPreservesUnknownRecordsAndImportedUserSkins(string variation)
+        {
+            MemoryStream archive = null!;
+            Task<Live<SkinInfo>> import = null!;
+            Live<SkinInfo> imported = null!;
+            SkinManager restarted = null!;
+            string previousRecord = string.Empty;
+            string? userPath = null;
+            byte[] userBytes = "unrecognised author content at the retired built-in identity"u8.ToArray();
+            AddStep("import an ordinary user package before retiring the old installation skin", () =>
+            {
+                archive = createCurrentMutationOsk();
+                import = manager.Import(new ImportTask(archive, $"before-complex-retirement-{Guid.NewGuid():N}.osk"));
+            });
+            AddUntilStep("the ordinary package import completes", () => import.IsCompleted);
+            AddStep("restart with the old complex record", () =>
+            {
+                imported = import.GetAwaiter().GetResult();
+                SkinInfo retired = CanonicalSkinPackage.CreateComplexInfo();
+                if (variation == "changed-name")
+                    retired.Name += " unknown";
+                if (variation == "user-file")
+                {
+                    var file = new RealmFile { Hash = Convert.ToHexString(SHA256.HashData(userBytes)).ToLowerInvariant() };
+                    userPath = LocalStorage.GetFullPath("files/" + file.GetStoragePath());
+                    Directory.CreateDirectory(Path.GetDirectoryName(userPath)!);
+                    File.WriteAllBytes(userPath, userBytes);
+                    retired.Files.Add(new RealmNamedFileUsage(file, "retained-author-content.txt"));
+                }
+                Realm.Write(realm => realm.Add(retired));
+                previousRecord = captureRetiredRecord();
+                restarted = new SkinManager(LocalStorage, Realm, host, Resources, Audio, Scheduler);
+            });
+            AddStep("only exact installation metadata is retired", () =>
+            {
+                try
+                {
+                    if (variation == "exact")
+                        Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN)), Is.Null);
+                    else
+                        Assert.That(captureRetiredRecord(), Is.EqualTo(previousRecord));
+                    if (userPath != null)
+                        Assert.That(File.ReadAllBytes(userPath), Is.EqualTo(userBytes));
+                    Assert.That(restarted.IsGameplaySkinInstallationAvailable, Is.True);
+                    Assert.That(restarted.CurrentSkinInfo.Value.ID, Is.EqualTo(SkinInfo.OMS_SKIN));
+                    Assert.That(restarted.GetAllUsableSkins().Any(skin => skin.ID == imported.ID), Is.True);
+                    Assert.That(restarted.CanExport(imported), Is.True);
+                    Assert.That(Realm.Run(realm => realm.Find<SkinInfo>(imported.ID)!.Files.Count), Is.GreaterThan(0));
+                }
+                finally
+                {
+                    restarted.ShutdownManagedFolderMutations();
+                    archive.Dispose();
+                    Realm.Write(realm =>
+                    {
+                        SkinInfo? record = realm.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN);
+                        if (record != null)
+                            realm.Remove(record);
+                    });
+                }
+            });
+
+            string captureRetiredRecord() => Realm.Run(realm =>
+            {
+                SkinInfo record = realm.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN)!;
+                return Newtonsoft.Json.JsonConvert.SerializeObject(new
+                {
+                    record.ID,
+                    record.Name,
+                    record.Creator,
+                    record.Hash,
+                    record.Protected,
+                    record.InstantiationInfo,
+                    Files = record.Files.Select(file => new { file.Filename, file.File.Hash }).ToArray(),
+                });
             });
         }
 
@@ -1807,11 +1887,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         }
                     }
                     Assert.That(realm.Run(r => r.All<SkinInfo>().AsEnumerable().Select(info => info.ID).ToArray()),
-                        Is.EquivalentTo(variation == "exact" ? new[] { SkinInfo.OMS_SKIN, SkinInfo.OMS_COMPLEX_SKIN } : new[] { SkinInfo.OMS_SKIN }),
-                        "Safe startup retains the migrated record and registers complex; uncertain recovery creates no new protected evidence.");
-                    if (variation == "exact")
-                        Assert.That(realm.Run(r => SkinManagedFolderDeleteOperation.IsExactProtectedRecord(
-                            r.Find<SkinInfo>(SkinInfo.OMS_COMPLEX_SKIN), CanonicalSkinPackage.CreateComplexInfo())), Is.True);
+                        Is.EquivalentTo(new[] { SkinInfo.OMS_SKIN }),
+                        "Safe startup retains only the simple record; uncertain recovery creates no new protected evidence.");
                 }
                 finally
                 {

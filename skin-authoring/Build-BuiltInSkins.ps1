@@ -1,4 +1,4 @@
-param([Parameter(Mandatory = $true)][string]$OutputDirectory)
+﻿param([Parameter(Mandatory = $true)][string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 
@@ -12,7 +12,7 @@ function Get-Hash([string]$Path) {
     try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
     finally { $algorithm.Dispose(); $stream.Dispose() }
 }
-foreach ($name in @('oms-simple', 'oms-complex')) {
+foreach ($name in @('oms-simple')) {
     $root = Join-Path $PSScriptRoot "sources/$name"
     $files = [Collections.Generic.SortedDictionary[string,string]]::new([StringComparer]::Ordinal)
     $pending = [Collections.Generic.Stack[string]]::new()

@@ -205,7 +205,7 @@ function Invoke-ObservedStart([string]$Case, [string]$InstallRoot, [string]$Data
         @(Get-RegularFiles $DataRoot) | Out-Null
         Assert-NoOmsInstance
         foreach ($file in @(Get-LogFiles $logRoots)) { $oldPaths.Add($file.FullName) | Out-Null }
-        foreach ($name in @('oms-simple.osk', 'oms-complex.osk')) {
+        foreach ($name in @('oms-simple.osk')) {
             $path = Join-Path $InstallRoot "Skins/Canonical/$name"
             $attributes = [IO.File]::GetAttributes($path)
             $result.CanonicalOriginals += [ordered]@{ File = $name; Attributes = [string]$attributes; Sha256 = (Get-FileSha256 $path) }
@@ -313,10 +313,10 @@ $report = [ordered]@{
 try {
     $sourceBefore = Get-TreeSnapshot $sourceRoot
     if (Test-Path -LiteralPath (Join-Path $sourceRoot 'data')) { throw '请使用尚无 data/ 的完整新发行目录，不能复制用户旧保存根。' }
-    foreach ($name in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll', 'portable.ini', 'release-files.json', 'Skins/Canonical/oms-simple.osk', 'Skins/Canonical/oms-complex.osk', 'Update-OMS.ps1', 'skin-c7-acceptance/Create-CustomRootCopy.ps1')) {
+    foreach ($name in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll', 'portable.ini', 'release-files.json', 'Skins/Canonical/oms-simple.osk', 'Update-OMS.ps1', 'skin-c7-acceptance/Create-CustomRootCopy.ps1')) {
         if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $name) -PathType Leaf)) { throw "完整发行物缺少：$name" }
     }
-    foreach ($name in @('oms-simple.osk', 'oms-complex.osk')) {
+    foreach ($name in @('oms-simple.osk')) {
         if (([IO.File]::GetAttributes((Join-Path $sourceRoot "Skins/Canonical/$name")) -band [IO.FileAttributes]::ReadOnly) -eq 0) { throw '原发行来源的安装原件未保留只读属性；请用 Windows 资源管理器重新解压，本检查不修改来源属性。' }
     }
     $manifestPath = Join-Path $sourceRoot 'release-files.json'

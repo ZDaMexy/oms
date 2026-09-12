@@ -26,7 +26,7 @@ while ($outputAncestor) {
 foreach ($sourceRoot in @($releaseRoot, $kitRoot)) {
     if ($outputRoot.Equals($sourceRoot, [StringComparison]::OrdinalIgnoreCase) -or $outputRoot.StartsWith($sourceRoot.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or $sourceRoot.StartsWith($outputRoot.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw '验收输出必须与发行物和作者套件分开，不能互相嵌套。' }
 }
-foreach ($file in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll', 'Skins/Canonical/oms-simple.osk', 'Skins/Canonical/oms-complex.osk', 'release-files.json')) {
+foreach ($file in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll', 'Skins/Canonical/oms-simple.osk', 'release-files.json')) {
     if (-not (Test-Path -LiteralPath (Join-Path $releaseRoot $file) -PathType Leaf)) { throw "发行物不完整：$file" }
 }
 if (Test-Path -LiteralPath (Join-Path $releaseRoot 'data')) { throw '请使用刚解压的发行物，不能把已有用户保存目录打入验收包。' }
@@ -55,10 +55,10 @@ foreach ($name in @('oms-complex-c6.osk', 'bms-note-animation-manual-gate.osk', 
     $file = Join-Path $legacyRoot $name
     if (-not $legacyHashes.ContainsKey($name) -or -not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-FileSha256 $file) -ne $legacyHashes[$name]) { throw "原 V-001 或 V-005 输入缺失或改变，请修复完整验收工具包：$name" }
 }
-foreach ($name in @('sources', 'docs', 'bin/SkinAuthoring.exe', 'tool-source/SkinRecipe.cs', 'Author.ps1', 'Build-Skins.ps1', 'Test-Authoring.ps1', 'README.md', 'dist/oms-simple.osk', 'dist/oms-complex.osk', 'dist/aurora-study.osk', 'dist/oms-simple.sha256', 'dist/oms-complex.sha256', 'dist/aurora-study.sha256', 'dist/oms-simple-preview.png', 'dist/oms-complex-preview.png')) {
+foreach ($name in @('sources', 'docs', 'bin/SkinAuthoring.exe', 'tool-source/SkinRecipe.cs', 'Author.ps1', 'Build-Skins.ps1', 'Test-Authoring.ps1', 'README.md', 'dist/oms-simple.osk', 'dist/aurora-study.osk', 'dist/oms-simple.sha256', 'dist/aurora-study.sha256', 'dist/oms-simple-preview.png')) {
     if (-not (Test-Path -LiteralPath (Join-Path $kitRoot $name))) { throw "作者套件缺件，请使用完整发行物：$name" }
 }
-foreach ($name in @('oms-simple.osk', 'oms-complex.osk')) {
+foreach ($name in @('oms-simple.osk')) {
     if ((Get-FileSha256 (Join-Path $releaseRoot "Skins/Canonical/$name")) -ne (Get-FileSha256 (Join-Path $kitRoot "dist/$name"))) { throw "安装原件与作者成品不一致：$name" }
     if (([IO.File]::GetAttributes((Join-Path $releaseRoot "Skins/Canonical/$name")) -band [IO.FileAttributes]::ReadOnly) -eq 0) { throw '安装原件未保留发行 ZIP 的只读属性；请使用 Windows 资源管理器重新解压。组装不会补属性掩盖解包差异。' }
 }
@@ -81,7 +81,7 @@ foreach ($name in @('sources', 'docs', 'bin', 'tool-source', 'Author.ps1', 'Buil
     Copy-Item -LiteralPath (Join-Path $kitRoot $name) -Destination $deliveredKit -Recurse
 }
 [IO.Directory]::CreateDirectory((Join-Path $deliveredKit 'dist')) | Out-Null
-foreach ($name in @('oms-simple.osk', 'oms-complex.osk', 'aurora-study.osk', 'oms-simple.sha256', 'oms-complex.sha256', 'aurora-study.sha256', 'oms-simple-preview.png', 'oms-complex-preview.png')) {
+foreach ($name in @('oms-simple.osk', 'aurora-study.osk', 'oms-simple.sha256', 'aurora-study.sha256', 'oms-simple-preview.png')) {
     Copy-Item -LiteralPath (Join-Path $kitRoot "dist/$name") -Destination (Join-Path $deliveredKit 'dist')
 }
 & (Join-Path $PSScriptRoot 'Generate-Inputs.ps1') -OutputDirectory (Join-Path $outputRoot 'inputs')
@@ -89,7 +89,7 @@ if (-not $?) { throw '观察输入生成失败。' }
 [IO.Directory]::CreateDirectory((Join-Path $appRoot 'data')) | Out-Null
 foreach ($folder in @('chartbms', 'chartmania')) { Copy-Item -LiteralPath (Join-Path $outputRoot "inputs/$folder") -Destination (Join-Path $appRoot 'data') -Recurse }
 [IO.Directory]::CreateDirectory((Join-Path $outputRoot 'packages')) | Out-Null
-foreach ($package in @('oms-simple.osk', 'oms-complex.osk')) { Copy-Item -LiteralPath (Join-Path $releaseRoot "Skins/Canonical/$package") -Destination (Join-Path $outputRoot 'packages') }
+foreach ($package in @('oms-simple.osk')) { Copy-Item -LiteralPath (Join-Path $releaseRoot "Skins/Canonical/$package") -Destination (Join-Path $outputRoot 'packages') }
 Copy-Item -LiteralPath (Join-Path $kitRoot 'dist/aurora-study.osk') -Destination (Join-Path $outputRoot 'packages')
 Get-ChildItem -LiteralPath (Join-Path $outputRoot 'inputs/packages') -File | Copy-Item -Destination (Join-Path $outputRoot 'packages')
 foreach ($legacy in @('oms-complex-c6.osk', 'bms-note-animation-manual-gate.osk', 'bms-note-animation-manual-gate-broken.osk')) {
@@ -107,4 +107,4 @@ $facts = [ordered]@{ CreatedUtc = [DateTime]::UtcNow.ToString('O'); VisualAccept
 if ($releaseManifest.PSObject.Properties.Name -contains 'Build') { $facts.ReleaseBuild = $releaseManifest.Build }
 [IO.File]::WriteAllText((Join-Path $outputRoot 'build-evidence.json'), ($facts | ConvertTo-Json), [Text.UTF8Encoding]::new($true))
 Write-Host "人工验收包已生成：$outputRoot"
-Write-Host '运行 Start-Acceptance.ps1 打开隔离便携副本；从 import-copies 拖入两款皮肤。'
+Write-Host '运行 Start-Acceptance.ps1 打开隔离便携副本，静线已内置；需要体验普通作者包时再从 import-copies 导入。'

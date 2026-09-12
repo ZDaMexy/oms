@@ -1,28 +1,26 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-12（静线布局打磨已恢复；先复验画面分区，星轨作品仍待后续）
+> 最后更新：2026-09-12（放弃星轨，静线作为唯一内置继续打磨；保留迁移与视觉验收门）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实/验证见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
 
 保存星轨后冷启动崩溃已按真实日志修复；后续启动验证保留顶层宿主、已保存非默认选择用例，不再只用默认空库或嵌套 Game 重建。验证见[构建与冷启动记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。
 
-内置双皮肤的源文件更新已接入正常开发启动和构建发行，后续素材修改直接走此路径，不再把手工刷新 dist 作为运行前置条件。验收见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)；视觉打磨与原人工门继续保留。
+静线的源文件更新继续使用已接入的正常开发启动和构建发行，后续素材修改直接走此路径，不再把手工刷新 dist 作为运行前置条件。验收见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)；视觉打磨与原人工门继续保留。
 
-交付mania/BMS共用公开作者路径的Windows-only、离线优先Skin V1：最小可玩的只读canonical `oms-simple.osk`与证明公开API表达上限的`oms-complex.osk`均同包支持两ruleset；保留.osk、根skin.ini、mania命名/帧序列、解包编辑/拖入导入心智，作者无需编译DLL。引擎/作者ownership与非V1范围只见[技术约束](TECHNICAL_CONSTRAINTS.md#核心-ownership)。
+交付 mania/BMS 共用公开作者路径的 Windows-only、离线优先 Skin V1：只读 canonical `oms-simple.osk` 同包支持两玩法；保留普通 `.osk`、根 skin.ini、传统命名/帧序列、解包编辑与导入方式，作者无需编译 DLL。历史 complex 仅作参考，ownership 合同见 [技术约束](TECHNICAL_CONSTRAINTS.md#核心-ownership)。
 
 ## 当前执行门与冻结输入
 
-当前结论由 [STATUS](DEVELOPMENT_STATUS.md)维护：此前工程验证保留，但用户已判定星轨动画、美术安排和精细度不符合预期、总体不可用。当前不是只有人工签字待补；双包后续优化包含实际作品修改。用户已重新授权静线打磨，当前基于已实现并自动复验的 BMS 落键区、按键/血条、信息区与 BGA 分区进行实机对照和必要微调；星轨作者作品当前迭代不改。原图对照与当前迭代事实见 STATUS。原七阶段不重计、不新建阶段。静线与星轨长期作为随安装注册的受保护内置选项，玩家在设置中直接选择，无需先导入第三方包；静线保持首次默认与唯一必要件保底，星轨观感待打磨不改变其内置身份。独立 `.osk` 是作者分发、导出与修改副本的载体，不是使用两款内置皮肤的前置步骤。最新布局证据见[静线验证](../../other/SKIN_SIMPLE_LAYOUT_20260912.md)，此前安装修复见 [C7 当前修复](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)，完整合同见 [TECH](TECHNICAL_CONSTRAINTS.md)。SV1-0 恢复/数据处置继续生效，归档和无 authority orphan blob 保全，异常期代码不得整包恢复。
-
-C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)；当前 C7 的双包、完整作者工具、正式保底与安装恢复证据见 [C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)，独立制作演练见 [WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)，发行纠错见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)。`V-001`～`V-004` 仍 0/4，`V-005` 未签收，全部可见结果统一到[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。通常待签收不阻塞已授权的自动工作；当前迭代已恢复静线开发，仍不得自行扩展为星轨作品重做。相应自动门确已通过后才可称“自动门通过，视觉待验收”，不能称 SV1-1、Skin V1 或 release 完成，也不能复用 2026-07-14 静态恢复验收。旧 `OmsSkin` 源码只供迁移证据及人工对照，实际产品链由完整普通简洁包接管，物理移除须待原实机门。
+用户已明确放弃 complex，只继续打磨 simple。静线是唯一内置、首次默认与正式保底；星轨不再是内置选项、启动依赖或构建对象，历史作者文件仅保留参考。旧内置星轨选择迁回静线，普通用户导入的皮肤不清除；不再要求星轨视觉签收。保留退役选择迁移、用户包保留和单内置构建/启动回归，继续静线实机打磨。原 C1～C7 与双内置验证作为历史保留，不重计阶段；旧 `OmsSkin` 不恢复为产品回落。数据恢复和三源权限合同继续生效。
 
 ## 静线当前迭代验收与后续
 
 - 根据新增图 06 复验普通轨与转盘轨分隔线的可见度和粗细关系、黑白轨底色、底座遮蔽、转盘正圆与红判定线；先用当前作者素材和成品验证，再以真实游戏画面观察，不将作者板作为签收。当前保留连续血条，不为分段表现扩展公共 scene API。
 - 对照[原始参考与首轮实机反馈图](../../other/references/simple-1p-20260912/README.md)核验：信息不遮挡音符、黑白键与转盘可辨、血条和判定清楚，右侧 BGA 形成主画面；保留简洁装饰，不把高仿素材要求转给 simple。
 - 保持已验证的作者源和成品同步；后续修改继续检查公共配置与唯一布局求解、真实 BMS/mania 加载及 Release，覆盖 P1/P2、其它键数、窄屏和旧包无独立按键区的行为。BGA 画面大小归皮肤布局，当前迭代不改变 P1-L 内容播放职责。
-- 公共底部信息区影响旧包的可用高度，后续微调须继续覆盖星轨加载和布局；实际观感仍须用户观察，不复用旧安装包或原人工签收。
+- 公共底部信息区影响旧包的可用高度，后续微调须覆盖静线和受影响第三方包；实际观感仍须用户观察，不复用旧安装包或原人工签收。
 
 ## 七个持久Campaign预算与剩余退出门
 
@@ -40,7 +38,7 @@ C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909
 
 **硬退出门：**
 
-真实BMS/mania host运行complex候选脚本；无限循环、超限、异常、取消/shutdown不阻塞update thread且只熔断脚本/scene；ini/manifest/scene/script/素材全部参与同一publication/detach/owner矩阵，至此关闭最终整包reload与G1自动门。不得只交选型文档、catalog、mock consumer，也不得把语言ABI/工具链、授权持久化、profiler或异常回落推给`C7`。
+此前 C6 使用真实 BMS/mania host 运行 complex 候选脚本的证据保留；无限循环、超限、异常、取消/shutdown不阻塞update thread且只熔断脚本/scene；ini/manifest/scene/script/素材全部参与同一publication/detach/owner矩阵，至此关闭最终整包reload与G1自动门。不得只交选型文档、catalog、mock consumer，也不得把语言ABI/工具链、授权持久化、profiler或异常回落推给`C7`。
 
 **专项验收补充：** 脚本只用于声明式能力无法合理表达的组合逻辑，不得成为普通note/key/judgement显示的必要条件；只读snapshot/event、操作获准节点。选型还须证明license、Windows打包、性能/GC、调试诊断、低端硬件、权限逃逸防护及pause状态重建；instruction/heap quota须可抢占，编译/I/O在后台。最终整包矩阵覆盖真实选择、重启、切换、rename/import/delete、缺件、原子替换与备份数据根；权限撤销同样加入现有revision协议，不另造event/layout/material/publication或改变P1-L内容authority。
 
@@ -52,7 +50,7 @@ C6 实现与验收见 [C6 报告](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909
 
 **执行输入与交付门：** 双包、作者源和独立制作路径、完整自动复验、安装恢复与跨版本更新均作为已有输入，不重复开发；保留旧包作为对照，不改写其摘要或历史结果。星轨已获总体否定反馈，自动及独立工程复核不等于成品质量通过；真实结果、精确失败比较与交付身份只在 [STATUS](DEVELOPMENT_STATUS.md#最近一次验证)、[C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)、[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)及 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)维护，不用中间候选替代最终交付。
 
-**双包迭代与后续验收：** 当前先按用户五张参考图完成静线布局打磨；星轨动画、美术安排和精细度仍待后续作品修改，尚无已确认的替代风格或运动参数，不预填其设计决定。围绕完整可玩的两款作品尽早提供可评审结果，沿既有“修改 → 检查 → 打包 → 导入 → 验证”路径迭代，必要系统修改须对应真实使用问题，不重做已完成能力或扩成可视化编辑器。修改后按影响范围复验，并使用[集中验收包](../../../skin-c7-acceptance/README.md)观察两玩法的键数/样式、单双舞台、缩放、宽高比、必要信息、BGA 区域、授权拒绝/撤销和组合演出；真实设备、音频与长期体验仍要另取实际证据。V-001～V-004 仍 0/4、V-005 未签收；这次总体否定不冒充上述每格已运行，也不表示静线已通过。旧 OmsSkin 物理删除仍待原实机门。Skin V1 和 release 未完成。后续迭代的推送仍遵循 AGENTS 的授权要求，不沿用此前收尾许可。
+**静线迭代与后续验收：** 当前先按用户五张参考图完成静线布局打磨；星轨已放弃，不再列入后续作品修改或签收。围绕完整可玩的静线尽早提供可评审结果，沿既有“修改 → 检查 → 打包 → 导入 → 验证”路径迭代，必要系统修改须对应真实使用问题，不重做已完成能力或扩成可视化编辑器。修改后按影响范围复验，并使用[集中验收包](../../../skin-c7-acceptance/README.md)观察两玩法的键数/样式、单双舞台、缩放、宽高比、必要信息、BGA 区域、授权拒绝/撤销和组合演出；真实设备、音频与长期体验仍要另取实际证据。V-001～V-004 仍 0/4、V-005 未签收；这次总体否定不冒充上述每格已运行，也不表示静线已通过。旧 OmsSkin 物理删除仍待原实机门。Skin V1 和 release 未完成。后续迭代的推送仍遵循 AGENTS 的授权要求，不沿用此前收尾许可。
 
 **必须闭合的非人工产品结果：**
 

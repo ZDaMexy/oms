@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-12（静线布局打磨恢复；保留原阶段，星轨作品仍待修改）
+> 最后更新：2026-09-12（放弃星轨，静线作为唯一内置继续打磨；保留迁移与视觉验收门）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -8,14 +8,14 @@
 交付Windows-only、离线优先OMS。Phase 1.x完成必须同时满足：
 
 1. BMS/mania主流程与本地数据升级不阻断用户。
-2. Skin V1双包、公开三态作者能力及canonical fallback通过P1-A全部门，程序化主题视觉退出产品链；用户包缺件/损坏仍可玩。
+2. Skin V1静线及第三方包、公开三态作者能力及canonical fallback通过P1-A全部门，程序化主题视觉退出产品链；用户包缺件/损坏仍可玩。
 3. 输入、LN/CN/HCN、键音/BGA经真实设备与谱面验收。
 4. portable、自定义根及覆盖更新保全用户内容。
 5. Release及约定focused/full测试达到有效基线，已知失败逐项归因。
 
 ## 强制执行顺序
 
-恢复与数据安全`SV1-0`、Skin C1～C7既有工程结果作为后续输入保留，不重复开发；星轨最新总体体验不通过，历史关闭记录不表示作品修改已完成。用户已恢复静线布局打磨，基于已完成自动复验的分区进行实机对照和必要微调；星轨作品不在当前迭代修改范围，详见 P1-A 状态。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
+恢复与数据安全`SV1-0`、Skin C1～C7既有工程结果作为后续输入保留，不重复开发；星轨最新总体体验不通过，历史关闭记录不表示作品修改已完成。用户已恢复静线布局打磨，基于已完成自动复验的分区进行实机对照和必要微调；星轨已放弃，仅保留历史参考，详见 P1-A 状态。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
 
 ### R3：`SV1-2` G1 存储与 revision 冻结输入
 
@@ -24,8 +24,8 @@
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7 作品迭代**：既有工程和安装证据保留，静线首轮 BMS 分区及受影响共同布局已自动复验，当前继续实机对照与必要微调；星轨总体观感不通过，作品修改仍待后续。两款长期随安装内置、无需玩家导入，默认与唯一保底保持静线，不重计阶段。具体当前迭代范围、待改内容及剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
-3. 修改验证后按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及修改后的双包；自动结果不得代签实际画面与设备体验。未签收不得称Skin V1/release完成。
+2. **C7 作品迭代**：既有工程和安装证据保留，静线首轮 BMS 分区及受影响共同布局已自动复验，当前继续实机对照与必要微调；星轨已放弃。仅静线随安装内置、默认与保底，不重计阶段。具体当前迭代范围、待改内容及剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
+3. 修改验证后按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及修改后的静线；自动结果不得代签实际画面与设备体验。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。
 
@@ -44,7 +44,7 @@
 
 P1-F结合P1-G统一复核：
 
-- P1-A全部Skin V1门、最终双包与第三方包、公开选择面、canonical完整性/原子恢复及无程序化主题fallback。
+- P1-A全部Skin V1门、最终静线与第三方包、公开选择面、canonical完整性/原子恢复及无程序化主题fallback。
 - `portable.ini → data/`、bootstrap storage中的`storage.ini`与自定义根；保持已验证的完整包、覆盖工具与保存位置合同，补独立账户非便携及设备/长时发行体验。
 - Release build/publish、BMS full、mania/core relevant及各子线要求的测试；失败逐项稳定归因。
 - 发布说明区分code-provider/ini/scene/script能力，不宣称未通过门的G1、脚本、格式兼容或在线能力。
@@ -62,7 +62,7 @@ P1-F结合P1-G统一复核：
 | --- | --- | --- |
 | BMS parser/gameplay | BMS focused + BMS full | 命中特殊谱时逐谱验收 |
 | 仅 BMS ruleset 内皮肤组件且不改 shared/mania/fallback authority | BMS skin focused + BMS relevant/full + Release | 对应 keymode、选择/回落与新增视觉实机 |
-| shared skin、mania compatibility、scene/event 或 fallback authority | core skin focused + mania/BMS relevant + 所属子线要求的 full + Release | 受影响 keymode/style/选择/fallback；双包与 canonical 恢复留到 C7 |
+| shared skin、mania compatibility、scene/event 或 fallback authority | core skin focused + mania/BMS relevant + 所属子线要求的 full + Release | 受影响 keymode/style/选择/fallback；静线与 canonical 恢复按 C7 合同复验 |
 | 输入 | `oms.Input`/bridge focused + BMS relevant | 真实控制器 edge/hold/轴 |
 | 存储/Realm | importer/scanner focused + Release | 备份数据根上的升级/重扫/恢复 |
 | 音频/BGA | 对应 player/store/cache focused + BMS full | pause/seek、长样本、逐谱视听 |

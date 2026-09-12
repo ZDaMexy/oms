@@ -1,10 +1,10 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('oms-builtin-build-' + [Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($fixture) | Out-Null
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Build-BuiltInSkins.ps1') -Destination $fixture
 $output = Join-Path $fixture 'output'
-foreach ($name in @('oms-simple', 'oms-complex')) {
+foreach ($name in @('oms-simple')) {
     $source = Join-Path $fixture "sources/$name"
     [IO.Directory]::CreateDirectory($source) | Out-Null
     [IO.File]::WriteAllText((Join-Path $source 'skin.ini'), "[General]`nName: $name`nAuthor: OMS`n")
@@ -37,7 +37,7 @@ if ((Read-Material) -cne 'newer') { throw 'Same-length, same-timestamp edit was 
 [IO.File]::Delete($material)
 Build-Fixture
 if ($null -ne (Read-Material)) { throw 'Deleted material remained in the package.' }
-foreach ($name in @('oms-simple', 'oms-complex')) {
+foreach ($name in @('oms-simple')) {
     $stream = [IO.File]::OpenRead((Join-Path $output "$name.osk"))
     $algorithm = [Security.Cryptography.SHA256]::Create()
     try { $actual = ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
@@ -49,4 +49,5 @@ $ErrorActionPreference = 'Continue'
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fixture 'Build-BuiltInSkins.ps1') -OutputDirectory $output 2>&1 | Out-String | Write-Host
 $ErrorActionPreference = 'Stop'
 if ($LASTEXITCODE -eq 0) { throw 'Missing required source unexpectedly succeeded.' }
-Write-Host "PASS: both skins, stable outputs, same-timestamp edits, deletions, checksum pairing and missing-source rejection. Evidence: $fixture"
+if ([IO.File]::Exists((Join-Path $output 'oms-complex.osk'))) { throw 'Retired complex skin was built.' }
+Write-Host "PASS: simple only, stable outputs, same-timestamp edits, deletions, checksum pairing and missing-source rejection. Evidence: $fixture"

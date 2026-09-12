@@ -5,7 +5,7 @@ $appRoot = Join-Path $PSScriptRoot 'app'
 foreach ($runtimeFile in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $appRoot $runtimeFile) -PathType Leaf)) { throw "验收运行文件缺失，请重新解压完整发行包：$runtimeFile" }
 }
-foreach ($relative in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll', 'portable.ini', 'data/storage.ini', 'Skins/Canonical/oms-simple.osk', 'Skins/Canonical/oms-complex.osk')) {
+foreach ($relative in @('osu!.exe', 'osu!.runtimeconfig.json', 'osu.Game.dll', 'osu.Game.Rulesets.Bms.dll', 'osu.Game.Rulesets.Mania.dll', 'portable.ini', 'data/storage.ini', 'Skins/Canonical/oms-simple.osk')) {
     $ancestor = Join-Path $appRoot $relative
     while ($ancestor) {
         if ((Test-Path -LiteralPath $ancestor) -and (((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { throw '验收入口不能经过链接文件或目录；请使用新解压的普通本地副本。' }

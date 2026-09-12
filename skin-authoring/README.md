@@ -1,16 +1,14 @@
-# OMS 双皮肤制作套件
+# OMS 皮肤制作套件
 
-本套件保留 **OMS Simple · 静线** 与 **OMS Complex · 星轨** 的完整作者文件和普通 .osk，每包同时包含 BMS 与 mania，可解包编辑、导入、选择和导出。静线是当前默认与必要部分保底；星轨现有机械舞台、音符动画、信息控制台和组合演出作为后续修改的对照，信息控制台不依赖额外脚本授权。
+用户已放弃 complex，仅继续打磨 simple。静线为唯一内置、默认与保底；星轨不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。本套件提供静线作者源、普通 `.osk` 与制作工具；仓库保留的 complex 目录只作历史公开写法参考，不作为当前成品或制作验收依赖。
 
-静线本轮轨道与转盘素材的文件位置、生成方式和完整提示词见[素材说明](docs/SIMPLE_ARTWORK.md)。
-
-**现版星轨整体体验不通过。** 2026-09-12 用户反馈其动画、美术安排和精细度均不符合预期，认为“可以说不可用”。现包仅作为待改对照，不作为可用复杂成品或合格美术范例；展示目标和默认候选身份不变更首次默认。静线也未正式签收，不能从此前“暂时没问题”推导整款观感通过。用户已重新启动静线的 1P 布局打磨：落键区收窄，独立键盘区与底部信息区、可调 BGA 布局沿公共作者文件实现；星轨仍保留待改。五张原始对照图见 [参考索引](../doc_md/other/references/simple-1p-20260912/README.md)。本页已记录当前收到的体验反馈；独立制作证明流程可走通，自动验证不能替代画面、设备、延迟及长期体验，V-001～V-004 仍 0/4、V-005 未签收。
+静线素材位置与提示词见[素材说明](docs/SIMPLE_ARTWORK.md)，实机参考见[索引](../doc_md/other/references/simple-1p-20260912/README.md)。静线尚未整体视觉签收。
 
 ## 直接使用
 
-仓库开发时，正常 `dotnet run --project osu.Desktop`、build 与 publish 会从两款 `sources/` 自动生成本次内置包及校验，不需要先运行 `Build-Skins.ps1`。普通构建不覆盖手工素材，也不改仓库 dist；发行套件的同名包来自本次游戏产物。显式跳过构建会沿用已有产物。构建回归可运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-BuiltInSkins.ps1`（仓库根目录）。
+仓库开发时，正常 `dotnet run --project osu.Desktop`、build 与 publish 会从静线 `sources/oms-simple` 自动生成本次静线内置包及校验，不需要先运行 `Build-Skins.ps1`。普通构建不覆盖手工素材，也不改仓库 dist；发行套件的同名包来自本次游戏产物。显式跳过构建会沿用已有产物。构建回归可运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-BuiltInSkins.ps1`（仓库根目录）。
 
-安装支持本轮改动的 OMS 后，在设置的皮肤列表直接选择 `OMS 简洁`（simple／静线）或 `OMS 星轨`（complex）；两款长期内置，无需下载或拖入 `.osk`。首次默认静线，星轨可选但实际观感仍待打磨。可选组合效果可以授权、拒绝或撤销；拒绝后必要信息和演奏视觉继续显示。独立 [oms-simple.osk](dist/oms-simple.osk) 和 [oms-complex.osk](dist/oms-complex.osk) 保留给作者分发、导出对照及修改副本使用。
+安装支持当前改动的 OMS 后，静线 `OMS 简洁` 是唯一内置默认。使用它无需导入；要制作自己的作品，可复制作者目录或导出副本，再检查、打包并普通导入。旧内置星轨配置迁回静线，已经普通导入的用户作品继续保留。
 
 整套目录可复制到任意普通可写目录。正式验收包附带 `bin/SkinAuthoring.exe` 与所需文件，无须安装 SDK 或阅读游戏源码。仓库开发者第一次准备工具可运行：
 
@@ -50,11 +48,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action upd
 | 内容 | 用途 |
 | --- | --- |
 | `sources/oms-simple/` | 完整静线作者文件，也是最小完整模板 |
-| `sources/oms-complex/` | 完整星轨作者文件、场景与组合脚本 |
+| `sources/oms-complex/` | 历史星轨作者文件、场景与组合脚本，仅供参考 |
 | `sources/aurora-study/` | 实际从模板改色、重新生成、检查、打包的第三方演练作品 |
-| `dist/` | 当前普通包与 SHA256；同输入、同工具重复打包得到相同字节；星轨保留作待改对照 |
+| `dist/` | 当前普通包与 SHA256；同输入、同工具重复打包得到相同字节；星轨旧包只作历史参考 |
 | `Author.ps1` | 新建、生成、检查、打包、普通导入与更新入口 |
-| `Build-Skins.ps1` | 从保留的作者文件重复打包两款成品；加 `-RebuildAssets` 才重新生成 |
+| `Build-Skins.ps1` | 从静线作者文件重复打包当前成品；加 `-RebuildAssets` 才重新生成 |
 | `Test-Authoring.ps1` | 正常制作、重复打包、错误拒绝与中断成品保护的可重复复核 |
 | `docs/` | 制作约定、错误定位、验收步骤和完整公开目录 |
 
@@ -67,3 +65,5 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action upd
 普通导入产生新记录；本工具不假装提供不存在的“覆盖原导入记录”功能。日常快速修改建议登记作者目录并手动重新载入。分享作品使用 `.osk`，导出使用游戏普通皮肤导出入口。
 
 许可：本套件原创几何素材、配方、场景与文档按仓库 MIT 许可发布；无远程素材或隐藏依赖。
+
+当前发行作者套件只携带 `sources/oms-simple` 与 `aurora-study`；complex 源与旧 dist 仅留在仓库作历史参考，不随发行构建。`Test-Authoring.ps1` 验证静线与 Aurora；跨 PowerShell 5 构建器和 .NET 8 作者工具时，成品一致性按 ZIP 内逐文件摘要判断，压缩容器字节可以不同。

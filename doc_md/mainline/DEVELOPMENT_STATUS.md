@@ -1,15 +1,15 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-12（静线布局打磨已恢复；星轨仍待改，视觉未签收）
+> 最后更新：2026-09-12（放弃星轨，静线作为唯一内置继续打磨；迁移与自动验证完成，视觉待打磨）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。Skin 原七阶段已有工程与交付证据保留，不重计阶段；用户已否定星轨的动画、美术安排和精细度，现版总体不可用，不能再称只剩签收。用户已重新授权静线布局打磨，本轮先解决落键区遮挡、按键与信息分区及 BGA 主画面；星轨作品仍待后续修改；两款均随安装内置、无需玩家导入；静线保持默认与唯一保底，`V-001`～`V-004`仍 **0/4**、`V-005`未签收，Skin V1与release未完成。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段。用户已明确放弃 complex，只继续打磨 simple。静线是唯一内置、首次默认与正式保底；星轨不再是内置选项、启动依赖或构建对象，历史作者文件仅保留参考。旧内置星轨选择迁回静线，普通用户导入的皮肤不清除；不再要求星轨视觉签收。静线与剩余设备/长期体验仍未签收，Skin V1 与 release 未完成。详见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
-两款内置皮肤已接入正常开发启动、build/publish 的源文件同步，发行作者副本跟随本次安装原件；验证与未完成的视觉门见[构建更新记录](../other/SKIN_BUILTIN_BUILD_20260912.md)。
+后续正常开发启动、build/publish 仅同步静线源文件；此前双内置验证保留历史身份，见[构建更新记录](../other/SKIN_BUILTIN_BUILD_20260912.md)。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
@@ -19,7 +19,7 @@ OMS处于Phase 1.x后段。Skin 原七阶段已有工程与交付证据保留，
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | 原 C7 工程证据保留；静线首轮分区与受影响公共布局自动复验完成，实机待对照，星轨观感不通过且本轮不改作品 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
+| 1 | 原 C7 工程证据保留；静线首轮分区与受影响公共布局自动复验完成，实机待对照，星轨已放弃，当前仅验证静线及旧选择迁移 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |

@@ -26,7 +26,7 @@
 
 冷启动的配置皮肤恢复必须在 update thread 的 LoadComplete 阶段、初始画面图构造之前进入既有 selection publication；BackgroundDependencyLoader 不得直接发布选择。验证必须包含顶层 GameHost bootstrap 的已配置非默认皮肤，不能以 update thread 上嵌套重建 Game 的视觉测试代替。
 
-内置静线与星轨必须随正常开发启动、build、publish 从当前作者源文件更新；不得要求玩家导入或开发者先手工打包。当前实现与验证见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。普通构建不重生成覆盖作者美术，发行作者副本须与本次安装原件一致。
+内置静线必须随正常开发启动、build、publish 从当前作者源文件更新；不得要求玩家导入或开发者先手工打包。当前实现与验证见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。普通构建不重生成覆盖作者美术，发行作者副本须与本次安装原件一致。
 
 1. P1-A 拥有 shared skin package/runtime/fallback、BMS playfield/BGA skin boundary、G1 和 release gate；判定/反馈、输入、BGA 时间线、存储底层语义仍分别归 P1-C/P1-E、P1-B/P1-D、P1-L、P1-H。
 2. 不得借 Skin V1 提前带入完整 FHS、dan、1P/2P binding flip、BSS/MSS、联网或其它 Phase 2/3 功能。5K/7K 的 P1/P2/center style 是视觉 lane order/停靠，不是 binding flip。
@@ -144,7 +144,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 1. `.osk` 是 V1 的正式分发单位；打开/拖入即可导入，解包后是根含 `skin.ini` 的普通可编辑目录。managed/external folder 是作者工作区与高级管理面，不能取代 `.osk` 的社区交换地位。
 2. `[General]`、`[Colours]`、`[Mania]` 的语法、`Keys:` 分桶、既有素材名、`name-{n}` 动画序列、资源缩放/缺项 fallback 等共同语义以当前 osu legacy compatibility 为基线；BMS 不另造一套同义基础格式。
 3. `[Bms]`、declarative manifest 和 optional script 是 OMS 对第一类 BMS ruleset 的版本化扩展。扩展文件必须可被 OMS validator 识别并产生清晰诊断，不要求作者编译 DLL，也不得冒充上游 osu! 已原生支持的格式。
-4. 只做 mania、只做 BMS 或同时做两者的 `.osk` 都合法；`oms-simple.osk` 与 `oms-complex.osk` 必须在一个包内同时提供 mania/BMS，并可作为第三方作者的真实参考源。
+4. 只做 mania、只做 BMS 或同时做两者的 `.osk` 都合法；`oms-simple.osk` 必须在一个包内同时提供 mania/BMS，并可作为第三方作者的真实参考源。
 5. common mania assets/ini 在 OMS 中的行为须有代表性社区皮肤 fixture；OMS 生成的组合包若宣称 mania-compatible，也须验证其 mania 部分不会因 BMS 扩展而改变。
 6. 制作者套件（Skin Authoring Kit）至少包含：两内置包的可编辑源、带注释模板、字段/素材/事件/layout/capability/budget 参考、validator/diagnostic 用法、打包与导入说明。它不是 SDK DLL，也不是第三种 package 格式。
 
@@ -169,7 +169,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 1q. 最终整包prepare须覆盖ini/manifest/scene/script/全部素材，即使菜单没有gameplay participant也不得推迟验证；脚本编译结果属于同一prepared package，不能由host另读live源。当前完成边界与证据只见[STATUS](DEVELOPMENT_STATUS.md)。
 1r. runtime 的 raw/decoded/frame/texture cap 不等于 `.osk` importer 的总压缩/解压字节、解压比或 zip-bomb 防护；两道 gate 必须分别实现和验收。
 1s. BMS C4 production material覆盖ordinary note、LongNoteHead/Body/Tail，mania覆盖Note/Hold head/body/tail/KeyVisual；均按public catalog slot + exact keymode + stable LaneId/scratch/stage target解析同一package revision。BMS静态与连续`name-0`、`name-1`…固定60 FPS合同无损保持；Required slot不可Suppress，声明失败进入确定可见fallback，不能由低层裸同名texture拼件。
-1s1. 普通BMS公共`KeyVisual`只有texture、没有作者scene节点时，native hit-target host仍须投影真实按键状态：松开时该Sprite alpha为0.65，按下时为1，初次挂载即应用当前状态。该反馈属于按键本体，不恢复作者明确Suppress的独立`KeyFlash`；有scene节点时由作者的公共输入绑定控制，不追加或覆盖上述alpha。此合同对普通第三方包与两款成品相同，不新增视觉provider、权限、时钟或输入规则。真实验证须检查native specialised visual内的实际Sprite及按下/松开过程，不能用外围gate或wrapper的alpha代替。
+1s1. 普通BMS公共`KeyVisual`只有texture、没有作者scene节点时，native hit-target host仍须投影真实按键状态：松开时该Sprite alpha为0.65，按下时为1，初次挂载即应用当前状态。该反馈属于按键本体，不恢复作者明确Suppress的独立`KeyFlash`；有scene节点时由作者的公共输入绑定控制，不追加或覆盖上述alpha。此合同对普通第三方包与静线成品相同，不新增视觉provider、权限、时钟或输入规则。真实验证须检查native specialised visual内的实际Sprite及按下/松开过程，不能用外围gate或wrapper的alpha代替。
 1t. `LongNoteTail`保持Optional：未声明为Inherit，有效静态/连续编号帧为Provide，public document可显式Suppress；empty/invalid/坏资源不得解释为Suppress。legacy beatmap direct visual仍优先；tail host、判定和LN/CN/HCN规则不变。
 1u. `LongNoteBody` 只消费 decoder-time accepted `[Bms] NoteImage{lane}L` / `NoteImageSL` / `NoteImageS2L`，可为静态图或 60 FPS 连续编号帧。它必须经过唯一共享标量 geometry resolver：`LongNoteBodyWidth` 默认 `0.5775`，只接受 finite 且 `0 < width <= 1`；absent、non-finite、小于等于零和大于一分别保留稳定 typed rejection reason并逐字段回落默认。有效 body + 非法 width 仍发布同组件默认宽，只有 body 资源整体失败才 `Inherit`；selected 失败后低层裸同名文件或裸 width 均不得拼件，低层自己的完整 body 组件可接管。
 1v. body texture/frames与accepted/default width须携同一exact parsed skin.ini内容身份及package revision进入prepared material并一起发布；renderer不得从aggregate skin反查width。managed/default共用的状态投影、alpha/tint/regrab和异步挂载规则只见[LN视觉状态合同](#既有-ln-视觉状态合同)，不得改变body拉伸/裁剪或LN/CN/HCN规则；body单字段policy不替代完整layout/screen-space validation。
@@ -191,11 +191,11 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 7e2. 真实旧数据中已定点确认的`BmsOmsReferenceSkin`保护记录，只允许启动期迁移其元数据：依据`refs/archive/pre-recovery-20260710/dirty-stash^3:osu.Game.Rulesets.Bms/Skinning/BmsOmsReferenceSkin.cs`的`CreateInfo`及同一dirty-stash的manager写入路径，必须完整匹配固定OMS ID、`Name=OMS Reference Skin`、`Creator=OMS Dev Team`、exact旧type/assembly、Protected=true、Hash空、Files空、DeletePending=false、path/owner=null及external=false，并且journal已resolved。只更新既有同ID行到canonical元数据，不恢复旧class或视觉，不给该旧记录增加journal恢复authority。任何字段偏差、用户files或未解journal仍原样保全并保持修复状态；不得将此定点证据扩为按name/type宽泛认领。
 7f. 安装与恢复均可用时，正式简洁款的设置导出按钮必须可用，输出完整普通`.osk`原内容，导入后得到新ID且非protected的普通作者包。只有exact已知fileless保护记录允许导出canonical原件；unknown同ID记录的真实用户files必须原样按普通export保存，不能仅按ID替换为simple。`EnsureMutableSkin`对canonical也必须普通导入完整原archive，不能只造无文件的同类型记录；其成功只表示可编辑副本已创建，实际选择仍等待既有异步整包publication。legacy编辑器与folder通用export冻结边界不因此解冻。
 7g. 首次登记作者目录时，允许在当前数据根安全建立原本缺失的自有`chartskin`目录，但必须在operation lease下再次确认journal确实Missing、恢复未冻结、Realm不存在任何既有filesystem声明（含旧external与未知authority），并先持有/验证作者目录，确认创建位置不在作者目录内。初始化仅用held no-follow父链上的`CreateChildNoFollowNoReplace`，验证新目录身份再打开；普通scanner/recovery `Open`仍绝不创建缺失目录。已有记录但根缺失时保全记录/文件并提示恢复原目录或获取修复指引；junction/reparse/名称冲突拒绝且不得写入作者目录。创建空自有根不产生mutation journal、不授予已有旧操作恢复证据。
-8. `oms-complex.osk` 与 `oms-simple.osk` 同权使用公共 package/scene/script API；复杂款仍为完整展示包与默认候选，不由实施自行锁定首次默认选择，也不得成为 `oms-simple` 之下的隐藏第二 fallback。两包均保留完整可编辑源与可重复打包步骤；普通作者走相同检查、打包、导入、验证和导出路径，不存在私有视觉provider或隐藏资源。
+8. 静线使用公共 package/scene/script API，保留完整作者源与可重复打包步骤；历史 complex 作者文件仅作参考，不是内置或验收依赖，第三方作者仍可使用相同公开能力。
 
 ## scene、事件与脚本约束
 
-C5声明式scene/animation、只读event及全部适用slot host与C6可选脚本共用production publication；C7 canonical双包与完整Authoring Kit继续使用同一公开合同。以下各节描述现行行为合同，实际自动验证和campaign完成状态只见[STATUS](DEVELOPMENT_STATUS.md)。
+C5声明式scene/animation、只读event及全部适用slot host与C6可选脚本共用production publication；C7 canonical静线与完整Authoring Kit继续使用同一公开合同。以下各节描述现行行为合同，实际自动验证和campaign完成状态只见[STATUS](DEVELOPMENT_STATUS.md)。
 
 C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均为0～1，绑定text分别显示两位准确率百分数（如`99.50%`）和四舍五入的整数进度百分数（如`25%`），使用固定格式，不改变数值绑定的单位。准确率沿已有ScoreSnapshot；进度由唯一EventRuntimeHost按 `CalculatePlayableBounds` 的首物件开始时间、末物件结束时间及同一gameplay时间投影，首物件前0、末物件后1、空谱或零时长0，包含长条尾部，不另建时钟或规则。TimingSnapshot、inline payload、完整重建与晚订阅保留同值，暂停保持既有时间采样，seek/retry沿原完整Reset屏障更新。普通semantic TextHud用单行显示分数、准确率、连击和进度，prepare与runtime都预留64字形，并按真实宿主宽高等比缩小，不能通过截断隐去必要信息；纯timing变化未改变实际显示的整数进度时不重复格式化这行文字，数值绑定继续保留连续精度。作者可通过同一公开scene布局。实际验证结论只见[STATUS](DEVELOPMENT_STATUS.md)，历史未验范围见[暂停检查点](../../other/SKIN_SYSTEM_C7_RESUME_20260909.md)，不能把已实现合同写成已通过。
 
@@ -262,9 +262,9 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 7. 每 callback 4096 / 每 update 16384 instruction、固定 state/heap、每 frame 256 set 和 16384 实际 clone 属性应用分别限额；每 instruction 检查取消。仅允许六个数值 scene 属性，不暴露 CLR/对象/任意 IO/玩法写 API。超限、越权或数值异常只熔断脚本，保持同一 scene 的基础表现；普通 note/key/judgement 不依赖用户授权。
 8. presentation tick 固定 60 Hz gameplay time，先处理 tick 前的旧 baseline，再按 canonical sequence 折叠同时间事件；必须等引擎 time 严格越过 tick 时间才封闭该 tick，不能由同帧暂时空的 queue 推断后续 playfield 已停止生产等时事件。render FPS 不改变结果。pause 不推进 tick；seek/retry/reload 的完整 Snapshot/Reset 重建 state/heap/seed。seed 来自 immutable program 指纹；profiler wall clock 只用于测量。故障不能由普通 Reset 隐式解除。Settings 提供稳定诊断、源行、callback/instruction/heap 与 VM elapsed，性能报告须分别说明 VM 和实际 scene host 测量及机器环境。
 
-## 两款长期内置身份
+## 唯一内置与星轨退役
 
-静线与星轨必须随安装提供并注册为固定身份的 protected 内置选择，无需玩家先导入；星轨作品观感未通过不改变其内置身份。两者普通 `.osk` 保留完整作者与导出能力，导出或编辑副本不授予原件修改权限。静线独占首次默认、必要件 fallback 与删除/取消登记后的恢复 authority；星轨使用独立 `ProtectedBuiltIn` revision 身份，不能因 `Protected` 标记获得 fallback 权限。当前选择须经同一 publication/lease/detach 协议并在重启后恢复，内置实例可复用但不能在取消普通包准备时被误释放。固定 ID 不能登记为外部或受管工作区。
+用户已明确放弃 complex，只继续打磨 simple。静线是唯一内置、首次默认与正式保底；星轨不再是内置选项、启动依赖或构建对象，历史作者文件仅保留参考。旧内置星轨选择迁回静线，普通用户导入的皮肤不清除；不再要求星轨视觉签收。仅可识别并退役旧固定内置身份，不按名字、内容相似度或历史 complex hash 清除普通用户导入包；不删除用户文件。固定身份不能登记为外部或受管目录。静线继续经同一 publication/lease/detach 协议承担唯一 fallback。
 
 ## playfield 与 BGA 布局约束
 
@@ -406,11 +406,11 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 
 用户对作品整体动画、美术安排或精细度的明确否定是产品修改依据，不能降格为“尚未观察”，也不能被可导入、渲染链/自动检查通过或历史 campaign 关闭记录抵消。总体反馈不自动提供特定玩法、键数、分辨率、设备或矩阵单项结果；未证实项继续未签收，不凭它为另一款皮肤签收或推断具体实现根因。当前状态和修改时机分别由 STATUS/PLAN 维护；用户明确结束本轮时只完成获准收尾，不借未达质量目标越过停止边界继续开发。
 
-1. 验证按实际改动面分层：仅改BMS ruleset组件且未触碰shared skin、mania compatibility或fallback authority时，至少覆盖用户package、Provide/Inherit/Suppress、BMS relevant/full与Release；修改shared skin、mania compatibility、scene/event或fallback authority时，必须追加core skin focused、mania relevant/full、BMS relevant/full与Release。C4还必须覆盖shared codec/catalog/resolver、三源exact material，C5还必须覆盖scene codec/runtime、event Snapshot/Reset、全部适用slot与revision并发矩阵；C6追加真实source/CLI bytecode作者包、Settings授权/拒绝/撤销/重启、版本失效、暂停及并发授权、预算熔断、三源无host整包验证与备份数据根G1。C7的真实双包、第三方缺件、canonical完整性/工作副本恢复、旧journal和保护记录迁移、真实设置导出、portable/custom-root/覆盖更新均属于自动gate；实际结论见STATUS，原人工签收门前仍保留`OmsSkin`隔离对照。
+1. 验证按实际改动面分层：仅改BMS ruleset组件且未触碰shared skin、mania compatibility或fallback authority时，至少覆盖用户package、Provide/Inherit/Suppress、BMS relevant/full与Release；修改shared skin、mania compatibility、scene/event或fallback authority时，必须追加core skin focused、mania relevant/full、BMS relevant/full与Release。C4还必须覆盖shared codec/catalog/resolver、三源exact material，C5还必须覆盖scene codec/runtime、event Snapshot/Reset、全部适用slot与revision并发矩阵；C6追加真实source/CLI bytecode作者包、Settings授权/拒绝/撤销/重启、版本失效、暂停及并发授权、预算熔断、三源无host整包验证与备份数据根G1。C7的真实静线、第三方缺件、canonical完整性/工作副本恢复、旧journal和保护记录迁移、真实设置导出、portable/custom-root/覆盖更新均属于自动gate；实际结论见STATUS，原人工签收门前仍保留`OmsSkin`隔离对照。
 2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。进入画面必须另有真实 `OsuGame` → `PlayerLoader` → 普通 Player/自动演示的回归：宿主不得预先缓存具体 ruleset config；layout preparer 从游戏的 `IRulesetConfigCache` 读取与实际 renderer 相同的最终配置，不能依赖后加载的 drawable 子树。以非默认样式/方向验证进入、重试、退出及 live reload 拒绝；`OsuTestScene.CreateRuleset()` 自动注入的 `DrawableRulesetDependencies` 不能充当这一入口证据。
 3. layout最低矩阵：P1-K decode/override→converter→manager/layout owner→真实renderer；5K/7K × P1/P2/CenterP1/CenterP2、9K BMS、9K PMS、14K及mania single/dual。每格覆盖stable identity、explicit logical/visual/global/group-local index、lane order/bounds/scratch/deck/centre gap、BGA viewport、gauge/combo/HUD safe slot、aspect/DPI/safe-area、逐字段fallback、mod后LaneId与时序不变，并证明全部production consumer持同一snapshot reference。
 4. sandbox 最低矩阵：权限拒绝、无限循环、内存/节点超限、异常熔断、replay determinism、seek/retry/pause/reload 和 profiler。
-5. V1 release 必须有两个普通 `.osk` 公共 API 验收包：`oms-simple` 与 `oms-complex`，两者均同时包含 mania/BMS。`oms-simple` 不得被补出已显式 suppress 的可选件；`oms-complex` 不得使用私有接口。
+5. V1 release 以普通 `oms-simple.osk` 覆盖 mania/BMS，并验证第三方公开作者路径；不得补出已显式 suppress 的可选件，不得使用私有作者接口。历史 complex 不再是 release gate。
 6. 每次记录本次实际运行的 BMS/mania/core/Release 与人工视觉/性能结果；按上条未要求重跑的套件也要明确写“未运行及原因”。已知失败必须稳定归因，不得把既有失败写成新回归。
 7. 文档不得把“代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”混成一个完成状态；能力矩阵必须分列。
 8. 不得宣称 LR2/beatoraja/IIDX 文件格式兼容；“接近 IIDX 表现上限”只描述公开接口表达力。

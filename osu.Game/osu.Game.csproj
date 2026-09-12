@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Label="Project">
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Library</OutputType>
@@ -24,11 +24,10 @@
     </None>
   </ItemGroup>
   <ItemGroup Label="OMS Skin Resources">
-    <UpToDateCheckInput Include="..\skin-authoring\sources\oms-simple\**\*;..\skin-authoring\sources\oms-complex\**\*;..\skin-authoring\Build-BuiltInSkins.ps1" />
-    <UpToDateCheckOutput Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.sha256;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.sha256" />
+    <UpToDateCheckInput Include="..\skin-authoring\sources\oms-simple\**\*;..\skin-authoring\Build-BuiltInSkins.ps1" />
+    <UpToDateCheckOutput Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.sha256" />
     <EmbeddedResource Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.sha256" LogicalName="osu.Game.Skins.Canonical.oms-simple.sha256" />
-    <EmbeddedResource Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.sha256" LogicalName="osu.Game.Skins.Canonical.oms-complex.sha256" />
-    <Content Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.osk">
+    <Content Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.osk">
       <Link>Skins\Canonical\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

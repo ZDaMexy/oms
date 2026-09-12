@@ -1,6 +1,6 @@
 ﻿param([switch]$RebuildAssets)
 $ErrorActionPreference = 'Stop'
-foreach ($name in @('oms-simple', 'oms-complex')) {
+foreach ($name in @('oms-simple')) {
     $source = Join-Path $PSScriptRoot ('sources/' + $name)
     if ($RebuildAssets) { & (Join-Path $PSScriptRoot 'Author.ps1') -Action generate -Source $source }
     & (Join-Path $PSScriptRoot 'Author.ps1') -Action pack -Source $source -Output (Join-Path $PSScriptRoot ('dist/' + $name + '.osk'))

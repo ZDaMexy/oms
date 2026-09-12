@@ -353,7 +353,6 @@ namespace osu.Game.Tests.Skins.IO
         });
 
         [TestCase("oms-simple.osk")]
-        [TestCase("oms-complex.osk")]
         public Task TestImportingInstalledCanonicalArchivePreservesOriginalAndUsesOrdinaryUserRecords(string filename) => runSkinTest(async osu =>
         {
             var skinManager = osu.Dependencies.Get<SkinManager>();

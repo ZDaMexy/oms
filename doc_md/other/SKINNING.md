@@ -343,12 +343,12 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 
 ## 9. `oms-simple`、`oms-complex` 与最终 fallback
 
-静线与星轨长期作为随安装注册的受保护内置选项，玩家在设置中直接选择，无需先导入第三方包；静线保持首次默认与唯一必要件保底，星轨观感待打磨不改变其内置身份。独立 `.osk` 是作者分发、导出与修改副本的载体，不是使用两款内置皮肤的前置步骤。
+静线是唯一内置、默认与保底；complex 已放弃，不参与构建、启动或视觉签收。旧内置 complex 配置迁回 simple，普通用户导入包不清除；历史作者文件仅作参考。
 
 两款作品都通过普通作者路径制作，同时支持 BMS 与 mania，作者文件和可重复打包方法见[完整套件](../../skin-authoring/README.md)。
 
 - **`oms-simple.osk`（静线）**：清楚克制的完整游玩外观，也是无自选皮肤、设置失效、当前皮肤删除或外部登记取消后的保底；必要件可以补齐，作者明确关闭的可选件不恢复。
-- **`oms-complex.osk`（星轨）**：两种玩法使用不同配色，完整舞台、分层音符与长条、信息控制台和组合演出均来自公开文件；额外脚本可拒绝或撤销。它是长期内置可选作品，当前观感待打磨；不替代静线默认或保底。
+- **`oms-complex.osk`（星轨）**：两种玩法使用不同配色，完整舞台、分层音符与长条、信息控制台和组合演出均来自公开文件；额外脚本可拒绝或撤销。它已退出内置，仅作历史作者参考，不再要求视觉签收。
 - **C6 Momentum**：保留为脚本历史示例和原 V-005 输入，不替代最终复杂作品。
 - **旧 `OmsSkin`**：保留旧恢复证据与历史组件对照，物理删除仍等待规定的人工门；默认选择、普通导入和安装故障都不再通过它生成主题外观。
 
@@ -366,7 +366,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 6. **看运行结果与日志**：public codec/catalog分别使用稳定`OMS-SKIN-CODEC-NNN`/`OMS-SKIN-SLOT-NNN`，resolver/resource/capability使用稳定小写code；全部产品日志均脱敏。C5 runtime profile逐项列出Supported或NotApplicable；NotApplicable不是`Inherit`，也不代表缺少host。legacy宽松字段的诊断仍不等于完整public合同。
 7. **校准提示**：`设置 → 游戏模式 → osu!mania → 滚动速度`显示的毫秒只代表标准几何下的参考下落时间；皮肤改了车道宽/判定线位置后体感会变，换皮后应重新校准，也不要拿它直接对照 BMS 的 Hi-Speed / 下落时间。
 
-C3/C4/C5自动矩阵逐一覆盖5K/7K的P1、P2、CenterP1、CenterP2，9K BMS/PMS、14K DP与mania single/dual，并验证public material、prepared scene/event、playfield、gauge/combo、BGA safe viewport、safe-area及不同宽高比/DPI。V1发布前仍须用`oms-simple/oms-complex`两个最终包复核相同矩阵和人工视觉。manual Reload必须持续满足“新revision任一步失败仍保持exact旧package+layout+material+scene”；C6 script consumer 与编译工作已进入相同 participant/retire 协议；自动门结果见 [C6 验证报告](SKIN_SYSTEM_C6_VALIDATION_20260909.md)，campaign 状态只见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。原 `V-001`～`V-004` 仍为 0/4 未签收，新增脚本可见结果也须按[集中清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)验收。
+C3/C4/C5自动矩阵逐一覆盖5K/7K的P1、P2、CenterP1、CenterP2，9K BMS/PMS、14K DP与mania single/dual，并验证public material、prepared scene/event、playfield、gauge/combo、BGA safe viewport、safe-area及不同宽高比/DPI。V1发布前仍须用`oms-simple`最终包与第三方输入复核相同矩阵和人工视觉。manual Reload必须持续满足“新revision任一步失败仍保持exact旧package+layout+material+scene”；C6 script consumer 与编译工作已进入相同 participant/retire 协议；自动门结果见 [C6 验证报告](SKIN_SYSTEM_C6_VALIDATION_20260909.md)，campaign 状态只见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。原 `V-001`～`V-004` 仍为 0/4 未签收，新增脚本可见结果也须按[集中清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)验收。
 
 ---
 

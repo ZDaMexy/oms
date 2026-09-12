@@ -14,21 +14,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
     public partial class BmsManagedFolderSelectionProductTest
     {
         [Test]
-        public void TestBuiltInComplexPlaysBmsAndManiaWithoutImport()
+        public void TestBuiltInSimplePlaysBmsAndManiaWithoutImport()
         {
             ExactLayoutJourneyHost renderer = null!;
             C6GameplayTestClock clock = null!;
             GameplaySkinSceneRuntimeHost bms = null!;
             GameplaySkinSceneRuntimeHost mania = null!;
 
-            AddStep("choose the bundled complex skin directly", () =>
+            AddStep("choose the bundled simple skin directly", () =>
             {
-                Assert.That(CanonicalSkinPackage.IsBuiltInSkin(manager.BuiltInComplexSkin), Is.True);
-                Assert.That(manager.BuiltInComplexSkin.SkinInfo.PerformRead(info => info.Protected), Is.True);
-                manager.CurrentSkinInfo.Value = manager.BuiltInComplexSkin.SkinInfo;
+                Assert.That(CanonicalSkinPackage.IsBuiltInSkin(manager.DefaultOmsSkin), Is.True);
+                Assert.That(manager.DefaultOmsSkin.SkinInfo.PerformRead(info => info.Protected), Is.True);
+                manager.CurrentSkinInfo.Value = manager.DefaultOmsSkin.SkinInfo;
             });
             AddUntilStep("the built-in instance is the selected package", () =>
-                ReferenceEquals(manager.CurrentSkin.Value, manager.BuiltInComplexSkin));
+                ReferenceEquals(manager.CurrentSkin.Value, manager.DefaultOmsSkin));
             AddStep("enter the actual BMS and mania playfields", () =>
             {
                 // The explicit stage fixture schedules its first mania note at 2,000 ms, matching the BMS chart.
@@ -46,13 +46,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("both playfields consume the selected built-in publication", () =>
             {
-                assertCanonicalProductScene(bms, "oms-complex");
-                assertCanonicalProductScene(mania, "oms-complex");
-                Assert.That(manager.CurrentRevision.Owner, Is.SameAs(manager.BuiltInComplexSkin));
+                assertCanonicalProductScene(bms, "canonical");
+                assertCanonicalProductScene(mania, "canonical");
+                Assert.That(manager.CurrentRevision.Owner, Is.SameAs(manager.DefaultOmsSkin));
                 Assert.That(bms.PreparedScene.Snapshot, Is.SameAs(renderer.BmsLayoutProbe.Publication!.Snapshot));
                 Assert.That(mania.PreparedScene.Snapshot, Is.SameAs(renderer.ManiaLayoutProbe.Publication!.Snapshot));
-                Assert.That(bms.TryGetRuntimeNode("astral.console.score", out _), Is.True);
-                Assert.That(mania.TryGetRuntimeNode("astral.console.score", out _), Is.True);
+                Assert.That(bms.TryGetRuntimeNode("still.hud.score", out _), Is.True);
+                Assert.That(mania.TryGetRuntimeNode("still.hud.score", out _), Is.True);
                 for (int time = 1_050; time <= 1_950; time += 50)
                     clock.Sample(time);
             });
@@ -69,8 +69,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddUntilStep("both built-in score displays show successful play", () =>
                 authoredInformationSnapshot(bms).Score.Score > 0 && authoredInformationSnapshot(mania).Score.Score > 0
-                && authoredInformationValue(bms, "astral.console.score") != "0"
-                && authoredInformationValue(mania, "astral.console.score") != "0");
+                && authoredInformationValue(bms, "still.hud.score") != "0"
+                && authoredInformationValue(mania, "still.hud.score") != "0");
             AddStep("release input and leave both playfields", () =>
             {
                 c6Input(renderer, false);
