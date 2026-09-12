@@ -65,9 +65,9 @@ while ($authoringAncestor) {
 dotnet publish (Join-Path $repoRoot 'tools/SkinAuthoring') -c Release -r $Runtime --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $authoringPublishDir
 if ($LASTEXITCODE -ne 0) { throw 'The standalone authoring tool could not be published.' }
 if (-not (Test-Path -LiteralPath (Join-Path $authoringPublishDir 'SkinAuthoring.exe') -PathType Leaf)) { throw 'The new standalone authoring publication is incomplete.' }
-foreach ($required in @('Author.ps1', 'dist/oms-simple.osk', 'dist/oms-complex.osk', 'dist/aurora-study.osk')) {
+foreach ($required in @('Author.ps1', 'sources/oms-simple/skin.ini', 'sources/oms-complex/skin.ini', 'dist/aurora-study.osk')) {
     if (-not (Test-Path -LiteralPath (Join-Path $authoringDir $required) -PathType Leaf)) {
-        throw "Authoring Kit is incomplete: $required. Build the public authoring tool and both skins before release packaging."
+        throw "Authoring Kit is incomplete: $required."
     }
 }
 
@@ -128,7 +128,7 @@ Assert-OrdinaryDeliveryEntry (Join-Path $repoRoot 'skin-c7-acceptance')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'skin-c7-acceptance') -Destination (Join-Path $publishDir 'skin-c7-acceptance') -Recurse
 $publishedAuthoring = Join-Path $publishDir 'skin-authoring'
 [IO.Directory]::CreateDirectory($publishedAuthoring) | Out-Null
-foreach ($name in @('sources', 'docs', 'Author.ps1', 'Build-Skins.ps1', 'Test-Authoring.ps1', 'README.md')) {
+foreach ($name in @('sources', 'docs', 'Author.ps1', 'Build-Skins.ps1', 'Build-BuiltInSkins.ps1', 'Test-Authoring.ps1', 'README.md')) {
     $entry = Get-Item -LiteralPath (Join-Path $authoringDir $name) -Force
     Assert-OrdinaryDeliveryEntry $entry.FullName
     Copy-Item -LiteralPath $entry.FullName -Destination $publishedAuthoring -Recurse
@@ -137,11 +137,19 @@ Assert-OrdinaryDeliveryEntry $authoringPublishDir
 Copy-Item -LiteralPath $authoringPublishDir -Destination (Join-Path $publishedAuthoring 'bin') -Recurse
 $publishedDist = Join-Path $publishedAuthoring 'dist'
 [IO.Directory]::CreateDirectory($publishedDist) | Out-Null
-foreach ($name in @('oms-simple.osk', 'oms-complex.osk', 'aurora-study.osk', 'oms-simple.sha256', 'oms-complex.sha256', 'aurora-study.sha256', 'oms-simple-preview.png', 'oms-complex-preview.png')) {
+foreach ($name in @('aurora-study.osk', 'aurora-study.sha256', 'oms-simple-preview.png', 'oms-complex-preview.png')) {
     $entry = Get-Item -LiteralPath (Join-Path $authoringDir "dist/$name") -Force
     Assert-OrdinaryDeliveryEntry $entry.FullName
     if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $entry.PSIsContainer) { throw 'Finished author package must be an ordinary file.' }
     Copy-Item -LiteralPath $entry.FullName -Destination $publishedDist
+}
+foreach ($name in @('oms-simple', 'oms-complex')) {
+    $original = Join-Path $publishDir "Skins/Canonical/$name.osk"
+    Assert-OrdinaryDeliveryEntry $original
+    Copy-Item -LiteralPath $original -Destination $publishedDist
+    [IO.File]::WriteAllText((Join-Path $publishedDist "$name.sha256"), (Get-FileSha256 $original) + "`n", [Text.UTF8Encoding]::new($false))
+    & (Join-Path $authoringPublishDir 'SkinAuthoring.exe') check (Join-Path $publishedAuthoring "sources/$name")
+    if ($LASTEXITCODE -ne 0) { throw "Built-in skin source validation failed: $name" }
 }
 $toolSource = Join-Path $publishedAuthoring 'tool-source'
 [IO.Directory]::CreateDirectory($toolSource) | Out-Null
@@ -175,7 +183,7 @@ OMS manual update guide / OMS 手动更新说明
 - 自定义保存位置由基础保存目录中的 storage.ini 决定：便携时在 data/storage.ini，非便携时在系统默认的游戏保存目录；它不在程序旁，也不随数据迁移到自定义目标目录。
 - 不删除或替换原 storage.ini、自定义保存目录、谱面或皮肤。普通手动全包覆盖会带入 portable.ini，使原非便携安装改变保存位置，请使用随包工具。
 - 更新前的程序文件与中断修复说明保留在原安装的 .oms-update-backup-*；不要猜测清理。
-- 两款可导入皮肤、完整源文件和作者工具见 skin-authoring/；集中体验说明见 skin-c7-acceptance/。
+- 两款皮肤内置于游戏，随版本更新；完整源文件、可分发副本和作者工具见 skin-authoring/；集中体验说明见 skin-c7-acceptance/。
 - 正确的手动覆盖更新不会要求重新导入本地谱面或重建现有用户数据。
 
 English
@@ -195,7 +203,7 @@ Notes:
 - Preserve storage.ini in the bootstrap storage root: data/storage.ini in portable mode, or the host's default game storage in non-portable mode. It is neither beside the executable nor moved into the custom data root.
 - User data, custom storage, charts and skins are not copied over. Plain extraction over a non-portable install would add portable.ini and switch its bootstrap storage; use the supplied updater.
 - Original program files and interruption recovery instructions remain in .oms-update-backup-* in the target installation. Do not guess which old data to remove.
-- Both importable skins, their complete sources and author tools are in skin-authoring/; focused experience instructions are in skin-c7-acceptance/.
+- Both skins are built in and updated with the game. Their sources, distributable copies and author tools are in skin-authoring/; focused experience instructions are in skin-c7-acceptance/.
 - A correct manual overwrite update does not require re-importing local beatmaps or rebuilding existing user data.
 '@
 

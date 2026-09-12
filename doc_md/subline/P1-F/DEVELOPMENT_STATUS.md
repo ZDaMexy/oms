@@ -1,11 +1,11 @@
 # P1-F 开发进度：发行后置与离线发布验收
 
-> 最后更新：2026-09-12（安装与更新证据保留；星轨体验不通过，本轮只做文档收尾、不重新发行）
+> 最后更新：2026-09-12（内置双皮肤随构建更新已验证；新验证包安装复验通过，视觉未签收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
 
-用户已否定星轨动画、美术安排和精细度，现版总体不可用；simple/complex 修改留待新对话，本轮按要求暂停开发。下列安装与更新结果仅是既有工程证据，不覆盖该产品否定，也不使发行门通过；当前 ZIP 和已组装目录原样保留，内置说明/空白清单仍是生成当时快照，最新体验结论见 [P1-A 状态](../P1-A/DEVELOPMENT_STATUS.md)。本次仅更新文档，未重新构建、打包或运行安装检查。
+用户已恢复静线优化，并明确两款皮肤长期内置且随开发启动、构建和发行更新。本轮修复旧 dist 可能滞后的构建输入，生成 `release-repo/oms_20260912.zip` 验证候选；当前验证见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。下列旧安装与更新结果保留历史身份，不覆盖星轨总体体验不通过的结论，也不使发行门通过；最新体验见 [P1-A 状态](../P1-A/DEVELOPMENT_STATUS.md)。
 
 - [build-release.ps1](../../../build-release.ps1) 产出完整自包含多文件 ZIP（`PublishSingleFile=false`）。当前启动提示修复包为 `release-repo/oms_20260911_startup-fix-final.zip`，完整解压后直接运行 `osu!.exe`，无需另装 .NET；玩法 DLL 和安装原件留在真实安装目录。先前 `_4`、`preview-fix` 包及其结果保留为历史，本轮未改变部署入口或发行合同。
 - 该包已通过 Windows Shell 实际解压与完整清单校验，两款 canonical 原件实际保留 ReadOnly/Archive，检查未补写属性。首次便携、自定义保存位置、损坏工作副本恢复、同一完整包覆盖后重启均已完成加载、八秒稳定运行和正常退出；没有以强制结束代替正常退出。

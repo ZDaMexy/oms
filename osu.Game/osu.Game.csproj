@@ -24,9 +24,11 @@
     </None>
   </ItemGroup>
   <ItemGroup Label="OMS Skin Resources">
-    <EmbeddedResource Include="..\skin-authoring\dist\oms-simple.sha256" LogicalName="osu.Game.Skins.Canonical.oms-simple.sha256" />
-    <EmbeddedResource Include="..\skin-authoring\dist\oms-complex.sha256" LogicalName="osu.Game.Skins.Canonical.oms-complex.sha256" />
-    <Content Include="..\skin-authoring\dist\oms-simple.osk;..\skin-authoring\dist\oms-complex.osk">
+    <UpToDateCheckInput Include="..\skin-authoring\sources\oms-simple\**\*;..\skin-authoring\sources\oms-complex\**\*;..\skin-authoring\Build-BuiltInSkins.ps1" />
+    <UpToDateCheckOutput Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.sha256;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.sha256" />
+    <EmbeddedResource Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.sha256" LogicalName="osu.Game.Skins.Canonical.oms-simple.sha256" />
+    <EmbeddedResource Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.sha256" LogicalName="osu.Game.Skins.Canonical.oms-complex.sha256" />
+    <Content Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-simple.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\oms-complex.osk">
       <Link>Skins\Canonical\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -36,6 +38,12 @@
       <LogicalName>osu.Game.Skins.Oms.$([System.String]::Copy('%(RecursiveDir)').Replace('\\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
+  <Target Name="BuildOmsBuiltInSkins" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\skin-authoring\Build-BuiltInSkins.ps1&quot; -OutputDirectory &quot;$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)canonical\$(Configuration)'))&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(BaseIntermediateOutputPath)canonical\$(Configuration)\*.osk;$(BaseIntermediateOutputPath)canonical\$(Configuration)\*.sha256" />
+    </ItemGroup>
+  </Target>
   <ItemGroup Label="Package References">
     <PackageReference Include="AutoMapper" Version="13.0.1" />
     <PackageReference Include="DiffPlex" Version="1.7.2" />

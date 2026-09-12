@@ -49,3 +49,6 @@ metadata:
 两款均须随安装注册、直接选择并恢复重启前选择；protected 只代表原件受保护，不能据此把星轨分类为 ProtectedFallback。星轨用 ProtectedBuiltIn，经同一 revision publication 并复用内置实例；取消选择准备不能释放共享内置 owner。AllSources 的必要件补齐、删除/取消登记恢复继续只用静线。导出星轨须走完整普通包，不能退回无 Files 的 Realm 空壳导出。
 
 检查 Realm 中保留的固定身份时，不把 `Select(info => info.ID)` 投影交给 Realm provider（会抛 `NotSupportedException`）；在同一 `realm.Run` 内先 `AsEnumerable()` 再投影并物化，不能把 live 对象带出读取作用域。双内置迁移测试已覆盖该读取方式。
+# 2026-09-12 构建同步补充
+
+内置 simple/complex 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。

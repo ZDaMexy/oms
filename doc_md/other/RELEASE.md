@@ -7,6 +7,8 @@
 
 ## 当前人工验收包
 
+用户随后已恢复静线开发，并要求内置双皮肤随开发启动与构建更新。当前新生成 `release-repo/oms_20260912.zip` 用于验证该路径；构建、安装复验及限制见[构建更新记录](SKIN_BUILTIN_BUILD_20260912.md)。下文 `startup-fix-final` 及暂停表述保留此前验收历史身份，不代表当前仍暂停，也不把新包视为美术签收通过。
+
 **2026-09-12 最新体验结论：星轨现版动画、美术安排和精细度不符合用户预期，总体不可用。** 本轮按要求暂时收尾，simple/complex 优化留待新对话；下述包保留为安装与作品对照，不代表可接受的最终美术或已通过发行签收。现有 ZIP 和已组装目录没有被重打包或改写，随包说明/空白清单仍是生成时快照；当前反馈与剩余修改见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)和[当前集中清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。
 
 截至 2026-09-12，当前实际完整包为 `release-repo/oms_20260911_startup-fix-final.zip`，已组装成可直接运行的 `release-repo/oms-skin-c7-acceptance-20260911-startup-fix-final`。按其中 `README.md` 运行 `Start-Acceptance.ps1`，即可在独立副本中选择两款成品、导入观察输入和第三方皮肤，使用同一作者工具修改、检查、打包并更新导入副本；集中步骤见 [人工验收指南](../../skin-c7-acceptance/README.md)。本次真实包组装已在 PS5、无 Git/SDK 的环境完成，来源保持原样。先前 `_4`、`preview-fix` 包和验收结果保留为历史，当前使用入口以上述新包为准。

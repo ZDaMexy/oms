@@ -8,6 +8,8 @@
 
 ## 直接使用
 
+仓库开发时，正常 `dotnet run --project osu.Desktop`、build 与 publish 会从两款 `sources/` 自动生成本次内置包及校验，不需要先运行 `Build-Skins.ps1`。普通构建不覆盖手工素材，也不改仓库 dist；发行套件的同名包来自本次游戏产物。显式跳过构建会沿用已有产物。构建回归可运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-BuiltInSkins.ps1`（仓库根目录）。
+
 安装支持本轮改动的 OMS 后，在设置的皮肤列表直接选择 `OMS 简洁`（simple／静线）或 `OMS 星轨`（complex）；两款长期内置，无需下载或拖入 `.osk`。首次默认静线，星轨可选但实际观感仍待打磨。可选组合效果可以授权、拒绝或撤销；拒绝后必要信息和演奏视觉继续显示。独立 [oms-simple.osk](dist/oms-simple.osk) 和 [oms-complex.osk](dist/oms-complex.osk) 保留给作者分发、导出对照及修改副本使用。
 
 整套目录可复制到任意普通可写目录。正式验收包附带 `bin/SkinAuthoring.exe` 与所需文件，无须安装 SDK 或阅读游戏源码。仓库开发者第一次准备工具可运行：

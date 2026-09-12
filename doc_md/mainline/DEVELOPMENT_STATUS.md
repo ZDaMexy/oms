@@ -9,6 +9,8 @@ OMS处于Phase 1.x后段。Skin 原七阶段已有工程与交付证据保留，
 
 ## 产品与仓库基线
 
+两款内置皮肤已接入正常开发启动、build/publish 的源文件同步，发行作者副本跟随本次安装原件；验证与未完成的视觉门见[构建更新记录](../other/SKIN_BUILTIN_BUILD_20260912.md)。
+
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
