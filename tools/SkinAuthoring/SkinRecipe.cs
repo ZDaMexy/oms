@@ -47,6 +47,11 @@ namespace SkinAuthoring
                     }
                 }
 
+                if (profile.CompactLayout && ruleset == "bms")
+                    foreach (string role in new[] { "white", "accent", "special", "scratch" })
+                        draw(Path.Combine(assets, $"key-{role}.png"), 128, 128,
+                            (x, y, w, h) => controllerKey(x, y, w, h, role, accent));
+
                 foreach (string name in new[] { "lane", "divider", "target", "bar", "cover", "stage", "frame", "backdrop", "plate", "mine", "hud", "gauge", "flash", "explosion", "turntable", "laser", "viewport" })
                     draw(Path.Combine(assets, name + ".png"), name == "mine" ? 128 : 256, name is "target" or "bar" or "divider" ? 32 : 256,
                         (x, y, w, h) => surface(x, y, w, h, name, accent, background, highlight, profile.Complex));
@@ -209,6 +214,27 @@ namespace SkinAuthoring
             return accent;
         }
 
+        private static Rgba32 controllerKey(int x, int y, int w, int h, string role, Rgba32 accent)
+        {
+            if (role == "scratch")
+            {
+                double radius = Math.Sqrt(Math.Pow((x - w / 2.0) / (w / 2.0), 2) + Math.Pow((y - h / 2.0) / (h / 2.0), 2));
+                if (radius > 0.94) return default;
+                if (radius > 0.86) return new Rgba32(156, 171, 184);
+                if (radius > 0.80) return new Rgba32(39, 48, 59);
+                if (radius < 0.24) return accent;
+                return new Rgba32(17, 22, 30);
+            }
+
+            bool dark = role == "accent";
+            int bottom = dark ? h * 3 / 4 : h - 5;
+            if (x < 5 || x >= w - 5 || y < 5 || y >= bottom) return default;
+            if (x < 9 || x >= w - 9 || y < 9 || y >= bottom - 4) return new Rgba32(85, 99, 115);
+            if (Math.Abs(x - w / 2) < 5 && y > bottom - 20) return accent;
+            byte shade = (byte)(dark ? 48 - y * 20 / h : 230 - y * 52 / h);
+            return new Rgba32(shade, shade, (byte)Math.Min(255, shade + 6));
+        }
+
         private static Rgba32 surface(int x, int y, int w, int h, string name, Rgba32 accent, Rgba32 background, Rgba32 highlight, bool complex)
         {
             bool edge = x < 3 || x >= w - 3 || y < 3 || y >= h - 3;
@@ -262,10 +288,12 @@ namespace SkinAuthoring
             foreach ((string mode, int keys) in new[] { ("5K", 5), ("7K", 7), ("9K", 9), ("9K_PMS", 9), ("14K", 14) })
             {
                 ini.AppendLine("[Bms]").AppendLine($"Keymode: {mode}")
-                    .AppendLine($"PlayfieldHeight: {(profile.Complex ? "0.90" : "0.92")}")
-                    .AppendLine($"PlayfieldWidth: {(keys == 14 ? "0.66" : keys == 9 ? "0.4455" : keys == 7 ? "0.396" : "0.33")}")
+                    .AppendLine($"PlayfieldHeight: {(profile.CompactLayout ? "0.70" : profile.Complex ? "0.90" : "0.92")}")
+                    .AppendLine($"PlayfieldWidth: {(profile.CompactLayout ? (keys == 14 ? "0.54" : keys == 9 ? "0.30" : keys == 7 ? "0.25" : "0.21") : (keys == 14 ? "0.66" : keys == 9 ? "0.4455" : keys == 7 ? "0.396" : "0.33"))}")
                     .AppendLine("NormalLaneWidth: 1").AppendLine("ScratchLaneWidth: 1.5").AppendLine("ScratchLaneSpacing: 0.12")
                     .AppendLine($"LongNoteBodyWidth: {(profile.Complex ? "0.65" : "0.60")}").AppendLine("BarLineHeight: 2");
+                if (profile.CompactLayout)
+                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)
@@ -477,7 +505,7 @@ namespace SkinAuthoring
             var tracks = new List<object>();
             var bindings = new List<object>();
             var machines = new List<object>();
-            if (!profile.Complex)
+            if (!profile.Complex && !profile.CompactLayout)
             {
                 var information = new List<object>
                 {
@@ -497,6 +525,28 @@ namespace SkinAuthoring
                 foreach ((string target, string property, string source) in new[]
                          {
                              ("score", "text", "score.value"), ("accuracy", "text", "score.accuracy"), ("combo", "text", "combo.value"),
+                             ("bpm", "text", "timing.bpm"), ("progress", "width", "timing.progress"),
+                         })
+                    bindings.Add(new { id = "still.bind." + target, target = "still.hud." + target, property, source });
+            }
+            if (!profile.Complex && profile.CompactLayout)
+            {
+                var information = new List<object>
+                {
+                    hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.90, ["height"] = 0.95, ["colour"] = "#" + profile.Background + "ff" }),
+                    hudLabel("still.hud.score-label", "SCORE", 0.07, 0.06, 10, "#91a1b9ff"),
+                    hudLabel("still.hud.score", "0", 0.07, 0.38, 20, "#e9f3ffff"),
+                    hudLabel("still.hud.accuracy-label", "ACCURACY", 0.40, 0.06, 10, "#91a1b9ff"),
+                    hudLabel("still.hud.accuracy", "100.00%", 0.40, 0.38, 20, "#e9f3ffff"),
+                    hudLabel("still.hud.bpm-label", "BPM", 0.77, 0.06, 10, "#91a1b9ff"),
+                    hudLabel("still.hud.bpm", "0", 0.77, 0.38, 20, "#e9f3ffff"),
+                    hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.96, ["width"] = 1, ["height"] = 0.025, ["colour"] = "#263444ff" }),
+                    hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.96, ["width"] = 0, ["height"] = 0.025, ["colour"] = "#a6b5c9ff" }),
+                };
+                children.Add(new { id = "still.hud", type = "container", target = new { kind = "global" }, blend = "inherit", properties = new { }, effects = Array.Empty<object>(), children = information });
+                foreach ((string target, string property, string source) in new[]
+                         {
+                             ("score", "text", "score.value"), ("accuracy", "text", "score.accuracy"),
                              ("bpm", "text", "timing.bpm"), ("progress", "width", "timing.progress"),
                          })
                     bindings.Add(new { id = "still.bind." + target, target = "still.hud." + target, property, source });
@@ -575,6 +625,29 @@ namespace SkinAuthoring
 
         private static object sprite(string id, string resource, Dictionary<string, object> properties)
             => new { id, type = "sprite", target = new { kind = "global" }, resource = "texture." + resource, blend = "alpha", properties, effects = Array.Empty<object>(), children = Array.Empty<object>() };
+
+        // Every element keeps the ruleset's published HUD surface: BMS uses its bottom information area,
+        // while mania retains its top band. No full-screen child can drift back over the lanes.
+        private static object hudElement(string id, string type, Dictionary<string, object> properties)
+        {
+            var node = new Dictionary<string, object>
+            {
+                ["id"] = id,
+                ["type"] = type,
+                ["target"] = new { kind = "global" },
+                ["slot"] = "hud.text",
+                ["blend"] = "alpha",
+                ["properties"] = properties,
+                ["effects"] = Array.Empty<object>(),
+                ["children"] = Array.Empty<object>(),
+            };
+            if (type == "sprite")
+                node["resource"] = "texture.white";
+            return node;
+        }
+
+        private static object hudLabel(string id, string text, double x, double y, int fontSize, string colour)
+            => hudElement(id, "text", new() { ["text"] = text, ["x"] = x, ["y"] = y, ["font-size"] = fontSize, ["colour"] = colour });
 
         private static object label(string id, string text, double x, double y, int fontSize, string colour)
             => new { id, type = "text", target = new { kind = "global" }, blend = "alpha", properties = new Dictionary<string, object> { ["text"] = text, ["x"] = x, ["y"] = y, ["font-size"] = fontSize, ["colour"] = colour }, effects = Array.Empty<object>(), children = Array.Empty<object>() };

@@ -7,6 +7,10 @@
 
 ## 2026-09-12
 
+### 静线演奏布局打磨恢复
+
+用户重新授权静线 1P 打磨，并要求保存五张原始参考图、将 BGA 布局纳入公开皮肤设置。静线布局与公共键区/HUD/BGA 变化及验证统一见 [P1-A 记录](../subline/P1-A/CHANGELOG.md#静线演奏布局打磨恢复与参考图归档)。星轨作者作品仍待修改，旧发行安装证据不替代本次新包验收，Skin V1/release 未签收。
+
 ### 全项目实际内容、文档与记忆专项对齐
 
 - 基线为干净 `master@c477cda`；`git fetch origin` 成功，fetch 前后 `git rev-list --left-right --count 'HEAD...@{upstream}'` 均为 `0 0`。在线核对仅指本次 origin/master，不表示已重新审核上游或公共参考网站。

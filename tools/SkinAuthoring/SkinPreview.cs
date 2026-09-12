@@ -14,6 +14,9 @@ namespace SkinAuthoring
         public static void Create(string root, string output)
         {
             var profile = JsonSerializer.Deserialize<AuthorProfile>(File.ReadAllText(Path.Combine(root, "author.json")), json_options)!;
+            using var scene = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "gameplay-skin.scene.json")));
+            bool compactInformation = scene.RootElement.GetProperty("root").GetProperty("children").EnumerateArray()
+                                           .Any(node => node.GetProperty("id").GetString() == "still.hud" && !node.TryGetProperty("slot", out _));
             using var image = new Image<Rgba32>(1600, 1000, new Rgba32(7, 11, 19));
             text(image, profile.Complex ? "OMS COMPLEX / ASTRAL" : "OMS SIMPLE / STILL", 55, 45, 5, new Rgba32(233, 242, 251));
             text(image, "BMS", 65, 124, 3, new Rgba32(82, 223, 223));
@@ -67,16 +70,19 @@ namespace SkinAuthoring
                 text(image, "128", panel + stageWidth / 2 - 27, 720, 3, new Rgba32(243, 247, 255));
                 if (!profile.Complex)
                 {
-                    // Public global children resolve the safe screen independently of the slot owner's band.
-                    rect(image, panel, 159, stageWidth, 60, new Rgba32(12, 18, 27));
-                    text(image, "SCORE", panel + 12, 167, 1, new Rgba32(145, 161, 185));
-                    text(image, "0874200", panel + 12, 181, 2, new Rgba32(233, 243, 255));
-                    text(image, "ACCURACY", panel + 205, 167, 1, new Rgba32(145, 161, 185));
-                    text(image, "99.50%", panel + 205, 181, 2, new Rgba32(233, 243, 255));
-                    text(image, "COMBO", panel + 370, 167, 1, new Rgba32(145, 161, 185));
-                    text(image, "128", panel + 370, 181, 2, new Rgba32(233, 243, 255));
-                    text(image, "BPM 150", panel + 455, 176, 2, new Rgba32(192, 206, 224));
-                    rect(image, panel, 225, stageWidth * 2 / 5, 2, new Rgba32(163, 183, 203));
+                    int informationTop = compactInformation && ruleset == "bms" ? 937 : 159;
+                    rect(image, panel, informationTop, stageWidth, 35, new Rgba32(12, 18, 27));
+                    text(image, "SCORE", panel + 12, informationTop + 2, 1, new Rgba32(145, 161, 185));
+                    text(image, "0874200", panel + 12, informationTop + 14, 2, new Rgba32(233, 243, 255));
+                    text(image, "ACCURACY", panel + 205, informationTop + 2, 1, new Rgba32(145, 161, 185));
+                    text(image, "99.50%", panel + 205, informationTop + 14, 2, new Rgba32(233, 243, 255));
+                    if (!compactInformation)
+                    {
+                        text(image, "COMBO", panel + 370, informationTop + 2, 1, new Rgba32(145, 161, 185));
+                        text(image, "128", panel + 370, informationTop + 14, 2, new Rgba32(233, 243, 255));
+                    }
+                    text(image, "BPM 150", panel + 455, informationTop + 14, 2, new Rgba32(192, 206, 224));
+                    rect(image, panel, informationTop + 34, stageWidth * 2 / 5, 2, new Rgba32(163, 183, 203));
                 }
                 if (profile.Complex)
                 {
@@ -86,7 +92,7 @@ namespace SkinAuthoring
                         rect(image, panel + stageWidth + 20 + 11 * bar, 545 + 12 * bar, 5, 78 - 12 * bar, new Rgba32(82, 223, 223, 150));
                 }
             }
-            text(image, "AUTHOR DESIGN PREVIEW / ACTUAL GAMEPLAY REVIEW PENDING", 55, 955, 2, new Rgba32(146, 159, 178));
+            text(image, "AUTHOR ARTWORK SHEET / NOT A GAMEPLAY CAPTURE", 55, 980, 2, new Rgba32(146, 159, 178));
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             image.SaveAsPng(output);
             Console.WriteLine($"作者设计预览（并非游戏截图）：{output}");

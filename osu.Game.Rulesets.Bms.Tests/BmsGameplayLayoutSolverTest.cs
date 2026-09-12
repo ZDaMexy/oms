@@ -52,6 +52,99 @@ namespace osu.Game.Rulesets.Bms.Tests
             assertCompleteAndBounded(snapshot);
         }
 
+        [TestCase(BmsPlayfieldStyle.P1)]
+        [TestCase(BmsPlayfieldStyle.P2)]
+        public void TestSeparateKeysReserveSpaceWithoutMovingJudgementOrChangingLaneOrder(BmsPlayfieldStyle style)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            BmsGameplayLayoutSnapshot baseline = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration { PlayfieldHeight = 0.70f });
+            BmsGameplayLayoutSnapshot layout = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldHeight = 0.70f,
+                KeyAreaHeight = 0.12f,
+            });
+            Assert.That(layout.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+            Assert.That(layout.JudgementLineRect, Is.EqualTo(baseline.JudgementLineRect));
+            Assert.That(layout.HitTargetRect, Is.EqualTo(baseline.HitTargetRect));
+            Assert.That(layout.LanesInLogicalOrder.Select(lane => lane.LaneId), Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.LaneId)));
+            Assert.That(layout.KeyAreaRect.Top, Is.EqualTo(layout.PlayfieldRect.Bottom));
+            Assert.That(layout.KeyAreaRect.Bottom, Is.LessThanOrEqualTo(layout.GaugeRect.Top));
+            Assert.That(layout.GaugeRect.Bottom, Is.LessThanOrEqualTo(layout.HudRect.Top));
+            Assert.That(layout.BgaViewports.All(rect => !rect.Intersects(layout.KeyAreaRect)), Is.True);
+            Assert.That(baseline.KeyAreaRect, Is.EqualTo(baseline.HitTargetRect), "Old packages retain their existing key visual position.");
+        }
+
+        [TestCase(BmsPlayfieldStyle.P1)]
+        [TestCase(BmsPlayfieldStyle.P2)]
+        public void TestAuthoredBgaUsesLargeSideAreaWithoutCoveringPlayfield(BmsPlayfieldStyle style)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            BmsGameplayLayoutSnapshot baseline = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration());
+            BmsGameplayLayoutSnapshot snapshot = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldWidth = 0.25f,
+                PlayfieldHeight = 0.72f,
+                BgaWidth = 0.62f,
+                BgaHeight = 0.78f,
+                BgaVerticalPosition = 0.5f,
+            });
+            GameplaySkinLayoutRect viewport = snapshot.BgaViewports.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(viewport.Width, Is.GreaterThan(baseline.BgaViewports.Single().Width));
+                Assert.That(viewport.Height, Is.LessThanOrEqualTo(0.78f));
+                Assert.That(viewport.Width * snapshot.Context.AspectRatio / viewport.Height, Is.EqualTo(4f / 3f).Within(0.0001f));
+                Assert.That(viewport.Top, Is.EqualTo((0.92f - viewport.Height) / 2).Within(0.0001f));
+                Assert.That(style == BmsPlayfieldStyle.P1 ? viewport.Left >= snapshot.PlayfieldRect.Right : viewport.Right <= snapshot.PlayfieldRect.Left, Is.True);
+            });
+            GameplaySkinLayoutRect hud = snapshot.Neutral.Surfaces.Single(surface => surface.Id == BmsGameplayLayoutSurfaceIds.Hud).Rect;
+            Assert.That(hud.Top, Is.EqualTo(0.92f).Within(0.0001f));
+            Assert.That(hud.Intersects(snapshot.PlayfieldRect), Is.False);
+            Assert.That(hud.Intersects(snapshot.GaugeRect), Is.False);
+            Assert.That(hud.Intersects(viewport), Is.False);
+            assertCompleteAndBounded(snapshot);
+        }
+
+        [TestCase(BmsKeymode.Key7K, 0.62f)]
+        [TestCase(BmsKeymode.Key14K, 0.62f)]
+        [TestCase(BmsKeymode.Key14K, 16f / 9f)]
+        public void TestAuthoredBgaRemainsBoundedOnNarrowAndDualDeckLayouts(BmsKeymode keymode, float aspect)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(keymode));
+            var environment = new BmsGameplayLayoutEnvironment(GameplaySkinLayoutRect.Create(0, 0, 1, 1), GameplaySkinLayoutRect.Create(0, 0, 1, 1), aspect, 1);
+            BmsGameplayLayoutSnapshot snapshot = provider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration
+            {
+                BgaWidth = 1,
+                BgaHeight = 1,
+                BgaVerticalPosition = 1,
+            }, environment);
+            assertCompleteAndBounded(snapshot);
+            foreach (GameplaySkinLayoutRect viewport in snapshot.BgaViewports)
+            {
+                Assert.That(viewport.Intersects(snapshot.PlayfieldRect), Is.False);
+                Assert.That(viewport.Intersects(snapshot.GaugeRect), Is.False);
+                Assert.That(viewport.Width * aspect / viewport.Height, Is.EqualTo(4f / 3f).Within(0.0001f));
+            }
+        }
+
+        [Test]
+        public void TestInvalidBgaFieldsRetainDefaultViewportAndReportEachField()
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            BmsGameplayLayoutSnapshot baseline = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration());
+            BmsGameplayLayoutSnapshot snapshot = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration
+            {
+                BgaWidth = float.NaN,
+                BgaHeight = 2,
+                BgaVerticalPosition = -1,
+            });
+            Assert.That(snapshot.BgaViewports, Is.EqualTo(baseline.BgaViewports));
+            Assert.That(snapshot.Neutral.Diagnostics.Select(diagnostic => diagnostic.Code), Is.EquivalentTo(new[]
+            {
+                "bms.layout.invalid-bga-width", "bms.layout.invalid-bga-height", "bms.layout.invalid-bga-vertical-position",
+            }));
+        }
+
         [Test]
         public void TestFourteenKeyDeckScratchGapAndBgaMatrix()
         {

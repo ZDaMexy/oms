@@ -2,6 +2,8 @@
 
 制作分成两个常用方式。改色和复现官方作品时，编辑 `author.json`，然后运行 `generate`。自己画素材、调整舞台或编写演出时，直接编辑 `bms/*.png`、`mania/*.png`、`scene/*.png`、`skin.ini`、`gameplay-skin.scene.json` 和可选 `gameplay-skin.script`，随后运行 `check`、`pack`；此时不要再运行 `generate` 覆盖手工修改。
 
+静线的 `author.json` 显式设置 `compactLayout: true`，生成独立 BMS 键区、较大 BGA 和精简信息区。未声明时保留原布局，旧 Aurora 演练作品可以原样重做。这是作者工具的生成选项；游戏只读取生成后的普通皮肤声明，不识别作品名称或这个选项。
+
 具体 JSON 字段、模板实例、状态机、图片变体、脚本指令和完整预算见 [普通作者参考与完整练习](REFERENCE.md)。先完成本页的完整作品流程，再按需要查表。
 
 所有文件相对于作品目录。图片名在 `skin.ini` 中不写扩展名，在场景清单中必须写完整 `.png` 路径。短键、长条头身尾支持 `名字-0.png`、`名字-1.png` 等从 0 连续编号的动画，固定每秒 60 帧。静态同名 PNG 保留可读的封面帧；普通作者同样可使用这条路径。
@@ -29,7 +31,7 @@ effect.key-flash: resource Suppress
 
 BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键旧字段 `NoteImage0`～`8` 对应公开轨道 `key-1`～`9`。5/7 键 `S` 是转盘，14 键含 `S`、`S2`。mania `[Mania] Keys:` 保留传统字段。mania 的 `KeyImage` 与 `KeyImageD` 分别提供松开和按下图片；模板的 `playfield.key` 显式 `Inherit` 到同包这些普通字段，避免单张公共图把按下态覆盖。关闭可选按键闪光仍保留按下图片。两种玩法可使用不同目录、颜色与布局；[General] 的覆盖文字不代替真正的素材设置。
 
-公开 BMS 布局字段：`PlayfieldWidth` 与 `PlayfieldHeight` 是屏幕比例，普通键/转盘宽度和间距是相对权重，`LongNoteBodyWidth` 是相对车道宽度。判定线相对滚动的时序关系不交给作者修改。mania 使用 `ColumnWidth`、`ColumnSpacing`、`HitPosition` 等现有兼容设置。布局必须留出双舞台、必要文字、背景视频区域和不同屏幕比例的空间；不重做视频播放器。
+公开 BMS 布局字段：`PlayfieldWidth` 与 `PlayfieldHeight` 是屏幕比例，普通键/转盘宽度和间距是相对权重，`LongNoteBodyWidth` 是相对车道宽度。`KeyAreaHeight` 可给判定线下方预留独立键盘区；`BgaWidth`、`BgaHeight`、`BgaVerticalPosition` 控制 BGA 的最大显示框与竖直位置，范围和适配规则见 [参考](REFERENCE.md)。判定线相对滚动的时序关系不交给作者修改。mania 使用 `ColumnWidth`、`ColumnSpacing`、`HitPosition` 等现有兼容设置。布局必须留出双舞台、必要文字、背景视频区域和不同屏幕比例的空间；不重做视频播放器。
 
 ## 声明式演出
 

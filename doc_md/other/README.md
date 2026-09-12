@@ -15,6 +15,8 @@
 
 ## 恢复与视觉验收
 
+- [静线 1P 外部参考凭据](references/simple-1p-20260912/README.md)：用户提供的五张原始对照图及来源标识，供布局打磨随时对照。
+- [静线布局调整与验证](SKIN_SIMPLE_LAYOUT_20260912.md)：底部信息、独立键区和 BGA 作者参数，以及当前包的实际检查记录。
 - [皮肤恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)：皮肤任务必读；恢复锚点、撤回范围与重新准入。
 - [schema 56 清点](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)：副本取证与 SV1-0 历史证据，不授权重复操作生产数据。
 - [Skin V1 架构依据](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：设计解释；现行合同归 P1-A。

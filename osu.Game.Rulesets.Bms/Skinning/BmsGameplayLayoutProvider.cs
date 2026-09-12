@@ -155,7 +155,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 owner,
                 beatmap,
                 style,
-                keymode => BmsGameplayLayoutConfiguration.FromSkin(skin, keymode),
+                keymode => BmsGameplayLayoutConfiguration.FromSkin(skin, keymode,
+                    BmsGameplayResolvedNoteMaterialPreparer.FindExactSelectedSource(skin, owner.PackageRevision)),
                 () => CreateProductionEnvironment(host, safeArea),
                 cancellationToken,
                 layout => BmsGameplayResolvedNoteMaterialPreparer.Prepare(skin, layout, cancellationToken));

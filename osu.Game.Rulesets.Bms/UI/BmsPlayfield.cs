@@ -150,7 +150,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             BmsGameplayLayoutSnapshot snapshot = LayoutProvider.PublishForTesting(
                 style,
-                BmsGameplayLayoutConfiguration.FromSkin(skin, beatmap.BmsInfo.Keymode),
+                BmsGameplayLayoutConfiguration.FromSkin(skin, beatmap.BmsInfo.Keymode, skin),
                 environment);
             initialiseLayoutGraph(snapshot);
         }
@@ -237,6 +237,16 @@ namespace osu.Game.Rulesets.Bms.UI
                 Masking = true,
                 Children = playfieldChildren,
             });
+
+            foreach (BmsLane lane in lanes)
+            {
+                var keyVisual = new BmsKeyVisual(LayoutSnapshot, LayoutSnapshot.GetLaneByLogicalIndex(lane.LaneIndex), lane.HitTarget.IsPressed);
+                lane.HitTarget.KeyVisual = keyVisual;
+                if (keyVisual.UsesSeparateKeyArea)
+                    rootChildren.Add(keyVisual);
+                else
+                    lane.HitTarget.MountLocalKeyVisual(keyVisual);
+            }
 
             AddInternal(new Container
             {

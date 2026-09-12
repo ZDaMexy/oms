@@ -91,13 +91,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? ScratchLaneRelativeSpacing { get; init; }
         public float? PlayfieldWidth { get; init; }
         public float? PlayfieldHeight { get; init; }
+        public float? KeyAreaHeight { get; init; }
+        public float? BgaWidth { get; init; }
+        public float? BgaHeight { get; init; }
+        public float? BgaVerticalPosition { get; init; }
         public float? HitTargetHeight { get; init; }
         public float? HitTargetBarHeight { get; init; }
         public float? HitTargetLineHeight { get; init; }
         public float? HitTargetGlowRadius { get; init; }
         public float? BarLineHeight { get; init; }
 
-        public static BmsGameplayLayoutConfiguration FromSkin(ISkin? skin, BmsKeymode keymode)
+        public static BmsGameplayLayoutConfiguration FromSkin(ISkin? skin, BmsKeymode keymode, ISkin? selectedLayoutSkin)
         {
             if (skin == null)
                 return new BmsGameplayLayoutConfiguration();
@@ -110,12 +114,29 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 ScratchLaneRelativeSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneSpacing, keymode)?.Value,
                 PlayfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value,
                 PlayfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value,
+                KeyAreaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.KeyAreaHeight),
+                BgaWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BgaWidth),
+                BgaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaHeight),
+                BgaVerticalPosition = selectedLayoutValue(BmsSkinConfigurationLookups.BgaVerticalPosition),
                 HitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value,
                 HitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value,
                 HitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value,
                 HitTargetGlowRadius = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetGlowRadius, keymode)?.Value,
                 BarLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.BarLineHeight, keymode)?.Value,
             };
+
+            float? selectedLayoutValue(BmsSkinConfigurationLookups field)
+            {
+                // New layout choices are opt-in declarations of the selected package. An absent declaration must
+                // not inherit the installation skin's controller or enlarged BGA through the aggregate source.
+                if (selectedLayoutSkin is BmsLegacySkin selected)
+                {
+                    GameplaySkinConfigurationDeclaration<float> declaration = selected.GetAcceptedBmsGeometry(field, keymode);
+                    return declaration.IsDeclared ? declaration.Value : null;
+                }
+
+                return selectedLayoutSkin?.GetBmsSkinConfig<float>(field, keymode)?.Value;
+            }
         }
     }
 
@@ -129,6 +150,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         private const float side_inset = 0.05f;
         private const float surface_gap = 0.006f;
         private const float gauge_height = 0.036f;
+        private const float hud_height = 0.08f;
 
         internal static BmsGameplayLayoutSnapshot Solve(
             BmsKeymodeResolution keymodeResolution,
@@ -200,18 +222,19 @@ namespace osu.Game.Rulesets.Bms.Skinning
             };
 
             float gaugeHeight = Math.Min(gauge_height * safe.Height * dpiScale, safe.Height * 0.08f);
-            float requiredBottomBand = gaugeHeight + surface_gap * safe.Height;
+            float keyAreaHeight = field(configuration.KeyAreaHeight, 0f, 0f, 0.18f, "key-area-height", diagnostics) * safe.Height;
+            float requiredBottomBand = keyAreaHeight + gaugeHeight + (surface_gap + hud_height) * safe.Height;
 
             if (fieldHeight + requiredBottomBand > safe.Height)
                 fieldHeight = safe.Height - requiredBottomBand;
 
             var playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
 
-            var bgaRects = solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight, ref fieldHeight);
+            var bgaRects = solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, ref fieldHeight);
 
             // A bottom BGA fallback may shorten the field. Recreate the complete snapshot geometry from that one result.
             playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
-            float gaugeY = playfieldRect.Bottom + surface_gap * safe.Height;
+            float gaugeY = playfieldRect.Bottom + keyAreaHeight + surface_gap * safe.Height;
             var gaugeRect = GameplaySkinLayoutRect.Create(fieldX, gaugeY, fieldWidth, gaugeHeight);
 
             float pixelHeight = safe.Height / Math.Max(480f, 768f * environment.DpiScale);
@@ -225,6 +248,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 : playfieldRect.Top;
             var targetRect = GameplaySkinLayoutRect.Create(playfieldRect.Left, targetY, playfieldRect.Width, targetRelativeHeight);
             var judgementLineRect = GameplaySkinLayoutRect.Create(playfieldRect.Left, lineY, playfieldRect.Width, lineRelativeHeight);
+            var keyAreaRect = keyAreaHeight > 0
+                ? GameplaySkinLayoutRect.Create(playfieldRect.Left, playfieldRect.Bottom, playfieldRect.Width, keyAreaHeight)
+                : targetRect;
 
             float comboWidth = Math.Min(playfieldRect.Width * 0.62f, safe.Width * 0.28f);
             float comboHeight = Math.Min(playfieldRect.Height * 0.18f, safe.Height * 0.16f);
@@ -243,7 +269,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 judgementCentreY - judgementHeight / 2,
                 judgementWidth,
                 judgementHeight);
-            var hudRect = GameplaySkinLayoutRect.Union(new[] { gaugeRect, comboRect });
+            var hudRect = GameplaySkinLayoutRect.Create(safe.Left, safe.Bottom - safe.Height * hud_height, safe.Width, safe.Height * hud_height);
+
+            if (keyAreaHeight > 0)
+            {
+                // The compact controller layout keeps judgement and combo together above the judgement line.
+                comboHeight = playfieldRect.Height * 0.065f;
+                float comboY = environment.ScrollDirection == GameplaySkinScrollDirection.Down
+                    ? judgementRect.Bottom
+                    : judgementRect.Top - comboHeight;
+                comboRect = GameplaySkinLayoutRect.Create(comboRect.Left, comboY, comboWidth, comboHeight);
+            }
 
             var neutralLanes = new GameplaySkinLayoutLane[laneCount];
             GameplaySkinLaneTopologySnapshot topology = topologyPublication.Publication.Topology;
@@ -290,6 +326,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Playfield, playfieldRect, 100, true, true),
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.HitTarget, targetRect, 500, false, false),
+                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.KEY_AREA, keyAreaRect, 505, false, false),
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.JudgementLine, judgementLineRect, 510, false, false),
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Judgement, judgementRect, 520, false, false),
                 new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.LaneCover, playfieldRect, 600, true, false),
@@ -322,12 +359,20 @@ namespace osu.Game.Rulesets.Bms.Skinning
             GameplaySkinLayoutRect playfield,
             float aspectRatio,
             float exactGaugeHeight,
+            BmsGameplayLayoutConfiguration configuration,
+            ICollection<GameplaySkinLayoutDiagnostic> diagnostics,
             ref float fieldHeight)
         {
+            float availableHeight = safe.Height * (1 - hud_height);
+            float availableBottom = safe.Top + availableHeight;
             float horizontalGap = surface_gap * safe.Width;
             float leftSpace = playfield.Left - safe.Left - horizontalGap;
             float rightSpace = safe.Right - playfield.Right - horizontalGap;
-            float preferredWidth = (keymode == BmsKeymode.Key14K ? 0.13f : 0.225f) * safe.Width;
+            float preferredWidth = field(configuration.BgaWidth, keymode == BmsKeymode.Key14K ? 0.13f : 0.225f, 0.01f, 1f, "bga-width", diagnostics) * safe.Width;
+            float preferredHeight = field(configuration.BgaHeight, 0.30f, 0.01f, 1f, "bga-height", diagnostics) * safe.Height;
+            float verticalPosition = field(configuration.BgaVerticalPosition, 0f, 0f, 1f, "bga-vertical-position", diagnostics);
+            // Preserve the legacy viewport proportions unless the package supplies a valid maximum box.
+            bool authoredSize = configuration.BgaWidth is >= 0.01f and <= 1f || configuration.BgaHeight is >= 0.01f and <= 1f;
             float usableSideWidth = Math.Max(leftSpace, rightSpace);
 
             if (keymode == BmsKeymode.Key14K)
@@ -338,15 +383,25 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 float width = Math.Min(preferredWidth, usableSideWidth);
                 float height = Math.Min(safe.Height * 0.30f, Math.Max(safe.Height * 0.10f, width * aspectRatio / (4f / 3f)));
 
+                if (authoredSize)
+                {
+                    height = Math.Min(availableHeight, Math.Min(preferredHeight, width * aspectRatio / (4f / 3f)));
+                    if (keymode == BmsKeymode.Key14K)
+                        height = Math.Min(height, (availableHeight - surface_gap * safe.Height) / 2);
+                    width = height * (4f / 3f) / aspectRatio;
+                }
+
                 if (keymode == BmsKeymode.Key14K)
                 {
                     float xLeft = safe.Left;
                     float xRight = safe.Right - width;
-                    float yBottom = safe.Bottom - height;
+                    float verticalInset = Math.Max(0, availableHeight / 2 - height) * verticalPosition;
+                    float yTop = safe.Top + verticalInset;
+                    float yBottom = availableBottom - height - verticalInset;
                     return new[]
                     {
-                        GameplaySkinLayoutRect.Create(xLeft, safe.Top, width, height),
-                        GameplaySkinLayoutRect.Create(xRight, safe.Top, width, height),
+                        GameplaySkinLayoutRect.Create(xLeft, yTop, width, height),
+                        GameplaySkinLayoutRect.Create(xRight, yTop, width, height),
                         GameplaySkinLayoutRect.Create(xLeft, yBottom, width, height),
                         GameplaySkinLayoutRect.Create(xRight, yBottom, width, height),
                     };
@@ -354,18 +409,22 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 bool placeLeft = style == BmsPlayfieldStyle.P2 || leftSpace > rightSpace;
                 float x = placeLeft ? safe.Left : safe.Right - width;
-                return new[] { GameplaySkinLayoutRect.Create(x, safe.Top, width, height) };
+                return new[] { GameplaySkinLayoutRect.Create(x, safe.Top + (availableHeight - height) * verticalPosition, width, height) };
             }
 
             // Extremely narrow matrices cannot fit a useful side viewport. Reserve a deterministic bottom band and
             // shorten the one playfield before any snapshot object is created, keeping the pair internally coherent.
             float bottomHeight = Math.Min(safe.Height * 0.20f, Math.Max(safe.Height * 0.12f, safe.Width * 0.42f * aspectRatio / (4f / 3f)));
-            float gaugeAndGaps = exactGaugeHeight + surface_gap * safe.Height * 2;
-            fieldHeight = Math.Min(fieldHeight, safe.Height - bottomHeight - gaugeAndGaps);
+            if (authoredSize)
+                bottomHeight = Math.Min(bottomHeight, Math.Min(preferredHeight, preferredWidth * aspectRatio / (4f / 3f)));
             float bottomWidth = Math.Min(safe.Width * 0.64f, bottomHeight * (4f / 3f) / aspectRatio);
+            if (authoredSize)
+                bottomHeight = bottomWidth * aspectRatio / (4f / 3f);
+            float gaugeAndGaps = exactGaugeHeight + surface_gap * safe.Height * 2;
+            fieldHeight = Math.Min(fieldHeight, availableHeight - bottomHeight - gaugeAndGaps);
             return new[]
             {
-                GameplaySkinLayoutRect.Create(safe.Left + (safe.Width - bottomWidth) / 2, safe.Bottom - bottomHeight, bottomWidth, bottomHeight),
+                GameplaySkinLayoutRect.Create(safe.Left + (safe.Width - bottomWidth) / 2, availableBottom - bottomHeight, bottomWidth, bottomHeight),
             };
         }
 

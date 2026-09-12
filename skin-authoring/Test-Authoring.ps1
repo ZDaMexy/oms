@@ -37,8 +37,8 @@ foreach ($name in @('oms-simple', 'oms-complex', 'aurora-study')) {
     $regenerated = Join-Path $verificationRoot ($name + '-regenerated')
     Copy-Item -LiteralPath $source -Destination $regenerated -Recurse
     Invoke-Expected "$name regenerate artwork from author profile" 0 @('generate', $regenerated)
-    foreach ($generatedName in @('gameplay-skin.json', 'gameplay-skin.scene.json')) {
-        if ([IO.File]::ReadAllText((Join-Path $regenerated $generatedName)).Contains("`r")) { throw "$name 生成的 $generatedName 不是固定 LF 换行，无法保证新检出重打包一致。" }
+    foreach ($generatedName in @('author.json', 'gameplay-skin.json', 'gameplay-skin.scene.json')) {
+        if ([IO.File]::ReadAllText((Join-Path $regenerated $generatedName)).Contains("`r")) { throw "$name 作者文件 $generatedName 不是固定 LF 换行，无法保证新检出重打包一致。" }
     }
     $regeneratedPackage = Join-Path $verificationRoot ($name + '-regenerated.osk')
     Invoke-Expected "$name pack regenerated artwork" 0 @('pack', $regenerated, $regeneratedPackage)

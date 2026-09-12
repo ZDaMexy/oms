@@ -52,7 +52,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("profile scratch width stays default", () => drawableRuleset.Playfield.LayoutProfile.ScratchLaneRelativeWidth, () => Is.EqualTo(1.5f).Within(0.0001f));
             AddAssert("profile scratch spacing stays default", () => drawableRuleset.Playfield.LayoutProfile.ScratchLaneRelativeSpacing, () => Is.EqualTo(0.12f).Within(0.0001f));
             AddAssert("scratch lane stays 1.5x the key lane width", () => drawableRuleset.Playfield.Lanes[0].Width / drawableRuleset.Playfield.Lanes[1].Width, () => Is.EqualTo(1.5f).Within(0.05f));
-            AddAssert("lane heights stay default", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height - 0.92f) <= 0.01f));
+            AddAssert("default lanes reserve room for the gauge and bottom information", () => drawableRuleset.Playfield.Lanes.All(lane => Math.Abs(lane.ScreenSpaceDrawQuad.Height / drawableRuleset.Playfield.ScreenSpaceDrawQuad.Height - 0.878f) <= 0.01f));
+            AddAssert("gauge stays above the bottom information area", () => drawableRuleset.LayoutSnapshot.GaugeRect.Bottom <= drawableRuleset.LayoutSnapshot.HudRect.Top);
         }
 
         [Test]

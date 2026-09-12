@@ -192,6 +192,9 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 | --- | --- | --- | --- |
 | `PlayfieldWidth` | 整个车道区宽度（归一化杠杆，缩放它等比缩放每条道与音符） | 屏幕宽比例 | `Clamp(lanes×0.06, .35, .8)×0.825` |
 | `PlayfieldHeight` | 判定线相对高度（playfield 顶边贴屏，判定线落此处） | 屏幕高比例 | `0.92` |
+| `KeyAreaHeight` | 判定线下方独立键盘区，`0..0.18`；血条顺延 | 安全区高比例 | `0`（保留原键图位置） |
+| `BgaWidth` / `BgaHeight` | BGA 最大框，`0.01..1`，指定后按 4:3 适配可用区域 | 安全区宽 / 高比例 | `0.225`（14K `0.13`）/ `0.30` |
+| `BgaVerticalPosition` | BGA 在可用竖直余量中的位置，`0..1` | 顶部到下方比例 | `0` |
 | `NormalLaneWidth` | 键道相对宽 | 相对权重 | `1` |
 | `ScratchLaneWidth` | scratch 道相对宽 | 相对权重 | `1.5` |
 | `NormalLaneSpacing` | 键道间距 | 相对权重 | `0` |

@@ -16,8 +16,7 @@
         "target": {
           "kind": "global"
         },
-        "slot": "hud.text",
-        "blend": "alpha",
+        "blend": "inherit",
         "properties": {},
         "effects": [],
         "children": [
@@ -27,17 +26,17 @@
             "target": {
               "kind": "global"
             },
-            "resource": "texture.white",
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
-              "x": 0.18,
-              "y": 0.006,
-              "width": 0.64,
-              "height": 0.08,
-              "colour": "#0b1019ee"
+              "x": 0.05,
+              "width": 0.9,
+              "height": 0.95,
+              "colour": "#0b1019ff"
             },
             "effects": [],
-            "children": []
+            "children": [],
+            "resource": "texture.white"
           },
           {
             "id": "still.hud.score-label",
@@ -45,11 +44,12 @@
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
               "text": "SCORE",
-              "x": 0.195,
-              "y": 0.013,
+              "x": 0.07,
+              "y": 0.06,
               "font-size": 10,
               "colour": "#91a1b9ff"
             },
@@ -62,11 +62,12 @@
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.195,
-              "y": 0.035,
+              "x": 0.07,
+              "y": 0.38,
               "font-size": 20,
               "colour": "#e9f3ffff"
             },
@@ -79,11 +80,12 @@
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
               "text": "ACCURACY",
               "x": 0.4,
-              "y": 0.013,
+              "y": 0.06,
               "font-size": 10,
               "colour": "#91a1b9ff"
             },
@@ -96,45 +98,12 @@
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
               "text": "100.00%",
               "x": 0.4,
-              "y": 0.035,
-              "font-size": 20,
-              "colour": "#e9f3ffff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.combo-label",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "blend": "alpha",
-            "properties": {
-              "text": "COMBO",
-              "x": 0.585,
-              "y": 0.013,
-              "font-size": 10,
-              "colour": "#91a1b9ff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.combo",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "blend": "alpha",
-            "properties": {
-              "text": "0",
-              "x": 0.585,
-              "y": 0.035,
+              "y": 0.38,
               "font-size": 20,
               "colour": "#e9f3ffff"
             },
@@ -147,11 +116,12 @@
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
               "text": "BPM",
-              "x": 0.715,
-              "y": 0.013,
+              "x": 0.77,
+              "y": 0.06,
               "font-size": 10,
               "colour": "#91a1b9ff"
             },
@@ -164,11 +134,12 @@
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.715,
-              "y": 0.035,
+              "x": 0.77,
+              "y": 0.38,
               "font-size": 20,
               "colour": "#e9f3ffff"
             },
@@ -181,50 +152,35 @@
             "target": {
               "kind": "global"
             },
-            "resource": "texture.white",
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
-              "x": 0.18,
-              "y": 0.088,
-              "width": 0.64,
-              "height": 0.002,
+              "y": 0.96,
+              "width": 1,
+              "height": 0.025,
               "colour": "#263444ff"
             },
             "effects": [],
-            "children": []
+            "children": [],
+            "resource": "texture.white"
           },
           {
-            "id": "still.hud.progress.bounds",
-            "type": "container",
+            "id": "still.hud.progress",
+            "type": "sprite",
             "target": {
               "kind": "global"
             },
+            "slot": "hud.text",
             "blend": "alpha",
             "properties": {
-              "x": 0.18,
-              "y": 0.088,
-              "width": 0.64,
-              "height": 0.002
+              "y": 0.96,
+              "width": 0,
+              "height": 0.025,
+              "colour": "#a6b5c9ff"
             },
             "effects": [],
-            "children": [
-              {
-                "id": "still.hud.progress",
-                "type": "sprite",
-                "target": {
-                  "kind": "global"
-                },
-                "resource": "texture.white",
-                "blend": "alpha",
-                "properties": {
-                  "width": 0,
-                  "height": 1,
-                  "colour": "#a6b5c9ff"
-                },
-                "effects": [],
-                "children": []
-              }
-            ]
+            "children": [],
+            "resource": "texture.white"
           }
         ]
       }
@@ -244,12 +200,6 @@
       "target": "still.hud.accuracy",
       "property": "text",
       "source": "score.accuracy"
-    },
-    {
-      "id": "still.bind.combo",
-      "target": "still.hud.combo",
-      "property": "text",
-      "source": "combo.value"
     },
     {
       "id": "still.bind.bpm",

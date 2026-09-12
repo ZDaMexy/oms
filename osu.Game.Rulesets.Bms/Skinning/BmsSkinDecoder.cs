@@ -45,6 +45,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             BmsSkinConfigurationLookups.PlayfieldWidth,
             BmsSkinConfigurationLookups.PlayfieldHeight,
+            BmsSkinConfigurationLookups.BgaWidth,
+            BmsSkinConfigurationLookups.BgaHeight,
+            BmsSkinConfigurationLookups.BgaVerticalPosition,
+            BmsSkinConfigurationLookups.KeyAreaHeight,
             BmsSkinConfigurationLookups.NormalLaneWidth,
             BmsSkinConfigurationLookups.ScratchLaneWidth,
             BmsSkinConfigurationLookups.NormalLaneSpacing,

@@ -100,6 +100,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public GameplaySkinLayoutRect ComboRect => Neutral.GetSurface(BmsGameplayLayoutSurfaceIds.Combo).Rect;
 
         public GameplaySkinLayoutRect HudRect => Neutral.GetSurface(BmsGameplayLayoutSurfaceIds.Hud).Rect;
+        public GameplaySkinLayoutRect KeyAreaRect => Neutral.GetSurface(BmsGameplayLayoutSurfaceIds.KEY_AREA).Rect;
 
         public IReadOnlyList<GameplaySkinLayoutRect> BgaViewports => Neutral.BgaViewports;
 
@@ -172,6 +173,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     {
         public const string Playfield = "bms.playfield";
         public const string HitTarget = "bms.hit-target";
+        public const string KEY_AREA = "bms.key-area";
         public const string JudgementLine = "bms.judgement-line";
         public const string Judgement = "bms.judgement";
         public const string LaneCover = "bms.lane-cover";

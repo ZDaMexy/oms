@@ -28,6 +28,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinSceneRuntimeHost bms = null!;
             GameplaySkinSceneRuntimeHost mania = null!;
             Drawable bmsKey = null!;
+            float originalKeyBottom = 0;
+            float originalHitTargetBottom = 0;
             Sprite maniaReleased = null!;
             Sprite maniaPressed = null!;
 
@@ -48,11 +50,38 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("released and pressed mania artwork both belong to the imported author package", () =>
             {
-                BmsHitTarget target = renderer.BmsDrawable.ChildrenOfType<BmsHitTarget>().Single(hit =>
+                BmsKeyVisual target = renderer.BmsDrawable.ChildrenOfType<BmsKeyVisual>().Single(hit =>
                     hit.ResolvedMaterialKey.Target.LaneId?.Value == "bms.lane.key-1");
                 Assert.That(target.SceneVisualGate.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Specialised));
                 GameplaySkinSpecialisedSceneVisual keyVisual = target.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
                     .Single(visual => visual.Key.Equals(target.ResolvedMaterialKey));
+                Assert.That(renderer.BmsDrawable.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
+                                    .Count(visual => visual.Key.Equals(target.ResolvedMaterialKey)), Is.EqualTo(1),
+                    "A lane has one key drawing even when its keyboard is below the scrolling field.");
+                Assert.That(target.UsesSeparateKeyArea, Is.EqualTo(package == "oms-simple"),
+                    "Only the selected package's explicit controller setting can move its receptors out of the lanes.");
+                if (package != "oms-simple")
+                {
+                    var layout = renderer.BmsDrawable.Playfield.LayoutSnapshot;
+                    Assert.That(layout.KeyAreaRect, Is.EqualTo(layout.HitTargetRect));
+                    Assert.That(layout.BgaViewports.Single().Width, Is.EqualTo(layout.Context.SafeBounds.Width * 0.225f).Within(0.0001f),
+                        "A package without BGA geometry retains the ordinary small viewport instead of inheriting simple's enlarged one.");
+                }
+                if (package == "oms-simple")
+                {
+                    var playfield = renderer.BmsDrawable.Playfield;
+                    Assert.That(playfield.LayoutSnapshot.KeyAreaRect.Top, Is.GreaterThanOrEqualTo(playfield.LayoutSnapshot.PlayfieldRect.Bottom));
+                    Assert.That(target.ScreenSpaceDrawQuad.AABBFloat.Top,
+                        Is.GreaterThanOrEqualTo(playfield.Lanes[0].HitTarget.ScreenSpaceDrawQuad.AABBFloat.Bottom - 0.01f),
+                        "The keyboard remains visible below the judgement line instead of covering falling notes.");
+                    Assert.That(target.ScreenSpaceDrawQuad.AABBFloat.Bottom,
+                        Is.LessThanOrEqualTo(playfield.ScreenSpaceDrawQuad.AABBFloat.Bottom + 0.01f));
+                    BmsKeyVisual scratch = renderer.BmsDrawable.ChildrenOfType<BmsKeyVisual>().Single(key =>
+                        key.ResolvedMaterialKey.Target.LaneId?.Value == "bms.lane.scratch-1");
+                    Sprite scratchImage = (Sprite)scratch.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Single().RootDrawables.Single();
+                    Assert.That(scratchImage.ScreenSpaceDrawQuad.Width,
+                        Is.EqualTo(scratchImage.ScreenSpaceDrawQuad.Height).Within(0.01f), "The round turntable must retain its aspect ratio.");
+                }
                 Assert.That(keyVisual.IsApplied, Is.True);
                 Assert.That(keyVisual.Alpha, Is.EqualTo(1), "The publication visibility gate is independent of key brightness.");
                 Assert.That(keyVisual.RuntimeNodes, Is.Empty, "The product key uses an ordinary package texture.");
@@ -96,6 +125,26 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddUntilStep("both real key drawings return to released state", () =>
                 bmsKey.Alpha == 0.65f && maniaReleased.Alpha == 1 && maniaPressed.Alpha == 0);
+            AddStep("raise the real judgement line using Lift", () =>
+            {
+                var playfield = renderer.BmsDrawable.Playfield;
+                originalKeyBottom = bmsKey.ScreenSpaceDrawQuad.AABBFloat.Bottom;
+                originalHitTargetBottom = playfield.Lanes[1].HitTarget.ScreenSpaceDrawQuad.AABBFloat.Bottom;
+                playfield.LiftUnits.Value = 250;
+                clock.Sample(1_340);
+            });
+            AddUntilStep("the real judgement line has moved upwards", () =>
+                renderer.BmsDrawable.Playfield.Lanes[1].HitTarget.ScreenSpaceDrawQuad.AABBFloat.Bottom < originalHitTargetBottom - 1);
+            AddStep("legacy receptors follow Lift while a separate controller stays below the field", () =>
+            {
+                var target = renderer.BmsDrawable.Playfield.Lanes[1].HitTarget;
+                if (package == "oms-simple")
+                    Assert.That(bmsKey.ScreenSpaceDrawQuad.AABBFloat.Bottom, Is.EqualTo(originalKeyBottom).Within(0.01f));
+                else
+                    Assert.That(bmsKey.ScreenSpaceDrawQuad.AABBFloat.Bottom,
+                        Is.EqualTo(target.ScreenSpaceDrawQuad.AABBFloat.Bottom).Within(0.01f),
+                        $"separate={target.KeyVisual!.UsesSeparateKeyArea}, parent={target.KeyVisual.Parent?.GetType().Name}, host={target.KeyVisual.ScreenSpaceDrawQuad.AABBFloat}, key={renderer.BmsDrawable.Playfield.LayoutSnapshot.KeyAreaRect}, target={renderer.BmsDrawable.Playfield.LayoutSnapshot.HitTargetRect}");
+            });
             AddStep("release the complete imported skin fixture", () =>
             {
                 Assert.That(bms.RuntimeFaults, Is.Empty);

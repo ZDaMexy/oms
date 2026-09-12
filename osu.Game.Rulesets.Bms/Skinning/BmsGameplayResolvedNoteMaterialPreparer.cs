@@ -29,7 +29,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             cancellationToken.ThrowIfCancellationRequested();
 
             GameplaySkinPackageRevision packageRevision = layout.Neutral.Context.PackageRevision;
-            BmsLegacySkin? selectedSource = findExactSelectedSource(skin, packageRevision);
+            BmsLegacySkin? selectedSource = FindExactSelectedSource(skin, packageRevision);
             GameplaySkinResolvedMaterialSet? selectedMaterials = null;
             GameplaySkinDocument? selectedDocument = null;
             GameplaySkinResolvedMaterialSourceIdentity? selectedPublicIdentity = null;
@@ -397,7 +397,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             throw new ArgumentException("The final BMS material provider received an unhosted field.", nameof(field));
         }
 
-        private static BmsLegacySkin? findExactSelectedSource(
+        internal static BmsLegacySkin? FindExactSelectedSource(
             ISkin skin,
             GameplaySkinPackageRevision packageRevision)
         {

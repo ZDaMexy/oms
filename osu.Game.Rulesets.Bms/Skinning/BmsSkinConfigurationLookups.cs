@@ -79,5 +79,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         LaneCoverFocusColour,
         PlayfieldBackdropColour,
         PlayfieldBaseplateColour,
+        BgaWidth,
+        BgaHeight,
+        BgaVerticalPosition,
+        KeyAreaHeight,
     }
 }

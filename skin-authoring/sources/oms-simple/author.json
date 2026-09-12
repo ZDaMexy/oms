@@ -2,6 +2,7 @@
   "name": "OMS Simple · 静线",
   "author": "OMS contributors",
   "complex": false,
+  "compactLayout": true,
   "bmsAccent": "58d3ea",
   "maniaAccent": "b7a3ff",
   "highlight": "f3ca78",

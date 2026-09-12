@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [TestCaseSource(nameof(authoredInformationCases))]
-        public void TestAuthoredTopInformationUsesActualScreenBoundsAndGameplayValues(string package, bool dual, int viewport)
+        public void TestAuthoredInformationUsesSafeLayoutAndGameplayValues(string package, bool dual, int viewport)
         {
             ExactLayoutJourneyHost renderer = null!;
             C6GameplayTestClock clock = null!;
@@ -66,8 +66,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("before playing every necessary field is visible in the top bar", () =>
             {
-                assertAuthoredInformation(bms, prefix);
-                assertAuthoredInformation(mania, prefix);
+                assertAuthoredInformation(bms, prefix, package == "oms-simple");
+                assertAuthoredInformation(mania, prefix, package == "oms-simple");
                 Assert.That(c6CandidateNode(bms, prefix + ".progress").TransformDrawable.Width, Is.Zero);
                 Assert.That(c6CandidateNode(mania, prefix + ".progress").TransformDrawable.Width, Is.Zero);
                 if (package == "oms-complex")
@@ -93,15 +93,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 c6Input(renderer, true);
                 clock.Sample(2_020);
             });
-            AddUntilStep("both top bars display score and combo from actual successful input", () =>
+            AddUntilStep("both information areas display score from actual successful input", () =>
                 authoredInformationValue(bms, prefix + ".score") != "0"
                 && authoredInformationValue(mania, prefix + ".score") != "0"
-                && authoredInformationValue(bms, prefix + ".combo") != "0"
-                && authoredInformationValue(mania, prefix + ".combo") != "0");
+                && (package == "oms-simple" || (authoredInformationValue(bms, prefix + ".combo") != "0"
+                    && authoredInformationValue(mania, prefix + ".combo") != "0")));
             AddStep("longer score text still fits and matches the live read-only state", () =>
             {
-                assertAuthoredInformation(bms, prefix);
-                assertAuthoredInformation(mania, prefix);
+                assertAuthoredInformation(bms, prefix, package == "oms-simple");
+                assertAuthoredInformation(mania, prefix, package == "oms-simple");
                 if (package == "oms-complex")
                 {
                     Assert.That(c6CandidateNode(bms, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1));
@@ -113,8 +113,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("misses and elapsed playable duration reach the same complete information bar", () =>
             {
-                assertAuthoredInformation(bms, prefix);
-                assertAuthoredInformation(mania, prefix);
+                assertAuthoredInformation(bms, prefix, package == "oms-simple");
+                assertAuthoredInformation(mania, prefix, package == "oms-simple");
                 Assert.That(authoredInformationSnapshot(bms).Score.Accuracy, Is.LessThan(1));
                 Assert.That(authoredInformationSnapshot(mania).Score.Accuracy, Is.LessThan(1));
                 if (package == "oms-complex")
@@ -136,8 +136,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddWaitStep("allow UI frames while both real playfields are paused", 3);
             AddStep("paused complete information remains visible and its progress does not advance", () =>
             {
-                assertAuthoredInformation(bms, prefix);
-                assertAuthoredInformation(mania, prefix);
+                assertAuthoredInformation(bms, prefix, package == "oms-simple");
+                assertAuthoredInformation(mania, prefix, package == "oms-simple");
                 Assert.That(c6CandidateNode(bms, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(bmsProgress));
                 Assert.That(c6CandidateNode(mania, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(maniaProgress));
                 clock.SoftUnpause();
@@ -146,8 +146,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("expired judgements leave no misleading miss label after all notes have finished", () =>
             {
-                assertAuthoredInformation(bms, prefix);
-                assertAuthoredInformation(mania, prefix);
+                assertAuthoredInformation(bms, prefix, package == "oms-simple");
+                assertAuthoredInformation(mania, prefix, package == "oms-simple");
                 foreach (GameplaySkinSceneRuntimeHost scene in new[] { bms, mania })
                 {
                     Assert.That(authoredInformationSnapshot(scene).CurrentJudgements.Any(judgement => judgement.Scope == GameplaySkinJudgementScope.Global), Is.False);
@@ -159,14 +159,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("the ordinary information consumers have detached", () => renderer.Parent == null);
         }
 
-        private static void assertAuthoredInformation(GameplaySkinSceneRuntimeHost scene, string prefix)
+        private static void assertAuthoredInformation(GameplaySkinSceneRuntimeHost scene, string prefix, bool compact)
         {
             Assert.That(scene.RuntimeFaults, Is.Empty);
             GameplaySkinEventStateSnapshot state = authoredInformationSnapshot(scene);
             Assert.That(authoredInformationValue(scene, prefix + ".score"), Is.EqualTo(state.Score.Score.ToString(CultureInfo.InvariantCulture)));
             Assert.That(authoredInformationValue(scene, prefix + ".accuracy"),
                 Is.EqualTo((state.Score.Accuracy * 100).ToString("0.00", CultureInfo.InvariantCulture) + "%"));
-            Assert.That(authoredInformationValue(scene, prefix + ".combo"), Is.EqualTo(state.Score.Combo.ToString(CultureInfo.InvariantCulture)));
+            if (compact)
+                Assert.That(scene.TryGetRuntimeNode(prefix + ".combo", out _), Is.False, "The information band must not duplicate the lane combo.");
+            else
+                Assert.That(authoredInformationValue(scene, prefix + ".combo"), Is.EqualTo(state.Score.Combo.ToString(CultureInfo.InvariantCulture)));
             Assert.That(authoredInformationValue(scene, prefix + ".bpm"), Is.EqualTo(state.Timing.Bpm.ToString("0.###", CultureInfo.InvariantCulture)));
             Assert.That(c6CandidateNode(scene, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(state.Timing.Progress).Within(0.00001));
 
@@ -181,21 +184,32 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(gate.IsReplacementReady, Is.True);
 
             GameplaySkinSceneRuntimeNode panel = c6CandidateNode(scene, prefix + ".panel");
-            var screen = panel.RootDrawable.ScreenSpaceDrawQuad.AABBFloat;
+            var screen = scene.ScreenSpaceDrawQuad.AABBFloat;
             var panelBounds = panel.ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-            Assert.That(panel.Rect, Is.EqualTo(scene.PreparedScene.Snapshot.Context.SafeBounds),
-                "An explicit global child uses the safe screen rather than its parent's legacy HUD band.");
-            Assert.That(panelBounds.Top, Is.InRange(screen.Top, screen.Top + screen.Height * 0.02f));
-            Assert.That(panelBounds.Bottom, Is.LessThanOrEqualTo(screen.Top + screen.Height * 0.10f));
+            if (compact)
+            {
+                string ruleset = scene.PreparedScene.Snapshot.Context.RulesetId;
+                Assert.That(panel.Rect, Is.EqualTo(scene.PreparedScene.Snapshot.GetSurface(ruleset + ".hud").Rect));
+                Assert.That(panel.Rect.Intersects(scene.PreparedScene.Snapshot.GetSurface(ruleset + ".playfield").Rect), Is.False,
+                    "Information must remain outside the real falling-note area in both rulesets.");
+                Assert.That(panelBounds.Bottom, Is.LessThanOrEqualTo(screen.Bottom + 1));
+                Assert.That(panelBounds.Top, Is.GreaterThanOrEqualTo(screen.Top - 1));
+            }
+            else
+            {
+                Assert.That(panel.Rect, Is.EqualTo(scene.PreparedScene.Snapshot.Context.SafeBounds));
+                Assert.That(panelBounds.Top, Is.InRange(screen.Top, screen.Top + screen.Height * 0.02f));
+                Assert.That(panelBounds.Bottom, Is.LessThanOrEqualTo(screen.Top + screen.Height * 0.10f));
+            }
 
-            string[] fields = { "score", "accuracy", "combo", "bpm" };
+            string[] fields = compact ? new[] { "score", "accuracy", "bpm" } : new[] { "score", "accuracy", "combo", "bpm" };
             for (int index = 0; index < fields.Length; index++)
             {
                 GameplaySkinSceneRuntimeNode node = c6CandidateNode(scene, prefix + "." + fields[index]);
                 SpriteText text = (SpriteText)node.ContentDrawable;
                 var bounds = text.ScreenSpaceDrawQuad.AABBFloat;
                 var label = c6CandidateNode(scene, prefix + "." + fields[index] + "-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                Assert.That(node.Rect, Is.EqualTo(scene.PreparedScene.Snapshot.Context.SafeBounds));
+                Assert.That(node.Rect, Is.EqualTo(panel.Rect));
                 Assert.That(text.IsPresent, Is.True);
                 Assert.That(bounds.Width, Is.GreaterThan(0));
                 Assert.That(bounds.Height, Is.GreaterThan(0));
@@ -252,7 +266,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(progress.Width, Is.Zero, "Before the first object the bar has no residual visible progress line.");
             Assert.That(progress.Width, Is.EqualTo(track.Width * state.Timing.Progress).Within(1));
             Assert.That(track.Top, Is.GreaterThanOrEqualTo(panelBounds.Bottom - 1));
-            Assert.That(track.Bottom, Is.LessThanOrEqualTo(screen.Top + screen.Height * 0.10f));
+            Assert.That(track.Bottom, Is.LessThanOrEqualTo(compact ? screen.Bottom + 1 : screen.Top + screen.Height * 0.10f));
             Assert.That(track.Left, Is.GreaterThanOrEqualTo(screen.Left));
             Assert.That(track.Right, Is.LessThanOrEqualTo(screen.Right));
         }

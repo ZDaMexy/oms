@@ -957,7 +957,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 assertSpecialisedSceneConsumer(holdTailHost, materialSet, tailKey, tailGate!, "node.long-note-tail");
                 assertSpecialisedSceneConsumer(mineDrawable, materialSet, mineKey, mineGate!, "node.mine");
                 assertSpecialisedSceneConsumer(barLineDrawable, materialSet, barLineKey, barLineGate!, "node.bar-line");
-                assertSpecialisedSceneConsumer(targetLane.HitTarget, materialSet, targetLane.HitTarget.ResolvedMaterialKey,
+                assertSpecialisedSceneConsumer(targetLane.HitTarget.KeyVisual!, materialSet, targetLane.HitTarget.ResolvedMaterialKey,
                     targetLane.HitTarget.SceneVisualGate, "node.key-visual");
             });
             AddStep("detach public-material renderer", () =>
@@ -1290,7 +1290,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                             BmsGameplayLayoutSnapshot layout = BmsGameplayLayoutSolver.Solve(
                                 beatmap.BmsInfo.KeymodeResolution,
                                 BmsPlayfieldStyle.P1,
-                                BmsGameplayLayoutConfiguration.FromSkin(manager.CurrentSkin.Value, beatmap.BmsInfo.Keymode),
+                                BmsGameplayLayoutConfiguration.FromSkin(manager.CurrentSkin.Value, beatmap.BmsInfo.Keymode, manager.CurrentSkin.Value),
                                 BmsGameplayLayoutEnvironment.Default,
                                 package,
                                 topology,
@@ -2090,7 +2090,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             BmsGameplayLayoutSnapshot layout = BmsGameplayLayoutSolver.Solve(
                 beatmap.BmsInfo.KeymodeResolution,
                 BmsPlayfieldStyle.P1,
-                BmsGameplayLayoutConfiguration.FromSkin(revision.Owner, beatmap.BmsInfo.Keymode),
+                BmsGameplayLayoutConfiguration.FromSkin(revision.Owner, beatmap.BmsInfo.Keymode, revision.Owner),
                 BmsGameplayLayoutEnvironment.Default,
                 package,
                 topology,

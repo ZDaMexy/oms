@@ -248,7 +248,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(scene.TryGetVisualGate(globalText, out GameplaySkinSceneHostedSlot? globalGate), Is.True);
             Assert.That(globalGate!.IsReplacementReady, Is.True);
             Assert.That(scene.TryGetHostedDrawable(globalText, out Drawable? globalReadout), Is.True);
-            Assert.That(globalReadout!.ChildrenOfType<SpriteText>().Any(text => text.Text.ToString().Contains('%')), Is.True,
+            // An authored HUD may have several independent roots for the same global slot. The compatibility
+            // accessor above returns the first root only, which can be a panel rather than the accuracy value.
+            IEnumerable<Drawable> globalReadouts = globalGate.RoutedNodes.Count == 0
+                ? new[] { globalReadout! }
+                : globalGate.RoutedNodes.Select(node => c6CandidateNode(scene, node.Source.Id).RootDrawable);
+            Assert.That(globalReadouts.SelectMany(root => root.ChildrenOfType<SpriteText>()).Any(text => text.IsPresent && text.Text.ToString().Contains('%')), Is.True,
                 "The actual global readout must replace the hidden native accuracy display with visible percentage text.");
             Assert.That(hud.GameplaySkinHudResidualPartitions
                            .Where(partition => ReferenceEquals(partition.Slot, GameplaySkinSlotCatalog.GaugeVisual)

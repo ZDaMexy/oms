@@ -20,6 +20,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 {
                     [nameof(BmsSkinConfigurationLookups.PlayfieldWidth)] = BmsSkinConfigurationLookups.PlayfieldWidth,
                     [nameof(BmsSkinConfigurationLookups.PlayfieldHeight)] = BmsSkinConfigurationLookups.PlayfieldHeight,
+                    [nameof(BmsSkinConfigurationLookups.BgaWidth)] = BmsSkinConfigurationLookups.BgaWidth,
+                    [nameof(BmsSkinConfigurationLookups.BgaHeight)] = BmsSkinConfigurationLookups.BgaHeight,
+                    [nameof(BmsSkinConfigurationLookups.BgaVerticalPosition)] = BmsSkinConfigurationLookups.BgaVerticalPosition,
+                    [nameof(BmsSkinConfigurationLookups.KeyAreaHeight)] = BmsSkinConfigurationLookups.KeyAreaHeight,
                     [nameof(BmsSkinConfigurationLookups.NormalLaneWidth)] = BmsSkinConfigurationLookups.NormalLaneWidth,
                     [nameof(BmsSkinConfigurationLookups.ScratchLaneWidth)] = BmsSkinConfigurationLookups.ScratchLaneWidth,
                     [nameof(BmsSkinConfigurationLookups.NormalLaneSpacing)] = BmsSkinConfigurationLookups.NormalLaneSpacing,
@@ -36,6 +40,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             BmsSkinConfigurationLookups.PlayfieldWidth,
             BmsSkinConfigurationLookups.PlayfieldHeight,
+            BmsSkinConfigurationLookups.BgaWidth,
+            BmsSkinConfigurationLookups.BgaHeight,
+            BmsSkinConfigurationLookups.BgaVerticalPosition,
+            BmsSkinConfigurationLookups.KeyAreaHeight,
             BmsSkinConfigurationLookups.NormalLaneWidth,
             BmsSkinConfigurationLookups.ScratchLaneWidth,
             BmsSkinConfigurationLookups.NormalLaneSpacing,
@@ -51,6 +59,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public static bool IsCanonical(BmsSkinConfigurationLookups field)
             => field is BmsSkinConfigurationLookups.PlayfieldWidth
                 or BmsSkinConfigurationLookups.PlayfieldHeight
+                or BmsSkinConfigurationLookups.BgaWidth
+                or BmsSkinConfigurationLookups.BgaHeight
+                or BmsSkinConfigurationLookups.BgaVerticalPosition
+                or BmsSkinConfigurationLookups.KeyAreaHeight
                 or BmsSkinConfigurationLookups.NormalLaneWidth
                 or BmsSkinConfigurationLookups.ScratchLaneWidth
                 or BmsSkinConfigurationLookups.NormalLaneSpacing

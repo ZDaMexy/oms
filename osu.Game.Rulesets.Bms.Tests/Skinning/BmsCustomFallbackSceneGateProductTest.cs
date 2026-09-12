@@ -409,7 +409,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(scene.TryGetHostedDrawable(flash, out _), Is.False);
 
                 string role = exactLane.IsScratch ? "scratch" : exactLane.LogicalIndex % 2 == 0 ? "accent" : "white";
-                GameplaySkinSpecialisedSceneVisual visual = assertPackagedNativeSurface(scene, lane.HitTarget,
+                GameplaySkinSpecialisedSceneVisual visual = assertPackagedNativeSurface(scene, lane.HitTarget.KeyVisual!,
                     lane.HitTarget.ResolvedMaterialKey, false, $"bms/key-{role}");
                 Drawable key = visual.RootDrawables.Single();
                 Assert.That(key.Alpha, Is.EqualTo(lane.HitTarget.IsPressed.Value ? 1 : 0.65f),

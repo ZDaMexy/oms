@@ -25,7 +25,7 @@ namespace osu.Game.Rulesets.Bms.UI
         void SetFocused(bool isFocused);
     }
 
-    public partial class BmsHitTarget : CompositeDrawable, IGameplaySkinSpecialisedSceneConsumer
+    public partial class BmsHitTarget : CompositeDrawable
     {
         public readonly BindableBool IsPressed = new BindableBool();
 
@@ -39,33 +39,30 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BmsLaneSkinLookup lookup;
         private readonly Container programmaticVisualOwner;
         private readonly SkinnableHitTargetDisplay display;
-        private readonly Container sceneVisualContainer;
         private GameplaySkinSceneRuntimeHost? sceneRuntime;
-        private GameplaySkinSpecialisedSceneVisual? sceneVisual;
-        private Sprite? textureKeyVisual;
         private IDisposable? hitTargetVisualRegistration;
         private IDisposable? judgementLineVisualRegistration;
         private IDisposable? keyFlashVisualRegistration;
-        private GameplaySkinResolvedMaterialKey? keyVisualMaterialKey;
-        private GameplaySkinSceneHostedSlot? keyVisualGate;
 
         internal Container HitExplosions { get; }
 
         public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
 
+        internal BmsKeyVisual? KeyVisual { get; set; }
+
         public GameplaySkinResolvedMaterialSet ResolvedMaterialSet
-            => sceneRuntime?.MaterialSet
+            => KeyVisual?.ResolvedMaterialSet
                ?? throw new InvalidOperationException("A compatibility BMS hit target has no exact C4 material publication.");
 
         public GameplaySkinResolvedMaterialKey ResolvedMaterialKey
-            => keyVisualMaterialKey
+            => KeyVisual?.ResolvedMaterialKey
                ?? throw new InvalidOperationException("A compatibility BMS hit target has no specialised C5 KeyVisual key.");
 
         public GameplaySkinSceneHostedSlot SceneVisualGate
-            => keyVisualGate
+            => KeyVisual?.SceneVisualGate
                ?? throw new InvalidOperationException("A compatibility BMS hit target has no specialised C5 KeyVisual gate.");
 
-        public IReadOnlyList<string> AppliedSceneNodeIds { get; private set; } = Array.Empty<string>();
+        public IReadOnlyList<string> AppliedSceneNodeIds => KeyVisual?.AppliedSceneNodeIds ?? Array.Empty<string>();
 
         internal Drawable? GameplaySkinHitTargetFallbackVisual
             => (display.CurrentDisplay as DefaultBmsHitTargetDisplay)?.HitTargetVisual;
@@ -111,13 +108,14 @@ namespace osu.Game.Rulesets.Bms.UI
                         CentreComponent = false,
                     },
                 },
-                sceneVisualContainer = new Container { RelativeSizeAxes = Axes.Both },
-                HitExplosions = new Container { RelativeSizeAxes = Axes.Both },
+                HitExplosions = new Container { RelativeSizeAxes = Axes.Both, Depth = -1 },
             };
 
             IsPressed.BindValueChanged(_ => updateState(), true);
             IsFocused.BindValueChanged(_ => updateState(), true);
         }
+
+        internal void MountLocalKeyVisual(BmsKeyVisual keyVisual) => AddInternal(keyVisual);
 
         [BackgroundDependencyLoader(true)]
         private void loadGameplaySkinScene(GameplaySkinSceneRuntimeHost? runtime)
@@ -135,45 +133,18 @@ namespace osu.Game.Rulesets.Bms.UI
                 candidate.Identity.Id.Equals(lane.Identity.Group.Id));
             GameplaySkinResolvedMaterialTarget laneTarget = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
             GameplaySkinResolvedMaterialTarget stageTarget = GameplaySkinResolvedMaterialTarget.ForStage(group);
-            var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, laneTarget);
-
-            if (!runtime.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate) || gate == null)
-                throw new InvalidOperationException("The exact BMS KeyVisual scene gate is missing from the committed publication.");
-
             sceneRuntime = runtime;
-            keyVisualMaterialKey = key;
-            keyVisualGate = gate;
 
             // An opaque legacy/custom target cannot expose the independently authored HitTarget,
             // JudgementLine and KeyFlash parts. Exact C5 gameplay therefore fails closed to the
             // protected typed host instead of allowing one part to hide the others (or another deck).
             display.EnsureExactPublicationDisplay();
 
-            if (gate.Route == GameplaySkinSceneHostRoute.Specialised)
-            {
-                sceneVisual = runtime.PrepareSpecialisedVisual(key, sceneVisualContainer);
-
-                if (sceneVisual != null)
-                {
-                    AppliedSceneNodeIds = Array.AsReadOnly(
-                        sceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
-                    if (sceneVisual.RuntimeNodes.Count == 0)
-                        textureKeyVisual = (Sprite)sceneVisual.RootDrawables.Single();
-                    sceneVisual.OnApply();
-                    updateState();
-                }
-            }
-
             registerProgrammaticVisuals(laneTarget, stageTarget);
         }
 
         private void updateState()
         {
-            // A plain public key image retains input feedback even when the independent flash is suppressed.
-            // Authored scene nodes keep their own public input bindings and are not tinted by this adapter.
-            if (textureKeyVisual != null)
-                textureKeyVisual.Alpha = IsPressed.Value ? 1 : 0.65f;
-
             if (display.CurrentDisplay is not IBmsHitTargetDisplay hitTargetDisplay)
                 return;
 
@@ -251,8 +222,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 judgementLineKey,
                 defaultDisplay.JudgementLineVisual);
             // The default BMS target has no separate static key/receptor visual: its only key-like child is the
-            // pressed glow and therefore belongs exclusively to KeyFlash. KeyVisual author scenes are mounted in
-            // sceneVisualContainer above and must never swallow this independent fallback.
+            // pressed glow and therefore belongs exclusively to KeyFlash. The independent KeyVisual host must
+            // never swallow this fallback.
             keyFlashVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(
                 keyFlashKey,
                 defaultDisplay.KeyFlashVisual);
@@ -262,7 +233,6 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (isDisposing)
             {
-                sceneVisual?.OnFree();
                 hitTargetVisualRegistration?.Dispose();
                 judgementLineVisualRegistration?.Dispose();
                 keyFlashVisualRegistration?.Dispose();

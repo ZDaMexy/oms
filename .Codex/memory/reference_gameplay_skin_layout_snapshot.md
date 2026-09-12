@@ -23,7 +23,19 @@ metadata:
 - Mania 必须使用真实 single/dual stage-column vector；special key 按 stage-local column 判，不用 total columns、global modulo 或 enum ordinal。
 - logical/visual、global/group-local index 都是显式 order，不是 stable ID。Mirror/Random/S-Random 改对象最终目标 lane，不改固定 topology；object、keysound 与 skin lookup 使用同一目标 LaneId。
 - BGA 的最终 viewport/rect 属于该 layout；内容/timeline/seek 仍属 P1-L。统一 viewport 不能证明统一 decoder/clock。
+- 新增的可选布局字段不能直接查聚合 `ISkinSource.GetConfig`：选定包缺项会继续命中 canonical 的作者值，使旧包意外启用独立键区并放大 BGA。`KeyAreaHeight` 与三项 BGA 参数用同一 package revision 的 exact selected BMS source 读取 accepted declaration，缺项交 solver 默认；必须用普通导入旧包核实，直接传配置对象的 solver 测试看不到此问题。
+- 同一 HUD slot 可以有多个平级作者节点。`TryGetHostedDrawable` 的兼容入口只返回首根，首根可能只是面板，不能据其没有 `SpriteText` 判断准确率消失；完整 HUD 检查需遍历该 slot 的已路由节点并核真实文字，同时保留 native/residual 隐藏与同一 publication 断言。
 - menu/shell/background 不因使用 skin texture 就成为作者 gameplay layout surface。
+
+## 从真实截图排查分区遮挡
+
+- `hud.text` 容器下的 `global` 子节点不会自然继承 HUD 坐标区；顶部信息跨入落键区时先看实际 prepared target/slot 路由。当前作者写法让每个平级图形、文字显式拥有 `hud.text`，不能嵌套 slot owner；嵌套被 preparation 拒绝是合同保护，不应放宽。
+- BMS 原键图在落键区的裁剪链中。只把键图画高或扩 `HitTargetHeight` 既不能得到独立控制台，还可能侵占判定附近；应在唯一 solver 产生独立键区，保留缺省旧包位置，不改判定/滚动长度。
+- BGA 的 scene 外框放大不等于真实播放器 viewport 放大；应从公开尺寸参数进入唯一 solver，再由现有播放宿主消费。外部截图只用于比较视觉关系，不能推导出播放/timeline 新 authority。
+- 原图凭据见[静线 1P 参考](../../doc_md/other/references/simple-1p-20260912/README.md)。底部 HUD 的公共几何变化也会影响未改作者文件的包，回归不能只观察 simple。
+- 作者生成器的 `Complex=false` 同时覆盖静线与旧 Aurora 演练，不能据此把新布局应用到所有旧作品。静线通过 `author.json` 的 `compactLayout` 明确选择新模板；未声明的作品保持旧生成字节。必须实际运行 `Test-Authoring.ps1` 的重新生成与重复打包检查，只有源包一致性检查不足以发现这个问题。
+- `SkinAuthoring pack` 输出普通包与控制台摘要，不替维护安装原件的 `dist/oms-simple.sha256`。更新 canonical 包后必须同步该摘要并重编 `osu.Game`（摘要为 embedded resource）；只复制新包会触发完整性保护，使实际选择及依赖它的异步测试失败。不要把这类失配误判为布局或异步 ownership 回归。
+- 提交前用 `git ls-files --eol` 核作者输入的实际换行。相同 CRLF 工作树重复打包也会通过，但提交按 `.gitattributes` 规范成 LF 后重做不一致；`Test-Authoring.ps1` 的 LF 检查必须包含 `author.json`，不能只检查生成的 manifest/scene。
 
 ## Geometry fallback 与构造边界
 
