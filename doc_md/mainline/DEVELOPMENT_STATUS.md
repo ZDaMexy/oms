@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后更新：2026-09-12（原 C7 默认皮肤提示与构建警告修复已完成实际复验；最终产物独立复核通过，人工签收仍待完成）
+> 最后更新：2026-09-12（星轨总体体验不通过；按用户要求暂时收尾，双包优化待新对话）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7 closed`**）：双包、完整制作体验、正式保底、安装恢复与集中体验包已交付；`V-001`～`V-004`签收仍 **0/4**，`V-005`未签收，Skin V1与release均未完成。交付后修复继续在原 C7 内收尾，当前默认保持静线、星轨仍为展示包和默认候选；本轮最终产物独立复核通过，实际证据与剩余门见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段。Skin 原七阶段已有工程与交付证据保留，不重计阶段；用户已否定星轨的动画、美术安排和精细度，现版总体不可用，不能再称只剩签收。本轮按要求暂停开发并做提交、推送收尾，simple/complex 优化留待新对话；静线保持默认与保底，`V-001`～`V-004`仍 **0/4**、`V-005`未签收，Skin V1与release未完成。详见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
@@ -17,7 +17,7 @@ OMS处于Phase 1.x后段。Skin 原七阶段的非人工结果已完成（**`7/7
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | 原 C7 默认皮肤提示与构建警告已修复并完成实际复验；最终产物独立复核已通过，以新集中包继续原 V、双包及设备/长时体验签收 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
+| 1 | 原 C7 工程证据保留；星轨总体观感不通过，双包修改待用户新对话，本轮只做文档、提交和获准推送 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |

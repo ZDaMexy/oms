@@ -25,7 +25,7 @@
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [canonical 安装与用户数据保护](reference_skin_canonical_installation.md) — 缺行修复、旧数据、只读原件与更新；便携误入、缓存隔离、真实启动恢复与取消资源移交。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者边界、可重复源文件换行、场景定位与零宽进度。
-- [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；预算和实时进度读 P1-A。
+- [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
 
 ## 构建、存储与产品面参考
 

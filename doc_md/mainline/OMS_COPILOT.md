@@ -790,6 +790,7 @@ OMS continues to use osu!lazer's `ISkin` / `ISkinSource` / `SkinnableDrawable` a
 ### 13.1 Product Direction
 
 - OMS will ship two ordinary first-party `.osk` entries: **`oms-simple`** as the immutable final fallback and **`oms-complex`** as the public-API showcase/default candidate.
+- Showcase/default-candidate is a product role, not visual acceptance: successful importing, automated rendering checks or campaign closure cannot override explicit user rejection of animation, art arrangement or refinement. Record actual feedback and outstanding product changes in [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md); keep unobserved matrix cases unsigned and do not infer approval of the other package.
 - Each package contains a **global layer plus separate mania and BMS ruleset layers**.
 - Mania and BMS do not need to share the same gameplay asset semantics; they are integrated into each package, but remain independent ruleset skin implementations.
 - `Argon`, `Triangles`, `DefaultLegacy`, `Retro`, and other osu!lazer-native built-in default skins must be removed from OMS's final shipped default selection surface once OMS replacement coverage is complete.

@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后更新：2026-09-12（原 C7 交付后修复收尾；继续既定人工与公开发行门，不重计阶段）
+> 最后更新：2026-09-12（皮肤开发暂停；保留原阶段和工程证据，双包修改待用户恢复）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -15,7 +15,7 @@
 
 ## 强制执行顺序
 
-恢复与数据安全`SV1-0`、Skin C1～C7的非人工工作已关闭，作为后续输入，不重复开工。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
+恢复与数据安全`SV1-0`、Skin C1～C7既有工程结果作为后续输入保留，不重复开发；星轨最新总体体验不通过，历史关闭记录不表示作品修改已完成。双包实现按用户要求暂缓，恢复开发前须由用户重新启动迭代；停止边界见 P1-A 状态。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
 
 ### R3：`SV1-2` G1 存储与 revision 冻结输入
 
@@ -24,8 +24,8 @@
 ### R4：完成 Skin V1 sandbox 与 canonical 发行闭环
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7 交付后修复收尾**：当前修复产物的独立复核已通过，以同时支持 mania/BMS 的双包和当前集中体验包执行人工观察；首次默认保持静线，星轨保留展示包和默认候选身份，不重计阶段。具体交付门及剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
-3. 按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及最终包；自动可证工作可继续，只有视觉结论决定设计或自动证据无法裁决异常时才等待反馈。未签收不得称Skin V1/release完成。
+2. **C7 暂时收尾**：既有工程和安装证据保留，星轨总体观感不通过；simple/complex 修改与后续验收待用户恢复迭代，当前默认保持静线，不重计阶段。具体停止边界、待改内容及剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。
+3. 后续恢复后按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及修改后的双包；不得借自动可证绕过用户的停止指令。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。
 

@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-09（C7 canonical 包接管、只读安装原件、旧数据恢复与普通作者导出合同）
+> 最后更新：2026-09-12（保留现行皮肤与恢复合同；明确工程证据、总体体验否定与逐项签收的边界）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -393,6 +393,8 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 3. `Broken → recover` 只允许 HCN；CN 中途松开不可接回，语义 authority 见 [P1-E 约束](../P1-E/TECHNICAL_CONSTRAINTS.md)。Skin V1 event adapter 只能投影该状态，不得重新解释 LN/CN/HCN 规则。
 
 ## 测试与发布约束
+
+用户对作品整体动画、美术安排或精细度的明确否定是产品修改依据，不能降格为“尚未观察”，也不能被可导入、渲染链/自动检查通过或历史 campaign 关闭记录抵消。总体反馈不自动提供特定玩法、键数、分辨率、设备或矩阵单项结果；未证实项继续未签收，不凭它为另一款皮肤签收或推断具体实现根因。当前状态和修改时机分别由 STATUS/PLAN 维护；用户明确结束本轮时只完成获准收尾，不借未达质量目标越过停止边界继续开发。
 
 1. 验证按实际改动面分层：仅改BMS ruleset组件且未触碰shared skin、mania compatibility或fallback authority时，至少覆盖用户package、Provide/Inherit/Suppress、BMS relevant/full与Release；修改shared skin、mania compatibility、scene/event或fallback authority时，必须追加core skin focused、mania relevant/full、BMS relevant/full与Release。C4还必须覆盖shared codec/catalog/resolver、三源exact material，C5还必须覆盖scene codec/runtime、event Snapshot/Reset、全部适用slot与revision并发矩阵；C6追加真实source/CLI bytecode作者包、Settings授权/拒绝/撤销/重启、版本失效、暂停及并发授权、预算熔断、三源无host整包验证与备份数据根G1。C7的真实双包、第三方缺件、canonical完整性/工作副本恢复、旧journal和保护记录迁移、真实设置导出、portable/custom-root/覆盖更新均属于自动gate；实际结论见STATUS，原人工签收门前仍保留`OmsSkin`隔离对照。
 2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。进入画面必须另有真实 `OsuGame` → `PlayerLoader` → 普通 Player/自动演示的回归：宿主不得预先缓存具体 ruleset config；layout preparer 从游戏的 `IRulesetConfigCache` 读取与实际 renderer 相同的最终配置，不能依赖后加载的 drawable 子树。以非默认样式/方向验证进入、重试、退出及 live reload 拒绝；`OsuTestScene.CreateRuleset()` 自动注入的 `DrawableRulesetDependencies` 不能充当这一入口证据。
