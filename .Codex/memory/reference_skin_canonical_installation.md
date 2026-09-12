@@ -8,6 +8,8 @@ metadata:
 
 # Canonical 简洁皮肤安装与旧数据排查
 
+2026-09-12：保存星轨后顶层 GameHost 冷启动在 OsuGame.load 恢复配置触发 update-thread publication guard。默认简洁同值 no-op 和视觉 fixture 在已有 update thread 内重建 Game 都会漏报。恢复必须放到 OsuGame.LoadComplete、初始画面构造之前；不要放宽 SkinManager guard。BuiltInSkinColdStartTest 使用独立 LongRunning 宿主及 SetupForRun 后写入独立配置，覆盖顶层启动并确认 current info/revision/config 一致；host.Storage 在 SetupForRun 前尚不可用，NUnit Timeout 的 TPL 工作线程也不能直接 Run 宿主。
+
 状态与签收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，完整合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。这里记录迁移时容易混淆的证据，不替代验收。
 
 - 安装原件是程序目录 `Skins/Canonical/oms-simple.osk`，SHA-256 锚点嵌入 `osu.Game`，不是从旁边可一起改写的 manifest 取得信任。每次启动先验证原件，再处理当前数据根 `skin-canonical/oms-simple.osk`；原件缺失/损坏时，即使工作副本完整也不能绕过安装修复。

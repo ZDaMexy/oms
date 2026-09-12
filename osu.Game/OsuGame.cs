@@ -438,9 +438,6 @@ namespace osu.Game
             // Keep the config value aligned with any runtime fallback that happens during startup.
             SkinManager.CurrentSkinInfo.ValueChanged += skin => configSkin.Value = skin.NewValue.ID.ToString();
 
-            // Transfer skin from config to realm instance once on startup.
-            SkinManager.SetSkinFromConfiguration(configSkin.Value);
-
             UserPlayingState.BindValueChanged(p =>
             {
                 BeatmapManager.PauseImports = p.NewValue != LocalUserPlayingState.NotPlaying;
@@ -1122,6 +1119,10 @@ namespace osu.Game
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // Host bootstrap loads dependencies before the update thread starts. Restore the saved selection
+            // here so publication runs on that thread, before constructing the initial screen graph.
+            SkinManager.SetSkinFromConfiguration(configSkin.Value);
 
             var languages = Enum.GetValues<Language>();
 

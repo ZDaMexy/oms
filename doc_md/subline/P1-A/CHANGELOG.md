@@ -1,5 +1,9 @@
 # P1-A 变动日志
 
+## 2026-09-12：保存星轨后的冷启动崩溃
+
+用户提供 `Current skin selection publication must run on the update thread` 异常。将 OsuGame 的配置皮肤恢复从依赖加载移至 LoadComplete，保持发布线程约束。新增顶层宿主冷启动测试：旧代码简洁通过、星轨复现同异常；修复后双皮肤冷启动及既有相关检查 23/23 通过。详情见[验证记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。
+
 ## 2026-09-12：内置双皮肤随源文件构建更新
 
 两款内置皮肤从当前作者源目录生成构建包及内嵌摘要，正常开发启动、build、publish 不再依赖手工刷新 dist；不覆盖作者源文件。发行作者套件使用本次安装原件。实现、验证与限制见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。

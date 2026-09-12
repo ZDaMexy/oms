@@ -24,6 +24,8 @@
 
 ## 归线与产品边界
 
+冷启动的配置皮肤恢复必须在 update thread 的 LoadComplete 阶段、初始画面图构造之前进入既有 selection publication；BackgroundDependencyLoader 不得直接发布选择。验证必须包含顶层 GameHost bootstrap 的已配置非默认皮肤，不能以 update thread 上嵌套重建 Game 的视觉测试代替。
+
 内置静线与星轨必须随正常开发启动、build、publish 从当前作者源文件更新；不得要求玩家导入或开发者先手工打包。当前实现与验证见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。普通构建不重生成覆盖作者美术，发行作者副本须与本次安装原件一致。
 
 1. P1-A 拥有 shared skin package/runtime/fallback、BMS playfield/BGA skin boundary、G1 和 release gate；判定/反馈、输入、BGA 时间线、存储底层语义仍分别归 P1-C/P1-E、P1-B/P1-D、P1-L、P1-H。

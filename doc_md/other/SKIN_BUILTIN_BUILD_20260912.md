@@ -25,3 +25,15 @@ simple／静线与 complex／星轨长期内置，玩家无需导入。两款的
 原日志保存在 `artifacts/builtin-*.log`，启动详情在 `artifacts/builtin-build-startup-20260912/results.json`，开发源变动验证脚本在 `artifacts/Test-BuiltInBuildIntegration.ps1`；测试 TRX 在 `osu.Game.Tests/TestResults/builtin-build.trx`。这些本机输出不提交。美术观感与原人工设备签收仍未完成，本次构建更新不替代视觉验收。
 
 文档检查与 `git diff --check` 通过；公开构建包摘要及仓库路径的提示已审阅，不含玩家个人保存位置。
+
+## 随后修复：已保存星轨时的冷启动
+
+用户实际开发启动抛出 `Current skin selection publication must run on the update thread`，路径为 OsuGame.load → SetSkinFromConfiguration → selection publication。首次默认简洁是同值选择，绕过发布；此前视觉测试在已经运行的 update thread 内重建嵌套 Game，同样不能覆盖顶层宿主 bootstrap。因此上文空库和嵌套重启的通过记录不能推导已保存星轨的真实冷启动通过。
+
+恢复配置选择现移到 OsuGame.LoadComplete，位于更新线程就绪之后、初始画面构造之前。SkinManager 的线程限制继续保留；不清空玩家配置，不强制改回简洁，也不新增异步延迟队列。
+
+新增 `BuiltInSkinColdStartTest` 在独立宿主 SetupForRun 后写入选择，通过 LongRunning 线程运行真正顶层 GameHost。修复前简洁通过、星轨精确复现用户同异常；修复后两例均通过，同时 CurrentSkinInfo、CurrentRevision 和配置保持所选 ID。与 canonical 安装、内置选择回归合计 23/23 通过，命令为 `dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release --filter 'FullyQualifiedName~BuiltInSkinColdStartTest|FullyQualifiedName~CanonicalSkinPackageTest|FullyQualifiedName~TestSceneBuiltInOmsSkins'`。
+
+本次重新运行 build-release，候选为 `release-repo/oms_20260912_2.zip`；实际桌面补验使用派生的 `artifacts/Test-ComplexColdStart.ps1`，沿用既有隔离安装检查，只在私有副本首次启动前写入星轨配置，并在每轮稳定运行后检查该选择未丢失。来源为本次 publish，未触碰玩家已有数据。结果为 Passed、SourceUnchanged=true：首次冷启动、自定义保存位置、损坏工作副本恢复和同包覆盖后启动四轮均稳定运行八秒并正常关闭，星轨配置未丢失；不扩称现有个人库迁移或 ZIP 解压复验。另完成 `dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m`，零错误，保留上文两项既有 BMS 测试工程警告；文档和 diff 检查通过。
+
+用户日志与修复前后测试日志分别保存在 `artifacts/skin-cold-start-user-log.txt`、`artifacts/skin-cold-start-before.log`、`artifacts/skin-cold-start-fixed.log`，实际桌面记录在 `artifacts/skin-complex-cold-start-20260912/`。上述输出保留本机取证身份，视觉观感仍未签收。

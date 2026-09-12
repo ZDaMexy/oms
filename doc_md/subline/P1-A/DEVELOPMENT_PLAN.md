@@ -5,6 +5,8 @@
 
 ## 子线目标
 
+保存星轨后冷启动崩溃已按真实日志修复；后续启动验证保留顶层宿主、已保存非默认选择用例，不再只用默认空库或嵌套 Game 重建。验证见[构建与冷启动记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。
+
 内置双皮肤的源文件更新已接入正常开发启动和构建发行，后续素材修改直接走此路径，不再把手工刷新 dist 作为运行前置条件。验收见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)；视觉打磨与原人工门继续保留。
 
 交付mania/BMS共用公开作者路径的Windows-only、离线优先Skin V1：最小可玩的只读canonical `oms-simple.osk`与证明公开API表达上限的`oms-complex.osk`均同包支持两ruleset；保留.osk、根skin.ini、mania命名/帧序列、解包编辑/拖入导入心智，作者无需编译DLL。引擎/作者ownership与非V1范围只见[技术约束](TECHNICAL_CONSTRAINTS.md#核心-ownership)。

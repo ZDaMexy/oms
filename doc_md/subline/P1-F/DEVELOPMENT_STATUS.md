@@ -5,6 +5,8 @@
 
 ## 当前阶段
 
+随后依据用户实际启动日志修复已保存星轨的冷启动崩溃，重新打包候选 `release-repo/oms_20260912_2.zip`；原因、修复前后回归与独立桌面补验见[验证记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。此前空库启动不覆盖已保存非默认皮肤。
+
 用户已恢复静线优化，并明确两款皮肤长期内置且随开发启动、构建和发行更新。本轮修复旧 dist 可能滞后的构建输入，生成 `release-repo/oms_20260912.zip` 验证候选；当前验证见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。下列旧安装与更新结果保留历史身份，不覆盖星轨总体体验不通过的结论，也不使发行门通过；最新体验见 [P1-A 状态](../P1-A/DEVELOPMENT_STATUS.md)。
 
 - [build-release.ps1](../../../build-release.ps1) 产出完整自包含多文件 ZIP（`PublishSingleFile=false`）。当前启动提示修复包为 `release-repo/oms_20260911_startup-fix-final.zip`，完整解压后直接运行 `osu!.exe`，无需另装 .NET；玩法 DLL 和安装原件留在真实安装目录。先前 `_4`、`preview-fix` 包及其结果保留为历史，本轮未改变部署入口或发行合同。
