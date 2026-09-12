@@ -62,3 +62,30 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-Auth
 - 最后一次重新打包后，执行者漏同步安装原件的 `oms-simple.sha256`，新包与嵌入摘要失配；`.codex-simple-bms-full-final.log` 对应运行被主动中止，未产出完整 TRX，不能计通过。同步摘要并重新编译后重新验证，未修改或绕过 canonical 完整性保护。此失误未涉及用户安装或保存根。
 
 后续需用支持新增公开字段的当前客户端实际游玩，对照[原图](references/simple-1p-20260912/README.md)继续调整比例、文字及判定观感；只导入新 `.osk` 到旧发行客户端不能验证新布局能力。当前没有重新制作安装包，也没有代填 V-001～V-005 或 C7 观感签收。当前任务状态以 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准。
+
+## 二次素材打磨与实机反馈
+
+用户提供[首轮布局实机反馈图 06](references/simple-1p-20260912/06-oms-simple-first-layout.png)，明确指出轨道分隔线仍不正确。下述为首轮与双内置接入之后的素材调整，前文测试结果及成品身份不自动覆盖本轮。
+
+- [普通分隔图](../../skin-authoring/sources/oms-simple/bms/divider.png)在 256 像素画布中改为 10 像素中性灰；[转盘分隔图](../../skin-authoring/sources/oms-simple/bms/divider-scratch.png)采用 7 像素，补偿转盘约 1.5 倍车道宽。原 3 像素着色区域被整车道缩放后不足一屏幕像素，是细暗表现的来源；不是默认分隔组件重复叠加。
+- BMS 改用 `lane-white/accent/scratch.png` 三种轨道底色；[stage.png](../../skin-authoring/sources/oms-simple/bms/stage.png)采用不透明暗底，[target.png](../../skin-authoring/sources/oms-simple/bms/target.png)提供红色判定线。[scratch-platter.png](../../skin-authoring/sources/oms-simple/bms/scratch-platter.png)为 ImageGen 原创转盘文件，按既有等比显示路径保持正圆，外部参考截图未作为发行装饰素材复用。
+- [作者预览板](../../skin-authoring/dist/oms-simple-preview.png)展示对应轨宽、底色、分隔图和约 90 像素高的独立键区，转盘为正方尺寸居中。保留 `NOT A GAMEPLAY CAPTURE` 标记；它是素材对照板，不证明真实播放器布局或实机观感通过。
+- 固定分段血条 scene 试验引用了当前拓扑不存在的 `bms.group.deck-2`，且不能跨玩法忽略不适用的舞台，实际 preparation 返回 019。试验已完全撤回，当前仍为连续 `gauge.png` 填充，作者板仅配暗底轨；没有为此扩展公共 scene API 或放宽未知目标拒绝。
+
+本轮未修改运行时生产 C#，mania 与 complex 作者作品未改。本轮最终 BMS Release full 为 **2219 Passed / 0 Failed / 15 Skipped**，15 项仍要求核验备份根；此前素材与两玩法场景 focused **263/263** 通过。作者完整制作、重复生成与重复打包检查通过，Release 构建 0 警告 / 0 错误，输出 simple 包与源包摘要一致；文档和 diff 检查通过。未签收整体视觉。
+
+本轮从干净的 a548332 开始，fetch 成功，HEAD 相对跟踪分支为 ahead 3 / behind 0。最终 simple 包 SHA-256 为 162c90ab5e3925f627306aa569ff3c66e906137ed57abce7012c1b4a41b20a5f，complex 与 Aurora 原包未变；转盘源 PNG 为 1254×1254，角落 alpha=0，保持生成图原始字节。完整生成提示词见[素材说明](../../skin-authoring/docs/SIMPLE_ARTWORK.md)。
+
+首轮分段血条尝试先被 stable ID 语法检查拒绝（008）；修正命名后实际跨玩法 prepare 仍拒绝未知舞台（019），该候选 focused 133 Passed / 130 Failed。撤回整个 scene/manifest 改动后，重新打包并复验 263/263，再对最终包运行上述完整套件；没有修改未知目标拒绝或放宽作者权限。原失败和成功 TRX/log 分开保存在本地忽略目录 artifacts/simple-polish-20260912。
+
+本轮命令：
+
+~~~powershell
+dotnet build tools/SkinAuthoring/SkinAuthoring.csproj -c Release --no-restore
+tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe generate skin-authoring/sources/oms-simple
+tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe pack skin-authoring/sources/oms-simple skin-authoring/dist/oms-simple.osk
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-Authoring.ps1 -Tool tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~TestSimpleLaneContrastAndDividersUseTheActualAuthoredImages|FullyQualifiedName~TestAuthoredInformationUsesSafeLayoutAndGameplayValues|FullyQualifiedName~TestCanonicalProductsManiaAllStageSizesAndScreens'
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore --logger 'trx;LogFileName=simple-polish-full.trx'
+dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
+~~~

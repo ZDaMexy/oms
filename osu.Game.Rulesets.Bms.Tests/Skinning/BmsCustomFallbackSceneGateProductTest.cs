@@ -388,14 +388,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsGameplayLayoutLane exactLane = lane.LayoutSnapshotLane!;
                 GameplaySkinResolvedMaterialTarget target = lane.HitTarget.ResolvedMaterialKey.Target;
                 bool selected = authoredScratch1 && target.LaneId!.Value == "bms.lane.scratch-1";
+                string role = exactLane.IsScratch ? "scratch" : exactLane.LogicalIndex % 2 == 0 ? "accent" : "white";
                 Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.Alpha, Is.Zero);
                 Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.Alpha, Is.Zero);
                 Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
                     Is.EqualTo(BmsLaneSkinElements.Background));
                 Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
                     Is.EqualTo(BmsLaneSkinElements.Divider));
-                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target), selected, selected ? "notes/author" : "bms/lane");
-                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, target), selected, selected ? "notes/author" : "bms/divider");
+                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target), selected, selected ? "notes/author" : $"bms/lane-{role}");
+                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, target), selected, selected ? "notes/author" : exactLane.IsScratch ? "bms/divider-scratch" : "bms/divider");
                 assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, target), selected, selected ? "notes/author" : "bms/target");
                 Assert.That(lane.HitTarget.GameplaySkinHitTargetFallbackVisual!.Alpha, Is.Zero);
                 Assert.That(lane.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero);
@@ -408,9 +409,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(entry.Source.Kind, Is.EqualTo(selected ? GameplaySkinResolvedMaterialSourceKind.SelectedPackage : GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
                 Assert.That(scene.TryGetHostedDrawable(flash, out _), Is.False);
 
-                string role = exactLane.IsScratch ? "scratch" : exactLane.LogicalIndex % 2 == 0 ? "accent" : "white";
                 GameplaySkinSpecialisedSceneVisual visual = assertPackagedNativeSurface(scene, lane.HitTarget.KeyVisual!,
-                    lane.HitTarget.ResolvedMaterialKey, false, $"bms/key-{role}");
+                    lane.HitTarget.ResolvedMaterialKey, false, exactLane.IsScratch ? "bms/scratch-platter" : $"bms/key-{role}");
                 Drawable key = visual.RootDrawables.Single();
                 Assert.That(key.Alpha, Is.EqualTo(lane.HitTarget.IsPressed.Value ? 1 : 0.65f),
                     "Both decks must retain actual pressed/released key feedback even while optional flashes are suppressed.");

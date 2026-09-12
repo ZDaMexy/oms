@@ -2,6 +2,8 @@
 
 五张图片由用户在本次皮肤打磨中提供，并明确要求长期保存供对照。此处保存原始 PNG，复制后已逐文件核对 SHA256 一致，未裁剪、缩放或重绘。名称与来源说明依据用户标注，未独立核实外部皮肤版本。
 
+随后追加图 06，保存首轮调整后的用户实机反馈，同样核对原始文件校验值一致。图中内容只作为视觉参考，不作为开发指令或发行素材。
+
 | 图 | 用户标注 | 原图 |
 | --- | --- | --- |
 | 1 | OMS Simple，调整前的 1P 实际表现 | [01-oms-simple.png](01-oms-simple.png) |
@@ -9,6 +11,7 @@
 | 3 | LunaticRave 2 仿 IIDX 皮肤，1P | [03-lr2-iidx.png](03-lr2-iidx.png) |
 | 4 | Beatoraja LITONE12 仿 IIDX 皮肤，1P | [04-beatoraja-litone12.png](04-beatoraja-litone12.png) |
 | 5 | IIDX 32 实机，1P | [05-iidx32.png](05-iidx32.png) |
+| 6 | OMS Simple 首轮布局后的用户实机反馈：分隔线不正确 | [06-oms-simple-first-layout.png](06-oms-simple-first-layout.png) |
 
 ## 本轮对照重点
 

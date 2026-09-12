@@ -24,7 +24,10 @@ namespace SkinAuthoring
             rect(image, 54, 106, 1492, 2, new Rgba32(67, 90, 110));
             foreach ((string ruleset, int panel, int count) in new[] { ("bms", 65, 8), ("mania", 850, 7) })
             {
-                int top = 235, stageWidth = ruleset == "bms" ? 650 : 580, laneWidth = stageWidth / count;
+                bool compactBms = profile.CompactLayout && ruleset == "bms";
+                int top = 235, stageWidth = ruleset == "bms" ? 650 : 580;
+                int fieldHeight = compactBms ? 550 : 590;
+                int keyHeight = compactBms ? 90 : 54;
                 if (profile.Complex)
                 {
                     blit(image, Path.Combine(root, "scene", "console.png"), panel, 159, stageWidth, 62);
@@ -40,13 +43,22 @@ namespace SkinAuthoring
                     rect(image, panel, 224, stageWidth * 2 / 5, 2, new Rgba32(255, 211, 138));
                     rect(image, panel, 229, stageWidth * 3 / 4, 2, new Rgba32(82, 223, 223));
                 }
-                blit(image, Path.Combine(root, ruleset, "plate.png"), panel, top, stageWidth, 660);
+                blit(image, Path.Combine(root, ruleset, compactBms ? "stage.png" : "plate.png"), panel, top, stageWidth, 660);
+                if (compactBms)
+                    rect(image, panel, top + fieldHeight, stageWidth, keyHeight, new Rgba32(11, 16, 25));
                 for (int lane = 0; lane < count; lane++)
                 {
                     string role = ruleset == "bms" && lane == 0 ? "scratch" : ruleset == "mania" && lane == 3 ? "special" : lane % 2 == 0 ? "accent" : "white";
-                    int x = panel + lane * laneWidth;
-                    blit(image, Path.Combine(root, ruleset, "lane.png"), x, top, laneWidth - 1, 590);
-                    blit(image, Path.Combine(root, ruleset, "divider.png"), x, top, laneWidth, 590);
+                    // Scratch occupies one and a half normal lanes; use rounded cumulative edges to avoid drift.
+                    double units = compactBms ? count + 0.5 : count;
+                    double leftUnits = compactBms && lane > 0 ? lane + 0.5 : lane;
+                    double rightUnits = compactBms ? lane + 1.5 : lane + 1;
+                    int x = compactBms ? panel + (int)Math.Round(stageWidth * leftUnits / units) : panel + lane * (stageWidth / count);
+                    int laneWidth = compactBms ? panel + (int)Math.Round(stageWidth * rightUnits / units) - x : stageWidth / count;
+                    string laneImage = compactBms ? $"lane-{role}.png" : "lane.png";
+                    string dividerImage = compactBms && lane == 0 ? "divider-scratch.png" : "divider.png";
+                    blit(image, Path.Combine(root, ruleset, laneImage), x, top, compactBms ? laneWidth : laneWidth - 1, fieldHeight);
+                    blit(image, Path.Combine(root, ruleset, dividerImage), x, top, laneWidth, fieldHeight);
                     int noteY = top + 50 + lane * 61 % 420;
                     if (lane % 3 == 1)
                     {
@@ -57,15 +69,31 @@ namespace SkinAuthoring
                     else
                     {
                         blit(image, Path.Combine(root, ruleset, $"note-{role}.png"), x, noteY, laneWidth - 1, 19);
-                        blit(image, Path.Combine(root, ruleset, $"note-{role}.png"), x, noteY + 170, laneWidth - 1, 19);
+                        int repeatedNoteY = compactBms ? Math.Min(noteY + 170, top + fieldHeight - 30) : noteY + 170;
+                        blit(image, Path.Combine(root, ruleset, $"note-{role}.png"), x, repeatedNoteY, laneWidth - 1, 19);
                     }
-                    blit(image, Path.Combine(root, ruleset, $"key-{role}.png"), x, top + 590, laneWidth - 1, 54);
+                    if (compactBms && lane == 0)
+                    {
+                        int diameter = Math.Min(laneWidth - 8, keyHeight - 8);
+                        blit(image, Path.Combine(root, ruleset, "scratch-platter.png"),
+                            x + (laneWidth - diameter) / 2, top + fieldHeight + (keyHeight - diameter) / 2, diameter, diameter);
+                    }
+                    else
+                        blit(image, Path.Combine(root, ruleset, $"key-{role}.png"), x, top + fieldHeight, laneWidth - 1, keyHeight);
                 }
                 for (int bar = 0; bar < 4; bar++)
-                    blit(image, Path.Combine(root, ruleset, "bar.png"), panel, top + 100 + bar * 140, stageWidth, 16);
-                blit(image, Path.Combine(root, ruleset, "target.png"), panel, top + 581, stageWidth, 26);
+                    blit(image, Path.Combine(root, ruleset, "bar.png"), panel, compactBms ? top + 70 + bar * (fieldHeight - 90) / 4 : top + 100 + bar * 140, stageWidth, 16);
+                blit(image, Path.Combine(root, ruleset, "target.png"), panel, top + fieldHeight - 9, stageWidth, 26);
                 blit(image, Path.Combine(root, ruleset, "frame.png"), panel - 6, top, stageWidth + 12, 660);
-                blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, 922, stageWidth * 3 / 4, 12);
+                if (compactBms)
+                {
+                    const int gaugeTop = 896;
+                    const int gaugeHeight = 34;
+                    rect(image, panel, gaugeTop, stageWidth, gaugeHeight, new Rgba32(8, 11, 15));
+                    blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, gaugeTop, stageWidth * 3 / 4, gaugeHeight);
+                }
+                else
+                    blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, 922, stageWidth * 3 / 4, 12);
                 text(image, "PERFECT", panel + stageWidth / 2 - 70, 675, 3, new Rgba32(243, 247, 255));
                 text(image, "128", panel + stageWidth / 2 - 27, 720, 3, new Rgba32(243, 247, 255));
                 if (!profile.Complex)

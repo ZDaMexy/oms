@@ -55,6 +55,28 @@ namespace SkinAuthoring
                 foreach (string name in new[] { "lane", "divider", "target", "bar", "cover", "stage", "frame", "backdrop", "plate", "mine", "hud", "gauge", "flash", "explosion", "turntable", "laser", "viewport" })
                     draw(Path.Combine(assets, name + ".png"), name == "mine" ? 128 : 256, name is "target" or "bar" or "divider" ? 32 : 256,
                         (x, y, w, h) => surface(x, y, w, h, name, accent, background, highlight, profile.Complex));
+
+                if (profile.CompactLayout && ruleset == "bms")
+                {
+                    // These are authored image files, stretched into exact lane rectangles by the public renderer.
+                    // The scratch lane is 1.5 times wider, so its edge artwork uses two thirds of the normal width.
+                    foreach (string role in new[] { "white", "accent", "scratch" })
+                        draw(Path.Combine(assets, $"lane-{role}.png"), 256, 32, (_, _, _, _) => role switch
+                        {
+                            "white" => new Rgba32(25, 27, 31),
+                            _ => new Rgba32(8, 10, 13),
+                        });
+                    foreach (bool scratch in new[] { false, true })
+                        draw(Path.Combine(assets, scratch ? "divider-scratch.png" : "divider.png"), 256, 32,
+                            (x, _, _, _) => x < (scratch ? 7 : 10) ? new Rgba32(102, 109, 118) : default);
+                    draw(Path.Combine(assets, "target.png"), 256, 32, (_, y, _, _) =>
+                        y is >= 15 and <= 23 ? new Rgba32(255, 36, 54)
+                        : y is >= 9 and < 15 ? new Rgba32(57, 217, 229, 130) : default);
+                    draw(Path.Combine(assets, "frame.png"), 256, 256, (x, _, w, _) =>
+                        x < 3 || x >= w - 3 ? new Rgba32(93, 104, 116) : default);
+                    draw(Path.Combine(assets, "stage.png"), 256, 256, (_, y, _, h) =>
+                        y < h * 0.70 ? new Rgba32(12, 15, 19) : new Rgba32(22, 27, 34));
+                }
             }
 
             Directory.CreateDirectory(Path.Combine(root, "scene"));
@@ -299,7 +321,7 @@ namespace SkinAuthoring
                 foreach (string lane in lanes)
                 {
                     string role = lane.StartsWith('S') ? "scratch" : int.Parse(lane) % 2 == 0 ? "accent" : "white";
-                    appendLegacyNote(ini, lane, role, "bms");
+                    appendLegacyNote(ini, lane, role, "bms", profile.CompactLayout);
                 }
                 ini.AppendLine();
             }
@@ -342,6 +364,15 @@ namespace SkinAuthoring
                             continue;
                         string operation = !profile.Complex && quiet_slots.Contains(slot.Id, StringComparer.Ordinal) ? "Suppress"
                             : $"Provide \"{layout.Ruleset}/{asset(slot.Id, role)}\"";
+                        if (profile.CompactLayout && layout.Ruleset == "bms")
+                        {
+                            if (slot.Id == "playfield.lane-surface")
+                                operation = $"Provide \"bms/lane-{role}\"";
+                            if (slot.Id == "playfield.lane-divider" && role == "scratch")
+                                operation = "Provide \"bms/divider-scratch\"";
+                            if (slot.Id == "playfield.key" && role == "scratch")
+                                operation = "Provide \"bms/scratch-platter\"";
+                        }
                         // The ordinary mania compatibility fields carry separate released/pressed images.
                         // A single public texture deliberately cannot invent a second image from its filename.
                         if (layout.Ruleset == "mania" && slot.Id == "playfield.key")
@@ -376,11 +407,12 @@ namespace SkinAuthoring
             entries.AppendLine(entry);
         }
 
-        private static void appendLegacyNote(StringBuilder ini, string lane, string role, string ruleset)
+        private static void appendLegacyNote(StringBuilder ini, string lane, string role, string ruleset, bool compact = false)
         {
             foreach ((string suffix, string part) in new[] { ("", "note"), ("H", "head"), ("L", "body"), ("T", "tail") })
                 ini.AppendLine($"NoteImage{lane}{suffix}: {ruleset}/{part}-{role}");
-            ini.AppendLine($"KeyImage{lane}: {ruleset}/key-{role}").AppendLine($"KeyImage{lane}D: {ruleset}/pressed-{role}");
+            ini.AppendLine($"KeyImage{lane}: {ruleset}/{(compact && role == "scratch" ? "scratch-platter" : "key-" + role)}")
+               .AppendLine($"KeyImage{lane}D: {ruleset}/pressed-{role}");
         }
 
         private static string asset(string id, string role) => id switch
