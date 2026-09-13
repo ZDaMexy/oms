@@ -680,24 +680,6 @@
                 "resource": "texture.white"
               },
               {
-                "id": "still.bms-hud.author-well",
-                "type": "sprite",
-                "target": {
-                  "kind": "global"
-                },
-                "blend": "alpha",
-                "properties": {
-                  "x": 0.695,
-                  "y": 0.16,
-                  "width": 0.18,
-                  "height": 0.67,
-                  "colour": "#152632ff"
-                },
-                "effects": [],
-                "children": [],
-                "resource": "texture.white"
-              },
-              {
                 "id": "still.bms-hud.author-rule",
                 "type": "sprite",
                 "target": {
@@ -1211,24 +1193,6 @@
                 "effects": [],
                 "children": [],
                 "resource": "texture.instrument"
-              },
-              {
-                "id": "still.bms-hud.bpm-well",
-                "type": "sprite",
-                "target": {
-                  "kind": "global"
-                },
-                "blend": "alpha",
-                "properties": {
-                  "x": 0.335,
-                  "y": 0.13,
-                  "width": 0.33,
-                  "height": 0.57,
-                  "colour": "#101d26ff"
-                },
-                "effects": [],
-                "children": [],
-                "resource": "texture.white"
               },
               {
                 "id": "still.bms-hud.bpm-rule",

@@ -68,7 +68,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 bool isScratch = allScratchLaneIndices.Contains(i);
 
                 laneIsScratch[i] = isScratch;
-                laneWidths[i] = profile.GetRelativeLaneWidth(isScratch);
+                // Physical key order is independent of presentation order and note tint (7K key 4 may be yellow).
+                int keyIndexInDeck = keymode == BmsKeymode.Key14K ? keyOrdinal % 7 : keyOrdinal;
+                bool isBlack = !isScratch && (keymode is BmsKeymode.Key5K or BmsKeymode.Key7K or BmsKeymode.Key14K)
+                               && keyIndexInDeck % 2 == 1;
+                laneWidths[i] = profile.GetRelativeLaneWidth(isScratch, isBlack);
                 laneActions[i] = isScratch ? BmsActionExtensions.GetScratchAction(scratchOrdinal++) : BmsActionExtensions.GetKeyAction(keyOrdinal++);
             }
 
@@ -137,6 +141,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 : new BmsGameplayLayoutConfiguration
                 {
                     NormalLaneRelativeWidth = profile.NormalLaneRelativeWidth,
+                    BlackLaneRelativeWidth = profile.BlackLaneRelativeWidth,
                     ScratchLaneRelativeWidth = profile.ScratchLaneRelativeWidth,
                     NormalLaneRelativeSpacing = profile.NormalLaneRelativeSpacing,
                     ScratchLaneRelativeSpacing = profile.ScratchLaneRelativeSpacing,

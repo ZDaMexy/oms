@@ -37,7 +37,7 @@ namespace SkinAuthoring
                     {
                         draw(Path.Combine(assets, $"{part}-{role}.png"), 128, part == "body" ? 128 : part is "key" or "pressed" ? 72 : 24,
                             (x, y, w, h) => profile.CompactLayout && ruleset == "bms" && part is "note" or "head" or "tail"
-                                ? arcadeNote(x, y, w, roleColour)
+                                ? arcadeNote(x, y, w, roleColour, role == "scratch" ? 2 : role == "accent" ? 4 : 3)
                                 : note(x, y, w, h, part, roleColour, background, profile.Complex, 0));
                         if (profile.Complex && part is "note" or "head" or "body" or "tail")
                             for (int frame = 0; frame < 12; frame++)
@@ -61,16 +61,16 @@ namespace SkinAuthoring
                 if (profile.CompactLayout && ruleset == "bms")
                 {
                     // These are authored image files, stretched into exact lane rectangles by the public renderer.
-                    // The scratch lane is 1.5 times wider, so its edge artwork uses two thirds of the normal width.
+                    // Compensate the white / black / scratch widths so separator lines have similar screen thickness.
                     foreach (string role in new[] { "white", "accent", "scratch" })
                         draw(Path.Combine(assets, $"lane-{role}.png"), 256, 32, (_, _, _, _) => role switch
                         {
                             "white" => new Rgba32(25, 27, 31),
                             _ => new Rgba32(8, 10, 13),
                         });
-                    foreach (bool scratch in new[] { false, true })
-                        draw(Path.Combine(assets, scratch ? "divider-scratch.png" : "divider.png"), 256, 32,
-                            (x, _, _, _) => x < (scratch ? 7 : 10) ? new Rgba32(102, 109, 118) : default);
+                    foreach ((string name, int edge) in new[] { ("divider", 10), ("divider-accent", 13), ("divider-scratch", 6) })
+                        draw(Path.Combine(assets, name + ".png"), 256, 32,
+                            (x, _, _, _) => x < edge ? new Rgba32(102, 109, 118) : default);
                     draw(Path.Combine(assets, "target.png"), 256, 32, (_, y, _, _) =>
                         y is >= 15 and <= 23 ? new Rgba32(255, 36, 54)
                         : y is >= 9 and < 15 ? new Rgba32(57, 217, 229, 130) : default);
@@ -238,10 +238,10 @@ namespace SkinAuthoring
             image.SaveAsPng(path);
         }
 
-        private static Rgba32 arcadeNote(int x, int y, int w, Rgba32 accent)
+        private static Rgba32 arcadeNote(int x, int y, int w, Rgba32 accent, int inset)
         {
             // Preserve the previous lower visible edge at row 21: thinner artwork must not shift the landing edge.
-            if (x < 3 || x >= w - 3 || y < 12 || y > 21)
+            if (x < inset || x >= w - inset || y < 12 || y > 21)
                 return default;
             double bevel = y switch
             {
@@ -256,7 +256,7 @@ namespace SkinAuthoring
                 20 => 0.38,
                 _ => 0.20,
             };
-            double reflection = 0.82 + 0.18 * Math.Sin(Math.PI * (x - 3) / (w - 6));
+            double reflection = 0.82 + 0.18 * Math.Sin(Math.PI * (x - inset) / (w - 2 * inset));
             if (x is >= 20 and <= 25 || x >= w - 26 && x <= w - 21)
                 reflection = 1.10;
             return tint(accent, bevel * reflection);
@@ -421,15 +421,21 @@ namespace SkinAuthoring
                 ini.AppendLine("[Bms]").AppendLine($"Keymode: {mode}")
                     .AppendLine($"PlayfieldHeight: {(profile.CompactLayout ? "0.70" : profile.Complex ? "0.90" : "0.92")}")
                     .AppendLine($"PlayfieldWidth: {(profile.CompactLayout ? (keys == 14 ? "0.54" : keys == 9 ? "0.30" : keys == 7 ? "0.25" : "0.21") : (keys == 14 ? "0.66" : keys == 9 ? "0.4455" : keys == 7 ? "0.396" : "0.33"))}")
-                    .AppendLine("NormalLaneWidth: 1").AppendLine("ScratchLaneWidth: 1.5").AppendLine("ScratchLaneSpacing: 0.12")
+                    .AppendLine("NormalLaneWidth: 1")
+                    .AppendLine($"ScratchLaneWidth: {(profile.CompactLayout && keys != 9 ? "1.7037037" : "1.5")}")
+                    .AppendLine($"ScratchLaneSpacing: {(profile.CompactLayout && keys != 9 ? "0" : "0.12")}")
                     .AppendLine($"LongNoteBodyWidth: {(profile.Complex ? "0.65" : "0.60")}").AppendLine("BarLineHeight: 2");
+                if (profile.CompactLayout && keys != 9)
+                    ini.AppendLine("BlackLaneWidth: 0.7777778");
                 if (profile.CompactLayout)
                     ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45").AppendLine("BgaInformationHeight: 0.18");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)
                 {
-                    string role = lane.StartsWith('S') ? "scratch" : int.Parse(lane) % 2 == 0 ? "accent" : "white";
+                    int key = lane.StartsWith('S') ? 0 : int.Parse(lane);
+                    if (keys == 14 && key > 7) key -= 7;
+                    string role = lane.StartsWith('S') ? "scratch" : key % 2 == 0 ? "accent" : "white";
                     appendLegacyNote(ini, lane, role, "bms", profile.CompactLayout);
                 }
                 ini.AppendLine();
@@ -487,6 +493,8 @@ namespace SkinAuthoring
                                 operation = $"Provide \"bms/lane-{role}\"";
                             if (slot.Id == "playfield.lane-divider" && role == "scratch")
                                 operation = "Provide \"bms/divider-scratch\"";
+                            if (slot.Id == "playfield.lane-divider" && role == "accent" && !layout.Keymode.StartsWith("9k", StringComparison.Ordinal))
+                                operation = "Provide \"bms/divider-accent\"";
                             if (slot.Id == "playfield.key" && role == "scratch")
                                 operation = "Provide \"bms/scratch-platter\"";
                         }
@@ -576,7 +584,8 @@ namespace SkinAuthoring
                         int group = keys == 14 && index >= 8 ? 1 : 0;
                         int visual = right ? index == 0 ? total - 1 : index - 1 : index;
                         int key = keys == 9 ? index + 1 : index;
-                        string role = scratch ? "scratch" : key % 2 == 0 ? "accent" : "white";
+                        int deckKey = keys == 14 && key > 7 ? key - 7 : key;
+                        string role = scratch ? "scratch" : deckKey % 2 == 0 ? "accent" : "white";
                         lanes.Add(new Lane(group, index, visual, index - group * 8, visual - group * 8,
                             scratch ? $"bms.lane.scratch-{(index == 15 ? 2 : 1)}" : $"bms.lane.key-{key}", role));
                     }
@@ -891,7 +900,6 @@ namespace SkinAuthoring
             {
                 region("song",
                     inset("song-accent", 0.023, 0.15, 0.003, 0.68, cyan),
-                    inset("author-well", 0.695, 0.16, 0.18, 0.67, "#152632ff"),
                     inset("author-rule", 0.695, 0.16, 0.18, 0.012, "#45616fff"),
                     text("table-classification", "", 0.04, 0.09, 0.63, 0.21, 14, cyan, source: "song.table-classification"),
                     text("title", "", 0.04, 0.29, 0.63, 0.35, 24, source: "song.title"),
@@ -901,7 +909,6 @@ namespace SkinAuthoring
                     text("level", "", 0.81, 0.51, 0.05, 0.28, 18, ink, "right", "song.level")),
                 region("judgements", judgements.ToArray()),
                 region("tempo",
-                    inset("bpm-well", 0.335, 0.13, 0.33, 0.57, "#101d26ff"),
                     inset("bpm-rule", 0.38, 0.70, 0.24, 0.012, cyan),
                     inset("min-divider", 0.30, 0.30, 0.0015, 0.33, "#45616fff"),
                     inset("max-divider", 0.70, 0.30, 0.0015, 0.33, "#45616fff"),

@@ -388,7 +388,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsGameplayLayoutLane exactLane = lane.LayoutSnapshotLane!;
                 GameplaySkinResolvedMaterialTarget target = lane.HitTarget.ResolvedMaterialKey.Target;
                 bool selected = authoredScratch1 && target.LaneId!.Value == "bms.lane.scratch-1";
-                string role = exactLane.IsScratch ? "scratch" : exactLane.LogicalIndex % 2 == 0 ? "accent" : "white";
+                int keyInDeck = exactLane.LogicalIndex > 7 ? exactLane.LogicalIndex - 7 : exactLane.LogicalIndex;
+                string role = exactLane.IsScratch ? "scratch" : keyInDeck % 2 == 0 ? "accent" : "white";
                 Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.Alpha, Is.Zero);
                 Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.Alpha, Is.Zero);
                 Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
@@ -396,7 +397,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.ChildrenOfType<CustomLanePartDisplay>().Single().Element,
                     Is.EqualTo(BmsLaneSkinElements.Divider));
                 assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target), selected, selected ? "notes/author" : $"bms/lane-{role}");
-                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, target), selected, selected ? "notes/author" : exactLane.IsScratch ? "bms/divider-scratch" : "bms/divider");
+                assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneDivider, target), selected,
+                    selected ? "notes/author" : role == "scratch" ? "bms/divider-scratch" : role == "accent" ? "bms/divider-accent" : "bms/divider");
                 assertPackagedSemanticSurface(scene, new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.HitTarget, target), selected, selected ? "notes/author" : "bms/target");
                 Assert.That(lane.HitTarget.GameplaySkinHitTargetFallbackVisual!.Alpha, Is.Zero);
                 Assert.That(lane.HitTarget.GameplaySkinJudgementLineFallbackVisual!.Alpha, Is.Zero);

@@ -42,3 +42,5 @@
 [图14演奏信息实际截图](14-simple-information-runtime.png)为2026-09-13当前内置源的真实desktop合成7K捕获，SHA256 `7d53f582b082f4103972f34134176540a44e03f61812702362e944fd7874e54c`。显示真实PG=12、EX SCORE=24、HiSpeed=8.00、MIN/当前/MAX=120/138/172、曲名/作者/ANOTHER/LEVEL12以及缩短键帽。难度等级已避开全局设置按钮，判定统计面板收窄。保留无BGA媒体和测试边栏的原始像素，不代表完整歌曲或整体视觉签收，见[本轮记录](../../SKIN_SIMPLE_INFORMATION_20260913.md)。
 
 [图16难度表信息实际截图](16-simple-table-information-runtime.png)为图15后实际desktop PlayerLoader捕获，SHA256 `ecaeae9e7181fb7865be25dd97ddff8be881a2aeff1b4788cbc4aa4ce11aced1`。合成谱保存两项演示归类，实际显示Satellite sl4 / 発狂BMS ★8，与作者ANOTHER/CHART LV12独立；统计及BPM仪表细化。仍保留测试边栏、无BGA媒体的原始像素，不代签用户完整歌曲。
+
+[图17轨宽与底板修正实际截图](17-simple-lane-proportions-runtime.png)为后续真实desktop捕获，SHA256 `b3730ff42153893c2c46c8d652f719611cdb8ee5d519e67e0a0cb58b6359399d`。白/黑/皿轨按图04测量、图05交叉核对的约54:42:92调整，去除独立皿旁间隔并补偿素材边缘；作者标级和当前BPM恢复一致底色。合成7K、无BGA媒体及测试边栏的限制不变，详见[测量与验证](../../SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。

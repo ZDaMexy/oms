@@ -284,6 +284,54 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.CenterRightScratch, 0, "7K", "S")]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 15, "14K", "S2")]
+        public void TestScratchNoteAndHoldCapsFillTheirExactRenderedLane(
+            BmsKeymode keymode, BmsPlayfieldStyle style, int logicalLane, string keymodeName, string suffix)
+        {
+            importAndSelect("scratch rendered width", () => createOskWithDeclarations(keymodeName,
+                new[]
+                {
+                    (Key: "NoteImage" + suffix, Resource: "notes/scratch-width"),
+                    (Key: "NoteImage" + suffix + "H", Resource: "notes/scratch-width"),
+                    (Key: "NoteImage" + suffix + "T", Resource: "notes/scratch-width"),
+                }, ("notes/scratch-width.png", createPng(31, 7, new Rgba32(250, 100, 110, 255)))));
+            ExactManagedPackageRenderer renderer = null!;
+            AddStep("mount actual scratch lane with note and hold", () =>
+                renderer = mountExactProductionRenderer(keymode, style, includeScratchHold: true));
+            var observed = new HashSet<BmsNoteSkinElements>();
+            AddUntilStep("each actual scratch component loads and fills its lane during its own lifetime", () =>
+            {
+                if (!renderer.HasExactPublication)
+                    return false;
+                BmsLane lane = renderer.Drawable.ChildrenOfType<BmsLane>().Single(candidate => candidate.LaneIndex == logicalLane);
+                if (lane.DrawWidth <= 0)
+                    return false;
+                Assert.That(lane.IsScratch, Is.True);
+                foreach (BmsAsyncNoteDrawable host in scratchHosts())
+                {
+                    if (host.Drawable is not BmsSourceBoundNoteDrawable { IsLoaded: true } || host.DrawWidth <= 0)
+                        continue;
+                    Sprite sprite = host.Drawable.ChildrenOfType<Sprite>().Single();
+                    if (sprite.Texture?.Width != 31 || sprite.DrawWidth <= 0)
+                        continue;
+                    Assert.That(host.Lookup.LaneId, Is.EqualTo(lane.LayoutSnapshotLane!.LaneId));
+                    Assert.That(host.Lookup.LayoutSnapshot, Is.SameAs(renderer.Drawable.LayoutSnapshot));
+                    Assert.That(host.DrawWidth, Is.EqualTo(lane.DrawWidth).Within(0.01), host.Lookup.Element.ToString());
+                    Assert.That(host.Drawable.DrawWidth, Is.EqualTo(lane.DrawWidth).Within(0.01), host.Lookup.Element.ToString());
+                    Assert.That(sprite.Texture.Height, Is.EqualTo(7));
+                    Assert.That(sprite.DrawWidth, Is.EqualTo(lane.DrawWidth).Within(0.01), host.Lookup.Element.ToString());
+                    observed.Add(host.Lookup.Element);
+                }
+                return observed.SetEquals(new[] { BmsNoteSkinElements.Note, BmsNoteSkinElements.LongNoteHead, BmsNoteSkinElements.LongNoteTail });
+            });
+
+            BmsAsyncNoteDrawable[] scratchHosts() => renderer.Drawable.ChildrenOfType<BmsAsyncNoteDrawable>()
+                .Where(host => host.Lookup.LaneIndex == logicalLane
+                    && host.Lookup.Element is BmsNoteSkinElements.Note or BmsNoteSkinElements.LongNoteHead or BmsNoteSkinElements.LongNoteTail)
+                .ToArray();
+        }
+
         [Test]
         public void TestManagedOskStaticNativeBmsLongNoteHeadImageProvidesSourceBoundSprite()
         {
@@ -2313,10 +2361,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 lane.LaneId,
                 layout));
 
-        private ExactManagedPackageRenderer mountExactProductionRenderer(BmsKeymode keymode, BmsPlayfieldStyle style)
+        private ExactManagedPackageRenderer mountExactProductionRenderer(BmsKeymode keymode, BmsPlayfieldStyle style, bool includeScratchHold = false)
         {
             var ruleset = new BmsRuleset();
-            BmsBeatmap beatmap = createExactProductionBeatmap(ruleset, keymode);
+            BmsBeatmap beatmap = createExactProductionBeatmap(ruleset, keymode, includeScratchHold);
             var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset)!;
             config.SetValue(BmsRulesetSetting.PlayfieldStyle, style);
 
@@ -2394,7 +2442,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
-        private BmsBeatmap createExactProductionBeatmap(BmsRuleset ruleset, BmsKeymode keymode)
+        private BmsBeatmap createExactProductionBeatmap(BmsRuleset ruleset, BmsKeymode keymode, bool includeScratchHold = false)
         {
             (string filename, int[] channels) = keymode switch
             {
@@ -2411,8 +2459,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             string channelData = string.Join("\n", channels.Select(channel => $"#001{channel:X2}:0100"));
             string text = $"#TITLE Exact managed candidate\n#BPM 120\n#WAV01 note.wav\n{channelData}\n";
+            if (includeScratchHold)
+                text += keymode == BmsKeymode.Key14K ? "#00166:00010001\n" : "#00156:00010001\n";
             var decoded = new BmsBeatmapDecoder().DecodeText(text, filename);
             var beatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decoded), ruleset).Convert();
+
+            if (includeScratchHold)
+                Assert.That(beatmap.HitObjects.OfType<BmsHoldNote>().Single().Duration, Is.EqualTo(1_000));
 
             // The visual test clock is shared across parameterised cases, while decoded BMS times start at zero.
             // Move this test-owned chart as one immutable timeline so its real pooled drawables enter their normal
@@ -2423,6 +2476,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             foreach (BmsHitObject hitObject in beatmap.HitObjects.OfType<BmsHitObject>())
                 hitObject.StartTime += timelineOffset;
 
+            // BmsHoldNote.EndTime is StartTime + Duration: shifting StartTime already moves both caps.
+            // Shifting EndTime again would stretch the hold and move its tail outside this observation window.
             Assert.That(beatmap.BmsInfo.Keymode, Is.EqualTo(keymode));
             return beatmap;
         }

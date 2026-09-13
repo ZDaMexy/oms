@@ -1,9 +1,9 @@
 {
-    "ExecutedUtc":  "2026-09-13T06:18:33.2564653Z",
-    "ToolSha256":  "18b17ea6a1281ef6b30ad35969bf2aa90bb262c5fe3fe65ee058f28bb991c412",
-    "ToolAssemblySha256":  "ea8f44c3a5d3080c0e9462c3568805f24967d950b70f3280b51182f3716634e5",
-    "EngineAssemblySha256":  "cde3a4dcc601eacdee4ca3bed2ef85d4760c71da01e684c1458ac79d4b858fef",
-    "EvidenceDirectory":  "F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90",
+    "ExecutedUtc":  "2026-09-13T06:51:34.8670132Z",
+    "ToolSha256":  "d62a2586d94424ad42be0296464cfc1d72ea2c15139d5cf8566667653f041795",
+    "ToolAssemblySha256":  "f2451ff5404d2691a7da1e2c4a8d98d68a02eb4bc1c75b157fdc0a48b7084b90",
+    "EngineAssemblySha256":  "b008e7851fd0bbe57e357423b0269f3bf06ff80d33339dded919aecb1461dc02",
+    "EvidenceDirectory":  "F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3",
     "Results":  [
                     {
                         "Case":  "oms-simple valid",
@@ -13,12 +13,12 @@
                     {
                         "Case":  "oms-simple pack first",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\oms-simple-a.osk\r\nSHA256 30a7026d966e6093f82ae7b1df90306ffdd8951f98c1805c759feb18e8c57611"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\oms-simple-a.osk\r\nSHA256 397f255da21b007ed53bdb5d3d5f87030d7437fb88591901d5e6f08b58e37240"
                     },
                     {
                         "Case":  "oms-simple pack repeated",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\oms-simple-b.osk\r\nSHA256 30a7026d966e6093f82ae7b1df90306ffdd8951f98c1805c759feb18e8c57611"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\oms-simple-b.osk\r\nSHA256 397f255da21b007ed53bdb5d3d5f87030d7437fb88591901d5e6f08b58e37240"
                     },
                     {
                         "Case":  "oms-simple regenerate artwork from author profile",
@@ -28,7 +28,7 @@
                     {
                         "Case":  "oms-simple pack regenerated artwork",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\oms-simple-regenerated.osk\r\nSHA256 30a7026d966e6093f82ae7b1df90306ffdd8951f98c1805c759feb18e8c57611"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\oms-simple-regenerated.osk\r\nSHA256 397f255da21b007ed53bdb5d3d5f87030d7437fb88591901d5e6f08b58e37240"
                     },
                     {
                         "Case":  "aurora-study valid",
@@ -38,12 +38,12 @@
                     {
                         "Case":  "aurora-study pack first",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\aurora-study-a.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\aurora-study-a.osk\r\nSHA256 d00a74269279c5518462ca6bfe58cc326fa4d247ec67dccb6b5570589c5e87e2"
                     },
                     {
                         "Case":  "aurora-study pack repeated",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\aurora-study-b.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\aurora-study-b.osk\r\nSHA256 d00a74269279c5518462ca6bfe58cc326fa4d247ec67dccb6b5570589c5e87e2"
                     },
                     {
                         "Case":  "aurora-study regenerate artwork from author profile",
@@ -53,12 +53,12 @@
                     {
                         "Case":  "aurora-study pack regenerated artwork",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\aurora-study-regenerated.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\aurora-study-regenerated.osk\r\nSHA256 d00a74269279c5518462ca6bfe58cc326fa4d247ec67dccb6b5570589c5e87e2"
                     },
                     {
                         "Case":  "new author profile uses reproducible LF text",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\new-author-lf"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n新作品已准备：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\new-author-lf"
                     },
                     {
                         "Case":  "invalid PNG rejected",
@@ -78,7 +78,7 @@
                     {
                         "Case":  "prepare previous package",
                         "ExitCode":  0,
-                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-269c4d2961224e3a9531f3784371ed90\\preserved.osk\r\nSHA256 41423315ea80fe6df33cd93f6fcc882c569d4b6a1eb34a3b360f04ec5b626215"
+                        "Output":  "文件、公开设置、图片与演出语法检查通过。导入后仍需核对实际游玩画面与不同键数。\r\n已打包：F:\\oms\\skin-authoring\\work\\verification-b14ae0f6d6b8453385bbc62433c38eb3\\preserved.osk\r\nSHA256 d00a74269279c5518462ca6bfe58cc326fa4d247ec67dccb6b5570589c5e87e2"
                     },
                     {
                         "Case":  "unfinished output preserved",

@@ -51,6 +51,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     var exact = lane.LayoutSnapshotLane!;
                     int key = keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms ? exact.LogicalIndex + 1 : exact.LogicalIndex;
+                    if (keymode == BmsKeymode.Key14K && key > 7)
+                        key -= 7;
                     string role = exact.IsScratch ? "scratch" : key % 2 == 0 ? "accent" : "white";
                     GameplaySkinResolvedMaterialTarget target = lane.HitTarget.ResolvedMaterialKey.Target;
                     var surface = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target);
@@ -58,7 +60,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(scene.MaterialSet.TryGet(surface, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
                     bool selected = entry!.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage;
                     assertPackagedSemanticSurface(scene, surface, selected, "bms/lane-" + role);
-                    assertPackagedSemanticSurface(scene, divider, selected, exact.IsScratch ? "bms/divider-scratch" : "bms/divider");
+                    string dividerResource = exact.IsScratch ? "bms/divider-scratch"
+                        : role == "accent" && keymode is not (BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms) ? "bms/divider-accent" : "bms/divider";
+                    assertPackagedSemanticSurface(scene, divider, selected, dividerResource);
                     Assert.That(lane.GameplaySkinLaneSurfaceFallbackVisual.Alpha, Is.Zero);
                     Assert.That(lane.GameplaySkinLaneDividerFallbackVisual.Alpha, Is.Zero);
                 }
@@ -73,12 +77,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     "White-key and black-key lanes must have different visible backgrounds.");
                 using Image<Rgba32> divider = readSimpleLaneImage(archive, "bms/divider.png");
                 using Image<Rgba32> scratchDivider = readSimpleLaneImage(archive, "bms/divider-scratch.png");
+                using Image<Rgba32> accentDivider = readSimpleLaneImage(archive, "bms/divider-accent.png");
                 int regularBand = Enumerable.Range(0, divider.Width).Count(x => divider[x, divider.Height / 2].A > 0);
                 int scratchBand = Enumerable.Range(0, scratchDivider.Width).Count(x => scratchDivider[x, scratchDivider.Height / 2].A > 0);
+                int accentBand = Enumerable.Range(0, accentDivider.Width).Count(x => accentDivider[x, accentDivider.Height / 2].A > 0);
                 Assert.That(scratchBand, Is.LessThan(regularBand));
-                Assert.That(scratchBand * 1.5 / scratchDivider.Width,
+                Assert.That(scratchBand * 1.7037037 / scratchDivider.Width,
                     Is.EqualTo((double)regularBand / divider.Width).Within(1.0 / divider.Width),
                     "The wider scratch column must not make its separator visually heavier.");
+                Assert.That(accentBand * 0.7777778 / accentDivider.Width,
+                    Is.EqualTo((double)regularBand / divider.Width).Within(1.0 / divider.Width),
+                    "The narrower black-key column must retain the same visible separator weight.");
             });
             AddStep("leave the simple playfield", () => renderer.Expire());
             AddUntilStep("the simple lane consumers detach", () => renderer.Parent == null);

@@ -86,6 +86,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     public sealed class BmsGameplayLayoutConfiguration
     {
         public float? NormalLaneRelativeWidth { get; init; }
+        public float? BlackLaneRelativeWidth { get; init; }
         public float? ScratchLaneRelativeWidth { get; init; }
         public float? NormalLaneRelativeSpacing { get; init; }
         public float? ScratchLaneRelativeSpacing { get; init; }
@@ -111,6 +112,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             return new BmsGameplayLayoutConfiguration
             {
+                BlackLaneRelativeWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BlackLaneWidth),
                 NormalLaneRelativeWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneWidth, keymode)?.Value,
                 ScratchLaneRelativeWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneWidth, keymode)?.Value,
                 NormalLaneRelativeSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneSpacing, keymode)?.Value,
@@ -186,6 +188,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             var diagnostics = new List<GameplaySkinLayoutDiagnostic>(environment.Diagnostics);
 
             float normalWidth = field(configuration.NormalLaneRelativeWidth, 1f, 0.25f, 4f, "normal-lane-width", diagnostics);
+            float blackWidth = field(configuration.BlackLaneRelativeWidth, normalWidth, 0.25f, 4f, "black-lane-width", diagnostics);
             float scratchWidth = field(configuration.ScratchLaneRelativeWidth, 1.5f, 0.25f, 4f, "scratch-lane-width", diagnostics);
             float normalSpacing = field(configuration.NormalLaneRelativeSpacing, 0f, 0f, 2f, "normal-lane-spacing", diagnostics);
             float scratchSpacing = field(configuration.ScratchLaneRelativeSpacing, 0.12f, 0f, 2f, "scratch-lane-spacing", diagnostics);
@@ -211,7 +214,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 targetBarHeight,
                 targetLineHeight,
                 targetGlow,
-                barLineHeight);
+                barLineHeight,
+                blackWidth);
             BmsLaneLayout laneLayout = BmsLaneLayout.CreateCanonical(keymode, profile, style);
 
             GameplaySkinLayoutRect safe = environment.SafeBounds;

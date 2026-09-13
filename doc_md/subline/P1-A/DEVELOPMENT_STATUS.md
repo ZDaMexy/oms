@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-13（静线实时演奏信息、BGA上下分区与键帽比例；整体视觉仍待签收）
+> 最后更新：2026-09-13（静线黑白/皿轨比例与仪表底色；整体视觉仍待签收）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，实现合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -26,23 +26,25 @@ C2～C6共用exact package+layout+material+scene publication，script及编译�
 
 ## 当前质量打磨（进行中）
 
+图16后撤掉作者标级/BPM突兀色块，校正黑白/皿轨比例、皿旁间隔和音符透明边，修正14K第二侧素材角色；可选BlackLaneWidth缺失时旧包仍等宽。focused185通过；BMS full的5项旧素材预期修正后相关7项复验通过，未改生产逻辑；实际图17、作者检查、最终Release与源/成品内容核对通过。测量、首次失败及范围见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
+
 静线接入实时判定统计、MIN/BPM/MAX、Score/HiSpeed、曲名/难度与缩短键帽；图15后独立显示“表名/表内等级”，与作者标级分开，细化顶栏与仪表。通过公共绑定、Global模板和信息区域实现，正常开发/构建继续自动更新唯一内置源；实际验证及画面边界见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
 
 图12后完善键面/支座、切角血槽/仪表外壳并压暗底板。图13实绘与相关作者包矩阵通过；该素材迭代未重跑上轮full，见[此前记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md#图12之后的控制区外壳迭代)。
 
-图10～11当时补薄音符、大写判定与相邻连击，同源Stage模板将血槽外框/暗亮格/百分比独立排版，GaugeHeight预留高度。该轮BMS full2242 Passed/0 Failed/16 Skipped，core Skin1359 Passed/5 Failed、mania863 Passed/4 Failed，剩余失败逐项匹配冻结基线。实际截图、focused、作者与Release记录见[细节记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。以下为此前迭代。
+图10～11补薄音符、大写判定与相邻连击，同源Stage模板独立排版血槽外框/暗亮格/百分比。此前full、冻结失败身份、截图、作者与Release记录见[细节记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
 
 此前图07～09推动底板、键面、BGA内框、按键/命中光和分立仪表接入普通作者包，mania保留透明背景；`ScratchKeyWidth:2`放大独立转盘，连续键座与长白/短黑键改善控制台。纯纹理gauge完整暗槽/亮图裁切继续供兼容路径使用，当前静线模板见上段。原创金属/转盘原图及提示词保留。LITONE仅作完成度和分区参考，整体质量待签收。
 
 图09当时验证：修正四处旧单图检查；安装准入及后续检查曾失败，独立复验和整组加载/切换均未再出现，不按执行顺序臆断原因。core/mania剩余失败匹配基线，Release与作者检查通过。完整计数、命令、首败及截图边界见[机台记录](../../other/SKIN_SIMPLE_CABINET_20260912.md#按键区与血槽继续打磨)。以下均为此前验证，保留历史身份。
 
-## 最近一次验证
+## 此前单内置与布局验证
 
 已完成：core focused 20/20，BMS 退役记录/用户包保留及真实 simple 双玩法输入 4/4；core Skin full 1343 Passed / 5 Failed、mania full 863 Passed / 4 Failed，失败名称、类别和完整消息经 Compare-FailureBaseline 逐项匹配冻结基线，无新增失败。单内置构建增删/摘要/缺失源 fixture 与独立作者套件正常制作、重复打包、错误拒绝及中断保护通过。BMS 未重跑 full：未改解析、判定或布局执行逻辑，使用上述对应真实路径 relevant 检查。实际独立单内置副本四轮启动、旧 complex 配置迁回 simple、custom root、损坏副本恢复及同包覆盖后正常关闭通过；未扩称已有个人库迁移或视觉签收。证据：artifacts/simple-only-*.log、artifacts/simple-only-baseline.json、artifacts/simple-only-startup-20260912/results.json。 下文为此前运行，保持历史身份。
 
 二次素材打磨已完成本轮自动复验：BMS Release full 2219 Passed / 0 Failed / 15 Skipped（未提供核验备份根），素材与双玩法 focused 263/263；作者完整制作与重复打包、Release 构建通过。按新增图 06 调整 BMS 轨道底色与分隔线、暗底座、红判定线及原创转盘图；未修改运行时生产 C#，mania/complex 作者作品不变。分段血条 scene 试验因未知舞台目标被拒绝，已完全撤回，当前保留连续血条。素材与[作者预览板](../../../skin-authoring/dist/oms-simple-preview.png)不能代替游戏截图；过程与本轮结果见[二次素材打磨](../../other/SKIN_SIMPLE_LAYOUT_20260912.md#二次素材打磨与实机反馈)。以下数字属于此前验证。
 
-此前两款长期内置选择完成当时代码的自动复验：首次直接选择、重启保留、实例复用与安装包恢复 focused 77/77；无需导入的真实 BMS/mania 计分通过；BMS full 的两项旧单内置预期修正后相关 6/6 通过，15 项备份根检查仍跳过。mania 863/867、core Skin 1345/1350，剩余 4/5 项失败与原精确消息一致；Release 成功。完整首败、修复、命令及边界见[双内置验证](../../other/SKIN_BUILTIN_SELECTION_20260912.md)，不代签实际画面。
+此前双内置的选择、重启保留、实例复用、安装恢复及无需导入的BMS/mania计分验证，完整首败、修复、命令与冻结失败身份见[双内置验证](../../other/SKIN_BUILTIN_SELECTION_20260912.md)。该证据只代表退役前代码，不代签当前画面。
 
 上一轮静线布局的 BMS 完整复验 2213 Passed / 0 Failed / 15 Skipped（未提供已核验备份根）；最终包聚焦 67 项通过。mania 863/867、core Skin 1339/1344，四项与五项旧失败的名称、分类及完整消息逐项一致。Release 与作者重复生成/打包通过；完整命令、首败修复、摘要失配中止及边界见[本次验证记录](../../other/SKIN_SIMPLE_LAYOUT_20260912.md)。静线 BMS 落键区高度改为 `0.70`、7K 宽度 `0.25`，独立按键区 `KeyAreaHeight=0.12`，血条紧随其后；信息改用公开 `hud.text` 槽位，BMS 在底部、mania 在顶部，移除重复的额外连击。BGA 增加三个公开布局参数，内容播放不变；作者源、生成包及实际加载已同轮验证，自动结果不能代签实际画面。
 

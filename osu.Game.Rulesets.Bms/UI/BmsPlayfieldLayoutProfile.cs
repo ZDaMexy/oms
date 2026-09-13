@@ -26,6 +26,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public float NormalLaneRelativeWidth { get; }
 
+        public float BlackLaneRelativeWidth { get; }
+
         public float ScratchLaneRelativeWidth { get; }
 
         public float NormalLaneRelativeSpacing { get; }
@@ -62,7 +64,8 @@ namespace osu.Game.Rulesets.Bms.UI
             float hitTargetBarHeight,
             float hitTargetLineHeight,
             float hitTargetGlowRadius,
-            float barLineHeight)
+            float barLineHeight,
+            float? blackLaneRelativeWidth = null)
         {
             if (laneCount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(laneCount), laneCount, "Lane count must be above zero.");
@@ -70,6 +73,7 @@ namespace osu.Game.Rulesets.Bms.UI
             Keymode = keymode;
             LaneCount = laneCount;
             NormalLaneRelativeWidth = normalLaneRelativeWidth;
+            BlackLaneRelativeWidth = blackLaneRelativeWidth ?? normalLaneRelativeWidth;
             ScratchLaneRelativeWidth = scratchLaneRelativeWidth;
             NormalLaneRelativeSpacing = normalLaneRelativeSpacing;
             ScratchLaneRelativeSpacing = scratchLaneRelativeSpacing;
@@ -100,7 +104,8 @@ namespace osu.Game.Rulesets.Bms.UI
             float hitTargetBarHeight,
             float hitTargetLineHeight,
             float hitTargetGlowRadius,
-            float barLineHeight)
+            float barLineHeight,
+            float? blackLaneRelativeWidth = null)
             => new BmsPlayfieldLayoutProfile(
                 keymode,
                 laneCount,
@@ -115,7 +120,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitTargetBarHeight,
                 hitTargetLineHeight,
                 hitTargetGlowRadius,
-                barLineHeight);
+                barLineHeight,
+                blackLaneRelativeWidth);
 
         internal static BmsPlayfieldLayoutProfile CreateDefault(
             BmsKeymode keymode,
@@ -131,7 +137,8 @@ namespace osu.Game.Rulesets.Bms.UI
             float? hitTargetLineHeight = null,
             float? hitTargetGlowRadius = null,
             float? hitTargetVerticalOffset = null,
-            float? barLineHeight = null)
+            float? barLineHeight = null,
+            float? blackLaneRelativeWidth = null)
             => CreateValidated(
                 keymode,
                 laneCount,
@@ -151,9 +158,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitTargetBarHeight: hitTargetBarHeight ?? 12f,
                 hitTargetLineHeight: hitTargetLineHeight ?? 3f,
                 hitTargetGlowRadius: hitTargetGlowRadius ?? 6f,
-                barLineHeight: barLineHeight ?? 2f);
+                barLineHeight: barLineHeight ?? 2f,
+                blackLaneRelativeWidth: blackLaneRelativeWidth);
 
-        public float GetRelativeLaneWidth(bool isScratch) => isScratch ? ScratchLaneRelativeWidth : NormalLaneRelativeWidth;
+        public float GetRelativeLaneWidth(bool isScratch, bool isBlack = false)
+            => isScratch ? ScratchLaneRelativeWidth : isBlack ? BlackLaneRelativeWidth : NormalLaneRelativeWidth;
 
         public float GetRelativeLaneSpacing(bool previousIsScratch, bool currentIsScratch)
             => previousIsScratch || currentIsScratch ? ScratchLaneRelativeSpacing : NormalLaneRelativeSpacing;

@@ -15,6 +15,43 @@ namespace osu.Game.Rulesets.Bms.Tests
     [TestFixture]
     public class BmsGameplayLayoutSolverTest
     {
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, new[] { 2, 4 })]
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P2, new[] { 2, 4 })]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, new[] { 2, 4, 6 })]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, new[] { 2, 4, 6 })]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, new[] { 2, 4, 6, 9, 11, 13 })]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, new int[] { })]
+        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, new int[] { })]
+        public void TestBlackWidthUsesPhysicalKeysWithoutChangingVerticalGeometry(BmsKeymode keymode, BmsPlayfieldStyle style, int[] blackKeys)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(keymode));
+            var baseline = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration());
+            var layout = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration { BlackLaneRelativeWidth = 7f / 9f });
+            foreach (BmsLaneLayout.Lane lane in layout.LaneLayout.Lanes)
+            {
+                float expected = lane.IsScratch ? 1.5f : blackKeys.Contains(lane.LaneIndex) ? 7f / 9f : 1f;
+                Assert.That(lane.RelativeWidth, Is.EqualTo(expected).Within(0.000001), $"Canonical lane {lane.LaneIndex}");
+            }
+            Assert.That(layout.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+            Assert.That(layout.HitTargetRect, Is.EqualTo(baseline.HitTargetRect));
+            Assert.That(layout.LaneCoverRect, Is.EqualTo(baseline.LaneCoverRect));
+            Assert.That(layout.Profile.HitTargetVerticalOffset, Is.EqualTo(baseline.Profile.HitTargetVerticalOffset));
+            Assert.That(layout.LanesInLogicalOrder.Select(lane => lane.Action), Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.Action)));
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(null)]
+        [TestCase(0.24f)]
+        [TestCase(4.01f)]
+        [TestCase(float.NaN)]
+        public void TestMissingOrInvalidBlackWidthUsesResolvedNormalWidth(float? width)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var layout = provider.PublishForTesting(BmsPlayfieldStyle.P2,
+                new BmsGameplayLayoutConfiguration { NormalLaneRelativeWidth = 1.25f, BlackLaneRelativeWidth = width });
+            Assert.That(layout.LaneLayout.Lanes.Where(lane => !lane.IsScratch).Select(lane => lane.RelativeWidth), Is.All.EqualTo(1.25f));
+        }
+
         [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1)]
         [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P2)]
         [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.Center)]

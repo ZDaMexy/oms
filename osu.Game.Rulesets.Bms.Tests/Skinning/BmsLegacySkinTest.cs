@@ -185,6 +185,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestBlackLaneWidthUsesOnlySelectedDeclaration()
+        {
+            using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nBlackLaneWidth: 0.7777778\n");
+            using var selected = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nNormalLaneWidth: 1.25\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, fallback).BlackLaneRelativeWidth, Is.EqualTo(0.7777778f));
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).BlackLaneRelativeWidth, Is.Null);
+            getBmsConfiguration(selected, BmsKeymode.Key7K).Geometry[BmsSkinConfigurationLookups.BlackLaneWidth] = 0.5f;
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).BlackLaneRelativeWidth, Is.Null);
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, fallback).BlackLaneRelativeWidth, Is.Null);
+        }
+
+        [Test]
         public void TestGaugeHeightUsesOnlyAcceptedSelectedPackageDeclaration()
         {
             using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nGaugeHeight: 0.07\n");

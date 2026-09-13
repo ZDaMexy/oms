@@ -129,6 +129,7 @@ effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radiu
 | BgaWidth/BgaHeight | BGA 最大框的安全区宽高比例 0.01..1；指定尺寸后在可用侧区按 4:3 适配。缺省宽为 0.225（14K 为 0.13），高上限 0.30 |
 | BgaVerticalPosition | 单侧单窗在剩余竖直空间中的位置 0..1，0 顶部、0.5 居中、1 底部；14K 上下窗在各半区对称向中间定位，窄屏底窗固定；默认 0 |
 | NormalLaneWidth/ScratchLaneWidth | 普通键/转盘的相对宽度权重 |
+| BlackLaneWidth | 5K/7K/14K每侧第2/4/6键的相对宽度，合法0.25..4，与NormalLaneWidth同单位；只读选定包，缺失/非法沿用已解析普通键宽。9K不应用；不改变键身份或滚动时间 |
 | NormalLaneSpacing/ScratchLaneSpacing | 对应间隔权重 |
 | HitTargetHeight/HitTargetBarHeight/HitTargetLineHeight | 判定区域、条和线的尺寸输入 |
 | HitTargetGlowRadius/BarLineHeight | 判定线辉光半径、小节线厚度 |

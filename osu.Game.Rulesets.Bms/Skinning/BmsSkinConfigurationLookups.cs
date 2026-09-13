@@ -88,5 +88,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
         KeyAreaHeight,
         ScratchKeyWidth,
         GaugeHeight,
+        BlackLaneWidth,
     }
 }

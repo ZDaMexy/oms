@@ -63,6 +63,8 @@
 
 ## 核心 ownership
 
+BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重，缺失/非法回到已解析普通宽度，不继承canonical的新黑键权重。5K/7K/14K按每deck规范键序2/4/6识别黑键，不以palette颜色或当前显示位置识别；9K/PMS不应用。该参数不能改变场高、TimeRange、GN、判定或输入身份。静线参考比例与实际验证见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
+
 演奏曲目信息的 `song.table-classification` 独立于 `song.difficulty/level`（作者难度/标级）。从 PlayerLoader 锁定的原谱 WorkingBeatmap 持久资料只读取得已启用表归类，按既有表序、每表一项，显示“表名 等级标签”，多项以 ` / ` 连接，无归类为空。转换器重建的游玩元数据不能替代该来源；BMS与转谱mania共用读侧，原生mania无表资料即空。该文字沿用256 UTF-16单元及ellipsis预算，DTO保持规则中立，不更改难度表导入、启停或选歌归类合同。
 
 ### 引擎必须拥有
